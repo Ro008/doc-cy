@@ -46,11 +46,11 @@ export function PhoneInput({
         </label>
       )}
       <IntlPhoneInput
-        id={id}
         defaultCountry={defaultCountry}
         value={value}
         onChange={handleChange}
         className="w-full"
+        inputProps={id ? { id } : undefined}
         inputClassName={`w-full rounded-md border px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500 ${
           !isValid ? "border-red-500" : "border-slate-200"
         }`}
