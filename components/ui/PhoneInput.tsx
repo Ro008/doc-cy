@@ -11,7 +11,7 @@ import "react-international-phone/style.css";
 export type PhoneInputProps = {
   value: string;
   onChange: (value: string, isValid: boolean) => void;
-  defaultCountry?: string; // ej: "cy"
+  defaultCountry?: string; // e.g. "cy"
   label?: string;
   id?: string;
 };
@@ -26,7 +26,7 @@ export function PhoneInput({
   const [isValid, setIsValid] = React.useState(true);
 
   const handleChange: IntlPhoneInputProps["onChange"] = (phone, meta) => {
-    // Validación ligera basada en longitud relativa al prefijo
+    // Lightweight validation based on length relative to country dial code
     const digits = phone.replace(/\D/g, "");
     const dialLen = meta.country.dialCode.length;
     const minLen = dialLen + 4; // 4 dígitos locales mínimo
@@ -57,7 +57,7 @@ export function PhoneInput({
       />
       {!isValid && (
         <p className="text-xs text-red-600">
-          Por favor, revisa la longitud del número para el país seleccionado.
+          Please double‑check the phone number length for the selected country.
         </p>
       )}
     </div>

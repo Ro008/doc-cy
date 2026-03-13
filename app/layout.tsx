@@ -9,9 +9,9 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "DocCy: Gestión de citas médicas en Chipre",
+  title: "DocCy: Smart Medical Appointments in Cyprus",
   description:
-    "Plataforma sencilla para que clínicas y doctores en Chipre gestionen sus citas médicas online.",
+    "A simple platform for clinics and doctors in Cyprus to manage their medical appointments online.",
 };
 
 export default function RootLayout({
@@ -20,7 +20,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="es">
+    <html lang="en">
       <body
         className={`${inter.variable} min-h-screen bg-slate-50 text-slate-900 antialiased`}
       >
