@@ -14,6 +14,8 @@ export type PhoneInputProps = {
   defaultCountry?: string; // e.g. "cy"
   label?: string;
   id?: string;
+  /** When true, show validation error only after submit attempt (never on load). */
+  showValidationError?: boolean;
 };
 
 export function PhoneInput({
@@ -22,6 +24,7 @@ export function PhoneInput({
   defaultCountry = "cy",
   label,
   id,
+  showValidationError = false,
 }: PhoneInputProps) {
   const [isValid, setIsValid] = React.useState(true);
 
@@ -55,7 +58,7 @@ export function PhoneInput({
           !isValid ? "border-red-500" : "border-slate-200"
         }`}
       />
-      {!isValid && (
+      {showValidationError && !isValid && (
         <p className="text-xs text-red-600">
           Please double‑check the phone number length for the selected country.
         </p>

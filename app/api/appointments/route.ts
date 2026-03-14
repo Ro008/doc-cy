@@ -3,6 +3,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { CY_TZ } from "@/lib/appointments";
 import { zonedTimeToUtc, utcToZonedTime } from "date-fns-tz";
+import {
+  isTimeWithinSettings,
+  type DoctorSettingsRow,
+} from "@/lib/doctor-settings";
 
 export async function POST(req: NextRequest) {
   let body: unknown;
@@ -61,7 +65,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Verify requested time is within one of the doctor's weekly slots
+  // Verify requested time against doctor_settings (working days + hours)
   const cyLocal = utcToZonedTime(appointmentUtc, CY_TZ);
   const dayOfWeek = cyLocal.getDay(); // 0-6
   const hours = cyLocal.getHours();
@@ -70,23 +74,31 @@ export async function POST(req: NextRequest) {
     .toString()
     .padStart(2, "0")}:00`;
 
-  const { data: slots, error: slotsError } = await supabase
-    .from("slots")
-    .select("id, start_time, end_time")
+  const { data: settings, error: settingsError } = await supabase
+    .from("doctor_settings")
+    .select("*")
     .eq("doctor_id", doctorId)
-    .eq("day_of_week", dayOfWeek);
+    .single();
 
-  if (slotsError) {
-    console.error(slotsError);
+  if (settingsError || !settings) {
+    if ((settingsError as { code?: string })?.code === "PGRST116") {
+      return NextResponse.json(
+        { message: "Doctor has not set availability yet." },
+        { status: 400 }
+      );
+    }
+    console.error(settingsError);
     return NextResponse.json(
       { message: "Error checking availability." },
       { status: 500 }
     );
   }
 
-  const withinSlot = (slots ?? []).some((s) => {
-    return s.start_time <= hhmmss && hhmmss < s.end_time;
-  });
+  const withinSlot = isTimeWithinSettings(
+    settings as DoctorSettingsRow,
+    dayOfWeek,
+    hhmmss
+  );
 
   if (!withinSlot) {
     return NextResponse.json(

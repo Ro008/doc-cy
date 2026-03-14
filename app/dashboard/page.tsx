@@ -1,10 +1,14 @@
 // app/dashboard/page.tsx
+import Link from "next/link";
 import { cookies } from "next/headers";
 import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
 import { format } from "date-fns";
 import { enGB } from "date-fns/locale";
+import { CalendarDays } from "lucide-react";
 import { appointmentToCyprusDate, CY_TZ } from "@/lib/appointments";
 import { utcToZonedTime } from "date-fns-tz";
+import { ScheduleView } from "@/components/dashboard/ScheduleView";
+import type { ScheduleAppointment } from "@/components/dashboard/ScheduleView";
 
 export const revalidate = 0;
 
@@ -25,7 +29,6 @@ function getWhatsAppUrl(phone: string): string | null {
 export default async function DashboardPage() {
   const supabase = createServerComponentClient({ cookies });
 
-  // MVP: single doctor, load all appointments
   const { data: appointments, error } = await supabase
     .from("appointments")
     .select(
@@ -37,27 +40,46 @@ export default async function DashboardPage() {
     console.error(error);
   }
 
-  const rows =
-    (appointments as AppointmentRow[] | null)?.map((a) => {
-      const cyDate = appointmentToCyprusDate(a.appointment_datetime);
-      return {
-        ...a,
-        cyDate,
-        dateLabel: format(cyDate, "EEE d MMM yyyy", { locale: enGB }),
-        timeLabel: format(cyDate, "HH:mm", { locale: enGB }),
-        whatsappUrl: getWhatsAppUrl(a.patient_phone),
-      };
-    }) ?? [];
-
   const nowUtc = new Date();
   const nowCyprus = utcToZonedTime(nowUtc, CY_TZ);
+  const todayKey = format(nowCyprus, "yyyy-MM-dd");
   const nowLabel = format(nowCyprus, "EEE d MMM yyyy, HH:mm", {
     locale: enGB,
   });
 
+  const rows =
+    (appointments as AppointmentRow[] | null)?.map((a) => {
+      const cyDate = appointmentToCyprusDate(a.appointment_datetime);
+      const dateKey = format(cyDate, "yyyy-MM-dd");
+      const hours = cyDate.getHours();
+      const minutes = cyDate.getMinutes();
+      const minutesFrom8 = (hours - 8) * 60 + minutes;
+      return {
+        ...a,
+        cyDate,
+        dateKey,
+        dateLabel: format(cyDate, "EEE d MMM yyyy", { locale: enGB }),
+        timeLabel: format(cyDate, "HH:mm", { locale: enGB }),
+        whatsappUrl: getWhatsAppUrl(a.patient_phone),
+        minutesFrom8: Math.max(0, minutesFrom8),
+        durationMinutes: 30,
+      };
+    }) ?? [];
+
+  const todayRows = rows.filter((r) => r.dateKey === todayKey);
+  const scheduleAppointments: ScheduleAppointment[] = todayRows.map((r) => ({
+    id: r.id,
+    patient_name: r.patient_name,
+    patient_phone: r.patient_phone,
+    patient_email: r.patient_email,
+    whatsappUrl: r.whatsappUrl,
+    timeLabel: r.timeLabel,
+    minutesFrom8: r.minutesFrom8,
+    durationMinutes: r.durationMinutes,
+  }));
+
   return (
     <main className="min-h-screen bg-slate-950 text-slate-50">
-      {/* Background gradient / glow (consistent with app) */}
       <div className="pointer-events-none fixed inset-0 -z-10">
         <div className="absolute inset-x-0 top-[-10%] mx-auto h-80 max-w-xl rounded-full bg-emerald-500/10 blur-3xl" />
         <div className="absolute inset-y-0 left-[-10%] h-full w-64 bg-sky-500/5 blur-3xl" />
@@ -71,139 +93,79 @@ export default async function DashboardPage() {
               Doctor&apos;s Agenda
             </h1>
             <p className="mt-1 text-sm text-slate-300">
-              All appointments in Europe/Nicosia time.
+              Today&apos;s schedule · Europe/Nicosia time
             </p>
           </div>
-          <p className="text-xs text-slate-400">
-            Current time in Cyprus:{" "}
-            <span className="font-mono text-slate-100">{nowLabel}</span>
-          </p>
+          <div className="flex flex-wrap items-center gap-3">
+            <Link
+              href="/dashboard/settings"
+              className="rounded-2xl border border-slate-700/80 bg-slate-900/60 px-4 py-2 text-sm font-medium text-slate-200 backdrop-blur transition hover:border-emerald-400/30 hover:bg-emerald-400/10 hover:text-emerald-200"
+            >
+              Working hours & settings
+            </Link>
+            <p className="text-xs text-slate-400">
+              Cyprus:{" "}
+              <span className="font-mono text-slate-100">{nowLabel}</span>
+            </p>
+          </div>
         </header>
 
         <section className="rounded-3xl border border-emerald-100/10 bg-slate-900/50 shadow-2xl shadow-slate-950/50 backdrop-blur-xl">
-          {rows.length === 0 ? (
-            <div className="px-4 py-8 text-center text-sm text-slate-300 sm:px-6">
-              There are no appointments yet.
+          <div className="border-b border-slate-800/60 px-4 pb-4 pt-4 sm:px-6 sm:pb-5 sm:pt-5">
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="text-sm font-semibold text-slate-200">
+                {format(nowCyprus, "EEEE, d MMMM yyyy", { locale: enGB })}
+              </h2>
+              <span
+                aria-label={`${scheduleAppointments.length} appointment${scheduleAppointments.length === 1 ? "" : "s"} today`}
+                className={`inline-flex shrink-0 items-center rounded-full px-2.5 py-0.5 text-xs font-medium tabular-nums ${
+                  scheduleAppointments.length === 0
+                    ? "bg-slate-700/60 text-slate-400"
+                    : "bg-emerald-400/20 text-emerald-300 ring-1 ring-emerald-400/30"
+                }`}
+              >
+                {scheduleAppointments.length}
+              </span>
             </div>
-          ) : (
-            <>
-              {/* Mobile-first: cards layout */}
-              <div className="divide-y divide-slate-800/80 md:hidden">
-                {rows.map((appt) => (
-                  <div
-                    key={appt.id}
-                    className="flex flex-col gap-3 px-4 py-4 sm:px-5"
-                  >
-                    <div className="flex items-baseline justify-between gap-2">
-                      <div>
-                        <p className="text-sm font-semibold text-slate-50">
-                          {appt.patient_name}
-                        </p>
-                        <p className="mt-0.5 text-xs text-slate-400">
-                          {appt.dateLabel} · {appt.timeLabel}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="text-xs text-slate-300">
-                      <p className="font-medium text-slate-200">
-                        Phone:{" "}
-                        <span className="font-normal">
-                          {appt.patient_phone}
-                        </span>
-                      </p>
-                      {appt.patient_email && (
-                        <p className="mt-0.5">
-                          Email:{" "}
-                          <span className="font-normal">
-                            {appt.patient_email}
-                          </span>
-                        </p>
-                      )}
-                    </div>
-                    <div className="pt-1">
-                      {appt.whatsappUrl ? (
-                        <a
-                          href={appt.whatsappUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex w-full items-center justify-center rounded-2xl bg-emerald-400 px-4 py-2 text-sm font-semibold text-slate-950 shadow-lg shadow-emerald-500/30 transition hover:bg-emerald-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
-                        >
-                          Chat on WhatsApp
-                        </a>
-                      ) : (
-                        <span className="text-xs text-slate-500">
-                          WhatsApp not available
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Desktop / tablet: table layout in glass card */}
-              <div className="hidden md:block">
-                <table className="min-w-full divide-y divide-slate-800/80">
-                  <thead className="bg-slate-900/70">
-                    <tr>
-                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-300">
-                        Patient name
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-300">
-                        Date
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-300">
-                        Time
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-300">
-                        Phone
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-300">
-                        WhatsApp
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-800/70">
-                    {rows.map((appt) => (
-                      <tr
-                        key={appt.id}
-                        className="hover:bg-slate-900/70 transition-colors"
-                      >
-                        <td className="px-4 py-3 text-sm text-slate-50">
-                          {appt.patient_name}
-                        </td>
-                        <td className="whitespace-nowrap px-4 py-3 text-sm text-slate-100">
-                          {appt.dateLabel}
-                        </td>
-                        <td className="whitespace-nowrap px-4 py-3 text-sm text-slate-100">
-                          {appt.timeLabel}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-slate-200">
-                          {appt.patient_phone}
-                        </td>
-                        <td className="px-4 py-3 text-sm">
-                          {appt.whatsappUrl ? (
-                            <a
-                              href={appt.whatsappUrl}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="inline-flex items-center rounded-2xl bg-emerald-400 px-3 py-1.5 text-xs font-semibold text-slate-950 shadow-lg shadow-emerald-500/30 transition hover:bg-emerald-300"
-                            >
-                              Chat on WhatsApp
-                            </a>
-                          ) : (
-                            <span className="text-xs text-slate-500">
-                              Not available
-                            </span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </>
-          )}
+            {scheduleAppointments.length === 0 && (
+              <p className="mt-1 text-xs text-slate-400">No appointments today</p>
+            )}
+          </div>
+          <div className="px-4 pb-4 pt-2 sm:px-6 sm:pb-6 sm:pt-3">
+            <ScheduleView appointments={scheduleAppointments} />
+          </div>
         </section>
+
+        {rows.length > 0 && rows.length > todayRows.length && (
+          <section className="rounded-3xl border border-slate-800/80 bg-slate-900/30 px-4 pb-5 pt-5 sm:px-5 sm:pb-6 sm:pt-6">
+            <h3 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+              <CalendarDays className="h-4 w-4 shrink-0 text-slate-500" aria-hidden />
+              Upcoming on other days
+            </h3>
+            <ul className="mt-4 overflow-hidden rounded-xl border border-slate-800/60">
+              {rows
+                .filter((r) => r.dateKey !== todayKey)
+                .slice(0, 5)
+                .map((r, i) => (
+                  <li
+                    key={r.id}
+                    className={`flex items-center justify-between gap-3 px-4 py-3 text-sm transition hover:bg-slate-800/40 ${
+                      i % 2 === 0
+                        ? "bg-slate-900/50"
+                        : "bg-slate-800/30"
+                    }`}
+                  >
+                    <span className="font-medium text-slate-100">
+                      {r.patient_name}
+                    </span>
+                    <span className="shrink-0 font-mono text-xs text-slate-400">
+                      {r.dateLabel} · {r.timeLabel}
+                    </span>
+                  </li>
+                ))}
+            </ul>
+          </section>
+        )}
       </div>
     </main>
   );

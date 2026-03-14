@@ -19,3 +19,54 @@ button {
   @apply font-medium;
 }
 
+/* React Day Picker – dark theme for booking calendar */
+.rdp-dark {
+  --rdp-cell-size: 36px;
+  --rdp-accent-color: theme("colors.emerald.400");
+  --rdp-background-color: theme("colors.emerald.400 / 0.2");
+  --rdp-accent-color-dark: theme("colors.emerald.400");
+  --rdp-background-color-dark: theme("colors.emerald.400 / 0.15");
+  --rdp-selected-color: theme("colors.slate.950");
+  margin: 0;
+}
+.rdp-dark .rdp-caption {
+  color: theme("colors.slate.200");
+}
+.rdp-dark .rdp-head_cell {
+  color: theme("colors.slate.500");
+}
+.rdp-dark .rdp-day {
+  color: theme("colors.slate.300");
+}
+.rdp-dark .rdp-day[disabled]:not(.rdp-day_selected) {
+  color: theme("colors.slate.600");
+  opacity: 0.5;
+}
+.rdp-dark .rdp-day_selected {
+  background: theme("colors.emerald.400") !important;
+  color: theme("colors.slate.950") !important;
+}
+.rdp-dark .rdp-day_today:not(.rdp-day_selected) {
+  color: theme("colors.emerald.300");
+}
+.rdp-dark .rdp-nav_button {
+  color: theme("colors.slate.400");
+  border-color: theme("colors.slate.700");
+  background: theme("colors.slate.800 / 0.5");
+}
+.rdp-dark .rdp-nav_button:hover {
+  background: theme("colors.slate.700 / 0.5");
+  color: theme("colors.slate.200");
+}
+.rdp-dark .rdp-day_outside {
+  color: theme("colors.slate.600");
+}
+.rdp-dark .rdp-day_available:not(.rdp-day_selected):not([disabled]) {
+  color: theme("colors.slate.200");
+  border: 1px solid theme("colors.emerald.400 / 0.4");
+}
+.rdp-dark .rdp-day_available:not(.rdp-day_selected):not([disabled]):hover {
+  background: theme("colors.emerald.400 / 0.2");
+  color: theme("colors.emerald.200");
+}
+

@@ -14,23 +14,23 @@ export default function HomePage() {
 
       <div className="mx-auto flex min-h-screen max-w-6xl flex-col px-4 py-8 sm:px-6 lg:px-8 lg:py-12">
         {/* Top nav / brand */}
-        <header className="flex items-center justify-between py-2">
+        <header className="flex flex-col gap-3 py-2 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-2">
-            <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-500/90 text-xs font-semibold text-slate-950 shadow-lg shadow-emerald-500/30">
+            <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-emerald-500/90 text-xs font-semibold text-slate-950 shadow-lg shadow-emerald-500/30">
               DC
             </span>
             <div className="flex flex-col leading-tight">
               <span className="text-sm font-semibold tracking-tight">
-                DocCy
+                Doc<span className="text-emerald-400">Cy</span>
               </span>
-              <span className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
-                CYPRUS HEALTH
+              <span className="text-[11px] tracking-[0.2em] text-slate-400">
+                Cyprus Health
               </span>
             </div>
           </div>
 
-          <div className="hidden items-center gap-4 text-xs text-slate-300 sm:flex">
-            <span className="rounded-full bg-slate-900/60 px-3 py-1 backdrop-blur">
+          <div className="flex items-center text-xs text-slate-300 min-w-0">
+            <span className="rounded-full bg-slate-900/60 px-3 py-1.5 backdrop-blur sm:py-1">
               Built for medical practices in Cyprus
             </span>
           </div>
@@ -40,7 +40,7 @@ export default function HomePage() {
         <div className="mt-10 flex flex-1 flex-col gap-10 lg:mt-16 lg:flex-row lg:items-center">
           {/* Hero content */}
           <section className="flex-1">
-            <div className="inline-flex items-center gap-2 rounded-full border border-emerald-400/30 bg-emerald-400/5 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.25em] text-emerald-200/80 backdrop-blur">
+            <div className="inline-flex items-center gap-2 rounded-full border border-emerald-400/30 bg-emerald-400/5 px-3 py-1 text-[11px] font-medium tracking-[0.25em] text-emerald-200/80 backdrop-blur">
               <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400" />
               Smart booking for modern care
             </div>
@@ -53,7 +53,7 @@ export default function HomePage() {
             </h1>
 
             <p className="mt-5 max-w-xl text-sm text-slate-300 sm:text-base">
-              DocCy gives your practice a calm, premium booking experience.
+              Doc<span className="text-emerald-400">Cy</span> gives your practice a calm, premium booking experience.
               Patients choose a time, you get a clean agenda and WhatsApp-ready
               contact details – built for medical practices across Cyprus.
             </p>
@@ -87,9 +87,9 @@ export default function HomePage() {
           <section className="w-full max-w-md rounded-3xl border border-emerald-100/10 bg-slate-900/50 p-5 shadow-2xl shadow-slate-950/50 backdrop-blur-xl lg:p-6">
             <div className="mb-5 flex items-center justify-between gap-3">
               <h2 className="text-sm font-semibold tracking-tight text-slate-100 sm:text-base">
-                How DocCy works
+                How Doc<span className="text-emerald-400">Cy</span> works
               </h2>
-              <span className="rounded-full bg-emerald-500/10 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.2em] text-emerald-200">
+              <span className="rounded-full bg-emerald-500/10 px-3 py-1 text-[11px] font-medium tracking-[0.2em] text-emerald-200">
                 3 simple steps
               </span>
             </div>
@@ -124,7 +124,7 @@ export default function HomePage() {
                     2. Pick a time
                   </p>
                   <p className="mt-1 text-[13px] text-slate-400">
-                    DocCy shows only free, local-time slots so your agenda stays
+                    Doc<span className="text-emerald-400">Cy</span> shows only free, local-time slots so your agenda stays
                     structured and double-booking free.
                   </p>
                 </div>
@@ -154,7 +154,7 @@ export default function HomePage() {
             {/* Small footer tag */}
             <div className="mt-5 border-t border-slate-800/80 pt-4">
               <p className="text-[11px] text-slate-500">
-                DocCy is built for{" "}
+                Doc<span className="text-emerald-400">Cy</span> is built for{" "}
                 <span className="font-medium text-slate-200">
                   clinics and medical practices in Cyprus
                 </span>{" "}
