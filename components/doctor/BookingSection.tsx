@@ -415,8 +415,7 @@ export function BookingSection({
               nav_button_previous: "rounded-lg border border-slate-700 bg-slate-800/50 p-2 text-slate-300 hover:bg-slate-700/50",
               nav_button_next: "rounded-lg border border-slate-700 bg-slate-800/50 p-2 text-slate-300 hover:bg-slate-700/50",
               month: "w-full",
-              day: "p-0.5",
-              day_button: "w-9 h-9 rounded-full text-sm font-medium transition focus:outline-none focus:ring-2 focus:ring-emerald-400/60 focus:ring-offset-2 focus:ring-offset-slate-900",
+              day: "p-0.5 w-9 h-9 rounded-full text-sm font-medium transition focus:outline-none focus:ring-2 focus:ring-emerald-400/60 focus:ring-offset-2 focus:ring-offset-slate-900",
             }}
             modifiers={{
               available: availableDates,
