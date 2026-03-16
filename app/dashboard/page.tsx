@@ -30,6 +30,13 @@ function getWhatsAppUrl(phone: string): string | null {
 export default async function DashboardPage() {
   const supabase = createServerComponentClient({ cookies });
 
+  const { data: doctors } = await supabase
+    .from("doctors")
+    .select("id, name, status")
+    .limit(1);
+
+  const doctor = doctors?.[0];
+
   const { data: appointments, error } = await supabase
     .from("appointments")
     .select(
@@ -96,6 +103,12 @@ export default async function DashboardPage() {
             <p className="mt-1 text-sm text-slate-300">
               Today&apos;s schedule · Europe/Nicosia time
             </p>
+            {doctor && doctor.status !== "active" && (
+              <p className="mt-3 inline-flex items-center gap-2 rounded-2xl border border-amber-400/30 bg-amber-400/10 px-3 py-1 text-xs font-medium text-amber-100">
+                <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-300" />
+                Your public profile is under review. We&apos;ll notify you when it&apos;s active.
+              </p>
+            )}
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <Link

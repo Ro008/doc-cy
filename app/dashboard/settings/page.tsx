@@ -61,6 +61,15 @@ export default async function DashboardSettingsPage() {
     friday: (settings as { friday?: boolean } | null)?.friday ?? true,
     startTime: timeFromRow((settings as { start_time?: string } | null)?.start_time),
     endTime: timeFromRow((settings as { end_time?: string } | null)?.end_time),
+    breakEnabled:
+      Boolean((settings as { break_start?: string | null } | null)?.break_start) &&
+      Boolean((settings as { break_end?: string | null } | null)?.break_end),
+    breakStart: timeFromRow(
+      (settings as { break_start?: string | null } | null)?.break_start
+    ),
+    breakEnd: timeFromRow(
+      (settings as { break_end?: string | null } | null)?.break_end
+    ),
     slotDurationMinutes:
       (settings as { slot_duration_minutes?: number } | null)
         ?.slot_duration_minutes ?? 30,

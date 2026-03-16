@@ -54,6 +54,9 @@ export async function POST(req: NextRequest) {
     friday?: boolean;
     startTime?: string; // "09:00" or "09:00:00"
     endTime?: string;
+    breakEnabled?: boolean;
+    breakStart?: string;
+    breakEnd?: string;
     slotDurationMinutes?: number;
   };
 
@@ -85,6 +88,8 @@ export async function POST(req: NextRequest) {
     friday: Boolean(b.friday),
     start_time: toTime(b.startTime, "09:00:00"),
     end_time: toTime(b.endTime, "17:00:00"),
+    break_start: b.breakEnabled ? toTime(b.breakStart, "13:00:00") : null,
+    break_end: b.breakEnabled ? toTime(b.breakEnd, "14:00:00") : null,
     slot_duration_minutes: duration,
     updated_at: new Date().toISOString(),
   };

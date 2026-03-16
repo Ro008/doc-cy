@@ -14,6 +14,9 @@ export type DoctorSettingsFormData = {
   friday: boolean;
   startTime: string; // "09:00"
   endTime: string;
+  breakEnabled: boolean;
+  breakStart: string;
+  breakEnd: string;
   slotDurationMinutes: number;
 };
 
@@ -47,6 +50,15 @@ export function SettingsForm({ initial }: SettingsFormProps) {
   const [endTime, setEndTime] = React.useState(
     timeToInputValue(initial.endTime)
   );
+  const [breakEnabled, setBreakEnabled] = React.useState(
+    initial.breakEnabled
+  );
+  const [breakStart, setBreakStart] = React.useState(
+    timeToInputValue(initial.breakStart)
+  );
+  const [breakEnd, setBreakEnd] = React.useState(
+    timeToInputValue(initial.breakEnd)
+  );
   const [slotDurationMinutes, setSlotDurationMinutes] = React.useState(
     initial.slotDurationMinutes
   );
@@ -68,6 +80,9 @@ export function SettingsForm({ initial }: SettingsFormProps) {
           friday,
           startTime,
           endTime,
+          breakEnabled,
+          breakStart,
+          breakEnd,
           slotDurationMinutes,
         }),
       });
@@ -164,6 +179,62 @@ export function SettingsForm({ initial }: SettingsFormProps) {
             className="mt-2 w-full rounded-xl border border-slate-800/80 bg-slate-950/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-400/60"
           />
         </div>
+      </div>
+
+      <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-5">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+              Daily break (optional)
+            </p>
+            <p className="mt-1 text-xs text-slate-400">
+              Patients will not be able to book during this time.
+            </p>
+          </div>
+          <label className="inline-flex cursor-pointer items-center gap-2 text-xs text-slate-300">
+            <input
+              type="checkbox"
+              checked={breakEnabled}
+              onChange={(e) => setBreakEnabled(e.target.checked)}
+              className="h-4 w-4 rounded border-slate-600 bg-slate-900 text-emerald-500 focus:ring-emerald-400/60"
+            />
+            <span>Add a daily break</span>
+          </label>
+        </div>
+        {breakEnabled && (
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <div>
+              <label
+                htmlFor="breakStart"
+                className="text-[11px] font-semibold uppercase tracking-wide text-slate-400"
+              >
+                Break start
+              </label>
+              <input
+                id="breakStart"
+                type="time"
+                value={breakStart}
+                onChange={(e) => setBreakStart(e.target.value)}
+                className="mt-2 w-full rounded-xl border border-slate-800/80 bg-slate-950/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-400/60"
+              />
+            </div>
+            <div>
+              <label
+                htmlFor="breakEnd"
+                className="text-[11px] font-semibold uppercase tracking-wide text-slate-400"
+              >
+                Break end
+              </label>
+              <input
+                id="breakEnd"
+                type="time"
+                value={breakEnd}
+                onChange={(e) => setBreakEnd(e.target.value)}
+                className="mt-2 w-full rounded-xl border border-slate-800/80 bg-slate-950/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-400/60"
+              />
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-5">

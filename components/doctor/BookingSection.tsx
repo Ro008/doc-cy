@@ -31,6 +31,8 @@ type BookingSectionProps = {
   weeklySlots: WeeklySlot[];
   takenSlotTimes?: string[];
   profileSlug?: string;
+  breakStart?: string;
+  breakEnd?: string;
 };
 
 type SlotOption = {
@@ -49,6 +51,8 @@ export function BookingSection({
   weeklySlots,
   takenSlotTimes = [],
   profileSlug,
+  breakStart,
+  breakEnd,
 }: BookingSectionProps) {
   const takenSet = React.useMemo(
     () => new Set(takenSlotTimes),
@@ -108,12 +112,27 @@ export function BookingSection({
         while (isBefore(cursor, end)) {
           if (!isSameDay(cursor, now) || !isBefore(cursor, now)) {
             const cyprusCursor = utcToZonedTime(cursor, CY_TZ);
+            const timeLabel = format(cyprusCursor, "HH:mm");
+
+            // Skip slots that fall inside the doctor's daily break window
+            if (
+              breakStart &&
+              breakEnd &&
+              timeLabel >= breakStart &&
+              timeLabel < breakEnd
+            ) {
+              cursor = addMinutes(cursor, s.duration);
+              continue;
+            }
+
             const slotKey = format(cyprusCursor, "yyyy-MM-dd'T'HH:mm");
             result.push({
               key: cursor.toISOString(),
               date: cursor,
-              labelTime: format(cursor, "HH:mm"),
-              labelFull: format(cursor, "EEE d MMM, HH:mm", { locale: enGB }),
+              labelTime: timeLabel,
+              labelFull: format(cyprusCursor, "EEE d MMM, HH:mm", {
+                locale: enGB,
+              }),
               slotKey,
             });
           }
@@ -122,7 +141,7 @@ export function BookingSection({
       }
     }
     return result;
-  }, [weeklySlots]);
+  }, [weeklySlots, breakStart, breakEnd]);
 
   const isSlotTaken = (slot: SlotOption) => takenSet.has(slot.slotKey);
 

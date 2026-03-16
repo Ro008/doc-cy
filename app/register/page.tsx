@@ -1,0 +1,286 @@
+import { redirect } from "next/navigation";
+import { supabase } from "@/lib/supabase";
+
+type PageProps = {
+  searchParams?: { submitted?: string; error?: string };
+};
+
+async function handleRegister(formData: FormData) {
+  "use server";
+
+  const company = formData.get("company");
+  if (typeof company === "string" && company.trim() !== "") {
+    // Honeypot filled → likely bot; fail silently without creating anything
+    redirect("/register");
+  }
+
+  const fullName = (formData.get("fullName") as string | null)?.trim() || "";
+  const email = (formData.get("email") as string | null)?.trim() || "";
+  const password = (formData.get("password") as string | null) || "";
+  const specialty =
+    (formData.get("specialty") as string | null)?.trim() || "";
+  const licenseNumber =
+    (formData.get("licenseNumber") as string | null)?.trim() || "";
+  const licenseFile = formData.get("licenseFile") as File | null;
+
+  if (
+    !fullName ||
+    !email ||
+    !password ||
+    !specialty ||
+    !licenseNumber ||
+    !licenseFile
+  ) {
+    redirect("/register?error=validation");
+  }
+
+  // Upload license document to Supabase Storage
+  const fileExt = licenseFile.name.split(".").pop() || "bin";
+  const filePath = `licenses/${Date.now()}-${Math.random()
+    .toString(36)
+    .slice(2)}.${fileExt}`;
+
+  const { data: uploadData, error: uploadError } = await supabase.storage
+    .from("doctor-verifications")
+    .upload(filePath, licenseFile);
+
+  if (uploadError || !uploadData?.path) {
+    console.error("[DocCy] License upload failed", uploadError);
+    redirect("/register?error=upload");
+  }
+
+  const licenseFileUrl = uploadData.path;
+
+  // Create user in Supabase Auth
+  const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+    email,
+    password,
+    options: {
+      data: {
+        full_name: fullName,
+        role: "doctor",
+      },
+    },
+  });
+
+  if (signUpError || !signUpData.user) {
+    console.error("[DocCy] Auth sign-up failed", signUpError);
+    // Cleanup the uploaded file so we don't keep orphans
+    try {
+      await supabase.storage
+        .from("doctor-verifications")
+        .remove([licenseFileUrl]);
+    } catch (cleanupError) {
+      console.error("[DocCy] Failed to delete orphaned license file", cleanupError);
+    }
+
+    if ((signUpError as any)?.status === 429) {
+      redirect("/register?error=rate_limit");
+    }
+
+    redirect("/register?error=auth");
+  }
+
+  const authUserId = signUpData.user.id;
+
+  // Generate a simple slug from the doctor's name
+  const baseSlug = fullName
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .trim()
+    .replace(/\s+/g, "-")
+    .slice(0, 60);
+
+  const slug = baseSlug || `doctor-${authUserId.slice(0, 8)}`;
+
+  // Insert doctor row with status: 'pending'
+  const { error: insertError } = await supabase.from("doctors").insert({
+    auth_user_id: authUserId,
+    name: fullName,
+    specialty,
+    email,
+    license_number: licenseNumber,
+    license_file_url: licenseFileUrl,
+    status: "pending",
+    slug,
+  });
+
+  if (insertError) {
+    console.error("[DocCy] Failed to insert doctor row", insertError);
+    redirect("/register?error=db");
+  }
+
+  redirect("/register?submitted=1");
+}
+
+export default function RegisterPage({ searchParams }: PageProps) {
+  const submitted = searchParams?.submitted === "1";
+  const errorCode = searchParams?.error;
+
+  let errorMessage: string | null = null;
+  if (errorCode === "rate_limit") {
+    errorMessage =
+      "Too many signup attempts. Please wait a minute before trying again.";
+  } else if (errorCode === "auth") {
+    errorMessage =
+      "We couldn’t create your account. Please double‑check your email and try again.";
+  } else if (errorCode === "db") {
+    errorMessage =
+      "We saved your login but couldn’t finish setting up your profile. Please try again in a moment.";
+  } else if (errorCode === "upload") {
+    errorMessage =
+      "We couldn’t upload your license document. Please try again or use a smaller file.";
+  } else if (errorCode === "validation") {
+    errorMessage = "Please fill in all required fields before submitting.";
+  }
+
+  return (
+    <main className="min-h-screen bg-slate-950 text-slate-50">
+      <div className="pointer-events-none fixed inset-0 -z-10">
+        <div className="absolute inset-x-0 top-[-10%] mx-auto h-80 max-w-xl rounded-full bg-emerald-500/10 blur-3xl" />
+        <div className="absolute inset-y-0 left-[-10%] h-full w-64 bg-sky-500/5 blur-3xl" />
+        <div className="absolute inset-y-0 right-[-15%] h-full w-72 bg-emerald-400/10 blur-3xl" />
+      </div>
+
+      <div className="mx-auto flex min-h-screen max-w-3xl flex-col px-4 py-10 sm:px-6 lg:px-8 lg:py-14">
+        <header className="mb-8">
+          <p className="text-xs font-semibold tracking-[0.2em] text-emerald-200/80">
+            Doc<span className="text-emerald-400">Cy</span> · Doctor signup
+          </p>
+          <h1 className="mt-3 text-balance text-3xl font-semibold tracking-tight text-slate-50 sm:text-4xl">
+            Create your professional profile
+          </h1>
+          <p className="mt-2 max-w-xl text-sm text-slate-300 sm:text-base">
+            Join Doc<span className="text-emerald-400">Cy</span> and modernise
+            your clinic&apos;s patient experience with smart scheduling and
+            WhatsApp-friendly notifications.
+          </p>
+        </header>
+
+        <section className="rounded-3xl border border-emerald-100/10 bg-slate-900/60 p-5 shadow-2xl shadow-slate-950/50 backdrop-blur-xl sm:p-6">
+          {submitted ? (
+            <div className="space-y-4 text-sm text-slate-200">
+              <div className="inline-flex items-center gap-2 rounded-full border border-emerald-400/30 bg-emerald-400/10 px-3 py-1 text-[11px] font-medium tracking-[0.25em] text-emerald-200">
+                <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                APPLICATION RECEIVED
+              </div>
+              <h2 className="text-lg font-semibold text-slate-50 sm:text-xl">
+                Thank you — your profile is under review
+              </h2>
+              <p className="text-sm text-slate-300">
+                Our team will verify your medical license and activate your
+                Doc<span className="text-emerald-400">Cy</span> profile within{" "}
+                <span className="font-medium text-emerald-200">24 hours</span>.
+              </p>
+              <p className="text-sm text-slate-300">
+                Once approved, you&apos;ll receive an email with a secure link
+                to your dashboard, where you can configure working hours,
+                appointment types, and your public profile.
+              </p>
+            </div>
+          ) : (
+            <form action={handleRegister} className="space-y-6" noValidate>
+              {errorMessage && (
+                <div className="rounded-2xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-xs text-red-100">
+                  {errorMessage}
+                </div>
+              )}
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="sm:col-span-2">
+                  <label className="block text-sm font-medium text-slate-200">
+                    Full name
+                    <input
+                      name="fullName"
+                      required
+                      className="mt-1 w-full rounded-2xl border border-slate-700 bg-slate-900/60 px-3 py-2 text-sm text-slate-100 shadow-sm outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/40"
+                    />
+                  </label>
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="block text-sm font-medium text-slate-200">
+                    Specialty
+                    <input
+                      name="specialty"
+                      required
+                      className="mt-1 w-full rounded-2xl border border-slate-700 bg-slate-900/60 px-3 py-2 text-sm text-slate-100 shadow-sm outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/40"
+                    />
+                  </label>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-200">
+                    Email
+                    <input
+                      type="email"
+                      name="email"
+                      required
+                      className="mt-1 w-full rounded-2xl border border-slate-700 bg-slate-900/60 px-3 py-2 text-sm text-slate-100 shadow-sm outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/40"
+                    />
+                  </label>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-200">
+                    Password
+                    <input
+                      type="password"
+                      name="password"
+                      required
+                      minLength={8}
+                      className="mt-1 w-full rounded-2xl border border-slate-700 bg-slate-900/60 px-3 py-2 text-sm text-slate-100 shadow-sm outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/40"
+                    />
+                  </label>
+                </div>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="block text-sm font-medium text-slate-200">
+                    Medical license number
+                    <input
+                      name="licenseNumber"
+                      required
+                      className="mt-1 w-full rounded-2xl border border-slate-700 bg-slate-900/60 px-3 py-2 text-sm text-slate-100 shadow-sm outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/40"
+                    />
+                  </label>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-200">
+                    License document (PDF or image)
+                    <input
+                      type="file"
+                      name="licenseFile"
+                      required
+                      accept="image/*,.pdf"
+                      className="mt-1 block w-full text-xs text-slate-300 file:mr-3 file:rounded-xl file:border-0 file:bg-emerald-500/10 file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-emerald-200 hover:file:bg-emerald-500/20"
+                    />
+                  </label>
+                </div>
+              </div>
+
+              {/* Honeypot field for bots */}
+              <div className="hidden" aria-hidden="true">
+                <label>
+                  Company
+                  <input name="company" autoComplete="off" />
+                </label>
+              </div>
+
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-[11px] text-slate-400">
+                  We use your license details only to verify that you are a
+                  registered medical professional in Cyprus.
+                </p>
+                <button
+                  type="submit"
+                  className="inline-flex items-center justify-center rounded-2xl bg-emerald-400 px-6 py-2.5 text-sm font-semibold text-slate-950 shadow-lg shadow-emerald-500/30 transition hover:bg-emerald-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
+                >
+                  Submit application
+                </button>
+              </div>
+            </form>
+          )}
+        </section>
+      </div>
+    </main>
+  );
+}
+

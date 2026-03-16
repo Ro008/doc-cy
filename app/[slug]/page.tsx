@@ -2,9 +2,9 @@
 import Image from "next/image";
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
-import { MapPin } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { BookingSection } from "@/components/doctor/BookingSection";
+import { DoctorDetailsAccordion } from "@/components/doctor/DoctorDetailsAccordion";
 import {
   settingsToWeeklySlots,
   type DoctorSettingsRow,
@@ -30,8 +30,9 @@ export async function generateMetadata(
 ): Promise<Metadata> {
   const { data: doctor } = await supabase
     .from("doctors")
-    .select("name, specialty")
+    .select("name, specialty, status")
     .eq("slug", params.slug)
+    .eq("status", "active")
     .single();
 
   if (!doctor) {
@@ -49,8 +50,9 @@ export async function generateMetadata(
 export default async function DoctorPage({ params }: PageProps) {
   const { data: doctor, error: doctorError } = await supabase
     .from("doctors")
-    .select("id, name, specialty, bio, clinic_address, slug")
+    .select("id, name, specialty, bio, clinic_address, slug, status")
     .eq("slug", params.slug)
+    .eq("status", "active")
     .single();
 
   if (doctorError || !doctor) {
@@ -69,6 +71,11 @@ export default async function DoctorPage({ params }: PageProps) {
   const weeklySlots = settings
     ? settingsToWeeklySlots(settings as DoctorSettingsRow)
     : [];
+
+  const breakStart =
+    (settings as { break_start?: string | null } | null)?.break_start ?? null;
+  const breakEnd =
+    (settings as { break_end?: string | null } | null)?.break_end ?? null;
 
   // Fetch existing appointments (next 7 days) to disable those slots in the UI
   const nowUtc = new Date();
@@ -125,70 +132,30 @@ export default async function DoctorPage({ params }: PageProps) {
           </div>
         </header>
 
-        <div className="grid gap-6 lg:grid-cols-[minmax(280px,360px)_1fr] lg:gap-8">
-          {/* Doctor info: mínima anchura necesaria para buena UX */}
-          <section className="lg:min-w-0">
-            <div className="rounded-3xl border border-emerald-100/10 bg-slate-900/50 p-6 shadow-2xl shadow-slate-950/50 backdrop-blur-xl sm:p-7">
-              <div className="flex flex-col gap-4">
-                <div>
-                  <p className="text-xs font-semibold tracking-[0.2em] text-slate-400">
-                    About
-                  </p>
-                  <p className="mt-2 text-sm leading-relaxed text-slate-300">
-                    {doctor.bio ?? "This doctor has not added a bio yet."}
-                  </p>
-                </div>
-
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-4">
-                    <p className="text-xs font-semibold tracking-wide text-slate-400">
-                      Specialty
-                    </p>
-                    <p className="mt-2 text-sm font-medium text-slate-100">
-                      {doctor.specialty}
-                    </p>
-                  </div>
-
-                  <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-4">
-                    <p className="text-xs font-semibold tracking-wide text-slate-400">
-                      Location
-                    </p>
-                    <a
-                      href={MAPS_URL}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="mt-2 flex items-start gap-2 text-sm text-slate-200 transition hover:text-emerald-300"
-                    >
-                      <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400/80" />
-                      <span>{CLINIC_ADDRESS}</span>
-                    </a>
-                  </div>
-                </div>
-
-                <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/5 p-4">
-                  <p className="text-xs font-semibold tracking-[0.2em] text-emerald-200/80">
-                    What to expect
-                  </p>
-                  <p className="mt-2 text-sm text-slate-300">
-                    Book in seconds. You’ll receive a WhatsApp-friendly contact
-                    flow and your appointment will appear instantly in the
-                    doctor’s agenda.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          {/* Booking: columna principal, calendario amplio */}
-          <section className="lg:min-w-0">
+        <div className="flex flex-col gap-6 lg:grid lg:grid-cols-[minmax(280px,360px)_1fr] lg:gap-8">
+          {/* Booking first on mobile, right column on desktop */}
+          <section className="order-1 lg:order-2 lg:min-w-0">
             <BookingSection
               doctorId={doctor.id}
               doctorName={doctor.name}
               weeklySlots={weeklySlots}
               takenSlotTimes={takenSlotTimes}
               profileSlug={params.slug}
+              breakStart={breakStart ? breakStart.slice(0, 5) : undefined}
+              breakEnd={breakEnd ? breakEnd.slice(0, 5) : undefined}
             />
           </section>
+
+          {/* Collapsible doctor details */}
+          <div className="order-2 lg:order-1">
+            <DoctorDetailsAccordion
+              name={doctor.name}
+              specialty={doctor.specialty}
+              bio={doctor.bio}
+              clinicAddress={CLINIC_ADDRESS}
+              mapsUrl={MAPS_URL}
+            />
+          </div>
         </div>
       </div>
     </main>

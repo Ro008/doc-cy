@@ -11,6 +11,8 @@ export type DoctorSettingsRow = {
   friday: boolean;
   start_time: string; // "09:00:00" or "09:00"
   end_time: string;
+  break_start: string | null;
+  break_end: string | null;
   slot_duration_minutes: number;
 };
 
