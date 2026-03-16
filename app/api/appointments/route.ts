@@ -21,18 +21,39 @@ export async function POST(req: NextRequest) {
   }
 
   const {
-    doctorId,
+    doctorId: rawDoctorId,
+    doctorSlug,
     patientName,
     patientEmail,
     patientPhone,
     appointmentLocal,
   } = body as {
     doctorId?: string;
+    doctorSlug?: string;
     patientName?: string;
     patientEmail?: string;
     patientPhone?: string;
     appointmentLocal?: string; // "YYYY-MM-DDTHH:mm" in Europe/Nicosia
   };
+
+  let doctorId = rawDoctorId;
+
+  // Allow tests/clients to pass doctorSlug instead of doctorId (MVP convenience)
+  if (!doctorId && doctorSlug) {
+    const { data: doctor, error: doctorError } = await supabase
+      .from("doctors")
+      .select("id")
+      .eq("slug", doctorSlug)
+      .single();
+
+    if (doctorError || !doctor) {
+      return NextResponse.json(
+        { message: "Doctor not found for provided slug." },
+        { status: 400 }
+      );
+    }
+    doctorId = doctor.id as string;
+  }
 
   if (
     !doctorId ||

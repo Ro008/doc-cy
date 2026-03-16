@@ -67,6 +67,9 @@ export function BookingSection({
   const [submitting, setSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [bookingSuccess, setBookingSuccess] = React.useState(false);
+  const [lastAppointmentId, setLastAppointmentId] = React.useState<string | null>(
+    null
+  );
 
   // Build all slots for the next CALENDAR_DAYS_AHEAD days
   const upcomingSlots: SlotOption[] = React.useMemo(() => {
@@ -177,8 +180,8 @@ export function BookingSection({
             appointmentLocal: selectedSlot.slotKey,
           }),
         });
+        const data = await res.json().catch(() => null);
         if (!res.ok) {
-          const data = await res.json().catch(() => null);
           if (res.status === 409) {
             setError(
               "This time slot has just been booked. Please choose another slot."
@@ -191,6 +194,9 @@ export function BookingSection({
           );
           return;
         }
+        const newId =
+          (data?.appointment?.id as string | undefined) ?? null;
+        setLastAppointmentId(newId);
         setBookingSuccess(true);
         setSelectedSlot(null);
         setSelectedDate(null);
@@ -233,6 +239,7 @@ export function BookingSection({
     return (
       <div
         data-testid="booking-success-message"
+        data-appointment-id={lastAppointmentId ?? ""}
         className="rounded-3xl border border-emerald-200/20 bg-slate-900/60 p-8 shadow-2xl shadow-emerald-500/10 backdrop-blur-xl sm:p-10"
       >
         <div className="flex flex-col items-center text-center">

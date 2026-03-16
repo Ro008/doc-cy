@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { X } from "lucide-react";
+import { X, Trash2 } from "lucide-react";
 
 export type ScheduleAppointment = {
   id: string;
@@ -13,11 +13,6 @@ export type ScheduleAppointment = {
   minutesFrom8: number;
   durationMinutes: number;
 };
-
-const ROW_HEIGHT = 56;
-const HOURS = 10; // 08:00 to 18:00
-const TOTAL_HEIGHT = ROW_HEIGHT * HOURS;
-const TIME_COLUMN_WIDTH = "4rem"; // fixed width so cards never overlap times
 
 function getWhatsAppUrl(phone: string): string | null {
   const digits = phone.replace(/\D/g, "");
@@ -33,8 +28,44 @@ export function ScheduleView({
   const [selected, setSelected] = React.useState<ScheduleAppointment | null>(
     null
   );
+  const [confirmingCancel, setConfirmingCancel] =
+    React.useState<boolean>(false);
+  const [isCancelling, setIsCancelling] = React.useState(false);
+  const [cancelError, setCancelError] = React.useState<string | null>(null);
 
   const isEmpty = appointments.length === 0;
+  const sortedAppointments = React.useMemo(
+    () =>
+      [...appointments].sort(
+        (a, b) => a.minutesFrom8 - b.minutesFrom8
+      ),
+    [appointments]
+  );
+
+  async function handleCancelAppointment() {
+    if (!selected) return;
+    setCancelError(null);
+    try {
+      setIsCancelling(true);
+      const res = await fetch(`/api/appointments/${selected.id}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        setCancelError(
+          data?.message || "We could not cancel this appointment."
+        );
+        return;
+      }
+      // Simple approach for MVP + E2E: reload to refresh timeline.
+      window.location.reload();
+    } catch (err) {
+      console.error(err);
+      setCancelError("Something went wrong. Please try again.");
+    } finally {
+      setIsCancelling(false);
+    }
+  }
 
   return (
     <>
@@ -69,7 +100,7 @@ export function ScheduleView({
         )}
       </div>
 
-      {/* Desktop: when no appointments, compact empty state (no huge timeline) */}
+      {/* Desktop: when no appointments, compact empty state */}
       {isEmpty && (
         <div className="hidden py-6 text-center md:block">
           <p className="text-sm text-slate-500">
@@ -78,71 +109,29 @@ export function ScheduleView({
         </div>
       )}
 
-      {/* Desktop: timeline grid only when there are appointments */}
+      {/* Desktop: stacked list with clear separation (no overlapping) */}
       {!isEmpty && (
-        <div
-          className="relative hidden md:grid"
-          style={{
-            gridTemplateColumns: `${TIME_COLUMN_WIDTH} 1fr`,
-            gridTemplateRows: "auto",
-            minHeight: TOTAL_HEIGHT,
-          }}
-        >
-          {/* Column 1: time labels — fixed width, never overlapped */}
-          <div
-            className="flex flex-col border-r border-slate-800/80 pr-2"
-            style={{ height: TOTAL_HEIGHT }}
-          >
-            {Array.from({ length: HOURS + 1 }, (_, i) => 8 + i).map((h) => (
-              <div
-                key={h}
-                className="flex items-start justify-end font-mono text-xs text-slate-400"
-                style={{ height: ROW_HEIGHT }}
-              >
-                {h.toString().padStart(2, "0")}:00
+        <div className="hidden flex-col gap-2 md:flex">
+          {sortedAppointments.map((appt) => (
+            <button
+              key={appt.id}
+              type="button"
+              onClick={() => setSelected(appt)}
+              className="flex items-center gap-3 rounded-2xl border border-emerald-400/20 bg-slate-900/60 px-4 py-3 text-left shadow-sm transition hover:border-emerald-400/50 hover:bg-emerald-400/10 focus:outline-none focus:ring-2 focus:ring-emerald-400/50"
+            >
+              <span className="shrink-0 font-mono text-xs font-semibold text-slate-400">
+                {appt.timeLabel}
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-semibold text-slate-100">
+                  {appt.patient_name}
+                </p>
+                <p className="truncate text-xs text-slate-400">
+                  {appt.patient_email || appt.patient_phone}
+                </p>
               </div>
-            ))}
-          </div>
-
-          {/* Column 2: timeline grid lines + appointment cards */}
-          <div
-            className="relative border-slate-800/50"
-            style={{ height: TOTAL_HEIGHT }}
-          >
-            {/* Hour grid lines */}
-            {Array.from({ length: HOURS }, (_, i) => (
-              <div
-                key={i}
-                className="absolute left-0 right-0 border-b border-slate-800/50"
-                style={{ top: i * ROW_HEIGHT, height: ROW_HEIGHT }}
-              />
-            ))}
-
-            {/* Appointment blocks — positioned inside column 2 only */}
-            {appointments.map((appt) => {
-              const top = (appt.minutesFrom8 / 60) * ROW_HEIGHT;
-              const height = Math.max(
-                32,
-                (appt.durationMinutes / 60) * ROW_HEIGHT
-              );
-              return (
-                <button
-                  key={appt.id}
-                  type="button"
-                  onClick={() => setSelected(appt)}
-                  className="absolute left-2 right-2 rounded-xl border border-emerald-400/30 bg-emerald-400/10 px-3 py-2 text-left shadow-sm transition hover:border-emerald-400/50 hover:bg-emerald-400/20 focus:outline-none focus:ring-2 focus:ring-emerald-400/50"
-                  style={{ top: `${top}px`, height: `${height}px` }}
-                >
-                  <span className="block truncate text-sm font-medium text-slate-100">
-                    {appt.patient_name}
-                  </span>
-                  <span className="block truncate text-xs text-slate-400">
-                    {appt.timeLabel}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
+            </button>
+          ))}
         </div>
       )}
 
@@ -200,6 +189,48 @@ export function ScheduleView({
                 <span className="text-xs text-slate-500">
                   WhatsApp not available
                 </span>
+              )}
+            </div>
+            <div className="mt-4 border-t border-slate-800/60 pt-4">
+              {!confirmingCancel ? (
+                <button
+                  type="button"
+                  onClick={() => setConfirmingCancel(true)}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-red-500/20 bg-red-500/5 px-4 py-2 text-xs font-medium text-red-300 transition hover:border-red-400/40 hover:bg-red-500/10 focus:outline-none focus:ring-2 focus:ring-red-500/40"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Cancel appointment
+                </button>
+              ) : (
+                <div className="space-y-3 text-xs text-slate-300">
+                  <p className="text-slate-300">
+                    Are you sure you want to cancel this appointment? This will
+                    free the time slot for other patients.
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setConfirmingCancel(false);
+                        setCancelError(null);
+                      }}
+                      className="inline-flex flex-1 items-center justify-center rounded-2xl border border-slate-700 bg-slate-800 px-3 py-2 text-xs font-medium text-slate-200 transition hover:bg-slate-700"
+                    >
+                      Keep appointment
+                    </button>
+                    <button
+                      type="button"
+                      disabled={isCancelling}
+                      onClick={handleCancelAppointment}
+                      className="inline-flex flex-1 items-center justify-center rounded-2xl border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-200 shadow-sm transition hover:border-red-400/60 hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-70"
+                    >
+                      {isCancelling ? "Cancelling..." : "Confirm cancel"}
+                    </button>
+                  </div>
+                  {cancelError && (
+                    <p className="text-xs text-red-300">{cancelError}</p>
+                  )}
+                </div>
               )}
             </div>
           </div>

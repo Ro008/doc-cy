@@ -2,7 +2,7 @@
 import { test, expect } from "@playwright/test";
 
 test.describe("Booking flow", () => {
-  test("full booking flow on doctor profile", async ({ page }) => {
+  test("full booking flow on doctor profile", async ({ page, request }) => {
     await page.goto("/dr-nikos");
 
     await expect(
@@ -67,8 +67,17 @@ test.describe("Booking flow", () => {
     await submitBtn.click();
 
     // 6. Assert success (stable selector; long timeout for API + render in all browsers)
-    await expect(
-      page.getByTestId("booking-success-message")
-    ).toBeVisible({ timeout: 25000 });
+    const successBanner = page.getByTestId("booking-success-message");
+    await expect(successBanner).toBeVisible({ timeout: 25000 });
+
+    // 7. Teardown: delete the appointment via API so the slot is free for next runs
+    const appointmentId =
+      (await successBanner.getAttribute("data-appointment-id")) ?? "";
+    expect(appointmentId).not.toBe("");
+
+    const deleteResponse = await request.delete(
+      `/api/appointments/${appointmentId}`
+    );
+    expect(deleteResponse.ok()).toBeTruthy();
   });
 });

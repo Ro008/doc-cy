@@ -9,6 +9,7 @@ import { appointmentToCyprusDate, CY_TZ } from "@/lib/appointments";
 import { utcToZonedTime } from "date-fns-tz";
 import { ScheduleView } from "@/components/dashboard/ScheduleView";
 import type { ScheduleAppointment } from "@/components/dashboard/ScheduleView";
+import { UpcomingList } from "@/components/dashboard/UpcomingList";
 
 export const revalidate = 0;
 
@@ -142,28 +143,17 @@ export default async function DashboardPage() {
               <CalendarDays className="h-4 w-4 shrink-0 text-slate-500" aria-hidden />
               Upcoming on other days
             </h3>
-            <ul className="mt-4 overflow-hidden rounded-xl border border-slate-800/60">
-              {rows
+            <UpcomingList
+              items={rows
                 .filter((r) => r.dateKey !== todayKey)
                 .slice(0, 5)
-                .map((r, i) => (
-                  <li
-                    key={r.id}
-                    className={`flex items-center justify-between gap-3 px-4 py-3 text-sm transition hover:bg-slate-800/40 ${
-                      i % 2 === 0
-                        ? "bg-slate-900/50"
-                        : "bg-slate-800/30"
-                    }`}
-                  >
-                    <span className="font-medium text-slate-100">
-                      {r.patient_name}
-                    </span>
-                    <span className="shrink-0 font-mono text-xs text-slate-400">
-                      {r.dateLabel} · {r.timeLabel}
-                    </span>
-                  </li>
-                ))}
-            </ul>
+                .map((r) => ({
+                  id: r.id,
+                  patient_name: r.patient_name,
+                  dateLabel: r.dateLabel,
+                  timeLabel: r.timeLabel,
+                }))}
+            />
           </section>
         )}
       </div>

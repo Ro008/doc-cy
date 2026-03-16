@@ -2,7 +2,7 @@
 import { test, expect } from "@playwright/test";
 
 test.describe("Doctor dashboard", () => {
-  test("desktop: timeline or empty state, and appointment detail when present", async ({
+  test("desktop: appointments list or empty state, and appointment detail when present", async ({
     page,
   }) => {
     await page.setViewportSize({ width: 1024, height: 768 });
@@ -15,23 +15,19 @@ test.describe("Doctor dashboard", () => {
     const todaySection = page.locator("section").first();
     await expect(todaySection).toBeVisible();
 
-    // With appointments: timeline (08:00–18:00) visible; without: compact empty state
-    const hasTimeline = await page.getByText("08:00").first().isVisible().catch(() => false);
-    if (hasTimeline) {
-      await expect(page.getByText("18:00").first()).toBeVisible();
-      const appointmentBlocks = todaySection.getByRole("button");
-      const count = await appointmentBlocks.count();
-      if (count >= 1) {
-        await appointmentBlocks.first().click();
-        const modal = page.getByRole("dialog");
-        await expect(modal).toBeVisible({ timeout: 3000 });
-        await expect(
-          modal.getByRole("link", { name: /Chat on WhatsApp/i })
-        ).toBeVisible();
-      }
+    const appointmentBlocks = todaySection.getByRole("button");
+    const count = await appointmentBlocks.count();
+
+    if (count >= 1) {
+      await appointmentBlocks.first().click();
+      const modal = page.getByRole("dialog");
+      await expect(modal).toBeVisible({ timeout: 3000 });
+      await expect(
+        modal.getByRole("link", { name: /Chat on WhatsApp/i })
+      ).toBeVisible();
     } else {
       await expect(
-        todaySection.getByText(/No appointments|schedule is clear/i).first()
+        todaySection.getByText(/No appointments today|schedule is clear/i).first()
       ).toBeVisible({ timeout: 3000 });
     }
   });
