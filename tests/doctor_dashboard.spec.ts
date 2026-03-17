@@ -6,7 +6,7 @@ test.describe("Doctor dashboard", () => {
     page,
   }) => {
     await page.setViewportSize({ width: 1024, height: 768 });
-    await page.goto("/dashboard");
+    await page.goto("/agenda");
 
     await expect(
       page.getByRole("heading", { name: /Doctor's Agenda/i })
@@ -36,7 +36,7 @@ test.describe("Doctor dashboard", () => {
     page,
   }) => {
     await page.setViewportSize({ width: 320, height: 568 });
-    await page.goto("/dashboard");
+    await page.goto("/agenda");
 
     await expect(
       page.getByRole("heading", { name: /Doctor's Agenda/i })
@@ -56,7 +56,7 @@ test.describe("Doctor dashboard", () => {
   test("dashboard links to settings and settings page loads", async ({
     page,
   }) => {
-    await page.goto("/dashboard");
+    await page.goto("/agenda");
 
     await expect(
       page.getByRole("heading", { name: /Doctor's Agenda/i })

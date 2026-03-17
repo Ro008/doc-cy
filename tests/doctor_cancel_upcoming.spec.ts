@@ -46,10 +46,10 @@ test.describe("Upcoming appointments cancellation", () => {
     const appointmentId = createJson?.appointment?.id as string | undefined;
 
     // 2. Visit dashboard and locate the appointment in "Upcoming on other days"
-    await page.goto("/dashboard");
+    await page.goto("/agenda");
 
     await expect(
-      page.getByRole("heading", { name: /Doctor's Agenda/i })
+      page.getByRole("heading", { name: /Your agenda/i })
     ).toBeVisible({ timeout: 10000 });
 
     const upcomingSection = page

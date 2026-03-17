@@ -42,36 +42,35 @@ export default function HomePage() {
           <section className="flex-1">
             <div className="inline-flex items-center gap-2 rounded-full border border-emerald-400/30 bg-emerald-400/5 px-3 py-1 text-[11px] font-medium tracking-[0.25em] text-emerald-200/80 backdrop-blur">
               <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400" />
-              Built for clinics in Cyprus
+              Smart booking for modern care
             </div>
 
             <h1 className="mt-5 text-balance text-4xl font-semibold tracking-tight text-slate-50 sm:text-5xl lg:text-6xl">
-              The digital operating system
+              Smart Medical Appointments
               <span className="block text-emerald-300/90">
-                for your clinic in Cyprus
+                in Cyprus
               </span>
             </h1>
 
             <p className="mt-5 max-w-xl text-sm text-slate-300 sm:text-base">
-              Doc<span className="text-emerald-400">Cy</span> helps your team save hours every week
-              with smart scheduling, instant WhatsApp notifications, and a modern patient
-              experience that feels premium but is simple for your staff.
+              Doc<span className="text-emerald-400">Cy</span> gives your practice a calm, premium booking experience.
+              Patients choose a time, you get a clean agenda and WhatsApp-ready
+              contact details – built for medical practices across Cyprus.
             </p>
 
             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
               <Link
-                href="/register-doctor"
+                href="/register"
                 className="inline-flex items-center justify-center rounded-2xl bg-emerald-400 px-6 py-3 text-sm font-semibold text-slate-950 shadow-lg shadow-emerald-500/30 transition hover:bg-emerald-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
               >
-                Create your professional profile
-                <ArrowRight className="ml-2 h-4 w-4" />
+                Create Your Professional Profile
               </Link>
 
               <Link
                 href="/dr-nikos"
                 className="inline-flex items-center justify-center rounded-2xl border border-slate-700/80 bg-slate-900/60 px-6 py-3 text-sm font-semibold text-slate-200 backdrop-blur transition hover:border-emerald-400/30 hover:bg-emerald-400/10 hover:text-emerald-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
               >
-                View demo
+                View Demo
               </Link>
             </div>
 

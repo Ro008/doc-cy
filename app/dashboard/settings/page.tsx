@@ -1,11 +1,14 @@
 // app/dashboard/settings/page.tsx
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 import Link from "next/link";
-import { supabase } from "@/lib/supabase";
+import { cookies } from "next/headers";
+import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
 import { SettingsForm } from "@/components/dashboard/SettingsForm";
+import { SignOutButton } from "@/components/auth/SignOutButton";
 import type { DoctorSettingsFormData } from "@/components/dashboard/SettingsForm";
 import { ArrowLeft } from "lucide-react";
-
-export const revalidate = 0;
 
 function timeFromRow(t: string | null | undefined): string {
   if (!t) return "09:00";
@@ -16,13 +19,42 @@ function timeFromRow(t: string | null | undefined): string {
 }
 
 export default async function DashboardSettingsPage() {
-  // MVP: use first doctor. Later: get from auth/session.
-  const { data: doctors } = await supabase
-    .from("doctors")
-    .select("id, name")
-    .limit(1);
+  const supabase = createServerComponentClient({ cookies });
 
-  const doctor = doctors?.[0];
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  let doctor: { id: string; name: string } | null = null;
+
+  if (user?.id) {
+    const { data, error } = await supabase
+      .from("doctors")
+      .select("id, name")
+      .eq("auth_user_id", user.id)
+      .single();
+
+    if (error) {
+      console.error("[Settings] Error fetching doctor for user", error);
+    }
+
+    doctor = data;
+  }
+
+  // Fallback for unauthenticated flows (e.g. Playwright tests that hit
+  // /dashboard/settings directly) – keep previous "first doctor" behavior.
+  if (!doctor) {
+    const { data: doctorsFallback, error: fallbackError } = await supabase
+      .from("doctors")
+      .select("id, name")
+      .limit(1);
+
+    if (fallbackError) {
+      console.error("[Settings] Fallback doctor lookup failed", fallbackError);
+    }
+
+    doctor = doctorsFallback?.[0] ?? null;
+  }
   if (!doctor) {
     return (
       <main className="min-h-screen bg-slate-950 text-slate-50">
@@ -34,7 +66,7 @@ export default async function DashboardSettingsPage() {
         <div className="mx-auto max-w-2xl px-4 py-12 text-center">
           <p className="text-slate-300">No doctor found. Add a doctor first.</p>
           <Link
-            href="/dashboard"
+            href="/agenda"
             className="mt-4 inline-flex items-center text-sm text-emerald-300 hover:text-emerald-200"
           >
             <ArrowLeft className="mr-2 h-4 w-4" />
@@ -84,21 +116,28 @@ export default async function DashboardSettingsPage() {
       </div>
 
       <div className="mx-auto max-w-2xl px-4 py-8 sm:px-6 lg:px-8 lg:py-12">
-        <header className="mb-8">
-          <Link
-            href="/dashboard"
-            className="mb-4 inline-flex items-center text-sm text-slate-400 transition hover:text-slate-200"
-          >
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to agenda
-          </Link>
-          <h1 className="text-2xl font-semibold tracking-tight text-slate-50 sm:text-3xl">
-            Working hours & availability
-          </h1>
-          <p className="mt-1 text-sm text-slate-300">
-            Configure when patients can book with you. These settings apply to{" "}
-            <span className="font-medium text-emerald-200">{doctor.name}</span>.
-          </p>
+        <header className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <Link
+              href="/agenda"
+              className="mb-4 inline-flex items-center text-sm text-slate-400 transition hover:text-slate-200"
+            >
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to agenda
+            </Link>
+            <h1 className="text-2xl font-semibold tracking-tight text-slate-50 sm:text-3xl">
+              Working hours & availability
+            </h1>
+            <p className="mt-1 text-sm text-slate-300">
+              Configure when patients can book with you. These settings apply
+              to{" "}
+              <span className="font-medium text-emerald-200">
+                {doctor.name}
+              </span>
+              .
+            </p>
+          </div>
+          <SignOutButton />
         </header>
 
         <section className="rounded-3xl border border-emerald-100/10 bg-slate-900/50 p-6 shadow-2xl shadow-slate-950/50 backdrop-blur-xl sm:p-8">

@@ -285,7 +285,7 @@ export function SettingsForm({ initial }: SettingsFormProps) {
           {saving ? "Saving..." : "Save settings"}
         </button>
         <Link
-          href="/dashboard"
+          href="/agenda"
           className="inline-flex items-center text-sm text-slate-400 transition hover:text-slate-200"
         >
           <ArrowLeft className="mr-2 h-4 w-4" />
