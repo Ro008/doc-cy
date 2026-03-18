@@ -7,7 +7,7 @@ test.describe("Navigation and routing", () => {
 
     await expect(page).toHaveURL("/");
     await expect(
-      page.getByRole("heading", { name: /Smart Medical Appointments/i })
+      page.getByRole("heading", { level: 1, name: /Your medical practice/i })
     ).toBeVisible({ timeout: 5000 });
   });
 });

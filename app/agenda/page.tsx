@@ -9,24 +9,8 @@ import { enGB } from "date-fns/locale";
 import { CalendarDays } from "lucide-react";
 import { appointmentToCyprusDate, CY_TZ } from "@/lib/appointments";
 import { utcToZonedTime } from "date-fns-tz";
-import { ScheduleView } from "@/components/dashboard/ScheduleView";
-import type { ScheduleAppointment } from "@/components/dashboard/ScheduleView";
-import { UpcomingList } from "@/components/dashboard/UpcomingList";
+import { AgendaRealtime } from "@/components/agenda/AgendaRealtime";
 import { SignOutButton } from "@/components/auth/SignOutButton";
-
-type AppointmentRow = {
-  id: string;
-  patient_name: string;
-  patient_phone: string;
-  patient_email: string;
-  appointment_datetime: string;
-};
-
-function getWhatsAppUrl(phone: string): string | null {
-  const digits = phone.replace(/\D/g, "");
-  if (!digits) return null;
-  return `https://wa.me/${digits}`;
-}
 
 export default async function AgendaPage() {
   const supabase = createServerComponentClient({ cookies });
@@ -57,12 +41,16 @@ export default async function AgendaPage() {
 
   console.log("Fetched doctor:", doctor);
 
-  const { data: appointments, error } = await supabase
+  const appointmentsQuery = supabase
     .from("appointments")
     .select(
-      "id, patient_name, patient_phone, patient_email, appointment_datetime"
+      "id, doctor_id, patient_name, patient_phone, patient_email, appointment_datetime"
     )
     .order("appointment_datetime", { ascending: true });
+
+  const { data: appointments, error } = doctor?.id
+    ? await appointmentsQuery.eq("doctor_id", doctor.id)
+    : await appointmentsQuery;
 
   if (error) {
     console.error(error);
@@ -70,43 +58,14 @@ export default async function AgendaPage() {
 
   const nowUtc = new Date();
   const nowCyprus = utcToZonedTime(nowUtc, CY_TZ);
-  const todayKey = format(nowCyprus, "yyyy-MM-dd");
   const nowLabel = format(nowCyprus, "EEE d MMM yyyy, HH:mm", {
     locale: enGB,
   });
 
-  const rows =
-    (appointments as AppointmentRow[] | null)?.map((a) => {
-      const cyDate = appointmentToCyprusDate(a.appointment_datetime);
-      const dateKey = format(cyDate, "yyyy-MM-dd");
-      const hours = cyDate.getHours();
-      const minutes = cyDate.getMinutes();
-      const minutesFrom8 = (hours - 8) * 60 + minutes;
-      return {
-        ...a,
-        cyDate,
-        dateKey,
-        dateLabel: format(cyDate, "EEE d MMM yyyy", { locale: enGB }),
-        timeLabel: format(cyDate, "HH:mm", { locale: enGB }),
-        whatsappUrl: getWhatsAppUrl(a.patient_phone),
-        minutesFrom8: Math.max(0, minutesFrom8),
-        durationMinutes: 30,
-      };
-    }) ?? [];
-
-  const todayRows = rows.filter((r) => r.dateKey === todayKey);
-  const scheduleAppointments: ScheduleAppointment[] = todayRows.map((r) => ({
-    id: r.id,
-    patient_name: r.patient_name,
-    patient_phone: r.patient_phone,
-    patient_email: r.patient_email,
-    whatsappUrl: r.whatsappUrl,
-    timeLabel: r.timeLabel,
-    minutesFrom8: r.minutesFrom8,
-    durationMinutes: r.durationMinutes,
-  }));
-
-  const doctorName = doctor?.name ?? "Doctor";
+  const rawName = (doctor?.name ?? "").trim();
+  const nameWithoutDr = rawName.replace(/^dr\.?\s+/i, "").trim();
+  const demoName = nameWithoutDr || "Doctor";
+  const doctorName = `Dr. ${demoName}`;
 
   return (
     <main className="min-h-screen bg-slate-950 text-slate-50">
@@ -135,7 +94,7 @@ export default async function AgendaPage() {
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <Link
-              href="/dashboard/settings"
+              href="/agenda/settings"
               className="rounded-2xl border border-slate-700/80 bg-slate-900/60 px-4 py-2 text-sm font-medium text-slate-200 backdrop-blur transition hover:border-emerald-400/30 hover:bg-emerald-400/10 hover:text-emerald-200"
             >
               Working hours & settings
@@ -148,56 +107,10 @@ export default async function AgendaPage() {
           </div>
         </header>
 
-        <section className="rounded-3xl border border-emerald-100/10 bg-slate-900/50 shadow-2xl shadow-slate-950/50 backdrop-blur-xl">
-          <div className="border-b border-slate-800/60 px-4 pb-4 pt-4 sm:px-6 sm:pb-5 sm:pt-5">
-            <div className="flex flex-wrap items-center gap-2">
-              <h2 className="text-sm font-semibold text-slate-200">
-                {format(nowCyprus, "EEEE, d MMMM yyyy", { locale: enGB })}
-              </h2>
-              <span
-                aria-label={`${scheduleAppointments.length} appointment${
-                  scheduleAppointments.length === 1 ? "" : "s"
-                } today`}
-                className={`inline-flex shrink-0 items-center rounded-full px-2.5 py-0.5 text-xs font-medium tabular-nums ${
-                  scheduleAppointments.length === 0
-                    ? "bg-slate-700/60 text-slate-400"
-                    : "bg-emerald-400/20 text-emerald-300 ring-1 ring-emerald-400/30"
-                }`}
-              >
-                {scheduleAppointments.length}
-              </span>
-            </div>
-            {scheduleAppointments.length === 0 && (
-              <p className="mt-1 text-xs text-slate-400">No appointments today</p>
-            )}
-          </div>
-          <div className="px-4 pb-4 pt-2 sm:px-6 sm:pb-6 sm:pt-3">
-            <ScheduleView appointments={scheduleAppointments} />
-          </div>
-        </section>
-
-        {rows.length > 0 && rows.length > todayRows.length && (
-          <section className="rounded-3xl border border-slate-800/80 bg-slate-900/30 px-4 pb-5 pt-5 sm:px-5 sm:pb-6 sm:pt-6">
-            <h3 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
-              <CalendarDays
-                className="h-4 w-4 shrink-0 text-slate-500"
-                aria-hidden
-              />
-              Upcoming on other days
-            </h3>
-            <UpcomingList
-              items={rows
-                .filter((r) => r.dateKey !== todayKey)
-                .slice(0, 5)
-                .map((r) => ({
-                  id: r.id,
-                  patient_name: r.patient_name,
-                  dateLabel: r.dateLabel,
-                  timeLabel: r.timeLabel,
-                }))}
-            />
-          </section>
-        )}
+        <AgendaRealtime
+          doctorId={doctor?.id ?? null}
+          initialAppointments={(appointments as any[]) ?? []}
+        />
       </div>
     </main>
   );

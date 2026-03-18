@@ -46,16 +46,16 @@ export default function HomePage() {
             </div>
 
             <h1 className="mt-5 text-balance text-4xl font-semibold tracking-tight text-slate-50 sm:text-5xl lg:text-6xl">
-              Smart Medical Appointments
+              Your medical practice,
               <span className="block text-emerald-300/90">
-                in Cyprus
+                automated.
               </span>
             </h1>
 
             <p className="mt-5 max-w-xl text-sm text-slate-300 sm:text-base">
-              Doc<span className="text-emerald-400">Cy</span> gives your practice a calm, premium booking experience.
-              Patients choose a time, you get a clean agenda and WhatsApp-ready
-              contact details – built for medical practices across Cyprus.
+              Experience the most intuitive booking system designed for healthcare
+              professionals. Save time, reduce no-shows, and provide a premium
+              experience for your patients.
             </p>
 
             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -67,10 +67,10 @@ export default function HomePage() {
               </Link>
 
               <Link
-                href="/dr-nikos"
+                href="/login"
                 className="inline-flex items-center justify-center rounded-2xl border border-slate-700/80 bg-slate-900/60 px-6 py-3 text-sm font-semibold text-slate-200 backdrop-blur transition hover:border-emerald-400/30 hover:bg-emerald-400/10 hover:text-emerald-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
               >
-                View Demo
+                Doctor Portal
               </Link>
             </div>
 
@@ -85,69 +85,59 @@ export default function HomePage() {
             </div>
           </section>
 
-          {/* Glassmorphism panel: How it works */}
+          {/* Glassmorphism panel: Benefits */}
           <section className="w-full max-w-md rounded-3xl border border-emerald-100/10 bg-slate-900/50 p-5 shadow-2xl shadow-slate-950/50 backdrop-blur-xl lg:p-6">
             <div className="mb-5 flex items-center justify-between gap-3">
               <h2 className="text-sm font-semibold tracking-tight text-slate-100 sm:text-base">
-                How Doc<span className="text-emerald-400">Cy</span> works
+                Built for modern clinics
               </h2>
               <span className="rounded-full bg-emerald-500/10 px-3 py-1 text-[11px] font-medium tracking-[0.2em] text-emerald-200">
-                3 simple steps
+                3 benefits
               </span>
             </div>
 
             <div className="space-y-4">
-              {/* Step 1 */}
+              {/* Benefit 1 */}
               <div className="flex gap-3 rounded-2xl border border-slate-700/60 bg-slate-900/60 p-3.5">
                 <div className="mt-0.5 flex h-9 w-9 items-center justify-center rounded-2xl bg-emerald-400/15 text-emerald-300">
                   <UserRound className="h-4 w-4" />
                 </div>
                 <div className="flex-1">
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-300">
-                    1. Choose your doctor
+                    24/7 Smart Booking
                   </p>
                   <p className="mt-1 text-[13px] text-slate-400">
-                    Patients land on a clean profile for{" "}
-                    <span className="font-medium text-emerald-200">
-                      Dr. Nikos
-                    </span>{" "}
-                    and instantly see real availability.
+                    Patients book anytime, anywhere — the right slot, in seconds.
                   </p>
                 </div>
               </div>
 
-              {/* Step 2 */}
+              {/* Benefit 2 */}
               <div className="flex gap-3 rounded-2xl border border-slate-700/50 bg-slate-900/40 p-3.5">
                 <div className="mt-0.5 flex h-9 w-9 items-center justify-center rounded-2xl bg-emerald-400/10 text-emerald-300">
                   <CalendarDays className="h-4 w-4" />
                 </div>
                 <div className="flex-1">
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-300">
-                    2. Pick a time
+                    Effortless Management
                   </p>
                   <p className="mt-1 text-[13px] text-slate-400">
-                    Doc<span className="text-emerald-400">Cy</span> shows only free, local-time slots so your agenda stays
-                    structured and double-booking free.
+                    Full control over your schedule, working hours, and availability.
                   </p>
                 </div>
               </div>
 
-              {/* Step 3 */}
+              {/* Benefit 3 */}
               <div className="flex gap-3 rounded-2xl border border-slate-700/40 bg-slate-900/30 p-3.5">
                 <div className="mt-0.5 flex h-9 w-9 items-center justify-center rounded-2xl bg-emerald-400/10 text-emerald-300">
                   <MessageCircle className="h-4 w-4" />
                 </div>
                 <div className="flex-1">
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-300">
-                    3. Confirm via WhatsApp
+                    Professional Image
                   </p>
                   <p className="mt-1 text-[13px] text-slate-400">
-                    Every booking drops into your{" "}
-                    <span className="font-medium text-emerald-200">
-                      Doctor&apos;s Agenda
-                    </span>{" "}
-                    with a WhatsApp-ready phone number – so follow‑up is one tap
-                    away.
+                    A dedicated profile that builds trust and elevates your clinic.
                   </p>
                 </div>
               </div>

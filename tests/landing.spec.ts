@@ -5,30 +5,39 @@ test.describe("Landing page", () => {
   test("displays main headline and primary CTA", async ({ page }) => {
     await page.goto("/");
 
-    // Main headline: "Smart Medical Appointments in Cyprus"
+    // Main headline: "Your medical practice, automated."
     await expect(
-      page.getByRole("heading", { name: /Smart Medical Appointments/i })
+      page.getByRole("heading", { level: 1, name: /Your medical practice/i })
     ).toBeVisible();
-    await expect(page.getByText(/in Cyprus/).first()).toBeVisible();
 
-    // Primary CTA: "Book with Dr. Nikos"
-    const cta = page.getByRole("link", { name: /Book with Dr. Nikos/i });
-    await expect(cta).toBeVisible();
-    await expect(cta).toHaveAttribute("href", "/dr-nikos");
+    // Primary CTA: "Create Your Professional Profile" → /register
+    const primaryCta = page.getByRole("link", {
+      name: /Create Your Professional Profile/i,
+    });
+    await expect(primaryCta).toBeVisible();
+    await expect(primaryCta).toHaveAttribute("href", "/register");
+
+    // Secondary: "Doctor Portal" → /login
+    const doctorPortal = page.getByRole("link", { name: /Doctor Portal/i });
+    await expect(doctorPortal).toBeVisible();
+    await expect(doctorPortal).toHaveAttribute("href", "/login");
   });
 
-  test("primary CTA navigates to doctor profile", async ({ page }) => {
+  test("primary CTA navigates to register", async ({ page }) => {
     await page.goto("/");
-    const cta = page.getByRole("link", { name: /Book with Dr. Nikos/i });
+    const cta = page.getByRole("link", {
+      name: /Create Your Professional Profile/i,
+    });
     await expect(cta).toBeVisible();
 
     await Promise.all([
-      page.waitForURL(/\/dr-nikos/, { timeout: 10000 }),
+      page.waitForURL(/\/register/, { timeout: 10000 }),
       cta.click(),
     ]);
 
+    await expect(page).toHaveURL("/register");
     await expect(
-      page.getByText("Dr. Andreas Nikos", { exact: true })
+      page.getByRole("heading", { name: /Create your professional profile/i })
     ).toBeVisible({ timeout: 5000 });
   });
 });

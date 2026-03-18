@@ -2,6 +2,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
+import { FeedbackWidget } from "@/components/feedback/FeedbackWidget";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -25,6 +26,7 @@ export default function RootLayout({
         className={`${inter.variable} min-h-screen bg-slate-50 text-slate-900 antialiased`}
       >
         {children}
+        <FeedbackWidget />
       </body>
     </html>
   );

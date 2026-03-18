@@ -1,6 +1,17 @@
 // tests/doctor_dashboard.spec.ts
 import { test, expect } from "@playwright/test";
 
+const E2E_DOCTOR_EMAIL = process.env.E2E_DOCTOR_EMAIL ?? "";
+const E2E_DOCTOR_PASSWORD = process.env.E2E_DOCTOR_PASSWORD ?? "";
+
+async function signIn(page: import("@playwright/test").Page) {
+  await page.goto("/login");
+  await page.getByLabel(/email/i).fill(E2E_DOCTOR_EMAIL);
+  await page.getByLabel(/password/i).fill(E2E_DOCTOR_PASSWORD);
+  await page.getByRole("button", { name: /sign in/i }).click();
+  await expect(page).toHaveURL(/\/agenda/, { timeout: 10000 });
+}
+
 test.describe("Doctor dashboard", () => {
   test("desktop: appointments list or empty state, and appointment detail when present", async ({
     page,
@@ -9,7 +20,7 @@ test.describe("Doctor dashboard", () => {
     await page.goto("/agenda");
 
     await expect(
-      page.getByRole("heading", { name: /Doctor's Agenda/i })
+      page.getByRole("heading", { level: 1, name: /Your agenda/i })
     ).toBeVisible({ timeout: 10000 });
 
     const todaySection = page.locator("section").first();
@@ -39,7 +50,7 @@ test.describe("Doctor dashboard", () => {
     await page.goto("/agenda");
 
     await expect(
-      page.getByRole("heading", { name: /Doctor's Agenda/i })
+      page.getByRole("heading", { level: 1, name: /Your agenda/i })
     ).toBeVisible({ timeout: 10000 });
 
     // On mobile we show stacked cards, not the desktop timeline
@@ -56,23 +67,29 @@ test.describe("Doctor dashboard", () => {
   test("dashboard links to settings and settings page loads", async ({
     page,
   }) => {
+    test.skip(
+      !E2E_DOCTOR_EMAIL || !E2E_DOCTOR_PASSWORD,
+      "Set E2E_DOCTOR_EMAIL and E2E_DOCTOR_PASSWORD (settings requires auth)"
+    );
+
+    await signIn(page);
     await page.goto("/agenda");
 
     await expect(
-      page.getByRole("heading", { name: /Doctor's Agenda/i })
+      page.getByRole("heading", { level: 1, name: /Your agenda/i })
     ).toBeVisible({ timeout: 10000 });
 
     const settingsLink = page.getByRole("link", {
       name: /Working hours & settings/i,
     });
     await expect(settingsLink).toBeVisible();
-    await expect(settingsLink).toHaveAttribute("href", "/dashboard/settings");
+    await expect(settingsLink).toHaveAttribute("href", "/agenda/settings");
 
     await Promise.all([
-      page.waitForURL(/\/dashboard\/settings/, { timeout: 10000 }),
+      page.waitForURL(/\/agenda\/settings/, { timeout: 10000 }),
       settingsLink.click(),
     ]);
-    await expect(page).toHaveURL("/dashboard/settings");
+    await expect(page).toHaveURL("/agenda/settings");
     await expect(
       page.getByRole("heading", { name: /Working hours & availability/i })
     ).toBeVisible({ timeout: 5000 });

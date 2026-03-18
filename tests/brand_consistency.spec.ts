@@ -8,7 +8,7 @@ test.describe("Brand consistency", () => {
     await page.goto("/");
 
     await expect(
-      page.getByRole("heading", { name: /Smart Medical Appointments/i })
+      page.getByRole("heading", { level: 1, name: /Your medical practice/i })
     ).toBeVisible({ timeout: 10000 });
 
     // Brand: "Cy" must be in a span with emerald accent (not "Cy" in "Cyprus")

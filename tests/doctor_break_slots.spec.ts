@@ -1,10 +1,27 @@
 // tests/doctor_break_slots.spec.ts
 import { test, expect } from "@playwright/test";
 
+const E2E_DOCTOR_EMAIL = process.env.E2E_DOCTOR_EMAIL ?? "";
+const E2E_DOCTOR_PASSWORD = process.env.E2E_DOCTOR_PASSWORD ?? "";
+
 test.describe("Doctor lunch/break time", () => {
-  test("break window hides slots between 14:00 and 16:00", async ({ page }) => {
-    // 1. Configure a daily break via the dashboard settings UI
-    await page.goto("/dashboard/settings");
+  test("break window hides slots between 14:00 and 16:00", async ({
+    page,
+  }) => {
+    test.skip(
+      !E2E_DOCTOR_EMAIL || !E2E_DOCTOR_PASSWORD,
+      "Set E2E_DOCTOR_EMAIL and E2E_DOCTOR_PASSWORD to run this test (agenda/settings requires auth)"
+    );
+
+    // 0. Sign in so /agenda/settings shows the doctor's settings
+    await page.goto("/login");
+    await page.getByLabel(/email/i).fill(E2E_DOCTOR_EMAIL);
+    await page.getByLabel(/password/i).fill(E2E_DOCTOR_PASSWORD);
+    await page.getByRole("button", { name: /Sign in/i }).click();
+    await expect(page).toHaveURL(/\/agenda/, { timeout: 10000 });
+
+    // 1. Configure a daily break via the agenda settings UI
+    await page.goto("/agenda/settings");
 
     await expect(
       page.getByRole("heading", { name: /Working hours & availability/i })
