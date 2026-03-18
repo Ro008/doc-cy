@@ -7,6 +7,7 @@ import { ArrowLeft, Save } from "lucide-react";
 export type DoctorSettingsFormData = {
   doctorId: string;
   doctorName: string;
+  whatsappNumber?: string;
   monday: boolean;
   tuesday: boolean;
   wednesday: boolean;
@@ -38,6 +39,10 @@ export function SettingsForm({ initial }: SettingsFormProps) {
     type: "success" | "error";
     text: string;
   } | null>(null);
+
+  const [whatsappNumber, setWhatsappNumber] = React.useState(
+    initial.whatsappNumber ?? ""
+  );
 
   const [monday, setMonday] = React.useState(initial.monday);
   const [tuesday, setTuesday] = React.useState(initial.tuesday);
@@ -73,6 +78,7 @@ export function SettingsForm({ initial }: SettingsFormProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           doctorId: initial.doctorId,
+          doctorPhone: whatsappNumber || null,
           monday,
           tuesday,
           wednesday,
@@ -123,6 +129,26 @@ export function SettingsForm({ initial }: SettingsFormProps) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-5">
+        <label
+          htmlFor="whatsappNumber"
+          className="text-xs font-semibold uppercase tracking-wide text-slate-400"
+        >
+          WhatsApp Number (with country code, e.g., +357...)
+        </label>
+        <input
+          id="whatsappNumber"
+          type="text"
+          value={whatsappNumber}
+          onChange={(e) => setWhatsappNumber(e.target.value)}
+          placeholder="+357..."
+          className="mt-2 w-full rounded-xl border border-slate-800/80 bg-slate-950/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-400/60"
+        />
+        <p className="mt-2 text-xs text-slate-400">
+          Used in appointment confirmation emails to enable "Chat on WhatsApp".
+        </p>
+      </div>
+
       <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-5">
         <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
           Working days

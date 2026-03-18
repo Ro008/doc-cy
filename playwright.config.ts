@@ -1,5 +1,9 @@
 // playwright.config.ts
 import { defineConfig, devices } from "@playwright/test";
+import dotenv from "dotenv";
+
+// Load Next.js local env for Playwright runs (so auth tests can use TEST_USER_EMAIL/PASSWORD)
+dotenv.config({ path: ".env.local" });
 
 export default defineConfig({
   testDir: "./tests",

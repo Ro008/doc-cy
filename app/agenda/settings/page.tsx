@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
 import { SettingsForm } from "@/components/dashboard/SettingsForm";
@@ -23,22 +24,42 @@ export default async function AgendaSettingsPage() {
 
   const {
     data: { user },
+    error: authError,
   } = await supabase.auth.getUser();
 
-  let doctor: { id: string; name: string } | null = null;
+  if (authError || !user) {
+    redirect("/login");
+  }
 
-  if (user?.id) {
-    const { data, error } = await supabase
+  // Fetch doctor row for this authenticated user.
+  // If the `phone` column isn't available in the DB yet (or query fails),
+  // fall back to a basic select so the rest of the settings page still works.
+  let doctor: { id: string; name: string; phone?: string | null } | null = null;
+  let doctorError: unknown = null;
+  try {
+    const res = await supabase
+      .from("doctors")
+      .select("id, name, phone")
+      .eq("auth_user_id", user.id)
+      .single();
+    doctor = res.data as any;
+    doctorError = res.error;
+  } catch (err) {
+    doctorError = err;
+  }
+
+  if (!doctor) {
+    const fallback = await supabase
       .from("doctors")
       .select("id, name")
       .eq("auth_user_id", user.id)
       .single();
+    doctor = fallback.data as any;
+    doctorError = fallback.error ?? doctorError;
+  }
 
-    if (error) {
-      console.error("[Settings] Error fetching doctor for user", error);
-    }
-
-    doctor = data;
+  if (doctorError) {
+    console.error("[Settings] Error fetching doctor for user", doctorError);
   }
 
   if (!doctor) {
@@ -50,7 +71,10 @@ export default async function AgendaSettingsPage() {
           <div className="absolute inset-y-0 right-[-15%] h-full w-72 bg-emerald-400/10 blur-3xl" />
         </div>
         <div className="mx-auto max-w-2xl px-4 py-12 text-center">
-          <p className="text-slate-300">No doctor found. Sign in to access your settings.</p>
+          <p className="text-slate-200">
+            Doctor profile not found for this account. Please contact support.
+          </p>
+          <SignOutButton />
           <Link
             href="/agenda"
             className="mt-4 inline-flex items-center text-sm text-emerald-300 hover:text-emerald-200"
@@ -72,6 +96,7 @@ export default async function AgendaSettingsPage() {
   const initial: DoctorSettingsFormData = {
     doctorId: doctor.id,
     doctorName: doctor.name,
+    whatsappNumber: doctor.phone ?? undefined,
     monday: (settings as { monday?: boolean } | null)?.monday ?? true,
     tuesday: (settings as { tuesday?: boolean } | null)?.tuesday ?? true,
     wednesday: (settings as { wednesday?: boolean } | null)?.wednesday ?? true,

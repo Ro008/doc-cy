@@ -47,6 +47,7 @@ export async function POST(req: NextRequest) {
 
   const b = body as {
     doctorId?: string;
+    doctorPhone?: string | null;
     monday?: boolean;
     tuesday?: boolean;
     wednesday?: boolean;
@@ -67,6 +68,8 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  const doctorId = b.doctorId;
+
   const toTime = (v: string | undefined, fallback: string) => {
     if (!v || typeof v !== "string") return fallback;
     const parts = v.trim().split(":");
@@ -80,7 +83,7 @@ export async function POST(req: NextRequest) {
     Number.isInteger(slotMinutes) && slotMinutes > 0 ? slotMinutes : 30;
 
   const payload = {
-    doctor_id: b.doctorId,
+    doctor_id: doctorId,
     monday: Boolean(b.monday),
     tuesday: Boolean(b.tuesday),
     wednesday: Boolean(b.wednesday),
@@ -108,6 +111,20 @@ export async function POST(req: NextRequest) {
       { message: "Error saving settings." },
       { status: 500 }
     );
+  }
+
+  // Also update doctor WhatsApp number (best-effort).
+  try {
+    if (b.doctorPhone !== undefined) {
+      const trimmed =
+        typeof b.doctorPhone === "string" ? b.doctorPhone.trim() : "";
+      await supabase
+        .from("doctors")
+        .update({ phone: trimmed ? trimmed : null })
+        .eq("id", doctorId);
+    }
+  } catch (err) {
+    console.error("[DocCy] Failed to update doctors.phone", err);
   }
 
   return NextResponse.json({ settings: data }, { status: 200 });

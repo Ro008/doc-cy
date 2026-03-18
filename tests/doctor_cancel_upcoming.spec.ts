@@ -1,5 +1,9 @@
 // tests/doctor_cancel_upcoming.spec.ts
 import { test, expect } from "@playwright/test";
+import { createClient } from "@supabase/supabase-js";
+
+const TEST_USER_EMAIL = process.env.TEST_USER_EMAIL ?? "";
+const TEST_USER_PASSWORD = process.env.TEST_USER_PASSWORD ?? "";
 
 function nextWorkingDayCyprus(now: Date): string {
   const d = new Date(now);
@@ -19,6 +23,44 @@ test.describe("Upcoming appointments cancellation", () => {
     page,
     request,
   }) => {
+    async function signIn() {
+      for (let attempt = 0; attempt < 2; attempt++) {
+        await page.goto("/login");
+        await page.getByLabel(/email/i).fill(TEST_USER_EMAIL);
+        const passwordInput = page.getByLabel(/password/i);
+        await passwordInput.fill(TEST_USER_PASSWORD);
+
+        await passwordInput.press("Enter");
+
+        await page.waitForLoadState("domcontentloaded");
+
+        try {
+          await expect(page).toHaveURL(/\/agenda/, { timeout: 20000 });
+          return;
+        } catch {
+          // retry once (page will be reloaded at next loop iteration)
+          await page.waitForTimeout(2000);
+        }
+      }
+
+      await expect(page).toHaveURL(/\/agenda/, { timeout: 20000 });
+    }
+
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
+    expect(supabaseUrl).not.toBe("");
+    expect(supabaseAnonKey).not.toBe("");
+
+    const supabase = createClient(supabaseUrl, supabaseAnonKey);
+    const { data: activeDoctors } = await supabase
+      .from("doctors")
+      .select("slug")
+      .eq("status", "active")
+      .limit(5);
+
+    const slug = activeDoctors?.[0]?.slug;
+    expect(slug).toBeTruthy();
+
     // 1. Create a future appointment via API (using doctorSlug for Dr. Nikos)
     const dateStr = nextWorkingDayCyprus(new Date());
     // Use an afternoon slot unlikely to collide with other tests
@@ -26,7 +68,7 @@ test.describe("Upcoming appointments cancellation", () => {
 
     const createRes = await request.post("/api/appointments", {
       data: {
-        doctorSlug: "dr-nikos",
+        doctorSlug: slug,
         patientName: "Cancel E2E Future",
         patientEmail: "cancel.future@example.com",
         patientPhone: "+35799123456",
@@ -46,6 +88,7 @@ test.describe("Upcoming appointments cancellation", () => {
     const appointmentId = createJson?.appointment?.id as string | undefined;
 
     // 2. Visit dashboard and locate the appointment in "Upcoming on other days"
+    await signIn();
     await page.goto("/agenda");
 
     await expect(

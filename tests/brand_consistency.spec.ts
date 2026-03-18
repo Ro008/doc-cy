@@ -1,5 +1,6 @@
 // tests/brand_consistency.spec.ts
 import { test, expect } from "@playwright/test";
+import { createClient } from "@supabase/supabase-js";
 
 test.describe("Brand consistency", () => {
   test("landing page shows DocCy with emerald Cy, not DOCCY", async ({
@@ -28,7 +29,27 @@ test.describe("Brand consistency", () => {
   test("doctor profile shows DocCy with emerald Cy, not DOCCY", async ({
     page,
   }) => {
-    await page.goto("/dr-nikos");
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
+    expect(supabaseUrl).not.toBe("");
+    expect(supabaseAnonKey).not.toBe("");
+
+    const supabase = createClient(supabaseUrl, supabaseAnonKey);
+    const { data: activeDoctors } = await supabase
+      .from("doctors")
+      .select("slug")
+      .eq("status", "active")
+      .limit(5);
+
+    const firstSlug = activeDoctors?.[0]?.slug;
+    if (!firstSlug) throw new Error("No active doctors found for E2E test.");
+
+    await page.goto(`/${firstSlug}`);
+
+    // Ensure we didn't get redirected to "/" (doctor missing/inactive)
+    await expect(page).toHaveURL(new RegExp(`/${firstSlug}$`), {
+      timeout: 10000,
+    });
 
     await expect(
       page.getByRole("heading", { level: 1 })
@@ -41,7 +62,7 @@ test.describe("Brand consistency", () => {
     await expect(cySpan.first()).toBeVisible();
     await expect(cySpan.first()).toHaveText("Cy");
 
-    await expect(page.getByText("Doctor profile", { exact: false })).toBeVisible();
+    await expect(page.getByText(/Doctor profile/i)).toBeVisible();
     await expect(page.locator("main")).not.toContainText("DOCCY");
   });
 });

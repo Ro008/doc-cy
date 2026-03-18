@@ -1,21 +1,52 @@
 // tests/booking_flow.spec.ts
 import { test, expect } from "@playwright/test";
+import { createClient } from "@supabase/supabase-js";
 
 test.describe("Booking flow", () => {
   test("full booking flow on doctor profile", async ({ page, request }) => {
-    await page.goto("/dr-nikos");
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
+    expect(supabaseUrl).not.toBe("");
+    expect(supabaseAnonKey).not.toBe("");
+
+    const supabase = createClient(supabaseUrl, supabaseAnonKey);
+    const { data: activeDoctors } = await supabase
+      .from("doctors")
+      .select("slug,name,id")
+      .eq("status", "active")
+      .limit(8);
+
+    const doctors = activeDoctors ?? [];
+    let chosenDoctor: (typeof doctors)[number] | null = null;
+
+    for (const d of doctors) {
+      if (!d?.slug) continue;
+      await page.goto(`/${d.slug}`);
+      // If the doctor has no published availability yet, BookingSection hides the calendar.
+      if (await page.getByText("Select a date on the calendar").isVisible()) {
+        chosenDoctor = d;
+        break;
+      }
+    }
+
+    if (!chosenDoctor) {
+      throw new Error(
+        "No active doctor with published availability found for E2E."
+      );
+    }
 
     await expect(
       page.getByRole("heading", { level: 1 })
     ).toBeVisible({ timeout: 10000 });
 
-    // 1. Verify doctor's name and address
+    // 1. Verify we actually loaded the doctor profile (not the landing page).
+    // If the doctor is missing/inactive, the doctor page redirects to "/".
+    await expect(page).toHaveURL(new RegExp(`/${chosenDoctor.slug}$`), {
+      timeout: 10000,
+    });
     await expect(
-      page.getByText("Dr. Andreas Nikos", { exact: true })
-    ).toBeVisible();
-    await expect(
-      page.getByText("Evangelismos Private Hospital", { exact: false })
-    ).toBeVisible();
+      page.getByText(/Evangelismos Private Hospital/i)
+    ).toBeVisible({ timeout: 10000 });
 
     // 2. Two-column booking: wait for panel (unique placeholder), then select first available day
     await expect(
@@ -66,13 +97,18 @@ test.describe("Booking flow", () => {
     await expect(submitBtn).toBeEnabled();
     await submitBtn.click();
 
-    // 6. Assert success (stable selector; long timeout for API + render in all browsers)
-    const successBanner = page.getByTestId("booking-success-message");
-    await expect(successBanner).toBeVisible({ timeout: 25000 });
+    // 6. Assert success page + extract appointmentId for teardown
+    await expect(
+      page
+    ).toHaveURL(new RegExp(`/${chosenDoctor.slug}/success\\?appointmentId=`), {
+      timeout: 25000,
+    });
+    await expect(
+      page.getByRole("heading", { name: /Appointment Confirmed!/i })
+    ).toBeVisible({ timeout: 10000 });
 
-    // 7. Teardown: delete the appointment via API so the slot is free for next runs
-    const appointmentId =
-      (await successBanner.getAttribute("data-appointment-id")) ?? "";
+    const url = new URL(page.url());
+    const appointmentId = url.searchParams.get("appointmentId") ?? "";
     expect(appointmentId).not.toBe("");
 
     const deleteResponse = await request.delete(

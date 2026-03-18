@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import { PasswordToggleInput } from "@/components/auth/PasswordToggleInput";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -80,12 +81,12 @@ export default function LoginPage() {
               <div>
                 <label className="block text-sm font-medium text-slate-200">
                   Password
-                  <input
-                    type="password"
+                  <PasswordToggleInput
+                    name="password"
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    onChange={(next) => setPassword(next)}
                     required
-                    className="mt-1 w-full rounded-2xl border border-slate-700 bg-slate-900/60 px-3 py-2 text-sm text-slate-100 shadow-sm outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/40"
+                    className="w-full border border-slate-700 bg-slate-900/60 px-3 py-2 text-sm text-slate-100 shadow-sm outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/40"
                   />
                 </label>
               </div>

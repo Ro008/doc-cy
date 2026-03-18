@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { PasswordToggleInput } from "@/components/auth/PasswordToggleInput";
 
 type PageProps = {
   searchParams?: { submitted?: string; error?: string };
@@ -17,6 +18,7 @@ async function handleRegister(formData: FormData) {
   const fullName = (formData.get("fullName") as string | null)?.trim() || "";
   const email = (formData.get("email") as string | null)?.trim() || "";
   const password = (formData.get("password") as string | null) || "";
+  const phone = (formData.get("phone") as string | null)?.trim() || "";
   const specialty =
     (formData.get("specialty") as string | null)?.trim() || "";
   const licenseNumber =
@@ -27,6 +29,7 @@ async function handleRegister(formData: FormData) {
     !fullName ||
     !email ||
     !password ||
+    !phone ||
     !specialty ||
     !licenseNumber ||
     !licenseFile
@@ -99,6 +102,7 @@ async function handleRegister(formData: FormData) {
     name: fullName,
     specialty,
     email,
+    phone,
     license_number: licenseNumber,
     license_file_url: licenseFileUrl,
     status: "pending",
@@ -220,11 +224,22 @@ export default function RegisterPage({ searchParams }: PageProps) {
                 <div>
                   <label className="block text-sm font-medium text-slate-200">
                     Password
-                    <input
-                      type="password"
+                    <PasswordToggleInput
                       name="password"
                       required
                       minLength={8}
+                      className="w-full"
+                    />
+                  </label>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-200">
+                    WhatsApp Number (with country code, e.g., +357...)
+                    <input
+                      type="tel"
+                      name="phone"
+                      required
+                      placeholder="+357..."
                       className="mt-1 w-full rounded-2xl border border-slate-700 bg-slate-900/60 px-3 py-2 text-sm text-slate-100 shadow-sm outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/40"
                     />
                   </label>

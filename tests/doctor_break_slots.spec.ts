@@ -1,22 +1,18 @@
 // tests/doctor_break_slots.spec.ts
 import { test, expect } from "@playwright/test";
+import { createClient } from "@supabase/supabase-js";
 
-const E2E_DOCTOR_EMAIL = process.env.E2E_DOCTOR_EMAIL ?? "";
-const E2E_DOCTOR_PASSWORD = process.env.E2E_DOCTOR_PASSWORD ?? "";
+const TEST_USER_EMAIL = process.env.TEST_USER_EMAIL ?? "";
+const TEST_USER_PASSWORD = process.env.TEST_USER_PASSWORD ?? "";
 
 test.describe("Doctor lunch/break time", () => {
   test("break window hides slots between 14:00 and 16:00", async ({
     page,
   }) => {
-    test.skip(
-      !E2E_DOCTOR_EMAIL || !E2E_DOCTOR_PASSWORD,
-      "Set E2E_DOCTOR_EMAIL and E2E_DOCTOR_PASSWORD to run this test (agenda/settings requires auth)"
-    );
-
     // 0. Sign in so /agenda/settings shows the doctor's settings
     await page.goto("/login");
-    await page.getByLabel(/email/i).fill(E2E_DOCTOR_EMAIL);
-    await page.getByLabel(/password/i).fill(E2E_DOCTOR_PASSWORD);
+    await page.getByLabel(/email/i).fill(TEST_USER_EMAIL);
+    await page.getByLabel(/password/i).fill(TEST_USER_PASSWORD);
     await page.getByRole("button", { name: /Sign in/i }).click();
     await expect(page).toHaveURL(/\/agenda/, { timeout: 10000 });
 
@@ -49,7 +45,24 @@ test.describe("Doctor lunch/break time", () => {
     ).toBeVisible({ timeout: 10000 });
 
     // 2. Go to doctor profile and verify no slots are shown in 14:00–16:00
-    await page.goto("/dr-nikos");
+    // Use the authenticated doctor's public slug (avoid hardcoding /dr-nikos)
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
+    expect(supabaseUrl).not.toBe("");
+    expect(supabaseAnonKey).not.toBe("");
+
+    const supabase = createClient(supabaseUrl, supabaseAnonKey);
+    const { data: doctorRow } = await supabase
+      .from("doctors")
+      .select("slug")
+      .eq("email", TEST_USER_EMAIL)
+      .eq("status", "active")
+      .single();
+
+    const slug = doctorRow?.slug;
+    expect(slug).toBeTruthy();
+
+    await page.goto(`/${slug}`);
 
     await expect(
       page.getByRole("heading", { level: 1 })

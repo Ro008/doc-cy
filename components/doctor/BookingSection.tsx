@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   addMinutes,
   format,
@@ -54,6 +55,7 @@ export function BookingSection({
   breakStart,
   breakEnd,
 }: BookingSectionProps) {
+  const router = useRouter();
   const takenSet = React.useMemo(
     () => new Set(takenSlotTimes),
     [takenSlotTimes]
@@ -216,6 +218,12 @@ export function BookingSection({
         const newId =
           (data?.appointment?.id as string | undefined) ?? null;
         setLastAppointmentId(newId);
+        if (profileSlug && newId) {
+          router.push(
+            `/${profileSlug}/success?appointmentId=${encodeURIComponent(newId)}`
+          );
+          return;
+        }
         setBookingSuccess(true);
         setSelectedSlot(null);
         setSelectedDate(null);
@@ -238,6 +246,8 @@ export function BookingSection({
       patientPhone,
       phoneValid,
       doctorId,
+      profileSlug,
+      router,
     ]
   );
 
