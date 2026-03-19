@@ -98,11 +98,33 @@ test.describe("Booking flow", () => {
     await submitBtn.click();
 
     // 6. Assert success page + extract appointmentId for teardown
-    await expect(
-      page
-    ).toHaveURL(new RegExp(`/${chosenDoctor.slug}/success\\?appointmentId=`), {
-      timeout: 25000,
-    });
+    // If another worker books the same slot between selection and insert,
+    // the UI shows an inline 409 error and we need to retry with a different slot.
+    const successUrlRegex = new RegExp(
+      `/${chosenDoctor.slug}/success\\?appointmentId=`
+    );
+
+    try {
+      await page.waitForURL(successUrlRegex, { timeout: 25000 });
+    } catch {
+      await expect(page.getByTestId("booking-error-message")).toBeVisible({
+        timeout: 5000,
+      });
+
+      const changeTimeBtn = page.getByRole("button", { name: /Change time/i });
+      await expect(changeTimeBtn).toBeVisible({ timeout: 10000 });
+      await changeTimeBtn.click();
+
+      const selectButtons = page.getByRole("button", { name: /Select/i });
+      const count = await selectButtons.count();
+      expect(count).toBeGreaterThan(0);
+
+      await selectButtons.nth((slotIndex + 1) % count).click();
+      await page.getByRole("button", { name: /Confirm/i }).first().click();
+      await page.getByRole("button", { name: /Book appointment/i }).click();
+
+      await page.waitForURL(successUrlRegex, { timeout: 25000 });
+    }
     await expect(
       page.getByRole("heading", { name: /Appointment Confirmed!/i })
     ).toBeVisible({ timeout: 10000 });
