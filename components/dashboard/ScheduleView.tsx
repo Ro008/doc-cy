@@ -11,7 +11,6 @@ export type ScheduleAppointment = {
   whatsappUrl: string | null;
   timeLabel: string;
   minutesFrom8: number;
-  durationMinutes: number;
 };
 
 function getWhatsAppUrl(phone: string): string | null {
@@ -130,6 +129,7 @@ export function ScheduleView({
                   {appt.patient_email || appt.patient_phone}
                 </p>
               </div>
+              {/* Calendar sync removed for demo simplicity */}
             </button>
           ))}
         </div>
@@ -191,6 +191,7 @@ export function ScheduleView({
                 </span>
               )}
             </div>
+
             <div className="mt-4 border-t border-slate-800/60 pt-4">
               {!confirmingCancel ? (
                 <button

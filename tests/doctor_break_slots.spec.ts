@@ -1,9 +1,7 @@
 // tests/doctor_break_slots.spec.ts
 import { test, expect } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
-
-const TEST_USER_EMAIL = process.env.TEST_USER_EMAIL ?? "";
-const TEST_USER_PASSWORD = process.env.TEST_USER_PASSWORD ?? "";
+import { signInDoctorAndSetCookies } from "./helpers/doctorAuth";
 
 test.describe("Doctor lunch/break time", () => {
   test.beforeEach(({}, testInfo) => {
@@ -23,31 +21,23 @@ test.describe("Doctor lunch/break time", () => {
   }) => {
     test.setTimeout(60000);
 
-    // 0. Sign in so /agenda/settings shows the doctor's settings
-    const urlRegex = /\/agenda/;
-    for (let attempt = 0; attempt < 2; attempt++) {
-      await page.goto("/login");
-      await page.getByLabel(/email/i).fill(TEST_USER_EMAIL);
-      const passwordInput = page.getByLabel(/password/i);
-      await passwordInput.fill(TEST_USER_PASSWORD);
-      await passwordInput.press("Enter");
-      await page.waitForLoadState("domcontentloaded");
+    // 0. Sign in programmatically and set Supabase auth cookies.
+    // This avoids flakiness when the login form submit isn't intercepted by React.
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
+    expect(supabaseUrl).not.toBe("");
+    expect(supabaseAnonKey).not.toBe("");
 
-      try {
-        await page.waitForURL(urlRegex, { timeout: 30000 });
-        break;
-      } catch {
-        // retry once
-      }
-    }
-    await page.waitForURL(urlRegex, { timeout: 30000 });
+    const supabase = createClient(supabaseUrl, supabaseAnonKey);
+    const { authUserId } = await signInDoctorAndSetCookies(page, supabase);
 
-    // 1. Configure a daily break via the agenda settings UI
     await page.goto("/agenda/settings");
-
     await expect(
       page.getByRole("heading", { name: /Working hours & availability/i })
     ).toBeVisible({ timeout: 10000 });
+
+    // 1. Configure a daily break via the agenda settings UI
+    // (page already on /agenda/settings and heading is visible)
 
     const breakCheckbox = page.getByRole("checkbox", {
       name: /Add a daily break/i,
@@ -72,16 +62,10 @@ test.describe("Doctor lunch/break time", () => {
 
     // 2. Go to doctor profile and verify no slots are shown in 14:00–16:00
     // Use the authenticated doctor's public slug (avoid hardcoding /dr-nikos)
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
-    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
-    expect(supabaseUrl).not.toBe("");
-    expect(supabaseAnonKey).not.toBe("");
-
-    const supabase = createClient(supabaseUrl, supabaseAnonKey);
     const { data: doctorRow } = await supabase
       .from("doctors")
       .select("slug")
-      .eq("email", TEST_USER_EMAIL)
+      .eq("auth_user_id", authUserId)
       .eq("status", "active")
       .single();
 

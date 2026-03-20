@@ -56,7 +56,7 @@ export function AgendaRealtime({
           filter: `doctor_id=eq.${doctorId}`,
         },
         (payload) => {
-          const next = payload.new as AgendaAppointmentRow;
+          const next = payload.new as AgendaAppointmentRow | null;
           if (!next?.id) return;
 
           setAppointments((prev) => {
@@ -99,7 +99,6 @@ export function AgendaRealtime({
       timeLabel: format(cyDate, "HH:mm", { locale: enGB }),
       whatsappUrl: getWhatsAppUrl(a.patient_phone),
       minutesFrom8: Math.max(0, minutesFrom8),
-      durationMinutes: 30,
     };
   });
 
@@ -112,7 +111,6 @@ export function AgendaRealtime({
     whatsappUrl: r.whatsappUrl,
     timeLabel: r.timeLabel,
     minutesFrom8: r.minutesFrom8,
-    durationMinutes: r.durationMinutes,
   }));
 
   return (
@@ -147,7 +145,9 @@ export function AgendaRealtime({
           )}
         </div>
         <div className="px-4 pb-4 pt-2 sm:px-6 sm:pb-6 sm:pt-3">
-          <ScheduleView appointments={scheduleAppointments} />
+          <ScheduleView
+            appointments={scheduleAppointments}
+          />
         </div>
       </section>
 

@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { CY_TZ } from "@/lib/appointments";
 import { zonedTimeToUtc, utcToZonedTime } from "date-fns-tz";
-import { format } from "date-fns";
+import { addMinutes, format } from "date-fns";
 import { appointmentToCyprusDate } from "@/lib/appointments";
 import {
   isTimeWithinSettings,
@@ -12,6 +12,28 @@ import {
 import { sendResendEmail } from "@/lib/resend";
 import type { DoctorRow } from "@/lib/doctors";
 import { phoneToWaMeLink } from "@/lib/whatsapp";
+
+function toGoogleCalendarUrl(opts: {
+  title: string;
+  description?: string;
+  startUtc: Date;
+  endUtc: Date;
+}) {
+  const fmt = (d: Date) =>
+    d
+      .toISOString()
+      .replace(/[-:]/g, "")
+      .replace(/\.\d{3}Z$/, "Z");
+
+  const params = new URLSearchParams({
+    action: "TEMPLATE",
+    text: opts.title,
+    dates: `${fmt(opts.startUtc)}/${fmt(opts.endUtc)}`,
+    details: opts.description ?? "",
+  });
+
+  return `https://calendar.google.com/calendar/render?${params.toString()}`;
+}
 
 export async function POST(req: NextRequest) {
   let body: unknown;
@@ -24,6 +46,8 @@ export async function POST(req: NextRequest) {
       { status: 400 }
     );
   }
+
+  const origin = new URL(req.url).origin;
 
   const {
     doctorId: rawDoctorId,
@@ -188,7 +212,8 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Notifications (best-effort): email patient + doctor via Resend.
+  // Notifications (best-effort) via Resend. Free tier: from must be onboarding@resend.dev;
+  // demo often sends only to the doctor's verified inbox — see single email below.
   // Do not block booking success if notifications fail.
   try {
     const { data: doctor } = await supabase
@@ -199,30 +224,67 @@ export async function POST(req: NextRequest) {
 
     const doctorRow = doctor as DoctorRow | null;
     const doctorName = doctorRow?.name ?? undefined;
-    const doctorEmail = doctorRow?.email ?? undefined;
-    const waMeLink = phoneToWaMeLink(doctorRow?.phone);
+    const doctorEmail = doctorRow?.email?.trim() || undefined;
+    const doctorWaMe = phoneToWaMeLink(doctorRow?.phone);
+    const patientWaMe = phoneToWaMeLink(patientPhone);
 
     const cyDate = appointmentToCyprusDate(inserted.appointment_datetime as string);
     const dateLabel = format(cyDate, "EEE d MMM yyyy");
     const timeLabel = format(cyDate, "HH:mm");
 
-    if (patientEmail && doctorName) {
-      let patientText = `Your appointment with ${doctorName} is confirmed.`;
-      if (waMeLink) {
-        patientText += `\n\nChat on WhatsApp: ${waMeLink}`;
-      }
-      await sendResendEmail({
-        to: patientEmail,
-        subject: "Appointment confirmed",
-        text: patientText,
-      });
-    }
+    if (doctorName) {
+      const demoTo = "rociosirvent@gmail.com";
 
-    if (doctorEmail && doctorName) {
+      let patientText = `Hi ${patientName},\n\nYour appointment with ${doctorName} is confirmed for ${dateLabel} at ${timeLabel} (Cyprus time).`;
+      if (doctorEmail) {
+        patientText += `\n\nDoctor contact: ${doctorName} <${doctorEmail}>.`;
+      }
+      if (doctorWaMe) {
+        patientText += `\n\nChat with ${doctorName} on WhatsApp: ${doctorWaMe}`;
+      }
+
+      let doctorText = `New appointment\n\nPatient: ${patientName}\nPatient email: ${patientEmail}\nPhone: ${patientPhone}\nWhen: ${dateLabel} at ${timeLabel} (Cyprus time)`;
+      if (doctorEmail) {
+        doctorText += `\n\nDoctor email: ${doctorEmail}`;
+      }
+      if (patientWaMe) {
+        doctorText += `\n\nMessage patient on WhatsApp: ${patientWaMe}`;
+      }
+
+      const durationMinutes =
+        (settings as DoctorSettingsRow | null)?.slot_duration_minutes ?? 30;
+
+      const startUtc = new Date(inserted.appointment_datetime as string);
+      const endUtc = addMinutes(startUtc, durationMinutes);
+
+      const googleUrl = toGoogleCalendarUrl({
+        title: `Appointment with ${patientName}`,
+        description: doctorName,
+        startUtc,
+        endUtc,
+      });
+
+      const icsUrl = new URL(
+        `/api/appointments/${encodeURIComponent(inserted.id)}/calendar`,
+        origin
+      ).toString();
+
+      doctorText +=
+        `\n\n[Add to Google Calendar]\n${googleUrl}` +
+        `\n\n[Add to Apple/Outlook (.ics)]\n${icsUrl}`;
+
+      // TODO: Change 'to' address to dynamic doctor/patient emails once domain is verified.
       await sendResendEmail({
-        to: doctorEmail,
-        subject: "New appointment",
-        text: `New appointment! ${patientName} on ${dateLabel} at ${timeLabel}.`,
+        to: demoTo,
+        subject: `New appointment — ${patientName} · ${dateLabel} ${timeLabel}`,
+        text: doctorText,
+      });
+
+      // TODO: Change 'to' address to dynamic doctor/patient emails once domain is verified.
+      await sendResendEmail({
+        to: demoTo,
+        subject: `Appointment confirmed — ${doctorName} · ${dateLabel} ${timeLabel}`,
+        text: patientText,
       });
     }
   } catch (err) {
