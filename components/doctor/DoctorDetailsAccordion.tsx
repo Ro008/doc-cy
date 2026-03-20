@@ -1,11 +1,10 @@
 "use client";
 
 import * as React from "react";
-import { ChevronDown, MapPin } from "lucide-react";
+import { CalendarCheck2, ChevronDown, MapPin } from "lucide-react";
 
 type DoctorDetailsAccordionProps = {
   name: string;
-  specialty: string;
   bio: string | null;
   clinicAddress: string;
   mapsUrl: string;
@@ -13,12 +12,14 @@ type DoctorDetailsAccordionProps = {
 
 export function DoctorDetailsAccordion({
   name,
-  specialty,
   bio,
   clinicAddress,
   mapsUrl,
 }: DoctorDetailsAccordionProps) {
   const [open, setOpen] = React.useState(false);
+  const bioText = (bio ?? "").trim();
+  const truncatedBio =
+    bioText.length > 500 ? `${bioText.slice(0, 500).trimEnd()}...` : bioText;
 
   React.useEffect(() => {
     if (typeof window !== "undefined" && window.innerWidth >= 1024) {
@@ -50,54 +51,47 @@ export function DoctorDetailsAccordion({
         <div
           id="doctor-details-panel"
           className={`overflow-hidden transition-all duration-300 ${
-            open ? "max-h-[800px] opacity-100" : "max-h-0 opacity-0"
+            open ? "max-h-[720px] opacity-100" : "max-h-0 opacity-0"
           }`}
         >
-          <div className="space-y-4 px-5 pb-5 pt-1">
+          <div className="space-y-3 px-5 pb-5 pt-1">
+            <div className="rounded-2xl border border-emerald-400/25 bg-emerald-400/[0.07] p-4">
+              <div className="flex items-center gap-2 text-emerald-200">
+                <CalendarCheck2 className="h-4 w-4 text-emerald-300" aria-hidden />
+                <p className="text-xs font-semibold tracking-[0.2em] text-emerald-200/90">
+                  What to expect
+                </p>
+              </div>
+              <p className="mt-2 text-sm leading-relaxed text-slate-200/90">
+                Book in seconds. Your appointment is instantly synced with the
+                doctor&apos;s agenda. You&apos;ll receive a confirmation email
+                with a one-click WhatsApp link to contact the clinic and a
+                direct button to add the date to your calendar.
+              </p>
+            </div>
+
             <div>
               <p className="text-xs font-semibold tracking-[0.2em] text-slate-400">
                 About
               </p>
               <p className="mt-2 text-sm leading-relaxed text-slate-300">
-                {bio ?? "This doctor has not added a bio yet."}
+                {truncatedBio || "This doctor has not added a bio yet."}
               </p>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-4">
-                <p className="text-xs font-semibold tracking-wide text-slate-400">
-                  Specialty
-                </p>
-                <p className="mt-2 text-sm font-medium text-slate-100">
-                  {specialty}
-                </p>
-              </div>
-
-              <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-4">
-                <p className="text-xs font-semibold tracking-wide text-slate-400">
-                  Location
-                </p>
-                <a
-                  href={mapsUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="mt-2 flex items-start gap-2 text-sm text-slate-200 transition hover:text-emerald-300"
-                >
-                  <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400/80" />
-                  <span>{clinicAddress}</span>
-                </a>
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/5 p-4">
-              <p className="text-xs font-semibold tracking-[0.2em] text-emerald-200/80">
-                What to expect
+            <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-4">
+              <p className="text-xs font-semibold tracking-wide text-slate-400">
+                Location
               </p>
-              <p className="mt-2 text-sm text-slate-300">
-                Book in seconds. You’ll receive a WhatsApp-friendly contact flow
-                and your appointment will appear instantly in the doctor’s
-                agenda.
-              </p>
+              <a
+                href={mapsUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-2 flex items-start gap-2 text-sm text-slate-200 transition hover:text-emerald-300"
+              >
+                <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400/80" />
+                <span>{clinicAddress}</span>
+              </a>
             </div>
           </div>
         </div>

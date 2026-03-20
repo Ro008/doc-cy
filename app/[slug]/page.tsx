@@ -147,7 +147,6 @@ export default async function DoctorPage({ params }: PageProps) {
           <div className="order-2 lg:order-1">
             <DoctorDetailsAccordion
               name={doctor.name}
-              specialty={doctor.specialty}
               bio={doctor.bio}
               clinicAddress={CLINIC_ADDRESS}
               mapsUrl={MAPS_URL}
