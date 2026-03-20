@@ -5,6 +5,8 @@ import { addMinutes } from "date-fns";
 import { CheckCircle2, CalendarPlus } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { appointmentToCyprusDate } from "@/lib/appointments";
+import { phoneToWaMeLink } from "@/lib/whatsapp";
+import { CLINIC_ADDRESS, MAPS_URL } from "@/lib/clinic-info";
 
 type PageProps = {
   params: { slug: string };
@@ -16,6 +18,7 @@ export const revalidate = 0;
 function toGoogleCalendarUrl(opts: {
   title: string;
   description?: string;
+  location?: string;
   startUtc: Date;
   endUtc: Date;
 }) {
@@ -25,12 +28,16 @@ function toGoogleCalendarUrl(opts: {
       .replace(/[-:]/g, "")
       .replace(/\.\d{3}Z$/, "Z");
 
-  const params = new URLSearchParams({
+  const params: URLSearchParams = new URLSearchParams({
     action: "TEMPLATE",
     text: opts.title,
     dates: `${fmt(opts.startUtc)}/${fmt(opts.endUtc)}`,
     details: opts.description ?? "",
   });
+
+  if (opts.location?.trim()) {
+    params.set("location", opts.location.trim());
+  }
 
   return `https://calendar.google.com/calendar/render?${params.toString()}`;
 }
@@ -56,7 +63,7 @@ export default async function BookingSuccessPage({
 
   const { data: doctor, error: doctorError } = await supabase
     .from("doctors")
-    .select("id, name, slug")
+    .select("id, name, slug, phone, clinic_address")
     .eq("id", appointment.doctor_id)
     .single();
 
@@ -85,12 +92,25 @@ export default async function BookingSuccessPage({
   const dateLabel = format(startCy, "EEE d MMM yyyy");
   const timeLabel = format(startCy, "HH:mm");
 
-  const title = `Appointment with ${doctor.name}`;
-  const description = `Appointment confirmed with ${doctor.name}.`;
+  const doctorName = (doctor.name ?? "").trim();
+  const doctorPhone = (doctor.phone ?? "").trim();
+  const doctorWaMeLink = phoneToWaMeLink(doctor.phone) ?? "";
+  const clinicAddress = (doctor as { clinic_address?: string | null }).clinic_address
+    ?.trim() || CLINIC_ADDRESS;
+  const mapsUrl =
+    clinicAddress === CLINIC_ADDRESS
+      ? MAPS_URL
+      : `https://maps.google.com/?q=${encodeURIComponent(clinicAddress)}`;
+
+  const title = `🩺 Appointment with Dr. ${doctorName}`;
+  const description = [`WhatsApp: ${doctorWaMeLink || "N/A"}`, `Address: ${mapsUrl}`].join(
+    "\n"
+  );
 
   const googleUrl = toGoogleCalendarUrl({
     title,
     description,
+    location: clinicAddress || undefined,
     startUtc,
     endUtc,
   });

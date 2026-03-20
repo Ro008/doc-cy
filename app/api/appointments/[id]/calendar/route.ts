@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { addMinutes } from "date-fns";
 import { supabase } from "@/lib/supabase";
+import { phoneToWaMeLink } from "@/lib/whatsapp";
+import { CLINIC_ADDRESS, MAPS_URL } from "@/lib/clinic-info";
 
 type RouteContext = {
   params: { id: string };
@@ -39,7 +41,7 @@ export async function GET(_req: NextRequest, { params }: RouteContext) {
 
   const { data: doctor } = await supabase
     .from("doctors")
-    .select("id, name")
+    .select("id, name, phone, slug, clinic_address")
     .eq("id", appointment.doctor_id)
     .single();
 
@@ -57,17 +59,29 @@ export async function GET(_req: NextRequest, { params }: RouteContext) {
   const endUtc = addMinutes(startUtc, durationMinutes);
   const createdUtc = new Date((appointment.created_at as string) ?? new Date().toISOString());
 
-  const summary = doctor?.name
-    ? `Appointment with ${doctor.name}`
-    : "Appointment";
+  const doctorName = (doctor?.name ?? "").trim();
+  const doctorPhone = (doctor?.phone ?? "").trim();
+  const doctorWaMeLink = phoneToWaMeLink(doctorPhone) ?? "";
+  const clinicAddress =
+    (doctor as { clinic_address?: string | null } | null)?.clinic_address
+      ?.trim() || CLINIC_ADDRESS;
+  const mapsUrl =
+    clinicAddress === CLINIC_ADDRESS
+      ? MAPS_URL
+      : `https://maps.google.com/?q=${encodeURIComponent(clinicAddress)}`;
 
-  const description = doctor?.name
-    ? `Appointment confirmed with ${doctor.name}.`
-    : "Appointment confirmed.";
+  const summary = doctorName
+    ? `🩺 Appointment with Dr. ${doctorName}`
+    : "🩺 Appointment";
+
+  const description = [
+    `WhatsApp: ${doctorWaMeLink || doctorPhone || "N/A"}`,
+    `Address: ${mapsUrl}`,
+  ].join("\n");
 
   const uid = `${appointment.id}@doccy`;
 
-  const ics = [
+  const icsParts = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
     "PRODID:-//DocCy//Patient Booking//EN",
@@ -78,12 +92,15 @@ export async function GET(_req: NextRequest, { params }: RouteContext) {
     `DTSTAMP:${formatIcsUtc(createdUtc)}`,
     `DTSTART:${formatIcsUtc(startUtc)}`,
     `DTEND:${formatIcsUtc(endUtc)}`,
+    `LOCATION:${escapeIcsText(clinicAddress)}`,
     `SUMMARY:${escapeIcsText(summary)}`,
     `DESCRIPTION:${escapeIcsText(description)}`,
     "END:VEVENT",
     "END:VCALENDAR",
     "",
-  ].join("\r\n");
+  ];
+
+  const ics = icsParts.join("\r\n");
 
   return new NextResponse(ics, {
     status: 200,

@@ -11,13 +11,10 @@ import {
 } from "@/lib/doctor-settings";
 import { appointmentToCyprusDate } from "@/lib/appointments";
 import { format } from "date-fns";
+import { CLINIC_ADDRESS, MAPS_URL } from "@/lib/clinic-info";
 
 const DOCTOR_AVATAR_URL =
   "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=400&h=400&fit=crop";
-const CLINIC_ADDRESS =
-  "Evangelismos Private Hospital, 87 Vasileos Constantinou Ave, Paphos";
-const MAPS_URL =
-  "https://maps.google.com/?q=Evangelismos+Private+Hospital+Paphos";
 
 type PageProps = {
   params: { slug: string };
