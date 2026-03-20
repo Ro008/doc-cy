@@ -2,12 +2,15 @@
 
 import * as React from "react";
 import { Trash2, X } from "lucide-react";
+import { WhatsAppLogoIcon } from "@/components/icons/WhatsAppLogoIcon";
 
 export type UpcomingAppointmentItem = {
   id: string;
   patient_name: string;
+  patient_phone?: string;
   dateLabel: string;
   timeLabel: string;
+  whatsappUrl: string | null;
 };
 
 type UpcomingListProps = {
@@ -51,7 +54,7 @@ export function UpcomingList({ items }: UpcomingListProps) {
         {items.map((r, i) => (
           <li
             key={r.id}
-            className={`flex items-center justify-between gap-3 px-4 py-3 text-sm transition hover:bg-slate-800/40 ${
+            className={`group flex items-center justify-between gap-3 px-4 py-3 text-sm transition hover:bg-slate-800/40 ${
               i % 2 === 0 ? "bg-slate-900/50" : "bg-slate-800/30"
             }`}
           >
@@ -63,14 +66,34 @@ export function UpcomingList({ items }: UpcomingListProps) {
                 {r.dateLabel} · {r.timeLabel}
               </p>
             </div>
-            <button
-              type="button"
-              onClick={() => setToCancel(r)}
-              className="inline-flex items-center gap-1 rounded-xl border border-red-500/20 bg-red-500/5 px-2 py-1 text-[11px] font-medium text-red-300 transition hover:border-red-400/40 hover:bg-red-500/10 focus:outline-none focus:ring-2 focus:ring-red-500/40"
-            >
-              <Trash2 className="h-3 w-3" />
-              Cancel
-            </button>
+
+            {/* Actions (WhatsApp + Cancel). Low opacity on desktop, always visible on mobile. */}
+            <div className="flex shrink-0 items-center gap-2 opacity-100 md:opacity-20 md:group-hover:opacity-100 transition-opacity">
+              <a
+                href={r.whatsappUrl ?? "#"}
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Chat on WhatsApp"
+                aria-label="Chat on WhatsApp"
+                onClick={(e) => {
+                  if (!r.whatsappUrl) e.preventDefault();
+                }}
+                className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-emerald-400/20 bg-emerald-400/10 text-emerald-300 transition hover:bg-emerald-400/20 hover:border-emerald-400/40 md:h-8 md:w-8"
+              >
+                <WhatsAppLogoIcon className="h-4 w-4 md:h-4 md:w-4" />
+              </a>
+
+              <button
+                type="button"
+                onClick={() => setToCancel(r)}
+                title="Cancel Appointment"
+                aria-label="Cancel"
+                className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-red-500/25 bg-red-500/10 text-red-300 transition hover:bg-red-500/20 hover:border-red-500/50 md:h-8 md:w-8 focus:outline-none focus:ring-2 focus:ring-red-500/40"
+              >
+                <Trash2 className="h-4 w-4" />
+                <span className="sr-only">Cancel</span>
+              </button>
+            </div>
           </li>
         ))}
       </ul>

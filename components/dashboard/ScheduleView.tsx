@@ -1,7 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { X, Trash2 } from "lucide-react";
+import { Trash2, X } from "lucide-react";
+import { WhatsAppLogoIcon } from "@/components/icons/WhatsAppLogoIcon";
 
 export type ScheduleAppointment = {
   id: string;
@@ -66,6 +67,16 @@ export function ScheduleView({
     }
   }
 
+  function openCancelFlow(appt: ScheduleAppointment) {
+    setCancelError(null);
+    setSelected(appt);
+    setConfirmingCancel(true);
+  }
+
+  function getWhatsAppHref(appt: ScheduleAppointment): string {
+    return appt.whatsappUrl ?? getWhatsAppUrl(appt.patient_phone) ?? "#";
+  }
+
   return (
     <>
       {/* Mobile: stacked vertical list — no timeline grid, no overlapping */}
@@ -78,10 +89,17 @@ export function ScheduleView({
           <ul className="space-y-2">
             {appointments.map((appt) => (
               <li key={appt.id}>
-                <button
-                  type="button"
+                <div
+                  role="button"
+                  tabIndex={0}
                   onClick={() => setSelected(appt)}
-                  className="flex w-full items-center gap-3 rounded-xl border border-slate-800/80 bg-slate-900/50 px-3 py-3 text-left transition hover:border-emerald-400/30 hover:bg-emerald-400/10 focus:outline-none focus:ring-2 focus:ring-emerald-400/50"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      setSelected(appt);
+                    }
+                  }}
+                  className="group flex w-full items-center gap-3 rounded-xl border border-slate-800/80 bg-slate-900/50 px-3 py-3 text-left transition hover:border-emerald-400/30 hover:bg-emerald-400/10 focus:outline-none focus:ring-2 focus:ring-emerald-400/50"
                 >
                   <span
                     className="shrink-0 font-mono text-sm font-medium text-slate-400"
@@ -92,7 +110,41 @@ export function ScheduleView({
                   <span className="min-w-0 flex-1 truncate text-sm font-medium text-slate-100">
                     {appt.patient_name}
                   </span>
-                </button>
+
+                  {/* Mobile: always visible, smaller, and doesn't depend on hover. */}
+                  <div className="flex shrink-0 items-center gap-2 opacity-100 transition-opacity">
+                    <a
+                      href={getWhatsAppHref(appt)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title="Chat on WhatsApp"
+                      aria-label="Chat on WhatsApp"
+                      onClick={(e) => {
+                        if (!getWhatsAppHref(appt) || getWhatsAppHref(appt) === "#") {
+                          e.preventDefault();
+                        }
+                        e.stopPropagation();
+                      }}
+                      className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-emerald-400/20 bg-emerald-400/10 text-emerald-300 transition hover:bg-emerald-400/20 hover:border-emerald-400/40 md:h-8 md:w-8"
+                    >
+                      <WhatsAppLogoIcon className="h-4 w-4 md:h-4 md:w-4" />
+                    </a>
+
+                    <a
+                      href="#"
+                      title="Cancel Appointment"
+                      aria-label="Cancel Appointment"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        openCancelFlow(appt);
+                      }}
+                      className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-red-500/25 bg-red-500/10 text-red-300 transition hover:bg-red-500/20 hover:border-red-500/50 md:h-8 md:w-8"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </a>
+                  </div>
+                </div>
               </li>
             ))}
           </ul>
@@ -112,11 +164,18 @@ export function ScheduleView({
       {!isEmpty && (
         <div className="hidden flex-col gap-2 md:flex">
           {sortedAppointments.map((appt) => (
-            <button
+            <div
               key={appt.id}
-              type="button"
               onClick={() => setSelected(appt)}
-              className="flex items-center gap-3 rounded-2xl border border-emerald-400/20 bg-slate-900/60 px-4 py-3 text-left shadow-sm transition hover:border-emerald-400/50 hover:bg-emerald-400/10 focus:outline-none focus:ring-2 focus:ring-emerald-400/50"
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  setSelected(appt);
+                }
+              }}
+              className="group flex items-center gap-3 rounded-2xl border border-emerald-400/20 bg-slate-900/60 px-4 py-3 text-left shadow-sm transition hover:border-emerald-400/50 hover:bg-emerald-400/10 focus:outline-none focus:ring-2 focus:ring-emerald-400/50"
             >
               <span className="shrink-0 font-mono text-xs font-semibold text-slate-400">
                 {appt.timeLabel}
@@ -129,8 +188,40 @@ export function ScheduleView({
                   {appt.patient_email || appt.patient_phone}
                 </p>
               </div>
-              {/* Calendar sync removed for demo simplicity */}
-            </button>
+              {/* Desktop: low opacity by default; becomes fully visible on row hover. */}
+              <div className="flex shrink-0 items-center gap-2 opacity-100 md:opacity-20 md:group-hover:opacity-100 transition-opacity">
+                <a
+                  href={getWhatsAppHref(appt)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title="Chat on WhatsApp"
+                  aria-label="Chat on WhatsApp"
+                  onClick={(e) => {
+                    if (!getWhatsAppHref(appt) || getWhatsAppHref(appt) === "#") {
+                      e.preventDefault();
+                    }
+                    e.stopPropagation();
+                  }}
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-emerald-400/20 bg-emerald-400/10 text-emerald-300 transition hover:bg-emerald-400/20 hover:border-emerald-400/40"
+                >
+                  <WhatsAppLogoIcon className="h-4 w-4" />
+                </a>
+
+                <a
+                  href="#"
+                  title="Cancel Appointment"
+                  aria-label="Cancel Appointment"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    openCancelFlow(appt);
+                  }}
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-red-500/25 bg-red-500/10 text-red-300 transition hover:bg-red-500/20 hover:border-red-500/50"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </a>
+              </div>
+            </div>
           ))}
         </div>
       )}

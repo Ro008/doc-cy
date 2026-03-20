@@ -164,8 +164,10 @@ export function AgendaRealtime({
               .map((r) => ({
                 id: r.id,
                 patient_name: r.patient_name,
+                patient_phone: r.patient_phone,
                 dateLabel: r.dateLabel,
                 timeLabel: r.timeLabel,
+                whatsappUrl: r.whatsappUrl,
               }))}
           />
         </section>

@@ -10,6 +10,7 @@ import { SettingsForm } from "@/components/dashboard/SettingsForm";
 import { SignOutButton } from "@/components/auth/SignOutButton";
 import type { DoctorSettingsFormData } from "@/components/dashboard/SettingsForm";
 import { ArrowLeft } from "lucide-react";
+import { ViewPublicProfileLink } from "@/components/agenda/ViewPublicProfileLink";
 
 function timeFromRow(t: string | null | undefined): string {
   if (!t) return "09:00";
@@ -34,12 +35,17 @@ export default async function AgendaSettingsPage() {
   // Fetch doctor row for this authenticated user.
   // If the `phone` column isn't available in the DB yet (or query fails),
   // fall back to a basic select so the rest of the settings page still works.
-  let doctor: { id: string; name: string; phone?: string | null } | null = null;
+  let doctor: {
+    id: string;
+    name: string;
+    phone?: string | null;
+    slug?: string | null;
+  } | null = null;
   let doctorError: unknown = null;
   try {
     const res = await supabase
       .from("doctors")
-      .select("id, name, phone")
+      .select("id, name, phone, slug")
       .eq("auth_user_id", user.id)
       .single();
     doctor = res.data as any;
@@ -51,7 +57,7 @@ export default async function AgendaSettingsPage() {
   if (!doctor) {
     const fallback = await supabase
       .from("doctors")
-      .select("id, name")
+      .select("id, name, slug")
       .eq("auth_user_id", user.id)
       .single();
     doctor = fallback.data as any;
@@ -147,7 +153,10 @@ export default async function AgendaSettingsPage() {
               .
             </p>
           </div>
-          <SignOutButton />
+          <div className="flex items-center gap-3">
+            <ViewPublicProfileLink slug={doctor.slug} />
+            <SignOutButton />
+          </div>
         </header>
 
         <section className="rounded-3xl border border-emerald-100/10 bg-slate-900/50 p-6 shadow-2xl shadow-slate-950/50 backdrop-blur-xl sm:p-8">

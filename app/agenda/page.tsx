@@ -11,6 +11,7 @@ import { utcToZonedTime } from "date-fns-tz";
 import { AgendaRealtime } from "@/components/agenda/AgendaRealtime";
 import { SignOutButton } from "@/components/auth/SignOutButton";
 import { CY_TZ } from "@/lib/appointments";
+import { ViewPublicProfileLink } from "@/components/agenda/ViewPublicProfileLink";
 
 export default async function AgendaPage() {
   const supabase = createServerComponentClient({ cookies });
@@ -26,7 +27,7 @@ export default async function AgendaPage() {
 
   const { data: doctor, error: doctorError } = await supabase
     .from("doctors")
-    .select("id, name, status, auth_user_id")
+    .select("id, name, status, auth_user_id, slug")
     .eq("auth_user_id", user.id)
     .single();
 
@@ -110,6 +111,7 @@ export default async function AgendaPage() {
             >
               Working hours & settings
             </Link>
+            <ViewPublicProfileLink slug={doctor.slug} />
             <SignOutButton />
             <p className="text-xs text-slate-400">
               Cyprus:{" "}
