@@ -47,7 +47,8 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const origin = new URL(req.url).origin;
+  const siteUrl =
+    process.env.NEXT_PUBLIC_SITE_URL ?? new URL(req.url).origin;
 
   const {
     doctorId: rawDoctorId,
@@ -266,7 +267,7 @@ export async function POST(req: NextRequest) {
 
       const icsUrl = new URL(
         `/api/appointments/${encodeURIComponent(inserted.id)}/calendar`,
-        origin
+        siteUrl
       ).toString();
 
       doctorText +=

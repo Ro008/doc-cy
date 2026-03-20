@@ -188,6 +188,7 @@ export function BookingSection({
         setError("Please enter a valid phone number.");
         return;
       }
+      let didNavigateToSuccess = false;
       try {
         setSubmitting(true);
         const res = await fetch("/api/appointments", {
@@ -219,6 +220,7 @@ export function BookingSection({
           (data?.appointment?.id as string | undefined) ?? null;
         setLastAppointmentId(newId);
         if (profileSlug && newId) {
+          didNavigateToSuccess = true;
           router.push(
             `/${profileSlug}/success?appointmentId=${encodeURIComponent(newId)}`
           );
@@ -236,7 +238,11 @@ export function BookingSection({
         console.error(err);
         setError("Something went wrong. Please try again.");
       } finally {
-        setSubmitting(false);
+        // If we already navigated to the success page, keep the button in the
+        // loading state until unmount (prevents a "stopped loading" flicker).
+        if (!didNavigateToSuccess) {
+          setSubmitting(false);
+        }
       }
     },
     [

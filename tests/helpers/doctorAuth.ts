@@ -26,8 +26,20 @@ export async function signInDoctorAndSetCookies(
   page: Page,
   supabaseClient?: SupabaseClient
 ): Promise<DoctorAuthResult> {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
+  // Cookie domain must match the site the test is running against.
+  // - Local: http://localhost:3000  -> domain must be "localhost"
+  // - Staging/Prod: https://mydoccy.com -> domain must match that hostname
+  const configuredBaseUrl =
+    process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000";
+  const cookieDomain = new URL(configuredBaseUrl).hostname;
+  const isHttps = configuredBaseUrl.startsWith("https://");
+
+  const supabaseUrl =
+    process.env.PLAYWRIGHT_SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+  const supabaseAnonKey =
+    process.env.PLAYWRIGHT_SUPABASE_ANON_KEY ??
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
+    "";
   if (!supabaseUrl || !supabaseAnonKey) {
     throw new Error(
       "Missing NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY"
@@ -82,8 +94,9 @@ export async function signInDoctorAndSetCookies(
         name,
         value: chunkValue,
         httpOnly: true,
+        secure: isHttps,
         sameSite: "Lax",
-        domain: "localhost",
+        domain: cookieDomain,
         path: "/",
       };
     })

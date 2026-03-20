@@ -61,28 +61,33 @@ export default async function BookingSuccessPage({
     redirect(`/${params.slug}`);
   }
 
-  const { data: doctor, error: doctorError } = await supabase
-    .from("doctors")
-    .select("id, name, slug, phone, clinic_address")
-    .eq("id", appointment.doctor_id)
-    .single();
+  const [doctorResult, settingsResult] = await Promise.all([
+    supabase
+      .from("doctors")
+      .select("id, name, slug, phone, clinic_address")
+      .eq("id", appointment.doctor_id)
+      .single(),
+    supabase
+      .from("doctor_settings")
+      .select("slot_duration_minutes")
+      .eq("doctor_id", appointment.doctor_id)
+      .single(),
+  ]);
 
-  if (doctorError || !doctor) {
+  if (doctorResult.error || !doctorResult.data) {
     redirect(`/${params.slug}`);
   }
 
+  const doctor = doctorResult.data;
+
   if (doctor.slug !== params.slug) {
-    redirect(`/${doctor.slug}/success?appointmentId=${encodeURIComponent(appointmentId)}`);
+    redirect(
+      `/${doctor.slug}/success?appointmentId=${encodeURIComponent(appointmentId)}`
+    );
   }
 
-  const { data: settings } = await supabase
-    .from("doctor_settings")
-    .select("slot_duration_minutes")
-    .eq("doctor_id", doctor.id)
-    .single();
-
   const durationMinutes =
-    (settings as { slot_duration_minutes?: number | null } | null)
+    (settingsResult.data as { slot_duration_minutes?: number | null } | null)
       ?.slot_duration_minutes ?? 30;
 
   const startUtc = new Date(appointment.appointment_datetime as string);

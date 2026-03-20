@@ -5,6 +5,12 @@ import dotenv from "dotenv";
 // Load Next.js local env for Playwright runs (so auth tests can use TEST_USER_EMAIL/PASSWORD)
 dotenv.config({ path: ".env.local" });
 
+const localUrl = "http://localhost:3000";
+// Default to local dev. For staging/prod runs, set `PLAYWRIGHT_BASE_URL`.
+const baseUrl = process.env.PLAYWRIGHT_BASE_URL ?? localUrl;
+
+const shouldRunWebServer = baseUrl === localUrl;
+
 export default defineConfig({
   testDir: "./tests",
   fullyParallel: false,
@@ -13,8 +19,10 @@ export default defineConfig({
   workers: 1,
   reporter: "html",
   use: {
-    baseURL: "http://localhost:3000",
+    baseURL: baseUrl,
     trace: "on-first-retry",
+    // Domain/SSL might not be fully propagated yet after switching providers.
+    ignoreHTTPSErrors: true,
   },
   projects: [
     {
@@ -37,9 +45,11 @@ export default defineConfig({
       use: { ...devices["iPhone 12"] },
     },
   ],
-  webServer: {
-    command: "npm run dev",
-    url: "http://localhost:3000",
-    reuseExistingServer: !process.env.CI,
-  },
+  webServer: shouldRunWebServer
+    ? {
+        command: "npm run dev",
+        url: localUrl,
+        reuseExistingServer: !process.env.CI,
+      }
+    : undefined,
 });
