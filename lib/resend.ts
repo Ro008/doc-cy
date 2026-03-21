@@ -1,7 +1,33 @@
 import { Resend } from "resend";
 
-/** Resend free tier: only this sender is allowed without a verified domain. */
-export const RESEND_FROM = "onboarding@resend.dev" as const;
+/**
+ * Production sender (verified domain in Resend).
+ * Override with RESEND_FROM for local/dev (e.g. Resend onboarding address).
+ */
+export function getResendFrom(): string {
+  const trimmed = process.env.RESEND_FROM?.trim();
+  if (trimmed) return trimmed;
+  return "DocCy <no-reply@mydoccy.com>";
+}
+
+export const AUTOMATED_EMAIL_FOOTER_TEXT =
+  "This is an automated message. Please do not reply. For support or feedback, please use the links provided in the app.";
+
+export function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+/** Subtle footer for HTML booking emails (doctor + patient). */
+export function automatedEmailFooterHtml(): string {
+  return `<p style="margin:28px 0 0;padding-top:18px;border-top:1px solid rgba(148,163,184,.18);font-size:11px;line-height:1.55;color:#64748b;">
+  ${escapeHtml(AUTOMATED_EMAIL_FOOTER_TEXT)}
+</p>`;
+}
 
 export type ResendEmailPayload = {
   to: string | string[];
@@ -12,6 +38,7 @@ export type ResendEmailPayload = {
 
 /**
  * Sends email via the official Resend Node SDK.
+ * No reply_to — discourages replies to automated mail.
  * Booking flows should not depend on this succeeding (caller try/catch).
  */
 export async function sendResendEmail(email: ResendEmailPayload) {
@@ -27,7 +54,7 @@ export async function sendResendEmail(email: ResendEmailPayload) {
   const resend = new Resend(apiKey);
 
   const { data, error } = await resend.emails.send({
-    from: RESEND_FROM,
+    from: getResendFrom(),
     to: email.to,
     subject: email.subject,
     text: email.text,

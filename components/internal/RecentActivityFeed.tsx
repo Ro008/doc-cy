@@ -1,15 +1,18 @@
-import { formatDistanceToNow } from "date-fns";
-import { enGB } from "date-fns/locale";
+"use client";
+
 import { utcToZonedTime } from "date-fns-tz";
 import { format } from "date-fns";
+import { enGB } from "date-fns/locale";
 import { Clock, Sparkles } from "lucide-react";
 import { CY_TZ } from "@/lib/appointments";
+import { RelativeAgo } from "@/components/internal/RelativeAgo";
 
 export type RecentAppointmentRow = {
   id: string;
   patient_name: string;
   appointment_datetime: string;
-  created_at?: string | null;
+  /** When the booking was created — use for "Booked X ago" only */
+  booked_at_iso: string | null;
   doctor_id: string;
   doctor_name: string | null;
 };
@@ -41,44 +44,37 @@ export function RecentActivityFeed({ items }: Props) {
         <p className="mt-4 text-sm text-slate-500">No appointments yet.</p>
       ) : (
         <ol className="mt-4 space-y-4">
-          {items.map((row, idx) => {
-            const bookedRef = row.created_at
-              ? new Date(row.created_at)
-              : new Date(row.appointment_datetime);
-            const relative = formatDistanceToNow(bookedRef, {
-              addSuffix: true,
-              locale: enGB,
-            });
-            return (
-              <li
-                key={row.id}
-                className="relative rounded-xl border border-slate-800/60 bg-slate-950/40 p-3 pl-4"
-              >
-                <span
-                  className="absolute left-0 top-3 h-8 w-0.5 rounded-full bg-gradient-to-b from-emerald-400 to-sky-500"
-                  aria-hidden
-                />
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-600">
-                  #{idx + 1}
-                </p>
-                <p className="mt-0.5 font-medium text-slate-100">{row.patient_name}</p>
-                <p className="mt-1 text-xs text-slate-400">
-                  with{" "}
-                  <span className="text-slate-300">
-                    {row.doctor_name ?? "Unknown doctor"}
-                  </span>
-                </p>
-                <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-slate-500">
-                  <span className="inline-flex items-center gap-1 text-slate-400">
-                    <Clock className="h-3 w-3 shrink-0 text-slate-500" aria-hidden />
-                    {formatApptWhen(row.appointment_datetime)}
-                  </span>
-                  <span className="text-slate-600">·</span>
-                  <span>Booked {relative}</span>
-                </div>
-              </li>
-            );
-          })}
+          {items.map((row, idx) => (
+            <li
+              key={row.id}
+              className="relative rounded-xl border border-slate-800/60 bg-slate-950/40 p-3 pl-4"
+            >
+              <span
+                className="absolute left-0 top-3 h-8 w-0.5 rounded-full bg-gradient-to-b from-emerald-400 to-sky-500"
+                aria-hidden
+              />
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-600">
+                #{idx + 1}
+              </p>
+              <p className="mt-0.5 font-medium text-slate-100">{row.patient_name}</p>
+              <p className="mt-1 text-xs text-slate-400">
+                with{" "}
+                <span className="text-slate-300">
+                  {row.doctor_name ?? "Unknown doctor"}
+                </span>
+              </p>
+              <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-slate-500">
+                <span className="inline-flex items-center gap-1 text-slate-400">
+                  <Clock className="h-3 w-3 shrink-0 text-slate-500" aria-hidden />
+                  {formatApptWhen(row.appointment_datetime)}
+                </span>
+                <span className="text-slate-600">·</span>
+                <span>
+                  Booked <RelativeAgo iso={row.booked_at_iso} />
+                </span>
+              </div>
+            </li>
+          ))}
         </ol>
       )}
     </aside>

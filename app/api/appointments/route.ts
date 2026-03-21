@@ -9,7 +9,12 @@ import {
   isTimeWithinSettings,
   type DoctorSettingsRow,
 } from "@/lib/doctor-settings";
-import { sendResendEmail } from "@/lib/resend";
+import {
+  sendResendEmail,
+  AUTOMATED_EMAIL_FOOTER_TEXT,
+  automatedEmailFooterHtml,
+  escapeHtml,
+} from "@/lib/resend";
 import type { DoctorRow } from "@/lib/doctors";
 import { phoneToWaMeLink } from "@/lib/whatsapp";
 
@@ -35,14 +40,14 @@ function toGoogleCalendarUrl(opts: {
   return `https://calendar.google.com/calendar/render?${params.toString()}`;
 }
 
-function escapeHtml(text: string) {
-  return text
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
+const WHATSAPP_CTA_STYLE =
+  "display:block;text-align:center;background:#25D366;color:#ffffff;text-decoration:none;font-weight:700;padding:14px 16px;border-radius:12px;margin:0 0 12px;font-size:15px;";
+const CAL_GOOGLE_STYLE =
+  "display:block;text-align:center;background:#34d399;color:#022c22;text-decoration:none;font-weight:700;padding:12px 14px;border-radius:12px;margin:0 0 10px;font-size:15px;";
+const CAL_ICS_STYLE =
+  "display:block;text-align:center;background:rgba(52,211,153,.14);color:#a7f3d0;text-decoration:none;font-weight:700;padding:12px 14px;border-radius:12px;border:1px solid rgba(52,211,153,.35);font-size:15px;";
+const PRIMARY_ACTIONS_LABEL =
+  "margin:18px 0 10px;font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#94a3b8;";
 
 export async function POST(req: NextRequest) {
   let body: unknown;
@@ -191,6 +196,8 @@ export async function POST(req: NextRequest) {
   }
 
   // Insert appointment with status 'confirmed' (MVP: auto-confirm)
+  const bookedAtIso = new Date().toISOString();
+
   const { data: inserted, error: insertError } = await supabase
     .from("appointments")
     .insert({
@@ -200,8 +207,10 @@ export async function POST(req: NextRequest) {
       patient_phone: patientPhone,
       appointment_datetime: appointmentUtc.toISOString(),
       status: "confirmed",
+      // Exact moment the patient completed "Book appointment" (for dashboard month / activity)
+      created_at: bookedAtIso,
     })
-    .select("id, appointment_datetime, status")
+    .select("id, appointment_datetime, status, created_at")
     .single();
 
   if (insertError) {
@@ -222,9 +231,8 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Notifications (best-effort) via Resend. Free tier: from must be onboarding@resend.dev;
-  // demo often sends only to the doctor's verified inbox — see single email below.
-  // Do not block booking success if notifications fail.
+  // Notifications (best-effort) via Resend. From: DocCy <no-reply@mydoccy.com> (override RESEND_FROM for dev).
+  // No reply_to. Do not block booking success if notifications fail.
   try {
     const { data: doctor } = await supabase
       .from("doctors")
@@ -239,7 +247,6 @@ export async function POST(req: NextRequest) {
 
     const cyDate = appointmentToCyprusDate(inserted.appointment_datetime as string);
     const compactWhenLabel = format(cyDate, "EEE d MMM, HH:mm");
-    const timeLabel = format(cyDate, "HH:mm");
 
     if (doctorName) {
       const demoTo = "rociosirvent@gmail.com";
@@ -272,32 +279,34 @@ export async function POST(req: NextRequest) {
         siteUrl
       ).toString();
 
+      patientText +=
+        `\n\nAdd to Google Calendar: ${googleUrl}` +
+        `\n\nAdd to Apple/Outlook (.ics): ${icsUrl}` +
+        `\n\n---\n${AUTOMATED_EMAIL_FOOTER_TEXT}`;
+
       doctorText +=
         `\n\nAdd to Google Calendar: ${googleUrl}` +
-        `\n\nAdd to Apple/Outlook (.ics): ${icsUrl}`;
+        `\n\nAdd to Apple/Outlook (.ics): ${icsUrl}` +
+        `\n\n---\n${AUTOMATED_EMAIL_FOOTER_TEXT}`;
 
       const doctorHtml = `
 <div style="margin:0;padding:20px;background:#020617;color:#e2e8f0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
-  <div style="max-width:560px;margin:0 auto;background:#0f172a;border:1px solid rgba(148,163,184,.2);border-radius:16px;padding:20px;">
-    <h2 style="margin:0 0 12px;font-size:20px;line-height:1.3;color:#f8fafc;">New Appointment</h2>
-    <p style="margin:0 0 8px;font-size:15px;line-height:1.5;"><strong>Patient:</strong> ${patientName}</p>
-    <p style="margin:0 0 8px;font-size:15px;line-height:1.5;"><strong>Email:</strong> ${patientEmail}</p>
-    <p style="margin:0 0 16px;font-size:15px;line-height:1.5;"><strong>When:</strong> ${compactWhenLabel} (Cyprus time)</p>
+  <div style="max-width:560px;margin:0 auto;background:#0f172a;border:1px solid rgba(148,163,184,.2);border-radius:16px;padding:22px;">
+    <h2 style="margin:0 0 12px;font-size:20px;line-height:1.3;color:#f8fafc;">New appointment</h2>
+    <p style="margin:0 0 8px;font-size:15px;line-height:1.5;"><strong>Patient:</strong> ${escapeHtml(patientName)}</p>
+    <p style="margin:0 0 8px;font-size:15px;line-height:1.5;"><strong>Email:</strong> ${escapeHtml(patientEmail)}</p>
+    <p style="margin:0 0 4px;font-size:15px;line-height:1.5;"><strong>When:</strong> ${escapeHtml(compactWhenLabel)} (Cyprus time)</p>
 
+    <p style="${PRIMARY_ACTIONS_LABEL}">WhatsApp &amp; calendar</p>
     ${
       patientWaMe
-        ? `<p style="margin:0 0 16px;font-size:15px;line-height:1.5;"><a href="${patientWaMe}" style="color:#86efac;text-decoration:none;">💬 Chat on WhatsApp (${patientPhone})</a></p>`
+        ? `<a href="${patientWaMe}" style="${WHATSAPP_CTA_STYLE}">💬 Chat on WhatsApp — ${escapeHtml(patientPhone)}</a>`
         : ""
     }
+    <a href="${googleUrl}" style="${CAL_GOOGLE_STYLE}">Add to Google Calendar</a>
+    <a href="${icsUrl}" style="${CAL_ICS_STYLE}">Add to Apple / Outlook (.ics)</a>
 
-    <div style="margin-top:6px;">
-      <a href="${googleUrl}" style="display:block;text-align:center;background:#34d399;color:#022c22;text-decoration:none;font-weight:700;padding:12px 14px;border-radius:12px;margin:0 0 10px;">
-        Add to Google Calendar
-      </a>
-      <a href="${icsUrl}" style="display:block;text-align:center;background:rgba(52,211,153,.14);color:#a7f3d0;text-decoration:none;font-weight:700;padding:12px 14px;border-radius:12px;border:1px solid rgba(52,211,153,.35);">
-        Add to Apple/Outlook
-      </a>
-    </div>
+    ${automatedEmailFooterHtml()}
   </div>
 </div>`;
 
@@ -310,19 +319,34 @@ export async function POST(req: NextRequest) {
       });
 
       // TODO: Change 'to' address to dynamic doctor/patient emails once domain is verified.
+      const patientHtml = `
+<div style="margin:0;padding:20px;background:#020617;color:#e2e8f0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+  <div style="max-width:560px;margin:0 auto;background:#0f172a;border:1px solid rgba(148,163,184,.2);border-radius:16px;padding:22px;">
+    <h2 style="margin:0 0 12px;font-size:20px;line-height:1.3;color:#f8fafc;">Appointment confirmed</h2>
+    <p style="margin:0 0 10px;font-size:15px;line-height:1.6;color:#e2e8f0;">Hi ${escapeHtml(patientName)},</p>
+    <p style="margin:0 0 4px;font-size:15px;line-height:1.6;color:#e2e8f0;">
+      Your appointment with <strong>${escapeHtml(doctorName)}</strong> is confirmed for
+      <strong>${escapeHtml(compactWhenLabel)}</strong> (Cyprus time).
+    </p>
+
+    <p style="${PRIMARY_ACTIONS_LABEL}">WhatsApp &amp; calendar</p>
+    ${
+      doctorWaMe
+        ? `<a href="${doctorWaMe}" style="${WHATSAPP_CTA_STYLE}">💬 Chat with ${escapeHtml(doctorName)} on WhatsApp</a>`
+        : ""
+    }
+    <a href="${googleUrl}" style="${CAL_GOOGLE_STYLE}">Add to Google Calendar</a>
+    <a href="${icsUrl}" style="${CAL_ICS_STYLE}">Add to Apple / Outlook (.ics)</a>
+
+    ${automatedEmailFooterHtml()}
+  </div>
+</div>`;
+
       await sendResendEmail({
         to: demoTo,
         subject: `Appointment confirmed — ${doctorName} · ${compactWhenLabel}`,
         text: patientText,
-        html: `
-<div style="margin:0;padding:20px;background:#020617;color:#e2e8f0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
-  <div style="max-width:560px;margin:0 auto;background:#0f172a;border:1px solid rgba(148,163,184,.2);border-radius:16px;padding:20px;">
-    <h2 style="margin:0 0 12px;font-size:20px;line-height:1.3;color:#f8fafc;">Appointment Confirmed</h2>
-    <p style="margin:0;font-size:15px;line-height:1.65;color:#e2e8f0;white-space:pre-line;">${escapeHtml(
-      patientText
-    )}</p>
-  </div>
-</div>`,
+        html: patientHtml,
       });
     }
   } catch (err) {

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { startOfWeek } from "date-fns";
+import { startOfMonth, startOfWeek, subMonths } from "date-fns";
 import { createServiceRoleClient } from "@/lib/supabase-service";
 import { InternalDirectoryClient } from "@/components/internal/InternalDirectoryClient";
 import { InternalSignOutButton } from "@/components/internal/InternalSignOutButton";
@@ -10,12 +10,17 @@ import {
   RecentActivityFeed,
   type RecentAppointmentRow,
 } from "@/components/internal/RecentActivityFeed";
+import { AppointmentsGrowthChart } from "@/components/internal/AppointmentsGrowthChart";
 import {
   aggregateLanguages,
   aggregateSpecialties,
 } from "@/lib/founder-metrics";
+import { buildLastSixMonthsAppointmentCounts } from "@/lib/founder-appointments-by-month";
+import { cyprusMonthStartUtcIso } from "@/lib/cyprus-calendar";
 
+/** Always run on the server per request — no static cache of dashboard numbers */
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export default async function FounderDashboardPage() {
   const supabase = createServiceRoleClient();
@@ -40,24 +45,36 @@ export default async function FounderDashboardPage() {
 
   const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
   const sevenDaysAgoIso = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  const monthStartIso = cyprusMonthStartUtcIso();
+  const chartRangeStart = startOfMonth(subMonths(new Date(), 5));
 
   const [
     doctorsRes,
     apptCountRes,
+    apptsMonthCountRes,
     appts7dRes,
     recentApptsRes,
+    apptsForChartRes,
   ] = await Promise.all([
     supabase
       .from("doctors")
       .select("id, name, slug, specialty, languages, status, created_at")
       .order("created_at", { ascending: false }),
     supabase.from("appointments").select("id", { count: "exact", head: true }),
+    supabase
+      .from("appointments")
+      .select("id", { count: "exact", head: true })
+      .gte("created_at", monthStartIso),
     supabase.from("appointments").select("doctor_id").gte("created_at", sevenDaysAgoIso),
     supabase
       .from("appointments")
       .select("id, patient_name, appointment_datetime, created_at, doctor_id")
       .order("created_at", { ascending: false })
       .limit(5),
+    supabase
+      .from("appointments")
+      .select("created_at")
+      .gte("created_at", chartRangeStart.toISOString()),
   ]);
 
   if (doctorsRes.error) {
@@ -87,7 +104,7 @@ export default async function FounderDashboardPage() {
   } else {
     const fallback = await supabase
       .from("appointments")
-      .select("id, patient_name, appointment_datetime, doctor_id")
+      .select("id, patient_name, appointment_datetime, doctor_id, created_at")
       .order("appointment_datetime", { ascending: false })
       .limit(5);
     recentApptRowsRaw = fallback.data ?? [];
@@ -110,16 +127,27 @@ export default async function FounderDashboardPage() {
 
   const totalDoctors = rows.length;
   const totalAppointments = apptCountRes.error ? 0 : apptCountRes.count ?? 0;
+  const appointmentsThisMonth = apptsMonthCountRes.error
+    ? 0
+    : apptsMonthCountRes.count ?? 0;
 
   let activeDoctors7d = 0;
   if (!appts7dRes.error && appts7dRes.data?.length) {
-    activeDoctors7d = new Set(appts7dRes.data.map((a) => a.doctor_id as string)).size;
+    activeDoctors7d = Array.from(
+      new Set(appts7dRes.data.map((a) => a.doctor_id as string))
+    ).length;
   }
 
   const newDoctorsThisWeek = rows.filter((r) => {
     if (!r.created_at) return false;
     return new Date(r.created_at) >= weekStart;
   }).length;
+
+  const chartRows =
+    !apptsForChartRes.error && apptsForChartRes.data
+      ? (apptsForChartRes.data as { created_at: string | null }[])
+      : [];
+  const chartData = buildLastSixMonthsAppointmentCounts(chartRows);
 
   const specialtyItems = aggregateSpecialties(rows);
   const languageItems = aggregateLanguages(rows);
@@ -138,14 +166,17 @@ export default async function FounderDashboardPage() {
     }
   }
 
-  const activityItems: RecentAppointmentRow[] = recentApptRowsRaw.map((a) => ({
-    id: a.id as string,
-    patient_name: (a.patient_name as string) ?? "Patient",
-    appointment_datetime: a.appointment_datetime as string,
-    created_at: (a.created_at as string | null | undefined) ?? null,
-    doctor_id: a.doctor_id as string,
-    doctor_name: nameById[a.doctor_id as string] ?? null,
-  }));
+  const activityItems: RecentAppointmentRow[] = recentApptRowsRaw.map((a) => {
+    const created = (a.created_at as string | null | undefined) ?? null;
+    return {
+      id: a.id as string,
+      patient_name: (a.patient_name as string) ?? "Patient",
+      appointment_datetime: a.appointment_datetime as string,
+      booked_at_iso: created,
+      doctor_id: a.doctor_id as string,
+      doctor_name: nameById[a.doctor_id as string] ?? null,
+    };
+  });
 
   return (
     <main className="min-h-screen bg-slate-950 text-slate-50">
@@ -164,7 +195,7 @@ export default async function FounderDashboardPage() {
               Dashboard
             </h1>
             <p className="mt-1 text-sm text-slate-500">
-              Platform health · doctors · bookings
+              Platform health · doctors · bookings · live data
             </p>
           </div>
           <InternalSignOutButton />
@@ -175,6 +206,7 @@ export default async function FounderDashboardPage() {
         <FounderKpiCards
           totalDoctors={totalDoctors}
           totalAppointments={totalAppointments}
+          appointmentsThisMonth={appointmentsThisMonth}
           activeDoctors7d={activeDoctors7d}
           newDoctorsThisWeek={newDoctorsThisWeek}
         />
@@ -182,6 +214,8 @@ export default async function FounderDashboardPage() {
         <div className="grid gap-6 xl:grid-cols-12">
           {/* Mobile: activity under KPIs; desktop: right rail */}
           <div className="order-2 space-y-6 xl:order-1 xl:col-span-8">
+            <AppointmentsGrowthChart data={chartData} />
+
             <div className="grid gap-6 md:grid-cols-2">
               <SpecialtyBreakdown items={specialtyItems} />
               <LanguageDistribution items={languageItems} totalDoctorCount={totalDoctors} />
