@@ -1,9 +1,44 @@
 // app/api/doctor-settings/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { cookies } from "next/headers";
+import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 
-/** GET ?doctorId=xxx - returns current settings for the doctor */
+function parseLanguages(
+  raw: unknown
+): { ok: true; value: string[] } | { ok: false; message: string } {
+  if (Array.isArray(raw)) {
+    const out = raw
+      .map((x) => String(x).trim())
+      .filter((s) => s.length > 0);
+    if (out.length === 0) {
+      return { ok: false, message: "Add at least one language." };
+    }
+    return { ok: true, value: out };
+  }
+  if (typeof raw === "string") {
+    const out = raw
+      .split(/[,;]/)
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0);
+    if (out.length === 0) {
+      return { ok: false, message: "Add at least one language." };
+    }
+    return { ok: true, value: out };
+  }
+  return { ok: false, message: "Languages are required." };
+}
+
+/** GET ?doctorId=xxx - returns current settings for the doctor (authenticated owner only) */
 export async function GET(req: NextRequest) {
+  const supabase = createRouteHandlerClient({ cookies });
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return NextResponse.json({ message: "Unauthorized." }, { status: 401 });
+  }
+
   const { searchParams } = new URL(req.url);
   const doctorId = searchParams.get("doctorId");
   if (!doctorId) {
@@ -11,6 +46,17 @@ export async function GET(req: NextRequest) {
       { message: "Missing doctorId." },
       { status: 400 }
     );
+  }
+
+  const { data: owned, error: ownErr } = await supabase
+    .from("doctors")
+    .select("id")
+    .eq("id", doctorId)
+    .eq("auth_user_id", user.id)
+    .maybeSingle();
+
+  if (ownErr || !owned) {
+    return NextResponse.json({ message: "Forbidden." }, { status: 403 });
   }
 
   const { data, error } = await supabase
@@ -33,8 +79,17 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ settings: data });
 }
 
-/** POST - upsert doctor_settings. Body: doctorId, monday..friday, startTime, endTime, slotDurationMinutes */
+/** POST - upsert doctor_settings + update doctors.phone, specialty, languages (owner only) */
 export async function POST(req: NextRequest) {
+  const supabase = createRouteHandlerClient({ cookies });
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return NextResponse.json({ message: "Unauthorized." }, { status: 401 });
+  }
+
   let body: unknown;
   try {
     body = await req.json();
@@ -48,12 +103,14 @@ export async function POST(req: NextRequest) {
   const b = body as {
     doctorId?: string;
     doctorPhone?: string | null;
+    specialty?: string;
+    languages?: unknown;
     monday?: boolean;
     tuesday?: boolean;
     wednesday?: boolean;
     thursday?: boolean;
     friday?: boolean;
-    startTime?: string; // "09:00" or "09:00:00"
+    startTime?: string;
     endTime?: string;
     breakEnabled?: boolean;
     breakStart?: string;
@@ -69,6 +126,32 @@ export async function POST(req: NextRequest) {
   }
 
   const doctorId = b.doctorId;
+
+  const { data: owned, error: ownErr } = await supabase
+    .from("doctors")
+    .select("id")
+    .eq("id", doctorId)
+    .eq("auth_user_id", user.id)
+    .maybeSingle();
+
+  if (ownErr || !owned) {
+    return NextResponse.json({ message: "Forbidden." }, { status: 403 });
+  }
+
+  const specialty =
+    typeof b.specialty === "string" ? b.specialty.trim() : "";
+  if (!specialty) {
+    return NextResponse.json(
+      { message: "Specialty is required." },
+      { status: 400 }
+    );
+  }
+
+  const langsParsed = parseLanguages(b.languages);
+  if (langsParsed.ok === false) {
+    return NextResponse.json({ message: langsParsed.message }, { status: 400 });
+  }
+  const languages = langsParsed.value;
 
   const toTime = (v: string | undefined, fallback: string) => {
     if (!v || typeof v !== "string") return fallback;
@@ -113,18 +196,32 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Also update doctor WhatsApp number (best-effort).
-  try {
-    if (b.doctorPhone !== undefined) {
-      const trimmed =
-        typeof b.doctorPhone === "string" ? b.doctorPhone.trim() : "";
-      await supabase
-        .from("doctors")
-        .update({ phone: trimmed ? trimmed : null })
-        .eq("id", doctorId);
-    }
-  } catch (err) {
-    console.error("[DocCy] Failed to update doctors.phone", err);
+  const phoneUpdate: { phone?: string | null; specialty: string; languages: string[] } = {
+    specialty,
+    languages,
+  };
+  if (b.doctorPhone !== undefined) {
+    const trimmed =
+      typeof b.doctorPhone === "string" ? b.doctorPhone.trim() : "";
+    phoneUpdate.phone = trimmed ? trimmed : null;
+  }
+
+  const { error: docErr } = await supabase
+    .from("doctors")
+    .update(phoneUpdate)
+    .eq("id", doctorId);
+
+  if (docErr) {
+    console.error("[DocCy] Failed to update doctors row", docErr);
+    return NextResponse.json(
+      {
+        message:
+          docErr.message?.includes("languages") || docErr.code === "42703"
+            ? "Database missing `languages` column. Run supabase/doctors_add_languages.sql in Supabase."
+            : "Error updating doctor profile.",
+      },
+      { status: 500 }
+    );
   }
 
   return NextResponse.json({ settings: data }, { status: 200 });

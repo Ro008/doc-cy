@@ -7,6 +7,10 @@ import { ArrowLeft, Save } from "lucide-react";
 export type DoctorSettingsFormData = {
   doctorId: string;
   doctorName: string;
+  /** Shown in directory & public profile */
+  specialty: string;
+  /** Comma- or semicolon-separated, saved as string[] on doctors */
+  languages: string;
   whatsappNumber?: string;
   monday: boolean;
   tuesday: boolean;
@@ -40,6 +44,9 @@ export function SettingsForm({ initial }: SettingsFormProps) {
     text: string;
   } | null>(null);
 
+  const [specialty, setSpecialty] = React.useState(initial.specialty ?? "");
+  const [languages, setLanguages] = React.useState(initial.languages ?? "");
+
   const [whatsappNumber, setWhatsappNumber] = React.useState(
     initial.whatsappNumber ?? ""
   );
@@ -71,6 +78,27 @@ export function SettingsForm({ initial }: SettingsFormProps) {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setMessage(null);
+
+    const spec = specialty.trim();
+    const langList = languages
+      .split(/[,;]/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (!spec) {
+      setMessage({
+        type: "error",
+        text: "Specialty is required for your public directory listing.",
+      });
+      return;
+    }
+    if (langList.length === 0) {
+      setMessage({
+        type: "error",
+        text: "Add at least one language (e.g. English, Greek).",
+      });
+      return;
+    }
+
     setSaving(true);
     try {
       const res = await fetch("/api/doctor-settings", {
@@ -79,6 +107,8 @@ export function SettingsForm({ initial }: SettingsFormProps) {
         body: JSON.stringify({
           doctorId: initial.doctorId,
           doctorPhone: whatsappNumber || null,
+          specialty: spec,
+          languages: langList,
           monday,
           tuesday,
           wednesday,
@@ -129,6 +159,56 @@ export function SettingsForm({ initial }: SettingsFormProps) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-5">
+        <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+          Directory &amp; profile
+        </p>
+        <p className="mt-1 text-sm text-slate-400">
+          Required so patients can find you by specialty and language.
+        </p>
+        <div className="mt-4 space-y-4">
+          <div>
+            <label
+              htmlFor="settingsSpecialty"
+              className="text-xs font-semibold uppercase tracking-wide text-slate-400"
+            >
+              Specialty <span className="text-red-300">*</span>
+            </label>
+            <input
+              id="settingsSpecialty"
+              name="specialty"
+              type="text"
+              required
+              value={specialty}
+              onChange={(e) => setSpecialty(e.target.value)}
+              placeholder="e.g. General Practitioner"
+              className="mt-2 w-full rounded-xl border border-slate-800/80 bg-slate-950/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-400/60"
+            />
+          </div>
+          <div>
+            <label
+              htmlFor="settingsLanguages"
+              className="text-xs font-semibold uppercase tracking-wide text-slate-400"
+            >
+              Languages <span className="text-red-300">*</span>
+            </label>
+            <input
+              id="settingsLanguages"
+              name="languages"
+              type="text"
+              required
+              value={languages}
+              onChange={(e) => setLanguages(e.target.value)}
+              placeholder="e.g. English, Greek"
+              className="mt-2 w-full rounded-xl border border-slate-800/80 bg-slate-950/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-400/60"
+            />
+            <p className="mt-1 text-xs text-slate-500">
+              Separate with commas or semicolons.
+            </p>
+          </div>
+        </div>
+      </div>
+
       <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-5">
         <label
           htmlFor="whatsappNumber"

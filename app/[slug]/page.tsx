@@ -5,6 +5,7 @@ import type { Metadata } from "next";
 import { supabase } from "@/lib/supabase";
 import { BookingSection } from "@/components/doctor/BookingSection";
 import { DoctorDetailsAccordion } from "@/components/doctor/DoctorDetailsAccordion";
+import { LanguagesSpoken } from "@/components/doctor/LanguagesSpoken";
 import { WhatToExpectCard } from "@/components/doctor/WhatToExpectCard";
 import {
   settingsToWeeklySlots,
@@ -17,9 +18,66 @@ import { CLINIC_ADDRESS, MAPS_URL } from "@/lib/clinic-info";
 const DOCTOR_AVATAR_URL =
   "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=400&h=400&fit=crop";
 
+type DoctorProfileRow = {
+  id: string;
+  name: string;
+  specialty: string;
+  bio: string | null;
+  clinic_address: string | null;
+  slug: string;
+  status: string;
+  languages?: string[] | null;
+};
+
 type PageProps = {
   params: { slug: string };
 };
+
+const DOCTOR_SELECT_FULL =
+  "id, name, specialty, bio, clinic_address, slug, status, languages";
+const DOCTOR_SELECT_BASIC =
+  "id, name, specialty, bio, clinic_address, slug, status";
+
+/** Load active doctor; if DB has no `languages` column yet, fall back without it. */
+async function fetchActiveDoctorForProfile(slug: string) {
+  const first = await supabase
+    .from("doctors")
+    .select(DOCTOR_SELECT_FULL)
+    .eq("slug", slug)
+    .eq("status", "active")
+    .single();
+
+  if (!first.error && first.data) {
+    return first.data as DoctorProfileRow;
+  }
+
+  const firstCode = (first.error as { code?: string } | null)?.code;
+
+  // No matching active doctor — do not treat as "missing column"
+  if (firstCode === "PGRST116") {
+    return null;
+  }
+
+  // Any other error (e.g. unknown `languages` column): retry without it
+  const second = await supabase
+    .from("doctors")
+    .select(DOCTOR_SELECT_BASIC)
+    .eq("slug", slug)
+    .eq("status", "active")
+    .single();
+
+  if (second.error || !second.data) {
+    if (first.error) {
+      console.error("[DocCy] Doctor profile query failed:", first.error);
+    }
+    if (second.error && second.error !== first.error) {
+      console.error("[DocCy] Doctor profile fallback query failed:", second.error);
+    }
+    return null;
+  }
+
+  return { ...second.data, languages: null } as DoctorProfileRow;
+}
 
 export const revalidate = 0;
 
@@ -46,24 +104,21 @@ export async function generateMetadata(
 }
 
 export default async function DoctorPage({ params }: PageProps) {
-  const { data: doctor, error: doctorError } = await supabase
-    .from("doctors")
-    .select("id, name, specialty, bio, clinic_address, slug, status")
-    .eq("slug", params.slug)
-    .eq("status", "active")
-    .single();
+  const doctor = await fetchActiveDoctorForProfile(params.slug);
 
-  if (doctorError || !doctor) {
+  if (!doctor) {
     console.error(
       `[DocCy] Doctor not found for slug: "${params.slug}". Redirecting to home.`
     );
     redirect("/");
   }
 
+  const profile = doctor;
+
   const { data: settings } = await supabase
     .from("doctor_settings")
     .select("*")
-    .eq("doctor_id", doctor.id)
+    .eq("doctor_id", profile.id)
     .single();
 
   const weeklySlots = settings
@@ -80,7 +135,7 @@ export default async function DoctorPage({ params }: PageProps) {
   const { data: existingAppointments } = await supabase
     .from("appointments")
     .select("appointment_datetime")
-    .eq("doctor_id", doctor.id)
+    .eq("doctor_id", profile.id)
     .gte("appointment_datetime", new Date(nowUtc.getTime() - 60 * 60 * 1000).toISOString())
     .lte(
       "appointment_datetime",
@@ -118,11 +173,14 @@ export default async function DoctorPage({ params }: PageProps) {
                 Doc<span className="text-emerald-400">Cy</span> · Doctor profile
               </p>
               <h1 className="mt-3 text-balance text-3xl font-semibold tracking-tight text-slate-50 sm:text-4xl">
-                {doctor.name}
+                {profile.name}
               </h1>
-              <p className="mt-2 text-sm text-slate-300 sm:text-base">
-                {doctor.specialty}
+              <p className="mt-1.5 text-base font-medium capitalize tracking-wide text-emerald-200/95 sm:text-lg">
+                {profile.specialty}
               </p>
+              {Array.isArray(profile.languages) && profile.languages.length > 0 ? (
+                <LanguagesSpoken languages={profile.languages} className="mt-2.5" />
+              ) : null}
             </div>
           </div>
           <div className="hidden rounded-full bg-slate-900/60 px-4 py-2 text-xs text-slate-300 backdrop-blur sm:block">
@@ -134,8 +192,8 @@ export default async function DoctorPage({ params }: PageProps) {
           {/* Booking first on mobile, right column on desktop */}
           <section className="order-1 lg:order-2 lg:min-w-0">
             <BookingSection
-              doctorId={doctor.id}
-              doctorName={doctor.name}
+              doctorId={profile.id}
+              doctorName={profile.name}
               weeklySlots={weeklySlots}
               takenSlotTimes={takenSlotTimes}
               profileSlug={params.slug}
@@ -148,8 +206,8 @@ export default async function DoctorPage({ params }: PageProps) {
           <div className="order-2 flex flex-col gap-4 lg:order-1">
             <WhatToExpectCard />
             <DoctorDetailsAccordion
-              name={doctor.name}
-              bio={doctor.bio}
+              name={profile.name}
+              bio={profile.bio}
               clinicAddress={CLINIC_ADDRESS}
               mapsUrl={MAPS_URL}
             />

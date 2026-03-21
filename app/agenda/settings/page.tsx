@@ -40,15 +40,17 @@ export default async function AgendaSettingsPage() {
     name: string;
     phone?: string | null;
     slug?: string | null;
+    specialty?: string | null;
+    languages?: string[] | null;
   } | null = null;
   let doctorError: unknown = null;
   try {
     const res = await supabase
       .from("doctors")
-      .select("id, name, phone, slug")
+      .select("id, name, phone, slug, specialty, languages")
       .eq("auth_user_id", user.id)
       .single();
-    doctor = res.data as any;
+    doctor = res.data as typeof doctor;
     doctorError = res.error;
   } catch (err) {
     doctorError = err;
@@ -57,10 +59,10 @@ export default async function AgendaSettingsPage() {
   if (!doctor) {
     const fallback = await supabase
       .from("doctors")
-      .select("id, name, slug")
+      .select("id, name, slug, specialty, languages")
       .eq("auth_user_id", user.id)
       .single();
-    doctor = fallback.data as any;
+    doctor = fallback.data as typeof doctor;
     doctorError = fallback.error ?? doctorError;
   }
 
@@ -99,9 +101,15 @@ export default async function AgendaSettingsPage() {
     .eq("doctor_id", doctor.id)
     .single();
 
+  const langArr = Array.isArray(doctor.languages)
+    ? doctor.languages.filter((s) => String(s).trim().length > 0)
+    : [];
+
   const initial: DoctorSettingsFormData = {
     doctorId: doctor.id,
     doctorName: doctor.name,
+    specialty: (doctor.specialty ?? "").trim(),
+    languages: langArr.length > 0 ? langArr.join(", ") : "",
     whatsappNumber: doctor.phone ?? undefined,
     monday: (settings as { monday?: boolean } | null)?.monday ?? true,
     tuesday: (settings as { tuesday?: boolean } | null)?.tuesday ?? true,

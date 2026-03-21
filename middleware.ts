@@ -22,5 +22,18 @@ export async function middleware(req: NextRequest) {
     }
   }
 
+  // Private internal directory (shared secret cookie; set via /internal gate)
+  if (pathname === "/internal/directory" || pathname.startsWith("/internal/directory/")) {
+    const secret = process.env.INTERNAL_DIRECTORY_SECRET?.trim();
+    if (!secret) {
+      return NextResponse.redirect(new URL("/", req.url));
+    }
+    const cookie = req.cookies.get("doccy-internal-directory")?.value;
+    if (cookie !== secret) {
+      const gate = new URL("/internal", req.url);
+      return NextResponse.redirect(gate);
+    }
+  }
+
   return res;
 }

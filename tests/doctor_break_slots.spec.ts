@@ -36,6 +36,9 @@ test.describe("Doctor lunch/break time", () => {
       page.getByRole("heading", { name: /Working hours & availability/i })
     ).toBeVisible({ timeout: 10000 });
 
+    await page.locator("#settingsSpecialty").fill("General Practice");
+    await page.locator("#settingsLanguages").fill("English, Greek");
+
     // 1. Configure a daily break via the agenda settings UI
     // (page already on /agenda/settings and heading is visible)
 
