@@ -6,6 +6,10 @@ import { supabase } from "@/lib/supabase";
 import { BookingSection } from "@/components/doctor/BookingSection";
 import { DoctorDetailsAccordion } from "@/components/doctor/DoctorDetailsAccordion";
 import { LanguagesSpoken } from "@/components/doctor/LanguagesSpoken";
+import {
+  ProfileNotLive,
+  type PublicProfileBlockReason,
+} from "@/components/doctor/ProfileNotLive";
 import { WhatToExpectCard } from "@/components/doctor/WhatToExpectCard";
 import {
   settingsToWeeklySlots,
@@ -38,45 +42,66 @@ const DOCTOR_SELECT_FULL =
 const DOCTOR_SELECT_BASIC =
   "id, name, specialty, bio, clinic_address, slug, status";
 
-/** Load active doctor; if DB has no `languages` column yet, fall back without it. */
-async function fetchActiveDoctorForProfile(slug: string) {
+function isLanguagesColumnError(msg: string): boolean {
+  return (
+    /languages/i.test(msg) &&
+    (/schema cache|does not exist|column|Could not find|42703/i.test(msg) || msg.includes("Could not find"))
+  );
+}
+
+type PublicDoctorFetch =
+  | { kind: "ok"; profile: DoctorProfileRow }
+  | { kind: "not_found" }
+  | {
+      kind: "not_verified";
+      name: string;
+      verificationStatus: PublicProfileBlockReason;
+    };
+
+/**
+ * Load doctor by slug. Public UI only when verification `status` is `verified`.
+ * If `languages` column is missing, fall back to a select without it.
+ */
+async function fetchPublicDoctorBySlug(slug: string): Promise<PublicDoctorFetch> {
   const first = await supabase
     .from("doctors")
     .select(DOCTOR_SELECT_FULL)
     .eq("slug", slug)
-    .eq("status", "active")
-    .single();
+    .maybeSingle();
 
-  if (!first.error && first.data) {
-    return first.data as DoctorProfileRow;
-  }
+  let row: DoctorProfileRow | null = first.data as DoctorProfileRow | null;
 
-  const firstCode = (first.error as { code?: string } | null)?.code;
-
-  // No matching active doctor — do not treat as "missing column"
-  if (firstCode === "PGRST116") {
-    return null;
-  }
-
-  // Any other error (e.g. unknown `languages` column): retry without it
-  const second = await supabase
-    .from("doctors")
-    .select(DOCTOR_SELECT_BASIC)
-    .eq("slug", slug)
-    .eq("status", "active")
-    .single();
-
-  if (second.error || !second.data) {
-    if (first.error) {
+  if (first.error) {
+    const msg = first.error.message ?? "";
+    if (isLanguagesColumnError(msg)) {
+      const second = await supabase
+        .from("doctors")
+        .select(DOCTOR_SELECT_BASIC)
+        .eq("slug", slug)
+        .maybeSingle();
+      if (second.error || !second.data) {
+        console.error("[DocCy] Doctor profile fallback query failed:", second.error ?? "no row");
+        return { kind: "not_found" };
+      }
+      row = { ...second.data, languages: null } as DoctorProfileRow;
+    } else {
       console.error("[DocCy] Doctor profile query failed:", first.error);
+      return { kind: "not_found" };
     }
-    if (second.error && second.error !== first.error) {
-      console.error("[DocCy] Doctor profile fallback query failed:", second.error);
-    }
-    return null;
   }
 
-  return { ...second.data, languages: null } as DoctorProfileRow;
+  if (!row) {
+    return { kind: "not_found" };
+  }
+
+  const st = (row.status ?? "").trim().toLowerCase();
+  if (st === "verified") {
+    return { kind: "ok", profile: row };
+  }
+
+  const verificationStatus: PublicProfileBlockReason =
+    st === "rejected" ? "rejected" : "pending";
+  return { kind: "not_verified", name: row.name, verificationStatus };
 }
 
 export const revalidate = 0;
@@ -88,12 +113,17 @@ export async function generateMetadata(
     .from("doctors")
     .select("name, specialty, status")
     .eq("slug", params.slug)
-    .eq("status", "active")
-    .single();
+    .maybeSingle();
 
   if (!doctor) {
+    return { title: "Doctor not found | DocCy" };
+  }
+
+  const st = (doctor.status ?? "").trim().toLowerCase();
+  if (st !== "verified") {
     return {
-      title: "Doctor not found | DocCy",
+      title: `${doctor.name} | Profile not available | DocCy`,
+      description: "This doctor profile is not public for booking yet.",
     };
   }
 
@@ -104,16 +134,25 @@ export async function generateMetadata(
 }
 
 export default async function DoctorPage({ params }: PageProps) {
-  const doctor = await fetchActiveDoctorForProfile(params.slug);
+  const result = await fetchPublicDoctorBySlug(params.slug);
 
-  if (!doctor) {
+  if (result.kind === "not_found") {
     console.error(
-      `[DocCy] Doctor not found for slug: "${params.slug}". Redirecting to home.`
+      `[DocCy] No doctor row for slug: "${params.slug}". Redirecting to home.`
     );
     redirect("/");
   }
 
-  const profile = doctor;
+  if (result.kind === "not_verified") {
+    return (
+      <ProfileNotLive
+        doctorName={result.name}
+        verificationStatus={result.verificationStatus}
+      />
+    );
+  }
+
+  const profile = result.profile;
 
   const { data: settings } = await supabase
     .from("doctor_settings")

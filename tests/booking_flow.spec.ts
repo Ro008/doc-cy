@@ -13,7 +13,7 @@ test.describe("Booking flow", () => {
     const { data: activeDoctors } = await supabase
       .from("doctors")
       .select("slug,name,id")
-      .eq("status", "active")
+      .eq("status", "verified")
       .limit(8);
 
     const doctors = activeDoctors ?? [];
@@ -31,7 +31,7 @@ test.describe("Booking flow", () => {
 
     if (!chosenDoctor) {
       throw new Error(
-        "No active doctor with published availability found for E2E."
+        "No verified doctor with published availability found for E2E."
       );
     }
 

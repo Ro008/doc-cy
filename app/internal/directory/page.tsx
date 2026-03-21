@@ -2,6 +2,10 @@ import Link from "next/link";
 import { startOfMonth, startOfWeek, subMonths } from "date-fns";
 import { createServiceRoleClient } from "@/lib/supabase-service";
 import { InternalDirectoryClient } from "@/components/internal/InternalDirectoryClient";
+import {
+  PendingSpecialtiesPanel,
+  type PendingSpecialtyRow,
+} from "@/components/internal/PendingSpecialtiesPanel";
 import { InternalSignOutButton } from "@/components/internal/InternalSignOutButton";
 import { FounderKpiCards } from "@/components/internal/FounderKpiCards";
 import { SpecialtyBreakdown } from "@/components/internal/SpecialtyBreakdown";
@@ -58,7 +62,9 @@ export default async function FounderDashboardPage() {
   ] = await Promise.all([
     supabase
       .from("doctors")
-      .select("id, name, slug, specialty, languages, status, created_at")
+      .select(
+        "id, name, slug, specialty, languages, status, created_at, license_number, license_file_url, is_specialty_approved"
+      )
       .order("created_at", { ascending: false }),
     supabase.from("appointments").select("id", { count: "exact", head: true }),
     supabase
@@ -122,8 +128,28 @@ export default async function FounderDashboardPage() {
         ? [String(d.languages)]
         : [],
     status: (d.status as string | null) ?? null,
+    license_number: (d as { license_number?: string | null }).license_number ?? null,
+    license_file_url: (d as { license_file_url?: string | null }).license_file_url ?? null,
     created_at: (d as { created_at?: string | null }).created_at ?? null,
+    is_specialty_approved:
+      (d as { is_specialty_approved?: boolean | null }).is_specialty_approved ?? true,
   }));
+
+  const pendingRes = await supabase
+    .from("doctors")
+    .select("id, name, specialty, email")
+    .eq("is_specialty_approved", false)
+    .order("created_at", { ascending: false });
+
+  const pendingSpecialtyItems: PendingSpecialtyRow[] =
+    pendingRes.error || !pendingRes.data
+      ? []
+      : pendingRes.data.map((r) => ({
+          id: r.id as string,
+          name: (r.name as string) ?? "—",
+          specialty: (r as { specialty?: string | null }).specialty ?? null,
+          email: (r as { email?: string | null }).email ?? null,
+        }));
 
   const totalDoctors = rows.length;
   const totalAppointments = apptCountRes.error ? 0 : apptCountRes.count ?? 0;
@@ -210,6 +236,8 @@ export default async function FounderDashboardPage() {
           activeDoctors7d={activeDoctors7d}
           newDoctorsThisWeek={newDoctorsThisWeek}
         />
+
+        <PendingSpecialtiesPanel items={pendingSpecialtyItems} />
 
         <div className="grid gap-6 xl:grid-cols-12">
           {/* Mobile: activity under KPIs; desktop: right rail */}

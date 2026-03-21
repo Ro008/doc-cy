@@ -96,11 +96,12 @@ export default async function AgendaPage() {
             <p className="mt-1 text-sm text-slate-300">
               Today&apos;s schedule · Europe/Nicosia time
             </p>
-            {doctor.status !== "active" && (
+            {doctor.status !== "verified" && (
               <p className="mt-3 inline-flex items-center gap-2 rounded-2xl border border-amber-400/30 bg-amber-400/10 px-3 py-1 text-xs font-medium text-amber-100">
                 <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-300" />
-                Your public profile is under review. We&apos;ll notify you when
-                it&apos;s active.
+                {doctor.status === "rejected"
+                  ? "Your application was not approved for a public profile. Contact support if you need help."
+                  : "Your public profile is under review. We’ll notify you when it’s verified."}
               </p>
             )}
           </div>
@@ -111,7 +112,10 @@ export default async function AgendaPage() {
             >
               Working hours & settings
             </Link>
-            <ViewPublicProfileLink slug={doctor.slug} />
+            <ViewPublicProfileLink
+              slug={doctor.slug}
+              isVerified={doctor.status === "verified"}
+            />
             <SignOutButton />
             <p className="text-xs text-slate-400">
               Cyprus:{" "}

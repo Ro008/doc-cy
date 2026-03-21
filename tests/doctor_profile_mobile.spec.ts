@@ -16,7 +16,7 @@ test.describe("Doctor profile mobile layout", () => {
     const { data: activeDoctors } = await supabase
       .from("doctors")
       .select("slug")
-      .eq("status", "active")
+      .eq("status", "verified")
       .limit(5);
 
     const slug = activeDoctors?.[0]?.slug;

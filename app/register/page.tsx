@@ -1,6 +1,11 @@
 import { redirect } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { PasswordToggleInput } from "@/components/auth/PasswordToggleInput";
+import { RegisterSpecialtyFields } from "@/components/auth/RegisterSpecialtyFields";
+import {
+  parseSpecialtyFromMasterField,
+  validateSpecialtySubmission,
+} from "@/lib/specialty-submission";
 
 type PageProps = {
   searchParams?: { submitted?: string; error?: string };
@@ -19,22 +24,55 @@ async function handleRegister(formData: FormData) {
   const email = (formData.get("email") as string | null)?.trim() || "";
   const password = (formData.get("password") as string | null) || "";
   const phone = (formData.get("phone") as string | null)?.trim() || "";
-  const specialty =
-    (formData.get("specialty") as string | null)?.trim() || "";
+  const specialtyRaw = (formData.get("specialty") as string | null) ?? "";
   const licenseNumber =
     (formData.get("licenseNumber") as string | null)?.trim() || "";
   const licenseFile = formData.get("licenseFile") as File | null;
+  const professionalDisclaimer = formData.get("professionalDisclaimer");
 
   if (
     !fullName ||
     !email ||
     !password ||
     !phone ||
-    !specialty ||
+    !specialtyRaw.trim() ||
     !licenseNumber ||
-    !licenseFile
+    !licenseFile ||
+    professionalDisclaimer !== "on"
   ) {
     redirect("/register?error=validation");
+  }
+
+  const specialtyFromMaster = parseSpecialtyFromMasterField(
+    formData.get("specialtyFromMaster")
+  );
+  const specParsed = validateSpecialtySubmission(
+    specialtyRaw.trim(),
+    specialtyFromMaster
+  );
+  if (!specParsed.ok) {
+    redirect("/register?error=specialty");
+  }
+  const specialty = specParsed.specialty;
+  const isSpecialtyApproved = specParsed.is_specialty_approved;
+
+  const maxBytes = 8 * 1024 * 1024; // 8 MB
+  if (licenseFile.size <= 0 || licenseFile.size > maxBytes) {
+    redirect("/register?error=file");
+  }
+
+  const allowedTypes = new Set([
+    "application/pdf",
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+    "image/gif",
+  ]);
+  const fileType = licenseFile.type?.toLowerCase() ?? "";
+  const extOk = /\.(pdf|jpe?g|png|webp|gif)$/i.test(licenseFile.name);
+  const typeOk = !fileType || allowedTypes.has(fileType);
+  if (!typeOk && !extOk) {
+    redirect("/register?error=file");
   }
 
   // Upload license document to Supabase Storage
@@ -107,6 +145,7 @@ async function handleRegister(formData: FormData) {
     license_file_url: licenseFileUrl,
     status: "pending",
     slug,
+    is_specialty_approved: isSpecialtyApproved,
   });
 
   if (insertError) {
@@ -135,7 +174,14 @@ export default function RegisterPage({ searchParams }: PageProps) {
     errorMessage =
       "We couldn’t upload your license document. Please try again or use a smaller file.";
   } else if (errorCode === "validation") {
-    errorMessage = "Please fill in all required fields before submitting.";
+    errorMessage =
+      "Please fill in all required fields, upload proof of ID (PDF or image), and accept the professional disclaimer.";
+  } else if (errorCode === "file") {
+    errorMessage =
+      "Please upload a PDF or image under 8 MB for proof of professional ID.";
+  } else if (errorCode === "specialty") {
+    errorMessage =
+      "Choose a specialty from the list, or use Other and describe yours clearly (max 120 characters).";
   }
 
   return (
@@ -157,7 +203,7 @@ export default function RegisterPage({ searchParams }: PageProps) {
           <p className="mt-2 max-w-xl text-sm text-slate-300 sm:text-base">
             Join Doc<span className="text-emerald-400">Cy</span> and modernise
             your clinic&apos;s patient experience with smart scheduling and
-            WhatsApp-friendly notifications.
+            automated notifications.
           </p>
         </header>
 
@@ -200,16 +246,7 @@ export default function RegisterPage({ searchParams }: PageProps) {
                     />
                   </label>
                 </div>
-                <div className="sm:col-span-2">
-                  <label className="block text-sm font-medium text-slate-200">
-                    Specialty
-                    <input
-                      name="specialty"
-                      required
-                      className="mt-1 w-full rounded-2xl border border-slate-700 bg-slate-900/60 px-3 py-2 text-sm text-slate-100 shadow-sm outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/40"
-                    />
-                  </label>
-                </div>
+                <RegisterSpecialtyFields />
                 <div>
                   <label className="block text-sm font-medium text-slate-200">
                     Email
@@ -249,27 +286,43 @@ export default function RegisterPage({ searchParams }: PageProps) {
               <div className="grid gap-4 sm:grid-cols-2">
                 <div>
                   <label className="block text-sm font-medium text-slate-200">
-                    Medical license number
+                    Professional license number
                     <input
                       name="licenseNumber"
                       required
+                      autoComplete="off"
                       className="mt-1 w-full rounded-2xl border border-slate-700 bg-slate-900/60 px-3 py-2 text-sm text-slate-100 shadow-sm outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/40"
                     />
                   </label>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-200">
-                    License document (PDF or image)
+                    Proof of professional ID (PDF or image, max 8 MB)
                     <input
                       type="file"
                       name="licenseFile"
                       required
-                      accept="image/*,.pdf"
+                      accept="application/pdf,image/jpeg,image/png,image/webp,image/gif,.pdf"
                       className="mt-1 block w-full text-xs text-slate-300 file:mr-3 file:rounded-xl file:border-0 file:bg-emerald-500/10 file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-emerald-200 hover:file:bg-emerald-500/20"
                     />
                   </label>
                 </div>
               </div>
+
+              <label className="flex cursor-pointer gap-3 rounded-2xl border border-slate-700/80 bg-slate-900/40 p-4 text-left transition hover:border-slate-600">
+                <input
+                  type="checkbox"
+                  name="professionalDisclaimer"
+                  value="on"
+                  required
+                  className="mt-1 h-4 w-4 shrink-0 rounded border-slate-600 bg-slate-900 text-emerald-500 focus:ring-emerald-400/50"
+                />
+                <span className="text-xs leading-relaxed text-slate-300">
+                  I confirm I am a licensed professional. I accept that DocCy is a technology
+                  provider and assumes no liability for the authenticity of professional
+                  credentials.
+                </span>
+              </label>
 
               {/* Honeypot field for bots */}
               <div className="hidden" aria-hidden="true">

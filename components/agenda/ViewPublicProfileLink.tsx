@@ -3,10 +3,13 @@ import { ExternalLink } from "lucide-react";
 
 export function ViewPublicProfileLink({
   slug,
+  isVerified = true,
 }: {
   slug?: string | null;
+  /** Public profile is only live for verified doctors. */
+  isVerified?: boolean;
 }) {
-  if (!slug) return null;
+  if (!slug || !isVerified) return null;
 
   return (
     <Link

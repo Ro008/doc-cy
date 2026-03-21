@@ -3,12 +3,17 @@
 import * as React from "react";
 import Link from "next/link";
 import { ArrowLeft, Save } from "lucide-react";
+import { SpecialtyCombobox } from "@/components/specialties/SpecialtyCombobox";
+import { isMasterSpecialty } from "@/lib/cyprus-specialties";
+import { validateSpecialtySubmission } from "@/lib/specialty-submission";
 
 export type DoctorSettingsFormData = {
   doctorId: string;
   doctorName: string;
   /** Shown in directory & public profile */
   specialty: string;
+  /** false = custom “Other” text pending founder approval */
+  isSpecialtyApproved?: boolean;
   /** Comma- or semicolon-separated, saved as string[] on doctors */
   languages: string;
   whatsappNumber?: string;
@@ -44,7 +49,19 @@ export function SettingsForm({ initial }: SettingsFormProps) {
     text: string;
   } | null>(null);
 
-  const [specialty, setSpecialty] = React.useState(initial.specialty ?? "");
+  const [spec, setSpec] = React.useState(() => {
+    const s = (initial.specialty ?? "").trim();
+    const fromMaster =
+      (initial.isSpecialtyApproved ?? true) !== false && isMasterSpecialty(s);
+    return { specialty: s, fromMaster };
+  });
+  const onSpecChange = React.useCallback(
+    (p: { specialty: string; fromMaster: boolean }) => {
+      setSpec(p);
+    },
+    []
+  );
+
   const [languages, setLanguages] = React.useState(initial.languages ?? "");
 
   const [whatsappNumber, setWhatsappNumber] = React.useState(
@@ -79,16 +96,16 @@ export function SettingsForm({ initial }: SettingsFormProps) {
     e.preventDefault();
     setMessage(null);
 
-    const spec = specialty.trim();
     const langList = languages
       .split(/[,;]/)
       .map((s) => s.trim())
       .filter(Boolean);
-    if (!spec) {
-      setMessage({
-        type: "error",
-        text: "Specialty is required for your public directory listing.",
-      });
+    const specResult = validateSpecialtySubmission(
+      spec.specialty,
+      spec.fromMaster
+    );
+    if (specResult.ok === false) {
+      setMessage({ type: "error", text: specResult.message });
       return;
     }
     if (langList.length === 0) {
@@ -107,7 +124,8 @@ export function SettingsForm({ initial }: SettingsFormProps) {
         body: JSON.stringify({
           doctorId: initial.doctorId,
           doctorPhone: whatsappNumber || null,
-          specialty: spec,
+          specialty: specResult.specialty,
+          specialtyFromMaster: specResult.is_specialty_approved,
           languages: langList,
           monday,
           tuesday,
@@ -168,21 +186,18 @@ export function SettingsForm({ initial }: SettingsFormProps) {
         </p>
         <div className="mt-4 space-y-4">
           <div>
-            <label
-              htmlFor="settingsSpecialty"
-              className="text-xs font-semibold uppercase tracking-wide text-slate-400"
-            >
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
               Specialty <span className="text-red-300">*</span>
-            </label>
-            <input
-              id="settingsSpecialty"
-              name="specialty"
-              type="text"
-              required
-              value={specialty}
-              onChange={(e) => setSpecialty(e.target.value)}
-              placeholder="e.g. General Practitioner"
-              className="mt-2 w-full rounded-xl border border-slate-800/80 bg-slate-950/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-400/60"
+            </p>
+            <p className="mt-1 text-xs text-slate-500">
+              Search the list or choose Other if needed — custom entries are reviewed.
+            </p>
+            <SpecialtyCombobox
+              id="settings-specialty"
+              initialSpecialty={initial.specialty ?? ""}
+              initialIsApproved={initial.isSpecialtyApproved ?? true}
+              variant="settings"
+              onSelectionChange={onSpecChange}
             />
           </div>
           <div>

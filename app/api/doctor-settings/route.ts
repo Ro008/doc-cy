@@ -2,6 +2,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
+import { validateSpecialtySubmission } from "@/lib/specialty-submission";
+import { isMasterSpecialty } from "@/lib/cyprus-specialties";
 
 function parseLanguages(
   raw: unknown
@@ -104,6 +106,8 @@ export async function POST(req: NextRequest) {
     doctorId?: string;
     doctorPhone?: string | null;
     specialty?: string;
+    /** true when chosen from master list (JSON boolean) */
+    specialtyFromMaster?: boolean | string | number;
     languages?: unknown;
     monday?: boolean;
     tuesday?: boolean;
@@ -138,13 +142,21 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ message: "Forbidden." }, { status: 403 });
   }
 
-  const specialty =
+  const specialtyRaw =
     typeof b.specialty === "string" ? b.specialty.trim() : "";
-  if (!specialty) {
-    return NextResponse.json(
-      { message: "Specialty is required." },
-      { status: 400 }
-    );
+  let fromMasterFlag =
+    b.specialtyFromMaster === true ||
+    b.specialtyFromMaster === "true" ||
+    b.specialtyFromMaster === 1;
+  if (b.specialtyFromMaster === undefined || b.specialtyFromMaster === null) {
+    fromMasterFlag = isMasterSpecialty(specialtyRaw);
+  }
+  const specResult = validateSpecialtySubmission(
+    specialtyRaw,
+    fromMasterFlag
+  );
+  if (specResult.ok === false) {
+    return NextResponse.json({ message: specResult.message }, { status: 400 });
   }
 
   const langsParsed = parseLanguages(b.languages);
@@ -196,9 +208,15 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const phoneUpdate: { phone?: string | null; specialty: string; languages: string[] } = {
-    specialty,
+  const phoneUpdate: {
+    phone?: string | null;
+    specialty: string;
+    languages: string[];
+    is_specialty_approved: boolean;
+  } = {
+    specialty: specResult.specialty,
     languages,
+    is_specialty_approved: specResult.is_specialty_approved,
   };
   if (b.doctorPhone !== undefined) {
     const trimmed =

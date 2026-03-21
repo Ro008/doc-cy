@@ -47,7 +47,7 @@ test.describe("Upcoming appointments cancellation", () => {
       .from("doctors")
       .select("slug")
       .eq("auth_user_id", authUserId)
-      .eq("status", "active")
+      .eq("status", "verified")
       .single();
     const slug = (doctorRow as { slug?: string } | null)?.slug;
     expect(slug).toBeTruthy();

@@ -38,11 +38,11 @@ test.describe("Brand consistency", () => {
     const { data: activeDoctors } = await supabase
       .from("doctors")
       .select("slug")
-      .eq("status", "active")
+      .eq("status", "verified")
       .limit(5);
 
     const firstSlug = activeDoctors?.[0]?.slug;
-    if (!firstSlug) throw new Error("No active doctors found for E2E test.");
+    if (!firstSlug) throw new Error("No verified doctors found for E2E test.");
 
     await page.goto(`/${firstSlug}`);
 

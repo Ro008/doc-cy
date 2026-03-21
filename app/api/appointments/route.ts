@@ -112,6 +112,22 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  const { data: doctorGate, error: doctorGateError } = await supabase
+    .from("doctors")
+    .select("id, status")
+    .eq("id", doctorId)
+    .single();
+
+  if (doctorGateError || !doctorGate) {
+    return NextResponse.json({ message: "Doctor not found." }, { status: 400 });
+  }
+  if ((doctorGate as { status?: string }).status !== "verified") {
+    return NextResponse.json(
+      { message: "This doctor is not accepting public bookings yet." },
+      { status: 403 }
+    );
+  }
+
   // Interpret appointmentLocal as local Europe/Nicosia time and convert to UTC
   let appointmentUtc: Date;
   try {

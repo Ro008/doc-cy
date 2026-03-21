@@ -11,6 +11,7 @@ import { SignOutButton } from "@/components/auth/SignOutButton";
 import type { DoctorSettingsFormData } from "@/components/dashboard/SettingsForm";
 import { ArrowLeft } from "lucide-react";
 import { ViewPublicProfileLink } from "@/components/agenda/ViewPublicProfileLink";
+import { PromotePracticeSection } from "@/components/dashboard/PromotePracticeSection";
 
 function timeFromRow(t: string | null | undefined): string {
   if (!t) return "09:00";
@@ -42,12 +43,14 @@ export default async function AgendaSettingsPage() {
     slug?: string | null;
     specialty?: string | null;
     languages?: string[] | null;
+    status?: string | null;
+    is_specialty_approved?: boolean | null;
   } | null = null;
   let doctorError: unknown = null;
   try {
     const res = await supabase
       .from("doctors")
-      .select("id, name, phone, slug, specialty, languages")
+      .select("id, name, phone, slug, specialty, languages, status")
       .eq("auth_user_id", user.id)
       .single();
     doctor = res.data as typeof doctor;
@@ -59,7 +62,7 @@ export default async function AgendaSettingsPage() {
   if (!doctor) {
     const fallback = await supabase
       .from("doctors")
-      .select("id, name, slug, specialty, languages")
+      .select("id, name, slug, specialty, languages, status, is_specialty_approved")
       .eq("auth_user_id", user.id)
       .single();
     doctor = fallback.data as typeof doctor;
@@ -105,10 +108,13 @@ export default async function AgendaSettingsPage() {
     ? doctor.languages.filter((s) => String(s).trim().length > 0)
     : [];
 
+  const isVerified = doctor.status === "verified";
+
   const initial: DoctorSettingsFormData = {
     doctorId: doctor.id,
     doctorName: doctor.name,
     specialty: (doctor.specialty ?? "").trim(),
+    isSpecialtyApproved: doctor.is_specialty_approved ?? true,
     languages: langArr.length > 0 ? langArr.join(", ") : "",
     whatsappNumber: doctor.phone ?? undefined,
     monday: (settings as { monday?: boolean } | null)?.monday ?? true,
@@ -160,9 +166,15 @@ export default async function AgendaSettingsPage() {
               </span>
               .
             </p>
+            {doctor.is_specialty_approved === false ? (
+              <p className="mt-3 rounded-xl border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-xs text-amber-100">
+                Your specialty text is pending review. You can edit it below or pick a standard
+                category — we&apos;ll align it with our directory list.
+              </p>
+            ) : null}
           </div>
           <div className="flex items-center gap-3">
-            <ViewPublicProfileLink slug={doctor.slug} />
+            <ViewPublicProfileLink slug={doctor.slug} isVerified={isVerified} />
             <SignOutButton />
           </div>
         </header>
@@ -170,6 +182,28 @@ export default async function AgendaSettingsPage() {
         <section className="rounded-3xl border border-emerald-100/10 bg-slate-900/50 p-6 shadow-2xl shadow-slate-950/50 backdrop-blur-xl sm:p-8">
           <SettingsForm initial={initial} />
         </section>
+
+        <div className="mt-8">
+          {isVerified ? (
+            <>
+              <p className="mb-3 text-xs text-slate-500">
+                <span className="font-medium text-slate-400">Quick access:</span> use the floating{" "}
+                <span className="text-emerald-300/90">QR</span> button (bottom-right, above Feedback)
+                on any agenda page for the same poster and download.
+              </p>
+              <PromotePracticeSection slug={doctor.slug} doctorName={doctor.name} />
+            </>
+          ) : (
+            <section className="rounded-2xl border border-slate-800/80 bg-slate-900/40 p-5">
+              <h2 className="text-sm font-semibold text-slate-100">Promote your practice</h2>
+              <p className="mt-2 text-sm text-slate-400">
+                QR codes, printable signs, and downloads are available after your profile is{" "}
+                <span className="font-medium text-amber-200/90">verified</span> by our team. You can
+                still use your agenda and settings in the meantime.
+              </p>
+            </section>
+          )}
+        </div>
       </div>
     </main>
   );
