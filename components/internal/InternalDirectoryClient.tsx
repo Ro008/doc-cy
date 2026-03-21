@@ -14,10 +14,8 @@ export type DirectoryDoctorRow = {
 
 export function InternalDirectoryClient({
   doctors,
-  totalCount,
 }: {
   doctors: DirectoryDoctorRow[];
-  totalCount: number;
 }) {
   const [nameQ, setNameQ] = React.useState("");
   const [specialtyFilter, setSpecialtyFilter] = React.useState("");
@@ -57,17 +55,8 @@ export function InternalDirectoryClient({
   }, [doctors, nameQ, specialtyFilter, languageFilter]);
 
   return (
-    <div className="space-y-8">
-      <div className="rounded-3xl border border-slate-800 bg-slate-900/80 px-6 py-8 text-center">
-        <p className="text-lg font-semibold leading-snug text-slate-100 sm:text-xl md:text-2xl">
-          Total Registered Doctors:{" "}
-          <span className="block tabular-nums text-4xl font-bold text-emerald-300 sm:inline sm:text-5xl md:text-6xl">
-            {totalCount}
-          </span>
-        </p>
-      </div>
-
-      <div className="grid gap-4 rounded-2xl border border-slate-800 bg-slate-900/60 p-4 sm:grid-cols-3">
+    <div className="space-y-6">
+      <div className="grid gap-4 rounded-xl border border-slate-800/60 bg-slate-950/40 p-4 sm:grid-cols-3">
         <div>
           <label className="text-xs font-semibold uppercase tracking-wide text-slate-400">
             Name

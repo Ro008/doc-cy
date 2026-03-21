@@ -26,11 +26,15 @@ export async function middleware(req: NextRequest) {
   if (pathname === "/internal/directory" || pathname.startsWith("/internal/directory/")) {
     const secret = process.env.INTERNAL_DIRECTORY_SECRET?.trim();
     if (!secret) {
-      return NextResponse.redirect(new URL("/", req.url));
+      // Don't send people to "/" — they think the app is broken. Explain on /internal.
+      const gate = new URL("/internal", req.url);
+      gate.searchParams.set("configure", "1");
+      return NextResponse.redirect(gate);
     }
     const cookie = req.cookies.get("doccy-internal-directory")?.value;
     if (cookie !== secret) {
       const gate = new URL("/internal", req.url);
+      gate.searchParams.set("next", "/internal/directory");
       return NextResponse.redirect(gate);
     }
   }
