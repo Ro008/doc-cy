@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { CalendarCheck2, ChevronDown, MapPin } from "lucide-react";
+import { ChevronDown, MapPin } from "lucide-react";
 
 type DoctorDetailsAccordionProps = {
   name: string;
@@ -55,21 +55,6 @@ export function DoctorDetailsAccordion({
           }`}
         >
           <div className="space-y-3 px-5 pb-5 pt-1">
-            <div className="rounded-2xl border border-emerald-400/25 bg-emerald-400/[0.07] p-4">
-              <div className="flex items-center gap-2 text-emerald-200">
-                <CalendarCheck2 className="h-4 w-4 text-emerald-300" aria-hidden />
-                <p className="text-xs font-semibold tracking-[0.2em] text-emerald-200/90">
-                  What to expect
-                </p>
-              </div>
-              <p className="mt-2 text-sm leading-relaxed text-slate-200/90">
-                Book in seconds. Your appointment is instantly synced with the
-                doctor&apos;s agenda. You&apos;ll receive a confirmation email
-                with a one-click WhatsApp link to contact the clinic and a
-                direct button to add the date to your calendar.
-              </p>
-            </div>
-
             <div>
               <p className="text-xs font-semibold tracking-[0.2em] text-slate-400">
                 About

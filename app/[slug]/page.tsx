@@ -5,6 +5,7 @@ import type { Metadata } from "next";
 import { supabase } from "@/lib/supabase";
 import { BookingSection } from "@/components/doctor/BookingSection";
 import { DoctorDetailsAccordion } from "@/components/doctor/DoctorDetailsAccordion";
+import { WhatToExpectCard } from "@/components/doctor/WhatToExpectCard";
 import {
   settingsToWeeklySlots,
   type DoctorSettingsRow,
@@ -143,8 +144,9 @@ export default async function DoctorPage({ params }: PageProps) {
             />
           </section>
 
-          {/* Collapsible doctor details */}
-          <div className="order-2 lg:order-1">
+          {/* What to expect: outside About accordion so it stays visible on mobile */}
+          <div className="order-2 flex flex-col gap-4 lg:order-1">
+            <WhatToExpectCard />
             <DoctorDetailsAccordion
               name={doctor.name}
               bio={doctor.bio}
