@@ -17,28 +17,11 @@ import {
 } from "@/lib/resend";
 import type { DoctorRow } from "@/lib/doctors";
 import { phoneToWaMeLink } from "@/lib/whatsapp";
-
-function toGoogleCalendarUrl(opts: {
-  title: string;
-  description?: string;
-  startUtc: Date;
-  endUtc: Date;
-}) {
-  const fmt = (d: Date) =>
-    d
-      .toISOString()
-      .replace(/[-:]/g, "")
-      .replace(/\.\d{3}Z$/, "Z");
-
-  const params = new URLSearchParams({
-    action: "TEMPLATE",
-    text: opts.title,
-    dates: `${fmt(opts.startUtc)}/${fmt(opts.endUtc)}`,
-    details: opts.description ?? "",
-  });
-
-  return `https://calendar.google.com/calendar/render?${params.toString()}`;
-}
+import { getDoctorCalendarEventDetails } from "@/lib/doctor-calendar-event";
+import {
+  buildGoogleCalendarUrl,
+  getCalendarEventDetails,
+} from "@/lib/patient-calendar-event";
 
 const WHATSAPP_CTA_STYLE =
   "display:block;text-align:center;background:#25D366;color:#ffffff;text-decoration:none;font-weight:700;padding:14px 16px;border-radius:12px;margin:0 0 12px;font-size:15px;";
@@ -252,7 +235,7 @@ export async function POST(req: NextRequest) {
   try {
     const { data: doctor } = await supabase
       .from("doctors")
-      .select("name, email, phone")
+      .select("name, email, phone, specialty, clinic_address")
       .eq("id", doctorId)
       .single();
 
@@ -283,26 +266,68 @@ export async function POST(req: NextRequest) {
       const startUtc = new Date(inserted.appointment_datetime as string);
       const endUtc = addMinutes(startUtc, durationMinutes);
 
-      const googleUrl = toGoogleCalendarUrl({
-        title: `Appointment with ${patientName}`,
-        description: doctorName,
+      const patientCal = getCalendarEventDetails(
+        {
+          id: inserted.id as string,
+          appointment_datetime: inserted.appointment_datetime as string,
+        },
+        {
+          name: doctorRow?.name,
+          specialty: doctorRow?.specialty,
+          phone: doctorRow?.phone,
+          clinic_address: doctorRow?.clinic_address,
+        }
+      );
+
+      const doctorCal = getDoctorCalendarEventDetails(
+        {
+          patient_name: patientName,
+          patient_email: patientEmail,
+          patient_phone: patientPhone,
+        },
+        {
+          name: doctorRow?.name,
+          specialty: doctorRow?.specialty,
+          phone: doctorRow?.phone,
+          clinic_address: doctorRow?.clinic_address,
+        }
+      );
+
+      const patientGoogleUrl = buildGoogleCalendarUrl({
+        title: patientCal.title,
+        description: patientCal.description,
+        location: patientCal.location,
         startUtc,
         endUtc,
       });
 
-      const icsUrl = new URL(
+      const doctorGoogleUrl = buildGoogleCalendarUrl({
+        title: doctorCal.title,
+        description: doctorCal.description,
+        location: doctorCal.location,
+        startUtc,
+        endUtc,
+      });
+
+      const patientIcsUrl = new URL(
         `/api/appointments/${encodeURIComponent(inserted.id)}/calendar`,
         siteUrl
       ).toString();
 
+      const doctorIcsUrl = new URL(
+        `/api/appointments/${encodeURIComponent(inserted.id)}/calendar`,
+        siteUrl
+      );
+      doctorIcsUrl.searchParams.set("audience", "doctor");
+
       patientText +=
-        `\n\nAdd to Google Calendar: ${googleUrl}` +
-        `\n\nAdd to Apple/Outlook (.ics): ${icsUrl}` +
+        `\n\nAdd to Google Calendar: ${patientGoogleUrl}` +
+        `\n\nAdd to Apple/Outlook (.ics): ${patientIcsUrl}` +
         `\n\n---\n${AUTOMATED_EMAIL_FOOTER_TEXT}`;
 
       doctorText +=
-        `\n\nAdd to Google Calendar: ${googleUrl}` +
-        `\n\nAdd to Apple/Outlook (.ics): ${icsUrl}` +
+        `\n\nAdd to Google Calendar: ${doctorGoogleUrl}` +
+        `\n\nAdd to Apple/Outlook (.ics): ${doctorIcsUrl.toString()}` +
         `\n\n---\n${AUTOMATED_EMAIL_FOOTER_TEXT}`;
 
       const doctorHtml = `
@@ -319,8 +344,8 @@ export async function POST(req: NextRequest) {
         ? `<a href="${patientWaMe}" style="${WHATSAPP_CTA_STYLE}">💬 Chat on WhatsApp — ${escapeHtml(patientPhone)}</a>`
         : ""
     }
-    <a href="${googleUrl}" style="${CAL_GOOGLE_STYLE}">Add to Google Calendar</a>
-    <a href="${icsUrl}" style="${CAL_ICS_STYLE}">Add to Apple / Outlook (.ics)</a>
+    <a href="${doctorGoogleUrl}" style="${CAL_GOOGLE_STYLE}">Add to Google Calendar</a>
+    <a href="${doctorIcsUrl.toString()}" style="${CAL_ICS_STYLE}">Add to Apple / Outlook (.ics)</a>
 
     ${automatedEmailFooterHtml()}
   </div>
@@ -351,8 +376,8 @@ export async function POST(req: NextRequest) {
         ? `<a href="${doctorWaMe}" style="${WHATSAPP_CTA_STYLE}">💬 Chat with ${escapeHtml(doctorName)} on WhatsApp</a>`
         : ""
     }
-    <a href="${googleUrl}" style="${CAL_GOOGLE_STYLE}">Add to Google Calendar</a>
-    <a href="${icsUrl}" style="${CAL_ICS_STYLE}">Add to Apple / Outlook (.ics)</a>
+    <a href="${patientGoogleUrl}" style="${CAL_GOOGLE_STYLE}">Add to Google Calendar</a>
+    <a href="${patientIcsUrl}" style="${CAL_ICS_STYLE}">Add to Apple / Outlook (.ics)</a>
 
     ${automatedEmailFooterHtml()}
   </div>

@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { addMinutes } from "date-fns";
 import { supabase } from "@/lib/supabase";
-import { phoneToWaMeLink } from "@/lib/whatsapp";
-import { CLINIC_ADDRESS, MAPS_URL } from "@/lib/clinic-info";
+import { getDoctorCalendarEventDetails } from "@/lib/doctor-calendar-event";
+import { getCalendarEventDetails } from "@/lib/patient-calendar-event";
 
 type RouteContext = {
   params: { id: string };
@@ -23,15 +23,21 @@ function escapeIcsText(text: string) {
     .replace(/;/g, "\\;");
 }
 
-export async function GET(_req: NextRequest, { params }: RouteContext) {
+export async function GET(req: NextRequest, { params }: RouteContext) {
   const appointmentId = params.id;
   if (!appointmentId) {
     return NextResponse.json({ message: "Missing appointment id." }, { status: 400 });
   }
 
+  const forDoctor =
+    req.nextUrl.searchParams.get("audience") === "doctor" ||
+    req.nextUrl.searchParams.get("for") === "doctor";
+
   const { data: appointment, error: apptError } = await supabase
     .from("appointments")
-    .select("id, doctor_id, appointment_datetime, patient_name, status, created_at")
+    .select(
+      "id, doctor_id, appointment_datetime, patient_name, patient_email, patient_phone, status, created_at"
+    )
     .eq("id", appointmentId)
     .single();
 
@@ -41,7 +47,7 @@ export async function GET(_req: NextRequest, { params }: RouteContext) {
 
   const { data: doctor } = await supabase
     .from("doctors")
-    .select("id, name, phone, slug, clinic_address")
+    .select("id, name, phone, slug, clinic_address, specialty")
     .eq("id", appointment.doctor_id)
     .single();
 
@@ -59,27 +65,37 @@ export async function GET(_req: NextRequest, { params }: RouteContext) {
   const endUtc = addMinutes(startUtc, durationMinutes);
   const createdUtc = new Date((appointment.created_at as string) ?? new Date().toISOString());
 
-  const doctorName = (doctor?.name ?? "").trim();
-  const doctorPhone = (doctor?.phone ?? "").trim();
-  const doctorWaMeLink = phoneToWaMeLink(doctorPhone) ?? "";
-  const clinicAddress =
-    (doctor as { clinic_address?: string | null } | null)?.clinic_address
-      ?.trim() || CLINIC_ADDRESS;
-  const mapsUrl =
-    clinicAddress === CLINIC_ADDRESS
-      ? MAPS_URL
-      : `https://maps.google.com/?q=${encodeURIComponent(clinicAddress)}`;
+  const doctorPayload = {
+    name: doctor?.name,
+    specialty: (doctor as { specialty?: string | null } | null)?.specialty,
+    phone: doctor?.phone,
+    clinic_address: (doctor as { clinic_address?: string | null } | null)?.clinic_address,
+  };
 
-  const summary = doctorName
-    ? `🩺 Appointment with Dr. ${doctorName}`
-    : "🩺 Appointment";
+  const cal = forDoctor
+    ? getDoctorCalendarEventDetails(
+        {
+          patient_name: appointment.patient_name as string | null,
+          patient_email: (appointment as { patient_email?: string | null }).patient_email,
+          patient_phone: (appointment as { patient_phone?: string | null }).patient_phone,
+        },
+        doctorPayload
+      )
+    : getCalendarEventDetails(
+        {
+          id: appointment.id as string,
+          appointment_datetime: appointment.appointment_datetime as string,
+        },
+        doctorPayload
+      );
 
-  const description = [
-    `WhatsApp: ${doctorWaMeLink || doctorPhone || "N/A"}`,
-    `Address: ${mapsUrl}`,
-  ].join("\n");
+  const summary = cal.title;
+  const description = cal.description;
+  const clinicAddress = cal.location;
 
-  const uid = `${appointment.id}@doccy`;
+  const uid = forDoctor
+    ? `${appointment.id}-doctor@doccy`
+    : `${appointment.id}@doccy`;
 
   const icsParts = [
     "BEGIN:VCALENDAR",
@@ -106,7 +122,7 @@ export async function GET(_req: NextRequest, { params }: RouteContext) {
     status: 200,
     headers: {
       "Content-Type": "text/calendar; charset=utf-8",
-      "Content-Disposition": `attachment; filename=\"appointment-${appointment.id}.ics\"`,
+      "Content-Disposition": `attachment; filename=\"appointment-${appointment.id}${forDoctor ? "-doctor" : ""}.ics\"`,
       "Cache-Control": "no-store",
     },
   });
