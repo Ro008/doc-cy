@@ -36,7 +36,9 @@ test.describe("Doctor lunch/break time", () => {
       page.getByRole("heading", { name: /Working hours & availability/i })
     ).toBeVisible({ timeout: 10000 });
 
-    await page.locator("#settingsSpecialty").fill("General Practice");
+    // Specialty is a searchable combobox (not a plain text input).
+    await page.locator("#settings-specialty-trigger").click();
+    await page.getByRole("button", { name: "General Practice", exact: true }).click();
     await page.locator("#settingsLanguages").fill("English, Greek");
 
     // 1. Configure a daily break via the agenda settings UI
