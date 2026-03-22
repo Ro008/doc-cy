@@ -7,7 +7,10 @@ test.describe("Navigation and routing", () => {
 
     await expect(page).toHaveURL("/");
     await expect(
-      page.getByRole("heading", { level: 1, name: /Your medical practice/i })
+      page.getByRole("heading", {
+        level: 1,
+        name: /stop chasing appointments.*start focusing on patients/i,
+      })
     ).toBeVisible({ timeout: 5000 });
   });
 });

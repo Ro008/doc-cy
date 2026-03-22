@@ -26,6 +26,12 @@ export type PatientCalendarEventDetails = {
   location: string;
 };
 
+/** Optional visit context for calendar copy (patient-facing description). */
+export type PatientCalendarVisitReason = {
+  visitType: string | null | undefined;
+  visitNotes?: string | null;
+};
+
 /**
  * Last token of the doctor's name, after stripping a leading "Dr." prefix.
  */
@@ -53,7 +59,8 @@ export function specialtyLabelForCalendar(specialty: string | null | undefined):
  */
 export function getCalendarEventDetails(
   _appointment: PatientCalendarAppointment,
-  doctor: PatientCalendarDoctor
+  doctor: PatientCalendarDoctor,
+  visit?: PatientCalendarVisitReason | null
 ): PatientCalendarEventDetails {
   const specialty = specialtyLabelForCalendar(doctor.specialty);
   const last = doctorLastNameForCalendar(doctor.name);
@@ -64,7 +71,25 @@ export function getCalendarEventDetails(
     ? `To change or cancel your visit, please contact the clinic directly via WhatsApp: ${wa}`
     : "To change or cancel your visit, please contact the clinic directly.";
 
-  const description = ["Confirmed via DocCy.", "", waLine].join("\n");
+  const vt = String(visit?.visitType ?? "").trim();
+  const vn = String(visit?.visitNotes ?? "").trim();
+  const visitLines: string[] = [];
+  if (vt) {
+    visitLines.push(`Visit type: ${vt}`);
+  }
+  if (vn) {
+    visitLines.push(`Notes: ${vn}`);
+  }
+  if (visitLines.length > 0) {
+    visitLines.push("");
+  }
+
+  const description = [
+    ...visitLines,
+    "Confirmed via DocCy.",
+    "",
+    waLine,
+  ].join("\n");
 
   const location =
     String(doctor.clinic_address ?? "").trim() || CLINIC_ADDRESS;

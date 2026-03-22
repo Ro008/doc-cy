@@ -22,6 +22,7 @@ import {
   buildGoogleCalendarUrl,
   getCalendarEventDetails,
 } from "@/lib/patient-calendar-event";
+import { normalizeVisitNotes, parseVisitType } from "@/lib/visit-types";
 
 const WHATSAPP_CTA_STYLE =
   "display:block;text-align:center;background:#25D366;color:#ffffff;text-decoration:none;font-weight:700;padding:14px 16px;border-radius:12px;margin:0 0 12px;font-size:15px;";
@@ -65,6 +66,8 @@ export async function POST(req: NextRequest) {
     patientEmail,
     patientPhone,
     appointmentLocal,
+    visitType: rawVisitType,
+    visitNotes: rawVisitNotes,
   } = body as {
     doctorId?: string;
     doctorSlug?: string;
@@ -72,6 +75,8 @@ export async function POST(req: NextRequest) {
     patientEmail?: string;
     patientPhone?: string;
     appointmentLocal?: string; // "YYYY-MM-DDTHH:mm" in Europe/Nicosia
+    visitType?: string;
+    visitNotes?: string;
   };
 
   let doctorId = rawDoctorId;
@@ -105,6 +110,17 @@ export async function POST(req: NextRequest) {
       { status: 400 }
     );
   }
+
+  const visitType = parseVisitType(rawVisitType);
+  if (!visitType) {
+    return NextResponse.json(
+      { message: "Please select a valid type of visit." },
+      { status: 400 }
+    );
+  }
+  const visitNotes = normalizeVisitNotes(rawVisitNotes);
+
+  const visitForCal = { visitType, visitNotes };
 
   const { data: doctorGate, error: doctorGateError } = await supabase
     .from("doctors")
@@ -217,6 +233,8 @@ export async function POST(req: NextRequest) {
       patient_phone: patientPhone,
       appointment_datetime: appointmentUtc.toISOString(),
       status: "confirmed",
+      visit_type: visitType,
+      visit_notes: visitNotes,
       // Exact moment the patient completed "Book appointment" (for dashboard month / activity)
       created_at: bookedAtIso,
     })
@@ -262,11 +280,19 @@ export async function POST(req: NextRequest) {
       const demoTo = "rociosirvent@gmail.com";
 
       let patientText = `Hi ${patientName},\n\nYour appointment with ${doctorName} is confirmed for ${compactWhenLabel} (Cyprus time).`;
+      patientText += `\n\nVisit type: ${visitType}`;
+      if (visitNotes) {
+        patientText += `\nNotes: ${visitNotes}`;
+      }
       if (doctorWaMe) {
         patientText += `\n\nChat with ${doctorName} on WhatsApp: ${doctorWaMe}`;
       }
 
-      let doctorText = `New appointment\n\nPatient: ${patientName}\nPatient email: ${patientEmail}\nWhen: ${compactWhenLabel} (Cyprus time)`;
+      let doctorText = `New appointment\n\nVisit type: ${visitType}`;
+      if (visitNotes) {
+        doctorText += `\nNotes: ${visitNotes}`;
+      }
+      doctorText += `\n\nPatient: ${patientName}\nPatient email: ${patientEmail}\nWhen: ${compactWhenLabel} (Cyprus time)`;
       if (patientWaMe || patientPhone) {
         doctorText += `\n\n💬 Chat on WhatsApp (${patientPhone}): ${patientWaMe ?? "N/A"}`;
       }
@@ -287,7 +313,8 @@ export async function POST(req: NextRequest) {
           specialty: doctorRow?.specialty,
           phone: doctorRow?.phone,
           clinic_address: doctorRow?.clinic_address,
-        }
+        },
+        visitForCal
       );
 
       const doctorCal = getDoctorCalendarEventDetails(
@@ -301,7 +328,8 @@ export async function POST(req: NextRequest) {
           specialty: doctorRow?.specialty,
           phone: doctorRow?.phone,
           clinic_address: doctorRow?.clinic_address,
-        }
+        },
+        visitForCal
       );
 
       const patientGoogleUrl = buildGoogleCalendarUrl({
@@ -345,6 +373,12 @@ export async function POST(req: NextRequest) {
 <div style="margin:0;padding:20px;background:#020617;color:#e2e8f0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
   <div style="max-width:560px;margin:0 auto;background:#0f172a;border:1px solid rgba(148,163,184,.2);border-radius:16px;padding:22px;">
     <h2 style="margin:0 0 12px;font-size:20px;line-height:1.3;color:#f8fafc;">New appointment</h2>
+    <p style="margin:0 0 8px;font-size:15px;line-height:1.5;"><strong>Visit type:</strong> ${escapeHtml(visitType)}</p>
+    ${
+      visitNotes
+        ? `<p style="margin:0 0 8px;font-size:15px;line-height:1.5;"><strong>Notes:</strong> ${escapeHtml(visitNotes)}</p>`
+        : ""
+    }
     <p style="margin:0 0 8px;font-size:15px;line-height:1.5;"><strong>Patient:</strong> ${escapeHtml(patientName)}</p>
     <p style="margin:0 0 8px;font-size:15px;line-height:1.5;"><strong>Email:</strong> ${escapeHtml(patientEmail)}</p>
     <p style="margin:0 0 4px;font-size:15px;line-height:1.5;"><strong>When:</strong> ${escapeHtml(compactWhenLabel)} (Cyprus time)</p>
@@ -365,7 +399,7 @@ export async function POST(req: NextRequest) {
       // TODO: Change 'to' address to dynamic doctor/patient emails once domain is verified.
       await sendResendEmail({
         to: demoTo,
-        subject: `New Appointment: ${patientName} - ${compactWhenLabel}`,
+        subject: `New Appointment: ${visitType} — ${patientName} · ${compactWhenLabel}`,
         text: doctorText,
         html: doctorHtml,
       });
@@ -380,6 +414,12 @@ export async function POST(req: NextRequest) {
       Your appointment with <strong>${escapeHtml(doctorName)}</strong> is confirmed for
       <strong>${escapeHtml(compactWhenLabel)}</strong> (Cyprus time).
     </p>
+    <p style="margin:12px 0 4px;font-size:15px;line-height:1.6;color:#e2e8f0;"><strong>Visit type:</strong> ${escapeHtml(visitType)}</p>
+    ${
+      visitNotes
+        ? `<p style="margin:0 0 4px;font-size:15px;line-height:1.6;color:#e2e8f0;"><strong>Notes:</strong> ${escapeHtml(visitNotes)}</p>`
+        : ""
+    }
 
     <p style="${PRIMARY_ACTIONS_LABEL}">WhatsApp &amp; calendar</p>
     ${

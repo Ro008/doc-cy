@@ -64,6 +64,7 @@ test.describe("Upcoming appointments cancellation", () => {
         patientEmail: "cancel.future@example.com",
         patientPhone: "+35799123456",
         appointmentLocal,
+        visitType: "Follow-up",
       },
     });
 

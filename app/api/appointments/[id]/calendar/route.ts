@@ -44,7 +44,7 @@ export async function GET(req: NextRequest, { params }: RouteContext) {
   const { data: appointment, error: apptError } = await supabase
     .from("appointments")
     .select(
-      "id, doctor_id, appointment_datetime, patient_name, patient_email, patient_phone, status, created_at"
+      "id, doctor_id, appointment_datetime, patient_name, patient_email, patient_phone, status, created_at, visit_type, visit_notes"
     )
     .eq("id", appointmentId)
     .single();
@@ -80,6 +80,11 @@ export async function GET(req: NextRequest, { params }: RouteContext) {
     clinic_address: (doctor as { clinic_address?: string | null } | null)?.clinic_address,
   };
 
+  const apptVisit = {
+    visitType: (appointment as { visit_type?: string | null }).visit_type,
+    visitNotes: (appointment as { visit_notes?: string | null }).visit_notes,
+  };
+
   const cal = forDoctor
     ? getDoctorCalendarEventDetails(
         {
@@ -87,14 +92,16 @@ export async function GET(req: NextRequest, { params }: RouteContext) {
           patient_email: (appointment as { patient_email?: string | null }).patient_email,
           patient_phone: (appointment as { patient_phone?: string | null }).patient_phone,
         },
-        doctorPayload
+        doctorPayload,
+        apptVisit
       )
     : getCalendarEventDetails(
         {
           id: appointment.id as string,
           appointment_datetime: appointment.appointment_datetime as string,
         },
-        doctorPayload
+        doctorPayload,
+        apptVisit
       );
 
   const summary = cal.title;

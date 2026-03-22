@@ -33,7 +33,9 @@ export default async function BookingSuccessPage({
 
   const { data: appointment, error: apptError } = await supabase
     .from("appointments")
-    .select("id, doctor_id, patient_name, appointment_datetime, status")
+    .select(
+      "id, doctor_id, patient_name, appointment_datetime, status, visit_type, visit_notes"
+    )
     .eq("id", appointmentId)
     .single();
 
@@ -77,6 +79,11 @@ export default async function BookingSuccessPage({
   const dateLabel = format(startCy, "EEE d MMM yyyy");
   const timeLabel = format(startCy, "HH:mm");
 
+  const apptRow = appointment as {
+    visit_type?: string | null;
+    visit_notes?: string | null;
+  };
+
   const cal = getCalendarEventDetails(
     { id: appointment.id as string, appointment_datetime: appointment.appointment_datetime as string },
     {
@@ -84,6 +91,10 @@ export default async function BookingSuccessPage({
       specialty: (doctor as { specialty?: string | null }).specialty,
       phone: doctor.phone,
       clinic_address: (doctor as { clinic_address?: string | null }).clinic_address,
+    },
+    {
+      visitType: apptRow.visit_type,
+      visitNotes: apptRow.visit_notes,
     }
   );
 

@@ -1,6 +1,10 @@
 import { CLINIC_ADDRESS } from "@/lib/clinic-info";
 import { phoneToWaMeLink } from "@/lib/whatsapp";
-import type { PatientCalendarDoctor, PatientCalendarEventDetails } from "@/lib/patient-calendar-event";
+import type {
+  PatientCalendarDoctor,
+  PatientCalendarEventDetails,
+  PatientCalendarVisitReason,
+} from "@/lib/patient-calendar-event";
 
 /** Appointment fields the doctor needs on their calendar block. */
 export type DoctorCalendarAppointment = {
@@ -10,23 +14,33 @@ export type DoctorCalendarAppointment = {
 };
 
 /**
- * Calendar copy for the doctor/staff: patient-forward title, contact details in description, clinic as location.
- * (Patient-facing events use `getCalendarEventDetails` in patient-calendar-event.ts — do not change that.)
+ * Calendar copy for the doctor/staff: title includes visit type when present.
  */
 export function getDoctorCalendarEventDetails(
   appointment: DoctorCalendarAppointment,
-  doctor: PatientCalendarDoctor
+  doctor: PatientCalendarDoctor,
+  visit?: PatientCalendarVisitReason | null
 ): PatientCalendarEventDetails {
   const patientName =
     String(appointment.patient_name ?? "").trim() || "Patient";
 
-  const title = `🩺 Patient visit: ${patientName}`;
+  const vt = String(visit?.visitType ?? "").trim();
+  const title = vt
+    ? `${vt}: ${patientName}`
+    : `🩺 Patient visit: ${patientName}`;
 
+  const vn = String(visit?.visitNotes ?? "").trim();
   const lines: string[] = [
     "Booked through DocCy.",
     "",
-    `Patient: ${patientName}`,
   ];
+  if (vt) {
+    lines.push(`Visit type: ${vt}`);
+  }
+  if (vn) {
+    lines.push(`Notes: ${vn}`, "");
+  }
+  lines.push(`Patient: ${patientName}`);
 
   const email = String(appointment.patient_email ?? "").trim();
   if (email) {

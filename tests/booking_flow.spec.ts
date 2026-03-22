@@ -90,6 +90,8 @@ test.describe("Booking flow", () => {
       page.getByText(/Please enter a valid phone number|double‑check the phone number length/i)
     ).toBeHidden({ timeout: 3000 });
 
+    await page.locator("#visitType").selectOption("First Consultation");
+
     // 5. Submit booking
     const submitBtn = page.getByRole("button", {
       name: /Book appointment/i,
@@ -121,6 +123,7 @@ test.describe("Booking flow", () => {
 
       await selectButtons.nth((slotIndex + 1) % count).click();
       await page.getByRole("button", { name: /Confirm/i }).first().click();
+      await page.locator("#visitType").selectOption("First Consultation");
       await page.getByRole("button", { name: /Book appointment/i }).click();
 
       await page.waitForURL(successUrlRegex, { timeout: 25000 });

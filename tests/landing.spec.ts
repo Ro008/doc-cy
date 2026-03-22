@@ -5,28 +5,28 @@ test.describe("Landing page", () => {
   test("displays main headline and primary CTA", async ({ page }) => {
     await page.goto("/");
 
-    // Main headline: "Your medical practice, automated."
     await expect(
-      page.getByRole("heading", { level: 1, name: /Your medical practice/i })
+      page.getByRole("heading", {
+        level: 1,
+        name: /stop chasing appointments.*start focusing on patients/i,
+      })
     ).toBeVisible();
 
-    // Primary CTA: "Create Your Professional Profile" → /register
     const primaryCta = page.getByRole("link", {
-      name: /Create Your Professional Profile/i,
+      name: /Claim your professional profile/i,
     });
     await expect(primaryCta).toBeVisible();
     await expect(primaryCta).toHaveAttribute("href", "/register");
 
-    // Secondary: "Doctor Portal" → /login
-    const doctorPortal = page.getByRole("link", { name: /Doctor Portal/i });
-    await expect(doctorPortal).toBeVisible();
-    await expect(doctorPortal).toHaveAttribute("href", "/login");
+    const doctorLogin = page.getByRole("link", { name: /Doctor Login/i });
+    await expect(doctorLogin).toBeVisible();
+    await expect(doctorLogin).toHaveAttribute("href", "/login");
   });
 
   test("primary CTA navigates to register", async ({ page }) => {
     await page.goto("/");
     const cta = page.getByRole("link", {
-      name: /Create Your Professional Profile/i,
+      name: /Claim your professional profile/i,
     });
     await expect(cta).toBeVisible();
 

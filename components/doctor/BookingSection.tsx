@@ -16,6 +16,10 @@ import { DayPicker } from "react-day-picker";
 import { CheckCircle2, ChevronLeft, ChevronRight } from "lucide-react";
 import { PhoneInput } from "@/components/ui/PhoneInput";
 import { CY_TZ } from "@/lib/appointments";
+import {
+  VISIT_NOTES_MAX_LENGTH,
+  VISIT_TYPE_OPTIONS,
+} from "@/lib/visit-types";
 import "react-day-picker/dist/style.css";
 
 type WeeklySlot = {
@@ -70,6 +74,8 @@ export function BookingSection({
   const [patientPhone, setPatientPhone] = React.useState("");
   const [phoneValid, setPhoneValid] = React.useState(true);
   const [showPhoneError, setShowPhoneError] = React.useState(false);
+  const [visitType, setVisitType] = React.useState("");
+  const [visitNotes, setVisitNotes] = React.useState("");
   const [submitting, setSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [bookingSuccess, setBookingSuccess] = React.useState(false);
@@ -188,6 +194,11 @@ export function BookingSection({
         setError("Please enter a valid phone number.");
         return;
       }
+      if (!visitType.trim()) {
+        setError("Please select a type of visit.");
+        return;
+      }
+      const notesTrim = visitNotes.slice(0, VISIT_NOTES_MAX_LENGTH);
       let didNavigateToSuccess = false;
       try {
         setSubmitting(true);
@@ -200,6 +211,8 @@ export function BookingSection({
             patientEmail,
             patientPhone,
             appointmentLocal: selectedSlot.slotKey,
+            visitType: visitType.trim(),
+            visitNotes: notesTrim.trim() || undefined,
           }),
         });
         const data = await res.json().catch(() => null);
@@ -233,6 +246,8 @@ export function BookingSection({
         setPatientName("");
         setPatientEmail("");
         setPatientPhone("");
+        setVisitType("");
+        setVisitNotes("");
         setShowPhoneError(false);
       } catch (err) {
         console.error(err);
@@ -251,6 +266,8 @@ export function BookingSection({
       patientEmail,
       patientPhone,
       phoneValid,
+      visitType,
+      visitNotes,
       doctorId,
       profileSlug,
       router,
@@ -385,6 +402,55 @@ export function BookingSection({
               }}
               showValidationError={showPhoneError}
             />
+          </div>
+          <div className="space-y-2">
+            <label
+              htmlFor="visitType"
+              className="text-xs font-semibold text-slate-200"
+            >
+              Type of visit <span className="text-red-300">*</span>
+            </label>
+            <select
+              id="visitType"
+              required
+              value={visitType}
+              onChange={(e) => setVisitType(e.target.value)}
+              className="w-full rounded-2xl border border-slate-800/80 bg-slate-950/40 px-3 py-2 text-sm text-slate-100 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-400/60"
+            >
+              <option value="" disabled>
+                Select one…
+              </option>
+              {VISIT_TYPE_OPTIONS.map((opt) => (
+                <option key={opt} value={opt}>
+                  {opt}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="space-y-2">
+            <label
+              htmlFor="visitNotes"
+              className="text-xs font-semibold text-slate-200"
+            >
+              Briefly describe your reason{" "}
+              <span className="font-normal text-slate-500">(optional)</span>
+            </label>
+            <textarea
+              id="visitNotes"
+              rows={3}
+              maxLength={VISIT_NOTES_MAX_LENGTH}
+              value={visitNotes}
+              onChange={(e) =>
+                setVisitNotes(
+                  e.target.value.slice(0, VISIT_NOTES_MAX_LENGTH)
+                )
+              }
+              placeholder="e.g. follow-up on blood test results"
+              className="w-full resize-y rounded-2xl border border-slate-800/80 bg-slate-950/40 px-3 py-2 text-sm text-slate-100 shadow-sm placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-400/60"
+            />
+            <p className="text-right text-[11px] text-slate-500">
+              {visitNotes.length}/{VISIT_NOTES_MAX_LENGTH}
+            </p>
           </div>
           {error && (
             <div

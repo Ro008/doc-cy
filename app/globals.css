@@ -70,3 +70,118 @@ button {
   color: theme("colors.emerald.200");
 }
 
+/* ─── Landing: ambient background (inside main.isolate; absolute, not fixed) ─── */
+/*
+ * Prior passes used ~5% scale / 6% opacity over 22–30s — effectively static to human vision.
+ * These values stay “slow premium” but complete a half-cycle in ~8–12s so motion is noticeable.
+ */
+.landing-ambient-radial {
+  position: absolute;
+  inset: 0;
+  transform-origin: 48% 36%;
+  will-change: transform, opacity;
+  background: radial-gradient(
+    ellipse 108% 94% at 48% 36%,
+    rgba(125, 138, 130, 0.28) 0%,
+    rgba(72, 82, 76, 0.42) 28%,
+    rgba(40, 44, 42, 0.82) 55%,
+    #171717 100%
+  );
+  animation: landing-ambient-breathe 18s ease-in-out infinite;
+}
+
+@keyframes landing-ambient-breathe {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.82;
+  }
+  50% {
+    transform: scale(1.09);
+    opacity: 1;
+  }
+}
+
+/* Mint wash — top-left */
+.landing-ambient-aurora-tl {
+  position: absolute;
+  top: -12%;
+  left: -18%;
+  width: min(100vw, 580px);
+  height: min(82vh, 560px);
+  border-radius: 50%;
+  will-change: transform, opacity;
+  background: radial-gradient(
+    circle at 38% 38%,
+    rgba(110, 231, 183, 0.45) 0%,
+    rgba(52, 211, 153, 0.2) 42%,
+    rgba(16, 185, 129, 0.06) 62%,
+    transparent 76%
+  );
+  filter: blur(48px);
+  animation: landing-ambient-aurora-tl 14s ease-in-out infinite;
+}
+
+/* Blue-green wash — bottom-right */
+.landing-ambient-aurora-br {
+  position: absolute;
+  bottom: -18%;
+  right: -22%;
+  width: min(105vw, 680px);
+  height: min(88vh, 640px);
+  border-radius: 50%;
+  will-change: transform, opacity;
+  background: radial-gradient(
+    circle at 50% 50%,
+    rgba(45, 110, 118, 0.38) 0%,
+    rgba(34, 80, 88, 0.2) 44%,
+    rgba(25, 55, 60, 0.08) 62%,
+    transparent 76%
+  );
+  filter: blur(52px);
+  animation: landing-ambient-aurora-br 16s ease-in-out infinite;
+  animation-delay: -5s;
+}
+
+@keyframes landing-ambient-aurora-tl {
+  0%,
+  100% {
+    opacity: 0.38;
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: translate(5%, 4%) scale(1.12);
+  }
+}
+
+@keyframes landing-ambient-aurora-br {
+  0%,
+  100% {
+    opacity: 0.28;
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    opacity: 0.92;
+    transform: translate(-5%, -4.5%) scale(1.1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-ambient-radial,
+  .landing-ambient-aurora-tl,
+  .landing-ambient-aurora-br {
+    animation: none !important;
+    opacity: 1;
+    transform: none !important;
+  }
+
+  .landing-ambient-aurora-tl {
+    opacity: 0.88;
+  }
+
+  .landing-ambient-aurora-br {
+    opacity: 0.72;
+  }
+}
+

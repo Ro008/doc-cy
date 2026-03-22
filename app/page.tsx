@@ -1,160 +1,146 @@
 // app/page.tsx
 import Link from "next/link";
-import { ArrowRight, UserRound, CalendarDays, MessageCircle } from "lucide-react";
+import { CalendarSync, ShieldCheck, UserRound } from "lucide-react";
+
+type Benefit = {
+  icon: typeof CalendarSync;
+  title: string;
+  body: string;
+  iconWell: string;
+};
+
+const benefits: Benefit[] = [
+  {
+    icon: CalendarSync,
+    title: "Your Day, Fully Synced",
+    body: "Google Calendar & Apple iOS integration. See your schedule on any device, always up to date.",
+    iconWell:
+      "bg-emerald-400/25 text-emerald-300 shadow-[0_0_24px_-4px_rgba(52,211,153,0.55)] ring-2 ring-emerald-400/50",
+  },
+  {
+    icon: ShieldCheck,
+    title: "Instant Confirmation",
+    body: "Automatic email confirmations for you and your patient the second a booking is made. No more manual tracking.",
+    iconWell:
+      "bg-teal-400/30 text-teal-200 shadow-[0_0_24px_-4px_rgba(45,212,191,0.5)] ring-2 ring-teal-300/55",
+  },
+  {
+    icon: UserRound,
+    title: "Your Personal Doctor Profile",
+    body: "A fast, mobile-first booking experience. Your personal booking link is ready to be shared on WhatsApp or Social Media.",
+    iconWell:
+      "bg-sky-400/30 text-sky-200 shadow-[0_0_24px_-4px_rgba(56,189,248,0.5)] ring-2 ring-sky-300/55",
+  },
+];
+
+/** Soft mint glow (emerald-300 family) for premium cards on dark UI */
+const benefitCardShell =
+  "rounded-2xl border border-emerald-300/20 bg-neutral-900/75 p-4 shadow-[0_0_36px_-14px_rgba(110,231,183,0.22),0_2px_12px_-4px_rgba(0,0,0,0.45)] backdrop-blur-sm transition hover:border-emerald-300/35 hover:shadow-[0_0_44px_-12px_rgba(110,231,183,0.32),0_4px_16px_-4px_rgba(0,0,0,0.5)] sm:p-5";
 
 export default function HomePage() {
   return (
-    <main className="min-h-screen bg-slate-950 text-slate-50">
-      {/* Background gradient / glow */}
-      <div className="pointer-events-none fixed inset-0 -z-10">
-        <div className="absolute inset-x-0 top-[-10%] mx-auto h-80 max-w-xl rounded-full bg-emerald-500/10 blur-3xl" />
-        <div className="absolute inset-y-0 left-[-10%] h-full w-64 bg-sky-500/5 blur-3xl" />
-        <div className="absolute inset-y-0 right-[-15%] h-full w-72 bg-emerald-400/10 blur-3xl" />
+    <main className="relative isolate flex min-h-screen flex-col overflow-x-hidden bg-neutral-900 text-neutral-50">
+      {/*
+        Ambient layers must stay inside this stacking context (isolate + z-0 / z-10).
+        Fixed + negative z-index was painting under the body / wrong layer, so only the gray radial read.
+      */}
+      <div
+        className="pointer-events-none absolute inset-0 z-0 overflow-hidden"
+        aria-hidden
+      >
+        <div className="landing-ambient-radial" />
+        <div className="landing-ambient-aurora-tl" />
+        <div className="landing-ambient-aurora-br" />
       </div>
 
-      <div className="mx-auto flex min-h-screen max-w-6xl flex-col px-4 py-8 sm:px-6 lg:px-8 lg:py-12">
-        {/* Top nav / brand */}
-        <header className="flex flex-col gap-3 py-2 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-2">
-            <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-emerald-500/90 text-xs font-semibold text-slate-950 shadow-lg shadow-emerald-500/30">
-              DC
+      <div className="relative z-10 flex flex-1 flex-col px-4 py-3 sm:px-6 lg:px-8 lg:py-4">
+        <header className="flex shrink-0 items-center gap-3">
+          <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-500/90 text-xs font-bold tracking-tight text-neutral-950 shadow-lg shadow-emerald-500/35 sm:h-10 sm:w-10 sm:text-sm">
+            DC
+          </span>
+          <div className="min-w-0 flex flex-col gap-0.5 leading-tight">
+            <span className="text-base font-semibold tracking-tight text-neutral-50 sm:text-lg">
+              Doc<span className="text-emerald-400">Cy</span>
             </span>
-            <div className="flex flex-col leading-tight">
-              <span className="text-sm font-semibold tracking-tight">
-                Doc<span className="text-emerald-400">Cy</span>
-              </span>
-              <span className="text-[11px] tracking-[0.2em] text-slate-400">
-                Cyprus Health
-              </span>
-            </div>
-          </div>
-
-          <div className="flex items-center text-xs text-slate-300 min-w-0">
-            <span className="rounded-full bg-slate-900/60 px-3 py-1.5 backdrop-blur sm:py-1">
-              Built for medical practices in Cyprus
+            <span
+              className="text-[11px] font-medium uppercase tracking-[0.22em] text-emerald-200/95 sm:text-xs sm:tracking-[0.24em]"
+              aria-label="Cyprus Health"
+            >
+              Cyprus Health
             </span>
           </div>
         </header>
 
-        {/* Hero + How it works */}
-        <div className="mt-10 flex flex-1 flex-col gap-10 lg:mt-16 lg:flex-row lg:items-center">
-          {/* Hero content */}
-          <section className="flex-1">
-            <div className="inline-flex items-center gap-2 rounded-full border border-emerald-400/30 bg-emerald-400/5 px-3 py-1 text-[11px] font-medium tracking-[0.25em] text-emerald-200/80 backdrop-blur">
-              <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400" />
-              Smart booking for modern care
-            </div>
+        <div className="flex min-h-0 flex-1 flex-col justify-center py-3 lg:py-4">
+          <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 lg:flex-row lg:items-center lg:gap-10 xl:gap-12">
+            <section className="min-w-0 flex-1 lg:max-w-[58%]">
+              <h1 className="text-balance text-3xl font-semibold tracking-tight text-neutral-50 sm:text-4xl sm:leading-[1.12] lg:text-[2.2rem] lg:leading-[1.12] xl:text-[2.35rem]">
+                Stop chasing appointments. Start focusing on patients.
+              </h1>
 
-            <h1 className="mt-5 text-balance text-4xl font-semibold tracking-tight text-slate-50 sm:text-5xl lg:text-6xl">
-              Your medical practice,
-              <span className="block text-emerald-300/90">
-                automated.
-              </span>
-            </h1>
-
-            <p className="mt-5 max-w-xl text-sm text-slate-300 sm:text-base">
-              Experience the most intuitive booking system designed for healthcare
-              professionals. Save time, reduce no-shows, and provide a premium
-              experience for your patients.
-            </p>
-
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
-              <Link
-                href="/register"
-                className="inline-flex items-center justify-center rounded-2xl bg-emerald-400 px-6 py-3 text-sm font-semibold text-slate-950 shadow-lg shadow-emerald-500/30 transition hover:bg-emerald-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
-              >
-                Create Your Professional Profile
-              </Link>
-
-              <Link
-                href="/login"
-                className="inline-flex items-center justify-center rounded-2xl border border-slate-700/80 bg-slate-900/60 px-6 py-3 text-sm font-semibold text-slate-200 backdrop-blur transition hover:border-emerald-400/30 hover:bg-emerald-400/10 hover:text-emerald-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
-              >
-                Doctor Portal
-              </Link>
-            </div>
-
-            {/* Small pill stats */}
-            <div className="mt-8 flex flex-wrap gap-3 text-[11px] text-slate-300">
-              <span className="rounded-full bg-slate-900/60 px-3 py-1 backdrop-blur">
-                Built for busy clinics and solo doctors
-              </span>
-              <span className="rounded-full bg-slate-900/40 px-3 py-1 backdrop-blur">
-                Europe/Nicosia timezone aware
-              </span>
-            </div>
-          </section>
-
-          {/* Glassmorphism panel: Benefits */}
-          <section className="w-full max-w-md rounded-3xl border border-emerald-100/10 bg-slate-900/50 p-5 shadow-2xl shadow-slate-950/50 backdrop-blur-xl lg:p-6">
-            <div className="mb-5 flex items-center justify-between gap-3">
-              <h2 className="text-sm font-semibold tracking-tight text-slate-100 sm:text-base">
-                Built for modern clinics
-              </h2>
-              <span className="rounded-full bg-emerald-500/10 px-3 py-1 text-[11px] font-medium tracking-[0.2em] text-emerald-200">
-                3 benefits
-              </span>
-            </div>
-
-            <div className="space-y-4">
-              {/* Benefit 1 */}
-              <div className="flex gap-3 rounded-2xl border border-slate-700/60 bg-slate-900/60 p-3.5">
-                <div className="mt-0.5 flex h-9 w-9 items-center justify-center rounded-2xl bg-emerald-400/15 text-emerald-300">
-                  <UserRound className="h-4 w-4" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-300">
-                    24/7 Smart Booking
-                  </p>
-                  <p className="mt-1 text-[13px] text-slate-400">
-                    Patients book anytime, anywhere — the right slot, in seconds.
-                  </p>
-                </div>
-              </div>
-
-              {/* Benefit 2 */}
-              <div className="flex gap-3 rounded-2xl border border-slate-700/50 bg-slate-900/40 p-3.5">
-                <div className="mt-0.5 flex h-9 w-9 items-center justify-center rounded-2xl bg-emerald-400/10 text-emerald-300">
-                  <CalendarDays className="h-4 w-4" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-300">
-                    Effortless Management
-                  </p>
-                  <p className="mt-1 text-[13px] text-slate-400">
-                    Full control over your schedule, working hours, and availability.
-                  </p>
-                </div>
-              </div>
-
-              {/* Benefit 3 */}
-              <div className="flex gap-3 rounded-2xl border border-slate-700/40 bg-slate-900/30 p-3.5">
-                <div className="mt-0.5 flex h-9 w-9 items-center justify-center rounded-2xl bg-emerald-400/10 text-emerald-300">
-                  <MessageCircle className="h-4 w-4" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-300">
-                    Professional Image
-                  </p>
-                  <p className="mt-1 text-[13px] text-slate-400">
-                    A dedicated profile that builds trust and elevates your clinic.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Small footer tag */}
-            <div className="mt-5 border-t border-slate-800/80 pt-4">
-              <p className="text-[11px] text-slate-500">
-                Doc<span className="text-emerald-400">Cy</span> is built for{" "}
-                <span className="font-medium text-slate-200">
-                  clinics and medical practices in Cyprus
-                </span>{" "}
-                that want a calm, premium way to manage appointments — without
-                adding workload to the front desk.
+              <p className="mt-3 max-w-xl text-[0.9375rem] leading-relaxed text-neutral-200 sm:text-base">
+                The professional booking link that connects you and your
+                patients instantly. Local, automated, and built for Cyprus&apos;s
+                private practices and clinics.
               </p>
+
+              <div className="mt-4 flex flex-col gap-2.5 sm:flex-row sm:items-center sm:gap-3">
+                <Link
+                  href="/register"
+                  className="inline-flex items-center justify-center rounded-xl bg-emerald-400 px-5 py-2.5 text-sm font-semibold text-neutral-950 shadow-[0_0_0_1px_rgba(52,211,153,0.35),0_0_28px_rgba(16,185,129,0.55),0_0_56px_rgba(16,185,129,0.22)] transition hover:bg-emerald-300 hover:shadow-[0_0_0_1px_rgba(110,231,183,0.5),0_0_36px_rgba(52,211,153,0.65),0_0_72px_rgba(16,185,129,0.28)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 focus-visible:ring-offset-neutral-900"
+                >
+                  Claim your professional profile
+                </Link>
+
+                <Link
+                  href="/login"
+                  className="inline-flex items-center justify-center rounded-xl border-2 border-white/45 bg-neutral-800/90 px-5 py-2.5 text-sm font-semibold text-neutral-50 shadow-md shadow-black/30 backdrop-blur transition hover:border-white/65 hover:bg-neutral-700/95 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 focus-visible:ring-offset-2 focus-visible:ring-offset-neutral-900"
+                >
+                  Doctor Login
+                </Link>
+              </div>
+            </section>
+
+            <div className="flex w-full min-w-0 shrink-0 justify-center lg:w-[38%] lg:max-w-md lg:justify-end">
+              <aside
+                className="w-full max-w-md lg:mx-0"
+                aria-labelledby="benefits-heading"
+              >
+                <h2
+                  id="benefits-heading"
+                  className="text-lg font-bold tracking-tight text-neutral-50"
+                >
+                  Why DocCy?
+                </h2>
+
+                <ul className="mt-4 flex flex-col gap-5 sm:gap-6">
+                  {benefits.map(({ icon: Icon, title, body, iconWell }) => (
+                    <li key={title} className={benefitCardShell}>
+                      <div className="flex gap-4 sm:gap-4">
+                        <div
+                          className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl sm:h-14 sm:w-14 ${iconWell}`}
+                        >
+                          <Icon
+                            className="h-6 w-6 sm:h-7 sm:w-7"
+                            strokeWidth={2}
+                            aria-hidden
+                          />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-base font-bold leading-snug tracking-tight text-neutral-50">
+                            {title}
+                          </p>
+                          <p className="mt-0.5 text-sm font-normal leading-snug text-neutral-300">
+                            {body}
+                          </p>
+                        </div>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </aside>
             </div>
-          </section>
+          </div>
         </div>
       </div>
     </main>
