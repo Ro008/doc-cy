@@ -133,9 +133,10 @@ test.describe("Booking flow", () => {
     const appointmentId = url.searchParams.get("appointmentId") ?? "";
     expect(appointmentId).not.toBe("");
 
-    const deleteResponse = await request.delete(
-      `/api/appointments/${appointmentId}`
-    );
-    expect(deleteResponse.ok()).toBeTruthy();
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
+    if (serviceKey) {
+      const admin = createClient(supabaseUrl, serviceKey);
+      await admin.from("appointments").delete().eq("id", appointmentId);
+    }
   });
 });

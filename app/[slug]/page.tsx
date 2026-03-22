@@ -18,6 +18,11 @@ import {
 import { appointmentToCyprusDate } from "@/lib/appointments";
 import { format } from "date-fns";
 import { CLINIC_ADDRESS, MAPS_URL } from "@/lib/clinic-info";
+import {
+  DOCTOR_FIELD_LIST_METADATA,
+  DOCTOR_FIELD_LIST_PUBLIC_PROFILE,
+  DOCTOR_FIELD_LIST_PUBLIC_PROFILE_NO_LANG,
+} from "@/lib/doctor-fieldsets";
 
 const DOCTOR_AVATAR_URL =
   "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=400&h=400&fit=crop";
@@ -37,15 +42,17 @@ type PageProps = {
   params: { slug: string };
 };
 
-const DOCTOR_SELECT_FULL =
-  "id, name, specialty, bio, clinic_address, slug, status, languages";
-const DOCTOR_SELECT_BASIC =
-  "id, name, specialty, bio, clinic_address, slug, status";
-
 function isLanguagesColumnError(msg: string): boolean {
   return (
     /languages/i.test(msg) &&
     (/schema cache|does not exist|column|Could not find|42703/i.test(msg) || msg.includes("Could not find"))
+  );
+}
+
+function isDoctorsPublicUnavailable(msg: string, code?: string): boolean {
+  return (
+    code === "PGRST205" ||
+    /doctors_public|schema cache|not find.*table|does not exist/i.test(msg)
   );
 }
 
@@ -63,11 +70,26 @@ type PublicDoctorFetch =
  * If `languages` column is missing, fall back to a select without it.
  */
 async function fetchPublicDoctorBySlug(slug: string): Promise<PublicDoctorFetch> {
-  const first = await supabase
-    .from("doctors")
-    .select(DOCTOR_SELECT_FULL)
+  const fullList = DOCTOR_FIELD_LIST_PUBLIC_PROFILE;
+  const basicList = DOCTOR_FIELD_LIST_PUBLIC_PROFILE_NO_LANG;
+
+  let first = await supabase
+    .from("doctors_public")
+    .select(fullList)
     .eq("slug", slug)
     .maybeSingle();
+
+  if (first.error) {
+    const msg = first.error.message ?? "";
+    const code = (first.error as { code?: string }).code;
+    if (isDoctorsPublicUnavailable(msg, code)) {
+      first = await supabase
+        .from("doctors")
+        .select(fullList)
+        .eq("slug", slug)
+        .maybeSingle();
+    }
+  }
 
   let row: DoctorProfileRow | null = first.data as DoctorProfileRow | null;
 
@@ -76,7 +98,7 @@ async function fetchPublicDoctorBySlug(slug: string): Promise<PublicDoctorFetch>
     if (isLanguagesColumnError(msg)) {
       const second = await supabase
         .from("doctors")
-        .select(DOCTOR_SELECT_BASIC)
+        .select(basicList)
         .eq("slug", slug)
         .maybeSingle();
       if (second.error || !second.data) {
@@ -109,13 +131,23 @@ export const revalidate = 0;
 export async function generateMetadata(
   { params }: PageProps
 ): Promise<Metadata> {
-  const { data: doctor } = await supabase
-    .from("doctors")
-    .select("name, specialty, status")
+  let meta = await supabase
+    .from("doctors_public")
+    .select(DOCTOR_FIELD_LIST_METADATA)
     .eq("slug", params.slug)
     .maybeSingle();
 
-  if (!doctor) {
+  if (meta.error && isDoctorsPublicUnavailable(meta.error.message ?? "", meta.error.code)) {
+    meta = await supabase
+      .from("doctors")
+      .select(DOCTOR_FIELD_LIST_METADATA)
+      .eq("slug", params.slug)
+      .maybeSingle();
+  }
+
+  const doctor = meta.data as { name?: string; specialty?: string; status?: string } | null;
+
+  if (meta.error || !doctor) {
     return { title: "Doctor not found | DocCy" };
   }
 
@@ -156,7 +188,9 @@ export default async function DoctorPage({ params }: PageProps) {
 
   const { data: settings } = await supabase
     .from("doctor_settings")
-    .select("*")
+    .select(
+      "doctor_id, monday, tuesday, wednesday, thursday, friday, start_time, end_time, break_start, break_end, slot_duration_minutes"
+    )
     .eq("doctor_id", profile.id)
     .single();
 
@@ -169,20 +203,27 @@ export default async function DoctorPage({ params }: PageProps) {
   const breakEnd =
     (settings as { break_end?: string | null } | null)?.break_end ?? null;
 
-  // Fetch existing appointments (next 7 days) to disable those slots in the UI
+  // Busy instants only (RLS blocks direct reads on appointments for anon).
   const nowUtc = new Date();
-  const { data: existingAppointments } = await supabase
-    .from("appointments")
-    .select("appointment_datetime")
-    .eq("doctor_id", profile.id)
-    .gte("appointment_datetime", new Date(nowUtc.getTime() - 60 * 60 * 1000).toISOString())
-    .lte(
-      "appointment_datetime",
-      new Date(nowUtc.getTime() + 8 * 24 * 60 * 60 * 1000).toISOString()
-    );
+  const fromIso = new Date(nowUtc.getTime() - 60 * 60 * 1000).toISOString();
+  const toIso = new Date(nowUtc.getTime() + 8 * 24 * 60 * 60 * 1000).toISOString();
 
-  const takenSlotTimes: string[] = (existingAppointments ?? []).map((a) =>
-    format(appointmentToCyprusDate(a.appointment_datetime), "yyyy-MM-dd'T'HH:mm")
+  const { data: occupiedRows, error: occupiedErr } = await supabase.rpc(
+    "public_doctor_occupied_datetimes",
+    {
+      p_doctor_id: profile.id,
+      p_from: fromIso,
+      p_to: toIso,
+    }
+  );
+
+  if (occupiedErr) {
+    console.error("[DocCy] public_doctor_occupied_datetimes failed:", occupiedErr);
+  }
+
+  const takenSlotTimes: string[] = (occupiedRows ?? []).map(
+    (r: { appointment_datetime: string }) =>
+      format(appointmentToCyprusDate(r.appointment_datetime), "yyyy-MM-dd'T'HH:mm")
   );
 
   return (

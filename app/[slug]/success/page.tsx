@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { format } from "date-fns";
 import { addMinutes } from "date-fns";
 import { CheckCircle2, CalendarPlus } from "lucide-react";
-import { supabase } from "@/lib/supabase";
+import { createServiceRoleClient } from "@/lib/supabase-service";
 import { appointmentToCyprusDate } from "@/lib/appointments";
 import {
   buildGoogleCalendarUrl,
@@ -23,6 +23,11 @@ export default async function BookingSuccessPage({
 }: PageProps) {
   const appointmentId = (searchParams?.appointmentId ?? "").trim();
   if (!appointmentId) {
+    redirect(`/${params.slug}`);
+  }
+
+  const supabase = createServiceRoleClient();
+  if (!supabase) {
     redirect(`/${params.slug}`);
   }
 

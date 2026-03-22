@@ -111,9 +111,12 @@ test.describe("Upcoming appointments cancellation", () => {
     // 3. Assert the confirmation modal closes (flow completed without errors)
     await expect(confirmBtn).toBeHidden({ timeout: 15000 });
 
-    // Safety net: if for some reason it is still in DB, try to delete via API
     if (appointmentId) {
-      await request.delete(`/api/appointments/${appointmentId}`);
+      const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
+      if (serviceKey) {
+        const admin = createClient(supabaseUrl, serviceKey);
+        await admin.from("appointments").delete().eq("id", appointmentId);
+      }
     }
   });
 });

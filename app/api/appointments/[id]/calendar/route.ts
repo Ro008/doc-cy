@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { addMinutes } from "date-fns";
-import { supabase } from "@/lib/supabase";
+import { createServiceRoleClient } from "@/lib/supabase-service";
 import { getDoctorCalendarEventDetails } from "@/lib/doctor-calendar-event";
 import { getCalendarEventDetails } from "@/lib/patient-calendar-event";
 
@@ -27,6 +27,14 @@ export async function GET(req: NextRequest, { params }: RouteContext) {
   const appointmentId = params.id;
   if (!appointmentId) {
     return NextResponse.json({ message: "Missing appointment id." }, { status: 400 });
+  }
+
+  const supabase = createServiceRoleClient();
+  if (!supabase) {
+    return NextResponse.json(
+      { message: "Server is not configured for calendar export." },
+      { status: 503 }
+    );
   }
 
   const forDoctor =

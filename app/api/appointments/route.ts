@@ -1,6 +1,6 @@
 // app/api/appointments/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { createServiceRoleClient } from "@/lib/supabase-service";
 import { CY_TZ } from "@/lib/appointments";
 import { zonedTimeToUtc, utcToZonedTime } from "date-fns-tz";
 import { addMinutes, format } from "date-fns";
@@ -33,6 +33,17 @@ const PRIMARY_ACTIONS_LABEL =
   "margin:18px 0 10px;font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#94a3b8;";
 
 export async function POST(req: NextRequest) {
+  const supabase = createServiceRoleClient();
+  if (!supabase) {
+    return NextResponse.json(
+      {
+        message:
+          "Server is not configured for booking (missing SUPABASE_SERVICE_ROLE_KEY).",
+      },
+      { status: 503 }
+    );
+  }
+
   let body: unknown;
 
   try {
