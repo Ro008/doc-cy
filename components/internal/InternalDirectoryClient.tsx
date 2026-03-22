@@ -3,6 +3,11 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { LanguageBadgeList } from "@/components/languages/LanguageBadgeList";
+import {
+  CYPRUS_SPOKEN_LANGUAGE_LABELS,
+  canonicalLanguageLabel,
+} from "@/lib/cyprus-languages";
 
 export type DirectoryDoctorRow = {
   id: string;
@@ -51,11 +56,11 @@ export function InternalDirectoryClient({
   }, [doctors]);
 
   const languageOptions = React.useMemo(() => {
-    const set = new Set<string>();
+    const set = new Set<string>([...CYPRUS_SPOKEN_LANGUAGE_LABELS]);
     for (const d of doctors) {
       for (const lang of d.languages ?? []) {
-        const t = lang.trim();
-        if (t) set.add(t);
+        const c = canonicalLanguageLabel(String(lang).trim());
+        if (c) set.add(c);
       }
     }
     return Array.from(set).sort((a, b) => a.localeCompare(b));
@@ -68,7 +73,13 @@ export function InternalDirectoryClient({
       if (specialtyFilter && d.specialty !== specialtyFilter) return false;
       if (languageFilter) {
         const langs = d.languages ?? [];
-        if (!langs.some((l) => l.trim() === languageFilter)) return false;
+        if (
+          !langs.some(
+            (l) => canonicalLanguageLabel(String(l).trim()) === languageFilter
+          )
+        ) {
+          return false;
+        }
       }
       return true;
     });
@@ -173,11 +184,9 @@ export function InternalDirectoryClient({
                 >
                   <td className="px-4 py-3 align-top">
                     <p className="font-medium text-slate-100">{d.name}</p>
-                    <p className="mt-1 text-xs text-slate-500">
-                      {d.languages && d.languages.length > 0
-                        ? d.languages.join(", ")
-                        : "—"}
-                    </p>
+                    <div className="mt-1">
+                      <LanguageBadgeList languages={d.languages} compact />
+                    </div>
                     {d.slug ? (
                       <Link
                         href={`/${d.slug}`}

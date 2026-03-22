@@ -1,3 +1,5 @@
+import { canonicalLanguageLabel } from "@/lib/cyprus-languages";
+
 export type SpecialtyCount = { label: string; count: number };
 export type LanguageCount = { label: string; count: number };
 
@@ -23,7 +25,9 @@ export function aggregateLanguages(
     for (const lang of d.languages ?? []) {
       const t = String(lang).trim();
       if (!t) continue;
-      map.set(t, (map.get(t) ?? 0) + 1);
+      const key = canonicalLanguageLabel(t);
+      if (!key) continue;
+      map.set(key, (map.get(key) ?? 0) + 1);
     }
   }
   return Array.from(map.entries())

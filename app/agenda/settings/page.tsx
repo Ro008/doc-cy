@@ -12,6 +12,10 @@ import type { DoctorSettingsFormData } from "@/components/dashboard/SettingsForm
 import { ArrowLeft } from "lucide-react";
 import { ViewPublicProfileLink } from "@/components/agenda/ViewPublicProfileLink";
 import { PromotePracticeSection } from "@/components/dashboard/PromotePracticeSection";
+import {
+  canonicalLanguageLabel,
+  isMasterLanguageLabel,
+} from "@/lib/cyprus-languages";
 
 function timeFromRow(t: string | null | undefined): string {
   if (!t) return "09:00";
@@ -104,9 +108,13 @@ export default async function AgendaSettingsPage() {
     .eq("doctor_id", doctor.id)
     .single();
 
-  const langArr = Array.isArray(doctor.languages)
-    ? doctor.languages.filter((s) => String(s).trim().length > 0)
-    : [];
+  const langArr = Array.from(
+    new Set(
+      (Array.isArray(doctor.languages) ? doctor.languages : [])
+        .map((s) => canonicalLanguageLabel(String(s).trim()))
+        .filter((l) => l.length > 0 && isMasterLanguageLabel(l))
+    )
+  );
 
   const isVerified = doctor.status === "verified";
 
@@ -115,7 +123,7 @@ export default async function AgendaSettingsPage() {
     doctorName: doctor.name,
     specialty: (doctor.specialty ?? "").trim(),
     isSpecialtyApproved: doctor.is_specialty_approved ?? true,
-    languages: langArr.length > 0 ? langArr.join(", ") : "",
+    languages: langArr,
     whatsappNumber: doctor.phone ?? undefined,
     monday: (settings as { monday?: boolean } | null)?.monday ?? true,
     tuesday: (settings as { tuesday?: boolean } | null)?.tuesday ?? true,

@@ -1,13 +1,6 @@
 import { maxCount, type LanguageCount } from "@/lib/founder-metrics";
+import { languageThemeForLabel } from "@/lib/cyprus-languages";
 import { Languages } from "lucide-react";
-
-const BAR_COLORS = [
-  "bg-gradient-to-r from-cyan-500 to-teal-400",
-  "bg-gradient-to-r from-fuchsia-500 to-pink-400",
-  "bg-gradient-to-r from-lime-500 to-emerald-400",
-  "bg-gradient-to-r from-orange-500 to-amber-400",
-  "bg-gradient-to-r from-blue-500 to-indigo-400",
-];
 
 type Props = { items: LanguageCount[]; totalDoctorCount: number };
 
@@ -32,13 +25,13 @@ export function LanguageDistribution({ items, totalDoctorCount }: Props) {
         <p className="mt-4 text-sm text-slate-500">No language data yet.</p>
       ) : (
         <ul className="mt-4 space-y-3">
-          {top.map(({ label, count }, i) => {
+          {top.map(({ label, count }) => {
             const pct = Math.round((count / max) * 100);
             const share =
               totalDoctorCount > 0
                 ? Math.round((count / totalDoctorCount) * 100)
                 : 0;
-            const barClass = BAR_COLORS[i % BAR_COLORS.length];
+            const barSolid = languageThemeForLabel(label).barClass;
             return (
               <li key={label}>
                 <div className="mb-1 flex justify-between gap-2 text-xs">
@@ -50,7 +43,7 @@ export function LanguageDistribution({ items, totalDoctorCount }: Props) {
                 </div>
                 <div className="h-2 overflow-hidden rounded-full bg-slate-800/80">
                   <div
-                    className={`h-full rounded-full ${barClass} shadow-sm transition-all duration-500`}
+                    className={`h-full rounded-full ${barSolid} shadow-sm transition-all duration-500`}
                     style={{ width: `${pct}%` }}
                   />
                 </div>

@@ -4,6 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { ArrowLeft, Save } from "lucide-react";
 import { SpecialtyCombobox } from "@/components/specialties/SpecialtyCombobox";
+import { LanguageMultiSelect } from "@/components/languages/LanguageMultiSelect";
 import { isMasterSpecialty } from "@/lib/cyprus-specialties";
 import { validateSpecialtySubmission } from "@/lib/specialty-submission";
 
@@ -14,8 +15,8 @@ export type DoctorSettingsFormData = {
   specialty: string;
   /** false = custom “Other” text pending founder approval */
   isSpecialtyApproved?: boolean;
-  /** Comma- or semicolon-separated, saved as string[] on doctors */
-  languages: string;
+  /** Canonical labels, saved as string[] on doctors */
+  languages: string[];
   whatsappNumber?: string;
   monday: boolean;
   tuesday: boolean;
@@ -62,7 +63,9 @@ export function SettingsForm({ initial }: SettingsFormProps) {
     []
   );
 
-  const [languages, setLanguages] = React.useState(initial.languages ?? "");
+  const [languages, setLanguages] = React.useState<string[]>(() =>
+    Array.isArray(initial.languages) ? [...initial.languages] : []
+  );
 
   const [whatsappNumber, setWhatsappNumber] = React.useState(
     initial.whatsappNumber ?? ""
@@ -96,10 +99,7 @@ export function SettingsForm({ initial }: SettingsFormProps) {
     e.preventDefault();
     setMessage(null);
 
-    const langList = languages
-      .split(/[,;]/)
-      .map((s) => s.trim())
-      .filter(Boolean);
+    const langList = languages.filter((s) => s.trim().length > 0);
     const specResult = validateSpecialtySubmission(
       spec.specialty,
       spec.fromMaster
@@ -201,25 +201,16 @@ export function SettingsForm({ initial }: SettingsFormProps) {
             />
           </div>
           <div>
-            <label
-              htmlFor="settingsLanguages"
-              className="text-xs font-semibold uppercase tracking-wide text-slate-400"
-            >
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
               Languages <span className="text-red-300">*</span>
-            </label>
-            <input
-              id="settingsLanguages"
-              name="languages"
-              type="text"
-              required
-              value={languages}
-              onChange={(e) => setLanguages(e.target.value)}
-              placeholder="e.g. English, Greek"
-              className="mt-2 w-full rounded-xl border border-slate-800/80 bg-slate-950/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-400/60"
-            />
-            <p className="mt-1 text-xs text-slate-500">
-              Separate with commas or semicolons.
             </p>
+            <LanguageMultiSelect
+              id="settings-languages"
+              selected={languages}
+              onSelectedChange={setLanguages}
+              variant="settings"
+              requiredHint
+            />
           </div>
         </div>
       </div>

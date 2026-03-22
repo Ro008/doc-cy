@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { PasswordToggleInput } from "@/components/auth/PasswordToggleInput";
 import { RegisterSpecialtyFields } from "@/components/auth/RegisterSpecialtyFields";
+import { RegisterLanguageFields } from "@/components/auth/RegisterLanguageFields";
+import { validateLanguageSelection } from "@/lib/cyprus-languages";
 import {
   parseSpecialtyFromMasterField,
   validateSpecialtySubmission,
@@ -55,6 +57,13 @@ async function handleRegister(formData: FormData) {
   }
   const specialty = specParsed.specialty;
   const isSpecialtyApproved = specParsed.is_specialty_approved;
+
+  const languagesRaw = formData.getAll("language").map((x) => String(x).trim());
+  const languagesParsed = validateLanguageSelection(languagesRaw);
+  if (!languagesParsed.ok) {
+    redirect("/register?error=languages");
+  }
+  const languages = languagesParsed.value;
 
   const maxBytes = 8 * 1024 * 1024; // 8 MB
   if (licenseFile.size <= 0 || licenseFile.size > maxBytes) {
@@ -141,6 +150,7 @@ async function handleRegister(formData: FormData) {
     specialty,
     email,
     phone,
+    languages,
     license_number: licenseNumber,
     license_file_url: licenseFileUrl,
     status: "pending",
@@ -182,6 +192,9 @@ export default function RegisterPage({ searchParams }: PageProps) {
   } else if (errorCode === "specialty") {
     errorMessage =
       "Choose a specialty from the list, or use Other and describe yours clearly (max 120 characters).";
+  } else if (errorCode === "languages") {
+    errorMessage =
+      "Select at least one spoken language from the list (you can choose several).";
   }
 
   return (
@@ -247,6 +260,7 @@ export default function RegisterPage({ searchParams }: PageProps) {
                   </label>
                 </div>
                 <RegisterSpecialtyFields />
+                <RegisterLanguageFields />
                 <div>
                   <label className="block text-sm font-medium text-slate-200">
                     Email

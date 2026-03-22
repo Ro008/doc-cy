@@ -4,31 +4,7 @@ import { cookies } from "next/headers";
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 import { validateSpecialtySubmission } from "@/lib/specialty-submission";
 import { isMasterSpecialty } from "@/lib/cyprus-specialties";
-
-function parseLanguages(
-  raw: unknown
-): { ok: true; value: string[] } | { ok: false; message: string } {
-  if (Array.isArray(raw)) {
-    const out = raw
-      .map((x) => String(x).trim())
-      .filter((s) => s.length > 0);
-    if (out.length === 0) {
-      return { ok: false, message: "Add at least one language." };
-    }
-    return { ok: true, value: out };
-  }
-  if (typeof raw === "string") {
-    const out = raw
-      .split(/[,;]/)
-      .map((s) => s.trim())
-      .filter((s) => s.length > 0);
-    if (out.length === 0) {
-      return { ok: false, message: "Add at least one language." };
-    }
-    return { ok: true, value: out };
-  }
-  return { ok: false, message: "Languages are required." };
-}
+import { validateLanguageSelection } from "@/lib/cyprus-languages";
 
 /** GET ?doctorId=xxx - returns current settings for the doctor (authenticated owner only) */
 export async function GET(req: NextRequest) {
@@ -159,7 +135,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ message: specResult.message }, { status: 400 });
   }
 
-  const langsParsed = parseLanguages(b.languages);
+  const langsParsed = validateLanguageSelection(b.languages);
   if (langsParsed.ok === false) {
     return NextResponse.json({ message: langsParsed.message }, { status: 400 });
   }

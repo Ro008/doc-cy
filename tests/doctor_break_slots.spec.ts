@@ -39,7 +39,9 @@ test.describe("Doctor lunch/break time", () => {
     // Specialty is a searchable combobox (not a plain text input).
     await page.locator("#settings-specialty-trigger").click();
     await page.getByRole("button", { name: "General Practice", exact: true }).click();
-    await page.locator("#settingsLanguages").fill("English, Greek");
+    await page.getByTestId("language-multiselect-trigger").click();
+    await page.getByTestId("language-option-English").click();
+    await page.getByTestId("language-option-Greek").click();
 
     // 1. Configure a daily break via the agenda settings UI
     // (page already on /agenda/settings and heading is visible)
