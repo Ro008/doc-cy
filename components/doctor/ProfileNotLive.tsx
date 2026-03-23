@@ -61,7 +61,7 @@ export function ProfileNotLive({
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-300">
               <Stethoscope className="h-5 w-5" strokeWidth={1.75} aria-hidden />
             </div>
-            <h2 className="mt-3 text-sm font-semibold text-white">I&apos;m the doctor</h2>
+            <h2 className="mt-3 text-sm font-semibold text-white">I&apos;m the professional</h2>
             <p className="mt-2 flex-1 text-xs leading-relaxed text-slate-400">
               Log in to your DocCy account to check your agenda, update details, or see your
               verification status.
@@ -80,14 +80,14 @@ export function ProfileNotLive({
             </div>
             <h2 className="mt-3 text-sm font-semibold text-white">I want to book</h2>
             <p className="mt-2 flex-1 text-xs leading-relaxed text-slate-400">
-              Browse other verified doctors on DocCy, or try this link again once the profile is
+              Browse other verified professionals on DocCy, or try this link again once the profile is
               live.
             </p>
             <Link
               href="/"
               className="mt-4 inline-flex w-full items-center justify-center rounded-xl border border-slate-600 bg-slate-800/40 py-2.5 text-sm font-semibold text-slate-100 transition hover:border-slate-500 hover:bg-slate-800/70"
             >
-              Find a doctor
+              Find a professional
             </Link>
           </div>
         </div>

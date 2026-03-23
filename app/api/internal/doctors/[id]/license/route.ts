@@ -27,7 +27,7 @@ export async function GET(
     .maybeSingle();
 
   if (error || !doc) {
-    return NextResponse.json({ message: "Doctor not found." }, { status: 404 });
+    return NextResponse.json({ message: "Professional not found." }, { status: 404 });
   }
 
   const path = (doc as { license_file_url?: string | null }).license_file_url?.trim();

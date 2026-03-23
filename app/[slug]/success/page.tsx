@@ -143,7 +143,7 @@ export default async function BookingSuccessPage({
               <div className="flex items-center justify-between gap-4">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                    Doctor
+                    Professional
                   </p>
                   <p className="mt-1 text-sm font-medium text-slate-100">
                     {doctor.name}

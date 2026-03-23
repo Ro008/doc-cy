@@ -26,7 +26,7 @@ const benefits: Benefit[] = [
   },
   {
     icon: UserRound,
-    title: "Your Personal Doctor Profile",
+    title: "Your Professional Profile",
     body: "A fast, mobile-first booking experience. Your personal booking link is ready to be shared on WhatsApp or Social Media.",
     iconWell:
       "bg-sky-400/30 text-sky-200 shadow-[0_0_24px_-4px_rgba(56,189,248,0.5)] ring-2 ring-sky-300/55",
@@ -35,11 +35,11 @@ const benefits: Benefit[] = [
 
 /** Soft mint glow (emerald-300 family) for premium cards on dark UI */
 const benefitCardShell =
-  "rounded-2xl border border-emerald-300/20 bg-neutral-900/75 p-4 shadow-[0_0_36px_-14px_rgba(110,231,183,0.22),0_2px_12px_-4px_rgba(0,0,0,0.45)] backdrop-blur-sm transition hover:border-emerald-300/35 hover:shadow-[0_0_44px_-12px_rgba(110,231,183,0.32),0_4px_16px_-4px_rgba(0,0,0,0.5)] sm:p-5";
+  "rounded-2xl border border-emerald-300/20 bg-slate-900/75 p-4 shadow-[0_0_36px_-14px_rgba(110,231,183,0.22),0_2px_12px_-4px_rgba(0,0,0,0.45)] backdrop-blur-sm transition hover:border-emerald-300/35 hover:shadow-[0_0_44px_-12px_rgba(110,231,183,0.32),0_4px_16px_-4px_rgba(0,0,0,0.5)] sm:p-5";
 
 export default function HomePage() {
   return (
-    <main className="relative isolate flex min-h-screen flex-col overflow-x-hidden bg-neutral-900 text-neutral-50">
+    <main className="relative isolate flex min-h-screen flex-col overflow-x-hidden bg-slate-950 text-neutral-50">
       {/*
         Ambient layers must stay inside this stacking context (isolate + z-0 / z-10).
         Fixed + negative z-index was painting under the body / wrong layer, so only the gray radial read.
@@ -81,7 +81,7 @@ export default function HomePage() {
               <p className="mt-3 max-w-xl text-[0.9375rem] leading-relaxed text-neutral-200 sm:text-base">
                 The professional booking link that connects you and your
                 patients instantly. Local, automated, and built for Cyprus&apos;s
-                private practices and clinics.
+                independent practices and clinics.
               </p>
 
               <div className="mt-4 flex flex-col gap-2.5 sm:flex-row sm:items-center sm:gap-3">
@@ -96,7 +96,7 @@ export default function HomePage() {
                   href="/login"
                   className="inline-flex items-center justify-center rounded-xl border-2 border-white/45 bg-neutral-800/90 px-5 py-2.5 text-sm font-semibold text-neutral-50 shadow-md shadow-black/30 backdrop-blur transition hover:border-white/65 hover:bg-neutral-700/95 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 focus-visible:ring-offset-2 focus-visible:ring-offset-neutral-900"
                 >
-                  Doctor Login
+                  Professional Login
                 </Link>
               </div>
             </section>

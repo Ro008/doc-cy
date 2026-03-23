@@ -208,7 +208,7 @@ export default function RegisterPage({ searchParams }: PageProps) {
       <div className="mx-auto flex min-h-screen max-w-3xl flex-col px-4 py-10 sm:px-6 lg:px-8 lg:py-14">
         <header className="mb-8">
           <p className="text-xs font-semibold tracking-[0.2em] text-emerald-200/80">
-            Doc<span className="text-emerald-400">Cy</span> · Doctor signup
+            Doc<span className="text-emerald-400">Cy</span> · Professional signup
           </p>
           <h1 className="mt-3 text-balance text-3xl font-semibold tracking-tight text-slate-50 sm:text-4xl">
             Create your professional profile
@@ -231,7 +231,7 @@ export default function RegisterPage({ searchParams }: PageProps) {
                 Thank you — your profile is under review
               </h2>
               <p className="text-sm text-slate-300">
-                Our team will verify your medical license and activate your
+                Our team will verify your professional license and activate your
                 Doc<span className="text-emerald-400">Cy</span> profile within{" "}
                 <span className="font-medium text-emerald-200">24 hours</span>.
               </p>
@@ -349,7 +349,7 @@ export default function RegisterPage({ searchParams }: PageProps) {
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <p className="text-[11px] text-slate-400">
                   We use your license details only to verify that you are a
-                  registered medical professional in Cyprus.
+                  registered healthcare professional in Cyprus.
                 </p>
                 <button
                   type="submit"

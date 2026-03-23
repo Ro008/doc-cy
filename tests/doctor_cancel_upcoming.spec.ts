@@ -56,11 +56,12 @@ test.describe("Upcoming appointments cancellation", () => {
     const dateStr = nextWorkingDayCyprus(new Date());
     // Use an afternoon slot unlikely to collide with other tests
     const appointmentLocal = `${dateStr}T16:30`;
+    const patientName = "Cancel E2E Future";
 
     const createRes = await request.post("/api/appointments", {
       data: {
         doctorSlug: slug,
-        patientName: "Cancel E2E Future",
+        patientName,
         patientEmail: "cancel.future@example.com",
         patientPhone: "+35799123456",
         appointmentLocal,
@@ -109,8 +110,11 @@ test.describe("Upcoming appointments cancellation", () => {
     await expect(confirmBtn).toBeVisible({ timeout: 10000 });
     await confirmBtn.click();
 
-    // 3. Assert the confirmation modal closes (flow completed without errors)
-    await expect(confirmBtn).toBeHidden({ timeout: 15000 });
+    // 3. After backend cancel, UI reloads; ensure the cancelled appointment is gone.
+    // UpcomingList uses `window.location.reload()` after a successful cancel.
+    await page.waitForLoadState("networkidle");
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    await expect(page.getByText(patientName)).toHaveCount(0);
 
     if (appointmentId) {
       const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";

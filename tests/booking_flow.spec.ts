@@ -1,6 +1,7 @@
 // tests/booking_flow.spec.ts
 import { test, expect } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
+import fs from "node:fs/promises";
 
 test.describe("Booking flow", () => {
   test("full booking flow on doctor profile", async ({ page, request }) => {
@@ -135,6 +136,25 @@ test.describe("Booking flow", () => {
     const url = new URL(page.url());
     const appointmentId = url.searchParams.get("appointmentId") ?? "";
     expect(appointmentId).not.toBe("");
+
+    // 7. Validate ICS download on success page
+    const downloadPromise = page.waitForEvent("download", { timeout: 10000 });
+    const downloadLink = page.getByRole("link", { name: /Download \.ics/i });
+    await expect(downloadLink).toBeVisible({ timeout: 5000 });
+    await downloadLink.click();
+
+    const download = await downloadPromise;
+    expect(download.suggestedFilename()).toBe(
+      `appointment-${appointmentId}.ics`
+    );
+
+    const downloadPath = await download.path();
+    expect(downloadPath).toBeTruthy();
+
+    const icsText = await fs.readFile(downloadPath as string, "utf8");
+    expect(icsText).toContain("BEGIN:VCALENDAR");
+    expect(icsText).toContain("END:VCALENDAR");
+    expect(icsText).toContain(`UID:${appointmentId}@doccy`);
 
     const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
     if (serviceKey) {

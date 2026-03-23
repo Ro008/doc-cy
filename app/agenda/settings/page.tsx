@@ -87,7 +87,7 @@ export default async function AgendaSettingsPage() {
         </div>
         <div className="mx-auto max-w-2xl px-4 py-12 text-center">
           <p className="text-slate-200">
-            Doctor profile not found for this account. Please contact support.
+            Professional profile not found for this account. Please contact support.
           </p>
           <SignOutButton />
           <Link

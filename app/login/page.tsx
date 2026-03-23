@@ -47,7 +47,7 @@ export default function LoginPage() {
         <div className="w-full max-w-md rounded-3xl border border-emerald-100/10 bg-slate-900/60 p-6 shadow-2xl shadow-slate-950/50 backdrop-blur-xl sm:p-8">
           <div className="mb-6 text-left">
             <p className="text-xs font-semibold tracking-[0.2em] text-emerald-200/80">
-              Doc<span className="text-emerald-400">Cy</span> · Doctor login
+              Doc<span className="text-emerald-400">Cy</span> · Professional login
             </p>
             <h1 className="mt-3 text-2xl font-semibold tracking-tight text-slate-50 sm:text-3xl">
               Welcome back

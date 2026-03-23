@@ -212,7 +212,7 @@ export async function POST(req: NextRequest) {
         message:
           docErr.message?.includes("languages") || docErr.code === "42703"
             ? "Database missing `languages` column. Run supabase/doctors_add_languages.sql in Supabase."
-            : "Error updating doctor profile.",
+            : "Error updating professional profile.",
       },
       { status: 500 }
     );

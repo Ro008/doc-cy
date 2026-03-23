@@ -49,13 +49,13 @@ export async function POST(req: NextRequest) {
   if (error) {
     console.error("[internal/doctors/verification] update failed", error);
     return NextResponse.json(
-      { message: "Could not update doctor status." },
+      { message: "Could not update professional status." },
       { status: 500 }
     );
   }
 
   if (!updated) {
-    return NextResponse.json({ message: "Doctor not found." }, { status: 404 });
+    return NextResponse.json({ message: "Professional not found." }, { status: 404 });
   }
 
   return NextResponse.json({ ok: true, status });

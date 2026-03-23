@@ -43,7 +43,7 @@ export default async function AgendaPage() {
         </div>
         <div className="mx-auto flex min-h-screen max-w-2xl flex-col items-center justify-center gap-6 px-4 py-12 text-center">
           <p className="text-slate-200">
-            Doctor profile not found for this account. Please contact support.
+            Professional profile not found for this account. Please contact support.
           </p>
           <SignOutButton />
           <Link

@@ -18,9 +18,11 @@ test.describe("Landing page", () => {
     await expect(primaryCta).toBeVisible();
     await expect(primaryCta).toHaveAttribute("href", "/register");
 
-    const doctorLogin = page.getByRole("link", { name: /Doctor Login/i });
-    await expect(doctorLogin).toBeVisible();
-    await expect(doctorLogin).toHaveAttribute("href", "/login");
+    const professionalLogin = page.getByRole("link", {
+      name: /Professional Login/i,
+    });
+    await expect(professionalLogin).toBeVisible();
+    await expect(professionalLogin).toHaveAttribute("href", "/login");
   });
 
   test("primary CTA navigates to register", async ({ page }) => {

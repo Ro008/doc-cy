@@ -91,7 +91,7 @@ export async function POST(req: NextRequest) {
 
     if (doctorError || !doctor) {
       return NextResponse.json(
-        { message: "Doctor not found for provided slug." },
+        { message: "Professional not found for provided slug." },
         { status: 400 }
       );
     }
@@ -129,11 +129,11 @@ export async function POST(req: NextRequest) {
     .single();
 
   if (doctorGateError || !doctorGate) {
-    return NextResponse.json({ message: "Doctor not found." }, { status: 400 });
+    return NextResponse.json({ message: "Professional not found." }, { status: 400 });
   }
   if ((doctorGate as { status?: string }).status !== "verified") {
     return NextResponse.json(
-      { message: "This doctor is not accepting public bookings yet." },
+      { message: "This professional is not accepting public bookings yet." },
       { status: 403 }
     );
   }
@@ -174,7 +174,7 @@ export async function POST(req: NextRequest) {
   if (settingsError || !settings) {
     if ((settingsError as { code?: string })?.code === "PGRST116") {
       return NextResponse.json(
-        { message: "Doctor has not set availability yet." },
+        { message: "Professional has not set availability yet." },
         { status: 400 }
       );
     }
@@ -193,7 +193,7 @@ export async function POST(req: NextRequest) {
 
   if (!withinSlot) {
     return NextResponse.json(
-      { message: "Requested time is outside the doctor's availability." },
+      { message: "Requested time is outside the professional's availability." },
       { status: 400 }
     );
   }

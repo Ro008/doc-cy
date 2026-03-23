@@ -29,7 +29,7 @@ test.describe("Brand consistency", () => {
     await expect(brandContainer).not.toContainText("DOCCY");
   });
 
-  test("doctor profile shows DocCy with emerald Cy, not DOCCY", async ({
+  test("professional profile shows DocCy with emerald Cy, not DOCCY", async ({
     page,
   }) => {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
@@ -58,14 +58,14 @@ test.describe("Brand consistency", () => {
       page.getByRole("heading", { level: 1 })
     ).toBeVisible({ timeout: 10000 });
 
-    // Brand line: "Doc" + emerald "Cy" · Doctor profile
+    // Brand line: "Doc" + emerald "Cy" · Professional profile
     const cySpan = page.locator('span[class*="emerald"]').filter({
       hasText: /^Cy$/,
     });
     await expect(cySpan.first()).toBeVisible();
     await expect(cySpan.first()).toHaveText("Cy");
 
-    await expect(page.getByText(/Doctor profile/i)).toBeVisible();
+    await expect(page.getByText(/Professional profile/i)).toBeVisible();
     await expect(page.locator("main")).not.toContainText("DOCCY");
   });
 });

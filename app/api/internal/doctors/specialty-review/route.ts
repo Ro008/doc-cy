@@ -68,14 +68,17 @@ export async function POST(req: NextRequest) {
     .maybeSingle();
 
   if (fetchErr || !row) {
-    return NextResponse.json({ message: "Doctor not found." }, { status: 404 });
+    return NextResponse.json({ message: "Professional not found." }, { status: 404 });
   }
 
   const normalized = normalizeApprovedCustomSpecialty(
     String((row as { specialty?: string | null }).specialty ?? "")
   );
   if (!normalized) {
-    return NextResponse.json({ message: "Doctor has no specialty text to approve." }, { status: 400 });
+    return NextResponse.json(
+      { message: "Professional has no specialty text to approve." },
+      { status: 400 }
+    );
   }
 
   const { error } = await supabase

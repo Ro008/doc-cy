@@ -14,7 +14,7 @@ export function WhatToExpectCard() {
       </div>
       <p className="mt-2 text-sm leading-relaxed text-slate-200/90">
         Book in seconds. Your appointment is instantly synced with the
-        doctor&apos;s agenda. You&apos;ll receive a confirmation email with a
+        professional&apos;s agenda. You&apos;ll receive a confirmation email with a
         one-click WhatsApp link to contact the clinic and a direct button to
         add the date to your calendar.
       </p>

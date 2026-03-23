@@ -148,14 +148,14 @@ export async function generateMetadata(
   const doctor = meta.data as { name?: string; specialty?: string; status?: string } | null;
 
   if (meta.error || !doctor) {
-    return { title: "Doctor not found | DocCy" };
+    return { title: "Professional not found | DocCy" };
   }
 
   const st = (doctor.status ?? "").trim().toLowerCase();
   if (st !== "verified") {
     return {
       title: `${doctor.name} | Profile not available | DocCy`,
-      description: "This doctor profile is not public for booking yet.",
+      description: "This professional profile is not public for booking yet.",
     };
   }
 
@@ -250,7 +250,7 @@ export default async function DoctorPage({ params }: PageProps) {
             </div>
             <div>
               <p className="text-xs font-semibold tracking-[0.2em] text-emerald-200/80">
-                Doc<span className="text-emerald-400">Cy</span> · Doctor profile
+                Doc<span className="text-emerald-400">Cy</span> · Professional profile
               </p>
               <h1 className="mt-3 text-balance text-3xl font-semibold tracking-tight text-slate-50 sm:text-4xl">
                 {profile.name}
