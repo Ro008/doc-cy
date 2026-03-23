@@ -320,13 +320,17 @@ export async function POST(req: NextRequest) {
     const doctorName = doctorRow?.name ?? undefined;
     const doctorWaMe = phoneToWaMeLink(doctorRow?.phone);
     const patientWaMe = phoneToWaMeLink(patientPhone);
+    const doctorEmail = (doctorRow?.email ?? "").trim();
+    const patientEmailTo = String(patientEmail).trim();
+    const resendToOverride = process.env.RESEND_TO_OVERRIDE?.trim();
+    const allowRecipientOverride = process.env.NODE_ENV !== "production";
+    const effectiveOverride =
+      allowRecipientOverride && resendToOverride ? resendToOverride : null;
 
     const cyDate = appointmentToCyprusDate(inserted.appointment_datetime as string);
     const compactWhenLabel = format(cyDate, "EEE d MMM, HH:mm");
 
     if (doctorName) {
-      const demoTo = "rociosirvent@gmail.com";
-
       let patientText = `Hi ${patientName},\n\nYour appointment with ${doctorName} is confirmed for ${compactWhenLabel} (Cyprus time).`;
       patientText += `\n\nVisit type: ${visitType}`;
       if (visitNotes) {
@@ -444,15 +448,20 @@ export async function POST(req: NextRequest) {
   </div>
 </div>`;
 
-      // TODO: Change 'to' address to dynamic doctor/patient emails once domain is verified.
-      await sendResendEmail({
-        to: demoTo,
-        subject: `New Appointment: ${visitType} — ${patientName} · ${compactWhenLabel}`,
-        text: doctorText,
-        html: doctorHtml,
-      });
+      const doctorRecipient = effectiveOverride || doctorEmail;
+      if (doctorRecipient) {
+        await sendResendEmail({
+          to: doctorRecipient,
+          subject: `New Appointment: ${visitType} — ${patientName} · ${compactWhenLabel}`,
+          text: doctorText,
+          html: doctorHtml,
+        });
+      } else {
+        console.warn(
+          "[DocCy] Doctor notification skipped: missing doctor email and no RESEND_TO_OVERRIDE."
+        );
+      }
 
-      // TODO: Change 'to' address to dynamic doctor/patient emails once domain is verified.
       const patientHtml = `
 <div style="margin:0;padding:20px;background:#020617;color:#e2e8f0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
   <div style="max-width:560px;margin:0 auto;background:#0f172a;border:1px solid rgba(148,163,184,.2);border-radius:16px;padding:22px;">
@@ -482,12 +491,19 @@ export async function POST(req: NextRequest) {
   </div>
 </div>`;
 
-      await sendResendEmail({
-        to: demoTo,
-        subject: `Appointment confirmed — ${doctorName} · ${compactWhenLabel}`,
-        text: patientText,
-        html: patientHtml,
-      });
+      const patientRecipient = effectiveOverride || patientEmailTo;
+      if (patientRecipient) {
+        await sendResendEmail({
+          to: patientRecipient,
+          subject: `Appointment confirmed — ${doctorName} · ${compactWhenLabel}`,
+          text: patientText,
+          html: patientHtml,
+        });
+      } else {
+        console.warn(
+          "[DocCy] Patient notification skipped: missing patient email and no RESEND_TO_OVERRIDE."
+        );
+      }
     }
   } catch (err) {
     console.error("[DocCy] Failed to send appointment notification emails", err);
