@@ -95,7 +95,7 @@ export function AgendaRealtime({
       ...a,
       cyDate,
       dateKey,
-      dateLabel: format(cyDate, "EEE d MMM yyyy", { locale: enGB }),
+      dateLabel: format(cyDate, "dd/MM/yyyy", { locale: enGB }),
       timeLabel: format(cyDate, "HH:mm", { locale: enGB }),
       whatsappUrl: getWhatsAppUrl(a.patient_phone),
       minutesFrom8: Math.max(0, minutesFrom8),
@@ -125,7 +125,7 @@ export function AgendaRealtime({
         <div className="border-b border-slate-800/60 px-4 pb-4 pt-4 sm:px-6 sm:pb-5 sm:pt-5">
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="text-sm font-semibold text-slate-200">
-              {format(nowCyprus, "EEEE, d MMMM yyyy", { locale: enGB })}
+              {format(nowCyprus, "dd/MM/yyyy", { locale: enGB })}
             </h2>
             <span
               aria-label={`${scheduleAppointments.length} appointment${

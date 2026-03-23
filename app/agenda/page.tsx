@@ -12,6 +12,7 @@ import { AgendaRealtime } from "@/components/agenda/AgendaRealtime";
 import { SignOutButton } from "@/components/auth/SignOutButton";
 import { CY_TZ } from "@/lib/appointments";
 import { ViewPublicProfileLink } from "@/components/agenda/ViewPublicProfileLink";
+import { OnlineBookingsPauseToggle } from "@/components/dashboard/OnlineBookingsPauseToggle";
 
 export default async function AgendaPage() {
   const supabase = createServerComponentClient({ cookies });
@@ -57,6 +58,16 @@ export default async function AgendaPage() {
     );
   }
 
+  const { data: onlineSettings, error: onlineSettingsErr } = await supabase
+    .from("doctor_settings")
+    .select("pause_online_bookings")
+    .eq("doctor_id", doctor.id)
+    .maybeSingle();
+
+  const pauseOnlineBookings = Boolean(
+    !onlineSettingsErr && onlineSettings?.pause_online_bookings
+  );
+
   const { data: appointments, error } = await supabase
     .from("appointments")
     .select(
@@ -71,7 +82,7 @@ export default async function AgendaPage() {
 
   const nowUtc = new Date();
   const nowCyprus = utcToZonedTime(nowUtc, CY_TZ);
-  const nowLabel = format(nowCyprus, "EEE d MMM yyyy, HH:mm", {
+  const nowLabel = format(nowCyprus, "dd/MM/yyyy, HH:mm", {
     locale: enGB,
   });
 
@@ -112,6 +123,7 @@ export default async function AgendaPage() {
             >
               Working hours & settings
             </Link>
+            <OnlineBookingsPauseToggle initialPaused={pauseOnlineBookings} />
             <ViewPublicProfileLink
               slug={doctor.slug}
               isVerified={doctor.status === "verified"}

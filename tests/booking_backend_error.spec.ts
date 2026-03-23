@@ -1,10 +1,13 @@
 import { test, expect } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
+import { skipIfSafeNoBooking } from "./helpers/safeMode";
 
-test.describe("Booking backend errors", () => {
+test.describe("Booking backend errors @booking-creates", () => {
   test("shows requested time outside availability inline", async ({
     page,
   }) => {
+    skipIfSafeNoBooking(test.info());
+
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
     const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
     expect(supabaseUrl).not.toBe("");
@@ -124,6 +127,8 @@ test.describe("Booking backend errors", () => {
   });
 
   test("shows not accepting public bookings inline", async ({ page }) => {
+    skipIfSafeNoBooking(test.info());
+
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
     const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
     expect(supabaseUrl).not.toBe("");

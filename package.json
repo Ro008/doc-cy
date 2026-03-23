@@ -9,6 +9,7 @@
     "start": "next start",
     "lint": "next lint",
     "test:e2e": "playwright test",
+    "test:e2e:safe": "powershell -NoProfile -Command \"$env:PLAYWRIGHT_SAFE_NO_BOOKING='1'; playwright test\"",
     "test:e2e:ui": "playwright test --ui",
     "seed:languages": "node scripts/seed-doctor-languages.mjs"
   },

@@ -2,6 +2,7 @@
 import { test, expect } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
 import { signInDoctorAndSetCookies } from "./helpers/doctorAuth";
+import { skipIfSafeNoBooking } from "./helpers/safeMode";
 
 function nextWorkingDayCyprus(now: Date): string {
   const d = new Date(now);
@@ -16,7 +17,7 @@ function nextWorkingDayCyprus(now: Date): string {
   return `${y}-${m}-${day}`;
 }
 
-test.describe("Upcoming appointments cancellation", () => {
+test.describe("Upcoming appointments cancellation @booking-creates", () => {
   test.beforeEach(({}, testInfo) => {
     if (
       testInfo.project.name === "Mobile Safari (iPhone 12)" ||
@@ -33,6 +34,8 @@ test.describe("Upcoming appointments cancellation", () => {
     page,
     request,
   }) => {
+    skipIfSafeNoBooking(test.info());
+
     test.setTimeout(60000);
 
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";

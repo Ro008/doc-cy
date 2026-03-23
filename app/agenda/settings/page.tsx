@@ -16,14 +16,12 @@ import {
   canonicalLanguageLabel,
   isMasterLanguageLabel,
 } from "@/lib/cyprus-languages";
-
-function timeFromRow(t: string | null | undefined): string {
-  if (!t) return "09:00";
-  const parts = String(t).split(":");
-  const h = parts[0]?.padStart(2, "0") ?? "09";
-  const m = parts[1]?.padStart(2, "0") ?? "00";
-  return `${h}:${m}`;
-}
+import {
+  buildWeeklyScheduleFromSettings,
+  DEFAULT_BOOKING_HORIZON_DAYS,
+  DEFAULT_MIN_NOTICE_HOURS,
+  type DoctorSettingsRow,
+} from "@/lib/doctor-settings";
 
 export default async function AgendaSettingsPage() {
   const supabase = createServerComponentClient({ cookies });
@@ -130,20 +128,80 @@ export default async function AgendaSettingsPage() {
     wednesday: (settings as { wednesday?: boolean } | null)?.wednesday ?? true,
     thursday: (settings as { thursday?: boolean } | null)?.thursday ?? true,
     friday: (settings as { friday?: boolean } | null)?.friday ?? true,
-    startTime: timeFromRow((settings as { start_time?: string } | null)?.start_time),
-    endTime: timeFromRow((settings as { end_time?: string } | null)?.end_time),
+    saturday: (settings as { saturday?: boolean } | null)?.saturday ?? false,
+    sunday: (settings as { sunday?: boolean } | null)?.sunday ?? false,
+    weeklySchedule: buildWeeklyScheduleFromSettings({
+      doctor_id: doctor.id,
+      monday: (settings as { monday?: boolean } | null)?.monday ?? true,
+      tuesday: (settings as { tuesday?: boolean } | null)?.tuesday ?? true,
+      wednesday: (settings as { wednesday?: boolean } | null)?.wednesday ?? true,
+      thursday: (settings as { thursday?: boolean } | null)?.thursday ?? true,
+      friday: (settings as { friday?: boolean } | null)?.friday ?? true,
+      saturday: (settings as { saturday?: boolean } | null)?.saturday ?? false,
+      sunday: (settings as { sunday?: boolean } | null)?.sunday ?? false,
+      start_time:
+        (settings as { start_time?: string } | null)?.start_time ?? "09:00:00",
+      end_time:
+        (settings as { end_time?: string } | null)?.end_time ?? "17:00:00",
+      weekly_schedule:
+        (settings as { weekly_schedule?: DoctorSettingsRow["weekly_schedule"] } | null)
+          ?.weekly_schedule ?? null,
+      break_start:
+        (settings as { break_start?: string | null } | null)?.break_start ?? null,
+      break_end:
+        (settings as { break_end?: string | null } | null)?.break_end ?? null,
+      pause_online_bookings: Boolean(
+        (settings as { pause_online_bookings?: boolean } | null)
+          ?.pause_online_bookings
+      ),
+      holiday_mode_enabled: Boolean(
+        (settings as { holiday_mode_enabled?: boolean } | null)
+          ?.holiday_mode_enabled
+      ),
+      holiday_start_date:
+        (settings as { holiday_start_date?: string | null } | null)
+          ?.holiday_start_date ?? null,
+      holiday_end_date:
+        (settings as { holiday_end_date?: string | null } | null)
+          ?.holiday_end_date ?? null,
+      booking_horizon_days:
+        (settings as { booking_horizon_days?: number } | null)
+          ?.booking_horizon_days ?? DEFAULT_BOOKING_HORIZON_DAYS,
+      minimum_notice_hours:
+        (settings as { minimum_notice_hours?: number } | null)
+          ?.minimum_notice_hours ?? DEFAULT_MIN_NOTICE_HOURS,
+      slot_duration_minutes:
+        (settings as { slot_duration_minutes?: number } | null)
+          ?.slot_duration_minutes ?? 30,
+    }),
     breakEnabled:
       Boolean((settings as { break_start?: string | null } | null)?.break_start) &&
       Boolean((settings as { break_end?: string | null } | null)?.break_end),
-    breakStart: timeFromRow(
-      (settings as { break_start?: string | null } | null)?.break_start
-    ),
-    breakEnd: timeFromRow(
-      (settings as { break_end?: string | null } | null)?.break_end
-    ),
+    breakStart: (
+      (settings as { break_start?: string | null } | null)?.break_start ?? "13:00:00"
+    ).slice(0, 5),
+    breakEnd: (
+      (settings as { break_end?: string | null } | null)?.break_end ?? "14:00:00"
+    ).slice(0, 5),
     slotDurationMinutes:
       (settings as { slot_duration_minutes?: number } | null)
         ?.slot_duration_minutes ?? 30,
+    bookingHorizonDays:
+      (settings as { booking_horizon_days?: number } | null)
+        ?.booking_horizon_days ?? DEFAULT_BOOKING_HORIZON_DAYS,
+    minimumNoticeHours:
+      (settings as { minimum_notice_hours?: number } | null)
+        ?.minimum_notice_hours ?? DEFAULT_MIN_NOTICE_HOURS,
+    holidayModeEnabled: Boolean(
+      (settings as { holiday_mode_enabled?: boolean | null } | null)
+        ?.holiday_mode_enabled
+    ),
+    holidayStartDate:
+      (settings as { holiday_start_date?: string | null } | null)
+        ?.holiday_start_date ?? null,
+    holidayEndDate:
+      (settings as { holiday_end_date?: string | null } | null)
+        ?.holiday_end_date ?? null,
   };
 
   return (

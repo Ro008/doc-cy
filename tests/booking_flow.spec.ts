@@ -2,9 +2,12 @@
 import { test, expect } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
 import fs from "node:fs/promises";
+import { skipIfSafeNoBooking } from "./helpers/safeMode";
 
-test.describe("Booking flow", () => {
+test.describe("Booking flow @booking-creates", () => {
   test("full booking flow on doctor profile", async ({ page, request }) => {
+    skipIfSafeNoBooking(test.info());
+
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
     const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
     expect(supabaseUrl).not.toBe("");

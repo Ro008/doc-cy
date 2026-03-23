@@ -76,7 +76,7 @@ export default async function BookingSuccessPage({
   const endUtc = addMinutes(startUtc, durationMinutes);
 
   const startCy = appointmentToCyprusDate(appointment.appointment_datetime as string);
-  const dateLabel = format(startCy, "EEE d MMM yyyy");
+  const dateLabel = format(startCy, "dd/MM/yyyy");
   const timeLabel = format(startCy, "HH:mm");
 
   const apptRow = appointment as {

@@ -3,9 +3,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceRoleClient } from "@/lib/supabase-service";
 import { CY_TZ } from "@/lib/appointments";
 import { zonedTimeToUtc, utcToZonedTime } from "date-fns-tz";
-import { addMinutes, format } from "date-fns";
+import { addDays, addHours, addMinutes, format } from "date-fns";
 import { appointmentToCyprusDate } from "@/lib/appointments";
 import {
+  isDateInHolidayRange,
   isTimeWithinSettings,
   type DoctorSettingsRow,
 } from "@/lib/doctor-settings";
@@ -182,6 +183,53 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       { message: "Error checking availability." },
       { status: 500 }
+    );
+  }
+
+  const pauseOnlineBookings = Boolean(
+    (settings as DoctorSettingsRow).pause_online_bookings
+  );
+  if (pauseOnlineBookings) {
+    return NextResponse.json(
+      { message: "Bookings temporarily unavailable" },
+      { status: 403 }
+    );
+  }
+
+  const appointmentDateKey = format(cyLocal, "yyyy-MM-dd");
+  if (isDateInHolidayRange(settings as DoctorSettingsRow, appointmentDateKey)) {
+    return NextResponse.json(
+      { message: "Bookings temporarily unavailable" },
+      { status: 403 }
+    );
+  }
+
+  const horizonDays = Number(
+    (settings as DoctorSettingsRow).booking_horizon_days ?? 90
+  );
+  const maxHorizonDays = [14, 30, 90, 180].includes(horizonDays)
+    ? horizonDays
+    : 90;
+  const todayCyprus = utcToZonedTime(new Date(), CY_TZ);
+  const maxDateKey = format(addDays(todayCyprus, maxHorizonDays), "yyyy-MM-dd");
+  if (appointmentDateKey > maxDateKey) {
+    return NextResponse.json(
+      { message: "Requested time is outside the professional's booking horizon." },
+      { status: 400 }
+    );
+  }
+
+  const noticeHours = Number(
+    (settings as DoctorSettingsRow).minimum_notice_hours ?? 2
+  );
+  const minimumNoticeHours = [1, 2, 12, 24].includes(noticeHours)
+    ? noticeHours
+    : 2;
+  const minimumNoticeCutoffUtc = addHours(new Date(), minimumNoticeHours);
+  if (appointmentUtc.getTime() < minimumNoticeCutoffUtc.getTime()) {
+    return NextResponse.json(
+      { message: "Requested time does not meet the minimum notice period." },
+      { status: 400 }
     );
   }
 

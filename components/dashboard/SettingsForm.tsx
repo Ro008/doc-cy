@@ -7,6 +7,19 @@ import { SpecialtyCombobox } from "@/components/specialties/SpecialtyCombobox";
 import { LanguageMultiSelect } from "@/components/languages/LanguageMultiSelect";
 import { isMasterSpecialty } from "@/lib/cyprus-specialties";
 import { validateSpecialtySubmission } from "@/lib/specialty-submission";
+import {
+  BOOKING_HORIZON_OPTIONS_DAYS,
+  DEFAULT_BOOKING_HORIZON_DAYS,
+  DAY_NAMES,
+  DEFAULT_MIN_NOTICE_HOURS,
+  MIN_NOTICE_OPTIONS_HOURS,
+  type DayKey,
+  type WeeklySchedule,
+} from "@/lib/doctor-settings";
+import {
+  formatISOToDDMMYYYYOrEmpty,
+  parseDDMMYYYYToISO,
+} from "@/lib/date-format";
 
 export type DoctorSettingsFormData = {
   doctorId: string;
@@ -23,12 +36,18 @@ export type DoctorSettingsFormData = {
   wednesday: boolean;
   thursday: boolean;
   friday: boolean;
-  startTime: string; // "09:00"
-  endTime: string;
+  saturday: boolean;
+  sunday: boolean;
+  weeklySchedule: WeeklySchedule;
   breakEnabled: boolean;
   breakStart: string;
   breakEnd: string;
   slotDurationMinutes: number;
+  bookingHorizonDays: number;
+  minimumNoticeHours: number;
+  holidayModeEnabled: boolean;
+  holidayStartDate: string | null; // "YYYY-MM-DD"
+  holidayEndDate: string | null; // "YYYY-MM-DD"
 };
 
 type SettingsFormProps = {
@@ -42,6 +61,16 @@ function timeToInputValue(t: string | null | undefined): string {
   const m = parts[1]?.padStart(2, "0") ?? "00";
   return `${h}:${m}`;
 }
+
+const DAY_LABELS: Record<DayKey, string> = {
+  monday: "Monday",
+  tuesday: "Tuesday",
+  wednesday: "Wednesday",
+  thursday: "Thursday",
+  friday: "Friday",
+  saturday: "Saturday",
+  sunday: "Sunday",
+};
 
 export function SettingsForm({ initial }: SettingsFormProps) {
   const [saving, setSaving] = React.useState(false);
@@ -71,16 +100,8 @@ export function SettingsForm({ initial }: SettingsFormProps) {
     initial.whatsappNumber ?? ""
   );
 
-  const [monday, setMonday] = React.useState(initial.monday);
-  const [tuesday, setTuesday] = React.useState(initial.tuesday);
-  const [wednesday, setWednesday] = React.useState(initial.wednesday);
-  const [thursday, setThursday] = React.useState(initial.thursday);
-  const [friday, setFriday] = React.useState(initial.friday);
-  const [startTime, setStartTime] = React.useState(
-    timeToInputValue(initial.startTime)
-  );
-  const [endTime, setEndTime] = React.useState(
-    timeToInputValue(initial.endTime)
+  const [weeklySchedule, setWeeklySchedule] = React.useState<WeeklySchedule>(
+    initial.weeklySchedule
   );
   const [breakEnabled, setBreakEnabled] = React.useState(
     initial.breakEnabled
@@ -93,6 +114,27 @@ export function SettingsForm({ initial }: SettingsFormProps) {
   );
   const [slotDurationMinutes, setSlotDurationMinutes] = React.useState(
     initial.slotDurationMinutes
+  );
+  const [bookingHorizonDays, setBookingHorizonDays] = React.useState(
+    initial.bookingHorizonDays
+  );
+  const [minimumNoticeHours, setMinimumNoticeHours] = React.useState(
+    initial.minimumNoticeHours
+  );
+  const [holidayModeEnabled, setHolidayModeEnabled] = React.useState(
+    initial.holidayModeEnabled
+  );
+  const [holidayStartDate, setHolidayStartDate] = React.useState<
+    string | null
+  >(initial.holidayStartDate);
+  const [holidayEndDate, setHolidayEndDate] = React.useState<string | null>(
+    initial.holidayEndDate
+  );
+  const [holidayStartInput, setHolidayStartInput] = React.useState(
+    formatISOToDDMMYYYYOrEmpty(initial.holidayStartDate)
+  );
+  const [holidayEndInput, setHolidayEndInput] = React.useState(
+    formatISOToDDMMYYYYOrEmpty(initial.holidayEndDate)
   );
 
   async function handleSubmit(e: React.FormEvent) {
@@ -116,6 +158,30 @@ export function SettingsForm({ initial }: SettingsFormProps) {
       return;
     }
 
+    const parsedHolidayStart = holidayModeEnabled
+      ? parseDDMMYYYYToISO(holidayStartInput)
+      : null;
+    const parsedHolidayEnd = holidayModeEnabled
+      ? parseDDMMYYYYToISO(holidayEndInput)
+      : null;
+
+    if (holidayModeEnabled) {
+      if (!parsedHolidayStart || !parsedHolidayEnd) {
+        setMessage({
+          type: "error",
+          text: "Use DD/MM/YYYY for Holiday start and end.",
+        });
+        return;
+      }
+      if (parsedHolidayStart > parsedHolidayEnd) {
+        setMessage({
+          type: "error",
+          text: "Holiday start date must be before (or equal to) end date.",
+        });
+        return;
+      }
+    }
+
     setSaving(true);
     try {
       const res = await fetch("/api/doctor-settings", {
@@ -127,17 +193,23 @@ export function SettingsForm({ initial }: SettingsFormProps) {
           specialty: specResult.specialty,
           specialtyFromMaster: specResult.is_specialty_approved,
           languages: langList,
-          monday,
-          tuesday,
-          wednesday,
-          thursday,
-          friday,
-          startTime,
-          endTime,
+          monday: weeklySchedule.monday.enabled,
+          tuesday: weeklySchedule.tuesday.enabled,
+          wednesday: weeklySchedule.wednesday.enabled,
+          thursday: weeklySchedule.thursday.enabled,
+          friday: weeklySchedule.friday.enabled,
+          saturday: weeklySchedule.saturday.enabled,
+          sunday: weeklySchedule.sunday.enabled,
+          weeklySchedule,
           breakEnabled,
           breakStart,
           breakEnd,
           slotDurationMinutes,
+          bookingHorizonDays,
+          minimumNoticeHours,
+          holidayModeEnabled,
+          holidayStartDate: parsedHolidayStart,
+          holidayEndDate: parsedHolidayEnd,
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -148,6 +220,10 @@ export function SettingsForm({ initial }: SettingsFormProps) {
         });
         return;
       }
+      if (holidayModeEnabled) {
+        setHolidayStartDate(parsedHolidayStart);
+        setHolidayEndDate(parsedHolidayEnd);
+      }
       setMessage({ type: "success", text: "Settings saved." });
     } catch (err) {
       console.error(err);
@@ -157,23 +233,11 @@ export function SettingsForm({ initial }: SettingsFormProps) {
     }
   }
 
-  const days = [
-    { key: "monday" as const, label: "Monday", value: monday, set: setMonday },
-    { key: "tuesday" as const, label: "Tuesday", value: tuesday, set: setTuesday },
-    {
-      key: "wednesday" as const,
-      label: "Wednesday",
-      value: wednesday,
-      set: setWednesday,
-    },
-    {
-      key: "thursday" as const,
-      label: "Thursday",
-      value: thursday,
-      set: setThursday,
-    },
-    { key: "friday" as const, label: "Friday", value: friday, set: setFriday },
-  ];
+  const days = DAY_NAMES.map((key) => ({
+    key,
+    label: DAY_LABELS[key],
+    value: weeklySchedule[key].enabled,
+  }));
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -242,55 +306,228 @@ export function SettingsForm({ initial }: SettingsFormProps) {
         <p className="mt-1 text-sm text-slate-300">
           Select the days you see patients.
         </p>
-        <div className="mt-4 flex flex-wrap gap-4">
-          {days.map(({ label, value, set }) => (
-            <label
-              key={label}
-              className="flex cursor-pointer items-center gap-2"
+        <div className="mt-4 space-y-3">
+          {days.map(({ key, label, value }) => (
+            <div
+              key={key}
+              className="rounded-xl border border-slate-800/70 bg-slate-950/30 p-3"
             >
-              <input
-                type="checkbox"
-                checked={value}
-                onChange={(e) => set(e.target.checked)}
-                className="h-4 w-4 rounded border-slate-600 bg-slate-900 text-emerald-500 focus:ring-emerald-400/60"
-              />
-              <span className="text-sm text-slate-200">{label}</span>
-            </label>
+              <label className="flex cursor-pointer items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={value}
+                  onChange={(e) =>
+                    setWeeklySchedule((prev) => ({
+                      ...prev,
+                      [key]: { ...prev[key], enabled: e.target.checked },
+                    }))
+                  }
+                  className="h-4 w-4 rounded border-slate-600 bg-slate-900 text-emerald-500 focus:ring-emerald-400/60"
+                />
+                <span className="text-sm text-slate-200">{label}</span>
+              </label>
+
+              {value && (
+                <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <label
+                      htmlFor={`${key}-start`}
+                      className="text-[11px] font-semibold uppercase tracking-wide text-slate-400"
+                    >
+                      Start time
+                    </label>
+                    <input
+                      id={`${key}-start`}
+                      type="time"
+                      value={timeToInputValue(weeklySchedule[key].start_time)}
+                      onChange={(e) =>
+                        setWeeklySchedule((prev) => ({
+                          ...prev,
+                          [key]: {
+                            ...prev[key],
+                            start_time: `${e.target.value}:00`,
+                          },
+                        }))
+                      }
+                      className="mt-2 w-full rounded-xl border border-slate-800/80 bg-slate-950/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-400/60"
+                    />
+                  </div>
+                  <div>
+                    <label
+                      htmlFor={`${key}-end`}
+                      className="text-[11px] font-semibold uppercase tracking-wide text-slate-400"
+                    >
+                      End time
+                    </label>
+                    <input
+                      id={`${key}-end`}
+                      type="time"
+                      value={timeToInputValue(weeklySchedule[key].end_time)}
+                      onChange={(e) =>
+                        setWeeklySchedule((prev) => ({
+                          ...prev,
+                          [key]: {
+                            ...prev[key],
+                            end_time: `${e.target.value}:00`,
+                          },
+                        }))
+                      }
+                      className="mt-2 w-full rounded-xl border border-slate-800/80 bg-slate-950/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-400/60"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
           ))}
         </div>
       </div>
 
-      <div className="grid gap-5 sm:grid-cols-2">
-        <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-5">
-          <label
-            htmlFor="startTime"
-            className="text-xs font-semibold uppercase tracking-wide text-slate-400"
-          >
-            Start time
-          </label>
-          <input
-            id="startTime"
-            type="time"
-            value={startTime}
-            onChange={(e) => setStartTime(e.target.value)}
-            className="mt-2 w-full rounded-xl border border-slate-800/80 bg-slate-950/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-400/60"
-          />
+      <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-5">
+        <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+          Scheduling Boundaries
+        </p>
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          <div>
+            <label
+              htmlFor="bookingHorizonDays"
+              className="text-[11px] font-semibold uppercase tracking-wide text-slate-400"
+            >
+              Future booking limit
+            </label>
+            <select
+              id="bookingHorizonDays"
+              value={bookingHorizonDays}
+              onChange={(e) => {
+                const next = Number(e.target.value);
+                setBookingHorizonDays(
+                  BOOKING_HORIZON_OPTIONS_DAYS.includes(
+                    next as (typeof BOOKING_HORIZON_OPTIONS_DAYS)[number]
+                  )
+                    ? next
+                    : DEFAULT_BOOKING_HORIZON_DAYS
+                );
+              }}
+              className="mt-2 w-full rounded-xl border border-slate-800/80 bg-slate-950/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-400/60"
+            >
+              <option value={14}>2 weeks</option>
+              <option value={30}>1 month</option>
+              <option value={90}>3 months</option>
+              <option value={180}>6 months</option>
+            </select>
+            <p className="mt-2 text-xs text-slate-400">
+              How far in advance patients can book.
+            </p>
+          </div>
+          <div>
+            <label
+              htmlFor="minimumNoticeHours"
+              className="text-[11px] font-semibold uppercase tracking-wide text-slate-400"
+            >
+              Minimum notice period
+            </label>
+            <select
+              id="minimumNoticeHours"
+              value={minimumNoticeHours}
+              onChange={(e) => {
+                const next = Number(e.target.value);
+                setMinimumNoticeHours(
+                  MIN_NOTICE_OPTIONS_HOURS.includes(
+                    next as (typeof MIN_NOTICE_OPTIONS_HOURS)[number]
+                  )
+                    ? next
+                    : DEFAULT_MIN_NOTICE_HOURS
+                );
+              }}
+              className="mt-2 w-full rounded-xl border border-slate-800/80 bg-slate-950/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-400/60"
+            >
+              <option value={1}>1 hour</option>
+              <option value={2}>2 hours</option>
+              <option value={12}>12 hours</option>
+              <option value={24}>24 hours</option>
+            </select>
+            <p className="mt-2 text-xs text-slate-400">
+              Prevent last-minute surprises. Slots will be hidden if they are too close to the current time.
+            </p>
+          </div>
         </div>
-        <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-5">
-          <label
-            htmlFor="endTime"
-            className="text-xs font-semibold uppercase tracking-wide text-slate-400"
-          >
-            End time
+      </div>
+
+      <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-5">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+              Holiday Mode
+            </p>
+            <p className="mt-1 text-xs text-slate-400">
+              Completely block bookings during a date range.
+            </p>
+          </div>
+          <label className="inline-flex cursor-pointer items-center gap-2 text-xs text-slate-300">
+            <input
+              type="checkbox"
+              checked={holidayModeEnabled}
+              onChange={(e) => {
+                const enabled = e.target.checked;
+                setHolidayModeEnabled(enabled);
+                if (!enabled) {
+                  setHolidayStartDate(null);
+                  setHolidayEndDate(null);
+                  setHolidayStartInput("");
+                  setHolidayEndInput("");
+                }
+              }}
+              className="h-4 w-4 rounded border-slate-600 bg-slate-900 text-emerald-500 focus:ring-emerald-400/60"
+            />
+            <span>Enable</span>
           </label>
-          <input
-            id="endTime"
-            type="time"
-            value={endTime}
-            onChange={(e) => setEndTime(e.target.value)}
-            className="mt-2 w-full rounded-xl border border-slate-800/80 bg-slate-950/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-400/60"
-          />
         </div>
+
+        {holidayModeEnabled && (
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <div>
+              <label
+                htmlFor="holidayStart"
+                className="text-[11px] font-semibold uppercase tracking-wide text-slate-400"
+              >
+                Holiday start
+              </label>
+              <input
+                id="holidayStart"
+                type="text"
+                inputMode="numeric"
+                placeholder="DD/MM/YYYY"
+                value={holidayStartInput}
+                onChange={(e) => {
+                  setHolidayStartInput(e.target.value);
+                  const parsed = parseDDMMYYYYToISO(e.target.value);
+                  setHolidayStartDate(parsed);
+                }}
+                className="mt-2 w-full rounded-xl border border-slate-800/80 bg-slate-950/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-400/60"
+              />
+            </div>
+            <div>
+              <label
+                htmlFor="holidayEnd"
+                className="text-[11px] font-semibold uppercase tracking-wide text-slate-400"
+              >
+                Holiday end
+              </label>
+              <input
+                id="holidayEnd"
+                type="text"
+                inputMode="numeric"
+                placeholder="DD/MM/YYYY"
+                value={holidayEndInput}
+                onChange={(e) => {
+                  setHolidayEndInput(e.target.value);
+                  const parsed = parseDDMMYYYYToISO(e.target.value);
+                  setHolidayEndDate(parsed);
+                }}
+                className="mt-2 w-full rounded-xl border border-slate-800/80 bg-slate-950/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-400/60"
+              />
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-5">

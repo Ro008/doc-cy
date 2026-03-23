@@ -56,6 +56,13 @@ function isDoctorsPublicUnavailable(msg: string, code?: string): boolean {
   );
 }
 
+function isDoctorSettingsSchemaError(msg: string, code?: string): boolean {
+  return (
+    code === "42703" ||
+    /doctor_settings|column|does not exist|schema cache/i.test(msg ?? "")
+  );
+}
+
 type PublicDoctorFetch =
   | { kind: "ok"; profile: DoctorProfileRow }
   | { kind: "not_found" }
@@ -186,22 +193,54 @@ export default async function DoctorPage({ params }: PageProps) {
 
   const profile = result.profile;
 
-  const { data: settings } = await supabase
+  const settingsSelectFull =
+    "doctor_id, monday, tuesday, wednesday, thursday, friday, saturday, sunday, start_time, end_time, weekly_schedule, break_start, break_end, slot_duration_minutes, pause_online_bookings, holiday_mode_enabled, holiday_start_date, holiday_end_date, booking_horizon_days, minimum_notice_hours";
+  const settingsSelectLegacy =
+    "doctor_id, monday, tuesday, wednesday, thursday, friday, start_time, end_time, break_start, break_end, slot_duration_minutes";
+
+  const { data: settingsFull, error: settingsErr } = await supabase
     .from("doctor_settings")
-    .select(
-      "doctor_id, monday, tuesday, wednesday, thursday, friday, start_time, end_time, break_start, break_end, slot_duration_minutes"
-    )
+    .select(settingsSelectFull)
     .eq("doctor_id", profile.id)
     .single();
 
-  const weeklySlots = settings
-    ? settingsToWeeklySlots(settings as DoctorSettingsRow)
+  let settings: any = settingsFull ?? null;
+  if (settingsErr && isDoctorSettingsSchemaError(settingsErr.message ?? "", (settingsErr as any)?.code)) {
+    const { data: settingsLegacy } = await supabase
+      .from("doctor_settings")
+      .select(settingsSelectLegacy)
+      .eq("doctor_id", profile.id)
+      .single();
+    settings = settingsLegacy ?? null;
+  }
+
+  const normalizedSettings: DoctorSettingsRow | null = settings
+    ? ({
+        ...settings,
+        saturday: Boolean((settings as any).saturday ?? false),
+        sunday: Boolean((settings as any).sunday ?? false),
+        pause_online_bookings: Boolean(
+          (settings as any).pause_online_bookings ?? false
+        ),
+        holiday_mode_enabled: Boolean(
+          (settings as any).holiday_mode_enabled ?? false
+        ),
+        holiday_start_date: (settings as any).holiday_start_date ?? null,
+        holiday_end_date: (settings as any).holiday_end_date ?? null,
+        booking_horizon_days: Number((settings as any).booking_horizon_days ?? 90),
+        minimum_notice_hours: Number((settings as any).minimum_notice_hours ?? 2),
+      } as DoctorSettingsRow)
+    : null;
+
+  const weeklySlots = normalizedSettings
+    ? settingsToWeeklySlots(normalizedSettings)
     : [];
 
   const breakStart =
-    (settings as { break_start?: string | null } | null)?.break_start ?? null;
+    (normalizedSettings as { break_start?: string | null } | null)?.break_start ??
+    null;
   const breakEnd =
-    (settings as { break_end?: string | null } | null)?.break_end ?? null;
+    (normalizedSettings as { break_end?: string | null } | null)?.break_end ?? null;
 
   // Busy instants only (RLS blocks direct reads on appointments for anon).
   const nowUtc = new Date();
@@ -279,6 +318,30 @@ export default async function DoctorPage({ params }: PageProps) {
               profileSlug={params.slug}
               breakStart={breakStart ? breakStart.slice(0, 5) : undefined}
               breakEnd={breakEnd ? breakEnd.slice(0, 5) : undefined}
+              onlineBookingsPaused={Boolean(
+                (normalizedSettings as { pause_online_bookings?: boolean | null } | null)
+                  ?.pause_online_bookings
+              )}
+              holidayModeEnabled={Boolean(
+                (normalizedSettings as { holiday_mode_enabled?: boolean | null } | null)
+                  ?.holiday_mode_enabled
+              )}
+              holidayStartDate={
+                (normalizedSettings as { holiday_start_date?: string | null } | null)
+                  ?.holiday_start_date ?? null
+              }
+              holidayEndDate={
+                (normalizedSettings as { holiday_end_date?: string | null } | null)
+                  ?.holiday_end_date ?? null
+              }
+              bookingHorizonDays={
+                (normalizedSettings as { booking_horizon_days?: number | null } | null)
+                  ?.booking_horizon_days ?? 90
+              }
+              minimumNoticeHours={
+                (normalizedSettings as { minimum_notice_hours?: number | null } | null)
+                  ?.minimum_notice_hours ?? 2
+              }
             />
           </section>
 

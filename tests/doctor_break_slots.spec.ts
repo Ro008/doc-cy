@@ -2,6 +2,7 @@
 import { test, expect } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
 import { signInDoctorAndSetCookies } from "./helpers/doctorAuth";
+import { skipIfSafeNoBooking } from "./helpers/safeMode";
 
 test.describe("Doctor lunch/break time", () => {
   test.beforeEach(({}, testInfo) => {
@@ -19,66 +20,48 @@ test.describe("Doctor lunch/break time", () => {
   test("break window hides slots between 14:00 and 16:00", async ({
     page,
   }) => {
+    skipIfSafeNoBooking(test.info());
+
     test.setTimeout(60000);
 
     // 0. Sign in programmatically and set Supabase auth cookies.
     // This avoids flakiness when the login form submit isn't intercepted by React.
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
     const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
+    const supabaseServiceRole = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
     expect(supabaseUrl).not.toBe("");
     expect(supabaseAnonKey).not.toBe("");
+    expect(supabaseServiceRole).not.toBe("");
 
     const supabase = createClient(supabaseUrl, supabaseAnonKey);
+    const admin = createClient(supabaseUrl, supabaseServiceRole);
     const { authUserId } = await signInDoctorAndSetCookies(page, supabase);
 
-    await page.goto("/agenda/settings");
-    await expect(
-      page.getByRole("heading", { name: /Working hours & availability/i })
-    ).toBeVisible({ timeout: 10000 });
-
-    // Specialty is a searchable combobox (not a plain text input).
-    await page.locator("#settings-specialty-trigger").click();
-    await page.getByRole("button", { name: "General Practice", exact: true }).click();
-    await page.getByTestId("language-multiselect-trigger").click();
-    await page.getByTestId("language-option-English").click();
-    await page.getByTestId("language-option-Greek").click();
-
-    // 1. Configure a daily break via the agenda settings UI
-    // (page already on /agenda/settings and heading is visible)
-
-    const breakCheckbox = page.getByRole("checkbox", {
-      name: /Add a daily break/i,
-    });
-    await breakCheckbox.check();
-
-    const breakStartInput = page.getByLabel("Break start");
-    const breakEndInput = page.getByLabel("Break end");
-
-    await breakStartInput.fill("14:00");
-    await breakEndInput.fill("16:00");
-
-    const saveButton = page.getByRole("button", {
-      name: /Save settings/i,
-    });
-    await expect(saveButton).toBeEnabled();
-    await saveButton.click();
-
-    await expect(
-      page.getByText(/Settings saved\./i)
-    ).toBeVisible({ timeout: 10000 });
-
-    // 2. Go to doctor profile and verify no slots are shown in 14:00–16:00
-    // Use the authenticated doctor's public slug (avoid hardcoding /dr-nikos)
     const { data: doctorRow } = await supabase
       .from("doctors")
-      .select("slug")
+      .select("id, slug")
       .eq("auth_user_id", authUserId)
       .eq("status", "verified")
       .single();
 
+    const doctorId = (doctorRow as { id?: string } | null)?.id;
     const slug = doctorRow?.slug;
+    expect(doctorId).toBeTruthy();
     expect(slug).toBeTruthy();
 
+    // Configure break directly in doctor_settings to avoid mutating profile fields.
+    const { error: upsertErr } = await admin.from("doctor_settings").upsert(
+      {
+        doctor_id: doctorId,
+        break_start: "14:00:00",
+        break_end: "16:00:00",
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "doctor_id" }
+    );
+    expect(upsertErr).toBeNull();
+
+    // Go to doctor profile and verify no slots are shown in 14:00–16:00
     await page.goto(`/${slug}`);
 
     await expect(

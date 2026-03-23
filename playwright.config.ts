@@ -8,6 +8,7 @@ dotenv.config({ path: ".env.local" });
 const localUrl = "http://localhost:3000";
 // Default to local dev. For staging/prod runs, set `PLAYWRIGHT_BASE_URL`.
 const baseUrl = process.env.PLAYWRIGHT_BASE_URL ?? localUrl;
+const safeNoBooking = process.env.PLAYWRIGHT_SAFE_NO_BOOKING === "1";
 
 const shouldRunWebServer = baseUrl === localUrl;
 
@@ -18,6 +19,7 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 1,
   workers: 1,
   reporter: "html",
+  grepInvert: safeNoBooking ? /@booking-creates/ : undefined,
   use: {
     baseURL: baseUrl,
     trace: "on-first-retry",

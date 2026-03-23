@@ -4,13 +4,12 @@ import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
+  addDays,
+  addHours,
   addMinutes,
   format,
-  isBefore,
-  isSameDay,
-  startOfDay,
 } from "date-fns";
-import { utcToZonedTime } from "date-fns-tz";
+import { utcToZonedTime, zonedTimeToUtc } from "date-fns-tz";
 import { enGB } from "date-fns/locale";
 import { DayPicker } from "react-day-picker";
 import { CheckCircle2, ChevronLeft, ChevronRight } from "lucide-react";
@@ -20,6 +19,7 @@ import {
   VISIT_NOTES_MAX_LENGTH,
   VISIT_TYPE_OPTIONS,
 } from "@/lib/visit-types";
+import { formatDateDDMMYYYY } from "@/lib/date-format";
 import "react-day-picker/dist/style.css";
 
 type WeeklySlot = {
@@ -38,17 +38,22 @@ type BookingSectionProps = {
   profileSlug?: string;
   breakStart?: string;
   breakEnd?: string;
+  onlineBookingsPaused?: boolean;
+  holidayModeEnabled?: boolean;
+  holidayStartDate?: string | null;
+  holidayEndDate?: string | null;
+  bookingHorizonDays?: number;
+  minimumNoticeHours?: number;
 };
 
 type SlotOption = {
   key: string;
   date: Date;
+  dateKey: string;
   labelTime: string;
   labelFull: string;
   slotKey: string;
 };
-
-const CALENDAR_DAYS_AHEAD = 45;
 
 export function BookingSection({
   doctorId,
@@ -58,7 +63,24 @@ export function BookingSection({
   profileSlug,
   breakStart,
   breakEnd,
+  onlineBookingsPaused = false,
+  holidayModeEnabled = false,
+  holidayStartDate = null,
+  holidayEndDate = null,
+  bookingHorizonDays = 90,
+  minimumNoticeHours = 2,
 }: BookingSectionProps) {
+  const normalizedBookingHorizonDays = [14, 30, 90, 180].includes(
+    bookingHorizonDays
+  )
+    ? bookingHorizonDays
+    : 90;
+  const normalizedMinimumNoticeHours = [1, 2, 12, 24].includes(
+    minimumNoticeHours
+  )
+    ? minimumNoticeHours
+    : 2;
+
   const router = useRouter();
   const takenSet = React.useMemo(
     () => new Set(takenSlotTimes),
@@ -83,73 +105,103 @@ export function BookingSection({
     null
   );
 
+  const holidayActive =
+    Boolean(holidayModeEnabled) &&
+    Boolean(holidayStartDate) &&
+    Boolean(holidayEndDate);
+
   // Build all slots for the next CALENDAR_DAYS_AHEAD days
   const upcomingSlots: SlotOption[] = React.useMemo(() => {
     const result: SlotOption[] = [];
-    const now = new Date();
+    const nowUtc = new Date();
+    const nowCyprus = utcToZonedTime(nowUtc, CY_TZ);
+    const todayCyprusKey = format(nowCyprus, "yyyy-MM-dd");
+    const nowCyprusTime = format(nowCyprus, "HH:mm");
+    const minimumNoticeCutoffUtc = addHours(nowUtc, normalizedMinimumNoticeHours);
 
-    for (let offset = 0; offset < CALENDAR_DAYS_AHEAD; offset++) {
-      const day = new Date(now);
-      day.setDate(now.getDate() + offset);
-      day.setHours(0, 0, 0, 0);
-      const dayOfWeek = day.getDay();
+    for (let offset = 0; offset <= normalizedBookingHorizonDays; offset++) {
+      const cyprusDay = addDays(nowCyprus, offset);
+      const dayCyprusKey = format(cyprusDay, "yyyy-MM-dd");
+      const dayOfWeek = cyprusDay.getDay();
+
+      // Block whole day at Cyprus midnight boundaries when holiday mode is active.
+      if (
+        holidayActive &&
+        holidayStartDate &&
+        holidayEndDate &&
+        dayCyprusKey >= holidayStartDate &&
+        dayCyprusKey <= holidayEndDate
+      ) {
+        continue;
+      }
+
       const daySlots = weeklySlots.filter((s) => s.day_of_week === dayOfWeek);
 
       for (const s of daySlots) {
         const [startHour, startMinute] = s.start_time.split(":").map(Number);
         const [endHour, endMinute] = s.end_time.split(":").map(Number);
-        let cursor = new Date(
-          day.getFullYear(),
-          day.getMonth(),
-          day.getDate(),
-          startHour,
-          startMinute,
-          0,
-          0
-        );
-        const end = new Date(
-          day.getFullYear(),
-          day.getMonth(),
-          day.getDate(),
-          endHour,
-          endMinute,
-          0,
-          0
-        );
+        let cursorMinutes = startHour * 60 + startMinute;
+        const endMinutes = endHour * 60 + endMinute;
 
-        while (isBefore(cursor, end)) {
-          if (!isSameDay(cursor, now) || !isBefore(cursor, now)) {
-            const cyprusCursor = utcToZonedTime(cursor, CY_TZ);
-            const timeLabel = format(cyprusCursor, "HH:mm");
+        while (cursorMinutes < endMinutes) {
+          const slotHour = Math.floor(cursorMinutes / 60)
+            .toString()
+            .padStart(2, "0");
+          const slotMinute = (cursorMinutes % 60).toString().padStart(2, "0");
+          const timeLabel = `${slotHour}:${slotMinute}`;
 
-            // Skip slots that fall inside the doctor's daily break window
-            if (
-              breakStart &&
-              breakEnd &&
-              timeLabel >= breakStart &&
-              timeLabel < breakEnd
-            ) {
-              cursor = addMinutes(cursor, s.duration);
-              continue;
-            }
-
-            const slotKey = format(cyprusCursor, "yyyy-MM-dd'T'HH:mm");
-            result.push({
-              key: cursor.toISOString(),
-              date: cursor,
-              labelTime: timeLabel,
-              labelFull: format(cyprusCursor, "EEE d MMM, HH:mm", {
-                locale: enGB,
-              }),
-              slotKey,
-            });
+          // Skip past times only for current Cyprus day.
+          if (dayCyprusKey === todayCyprusKey && timeLabel < nowCyprusTime) {
+            cursorMinutes += s.duration;
+            continue;
           }
-          cursor = addMinutes(cursor, s.duration);
+
+          // Skip slots that fall inside the doctor's daily break window
+          if (
+            breakStart &&
+            breakEnd &&
+            timeLabel >= breakStart &&
+            timeLabel < breakEnd
+          ) {
+            cursorMinutes += s.duration;
+            continue;
+          }
+
+          const slotLocal = `${dayCyprusKey}T${timeLabel}:00`;
+          const slotUtcDate = zonedTimeToUtc(slotLocal, CY_TZ);
+          // Hide slots that violate the minimum notice period.
+          if (slotUtcDate.getTime() < minimumNoticeCutoffUtc.getTime()) {
+            cursorMinutes += s.duration;
+            continue;
+          }
+          const cyprusSlotDate = utcToZonedTime(slotUtcDate, CY_TZ);
+          const slotKey = `${dayCyprusKey}T${timeLabel}`;
+          result.push({
+            key: slotUtcDate.toISOString(),
+            date: slotUtcDate,
+            dateKey: dayCyprusKey,
+            labelTime: timeLabel,
+            labelFull: format(cyprusSlotDate, "EEE d MMM, HH:mm", {
+              locale: enGB,
+            }),
+            slotKey,
+          });
+
+          cursorMinutes += s.duration;
         }
       }
     }
     return result;
-  }, [weeklySlots, breakStart, breakEnd]);
+  }, [
+    weeklySlots,
+    breakStart,
+    breakEnd,
+    holidayActive,
+    holidayStartDate,
+    holidayEndDate,
+    normalizedBookingHorizonDays,
+    normalizedMinimumNoticeHours,
+  ]);
 
   const isSlotTaken = (slot: SlotOption) => takenSet.has(slot.slotKey);
 
@@ -158,7 +210,7 @@ export function BookingSection({
     const dateSet = new Set<string>();
     upcomingSlots.forEach((slot) => {
       if (!isSlotTaken(slot)) {
-        dateSet.add(format(startOfDay(slot.date), "yyyy-MM-dd"));
+        dateSet.add(slot.dateKey);
       }
     });
     return Array.from(dateSet).map((d) => {
@@ -172,8 +224,7 @@ export function BookingSection({
     if (!selectedDate) return [];
     const dayKey = format(selectedDate, "yyyy-MM-dd");
     return upcomingSlots.filter(
-      (slot) =>
-        format(slot.date, "yyyy-MM-dd") === dayKey && !isSlotTaken(slot)
+      (slot) => slot.dateKey === dayKey && !isSlotTaken(slot)
     );
   }, [selectedDate, upcomingSlots, takenSet]);
 
@@ -274,6 +325,19 @@ export function BookingSection({
     ]
   );
 
+  if (onlineBookingsPaused) {
+    return (
+      <div className="rounded-3xl border border-emerald-100/10 bg-slate-900/50 p-6 shadow-2xl shadow-slate-950/50 backdrop-blur-xl">
+        <h2 className="text-lg font-semibold text-slate-50">
+          Bookings temporarily unavailable
+        </h2>
+        <p className="mt-2 text-sm text-slate-300">
+          Appointments are paused by the professional. Please check back later.
+        </p>
+      </div>
+    );
+  }
+
   if (!weeklySlots || weeklySlots.length === 0) {
     return (
       <div className="rounded-3xl border border-emerald-100/10 bg-slate-900/50 p-6 shadow-2xl shadow-slate-950/50 backdrop-blur-xl">
@@ -282,6 +346,23 @@ export function BookingSection({
         </h2>
         <p className="mt-2 text-sm text-slate-300">
           {doctorName} has not published availability yet.
+        </p>
+      </div>
+    );
+  }
+
+  if (upcomingSlots.length === 0) {
+    return (
+      <div className="rounded-3xl border border-emerald-100/10 bg-slate-900/50 p-6 shadow-2xl shadow-slate-950/50 backdrop-blur-xl">
+        <h2 className="text-lg font-semibold text-slate-50">
+          Bookings temporarily unavailable
+        </h2>
+        <p className="mt-2 text-sm text-slate-300">
+          {holidayActive && holidayStartDate && holidayEndDate
+            ? `The calendar is blocked from ${formatDateDDMMYYYY(
+                holidayStartDate
+              )} to ${formatDateDDMMYYYY(holidayEndDate)}.`
+            : "No available times right now."}
         </p>
       </div>
     );
@@ -510,7 +591,7 @@ export function BookingSection({
               setSelectedSlot(null);
             }}
             fromDate={new Date()}
-            toDate={addMinutes(new Date(), CALENDAR_DAYS_AHEAD * 24 * 60)}
+            toDate={addDays(new Date(), normalizedBookingHorizonDays)}
             disabled={(date) => !isDateAvailable(date)}
             locale={enGB}
             captionLayout="buttons"
