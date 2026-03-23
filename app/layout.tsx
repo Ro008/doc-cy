@@ -11,9 +11,9 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "DocCy: Smart Medical Appointments in Cyprus",
+  title: "DocCy | Healthcare Appointments in Cyprus",
   description:
-    "A simple platform for clinics and doctors in Cyprus to manage their medical appointments online.",
+    "Book healthcare appointments in Cyprus via DocCy.",
 };
 
 export default function RootLayout({

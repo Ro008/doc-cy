@@ -138,6 +138,11 @@ export const revalidate = 0;
 export async function generateMetadata(
   { params }: PageProps
 ): Promise<Metadata> {
+  const siteUrl =
+    process.env.NEXT_PUBLIC_SITE_URL?.trim() || "https://www.mydoccy.com";
+  const profileUrl = `${siteUrl}/${params.slug}`;
+  const fallbackTitle = "Healthcare Professional | DocCy";
+
   let meta = await supabase
     .from("doctors_public")
     .select(DOCTOR_FIELD_LIST_METADATA)
@@ -155,20 +160,73 @@ export async function generateMetadata(
   const doctor = meta.data as { name?: string; specialty?: string; status?: string } | null;
 
   if (meta.error || !doctor) {
-    return { title: "Professional not found | DocCy" };
+    return {
+      title: fallbackTitle,
+      description: "Book healthcare appointments in Cyprus via DocCy.",
+      openGraph: {
+        title: fallbackTitle,
+        description: "Book healthcare appointments in Cyprus via DocCy.",
+        type: "website",
+        url: profileUrl,
+        images: [{ url: DOCTOR_AVATAR_URL }],
+      },
+      twitter: {
+        card: "summary_large_image",
+        title: fallbackTitle,
+        description: "Book healthcare appointments in Cyprus via DocCy.",
+        images: [DOCTOR_AVATAR_URL],
+      },
+    };
   }
 
   const st = (doctor.status ?? "").trim().toLowerCase();
+  const doctorName = (doctor.name ?? "").trim();
+  const specialty = (doctor.specialty ?? "").trim();
+  const hasNameAndSpecialty = doctorName.length > 0 && specialty.length > 0;
+
+  const dynamicTitle = hasNameAndSpecialty
+    ? `Book an appointment with ${doctorName} | ${specialty} | DocCy`
+    : fallbackTitle;
+  const dynamicDescription = hasNameAndSpecialty
+    ? `Book your next ${specialty} appointment with ${doctorName} in Cyprus via DocCy.`
+    : "Book healthcare appointments in Cyprus via DocCy.";
+
   if (st !== "verified") {
     return {
-      title: `${doctor.name} | Profile not available | DocCy`,
-      description: "This professional profile is not public for booking yet.",
+      title: dynamicTitle,
+      description: dynamicDescription,
+      openGraph: {
+        title: dynamicTitle,
+        description: dynamicDescription,
+        type: "website",
+        url: profileUrl,
+        images: [{ url: DOCTOR_AVATAR_URL }],
+      },
+      twitter: {
+        card: "summary_large_image",
+        title: dynamicTitle,
+        description: dynamicDescription,
+        images: [DOCTOR_AVATAR_URL],
+      },
     };
   }
 
   return {
-    title: `${doctor.name} – ${doctor.specialty} | DocCy`,
-    description: `Book an appointment with ${doctor.name}, ${doctor.specialty} in Cyprus via DocCy.`,
+    title: dynamicTitle,
+    description: dynamicDescription,
+    openGraph: {
+      title: dynamicTitle,
+      description: dynamicDescription,
+      type: "website",
+      url: profileUrl,
+      images: [{ url: DOCTOR_AVATAR_URL }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: dynamicTitle,
+      description: dynamicDescription,
+      images: [DOCTOR_AVATAR_URL],
+    },
   };
 }
 
