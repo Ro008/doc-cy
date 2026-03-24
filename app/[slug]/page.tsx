@@ -45,7 +45,8 @@ type PageProps = {
 function isLanguagesColumnError(msg: string): boolean {
   return (
     /languages/i.test(msg) &&
-    (/schema cache|does not exist|column|Could not find|42703/i.test(msg) || msg.includes("Could not find"))
+    (/schema cache|does not exist|column|Could not find|42703/i.test(msg) ||
+      msg.includes("Could not find"))
   );
 }
 
@@ -76,7 +77,9 @@ type PublicDoctorFetch =
  * Load doctor by slug. Public UI only when verification `status` is `verified`.
  * If `languages` column is missing, fall back to a select without it.
  */
-async function fetchPublicDoctorBySlug(slug: string): Promise<PublicDoctorFetch> {
+async function fetchPublicDoctorBySlug(
+  slug: string,
+): Promise<PublicDoctorFetch> {
   const fullList = DOCTOR_FIELD_LIST_PUBLIC_PROFILE;
   const basicList = DOCTOR_FIELD_LIST_PUBLIC_PROFILE_NO_LANG;
 
@@ -109,7 +112,10 @@ async function fetchPublicDoctorBySlug(slug: string): Promise<PublicDoctorFetch>
         .eq("slug", slug)
         .maybeSingle();
       if (second.error || !second.data) {
-        console.error("[DocCy] Doctor profile fallback query failed:", second.error ?? "no row");
+        console.error(
+          "[DocCy] Doctor profile fallback query failed:",
+          second.error ?? "no row",
+        );
         return { kind: "not_found" };
       }
       row = { ...second.data, languages: null } as DoctorProfileRow;
@@ -135,9 +141,9 @@ async function fetchPublicDoctorBySlug(slug: string): Promise<PublicDoctorFetch>
 
 export const revalidate = 0;
 
-export async function generateMetadata(
-  { params }: PageProps
-): Promise<Metadata> {
+export async function generateMetadata({
+  params,
+}: PageProps): Promise<Metadata> {
   const siteUrl =
     process.env.NEXT_PUBLIC_SITE_URL?.trim() || "https://www.mydoccy.com";
   const profileUrl = `${siteUrl}/${params.slug}`;
@@ -149,7 +155,10 @@ export async function generateMetadata(
     .eq("slug", params.slug)
     .maybeSingle();
 
-  if (meta.error && isDoctorsPublicUnavailable(meta.error.message ?? "", meta.error.code)) {
+  if (
+    meta.error &&
+    isDoctorsPublicUnavailable(meta.error.message ?? "", meta.error.code)
+  ) {
     meta = await supabase
       .from("doctors")
       .select(DOCTOR_FIELD_LIST_METADATA)
@@ -157,7 +166,11 @@ export async function generateMetadata(
       .maybeSingle();
   }
 
-  const doctor = meta.data as { name?: string; specialty?: string; status?: string } | null;
+  const doctor = meta.data as {
+    name?: string;
+    specialty?: string;
+    status?: string;
+  } | null;
 
   if (meta.error || !doctor) {
     return {
@@ -235,7 +248,7 @@ export default async function DoctorPage({ params }: PageProps) {
 
   if (result.kind === "not_found") {
     console.error(
-      `[DocCy] No doctor row for slug: "${params.slug}". Redirecting to home.`
+      `[DocCy] No doctor row for slug: "${params.slug}". Redirecting to home.`,
     );
     redirect("/");
   }
@@ -263,7 +276,13 @@ export default async function DoctorPage({ params }: PageProps) {
     .single();
 
   let settings: any = settingsFull ?? null;
-  if (settingsErr && isDoctorSettingsSchemaError(settingsErr.message ?? "", (settingsErr as any)?.code)) {
+  if (
+    settingsErr &&
+    isDoctorSettingsSchemaError(
+      settingsErr.message ?? "",
+      (settingsErr as any)?.code,
+    )
+  ) {
     const { data: settingsLegacy } = await supabase
       .from("doctor_settings")
       .select(settingsSelectLegacy)
@@ -278,15 +297,19 @@ export default async function DoctorPage({ params }: PageProps) {
         saturday: Boolean((settings as any).saturday ?? false),
         sunday: Boolean((settings as any).sunday ?? false),
         pause_online_bookings: Boolean(
-          (settings as any).pause_online_bookings ?? false
+          (settings as any).pause_online_bookings ?? false,
         ),
         holiday_mode_enabled: Boolean(
-          (settings as any).holiday_mode_enabled ?? false
+          (settings as any).holiday_mode_enabled ?? false,
         ),
         holiday_start_date: (settings as any).holiday_start_date ?? null,
         holiday_end_date: (settings as any).holiday_end_date ?? null,
-        booking_horizon_days: Number((settings as any).booking_horizon_days ?? 90),
-        minimum_notice_hours: Number((settings as any).minimum_notice_hours ?? 2),
+        booking_horizon_days: Number(
+          (settings as any).booking_horizon_days ?? 90,
+        ),
+        minimum_notice_hours: Number(
+          (settings as any).minimum_notice_hours ?? 2,
+        ),
       } as DoctorSettingsRow)
     : null;
 
@@ -295,15 +318,18 @@ export default async function DoctorPage({ params }: PageProps) {
     : [];
 
   const breakStart =
-    (normalizedSettings as { break_start?: string | null } | null)?.break_start ??
-    null;
+    (normalizedSettings as { break_start?: string | null } | null)
+      ?.break_start ?? null;
   const breakEnd =
-    (normalizedSettings as { break_end?: string | null } | null)?.break_end ?? null;
+    (normalizedSettings as { break_end?: string | null } | null)?.break_end ??
+    null;
 
   // Busy instants only (RLS blocks direct reads on appointments for anon).
   const nowUtc = new Date();
   const fromIso = new Date(nowUtc.getTime() - 60 * 60 * 1000).toISOString();
-  const toIso = new Date(nowUtc.getTime() + 8 * 24 * 60 * 60 * 1000).toISOString();
+  const toIso = new Date(
+    nowUtc.getTime() + 8 * 24 * 60 * 60 * 1000,
+  ).toISOString();
 
   const { data: occupiedRows, error: occupiedErr } = await supabase.rpc(
     "public_doctor_occupied_datetimes",
@@ -311,16 +337,22 @@ export default async function DoctorPage({ params }: PageProps) {
       p_doctor_id: profile.id,
       p_from: fromIso,
       p_to: toIso,
-    }
+    },
   );
 
   if (occupiedErr) {
-    console.error("[DocCy] public_doctor_occupied_datetimes failed:", occupiedErr);
+    console.error(
+      "[DocCy] public_doctor_occupied_datetimes failed:",
+      occupiedErr,
+    );
   }
 
   const takenSlotTimes: string[] = (occupiedRows ?? []).map(
     (r: { appointment_datetime: string }) =>
-      format(appointmentToCyprusDate(r.appointment_datetime), "yyyy-MM-dd'T'HH:mm")
+      format(
+        appointmentToCyprusDate(r.appointment_datetime),
+        "yyyy-MM-dd'T'HH:mm",
+      ),
   );
 
   return (
@@ -347,7 +379,8 @@ export default async function DoctorPage({ params }: PageProps) {
             </div>
             <div>
               <p className="text-xs font-semibold tracking-[0.2em] text-emerald-200/80">
-                Doc<span className="text-emerald-400">Cy</span> · Professional profile
+                Doc<span className="text-emerald-400">Cy</span> · Professional
+                profile
               </p>
               <h1 className="mt-3 text-balance text-3xl font-semibold tracking-tight text-slate-50 sm:text-4xl">
                 {profile.name}
@@ -355,13 +388,17 @@ export default async function DoctorPage({ params }: PageProps) {
               <p className="mt-1.5 text-base font-medium capitalize tracking-wide text-emerald-200/95 sm:text-lg">
                 {profile.specialty}
               </p>
-              {Array.isArray(profile.languages) && profile.languages.length > 0 ? (
-                <LanguagesSpoken languages={profile.languages} className="mt-2.5" />
+              {Array.isArray(profile.languages) &&
+              profile.languages.length > 0 ? (
+                <LanguagesSpoken
+                  languages={profile.languages}
+                  className="mt-2.5"
+                />
               ) : null}
             </div>
           </div>
           <div className="hidden rounded-full bg-slate-900/60 px-4 py-2 text-xs text-slate-300 backdrop-blur sm:block">
-            Premium booking · Cyprus local time
+            Cyprus local time
           </div>
         </header>
 
@@ -377,28 +414,46 @@ export default async function DoctorPage({ params }: PageProps) {
               breakStart={breakStart ? breakStart.slice(0, 5) : undefined}
               breakEnd={breakEnd ? breakEnd.slice(0, 5) : undefined}
               onlineBookingsPaused={Boolean(
-                (normalizedSettings as { pause_online_bookings?: boolean | null } | null)
-                  ?.pause_online_bookings
+                (
+                  normalizedSettings as {
+                    pause_online_bookings?: boolean | null;
+                  } | null
+                )?.pause_online_bookings,
               )}
               holidayModeEnabled={Boolean(
-                (normalizedSettings as { holiday_mode_enabled?: boolean | null } | null)
-                  ?.holiday_mode_enabled
+                (
+                  normalizedSettings as {
+                    holiday_mode_enabled?: boolean | null;
+                  } | null
+                )?.holiday_mode_enabled,
               )}
               holidayStartDate={
-                (normalizedSettings as { holiday_start_date?: string | null } | null)
-                  ?.holiday_start_date ?? null
+                (
+                  normalizedSettings as {
+                    holiday_start_date?: string | null;
+                  } | null
+                )?.holiday_start_date ?? null
               }
               holidayEndDate={
-                (normalizedSettings as { holiday_end_date?: string | null } | null)
-                  ?.holiday_end_date ?? null
+                (
+                  normalizedSettings as {
+                    holiday_end_date?: string | null;
+                  } | null
+                )?.holiday_end_date ?? null
               }
               bookingHorizonDays={
-                (normalizedSettings as { booking_horizon_days?: number | null } | null)
-                  ?.booking_horizon_days ?? 90
+                (
+                  normalizedSettings as {
+                    booking_horizon_days?: number | null;
+                  } | null
+                )?.booking_horizon_days ?? 90
               }
               minimumNoticeHours={
-                (normalizedSettings as { minimum_notice_hours?: number | null } | null)
-                  ?.minimum_notice_hours ?? 2
+                (
+                  normalizedSettings as {
+                    minimum_notice_hours?: number | null;
+                  } | null
+                )?.minimum_notice_hours ?? 2
               }
             />
           </section>
@@ -418,4 +473,3 @@ export default async function DoctorPage({ params }: PageProps) {
     </main>
   );
 }
-

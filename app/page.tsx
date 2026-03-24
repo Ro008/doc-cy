@@ -1,6 +1,8 @@
 // app/page.tsx
 import Link from "next/link";
 import { CalendarSync, ShieldCheck, UserRound } from "lucide-react";
+import { FoundersPricingCard } from "@/components/landing/FoundersPricingCard";
+import { HomeLandingScroll } from "@/components/landing/HomeLandingScroll";
 
 type Benefit = {
   icon: typeof CalendarSync;
@@ -39,7 +41,8 @@ const benefitCardShell =
 
 export default function HomePage() {
   return (
-    <main className="relative isolate flex min-h-screen flex-col overflow-x-hidden bg-slate-950 text-neutral-50">
+    <main className="relative isolate flex min-h-screen flex-col overflow-x-hidden bg-slate-950 text-neutral-50 [overflow-anchor:none]">
+      <HomeLandingScroll />
       {/*
         Ambient layers must stay inside this stacking context (isolate + z-0 / z-10).
         Fixed + negative z-index was painting under the body / wrong layer, so only the gray radial read.
@@ -142,6 +145,35 @@ export default function HomePage() {
             </div>
           </div>
         </div>
+
+        <section
+          id="founders-pricing"
+          className="mx-auto w-full max-w-6xl pb-8 pt-2 sm:pb-10 [overflow-anchor:none]"
+        >
+          <div className="rounded-3xl border border-emerald-300/20 bg-slate-900/70 p-5 shadow-[0_0_56px_-22px_rgba(16,185,129,0.35)] backdrop-blur-md sm:p-7">
+            <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(280px,360px)] lg:items-start">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-300/95">
+                  Join the DocCy Founders Club
+                </p>
+                <h2 className="mt-2 max-w-2xl text-2xl font-semibold tracking-tight text-neutral-50 sm:text-3xl">
+                  Special launch pricing for the first 100 practitioners across Cyprus
+                </h2>
+                <div className="mt-4 rounded-2xl border border-slate-700/80 bg-slate-950/45 p-4">
+                  <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-300">
+                    Why 90 Days?
+                  </h3>
+                  <p className="mt-2 text-sm leading-relaxed text-slate-300">
+                    We want you to test DocCy through a full business quarter, including holidays and seasonal shifts.
+                    It gives enough real-world data to judge impact on your practice with confidence.
+                  </p>
+                </div>
+              </div>
+
+              <FoundersPricingCard />
+            </div>
+          </div>
+        </section>
       </div>
     </main>
   );

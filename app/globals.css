@@ -183,5 +183,51 @@ button {
   .landing-ambient-aurora-br {
     opacity: 0.72;
   }
+
+  .doccy-feedback-hint-bubble {
+    animation: none !important;
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Floating help: tooltip peeks out then tucks back (FeedbackWidget) */
+@keyframes doccy-feedback-hint-in {
+  0% {
+    opacity: 0;
+    transform: translateX(14px) scale(0.9);
+  }
+  65% {
+    opacity: 1;
+    transform: translateX(-3px) scale(1.03);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+@keyframes doccy-feedback-hint-out {
+  0% {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(10px) scale(0.82);
+  }
+}
+
+.doccy-feedback-hint-pop-in {
+  animation: doccy-feedback-hint-in 0.55s cubic-bezier(0.34, 1.35, 0.64, 1) both;
+}
+
+.doccy-feedback-hint-pop-out {
+  animation: doccy-feedback-hint-out 0.48s cubic-bezier(0.55, 0.09, 0.68, 0.19) both;
+}
+
+.doccy-feedback-hint-settled {
+  opacity: 1;
+  transform: translateX(0) scale(1);
 }
 
