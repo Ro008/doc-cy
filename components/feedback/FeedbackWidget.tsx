@@ -6,6 +6,12 @@ import { usePathname } from "next/navigation";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { DOCCY_OPEN_FEEDBACK_EVENT, type DocCyOpenFeedbackDetail } from "@/lib/doccy-feedback";
 
+/**
+ * Browser `window.setTimeout` returns `number`; merged Node typings often type `setTimeout` as
+ * `NodeJS.Timeout`. Including both in the union keeps assignments and `clearTimeout` valid everywhere.
+ */
+type BrowserTimeoutId = number | ReturnType<typeof setTimeout>;
+
 type Subject =
   | "I have a suggestion"
   | "Something isn't working"
@@ -88,12 +94,16 @@ export function FeedbackWidget() {
     if (reduceMotion || open) return;
 
     let cancelled = false;
-    let hintTimer: ReturnType<typeof setTimeout> | undefined;
-    let fallbackTimer: ReturnType<typeof setTimeout> | undefined;
+    let hintTimer: BrowserTimeoutId | undefined;
+    let fallbackTimer: BrowserTimeoutId | undefined;
     let onScroll: (() => void) | undefined;
 
     const armHintDelay = () => {
       if (cancelled) return;
+      if (hintTimer !== undefined) {
+        window.clearTimeout(hintTimer);
+        hintTimer = undefined;
+      }
       hintTimer = window.setTimeout(() => {
         if (!cancelled) setHintStage("anim-in");
       }, 3000);
@@ -145,8 +155,14 @@ export function FeedbackWidget() {
 
     return () => {
       cancelled = true;
-      if (hintTimer !== undefined) window.clearTimeout(hintTimer);
-      if (fallbackTimer !== undefined) window.clearTimeout(fallbackTimer);
+      if (hintTimer !== undefined) {
+        window.clearTimeout(hintTimer);
+        hintTimer = undefined;
+      }
+      if (fallbackTimer !== undefined) {
+        window.clearTimeout(fallbackTimer);
+        fallbackTimer = undefined;
+      }
       if (onScroll) window.removeEventListener("scroll", onScroll);
     };
   }, [reduceMotion, open]);
