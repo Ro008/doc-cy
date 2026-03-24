@@ -6,12 +6,21 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
+import { format } from "date-fns";
+import { enGB } from "date-fns/locale";
+import { utcToZonedTime } from "date-fns-tz";
+import { ArrowLeft } from "lucide-react";
 import { SettingsForm } from "@/components/dashboard/SettingsForm";
 import { SignOutButton } from "@/components/auth/SignOutButton";
 import type { DoctorSettingsFormData } from "@/components/dashboard/SettingsForm";
-import { ArrowLeft } from "lucide-react";
 import { ViewPublicProfileLink } from "@/components/agenda/ViewPublicProfileLink";
 import { PromotePracticeSection } from "@/components/dashboard/PromotePracticeSection";
+import { FoundingMemberBadge } from "@/components/dashboard/FoundingMemberBadge";
+import { OnlineBookingsPauseToggle } from "@/components/dashboard/OnlineBookingsPauseToggle";
+import { DashboardUtilityRow } from "@/components/agenda/DashboardUtilityRow";
+import { CyprusTimeStamp } from "@/components/agenda/CyprusTimeStamp";
+import { doctorDashboardDisplayName } from "@/lib/doctor-display-name";
+import { CY_TZ } from "@/lib/appointments";
 import {
   canonicalLanguageLabel,
   isMasterLanguageLabel,
@@ -22,6 +31,7 @@ import {
   DEFAULT_MIN_NOTICE_HOURS,
   type DoctorSettingsRow,
 } from "@/lib/doctor-settings";
+import { isFounderSubscriptionTier } from "@/lib/subscription-tier";
 
 export default async function AgendaSettingsPage() {
   const supabase = createServerComponentClient({ cookies });
@@ -47,14 +57,33 @@ export default async function AgendaSettingsPage() {
     languages?: string[] | null;
     status?: string | null;
     is_specialty_approved?: boolean | null;
+    subscription_tier?: string | null;
   } | null = null;
   let doctorError: unknown = null;
   try {
-    const res = await supabase
+    let res = await supabase
       .from("doctors")
-      .select("id, name, phone, slug, specialty, languages, status")
+      .select(
+        "id, name, phone, slug, specialty, languages, status, subscription_tier"
+      )
       .eq("auth_user_id", user.id)
       .single();
+
+    const tierMissing =
+      res.error &&
+      (String(res.error.message ?? "")
+        .toLowerCase()
+        .includes("subscription_tier") ||
+        (res.error as { code?: string }).code === "42703");
+
+    if (tierMissing) {
+      res = await supabase
+        .from("doctors")
+        .select("id, name, phone, slug, specialty, languages, status")
+        .eq("auth_user_id", user.id)
+        .single();
+    }
+
     doctor = res.data as typeof doctor;
     doctorError = res.error;
   } catch (err) {
@@ -62,11 +91,29 @@ export default async function AgendaSettingsPage() {
   }
 
   if (!doctor) {
-    const fallback = await supabase
+    let fallback = await supabase
       .from("doctors")
-      .select("id, name, slug, specialty, languages, status, is_specialty_approved")
+      .select(
+        "id, name, slug, specialty, languages, status, is_specialty_approved, subscription_tier"
+      )
       .eq("auth_user_id", user.id)
       .single();
+
+    const tierMissingFb =
+      fallback.error &&
+      (String(fallback.error.message ?? "")
+        .toLowerCase()
+        .includes("subscription_tier") ||
+        (fallback.error as { code?: string }).code === "42703");
+
+    if (tierMissingFb) {
+      fallback = await supabase
+        .from("doctors")
+        .select("id, name, slug, specialty, languages, status, is_specialty_approved")
+        .eq("auth_user_id", user.id)
+        .single();
+    }
+
     doctor = fallback.data as typeof doctor;
     doctorError = fallback.error ?? doctorError;
   }
@@ -115,6 +162,17 @@ export default async function AgendaSettingsPage() {
   );
 
   const isVerified = doctor.status === "verified";
+  const isFoundingMember = isFounderSubscriptionTier(doctor.subscription_tier);
+
+  const pauseOnlineBookings = Boolean(
+    (settings as { pause_online_bookings?: boolean } | null)?.pause_online_bookings
+  );
+
+  const nowLabel = format(utcToZonedTime(new Date(), CY_TZ), "dd/MM/yyyy, HH:mm", {
+    locale: enGB,
+  });
+
+  const displayName = doctorDashboardDisplayName(doctor.name);
 
   const initial: DoctorSettingsFormData = {
     doctorId: doctor.id,
@@ -212,40 +270,58 @@ export default async function AgendaSettingsPage() {
         <div className="absolute inset-y-0 right-[-15%] h-full w-72 bg-emerald-400/10 blur-3xl" />
       </div>
 
-      <div className="mx-auto max-w-2xl px-4 py-8 sm:px-6 lg:px-8 lg:py-12">
-        <header className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
+      <div className="mx-auto w-full max-w-5xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+        <DashboardUtilityRow
+          left={
             <Link
               href="/agenda"
-              className="mb-4 inline-flex items-center text-sm text-slate-400 transition hover:text-slate-200"
+              className="inline-flex items-center gap-2 text-xs font-medium text-slate-400 transition hover:text-slate-200"
             >
-              <ArrowLeft className="mr-2 h-4 w-4" />
+              <ArrowLeft className="h-3.5 w-3.5 shrink-0" aria-hidden />
               Back to agenda
             </Link>
-            <h1 className="text-2xl font-semibold tracking-tight text-slate-50 sm:text-3xl">
-              Working hours & availability
-            </h1>
-            <p className="mt-1 text-sm text-slate-300">
-              These settings apply to{" "}
-              <span className="font-medium text-emerald-200">
-                {doctor.name}
-              </span>
-              .
+          }
+          right={
+            <>
+              <SignOutButton variant="utility" />
+              <CyprusTimeStamp label={nowLabel} variant="discreet" />
+            </>
+          }
+        />
+
+        <header className="mb-8 mt-2 flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between lg:gap-10">
+          <div className="min-w-0 flex-1">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-emerald-400/90">
+              Settings
             </p>
+            <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-3">
+              <h1 className="text-balance text-3xl font-semibold tracking-tight text-slate-50 sm:text-4xl">
+                {displayName}
+              </h1>
+              {isFoundingMember ? <FoundingMemberBadge /> : null}
+            </div>
             {doctor.is_specialty_approved === false ? (
-              <p className="mt-3 rounded-xl border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-xs text-amber-100">
+              <p className="mt-4 rounded-xl border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-xs text-amber-100">
                 Your specialty text is pending review. You can edit it below or pick a standard
                 category — we&apos;ll align it with our directory list.
               </p>
             ) : null}
           </div>
-          <div className="flex items-center gap-3">
-            <ViewPublicProfileLink slug={doctor.slug} isVerified={isVerified} />
-            <SignOutButton />
+
+          <div className="flex w-full flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-center lg:w-auto lg:max-w-md lg:flex-nowrap lg:justify-end">
+            <OnlineBookingsPauseToggle
+              initialPaused={pauseOnlineBookings}
+              layout="header"
+            />
+            <ViewPublicProfileLink
+              slug={doctor.slug}
+              isVerified={isVerified}
+              variant="primary"
+            />
           </div>
         </header>
 
-        <section className="rounded-3xl border border-emerald-100/10 bg-slate-900/50 p-6 shadow-2xl shadow-slate-950/50 backdrop-blur-xl sm:p-8">
+        <section className="w-full rounded-3xl border border-emerald-100/10 bg-slate-900/50 p-6 shadow-2xl shadow-slate-950/50 backdrop-blur-xl sm:p-8">
           <SettingsForm initial={initial} />
         </section>
 

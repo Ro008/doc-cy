@@ -4,11 +4,13 @@ import * as React from "react";
 import { HelpCircle, X, Send } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import { DOCCY_OPEN_FEEDBACK_EVENT, type DocCyOpenFeedbackDetail } from "@/lib/doccy-feedback";
 
 type Subject =
   | "I have a suggestion"
   | "Something isn't working"
-  | "General Question";
+  | "General Question"
+  | "Founding Member Inquiry";
 
 type HintStage = "off" | "anim-in" | "shown" | "anim-out";
 
@@ -44,6 +46,25 @@ export function FeedbackWidget() {
     sync();
     mq.addEventListener("change", sync);
     return () => mq.removeEventListener("change", sync);
+  }, []);
+
+  React.useEffect(() => {
+    function onOpenFeedback(e: Event) {
+      const ce = e as CustomEvent<DocCyOpenFeedbackDetail>;
+      const next = ce.detail?.subject;
+      if (next === "Founding Member Inquiry") {
+        setSubject("Founding Member Inquiry");
+      } else {
+        setSubject("I have a suggestion");
+      }
+      setMessage("");
+      setError(null);
+      setSent(false);
+      setOpen(true);
+      setHintStage("off");
+    }
+    window.addEventListener(DOCCY_OPEN_FEEDBACK_EVENT, onOpenFeedback);
+    return () => window.removeEventListener(DOCCY_OPEN_FEEDBACK_EVENT, onOpenFeedback);
   }, []);
 
   React.useEffect(() => {
@@ -209,7 +230,7 @@ export function FeedbackWidget() {
   return (
     <>
       {/* Floating help: mint button + timed tooltip to the left */}
-      <div className="fixed bottom-5 right-5 z-50 flex flex-row-reverse items-center gap-2 sm:bottom-6 sm:right-6">
+      <div className="fixed bottom-5 right-5 z-[90] flex flex-row-reverse items-center gap-2 sm:bottom-6 sm:right-6">
         {showHintBubble && (
           <div
             role="tooltip"
@@ -248,7 +269,7 @@ export function FeedbackWidget() {
       {/* Modal */}
       {open && (
         <div
-          className="fixed inset-0 z-50 flex items-end justify-center p-4 sm:items-center"
+          className="fixed inset-0 z-[90] flex items-end justify-center p-4 sm:items-center"
           role="dialog"
           aria-modal="true"
           aria-labelledby="feedback-dialog-title"
@@ -327,22 +348,37 @@ export function FeedbackWidget() {
                     </div>
                   )}
 
-                  <label className="block text-xs font-medium text-slate-200">
+                  <div className="block text-xs font-medium text-slate-200">
                     Topic
-                    <select
-                      value={subject}
-                      onChange={(e) => setSubject(e.target.value as Subject)}
-                      className="mt-1 w-full rounded-2xl border border-slate-700 bg-slate-900/60 px-3 py-2 text-sm text-slate-100 shadow-sm outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/40"
-                    >
-                      <option value="I have a suggestion">
-                        I have a suggestion
-                      </option>
-                      <option value={"Something isn't working"}>
-                        Something isn&apos;t working
-                      </option>
-                      <option value="General Question">General Question</option>
-                    </select>
-                  </label>
+                    {subject === "Founding Member Inquiry" ? (
+                      <div className="mt-1 rounded-2xl border border-emerald-400/35 bg-emerald-400/10 px-3 py-2.5">
+                        <p className="text-sm font-medium text-emerald-100">
+                          Founding Member Inquiry
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => setSubject("I have a suggestion")}
+                          className="mt-1.5 text-[11px] text-slate-400 underline decoration-slate-500 underline-offset-2 transition hover:text-slate-300"
+                        >
+                          Use a different topic
+                        </button>
+                      </div>
+                    ) : (
+                      <select
+                        value={subject}
+                        onChange={(e) => setSubject(e.target.value as Subject)}
+                        className="mt-1 w-full rounded-2xl border border-slate-700 bg-slate-900/60 px-3 py-2 text-sm text-slate-100 shadow-sm outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/40"
+                      >
+                        <option value="I have a suggestion">
+                          I have a suggestion
+                        </option>
+                        <option value={"Something isn't working"}>
+                          Something isn&apos;t working
+                        </option>
+                        <option value="General Question">General Question</option>
+                      </select>
+                    )}
+                  </div>
 
                   <label className="block text-xs font-medium text-slate-200">
                     Message

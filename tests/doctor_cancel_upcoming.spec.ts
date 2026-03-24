@@ -86,9 +86,9 @@ test.describe("Upcoming appointments cancellation @booking-creates", () => {
     // 2. Visit dashboard and locate the appointment in "Upcoming on other days"
     await page.goto("/agenda");
 
-    await expect(
-      page.getByRole("heading", { name: /Your agenda/i })
-    ).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText(/Your Agenda · Today/i)).toBeVisible({
+      timeout: 10000,
+    });
 
     const upcomingSection = page
       .getByRole("heading", { name: /Upcoming on other days/i })

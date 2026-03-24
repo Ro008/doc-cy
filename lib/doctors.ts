@@ -13,5 +13,7 @@ export type DoctorRow = {
   status?: string | null;
   /** false when custom “Other” specialty awaits founder review */
   is_specialty_approved?: boolean | null;
+  /** `founder` = first 100 locked pricing; `standard` otherwise */
+  subscription_tier?: "founder" | "standard" | null;
 };
 

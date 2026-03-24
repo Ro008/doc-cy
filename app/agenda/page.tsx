@@ -8,11 +8,17 @@ import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
 import { format } from "date-fns";
 import { enGB } from "date-fns/locale";
 import { utcToZonedTime } from "date-fns-tz";
+import { ArrowLeft } from "lucide-react";
 import { AgendaRealtime } from "@/components/agenda/AgendaRealtime";
 import { SignOutButton } from "@/components/auth/SignOutButton";
 import { CY_TZ } from "@/lib/appointments";
 import { ViewPublicProfileLink } from "@/components/agenda/ViewPublicProfileLink";
-import { OnlineBookingsPauseToggle } from "@/components/dashboard/OnlineBookingsPauseToggle";
+import { FoundingMemberBadge } from "@/components/dashboard/FoundingMemberBadge";
+import { isFounderSubscriptionTier } from "@/lib/subscription-tier";
+import { doctorDashboardDisplayName } from "@/lib/doctor-display-name";
+import { DashboardUtilityRow } from "@/components/agenda/DashboardUtilityRow";
+import { DashboardSecondaryButton } from "@/components/agenda/DashboardSecondaryButton";
+import { CyprusTimeStamp } from "@/components/agenda/CyprusTimeStamp";
 
 export default async function AgendaPage() {
   const supabase = createServerComponentClient({ cookies });
@@ -26,11 +32,29 @@ export default async function AgendaPage() {
     redirect("/login");
   }
 
-  const { data: doctor, error: doctorError } = await supabase
+  let doctorRes = await supabase
     .from("doctors")
-    .select("id, name, status, auth_user_id, slug")
+    .select("id, name, status, auth_user_id, slug, subscription_tier")
     .eq("auth_user_id", user.id)
     .single();
+
+  const tierMissingAgenda =
+    doctorRes.error &&
+    (String(doctorRes.error.message ?? "")
+      .toLowerCase()
+      .includes("subscription_tier") ||
+      (doctorRes.error as { code?: string }).code === "42703");
+
+  if (tierMissingAgenda) {
+    doctorRes = await supabase
+      .from("doctors")
+      .select("id, name, status, auth_user_id, slug")
+      .eq("auth_user_id", user.id)
+      .single();
+  }
+
+  const doctor = doctorRes.data;
+  const doctorError = doctorRes.error;
 
   if (doctorError) {
     console.error("[Agenda] Error fetching doctor for user", doctorError);
@@ -58,16 +82,6 @@ export default async function AgendaPage() {
     );
   }
 
-  const { data: onlineSettings, error: onlineSettingsErr } = await supabase
-    .from("doctor_settings")
-    .select("pause_online_bookings")
-    .eq("doctor_id", doctor.id)
-    .maybeSingle();
-
-  const pauseOnlineBookings = Boolean(
-    !onlineSettingsErr && onlineSettings?.pause_online_bookings
-  );
-
   const { data: appointments, error } = await supabase
     .from("appointments")
     .select(
@@ -86,9 +100,11 @@ export default async function AgendaPage() {
     locale: enGB,
   });
 
-  const rawName = (doctor.name ?? "").trim();
-  const doctorName =
-    rawName.toLowerCase().startsWith("dr") ? rawName : `Dr. ${rawName}`;
+  const displayName = doctorDashboardDisplayName(doctor.name);
+
+  const isFoundingMember = isFounderSubscriptionTier(
+    (doctor as { subscription_tier?: string | null }).subscription_tier
+  );
 
   return (
     <main className="min-h-screen bg-slate-950 text-slate-50">
@@ -98,41 +114,55 @@ export default async function AgendaPage() {
         <div className="absolute inset-y-0 right-[-15%] h-full w-72 bg-emerald-400/10 blur-3xl" />
       </div>
 
-      <div className="mx-auto flex min-h-screen max-w-6xl flex-col gap-6 px-4 py-8 sm:px-6 lg:px-8 lg:py-12">
-        <header className="flex flex-col justify-between gap-3 md:flex-row md:items-end">
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight text-slate-50 sm:text-3xl">
-              Your agenda, {doctorName}
-            </h1>
-            <p className="mt-1 text-sm text-slate-300">
-              Today&apos;s schedule · Europe/Nicosia time
+      <div className="mx-auto flex min-h-screen w-full max-w-5xl flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+        <DashboardUtilityRow
+          left={
+            <Link
+              href="/"
+              className="inline-flex items-center gap-2 text-xs font-medium text-slate-400 transition hover:text-slate-200"
+            >
+              <ArrowLeft className="h-3.5 w-3.5 shrink-0" aria-hidden />
+              Home
+            </Link>
+          }
+          right={
+            <>
+              <SignOutButton variant="utility" />
+              <CyprusTimeStamp label={nowLabel} variant="discreet" />
+            </>
+          }
+        />
+
+        <header className="flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between lg:gap-10">
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-3">
+              <h1 className="text-balance text-3xl font-semibold tracking-tight text-slate-50 sm:text-4xl">
+                {displayName}
+              </h1>
+              {isFoundingMember ? <FoundingMemberBadge /> : null}
+            </div>
+            <p className="mt-3 text-sm text-slate-400">
+              Your Agenda · Today&apos;s schedule
             </p>
             {doctor.status !== "verified" && (
-              <p className="mt-3 inline-flex items-center gap-2 rounded-2xl border border-amber-400/30 bg-amber-400/10 px-3 py-1 text-xs font-medium text-amber-100">
-                <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-300" />
+              <p className="mt-4 inline-flex max-w-prose items-center gap-2 rounded-2xl border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-xs font-medium text-amber-100">
+                <span className="inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-amber-300" />
                 {doctor.status === "rejected"
                   ? "Your application was not approved for a public profile. Contact support if you need help."
                   : "Your public profile is under review. We’ll notify you when it’s verified."}
               </p>
             )}
           </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <Link
-              href="/agenda/settings"
-              className="rounded-2xl border border-slate-700/80 bg-slate-900/60 px-4 py-2 text-sm font-medium text-slate-200 backdrop-blur transition hover:border-emerald-400/30 hover:bg-emerald-400/10 hover:text-emerald-200"
-            >
+
+          <div className="flex w-full flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-center lg:w-auto lg:max-w-md lg:flex-nowrap lg:justify-end">
+            <DashboardSecondaryButton href="/agenda/settings">
               Working hours & settings
-            </Link>
-            <OnlineBookingsPauseToggle initialPaused={pauseOnlineBookings} />
+            </DashboardSecondaryButton>
             <ViewPublicProfileLink
               slug={doctor.slug}
               isVerified={doctor.status === "verified"}
+              variant="primary"
             />
-            <SignOutButton />
-            <p className="text-xs text-slate-400">
-              Cyprus:{" "}
-              <span className="font-mono text-slate-100">{nowLabel}</span>
-            </p>
           </div>
         </header>
 

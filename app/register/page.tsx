@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { createServiceRoleClient } from "@/lib/supabase-service";
 import { PasswordToggleInput } from "@/components/auth/PasswordToggleInput";
 import { RegisterSpecialtyFields } from "@/components/auth/RegisterSpecialtyFields";
 import { RegisterLanguageFields } from "@/components/auth/RegisterLanguageFields";
@@ -143,23 +144,30 @@ async function handleRegister(formData: FormData) {
 
   const slug = baseSlug || `doctor-${authUserId.slice(0, 8)}`;
 
-  // Insert doctor row with status: 'pending'
-  const { error: insertError } = await supabase.from("doctors").insert({
-    auth_user_id: authUserId,
-    name: fullName,
-    specialty,
-    email,
-    phone,
-    languages,
-    license_number: licenseNumber,
-    license_file_url: licenseFileUrl,
-    status: "pending",
-    slug,
-    is_specialty_approved: isSpecialtyApproved,
-  });
+  const service = createServiceRoleClient();
+  if (!service) {
+    console.error("[DocCy] SUPABASE_SERVICE_ROLE_KEY missing — cannot assign founder tier safely");
+    redirect("/register?error=db");
+  }
 
-  if (insertError) {
-    console.error("[DocCy] Failed to insert doctor row", insertError);
+  const { data: regRows, error: insertError } = await service.rpc(
+    "register_doctor_with_founder_lock",
+    {
+      p_auth_user_id: authUserId,
+      p_name: fullName,
+      p_specialty: specialty,
+      p_email: email,
+      p_phone: phone,
+      p_languages: languages,
+      p_license_number: licenseNumber,
+      p_license_file_url: licenseFileUrl,
+      p_slug: slug,
+      p_is_specialty_approved: isSpecialtyApproved,
+    }
+  );
+
+  if (insertError || !regRows?.length) {
+    console.error("[DocCy] Failed to register doctor row (RPC)", insertError);
     redirect("/register?error=db");
   }
 

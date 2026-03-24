@@ -14,9 +14,7 @@ test.describe("Agenda route protection", () => {
     await expect(
       page.getByRole("heading", { name: /Welcome back|Sign in/i })
     ).toBeVisible({ timeout: 5000 });
-    await expect(
-      page.getByRole("heading", { name: /Your agenda/i })
-    ).not.toBeVisible();
+    await expect(page.getByText(/Your Agenda · Today/i)).not.toBeVisible();
   });
 
   test("unauthenticated user visiting /agenda/settings is redirected to /login", async ({
@@ -28,9 +26,7 @@ test.describe("Agenda route protection", () => {
     await expect(
       page.getByRole("heading", { name: /Welcome back|Sign in/i })
     ).toBeVisible({ timeout: 5000 });
-    await expect(
-      page.getByRole("heading", { name: /Working hours & availability/i })
-    ).not.toBeVisible();
+    await expect(page.getByText(/^Settings$/i)).not.toBeVisible();
   });
 
   test("login page is functional after redirect (no broken redirect loop)", async ({

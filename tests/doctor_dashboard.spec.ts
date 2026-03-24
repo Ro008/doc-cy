@@ -6,9 +6,12 @@ import { signInDoctorAndSetCookies } from "./helpers/doctorAuth";
 async function signIn(page: any) {
   await signInDoctorAndSetCookies(page as Page);
   await page.goto("/agenda");
-  await expect(
-    page.getByRole("heading", { level: 1, name: /Your agenda/i })
-  ).toBeVisible({ timeout: 10000 });
+  await expect(page.getByText(/Your Agenda · Today/i)).toBeVisible({
+    timeout: 10000,
+  });
+  await expect(page.locator("main header h1").first()).toBeVisible({
+    timeout: 10000,
+  });
 }
 
 test.describe("Doctor dashboard", () => {
@@ -41,9 +44,9 @@ test.describe("Doctor dashboard", () => {
     await page.setViewportSize({ width: 1024, height: 768 });
     await signIn(page);
 
-    await expect(
-      page.getByRole("heading", { level: 1, name: /Your agenda/i })
-    ).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText(/Your Agenda · Today/i)).toBeVisible({
+      timeout: 10000,
+    });
 
     const todaySection = page.locator("section").first();
     await expect(todaySection).toBeVisible();
@@ -72,9 +75,9 @@ test.describe("Doctor dashboard", () => {
     await page.setViewportSize({ width: 320, height: 568 });
     await signIn(page);
 
-    await expect(
-      page.getByRole("heading", { level: 1, name: /Your agenda/i })
-    ).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText(/Your Agenda · Today/i)).toBeVisible({
+      timeout: 10000,
+    });
 
     // On mobile we show stacked cards, not the desktop timeline
     const todaySection = page.locator("section").first();
@@ -93,9 +96,9 @@ test.describe("Doctor dashboard", () => {
     test.setTimeout(60000);
     await signIn(page);
 
-    await expect(
-      page.getByRole("heading", { level: 1, name: /Your agenda/i })
-    ).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText(/Your Agenda · Today/i)).toBeVisible({
+      timeout: 10000,
+    });
 
     const settingsLink = page.getByRole("link", {
       name: /Working hours & settings/i,
@@ -108,8 +111,11 @@ test.describe("Doctor dashboard", () => {
       settingsLink.click(),
     ]);
     await expect(page).toHaveURL("/agenda/settings");
-    await expect(
-      page.getByRole("heading", { name: /Working hours & availability/i })
-    ).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText(/^Settings$/i).first()).toBeVisible({
+      timeout: 5000,
+    });
+    await expect(page.locator("main header h1").first()).toBeVisible({
+      timeout: 5000,
+    });
   });
 });

@@ -2,10 +2,14 @@
 
 import * as React from "react";
 
+type Layout = "card" | "header";
+
 export function OnlineBookingsPauseToggle({
   initialPaused,
+  layout = "card",
 }: {
   initialPaused: boolean;
+  layout?: Layout;
 }) {
   const [paused, setPaused] = React.useState(initialPaused);
   const [saving, setSaving] = React.useState(false);
@@ -15,7 +19,7 @@ export function OnlineBookingsPauseToggle({
     setPaused(initialPaused);
   }, [initialPaused]);
 
-  async function onToggle(next: boolean) {
+  async function setPausedRemote(next: boolean) {
     setError(null);
     setSaving(true);
     try {
@@ -40,40 +44,57 @@ export function OnlineBookingsPauseToggle({
     }
   }
 
+  const accepting = !paused;
+  const switchId = React.useId();
+
+  const track = accepting ? "bg-emerald-500/90" : "bg-slate-600";
+
+  const shell =
+    layout === "header"
+      ? "rounded-lg border border-slate-700/60 bg-slate-900/40 px-2.5 py-1.5 sm:px-3 sm:py-1.5"
+      : "rounded-2xl border border-slate-700/80 bg-slate-900/60 px-4 py-3 backdrop-blur";
+
   return (
-    <div className="rounded-2xl border border-slate-700/80 bg-slate-900/60 px-4 py-3 backdrop-blur">
-      <div className="flex items-center gap-3">
-        <label className="flex flex-1 cursor-pointer items-center gap-3">
-          <input
-            type="checkbox"
-            checked={paused}
-            disabled={saving}
-            onChange={(e) => onToggle(e.target.checked)}
-            className="h-5 w-5 rounded border-slate-600 bg-slate-900 text-emerald-500 focus:ring-emerald-400/60"
-            aria-label="Pause online bookings"
+    <div className={shell}>
+      <div className="flex items-center justify-between gap-2.5">
+        <div className="min-w-0 flex-1">
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+            Online bookings
+          </p>
+          <p
+            className={`mt-0 text-xs font-medium leading-tight ${
+              accepting ? "text-emerald-200" : "text-amber-200/95"
+            }`}
+          >
+            {accepting ? "Accepting appointments" : "Paused"}
+          </p>
+        </div>
+        <button
+          id={switchId}
+          type="button"
+          role="switch"
+          aria-checked={accepting}
+          aria-busy={saving}
+          disabled={saving}
+          onClick={() => setPausedRemote(!paused)}
+          className={`relative h-7 w-11 shrink-0 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 disabled:opacity-50 ${track}`}
+        >
+          <span
+            className={`absolute left-0.5 top-1/2 h-6 w-6 -translate-y-1/2 rounded-full bg-white shadow-md transition-transform duration-200 ease-out ${
+              accepting ? "translate-x-[1.125rem]" : "translate-x-0"
+            }`}
+            aria-hidden
           />
-          <div className="min-w-0">
-            <p className="text-sm font-medium text-slate-200">
-              Pause Online Bookings
-            </p>
-            <p
-              className={`mt-0.5 text-xs ${
-                paused ? "text-amber-200" : "text-emerald-200"
-              }`}
-            >
-              {paused
-                ? "Appointments paused"
-                : "Currently accepting appointments"}
-            </p>
-          </div>
-        </label>
+          <span className="sr-only">
+            {accepting ? "Pause online bookings" : "Resume online bookings"}
+          </span>
+        </button>
       </div>
-      {error && (
+      {error ? (
         <p className="mt-2 text-xs text-red-200" role="alert">
           {error}
         </p>
-      )}
+      ) : null}
     </div>
   );
 }
-
