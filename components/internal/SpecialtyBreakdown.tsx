@@ -24,7 +24,7 @@ export function SpecialtyBreakdown({ items }: Props) {
         </div>
         <div>
           <h2 className="text-sm font-semibold text-slate-100">Specialty mix</h2>
-          <p className="text-xs text-slate-500">Doctors per specialty</p>
+          <p className="text-xs text-slate-500">Professionals per specialty</p>
         </div>
       </div>
       {top.length === 0 ? (

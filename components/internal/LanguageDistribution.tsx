@@ -17,7 +17,7 @@ export function LanguageDistribution({ items, totalDoctorCount }: Props) {
         <div>
           <h2 className="text-sm font-semibold text-slate-100">Languages</h2>
           <p className="text-xs text-slate-500">
-            Times listed · {totalDoctorCount} doctor{totalDoctorCount !== 1 ? "s" : ""} total
+            Times listed · {totalDoctorCount} professional{totalDoctorCount !== 1 ? "s" : ""} total
           </p>
         </div>
       </div>
@@ -38,7 +38,7 @@ export function LanguageDistribution({ items, totalDoctorCount }: Props) {
                   <span className="truncate font-medium text-slate-300">{label}</span>
                   <span className="shrink-0 tabular-nums text-slate-500">
                     {count}
-                    <span className="text-slate-600"> · {share}% of doctors</span>
+                    <span className="text-slate-600"> · {share}% of professionals</span>
                   </span>
                 </div>
                 <div className="h-2 overflow-hidden rounded-full bg-slate-800/80">

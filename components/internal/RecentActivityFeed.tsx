@@ -60,7 +60,7 @@ export function RecentActivityFeed({ items }: Props) {
               <p className="mt-1 text-xs text-slate-400">
                 with{" "}
                 <span className="text-slate-300">
-                  {row.doctor_name ?? "Unknown doctor"}
+                  {row.doctor_name ?? "Unknown professional"}
                 </span>
               </p>
               <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-slate-500">

@@ -87,7 +87,9 @@ export default async function FounderDashboardPage() {
     return (
       <main className="min-h-screen bg-slate-950 px-4 py-16 text-slate-200">
         <div className="mx-auto max-w-lg rounded-2xl border border-red-500/30 bg-red-500/10 p-6">
-          <h1 className="text-lg font-semibold text-red-100">Could not load doctors</h1>
+          <h1 className="text-lg font-semibold text-red-100">
+            Could not load professionals
+          </h1>
           <p className="mt-2 text-sm text-red-100/90">{doctorsRes.error.message}</p>
           <Link href="/internal" className="mt-6 inline-block text-sm text-emerald-300 hover:underline">
             ← Back to gate
@@ -221,7 +223,7 @@ export default async function FounderDashboardPage() {
               Dashboard
             </h1>
             <p className="mt-1 text-sm text-slate-500">
-              Platform health · doctors · bookings · live data
+              Platform health · professionals · bookings · live data
             </p>
           </div>
           <InternalSignOutButton />
@@ -252,7 +254,9 @@ export default async function FounderDashboardPage() {
             <section className="rounded-2xl border border-slate-800/80 bg-slate-900/25 p-5 shadow-inner shadow-black/20 backdrop-blur-sm">
               <div className="mb-5 flex flex-col gap-1 border-b border-slate-800/60 pb-4 sm:flex-row sm:items-end sm:justify-between">
                 <div>
-                  <h2 className="text-sm font-semibold text-slate-100">Doctor directory</h2>
+                  <h2 className="text-sm font-semibold text-slate-100">
+                    Professional directory
+                  </h2>
                   <p className="text-xs text-slate-500">Search, filter, open public profiles</p>
                 </div>
               </div>

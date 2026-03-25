@@ -164,7 +164,7 @@ export function InternalDirectoryClient({
         <table className="w-full min-w-[860px] border-collapse text-left text-sm">
           <thead>
             <tr className="border-b border-slate-800/80 text-xs uppercase tracking-wide text-slate-500">
-              <th className="px-4 py-3 font-semibold">Doctor</th>
+              <th className="px-4 py-3 font-semibold">Professional</th>
               <th className="px-4 py-3 font-semibold">Specialty</th>
               <th className="px-4 py-3 font-semibold">License #</th>
               <th className="px-4 py-3 font-semibold">Status</th>
@@ -232,7 +232,7 @@ export function InternalDirectoryClient({
                         onClick={() => runAction(d.id, "verify")}
                         className="rounded-lg bg-emerald-500/20 px-3 py-1.5 text-xs font-semibold text-emerald-100 ring-1 ring-emerald-500/35 transition hover:bg-emerald-500/30 disabled:opacity-50"
                       >
-                        Verify doctor
+                        Verify professional
                       </button>
                       <button
                         type="button"
@@ -264,7 +264,9 @@ export function InternalDirectoryClient({
       </div>
 
       {filtered.length === 0 ? (
-        <p className="py-8 text-center text-sm text-slate-500">No doctors match your filters.</p>
+        <p className="py-8 text-center text-sm text-slate-500">
+          No professionals match your filters.
+        </p>
       ) : null}
     </div>
   );

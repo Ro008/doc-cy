@@ -38,7 +38,7 @@ export function DoctorDetailsAccordion({
           aria-controls="doctor-details-panel"
         >
           <span className="font-semibold">
-            About Dr. {name.split(" ").slice(-1)[0] || name}
+            About {name.split(" ").slice(-1)[0] || name}
           </span>
           <ChevronDown
             className={`h-4 w-4 shrink-0 text-slate-400 transition-transform ${
@@ -60,7 +60,7 @@ export function DoctorDetailsAccordion({
                 About
               </p>
               <p className="mt-2 text-sm leading-relaxed text-slate-300">
-                {truncatedBio || "This doctor has not added a bio yet."}
+                {truncatedBio || "This professional has not added a bio yet."}
               </p>
             </div>
 

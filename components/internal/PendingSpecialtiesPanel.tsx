@@ -85,7 +85,7 @@ export function PendingSpecialtiesPanel({ items }: { items: PendingSpecialtyRow[
         <div className="min-w-0 flex-1">
           <h2 className="text-sm font-semibold text-amber-100">Pending specialties</h2>
           <p className="mt-1 text-xs text-amber-100/80">
-            These doctors used &quot;Other (Specify)&quot; or have a custom label. Approve as-is or map to a
+            These professionals used &quot;Other (Specify)&quot; or have a custom label. Approve as-is or map to a
             standard category. (Adding new master list entries is still a code change — map when
             possible.)
           </p>

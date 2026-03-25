@@ -63,7 +63,7 @@ export function FounderKpiCards({
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
       <KpiCard
-        label="Total doctors"
+        label="Total professionals"
         value={totalDoctors}
         sub="Registered profiles"
         Icon={Users}
@@ -90,7 +90,7 @@ export function FounderKpiCards({
         <ResendUsageBar totalAppointments={totalAppointments} />
       </div>
       <KpiCard
-        label="Active doctors (7d)"
+        label="Active professionals (7d)"
         value={activeDoctors7d}
         sub="Received a booking"
         Icon={Activity}
@@ -98,7 +98,7 @@ export function FounderKpiCards({
         iconBg="bg-violet-500/15 text-violet-300"
       />
       <KpiCard
-        label="New doctors (week)"
+        label="New professionals (week)"
         value={newDoctorsThisWeek}
         sub="Since Mon (local)"
         Icon={UserPlus}

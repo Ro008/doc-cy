@@ -33,14 +33,14 @@ export type PatientCalendarVisitReason = {
 };
 
 /**
- * Last token of the doctor's name, after stripping a leading "Dr." prefix.
+ * Last token of the clinician's name, after stripping a leading honorific.
  */
 export function doctorLastNameForCalendar(fullName: string | null | undefined): string {
   const cleaned = String(fullName ?? "")
     .replace(/^dr\.?\s+/i, "")
     .trim();
   const parts = cleaned.split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return "Doctor";
+  if (parts.length === 0) return "Professional";
   return parts[parts.length - 1]!;
 }
 
@@ -64,7 +64,7 @@ export function getCalendarEventDetails(
 ): PatientCalendarEventDetails {
   const specialty = specialtyLabelForCalendar(doctor.specialty);
   const last = doctorLastNameForCalendar(doctor.name);
-  const title = `🩺 ${specialty}: Dr. ${last}`;
+  const title = `🩺 ${specialty}: ${last}`;
 
   const wa = phoneToWaMeLink(doctor.phone);
   const waLine = wa

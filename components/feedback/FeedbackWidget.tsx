@@ -310,7 +310,7 @@ export function FeedbackWidget() {
                   id="feedback-dialog-title"
                   className="mt-1 text-base font-semibold text-slate-50"
                 >
-                  How can we help you, Doctor?
+                  How can we help you?
                 </h3>
                 <p className="mt-1 text-xs text-slate-400">
                   Share an idea, ask a question, or tell us if something

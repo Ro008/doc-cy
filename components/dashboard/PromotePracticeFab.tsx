@@ -66,7 +66,7 @@ export function PromotePracticeFab() {
 
       setDoctor({
         slug: data.slug ?? null,
-        name: data.name ?? "Doctor",
+        name: data.name ?? "Professional",
         status: (data as { status?: string | null }).status ?? null,
       });
       setReady(true);
