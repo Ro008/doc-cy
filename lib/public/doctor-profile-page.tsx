@@ -1,7 +1,7 @@
-// app/[slug]/page.tsx
 import Image from "next/image";
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
+
 import { supabase } from "@/lib/supabase";
 import { BookingSection } from "@/components/doctor/BookingSection";
 import { DoctorDetailsAccordion } from "@/components/doctor/DoctorDetailsAccordion";
@@ -18,11 +18,14 @@ import {
 import { appointmentToCyprusDate } from "@/lib/appointments";
 import { format } from "date-fns";
 import { CLINIC_ADDRESS, MAPS_URL } from "@/lib/clinic-info";
+import { headers } from "next/headers";
 import {
   DOCTOR_FIELD_LIST_METADATA,
   DOCTOR_FIELD_LIST_PUBLIC_PROFILE,
   DOCTOR_FIELD_LIST_PUBLIC_PROFILE_NO_LANG,
 } from "@/lib/doctor-fieldsets";
+import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher";
+import { getTranslations } from "next-intl/server";
 
 const DOCTOR_AVATAR_URL =
   "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=400&h=400&fit=crop";
@@ -38,7 +41,7 @@ type DoctorProfileRow = {
   languages?: string[] | null;
 };
 
-type PageProps = {
+export type PageProps = {
   params: { slug: string };
 };
 
@@ -245,6 +248,9 @@ export async function generateMetadata({
 
 export default async function DoctorPage({ params }: PageProps) {
   const result = await fetchPublicDoctorBySlug(params.slug);
+  const t = await getTranslations("DoctorProfilePage");
+  const activeLocale = headers().get("x-next-intl-locale") ?? "en";
+  const isEl = activeLocale === "el";
 
   if (result.kind === "not_found") {
     console.error(
@@ -377,10 +383,10 @@ export default async function DoctorPage({ params }: PageProps) {
                 priority
               />
             </div>
-            <div>
-              <p className="text-xs font-semibold tracking-[0.2em] text-emerald-200/80">
-                Doc<span className="text-emerald-400">Cy</span> · Professional
-                profile
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-semibold tracking-[0.2em] text-emerald-200/80 break-words">
+                Doc<span className="text-emerald-400">Cy</span> ·{" "}
+                {t("profileTag")}
               </p>
               <h1 className="mt-3 text-balance text-3xl font-semibold tracking-tight text-slate-50 sm:text-4xl">
                 {profile.name}
@@ -392,13 +398,30 @@ export default async function DoctorPage({ params }: PageProps) {
               profile.languages.length > 0 ? (
                 <LanguagesSpoken
                   languages={profile.languages}
-                  className="mt-2.5"
+                  className="mt-2.5 w-full"
                 />
               ) : null}
+
             </div>
           </div>
-          <div className="hidden rounded-full bg-slate-900/60 px-4 py-2 text-xs text-slate-300 backdrop-blur sm:block">
-            Cyprus local time
+          {/* Mobile UX: utility row below languages (aligns with booking cards) */}
+          <div className="sm:hidden w-full flex flex-wrap items-center justify-start gap-3 mt-3">
+            <LanguageSwitcher />
+            <div className="rounded-full bg-slate-900/60 px-4 py-2 text-xs text-slate-300 backdrop-blur whitespace-nowrap">
+              {/* On very narrow screens, shorten the Cyprus time pill for GR */}
+              <span className={isEl ? "hidden max-[374px]:inline" : "hidden"}>
+                Ώρα Κύπρου
+              </span>
+              <span className={isEl ? "inline max-[374px]:hidden" : ""}>
+                {t("cyprusLocalTime")}
+              </span>
+            </div>
+          </div>
+          <div className="hidden sm:flex sm:items-center sm:gap-3">
+            <LanguageSwitcher />
+            <div className="rounded-full bg-slate-900/60 px-4 py-2 text-xs text-slate-300 backdrop-blur">
+              {t("cyprusLocalTime")}
+            </div>
           </div>
         </header>
 
@@ -473,3 +496,4 @@ export default async function DoctorPage({ params }: PageProps) {
     </main>
   );
 }
+

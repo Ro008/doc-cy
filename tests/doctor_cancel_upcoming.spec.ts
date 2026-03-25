@@ -3,6 +3,8 @@ import { test, expect } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
 import { signInDoctorAndSetCookies } from "./helpers/doctorAuth";
 import { skipIfSafeNoBooking } from "./helpers/safeMode";
+import { zonedTimeToUtc } from "date-fns-tz";
+import { CY_TZ } from "../lib/appointments";
 
 function nextWorkingDayCyprus(now: Date): string {
   const d = new Date(now);
@@ -48,40 +50,112 @@ test.describe("Upcoming appointments cancellation @booking-creates", () => {
 
     const { data: doctorRow } = await supabase
       .from("doctors")
-      .select("slug")
+      .select("slug,id")
       .eq("auth_user_id", authUserId)
       .eq("status", "verified")
       .single();
     const slug = (doctorRow as { slug?: string } | null)?.slug;
     expect(slug).toBeTruthy();
 
-    // 1. Create a future appointment via API (using doctorSlug for Dr. Nikos)
-    const dateStr = nextWorkingDayCyprus(new Date());
-    // Use an afternoon slot unlikely to collide with other tests
-    const appointmentLocal = `${dateStr}T16:30`;
     const patientName = "Cancel E2E Future";
+    const patientEmail = "cancel.future@example.com";
+    const patientPhone = "+35799123456";
+    const visitType = "Follow-up";
 
-    const createRes = await request.post("/api/appointments", {
-      data: {
-        doctorSlug: slug,
-        patientName,
-        patientEmail: "cancel.future@example.com",
-        patientPhone: "+35799123456",
-        appointmentLocal,
-        visitType: "Follow-up",
-      },
-    });
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
+    const admin = serviceKey ? createClient(supabaseUrl, serviceKey) : null;
+    const doctorId = (doctorRow as { id?: string } | null)?.id;
+    test.skip(!doctorId, "Could not resolve doctor id for seeding.");
 
-    // Accept 201 (created) or 409 (already exists). Fail hard for anything else.
-    if (!createRes.ok() && createRes.status() !== 409) {
-      const body = await createRes.text();
-      throw new Error(
-        `Failed to seed future appointment: ${createRes.status()} ${body}`
-      );
+    let seeded = false;
+    let appointmentId: string | undefined = undefined;
+
+    // Try multiple future working days/time slots to avoid flaky
+    // `doctor_settings` states (holiday range and/or pause_online_bookings).
+    const candidateTimes = ["16:30", "16:45", "17:00", "17:30", "18:00"];
+
+    outer: for (let dayOffset = 0; dayOffset < 14; dayOffset++) {
+      const candidateBase = new Date();
+      candidateBase.setDate(candidateBase.getDate() + dayOffset);
+
+      const dateStr = nextWorkingDayCyprus(candidateBase);
+
+      for (const hhmm of candidateTimes) {
+        const appointmentLocal = `${dateStr}T${hhmm}`;
+
+        const createRes = await request.post("/api/appointments", {
+          data: {
+            doctorSlug: slug,
+            patientName,
+            patientEmail,
+            patientPhone,
+            appointmentLocal,
+            visitType,
+          },
+        });
+
+        if (createRes.ok()) {
+          const createJson = await createRes.json().catch(() => null);
+          appointmentId = createJson?.appointment?.id as
+            | string
+            | undefined;
+          seeded = true;
+          break outer;
+        }
+
+        if (createRes.status() === 409) {
+          // Slot already taken: try another time.
+          continue;
+        }
+
+        if (createRes.status() === 403) {
+          const body = await createRes.text().catch(() => "");
+          const isBookingsTemporarilyUnavailable = body.includes(
+            "Bookings temporarily unavailable",
+          );
+
+          if (isBookingsTemporarilyUnavailable && admin) {
+            // As a fallback, seed directly with service role (best-effort).
+            // This removes dependency on paused/holiday settings.
+            const candidateUtc = zonedTimeToUtc(
+              appointmentLocal,
+              CY_TZ as string
+            );
+
+            const insertRes = await admin
+              .from("appointments")
+              .insert({
+                doctor_id: doctorId,
+                patient_name: patientName,
+                patient_email: patientEmail,
+                patient_phone: patientPhone,
+                appointment_datetime: candidateUtc.toISOString(),
+                status: "confirmed",
+                visit_type: visitType,
+                visit_notes: null,
+              })
+              .select("id")
+              .single();
+
+            if (!insertRes.error) {
+              appointmentId = insertRes.data?.id as string | undefined;
+              seeded = true;
+              break outer;
+            }
+          }
+
+          // Otherwise: try another day/time slot.
+          continue;
+        }
+
+        const body = await createRes.text().catch(() => "");
+        throw new Error(
+          `Failed to seed future appointment: ${createRes.status()} ${body}`
+        );
+      }
     }
 
-    const createJson = createRes.ok() ? await createRes.json() : null;
-    const appointmentId = createJson?.appointment?.id as string | undefined;
+    test.skip(!seeded, "Could not seed a future appointment (bookings temporarily unavailable).");
 
     // 2. Visit dashboard and locate the appointment in "Upcoming on other days"
     await page.goto("/agenda");

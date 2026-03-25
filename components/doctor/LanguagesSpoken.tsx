@@ -20,7 +20,7 @@ export function LanguagesSpoken({ languages, className = "" }: LanguagesSpokenPr
     <div
       role="region"
       aria-label="Languages spoken by this professional"
-      className={`flex flex-wrap items-baseline gap-x-2 gap-y-1.5 ${className}`}
+      className={`flex flex-wrap items-center gap-x-2 gap-y-1.5 w-full min-w-0 ${className}`}
     >
       <span className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate-500">
         Speaks

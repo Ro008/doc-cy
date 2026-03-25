@@ -38,7 +38,7 @@ test.describe("Doctor profile mobile layout", () => {
 
     // Accordion button for details exists and is collapsed by default
     const accordionButton = page.getByRole("button", {
-      name: /About Dr\./i,
+      name: /About/i,
     });
     await expect(accordionButton).toBeVisible();
     await expect(accordionButton).toHaveAttribute("aria-expanded", "false");

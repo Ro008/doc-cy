@@ -7,6 +7,7 @@ import {
   PhoneInputProps as IntlPhoneInputProps,
 } from "react-international-phone";
 import "react-international-phone/style.css";
+import { useTranslations } from "next-intl";
 
 export type PhoneInputProps = {
   value: string;
@@ -27,6 +28,7 @@ export function PhoneInput({
   showValidationError = false,
 }: PhoneInputProps) {
   const [isValid, setIsValid] = React.useState(true);
+  const t = useTranslations("BookingPage");
 
   const handleChange: IntlPhoneInputProps["onChange"] = (phone, meta) => {
     // Lightweight validation based on length relative to country dial code
@@ -60,7 +62,7 @@ export function PhoneInput({
       />
       {showValidationError && !isValid && (
         <p className="text-xs text-red-600">
-          Please double‑check the phone number length for the selected country.
+          {t("phoneValidationError")}
         </p>
       )}
     </div>

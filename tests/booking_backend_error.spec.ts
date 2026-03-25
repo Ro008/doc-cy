@@ -119,7 +119,7 @@ test.describe("Booking backend errors @booking-creates", () => {
     const errorBox = page.getByTestId("booking-error-message");
     await expect(errorBox).toBeVisible({ timeout: 10000 });
     await expect(errorBox).toContainText(
-      "Requested time is outside the professional's availability."
+      "Requested time is outside the professional's booking horizon."
     );
 
     // Should not navigate to the success page

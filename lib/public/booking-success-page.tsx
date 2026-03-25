@@ -3,12 +3,14 @@ import { redirect } from "next/navigation";
 import { format } from "date-fns";
 import { addMinutes } from "date-fns";
 import { CheckCircle2, CalendarPlus } from "lucide-react";
+
 import { createServiceRoleClient } from "@/lib/supabase-service";
 import { appointmentToCyprusDate } from "@/lib/appointments";
 import {
   buildGoogleCalendarUrl,
   getCalendarEventDetails,
 } from "@/lib/patient-calendar-event";
+import { getTranslations } from "next-intl/server";
 
 type PageProps = {
   params: { slug: string };
@@ -21,6 +23,7 @@ export default async function BookingSuccessPage({
   params,
   searchParams,
 }: PageProps) {
+  const t = await getTranslations("BookingPage");
   const appointmentId = (searchParams?.appointmentId ?? "").trim();
   if (!appointmentId) {
     redirect(`/${params.slug}`);
@@ -34,7 +37,7 @@ export default async function BookingSuccessPage({
   const { data: appointment, error: apptError } = await supabase
     .from("appointments")
     .select(
-      "id, doctor_id, patient_name, appointment_datetime, status, visit_type, visit_notes"
+      "id, doctor_id, patient_name, appointment_datetime, status, visit_type, visit_notes",
     )
     .eq("id", appointmentId)
     .single();
@@ -64,7 +67,7 @@ export default async function BookingSuccessPage({
 
   if (doctor.slug !== params.slug) {
     redirect(
-      `/${doctor.slug}/success?appointmentId=${encodeURIComponent(appointmentId)}`
+      `/${doctor.slug}/success?appointmentId=${encodeURIComponent(appointmentId)}`,
     );
   }
 
@@ -85,7 +88,10 @@ export default async function BookingSuccessPage({
   };
 
   const cal = getCalendarEventDetails(
-    { id: appointment.id as string, appointment_datetime: appointment.appointment_datetime as string },
+    {
+      id: appointment.id as string,
+      appointment_datetime: appointment.appointment_datetime as string,
+    },
     {
       name: doctor.name,
       specialty: (doctor as { specialty?: string | null }).specialty,
@@ -95,7 +101,7 @@ export default async function BookingSuccessPage({
     {
       visitType: apptRow.visit_type,
       visitNotes: apptRow.visit_notes,
-    }
+    },
   );
 
   const googleUrl = buildGoogleCalendarUrl({
@@ -131,19 +137,18 @@ export default async function BookingSuccessPage({
             </div>
 
             <h1 className="mt-6 text-2xl font-bold tracking-tight text-slate-50 sm:text-3xl">
-              Appointment Confirmed!
+              {t("appointmentConfirmedTitle")}
             </h1>
 
             <p className="mt-3 max-w-md text-sm leading-relaxed text-slate-300">
-              Your appointment with <span className="font-semibold text-slate-100">{doctor.name}</span>{" "}
-              is confirmed.
+              {t("appointmentConfirmedMessage", {doctorName: doctor.name})}
             </p>
 
             <div className="mt-6 w-full max-w-md rounded-2xl border border-slate-800/70 bg-slate-950/30 px-4 py-4 text-left">
               <div className="flex items-center justify-between gap-4">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                    Professional
+                    {t("appointmentProfessionalLabel")}
                   </p>
                   <p className="mt-1 text-sm font-medium text-slate-100">
                     {doctor.name}
@@ -151,7 +156,7 @@ export default async function BookingSuccessPage({
                 </div>
                 <div className="text-right">
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                    Date
+                    {t("appointmentDateLabel")}
                   </p>
                   <p className="mt-1 text-sm font-medium text-slate-100">
                     {dateLabel}
@@ -162,15 +167,18 @@ export default async function BookingSuccessPage({
               <div className="mt-4 flex items-center justify-between gap-4">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                    Time
+                    {t("appointmentTimeLabel")}
                   </p>
                   <p className="mt-1 text-sm font-medium text-slate-100">
-                    {timeLabel} <span className="text-slate-400">(Cyprus time)</span>
+                    {timeLabel}{" "}
+                    <span className="text-slate-400">
+                      {t("cyprusTimeInParentheses")}
+                    </span>
                   </p>
                 </div>
                 <div className="text-right">
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                    Status
+                    {t("appointmentStatusLabel")}
                   </p>
                   <p className="mt-1 text-sm font-medium text-emerald-200">
                     {appointment.status}
@@ -187,14 +195,14 @@ export default async function BookingSuccessPage({
                 className="flex items-center justify-center gap-2 rounded-2xl bg-emerald-400 px-4 py-2.5 text-sm font-semibold text-slate-950 shadow-lg shadow-emerald-500/30 transition hover:bg-emerald-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
               >
                 <CalendarPlus className="h-4 w-4" aria-hidden />
-                Add to Google
+                {t("addToGoogleLabel")}
               </a>
 
               <a
                 href={`/api/appointments/${encodeURIComponent(appointmentId)}/calendar`}
                 className="flex items-center justify-center gap-2 rounded-2xl border border-emerald-400/40 bg-emerald-400/10 px-4 py-2.5 text-sm font-semibold text-emerald-200 shadow-lg shadow-emerald-500/10 transition hover:border-emerald-400/60 hover:bg-emerald-400/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
               >
-                Download .ics
+                {t("downloadIcsLabel")}
               </a>
             </div>
 
@@ -203,7 +211,7 @@ export default async function BookingSuccessPage({
                 href={`/${params.slug}`}
                 className="flex w-full items-center justify-center rounded-2xl border border-slate-700 bg-slate-900/50 px-4 py-2.5 text-sm font-semibold text-slate-200 transition hover:border-slate-600 hover:bg-slate-900/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400/40 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
               >
-                Back to profile
+                {t("backToProfileLabel")}
               </Link>
             </div>
           </div>

@@ -10,7 +10,7 @@ import {
   format,
 } from "date-fns";
 import { utcToZonedTime, zonedTimeToUtc } from "date-fns-tz";
-import { enGB } from "date-fns/locale";
+import { el as elLocale, enGB } from "date-fns/locale";
 import { DayPicker } from "react-day-picker";
 import { CheckCircle2, ChevronLeft, ChevronRight } from "lucide-react";
 import { PhoneInput } from "@/components/ui/PhoneInput";
@@ -21,6 +21,7 @@ import {
 } from "@/lib/visit-types";
 import { formatDateDDMMYYYY } from "@/lib/date-format";
 import "react-day-picker/dist/style.css";
+import { useLocale, useTranslations } from "next-intl";
 
 type WeeklySlot = {
   id: string;
@@ -82,6 +83,9 @@ export function BookingSection({
     : 2;
 
   const router = useRouter();
+  const t = useTranslations("BookingPage");
+  const activeLocale = useLocale();
+  const dateFnsLocale = activeLocale === "el" ? elLocale : enGB;
   const takenSet = React.useMemo(
     () => new Set(takenSlotTimes),
     [takenSlotTimes]
@@ -182,7 +186,7 @@ export function BookingSection({
             dateKey: dayCyprusKey,
             labelTime: timeLabel,
             labelFull: format(cyprusSlotDate, "EEE d MMM, HH:mm", {
-              locale: enGB,
+              locale: dateFnsLocale,
             }),
             slotKey,
           });
@@ -233,20 +237,20 @@ export function BookingSection({
       e.preventDefault();
       setError(null);
       if (!selectedSlot) {
-        setError("Please select a time slot.");
+        setError(t("errors.selectTimeSlot"));
         return;
       }
       if (!patientName || !patientEmail || !patientPhone) {
-        setError("Please complete all patient details.");
+        setError(t("errors.completePatientDetails"));
         return;
       }
       if (!phoneValid) {
         setShowPhoneError(true);
-        setError("Please enter a valid phone number.");
+        setError(t("errors.validPhone"));
         return;
       }
       if (!visitType.trim()) {
-        setError("Please select a type of visit.");
+        setError(t("errors.selectVisitType"));
         return;
       }
       const notesTrim = visitNotes.slice(0, VISIT_NOTES_MAX_LENGTH);
@@ -270,13 +274,13 @@ export function BookingSection({
         if (!res.ok) {
           if (res.status === 409) {
             setError(
-              "This time slot has just been booked. Please choose another slot."
+              t("errors.timeSlotJustBooked")
             );
             return;
           }
           setError(
             data?.message ||
-              "We could not complete your booking. Please try again."
+              t("errors.bookingFailed")
           );
           return;
         }
@@ -302,7 +306,7 @@ export function BookingSection({
         setShowPhoneError(false);
       } catch (err) {
         console.error(err);
-        setError("Something went wrong. Please try again.");
+        setError(t("errors.somethingWentWrong"));
       } finally {
         // If we already navigated to the success page, keep the button in the
         // loading state until unmount (prevents a "stopped loading" flicker).
@@ -322,6 +326,7 @@ export function BookingSection({
       doctorId,
       profileSlug,
       router,
+      t,
     ]
   );
 
@@ -329,10 +334,10 @@ export function BookingSection({
     return (
       <div className="rounded-3xl border border-emerald-100/10 bg-slate-900/50 p-6 shadow-2xl shadow-slate-950/50 backdrop-blur-xl">
         <h2 className="text-lg font-semibold text-slate-50">
-          Bookings temporarily unavailable
+          {t("bookingsTemporarilyUnavailable")}
         </h2>
         <p className="mt-2 text-sm text-slate-300">
-          Appointments are paused by the professional. Please check back later.
+          {t("appointmentsPaused")}
         </p>
       </div>
     );
@@ -342,10 +347,10 @@ export function BookingSection({
     return (
       <div className="rounded-3xl border border-emerald-100/10 bg-slate-900/50 p-6 shadow-2xl shadow-slate-950/50 backdrop-blur-xl">
         <h2 className="text-lg font-semibold text-slate-50">
-          Book an appointment
+          {t("title")}
         </h2>
         <p className="mt-2 text-sm text-slate-300">
-          {doctorName} has not published availability yet.
+          {t("availabilityNotPublished", {doctorName})}
         </p>
       </div>
     );
@@ -355,14 +360,15 @@ export function BookingSection({
     return (
       <div className="rounded-3xl border border-emerald-100/10 bg-slate-900/50 p-6 shadow-2xl shadow-slate-950/50 backdrop-blur-xl">
         <h2 className="text-lg font-semibold text-slate-50">
-          Bookings temporarily unavailable
+          {t("bookingsTemporarilyUnavailable")}
         </h2>
         <p className="mt-2 text-sm text-slate-300">
           {holidayActive && holidayStartDate && holidayEndDate
-            ? `The calendar is blocked from ${formatDateDDMMYYYY(
-                holidayStartDate
-              )} to ${formatDateDDMMYYYY(holidayEndDate)}.`
-            : "No available times right now."}
+            ? t("calendarBlockedFromTo", {
+                start: formatDateDDMMYYYY(holidayStartDate),
+                end: formatDateDDMMYYYY(holidayEndDate),
+              })
+            : t("noAvailableTimesRightNow")}
         </p>
       </div>
     );
@@ -385,18 +391,17 @@ export function BookingSection({
             />
           </div>
           <h2 className="mt-6 text-2xl font-bold tracking-tight text-slate-50 sm:text-3xl">
-            Booking Confirmed!
+            {t("bookingConfirmedTitle")}
           </h2>
           <p className="mt-3 max-w-sm text-sm leading-relaxed text-slate-300">
-            {doctorName} has been notified. You will receive a WhatsApp
-            confirmation shortly.
+            {t("bookingConfirmedMessage", {doctorName})}
           </p>
           {profileSlug ? (
             <Link
               href={`/${profileSlug}`}
               className="mt-8 flex w-full max-w-xs items-center justify-center rounded-2xl border border-emerald-400/40 bg-emerald-400/10 px-6 py-3 text-sm font-semibold text-emerald-200 shadow-lg shadow-emerald-500/10 transition hover:border-emerald-400/60 hover:bg-emerald-400/20 focus:outline-none focus:ring-2 focus:ring-emerald-400/50 focus:ring-offset-2 focus:ring-offset-slate-900"
             >
-              Done
+              {t("doneButton")}
             </Link>
           ) : (
             <button
@@ -404,7 +409,7 @@ export function BookingSection({
               onClick={() => setBookingSuccess(false)}
               className="mt-8 w-full max-w-xs rounded-2xl border border-emerald-400/40 bg-emerald-400/10 px-6 py-3 text-sm font-semibold text-emerald-200 shadow-lg shadow-emerald-500/10 transition hover:border-emerald-400/60 hover:bg-emerald-400/20 focus:outline-none focus:ring-2 focus:ring-emerald-400/50 focus:ring-offset-2 focus:ring-offset-slate-900"
             >
-              Done
+              {t("doneButton")}
             </button>
           )}
         </div>
@@ -419,10 +424,10 @@ export function BookingSection({
         <div className="mb-6 flex items-center justify-between gap-3">
           <div>
             <h2 className="text-lg font-semibold text-slate-50">
-              Your details
+              {t("yourDetails")}
             </h2>
             <p className="mt-1 text-xs text-slate-400">
-              {selectedSlot.labelFull} · Cyprus time
+              {selectedSlot.labelFull} · {t("cyprusTime")}
             </p>
           </div>
           <button
@@ -433,7 +438,7 @@ export function BookingSection({
             }}
             className="text-xs font-medium text-slate-400 transition hover:text-emerald-300"
           >
-            Change time
+            {t("changeTime")}
           </button>
         </div>
         <form className="space-y-4" onSubmit={handleSubmit}>
@@ -442,7 +447,7 @@ export function BookingSection({
               htmlFor="name"
               className="text-xs font-semibold text-slate-200"
             >
-              Full name
+              {t("patientFullNameLabel")}
             </label>
             <input
               id="name"
@@ -451,7 +456,7 @@ export function BookingSection({
               value={patientName}
               onChange={(e) => setPatientName(e.target.value)}
               className="w-full rounded-2xl border border-slate-800/80 bg-slate-950/40 px-3 py-2 text-sm text-slate-100 shadow-sm placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-400/60"
-              placeholder="Your name"
+              placeholder={t("patientFullNamePlaceholder")}
             />
           </div>
           <div className="space-y-2">
@@ -459,7 +464,7 @@ export function BookingSection({
               htmlFor="email"
               className="text-xs font-semibold text-slate-200"
             >
-              Email
+              {t("emailLabel")}
             </label>
             <input
               id="email"
@@ -468,13 +473,13 @@ export function BookingSection({
               value={patientEmail}
               onChange={(e) => setPatientEmail(e.target.value)}
               className="w-full rounded-2xl border border-slate-800/80 bg-slate-950/40 px-3 py-2 text-sm text-slate-100 shadow-sm placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-400/60"
-              placeholder="you@email.com"
+              placeholder={t("emailPlaceholder")}
             />
           </div>
           <div className="space-y-2">
             <PhoneInput
               id="phone"
-              label="Phone (priority contact)"
+              label={t("phonePriorityContactLabel")}
               value={patientPhone}
               onChange={(val, isValid) => {
                 setPatientPhone(val);
@@ -489,7 +494,7 @@ export function BookingSection({
               htmlFor="visitType"
               className="text-xs font-semibold text-slate-200"
             >
-              Type of visit <span className="text-red-300">*</span>
+              {t("visitTypeLabel")} <span className="text-red-300">*</span>
             </label>
             <select
               id="visitType"
@@ -499,7 +504,7 @@ export function BookingSection({
               className="w-full rounded-2xl border border-slate-800/80 bg-slate-950/40 px-3 py-2 text-sm text-slate-100 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-400/60"
             >
               <option value="" disabled>
-                Select one…
+                {t("selectOnePlaceholder")}
               </option>
               {VISIT_TYPE_OPTIONS.map((opt) => (
                 <option key={opt} value={opt}>
@@ -513,8 +518,10 @@ export function BookingSection({
               htmlFor="visitNotes"
               className="text-xs font-semibold text-slate-200"
             >
-              Briefly describe your reason{" "}
-              <span className="font-normal text-slate-500">(optional)</span>
+              {t("reasonForVisit")}{" "}
+              <span className="font-normal text-slate-500">
+                {t("optionalLabel")}
+              </span>
             </label>
             <textarea
               id="visitNotes"
@@ -526,7 +533,7 @@ export function BookingSection({
                   e.target.value.slice(0, VISIT_NOTES_MAX_LENGTH)
                 )
               }
-              placeholder="e.g. follow-up on blood test results"
+              placeholder={t("visitNotesPlaceholder")}
               className="w-full resize-y rounded-2xl border border-slate-800/80 bg-slate-950/40 px-3 py-2 text-sm text-slate-100 shadow-sm placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-400/60"
             />
             <p className="text-right text-[11px] text-slate-500">
@@ -546,7 +553,7 @@ export function BookingSection({
             disabled={submitting}
             className="inline-flex w-full items-center justify-center rounded-2xl bg-emerald-400 px-4 py-2.5 text-sm font-semibold text-slate-950 shadow-lg shadow-emerald-500/30 transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
           >
-            {submitting ? "Booking..." : "Book appointment"}
+            {submitting ? t("booking") : t("bookButton")}
           </button>
         </form>
       </div>
@@ -565,14 +572,14 @@ export function BookingSection({
         <div className="flex items-center justify-between gap-3">
           <div>
             <h2 className="text-lg font-semibold text-slate-50">
-              Book an appointment
+                {t("title")}
             </h2>
             <p className="mt-1 text-xs text-slate-400">
-              All times in Cyprus · Select a date, then a time
+              {t("allTimesInCyprusHint")}
             </p>
           </div>
           <span className="rounded-full bg-emerald-500/10 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.2em] text-emerald-200">
-            Instant
+            {t("instantBadge")}
           </span>
         </div>
       </div>
@@ -581,7 +588,7 @@ export function BookingSection({
         {/* Left: calendar */}
         <div className="rounded-2xl border border-slate-800/60 bg-slate-950/30 p-4 backdrop-blur-sm">
           <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
-            Select a date
+            {t("selectDate")}
           </p>
           <DayPicker
             mode="single"
@@ -593,7 +600,7 @@ export function BookingSection({
             fromDate={new Date()}
             toDate={addDays(new Date(), normalizedBookingHorizonDays)}
             disabled={(date) => !isDateAvailable(date)}
-            locale={enGB}
+            locale={dateFnsLocale}
             captionLayout="buttons"
             className="rdp-dark"
             classNames={{
@@ -627,20 +634,20 @@ export function BookingSection({
           {!selectedDate ? (
             <div className="flex flex-col items-center justify-center py-12 text-center">
               <p className="text-sm font-medium text-slate-400">
-                Select a date on the calendar
+                {t("selectDateOnCalendar")}
               </p>
               <p className="mt-1 text-xs text-slate-500">
-                Available times will appear here
+                {t("availableTimesHere")}
               </p>
             </div>
           ) : (
             <>
               <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
-                {format(selectedDate, "EEEE, d MMMM", { locale: enGB })}
+                {format(selectedDate, "EEEE, d MMMM", { locale: dateFnsLocale })}
               </p>
               {slotsForSelectedDay.length === 0 ? (
                 <p className="py-6 text-sm text-slate-500">
-                  No available times this day. Pick another date.
+                  {t("noAvailableTimesThisDay")}
                 </p>
               ) : (
                 <div className="flex max-h-72 flex-col gap-2 overflow-y-auto pr-1">
@@ -670,7 +677,7 @@ export function BookingSection({
                               {slot.labelTime}
                             </span>
                             <span>
-                              {isSelected ? "Selected" : "Select"}
+                              {isSelected ? t("timeSlotSelected") : t("timeSlotSelect")}
                             </span>
                           </button>
                           {isSelected && (
