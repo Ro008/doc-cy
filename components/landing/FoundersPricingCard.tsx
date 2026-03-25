@@ -3,14 +3,7 @@
 import Link from "next/link";
 import * as React from "react";
 import { MAX_FOUNDERS, type FoundersAvailability } from "@/lib/founders-club";
-
-const founderFeatures = [
-  "Lifetime price protection",
-  "Unlimited appointments",
-  "Direct support with us",
-];
-
-const standardFeatures = ["Unlimited appointments", "Direct support with us"];
+import { useTranslations } from "next-intl";
 
 const BAR_MS = 1100;
 const COUNT_MS = 950;
@@ -20,6 +13,7 @@ function easeOutQuad(t: number): number {
 }
 
 export function FoundersPricingCard() {
+  const t = useTranslations("LandingPage");
   const rootRef = React.useRef<HTMLElement | null>(null);
   const [availability, setAvailability] = React.useState<FoundersAvailability | null>(null);
   const [status, setStatus] = React.useState<"loading" | "ready" | "error">("loading");
@@ -74,6 +68,15 @@ export function FoundersPricingCard() {
   const showFounderOffer = status === "ready" && Boolean(availability?.offerAvailable);
   const spotsRemaining = availability?.spotsRemaining ?? 0;
   const progressPercent = availability?.progressPercent ?? 100;
+  const founderFeatures = [
+    t("Pricing.benefits.price"),
+    t("Pricing.benefits.appointments"),
+    t("Pricing.benefits.support"),
+  ];
+  const standardFeatures = [
+    t("Pricing.benefits.appointments"),
+    t("Pricing.benefits.support"),
+  ];
   const features = showFounderOffer ? founderFeatures : standardFeatures;
 
   /** Fetch settled (or failed); section visible — drive “live” counter + bar */
@@ -132,61 +135,65 @@ export function FoundersPricingCard() {
   return (
     <aside
       ref={rootRef}
-      className="rounded-2xl border border-emerald-300/30 bg-slate-950/70 p-5 shadow-[0_0_40px_-16px_rgba(52,211,153,0.45)] [overflow-anchor:none]"
+      className="rounded-2xl border border-emerald-300/30 bg-slate-950/70 p-5 shadow-[0_0_40px_-16px_rgba(52,211,153,0.45)] [overflow-anchor:none] lg:min-h-[430px]"
     >
       {showFounderOffer ? (
-        <span className="inline-flex rounded-full border border-emerald-300/50 bg-emerald-400/15 px-3 py-1 text-xs font-semibold tracking-wide text-emerald-200">
-          First 3 Months FREE
-        </span>
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+          <span className="inline-flex w-fit rounded-full border border-emerald-300/50 bg-emerald-400/15 px-3 py-1 text-xs font-semibold tracking-wide text-emerald-200">
+            {t("Pricing.threeMonthsFree")}
+          </span>
+          <span className="inline-flex w-fit rounded-full border border-emerald-400/35 bg-emerald-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-emerald-100/90">
+            {t("Pricing.foundingMemberStatus")}
+          </span>
+        </div>
       ) : (
         <span className="inline-flex rounded-full border border-slate-600/70 bg-slate-800/70 px-3 py-1 text-xs font-semibold tracking-wide text-slate-200">
-          Standard Pricing
+          {t("Pricing.standardPricing")}
         </span>
       )}
 
       <div className="mt-4">
         {status === "loading" ? (
           <div className="space-y-2">
-            <p className="text-sm text-slate-300">Checking availability...</p>
+            <p className="text-sm text-slate-300">{t("Pricing.loading")}</p>
             <div className="h-6 w-28 animate-pulse rounded bg-slate-700/70" aria-hidden />
           </div>
         ) : showFounderOffer ? (
           <>
             <p className="relative inline-block text-base font-semibold text-slate-100">
-              <span>€49/month</span>
+              <span>{t("Pricing.oldPrice")}</span>
               <span
                 className="pointer-events-none absolute inset-x-0 top-1/2 h-[2px] -translate-y-[62%] bg-rose-200/95"
                 aria-hidden
               />
             </p>
-            <p className="text-3xl font-bold tracking-tight text-neutral-50">€19/month</p>
+            <p className="text-3xl font-bold tracking-tight text-neutral-50">{t("Pricing.price")}</p>
           </>
         ) : (
-          <p className="text-3xl font-bold tracking-tight text-neutral-50">€49/month</p>
+          <p className="text-3xl font-bold tracking-tight text-neutral-50">{t("Pricing.oldPrice")}</p>
         )}
       </div>
 
       <div className="mt-4 space-y-2">
         {status === "loading" ? (
-          <p className="text-xs text-slate-400">Checking availability...</p>
+          <p className="text-xs text-slate-400">{t("Pricing.loading")}</p>
         ) : showFounderOffer ? (
           <p className="text-xs text-emerald-200/95">
-            Limited Availability:{" "}
-            {revealLive && displaySpots !== null ? (
-              <span className="inline-flex items-center rounded-md bg-emerald-300/20 px-1.5 py-0.5 font-semibold text-emerald-100 shadow-[0_0_16px_-6px_rgba(110,231,183,0.9)] animate-pulse">
-                {displaySpots}
-              </span>
-            ) : (
-              <span
-                className="inline-flex h-4 w-8 animate-pulse rounded bg-emerald-400/20 align-middle"
-                aria-hidden
-              />
-            )}{" "}
-            spots remaining out of {MAX_FOUNDERS}.
+            {t.rich("Pricing.limited", {
+              count:
+                revealLive && displaySpots !== null
+                  ? displaySpots
+                  : spotsRemaining || MAX_FOUNDERS,
+              spots: (chunks) => (
+                <span className="inline-flex items-center rounded-md bg-emerald-300/20 px-1.5 py-0.5 font-semibold text-emerald-100 shadow-[0_0_16px_-6px_rgba(110,231,183,0.9)] animate-pulse">
+                  {chunks}
+                </span>
+              ),
+            })}
           </p>
         ) : (
           <p className="text-xs text-slate-400">
-            Founders Club offer is no longer available. Standard pricing is now active.
+            {t("Pricing.foundersUnavailable")}
           </p>
         )}
 
@@ -208,7 +215,7 @@ export function FoundersPricingCard() {
         </div>
       </div>
 
-      <ul className="mt-5 space-y-2 text-sm text-slate-200">
+      <ul className="mt-5 space-y-2 text-sm text-slate-200 min-h-[88px]">
         {features.map((feature) => (
           <li key={feature} className="flex items-start gap-2">
             <span className="mt-1 h-1.5 w-1.5 rounded-full bg-emerald-300" aria-hidden />
@@ -221,12 +228,11 @@ export function FoundersPricingCard() {
         href="/register"
         className="mt-6 inline-flex w-full items-center justify-center rounded-xl bg-emerald-400 px-5 py-2.5 text-sm font-semibold text-neutral-950 shadow-[0_0_0_1px_rgba(52,211,153,0.35),0_0_28px_rgba(16,185,129,0.55),0_0_56px_rgba(16,185,129,0.22)] transition hover:bg-emerald-300 hover:shadow-[0_0_0_1px_rgba(110,231,183,0.5),0_0_36px_rgba(52,211,153,0.65),0_0_72px_rgba(16,185,129,0.28)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 focus-visible:ring-offset-neutral-900"
       >
-        Get my Professional Profile
+        {t("Pricing.cta")}
       </Link>
       {showFounderOffer ? (
         <p className="mt-2 text-center text-[11px] leading-relaxed text-emerald-100/90">
-          No credit card required to start your free trial. Lifetime €19 pricing is locked in upon
-          signup.
+          {t("Pricing.noCard")}
         </p>
       ) : null}
     </aside>

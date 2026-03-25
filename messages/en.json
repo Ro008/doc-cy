@@ -58,6 +58,44 @@
     "cyprusLocalTime": "Cyprus local time",
     "whatToExpectTitle": "What to expect",
     "whatToExpectBody": "Book in seconds. Your appointment is instantly synced with the professional's agenda. You'll receive a confirmation email with a one-click WhatsApp link to contact the clinic and a direct button to add the date to your calendar."
+  },
+  "LandingPage": {
+    "Hero": {
+      "title": "Stop chasing appointments.\nStart focusing on patients.",
+      "subtitle": "The professional booking link that connects you and your patients instantly. Local, automated, and built for Cyprus's independent practices and clinics.",
+      "ctaClaim": "Claim your professional profile",
+      "ctaLogin": "Professional Login"
+    },
+    "Features": {
+      "heading": "Why DocCy?",
+      "syncTitle": "Your Day, Fully Synced",
+      "syncDesc": "Google Calendar & Apple iOS integration. See your schedule on any device, always up to date.",
+      "confirmTitle": "Instant Confirmation",
+      "confirmDesc": "Automatic email confirmations for you and your patient the second a booking is made. No more manual tracking.",
+      "profileTitle": "Your Professional Profile",
+      "profileDesc": "A fast, mobile-first booking experience. Your personal booking link is ready to be shared on WhatsApp or Social Media."
+    },
+    "Pricing": {
+      "threeMonthsFree": "First 3 Months FREE",
+      "foundingMemberStatus": "Founding Member",
+      "standardPricing": "Standard Pricing",
+      "loading": "Checking availability...",
+      "badge": "JOIN THE DOCCY FOUNDERS CLUB",
+      "title": "Special launch pricing for the first 100 practitioners across Cyprus",
+      "why90Days": "WHY 90 DAYS?",
+      "why90Desc": "We want you to test DocCy through a full business quarter, including holidays and seasonal shifts. It gives enough real-world data to judge impact on your practice with confidence.",
+      "price": "€19/month",
+      "oldPrice": "€49/month",
+      "limited": "Limited Availability: <spots>{count}</spots> spots remaining out of 100",
+      "foundersUnavailable": "Founders Club offer is no longer available. Standard pricing is now active.",
+      "benefits": {
+        "price": "Lifetime price protection",
+        "appointments": "Unlimited appointments",
+        "support": "Direct support with us"
+      },
+      "cta": "Get my Professional Profile",
+      "noCard": "No credit card required to start your free trial. Lifetime €19 pricing is locked in upon signup."
+    }
   }
 }
 

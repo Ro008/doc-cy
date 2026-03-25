@@ -295,7 +295,8 @@ export function SettingsForm({ initial }: SettingsFormProps) {
           className="mt-2 w-full rounded-xl border border-slate-800/80 bg-slate-950/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-400/60"
         />
         <p className="mt-2 text-xs text-slate-400">
-          Used in appointment confirmation emails to enable "Chat on WhatsApp".
+          Used in appointment confirmation emails to enable{" "}
+          <span className="font-medium text-slate-300">Chat on WhatsApp</span>.
         </p>
       </div>
 
