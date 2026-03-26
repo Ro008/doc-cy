@@ -5,6 +5,7 @@ import { FoundersPricingCard } from "@/components/landing/FoundersPricingCard";
 import { HomeLandingScroll } from "@/components/landing/HomeLandingScroll";
 import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher";
 import { getTranslations, getLocale } from "next-intl/server";
+import { ProductShowcaseCarousel } from "@/components/landing/ProductShowcaseCarousel";
 
 type Benefit = {
   icon: typeof CalendarSync;
@@ -43,6 +44,34 @@ export default async function HomePage() {
       body: t("Features.profileDesc"),
       iconWell:
         "bg-sky-400/30 text-sky-200 shadow-[0_0_24px_-4px_rgba(56,189,248,0.5)] ring-2 ring-sky-300/55",
+    },
+  ];
+
+  const showcaseSlides = [
+    {
+      title: t("Showcase.slides.profile.title"),
+      body: t("Showcase.slides.profile.body"),
+      imageSrc: "/showcase/01-profile.png",
+    },
+    {
+      title: t("Showcase.slides.calendar.title"),
+      body: t("Showcase.slides.calendar.body"),
+      imageSrc: "/showcase/02-calendar.png",
+    },
+    {
+      title: t("Showcase.slides.confirmation.title"),
+      body: t("Showcase.slides.confirmation.body"),
+      imageSrc: "/showcase/03-confirmation.png",
+    },
+    {
+      title: t("Showcase.slides.sync.title"),
+      body: t("Showcase.slides.sync.body"),
+      imageSrc: "/showcase/04-google-calendar.png",
+    },
+    {
+      title: t("Showcase.slides.agenda.title"),
+      body: t("Showcase.slides.agenda.body"),
+      imageSrc: "/showcase/05-doctor-agenda.png",
     },
   ];
 
@@ -160,6 +189,15 @@ export default async function HomePage() {
             </div>
           </div>
         </div>
+
+        <section className="mx-auto w-full max-w-6xl pb-6 pt-1 sm:pb-8">
+          <div className="mb-4 sm:mb-5">
+            <h2 className="text-2xl font-semibold tracking-tight text-neutral-50 sm:text-3xl">
+              {t("Showcase.title")}
+            </h2>
+          </div>
+          <ProductShowcaseCarousel slides={showcaseSlides} />
+        </section>
 
         <section
           id="founders-pricing"

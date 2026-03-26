@@ -75,6 +75,31 @@
       "profileTitle": "Your Professional Profile",
       "profileDesc": "A fast, mobile-first booking experience. Your personal booking link is ready to be shared on WhatsApp or Social Media."
     },
+    "Showcase": {
+      "title": "See how DocCy transforms your practice",
+      "slides": {
+        "profile": {
+          "title": "The Digital Front Door (Public Profile)",
+          "body": "Your verified professional profile, in your patient's language."
+        },
+        "calendar": {
+          "title": "The Smart Calendar",
+          "body": "Patients book in seconds from your visual time grid."
+        },
+        "confirmation": {
+          "title": "Instant Confirmation",
+          "body": "Zero friction. Appointment confirmed and emails sent automatically."
+        },
+        "sync": {
+          "title": "Total Sync",
+          "body": "Then it's added to your Google Calendar, matching your language."
+        },
+        "agenda": {
+          "title": "Your Control Panel (Doctor Agenda)",
+          "body": "See your full week at a glance. Goodbye paper."
+        }
+      }
+    },
     "Pricing": {
       "threeMonthsFree": "First 3 Months FREE",
       "foundingMemberStatus": "Founding Member",
@@ -98,4 +123,5 @@
     }
   }
 }
+
 
