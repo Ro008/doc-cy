@@ -77,6 +77,10 @@
     },
     "Showcase": {
       "title": "See how DocCy transforms your practice",
+      "badges": {
+        "forPatients": "For Patients",
+        "forYou": "For You"
+      },
       "slides": {
         "profile": {
           "title": "The Digital Front Door (Public Profile)",
@@ -97,6 +101,22 @@
         "agenda": {
           "title": "Your Control Panel (Doctor Agenda)",
           "body": "See your full week at a glance. Goodbye paper."
+        },
+        "weeklyGrid": {
+          "title": "Doctor Command Center (Weekly Grid)",
+          "body": "Run your week from one visual board. Every booking is clear at a glance."
+        },
+        "patientDetail": {
+          "title": "Instant Patient Context",
+          "body": "Open a slot and contact the patient instantly via WhatsApp or email."
+        },
+        "settingsProfile": {
+          "title": "Profile & Visibility Controls",
+          "body": "Manage specialty, languages, and profile readiness from one place."
+        },
+        "settingsSchedule": {
+          "title": "Schedule Customization",
+          "body": "Full control of your schedule: boundaries, breaks, slot duration, and booking rules."
         }
       }
     },
