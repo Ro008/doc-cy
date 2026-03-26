@@ -5,20 +5,15 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
-import { format } from "date-fns";
-import { enGB } from "date-fns/locale";
-import { utcToZonedTime } from "date-fns-tz";
 import { ArrowLeft } from "lucide-react";
 import { AgendaRealtime } from "@/components/agenda/AgendaRealtime";
 import { SignOutButton } from "@/components/auth/SignOutButton";
-import { CY_TZ } from "@/lib/appointments";
 import { ViewPublicProfileLink } from "@/components/agenda/ViewPublicProfileLink";
 import { FoundingMemberBadge } from "@/components/dashboard/FoundingMemberBadge";
 import { isFounderSubscriptionTier } from "@/lib/subscription-tier";
 import { doctorDashboardDisplayName } from "@/lib/doctor-display-name";
 import { DashboardUtilityRow } from "@/components/agenda/DashboardUtilityRow";
 import { DashboardSecondaryButton } from "@/components/agenda/DashboardSecondaryButton";
-import { CyprusTimeStamp } from "@/components/agenda/CyprusTimeStamp";
 import {
   buildWeeklyScheduleFromSettings,
   type DoctorSettingsRow,
@@ -146,12 +141,6 @@ export default async function AgendaPage() {
     }
   }
 
-  const nowUtc = new Date();
-  const nowCyprus = utcToZonedTime(nowUtc, CY_TZ);
-  const nowLabel = format(nowCyprus, "dd/MM/yyyy, HH:mm", {
-    locale: enGB,
-  });
-
   const displayName = doctorDashboardDisplayName(doctor.name);
 
   const isFoundingMember = isFounderSubscriptionTier(
@@ -180,7 +169,6 @@ export default async function AgendaPage() {
           right={
             <>
               <SignOutButton variant="utility" />
-              <CyprusTimeStamp label={nowLabel} variant="discreet" />
             </>
           }
         />

@@ -6,9 +6,6 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
-import { format } from "date-fns";
-import { enGB } from "date-fns/locale";
-import { utcToZonedTime } from "date-fns-tz";
 import { ArrowLeft } from "lucide-react";
 import { SettingsForm } from "@/components/dashboard/SettingsForm";
 import { SignOutButton } from "@/components/auth/SignOutButton";
@@ -18,9 +15,7 @@ import { PromotePracticeSection } from "@/components/dashboard/PromotePracticeSe
 import { FoundingMemberBadge } from "@/components/dashboard/FoundingMemberBadge";
 import { OnlineBookingsPauseToggle } from "@/components/dashboard/OnlineBookingsPauseToggle";
 import { DashboardUtilityRow } from "@/components/agenda/DashboardUtilityRow";
-import { CyprusTimeStamp } from "@/components/agenda/CyprusTimeStamp";
 import { doctorDashboardDisplayName } from "@/lib/doctor-display-name";
-import { CY_TZ } from "@/lib/appointments";
 import {
   canonicalLanguageLabel,
   isMasterLanguageLabel,
@@ -168,10 +163,6 @@ export default async function AgendaSettingsPage() {
     (settings as { pause_online_bookings?: boolean } | null)?.pause_online_bookings
   );
 
-  const nowLabel = format(utcToZonedTime(new Date(), CY_TZ), "dd/MM/yyyy, HH:mm", {
-    locale: enGB,
-  });
-
   const displayName = doctorDashboardDisplayName(doctor.name);
 
   const initial: DoctorSettingsFormData = {
@@ -284,7 +275,6 @@ export default async function AgendaSettingsPage() {
           right={
             <>
               <SignOutButton variant="utility" />
-              <CyprusTimeStamp label={nowLabel} variant="discreet" />
             </>
           }
         />

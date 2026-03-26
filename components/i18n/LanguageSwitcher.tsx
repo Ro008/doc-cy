@@ -31,12 +31,17 @@ function hrefForLocale(pathname: string, locale: LocaleValue): string {
   return `/${parts.join("/")}`;
 }
 
-export function LanguageSwitcher() {
+export function LanguageSwitcher({ compact = false }: { compact?: boolean }) {
   const pathname = usePathname();
   const currentLocale = currentLocaleFromPath(pathname);
 
   return (
-    <div className="inline-flex items-center rounded-full border border-slate-200/20 bg-slate-900/30 p-1 backdrop-blur">
+    <div
+      className={[
+        "inline-flex items-center rounded-full border border-slate-200/20 bg-slate-900/30 p-1 backdrop-blur",
+        compact ? "scale-95 origin-right" : "",
+      ].join(" ")}
+    >
       {LOCALES.map((l) => {
         const active = l.value === currentLocale;
         return (
@@ -45,7 +50,9 @@ export function LanguageSwitcher() {
             href={hrefForLocale(pathname, l.value)}
             aria-current={active ? "page" : undefined}
             className={[
-              "px-3 py-1.5 text-xs font-semibold rounded-full transition",
+              compact
+                ? "px-2.5 py-1 text-[11px] font-semibold rounded-full transition"
+                : "px-3 py-1.5 text-xs font-semibold rounded-full transition",
               active
                 ? "bg-emerald-400 text-slate-950"
                 : "text-slate-300 hover:bg-slate-800/70 hover:text-slate-50",

@@ -18,7 +18,6 @@ import {
 import { appointmentToCyprusDate } from "@/lib/appointments";
 import { format } from "date-fns";
 import { CLINIC_ADDRESS, MAPS_URL } from "@/lib/clinic-info";
-import { headers } from "next/headers";
 import {
   DOCTOR_FIELD_LIST_METADATA,
   DOCTOR_FIELD_LIST_PUBLIC_PROFILE,
@@ -249,8 +248,6 @@ export async function generateMetadata({
 export default async function DoctorPage({ params }: PageProps) {
   const result = await fetchPublicDoctorBySlug(params.slug);
   const t = await getTranslations("DoctorProfilePage");
-  const activeLocale = headers().get("x-next-intl-locale") ?? "en";
-  const isEl = activeLocale === "el";
 
   if (result.kind === "not_found") {
     console.error(
@@ -371,7 +368,13 @@ export default async function DoctorPage({ params }: PageProps) {
       </div>
 
       <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8 lg:py-14">
-        <header className="mb-8 flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
+        <header className="mb-8 flex flex-col gap-4 sm:gap-6">
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-xs font-semibold tracking-[0.2em] text-emerald-200/80 break-words">
+              Doc<span className="text-emerald-400">Cy</span> · {t("profileTag")}
+            </p>
+            <LanguageSwitcher compact />
+          </div>
           <div className="flex gap-5">
             <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-2xl border-2 border-emerald-400/30 shadow-lg shadow-slate-950/50 sm:h-28 sm:w-28">
               <Image
@@ -384,10 +387,6 @@ export default async function DoctorPage({ params }: PageProps) {
               />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-xs font-semibold tracking-[0.2em] text-emerald-200/80 break-words">
-                Doc<span className="text-emerald-400">Cy</span> ·{" "}
-                {t("profileTag")}
-              </p>
               <h1 className="mt-3 text-balance text-3xl font-semibold tracking-tight text-slate-50 sm:text-4xl">
                 {profile.name}
               </h1>
@@ -402,25 +401,6 @@ export default async function DoctorPage({ params }: PageProps) {
                 />
               ) : null}
 
-            </div>
-          </div>
-          {/* Mobile UX: utility row below languages (aligns with booking cards) */}
-          <div className="sm:hidden w-full flex flex-wrap items-center justify-start gap-3 mt-3">
-            <LanguageSwitcher />
-            <div className="rounded-full bg-slate-900/60 px-4 py-2 text-xs text-slate-300 backdrop-blur whitespace-nowrap">
-              {/* On very narrow screens, shorten the Cyprus time pill for GR */}
-              <span className={isEl ? "hidden max-[374px]:inline" : "hidden"}>
-                Ώρα Κύπρου
-              </span>
-              <span className={isEl ? "inline max-[374px]:hidden" : ""}>
-                {t("cyprusLocalTime")}
-              </span>
-            </div>
-          </div>
-          <div className="hidden sm:flex sm:items-center sm:gap-3">
-            <LanguageSwitcher />
-            <div className="rounded-full bg-slate-900/60 px-4 py-2 text-xs text-slate-300 backdrop-blur">
-              {t("cyprusLocalTime")}
             </div>
           </div>
         </header>
