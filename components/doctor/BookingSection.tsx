@@ -290,7 +290,9 @@ export function BookingSection({
         if (profileSlug && newId) {
           didNavigateToSuccess = true;
           router.push(
-            `/${profileSlug}/success?appointmentId=${encodeURIComponent(newId)}`
+            `/${activeLocale}/${profileSlug}/success?appointmentId=${encodeURIComponent(
+              newId
+            )}`
           );
           return;
         }
@@ -398,7 +400,7 @@ export function BookingSection({
           </p>
           {profileSlug ? (
             <Link
-              href={`/${profileSlug}`}
+              href={`/${activeLocale}/${profileSlug}`}
               className="mt-8 flex w-full max-w-xs items-center justify-center rounded-2xl border border-emerald-400/40 bg-emerald-400/10 px-6 py-3 text-sm font-semibold text-emerald-200 shadow-lg shadow-emerald-500/10 transition hover:border-emerald-400/60 hover:bg-emerald-400/20 focus:outline-none focus:ring-2 focus:ring-emerald-400/50 focus:ring-offset-2 focus:ring-offset-slate-900"
             >
               {t("doneButton")}
