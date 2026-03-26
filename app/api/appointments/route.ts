@@ -6,6 +6,7 @@ import { zonedTimeToUtc, utcToZonedTime } from "date-fns-tz";
 import { addDays, addHours, addMinutes, format } from "date-fns";
 import { appointmentToCyprusDate } from "@/lib/appointments";
 import {
+  buildWeeklyScheduleFromSettings,
   isDateInHolidayRange,
   isTimeWithinSettings,
   type DoctorSettingsRow,
@@ -246,13 +247,52 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Check if there is already an appointment at exactly this time for this doctor
+  const settingsRow = settings as DoctorSettingsRow;
+  const slotDurationMinutes = Number(settingsRow.slot_duration_minutes ?? 30);
+  const slotDuration =
+    Number.isFinite(slotDurationMinutes) && slotDurationMinutes > 0
+      ? slotDurationMinutes
+      : 30;
+
+  const weeklySchedule = buildWeeklyScheduleFromSettings(settingsRow);
+  const dayKeyByDow = [
+    "sunday",
+    "monday",
+    "tuesday",
+    "wednesday",
+    "thursday",
+    "friday",
+    "saturday",
+  ] as const;
+  const dayKey = dayKeyByDow[dayOfWeek];
+  const dayStartRaw = weeklySchedule[dayKey]?.start_time ?? "09:00:00";
+  const [dayStartHour, dayStartMinute] = dayStartRaw.split(":").map(Number);
+  const dayStartMinutesFromMidnight = dayStartHour * 60 + dayStartMinute;
+  const requestedMinutesFromMidnight = hours * 60 + minutes;
+
+  // Enforce slot grid alignment server-side (protects against malformed clients/tests).
+  const minutesSinceDayStart =
+    requestedMinutesFromMidnight - dayStartMinutesFromMidnight;
+  if (minutesSinceDayStart % slotDuration !== 0) {
+    return NextResponse.json(
+      { message: "Requested time is not aligned with the professional's slot duration." },
+      { status: 400 }
+    );
+  }
+
+  // Overlap-safe guard: block any appointment whose time range intersects the requested range.
+  // existingStart < requestedEnd && existingEnd > requestedStart
+  const requestedStartUtc = appointmentUtc;
+  const requestedEndUtc = addMinutes(requestedStartUtc, slotDuration);
+  const overlapProbeFromUtc = addMinutes(requestedStartUtc, -slotDuration + 1);
+  const overlapProbeToUtc = addMinutes(requestedEndUtc, -1);
+
   const { data: existing, error: existingError } = await supabase
     .from("appointments")
-    .select("id")
+    .select("id, appointment_datetime")
     .eq("doctor_id", doctorId)
-    .eq("appointment_datetime", appointmentUtc.toISOString())
-    .limit(1);
+    .gte("appointment_datetime", overlapProbeFromUtc.toISOString())
+    .lte("appointment_datetime", overlapProbeToUtc.toISOString());
 
   if (existingError) {
     console.error(existingError);
@@ -263,6 +303,24 @@ export async function POST(req: NextRequest) {
   }
 
   if (existing && existing.length > 0) {
+    const hasOverlap = existing.some((row) => {
+      const existingStart = new Date(
+        (row as { appointment_datetime: string }).appointment_datetime
+      );
+      const existingEnd = addMinutes(existingStart, slotDuration);
+      return (
+        existingStart.getTime() < requestedEndUtc.getTime() &&
+        existingEnd.getTime() > requestedStartUtc.getTime()
+      );
+    });
+    if (!hasOverlap) {
+      // Defensive: query window should already isolate overlaps.
+      // Keep this branch to avoid false positives if slot duration changes over time.
+      return NextResponse.json(
+        { message: "Slot already taken." },
+        { status: 409 }
+      );
+    }
     return NextResponse.json(
       { message: "Slot already taken." },
       { status: 409 }
@@ -349,11 +407,8 @@ export async function POST(req: NextRequest) {
         doctorText += `\n\n💬 Chat on WhatsApp (${patientPhone}): ${patientWaMe ?? "N/A"}`;
       }
 
-      const durationMinutes =
-        (settings as DoctorSettingsRow | null)?.slot_duration_minutes ?? 30;
-
       const startUtc = new Date(inserted.appointment_datetime as string);
-      const endUtc = addMinutes(startUtc, durationMinutes);
+      const endUtc = addMinutes(startUtc, slotDuration);
 
       const patientCal = getCalendarEventDetails(
         {

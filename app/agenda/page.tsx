@@ -19,6 +19,18 @@ import { doctorDashboardDisplayName } from "@/lib/doctor-display-name";
 import { DashboardUtilityRow } from "@/components/agenda/DashboardUtilityRow";
 import { DashboardSecondaryButton } from "@/components/agenda/DashboardSecondaryButton";
 import { CyprusTimeStamp } from "@/components/agenda/CyprusTimeStamp";
+import {
+  buildWeeklyScheduleFromSettings,
+  type DoctorSettingsRow,
+  type WeeklySchedule,
+} from "@/lib/doctor-settings";
+
+type AgendaWorkingHours = {
+  weeklySchedule: WeeklySchedule;
+  breakStart: string | null;
+  breakEnd: string | null;
+  slotDurationMinutes: number;
+};
 
 export default async function AgendaPage() {
   const supabase = createServerComponentClient({ cookies });
@@ -94,6 +106,46 @@ export default async function AgendaPage() {
     console.error(error);
   }
 
+  let workingHours: AgendaWorkingHours | null = null;
+  {
+    let settingsRes = await supabase
+      .from("doctor_settings")
+      .select(
+        "doctor_id, monday, tuesday, wednesday, thursday, friday, saturday, sunday, start_time, end_time, weekly_schedule, break_start, break_end, pause_online_bookings, holiday_mode_enabled, holiday_start_date, holiday_end_date, booking_horizon_days, minimum_notice_hours, slot_duration_minutes"
+      )
+      .eq("doctor_id", doctor.id)
+      .single();
+
+    const weeklyMissing =
+      settingsRes.error &&
+      (String(settingsRes.error.message ?? "").toLowerCase().includes("weekly_schedule") ||
+        (settingsRes.error as { code?: string }).code === "42703");
+
+    if (weeklyMissing) {
+      settingsRes = await supabase
+        .from("doctor_settings")
+        .select(
+          "doctor_id, monday, tuesday, wednesday, thursday, friday, saturday, sunday, start_time, end_time, break_start, break_end, pause_online_bookings, holiday_mode_enabled, holiday_start_date, holiday_end_date, booking_horizon_days, minimum_notice_hours, slot_duration_minutes"
+        )
+        .eq("doctor_id", doctor.id)
+        .single();
+    }
+
+    if (!settingsRes.error && settingsRes.data) {
+      const s = settingsRes.data as DoctorSettingsRow;
+      workingHours = {
+        weeklySchedule: buildWeeklyScheduleFromSettings({
+          ...s,
+          weekly_schedule: s.weekly_schedule ?? null,
+        }),
+        breakStart: (s.break_start ?? null) as string | null,
+        breakEnd: (s.break_end ?? null) as string | null,
+        slotDurationMinutes:
+          (s as { slot_duration_minutes?: number | null }).slot_duration_minutes ?? 30,
+      };
+    }
+  }
+
   const nowUtc = new Date();
   const nowCyprus = utcToZonedTime(nowUtc, CY_TZ);
   const nowLabel = format(nowCyprus, "dd/MM/yyyy, HH:mm", {
@@ -142,7 +194,7 @@ export default async function AgendaPage() {
               {isFoundingMember ? <FoundingMemberBadge /> : null}
             </div>
             <p className="mt-3 text-sm text-slate-400">
-              Your Agenda · Today&apos;s schedule
+              Weekly calendar on desktop · Daily focus on mobile
             </p>
             {doctor.status !== "verified" && (
               <p className="mt-4 inline-flex max-w-prose items-center gap-2 rounded-2xl border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-xs font-medium text-amber-100">
@@ -169,6 +221,7 @@ export default async function AgendaPage() {
         <AgendaRealtime
           doctorId={doctor.id}
           initialAppointments={(appointments as any[]) ?? []}
+          workingHours={workingHours}
         />
       </div>
     </main>

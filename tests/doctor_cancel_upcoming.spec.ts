@@ -19,7 +19,7 @@ function nextWorkingDayCyprus(now: Date): string {
   return `${y}-${m}-${day}`;
 }
 
-test.describe("Upcoming appointments cancellation @booking-creates", () => {
+test.describe("Future appointments cancellation @booking-creates", () => {
   test.beforeEach(({}, testInfo) => {
     if (
       testInfo.project.name === "Mobile Safari (iPhone 12)" ||
@@ -32,7 +32,7 @@ test.describe("Upcoming appointments cancellation @booking-creates", () => {
     }
   });
 
-  test("doctor can cancel a future appointment from Upcoming list", async ({
+  test("doctor can cancel a future appointment from calendar", async ({
     page,
     request,
   }) => {
@@ -57,8 +57,9 @@ test.describe("Upcoming appointments cancellation @booking-creates", () => {
     const slug = (doctorRow as { slug?: string } | null)?.slug;
     expect(slug).toBeTruthy();
 
-    const patientName = "Cancel E2E Future";
-    const patientEmail = "cancel.future@example.com";
+    const nonce = Date.now().toString().slice(-6);
+    const patientName = `Cancel E2E Future ${nonce}`;
+    const patientEmail = `cancel.future.${nonce}@example.com`;
     const patientPhone = "+35799123456";
     const visitType = "Follow-up";
 
@@ -72,7 +73,9 @@ test.describe("Upcoming appointments cancellation @booking-creates", () => {
 
     // Try multiple future working days/time slots to avoid flaky
     // `doctor_settings` states (holiday range and/or pause_online_bookings).
-    const candidateTimes = ["16:30", "16:45", "17:00", "17:30", "18:00"];
+    // 30-min aligned candidates only, and strictly inside a 09:00-18:00 day.
+    // For 30-min slots, 17:30 is the last valid start when end_time is 18:00.
+    const candidateTimes = ["16:30", "17:00", "17:30"];
 
     outer: for (let dayOffset = 0; dayOffset < 14; dayOffset++) {
       const candidateBase = new Date();
@@ -108,7 +111,7 @@ test.describe("Upcoming appointments cancellation @booking-creates", () => {
           continue;
         }
 
-        if (createRes.status() === 403) {
+        if (createRes.status() === 400 || createRes.status() === 403) {
           const body = await createRes.text().catch(() => "");
           const isBookingsTemporarilyUnavailable = body.includes(
             "Bookings temporarily unavailable",
@@ -157,29 +160,47 @@ test.describe("Upcoming appointments cancellation @booking-creates", () => {
 
     test.skip(!seeded, "Could not seed a future appointment (bookings temporarily unavailable).");
 
-    // 2. Visit dashboard and locate the appointment in "Upcoming on other days"
+    // 2. Visit dashboard and locate the appointment by paging the calendar weeks.
     await page.goto("/agenda");
 
-    await expect(page.getByText(/Your Agenda · Today/i)).toBeVisible({
+    await expect(
+      page.getByText(/Weekly calendar on desktop · Daily focus on mobile/i)
+    ).toBeVisible({
       timeout: 10000,
     });
 
-    const upcomingSection = page
-      .getByRole("heading", { name: /Upcoming on other days/i })
-      .locator("..")
-      .locator("..");
-
-    // Take the first Cancel button in the Upcoming list
-    const cancelButton = upcomingSection
-      .getByRole("button", { name: /^Cancel$/i })
-      .first();
-    await expect(cancelButton).toBeVisible({ timeout: 10000 });
-    await expect(cancelButton).toBeEnabled();
-    await cancelButton.click();
+    let found = false;
+    const nextWeekBtn = page.getByRole("button", { name: /Next week/i });
+    const nextDayBtn = page.getByRole("button", { name: /Next day/i });
+    const useWeeklyNav = (await nextWeekBtn.count()) > 0;
+    for (let i = 0; i < 8; i++) {
+      const apptCard = page
+        .getByRole("button", {
+          name: new RegExp(`Appointment\\s+${patientName}`, "i"),
+        })
+        .first();
+      if (await apptCard.count()) {
+        await apptCard.click();
+        found = true;
+        break;
+      }
+      if (useWeeklyNav) {
+        await nextWeekBtn.click();
+      } else {
+        await nextDayBtn.click();
+      }
+      await page.waitForTimeout(150);
+    }
+    expect(found).toBeTruthy();
 
     // Confirm cancellation in the modal
     const dialog = page.getByRole("dialog");
     await expect(dialog).toBeVisible({ timeout: 10000 });
+
+    const startCancelBtn = dialog.getByRole("button", { name: /^Cancel$/i });
+    await expect(startCancelBtn).toBeVisible({ timeout: 10000 });
+    await startCancelBtn.click();
+    await expect(startCancelBtn).toHaveCount(0);
 
     const confirmBtn = dialog.getByRole("button", {
       name: /Confirm cancel/i,
@@ -188,10 +209,24 @@ test.describe("Upcoming appointments cancellation @booking-creates", () => {
     await confirmBtn.click();
 
     // 3. After backend cancel, UI reloads; ensure the cancelled appointment is gone.
-    // UpcomingList uses `window.location.reload()` after a successful cancel.
     await page.waitForLoadState("networkidle");
     await expect(page.getByRole("dialog")).toHaveCount(0);
-    await expect(page.getByText(patientName)).toHaveCount(0);
+
+    if (appointmentId && admin) {
+      await expect
+        .poll(
+          async () => {
+            const check = await admin
+              .from("appointments")
+              .select("id")
+              .eq("id", appointmentId)
+              .maybeSingle();
+            return check.data?.id ?? null;
+          },
+          { timeout: 10000 }
+        )
+        .toBeNull();
+    }
 
     if (appointmentId) {
       const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";

@@ -2,14 +2,20 @@
 
 import * as React from "react";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
-import { format } from "date-fns";
+import {
+  addDays,
+  addWeeks,
+  format,
+  isSameDay,
+  startOfDay,
+  startOfWeek,
+} from "date-fns";
 import { enGB } from "date-fns/locale";
 import { utcToZonedTime } from "date-fns-tz";
-import { CalendarDays } from "lucide-react";
+import { ChevronLeft, ChevronRight, Trash2, X } from "lucide-react";
 import { appointmentToCyprusDate, CY_TZ } from "@/lib/appointments";
-import { ScheduleView } from "@/components/dashboard/ScheduleView";
-import type { ScheduleAppointment } from "@/components/dashboard/ScheduleView";
-import { UpcomingList } from "@/components/dashboard/UpcomingList";
+import { WhatsAppLogoIcon } from "@/components/icons/WhatsAppLogoIcon";
+import type { WeeklySchedule } from "@/lib/doctor-settings";
 
 type AgendaAppointmentRow = {
   id: string;
@@ -18,6 +24,16 @@ type AgendaAppointmentRow = {
   patient_phone: string;
   patient_email: string;
   appointment_datetime: string;
+};
+
+const START_HOUR = 8;
+const END_HOUR = 20;
+const HOUR_ROW_HEIGHT = 56;
+type AgendaWorkingHours = {
+  weeklySchedule: WeeklySchedule;
+  breakStart: string | null;
+  breakEnd: string | null;
+  slotDurationMinutes: number;
 };
 
 function getWhatsAppUrl(phone: string): string | null {
@@ -29,14 +45,29 @@ function getWhatsAppUrl(phone: string): string | null {
 export function AgendaRealtime({
   doctorId,
   initialAppointments,
+  workingHours,
 }: {
   doctorId: string | null;
   initialAppointments: AgendaAppointmentRow[];
+  workingHours: AgendaWorkingHours | null;
 }) {
   const supabase = React.useMemo(() => createClientComponentClient(), []);
   const [appointments, setAppointments] =
     React.useState<AgendaAppointmentRow[]>(initialAppointments);
   const [toast, setToast] = React.useState(false);
+  const [selected, setSelected] = React.useState<(AgendaAppointmentRow & {
+    cyDate: Date;
+    dateKey: string;
+    dateLabel: string;
+    timeLabel: string;
+    whatsappUrl: string | null;
+    minutesFromStart: number;
+  }) | null>(null);
+  const [confirmingCancel, setConfirmingCancel] = React.useState(false);
+  const [isCancelling, setIsCancelling] = React.useState(false);
+  const [cancelError, setCancelError] = React.useState<string | null>(null);
+  const [weekOffset, setWeekOffset] = React.useState(0);
+  const [mobileDayOffset, setMobileDayOffset] = React.useState(0);
 
   React.useEffect(() => {
     setAppointments(initialAppointments);
@@ -83,6 +114,7 @@ export function AgendaRealtime({
 
   const nowUtc = new Date();
   const nowCyprus = utcToZonedTime(nowUtc, CY_TZ);
+  const todayDate = startOfDay(nowCyprus);
   const todayKey = format(nowCyprus, "yyyy-MM-dd");
 
   const rows = appointments.map((a) => {
@@ -90,7 +122,7 @@ export function AgendaRealtime({
     const dateKey = format(cyDate, "yyyy-MM-dd");
     const hours = cyDate.getHours();
     const minutes = cyDate.getMinutes();
-    const minutesFrom8 = (hours - 8) * 60 + minutes;
+    const minutesFromStart = (hours - START_HOUR) * 60 + minutes;
     return {
       ...a,
       cyDate,
@@ -98,20 +130,184 @@ export function AgendaRealtime({
       dateLabel: format(cyDate, "dd/MM/yyyy", { locale: enGB }),
       timeLabel: format(cyDate, "HH:mm", { locale: enGB }),
       whatsappUrl: getWhatsAppUrl(a.patient_phone),
-      minutesFrom8: Math.max(0, minutesFrom8),
+      minutesFromStart,
     };
   });
 
-  const todayRows = rows.filter((r) => r.dateKey === todayKey);
-  const scheduleAppointments: ScheduleAppointment[] = todayRows.map((r) => ({
-    id: r.id,
-    patient_name: r.patient_name,
-    patient_phone: r.patient_phone,
-    patient_email: r.patient_email,
-    whatsappUrl: r.whatsappUrl,
-    timeLabel: r.timeLabel,
-    minutesFrom8: r.minutesFrom8,
-  }));
+  const selectedMobileDate = addDays(todayDate, mobileDayOffset);
+  const selectedMobileKey = format(selectedMobileDate, "yyyy-MM-dd");
+  const mobileRows = rows
+    .filter((r) => r.dateKey === selectedMobileKey)
+    .sort((a, b) => a.cyDate.getTime() - b.cyDate.getTime());
+  const weekStart = startOfWeek(addWeeks(todayDate, weekOffset), { weekStartsOn: 1 });
+  const weekDays = React.useMemo(
+    () => Array.from({ length: 5 }, (_, i) => addDays(weekStart, i)),
+    [weekStart]
+  );
+  const weekKeys = weekDays.map((d) => format(d, "yyyy-MM-dd"));
+  const hours = React.useMemo(
+    () => Array.from({ length: END_HOUR - START_HOUR + 1 }, (_, i) => START_HOUR + i),
+    []
+  );
+  const dayHeight = (END_HOUR - START_HOUR) * HOUR_ROW_HEIGHT;
+  const maxMinutes = (END_HOUR - START_HOUR) * 60;
+  const appointmentDurationMinutes =
+    workingHours?.slotDurationMinutes && workingHours.slotDurationMinutes > 0
+      ? workingHours.slotDurationMinutes
+      : 30;
+  // Keep visual height faithful to slot duration so consecutive slots don't
+  // appear overlapped (e.g. 09:00, 09:30, 10:00).
+  const blockHeight = Math.max(
+    22,
+    (appointmentDurationMinutes / 60) * HOUR_ROW_HEIGHT - 2
+  );
+  const todayCount = rows.filter((r) => r.dateKey === todayKey).length;
+
+  function toMinutesFromMidnight(time: string | null | undefined): number | null {
+    if (!time) return null;
+    const [hRaw, mRaw] = time.split(":");
+    const h = Number.parseInt(hRaw ?? "", 10);
+    const m = Number.parseInt(mRaw ?? "", 10);
+    if (Number.isNaN(h) || Number.isNaN(m)) return null;
+    return h * 60 + m;
+  }
+
+  function dayKeyForDate(d: Date): keyof WeeklySchedule {
+    const map: Array<keyof WeeklySchedule> = [
+      "sunday",
+      "monday",
+      "tuesday",
+      "wednesday",
+      "thursday",
+      "friday",
+      "saturday",
+    ];
+    return map[d.getDay()];
+  }
+
+  function workingWindowsForDate(d: Date): {
+    enabled: boolean;
+    start: number;
+    end: number;
+    breakStart: number | null;
+    breakEnd: number | null;
+  } {
+    if (!workingHours) {
+      return {
+        enabled: true,
+        start: START_HOUR * 60,
+        end: END_HOUR * 60,
+        breakStart: null,
+        breakEnd: null,
+      };
+    }
+    const dayCfg = workingHours.weeklySchedule[dayKeyForDate(d)];
+    const start = toMinutesFromMidnight(dayCfg?.start_time) ?? START_HOUR * 60;
+    const end = toMinutesFromMidnight(dayCfg?.end_time) ?? END_HOUR * 60;
+    const breakStart = toMinutesFromMidnight(workingHours.breakStart);
+    const breakEnd = toMinutesFromMidnight(workingHours.breakEnd);
+    return {
+      enabled: Boolean(dayCfg?.enabled),
+      start,
+      end,
+      breakStart,
+      breakEnd,
+    };
+  }
+
+  async function handleCancelAppointment() {
+    if (!selected) return;
+    const selectedId = selected.id;
+    setCancelError(null);
+    setIsCancelling(true);
+    try {
+      const res = await fetch(`/api/appointments/${selectedId}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        setCancelError(data?.message || "We could not cancel this appointment.");
+        setIsCancelling(false);
+        return;
+      }
+      // Apply optimistic local update to avoid relying on full-page reload.
+      setAppointments((prev) => prev.filter((a) => a.id !== selectedId));
+      setSelected(null);
+      setConfirmingCancel(false);
+      setCancelError(null);
+      setIsCancelling(false);
+    } catch (err) {
+      console.error(err);
+      setCancelError("Something went wrong. Please try again.");
+      setIsCancelling(false);
+    }
+  }
+
+  function openAppointment(row: (typeof rows)[number]) {
+    setCancelError(null);
+    setConfirmingCancel(false);
+    setSelected(row);
+  }
+
+  function openCancelFlow(row: (typeof rows)[number]) {
+    setCancelError(null);
+    setSelected(row);
+    setConfirmingCancel(true);
+  }
+
+  function topForRow(row: (typeof rows)[number]): number {
+    const minutes = Math.min(Math.max(row.minutesFromStart, 0), maxMinutes);
+    return (minutes / 60) * HOUR_ROW_HEIGHT;
+  }
+
+  type PositionedRow = (typeof rows)[number] & {
+    column: number;
+    columns: number;
+  };
+
+  function layoutOverlaps(dayRows: (typeof rows)[number][]): PositionedRow[] {
+    const sorted = [...dayRows].sort((a, b) => a.cyDate.getTime() - b.cyDate.getTime());
+    const output: PositionedRow[] = [];
+    let i = 0;
+
+    while (i < sorted.length) {
+      const cluster: Array<{ row: (typeof rows)[number]; start: number; end: number }> = [];
+      let clusterEnd = -1;
+
+      while (i < sorted.length) {
+        const row = sorted[i];
+        const start = Math.min(Math.max(row.minutesFromStart, 0), maxMinutes);
+        const end = Math.min(start + appointmentDurationMinutes, maxMinutes);
+        if (cluster.length === 0 || start < clusterEnd) {
+          cluster.push({ row, start, end });
+          clusterEnd = Math.max(clusterEnd, end);
+          i += 1;
+        } else {
+          break;
+        }
+      }
+
+      const columnEndTimes: number[] = [];
+      const placed: Array<{ row: (typeof rows)[number]; column: number }> = [];
+      for (const item of cluster) {
+        let col = columnEndTimes.findIndex((end) => end <= item.start);
+        if (col === -1) {
+          col = columnEndTimes.length;
+          columnEndTimes.push(item.end);
+        } else {
+          columnEndTimes[col] = item.end;
+        }
+        placed.push({ row: item.row, column: col });
+      }
+
+      const columns = Math.max(1, columnEndTimes.length);
+      for (const p of placed) {
+        output.push({ ...p.row, column: p.column, columns });
+      }
+    }
+
+    return output;
+  }
 
   return (
     <>
@@ -123,54 +319,434 @@ export function AgendaRealtime({
 
       <section className="rounded-3xl border border-emerald-100/10 bg-slate-900/50 shadow-2xl shadow-slate-950/50 backdrop-blur-xl">
         <div className="border-b border-slate-800/60 px-4 pb-4 pt-4 sm:px-6 sm:pb-5 sm:pt-5">
-          <div className="flex flex-wrap items-center gap-2">
-            <h2 className="text-sm font-semibold text-slate-200">
-              {format(nowCyprus, "dd/MM/yyyy", { locale: enGB })}
-            </h2>
-            <span
-              aria-label={`${scheduleAppointments.length} appointment${
-                scheduleAppointments.length === 1 ? "" : "s"
-              } today`}
-              className={`inline-flex shrink-0 items-center rounded-full px-2.5 py-0.5 text-xs font-medium tabular-nums ${
-                scheduleAppointments.length === 0
-                  ? "bg-slate-700/60 text-slate-400"
-                  : "bg-emerald-400/20 text-emerald-300 ring-1 ring-emerald-400/30"
-              }`}
-            >
-              {scheduleAppointments.length}
-            </span>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="space-y-1">
+              <h2 className="text-sm font-semibold text-slate-200">
+                {format(nowCyprus, "dd/MM/yyyy", { locale: enGB })}
+              </h2>
+              <p className="text-xs text-slate-400">
+                <span
+                  className={`font-semibold tabular-nums ${
+                    todayCount === 0 ? "text-slate-500" : "text-emerald-300"
+                  }`}
+                >
+                  {todayCount}
+                </span>{" "}
+                appointment{todayCount === 1 ? "" : "s"} for today
+              </p>
+            </div>
+            <div className="hidden items-center gap-2 md:flex">
+              <button
+                type="button"
+                onClick={() => {
+                  setWeekOffset(0);
+                  setMobileDayOffset(0);
+                }}
+                className="rounded-lg border border-emerald-400/30 bg-emerald-400/10 px-2.5 py-1.5 text-xs font-medium text-emerald-200 transition hover:border-emerald-300/50 hover:bg-emerald-400/20"
+              >
+                Today
+              </button>
+              <button
+                type="button"
+                onClick={() => setWeekOffset((w) => w - 1)}
+                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-700 bg-slate-800/70 text-slate-300 transition hover:border-slate-500 hover:text-white"
+                aria-label="Previous week"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+              <p className="text-xs text-slate-400">
+                {format(weekDays[0], "dd MMM", { locale: enGB })} -{" "}
+                {format(weekDays[4], "dd MMM", { locale: enGB })}
+              </p>
+              <button
+                type="button"
+                onClick={() => setWeekOffset((w) => w + 1)}
+                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-700 bg-slate-800/70 text-slate-300 transition hover:border-slate-500 hover:text-white"
+                aria-label="Next week"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
           </div>
-          {scheduleAppointments.length === 0 && (
+          <div className="mt-2 flex items-center justify-between gap-2 md:hidden">
+            <button
+              type="button"
+              onClick={() => setMobileDayOffset((v) => v - 1)}
+              className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-700 bg-slate-800/70 text-slate-300 transition hover:border-slate-500 hover:text-white"
+              aria-label="Previous day"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <p className="text-xs font-medium text-slate-300">
+              {format(selectedMobileDate, "EEE, dd MMM", { locale: enGB })}
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setWeekOffset(0);
+                  setMobileDayOffset(0);
+                }}
+                className="rounded-lg border border-emerald-400/30 bg-emerald-400/10 px-2 py-1 text-[11px] font-medium text-emerald-200 transition hover:border-emerald-300/50 hover:bg-emerald-400/20"
+              >
+                Today
+              </button>
+              <button
+                type="button"
+                onClick={() => setMobileDayOffset((v) => v + 1)}
+                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-700 bg-slate-800/70 text-slate-300 transition hover:border-slate-500 hover:text-white"
+                aria-label="Next day"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+          {todayCount === 0 && (
             <p className="mt-1 text-xs text-slate-400">No appointments today</p>
           )}
         </div>
-        <div className="px-4 pb-4 pt-2 sm:px-6 sm:pb-6 sm:pt-3">
-          <ScheduleView
-            appointments={scheduleAppointments}
-          />
+
+        <div className="px-4 pb-4 pt-3 sm:px-6 sm:pb-6">
+          <div className="md:hidden">
+            {mobileRows.length === 0 ? (
+              <p className="py-4 text-center text-sm text-slate-500">
+                No appointments today — schedule is clear
+              </p>
+            ) : (
+              <div className="grid grid-cols-[50px_1fr] gap-3">
+                <div className="relative text-[11px] text-slate-500" style={{ height: dayHeight }}>
+                  {hours.map((hour) => {
+                    const y = (hour - START_HOUR) * HOUR_ROW_HEIGHT;
+                    return (
+                      <span
+                        key={hour}
+                        className="absolute -translate-y-1/2"
+                        style={{ top: y, left: 0 }}
+                      >
+                        {String(hour).padStart(2, "0")}:00
+                      </span>
+                    );
+                  })}
+                </div>
+                <div className="relative rounded-2xl border border-slate-800/70 bg-slate-950/45" style={{ height: dayHeight }}>
+                  {(() => {
+                    const w = workingWindowsForDate(selectedMobileDate);
+                    const startMin = START_HOUR * 60;
+                    const endMin = END_HOUR * 60;
+                    const y = (m: number) => ((m - startMin) / 60) * HOUR_ROW_HEIGHT;
+                    const overlays: React.ReactNode[] = [];
+                    if (!w.enabled) {
+                      overlays.push(
+                        <div
+                          key="mobile-disabled-day"
+                          className="absolute inset-0 bg-slate-900/70"
+                        />
+                      );
+                    } else {
+                      if (w.start > startMin) {
+                        overlays.push(
+                          <div
+                            key="mobile-before-start"
+                            className="absolute inset-x-0 bg-slate-900/70"
+                            style={{ top: 0, height: y(Math.min(w.start, endMin)) }}
+                          />
+                        );
+                      }
+                      if (w.end < endMin) {
+                        overlays.push(
+                          <div
+                            key="mobile-after-end"
+                            className="absolute inset-x-0 bg-slate-900/70"
+                            style={{
+                              top: y(Math.max(w.end, startMin)),
+                              bottom: 0,
+                            }}
+                          />
+                        );
+                      }
+                      if (
+                        w.breakStart != null &&
+                        w.breakEnd != null &&
+                        w.breakEnd > w.breakStart
+                      ) {
+                        const top = y(Math.max(w.breakStart, startMin));
+                        const bottom = y(Math.min(w.breakEnd, endMin));
+                        if (bottom > top) {
+                          overlays.push(
+                            <div
+                              key="mobile-break"
+                              className="absolute inset-x-0 bg-slate-900/65"
+                              style={{ top, height: bottom - top }}
+                            />
+                          );
+                        }
+                      }
+                    }
+                    return overlays;
+                  })()}
+                  {hours.slice(0, -1).map((hour) => {
+                    const y = (hour - START_HOUR + 1) * HOUR_ROW_HEIGHT;
+                    return (
+                      <div
+                        key={`mobile-line-${hour}`}
+                        className="absolute inset-x-0 border-t border-slate-800/60"
+                        style={{ top: y }}
+                      />
+                    );
+                  })}
+                  {layoutOverlaps(mobileRows).map((row) => (
+                    <button
+                      key={row.id}
+                      type="button"
+                      aria-label={`Appointment ${row.patient_name} at ${row.timeLabel}`}
+                      onClick={() => openAppointment(row)}
+                      className="group absolute left-1 right-1 rounded-xl border border-emerald-300/40 bg-emerald-400/20 px-2 py-1.5 text-left shadow-lg shadow-emerald-500/10 transition hover:bg-emerald-400/30 focus:outline-none focus:ring-2 focus:ring-emerald-300/60"
+                      style={{
+                        top: topForRow(row),
+                        height: blockHeight,
+                        left: `${0.25 + (row.column / row.columns) * 99.5}%`,
+                        width: `${(99.5 / row.columns) - 0.5}%`,
+                      }}
+                    >
+                      <p className="truncate text-xs font-semibold text-emerald-100">
+                        {row.timeLabel} · {row.patient_name}
+                      </p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="hidden md:block">
+            <div className="grid grid-cols-[64px_repeat(5,minmax(0,1fr))] gap-2 pb-2">
+              <div />
+              {weekDays.map((day) => (
+                <div
+                  key={format(day, "yyyy-MM-dd")}
+                  className={`rounded-xl border px-2 py-2 text-center text-xs ${
+                    isSameDay(day, todayDate)
+                      ? "border-emerald-300/40 bg-emerald-400/10 text-emerald-200"
+                      : "border-slate-800/80 bg-slate-900/40 text-slate-300"
+                  }`}
+                >
+                  <p className="font-semibold">{format(day, "EEE", { locale: enGB })}</p>
+                  <p className="mt-0.5 text-[11px]">{format(day, "dd MMM", { locale: enGB })}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-[64px_repeat(5,minmax(0,1fr))] gap-2">
+              <div className="relative text-[11px] text-slate-500" style={{ height: dayHeight }}>
+                {hours.map((hour) => {
+                  const y = (hour - START_HOUR) * HOUR_ROW_HEIGHT;
+                  return (
+                    <span
+                      key={hour}
+                      className="absolute -translate-y-1/2"
+                      style={{ top: y, left: 0 }}
+                    >
+                      {String(hour).padStart(2, "0")}:00
+                    </span>
+                  );
+                })}
+              </div>
+
+              {weekKeys.map((dayKey) => {
+                const dayRows = rows
+                  .filter((r) => r.dateKey === dayKey)
+                  .sort((a, b) => a.cyDate.getTime() - b.cyDate.getTime());
+                const dayDate = weekDays[weekKeys.indexOf(dayKey)];
+                const work = workingWindowsForDate(dayDate);
+                const startMin = START_HOUR * 60;
+                const endMin = END_HOUR * 60;
+                const y = (m: number) => ((m - startMin) / 60) * HOUR_ROW_HEIGHT;
+                return (
+                  <div
+                    key={dayKey}
+                    className="relative rounded-2xl border border-slate-800/70 bg-slate-950/45"
+                    style={{ height: dayHeight }}
+                  >
+                    {!work.enabled ? (
+                      <div className="absolute inset-0 bg-slate-900/70" />
+                    ) : (
+                      <>
+                        {work.start > startMin ? (
+                          <div
+                            className="absolute inset-x-0 bg-slate-900/70"
+                            style={{ top: 0, height: y(Math.min(work.start, endMin)) }}
+                          />
+                        ) : null}
+                        {work.end < endMin ? (
+                          <div
+                            className="absolute inset-x-0 bg-slate-900/70"
+                            style={{ top: y(Math.max(work.end, startMin)), bottom: 0 }}
+                          />
+                        ) : null}
+                        {work.breakStart != null &&
+                        work.breakEnd != null &&
+                        work.breakEnd > work.breakStart ? (
+                          (() => {
+                            const top = y(Math.max(work.breakStart!, startMin));
+                            const bottom = y(Math.min(work.breakEnd!, endMin));
+                            if (bottom <= top) return null;
+                            return (
+                              <div
+                                className="absolute inset-x-0 bg-slate-900/65"
+                                style={{ top, height: bottom - top }}
+                              />
+                            );
+                          })()
+                        ) : null}
+                      </>
+                    )}
+                    {hours.slice(0, -1).map((hour) => {
+                      const y = (hour - START_HOUR + 1) * HOUR_ROW_HEIGHT;
+                      return (
+                        <div
+                          key={`${dayKey}-line-${hour}`}
+                          className="absolute inset-x-0 border-t border-slate-800/60"
+                          style={{ top: y }}
+                        />
+                      );
+                    })}
+                    {layoutOverlaps(dayRows).map((row) => (
+                      <button
+                        key={row.id}
+                        type="button"
+                        aria-label={`Appointment ${row.patient_name} at ${row.timeLabel}`}
+                        onClick={() => openAppointment(row)}
+                        className="group absolute left-1 right-1 rounded-xl border border-emerald-300/40 bg-emerald-400/20 px-2 py-1.5 text-left shadow-lg shadow-emerald-500/10 transition hover:bg-emerald-400/30 focus:outline-none focus:ring-2 focus:ring-emerald-300/60"
+                        style={{
+                          top: topForRow(row),
+                          height: blockHeight,
+                          left: `${0.25 + (row.column / row.columns) * 99.5}%`,
+                          width: `${(99.5 / row.columns) - 0.5}%`,
+                        }}
+                      >
+                        <p className="truncate text-xs font-semibold text-emerald-100">
+                          {row.timeLabel} · {row.patient_name}
+                        </p>
+                      </button>
+                    ))}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </div>
       </section>
 
-      {rows.length > 0 && rows.length > todayRows.length && (
-        <section className="rounded-3xl border border-slate-800/80 bg-slate-900/30 px-4 pb-5 pt-5 sm:px-5 sm:pb-6 sm:pt-6">
-          <h3 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
-            <CalendarDays className="h-4 w-4 shrink-0 text-slate-500" aria-hidden />
-            Upcoming on other days
-          </h3>
-          <UpcomingList
-            items={rows
-              .filter((r) => r.dateKey !== todayKey)
-              .slice(0, 5)
-              .map((r) => ({
-                id: r.id,
-                patient_name: r.patient_name,
-                patient_phone: r.patient_phone,
-                dateLabel: r.dateLabel,
-                timeLabel: r.timeLabel,
-                whatsappUrl: r.whatsappUrl,
-              }))}
+      {selected && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          aria-modal="true"
+          role="dialog"
+        >
+          <button
+            type="button"
+            onClick={() => {
+              if (isCancelling) return;
+              setSelected(null);
+              setConfirmingCancel(false);
+              setCancelError(null);
+            }}
+            className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm"
+            aria-label="Close"
+            disabled={isCancelling}
           />
-        </section>
+          <div className="relative z-10 w-full max-w-sm rounded-3xl border border-emerald-100/10 bg-slate-900/95 p-6 shadow-2xl backdrop-blur-xl">
+            <button
+              type="button"
+              onClick={() => {
+                if (isCancelling) return;
+                setSelected(null);
+                setConfirmingCancel(false);
+                setCancelError(null);
+              }}
+              className="absolute right-4 top-4 rounded-full p-1 text-slate-400 transition hover:bg-slate-800 hover:text-slate-200 disabled:cursor-not-allowed disabled:opacity-50"
+              aria-label="Close"
+              disabled={isCancelling}
+            >
+              <X className="h-5 w-5" />
+            </button>
+            <h3 className="pr-8 text-lg font-semibold text-slate-50">
+              {selected.patient_name}
+            </h3>
+            <p className="mt-1 text-sm text-slate-400">
+              {selected.dateLabel} · {selected.timeLabel}
+            </p>
+            <div className="mt-4 space-y-2 text-sm">
+              <p className="text-slate-200">
+                <span className="text-slate-400">Phone</span>{" "}
+                {selected.patient_phone}
+              </p>
+              <p className="text-slate-200">
+                <span className="text-slate-400">Email</span>{" "}
+                {selected.patient_email}
+              </p>
+            </div>
+            <div className="mt-6 flex gap-2">
+              {(selected.whatsappUrl ?? getWhatsAppUrl(selected.patient_phone)) ? (
+                <a
+                  href={
+                    selected.whatsappUrl ??
+                    getWhatsAppUrl(selected.patient_phone) ??
+                    "#"
+                  }
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl bg-emerald-400 px-4 py-2.5 text-sm font-semibold text-slate-950 shadow-lg shadow-emerald-500/30 transition hover:bg-emerald-300"
+                >
+                  <WhatsAppLogoIcon className="h-4 w-4" />
+                  Chat on WhatsApp
+                </a>
+              ) : null}
+              {!confirmingCancel ? (
+                <button
+                  type="button"
+                  onClick={() => openCancelFlow(selected)}
+                  className="inline-flex items-center justify-center gap-2 rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-2.5 text-sm font-semibold text-red-200 transition hover:border-red-400/60 hover:bg-red-500/20"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Cancel
+                </button>
+              ) : null}
+            </div>
+
+            {confirmingCancel ? (
+              <div className="mt-4 rounded-2xl border border-red-500/20 bg-red-500/5 p-3 text-xs text-slate-300">
+                <p>
+                  Are you sure you want to cancel this appointment? This will free
+                  the slot for other patients.
+                </p>
+                <div className="mt-3 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setConfirmingCancel(false);
+                      setCancelError(null);
+                    }}
+                    className="inline-flex flex-1 items-center justify-center rounded-2xl border border-slate-700 bg-slate-800 px-3 py-2 text-xs font-medium text-slate-200 transition hover:bg-slate-700"
+                  >
+                    Keep appointment
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isCancelling}
+                    onClick={handleCancelAppointment}
+                    className="inline-flex flex-1 items-center justify-center rounded-2xl border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-200 transition hover:border-red-400/60 hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-70"
+                  >
+                    {isCancelling ? "Cancelling..." : "Confirm cancel"}
+                  </button>
+                </div>
+                {cancelError ? (
+                  <p className="mt-2 text-xs text-red-300">{cancelError}</p>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+        </div>
       )}
     </>
   );

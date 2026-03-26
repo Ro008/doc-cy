@@ -21,6 +21,7 @@ import {
 } from "@/lib/founder-metrics";
 import { buildLastSixMonthsAppointmentCounts } from "@/lib/founder-appointments-by-month";
 import { cyprusMonthStartUtcIso } from "@/lib/cyprus-calendar";
+import { fetchResendAccountQuota } from "@/lib/resend-quota";
 
 /** Always run on the server per request — no static cache of dashboard numbers */
 export const dynamic = "force-dynamic";
@@ -59,6 +60,7 @@ export default async function FounderDashboardPage() {
     appts7dRes,
     recentApptsRes,
     apptsForChartRes,
+    resendQuotaRes,
   ] = await Promise.all([
     supabase
       .from("doctors")
@@ -81,7 +83,12 @@ export default async function FounderDashboardPage() {
       .from("appointments")
       .select("created_at")
       .gte("created_at", chartRangeStart.toISOString()),
+    fetchResendAccountQuota(),
   ]);
+
+  const resendLiveQuota = resendQuotaRes.ok ? resendQuotaRes.quota : null;
+  const resendQuotaFailureReason =
+    "reason" in resendQuotaRes ? resendQuotaRes.reason : null;
 
   if (doctorsRes.error) {
     return (
@@ -237,6 +244,8 @@ export default async function FounderDashboardPage() {
           appointmentsThisMonth={appointmentsThisMonth}
           activeDoctors7d={activeDoctors7d}
           newDoctorsThisWeek={newDoctorsThisWeek}
+          resendLiveQuota={resendLiveQuota}
+          resendQuotaFailureReason={resendQuotaFailureReason}
         />
 
         <PendingSpecialtiesPanel items={pendingSpecialtyItems} />

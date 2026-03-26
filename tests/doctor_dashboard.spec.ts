@@ -6,7 +6,9 @@ import { signInDoctorAndSetCookies } from "./helpers/doctorAuth";
 async function signIn(page: any) {
   await signInDoctorAndSetCookies(page as Page);
   await page.goto("/agenda");
-  await expect(page.getByText(/Your Agenda · Today/i)).toBeVisible({
+  await expect(
+    page.getByText(/Weekly calendar on desktop · Daily focus on mobile/i)
+  ).toBeVisible({
     timeout: 10000,
   });
   await expect(page.locator("main header h1").first()).toBeVisible({
@@ -44,14 +46,18 @@ test.describe("Doctor dashboard", () => {
     await page.setViewportSize({ width: 1024, height: 768 });
     await signIn(page);
 
-    await expect(page.getByText(/Your Agenda · Today/i)).toBeVisible({
+    await expect(
+      page.getByText(/Weekly calendar on desktop · Daily focus on mobile/i)
+    ).toBeVisible({
       timeout: 10000,
     });
 
     const todaySection = page.locator("section").first();
     await expect(todaySection).toBeVisible();
 
-    const appointmentBlocks = todaySection.getByRole("button");
+    const appointmentBlocks = todaySection.getByRole("button", {
+      name: /^Appointment /i,
+    });
     const count = await appointmentBlocks.count();
 
     if (count >= 1) {
@@ -75,16 +81,18 @@ test.describe("Doctor dashboard", () => {
     await page.setViewportSize({ width: 320, height: 568 });
     await signIn(page);
 
-    await expect(page.getByText(/Your Agenda · Today/i)).toBeVisible({
+    await expect(
+      page.getByText(/Weekly calendar on desktop · Daily focus on mobile/i)
+    ).toBeVisible({
       timeout: 10000,
     });
 
     // On mobile we show stacked cards, not the desktop timeline
     const todaySection = page.locator("section").first();
     await expect(todaySection).toBeVisible();
-    // Either appointment cards (buttons) or empty state text
+    // Either appointment cards or empty state text
     const content =
-      todaySection.getByRole("button").first().or(
+      todaySection.getByRole("button", { name: /^Appointment /i }).first().or(
         todaySection.getByText(/No appointments today/).first()
       );
     await expect(content).toBeVisible({ timeout: 5000 });
@@ -96,7 +104,9 @@ test.describe("Doctor dashboard", () => {
     test.setTimeout(60000);
     await signIn(page);
 
-    await expect(page.getByText(/Your Agenda · Today/i)).toBeVisible({
+    await expect(
+      page.getByText(/Weekly calendar on desktop · Daily focus on mobile/i)
+    ).toBeVisible({
       timeout: 10000,
     });
 

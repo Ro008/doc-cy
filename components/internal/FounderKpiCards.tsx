@@ -1,5 +1,9 @@
 import { Users, CalendarDays, Activity, UserPlus, CalendarRange } from "lucide-react";
 import { ResendUsageBar } from "@/components/internal/ResendUsageBar";
+import type {
+  ResendAccountQuota,
+  ResendQuotaFailureReason,
+} from "@/lib/resend-quota";
 
 type Props = {
   totalDoctors: number;
@@ -7,6 +11,8 @@ type Props = {
   appointmentsThisMonth: number;
   activeDoctors7d: number;
   newDoctorsThisWeek: number;
+  resendLiveQuota: ResendAccountQuota | null;
+  resendQuotaFailureReason: ResendQuotaFailureReason | null;
 };
 
 const cardBase =
@@ -59,6 +65,8 @@ export function FounderKpiCards({
   appointmentsThisMonth,
   activeDoctors7d,
   newDoctorsThisWeek,
+  resendLiveQuota,
+  resendQuotaFailureReason,
 }: Props) {
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
@@ -87,7 +95,11 @@ export function FounderKpiCards({
           accent="from-cyan-500/20 to-sky-500/5"
           iconBg="bg-cyan-500/15 text-cyan-300"
         />
-        <ResendUsageBar totalAppointments={totalAppointments} />
+        <ResendUsageBar
+          totalAppointments={totalAppointments}
+          liveQuota={resendLiveQuota}
+          quotaFailureReason={resendQuotaFailureReason}
+        />
       </div>
       <KpiCard
         label="Active professionals (7d)"
