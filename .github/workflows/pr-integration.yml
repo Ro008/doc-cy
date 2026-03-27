@@ -21,6 +21,9 @@ jobs:
       NEXT_PUBLIC_SUPABASE_URL: "${{ secrets.INTEGRATION_SUPABASE_URL }}"
       NEXT_PUBLIC_SUPABASE_ANON_KEY: "${{ secrets.INTEGRATION_SUPABASE_ANON_KEY }}"
       SUPABASE_SERVICE_ROLE_KEY: "${{ secrets.INTEGRATION_SUPABASE_SERVICE_ROLE_KEY }}"
+      # Used to block accidentally running against the production Supabase instance.
+      # Isolated projects commonly use URLs ending in ".supabase.co" as well.
+      PROD_NEXT_PUBLIC_SUPABASE_URL: "${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}"
 
     steps:
       - name: Checkout
@@ -33,6 +36,7 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: "${{ secrets.INTEGRATION_SUPABASE_URL }}"
           NEXT_PUBLIC_SUPABASE_ANON_KEY: "${{ secrets.INTEGRATION_SUPABASE_ANON_KEY }}"
           SUPABASE_SERVICE_ROLE_KEY: "${{ secrets.INTEGRATION_SUPABASE_SERVICE_ROLE_KEY }}"
+          PROD_NEXT_PUBLIC_SUPABASE_URL: "${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}"
         run: |
           set -euo pipefail
           missing=0
@@ -66,9 +70,18 @@ jobs:
             echo "Unsafe PLAYWRIGHT_BASE_URL points to production. Aborting."
             exit 1
           fi
-          if echo "${NEXT_PUBLIC_SUPABASE_URL}" | grep -Eqi 'supabase\.co'; then
-            echo "Unsafe NEXT_PUBLIC_SUPABASE_URL points to hosted/prod Supabase. Aborting."
-            exit 1
+          normalize_url() { echo "$1" | sed 's:/*$::'; }
+
+          integration_norm="$(normalize_url "${NEXT_PUBLIC_SUPABASE_URL}")"
+          prod_norm="$(normalize_url "${PROD_NEXT_PUBLIC_SUPABASE_URL}")"
+
+          # Allow isolated Supabase projects (commonly host ends with ".supabase.co"),
+          # but block the production Supabase URL explicitly configured for live usage.
+          if echo "${integration_norm}" | grep -Eqi '\.supabase\.co'; then
+            if [ -n "${prod_norm}" ] && [ "${integration_norm}" = "${prod_norm}" ]; then
+              echo "Unsafe NEXT_PUBLIC_SUPABASE_URL matches production Supabase URL. Aborting."
+              exit 1
+            fi
           fi
 
       - name: Setup Node
