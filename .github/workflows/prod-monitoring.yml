@@ -68,11 +68,15 @@ jobs:
           if-no-files-found: ignore
 
       - name: Send webhook alert on failure
-        if: failure() && (github.event_name == 'workflow_dispatch' || steps.cyprus.outputs.hour == '05') && secrets.PROD_SMOKE_ALERT_WEBHOOK_URL != ''
+        if: failure() && (github.event_name == 'workflow_dispatch' || steps.cyprus.outputs.hour == '05')
         shell: bash
         env:
           WEBHOOK_URL: ${{ secrets.PROD_SMOKE_ALERT_WEBHOOK_URL }}
         run: |
+          if [ -z "${WEBHOOK_URL}" ]; then
+            echo "No PROD_SMOKE_ALERT_WEBHOOK_URL configured. Skipping webhook alert."
+            exit 0
+          fi
           payload=$(cat <<'JSON'
           {
             "text": "DocCy prod registration smoke FAILED. Check GitHub Actions run details."
