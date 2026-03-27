@@ -13,7 +13,7 @@ permissions:
   issues: write
 
 jobs:
-  prod-registration-smoke:
+  prod-critical-smoke:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -48,23 +48,17 @@ jobs:
         if: github.event_name == 'workflow_dispatch' || steps.cyprus.outputs.hour == '05'
         run: npx playwright install --with-deps chromium
 
-      - name: Run production registration precheck (email alias)
+      - name: Run production critical smoke suite
         if: github.event_name == 'workflow_dispatch' || steps.cyprus.outputs.hour == '05'
         env:
           PLAYWRIGHT_LIVE_REGISTRATION: "1"
           PLAYWRIGHT_BASE_URL: ${{ secrets.PLAYWRIGHT_BASE_URL_PROD }}
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        run: npx playwright test tests/register_email_alias.spec.ts --project="Desktop Large (Chromium)" --reporter=line
-
-      - name: Run production doctor registration smoke
-        if: github.event_name == 'workflow_dispatch' || steps.cyprus.outputs.hour == '05'
-        env:
-          PLAYWRIGHT_LIVE_REGISTRATION: "1"
-          PLAYWRIGHT_BASE_URL: ${{ secrets.PLAYWRIGHT_BASE_URL_PROD }}
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        run: npx playwright test tests/prod_registration_smoke.spec.ts --project="Desktop Large (Chromium)" --reporter=line
+          TEST_DOCTOR_EMAIL: ${{ secrets.TEST_DOCTOR_EMAIL }}
+          TEST_DOCTOR_PASSWORD: ${{ secrets.TEST_DOCTOR_PASSWORD }}
+          TEST_BOOKING_DOCTOR_SLUG: ${{ secrets.TEST_BOOKING_DOCTOR_SLUG }}
+        run: npx playwright test tests/prod/ --project="Desktop Large (Chromium)" --reporter=line
 
       - name: Upload Playwright report
         if: always() && (github.event_name == 'workflow_dispatch' || steps.cyprus.outputs.hour == '05')
@@ -76,43 +70,28 @@ jobs:
             test-results
           if-no-files-found: ignore
 
-      - name: Send webhook alert on failure
-        if: failure() && (github.event_name == 'workflow_dispatch' || steps.cyprus.outputs.hour == '05')
+      - name: Send WhatsApp monitoring status
+        if: always() && (github.event_name == 'workflow_dispatch' || steps.cyprus.outputs.hour == '05')
         shell: bash
         env:
-          WEBHOOK_URL: ${{ secrets.PROD_SMOKE_ALERT_WEBHOOK_URL }}
+          WEBHOOK_URL: ${{ secrets.WHATSAPP_WEBHOOK_URL }}
+          JOB_STATUS: ${{ job.status }}
         run: |
           if [ -z "${WEBHOOK_URL}" ]; then
-            echo "No PROD_SMOKE_ALERT_WEBHOOK_URL configured. Skipping webhook alert."
+            echo "No WHATSAPP_WEBHOOK_URL configured. Skipping WhatsApp notification."
             exit 0
+          fi
+          if [ "${JOB_STATUS}" = "success" ]; then
+            MSG='✅ DocCy PROD: All systems functional (Registration, Login, Booking).'
+          else
+            MSG='❌ DocCy PROD: Critical failure detected. Check GitHub Actions for details.'
           fi
           payload=$(cat <<'JSON'
           {
-            "text": "DocCy prod registration smoke FAILED. Check GitHub Actions run details."
+            "text": "__MSG__"
           }
           JSON
           )
+          payload="${payload/__MSG__/${MSG}}"
           curl -X POST -H "Content-Type: application/json" -d "$payload" "$WEBHOOK_URL"
-
-      - name: Create GitHub issue alert on failure
-        if: failure() && (github.event_name == 'workflow_dispatch' || steps.cyprus.outputs.hour == '05')
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const title = `Prod smoke failed: doctor registration (${new Date().toISOString().slice(0,10)})`;
-            const body = [
-              "Production smoke test failed for Doctor Registration.",
-              "",
-              `- Workflow: ${context.workflow}`,
-              `- Run: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
-              `- Trigger: ${context.eventName}`,
-              `- Cyprus time at start: ${{ steps.cyprus.outputs.now }}`
-            ].join("\n");
-            await github.rest.issues.create({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              title,
-              body,
-              labels: ["prod-monitoring", "incident"]
-            });
 

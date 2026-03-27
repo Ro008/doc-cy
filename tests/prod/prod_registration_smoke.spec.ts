@@ -17,9 +17,7 @@ async function listAuthUsersByEmail(
     const users = data?.users ?? [];
     for (const u of users) {
       const em = (u.email ?? "").toLowerCase();
-      if (em === email.toLowerCase()) {
-        matches.push({ id: u.id, email: em });
-      }
+      if (em === email.toLowerCase()) matches.push({ id: u.id, email: em });
     }
     if (users.length < 200) break;
   }
@@ -36,9 +34,7 @@ async function cleanupAvatarFilesForAuthUser(admin: SupabaseClient, authUserId: 
   const paths = (files ?? [])
     .filter((f) => f.name && !f.name.endsWith("/"))
     .map((f) => `${prefix}/${f.name}`);
-  if (paths.length > 0) {
-    await admin.storage.from("avatars").remove(paths);
-  }
+  if (paths.length > 0) await admin.storage.from("avatars").remove(paths);
 }
 
 async function cleanupLicenseFilesForEmail(admin: SupabaseClient, email: string) {
@@ -55,23 +51,21 @@ async function cleanupLicenseFilesForEmail(admin: SupabaseClient, email: string)
   const paths = (files ?? [])
     .filter((f) => f.name && !f.name.endsWith("/"))
     .map((f) => `${folder}/${f.name}`);
-  if (paths.length > 0) {
-    await admin.storage.from("doctor-verifications").remove(paths);
-  }
+  if (paths.length > 0) await admin.storage.from("doctor-verifications").remove(paths);
 }
 
-test.describe("Production smoke: doctor registration", () => {
-  test("completes registration flow in production and always cleans up", async ({ page }) => {
+test.describe("Prod smoke: doctor registration", () => {
+  test("completes registration and cleans up", async ({ page }) => {
     const baseUrl = process.env.PLAYWRIGHT_BASE_URL ?? "";
     const isLiveMode = process.env.PLAYWRIGHT_LIVE_REGISTRATION === "1";
     test.skip(
       !isLiveMode || !baseUrl || /localhost|127\.0\.0\.1/i.test(baseUrl),
-      "Set PLAYWRIGHT_LIVE_REGISTRATION=1 and PLAYWRIGHT_BASE_URL to a real environment."
+      "Set PLAYWRIGHT_LIVE_REGISTRATION=1 and PLAYWRIGHT_BASE_URL to production."
     );
 
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
     const serviceRole = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
-    test.skip(!supabaseUrl || !serviceRole, "Missing Supabase service credentials.");
+    test.skip(!supabaseUrl || !serviceRole, "Missing Supabase credentials.");
 
     const admin = createClient(supabaseUrl, serviceRole);
     const nonce = `${Date.now()}`;
@@ -88,17 +82,15 @@ test.describe("Production smoke: doctor registration", () => {
 
     try {
       await page.goto("/register");
-
       await page.getByLabel("Full name").fill(fullName);
       await page.getByLabel("Email").fill(email);
       await page.getByLabel("Password").fill("StrongPass123!");
-      await page
-        .getByLabel("WhatsApp Number (with country code, e.g., +357...)")
-        .fill("+35799123456");
+      await page.getByLabel("WhatsApp Number (with country code, e.g., +357...)").fill(
+        "+35799123456"
+      );
 
       await page.locator("#register-specialty-trigger").click();
       await page.locator("ul[role='listbox'] li button").first().click();
-
       await page.getByTestId("language-multiselect-trigger").click();
       await page.locator("#register-languages-listbox [role='option']").first().click();
       await page.keyboard.press("Escape");
@@ -112,20 +104,15 @@ test.describe("Production smoke: doctor registration", () => {
       await page.getByLabel("Professional license number").fill(`LIC-${nonce}`);
       await page.locator("input[name='licenseFile']").setInputFiles(licenseFixture);
       await page
-        .getByRole("checkbox", {
-          name: /I confirm I am a licensed professional/i,
-        })
+        .getByRole("checkbox", { name: /I confirm I am a licensed professional/i })
         .check();
       await page.getByRole("button", { name: /Submit application/i }).click();
 
       await expect(page).toHaveURL(/\/register\?submitted=1/, { timeout: 30000 });
       await expect(
-        page.getByRole("heading", {
-          name: /Thank you|Registration Successful|Pending Evaluation|under review/i,
-        })
+        page.getByRole("heading", { name: /Thank you|under review|Pending Evaluation/i })
       ).toBeVisible({ timeout: 30000 });
     } finally {
-      // Always cleanup records/files even if assertions fail.
       const { data: doctor } = await admin
         .from("doctors")
         .select("id,auth_user_id,email,license_file_url")
@@ -133,21 +120,15 @@ test.describe("Production smoke: doctor registration", () => {
         .maybeSingle();
 
       const authUsers = await listAuthUsersByEmail(admin, email);
-
-      if (doctor?.id) {
-        await admin.from("doctors").delete().eq("id", doctor.id);
-      }
-
+      if (doctor?.id) await admin.from("doctors").delete().eq("id", doctor.id);
       if (doctor?.auth_user_id) {
         await cleanupAvatarFilesForAuthUser(admin, String(doctor.auth_user_id));
         await admin.auth.admin.deleteUser(String(doctor.auth_user_id));
       }
-
       for (const u of authUsers) {
         await cleanupAvatarFilesForAuthUser(admin, u.id);
         await admin.auth.admin.deleteUser(u.id);
       }
-
       if (doctor?.license_file_url) {
         await admin.storage
           .from("doctor-verifications")

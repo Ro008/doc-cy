@@ -9,7 +9,7 @@
     "start": "next start",
     "lint": "next lint",
     "test:e2e": "playwright test",
-    "test:e2e:register:prod": "powershell -NoProfile -Command \"$env:PLAYWRIGHT_LIVE_REGISTRATION='1'; $env:PLAYWRIGHT_BASE_URL='https://mydoccy.com'; playwright test tests/register_onboarding_avatar.spec.ts --project='Desktop Large (Chromium)' --reporter=line\"",
+    "test:e2e:register:prod": "powershell -NoProfile -Command \"$env:PLAYWRIGHT_LIVE_REGISTRATION='1'; $env:PLAYWRIGHT_BASE_URL='https://mydoccy.com'; playwright test tests/prod/prod_registration_smoke.spec.ts --project='Desktop Large (Chromium)' --reporter=line\"",
     "test:e2e:i18n-smoke": "playwright test tests/landing_i18n.spec.ts tests/language_switcher.spec.ts",
     "test:e2e:safe": "powershell -NoProfile -Command \"$env:PLAYWRIGHT_SAFE_NO_BOOKING='1'; playwright test\"",
     "test:e2e:ui": "playwright test --ui",
