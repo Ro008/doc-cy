@@ -16,10 +16,14 @@ jobs:
     env:
       # Hard guard used by integration specs to avoid production execution.
       INTEGRATION_SAFE_ENV: "1"
-      PLAYWRIGHT_BASE_URL: ${{ secrets.INTEGRATION_BASE_URL }}
-      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.INTEGRATION_SUPABASE_URL }}
-      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.INTEGRATION_SUPABASE_ANON_KEY }}
-      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.INTEGRATION_SUPABASE_SERVICE_ROLE_KEY }}
+      # Map repository secrets → names the app and Playwright tests expect.
+      PLAYWRIGHT_BASE_URL: "${{ secrets.INTEGRATION_BASE_URL }}"
+      NEXT_PUBLIC_SUPABASE_URL: "${{ secrets.INTEGRATION_SUPABASE_URL }}"
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: "${{ secrets.INTEGRATION_SUPABASE_ANON_KEY }}"
+      SUPABASE_SERVICE_ROLE_KEY: "${{ secrets.INTEGRATION_SUPABASE_SERVICE_ROLE_KEY }}"
+      # Used to block accidentally running against the production Supabase instance.
+      # Isolated projects commonly use URLs ending in ".supabase.co" as well.
+      PROD_NEXT_PUBLIC_SUPABASE_URL: "${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}"
 
     steps:
       - name: Checkout
@@ -27,18 +31,57 @@ jobs:
 
       - name: Validate isolated environment configuration
         shell: bash
+        env:
+          PLAYWRIGHT_BASE_URL: "${{ secrets.INTEGRATION_BASE_URL }}"
+          NEXT_PUBLIC_SUPABASE_URL: "${{ secrets.INTEGRATION_SUPABASE_URL }}"
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: "${{ secrets.INTEGRATION_SUPABASE_ANON_KEY }}"
+          SUPABASE_SERVICE_ROLE_KEY: "${{ secrets.INTEGRATION_SUPABASE_SERVICE_ROLE_KEY }}"
+          PROD_NEXT_PUBLIC_SUPABASE_URL: "${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}"
         run: |
-          if [ -z "${PLAYWRIGHT_BASE_URL}" ] || [ -z "${NEXT_PUBLIC_SUPABASE_URL}" ] || [ -z "${SUPABASE_SERVICE_ROLE_KEY}" ]; then
-            echo "Missing integration secrets. Configure INTEGRATION_BASE_URL / INTEGRATION_SUPABASE_URL / INTEGRATION_SUPABASE_SERVICE_ROLE_KEY."
+          set -euo pipefail
+          missing=0
+
+          if [ -z "${PLAYWRIGHT_BASE_URL}" ]; then
+            echo "::error::Missing GitHub secret INTEGRATION_BASE_URL (env PLAYWRIGHT_BASE_URL is empty)."
+            missing=1
+          fi
+          if [ -z "${NEXT_PUBLIC_SUPABASE_URL}" ]; then
+            echo "::error::Missing GitHub secret INTEGRATION_SUPABASE_URL (env NEXT_PUBLIC_SUPABASE_URL is empty)."
+            missing=1
+          fi
+          if [ -z "${NEXT_PUBLIC_SUPABASE_ANON_KEY}" ]; then
+            echo "::error::Missing GitHub secret INTEGRATION_SUPABASE_ANON_KEY (env NEXT_PUBLIC_SUPABASE_ANON_KEY is empty)."
+            missing=1
+          fi
+          if [ -z "${SUPABASE_SERVICE_ROLE_KEY}" ]; then
+            echo "::error::Missing GitHub secret INTEGRATION_SUPABASE_SERVICE_ROLE_KEY (env SUPABASE_SERVICE_ROLE_KEY is empty)."
+            missing=1
+          fi
+
+          if [ "${missing}" -ne 0 ]; then
+            echo "Add the INTEGRATION_* secrets in Repo Settings → Secrets and variables → Actions."
+            if [ "${GITHUB_EVENT_NAME:-}" = "pull_request" ] && [ "${{ github.event.pull_request.head.repo.full_name }}" != "${{ github.repository }}" ]; then
+              echo "This PR is from a fork; GitHub does not inject repository secrets into fork PR workflows. Use a branch on this repo or workflow_dispatch."
+            fi
             exit 1
           fi
+
           if echo "${PLAYWRIGHT_BASE_URL}" | grep -Eqi 'mydoccy\.com|vercel\.app'; then
             echo "Unsafe PLAYWRIGHT_BASE_URL points to production. Aborting."
             exit 1
           fi
-          if echo "${NEXT_PUBLIC_SUPABASE_URL}" | grep -Eqi 'supabase\.co'; then
-            echo "Unsafe NEXT_PUBLIC_SUPABASE_URL points to hosted/prod Supabase. Aborting."
-            exit 1
+          normalize_url() { echo "$1" | sed 's:/*$::'; }
+
+          integration_norm="$(normalize_url "${NEXT_PUBLIC_SUPABASE_URL}")"
+          prod_norm="$(normalize_url "${PROD_NEXT_PUBLIC_SUPABASE_URL}")"
+
+          # Allow isolated Supabase projects (commonly host ends with ".supabase.co"),
+          # but block the production Supabase URL explicitly configured for live usage.
+          if echo "${integration_norm}" | grep -Eqi '\.supabase\.co'; then
+            if [ -n "${prod_norm}" ] && [ "${integration_norm}" = "${prod_norm}" ]; then
+              echo "Unsafe NEXT_PUBLIC_SUPABASE_URL matches production Supabase URL. Aborting."
+              exit 1
+            fi
           fi
 
       - name: Setup Node
@@ -54,5 +97,10 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: Run race-condition integration test (safe env only)
+        env:
+          INTEGRATION_SAFE_ENV: "1"
+          PLAYWRIGHT_BASE_URL: "${{ secrets.INTEGRATION_BASE_URL }}"
+          NEXT_PUBLIC_SUPABASE_URL: "${{ secrets.INTEGRATION_SUPABASE_URL }}"
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: "${{ secrets.INTEGRATION_SUPABASE_ANON_KEY }}"
+          SUPABASE_SERVICE_ROLE_KEY: "${{ secrets.INTEGRATION_SUPABASE_SERVICE_ROLE_KEY }}"
         run: npx playwright test tests/integration/appointments_race_condition.integration.spec.ts --project="Desktop Large (Chromium)" --reporter=line
-
