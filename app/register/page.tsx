@@ -5,6 +5,7 @@ import { PasswordToggleInput } from "@/components/auth/PasswordToggleInput";
 import { RegisterSpecialtyFields } from "@/components/auth/RegisterSpecialtyFields";
 import { RegisterLanguageFields } from "@/components/auth/RegisterLanguageFields";
 import { RegisterAvatarUpload } from "@/components/auth/RegisterAvatarUpload";
+import { RegisterDevErrorConsole } from "@/components/auth/RegisterDevErrorConsole";
 import { validateLanguageSelection } from "@/lib/cyprus-languages";
 import {
   parseSpecialtyFromMasterField,
@@ -12,8 +13,76 @@ import {
 } from "@/lib/specialty-submission";
 
 type PageProps = {
-  searchParams?: { submitted?: string; error?: string };
+  searchParams?: { submitted?: string; error?: string; debug?: string };
 };
+
+const emailRegex = /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i;
+
+function redirectWithError(errorCode: string, detail?: unknown): never {
+  if (process.env.NODE_ENV !== "development" || !detail) {
+    redirect(`/register?error=${encodeURIComponent(errorCode)}`);
+  }
+  const detailText =
+    typeof detail === "string"
+      ? detail
+      : (() => {
+          try {
+            return JSON.stringify(detail);
+          } catch {
+            return String(detail);
+          }
+        })();
+  redirect(
+    `/register?error=${encodeURIComponent(errorCode)}&debug=${encodeURIComponent(
+      detailText.slice(0, 1400)
+    )}`
+  );
+}
+
+function mapAuthErrorToCode(error: {
+  message?: string | null;
+  status?: number | string | null;
+}): string {
+  const msg = String(error.message ?? "").toLowerCase();
+  const status = Number(error.status ?? 0);
+
+  if (
+    msg.includes("already registered") ||
+    msg.includes("already exists") ||
+    msg.includes("user already")
+  ) {
+    return "auth_user_exists";
+  }
+  if (
+    msg.includes("invalid email") ||
+    msg.includes("email address is invalid") ||
+    msg.includes("unable to validate email")
+  ) {
+    return "auth_invalid_email";
+  }
+  if (
+    msg.includes("password") &&
+    (msg.includes("weak") ||
+      msg.includes("at least") ||
+      msg.includes("minimum") ||
+      msg.includes("length"))
+  ) {
+    return "auth_weak_password";
+  }
+  if (
+    status === 0 ||
+    msg.includes("network") ||
+    msg.includes("fetch") ||
+    msg.includes("failed to fetch") ||
+    msg.includes("timeout")
+  ) {
+    return "auth_network";
+  }
+  if (status === 429) {
+    return "rate_limit";
+  }
+  return "auth";
+}
 
 async function handleRegister(formData: FormData) {
   "use server";
@@ -46,7 +115,11 @@ async function handleRegister(formData: FormData) {
     !avatarFile ||
     professionalDisclaimer !== "on"
   ) {
-    redirect("/register?error=validation");
+    redirectWithError("validation");
+  }
+
+  if (!emailRegex.test(email)) {
+    redirectWithError("invalid_email_format");
   }
 
   const specialtyFromMaster = parseSpecialtyFromMasterField(
@@ -57,7 +130,7 @@ async function handleRegister(formData: FormData) {
     specialtyFromMaster
   );
   if (!specParsed.ok) {
-    redirect("/register?error=specialty");
+    redirectWithError("specialty");
   }
   const specialty = specParsed.specialty;
   const isSpecialtyApproved = specParsed.is_specialty_approved;
@@ -65,22 +138,22 @@ async function handleRegister(formData: FormData) {
   const languagesRaw = formData.getAll("language").map((x) => String(x).trim());
   const languagesParsed = validateLanguageSelection(languagesRaw);
   if (!languagesParsed.ok) {
-    redirect("/register?error=languages");
+    redirectWithError("languages");
   }
   const languages = languagesParsed.value;
 
   const maxBytes = 8 * 1024 * 1024; // 8 MB
   if (licenseFile.size <= 0 || licenseFile.size > maxBytes) {
-    redirect("/register?error=file");
+    redirectWithError("file");
   }
   if (avatarFile.size <= 0 || avatarFile.size > 10 * 1024 * 1024) {
-    redirect("/register?error=avatar_file");
+    redirectWithError("avatar_file");
   }
   // Tiny server-side guard after client crop/compression.
   // Reject anomalous payloads so avatar uploads stay lightweight and predictable.
   const croppedAvatarMaxBytes = 1024 * 1024; // 1 MB
   if (avatarFile.size > croppedAvatarMaxBytes) {
-    redirect("/register?error=avatar_too_large");
+    redirectWithError("avatar_too_large");
   }
 
   const allowedTypes = new Set([
@@ -94,17 +167,17 @@ async function handleRegister(formData: FormData) {
   const extOk = /\.(pdf|jpe?g|png|webp|gif)$/i.test(licenseFile.name);
   const typeOk = !fileType || allowedTypes.has(fileType);
   if (!typeOk && !extOk) {
-    redirect("/register?error=file");
+    redirectWithError("file");
   }
   const avatarType = avatarFile.type?.toLowerCase() ?? "";
   if (!avatarType.startsWith("image/")) {
-    redirect("/register?error=avatar_file");
+    redirectWithError("avatar_file");
   }
 
   const service = createServiceRoleClient();
   if (!service) {
     console.error("[DocCy] SUPABASE_SERVICE_ROLE_KEY missing — cannot complete registration safely");
-    redirect("/register?error=db");
+    redirectWithError("db", "SUPABASE_SERVICE_ROLE_KEY missing");
   }
 
   // Upload license document to Supabase Storage
@@ -123,7 +196,7 @@ async function handleRegister(formData: FormData) {
 
   if (uploadError || !uploadData?.path) {
     console.error("[DocCy] License upload failed", uploadError);
-    redirect("/register?error=upload");
+    redirectWithError("upload", uploadError);
   }
 
   const licenseFileUrl = uploadData.path;
@@ -152,10 +225,10 @@ async function handleRegister(formData: FormData) {
     }
 
     if ((signUpError as any)?.status === 429) {
-      redirect("/register?error=rate_limit");
+      redirectWithError("rate_limit", signUpError);
     }
 
-    redirect("/register?error=auth");
+    redirectWithError(mapAuthErrorToCode(signUpError as any), signUpError);
   }
 
   const authUserId = signUpData.user.id;
@@ -186,7 +259,7 @@ async function handleRegister(formData: FormData) {
     } catch (cleanupError) {
       console.error("[DocCy] Failed to cleanup files/user after avatar upload", cleanupError);
     }
-    redirect("/register?error=avatar_upload");
+    redirectWithError("avatar_upload", avatarUploadError);
   }
   const avatarFileUrl = avatarUploadData.path;
 
@@ -226,7 +299,7 @@ async function handleRegister(formData: FormData) {
       } catch (cleanupError) {
         console.error("[DocCy] Failed cleanup after founder-count fallback error", cleanupError);
       }
-      redirect("/register?error=db");
+      redirectWithError("db", founderCountError);
     }
 
     const fallbackTier = (founderCount ?? 0) < 100 ? "founder" : "standard";
@@ -258,7 +331,7 @@ async function handleRegister(formData: FormData) {
       } catch (cleanupError) {
         console.error("[DocCy] Failed cleanup after fallback doctor insert error", cleanupError);
       }
-      redirect("/register?error=db");
+      redirectWithError("db", fallbackInsert.error);
     }
 
     doctorId = fallbackInsert.data.id as string;
@@ -289,7 +362,7 @@ async function handleRegister(formData: FormData) {
     } catch (cleanupError) {
       console.error("[DocCy] Failed cleanup after avatar save error", cleanupError);
     }
-    redirect("/register?error=avatar_save");
+    redirectWithError("avatar_save", avatarSaveError);
   }
 
   redirect("/register?submitted=1");
@@ -298,11 +371,24 @@ async function handleRegister(formData: FormData) {
 export default function RegisterPage({ searchParams }: PageProps) {
   const submitted = searchParams?.submitted === "1";
   const errorCode = searchParams?.error;
+  const debugDetail = searchParams?.debug ?? null;
 
   let errorMessage: string | null = null;
   if (errorCode === "rate_limit") {
     errorMessage =
       "Too many signup attempts. Please wait a minute before trying again.";
+  } else if (errorCode === "auth_user_exists") {
+    errorMessage =
+      "An account with this email already exists. Try logging in or use another email alias.";
+  } else if (errorCode === "auth_invalid_email" || errorCode === "invalid_email_format") {
+    errorMessage =
+      "Please enter a valid email address. Gmail aliases with '+' are allowed (e.g. rociosirvent+test@gmail.com).";
+  } else if (errorCode === "auth_network") {
+    errorMessage =
+      "Network issue while creating your account. Please check your connection and try again.";
+  } else if (errorCode === "auth_weak_password") {
+    errorMessage =
+      "Your password is too weak. Use at least 8 characters with a stronger combination.";
   } else if (errorCode === "auth") {
     errorMessage =
       "We couldn’t create your account. Please double‑check your email and try again.";
@@ -384,6 +470,12 @@ export default function RegisterPage({ searchParams }: PageProps) {
             </div>
           ) : (
             <form action={handleRegister} className="space-y-6">
+              {process.env.NODE_ENV === "development" && errorCode && debugDetail ? (
+                <RegisterDevErrorConsole
+                  errorCode={errorCode}
+                  errorDetail={decodeURIComponent(debugDetail)}
+                />
+              ) : null}
               {errorMessage && (
                 <div className="rounded-2xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-xs text-red-100">
                   {errorMessage}
@@ -409,6 +501,8 @@ export default function RegisterPage({ searchParams }: PageProps) {
                       type="email"
                       name="email"
                       required
+                      pattern="[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}"
+                      title="Use a valid email. '+' aliases are supported (e.g. rociosirvent+test@gmail.com)."
                       className="mt-1 w-full rounded-2xl border border-slate-700 bg-slate-900/60 px-3 py-2 text-sm text-slate-100 shadow-sm outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/40"
                     />
                   </label>

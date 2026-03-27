@@ -48,6 +48,15 @@ jobs:
         if: github.event_name == 'workflow_dispatch' || steps.cyprus.outputs.hour == '05'
         run: npx playwright install --with-deps chromium
 
+      - name: Run production registration precheck (email alias)
+        if: github.event_name == 'workflow_dispatch' || steps.cyprus.outputs.hour == '05'
+        env:
+          PLAYWRIGHT_LIVE_REGISTRATION: "1"
+          PLAYWRIGHT_BASE_URL: ${{ secrets.PLAYWRIGHT_BASE_URL_PROD }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: npx playwright test tests/register_email_alias.spec.ts --project="Desktop Large (Chromium)" --reporter=line
+
       - name: Run production doctor registration smoke
         if: github.event_name == 'workflow_dispatch' || steps.cyprus.outputs.hour == '05'
         env:
