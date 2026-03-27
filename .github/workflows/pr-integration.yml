@@ -1,0 +1,58 @@
+name: PR Integration Tests
+
+on:
+  pull_request:
+    branches:
+      - "**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  integration-safe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      # Hard guard used by integration specs to avoid production execution.
+      INTEGRATION_SAFE_ENV: "1"
+      PLAYWRIGHT_BASE_URL: ${{ secrets.INTEGRATION_BASE_URL }}
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.INTEGRATION_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.INTEGRATION_SUPABASE_ANON_KEY }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.INTEGRATION_SUPABASE_SERVICE_ROLE_KEY }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate isolated environment configuration
+        shell: bash
+        run: |
+          if [ -z "${PLAYWRIGHT_BASE_URL}" ] || [ -z "${NEXT_PUBLIC_SUPABASE_URL}" ] || [ -z "${SUPABASE_SERVICE_ROLE_KEY}" ]; then
+            echo "Missing integration secrets. Configure INTEGRATION_BASE_URL / INTEGRATION_SUPABASE_URL / INTEGRATION_SUPABASE_SERVICE_ROLE_KEY."
+            exit 1
+          fi
+          if echo "${PLAYWRIGHT_BASE_URL}" | grep -Eqi 'mydoccy\.com|vercel\.app'; then
+            echo "Unsafe PLAYWRIGHT_BASE_URL points to production. Aborting."
+            exit 1
+          fi
+          if echo "${NEXT_PUBLIC_SUPABASE_URL}" | grep -Eqi 'supabase\.co'; then
+            echo "Unsafe NEXT_PUBLIC_SUPABASE_URL points to hosted/prod Supabase. Aborting."
+            exit 1
+          fi
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run race-condition integration test (safe env only)
+        run: npx playwright test tests/integration/appointments_race_condition.integration.spec.ts --project="Desktop Large (Chromium)" --reporter=line
+
