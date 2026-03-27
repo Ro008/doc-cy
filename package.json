@@ -9,6 +9,7 @@
     "start": "next start",
     "lint": "next lint",
     "test:e2e": "playwright test",
+    "test:e2e:register:prod": "powershell -NoProfile -Command \"$env:PLAYWRIGHT_LIVE_REGISTRATION='1'; $env:PLAYWRIGHT_BASE_URL='https://mydoccy.com'; playwright test tests/register_onboarding_avatar.spec.ts --project='Desktop Large (Chromium)' --reporter=line\"",
     "test:e2e:i18n-smoke": "playwright test tests/landing_i18n.spec.ts tests/language_switcher.spec.ts",
     "test:e2e:safe": "powershell -NoProfile -Command \"$env:PLAYWRIGHT_SAFE_NO_BOOKING='1'; playwright test\"",
     "test:e2e:ui": "playwright test --ui",
@@ -26,6 +27,7 @@
     "react": "^18",
     "react-day-picker": "^8.10.1",
     "react-dom": "^18",
+    "react-easy-crop": "^5.5.7",
     "react-international-phone": "^4.2.0",
     "recharts": "^3.8.0",
     "resend": "^6.9.4"

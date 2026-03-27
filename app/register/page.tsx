@@ -4,6 +4,7 @@ import { createServiceRoleClient } from "@/lib/supabase-service";
 import { PasswordToggleInput } from "@/components/auth/PasswordToggleInput";
 import { RegisterSpecialtyFields } from "@/components/auth/RegisterSpecialtyFields";
 import { RegisterLanguageFields } from "@/components/auth/RegisterLanguageFields";
+import { RegisterAvatarUpload } from "@/components/auth/RegisterAvatarUpload";
 import { validateLanguageSelection } from "@/lib/cyprus-languages";
 import {
   parseSpecialtyFromMasterField,
@@ -31,6 +32,7 @@ async function handleRegister(formData: FormData) {
   const licenseNumber =
     (formData.get("licenseNumber") as string | null)?.trim() || "";
   const licenseFile = formData.get("licenseFile") as File | null;
+  const avatarFile = formData.get("avatarFile") as File | null;
   const professionalDisclaimer = formData.get("professionalDisclaimer");
 
   if (
@@ -41,6 +43,7 @@ async function handleRegister(formData: FormData) {
     !specialtyRaw.trim() ||
     !licenseNumber ||
     !licenseFile ||
+    !avatarFile ||
     professionalDisclaimer !== "on"
   ) {
     redirect("/register?error=validation");
@@ -70,6 +73,15 @@ async function handleRegister(formData: FormData) {
   if (licenseFile.size <= 0 || licenseFile.size > maxBytes) {
     redirect("/register?error=file");
   }
+  if (avatarFile.size <= 0 || avatarFile.size > 10 * 1024 * 1024) {
+    redirect("/register?error=avatar_file");
+  }
+  // Tiny server-side guard after client crop/compression.
+  // Reject anomalous payloads so avatar uploads stay lightweight and predictable.
+  const croppedAvatarMaxBytes = 1024 * 1024; // 1 MB
+  if (avatarFile.size > croppedAvatarMaxBytes) {
+    redirect("/register?error=avatar_too_large");
+  }
 
   const allowedTypes = new Set([
     "application/pdf",
@@ -84,14 +96,28 @@ async function handleRegister(formData: FormData) {
   if (!typeOk && !extOk) {
     redirect("/register?error=file");
   }
+  const avatarType = avatarFile.type?.toLowerCase() ?? "";
+  if (!avatarType.startsWith("image/")) {
+    redirect("/register?error=avatar_file");
+  }
+
+  const service = createServiceRoleClient();
+  if (!service) {
+    console.error("[DocCy] SUPABASE_SERVICE_ROLE_KEY missing — cannot complete registration safely");
+    redirect("/register?error=db");
+  }
 
   // Upload license document to Supabase Storage
   const fileExt = licenseFile.name.split(".").pop() || "bin";
-  const filePath = `licenses/${Date.now()}-${Math.random()
+  const emailPrefix = email
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]/g, "-")
+    .slice(0, 80);
+  const filePath = `licenses/${emailPrefix}/${Date.now()}-${Math.random()
     .toString(36)
     .slice(2)}.${fileExt}`;
 
-  const { data: uploadData, error: uploadError } = await supabase.storage
+  const { data: uploadData, error: uploadError } = await service.storage
     .from("doctor-verifications")
     .upload(filePath, licenseFile);
 
@@ -116,9 +142,9 @@ async function handleRegister(formData: FormData) {
 
   if (signUpError || !signUpData.user) {
     console.error("[DocCy] Auth sign-up failed", signUpError);
-    // Cleanup the uploaded file so we don't keep orphans
+    // Cleanup the uploaded license file so we don't keep orphans
     try {
-      await supabase.storage
+      await service.storage
         .from("doctor-verifications")
         .remove([licenseFileUrl]);
     } catch (cleanupError) {
@@ -144,11 +170,25 @@ async function handleRegister(formData: FormData) {
 
   const slug = baseSlug || `doctor-${authUserId.slice(0, 8)}`;
 
-  const service = createServiceRoleClient();
-  if (!service) {
-    console.error("[DocCy] SUPABASE_SERVICE_ROLE_KEY missing — cannot assign founder tier safely");
-    redirect("/register?error=db");
+  const avatarPath = `profiles/${authUserId}/avatar-${Date.now()}-${Math.random()
+    .toString(36)
+    .slice(2)}.jpg`;
+  const { data: avatarUploadData, error: avatarUploadError } =
+    await service.storage.from("avatars").upload(avatarPath, avatarFile, {
+      contentType: avatarFile.type || "image/jpeg",
+      upsert: false,
+    });
+  if (avatarUploadError || !avatarUploadData?.path) {
+    console.error("[DocCy] Avatar upload failed", avatarUploadError);
+    try {
+      await service.storage.from("doctor-verifications").remove([licenseFileUrl]);
+      await service.auth.admin.deleteUser(authUserId);
+    } catch (cleanupError) {
+      console.error("[DocCy] Failed to cleanup files/user after avatar upload", cleanupError);
+    }
+    redirect("/register?error=avatar_upload");
   }
+  const avatarFileUrl = avatarUploadData.path;
 
   const { data: regRows, error: insertError } = await service.rpc(
     "register_doctor_with_founder_lock",
@@ -166,9 +206,90 @@ async function handleRegister(formData: FormData) {
     }
   );
 
-  if (insertError || !regRows?.length) {
+  let doctorId = regRows?.[0]?.doctor_id as string | undefined;
+
+  if (insertError || !doctorId) {
     console.error("[DocCy] Failed to register doctor row (RPC)", insertError);
-    redirect("/register?error=db");
+
+    // Fallback path when SQL RPC is unavailable/broken in the target environment.
+    // Keeps registration functional while preserving founder-tier intent.
+    const { count: founderCount, error: founderCountError } = await service
+      .from("doctors")
+      .select("id", { head: true, count: "exact" })
+      .eq("subscription_tier", "founder");
+    if (founderCountError) {
+      console.error("[DocCy] Founder count fallback failed", founderCountError);
+      try {
+        await service.storage.from("doctor-verifications").remove([licenseFileUrl]);
+        await service.storage.from("avatars").remove([avatarFileUrl]);
+        await service.auth.admin.deleteUser(authUserId);
+      } catch (cleanupError) {
+        console.error("[DocCy] Failed cleanup after founder-count fallback error", cleanupError);
+      }
+      redirect("/register?error=db");
+    }
+
+    const fallbackTier = (founderCount ?? 0) < 100 ? "founder" : "standard";
+    const fallbackInsert = await service
+      .from("doctors")
+      .insert({
+        auth_user_id: authUserId,
+        name: fullName,
+        specialty,
+        email,
+        phone,
+        languages,
+        license_number: licenseNumber,
+        license_file_url: licenseFileUrl,
+        status: "pending",
+        slug,
+        is_specialty_approved: isSpecialtyApproved,
+        subscription_tier: fallbackTier,
+      })
+      .select("id")
+      .single();
+
+    if (fallbackInsert.error || !fallbackInsert.data?.id) {
+      console.error("[DocCy] Failed fallback doctor insert", fallbackInsert.error);
+      try {
+        await service.storage.from("doctor-verifications").remove([licenseFileUrl]);
+        await service.storage.from("avatars").remove([avatarFileUrl]);
+        await service.auth.admin.deleteUser(authUserId);
+      } catch (cleanupError) {
+        console.error("[DocCy] Failed cleanup after fallback doctor insert error", cleanupError);
+      }
+      redirect("/register?error=db");
+    }
+
+    doctorId = fallbackInsert.data.id as string;
+  }
+
+  const { error: avatarSaveError } = await service
+    .from("doctors")
+    .update({ avatar_url: avatarFileUrl })
+    .eq("id", doctorId);
+  if (avatarSaveError) {
+    const missingAvatarColumn =
+      avatarSaveError.code === "PGRST204" &&
+      String(avatarSaveError.message ?? "").includes("avatar_url");
+    if (missingAvatarColumn) {
+      // Backward compatibility: some environments may not have avatar_url migrated yet.
+      // Keep registration successful and preserve uploaded avatar in storage.
+      console.warn(
+        "[DocCy] avatar_url column missing on doctors. Apply SQL migration to persist avatar path."
+      );
+      redirect("/register?submitted=1");
+    }
+    console.error("[DocCy] Failed to save avatar_url on doctor", avatarSaveError);
+    try {
+      await service.storage.from("doctor-verifications").remove([licenseFileUrl]);
+      await service.storage.from("avatars").remove([avatarFileUrl]);
+      await service.from("doctors").delete().eq("id", doctorId);
+      await service.auth.admin.deleteUser(authUserId);
+    } catch (cleanupError) {
+      console.error("[DocCy] Failed cleanup after avatar save error", cleanupError);
+    }
+    redirect("/register?error=avatar_save");
   }
 
   redirect("/register?submitted=1");
@@ -197,6 +318,18 @@ export default function RegisterPage({ searchParams }: PageProps) {
   } else if (errorCode === "file") {
     errorMessage =
       "Please upload a PDF or image under 8 MB for proof of professional ID.";
+  } else if (errorCode === "avatar_file") {
+    errorMessage =
+      "Please upload a profile photo image under 10 MB and confirm your crop.";
+  } else if (errorCode === "avatar_upload") {
+    errorMessage =
+      "We couldn't upload your profile photo. Please try again with another image.";
+  } else if (errorCode === "avatar_too_large") {
+    errorMessage =
+      "Your profile photo is still too large after processing. Please choose another image and crop again.";
+  } else if (errorCode === "avatar_save") {
+    errorMessage =
+      "Your account was created, but we couldn't save your profile photo. Please retry registration.";
   } else if (errorCode === "specialty") {
     errorMessage =
       "Choose a specialty from the list, or use Other and describe yours clearly (max 120 characters).";
@@ -250,7 +383,7 @@ export default function RegisterPage({ searchParams }: PageProps) {
               </p>
             </div>
           ) : (
-            <form action={handleRegister} className="space-y-6" noValidate>
+            <form action={handleRegister} className="space-y-6">
               {errorMessage && (
                 <div className="rounded-2xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-xs text-red-100">
                   {errorMessage}
@@ -306,6 +439,9 @@ export default function RegisterPage({ searchParams }: PageProps) {
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2">
+                <div className="sm:col-span-2">
+                  <RegisterAvatarUpload />
+                </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-200">
                     Professional license number
