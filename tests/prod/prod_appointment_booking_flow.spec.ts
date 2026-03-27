@@ -14,7 +14,7 @@ test.describe("Prod smoke: appointment booking flow", () => {
       !baseUrl || /localhost|127\.0\.0\.1/i.test(baseUrl),
       "Set PLAYWRIGHT_BASE_URL to production."
     );
-    test.skip(!doctorSlug, "Missing TEST_BOOKING_DOCTOR_SLUG.");
+    expect(doctorSlug, "Missing TEST_BOOKING_DOCTOR_SLUG environment variable.").not.toBe("");
     test.skip(!supabaseUrl || !serviceRole, "Missing Supabase service credentials.");
 
     const admin = createClient(supabaseUrl, serviceRole);

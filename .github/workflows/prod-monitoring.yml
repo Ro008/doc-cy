@@ -82,16 +82,11 @@ jobs:
             exit 0
           fi
           if [ "${JOB_STATUS}" = "success" ]; then
-            MSG='✅ DocCy PROD: All systems functional (Registration, Login, Booking).'
+            MSG='✅ DocCy PROD: Success'
           else
-            MSG='❌ DocCy PROD: Critical failure detected. Check GitHub Actions for details.'
+            MSG='❌ DocCy PROD: Failure'
           fi
-          payload=$(cat <<'JSON'
-          {
-            "text": "__MSG__"
-          }
-          JSON
-          )
-          payload="${payload/__MSG__/${MSG}}"
-          curl -X POST -H "Content-Type: application/json" -d "$payload" "$WEBHOOK_URL"
+          ENCODED_MSG=$(python -c "import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1]))" "$MSG")
+          # WEBHOOK_URL secret must contain the base URL ending with '&text='.
+          curl -fsS -X POST "${WEBHOOK_URL}${ENCODED_MSG}"
 
