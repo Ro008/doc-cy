@@ -81,12 +81,14 @@ jobs:
             echo "No WHATSAPP_WEBHOOK_URL configured. Skipping WhatsApp notification."
             exit 0
           fi
+          WEBHOOK_URL="$(echo -n "${WEBHOOK_URL}" | tr -d '\r\n')"
           if [ "${JOB_STATUS}" = "success" ]; then
             MSG='✅ DocCy PROD: Success'
           else
             MSG='❌ DocCy PROD: Failure'
           fi
           ENCODED_MSG=$(python -c "import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1]))" "$MSG")
-          # WEBHOOK_URL secret must contain the base URL ending with '&text='.
-          curl -fsS -X POST "${WEBHOOK_URL}${ENCODED_MSG}"
+          # WHATSAPP_WEBHOOK_URL secret must contain the base URL ending with '&text='.
+          FINAL_URL="${WEBHOOK_URL}${ENCODED_MSG}"
+          curl -fsS -G "${FINAL_URL}"
 
