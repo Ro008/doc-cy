@@ -3,9 +3,7 @@ name: Production Monitoring
 on:
   workflow_dispatch:
   schedule:
-    # GitHub cron runs in UTC. We trigger both hours and gate at runtime
-    # so the test runs once at 05:00 in Asia/Nicosia across DST changes.
-    - cron: "0 2 * * *"
+    # GitHub Actions cron is UTC. 03:00 UTC = 05:00 in Asia/Nicosia during EET (UTC+2).
     - cron: "0 3 * * *"
 
 permissions:
@@ -20,36 +18,43 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Compute Cyprus hour
+      - name: Compute Cyprus hour and schedule window
         id: cyprus
         shell: bash
         run: |
-          echo "hour=$(TZ=Asia/Nicosia date +%H)" >> "$GITHUB_OUTPUT"
+          hour="$(TZ=Asia/Nicosia date +%H)"
+          echo "hour=${hour}" >> "$GITHUB_OUTPUT"
           echo "now=$(TZ=Asia/Nicosia date '+%Y-%m-%d %H:%M:%S %Z')" >> "$GITHUB_OUTPUT"
+          if [ "${hour}" = "05" ] || [ "${hour}" = "06" ]; then
+            echo "in_schedule_window=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "in_schedule_window=false" >> "$GITHUB_OUTPUT"
+          fi
 
-      - name: Skip outside 05:00 Cyprus window
-        if: github.event_name == 'schedule' && steps.cyprus.outputs.hour != '05'
+      - name: Skip outside 05:00–07:00 Cyprus window
+        if: github.event_name == 'schedule' && steps.cyprus.outputs.in_schedule_window != 'true'
         shell: bash
         run: |
-          echo "Skipping. Cyprus local time is ${{ steps.cyprus.outputs.now }}."
+          echo "Skipping scheduled prod-critical-smoke: current time is outside the allowed window."
+          echo "Allowed window: 05:00–07:00 Asia/Nicosia (EET/EEST). Now: ${{ steps.cyprus.outputs.now }} (local hour ${{ steps.cyprus.outputs.hour }})."
 
       - name: Setup Node
-        if: github.event_name == 'workflow_dispatch' || steps.cyprus.outputs.hour == '05'
+        if: github.event_name == 'workflow_dispatch' || steps.cyprus.outputs.in_schedule_window == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
 
       - name: Install dependencies
-        if: github.event_name == 'workflow_dispatch' || steps.cyprus.outputs.hour == '05'
+        if: github.event_name == 'workflow_dispatch' || steps.cyprus.outputs.in_schedule_window == 'true'
         run: npm ci
 
       - name: Install Playwright browsers
-        if: github.event_name == 'workflow_dispatch' || steps.cyprus.outputs.hour == '05'
+        if: github.event_name == 'workflow_dispatch' || steps.cyprus.outputs.in_schedule_window == 'true'
         run: npx playwright install --with-deps chromium
 
       - name: Run production critical smoke suite
-        if: github.event_name == 'workflow_dispatch' || steps.cyprus.outputs.hour == '05'
+        if: github.event_name == 'workflow_dispatch' || steps.cyprus.outputs.in_schedule_window == 'true'
         env:
           PLAYWRIGHT_LIVE_REGISTRATION: "1"
           PLAYWRIGHT_BASE_URL: ${{ secrets.PLAYWRIGHT_BASE_URL_PROD }}
@@ -61,7 +66,7 @@ jobs:
         run: npx playwright test tests/prod/ --project="Desktop Large (Chromium)" --reporter=line
 
       - name: Upload Playwright report
-        if: always() && (github.event_name == 'workflow_dispatch' || steps.cyprus.outputs.hour == '05')
+        if: always() && (github.event_name == 'workflow_dispatch' || steps.cyprus.outputs.in_schedule_window == 'true')
         uses: actions/upload-artifact@v4
         with:
           name: playwright-prod-monitoring-report
@@ -71,7 +76,7 @@ jobs:
           if-no-files-found: ignore
 
       - name: Send WhatsApp monitoring status
-        if: always() && (github.event_name == 'workflow_dispatch' || steps.cyprus.outputs.hour == '05')
+        if: always() && (github.event_name == 'workflow_dispatch' || steps.cyprus.outputs.in_schedule_window == 'true')
         shell: bash
         env:
           WEBHOOK_URL: ${{ secrets.WHATSAPP_WEBHOOK_URL }}
@@ -91,4 +96,3 @@ jobs:
           # WHATSAPP_WEBHOOK_URL secret must contain the base URL ending with '&text='.
           FINAL_URL="${WEBHOOK_URL}${ENCODED_MSG}"
           curl -fsS -G "${FINAL_URL}"
-
