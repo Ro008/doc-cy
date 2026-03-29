@@ -12,13 +12,10 @@ import {
 import { utcToZonedTime, zonedTimeToUtc } from "date-fns-tz";
 import { el as elLocale, enGB } from "date-fns/locale";
 import { DayPicker } from "react-day-picker";
-import { CheckCircle2, ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Clock } from "lucide-react";
 import { PhoneInput } from "@/components/ui/PhoneInput";
 import { CY_TZ } from "@/lib/appointments";
-import {
-  VISIT_NOTES_MAX_LENGTH,
-  VISIT_TYPE_OPTIONS,
-} from "@/lib/visit-types";
+import { APPOINTMENT_REASON_MAX_LENGTH } from "@/lib/visit-types";
 import { formatDateDDMMYYYY } from "@/lib/date-format";
 import "react-day-picker/dist/style.css";
 import { useLocale, useTranslations } from "next-intl";
@@ -100,8 +97,7 @@ export function BookingSection({
   const [patientPhone, setPatientPhone] = React.useState("");
   const [phoneValid, setPhoneValid] = React.useState(true);
   const [showPhoneError, setShowPhoneError] = React.useState(false);
-  const [visitType, setVisitType] = React.useState("");
-  const [visitNotes, setVisitNotes] = React.useState("");
+  const [visitReason, setVisitReason] = React.useState("");
   const [submitting, setSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [bookingSuccess, setBookingSuccess] = React.useState(false);
@@ -249,11 +245,11 @@ export function BookingSection({
         setError(t("errors.validPhone"));
         return;
       }
-      if (!visitType.trim()) {
-        setError(t("errors.selectVisitType"));
+      const reasonTrim = visitReason.slice(0, APPOINTMENT_REASON_MAX_LENGTH).trim();
+      if (!reasonTrim) {
+        setError(t("errors.reasonRequired"));
         return;
       }
-      const notesTrim = visitNotes.slice(0, VISIT_NOTES_MAX_LENGTH);
       let didNavigateToSuccess = false;
       try {
         setSubmitting(true);
@@ -266,8 +262,7 @@ export function BookingSection({
             patientEmail,
             patientPhone,
             appointmentLocal: selectedSlot.slotKey,
-            visitType: visitType.trim(),
-            visitNotes: notesTrim.trim() || undefined,
+            reason: reasonTrim,
           }),
         });
         const data = await res.json().catch(() => null);
@@ -290,7 +285,7 @@ export function BookingSection({
         if (profileSlug && newId) {
           didNavigateToSuccess = true;
           router.push(
-            `/${activeLocale}/${profileSlug}/success?appointmentId=${encodeURIComponent(
+            `/${activeLocale}/${profileSlug}/request-sent?appointmentId=${encodeURIComponent(
               newId
             )}`
           );
@@ -303,14 +298,13 @@ export function BookingSection({
         setPatientName("");
         setPatientEmail("");
         setPatientPhone("");
-        setVisitType("");
-        setVisitNotes("");
+        setVisitReason("");
         setShowPhoneError(false);
       } catch (err) {
         console.error(err);
         setError(t("errors.somethingWentWrong"));
       } finally {
-        // If we already navigated to the success page, keep the button in the
+        // If we already navigated to the request-sent page, keep the button in the
         // loading state until unmount (prevents a "stopped loading" flicker).
         if (!didNavigateToSuccess) {
           setSubmitting(false);
@@ -323,8 +317,7 @@ export function BookingSection({
       patientEmail,
       patientPhone,
       phoneValid,
-      visitType,
-      visitNotes,
+      visitReason,
       doctorId,
       profileSlug,
       router,
@@ -381,27 +374,27 @@ export function BookingSection({
       <div
         data-testid="booking-success-message"
         data-appointment-id={lastAppointmentId ?? ""}
-        className="rounded-3xl border border-emerald-200/20 bg-slate-900/60 p-8 shadow-2xl shadow-emerald-500/10 backdrop-blur-xl sm:p-10"
+        className="rounded-3xl border border-amber-200/20 bg-slate-900/60 p-8 shadow-2xl shadow-amber-500/10 backdrop-blur-xl sm:p-10"
       >
         <div className="flex flex-col items-center text-center">
           <div className="relative">
-            <div className="absolute inset-0 scale-150 rounded-full bg-emerald-400/20 blur-2xl" />
-            <CheckCircle2
-              className="relative h-20 w-20 text-emerald-400 sm:h-24 sm:w-24"
+            <div className="absolute inset-0 scale-150 rounded-full bg-amber-400/20 blur-2xl" />
+            <Clock
+              className="relative h-20 w-20 text-amber-400 sm:h-24 sm:w-24"
               strokeWidth={1.5}
               aria-hidden
             />
           </div>
           <h2 className="mt-6 text-2xl font-bold tracking-tight text-slate-50 sm:text-3xl">
-            {t("bookingConfirmedTitle")}
+            {t("requestSubmittedTitle")}
           </h2>
           <p className="mt-3 max-w-sm text-sm leading-relaxed text-slate-300">
-            {t("bookingConfirmedMessage", {doctorName})}
+            {t("requestSubmittedMessage", { doctorName })}
           </p>
           {profileSlug ? (
             <Link
               href={`/${activeLocale}/${profileSlug}`}
-              className="mt-8 flex w-full max-w-xs items-center justify-center rounded-2xl border border-emerald-400/40 bg-emerald-400/10 px-6 py-3 text-sm font-semibold text-emerald-200 shadow-lg shadow-emerald-500/10 transition hover:border-emerald-400/60 hover:bg-emerald-400/20 focus:outline-none focus:ring-2 focus:ring-emerald-400/50 focus:ring-offset-2 focus:ring-offset-slate-900"
+              className="mt-8 flex w-full max-w-xs items-center justify-center rounded-2xl border border-amber-400/40 bg-amber-400/10 px-6 py-3 text-sm font-semibold text-amber-200 shadow-lg shadow-amber-500/10 transition hover:border-amber-400/60 hover:bg-amber-400/20 focus:outline-none focus:ring-2 focus:ring-amber-400/50 focus:ring-offset-2 focus:ring-offset-slate-900"
             >
               {t("doneButton")}
             </Link>
@@ -409,7 +402,7 @@ export function BookingSection({
             <button
               type="button"
               onClick={() => setBookingSuccess(false)}
-              className="mt-8 w-full max-w-xs rounded-2xl border border-emerald-400/40 bg-emerald-400/10 px-6 py-3 text-sm font-semibold text-emerald-200 shadow-lg shadow-emerald-500/10 transition hover:border-emerald-400/60 hover:bg-emerald-400/20 focus:outline-none focus:ring-2 focus:ring-emerald-400/50 focus:ring-offset-2 focus:ring-offset-slate-900"
+              className="mt-8 w-full max-w-xs rounded-2xl border border-amber-400/40 bg-amber-400/10 px-6 py-3 text-sm font-semibold text-amber-200 shadow-lg shadow-amber-500/10 transition hover:border-amber-400/60 hover:bg-amber-400/20 focus:outline-none focus:ring-2 focus:ring-amber-400/50 focus:ring-offset-2 focus:ring-offset-slate-900"
             >
               {t("doneButton")}
             </button>
@@ -493,53 +486,28 @@ export function BookingSection({
           </div>
           <div className="space-y-2">
             <label
-              htmlFor="visitType"
+              htmlFor="visitReason"
               className="text-xs font-semibold text-slate-200"
             >
-              {t("visitTypeLabel")} <span className="text-red-300">*</span>
-            </label>
-            <select
-              id="visitType"
-              required
-              value={visitType}
-              onChange={(e) => setVisitType(e.target.value)}
-              className="w-full rounded-2xl border border-slate-800/80 bg-slate-950/40 px-3 py-2 text-sm text-slate-100 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-400/60"
-            >
-              <option value="" disabled>
-                {t("selectOnePlaceholder")}
-              </option>
-              {VISIT_TYPE_OPTIONS.map((opt) => (
-                <option key={opt} value={opt}>
-                  {opt}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="space-y-2">
-            <label
-              htmlFor="visitNotes"
-              className="text-xs font-semibold text-slate-200"
-            >
-              {t("reasonForVisit")}{" "}
-              <span className="font-normal text-slate-500">
-                {t("optionalLabel")}
-              </span>
+              {t("visitReasonLabel")}{" "}
+              <span className="text-red-300">*</span>
             </label>
             <textarea
-              id="visitNotes"
-              rows={3}
-              maxLength={VISIT_NOTES_MAX_LENGTH}
-              value={visitNotes}
+              id="visitReason"
+              required
+              rows={4}
+              maxLength={APPOINTMENT_REASON_MAX_LENGTH}
+              value={visitReason}
               onChange={(e) =>
-                setVisitNotes(
-                  e.target.value.slice(0, VISIT_NOTES_MAX_LENGTH)
+                setVisitReason(
+                  e.target.value.slice(0, APPOINTMENT_REASON_MAX_LENGTH)
                 )
               }
-              placeholder={t("visitNotesPlaceholder")}
+              placeholder={t("visitReasonPlaceholder")}
               className="w-full resize-y rounded-2xl border border-slate-800/80 bg-slate-950/40 px-3 py-2 text-sm text-slate-100 shadow-sm placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-400/60"
             />
             <p className="text-right text-[11px] text-slate-500">
-              {visitNotes.length}/{VISIT_NOTES_MAX_LENGTH}
+              {visitReason.length}/{APPOINTMENT_REASON_MAX_LENGTH}
             </p>
           </div>
           {error && (
@@ -555,7 +523,7 @@ export function BookingSection({
             disabled={submitting}
             className="inline-flex w-full items-center justify-center rounded-2xl bg-emerald-400 px-4 py-2.5 text-sm font-semibold text-slate-950 shadow-lg shadow-emerald-500/30 transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
           >
-            {submitting ? t("booking") : t("bookButton")}
+            {submitting ? t("sendingRequest") : t("sendRequestButton")}
           </button>
         </form>
       </div>
@@ -581,7 +549,7 @@ export function BookingSection({
             </p>
           </div>
           <span className="rounded-full bg-emerald-500/10 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.2em] text-emerald-200">
-            {t("instantBadge")}
+            {t("requestBadge")}
           </span>
         </div>
       </div>

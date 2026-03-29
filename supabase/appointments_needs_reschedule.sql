@@ -1,0 +1,6 @@
+-- DEPRECATED single-file migration: PostgreSQL rejects using a new enum value in the same
+-- transaction as ALTER TYPE ... ADD VALUE (error 55P04).
+--
+-- Use these two files, in order:
+--   1) appointments_needs_reschedule_step1_enum.sql  (run alone, commit)
+--   2) appointments_needs_reschedule_step2.sql

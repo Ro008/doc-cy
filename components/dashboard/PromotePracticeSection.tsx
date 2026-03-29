@@ -3,6 +3,7 @@
 import * as React from "react";
 import { QRCodeCanvas } from "qrcode.react";
 import { Download, Printer, QrCode } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { getPublicBookingBaseUrl } from "@/lib/site-url";
 
 function escapeHtml(s: string): string {
@@ -25,6 +26,7 @@ export function PromotePracticeSection({
   doctorName,
   variant = "card",
 }: Props) {
+  const t = useTranslations("PromotePractice");
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
   const bookingUrl = slug
     ? `${getPublicBookingBaseUrl()}/${encodeURIComponent(slug)}`
@@ -144,9 +146,7 @@ export function PromotePracticeSection({
     const iwin = iframe.contentWindow;
     if (!idoc || !iwin) {
       iframe.remove();
-      window.alert(
-        "No se pudo preparar la vista para imprimir. Prueba con otro navegador o recarga la página.\nCould not prepare print view. Try another browser or refresh."
-      );
+      window.alert(t("printPrepareFailed"));
       return;
     }
 
@@ -166,9 +166,7 @@ export function PromotePracticeSection({
         iwin.print();
       } catch {
         cleanup();
-        window.alert(
-          "No se pudo abrir el diálogo de impresión.\nCould not open the print dialog."
-        );
+        window.alert(t("printDialogFailed"));
         return;
       }
       iwin.addEventListener("afterprint", cleanup, { once: true });
@@ -180,7 +178,7 @@ export function PromotePracticeSection({
         window.setTimeout(triggerPrint, 150);
       });
     });
-  }, [slug, bookingUrl, doctorName]);
+  }, [slug, bookingUrl, doctorName, t]);
 
   const shell = (className: string, children: React.ReactNode) =>
     variant === "modal" ? (

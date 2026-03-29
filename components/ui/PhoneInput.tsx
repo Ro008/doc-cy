@@ -34,8 +34,8 @@ export function PhoneInput({
     // Lightweight validation based on length relative to country dial code
     const digits = phone.replace(/\D/g, "");
     const dialLen = meta.country.dialCode.length;
-    const minLen = dialLen + 4; // 4 dígitos locales mínimo
-    const maxLen = dialLen + 10; // 10 dígitos locales máximo
+    const minLen = dialLen + 4; // min 4 national significant digits
+    const maxLen = dialLen + 10; // max 10 national significant digits
 
     const valid = digits.length >= minLen && digits.length <= maxLen;
 

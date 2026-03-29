@@ -3,6 +3,7 @@ import { addMinutes } from "date-fns";
 import { createServiceRoleClient } from "@/lib/supabase-service";
 import { getDoctorCalendarEventDetails } from "@/lib/doctor-calendar-event";
 import { getCalendarEventDetails } from "@/lib/patient-calendar-event";
+import { isConfirmedForCalendar } from "@/lib/appointment-status";
 
 type RouteContext = {
   params: { id: string };
@@ -44,13 +45,23 @@ export async function GET(req: NextRequest, { params }: RouteContext) {
   const { data: appointment, error: apptError } = await supabase
     .from("appointments")
     .select(
-      "id, doctor_id, appointment_datetime, patient_name, patient_email, patient_phone, status, created_at, visit_type, visit_notes"
+      "id, doctor_id, appointment_datetime, patient_name, patient_phone, status, created_at, visit_type, visit_notes, reason, duration_minutes"
     )
     .eq("id", appointmentId)
     .single();
 
   if (apptError || !appointment) {
     return NextResponse.json({ message: "Appointment not found." }, { status: 404 });
+  }
+
+  if (!isConfirmedForCalendar(appointment.status as string)) {
+    return NextResponse.json(
+      {
+        message:
+          "Calendar download is only available after the professional confirms this appointment.",
+      },
+      { status: 403 }
+    );
   }
 
   const { data: doctor } = await supabase
@@ -65,9 +76,14 @@ export async function GET(req: NextRequest, { params }: RouteContext) {
     .eq("doctor_id", appointment.doctor_id)
     .single();
 
+  const rowDur = Number(
+    (appointment as { duration_minutes?: number | null }).duration_minutes
+  );
   const durationMinutes =
-    (settings as { slot_duration_minutes?: number | null } | null)
-      ?.slot_duration_minutes ?? 30;
+    Number.isFinite(rowDur) && rowDur > 0
+      ? rowDur
+      : (settings as { slot_duration_minutes?: number | null } | null)
+          ?.slot_duration_minutes ?? 30;
 
   const startUtc = new Date(appointment.appointment_datetime as string);
   const endUtc = addMinutes(startUtc, durationMinutes);
@@ -80,16 +96,21 @@ export async function GET(req: NextRequest, { params }: RouteContext) {
     clinic_address: (doctor as { clinic_address?: string | null } | null)?.clinic_address,
   };
 
+  const apptRow = appointment as {
+    visit_type?: string | null;
+    visit_notes?: string | null;
+    reason?: string | null;
+  };
   const apptVisit = {
-    visitType: (appointment as { visit_type?: string | null }).visit_type,
-    visitNotes: (appointment as { visit_notes?: string | null }).visit_notes,
+    reason: apptRow.reason,
+    visitType: apptRow.visit_type,
+    visitNotes: apptRow.visit_notes,
   };
 
   const cal = forDoctor
     ? getDoctorCalendarEventDetails(
         {
           patient_name: appointment.patient_name as string | null,
-          patient_email: (appointment as { patient_email?: string | null }).patient_email,
           patient_phone: (appointment as { patient_phone?: string | null }).patient_phone,
         },
         doctorPayload,
@@ -101,7 +122,8 @@ export async function GET(req: NextRequest, { params }: RouteContext) {
           appointment_datetime: appointment.appointment_datetime as string,
         },
         doctorPayload,
-        apptVisit
+        apptVisit,
+        { includeWhatsAppContact: true }
       );
 
   const summary = cal.title;

@@ -75,7 +75,8 @@ export default async function AgendaPage() {
         </div>
         <div className="mx-auto flex min-h-screen max-w-2xl flex-col items-center justify-center gap-6 px-4 py-12 text-center">
           <p className="text-slate-200">
-            Professional profile not found for this account. Please contact support.
+            Professional profile not found for this account. Please contact
+            support.
           </p>
           <SignOutButton />
           <Link
@@ -92,7 +93,7 @@ export default async function AgendaPage() {
   const { data: appointments, error } = await supabase
     .from("appointments")
     .select(
-      "id, doctor_id, patient_name, patient_phone, patient_email, appointment_datetime"
+      "id, doctor_id, patient_name, patient_phone, appointment_datetime, status, duration_minutes, proposed_slots, proposal_expires_at",
     )
     .eq("doctor_id", doctor.id)
     .order("appointment_datetime", { ascending: true });
@@ -106,21 +107,23 @@ export default async function AgendaPage() {
     let settingsRes = await supabase
       .from("doctor_settings")
       .select(
-        "doctor_id, monday, tuesday, wednesday, thursday, friday, saturday, sunday, start_time, end_time, weekly_schedule, break_start, break_end, pause_online_bookings, holiday_mode_enabled, holiday_start_date, holiday_end_date, booking_horizon_days, minimum_notice_hours, slot_duration_minutes"
+        "doctor_id, monday, tuesday, wednesday, thursday, friday, saturday, sunday, start_time, end_time, weekly_schedule, break_start, break_end, pause_online_bookings, holiday_mode_enabled, holiday_start_date, holiday_end_date, booking_horizon_days, minimum_notice_hours, slot_duration_minutes",
       )
       .eq("doctor_id", doctor.id)
       .single();
 
     const weeklyMissing =
       settingsRes.error &&
-      (String(settingsRes.error.message ?? "").toLowerCase().includes("weekly_schedule") ||
+      (String(settingsRes.error.message ?? "")
+        .toLowerCase()
+        .includes("weekly_schedule") ||
         (settingsRes.error as { code?: string }).code === "42703");
 
     if (weeklyMissing) {
       settingsRes = await supabase
         .from("doctor_settings")
         .select(
-          "doctor_id, monday, tuesday, wednesday, thursday, friday, saturday, sunday, start_time, end_time, break_start, break_end, pause_online_bookings, holiday_mode_enabled, holiday_start_date, holiday_end_date, booking_horizon_days, minimum_notice_hours, slot_duration_minutes"
+          "doctor_id, monday, tuesday, wednesday, thursday, friday, saturday, sunday, start_time, end_time, break_start, break_end, pause_online_bookings, holiday_mode_enabled, holiday_start_date, holiday_end_date, booking_horizon_days, minimum_notice_hours, slot_duration_minutes",
         )
         .eq("doctor_id", doctor.id)
         .single();
@@ -136,7 +139,8 @@ export default async function AgendaPage() {
         breakStart: (s.break_start ?? null) as string | null,
         breakEnd: (s.break_end ?? null) as string | null,
         slotDurationMinutes:
-          (s as { slot_duration_minutes?: number | null }).slot_duration_minutes ?? 30,
+          (s as { slot_duration_minutes?: number | null })
+            .slot_duration_minutes ?? 30,
       };
     }
   }
@@ -144,7 +148,7 @@ export default async function AgendaPage() {
   const displayName = doctorDashboardDisplayName(doctor.name);
 
   const isFoundingMember = isFounderSubscriptionTier(
-    (doctor as { subscription_tier?: string | null }).subscription_tier
+    (doctor as { subscription_tier?: string | null }).subscription_tier,
   );
 
   return (

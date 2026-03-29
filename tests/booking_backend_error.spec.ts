@@ -78,7 +78,7 @@ test.describe("Booking backend errors @booking-creates", () => {
       page.getByText(/Please enter a valid phone number|double‑check the phone number length/i)
     ).toBeHidden({ timeout: 3000 });
 
-    await page.locator("#visitType").selectOption("First Consultation");
+    await page.locator("#visitReason").fill("E2E backend error path — visit reason.");
 
     // Force backend error by intercepting the booking request.
     // Using an appointmentLocal outside typical working hours ensures:
@@ -114,7 +114,7 @@ test.describe("Booking backend errors @booking-creates", () => {
       await route.fulfill({ response });
     });
 
-    await page.getByRole("button", { name: /Book appointment/i }).click();
+    await page.getByRole("button", { name: /Send booking request/i }).click();
 
     const errorBox = page.getByTestId("booking-error-message");
     await expect(errorBox).toBeVisible({ timeout: 10000 });
@@ -123,7 +123,7 @@ test.describe("Booking backend errors @booking-creates", () => {
     );
 
     // Should not navigate to the success page
-    await expect(page.getByRole("heading", { name: /Appointment Confirmed!/i })).toHaveCount(0);
+    await expect(page.getByRole("heading", { name: /Request pending/i })).toHaveCount(0);
   });
 
   test("shows not accepting public bookings inline", async ({ page }) => {
@@ -226,7 +226,7 @@ test.describe("Booking backend errors @booking-creates", () => {
       )
     ).toBeHidden({ timeout: 3000 });
 
-    await page.locator("#visitType").selectOption("First Consultation");
+    await page.locator("#visitReason").fill("E2E backend error path — visit reason.");
 
     // Force backend: override doctorId to a pending/rejected professional.
     await page.route("**/api/appointments", async (route) => {
@@ -258,7 +258,7 @@ test.describe("Booking backend errors @booking-creates", () => {
       await route.fulfill({ response });
     });
 
-    await page.getByRole("button", { name: /Book appointment/i }).click();
+    await page.getByRole("button", { name: /Send booking request/i }).click();
 
     const errorBox = page.getByTestId("booking-error-message");
     await expect(errorBox).toBeVisible({ timeout: 10000 });
@@ -267,7 +267,7 @@ test.describe("Booking backend errors @booking-creates", () => {
     );
 
     await expect(
-      page.getByRole("heading", { name: /Appointment Confirmed!/i })
+      page.getByRole("heading", { name: /Request pending/i })
     ).toHaveCount(0);
   });
 });

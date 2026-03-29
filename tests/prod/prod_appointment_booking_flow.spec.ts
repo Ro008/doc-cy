@@ -45,14 +45,14 @@ test.describe("Prod smoke: appointment booking flow", () => {
         name: /Phone.*priority contact/i,
       });
       await phoneInput.fill("99123456");
-      await page.locator("#visitType").selectOption("First Consultation");
-      await page.getByRole("button", { name: /Book appointment/i }).click();
+      await page.locator("#visitReason").fill("Prod smoke — brief reason for visit.");
+      await page.getByRole("button", { name: /Send booking request/i }).click();
 
-      await page.waitForURL(new RegExp(`/${doctorSlug}/success\\?appointmentId=`), {
+      await page.waitForURL(new RegExp(`/${doctorSlug}/request-sent\\?appointmentId=`), {
         timeout: 30000,
       });
       await expect(
-        page.getByRole("heading", { name: /Appointment Confirmed!/i })
+        page.getByRole("heading", { name: /Request pending/i })
       ).toBeVisible({
         timeout: 10000,
       });

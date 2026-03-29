@@ -28,8 +28,17 @@ export type PatientCalendarEventDetails = {
 
 /** Optional visit context for calendar copy (patient-facing description). */
 export type PatientCalendarVisitReason = {
-  visitType: string | null | undefined;
+  visitType?: string | null | undefined;
   visitNotes?: string | null;
+  reason?: string | null;
+};
+
+export type PatientCalendarEventOptions = {
+  /**
+   * When true, description may include the doctor WhatsApp link (post-confirmation only).
+   * Keep false for pending / counter-offer flows to discourage off-app scheduling.
+   */
+  includeWhatsAppContact?: boolean;
 };
 
 /**
@@ -60,21 +69,28 @@ export function specialtyLabelForCalendar(specialty: string | null | undefined):
 export function getCalendarEventDetails(
   _appointment: PatientCalendarAppointment,
   doctor: PatientCalendarDoctor,
-  visit?: PatientCalendarVisitReason | null
+  visit?: PatientCalendarVisitReason | null,
+  options?: PatientCalendarEventOptions | null
 ): PatientCalendarEventDetails {
   const specialty = specialtyLabelForCalendar(doctor.specialty);
   const last = doctorLastNameForCalendar(doctor.name);
   const title = `🩺 ${specialty}: ${last}`;
 
-  const wa = phoneToWaMeLink(doctor.phone);
-  const waLine = wa
-    ? `To change or cancel your visit, please contact the clinic directly via WhatsApp: ${wa}`
-    : "To change or cancel your visit, please contact the clinic directly.";
+  const includeWa = Boolean(options?.includeWhatsAppContact);
+  const wa = includeWa ? phoneToWaMeLink(doctor.phone) : null;
+  const waLine = includeWa
+    ? wa
+      ? `To change or cancel your visit, please contact the clinic directly via WhatsApp: ${wa}`
+      : "To change or cancel your visit, please contact the clinic directly."
+    : "Manage this visit through DocCy. You will receive email updates; please do not arrange changes outside the app until your visit is confirmed.";
 
+  const reason = String(visit?.reason ?? "").trim();
   const vt = String(visit?.visitType ?? "").trim();
   const vn = String(visit?.visitNotes ?? "").trim();
   const visitLines: string[] = [];
-  if (vt) {
+  if (reason) {
+    visitLines.push(`Reason: ${reason}`);
+  } else if (vt) {
     visitLines.push(`Visit type: ${vt}`);
   }
   if (vn) {
@@ -86,7 +102,7 @@ export function getCalendarEventDetails(
 
   const description = [
     ...visitLines,
-    "Confirmed via DocCy.",
+    includeWa ? "Confirmed via DocCy." : "Request managed via DocCy.",
     "",
     waLine,
   ].join("\n");

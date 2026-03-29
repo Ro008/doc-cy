@@ -6,10 +6,9 @@ import type {
   PatientCalendarVisitReason,
 } from "@/lib/patient-calendar-event";
 
-/** Appointment fields the doctor needs on their calendar block. */
+/** Appointment fields the doctor needs on their calendar block (no patient email — privacy). */
 export type DoctorCalendarAppointment = {
   patient_name?: string | null;
-  patient_email?: string | null;
   patient_phone?: string | null;
 };
 
@@ -24,28 +23,28 @@ export function getDoctorCalendarEventDetails(
   const patientName =
     String(appointment.patient_name ?? "").trim() || "Patient";
 
+  const reason = String(visit?.reason ?? "").trim();
   const vt = String(visit?.visitType ?? "").trim();
-  const title = vt
-    ? `${vt}: ${patientName}`
-    : `🩺 Patient visit: ${patientName}`;
+  const title = reason
+    ? `Visit request: ${patientName}`
+    : vt
+      ? `${vt}: ${patientName}`
+      : `🩺 Patient visit: ${patientName}`;
 
   const vn = String(visit?.visitNotes ?? "").trim();
   const lines: string[] = [
     "Booked through DocCy.",
     "",
   ];
-  if (vt) {
+  if (reason) {
+    lines.push(`Reason: ${reason}`);
+  } else if (vt) {
     lines.push(`Visit type: ${vt}`);
   }
   if (vn) {
     lines.push(`Notes: ${vn}`, "");
   }
   lines.push(`Patient: ${patientName}`);
-
-  const email = String(appointment.patient_email ?? "").trim();
-  if (email) {
-    lines.push(`Email: ${email}`);
-  }
 
   const phone = String(appointment.patient_phone ?? "").trim();
   if (phone) {

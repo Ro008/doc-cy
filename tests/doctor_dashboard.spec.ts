@@ -65,7 +65,10 @@ test.describe("Doctor dashboard", () => {
       const modal = page.getByRole("dialog");
       await expect(modal).toBeVisible({ timeout: 3000 });
       await expect(
-        modal.getByRole("link", { name: /Chat on WhatsApp/i })
+        modal
+          .getByRole("link", { name: /Chat on WhatsApp/i })
+          .or(modal.getByRole("link", { name: /Review & confirm request/i }))
+          .or(modal.getByText(/Waiting for the patient to choose/i))
       ).toBeVisible();
     } else {
       await expect(

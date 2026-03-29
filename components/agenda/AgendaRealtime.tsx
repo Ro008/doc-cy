@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import {
   addDays,
@@ -11,9 +12,15 @@ import {
   startOfWeek,
 } from "date-fns";
 import { enGB } from "date-fns/locale";
-import { utcToZonedTime } from "date-fns-tz";
+import { formatInTimeZone, utcToZonedTime } from "date-fns-tz";
 import { ChevronLeft, ChevronRight, Trash2, X } from "lucide-react";
-import { appointmentToCyprusDate, CY_TZ } from "@/lib/appointments";
+import { useTranslations } from "next-intl";
+import {
+  appointmentDateKeyCyprus,
+  appointmentMinutesFromAgendaStart,
+  appointmentTimeLabelCyprus,
+  CY_TZ,
+} from "@/lib/appointments";
 import { WhatsAppLogoIcon } from "@/components/icons/WhatsAppLogoIcon";
 import type { WeeklySchedule } from "@/lib/doctor-settings";
 
@@ -22,9 +29,87 @@ type AgendaAppointmentRow = {
   doctor_id: string;
   patient_name: string;
   patient_phone: string;
-  patient_email: string;
   appointment_datetime: string;
+  status?: string | null;
+  duration_minutes?: number | null;
+  proposed_slots?: unknown;
+  proposal_expires_at?: string | null;
 };
+
+function parseProposedSlotIsoList(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.filter((x): x is string => typeof x === "string");
+}
+
+/** One grid row per visible block (counter-offer holds expand to one row per proposed start while the proposal is live). */
+function expandAgendaAppointmentsForGrid(
+  appointments: AgendaAppointmentRow[],
+  nowMs: number,
+): Array<
+  AgendaAppointmentRow & {
+    rowKey: string;
+    gridStartIso: string;
+    isCounterOfferHold: boolean;
+  }
+> {
+  const out: Array<
+    AgendaAppointmentRow & {
+      rowKey: string;
+      gridStartIso: string;
+      isCounterOfferHold: boolean;
+    }
+  > = [];
+  for (const a of appointments) {
+    const su = String(a.status ?? "").toUpperCase();
+    const expRaw = a.proposal_expires_at;
+    const expMs = expRaw ? new Date(expRaw).getTime() : NaN;
+    const proposalLive =
+      su === "NEEDS_RESCHEDULE" && Number.isFinite(expMs) && expMs > nowMs;
+    const slots = proposalLive
+      ? parseProposedSlotIsoList(a.proposed_slots)
+      : [];
+
+    if (slots.length > 0) {
+      slots.forEach((iso, i) => {
+        out.push({
+          ...a,
+          rowKey: `${a.id}-proposal-${i}`,
+          gridStartIso: iso,
+          isCounterOfferHold: true,
+        });
+      });
+    } else {
+      out.push({
+        ...a,
+        rowKey: a.id,
+        gridStartIso: a.appointment_datetime,
+        isCounterOfferHold: false,
+      });
+    }
+  }
+  return out;
+}
+
+function agendaRowFromSupabasePayload(
+  raw: Record<string, unknown>,
+): AgendaAppointmentRow | null {
+  if (typeof raw.id !== "string") return null;
+  return {
+    id: raw.id,
+    doctor_id: String(raw.doctor_id ?? ""),
+    patient_name: String(raw.patient_name ?? ""),
+    patient_phone: String(raw.patient_phone ?? ""),
+    appointment_datetime: String(raw.appointment_datetime ?? ""),
+    status: raw.status == null || raw.status === "" ? null : String(raw.status),
+    duration_minutes:
+      typeof raw.duration_minutes === "number" ? raw.duration_minutes : null,
+    proposed_slots: raw.proposed_slots,
+    proposal_expires_at:
+      raw.proposal_expires_at == null || raw.proposal_expires_at === ""
+        ? null
+        : String(raw.proposal_expires_at),
+  };
+}
 
 const START_HOUR = 8;
 const END_HOUR = 20;
@@ -42,6 +127,48 @@ function getWhatsAppUrl(phone: string): string | null {
   return `https://wa.me/${digits}`;
 }
 
+function AgendaAppointmentCardInner({
+  timeLabel,
+  patientName,
+  isPendingRequest,
+  isRequested,
+  isCounterOfferHold,
+}: {
+  timeLabel: string;
+  patientName: string;
+  isPendingRequest: boolean;
+  isRequested: boolean;
+  isCounterOfferHold: boolean;
+}) {
+  const t = useTranslations("DoctorAgenda");
+  const nameColor = isPendingRequest ? "text-amber-100" : "text-emerald-100";
+  const topRightBadge = isRequested
+    ? t("appointmentPendingBadge")
+    : isCounterOfferHold
+      ? t("counterOfferHoldBadge")
+      : null;
+
+  return (
+    <>
+      {topRightBadge ? (
+        <span
+          className="pointer-events-none absolute right-0.5 top-0.5 z-10 max-w-[42%] truncate rounded bg-slate-950/50 px-0.5 py-0 text-[9px] font-medium leading-none text-amber-100/90 ring-1 ring-amber-400/20 backdrop-blur-sm"
+          title={topRightBadge}
+        >
+          {topRightBadge}
+        </span>
+      ) : null}
+      <p
+        className={`flex min-h-0 min-w-0 items-center gap-0.5 truncate text-left text-xs font-semibold leading-tight ${nameColor} ${topRightBadge ? "pr-[2.15rem]" : ""}`}
+      >
+        <span className="shrink-0 tabular-nums">{timeLabel}</span>
+        <span className="shrink-0 opacity-50">·</span>
+        <span className="min-w-0 truncate">{patientName}</span>
+      </p>
+    </>
+  );
+}
+
 export function AgendaRealtime({
   doctorId,
   initialAppointments,
@@ -55,14 +182,24 @@ export function AgendaRealtime({
   const [appointments, setAppointments] =
     React.useState<AgendaAppointmentRow[]>(initialAppointments);
   const [toast, setToast] = React.useState(false);
-  const [selected, setSelected] = React.useState<(AgendaAppointmentRow & {
-    cyDate: Date;
-    dateKey: string;
-    dateLabel: string;
-    timeLabel: string;
-    whatsappUrl: string | null;
-    minutesFromStart: number;
-  }) | null>(null);
+  const [selected, setSelected] = React.useState<
+    | (AgendaAppointmentRow & {
+        rowKey: string;
+        gridStartIso: string;
+        isCounterOfferHold: boolean;
+        dateKey: string;
+        dateLabel: string;
+        timeLabel: string;
+        whatsappUrl: string | null;
+        minutesFromStart: number;
+        isPendingRequest: boolean;
+        isRequested: boolean;
+        showReviewLink: boolean;
+        rowDurationMinutes: number;
+        sortKeyMs: number;
+      })
+    | null
+  >(null);
   const [confirmingCancel, setConfirmingCancel] = React.useState(false);
   const [isCancelling, setIsCancelling] = React.useState(false);
   const [cancelError, setCancelError] = React.useState<string | null>(null);
@@ -72,6 +209,13 @@ export function AgendaRealtime({
   React.useEffect(() => {
     setAppointments(initialAppointments);
   }, [initialAppointments]);
+
+  /** Re-expand grid when counter-offer deadlines pass (no full reload needed). */
+  const [, bumpAgendaClock] = React.useState(0);
+  React.useEffect(() => {
+    const id = window.setInterval(() => bumpAgendaClock((n) => n + 1), 60_000);
+    return () => window.clearInterval(id);
+  }, []);
 
   React.useEffect(() => {
     if (!doctorId) return;
@@ -87,8 +231,10 @@ export function AgendaRealtime({
           filter: `doctor_id=eq.${doctorId}`,
         },
         (payload) => {
-          const next = payload.new as AgendaAppointmentRow | null;
-          if (!next?.id) return;
+          const raw = payload.new as Record<string, unknown> | null;
+          if (!raw) return;
+          const next = agendaRowFromSupabasePayload(raw);
+          if (!next) return;
 
           setAppointments((prev) => {
             if (prev.some((p) => p.id === next.id)) return prev;
@@ -96,14 +242,53 @@ export function AgendaRealtime({
             merged.sort(
               (a, b) =>
                 new Date(a.appointment_datetime).getTime() -
-                new Date(b.appointment_datetime).getTime()
+                new Date(b.appointment_datetime).getTime(),
             );
             return merged;
           });
 
           setToast(true);
           window.setTimeout(() => setToast(false), 3000);
-        }
+        },
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "appointments",
+          filter: `doctor_id=eq.${doctorId}`,
+        },
+        (payload) => {
+          const raw = payload.new as Record<string, unknown> | null;
+          if (!raw) return;
+          const next = agendaRowFromSupabasePayload(raw);
+          if (!next) return;
+
+          setAppointments((prev) => {
+            const idx = prev.findIndex((p) => p.id === next.id);
+            if (idx === -1) {
+              const merged = [next, ...prev];
+              merged.sort(
+                (a, b) =>
+                  new Date(a.appointment_datetime).getTime() -
+                  new Date(b.appointment_datetime).getTime(),
+              );
+              return merged;
+            }
+            const copy = [...prev];
+            copy[idx] = next;
+            copy.sort(
+              (a, b) =>
+                new Date(a.appointment_datetime).getTime() -
+                new Date(b.appointment_datetime).getTime(),
+            );
+            return copy;
+          });
+
+          setToast(true);
+          window.setTimeout(() => setToast(false), 3000);
+        },
       )
       .subscribe();
 
@@ -117,20 +302,41 @@ export function AgendaRealtime({
   const todayDate = startOfDay(nowCyprus);
   const todayKey = format(nowCyprus, "yyyy-MM-dd");
 
-  const rows = appointments.map((a) => {
-    const cyDate = appointmentToCyprusDate(a.appointment_datetime);
-    const dateKey = format(cyDate, "yyyy-MM-dd");
-    const hours = cyDate.getHours();
-    const minutes = cyDate.getMinutes();
-    const minutesFromStart = (hours - START_HOUR) * 60 + minutes;
+  const defaultSlotMinutes =
+    workingHours?.slotDurationMinutes && workingHours.slotDurationMinutes > 0
+      ? workingHours.slotDurationMinutes
+      : 30;
+
+  const nowMs = nowUtc.getTime();
+  const expanded = expandAgendaAppointmentsForGrid(appointments, nowMs);
+  const rows = expanded.map((a) => {
+    const utc = a.gridStartIso;
+    const dateKey = appointmentDateKeyCyprus(utc);
+    const minutesFromStart = appointmentMinutesFromAgendaStart(utc, START_HOUR);
+    const rawDm = a.duration_minutes;
+    const rowDurationMinutes =
+      typeof rawDm === "number" && Number.isFinite(rawDm) && rawDm > 0
+        ? rawDm
+        : defaultSlotMinutes;
+    const su = String(a.status ?? "").toUpperCase();
+    const isPendingRequest = su === "REQUESTED" || su === "NEEDS_RESCHEDULE";
+    const isRequested = su === "REQUESTED";
+    const waForPatient =
+      su === "CONFIRMED" ? getWhatsAppUrl(a.patient_phone) : null;
     return {
       ...a,
-      cyDate,
       dateKey,
-      dateLabel: format(cyDate, "dd/MM/yyyy", { locale: enGB }),
-      timeLabel: format(cyDate, "HH:mm", { locale: enGB }),
-      whatsappUrl: getWhatsAppUrl(a.patient_phone),
+      dateLabel: formatInTimeZone(new Date(utc), CY_TZ, "dd/MM/yyyy", {
+        locale: enGB,
+      }),
+      timeLabel: appointmentTimeLabelCyprus(utc),
+      whatsappUrl: waForPatient,
       minutesFromStart,
+      rowDurationMinutes,
+      isPendingRequest,
+      isRequested,
+      showReviewLink: su === "REQUESTED",
+      sortKeyMs: new Date(utc).getTime(),
     };
   });
 
@@ -138,32 +344,36 @@ export function AgendaRealtime({
   const selectedMobileKey = format(selectedMobileDate, "yyyy-MM-dd");
   const mobileRows = rows
     .filter((r) => r.dateKey === selectedMobileKey)
-    .sort((a, b) => a.cyDate.getTime() - b.cyDate.getTime());
-  const weekStart = startOfWeek(addWeeks(todayDate, weekOffset), { weekStartsOn: 1 });
+    .sort((a, b) => a.sortKeyMs - b.sortKeyMs);
+  const weekStart = startOfWeek(addWeeks(todayDate, weekOffset), {
+    weekStartsOn: 1,
+  });
   const weekDays = React.useMemo(
     () => Array.from({ length: 5 }, (_, i) => addDays(weekStart, i)),
-    [weekStart]
+    [weekStart],
   );
   const weekKeys = weekDays.map((d) => format(d, "yyyy-MM-dd"));
   const hours = React.useMemo(
-    () => Array.from({ length: END_HOUR - START_HOUR + 1 }, (_, i) => START_HOUR + i),
-    []
+    () =>
+      Array.from(
+        { length: END_HOUR - START_HOUR + 1 },
+        (_, i) => START_HOUR + i,
+      ),
+    [],
   );
   const dayHeight = (END_HOUR - START_HOUR) * HOUR_ROW_HEIGHT;
   const maxMinutes = (END_HOUR - START_HOUR) * 60;
-  const appointmentDurationMinutes =
-    workingHours?.slotDurationMinutes && workingHours.slotDurationMinutes > 0
-      ? workingHours.slotDurationMinutes
-      : 30;
-  // Keep visual height faithful to slot duration so consecutive slots don't
-  // appear overlapped (e.g. 09:00, 09:30, 10:00).
-  const blockHeight = Math.max(
-    22,
-    (appointmentDurationMinutes / 60) * HOUR_ROW_HEIGHT - 2
-  );
+  const appointmentDurationMinutes = defaultSlotMinutes;
+
+  function blockHeightFor(row: (typeof rows)[number]): number {
+    return Math.max(22, (row.rowDurationMinutes / 60) * HOUR_ROW_HEIGHT - 2);
+  }
+
   const todayCount = rows.filter((r) => r.dateKey === todayKey).length;
 
-  function toMinutesFromMidnight(time: string | null | undefined): number | null {
+  function toMinutesFromMidnight(
+    time: string | null | undefined,
+  ): number | null {
     if (!time) return null;
     const [hRaw, mRaw] = time.split(":");
     const h = Number.parseInt(hRaw ?? "", 10);
@@ -226,7 +436,9 @@ export function AgendaRealtime({
       });
       if (!res.ok) {
         const data = await res.json().catch(() => null);
-        setCancelError(data?.message || "We could not cancel this appointment.");
+        setCancelError(
+          data?.message || "We could not cancel this appointment.",
+        );
         setIsCancelling(false);
         return;
       }
@@ -266,18 +478,22 @@ export function AgendaRealtime({
   };
 
   function layoutOverlaps(dayRows: (typeof rows)[number][]): PositionedRow[] {
-    const sorted = [...dayRows].sort((a, b) => a.cyDate.getTime() - b.cyDate.getTime());
+    const sorted = [...dayRows].sort((a, b) => a.sortKeyMs - b.sortKeyMs);
     const output: PositionedRow[] = [];
     let i = 0;
 
     while (i < sorted.length) {
-      const cluster: Array<{ row: (typeof rows)[number]; start: number; end: number }> = [];
+      const cluster: Array<{
+        row: (typeof rows)[number];
+        start: number;
+        end: number;
+      }> = [];
       let clusterEnd = -1;
 
       while (i < sorted.length) {
         const row = sorted[i];
         const start = Math.min(Math.max(row.minutesFromStart, 0), maxMinutes);
-        const end = Math.min(start + appointmentDurationMinutes, maxMinutes);
+        const end = Math.min(start + row.rowDurationMinutes, maxMinutes);
         if (cluster.length === 0 || start < clusterEnd) {
           cluster.push({ row, start, end });
           clusterEnd = Math.max(clusterEnd, end);
@@ -313,7 +529,7 @@ export function AgendaRealtime({
     <>
       {toast && (
         <div className="fixed right-5 top-5 z-50 rounded-2xl border border-emerald-400/30 bg-slate-900/90 px-4 py-3 text-xs font-medium text-emerald-200 shadow-2xl shadow-slate-950/60 backdrop-blur">
-          New appointment booked!
+          New booking activity
         </div>
       )}
 
@@ -414,7 +630,10 @@ export function AgendaRealtime({
               </p>
             ) : (
               <div className="grid grid-cols-[50px_1fr] gap-3">
-                <div className="relative text-[11px] text-slate-500" style={{ height: dayHeight }}>
+                <div
+                  className="relative text-[11px] text-slate-500"
+                  style={{ height: dayHeight }}
+                >
                   {hours.map((hour) => {
                     const y = (hour - START_HOUR) * HOUR_ROW_HEIGHT;
                     return (
@@ -428,19 +647,23 @@ export function AgendaRealtime({
                     );
                   })}
                 </div>
-                <div className="relative rounded-2xl border border-slate-800/70 bg-slate-950/45" style={{ height: dayHeight }}>
+                <div
+                  className="relative rounded-2xl border border-slate-800/70 bg-slate-950/45"
+                  style={{ height: dayHeight }}
+                >
                   {(() => {
                     const w = workingWindowsForDate(selectedMobileDate);
                     const startMin = START_HOUR * 60;
                     const endMin = END_HOUR * 60;
-                    const y = (m: number) => ((m - startMin) / 60) * HOUR_ROW_HEIGHT;
+                    const y = (m: number) =>
+                      ((m - startMin) / 60) * HOUR_ROW_HEIGHT;
                     const overlays: React.ReactNode[] = [];
                     if (!w.enabled) {
                       overlays.push(
                         <div
                           key="mobile-disabled-day"
                           className="absolute inset-0 bg-slate-900/70"
-                        />
+                        />,
                       );
                     } else {
                       if (w.start > startMin) {
@@ -448,8 +671,11 @@ export function AgendaRealtime({
                           <div
                             key="mobile-before-start"
                             className="absolute inset-x-0 bg-slate-900/70"
-                            style={{ top: 0, height: y(Math.min(w.start, endMin)) }}
-                          />
+                            style={{
+                              top: 0,
+                              height: y(Math.min(w.start, endMin)),
+                            }}
+                          />,
                         );
                       }
                       if (w.end < endMin) {
@@ -461,7 +687,7 @@ export function AgendaRealtime({
                               top: y(Math.max(w.end, startMin)),
                               bottom: 0,
                             }}
-                          />
+                          />,
                         );
                       }
                       if (
@@ -477,7 +703,7 @@ export function AgendaRealtime({
                               key="mobile-break"
                               className="absolute inset-x-0 bg-slate-900/65"
                               style={{ top, height: bottom - top }}
-                            />
+                            />,
                           );
                         }
                       }
@@ -496,21 +722,29 @@ export function AgendaRealtime({
                   })}
                   {layoutOverlaps(mobileRows).map((row) => (
                     <button
-                      key={row.id}
+                      key={row.rowKey}
                       type="button"
                       aria-label={`Appointment ${row.patient_name} at ${row.timeLabel}`}
                       onClick={() => openAppointment(row)}
-                      className="group absolute left-1 right-1 rounded-xl border border-emerald-300/40 bg-emerald-400/20 px-2 py-1.5 text-left shadow-lg shadow-emerald-500/10 transition hover:bg-emerald-400/30 focus:outline-none focus:ring-2 focus:ring-emerald-300/60"
+                      className={`group absolute left-1 right-1 overflow-hidden rounded-xl border px-2 py-1 text-left shadow-lg transition focus:outline-none focus:ring-2 focus:ring-emerald-300/60 ${
+                        row.isPendingRequest
+                          ? "border-amber-300/40 bg-amber-400/15 opacity-[0.72] shadow-amber-500/10 hover:bg-amber-400/25 hover:opacity-95"
+                          : "border-emerald-300/40 bg-emerald-400/20 shadow-emerald-500/10 hover:bg-emerald-400/30"
+                      }`}
                       style={{
                         top: topForRow(row),
-                        height: blockHeight,
+                        height: blockHeightFor(row),
                         left: `${0.25 + (row.column / row.columns) * 99.5}%`,
-                        width: `${(99.5 / row.columns) - 0.5}%`,
+                        width: `${99.5 / row.columns - 0.5}%`,
                       }}
                     >
-                      <p className="truncate text-xs font-semibold text-emerald-100">
-                        {row.timeLabel} · {row.patient_name}
-                      </p>
+                      <AgendaAppointmentCardInner
+                        timeLabel={row.timeLabel}
+                        patientName={row.patient_name}
+                        isPendingRequest={row.isPendingRequest}
+                        isRequested={row.isRequested}
+                        isCounterOfferHold={row.isCounterOfferHold}
+                      />
                     </button>
                   ))}
                 </div>
@@ -530,14 +764,21 @@ export function AgendaRealtime({
                       : "border-slate-800/80 bg-slate-900/40 text-slate-300"
                   }`}
                 >
-                  <p className="font-semibold">{format(day, "EEE", { locale: enGB })}</p>
-                  <p className="mt-0.5 text-[11px]">{format(day, "dd MMM", { locale: enGB })}</p>
+                  <p className="font-semibold">
+                    {format(day, "EEE", { locale: enGB })}
+                  </p>
+                  <p className="mt-0.5 text-[11px]">
+                    {format(day, "dd MMM", { locale: enGB })}
+                  </p>
                 </div>
               ))}
             </div>
 
             <div className="grid grid-cols-[64px_repeat(5,minmax(0,1fr))] gap-2">
-              <div className="relative text-[11px] text-slate-500" style={{ height: dayHeight }}>
+              <div
+                className="relative text-[11px] text-slate-500"
+                style={{ height: dayHeight }}
+              >
                 {hours.map((hour) => {
                   const y = (hour - START_HOUR) * HOUR_ROW_HEIGHT;
                   return (
@@ -555,12 +796,13 @@ export function AgendaRealtime({
               {weekKeys.map((dayKey) => {
                 const dayRows = rows
                   .filter((r) => r.dateKey === dayKey)
-                  .sort((a, b) => a.cyDate.getTime() - b.cyDate.getTime());
+                  .sort((a, b) => a.sortKeyMs - b.sortKeyMs);
                 const dayDate = weekDays[weekKeys.indexOf(dayKey)];
                 const work = workingWindowsForDate(dayDate);
                 const startMin = START_HOUR * 60;
                 const endMin = END_HOUR * 60;
-                const y = (m: number) => ((m - startMin) / 60) * HOUR_ROW_HEIGHT;
+                const y = (m: number) =>
+                  ((m - startMin) / 60) * HOUR_ROW_HEIGHT;
                 return (
                   <div
                     key={dayKey}
@@ -574,30 +816,40 @@ export function AgendaRealtime({
                         {work.start > startMin ? (
                           <div
                             className="absolute inset-x-0 bg-slate-900/70"
-                            style={{ top: 0, height: y(Math.min(work.start, endMin)) }}
+                            style={{
+                              top: 0,
+                              height: y(Math.min(work.start, endMin)),
+                            }}
                           />
                         ) : null}
                         {work.end < endMin ? (
                           <div
                             className="absolute inset-x-0 bg-slate-900/70"
-                            style={{ top: y(Math.max(work.end, startMin)), bottom: 0 }}
+                            style={{
+                              top: y(Math.max(work.end, startMin)),
+                              bottom: 0,
+                            }}
                           />
                         ) : null}
                         {work.breakStart != null &&
                         work.breakEnd != null &&
-                        work.breakEnd > work.breakStart ? (
-                          (() => {
-                            const top = y(Math.max(work.breakStart!, startMin));
-                            const bottom = y(Math.min(work.breakEnd!, endMin));
-                            if (bottom <= top) return null;
-                            return (
-                              <div
-                                className="absolute inset-x-0 bg-slate-900/65"
-                                style={{ top, height: bottom - top }}
-                              />
-                            );
-                          })()
-                        ) : null}
+                        work.breakEnd > work.breakStart
+                          ? (() => {
+                              const top = y(
+                                Math.max(work.breakStart!, startMin),
+                              );
+                              const bottom = y(
+                                Math.min(work.breakEnd!, endMin),
+                              );
+                              if (bottom <= top) return null;
+                              return (
+                                <div
+                                  className="absolute inset-x-0 bg-slate-900/65"
+                                  style={{ top, height: bottom - top }}
+                                />
+                              );
+                            })()
+                          : null}
                       </>
                     )}
                     {hours.slice(0, -1).map((hour) => {
@@ -612,21 +864,29 @@ export function AgendaRealtime({
                     })}
                     {layoutOverlaps(dayRows).map((row) => (
                       <button
-                        key={row.id}
+                        key={row.rowKey}
                         type="button"
                         aria-label={`Appointment ${row.patient_name} at ${row.timeLabel}`}
                         onClick={() => openAppointment(row)}
-                        className="group absolute left-1 right-1 rounded-xl border border-emerald-300/40 bg-emerald-400/20 px-2 py-1.5 text-left shadow-lg shadow-emerald-500/10 transition hover:bg-emerald-400/30 focus:outline-none focus:ring-2 focus:ring-emerald-300/60"
+                        className={`group absolute left-1 right-1 overflow-hidden rounded-xl border px-2 py-1 text-left shadow-lg transition focus:outline-none focus:ring-2 focus:ring-emerald-300/60 ${
+                          row.isPendingRequest
+                            ? "border-amber-300/40 bg-amber-400/15 opacity-[0.72] shadow-amber-500/10 hover:bg-amber-400/25 hover:opacity-95"
+                            : "border-emerald-300/40 bg-emerald-400/20 shadow-emerald-500/10 hover:bg-emerald-400/30"
+                        }`}
                         style={{
                           top: topForRow(row),
-                          height: blockHeight,
+                          height: blockHeightFor(row),
                           left: `${0.25 + (row.column / row.columns) * 99.5}%`,
-                          width: `${(99.5 / row.columns) - 0.5}%`,
+                          width: `${99.5 / row.columns - 0.5}%`,
                         }}
                       >
-                        <p className="truncate text-xs font-semibold text-emerald-100">
-                          {row.timeLabel} · {row.patient_name}
-                        </p>
+                        <AgendaAppointmentCardInner
+                          timeLabel={row.timeLabel}
+                          patientName={row.patient_name}
+                          isPendingRequest={row.isPendingRequest}
+                          isRequested={row.isRequested}
+                          isCounterOfferHold={row.isCounterOfferHold}
+                        />
                       </button>
                     ))}
                   </div>
@@ -676,24 +936,45 @@ export function AgendaRealtime({
             <p className="mt-1 text-sm text-slate-400">
               {selected.dateLabel} · {selected.timeLabel}
             </p>
-            <div className="mt-4 space-y-2 text-sm">
-              <p className="text-slate-200">
-                <span className="text-slate-400">Phone</span>{" "}
-                {selected.patient_phone}
+            {selected.isCounterOfferHold &&
+            String(selected.status ?? "").toUpperCase() ===
+              "NEEDS_RESCHEDULE" ? (
+              <p className="mt-2 text-xs leading-relaxed text-slate-500">
+                Patient originally requested{" "}
+                {formatInTimeZone(
+                  new Date(selected.appointment_datetime),
+                  CY_TZ,
+                  "dd/MM/yyyy",
+                  { locale: enGB },
+                )}{" "}
+                · {appointmentTimeLabelCyprus(selected.appointment_datetime)}
               </p>
-              <p className="text-slate-200">
-                <span className="text-slate-400">Email</span>{" "}
-                {selected.patient_email}
+            ) : null}
+            {selected.showReviewLink ? (
+              <Link
+                href={`/dashboard/appointments/${selected.id}`}
+                className="mt-3 inline-flex text-sm font-medium text-emerald-300 hover:text-emerald-200"
+              >
+                Review &amp; confirm request
+              </Link>
+            ) : String(selected.status ?? "").toUpperCase() ===
+              "NEEDS_RESCHEDULE" ? (
+              <p className="mt-3 text-sm text-amber-200/90">
+                Waiting for the patient to choose one of the proposed times.
               </p>
-            </div>
+            ) : null}
+            {String(selected.status ?? "").toUpperCase() === "CONFIRMED" ? (
+              <div className="mt-4 space-y-2 text-sm">
+                <p className="text-slate-200">
+                  <span className="text-slate-400">Phone</span>{" "}
+                  {selected.patient_phone}
+                </p>
+              </div>
+            ) : null}
             <div className="mt-6 flex gap-2">
-              {(selected.whatsappUrl ?? getWhatsAppUrl(selected.patient_phone)) ? (
+              {selected.whatsappUrl ? (
                 <a
-                  href={
-                    selected.whatsappUrl ??
-                    getWhatsAppUrl(selected.patient_phone) ??
-                    "#"
-                  }
+                  href={selected.whatsappUrl}
                   target="_blank"
                   rel="noreferrer"
                   className="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl bg-emerald-400 px-4 py-2.5 text-sm font-semibold text-slate-950 shadow-lg shadow-emerald-500/30 transition hover:bg-emerald-300"
@@ -717,8 +998,8 @@ export function AgendaRealtime({
             {confirmingCancel ? (
               <div className="mt-4 rounded-2xl border border-red-500/20 bg-red-500/5 p-3 text-xs text-slate-300">
                 <p>
-                  Are you sure you want to cancel this appointment? This will free
-                  the slot for other patients.
+                  Are you sure you want to cancel this appointment? This will
+                  free the slot for other patients.
                 </p>
                 <div className="mt-3 flex gap-2">
                   <button
@@ -751,4 +1032,3 @@ export function AgendaRealtime({
     </>
   );
 }
-

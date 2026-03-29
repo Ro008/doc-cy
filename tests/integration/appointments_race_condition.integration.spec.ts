@@ -126,7 +126,7 @@ test.describe("Integration: appointment race condition guard", () => {
         patientEmail: `race-a-${nonce}@integration.test`,
         patientPhone: "99123456",
         appointmentLocal: targetLocal,
-        visitType: "First Consultation",
+        reason: "Integration race test — reason for visit.",
       };
       const payloadB = {
         doctorId,
@@ -134,7 +134,7 @@ test.describe("Integration: appointment race condition guard", () => {
         patientEmail: `race-b-${nonce}@integration.test`,
         patientPhone: "99123456",
         appointmentLocal: targetLocal,
-        visitType: "First Consultation",
+        reason: "Integration race test — reason for visit.",
       };
 
       const [resA, resB] = await Promise.all([

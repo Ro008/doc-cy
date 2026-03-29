@@ -2,9 +2,9 @@
 -- Run once in Supabase SQL Editor after deploying language standardization.
 -- Adjust mappings if your data uses other variants.
 --
--- ¿Tienes que ejecutarlo? Opcional: la app ya puede mostrar bien typos vía lib/cyprus-languages
--- (p. ej. Frenchh → French) al pintar el perfil. Este script además corrige los valores
--- guardados en la base para informes, filtros y futuras ediciones.
+-- Do you need to run this? Optional: the app can already display typo fixes via lib/cyprus-languages
+-- (e.g. Frenchh → French) when rendering the profile. This script also fixes stored DB values
+-- for reporting, filters, and future edits.
 
 CREATE OR REPLACE FUNCTION public._doccy_normalize_lang_token(raw text)
 RETURNS text

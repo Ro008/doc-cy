@@ -4,6 +4,12 @@ import { createServiceRoleClient } from "@/lib/supabase-service";
 import { CY_TZ } from "@/lib/appointments";
 import { zonedTimeToUtc, utcToZonedTime } from "date-fns-tz";
 import { addDays, addHours, addMinutes, format } from "date-fns";
+import { candidateOverlapsAnyBlockingInterval } from "@/lib/appointment-overlap";
+import {
+  fetchBlockingAppointments,
+  toBlockingRows,
+} from "@/lib/appointment-blocking-query";
+import { enUS } from "date-fns/locale";
 import { appointmentToCyprusDate } from "@/lib/appointments";
 import {
   buildWeeklyScheduleFromSettings,
@@ -18,22 +24,15 @@ import {
   escapeHtml,
 } from "@/lib/resend";
 import type { DoctorRow } from "@/lib/doctors";
-import { phoneToWaMeLink } from "@/lib/whatsapp";
-import { getDoctorCalendarEventDetails } from "@/lib/doctor-calendar-event";
 import {
-  buildGoogleCalendarUrl,
-  getCalendarEventDetails,
-} from "@/lib/patient-calendar-event";
-import { normalizeVisitNotes, parseVisitType } from "@/lib/visit-types";
+  normalizeAppointmentReason,
+} from "@/lib/visit-types";
+import { professionalFirstName } from "@/lib/professional-name";
 
-const WHATSAPP_CTA_STYLE =
-  "display:block;text-align:center;background:#25D366;color:#ffffff;text-decoration:none;font-weight:700;padding:14px 16px;border-radius:12px;margin:0 0 12px;font-size:15px;";
-const CAL_GOOGLE_STYLE =
-  "display:block;text-align:center;background:#34d399;color:#022c22;text-decoration:none;font-weight:700;padding:12px 14px;border-radius:12px;margin:0 0 10px;font-size:15px;";
-const CAL_ICS_STYLE =
-  "display:block;text-align:center;background:rgba(52,211,153,.14);color:#a7f3d0;text-decoration:none;font-weight:700;padding:12px 14px;border-radius:12px;border:1px solid rgba(52,211,153,.35);font-size:15px;";
 const PRIMARY_ACTIONS_LABEL =
   "margin:18px 0 10px;font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#94a3b8;";
+const DASHBOARD_LINK_STYLE =
+  "display:block;text-align:center;background:#34d399;color:#022c22;text-decoration:none;font-weight:700;padding:12px 14px;border-radius:12px;margin:0 0 10px;font-size:15px;";
 
 export async function POST(req: NextRequest) {
   const supabase = createServiceRoleClient();
@@ -68,8 +67,7 @@ export async function POST(req: NextRequest) {
     patientEmail,
     patientPhone,
     appointmentLocal,
-    visitType: rawVisitType,
-    visitNotes: rawVisitNotes,
+    reason: rawReason,
   } = body as {
     doctorId?: string;
     doctorSlug?: string;
@@ -77,8 +75,7 @@ export async function POST(req: NextRequest) {
     patientEmail?: string;
     patientPhone?: string;
     appointmentLocal?: string; // "YYYY-MM-DDTHH:mm" in Europe/Nicosia
-    visitType?: string;
-    visitNotes?: string;
+    reason?: string;
   };
 
   let doctorId = rawDoctorId;
@@ -113,16 +110,13 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const visitType = parseVisitType(rawVisitType);
-  if (!visitType) {
+  const reason = normalizeAppointmentReason(rawReason);
+  if (!reason) {
     return NextResponse.json(
-      { message: "Please select a valid type of visit." },
+      { message: "Please tell us briefly why you need this visit." },
       { status: 400 }
     );
   }
-  const visitNotes = normalizeVisitNotes(rawVisitNotes);
-
-  const visitForCal = { visitType, visitNotes };
 
   const { data: doctorGate, error: doctorGateError } = await supabase
     .from("doctors")
@@ -280,19 +274,11 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Overlap-safe guard: block any appointment whose time range intersects the requested range.
-  // existingStart < requestedEnd && existingEnd > requestedStart
-  const requestedStartUtc = appointmentUtc;
-  const requestedEndUtc = addMinutes(requestedStartUtc, slotDuration);
-  const overlapProbeFromUtc = addMinutes(requestedStartUtc, -slotDuration + 1);
-  const overlapProbeToUtc = addMinutes(requestedEndUtc, -1);
-
-  const { data: existing, error: existingError } = await supabase
-    .from("appointments")
-    .select("id, appointment_datetime")
-    .eq("doctor_id", doctorId)
-    .gte("appointment_datetime", overlapProbeFromUtc.toISOString())
-    .lte("appointment_datetime", overlapProbeToUtc.toISOString());
+  const requestedStartIso = appointmentUtc.toISOString();
+  const { data: blockingRaw, error: existingError } = await fetchBlockingAppointments(
+    supabase,
+    doctorId
+  );
 
   if (existingError) {
     console.error(existingError);
@@ -302,32 +288,20 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  if (existing && existing.length > 0) {
-    const hasOverlap = existing.some((row) => {
-      const existingStart = new Date(
-        (row as { appointment_datetime: string }).appointment_datetime
-      );
-      const existingEnd = addMinutes(existingStart, slotDuration);
-      return (
-        existingStart.getTime() < requestedEndUtc.getTime() &&
-        existingEnd.getTime() > requestedStartUtc.getTime()
-      );
-    });
-    if (!hasOverlap) {
-      // Defensive: query window should already isolate overlaps.
-      // Keep this branch to avoid false positives if slot duration changes over time.
-      return NextResponse.json(
-        { message: "Slot already taken." },
-        { status: 409 }
-      );
-    }
-    return NextResponse.json(
-      { message: "Slot already taken." },
-      { status: 409 }
-    );
+  const taken = candidateOverlapsAnyBlockingInterval(
+    requestedStartIso,
+    slotDuration,
+    null,
+    toBlockingRows(blockingRaw),
+    slotDuration
+  );
+
+  if (taken) {
+    return NextResponse.json({ message: "Slot already taken." }, { status: 409 });
   }
 
-  // Insert appointment with status 'confirmed' (MVP: auto-confirm)
+  // Initial duration for overlap checks and agenda height uses doctor_settings.slot_duration_minutes
+  // (defaults to 30). This is provisional until the professional confirms and adjusts the slot.
   const bookedAtIso = new Date().toISOString();
 
   const { data: inserted, error: insertError } = await supabase
@@ -338,13 +312,13 @@ export async function POST(req: NextRequest) {
       patient_email: patientEmail,
       patient_phone: patientPhone,
       appointment_datetime: appointmentUtc.toISOString(),
-      status: "confirmed",
-      visit_type: visitType,
-      visit_notes: visitNotes,
-      // Exact moment the patient completed "Book appointment" (for dashboard month / activity)
+      status: "REQUESTED",
+      reason,
+      duration_minutes: slotDuration,
+      // Exact moment the patient submitted the request (dashboard KPIs)
       created_at: bookedAtIso,
     })
-    .select("id, appointment_datetime, status, created_at")
+    .select("id, appointment_datetime, status, created_at, reason")
     .single();
 
   if (insertError) {
@@ -376,8 +350,6 @@ export async function POST(req: NextRequest) {
 
     const doctorRow = doctor as DoctorRow | null;
     const doctorName = doctorRow?.name ?? undefined;
-    const doctorWaMe = phoneToWaMeLink(doctorRow?.phone);
-    const patientWaMe = phoneToWaMeLink(patientPhone);
     const doctorEmail = (doctorRow?.email ?? "").trim();
     const patientEmailTo = String(patientEmail).trim();
     const resendToOverride = process.env.RESEND_TO_OVERRIDE?.trim();
@@ -386,118 +358,40 @@ export async function POST(req: NextRequest) {
       allowRecipientOverride && resendToOverride ? resendToOverride : null;
 
     const cyDate = appointmentToCyprusDate(inserted.appointment_datetime as string);
-    const compactWhenLabel = format(cyDate, "EEE d MMM, HH:mm");
+    const dateLabel = format(cyDate, "EEEE, d MMMM yyyy", { locale: enUS });
+    const timeLabel = format(cyDate, "HH:mm");
+    const manageUrl = new URL(
+      `/dashboard/appointments/${encodeURIComponent(String(inserted.id))}`,
+      siteUrl
+    ).toString();
 
     if (doctorName) {
-      let patientText = `Hi ${patientName},\n\nYour appointment with ${doctorName} is confirmed for ${compactWhenLabel} (Cyprus time).`;
-      patientText += `\n\nVisit type: ${visitType}`;
-      if (visitNotes) {
-        patientText += `\nNotes: ${visitNotes}`;
-      }
-      if (doctorWaMe) {
-        patientText += `\n\nChat with ${doctorName} on WhatsApp: ${doctorWaMe}`;
-      }
+      const proFirst = professionalFirstName(doctorName);
 
-      let doctorText = `New appointment\n\nVisit type: ${visitType}`;
-      if (visitNotes) {
-        doctorText += `\nNotes: ${visitNotes}`;
-      }
-      doctorText += `\n\nPatient: ${patientName}\nPatient email: ${patientEmail}\nWhen: ${compactWhenLabel} (Cyprus time)`;
-      if (patientWaMe || patientPhone) {
-        doctorText += `\n\n💬 Chat on WhatsApp (${patientPhone}): ${patientWaMe ?? "N/A"}`;
-      }
-
-      const startUtc = new Date(inserted.appointment_datetime as string);
-      const endUtc = addMinutes(startUtc, slotDuration);
-
-      const patientCal = getCalendarEventDetails(
-        {
-          id: inserted.id as string,
-          appointment_datetime: inserted.appointment_datetime as string,
-        },
-        {
-          name: doctorRow?.name,
-          specialty: doctorRow?.specialty,
-          phone: doctorRow?.phone,
-          clinic_address: doctorRow?.clinic_address,
-        },
-        visitForCal
-      );
-
-      const doctorCal = getDoctorCalendarEventDetails(
-        {
-          patient_name: patientName,
-          patient_email: patientEmail,
-          patient_phone: patientPhone,
-        },
-        {
-          name: doctorRow?.name,
-          specialty: doctorRow?.specialty,
-          phone: doctorRow?.phone,
-          clinic_address: doctorRow?.clinic_address,
-        },
-        visitForCal
-      );
-
-      const patientGoogleUrl = buildGoogleCalendarUrl({
-        title: patientCal.title,
-        description: patientCal.description,
-        location: patientCal.location,
-        startUtc,
-        endUtc,
-      });
-
-      const doctorGoogleUrl = buildGoogleCalendarUrl({
-        title: doctorCal.title,
-        description: doctorCal.description,
-        location: doctorCal.location,
-        startUtc,
-        endUtc,
-      });
-
-      const patientIcsUrl = new URL(
-        `/api/appointments/${encodeURIComponent(inserted.id)}/calendar`,
-        siteUrl
-      ).toString();
-
-      const doctorIcsUrl = new URL(
-        `/api/appointments/${encodeURIComponent(inserted.id)}/calendar`,
-        siteUrl
-      );
-      doctorIcsUrl.searchParams.set("audience", "doctor");
-
-      patientText +=
-        `\n\nAdd to Google Calendar: ${patientGoogleUrl}` +
-        `\n\nAdd to Apple/Outlook (.ics): ${patientIcsUrl}` +
-        `\n\n---\n${AUTOMATED_EMAIL_FOOTER_TEXT}`;
-
-      doctorText +=
-        `\n\nAdd to Google Calendar: ${doctorGoogleUrl}` +
-        `\n\nAdd to Apple/Outlook (.ics): ${doctorIcsUrl.toString()}` +
-        `\n\n---\n${AUTOMATED_EMAIL_FOOTER_TEXT}`;
+      const doctorText =
+        `Hi ${proFirst},\n\n` +
+        `You have a new appointment request from ${patientName} for ${dateLabel} at ${timeLabel} (Cyprus time).\n\n` +
+        `Reason: ${reason}\n\n` +
+        `Please sign in to DocCy to review, adjust the duration, and confirm.\n\n` +
+        `${manageUrl}\n\n` +
+        `---\n${AUTOMATED_EMAIL_FOOTER_TEXT}`;
 
       const doctorHtml = `
 <div style="margin:0;padding:20px;background:#020617;color:#e2e8f0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
   <div style="max-width:560px;margin:0 auto;background:#0f172a;border:1px solid rgba(148,163,184,.2);border-radius:16px;padding:22px;">
-    <h2 style="margin:0 0 12px;font-size:20px;line-height:1.3;color:#f8fafc;">New appointment</h2>
-    <p style="margin:0 0 8px;font-size:15px;line-height:1.5;"><strong>Visit type:</strong> ${escapeHtml(visitType)}</p>
-    ${
-      visitNotes
-        ? `<p style="margin:0 0 8px;font-size:15px;line-height:1.5;"><strong>Notes:</strong> ${escapeHtml(visitNotes)}</p>`
-        : ""
-    }
-    <p style="margin:0 0 8px;font-size:15px;line-height:1.5;"><strong>Patient:</strong> ${escapeHtml(patientName)}</p>
-    <p style="margin:0 0 8px;font-size:15px;line-height:1.5;"><strong>Email:</strong> ${escapeHtml(patientEmail)}</p>
-    <p style="margin:0 0 4px;font-size:15px;line-height:1.5;"><strong>When:</strong> ${escapeHtml(compactWhenLabel)} (Cyprus time)</p>
+    <h2 style="margin:0 0 12px;font-size:20px;line-height:1.3;color:#f8fafc;">New appointment request</h2>
+    <p style="margin:0 0 10px;font-size:15px;line-height:1.6;color:#e2e8f0;">Hi ${escapeHtml(proFirst)},</p>
+    <p style="margin:0 0 10px;font-size:15px;line-height:1.6;color:#e2e8f0;">
+      You have a new request from <strong>${escapeHtml(patientName)}</strong> for
+      <strong>${escapeHtml(dateLabel)}</strong> at <strong>${escapeHtml(timeLabel)}</strong> (Cyprus time).
+    </p>
+    <p style="margin:0 0 10px;font-size:15px;line-height:1.6;color:#e2e8f0;"><strong>Reason:</strong> ${escapeHtml(reason)}</p>
+    <p style="margin:0 0 10px;font-size:15px;line-height:1.6;color:#e2e8f0;">
+      Please sign in to DocCy to review, adjust the duration, and confirm.
+    </p>
 
-    <p style="${PRIMARY_ACTIONS_LABEL}">WhatsApp &amp; calendar</p>
-    ${
-      patientWaMe
-        ? `<a href="${patientWaMe}" style="${WHATSAPP_CTA_STYLE}">💬 Chat on WhatsApp — ${escapeHtml(patientPhone)}</a>`
-        : ""
-    }
-    <a href="${doctorGoogleUrl}" style="${CAL_GOOGLE_STYLE}">Add to Google Calendar</a>
-    <a href="${doctorIcsUrl.toString()}" style="${CAL_ICS_STYLE}">Add to Apple / Outlook (.ics)</a>
+    <p style="${PRIMARY_ACTIONS_LABEL}">Next step</p>
+    <a href="${manageUrl}" style="${DASHBOARD_LINK_STYLE}">Open request in DocCy</a>
 
     ${automatedEmailFooterHtml()}
   </div>
@@ -507,40 +401,37 @@ export async function POST(req: NextRequest) {
       if (doctorRecipient) {
         await sendResendEmail({
           to: doctorRecipient,
-          subject: `New Appointment: ${visitType} — ${patientName} · ${compactWhenLabel}`,
+          subject: `🩺 New appointment request: ${patientName}`,
           text: doctorText,
           html: doctorHtml,
         });
       } else {
         console.warn(
-          "[DocCy] Doctor notification skipped: missing doctor email and no RESEND_TO_OVERRIDE."
+          "[DocCy] Professional notification skipped: missing email and no RESEND_TO_OVERRIDE."
         );
       }
+
+      const patientText =
+        `Hi ${patientName},\n\n` +
+        `We've sent your appointment request to ${doctorName}. They will review the reason for your visit to assign the time you need.\n\n` +
+        `We'll let you know as soon as it is confirmed. Please do not add this visit to your external calendar yet.\n\n` +
+        `Please manage this request through DocCy — wait for our email rather than contacting the clinic directly to schedule.\n\n` +
+        `---\n${AUTOMATED_EMAIL_FOOTER_TEXT}`;
 
       const patientHtml = `
 <div style="margin:0;padding:20px;background:#020617;color:#e2e8f0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
   <div style="max-width:560px;margin:0 auto;background:#0f172a;border:1px solid rgba(148,163,184,.2);border-radius:16px;padding:22px;">
-    <h2 style="margin:0 0 12px;font-size:20px;line-height:1.3;color:#f8fafc;">Appointment confirmed</h2>
+    <h2 style="margin:0 0 12px;font-size:20px;line-height:1.3;color:#f8fafc;">Request sent</h2>
     <p style="margin:0 0 10px;font-size:15px;line-height:1.6;color:#e2e8f0;">Hi ${escapeHtml(patientName)},</p>
-    <p style="margin:0 0 4px;font-size:15px;line-height:1.6;color:#e2e8f0;">
-      Your appointment with <strong>${escapeHtml(doctorName)}</strong> is confirmed for
-      <strong>${escapeHtml(compactWhenLabel)}</strong> (Cyprus time).
+    <p style="margin:0 0 10px;font-size:15px;line-height:1.6;color:#e2e8f0;">
+      We've sent your request to <strong>${escapeHtml(doctorName)}</strong>. They will review the reason for your visit to assign the time you need.
     </p>
-    <p style="margin:12px 0 4px;font-size:15px;line-height:1.6;color:#e2e8f0;"><strong>Visit type:</strong> ${escapeHtml(visitType)}</p>
-    ${
-      visitNotes
-        ? `<p style="margin:0 0 4px;font-size:15px;line-height:1.6;color:#e2e8f0;"><strong>Notes:</strong> ${escapeHtml(visitNotes)}</p>`
-        : ""
-    }
-
-    <p style="${PRIMARY_ACTIONS_LABEL}">WhatsApp &amp; calendar</p>
-    ${
-      doctorWaMe
-        ? `<a href="${doctorWaMe}" style="${WHATSAPP_CTA_STYLE}">💬 Chat with ${escapeHtml(doctorName)} on WhatsApp</a>`
-        : ""
-    }
-    <a href="${patientGoogleUrl}" style="${CAL_GOOGLE_STYLE}">Add to Google Calendar</a>
-    <a href="${patientIcsUrl}" style="${CAL_ICS_STYLE}">Add to Apple / Outlook (.ics)</a>
+    <p style="margin:0 0 10px;font-size:15px;line-height:1.6;color:#e2e8f0;">
+      We'll let you know as soon as it is confirmed. Please <strong>do not</strong> add this visit to your external calendar yet.
+    </p>
+    <p style="margin:0 0 10px;font-size:14px;line-height:1.6;color:#94a3b8;">
+      Please wait for DocCy to confirm your visit rather than messaging the clinic separately to book the same time.
+    </p>
 
     ${automatedEmailFooterHtml()}
   </div>
@@ -550,7 +441,7 @@ export async function POST(req: NextRequest) {
       if (patientRecipient) {
         await sendResendEmail({
           to: patientRecipient,
-          subject: `Appointment confirmed — ${doctorName} · ${compactWhenLabel}`,
+          subject: `Request sent — awaiting confirmation with ${doctorName}`,
           text: patientText,
           html: patientHtml,
         });
@@ -567,7 +458,7 @@ export async function POST(req: NextRequest) {
   return NextResponse.json(
     {
       appointment: inserted,
-      message: "Appointment booked successfully.",
+      message: "Your booking request was submitted.",
     },
     { status: 201 }
   );

@@ -8,7 +8,6 @@ export type ScheduleAppointment = {
   id: string;
   patient_name: string;
   patient_phone: string;
-  patient_email: string;
   whatsappUrl: string | null;
   timeLabel: string;
   minutesFrom8: number;
@@ -184,9 +183,6 @@ export function ScheduleView({
                 <p className="truncate text-sm font-semibold text-slate-100">
                   {appt.patient_name}
                 </p>
-                <p className="truncate text-xs text-slate-400">
-                  {appt.patient_email || appt.patient_phone}
-                </p>
               </div>
               {/* Desktop: low opacity by default; becomes fully visible on row hover. */}
               <div className="flex shrink-0 items-center gap-2 opacity-100 md:opacity-20 md:group-hover:opacity-100 transition-opacity">
@@ -256,10 +252,6 @@ export function ScheduleView({
               <p className="text-slate-200">
                 <span className="text-slate-400">Phone</span>{" "}
                 {selected.patient_phone}
-              </p>
-              <p className="text-slate-200">
-                <span className="text-slate-400">Email</span>{" "}
-                {selected.patient_email}
               </p>
             </div>
             <div className="mt-6">

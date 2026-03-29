@@ -23,18 +23,26 @@ function isPublicPatientRoute(pathname: string): boolean {
   const first = segments[0];
   const firstIsLocale = (routing.locales as readonly string[]).includes(first);
 
-  // Localized public routes: /{locale}/{slug} and /{locale}/{slug}/success
+  // Localized public routes: /{locale}/{slug}, /{locale}/{slug}/request-sent, legacy /success
   if (firstIsLocale) {
     const rest = segments.slice(1);
     if (rest.length === 1) return true;
-    if (rest.length === 2 && rest[1] === "success") return true;
+    if (
+      rest.length === 2 &&
+      (rest[1] === "request-sent" || rest[1] === "success")
+    )
+      return true;
     return false;
   }
 
-  // Unprefixed public routes: /{slug} and /{slug}/success
+  // Unprefixed public routes: /{slug}, /{slug}/request-sent, legacy /success
   if (RESERVED_TOP_LEVEL.has(first)) return false;
   if (segments.length === 1) return true;
-  if (segments.length === 2 && segments[1] === "success") return true;
+  if (
+    segments.length === 2 &&
+    (segments[1] === "request-sent" || segments[1] === "success")
+  )
+    return true;
 
   return false;
 }

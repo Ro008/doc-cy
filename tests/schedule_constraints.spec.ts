@@ -82,7 +82,7 @@ test.describe("Schedule constraints @booking-creates", () => {
         patientEmail: "friday.allowed@test.com",
         patientPhone: "99123456",
         appointmentLocal: `${fridayKey}T14:30`,
-        visitType: "First Consultation",
+        reason: "Schedule constraint test — visit reason.",
       },
     });
     expect([200, 201, 409]).toContain(resAllowed.status());
@@ -94,7 +94,7 @@ test.describe("Schedule constraints @booking-creates", () => {
         patientEmail: "friday.blocked@test.com",
         patientPhone: "99123456",
         appointmentLocal: `${fridayKey}T15:00`,
-        visitType: "First Consultation",
+        reason: "Schedule constraint test — visit reason.",
       },
     });
     expect(resBlocked.status()).toBe(400);
@@ -160,7 +160,7 @@ test.describe("Schedule constraints @booking-creates", () => {
         patientEmail: "holiday.block@test.com",
         patientPhone: "99123456",
         appointmentLocal: `${start}T10:00`,
-        visitType: "First Consultation",
+        reason: "Schedule constraint test — visit reason.",
       },
     });
 
@@ -230,7 +230,7 @@ test.describe("Schedule constraints @booking-creates", () => {
         patientEmail: "misaligned.1645@test.com",
         patientPhone: "99123456",
         appointmentLocal: `${targetDate}T16:45`,
-        visitType: "First Consultation",
+        reason: "Schedule constraint test — visit reason.",
       },
     });
     expect(misalignedRes.status()).toBe(400);
@@ -250,8 +250,9 @@ test.describe("Schedule constraints @booking-creates", () => {
         patient_email: "seeded.invalid.1645@test.com",
         patient_phone: "99123456",
         appointment_datetime: invalidStartUtc.toISOString(),
-        status: "confirmed",
-        visit_type: "Follow-up",
+        status: "CONFIRMED",
+        reason: "Seeded overlap fixture",
+        visit_type: null,
         visit_notes: null,
       })
       .select("id")
@@ -268,7 +269,7 @@ test.describe("Schedule constraints @booking-creates", () => {
           patientEmail: "overlap.1700@test.com",
           patientPhone: "99123456",
           appointmentLocal: `${targetDate}T17:00`,
-          visitType: "First Consultation",
+          reason: "Schedule constraint test — visit reason.",
         },
       });
       expect(overlapRes.status()).toBe(409);

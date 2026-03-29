@@ -61,7 +61,7 @@ test.describe("Future appointments cancellation @booking-creates", () => {
     const patientName = `Cancel E2E Future ${nonce}`;
     const patientEmail = `cancel.future.${nonce}@example.com`;
     const patientPhone = "+35799123456";
-    const visitType = "Follow-up";
+    const visitReason = "Follow-up visit — E2E cancel flow.";
 
     const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
     const admin = serviceKey ? createClient(supabaseUrl, serviceKey) : null;
@@ -93,7 +93,7 @@ test.describe("Future appointments cancellation @booking-creates", () => {
             patientEmail,
             patientPhone,
             appointmentLocal,
-            visitType,
+            reason: visitReason,
           },
         });
 
@@ -133,8 +133,9 @@ test.describe("Future appointments cancellation @booking-creates", () => {
                 patient_email: patientEmail,
                 patient_phone: patientPhone,
                 appointment_datetime: candidateUtc.toISOString(),
-                status: "confirmed",
-                visit_type: visitType,
+                status: "CONFIRMED",
+                reason: visitReason,
+                visit_type: null,
                 visit_notes: null,
               })
               .select("id")

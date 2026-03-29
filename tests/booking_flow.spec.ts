@@ -1,7 +1,6 @@
 // tests/booking_flow.spec.ts
 import { test, expect } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
-import fs from "node:fs/promises";
 import { skipIfSafeNoBooking } from "./helpers/safeMode";
 
 test.describe("Booking flow @booking-creates", () => {
@@ -94,11 +93,11 @@ test.describe("Booking flow @booking-creates", () => {
       page.getByText(/Please enter a valid phone number|double‑check the phone number length/i)
     ).toBeHidden({ timeout: 3000 });
 
-    await page.locator("#visitType").selectOption("First Consultation");
+    await page.locator("#visitReason").fill("Routine check-up — E2E booking flow.");
 
     // 5. Submit booking
     const submitBtn = page.getByRole("button", {
-      name: /Book appointment/i,
+      name: /Send booking request/i,
     });
     await expect(submitBtn).toBeEnabled();
     await submitBtn.click();
@@ -107,7 +106,7 @@ test.describe("Booking flow @booking-creates", () => {
     // If another worker books the same slot between selection and insert,
     // the UI shows an inline 409 error and we need to retry with a different slot.
     const successUrlRegex = new RegExp(
-      `/${chosenDoctor.slug}/success\\?appointmentId=`
+      `/${chosenDoctor.slug}/request-sent\\?appointmentId=`
     );
 
     try {
@@ -127,37 +126,23 @@ test.describe("Booking flow @booking-creates", () => {
 
       await selectButtons.nth((slotIndex + 1) % count).click();
       await page.getByRole("button", { name: /Confirm/i }).first().click();
-      await page.locator("#visitType").selectOption("First Consultation");
-      await page.getByRole("button", { name: /Book appointment/i }).click();
+      await page.locator("#visitReason").fill("Routine check-up — E2E booking flow.");
+      await page.getByRole("button", { name: /Send booking request/i }).click();
 
       await page.waitForURL(successUrlRegex, { timeout: 25000 });
     }
     await expect(
-      page.getByRole("heading", { name: /Appointment Confirmed!/i })
+      page.getByRole("heading", { name: /Request pending/i })
     ).toBeVisible({ timeout: 10000 });
 
     const url = new URL(page.url());
     const appointmentId = url.searchParams.get("appointmentId") ?? "";
     expect(appointmentId).not.toBe("");
 
-    // 7. Validate ICS download on success page
-    const downloadPromise = page.waitForEvent("download", { timeout: 10000 });
-    const downloadLink = page.getByRole("link", { name: /Download \.ics/i });
-    await expect(downloadLink).toBeVisible({ timeout: 5000 });
-    await downloadLink.click();
-
-    const download = await downloadPromise;
-    expect(download.suggestedFilename()).toBe(
-      `appointment-${appointmentId}.ics`
-    );
-
-    const downloadPath = await download.path();
-    expect(downloadPath).toBeTruthy();
-
-    const icsText = await fs.readFile(downloadPath as string, "utf8");
-    expect(icsText).toContain("BEGIN:VCALENDAR");
-    expect(icsText).toContain("END:VCALENDAR");
-    expect(icsText).toContain(`UID:${appointmentId}@doccy`);
+    // 7. .ics is only offered after the professional confirms the request
+    await expect(
+      page.getByRole("link", { name: /Download \.ics/i })
+    ).toHaveCount(0);
 
     const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
     if (serviceKey) {

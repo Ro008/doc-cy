@@ -3,7 +3,10 @@
     "title": "Κλείστε ένα ραντεβού",
     "bookButton": "Επιβεβαίωση Κράτησης",
     "booking": "Κράτηση...",
+    "sendRequestButton": "Send booking request",
+    "sendingRequest": "Sending request...",
     "instantBadge": "Άμεσο",
+    "requestBadge": "Request",
     "allTimesInCyprusHint": "Όλες οι ώρες στην Κύπρο · Επιλέξτε ημερομηνία, μετά ώρα",
     "selectDate": "Επιλέξτε ημερομηνία",
     "selectDateOnCalendar": "Επιλέξτε ημερομηνία από το ημερολόγιο",
@@ -18,8 +21,15 @@
     "noAvailableTimesRightNow": "Δεν υπάρχουν διαθέσιμες ώρες αυτή τη στιγμή.",
     "bookingConfirmedTitle": "Η κράτηση ολοκληρώθηκε με επιτυχία",
     "bookingConfirmedMessage": "{doctorName} έχει ειδοποιηθεί. Θα λάβετε ένα σύντομο μήνυμα στο WhatsApp σύντομα.",
-    "appointmentConfirmedTitle": "Επιβεβαίωση ραντεβού!",
+    "requestSubmittedTitle": "Λάβαμε την αίτησή σας",
+    "requestSubmittedMessage": "Η αίτησή σας στάλθηκε στον/στην {doctorName}. Θα πρέπει ακόμα να επιβεβαιώσει την ώρα και τη διάρκεια της επίσκεψης πριν οριστικοποιηθεί το ραντεβού.",
+    "appointmentConfirmedTitle": "Appointment confirmed",
     "appointmentConfirmedMessage": "Το ραντεβού σας με τον/την {doctorName} επιβεβαιώθηκε.",
+    "requestPendingTitle": "Λάβαμε την αίτησή σας",
+    "requestPendingMessage": "Η αίτησή σας στάλθηκε στον/στην {doctorName}. Θα πρέπει ακόμα να επιβεβαιώσει την ώρα και τη διάρκεια της επίσκεψης πριν οριστικοποιηθεί το ραντεβού.",
+    "appointmentStatusConfirmed": "Επιβεβαιωμένο",
+    "appointmentStatusRequested": "Αίτηση",
+    "requestPendingCalendarHint": "Η λήψη ημερολογίου είναι διαθέσιμη μόνο αφού ο επαγγελματίας επιβεβαιώσει την επίσκεψη.",
     "appointmentProfessionalLabel": "Επαγγελματίας",
     "appointmentDateLabel": "Ημερομηνία",
     "appointmentTimeLabel": "Ώρα",
@@ -40,6 +50,8 @@
     "visitTypeLabel": "Λόγος επίσκεψης",
     "selectOnePlaceholder": "Επιλογή μία…",
     "reasonForVisit": "Λόγος επίσκεψης",
+    "visitReasonLabel": "Tell us briefly the reason for your visit",
+    "visitReasonPlaceholder": "E.g.: tooth pain when eating, annual check-up, follow-up on test results, etc.",
     "optionalLabel": "(προαιρετικό)",
     "visitNotesPlaceholder": "π.χ. follow-up στα αποτελέσματα μιας εξέτασης αίματος",
     "phoneValidationError": "Παρακαλούμε ελέγξτε ξανά το μήκος του αριθμού τηλεφώνου για τη συγκεκριμένη χώρα.",
@@ -48,10 +60,25 @@
       "completePatientDetails": "Παρακαλούμε συμπληρώστε όλα τα στοιχεία του ασθενή.",
       "validPhone": "Παρακαλούμε εισάγετε ένα έγκυρο αριθμό τηλεφώνου.",
       "selectVisitType": "Παρακαλούμε επιλέξτε έναν λόγο επίσκεψης.",
+      "reasonRequired": "Please tell us briefly why you need this visit.",
       "timeSlotJustBooked": "Αυτή η χρονική θέση μόλις κρατήθηκε. Παρακαλούμε επιλέξτε άλλη.",
       "bookingFailed": "Δεν ήταν δυνατή η ολοκλήρωση της κράτησης. Παρακαλούμε δοκιμάστε ξανά.",
       "somethingWentWrong": "Κάτι πήγε στραβά. Παρακαλούμε δοκιμάστε ξανά."
     }
+  },
+  "DoctorAgenda": {
+    "appointmentPendingBadge": "Εκκρεμεί",
+    "counterOfferHoldBadge": "Προτεινόμενο"
+  },
+  "AppointmentReview": {
+    "scheduleOverlapWarning": "⚠️ Αυτή η διάρκεια επικαλύπτεται με το προγραμματισμένο διάλειμμα ή εκτός ωραρίου, από τις {time}.",
+    "proposeOtherTimes": "Πρόταση άλλων ωρών",
+    "sendProposalToPatient": "Αποστολή πρότασης στον ασθενή",
+    "counterOfferEmailHint": "Θα στείλουμε στον/στην {patientName} έναν ασφαλή σύνδεσμο για να διαλέξει ώρα. Η προθεσμία αναφέρεται σε εκείνο το μήνυμα (ώρα Κύπρου) — όποιο συμβεί νωρίτερα: 24 ώρες από τώρα ή 2 ώρες πριν την πρώτη προτεινόμενη ώρα."
+  },
+  "PromotePractice": {
+    "printPrepareFailed": "Δεν ήταν δυνατή η προετοιμασία της εκτύπωσης. Δοκιμάστε άλλο πρόγραμμα περιήγησης ή ανανεώστε τη σελίδα.",
+    "printDialogFailed": "Δεν ήταν δυνατό το άνοιγμα του διαλόγου εκτύπωσης."
   },
   "DoctorProfilePage": {
     "profileTag": "Επαγγελματικό προφίλ",

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { format } from "date-fns";
 import { addMinutes } from "date-fns";
-import { CheckCircle2, CalendarPlus } from "lucide-react";
+import { CheckCircle2, CalendarPlus, Clock } from "lucide-react";
 
 import { createServiceRoleClient } from "@/lib/supabase-service";
 import { appointmentToCyprusDate } from "@/lib/appointments";
@@ -11,6 +11,7 @@ import {
   getCalendarEventDetails,
 } from "@/lib/patient-calendar-event";
 import { getTranslations } from "next-intl/server";
+import { isConfirmedForCalendar } from "@/lib/appointment-status";
 
 type PageProps = {
   params: { slug: string };
@@ -37,7 +38,7 @@ export default async function BookingSuccessPage({
   const { data: appointment, error: apptError } = await supabase
     .from("appointments")
     .select(
-      "id, doctor_id, patient_name, appointment_datetime, status, visit_type, visit_notes",
+      "id, doctor_id, patient_name, appointment_datetime, status, visit_type, visit_notes, reason",
     )
     .eq("id", appointmentId)
     .single();
@@ -67,7 +68,7 @@ export default async function BookingSuccessPage({
 
   if (doctor.slug !== params.slug) {
     redirect(
-      `/${doctor.slug}/success?appointmentId=${encodeURIComponent(appointmentId)}`,
+      `/${doctor.slug}/request-sent?appointmentId=${encodeURIComponent(appointmentId)}`,
     );
   }
 
@@ -85,7 +86,10 @@ export default async function BookingSuccessPage({
   const apptRow = appointment as {
     visit_type?: string | null;
     visit_notes?: string | null;
+    reason?: string | null;
   };
+
+  const confirmed = isConfirmedForCalendar(appointment.status as string);
 
   const cal = getCalendarEventDetails(
     {
@@ -99,49 +103,87 @@ export default async function BookingSuccessPage({
       clinic_address: (doctor as { clinic_address?: string | null }).clinic_address,
     },
     {
+      reason: apptRow.reason,
       visitType: apptRow.visit_type,
       visitNotes: apptRow.visit_notes,
     },
+    { includeWhatsAppContact: confirmed }
   );
 
-  const googleUrl = buildGoogleCalendarUrl({
-    title: cal.title,
-    description: cal.description,
-    location: cal.location,
-    startUtc,
-    endUtc,
-  });
+  const googleUrl = confirmed
+    ? buildGoogleCalendarUrl({
+        title: cal.title,
+        description: cal.description,
+        location: cal.location,
+        startUtc,
+        endUtc,
+      })
+    : "";
+
+  const accent = confirmed ? "emerald" : "amber";
+  const accentBorder =
+    accent === "emerald" ? "border-emerald-200/20" : "border-amber-200/20";
+  const accentShadow =
+    accent === "emerald"
+      ? "shadow-emerald-500/10"
+      : "shadow-amber-500/10";
+  const blurTop =
+    accent === "emerald" ? "bg-emerald-500/10" : "bg-amber-500/10";
+  const blurSide =
+    accent === "emerald" ? "bg-emerald-400/10" : "bg-amber-400/10";
 
   return (
     <main className="min-h-screen bg-slate-950 text-slate-50">
       <div className="pointer-events-none fixed inset-0 -z-10">
-        <div className="absolute inset-x-0 top-[-10%] mx-auto h-80 max-w-xl rounded-full bg-emerald-500/10 blur-3xl" />
+        <div
+          className={`absolute inset-x-0 top-[-10%] mx-auto h-80 max-w-xl rounded-full ${blurTop} blur-3xl`}
+        />
         <div className="absolute inset-y-0 left-[-10%] h-full w-64 bg-sky-500/5 blur-3xl" />
-        <div className="absolute inset-y-0 right-[-15%] h-full w-72 bg-emerald-400/10 blur-3xl" />
+        <div
+          className={`absolute inset-y-0 right-[-15%] h-full w-72 ${blurSide} blur-3xl`}
+        />
       </div>
 
       <div className="mx-auto flex min-h-screen max-w-3xl flex-col px-4 py-10 sm:px-6 lg:px-8 lg:py-14">
         <section
-          data-testid="booking-success-page"
+          data-testid="booking-request-sent-page"
           data-appointment-id={appointmentId}
-          className="rounded-3xl border border-emerald-200/20 bg-slate-900/60 p-8 shadow-2xl shadow-emerald-500/10 backdrop-blur-xl sm:p-10"
+          className={`rounded-3xl border ${accentBorder} bg-slate-900/60 p-8 shadow-2xl ${accentShadow} backdrop-blur-xl sm:p-10`}
         >
           <div className="flex flex-col items-center text-center">
             <div className="relative">
-              <div className="absolute inset-0 scale-150 rounded-full bg-emerald-400/20 blur-2xl" />
-              <CheckCircle2
-                className="relative h-20 w-20 text-emerald-400 sm:h-24 sm:w-24"
-                strokeWidth={1.5}
-                aria-hidden
+              <div
+                className={
+                  confirmed
+                    ? "absolute inset-0 scale-150 rounded-full bg-emerald-400/20 blur-2xl"
+                    : "absolute inset-0 scale-150 rounded-full bg-amber-400/20 blur-2xl"
+                }
               />
+              {confirmed ? (
+                <CheckCircle2
+                  className="relative h-20 w-20 text-emerald-400 sm:h-24 sm:w-24"
+                  strokeWidth={1.5}
+                  aria-hidden
+                />
+              ) : (
+                <Clock
+                  className="relative h-20 w-20 text-amber-400 sm:h-24 sm:w-24"
+                  strokeWidth={1.5}
+                  aria-hidden
+                />
+              )}
             </div>
 
             <h1 className="mt-6 text-2xl font-bold tracking-tight text-slate-50 sm:text-3xl">
-              {t("appointmentConfirmedTitle")}
+              {confirmed
+                ? t("appointmentConfirmedTitle")
+                : t("requestPendingTitle")}
             </h1>
 
             <p className="mt-3 max-w-md text-sm leading-relaxed text-slate-300">
-              {t("appointmentConfirmedMessage", {doctorName: doctor.name})}
+              {confirmed
+                ? t("appointmentConfirmedMessage", { doctorName: doctor.name })
+                : t("requestPendingMessage", { doctorName: doctor.name })}
             </p>
 
             <div className="mt-6 w-full max-w-md rounded-2xl border border-slate-800/70 bg-slate-950/30 px-4 py-4 text-left">
@@ -180,31 +222,45 @@ export default async function BookingSuccessPage({
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
                     {t("appointmentStatusLabel")}
                   </p>
-                  <p className="mt-1 text-sm font-medium text-emerald-200">
-                    {appointment.status}
+                  <p
+                    className={
+                      confirmed
+                        ? "mt-1 text-sm font-medium text-emerald-200"
+                        : "mt-1 text-sm font-medium text-amber-200"
+                    }
+                  >
+                    {confirmed
+                      ? t("appointmentStatusConfirmed")
+                      : t("appointmentStatusRequested")}
                   </p>
                 </div>
               </div>
             </div>
 
-            <div className="mt-8 grid w-full max-w-md gap-3 sm:grid-cols-2">
-              <a
-                href={googleUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="flex items-center justify-center gap-2 rounded-2xl bg-emerald-400 px-4 py-2.5 text-sm font-semibold text-slate-950 shadow-lg shadow-emerald-500/30 transition hover:bg-emerald-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
-              >
-                <CalendarPlus className="h-4 w-4" aria-hidden />
-                {t("addToGoogleLabel")}
-              </a>
+            {confirmed ? (
+              <div className="mt-8 grid w-full max-w-md gap-3 sm:grid-cols-2">
+                <a
+                  href={googleUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center justify-center gap-2 rounded-2xl bg-emerald-400 px-4 py-2.5 text-sm font-semibold text-slate-950 shadow-lg shadow-emerald-500/30 transition hover:bg-emerald-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
+                >
+                  <CalendarPlus className="h-4 w-4" aria-hidden />
+                  {t("addToGoogleLabel")}
+                </a>
 
-              <a
-                href={`/api/appointments/${encodeURIComponent(appointmentId)}/calendar`}
-                className="flex items-center justify-center gap-2 rounded-2xl border border-emerald-400/40 bg-emerald-400/10 px-4 py-2.5 text-sm font-semibold text-emerald-200 shadow-lg shadow-emerald-500/10 transition hover:border-emerald-400/60 hover:bg-emerald-400/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
-              >
-                {t("downloadIcsLabel")}
-              </a>
-            </div>
+                <a
+                  href={`/api/appointments/${encodeURIComponent(appointmentId)}/calendar`}
+                  className="flex items-center justify-center gap-2 rounded-2xl border border-emerald-400/40 bg-emerald-400/10 px-4 py-2.5 text-sm font-semibold text-emerald-200 shadow-lg shadow-emerald-500/10 transition hover:border-emerald-400/60 hover:bg-emerald-400/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
+                >
+                  {t("downloadIcsLabel")}
+                </a>
+              </div>
+            ) : (
+              <p className="mt-8 max-w-md text-center text-sm text-slate-400">
+                {t("requestPendingCalendarHint")}
+              </p>
+            )}
 
             <div className="mt-8 w-full max-w-md">
               <Link
@@ -220,4 +276,3 @@ export default async function BookingSuccessPage({
     </main>
   );
 }
-

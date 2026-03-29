@@ -47,7 +47,7 @@ AS $$
   INNER JOIN public.doctors d ON d.id = a.doctor_id
   WHERE a.doctor_id = p_doctor_id
     AND d.status = 'verified'
-    AND COALESCE(a.status, 'confirmed') <> 'cancelled'
+    AND upper(trim(coalesce(a.status, 'REQUESTED'))) <> 'CANCELLED'
     AND a.appointment_datetime >= p_from
     AND a.appointment_datetime <= p_to;
 $$;

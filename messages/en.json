@@ -3,7 +3,10 @@
     "title": "Book an appointment",
     "bookButton": "Book appointment",
     "booking": "Booking...",
+    "sendRequestButton": "Send booking request",
+    "sendingRequest": "Sending request...",
     "instantBadge": "Instant",
+    "requestBadge": "Request",
     "allTimesInCyprusHint": "All times in Cyprus · Select a date, then a time",
     "selectDate": "Select a date",
     "selectDateOnCalendar": "Select a date on the calendar",
@@ -18,8 +21,15 @@
     "noAvailableTimesRightNow": "No available times right now.",
     "bookingConfirmedTitle": "Booking Confirmed!",
     "bookingConfirmedMessage": "{doctorName} has been notified. You will receive a WhatsApp confirmation shortly.",
-    "appointmentConfirmedTitle": "Appointment Confirmed!",
+    "requestSubmittedTitle": "Request received",
+    "requestSubmittedMessage": "Your request has been sent to {doctorName}. They still need to confirm the appointment time and duration before it is finalized.",
+    "appointmentConfirmedTitle": "Appointment confirmed",
     "appointmentConfirmedMessage": "Your appointment with {doctorName} is confirmed.",
+    "requestPendingTitle": "Request received",
+    "requestPendingMessage": "Your request has been sent to {doctorName}. They still need to confirm the appointment time and duration before it is finalized.",
+    "appointmentStatusConfirmed": "Confirmed",
+    "appointmentStatusRequested": "Requested",
+    "requestPendingCalendarHint": "Calendar download is only available after the professional confirms this visit.",
     "appointmentProfessionalLabel": "Professional",
     "appointmentDateLabel": "Date",
     "appointmentTimeLabel": "Time",
@@ -40,6 +50,8 @@
     "visitTypeLabel": "Type of visit",
     "selectOnePlaceholder": "Select one…",
     "reasonForVisit": "Briefly describe your reason",
+    "visitReasonLabel": "Tell us briefly the reason for your visit",
+    "visitReasonPlaceholder": "E.g.: tooth pain when eating, annual check-up, follow-up on test results, etc.",
     "optionalLabel": "(optional)",
     "visitNotesPlaceholder": "e.g. follow-up on blood test results",
     "phoneValidationError": "Please double‑check the phone number length for the selected country.",
@@ -48,10 +60,25 @@
       "completePatientDetails": "Please complete all patient details.",
       "validPhone": "Please enter a valid phone number.",
       "selectVisitType": "Please select a type of visit.",
+      "reasonRequired": "Please tell us briefly why you need this visit.",
       "timeSlotJustBooked": "This time slot has just been booked. Please choose another slot.",
       "bookingFailed": "We could not complete your booking. Please try again.",
       "somethingWentWrong": "Something went wrong. Please try again."
     }
+  },
+  "DoctorAgenda": {
+    "appointmentPendingBadge": "Pending",
+    "counterOfferHoldBadge": "Proposed slot"
+  },
+  "AppointmentReview": {
+    "scheduleOverlapWarning": "⚠️ This duration overlaps with your scheduled break or off-hours starting at {time}.",
+    "proposeOtherTimes": "Suggest other times",
+    "sendProposalToPatient": "Send proposal to patient",
+    "counterOfferEmailHint": "We'll email {patientName} a secure link to choose a time. The deadline is in that message (Cyprus time) — whichever is sooner: 24 hours from now or 2 hours before the first suggested slot."
+  },
+  "PromotePractice": {
+    "printPrepareFailed": "Could not prepare the print view. Try another browser or refresh.",
+    "printDialogFailed": "Could not open the print dialog."
   },
   "DoctorProfilePage": {
     "profileTag": "Professional profile",
