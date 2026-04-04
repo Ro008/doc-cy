@@ -15,6 +15,7 @@ import { getScheduleOverlapWarning } from "@/lib/appointment-review-schedule-war
 import type { WeeklySchedule } from "@/lib/doctor-settings";
 import { Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { toast } from "sonner";
 
 type ScheduleForReview = {
   weeklySchedule: WeeklySchedule;
@@ -61,8 +62,8 @@ export function AppointmentReviewClient({
 }: Props) {
   const router = useRouter();
   const t = useTranslations("AppointmentReview");
-  const [duration, setDuration] = React.useState<ProfessionalDurationOption>(() =>
-    closestAllowedDuration(initialDurationMinutes)
+  const [duration, setDuration] = React.useState<ProfessionalDurationOption>(
+    () => closestAllowedDuration(initialDurationMinutes),
   );
   const [checking, setChecking] = React.useState(false);
   const [hasConflict, setHasConflict] = React.useState(false);
@@ -72,7 +73,9 @@ export function AppointmentReviewClient({
 
   const [counterOfferOpen, setCounterOfferOpen] = React.useState(false);
   const [loadingAlternatives, setLoadingAlternatives] = React.useState(false);
-  const [alternativesError, setAlternativesError] = React.useState<string | null>(null);
+  const [alternativesError, setAlternativesError] = React.useState<
+    string | null
+  >(null);
   const [previewSlots, setPreviewSlots] = React.useState<string[] | null>(null);
   const [sendingProposal, setSendingProposal] = React.useState(false);
 
@@ -83,7 +86,7 @@ export function AppointmentReviewClient({
       duration,
       scheduleForReview.weeklySchedule,
       scheduleForReview.breakStart,
-      scheduleForReview.breakEnd
+      scheduleForReview.breakEnd,
     );
   }, [appointmentDatetimeIso, duration, scheduleForReview]);
 
@@ -95,13 +98,15 @@ export function AppointmentReviewClient({
       try {
         const res = await fetch(
           `/api/appointments/${encodeURIComponent(appointmentId)}/overlap?durationMinutes=${duration}`,
-          { method: "GET", credentials: "include" }
+          { method: "GET", credentials: "include" },
         );
         const data = await res.json().catch(() => null);
         if (cancelled) return;
         if (!res.ok) {
           setCheckError(
-            typeof data?.message === "string" ? data.message : "Could not check conflicts."
+            typeof data?.message === "string"
+              ? data.message
+              : "Could not check conflicts.",
           );
           setHasConflict(true);
           return;
@@ -143,14 +148,14 @@ export function AppointmentReviewClient({
           credentials: "include",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ durationMinutes: duration }),
-        }
+        },
       );
       const data = await res.json().catch(() => null);
       if (!res.ok) {
         setSubmitError(
           typeof data?.message === "string"
             ? data.message
-            : "Could not confirm this appointment."
+            : "Could not confirm this appointment.",
         );
         setSubmitting(false);
         return;
@@ -171,14 +176,14 @@ export function AppointmentReviewClient({
     try {
       const res = await fetch(
         `/api/appointments/${encodeURIComponent(appointmentId)}/alternative-slots?durationMinutes=${duration}`,
-        { method: "GET", credentials: "include" }
+        { method: "GET", credentials: "include" },
       );
       const data = await res.json().catch(() => null);
       if (!res.ok) {
         setAlternativesError(
           typeof data?.message === "string"
             ? data.message
-            : "Could not load alternative times."
+            : "Could not load alternative times.",
         );
         setLoadingAlternatives(false);
         return;
@@ -186,7 +191,7 @@ export function AppointmentReviewClient({
       const slots = (data as { slots?: string[] }).slots ?? [];
       if (slots.length < 3) {
         setAlternativesError(
-          "Not enough open times were found. Try a shorter visit length or extend your booking horizon in settings."
+          "Not enough open times were found. Try a shorter visit length or extend your booking horizon in settings.",
         );
         setLoadingAlternatives(false);
         return;
@@ -212,23 +217,26 @@ export function AppointmentReviewClient({
           credentials: "include",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ durationMinutes: duration }),
-        }
+        },
       );
       const data = await res.json().catch(() => null);
       if (!res.ok) {
         setAlternativesError(
           typeof data?.message === "string"
             ? data.message
-            : "Could not send the proposal."
+            : "Could not send the proposal.",
         );
+        toast.error(t("proposalsFailedToast"));
         setSendingProposal(false);
         return;
       }
+      toast.success(t("proposalsSentToast"));
       router.push("/agenda");
       router.refresh();
       return;
     } catch {
       setAlternativesError("Could not send the proposal.");
+      toast.error(t("proposalsFailedToast"));
       setSendingProposal(false);
     }
   }
@@ -243,13 +251,18 @@ export function AppointmentReviewClient({
           Hi {professionalFirstName}
         </h1>
         <p className="mt-2 text-sm text-slate-400">
-          Check the reason below, adjust the visit length if you need to, then confirm.
+          Check the reason below, adjust the visit length if you need to, then
+          confirm.
         </p>
       </div>
 
       <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
-        <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Patient</p>
-        <p className="mt-1 text-base font-medium text-slate-100">{patientName}</p>
+        <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+          Patient
+        </p>
+        <p className="mt-1 text-base font-medium text-slate-100">
+          {patientName}
+        </p>
         <p className="mt-4 text-xs font-medium uppercase tracking-wide text-slate-500">
           Requested time
         </p>
@@ -273,7 +286,8 @@ export function AppointmentReviewClient({
           Visit duration
         </p>
         <p className="mt-1 text-xs text-slate-500">
-          Defaults to your current slot length; change if this visit needs more or less time.
+          Defaults to your current slot length; change if this visit needs more
+          or less time.
         </p>
         <div className="mt-3 flex flex-wrap gap-2">
           {PROFESSIONAL_DURATION_OPTIONS.map((m) => {
@@ -307,8 +321,9 @@ export function AppointmentReviewClient({
           className="rounded-2xl border border-amber-500/35 bg-amber-500/10 px-4 py-3 text-sm text-amber-100"
           role="alert"
         >
-          This duration overlaps another appointment. Choose a shorter length, confirm if you
-          adjust it, or propose three alternative times for the patient.
+          This duration overlaps another appointment. Choose a shorter length,
+          confirm if you adjust it, or propose three alternative times for the
+          patient.
         </div>
       ) : null}
 
@@ -365,7 +380,8 @@ export function AppointmentReviewClient({
             {counterOfferOpen && previewSlots && previewSlots.length >= 3 ? (
               <div className="space-y-3 border-t border-slate-700/80 pt-3">
                 <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-                  Next three openings ({formatProfessionalDurationLabel(duration)})
+                  Next three openings (
+                  {formatProfessionalDurationLabel(duration)})
                 </p>
                 <ul className="space-y-2 text-sm text-slate-200">
                   {previewSlots.map((iso, i) => (
@@ -374,9 +390,13 @@ export function AppointmentReviewClient({
                       className="rounded-xl border border-slate-700/80 bg-slate-950/50 px-3 py-2"
                     >
                       <span className="text-slate-500">{i + 1}. </span>
-                      {format(appointmentToCyprusDate(iso), "EEEE, d MMM yyyy · HH:mm", {
-                        locale: enUS,
-                      })}{" "}
+                      {format(
+                        appointmentToCyprusDate(iso),
+                        "EEEE, d MMM yyyy · HH:mm",
+                        {
+                          locale: enUS,
+                        },
+                      )}{" "}
                       <span className="text-slate-500">(Cyprus)</span>
                     </li>
                   ))}

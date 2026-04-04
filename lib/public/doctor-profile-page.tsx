@@ -15,8 +15,9 @@ import {
   settingsToWeeklySlots,
   type DoctorSettingsRow,
 } from "@/lib/doctor-settings";
-import { appointmentToCyprusDate } from "@/lib/appointments";
-import { format } from "date-fns";
+import { appointmentToCyprusDate, CY_TZ } from "@/lib/appointments";
+import { addDays, format } from "date-fns";
+import { utcToZonedTime, zonedTimeToUtc } from "date-fns-tz";
 import { CLINIC_ADDRESS, MAPS_URL } from "@/lib/clinic-info";
 import {
   DOCTOR_FIELD_LIST_METADATA,
@@ -329,11 +330,22 @@ export default async function DoctorPage({ params }: PageProps) {
 
   // Busy instants only (RLS blocks direct reads on appointments for anon).
   const nowUtc = new Date();
-  const fromIso = new Date(nowUtc.getTime() - 60 * 60 * 1000).toISOString();
-  const toIso = new Date(
-    nowUtc.getTime() + 8 * 24 * 60 * 60 * 1000,
+  const fromIso = new Date(nowUtc.getTime() - 24 * 60 * 60 * 1000).toISOString();
+
+  const horizonRaw = normalizedSettings?.booking_horizon_days ?? 90;
+  const maxHorizonDays = [14, 30, 90, 180].includes(horizonRaw)
+    ? horizonRaw
+    : 90;
+  const todayCyprus = utcToZonedTime(nowUtc, CY_TZ);
+  const lastBookableDay = addDays(todayCyprus, maxHorizonDays);
+  // End of the day after last bookable date (Cyprus): covers late slots + long visit durations vs POST /api/appointments.
+  const occupiedRangeEndCyprus = addDays(lastBookableDay, 1);
+  const toIso = zonedTimeToUtc(
+    `${format(occupiedRangeEndCyprus, "yyyy-MM-dd")}T23:59:59.999`,
+    CY_TZ,
   ).toISOString();
 
+  // Slot starts covered by visits (forward + backward vs slot_duration_minutes); must match POST /api/appointments.
   const { data: occupiedRows, error: occupiedErr } = await supabase.rpc(
     "public_doctor_occupied_datetimes",
     {

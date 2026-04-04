@@ -29,7 +29,7 @@ export default async function ReschedulePage({ params, searchParams }: PageProps
   if (!token) {
     return (
       <main className="min-h-screen bg-slate-950 px-4 py-16 text-slate-50">
-        <RescheduleInvalidPanel />
+        <RescheduleInvalidPanel reason="missing_token" />
       </main>
     );
   }
@@ -56,7 +56,18 @@ export default async function ReschedulePage({ params, searchParams }: PageProps
   if (error || !appt) {
     return (
       <main className="min-h-screen bg-slate-950 px-4 py-16 text-slate-50">
-        <RescheduleInvalidPanel />
+        <RescheduleInvalidPanel reason="not_found" />
+      </main>
+    );
+  }
+
+  const st = String(appt.status ?? "").toUpperCase();
+  // After a successful pick we clear the token; URL still has ?token=… — check status before token
+  // so patients see "already handled" instead of a generic invalid link.
+  if (st !== "NEEDS_RESCHEDULE") {
+    return (
+      <main className="min-h-screen bg-slate-950 px-4 py-16 text-slate-50">
+        <RescheduleResolvedPanel />
       </main>
     );
   }
@@ -66,16 +77,7 @@ export default async function ReschedulePage({ params, searchParams }: PageProps
   if (!rowToken || rowToken !== token) {
     return (
       <main className="min-h-screen bg-slate-950 px-4 py-16 text-slate-50">
-        <RescheduleInvalidPanel />
-      </main>
-    );
-  }
-
-  const st = String(appt.status ?? "").toUpperCase();
-  if (st !== "NEEDS_RESCHEDULE") {
-    return (
-      <main className="min-h-screen bg-slate-950 px-4 py-16 text-slate-50">
-        <RescheduleResolvedPanel />
+        <RescheduleInvalidPanel reason="link_revoked" />
       </main>
     );
   }
@@ -97,7 +99,7 @@ export default async function ReschedulePage({ params, searchParams }: PageProps
   if (isoList.length === 0) {
     return (
       <main className="min-h-screen bg-slate-950 px-4 py-16 text-slate-50">
-        <RescheduleInvalidPanel />
+        <RescheduleInvalidPanel reason="no_slots" />
       </main>
     );
   }

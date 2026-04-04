@@ -4,7 +4,10 @@ import { createServiceRoleClient } from "@/lib/supabase-service";
 import { CY_TZ } from "@/lib/appointments";
 import { zonedTimeToUtc, utcToZonedTime } from "date-fns-tz";
 import { addDays, addHours, addMinutes, format } from "date-fns";
-import { candidateOverlapsAnyBlockingInterval } from "@/lib/appointment-overlap";
+import {
+  candidateOverlapsAnyBlockingInterval,
+  explainCandidateOverlap,
+} from "@/lib/appointment-overlap";
 import {
   fetchBlockingAppointments,
   toBlockingRows,
@@ -288,6 +291,8 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // Overlap: REQUESTED/CONFIRMED use appointment_datetime + duration; NEEDS_RESCHEDULE uses
+  // proposed_slots only (original datetime must stay bookable). Matches public_doctor_occupied_datetimes.
   const taken = candidateOverlapsAnyBlockingInterval(
     requestedStartIso,
     slotDuration,
@@ -297,7 +302,21 @@ export async function POST(req: NextRequest) {
   );
 
   if (taken) {
-    return NextResponse.json({ message: "Slot already taken." }, { status: 409 });
+    const body: Record<string, unknown> = {
+      message: "Slot already taken.",
+      code: "BOOKING_OVERLAP",
+    };
+    if (process.env.NODE_ENV !== "production") {
+      const why = explainCandidateOverlap(
+        requestedStartIso,
+        slotDuration,
+        null,
+        toBlockingRows(blockingRaw),
+        slotDuration
+      );
+      if (why) body.debug = why;
+    }
+    return NextResponse.json(body, { status: 409 });
   }
 
   // Initial duration for overlap checks and agenda height uses doctor_settings.slot_duration_minutes
@@ -324,11 +343,13 @@ export async function POST(req: NextRequest) {
   if (insertError) {
     console.error(insertError);
 
-    // Handle potential race condition via unique constraint
+    // 23505: unique violation — e.g. UNIQUE(doctor_id, appointment_datetime) while a
+    // NEEDS_RESCHEDULE row still holds the original instant. See
+    // supabase/appointments_unique_slot_active_only.sql (partial unique).
     const code = (insertError as any)?.code;
     if (code === "23505") {
       return NextResponse.json(
-        { message: "Slot already taken." },
+        { message: "Slot already taken.", code: "BOOKING_DUPLICATE" },
         { status: 409 }
       );
     }

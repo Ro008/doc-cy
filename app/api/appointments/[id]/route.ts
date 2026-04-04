@@ -38,7 +38,7 @@ export async function DELETE(_req: NextRequest, { params }: RouteContext) {
 
   const { data: appt, error: apptError } = await supabase
     .from("appointments")
-    .select("id, doctor_id")
+    .select("id, doctor_id, status")
     .eq("id", id)
     .maybeSingle();
 
@@ -50,18 +50,39 @@ export async function DELETE(_req: NextRequest, { params }: RouteContext) {
     return NextResponse.json({ message: "Forbidden." }, { status: 403 });
   }
 
-  const { error } = await supabase.from("appointments").delete().eq("id", id);
-
-  if (error) {
-    console.error(error);
+  const st = String((appt as { status?: string | null }).status ?? "")
+    .trim()
+    .toUpperCase();
+  if (st === "NEEDS_RESCHEDULE") {
     return NextResponse.json(
-      { message: "Error cancelling appointment." },
-      { status: 500 }
+      {
+        message:
+          "You cannot cancel this while the patient is choosing a proposed time. Wait until they confirm or the offer expires.",
+      },
+      { status: 400 }
+    );
+  }
+  if (st === "REQUESTED") {
+    return NextResponse.json(
+      {
+        message:
+          "Decline pending requests with a reason so the patient is notified. Use Decline in the calendar modal.",
+      },
+      { status: 400 }
+    );
+  }
+  if (st === "CONFIRMED") {
+    return NextResponse.json(
+      {
+        message:
+          "Cancel confirmed visits from the calendar with a reason so the patient receives an email.",
+      },
+      { status: 400 }
     );
   }
 
   return NextResponse.json(
-    { message: "Appointment cancelled successfully." },
-    { status: 200 }
+    { message: "This appointment cannot be removed with this action." },
+    { status: 400 }
   );
 }

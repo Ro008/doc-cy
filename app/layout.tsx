@@ -5,8 +5,10 @@ import { NextIntlClientProvider } from "next-intl";
 import { getMessages } from "next-intl/server";
 import { headers } from "next/headers";
 import "./globals.css";
+import "sonner/dist/styles.css";
 import { FeedbackWidget } from "@/components/feedback/FeedbackWidget";
 import { PromotePracticeFab } from "@/components/dashboard/PromotePracticeFab";
+import { Toaster } from "sonner";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -15,11 +17,14 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: "DocCy | Healthcare Appointments in Cyprus",
-  description:
-    "Book healthcare appointments in Cyprus via DocCy.",
+  description: "Book healthcare appointments in Cyprus via DocCy.",
 };
 
-export default async function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const messages = await getMessages();
   const locale = headers().get("x-next-intl-locale") ?? "en";
 
@@ -28,11 +33,13 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <body
         className={`${inter.variable} min-h-screen bg-slate-50 text-slate-900 antialiased`}
       >
-        <NextIntlClientProvider messages={messages}>{children}</NextIntlClientProvider>
+        <NextIntlClientProvider messages={messages}>
+          {children}
+        </NextIntlClientProvider>
+        <Toaster richColors position="top-center" closeButton />
         <PromotePracticeFab />
         <FeedbackWidget />
       </body>
     </html>
   );
 }
-

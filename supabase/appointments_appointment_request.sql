@@ -53,7 +53,9 @@ COMMENT ON COLUMN public.appointments.status IS
 --   ADD CONSTRAINT appointments_status_check
 --   CHECK (status::text IN ('REQUESTED', 'CONFIRMED', 'CANCELLED'));
 
--- ─── RPC: occupied slots (cancelled only frees the slot) ───────────────────
+-- ─── RPC: occupied slots (superseded for production) ───────────────────────
+-- Use public_doctor_occupied_datetimes_expand_appointment_slots.sql (+ NEEDS_RESCHEDULE rules).
+-- This stub excludes NEEDS_RESCHEDULE from blocking the original time (no proposed_slots expansion here).
 CREATE OR REPLACE FUNCTION public.public_doctor_occupied_datetimes(
   p_doctor_id uuid,
   p_from timestamptz,
@@ -70,7 +72,7 @@ AS $$
   INNER JOIN public.doctors d ON d.id = a.doctor_id
   WHERE a.doctor_id = p_doctor_id
     AND d.status = 'verified'
-    AND lower(trim(a.status::text)) <> 'cancelled'
+    AND lower(trim(a.status::text)) IN ('requested', 'confirmed')
     AND a.appointment_datetime >= p_from
     AND a.appointment_datetime <= p_to;
 $$;

@@ -14,6 +14,7 @@ import {
 import { enGB } from "date-fns/locale";
 import { formatInTimeZone, utcToZonedTime } from "date-fns-tz";
 import { ChevronLeft, ChevronRight, Trash2, X } from "lucide-react";
+import { toast as sonnerToast } from "sonner";
 import { useTranslations } from "next-intl";
 import {
   appointmentDateKeyCyprus,
@@ -142,11 +143,41 @@ function AgendaAppointmentCardInner({
 }) {
   const t = useTranslations("DoctorAgenda");
   const nameColor = isPendingRequest ? "text-amber-100" : "text-emerald-100";
+  const patientDisplay = patientName.trim() || "Patient";
   const topRightBadge = isRequested
     ? t("appointmentPendingBadge")
     : isCounterOfferHold
       ? t("counterOfferHoldBadge")
       : null;
+  const cardTitle = `${patientDisplay} · ${timeLabel}`;
+
+  if (isCounterOfferHold) {
+    // Narrow columns (overlapping proposals): stack name + time so the name never competes for width with the time.
+    return (
+      <div
+        className="relative flex min-h-0 min-w-0 flex-col justify-start gap-0.5 pr-7 text-left"
+        title={cardTitle}
+      >
+        {topRightBadge ? (
+          <span
+            className="pointer-events-none absolute right-0 top-0 z-10 max-w-[46%] truncate rounded bg-slate-950/50 px-0.5 py-0 text-[8px] font-medium leading-none text-amber-100/90 ring-1 ring-amber-400/20 backdrop-blur-sm"
+            title={topRightBadge}
+          >
+            {topRightBadge}
+          </span>
+        ) : null}
+        <span
+          className={`min-w-0 truncate text-[11px] font-semibold leading-snug ${nameColor}`}
+          title={patientDisplay}
+        >
+          {patientDisplay}
+        </span>
+        <span className="shrink-0 text-[10px] font-medium tabular-nums leading-none text-slate-300/95">
+          {timeLabel}
+        </span>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -163,7 +194,9 @@ function AgendaAppointmentCardInner({
       >
         <span className="shrink-0 tabular-nums">{timeLabel}</span>
         <span className="shrink-0 opacity-50">·</span>
-        <span className="min-w-0 truncate">{patientName}</span>
+        <span className="min-w-0 truncate" title={patientDisplay}>
+          {patientDisplay}
+        </span>
       </p>
     </>
   );
@@ -201,6 +234,10 @@ export function AgendaRealtime({
     | null
   >(null);
   const [confirmingCancel, setConfirmingCancel] = React.useState(false);
+  const [cancelMode, setCancelMode] = React.useState<
+    null | "confirmed" | "requested"
+  >(null);
+  const [rejectReason, setRejectReason] = React.useState("");
   const [isCancelling, setIsCancelling] = React.useState(false);
   const [cancelError, setCancelError] = React.useState<string | null>(null);
   const [weekOffset, setWeekOffset] = React.useState(0);
@@ -366,7 +403,11 @@ export function AgendaRealtime({
   const appointmentDurationMinutes = defaultSlotMinutes;
 
   function blockHeightFor(row: (typeof rows)[number]): number {
-    return Math.max(22, (row.rowDurationMinutes / 60) * HOUR_ROW_HEIGHT - 2);
+    const h = (row.rowDurationMinutes / 60) * HOUR_ROW_HEIGHT - 2;
+    if (row.isCounterOfferHold) {
+      return Math.max(46, h);
+    }
+    return Math.max(22, h);
   }
 
   const todayCount = rows.filter((r) => r.dateKey === todayKey).length;
@@ -426,26 +467,69 @@ export function AgendaRealtime({
   }
 
   async function handleCancelAppointment() {
-    if (!selected) return;
+    if (!selected || !cancelMode) return;
     const selectedId = selected.id;
     setCancelError(null);
     setIsCancelling(true);
     try {
-      const res = await fetch(`/api/appointments/${selectedId}`, {
-        method: "DELETE",
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => null);
-        setCancelError(
-          data?.message || "We could not cancel this appointment.",
+      if (cancelMode === "requested") {
+        const reason = rejectReason.trim();
+        if (reason.length < 10) {
+          setCancelError("Please enter a reason (at least 10 characters).");
+          setIsCancelling(false);
+          return;
+        }
+        const res = await fetch(
+          `/api/appointments/${encodeURIComponent(selectedId)}/reject`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ reason }),
+          },
         );
-        setIsCancelling(false);
-        return;
+        if (!res.ok) {
+          const data = await res.json().catch(() => null);
+          setCancelError(
+            data?.message || "We could not decline this request.",
+          );
+          setIsCancelling(false);
+          return;
+        }
+        sonnerToast.success(
+          "Your message was sent to the patient by email and the request was removed from your agenda.",
+        );
+      } else {
+        const reason = rejectReason.trim();
+        if (reason.length < 10) {
+          setCancelError("Please enter a reason (at least 10 characters).");
+          setIsCancelling(false);
+          return;
+        }
+        const res = await fetch(
+          `/api/appointments/${encodeURIComponent(selectedId)}/cancel-confirmed`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ reason }),
+          },
+        );
+        if (!res.ok) {
+          const data = await res.json().catch(() => null);
+          setCancelError(
+            data?.message || "We could not cancel this appointment.",
+          );
+          setIsCancelling(false);
+          return;
+        }
+        sonnerToast.success(
+          "The patient was emailed about the cancellation and the visit was removed from your agenda.",
+        );
       }
-      // Apply optimistic local update to avoid relying on full-page reload.
       setAppointments((prev) => prev.filter((a) => a.id !== selectedId));
       setSelected(null);
       setConfirmingCancel(false);
+      setCancelMode(null);
+      setRejectReason("");
       setCancelError(null);
       setIsCancelling(false);
     } catch (err) {
@@ -458,12 +542,18 @@ export function AgendaRealtime({
   function openAppointment(row: (typeof rows)[number]) {
     setCancelError(null);
     setConfirmingCancel(false);
+    setCancelMode(null);
+    setRejectReason("");
     setSelected(row);
   }
 
   function openCancelFlow(row: (typeof rows)[number]) {
+    const su = String(row.status ?? "").toUpperCase();
+    if (su === "NEEDS_RESCHEDULE") return;
     setCancelError(null);
+    setRejectReason("");
     setSelected(row);
+    setCancelMode(su === "REQUESTED" ? "requested" : "confirmed");
     setConfirmingCancel(true);
   }
 
@@ -533,7 +623,7 @@ export function AgendaRealtime({
         </div>
       )}
 
-      <section className="rounded-3xl border border-emerald-100/10 bg-slate-900/50 shadow-2xl shadow-slate-950/50 backdrop-blur-xl">
+      <section className="min-w-0 rounded-3xl border border-emerald-100/10 bg-slate-900/50 shadow-2xl shadow-slate-950/50 backdrop-blur-xl">
         <div className="border-b border-slate-800/60 px-4 pb-4 pt-4 sm:px-6 sm:pb-5 sm:pt-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="space-y-1">
@@ -720,13 +810,17 @@ export function AgendaRealtime({
                       />
                     );
                   })}
-                  {layoutOverlaps(mobileRows).map((row) => (
+                    {layoutOverlaps(mobileRows).map((row) => (
                     <button
                       key={row.rowKey}
                       type="button"
                       aria-label={`Appointment ${row.patient_name} at ${row.timeLabel}`}
                       onClick={() => openAppointment(row)}
-                      className={`group absolute left-1 right-1 overflow-hidden rounded-xl border px-2 py-1 text-left shadow-lg transition focus:outline-none focus:ring-2 focus:ring-emerald-300/60 ${
+                      className={`group absolute left-1 right-1 overflow-hidden rounded-xl border text-left shadow-lg transition focus:outline-none focus:ring-2 focus:ring-emerald-300/60 ${
+                        row.isCounterOfferHold
+                          ? "flex flex-col items-stretch justify-start px-2 py-1.5"
+                          : "px-2 py-1"
+                      } ${
                         row.isPendingRequest
                           ? "border-amber-300/40 bg-amber-400/15 opacity-[0.72] shadow-amber-500/10 hover:bg-amber-400/25 hover:opacity-95"
                           : "border-emerald-300/40 bg-emerald-400/20 shadow-emerald-500/10 hover:bg-emerald-400/30"
@@ -752,13 +846,13 @@ export function AgendaRealtime({
             )}
           </div>
 
-          <div className="hidden md:block">
-            <div className="grid grid-cols-[64px_repeat(5,minmax(0,1fr))] gap-2 pb-2">
+          <div className="hidden min-w-0 md:block">
+            <div className="sticky top-0 z-20 grid grid-cols-[64px_repeat(5,minmax(104px,1fr))] gap-3 border-b border-slate-800/70 bg-slate-900/90 pb-2 pt-1 backdrop-blur lg:grid-cols-[72px_repeat(5,minmax(120px,1fr))] xl:grid-cols-[80px_repeat(5,minmax(140px,1fr))]">
               <div />
               {weekDays.map((day) => (
                 <div
                   key={format(day, "yyyy-MM-dd")}
-                  className={`rounded-xl border px-2 py-2 text-center text-xs ${
+                  className={`min-w-0 rounded-xl border px-2 py-2 text-center text-xs ${
                     isSameDay(day, todayDate)
                       ? "border-emerald-300/40 bg-emerald-400/10 text-emerald-200"
                       : "border-slate-800/80 bg-slate-900/40 text-slate-300"
@@ -774,9 +868,9 @@ export function AgendaRealtime({
               ))}
             </div>
 
-            <div className="grid grid-cols-[64px_repeat(5,minmax(0,1fr))] gap-2">
+            <div className="grid grid-cols-[64px_repeat(5,minmax(104px,1fr))] gap-3 lg:grid-cols-[72px_repeat(5,minmax(120px,1fr))] xl:grid-cols-[80px_repeat(5,minmax(140px,1fr))]">
               <div
-                className="relative text-[11px] text-slate-500"
+                className="relative shrink-0 text-[11px] text-slate-500"
                 style={{ height: dayHeight }}
               >
                 {hours.map((hour) => {
@@ -806,7 +900,7 @@ export function AgendaRealtime({
                 return (
                   <div
                     key={dayKey}
-                    className="relative rounded-2xl border border-slate-800/70 bg-slate-950/45"
+                    className="relative min-w-0 rounded-2xl border border-slate-800/70 bg-slate-950/45"
                     style={{ height: dayHeight }}
                   >
                     {!work.enabled ? (
@@ -868,7 +962,11 @@ export function AgendaRealtime({
                         type="button"
                         aria-label={`Appointment ${row.patient_name} at ${row.timeLabel}`}
                         onClick={() => openAppointment(row)}
-                        className={`group absolute left-1 right-1 overflow-hidden rounded-xl border px-2 py-1 text-left shadow-lg transition focus:outline-none focus:ring-2 focus:ring-emerald-300/60 ${
+                        className={`group absolute left-1 right-1 overflow-hidden rounded-xl border text-left shadow-lg transition focus:outline-none focus:ring-2 focus:ring-emerald-300/60 ${
+                          row.isCounterOfferHold
+                            ? "flex flex-col items-stretch justify-start px-2 py-1.5"
+                            : "px-2 py-1"
+                        } ${
                           row.isPendingRequest
                             ? "border-amber-300/40 bg-amber-400/15 opacity-[0.72] shadow-amber-500/10 hover:bg-amber-400/25 hover:opacity-95"
                             : "border-emerald-300/40 bg-emerald-400/20 shadow-emerald-500/10 hover:bg-emerald-400/30"
@@ -909,6 +1007,8 @@ export function AgendaRealtime({
               if (isCancelling) return;
               setSelected(null);
               setConfirmingCancel(false);
+              setCancelMode(null);
+              setRejectReason("");
               setCancelError(null);
             }}
             className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm"
@@ -922,6 +1022,8 @@ export function AgendaRealtime({
                 if (isCancelling) return;
                 setSelected(null);
                 setConfirmingCancel(false);
+                setCancelMode(null);
+                setRejectReason("");
                 setCancelError(null);
               }}
               className="absolute right-4 top-4 rounded-full p-1 text-slate-400 transition hover:bg-slate-800 hover:text-slate-200 disabled:cursor-not-allowed disabled:opacity-50"
@@ -983,42 +1085,96 @@ export function AgendaRealtime({
                   Chat on WhatsApp
                 </a>
               ) : null}
-              {!confirmingCancel ? (
+              {!confirmingCancel &&
+              (String(selected.status ?? "").toUpperCase() === "REQUESTED" ||
+                String(selected.status ?? "").toUpperCase() ===
+                  "CONFIRMED") ? (
                 <button
                   type="button"
                   onClick={() => openCancelFlow(selected)}
                   className="inline-flex items-center justify-center gap-2 rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-2.5 text-sm font-semibold text-red-200 transition hover:border-red-400/60 hover:bg-red-500/20"
                 >
                   <Trash2 className="h-4 w-4" />
-                  Cancel
+                  {String(selected.status ?? "").toUpperCase() === "REQUESTED"
+                    ? "Decline"
+                    : "Cancel"}
                 </button>
               ) : null}
             </div>
 
-            {confirmingCancel ? (
+            {confirmingCancel && cancelMode ? (
               <div className="mt-4 rounded-2xl border border-red-500/20 bg-red-500/5 p-3 text-xs text-slate-300">
-                <p>
-                  Are you sure you want to cancel this appointment? This will
-                  free the slot for other patients.
-                </p>
+                {cancelMode === "requested" ? (
+                  <>
+                    <p>
+                      The patient will receive an email with your message and a
+                      link to book again on your profile.
+                    </p>
+                    <label className="mt-3 block text-left text-[11px] font-medium uppercase tracking-wide text-slate-400">
+                      Reason (required)
+                    </label>
+                    <textarea
+                      value={rejectReason}
+                      onChange={(e) => setRejectReason(e.target.value)}
+                      placeholder="e.g. A last-minute surgery came up and I need to free this slot — sorry. Please book another time on my profile."
+                      rows={4}
+                      className="mt-1.5 w-full resize-y rounded-xl border border-slate-700 bg-slate-950/80 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:border-emerald-500/50 focus:outline-none focus:ring-1 focus:ring-emerald-500/40"
+                      disabled={isCancelling}
+                    />
+                    <p className="mt-1 text-[11px] text-slate-500">
+                      At least 10 characters.
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p>
+                      The patient will receive an email that this confirmed visit
+                      is cancelled, with your explanation and a link to book again.
+                    </p>
+                    <label className="mt-3 block text-left text-[11px] font-medium uppercase tracking-wide text-slate-400">
+                      Reason (required)
+                    </label>
+                    <textarea
+                      value={rejectReason}
+                      onChange={(e) => setRejectReason(e.target.value)}
+                      placeholder="e.g. An emergency procedure requires me to be elsewhere — I’m very sorry to cancel this confirmed slot. Please book again on my profile when you can."
+                      rows={4}
+                      className="mt-1.5 w-full resize-y rounded-xl border border-slate-700 bg-slate-950/80 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:border-emerald-500/50 focus:outline-none focus:ring-1 focus:ring-emerald-500/40"
+                      disabled={isCancelling}
+                    />
+                    <p className="mt-1 text-[11px] text-slate-500">
+                      At least 10 characters.
+                    </p>
+                  </>
+                )}
                 <div className="mt-3 flex gap-2">
                   <button
                     type="button"
                     onClick={() => {
                       setConfirmingCancel(false);
+                      setCancelMode(null);
+                      setRejectReason("");
                       setCancelError(null);
                     }}
                     className="inline-flex flex-1 items-center justify-center rounded-2xl border border-slate-700 bg-slate-800 px-3 py-2 text-xs font-medium text-slate-200 transition hover:bg-slate-700"
                   >
-                    Keep appointment
+                    {cancelMode === "requested" ? "Go back" : "Keep appointment"}
                   </button>
                   <button
                     type="button"
-                    disabled={isCancelling}
+                    disabled={
+                      isCancelling || rejectReason.trim().length < 10
+                    }
                     onClick={handleCancelAppointment}
                     className="inline-flex flex-1 items-center justify-center rounded-2xl border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-200 transition hover:border-red-400/60 hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-70"
                   >
-                    {isCancelling ? "Cancelling..." : "Confirm cancel"}
+                    {isCancelling
+                      ? cancelMode === "requested"
+                        ? "Declining…"
+                        : "Cancelling…"
+                      : cancelMode === "requested"
+                        ? "Decline & notify"
+                        : "Cancel & notify"}
                   </button>
                 </div>
                 {cancelError ? (

@@ -105,8 +105,9 @@ test.describe("Booking flow @booking-creates", () => {
     // 6. Assert success page + extract appointmentId for teardown
     // If another worker books the same slot between selection and insert,
     // the UI shows an inline 409 error and we need to retry with a different slot.
+    // Localized routes: /{locale}/{slug}/request-sent (localePrefix: "always")
     const successUrlRegex = new RegExp(
-      `/${chosenDoctor.slug}/request-sent\\?appointmentId=`
+      `/(?:en|el)/${chosenDoctor.slug}/request-sent[?]appointmentId=`,
     );
 
     try {
@@ -131,9 +132,9 @@ test.describe("Booking flow @booking-creates", () => {
 
       await page.waitForURL(successUrlRegex, { timeout: 25000 });
     }
-    await expect(
-      page.getByRole("heading", { name: /Request pending/i })
-    ).toBeVisible({ timeout: 10000 });
+    await expect(page.getByTestId("booking-request-sent-page")).toBeVisible({
+      timeout: 15000,
+    });
 
     const url = new URL(page.url());
     const appointmentId = url.searchParams.get("appointmentId") ?? "";

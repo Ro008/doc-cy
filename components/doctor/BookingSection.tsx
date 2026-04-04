@@ -12,7 +12,7 @@ import {
 import { utcToZonedTime, zonedTimeToUtc } from "date-fns-tz";
 import { el as elLocale, enGB } from "date-fns/locale";
 import { DayPicker } from "react-day-picker";
-import { ChevronLeft, ChevronRight, Clock } from "lucide-react";
+import { ChevronLeft, ChevronRight, Clock, Loader2 } from "lucide-react";
 import { PhoneInput } from "@/components/ui/PhoneInput";
 import { CY_TZ } from "@/lib/appointments";
 import { APPOINTMENT_REASON_MAX_LENGTH } from "@/lib/visit-types";
@@ -521,9 +521,16 @@ export function BookingSection({
           <button
             type="submit"
             disabled={submitting}
-            className="inline-flex w-full items-center justify-center rounded-2xl bg-emerald-400 px-4 py-2.5 text-sm font-semibold text-slate-950 shadow-lg shadow-emerald-500/30 transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-400 px-4 py-2.5 text-sm font-semibold text-slate-950 shadow-lg shadow-emerald-500/30 transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
           >
-            {submitting ? t("sendingRequest") : t("sendRequestButton")}
+            {submitting ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                <span>{t("sendingRequest")}</span>
+              </>
+            ) : (
+              <span>{t("sendRequestButton")}</span>
+            )}
           </button>
         </form>
       </div>

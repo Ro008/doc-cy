@@ -48,13 +48,15 @@ test.describe("Prod smoke: appointment booking flow", () => {
       await page.locator("#visitReason").fill("Prod smoke — brief reason for visit.");
       await page.getByRole("button", { name: /Send booking request/i }).click();
 
-      await page.waitForURL(new RegExp(`/${doctorSlug}/request-sent\\?appointmentId=`), {
-        timeout: 30000,
-      });
-      await expect(
-        page.getByRole("heading", { name: /Request pending/i })
-      ).toBeVisible({
-        timeout: 10000,
+      // Patient URLs use locale prefix (next-intl localePrefix: "always").
+      await page.waitForURL(
+        new RegExp(
+          `/(?:en|el)/${doctorSlug}/request-sent[?]appointmentId=`,
+        ),
+        { timeout: 30000 },
+      );
+      await expect(page.getByTestId("booking-request-sent-page")).toBeVisible({
+        timeout: 15000,
       });
 
       appointmentId = new URL(page.url()).searchParams.get("appointmentId") ?? "";

@@ -187,13 +187,49 @@ export function RescheduleExpiredPanel() {
   );
 }
 
-export function RescheduleInvalidPanel() {
+export type RescheduleInvalidReason =
+  | "missing_token"
+  | "not_found"
+  | "link_revoked"
+  | "no_slots";
+
+const INVALID_COPY: Record<
+  RescheduleInvalidReason,
+  { title: string; body: string }
+> = {
+  missing_token: {
+    title: "Link incomplete",
+    body: "This address is missing part of the link from your email. Open the message again and tap the full link, or ask the clinic to resend it.",
+  },
+  not_found: {
+    title: "We couldn’t find this visit",
+    body: "The link may be wrong or very old. If you need to book or reschedule, contact the clinic or use their public booking page.",
+  },
+  link_revoked: {
+    title: "This link no longer works",
+    body: "It may have been replaced by a newer email, or the offer was withdrawn. If you still need to pick a time, ask the clinic to send a fresh link.",
+  },
+  no_slots: {
+    title: "No times to choose",
+    body: "There are no proposed slots on file for this link. Please contact the clinic so they can send options again.",
+  },
+};
+
+export function RescheduleInvalidPanel({
+  reason,
+}: {
+  reason?: RescheduleInvalidReason;
+}) {
+  const { title, body } = reason
+    ? INVALID_COPY[reason]
+    : {
+        title: "We can’t use this link",
+        body: "It may be incomplete, incorrect, or no longer active. If you’ve already chosen a time, check your confirmation email. Otherwise contact the clinic.",
+      };
   return (
     <div className="mx-auto max-w-md rounded-3xl border border-slate-700 bg-slate-900/70 p-8 text-center">
-      <h1 className="text-xl font-semibold text-slate-50">Link not valid</h1>
-      <p className="mt-3 text-sm text-slate-400">
-        Check the link in your email or request a new message from the clinic.
-      </p>
+      <h1 className="text-xl font-semibold text-slate-50">{title}</h1>
+      <p className="mt-3 text-sm leading-relaxed text-slate-400">{body}</p>
     </div>
   );
 }
@@ -201,10 +237,12 @@ export function RescheduleInvalidPanel() {
 export function RescheduleResolvedPanel() {
   return (
     <div className="mx-auto max-w-md rounded-3xl border border-slate-700 bg-slate-900/70 p-8 text-center">
-      <h1 className="text-xl font-semibold text-slate-50">Already handled</h1>
-      <p className="mt-3 text-sm text-slate-400">
-        This appointment is no longer waiting for a new time. If you need help,
-        contact the clinic directly.
+      <h1 className="text-xl font-semibold text-slate-50">Already sorted</h1>
+      <p className="mt-3 text-sm leading-relaxed text-slate-400">
+        This visit is no longer waiting for you to pick a time — for example, you
+        may have already confirmed a slot, or the clinic updated the appointment.
+        Check your email for the latest details, or contact the clinic if
+        something looks wrong.
       </p>
     </div>
   );

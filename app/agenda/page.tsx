@@ -159,7 +159,7 @@ export default async function AgendaPage() {
         <div className="absolute inset-y-0 right-[-15%] h-full w-72 bg-emerald-400/10 blur-3xl" />
       </div>
 
-      <div className="mx-auto flex min-h-screen w-full max-w-5xl flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+      <div className="mx-auto flex min-h-screen w-full max-w-[1920px] flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
         <DashboardUtilityRow
           left={
             <Link

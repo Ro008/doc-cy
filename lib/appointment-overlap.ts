@@ -16,20 +16,51 @@ export type DoctorAppointmentForBlocking = {
   proposal_expires_at?: string | null;
 };
 
-function statusUpper(status: unknown): string {
-  return String(status ?? "").toUpperCase();
+/**
+ * Normalize DB / PostgREST status for comparisons (trim, strip ZW*, collapse spaces to '_').
+ * Handles rare variants like "NEEDS RESCHEDULE" vs NEEDS_RESCHEDULE enum label.
+ */
+export function normalizeBlockingStatus(raw: unknown): string {
+  let s = String(raw ?? "")
+    .trim()
+    .replace(/[\u200B-\u200D\uFEFF]/g, "");
+  s = s.replace(/\s+/g, "_").toUpperCase();
+  return s;
+}
+
+function coerceProposedSlotsArray(raw: unknown): unknown[] {
+  if (Array.isArray(raw)) return raw;
+  if (typeof raw === "string") {
+    try {
+      const p = JSON.parse(raw) as unknown;
+      if (Array.isArray(p)) return p;
+    } catch {
+      return [];
+    }
+    return [];
+  }
+  if (raw && typeof raw === "object") {
+    const vals = Object.values(raw as Record<string, unknown>);
+    if (vals.length > 0 && vals.every((v) => typeof v === "string")) {
+      return vals;
+    }
+  }
+  return [];
 }
 
 /**
- * Blocking intervals for one appointment row. NEEDS_RESCHEDULE uses proposed_slots only
- * (original appointment_datetime is not held). Expired proposals contribute nothing.
+ * Blocking intervals for one appointment row.
+ * - NEEDS_RESCHEDULE: never uses `appointment_datetime` (original request time is free).
+ *   Only `proposed_slots` while `proposal_expires_at` is in the future.
+ * - REQUESTED / CONFIRMED: [appointment_datetime, appointment_datetime + duration).
+ * - Expired counter-offers: contribute nothing (must match public_doctor_occupied_datetimes).
  */
 export function blockingIntervalsFromAppointment(
   row: DoctorAppointmentForBlocking,
   fallbackDurationMinutes: number,
   nowMs: number = Date.now()
 ): { start: Date; end: Date }[] {
-  const st = statusUpper(row.status);
+  const st = normalizeBlockingStatus(row.status);
   if (st === "CANCELLED") return [];
 
   const dm = Number(row.duration_minutes);
@@ -42,17 +73,8 @@ export function blockingIntervalsFromAppointment(
       : 0;
     if (!exp || exp <= nowMs) return [];
 
-    const raw = row.proposed_slots;
-    let arr: unknown[] = [];
-    if (Array.isArray(raw)) arr = raw;
-    else if (typeof raw === "string") {
-      try {
-        const p = JSON.parse(raw) as unknown;
-        if (Array.isArray(p)) arr = p;
-      } catch {
-        return [];
-      }
-    }
+    const arr = coerceProposedSlotsArray(row.proposed_slots);
+    if (arr.length === 0) return [];
     const out: { start: Date; end: Date }[] = [];
     for (const item of arr) {
       const iso =
@@ -86,7 +108,10 @@ export function blockingIntervalsFromAppointment(
   return [];
 }
 
-/** Whether [candidateStart, candidateStart + durationMinutes) hits any blocking interval. */
+/**
+ * Whether [candidateStart, candidateStart + durationMinutes) hits any blocking interval.
+ * NEEDS_RESCHEDULE rows only block via proposed_slots (see blockingIntervalsFromAppointment).
+ */
 export function candidateOverlapsAnyBlockingInterval(
   candidateStartIso: string,
   durationMinutes: number,
@@ -112,6 +137,37 @@ export function candidateOverlapsAnyBlockingInterval(
     }
   }
   return false;
+}
+
+/** First blocking row that hits the candidate (for dev diagnostics). */
+export function explainCandidateOverlap(
+  candidateStartIso: string,
+  durationMinutes: number,
+  excludeAppointmentId: string | null,
+  rows: DoctorAppointmentForBlocking[],
+  fallbackDurationMinutes: number,
+  nowMs: number = Date.now()
+): { blockingAppointmentId: string; status: string } | null {
+  const candidateStart = new Date(candidateStartIso);
+  const candidateEnd = intervalEndUtc(candidateStartIso, durationMinutes);
+  if (Number.isNaN(candidateStart.getTime())) return null;
+
+  for (const row of rows) {
+    if (excludeAppointmentId && row.id === excludeAppointmentId) continue;
+    for (const iv of blockingIntervalsFromAppointment(
+      row,
+      fallbackDurationMinutes,
+      nowMs
+    )) {
+      if (rangesOverlap(candidateStart, candidateEnd, iv.start, iv.end)) {
+        return {
+          blockingAppointmentId: row.id,
+          status: normalizeBlockingStatus(row.status),
+        };
+      }
+    }
+  }
+  return null;
 }
 
 export function intervalEndUtc(

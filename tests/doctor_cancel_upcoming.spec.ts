@@ -198,16 +198,35 @@ test.describe("Future appointments cancellation @booking-creates", () => {
     const dialog = page.getByRole("dialog");
     await expect(dialog).toBeVisible({ timeout: 10000 });
 
-    const startCancelBtn = dialog.getByRole("button", { name: /^Cancel$/i });
+    const startCancelBtn = dialog.getByRole("button", {
+      name: /^(Cancel|Decline)$/i,
+    });
     await expect(startCancelBtn).toBeVisible({ timeout: 10000 });
     await startCancelBtn.click();
     await expect(startCancelBtn).toHaveCount(0);
 
-    const confirmBtn = dialog.getByRole("button", {
-      name: /Confirm cancel/i,
+    const declineNotify = dialog.getByRole("button", {
+      name: /Decline & notify/i,
     });
-    await expect(confirmBtn).toBeVisible({ timeout: 10000 });
-    await confirmBtn.click();
+    if (await declineNotify.isVisible().catch(() => false)) {
+      await dialog
+        .getByPlaceholder(/e\.g\./i)
+        .fill(
+          "Unable to take this visit — please book another slot on my profile (E2E).",
+        );
+      await declineNotify.click();
+    } else {
+      const cancelNotify = dialog.getByRole("button", {
+        name: /Cancel & notify/i,
+      });
+      await expect(cancelNotify).toBeVisible({ timeout: 10000 });
+      await dialog
+        .getByPlaceholder(/e\.g\./i)
+        .fill(
+          "E2E confirmed cancel — clinic schedule change; please rebook on profile.",
+        );
+      await cancelNotify.click();
+    }
 
     // 3. After backend cancel, UI reloads; ensure the cancelled appointment is gone.
     await page.waitForLoadState("networkidle");

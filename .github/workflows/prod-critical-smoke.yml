@@ -1,3 +1,9 @@
+# Nightly prod browser smoke: tests/prod/*
+# Covers: public shell (home, login, register), guest booking + cleanup, doctor login → agenda,
+# optional full registration when PLAYWRIGHT_LIVE_REGISTRATION=1.
+# Not covered here (local / integration only): agenda cancel flows, confirm/decline REQUESTED,
+# reschedule token pages, race-condition DB test (see pr-integration.yml).
+
 name: Production Monitoring
 
 on:
