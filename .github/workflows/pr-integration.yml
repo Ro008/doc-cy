@@ -1,3 +1,12 @@
+# PR gatekeeper: exercises this branch's Next.js build + isolated Supabase, and (same-repo PRs)
+# Vercel Preview HTML shell. Required checks: configure branch protection for job names below.
+#
+# Secrets: INTEGRATION_SUPABASE_URL, INTEGRATION_SUPABASE_ANON_KEY,
+#          INTEGRATION_SUPABASE_SERVICE_ROLE_KEY, PROD_NEXT_PUBLIC_SUPABASE_URL (production URL only;
+#          used to refuse running integration tests against prod Supabase).
+# Optional repo variable: INTEGRATION_SCHEDULE_TEST_DOCTOR_SLUG (default andreas-nikos) for schedule_constraints.
+# Optional legacy: INTEGRATION_BASE_URL — not required when building locally in CI.
+
 name: PR Integration Tests
 
 on:
@@ -6,33 +15,35 @@ on:
       - "**"
   workflow_dispatch:
 
+concurrency:
+  group: pr-integration-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
 jobs:
-  integration-safe:
+  pr-playwright-core:
+    name: PR Playwright (core business)
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     env:
-      # Hard guard used by integration specs to avoid production execution.
       INTEGRATION_SAFE_ENV: "1"
-      # Map repository secrets → names the app and Playwright tests expect.
-      PLAYWRIGHT_BASE_URL: "${{ secrets.INTEGRATION_BASE_URL }}"
-      NEXT_PUBLIC_SUPABASE_URL: "${{ secrets.INTEGRATION_SUPABASE_URL }}"
-      NEXT_PUBLIC_SUPABASE_ANON_KEY: "${{ secrets.INTEGRATION_SUPABASE_ANON_KEY }}"
-      SUPABASE_SERVICE_ROLE_KEY: "${{ secrets.INTEGRATION_SUPABASE_SERVICE_ROLE_KEY }}"
-      # Used to block accidentally running against the production Supabase instance.
-      # Isolated projects commonly use URLs ending in ".supabase.co" as well.
-      PROD_NEXT_PUBLIC_SUPABASE_URL: "${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}"
+      PLAYWRIGHT_BASE_URL: http://127.0.0.1:3000
+      PLAYWRIGHT_WEB_SERVER_COMMAND: npm run start
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.INTEGRATION_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.INTEGRATION_SUPABASE_ANON_KEY }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.INTEGRATION_SUPABASE_SERVICE_ROLE_KEY }}
+      PROD_NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      INTEGRATION_SCHEDULE_TEST_DOCTOR_SLUG: ${{ vars.INTEGRATION_SCHEDULE_TEST_DOCTOR_SLUG }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Validate isolated environment configuration
+      - name: Validate isolated Supabase configuration
         shell: bash
         env:
-          PLAYWRIGHT_BASE_URL: "${{ secrets.INTEGRATION_BASE_URL }}"
           NEXT_PUBLIC_SUPABASE_URL: "${{ secrets.INTEGRATION_SUPABASE_URL }}"
           NEXT_PUBLIC_SUPABASE_ANON_KEY: "${{ secrets.INTEGRATION_SUPABASE_ANON_KEY }}"
           SUPABASE_SERVICE_ROLE_KEY: "${{ secrets.INTEGRATION_SUPABASE_SERVICE_ROLE_KEY }}"
@@ -41,42 +52,32 @@ jobs:
           set -euo pipefail
           missing=0
 
-          if [ -z "${PLAYWRIGHT_BASE_URL}" ]; then
-            echo "::error::Missing GitHub secret INTEGRATION_BASE_URL (env PLAYWRIGHT_BASE_URL is empty)."
-            missing=1
-          fi
           if [ -z "${NEXT_PUBLIC_SUPABASE_URL}" ]; then
-            echo "::error::Missing GitHub secret INTEGRATION_SUPABASE_URL (env NEXT_PUBLIC_SUPABASE_URL is empty)."
+            echo "::error::Missing GitHub secret INTEGRATION_SUPABASE_URL."
             missing=1
           fi
           if [ -z "${NEXT_PUBLIC_SUPABASE_ANON_KEY}" ]; then
-            echo "::error::Missing GitHub secret INTEGRATION_SUPABASE_ANON_KEY (env NEXT_PUBLIC_SUPABASE_ANON_KEY is empty)."
+            echo "::error::Missing GitHub secret INTEGRATION_SUPABASE_ANON_KEY."
             missing=1
           fi
           if [ -z "${SUPABASE_SERVICE_ROLE_KEY}" ]; then
-            echo "::error::Missing GitHub secret INTEGRATION_SUPABASE_SERVICE_ROLE_KEY (env SUPABASE_SERVICE_ROLE_KEY is empty)."
+            echo "::error::Missing GitHub secret INTEGRATION_SUPABASE_SERVICE_ROLE_KEY."
             missing=1
           fi
 
           if [ "${missing}" -ne 0 ]; then
             echo "Add the INTEGRATION_* secrets in Repo Settings → Secrets and variables → Actions."
             if [ "${GITHUB_EVENT_NAME:-}" = "pull_request" ] && [ "${{ github.event.pull_request.head.repo.full_name }}" != "${{ github.repository }}" ]; then
-              echo "This PR is from a fork; GitHub does not inject repository secrets into fork PR workflows. Use a branch on this repo or workflow_dispatch."
+              echo "This PR is from a fork; GitHub does not inject repository secrets into fork PR workflows."
             fi
             exit 1
           fi
 
-          if echo "${PLAYWRIGHT_BASE_URL}" | grep -Eqi 'mydoccy\.com|vercel\.app'; then
-            echo "Unsafe PLAYWRIGHT_BASE_URL points to production. Aborting."
-            exit 1
-          fi
           normalize_url() { echo "$1" | sed 's:/*$::'; }
 
           integration_norm="$(normalize_url "${NEXT_PUBLIC_SUPABASE_URL}")"
-          prod_norm="$(normalize_url "${PROD_NEXT_PUBLIC_SUPABASE_URL}")"
+          prod_norm="$(normalize_url "${PROD_NEXT_PUBLIC_SUPABASE_URL:-}")"
 
-          # Allow isolated Supabase projects (commonly host ends with ".supabase.co"),
-          # but block the production Supabase URL explicitly configured for live usage.
           if echo "${integration_norm}" | grep -Eqi '\.supabase\.co'; then
             if [ -n "${prod_norm}" ] && [ "${integration_norm}" = "${prod_norm}" ]; then
               echo "Unsafe NEXT_PUBLIC_SUPABASE_URL matches production Supabase URL. Aborting."
@@ -93,14 +94,105 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Build Next.js (PR branch)
+        run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.INTEGRATION_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.INTEGRATION_SUPABASE_ANON_KEY }}
+
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 
-      - name: Run race-condition integration test (safe env only)
+      - name: Run critical Playwright suite
         env:
+          CI: "true"
           INTEGRATION_SAFE_ENV: "1"
-          PLAYWRIGHT_BASE_URL: "${{ secrets.INTEGRATION_BASE_URL }}"
-          NEXT_PUBLIC_SUPABASE_URL: "${{ secrets.INTEGRATION_SUPABASE_URL }}"
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: "${{ secrets.INTEGRATION_SUPABASE_ANON_KEY }}"
-          SUPABASE_SERVICE_ROLE_KEY: "${{ secrets.INTEGRATION_SUPABASE_SERVICE_ROLE_KEY }}"
-        run: npx playwright test tests/integration/appointments_race_condition.integration.spec.ts --project="Desktop Large (Chromium)" --reporter=line
+          PLAYWRIGHT_BASE_URL: http://127.0.0.1:3000
+          PLAYWRIGHT_WEB_SERVER_COMMAND: npm run start
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.INTEGRATION_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.INTEGRATION_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.INTEGRATION_SUPABASE_SERVICE_ROLE_KEY }}
+          PROD_NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          INTEGRATION_SCHEDULE_TEST_DOCTOR_SLUG: ${{ vars.INTEGRATION_SCHEDULE_TEST_DOCTOR_SLUG }}
+        run: |
+          npx playwright test \
+            tests/integration/appointments_race_condition.integration.spec.ts \
+            tests/integration/needs_reschedule_slot_free.integration.spec.ts \
+            tests/schedule_constraints.spec.ts \
+            tests/booking_flow.spec.ts \
+            --project="Desktop Large (Chromium)" \
+            --reporter=line
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-pr-core-report
+          path: |
+            playwright-report
+            test-results
+          if-no-files-found: ignore
+
+  pr-preview-public-shell:
+    name: PR Preview site health (Vercel)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
+      pull-requests: read
+      deployments: read
+
+    steps:
+      - name: Fork PR — skip Vercel preview
+        id: fork
+        shell: bash
+        run: |
+          if [ "${{ github.event.pull_request.head.repo.full_name }}" != "${{ github.repository }}" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "Fork PR: skipping Vercel preview smoke (no deployment on this repo)."
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Wait for Vercel Preview
+        if: steps.fork.outputs.skip == 'false'
+        id: vercel
+        uses: patrickedqvist/wait-for-vercel-preview@v1.3.1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          max_timeout: 600
+
+      - name: Checkout
+        if: steps.fork.outputs.skip == 'false'
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        if: steps.fork.outputs.skip == 'false'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies (Playwright only)
+        if: steps.fork.outputs.skip == 'false'
+        run: npm ci
+
+      - name: Install Playwright browsers
+        if: steps.fork.outputs.skip == 'false'
+        run: npx playwright install --with-deps chromium
+
+      - name: Run public shell tests against Preview URL
+        if: steps.fork.outputs.skip == 'false'
+        env:
+          PLAYWRIGHT_BASE_URL: ${{ steps.vercel.outputs.url }}
+          PLAYWRIGHT_PREVIEW_SMOKE: "1"
+          CI: "true"
+        run: |
+          npx playwright test tests/prod/prod_site_availability.spec.ts \
+            --project="Desktop Large (Chromium)" \
+            --reporter=line
+
+      - name: Fork skip notice
+        if: steps.fork.outputs.skip == 'true'
+        run: echo "OK — Vercel preview job skipped (fork PR)."

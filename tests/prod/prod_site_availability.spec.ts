@@ -1,16 +1,30 @@
 import { test, expect } from "@playwright/test";
 
 /**
- * Cheap prod checks that the public funnel responds before deeper smoke tests
- * (booking, login, registration). Catches deploy/config outages early.
+ * Cheap checks that the public funnel responds (prod cron or Vercel Preview on PRs).
+ * - Prod: set PLAYWRIGHT_BASE_URL to the live site (not localhost).
+ * - Preview CI: set PLAYWRIGHT_PREVIEW_SMOKE=1 and PLAYWRIGHT_BASE_URL to the deployment URL.
  */
-test.describe("Prod smoke: public shell", () => {
+test.describe("Public shell health", () => {
   test.beforeEach(({}, testInfo) => {
     const baseUrl = process.env.PLAYWRIGHT_BASE_URL ?? "";
-    test.skip(
-      !baseUrl || /localhost|127\.0\.0\.1/i.test(baseUrl),
-      "Set PLAYWRIGHT_BASE_URL to production.",
-    );
+    const preview = process.env.PLAYWRIGHT_PREVIEW_SMOKE === "1";
+    if (!baseUrl?.trim()) {
+      testInfo.skip(true, "Set PLAYWRIGHT_BASE_URL.");
+      return;
+    }
+    if (preview) {
+      if (/mydoccy\.com/i.test(baseUrl)) {
+        testInfo.skip(
+          true,
+          "Preview smoke must not target production hostname.",
+        );
+      }
+      return;
+    }
+    if (/localhost|127\.0\.0\.1/i.test(baseUrl)) {
+      testInfo.skip(true, "Set PLAYWRIGHT_BASE_URL to production.");
+    }
   });
 
   test("marketing home loads with primary CTAs", async ({ page }) => {

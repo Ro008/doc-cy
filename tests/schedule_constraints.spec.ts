@@ -5,6 +5,10 @@ import { utcToZonedTime, zonedTimeToUtc } from "date-fns-tz";
 import { CY_TZ } from "@/lib/appointments";
 import { skipIfSafeNoBooking } from "./helpers/safeMode";
 
+/** Integration / CI: override via repo variable INTEGRATION_SCHEDULE_TEST_DOCTOR_SLUG. */
+const SCHEDULE_TEST_SLUG =
+  process.env.INTEGRATION_SCHEDULE_TEST_DOCTOR_SLUG?.trim() || "andreas-nikos";
+
 function cyprusDateKey(daysAhead = 0): string {
   const nowCy = utcToZonedTime(new Date(), CY_TZ);
   return format(addDays(nowCy, daysAhead), "yyyy-MM-dd");
@@ -33,9 +37,12 @@ test.describe("Schedule constraints @booking-creates", () => {
     const { data: doctor } = await supabase
       .from("doctors")
       .select("id,slug")
-      .eq("slug", "andreas-nikos")
+      .eq("slug", SCHEDULE_TEST_SLUG)
       .single();
-    test.skip(!doctor?.id || !doctor?.slug, "Doctor andreas-nikos not found.");
+    test.skip(
+      !doctor?.id || !doctor?.slug,
+      `Doctor slug "${SCHEDULE_TEST_SLUG}" not found.`,
+    );
 
     const commonDay = { enabled: true, start_time: "09:00:00", end_time: "17:00:00" };
     const { error: upsertErr } = await supabase.from("doctor_settings").upsert(
@@ -113,7 +120,7 @@ test.describe("Schedule constraints @booking-creates", () => {
     const { data: doctor } = await supabase
       .from("doctors")
       .select("id,slug,status")
-      .eq("slug", "andreas-nikos")
+      .eq("slug", SCHEDULE_TEST_SLUG)
       .single();
     test.skip(!doctor?.id || doctor.status !== "verified", "Verified doctor not found.");
 
@@ -182,7 +189,7 @@ test.describe("Schedule constraints @booking-creates", () => {
     const { data: doctor } = await supabase
       .from("doctors")
       .select("id,slug,status")
-      .eq("slug", "andreas-nikos")
+      .eq("slug", SCHEDULE_TEST_SLUG)
       .single();
     test.skip(!doctor?.id || doctor.status !== "verified", "Verified doctor not found.");
 
