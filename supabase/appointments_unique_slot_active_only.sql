@@ -4,6 +4,7 @@
 --
 -- Run in Supabase SQL Editor after inspecting existing indexes (step 1).
 
+
 -- 1) List unique indexes on appointments (find the one on doctor_id + appointment_datetime):
 -- SELECT indexname, indexdef
 -- FROM pg_indexes
