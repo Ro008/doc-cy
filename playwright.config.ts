@@ -10,7 +10,22 @@ const localUrl = "http://localhost:3000";
 const baseUrl = process.env.PLAYWRIGHT_BASE_URL ?? localUrl;
 const safeNoBooking = process.env.PLAYWRIGHT_SAFE_NO_BOOKING === "1";
 
-const shouldRunWebServer = baseUrl === localUrl;
+/** CI often uses 127.0.0.1:3000; dev uses localhost:3000 — both should start Next when requested. */
+function isLocalDevBaseUrl(url: string): boolean {
+  try {
+    const u = new URL(url);
+    if (u.protocol !== "http:") return false;
+    const port = u.port || "80";
+    if (port !== "3000") return false;
+    return ["localhost", "127.0.0.1", "[::1]"].includes(u.hostname);
+  } catch {
+    return false;
+  }
+}
+
+const shouldRunWebServer = isLocalDevBaseUrl(baseUrl);
+const webServerCommand =
+  process.env.PLAYWRIGHT_WEB_SERVER_COMMAND?.trim() || "npm run dev";
 
 export default defineConfig({
   testDir: "./tests",
@@ -49,8 +64,9 @@ export default defineConfig({
   ],
   webServer: shouldRunWebServer
     ? {
-        command: "npm run dev",
-        url: localUrl,
+        command: webServerCommand,
+        url: baseUrl,
+        timeout: 120_000,
         reuseExistingServer: !process.env.CI,
       }
     : undefined,
