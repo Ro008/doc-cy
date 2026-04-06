@@ -1,0 +1,49 @@
+# Validates migration file naming (protocol: YYYYMMDDHHMM_descripcion_breve.sql).
+# Does NOT compare live databases — that needs DB URLs in GitHub secrets (see workflow comment).
+name: Supabase migration hygiene
+
+on:
+  pull_request:
+    paths:
+      - "supabase/migrations/**"
+      - ".github/workflows/supabase-migrations-hygiene.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  migration-filenames:
+    name: Migration filename convention
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate supabase/migrations/*.sql names
+        shell: bash
+        run: |
+          set -euo pipefail
+          dir="supabase/migrations"
+          if [ ! -d "$dir" ]; then
+            echo "No $dir/ directory — nothing to check."
+            exit 0
+          fi
+          shopt -s nullglob
+          files=("$dir"/*.sql)
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "No .sql files in $dir/ — OK."
+            exit 0
+          fi
+          bad=0
+          for f in "${files[@]}"; do
+            base=$(basename "$f")
+            if [[ ! "$base" =~ ^[0-9]{12}_[a-z0-9_]+\.sql$ ]]; then
+              echo "::error file=$f::Invalid migration name '$base'. Use YYYYMMDDHHMM_descripcion_brief.sql (lowercase, underscores)."
+              bad=1
+            fi
+          done
+          if [ "$bad" -ne 0 ]; then
+            exit 1
+          fi
+          echo "All migration filenames OK (${#files[@]} file(s))."
