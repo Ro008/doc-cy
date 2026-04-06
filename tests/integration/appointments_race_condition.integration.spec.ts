@@ -34,7 +34,10 @@ test.describe("Integration: appointment race condition guard", () => {
       !safeEnv || unsafeBase || usingProductionSupabase,
       "Unsafe target detected. Integration race test is restricted to isolated testing environment only.",
     );
-    test.skip(!baseUrl || !supabaseUrl || !serviceRole, "Missing integration env vars.");
+    test.skip(
+      !baseUrl || !supabaseUrl || !serviceRole,
+      "Missing integration env vars.",
+    );
 
     const admin = createClient(supabaseUrl, serviceRole);
     const nonce = `${Date.now()}-${Math.floor(Math.random() * 100000)}`;
@@ -53,7 +56,9 @@ test.describe("Integration: appointment race condition guard", () => {
         user_metadata: { role: "doctor" },
       });
       if (createUserRes.error || !createUserRes.data.user?.id) {
-        throw new Error(`Failed creating integration auth user: ${createUserRes.error?.message}`);
+        throw new Error(
+          `Failed creating integration auth user: ${createUserRes.error?.message}`,
+        );
       }
       authUserId = createUserRes.data.user.id;
 
@@ -76,7 +81,9 @@ test.describe("Integration: appointment race condition guard", () => {
         .select("id")
         .single();
       if (doctorInsert.error || !doctorInsert.data?.id) {
-        throw new Error(`Failed creating integration doctor: ${doctorInsert.error?.message}`);
+        throw new Error(
+          `Failed creating integration doctor: ${doctorInsert.error?.message}`,
+        );
       }
       doctorId = doctorInsert.data.id as string;
 
@@ -103,8 +110,16 @@ test.describe("Integration: appointment race condition guard", () => {
             wednesday: day,
             thursday: day,
             friday: day,
-            saturday: { enabled: false, start_time: "09:00:00", end_time: "17:00:00" },
-            sunday: { enabled: false, start_time: "09:00:00", end_time: "17:00:00" },
+            saturday: {
+              enabled: false,
+              start_time: "09:00:00",
+              end_time: "17:00:00",
+            },
+            sunday: {
+              enabled: false,
+              start_time: "09:00:00",
+              end_time: "17:00:00",
+            },
           },
           break_start: null,
           break_end: null,
@@ -117,10 +132,12 @@ test.describe("Integration: appointment race condition guard", () => {
           minimum_notice_hours: 1,
           updated_at: new Date().toISOString(),
         },
-        { onConflict: "doctor_id" }
+        { onConflict: "doctor_id" },
       );
       if (settingsUpsert.error) {
-        throw new Error(`Failed preparing doctor settings: ${settingsUpsert.error.message}`);
+        throw new Error(
+          `Failed preparing doctor settings: ${settingsUpsert.error.message}`,
+        );
       }
 
       const targetDate = nextWeekdayDateKey(1);
@@ -161,11 +178,15 @@ test.describe("Integration: appointment race condition guard", () => {
         .select("id,appointment_datetime")
         .eq("doctor_id", doctorId);
       if (slotCheck.error) {
-        throw new Error(`Failed reading created appointments: ${slotCheck.error.message}`);
+        throw new Error(
+          `Failed reading created appointments: ${slotCheck.error.message}`,
+        );
       }
 
       const tenAmRows = (slotCheck.data ?? []).filter((r) =>
-        String((r as { appointment_datetime?: string }).appointment_datetime ?? "").includes("T10:00")
+        String(
+          (r as { appointment_datetime?: string }).appointment_datetime ?? "",
+        ).match(/T(07|10):00/),
       );
       expect(tenAmRows.length).toBe(1);
       for (const row of tenAmRows) {
@@ -189,4 +210,3 @@ test.describe("Integration: appointment race condition guard", () => {
     }
   });
 });
-
