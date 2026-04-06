@@ -86,66 +86,84 @@
     "profileTag": "Professional profile",
     "cyprusLocalTime": "Cyprus local time",
     "whatToExpectTitle": "What to expect",
-    "whatToExpectBody": "Book in seconds. Your appointment is instantly synced with the professional's agenda. You'll receive a confirmation email with a one-click WhatsApp link to contact the clinic and a direct button to add the date to your calendar."
+    "whatToExpectStep1Lead": "Request in seconds.",
+    "whatToExpectStep1Body": "Pick a slot and send your request to the professional.",
+    "whatToExpectStep2Lead": "Expert review.",
+    "whatToExpectStep2Body": "The professional will check their schedule and approve your visit.",
+    "whatToExpectStep3Lead": "Get confirmed.",
+    "whatToExpectStep3Body": "Once approved, you'll receive an email with your calendar invite and WhatsApp link."
   },
   "LandingPage": {
     "Hero": {
-      "title": "Stop chasing appointments.\nStart focusing on patients.",
-      "subtitle": "The professional booking link that connects you and your patients instantly. Local, automated, and built for Cyprus's independent practices and clinics.",
+      "title": "Stop chasing appointments.\nStart protecting your time.",
+      "subtitleLine1": "The professional booking link built for Cyprus's independent practices.",
+      "subtitleLine2": "Get the benefits of automation without losing the human touch.",
       "ctaClaim": "Claim your professional profile",
       "ctaLogin": "Professional Login"
     },
     "Features": {
       "heading": "Why DocCy?",
-      "syncTitle": "Your Day, Fully Synced",
-      "syncDesc": "Google Calendar & Apple iOS integration. See your schedule on any device, always up to date.",
-      "confirmTitle": "Instant Confirmation",
-      "confirmDesc": "Automatic email confirmations for you and your patient the second a booking is made. No more manual tracking.",
-      "profileTitle": "Your Professional Profile",
-      "profileDesc": "A fast, mobile-first booking experience. Your personal booking link is ready to be shared on WhatsApp or Social Media."
+      "syncTitle": "Your Schedule, Your Rules",
+      "syncDesc": "Google & Apple Calendar integration. See your real-time availability and manage requests from any device.",
+      "confirmTitle": "Smart Request System",
+      "confirmDesc": "Patients request a slot, you confirm with one click. Total control to eliminate scheduling chaos and double-bookings.",
+      "profileTitle": "Your Digital Receptionist",
+      "profileDesc": "A professional interface that filters inquiries and saves you hours of manual WhatsApp back-and-forth."
     },
     "Showcase": {
-      "title": "See how DocCy transforms your practice",
+      "title": "See how DocCy puts you back in charge",
       "badges": {
         "forPatients": "For Patients",
         "forYou": "For You"
       },
       "slides": {
-        "profile": {
-          "title": "The Digital Front Door (Public Profile)",
-          "body": "Your verified professional profile, in your patient's language."
+        "automatedFollowup": {
+          "title": "Professional automated follow-up",
+          "body": "Once you approve, DocCy does the heavy lifting: confirmation emails, calendar add-ons, and WhatsApp links—no manual busywork."
         },
-        "calendar": {
-          "title": "The Smart Calendar",
-          "body": "Patients book in seconds from your visual time grid."
+        "overlapGuard": {
+          "title": "Chaos blocked before it starts",
+          "body": "When a request overlaps your agenda, DocCy warns you instantly. Adjust duration or use your power to suggest alternative times with one click."
         },
-        "confirmation": {
-          "title": "Instant Confirmation",
-          "body": "Zero friction. Appointment confirmed and emails sent automatically."
+        "breakGuard": {
+          "title": "Your personal time stays protected",
+          "body": "DocCy flags conflicts with your breaks or off-hours in real time. Automation finally works for you, not against your boundaries."
+        },
+        "smartRequestFilter": {
+          "title": "Smart Requests, not blind bookings",
+          "body": "Each request arrives structured with patient, time, and reason. You decide with full context from one professional command-center."
+        },
+        "pendingClarity": {
+          "title": "No confusion, just clear Pending",
+          "body": "Patients see their request as 'Pending' until you give the green light. We manage their expectations to prevent unannounced visits."
+        },
+        "pendingVisual": {
+          "title": "Pending is visible at a glance",
+          "body": "Pending requests stand out in your agenda, clearly separated from confirmed visits. Nothing enters your day without your explicit approval."
+        },
+        "proposalEmail": {
+          "title": "You decide, DocCy follows up",
+          "body": "Pick your best three available options. DocCy sends a polished email with a clear 24-hour deadline, so the admin work runs itself."
         },
         "sync": {
           "title": "Total Sync",
-          "body": "Then it's added to your Google Calendar, matching your language."
-        },
-        "agenda": {
-          "title": "Your Control Panel (Doctor Agenda)",
-          "body": "See your full week at a glance. Goodbye paper."
+          "body": "Everything is added to your Google or iOS Calendar, matching your preferred language and keeping your life in sync."
         },
         "weeklyGrid": {
-          "title": "Doctor Command Center (Weekly Grid)",
-          "body": "Run your week from one visual board. Every booking is clear at a glance."
+          "title": "Professional Command Center",
+          "body": "Run your entire week from one visual board. Every booking, request, and gap is clear at a glance. Goodbye, paper diary."
         },
-        "patientDetail": {
-          "title": "Instant Patient Context",
-          "body": "Open a slot and contact the patient instantly via WhatsApp or email."
+        "premiumStorefront": {
+          "title": "Your Premium Digital Storefront",
+          "body": "For independents, brand is everything—yet many still lack a real site or settle for cluttered directory pages. DocCy is your showroom: a clean, modern public profile with your photo, specialty, and languages patients scan first, especially across Cyprus's tourism and expat mix."
         },
         "settingsProfile": {
           "title": "Profile & Visibility Controls",
-          "body": "Manage specialty, languages, and profile readiness from one place."
+          "body": "Manage your professional specialty, languages, and profile readiness from one central place."
         },
         "settingsSchedule": {
           "title": "Schedule Customization",
-          "body": "Full control of your schedule: boundaries, breaks, slot duration, and booking rules."
+          "body": "Full control of your practice: set your own boundaries, breaks, slot durations, and booking rules."
         }
       }
     },

@@ -11,8 +11,8 @@ test.describe("Brand consistency", () => {
     await expect(
       page.getByRole("heading", {
         level: 1,
-        name: /stop chasing appointments.*start focusing on patients/i,
-      })
+        name: /stop chasing appointments.*start protecting your time/i,
+      }),
     ).toBeVisible({ timeout: 10000 });
 
     // Brand: "Cy" must be in a span with emerald accent (not "Cy" in "Cyprus")
@@ -54,9 +54,9 @@ test.describe("Brand consistency", () => {
       timeout: 10000,
     });
 
-    await expect(
-      page.getByRole("heading", { level: 1 })
-    ).toBeVisible({ timeout: 10000 });
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible({
+      timeout: 10000,
+    });
 
     // Brand line: "Doc" + emerald "Cy" · Professional profile
     const cySpan = page.locator('span[class*="emerald"]').filter({

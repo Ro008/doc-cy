@@ -9,8 +9,8 @@ test.describe("Navigation and routing", () => {
     await expect(
       page.getByRole("heading", {
         level: 1,
-        name: /stop chasing appointments.*start focusing on patients/i,
-      })
+        name: /stop chasing appointments.*start protecting your time/i,
+      }),
     ).toBeVisible({ timeout: 5000 });
   });
 });
