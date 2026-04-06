@@ -49,38 +49,66 @@ export default async function HomePage() {
 
   const showcaseSlides = [
     {
-      title: t("Showcase.slides.profile.title"),
-      body: t("Showcase.slides.profile.body"),
-      imageSrc: "/showcase/01-profile.png",
-      categoryLabel: t("Showcase.badges.forPatients"),
-      device: "phone" as const,
+      title: t("Showcase.slides.smartRequestFilter.title"),
+      body: t("Showcase.slides.smartRequestFilter.body"),
+      imageSrc: "/showcase/13-smart-request-email.png",
+      categoryLabel: t("Showcase.badges.forYou"),
+      device: "desktop" as const,
+      desktopWideCapture: true,
     },
     {
-      title: t("Showcase.slides.calendar.title"),
-      body: t("Showcase.slides.calendar.body"),
-      imageSrc: "/showcase/02-calendar.png",
-      categoryLabel: t("Showcase.badges.forPatients"),
-      device: "phone" as const,
+      title: t("Showcase.slides.breakGuard.title"),
+      body: t("Showcase.slides.breakGuard.body"),
+      imageSrc: "/showcase/12-break-protection.png",
+      categoryLabel: t("Showcase.badges.forYou"),
+      device: "desktop" as const,
+      desktopWideCapture: true,
     },
     {
-      title: t("Showcase.slides.confirmation.title"),
-      body: t("Showcase.slides.confirmation.body"),
-      imageSrc: "/showcase/03-confirmation.png",
+      title: t("Showcase.slides.overlapGuard.title"),
+      body: t("Showcase.slides.overlapGuard.body"),
+      imageSrc: "/showcase/10-overlap-rescue.png",
+      categoryLabel: t("Showcase.badges.forYou"),
+      device: "desktop" as const,
+      desktopWideCapture: true,
+    },
+    {
+      title: t("Showcase.slides.proposalEmail.title"),
+      body: t("Showcase.slides.proposalEmail.body"),
+      imageSrc: "/showcase/11-proposal-email.png",
       categoryLabel: t("Showcase.badges.forPatients"),
-      device: "phone" as const,
+      device: "desktop" as const,
+      desktopWideCapture: true,
+    },
+    {
+      title: t("Showcase.slides.pendingClarity.title"),
+      body: t("Showcase.slides.pendingClarity.body"),
+      imageSrc: "/showcase/15-patient-pending-status.png",
+      categoryLabel: t("Showcase.badges.forPatients"),
+      device: "desktop" as const,
+      desktopWideCapture: true,
+    },
+    {
+      title: t("Showcase.slides.pendingVisual.title"),
+      body: t("Showcase.slides.pendingVisual.body"),
+      imageSrc: "/showcase/14-pending-slot-visual.png",
+      categoryLabel: t("Showcase.badges.forYou"),
+      device: "desktop" as const,
+      desktopWideCapture: true,
+    },
+    {
+      title: t("Showcase.slides.automatedFollowup.title"),
+      body: t("Showcase.slides.automatedFollowup.body"),
+      imageSrc: "/showcase/01-update-on-request.png",
+      categoryLabel: t("Showcase.badges.forPatients"),
+      device: "desktop" as const,
+      desktopWideCapture: true,
     },
     {
       title: t("Showcase.slides.sync.title"),
       body: t("Showcase.slides.sync.body"),
       imageSrc: "/showcase/04-google-calendar.png",
       categoryLabel: t("Showcase.badges.forPatients"),
-      device: "phone" as const,
-    },
-    {
-      title: t("Showcase.slides.agenda.title"),
-      body: t("Showcase.slides.agenda.body"),
-      imageSrc: "/showcase/05-doctor-agenda.png",
-      categoryLabel: t("Showcase.badges.forYou"),
       device: "phone" as const,
     },
     {
@@ -93,9 +121,17 @@ export default async function HomePage() {
       mobileDesktopImageClass: "object-contain",
     },
     {
-      title: t("Showcase.slides.patientDetail.title"),
-      body: t("Showcase.slides.patientDetail.body"),
-      imageSrc: "/showcase/07-patient-detail.png",
+      title: t("Showcase.slides.premiumStorefront.title"),
+      body: t("Showcase.slides.premiumStorefront.body"),
+      imageSrc: "/showcase/16-premium-storefront.png",
+      categoryLabel: t("Showcase.badges.forPatients"),
+      device: "desktop" as const,
+      desktopWideCapture: true,
+    },
+    {
+      title: t("Showcase.slides.settingsSchedule.title"),
+      body: t("Showcase.slides.settingsSchedule.body"),
+      imageSrc: "/showcase/09-settings-schedule.png",
       categoryLabel: t("Showcase.badges.forYou"),
       device: "desktop" as const,
       mobileDesktopFrameClass: "aspect-[4/3] sm:h-auto sm:aspect-[16/10]",
@@ -105,15 +141,6 @@ export default async function HomePage() {
       title: t("Showcase.slides.settingsProfile.title"),
       body: t("Showcase.slides.settingsProfile.body"),
       imageSrc: "/showcase/08-settings-profile.png",
-      categoryLabel: t("Showcase.badges.forYou"),
-      device: "desktop" as const,
-      mobileDesktopFrameClass: "aspect-[4/3] sm:h-auto sm:aspect-[16/10]",
-      mobileDesktopImageClass: "object-contain",
-    },
-    {
-      title: t("Showcase.slides.settingsSchedule.title"),
-      body: t("Showcase.slides.settingsSchedule.body"),
-      imageSrc: "/showcase/09-settings-schedule.png",
       categoryLabel: t("Showcase.badges.forYou"),
       device: "desktop" as const,
       mobileDesktopFrameClass: "aspect-[4/3] sm:h-auto sm:aspect-[16/10]",
@@ -173,8 +200,9 @@ export default async function HomePage() {
                 {t("Hero.title")}
               </h1>
 
-              <p className="mt-3 max-w-xl text-[0.9375rem] leading-relaxed text-neutral-200 sm:text-base">
-                {t("Hero.subtitle")}
+              <p className="mt-3 flex max-w-xl flex-col gap-1 text-[0.9375rem] leading-relaxed text-neutral-200 sm:text-base">
+                <span>{t("Hero.subtitleLine1")}</span>
+                <span>{t("Hero.subtitleLine2")}</span>
               </p>
 
               <div className="mt-4 flex flex-col gap-2.5 sm:flex-row sm:items-center sm:gap-3">

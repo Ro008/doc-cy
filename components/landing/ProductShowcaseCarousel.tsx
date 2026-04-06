@@ -12,6 +12,11 @@ type Slide = {
   device: "phone" | "desktop";
   mobileDesktopFrameClass?: string;
   mobileDesktopImageClass?: string;
+  /**
+   * Desktop captures that are wider than a phone mockup: show the full image
+   * (object-contain, capped height) instead of a fixed-aspect fill crop.
+   */
+  desktopWideCapture?: boolean;
 };
 
 export function ProductShowcaseCarousel({ slides }: { slides: Slide[] }) {
@@ -61,36 +66,60 @@ export function ProductShowcaseCarousel({ slides }: { slides: Slide[] }) {
             className={`relative mx-auto overflow-hidden rounded-2xl border border-slate-700/80 bg-slate-900/60 shadow-xl shadow-black/40 ${
               activeSlide?.device === "phone"
                 ? "aspect-[9/19] w-full max-w-[280px] sm:max-w-[320px]"
-                : `w-full max-w-[760px] ${
-                    activeSlide?.mobileDesktopFrameClass ?? "aspect-[4/3] sm:h-auto sm:aspect-[16/10]"
-                  }`
+                : activeSlide?.desktopWideCapture
+                  ? "w-full max-w-[760px]"
+                  : `w-full max-w-[760px] ${
+                      activeSlide?.mobileDesktopFrameClass ??
+                      "aspect-[4/3] sm:h-auto sm:aspect-[16/10]"
+                    }`
             }`}
           >
             {activeSlide?.device === "desktop" ? (
-              <div className="absolute inset-x-0 top-0 z-10 hidden h-8 items-center gap-1.5 border-b border-slate-700/80 bg-slate-900/90 px-3 sm:flex">
+              <div
+                className={
+                  activeSlide.desktopWideCapture
+                    ? "relative z-10 flex h-8 items-center gap-1.5 border-b border-slate-700/80 bg-slate-900/90 px-3"
+                    : "absolute inset-x-0 top-0 z-10 hidden h-8 items-center gap-1.5 border-b border-slate-700/80 bg-slate-900/90 px-3 sm:flex"
+                }
+              >
                 <span className="h-2.5 w-2.5 rounded-full bg-rose-400/80" />
                 <span className="h-2.5 w-2.5 rounded-full bg-amber-300/80" />
                 <span className="h-2.5 w-2.5 rounded-full bg-emerald-400/80" />
                 <span className="ml-3 text-[10px] font-medium text-slate-400">mydoccy.com</span>
               </div>
             ) : null}
-            <div className={`relative h-full w-full ${activeSlide?.device === "desktop" ? "sm:pt-8" : ""}`}>
-              <Image
-                src={activeSlide.imageSrc}
-                alt={activeSlide.title}
-                fill
-                className={
-                  activeSlide.device === "desktop"
-                    ? `${activeSlide.mobileDesktopImageClass ?? "object-contain sm:object-cover sm:object-top"}`
-                    : "object-cover"
-                }
-                sizes={
-                  activeSlide.device === "desktop"
-                    ? "(max-width: 1024px) 92vw, 760px"
-                    : "(max-width: 640px) 280px, 320px"
-                }
-              />
-            </div>
+            {activeSlide?.device === "desktop" && activeSlide.desktopWideCapture ? (
+              <div className="flex justify-center bg-slate-950/35 px-2 py-3 sm:px-4 sm:py-4">
+                <Image
+                  src={activeSlide.imageSrc}
+                  alt={activeSlide.title}
+                  width={1920}
+                  height={1080}
+                  className="h-auto max-h-[min(72vh,640px)] w-full max-w-full object-contain object-top"
+                  sizes="(max-width: 1024px) 92vw, 760px"
+                />
+              </div>
+            ) : (
+              <div
+                className={`relative h-full w-full ${activeSlide?.device === "desktop" ? "sm:pt-8" : ""}`}
+              >
+                <Image
+                  src={activeSlide.imageSrc}
+                  alt={activeSlide.title}
+                  fill
+                  className={
+                    activeSlide.device === "desktop"
+                      ? `${activeSlide.mobileDesktopImageClass ?? "object-contain sm:object-cover sm:object-top"}`
+                      : "object-cover"
+                  }
+                  sizes={
+                    activeSlide.device === "desktop"
+                      ? "(max-width: 1024px) 92vw, 760px"
+                      : "(max-width: 640px) 280px, 320px"
+                  }
+                />
+              </div>
+            )}
           </div>
         </article>
 

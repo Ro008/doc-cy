@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import * as React from "react";
+import { Check } from "lucide-react";
 import { MAX_FOUNDERS, type FoundersAvailability } from "@/lib/founders-club";
 import { useTranslations } from "next-intl";
 
@@ -217,8 +218,12 @@ export function FoundersPricingCard() {
 
       <ul className="mt-5 space-y-2 text-sm text-slate-200 min-h-[88px]">
         {features.map((feature) => (
-          <li key={feature} className="flex items-start gap-2">
-            <span className="mt-1 h-1.5 w-1.5 rounded-full bg-emerald-300" aria-hidden />
+          <li key={feature} className="flex items-start gap-2.5">
+            <Check
+              className="mt-0.5 h-4 w-4 shrink-0 text-emerald-300"
+              strokeWidth={2.5}
+              aria-hidden
+            />
             <span>{feature}</span>
           </li>
         ))}
