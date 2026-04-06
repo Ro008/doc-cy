@@ -8,8 +8,8 @@ test.describe("Landing page", () => {
     await expect(
       page.getByRole("heading", {
         level: 1,
-        name: /stop chasing appointments.*start focusing on patients/i,
-      })
+        name: /stop chasing appointments.*start protecting your time/i,
+      }),
     ).toBeVisible();
 
     const primaryCta = page.getByRole("link", {
@@ -39,7 +39,7 @@ test.describe("Landing page", () => {
 
     await expect(page).toHaveURL("/register");
     await expect(
-      page.getByRole("heading", { name: /Create your professional profile/i })
+      page.getByRole("heading", { name: /Create your professional profile/i }),
     ).toBeVisible({ timeout: 5000 });
   });
 });

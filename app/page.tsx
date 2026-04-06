@@ -140,20 +140,20 @@ export default async function HomePage() {
       <div className="relative z-10 flex flex-1 flex-col px-4 py-3 sm:px-6 lg:px-8 lg:py-4">
         <header className="flex shrink-0 items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-          <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-500/90 text-xs font-bold tracking-tight text-neutral-950 shadow-lg shadow-emerald-500/35 sm:h-10 sm:w-10 sm:text-sm">
-            DC
-          </span>
-          <div className="min-w-0 flex flex-col gap-0.5 leading-tight">
-            <span className="text-base font-semibold tracking-tight text-neutral-50 sm:text-lg">
-              Doc<span className="text-emerald-400">Cy</span>
+            <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-500/90 text-xs font-bold tracking-tight text-neutral-950 shadow-lg shadow-emerald-500/35 sm:h-10 sm:w-10 sm:text-sm">
+              DC
             </span>
-            <span
-              className="text-[11px] font-medium uppercase tracking-[0.22em] text-emerald-200/95 sm:text-xs sm:tracking-[0.24em]"
-              aria-label="Cyprus Health"
-            >
-              Cyprus Health
-            </span>
-          </div>
+            <div className="min-w-0 flex flex-col gap-0.5 leading-tight">
+              <span className="text-base font-semibold tracking-tight text-neutral-50 sm:text-lg">
+                Doc<span className="text-emerald-400">Cy</span>
+              </span>
+              <span
+                className="text-[11px] font-medium uppercase tracking-[0.22em] text-emerald-200/95 sm:text-xs sm:tracking-[0.24em]"
+                aria-label="Cyprus Health"
+              >
+                Cyprus Health
+              </span>
+            </div>
           </div>
           <div className="shrink-0">
             <LanguageSwitcher />

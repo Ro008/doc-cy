@@ -86,26 +86,31 @@
     "profileTag": "Professional profile",
     "cyprusLocalTime": "Cyprus local time",
     "whatToExpectTitle": "What to expect",
-    "whatToExpectBody": "Book in seconds. Your appointment is instantly synced with the professional's agenda. You'll receive a confirmation email with a one-click WhatsApp link to contact the clinic and a direct button to add the date to your calendar."
+    "whatToExpectStep1Lead": "Request in seconds.",
+    "whatToExpectStep1Body": "Pick a slot and send your request to the professional.",
+    "whatToExpectStep2Lead": "Expert review.",
+    "whatToExpectStep2Body": "The professional will check their schedule and approve your visit.",
+    "whatToExpectStep3Lead": "Get confirmed.",
+    "whatToExpectStep3Body": "Once approved, you'll receive an email with your calendar invite and WhatsApp link."
   },
   "LandingPage": {
     "Hero": {
-      "title": "Stop chasing appointments.\nStart focusing on patients.",
-      "subtitle": "The professional booking link that connects you and your patients instantly. Local, automated, and built for Cyprus's independent practices and clinics.",
+      "title": "Stop chasing appointments.\nStart protecting your time.",
+      "subtitle": "The professional booking link built for Cyprus's independent practices. Get the benefits of automation without losing the human touch.",
       "ctaClaim": "Claim your professional profile",
       "ctaLogin": "Professional Login"
     },
     "Features": {
       "heading": "Why DocCy?",
-      "syncTitle": "Your Day, Fully Synced",
-      "syncDesc": "Google Calendar & Apple iOS integration. See your schedule on any device, always up to date.",
-      "confirmTitle": "Instant Confirmation",
-      "confirmDesc": "Automatic email confirmations for you and your patient the second a booking is made. No more manual tracking.",
-      "profileTitle": "Your Professional Profile",
-      "profileDesc": "A fast, mobile-first booking experience. Your personal booking link is ready to be shared on WhatsApp or Social Media."
+      "syncTitle": "Your Schedule, Your Rules",
+      "syncDesc": "Google & Apple Calendar integration. See your real-time availability and manage requests from any device.",
+      "confirmTitle": "Smart Request System",
+      "confirmDesc": "Patients request a slot, you confirm with one click. Total control to eliminate scheduling chaos and double-bookings.",
+      "profileTitle": "Your Digital Receptionist",
+      "profileDesc": "A professional interface that filters inquiries and saves you hours of manual WhatsApp back-and-forth."
     },
     "Showcase": {
-      "title": "See how DocCy transforms your practice",
+      "title": "See how DocCy puts you back in charge",
       "badges": {
         "forPatients": "For Patients",
         "forYou": "For You"
@@ -113,7 +118,7 @@
       "slides": {
         "profile": {
           "title": "The Digital Front Door (Public Profile)",
-          "body": "Your verified professional profile, in your patient's language."
+          "body": "Your verified professional profile where patients can request a slot in seconds. No more missed calls, just a clean list of requests waiting for your approval."
         },
         "calendar": {
           "title": "The Smart Calendar",
