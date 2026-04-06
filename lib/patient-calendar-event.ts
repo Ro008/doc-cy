@@ -42,15 +42,15 @@ export type PatientCalendarEventOptions = {
 };
 
 /**
- * Last token of the clinician's name, after stripping a leading honorific.
+ * Clinician name for calendar titles: strip leading honorific, keep full name.
  */
-export function doctorLastNameForCalendar(fullName: string | null | undefined): string {
+export function doctorDisplayNameForCalendar(
+  fullName: string | null | undefined,
+): string {
   const cleaned = String(fullName ?? "")
     .replace(/^dr\.?\s+/i, "")
     .trim();
-  const parts = cleaned.split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return "Professional";
-  return parts[parts.length - 1]!;
+  return cleaned || "Professional";
 }
 
 /**
@@ -73,8 +73,8 @@ export function getCalendarEventDetails(
   options?: PatientCalendarEventOptions | null
 ): PatientCalendarEventDetails {
   const specialty = specialtyLabelForCalendar(doctor.specialty);
-  const last = doctorLastNameForCalendar(doctor.name);
-  const title = `🩺 ${specialty}: ${last}`;
+  const doctorLabel = doctorDisplayNameForCalendar(doctor.name);
+  const title = `🩺 ${specialty}: ${doctorLabel}`;
 
   const includeWa = Boolean(options?.includeWhatsAppContact);
   const wa = includeWa ? phoneToWaMeLink(doctor.phone) : null;

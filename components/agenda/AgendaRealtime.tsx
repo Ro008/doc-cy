@@ -411,6 +411,7 @@ export function AgendaRealtime({
   }
 
   const todayCount = rows.filter((r) => r.dateKey === todayKey).length;
+  const mobileShowsToday = selectedMobileKey === todayKey;
 
   function toMinutesFromMidnight(
     time: string | null | undefined,
@@ -626,19 +627,21 @@ export function AgendaRealtime({
       <section className="min-w-0 rounded-3xl border border-emerald-100/10 bg-slate-900/50 shadow-2xl shadow-slate-950/50 backdrop-blur-xl">
         <div className="border-b border-slate-800/60 px-4 pb-4 pt-4 sm:px-6 sm:pb-5 sm:pt-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="space-y-1">
+            <div className="space-y-0.5">
               <h2 className="text-sm font-semibold text-slate-200">
                 {format(nowCyprus, "dd/MM/yyyy", { locale: enGB })}
               </h2>
-              <p className="text-xs text-slate-400">
-                <span
-                  className={`font-semibold tabular-nums ${
-                    todayCount === 0 ? "text-slate-500" : "text-emerald-300"
-                  }`}
-                >
-                  {todayCount}
-                </span>{" "}
-                appointment{todayCount === 1 ? "" : "s"} for today
+              <p className="text-xs leading-snug text-slate-400">
+                {todayCount === 0 ? (
+                  "No appointments today"
+                ) : (
+                  <>
+                    <span className="font-semibold tabular-nums text-emerald-300">
+                      {todayCount}
+                    </span>{" "}
+                    {todayCount === 1 ? "appointment today" : "appointments today"}
+                  </>
+                )}
               </p>
             </div>
             <div className="hidden items-center gap-2 md:flex">
@@ -707,19 +710,16 @@ export function AgendaRealtime({
               </button>
             </div>
           </div>
-          {todayCount === 0 && (
-            <p className="mt-1 text-xs text-slate-400">No appointments today</p>
-          )}
         </div>
 
         <div className="px-4 pb-4 pt-3 sm:px-6 sm:pb-6">
           <div className="md:hidden">
-            {mobileRows.length === 0 ? (
-              <p className="py-4 text-center text-sm text-slate-500">
-                No appointments today — schedule is clear
+            {mobileRows.length === 0 && !mobileShowsToday ? (
+              <p className="mb-2 text-center text-xs text-slate-500">
+                No appointments this day
               </p>
-            ) : (
-              <div className="grid grid-cols-[50px_1fr] gap-3">
+            ) : null}
+            <div className="grid grid-cols-[50px_1fr] gap-3">
                 <div
                   className="relative text-[11px] text-slate-500"
                   style={{ height: dayHeight }}
@@ -843,7 +843,6 @@ export function AgendaRealtime({
                   ))}
                 </div>
               </div>
-            )}
           </div>
 
           <div className="hidden min-w-0 md:block">
