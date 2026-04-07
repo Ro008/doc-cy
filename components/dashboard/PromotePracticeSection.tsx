@@ -3,8 +3,8 @@
 import * as React from "react";
 import { QRCodeCanvas } from "qrcode.react";
 import { Download, Printer, QrCode } from "lucide-react";
-import { useTranslations } from "next-intl";
 import { getPublicBookingBaseUrl } from "@/lib/site-url";
+import { resolvePromotePracticeCopy } from "@/lib/promote-practice-copy";
 
 function escapeHtml(s: string): string {
   return s
@@ -17,6 +17,7 @@ function escapeHtml(s: string): string {
 type Props = {
   slug: string | null | undefined;
   doctorName: string;
+  localeLike?: string | null;
   /** `modal`: flatter layout for the floating-action modal (no outer card). */
   variant?: "card" | "modal";
 };
@@ -24,9 +25,13 @@ type Props = {
 export function PromotePracticeSection({
   slug,
   doctorName,
+  localeLike,
   variant = "card",
 }: Props) {
-  const t = useTranslations("PromotePractice");
+  const copy = React.useMemo(
+    () => resolvePromotePracticeCopy(localeLike),
+    [localeLike]
+  );
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
   const bookingUrl = slug
     ? `${getPublicBookingBaseUrl()}/${encodeURIComponent(slug)}`
@@ -35,11 +40,19 @@ export function PromotePracticeSection({
   const downloadPng = React.useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas || !slug) return;
+    const dataUrl = canvas.toDataURL("image/png");
     const a = document.createElement("a");
-    a.href = canvas.toDataURL("image/png");
+    a.href = dataUrl;
     a.download = `doccy-booking-qr-${slug.replace(/[^\w-]+/g, "_")}.png`;
     a.rel = "noopener";
+    const supportsDownload = "download" in HTMLAnchorElement.prototype;
+    if (!supportsDownload) {
+      window.open(dataUrl, "_blank", "noopener,noreferrer");
+      return;
+    }
+    document.body.appendChild(a);
     a.click();
+    a.remove();
   }, [slug]);
 
   const printBookingSign = React.useCallback(() => {
@@ -118,7 +131,7 @@ export function PromotePracticeSection({
     <div class="logo">Doc<span>Cy</span></div>
     <p class="name">${escapeHtml(doctorName)}</p>
     <div class="qr"><img src="${dataUrl}" alt="" width="512" height="512" /></div>
-    <p class="cta">Scan to book your next appointment</p>
+    <p class="cta">${escapeHtml(copy.printCta)}</p>
     <p class="url">${escapeHtml(bookingUrl)}</p>
   </div>
 </body>
@@ -146,7 +159,7 @@ export function PromotePracticeSection({
     const iwin = iframe.contentWindow;
     if (!idoc || !iwin) {
       iframe.remove();
-      window.alert(t("printPrepareFailed"));
+      window.alert(copy.printPrepareFailed);
       return;
     }
 
@@ -166,7 +179,7 @@ export function PromotePracticeSection({
         iwin.print();
       } catch {
         cleanup();
-        window.alert(t("printDialogFailed"));
+        window.alert(copy.printDialogFailed);
         return;
       }
       iwin.addEventListener("afterprint", cleanup, { once: true });
@@ -178,7 +191,7 @@ export function PromotePracticeSection({
         window.setTimeout(triggerPrint, 150);
       });
     });
-  }, [slug, bookingUrl, doctorName, t]);
+  }, [slug, bookingUrl, doctorName, copy.printCta, copy.printPrepareFailed, copy.printDialogFailed]);
 
   const shell = (className: string, children: React.ReactNode) =>
     variant === "modal" ? (
@@ -198,11 +211,10 @@ export function PromotePracticeSection({
       <>
         <div className="flex items-center gap-2 text-amber-200/90">
           <QrCode className="h-5 w-5 shrink-0" aria-hidden />
-          <h2 className="text-sm font-semibold text-slate-100">Promote your practice</h2>
+          <h2 className="text-sm font-semibold text-slate-100">{copy.missingSlugTitle}</h2>
         </div>
         <p className="mt-2 text-sm text-slate-400">
-          Your public profile link isn&apos;t ready yet. Once your profile has a URL slug, you can
-          generate a QR code and print a sign for your clinic.
+          {copy.missingSlugBody}
         </p>
       </>
     );
@@ -217,16 +229,14 @@ export function PromotePracticeSection({
             <QrCode className="h-4 w-4" strokeWidth={1.75} aria-hidden />
           </div>
           <div>
-            <h2 className="text-sm font-semibold text-slate-100">Promote your practice</h2>
-            <p className="text-xs text-slate-500">
-              QR for your public booking page — reception, door, or marketing.
-            </p>
+            <h2 className="text-sm font-semibold text-slate-100">{copy.title}</h2>
+            <p className="text-xs text-slate-500">{copy.subtitle}</p>
           </div>
         </div>
       )}
 
       <p className={`text-xs text-slate-500 ${variant === "card" ? "mt-4" : ""}`}>
-        Patients scan to open{" "}
+        {copy.patientsScanPrefix}{" "}
         <span className="break-all font-mono text-slate-400">{bookingUrl}</span>
       </p>
 
@@ -253,7 +263,7 @@ export function PromotePracticeSection({
             className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-slate-950 shadow-lg shadow-emerald-500/20 transition hover:bg-emerald-400"
           >
             <Printer className="h-4 w-4" aria-hidden />
-            Print booking sign
+            {copy.printButton}
           </button>
           <button
             type="button"
@@ -261,12 +271,9 @@ export function PromotePracticeSection({
             className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-600 bg-slate-800/50 px-4 py-2.5 text-sm font-semibold text-slate-100 transition hover:border-slate-500 hover:bg-slate-800"
           >
             <Download className="h-4 w-4" aria-hidden />
-            Download QR (PNG)
+            {copy.downloadButton}
           </button>
-          <p className="text-[11px] leading-relaxed text-slate-500">
-            Print opens an A5 layout with the DocCy wordmark, your name, QR, and a short call to
-            action — ready for your printer.
-          </p>
+          <p className="text-[11px] leading-relaxed text-slate-500">{copy.printHelper}</p>
         </div>
       </div>
     </>

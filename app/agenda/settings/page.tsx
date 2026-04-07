@@ -29,7 +29,9 @@ import {
 import { isFounderSubscriptionTier } from "@/lib/subscription-tier";
 
 export default async function AgendaSettingsPage() {
+  const cookieStore = cookies();
   const supabase = createServerComponentClient({ cookies });
+  const localeLike = cookieStore.get("NEXT_LOCALE")?.value ?? "en";
 
   const {
     data: { user },
@@ -323,7 +325,11 @@ export default async function AgendaSettingsPage() {
                 <span className="text-emerald-300/90">QR</span> button (bottom-right, above Feedback)
                 on any agenda page for the same poster and download.
               </p>
-              <PromotePracticeSection slug={doctor.slug} doctorName={doctor.name} />
+              <PromotePracticeSection
+                slug={doctor.slug}
+                doctorName={doctor.name}
+                localeLike={localeLike}
+              />
             </>
           ) : (
             <section className="rounded-2xl border border-slate-800/80 bg-slate-900/40 p-5">

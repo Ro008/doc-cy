@@ -6,11 +6,7 @@ import { signInDoctorAndSetCookies } from "./helpers/doctorAuth";
 async function signIn(page: any) {
   await signInDoctorAndSetCookies(page as Page);
   await page.goto("/agenda");
-  await expect(
-    page.getByText(/Weekly calendar on desktop · Daily focus on mobile/i)
-  ).toBeVisible({
-    timeout: 10000,
-  });
+  await expect(page).toHaveURL(/\/agenda/, { timeout: 10000 });
   await expect(page.locator("main header h1").first()).toBeVisible({
     timeout: 10000,
   });
@@ -46,11 +42,7 @@ test.describe("Doctor dashboard", () => {
     await page.setViewportSize({ width: 1024, height: 768 });
     await signIn(page);
 
-    await expect(
-      page.getByText(/Weekly calendar on desktop · Daily focus on mobile/i)
-    ).toBeVisible({
-      timeout: 10000,
-    });
+    await expect(page).toHaveURL(/\/agenda/, { timeout: 10000 });
 
     const todaySection = page.locator("section").first();
     await expect(todaySection).toBeVisible();
@@ -84,11 +76,7 @@ test.describe("Doctor dashboard", () => {
     await page.setViewportSize({ width: 320, height: 568 });
     await signIn(page);
 
-    await expect(
-      page.getByText(/Weekly calendar on desktop · Daily focus on mobile/i)
-    ).toBeVisible({
-      timeout: 10000,
-    });
+    await expect(page).toHaveURL(/\/agenda/, { timeout: 10000 });
 
     // On mobile we show stacked cards, not the desktop timeline
     const todaySection = page.locator("section").first();
@@ -107,11 +95,7 @@ test.describe("Doctor dashboard", () => {
     test.setTimeout(60000);
     await signIn(page);
 
-    await expect(
-      page.getByText(/Weekly calendar on desktop · Daily focus on mobile/i)
-    ).toBeVisible({
-      timeout: 10000,
-    });
+    await expect(page).toHaveURL(/\/agenda/, { timeout: 10000 });
 
     const settingsLink = page.getByRole("link", {
       name: /Working hours & settings/i,
@@ -130,5 +114,41 @@ test.describe("Doctor dashboard", () => {
     await expect(page.locator("main header h1").first()).toBeVisible({
       timeout: 5000,
     });
+  });
+
+  test("QR modal opens and download button works", async ({ page }) => {
+    test.setTimeout(60000);
+    await signIn(page);
+
+    const qrFab = page.getByRole("button", { name: /booking QR|QR|κρατήσεων/i });
+    await expect(qrFab).toBeVisible({ timeout: 10000 });
+    await qrFab.click();
+
+    const modal = page.getByRole("dialog");
+    await expect(modal).toBeVisible({ timeout: 5000 });
+    await expect(modal.getByText(/Patients scan to open|Οι ασθενείς σκανάρουν/i)).toBeVisible();
+
+    const downloadBtn = modal.getByRole("button", { name: /Download QR \(PNG\)|Λήψη QR \(PNG\)/i });
+    await expect(downloadBtn).toBeVisible();
+
+    const downloadPromise = page.waitForEvent("download");
+    await downloadBtn.click();
+    const download = await downloadPromise;
+    expect(download.suggestedFilename()).toMatch(/^doccy-booking-qr-.*\.png$/i);
+  });
+
+  test("mobile viewport: floating QR button is tappable and opens modal", async ({
+    page,
+  }) => {
+    test.setTimeout(60000);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await signIn(page);
+
+    const qrFab = page.getByRole("button", { name: /booking QR|QR|κρατήσεων/i });
+    await expect(qrFab).toBeVisible({ timeout: 10000 });
+    await expect(qrFab).toBeEnabled();
+    await qrFab.click();
+
+    await expect(page.getByRole("dialog")).toBeVisible({ timeout: 5000 });
   });
 });
