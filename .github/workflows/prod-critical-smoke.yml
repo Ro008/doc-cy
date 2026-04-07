@@ -98,7 +98,17 @@ jobs:
           else
             MSG='❌ DocCy PROD: Failure'
           fi
-          ENCODED_MSG=$(python -c "import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1]))" "$MSG")
-          # WHATSAPP_WEBHOOK_URL secret must contain the base URL ending with '&text='.
-          FINAL_URL="${WEBHOOK_URL}${ENCODED_MSG}"
-          curl -fsS -G "${FINAL_URL}"
+          # Robust delivery: accept either a full webhook URL or one with existing query params.
+          # We always append `text` via --data-urlencode to avoid format-sensitive secrets.
+          if [[ "${WEBHOOK_URL}" == *"text="* ]]; then
+            # If secret already contains text=..., use as-is (legacy format).
+            curl -fsS "${WEBHOOK_URL}" || {
+              echo "::warning::Legacy webhook URL with text= failed."
+              exit 1
+            }
+          else
+            curl -fsS -G "${WEBHOOK_URL}" --data-urlencode "text=${MSG}" || {
+              echo "::warning::WhatsApp webhook delivery failed."
+              exit 1
+            }
+          fi
