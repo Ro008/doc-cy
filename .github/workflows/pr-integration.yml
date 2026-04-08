@@ -145,8 +145,6 @@ jobs:
       NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.INTEGRATION_SUPABASE_URL }}
       NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.INTEGRATION_SUPABASE_ANON_KEY }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.INTEGRATION_SUPABASE_SERVICE_ROLE_KEY }}
-      TEST_USER_EMAIL: ${{ secrets.INTEGRATION_TEST_USER_EMAIL }}
-      TEST_USER_PASSWORD: ${{ secrets.INTEGRATION_TEST_USER_PASSWORD }}
       PROD_NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
       INTEGRATION_SCHEDULE_TEST_DOCTOR_SLUG: ${{ vars.INTEGRATION_SCHEDULE_TEST_DOCTOR_SLUG }}
 
@@ -166,19 +164,28 @@ jobs:
       - name: Validate feedback smoke credentials
         shell: bash
         env:
-          TEST_USER_EMAIL: ${{ secrets.INTEGRATION_TEST_USER_EMAIL }}
-          TEST_USER_PASSWORD: ${{ secrets.INTEGRATION_TEST_USER_PASSWORD }}
+          INTEGRATION_TEST_USER_EMAIL: ${{ secrets.INTEGRATION_TEST_USER_EMAIL }}
+          INTEGRATION_TEST_USER_PASSWORD: ${{ secrets.INTEGRATION_TEST_USER_PASSWORD }}
+          LEGACY_TEST_USER_EMAIL: ${{ secrets.TEST_USER_EMAIL }}
+          LEGACY_TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD }}
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.INTEGRATION_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.INTEGRATION_SUPABASE_ANON_KEY }}
         run: |
           set -euo pipefail
-          if [ -z "${TEST_USER_EMAIL:-}" ] || [ -z "${TEST_USER_PASSWORD:-}" ]; then
-            echo "::error::Missing INTEGRATION_TEST_USER_EMAIL / INTEGRATION_TEST_USER_PASSWORD for feedback smoke."
-            echo "Set these two repo secrets and re-run."
+          # Try integration credentials first, then legacy TEST_USER_* fallback.
+          if node -e "const {createClient}=require('@supabase/supabase-js'); (async()=>{const url=process.env.NEXT_PUBLIC_SUPABASE_URL; const anon=process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY; const email=(process.env.INTEGRATION_TEST_USER_EMAIL||'').trim(); const password=(process.env.INTEGRATION_TEST_USER_PASSWORD||'').trim(); if(!email||!password) process.exit(1); const sb=createClient(url,anon); const {error}=await sb.auth.signInWithPassword({email,password}); if(error) process.exit(1); })();" ; then
+            echo "Using INTEGRATION_TEST_USER_* credentials."
+            echo "TEST_USER_EMAIL=${INTEGRATION_TEST_USER_EMAIL}" >> "$GITHUB_ENV"
+            echo "TEST_USER_PASSWORD=${INTEGRATION_TEST_USER_PASSWORD}" >> "$GITHUB_ENV"
+          elif node -e "const {createClient}=require('@supabase/supabase-js'); (async()=>{const url=process.env.NEXT_PUBLIC_SUPABASE_URL; const anon=process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY; const email=(process.env.LEGACY_TEST_USER_EMAIL||'').trim(); const password=(process.env.LEGACY_TEST_USER_PASSWORD||'').trim(); if(!email||!password) process.exit(1); const sb=createClient(url,anon); const {error}=await sb.auth.signInWithPassword({email,password}); if(error) process.exit(1); })();" ; then
+            echo "Using legacy TEST_USER_* credentials fallback."
+            echo "TEST_USER_EMAIL=${LEGACY_TEST_USER_EMAIL}" >> "$GITHUB_ENV"
+            echo "TEST_USER_PASSWORD=${LEGACY_TEST_USER_PASSWORD}" >> "$GITHUB_ENV"
+          else
+            echo "::error::No valid feedback-smoke credentials found for INTEGRATION_SUPABASE_URL."
+            echo "Set INTEGRATION_TEST_USER_EMAIL + INTEGRATION_TEST_USER_PASSWORD (preferred), or TEST_USER_EMAIL + TEST_USER_PASSWORD."
             exit 1
           fi
-          # Fast preflight: fail early if credentials don't authenticate against integration Supabase.
-          node -e "const {createClient}=require('@supabase/supabase-js'); (async()=>{const url=process.env.NEXT_PUBLIC_SUPABASE_URL; const anon=process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY; const email=(process.env.TEST_USER_EMAIL||'').trim(); const password=(process.env.TEST_USER_PASSWORD||'').trim(); const sb=createClient(url,anon); const {error}=await sb.auth.signInWithPassword({email,password}); if(error){console.error('::error::Integration test doctor credentials are invalid for INTEGRATION_SUPABASE_URL.'); console.error('::error::'+error.message); process.exit(1);} })();"
 
       - name: Build Next.js (PR branch)
         run: npm run build
@@ -199,8 +206,6 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.INTEGRATION_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.INTEGRATION_SUPABASE_ANON_KEY }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.INTEGRATION_SUPABASE_SERVICE_ROLE_KEY }}
-          TEST_USER_EMAIL: ${{ secrets.INTEGRATION_TEST_USER_EMAIL }}
-          TEST_USER_PASSWORD: ${{ secrets.INTEGRATION_TEST_USER_PASSWORD }}
           PROD_NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           INTEGRATION_SCHEDULE_TEST_DOCTOR_SLUG: ${{ vars.INTEGRATION_SCHEDULE_TEST_DOCTOR_SLUG }}
         run: |
@@ -220,8 +225,6 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.INTEGRATION_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.INTEGRATION_SUPABASE_ANON_KEY }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.INTEGRATION_SUPABASE_SERVICE_ROLE_KEY }}
-          TEST_USER_EMAIL: ${{ secrets.INTEGRATION_TEST_USER_EMAIL }}
-          TEST_USER_PASSWORD: ${{ secrets.INTEGRATION_TEST_USER_PASSWORD }}
           PROD_NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           INTEGRATION_SCHEDULE_TEST_DOCTOR_SLUG: ${{ vars.INTEGRATION_SCHEDULE_TEST_DOCTOR_SLUG }}
         run: |
