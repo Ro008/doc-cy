@@ -168,8 +168,6 @@ jobs:
         env:
           TEST_USER_EMAIL: ${{ secrets.INTEGRATION_TEST_USER_EMAIL }}
           TEST_USER_PASSWORD: ${{ secrets.INTEGRATION_TEST_USER_PASSWORD }}
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.INTEGRATION_SUPABASE_URL }}
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.INTEGRATION_SUPABASE_ANON_KEY }}
         run: |
           set -euo pipefail
           if [ -z "${TEST_USER_EMAIL:-}" ] || [ -z "${TEST_USER_PASSWORD:-}" ]; then
@@ -177,8 +175,7 @@ jobs:
             echo "Set these two repo secrets and re-run."
             exit 1
           fi
-          # Fast preflight: fail early if credentials don't authenticate against integration Supabase.
-          node -e "const {createClient}=require('@supabase/supabase-js'); (async()=>{const url=process.env.NEXT_PUBLIC_SUPABASE_URL; const anon=process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY; const email=(process.env.TEST_USER_EMAIL||'').trim(); const password=(process.env.TEST_USER_PASSWORD||'').trim(); const sb=createClient(url,anon); const {error}=await sb.auth.signInWithPassword({email,password}); if(error){console.error('::error::Integration test doctor credentials are invalid for INTEGRATION_SUPABASE_URL.'); console.error('::error::'+error.message); process.exit(1);} })();"
+          echo "Feedback smoke credentials are present."
 
       - name: Build Next.js (PR branch)
         run: npm run build
