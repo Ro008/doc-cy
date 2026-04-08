@@ -133,6 +133,90 @@ jobs:
             test-results
           if-no-files-found: ignore
 
+  pr-feedback-smoke:
+    name: PR Playwright (feedback smoke)
+    needs: [pr-playwright-core]
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      INTEGRATION_SAFE_ENV: "1"
+      PLAYWRIGHT_BASE_URL: http://127.0.0.1:3000
+      PLAYWRIGHT_WEB_SERVER_COMMAND: npm run start
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.INTEGRATION_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.INTEGRATION_SUPABASE_ANON_KEY }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.INTEGRATION_SUPABASE_SERVICE_ROLE_KEY }}
+      PROD_NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      INTEGRATION_SCHEDULE_TEST_DOCTOR_SLUG: ${{ vars.INTEGRATION_SCHEDULE_TEST_DOCTOR_SLUG }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Next.js (PR branch)
+        run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.INTEGRATION_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.INTEGRATION_SUPABASE_ANON_KEY }}
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run feedback smoke suite (PR-fast)
+        if: github.event_name == 'pull_request'
+        env:
+          CI: "true"
+          INTEGRATION_SAFE_ENV: "1"
+          PLAYWRIGHT_BASE_URL: http://127.0.0.1:3000
+          PLAYWRIGHT_WEB_SERVER_COMMAND: npm run start
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.INTEGRATION_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.INTEGRATION_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.INTEGRATION_SUPABASE_SERVICE_ROLE_KEY }}
+          PROD_NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          INTEGRATION_SCHEDULE_TEST_DOCTOR_SLUG: ${{ vars.INTEGRATION_SCHEDULE_TEST_DOCTOR_SLUG }}
+        run: |
+          npx playwright test tests/feedback_matrix.spec.ts \
+            --grep "doctor confirm success|doctor confirm error|agenda decline requested|agenda cancel confirmed" \
+            --workers=1 \
+            --project="Desktop Large (Chromium)" \
+            --reporter=line
+
+      - name: Run full feedback matrix (manual)
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          CI: "true"
+          INTEGRATION_SAFE_ENV: "1"
+          PLAYWRIGHT_BASE_URL: http://127.0.0.1:3000
+          PLAYWRIGHT_WEB_SERVER_COMMAND: npm run start
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.INTEGRATION_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.INTEGRATION_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.INTEGRATION_SUPABASE_SERVICE_ROLE_KEY }}
+          PROD_NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          INTEGRATION_SCHEDULE_TEST_DOCTOR_SLUG: ${{ vars.INTEGRATION_SCHEDULE_TEST_DOCTOR_SLUG }}
+        run: |
+          npx playwright test tests/feedback_matrix.spec.ts \
+            --workers=1 \
+            --project="Desktop Large (Chromium)" \
+            --reporter=line
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-pr-feedback-report
+          path: |
+            playwright-report
+            test-results
+          if-no-files-found: ignore
+
   pr-preview-public-shell:
     name: PR Preview site health (Vercel)
     runs-on: ubuntu-latest

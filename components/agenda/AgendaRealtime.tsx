@@ -490,9 +490,9 @@ export function AgendaRealtime({
         );
         if (!res.ok) {
           const data = await res.json().catch(() => null);
-          setCancelError(
-            data?.message || "We could not decline this request.",
-          );
+          const message = data?.message || "We could not decline this request.";
+          setCancelError(message);
+          sonnerToast.error(message);
           setIsCancelling(false);
           return;
         }
@@ -516,9 +516,10 @@ export function AgendaRealtime({
         );
         if (!res.ok) {
           const data = await res.json().catch(() => null);
-          setCancelError(
-            data?.message || "We could not cancel this appointment.",
-          );
+          const message =
+            data?.message || "We could not cancel this appointment.";
+          setCancelError(message);
+          sonnerToast.error(message);
           setIsCancelling(false);
           return;
         }
@@ -535,7 +536,9 @@ export function AgendaRealtime({
       setIsCancelling(false);
     } catch (err) {
       console.error(err);
-      setCancelError("Something went wrong. Please try again.");
+      const message = "Something went wrong. Please try again.";
+      setCancelError(message);
+      sonnerToast.error(message);
       setIsCancelling(false);
     }
   }

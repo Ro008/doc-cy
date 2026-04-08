@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { toast } from "sonner";
 
 type Layout = "card" | "header";
 
@@ -30,14 +31,21 @@ export function OnlineBookingsPauseToggle({
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setError((data?.message as string) || "Failed to update setting.");
+        const message = (data?.message as string) || "Failed to update setting.";
+        setError(message);
+        toast.error(message);
         setPaused(!next);
         return;
       }
       setPaused(next);
+      toast.success(
+        next ? "Online bookings paused." : "Online bookings resumed.",
+      );
     } catch (e) {
       console.error(e);
-      setError("Something went wrong.");
+      const message = "Something went wrong.";
+      setError(message);
+      toast.error(message);
       setPaused(!next);
     } finally {
       setSaving(false);

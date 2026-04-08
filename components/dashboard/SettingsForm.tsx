@@ -3,6 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { ArrowLeft, Save } from "lucide-react";
+import { toast } from "sonner";
 import { SpecialtyCombobox } from "@/components/specialties/SpecialtyCombobox";
 import { LanguageMultiSelect } from "@/components/languages/LanguageMultiSelect";
 import { isMasterSpecialty } from "@/lib/cyprus-specialties";
@@ -147,14 +148,15 @@ export function SettingsForm({ initial }: SettingsFormProps) {
       spec.fromMaster
     );
     if (specResult.ok === false) {
-      setMessage({ type: "error", text: specResult.message });
+      const text = specResult.message;
+      setMessage({ type: "error", text });
+      toast.error(text);
       return;
     }
     if (langList.length === 0) {
-      setMessage({
-        type: "error",
-        text: "Add at least one language (e.g. English, Greek).",
-      });
+      const text = "Add at least one language (e.g. English, Greek).";
+      setMessage({ type: "error", text });
+      toast.error(text);
       return;
     }
 
@@ -167,17 +169,16 @@ export function SettingsForm({ initial }: SettingsFormProps) {
 
     if (holidayModeEnabled) {
       if (!parsedHolidayStart || !parsedHolidayEnd) {
-        setMessage({
-          type: "error",
-          text: "Use DD/MM/YYYY for Holiday start and end.",
-        });
+        const text = "Use DD/MM/YYYY for Holiday start and end.";
+        setMessage({ type: "error", text });
+        toast.error(text);
         return;
       }
       if (parsedHolidayStart > parsedHolidayEnd) {
-        setMessage({
-          type: "error",
-          text: "Holiday start date must be before (or equal to) end date.",
-        });
+        const text =
+          "Holiday start date must be before (or equal to) end date.";
+        setMessage({ type: "error", text });
+        toast.error(text);
         return;
       }
     }
@@ -214,10 +215,12 @@ export function SettingsForm({ initial }: SettingsFormProps) {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
+        const text = (data.message as string) || "Failed to save settings.";
         setMessage({
           type: "error",
-          text: (data.message as string) || "Failed to save settings.",
+          text,
         });
+        toast.error(text);
         return;
       }
       if (holidayModeEnabled) {
@@ -225,9 +228,12 @@ export function SettingsForm({ initial }: SettingsFormProps) {
         setHolidayEndDate(parsedHolidayEnd);
       }
       setMessage({ type: "success", text: "Settings saved." });
+      toast.success("Settings saved.");
     } catch (err) {
       console.error(err);
-      setMessage({ type: "error", text: "Something went wrong." });
+      const text = "Something went wrong.";
+      setMessage({ type: "error", text });
+      toast.error(text);
     } finally {
       setSaving(false);
     }
