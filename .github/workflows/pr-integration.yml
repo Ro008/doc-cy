@@ -145,12 +145,27 @@ jobs:
       NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.INTEGRATION_SUPABASE_URL }}
       NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.INTEGRATION_SUPABASE_ANON_KEY }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.INTEGRATION_SUPABASE_SERVICE_ROLE_KEY }}
+      TEST_USER_EMAIL: ${{ secrets.INTEGRATION_TEST_USER_EMAIL || secrets.TEST_USER_EMAIL }}
+      TEST_USER_PASSWORD: ${{ secrets.INTEGRATION_TEST_USER_PASSWORD || secrets.TEST_USER_PASSWORD }}
       PROD_NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
       INTEGRATION_SCHEDULE_TEST_DOCTOR_SLUG: ${{ vars.INTEGRATION_SCHEDULE_TEST_DOCTOR_SLUG }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Validate feedback smoke credentials
+        shell: bash
+        env:
+          TEST_USER_EMAIL: ${{ secrets.INTEGRATION_TEST_USER_EMAIL || secrets.TEST_USER_EMAIL }}
+          TEST_USER_PASSWORD: ${{ secrets.INTEGRATION_TEST_USER_PASSWORD || secrets.TEST_USER_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [ -z "${TEST_USER_EMAIL:-}" ] || [ -z "${TEST_USER_PASSWORD:-}" ]; then
+            echo "::error::Missing TEST_USER_EMAIL / TEST_USER_PASSWORD for feedback smoke."
+            echo "Set INTEGRATION_TEST_USER_EMAIL + INTEGRATION_TEST_USER_PASSWORD (preferred), or TEST_USER_EMAIL + TEST_USER_PASSWORD."
+            exit 1
+          fi
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -180,6 +195,8 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.INTEGRATION_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.INTEGRATION_SUPABASE_ANON_KEY }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.INTEGRATION_SUPABASE_SERVICE_ROLE_KEY }}
+          TEST_USER_EMAIL: ${{ secrets.INTEGRATION_TEST_USER_EMAIL || secrets.TEST_USER_EMAIL }}
+          TEST_USER_PASSWORD: ${{ secrets.INTEGRATION_TEST_USER_PASSWORD || secrets.TEST_USER_PASSWORD }}
           PROD_NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           INTEGRATION_SCHEDULE_TEST_DOCTOR_SLUG: ${{ vars.INTEGRATION_SCHEDULE_TEST_DOCTOR_SLUG }}
         run: |
@@ -199,6 +216,8 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.INTEGRATION_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.INTEGRATION_SUPABASE_ANON_KEY }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.INTEGRATION_SUPABASE_SERVICE_ROLE_KEY }}
+          TEST_USER_EMAIL: ${{ secrets.INTEGRATION_TEST_USER_EMAIL || secrets.TEST_USER_EMAIL }}
+          TEST_USER_PASSWORD: ${{ secrets.INTEGRATION_TEST_USER_PASSWORD || secrets.TEST_USER_PASSWORD }}
           PROD_NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           INTEGRATION_SCHEDULE_TEST_DOCTOR_SLUG: ${{ vars.INTEGRATION_SCHEDULE_TEST_DOCTOR_SLUG }}
         run: |
