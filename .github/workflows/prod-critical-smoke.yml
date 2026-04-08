@@ -125,16 +125,11 @@ jobs:
           max_attempts=3
           while [ "${attempt}" -le "${max_attempts}" ]; do
             echo "WhatsApp attempt ${attempt}/${max_attempts}"
-            if [[ "${WEBHOOK_URL}" == *"text="* ]]; then
-              if curl -fsS --max-time 20 "${WEBHOOK_URL}"; then
-                echo "sent=true" >> "$GITHUB_OUTPUT"
-                exit 0
-              fi
-            else
-              if curl -fsS --max-time 20 -G "${WEBHOOK_URL}" --data-urlencode "text=${MSG}"; then
-                echo "sent=true" >> "$GITHUB_OUTPUT"
-                exit 0
-              fi
+            # Legacy secrets may already include text= in query. Remove it and send our own text always.
+            SEND_URL="$(printf '%s' "${WEBHOOK_URL}" | sed -E 's/([?&])text=[^&]*(&|$)/\1\2/g' | sed -E 's/\?&/\?/g; s/&&/&/g; s/[?&]$//')"
+            if curl -fsS --max-time 20 -G "${SEND_URL}" --data-urlencode "text=${MSG}"; then
+              echo "sent=true" >> "$GITHUB_OUTPUT"
+              exit 0
             fi
             sleep $((attempt * 5))
             attempt=$((attempt + 1))
