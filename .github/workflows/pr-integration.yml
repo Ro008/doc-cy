@@ -154,6 +154,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
       - name: Validate feedback smoke credentials
         shell: bash
         env:
@@ -170,15 +179,6 @@ jobs:
           fi
           # Fast preflight: fail early if credentials don't authenticate against integration Supabase.
           node -e "const {createClient}=require('@supabase/supabase-js'); (async()=>{const url=process.env.NEXT_PUBLIC_SUPABASE_URL; const anon=process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY; const email=(process.env.TEST_USER_EMAIL||'').trim(); const password=(process.env.TEST_USER_PASSWORD||'').trim(); const sb=createClient(url,anon); const {error}=await sb.auth.signInWithPassword({email,password}); if(error){console.error('::error::Integration test doctor credentials are invalid for INTEGRATION_SUPABASE_URL.'); console.error('::error::'+error.message); process.exit(1);} })();"
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
 
       - name: Build Next.js (PR branch)
         run: npm run build
