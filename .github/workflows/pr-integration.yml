@@ -166,26 +166,68 @@ jobs:
         env:
           INTEGRATION_TEST_USER_EMAIL: ${{ secrets.INTEGRATION_TEST_USER_EMAIL }}
           INTEGRATION_TEST_USER_PASSWORD: ${{ secrets.INTEGRATION_TEST_USER_PASSWORD }}
-          LEGACY_TEST_USER_EMAIL: ${{ secrets.TEST_USER_EMAIL }}
-          LEGACY_TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD }}
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.INTEGRATION_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.INTEGRATION_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.INTEGRATION_SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           set -euo pipefail
-          # Try integration credentials first, then legacy TEST_USER_* fallback.
-          if node -e "const {createClient}=require('@supabase/supabase-js'); (async()=>{const url=process.env.NEXT_PUBLIC_SUPABASE_URL; const anon=process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY; const email=(process.env.INTEGRATION_TEST_USER_EMAIL||'').trim(); const password=(process.env.INTEGRATION_TEST_USER_PASSWORD||'').trim(); if(!email||!password) process.exit(1); const sb=createClient(url,anon); const {error}=await sb.auth.signInWithPassword({email,password}); if(error) process.exit(1); })();" ; then
-            echo "Using INTEGRATION_TEST_USER_* credentials."
-            echo "TEST_USER_EMAIL=${INTEGRATION_TEST_USER_EMAIL}" >> "$GITHUB_ENV"
-            echo "TEST_USER_PASSWORD=${INTEGRATION_TEST_USER_PASSWORD}" >> "$GITHUB_ENV"
-          elif node -e "const {createClient}=require('@supabase/supabase-js'); (async()=>{const url=process.env.NEXT_PUBLIC_SUPABASE_URL; const anon=process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY; const email=(process.env.LEGACY_TEST_USER_EMAIL||'').trim(); const password=(process.env.LEGACY_TEST_USER_PASSWORD||'').trim(); if(!email||!password) process.exit(1); const sb=createClient(url,anon); const {error}=await sb.auth.signInWithPassword({email,password}); if(error) process.exit(1); })();" ; then
-            echo "Using legacy TEST_USER_* credentials fallback."
-            echo "TEST_USER_EMAIL=${LEGACY_TEST_USER_EMAIL}" >> "$GITHUB_ENV"
-            echo "TEST_USER_PASSWORD=${LEGACY_TEST_USER_PASSWORD}" >> "$GITHUB_ENV"
-          else
-            echo "::error::No valid feedback-smoke credentials found for INTEGRATION_SUPABASE_URL."
-            echo "Set INTEGRATION_TEST_USER_EMAIL + INTEGRATION_TEST_USER_PASSWORD (preferred), or TEST_USER_EMAIL + TEST_USER_PASSWORD."
-            exit 1
-          fi
+          node - <<'NODE'
+          const { createClient } = require("@supabase/supabase-js");
+
+          async function main() {
+            const url = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+            const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+            const serviceRole = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+            const email = (process.env.INTEGRATION_TEST_USER_EMAIL || "").trim();
+            const password = (process.env.INTEGRATION_TEST_USER_PASSWORD || "").trim();
+
+            if (!email || !password) {
+              console.error("::error::Missing INTEGRATION_TEST_USER_EMAIL / INTEGRATION_TEST_USER_PASSWORD.");
+              process.exit(1);
+            }
+
+            const anonClient = createClient(url, anon);
+            const firstTry = await anonClient.auth.signInWithPassword({ email, password });
+            if (!firstTry.error) return;
+
+            // Auto-heal: align integration auth password with the configured secret.
+            const admin = createClient(url, serviceRole);
+            const listed = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
+            if (listed.error) {
+              console.error("::error::Could not list users via service role.");
+              console.error(`::error::${listed.error.message}`);
+              process.exit(1);
+            }
+
+            const user = (listed.data?.users || []).find((u) => (u.email || "").toLowerCase() === email.toLowerCase());
+            if (!user) {
+              console.error(`::error::Integration test user not found in Supabase auth: ${email}`);
+              process.exit(1);
+            }
+
+            const updated = await admin.auth.admin.updateUserById(user.id, { password });
+            if (updated.error) {
+              console.error("::error::Could not update integration test user password.");
+              console.error(`::error::${updated.error.message}`);
+              process.exit(1);
+            }
+
+            const secondTry = await anonClient.auth.signInWithPassword({ email, password });
+            if (secondTry.error) {
+              console.error("::error::Credentials are still invalid after password sync.");
+              console.error(`::error::${secondTry.error.message}`);
+              process.exit(1);
+            }
+          }
+
+          main().catch((err) => {
+            console.error("::error::Unexpected error validating credentials.");
+            console.error(err?.message || String(err));
+            process.exit(1);
+          });
+          NODE
+          echo "TEST_USER_EMAIL=${INTEGRATION_TEST_USER_EMAIL}" >> "$GITHUB_ENV"
+          echo "TEST_USER_PASSWORD=${INTEGRATION_TEST_USER_PASSWORD}" >> "$GITHUB_ENV"
 
       - name: Build Next.js (PR branch)
         run: npm run build
