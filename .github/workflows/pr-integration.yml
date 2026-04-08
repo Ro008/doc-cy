@@ -172,8 +172,23 @@ jobs:
             echo "::error::Missing INTEGRATION_TEST_USER_EMAIL / INTEGRATION_TEST_USER_PASSWORD."
             exit 1
           fi
-          echo "TEST_USER_EMAIL=${INTEGRATION_TEST_USER_EMAIL}" >> "$GITHUB_ENV"
-          echo "TEST_USER_PASSWORD=${INTEGRATION_TEST_USER_PASSWORD}" >> "$GITHUB_ENV"
+          sanitize() {
+            local value="$1"
+            value="$(printf '%s' "$value" | tr -d '\r\n')"
+            value="${value%\"}"
+            value="${value#\"}"
+            value="${value%\'}"
+            value="${value#\'}"
+            printf '%s' "$value"
+          }
+          SANITIZED_EMAIL="$(sanitize "${INTEGRATION_TEST_USER_EMAIL}")"
+          SANITIZED_PASSWORD="$(sanitize "${INTEGRATION_TEST_USER_PASSWORD}")"
+          if [ -z "${SANITIZED_EMAIL}" ] || [ -z "${SANITIZED_PASSWORD}" ]; then
+            echo "::error::Integration feedback credentials became empty after sanitization."
+            exit 1
+          fi
+          echo "TEST_USER_EMAIL=${SANITIZED_EMAIL}" >> "$GITHUB_ENV"
+          echo "TEST_USER_PASSWORD=${SANITIZED_PASSWORD}" >> "$GITHUB_ENV"
 
       - name: Build Next.js (PR branch)
         run: npm run build
