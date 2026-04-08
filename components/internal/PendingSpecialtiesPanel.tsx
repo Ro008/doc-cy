@@ -3,6 +3,7 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, Check, Pencil } from "lucide-react";
+import { toast } from "sonner";
 import {
   CYPRUS_MASTER_SPECIALTIES,
   isMasterSpecialty,
@@ -49,9 +50,12 @@ export function PendingSpecialtiesPanel({ items }: { items: PendingSpecialtyRow[
     try {
       await postReview({ doctorId: id, action: "approve" });
       setMapForId(null);
+      toast.success("Specialty approved.");
       router.refresh();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Request failed.");
+      const message = e instanceof Error ? e.message : "Request failed.";
+      setError(message);
+      toast.error(message);
     } finally {
       setBusyId(null);
     }
@@ -59,7 +63,9 @@ export function PendingSpecialtiesPanel({ items }: { items: PendingSpecialtyRow[
 
   async function mapSubmit(id: string) {
     if (!mapTarget || !isMasterSpecialty(mapTarget)) {
-      setError("Choose a standard specialty to map to.");
+      const message = "Choose a standard specialty to map to.";
+      setError(message);
+      toast.error(message);
       return;
     }
     setError(null);
@@ -68,9 +74,12 @@ export function PendingSpecialtiesPanel({ items }: { items: PendingSpecialtyRow[
       await postReview({ doctorId: id, action: "map", mapTo: mapTarget });
       setMapForId(null);
       setMapTarget("");
+      toast.success("Specialty mapping saved.");
       router.refresh();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Request failed.");
+      const message = e instanceof Error ? e.message : "Request failed.";
+      setError(message);
+      toast.error(message);
     } finally {
       setBusyId(null);
     }

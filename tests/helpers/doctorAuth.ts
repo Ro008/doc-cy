@@ -1,8 +1,15 @@
 import type { Page } from "@playwright/test";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
-const TEST_USER_EMAIL = process.env.TEST_USER_EMAIL ?? "";
-const TEST_USER_PASSWORD = process.env.TEST_USER_PASSWORD ?? "";
+function normalizeSecret(raw: string): string {
+  return raw
+    .trim()
+    .replace(/\r?\n/g, "")
+    .replace(/^['"]+|['"]+$/g, "");
+}
+
+const TEST_USER_EMAIL = normalizeSecret(process.env.TEST_USER_EMAIL ?? "");
+const TEST_USER_PASSWORD = normalizeSecret(process.env.TEST_USER_PASSWORD ?? "");
 
 type DoctorAuthResult = {
   authUserId: string;

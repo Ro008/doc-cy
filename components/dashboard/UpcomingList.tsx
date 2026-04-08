@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { Trash2, X } from "lucide-react";
+import { toast } from "sonner";
 import { WhatsAppLogoIcon } from "@/components/icons/WhatsAppLogoIcon";
 
 export type UpcomingAppointmentItem = {
@@ -34,15 +35,18 @@ export function UpcomingList({ items }: UpcomingListProps) {
       });
       if (!res.ok) {
         const data = await res.json().catch(() => null);
-        setError(
-          data?.message || "We could not cancel this appointment."
-        );
+        const message = data?.message || "We could not cancel this appointment.";
+        setError(message);
+        toast.error(message);
         return;
       }
+      toast.success("Appointment cancelled.");
       window.location.reload();
     } catch (err) {
       console.error(err);
-      setError("Something went wrong. Please try again.");
+      const message = "Something went wrong. Please try again.";
+      setError(message);
+      toast.error(message);
     } finally {
       setIsCancelling(false);
     }

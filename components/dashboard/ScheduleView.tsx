@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { Trash2, X } from "lucide-react";
+import { toast } from "sonner";
 import { WhatsAppLogoIcon } from "@/components/icons/WhatsAppLogoIcon";
 
 export type ScheduleAppointment = {
@@ -51,16 +52,19 @@ export function ScheduleView({
       });
       if (!res.ok) {
         const data = await res.json().catch(() => null);
-        setCancelError(
-          data?.message || "We could not cancel this appointment."
-        );
+        const message = data?.message || "We could not cancel this appointment.";
+        setCancelError(message);
+        toast.error(message);
         return;
       }
       // Simple approach for MVP + E2E: reload to refresh timeline.
+      toast.success("Appointment cancelled.");
       window.location.reload();
     } catch (err) {
       console.error(err);
-      setCancelError("Something went wrong. Please try again.");
+      const message = "Something went wrong. Please try again.";
+      setCancelError(message);
+      toast.error(message);
     } finally {
       setIsCancelling(false);
     }

@@ -75,6 +75,7 @@
     "proposeOtherTimes": "Suggest other times",
     "sendProposalToPatient": "Send proposal to patient",
     "counterOfferEmailHint": "We'll email {patientName} a secure link to choose a time. The deadline is in that message (Cyprus time) — whichever is sooner: 24 hours from now or 2 hours before the first suggested slot.",
+    "confirmSuccessToast": "Appointment confirmed. Returning to agenda...",
     "proposalsSentToast": "Proposals sent! The patient has 24h to confirm.",
     "proposalsFailedToast": "Failed to send proposals. Please try again."
   },

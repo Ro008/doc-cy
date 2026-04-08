@@ -152,19 +152,23 @@ export function AppointmentReviewClient({
       );
       const data = await res.json().catch(() => null);
       if (!res.ok) {
-        setSubmitError(
+        const message =
           typeof data?.message === "string"
             ? data.message
-            : "Could not confirm this appointment.",
-        );
+            : "Could not confirm this appointment.";
+        setSubmitError(message);
+        toast.error(message);
         setSubmitting(false);
         return;
       }
+      toast.success(t("confirmSuccessToast"));
       router.push("/agenda");
       router.refresh();
       return;
     } catch {
-      setSubmitError("Something went wrong. Please try again.");
+      const message = "Something went wrong. Please try again.";
+      setSubmitError(message);
+      toast.error(message);
       setSubmitting(false);
     }
   }
