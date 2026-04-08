@@ -1,8 +1,8 @@
 import type { Page } from "@playwright/test";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
-const TEST_USER_EMAIL = process.env.TEST_USER_EMAIL ?? "";
-const TEST_USER_PASSWORD = process.env.TEST_USER_PASSWORD ?? "";
+const TEST_USER_EMAIL = (process.env.TEST_USER_EMAIL ?? "").trim();
+const TEST_USER_PASSWORD = (process.env.TEST_USER_PASSWORD ?? "").trim();
 
 type DoctorAuthResult = {
   authUserId: string;
