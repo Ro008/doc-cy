@@ -8,6 +8,17 @@ name: Production Monitoring
 
 on:
   workflow_dispatch:
+    inputs:
+      notify_only:
+        description: "Send only WhatsApp notification (skip smoke tests)"
+        required: false
+        default: false
+        type: boolean
+      notification_message:
+        description: "Optional extra text appended to WhatsApp message"
+        required: false
+        default: ""
+        type: string
   schedule:
     # GitHub Actions cron is UTC. 03:00 UTC ≈ 05:00 Asia/Nicosia (EET, UTC+2).
     - cron: "0 3 * * *"
@@ -18,6 +29,7 @@ permissions:
 
 jobs:
   prod-critical-smoke:
+    if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.notify_only != 'true' }}
     runs-on: ubuntu-latest
     # Cold runs: npm ci + playwright --with-deps (apt + fonts) + prod suite can exceed 30m.
     timeout-minutes: 45
@@ -68,31 +80,96 @@ jobs:
             test-results
           if-no-files-found: ignore
 
-      - name: Send WhatsApp monitoring status
-        if: always()
+  notify-whatsapp:
+    if: always()
+    needs: [prod-critical-smoke]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Send WhatsApp monitoring status (retries)
+        id: whatsapp
+        continue-on-error: true
         shell: bash
         env:
           WEBHOOK_URL: ${{ secrets.WHATSAPP_WEBHOOK_URL }}
-          JOB_STATUS: ${{ job.status }}
+          SMOKE_RESULT: ${{ needs.prod-critical-smoke.result }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          NOTIFY_ONLY: ${{ github.event.inputs.notify_only || 'false' }}
+          EXTRA_MESSAGE: ${{ github.event.inputs.notification_message || '' }}
         run: |
+          set -u
+
+          WEBHOOK_URL="$(echo -n "${WEBHOOK_URL:-}" | tr -d '\r\n')"
           if [ -z "${WEBHOOK_URL}" ]; then
-            echo "No WHATSAPP_WEBHOOK_URL configured. Skipping WhatsApp notification."
-            exit 0
+            echo "::error::WHATSAPP_WEBHOOK_URL is empty or missing."
+            exit 1
           fi
-          WEBHOOK_URL="$(echo -n "${WEBHOOK_URL}" | tr -d '\r\n')"
-          if [ "${JOB_STATUS}" = "success" ]; then
-            MSG='✅ DocCy PROD: Success'
+
+          case "${SMOKE_RESULT}" in
+            success) ICON="✅" ;;
+            cancelled) ICON="⚠️" ;;
+            *) ICON="❌" ;;
+          esac
+
+          if [ "${NOTIFY_ONLY}" = "true" ]; then
+            MSG="🧪 DocCy PROD manual WhatsApp test | run ${RUN_ID}"
           else
-            MSG='❌ DocCy PROD: Failure'
+            MSG="${ICON} DocCy PROD (${SMOKE_RESULT}) | run ${RUN_ID}"
           fi
-          if [[ "${WEBHOOK_URL}" == *"text="* ]]; then
-            curl -fsS "${WEBHOOK_URL}" || {
-              echo "::warning::Legacy webhook URL with text= failed."
-              exit 1
-            }
-          else
-            curl -fsS -G "${WEBHOOK_URL}" --data-urlencode "text=${MSG}" || {
-              echo "::warning::WhatsApp webhook delivery failed."
-              exit 1
-            }
+          if [ -n "${EXTRA_MESSAGE}" ]; then
+            MSG="${MSG} | ${EXTRA_MESSAGE}"
           fi
+
+          attempt=1
+          max_attempts=3
+          while [ "${attempt}" -le "${max_attempts}" ]; do
+            echo "WhatsApp attempt ${attempt}/${max_attempts}"
+            # Legacy secrets may already include text= in query. Remove it and send our own text always.
+            SEND_URL="$(printf '%s' "${WEBHOOK_URL}" | sed -E 's/([?&])text=[^&]*(&|$)/\1\2/g' | sed -E 's/\?&/\?/g; s/&&/&/g; s/[?&]$//')"
+            if curl -fsS --max-time 20 -G "${SEND_URL}" --data-urlencode "text=${MSG}"; then
+              echo "sent=true" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            sleep $((attempt * 5))
+            attempt=$((attempt + 1))
+          done
+
+          echo "::error::WhatsApp delivery failed after ${max_attempts} attempts."
+          echo "sent=false" >> "$GITHUB_OUTPUT"
+          exit 1
+
+      - name: Open issue if WhatsApp notification failed
+        if: steps.whatsapp.outcome != 'success'
+        uses: actions/github-script@v7
+        env:
+          SMOKE_RESULT: ${{ needs.prod-critical-smoke.result }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        with:
+          script: |
+            const title = `[prod-monitoring] WhatsApp notification failed (run ${process.env.RUN_ID})`;
+            const body = [
+              "WhatsApp delivery failed after retries.",
+              "",
+              `Smoke result: **${process.env.SMOKE_RESULT}**`,
+              `Run: ${process.env.RUN_URL}`,
+              "",
+              "Action required:",
+              "- Verify `WHATSAPP_WEBHOOK_URL` repository secret.",
+              "- Validate webhook provider health and recipient setup."
+            ].join("\n");
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title,
+              body,
+              labels: ["ci", "monitoring"]
+            });
+
+      - name: Fail workflow if WhatsApp notification failed
+        if: steps.whatsapp.outcome != 'success'
+        shell: bash
+        run: |
+          echo "::error::WhatsApp notification failed. Issue created."
+          exit 1
