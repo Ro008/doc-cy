@@ -145,6 +145,8 @@ jobs:
       NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.INTEGRATION_SUPABASE_URL }}
       NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.INTEGRATION_SUPABASE_ANON_KEY }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.INTEGRATION_SUPABASE_SERVICE_ROLE_KEY }}
+      TEST_USER_EMAIL: ${{ secrets.INTEGRATION_TEST_USER_EMAIL }}
+      TEST_USER_PASSWORD: ${{ secrets.INTEGRATION_TEST_USER_PASSWORD }}
       PROD_NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
       INTEGRATION_SCHEDULE_TEST_DOCTOR_SLUG: ${{ vars.INTEGRATION_SCHEDULE_TEST_DOCTOR_SLUG }}
 
@@ -164,31 +166,19 @@ jobs:
       - name: Validate feedback smoke credentials
         shell: bash
         env:
-          INTEGRATION_TEST_USER_EMAIL: ${{ secrets.INTEGRATION_TEST_USER_EMAIL }}
-          INTEGRATION_TEST_USER_PASSWORD: ${{ secrets.INTEGRATION_TEST_USER_PASSWORD }}
+          TEST_USER_EMAIL: ${{ secrets.INTEGRATION_TEST_USER_EMAIL }}
+          TEST_USER_PASSWORD: ${{ secrets.INTEGRATION_TEST_USER_PASSWORD }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.INTEGRATION_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.INTEGRATION_SUPABASE_ANON_KEY }}
         run: |
           set -euo pipefail
-          if [ -z "${INTEGRATION_TEST_USER_EMAIL:-}" ] || [ -z "${INTEGRATION_TEST_USER_PASSWORD:-}" ]; then
-            echo "::error::Missing INTEGRATION_TEST_USER_EMAIL / INTEGRATION_TEST_USER_PASSWORD."
+          if [ -z "${TEST_USER_EMAIL:-}" ] || [ -z "${TEST_USER_PASSWORD:-}" ]; then
+            echo "::error::Missing INTEGRATION_TEST_USER_EMAIL / INTEGRATION_TEST_USER_PASSWORD for feedback smoke."
+            echo "Set these two repo secrets and re-run."
             exit 1
           fi
-          sanitize() {
-            local value="$1"
-            value="$(printf '%s' "$value" | tr -d '\r\n')"
-            value="${value%\"}"
-            value="${value#\"}"
-            value="${value%\'}"
-            value="${value#\'}"
-            printf '%s' "$value"
-          }
-          SANITIZED_EMAIL="$(sanitize "${INTEGRATION_TEST_USER_EMAIL}")"
-          SANITIZED_PASSWORD="$(sanitize "${INTEGRATION_TEST_USER_PASSWORD}")"
-          if [ -z "${SANITIZED_EMAIL}" ] || [ -z "${SANITIZED_PASSWORD}" ]; then
-            echo "::error::Integration feedback credentials became empty after sanitization."
-            exit 1
-          fi
-          echo "TEST_USER_EMAIL=${SANITIZED_EMAIL}" >> "$GITHUB_ENV"
-          echo "TEST_USER_PASSWORD=${SANITIZED_PASSWORD}" >> "$GITHUB_ENV"
+          # Fast preflight: fail early if credentials don't authenticate against integration Supabase.
+          node -e "const {createClient}=require('@supabase/supabase-js'); (async()=>{const url=process.env.NEXT_PUBLIC_SUPABASE_URL; const anon=process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY; const email=(process.env.TEST_USER_EMAIL||'').trim(); const password=(process.env.TEST_USER_PASSWORD||'').trim(); const sb=createClient(url,anon); const {error}=await sb.auth.signInWithPassword({email,password}); if(error){console.error('::error::Integration test doctor credentials are invalid for INTEGRATION_SUPABASE_URL.'); console.error('::error::'+error.message); process.exit(1);} })();"
 
       - name: Build Next.js (PR branch)
         run: npm run build
@@ -198,37 +188,6 @@ jobs:
 
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
-
-      - name: Precheck Supabase auth login (diagnostic)
-        shell: bash
-        env:
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.INTEGRATION_SUPABASE_URL }}
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.INTEGRATION_SUPABASE_ANON_KEY }}
-        run: |
-          set -euo pipefail
-          AUTH_URL="${NEXT_PUBLIC_SUPABASE_URL%/}/auth/v1/token?grant_type=password"
-          BODY="$(printf '{"email":"%s","password":"%s"}' "${TEST_USER_EMAIL}" "${TEST_USER_PASSWORD}")"
-          HTTP_CODE="$(curl -sS -o /tmp/supabase-auth-response.json -w "%{http_code}" \
-            -X POST "${AUTH_URL}" \
-            -H "apikey: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}" \
-            -H "Content-Type: application/json" \
-            -d "${BODY}")"
-          if [ "${HTTP_CODE}" != "200" ]; then
-            echo "::error::Supabase auth precheck failed (HTTP ${HTTP_CODE})."
-            echo "Response body:"
-            python - <<'PY'
-import json
-from pathlib import Path
-p = Path("/tmp/supabase-auth-response.json")
-try:
-    data = json.loads(p.read_text(encoding="utf-8"))
-    print(json.dumps(data, indent=2))
-except Exception:
-    print(p.read_text(encoding="utf-8"))
-PY
-            exit 1
-          fi
-          echo "Supabase auth precheck passed."
 
       - name: Run feedback smoke suite (PR-fast)
         if: github.event_name == 'pull_request'
@@ -240,6 +199,8 @@ PY
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.INTEGRATION_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.INTEGRATION_SUPABASE_ANON_KEY }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.INTEGRATION_SUPABASE_SERVICE_ROLE_KEY }}
+          TEST_USER_EMAIL: ${{ secrets.INTEGRATION_TEST_USER_EMAIL }}
+          TEST_USER_PASSWORD: ${{ secrets.INTEGRATION_TEST_USER_PASSWORD }}
           PROD_NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           INTEGRATION_SCHEDULE_TEST_DOCTOR_SLUG: ${{ vars.INTEGRATION_SCHEDULE_TEST_DOCTOR_SLUG }}
         run: |
@@ -259,6 +220,8 @@ PY
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.INTEGRATION_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.INTEGRATION_SUPABASE_ANON_KEY }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.INTEGRATION_SUPABASE_SERVICE_ROLE_KEY }}
+          TEST_USER_EMAIL: ${{ secrets.INTEGRATION_TEST_USER_EMAIL }}
+          TEST_USER_PASSWORD: ${{ secrets.INTEGRATION_TEST_USER_PASSWORD }}
           PROD_NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           INTEGRATION_SCHEDULE_TEST_DOCTOR_SLUG: ${{ vars.INTEGRATION_SCHEDULE_TEST_DOCTOR_SLUG }}
         run: |
