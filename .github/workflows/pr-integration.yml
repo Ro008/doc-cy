@@ -199,6 +199,39 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 
+      - name: Precheck Supabase auth login (diagnostic)
+        shell: bash
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.INTEGRATION_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.INTEGRATION_SUPABASE_ANON_KEY }}
+          TEST_USER_EMAIL: ${{ env.TEST_USER_EMAIL }}
+          TEST_USER_PASSWORD: ${{ env.TEST_USER_PASSWORD }}
+        run: |
+          set -euo pipefail
+          AUTH_URL="${NEXT_PUBLIC_SUPABASE_URL%/}/auth/v1/token?grant_type=password"
+          BODY="$(printf '{"email":"%s","password":"%s"}' "${TEST_USER_EMAIL}" "${TEST_USER_PASSWORD}")"
+          HTTP_CODE="$(curl -sS -o /tmp/supabase-auth-response.json -w "%{http_code}" \
+            -X POST "${AUTH_URL}" \
+            -H "apikey: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}" \
+            -H "Content-Type: application/json" \
+            -d "${BODY}")"
+          if [ "${HTTP_CODE}" != "200" ]; then
+            echo "::error::Supabase auth precheck failed (HTTP ${HTTP_CODE})."
+            echo "Response body:"
+            python - <<'PY'
+import json
+from pathlib import Path
+p = Path("/tmp/supabase-auth-response.json")
+try:
+    data = json.loads(p.read_text(encoding="utf-8"))
+    print(json.dumps(data, indent=2))
+except Exception:
+    print(p.read_text(encoding="utf-8"))
+PY
+            exit 1
+          fi
+          echo "Supabase auth precheck passed."
+
       - name: Run feedback smoke suite (PR-fast)
         if: github.event_name == 'pull_request'
         env:
