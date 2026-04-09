@@ -17,9 +17,15 @@ import { ChevronLeft, ChevronRight, Trash2, X } from "lucide-react";
 import { toast as sonnerToast } from "sonner";
 import { useTranslations } from "next-intl";
 import {
+  PROFESSIONAL_DURATION_OPTIONS,
+  formatProfessionalDurationLabel,
+  type ProfessionalDurationOption,
+} from "@/lib/professional-appointment-durations";
+import {
   appointmentDateKeyCyprus,
   appointmentMinutesFromAgendaStart,
   appointmentTimeLabelCyprus,
+  appointmentToCyprusDate,
   CY_TZ,
 } from "@/lib/appointments";
 import { WhatsAppLogoIcon } from "@/components/icons/WhatsAppLogoIcon";
@@ -40,6 +46,20 @@ type AgendaAppointmentRow = {
 function parseProposedSlotIsoList(raw: unknown): string[] {
   if (!Array.isArray(raw)) return [];
   return raw.filter((x): x is string => typeof x === "string");
+}
+
+function closestAllowedDuration(maybeMinutes: number): ProfessionalDurationOption {
+  const allowed = [...PROFESSIONAL_DURATION_OPTIONS];
+  let best = allowed[0]!;
+  let bestDist = Math.abs(maybeMinutes - best);
+  for (const opt of allowed) {
+    const d = Math.abs(maybeMinutes - opt);
+    if (d < bestDist) {
+      best = opt;
+      bestDist = d;
+    }
+  }
+  return best;
 }
 
 /** One grid row per visible block (counter-offer holds expand to one row per proposed start while the proposal is live). */
@@ -152,10 +172,10 @@ function AgendaAppointmentCardInner({
   const cardTitle = `${patientDisplay} · ${timeLabel}`;
 
   if (isCounterOfferHold) {
-    // Narrow columns (overlapping proposals): stack name + time so the name never competes for width with the time.
+    // Keep a single compact row so patient name remains visible on 30m proposal slots.
     return (
       <div
-        className="relative flex min-h-0 min-w-0 flex-col justify-start gap-0.5 pr-7 text-left"
+        className="relative min-h-0 min-w-0 text-left"
         title={cardTitle}
       >
         {topRightBadge ? (
@@ -166,15 +186,15 @@ function AgendaAppointmentCardInner({
             {topRightBadge}
           </span>
         ) : null}
-        <span
-          className={`min-w-0 truncate text-[11px] font-semibold leading-snug ${nameColor}`}
-          title={patientDisplay}
+        <p
+          className={`flex min-h-0 min-w-0 items-center gap-0.5 truncate text-left text-[11px] font-semibold leading-tight ${nameColor} ${topRightBadge ? "pr-[2.35rem]" : ""}`}
         >
-          {patientDisplay}
-        </span>
-        <span className="shrink-0 text-[10px] font-medium tabular-nums leading-none text-slate-300/95">
-          {timeLabel}
-        </span>
+          <span className="shrink-0 tabular-nums text-slate-300/95">{timeLabel}</span>
+          <span className="shrink-0 opacity-50">·</span>
+          <span className="min-w-0 truncate" title={patientDisplay}>
+            {patientDisplay}
+          </span>
+        </p>
       </div>
     );
   }
@@ -240,6 +260,16 @@ export function AgendaRealtime({
   const [rejectReason, setRejectReason] = React.useState("");
   const [isCancelling, setIsCancelling] = React.useState(false);
   const [cancelError, setCancelError] = React.useState<string | null>(null);
+  const [rescheduleOpen, setRescheduleOpen] = React.useState(false);
+  const [rescheduleDuration, setRescheduleDuration] =
+    React.useState<ProfessionalDurationOption>(30);
+  const [loadingAlternatives, setLoadingAlternatives] = React.useState(false);
+  const [sendingProposal, setSendingProposal] = React.useState(false);
+  const [rescheduleReason, setRescheduleReason] = React.useState("");
+  const [rescheduleError, setRescheduleError] = React.useState<string | null>(
+    null,
+  );
+  const [previewSlots, setPreviewSlots] = React.useState<string[] | null>(null);
   const [weekOffset, setWeekOffset] = React.useState(0);
   const [mobileDayOffset, setMobileDayOffset] = React.useState(0);
 
@@ -404,9 +434,6 @@ export function AgendaRealtime({
 
   function blockHeightFor(row: (typeof rows)[number]): number {
     const h = (row.rowDurationMinutes / 60) * HOUR_ROW_HEIGHT - 2;
-    if (row.isCounterOfferHold) {
-      return Math.max(46, h);
-    }
     return Math.max(22, h);
   }
 
@@ -543,11 +570,128 @@ export function AgendaRealtime({
     }
   }
 
+  async function loadRescheduleAlternatives() {
+    if (!selected) return;
+    setRescheduleError(null);
+    setPreviewSlots(null);
+    setLoadingAlternatives(true);
+    try {
+      const res = await fetch(
+        `/api/appointments/${encodeURIComponent(selected.id)}/alternative-slots?durationMinutes=${rescheduleDuration}`,
+        { method: "GET", credentials: "include" },
+      );
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        setRescheduleError(
+          typeof data?.message === "string"
+            ? data.message
+            : "Could not load alternative times.",
+        );
+        setLoadingAlternatives(false);
+        return;
+      }
+      const slots = (data as { slots?: string[] }).slots ?? [];
+      if (slots.length < 3) {
+        setRescheduleError(
+          "Not enough open times were found. Try a shorter visit length or extend your booking horizon in settings.",
+        );
+        setLoadingAlternatives(false);
+        return;
+      }
+      setPreviewSlots(slots.slice(0, 3));
+    } catch {
+      setRescheduleError("Could not load alternative times.");
+    } finally {
+      setLoadingAlternatives(false);
+    }
+  }
+
+  async function sendRescheduleProposal() {
+    if (!selected || sendingProposal) return;
+    if (rescheduleReason.trim().length < 10) {
+      setRescheduleError("Please explain the reason (at least 10 characters).");
+      return;
+    }
+    setRescheduleError(null);
+    setSendingProposal(true);
+    try {
+      const selectedId = selected.id;
+      const res = await fetch(
+        `/api/appointments/${encodeURIComponent(selectedId)}/propose-reschedule`,
+        {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            durationMinutes: rescheduleDuration,
+            rescheduleReason: rescheduleReason.trim(),
+          }),
+        },
+      );
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        setRescheduleError(
+          typeof data?.message === "string"
+            ? data.message
+            : "Could not send the proposal.",
+        );
+        sonnerToast.error("Could not send the proposal.");
+        setSendingProposal(false);
+        return;
+      }
+
+      const slots = Array.isArray((data as { slots?: unknown }).slots)
+        ? ((data as { slots: string[] }).slots ?? [])
+        : [];
+      const proposalExpiresAt = String(
+        (data as { proposalExpiresAt?: string }).proposalExpiresAt ?? "",
+      );
+      setAppointments((prev) =>
+        prev.map((a) =>
+          a.id === selectedId
+            ? {
+                ...a,
+                status: "NEEDS_RESCHEDULE",
+                duration_minutes: rescheduleDuration,
+                proposed_slots: slots,
+                proposal_expires_at: proposalExpiresAt || null,
+              }
+            : a,
+        ),
+      );
+      sonnerToast.success(
+        "Reschedule options sent to the patient. Waiting for their choice.",
+      );
+      setSelected(null);
+      setRescheduleOpen(false);
+      setPreviewSlots(null);
+      setRescheduleError(null);
+      setRescheduleReason("");
+      setSendingProposal(false);
+    } catch {
+      setRescheduleError("Could not send the proposal.");
+      sonnerToast.error("Could not send the proposal.");
+      setSendingProposal(false);
+    }
+  }
+
   function openAppointment(row: (typeof rows)[number]) {
     setCancelError(null);
     setConfirmingCancel(false);
     setCancelMode(null);
     setRejectReason("");
+    setRescheduleOpen(false);
+    setRescheduleError(null);
+    setPreviewSlots(null);
+    setLoadingAlternatives(false);
+    setSendingProposal(false);
+    setRescheduleDuration(
+      closestAllowedDuration(
+        typeof row.duration_minutes === "number" && row.duration_minutes > 0
+          ? row.duration_minutes
+          : defaultSlotMinutes,
+      ),
+    );
     setSelected(row);
   }
 
@@ -557,8 +701,32 @@ export function AgendaRealtime({
     setCancelError(null);
     setRejectReason("");
     setSelected(row);
+    setRescheduleOpen(false);
+    setRescheduleError(null);
+    setPreviewSlots(null);
     setCancelMode(su === "REQUESTED" ? "requested" : "confirmed");
     setConfirmingCancel(true);
+  }
+
+  function openRescheduleFlow(row: (typeof rows)[number]) {
+    const su = String(row.status ?? "").toUpperCase();
+    if (su !== "CONFIRMED") return;
+    setSelected(row);
+    setConfirmingCancel(false);
+    setCancelMode(null);
+    setRejectReason("");
+    setCancelError(null);
+    setRescheduleError(null);
+    setPreviewSlots(null);
+    setRescheduleReason("");
+    setRescheduleDuration(
+      closestAllowedDuration(
+        typeof row.duration_minutes === "number" && row.duration_minutes > 0
+          ? row.duration_minutes
+          : defaultSlotMinutes,
+      ),
+    );
+    setRescheduleOpen(true);
   }
 
   function topForRow(row: (typeof rows)[number]): number {
@@ -1012,6 +1180,10 @@ export function AgendaRealtime({
               setCancelMode(null);
               setRejectReason("");
               setCancelError(null);
+              setRescheduleOpen(false);
+              setRescheduleError(null);
+              setPreviewSlots(null);
+              setRescheduleReason("");
             }}
             className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm"
             aria-label="Close"
@@ -1027,6 +1199,10 @@ export function AgendaRealtime({
                 setCancelMode(null);
                 setRejectReason("");
                 setCancelError(null);
+                setRescheduleOpen(false);
+                setRescheduleError(null);
+                setPreviewSlots(null);
+                setRescheduleReason("");
               }}
               className="absolute right-4 top-4 rounded-full p-1 text-slate-400 transition hover:bg-slate-800 hover:text-slate-200 disabled:cursor-not-allowed disabled:opacity-50"
               aria-label="Close"
@@ -1088,6 +1264,18 @@ export function AgendaRealtime({
                 </a>
               ) : null}
               {!confirmingCancel &&
+              !rescheduleOpen &&
+              String(selected.status ?? "").toUpperCase() === "CONFIRMED" ? (
+                <button
+                  type="button"
+                  onClick={() => openRescheduleFlow(selected)}
+                  className="inline-flex items-center justify-center gap-2 rounded-2xl border border-sky-500/30 bg-sky-500/10 px-4 py-2.5 text-sm font-semibold text-sky-200 transition hover:border-sky-400/60 hover:bg-sky-500/20"
+                >
+                  Reschedule
+                </button>
+              ) : null}
+              {!confirmingCancel &&
+              !rescheduleOpen &&
               (String(selected.status ?? "").toUpperCase() === "REQUESTED" ||
                 String(selected.status ?? "").toUpperCase() ===
                   "CONFIRMED") ? (
@@ -1103,6 +1291,117 @@ export function AgendaRealtime({
                 </button>
               ) : null}
             </div>
+
+            {rescheduleOpen &&
+            String(selected.status ?? "").toUpperCase() === "CONFIRMED" ? (
+              <div className="mt-4 rounded-2xl border border-sky-500/20 bg-sky-500/5 p-3 text-xs text-slate-300">
+                <p>
+                  Propose three new times to the patient. They will receive an
+                  email and choose one slot.
+                </p>
+                <label className="mt-3 block text-left text-[11px] font-medium uppercase tracking-wide text-slate-400">
+                  Visit duration
+                </label>
+                <div className="mt-1.5 flex flex-wrap gap-2">
+                  {PROFESSIONAL_DURATION_OPTIONS.map((minutes) => {
+                    const active = rescheduleDuration === minutes;
+                    return (
+                      <button
+                        key={minutes}
+                        type="button"
+                        onClick={() => {
+                          setRescheduleDuration(minutes);
+                          setPreviewSlots(null);
+                          setRescheduleError(null);
+                        }}
+                        className={`rounded-xl border px-2.5 py-1.5 text-xs font-medium transition ${
+                          active
+                            ? "border-sky-400/60 bg-sky-400/20 text-sky-100"
+                            : "border-slate-700 bg-slate-900/50 text-slate-300 hover:border-slate-600"
+                        }`}
+                        disabled={loadingAlternatives || sendingProposal}
+                      >
+                        {formatProfessionalDurationLabel(minutes)}
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="mt-3 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRescheduleOpen(false);
+                      setRescheduleError(null);
+                      setPreviewSlots(null);
+                      setRescheduleReason("");
+                    }}
+                    className="inline-flex flex-1 items-center justify-center rounded-2xl border border-slate-700 bg-slate-800 px-3 py-2 text-xs font-medium text-slate-200 transition hover:bg-slate-700"
+                    disabled={loadingAlternatives || sendingProposal}
+                  >
+                    Back
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void loadRescheduleAlternatives();
+                    }}
+                    className="inline-flex flex-1 items-center justify-center rounded-2xl border border-sky-500/40 bg-sky-500/10 px-3 py-2 text-xs font-semibold text-sky-200 transition hover:border-sky-400/60 hover:bg-sky-500/20 disabled:cursor-not-allowed disabled:opacity-70"
+                    disabled={loadingAlternatives || sendingProposal}
+                  >
+                    {loadingAlternatives ? "Finding times..." : "Find 3 slots"}
+                  </button>
+                </div>
+                <label className="mt-3 block text-left text-[11px] font-medium uppercase tracking-wide text-slate-400">
+                  Reason for the patient (required)
+                </label>
+                <textarea
+                  value={rescheduleReason}
+                  onChange={(e) => setRescheduleReason(e.target.value)}
+                  placeholder="e.g. I have an urgent hospital procedure and need to move this visit to another time."
+                  rows={3}
+                  className="mt-1.5 w-full resize-y rounded-xl border border-slate-700 bg-slate-950/80 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:border-emerald-500/50 focus:outline-none focus:ring-1 focus:ring-emerald-500/40"
+                  disabled={loadingAlternatives || sendingProposal}
+                />
+                <p className="mt-1 text-[11px] text-slate-500">
+                  At least 10 characters.
+                </p>
+                {previewSlots && previewSlots.length >= 3 ? (
+                  <div className="mt-3 space-y-2 border-t border-slate-700/80 pt-3">
+                    <p className="text-[11px] uppercase tracking-wide text-slate-400">
+                      Proposed times (Cyprus)
+                    </p>
+                    <ul className="space-y-1.5 text-xs text-slate-200">
+                      {previewSlots.map((iso, i) => (
+                        <li
+                          key={iso}
+                          className="rounded-lg border border-slate-700/70 bg-slate-950/50 px-2.5 py-1.5"
+                        >
+                          <span className="text-slate-500">{i + 1}. </span>
+                          {format(
+                            appointmentToCyprusDate(iso),
+                            "EEE, d MMM yyyy · HH:mm",
+                            { locale: enGB },
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        void sendRescheduleProposal();
+                      }}
+                      className="mt-1 inline-flex w-full items-center justify-center rounded-2xl border border-sky-500/40 bg-sky-500/10 px-3 py-2 text-xs font-semibold text-sky-200 transition hover:border-sky-400/60 hover:bg-sky-500/20 disabled:cursor-not-allowed disabled:opacity-70"
+                      disabled={sendingProposal || rescheduleReason.trim().length < 10}
+                    >
+                      {sendingProposal ? "Sending..." : "Send proposal to patient"}
+                    </button>
+                  </div>
+                ) : null}
+                {rescheduleError ? (
+                  <p className="mt-2 text-xs text-amber-300">{rescheduleError}</p>
+                ) : null}
+              </div>
+            ) : null}
 
             {confirmingCancel && cancelMode ? (
               <div className="mt-4 rounded-2xl border border-red-500/20 bg-red-500/5 p-3 text-xs text-slate-300">

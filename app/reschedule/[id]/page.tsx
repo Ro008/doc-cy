@@ -1,6 +1,5 @@
 import { createServiceRoleClient } from "@/lib/supabase-service";
 import { appointmentToCyprusDate } from "@/lib/appointments";
-import { professionalFirstName } from "@/lib/professional-name";
 import { format } from "date-fns";
 import { enUS } from "date-fns/locale";
 import {
@@ -111,7 +110,6 @@ export default async function ReschedulePage({ params, searchParams }: PageProps
     .maybeSingle();
 
   const doctorName = String(doctor?.name ?? "your professional");
-  const proFirst = professionalFirstName(doctorName);
   const patientName = String((appt as { patient_name?: string }).patient_name ?? "");
   const patientFirst = patientGreetingName(patientName);
 
@@ -136,7 +134,7 @@ export default async function ReschedulePage({ params, searchParams }: PageProps
       <ReschedulePickClient
         appointmentId={params.id}
         token={token}
-        professionalFirstName={proFirst}
+        professionalName={doctorName}
         patientFirstName={patientFirst}
         expiresAtIso={exp}
         expiryLabel={expiryLabel}

@@ -20,6 +20,8 @@ import { sendPatientRescheduleProposalEmail } from "@/lib/send-patient-reschedul
 import { computeProposalExpiresAt } from "@/lib/proposal-expires-at";
 
 type RouteContext = { params: { id: string } };
+const REASON_MIN = 10;
+const REASON_MAX = 4000;
 
 export async function POST(req: NextRequest, { params }: RouteContext) {
   const id = params.id;
@@ -35,6 +37,9 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
   }
 
   const durationMinutes = Number((body as { durationMinutes?: unknown }).durationMinutes);
+  const reasonRaw = String(
+    (body as { rescheduleReason?: unknown }).rescheduleReason ?? ""
+  ).trim();
   if (!isAllowedProfessionalDuration(durationMinutes)) {
     return NextResponse.json(
       {
@@ -80,11 +85,27 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
   }
 
   const st = String(appt.status ?? "").toUpperCase();
-  if (st !== "REQUESTED") {
+  if (st !== "REQUESTED" && st !== "CONFIRMED") {
     return NextResponse.json(
-      { message: "Only pending requests can get a counter-offer." },
+      { message: "Only pending or confirmed visits can be rescheduled." },
       { status: 400 }
     );
+  }
+  if (st === "CONFIRMED") {
+    if (reasonRaw.length < REASON_MIN) {
+      return NextResponse.json(
+        {
+          message: `Please explain the reschedule reason to the patient (at least ${REASON_MIN} characters).`,
+        },
+        { status: 400 }
+      );
+    }
+    if (reasonRaw.length > REASON_MAX) {
+      return NextResponse.json(
+        { message: "Reschedule reason is too long." },
+        { status: 400 }
+      );
+    }
   }
 
   const loaded = await loadDoctorSettingsForSlots(supabase, doctor.id);
@@ -116,7 +137,7 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
     loaded.fallbackSlotDurationMinutes
   );
 
-  if (!hasConflict) {
+  if (st === "REQUESTED" && !hasConflict) {
     return NextResponse.json(
       { message: "There is no schedule conflict for this duration; confirm instead." },
       { status: 400 }
@@ -190,6 +211,8 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
       proposalExpiresAtIso: proposalExpiresAt.toISOString(),
       doctorName: String(doctor.name ?? ""),
       slotLabelsCyprus,
+      rescheduleReason: st === "CONFIRMED" ? reasonRaw : null,
+      isFromConfirmedReschedule: st === "CONFIRMED",
       resendToOverride,
     });
   } catch (e) {

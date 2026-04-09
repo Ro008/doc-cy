@@ -42,23 +42,50 @@ export async function sendPatientAppointmentConfirmedEmail(opts: {
   durationMinutes: number;
   reason?: string | null;
   doctor: DoctorPayload;
+  isAfterReschedule?: boolean;
   resendToOverride?: string | null;
 }): Promise<void> {
+  const content = buildPatientAppointmentConfirmedEmailContent(opts);
+  const patientEmailTo = String(opts.patientEmail).trim();
+  const recipient = opts.resendToOverride || patientEmailTo;
+  if (!recipient) {
+    console.warn("[DocCy] Patient confirmation email skipped: no recipient.");
+    return;
+  }
+
+  await sendResendEmail({
+    to: recipient,
+    subject: content.subject,
+    text: content.text,
+    html: content.html,
+  });
+}
+
+export function buildPatientAppointmentConfirmedEmailContent(opts: {
+  siteUrl: string;
+  patientEmail: string;
+  patientName: string;
+  appointmentId: string;
+  appointmentDatetimeIso: string;
+  durationMinutes: number;
+  reason?: string | null;
+  doctor: DoctorPayload;
+  isAfterReschedule?: boolean;
+  resendToOverride?: string | null;
+}): { subject: string; text: string; html: string } {
   const {
     siteUrl,
-    patientEmail,
     patientName,
     appointmentId,
     appointmentDatetimeIso,
     durationMinutes,
     reason,
     doctor,
-    resendToOverride,
+    isAfterReschedule,
   } = opts;
 
   const doctorName = String(doctor.name ?? "your professional").trim();
   const doctorWaMe = phoneToWaMeLink(doctor.phone);
-  const patientEmailTo = String(patientEmail).trim();
 
   const startUtc = new Date(appointmentDatetimeIso);
   const endUtc = addMinutes(startUtc, durationMinutes);
@@ -96,6 +123,12 @@ export async function sendPatientAppointmentConfirmedEmail(opts: {
     `You can add it to your calendar:\n\n` +
     `Google Calendar: ${patientGoogleUrl}\n` +
     `Apple / Outlook (.ics): ${patientIcsUrl}\n\n`;
+  if (isAfterReschedule) {
+    text +=
+      `IMPORTANT - RESCHEDULED VISIT:\n` +
+      `If you already added your previous confirmed visit to calendar, delete that old entry now.\n` +
+      `DocCy cannot remove old events from your personal calendar.\n\n`;
+  }
 
   if (doctorWaMe) {
     text += `WhatsApp: ${doctorWaMe}\n\n`;
@@ -105,12 +138,28 @@ export async function sendPatientAppointmentConfirmedEmail(opts: {
   const html = `
 <div style="margin:0;padding:20px;background:#020617;color:#e2e8f0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
   <div style="max-width:560px;margin:0 auto;background:#0f172a;border:1px solid rgba(148,163,184,.2);border-radius:16px;padding:22px;">
-    <h2 style="margin:0 0 12px;font-size:20px;line-height:1.3;color:#f8fafc;">Appointment confirmed</h2>
+    <h2 style="margin:0 0 12px;font-size:20px;line-height:1.3;color:#f8fafc;">
+      ${isAfterReschedule ? "Appointment re-confirmed (rescheduled)" : "Appointment confirmed"}
+    </h2>
     <p style="margin:0 0 10px;font-size:15px;line-height:1.6;color:#e2e8f0;">Hi ${escapeHtml(patientName)},</p>
     <p style="margin:0 0 10px;font-size:15px;line-height:1.6;color:#e2e8f0;">
       Your appointment with <strong>${escapeHtml(doctorName)}</strong> is confirmed for
       <strong>${escapeHtml(whenLabel)}</strong> (Cyprus time). You can add it to your calendar below.
     </p>
+    ${
+      isAfterReschedule
+        ? `<div style="margin:0 0 14px;padding:12px 13px;border:2px solid #f59e0b;background:rgba(245,158,11,.16);border-radius:12px;">
+            <p style="margin:0 0 6px;font-size:12px;line-height:1.35;color:#fbbf24;font-weight:800;letter-spacing:.04em;text-transform:uppercase;">
+              ⚠️ Important: this visit was rescheduled
+            </p>
+            <p style="margin:0;font-size:13px;line-height:1.5;color:#fde68a;">
+              If you already added the previous confirmed visit to your calendar, please delete that old calendar entry now to avoid duplicates.
+              <br />
+              <span style="color:#fcd34d;">DocCy cannot remove old events from your personal calendar.</span>
+            </p>
+          </div>`
+        : ""
+    }
 
     <p style="${PRIMARY_ACTIONS_LABEL}">Calendar</p>
     <a href="${patientGoogleUrl}" style="${CAL_GOOGLE_STYLE}">Add to Google Calendar</a>
@@ -126,16 +175,11 @@ export async function sendPatientAppointmentConfirmedEmail(opts: {
   </div>
 </div>`;
 
-  const recipient = resendToOverride || patientEmailTo;
-  if (!recipient) {
-    console.warn("[DocCy] Patient confirmation email skipped: no recipient.");
-    return;
-  }
-
-  await sendResendEmail({
-    to: recipient,
-    subject: `Confirmed — ${doctorName} · ${whenLabel}`,
+  return {
+    subject: isAfterReschedule
+      ? `Rescheduled confirmed — remove previous calendar event · ${doctorName} · ${whenLabel}`
+      : `Confirmed — ${doctorName} · ${whenLabel}`,
     text,
     html,
-  });
+  };
 }
