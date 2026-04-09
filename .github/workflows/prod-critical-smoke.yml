@@ -51,6 +51,7 @@ jobs:
           CI: "true"
         run: |
           npx playwright test \
+            tests/integration/agenda_visit_reason.integration.spec.ts \
             tests/integration/reschedule_email_content.integration.spec.ts \
             --project="Desktop Large (Chromium)" \
             --workers=1 \
