@@ -1100,6 +1100,9 @@ export function AgendaRealtime({
                         isPendingRequest={row.isPendingRequest}
                         isRequested={row.isRequested}
                         isCounterOfferHold={row.isCounterOfferHold}
+                        isCompactCounterOffer={
+                          row.isCounterOfferHold && row.rowDurationMinutes <= 30
+                        }
                       />
                     </button>
                   ))}
