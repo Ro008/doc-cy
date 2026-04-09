@@ -167,12 +167,14 @@ function AgendaAppointmentCardInner({
   isPendingRequest,
   isRequested,
   isCounterOfferHold,
+  isCompactCounterOffer,
 }: {
   timeLabel: string;
   patientName: string;
   isPendingRequest: boolean;
   isRequested: boolean;
   isCounterOfferHold: boolean;
+  isCompactCounterOffer: boolean;
 }) {
   const t = useTranslations("DoctorAgenda");
   const nameColor = isPendingRequest ? "text-amber-100" : "text-emerald-100";
@@ -185,26 +187,58 @@ function AgendaAppointmentCardInner({
   const cardTitle = `${patientDisplay} · ${timeLabel}`;
 
   if (isCounterOfferHold) {
-    // Keep a single compact row so patient name remains visible on 30m proposal slots.
+    // Adapt layout by chip height:
+    // - 30m slots: one compact row
+    // - taller slots: two rows to maximize patient-name visibility
+    if (isCompactCounterOffer) {
+      return (
+        <div
+          className="relative min-h-0 min-w-0 text-left"
+          title={cardTitle}
+        >
+          <p
+            className={`flex min-h-0 min-w-0 items-center gap-0.5 truncate text-left text-[11px] font-semibold leading-tight ${nameColor}`}
+          >
+            <span className="shrink-0 tabular-nums text-[10px] font-semibold leading-none text-slate-300/95">
+              {timeLabel}
+            </span>
+            <span className="shrink-0 opacity-50">·</span>
+            <span className="min-w-0 flex-1 truncate" title={patientDisplay}>
+              {patientDisplay}
+            </span>
+            {topRightBadge ? (
+              <span
+                className="ml-1 shrink-0 max-w-[3.35rem] truncate rounded bg-slate-950/55 px-1 py-0 text-[8px] font-medium leading-none text-amber-100/90 ring-1 ring-amber-400/20"
+                title={topRightBadge}
+              >
+                {topRightBadge}
+              </span>
+            ) : null}
+          </p>
+        </div>
+      );
+    }
+
     return (
       <div
         className="relative min-h-0 min-w-0 text-left"
         title={cardTitle}
       >
+        <div className={`flex min-w-0 items-center ${topRightBadge ? "pr-[2.55rem]" : ""}`}>
+          <span className="shrink-0 tabular-nums text-[10px] font-semibold leading-none text-slate-300/95">
+            {timeLabel}
+          </span>
+        </div>
         {topRightBadge ? (
           <span
-            className="pointer-events-none absolute right-0 top-0 z-10 max-w-[46%] truncate rounded bg-slate-950/50 px-0.5 py-0 text-[8px] font-medium leading-none text-amber-100/90 ring-1 ring-amber-400/20 backdrop-blur-sm"
+            className="pointer-events-none absolute right-0 top-0 z-10 max-w-[46%] truncate rounded bg-slate-950/55 px-0.5 py-0 text-[8px] font-medium leading-none text-amber-100/90 ring-1 ring-amber-400/20 backdrop-blur-sm"
             title={topRightBadge}
           >
             {topRightBadge}
           </span>
         ) : null}
-        <p
-          className={`flex min-h-0 min-w-0 items-center gap-0.5 truncate text-left text-[11px] font-semibold leading-tight ${nameColor} ${topRightBadge ? "pr-[2.35rem]" : ""}`}
-        >
-          <span className="shrink-0 tabular-nums text-slate-300/95">{timeLabel}</span>
-          <span className="shrink-0 opacity-50">·</span>
-          <span className="min-w-0 truncate" title={patientDisplay}>
+        <p className="mt-0.5 min-w-0 truncate text-left text-[11px] font-semibold leading-tight">
+          <span className={`min-w-0 truncate ${nameColor}`} title={patientDisplay}>
             {patientDisplay}
           </span>
         </p>
@@ -412,7 +446,6 @@ export function AgendaRealtime({
     // Realtime can be flaky on some mobile networks/background states.
     // Keep sessions eventually consistent with a light polling fallback.
     const id = window.setInterval(() => {
-      if (document.visibilityState !== "visible") return;
       void refreshAppointmentsFromServer();
     }, 10000);
     return () => window.clearInterval(id);
@@ -1212,6 +1245,7 @@ export function AgendaRealtime({
                           isPendingRequest={row.isPendingRequest}
                           isRequested={row.isRequested}
                           isCounterOfferHold={row.isCounterOfferHold}
+                          isCompactCounterOffer={row.isCounterOfferHold && row.rowDurationMinutes <= 30}
                         />
                       </button>
                     ))}
