@@ -100,6 +100,9 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.INTEGRATION_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.INTEGRATION_SUPABASE_ANON_KEY }}
 
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
       - name: Run critical reschedule email guards
         env:
           CI: "true"
@@ -112,9 +115,6 @@ jobs:
             --project="Desktop Large (Chromium)" \
             --workers=1 \
             --reporter=line
-
-      - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium
 
       - name: Run critical Playwright suite
         env:
