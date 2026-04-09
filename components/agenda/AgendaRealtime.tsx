@@ -481,7 +481,11 @@ export function AgendaRealtime({
     return Math.max(22, h);
   }
 
-  const todayCount = rows.filter((r) => r.dateKey === todayKey).length;
+  const todayCount = rows.filter(
+    (r) =>
+      r.dateKey === todayKey &&
+      String(r.status ?? "").toUpperCase() === "CONFIRMED",
+  ).length;
   const mobileShowsToday = selectedMobileKey === todayKey;
 
   function toMinutesFromMidnight(
