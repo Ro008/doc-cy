@@ -135,6 +135,16 @@ function agendaRowFromSupabasePayload(
   };
 }
 
+function sortAgendaRowsByDatetime(rows: AgendaAppointmentRow[]): AgendaAppointmentRow[] {
+  const copy = [...rows];
+  copy.sort(
+    (a, b) =>
+      new Date(a.appointment_datetime).getTime() -
+      new Date(b.appointment_datetime).getTime(),
+  );
+  return copy;
+}
+
 const START_HOUR = 8;
 const END_HOUR = 20;
 const HOUR_ROW_HEIGHT = 56;
@@ -280,6 +290,23 @@ export function AgendaRealtime({
     setAppointments(initialAppointments);
   }, [initialAppointments]);
 
+  const refreshAppointmentsFromServer = React.useCallback(async () => {
+    if (!doctorId) return;
+    const { data, error } = await supabase
+      .from("appointments")
+      .select(
+        "id, doctor_id, patient_name, patient_phone, reason, appointment_datetime, status, duration_minutes, proposed_slots, proposal_expires_at",
+      )
+      .eq("doctor_id", doctorId)
+      .order("appointment_datetime", { ascending: true });
+
+    if (error || !data) return;
+    const mapped = (data as Record<string, unknown>[])
+      .map(agendaRowFromSupabasePayload)
+      .filter((x): x is AgendaAppointmentRow => x !== null);
+    setAppointments(sortAgendaRowsByDatetime(mapped));
+  }, [doctorId, supabase]);
+
   /** Re-expand grid when counter-offer deadlines pass (no full reload needed). */
   const [, bumpAgendaClock] = React.useState(0);
   React.useEffect(() => {
@@ -308,13 +335,7 @@ export function AgendaRealtime({
 
           setAppointments((prev) => {
             if (prev.some((p) => p.id === next.id)) return prev;
-            const merged = [next, ...prev];
-            merged.sort(
-              (a, b) =>
-                new Date(a.appointment_datetime).getTime() -
-                new Date(b.appointment_datetime).getTime(),
-            );
-            return merged;
+            return sortAgendaRowsByDatetime([next, ...prev]);
           });
 
           setToast(true);
@@ -338,24 +359,31 @@ export function AgendaRealtime({
           setAppointments((prev) => {
             const idx = prev.findIndex((p) => p.id === next.id);
             if (idx === -1) {
-              const merged = [next, ...prev];
-              merged.sort(
-                (a, b) =>
-                  new Date(a.appointment_datetime).getTime() -
-                  new Date(b.appointment_datetime).getTime(),
-              );
-              return merged;
+              return sortAgendaRowsByDatetime([next, ...prev]);
             }
             const copy = [...prev];
             copy[idx] = next;
-            copy.sort(
-              (a, b) =>
-                new Date(a.appointment_datetime).getTime() -
-                new Date(b.appointment_datetime).getTime(),
-            );
-            return copy;
+            return sortAgendaRowsByDatetime(copy);
           });
 
+          setToast(true);
+          window.setTimeout(() => setToast(false), 3000);
+        },
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "DELETE",
+          schema: "public",
+          table: "appointments",
+          filter: `doctor_id=eq.${doctorId}`,
+        },
+        (payload) => {
+          const oldRaw = payload.old as { id?: unknown } | null;
+          const deletedId = typeof oldRaw?.id === "string" ? oldRaw.id : null;
+          if (!deletedId) return;
+          setAppointments((prev) => prev.filter((a) => a.id !== deletedId));
+          setSelected((prev) => (prev?.id === deletedId ? null : prev));
           setToast(true);
           window.setTimeout(() => setToast(false), 3000);
         },
@@ -366,6 +394,19 @@ export function AgendaRealtime({
       supabase.removeChannel(channel);
     };
   }, [doctorId, supabase]);
+
+  React.useEffect(() => {
+    if (!doctorId) return;
+    const onVisibilityOrFocus = () => {
+      void refreshAppointmentsFromServer();
+    };
+    window.addEventListener("visibilitychange", onVisibilityOrFocus);
+    window.addEventListener("focus", onVisibilityOrFocus);
+    return () => {
+      window.removeEventListener("visibilitychange", onVisibilityOrFocus);
+      window.removeEventListener("focus", onVisibilityOrFocus);
+    };
+  }, [doctorId, refreshAppointmentsFromServer]);
 
   const nowUtc = new Date();
   const nowCyprus = utcToZonedTime(nowUtc, CY_TZ);
