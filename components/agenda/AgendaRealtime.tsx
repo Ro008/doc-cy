@@ -481,7 +481,11 @@ export function AgendaRealtime({
     return Math.max(22, h);
   }
 
-  const todayCount = rows.filter((r) => r.dateKey === todayKey).length;
+  const todayCount = rows.filter(
+    (r) =>
+      r.dateKey === todayKey &&
+      String(r.status ?? "").toUpperCase() === "CONFIRMED",
+  ).length;
   const mobileShowsToday = selectedMobileKey === todayKey;
 
   function toMinutesFromMidnight(
@@ -1211,7 +1215,7 @@ export function AgendaRealtime({
 
       {selected && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-3 sm:items-center sm:p-4"
           aria-modal="true"
           role="dialog"
         >
@@ -1233,7 +1237,7 @@ export function AgendaRealtime({
             aria-label="Close"
             disabled={isCancelling}
           />
-          <div className="relative z-10 w-full max-w-sm rounded-3xl border border-emerald-100/10 bg-slate-900/95 p-6 shadow-2xl backdrop-blur-xl">
+          <div className="relative z-10 w-full max-w-sm max-h-[calc(100dvh-1.5rem)] overflow-y-auto rounded-3xl border border-emerald-100/10 bg-slate-900/95 p-6 shadow-2xl backdrop-blur-xl sm:max-h-[calc(100dvh-2rem)]">
             <button
               type="button"
               onClick={() => {
@@ -1441,16 +1445,20 @@ export function AgendaRealtime({
                         </li>
                       ))}
                     </ul>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        void sendRescheduleProposal();
-                      }}
-                      className="mt-1 inline-flex w-full items-center justify-center rounded-2xl border border-sky-500/40 bg-sky-500/10 px-3 py-2 text-xs font-semibold text-sky-200 transition hover:border-sky-400/60 hover:bg-sky-500/20 disabled:cursor-not-allowed disabled:opacity-70"
-                      disabled={sendingProposal || rescheduleReason.trim().length < 10}
-                    >
-                      {sendingProposal ? "Sending..." : "Send proposal to patient"}
-                    </button>
+                    <div className="sticky bottom-0 -mx-3 mt-3 border-t border-slate-700/90 bg-slate-900/95 px-3 pb-2 pt-2 backdrop-blur">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          void sendRescheduleProposal();
+                        }}
+                        className="inline-flex w-full items-center justify-center rounded-2xl border border-sky-500/40 bg-sky-500/10 px-3 py-2 text-xs font-semibold text-sky-200 transition hover:border-sky-400/60 hover:bg-sky-500/20 disabled:cursor-not-allowed disabled:opacity-70"
+                        disabled={
+                          sendingProposal || rescheduleReason.trim().length < 10
+                        }
+                      >
+                        {sendingProposal ? "Sending..." : "Send proposal to patient"}
+                      </button>
+                    </div>
                   </div>
                 ) : null}
                 {rescheduleError ? (
@@ -1504,35 +1512,35 @@ export function AgendaRealtime({
                     </p>
                   </>
                 )}
-                <div className="mt-3 flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setConfirmingCancel(false);
-                      setCancelMode(null);
-                      setRejectReason("");
-                      setCancelError(null);
-                    }}
-                    className="inline-flex flex-1 items-center justify-center rounded-2xl border border-slate-700 bg-slate-800 px-3 py-2 text-xs font-medium text-slate-200 transition hover:bg-slate-700"
-                  >
-                    {cancelMode === "requested" ? "Go back" : "Keep appointment"}
-                  </button>
-                  <button
-                    type="button"
-                    disabled={
-                      isCancelling || rejectReason.trim().length < 10
-                    }
-                    onClick={handleCancelAppointment}
-                    className="inline-flex flex-1 items-center justify-center rounded-2xl border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-200 transition hover:border-red-400/60 hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-70"
-                  >
-                    {isCancelling
-                      ? cancelMode === "requested"
-                        ? "Declining…"
-                        : "Cancelling…"
-                      : cancelMode === "requested"
-                        ? "Decline & notify"
-                        : "Cancel & notify"}
-                  </button>
+                <div className="sticky bottom-0 -mx-3 mt-3 border-t border-slate-700/90 bg-slate-900/95 px-3 pb-2 pt-2 backdrop-blur">
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setConfirmingCancel(false);
+                        setCancelMode(null);
+                        setRejectReason("");
+                        setCancelError(null);
+                      }}
+                      className="inline-flex flex-1 items-center justify-center rounded-2xl border border-slate-700 bg-slate-800 px-3 py-2 text-xs font-medium text-slate-200 transition hover:bg-slate-700"
+                    >
+                      {cancelMode === "requested" ? "Go back" : "Keep appointment"}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={isCancelling || rejectReason.trim().length < 10}
+                      onClick={handleCancelAppointment}
+                      className="inline-flex flex-1 items-center justify-center rounded-2xl border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-200 transition hover:border-red-400/60 hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-70"
+                    >
+                      {isCancelling
+                        ? cancelMode === "requested"
+                          ? "Declining…"
+                          : "Cancelling…"
+                        : cancelMode === "requested"
+                          ? "Decline & notify"
+                          : "Cancel & notify"}
+                    </button>
+                  </div>
                 </div>
                 {cancelError ? (
                   <p className="mt-2 text-xs text-red-300">{cancelError}</p>
