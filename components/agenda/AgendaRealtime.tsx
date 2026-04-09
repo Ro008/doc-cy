@@ -376,14 +376,11 @@ export function AgendaRealtime({
           event: "DELETE",
           schema: "public",
           table: "appointments",
-          filter: `doctor_id=eq.${doctorId}`,
         },
-        (payload) => {
-          const oldRaw = payload.old as { id?: unknown } | null;
-          const deletedId = typeof oldRaw?.id === "string" ? oldRaw.id : null;
-          if (!deletedId) return;
-          setAppointments((prev) => prev.filter((a) => a.id !== deletedId));
-          setSelected((prev) => (prev?.id === deletedId ? null : prev));
+        () => {
+          // DELETE payloads may not include doctor_id depending on replica identity,
+          // so do a targeted resync to avoid stale rows across simultaneous sessions.
+          void refreshAppointmentsFromServer();
           setToast(true);
           window.setTimeout(() => setToast(false), 3000);
         },
@@ -393,7 +390,7 @@ export function AgendaRealtime({
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [doctorId, supabase]);
+  }, [doctorId, refreshAppointmentsFromServer, supabase]);
 
   React.useEffect(() => {
     if (!doctorId) return;
@@ -1445,20 +1442,18 @@ export function AgendaRealtime({
                         </li>
                       ))}
                     </ul>
-                    <div className="sticky bottom-0 -mx-3 mt-3 border-t border-slate-700/90 bg-slate-900/95 px-3 pb-2 pt-2 backdrop-blur">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          void sendRescheduleProposal();
-                        }}
-                        className="inline-flex w-full items-center justify-center rounded-2xl border border-sky-500/40 bg-sky-500/10 px-3 py-2 text-xs font-semibold text-sky-200 transition hover:border-sky-400/60 hover:bg-sky-500/20 disabled:cursor-not-allowed disabled:opacity-70"
-                        disabled={
-                          sendingProposal || rescheduleReason.trim().length < 10
-                        }
-                      >
-                        {sendingProposal ? "Sending..." : "Send proposal to patient"}
-                      </button>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        void sendRescheduleProposal();
+                      }}
+                      className="mt-1 inline-flex w-full items-center justify-center rounded-2xl border border-sky-500/40 bg-sky-500/10 px-3 py-2 text-xs font-semibold text-sky-200 transition hover:border-sky-400/60 hover:bg-sky-500/20 disabled:cursor-not-allowed disabled:opacity-70"
+                      disabled={
+                        sendingProposal || rescheduleReason.trim().length < 10
+                      }
+                    >
+                      {sendingProposal ? "Sending..." : "Send proposal to patient"}
+                    </button>
                   </div>
                 ) : null}
                 {rescheduleError ? (
