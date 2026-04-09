@@ -28,6 +28,7 @@ import {
   appointmentToCyprusDate,
   CY_TZ,
 } from "@/lib/appointments";
+import { patientVisitReasonFromAppointmentRow } from "@/lib/agenda-visit-reason";
 import { WhatsAppLogoIcon } from "@/components/icons/WhatsAppLogoIcon";
 import type { WeeklySchedule } from "@/lib/doctor-settings";
 
@@ -36,6 +37,7 @@ type AgendaAppointmentRow = {
   doctor_id: string;
   patient_name: string;
   patient_phone: string;
+  reason?: string | null;
   appointment_datetime: string;
   status?: string | null;
   duration_minutes?: number | null;
@@ -120,6 +122,7 @@ function agendaRowFromSupabasePayload(
     doctor_id: String(raw.doctor_id ?? ""),
     patient_name: String(raw.patient_name ?? ""),
     patient_phone: String(raw.patient_phone ?? ""),
+    reason: patientVisitReasonFromAppointmentRow(raw),
     appointment_datetime: String(raw.appointment_datetime ?? ""),
     status: raw.status == null || raw.status === "" ? null : String(raw.status),
     duration_minutes:
@@ -1216,6 +1219,18 @@ export function AgendaRealtime({
             <p className="mt-1 text-sm text-slate-400">
               {selected.dateLabel} · {selected.timeLabel}
             </p>
+            <div className="mt-3 rounded-xl border border-slate-700/70 bg-slate-900/60 px-3 py-2">
+              <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
+                Reason for visit
+              </p>
+              <p
+                className={`mt-1 whitespace-pre-wrap text-sm leading-relaxed ${
+                  selected.reason ? "text-slate-200" : "text-amber-300"
+                }`}
+              >
+                {selected.reason || "Missing reason (data issue)."}
+              </p>
+            </div>
             {selected.isCounterOfferHold &&
             String(selected.status ?? "").toUpperCase() ===
               "NEEDS_RESCHEDULE" ? (
