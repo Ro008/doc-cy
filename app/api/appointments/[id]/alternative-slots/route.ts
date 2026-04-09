@@ -66,9 +66,9 @@ export async function GET(req: NextRequest, { params }: RouteContext) {
   }
 
   const st = String(appt.status ?? "").toUpperCase();
-  if (st !== "REQUESTED") {
+  if (st !== "REQUESTED" && st !== "CONFIRMED") {
     return NextResponse.json(
-      { message: "Alternatives are only available for pending requests." },
+      { message: "Alternatives are only available for pending or confirmed visits." },
       { status: 400 }
     );
   }
@@ -102,7 +102,7 @@ export async function GET(req: NextRequest, { params }: RouteContext) {
     loaded.fallbackSlotDurationMinutes
   );
 
-  if (!hasConflict) {
+  if (st === "REQUESTED" && !hasConflict) {
     return NextResponse.json(
       { message: "No conflict for this duration; confirm the request instead." },
       { status: 400 }

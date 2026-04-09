@@ -196,6 +196,7 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
         clinic_address: (doctor as { clinic_address?: string | null } | null)
           ?.clinic_address,
       },
+      isAfterReschedule: true,
       resendToOverride,
     });
   } catch (e) {

@@ -8,7 +8,7 @@ type SlotItem = { iso: string; label: string };
 type Props = {
   appointmentId: string;
   token: string;
-  professionalFirstName: string;
+  professionalName: string;
   patientFirstName: string;
   /** UTC deadline — client hides picker if the clock passes while the tab stays open. */
   expiresAtIso: string;
@@ -19,7 +19,7 @@ type Props = {
 export function ReschedulePickClient({
   appointmentId,
   token,
-  professionalFirstName,
+  professionalName,
   patientFirstName,
   expiresAtIso,
   expiryLabel,
@@ -88,7 +88,7 @@ export function ReschedulePickClient({
           You&apos;re all set, {patientFirstName}
         </h2>
         <p className="mt-2 text-sm text-slate-300">
-          Your visit with {professionalFirstName} is confirmed
+          Your visit with {professionalName} is confirmed
           {picked ? (
             <>
               {" "}
@@ -112,7 +112,7 @@ export function ReschedulePickClient({
           Pick a time
         </h1>
         <p className="mt-3 text-pretty text-sm leading-relaxed text-slate-400">
-          <span className="font-medium text-slate-200">{professionalFirstName}</span>{" "}
+          <span className="font-medium text-slate-200">{professionalName}</span>{" "}
           has reserved these times for you, {patientFirstName}. Choose one before{" "}
           <span className="font-medium text-amber-200/95">{expiryLabel}</span> (Cyprus
           time) to confirm your visit.
