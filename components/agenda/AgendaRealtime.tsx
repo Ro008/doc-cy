@@ -394,6 +394,8 @@ export function AgendaRealtime({
 
   React.useEffect(() => {
     if (!doctorId) return;
+    // Initial sync when component mounts/doctor changes.
+    void refreshAppointmentsFromServer();
     const onVisibilityOrFocus = () => {
       void refreshAppointmentsFromServer();
     };
@@ -403,6 +405,17 @@ export function AgendaRealtime({
       window.removeEventListener("visibilitychange", onVisibilityOrFocus);
       window.removeEventListener("focus", onVisibilityOrFocus);
     };
+  }, [doctorId, refreshAppointmentsFromServer]);
+
+  React.useEffect(() => {
+    if (!doctorId) return;
+    // Realtime can be flaky on some mobile networks/background states.
+    // Keep sessions eventually consistent with a light polling fallback.
+    const id = window.setInterval(() => {
+      if (document.visibilityState !== "visible") return;
+      void refreshAppointmentsFromServer();
+    }, 10000);
+    return () => window.clearInterval(id);
   }, [doctorId, refreshAppointmentsFromServer]);
 
   const nowUtc = new Date();
