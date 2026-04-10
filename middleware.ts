@@ -1,6 +1,6 @@
 // middleware.ts
 import {NextResponse} from "next/server";
-import type {NextRequest} from "next/server";
+import type {NextFetchEvent, NextRequest} from "next/server";
 import {createMiddlewareClient} from "@supabase/auth-helpers-nextjs";
 
 import createMiddleware from "next-intl/middleware";
@@ -47,7 +47,53 @@ function isPublicPatientRoute(pathname: string): boolean {
   return false;
 }
 
-export async function middleware(req: NextRequest) {
+const TRAFFIC_SESSION_COOKIE = "doccy-traffic-session";
+
+function shouldTrackTraffic(pathname: string): boolean {
+  if (pathname.startsWith("/internal")) return false;
+  if (pathname.startsWith("/agenda")) return false;
+  if (pathname.startsWith("/dashboard")) return false;
+  return true;
+}
+
+function buildTrafficOrigin(req: NextRequest): {origin: "direct" | "ref"; refCode: string | null} {
+  const ref = req.nextUrl.searchParams.get("ref")?.trim();
+  if (ref) return {origin: "ref", refCode: ref.slice(0, 80)};
+  return {origin: "direct", refCode: null};
+}
+
+function queueTrafficLog(req: NextRequest, sessionId: string, event: NextFetchEvent) {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
+  if (!url || !serviceRoleKey) return;
+
+  const {origin, refCode} = buildTrafficOrigin(req);
+  const payload = {
+    session_id: sessionId,
+    page_path: req.nextUrl.pathname,
+    traffic_origin: origin,
+    ref_code: refCode,
+    city: req.headers.get("x-vercel-ip-city"),
+    country: req.headers.get("x-vercel-ip-country"),
+    created_at: new Date().toISOString(),
+  };
+
+  const endpoint = `${url.replace(/\/+$/, "")}/rest/v1/website_visits`;
+  event.waitUntil(
+    fetch(endpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        apikey: serviceRoleKey,
+        Authorization: `Bearer ${serviceRoleKey}`,
+        Prefer: "return=minimal",
+      },
+      body: JSON.stringify(payload),
+    }).catch(() => undefined)
+  );
+}
+
+export async function middleware(req: NextRequest, event: NextFetchEvent) {
   const pathname = req.nextUrl.pathname;
 
   // Step 1: Apply next-intl routing only for public patient-facing booking pages.
@@ -90,6 +136,23 @@ export async function middleware(req: NextRequest) {
       gate.searchParams.set("next", "/internal/directory");
       return NextResponse.redirect(gate);
     }
+  }
+
+  if (req.method === "GET" && shouldTrackTraffic(pathname)) {
+    const existing = req.cookies.get(TRAFFIC_SESSION_COOKIE)?.value?.trim();
+    const sessionId = existing || crypto.randomUUID();
+    if (!existing) {
+      res.cookies.set({
+        name: TRAFFIC_SESSION_COOKIE,
+        value: sessionId,
+        httpOnly: true,
+        sameSite: "lax",
+        secure: true,
+        path: "/",
+        maxAge: 60 * 60 * 24 * 30,
+      });
+    }
+    queueTrafficLog(req, sessionId, event);
   }
 
   return res;

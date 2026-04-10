@@ -24,6 +24,13 @@ import { cyprusMonthStartUtcIso } from "@/lib/cyprus-calendar";
 import { fetchResendAccountQuota } from "@/lib/resend-quota";
 import { TrialConversionTable } from "@/components/internal/TrialConversionTable";
 import { getTrialPeriodDays } from "@/lib/trial-period";
+import { WebsiteAnalyticsPanel } from "@/components/internal/WebsiteAnalyticsPanel";
+import {
+  buildHighInterestSessions,
+  buildLocalityRanking,
+  buildPopularSections,
+  type WebsiteVisitRow,
+} from "@/lib/website-analytics";
 
 /** Always run on the server per request — no static cache of dashboard numbers */
 export const dynamic = "force-dynamic";
@@ -63,6 +70,7 @@ export default async function FounderDashboardPage() {
     recentApptsRes,
     apptsForChartRes,
     resendQuotaRes,
+    websiteVisitsRes,
   ] = await Promise.all([
     supabase
       .from("doctors")
@@ -86,6 +94,10 @@ export default async function FounderDashboardPage() {
       .select("created_at")
       .gte("created_at", chartRangeStart.toISOString()),
     fetchResendAccountQuota(),
+    supabase
+      .from("website_visits")
+      .select("session_id, page_path, city, country, traffic_origin, ref_code, created_at")
+      .gte("created_at", sevenDaysAgoIso),
   ]);
 
   const resendLiveQuota = resendQuotaRes.ok ? resendQuotaRes.quota : null;
@@ -217,6 +229,14 @@ export default async function FounderDashboardPage() {
     };
   });
   const trialPeriodDays = getTrialPeriodDays();
+  const websiteVisitRows =
+    !websiteVisitsRes.error && websiteVisitsRes.data
+      ? (websiteVisitsRes.data as WebsiteVisitRow[])
+      : [];
+  const totalVisitsLast7d = websiteVisitRows.length;
+  const topLocalities = buildLocalityRanking(websiteVisitRows);
+  const popularSections = buildPopularSections(websiteVisitRows);
+  const highInterestSessions = buildHighInterestSessions(websiteVisitRows);
 
   return (
     <main className="min-h-screen bg-slate-950 text-slate-50">
@@ -259,6 +279,12 @@ export default async function FounderDashboardPage() {
           from registration date.
         </div>
         <TrialConversionTable doctors={rows} />
+        <WebsiteAnalyticsPanel
+          totalVisitsLast7d={totalVisitsLast7d}
+          topLocalities={topLocalities}
+          popularSections={popularSections}
+          highInterestSessions={highInterestSessions}
+        />
 
         <div className="grid gap-6 xl:grid-cols-12">
           {/* Mobile: activity under KPIs; desktop: right rail */}
