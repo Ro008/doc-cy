@@ -11,6 +11,7 @@ import {
   parseSpecialtyFromMasterField,
   validateSpecialtySubmission,
 } from "@/lib/specialty-submission";
+import { notifyFounderNewRegistration } from "@/lib/notify-founder-new-registration";
 
 type PageProps = {
   searchParams?: { submitted?: string; error?: string; debug?: string };
@@ -337,6 +338,19 @@ async function handleRegister(formData: FormData) {
     doctorId = fallbackInsert.data.id as string;
   }
 
+  const queueFounderSignupNotify = () => {
+    void notifyFounderNewRegistration({
+      doctorId,
+      fullName,
+      email,
+      phone,
+      specialty,
+      needsSpecialtyReview: !isSpecialtyApproved,
+    }).catch((err) =>
+      console.error("[DocCy] Founder registration notify failed", err)
+    );
+  };
+
   const { error: avatarSaveError } = await service
     .from("doctors")
     .update({ avatar_url: avatarFileUrl })
@@ -351,6 +365,7 @@ async function handleRegister(formData: FormData) {
       console.warn(
         "[DocCy] avatar_url column missing on doctors. Apply SQL migration to persist avatar path."
       );
+      queueFounderSignupNotify();
       redirect("/register?submitted=1");
     }
     console.error("[DocCy] Failed to save avatar_url on doctor", avatarSaveError);
@@ -365,6 +380,7 @@ async function handleRegister(formData: FormData) {
     redirectWithError("avatar_save", avatarSaveError);
   }
 
+  queueFounderSignupNotify();
   redirect("/register?submitted=1");
 }
 
