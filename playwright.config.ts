@@ -27,6 +27,21 @@ const shouldRunWebServer = isLocalDevBaseUrl(baseUrl);
 const webServerCommand =
   process.env.PLAYWRIGHT_WEB_SERVER_COMMAND?.trim() || "npm run dev";
 
+function requireEnvForLocalWebServer(name: string): void {
+  const value = process.env[name]?.trim();
+  if (!value) {
+    throw new Error(
+      `[Playwright config] Missing required env var "${name}" while using local webServer (${baseUrl}). ` +
+        "Set it in workflow/job env before running tests."
+    );
+  }
+}
+
+if (process.env.CI && shouldRunWebServer) {
+  requireEnvForLocalWebServer("NEXT_PUBLIC_SUPABASE_URL");
+  requireEnvForLocalWebServer("NEXT_PUBLIC_SUPABASE_ANON_KEY");
+}
+
 export default defineConfig({
   testDir: "./tests",
   fullyParallel: false,
