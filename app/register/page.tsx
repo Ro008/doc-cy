@@ -586,8 +586,9 @@ export default function RegisterPage({ searchParams }: PageProps) {
 
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <p className="text-[11px] text-slate-400">
-                  We use your license details only to verify that you are a
-                  registered healthcare professional in Cyprus.
+                  We use your license or certification details only to verify
+                  that you are a registered health or wellness professional in
+                  Cyprus.
                 </p>
                 <button
                   type="submit"

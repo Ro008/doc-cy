@@ -36,14 +36,32 @@ WHERE lower(trim(specialty)) IN (
   'obstetrics', 'obstetrician'
 );
 
-UPDATE public.doctors SET specialty = 'Physiotherapy'
+UPDATE public.doctors SET specialty = 'Physiotherapy & Rehabilitation'
 WHERE lower(trim(specialty)) IN (
-  'physiotherapy', 'physio', 'physical therapy', 'physiotherapist'
+  'physiotherapy', 'physio', 'physical therapy', 'physiotherapist', 'rehabilitation',
+  'physical rehabilitation', 'rehab'
 );
 
 UPDATE public.doctors SET specialty = 'Psychology'
 WHERE lower(trim(specialty)) IN (
   'psychology', 'psychologist', 'clinical psychology'
+);
+
+UPDATE public.doctors SET specialty = 'Medical Aesthetics & Laser'
+WHERE lower(trim(specialty)) IN (
+  'medical aesthetics', 'aesthetics', 'aesthetic medicine', 'laser', 'laser therapy',
+  'medical aesthetics & laser', 'aesthetic medicine & laser'
+);
+
+UPDATE public.doctors SET specialty = 'Nutrition & Dietetics'
+WHERE lower(trim(specialty)) IN (
+  'nutrition', 'nutritionist', 'dietetics', 'dietitian', 'dietician',
+  'nutrition & dietetics'
+);
+
+UPDATE public.doctors SET specialty = 'Wellness'
+WHERE lower(trim(specialty)) IN (
+  'wellness', 'wellbeing', 'well-being'
 );
 
 UPDATE public.doctors SET specialty = 'Psychiatry'
@@ -121,8 +139,11 @@ WHERE trim(coalesce(specialty, '')) <> ''
     'Pediatrics',
     'Dermatology',
     'Gynecology',
-    'Physiotherapy',
+    'Medical Aesthetics & Laser',
+    'Physiotherapy & Rehabilitation',
     'Psychology',
+    'Nutrition & Dietetics',
+    'Wellness',
     'Cardiology',
     'Orthopedics',
     'Ophthalmology',
@@ -146,8 +167,11 @@ WHERE specialty IN (
     'Pediatrics',
     'Dermatology',
     'Gynecology',
-    'Physiotherapy',
+    'Medical Aesthetics & Laser',
+    'Physiotherapy & Rehabilitation',
     'Psychology',
+    'Nutrition & Dietetics',
+    'Wellness',
     'Cardiology',
     'Orthopedics',
     'Ophthalmology',
