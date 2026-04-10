@@ -22,6 +22,8 @@ import {
 import { buildLastSixMonthsAppointmentCounts } from "@/lib/founder-appointments-by-month";
 import { cyprusMonthStartUtcIso } from "@/lib/cyprus-calendar";
 import { fetchResendAccountQuota } from "@/lib/resend-quota";
+import { TrialConversionTable } from "@/components/internal/TrialConversionTable";
+import { getTrialPeriodDays } from "@/lib/trial-period";
 
 /** Always run on the server per request — no static cache of dashboard numbers */
 export const dynamic = "force-dynamic";
@@ -65,7 +67,7 @@ export default async function FounderDashboardPage() {
     supabase
       .from("doctors")
       .select(
-        "id, name, slug, specialty, languages, status, created_at, license_number, license_file_url, is_specialty_approved"
+        "id, name, email, phone, slug, specialty, languages, status, created_at, license_number, license_file_url, is_specialty_approved"
       )
       .order("created_at", { ascending: false }),
     supabase.from("appointments").select("id", { count: "exact", head: true }),
@@ -129,6 +131,8 @@ export default async function FounderDashboardPage() {
   const rows = rawDoctors.map((d) => ({
     id: d.id as string,
     name: d.name as string,
+    email: (d as { email?: string | null }).email ?? null,
+    phone: (d as { phone?: string | null }).phone ?? null,
     slug: (d.slug as string | null) ?? null,
     specialty: (d.specialty as string | null) ?? null,
     languages: Array.isArray(d.languages)
@@ -212,6 +216,7 @@ export default async function FounderDashboardPage() {
       doctor_name: nameById[a.doctor_id as string] ?? null,
     };
   });
+  const trialPeriodDays = getTrialPeriodDays();
 
   return (
     <main className="min-h-screen bg-slate-950 text-slate-50">
@@ -249,6 +254,11 @@ export default async function FounderDashboardPage() {
         />
 
         <PendingSpecialtiesPanel items={pendingSpecialtyItems} />
+        <div className="rounded-2xl border border-slate-800/80 bg-slate-900/20 p-3 text-xs text-slate-400">
+          Trial policy: <span className="font-medium text-slate-200">{trialPeriodDays} days</span>{" "}
+          from registration date.
+        </div>
+        <TrialConversionTable doctors={rows} />
 
         <div className="grid gap-6 xl:grid-cols-12">
           {/* Mobile: activity under KPIs; desktop: right rail */}
