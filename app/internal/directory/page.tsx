@@ -176,7 +176,13 @@ export default async function FounderDashboardPage() {
           email: (r as { email?: string | null }).email ?? null,
         }));
 
-  const totalDoctors = rows.length;
+  const verifiedRows = rows.filter(
+    (r) => (r.status ?? "").trim().toLowerCase() === "verified"
+  );
+  const totalDoctors = verifiedRows.length;
+  const pendingDoctorsCount = rows.filter(
+    (r) => (r.status ?? "").trim().toLowerCase() === "pending"
+  ).length;
   const totalAppointments = apptCountRes.error ? 0 : apptCountRes.count ?? 0;
   const appointmentsThisMonth = apptsMonthCountRes.error
     ? 0
@@ -189,7 +195,7 @@ export default async function FounderDashboardPage() {
     ).length;
   }
 
-  const newDoctorsThisWeek = rows.filter((r) => {
+  const newDoctorsThisWeek = verifiedRows.filter((r) => {
     if (!r.created_at) return false;
     return new Date(r.created_at) >= weekStart;
   }).length;
@@ -200,8 +206,8 @@ export default async function FounderDashboardPage() {
       : [];
   const chartData = buildLastSixMonthsAppointmentCounts(chartRows);
 
-  const specialtyItems = aggregateSpecialties(rows);
-  const languageItems = aggregateLanguages(rows);
+  const specialtyItems = aggregateSpecialties(verifiedRows);
+  const languageItems = aggregateLanguages(verifiedRows);
 
   const doctorIds = Array.from(
     new Set(recentApptRowsRaw.map((a) => a.doctor_id as string))
@@ -263,6 +269,31 @@ export default async function FounderDashboardPage() {
       </header>
 
       <div className="mx-auto max-w-7xl space-y-8 px-4 py-8 lg:px-8">
+        {pendingDoctorsCount > 0 ? (
+          <section className="rounded-2xl border border-amber-500/45 bg-amber-500/10 p-5 shadow-lg shadow-black/20">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-200/95">
+                  Action required
+                </p>
+                <h2 className="mt-1 text-lg font-semibold text-amber-100">
+                  {pendingDoctorsCount} pending professional
+                  {pendingDoctorsCount === 1 ? "" : "s"} waiting for your review
+                </h2>
+                <p className="mt-1 text-sm text-amber-100/85">
+                  Open the professional directory to verify, reject, or map specialties.
+                </p>
+              </div>
+              <Link
+                href="#professional-directory"
+                className="inline-flex items-center justify-center rounded-xl bg-amber-300 px-4 py-2 text-sm font-semibold text-slate-950 shadow-md shadow-amber-900/30 transition hover:bg-amber-200"
+              >
+                Go to Professional Directory
+              </Link>
+            </div>
+          </section>
+        ) : null}
+
         <FounderKpiCards
           totalDoctors={totalDoctors}
           totalAppointments={totalAppointments}
@@ -278,7 +309,7 @@ export default async function FounderDashboardPage() {
           Trial policy: <span className="font-medium text-slate-200">{trialPeriodDays} days</span>{" "}
           from registration date.
         </div>
-        <TrialConversionTable doctors={rows} />
+        <TrialConversionTable doctors={verifiedRows} />
         <WebsiteAnalyticsPanel
           totalVisitsLast7d={totalVisitsLast7d}
           topLocalities={topLocalities}
@@ -296,7 +327,10 @@ export default async function FounderDashboardPage() {
               <LanguageDistribution items={languageItems} totalDoctorCount={totalDoctors} />
             </div>
 
-            <section className="rounded-2xl border border-slate-800/80 bg-slate-900/25 p-5 shadow-inner shadow-black/20 backdrop-blur-sm">
+            <section
+              id="professional-directory"
+              className="rounded-2xl border border-slate-800/80 bg-slate-900/25 p-5 shadow-inner shadow-black/20 backdrop-blur-sm"
+            >
               <div className="mb-5 flex flex-col gap-1 border-b border-slate-800/60 pb-4 sm:flex-row sm:items-end sm:justify-between">
                 <div>
                   <h2 className="text-sm font-semibold text-slate-100">

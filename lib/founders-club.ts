@@ -28,7 +28,8 @@ export async function getFoundersAvailability(): Promise<FoundersAvailability> {
   const countRes = await supabase
     .from("doctors")
     .select("id", { count: "exact", head: true })
-    .eq("subscription_tier", "founder");
+    .eq("subscription_tier", "founder")
+    .eq("status", "verified");
 
   if (countRes.error) {
     // Safe fallback: default to standard pricing on data errors.

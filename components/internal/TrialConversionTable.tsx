@@ -61,7 +61,7 @@ export function TrialConversionTable({ doctors }: Props) {
             Professionals ordered by nearest trial expiration
           </p>
         </div>
-        <p className="text-xs text-slate-400">{rows.length} professionals</p>
+        <p className="text-xs text-slate-400">{rows.length} verified professionals</p>
       </div>
 
       <div className="overflow-x-auto">

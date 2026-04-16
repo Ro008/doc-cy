@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, Check, Pencil } from "lucide-react";
+import { AlertTriangle, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import {
   CYPRUS_MASTER_SPECIALTIES,
@@ -18,7 +18,7 @@ export type PendingSpecialtyRow = {
 
 async function postReview(body: {
   doctorId: string;
-  action: "approve" | "map";
+  action: "map" | "approve_new";
   mapTo?: string;
 }) {
   const res = await fetch("/api/internal/doctors/specialty-review", {
@@ -39,26 +39,13 @@ export function PendingSpecialtiesPanel({ items }: { items: PendingSpecialtyRow[
   const [error, setError] = React.useState<string | null>(null);
   const [mapForId, setMapForId] = React.useState<string | null>(null);
   const [mapTarget, setMapTarget] = React.useState<string>("");
+  const sortedSpecialties = React.useMemo(
+    () => [...CYPRUS_MASTER_SPECIALTIES].sort((a, b) => a.localeCompare(b)),
+    []
+  );
 
   if (items.length === 0) {
     return null;
-  }
-
-  async function approve(id: string) {
-    setError(null);
-    setBusyId(id);
-    try {
-      await postReview({ doctorId: id, action: "approve" });
-      setMapForId(null);
-      toast.success("Specialty approved.");
-      router.refresh();
-    } catch (e) {
-      const message = e instanceof Error ? e.message : "Request failed.";
-      setError(message);
-      toast.error(message);
-    } finally {
-      setBusyId(null);
-    }
   }
 
   async function mapSubmit(id: string) {
@@ -85,6 +72,24 @@ export function PendingSpecialtiesPanel({ items }: { items: PendingSpecialtyRow[
     }
   }
 
+  async function approveAsNew(id: string) {
+    setError(null);
+    setBusyId(id);
+    try {
+      await postReview({ doctorId: id, action: "approve_new" });
+      setMapForId(null);
+      setMapTarget("");
+      toast.success("Approved as a new specialty category.");
+      router.refresh();
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "Request failed.";
+      setError(message);
+      toast.error(message);
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   return (
     <section className="rounded-2xl border border-amber-500/35 bg-amber-500/[0.07] p-5 shadow-lg shadow-black/20 backdrop-blur-sm">
       <div className="flex items-start gap-3">
@@ -94,9 +99,8 @@ export function PendingSpecialtiesPanel({ items }: { items: PendingSpecialtyRow[
         <div className="min-w-0 flex-1">
           <h2 className="text-sm font-semibold text-amber-100">Pending specialties</h2>
           <p className="mt-1 text-xs text-amber-100/80">
-            These professionals used &quot;Other (Specify)&quot; or have a custom label. Approve as-is or map to a
-            standard category. (Adding new master list entries is still a code change — map when
-            possible.)
+            These professionals used a custom specialty. Choose one: map to an existing specialty,
+            or approve it as a new category.
           </p>
         </div>
       </div>
@@ -133,24 +137,23 @@ export function PendingSpecialtiesPanel({ items }: { items: PendingSpecialtyRow[
                     <button
                       type="button"
                       disabled={busy}
-                      onClick={() => approve(row.id)}
-                      className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-500/20 px-3 py-1.5 text-xs font-semibold text-emerald-100 ring-1 ring-emerald-500/40 hover:bg-emerald-500/30 disabled:opacity-50"
-                    >
-                      <Check className="h-3.5 w-3.5" aria-hidden />
-                      Approve
-                    </button>
-                    <button
-                      type="button"
-                      disabled={busy}
                       onClick={() => {
-                        setMapForId(mapping ? null : row.id);
+                        setMapForId(row.id);
                         setMapTarget("");
                         setError(null);
                       }}
                       className="inline-flex items-center gap-1.5 rounded-lg border border-slate-600 bg-slate-900/60 px-3 py-1.5 text-xs font-medium text-slate-200 hover:border-slate-500 disabled:opacity-50"
                     >
                       <Pencil className="h-3.5 w-3.5" aria-hidden />
-                      Edit / Map
+                      Map to existing
+                    </button>
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => approveAsNew(row.id)}
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-500/20 px-3 py-1.5 text-xs font-semibold text-emerald-100 ring-1 ring-emerald-500/40 hover:bg-emerald-500/30 disabled:opacity-50"
+                    >
+                      Approve as new category
                     </button>
                   </div>
                 </div>
@@ -168,7 +171,7 @@ export function PendingSpecialtiesPanel({ items }: { items: PendingSpecialtyRow[
                       className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950/60 px-3 py-2 text-sm text-slate-100"
                     >
                       <option value="">Select…</option>
-                      {CYPRUS_MASTER_SPECIALTIES.map((s) => (
+                      {sortedSpecialties.map((s) => (
                         <option key={s} value={s}>
                           {s}
                         </option>

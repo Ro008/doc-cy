@@ -43,6 +43,7 @@ export function InternalDirectoryClient({
   const [nameQ, setNameQ] = React.useState("");
   const [specialtyFilter, setSpecialtyFilter] = React.useState("");
   const [languageFilter, setLanguageFilter] = React.useState("");
+  const [statusFilter, setStatusFilter] = React.useState("");
   const [busyId, setBusyId] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
 
@@ -66,11 +67,22 @@ export function InternalDirectoryClient({
     return Array.from(set).sort((a, b) => a.localeCompare(b));
   }, [doctors]);
 
+  const statusOptions = React.useMemo(() => {
+    const set = new Set<string>();
+    for (const d of doctors) {
+      const st = d.status?.trim().toLowerCase() || "pending";
+      set.add(st);
+    }
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [doctors]);
+
   const filtered = React.useMemo(() => {
     const nq = nameQ.trim().toLowerCase();
     return doctors.filter((d) => {
       if (nq && !d.name.toLowerCase().includes(nq)) return false;
       if (specialtyFilter && d.specialty !== specialtyFilter) return false;
+      const status = d.status?.trim().toLowerCase() || "pending";
+      if (statusFilter && status !== statusFilter) return false;
       if (languageFilter) {
         const langs = d.languages ?? [];
         if (
@@ -83,7 +95,23 @@ export function InternalDirectoryClient({
       }
       return true;
     });
-  }, [doctors, nameQ, specialtyFilter, languageFilter]);
+  }, [doctors, nameQ, specialtyFilter, statusFilter, languageFilter]);
+
+  const hasActiveFilters = Boolean(
+    nameQ.trim() || specialtyFilter || languageFilter || statusFilter
+  );
+  const activeFiltersCount =
+    (nameQ.trim() ? 1 : 0) +
+    (specialtyFilter ? 1 : 0) +
+    (statusFilter ? 1 : 0) +
+    (languageFilter ? 1 : 0);
+
+  function resetAllFilters() {
+    setNameQ("");
+    setSpecialtyFilter("");
+    setLanguageFilter("");
+    setStatusFilter("");
+  }
 
   async function runAction(doctorId: string, action: "verify" | "reject") {
     setError(null);
@@ -100,7 +128,7 @@ export function InternalDirectoryClient({
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 rounded-xl border border-slate-800/60 bg-slate-950/40 p-4 sm:grid-cols-3">
+      <div className="grid gap-4 rounded-xl border border-slate-800/60 bg-slate-950/40 p-4 sm:grid-cols-2 xl:grid-cols-4">
         <div>
           <label className="text-xs font-semibold uppercase tracking-wide text-slate-400">
             Name
@@ -132,6 +160,23 @@ export function InternalDirectoryClient({
         </div>
         <div>
           <label className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+            Status
+          </label>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+          >
+            <option value="">All statuses</option>
+            {statusOptions.map((status) => (
+              <option key={status} value={status}>
+                {status}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="text-xs font-semibold uppercase tracking-wide text-slate-400">
             Language
           </label>
           <select
@@ -148,6 +193,21 @@ export function InternalDirectoryClient({
           </select>
         </div>
       </div>
+      <div className="flex items-center justify-end gap-2">
+        {activeFiltersCount > 0 ? (
+          <span className="rounded-full border border-emerald-400/35 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-emerald-200">
+            {activeFiltersCount} filter{activeFiltersCount === 1 ? "" : "s"} active
+          </span>
+        ) : null}
+        <button
+          type="button"
+          disabled={!hasActiveFilters}
+          onClick={resetAllFilters}
+          className="rounded-lg border border-slate-600 bg-slate-800/40 px-3 py-1.5 text-xs font-medium text-slate-200 transition hover:border-slate-500 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          Reset all filters
+        </button>
+      </div>
 
       {error ? (
         <div className="rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-100">
@@ -160,8 +220,8 @@ export function InternalDirectoryClient({
         <span className="font-medium text-slate-200">{doctors.length}</span> loaded
       </p>
 
-      <div className="overflow-x-auto rounded-2xl border border-slate-800/80 bg-slate-950/30">
-        <table className="w-full min-w-[860px] border-collapse text-left text-sm">
+      <div className="w-full overflow-x-auto rounded-2xl border border-slate-800/80 bg-slate-950/30">
+        <table className="w-full min-w-full border-collapse text-left text-sm">
           <thead>
             <tr className="border-b border-slate-800/80 text-xs uppercase tracking-wide text-slate-500">
               <th className="px-4 py-3 font-semibold">Professional</th>
@@ -174,6 +234,7 @@ export function InternalDirectoryClient({
           <tbody>
             {filtered.map((d) => {
               const busy = busyId === d.id;
+              const status = d.status?.trim().toLowerCase() || "pending";
               const proofHref = d.license_file_url
                 ? `/api/internal/doctors/${d.id}/license`
                 : null;
@@ -214,14 +275,14 @@ export function InternalDirectoryClient({
                   <td className="px-4 py-3 align-top">
                     <span
                       className={`inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${
-                        d.status === "verified"
+                        status === "verified"
                           ? "bg-emerald-500/15 text-emerald-200"
-                          : d.status === "rejected"
+                          : status === "rejected"
                             ? "bg-red-500/15 text-red-200"
                             : "bg-amber-500/15 text-amber-100"
                       }`}
                     >
-                      {d.status || "pending"}
+                      {status}
                     </span>
                   </td>
                   <td className="px-4 py-3 align-top">
@@ -234,14 +295,16 @@ export function InternalDirectoryClient({
                       >
                         Verify professional
                       </button>
-                      <button
-                        type="button"
-                        disabled={busy}
-                        onClick={() => runAction(d.id, "reject")}
-                        className="rounded-lg bg-red-500/15 px-3 py-1.5 text-xs font-semibold text-red-100 ring-1 ring-red-500/35 transition hover:bg-red-500/25 disabled:opacity-50"
-                      >
-                        Reject
-                      </button>
+                      {status !== "rejected" ? (
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() => runAction(d.id, "reject")}
+                          className="rounded-lg bg-red-500/15 px-3 py-1.5 text-xs font-semibold text-red-100 ring-1 ring-red-500/35 transition hover:bg-red-500/25 disabled:opacity-50"
+                        >
+                          Reject
+                        </button>
+                      ) : null}
                       {proofHref ? (
                         <a
                           href={proofHref}

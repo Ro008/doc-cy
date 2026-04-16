@@ -6,7 +6,7 @@ import { normalizeApprovedCustomSpecialty } from "@/lib/specialty-submission";
 
 type Body = {
   doctorId?: string;
-  action?: "approve" | "map";
+  action?: "map" | "approve_new";
   /** Required when action is map — must be a canonical master specialty */
   mapTo?: string;
 };
@@ -31,9 +31,9 @@ export async function POST(req: NextRequest) {
   const doctorId = typeof body.doctorId === "string" ? body.doctorId.trim() : "";
   const action = body.action;
 
-  if (!doctorId || (action !== "approve" && action !== "map")) {
+  if (!doctorId || (action !== "map" && action !== "approve_new")) {
     return NextResponse.json(
-      { message: "doctorId and action (approve | map) are required." },
+      { message: "doctorId and action (map | approve_new) are required." },
       { status: 400 }
     );
   }
@@ -90,7 +90,7 @@ export async function POST(req: NextRequest) {
     .eq("id", doctorId);
 
   if (error) {
-    console.error("[specialty-review] approve failed", error);
+    console.error("[specialty-review] approve_new failed", error);
     return NextResponse.json({ message: "Update failed." }, { status: 500 });
   }
 
