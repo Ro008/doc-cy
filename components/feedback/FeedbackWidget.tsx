@@ -5,6 +5,7 @@ import { HelpCircle, X, Send } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { DOCCY_OPEN_FEEDBACK_EVENT, type DocCyOpenFeedbackDetail } from "@/lib/doccy-feedback";
+const INSTALL_BANNER_VISIBILITY_EVENT = "doccy:install-banner-visibility";
 
 /**
  * Browser `window.setTimeout` returns `number`; merged Node typings often type `setTimeout` as
@@ -39,6 +40,7 @@ export function FeedbackWidget() {
   const [sent, setSent] = React.useState(false);
   const [hintStage, setHintStage] = React.useState<HintStage>("off");
   const [reduceMotion, setReduceMotion] = React.useState(false);
+  const [installBannerVisible, setInstallBannerVisible] = React.useState(false);
 
   const currentUrl =
     typeof window === "undefined"
@@ -53,6 +55,22 @@ export function FeedbackWidget() {
     mq.addEventListener("change", sync);
     return () => mq.removeEventListener("change", sync);
   }, []);
+
+  React.useEffect(() => {
+    function onInstallBannerVisibility(e: Event) {
+      const ce = e as CustomEvent<{ visible?: boolean }>;
+      setInstallBannerVisible(Boolean(ce.detail?.visible));
+    }
+    window.addEventListener(INSTALL_BANNER_VISIBILITY_EVENT, onInstallBannerVisibility);
+    return () =>
+      window.removeEventListener(INSTALL_BANNER_VISIBILITY_EVENT, onInstallBannerVisibility);
+  }, []);
+
+  React.useEffect(() => {
+    if (installBannerVisible) {
+      setHintStage("off");
+    }
+  }, [installBannerVisible]);
 
   React.useEffect(() => {
     function onOpenFeedback(e: Event) {
@@ -246,6 +264,7 @@ export function FeedbackWidget() {
   return (
     <>
       {/* Floating help: mint button + timed tooltip to the left */}
+      {!installBannerVisible && (
       <div className="fixed bottom-5 right-5 z-[90] flex flex-row-reverse items-center gap-2 sm:bottom-6 sm:right-6">
         {showHintBubble && (
           <div
@@ -281,6 +300,7 @@ export function FeedbackWidget() {
           <HelpCircle className="h-5 w-5" aria-hidden />
         </button>
       </div>
+      )}
 
       {/* Modal */}
       {open && (

@@ -1,5 +1,5 @@
 // app/layout.tsx
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 import { getMessages } from "next-intl/server";
@@ -8,6 +8,7 @@ import "./globals.css";
 import "sonner/dist/styles.css";
 import { FeedbackWidget } from "@/components/feedback/FeedbackWidget";
 import { PromotePracticeFab } from "@/components/dashboard/PromotePracticeFab";
+import { InstallBanner } from "@/components/pwa/InstallBanner";
 import { Toaster } from "sonner";
 
 const inter = Inter({
@@ -18,6 +19,19 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "DocCy | Healthcare Appointments in Cyprus",
   description: "Book healthcare appointments in Cyprus via DocCy.",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "DocCy",
+  },
+  icons: {
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#000000",
 };
 
 export default async function RootLayout({
@@ -37,6 +51,7 @@ export default async function RootLayout({
           {children}
         </NextIntlClientProvider>
         <Toaster richColors position="top-center" closeButton />
+        <InstallBanner />
         <PromotePracticeFab />
         <FeedbackWidget />
       </body>
