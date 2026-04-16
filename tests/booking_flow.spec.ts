@@ -13,6 +13,13 @@ test.describe("Booking flow @booking-creates", () => {
     expect(supabaseAnonKey).not.toBe("");
 
     const supabase = createClient(supabaseUrl, supabaseAnonKey);
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
+    const admin = serviceKey ? createClient(supabaseUrl, serviceKey) : null;
+    const nonce = `${Date.now()}-${Math.floor(Math.random() * 100000)}`;
+    const fallbackDoctorEmail = `booking-flow-${nonce}@integration.test`;
+    const fallbackDoctorSlug = `booking-flow-${nonce}`;
+    let fallbackAuthUserId = "";
+    let fallbackDoctorId = "";
     const { data: activeDoctors } = await supabase
       .from("doctors")
       .select("slug,name,id")
@@ -33,9 +40,100 @@ test.describe("Booking flow @booking-creates", () => {
     }
 
     if (!chosenDoctor) {
-      throw new Error(
-        "No verified doctor with published availability found for E2E."
+      if (!admin) {
+        throw new Error(
+          "No verified doctor with published availability found for E2E."
+        );
+      }
+
+      const createUserRes = await admin.auth.admin.createUser({
+        email: fallbackDoctorEmail,
+        password: "StrongPass123!",
+        email_confirm: true,
+        user_metadata: { role: "doctor" },
+      });
+      if (createUserRes.error || !createUserRes.data.user?.id) {
+        throw new Error(
+          `No verified doctor found and failed creating fallback auth user: ${createUserRes.error?.message}`
+        );
+      }
+      fallbackAuthUserId = createUserRes.data.user.id;
+
+      const doctorInsert = await admin
+        .from("doctors")
+        .insert({
+          auth_user_id: fallbackAuthUserId,
+          name: `Booking Flow Doctor ${nonce}`,
+          specialty: "General Practice",
+          email: fallbackDoctorEmail,
+          phone: "+35799123456",
+          languages: ["English"],
+          license_number: `LIC-BFLOW-${nonce}`,
+          license_file_url: `licenses/integration/${nonce}.pdf`,
+          status: "verified",
+          slug: fallbackDoctorSlug,
+          is_specialty_approved: true,
+          subscription_tier: "standard",
+        })
+        .select("id,slug,name")
+        .single();
+      if (doctorInsert.error || !doctorInsert.data?.id) {
+        throw new Error(
+          `No verified doctor found and failed creating fallback doctor: ${doctorInsert.error?.message}`
+        );
+      }
+      fallbackDoctorId = String(doctorInsert.data.id);
+
+      const day = { enabled: true, start_time: "09:00:00", end_time: "17:00:00" };
+      const settingsUpsert = await admin.from("doctor_settings").upsert(
+        {
+          doctor_id: fallbackDoctorId,
+          monday: true,
+          tuesday: true,
+          wednesday: true,
+          thursday: true,
+          friday: true,
+          saturday: false,
+          sunday: false,
+          start_time: "09:00:00",
+          end_time: "17:00:00",
+          weekly_schedule: {
+            monday: day,
+            tuesday: day,
+            wednesday: day,
+            thursday: day,
+            friday: day,
+            saturday: { enabled: false, start_time: "09:00:00", end_time: "17:00:00" },
+            sunday: { enabled: false, start_time: "09:00:00", end_time: "17:00:00" },
+          },
+          break_start: null,
+          break_end: null,
+          holiday_mode_enabled: false,
+          holiday_start_date: null,
+          holiday_end_date: null,
+          pause_online_bookings: false,
+          slot_duration_minutes: 30,
+          booking_horizon_days: 90,
+          minimum_notice_hours: 1,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "doctor_id" }
       );
+      if (settingsUpsert.error) {
+        throw new Error(
+          `No verified doctor found and failed creating fallback settings: ${settingsUpsert.error.message}`
+        );
+      }
+
+      chosenDoctor = {
+        id: fallbackDoctorId,
+        slug: fallbackDoctorSlug,
+        name: `Booking Flow Doctor ${nonce}`,
+      };
+      await page.goto(`/${chosenDoctor.slug}`);
+      await expect(page.getByText("Select a date on the calendar")).toBeVisible({
+        timeout: 10000,
+      });
     }
 
     await expect(
@@ -145,10 +243,16 @@ test.describe("Booking flow @booking-creates", () => {
       page.getByRole("link", { name: /Download \.ics/i })
     ).toHaveCount(0);
 
-    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
     if (serviceKey) {
-      const admin = createClient(supabaseUrl, serviceKey);
       await admin.from("appointments").delete().eq("id", appointmentId);
+    }
+
+    if (admin && fallbackDoctorId) {
+      await admin.from("doctor_settings").delete().eq("doctor_id", fallbackDoctorId);
+      await admin.from("doctors").delete().eq("id", fallbackDoctorId);
+      if (fallbackAuthUserId) {
+        await admin.auth.admin.deleteUser(fallbackAuthUserId);
+      }
     }
   });
 });

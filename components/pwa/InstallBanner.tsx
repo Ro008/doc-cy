@@ -107,7 +107,7 @@ export function InstallBanner() {
   if (!visible) return null;
 
   return (
-    <div className="fixed inset-x-4 bottom-24 z-[95] rounded-2xl border border-[#00FFD5] bg-black/90 p-4 text-white shadow-xl backdrop-blur-sm sm:bottom-4">
+    <div className="fixed inset-x-4 bottom-4 z-[95] rounded-2xl border border-[#00FFD5] bg-black/90 p-4 text-white shadow-xl backdrop-blur-sm">
       <div className="flex items-start gap-3 sm:items-center">
         <p className="text-sm leading-relaxed">{message}</p>
         {mode === "android" && deferredPrompt ? (
