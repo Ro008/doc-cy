@@ -20,27 +20,84 @@ type Slide = {
 };
 
 export function ProductShowcaseCarousel({ slides }: { slides: Slide[] }) {
-  const [index, setIndex] = React.useState(0);
+  const [displayIndex, setDisplayIndex] = React.useState(0);
+  const [requestedIndex, setRequestedIndex] = React.useState(0);
+  const [isTransitioning, setIsTransitioning] = React.useState(false);
   const touchStartX = React.useRef<number | null>(null);
-  const activeSlide = slides[index];
+  const activeSlide = slides[displayIndex];
 
   const total = slides.length;
-  const canPrev = index > 0;
-  const canNext = index < total - 1;
+  const isLoadingNextSlide = requestedIndex !== displayIndex;
+  const canPrev = requestedIndex > 0;
+  const canNext = requestedIndex < total - 1;
+
+  React.useEffect(() => {
+    if (requestedIndex === displayIndex) return;
+    const nextSlide = slides[requestedIndex];
+    if (!nextSlide) return;
+
+    let cancelled = false;
+    const img = new window.Image();
+    img.src = nextSlide.imageSrc;
+
+    const commit = () => {
+      if (cancelled) return;
+      setDisplayIndex(requestedIndex);
+    };
+
+    if (img.complete) {
+      commit();
+      return;
+    }
+
+    img.onload = commit;
+    img.onerror = commit;
+
+    return () => {
+      cancelled = true;
+    };
+  }, [displayIndex, requestedIndex, slides]);
+
+  React.useEffect(() => {
+    setIsTransitioning(true);
+    const raf = requestAnimationFrame(() => {
+      requestAnimationFrame(() => setIsTransitioning(false));
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [displayIndex]);
 
   function prev() {
-    setIndex((v) => (v > 0 ? v - 1 : v));
+    setRequestedIndex((v) => (v > 0 ? v - 1 : v));
   }
 
   function next() {
-    setIndex((v) => (v < total - 1 ? v + 1 : v));
+    setRequestedIndex((v) => (v < total - 1 ? v + 1 : v));
   }
 
   if (total === 0 || !activeSlide) return null;
 
   return (
     <section
+      role="region"
+      aria-roledescription="carousel"
+      aria-label="Product showcase"
+      tabIndex={0}
       className="rounded-3xl border border-emerald-300/20 bg-slate-900/65 p-4 shadow-[0_0_56px_-22px_rgba(16,185,129,0.25)] backdrop-blur-md sm:p-6"
+      onKeyDown={(e) => {
+        if (e.key === "ArrowRight") {
+          e.preventDefault();
+          if (canNext && !isLoadingNextSlide) next();
+        } else if (e.key === "ArrowLeft") {
+          e.preventDefault();
+          if (canPrev && !isLoadingNextSlide) prev();
+        } else if (e.key === "Home") {
+          e.preventDefault();
+          if (!isLoadingNextSlide) setRequestedIndex(0);
+        } else if (e.key === "End") {
+          e.preventDefault();
+          if (!isLoadingNextSlide) setRequestedIndex(total - 1);
+        }
+      }}
       onTouchStart={(e) => {
         touchStartX.current = e.touches[0]?.clientX ?? null;
       }}
@@ -56,7 +113,11 @@ export function ProductShowcaseCarousel({ slides }: { slides: Slide[] }) {
       }}
     >
       <div className="relative overflow-hidden rounded-2xl border border-slate-800/80 bg-slate-950/55">
-        <article className="w-full p-3 sm:p-4">
+        <article
+          className={`w-full p-3 transition-opacity duration-200 motion-reduce:transition-none sm:p-4 ${
+            isTransitioning ? "opacity-0" : "opacity-100"
+          }`}
+        >
           <div className="mx-auto mb-2 flex w-full max-w-[760px] justify-start">
             <span className="inline-flex items-center rounded-full border border-emerald-300/40 bg-emerald-400/15 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-emerald-200">
               {activeSlide?.categoryLabel}
@@ -126,24 +187,29 @@ export function ProductShowcaseCarousel({ slides }: { slides: Slide[] }) {
         <button
           type="button"
           onClick={prev}
-          disabled={!canPrev}
+          disabled={!canPrev || isLoadingNextSlide}
           aria-label="Previous slide"
-          className="absolute left-3 top-1/2 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-slate-600/70 bg-slate-900/80 text-slate-200 transition hover:border-slate-400 hover:text-white disabled:cursor-not-allowed disabled:opacity-35"
+          className="absolute left-3 top-1/2 inline-flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-slate-600/70 bg-slate-900/80 text-slate-200 transition hover:border-slate-400 hover:text-white disabled:cursor-not-allowed disabled:opacity-35"
         >
           <ChevronLeft className="h-4 w-4" />
         </button>
         <button
           type="button"
           onClick={next}
-          disabled={!canNext}
+          disabled={!canNext || isLoadingNextSlide}
           aria-label="Next slide"
-          className="absolute right-3 top-1/2 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-slate-600/70 bg-slate-900/80 text-slate-200 transition hover:border-slate-400 hover:text-white disabled:cursor-not-allowed disabled:opacity-35"
+          className="absolute right-3 top-1/2 inline-flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-slate-600/70 bg-slate-900/80 text-slate-200 transition hover:border-slate-400 hover:text-white disabled:cursor-not-allowed disabled:opacity-35"
         >
           <ChevronRight className="h-4 w-4" />
         </button>
       </div>
 
-      <div className="mx-auto mt-4 max-w-2xl text-center">
+      <div
+        className={`mx-auto mt-4 max-w-2xl text-center transition-opacity duration-200 motion-reduce:transition-none ${
+          isTransitioning ? "opacity-0" : "opacity-100"
+        }`}
+        aria-live="polite"
+      >
         <h3 className="text-base font-semibold text-slate-100 sm:text-lg">
           {activeSlide?.title}
         </h3>
@@ -152,19 +218,23 @@ export function ProductShowcaseCarousel({ slides }: { slides: Slide[] }) {
 
       <div className="mt-4 flex items-center justify-center gap-2 text-xs text-slate-400">
         <span className="tabular-nums">
-          {index + 1} / {total}
+          {displayIndex + 1} / {total}
         </span>
+        {isLoadingNextSlide ? (
+          <span className="text-[11px] uppercase tracking-[0.08em] text-slate-500">Loading...</span>
+        ) : null}
       </div>
       <div className="mt-2 flex items-center justify-center gap-2">
         {slides.map((slide, i) => (
           <button
             key={`${slide.title}-dot`}
             type="button"
-            onClick={() => setIndex(i)}
+            onClick={() => setRequestedIndex(i)}
+            disabled={isLoadingNextSlide}
             aria-label={`Go to slide ${i + 1}`}
-            aria-current={i === index ? "true" : undefined}
+            aria-current={i === displayIndex ? "true" : undefined}
             className={`h-2.5 rounded-full transition ${
-              i === index ? "w-7 bg-emerald-300" : "w-2.5 bg-slate-500 hover:bg-slate-400"
+              i === displayIndex ? "w-7 bg-emerald-300" : "w-2.5 bg-slate-500 hover:bg-slate-400"
             }`}
           />
         ))}

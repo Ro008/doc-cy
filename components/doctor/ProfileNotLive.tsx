@@ -1,5 +1,5 @@
-import Link from "next/link";
 import { Stethoscope, UserRound } from "lucide-react";
+import Link from "next/link";
 
 export type PublicProfileBlockReason = "pending" | "rejected";
 
@@ -26,8 +26,12 @@ export function ProfileNotLive({
       </div>
 
       <div className="mx-auto max-w-xl text-center">
-        <p className="text-xs font-semibold uppercase tracking-[0.22em] text-emerald-400/90">
-          DocCy
+        <p
+          aria-label="DocCy"
+          className="text-xs tracking-[0.16em]"
+        >
+          <span className="font-semibold text-emerald-300">Doc</span>
+          <span className="font-bold text-emerald-500">Cy</span>
         </p>
         <h1 className="mt-3 text-balance text-2xl font-semibold tracking-tight text-white sm:text-3xl">
           {isRejected ? "Profile unavailable" : "Profile under review"}
@@ -83,12 +87,18 @@ export function ProfileNotLive({
               Browse other verified professionals on DocCy, or try this link again once the profile is
               live.
             </p>
-            <Link
-              href="/"
-              className="mt-4 inline-flex w-full items-center justify-center rounded-xl border border-slate-600 bg-slate-800/40 py-2.5 text-sm font-semibold text-slate-100 transition hover:border-slate-500 hover:bg-slate-800/70"
+            <button
+              type="button"
+              disabled
+              title="Coming soon"
+              aria-disabled="true"
+              className="mt-4 inline-flex w-full cursor-not-allowed items-center justify-center rounded-xl border border-slate-700 bg-slate-800/25 py-2.5 text-sm font-semibold text-slate-400"
             >
               Find a professional
-            </Link>
+            </button>
+            <p className="mt-2 text-center text-[11px] font-medium uppercase tracking-[0.08em] text-slate-500">
+              Directory coming soon
+            </p>
           </div>
         </div>
       </div>
