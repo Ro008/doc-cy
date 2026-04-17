@@ -26,8 +26,12 @@ export function ProfileNotLive({
       </div>
 
       <div className="mx-auto max-w-xl text-center">
-        <p className="text-xs font-semibold uppercase tracking-[0.22em] text-emerald-400/90">
-          DocCy
+        <p
+          aria-label="DocCy"
+          className="text-xs tracking-[0.16em]"
+        >
+          <span className="font-semibold text-emerald-300">Doc</span>
+          <span className="font-bold text-emerald-500">Cy</span>
         </p>
         <h1 className="mt-3 text-balance text-2xl font-semibold tracking-tight text-white sm:text-3xl">
           {isRejected ? "Profile unavailable" : "Profile under review"}
