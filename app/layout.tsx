@@ -16,9 +16,46 @@ const inter = Inter({
   variable: "--font-inter",
 });
 
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim() || "https://www.mydoccy.com";
+
 export const metadata: Metadata = {
-  title: "DocCy | Healthcare Appointments in Cyprus",
-  description: "Book healthcare appointments in Cyprus via DocCy.",
+  metadataBase: new URL(siteUrl),
+  title: "DocCy | Smart Booking Assistant for Clinics in Cyprus",
+  description:
+    "The future of clinic management in Cyprus. Streamline your appointments with DocCy's digital booking assistant. Designed for modern healthcare and wellness providers.",
+  keywords: [
+    "clinic management software Cyprus",
+    "medical booking system Paphos",
+    "doctor appointment assistant",
+    "DocCy",
+  ],
+  robots: {
+    index: true,
+    follow: true,
+  },
+  alternates: {
+    canonical: "/",
+  },
+  openGraph: {
+    title: "DocCy - Upgrade Your Clinic's Booking Experience",
+    description:
+      "The future of clinic management in Cyprus. Streamline your appointments with DocCy's digital booking assistant. Designed for modern healthcare and wellness providers.",
+    type: "website",
+    locale: "en_US",
+    images: [
+      {
+        url: "/showcase/16-premium-storefront.png",
+        alt: "DocCy clinic booking experience preview",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "DocCy - Upgrade Your Clinic's Booking Experience",
+    description:
+      "The future of clinic management in Cyprus. Streamline your appointments with DocCy's digital booking assistant. Designed for modern healthcare and wellness providers.",
+    images: ["/showcase/16-premium-storefront.png"],
+  },
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
@@ -31,6 +68,8 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
   themeColor: "#000000",
 };
 
