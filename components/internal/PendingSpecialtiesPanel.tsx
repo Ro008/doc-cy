@@ -18,8 +18,9 @@ export type PendingSpecialtyRow = {
 
 async function postReview(body: {
   doctorId: string;
-  action: "map" | "approve_new";
+  action: "map" | "approve_new" | "approve_edited";
   mapTo?: string;
+  editedSpecialty?: string;
 }) {
   const res = await fetch("/api/internal/doctors/specialty-review", {
     method: "POST",
@@ -39,6 +40,8 @@ export function PendingSpecialtiesPanel({ items }: { items: PendingSpecialtyRow[
   const [error, setError] = React.useState<string | null>(null);
   const [mapForId, setMapForId] = React.useState<string | null>(null);
   const [mapTarget, setMapTarget] = React.useState<string>("");
+  const [editForId, setEditForId] = React.useState<string | null>(null);
+  const [editValue, setEditValue] = React.useState<string>("");
   const sortedSpecialties = React.useMemo(
     () => [...CYPRUS_MASTER_SPECIALTIES].sort((a, b) => a.localeCompare(b)),
     []
@@ -90,6 +93,33 @@ export function PendingSpecialtiesPanel({ items }: { items: PendingSpecialtyRow[
     }
   }
 
+  async function approveEdited(id: string) {
+    const edited = editValue.trim();
+    if (!edited) {
+      const message = "Specialty name is required.";
+      setError(message);
+      toast.error(message);
+      return;
+    }
+    setError(null);
+    setBusyId(id);
+    try {
+      await postReview({ doctorId: id, action: "approve_edited", editedSpecialty: edited });
+      setMapForId(null);
+      setMapTarget("");
+      setEditForId(null);
+      setEditValue("");
+      toast.success("Edited specialty approved.");
+      router.refresh();
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "Request failed.";
+      setError(message);
+      toast.error(message);
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   return (
     <section className="rounded-2xl border border-amber-500/35 bg-amber-500/[0.07] p-5 shadow-lg shadow-black/20 backdrop-blur-sm">
       <div className="flex items-start gap-3">
@@ -115,6 +145,7 @@ export function PendingSpecialtiesPanel({ items }: { items: PendingSpecialtyRow[
         {items.map((row) => {
           const busy = busyId === row.id;
           const mapping = mapForId === row.id;
+          const editing = editForId === row.id;
           const spec = (row.specialty ?? "").trim() || "—";
           return (
             <li
@@ -155,6 +186,20 @@ export function PendingSpecialtiesPanel({ items }: { items: PendingSpecialtyRow[
                     >
                       Approve as new category
                     </button>
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => {
+                        setEditForId(row.id);
+                        setEditValue(spec === "—" ? "" : spec);
+                        setMapForId(null);
+                        setMapTarget("");
+                        setError(null);
+                      }}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-xs font-medium text-emerald-100 hover:bg-emerald-500/20 disabled:opacity-50"
+                    >
+                      Edit name and approve
+                    </button>
                   </div>
                 </div>
               </div>
@@ -185,6 +230,30 @@ export function PendingSpecialtiesPanel({ items }: { items: PendingSpecialtyRow[
                     className="rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-400 disabled:opacity-50"
                   >
                     Save mapping
+                  </button>
+                </div>
+              ) : null}
+
+              {editing ? (
+                <div className="mt-4 flex flex-col gap-3 border-t border-slate-800/80 pt-4 sm:flex-row sm:items-end">
+                  <div className="flex-1">
+                    <label className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                      Edit specialty name
+                    </label>
+                    <input
+                      value={editValue}
+                      onChange={(e) => setEditValue(e.target.value)}
+                      placeholder="e.g. Acupuncture"
+                      className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950/60 px-3 py-2 text-sm text-slate-100"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    disabled={busy || !editValue.trim()}
+                    onClick={() => approveEdited(row.id)}
+                    className="rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-400 disabled:opacity-50"
+                  >
+                    Save edit and approve
                   </button>
                 </div>
               ) : null}

@@ -6,9 +6,11 @@ import { normalizeApprovedCustomSpecialty } from "@/lib/specialty-submission";
 
 type Body = {
   doctorId?: string;
-  action?: "map" | "approve_new";
+  action?: "map" | "approve_new" | "approve_edited";
   /** Required when action is map — must be a canonical master specialty */
   mapTo?: string;
+  /** Required when action is approve_edited */
+  editedSpecialty?: string;
 };
 
 export async function POST(req: NextRequest) {
@@ -31,9 +33,9 @@ export async function POST(req: NextRequest) {
   const doctorId = typeof body.doctorId === "string" ? body.doctorId.trim() : "";
   const action = body.action;
 
-  if (!doctorId || (action !== "map" && action !== "approve_new")) {
+  if (!doctorId || (action !== "map" && action !== "approve_new" && action !== "approve_edited")) {
     return NextResponse.json(
-      { message: "doctorId and action (map | approve_new) are required." },
+      { message: "doctorId and action (map | approve_new | approve_edited) are required." },
       { status: 400 }
     );
   }
@@ -59,6 +61,48 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message: "Update failed." }, { status: 500 });
     }
     return NextResponse.json({ ok: true, specialty: mapTo, is_specialty_approved: true });
+  }
+
+  if (action === "approve_edited") {
+    const editedRaw = typeof body.editedSpecialty === "string" ? body.editedSpecialty : "";
+    const normalized = normalizeApprovedCustomSpecialty(editedRaw);
+    if (!normalized) {
+      return NextResponse.json({ message: "editedSpecialty is required." }, { status: 400 });
+    }
+    if (normalized.length > 120) {
+      return NextResponse.json(
+        { message: "Custom specialty must be 120 characters or less." },
+        { status: 400 }
+      );
+    }
+    if (isMasterSpecialty(normalized)) {
+      return NextResponse.json(
+        {
+          message:
+            "This matches a standard specialty. Use 'Map to existing' for canonical categories.",
+        },
+        { status: 400 }
+      );
+    }
+
+    const { error } = await supabase
+      .from("doctors")
+      .update({
+        specialty: normalized,
+        is_specialty_approved: true,
+      })
+      .eq("id", doctorId);
+
+    if (error) {
+      console.error("[specialty-review] approve_edited failed", error);
+      return NextResponse.json({ message: "Update failed." }, { status: 500 });
+    }
+
+    return NextResponse.json({
+      ok: true,
+      specialty: normalized,
+      is_specialty_approved: true,
+    });
   }
 
   const { data: row, error: fetchErr } = await supabase
