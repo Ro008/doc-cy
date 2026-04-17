@@ -73,7 +73,7 @@ export function FounderKpiCards({
       <KpiCard
         label="Total professionals"
         value={totalDoctors}
-        sub="Registered profiles"
+        sub="Verified profiles"
         Icon={Users}
         accent="from-emerald-500/20 to-teal-500/5"
         iconBg="bg-emerald-500/15 text-emerald-300"

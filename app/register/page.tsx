@@ -290,7 +290,8 @@ async function handleRegister(formData: FormData) {
     const { count: founderCount, error: founderCountError } = await service
       .from("doctors")
       .select("id", { head: true, count: "exact" })
-      .eq("subscription_tier", "founder");
+      .eq("subscription_tier", "founder")
+      .eq("status", "verified");
     if (founderCountError) {
       console.error("[DocCy] Founder count fallback failed", founderCountError);
       try {
