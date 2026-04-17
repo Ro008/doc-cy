@@ -9,7 +9,10 @@ import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
 import { ArrowLeft } from "lucide-react";
 import { SettingsForm } from "@/components/dashboard/SettingsForm";
 import { SignOutButton } from "@/components/auth/SignOutButton";
-import type { DoctorSettingsFormData } from "@/components/dashboard/SettingsForm";
+import type {
+  DoctorServiceItem,
+  DoctorSettingsFormData,
+} from "@/components/dashboard/SettingsForm";
 import { ViewPublicProfileLink } from "@/components/agenda/ViewPublicProfileLink";
 import { PromotePracticeSection } from "@/components/dashboard/PromotePracticeSection";
 import { FoundingMemberBadge } from "@/components/dashboard/FoundingMemberBadge";
@@ -150,6 +153,19 @@ export default async function AgendaSettingsPage() {
     .eq("doctor_id", doctor.id)
     .single();
 
+  const { data: serviceRows } = await supabase
+    .from("doctor_services")
+    .select("id, name, price, created_at")
+    .eq("doctor_id", doctor.id)
+    .order("created_at", { ascending: true });
+
+  const services: DoctorServiceItem[] = (serviceRows ?? []).map((row) => ({
+    id: String(row.id),
+    name: String(row.name ?? ""),
+    price: row.price ? String(row.price) : null,
+    created_at: String(row.created_at ?? ""),
+  }));
+
   const langArr = Array.from(
     new Set(
       (Array.isArray(doctor.languages) ? doctor.languages : [])
@@ -253,6 +269,7 @@ export default async function AgendaSettingsPage() {
     holidayEndDate:
       (settings as { holiday_end_date?: string | null } | null)
         ?.holiday_end_date ?? null,
+    services,
   };
 
   return (

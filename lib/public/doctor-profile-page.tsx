@@ -11,6 +11,7 @@ import {
   type PublicProfileBlockReason,
 } from "@/components/doctor/ProfileNotLive";
 import { WhatToExpectCard } from "@/components/doctor/WhatToExpectCard";
+import { ServiceMenuSection } from "@/components/doctor/ServiceMenuSection";
 import {
   settingsToWeeklySlots,
   type DoctorSettingsRow,
@@ -370,6 +371,22 @@ export default async function DoctorPage({ params }: PageProps) {
       ),
   );
 
+  const { data: serviceRows, error: servicesErr } = await supabase
+    .from("doctor_services")
+    .select("id, name, price")
+    .eq("doctor_id", profile.id)
+    .order("created_at", { ascending: true });
+  if (servicesErr) {
+    console.error("[DocCy] doctor_services fetch failed:", servicesErr);
+  }
+  const services = (serviceRows ?? [])
+    .map((row) => ({
+      id: String(row.id),
+      name: String(row.name ?? "").trim(),
+      price: row.price ? String(row.price).trim() : null,
+    }))
+    .filter((row) => row.name.length > 0);
+
   return (
     <main className="min-h-screen bg-slate-950 text-slate-50">
       {/* Background gradient / glow (consistent with landing) */}
@@ -482,6 +499,7 @@ export default async function DoctorPage({ params }: PageProps) {
               clinicAddress={CLINIC_ADDRESS}
               mapsUrl={MAPS_URL}
             />
+            <ServiceMenuSection services={services} />
           </div>
         </div>
       </div>

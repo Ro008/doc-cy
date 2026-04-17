@@ -13,6 +13,8 @@
     "test:e2e:i18n-smoke": "playwright test tests/landing_i18n.spec.ts tests/language_switcher.spec.ts",
     "test:e2e:safe": "powershell -NoProfile -Command \"$env:PLAYWRIGHT_SAFE_NO_BOOKING='1'; playwright test\"",
     "test:e2e:ui": "playwright test --ui",
+    "test:integration:testing:service-menu": "powershell -NoProfile -Command \"$env:PLAYWRIGHT_ENV_FILE='.env.testing.local'; $env:PLAYWRIGHT_BASE_URL='http://localhost:3100'; $env:PLAYWRIGHT_WEB_SERVER_COMMAND='node scripts/dev-with-env.mjs .env.testing.local 3100'; $env:INTEGRATION_SAFE_ENV='1'; playwright test tests/integration/service_menu_public_profile.integration.spec.ts --project='Desktop Large (Chromium)' --reporter=line\"",
+    "test:integration:testing:service-menu-ui:video": "powershell -NoProfile -Command \"$env:PLAYWRIGHT_ENV_FILE='.env.testing.local'; $env:PLAYWRIGHT_BASE_URL='http://localhost:3100'; $env:PLAYWRIGHT_WEB_SERVER_COMMAND='node scripts/dev-with-env.mjs .env.testing.local 3100'; $env:INTEGRATION_SAFE_ENV='1'; playwright test tests/integration/service_menu_settings_ui.integration.spec.ts --config=playwright.pwa-video.config.ts --project='Desktop Large (Chromium)' --reporter=line --output='tmp/service-menu-ui-video'\"",
     "test:e2e:pwa:video:tmp": "node -e \"require('fs').rmSync('tmp/pwa-video',{recursive:true,force:true})\" && npx playwright test tests/pwa_install_banner.spec.ts --config=playwright.pwa-video.config.ts --project=\"Mobile Chrome (Pixel 5)\" --project=\"Mobile Safari (iPhone 12)\" --reporter=line --output=\"tmp/pwa-video\"",
     "seed:languages": "node scripts/seed-doctor-languages.mjs"
   },

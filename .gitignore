@@ -1,8 +1,9 @@
 node_modules
 .env.local
+.env.testing.local
 .next
 test-results
 playwright-report
 playwright/.cache
-tmp/pwa-video
+tmp
 *.tsbuildinfo

@@ -2,8 +2,9 @@
 import { defineConfig, devices } from "@playwright/test";
 import dotenv from "dotenv";
 
-// Load Next.js local env for Playwright runs (so auth tests can use TEST_USER_EMAIL/PASSWORD)
-dotenv.config({ path: ".env.local" });
+// Load env file for Playwright runs (defaults to .env.local).
+const envFilePath = process.env.PLAYWRIGHT_ENV_FILE?.trim() || ".env.local";
+dotenv.config({ path: envFilePath });
 
 const localUrl = "http://localhost:3000";
 // Default to local dev. For staging/prod runs, set `PLAYWRIGHT_BASE_URL`.

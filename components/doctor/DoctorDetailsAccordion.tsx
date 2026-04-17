@@ -20,6 +20,7 @@ export function DoctorDetailsAccordion({
   const bioText = (bio ?? "").trim();
   const truncatedBio =
     bioText.length > 500 ? `${bioText.slice(0, 500).trimEnd()}...` : bioText;
+  const firstName = name.trim().split(/\s+/)[0] || name;
 
   React.useEffect(() => {
     if (typeof window !== "undefined" && window.innerWidth >= 1024) {
@@ -38,7 +39,7 @@ export function DoctorDetailsAccordion({
           aria-controls="doctor-details-panel"
         >
           <span className="font-semibold">
-            About {name.split(" ").slice(-1)[0] || name}
+            About {firstName}
           </span>
           <ChevronDown
             className={`h-4 w-4 shrink-0 text-slate-400 transition-transform ${
