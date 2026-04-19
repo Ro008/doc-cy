@@ -5,8 +5,19 @@ export type WebsiteVisitRow = {
   country: string | null;
   traffic_origin: "direct" | "ref";
   ref_code: string | null;
+  utm_source: string | null;
+  utm_medium: string | null;
   created_at: string;
 };
+
+/** Printed business card QR: ?utm_source=offline&utm_medium=business_card */
+export function countBusinessCardVisits(rows: WebsiteVisitRow[]): number {
+  return rows.filter((r) => {
+    const src = (r.utm_source ?? "").trim().toLowerCase();
+    const med = (r.utm_medium ?? "").trim().toLowerCase();
+    return src === "offline" && med === "business_card";
+  }).length;
+}
 
 export type LocalityCount = {
   locality: string;

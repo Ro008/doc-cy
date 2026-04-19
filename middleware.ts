@@ -62,6 +62,12 @@ function buildTrafficOrigin(req: NextRequest): {origin: "direct" | "ref"; refCod
   return {origin: "direct", refCode: null};
 }
 
+function trimUtm(value: string | null): string | null {
+  const v = value?.trim();
+  if (!v) return null;
+  return v.slice(0, 80);
+}
+
 function queueTrafficLog(req: NextRequest, sessionId: string, event: NextFetchEvent) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
@@ -73,6 +79,8 @@ function queueTrafficLog(req: NextRequest, sessionId: string, event: NextFetchEv
     page_path: req.nextUrl.pathname,
     traffic_origin: origin,
     ref_code: refCode,
+    utm_source: trimUtm(req.nextUrl.searchParams.get("utm_source")),
+    utm_medium: trimUtm(req.nextUrl.searchParams.get("utm_medium")),
     city: req.headers.get("x-vercel-ip-city"),
     country: req.headers.get("x-vercel-ip-country"),
     created_at: new Date().toISOString(),

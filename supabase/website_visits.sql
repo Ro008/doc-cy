@@ -7,6 +7,8 @@ CREATE TABLE IF NOT EXISTS public.website_visits (
   page_path text NOT NULL,
   traffic_origin text NOT NULL CHECK (traffic_origin IN ('direct', 'ref')),
   ref_code text,
+  utm_source text,
+  utm_medium text,
   city text,
   country text,
   created_at timestamptz NOT NULL DEFAULT now()

@@ -7,6 +7,7 @@ import type {
 
 type Props = {
   totalVisitsLast7d: number;
+  businessCardVisitsLast7d: number;
   topLocalities: LocalityCount[];
   popularSections: SectionCount[];
   highInterestSessions: HighInterestSession[];
@@ -14,6 +15,7 @@ type Props = {
 
 export function WebsiteAnalyticsPanel({
   totalVisitsLast7d,
+  businessCardVisitsLast7d,
   topLocalities,
   popularSections,
   highInterestSessions,
@@ -26,6 +28,23 @@ export function WebsiteAnalyticsPanel({
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
+        <div className="rounded-xl border border-emerald-500/35 bg-emerald-950/20 p-4">
+          <p className="text-[11px] uppercase tracking-[0.18em] text-emerald-400/90">
+            Business card (QR)
+          </p>
+          <p className="mt-2 text-3xl font-semibold text-white">{businessCardVisitsLast7d}</p>
+          <p className="mt-2 text-xs leading-relaxed text-slate-500">
+            Visits with{" "}
+            <code className="rounded bg-slate-950/80 px-1 py-0.5 text-[11px] text-slate-300">
+              utm_source=offline
+            </code>{" "}
+            and{" "}
+            <code className="rounded bg-slate-950/80 px-1 py-0.5 text-[11px] text-slate-300">
+              utm_medium=business_card
+            </code>
+          </p>
+        </div>
+
         <div className="rounded-xl border border-slate-800/70 bg-slate-950/40 p-4">
           <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Total visits (7d)</p>
           <p className="mt-2 text-3xl font-semibold text-white">{totalVisitsLast7d}</p>

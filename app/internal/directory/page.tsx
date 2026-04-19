@@ -29,6 +29,7 @@ import {
   buildHighInterestSessions,
   buildLocalityRanking,
   buildPopularSections,
+  countBusinessCardVisits,
   type WebsiteVisitRow,
 } from "@/lib/website-analytics";
 
@@ -96,7 +97,9 @@ export default async function FounderDashboardPage() {
     fetchResendAccountQuota(),
     supabase
       .from("website_visits")
-      .select("session_id, page_path, city, country, traffic_origin, ref_code, created_at")
+      .select(
+        "session_id, page_path, city, country, traffic_origin, ref_code, utm_source, utm_medium, created_at"
+      )
       .gte("created_at", sevenDaysAgoIso),
   ]);
 
@@ -240,6 +243,7 @@ export default async function FounderDashboardPage() {
       ? (websiteVisitsRes.data as WebsiteVisitRow[])
       : [];
   const totalVisitsLast7d = websiteVisitRows.length;
+  const businessCardVisitsLast7d = countBusinessCardVisits(websiteVisitRows);
   const topLocalities = buildLocalityRanking(websiteVisitRows);
   const popularSections = buildPopularSections(websiteVisitRows);
   const highInterestSessions = buildHighInterestSessions(websiteVisitRows);
@@ -312,6 +316,7 @@ export default async function FounderDashboardPage() {
         <TrialConversionTable doctors={verifiedRows} />
         <WebsiteAnalyticsPanel
           totalVisitsLast7d={totalVisitsLast7d}
+          businessCardVisitsLast7d={businessCardVisitsLast7d}
           topLocalities={topLocalities}
           popularSections={popularSections}
           highInterestSessions={highInterestSessions}
