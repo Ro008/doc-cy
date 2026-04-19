@@ -21,7 +21,6 @@ import {
 } from "@/lib/founder-metrics";
 import { buildLastSixMonthsAppointmentCounts } from "@/lib/founder-appointments-by-month";
 import { cyprusMonthStartUtcIso } from "@/lib/cyprus-calendar";
-import { fetchResendAccountQuota } from "@/lib/resend-quota";
 import { TrialConversionTable } from "@/components/internal/TrialConversionTable";
 import { getTrialPeriodDays } from "@/lib/trial-period";
 import { WebsiteAnalyticsPanel } from "@/components/internal/WebsiteAnalyticsPanel";
@@ -69,7 +68,6 @@ export default async function FounderDashboardPage() {
     appts7dRes,
     recentApptsRes,
     apptsForChartRes,
-    resendQuotaRes,
     websiteVisitsCount7dRes,
     websiteVisitsCountBusinessCard7dRes,
     websiteVisitsRowsRes,
@@ -95,7 +93,6 @@ export default async function FounderDashboardPage() {
       .from("appointments")
       .select("created_at")
       .gte("created_at", chartRangeStart.toISOString()),
-    fetchResendAccountQuota(),
     supabase
       .from("website_visits")
       .select("*", { count: "exact", head: true })
@@ -115,10 +112,6 @@ export default async function FounderDashboardPage() {
       .order("created_at", { ascending: false })
       .limit(5000),
   ]);
-
-  const resendLiveQuota = resendQuotaRes.ok ? resendQuotaRes.quota : null;
-  const resendQuotaFailureReason =
-    "reason" in resendQuotaRes ? resendQuotaRes.reason : null;
 
   if (doctorsRes.error) {
     return (
@@ -326,8 +319,6 @@ export default async function FounderDashboardPage() {
           appointmentsThisMonth={appointmentsThisMonth}
           activeDoctors7d={activeDoctors7d}
           newDoctorsThisWeek={newDoctorsThisWeek}
-          resendLiveQuota={resendLiveQuota}
-          resendQuotaFailureReason={resendQuotaFailureReason}
         />
 
         <PendingSpecialtiesPanel items={pendingSpecialtyItems} />

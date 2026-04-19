@@ -2,10 +2,6 @@ import { formatInTimeZone } from "date-fns-tz";
 import { Users, CalendarDays, Activity, UserPlus, CalendarRange } from "lucide-react";
 import { CY_TZ } from "@/lib/appointments";
 import { ResendUsageBar } from "@/components/internal/ResendUsageBar";
-import type {
-  ResendAccountQuota,
-  ResendQuotaFailureReason,
-} from "@/lib/resend-quota";
 
 type Props = {
   totalDoctors: number;
@@ -13,8 +9,6 @@ type Props = {
   appointmentsThisMonth: number;
   activeDoctors7d: number;
   newDoctorsThisWeek: number;
-  resendLiveQuota: ResendAccountQuota | null;
-  resendQuotaFailureReason: ResendQuotaFailureReason | null;
 };
 
 const cardBase =
@@ -67,8 +61,6 @@ export function FounderKpiCards({
   appointmentsThisMonth,
   activeDoctors7d,
   newDoctorsThisWeek,
-  resendLiveQuota,
-  resendQuotaFailureReason,
 }: Props) {
   const monthLabelCy = formatInTimeZone(new Date(), CY_TZ, "MMMM yyyy");
 
@@ -99,11 +91,7 @@ export function FounderKpiCards({
           accent="from-cyan-500/20 to-sky-500/5"
           iconBg="bg-cyan-500/15 text-cyan-300"
         />
-        <ResendUsageBar
-          totalAppointments={totalAppointments}
-          liveQuota={resendLiveQuota}
-          quotaFailureReason={resendQuotaFailureReason}
-        />
+        <ResendUsageBar />
       </div>
       <KpiCard
         label="Active professionals (7d)"
