@@ -24,7 +24,10 @@ export function WebsiteAnalyticsPanel({
     <section className="rounded-2xl border border-slate-800/80 bg-slate-900/25 p-5 shadow-inner shadow-black/20 backdrop-blur-sm">
       <div className="mb-5 border-b border-slate-800/60 pb-4">
         <h2 className="text-sm font-semibold text-slate-100">Website Analytics</h2>
-        <p className="text-xs text-slate-500">Last 7 days (human traffic; see note on automated tests)</p>
+        <p className="text-xs text-slate-500">
+          Last 7 days · headline counts are exact (not limited to 1,000 rows). Human traffic; see note on
+          automated tests.
+        </p>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">

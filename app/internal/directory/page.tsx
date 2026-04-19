@@ -29,8 +29,6 @@ import {
   buildHighInterestSessions,
   buildLocalityRanking,
   buildPopularSections,
-  countBusinessCardVisits,
-  countWebsiteAndLinkVisits,
   type WebsiteVisitRow,
 } from "@/lib/website-analytics";
 
@@ -72,7 +70,9 @@ export default async function FounderDashboardPage() {
     recentApptsRes,
     apptsForChartRes,
     resendQuotaRes,
-    websiteVisitsRes,
+    websiteVisitsCount7dRes,
+    websiteVisitsCountBusinessCard7dRes,
+    websiteVisitsRowsRes,
   ] = await Promise.all([
     supabase
       .from("doctors")
@@ -98,10 +98,22 @@ export default async function FounderDashboardPage() {
     fetchResendAccountQuota(),
     supabase
       .from("website_visits")
+      .select("*", { count: "exact", head: true })
+      .gte("created_at", sevenDaysAgoIso),
+    supabase
+      .from("website_visits")
+      .select("*", { count: "exact", head: true })
+      .gte("created_at", sevenDaysAgoIso)
+      .eq("utm_source", "offline")
+      .eq("utm_medium", "business_card"),
+    supabase
+      .from("website_visits")
       .select(
         "session_id, page_path, city, country, traffic_origin, ref_code, utm_source, utm_medium, created_at"
       )
-      .gte("created_at", sevenDaysAgoIso),
+      .gte("created_at", sevenDaysAgoIso)
+      .order("created_at", { ascending: false })
+      .limit(5000),
   ]);
 
   const resendLiveQuota = resendQuotaRes.ok ? resendQuotaRes.quota : null;
@@ -240,11 +252,20 @@ export default async function FounderDashboardPage() {
   });
   const trialPeriodDays = getTrialPeriodDays();
   const websiteVisitRows =
-    !websiteVisitsRes.error && websiteVisitsRes.data
-      ? (websiteVisitsRes.data as WebsiteVisitRow[])
+    !websiteVisitsRowsRes.error && websiteVisitsRowsRes.data
+      ? (websiteVisitsRowsRes.data as WebsiteVisitRow[])
       : [];
-  const businessCardVisitsLast7d = countBusinessCardVisits(websiteVisitRows);
-  const websiteAndLinkVisitsLast7d = countWebsiteAndLinkVisits(websiteVisitRows);
+  const visits7dTotal =
+    !websiteVisitsCount7dRes.error && websiteVisitsCount7dRes.count != null
+      ? websiteVisitsCount7dRes.count
+      : 0;
+  const visits7dBusinessCard =
+    !websiteVisitsCountBusinessCard7dRes.error &&
+    websiteVisitsCountBusinessCard7dRes.count != null
+      ? websiteVisitsCountBusinessCard7dRes.count
+      : 0;
+  const businessCardVisitsLast7d = visits7dBusinessCard;
+  const websiteAndLinkVisitsLast7d = Math.max(0, visits7dTotal - visits7dBusinessCard);
   const topLocalities = buildLocalityRanking(websiteVisitRows);
   const popularSections = buildPopularSections(websiteVisitRows);
   const highInterestSessions = buildHighInterestSessions(websiteVisitRows);
