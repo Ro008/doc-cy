@@ -7,6 +7,8 @@ export type WebsiteVisitRow = {
   ref_code: string | null;
   utm_source: string | null;
   utm_medium: string | null;
+  user_agent?: string | null;
+  is_bot?: boolean;
   created_at: string;
 };
 
@@ -57,9 +59,20 @@ export function mapPathToSection(path: string): string {
   return "Other";
 }
 
+/** Vercel geo headers sometimes arrive percent-encoded (e.g. Santa%20Clara). */
+function decodeGeoFragment(value: string): string {
+  const v = value.trim();
+  if (!v) return v;
+  try {
+    return decodeURIComponent(v.replace(/\+/g, " "));
+  } catch {
+    return v;
+  }
+}
+
 export function formatLocality(city: string | null, country: string | null): string {
-  const c = (city ?? "").trim();
-  const co = (country ?? "").trim();
+  const c = decodeGeoFragment(city ?? "");
+  const co = decodeGeoFragment(country ?? "");
   if (c && co) return `${c}, ${co}`;
   if (c) return c;
   if (co) return co;

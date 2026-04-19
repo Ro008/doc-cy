@@ -5,6 +5,7 @@ import {createMiddlewareClient} from "@supabase/auth-helpers-nextjs";
 
 import createMiddleware from "next-intl/middleware";
 import {routing} from "./i18n/routing";
+import {isLikelyBotUserAgent} from "./lib/bot-user-agent";
 import {shouldSuppressTrafficLog} from "./lib/traffic-log";
 
 const handleI18nRouting = createMiddleware(routing);
@@ -69,10 +70,17 @@ function trimUtm(value: string | null): string | null {
   return v.slice(0, 80);
 }
 
+const MAX_USER_AGENT_LEN = 512;
+
 function queueTrafficLog(req: NextRequest, sessionId: string, event: NextFetchEvent) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
   if (!url || !serviceRoleKey) return;
+
+  const rawUa = req.headers.get("user-agent");
+  const userAgent =
+    rawUa && rawUa.trim() ? rawUa.trim().slice(0, MAX_USER_AGENT_LEN) : null;
+  const isBot = isLikelyBotUserAgent(userAgent);
 
   const {origin, refCode} = buildTrafficOrigin(req);
   const payload = {
@@ -84,6 +92,8 @@ function queueTrafficLog(req: NextRequest, sessionId: string, event: NextFetchEv
     utm_medium: trimUtm(req.nextUrl.searchParams.get("utm_medium")),
     city: req.headers.get("x-vercel-ip-city"),
     country: req.headers.get("x-vercel-ip-country"),
+    user_agent: userAgent,
+    is_bot: isBot,
     created_at: new Date().toISOString(),
   };
 

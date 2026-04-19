@@ -96,11 +96,13 @@ export default async function FounderDashboardPage() {
     supabase
       .from("website_visits")
       .select("*", { count: "exact", head: true })
-      .gte("created_at", sevenDaysAgoIso),
+      .gte("created_at", sevenDaysAgoIso)
+      .eq("is_bot", false),
     supabase
       .from("website_visits")
       .select("*", { count: "exact", head: true })
       .gte("created_at", sevenDaysAgoIso)
+      .eq("is_bot", false)
       .eq("utm_source", "offline")
       .eq("utm_medium", "business_card"),
     supabase
@@ -109,6 +111,7 @@ export default async function FounderDashboardPage() {
         "session_id, page_path, city, country, traffic_origin, ref_code, utm_source, utm_medium, created_at"
       )
       .gte("created_at", sevenDaysAgoIso)
+      .eq("is_bot", false)
       .order("created_at", { ascending: false })
       .limit(5000),
   ]);
