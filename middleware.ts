@@ -5,6 +5,7 @@ import {createMiddlewareClient} from "@supabase/auth-helpers-nextjs";
 
 import createMiddleware from "next-intl/middleware";
 import {routing} from "./i18n/routing";
+import {shouldSuppressTrafficLog} from "./lib/traffic-log";
 
 const handleI18nRouting = createMiddleware(routing);
 
@@ -146,7 +147,7 @@ export async function middleware(req: NextRequest, event: NextFetchEvent) {
     }
   }
 
-  if (req.method === "GET" && shouldTrackTraffic(pathname)) {
+  if (req.method === "GET" && shouldTrackTraffic(pathname) && !shouldSuppressTrafficLog(req)) {
     const existing = req.cookies.get(TRAFFIC_SESSION_COOKIE)?.value?.trim();
     const sessionId = existing || crypto.randomUUID();
     if (!existing) {

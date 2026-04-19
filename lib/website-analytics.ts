@@ -11,12 +11,19 @@ export type WebsiteVisitRow = {
 };
 
 /** Printed business card QR: ?utm_source=offline&utm_medium=business_card */
+export function isBusinessCardUtmVisit(row: WebsiteVisitRow): boolean {
+  const src = (row.utm_source ?? "").trim().toLowerCase();
+  const med = (row.utm_medium ?? "").trim().toLowerCase();
+  return src === "offline" && med === "business_card";
+}
+
 export function countBusinessCardVisits(rows: WebsiteVisitRow[]): number {
-  return rows.filter((r) => {
-    const src = (r.utm_source ?? "").trim().toLowerCase();
-    const med = (r.utm_medium ?? "").trim().toLowerCase();
-    return src === "offline" && med === "business_card";
-  }).length;
+  return rows.filter(isBusinessCardUtmVisit).length;
+}
+
+/** Everything else we log: direct URL, search, bookmarks, other UTMs, ?ref=, etc. */
+export function countWebsiteAndLinkVisits(rows: WebsiteVisitRow[]): number {
+  return rows.filter((r) => !isBusinessCardUtmVisit(r)).length;
 }
 
 export type LocalityCount = {

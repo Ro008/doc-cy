@@ -30,6 +30,7 @@ import {
   buildLocalityRanking,
   buildPopularSections,
   countBusinessCardVisits,
+  countWebsiteAndLinkVisits,
   type WebsiteVisitRow,
 } from "@/lib/website-analytics";
 
@@ -242,8 +243,8 @@ export default async function FounderDashboardPage() {
     !websiteVisitsRes.error && websiteVisitsRes.data
       ? (websiteVisitsRes.data as WebsiteVisitRow[])
       : [];
-  const totalVisitsLast7d = websiteVisitRows.length;
   const businessCardVisitsLast7d = countBusinessCardVisits(websiteVisitRows);
+  const websiteAndLinkVisitsLast7d = countWebsiteAndLinkVisits(websiteVisitRows);
   const topLocalities = buildLocalityRanking(websiteVisitRows);
   const popularSections = buildPopularSections(websiteVisitRows);
   const highInterestSessions = buildHighInterestSessions(websiteVisitRows);
@@ -315,8 +316,8 @@ export default async function FounderDashboardPage() {
         </div>
         <TrialConversionTable doctors={verifiedRows} />
         <WebsiteAnalyticsPanel
-          totalVisitsLast7d={totalVisitsLast7d}
           businessCardVisitsLast7d={businessCardVisitsLast7d}
+          websiteAndLinkVisitsLast7d={websiteAndLinkVisitsLast7d}
           topLocalities={topLocalities}
           popularSections={popularSections}
           highInterestSessions={highInterestSessions}
