@@ -7,8 +7,12 @@ CREATE TABLE IF NOT EXISTS public.website_visits (
   page_path text NOT NULL,
   traffic_origin text NOT NULL CHECK (traffic_origin IN ('direct', 'ref')),
   ref_code text,
+  utm_source text,
+  utm_medium text,
   city text,
   country text,
+  user_agent text,
+  is_bot boolean NOT NULL DEFAULT false,
   created_at timestamptz NOT NULL DEFAULT now()
 );
 
@@ -23,6 +27,10 @@ CREATE INDEX IF NOT EXISTS website_visits_location_idx
 
 CREATE INDEX IF NOT EXISTS website_visits_page_idx
   ON public.website_visits (page_path);
+
+CREATE INDEX IF NOT EXISTS website_visits_human_created_idx
+  ON public.website_visits (created_at DESC)
+  WHERE is_bot = false;
 
 COMMENT ON TABLE public.website_visits IS
   'Traffic analytics for founder dashboard. One row per page view.';

@@ -1,6 +1,7 @@
 // playwright.config.ts
 import { defineConfig, devices } from "@playwright/test";
 import dotenv from "dotenv";
+import { TRAFFIC_LOG_SUPPRESS_HEADER } from "./lib/traffic-log";
 
 // Load env file for Playwright runs (defaults to .env.local).
 const envFilePath = process.env.PLAYWRIGHT_ENV_FILE?.trim() || ".env.local";
@@ -10,6 +11,9 @@ const localUrl = "http://localhost:3000";
 // Default to local dev. For staging/prod runs, set `PLAYWRIGHT_BASE_URL`.
 const baseUrl = process.env.PLAYWRIGHT_BASE_URL ?? localUrl;
 const safeNoBooking = process.env.PLAYWRIGHT_SAFE_NO_BOOKING === "1";
+
+/** When set (same value as server DOC_CY_SUPPRESS_TRAFFIC_LOG_SECRET), E2E requests skip traffic logging. */
+const trafficLogSuppressSecret = process.env.DOC_CY_SUPPRESS_TRAFFIC_LOG_SECRET?.trim();
 
 /** CI often uses 127.0.0.1:3000; dev uses localhost:3000 — both should start Next when requested. */
 function isLocalDevBaseUrl(url: string): boolean {
@@ -56,6 +60,13 @@ export default defineConfig({
     trace: "on-first-retry",
     // Domain/SSL might not be fully propagated yet after switching providers.
     ignoreHTTPSErrors: true,
+    ...(trafficLogSuppressSecret
+      ? {
+          extraHTTPHeaders: {
+            [TRAFFIC_LOG_SUPPRESS_HEADER]: trafficLogSuppressSecret,
+          },
+        }
+      : {}),
   },
   projects: [
     {

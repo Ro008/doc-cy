@@ -5,8 +5,28 @@ export type WebsiteVisitRow = {
   country: string | null;
   traffic_origin: "direct" | "ref";
   ref_code: string | null;
+  utm_source: string | null;
+  utm_medium: string | null;
+  user_agent?: string | null;
+  is_bot?: boolean;
   created_at: string;
 };
+
+/** Printed business card QR: ?utm_source=offline&utm_medium=business_card */
+export function isBusinessCardUtmVisit(row: WebsiteVisitRow): boolean {
+  const src = (row.utm_source ?? "").trim().toLowerCase();
+  const med = (row.utm_medium ?? "").trim().toLowerCase();
+  return src === "offline" && med === "business_card";
+}
+
+export function countBusinessCardVisits(rows: WebsiteVisitRow[]): number {
+  return rows.filter(isBusinessCardUtmVisit).length;
+}
+
+/** Everything else we log: direct URL, search, bookmarks, other UTMs, ?ref=, etc. */
+export function countWebsiteAndLinkVisits(rows: WebsiteVisitRow[]): number {
+  return rows.filter((r) => !isBusinessCardUtmVisit(r)).length;
+}
 
 export type LocalityCount = {
   locality: string;
@@ -39,9 +59,20 @@ export function mapPathToSection(path: string): string {
   return "Other";
 }
 
+/** Vercel geo headers sometimes arrive percent-encoded (e.g. Santa%20Clara). */
+function decodeGeoFragment(value: string): string {
+  const v = value.trim();
+  if (!v) return v;
+  try {
+    return decodeURIComponent(v.replace(/\+/g, " "));
+  } catch {
+    return v;
+  }
+}
+
 export function formatLocality(city: string | null, country: string | null): string {
-  const c = (city ?? "").trim();
-  const co = (country ?? "").trim();
+  const c = decodeGeoFragment(city ?? "");
+  const co = decodeGeoFragment(country ?? "");
   if (c && co) return `${c}, ${co}`;
   if (c) return c;
   if (co) return co;

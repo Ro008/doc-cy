@@ -6,14 +6,16 @@ import type {
 } from "@/lib/website-analytics";
 
 type Props = {
-  totalVisitsLast7d: number;
+  businessCardVisitsLast7d: number;
+  websiteAndLinkVisitsLast7d: number;
   topLocalities: LocalityCount[];
   popularSections: SectionCount[];
   highInterestSessions: HighInterestSession[];
 };
 
 export function WebsiteAnalyticsPanel({
-  totalVisitsLast7d,
+  businessCardVisitsLast7d,
+  websiteAndLinkVisitsLast7d,
   topLocalities,
   popularSections,
   highInterestSessions,
@@ -22,17 +24,49 @@ export function WebsiteAnalyticsPanel({
     <section className="rounded-2xl border border-slate-800/80 bg-slate-900/25 p-5 shadow-inner shadow-black/20 backdrop-blur-sm">
       <div className="mb-5 border-b border-slate-800/60 pb-4">
         <h2 className="text-sm font-semibold text-slate-100">Website Analytics</h2>
-        <p className="text-xs text-slate-500">Accumulated traffic (last 7 days)</p>
+        <p className="text-xs text-slate-500">
+          Last 7 days · headline counts are exact (not limited to 1,000 rows).           Excludes likely bots (User-Agent heuristic). Playwright test hits omitted when suppress
+          secret is configured.
+        </p>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
+        <div className="rounded-xl border border-emerald-500/35 bg-emerald-950/20 p-4">
+          <p className="text-[11px] uppercase tracking-[0.18em] text-emerald-400/90">
+            Business card (QR scan)
+          </p>
+          <p className="mt-2 text-3xl font-semibold text-white">{businessCardVisitsLast7d}</p>
+          <p className="mt-2 text-xs leading-relaxed text-slate-500">
+            Landing hits that include{" "}
+            <code className="rounded bg-slate-950/80 px-1 py-0.5 text-[11px] text-slate-300">
+              utm_source=offline
+            </code>{" "}
+            and{" "}
+            <code className="rounded bg-slate-950/80 px-1 py-0.5 text-[11px] text-slate-300">
+              utm_medium=business_card
+            </code>{" "}
+            (your printed QR).
+          </p>
+        </div>
+
         <div className="rounded-xl border border-slate-800/70 bg-slate-950/40 p-4">
-          <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Total visits (7d)</p>
-          <p className="mt-2 text-3xl font-semibold text-white">{totalVisitsLast7d}</p>
+          <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Website & links</p>
+          <p className="mt-2 text-3xl font-semibold text-white">{websiteAndLinkVisitsLast7d}</p>
+          <p className="mt-2 text-xs leading-relaxed text-slate-500">
+            All other logged visits: typing{" "}
+            <code className="rounded bg-slate-950/80 px-1 py-0.5 text-[11px] text-slate-300">
+              mydoccy.com
+            </code>
+            , search, bookmarks, shared links, other campaigns — not the business-card UTM pair above.
+          </p>
         </div>
 
         <div className="rounded-xl border border-slate-800/70 bg-slate-950/40 p-4">
           <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Top localities</p>
+          <p className="mt-1 text-[10px] leading-relaxed text-slate-600">
+            Approximate IP geo (Vercel). This list is non-bot only; some automated traffic may still
+            look like a normal browser.
+          </p>
           <ul className="mt-2 space-y-1 text-sm text-slate-200">
             {topLocalities.length ? (
               topLocalities.map((row) => (
@@ -98,6 +132,15 @@ export function WebsiteAnalyticsPanel({
           </ul>
         </div>
       </div>
+
+      <p className="mt-4 text-xs leading-relaxed text-slate-600">
+        E2E tests do not add rows when the deployment sets{" "}
+        <code className="rounded bg-slate-950/60 px-1 py-0.5 font-mono text-[11px] text-slate-400">
+          DOC_CY_SUPPRESS_TRAFFIC_LOG_SECRET
+        </code>{" "}
+        and Playwright uses the same value (e.g. Vercel env + GitHub Actions secret). Older rows from
+        before that setup may still include test noise.
+      </p>
     </section>
   );
 }
