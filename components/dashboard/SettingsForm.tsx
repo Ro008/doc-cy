@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { ArrowLeft, Save } from "lucide-react";
+import { ArrowLeft, Save, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { SpecialtyCombobox } from "@/components/specialties/SpecialtyCombobox";
 import { LanguageMultiSelect } from "@/components/languages/LanguageMultiSelect";
@@ -49,6 +49,14 @@ export type DoctorSettingsFormData = {
   holidayModeEnabled: boolean;
   holidayStartDate: string | null; // "YYYY-MM-DD"
   holidayEndDate: string | null; // "YYYY-MM-DD"
+  services: DoctorServiceItem[];
+};
+
+export type DoctorServiceItem = {
+  id: string;
+  name: string;
+  price: string | null;
+  created_at: string;
 };
 
 type SettingsFormProps = {
@@ -137,6 +145,89 @@ export function SettingsForm({ initial }: SettingsFormProps) {
   const [holidayEndInput, setHolidayEndInput] = React.useState(
     formatISOToDDMMYYYYOrEmpty(initial.holidayEndDate)
   );
+  const [services, setServices] = React.useState<DoctorServiceItem[]>(
+    Array.isArray(initial.services) ? initial.services : []
+  );
+  const [serviceName, setServiceName] = React.useState("");
+  const [servicePrice, setServicePrice] = React.useState("");
+  const [serviceSubmitting, setServiceSubmitting] = React.useState(false);
+  const [deletingServiceId, setDeletingServiceId] = React.useState<string | null>(null);
+
+  async function handleAddService() {
+    const name = serviceName.trim();
+    const price = servicePrice.trim();
+    if (!name) {
+      toast.error("Service name is required.");
+      return;
+    }
+    setServiceSubmitting(true);
+    try {
+      const addOnce = async () => {
+        const res = await fetch("/api/doctor-services", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            doctorId: initial.doctorId,
+            name,
+            price: price || null,
+          }),
+        });
+        const data = await res.json().catch(() => ({}));
+        return { res, data };
+      };
+
+      let { res, data } = await addOnce();
+      // Occasionally the first request can race with auth/session propagation.
+      if (!res.ok && [401, 403, 500].includes(res.status)) {
+        await new Promise((resolve) => setTimeout(resolve, 300));
+        const retry = await addOnce();
+        res = retry.res;
+        data = retry.data;
+      }
+
+      if (!res.ok) {
+        toast.error((data.message as string) || "Could not add service.");
+        return;
+      }
+
+      const newService = data.service as DoctorServiceItem | undefined;
+      if (newService) setServices((prev) => [...prev, newService]);
+      setServiceName("");
+      setServicePrice("");
+      toast.success("Service added.");
+    } catch (err) {
+      console.error(err);
+      toast.error("Could not add service.");
+    } finally {
+      setServiceSubmitting(false);
+    }
+  }
+
+  async function handleDeleteService(serviceId: string) {
+    setDeletingServiceId(serviceId);
+    try {
+      const res = await fetch("/api/doctor-services", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          doctorId: initial.doctorId,
+          serviceId,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error((data.message as string) || "Could not delete service.");
+        return;
+      }
+      setServices((prev) => prev.filter((s) => s.id !== serviceId));
+      toast.success("Service removed.");
+    } catch (err) {
+      console.error(err);
+      toast.error("Could not delete service.");
+    } finally {
+      setDeletingServiceId(null);
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -305,6 +396,66 @@ export function SettingsForm({ initial }: SettingsFormProps) {
           <span className="font-medium text-slate-300">Chat on WhatsApp</span>.
         </p>
       </div>
+
+      <section className="rounded-2xl border border-[#00FFD5]/30 bg-slate-900/60 p-5">
+        <p className="text-xs font-semibold uppercase tracking-wide text-[#00FFD5]">
+          Services
+        </p>
+        <p className="mt-1 text-sm text-slate-400">
+          List treatments for your public profile. Prices are in{" "}
+          <span className="font-medium text-slate-300">euros (EUR, €)</span>.
+        </p>
+
+        <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_180px_auto]">
+          <input
+            type="text"
+            value={serviceName}
+            onChange={(e) => setServiceName(e.target.value)}
+            placeholder="Treatment name (e.g. Facial laser)"
+            className="w-full rounded-xl border border-slate-800/80 bg-slate-950/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-[#00FFD5]/60"
+          />
+          <input
+            type="text"
+            value={servicePrice}
+            onChange={(e) => setServicePrice(e.target.value)}
+            placeholder="e.g. 120 or From 80"
+            className="w-full rounded-xl border border-slate-800/80 bg-slate-950/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-[#00FFD5]/60"
+          />
+          <button
+            type="button"
+            onClick={handleAddService}
+            disabled={serviceSubmitting}
+            className="inline-flex items-center justify-center rounded-xl bg-[#00FFD5] px-4 py-2 text-sm font-semibold text-slate-950 transition hover:opacity-90 disabled:opacity-60"
+          >
+            {serviceSubmitting ? "Adding..." : "Add"}
+          </button>
+        </div>
+
+        <ul className="mt-4 space-y-2">
+          {services.map((service) => (
+            <li
+              key={service.id}
+              className="flex items-center justify-between gap-3 rounded-xl border border-slate-800/70 bg-slate-950/35 px-3 py-2.5"
+            >
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium text-slate-100">{service.name}</p>
+                {service.price ? (
+                  <p className="text-xs text-slate-400">{service.price}</p>
+                ) : null}
+              </div>
+              <button
+                type="button"
+                disabled={deletingServiceId === service.id}
+                onClick={() => handleDeleteService(service.id)}
+                aria-label={`Delete ${service.name}`}
+                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-700 bg-slate-900/60 text-slate-300 transition hover:border-red-400/70 hover:text-red-300 disabled:opacity-50"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </li>
+          ))}
+        </ul>
+      </section>
 
       <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-5">
         <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
