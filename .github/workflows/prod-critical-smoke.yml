@@ -193,8 +193,8 @@ jobs:
           TEST_DOCTOR_PASSWORD: ${{ secrets.TEST_DOCTOR_PASSWORD }}
         run: |
           npx playwright test \
-            tests/prod/prod_doctor_login.spec.ts \
-            tests/prod/prod_qr_fab_smoke.spec.ts \
+            tests/prod/prod_doctor_login_ui_minimal.spec.ts \
+            tests/prod/prod_agenda_qr_with_session.spec.ts \
             --project="Desktop Large (Chromium)" \
             --reporter=line
 

@@ -1,30 +1,34 @@
-import { expect, type Page } from "@playwright/test";
-import { createClient } from "@supabase/supabase-js";
+import { expect, type Page, type Response } from "@playwright/test";
 
-type LoginOutcome = "agenda" | "invalid-credentials" | "timeout";
+export type DoctorLoginResult = {
+  outcome: "agenda" | "invalid-credentials" | "timeout";
+  authStatus: number | null;
+  authMessage: string | null;
+  authHost: string | null;
+};
 
-async function submitAndWaitForOutcome(page: Page): Promise<LoginOutcome> {
-  const invalidCredentialsNotice = page.getByText(/Invalid email or password/i);
-
-  try {
-    await page.waitForURL(/\/agenda(?:[/?#]|$)/, { timeout: 30_000 });
-    return "agenda";
-  } catch {
-    // Continue below to classify why we did not reach /agenda.
-  }
-
-  if (await invalidCredentialsNotice.isVisible()) {
-    return "invalid-credentials";
-  }
-
-  return "timeout";
+function readAuthMessage(body: unknown): string | null {
+  if (!body || typeof body !== "object") return null;
+  const payload = body as Record<string, unknown>;
+  if (typeof payload.msg === "string") return payload.msg;
+  if (typeof payload.error_description === "string") return payload.error_description;
+  if (typeof payload.error === "string") return payload.error;
+  return null;
 }
 
-export async function loginDoctorToAgenda(
+async function waitForAuthResponse(page: Page): Promise<Response> {
+  return page.waitForResponse(
+    (response) =>
+      response.request().method() === "POST" && /\/auth\/v1\/token(\?|$)/.test(response.url()),
+    { timeout: 25_000 }
+  );
+}
+
+export async function attemptDoctorLoginViaUi(
   page: Page,
   email: string,
   password: string
-): Promise<void> {
+): Promise<DoctorLoginResult> {
   const normalizedEmail = email.trim();
   const normalizedPassword = password.trim();
   if (!normalizedEmail || !normalizedPassword) {
@@ -33,99 +37,67 @@ export async function loginDoctorToAgenda(
     );
   }
 
-  const supabaseUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").trim();
-  const supabaseAnonKey = (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "").trim();
-  if (!supabaseUrl || !supabaseAnonKey) {
+  await page.goto("/login");
+  await page.getByLabel("Email").fill(normalizedEmail);
+  await page.getByLabel("Password").fill(normalizedPassword);
+
+  const authResponsePromise = waitForAuthResponse(page);
+  await page.getByRole("button", { name: /Sign in/i }).click();
+
+  let authStatus: number | null = null;
+  let authMessage: string | null = null;
+  let authHost: string | null = null;
+  try {
+    const authResponse = await authResponsePromise;
+    authStatus = authResponse.status();
+    authHost = new URL(authResponse.url()).host;
+    try {
+      authMessage = readAuthMessage(await authResponse.json());
+    } catch {
+      authMessage = null;
+    }
+  } catch {
+    // Keep diagnostics nullable and continue with outcome checks.
+  }
+
+  try {
+    await page.waitForURL(/\/agenda(?:[/?#]|$)/, { timeout: 25_000 });
+    await expect(page).toHaveURL(/\/agenda(?:[/?#]|$)/, { timeout: 10_000 });
+    return { outcome: "agenda", authStatus, authMessage, authHost };
+  } catch {
+    // Check login failure UI before timing out fully.
+  }
+
+  const invalidCredentialsNotice = page.getByText(/Invalid email or password/i);
+  if (await invalidCredentialsNotice.isVisible()) {
+    return { outcome: "invalid-credentials", authStatus, authMessage, authHost };
+  }
+
+  return { outcome: "timeout", authStatus, authMessage, authHost };
+}
+
+export async function loginDoctorToAgendaOrThrow(
+  page: Page,
+  email: string,
+  password: string
+): Promise<void> {
+  const result = await attemptDoctorLoginViaUi(page, email, password);
+  if (result.outcome === "agenda") return;
+
+  const authDetail =
+    result.authStatus !== null
+      ? ` auth status=${result.authStatus}${
+          result.authMessage ? `, message="${result.authMessage}"` : ""
+        }${result.authHost ? `, host="${result.authHost}"` : ""}.`
+      : "";
+
+  if (result.outcome === "invalid-credentials") {
     throw new Error(
-      "Missing NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY in CI env."
+      `UI login returned invalid credentials.${authDetail} Check deployed app env vars (NEXT_PUBLIC_SUPABASE_URL/NEXT_PUBLIC_SUPABASE_ANON_KEY), TEST_DOCTOR_* secrets, and PLAYWRIGHT_BASE_URL target alignment.`
     );
   }
 
-  const expectedSupabaseHost = new URL(supabaseUrl).host;
-  let observedUiSupabaseHost: string | null = null;
-  let observedUiAuthStatus: number | null = null;
-  let observedUiAuthErrorSummary: string | null = null;
-  page.on("request", (request) => {
-    const url = request.url();
-    if (!/\/auth\/v1\/token(\?|$)/.test(url)) return;
-    try {
-      observedUiSupabaseHost = new URL(url).host;
-    } catch {
-      // no-op: keep best effort diagnostics only
-    }
-  });
-  page.on("response", async (response) => {
-    const url = response.url();
-    if (!/\/auth\/v1\/token(\?|$)/.test(url)) return;
-    observedUiAuthStatus = response.status();
-    try {
-      const body = await response.json();
-      const msg =
-        typeof body?.msg === "string"
-          ? body.msg
-          : typeof body?.error_description === "string"
-            ? body.error_description
-            : typeof body?.error === "string"
-              ? body.error
-              : null;
-      observedUiAuthErrorSummary = msg;
-    } catch {
-      // no-op: response may not be JSON
-    }
-  });
-
-  await page.goto("/login");
-
-  // CI can occasionally miss the first submit due to transient rendering/network timing.
-  for (let attempt = 1; attempt <= 2; attempt += 1) {
-    await page.getByLabel("Email").fill(normalizedEmail);
-    await page.getByLabel("Password").fill(normalizedPassword);
-    await page.getByRole("button", { name: /Sign in/i }).click();
-
-    const outcome = await submitAndWaitForOutcome(page);
-    if (outcome === "agenda") {
-      await expect(page).toHaveURL(/\/agenda(?:[/?#]|$)/, { timeout: 15_000 });
-      return;
-    }
-
-    if (outcome === "invalid-credentials") {
-      // Run API preflight only after a UI failure to avoid adding extra sign-in attempts
-      // that can trigger anti-abuse/rate-limit protections in CI.
-      const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-        auth: { persistSession: false, autoRefreshToken: false },
-      });
-      const preflight = await supabase.auth.signInWithPassword({
-        email: normalizedEmail,
-        password: normalizedPassword,
-      });
-      const preflightSucceeded = !preflight.error;
-      if (preflightSucceeded) {
-        await supabase.auth.signOut();
-      }
-
-      if (!preflightSucceeded) {
-        throw new Error(
-          `Doctor login failed in UI and Supabase API preflight also failed: ${preflight.error?.message ?? "unknown auth error"}. Check TEST_DOCTOR_EMAIL / TEST_DOCTOR_PASSWORD.`
-        );
-      }
-
-      const mismatchDetail =
-        observedUiSupabaseHost && observedUiSupabaseHost !== expectedSupabaseHost
-          ? ` UI is calling Supabase host "${observedUiSupabaseHost}" but CI preflight uses "${expectedSupabaseHost}".`
-          : "";
-      const authResponseDetail =
-        observedUiAuthStatus !== null
-          ? ` UI /auth/v1/token status=${observedUiAuthStatus}${
-              observedUiAuthErrorSummary ? `, message="${observedUiAuthErrorSummary}"` : ""
-            }.`
-          : "";
-      throw new Error(
-        `UI login returned "Invalid email or password" but Supabase auth preflight succeeded.${mismatchDetail}${authResponseDetail} Check deployed app env vars (e.g. Vercel Production NEXT_PUBLIC_SUPABASE_URL/NEXT_PUBLIC_SUPABASE_ANON_KEY) and ensure they match CI secrets and PLAYWRIGHT_BASE_URL target.`
-      );
-    }
-  }
-
   throw new Error(
-    `Doctor login did not reach /agenda after 2 attempts (current URL: ${page.url()}). This indicates CI auth latency/throttling or provider-side issues.`
+    `Doctor login did not reach /agenda in time (current URL: ${page.url()}).${authDetail}`
   );
 }
