@@ -181,7 +181,8 @@ jobs:
       # 1) PLAYWRIGHT_BASE_URL_PROD and deployed NEXT_PUBLIC_SUPABASE_* confirmed aligned.
       # 2) This step passes on >= 5 consecutive nightly runs.
       # 3) Move these specs back into the blocking "Run production critical smoke suite" step.
-      - name: Run doctor auth UI smoke (non-blocking temporary)
+      - name: Run doctor auth UI minimal smoke (non-blocking temporary)
+        id: doctor_auth_ui_minimal
         if: always()
         continue-on-error: true
         env:
@@ -194,8 +195,27 @@ jobs:
         run: |
           npx playwright test \
             tests/prod/prod_doctor_login_ui_minimal.spec.ts \
+            --project="Desktop Large (Chromium)" \
+            --retries=0 \
+            --workers=1 \
+            --reporter=line
+
+      - name: Run agenda/QR smoke after auth UI (non-blocking temporary)
+        if: always() && steps.doctor_auth_ui_minimal.outcome == 'success'
+        continue-on-error: true
+        env:
+          PLAYWRIGHT_BASE_URL: ${{ secrets.PLAYWRIGHT_BASE_URL_PROD }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.PROD_NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.PROD_NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          DOC_CY_SUPPRESS_TRAFFIC_LOG_SECRET: ${{ secrets.DOC_CY_SUPPRESS_TRAFFIC_LOG_SECRET }}
+          TEST_DOCTOR_EMAIL: ${{ secrets.TEST_DOCTOR_EMAIL }}
+          TEST_DOCTOR_PASSWORD: ${{ secrets.TEST_DOCTOR_PASSWORD }}
+        run: |
+          npx playwright test \
             tests/prod/prod_agenda_qr_with_session.spec.ts \
             --project="Desktop Large (Chromium)" \
+            --retries=0 \
+            --workers=1 \
             --reporter=line
 
       - name: Upload Playwright report
