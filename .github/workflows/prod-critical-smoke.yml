@@ -62,25 +62,25 @@ jobs:
       - name: Validate Supabase production secrets
         shell: bash
         env:
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.PROD_NEXT_PUBLIC_SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.PROD_NEXT_PUBLIC_SUPABASE_ANON_KEY || secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY || secrets.SUPABASE_ANON_KEY }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.PROD_SUPABASE_SERVICE_ROLE_KEY || secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          PROD_NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.PROD_NEXT_PUBLIC_SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.PROD_NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.PROD_NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.PROD_SUPABASE_SERVICE_ROLE_KEY }}
+          PROD_NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.PROD_NEXT_PUBLIC_SUPABASE_URL }}
           INTEGRATION_SUPABASE_URL: ${{ secrets.INTEGRATION_SUPABASE_URL }}
         run: |
           set -euo pipefail
           missing=0
 
           if [ -z "${NEXT_PUBLIC_SUPABASE_URL}" ]; then
-            echo "::error::Missing GitHub secret NEXT_PUBLIC_SUPABASE_URL."
+            echo "::error::Missing GitHub secret PROD_NEXT_PUBLIC_SUPABASE_URL."
             missing=1
           fi
           if [ -z "${NEXT_PUBLIC_SUPABASE_ANON_KEY}" ]; then
-            echo "::error::Missing GitHub secret NEXT_PUBLIC_SUPABASE_ANON_KEY (or fallback SUPABASE_ANON_KEY)."
+            echo "::error::Missing GitHub secret PROD_NEXT_PUBLIC_SUPABASE_ANON_KEY."
             missing=1
           fi
           if [ -z "${SUPABASE_SERVICE_ROLE_KEY}" ]; then
-            echo "::error::Missing GitHub secret SUPABASE_SERVICE_ROLE_KEY."
+            echo "::error::Missing GitHub secret PROD_SUPABASE_SERVICE_ROLE_KEY."
             missing=1
           fi
 
@@ -108,9 +108,9 @@ jobs:
       - name: Run reschedule email guards
         env:
           CI: "true"
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.PROD_NEXT_PUBLIC_SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.PROD_NEXT_PUBLIC_SUPABASE_ANON_KEY || secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY || secrets.SUPABASE_ANON_KEY }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.PROD_SUPABASE_SERVICE_ROLE_KEY || secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.PROD_NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.PROD_NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.PROD_SUPABASE_SERVICE_ROLE_KEY }}
           DOC_CY_SUPPRESS_TRAFFIC_LOG_SECRET: ${{ secrets.DOC_CY_SUPPRESS_TRAFFIC_LOG_SECRET }}
         run: |
           npx playwright test \
@@ -161,9 +161,9 @@ jobs:
         env:
           PLAYWRIGHT_LIVE_REGISTRATION: "1"
           PLAYWRIGHT_BASE_URL: ${{ secrets.PLAYWRIGHT_BASE_URL_PROD }}
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.PROD_NEXT_PUBLIC_SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.PROD_NEXT_PUBLIC_SUPABASE_ANON_KEY || secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY || secrets.SUPABASE_ANON_KEY }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.PROD_SUPABASE_SERVICE_ROLE_KEY || secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.PROD_NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.PROD_NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.PROD_SUPABASE_SERVICE_ROLE_KEY }}
           DOC_CY_SUPPRESS_TRAFFIC_LOG_SECRET: ${{ secrets.DOC_CY_SUPPRESS_TRAFFIC_LOG_SECRET }}
           TEST_DOCTOR_EMAIL: ${{ secrets.TEST_DOCTOR_EMAIL }}
           TEST_DOCTOR_PASSWORD: ${{ secrets.TEST_DOCTOR_PASSWORD }}
