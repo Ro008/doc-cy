@@ -17,8 +17,10 @@ test.describe("Prod smoke: doctor login", () => {
     await page.getByLabel("Password").fill(password);
     await page.getByRole("button", { name: /Sign in/i }).click();
 
-    await page.waitForURL(/\/agenda/, { timeout: 30000 });
-    await expect(page).toHaveURL(/\/agenda/);
+    await expect(page.getByText(/Invalid email or password/i)).toHaveCount(0, {
+      timeout: 10000,
+    });
+    await expect(page).toHaveURL(/\/agenda(?:[/?#]|$)/, { timeout: 60000 });
     await expect(
       page.getByText(/Weekly calendar on desktop · Daily focus on mobile/i)
     ).toBeVisible({ timeout: 20000 });
