@@ -122,6 +122,41 @@ jobs:
             --workers=1 \
             --reporter=line
 
+      - name: Validate production base URL target
+        shell: bash
+        env:
+          PLAYWRIGHT_BASE_URL: ${{ secrets.PLAYWRIGHT_BASE_URL_PROD }}
+          PROD_SITE_URL: ${{ secrets.NEXT_PUBLIC_SITE_URL }}
+        run: |
+          set -euo pipefail
+
+          normalize_url() { echo "$1" | sed 's:/*$::'; }
+
+          if [ -z "${PLAYWRIGHT_BASE_URL:-}" ]; then
+            echo "::error::Missing GitHub secret PLAYWRIGHT_BASE_URL_PROD."
+            exit 1
+          fi
+
+          base_norm="$(normalize_url "${PLAYWRIGHT_BASE_URL}")"
+          expected_site="${PROD_SITE_URL:-https://www.mydoccy.com}"
+          expected_norm="$(normalize_url "${expected_site}")"
+
+          base_host="$(echo "${base_norm}" | sed -E 's#^https?://([^/:]+).*#\1#')"
+          expected_host="$(echo "${expected_norm}" | sed -E 's#^https?://([^/:]+).*#\1#')"
+
+          if [ "${base_host}" != "${expected_host}" ]; then
+            echo "::error::PLAYWRIGHT_BASE_URL_PROD host (${base_host}) does not match production host (${expected_host})."
+            echo "::error::Set PLAYWRIGHT_BASE_URL_PROD to the same production site you use manually."
+            exit 1
+          fi
+
+          case "${base_host}" in
+            *vercel.app)
+              echo "::error::PLAYWRIGHT_BASE_URL_PROD points to a vercel.app host (${base_host}). Use the canonical production domain instead."
+              exit 1
+              ;;
+          esac
+
       - name: Run production critical smoke suite
         env:
           PLAYWRIGHT_LIVE_REGISTRATION: "1"
