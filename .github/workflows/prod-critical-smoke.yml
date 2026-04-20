@@ -62,25 +62,25 @@ jobs:
       - name: Validate Supabase production secrets
         shell: bash
         env:
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY || secrets.SUPABASE_ANON_KEY }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          PROD_NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.PROD_NEXT_PUBLIC_SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.PROD_NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.PROD_NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.PROD_SUPABASE_SERVICE_ROLE_KEY }}
+          PROD_NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.PROD_NEXT_PUBLIC_SUPABASE_URL }}
           INTEGRATION_SUPABASE_URL: ${{ secrets.INTEGRATION_SUPABASE_URL }}
         run: |
           set -euo pipefail
           missing=0
 
           if [ -z "${NEXT_PUBLIC_SUPABASE_URL}" ]; then
-            echo "::error::Missing GitHub secret NEXT_PUBLIC_SUPABASE_URL."
+            echo "::error::Missing GitHub secret PROD_NEXT_PUBLIC_SUPABASE_URL."
             missing=1
           fi
           if [ -z "${NEXT_PUBLIC_SUPABASE_ANON_KEY}" ]; then
-            echo "::error::Missing GitHub secret NEXT_PUBLIC_SUPABASE_ANON_KEY (or fallback SUPABASE_ANON_KEY)."
+            echo "::error::Missing GitHub secret PROD_NEXT_PUBLIC_SUPABASE_ANON_KEY."
             missing=1
           fi
           if [ -z "${SUPABASE_SERVICE_ROLE_KEY}" ]; then
-            echo "::error::Missing GitHub secret SUPABASE_SERVICE_ROLE_KEY."
+            echo "::error::Missing GitHub secret PROD_SUPABASE_SERVICE_ROLE_KEY."
             missing=1
           fi
 
@@ -108,9 +108,9 @@ jobs:
       - name: Run reschedule email guards
         env:
           CI: "true"
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY || secrets.SUPABASE_ANON_KEY }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.PROD_NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.PROD_NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.PROD_SUPABASE_SERVICE_ROLE_KEY }}
           DOC_CY_SUPPRESS_TRAFFIC_LOG_SECRET: ${{ secrets.DOC_CY_SUPPRESS_TRAFFIC_LOG_SECRET }}
         run: |
           npx playwright test \
@@ -122,18 +122,70 @@ jobs:
             --workers=1 \
             --reporter=line
 
-      - name: Run production critical smoke suite
+      - name: Validate production base URL target
+        shell: bash
+        env:
+          PLAYWRIGHT_BASE_URL: ${{ secrets.PLAYWRIGHT_BASE_URL_PROD }}
+          PROD_SITE_URL: ${{ secrets.NEXT_PUBLIC_SITE_URL }}
+        run: |
+          set -euo pipefail
+
+          normalize_url() { echo "$1" | sed 's:/*$::'; }
+
+          if [ -z "${PLAYWRIGHT_BASE_URL:-}" ]; then
+            echo "::error::Missing GitHub secret PLAYWRIGHT_BASE_URL_PROD."
+            exit 1
+          fi
+
+          base_norm="$(normalize_url "${PLAYWRIGHT_BASE_URL}")"
+          expected_site="${PROD_SITE_URL:-https://www.mydoccy.com}"
+          expected_norm="$(normalize_url "${expected_site}")"
+
+          base_host="$(echo "${base_norm}" | sed -E 's#^https?://([^/:]+).*#\1#')"
+          expected_host="$(echo "${expected_norm}" | sed -E 's#^https?://([^/:]+).*#\1#')"
+
+          if [ "${base_host}" != "${expected_host}" ]; then
+            echo "::error::PLAYWRIGHT_BASE_URL_PROD host (${base_host}) does not match production host (${expected_host})."
+            echo "::error::Set PLAYWRIGHT_BASE_URL_PROD to the same production site you use manually."
+            exit 1
+          fi
+
+          case "${base_host}" in
+            *vercel.app)
+              echo "::error::PLAYWRIGHT_BASE_URL_PROD points to a vercel.app host (${base_host}). Use the canonical production domain instead."
+              exit 1
+              ;;
+          esac
+
+      # Nightly critical contract (blocking):
+      # - Public shell availability
+      # - Patient booking request + cleanup
+      # - Doctor registration + cleanup
+      # - Doctor password login (/login -> /agenda)
+      # - Doctor agenda + QR access using deterministic authenticated session
+      - name: Run production critical smoke suite (blocking)
         env:
           PLAYWRIGHT_LIVE_REGISTRATION: "1"
           PLAYWRIGHT_BASE_URL: ${{ secrets.PLAYWRIGHT_BASE_URL_PROD }}
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY || secrets.SUPABASE_ANON_KEY }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.PROD_NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.PROD_NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.PROD_SUPABASE_SERVICE_ROLE_KEY }}
           DOC_CY_SUPPRESS_TRAFFIC_LOG_SECRET: ${{ secrets.DOC_CY_SUPPRESS_TRAFFIC_LOG_SECRET }}
           TEST_DOCTOR_EMAIL: ${{ secrets.TEST_DOCTOR_EMAIL }}
           TEST_DOCTOR_PASSWORD: ${{ secrets.TEST_DOCTOR_PASSWORD }}
+          TEST_USER_EMAIL: ${{ secrets.TEST_DOCTOR_EMAIL }}
+          TEST_USER_PASSWORD: ${{ secrets.TEST_DOCTOR_PASSWORD }}
           TEST_BOOKING_DOCTOR_SLUG: ${{ secrets.TEST_BOOKING_DOCTOR_SLUG }}
-        run: npx playwright test tests/prod/ --project="Desktop Large (Chromium)" --reporter=line
+        run: |
+          npx playwright test \
+            tests/prod/prod_appointment_booking_flow.spec.ts \
+            tests/prod/prod_registration_smoke.spec.ts \
+            tests/prod/prod_site_availability.spec.ts \
+            tests/prod/prod_doctor_password_login_smoke.spec.ts \
+            tests/prod/prod_agenda_qr_with_session.spec.ts \
+            --project="Desktop Large (Chromium)" \
+            --workers=1 \
+            --reporter=line
 
       - name: Upload Playwright report
         if: always()
