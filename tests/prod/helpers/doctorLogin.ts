@@ -43,6 +43,8 @@ export async function loginDoctorToAgenda(
 
   const expectedSupabaseHost = new URL(supabaseUrl).host;
   let observedUiSupabaseHost: string | null = null;
+  let observedUiAuthStatus: number | null = null;
+  let observedUiAuthErrorSummary: string | null = null;
   page.on("request", (request) => {
     const url = request.url();
     if (!/\/auth\/v1\/token(\?|$)/.test(url)) return;
@@ -50,6 +52,25 @@ export async function loginDoctorToAgenda(
       observedUiSupabaseHost = new URL(url).host;
     } catch {
       // no-op: keep best effort diagnostics only
+    }
+  });
+  page.on("response", async (response) => {
+    const url = response.url();
+    if (!/\/auth\/v1\/token(\?|$)/.test(url)) return;
+    observedUiAuthStatus = response.status();
+    try {
+      const body = await response.json();
+      const msg =
+        typeof body?.msg === "string"
+          ? body.msg
+          : typeof body?.error_description === "string"
+            ? body.error_description
+            : typeof body?.error === "string"
+              ? body.error
+              : null;
+      observedUiAuthErrorSummary = msg;
+    } catch {
+      // no-op: response may not be JSON
     }
   });
 
@@ -92,8 +113,14 @@ export async function loginDoctorToAgenda(
         observedUiSupabaseHost && observedUiSupabaseHost !== expectedSupabaseHost
           ? ` UI is calling Supabase host "${observedUiSupabaseHost}" but CI preflight uses "${expectedSupabaseHost}".`
           : "";
+      const authResponseDetail =
+        observedUiAuthStatus !== null
+          ? ` UI /auth/v1/token status=${observedUiAuthStatus}${
+              observedUiAuthErrorSummary ? `, message="${observedUiAuthErrorSummary}"` : ""
+            }.`
+          : "";
       throw new Error(
-        `UI login returned "Invalid email or password" but Supabase auth preflight succeeded.${mismatchDetail} Check deployed app env vars (e.g. Vercel Production NEXT_PUBLIC_SUPABASE_URL/NEXT_PUBLIC_SUPABASE_ANON_KEY) and ensure they match CI secrets and PLAYWRIGHT_BASE_URL target.`
+        `UI login returned "Invalid email or password" but Supabase auth preflight succeeded.${mismatchDetail}${authResponseDetail} Check deployed app env vars (e.g. Vercel Production NEXT_PUBLIC_SUPABASE_URL/NEXT_PUBLIC_SUPABASE_ANON_KEY) and ensure they match CI secrets and PLAYWRIGHT_BASE_URL target.`
       );
     }
   }
