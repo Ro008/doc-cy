@@ -24,12 +24,20 @@ export async function loginDoctorToAgenda(
   email: string,
   password: string
 ): Promise<void> {
+  const normalizedEmail = email.trim();
+  const normalizedPassword = password.trim();
+  if (!normalizedEmail || !normalizedPassword) {
+    throw new Error(
+      "Doctor login credentials are empty after trimming TEST_DOCTOR_EMAIL / TEST_DOCTOR_PASSWORD."
+    );
+  }
+
   await page.goto("/login");
 
   // CI can occasionally miss the first submit due to transient rendering/network timing.
   for (let attempt = 1; attempt <= 2; attempt += 1) {
-    await page.getByLabel("Email").fill(email);
-    await page.getByLabel("Password").fill(password);
+    await page.getByLabel("Email").fill(normalizedEmail);
+    await page.getByLabel("Password").fill(normalizedPassword);
     await page.getByRole("button", { name: /Sign in/i }).click();
 
     const outcome = await submitAndWaitForOutcome(page);

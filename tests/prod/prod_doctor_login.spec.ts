@@ -5,8 +5,8 @@ test.describe("Prod smoke: doctor login", () => {
   test("doctor can login and see agenda calendar", async ({ page }) => {
     test.setTimeout(90_000);
     const baseUrl = process.env.PLAYWRIGHT_BASE_URL ?? "";
-    const email = process.env.TEST_DOCTOR_EMAIL ?? "";
-    const password = process.env.TEST_DOCTOR_PASSWORD ?? "";
+    const email = (process.env.TEST_DOCTOR_EMAIL ?? "").trim();
+    const password = (process.env.TEST_DOCTOR_PASSWORD ?? "").trim();
 
     test.skip(
       !baseUrl || /localhost|127\.0\.0\.1/i.test(baseUrl),

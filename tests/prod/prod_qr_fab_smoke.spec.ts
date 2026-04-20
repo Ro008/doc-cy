@@ -5,8 +5,8 @@ test.describe("Prod smoke: floating QR button", () => {
   test("doctor can open QR modal from agenda", async ({ page }) => {
     test.setTimeout(90_000);
     const baseUrl = process.env.PLAYWRIGHT_BASE_URL ?? "";
-    const email = process.env.TEST_DOCTOR_EMAIL ?? "";
-    const password = process.env.TEST_DOCTOR_PASSWORD ?? "";
+    const email = (process.env.TEST_DOCTOR_EMAIL ?? "").trim();
+    const password = (process.env.TEST_DOCTOR_PASSWORD ?? "").trim();
 
     test.skip(
       !baseUrl || /localhost|127\.0\.0\.1/i.test(baseUrl),
