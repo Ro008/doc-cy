@@ -56,6 +56,18 @@ export async function loginDoctorToAgenda(
   }
   await supabase.auth.signOut();
 
+  const expectedSupabaseHost = new URL(supabaseUrl).host;
+  let observedUiSupabaseHost: string | null = null;
+  page.on("request", (request) => {
+    const url = request.url();
+    if (!/\/auth\/v1\/token(\?|$)/.test(url)) return;
+    try {
+      observedUiSupabaseHost = new URL(url).host;
+    } catch {
+      // no-op: keep best effort diagnostics only
+    }
+  });
+
   await page.goto("/login");
 
   // CI can occasionally miss the first submit due to transient rendering/network timing.
@@ -71,8 +83,12 @@ export async function loginDoctorToAgenda(
     }
 
     if (outcome === "invalid-credentials") {
+      const mismatchDetail =
+        observedUiSupabaseHost && observedUiSupabaseHost !== expectedSupabaseHost
+          ? ` UI is calling Supabase host "${observedUiSupabaseHost}" but CI preflight uses "${expectedSupabaseHost}".`
+          : "";
       throw new Error(
-        `UI login returned "Invalid email or password" but Supabase auth preflight succeeded. Check that PLAYWRIGHT_BASE_URL points to the same deployed environment/Supabase project as NEXT_PUBLIC_SUPABASE_URL (${supabaseUrl}).`
+        `UI login returned "Invalid email or password" but Supabase auth preflight succeeded.${mismatchDetail} Check deployed app env vars (e.g. Vercel Production NEXT_PUBLIC_SUPABASE_URL/NEXT_PUBLIC_SUPABASE_ANON_KEY) and ensure they match CI secrets and PLAYWRIGHT_BASE_URL target.`
       );
     }
   }
