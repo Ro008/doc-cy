@@ -1,4 +1,5 @@
 import { expect, type Page } from "@playwright/test";
+import { createClient } from "@supabase/supabase-js";
 
 type LoginOutcome = "agenda" | "invalid-credentials" | "timeout";
 
@@ -32,6 +33,29 @@ export async function loginDoctorToAgenda(
     );
   }
 
+  const supabaseUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").trim();
+  const supabaseAnonKey = (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "").trim();
+  if (!supabaseUrl || !supabaseAnonKey) {
+    throw new Error(
+      "Missing NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY in CI env."
+    );
+  }
+
+  // Deterministic preflight: check credentials directly against the Supabase project configured for CI.
+  const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  const preflight = await supabase.auth.signInWithPassword({
+    email: normalizedEmail,
+    password: normalizedPassword,
+  });
+  if (preflight.error) {
+    throw new Error(
+      `Supabase auth preflight failed for TEST_DOCTOR_EMAIL/TEST_DOCTOR_PASSWORD: ${preflight.error.message}`
+    );
+  }
+  await supabase.auth.signOut();
+
   await page.goto("/login");
 
   // CI can occasionally miss the first submit due to transient rendering/network timing.
@@ -48,7 +72,7 @@ export async function loginDoctorToAgenda(
 
     if (outcome === "invalid-credentials") {
       throw new Error(
-        "Doctor login failed due to invalid credentials. Verify TEST_DOCTOR_EMAIL / TEST_DOCTOR_PASSWORD in CI secrets."
+        `UI login returned "Invalid email or password" but Supabase auth preflight succeeded. Check that PLAYWRIGHT_BASE_URL points to the same deployed environment/Supabase project as NEXT_PUBLIC_SUPABASE_URL (${supabaseUrl}).`
       );
     }
   }
