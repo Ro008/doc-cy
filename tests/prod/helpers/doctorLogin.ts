@@ -41,21 +41,6 @@ export async function loginDoctorToAgenda(
     );
   }
 
-  // Deterministic preflight: check credentials directly against the Supabase project configured for CI.
-  const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-  const preflight = await supabase.auth.signInWithPassword({
-    email: normalizedEmail,
-    password: normalizedPassword,
-  });
-  if (preflight.error) {
-    throw new Error(
-      `Supabase auth preflight failed for TEST_DOCTOR_EMAIL/TEST_DOCTOR_PASSWORD: ${preflight.error.message}`
-    );
-  }
-  await supabase.auth.signOut();
-
   const expectedSupabaseHost = new URL(supabaseUrl).host;
   let observedUiSupabaseHost: string | null = null;
   page.on("request", (request) => {
@@ -83,6 +68,26 @@ export async function loginDoctorToAgenda(
     }
 
     if (outcome === "invalid-credentials") {
+      // Run API preflight only after a UI failure to avoid adding extra sign-in attempts
+      // that can trigger anti-abuse/rate-limit protections in CI.
+      const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+        auth: { persistSession: false, autoRefreshToken: false },
+      });
+      const preflight = await supabase.auth.signInWithPassword({
+        email: normalizedEmail,
+        password: normalizedPassword,
+      });
+      const preflightSucceeded = !preflight.error;
+      if (preflightSucceeded) {
+        await supabase.auth.signOut();
+      }
+
+      if (!preflightSucceeded) {
+        throw new Error(
+          `Doctor login failed in UI and Supabase API preflight also failed: ${preflight.error?.message ?? "unknown auth error"}. Check TEST_DOCTOR_EMAIL / TEST_DOCTOR_PASSWORD.`
+        );
+      }
+
       const mismatchDetail =
         observedUiSupabaseHost && observedUiSupabaseHost !== expectedSupabaseHost
           ? ` UI is calling Supabase host "${observedUiSupabaseHost}" but CI preflight uses "${expectedSupabaseHost}".`
