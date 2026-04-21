@@ -31,6 +31,13 @@ export default function LoginPage() {
       return;
     }
 
+    try {
+      await fetch("/api/auth/session-audit", { method: "POST" });
+    } catch (auditError) {
+      // Best-effort only: never block successful login redirect.
+      console.warn("[DocCy] Session audit failed", auditError);
+    }
+
     router.push("/agenda");
     router.refresh();
   }

@@ -7,6 +7,8 @@ import createMiddleware from "next-intl/middleware";
 import {routing} from "./i18n/routing";
 import {isLikelyBotUserAgent} from "./lib/bot-user-agent";
 import {shouldSuppressTrafficLog} from "./lib/traffic-log";
+import {parseAuthTokenClaims} from "./lib/auth-token-claims";
+import {isSessionRevokedByPolicy} from "./lib/auth-session-revocation";
 
 const handleI18nRouting = createMiddleware(routing);
 
@@ -133,6 +135,38 @@ export async function middleware(req: NextRequest, event: NextFetchEvent) {
     if (!session) {
       const loginUrl = new URL("/login", req.url);
       return NextResponse.redirect(loginUrl);
+    }
+
+    const claims = parseAuthTokenClaims(session.access_token);
+    if (claims.sessionId) {
+      const {data: doctorAuth, error: doctorAuthError} = await supabase
+        .from("doctors")
+        .select("auth_session_revoked_after, auth_keep_session_id")
+        .eq("auth_user_id", session.user.id)
+        .maybeSingle();
+
+      if (!doctorAuthError && doctorAuth) {
+        const revokedAfterRaw = (
+          doctorAuth as {auth_session_revoked_after?: string | null}
+        ).auth_session_revoked_after;
+        const keepSessionId = (
+          doctorAuth as {auth_keep_session_id?: string | null}
+        ).auth_keep_session_id;
+
+        const isRevoked = isSessionRevokedByPolicy({
+          revokedAfterIso: revokedAfterRaw,
+          keepSessionId,
+          tokenIat: claims.iat,
+          tokenSessionId: claims.sessionId,
+        });
+
+        if (isRevoked) {
+          const loginUrl = new URL("/login", req.url);
+          return NextResponse.redirect(loginUrl);
+        }
+      } else if ((doctorAuthError as {code?: string} | null)?.code !== "42703") {
+        console.error("[DocCy][auth] middleware_revocation_check_failed", doctorAuthError);
+      }
     }
   }
 

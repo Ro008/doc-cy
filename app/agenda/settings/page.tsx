@@ -18,6 +18,7 @@ import { PromotePracticeSection } from "@/components/dashboard/PromotePracticeSe
 import { FoundingMemberBadge } from "@/components/dashboard/FoundingMemberBadge";
 import { OnlineBookingsPauseToggle } from "@/components/dashboard/OnlineBookingsPauseToggle";
 import { DashboardUtilityRow } from "@/components/agenda/DashboardUtilityRow";
+import { SignOutOtherSessionsButton } from "@/components/auth/SignOutOtherSessionsButton";
 import { doctorDashboardDisplayName } from "@/lib/doctor-display-name";
 import {
   canonicalLanguageLabel,
@@ -333,6 +334,10 @@ export default async function AgendaSettingsPage() {
         <section className="w-full rounded-3xl border border-emerald-100/10 bg-slate-900/50 p-6 shadow-2xl shadow-slate-950/50 backdrop-blur-xl sm:p-8">
           <SettingsForm initial={initial} />
         </section>
+
+        <div className="mt-6">
+          <SignOutOtherSessionsButton />
+        </div>
 
         <div className="mt-8">
           {isVerified ? (
