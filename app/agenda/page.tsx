@@ -14,6 +14,7 @@ import { isFounderSubscriptionTier } from "@/lib/subscription-tier";
 import { doctorDashboardDisplayName } from "@/lib/doctor-display-name";
 import { DashboardUtilityRow } from "@/components/agenda/DashboardUtilityRow";
 import { DashboardSecondaryButton } from "@/components/agenda/DashboardSecondaryButton";
+import { PendingLink } from "@/components/navigation/PendingLink";
 import {
   buildWeeklyScheduleFromSettings,
   type DoctorSettingsRow,
@@ -79,12 +80,12 @@ export default async function AgendaPage() {
             support.
           </p>
           <SignOutButton />
-          <Link
+          <PendingLink
             href="/"
             className="text-sm text-emerald-300 hover:text-emerald-200"
           >
             Back to home
-          </Link>
+          </PendingLink>
         </div>
       </main>
     );
@@ -162,13 +163,13 @@ export default async function AgendaPage() {
       <div className="mx-auto flex min-h-screen w-full max-w-[1920px] flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
         <DashboardUtilityRow
           left={
-            <Link
+            <PendingLink
               href="/"
               className="inline-flex items-center gap-2 text-xs font-medium text-slate-400 transition hover:text-slate-200"
             >
               <ArrowLeft className="h-3.5 w-3.5 shrink-0" aria-hidden />
               Home
-            </Link>
+            </PendingLink>
           }
           right={
             <>

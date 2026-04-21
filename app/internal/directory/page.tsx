@@ -30,6 +30,7 @@ import {
   buildPopularSections,
   type WebsiteVisitRow,
 } from "@/lib/website-analytics";
+import { PendingLink } from "@/components/navigation/PendingLink";
 
 /** Always run on the server per request — no static cache of dashboard numbers */
 export const dynamic = "force-dynamic";
@@ -48,9 +49,12 @@ export default async function FounderDashboardPage() {
             your environment so this page can load analytics (server-side only). Never expose this
             key to the browser.
           </p>
-          <Link href="/internal" className="mt-6 inline-block text-sm text-emerald-300 hover:underline">
+          <PendingLink
+            href="/internal"
+            className="mt-6 inline-block text-sm text-emerald-300 hover:underline"
+          >
             ← Back to gate
-          </Link>
+          </PendingLink>
         </div>
       </main>
     );
@@ -124,9 +128,12 @@ export default async function FounderDashboardPage() {
             Could not load professionals
           </h1>
           <p className="mt-2 text-sm text-red-100/90">{doctorsRes.error.message}</p>
-          <Link href="/internal" className="mt-6 inline-block text-sm text-emerald-300 hover:underline">
+          <PendingLink
+            href="/internal"
+            className="mt-6 inline-block text-sm text-emerald-300 hover:underline"
+          >
             ← Back to gate
-          </Link>
+          </PendingLink>
         </div>
       </main>
     );

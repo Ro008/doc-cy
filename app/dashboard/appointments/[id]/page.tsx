@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { redirect, notFound } from "next/navigation";
 import { cookies } from "next/headers";
 import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
@@ -11,6 +10,7 @@ import {
   type DoctorSettingsRow,
 } from "@/lib/doctor-settings";
 import { AppointmentReviewClient } from "@/components/dashboard/AppointmentReviewClient";
+import { PendingLink } from "@/components/navigation/PendingLink";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -124,12 +124,12 @@ export default async function DashboardAppointmentDetailPage({ params }: PagePro
               <dd className="mt-0.5 whitespace-pre-wrap text-slate-200">{reason || "—"}</dd>
             </div>
           </dl>
-          <Link
+          <PendingLink
             href="/agenda"
             className="mt-8 flex w-full items-center justify-center rounded-2xl bg-emerald-400 px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-300"
           >
             Open agenda
-          </Link>
+          </PendingLink>
         </div>
       </main>
     );
@@ -199,12 +199,12 @@ export default async function DashboardAppointmentDetailPage({ params }: PagePro
           </div>
         </dl>
 
-        <Link
+        <PendingLink
           href="/agenda"
           className="mt-8 flex w-full items-center justify-center rounded-2xl bg-emerald-400 px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-300"
         >
           Open agenda
-        </Link>
+        </PendingLink>
       </div>
     </main>
   );

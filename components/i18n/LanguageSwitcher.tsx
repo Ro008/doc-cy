@@ -10,6 +10,7 @@ const LOCALES: Array<{ value: LocaleValue; label: string }> = [
   { value: "en", label: "EN" },
   { value: "el", label: "GR" },
 ];
+const START_EVENT = "doccy:navigation-start";
 
 function currentLocaleFromPath(pathname: string): LocaleValue {
   const parts = pathname.split("/").filter(Boolean);
@@ -34,6 +35,11 @@ function hrefForLocale(pathname: string, locale: LocaleValue): string {
 export function LanguageSwitcher({ compact = false }: { compact?: boolean }) {
   const pathname = usePathname();
   const currentLocale = currentLocaleFromPath(pathname);
+  const [pendingLocale, setPendingLocale] = React.useState<LocaleValue | null>(null);
+
+  React.useEffect(() => {
+    setPendingLocale(null);
+  }, [pathname]);
 
   return (
     <div
@@ -49,6 +55,15 @@ export function LanguageSwitcher({ compact = false }: { compact?: boolean }) {
             key={l.value}
             href={hrefForLocale(pathname, l.value)}
             aria-current={active ? "page" : undefined}
+            aria-disabled={pendingLocale !== null}
+            onClick={(event) => {
+              if (active || pendingLocale !== null) {
+                event.preventDefault();
+                return;
+              }
+              setPendingLocale(l.value);
+              window.dispatchEvent(new Event(START_EVENT));
+            }}
             className={[
               compact
                 ? "px-2.5 py-1 text-[11px] font-semibold rounded-full transition"
@@ -56,9 +71,18 @@ export function LanguageSwitcher({ compact = false }: { compact?: boolean }) {
               active
                 ? "bg-emerald-400 text-slate-950"
                 : "text-slate-300 hover:bg-slate-800/70 hover:text-slate-50",
+              pendingLocale !== null ? "pointer-events-none opacity-85" : "",
             ].join(" ")}
           >
-            {l.label}
+            <span className="inline-flex items-center gap-1.5">
+              {l.label}
+              {pendingLocale === l.value ? (
+                <span
+                  aria-hidden
+                  className="h-2.5 w-2.5 animate-spin rounded-full border border-current border-r-transparent"
+                />
+              ) : null}
+            </span>
           </Link>
         );
       })}

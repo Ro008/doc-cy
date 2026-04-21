@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { enUS } from "date-fns/locale";
@@ -16,6 +15,7 @@ import type { WeeklySchedule } from "@/lib/doctor-settings";
 import { Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
+import { PendingLink } from "@/components/navigation/PendingLink";
 
 type ScheduleForReview = {
   weeklySchedule: WeeklySchedule;
@@ -429,12 +429,12 @@ export function AppointmentReviewClient({
         ) : null}
       </div>
 
-      <Link
+      <PendingLink
         href="/agenda"
         className="block text-center text-sm text-slate-400 underline-offset-2 hover:text-slate-200 hover:underline"
       >
         Back to agenda
-      </Link>
+      </PendingLink>
     </div>
   );
 }

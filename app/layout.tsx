@@ -9,6 +9,7 @@ import "sonner/dist/styles.css";
 import { FeedbackWidget } from "@/components/feedback/FeedbackWidget";
 import { PromotePracticeFab } from "@/components/dashboard/PromotePracticeFab";
 import { InstallBanner } from "@/components/pwa/InstallBanner";
+import { NavigationProgressBar } from "@/components/navigation/NavigationProgressBar";
 import { Toaster } from "sonner";
 
 const inter = Inter({
@@ -86,6 +87,7 @@ export default async function RootLayout({
       <body
         className={`${inter.variable} min-h-screen bg-slate-50 text-slate-900 antialiased`}
       >
+        <NavigationProgressBar />
         <NextIntlClientProvider messages={messages}>
           {children}
         </NextIntlClientProvider>

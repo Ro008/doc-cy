@@ -19,6 +19,7 @@ import { FoundingMemberBadge } from "@/components/dashboard/FoundingMemberBadge"
 import { OnlineBookingsPauseToggle } from "@/components/dashboard/OnlineBookingsPauseToggle";
 import { DashboardUtilityRow } from "@/components/agenda/DashboardUtilityRow";
 import { SignOutOtherSessionsButton } from "@/components/auth/SignOutOtherSessionsButton";
+import { PendingLink } from "@/components/navigation/PendingLink";
 import { doctorDashboardDisplayName } from "@/lib/doctor-display-name";
 import {
   canonicalLanguageLabel,
@@ -136,13 +137,13 @@ export default async function AgendaSettingsPage() {
             Professional profile not found for this account. Please contact support.
           </p>
           <SignOutButton />
-          <Link
+          <PendingLink
             href="/agenda"
             className="mt-4 inline-flex items-center text-sm text-emerald-300 hover:text-emerald-200"
           >
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back to agenda
-          </Link>
+          </PendingLink>
         </div>
       </main>
     );
@@ -284,13 +285,13 @@ export default async function AgendaSettingsPage() {
       <div className="mx-auto w-full max-w-5xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
         <DashboardUtilityRow
           left={
-            <Link
+            <PendingLink
               href="/agenda"
               className="inline-flex items-center gap-2 text-xs font-medium text-slate-400 transition hover:text-slate-200"
             >
               <ArrowLeft className="h-3.5 w-3.5 shrink-0" aria-hidden />
               Back to agenda
-            </Link>
+            </PendingLink>
           }
           right={
             <>
