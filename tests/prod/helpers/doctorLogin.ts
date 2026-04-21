@@ -1,6 +1,31 @@
 import { expect, type Page } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
 
+function ensureMagicLinkRedirect(actionLink: string, redirectTarget: string): string {
+  const linkUrl = new URL(actionLink);
+  const target = redirectTarget.trim().replace(/\/+$/, "");
+  const targetUrl = new URL(target);
+  const currentRedirect = linkUrl.searchParams.get("redirect_to");
+
+  if (!currentRedirect) {
+    linkUrl.searchParams.set("redirect_to", targetUrl.toString());
+    return linkUrl.toString();
+  }
+
+  try {
+    const current = new URL(currentRedirect);
+    if (current.origin !== targetUrl.origin || current.pathname !== targetUrl.pathname) {
+      linkUrl.searchParams.set("redirect_to", targetUrl.toString());
+      return linkUrl.toString();
+    }
+  } catch {
+    linkUrl.searchParams.set("redirect_to", targetUrl.toString());
+    return linkUrl.toString();
+  }
+
+  return linkUrl.toString();
+}
+
 export async function authenticateDoctorViaMagicLink(
   page: Page,
   email: string,
@@ -38,7 +63,13 @@ export async function authenticateDoctorViaMagicLink(
     );
   }
 
-  await page.goto(linkResult.data.properties.action_link, { waitUntil: "domcontentloaded" });
+  const expectedRedirect = `${normalizedBaseUrl}/agenda`;
+  const hardenedMagicLink = ensureMagicLinkRedirect(
+    linkResult.data.properties.action_link,
+    expectedRedirect
+  );
+
+  await page.goto(hardenedMagicLink, { waitUntil: "domcontentloaded" });
   await page.waitForURL(/\/agenda(?:[/?#]|$)/, { timeout: 30_000 });
   await expect(page).toHaveURL(/\/agenda(?:[/?#]|$)/, { timeout: 10_000 });
 }

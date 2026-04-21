@@ -20,8 +20,9 @@ on:
         default: ""
         type: string
   schedule:
-    # GitHub Actions cron is UTC. 03:00 UTC ≈ 05:00 Asia/Nicosia (EET, UTC+2).
-    - cron: "0 3 * * *"
+    # GitHub Actions cron is UTC. Run 2h earlier than before.
+    # 01:00 UTC ≈ 03:00 Asia/Nicosia (EET, UTC+2).
+    - cron: "0 1 * * *"
 
 permissions:
   contents: read
