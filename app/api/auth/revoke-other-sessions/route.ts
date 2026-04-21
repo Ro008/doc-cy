@@ -6,9 +6,10 @@ import { parseAuthTokenClaims } from "@/lib/auth-token-claims";
 export async function POST() {
   const supabase = createRouteHandlerClient({ cookies });
   const {
-    data: { user, session },
+    data: { session },
     error: authError,
   } = await supabase.auth.getSession();
+  const user = session?.user ?? null;
 
   if (authError || !user || !session) {
     return NextResponse.json({ message: "Unauthorized." }, { status: 401 });
