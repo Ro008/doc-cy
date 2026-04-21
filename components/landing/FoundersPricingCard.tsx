@@ -1,10 +1,10 @@
 "use client";
 
-import Link from "next/link";
 import * as React from "react";
 import { Check } from "lucide-react";
 import { MAX_FOUNDERS, type FoundersAvailability } from "@/lib/founders-club";
 import { useTranslations } from "next-intl";
+import { PendingLink } from "@/components/navigation/PendingLink";
 
 const BAR_MS = 1100;
 const COUNT_MS = 950;
@@ -229,12 +229,12 @@ export function FoundersPricingCard() {
         ))}
       </ul>
 
-      <Link
+      <PendingLink
         href="/register"
         className="mt-6 inline-flex w-full items-center justify-center rounded-xl bg-emerald-400 px-5 py-2.5 text-sm font-semibold text-neutral-950 shadow-[0_0_0_1px_rgba(52,211,153,0.35),0_0_28px_rgba(16,185,129,0.55),0_0_56px_rgba(16,185,129,0.22)] transition hover:bg-emerald-300 hover:shadow-[0_0_0_1px_rgba(110,231,183,0.5),0_0_36px_rgba(52,211,153,0.65),0_0_72px_rgba(16,185,129,0.28)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 focus-visible:ring-offset-neutral-900"
       >
         {t("Pricing.cta")}
-      </Link>
+      </PendingLink>
       {showFounderOffer ? (
         <p className="mt-2 text-center text-[11px] leading-relaxed text-emerald-100/90">
           {t("Pricing.noCard")}

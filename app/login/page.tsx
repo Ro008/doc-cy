@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { PasswordToggleInput } from "@/components/auth/PasswordToggleInput";
+import { PendingLink } from "@/components/navigation/PendingLink";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -29,6 +29,13 @@ export default function LoginPage() {
       setError("Invalid email or password. Please try again.");
       setLoading(false);
       return;
+    }
+
+    try {
+      await fetch("/api/auth/session-audit", { method: "POST" });
+    } catch (auditError) {
+      // Best-effort only: never block successful login redirect.
+      console.warn("[DocCy] Session audit failed", auditError);
     }
 
     router.push("/agenda");
@@ -103,12 +110,12 @@ export default function LoginPage() {
 
           <p className="mt-4 text-center text-xs text-slate-400">
             Don&apos;t have an account?{" "}
-            <Link
+            <PendingLink
               href="/register"
               className="font-medium text-emerald-300 hover:text-emerald-200"
             >
               Create your profile
-            </Link>
+            </PendingLink>
           </p>
         </div>
       </div>

@@ -1,25 +1,36 @@
 import { expect, test } from "@playwright/test";
 
 test.describe("PWA install banner", () => {
-  test.beforeEach(async ({ page }, testInfo) => {
+  test("does not show banner on desktop web", async ({ page }, testInfo) => {
     test.skip(
-      !testInfo.project.name.toLowerCase().includes("mobile"),
-      "Mobile-only UX flow"
+      !testInfo.project.name.toLowerCase().includes("desktop"),
+      "Desktop-only regression guard"
     );
     await page.goto("/");
+    await expect(page.getByRole("button", { name: "Close install banner" })).toBeHidden();
   });
 
-  test("shows banner on mobile web and remembers Close action", async ({ page }) => {
-    const closeBtn = page.getByRole("button", { name: "Close install banner" });
-    await expect(closeBtn).toBeVisible({ timeout: 7000 });
-
-    await closeBtn.evaluate((el) => {
-      (el as HTMLButtonElement).click();
+  test.describe("mobile-only UX", () => {
+    test.beforeEach(async ({ page }, testInfo) => {
+      test.skip(
+        !testInfo.project.name.toLowerCase().includes("mobile"),
+        "Mobile-only UX flow"
+      );
+      await page.goto("/");
     });
-    await expect(closeBtn).toBeHidden();
 
-    await page.reload();
-    await expect(closeBtn).toBeHidden();
+    test("shows banner on mobile web and remembers Close action", async ({ page }) => {
+      const closeBtn = page.getByRole("button", { name: "Close install banner" });
+      await expect(closeBtn).toBeVisible({ timeout: 7000 });
+
+      await closeBtn.evaluate((el) => {
+        (el as HTMLButtonElement).click();
+      });
+      await expect(closeBtn).toBeHidden();
+
+      await page.reload();
+      await expect(closeBtn).toBeHidden();
+    });
   });
 
   test("does not show banner when already running in standalone", async ({ browser }) => {

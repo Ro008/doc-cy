@@ -14,9 +14,12 @@ type BeforeInstallPromptEvent = Event & {
 function isMobileDevice(): boolean {
   if (typeof window === "undefined") return false;
   const ua = window.navigator.userAgent || "";
-  const mobileByUa =
-    /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
-  return mobileByUa || window.matchMedia("(max-width: 1024px)").matches;
+  const mobileByUa = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+    ua
+  );
+  const iPadOsDesktopLike =
+    window.navigator.platform === "MacIntel" && window.navigator.maxTouchPoints > 1;
+  return mobileByUa || iPadOsDesktopLike;
 }
 
 function isIosDevice(): boolean {

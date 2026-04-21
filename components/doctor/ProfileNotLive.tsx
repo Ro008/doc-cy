@@ -1,5 +1,5 @@
 import { Stethoscope, UserRound } from "lucide-react";
-import Link from "next/link";
+import { PendingLink } from "@/components/navigation/PendingLink";
 
 export type PublicProfileBlockReason = "pending" | "rejected";
 
@@ -70,12 +70,12 @@ export function ProfileNotLive({
               Log in to your DocCy account to check your agenda, update details, or see your
               verification status.
             </p>
-            <Link
+            <PendingLink
               href="/login"
               className="mt-4 inline-flex w-full items-center justify-center rounded-xl bg-emerald-500 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400"
             >
               Log in
-            </Link>
+            </PendingLink>
           </div>
 
           <div className="flex flex-col rounded-2xl border border-slate-800/90 bg-slate-900/50 p-5 text-left shadow-lg shadow-black/20 backdrop-blur-sm">

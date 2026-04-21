@@ -6,6 +6,7 @@ import { HomeLandingScroll } from "@/components/landing/HomeLandingScroll";
 import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher";
 import { getTranslations, getLocale } from "next-intl/server";
 import { ProductShowcaseCarousel } from "@/components/landing/ProductShowcaseCarousel";
+import { PendingLink } from "@/components/navigation/PendingLink";
 
 type Benefit = {
   icon: typeof CalendarSync;
@@ -206,19 +207,19 @@ export default async function HomePage() {
               </p>
 
               <div className="mt-4 flex flex-col gap-2.5 sm:flex-row sm:items-center sm:gap-3">
-                <Link
+                <PendingLink
                   href="/register"
                   className="inline-flex items-center justify-center rounded-xl bg-emerald-400 px-5 py-2.5 text-sm font-semibold text-neutral-950 shadow-[0_0_0_1px_rgba(52,211,153,0.35),0_0_28px_rgba(16,185,129,0.55),0_0_56px_rgba(16,185,129,0.22)] transition hover:bg-emerald-300 hover:shadow-[0_0_0_1px_rgba(110,231,183,0.5),0_0_36px_rgba(52,211,153,0.65),0_0_72px_rgba(16,185,129,0.28)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 focus-visible:ring-offset-neutral-900"
                 >
                   {t("Hero.ctaClaim")}
-                </Link>
+                </PendingLink>
 
-                <Link
+                <PendingLink
                   href="/login"
                   className="inline-flex items-center justify-center rounded-xl border-2 border-white/45 bg-neutral-800/90 px-5 py-2.5 text-sm font-semibold text-neutral-50 shadow-md shadow-black/30 backdrop-blur transition hover:border-white/65 hover:bg-neutral-700/95 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 focus-visible:ring-offset-2 focus-visible:ring-offset-neutral-900"
                 >
                   {t("Hero.ctaLogin")}
-                </Link>
+                </PendingLink>
               </div>
             </section>
 

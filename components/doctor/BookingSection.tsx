@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   addDays,
@@ -19,6 +18,7 @@ import { APPOINTMENT_REASON_MAX_LENGTH } from "@/lib/visit-types";
 import { formatDateDDMMYYYY } from "@/lib/date-format";
 import "react-day-picker/dist/style.css";
 import { useLocale, useTranslations } from "next-intl";
+import { PendingLink } from "@/components/navigation/PendingLink";
 
 type WeeklySlot = {
   id: string;
@@ -392,12 +392,12 @@ export function BookingSection({
             {t("requestSubmittedMessage", { doctorName })}
           </p>
           {profileSlug ? (
-            <Link
+            <PendingLink
               href={`/${activeLocale}/${profileSlug}`}
               className="mt-8 flex w-full max-w-xs items-center justify-center rounded-2xl border border-amber-400/40 bg-amber-400/10 px-6 py-3 text-sm font-semibold text-amber-200 shadow-lg shadow-amber-500/10 transition hover:border-amber-400/60 hover:bg-amber-400/20 focus:outline-none focus:ring-2 focus:ring-amber-400/50 focus:ring-offset-2 focus:ring-offset-slate-900"
             >
               {t("doneButton")}
-            </Link>
+            </PendingLink>
           ) : (
             <button
               type="button"
