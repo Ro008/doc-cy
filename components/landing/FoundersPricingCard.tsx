@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Check } from "lucide-react";
+import { Check, Info } from "lucide-react";
 import { MAX_FOUNDERS, type FoundersAvailability } from "@/lib/founders-club";
 import { useTranslations } from "next-intl";
 import { PendingLink } from "@/components/navigation/PendingLink";
@@ -16,6 +16,7 @@ function easeOutQuad(t: number): number {
 export function FoundersPricingCard() {
   const t = useTranslations("LandingPage");
   const rootRef = React.useRef<HTMLElement | null>(null);
+  const [showDirectoryNote, setShowDirectoryNote] = React.useState(false);
   const [availability, setAvailability] = React.useState<FoundersAvailability | null>(null);
   const [status, setStatus] = React.useState<"loading" | "ready" | "error">("loading");
   const [inView, setInView] = React.useState(false);
@@ -70,13 +71,14 @@ export function FoundersPricingCard() {
   const spotsRemaining = availability?.spotsRemaining ?? 0;
   const progressPercent = availability?.progressPercent ?? 100;
   const founderFeatures = [
-    t("Pricing.benefits.price"),
-    t("Pricing.benefits.appointments"),
-    t("Pricing.benefits.support"),
+    { label: t("Pricing.benefits.price") },
+    { label: t("Pricing.benefits.appointments") },
+    { label: t("Pricing.benefits.support") },
+    { label: t("Pricing.benefits.directoryPriority"), highlighted: true },
   ];
   const standardFeatures = [
-    t("Pricing.benefits.appointments"),
-    t("Pricing.benefits.support"),
+    { label: t("Pricing.benefits.appointments") },
+    { label: t("Pricing.benefits.support") },
   ];
   const features = showFounderOffer ? founderFeatures : standardFeatures;
 
@@ -216,22 +218,46 @@ export function FoundersPricingCard() {
         </div>
       </div>
 
-      <ul className="mt-5 space-y-2 text-sm text-slate-200 min-h-[88px]">
+      <ul className="mt-5 space-y-2.5 text-sm text-slate-200 min-h-[116px]">
         {features.map((feature) => (
-          <li key={feature} className="flex items-start gap-2.5">
+          <li key={feature.label} className="flex items-start gap-2.5">
             <Check
               className="mt-0.5 h-4 w-4 shrink-0 text-emerald-300"
               strokeWidth={2.5}
               aria-hidden
             />
-            <span>{feature}</span>
+            <span className="inline-flex items-center gap-1.5">
+              {feature.label}
+              {feature.highlighted ? (
+                <span className="group relative inline-flex">
+                  <button
+                    type="button"
+                    className="inline-flex items-center rounded-full p-0.5 text-slate-400 transition hover:text-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/80"
+                    aria-label={t("Pricing.benefits.directoryPriorityNote")}
+                    aria-expanded={showDirectoryNote}
+                    onClick={() => setShowDirectoryNote((prev) => !prev)}
+                    onBlur={() => setShowDirectoryNote(false)}
+                  >
+                    <Info className="h-3.5 w-3.5 shrink-0" strokeWidth={2.2} />
+                  </button>
+                  <span
+                    role="tooltip"
+                    className={`pointer-events-none absolute left-0 top-full z-10 mt-2 w-52 rounded-md border border-slate-600/70 bg-slate-900/95 p-2 text-[11px] leading-relaxed text-slate-300 shadow-lg transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100 ${
+                      showDirectoryNote ? "opacity-100" : "opacity-0"
+                    }`}
+                  >
+                    {t("Pricing.benefits.directoryPriorityNote")}
+                  </span>
+                </span>
+              ) : null}
+            </span>
           </li>
         ))}
       </ul>
 
       <PendingLink
         href="/register"
-        className="mt-6 inline-flex w-full items-center justify-center rounded-xl bg-emerald-400 px-5 py-2.5 text-sm font-semibold text-neutral-950 shadow-[0_0_0_1px_rgba(52,211,153,0.35),0_0_28px_rgba(16,185,129,0.55),0_0_56px_rgba(16,185,129,0.22)] transition hover:bg-emerald-300 hover:shadow-[0_0_0_1px_rgba(110,231,183,0.5),0_0_36px_rgba(52,211,153,0.65),0_0_72px_rgba(16,185,129,0.28)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 focus-visible:ring-offset-neutral-900"
+        className="mt-7 inline-flex w-full items-center justify-center rounded-xl bg-emerald-400 px-5 py-2.5 text-sm font-semibold text-neutral-950 shadow-[0_0_0_1px_rgba(52,211,153,0.35),0_0_28px_rgba(16,185,129,0.55),0_0_56px_rgba(16,185,129,0.22)] transition hover:bg-emerald-300 hover:shadow-[0_0_0_1px_rgba(110,231,183,0.5),0_0_36px_rgba(52,211,153,0.65),0_0_72px_rgba(16,185,129,0.28)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 focus-visible:ring-offset-neutral-900"
       >
         {t("Pricing.cta")}
       </PendingLink>

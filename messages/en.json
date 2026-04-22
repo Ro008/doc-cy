@@ -184,10 +184,12 @@
       "benefits": {
         "price": "Lifetime price protection",
         "appointments": "Unlimited appointments",
-        "support": "Direct support with us"
+        "support": "Direct support with us",
+        "directoryPriority": "Priority Search Ranking",
+        "directoryPriorityNote": "Priority placement in our upcoming professional directory"
       },
       "cta": "Get my Professional Profile",
-      "noCard": "No credit card required to start your free trial. Lifetime €19 pricing is locked in upon signup."
+      "noCard": "No credit card needed to start. Join now to lock in €19/month for life before Founders spots run out."
     }
   }
 }
