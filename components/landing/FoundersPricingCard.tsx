@@ -8,6 +8,10 @@ import { PendingLink } from "@/components/navigation/PendingLink";
 
 const BAR_MS = 1100;
 const COUNT_MS = 950;
+type PricingFeature = {
+  label: string;
+  highlighted?: boolean;
+};
 
 function easeOutQuad(t: number): number {
   return 1 - (1 - t) * (1 - t);
@@ -70,13 +74,13 @@ export function FoundersPricingCard() {
   const showFounderOffer = status === "ready" && Boolean(availability?.offerAvailable);
   const spotsRemaining = availability?.spotsRemaining ?? 0;
   const progressPercent = availability?.progressPercent ?? 100;
-  const founderFeatures = [
+  const founderFeatures: PricingFeature[] = [
     { label: t("Pricing.benefits.price") },
     { label: t("Pricing.benefits.appointments") },
     { label: t("Pricing.benefits.support") },
     { label: t("Pricing.benefits.directoryPriority"), highlighted: true },
   ];
-  const standardFeatures = [
+  const standardFeatures: PricingFeature[] = [
     { label: t("Pricing.benefits.appointments") },
     { label: t("Pricing.benefits.support") },
   ];
