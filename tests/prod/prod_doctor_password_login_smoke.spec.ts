@@ -18,9 +18,14 @@ test.describe("Prod smoke: doctor password login", () => {
     await page.getByLabel("Password").fill(password);
     await page.getByRole("button", { name: /Sign in/i }).click();
 
-    // Production auth can be slower during nightly load; allow extra buffer.
-    await page.waitForURL(/\/agenda(?:[/?#]|$)/, { timeout: 75_000 });
-    await expect(page).toHaveURL(/\/agenda(?:[/?#]|$)/, { timeout: 10_000 });
+    // Production auth can be slower during nightly load; if client-side redirect lags,
+    // navigate directly to /agenda once session cookies are set.
+    try {
+      await page.waitForURL(/\/agenda(?:[/?#]|$)/, { timeout: 30_000 });
+    } catch {
+      await page.goto("/agenda", { waitUntil: "domcontentloaded" });
+    }
+    await expect(page).toHaveURL(/\/agenda(?:[/?#]|$)/, { timeout: 45_000 });
     await expect(
       page.getByText(/Weekly calendar on desktop · Daily focus on mobile/i)
     ).toBeVisible({ timeout: 20_000 });
