@@ -2,8 +2,10 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { createPortal } from "react-dom";
 import { ArrowLeft, Save, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import Cropper from "react-easy-crop";
 import { SpecialtyCombobox } from "@/components/specialties/SpecialtyCombobox";
 import { LanguageMultiSelect } from "@/components/languages/LanguageMultiSelect";
 import { isMasterSpecialty } from "@/lib/cyprus-specialties";
@@ -21,10 +23,12 @@ import {
   formatISOToDDMMYYYYOrEmpty,
   parseDDMMYYYYToISO,
 } from "@/lib/date-format";
+import { CYPRUS_DISTRICTS, isCyprusDistrict } from "@/lib/cyprus-districts";
 
 export type DoctorSettingsFormData = {
   doctorId: string;
   doctorName: string;
+  avatarUrl?: string | null;
   /** Shown in directory & public profile */
   specialty: string;
   /** false = custom “Other” text pending founder approval */
@@ -32,6 +36,8 @@ export type DoctorSettingsFormData = {
   /** Canonical labels, saved as string[] on doctors */
   languages: string[];
   whatsappNumber?: string;
+  district: string;
+  clinicAddress: string;
   monday: boolean;
   tuesday: boolean;
   wednesday: boolean;
@@ -63,6 +69,64 @@ type SettingsFormProps = {
   initial: DoctorSettingsFormData;
 };
 
+type CropArea = { x: number; y: number; width: number; height: number };
+const ALLOWED_AVATAR_MIME_TYPES = new Set([
+  "image/jpeg",
+  "image/jpg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+]);
+
+function loadImage(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error("Failed to load image."));
+    img.src = src;
+  });
+}
+
+async function cropToBlob(imageSrc: string, area: CropArea): Promise<Blob> {
+  const image = await loadImage(imageSrc);
+  const canvas = document.createElement("canvas");
+  canvas.width = 900;
+  canvas.height = 900;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Could not prepare crop canvas.");
+
+  ctx.drawImage(
+    image,
+    area.x,
+    area.y,
+    area.width,
+    area.height,
+    0,
+    0,
+    canvas.width,
+    canvas.height
+  );
+
+  const toBlob = (quality: number) =>
+    new Promise<Blob | null>((resolve) => {
+      canvas.toBlob((value) => resolve(value), "image/jpeg", quality);
+    });
+
+  const targetBytes = 280 * 1024;
+  let quality = 0.9;
+  let blob = await toBlob(quality);
+  if (!blob) throw new Error("Could not generate cropped image.");
+
+  while (blob.size > targetBytes && quality > 0.72) {
+    quality -= 0.06;
+    const nextBlob = await toBlob(quality);
+    if (!nextBlob) break;
+    blob = nextBlob;
+  }
+
+  return blob;
+}
+
 function timeToInputValue(t: string | null | undefined): string {
   if (!t) return "09:00";
   const parts = String(t).split(":");
@@ -82,6 +146,7 @@ const DAY_LABELS: Record<DayKey, string> = {
 };
 
 export function SettingsForm({ initial }: SettingsFormProps) {
+  const [isClient, setIsClient] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
   const [message, setMessage] = React.useState<{
     type: "success" | "error";
@@ -108,6 +173,8 @@ export function SettingsForm({ initial }: SettingsFormProps) {
   const [whatsappNumber, setWhatsappNumber] = React.useState(
     initial.whatsappNumber ?? ""
   );
+  const [district, setDistrict] = React.useState(initial.district ?? "");
+  const [clinicAddress, setClinicAddress] = React.useState(initial.clinicAddress ?? "");
 
   const [weeklySchedule, setWeeklySchedule] = React.useState<WeeklySchedule>(
     initial.weeklySchedule
@@ -152,6 +219,115 @@ export function SettingsForm({ initial }: SettingsFormProps) {
   const [servicePrice, setServicePrice] = React.useState("");
   const [serviceSubmitting, setServiceSubmitting] = React.useState(false);
   const [deletingServiceId, setDeletingServiceId] = React.useState<string | null>(null);
+  const [avatarUploading, setAvatarUploading] = React.useState(false);
+  const [avatarCropping, setAvatarCropping] = React.useState(false);
+  const [avatarPreviewUrl, setAvatarPreviewUrl] = React.useState<string | null>(
+    initial.avatarUrl?.trim() ? initial.avatarUrl : null
+  );
+  const [avatarSourceUrl, setAvatarSourceUrl] = React.useState<string | null>(null);
+  const [avatarCrop, setAvatarCrop] = React.useState({ x: 0, y: 0 });
+  const [avatarZoom, setAvatarZoom] = React.useState(1);
+  const [avatarCroppedPixels, setAvatarCroppedPixels] = React.useState<CropArea | null>(null);
+  const [avatarCropOpen, setAvatarCropOpen] = React.useState(false);
+  const avatarFileInputRef = React.useRef<HTMLInputElement | null>(null);
+
+  React.useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  React.useEffect(() => {
+    return () => {
+      if (avatarSourceUrl) URL.revokeObjectURL(avatarSourceUrl);
+    };
+  }, [avatarSourceUrl]);
+
+  React.useEffect(() => {
+    if (!avatarCropOpen) return;
+    document.body.classList.add("overflow-hidden");
+    return () => {
+      document.body.classList.remove("overflow-hidden");
+    };
+  }, [avatarCropOpen]);
+
+  function closeAvatarCropModal() {
+    setAvatarCropOpen(false);
+    if (avatarSourceUrl) {
+      URL.revokeObjectURL(avatarSourceUrl);
+      setAvatarSourceUrl(null);
+    }
+  }
+
+  function onPickAvatarFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!ALLOWED_AVATAR_MIME_TYPES.has(file.type.toLowerCase())) {
+      toast.error("Use JPG, PNG, WEBP, or GIF.");
+      e.target.value = "";
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("Image is too large. Max 10 MB.");
+      return;
+    }
+
+    if (avatarSourceUrl) URL.revokeObjectURL(avatarSourceUrl);
+    const sourceUrl = URL.createObjectURL(file);
+    setAvatarSourceUrl(sourceUrl);
+    setAvatarCrop({ x: 0, y: 0 });
+    setAvatarZoom(1);
+    setAvatarCroppedPixels(null);
+    setAvatarCropOpen(true);
+    e.target.value = "";
+  }
+
+  async function uploadAvatarBlob(blob: Blob) {
+    setAvatarUploading(true);
+    try {
+      const form = new FormData();
+      form.set("doctorId", initial.doctorId);
+      form.set(
+        "avatarFile",
+        new File([blob], "profile-photo.jpg", { type: "image/jpeg" })
+      );
+      const res = await fetch("/api/doctor-avatar", { method: "POST", body: form });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error((payload.message as string) || "Could not upload photo.");
+        return;
+      }
+      const nextUrl = String(payload.publicUrl ?? "").trim();
+      if (nextUrl) setAvatarPreviewUrl(nextUrl);
+      toast.success("Profile photo updated.");
+    } catch (err) {
+      console.error(err);
+      toast.error("Could not upload photo.");
+    } finally {
+      setAvatarUploading(false);
+      setAvatarCropOpen(false);
+      if (avatarSourceUrl) {
+        URL.revokeObjectURL(avatarSourceUrl);
+        setAvatarSourceUrl(null);
+      }
+    }
+  }
+
+  async function onConfirmAvatarCrop() {
+    if (!avatarSourceUrl || !avatarCroppedPixels) {
+      toast.error("Please adjust and confirm your crop.");
+      return;
+    }
+    setAvatarCropping(true);
+    try {
+      const blob = await cropToBlob(avatarSourceUrl, avatarCroppedPixels);
+      await uploadAvatarBlob(blob);
+    } catch (err) {
+      console.error(err);
+      toast.error("Could not process photo.");
+      closeAvatarCropModal();
+    } finally {
+      setAvatarCropping(false);
+    }
+  }
 
   async function handleAddService() {
     const name = serviceName.trim();
@@ -250,6 +426,12 @@ export function SettingsForm({ initial }: SettingsFormProps) {
       toast.error(text);
       return;
     }
+    if (!isCyprusDistrict(district)) {
+      const text = "Select your district so patients can find you in Health Finder.";
+      setMessage({ type: "error", text });
+      toast.error(text);
+      return;
+    }
 
     const parsedHolidayStart = holidayModeEnabled
       ? parseDDMMYYYYToISO(holidayStartInput)
@@ -282,6 +464,8 @@ export function SettingsForm({ initial }: SettingsFormProps) {
         body: JSON.stringify({
           doctorId: initial.doctorId,
           doctorPhone: whatsappNumber || null,
+          district,
+          clinicAddress: clinicAddress.trim() || null,
           specialty: specResult.specialty,
           specialtyFromMaster: specResult.is_specialty_approved,
           languages: langList,
@@ -375,6 +559,162 @@ export function SettingsForm({ initial }: SettingsFormProps) {
           </div>
         </div>
       </div>
+
+      <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-5">
+        <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+          Finder location
+        </p>
+        <p className="mt-1 text-sm text-slate-400">
+          District is required for Health Finder ranking and filtering.
+        </p>
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          <div>
+            <label
+              htmlFor="district"
+              className="text-[11px] font-semibold uppercase tracking-wide text-slate-400"
+            >
+              District <span className="text-red-300">*</span>
+            </label>
+            <select
+              id="district"
+              value={district}
+              onChange={(e) => setDistrict(e.target.value)}
+              className="mt-2 w-full rounded-xl border border-slate-800/80 bg-slate-950/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-400/60"
+            >
+              <option value="">Select district</option>
+              {CYPRUS_DISTRICTS.map((item) => (
+                <option key={item} value={item}>
+                  {item}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label
+              htmlFor="clinicAddress"
+              className="text-[11px] font-semibold uppercase tracking-wide text-slate-400"
+            >
+              Clinic address
+            </label>
+            <input
+              id="clinicAddress"
+              type="text"
+              value={clinicAddress}
+              onChange={(e) => setClinicAddress(e.target.value)}
+              placeholder="Street, number, area"
+              className="mt-2 w-full rounded-xl border border-slate-800/80 bg-slate-950/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-400/60"
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-5">
+        <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+          Profile photo
+        </p>
+        <p className="mt-1 text-sm text-slate-400">
+          Keep your public profile photo up to date for better trust.
+        </p>
+        <div className="mt-4 flex items-center gap-4">
+          <div className="h-16 w-16 overflow-hidden rounded-full border border-slate-700 bg-slate-950/70">
+            {avatarPreviewUrl ? (
+              <img
+                src={avatarPreviewUrl}
+                alt="Profile preview"
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center text-[10px] text-slate-500">
+                No photo
+              </div>
+            )}
+          </div>
+          <input
+            ref={avatarFileInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/gif"
+            data-testid="settings-avatar-file-input"
+            className="hidden"
+            onChange={onPickAvatarFile}
+            disabled={avatarUploading}
+          />
+          <button
+            type="button"
+            onClick={() => avatarFileInputRef.current?.click()}
+            disabled={avatarUploading}
+            className="inline-flex cursor-pointer items-center justify-center rounded-xl border border-emerald-400/35 bg-emerald-500/10 px-3 py-2 text-xs font-medium text-emerald-200 transition hover:bg-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-70"
+          >
+            {avatarUploading ? "Uploading..." : "Upload new photo"}
+          </button>
+        </div>
+      </div>
+      {isClient && avatarCropOpen && avatarSourceUrl
+        ? createPortal(
+            <div
+              className="fixed inset-0 z-[100] flex items-center justify-center overflow-hidden bg-slate-950/75 p-4"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Crop profile photo"
+            >
+              <div className="w-full max-w-xl rounded-2xl border border-slate-700 bg-slate-900 p-4 shadow-2xl">
+                <p className="mb-2 text-sm font-semibold text-slate-100">
+                  Crop profile photo (1:1)
+                </p>
+                <div className="relative h-72 overflow-hidden rounded-xl bg-slate-950">
+                  <Cropper
+                    image={avatarSourceUrl}
+                    crop={avatarCrop}
+                    zoom={avatarZoom}
+                    aspect={1}
+                    cropShape="round"
+                    showGrid={false}
+                    onCropChange={setAvatarCrop}
+                    onZoomChange={setAvatarZoom}
+                    onCropComplete={(_, croppedPixels) => {
+                      setAvatarCroppedPixels(croppedPixels as CropArea);
+                    }}
+                  />
+                </div>
+                <div className="mt-3">
+                  <label className="text-xs text-slate-300">
+                    Zoom
+                    <input
+                      type="range"
+                      min={1}
+                      max={3}
+                      step={0.05}
+                      value={avatarZoom}
+                      onChange={(e) => setAvatarZoom(Number(e.target.value))}
+                      className="mt-2 w-full"
+                    />
+                  </label>
+                </div>
+                <div className="mt-4 flex items-center justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={closeAvatarCropModal}
+                    className="rounded-xl border border-slate-600 px-3 py-2 text-xs text-slate-200 hover:border-slate-500"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onConfirmAvatarCrop}
+                    disabled={avatarUploading || avatarCropping}
+                    className="rounded-xl bg-emerald-400 px-3 py-2 text-xs font-semibold text-slate-950 disabled:opacity-60"
+                  >
+                    {avatarCropping
+                      ? "Processing..."
+                      : avatarUploading
+                        ? "Uploading..."
+                        : "Confirm crop"}
+                  </button>
+                </div>
+              </div>
+            </div>,
+            document.body
+          )
+        : null}
 
       <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-5">
         <label

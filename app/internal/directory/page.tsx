@@ -31,6 +31,11 @@ import {
   type WebsiteVisitRow,
 } from "@/lib/website-analytics";
 import { PendingLink } from "@/components/navigation/PendingLink";
+import {
+  DuplicateNotificationsPanel,
+  type DuplicateNotificationItem,
+} from "@/components/internal/DuplicateNotificationsPanel";
+import { buildDuplicateSuggestions } from "@/lib/duplicate-matching";
 
 /** Always run on the server per request — no static cache of dashboard numbers */
 export const dynamic = "force-dynamic";
@@ -228,6 +233,139 @@ export default async function FounderDashboardPage() {
   const specialtyItems = aggregateSpecialties(verifiedRows);
   const languageItems = aggregateLanguages(verifiedRows);
 
+  let duplicateNotificationItems: DuplicateNotificationItem[] = [];
+  try {
+    const manualRes = await supabase
+      .from("directory_manual")
+      .select("id, name, specialty, district")
+      .eq("is_archived", false)
+      .limit(400);
+
+    let doctorsForDupes:
+      | { id: string; name: string; specialty: string | null; district: string | null }[]
+      | null = null;
+
+    const doctorsWithDistrictRes = await supabase
+      .from("doctors")
+      .select("id, name, specialty, district, status")
+      .eq("status", "verified")
+      .limit(600);
+
+    if (!doctorsWithDistrictRes.error) {
+      doctorsForDupes = (doctorsWithDistrictRes.data ?? []).map((d) => ({
+        id: d.id as string,
+        name: String(d.name ?? ""),
+        specialty: (d.specialty as string | null) ?? null,
+        district: (d as { district?: string | null }).district ?? null,
+      }));
+    } else if (doctorsWithDistrictRes.error.code === "42703") {
+      const doctorsFallbackRes = await supabase
+        .from("doctors")
+        .select("id, name, specialty, status")
+        .eq("status", "verified")
+        .limit(600);
+      if (!doctorsFallbackRes.error) {
+        doctorsForDupes = (doctorsFallbackRes.data ?? []).map((d) => ({
+          id: d.id as string,
+          name: String(d.name ?? ""),
+          specialty: (d.specialty as string | null) ?? null,
+          district: null,
+        }));
+      }
+    }
+
+    if (!manualRes.error && manualRes.data && doctorsForDupes) {
+      const suggestions = buildDuplicateSuggestions(
+        manualRes.data.map((row) => ({
+          id: row.id as string,
+          name: String(row.name ?? ""),
+          specialty: (row.specialty as string | null) ?? null,
+          district: (row.district as string | null) ?? null,
+        })),
+        doctorsForDupes
+      );
+
+      if (suggestions.length > 0) {
+        const existingRes = await supabase
+          .from("directory_duplicate_suggestions")
+          .select("manual_id, doctor_id")
+          .in(
+            "manual_id",
+            Array.from(new Set(suggestions.map((s) => s.manualId)))
+          );
+
+        const existingPairs = new Set<string>();
+        if (!existingRes.error) {
+          for (const row of existingRes.data ?? []) {
+            existingPairs.add(`${row.manual_id as string}::${row.doctor_id as string}`);
+          }
+        }
+
+        const newSuggestions = suggestions
+          .filter((s) => !existingPairs.has(`${s.manualId}::${s.doctorId}`))
+          .slice(0, 60)
+          .map((s) => ({
+            manual_id: s.manualId,
+            doctor_id: s.doctorId,
+            score: s.score,
+            reason: s.reason,
+            status: "pending",
+          }));
+
+        if (newSuggestions.length > 0) {
+          await supabase.from("directory_duplicate_suggestions").insert(newSuggestions);
+        }
+      }
+
+      const pendingSuggestionsRes = await supabase
+        .from("directory_duplicate_suggestions")
+        .select("id, manual_id, doctor_id, score, reason")
+        .eq("status", "pending")
+        .order("created_at", { ascending: false })
+        .limit(30);
+
+      if (!pendingSuggestionsRes.error && pendingSuggestionsRes.data) {
+        const manualById = new Map(
+          manualRes.data.map((row) => [
+            row.id as string,
+            {
+              name: String(row.name ?? ""),
+              specialty: (row.specialty as string | null) ?? null,
+              district: (row.district as string | null) ?? null,
+            },
+          ])
+        );
+        const doctorById = new Map(
+          doctorsForDupes.map((d) => [
+            d.id,
+            { name: d.name, specialty: d.specialty, district: d.district },
+          ])
+        );
+
+        duplicateNotificationItems = pendingSuggestionsRes.data
+          .map((row) => {
+            const manual = manualById.get(row.manual_id as string);
+            const doctor = doctorById.get(row.doctor_id as string);
+            if (!manual || !doctor) return null;
+            return {
+              suggestionId: row.id as string,
+              manualName: manual.name,
+              manualSpecialty: manual.specialty,
+              manualDistrict: manual.district,
+              doctorName: doctor.name,
+              doctorSpecialty: doctor.specialty,
+              doctorDistrict: doctor.district,
+              score: Number(row.score ?? 0),
+              reason: String(row.reason ?? ""),
+            } satisfies DuplicateNotificationItem;
+          })
+          .filter((item): item is DuplicateNotificationItem => item !== null);
+      }
+    }
+  } catch (dupeErr) {
+    console.error("[DocCy] Duplicate suggestion refresh failed", dupeErr);
+  }
+
   const doctorIds = Array.from(
     new Set(recentApptRowsRaw.map((a) => a.doctor_id as string))
   );
@@ -332,6 +470,7 @@ export default async function FounderDashboardPage() {
         />
 
         <PendingSpecialtiesPanel items={pendingSpecialtyItems} />
+        <DuplicateNotificationsPanel items={duplicateNotificationItems} />
         <div className="rounded-2xl border border-slate-800/80 bg-slate-900/20 p-3 text-xs text-slate-400">
           Trial policy: <span className="font-medium text-slate-200">{trialPeriodDays} days</span>{" "}
           from registration date.

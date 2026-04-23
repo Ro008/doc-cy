@@ -15,6 +15,7 @@ const handleI18nRouting = createMiddleware(routing);
 const RESERVED_TOP_LEVEL = new Set([
   "agenda",
   "dashboard",
+  "finder",
   "internal",
   "login",
   "register",

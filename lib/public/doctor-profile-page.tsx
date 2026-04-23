@@ -19,13 +19,14 @@ import {
 import { appointmentToCyprusDate, CY_TZ } from "@/lib/appointments";
 import { addDays, format } from "date-fns";
 import { utcToZonedTime, zonedTimeToUtc } from "date-fns-tz";
-import { CLINIC_ADDRESS, MAPS_URL } from "@/lib/clinic-info";
+import { CLINIC_ADDRESS, buildMapsUrlFromAddress } from "@/lib/clinic-info";
 import {
   DOCTOR_FIELD_LIST_METADATA,
   DOCTOR_FIELD_LIST_PUBLIC_PROFILE,
   DOCTOR_FIELD_LIST_PUBLIC_PROFILE_NO_LANG,
 } from "@/lib/doctor-fieldsets";
 import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher";
+import { DocCyWordmark } from "@/components/brand/DocCyWordmark";
 import { getTranslations } from "next-intl/server";
 
 const DOCTOR_AVATAR_URL =
@@ -268,6 +269,20 @@ export default async function DoctorPage({ params }: PageProps) {
   }
 
   const profile = result.profile;
+  const clinicAddress = (profile.clinic_address ?? "").trim() || CLINIC_ADDRESS;
+  const mapsUrl = buildMapsUrlFromAddress(clinicAddress);
+  let avatarUrl = DOCTOR_AVATAR_URL;
+  const avatarLookup = await supabase
+    .from("doctors")
+    .select("avatar_url")
+    .eq("id", profile.id)
+    .maybeSingle();
+  if (!avatarLookup.error) {
+    const avatarPath = String((avatarLookup.data as { avatar_url?: string | null } | null)?.avatar_url ?? "").trim();
+    if (avatarPath) {
+      avatarUrl = supabase.storage.from("avatars").getPublicUrl(avatarPath).data.publicUrl;
+    }
+  }
 
   const settingsSelectFull =
     "doctor_id, monday, tuesday, wednesday, thursday, friday, saturday, sunday, start_time, end_time, weekly_schedule, break_start, break_end, slot_duration_minutes, pause_online_bookings, holiday_mode_enabled, holiday_start_date, holiday_end_date, booking_horizon_days, minimum_notice_hours";
@@ -399,15 +414,23 @@ export default async function DoctorPage({ params }: PageProps) {
       <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8 lg:py-14">
         <header className="mb-8 flex flex-col gap-4 sm:gap-6">
           <div className="flex items-center justify-between gap-3">
-            <p className="text-xs font-semibold tracking-[0.2em] text-emerald-200/80 break-words">
-              Doc<span className="text-emerald-400">Cy</span> · {t("profileTag")}
-            </p>
+            <div className="flex min-w-0 items-center gap-2 break-words">
+              <a
+                href="/"
+                className="inline-flex transition hover:opacity-90"
+              >
+                <DocCyWordmark />
+              </a>
+              <span className="text-xs font-semibold tracking-[0.16em] text-emerald-200/80">
+                · {t("profileTag")}
+              </span>
+            </div>
             <LanguageSwitcher compact />
           </div>
           <div className="flex gap-5">
             <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-2xl border-2 border-emerald-400/30 shadow-lg shadow-slate-950/50 sm:h-28 sm:w-28">
               <Image
-                src={DOCTOR_AVATAR_URL}
+                src={avatarUrl}
                 alt=""
                 fill
                 className="object-cover"
@@ -496,8 +519,8 @@ export default async function DoctorPage({ params }: PageProps) {
             <DoctorDetailsAccordion
               name={profile.name}
               bio={profile.bio}
-              clinicAddress={CLINIC_ADDRESS}
-              mapsUrl={MAPS_URL}
+              clinicAddress={clinicAddress}
+              mapsUrl={mapsUrl}
             />
             <ServiceMenuSection services={services} />
           </div>

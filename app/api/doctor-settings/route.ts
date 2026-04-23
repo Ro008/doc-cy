@@ -5,6 +5,7 @@ import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 import { validateSpecialtySubmission } from "@/lib/specialty-submission";
 import { isMasterSpecialty } from "@/lib/cyprus-specialties";
 import { validateLanguageSelection } from "@/lib/cyprus-languages";
+import { isCyprusDistrict } from "@/lib/cyprus-districts";
 import {
   BOOKING_HORIZON_OPTIONS_DAYS,
   DAY_NAMES,
@@ -90,6 +91,8 @@ export async function POST(req: NextRequest) {
   const b = body as {
     doctorId?: string;
     doctorPhone?: string | null;
+    district?: string | null;
+    clinicAddress?: string | null;
     specialty?: string;
     /** true when chosen from master list (JSON boolean) */
     specialtyFromMaster?: boolean | string | number;
@@ -157,6 +160,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ message: langsParsed.message }, { status: 400 });
   }
   const languages = langsParsed.value;
+  const districtRaw = typeof b.district === "string" ? b.district.trim() : "";
+  if (!isCyprusDistrict(districtRaw)) {
+    return NextResponse.json(
+      { message: "Select a valid district." },
+      { status: 400 }
+    );
+  }
+  const clinicAddress =
+    typeof b.clinicAddress === "string" ? b.clinicAddress.trim() : "";
 
   const toTime = (v: string | undefined, fallback: string) => {
     if (!v || typeof v !== "string") return fallback;
@@ -298,10 +310,14 @@ export async function POST(req: NextRequest) {
 
   const phoneUpdate: {
     phone?: string | null;
+    district: string;
+    clinic_address: string | null;
     specialty: string;
     languages: string[];
     is_specialty_approved: boolean;
   } = {
+    district: districtRaw,
+    clinic_address: clinicAddress || null,
     specialty: specResult.specialty,
     languages,
     is_specialty_approved: specResult.is_specialty_approved,

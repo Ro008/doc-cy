@@ -5,6 +5,7 @@ export type DoctorRow = {
   slug?: string | null;
   phone?: string;
   specialty?: string | null;
+  district?: string | null;
   clinic_address?: string | null;
   /** Spoken languages for directory / filters */
   languages?: string[] | null;

@@ -5,6 +5,9 @@ import { automatedEmailFooterHtml, escapeHtml, sendResendEmail } from "@/lib/res
 
 const DEVICE_COOKIE = "doccy-device-id";
 const DEVICE_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 365;
+// TEMP: keep disabled while there are no real users to avoid unnecessary Resend usage.
+// To re-enable in the future, set DOC_CY_SEND_NEW_SIGNIN_ALERTS=1 in env.
+const SEND_NEW_SIGNIN_ALERTS = process.env.DOC_CY_SEND_NEW_SIGNIN_ALERTS === "1";
 
 function extractClientIp(forwardedFor: string | null): string | null {
   if (!forwardedFor) return null;
@@ -42,7 +45,7 @@ export async function POST(req: Request) {
     userAgent,
   });
 
-  if (isNewDevice && user.email) {
+  if (isNewDevice && user.email && SEND_NEW_SIGNIN_ALERTS) {
     const when = new Date().toISOString();
     const text = [
       "We detected a new sign-in to your DocCy account.",
@@ -89,6 +92,12 @@ export async function POST(req: Request) {
         error: err instanceof Error ? err.message : String(err),
       });
     }
+  }
+  if (isNewDevice && user.email && !SEND_NEW_SIGNIN_ALERTS) {
+    console.info("[DocCy][auth] new_device_alert_skipped_disabled", {
+      userId: user.id,
+      email: user.email,
+    });
   }
 
   const res = NextResponse.json({ ok: true, isNewDevice });

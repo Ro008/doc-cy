@@ -166,7 +166,7 @@ export default async function HomePage() {
       </div>
 
       <div className="relative z-10 flex flex-1 flex-col px-4 py-3 sm:px-6 lg:px-8 lg:py-4">
-        <header className="flex shrink-0 items-center justify-between gap-2 sm:gap-3">
+        <header className="flex shrink-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
           <div className="flex min-w-0 items-center gap-2 sm:gap-3">
             <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-500/90 text-xs font-bold tracking-tight text-neutral-950 shadow-lg shadow-emerald-500/35 sm:h-10 sm:w-10 sm:text-sm">
               DC
@@ -182,9 +182,22 @@ export default async function HomePage() {
                 CYPRUS HEALTH & WELLNESS
               </span>
             </div>
+            <div className="ml-auto shrink-0 sm:hidden">
+              <LanguageSwitcher compact />
+            </div>
           </div>
-          <div className="shrink-0">
-            <LanguageSwitcher />
+          <div className="w-full sm:w-auto sm:shrink-0">
+            <div className="flex items-center justify-stretch gap-2 sm:justify-end">
+              <PendingLink
+                href="/finder"
+                className="hidden min-h-9 w-auto items-center justify-center rounded-xl border border-emerald-300/40 bg-slate-900/75 px-3 py-1.5 text-sm font-semibold uppercase tracking-wide text-emerald-200 transition hover:border-emerald-200/70 hover:text-emerald-100 sm:inline-flex"
+              >
+                Find a Professional
+              </PendingLink>
+              <div className="hidden sm:block">
+                <LanguageSwitcher />
+              </div>
+            </div>
           </div>
         </header>
 
@@ -221,6 +234,12 @@ export default async function HomePage() {
                   {t("Hero.ctaLogin")}
                 </PendingLink>
               </div>
+              <PendingLink
+                href="/finder"
+                className="mt-3 inline-flex items-center text-sm font-medium text-emerald-200/90 underline underline-offset-4 transition hover:text-emerald-100 sm:hidden"
+              >
+                Find a Professional
+              </PendingLink>
             </section>
 
             <div className="flex w-full min-w-0 shrink-0 justify-center lg:w-[38%] lg:max-w-md lg:justify-end">
@@ -301,6 +320,26 @@ export default async function HomePage() {
             </div>
           </div>
         </section>
+
+        <footer className="mx-auto w-full max-w-6xl border-t border-slate-800/70 pb-8 pt-6">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+            Find a Professional quick links
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2.5">
+            <PendingLink
+              href="/finder?district=Paphos&specialty=Dentistry"
+              className="inline-flex rounded-lg border border-slate-700 bg-slate-900/60 px-3 py-1.5 text-xs text-slate-200 transition hover:border-emerald-300/50 hover:text-emerald-200"
+            >
+              Dentists in Paphos
+            </PendingLink>
+            <PendingLink
+              href="/finder?district=Limassol&specialty=Dermatology"
+              className="inline-flex rounded-lg border border-slate-700 bg-slate-900/60 px-3 py-1.5 text-xs text-slate-200 transition hover:border-emerald-300/50 hover:text-emerald-200"
+            >
+              Dermatologists in Limassol
+            </PendingLink>
+          </div>
+        </footer>
       </div>
     </main>
   );
