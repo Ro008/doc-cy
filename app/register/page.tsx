@@ -327,6 +327,7 @@ async function handleRegister(formData: FormData) {
         is_specialty_approved: isSpecialtyApproved,
         subscription_tier: fallbackTier,
         district,
+        is_test_profile: false,
       })
       .select("id")
       .single();

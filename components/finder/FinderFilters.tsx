@@ -9,28 +9,42 @@ type FinderFiltersProps = {
   districts: readonly string[];
   activeDistrict: string;
   activeSpecialty: string;
+  activeName: string;
 };
 
 export function FinderFilters({
   districts,
   activeDistrict,
   activeSpecialty,
+  activeName,
 }: FinderFiltersProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [district, setDistrict] = React.useState(activeDistrict);
   const [specialty, setSpecialty] = React.useState(activeSpecialty);
+  const [name, setName] = React.useState(activeName);
   const [pendingAction, setPendingAction] = React.useState<"apply" | "reset" | null>(null);
   const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const nameDebounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingGuardRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const typingGuardRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const nameTypingGuardRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isEditingSpecialtyRef = React.useRef(false);
+  const isEditingNameRef = React.useRef(false);
 
   React.useEffect(() => {
-    // When server-provided query state lands, clear button loading feedback.
+    // Keep district in sync with URL-driven state.
     setDistrict(activeDistrict);
-    setSpecialty(activeSpecialty);
+    // Avoid clobbering keystrokes while user is actively typing.
+    if (!isEditingSpecialtyRef.current) {
+      setSpecialty(activeSpecialty);
+    }
+    if (!isEditingNameRef.current) {
+      setName(activeName);
+    }
     setPendingAction(null);
-  }, [activeDistrict, activeSpecialty]);
+  }, [activeDistrict, activeSpecialty, activeName]);
 
   React.useEffect(() => {
     // Also clear pending when URL has updated, even if values happen to match previous state.
@@ -40,14 +54,18 @@ export function FinderFilters({
   React.useEffect(() => {
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
+      if (nameDebounceRef.current) clearTimeout(nameDebounceRef.current);
       if (pendingGuardRef.current) clearTimeout(pendingGuardRef.current);
+      if (typingGuardRef.current) clearTimeout(typingGuardRef.current);
+      if (nameTypingGuardRef.current) clearTimeout(nameTypingGuardRef.current);
     };
   }, []);
 
-  function pushFilters(nextDistrict: string, nextSpecialty: string) {
+  function pushFilters(nextDistrict: string, nextSpecialty: string, nextName: string) {
     const params = new URLSearchParams();
     if (nextDistrict) params.set("district", nextDistrict);
     if (nextSpecialty) params.set("specialty", nextSpecialty);
+    if (nextName) params.set("name", nextName);
     const qs = params.toString();
     const target = qs ? `/finder?${qs}` : "/finder";
     if (`${pathname}${searchParams?.toString() ? `?${searchParams.toString()}` : ""}` === target) {
@@ -59,31 +77,44 @@ export function FinderFilters({
     router.refresh();
   }
 
-  function applyFilters(nextDistrict: string, nextSpecialty: string) {
-    setPendingAction("apply");
+  function applyFilters(
+    nextDistrict: string,
+    nextSpecialty: string,
+    nextName: string,
+    options?: { showPending?: boolean }
+  ) {
+    const showPending = options?.showPending ?? true;
+    if (showPending) {
+      setPendingAction("apply");
+    }
     // Safety valve: never leave button text stuck if navigation is no-op or delayed.
-    if (pendingGuardRef.current) clearTimeout(pendingGuardRef.current);
-    pendingGuardRef.current = setTimeout(() => setPendingAction(null), 1500);
-    pushFilters(nextDistrict, nextSpecialty);
+    if (showPending) {
+      if (pendingGuardRef.current) clearTimeout(pendingGuardRef.current);
+      pendingGuardRef.current = setTimeout(() => setPendingAction(null), 1500);
+    } else {
+      setPendingAction(null);
+    }
+    pushFilters(nextDistrict, nextSpecialty, nextName);
   }
 
   async function resetFilters() {
-    if (!district && !specialty) {
+    if (!district && !specialty && !name) {
       setPendingAction(null);
       return;
     }
     setDistrict("");
     setSpecialty("");
+    setName("");
     setPendingAction("reset");
     if (pendingGuardRef.current) clearTimeout(pendingGuardRef.current);
     pendingGuardRef.current = setTimeout(() => setPendingAction(null), 1500);
-    pushFilters("", "");
+    pushFilters("", "", "");
   }
 
   const isPending = pendingAction !== null;
 
   return (
-    <form className="grid gap-3 sm:grid-cols-3">
+    <form className="grid gap-3 sm:grid-cols-4">
       <label className="text-xs font-semibold uppercase tracking-wide text-slate-400">
         District
         <select
@@ -92,7 +123,7 @@ export function FinderFilters({
           onChange={(e) => {
             const nextDistrict = e.target.value;
             setDistrict(nextDistrict);
-            applyFilters(nextDistrict, specialty);
+            applyFilters(nextDistrict, specialty.trim(), name.trim());
           }}
           className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950/80 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
         >
@@ -113,12 +144,40 @@ export function FinderFilters({
           onChange={(e) => {
             const nextSpecialty = e.target.value;
             setSpecialty(nextSpecialty);
+            isEditingSpecialtyRef.current = true;
+            if (typingGuardRef.current) clearTimeout(typingGuardRef.current);
+            typingGuardRef.current = setTimeout(() => {
+              isEditingSpecialtyRef.current = false;
+            }, 900);
             if (debounceRef.current) clearTimeout(debounceRef.current);
             debounceRef.current = setTimeout(() => {
-              applyFilters(district, nextSpecialty.trim());
-            }, 250);
+              applyFilters(district, nextSpecialty.trim(), name.trim(), { showPending: false });
+            }, 350);
           }}
           placeholder="Start typing..."
+          className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950/80 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+        />
+      </label>
+      <label className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+        Name
+        <input
+          name="name"
+          type="text"
+          value={name}
+          onChange={(e) => {
+            const nextName = e.target.value;
+            setName(nextName);
+            isEditingNameRef.current = true;
+            if (nameTypingGuardRef.current) clearTimeout(nameTypingGuardRef.current);
+            nameTypingGuardRef.current = setTimeout(() => {
+              isEditingNameRef.current = false;
+            }, 900);
+            if (nameDebounceRef.current) clearTimeout(nameDebounceRef.current);
+            nameDebounceRef.current = setTimeout(() => {
+              applyFilters(district, specialty.trim(), nextName.trim(), { showPending: false });
+            }, 350);
+          }}
+          placeholder="Search by name..."
           className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950/80 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
         />
       </label>

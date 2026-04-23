@@ -10,6 +10,7 @@ type FinderPageProps = {
   searchParams?: {
     district?: string;
     specialty?: string;
+    name?: string;
   };
 };
 
@@ -30,6 +31,8 @@ type ManualFinderRow = {
   district: CyprusDistrict;
   address_maps_link: string;
 };
+
+const TEST_NAME_MARKER = /\btest\b/i;
 
 function normalizeSelectValue(value: string | undefined): string {
   return String(value ?? "").trim();
@@ -62,12 +65,40 @@ function toPublicAvatarUrl(rawValue: unknown): string | null {
   return `${base.replace(/\/+$/, "")}/storage/v1/object/public/avatars/${raw.replace(/^\/+/, "")}`;
 }
 
+function isTestProfileLike(row: {
+  name: string;
+}): boolean {
+  return TEST_NAME_MARKER.test(row.name);
+}
+
+function normalizeSpecialtyTerm(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/\bdentistry\b/g, "dentist")
+    .replace(/\bdental\b/g, "dentist")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function normalizeDistrictTerm(value: string): string {
+  return value.toLowerCase().trim();
+}
+
+function matchesSpecialtyFilter(candidate: string, query: string): boolean {
+  const normalizedCandidate = normalizeSpecialtyTerm(candidate);
+  const normalizedQuery = normalizeSpecialtyTerm(query);
+  if (!normalizedQuery) return true;
+  return normalizedCandidate.includes(normalizedQuery);
+}
+
 export default async function FinderPage({ searchParams }: FinderPageProps) {
   const supabase = createServiceRoleClient();
   const districtParam = normalizeSelectValue(searchParams?.district);
   const specialtyParam = normalizeSelectValue(searchParams?.specialty);
+  const nameParam = normalizeSelectValue(searchParams?.name);
   const activeDistrict = isCyprusDistrict(districtParam) ? districtParam : "";
   const activeSpecialty = specialtyParam;
+  const activeName = nameParam;
 
   const districts = CYPRUS_DISTRICTS;
 
@@ -100,18 +131,20 @@ export default async function FinderPage({ searchParams }: FinderPageProps) {
         break;
       }
 
-      registeredRows = (result.data ?? []).map((row) => {
-        const raw = row as Record<string, unknown>;
-        return {
-          id: String(raw.id ?? ""),
-          name: String(raw.name ?? "Professional"),
-          specialty: (raw.specialty as string | null) ?? null,
-          district: (raw.district as string | null) ?? null,
-          slug: (raw.slug as string | null) ?? null,
-          languages: normalizeLanguages(raw.languages),
-          avatarUrl: toPublicAvatarUrl(raw.avatar_url),
-        };
-      });
+      registeredRows = (result.data ?? [])
+        .map((row) => {
+          const raw = row as Record<string, unknown>;
+          return {
+            id: String(raw.id ?? ""),
+            name: String(raw.name ?? "Professional"),
+            specialty: (raw.specialty as string | null) ?? null,
+            district: (raw.district as string | null) ?? null,
+            slug: (raw.slug as string | null) ?? null,
+            languages: normalizeLanguages(raw.languages),
+            avatarUrl: toPublicAvatarUrl(raw.avatar_url),
+          };
+        })
+        .filter((row) => !isTestProfileLike({ name: row.name }));
       break;
     }
 
@@ -138,22 +171,32 @@ export default async function FinderPage({ searchParams }: FinderPageProps) {
   }
 
   const filteredRegistered = registeredRows.filter((row) => {
-    if (activeDistrict && row.district !== activeDistrict) return false;
     if (
-      activeSpecialty &&
-      !(row.specialty ?? "").toLowerCase().includes(activeSpecialty.toLowerCase())
+      activeDistrict &&
+      normalizeDistrictTerm(row.district ?? "") !== normalizeDistrictTerm(activeDistrict)
     ) {
+      return false;
+    }
+    if (activeSpecialty && !matchesSpecialtyFilter(row.specialty ?? "", activeSpecialty)) {
+      return false;
+    }
+    if (activeName && !row.name.toLowerCase().includes(activeName.toLowerCase())) {
       return false;
     }
     return true;
   });
 
   const filteredManual = manualRows.filter((row) => {
-    if (activeDistrict && row.district !== activeDistrict) return false;
     if (
-      activeSpecialty &&
-      !row.specialty.toLowerCase().includes(activeSpecialty.toLowerCase())
+      activeDistrict &&
+      normalizeDistrictTerm(row.district) !== normalizeDistrictTerm(activeDistrict)
     ) {
+      return false;
+    }
+    if (activeSpecialty && !matchesSpecialtyFilter(row.specialty, activeSpecialty)) {
+      return false;
+    }
+    if (activeName && !row.name.toLowerCase().includes(activeName.toLowerCase())) {
       return false;
     }
     return true;
@@ -187,6 +230,7 @@ export default async function FinderPage({ searchParams }: FinderPageProps) {
             districts={districts}
             activeDistrict={activeDistrict}
             activeSpecialty={activeSpecialty}
+            activeName={activeName}
           />
         </section>
 
@@ -229,7 +273,7 @@ export default async function FinderPage({ searchParams }: FinderPageProps) {
                   return (
                     <article
                       key={`registered-${row.id}`}
-                      className="flex h-full min-h-[248px] flex-col rounded-2xl border border-emerald-400/20 bg-slate-900/70 p-4 shadow-[0_0_22px_-12px_rgba(52,211,153,0.55)]"
+                      className="flex h-full min-h-[276px] flex-col rounded-2xl border border-emerald-400/20 bg-slate-900/70 p-4 shadow-[0_0_22px_-12px_rgba(52,211,153,0.55)]"
                     >
                       <div className="flex items-start gap-3">
                         <div className="h-[72px] w-[72px] shrink-0 overflow-hidden rounded-full border border-emerald-300/35 bg-slate-800 ring-2 ring-emerald-400/10">
@@ -250,8 +294,10 @@ export default async function FinderPage({ searchParams }: FinderPageProps) {
                           <p className="text-[17px] font-bold leading-[1.2] tracking-tight text-slate-50">
                             {row.name}
                           </p>
-                          <p className="mt-1.5 text-sm font-medium leading-snug text-slate-400">
-                            {row.specialty ?? "Specialty not set"}
+                          <p className="mt-2 inline-flex max-w-full items-center rounded-full border border-slate-700/80 bg-slate-900/90 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-300">
+                            <span className="whitespace-normal break-words text-center leading-snug">
+                              {row.specialty ?? "Specialty not set"}
+                            </span>
                           </p>
                           <p className="mt-1 text-xs text-slate-500">
                             {row.district ?? "District pending"}
@@ -297,7 +343,7 @@ export default async function FinderPage({ searchParams }: FinderPageProps) {
                 return (
                   <article
                     key={`manual-${row.id}`}
-                    className="flex h-full min-h-[248px] flex-col rounded-2xl border border-slate-700 bg-slate-900/65 p-4"
+                    className="flex h-full min-h-[276px] flex-col rounded-2xl border border-slate-700 bg-slate-900/65 p-4"
                   >
                     <div className="flex items-start gap-3">
                       <div className="flex h-[72px] w-[72px] shrink-0 items-center justify-center overflow-hidden rounded-full border border-slate-600 bg-slate-800/80 ring-2 ring-slate-500/10">
@@ -309,17 +355,19 @@ export default async function FinderPage({ searchParams }: FinderPageProps) {
                         <p className="text-[17px] font-bold leading-[1.2] tracking-tight text-slate-50">
                           {row.name}
                         </p>
-                        <p className="mt-1.5 text-sm font-medium leading-snug text-slate-400">
-                          {row.specialty}
+                        <p className="mt-2 inline-flex max-w-full items-center rounded-full border border-slate-700/80 bg-slate-900/90 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-300">
+                          <span className="whitespace-normal break-words text-center leading-snug">
+                            {row.specialty}
+                          </span>
                         </p>
-                        <p className="mt-1 text-xs text-slate-500">{row.district}</p>
                       </div>
                     </div>
 
-                    <div className="mt-4 min-h-[64px]">
+                    <div className="mt-4 min-h-[84px]">
                       <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">
                         Location
                       </p>
+                      <p className="mb-1.5 text-xs font-medium text-slate-400">{row.district}</p>
                       <a
                         href={row.address_maps_link}
                         target="_blank"
