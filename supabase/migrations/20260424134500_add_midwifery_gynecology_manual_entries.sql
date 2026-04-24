@@ -12,11 +12,10 @@ select
   v.address_maps_link
 from (
   values
-    ('Athena Kozyraki', 'Midwifery', 'Nicosia', 'https://maps.app.goo.gl/4UEj3TBBmckt53Cv9'),
-    ('Eleni Andreou', 'Midwifery', 'Nicosia', 'https://maps.app.goo.gl/ZkupsztGUUNNiwmq9'),
+    ('Athena Kozyraki', 'Midwifery', 'Paphos', 'https://maps.app.goo.gl/4UEj3TBBmckt53Cv9'),
     ('Costas Christoforou', 'Gynecology', 'Nicosia', 'https://maps.app.goo.gl/jFEeMh3SPZhLwuxXA'),
     ('Andrie Constantinou', 'Medicine', 'Limassol', 'https://maps.app.goo.gl/QCDyes9CDGbgzs38A'),
-    ('Eva Oikonomou', 'Midwifery', 'Nicosia', 'https://maps.app.goo.gl/hMWin6UyShwVMP2e9'),
+    ('Eva Oikonomou', 'Midwifery', 'Famagusta', 'https://maps.app.goo.gl/hMWin6UyShwVMP2e9'),
     ('Niki Agathokleous', 'Obstetrics/ Gynecology', 'Nicosia', 'https://maps.app.goo.gl/68fps27eyT3EEbeq5'),
     ('Andreas Matheou', 'Obstetrics/ Gynecology', 'Nicosia', 'https://maps.app.goo.gl/FmDnnbNoFqASgUpm7'),
     ('Dimitra Georgiou', 'Obstetrics/ Gynecology', 'Nicosia', 'https://maps.app.goo.gl/kYVviMBYjNmiyt277'),

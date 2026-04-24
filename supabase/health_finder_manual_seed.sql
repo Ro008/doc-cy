@@ -236,19 +236,19 @@ VALUES
   (
     'Antonis Hadjieftychiou',
     'Plastic Surgery',
-    'Nicosia',
+    'Paphos',
     'https://maps.app.goo.gl/tT5nT2xNFd8EHTki8'
   ),
   (
     'Phaedon Christofi',
     'Plastic Surgery',
-    'Nicosia',
+    'Paphos',
     'https://maps.app.goo.gl/a4GyvxsNNqGDU7Q4A'
   ),
   (
     'Panagiotis Ermogenous',
     'Plastic Surgery',
-    'Nicosia',
+    'Paphos',
     'https://maps.app.goo.gl/N2kNqxsJxqXquMZr9'
   ),
   (
@@ -260,7 +260,7 @@ VALUES
   (
     'Iakovos Georgiou',
     'Plastic Surgery',
-    'Nicosia',
+    'Limassol',
     'https://maps.app.goo.gl/XQGepToybLX6xH2b7'
   ),
   (
@@ -278,13 +278,13 @@ VALUES
   (
     'Constantinos Michael',
     'Plastic Surgery',
-    'Nicosia',
+    'Limassol',
     'https://maps.app.goo.gl/NfWuu41S2QchdtGw6'
   ),
   (
     'Gina Korfiati',
     'Plastic Surgery',
-    'Nicosia',
+    'Larnaca',
     'https://maps.app.goo.gl/3NZNdYe2nbXQQiaq6'
   ),
   (
@@ -308,19 +308,13 @@ VALUES
   (
     'Athena Kozyraki',
     'Midwifery',
-    'Nicosia',
+    'Paphos',
     'https://maps.app.goo.gl/4UEj3TBBmckt53Cv9'
-  ),
-  (
-    'Eleni Andreou',
-    'Midwifery',
-    'Nicosia',
-    'https://maps.app.goo.gl/ZkupsztGUUNNiwmq9'
   ),
   (
     'Costas Christoforou',
     'Gynecology',
-    'Nicosia',
+    'Larnaca',
     'https://maps.app.goo.gl/jFEeMh3SPZhLwuxXA'
   ),
   (
@@ -332,25 +326,25 @@ VALUES
   (
     'Eva Oikonomou',
     'Midwifery',
-    'Nicosia',
+    'Famagusta',
     'https://maps.app.goo.gl/hMWin6UyShwVMP2e9'
   ),
   (
     'Niki Agathokleous',
     'Obstetrics/ Gynecology',
-    'Nicosia',
+    'Limassol',
     'https://maps.app.goo.gl/68fps27eyT3EEbeq5'
   ),
   (
     'Andreas Matheou',
     'Obstetrics/ Gynecology',
-    'Nicosia',
+    'Paphos',
     'https://maps.app.goo.gl/FmDnnbNoFqASgUpm7'
   ),
   (
     'Dimitra Georgiou',
     'Obstetrics/ Gynecology',
-    'Nicosia',
+    'Paphos',
     'https://maps.app.goo.gl/kYVviMBYjNmiyt277'
   ),
   (
@@ -374,7 +368,7 @@ VALUES
   (
     'Irina Mzavanatze-Stampolidou',
     'Obstetrics/ Gynecology',
-    'Nicosia',
+    'Paphos',
     'https://maps.app.goo.gl/XTG4piLhPYVPpAM9A'
   ),
   (
@@ -386,7 +380,7 @@ VALUES
   (
     'Anastasios Tranoulis',
     'Gynecologic Oncology',
-    'Nicosia',
+    'Paphos',
     'https://maps.app.goo.gl/wt1Hd9eu3mSvtv868'
   ),
   (
@@ -404,13 +398,13 @@ VALUES
   (
     'Evangelia Andreou',
     'Obstetrics/ Gynecology',
-    'Nicosia',
+    'Larnaca',
     'https://maps.app.goo.gl/8FgwFPGdKwn225z78'
   ),
   (
     'Chris Liassides',
     'Obstetrics/ Gynecology',
-    'Nicosia',
+    'Limassol',
     'https://maps.app.goo.gl/HF1ERtQThAzKRrps8'
   ),
   (
@@ -555,13 +549,13 @@ VALUES
     'Antonis Glykeriou',
     'Ophthalmology',
     'Nicosia',
-    'https://maps.app.goo.gl/LPpTMA7ptkcDpV726'
+    'https://maps.app.goo.gl/ZqcHyioUqqTtA5Bi7'
   ),
   (
     'Maria Phylactou',
     'Ophthalmology',
     'Nicosia',
-    'https://maps.app.goo.gl/j3WEHEfeoGMHhoFD9'
+    'https://maps.app.goo.gl/SsJEJcVV6P4ndw2LA'
   ),
   (
     'Alexandra Papasavva',
