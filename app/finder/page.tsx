@@ -373,7 +373,7 @@ export default async function FinderPage({ searchParams }: FinderPageProps) {
                       href="/#founders-pricing"
                       className="inline-flex w-full items-center justify-center rounded-xl bg-emerald-400 px-4 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-emerald-300"
                     >
-                      Claim your professional profile
+                      Activate online booking
                     </PendingLink>
                   </article>
                 );
