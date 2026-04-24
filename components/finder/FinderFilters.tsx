@@ -112,9 +112,48 @@ export function FinderFilters({
   }
 
   const isPending = pendingAction !== null;
+  const activeFilterEntries = [
+    district ? `District: ${district}` : null,
+    specialty.trim() ? `Specialty: ${specialty.trim()}` : null,
+    name.trim() ? `Name: ${name.trim()}` : null,
+  ].filter((item): item is string => Boolean(item));
+  const hasActiveFilters = activeFilterEntries.length > 0;
 
   return (
-    <form className="grid gap-3 sm:grid-cols-4">
+    <div className="space-y-3">
+      <div
+        aria-hidden={!hasActiveFilters}
+        className={`overflow-hidden transition-all duration-300 ease-out ${
+          hasActiveFilters ? "max-h-40 opacity-100 translate-y-0" : "max-h-0 opacity-0 -translate-y-1"
+        }`}
+      >
+        <div className="rounded-xl border border-emerald-400/50 bg-emerald-500/10 px-3 py-2">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-emerald-200">
+              {activeFilterEntries.length} active filter{activeFilterEntries.length > 1 ? "s" : ""}
+            </p>
+            <button
+              type="button"
+              disabled={isPending && pendingAction !== "reset"}
+              onClick={resetFilters}
+              className="inline-flex items-center justify-center rounded-lg border border-emerald-300/60 bg-emerald-400/15 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-emerald-100 transition hover:bg-emerald-400/25 disabled:cursor-not-allowed disabled:opacity-70"
+            >
+              {pendingAction === "reset" ? "Resetting..." : "Clear all filters"}
+            </button>
+          </div>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {activeFilterEntries.map((entry) => (
+              <span
+                key={entry}
+                className="inline-flex items-center rounded-full border border-emerald-300/40 bg-emerald-400/15 px-2.5 py-1 text-[11px] font-medium text-emerald-100"
+              >
+                {entry}
+              </span>
+            ))}
+          </div>
+        </div>
+      </div>
+      <form className="grid gap-3 sm:grid-cols-4">
       <label className="text-xs font-semibold uppercase tracking-wide text-slate-400">
         District
         <select
@@ -181,16 +220,8 @@ export function FinderFilters({
           className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950/80 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
         />
       </label>
-      <div className="flex items-end gap-2">
-        <button
-          type="button"
-          disabled={isPending && pendingAction !== "reset"}
-          onClick={resetFilters}
-          className="inline-flex h-10 items-center justify-center rounded-xl border border-slate-600 bg-slate-800/70 px-4 text-sm font-medium text-slate-200 transition hover:border-slate-500 disabled:cursor-not-allowed disabled:opacity-70"
-        >
-          {pendingAction === "reset" ? "Resetting..." : "Reset"}
-        </button>
-      </div>
-    </form>
+        <div className="flex items-end" />
+      </form>
+    </div>
   );
 }
