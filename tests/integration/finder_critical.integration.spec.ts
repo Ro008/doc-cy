@@ -84,6 +84,56 @@ async function createVerifiedDoctor(
 }
 
 test.describe("Integration: finder business-critical UX", () => {
+  test("landing to finder shows complete unfiltered directory results", async ({ page }) => {
+    const baseUrl = process.env.PLAYWRIGHT_BASE_URL ?? "";
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+    const serviceRole = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
+
+    const unsafeReason = assertSafeIntegrationTarget(baseUrl, supabaseUrl);
+    test.skip(Boolean(unsafeReason), unsafeReason ?? undefined);
+    test.skip(!baseUrl || !supabaseUrl || !serviceRole, "Missing integration env vars.");
+
+    const admin = createClient(supabaseUrl, serviceRole);
+
+    const doctorsRes = await admin
+      .from("doctors")
+      .select("id, name, slug, status, is_test_profile")
+      .eq("status", "verified")
+      .not("slug", "is", null)
+      .limit(1000);
+
+    if (doctorsRes.error) {
+      throw new Error(`Failed reading doctors for finder count: ${doctorsRes.error.message}`);
+    }
+
+    const manualRes = await admin
+      .from("directory_manual")
+      .select("id")
+      .eq("is_archived", false)
+      .limit(600);
+
+    if (manualRes.error) {
+      throw new Error(`Failed reading directory_manual for finder count: ${manualRes.error.message}`);
+    }
+
+    const expectedRegistered = (doctorsRes.data ?? []).filter((row) => {
+      const isExplicitTest = Boolean((row as { is_test_profile?: boolean | null }).is_test_profile);
+      if (isExplicitTest) return false;
+      return !/\btest\b/i.test(String(row.name ?? ""));
+    }).length;
+    const expectedManual = (manualRes.data ?? []).length;
+    const expectedTotal = expectedRegistered + expectedManual;
+
+    await page.goto("/");
+    const finderLink = page.getByRole("link", { name: /^Find a Professional$/i }).first();
+    await expect(finderLink).toBeVisible();
+    await finderLink.click();
+
+    await expect(page).toHaveURL(/\/finder(?:\?|$)/);
+    await expect(page.getByRole("heading", { level: 1, name: /Find a Professional/i })).toBeVisible();
+    await expect(page.locator("article")).toHaveCount(expectedTotal, { timeout: 20000 });
+  });
+
   test("registered card renders avatar, languages and Book Online slug CTA", async ({ page }) => {
     const baseUrl = process.env.PLAYWRIGHT_BASE_URL ?? "";
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";

@@ -25,6 +25,7 @@ export function FinderFilters({
   const [specialty, setSpecialty] = React.useState(activeSpecialty);
   const [name, setName] = React.useState(activeName);
   const [pendingAction, setPendingAction] = React.useState<"apply" | "reset" | null>(null);
+  const [isNavigating, setIsNavigating] = React.useState(false);
   const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const nameDebounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingGuardRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -49,7 +50,16 @@ export function FinderFilters({
   React.useEffect(() => {
     // Also clear pending when URL has updated, even if values happen to match previous state.
     setPendingAction(null);
+    setIsNavigating(false);
   }, [pathname, searchParams]);
+
+  React.useEffect(() => {
+    function onStart() {
+      setIsNavigating(true);
+    }
+    window.addEventListener(START_EVENT, onStart);
+    return () => window.removeEventListener(START_EVENT, onStart);
+  }, []);
 
   React.useEffect(() => {
     return () => {
@@ -153,7 +163,17 @@ export function FinderFilters({
           </div>
         </div>
       </div>
-      <form className="grid gap-3 sm:grid-cols-4">
+      <form
+        className="grid gap-3 sm:grid-cols-4"
+        onSubmit={(e) => {
+          e.preventDefault();
+        }}
+      >
+      <fieldset
+        disabled={isNavigating}
+        aria-busy={isNavigating}
+        className="contents disabled:cursor-not-allowed"
+      >
       <label className="text-xs font-semibold uppercase tracking-wide text-slate-400">
         District
         <select
@@ -221,6 +241,7 @@ export function FinderFilters({
         />
       </label>
         <div className="flex items-end" />
+      </fieldset>
       </form>
     </div>
   );

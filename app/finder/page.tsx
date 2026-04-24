@@ -6,6 +6,9 @@ import { createServiceRoleClient } from "@/lib/supabase-service";
 import { FinderFilters } from "@/components/finder/FinderFilters";
 import { FinderResultsTransition } from "@/components/finder/FinderResultsTransition";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 type FinderPageProps = {
   searchParams?: {
     district?: string;
@@ -22,6 +25,7 @@ type RegisteredFinderRow = {
   slug: string | null;
   languages: string[];
   avatarUrl: string | null;
+  isTestProfile: boolean;
 };
 
 type ManualFinderRow = {
@@ -67,7 +71,9 @@ function toPublicAvatarUrl(rawValue: unknown): string | null {
 
 function isTestProfileLike(row: {
   name: string;
+  isTestProfile?: boolean | null;
 }): boolean {
+  if (row.isTestProfile === true) return true;
   return TEST_NAME_MARKER.test(row.name);
 }
 
@@ -108,9 +114,13 @@ export default async function FinderPage({ searchParams }: FinderPageProps) {
 
   if (supabase) {
     const registeredSelectAttempts = [
+      "id, name, specialty, district, slug, languages, avatar_url, is_test_profile",
       "id, name, specialty, district, slug, languages, avatar_url",
+      "id, name, specialty, district, slug, languages, is_test_profile",
       "id, name, specialty, district, slug, languages",
+      "id, name, specialty, district, slug, is_test_profile",
       "id, name, specialty, district, slug",
+      "id, name, specialty, slug, is_test_profile",
       "id, name, specialty, slug",
     ];
 
@@ -142,9 +152,10 @@ export default async function FinderPage({ searchParams }: FinderPageProps) {
             slug: (raw.slug as string | null) ?? null,
             languages: normalizeLanguages(raw.languages),
             avatarUrl: toPublicAvatarUrl(raw.avatar_url),
+            isTestProfile: Boolean(raw.is_test_profile ?? false),
           };
         })
-        .filter((row) => !isTestProfileLike({ name: row.name }));
+        .filter((row) => !isTestProfileLike({ name: row.name, isTestProfile: row.isTestProfile }));
       break;
     }
 
@@ -206,6 +217,7 @@ export default async function FinderPage({ searchParams }: FinderPageProps) {
     ...filteredRegistered.map((row) => ({ kind: "registered" as const, row })),
     ...filteredManual.map((row) => ({ kind: "manual" as const, row })),
   ];
+  const hasActiveFilters = Boolean(activeDistrict || activeSpecialty || activeName);
 
   return (
     <main className="min-h-screen bg-slate-950 text-slate-100">
@@ -220,7 +232,7 @@ export default async function FinderPage({ searchParams }: FinderPageProps) {
             </PendingLink>
             <h1 className="mt-1 text-3xl font-semibold tracking-tight text-white">Find a Professional</h1>
             <p className="mt-2 text-sm text-slate-400">
-              Search professionals by district and specialty across registered and curated listings.
+              Find the right professional by filtering by district, specialty, or name.
             </p>
           </div>
         </header>
@@ -240,30 +252,6 @@ export default async function FinderPage({ searchParams }: FinderPageProps) {
               {dataWarning}
             </div>
           ) : null}
-
-          <section className="mt-8">
-            <article className="rounded-2xl border border-emerald-300/30 bg-gradient-to-r from-emerald-500/20 via-emerald-400/10 to-slate-900/40 p-5 shadow-[0_0_32px_-14px_rgba(16,185,129,0.8)]">
-              <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-200/90">
-                    Be seen first.
-                  </p>
-                  <p className="mt-2 text-sm leading-relaxed text-slate-100 sm:text-base">
-                    Professionals already subscribed appear first in this list and get more
-                    attention from day one.
-                  </p>
-                </div>
-                <div className="md:justify-self-end">
-                  <PendingLink
-                    href="/register"
-                    className="inline-flex w-full items-center justify-center rounded-xl border border-emerald-300/60 bg-slate-950/80 px-5 py-2.5 text-sm font-semibold text-emerald-200 transition hover:border-emerald-200 hover:bg-slate-900 md:w-auto"
-                  >
-                    Become a Founding Member
-                  </PendingLink>
-                </div>
-              </div>
-            </article>
-          </section>
 
           <section className="mt-6">
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
@@ -382,7 +370,7 @@ export default async function FinderPage({ searchParams }: FinderPageProps) {
                       Is this you?
                     </p>
                     <PendingLink
-                      href="/register"
+                      href="/#founders-pricing"
                       className="inline-flex w-full items-center justify-center rounded-xl bg-emerald-400 px-4 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-emerald-300"
                     >
                       Claim your professional profile
@@ -391,10 +379,51 @@ export default async function FinderPage({ searchParams }: FinderPageProps) {
                 );
               })}
               {unifiedResults.length === 0 ? (
-                <p className="text-sm text-slate-500">No professionals match these filters.</p>
+                <p className="text-sm text-slate-500">
+                  {hasActiveFilters
+                    ? "No professionals match these filters."
+                    : "No professionals available right now. Please check back soon."}
+                </p>
               ) : null}
             </div>
           </section>
+
+          <footer className="mt-12 border-t border-slate-800/80 pt-6 pb-2">
+            <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
+              <section>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                  Find a Professional quick links
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2.5">
+                  <PendingLink
+                    href="/finder?district=Paphos&specialty=Dentistry"
+                    className="inline-flex rounded-lg border border-slate-700 bg-slate-900/60 px-3 py-1.5 text-xs font-medium text-slate-200 transition hover:border-emerald-300/50 hover:text-emerald-200"
+                  >
+                    Dentists in Paphos
+                  </PendingLink>
+                  <PendingLink
+                    href="/finder?district=Limassol&specialty=Dermatology"
+                    className="inline-flex rounded-lg border border-slate-700 bg-slate-900/60 px-3 py-1.5 text-xs font-medium text-slate-200 transition hover:border-emerald-300/50 hover:text-emerald-200"
+                  >
+                    Dermatologists in Limassol
+                  </PendingLink>
+                </div>
+              </section>
+
+              <section className="md:max-w-sm">
+                <p className="text-xs text-slate-400">
+                  Are you a healthcare professional?{" "}
+                  <PendingLink
+                    href="/#founders-pricing"
+                    className="font-semibold text-emerald-300 underline underline-offset-4 transition hover:text-emerald-200"
+                  >
+                    List your practice
+                  </PendingLink>
+                  .
+                </p>
+              </section>
+            </div>
+          </footer>
         </FinderResultsTransition>
       </div>
     </main>

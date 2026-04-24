@@ -243,6 +243,7 @@ jobs:
         run: |
           npx playwright test \
             tests/integration/finder_critical.integration.spec.ts \
+            tests/navigation.spec.ts \
             tests/integration/directory_duplicates_actions.integration.spec.ts \
             --project="Desktop Large (Chromium)" \
             --workers=1 \

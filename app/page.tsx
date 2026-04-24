@@ -221,7 +221,7 @@ export default async function HomePage() {
 
               <div className="mt-4 flex flex-col gap-2.5 sm:flex-row sm:items-center sm:gap-3">
                 <PendingLink
-                  href="/register"
+                  href="/#founders-pricing"
                   className="inline-flex items-center justify-center rounded-xl bg-emerald-400 px-5 py-2.5 text-sm font-semibold text-neutral-950 shadow-[0_0_0_1px_rgba(52,211,153,0.35),0_0_28px_rgba(16,185,129,0.55),0_0_56px_rgba(16,185,129,0.22)] transition hover:bg-emerald-300 hover:shadow-[0_0_0_1px_rgba(110,231,183,0.5),0_0_36px_rgba(52,211,153,0.65),0_0_72px_rgba(16,185,129,0.28)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 focus-visible:ring-offset-neutral-900"
                 >
                   {t("Hero.ctaClaim")}
@@ -300,7 +300,7 @@ export default async function HomePage() {
           <div className="rounded-3xl border border-emerald-300/20 bg-slate-900/70 p-5 shadow-[0_0_56px_-22px_rgba(16,185,129,0.35)] backdrop-blur-md sm:p-7">
             <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(280px,360px)] lg:items-start">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-300/95">
+                <p className="text-xs font-semibold tracking-[0.18em] text-emerald-300/95">
                   {t("Pricing.badge")}
                 </p>
                 <h2 className="mt-2 max-w-2xl text-2xl font-semibold tracking-tight text-neutral-50 sm:text-3xl">
@@ -321,25 +321,6 @@ export default async function HomePage() {
           </div>
         </section>
 
-        <footer className="mx-auto w-full max-w-6xl border-t border-slate-800/70 pb-8 pt-6">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
-            Find a Professional quick links
-          </p>
-          <div className="mt-3 flex flex-wrap gap-2.5">
-            <PendingLink
-              href="/finder?district=Paphos&specialty=Dentistry"
-              className="inline-flex rounded-lg border border-slate-700 bg-slate-900/60 px-3 py-1.5 text-xs text-slate-200 transition hover:border-emerald-300/50 hover:text-emerald-200"
-            >
-              Dentists in Paphos
-            </PendingLink>
-            <PendingLink
-              href="/finder?district=Limassol&specialty=Dermatology"
-              className="inline-flex rounded-lg border border-slate-700 bg-slate-900/60 px-3 py-1.5 text-xs text-slate-200 transition hover:border-emerald-300/50 hover:text-emerald-200"
-            >
-              Dermatologists in Limassol
-            </PendingLink>
-          </div>
-        </footer>
       </div>
     </main>
   );
