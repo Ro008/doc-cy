@@ -1,4 +1,4 @@
-# Validates migration file naming (protocol: YYYYMMDDHHMM_descripcion_breve.sql).
+# Validates migration file naming (protocol: YYYYMMDDHHMMSS_descripcion_breve.sql).
 # Does NOT compare live databases — that needs DB URLs in GitHub secrets (see workflow comment).
 name: Supabase migration hygiene
 
@@ -38,8 +38,8 @@ jobs:
           bad=0
           for f in "${files[@]}"; do
             base=$(basename "$f")
-            if [[ ! "$base" =~ ^[0-9]{12}_[a-z0-9_]+\.sql$ ]]; then
-              echo "::error file=$f::Invalid migration name '$base'. Use YYYYMMDDHHMM_descripcion_brief.sql (lowercase, underscores)."
+            if [[ ! "$base" =~ ^[0-9]{14}_[a-z0-9_]+\.sql$ ]]; then
+              echo "::error file=$f::Invalid migration name '$base'. Use YYYYMMDDHHMMSS_descripcion_brief.sql (lowercase, underscores)."
               bad=1
             fi
           done

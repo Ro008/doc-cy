@@ -16,7 +16,7 @@ test.describe("Landing page", () => {
       name: /Claim your professional profile/i,
     });
     await expect(primaryCta).toBeVisible();
-    await expect(primaryCta).toHaveAttribute("href", "/register");
+    await expect(primaryCta).toHaveAttribute("href", "/#founders-pricing");
 
     const professionalLogin = page.getByRole("link", {
       name: /Professional Login/i,
@@ -25,7 +25,7 @@ test.describe("Landing page", () => {
     await expect(professionalLogin).toHaveAttribute("href", "/login");
   });
 
-  test("primary CTA navigates to register", async ({ page }) => {
+  test("primary CTA navigates to founders pricing section", async ({ page }) => {
     await page.goto("/");
     const cta = page.getByRole("link", {
       name: /Claim your professional profile/i,
@@ -33,13 +33,15 @@ test.describe("Landing page", () => {
     await expect(cta).toBeVisible();
 
     await Promise.all([
-      page.waitForURL(/\/register/, { timeout: 10000 }),
+      page.waitForURL(/\/#founders-pricing$/, { timeout: 10000 }),
       cta.click(),
     ]);
 
-    await expect(page).toHaveURL("/register");
+    await expect(page).toHaveURL(/\/#founders-pricing$/);
     await expect(
-      page.getByRole("heading", { name: /Create your professional profile/i }),
+      page.getByRole("heading", {
+        name: /Special launch pricing for the first 100 practitioners across Cyprus/i,
+      }),
     ).toBeVisible({ timeout: 5000 });
   });
 

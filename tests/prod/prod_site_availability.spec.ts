@@ -40,7 +40,7 @@ test.describe("Public shell health", () => {
       name: /Claim your professional profile/i,
     });
     await expect(primaryCta).toBeVisible();
-    await expect(primaryCta).toHaveAttribute("href", "/register");
+    await expect(primaryCta).toHaveAttribute("href", "/#founders-pricing");
   });
 
   test("login and register routes render", async ({ page }) => {
