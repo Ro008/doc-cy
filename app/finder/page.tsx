@@ -141,9 +141,11 @@ export default async function FinderPage({ searchParams }: FinderPageProps) {
         break;
       }
 
-      registeredRows = (result.data ?? [])
+      const resultRows = (result.data ?? []) as unknown[];
+      registeredRows = resultRows
         .map((row) => {
-          const raw = row as Record<string, unknown>;
+          const raw =
+            row && typeof row === "object" ? (row as Record<string, unknown>) : ({} as Record<string, unknown>);
           return {
             id: String(raw.id ?? ""),
             name: String(raw.name ?? "Professional"),
