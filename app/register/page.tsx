@@ -7,6 +7,7 @@ import { RegisterLanguageFields } from "@/components/auth/RegisterLanguageFields
 import { RegisterAvatarUpload } from "@/components/auth/RegisterAvatarUpload";
 import { RegisterDevErrorConsole } from "@/components/auth/RegisterDevErrorConsole";
 import { validateLanguageSelection } from "@/lib/cyprus-languages";
+import { CYPRUS_DISTRICTS, isCyprusDistrict } from "@/lib/cyprus-districts";
 import {
   parseSpecialtyFromMasterField,
   validateSpecialtySubmission,
@@ -104,12 +105,14 @@ async function handleRegister(formData: FormData) {
   const licenseFile = formData.get("licenseFile") as File | null;
   const avatarFile = formData.get("avatarFile") as File | null;
   const professionalDisclaimer = formData.get("professionalDisclaimer");
+  const district = (formData.get("district") as string | null)?.trim() || "";
 
   if (
     !fullName ||
     !email ||
     !password ||
     !phone ||
+    !district ||
     !specialtyRaw.trim() ||
     !licenseNumber ||
     !licenseFile ||
@@ -121,6 +124,9 @@ async function handleRegister(formData: FormData) {
 
   if (!emailRegex.test(email)) {
     redirectWithError("invalid_email_format");
+  }
+  if (!isCyprusDistrict(district)) {
+    redirectWithError("district");
   }
 
   const specialtyFromMaster = parseSpecialtyFromMasterField(
@@ -320,6 +326,8 @@ async function handleRegister(formData: FormData) {
         slug,
         is_specialty_approved: isSpecialtyApproved,
         subscription_tier: fallbackTier,
+        district,
+        is_test_profile: false,
       })
       .select("id")
       .single();
@@ -354,7 +362,7 @@ async function handleRegister(formData: FormData) {
 
   const { error: avatarSaveError } = await service
     .from("doctors")
-    .update({ avatar_url: avatarFileUrl })
+    .update({ avatar_url: avatarFileUrl, district })
     .eq("id", doctorId);
   if (avatarSaveError) {
     const missingAvatarColumn =
@@ -439,6 +447,8 @@ export default function RegisterPage({ searchParams }: PageProps) {
   } else if (errorCode === "languages") {
     errorMessage =
       "Select at least one spoken language from the list (you can choose several).";
+  } else if (errorCode === "district") {
+    errorMessage = "Please select your district in Cyprus.";
   }
 
   return (
@@ -545,6 +555,26 @@ export default function RegisterPage({ searchParams }: PageProps) {
                       placeholder="+357..."
                       className="mt-1 w-full rounded-2xl border border-slate-700 bg-slate-900/60 px-3 py-2 text-sm text-slate-100 shadow-sm outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/40"
                     />
+                  </label>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-200">
+                    District
+                    <select
+                      name="district"
+                      required
+                      defaultValue=""
+                      className="mt-1 w-full rounded-2xl border border-slate-700 bg-slate-900/60 px-3 py-2 text-sm text-slate-100 shadow-sm outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/40"
+                    >
+                      <option value="" disabled>
+                        Select district
+                      </option>
+                      {CYPRUS_DISTRICTS.map((item) => (
+                        <option key={item} value={item}>
+                          {item}
+                        </option>
+                      ))}
+                    </select>
                   </label>
                 </div>
               </div>

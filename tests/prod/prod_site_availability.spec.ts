@@ -40,7 +40,7 @@ test.describe("Public shell health", () => {
       name: /Claim your professional profile/i,
     });
     await expect(primaryCta).toBeVisible();
-    await expect(primaryCta).toHaveAttribute("href", "/register");
+    await expect(primaryCta).toHaveAttribute("href", "/#founders-pricing");
   });
 
   test("login and register routes render", async ({ page }) => {
@@ -53,5 +53,14 @@ test.describe("Public shell health", () => {
     await expect(
       page.getByRole("button", { name: /Submit application/i }),
     ).toBeVisible();
+  });
+
+  test("finder route renders district/specialty filters", async ({ page }) => {
+    await page.goto("/finder");
+    await expect(
+      page.getByRole("heading", { level: 1, name: /Find a Professional/i })
+    ).toBeVisible({ timeout: 15000 });
+    await expect(page.getByLabel("District")).toBeVisible();
+    await expect(page.getByLabel("Specialty")).toBeVisible();
   });
 });

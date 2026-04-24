@@ -198,9 +198,104 @@ jobs:
             test-results
           if-no-files-found: ignore
 
+  business-critical-integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      PLAYWRIGHT_BASE_URL: ${{ secrets.PLAYWRIGHT_BASE_URL_INTEGRATION }}
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.INTEGRATION_SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.INTEGRATION_SUPABASE_SERVICE_ROLE_KEY }}
+      INTERNAL_DIRECTORY_SECRET: ${{ secrets.INTERNAL_DIRECTORY_SECRET }}
+      PROD_NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.PROD_NEXT_PUBLIC_SUPABASE_URL }}
+      INTEGRATION_SAFE_ENV: "1"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Validate required integration secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          missing=0
+          for v in PLAYWRIGHT_BASE_URL NEXT_PUBLIC_SUPABASE_URL SUPABASE_SERVICE_ROLE_KEY INTERNAL_DIRECTORY_SECRET; do
+            if [ -z "${!v:-}" ]; then
+              echo "::error::Missing required secret/env: ${v}"
+              missing=1
+            fi
+          done
+          if [ "${missing}" -ne 0 ]; then
+            exit 1
+          fi
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Run business-critical integration tests
+        run: |
+          npx playwright test \
+            tests/integration/finder_critical.integration.spec.ts \
+            tests/navigation.spec.ts \
+            tests/integration/directory_duplicates_actions.integration.spec.ts \
+            --project="Desktop Large (Chromium)" \
+            --workers=1 \
+            --reporter=line
+
+      - name: Upload Playwright integration report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-business-critical-integration-report
+          path: |
+            playwright-report
+            test-results
+          if-no-files-found: ignore
+
+  business-critical-integration-failure-issue:
+    if: always()
+    needs: [business-critical-integration]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Open issue on integration failure
+        if: needs.business-critical-integration.result != 'success'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const title = `[business-critical] Integration checks failed (run ${context.runId})`;
+            const body = [
+              "Business-critical integration monitoring failed.",
+              "",
+              `Result: **${{ needs.business-critical-integration.result }}**`,
+              `Run: ${runUrl}`,
+              "",
+              "Failed suite includes:",
+              "- finder_critical.integration.spec.ts",
+              "- directory_duplicates_actions.integration.spec.ts",
+              "",
+              "Action:",
+              "- Open the run and inspect Playwright artifacts.",
+              "- Fix regression before next scheduled run."
+            ].join("\n");
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title,
+              body,
+              labels: ["ci", "monitoring", "business-critical"]
+            });
+
   notify-whatsapp:
     if: always()
-    needs: [prod-critical-smoke]
+    needs: [prod-critical-smoke, business-critical-integration]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -210,7 +305,8 @@ jobs:
         shell: bash
         env:
           WEBHOOK_URL: ${{ secrets.WHATSAPP_WEBHOOK_URL }}
-          SMOKE_RESULT: ${{ needs.prod-critical-smoke.result }}
+          PROD_RESULT: ${{ needs.prod-critical-smoke.result }}
+          INTEGRATION_RESULT: ${{ needs.business-critical-integration.result }}
           RUN_ID: ${{ github.run_id }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           NOTIFY_ONLY: ${{ github.event.inputs.notify_only || 'false' }}
@@ -224,7 +320,23 @@ jobs:
             exit 1
           fi
 
-          case "${SMOKE_RESULT}" in
+          OVERALL_RESULT="success"
+          if [ "${PROD_RESULT}" != "success" ] || [ "${INTEGRATION_RESULT}" != "success" ]; then
+            OVERALL_RESULT="failure"
+          fi
+
+          format_job_status() {
+            case "$1" in
+              success) echo "✅ $2 OK" ;;
+              cancelled) echo "⚠️ $2 CANCELLED" ;;
+              *) echo "❌ $2 FAIL" ;;
+            esac
+          }
+
+          PROD_LINE="$(format_job_status "${PROD_RESULT}" "Prod")"
+          INTEGRATION_LINE="$(format_job_status "${INTEGRATION_RESULT}" "Integration")"
+
+          case "${OVERALL_RESULT}" in
             success) ICON="✅" ;;
             cancelled) ICON="⚠️" ;;
             *) ICON="❌" ;;
@@ -233,7 +345,7 @@ jobs:
           if [ "${NOTIFY_ONLY}" = "true" ]; then
             MSG="🧪 DocCy PROD manual WhatsApp test | run ${RUN_ID}"
           else
-            MSG="${ICON} DocCy PROD (${SMOKE_RESULT}) | run ${RUN_ID}"
+            MSG="${ICON} DocCy nightly | ${PROD_LINE} | ${INTEGRATION_LINE} | run ${RUN_ID}"
           fi
           if [ -n "${EXTRA_MESSAGE}" ]; then
             MSG="${MSG} | ${EXTRA_MESSAGE}"
@@ -261,7 +373,8 @@ jobs:
         if: steps.whatsapp.outcome != 'success'
         uses: actions/github-script@v7
         env:
-          SMOKE_RESULT: ${{ needs.prod-critical-smoke.result }}
+          PROD_RESULT: ${{ needs.prod-critical-smoke.result }}
+          INTEGRATION_RESULT: ${{ needs.business-critical-integration.result }}
           RUN_ID: ${{ github.run_id }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         with:
@@ -270,7 +383,8 @@ jobs:
             const body = [
               "WhatsApp delivery failed after retries.",
               "",
-              `Smoke result: **${process.env.SMOKE_RESULT}**`,
+              `Prod result: **${process.env.PROD_RESULT}**`,
+              `Business-critical integration result: **${process.env.INTEGRATION_RESULT}**`,
               `Run: ${process.env.RUN_URL}`,
               "",
               "Action required:",

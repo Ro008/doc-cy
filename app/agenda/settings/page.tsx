@@ -53,35 +53,53 @@ export default async function AgendaSettingsPage() {
   let doctor: {
     id: string;
     name: string;
+    avatar_url?: string | null;
     phone?: string | null;
     slug?: string | null;
     specialty?: string | null;
     languages?: string[] | null;
+    district?: string | null;
+    clinic_address?: string | null;
     status?: string | null;
     is_specialty_approved?: boolean | null;
     subscription_tier?: string | null;
   } | null = null;
   let doctorError: unknown = null;
+  const hasColError = (err: unknown, col: string): boolean =>
+    String((err as { message?: string } | null)?.message ?? "")
+      .toLowerCase()
+      .includes(col.toLowerCase());
   try {
     let res = await supabase
       .from("doctors")
       .select(
-        "id, name, phone, slug, specialty, languages, status, subscription_tier"
+        "id, name, avatar_url, phone, slug, specialty, languages, district, clinic_address, status, subscription_tier"
       )
       .eq("auth_user_id", user.id)
       .single();
 
-    const tierMissing =
-      res.error &&
-      (String(res.error.message ?? "")
-        .toLowerCase()
-        .includes("subscription_tier") ||
-        (res.error as { code?: string }).code === "42703");
-
-    if (tierMissing) {
+    if (res.error && hasColError(res.error, "avatar_url")) {
       res = await supabase
         .from("doctors")
-        .select("id, name, phone, slug, specialty, languages, status")
+        .select(
+          "id, name, phone, slug, specialty, languages, district, clinic_address, status, subscription_tier"
+        )
+        .eq("auth_user_id", user.id)
+        .single();
+    }
+    if (res.error && hasColError(res.error, "subscription_tier")) {
+      res = await supabase
+        .from("doctors")
+        .select(
+          "id, name, avatar_url, phone, slug, specialty, languages, district, clinic_address, status"
+        )
+        .eq("auth_user_id", user.id)
+        .single();
+    }
+    if (res.error && (res.error as { code?: string }).code === "42703") {
+      res = await supabase
+        .from("doctors")
+        .select("id, name, phone, slug, specialty, languages, district, clinic_address, status")
         .eq("auth_user_id", user.id)
         .single();
     }
@@ -96,22 +114,33 @@ export default async function AgendaSettingsPage() {
     let fallback = await supabase
       .from("doctors")
       .select(
-        "id, name, slug, specialty, languages, status, is_specialty_approved, subscription_tier"
+        "id, name, avatar_url, slug, specialty, languages, district, clinic_address, status, is_specialty_approved, subscription_tier"
       )
       .eq("auth_user_id", user.id)
       .single();
 
-    const tierMissingFb =
-      fallback.error &&
-      (String(fallback.error.message ?? "")
-        .toLowerCase()
-        .includes("subscription_tier") ||
-        (fallback.error as { code?: string }).code === "42703");
-
-    if (tierMissingFb) {
+    if (fallback.error && hasColError(fallback.error, "avatar_url")) {
       fallback = await supabase
         .from("doctors")
-        .select("id, name, slug, specialty, languages, status, is_specialty_approved")
+        .select(
+          "id, name, slug, specialty, languages, district, clinic_address, status, is_specialty_approved, subscription_tier"
+        )
+        .eq("auth_user_id", user.id)
+        .single();
+    }
+    if (fallback.error && hasColError(fallback.error, "subscription_tier")) {
+      fallback = await supabase
+        .from("doctors")
+        .select(
+          "id, name, avatar_url, slug, specialty, languages, district, clinic_address, status, is_specialty_approved"
+        )
+        .eq("auth_user_id", user.id)
+        .single();
+    }
+    if (fallback.error && (fallback.error as { code?: string }).code === "42703") {
+      fallback = await supabase
+        .from("doctors")
+        .select("id, name, slug, specialty, languages, district, clinic_address, status, is_specialty_approved")
         .eq("auth_user_id", user.id)
         .single();
     }
@@ -188,10 +217,16 @@ export default async function AgendaSettingsPage() {
   const initial: DoctorSettingsFormData = {
     doctorId: doctor.id,
     doctorName: doctor.name,
+    avatarUrl:
+      (doctor.avatar_url ?? "").trim().length > 0
+        ? supabase.storage.from("avatars").getPublicUrl(String(doctor.avatar_url)).data.publicUrl
+        : null,
     specialty: (doctor.specialty ?? "").trim(),
     isSpecialtyApproved: doctor.is_specialty_approved ?? true,
     languages: langArr,
     whatsappNumber: doctor.phone ?? undefined,
+    district: (doctor.district ?? "").trim(),
+    clinicAddress: (doctor.clinic_address ?? "").trim(),
     monday: (settings as { monday?: boolean } | null)?.monday ?? true,
     tuesday: (settings as { tuesday?: boolean } | null)?.tuesday ?? true,
     wednesday: (settings as { wednesday?: boolean } | null)?.wednesday ?? true,

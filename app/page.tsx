@@ -166,7 +166,7 @@ export default async function HomePage() {
       </div>
 
       <div className="relative z-10 flex flex-1 flex-col px-4 py-3 sm:px-6 lg:px-8 lg:py-4">
-        <header className="flex shrink-0 items-center justify-between gap-2 sm:gap-3">
+        <header className="flex shrink-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
           <div className="flex min-w-0 items-center gap-2 sm:gap-3">
             <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-500/90 text-xs font-bold tracking-tight text-neutral-950 shadow-lg shadow-emerald-500/35 sm:h-10 sm:w-10 sm:text-sm">
               DC
@@ -182,9 +182,22 @@ export default async function HomePage() {
                 CYPRUS HEALTH & WELLNESS
               </span>
             </div>
+            <div className="ml-auto shrink-0 sm:hidden">
+              <LanguageSwitcher compact />
+            </div>
           </div>
-          <div className="shrink-0">
-            <LanguageSwitcher />
+          <div className="w-full sm:w-auto sm:shrink-0">
+            <div className="flex items-center justify-stretch gap-2 sm:justify-end">
+              <PendingLink
+                href="/finder"
+                className="hidden min-h-9 w-auto items-center justify-center rounded-xl border border-emerald-300/40 bg-slate-900/75 px-3 py-1.5 text-sm font-semibold uppercase tracking-wide text-emerald-200 transition hover:border-emerald-200/70 hover:text-emerald-100 sm:inline-flex"
+              >
+                Find a Professional
+              </PendingLink>
+              <div className="hidden sm:block">
+                <LanguageSwitcher />
+              </div>
+            </div>
           </div>
         </header>
 
@@ -208,7 +221,7 @@ export default async function HomePage() {
 
               <div className="mt-4 flex flex-col gap-2.5 sm:flex-row sm:items-center sm:gap-3">
                 <PendingLink
-                  href="/register"
+                  href="/#founders-pricing"
                   className="inline-flex items-center justify-center rounded-xl bg-emerald-400 px-5 py-2.5 text-sm font-semibold text-neutral-950 shadow-[0_0_0_1px_rgba(52,211,153,0.35),0_0_28px_rgba(16,185,129,0.55),0_0_56px_rgba(16,185,129,0.22)] transition hover:bg-emerald-300 hover:shadow-[0_0_0_1px_rgba(110,231,183,0.5),0_0_36px_rgba(52,211,153,0.65),0_0_72px_rgba(16,185,129,0.28)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 focus-visible:ring-offset-neutral-900"
                 >
                   {t("Hero.ctaClaim")}
@@ -221,6 +234,12 @@ export default async function HomePage() {
                   {t("Hero.ctaLogin")}
                 </PendingLink>
               </div>
+              <PendingLink
+                href="/finder"
+                className="mt-3 inline-flex items-center text-sm font-medium text-emerald-200/90 underline underline-offset-4 transition hover:text-emerald-100 sm:hidden"
+              >
+                Find a Professional
+              </PendingLink>
             </section>
 
             <div className="flex w-full min-w-0 shrink-0 justify-center lg:w-[38%] lg:max-w-md lg:justify-end">
@@ -281,7 +300,7 @@ export default async function HomePage() {
           <div className="rounded-3xl border border-emerald-300/20 bg-slate-900/70 p-5 shadow-[0_0_56px_-22px_rgba(16,185,129,0.35)] backdrop-blur-md sm:p-7">
             <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(280px,360px)] lg:items-start">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-300/95">
+                <p className="text-xs font-semibold tracking-[0.18em] text-emerald-300/95">
                   {t("Pricing.badge")}
                 </p>
                 <h2 className="mt-2 max-w-2xl text-2xl font-semibold tracking-tight text-neutral-50 sm:text-3xl">
@@ -301,6 +320,7 @@ export default async function HomePage() {
             </div>
           </div>
         </section>
+
       </div>
     </main>
   );

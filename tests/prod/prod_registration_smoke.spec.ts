@@ -112,6 +112,15 @@ test.describe("Prod smoke: doctor registration", () => {
       await expect(
         page.getByRole("heading", { name: /Thank you|under review|Pending Evaluation/i })
       ).toBeVisible({ timeout: 30000 });
+
+      const { data: createdDoctor, error: createdDoctorError } = await admin
+        .from("doctors")
+        .select("id,is_test_profile")
+        .eq("email", email)
+        .maybeSingle();
+      expect(createdDoctorError).toBeNull();
+      expect(createdDoctor?.id).toBeTruthy();
+      expect(createdDoctor?.is_test_profile ?? null).toBe(false);
     } finally {
       const { data: doctor } = await admin
         .from("doctors")
