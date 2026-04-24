@@ -42,4 +42,25 @@ test.describe("Landing page", () => {
       page.getByRole("heading", { name: /Create your professional profile/i }),
     ).toBeVisible({ timeout: 5000 });
   });
+
+  test("priority ranking tooltip stays within viewport on mobile", async ({ page }, testInfo) => {
+    test.skip(!testInfo.project.name.includes("Mobile"), "Mobile-only coverage.");
+
+    await page.goto("/#founders-pricing");
+
+    const infoButton = page.getByRole("button", { name: /priority placement/i }).first();
+    await expect(infoButton).toBeVisible({ timeout: 10000 });
+    await infoButton.click();
+
+    const tooltip = page.getByRole("tooltip").first();
+    await expect(tooltip).toBeVisible();
+
+    const bounds = await tooltip.evaluate((el) => {
+      const r = el.getBoundingClientRect();
+      return { left: r.left, right: r.right, viewportWidth: window.innerWidth };
+    });
+
+    expect(bounds.left).toBeGreaterThanOrEqual(4);
+    expect(bounds.right).toBeLessThanOrEqual(bounds.viewportWidth - 4);
+  });
 });

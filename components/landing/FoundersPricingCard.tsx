@@ -246,7 +246,7 @@ export function FoundersPricingCard() {
                   </button>
                   <span
                     role="tooltip"
-                    className={`pointer-events-none absolute left-0 top-full z-10 mt-2 w-52 rounded-md border border-slate-600/70 bg-slate-900/95 p-2 text-[11px] leading-relaxed text-slate-300 shadow-lg transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100 ${
+                    className={`pointer-events-none absolute right-0 top-full z-10 mt-2 w-52 max-w-[min(16rem,calc(100vw-1.5rem))] rounded-md border border-slate-600/70 bg-slate-900/95 p-2 text-[11px] leading-relaxed text-slate-300 shadow-lg transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100 sm:left-0 sm:right-auto ${
                       showDirectoryNote ? "opacity-100" : "opacity-0"
                     }`}
                   >
