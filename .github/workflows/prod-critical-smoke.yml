@@ -132,6 +132,7 @@ jobs:
           set -euo pipefail
 
           normalize_url() { echo "$1" | sed 's:/*$::'; }
+          normalize_host() { echo "$1" | sed -E 's/^www\.//'; }
 
           if [ -z "${PLAYWRIGHT_BASE_URL:-}" ]; then
             echo "::error::Missing GitHub secret PLAYWRIGHT_BASE_URL_PROD."
@@ -142,11 +143,13 @@ jobs:
           expected_site="${PROD_SITE_URL:-https://www.mydoccy.com}"
           expected_norm="$(normalize_url "${expected_site}")"
 
-          base_host="$(echo "${base_norm}" | sed -E 's#^https?://([^/:]+).*#\1#')"
-          expected_host="$(echo "${expected_norm}" | sed -E 's#^https?://([^/:]+).*#\1#')"
+          base_host_raw="$(echo "${base_norm}" | sed -E 's#^https?://([^/:]+).*#\1#')"
+          expected_host_raw="$(echo "${expected_norm}" | sed -E 's#^https?://([^/:]+).*#\1#')"
+          base_host="$(normalize_host "${base_host_raw}")"
+          expected_host="$(normalize_host "${expected_host_raw}")"
 
           if [ "${base_host}" != "${expected_host}" ]; then
-            echo "::error::PLAYWRIGHT_BASE_URL_PROD host (${base_host}) does not match production host (${expected_host})."
+            echo "::error::PLAYWRIGHT_BASE_URL_PROD host (${base_host_raw}) does not match production host (${expected_host_raw}) after normalization."
             echo "::error::Set PLAYWRIGHT_BASE_URL_PROD to the same production site you use manually."
             exit 1
           fi
@@ -205,6 +208,7 @@ jobs:
       PLAYWRIGHT_BASE_URL: http://127.0.0.1:3000
       PLAYWRIGHT_WEB_SERVER_COMMAND: npm run start
       NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.INTEGRATION_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.INTEGRATION_SUPABASE_ANON_KEY }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.INTEGRATION_SUPABASE_SERVICE_ROLE_KEY }}
       INTERNAL_DIRECTORY_SECRET: ${{ secrets.INTERNAL_DIRECTORY_SECRET }}
       PROD_NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.PROD_NEXT_PUBLIC_SUPABASE_URL }}
@@ -224,7 +228,7 @@ jobs:
         run: |
           set -euo pipefail
           missing=0
-          for v in NEXT_PUBLIC_SUPABASE_URL SUPABASE_SERVICE_ROLE_KEY; do
+          for v in NEXT_PUBLIC_SUPABASE_URL NEXT_PUBLIC_SUPABASE_ANON_KEY SUPABASE_SERVICE_ROLE_KEY; do
             if [ -z "${!v:-}" ]; then
               echo "::error::Missing required secret/env: ${v}"
               missing=1
