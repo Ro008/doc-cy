@@ -76,37 +76,56 @@ export async function authenticateDoctorViaMagicLink(
   try {
     await page.waitForURL(/\/agenda(?:[/?#]|$)/, { timeout: 20_000 });
   } catch {
-    const fallbackPassword = (
-      process.env.TEST_DOCTOR_PASSWORD ??
-      process.env.TEST_USER_PASSWORD ??
-      ""
-    ).trim();
+    const candidateEmails = Array.from(
+      new Set(
+        [
+          normalizedEmail,
+          (process.env.TEST_DOCTOR_EMAIL ?? "").trim(),
+          (process.env.TEST_USER_EMAIL ?? "").trim(),
+        ].filter(Boolean)
+      )
+    );
+    const candidatePasswords = Array.from(
+      new Set(
+        [
+          (process.env.TEST_DOCTOR_PASSWORD ?? "").trim(),
+          (process.env.TEST_USER_PASSWORD ?? "").trim(),
+        ].filter(Boolean)
+      )
+    );
 
-    if (!fallbackPassword) {
+    if (candidatePasswords.length === 0) {
       throw new Error(
         "Magic link did not reach /agenda and no fallback password is configured (TEST_DOCTOR_PASSWORD/TEST_USER_PASSWORD)."
       );
     }
 
-    await page.goto(`${normalizedBaseUrl}/login`, { waitUntil: "domcontentloaded" });
-    await page.getByLabel("Email").fill(normalizedEmail);
-    await page.getByLabel("Password").fill(fallbackPassword);
-    await page.getByRole("button", { name: /Sign in/i }).click();
-
-    // Session cookie propagation can lag in production; retry guarded agenda access.
     let reachedAgenda = false;
-    for (let attempt = 0; attempt < 3; attempt += 1) {
-      await page.goto(`${normalizedBaseUrl}/agenda`, { waitUntil: "domcontentloaded" });
-      if (/\/agenda(?:[/?#]|$)/.test(page.url())) {
-        reachedAgenda = true;
-        break;
+    const attemptedPairs: string[] = [];
+    for (const candidateEmail of candidateEmails) {
+      for (const candidatePassword of candidatePasswords) {
+        attemptedPairs.push(`${candidateEmail}:${"*".repeat(Math.min(candidatePassword.length, 8))}`);
+        await page.goto(`${normalizedBaseUrl}/login`, { waitUntil: "domcontentloaded" });
+        await page.getByLabel("Email").fill(candidateEmail);
+        await page.getByLabel("Password").fill(candidatePassword);
+        await page.getByRole("button", { name: /Sign in/i }).click();
+
+        for (let attempt = 0; attempt < 3; attempt += 1) {
+          await page.goto(`${normalizedBaseUrl}/agenda`, { waitUntil: "domcontentloaded" });
+          if (/\/agenda(?:[/?#]|$)/.test(page.url())) {
+            reachedAgenda = true;
+            break;
+          }
+          await page.waitForTimeout(1500);
+        }
+        if (reachedAgenda) break;
       }
-      await page.waitForTimeout(1500);
+      if (reachedAgenda) break;
     }
 
     if (!reachedAgenda) {
       throw new Error(
-        `Fallback password auth did not reach /agenda. Current URL: ${page.url()}`
+        `Fallback password auth did not reach /agenda. Attempted ${attemptedPairs.length} credential combination(s). Current URL: ${page.url()}`
       );
     }
   }

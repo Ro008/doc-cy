@@ -72,6 +72,7 @@ test.describe("Prod smoke: doctor registration", () => {
     const nonce = `${Date.now()}`;
     const email = `test-registration-${nonce}${TEST_EMAIL_DOMAIN}`;
     const fullName = `Prod Smoke ${nonce}`;
+    const uniquePhone = `+35799${String(Number(nonce) % 1_000_000).padStart(6, "0")}`;
 
     const imageFixture = path.resolve(process.cwd(), "tests", "assets", "dummy-doc.jpg");
     const licenseFixture = path.join(os.tmpdir(), `doccy-license-${nonce}.pdf`);
@@ -86,9 +87,7 @@ test.describe("Prod smoke: doctor registration", () => {
       await page.getByLabel("Full name").fill(fullName);
       await page.getByLabel("Email").fill(email);
       await page.getByLabel("Password").fill("StrongPass123!");
-      await page.getByLabel("WhatsApp Number (with country code, e.g., +357...)").fill(
-        "+35799123456"
-      );
+      await page.getByLabel("WhatsApp Number (with country code, e.g., +357...)").fill(uniquePhone);
 
       await page.locator("#register-specialty-trigger").click();
       await page.locator("ul[role='listbox'] li button").first().click();
@@ -111,7 +110,21 @@ test.describe("Prod smoke: doctor registration", () => {
       const successHeading = page.getByRole("heading", {
         name: /Thank you|under review|Pending Evaluation/i,
       });
-      await expect(successHeading).toBeVisible({ timeout: 30_000 });
+      try {
+        await expect(successHeading).toBeVisible({ timeout: 30_000 });
+      } catch {
+        const visibleErrorText = (
+          await page
+            .locator("[role='alert'], [data-testid*='error'], .text-red-500, .text-red-600")
+            .allTextContents()
+        )
+          .map((t) => t.trim())
+          .filter(Boolean)
+          .join(" | ");
+        throw new Error(
+          `Registration did not reach success state. URL=${page.url()} Errors=${visibleErrorText || "none found"}`
+        );
+      }
       // Some production variants keep /register without query params; accept both as long as
       // success state is visible.
       await expect(page).toHaveURL(/\/register(?:\?submitted=1)?(?:[&#].*)?$/, { timeout: 10_000 });
