@@ -12,6 +12,8 @@ const child = spawn(
   ["next", "dev", "-p", String(port)],
   {
     stdio: "inherit",
+    // Windows: spawn EINVAL without a shell when invoking npx.cmd with argv-style args.
+    shell: process.platform === "win32",
     env: {
       ...process.env,
     },

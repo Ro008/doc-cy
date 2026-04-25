@@ -136,6 +136,7 @@ jobs:
         run: |
           npx playwright test \
             tests/integration/appointments_race_condition.integration.spec.ts \
+            tests/integration/settings_clinic_address_notice.integration.spec.ts \
             tests/integration/needs_reschedule_slot_free.integration.spec.ts \
             tests/schedule_constraints.spec.ts \
             tests/booking_flow.spec.ts \

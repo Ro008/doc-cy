@@ -258,6 +258,7 @@ jobs:
         run: |
           npx playwright test \
             tests/integration/finder_critical.integration.spec.ts \
+            tests/integration/settings_clinic_address_notice.integration.spec.ts \
             tests/navigation.spec.ts \
             tests/integration/directory_duplicates_actions.integration.spec.ts \
             --project="Desktop Large (Chromium)" \
@@ -294,6 +295,7 @@ jobs:
               "",
               "Failed suite includes:",
               "- finder_critical.integration.spec.ts",
+              "- settings_clinic_address_notice.integration.spec.ts",
               "- directory_duplicates_actions.integration.spec.ts",
               "",
               "Action:",

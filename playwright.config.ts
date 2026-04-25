@@ -15,13 +15,13 @@ const safeNoBooking = process.env.PLAYWRIGHT_SAFE_NO_BOOKING === "1";
 /** When set (same value as server DOC_CY_SUPPRESS_TRAFFIC_LOG_SECRET), E2E requests skip traffic logging. */
 const trafficLogSuppressSecret = process.env.DOC_CY_SUPPRESS_TRAFFIC_LOG_SECRET?.trim();
 
-/** CI often uses 127.0.0.1:3000; dev uses localhost:3000 — both should start Next when requested. */
+/** CI often uses 127.0.0.1:3000; dev uses localhost:3000; integration uses :3100 via `scripts/dev-with-env.mjs`. */
 function isLocalDevBaseUrl(url: string): boolean {
   try {
     const u = new URL(url);
     if (u.protocol !== "http:") return false;
     const port = u.port || "80";
-    if (port !== "3000") return false;
+    if (!["3000", "3100"].includes(port)) return false;
     return ["localhost", "127.0.0.1", "[::1]"].includes(u.hostname);
   } catch {
     return false;
