@@ -244,6 +244,13 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Build Next.js (integration local server)
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.INTEGRATION_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.INTEGRATION_SUPABASE_ANON_KEY }}
+          DOC_CY_SUPPRESS_TRAFFIC_LOG_SECRET: ${{ secrets.DOC_CY_SUPPRESS_TRAFFIC_LOG_SECRET }}
+        run: npm run build
+
       - name: Install Playwright browser
         run: npx playwright install --with-deps chromium
 
