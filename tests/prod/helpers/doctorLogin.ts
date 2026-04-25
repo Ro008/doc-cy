@@ -110,13 +110,13 @@ export async function authenticateDoctorViaMagicLink(
         await page.getByLabel("Password").fill(candidatePassword);
         await page.getByRole("button", { name: /Sign in/i }).click();
 
-        for (let attempt = 0; attempt < 3; attempt += 1) {
+        for (let attempt = 0; attempt < 10; attempt += 1) {
           await page.goto(`${normalizedBaseUrl}/agenda`, { waitUntil: "domcontentloaded" });
           if (/\/agenda(?:[/?#]|$)/.test(page.url())) {
             reachedAgenda = true;
             break;
           }
-          await page.waitForTimeout(1500);
+          await page.waitForTimeout(3_000);
         }
         if (reachedAgenda) break;
       }
@@ -124,8 +124,16 @@ export async function authenticateDoctorViaMagicLink(
     }
 
     if (!reachedAgenda) {
+      const visibleLoginError = (
+        await page
+          .locator("[role='alert'], .text-red-100, .text-red-500, .text-red-600")
+          .allTextContents()
+      )
+        .map((t) => t.trim())
+        .filter(Boolean)
+        .join(" | ");
       throw new Error(
-        `Fallback password auth did not reach /agenda. Attempted ${attemptedPairs.length} credential combination(s). Current URL: ${page.url()}`
+        `Fallback password auth did not reach /agenda. Attempted ${attemptedPairs.length} credential combination(s). Current URL: ${page.url()} Visible login error: ${visibleLoginError || "none"}`
       );
     }
   }

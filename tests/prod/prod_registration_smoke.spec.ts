@@ -114,6 +114,19 @@ test.describe("Prod smoke: doctor registration", () => {
       try {
         await expect(successHeading).toBeVisible({ timeout: 30_000 });
       } catch {
+        const submitButtonState = await page
+          .getByRole("button", { name: /Submit application/i })
+          .isDisabled()
+          .catch(() => false);
+        const pageHeadingSnapshot = (
+          await page
+            .locator("h1, h2, h3")
+            .allTextContents()
+        )
+          .map((t) => t.trim())
+          .filter(Boolean)
+          .slice(0, 6)
+          .join(" | ");
         const visibleErrorText = (
           await page
             .locator("[role='alert'], [data-testid*='error'], .text-red-500, .text-red-600")
@@ -123,7 +136,7 @@ test.describe("Prod smoke: doctor registration", () => {
           .filter(Boolean)
           .join(" | ");
         throw new Error(
-          `Registration did not reach success state. URL=${page.url()} Errors=${visibleErrorText || "none found"}`
+          `Registration did not reach success state. URL=${page.url()} SubmitDisabled=${submitButtonState} Errors=${visibleErrorText || "none found"} Headings=${pageHeadingSnapshot || "none"}`
         );
       }
       // Some production variants keep /register without query params; accept both as long as
