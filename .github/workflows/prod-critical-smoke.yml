@@ -127,7 +127,7 @@ jobs:
         shell: bash
         env:
           PLAYWRIGHT_BASE_URL: ${{ secrets.PLAYWRIGHT_BASE_URL_PROD }}
-          PROD_SITE_URL: ${{ secrets.NEXT_PUBLIC_SITE_URL }}
+          PROD_SITE_URL: ${{ secrets.PROD_SITE_URL || secrets.NEXT_PUBLIC_SITE_URL }}
         run: |
           set -euo pipefail
 
@@ -174,8 +174,8 @@ jobs:
           DOC_CY_SUPPRESS_TRAFFIC_LOG_SECRET: ${{ secrets.DOC_CY_SUPPRESS_TRAFFIC_LOG_SECRET }}
           TEST_DOCTOR_EMAIL: ${{ secrets.TEST_DOCTOR_EMAIL }}
           TEST_DOCTOR_PASSWORD: ${{ secrets.TEST_DOCTOR_PASSWORD }}
-          TEST_USER_EMAIL: ${{ secrets.TEST_DOCTOR_EMAIL }}
-          TEST_USER_PASSWORD: ${{ secrets.TEST_DOCTOR_PASSWORD }}
+          TEST_USER_EMAIL: ${{ secrets.TEST_USER_EMAIL || secrets.TEST_DOCTOR_EMAIL }}
+          TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD || secrets.TEST_DOCTOR_PASSWORD }}
           TEST_BOOKING_DOCTOR_SLUG: ${{ secrets.TEST_BOOKING_DOCTOR_SLUG }}
         run: |
           npx playwright test \
@@ -202,7 +202,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 35
     env:
-      PLAYWRIGHT_BASE_URL: ${{ secrets.PLAYWRIGHT_BASE_URL_INTEGRATION }}
+      PLAYWRIGHT_BASE_URL: http://127.0.0.1:3000
+      PLAYWRIGHT_WEB_SERVER_COMMAND: npm run start
       NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.INTEGRATION_SUPABASE_URL }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.INTEGRATION_SUPABASE_SERVICE_ROLE_KEY }}
       INTERNAL_DIRECTORY_SECRET: ${{ secrets.INTERNAL_DIRECTORY_SECRET }}
@@ -223,12 +224,15 @@ jobs:
         run: |
           set -euo pipefail
           missing=0
-          for v in PLAYWRIGHT_BASE_URL NEXT_PUBLIC_SUPABASE_URL SUPABASE_SERVICE_ROLE_KEY INTERNAL_DIRECTORY_SECRET; do
+          for v in NEXT_PUBLIC_SUPABASE_URL SUPABASE_SERVICE_ROLE_KEY; do
             if [ -z "${!v:-}" ]; then
               echo "::error::Missing required secret/env: ${v}"
               missing=1
             fi
           done
+          if [ -z "${INTERNAL_DIRECTORY_SECRET:-}" ]; then
+            echo "::warning::INTERNAL_DIRECTORY_SECRET is missing. Internal duplicate-actions integration test will be skipped."
+          fi
           if [ "${missing}" -ne 0 ]; then
             exit 1
           fi

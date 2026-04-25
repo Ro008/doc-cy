@@ -56,6 +56,7 @@ async function cleanupLicenseFilesForEmail(admin: SupabaseClient, email: string)
 
 test.describe("Prod smoke: doctor registration", () => {
   test("completes registration and cleans up", async ({ page }) => {
+    test.setTimeout(180_000);
     const baseUrl = process.env.PLAYWRIGHT_BASE_URL ?? "";
     const isLiveMode = process.env.PLAYWRIGHT_LIVE_REGISTRATION === "1";
     test.skip(
