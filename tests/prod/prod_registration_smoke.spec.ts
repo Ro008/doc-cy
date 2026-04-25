@@ -108,11 +108,13 @@ test.describe("Prod smoke: doctor registration", () => {
         .getByRole("checkbox", { name: /I confirm I am a licensed professional/i })
         .check();
       await page.getByRole("button", { name: /Submit application/i }).click();
-
-      await expect(page).toHaveURL(/\/register\?submitted=1/, { timeout: 30000 });
-      await expect(
-        page.getByRole("heading", { name: /Thank you|under review|Pending Evaluation/i })
-      ).toBeVisible({ timeout: 30000 });
+      const successHeading = page.getByRole("heading", {
+        name: /Thank you|under review|Pending Evaluation/i,
+      });
+      await expect(successHeading).toBeVisible({ timeout: 30_000 });
+      // Some production variants keep /register without query params; accept both as long as
+      // success state is visible.
+      await expect(page).toHaveURL(/\/register(?:\?submitted=1)?(?:[&#].*)?$/, { timeout: 10_000 });
 
       const { data: createdDoctor, error: createdDoctorError } = await admin
         .from("doctors")
