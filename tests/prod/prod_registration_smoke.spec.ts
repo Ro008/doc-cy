@@ -94,6 +94,7 @@ test.describe("Prod smoke: doctor registration", () => {
       await page.getByTestId("language-multiselect-trigger").click();
       await page.locator("#register-languages-listbox [role='option']").first().click();
       await page.keyboard.press("Escape");
+      await page.getByLabel("District").selectOption("Nicosia");
 
       const avatarInput = page.locator("label:has-text('Upload photo') input[type='file']");
       await avatarInput.setInputFiles(imageFixture);
