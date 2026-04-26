@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
+import { signInDoctorAndSetCookies } from "../helpers/doctorAuth";
 
 function normalizeUrl(u: string): string {
   return u.replace(/\/+$/, "");
@@ -90,10 +91,12 @@ test.describe("Integration UI: settings clinic address notice (local only)", () 
       }
       doctorId = String(doctorInsert.data.id);
 
-      await page.goto("/login");
-      await page.getByLabel("Email").fill(doctorEmail);
-      await page.getByLabel("Password").fill(doctorPassword);
-      await page.getByRole("button", { name: /sign in/i }).click();
+      // Deterministic session bootstrap avoids intermittent UI login flake in CI.
+      await signInDoctorAndSetCookies(page, undefined, {
+        email: doctorEmail,
+        password: doctorPassword,
+      });
+      await page.goto("/agenda", { waitUntil: "domcontentloaded" });
       await page.waitForURL(/\/agenda(?:[/?#]|$)/i, { timeout: 30_000 });
 
       await page.goto("/agenda/settings", { waitUntil: "domcontentloaded" });
