@@ -174,6 +174,8 @@ export async function authenticateDoctorViaPasswordUi(
   password?: string
 ): Promise<void> {
   const normalizedBaseUrl = baseUrl.trim().replace(/\/+$/, "");
+  const supabaseUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").trim();
+  const anonKey = (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "").trim();
   const resolvedEmail = (
     email ??
     process.env.TEST_DOCTOR_EMAIL ??
@@ -197,6 +199,28 @@ export async function authenticateDoctorViaPasswordUi(
     throw new Error("Missing TEST_DOCTOR_PASSWORD/TEST_USER_PASSWORD for password auth.");
   }
 
+  async function probeCredentialWithSupabase(): Promise<{ ok: boolean; message: string }> {
+    if (!supabaseUrl || !anonKey) {
+      return {
+        ok: false,
+        message:
+          "Supabase probe skipped (missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY).",
+      };
+    }
+    const probe = createClient(supabaseUrl, anonKey, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+    const { error: probeError } = await probe.auth.signInWithPassword({
+      email: resolvedEmail,
+      password: resolvedPassword,
+    });
+    await probe.auth.signOut().catch(() => {});
+    if (probeError) {
+      return { ok: false, message: `Supabase probe failed: ${probeError.message}` };
+    }
+    return { ok: true, message: "Supabase probe succeeded with same credentials." };
+  }
+
   for (let attempt = 1; attempt <= 3; attempt += 1) {
     await page.goto(`${normalizedBaseUrl}/login`, { waitUntil: "domcontentloaded" });
     await expect(page.getByLabel("Email")).toBeVisible({ timeout: 20_000 });
@@ -211,8 +235,27 @@ export async function authenticateDoctorViaPasswordUi(
       const currentUrl = page.url();
       const looksLikePrematureNativeSubmit =
         /\/login(?:\?|$)/.test(currentUrl) && /[?&]password=/.test(currentUrl);
+      const visibleLoginError = (
+        await page
+          .locator("[role='alert'], .text-red-100, .text-red-500, .text-red-600")
+          .allTextContents()
+      )
+        .map((t) => t.trim())
+        .filter(Boolean)
+        .join(" | ");
+      const looksLikeInvalidCredentialUi =
+        /invalid email or password/i.test(visibleLoginError) && /\/login(?:\?|$)/.test(currentUrl);
 
       if (!looksLikePrematureNativeSubmit || attempt === 3) {
+        if (looksLikeInvalidCredentialUi) {
+          const probe = await probeCredentialWithSupabase();
+          throw new Error(
+            `Password UI login did not reach /agenda and returned invalid-credential UI on ${currentUrl}. ` +
+              `Visible error: ${visibleLoginError || "none"}. ${probe.message} ` +
+              `This helps classify root cause: if probe succeeds, issue is likely UI/session/environment instability; ` +
+              `if probe fails, credentials are stale/invalid in CI secrets.`
+          );
+        }
         throw error;
       }
 
