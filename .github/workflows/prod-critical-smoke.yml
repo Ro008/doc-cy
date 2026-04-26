@@ -165,7 +165,6 @@ jobs:
       # - Public shell availability
       # - Patient booking request + cleanup
       # - Doctor registration + cleanup
-      # - Doctor password login (/login -> /agenda)
       # - Doctor agenda + QR access using deterministic authenticated session
       - name: Run production critical smoke suite (blocking)
         env:
@@ -187,6 +186,27 @@ jobs:
             tests/prod/prod_site_availability.spec.ts \
             tests/prod/prod_doctor_password_login_smoke.spec.ts \
             tests/prod/prod_agenda_qr_with_session.spec.ts \
+            --project="Desktop Large (Chromium)" \
+            --workers=1 \
+            --reporter=line
+
+      # Secondary monitor (non-blocking): keeps visibility on UI password login volatility
+      # without weakening the blocking critical contract above.
+      - name: Run doctor password login UI monitor (non-blocking)
+        continue-on-error: true
+        env:
+          PLAYWRIGHT_BASE_URL: ${{ secrets.PLAYWRIGHT_BASE_URL_PROD }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.PROD_NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.PROD_NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.PROD_SUPABASE_SERVICE_ROLE_KEY }}
+          DOC_CY_SUPPRESS_TRAFFIC_LOG_SECRET: ${{ secrets.DOC_CY_SUPPRESS_TRAFFIC_LOG_SECRET }}
+          TEST_DOCTOR_EMAIL: ${{ secrets.TEST_DOCTOR_EMAIL }}
+          TEST_DOCTOR_PASSWORD: ${{ secrets.TEST_DOCTOR_PASSWORD }}
+          TEST_USER_EMAIL: ${{ secrets.TEST_USER_EMAIL || secrets.TEST_DOCTOR_EMAIL }}
+          TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD || secrets.TEST_DOCTOR_PASSWORD }}
+        run: |
+          npx playwright test \
+            tests/prod/prod_doctor_password_login_ui_monitor.spec.ts \
             --project="Desktop Large (Chromium)" \
             --workers=1 \
             --reporter=line
