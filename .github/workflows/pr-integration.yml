@@ -37,7 +37,7 @@ jobs:
       DOC_CY_SUPPRESS_TRAFFIC_LOG_SECRET: ${{ secrets.DOC_CY_SUPPRESS_TRAFFIC_LOG_SECRET }}
       TEST_USER_EMAIL: ${{ secrets.INTEGRATION_TEST_USER_EMAIL || secrets.TEST_USER_EMAIL }}
       TEST_USER_PASSWORD: ${{ secrets.INTEGRATION_TEST_USER_PASSWORD || secrets.TEST_USER_PASSWORD }}
-      PROD_NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      PROD_NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.PROD_NEXT_PUBLIC_SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL }}
       INTEGRATION_SCHEDULE_TEST_DOCTOR_SLUG: ${{ vars.INTEGRATION_SCHEDULE_TEST_DOCTOR_SLUG }}
 
     steps:
@@ -50,7 +50,7 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: "${{ secrets.INTEGRATION_SUPABASE_URL }}"
           NEXT_PUBLIC_SUPABASE_ANON_KEY: "${{ secrets.INTEGRATION_SUPABASE_ANON_KEY }}"
           SUPABASE_SERVICE_ROLE_KEY: "${{ secrets.INTEGRATION_SUPABASE_SERVICE_ROLE_KEY }}"
-          PROD_NEXT_PUBLIC_SUPABASE_URL: "${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}"
+          PROD_NEXT_PUBLIC_SUPABASE_URL: "${{ secrets.PROD_NEXT_PUBLIC_SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL }}"
         run: |
           set -euo pipefail
           missing=0
@@ -131,11 +131,12 @@ jobs:
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.INTEGRATION_SUPABASE_ANON_KEY }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.INTEGRATION_SUPABASE_SERVICE_ROLE_KEY }}
           DOC_CY_SUPPRESS_TRAFFIC_LOG_SECRET: ${{ secrets.DOC_CY_SUPPRESS_TRAFFIC_LOG_SECRET }}
-          PROD_NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          PROD_NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.PROD_NEXT_PUBLIC_SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL }}
           INTEGRATION_SCHEDULE_TEST_DOCTOR_SLUG: ${{ vars.INTEGRATION_SCHEDULE_TEST_DOCTOR_SLUG }}
         run: |
           npx playwright test \
             tests/integration/appointments_race_condition.integration.spec.ts \
+            tests/integration/settings_clinic_address_notice.integration.spec.ts \
             tests/integration/needs_reschedule_slot_free.integration.spec.ts \
             tests/schedule_constraints.spec.ts \
             tests/booking_flow.spec.ts \

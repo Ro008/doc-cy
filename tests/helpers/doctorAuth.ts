@@ -17,6 +17,11 @@ type DoctorAuthResult = {
   sessionAccessToken: string;
 };
 
+type DoctorAuthOptions = {
+  email?: string;
+  password?: string;
+};
+
 function chunkString(value: string, chunkSize: number): string[] {
   if (value.length <= chunkSize) return [value];
   return value.match(new RegExp(`.{1,${chunkSize}}`, "g")) ?? [];
@@ -31,7 +36,8 @@ function chunkString(value: string, chunkSize: number): string[] {
  */
 export async function signInDoctorAndSetCookies(
   page: Page,
-  supabaseClient?: SupabaseClient
+  supabaseClient?: SupabaseClient,
+  options?: DoctorAuthOptions
 ): Promise<DoctorAuthResult> {
   // Cookie domain must match the site the test is running against.
   // - Local: http://localhost:3000  -> domain must be "localhost"
@@ -52,7 +58,9 @@ export async function signInDoctorAndSetCookies(
       "Missing NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY"
     );
   }
-  if (!TEST_USER_EMAIL || !TEST_USER_PASSWORD) {
+  const loginEmail = normalizeSecret(options?.email ?? TEST_USER_EMAIL);
+  const loginPassword = normalizeSecret(options?.password ?? TEST_USER_PASSWORD);
+  if (!loginEmail || !loginPassword) {
     throw new Error("Missing TEST_USER_EMAIL / TEST_USER_PASSWORD");
   }
 
@@ -61,8 +69,8 @@ export async function signInDoctorAndSetCookies(
 
   const { data: signInData, error: signInError } =
     await supabase.auth.signInWithPassword({
-      email: TEST_USER_EMAIL,
-      password: TEST_USER_PASSWORD,
+      email: loginEmail,
+      password: loginPassword,
     });
 
   if (signInError) {

@@ -220,16 +220,19 @@ test.describe("Integration: finder business-critical UX", () => {
         timeout: 20000,
       });
 
-      await page.getByLabel("District").selectOption("Nicosia");
-      await page.getByLabel("Specialty").selectOption("Dentistry");
-      await page.getByRole("button", { name: /Apply filters/i }).click();
+      const districtSelect = page.getByLabel("District");
+      await districtSelect.selectOption("Nicosia");
+
+      const specialtyInput = page.getByLabel("Specialty");
+      await specialtyInput.fill("Dentistry");
+      await page.waitForTimeout(600);
 
       await expect(page).toHaveURL(/district=Nicosia/);
       await expect(page).toHaveURL(/specialty=Dentistry/);
       await expect(page.getByText(created[0].name, { exact: true })).toBeVisible();
       await expect(page.getByText(created[1].name, { exact: true })).toHaveCount(0);
 
-      await page.getByRole("button", { name: /^Reset$/i }).click();
+      await page.getByRole("button", { name: /Clear all filters|Reset/i }).click();
       await expect(page).toHaveURL(/\/finder(?:\?|$)/);
       await expect(page.getByText(created[0].name, { exact: true })).toBeVisible();
       await expect(page.getByText(created[1].name, { exact: true })).toBeVisible();

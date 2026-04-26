@@ -567,6 +567,19 @@ export function SettingsForm({ initial }: SettingsFormProps) {
         <p className="mt-1 text-sm text-slate-400">
           District is required for Health Finder ranking and filtering.
         </p>
+        {!clinicAddress.trim() ? (
+          <div
+            className="mt-3 rounded-xl border border-amber-500/35 bg-amber-500/10 px-4 py-3 text-sm text-amber-50"
+            role="status"
+          >
+            <p className="font-medium text-amber-100">Add your clinic address</p>
+            <p className="mt-1 text-xs leading-relaxed text-amber-100/90">
+              Patients see a map link from this address on your public profile. A clear street
+              address helps Google Maps open in the right place — you can paste it from Google Maps
+              if you prefer.
+            </p>
+          </div>
+        ) : null}
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <div>
             <label
