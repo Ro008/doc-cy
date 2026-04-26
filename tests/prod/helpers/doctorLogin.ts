@@ -166,3 +166,57 @@ export async function authenticateDoctorViaMagicLink(
 
   await expect(page).toHaveURL(/\/agenda(?:[/?#]|$)/, { timeout: 20_000 });
 }
+
+export async function authenticateDoctorViaPasswordUi(
+  page: Page,
+  baseUrl: string,
+  email?: string,
+  password?: string
+): Promise<void> {
+  const normalizedBaseUrl = baseUrl.trim().replace(/\/+$/, "");
+  const resolvedEmail = (
+    email ??
+    process.env.TEST_DOCTOR_EMAIL ??
+    process.env.TEST_USER_EMAIL ??
+    ""
+  ).trim();
+  const resolvedPassword = (
+    password ??
+    process.env.TEST_DOCTOR_PASSWORD ??
+    process.env.TEST_USER_PASSWORD ??
+    ""
+  ).trim();
+
+  if (!normalizedBaseUrl) {
+    throw new Error("Missing PLAYWRIGHT_BASE_URL for password auth.");
+  }
+  if (!resolvedEmail) {
+    throw new Error("Missing TEST_DOCTOR_EMAIL/TEST_USER_EMAIL for password auth.");
+  }
+  if (!resolvedPassword) {
+    throw new Error("Missing TEST_DOCTOR_PASSWORD/TEST_USER_PASSWORD for password auth.");
+  }
+
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    await page.goto(`${normalizedBaseUrl}/login`, { waitUntil: "domcontentloaded" });
+    await expect(page.getByLabel("Email")).toBeVisible({ timeout: 20_000 });
+    await page.getByLabel("Email").fill(resolvedEmail);
+    await page.getByLabel("Password").fill(resolvedPassword);
+    await page.getByRole("button", { name: /Sign in/i }).click();
+
+    try {
+      await expect(page).toHaveURL(/\/agenda(?:[/?#]|$)/, { timeout: 45_000 });
+      return;
+    } catch (error) {
+      const currentUrl = page.url();
+      const looksLikePrematureNativeSubmit =
+        /\/login(?:\?|$)/.test(currentUrl) && /[?&]password=/.test(currentUrl);
+
+      if (!looksLikePrematureNativeSubmit || attempt === 3) {
+        throw error;
+      }
+
+      await page.waitForTimeout(1_000);
+    }
+  }
+}

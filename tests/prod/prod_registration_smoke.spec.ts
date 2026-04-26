@@ -54,6 +54,24 @@ async function cleanupLicenseFilesForEmail(admin: SupabaseClient, email: string)
   if (paths.length > 0) await admin.storage.from("doctor-verifications").remove(paths);
 }
 
+async function waitForDoctorByEmail(
+  admin: SupabaseClient,
+  email: string,
+  timeoutMs = 20_000
+): Promise<{ id: string; is_test_profile: boolean | null; name: string | null; phone: string | null; license_number: string | null } | null> {
+  const started = Date.now();
+  while (Date.now() - started < timeoutMs) {
+    const { data, error } = await admin
+      .from("doctors")
+      .select("id,is_test_profile,name,phone,license_number")
+      .eq("email", email)
+      .maybeSingle();
+    if (!error && data?.id) return data;
+    await new Promise((resolve) => setTimeout(resolve, 1_000));
+  }
+  return null;
+}
+
 test.describe("Prod smoke: doctor registration", () => {
   test("completes registration and cleans up", async ({ page }) => {
     test.setTimeout(180_000);
@@ -71,8 +89,10 @@ test.describe("Prod smoke: doctor registration", () => {
     const admin = createClient(supabaseUrl, serviceRole);
     const nonce = `${Date.now()}`;
     const email = `test-registration-${nonce}${TEST_EMAIL_DOMAIN}`;
+    const password = `Str0ngPass!${nonce.slice(-4)}`;
     const fullName = `Prod Smoke ${nonce}`;
     const uniquePhone = `+35799${String(Number(nonce) % 1_000_000).padStart(6, "0")}`;
+    const licenseNumber = `LIC-${nonce}`;
 
     const imageFixture = path.resolve(process.cwd(), "tests", "assets", "dummy-doc.jpg");
     const licenseFixture = path.join(os.tmpdir(), `doccy-license-${nonce}.pdf`);
@@ -83,10 +103,14 @@ test.describe("Prod smoke: doctor registration", () => {
     );
 
     try {
-      await page.goto("/register");
+      await page.goto("/register", { waitUntil: "domcontentloaded" });
+      await expect(page.getByRole("heading", { name: /Create|Register|profile/i })).toBeVisible({
+        timeout: 20_000,
+      });
+
       await page.getByLabel("Full name").fill(fullName);
       await page.getByLabel("Email").fill(email);
-      await page.getByLabel("Password").fill("StrongPass123!");
+      await page.getByLabel("Password").fill(password);
       await page.getByLabel("WhatsApp Number (with country code, e.g., +357...)").fill(uniquePhone);
 
       await page.locator("#register-specialty-trigger").click();
@@ -98,36 +122,25 @@ test.describe("Prod smoke: doctor registration", () => {
 
       const avatarInput = page.locator("label:has-text('Upload photo') input[type='file']");
       await avatarInput.setInputFiles(imageFixture);
-      await expect(page.getByText("Crop profile photo (1:1)")).toBeVisible();
+      await expect(page.getByText("Crop profile photo (1:1)")).toBeVisible({ timeout: 10_000 });
       await page.getByRole("button", { name: /Confirm crop/i }).click();
-      await expect(page.getByText("Crop confirmed.")).toBeVisible();
+      await expect(page.getByText("Crop confirmed.")).toBeVisible({ timeout: 10_000 });
 
-      await page.getByLabel("Professional license number").fill(`LIC-${nonce}`);
+      await page.getByLabel("Professional license number").fill(licenseNumber);
       await page.locator("input[name='licenseFile']").setInputFiles(licenseFixture);
       await page
         .getByRole("checkbox", { name: /I confirm I am a licensed professional/i })
         .check();
+
       await page.getByRole("button", { name: /Submit application/i }).click();
+
       const successHeading = page.getByRole("heading", {
         name: /Thank you|under review|Pending Evaluation/i,
       });
       try {
-        await expect(successHeading).toBeVisible({ timeout: 30_000 });
+        await expect(successHeading).toBeVisible({ timeout: 45_000 });
       } catch {
-        const submitButtonState = await page
-          .getByRole("button", { name: /Submit application/i })
-          .isDisabled()
-          .catch(() => false);
-        const pageHeadingSnapshot = (
-          await page
-            .locator("h1, h2, h3")
-            .allTextContents()
-        )
-          .map((t) => t.trim())
-          .filter(Boolean)
-          .slice(0, 6)
-          .join(" | ");
-        const visibleErrorText = (
+        const visibleErrors = (
           await page
             .locator("[role='alert'], [data-testid*='error'], .text-red-500, .text-red-600")
             .allTextContents()
@@ -136,21 +149,22 @@ test.describe("Prod smoke: doctor registration", () => {
           .filter(Boolean)
           .join(" | ");
         throw new Error(
-          `Registration did not reach success state. URL=${page.url()} SubmitDisabled=${submitButtonState} Errors=${visibleErrorText || "none found"} Headings=${pageHeadingSnapshot || "none"}`
+          `Registration UI did not reach success state. URL=${page.url()} Errors=${visibleErrors || "none"}`
         );
       }
-      // Some production variants keep /register without query params; accept both as long as
-      // success state is visible.
-      await expect(page).toHaveURL(/\/register(?:\?submitted=1)?(?:[&#].*)?$/, { timeout: 10_000 });
 
-      const { data: createdDoctor, error: createdDoctorError } = await admin
-        .from("doctors")
-        .select("id,is_test_profile")
-        .eq("email", email)
-        .maybeSingle();
-      expect(createdDoctorError).toBeNull();
-      expect(createdDoctor?.id).toBeTruthy();
+      await expect(page).toHaveURL(/\/register(?:\?submitted=1)?(?:[&#].*)?$/, { timeout: 15_000 });
+
+      const createdDoctor = await waitForDoctorByEmail(admin, email, 25_000);
+      expect(
+        createdDoctor?.id,
+        `Doctor row not found in configured Supabase project for email ${email}. ` +
+          `If running against production URL, ensure NEXT_PUBLIC_SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY point to the same production project.`
+      ).toBeTruthy();
       expect(createdDoctor?.is_test_profile ?? null).toBe(false);
+      expect(createdDoctor?.name ?? "").toBe(fullName);
+      expect(createdDoctor?.phone ?? "").toContain("+357");
+      expect(createdDoctor?.license_number ?? "").toBe(licenseNumber);
     } finally {
       const { data: doctor } = await admin
         .from("doctors")

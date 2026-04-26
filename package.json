@@ -10,6 +10,8 @@
     "lint": "next lint",
     "test:e2e": "playwright test",
     "test:e2e:register:prod": "powershell -NoProfile -Command \"$env:PLAYWRIGHT_LIVE_REGISTRATION='1'; $env:PLAYWRIGHT_BASE_URL='https://mydoccy.com'; playwright test tests/prod/prod_registration_smoke.spec.ts --project='Desktop Large (Chromium)' --reporter=line\"",
+    "test:prod:smoke:local": "powershell -NoProfile -Command \"$env:PLAYWRIGHT_ENV_FILE='.env.local'; $env:PLAYWRIGHT_LIVE_REGISTRATION='1'; $env:PLAYWRIGHT_BASE_URL='https://www.mydoccy.com'; playwright test tests/prod/prod_appointment_booking_flow.spec.ts tests/prod/prod_registration_smoke.spec.ts tests/prod/prod_site_availability.spec.ts tests/prod/prod_doctor_password_login_smoke.spec.ts tests/prod/prod_agenda_qr_with_session.spec.ts --project='Desktop Large (Chromium)' --workers=1 --reporter=line\"",
+    "test:prod:registration:video:local": "powershell -NoProfile -Command \"$env:PLAYWRIGHT_ENV_FILE='.env.local'; $env:PLAYWRIGHT_LIVE_REGISTRATION='1'; $env:PLAYWRIGHT_BASE_URL='https://www.mydoccy.com'; playwright test tests/prod/prod_registration_smoke.spec.ts --config=playwright.pwa-video.config.ts --project='Desktop Large (Chromium)' --workers=1 --reporter=line --output='tmp/prod-registration-video'\"",
     "test:e2e:i18n-smoke": "playwright test tests/landing_i18n.spec.ts tests/language_switcher.spec.ts",
     "test:e2e:safe": "powershell -NoProfile -Command \"$env:PLAYWRIGHT_SAFE_NO_BOOKING='1'; playwright test\"",
     "test:e2e:ui": "playwright test --ui",

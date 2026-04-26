@@ -11,6 +11,7 @@ const localUrl = "http://localhost:3000";
 // Default to local dev. For staging/prod runs, set `PLAYWRIGHT_BASE_URL`.
 const baseUrl = process.env.PLAYWRIGHT_BASE_URL ?? localUrl;
 const safeNoBooking = process.env.PLAYWRIGHT_SAFE_NO_BOOKING === "1";
+const normalizedEnvFilePath = envFilePath.toLowerCase().replace(/\\/g, "/");
 
 /** When set (same value as server DOC_CY_SUPPRESS_TRAFFIC_LOG_SECRET), E2E requests skip traffic logging. */
 const trafficLogSuppressSecret = process.env.DOC_CY_SUPPRESS_TRAFFIC_LOG_SECRET?.trim();
@@ -40,6 +41,24 @@ function requireEnvForLocalWebServer(name: string): void {
         "Set it in workflow/job env before running tests."
     );
   }
+}
+
+function isProductionSiteUrl(url: string): boolean {
+  try {
+    const u = new URL(url);
+    if (u.protocol !== "https:") return false;
+    const host = u.hostname.toLowerCase();
+    return host === "mydoccy.com" || host === "www.mydoccy.com";
+  } catch {
+    return false;
+  }
+}
+
+if (isProductionSiteUrl(baseUrl) && normalizedEnvFilePath.endsWith(".env.testing.local")) {
+  throw new Error(
+    `[Playwright config] Refusing to run production URL "${baseUrl}" with "${envFilePath}". ` +
+      `Use ".env.local" for tests/prod/* and reserve ".env.testing.local" for integration/testing.`
+  );
 }
 
 if (process.env.CI && shouldRunWebServer) {
