@@ -193,6 +193,7 @@ jobs:
       # Secondary monitor (non-blocking): keeps visibility on UI password login volatility
       # without weakening the blocking critical contract above.
       - name: Run doctor password login UI monitor (non-blocking)
+        if: always()
         continue-on-error: true
         env:
           PLAYWRIGHT_BASE_URL: ${{ secrets.PLAYWRIGHT_BASE_URL_PROD }}
