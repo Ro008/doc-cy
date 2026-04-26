@@ -35,6 +35,7 @@ export async function authenticateDoctorViaMagicLink(
   const normalizedBaseUrl = baseUrl.trim().replace(/\/+$/, "");
   const supabaseUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").trim();
   const serviceRole = (process.env.SUPABASE_SERVICE_ROLE_KEY ?? "").trim();
+  const anonKey = (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "").trim();
 
   if (!normalizedEmail) {
     throw new Error("Missing TEST_DOCTOR_EMAIL for magic link auth.");
@@ -100,6 +101,25 @@ export async function authenticateDoctorViaMagicLink(
       );
     }
 
+    const invalidCredentialPairs: string[] = [];
+    if (anonKey) {
+      for (const candidateEmail of candidateEmails) {
+        for (const candidatePassword of candidatePasswords) {
+          const authProbe = createClient(supabaseUrl, anonKey, {
+            auth: { persistSession: false, autoRefreshToken: false },
+          });
+          const { error: probeError } = await authProbe.auth.signInWithPassword({
+            email: candidateEmail,
+            password: candidatePassword,
+          });
+          if (probeError && /invalid login credentials/i.test(probeError.message)) {
+            invalidCredentialPairs.push(candidateEmail);
+          }
+          await authProbe.auth.signOut().catch(() => {});
+        }
+      }
+    }
+
     let reachedAgenda = false;
     const attemptedPairs: string[] = [];
     for (const candidateEmail of candidateEmails) {
@@ -132,8 +152,14 @@ export async function authenticateDoctorViaMagicLink(
         .map((t) => t.trim())
         .filter(Boolean)
         .join(" | ");
+      const credentialHint =
+        invalidCredentialPairs.length > 0
+          ? ` Invalid credential pair(s) detected by Supabase auth probe for: ${Array.from(
+              new Set(invalidCredentialPairs)
+            ).join(", ")}.`
+          : "";
       throw new Error(
-        `Fallback password auth did not reach /agenda. Attempted ${attemptedPairs.length} credential combination(s). Current URL: ${page.url()} Visible login error: ${visibleLoginError || "none"}`
+        `Fallback password auth did not reach /agenda. Attempted ${attemptedPairs.length} credential combination(s). Current URL: ${page.url()} Visible login error: ${visibleLoginError || "none"}.${credentialHint}`
       );
     }
   }
