@@ -11,6 +11,7 @@ import { PromotePracticeFab } from "@/components/dashboard/PromotePracticeFab";
 import { InstallBanner } from "@/components/pwa/InstallBanner";
 import { NavigationProgressBar } from "@/components/navigation/NavigationProgressBar";
 import { Toaster } from "sonner";
+import { Analytics } from "@vercel/analytics/react";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -95,6 +96,7 @@ export default async function RootLayout({
         <InstallBanner />
         <PromotePracticeFab />
         <FeedbackWidget />
+        <Analytics />
       </body>
     </html>
   );

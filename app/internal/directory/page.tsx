@@ -24,12 +24,6 @@ import { cyprusMonthStartUtcIso } from "@/lib/cyprus-calendar";
 import { TrialConversionTable } from "@/components/internal/TrialConversionTable";
 import { getTrialPeriodDays } from "@/lib/trial-period";
 import { WebsiteAnalyticsPanel } from "@/components/internal/WebsiteAnalyticsPanel";
-import {
-  buildHighInterestSessions,
-  buildLocalityRanking,
-  buildPopularSections,
-  type WebsiteVisitRow,
-} from "@/lib/website-analytics";
 import { PendingLink } from "@/components/navigation/PendingLink";
 import {
   DuplicateNotificationsPanel,
@@ -77,9 +71,7 @@ export default async function FounderDashboardPage() {
     appts7dRes,
     recentApptsRes,
     apptsForChartRes,
-    websiteVisitsCount7dRes,
     websiteVisitsCountBusinessCard7dRes,
-    websiteVisitsRowsRes,
   ] = await Promise.all([
     supabase
       .from("doctors")
@@ -106,23 +98,9 @@ export default async function FounderDashboardPage() {
       .from("website_visits")
       .select("*", { count: "exact", head: true })
       .gte("created_at", sevenDaysAgoIso)
-      .eq("is_bot", false),
-    supabase
-      .from("website_visits")
-      .select("*", { count: "exact", head: true })
-      .gte("created_at", sevenDaysAgoIso)
       .eq("is_bot", false)
       .eq("utm_source", "offline")
       .eq("utm_medium", "business_card"),
-    supabase
-      .from("website_visits")
-      .select(
-        "session_id, page_path, city, country, traffic_origin, ref_code, utm_source, utm_medium, created_at"
-      )
-      .gte("created_at", sevenDaysAgoIso)
-      .eq("is_bot", false)
-      .order("created_at", { ascending: false })
-      .limit(5000),
   ]);
 
   if (doctorsRes.error) {
@@ -392,24 +370,12 @@ export default async function FounderDashboardPage() {
     };
   });
   const trialPeriodDays = getTrialPeriodDays();
-  const websiteVisitRows =
-    !websiteVisitsRowsRes.error && websiteVisitsRowsRes.data
-      ? (websiteVisitsRowsRes.data as WebsiteVisitRow[])
-      : [];
-  const visits7dTotal =
-    !websiteVisitsCount7dRes.error && websiteVisitsCount7dRes.count != null
-      ? websiteVisitsCount7dRes.count
-      : 0;
   const visits7dBusinessCard =
     !websiteVisitsCountBusinessCard7dRes.error &&
     websiteVisitsCountBusinessCard7dRes.count != null
       ? websiteVisitsCountBusinessCard7dRes.count
       : 0;
   const businessCardVisitsLast7d = visits7dBusinessCard;
-  const websiteAndLinkVisitsLast7d = Math.max(0, visits7dTotal - visits7dBusinessCard);
-  const topLocalities = buildLocalityRanking(websiteVisitRows);
-  const popularSections = buildPopularSections(websiteVisitRows);
-  const highInterestSessions = buildHighInterestSessions(websiteVisitRows);
 
   return (
     <main className="min-h-screen bg-slate-950 text-slate-50">
@@ -478,10 +444,6 @@ export default async function FounderDashboardPage() {
         <TrialConversionTable doctors={verifiedRows} />
         <WebsiteAnalyticsPanel
           businessCardVisitsLast7d={businessCardVisitsLast7d}
-          websiteAndLinkVisitsLast7d={websiteAndLinkVisitsLast7d}
-          topLocalities={topLocalities}
-          popularSections={popularSections}
-          highInterestSessions={highInterestSessions}
         />
 
         <div className="grid gap-6 xl:grid-cols-12">
