@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { PendingLink } from "@/components/navigation/PendingLink";
 import { DocCyWordmark } from "@/components/brand/DocCyWordmark";
 import { CYPRUS_DISTRICTS, type CyprusDistrict, isCyprusDistrict } from "@/lib/cyprus-districts";
@@ -5,11 +6,21 @@ import { languageThemeForLabel } from "@/lib/cyprus-languages";
 import { createServiceRoleClient } from "@/lib/supabase-service";
 import { FinderFilters } from "@/components/finder/FinderFilters";
 import { FinderResultsTransition } from "@/components/finder/FinderResultsTransition";
+import {
+  isAllSlug,
+  slugToDistrict,
+  slugToSpecialty,
+  specialtyToSlug,
+  toTitleCaseWords,
+} from "@/lib/finder-seo";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 type FinderPageProps = {
+  params: {
+    filters?: string[];
+  };
   searchParams?: {
     district?: string;
     specialty?: string;
@@ -97,15 +108,100 @@ function matchesSpecialtyFilter(candidate: string, query: string): boolean {
   return normalizedCandidate.includes(normalizedQuery);
 }
 
-export default async function FinderPage({ searchParams }: FinderPageProps) {
-  const supabase = createServiceRoleClient();
-  const districtParam = normalizeSelectValue(searchParams?.district);
-  const specialtyParam = normalizeSelectValue(searchParams?.specialty);
-  const nameParam = normalizeSelectValue(searchParams?.name);
-  const activeDistrict = isCyprusDistrict(districtParam) ? districtParam : "";
-  const activeSpecialty = specialtyParam;
-  const activeName = nameParam;
+function decodeSegment(raw: string | undefined): string {
+  if (!raw) return "";
+  try {
+    return decodeURIComponent(raw);
+  } catch {
+    return raw;
+  }
+}
 
+function resolveDistrictValue(
+  districtSegment: string | undefined,
+  districtQueryParam: string | undefined
+): string {
+  const segment = normalizeSelectValue(decodeSegment(districtSegment));
+  if (segment) {
+    if (isAllSlug(segment)) return "";
+    const bySlug = slugToDistrict(segment);
+    if (bySlug) return bySlug;
+    if (isCyprusDistrict(segment)) return segment;
+  }
+
+  const queryValue = normalizeSelectValue(districtQueryParam);
+  if (!queryValue) return "";
+  if (isAllSlug(queryValue)) return "";
+  if (isCyprusDistrict(queryValue)) return queryValue;
+  return slugToDistrict(queryValue) ?? "";
+}
+
+function resolveSpecialtyValue(
+  specialtySegment: string | undefined,
+  specialtyQueryParam: string | undefined
+): string {
+  const segment = normalizeSelectValue(decodeSegment(specialtySegment));
+  if (segment) {
+    if (isAllSlug(segment)) return "";
+    return slugToSpecialty(segment);
+  }
+  const queryValue = normalizeSelectValue(specialtyQueryParam);
+  if (!queryValue || isAllSlug(queryValue)) return "";
+  return queryValue;
+}
+
+function resolveMetadataFilters(params: FinderPageProps["params"]): {
+  district: string;
+  specialty: string;
+} {
+  const district = resolveDistrictValue(params.filters?.[0], undefined);
+  const specialty = resolveSpecialtyValue(params.filters?.[1], undefined);
+  return { district, specialty };
+}
+
+export async function generateMetadata({ params }: FinderPageProps): Promise<Metadata> {
+  const { district, specialty } = resolveMetadataFilters(params);
+  const cleanDistrict = district.trim();
+  const cleanSpecialty = specialty.trim();
+  const districtLabel = cleanDistrict ? toTitleCaseWords(cleanDistrict) : "";
+  const specialtyLabel = cleanSpecialty ? toTitleCaseWords(cleanSpecialty) : "";
+
+  const genericTitle = "Find the Best Healthcare Professionals in Cyprus | Book Online - DocCy";
+  const genericDescription =
+    "Discover English-speaking healthcare professionals across Cyprus. Compare specialties, view locations, and book online with DocCy.";
+
+  if (districtLabel && specialtyLabel) {
+    return {
+      title: `Best ${specialtyLabel} in ${districtLabel}, Cyprus | Book Online - DocCy`,
+      description: `Find English-speaking professionals specializing in ${specialtyLabel} in ${districtLabel}. View locations and book online.`,
+    };
+  }
+
+  if (districtLabel) {
+    return {
+      title: `Best Healthcare Professionals in ${districtLabel}, Cyprus | Book Online - DocCy`,
+      description: `Find English-speaking healthcare professionals in ${districtLabel}, Cyprus. View specialties, locations, and book online.`,
+    };
+  }
+
+  if (specialtyLabel) {
+    return {
+      title: `Best ${specialtyLabel} in Cyprus | Book Online - DocCy`,
+      description: `Find English-speaking professionals specializing in ${specialtyLabel} across Cyprus. View locations and book online.`,
+    };
+  }
+
+  return {
+    title: genericTitle,
+    description: genericDescription,
+  };
+}
+
+export default async function FinderPage({ params, searchParams }: FinderPageProps) {
+  const supabase = createServiceRoleClient();
+  const activeDistrict = resolveDistrictValue(params.filters?.[0], searchParams?.district);
+  const activeSpecialty = resolveSpecialtyValue(params.filters?.[1], searchParams?.specialty);
+  const activeName = normalizeSelectValue(searchParams?.name);
   const districts = CYPRUS_DISTRICTS;
 
   let registeredRows: RegisteredFinderRow[] = [];
@@ -398,13 +494,13 @@ export default async function FinderPage({ searchParams }: FinderPageProps) {
                 </p>
                 <div className="mt-3 flex flex-wrap gap-2.5">
                   <PendingLink
-                    href="/finder?district=Paphos&specialty=Dentistry"
+                    href={`/finder/paphos/${specialtyToSlug("Dentistry")}`}
                     className="inline-flex rounded-lg border border-slate-700 bg-slate-900/60 px-3 py-1.5 text-xs font-medium text-slate-200 transition hover:border-emerald-300/50 hover:text-emerald-200"
                   >
                     Dentists in Paphos
                   </PendingLink>
                   <PendingLink
-                    href="/finder?district=Limassol&specialty=Dermatology"
+                    href={`/finder/limassol/${specialtyToSlug("Dermatology")}`}
                     className="inline-flex rounded-lg border border-slate-700 bg-slate-900/60 px-3 py-1.5 text-xs font-medium text-slate-200 transition hover:border-emerald-300/50 hover:text-emerald-200"
                   >
                     Dermatologists in Limassol
@@ -431,3 +527,4 @@ export default async function FinderPage({ searchParams }: FinderPageProps) {
     </main>
   );
 }
+

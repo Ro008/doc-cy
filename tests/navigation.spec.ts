@@ -107,8 +107,7 @@ test.describe("Navigation and routing", () => {
     await expect(dentistsQuickLink).toBeVisible();
     await dentistsQuickLink.click();
 
-    await expect(page).toHaveURL(/district=Paphos/);
-    await expect(page).toHaveURL(/specialty=Dentistry/);
+    await expect(page).toHaveURL(/\/finder\/paphos\/dentistry(?:\?|$)/);
     await expect(dentistsQuickLink).toHaveAttribute("aria-busy", "false");
   });
 });

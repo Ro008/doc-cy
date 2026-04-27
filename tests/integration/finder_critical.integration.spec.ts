@@ -157,7 +157,7 @@ test.describe("Integration: finder business-critical UX", () => {
         avatarPath: `profiles/finder-card-${nonce}/avatar.jpg`,
       });
 
-      await page.goto("/finder?district=Paphos&specialty=Dentistry");
+      await page.goto("/finder/paphos/dentistry");
       const card = page
         .locator("article")
         .filter({ has: page.getByText(created.name, { exact: true }) })
@@ -227,8 +227,7 @@ test.describe("Integration: finder business-critical UX", () => {
       await specialtyInput.fill("Dentistry");
       await page.waitForTimeout(600);
 
-      await expect(page).toHaveURL(/district=Nicosia/);
-      await expect(page).toHaveURL(/specialty=Dentistry/);
+      await expect(page).toHaveURL(/\/finder\/nicosia\/dentistry(?:\?|$)/);
       await expect(page.getByText(created[0].name, { exact: true })).toBeVisible();
       await expect(page.getByText(created[1].name, { exact: true })).toHaveCount(0);
 

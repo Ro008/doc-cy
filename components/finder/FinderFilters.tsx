@@ -2,6 +2,8 @@
 
 import * as React from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { districtToSlug, specialtyToSlug } from "@/lib/finder-seo";
+import type { CyprusDistrict } from "@/lib/cyprus-districts";
 
 const START_EVENT = "doccy:navigation-start";
 
@@ -72,12 +74,18 @@ export function FinderFilters({
   }, []);
 
   function pushFilters(nextDistrict: string, nextSpecialty: string, nextName: string) {
+    const districtSlug = nextDistrict ? districtToSlug(nextDistrict as CyprusDistrict) : "all";
+    const specialtySlug = nextSpecialty ? specialtyToSlug(nextSpecialty) : "all";
     const params = new URLSearchParams();
-    if (nextDistrict) params.set("district", nextDistrict);
-    if (nextSpecialty) params.set("specialty", nextSpecialty);
     if (nextName) params.set("name", nextName);
+    const finderPath =
+      !nextDistrict && !nextSpecialty
+        ? "/finder"
+        : !nextSpecialty
+          ? `/finder/${districtSlug}`
+          : `/finder/${districtSlug}/${specialtySlug}`;
     const qs = params.toString();
-    const target = qs ? `/finder?${qs}` : "/finder";
+    const target = qs ? `${finderPath}?${qs}` : finderPath;
     if (`${pathname}${searchParams?.toString() ? `?${searchParams.toString()}` : ""}` === target) {
       setPendingAction(null);
       return;
