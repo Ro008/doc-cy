@@ -366,9 +366,9 @@ jobs:
 
           format_job_status() {
             case "$1" in
-              success) echo "✅ $2 OK" ;;
-              cancelled) echo "⚠️ $2 CANCELLED" ;;
-              *) echo "❌ $2 FAIL" ;;
+              success) echo "$2 OK" ;;
+              cancelled) echo "$2 CANCELLED" ;;
+              *) echo "$2 FAIL" ;;
             esac
           }
 
@@ -376,15 +376,15 @@ jobs:
           INTEGRATION_LINE="$(format_job_status "${INTEGRATION_RESULT}" "Integration")"
 
           case "${OVERALL_RESULT}" in
-            success) ICON="✅" ;;
-            cancelled) ICON="⚠️" ;;
-            *) ICON="❌" ;;
+            success) PREFIX="OK" ;;
+            cancelled) PREFIX="CANCELLED" ;;
+            *) PREFIX="FAIL" ;;
           esac
 
           if [ "${NOTIFY_ONLY}" = "true" ]; then
-            MSG="🧪 DocCy PROD manual WhatsApp test | run ${RUN_ID}"
+            MSG="DocCy PROD manual WhatsApp test | run ${RUN_ID}"
           else
-            MSG="${ICON} DocCy nightly | ${PROD_LINE} | ${INTEGRATION_LINE} | run ${RUN_ID}"
+            MSG="${PREFIX} DocCy nightly | ${PROD_LINE} | ${INTEGRATION_LINE} | run ${RUN_ID}"
           fi
           if [ -n "${EXTRA_MESSAGE}" ]; then
             MSG="${MSG} | ${EXTRA_MESSAGE}"
@@ -396,7 +396,16 @@ jobs:
             echo "WhatsApp attempt ${attempt}/${max_attempts}"
             # Legacy secrets may already include text= in query. Remove it and send our own text always.
             SEND_URL="$(printf '%s' "${WEBHOOK_URL}" | sed -E 's/([?&])text=[^&]*(&|$)/\1\2/g' | sed -E 's/\?&/\?/g; s/&&/&/g; s/[?&]$//')"
-            if curl -fsS --max-time 20 -G "${SEND_URL}" --data-urlencode "text=${MSG}"; then
+            # Some webhook providers intermittently stall before first byte.
+            # Use longer network timeouts and curl's built-in retries for transient failures.
+            if curl -fsS \
+              --connect-timeout 15 \
+              --max-time 60 \
+              --retry 2 \
+              --retry-delay 2 \
+              --retry-all-errors \
+              -G "${SEND_URL}" \
+              --data-urlencode "text=${MSG}"; then
               echo "sent=true" >> "$GITHUB_OUTPUT"
               exit 0
             fi
