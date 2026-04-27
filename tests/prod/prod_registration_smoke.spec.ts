@@ -54,6 +54,16 @@ async function cleanupLicenseFilesForEmail(admin: SupabaseClient, email: string)
   if (paths.length > 0) await admin.storage.from("doctor-verifications").remove(paths);
 }
 
+async function assertNoError(
+  op: string,
+  res: { error?: { message?: string | null } | null } | null | undefined
+) {
+  const message = res?.error?.message;
+  if (message) {
+    throw new Error(`[cleanup] ${op} failed: ${message}`);
+  }
+}
+
 async function waitForDoctorByEmail(
   admin: SupabaseClient,
   email: string,
@@ -173,19 +183,28 @@ test.describe("Prod smoke: doctor registration", () => {
         .maybeSingle();
 
       const authUsers = await listAuthUsersByEmail(admin, email);
-      if (doctor?.id) await admin.from("doctors").delete().eq("id", doctor.id);
+      if (doctor?.id) {
+        const delDoctorRes = await admin.from("doctors").delete().eq("id", doctor.id);
+        await assertNoError(`delete doctor ${doctor.id}`, delDoctorRes);
+      }
       if (doctor?.auth_user_id) {
         await cleanupAvatarFilesForAuthUser(admin, String(doctor.auth_user_id));
-        await admin.auth.admin.deleteUser(String(doctor.auth_user_id));
+        const delAuthRes = await admin.auth.admin.deleteUser(String(doctor.auth_user_id));
+        await assertNoError(
+          `delete auth user ${String(doctor.auth_user_id)}`,
+          { error: delAuthRes.error }
+        );
       }
       for (const u of authUsers) {
         await cleanupAvatarFilesForAuthUser(admin, u.id);
-        await admin.auth.admin.deleteUser(u.id);
+        const delAuthRes = await admin.auth.admin.deleteUser(u.id);
+        await assertNoError(`delete auth user ${u.id}`, { error: delAuthRes.error });
       }
       if (doctor?.license_file_url) {
-        await admin.storage
+        const rmLicenseRes = await admin.storage
           .from("doctor-verifications")
           .remove([String(doctor.license_file_url)]);
+        await assertNoError(`remove explicit license path for ${email}`, rmLicenseRes);
       }
       await cleanupLicenseFilesForEmail(admin, email);
       await fs.unlink(licenseFixture).catch(() => {});

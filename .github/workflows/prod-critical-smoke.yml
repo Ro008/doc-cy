@@ -223,6 +223,13 @@ jobs:
             test-results
           if-no-files-found: ignore
 
+      - name: Cleanup prod smoke registration artifacts
+        if: always()
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.PROD_NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.PROD_SUPABASE_SERVICE_ROLE_KEY }}
+        run: node scripts/cleanup-prod-smoke-registrations.mjs
+
   business-critical-integration:
     runs-on: ubuntu-latest
     timeout-minutes: 35
