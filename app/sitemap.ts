@@ -94,7 +94,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   // Ensure district-only URLs also exist for each district that currently has content.
   const districtSet = new Set<string>();
-  for (const pair of pairSet) {
+  for (const pair of Array.from(pairSet)) {
     districtSet.add(pair.split("::")[0]);
   }
   // Keep canonical Cyprus district slugs constrained to expected english set.
@@ -110,7 +110,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     }
   }
 
-  const dynamicFinderEntries: MetadataRoute.Sitemap = [...pairSet]
+  const dynamicFinderEntries: MetadataRoute.Sitemap = Array.from(pairSet)
     .sort((a, b) => a.localeCompare(b))
     .map((pair) => {
       const [districtSlug, specialtySlug] = pair.split("::");
