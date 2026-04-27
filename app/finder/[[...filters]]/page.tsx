@@ -6,7 +6,9 @@ import { languageThemeForLabel } from "@/lib/cyprus-languages";
 import { createServiceRoleClient } from "@/lib/supabase-service";
 import { FinderFilters } from "@/components/finder/FinderFilters";
 import { FinderResultsTransition } from "@/components/finder/FinderResultsTransition";
+import { FinderStructuredData } from "@/components/finder/FinderStructuredData";
 import {
+  districtToSlug,
   isAllSlug,
   slugToDistrict,
   slugToSpecialty,
@@ -202,6 +204,7 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
   const activeDistrict = resolveDistrictValue(params.filters?.[0], searchParams?.district);
   const activeSpecialty = resolveSpecialtyValue(params.filters?.[1], searchParams?.specialty);
   const activeName = normalizeSelectValue(searchParams?.name);
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim() || "https://www.mydoccy.com";
   const districts = CYPRUS_DISTRICTS;
 
   let registeredRows: RegisteredFinderRow[] = [];
@@ -316,9 +319,46 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
     ...filteredManual.map((row) => ({ kind: "manual" as const, row })),
   ];
   const hasActiveFilters = Boolean(activeDistrict || activeSpecialty || activeName);
+  const finderPath =
+    activeDistrict && activeSpecialty
+      ? `/finder/${districtToSlug(activeDistrict as CyprusDistrict)}/${specialtyToSlug(
+          activeSpecialty
+        )}`
+      : activeDistrict
+        ? `/finder/${districtToSlug(activeDistrict as CyprusDistrict)}`
+        : "/finder";
+  const schemaEntries = unifiedResults.map((item) => {
+    if (item.kind === "registered") {
+      const row = item.row;
+      const profileUrl = row.slug ? `${siteUrl}/${row.slug}` : null;
+      return {
+        name: row.name,
+        specialty: row.specialty ?? "General Practice",
+        district: (row.district ?? activeDistrict) || null,
+        profileUrl,
+        mapsUrl: null,
+      };
+    }
+
+    const row = item.row;
+    return {
+      name: row.name,
+      specialty: row.specialty,
+      district: row.district,
+      profileUrl: null,
+      mapsUrl: row.address_maps_link,
+    };
+  });
 
   return (
     <main className="min-h-screen bg-slate-950 text-slate-100">
+      <FinderStructuredData
+        siteUrl={siteUrl}
+        finderPath={finderPath}
+        entries={schemaEntries}
+        activeDistrict={activeDistrict}
+        activeSpecialty={activeSpecialty}
+      />
       <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
         <header className="mb-8">
           <div>
