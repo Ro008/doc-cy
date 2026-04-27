@@ -269,7 +269,7 @@ test.describe("Schedule constraints @booking-creates", () => {
     const seededId = seeded.data?.id as string | undefined;
 
     try {
-      const overlapRes = await request.post("/api/appointments", {
+      let overlapRes = await request.post("/api/appointments", {
         data: {
           doctorId: doctor.id,
           patientName: "Should conflict at 17:00",
@@ -279,6 +279,28 @@ test.describe("Schedule constraints @booking-creates", () => {
           reason: "Schedule constraint test — visit reason.",
         },
       });
+
+      // CI can occasionally return a transient DB transaction-aborted 500 (25P02)
+      // before stabilizing; retry a couple of times before asserting.
+      for (let attempt = 0; attempt < 2 && overlapRes.status() === 500; attempt++) {
+        const overlapErr = await overlapRes.json().catch(() => null);
+        const msg = String(overlapErr?.message ?? "").toLowerCase();
+        if (!msg.includes("transaction is aborted")) {
+          break;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 250));
+        overlapRes = await request.post("/api/appointments", {
+          data: {
+            doctorId: doctor.id,
+            patientName: "Should conflict at 17:00",
+            patientEmail: "overlap.1700@test.com",
+            patientPhone: "99123456",
+            appointmentLocal: `${targetDate}T17:00`,
+            reason: "Schedule constraint test — visit reason.",
+          },
+        });
+      }
+
       expect(overlapRes.status()).toBe(409);
       const overlapJson = await overlapRes.json();
       expect(String(overlapJson?.message ?? "")).toContain("Slot already taken");
