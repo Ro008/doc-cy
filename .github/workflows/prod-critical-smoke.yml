@@ -373,9 +373,9 @@ jobs:
 
           format_job_status() {
             case "$1" in
-              success) echo "$2 OK" ;;
-              cancelled) echo "$2 CANCELLED" ;;
-              *) echo "$2 FAIL" ;;
+              success) echo "✅ $2 OK" ;;
+              cancelled) echo "⚠️ $2 CANCELLED" ;;
+              *) echo "❌ $2 FAIL" ;;
             esac
           }
 
@@ -383,15 +383,15 @@ jobs:
           INTEGRATION_LINE="$(format_job_status "${INTEGRATION_RESULT}" "Integration")"
 
           case "${OVERALL_RESULT}" in
-            success) PREFIX="OK" ;;
-            cancelled) PREFIX="CANCELLED" ;;
-            *) PREFIX="FAIL" ;;
+            success) ICON="✅" ;;
+            cancelled) ICON="⚠️" ;;
+            *) ICON="❌" ;;
           esac
 
           if [ "${NOTIFY_ONLY}" = "true" ]; then
-            MSG="DocCy PROD manual WhatsApp test | run ${RUN_ID}"
+            MSG="🧪 DocCy PROD manual WhatsApp test | run ${RUN_ID}"
           else
-            MSG="${PREFIX} DocCy nightly | ${PROD_LINE} | ${INTEGRATION_LINE} | run ${RUN_ID}"
+            MSG="${ICON} DocCy nightly | ${PROD_LINE} | ${INTEGRATION_LINE} | run ${RUN_ID}"
           fi
           if [ -n "${EXTRA_MESSAGE}" ]; then
             MSG="${MSG} | ${EXTRA_MESSAGE}"

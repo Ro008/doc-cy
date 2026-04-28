@@ -6,7 +6,10 @@ import { languageThemeForLabel } from "@/lib/cyprus-languages";
 import { createServiceRoleClient } from "@/lib/supabase-service";
 import { FinderFilters } from "@/components/finder/FinderFilters";
 import { FinderResultsTransition } from "@/components/finder/FinderResultsTransition";
+import { FinderStructuredData } from "@/components/finder/FinderStructuredData";
+import { FinderFaqSection } from "@/components/finder/FinderFaqSection";
 import {
+  districtToSlug,
   isAllSlug,
   slugToDistrict,
   slugToSpecialty,
@@ -48,6 +51,18 @@ type ManualFinderRow = {
 };
 
 const TEST_NAME_MARKER = /\btest\b/i;
+
+function isRecoverableSelectSchemaError(error: { code?: string; message?: string } | null): boolean {
+  if (!error) return false;
+  const code = String(error.code ?? "");
+  const message = String(error.message ?? "").toLowerCase();
+  return (
+    code === "42703" ||
+    code === "PGRST204" ||
+    message.includes("column") ||
+    message.includes("schema cache")
+  );
+}
 
 function normalizeSelectValue(value: string | undefined): string {
   return String(value ?? "").trim();
@@ -202,6 +217,7 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
   const activeDistrict = resolveDistrictValue(params.filters?.[0], searchParams?.district);
   const activeSpecialty = resolveSpecialtyValue(params.filters?.[1], searchParams?.specialty);
   const activeName = normalizeSelectValue(searchParams?.name);
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim() || "https://www.mydoccy.com";
   const districts = CYPRUS_DISTRICTS;
 
   let registeredRows: RegisteredFinderRow[] = [];
@@ -230,7 +246,7 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
         .limit(300);
 
       if (result.error) {
-        if (result.error.code === "42703") {
+        if (isRecoverableSelectSchemaError(result.error)) {
           continue;
         }
         dataWarning = "Could not load registered professionals.";
@@ -316,9 +332,55 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
     ...filteredManual.map((row) => ({ kind: "manual" as const, row })),
   ];
   const hasActiveFilters = Boolean(activeDistrict || activeSpecialty || activeName);
+  const specialtyLabel = activeSpecialty ? toTitleCaseWords(activeSpecialty) : "Health Professionals";
+  const districtLabel = activeDistrict ? toTitleCaseWords(activeDistrict) : "Cyprus";
+  const hasSpecificFilters = Boolean(activeDistrict && activeSpecialty);
+  const finderH1 = hasSpecificFilters
+    ? `${specialtyLabel} in ${districtLabel}`
+    : "Health Professionals in Cyprus";
+  const finderSnippet = hasSpecificFilters
+    ? `Find English-speaking ${specialtyLabel} in ${districtLabel}. Compare profiles and Book online with confidence.`
+    : "Find English-speaking Health Professionals in Cyprus. Explore specialties, compare districts, and Book online easily.";
+  const finderPath =
+    activeDistrict && activeSpecialty
+      ? `/finder/${districtToSlug(activeDistrict as CyprusDistrict)}/${specialtyToSlug(
+          activeSpecialty
+        )}`
+      : activeDistrict
+        ? `/finder/${districtToSlug(activeDistrict as CyprusDistrict)}`
+        : "/finder";
+  const schemaEntries = unifiedResults.map((item) => {
+    if (item.kind === "registered") {
+      const row = item.row;
+      const profileUrl = row.slug ? `${siteUrl}/${row.slug}` : null;
+      return {
+        name: row.name,
+        specialty: row.specialty ?? "General Practice",
+        district: (row.district ?? activeDistrict) || null,
+        profileUrl,
+        mapsUrl: null,
+      };
+    }
+
+    const row = item.row;
+    return {
+      name: row.name,
+      specialty: row.specialty,
+      district: row.district,
+      profileUrl: null,
+      mapsUrl: row.address_maps_link,
+    };
+  });
 
   return (
     <main className="min-h-screen bg-slate-950 text-slate-100">
+      <FinderStructuredData
+        siteUrl={siteUrl}
+        finderPath={finderPath}
+        entries={schemaEntries}
+        activeDistrict={activeDistrict}
+        activeSpecialty={activeSpecialty}
+      />
       <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
         <header className="mb-8">
           <div>
@@ -328,10 +390,8 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
             >
               <DocCyWordmark />
             </PendingLink>
-            <h1 className="mt-1 text-3xl font-semibold tracking-tight text-white">Find a Professional</h1>
-            <p className="mt-2 text-sm text-slate-400">
-              Find the right professional by filtering by district, specialty, or name.
-            </p>
+            <h1 className="mt-1 text-3xl font-semibold tracking-tight text-white">{finderH1}</h1>
+            <p className="mt-2 text-sm text-slate-400">{finderSnippet}</p>
           </div>
         </header>
 
@@ -522,6 +582,14 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
               </section>
             </div>
           </footer>
+
+          <FinderFaqSection
+            siteUrl={siteUrl}
+            finderPath={finderPath}
+            specialtyLabel={specialtyLabel}
+            districtLabel={districtLabel}
+            hasSpecificFilters={hasSpecificFilters}
+          />
         </FinderResultsTransition>
       </div>
     </main>

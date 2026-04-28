@@ -34,14 +34,24 @@ export function WebsiteAnalyticsPanel({
         </div>
       </div>
 
-      <a
-        href="https://vercel.com/ros-projects-36c82793/doc-cy/analytics?environment=all"
-        target="_blank"
-        rel="noreferrer"
-        className="mt-4 inline-flex items-center rounded-lg border border-slate-700 bg-slate-950/50 px-3 py-2 text-xs font-medium text-emerald-300 transition hover:border-emerald-500/50 hover:text-emerald-200"
-      >
-        Open Vercel Analytics dashboard
-      </a>
+      <div className="mt-4 flex flex-wrap gap-2">
+        <a
+          href="https://vercel.com/ros-projects-36c82793/doc-cy/analytics?environment=all"
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex items-center rounded-lg border border-slate-700 bg-slate-950/50 px-3 py-2 text-xs font-medium text-emerald-300 transition hover:border-emerald-500/50 hover:text-emerald-200"
+        >
+          Open Vercel Analytics dashboard
+        </a>
+        <a
+          href="https://search.google.com/search-console?resource_id=https%3A%2F%2Fmydoccy.com%2F"
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex items-center rounded-lg border border-slate-700 bg-slate-950/50 px-3 py-2 text-xs font-medium text-emerald-300 transition hover:border-emerald-500/50 hover:text-emerald-200"
+        >
+          Open Google Search Console
+        </a>
+      </div>
     </section>
   );
 }

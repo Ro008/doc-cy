@@ -130,8 +130,13 @@ test.describe("Integration: finder business-critical UX", () => {
     await finderLink.click();
 
     await expect(page).toHaveURL(/\/finder(?:\?|$)/);
-    await expect(page.getByRole("heading", { level: 1, name: /Find a Professional/i })).toBeVisible();
-    await expect(page.locator("article")).toHaveCount(expectedTotal, { timeout: 20000 });
+    await expect(
+      page.getByRole("heading", {
+        level: 1,
+        name: /Health Professionals in Cyprus|Find a Professional/i,
+      })
+    ).toBeVisible();
+    await expect(page.locator("section.mt-6 article")).toHaveCount(expectedTotal, { timeout: 20000 });
   });
 
   test("registered card renders avatar, languages and Book Online slug CTA", async ({ page }) => {
@@ -159,7 +164,7 @@ test.describe("Integration: finder business-critical UX", () => {
 
       await page.goto("/finder/paphos/dentistry");
       const card = page
-        .locator("article")
+        .locator("section.mt-6 article")
         .filter({ has: page.getByText(created.name, { exact: true }) })
         .first();
 
@@ -216,7 +221,12 @@ test.describe("Integration: finder business-critical UX", () => {
       );
 
       await page.goto("/finder");
-      await expect(page.getByRole("heading", { name: /Find a Professional/i })).toBeVisible({
+      await expect(
+        page.getByRole("heading", {
+          level: 1,
+          name: /Health Professionals in Cyprus|Find a Professional/i,
+        })
+      ).toBeVisible({
         timeout: 20000,
       });
 
