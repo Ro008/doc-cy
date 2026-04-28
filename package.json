@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "free:3000": "powershell -NoProfile -ExecutionPolicy Bypass -File \"./free-port.ps1\" -Port 3000",
-    "dev": "next dev",
+    "dev": "node scripts/dev-with-env.mjs .env.testing.local 3000",
+    "dev:prod": "node scripts/dev-with-env.mjs .env.local 3000",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
