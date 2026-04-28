@@ -64,6 +64,11 @@ async function assertNoError(
   }
 }
 
+function isAuthUserNotFound(message: string | null | undefined): boolean {
+  const normalized = String(message ?? "").toLowerCase();
+  return normalized.includes("user not found");
+}
+
 async function waitForDoctorByEmail(
   admin: SupabaseClient,
   email: string,
@@ -187,18 +192,17 @@ test.describe("Prod smoke: doctor registration", () => {
         const delDoctorRes = await admin.from("doctors").delete().eq("id", doctor.id);
         await assertNoError(`delete doctor ${doctor.id}`, delDoctorRes);
       }
-      if (doctor?.auth_user_id) {
-        await cleanupAvatarFilesForAuthUser(admin, String(doctor.auth_user_id));
-        const delAuthRes = await admin.auth.admin.deleteUser(String(doctor.auth_user_id));
-        await assertNoError(
-          `delete auth user ${String(doctor.auth_user_id)}`,
-          { error: delAuthRes.error }
-        );
-      }
-      for (const u of authUsers) {
-        await cleanupAvatarFilesForAuthUser(admin, u.id);
-        const delAuthRes = await admin.auth.admin.deleteUser(u.id);
-        await assertNoError(`delete auth user ${u.id}`, { error: delAuthRes.error });
+      const authUserIds = new Set<string>();
+      if (doctor?.auth_user_id) authUserIds.add(String(doctor.auth_user_id));
+      for (const u of authUsers) authUserIds.add(u.id);
+
+      for (const authUserId of authUserIds) {
+        await cleanupAvatarFilesForAuthUser(admin, authUserId);
+        const delAuthRes = await admin.auth.admin.deleteUser(authUserId);
+        const delMessage = delAuthRes.error?.message;
+        if (delMessage && !isAuthUserNotFound(delMessage)) {
+          await assertNoError(`delete auth user ${authUserId}`, { error: delAuthRes.error });
+        }
       }
       if (doctor?.license_file_url) {
         const rmLicenseRes = await admin.storage
