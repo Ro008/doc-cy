@@ -51,6 +51,13 @@ type ManualFinderRow = {
 };
 
 const TEST_NAME_MARKER = /\btest\b/i;
+const SEO_CITIES: CyprusDistrict[] = ["Nicosia", "Limassol", "Paphos", "Larnaca"];
+const SEO_SPECIALTIES = [
+  { label: "Dentistry", pluralLabel: "Dentists" },
+  { label: "Physiotherapy", pluralLabel: "Physiotherapists" },
+  { label: "Psychology", pluralLabel: "Psychologists" },
+  { label: "Dermatology", pluralLabel: "Dermatologists" },
+] as const;
 
 function isRecoverableSelectSchemaError(error: { code?: string; message?: string } | null): boolean {
   if (!error) return false;
@@ -548,23 +555,58 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
 
           <footer className="mt-12 border-t border-slate-800/80 pt-6 pb-2">
             <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
-              <section>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-                  Find a Professional quick links
-                </p>
-                <div className="mt-3 flex flex-wrap gap-2.5">
-                  <PendingLink
-                    href={`/finder/paphos/${specialtyToSlug("Dentistry")}`}
-                    className="inline-flex rounded-lg border border-slate-700 bg-slate-900/60 px-3 py-1.5 text-xs font-medium text-slate-200 transition hover:border-emerald-300/50 hover:text-emerald-200"
-                  >
-                    Dentists in Paphos
-                  </PendingLink>
-                  <PendingLink
-                    href={`/finder/limassol/${specialtyToSlug("Dermatology")}`}
-                    className="inline-flex rounded-lg border border-slate-700 bg-slate-900/60 px-3 py-1.5 text-xs font-medium text-slate-200 transition hover:border-emerald-300/50 hover:text-emerald-200"
-                  >
-                    Dermatologists in Limassol
-                  </PendingLink>
+              <section className="w-full">
+                <h2 className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                  Popular Healthcare Searches in Cyprus
+                </h2>
+
+                <details className="mt-3 rounded-xl border border-slate-700/80 bg-slate-900/50 p-3 md:hidden">
+                  <summary className="cursor-pointer text-sm font-semibold text-slate-100">
+                    Explore by city and specialty
+                  </summary>
+                  <div className="mt-3 grid gap-4">
+                    {SEO_CITIES.map((city) => (
+                      <section key={`mobile-${city}`}>
+                        <h3 className="text-xs font-semibold uppercase tracking-[0.12em] text-emerald-300">
+                          {city}
+                        </h3>
+                        <ul className="mt-2 space-y-1.5">
+                          {SEO_SPECIALTIES.map((specialty) => (
+                            <li key={`${city}-${specialty.label}-mobile`}>
+                              <a
+                                href={`/finder/${districtToSlug(city)}/${specialtyToSlug(specialty.label)}`}
+                                className="text-sm text-slate-200 underline underline-offset-4 transition hover:text-emerald-200"
+                              >
+                                {specialty.pluralLabel} in {city}
+                              </a>
+                            </li>
+                          ))}
+                        </ul>
+                      </section>
+                    ))}
+                  </div>
+                </details>
+
+                <div className="mt-3 hidden gap-5 md:grid md:grid-cols-2 lg:grid-cols-4">
+                  {SEO_CITIES.map((city) => (
+                    <section key={`desktop-${city}`}>
+                      <h3 className="text-xs font-semibold uppercase tracking-[0.12em] text-emerald-300">
+                        {city}
+                      </h3>
+                      <ul className="mt-2 space-y-1.5">
+                        {SEO_SPECIALTIES.map((specialty) => (
+                          <li key={`${city}-${specialty.label}-desktop`}>
+                            <a
+                              href={`/finder/${districtToSlug(city)}/${specialtyToSlug(specialty.label)}`}
+                              className="text-xs text-slate-200 underline underline-offset-4 transition hover:text-emerald-200"
+                            >
+                              {specialty.pluralLabel} in {city}
+                            </a>
+                          </li>
+                        ))}
+                      </ul>
+                    </section>
+                  ))}
                 </div>
               </section>
 
