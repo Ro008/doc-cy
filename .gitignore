@@ -1,7 +1,9 @@
 node_modules
 .env.local
 .env.testing.local
+.env.production.local
 .next
+.next-local
 test-results
 playwright-report
 playwright/.cache

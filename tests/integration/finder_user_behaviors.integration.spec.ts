@@ -65,6 +65,7 @@ async function createVerifiedDoctor(
       status: "verified",
       slug,
       is_specialty_approved: true,
+      is_test_profile: true,
       subscription_tier: "standard",
     })
     .select("id")

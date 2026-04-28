@@ -3,7 +3,7 @@
 --
 -- Does:
 --   1) appointments.duration_minutes (INTEGER, default 30) if missing
---   2) Auth user + doctor "Andreas Nikos" / slug andreas-nikos (verified, bookable)
+--   2) Auth user + doctor "Andreas Nikos Test" / slug andreas-nikos (verified, bookable test profile)
 --   3) doctor_settings Mon–Fri 09:00–17:00 linked by doctor_id
 --
 -- Prerequisite: at least one row in auth.users (any signup) so instance_id exists;
@@ -157,11 +157,12 @@ BEGIN
       status,
       slug,
       is_specialty_approved,
+      is_test_profile,
       subscription_tier
     )
     VALUES (
       v_user_id,
-      'Andreas Nikos',
+      'Andreas Nikos Test',
       'General Practice',
       v_email,
       '+35799123456',
@@ -171,15 +172,17 @@ BEGIN
       'verified',
       v_slug,
       true,
+      true,
       'standard'
     )
     RETURNING id INTO v_doctor_id;
   ELSE
     UPDATE public.doctors
     SET
-      name = 'Andreas Nikos',
+      name = 'Andreas Nikos Test',
       status = 'verified',
       is_specialty_approved = true,
+      is_test_profile = true,
       email = coalesce(nullif(trim(email), ''), v_email),
       phone = coalesce(nullif(trim(phone), ''), '+35799123456'),
       languages = coalesce(languages, ARRAY['English', 'Greek']::text[])

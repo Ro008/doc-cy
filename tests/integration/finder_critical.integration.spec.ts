@@ -65,6 +65,7 @@ async function createVerifiedDoctor(
       status: "verified",
       slug,
       is_specialty_approved: true,
+      is_test_profile: true,
       subscription_tier: "standard",
     })
     .select("id")
@@ -254,6 +255,56 @@ test.describe("Integration: finder business-critical UX", () => {
       if (created) {
         await admin.from("doctors").delete().eq("id", created.doctorId);
         await admin.auth.admin.deleteUser(created.authUserId);
+      }
+    }
+  });
+
+  test("finder card strips common doctor title prefixes from displayed name", async ({ page }) => {
+    const baseUrl = process.env.PLAYWRIGHT_BASE_URL ?? "";
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+    const serviceRole = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
+
+    const unsafeReason = assertSafeIntegrationTarget(baseUrl, supabaseUrl);
+    test.skip(Boolean(unsafeReason), unsafeReason ?? undefined);
+    test.skip(!baseUrl || !supabaseUrl || !serviceRole, "Missing integration env vars.");
+
+    const admin = createClient(supabaseUrl, serviceRole);
+    const nonce = `${Date.now()}-${Math.floor(Math.random() * 100000)}`;
+    const created: CreatedDoctor[] = [];
+
+    try {
+      const cases = [
+        { input: `Dr. Prefix Cleanup ${nonce}`, expected: `Prefix Cleanup ${nonce}`, slugPrefix: "finder-prefix-dr-dot" },
+        { input: `Dr Prefix Cleanup ${nonce}`, expected: `Prefix Cleanup ${nonce}`, slugPrefix: "finder-prefix-dr" },
+        { input: `Doctor Prefix Cleanup ${nonce}`, expected: `Prefix Cleanup ${nonce}`, slugPrefix: "finder-prefix-doctor" },
+      ] as const;
+
+      for (const testCase of cases) {
+        created.push(
+          await createVerifiedDoctor(admin, `${nonce}-${testCase.slugPrefix}`, {
+            slugPrefix: testCase.slugPrefix,
+            name: testCase.input,
+            specialty: "Dentistry",
+            district: "Nicosia",
+            languages: ["English"],
+          })
+        );
+      }
+
+      await page.goto("/finder/nicosia/dentistry");
+      for (const testCase of cases) {
+        const card = page
+          .locator("section.mt-6 article")
+          .filter({ has: page.getByText(testCase.expected, { exact: true }) })
+          .first();
+        await expect(card).toBeVisible({ timeout: 20000 });
+        await expect(card.getByText(testCase.expected, { exact: true })).toBeVisible();
+        await expect(card.getByText(testCase.input, { exact: true })).toHaveCount(0);
+      }
+    } finally {
+      for (const doctor of created) {
+        await admin.from("doctors").delete().eq("id", doctor.doctorId);
+        await admin.auth.admin.deleteUser(doctor.authUserId);
       }
     }
   });
