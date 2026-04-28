@@ -58,7 +58,10 @@ test.describe("Public shell health", () => {
   test("finder route renders district/specialty filters", async ({ page }) => {
     await page.goto("/finder");
     await expect(
-      page.getByRole("heading", { level: 1, name: /Find a Professional/i })
+      page.getByRole("heading", {
+        level: 1,
+        name: /Health Professionals in Cyprus|Find a Professional/i,
+      })
     ).toBeVisible({ timeout: 15000 });
     await expect(page.getByLabel("District")).toBeVisible();
     await expect(page.getByLabel("Specialty")).toBeVisible();

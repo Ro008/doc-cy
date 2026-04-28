@@ -22,7 +22,9 @@ test.describe("Navigation and routing", () => {
     await finderLink.click();
 
     await expect(page).toHaveURL(/\/finder(?:\?|$)/);
-    await expect(page.getByRole("heading", { level: 1, name: /Find a Professional/i })).toBeVisible();
+    await expect(
+      page.getByRole("heading", { level: 1, name: /Health Professionals in Cyprus|Find a Professional/i })
+    ).toBeVisible();
     await expect(page.locator("article").first()).toBeVisible();
     await expect(page.getByText("No professionals available right now. Please check back soon.")).toHaveCount(0);
     await expect(page.getByText("No professionals match these filters.")).toHaveCount(0);
@@ -38,7 +40,9 @@ test.describe("Navigation and routing", () => {
     await page.getByRole("link", { name: /^Find a Professional$/i }).first().click();
 
     await expect(page).toHaveURL(/\/finder(?:\?|$)/);
-    await expect(page.getByRole("heading", { level: 1, name: /Find a Professional/i })).toBeVisible();
+    await expect(
+      page.getByRole("heading", { level: 1, name: /Health Professionals in Cyprus|Find a Professional/i })
+    ).toBeVisible();
 
     await expect(page.getByText("No professionals match these filters.")).toHaveCount(0);
   });

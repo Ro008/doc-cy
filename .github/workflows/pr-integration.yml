@@ -139,6 +139,7 @@ jobs:
             tests/integration/settings_clinic_address_notice.integration.spec.ts \
             tests/integration/needs_reschedule_slot_free.integration.spec.ts \
             tests/schedule_constraints.spec.ts \
+            tests/integration/finder_user_behaviors.integration.spec.ts \
             tests/booking_flow.spec.ts \
             --project="Desktop Large (Chromium)" \
             --reporter=line
