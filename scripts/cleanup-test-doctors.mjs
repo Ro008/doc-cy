@@ -12,6 +12,12 @@ const TEST_NAME_PREFIXES = [
   "Finder Filter ",
 ];
 const TEST_SLUG_PREFIXES = ["booking-flow-", "finder-card-", "finder-ux-", "finder-filter-"];
+const DEFAULT_PRESERVED_SLUGS = [
+  "andreas-nikos",
+  "kasia-petrova",
+  "ross-geller",
+  "tasos-smith",
+];
 
 function loadEnv() {
   const explicitEnv = process.env.PLAYWRIGHT_ENV_FILE?.trim();
@@ -35,6 +41,14 @@ function parseArgs(argv) {
   };
 }
 
+function parsePreservedSlugs() {
+  const fromEnv = String(process.env.PRESERVE_TEST_DOCTOR_SLUGS ?? "")
+    .split(",")
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean);
+  return new Set([...DEFAULT_PRESERVED_SLUGS, ...fromEnv]);
+}
+
 async function listAllAuthUsers(admin) {
   const all = [];
   for (let page = 1; ; page += 1) {
@@ -50,6 +64,7 @@ async function listAllAuthUsers(admin) {
 }
 
 async function selectDoctors(admin) {
+  const preservedSlugs = parsePreservedSlugs();
   const byEmail = [];
   for (const suffix of TEST_EMAIL_SUFFIXES) {
     const { data, error } = await admin
@@ -80,18 +95,12 @@ async function selectDoctors(admin) {
     bySlug.push(...(data ?? []));
   }
 
-  const byFlag = [];
-  const { data: flagged, error: flaggedError } = await admin
-    .from("doctors")
-    .select("id,auth_user_id,email,name,slug,is_test_profile")
-    .eq("is_test_profile", true);
-  if (flaggedError) {
-    throw new Error(`Failed loading doctors by is_test_profile flag: ${flaggedError.message}`);
-  }
-  byFlag.push(...(flagged ?? []));
-
   const unique = new Map();
-  for (const row of [...byEmail, ...byName, ...bySlug, ...byFlag]) {
+  for (const row of [...byEmail, ...byName, ...bySlug]) {
+    const slug = String(row.slug ?? "").trim().toLowerCase();
+    if (slug && preservedSlugs.has(slug)) {
+      continue;
+    }
     unique.set(String(row.id), row);
   }
   return [...unique.values()];

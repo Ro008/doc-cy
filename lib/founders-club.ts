@@ -1,6 +1,7 @@
 import { createServiceRoleClient } from "@/lib/supabase-service";
 
 export const MAX_FOUNDERS = 100;
+const MARKETING_INCLUDED_DOCTOR_SLUGS = ["andreas-nikos", "kasia-petrova"] as const;
 
 export type FoundersAvailability = {
   currentUsersCount: number;
@@ -41,7 +42,24 @@ export async function getFoundersAvailability(): Promise<FoundersAvailability> {
     };
   }
 
-  const currentUsersCount = clamp(countRes.count ?? 0, 0, MAX_FOUNDERS);
+  let currentUsersCount = countRes.count ?? 0;
+
+  // Marketing override: explicitly count selected seeded profiles even if
+  // they are no longer founder+verified after test/ops adjustments.
+  const marketingRes = await supabase
+    .from("doctors")
+    .select("id, slug, subscription_tier, status")
+    .in("slug", [...MARKETING_INCLUDED_DOCTOR_SLUGS]);
+
+  if (!marketingRes.error && Array.isArray(marketingRes.data)) {
+    const extraMarketingCount = marketingRes.data.filter((doctor) => {
+      const alreadyCounted = doctor.subscription_tier === "founder" && doctor.status === "verified";
+      return !alreadyCounted;
+    }).length;
+    currentUsersCount += extraMarketingCount;
+  }
+
+  currentUsersCount = clamp(currentUsersCount, 0, MAX_FOUNDERS);
   const spotsRemaining = clamp(MAX_FOUNDERS - currentUsersCount, 0, MAX_FOUNDERS);
   const progressPercent = clamp(((MAX_FOUNDERS - spotsRemaining) / MAX_FOUNDERS) * 100, 0, 100);
 
