@@ -36,7 +36,8 @@ async function createVerifiedDoctor(
     avatarPath?: string;
   }
 ): Promise<CreatedDoctor> {
-  const email = `${input.slugPrefix}-${nonce}@integration.test`;
+  // Use a cleanup-recognized suffix but avoid finder's test-marker filters.
+  const email = `${input.slugPrefix}-${nonce}@test-doccy.com.cy`;
   const slug = `${input.slugPrefix}-${nonce}`;
   const userRes = await admin.auth.admin.createUser({
     email,
@@ -65,7 +66,8 @@ async function createVerifiedDoctor(
       status: "verified",
       slug,
       is_specialty_approved: true,
-      is_test_profile: true,
+      // Must be visible in finder during assertions.
+      is_test_profile: false,
       subscription_tier: "standard",
     })
     .select("id")
@@ -226,12 +228,12 @@ test.describe("Integration: finder business-critical UX", () => {
 
     try {
       created = await createVerifiedDoctor(admin, nonce, {
-        slugPrefix: "finder-card",
+        slugPrefix: "qa-card",
         name: `Finder Card ${nonce}`,
         specialty: "Dentistry",
         district: "Paphos",
         languages: ["Greek", "English"],
-        avatarPath: `profiles/finder-card-${nonce}/avatar.jpg`,
+        avatarPath: `profiles/qa-card-${nonce}/avatar.jpg`,
       });
 
       await page.goto("/finder/paphos/dentistry");
@@ -250,7 +252,7 @@ test.describe("Integration: finder business-critical UX", () => {
       );
 
       const avatar = card.locator("img").first();
-      await expect(avatar).toHaveAttribute("src", new RegExp(`profiles/finder-card-${nonce}/avatar.jpg`));
+      await expect(avatar).toHaveAttribute("src", new RegExp(`profiles/qa-card-${nonce}/avatar.jpg`));
     } finally {
       if (created) {
         await admin.from("doctors").delete().eq("id", created.doctorId);
@@ -275,8 +277,8 @@ test.describe("Integration: finder business-critical UX", () => {
     try {
       const cases = [
         { input: `Dr. Prefix Cleanup ${nonce}`, expected: `Prefix Cleanup ${nonce}`, slugPrefix: "finder-prefix-dr-dot" },
-        { input: `Dr Prefix Cleanup ${nonce}`, expected: `Prefix Cleanup ${nonce}`, slugPrefix: "finder-prefix-dr" },
-        { input: `Doctor Prefix Cleanup ${nonce}`, expected: `Prefix Cleanup ${nonce}`, slugPrefix: "finder-prefix-doctor" },
+        { input: `Dr Prefix Cleanup ${nonce}`, expected: `Prefix Cleanup ${nonce}`, slugPrefix: "qa-prefix-dr" },
+        { input: `Doctor Prefix Cleanup ${nonce}`, expected: `Prefix Cleanup ${nonce}`, slugPrefix: "qa-prefix-doctor" },
       ] as const;
 
       for (const testCase of cases) {
@@ -325,7 +327,7 @@ test.describe("Integration: finder business-critical UX", () => {
     try {
       created.push(
         await createVerifiedDoctor(admin, `${nonce}-a`, {
-          slugPrefix: "finder-filter-a",
+          slugPrefix: "qa-filter-a",
           name: `Finder Filter A ${nonce}`,
           specialty: "Dentistry",
           district: "Nicosia",
@@ -334,7 +336,7 @@ test.describe("Integration: finder business-critical UX", () => {
       );
       created.push(
         await createVerifiedDoctor(admin, `${nonce}-b`, {
-          slugPrefix: "finder-filter-b",
+          slugPrefix: "qa-filter-b",
           name: `Finder Filter B ${nonce}`,
           specialty: "Dermatology",
           district: "Limassol",
