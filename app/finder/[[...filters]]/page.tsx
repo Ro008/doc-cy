@@ -4,6 +4,7 @@ import { DocCyWordmark } from "@/components/brand/DocCyWordmark";
 import { CYPRUS_DISTRICTS, type CyprusDistrict, isCyprusDistrict } from "@/lib/cyprus-districts";
 import { languageThemeForLabel } from "@/lib/cyprus-languages";
 import { createServiceRoleClient } from "@/lib/supabase-service";
+import { doctorDashboardDisplayName } from "@/lib/doctor-display-name";
 import { FinderFilters } from "@/components/finder/FinderFilters";
 import { FinderResultsTransition } from "@/components/finder/FinderResultsTransition";
 import { FinderStructuredData } from "@/components/finder/FinderStructuredData";
@@ -34,9 +35,11 @@ type FinderPageProps = {
 type RegisteredFinderRow = {
   id: string;
   name: string;
+  displayName: string;
   specialty: string | null;
   district: string | null;
   slug: string | null;
+  email: string | null;
   languages: string[];
   avatarUrl: string | null;
   isTestProfile: boolean;
@@ -45,12 +48,22 @@ type RegisteredFinderRow = {
 type ManualFinderRow = {
   id: string;
   name: string;
+  displayName: string;
   specialty: string;
   district: CyprusDistrict;
   address_maps_link: string;
 };
 
 const TEST_NAME_MARKER = /\btest\b/i;
+const TEST_EMAIL_MARKER = /@(integration\.test|.*\.testing)$/i;
+const TEST_SLUG_MARKER = /^(booking-flow-|finder-card-|finder-ux-|finder-filter-)/i;
+const SEO_CITIES: CyprusDistrict[] = ["Nicosia", "Limassol", "Paphos", "Larnaca"];
+const SEO_SPECIALTIES = [
+  { label: "Dentistry", pluralLabel: "Dentists" },
+  { label: "Physiotherapy", pluralLabel: "Physiotherapists" },
+  { label: "Psychology", pluralLabel: "Psychologists" },
+  { label: "Dermatology", pluralLabel: "Dermatologists" },
+] as const;
 
 function isRecoverableSelectSchemaError(error: { code?: string; message?: string } | null): boolean {
   if (!error) return false;
@@ -97,10 +110,15 @@ function toPublicAvatarUrl(rawValue: unknown): string | null {
 
 function isTestProfileLike(row: {
   name: string;
+  slug?: string | null;
+  email?: string | null;
   isTestProfile?: boolean | null;
 }): boolean {
   if (row.isTestProfile === true) return true;
-  return TEST_NAME_MARKER.test(row.name);
+  if (TEST_NAME_MARKER.test(row.name)) return true;
+  if (TEST_SLUG_MARKER.test(String(row.slug ?? ""))) return true;
+  if (TEST_EMAIL_MARKER.test(String(row.email ?? ""))) return true;
+  return false;
 }
 
 function normalizeSpecialtyTerm(value: string): string {
@@ -226,6 +244,14 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
 
   if (supabase) {
     const registeredSelectAttempts = [
+      "id, name, specialty, district, slug, email, languages, avatar_url, is_test_profile",
+      "id, name, specialty, district, slug, email, languages, avatar_url",
+      "id, name, specialty, district, slug, email, languages, is_test_profile",
+      "id, name, specialty, district, slug, email, languages",
+      "id, name, specialty, district, slug, email, is_test_profile",
+      "id, name, specialty, district, slug, email",
+      "id, name, specialty, slug, email, is_test_profile",
+      "id, name, specialty, slug, email",
       "id, name, specialty, district, slug, languages, avatar_url, is_test_profile",
       "id, name, specialty, district, slug, languages, avatar_url",
       "id, name, specialty, district, slug, languages, is_test_profile",
@@ -261,15 +287,25 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
           return {
             id: String(raw.id ?? ""),
             name: String(raw.name ?? "Professional"),
+            displayName: doctorDashboardDisplayName(String(raw.name ?? "Professional")),
             specialty: (raw.specialty as string | null) ?? null,
             district: (raw.district as string | null) ?? null,
             slug: (raw.slug as string | null) ?? null,
+            email: (raw.email as string | null) ?? null,
             languages: normalizeLanguages(raw.languages),
             avatarUrl: toPublicAvatarUrl(raw.avatar_url),
             isTestProfile: Boolean(raw.is_test_profile ?? false),
           };
         })
-        .filter((row) => !isTestProfileLike({ name: row.name, isTestProfile: row.isTestProfile }));
+        .filter(
+          (row) =>
+            !isTestProfileLike({
+              name: row.name,
+              slug: row.slug,
+              email: row.email,
+              isTestProfile: row.isTestProfile,
+            })
+        );
       break;
     }
 
@@ -286,6 +322,7 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
       manualRows = (manualRes.data ?? []).map((row) => ({
         id: row.id as string,
         name: String(row.name ?? "Professional"),
+        displayName: doctorDashboardDisplayName(String(row.name ?? "Professional")),
         specialty: String(row.specialty ?? "Specialty not set"),
         district: row.district as CyprusDistrict,
         address_maps_link: String(row.address_maps_link ?? ""),
@@ -305,7 +342,11 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
     if (activeSpecialty && !matchesSpecialtyFilter(row.specialty ?? "", activeSpecialty)) {
       return false;
     }
-    if (activeName && !row.name.toLowerCase().includes(activeName.toLowerCase())) {
+    if (
+      activeName &&
+      !row.displayName.toLowerCase().includes(activeName.toLowerCase()) &&
+      !row.name.toLowerCase().includes(activeName.toLowerCase())
+    ) {
       return false;
     }
     return true;
@@ -321,7 +362,11 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
     if (activeSpecialty && !matchesSpecialtyFilter(row.specialty, activeSpecialty)) {
       return false;
     }
-    if (activeName && !row.name.toLowerCase().includes(activeName.toLowerCase())) {
+    if (
+      activeName &&
+      !row.displayName.toLowerCase().includes(activeName.toLowerCase()) &&
+      !row.name.toLowerCase().includes(activeName.toLowerCase())
+    ) {
       return false;
     }
     return true;
@@ -354,7 +399,7 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
       const row = item.row;
       const profileUrl = row.slug ? `${siteUrl}/${row.slug}` : null;
       return {
-        name: row.name,
+        name: row.displayName,
         specialty: row.specialty ?? "General Practice",
         district: (row.district ?? activeDistrict) || null,
         profileUrl,
@@ -364,7 +409,7 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
 
     const row = item.row;
     return {
-      name: row.name,
+      name: row.displayName,
       specialty: row.specialty,
       district: row.district,
       profileUrl: null,
@@ -426,19 +471,19 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                           {row.avatarUrl ? (
                             <img
                               src={row.avatarUrl}
-                              alt={`${row.name} profile photo`}
+                              alt={`${row.displayName} profile photo`}
                               className="h-full w-full object-cover"
                               loading="lazy"
                             />
                           ) : (
                             <div className="flex h-full w-full items-center justify-center text-sm font-semibold text-emerald-200">
-                              {getInitials(row.name)}
+                              {getInitials(row.displayName)}
                             </div>
                           )}
                         </div>
                         <div className="min-w-0 flex-1">
                           <p className="text-[17px] font-bold leading-[1.2] tracking-tight text-slate-50">
-                            {row.name}
+                            {row.displayName}
                           </p>
                           <p className="mt-2 inline-flex max-w-full items-center rounded-full border border-slate-700/80 bg-slate-900/90 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-300">
                             <span className="whitespace-normal break-words text-center leading-snug">
@@ -494,12 +539,12 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                     <div className="flex items-start gap-3">
                       <div className="flex h-[72px] w-[72px] shrink-0 items-center justify-center overflow-hidden rounded-full border border-slate-600 bg-slate-800/80 ring-2 ring-slate-500/10">
                         <span className="text-sm font-semibold text-slate-200">
-                          {getInitials(row.name)}
+                          {getInitials(row.displayName)}
                         </span>
                       </div>
                       <div className="min-w-0 flex-1">
                         <p className="text-[17px] font-bold leading-[1.2] tracking-tight text-slate-50">
-                          {row.name}
+                          {row.displayName}
                         </p>
                         <p className="mt-2 inline-flex max-w-full items-center rounded-full border border-slate-700/80 bg-slate-900/90 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-300">
                           <span className="whitespace-normal break-words text-center leading-snug">
@@ -548,23 +593,58 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
 
           <footer className="mt-12 border-t border-slate-800/80 pt-6 pb-2">
             <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
-              <section>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-                  Find a Professional quick links
-                </p>
-                <div className="mt-3 flex flex-wrap gap-2.5">
-                  <PendingLink
-                    href={`/finder/paphos/${specialtyToSlug("Dentistry")}`}
-                    className="inline-flex rounded-lg border border-slate-700 bg-slate-900/60 px-3 py-1.5 text-xs font-medium text-slate-200 transition hover:border-emerald-300/50 hover:text-emerald-200"
-                  >
-                    Dentists in Paphos
-                  </PendingLink>
-                  <PendingLink
-                    href={`/finder/limassol/${specialtyToSlug("Dermatology")}`}
-                    className="inline-flex rounded-lg border border-slate-700 bg-slate-900/60 px-3 py-1.5 text-xs font-medium text-slate-200 transition hover:border-emerald-300/50 hover:text-emerald-200"
-                  >
-                    Dermatologists in Limassol
-                  </PendingLink>
+              <section className="w-full">
+                <h2 className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                  Popular Healthcare Searches in Cyprus
+                </h2>
+
+                <details className="mt-3 rounded-xl border border-slate-700/80 bg-slate-900/50 p-3 md:hidden">
+                  <summary className="cursor-pointer text-sm font-semibold text-slate-100">
+                    Explore by city and specialty
+                  </summary>
+                  <div className="mt-3 grid gap-4">
+                    {SEO_CITIES.map((city) => (
+                      <section key={`mobile-${city}`}>
+                        <h3 className="text-xs font-semibold uppercase tracking-[0.12em] text-emerald-300">
+                          {city}
+                        </h3>
+                        <ul className="mt-2 space-y-1.5">
+                          {SEO_SPECIALTIES.map((specialty) => (
+                            <li key={`${city}-${specialty.label}-mobile`}>
+                              <a
+                                href={`/finder/${districtToSlug(city)}/${specialtyToSlug(specialty.label)}`}
+                                className="text-sm text-slate-200 underline underline-offset-4 transition hover:text-emerald-200"
+                              >
+                                {specialty.pluralLabel} in {city}
+                              </a>
+                            </li>
+                          ))}
+                        </ul>
+                      </section>
+                    ))}
+                  </div>
+                </details>
+
+                <div className="mt-3 hidden gap-5 md:grid md:grid-cols-2 lg:grid-cols-4">
+                  {SEO_CITIES.map((city) => (
+                    <section key={`desktop-${city}`}>
+                      <h3 className="text-xs font-semibold uppercase tracking-[0.12em] text-emerald-300">
+                        {city}
+                      </h3>
+                      <ul className="mt-2 space-y-1.5">
+                        {SEO_SPECIALTIES.map((specialty) => (
+                          <li key={`${city}-${specialty.label}-desktop`}>
+                            <a
+                              href={`/finder/${districtToSlug(city)}/${specialtyToSlug(specialty.label)}`}
+                              className="text-xs text-slate-200 underline underline-offset-4 transition hover:text-emerald-200"
+                            >
+                              {specialty.pluralLabel} in {city}
+                            </a>
+                          </li>
+                        ))}
+                      </ul>
+                    </section>
+                  ))}
                 </div>
               </section>
 

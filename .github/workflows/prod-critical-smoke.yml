@@ -32,6 +32,8 @@ jobs:
   prod-critical-smoke:
     if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.notify_only != 'true' }}
     runs-on: ubuntu-latest
+    outputs:
+      doctor_ui_monitor_outcome: ${{ steps.doctor-ui-monitor.outcome }}
     # Cold runs: npm ci + playwright --with-deps (apt + fonts) + prod suite can exceed 30m.
     timeout-minutes: 45
     steps:
@@ -192,6 +194,7 @@ jobs:
       # Secondary monitor (non-blocking): keeps nightly visibility on login/agenda UI volatility
       # without weakening the blocking critical business contract above.
       - name: Run doctor login and agenda UI monitors (non-blocking)
+        id: doctor-ui-monitor
         if: always()
         continue-on-error: true
         env:
@@ -352,6 +355,7 @@ jobs:
         env:
           WEBHOOK_URL: ${{ secrets.WHATSAPP_WEBHOOK_URL }}
           PROD_RESULT: ${{ needs.prod-critical-smoke.result }}
+          PROD_DOCTOR_UI_MONITOR_OUTCOME: ${{ needs.prod-critical-smoke.outputs.doctor_ui_monitor_outcome || 'skipped' }}
           INTEGRATION_RESULT: ${{ needs.business-critical-integration.result }}
           RUN_ID: ${{ github.run_id }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
@@ -379,8 +383,23 @@ jobs:
             esac
           }
 
+          format_non_blocking_status() {
+            case "$1" in
+              success) echo "✅ $2 OK (non-blocking)" ;;
+              cancelled) echo "⚠️ $2 CANCELLED (non-blocking)" ;;
+              skipped) echo "⚪ $2 SKIPPED (non-blocking)" ;;
+              *) echo "⚠️ $2 FAIL (non-blocking)" ;;
+            esac
+          }
+
           PROD_LINE="$(format_job_status "${PROD_RESULT}" "Prod")"
           INTEGRATION_LINE="$(format_job_status "${INTEGRATION_RESULT}" "Integration")"
+          DOCTOR_UI_MONITOR_LINE="$(format_non_blocking_status "${PROD_DOCTOR_UI_MONITOR_OUTCOME}" "Doctor login/agenda UI monitor")"
+
+          HAS_NON_BLOCKING_WARNING="false"
+          if [ "${PROD_DOCTOR_UI_MONITOR_OUTCOME}" != "success" ] && [ "${PROD_DOCTOR_UI_MONITOR_OUTCOME}" != "skipped" ]; then
+            HAS_NON_BLOCKING_WARNING="true"
+          fi
 
           case "${OVERALL_RESULT}" in
             success) ICON="✅" ;;
@@ -388,10 +407,14 @@ jobs:
             *) ICON="❌" ;;
           esac
 
+          if [ "${OVERALL_RESULT}" = "success" ] && [ "${HAS_NON_BLOCKING_WARNING}" = "true" ]; then
+            ICON="⚠️"
+          fi
+
           if [ "${NOTIFY_ONLY}" = "true" ]; then
             MSG="🧪 DocCy PROD manual WhatsApp test | run ${RUN_ID}"
           else
-            MSG="${ICON} DocCy nightly | ${PROD_LINE} | ${INTEGRATION_LINE} | run ${RUN_ID}"
+            MSG="${ICON} DocCy nightly | ${PROD_LINE} | ${INTEGRATION_LINE} | ${DOCTOR_UI_MONITOR_LINE} | run ${RUN_ID}"
           fi
           if [ -n "${EXTRA_MESSAGE}" ]; then
             MSG="${MSG} | ${EXTRA_MESSAGE}"

@@ -37,7 +37,8 @@ async function createVerifiedDoctor(
     languages: string[];
   }
 ): Promise<CreatedDoctor> {
-  const email = `${input.slugPrefix}-${nonce}@integration.test`;
+  // Keep cleanup-compatible suffix while avoiding finder anti-test filters.
+  const email = `${input.slugPrefix}-${nonce}@test-doccy.com.cy`;
   const slug = `${input.slugPrefix}-${nonce}`;
   const userRes = await admin.auth.admin.createUser({
     email,
@@ -65,6 +66,8 @@ async function createVerifiedDoctor(
       status: "verified",
       slug,
       is_specialty_approved: true,
+      // Must stay visible in finder for user-behavior assertions.
+      is_test_profile: false,
       subscription_tier: "standard",
     })
     .select("id")
@@ -102,7 +105,7 @@ test.describe("Integration: finder user-like filter behavior matrix", () => {
     try {
       created.push(
         await createVerifiedDoctor(admin, `${nonce}-a`, {
-          slugPrefix: "finder-ux-limassol-derm",
+          slugPrefix: "qa-ux-limassol-derm",
           name: `Finder UX Limassol Derm ${nonce}`,
           specialty: "Dermatology",
           district: "Limassol",
@@ -111,7 +114,7 @@ test.describe("Integration: finder user-like filter behavior matrix", () => {
       );
       created.push(
         await createVerifiedDoctor(admin, `${nonce}-b`, {
-          slugPrefix: "finder-ux-limassol-dent",
+          slugPrefix: "qa-ux-limassol-dent",
           name: `Finder UX Limassol Dent ${nonce}`,
           specialty: "Dentistry",
           district: "Limassol",
@@ -120,7 +123,7 @@ test.describe("Integration: finder user-like filter behavior matrix", () => {
       );
       created.push(
         await createVerifiedDoctor(admin, `${nonce}-c`, {
-          slugPrefix: "finder-ux-paphos-dent",
+          slugPrefix: "qa-ux-paphos-dent",
           name: `Finder UX Paphos Dent ${nonce}`,
           specialty: "Dentistry",
           district: "Paphos",

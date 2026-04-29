@@ -24,6 +24,8 @@ if (supabaseUrl) {
 }
 
 const nextConfig = {
+  // Avoid Dropbox locks on the default ".next/trace" path in Windows.
+  distDir: process.platform === "win32" ? ".next-local" : ".next",
   images: {
     remotePatterns,
   },

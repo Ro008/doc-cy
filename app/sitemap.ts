@@ -2,6 +2,7 @@ import type { MetadataRoute } from "next";
 import { CYPRUS_DISTRICTS, isCyprusDistrict, type CyprusDistrict } from "@/lib/cyprus-districts";
 import { createServiceRoleClient } from "@/lib/supabase-service";
 import { districtToSlug, specialtyToSlug, slugToDistrict } from "@/lib/finder-seo";
+import { getAllBlogPostMeta } from "@/lib/blog";
 
 function normalizeDistrictSlug(value: unknown): string {
   const raw = String(value ?? "").trim();
@@ -19,17 +20,18 @@ function normalizeSpecialtySlug(value: unknown): string {
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim() || "https://www.mydoccy.com";
+  const siteBase = siteUrl.replace(/\/+$/, "");
   const now = new Date();
 
   const staticEntries: MetadataRoute.Sitemap = [
     {
-      url: `${siteUrl}/`,
+      url: `${siteBase}/`,
       lastModified: now,
       changeFrequency: "weekly",
       priority: 1.0,
     },
     {
-      url: `${siteUrl}/finder`,
+      url: `${siteBase}/finder`,
       lastModified: now,
       changeFrequency: "daily",
       priority: 0.8,
@@ -102,7 +104,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const districtSlug = districtToSlug(district);
     if (districtSet.has(districtSlug)) {
       staticEntries.push({
-        url: `${siteUrl}/finder/${districtSlug}`,
+        url: `${siteBase}/finder/${districtSlug}`,
         lastModified: now,
         changeFrequency: "daily",
         priority: 0.8,
@@ -115,13 +117,21 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     .map((pair) => {
       const [districtSlug, specialtySlug] = pair.split("::");
       return {
-        url: `${siteUrl}/finder/${districtSlug}/${specialtySlug}`,
+        url: `${siteBase}/finder/${districtSlug}/${specialtySlug}`,
         lastModified: now,
         changeFrequency: "daily" as const,
         priority: 0.8,
       };
     });
 
-  return [...staticEntries, ...dynamicFinderEntries];
+  const blogPosts = await getAllBlogPostMeta();
+  const blogEntries: MetadataRoute.Sitemap = blogPosts.map((post) => ({
+    url: `${siteBase}/blog/${post.slug}`,
+    lastModified: new Date(post.updatedAt || post.publishedAt),
+    changeFrequency: "weekly",
+    priority: 0.7,
+  }));
+
+  return [...staticEntries, ...dynamicFinderEntries, ...blogEntries];
 }
 

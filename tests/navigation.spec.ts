@@ -112,6 +112,11 @@ test.describe("Navigation and routing", () => {
     await dentistsQuickLink.click();
 
     await expect(page).toHaveURL(/\/finder\/paphos\/dentistry(?:\?|$)/);
-    await expect(dentistsQuickLink).toHaveAttribute("aria-busy", "false");
+    await expect(
+      page.getByRole("heading", {
+        level: 1,
+        name: /Dentistry in Paphos/i,
+      })
+    ).toBeVisible();
   });
 });
