@@ -6,6 +6,7 @@ import { createElement } from "react";
 import { BlogMdxImage } from "@/components/blog/BlogMdxImage";
 
 const BLOG_CONTENT_DIR = path.join(process.cwd(), "content", "blog");
+const CYPRUS_TIMEZONE = "Europe/Nicosia";
 
 type BlogFrontmatter = {
   title: string;
@@ -88,6 +89,46 @@ function normalizeFrontmatter(frontmatter: Partial<BlogFrontmatter>, slug: strin
   };
 }
 
+function getCyprusTodayIsoDate(now = new Date()): string {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: CYPRUS_TIMEZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  })
+    .formatToParts(now)
+    .reduce<Record<string, string>>((acc, part) => {
+      acc[part.type] = part.value;
+      return acc;
+    }, {});
+  return `${parts.year}-${parts.month}-${parts.day}`;
+}
+
+function isPublishedByNow(publishedAt: string, now = new Date()): boolean {
+  const raw = publishedAt.trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+    // Date-only publishing uses Cyprus local date (EET/EEST aware).
+    return raw <= getCyprusTodayIsoDate(now);
+  }
+  const parsed = new Date(raw);
+  if (Number.isNaN(parsed.getTime())) return false;
+  return parsed.getTime() <= now.getTime();
+}
+
+function toIsoDatePart(value: string): string | null {
+  const raw = value.trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+  const parsed = new Date(raw);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return parsed.toISOString().slice(0, 10);
+}
+
+function addDaysIsoDate(dateIso: string, days: number): string {
+  const d = new Date(`${dateIso}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
 async function readPostSourceBySlug(slug: string): Promise<string | null> {
   const fullPath = path.join(BLOG_CONTENT_DIR, `${slug}.mdx`);
   try {
@@ -128,9 +169,67 @@ export async function getAllBlogPostMeta(): Promise<BlogPostMeta[]> {
     })
   );
 
-  return posts.sort(
-    (a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
+  return posts
+    .filter((post) => isPublishedByNow(post.publishedAt))
+    .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
+}
+
+async function getAllBlogPostMetaIncludingScheduled(): Promise<BlogPostMeta[]> {
+  let files: string[] = [];
+  try {
+    files = await fs.readdir(BLOG_CONTENT_DIR);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
+    throw error;
+  }
+
+  const mdxFiles = files.filter(
+    (file) => file.toLowerCase().endsWith(".mdx") && !path.basename(file).startsWith("_")
   );
+  const posts = await Promise.all(
+    mdxFiles.map(async (fileName) => {
+      const slug = normalizeSlug(fileName);
+      const source = await fs.readFile(path.join(BLOG_CONTENT_DIR, fileName), "utf8");
+      const { frontmatter } = await compileMDX<Partial<BlogFrontmatter>>({
+        source,
+        options: {
+          parseFrontmatter: true,
+        },
+        components: {
+          a: renderMdxAnchor,
+          img: BlogMdxImage,
+        },
+      });
+      return normalizeFrontmatter(frontmatter, slug);
+    })
+  );
+
+  return posts.sort((a, b) => new Date(a.publishedAt).getTime() - new Date(b.publishedAt).getTime());
+}
+
+export async function suggestNextBlogPublishDates(count: number): Promise<string[]> {
+  const safeCount = Number.isFinite(count) ? Math.max(0, Math.floor(count)) : 0;
+  if (safeCount === 0) return [];
+
+  const allPosts = await getAllBlogPostMetaIncludingScheduled();
+  const todayInCyprus = getCyprusTodayIsoDate();
+  const latestExistingDate = allPosts
+    .map((post) => toIsoDatePart(post.publishedAt))
+    .filter((v): v is string => Boolean(v))
+    .sort((a, b) => a.localeCompare(b))
+    .at(-1);
+
+  const baseDate = latestExistingDate && latestExistingDate > todayInCyprus ? latestExistingDate : todayInCyprus;
+  const scheduled: string[] = [];
+  for (let i = 1; i <= safeCount; i += 1) {
+    scheduled.push(addDaysIsoDate(baseDate, i));
+  }
+  return scheduled;
+}
+
+export async function suggestNextBlogPublishDate(): Promise<string> {
+  const [next] = await suggestNextBlogPublishDates(1);
+  return next;
 }
 
 export async function getBlogPostBySlug(slug: string): Promise<BlogPost | null> {
@@ -152,8 +251,13 @@ export async function getBlogPostBySlug(slug: string): Promise<BlogPost | null> 
     },
   });
 
+  const meta = normalizeFrontmatter(frontmatter, normalizedSlug);
+  if (!isPublishedByNow(meta.publishedAt)) {
+    return null;
+  }
+
   return {
-    ...normalizeFrontmatter(frontmatter, normalizedSlug),
+    ...meta,
     content,
   };
 }
