@@ -97,6 +97,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Validate blog image rule
+        run: npm run test:content:blog-images
+
       - name: Build Next.js (PR branch)
         run: npm run build
         env:
@@ -135,6 +138,7 @@ jobs:
           INTEGRATION_SCHEDULE_TEST_DOCTOR_SLUG: ${{ vars.INTEGRATION_SCHEDULE_TEST_DOCTOR_SLUG }}
         run: |
           npx playwright test \
+            tests/blog_single_image_ui.spec.ts \
             tests/integration/appointments_race_condition.integration.spec.ts \
             tests/integration/settings_clinic_address_notice.integration.spec.ts \
             tests/integration/needs_reschedule_slot_free.integration.spec.ts \
