@@ -71,16 +71,14 @@ function buildTrafficOrigin(req: NextRequest): {origin: "direct" | "ref"; refCod
 function trimUtm(value: string | null): string | null {
   const v = value?.trim();
   if (!v) return null;
-  return v.slice(0, 80);
+  // Canonicalize UTMs so analytics queries remain stable across scanners/providers.
+  // Example: "Business-Card" -> "business_card".
+  return v.toLowerCase().replace(/[\s-]+/g, "_").slice(0, 80);
 }
 
 const MAX_USER_AGENT_LEN = 512;
 
 function queueTrafficLog(req: NextRequest, sessionId: string, event: NextFetchEvent) {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
-  if (!url || !serviceRoleKey) return;
-
   const rawUa = req.headers.get("user-agent");
   const userAgent =
     rawUa && rawUa.trim() ? rawUa.trim().slice(0, MAX_USER_AGENT_LEN) : null;
@@ -101,18 +99,18 @@ function queueTrafficLog(req: NextRequest, sessionId: string, event: NextFetchEv
     created_at: new Date().toISOString(),
   };
 
-  const endpoint = `${url.replace(/\/+$/, "")}/rest/v1/website_visits`;
+  const endpoint = `${req.nextUrl.origin}/api/traffic/log`;
   event.waitUntil(
     fetch(endpoint, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        apikey: serviceRoleKey,
-        Authorization: `Bearer ${serviceRoleKey}`,
-        Prefer: "return=minimal",
       },
       body: JSON.stringify(payload),
-    }).catch(() => undefined)
+    }).catch((error) => {
+      console.error("[DocCy][traffic] middleware_forward_failed", error);
+      return undefined;
+    })
   );
 }
 

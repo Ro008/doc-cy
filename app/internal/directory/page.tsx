@@ -23,6 +23,10 @@ import { buildLastSixMonthsAppointmentCounts } from "@/lib/founder-appointments-
 import { cyprusMonthStartUtcIso } from "@/lib/cyprus-calendar";
 import { TrialConversionTable } from "@/components/internal/TrialConversionTable";
 import { getTrialPeriodDays } from "@/lib/trial-period";
+import {
+  countBusinessCardVisits,
+  type WebsiteVisitRow,
+} from "@/lib/website-analytics";
 import { WebsiteAnalyticsPanel } from "@/components/internal/WebsiteAnalyticsPanel";
 import { PendingLink } from "@/components/navigation/PendingLink";
 import {
@@ -35,7 +39,31 @@ import { buildDuplicateSuggestions } from "@/lib/duplicate-matching";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-export default async function FounderDashboardPage() {
+type VisitsRangeKey = "7d" | "30d" | "90d";
+
+function parseVisitsRange(value: string | string[] | undefined): VisitsRangeKey {
+  const raw = Array.isArray(value) ? value[0] : value;
+  if (raw === "30d" || raw === "90d") return raw;
+  return "7d";
+}
+
+function getVisitsWindowDays(range: VisitsRangeKey): number {
+  if (range === "30d") return 30;
+  if (range === "90d") return 90;
+  return 7;
+}
+
+function getVisitsRangeLabel(range: VisitsRangeKey): string {
+  if (range === "30d") return "Last 30 days";
+  if (range === "90d") return "Last 90 days";
+  return "Last 7 days";
+}
+
+export default async function FounderDashboardPage({
+  searchParams,
+}: {
+  searchParams?: { visitsRange?: string | string[] };
+}) {
   const supabase = createServiceRoleClient();
 
   if (!supabase) {
@@ -61,6 +89,11 @@ export default async function FounderDashboardPage() {
 
   const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
   const sevenDaysAgoIso = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  const visitsRange = parseVisitsRange(searchParams?.visitsRange);
+  const visitsWindowDays = getVisitsWindowDays(visitsRange);
+  const visitsWindowStartIso = new Date(
+    Date.now() - visitsWindowDays * 24 * 60 * 60 * 1000
+  ).toISOString();
   const monthStartIso = cyprusMonthStartUtcIso();
   const chartRangeStart = startOfMonth(subMonths(new Date(), 5));
 
@@ -71,7 +104,7 @@ export default async function FounderDashboardPage() {
     appts7dRes,
     recentApptsRes,
     apptsForChartRes,
-    websiteVisitsCountBusinessCard7dRes,
+    websiteVisitsLast7dRes,
   ] = await Promise.all([
     supabase
       .from("doctors")
@@ -96,11 +129,9 @@ export default async function FounderDashboardPage() {
       .gte("created_at", chartRangeStart.toISOString()),
     supabase
       .from("website_visits")
-      .select("*", { count: "exact", head: true })
-      .gte("created_at", sevenDaysAgoIso)
-      .eq("is_bot", false)
-      .eq("utm_source", "offline")
-      .eq("utm_medium", "business_card"),
+      .select("session_id, page_path, city, country, traffic_origin, ref_code, utm_source, utm_medium, user_agent, is_bot, created_at")
+      .gte("created_at", visitsWindowStartIso)
+      .eq("is_bot", false),
   ]);
 
   if (doctorsRes.error) {
@@ -370,12 +401,11 @@ export default async function FounderDashboardPage() {
     };
   });
   const trialPeriodDays = getTrialPeriodDays();
-  const visits7dBusinessCard =
-    !websiteVisitsCountBusinessCard7dRes.error &&
-    websiteVisitsCountBusinessCard7dRes.count != null
-      ? websiteVisitsCountBusinessCard7dRes.count
-      : 0;
-  const businessCardVisitsLast7d = visits7dBusinessCard;
+  const visits7dRows: WebsiteVisitRow[] =
+    !websiteVisitsLast7dRes.error && websiteVisitsLast7dRes.data
+      ? (websiteVisitsLast7dRes.data as WebsiteVisitRow[])
+      : [];
+  const businessCardVisitsInRange = countBusinessCardVisits(visits7dRows);
 
   return (
     <main className="min-h-screen bg-slate-950 text-slate-50">
@@ -443,7 +473,14 @@ export default async function FounderDashboardPage() {
         </div>
         <TrialConversionTable doctors={verifiedRows} />
         <WebsiteAnalyticsPanel
-          businessCardVisitsLast7d={businessCardVisitsLast7d}
+          businessCardVisitsCount={businessCardVisitsInRange}
+          visitsRangeLabel={getVisitsRangeLabel(visitsRange)}
+          rangeOptions={[
+            { key: "7d", label: "7d", href: "/internal/directory?visitsRange=7d" },
+            { key: "30d", label: "30d", href: "/internal/directory?visitsRange=30d" },
+            { key: "90d", label: "90d", href: "/internal/directory?visitsRange=90d" },
+          ]}
+          activeRange={visitsRange}
         />
 
         <div className="grid gap-6 xl:grid-cols-12">
