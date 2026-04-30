@@ -165,9 +165,13 @@ export function RegisterAvatarUpload({
   }
 
   return (
-    <div className="rounded-2xl border border-slate-700/80 bg-slate-900/40 p-4">
+    <div
+      className="group rounded-2xl border border-slate-700/80 bg-slate-900/40 p-4"
+      data-validate-field="1"
+      data-invalid="0"
+    >
       <p className="text-xs font-semibold uppercase tracking-wide text-slate-300">
-        Professional profile photo <span className="text-red-300">*</span>
+        Professional profile photo
       </p>
       <p className="mt-2 text-xs text-slate-300">
         Professional photo required (Close-up, neutral background).
@@ -199,13 +203,16 @@ export function RegisterAvatarUpload({
       />
       <input
         type="text"
+        data-validity-proxy="true"
         required
-        readOnly
         value={isReady ? "ready" : ""}
         aria-hidden
         tabIndex={-1}
         className="pointer-events-none absolute h-0 w-0 opacity-0"
       />
+      <p className="field-hint mt-2 hidden text-xs text-red-300 group-data-[invalid=1]:block">
+        Please upload and confirm your profile photo.
+      </p>
 
       {previewUrl ? (
         <div className="mt-4 flex items-center gap-3">

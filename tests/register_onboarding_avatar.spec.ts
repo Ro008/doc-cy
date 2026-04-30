@@ -1,8 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import path from "node:path";
-import os from "node:os";
-import fs from "node:fs/promises";
 
 async function listAuthUsersByEmail(
   admin: SupabaseClient,
@@ -82,13 +80,6 @@ test.describe("Doctor registration with mandatory avatar", () => {
       "fixtures",
       "e2e-person-avatar.jpg"
     );
-    const licenseFixture = path.join(os.tmpdir(), `doccy-license-${nonce}.pdf`);
-    await fs.writeFile(
-      licenseFixture,
-      "%PDF-1.1\n1 0 obj\n<< /Type /Catalog >>\nendobj\ntrailer\n<<>>\n%%EOF\n",
-      "utf8"
-    );
-
     try {
       await page.goto("/register");
 
@@ -118,11 +109,10 @@ test.describe("Doctor registration with mandatory avatar", () => {
       await page.getByRole("button", { name: /Confirm crop/i }).click();
       await expect(page.getByText("Crop confirmed.")).toBeVisible();
 
-      // License section (still mandatory in this flow).
-      await page.getByLabel("Professional license number").fill(`LIC-${nonce}`);
+      // License number remains mandatory.
       await page
-        .locator("input[name='licenseFile']")
-        .setInputFiles(licenseFixture);
+        .getByLabel(/Professional registration or certification number/i)
+        .fill(`LIC-${nonce}`);
 
       await page.getByRole("checkbox", { name: /I confirm I am a licensed professional/i }).check();
       await page.getByRole("button", { name: /Submit application/i }).click();
@@ -167,7 +157,6 @@ test.describe("Doctor registration with mandatory avatar", () => {
         await admin.auth.admin.deleteUser(u.id);
       }
       await cleanupLicenseFilesForEmail(admin, email);
-      await fs.unlink(licenseFixture).catch(() => {});
     }
   });
 });

@@ -29,6 +29,15 @@ const nextConfig = {
   images: {
     remotePatterns,
   },
+  async redirects() {
+    return [
+      {
+        source: "/blog/gesy-tax-trap-opting-out-cost-you-thousands-later",
+        destination: "/blog/gesy-tax-trap-cyprus-expats",
+        permanent: true,
+      },
+    ];
+  },
 };
 
 const withNextIntl = createNextIntlPlugin();

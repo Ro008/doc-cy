@@ -12,11 +12,18 @@ export type WebsiteVisitRow = {
   created_at: string;
 };
 
+function normalizeUtmToken(value: string | null | undefined): string {
+  return String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, "_");
+}
+
 /** Printed business card QR: ?utm_source=offline&utm_medium=business_card */
 export function isBusinessCardUtmVisit(row: WebsiteVisitRow): boolean {
-  const src = (row.utm_source ?? "").trim().toLowerCase();
-  const med = (row.utm_medium ?? "").trim().toLowerCase();
-  return src === "offline" && med === "business_card";
+  const src = normalizeUtmToken(row.utm_source);
+  const med = normalizeUtmToken(row.utm_medium);
+  return src === "offline" && (med === "business_card" || med === "businesscard");
 }
 
 export function countBusinessCardVisits(rows: WebsiteVisitRow[]): number {

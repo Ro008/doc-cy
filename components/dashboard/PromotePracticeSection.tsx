@@ -34,7 +34,7 @@ export function PromotePracticeSection({
   );
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
   const bookingUrl = slug
-    ? `${getPublicBookingBaseUrl()}/${encodeURIComponent(slug)}`
+    ? `${getPublicBookingBaseUrl()}/${encodeURIComponent(slug)}?utm_source=offline&utm_medium=business_card`
     : "";
 
   const downloadPng = React.useCallback(() => {

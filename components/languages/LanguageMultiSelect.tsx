@@ -15,8 +15,6 @@ type Props = {
   selected: string[];
   onSelectedChange: (next: string[]) => void;
   variant: "register" | "settings";
-  /** Shown when nothing selected (register validation is server-side) */
-  requiredHint?: boolean;
 };
 
 export function LanguageMultiSelect({
@@ -25,7 +23,6 @@ export function LanguageMultiSelect({
   selected,
   onSelectedChange,
   variant,
-  requiredHint,
 }: Props) {
   const [open, setOpen] = React.useState(false);
   const [query, setQuery] = React.useState("");
@@ -79,6 +76,15 @@ export function LanguageMultiSelect({
           readOnly
         />
       ))}
+      <input
+        type="text"
+        data-validity-proxy="true"
+        required
+        value={selected.length > 0 ? "ok" : ""}
+        aria-hidden
+        tabIndex={-1}
+        className="pointer-events-none absolute h-0 w-0 opacity-0"
+      />
 
       <label htmlFor={`${id}-trigger`} className="sr-only">
         Spoken languages
@@ -95,12 +101,7 @@ export function LanguageMultiSelect({
       >
         <span className="min-w-0 truncate text-left text-slate-200">
           {selected.length === 0 ? (
-            <span className="text-slate-500">
-              Select languages…
-              {requiredHint ? (
-                <span className="text-red-300"> *</span>
-              ) : null}
-            </span>
+            <span className="text-slate-500">Select languages…</span>
           ) : (
             <span className="text-slate-300">
               {selected.length} language{selected.length !== 1 ? "s" : ""} selected

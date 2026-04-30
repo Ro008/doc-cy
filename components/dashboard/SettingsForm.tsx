@@ -554,7 +554,6 @@ export function SettingsForm({ initial }: SettingsFormProps) {
               selected={languages}
               onSelectedChange={setLanguages}
               variant="settings"
-              requiredHint
             />
           </div>
         </div>

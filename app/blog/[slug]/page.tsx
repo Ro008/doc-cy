@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { PendingLink } from "@/components/navigation/PendingLink";
 import { getAllBlogPostMeta, getBlogPostBySlug, postNeedsPaphosCta } from "@/lib/blog";
 import { DocCyWordmark } from "@/components/brand/DocCyWordmark";
+import { BlogMdxImage } from "@/components/blog/BlogMdxImage";
 
 type BlogPostPageProps = {
   params: {
@@ -125,6 +126,7 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
           <p className="mt-1 text-xs text-slate-300">Last Updated: {formatDate(post.updatedAt)}</p>
         ) : null}
         <p className="mt-3 text-sm leading-6 text-slate-300 sm:text-base sm:leading-7">{post.description}</p>
+        {post.image ? <BlogMdxImage src={post.image} alt={post.title} width={1600} height={900} /> : null}
 
         <div className="mt-7 space-y-4 text-[15px] leading-7 text-slate-200 sm:mt-8 sm:leading-8 [&_a]:font-medium [&_a]:text-emerald-300 [&_a]:underline [&_a]:underline-offset-4 hover:[&_a]:text-emerald-200 [&_blockquote]:rounded-r-lg [&_blockquote]:border-l-2 [&_blockquote]:border-emerald-400/70 [&_blockquote]:bg-emerald-500/5 [&_blockquote]:px-3 [&_blockquote]:py-2.5 sm:[&_blockquote]:px-4 sm:[&_blockquote]:py-3 [&_h2]:mt-8 [&_h2]:border-t [&_h2]:border-slate-700/80 [&_h2]:pt-4 [&_h2]:text-xl [&_h2]:font-semibold [&_h2]:tracking-tight [&_h2]:text-slate-50 sm:[&_h2]:mt-10 sm:[&_h2]:pt-5 sm:[&_h2]:text-2xl [&_h3]:mt-6 [&_h3]:text-base [&_h3]:font-semibold [&_h3]:text-slate-100 sm:[&_h3]:mt-8 sm:[&_h3]:text-lg [&_li]:my-1.5 [&_ol]:my-3 [&_ol]:list-decimal [&_ol]:pl-5 sm:[&_ol]:my-4 sm:[&_ol]:pl-6 [&_p]:text-slate-200 [&_strong]:text-slate-50 [&_ul]:my-3 [&_ul]:list-disc [&_ul]:pl-5 sm:[&_ul]:my-4 sm:[&_ul]:pl-6">
           {post.content}
