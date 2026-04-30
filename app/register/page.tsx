@@ -6,6 +6,7 @@ import { RegisterSpecialtyFields } from "@/components/auth/RegisterSpecialtyFiel
 import { RegisterLanguageFields } from "@/components/auth/RegisterLanguageFields";
 import { RegisterAvatarUpload } from "@/components/auth/RegisterAvatarUpload";
 import { RegisterDevErrorConsole } from "@/components/auth/RegisterDevErrorConsole";
+import { RegisterFormValidation } from "@/components/auth/RegisterFormValidation";
 import { validateLanguageSelection } from "@/lib/cyprus-languages";
 import { CYPRUS_DISTRICTS, isCyprusDistrict } from "@/lib/cyprus-districts";
 import {
@@ -102,7 +103,6 @@ async function handleRegister(formData: FormData) {
   const specialtyRaw = (formData.get("specialty") as string | null) ?? "";
   const licenseNumber =
     (formData.get("licenseNumber") as string | null)?.trim() || "";
-  const licenseFile = formData.get("licenseFile") as File | null;
   const avatarFile = formData.get("avatarFile") as File | null;
   const professionalDisclaimer = formData.get("professionalDisclaimer");
   const district = (formData.get("district") as string | null)?.trim() || "";
@@ -115,7 +115,6 @@ async function handleRegister(formData: FormData) {
     !district ||
     !specialtyRaw.trim() ||
     !licenseNumber ||
-    !licenseFile ||
     !avatarFile ||
     professionalDisclaimer !== "on"
   ) {
@@ -149,10 +148,6 @@ async function handleRegister(formData: FormData) {
   }
   const languages = languagesParsed.value;
 
-  const maxBytes = 8 * 1024 * 1024; // 8 MB
-  if (licenseFile.size <= 0 || licenseFile.size > maxBytes) {
-    redirectWithError("file");
-  }
   if (avatarFile.size <= 0 || avatarFile.size > 10 * 1024 * 1024) {
     redirectWithError("avatar_file");
   }
@@ -163,19 +158,6 @@ async function handleRegister(formData: FormData) {
     redirectWithError("avatar_too_large");
   }
 
-  const allowedTypes = new Set([
-    "application/pdf",
-    "image/jpeg",
-    "image/png",
-    "image/webp",
-    "image/gif",
-  ]);
-  const fileType = licenseFile.type?.toLowerCase() ?? "";
-  const extOk = /\.(pdf|jpe?g|png|webp|gif)$/i.test(licenseFile.name);
-  const typeOk = !fileType || allowedTypes.has(fileType);
-  if (!typeOk && !extOk) {
-    redirectWithError("file");
-  }
   const avatarType = avatarFile.type?.toLowerCase() ?? "";
   if (!avatarType.startsWith("image/")) {
     redirectWithError("avatar_file");
@@ -187,26 +169,7 @@ async function handleRegister(formData: FormData) {
     redirectWithError("db", "SUPABASE_SERVICE_ROLE_KEY missing");
   }
 
-  // Upload license document to Supabase Storage
-  const fileExt = licenseFile.name.split(".").pop() || "bin";
-  const emailPrefix = email
-    .toLowerCase()
-    .replace(/[^a-z0-9._-]/g, "-")
-    .slice(0, 80);
-  const filePath = `licenses/${emailPrefix}/${Date.now()}-${Math.random()
-    .toString(36)
-    .slice(2)}.${fileExt}`;
-
-  const { data: uploadData, error: uploadError } = await service.storage
-    .from("doctor-verifications")
-    .upload(filePath, licenseFile);
-
-  if (uploadError || !uploadData?.path) {
-    console.error("[DocCy] License upload failed", uploadError);
-    redirectWithError("upload", uploadError);
-  }
-
-  const licenseFileUrl = uploadData.path;
+  const licenseFileUrl = null;
 
   // Create user in Supabase Auth
   const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
@@ -222,15 +185,6 @@ async function handleRegister(formData: FormData) {
 
   if (signUpError || !signUpData.user) {
     console.error("[DocCy] Auth sign-up failed", signUpError);
-    // Cleanup the uploaded license file so we don't keep orphans
-    try {
-      await service.storage
-        .from("doctor-verifications")
-        .remove([licenseFileUrl]);
-    } catch (cleanupError) {
-      console.error("[DocCy] Failed to delete orphaned license file", cleanupError);
-    }
-
     if ((signUpError as any)?.status === 429) {
       redirectWithError("rate_limit", signUpError);
     }
@@ -261,7 +215,6 @@ async function handleRegister(formData: FormData) {
   if (avatarUploadError || !avatarUploadData?.path) {
     console.error("[DocCy] Avatar upload failed", avatarUploadError);
     try {
-      await service.storage.from("doctor-verifications").remove([licenseFileUrl]);
       await service.auth.admin.deleteUser(authUserId);
     } catch (cleanupError) {
       console.error("[DocCy] Failed to cleanup files/user after avatar upload", cleanupError);
@@ -301,7 +254,6 @@ async function handleRegister(formData: FormData) {
     if (founderCountError) {
       console.error("[DocCy] Founder count fallback failed", founderCountError);
       try {
-        await service.storage.from("doctor-verifications").remove([licenseFileUrl]);
         await service.storage.from("avatars").remove([avatarFileUrl]);
         await service.auth.admin.deleteUser(authUserId);
       } catch (cleanupError) {
@@ -335,7 +287,6 @@ async function handleRegister(formData: FormData) {
     if (fallbackInsert.error || !fallbackInsert.data?.id) {
       console.error("[DocCy] Failed fallback doctor insert", fallbackInsert.error);
       try {
-        await service.storage.from("doctor-verifications").remove([licenseFileUrl]);
         await service.storage.from("avatars").remove([avatarFileUrl]);
         await service.auth.admin.deleteUser(authUserId);
       } catch (cleanupError) {
@@ -379,7 +330,6 @@ async function handleRegister(formData: FormData) {
     }
     console.error("[DocCy] Failed to save avatar_url on doctor", avatarSaveError);
     try {
-      await service.storage.from("doctor-verifications").remove([licenseFileUrl]);
       await service.storage.from("avatars").remove([avatarFileUrl]);
       await service.from("doctors").delete().eq("id", doctorId);
       await service.auth.admin.deleteUser(authUserId);
@@ -422,13 +372,13 @@ export default function RegisterPage({ searchParams }: PageProps) {
       "We saved your login but couldn’t finish setting up your profile. Please try again in a moment.";
   } else if (errorCode === "upload") {
     errorMessage =
-      "We couldn’t upload your license document. Please try again or use a smaller file.";
+      "We couldn’t process your registration right now. Please try again in a moment.";
   } else if (errorCode === "validation") {
     errorMessage =
-      "Please fill in all required fields, upload proof of ID (PDF or image), and accept the professional disclaimer.";
+      "Please fill in all required fields and accept the professional disclaimer.";
   } else if (errorCode === "file") {
     errorMessage =
-      "Please upload a PDF or image under 8 MB for proof of professional ID.";
+      "Please check your registration details and try again.";
   } else if (errorCode === "avatar_file") {
     errorMessage =
       "Please upload a profile photo image under 10 MB and confirm your crop.";
@@ -485,7 +435,7 @@ export default function RegisterPage({ searchParams }: PageProps) {
                 Thank you — your profile is under review
               </h2>
               <p className="text-sm text-slate-300">
-                Our team will verify your professional license and activate your
+                Our team will verify your professional credentials and activate your
                 Doc<span className="text-emerald-400">Cy</span> profile within{" "}
                 <span className="font-medium text-emerald-200">24 hours</span>.
               </p>
@@ -496,7 +446,8 @@ export default function RegisterPage({ searchParams }: PageProps) {
               </p>
             </div>
           ) : (
-            <form action={handleRegister} className="space-y-6">
+            <form id="register-form" action={handleRegister} noValidate className="space-y-6">
+              <RegisterFormValidation formId="register-form" />
               {process.env.NODE_ENV === "development" && errorCode && debugDetail ? (
                 <RegisterDevErrorConsole
                   errorCode={errorCode}
@@ -509,7 +460,7 @@ export default function RegisterPage({ searchParams }: PageProps) {
                 </div>
               )}
               <div className="grid gap-4 sm:grid-cols-2">
-                <div className="sm:col-span-2">
+                <div className="group sm:col-span-2" data-validate-field="1" data-invalid="0">
                   <label className="block text-sm font-medium text-slate-200">
                     Full name
                     <input
@@ -518,10 +469,13 @@ export default function RegisterPage({ searchParams }: PageProps) {
                       className="mt-1 w-full rounded-2xl border border-slate-700 bg-slate-900/60 px-3 py-2 text-sm text-slate-100 shadow-sm outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/40"
                     />
                   </label>
+                  <p className="field-hint mt-1 hidden text-xs text-red-300 group-data-[invalid=1]:block">
+                    Please enter your full name.
+                  </p>
                 </div>
                 <RegisterSpecialtyFields />
                 <RegisterLanguageFields />
-                <div>
+                <div className="group" data-validate-field="1" data-invalid="0">
                   <label className="block text-sm font-medium text-slate-200">
                     Email
                     <input
@@ -533,8 +487,11 @@ export default function RegisterPage({ searchParams }: PageProps) {
                       className="mt-1 w-full rounded-2xl border border-slate-700 bg-slate-900/60 px-3 py-2 text-sm text-slate-100 shadow-sm outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/40"
                     />
                   </label>
+                  <p className="field-hint mt-1 hidden text-xs text-red-300 group-data-[invalid=1]:block">
+                    Please enter a valid email address.
+                  </p>
                 </div>
-                <div>
+                <div className="group" data-validate-field="1" data-invalid="0">
                   <label className="block text-sm font-medium text-slate-200">
                     Password
                     <PasswordToggleInput
@@ -544,8 +501,11 @@ export default function RegisterPage({ searchParams }: PageProps) {
                       className="w-full"
                     />
                   </label>
+                  <p className="field-hint mt-1 hidden text-xs text-red-300 group-data-[invalid=1]:block">
+                    Please enter a password with at least 8 characters.
+                  </p>
                 </div>
-                <div>
+                <div className="group" data-validate-field="1" data-invalid="0">
                   <label className="block text-sm font-medium text-slate-200">
                     WhatsApp Number (with country code, e.g., +357...)
                     <input
@@ -556,8 +516,11 @@ export default function RegisterPage({ searchParams }: PageProps) {
                       className="mt-1 w-full rounded-2xl border border-slate-700 bg-slate-900/60 px-3 py-2 text-sm text-slate-100 shadow-sm outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/40"
                     />
                   </label>
+                  <p className="field-hint mt-1 hidden text-xs text-red-300 group-data-[invalid=1]:block">
+                    Please enter your WhatsApp number with country code.
+                  </p>
                 </div>
-                <div>
+                <div className="group" data-validate-field="1" data-invalid="0">
                   <label className="block text-sm font-medium text-slate-200">
                     District
                     <select
@@ -576,6 +539,9 @@ export default function RegisterPage({ searchParams }: PageProps) {
                       ))}
                     </select>
                   </label>
+                  <p className="field-hint mt-1 hidden text-xs text-red-300 group-data-[invalid=1]:block">
+                    Please select your district.
+                  </p>
                 </div>
               </div>
 
@@ -583,9 +549,9 @@ export default function RegisterPage({ searchParams }: PageProps) {
                 <div className="sm:col-span-2">
                   <RegisterAvatarUpload />
                 </div>
-                <div>
+                <div className="group" data-validate-field="1" data-invalid="0">
                   <label className="block text-sm font-medium text-slate-200">
-                    Professional license number
+                    Professional registration or certification number
                     <input
                       name="licenseNumber"
                       required
@@ -593,35 +559,31 @@ export default function RegisterPage({ searchParams }: PageProps) {
                       className="mt-1 w-full rounded-2xl border border-slate-700 bg-slate-900/60 px-3 py-2 text-sm text-slate-100 shadow-sm outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/40"
                     />
                   </label>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-200">
-                    Proof of professional ID (PDF or image, max 8 MB)
-                    <input
-                      type="file"
-                      name="licenseFile"
-                      required
-                      accept="application/pdf,image/jpeg,image/png,image/webp,image/gif,.pdf"
-                      className="mt-1 block w-full text-xs text-slate-300 file:mr-3 file:rounded-xl file:border-0 file:bg-emerald-500/10 file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-emerald-200 hover:file:bg-emerald-500/20"
-                    />
-                  </label>
+                  <p className="field-hint mt-1 hidden text-xs text-red-300 group-data-[invalid=1]:block">
+                    Please enter your professional registration or certification number.
+                  </p>
                 </div>
               </div>
 
-              <label className="flex cursor-pointer gap-3 rounded-2xl border border-slate-700/80 bg-slate-900/40 p-4 text-left transition hover:border-slate-600">
-                <input
-                  type="checkbox"
-                  name="professionalDisclaimer"
-                  value="on"
-                  required
-                  className="mt-1 h-4 w-4 shrink-0 rounded border-slate-600 bg-slate-900 text-emerald-500 focus:ring-emerald-400/50"
-                />
-                <span className="text-xs leading-relaxed text-slate-300">
-                  I confirm I am a licensed professional. I accept that DocCy is a technology
-                  provider and assumes no liability for the authenticity of professional
-                  credentials.
-                </span>
-              </label>
+              <div className="group" data-validate-field="1" data-invalid="0">
+                <label className="flex cursor-pointer gap-3 rounded-2xl border border-slate-700/80 bg-slate-900/40 p-4 text-left transition hover:border-slate-600">
+                  <input
+                    type="checkbox"
+                    name="professionalDisclaimer"
+                    value="on"
+                    required
+                    className="mt-1 h-4 w-4 shrink-0 rounded border-slate-600 bg-slate-900 text-emerald-500 focus:ring-emerald-400/50"
+                  />
+                  <span className="text-xs leading-relaxed text-slate-300">
+                    I confirm I am a qualified health or wellness professional. I accept that
+                    DocCy is a technology provider and assumes no liability for the authenticity
+                    of professional credentials.
+                  </span>
+                </label>
+                <p className="field-hint mt-1 hidden text-xs text-red-300 group-data-[invalid=1]:block">
+                  Please confirm the professional disclaimer to continue.
+                </p>
+              </div>
 
               {/* Honeypot field for bots */}
               <div className="hidden" aria-hidden="true">
@@ -633,9 +595,8 @@ export default function RegisterPage({ searchParams }: PageProps) {
 
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <p className="text-[11px] text-slate-400">
-                  We use your license or certification details only to verify
-                  that you are a registered health or wellness professional in
-                  Cyprus.
+                  We use your registration or certification details only to verify that you are a
+                  health or wellness professional in Cyprus.
                 </p>
                 <button
                   type="submit"

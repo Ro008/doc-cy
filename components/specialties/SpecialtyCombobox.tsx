@@ -109,6 +109,15 @@ export function SpecialtyCombobox({
         value={fromMaster ? "1" : "0"}
         readOnly
       />
+      <input
+        type="text"
+        data-validity-proxy="true"
+        required
+        value={resolvedSpecialty ? "ok" : ""}
+        aria-hidden
+        tabIndex={-1}
+        className="pointer-events-none absolute h-0 w-0 opacity-0"
+      />
 
       <label htmlFor={`${id}-trigger`} className="sr-only">
         Specialty

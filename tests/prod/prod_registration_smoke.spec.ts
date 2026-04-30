@@ -1,8 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import path from "node:path";
-import os from "node:os";
-import fs from "node:fs/promises";
 
 const TEST_EMAIL_DOMAIN = "@test-doccy.com.cy";
 
@@ -110,12 +108,6 @@ test.describe("Prod smoke: doctor registration", () => {
     const licenseNumber = `LIC-${nonce}`;
 
     const imageFixture = path.resolve(process.cwd(), "tests", "assets", "dummy-doc.jpg");
-    const licenseFixture = path.join(os.tmpdir(), `doccy-license-${nonce}.pdf`);
-    await fs.writeFile(
-      licenseFixture,
-      "%PDF-1.1\n1 0 obj\n<< /Type /Catalog >>\nendobj\ntrailer\n<<>>\n%%EOF\n",
-      "utf8"
-    );
 
     try {
       await page.goto("/register", { waitUntil: "domcontentloaded" });
@@ -141,8 +133,9 @@ test.describe("Prod smoke: doctor registration", () => {
       await page.getByRole("button", { name: /Confirm crop/i }).click();
       await expect(page.getByText("Crop confirmed.")).toBeVisible({ timeout: 10_000 });
 
-      await page.getByLabel("Professional license number").fill(licenseNumber);
-      await page.locator("input[name='licenseFile']").setInputFiles(licenseFixture);
+      await page
+        .getByLabel(/Professional registration or certification number/i)
+        .fill(licenseNumber);
       await page
         .getByRole("checkbox", { name: /I confirm I am a licensed professional/i })
         .check();
@@ -211,7 +204,6 @@ test.describe("Prod smoke: doctor registration", () => {
         await assertNoError(`remove explicit license path for ${email}`, rmLicenseRes);
       }
       await cleanupLicenseFilesForEmail(admin, email);
-      await fs.unlink(licenseFixture).catch(() => {});
     }
   });
 });
