@@ -34,9 +34,8 @@ import {
 import { isFounderSubscriptionTier } from "@/lib/subscription-tier";
 
 export default async function AgendaSettingsPage() {
-  const cookieStore = cookies();
   const supabase = createServerComponentClient({ cookies });
-  const localeLike = cookieStore.get("NEXT_LOCALE")?.value ?? "en";
+  const localeLike = "en";
 
   const {
     data: { user },

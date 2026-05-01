@@ -1,5 +1,11 @@
 type Props = {
   businessCardVisitsCount: number;
+  doctorProfileQrTop: {
+    doctorId: string;
+    doctorName: string;
+    doctorSlug: string;
+    scans: number;
+  }[];
   visitsRangeLabel: string;
   activeRange: "7d" | "30d" | "90d";
   rangeOptions: {
@@ -11,6 +17,7 @@ type Props = {
 
 export function WebsiteAnalyticsPanel({
   businessCardVisitsCount,
+  doctorProfileQrTop,
   visitsRangeLabel,
   activeRange,
   rangeOptions,
@@ -49,7 +56,7 @@ export function WebsiteAnalyticsPanel({
           </p>
           <p className="mt-2 text-3xl font-semibold text-white">{businessCardVisitsCount}</p>
           <p className="mt-2 text-xs leading-relaxed text-slate-500">
-            Landing hits that include{" "}
+            Landing hits from your DocCy physical business card campaign, tagged with (
             <code className="rounded bg-slate-950/80 px-1 py-0.5 text-[11px] text-slate-300">
               utm_source=offline
             </code>{" "}
@@ -57,8 +64,55 @@ export function WebsiteAnalyticsPanel({
             <code className="rounded bg-slate-950/80 px-1 py-0.5 text-[11px] text-slate-300">
               utm_medium=business_card
             </code>{" "}
-            (your printed QR).
+            ) or{" "}
+            <code className="rounded bg-slate-950/80 px-1 py-0.5 text-[11px] text-slate-300">
+              ref=business_card
+            </code>
+            .
           </p>
+        </div>
+
+        <div className="rounded-xl border border-sky-500/35 bg-sky-950/20 p-4">
+          <p className="text-[11px] uppercase tracking-[0.18em] text-sky-300/90">
+            Doctor profile QR scans
+          </p>
+          <p className="mt-2 text-xs leading-relaxed text-slate-500">
+            Top 10 doctors by scans from profile QR tags (
+            <code className="rounded bg-slate-950/80 px-1 py-0.5 text-[11px] text-slate-300">
+              utm_source=doctor_qr
+            </code>{" "}
+            +{" "}
+            <code className="rounded bg-slate-950/80 px-1 py-0.5 text-[11px] text-slate-300">
+              utm_medium=profile_card
+            </code>{" "}
+            or{" "}
+            <code className="rounded bg-slate-950/80 px-1 py-0.5 text-[11px] text-slate-300">
+              ref=doctor_profile_qr
+            </code>
+            ).
+          </p>
+          <div className="mt-3 space-y-2">
+            {doctorProfileQrTop.length === 0 ? (
+              <p className="text-xs text-slate-400">
+                No doctor profile QR scans recorded for this range yet.
+              </p>
+            ) : (
+              doctorProfileQrTop.map((row, idx) => (
+                <div
+                  key={row.doctorId}
+                  className="flex items-center justify-between rounded-lg border border-slate-800/70 bg-slate-950/40 px-3 py-2"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium text-slate-100">
+                      {idx + 1}. {row.doctorName}
+                    </p>
+                    <p className="truncate text-[11px] text-slate-500">/{row.doctorSlug}</p>
+                  </div>
+                  <p className="ml-3 text-sm font-semibold text-sky-200">{row.scans}</p>
+                </div>
+              ))
+            )}
+          </div>
         </div>
       </div>
 

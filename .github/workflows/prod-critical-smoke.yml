@@ -1,4 +1,5 @@
 # Nightly prod browser smoke: tests/prod/*
+# Policy reference: docs/ci-test-policy.md (nightly blocking + monitoring lanes).
 # Covers: public shell (home, login, register), guest booking + cleanup, doctor login → agenda,
 # optional full registration when PLAYWRIGHT_LIVE_REGISTRATION=1.
 # Not covered here (local / integration only): agenda cancel flows, confirm/decline REQUESTED,
@@ -346,6 +347,7 @@ jobs:
     if: always()
     needs: [prod-critical-smoke, business-critical-integration]
     runs-on: ubuntu-latest
+    continue-on-error: true
     timeout-minutes: 10
     steps:
       - name: Send WhatsApp monitoring status (retries)
@@ -477,9 +479,8 @@ jobs:
               labels: ["ci", "monitoring"]
             });
 
-      - name: Fail workflow if WhatsApp notification failed
+      - name: Notification failure note (non-blocking)
         if: steps.whatsapp.outcome != 'success'
         shell: bash
         run: |
-          echo "::error::WhatsApp notification failed. Issue created."
-          exit 1
+          echo "::warning::WhatsApp notification failed. Issue created. This does not change critical test status."

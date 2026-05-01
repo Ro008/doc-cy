@@ -12,6 +12,15 @@ export type WebsiteVisitRow = {
   created_at: string;
 };
 
+export type DoctorQrScanCount = {
+  doctorId: string;
+  doctorName: string;
+  doctorSlug: string;
+  scans: number;
+};
+
+const LOCALE_SEGMENTS = new Set(["en", "el", "tr"]);
+
 function normalizeUtmToken(value: string | null | undefined): string {
   return String(value ?? "")
     .trim()
@@ -19,20 +28,98 @@ function normalizeUtmToken(value: string | null | undefined): string {
     .replace(/[\s-]+/g, "_");
 }
 
-/** Printed business card QR: ?utm_source=offline&utm_medium=business_card */
-export function isBusinessCardUtmVisit(row: WebsiteVisitRow): boolean {
+function normalizeRefToken(value: string | null | undefined): string {
+  return String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, "_");
+}
+
+/** Printed business card QR: ?utm_source=offline&utm_medium=business_card and/or ?ref=business_card */
+export function isBusinessCardTaggedVisit(row: WebsiteVisitRow): boolean {
   const src = normalizeUtmToken(row.utm_source);
   const med = normalizeUtmToken(row.utm_medium);
-  return src === "offline" && (med === "business_card" || med === "businesscard");
+  const ref = normalizeRefToken(row.ref_code);
+  const hasBusinessCardUtm = src === "offline" && (med === "business_card" || med === "businesscard");
+  const hasBusinessCardRef = ref === "business_card" || ref === "businesscard";
+  return hasBusinessCardUtm || hasBusinessCardRef;
 }
 
 export function countBusinessCardVisits(rows: WebsiteVisitRow[]): number {
-  return rows.filter(isBusinessCardUtmVisit).length;
+  return rows.filter(isBusinessCardTaggedVisit).length;
+}
+
+/** Doctor profile QR: ?utm_source=doctor_qr&utm_medium=profile_card and/or ?ref=doctor_profile_qr */
+export function isDoctorProfileQrTaggedVisit(row: WebsiteVisitRow): boolean {
+  const src = normalizeUtmToken(row.utm_source);
+  const med = normalizeUtmToken(row.utm_medium);
+  const ref = normalizeRefToken(row.ref_code);
+  const hasDoctorQrUtm = src === "doctor_qr" && med === "profile_card";
+  const hasDoctorQrRef = ref === "doctor_profile_qr";
+  return hasDoctorQrUtm || hasDoctorQrRef;
+}
+
+function normalizeSlug(value: string): string {
+  return value.trim().toLowerCase().replace(/^\/+|\/+$/g, "");
+}
+
+function extractProfileSlugFromPath(path: string): string | null {
+  const parts = String(path)
+    .split("/")
+    .map((p) => p.trim().toLowerCase())
+    .filter(Boolean);
+  if (parts.length === 1) return parts[0];
+  if (parts.length === 2 && LOCALE_SEGMENTS.has(parts[0])) return parts[1];
+  return null;
+}
+
+export function buildTopDoctorProfileQrScans(
+  rows: WebsiteVisitRow[],
+  doctors: { id: string; name: string; slug: string | null }[],
+  limit = 10
+): DoctorQrScanCount[] {
+  const doctorsBySlug = new Map<string, { id: string; name: string; slug: string }>();
+  for (const d of doctors) {
+    const slug = normalizeSlug(d.slug ?? "");
+    if (!slug) continue;
+    doctorsBySlug.set(slug, {
+      id: d.id,
+      name: d.name || slug,
+      slug,
+    });
+  }
+
+  const counts = new Map<string, DoctorQrScanCount>();
+  for (const row of rows) {
+    if (!isDoctorProfileQrTaggedVisit(row)) continue;
+    const slug = extractProfileSlugFromPath(row.page_path);
+    if (!slug) continue;
+    const doctor = doctorsBySlug.get(slug);
+    if (!doctor) continue;
+    const existing = counts.get(doctor.id);
+    if (!existing) {
+      counts.set(doctor.id, {
+        doctorId: doctor.id,
+        doctorName: doctor.name,
+        doctorSlug: doctor.slug,
+        scans: 1,
+      });
+      continue;
+    }
+    existing.scans += 1;
+  }
+
+  return Array.from(counts.values())
+    .sort((a, b) => {
+      if (b.scans !== a.scans) return b.scans - a.scans;
+      return a.doctorName.localeCompare(b.doctorName);
+    })
+    .slice(0, limit);
 }
 
 /** Everything else we log: direct URL, search, bookmarks, other UTMs, ?ref=, etc. */
 export function countWebsiteAndLinkVisits(rows: WebsiteVisitRow[]): number {
-  return rows.filter((r) => !isBusinessCardUtmVisit(r)).length;
+  return rows.filter((r) => !isBusinessCardTaggedVisit(r)).length;
 }
 
 export type LocalityCount = {

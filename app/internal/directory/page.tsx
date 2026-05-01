@@ -24,7 +24,9 @@ import { cyprusMonthStartUtcIso } from "@/lib/cyprus-calendar";
 import { TrialConversionTable } from "@/components/internal/TrialConversionTable";
 import { getTrialPeriodDays } from "@/lib/trial-period";
 import {
+  buildTopDoctorProfileQrScans,
   countBusinessCardVisits,
+  type DoctorQrScanCount,
   type WebsiteVisitRow,
 } from "@/lib/website-analytics";
 import { WebsiteAnalyticsPanel } from "@/components/internal/WebsiteAnalyticsPanel";
@@ -406,6 +408,15 @@ export default async function FounderDashboardPage({
       ? (websiteVisitsLast7dRes.data as WebsiteVisitRow[])
       : [];
   const businessCardVisitsInRange = countBusinessCardVisits(visits7dRows);
+  const topDoctorProfileQrScans: DoctorQrScanCount[] = buildTopDoctorProfileQrScans(
+    visits7dRows,
+    verifiedRows.map((r) => ({
+      id: r.id,
+      name: r.name,
+      slug: r.slug,
+    })),
+    10
+  );
 
   return (
     <main className="min-h-screen bg-slate-950 text-slate-50">
@@ -474,6 +485,7 @@ export default async function FounderDashboardPage({
         <TrialConversionTable doctors={verifiedRows} />
         <WebsiteAnalyticsPanel
           businessCardVisitsCount={businessCardVisitsInRange}
+          doctorProfileQrTop={topDoctorProfileQrScans}
           visitsRangeLabel={getVisitsRangeLabel(visitsRange)}
           rangeOptions={[
             { key: "7d", label: "7d", href: "/internal/directory?visitsRange=7d" },

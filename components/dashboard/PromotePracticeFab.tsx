@@ -14,10 +14,7 @@ import { resolvePromotePracticeCopy } from "@/lib/promote-practice-copy";
 export function PromotePracticeFab() {
   const pathname = usePathname();
   const supabase = React.useMemo(() => createClientComponentClient(), []);
-  const copy = React.useMemo(() => {
-    if (typeof navigator === "undefined") return resolvePromotePracticeCopy("en");
-    return resolvePromotePracticeCopy(navigator.language);
-  }, []);
+  const copy = React.useMemo(() => resolvePromotePracticeCopy("en"), []);
   const [open, setOpen] = React.useState(false);
   const [doctor, setDoctor] = React.useState<{
     slug: string | null;
@@ -141,7 +138,7 @@ export function PromotePracticeFab() {
               <PromotePracticeSection
                 slug={doctor.slug}
                 doctorName={doctor.name}
-                localeLike={typeof navigator === "undefined" ? "en" : navigator.language}
+                localeLike="en"
                 variant="modal"
               />
             </div>
