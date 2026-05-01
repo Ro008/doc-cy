@@ -21,6 +21,7 @@ import { addDays, format } from "date-fns";
 import { utcToZonedTime, zonedTimeToUtc } from "date-fns-tz";
 import { CLINIC_ADDRESS, buildMapsUrlFromAddress } from "@/lib/clinic-info";
 import {
+  DOCTOR_FIELD_LIST_PUBLIC_PROFILE_BASE,
   DOCTOR_FIELD_LIST_METADATA,
   DOCTOR_FIELD_LIST_PUBLIC_PROFILE,
   DOCTOR_FIELD_LIST_PUBLIC_PROFILE_NO_LANG,
@@ -38,6 +39,7 @@ type DoctorProfileRow = {
   specialty: string;
   bio: string | null;
   clinic_address: string | null;
+  district?: string | null;
   slug: string;
   status: string;
   languages?: string[] | null;
@@ -47,9 +49,9 @@ export type PageProps = {
   params: { slug: string };
 };
 
-function isLanguagesColumnError(msg: string): boolean {
+function isOptionalProfileColumnError(msg: string): boolean {
   return (
-    /languages/i.test(msg) &&
+    /(languages|district)/i.test(msg) &&
     (/schema cache|does not exist|column|Could not find|42703/i.test(msg) ||
       msg.includes("Could not find"))
   );
@@ -87,6 +89,7 @@ async function fetchPublicDoctorBySlug(
 ): Promise<PublicDoctorFetch> {
   const fullList = DOCTOR_FIELD_LIST_PUBLIC_PROFILE;
   const basicList = DOCTOR_FIELD_LIST_PUBLIC_PROFILE_NO_LANG;
+  const baseList = DOCTOR_FIELD_LIST_PUBLIC_PROFILE_BASE;
 
   let first = await supabase
     .from("doctors_public")
@@ -110,20 +113,35 @@ async function fetchPublicDoctorBySlug(
 
   if (first.error) {
     const msg = first.error.message ?? "";
-    if (isLanguagesColumnError(msg)) {
+    if (isOptionalProfileColumnError(msg)) {
       const second = await supabase
         .from("doctors")
         .select(basicList)
         .eq("slug", slug)
         .maybeSingle();
-      if (second.error || !second.data) {
+      if (second.error && isOptionalProfileColumnError(second.error.message ?? "")) {
+        const third = await supabase
+          .from("doctors")
+          .select(baseList)
+          .eq("slug", slug)
+          .maybeSingle();
+        if (third.error || !third.data) {
+          console.error(
+            "[DocCy] Doctor profile fallback query failed:",
+            third.error ?? "no row",
+          );
+          return { kind: "not_found" };
+        }
+        row = { ...third.data, languages: null, district: null } as DoctorProfileRow;
+      } else if (second.error || !second.data) {
         console.error(
           "[DocCy] Doctor profile fallback query failed:",
           second.error ?? "no row",
         );
         return { kind: "not_found" };
+      } else {
+        row = { ...second.data, languages: null } as DoctorProfileRow;
       }
-      row = { ...second.data, languages: null } as DoctorProfileRow;
     } else {
       console.error("[DocCy] Doctor profile query failed:", first.error);
       return { kind: "not_found" };
@@ -145,6 +163,99 @@ async function fetchPublicDoctorBySlug(
 }
 
 export const revalidate = 0;
+
+type HealthcareStructuredData = {
+  "@context": "https://schema.org";
+  "@type": "Physician" | "MedicalBusiness";
+  name: string;
+  areaServed: "Cyprus";
+  address: {
+    "@type": "PostalAddress";
+    streetAddress?: string;
+    addressLocality?: string;
+    addressRegion?: string;
+    addressCountry: "CY";
+  };
+  image?: string;
+  medicalSpecialty?: string;
+  telephone?: string;
+  knowsLanguage?: string[];
+  description?: string;
+};
+
+function inferHealthcareSchemaType(name: string): "Physician" | "MedicalBusiness" {
+  const n = name.toLowerCase();
+  if (/\b(clinic|medical|center|centre|hospital|polyclinic)\b/.test(n)) {
+    return "MedicalBusiness";
+  }
+  return "Physician";
+}
+
+function parseAddressParts(address: string): { streetAddress?: string; addressLocality?: string } {
+  const parts = address
+    .split(",")
+    .map((p) => p.trim())
+    .filter(Boolean);
+  if (parts.length === 0) return {};
+  if (parts.length === 1) return { streetAddress: parts[0] };
+  return {
+    streetAddress: parts[0],
+    addressLocality: parts.slice(1).join(", "),
+  };
+}
+
+function buildHealthcareStructuredData(input: {
+  name: string;
+  specialty?: string | null;
+  bio?: string | null;
+  clinicAddress?: string | null;
+  district?: string | null;
+  phone?: string | null;
+  languages?: string[] | null;
+  imageUrl?: string | null;
+}): HealthcareStructuredData {
+  const name = input.name.trim();
+  const specialty = (input.specialty ?? "").trim();
+  const bio = (input.bio ?? "").trim();
+  const district = (input.district ?? "").trim();
+  const phone = (input.phone ?? "").trim();
+  const languages = Array.isArray(input.languages)
+    ? input.languages.map((l) => String(l).trim()).filter(Boolean)
+    : [];
+  const addressRaw = (input.clinicAddress ?? "").trim();
+  const addressParts = parseAddressParts(addressRaw);
+
+  const address: HealthcareStructuredData["address"] = {
+    "@type": "PostalAddress",
+    addressCountry: "CY",
+    ...(addressParts.streetAddress ? { streetAddress: addressParts.streetAddress } : {}),
+    ...(addressParts.addressLocality
+      ? { addressLocality: addressParts.addressLocality }
+      : district
+        ? { addressLocality: district }
+        : {}),
+    ...(district ? { addressRegion: district } : {}),
+  };
+
+  const description =
+    bio ||
+    (specialty
+      ? `${name} provides ${specialty} services in Cyprus via DocCy.`
+      : `${name} provides healthcare services in Cyprus via DocCy.`);
+
+  return {
+    "@context": "https://schema.org",
+    "@type": inferHealthcareSchemaType(name),
+    name,
+    ...(input.imageUrl ? { image: input.imageUrl } : {}),
+    ...(specialty ? { medicalSpecialty: specialty } : {}),
+    address,
+    ...(phone ? { telephone: phone } : {}),
+    ...(languages.length > 0 ? { knowsLanguage: languages } : {}),
+    areaServed: "Cyprus",
+    ...(description ? { description } : {}),
+  };
+}
 
 export async function generateMetadata({
   params,
@@ -272,17 +383,51 @@ export default async function DoctorPage({ params }: PageProps) {
   const clinicAddress = (profile.clinic_address ?? "").trim() || CLINIC_ADDRESS;
   const mapsUrl = buildMapsUrlFromAddress(clinicAddress);
   let avatarUrl = DOCTOR_AVATAR_URL;
+  let hasCustomAvatar = false;
+  let publicPhone: string | null = null;
   const avatarLookup = await supabase
     .from("doctors")
-    .select("avatar_url")
+    .select("avatar_url, phone")
     .eq("id", profile.id)
     .maybeSingle();
-  if (!avatarLookup.error) {
-    const avatarPath = String((avatarLookup.data as { avatar_url?: string | null } | null)?.avatar_url ?? "").trim();
+  if (avatarLookup.error) {
+    const avatarOnlyLookup = await supabase
+      .from("doctors")
+      .select("avatar_url")
+      .eq("id", profile.id)
+      .maybeSingle();
+    const avatarPath = String(
+      (avatarOnlyLookup.data as { avatar_url?: string | null } | null)?.avatar_url ??
+        "",
+    ).trim();
     if (avatarPath) {
       avatarUrl = supabase.storage.from("avatars").getPublicUrl(avatarPath).data.publicUrl;
+      hasCustomAvatar = true;
+    }
+  } else {
+    const avatarPath = String(
+      (avatarLookup.data as { avatar_url?: string | null; phone?: string | null } | null)
+        ?.avatar_url ?? "",
+    ).trim();
+    publicPhone = String(
+      (avatarLookup.data as { phone?: string | null } | null)?.phone ?? "",
+    ).trim() || null;
+    if (avatarPath) {
+      avatarUrl = supabase.storage.from("avatars").getPublicUrl(avatarPath).data.publicUrl;
+      hasCustomAvatar = true;
     }
   }
+
+  const structuredData = buildHealthcareStructuredData({
+    name: profile.name,
+    specialty: profile.specialty,
+    bio: profile.bio,
+    clinicAddress: clinicAddress,
+    district: profile.district ?? null,
+    phone: publicPhone,
+    languages: profile.languages ?? null,
+    imageUrl: hasCustomAvatar ? avatarUrl : null,
+  });
 
   const settingsSelectFull =
     "doctor_id, monday, tuesday, wednesday, thursday, friday, saturday, sunday, start_time, end_time, weekly_schedule, break_start, break_end, slot_duration_minutes, pause_online_bookings, holiday_mode_enabled, holiday_start_date, holiday_end_date, booking_horizon_days, minimum_notice_hours";
@@ -404,6 +549,10 @@ export default async function DoctorPage({ params }: PageProps) {
 
   return (
     <main className="min-h-screen bg-slate-950 text-slate-50">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+      />
       {/* Background gradient / glow (consistent with landing) */}
       <div className="pointer-events-none fixed inset-0 -z-10">
         <div className="absolute inset-x-0 top-[-10%] mx-auto h-80 max-w-xl rounded-full bg-emerald-500/10 blur-3xl" />
