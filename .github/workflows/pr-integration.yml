@@ -1,5 +1,6 @@
 # PR gatekeeper: exercises this branch's Next.js build + isolated Supabase, and (same-repo PRs)
 # Vercel Preview HTML shell. Required checks: configure branch protection for job names below.
+# Policy reference: docs/ci-test-policy.md (PR blocking lane).
 #
 # Secrets: INTEGRATION_SUPABASE_URL, INTEGRATION_SUPABASE_ANON_KEY,
 #          INTEGRATION_SUPABASE_SERVICE_ROLE_KEY, PROD_NEXT_PUBLIC_SUPABASE_URL (production URL only;
@@ -141,7 +142,9 @@ jobs:
             tests/blog_single_image_ui.spec.ts \
             tests/integration/appointments_race_condition.integration.spec.ts \
             tests/integration/settings_clinic_address_notice.integration.spec.ts \
+            tests/integration/finder_critical.integration.spec.ts \
             tests/integration/needs_reschedule_slot_free.integration.spec.ts \
+            tests/navigation.spec.ts \
             tests/schedule_constraints.spec.ts \
             tests/integration/finder_user_behaviors.integration.spec.ts \
             tests/booking_flow.spec.ts \
