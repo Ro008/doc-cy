@@ -138,6 +138,7 @@ jobs:
           PROD_NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.PROD_NEXT_PUBLIC_SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL }}
           INTEGRATION_SCHEDULE_TEST_DOCTOR_SLUG: ${{ vars.INTEGRATION_SCHEDULE_TEST_DOCTOR_SLUG }}
         run: |
+          # register_onboarding_avatar.spec.ts omitted: shared integration Supabase hits Auth email rate limits on every PR push.
           npx playwright test \
             tests/blog_single_image_ui.spec.ts \
             tests/integration/appointments_race_condition.integration.spec.ts \

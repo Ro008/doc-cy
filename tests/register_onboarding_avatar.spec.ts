@@ -2,6 +2,13 @@ import { test, expect } from "@playwright/test";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import path from "node:path";
 
+/** Same domain as prod smoke / integration tests; @example.com is rejected by Supabase Auth in CI. */
+const TEST_EMAIL_DOMAIN = "@test-doccy.com.cy";
+
+// Not run in default PR Playwright matrix: shared integration Supabase often returns
+// `over_email_send_rate_limit` on signUp when many CI jobs hit the same project.
+// Local: INTEGRATION_SAFE_ENV=1 npx playwright test tests/register_onboarding_avatar.spec.ts
+
 async function listAuthUsersByEmail(
   admin: SupabaseClient,
   email: string
@@ -58,22 +65,37 @@ async function cleanupLicenseFilesForEmail(admin: SupabaseClient, email: string)
 }
 
 test.describe("Doctor registration with mandatory avatar", () => {
-  test("requires cropped avatar and cleans up created user", async ({ page }) => {
+  // CI global retries=2 would triple signUp bursts and hit Supabase Auth email rate limits; keep at most one retry here.
+  test.describe.configure({ retries: 1 });
+
+  test("requires cropped avatar and cleans up created user", async ({ page }, testInfo) => {
     const baseUrl = process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000";
+    const isLocalUrl = /localhost|127\.0\.0\.1/i.test(baseUrl);
     const isLiveMode = process.env.PLAYWRIGHT_LIVE_REGISTRATION === "1";
+    const integrationSafe = process.env.INTEGRATION_SAFE_ENV === "1";
+    // PR: local Next + integration Supabase. Nightly/manual: deployed URL + PLAYWRIGHT_LIVE_REGISTRATION=1.
+    const runAgainstIntegrationStack = integrationSafe && isLocalUrl;
+    const runAgainstLiveRemote = isLiveMode && !isLocalUrl;
     test.skip(
-      !isLiveMode || /localhost|127\.0\.0\.1/i.test(baseUrl),
-      "Live registration test is disabled. Set PLAYWRIGHT_LIVE_REGISTRATION=1 and PLAYWRIGHT_BASE_URL to a real environment."
+      !runAgainstIntegrationStack && !runAgainstLiveRemote,
+      "Set INTEGRATION_SAFE_ENV=1 with local PLAYWRIGHT_BASE_URL (PR), or PLAYWRIGHT_LIVE_REGISTRATION=1 with a deployed base URL."
     );
 
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
     const serviceRole = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
     test.skip(!supabaseUrl || !serviceRole, "Missing Supabase env vars.");
 
+    if (testInfo.retry > 0) {
+      const backoffMs = 50_000 * testInfo.retry;
+      await new Promise((r) => setTimeout(r, backoffMs));
+    }
+
     const admin = createClient(supabaseUrl, serviceRole);
-    const nonce = `${Date.now()}-${Math.floor(Math.random() * 100000)}`;
-    const email = `e2e-register-${nonce}@example.com`;
+    // Avoid local-parts that are only hex (32-char UUID): Supabase Auth can reject them as email_address_invalid.
+    const nonce = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    const email = `e2e-register-${nonce}${TEST_EMAIL_DOMAIN}`;
     const fullName = `E2E Register ${nonce}`;
+    const uniquePhone = `+35799${String(Math.floor(Math.random() * 1_000_000)).padStart(6, "0")}`;
     const imageFixture = path.resolve(
       process.cwd(),
       "tests",
@@ -88,7 +110,7 @@ test.describe("Doctor registration with mandatory avatar", () => {
       await page.getByLabel("Password").fill("StrongPass123!");
       await page
         .getByLabel("WhatsApp Number (with country code, e.g., +357...)")
-        .fill("+35799123456");
+        .fill(uniquePhone);
 
       // Specialty combobox -> pick first master option.
       await page.locator("#register-specialty-trigger").click();
@@ -102,6 +124,8 @@ test.describe("Doctor registration with mandatory avatar", () => {
         .click();
       await page.keyboard.press("Escape");
 
+      await page.getByLabel("District").selectOption("Nicosia");
+
       // Mandatory avatar flow: upload -> crop modal -> confirm crop.
       const avatarInput = page.locator("label:has-text('Upload photo') input[type='file']");
       await avatarInput.setInputFiles(imageFixture);
@@ -114,7 +138,11 @@ test.describe("Doctor registration with mandatory avatar", () => {
         .getByLabel(/Professional registration or certification number/i)
         .fill(`LIC-${nonce}`);
 
-      await page.getByRole("checkbox", { name: /I confirm I am a licensed professional/i }).check();
+      await page
+        .getByRole("checkbox", {
+          name: /I confirm I am a (qualified health or wellness|licensed) professional/i,
+        })
+        .check();
       await page.getByRole("button", { name: /Submit application/i }).click();
 
       await expect(page).toHaveURL(/\/register\?submitted=1/, { timeout: 20000 });

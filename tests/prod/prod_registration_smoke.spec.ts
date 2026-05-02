@@ -137,7 +137,9 @@ test.describe("Prod smoke: doctor registration", () => {
         .getByLabel(/Professional registration or certification number/i)
         .fill(licenseNumber);
       await page
-        .getByRole("checkbox", { name: /I confirm I am a licensed professional/i })
+        .getByRole("checkbox", {
+          name: /I confirm I am a (qualified health or wellness|licensed) professional/i,
+        })
         .check();
 
       await page.getByRole("button", { name: /Submit application/i }).click();
