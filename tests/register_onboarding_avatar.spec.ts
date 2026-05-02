@@ -5,6 +5,10 @@ import path from "node:path";
 /** Same domain as prod smoke / integration tests; @example.com is rejected by Supabase Auth in CI. */
 const TEST_EMAIL_DOMAIN = "@test-doccy.com.cy";
 
+// Not run in default PR Playwright matrix: shared integration Supabase often returns
+// `over_email_send_rate_limit` on signUp when many CI jobs hit the same project.
+// Local: INTEGRATION_SAFE_ENV=1 npx playwright test tests/register_onboarding_avatar.spec.ts
+
 async function listAuthUsersByEmail(
   admin: SupabaseClient,
   email: string
