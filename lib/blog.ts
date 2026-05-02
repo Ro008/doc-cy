@@ -1,3 +1,5 @@
+import { execFileSync } from "node:child_process";
+import { readdirSync } from "node:fs";
 import path from "node:path";
 import { promises as fs } from "node:fs";
 import { compileMDX } from "next-mdx-remote/rsc";
@@ -13,12 +15,18 @@ type BlogFrontmatter = {
   description: string;
   date?: string;
   publishedAt?: string;
+  /**
+   * Optional. Shown (with Git commit date) only when strictly after `date`.
+   * If newer than the last Git commit on this file, this value wins for `updatedAt`.
+   */
   lastUpdated?: string;
   updatedAt?: string;
   author?: string;
   tags?: string[];
   district?: string;
   image?: string;
+  /** When true, skip the default Paphos finder aside (e.g. post already has a DocCy CTA in the body). */
+  hidePaphosCta?: boolean;
 };
 
 export type BlogPostMeta = BlogFrontmatter & {
@@ -45,6 +53,74 @@ function normalizeDistrict(value: unknown): string | undefined {
   return district || undefined;
 }
 
+/** ISO date YYYY-MM-DD */
+function isIsoDateOnly(value: string): boolean {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value.trim());
+}
+
+/**
+ * Only expose `updatedAt` when the author set lastUpdated/updatedAt **after** publication.
+ * Same calendar day as `date` does not count (first publish / no real revision yet).
+ */
+function effectiveUpdatedAtAfterPublication(
+  publishedAt: string,
+  rawUpdated: string | undefined
+): string | undefined {
+  const candidate = String(rawUpdated ?? "").trim();
+  if (!candidate) return undefined;
+
+  const pub = publishedAt.trim();
+  if (isIsoDateOnly(pub) && isIsoDateOnly(candidate)) {
+    if (candidate > pub) return candidate;
+    return undefined;
+  }
+
+  const pubMs = new Date(pub).getTime();
+  const updMs = new Date(candidate).getTime();
+  if (Number.isNaN(pubMs) || Number.isNaN(updMs)) return undefined;
+  if (updMs > pubMs) return candidate;
+  return undefined;
+}
+
+function findBlogFileNameForSlugSync(slug: string): string {
+  try {
+    const files = readdirSync(BLOG_CONTENT_DIR);
+    const hit = files.find(
+      (f) =>
+        f.toLowerCase().endsWith(".mdx") &&
+        !path.basename(f).startsWith("_") &&
+        normalizeSlug(f) === slug
+    );
+    if (hit) return hit;
+  } catch {
+    /* missing blog dir */
+  }
+  return `${slug}.mdx`;
+}
+
+/** Last commit touching this MDX, as YYYY-MM-DD (author date). Undefined if Git unavailable. */
+function getGitLastCommitDateShortForBlogFile(fileName: string): string | undefined {
+  if (process.env.BLOG_SKIP_GIT_UPDATED === "1") return undefined;
+  const rel = path.posix.join("content", "blog", fileName.split("\\").join("/"));
+  try {
+    const out = execFileSync("git", ["log", "-1", "--format=%ad", "--date=short", "--", rel], {
+      encoding: "utf8",
+      cwd: process.cwd(),
+      stdio: ["ignore", "pipe", "ignore"],
+      maxBuffer: 256 * 1024,
+    }).trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(out)) return out;
+  } catch {
+    /* no .git, shallow clone, git missing, path not in history */
+  }
+  return undefined;
+}
+
+function laterIsoDate(a: string | undefined, b: string | undefined): string | undefined {
+  if (a && b) return a > b ? a : b;
+  return a ?? b;
+}
+
 function renderMdxAnchor({
   href,
   children,
@@ -63,7 +139,11 @@ function renderMdxAnchor({
   return createElement("a", { href: target, ...props }, children);
 }
 
-function normalizeFrontmatter(frontmatter: Partial<BlogFrontmatter>, slug: string): BlogPostMeta {
+function normalizeFrontmatter(
+  frontmatter: Partial<BlogFrontmatter>,
+  slug: string,
+  fileName?: string
+): BlogPostMeta {
   const title = String(frontmatter.title ?? "").trim();
   const description = String(frontmatter.description ?? "").trim();
   const publishedAt = String(frontmatter.date ?? frontmatter.publishedAt ?? "").trim();
@@ -73,9 +153,18 @@ function normalizeFrontmatter(frontmatter: Partial<BlogFrontmatter>, slug: strin
     );
   }
 
-  const updatedAt = String(frontmatter.lastUpdated ?? frontmatter.updatedAt ?? "").trim() || undefined;
+  const rawUpdated =
+    String(frontmatter.lastUpdated ?? "").trim() ||
+    String(frontmatter.updatedAt ?? "").trim() ||
+    undefined;
+  const manual = effectiveUpdatedAtAfterPublication(publishedAt, rawUpdated);
+  const resolvedFile = fileName ?? findBlogFileNameForSlugSync(slug);
+  const gitDay = getGitLastCommitDateShortForBlogFile(resolvedFile);
+  const fromGit = gitDay ? effectiveUpdatedAtAfterPublication(publishedAt, gitDay) : undefined;
+  const updatedAt = laterIsoDate(manual, fromGit);
   const author = String(frontmatter.author ?? "").trim() || "DocCy Editorial Team";
   const image = String(frontmatter.image ?? "").trim() || undefined;
+  const hidePaphosCta = Boolean(frontmatter.hidePaphosCta);
   return {
     slug,
     title,
@@ -86,6 +175,7 @@ function normalizeFrontmatter(frontmatter: Partial<BlogFrontmatter>, slug: strin
     tags: normalizeTagList(frontmatter.tags),
     district: normalizeDistrict(frontmatter.district),
     image,
+    hidePaphosCta,
   };
 }
 
@@ -165,7 +255,7 @@ export async function getAllBlogPostMeta(): Promise<BlogPostMeta[]> {
           img: BlogMdxImage,
         },
       });
-      return normalizeFrontmatter(frontmatter, slug);
+      return normalizeFrontmatter(frontmatter, slug, fileName);
     })
   );
 
@@ -200,7 +290,7 @@ async function getAllBlogPostMetaIncludingScheduled(): Promise<BlogPostMeta[]> {
           img: BlogMdxImage,
         },
       });
-      return normalizeFrontmatter(frontmatter, slug);
+      return normalizeFrontmatter(frontmatter, slug, fileName);
     })
   );
 
@@ -262,7 +352,10 @@ export async function getBlogPostBySlug(slug: string): Promise<BlogPost | null> 
   };
 }
 
-export function postNeedsPaphosCta(post: Pick<BlogPostMeta, "slug" | "district" | "tags">): boolean {
+export function postNeedsPaphosCta(
+  post: Pick<BlogPostMeta, "slug" | "district" | "tags" | "hidePaphosCta">
+): boolean {
+  if (post.hidePaphosCta) return false;
   if (post.district === "paphos") return true;
   if (post.slug.includes("paphos")) return true;
   return (post.tags ?? []).some((tag) => tag.toLowerCase() === "paphos");
