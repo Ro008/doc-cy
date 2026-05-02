@@ -2,6 +2,9 @@ import { test, expect } from "@playwright/test";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import path from "node:path";
 
+/** Same domain as prod smoke / integration tests; @example.com is rejected by Supabase Auth in CI. */
+const TEST_EMAIL_DOMAIN = "@test-doccy.com.cy";
+
 async function listAuthUsersByEmail(
   admin: SupabaseClient,
   email: string
@@ -77,7 +80,7 @@ test.describe("Doctor registration with mandatory avatar", () => {
 
     const admin = createClient(supabaseUrl, serviceRole);
     const nonce = `${Date.now()}-${Math.floor(Math.random() * 100000)}`;
-    const email = `e2e-register-${nonce}@example.com`;
+    const email = `e2e-register-${nonce}${TEST_EMAIL_DOMAIN}`;
     const fullName = `E2E Register ${nonce}`;
     const imageFixture = path.resolve(
       process.cwd(),
