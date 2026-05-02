@@ -139,6 +139,7 @@ jobs:
           INTEGRATION_SCHEDULE_TEST_DOCTOR_SLUG: ${{ vars.INTEGRATION_SCHEDULE_TEST_DOCTOR_SLUG }}
         run: |
           npx playwright test \
+            tests/register_onboarding_avatar.spec.ts \
             tests/blog_single_image_ui.spec.ts \
             tests/integration/appointments_race_condition.integration.spec.ts \
             tests/integration/settings_clinic_address_notice.integration.spec.ts \

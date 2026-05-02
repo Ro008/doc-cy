@@ -66,6 +66,8 @@ if (process.env.CI && shouldRunWebServer) {
   requireEnvForLocalWebServer("NEXT_PUBLIC_SUPABASE_ANON_KEY");
 }
 
+const isCi = Boolean(process.env.CI);
+
 export default defineConfig({
   testDir: "./tests",
   fullyParallel: false,
@@ -77,6 +79,9 @@ export default defineConfig({
   use: {
     baseURL: baseUrl,
     trace: "on-first-retry",
+    // In CI, cap per-action waits so a broken locator (e.g. copy drift) fails in tens of seconds
+    // instead of burning the whole test timeout (see prod_registration_smoke long-timeout incident).
+    ...(isCi ? { actionTimeout: 30_000, navigationTimeout: 90_000 } : {}),
     // Domain/SSL might not be fully propagated yet after switching providers.
     ignoreHTTPSErrors: true,
     ...(trafficLogSuppressSecret

@@ -60,10 +60,15 @@ async function cleanupLicenseFilesForEmail(admin: SupabaseClient, email: string)
 test.describe("Doctor registration with mandatory avatar", () => {
   test("requires cropped avatar and cleans up created user", async ({ page }) => {
     const baseUrl = process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000";
+    const isLocalUrl = /localhost|127\.0\.0\.1/i.test(baseUrl);
     const isLiveMode = process.env.PLAYWRIGHT_LIVE_REGISTRATION === "1";
+    const integrationSafe = process.env.INTEGRATION_SAFE_ENV === "1";
+    // PR: local Next + integration Supabase. Nightly/manual: deployed URL + PLAYWRIGHT_LIVE_REGISTRATION=1.
+    const runAgainstIntegrationStack = integrationSafe && isLocalUrl;
+    const runAgainstLiveRemote = isLiveMode && !isLocalUrl;
     test.skip(
-      !isLiveMode || /localhost|127\.0\.0\.1/i.test(baseUrl),
-      "Live registration test is disabled. Set PLAYWRIGHT_LIVE_REGISTRATION=1 and PLAYWRIGHT_BASE_URL to a real environment."
+      !runAgainstIntegrationStack && !runAgainstLiveRemote,
+      "Set INTEGRATION_SAFE_ENV=1 with local PLAYWRIGHT_BASE_URL (PR), or PLAYWRIGHT_LIVE_REGISTRATION=1 with a deployed base URL."
     );
 
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
@@ -102,6 +107,8 @@ test.describe("Doctor registration with mandatory avatar", () => {
         .click();
       await page.keyboard.press("Escape");
 
+      await page.getByLabel("District").selectOption("Nicosia");
+
       // Mandatory avatar flow: upload -> crop modal -> confirm crop.
       const avatarInput = page.locator("label:has-text('Upload photo') input[type='file']");
       await avatarInput.setInputFiles(imageFixture);
@@ -114,7 +121,11 @@ test.describe("Doctor registration with mandatory avatar", () => {
         .getByLabel(/Professional registration or certification number/i)
         .fill(`LIC-${nonce}`);
 
-      await page.getByRole("checkbox", { name: /I confirm I am a licensed professional/i }).check();
+      await page
+        .getByRole("checkbox", {
+          name: /I confirm I am a (qualified health or wellness|licensed) professional/i,
+        })
+        .check();
       await page.getByRole("button", { name: /Submit application/i }).click();
 
       await expect(page).toHaveURL(/\/register\?submitted=1/, { timeout: 20000 });
