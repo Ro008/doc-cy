@@ -6,7 +6,12 @@ import {createMiddlewareClient} from "@supabase/auth-helpers-nextjs";
 import createMiddleware from "next-intl/middleware";
 import {routing} from "./i18n/routing";
 import {isLikelyBotUserAgent} from "./lib/bot-user-agent";
-import {shouldSuppressTrafficLog} from "./lib/traffic-log";
+import {
+  shouldSuppressTrafficLog,
+  signTrafficLogRequest,
+  TRAFFIC_LOG_SIGNATURE_HEADER,
+  TRAFFIC_LOG_TIMESTAMP_HEADER,
+} from "./lib/traffic-log";
 import {parseAuthTokenClaims} from "./lib/auth-token-claims";
 import {isSessionRevokedByPolicy} from "./lib/auth-session-revocation";
 
@@ -78,7 +83,7 @@ function trimUtm(value: string | null): string | null {
 
 const MAX_USER_AGENT_LEN = 512;
 
-function queueTrafficLog(req: NextRequest, sessionId: string, event: NextFetchEvent) {
+async function queueTrafficLog(req: NextRequest, sessionId: string) {
   const rawUa = req.headers.get("user-agent");
   const userAgent =
     rawUa && rawUa.trim() ? rawUa.trim().slice(0, MAX_USER_AGENT_LEN) : null;
@@ -100,18 +105,22 @@ function queueTrafficLog(req: NextRequest, sessionId: string, event: NextFetchEv
   };
 
   const endpoint = `${req.nextUrl.origin}/api/traffic/log`;
-  event.waitUntil(
-    fetch(endpoint, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    }).catch((error) => {
-      console.error("[DocCy][traffic] middleware_forward_failed", error);
-      return undefined;
-    })
-  );
+  const body = JSON.stringify(payload);
+  const signed = await signTrafficLogRequest(body);
+  if (!signed) return;
+
+  await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      [TRAFFIC_LOG_TIMESTAMP_HEADER]: signed.timestamp,
+      [TRAFFIC_LOG_SIGNATURE_HEADER]: signed.signature,
+    },
+    body,
+  }).catch((error) => {
+    console.error("[DocCy][traffic] middleware_forward_failed", error);
+    return undefined;
+  });
 }
 
 export async function middleware(req: NextRequest, event: NextFetchEvent) {
@@ -205,7 +214,7 @@ export async function middleware(req: NextRequest, event: NextFetchEvent) {
         maxAge: 60 * 60 * 24 * 30,
       });
     }
-    queueTrafficLog(req, sessionId, event);
+    event.waitUntil(queueTrafficLog(req, sessionId));
   }
 
   return res;

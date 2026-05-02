@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { verifyTrafficLogRequest } from "@/lib/traffic-log";
 import { createServiceRoleClient } from "@/lib/supabase-service";
 
 type TrafficPayload = {
@@ -22,6 +23,11 @@ function sanitizeText(value: unknown, max = 200): string | null {
 }
 
 export async function POST(req: Request) {
+  const body = await req.text();
+  if (!(await verifyTrafficLogRequest(req.headers, body))) {
+    return NextResponse.json({ ok: false, reason: "unauthorized" }, { status: 401 });
+  }
+
   const supabase = createServiceRoleClient();
   if (!supabase) {
     return NextResponse.json({ ok: false, reason: "service_role_not_configured" }, { status: 503 });
@@ -29,7 +35,7 @@ export async function POST(req: Request) {
 
   let payload: TrafficPayload;
   try {
-    payload = (await req.json()) as TrafficPayload;
+    payload = JSON.parse(body) as TrafficPayload;
   } catch {
     return NextResponse.json({ ok: false, reason: "invalid_json" }, { status: 400 });
   }
