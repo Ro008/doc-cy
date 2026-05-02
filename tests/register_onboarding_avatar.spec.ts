@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import { test, expect } from "@playwright/test";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import path from "node:path";
@@ -88,8 +87,9 @@ test.describe("Doctor registration with mandatory avatar", () => {
     }
 
     const admin = createClient(supabaseUrl, serviceRole);
-    const nonce = `${Date.now()}-${Math.floor(Math.random() * 100000)}`;
-    const email = `e2e-register-${randomUUID().replace(/-/g, "")}${TEST_EMAIL_DOMAIN}`;
+    // Avoid local-parts that are only hex (32-char UUID): Supabase Auth can reject them as email_address_invalid.
+    const nonce = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    const email = `e2e-register-${nonce}${TEST_EMAIL_DOMAIN}`;
     const fullName = `E2E Register ${nonce}`;
     const uniquePhone = `+35799${String(Math.floor(Math.random() * 1_000_000)).padStart(6, "0")}`;
     const imageFixture = path.resolve(
