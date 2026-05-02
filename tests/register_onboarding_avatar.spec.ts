@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { test, expect } from "@playwright/test";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import path from "node:path";
@@ -61,7 +62,10 @@ async function cleanupLicenseFilesForEmail(admin: SupabaseClient, email: string)
 }
 
 test.describe("Doctor registration with mandatory avatar", () => {
-  test("requires cropped avatar and cleans up created user", async ({ page }) => {
+  // CI global retries=2 would triple signUp bursts and hit Supabase Auth email rate limits; keep at most one retry here.
+  test.describe.configure({ retries: 1 });
+
+  test("requires cropped avatar and cleans up created user", async ({ page }, testInfo) => {
     const baseUrl = process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000";
     const isLocalUrl = /localhost|127\.0\.0\.1/i.test(baseUrl);
     const isLiveMode = process.env.PLAYWRIGHT_LIVE_REGISTRATION === "1";
@@ -78,10 +82,16 @@ test.describe("Doctor registration with mandatory avatar", () => {
     const serviceRole = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
     test.skip(!supabaseUrl || !serviceRole, "Missing Supabase env vars.");
 
+    if (testInfo.retry > 0) {
+      const backoffMs = 50_000 * testInfo.retry;
+      await new Promise((r) => setTimeout(r, backoffMs));
+    }
+
     const admin = createClient(supabaseUrl, serviceRole);
     const nonce = `${Date.now()}-${Math.floor(Math.random() * 100000)}`;
-    const email = `e2e-register-${nonce}${TEST_EMAIL_DOMAIN}`;
+    const email = `e2e-register-${randomUUID().replace(/-/g, "")}${TEST_EMAIL_DOMAIN}`;
     const fullName = `E2E Register ${nonce}`;
+    const uniquePhone = `+35799${String(Math.floor(Math.random() * 1_000_000)).padStart(6, "0")}`;
     const imageFixture = path.resolve(
       process.cwd(),
       "tests",
@@ -96,7 +106,7 @@ test.describe("Doctor registration with mandatory avatar", () => {
       await page.getByLabel("Password").fill("StrongPass123!");
       await page
         .getByLabel("WhatsApp Number (with country code, e.g., +357...)")
-        .fill("+35799123456");
+        .fill(uniquePhone);
 
       // Specialty combobox -> pick first master option.
       await page.locator("#register-specialty-trigger").click();
