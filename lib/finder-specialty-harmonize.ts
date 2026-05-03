@@ -5,7 +5,8 @@
 function specialtyMatchKey(raw: string): string {
   return raw
     .normalize("NFKD")
-    .replace(/\p{M}/gu, "")
+    // BMP combining marks (avoid `\p{M}` — breaks `next build` / TS target on Vercel).
+    .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .replace(/\s+/g, " ")
     .replace(/\s*\/\s*/g, "/")
