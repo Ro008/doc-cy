@@ -1,9 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import path from "node:path";
-
-/** Same domain as prod smoke / integration tests; @example.com is rejected by Supabase Auth in CI. */
-const TEST_EMAIL_DOMAIN = "@test-doccy.com.cy";
+import { doctorRegisterTestEmail } from "./helpers/doctor-register-test-email";
 
 // Not run in default PR Playwright matrix: shared integration Supabase often returns
 // `over_email_send_rate_limit` on signUp when many CI jobs hit the same project.
@@ -69,6 +67,7 @@ test.describe("Doctor registration with mandatory avatar", () => {
   test.describe.configure({ retries: 1 });
 
   test("requires cropped avatar and cleans up created user", async ({ page }, testInfo) => {
+    test.setTimeout(120_000);
     const baseUrl = process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000";
     const isLocalUrl = /localhost|127\.0\.0\.1/i.test(baseUrl);
     const isLiveMode = process.env.PLAYWRIGHT_LIVE_REGISTRATION === "1";
@@ -91,9 +90,8 @@ test.describe("Doctor registration with mandatory avatar", () => {
     }
 
     const admin = createClient(supabaseUrl, serviceRole);
-    // Avoid local-parts that are only hex (32-char UUID): Supabase Auth can reject them as email_address_invalid.
-    const nonce = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-    const email = `e2e-register-${nonce}${TEST_EMAIL_DOMAIN}`;
+    const email = doctorRegisterTestEmail();
+    const nonce = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const fullName = `E2E Register ${nonce}`;
     const uniquePhone = `+35799${String(Math.floor(Math.random() * 1_000_000)).padStart(6, "0")}`;
     const imageFixture = path.resolve(
@@ -145,12 +143,12 @@ test.describe("Doctor registration with mandatory avatar", () => {
         .check();
       await page.getByRole("button", { name: /Submit application/i }).click();
 
-      await expect(page).toHaveURL(/\/register\?submitted=1/, { timeout: 20000 });
+      await expect(page).toHaveURL(/\/register\?submitted=1/, { timeout: 45_000 });
       await expect(
         page.getByRole("heading", {
           name: /Thank you — your profile is under review/i,
         })
-      ).toBeVisible({ timeout: 20000 });
+      ).toBeVisible({ timeout: 45_000 });
     } finally {
       // Cleanup: remove doctor row + uploaded files + auth user so it never counts as a real signup.
       const { data: doctor } = await admin

@@ -137,7 +137,7 @@ test.describe("Integration: finder user-like filter behavior matrix", () => {
       ).toBeVisible({ timeout: 20000 });
 
       const districtSelect = page.getByLabel("District");
-      const specialtyInput = page.getByLabel("Specialty");
+      const specialtySelect = page.getByLabel("Specialty");
       const nameInput = page.getByLabel("Name");
 
       // Scenario 1: District-only exploration.
@@ -149,7 +149,7 @@ test.describe("Integration: finder user-like filter behavior matrix", () => {
       await expect(page.getByText(created[2].name, { exact: true })).toHaveCount(0);
 
       // Scenario 2: District + specialty narrowing.
-      await specialtyInput.fill("Dentistry");
+      await specialtySelect.selectOption({ label: "Dentistry" });
       await page.waitForTimeout(500);
       await expect(page).toHaveURL(/\/finder\/limassol\/dentistry(?:\?|$)/);
       await expect(page.getByRole("heading", { level: 1, name: /Dentistry in Limassol/i })).toBeVisible();

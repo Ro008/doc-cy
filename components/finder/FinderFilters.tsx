@@ -2,8 +2,14 @@
 
 import * as React from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { districtToSlug, specialtyToSlug } from "@/lib/finder-seo";
+import {
+  districtToSlug,
+  slugToSpecialty,
+  specialtyToSlug,
+  toTitleCaseWords,
+} from "@/lib/finder-seo";
 import type { CyprusDistrict } from "@/lib/cyprus-districts";
+import type { FinderSpecialtyOption } from "@/lib/finder-specialty-options";
 
 const START_EVENT = "doccy:navigation-start";
 
@@ -12,6 +18,7 @@ type FinderFiltersProps = {
   activeDistrict: string;
   activeSpecialty: string;
   activeName: string;
+  specialtyOptions: readonly FinderSpecialtyOption[];
 };
 
 export function FinderFilters({
@@ -19,30 +26,37 @@ export function FinderFilters({
   activeDistrict,
   activeSpecialty,
   activeName,
+  specialtyOptions,
 }: FinderFiltersProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [district, setDistrict] = React.useState(activeDistrict);
-  const [specialty, setSpecialty] = React.useState(activeSpecialty);
+  const [specialtySlug, setSpecialtySlug] = React.useState(() =>
+    activeSpecialty ? specialtyToSlug(activeSpecialty) : ""
+  );
   const [name, setName] = React.useState(activeName);
   const [pendingAction, setPendingAction] = React.useState<"apply" | "reset" | null>(null);
   const [isNavigating, setIsNavigating] = React.useState(false);
-  const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const nameDebounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingGuardRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
-  const typingGuardRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const nameTypingGuardRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
-  const isEditingSpecialtyRef = React.useRef(false);
   const isEditingNameRef = React.useRef(false);
+
+  const mergedSpecialtyOptions = React.useMemo(() => {
+    const slug = activeSpecialty ? specialtyToSlug(activeSpecialty) : "";
+    if (!slug) return [...specialtyOptions];
+    if (specialtyOptions.some((o) => o.slug === slug)) return [...specialtyOptions];
+    return [
+      ...specialtyOptions,
+      { slug, label: toTitleCaseWords(slugToSpecialty(activeSpecialty)) },
+    ].sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: "base" }));
+  }, [specialtyOptions, activeSpecialty]);
 
   React.useEffect(() => {
     // Keep district in sync with URL-driven state.
     setDistrict(activeDistrict);
-    // Avoid clobbering keystrokes while user is actively typing.
-    if (!isEditingSpecialtyRef.current) {
-      setSpecialty(activeSpecialty);
-    }
+    setSpecialtySlug(activeSpecialty ? specialtyToSlug(activeSpecialty) : "");
     if (!isEditingNameRef.current) {
       setName(activeName);
     }
@@ -65,17 +79,15 @@ export function FinderFilters({
 
   React.useEffect(() => {
     return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
       if (nameDebounceRef.current) clearTimeout(nameDebounceRef.current);
       if (pendingGuardRef.current) clearTimeout(pendingGuardRef.current);
-      if (typingGuardRef.current) clearTimeout(typingGuardRef.current);
       if (nameTypingGuardRef.current) clearTimeout(nameTypingGuardRef.current);
     };
   }, []);
 
   function pushFilters(nextDistrict: string, nextSpecialty: string, nextName: string) {
     const districtSlug = nextDistrict ? districtToSlug(nextDistrict as CyprusDistrict) : "all";
-    const specialtySlug = nextSpecialty ? specialtyToSlug(nextSpecialty) : "all";
+    const specialtyPathSegment = nextSpecialty ? specialtyToSlug(nextSpecialty) : "all";
     const params = new URLSearchParams();
     if (nextName) params.set("name", nextName);
     const finderPath =
@@ -83,7 +95,7 @@ export function FinderFilters({
         ? "/finder"
         : !nextSpecialty
           ? `/finder/${districtSlug}`
-          : `/finder/${districtSlug}/${specialtySlug}`;
+          : `/finder/${districtSlug}/${specialtyPathSegment}`;
     const qs = params.toString();
     const target = qs ? `${finderPath}?${qs}` : finderPath;
     if (`${pathname}${searchParams?.toString() ? `?${searchParams.toString()}` : ""}` === target) {
@@ -116,12 +128,12 @@ export function FinderFilters({
   }
 
   async function resetFilters() {
-    if (!district && !specialty && !name) {
+    if (!district && !specialtySlug && !name) {
       setPendingAction(null);
       return;
     }
     setDistrict("");
-    setSpecialty("");
+    setSpecialtySlug("");
     setName("");
     setPendingAction("reset");
     if (pendingGuardRef.current) clearTimeout(pendingGuardRef.current);
@@ -130,9 +142,14 @@ export function FinderFilters({
   }
 
   const isPending = pendingAction !== null;
+  const specialtyFilterLabel = specialtySlug
+    ? mergedSpecialtyOptions.find((o) => o.slug === specialtySlug)?.label ??
+      toTitleCaseWords(slugToSpecialty(specialtySlug))
+    : "";
+
   const activeFilterEntries = [
     district ? `District: ${district}` : null,
-    specialty.trim() ? `Specialty: ${specialty.trim()}` : null,
+    specialtyFilterLabel ? `Specialty: ${specialtyFilterLabel}` : null,
     name.trim() ? `Name: ${name.trim()}` : null,
   ].filter((item): item is string => Boolean(item));
   const hasActiveFilters = activeFilterEntries.length > 0;
@@ -190,7 +207,14 @@ export function FinderFilters({
           onChange={(e) => {
             const nextDistrict = e.target.value;
             setDistrict(nextDistrict);
-            applyFilters(nextDistrict, specialty.trim(), name.trim());
+            applyFilters(
+              nextDistrict,
+              specialtySlug
+                ? mergedSpecialtyOptions.find((o) => o.slug === specialtySlug)?.label ??
+                  slugToSpecialty(specialtySlug)
+                : "",
+              name.trim()
+            );
           }}
           className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950/80 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
         >
@@ -204,26 +228,27 @@ export function FinderFilters({
       </label>
       <label className="text-xs font-semibold uppercase tracking-wide text-slate-400">
         Specialty
-        <input
+        <select
           name="specialty"
-          type="text"
-          value={specialty}
+          value={specialtySlug}
           onChange={(e) => {
-            const nextSpecialty = e.target.value;
-            setSpecialty(nextSpecialty);
-            isEditingSpecialtyRef.current = true;
-            if (typingGuardRef.current) clearTimeout(typingGuardRef.current);
-            typingGuardRef.current = setTimeout(() => {
-              isEditingSpecialtyRef.current = false;
-            }, 900);
-            if (debounceRef.current) clearTimeout(debounceRef.current);
-            debounceRef.current = setTimeout(() => {
-              applyFilters(district, nextSpecialty.trim(), name.trim(), { showPending: false });
-            }, 350);
+            const nextSlug = e.target.value;
+            setSpecialtySlug(nextSlug);
+            const nextLabel = nextSlug
+              ? mergedSpecialtyOptions.find((o) => o.slug === nextSlug)?.label ??
+                slugToSpecialty(nextSlug)
+              : "";
+            applyFilters(district, nextLabel, name.trim(), { showPending: false });
           }}
-          placeholder="Start typing..."
           className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950/80 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
-        />
+        >
+          <option value="">All specialties</option>
+          {mergedSpecialtyOptions.map((opt) => (
+            <option key={opt.slug} value={opt.slug}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
       </label>
       <label className="text-xs font-semibold uppercase tracking-wide text-slate-400">
         Name
@@ -241,7 +266,15 @@ export function FinderFilters({
             }, 900);
             if (nameDebounceRef.current) clearTimeout(nameDebounceRef.current);
             nameDebounceRef.current = setTimeout(() => {
-              applyFilters(district, specialty.trim(), nextName.trim(), { showPending: false });
+              applyFilters(
+                district,
+                specialtySlug
+                  ? mergedSpecialtyOptions.find((o) => o.slug === specialtySlug)?.label ??
+                    slugToSpecialty(specialtySlug)
+                  : "",
+                nextName.trim(),
+                { showPending: false }
+              );
             }, 350);
           }}
           placeholder="Search by name..."

@@ -357,8 +357,8 @@ test.describe("Integration: finder business-critical UX", () => {
       const districtSelect = page.getByLabel("District");
       await districtSelect.selectOption("Nicosia");
 
-      const specialtyInput = page.getByLabel("Specialty");
-      await specialtyInput.fill("Dentistry");
+      const specialtySelect = page.getByLabel("Specialty");
+      await specialtySelect.selectOption({ label: "Dentistry" });
       await page.waitForTimeout(600);
 
       await expect(page).toHaveURL(/\/finder\/nicosia\/dentistry(?:\?|$)/);
