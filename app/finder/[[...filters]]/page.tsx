@@ -17,6 +17,8 @@ import {
   specialtyToSlug,
   toTitleCaseWords,
 } from "@/lib/finder-seo";
+import { buildFinderSpecialtyOptions } from "@/lib/finder-specialty-options";
+import { harmonizeFinderSpecialtyLabel } from "@/lib/finder-specialty-harmonize";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -135,10 +137,14 @@ function normalizeDistrictTerm(value: string): string {
 }
 
 function matchesSpecialtyFilter(candidate: string, query: string): boolean {
-  const normalizedCandidate = normalizeSpecialtyTerm(candidate);
-  const normalizedQuery = normalizeSpecialtyTerm(query);
+  const normalizedQuery = normalizeSelectValue(query);
   if (!normalizedQuery) return true;
-  return normalizedCandidate.includes(normalizedQuery);
+  const candidateCanon = harmonizeFinderSpecialtyLabel(candidate);
+  const queryCanon = harmonizeFinderSpecialtyLabel(normalizedQuery);
+  if (specialtyToSlug(candidateCanon) === specialtyToSlug(queryCanon)) return true;
+  const normalizedCandidate = normalizeSpecialtyTerm(candidate);
+  const normalizedQueryFuzzy = normalizeSpecialtyTerm(normalizedQuery);
+  return normalizedCandidate.includes(normalizedQueryFuzzy);
 }
 
 function decodeSegment(raw: string | undefined): string {
@@ -352,6 +358,8 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
     return true;
   });
 
+  const finderSpecialtyOptions = buildFinderSpecialtyOptions(manualRows, registeredRows);
+
   const filteredManual = manualRows.filter((row) => {
     if (
       activeDistrict &&
@@ -446,6 +454,7 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
             activeDistrict={activeDistrict}
             activeSpecialty={activeSpecialty}
             activeName={activeName}
+            specialtyOptions={finderSpecialtyOptions}
           />
         </section>
 

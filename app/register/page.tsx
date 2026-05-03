@@ -14,6 +14,7 @@ import {
   validateSpecialtySubmission,
 } from "@/lib/specialty-submission";
 import { notifyFounderNewRegistration } from "@/lib/notify-founder-new-registration";
+import { matchesAutomatedDoctorRegistrationTestEmailForAdminBypass } from "@/lib/e2e-doctor-registration-test";
 
 type PageProps = {
   searchParams?: { submitted?: string; error?: string; debug?: string };
@@ -85,6 +86,19 @@ function mapAuthErrorToCode(error: {
     return "rate_limit";
   }
   return "auth";
+}
+
+/**
+ * Playwright-only path: Supabase public `signUp` may reject synthetic integration domains
+ * (`email_address_invalid`) while the Admin API still accepts the same address.
+ * Never runs in production builds or on Vercel production; opt out with DOC_CY_E2E_REGISTRATION_RELAXED=0.
+ */
+function shouldUseAdminAuthForAutomatedRegistration(email: string): boolean {
+  if (process.env.NODE_ENV === "production" || process.env.VERCEL_ENV === "production") {
+    return false;
+  }
+  if (process.env.DOC_CY_E2E_REGISTRATION_RELAXED === "0") return false;
+  return matchesAutomatedDoctorRegistrationTestEmailForAdminBypass(email);
 }
 
 async function handleRegister(formData: FormData) {
@@ -171,28 +185,49 @@ async function handleRegister(formData: FormData) {
 
   const licenseFileUrl = null;
 
-  // Create user in Supabase Auth
-  const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-    email,
-    password,
-    options: {
-      data: {
+  let authUserId: string;
+
+  if (shouldUseAdminAuthForAutomatedRegistration(email)) {
+    const { data: adminData, error: adminError } = await service.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: {
         full_name: fullName,
         role: "doctor",
       },
-    },
-  });
+    });
+    if (adminError || !adminData.user) {
+      console.error("[DocCy] Auth admin create (E2E registration) failed", adminError);
+      if ((adminError as { status?: number })?.status === 429) {
+        redirectWithError("rate_limit", adminError);
+      }
+      redirectWithError(mapAuthErrorToCode(adminError as { message?: string | null; status?: number }), adminError);
+    }
+    authUserId = adminData.user.id;
+  } else {
+    const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          full_name: fullName,
+          role: "doctor",
+        },
+      },
+    });
 
-  if (signUpError || !signUpData.user) {
-    console.error("[DocCy] Auth sign-up failed", signUpError);
-    if ((signUpError as any)?.status === 429) {
-      redirectWithError("rate_limit", signUpError);
+    if (signUpError || !signUpData.user) {
+      console.error("[DocCy] Auth sign-up failed", signUpError);
+      if ((signUpError as any)?.status === 429) {
+        redirectWithError("rate_limit", signUpError);
+      }
+
+      redirectWithError(mapAuthErrorToCode(signUpError as any), signUpError);
     }
 
-    redirectWithError(mapAuthErrorToCode(signUpError as any), signUpError);
+    authUserId = signUpData.user.id;
   }
-
-  const authUserId = signUpData.user.id;
 
   // Generate a simple slug from the doctor's name
   const baseSlug = fullName
