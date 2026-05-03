@@ -142,16 +142,19 @@ test.describe("Integration: finder user-like filter behavior matrix", () => {
 
       // Scenario 1: District-only exploration.
       await districtSelect.selectOption("Limassol");
-      await expect(page).toHaveURL(/\/finder\/limassol(?:\?|$)/);
+      await expect(page).toHaveURL(/\/finder\/limassol(?:\?|$)/, { timeout: 15_000 });
       await expect(page.getByRole("heading", { level: 1, name: /Health Professionals in Cyprus/i })).toBeVisible();
       await expect(page.getByText(created[0].name, { exact: true })).toBeVisible();
       await expect(page.getByText(created[1].name, { exact: true })).toBeVisible();
       await expect(page.getByText(created[2].name, { exact: true })).toHaveCount(0);
 
       // Scenario 2: District + specialty narrowing.
-      await specialtySelect.selectOption({ label: "Dentistry" });
-      await page.waitForTimeout(500);
-      await expect(page).toHaveURL(/\/finder\/limassol\/dentistry(?:\?|$)/);
+      await expect(specialtySelect).toBeEnabled({ timeout: 15_000 });
+      await expect(specialtySelect.locator('option[value="dentistry"]')).toHaveCount(1, {
+        timeout: 20_000,
+      });
+      await specialtySelect.selectOption("dentistry");
+      await expect(page).toHaveURL(/\/finder\/limassol\/dentistry(?:\?|$)/, { timeout: 15_000 });
       await expect(page.getByRole("heading", { level: 1, name: /Dentistry in Limassol/i })).toBeVisible();
       await expect(page.getByText(created[1].name, { exact: true })).toBeVisible();
       await expect(page.getByText(created[0].name, { exact: true })).toHaveCount(0);
