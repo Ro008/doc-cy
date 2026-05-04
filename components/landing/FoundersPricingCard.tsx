@@ -29,12 +29,15 @@ export function FoundersPricingCard() {
 
   React.useEffect(() => {
     let cancelled = false;
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), 6000);
 
     async function loadAvailability() {
       try {
         const response = await fetch("/api/pricing/founders-availability", {
           method: "GET",
           cache: "no-store",
+          signal: controller.signal,
         });
         if (!response.ok) throw new Error(`availability fetch failed: ${response.status}`);
         const data = (await response.json()) as FoundersAvailability;
@@ -44,12 +47,16 @@ export function FoundersPricingCard() {
       } catch {
         if (cancelled) return;
         setStatus("error");
+      } finally {
+        window.clearTimeout(timeoutId);
       }
     }
 
     loadAvailability();
     return () => {
       cancelled = true;
+      window.clearTimeout(timeoutId);
+      controller.abort();
     };
   }, []);
 
