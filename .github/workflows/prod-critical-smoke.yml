@@ -21,17 +21,48 @@ on:
         default: ""
         type: string
   schedule:
-    # GitHub Actions cron is UTC. Run 2h earlier than before.
-    # 01:00 UTC ≈ 03:00 Asia/Nicosia (EET, UTC+2).
-    - cron: "0 1 * * *"
+    # GitHub Actions cron is UTC (no fixed local timezone).
+    # Fire both candidate UTC slots, then gate in Europe/Nicosia so it runs only at 06:00 local.
+    - cron: "0 3 * * *" # 06:00 during EEST (UTC+3)
+    - cron: "0 4 * * *" # 06:00 during EET  (UTC+2)
 
 permissions:
   contents: read
   issues: write
 
 jobs:
+  schedule-gate:
+    runs-on: ubuntu-latest
+    outputs:
+      should_run: ${{ steps.gate.outputs.should_run }}
+      nicosia_time: ${{ steps.gate.outputs.nicosia_time }}
+    steps:
+      - name: Decide run window (always 06:00 Cyprus)
+        id: gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then
+            echo "Manual dispatch: bypassing time gate."
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+            echo "nicosia_time=manual" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          hour="$(TZ=Europe/Nicosia date +%H)"
+          stamp="$(TZ=Europe/Nicosia date '+%Y-%m-%d %H:%M:%S %Z')"
+          echo "Nicosia local time: ${stamp}"
+
+          if [ "${hour}" = "06" ]; then
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+          fi
+          echo "nicosia_time=${stamp}" >> "$GITHUB_OUTPUT"
+
   prod-critical-smoke:
-    if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.notify_only != 'true' }}
+    needs: [schedule-gate]
+    if: needs.schedule-gate.outputs.should_run == 'true' && (github.event_name != 'workflow_dispatch' || github.event.inputs.notify_only != 'true')
     runs-on: ubuntu-latest
     outputs:
       doctor_ui_monitor_outcome: ${{ steps.doctor-ui-monitor.outcome }}
@@ -235,6 +266,8 @@ jobs:
         run: node scripts/cleanup-prod-smoke-registrations.mjs
 
   business-critical-integration:
+    needs: [schedule-gate]
+    if: needs.schedule-gate.outputs.should_run == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 35
     env:
@@ -309,8 +342,8 @@ jobs:
           if-no-files-found: ignore
 
   business-critical-integration-failure-issue:
-    if: always()
-    needs: [business-critical-integration]
+    if: always() && needs.schedule-gate.outputs.should_run == 'true'
+    needs: [schedule-gate, business-critical-integration]
     runs-on: ubuntu-latest
     steps:
       - name: Open issue on integration failure
@@ -344,8 +377,8 @@ jobs:
             });
 
   notify-whatsapp:
-    if: always()
-    needs: [prod-critical-smoke, business-critical-integration]
+    if: always() && needs.schedule-gate.outputs.should_run == 'true'
+    needs: [schedule-gate, prod-critical-smoke, business-critical-integration]
     runs-on: ubuntu-latest
     continue-on-error: true
     timeout-minutes: 10
