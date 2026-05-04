@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Instagram } from "lucide-react";
 import { notFound } from "next/navigation";
 import { PendingLink } from "@/components/navigation/PendingLink";
 import { getAllBlogPostMeta, getBlogPostBySlug, postNeedsPaphosCta } from "@/lib/blog";
@@ -146,6 +147,17 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
           </aside>
         ) : null}
       </article>
+      <section className="mx-auto mt-8 max-w-3xl border-t border-slate-800/50 pt-4 text-center">
+        <a
+          href="https://www.instagram.com/doccy_cyprus?igsh=MW94Zjg1czZ6OXNzaw=="
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-700 bg-slate-900/70 text-slate-300 transition hover:border-emerald-400/50 hover:text-emerald-200"
+          aria-label="Follow DocCy on Instagram"
+        >
+          <Instagram className="h-4 w-4" aria-hidden />
+        </a>
+      </section>
     </main>
   );
 }

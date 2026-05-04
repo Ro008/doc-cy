@@ -89,7 +89,7 @@ export default async function RootLayout({
   return (
     <html lang={locale}>
       <body
-        className={`${inter.variable} min-h-screen bg-slate-50 text-slate-900 antialiased`}
+        className={`${inter.variable} min-h-screen bg-slate-950 text-slate-900 antialiased`}
       >
         <NavigationProgressBar />
         <NextIntlClientProvider messages={messages}>

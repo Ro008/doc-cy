@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Instagram } from "lucide-react";
 import { PendingLink } from "@/components/navigation/PendingLink";
 import { DocCyWordmark } from "@/components/brand/DocCyWordmark";
 import { CYPRUS_DISTRICTS, type CyprusDistrict, isCyprusDistrict } from "@/lib/cyprus-districts";
@@ -668,6 +669,15 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                   </PendingLink>
                   .
                 </p>
+                <a
+                  href="https://www.instagram.com/doccy_cyprus?igsh=MW94Zjg1czZ6OXNzaw=="
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-3 inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-700 bg-slate-900/70 text-slate-300 transition hover:border-emerald-400/50 hover:text-emerald-200"
+                  aria-label="Follow DocCy on Instagram"
+                >
+                  <Instagram className="h-4 w-4" aria-hidden />
+                </a>
               </section>
             </div>
           </footer>
