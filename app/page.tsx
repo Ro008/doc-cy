@@ -201,8 +201,8 @@ export default async function HomePage() {
           </div>
         </header>
 
-        <div className="flex min-h-0 flex-1 flex-col justify-center py-3 lg:py-4">
-          <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 lg:flex-row lg:items-center lg:gap-10 xl:gap-12">
+        <div className="flex min-h-0 flex-1 flex-col justify-center py-4 lg:py-4">
+          <div className="mx-auto flex w-full max-w-6xl flex-col gap-10 lg:flex-row lg:items-center lg:gap-10 xl:gap-12">
             <section className="min-w-0 flex-1 lg:max-w-[58%]">
               <h1
                 className={`text-balance whitespace-pre-line font-semibold tracking-tight text-neutral-50 ${
@@ -284,18 +284,19 @@ export default async function HomePage() {
           </div>
         </div>
 
-        <section className="mx-auto w-full max-w-6xl pb-6 pt-1 sm:pb-8">
-          <div className="mb-4 sm:mb-5">
-            <h2 className="text-2xl font-semibold tracking-tight text-neutral-50 sm:text-3xl">
-              {t("Showcase.title")}
-            </h2>
+        <section className="mx-auto w-full max-w-6xl pb-8 pt-4 sm:pb-10 [overflow-anchor:none]">
+          <div className="rounded-3xl border border-emerald-300/20 bg-slate-900/70 p-5 shadow-[0_0_56px_-22px_rgba(16,185,129,0.35)] backdrop-blur-md sm:p-7">
+            <div className="mb-4 sm:mb-5">
+              <h2 className="text-2xl font-semibold tracking-tight text-neutral-50 sm:text-3xl">
+                {t("Showcase.title")}
+              </h2>
+            </div>
+            <ProductShowcaseCarousel slides={showcaseSlides} />
           </div>
-          <ProductShowcaseCarousel slides={showcaseSlides} />
         </section>
-
         <section
           id="founders-pricing"
-          className="mx-auto w-full max-w-6xl pb-8 pt-2 sm:pb-10 [overflow-anchor:none]"
+          className="mx-auto w-full max-w-6xl pb-10 pt-4 sm:pb-10 [overflow-anchor:none]"
         >
           <div className="rounded-3xl border border-emerald-300/20 bg-slate-900/70 p-5 shadow-[0_0_56px_-22px_rgba(16,185,129,0.35)] backdrop-blur-md sm:p-7">
             <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(280px,360px)] lg:items-start">
@@ -320,8 +321,22 @@ export default async function HomePage() {
             </div>
           </div>
         </section>
-
       </div>
+      <section className="mx-auto w-full max-w-6xl pb-12 pt-4 sm:pb-12">
+        <div className="border-t border-slate-800/50 pt-4 text-center">
+          <a
+            href="https://www.instagram.com/doccy_cyprus?igsh=MW94Zjg1czZ6OXNzaw=="
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex h-12 w-12 items-center justify-center rounded-full border-2 border-emerald-300/45 bg-emerald-400 text-slate-950 shadow-[0_0_0_1px_rgba(52,211,153,0.35),0_4px_24px_rgba(16,185,129,0.35)] transition hover:border-emerald-200/60 hover:bg-emerald-300 hover:shadow-[0_0_0_1px_rgba(110,231,183,0.45),0_6px_28px_rgba(52,211,153,0.4)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
+            aria-label="Follow DocCy on Instagram"
+          >
+            <svg viewBox="0 0 24 24" className="h-6 w-6" aria-hidden fill="currentColor">
+              <path d="M7.75 2h8.5A5.75 5.75 0 0 1 22 7.75v8.5A5.75 5.75 0 0 1 16.25 22h-8.5A5.75 5.75 0 0 1 2 16.25v-8.5A5.75 5.75 0 0 1 7.75 2Zm8.5 1.75h-8.5A4 4 0 0 0 3.75 7.75v8.5a4 4 0 0 0 4 4h8.5a4 4 0 0 0 4-4v-8.5a4 4 0 0 0-4-4ZM12 7a5 5 0 1 1 0 10 5 5 0 0 1 0-10Zm0 1.75A3.25 3.25 0 1 0 12 15.25 3.25 3.25 0 0 0 12 8.75Zm5.25-2a1.2 1.2 0 1 1 0 2.4 1.2 1.2 0 0 1 0-2.4Z" />
+            </svg>
+          </a>
+        </div>
+      </section>
     </main>
   );
 }
