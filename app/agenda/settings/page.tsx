@@ -2,24 +2,19 @@
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
-import { ArrowLeft } from "lucide-react";
 import { SettingsForm } from "@/components/dashboard/SettingsForm";
 import { SignOutButton } from "@/components/auth/SignOutButton";
 import type {
   DoctorServiceItem,
   DoctorSettingsFormData,
 } from "@/components/dashboard/SettingsForm";
-import { ViewPublicProfileLink } from "@/components/agenda/ViewPublicProfileLink";
 import { PromotePracticeSection } from "@/components/dashboard/PromotePracticeSection";
 import { FoundingMemberBadge } from "@/components/dashboard/FoundingMemberBadge";
 import { OnlineBookingsPauseToggle } from "@/components/dashboard/OnlineBookingsPauseToggle";
-import { DashboardUtilityRow } from "@/components/agenda/DashboardUtilityRow";
 import { SignOutOtherSessionsButton } from "@/components/auth/SignOutOtherSessionsButton";
-import { PendingLink } from "@/components/navigation/PendingLink";
 import { doctorDashboardDisplayName } from "@/lib/doctor-display-name";
 import {
   canonicalLanguageLabel,
@@ -165,13 +160,6 @@ export default async function AgendaSettingsPage() {
             Professional profile not found for this account. Please contact support.
           </p>
           <SignOutButton />
-          <PendingLink
-            href="/agenda"
-            className="mt-4 inline-flex items-center text-sm text-emerald-300 hover:text-emerald-200"
-          >
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to agenda
-          </PendingLink>
         </div>
       </main>
     );
@@ -317,23 +305,6 @@ export default async function AgendaSettingsPage() {
       </div>
 
       <div className="mx-auto w-full max-w-5xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
-        <DashboardUtilityRow
-          left={
-            <PendingLink
-              href="/agenda"
-              className="inline-flex items-center gap-2 text-xs font-medium text-slate-400 transition hover:text-slate-200"
-            >
-              <ArrowLeft className="h-3.5 w-3.5 shrink-0" aria-hidden />
-              Back to agenda
-            </PendingLink>
-          }
-          right={
-            <>
-              <SignOutButton variant="utility" />
-            </>
-          }
-        />
-
         <header className="mb-8 mt-2 flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between lg:gap-10">
           <div className="min-w-0 flex-1">
             <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-emerald-400/90">
@@ -358,11 +329,6 @@ export default async function AgendaSettingsPage() {
               initialPaused={pauseOnlineBookings}
               layout="header"
             />
-            <ViewPublicProfileLink
-              slug={doctor.slug}
-              isVerified={isVerified}
-              variant="primary"
-            />
           </div>
         </header>
 
@@ -374,7 +340,7 @@ export default async function AgendaSettingsPage() {
           <SignOutOtherSessionsButton />
         </div>
 
-        <div className="mt-8">
+        <div id="promote-practice" className="mt-8 scroll-mt-24">
           {isVerified ? (
             <>
               <p className="mb-3 text-xs text-slate-500">

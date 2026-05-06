@@ -1,6 +1,8 @@
 import Image from "next/image";
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
+import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
 
 import { supabase } from "@/lib/supabase";
 import { BookingSection } from "@/components/doctor/BookingSection";
@@ -362,6 +364,7 @@ export async function generateMetadata({
 export default async function DoctorPage({ params }: PageProps) {
   const result = await fetchPublicDoctorBySlug(params.slug);
   const t = await getTranslations("DoctorProfilePage");
+  const authSupabase = createServerComponentClient({ cookies });
 
   if (result.kind === "not_found") {
     console.error(
@@ -380,6 +383,18 @@ export default async function DoctorPage({ params }: PageProps) {
   }
 
   const profile = result.profile;
+  const {
+    data: { user },
+  } = await authSupabase.auth.getUser();
+  let isOwnerView = false;
+  if (user?.id) {
+    const { data: ownerDoctor } = await authSupabase
+      .from("doctors")
+      .select("auth_user_id")
+      .eq("id", profile.id)
+      .maybeSingle();
+    isOwnerView = ownerDoctor?.auth_user_id === user.id;
+  }
   const clinicAddress = (profile.clinic_address ?? "").trim() || CLINIC_ADDRESS;
   const mapsUrl = buildMapsUrlFromAddress(clinicAddress);
   let avatarUrl = DOCTOR_AVATAR_URL;
@@ -561,6 +576,18 @@ export default async function DoctorPage({ params }: PageProps) {
       </div>
 
       <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8 lg:py-14">
+        {isOwnerView ? (
+          <div className="mb-6 rounded-2xl border border-emerald-300/35 bg-emerald-400/12 px-4 py-3 text-sm text-emerald-100">
+            You are viewing your public profile.{" "}
+            <a href="/agenda/settings" className="font-semibold underline underline-offset-2">
+              Edit Profile
+            </a>{" "}
+            |{" "}
+            <a href="/agenda" className="font-semibold underline underline-offset-2">
+              Back to Agenda
+            </a>
+          </div>
+        ) : null}
         <header className="mb-8 flex flex-col gap-4 sm:gap-6">
           <div className="flex items-center justify-between gap-3">
             <div className="flex min-w-0 items-center gap-2 break-words">

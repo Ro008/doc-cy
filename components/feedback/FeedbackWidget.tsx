@@ -258,50 +258,8 @@ export function FeedbackWidget() {
     }
   }
 
-  const showHintBubble =
-    !reduceMotion && (hintStage === "anim-in" || hintStage === "shown" || hintStage === "anim-out");
-
   return (
     <>
-      {/* Floating help: mint button + timed tooltip to the left */}
-      {!installBannerVisible && (
-      <div className="fixed bottom-5 right-5 z-[90] flex flex-row-reverse items-center gap-2 sm:bottom-6 sm:right-6">
-        {showHintBubble && (
-          <div
-            role="tooltip"
-            className={[
-              "doccy-feedback-hint-bubble pointer-events-none relative max-w-[200px] rounded-2xl border border-emerald-400/25 bg-slate-900/92 px-3.5 py-2 text-left text-xs font-medium leading-snug text-emerald-50 shadow-[0_8px_32px_-8px_rgba(0,0,0,0.55),0_0_24px_-6px_rgba(52,211,153,0.35)] backdrop-blur-md",
-              hintStage === "anim-in" ? "doccy-feedback-hint-pop-in" : "",
-              hintStage === "shown" ? "doccy-feedback-hint-settled" : "",
-              hintStage === "anim-out" ? "doccy-feedback-hint-pop-out" : "",
-            ]
-              .filter(Boolean)
-              .join(" ")}
-            onAnimationEnd={onHintAnimationEnd}
-          >
-            <span className="block pr-0.5">Suggestions or Help?</span>
-            <span
-              className="absolute -right-1.5 top-1/2 h-2.5 w-2.5 -translate-y-1/2 rotate-45 border-r border-t border-emerald-400/25 bg-slate-900/92"
-              aria-hidden
-            />
-          </div>
-        )}
-
-        <button
-          type="button"
-          onClick={() => {
-            setOpen(true);
-            setError(null);
-            setHintStage("off");
-          }}
-          className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full border-2 border-emerald-300/45 bg-emerald-400 text-slate-950 shadow-[0_0_0_1px_rgba(52,211,153,0.35),0_4px_24px_rgba(16,185,129,0.35)] transition hover:border-emerald-200/60 hover:bg-emerald-300 hover:shadow-[0_0_0_1px_rgba(110,231,183,0.45),0_6px_28px_rgba(52,211,153,0.4)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
-          aria-label="Suggestions or help — open form"
-        >
-          <HelpCircle className="h-5 w-5" aria-hidden />
-        </button>
-      </div>
-      )}
-
       {/* Modal */}
       {open && (
         <div
