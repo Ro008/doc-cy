@@ -8,9 +8,11 @@ import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 export function SignOutButton({
   className,
   variant = "default",
+  "data-testid": dataTestId,
 }: {
   className?: string;
   variant?: "default" | "utility";
+  "data-testid"?: string;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -46,6 +48,7 @@ export function SignOutButton({
       onClick={handleSignOut}
       disabled={isPending}
       className={merged}
+      data-testid={dataTestId}
     >
       {variant === "utility" ? (
         <LogOut className="h-3.5 w-3.5 shrink-0 opacity-80" aria-hidden />

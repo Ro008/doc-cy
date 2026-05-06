@@ -336,8 +336,9 @@ export default async function AgendaSettingsPage() {
           <SettingsForm initial={initial} />
         </section>
 
-        <div className="mt-6">
+        <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
           <SignOutOtherSessionsButton />
+          <SignOutButton data-testid="settings-sign-out-button" />
         </div>
 
         <div id="promote-practice" className="mt-8 scroll-mt-24">

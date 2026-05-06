@@ -130,7 +130,15 @@ export default async function RootLayout({
         <NavigationProgressBar />
         <NextIntlClientProvider messages={messages}>
           <UserBar initialSessionState={initialUserBarState} />
-          {children}
+          <div
+            className={
+              user
+                ? "pb-[calc(5.25rem+env(safe-area-inset-bottom,0px))] lg:pb-0"
+                : undefined
+            }
+          >
+            {children}
+          </div>
         </NextIntlClientProvider>
         <Toaster richColors position="top-center" closeButton />
         <InstallBanner />
