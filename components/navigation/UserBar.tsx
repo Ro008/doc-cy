@@ -148,7 +148,9 @@ export function UserBar({ initialSessionState }: UserBarProps) {
     emitOpenFeedback({ subject: "General Question" });
   }
 
-  if (!sessionState.isLoggedIn || pathname === "/login") {
+  const isDistractionFreeDoctorFlow = pathname.startsWith("/dashboard/appointments/");
+
+  if (!sessionState.isLoggedIn || pathname === "/login" || isDistractionFreeDoctorFlow) {
     return null;
   }
 
