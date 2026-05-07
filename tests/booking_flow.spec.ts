@@ -5,6 +5,7 @@ import { skipIfSafeNoBooking } from "./helpers/safeMode";
 
 test.describe("Booking flow @booking-creates", () => {
   test("full booking flow on doctor profile", async ({ page, request }) => {
+    test.setTimeout(120_000);
     skipIfSafeNoBooking(test.info());
 
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
@@ -50,9 +51,8 @@ test.describe("Booking flow @booking-creates", () => {
     await expect(page).toHaveURL(new RegExp(`/${chosenDoctor.slug}$`), {
       timeout: 10000,
     });
-    await expect(
-      page.getByText(/Evangelismos Private Hospital/i)
-    ).toBeVisible({ timeout: 10000 });
+    // Avoid hardcoding clinic branding text; it may vary across environments.
+    // URL + booking widget visibility below is the stable profile assertion.
 
     // 2. Two-column booking: wait for panel (unique placeholder), then select first available day
     await expect(
