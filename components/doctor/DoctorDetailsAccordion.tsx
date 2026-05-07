@@ -1,20 +1,16 @@
 "use client";
 
 import * as React from "react";
-import { ChevronDown, MapPin } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 
 type DoctorDetailsAccordionProps = {
   name: string;
   bio: string | null;
-  clinicAddress: string;
-  mapsUrl: string;
 };
 
 export function DoctorDetailsAccordion({
   name,
   bio,
-  clinicAddress,
-  mapsUrl,
 }: DoctorDetailsAccordionProps) {
   const [open, setOpen] = React.useState(false);
   const bioText = (bio ?? "").trim();
@@ -55,30 +51,13 @@ export function DoctorDetailsAccordion({
             open ? "max-h-[720px] opacity-100" : "max-h-0 opacity-0"
           }`}
         >
-          <div className="space-y-3 px-5 pb-5 pt-1">
+          <div className="px-5 pb-5 pt-1">
             <div>
-              <p className="text-xs font-semibold tracking-[0.2em] text-slate-400">
-                About
-              </p>
-              <p className="mt-2 text-sm leading-relaxed text-slate-300">
+              <p className="text-sm leading-relaxed text-slate-300">
                 {truncatedBio || "This professional has not added a bio yet."}
               </p>
             </div>
 
-            <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-4">
-              <p className="text-xs font-semibold tracking-wide text-slate-400">
-                Location
-              </p>
-              <a
-                href={mapsUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="mt-2 flex items-start gap-2 text-sm text-slate-200 transition hover:text-emerald-300"
-              >
-                <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400/80" />
-                <span>{clinicAddress}</span>
-              </a>
-            </div>
           </div>
         </div>
       </div>

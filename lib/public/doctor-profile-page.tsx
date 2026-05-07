@@ -14,6 +14,7 @@ import {
 } from "@/components/doctor/ProfileNotLive";
 import { WhatToExpectCard } from "@/components/doctor/WhatToExpectCard";
 import { ServiceMenuSection } from "@/components/doctor/ServiceMenuSection";
+import { DoctorLocationSection } from "@/components/doctor/DoctorLocationSection";
 import {
   settingsToWeeklySlots,
   type DoctorSettingsRow,
@@ -691,9 +692,8 @@ export default async function DoctorPage({ params }: PageProps) {
             <DoctorDetailsAccordion
               name={profile.name}
               bio={profile.bio}
-              clinicAddress={clinicAddress}
-              mapsUrl={mapsUrl}
             />
+            <DoctorLocationSection clinicAddress={clinicAddress} mapsUrl={mapsUrl} />
             <ServiceMenuSection services={services} />
           </div>
         </div>
