@@ -1,4 +1,4 @@
-import { redirect, notFound } from "next/navigation";
+import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
 import { format } from "date-fns";
@@ -20,16 +20,55 @@ export const revalidate = 0;
 
 type PageProps = { params: { id: string }; searchParams?: { confirmed?: string } };
 
+function DoctorLinkStatePanel({
+  title,
+  description,
+}: {
+  title: string;
+  description: string;
+}) {
+  return (
+    <main className="min-h-screen bg-slate-950 px-4 py-10 text-slate-50">
+      <div className="mx-auto max-w-lg rounded-3xl border border-slate-800 bg-slate-900/80 p-6 shadow-xl">
+        <p className="text-xs font-semibold uppercase tracking-wide text-amber-300/90">
+          Link no longer actionable
+        </p>
+        <h1 className="mt-2 text-xl font-semibold text-slate-50">{title}</h1>
+        <p className="mt-3 text-sm text-slate-300">{description}</p>
+        <div className="mt-6 flex flex-col gap-2">
+          <PendingLink
+            href="/agenda"
+            className="flex w-full items-center justify-center rounded-2xl bg-emerald-400 px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-300"
+          >
+            Open agenda
+          </PendingLink>
+          <PendingLink
+            href="/agenda/settings"
+            className="flex w-full items-center justify-center rounded-2xl border border-emerald-300/35 bg-emerald-300/10 px-4 py-3 text-sm font-semibold text-emerald-100 transition hover:bg-emerald-300/20"
+          >
+            Open settings
+          </PendingLink>
+        </div>
+      </div>
+    </main>
+  );
+}
+
 export default async function DashboardAppointmentDetailPage({
   params,
   searchParams,
 }: PageProps) {
+  const appointmentId = String(params.id ?? "").trim();
   const supabase = createServerComponentClient({ cookies });
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
   if (!user) {
+    console.info("[DocCy][doctor-link] unauthenticated_access", {
+      appointmentId,
+      path: `/dashboard/appointments/${appointmentId}`,
+    });
     redirect("/login");
   }
 
@@ -40,6 +79,10 @@ export default async function DashboardAppointmentDetailPage({
     .single();
 
   if (doctorErr || !doctor) {
+    console.warn("[DocCy][doctor-link] doctor_not_found_for_user", {
+      userId: user.id,
+      appointmentId,
+    });
     redirect("/login");
   }
 
@@ -48,12 +91,23 @@ export default async function DashboardAppointmentDetailPage({
     .select(
       "id, patient_name, patient_phone, appointment_datetime, status, reason, duration_minutes, proposal_expires_at, proposed_slots"
     )
-    .eq("id", params.id)
+    .eq("id", appointmentId)
     .eq("doctor_id", doctor.id)
     .maybeSingle();
 
   if (apptErr || !appt) {
-    notFound();
+    console.info("[DocCy][doctor-link] not_found_or_forbidden", {
+      userId: user.id,
+      doctorId: doctor.id,
+      appointmentId,
+      dbError: apptErr?.message ?? null,
+    });
+    return (
+      <DoctorLinkStatePanel
+        title="This confirmation link is no longer available"
+        description="This request may have already been handled, removed, or it may belong to another account. You can continue from your DocCy agenda."
+      />
+    );
   }
 
   const { data: settingsRow } = await supabase
@@ -113,6 +167,12 @@ export default async function DashboardAppointmentDetailPage({
       : null;
 
   if (status === "NEEDS_RESCHEDULE") {
+    console.info("[DocCy][doctor-link] reopened_after_action", {
+      userId: user.id,
+      doctorId: doctor.id,
+      appointmentId,
+      status,
+    });
     const expRaw = (appt as { proposal_expires_at?: string | null })
       .proposal_expires_at;
     const expLabel = expRaw
@@ -167,6 +227,12 @@ export default async function DashboardAppointmentDetailPage({
   }
 
   if (status === "REQUESTED") {
+    console.info("[DocCy][doctor-link] opened_pending_request", {
+      userId: user.id,
+      doctorId: doctor.id,
+      appointmentId,
+      status,
+    });
     return (
       <main className="min-h-screen bg-slate-950 px-4 py-10 text-slate-50">
         <div className="mx-auto max-w-lg rounded-3xl border border-slate-800 bg-slate-900/80 p-6 shadow-xl">
@@ -184,6 +250,15 @@ export default async function DashboardAppointmentDetailPage({
         </div>
       </main>
     );
+  }
+
+  if (status === "CONFIRMED" || status === "CANCELLED") {
+    console.info("[DocCy][doctor-link] reopened_non_actionable_status", {
+      userId: user.id,
+      doctorId: doctor.id,
+      appointmentId,
+      status,
+    });
   }
 
   return (
