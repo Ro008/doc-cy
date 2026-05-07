@@ -153,6 +153,29 @@ jobs:
             --project="Desktop Large (Chromium)" \
             --reporter=line
 
+      - name: Run user navigation/footer responsive suite
+        env:
+          CI: "true"
+          INTEGRATION_SAFE_ENV: "1"
+          PLAYWRIGHT_BASE_URL: http://127.0.0.1:3000
+          PLAYWRIGHT_WEB_SERVER_COMMAND: npm run start
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.INTEGRATION_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.INTEGRATION_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.INTEGRATION_SUPABASE_SERVICE_ROLE_KEY }}
+          DOC_CY_SUPPRESS_TRAFFIC_LOG_SECRET: ${{ secrets.DOC_CY_SUPPRESS_TRAFFIC_LOG_SECRET }}
+          PROD_NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.PROD_NEXT_PUBLIC_SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          INTEGRATION_SCHEDULE_TEST_DOCTOR_SLUG: ${{ vars.INTEGRATION_SCHEDULE_TEST_DOCTOR_SLUG }}
+          TEST_USER_EMAIL: ${{ secrets.INTEGRATION_TEST_USER_EMAIL || secrets.TEST_USER_EMAIL }}
+          TEST_USER_PASSWORD: ${{ secrets.INTEGRATION_TEST_USER_PASSWORD || secrets.TEST_USER_PASSWORD }}
+        run: |
+          npx playwright test \
+            tests/user_bar.spec.ts \
+            tests/footer_navigation.spec.ts \
+            --project="Desktop Large (Chromium)" \
+            --project="Mobile Chrome (Pixel 5)" \
+            --workers=1 \
+            --reporter=line
+
       - name: Upload Playwright report
         if: failure()
         uses: actions/upload-artifact@v4
