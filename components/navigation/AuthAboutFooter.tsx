@@ -49,7 +49,7 @@ export function AuthAboutFooter({ visible }: AuthAboutFooterProps) {
   }
 
   return (
-    <footer className="mx-auto mt-8 w-full max-w-6xl px-4 pb-3 sm:px-6 lg:px-8">
+    <footer className="mx-auto mt-8 w-full max-w-6xl px-4 pb-3 sm:px-6 lg:px-8" data-testid="auth-about-footer">
       <div className="border-t border-slate-800/60 pt-5 text-center">
         <Link
           href="/"

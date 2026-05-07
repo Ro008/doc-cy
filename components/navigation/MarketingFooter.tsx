@@ -23,7 +23,7 @@ export function MarketingFooter({
     !forceHideLanguageSwitcher && routeHasTwoLanguageVariants(pathname);
 
   return (
-    <section className={className}>
+    <section className={className} data-testid="marketing-footer">
       <div className="border-t border-slate-800/60 pt-5">
         <div className="flex flex-wrap items-center justify-start gap-2">
           <div className="inline-flex items-center rounded-full border border-slate-200/20 bg-slate-900/30 p-1 backdrop-blur">
