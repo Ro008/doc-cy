@@ -244,6 +244,7 @@ jobs:
             tests/prod/prod_doctor_password_login_smoke.spec.ts \
             tests/prod/prod_agenda_qr_with_session.spec.ts \
             tests/prod/prod_doctor_password_login_ui_monitor.spec.ts \
+            tests/prod/prod_doctor_password_login_form_ui_monitor.spec.ts \
             --project="Desktop Large (Chromium)" \
             --workers=1 \
             --reporter=line
