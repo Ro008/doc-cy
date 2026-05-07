@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { createPortal } from "react-dom";
-import { ArrowLeft, Save, Trash2 } from "lucide-react";
+import { Save, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import Cropper from "react-easy-crop";
 import { SpecialtyCombobox } from "@/components/specialties/SpecialtyCombobox";
@@ -1143,13 +1143,6 @@ export function SettingsForm({ initial }: SettingsFormProps) {
           <Save className="mr-2 h-4 w-4" />
           {saving ? "Saving..." : "Save settings"}
         </button>
-        <Link
-          href="/agenda"
-          className="inline-flex items-center text-sm text-slate-400 transition hover:text-slate-200"
-        >
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to agenda
-        </Link>
       </div>
     </form>
   );

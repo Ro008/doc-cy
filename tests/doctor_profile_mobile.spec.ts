@@ -42,6 +42,9 @@ test.describe("Doctor profile mobile layout", () => {
     });
     await expect(accordionButton).toBeVisible();
     await expect(accordionButton).toHaveAttribute("aria-expanded", "false");
+
+    // Location should now be rendered as a standalone section (outside About accordion).
+    await expect(page.getByRole("heading", { name: /^Location$/i })).toBeVisible();
   });
 });
 

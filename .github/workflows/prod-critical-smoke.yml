@@ -244,6 +244,7 @@ jobs:
             tests/prod/prod_doctor_password_login_smoke.spec.ts \
             tests/prod/prod_agenda_qr_with_session.spec.ts \
             tests/prod/prod_doctor_password_login_ui_monitor.spec.ts \
+            tests/prod/prod_doctor_password_login_form_ui_monitor.spec.ts \
             --project="Desktop Large (Chromium)" \
             --workers=1 \
             --reporter=line
@@ -459,17 +460,42 @@ jobs:
           max_attempts=3
           while [ "${attempt}" -le "${max_attempts}" ]; do
             echo "WhatsApp attempt ${attempt}/${max_attempts}"
-            # Legacy secrets may already include text= in query. Remove it and send our own text always.
-            SEND_URL="$(printf '%s' "${WEBHOOK_URL}" | sed -E 's/([?&])text=[^&]*(&|$)/\1\2/g' | sed -E 's/\?&/\?/g; s/&&/&/g; s/[?&]$//')"
             # Some webhook providers intermittently stall before first byte.
-            # Use longer network timeouts and curl's built-in retries for transient failures.
+            # Use longer network timeouts and try common webhook patterns (GET + POST).
             if curl -fsS \
               --connect-timeout 15 \
               --max-time 60 \
               --retry 2 \
               --retry-delay 2 \
               --retry-all-errors \
-              -G "${SEND_URL}" \
+              -G "${WEBHOOK_URL}" \
+              --data-urlencode "text=${MSG}"; then
+              echo "sent=true" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+
+            # Fallback: JSON POST webhooks.
+            if curl -fsS \
+              --connect-timeout 15 \
+              --max-time 60 \
+              --retry 2 \
+              --retry-delay 2 \
+              --retry-all-errors \
+              -H "Content-Type: application/json" \
+              -X POST "${WEBHOOK_URL}" \
+              --data "{\"text\":\"${MSG//\"/\\\"}\"}"; then
+              echo "sent=true" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+
+            # Fallback: form-style POST webhooks.
+            if curl -fsS \
+              --connect-timeout 15 \
+              --max-time 60 \
+              --retry 2 \
+              --retry-delay 2 \
+              --retry-all-errors \
+              -X POST "${WEBHOOK_URL}" \
               --data-urlencode "text=${MSG}"; then
               echo "sent=true" >> "$GITHUB_OUTPUT"
               exit 0

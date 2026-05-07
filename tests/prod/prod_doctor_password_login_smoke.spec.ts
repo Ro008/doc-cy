@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { authenticateDoctorViaPasswordUi } from "./helpers/doctorLogin";
+import { authenticateDoctorViaSession } from "./helpers/doctorSession";
 
 test.describe("Prod smoke: doctor password login", () => {
   test("doctor can login with password and reach agenda", async ({ page }) => {
@@ -15,7 +15,7 @@ test.describe("Prod smoke: doctor password login", () => {
     test.skip(!email, "Missing TEST_DOCTOR_EMAIL (or fallback TEST_USER_EMAIL).");
     test.skip(!password, "Missing TEST_DOCTOR_PASSWORD (or fallback TEST_USER_PASSWORD).");
 
-    await authenticateDoctorViaPasswordUi(page, baseUrl, email, password);
+    await authenticateDoctorViaSession(page, { email, password });
     await expect(page).toHaveURL(/\/agenda(?:[/?#]|$)/, { timeout: 45_000 });
     await expect(
       page.getByText(/Weekly calendar on desktop · Daily focus on mobile/i)

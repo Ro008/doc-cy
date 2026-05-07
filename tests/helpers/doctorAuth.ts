@@ -8,8 +8,20 @@ function normalizeSecret(raw: string): string {
     .replace(/^['"]+|['"]+$/g, "");
 }
 
+const TEST_DOCTOR_EMAIL = normalizeSecret(process.env.TEST_DOCTOR_EMAIL ?? "");
+const TEST_DOCTOR_PASSWORD = normalizeSecret(process.env.TEST_DOCTOR_PASSWORD ?? "");
 const TEST_USER_EMAIL = normalizeSecret(process.env.TEST_USER_EMAIL ?? "");
 const TEST_USER_PASSWORD = normalizeSecret(process.env.TEST_USER_PASSWORD ?? "");
+
+type CachedSession = {
+  authUserId: string;
+  sessionAccessToken: string;
+  sessionCookieValue: string;
+  createdAtMs: number;
+};
+
+const SESSION_CACHE_TTL_MS = 10 * 60 * 1000;
+const sessionCache = new Map<string, CachedSession>();
 
 type DoctorAuthResult = {
   authUserId: string;
@@ -21,6 +33,33 @@ type DoctorAuthOptions = {
   email?: string;
   password?: string;
 };
+
+function isRetryableAuthError(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const message = String((error as { message?: unknown }).message ?? "")
+    .trim()
+    .toLowerCase();
+  if (!message) return false;
+  return (
+    message.includes("database error querying schema") ||
+    message.includes("failed to fetch") ||
+    message.includes("network") ||
+    message.includes("timeout") ||
+    message.includes("temporarily unavailable")
+  );
+}
+
+async function sleep(ms: number): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function firstNonEmpty(...values: Array<string | undefined>): string {
+  for (const value of values) {
+    const normalized = normalizeSecret(value ?? "");
+    if (normalized) return normalized;
+  }
+  return "";
+}
 
 function chunkString(value: string, chunkSize: number): string[] {
   if (value.length <= chunkSize) return [value];
@@ -58,20 +97,77 @@ export async function signInDoctorAndSetCookies(
       "Missing NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY"
     );
   }
-  const loginEmail = normalizeSecret(options?.email ?? TEST_USER_EMAIL);
-  const loginPassword = normalizeSecret(options?.password ?? TEST_USER_PASSWORD);
+  const loginEmail = firstNonEmpty(
+    options?.email,
+    TEST_DOCTOR_EMAIL,
+    TEST_USER_EMAIL
+  );
+  const loginPassword = firstNonEmpty(
+    options?.password,
+    TEST_DOCTOR_PASSWORD,
+    TEST_USER_PASSWORD
+  );
   if (!loginEmail || !loginPassword) {
-    throw new Error("Missing TEST_USER_EMAIL / TEST_USER_PASSWORD");
+    throw new Error(
+      "Missing TEST_DOCTOR_EMAIL/TEST_DOCTOR_PASSWORD or TEST_USER_EMAIL/TEST_USER_PASSWORD"
+    );
   }
 
-  const supabase =
-    supabaseClient ?? createClient(supabaseUrl, supabaseAnonKey);
+  const cacheKey = `${supabaseUrl}::${loginEmail}`;
 
-  const { data: signInData, error: signInError } =
-    await supabase.auth.signInWithPassword({
+  const cached = sessionCache.get(cacheKey);
+  const isCacheFresh =
+    cached && Date.now() - cached.createdAtMs < SESSION_CACHE_TTL_MS;
+  if (isCacheFresh) {
+    const chunkSize = 3180;
+    const chunks = chunkString(cached.sessionCookieValue, chunkSize);
+    await page.context().addCookies(
+      chunks.map((chunkValue, idx) => {
+        const storageKey = `sb-${new URL(supabaseUrl).hostname.split(".")[0]}-auth-token`;
+        const name = chunks.length === 1 ? storageKey : `${storageKey}.${idx}`;
+        return {
+          name,
+          value: chunkValue,
+          httpOnly: true,
+          secure: isHttps,
+          sameSite: "Lax" as const,
+          domain: cookieDomain,
+          path: "/",
+        };
+      })
+    );
+    return {
+      authUserId: cached.authUserId,
+      sessionAccessToken: cached.sessionAccessToken,
+    };
+  }
+
+  const maxAttempts = 8;
+  let signInData:
+    | Awaited<ReturnType<SupabaseClient["auth"]["signInWithPassword"]>>["data"]
+    | null = null;
+  let signInError:
+    | Awaited<ReturnType<SupabaseClient["auth"]["signInWithPassword"]>>["error"]
+    | null = null;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    const supabase = supabaseClient ?? createClient(supabaseUrl, supabaseAnonKey);
+    const result = await supabase.auth.signInWithPassword({
       email: loginEmail,
       password: loginPassword,
     });
+    signInData = result.data;
+    signInError = result.error;
+
+    if (!signInError) {
+      break;
+    }
+    const canRetry = isRetryableAuthError(signInError) && attempt < maxAttempts;
+    if (!canRetry) {
+      break;
+    }
+    await sleep(600 * attempt);
+  }
 
   if (signInError) {
     throw signInError;
@@ -116,6 +212,13 @@ export async function signInDoctorAndSetCookies(
       };
     })
   );
+
+  sessionCache.set(cacheKey, {
+    authUserId,
+    sessionAccessToken: session.access_token,
+    sessionCookieValue,
+    createdAtMs: Date.now(),
+  });
 
   return { authUserId, sessionAccessToken: session.access_token };
 }

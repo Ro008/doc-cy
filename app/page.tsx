@@ -1,12 +1,12 @@
 // app/page.tsx
-import Link from "next/link";
 import { CalendarSync, ShieldCheck, UserRound } from "lucide-react";
 import { FoundersPricingCard } from "@/components/landing/FoundersPricingCard";
 import { HomeLandingScroll } from "@/components/landing/HomeLandingScroll";
-import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher";
 import { getTranslations, getLocale } from "next-intl/server";
 import { ProductShowcaseCarousel } from "@/components/landing/ProductShowcaseCarousel";
 import { PendingLink } from "@/components/navigation/PendingLink";
+import { ProfessionalAccessButton } from "@/components/landing/ProfessionalAccessButton";
+import { MarketingFooter } from "@/components/navigation/MarketingFooter";
 
 type Benefit = {
   icon: typeof CalendarSync;
@@ -182,22 +182,6 @@ export default async function HomePage() {
                 CYPRUS HEALTH & WELLNESS
               </span>
             </div>
-            <div className="ml-auto shrink-0 sm:hidden">
-              <LanguageSwitcher compact />
-            </div>
-          </div>
-          <div className="w-full sm:w-auto sm:shrink-0">
-            <div className="flex items-center justify-stretch gap-2 sm:justify-end">
-              <PendingLink
-                href="/finder"
-                className="hidden min-h-9 w-auto items-center justify-center rounded-xl border border-emerald-300/40 bg-slate-900/75 px-3 py-1.5 text-sm font-semibold uppercase tracking-wide text-emerald-200 transition hover:border-emerald-200/70 hover:text-emerald-100 sm:inline-flex"
-              >
-                Find a Professional
-              </PendingLink>
-              <div className="hidden sm:block">
-                <LanguageSwitcher />
-              </div>
-            </div>
           </div>
         </header>
 
@@ -227,19 +211,8 @@ export default async function HomePage() {
                   {t("Hero.ctaClaim")}
                 </PendingLink>
 
-                <PendingLink
-                  href="/login"
-                  className="inline-flex items-center justify-center rounded-xl border-2 border-white/45 bg-neutral-800/90 px-5 py-2.5 text-sm font-semibold text-neutral-50 shadow-md shadow-black/30 backdrop-blur transition hover:border-white/65 hover:bg-neutral-700/95 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 focus-visible:ring-offset-2 focus-visible:ring-offset-neutral-900"
-                >
-                  {t("Hero.ctaLogin")}
-                </PendingLink>
+                <ProfessionalAccessButton />
               </div>
-              <PendingLink
-                href="/finder"
-                className="mt-3 inline-flex items-center text-sm font-medium text-emerald-200/90 underline underline-offset-4 transition hover:text-emerald-100 sm:hidden"
-              >
-                Find a Professional
-              </PendingLink>
             </section>
 
             <div className="flex w-full min-w-0 shrink-0 justify-center lg:w-[38%] lg:max-w-md lg:justify-end">
@@ -322,21 +295,7 @@ export default async function HomePage() {
           </div>
         </section>
       </div>
-      <section className="mx-auto w-full max-w-6xl pb-12 pt-4 sm:pb-12">
-        <div className="border-t border-slate-800/50 pt-4 text-center">
-          <a
-            href="https://www.instagram.com/doccy_cyprus?igsh=MW94Zjg1czZ6OXNzaw=="
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex h-12 w-12 items-center justify-center rounded-full border-2 border-emerald-300/45 bg-emerald-400 text-slate-950 shadow-[0_0_0_1px_rgba(52,211,153,0.35),0_4px_24px_rgba(16,185,129,0.35)] transition hover:border-emerald-200/60 hover:bg-emerald-300 hover:shadow-[0_0_0_1px_rgba(110,231,183,0.45),0_6px_28px_rgba(52,211,153,0.4)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
-            aria-label="Follow DocCy on Instagram"
-          >
-            <svg viewBox="0 0 24 24" className="h-6 w-6" aria-hidden fill="currentColor">
-              <path d="M7.75 2h8.5A5.75 5.75 0 0 1 22 7.75v8.5A5.75 5.75 0 0 1 16.25 22h-8.5A5.75 5.75 0 0 1 2 16.25v-8.5A5.75 5.75 0 0 1 7.75 2Zm8.5 1.75h-8.5A4 4 0 0 0 3.75 7.75v8.5a4 4 0 0 0 4 4h8.5a4 4 0 0 0 4-4v-8.5a4 4 0 0 0-4-4ZM12 7a5 5 0 1 1 0 10 5 5 0 0 1 0-10Zm0 1.75A3.25 3.25 0 1 0 12 15.25 3.25 3.25 0 0 0 12 8.75Zm5.25-2a1.2 1.2 0 1 1 0 2.4 1.2 1.2 0 0 1 0-2.4Z" />
-            </svg>
-          </a>
-        </div>
-      </section>
+      <MarketingFooter />
     </main>
   );
 }

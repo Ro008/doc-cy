@@ -1,20 +1,13 @@
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
-import { ArrowLeft } from "lucide-react";
 import { AgendaRealtime } from "@/components/agenda/AgendaRealtime";
-import { SignOutButton } from "@/components/auth/SignOutButton";
-import { ViewPublicProfileLink } from "@/components/agenda/ViewPublicProfileLink";
 import { FoundingMemberBadge } from "@/components/dashboard/FoundingMemberBadge";
 import { isFounderSubscriptionTier } from "@/lib/subscription-tier";
 import { doctorDashboardDisplayName } from "@/lib/doctor-display-name";
-import { DashboardUtilityRow } from "@/components/agenda/DashboardUtilityRow";
-import { DashboardSecondaryButton } from "@/components/agenda/DashboardSecondaryButton";
-import { PendingLink } from "@/components/navigation/PendingLink";
 import {
   buildWeeklyScheduleFromSettings,
   type DoctorSettingsRow,
@@ -79,13 +72,6 @@ export default async function AgendaPage() {
             Professional profile not found for this account. Please contact
             support.
           </p>
-          <SignOutButton />
-          <PendingLink
-            href="/"
-            className="text-sm text-emerald-300 hover:text-emerald-200"
-          >
-            Back to home
-          </PendingLink>
         </div>
       </main>
     );
@@ -161,24 +147,7 @@ export default async function AgendaPage() {
       </div>
 
       <div className="mx-auto flex min-h-screen w-full max-w-[1920px] flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
-        <DashboardUtilityRow
-          left={
-            <PendingLink
-              href="/"
-              className="inline-flex items-center gap-2 text-xs font-medium text-slate-400 transition hover:text-slate-200"
-            >
-              <ArrowLeft className="h-3.5 w-3.5 shrink-0" aria-hidden />
-              Home
-            </PendingLink>
-          }
-          right={
-            <>
-              <SignOutButton variant="utility" />
-            </>
-          }
-        />
-
-        <header className="flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between lg:gap-10">
+        <header className="flex flex-col gap-8">
           <div className="min-w-0 flex-1">
             <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-3">
               <h1 className="text-balance text-3xl font-semibold tracking-tight text-slate-50 sm:text-4xl">
@@ -197,17 +166,6 @@ export default async function AgendaPage() {
                   : "Your public profile is under review. We’ll notify you when it’s verified."}
               </p>
             )}
-          </div>
-
-          <div className="flex w-full flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-center lg:w-auto lg:max-w-md lg:flex-nowrap lg:justify-end">
-            <DashboardSecondaryButton href="/agenda/settings">
-              Working hours & settings
-            </DashboardSecondaryButton>
-            <ViewPublicProfileLink
-              slug={doctor.slug}
-              isVerified={doctor.status === "verified"}
-              variant="primary"
-            />
           </div>
         </header>
 
