@@ -16,12 +16,8 @@ Rules:
 
 Current source of truth:
 - `.github/workflows/pr-integration.yml`
-- Includes responsive navigation/footer coverage:
-  - `tests/user_bar.spec.ts` (Desktop + Mobile Chrome)
-  - `tests/footer_navigation.spec.ts` (Desktop + Mobile Chrome)
-- Stability note:
-  - For authenticated navigation checks, prefer session-cookie auth helpers over full UI login form.
-  - Reason: lower flake risk from browser/form timing while still validating critical post-login UX.
+
+**Removed from PR blocking (2026-05):** responsive authenticated navigation specs previously exercised `UserBar` + marketing footer surfaces. They were removed entirely from the repo because they repeatedly failed with Supabase `AuthApiError: Database error querying schema` (infra flake), not product bugs. See **Reintroduction criteria** below.
 
 ### 2) Nightly blocking (must pass every night)
 
@@ -58,8 +54,8 @@ Current examples:
 Use two complementary layers:
 
 1. **Blocking auth-dependent product flows**  
-   - Authenticate via deterministic session helpers (Supabase sign-in + injected cookies).
-   - Validate business-critical behavior after auth (agenda, user bar, footer visibility, navigation).
+   - Prefer deterministic session helpers where they are stable against your Supabase project.
+   - **Do not** block PR merges on flows that depend on `signInWithPassword` when that endpoint intermittently returns schema errors from Supabase Auth.
 
 2. **Non-blocking login form monitor**  
    - Keep at least one pure UI login form test in nightly monitoring.
@@ -72,6 +68,16 @@ Current implementation:
   - helper: `tests/prod/helpers/doctorSession.ts`
 - Pure UI login monitor:
   - `tests/prod/prod_doctor_password_login_form_ui_monitor.spec.ts`
+
+## Reintroduction criteria (UserBar / footer navigation)
+
+Before adding PR-blocking tests that require programmatic Supabase password login again:
+
+1. Document **10 consecutive green** runs on a dedicated workflow (or scheduled job) using the same integration Supabase + secrets as PR.
+2. Confirm failures are **product regressions**, not `Database error querying schema` or similar Auth API infra errors.
+3. Prefer **one** consolidated smoke per surface (e.g. signed-out chrome only, or session seeded without hitting flaky Auth endpoints).
+
+Inventory of critical flows vs tests: [`docs/critical-flow-test-coverage.md`](critical-flow-test-coverage.md).
 
 ## Promotion / demotion rule
 
