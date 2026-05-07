@@ -161,8 +161,7 @@ export function AppointmentReviewClient({
         setSubmitting(false);
         return;
       }
-      toast.success(t("confirmSuccessToast"));
-      router.push("/agenda");
+      router.push(`/dashboard/appointments/${encodeURIComponent(appointmentId)}?confirmed=1`);
       router.refresh();
       return;
     } catch {

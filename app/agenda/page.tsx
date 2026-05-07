@@ -21,7 +21,13 @@ type AgendaWorkingHours = {
   slotDurationMinutes: number;
 };
 
-export default async function AgendaPage() {
+type AgendaPageProps = {
+  searchParams?: {
+    date?: string;
+  };
+};
+
+export default async function AgendaPage({ searchParams }: AgendaPageProps) {
   const supabase = createServerComponentClient({ cookies });
 
   const {
@@ -173,6 +179,7 @@ export default async function AgendaPage() {
           doctorId={doctor.id}
           initialAppointments={(appointments as any[]) ?? []}
           workingHours={workingHours}
+          initialDateKey={searchParams?.date ?? null}
         />
       </div>
     </main>

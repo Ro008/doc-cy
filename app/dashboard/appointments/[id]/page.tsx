@@ -1,7 +1,8 @@
-import { redirect, notFound } from "next/navigation";
+import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
 import { format } from "date-fns";
+import { addMinutes } from "date-fns";
 import { enUS } from "date-fns/locale";
 import { appointmentToCyprusDate } from "@/lib/appointments";
 import { professionalFirstName } from "@/lib/professional-name";
@@ -11,19 +12,63 @@ import {
 } from "@/lib/doctor-settings";
 import { AppointmentReviewClient } from "@/components/dashboard/AppointmentReviewClient";
 import { PendingLink } from "@/components/navigation/PendingLink";
+import { buildGoogleCalendarUrl } from "@/lib/patient-calendar-event";
+import { getDoctorCalendarEventDetails } from "@/lib/doctor-calendar-event";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-type PageProps = { params: { id: string } };
+type PageProps = { params: { id: string }; searchParams?: { confirmed?: string } };
 
-export default async function DashboardAppointmentDetailPage({ params }: PageProps) {
+function DoctorLinkStatePanel({
+  title,
+  description,
+}: {
+  title: string;
+  description: string;
+}) {
+  return (
+    <main className="min-h-screen bg-slate-950 px-4 py-10 text-slate-50">
+      <div className="mx-auto max-w-lg rounded-3xl border border-slate-800 bg-slate-900/80 p-6 shadow-xl">
+        <p className="text-xs font-semibold uppercase tracking-wide text-amber-300/90">
+          Link no longer actionable
+        </p>
+        <h1 className="mt-2 text-xl font-semibold text-slate-50">{title}</h1>
+        <p className="mt-3 text-sm text-slate-300">{description}</p>
+        <div className="mt-6 flex flex-col gap-2">
+          <PendingLink
+            href="/agenda"
+            className="flex w-full items-center justify-center rounded-2xl bg-emerald-400 px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-300"
+          >
+            Open agenda
+          </PendingLink>
+          <PendingLink
+            href="/agenda/settings"
+            className="flex w-full items-center justify-center rounded-2xl border border-emerald-300/35 bg-emerald-300/10 px-4 py-3 text-sm font-semibold text-emerald-100 transition hover:bg-emerald-300/20"
+          >
+            Open settings
+          </PendingLink>
+        </div>
+      </div>
+    </main>
+  );
+}
+
+export default async function DashboardAppointmentDetailPage({
+  params,
+  searchParams,
+}: PageProps) {
+  const appointmentId = String(params.id ?? "").trim();
   const supabase = createServerComponentClient({ cookies });
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
   if (!user) {
+    console.info("[DocCy][doctor-link] unauthenticated_access", {
+      appointmentId,
+      path: `/dashboard/appointments/${appointmentId}`,
+    });
     redirect("/login");
   }
 
@@ -34,6 +79,10 @@ export default async function DashboardAppointmentDetailPage({ params }: PagePro
     .single();
 
   if (doctorErr || !doctor) {
+    console.warn("[DocCy][doctor-link] doctor_not_found_for_user", {
+      userId: user.id,
+      appointmentId,
+    });
     redirect("/login");
   }
 
@@ -42,12 +91,23 @@ export default async function DashboardAppointmentDetailPage({ params }: PagePro
     .select(
       "id, patient_name, patient_phone, appointment_datetime, status, reason, duration_minutes, proposal_expires_at, proposed_slots"
     )
-    .eq("id", params.id)
+    .eq("id", appointmentId)
     .eq("doctor_id", doctor.id)
     .maybeSingle();
 
   if (apptErr || !appt) {
-    notFound();
+    console.info("[DocCy][doctor-link] not_found_or_forbidden", {
+      userId: user.id,
+      doctorId: doctor.id,
+      appointmentId,
+      dbError: apptErr?.message ?? null,
+    });
+    return (
+      <DoctorLinkStatePanel
+        title="This confirmation link is no longer available"
+        description="This request may have already been handled, removed, or it may belong to another account. You can continue from your DocCy agenda."
+      />
+    );
   }
 
   const { data: settingsRow } = await supabase
@@ -65,12 +125,37 @@ export default async function DashboardAppointmentDetailPage({ params }: PagePro
   );
 
   const cy = appointmentToCyprusDate(appt.appointment_datetime as string);
+  const agendaDateKey = format(cy, "yyyy-MM-dd");
   const dateStr = format(cy, "EEEE, d MMMM yyyy", { locale: enUS });
   const timeStr = format(cy, "HH:mm");
   const greet = professionalFirstName(doctor.name);
   const status = String(appt.status);
+  const justConfirmed = searchParams?.confirmed === "1";
   const reason = String((appt as { reason?: string | null }).reason ?? "");
   const patientName = appt.patient_name as string;
+  const patientPhone = String((appt as { patient_phone?: string | null }).patient_phone ?? "");
+  const googleCalendarUrl = buildGoogleCalendarUrl({
+    ...getDoctorCalendarEventDetails(
+      {
+        patient_name: patientName,
+        patient_phone: patientPhone || null,
+      },
+      {
+        name: doctor.name,
+      },
+      {
+        reason,
+        visitType: null,
+        visitNotes: null,
+      },
+    ),
+    startUtc: new Date(appt.appointment_datetime as string),
+    endUtc: addMinutes(
+      new Date(appt.appointment_datetime as string),
+      initialDurationMinutes,
+    ),
+  });
+  const doctorIcsUrl = `/api/appointments/${encodeURIComponent(appt.id as string)}/calendar?audience=doctor`;
 
   const scheduleForReview =
     settingsTyped != null
@@ -82,6 +167,12 @@ export default async function DashboardAppointmentDetailPage({ params }: PagePro
       : null;
 
   if (status === "NEEDS_RESCHEDULE") {
+    console.info("[DocCy][doctor-link] reopened_after_action", {
+      userId: user.id,
+      doctorId: doctor.id,
+      appointmentId,
+      status,
+    });
     const expRaw = (appt as { proposal_expires_at?: string | null })
       .proposal_expires_at;
     const expLabel = expRaw
@@ -136,6 +227,12 @@ export default async function DashboardAppointmentDetailPage({ params }: PagePro
   }
 
   if (status === "REQUESTED") {
+    console.info("[DocCy][doctor-link] opened_pending_request", {
+      userId: user.id,
+      doctorId: doctor.id,
+      appointmentId,
+      status,
+    });
     return (
       <main className="min-h-screen bg-slate-950 px-4 py-10 text-slate-50">
         <div className="mx-auto max-w-lg rounded-3xl border border-slate-800 bg-slate-900/80 p-6 shadow-xl">
@@ -155,20 +252,49 @@ export default async function DashboardAppointmentDetailPage({ params }: PagePro
     );
   }
 
+  if (status === "CONFIRMED" || status === "CANCELLED") {
+    console.info("[DocCy][doctor-link] reopened_non_actionable_status", {
+      userId: user.id,
+      doctorId: doctor.id,
+      appointmentId,
+      status,
+    });
+  }
+
   return (
     <main className="min-h-screen bg-slate-950 px-4 py-10 text-slate-50">
       <div className="mx-auto max-w-lg rounded-3xl border border-slate-800 bg-slate-900/80 p-6 shadow-xl">
         <p className="text-xs font-semibold uppercase tracking-wide text-emerald-300/90">
-          Appointment
+          {justConfirmed ? "Appointment confirmed" : "Appointment"}
         </p>
         <h1 className="mt-2 text-xl font-semibold text-slate-50">Hi {greet}</h1>
         <p className="mt-3 text-sm text-slate-300">
-          {status === "CONFIRMED"
-            ? "This visit is already confirmed. You can manage it from your agenda."
-            : status === "CANCELLED"
-              ? "This appointment was cancelled."
-              : "This request is not pending confirmation."}
+          {status === "CONFIRMED" && justConfirmed
+            ? "Confirmed in DocCy. Manage all updates in DocCy in a few clicks. Google Calendar is only an optional reminder and does not sync changes."
+            : status === "CONFIRMED"
+              ? "This visit is already confirmed. Manage all updates in DocCy."
+              : status === "CANCELLED"
+                ? "This appointment was cancelled."
+                : "This request is not pending confirmation."}
         </p>
+        {status === "CONFIRMED" ? (
+          <div className="mt-5 space-y-2">
+            <a
+              href={googleCalendarUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex w-full items-center justify-center rounded-2xl bg-emerald-400 px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-300"
+            >
+              Add to Google Calendar
+            </a>
+            <a
+              href={doctorIcsUrl}
+              className="flex w-full items-center justify-center rounded-2xl border border-emerald-300/35 bg-emerald-300/10 px-4 py-3 text-sm font-semibold text-emerald-100 transition hover:bg-emerald-300/20"
+            >
+              Add to Apple / Outlook (.ics)
+            </a>
+          </div>
+        ) : null}
 
         <dl className="mt-6 space-y-3 text-sm">
           <div>
@@ -200,10 +326,10 @@ export default async function DashboardAppointmentDetailPage({ params }: PagePro
         </dl>
 
         <PendingLink
-          href="/agenda"
+          href={`/agenda?date=${agendaDateKey}`}
           className="mt-8 flex w-full items-center justify-center rounded-2xl bg-emerald-400 px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-300"
         >
-          Open agenda
+          Open that day in agenda
         </PendingLink>
       </div>
     </main>

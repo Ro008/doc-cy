@@ -6,8 +6,11 @@ import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import {
   addDays,
   addWeeks,
+  differenceInCalendarDays,
   format,
   isSameDay,
+  isValid,
+  parseISO,
   startOfDay,
   startOfWeek,
 } from "date-fns";
@@ -273,10 +276,12 @@ export function AgendaRealtime({
   doctorId,
   initialAppointments,
   workingHours,
+  initialDateKey,
 }: {
   doctorId: string | null;
   initialAppointments: AgendaAppointmentRow[];
   workingHours: AgendaWorkingHours | null;
+  initialDateKey?: string | null;
 }) {
   const supabase = React.useMemo(() => createClientComponentClient(), []);
   const [appointments, setAppointments] =
@@ -502,6 +507,20 @@ export function AgendaRealtime({
   const weekStart = startOfWeek(addWeeks(todayDate, weekOffset), {
     weekStartsOn: 1,
   });
+
+  React.useEffect(() => {
+    const raw = String(initialDateKey ?? "").trim();
+    if (!raw) return;
+    const parsed = parseISO(raw);
+    if (!isValid(parsed)) return;
+    const targetDay = startOfDay(parsed);
+    setMobileDayOffset(differenceInCalendarDays(targetDay, todayDate));
+
+    const targetWeekStart = startOfWeek(targetDay, { weekStartsOn: 1 });
+    const todayWeekStart = startOfWeek(todayDate, { weekStartsOn: 1 });
+    const weekDeltaDays = differenceInCalendarDays(targetWeekStart, todayWeekStart);
+    setWeekOffset(Math.round(weekDeltaDays / 7));
+  }, [initialDateKey, todayDate]);
   const weekDays = React.useMemo(
     () => Array.from({ length: 5 }, (_, i) => addDays(weekStart, i)),
     [weekStart],

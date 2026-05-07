@@ -13,7 +13,7 @@ export type DoctorCalendarAppointment = {
 };
 
 /**
- * Calendar copy for the doctor/staff: title includes visit type when present.
+ * Calendar copy for doctor/staff: keep the title short and scannable.
  */
 export function getDoctorCalendarEventDetails(
   appointment: DoctorCalendarAppointment,
@@ -25,11 +25,7 @@ export function getDoctorCalendarEventDetails(
 
   const reason = String(visit?.reason ?? "").trim();
   const vt = String(visit?.visitType ?? "").trim();
-  const title = reason
-    ? `Visit request: ${patientName}`
-    : vt
-      ? `${vt}: ${patientName}`
-      : `🩺 Patient visit: ${patientName}`;
+  const title = patientName;
 
   const vn = String(visit?.visitNotes ?? "").trim();
   const lines: string[] = [

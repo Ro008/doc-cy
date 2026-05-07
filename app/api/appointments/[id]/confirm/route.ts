@@ -11,6 +11,7 @@ import {
   PROFESSIONAL_DURATION_OPTIONS,
 } from "@/lib/professional-appointment-durations";
 import { sendPatientAppointmentConfirmedEmail } from "@/lib/send-patient-appointment-confirmed-email";
+import { sendDoctorAppointmentConfirmedEmail } from "@/lib/send-doctor-appointment-confirmed-email";
 
 type RouteContext = { params: { id: string } };
 
@@ -48,7 +49,7 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
 
   const { data: doctor, error: doctorErr } = await supabase
     .from("doctors")
-    .select("id, name, phone, specialty, clinic_address")
+    .select("id, name, email, phone, specialty, clinic_address")
     .eq("auth_user_id", user.id)
     .maybeSingle();
 
@@ -59,7 +60,7 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
   const { data: appt, error: apptErr } = await supabase
     .from("appointments")
     .select(
-      "id, doctor_id, patient_name, patient_email, appointment_datetime, status, reason, duration_minutes"
+      "id, doctor_id, patient_name, patient_email, patient_phone, appointment_datetime, status, reason, duration_minutes"
     )
     .eq("id", id)
     .maybeSingle();
@@ -161,6 +162,23 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
     });
   } catch (e) {
     console.error("[DocCy] Patient confirmation email failed", e);
+  }
+
+  try {
+    await sendDoctorAppointmentConfirmedEmail({
+      siteUrl,
+      doctorEmail: String((doctor as { email?: string | null }).email ?? ""),
+      doctorName: String(doctor.name ?? "Doctor"),
+      appointmentId: id,
+      appointmentDatetimeIso: String(appt.appointment_datetime),
+      durationMinutes,
+      patientName: String(appt.patient_name),
+      patientPhone: (appt as { patient_phone?: string | null }).patient_phone ?? null,
+      reason: (appt as { reason?: string | null }).reason ?? null,
+      resendToOverride,
+    });
+  } catch (e) {
+    console.error("[DocCy] Doctor confirmation email failed", e);
   }
 
   return NextResponse.json({
