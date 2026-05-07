@@ -22,6 +22,25 @@ type DoctorAuthOptions = {
   password?: string;
 };
 
+function isRetryableAuthError(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const message = String((error as { message?: unknown }).message ?? "")
+    .trim()
+    .toLowerCase();
+  if (!message) return false;
+  return (
+    message.includes("database error querying schema") ||
+    message.includes("failed to fetch") ||
+    message.includes("network") ||
+    message.includes("timeout") ||
+    message.includes("temporarily unavailable")
+  );
+}
+
+async function sleep(ms: number): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 function chunkString(value: string, chunkSize: number): string[] {
   if (value.length <= chunkSize) return [value];
   return value.match(new RegExp(`.{1,${chunkSize}}`, "g")) ?? [];
@@ -64,14 +83,32 @@ export async function signInDoctorAndSetCookies(
     throw new Error("Missing TEST_USER_EMAIL / TEST_USER_PASSWORD");
   }
 
-  const supabase =
-    supabaseClient ?? createClient(supabaseUrl, supabaseAnonKey);
+  const maxAttempts = 4;
+  let signInData:
+    | Awaited<ReturnType<SupabaseClient["auth"]["signInWithPassword"]>>["data"]
+    | null = null;
+  let signInError:
+    | Awaited<ReturnType<SupabaseClient["auth"]["signInWithPassword"]>>["error"]
+    | null = null;
 
-  const { data: signInData, error: signInError } =
-    await supabase.auth.signInWithPassword({
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    const supabase = supabaseClient ?? createClient(supabaseUrl, supabaseAnonKey);
+    const result = await supabase.auth.signInWithPassword({
       email: loginEmail,
       password: loginPassword,
     });
+    signInData = result.data;
+    signInError = result.error;
+
+    if (!signInError) {
+      break;
+    }
+    const canRetry = isRetryableAuthError(signInError) && attempt < maxAttempts;
+    if (!canRetry) {
+      break;
+    }
+    await sleep(400 * attempt);
+  }
 
   if (signInError) {
     throw signInError;
