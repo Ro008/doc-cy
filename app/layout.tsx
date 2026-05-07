@@ -11,6 +11,8 @@ import { FeedbackWidget } from "@/components/feedback/FeedbackWidget";
 import { InstallBanner } from "@/components/pwa/InstallBanner";
 import { NavigationProgressBar } from "@/components/navigation/NavigationProgressBar";
 import { UserBar } from "@/components/navigation/UserBar";
+import { AuthAboutFooter } from "@/components/navigation/AuthAboutFooter";
+import { ResponsiveBottomInset } from "@/components/navigation/ResponsiveBottomInset";
 import { Toaster } from "sonner";
 import { Analytics } from "@vercel/analytics/react";
 
@@ -130,15 +132,10 @@ export default async function RootLayout({
         <NavigationProgressBar />
         <NextIntlClientProvider messages={messages}>
           <UserBar initialSessionState={initialUserBarState} />
-          <div
-            className={
-              user
-                ? "pb-[calc(5.25rem+env(safe-area-inset-bottom,0px))] lg:pb-0"
-                : undefined
-            }
-          >
+          <ResponsiveBottomInset enabled={Boolean(user)}>
             {children}
-          </div>
+            <AuthAboutFooter visible={Boolean(user)} />
+          </ResponsiveBottomInset>
         </NextIntlClientProvider>
         <Toaster richColors position="top-center" closeButton />
         <InstallBanner />

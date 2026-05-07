@@ -582,17 +582,13 @@ export default async function DoctorPage({ params }: PageProps) {
             <a href="/agenda/settings" className="font-semibold underline underline-offset-2">
               Edit Profile
             </a>{" "}
-            |{" "}
-            <a href="/agenda" className="font-semibold underline underline-offset-2">
-              Back to Agenda
-            </a>
           </div>
         ) : null}
         <header className="mb-8 flex flex-col gap-4 sm:gap-6">
           <div className="flex items-center justify-between gap-3">
             <div className="flex min-w-0 items-center gap-2 break-words">
               <a
-                href="/"
+                href="/finder"
                 className="inline-flex transition hover:opacity-90"
               >
                 <DocCyWordmark />

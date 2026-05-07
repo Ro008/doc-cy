@@ -1,13 +1,12 @@
 // app/page.tsx
-import Link from "next/link";
 import { CalendarSync, ShieldCheck, UserRound } from "lucide-react";
 import { FoundersPricingCard } from "@/components/landing/FoundersPricingCard";
 import { HomeLandingScroll } from "@/components/landing/HomeLandingScroll";
-import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher";
 import { getTranslations, getLocale } from "next-intl/server";
 import { ProductShowcaseCarousel } from "@/components/landing/ProductShowcaseCarousel";
 import { PendingLink } from "@/components/navigation/PendingLink";
 import { ProfessionalAccessButton } from "@/components/landing/ProfessionalAccessButton";
+import { MarketingFooter } from "@/components/navigation/MarketingFooter";
 
 type Benefit = {
   icon: typeof CalendarSync;
@@ -296,35 +295,7 @@ export default async function HomePage() {
           </div>
         </section>
       </div>
-      <section className="mx-auto w-full max-w-6xl pb-12 pt-4 sm:pb-12">
-        <div className="border-t border-slate-800/50 pt-5">
-          <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-emerald-300/15 bg-slate-900/45 p-3 sm:justify-between">
-            <div className="flex flex-wrap items-center gap-2">
-              <PendingLink
-                href="/finder"
-                className="inline-flex min-h-10 items-center justify-center rounded-xl border border-emerald-300/30 bg-slate-900/75 px-3.5 py-2 text-sm font-semibold text-emerald-100 transition hover:border-emerald-200/65 hover:text-white"
-              >
-                Find a Professional
-              </PendingLink>
-              <div className="inline-flex min-h-10 items-center rounded-xl border border-emerald-300/30 bg-slate-900/75 px-1">
-                <LanguageSwitcher />
-              </div>
-            </div>
-
-            <a
-              href="https://www.instagram.com/doccy_cyprus?igsh=MW94Zjg1czZ6OXNzaw=="
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-xl border border-emerald-300/40 bg-slate-900 px-3 py-2 text-emerald-100 shadow-sm shadow-slate-950/45 transition hover:border-emerald-200/70 hover:bg-slate-800/95 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
-              aria-label="Follow DocCy on Instagram"
-            >
-              <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden fill="currentColor">
-                <path d="M7.75 2h8.5A5.75 5.75 0 0 1 22 7.75v8.5A5.75 5.75 0 0 1 16.25 22h-8.5A5.75 5.75 0 0 1 2 16.25v-8.5A5.75 5.75 0 0 1 7.75 2Zm8.5 1.75h-8.5A4 4 0 0 0 3.75 7.75v8.5a4 4 0 0 0 4 4h8.5a4 4 0 0 0 4-4v-8.5a4 4 0 0 0-4-4ZM12 7a5 5 0 1 1 0 10 5 5 0 0 1 0-10Zm0 1.75A3.25 3.25 0 1 0 12 15.25 3.25 3.25 0 0 0 12 8.75Zm5.25-2a1.2 1.2 0 1 1 0 2.4 1.2 1.2 0 0 1 0-2.4Z" />
-              </svg>
-            </a>
-          </div>
-        </div>
-      </section>
+      <MarketingFooter />
     </main>
   );
 }
