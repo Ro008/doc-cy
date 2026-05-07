@@ -150,6 +150,7 @@ jobs:
             tests/schedule_constraints.spec.ts \
             tests/integration/finder_user_behaviors.integration.spec.ts \
             tests/booking_flow.spec.ts \
+            tests/integration/doctor_confirmation_flow.integration.spec.ts \
             --project="Desktop Large (Chromium)" \
             --workers=1 \
             --reporter=line
@@ -163,6 +164,26 @@ jobs:
             playwright-report
             test-results
           if-no-files-found: ignore
+
+      - name: Run doctor confirmation flow monitors (tablet/mobile, non-blocking)
+        if: always()
+        continue-on-error: true
+        env:
+          CI: "true"
+          INTEGRATION_SAFE_ENV: "1"
+          PLAYWRIGHT_BASE_URL: http://127.0.0.1:3000
+          PLAYWRIGHT_WEB_SERVER_COMMAND: npm run start
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.INTEGRATION_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.INTEGRATION_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.INTEGRATION_SUPABASE_SERVICE_ROLE_KEY }}
+          DOC_CY_SUPPRESS_TRAFFIC_LOG_SECRET: ${{ secrets.DOC_CY_SUPPRESS_TRAFFIC_LOG_SECRET }}
+          PROD_NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.PROD_NEXT_PUBLIC_SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL }}
+        run: |
+          npx playwright test tests/integration/doctor_confirmation_flow.integration.spec.ts \
+            --project="Tablet (iPad)" \
+            --project="Mobile Chrome (Pixel 5)" \
+            --workers=1 \
+            --reporter=line
 
   pr-preview-public-shell:
     name: PR Preview site health (Vercel)
