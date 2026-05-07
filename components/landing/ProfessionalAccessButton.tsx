@@ -45,7 +45,6 @@ export function ProfessionalAccessButton() {
       }`}
       aria-busy={isCheckingAuth}
       aria-disabled={isCheckingAuth}
-      tabIndex={isCheckingAuth ? -1 : undefined}
     >
       Professional login
     </PendingLink>
