@@ -155,6 +155,36 @@ export default async function HomePage() {
       mobileDesktopImageClass: "object-contain",
     },
   ];
+  const faqItems = [
+    {
+      question: t("FAQ.items.doubleBookings.question"),
+      answers: [t("FAQ.items.doubleBookings.answer1"), t("FAQ.items.doubleBookings.answer2")],
+    },
+    {
+      question: t("FAQ.items.patientHabit.question"),
+      answers: [t("FAQ.items.patientHabit.answer1"), t("FAQ.items.patientHabit.answer2")],
+    },
+    {
+      question: t("FAQ.items.privateWebsiteVsDoccy.question"),
+      answers: [
+        t("FAQ.items.privateWebsiteVsDoccy.answer1"),
+        t("FAQ.items.privateWebsiteVsDoccy.answer2"),
+        t("FAQ.items.privateWebsiteVsDoccy.answer3"),
+      ],
+    },
+    {
+      question: t("FAQ.items.teamAccess.question"),
+      answers: [t("FAQ.items.teamAccess.answer1"), t("FAQ.items.teamAccess.answer2")],
+    },
+    {
+      question: t("FAQ.items.setupTime.question"),
+      answers: [
+        t("FAQ.items.setupTime.answer1"),
+        t("FAQ.items.setupTime.answer2"),
+        t("FAQ.items.setupTime.answer3"),
+      ],
+    },
+  ];
 
   return (
     <main className="relative isolate flex min-h-screen flex-col overflow-x-hidden bg-slate-950 text-neutral-50 [overflow-anchor:none]">
@@ -417,6 +447,42 @@ export default async function HomePage() {
               </div>
 
               <FoundersPricingCard />
+            </div>
+          </div>
+        </section>
+        <section className="mx-auto w-full max-w-6xl pb-10 pt-2 sm:pb-12 [overflow-anchor:none]">
+          <div className="rounded-3xl border border-emerald-300/20 bg-slate-900/65 p-5 shadow-[0_0_56px_-22px_rgba(16,185,129,0.28)] backdrop-blur-md sm:p-7">
+            <h2 className="text-2xl font-semibold tracking-tight text-neutral-50 sm:text-3xl">
+              {t("FAQ.heading")}
+            </h2>
+            <p className="mt-2 max-w-3xl text-sm leading-relaxed text-slate-300 sm:text-base">
+              {t("FAQ.intro")}
+            </p>
+
+            <div className="mt-5 space-y-3">
+              {faqItems.map((item) => (
+                <details
+                  key={item.question}
+                  className="group rounded-2xl border border-slate-700/80 bg-slate-950/40 p-4 transition hover:border-emerald-300/40"
+                >
+                  <summary className="flex cursor-pointer list-none items-start justify-between gap-3 text-left">
+                    <span className="text-sm font-semibold leading-snug text-neutral-100 sm:text-base">
+                      {item.question}
+                    </span>
+                    <ChevronDown
+                      className="mt-0.5 h-4 w-4 shrink-0 text-emerald-300 transition group-open:rotate-180"
+                      aria-hidden
+                    />
+                  </summary>
+                  <div className="mt-3 space-y-2">
+                    {item.answers.map((answer) => (
+                      <p key={answer} className="text-sm leading-relaxed text-slate-300">
+                        {answer}
+                      </p>
+                    ))}
+                  </div>
+                </details>
+              ))}
             </div>
           </div>
         </section>

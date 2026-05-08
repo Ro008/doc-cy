@@ -220,6 +220,39 @@
         "doccyCost": "DocCy: €49/month"
       },
       "scrollCue": "See launch pricing below"
+    },
+    "FAQ": {
+      "heading": "Common questions",
+      "intro": "Right after pricing, most professionals ask these exact questions.",
+      "items": {
+        "doubleBookings": {
+          "question": "What if a patient calls me by phone? Will I have double bookings?",
+          "answer1": "Not at all. DocCy is designed to be your single source of truth. When you or your secretary take a call, you simply add it to your DocCy calendar and (optionally) sync it with your Google/iOS calendar.",
+          "answer2": "The slot is instantly blocked on your public profile, so no one can book it online. It is like having a digital shield for your schedule."
+        },
+        "patientHabit": {
+          "question": "How do I get my current patients to start using this?",
+          "answer1": "It is easier than you think. DocCy includes Practice Promotion tools: you can print a QR code for your reception or share your professional link by WhatsApp.",
+          "answer2": "Your patients will appreciate the freedom to book on a Sunday night without waiting for your clinic to open on Monday morning. You gain peace of mind, they gain convenience."
+        },
+        "privateWebsiteVsDoccy": {
+          "question": "Won't a private website give me more visibility than a profile?",
+          "answer1": "It is a common misconception. A private website is like a high-end clinic built in the middle of the desert: it looks great, but no one knows it is there. To appear on the first page of Google, a new website usually needs years of SEO work and thousands of euros in investment.",
+          "answer2": "DocCy is the Main Street of Cyprus healthcare. By joining, you benefit from our platform's established authority and high-performance technology (Vercel). You do not just get a link; you get an optimized professional space that is already where patients are looking.",
+          "answer3": "It is the visibility of a EUR2,000 website for the price of a few coffees."
+        },
+        "teamAccess": {
+          "question": "Can my secretary or team manage the agenda for me?",
+          "answer1": "Absolutely. You can give your team access to your profile so they can confirm, reschedule, or add manual appointments.",
+          "answer2": "DocCy does not replace your staff; it gives them a high-performance tool to stop wasting time on WhatsApp tag and focus on providing a better experience for the patients in the room."
+        },
+        "setupTime": {
+          "question": "How long does it take to set up? I am busy.",
+          "answer1": "Less than 5 minutes. We built DocCy to be plug and play. You do not need a tech team or a manual.",
+          "answer2": "You claim your profile, the DocCy team reviews it to confirm you are a real professional, and you are ready to receive requests.",
+          "answer3": "It is the fastest upgrade your practice will ever have."
+        }
+      }
     }
   }
 }
