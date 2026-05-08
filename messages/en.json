@@ -96,18 +96,23 @@
   },
   "LandingPage": {
     "Hero": {
-      "title": "Stop chasing appointments.\nStart protecting your time.",
-      "subtitleLine1": "The professional booking link built for Cyprus's independent practices.",
-      "subtitleLine2": "Get the benefits of automation without losing the human touch.",
+      "title": "Your Professional Website & Online Agenda",
+      "kicker": "Total control. Zero interruptions.",
+      "subtitleLine1": "You set your hours. Patients book online. You approve with one click.",
+      "subtitleLine2": "",
+      "visualIncoming": "Patient request received",
+      "visualNoInterruptions": "No call interruptions during care",
+      "visualConfirmed": "Confirmed in one click",
       "ctaClaim": "Claim your professional profile",
       "ctaLogin": "Professional Login"
     },
     "Features": {
       "heading": "Why DocCy?",
+      "scanLead": "Designed for healthcare and wellness professionals who want fewer interruptions and better control of their day.",
       "syncTitle": "Your Schedule, Your Rules",
       "syncDesc": "Google & Apple Calendar integration. See your real-time availability and manage requests from any device.",
-      "confirmTitle": "Smart Request System",
-      "confirmDesc": "Patients request a slot, you confirm with one click. Total control to eliminate scheduling chaos and double-bookings.",
+      "confirmTitle": "Patients Book Without Interruptions",
+      "confirmDesc": "Patients request a slot online instead of calling your practice. You confirm with one click and avoid constant WhatsApp back-and-forth.",
       "profileTitle": "Your Digital Receptionist",
       "profileDesc": "A professional interface that filters inquiries and saves you hours of manual WhatsApp back-and-forth."
     },
@@ -182,14 +187,39 @@
       "limited": "Limited Availability: <spots>{count}</spots> spots remaining out of 100",
       "foundersUnavailable": "Founders Club offer is no longer available. Standard pricing is now active.",
       "benefits": {
-        "price": "Lifetime price protection",
+        "seoProfilePage": "SEO-Optimized profile page",
         "appointments": "Unlimited appointments",
         "support": "Direct support with us",
         "directoryPriority": "Priority Search Ranking",
         "directoryPriorityNote": "Priority placement in our professional directory"
       },
       "cta": "Get my Professional Profile",
+      "microCopy": "The smartest alternative to a €2,000 website. Join the future of Cyprus healthcare management.",
       "noCard": "No credit card needed to start. Join now to lock in €19/month for life before last spots run out."
+    },
+    "Visibility": {
+      "eyebrow": "The End of the Expensive, Invisible Website",
+      "title": "Your professional profile is your new website.",
+      "subtitle": "(Only smarter, faster, and built to be found).",
+      "intro": "Building a private website in Cyprus can cost you thousands in development and monthly maintenance-and yet, most stay hidden on page 10 of Google.",
+      "beforeTitle": "Old way: private website",
+      "afterTitle": "DocCy way: visibility first",
+      "beforePoints": {
+        "cost": "€2,000+ setup plus monthly maintenance",
+        "tech": "You handle updates, hosting, and fixes",
+        "visibility": "Often invisible on Google"
+      },
+      "afterPoints": {
+        "speed": "Live in minutes with instant loading",
+        "maintenance": "Zero maintenance on your side",
+        "authority": "Built inside a high-authority ecosystem"
+      },
+      "closing": "Why pay for a site no one visits? With DocCy, you get the visibility of a major health platform with the personal touch of your own professional space.",
+      "comparison": {
+        "websiteCost": "Typical private website in Cyprus: €2,000+ setup + monthly maintenance",
+        "doccyCost": "DocCy: €49/month"
+      },
+      "scrollCue": "See launch pricing below"
     }
   }
 }

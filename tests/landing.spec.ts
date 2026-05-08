@@ -8,7 +8,7 @@ test.describe("Landing page", () => {
     await expect(
       page.getByRole("heading", {
         level: 1,
-        name: /stop chasing appointments.*start protecting your time/i,
+        name: /your professional website\s*&\s*online agenda/i,
       }),
     ).toBeVisible();
 

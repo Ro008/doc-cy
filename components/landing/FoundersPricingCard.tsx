@@ -82,7 +82,7 @@ export function FoundersPricingCard() {
   const spotsRemaining = availability?.spotsRemaining ?? 0;
   const progressPercent = availability?.progressPercent ?? 100;
   const founderFeatures: PricingFeature[] = [
-    { label: t("Pricing.benefits.price") },
+    { label: t("Pricing.benefits.seoProfilePage") },
     { label: t("Pricing.benefits.appointments") },
     { label: t("Pricing.benefits.support") },
     { label: t("Pricing.benefits.directoryPriority"), highlighted: true },
@@ -272,6 +272,9 @@ export function FoundersPricingCard() {
       >
         {t("Pricing.cta")}
       </PendingLink>
+      <p className="mt-2 text-center text-[11px] leading-relaxed text-slate-300">
+        {t("Pricing.microCopy")}
+      </p>
       {showFounderOffer ? (
         <p className="mt-2 text-center text-[11px] leading-relaxed text-emerald-100/90">
           {t("Pricing.noCard")}

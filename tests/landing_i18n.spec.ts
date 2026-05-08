@@ -11,7 +11,7 @@ test.describe("Landing i18n", () => {
     await expect(
       page.getByRole("heading", {
         level: 1,
-        name: /Stop chasing appointments\.\s*Start protecting your time\./i,
+        name: /Your Professional Website\s*&\s*Online Agenda/i,
       }),
     ).toBeVisible({ timeout: 10000 });
     await expect(
@@ -19,7 +19,7 @@ test.describe("Landing i18n", () => {
     ).toBeVisible({ timeout: 10000 });
 
     // Toggle to Greek
-    await page.getByRole("link", { name: "GR" }).click();
+    await page.getByRole("link", { name: /^GR$/ }).click();
     await expect(page).toHaveURL(/\/el$/);
     await expect(
       page.getByRole("heading", {
@@ -31,19 +31,19 @@ test.describe("Landing i18n", () => {
       page.getByRole("link", { name: /Διεκδικήστε το προφίλ σας/i }),
     ).toBeVisible({ timeout: 10000 });
     await expect(
-      page.getByText(/ΓΙΝΕΤΕ ΜΕΛΟΣ ΤΟΥ DOCCY FOUNDERS CLUB/i),
+      page.getByText(/JOIN THE\s+DocCy\s+FOUNDING MEMBERS CLUB/i),
     ).toBeVisible({ timeout: 10000 });
     await expect(
       page.getByText(/Ιδρυτικό Μέλος|Κανονική Τιμολόγηση/i),
     ).toBeVisible({ timeout: 10000 });
 
     // Back to English
-    await page.getByRole("link", { name: "EN" }).click();
+    await page.getByRole("link", { name: /^EN$/ }).click();
     await expect(page).toHaveURL(/\/en$/);
     await expect(
       page.getByRole("heading", {
         level: 1,
-        name: /Stop chasing appointments\.\s*Start protecting your time\./i,
+        name: /Your Professional Website\s*&\s*Online Agenda/i,
       }),
     ).toBeVisible({ timeout: 10000 });
   });
