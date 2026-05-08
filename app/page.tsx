@@ -397,6 +397,10 @@ export default async function HomePage() {
                     <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-300" aria-hidden />
                     <span>{t("Visibility.afterPoints.authority")}</span>
                   </li>
+                  <li className="flex items-start gap-2 text-sm text-emerald-50/95">
+                    <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-300" aria-hidden />
+                    <span>{t("Visibility.afterPoints.patientTools")}</span>
+                  </li>
                 </ul>
               </article>
             </div>

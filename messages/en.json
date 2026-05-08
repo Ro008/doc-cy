@@ -113,8 +113,8 @@
       "syncDesc": "Google & Apple Calendar integration. See your real-time availability and manage requests from any device.",
       "confirmTitle": "Patients Book Without Interruptions",
       "confirmDesc": "Patients request a slot online instead of calling your practice. You confirm with one click and avoid constant WhatsApp back-and-forth.",
-      "profileTitle": "Your Digital Receptionist",
-      "profileDesc": "A professional interface that filters inquiries and saves you hours of manual WhatsApp back-and-forth."
+      "profileTitle": "Train your patients to book smarter",
+      "profileDesc": "Use your unique QR code in your waiting room or share your professional link via WhatsApp. Stop being a 24/7 receptionist and let your patients book whenever it suits them-even while you sleep."
     },
     "Showcase": {
       "title": "See how DocCy puts you back in charge",
@@ -212,7 +212,8 @@
       "afterPoints": {
         "speed": "Live in minutes with instant loading",
         "maintenance": "Zero maintenance on your side",
-        "authority": "Built inside a high-authority ecosystem"
+        "authority": "Built inside a high-authority ecosystem",
+        "patientTools": "Integrated Patient Tools: QR codes & professional links included to automate your current patient base."
       },
       "closing": "Why pay for a site no one visits? With DocCy, you get the visibility of a major health platform with the personal touch of your own professional space.",
       "comparison": {
