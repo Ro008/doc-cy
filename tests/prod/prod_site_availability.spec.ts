@@ -28,11 +28,13 @@ test.describe("Public shell health", () => {
   });
 
   test("marketing home loads with primary CTAs", async ({ page }) => {
-    await page.goto("/");
+    // Deterministic English copy: `/` can resolve to a non-English locale on some hosts;
+    // marketing strings also change over time — keep in sync with `messages/en.json` LandingPage.Hero.
+    await page.goto("/en");
     await expect(
       page.getByRole("heading", {
         level: 1,
-        name: /stop chasing appointments.*start protecting your time/i,
+        name: /Your Professional Website\s*&\s*Online Agenda/i,
       }),
     ).toBeVisible({ timeout: 20000 });
 

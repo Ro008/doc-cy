@@ -29,7 +29,7 @@ type DoctorAuthResult = {
   sessionAccessToken: string;
 };
 
-type DoctorAuthOptions = {
+export type DoctorAuthOptions = {
   email?: string;
   password?: string;
 };

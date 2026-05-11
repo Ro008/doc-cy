@@ -1,6 +1,6 @@
 // tests/manual_booking_modal_ux.spec.ts
 import { test, expect } from "@playwright/test";
-import { signInDoctorAndSetCookies } from "./helpers/doctorAuth";
+import { signInDoctorOrSkipOnInfraError } from "./helpers/signInDoctorWithInfraSkip";
 
 test.describe("Manual booking modal UX", () => {
   test.beforeEach(({}, testInfo) => {
@@ -16,7 +16,7 @@ test.describe("Manual booking modal UX", () => {
   });
 
   async function openManualModal(page: import("@playwright/test").Page) {
-    await signInDoctorAndSetCookies(page);
+    await signInDoctorOrSkipOnInfraError(page);
     await page.goto("/agenda?manual=1");
     await expect(page).toHaveURL(/\/agenda/, { timeout: 15_000 });
     const panel = page.getByTestId("manual-booking-modal-panel");

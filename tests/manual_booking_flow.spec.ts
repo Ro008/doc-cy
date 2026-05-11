@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
-import { signInDoctorAndSetCookies } from "./helpers/doctorAuth";
+import { signInDoctorOrSkipOnInfraError } from "./helpers/signInDoctorWithInfraSkip";
 import { skipIfSafeNoBooking } from "./helpers/safeMode";
 
 test.describe("Manual booking flow @booking-creates", () => {
@@ -30,7 +30,7 @@ test.describe("Manual booking flow @booking-creates", () => {
     expect(serviceKey).not.toBe("");
 
     const admin = createClient(supabaseUrl, serviceKey);
-    await signInDoctorAndSetCookies(page);
+    await signInDoctorOrSkipOnInfraError(page);
 
     let createdAppointmentId: string | null = null;
     let selectedTimeLabel = "";

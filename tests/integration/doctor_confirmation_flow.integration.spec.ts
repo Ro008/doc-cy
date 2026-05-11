@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
-import { signInDoctorAndSetCookies } from "../helpers/doctorAuth";
+import { signInDoctorOrSkipOnInfraError } from "../helpers/signInDoctorWithInfraSkip";
 
 const DEFAULT_DURATION_MINUTES = 30;
 
@@ -10,37 +10,6 @@ function firstNonEmpty(...values: Array<string | undefined>): string {
     if (normalized) return normalized;
   }
   return "";
-}
-
-function isSupabaseAuthInfraError(error: unknown): boolean {
-  const message = String((error as { message?: unknown } | null)?.message ?? "")
-    .trim()
-    .toLowerCase();
-  return (
-    message.includes("database error querying schema") ||
-    message.includes("failed to fetch") ||
-    message.includes("network") ||
-    message.includes("timeout") ||
-    message.includes("temporarily unavailable")
-  );
-}
-
-async function signInOrSkipOnInfraError(opts: {
-  page: Parameters<typeof signInDoctorAndSetCookies>[0];
-  email: string;
-  password: string;
-}): Promise<void> {
-  try {
-    await signInDoctorAndSetCookies(opts.page, undefined, {
-      email: opts.email,
-      password: opts.password,
-    });
-  } catch (error) {
-    if (isSupabaseAuthInfraError(error)) {
-      test.skip(true, `Supabase Auth infra is unstable in CI: ${String((error as Error).message)}`);
-    }
-    throw error;
-  }
 }
 
 function cyprusDateKey(iso: string): string {
@@ -177,8 +146,7 @@ test.describe("Integration: doctor confirmation flow", () => {
     const appointmentId = String(inserted.id);
 
     try {
-      await signInOrSkipOnInfraError({
-        page,
+      await signInDoctorOrSkipOnInfraError(page, undefined, {
         email: doctorEmail,
         password: doctorPassword,
       });
@@ -242,8 +210,7 @@ test.describe("Integration: doctor confirmation flow", () => {
       "Missing TEST_USER_EMAIL/TEST_USER_PASSWORD for doctor link fallback test.",
     );
 
-    await signInOrSkipOnInfraError({
-      page,
+    await signInDoctorOrSkipOnInfraError(page, undefined, {
       email: doctorEmail,
       password: doctorPassword,
     });
