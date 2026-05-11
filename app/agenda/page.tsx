@@ -24,6 +24,7 @@ type AgendaWorkingHours = {
 type AgendaPageProps = {
   searchParams?: {
     date?: string;
+    manual?: string;
   };
 };
 
@@ -177,9 +178,11 @@ export default async function AgendaPage({ searchParams }: AgendaPageProps) {
 
         <AgendaRealtime
           doctorId={doctor.id}
+          doctorSlug={(doctor as { slug?: string | null }).slug ?? null}
           initialAppointments={(appointments as any[]) ?? []}
           workingHours={workingHours}
           initialDateKey={searchParams?.date ?? null}
+          openManualBooking={searchParams?.manual === "1"}
         />
       </div>
     </main>

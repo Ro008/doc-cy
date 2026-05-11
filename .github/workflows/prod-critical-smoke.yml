@@ -407,6 +407,11 @@ jobs:
             exit 1
           fi
 
+          # Many WhatsApp webhook secrets embed `text=` in the URL (e.g. CallMeBot templates).
+          # Strip any existing `text=` segment so curl `-G` + `--data-urlencode "text=..."` sends
+          # exactly one message param (duplicate/empty `text=` breaks delivery; see workflow history).
+          SEND_URL="$(printf '%s' "${WEBHOOK_URL}" | sed -E 's/([?&])text=[^&]*(&|$)/\1\2/g' | sed -E 's/\?&/\?/g; s/&&/&/g; s/[?&]$//')"
+
           OVERALL_RESULT="success"
           if [ "${PROD_RESULT}" != "success" ] || [ "${INTEGRATION_RESULT}" != "success" ]; then
             OVERALL_RESULT="failure"
@@ -469,7 +474,7 @@ jobs:
               --retry 2 \
               --retry-delay 2 \
               --retry-all-errors \
-              -G "${WEBHOOK_URL}" \
+              -G "${SEND_URL}" \
               --data-urlencode "text=${MSG}"; then
               echo "sent=true" >> "$GITHUB_OUTPUT"
               exit 0
@@ -483,8 +488,8 @@ jobs:
               --retry-delay 2 \
               --retry-all-errors \
               -H "Content-Type: application/json" \
-              -X POST "${WEBHOOK_URL}" \
-              --data "{\"text\":\"${MSG//\"/\\\"}\"}"; then
+              -X POST "${SEND_URL}" \
+              --data "$(MSG="${MSG}" python3 -c 'import json, os; print(json.dumps({"text": os.environ["MSG"]}))')"; then
               echo "sent=true" >> "$GITHUB_OUTPUT"
               exit 0
             fi
@@ -496,7 +501,7 @@ jobs:
               --retry 2 \
               --retry-delay 2 \
               --retry-all-errors \
-              -X POST "${WEBHOOK_URL}" \
+              -X POST "${SEND_URL}" \
               --data-urlencode "text=${MSG}"; then
               echo "sent=true" >> "$GITHUB_OUTPUT"
               exit 0

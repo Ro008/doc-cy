@@ -6,12 +6,12 @@ test.describe("Brand consistency", () => {
   test("landing page shows DocCy with emerald Cy, not DOCCY", async ({
     page,
   }) => {
-    await page.goto("/");
+    await page.goto("/en");
 
     await expect(
       page.getByRole("heading", {
         level: 1,
-        name: /stop chasing appointments.*start protecting your time/i,
+        name: /Your Professional Website\s*&\s*Online Agenda/i,
       }),
     ).toBeVisible({ timeout: 10000 });
 

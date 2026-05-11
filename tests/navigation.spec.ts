@@ -9,7 +9,7 @@ test.describe("Navigation and routing", () => {
     await expect(
       page.getByRole("heading", {
         level: 1,
-        name: /stop chasing appointments.*start protecting your time/i,
+        name: /Your Professional Website\s*&\s*Online Agenda/i,
       }),
     ).toBeVisible({ timeout: 5000 });
   });

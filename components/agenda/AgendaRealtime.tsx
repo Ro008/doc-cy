@@ -34,6 +34,7 @@ import {
 import { patientVisitReasonFromAppointmentRow } from "@/lib/agenda-visit-reason";
 import { WhatsAppLogoIcon } from "@/components/icons/WhatsAppLogoIcon";
 import type { WeeklySchedule } from "@/lib/doctor-settings";
+import { ManualBookingFlow } from "@/components/agenda/ManualBookingFlow";
 
 type AgendaAppointmentRow = {
   id: string;
@@ -274,14 +275,18 @@ function AgendaAppointmentCardInner({
 
 export function AgendaRealtime({
   doctorId,
+  doctorSlug,
   initialAppointments,
   workingHours,
   initialDateKey,
+  openManualBooking,
 }: {
   doctorId: string | null;
+  doctorSlug?: string | null;
   initialAppointments: AgendaAppointmentRow[];
   workingHours: AgendaWorkingHours | null;
   initialDateKey?: string | null;
+  openManualBooking?: boolean;
 }) {
   const supabase = React.useMemo(() => createClientComponentClient(), []);
   const [appointments, setAppointments] =
@@ -324,6 +329,12 @@ export function AgendaRealtime({
   const [previewSlots, setPreviewSlots] = React.useState<string[] | null>(null);
   const [weekOffset, setWeekOffset] = React.useState(0);
   const [mobileDayOffset, setMobileDayOffset] = React.useState(0);
+  const [manualBookingOpen, setManualBookingOpen] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!openManualBooking) return;
+    setManualBookingOpen(true);
+  }, [openManualBooking]);
 
   React.useEffect(() => {
     setAppointments(initialAppointments);
@@ -928,6 +939,16 @@ export function AgendaRealtime({
             <div className="hidden items-center gap-2 md:flex">
               <button
                 type="button"
+                onClick={() => setManualBookingOpen(true)}
+                title="Took a phone call? Block the slot manually here. Next time, share your link to save time."
+                className="rounded-lg border border-emerald-300/40 bg-emerald-400/10 px-3 py-1.5 text-xs font-semibold text-emerald-100 transition hover:border-emerald-300/60 hover:bg-emerald-400/20"
+              >
+                + Add Manual Booking
+              </button>
+            </div>
+            <div className="hidden items-center gap-2 md:flex">
+              <button
+                type="button"
                 onClick={() => {
                   setWeekOffset(0);
                   setMobileDayOffset(0);
@@ -1278,6 +1299,25 @@ export function AgendaRealtime({
           </div>
         </div>
       </section>
+      <button
+        type="button"
+        onClick={() => setManualBookingOpen(true)}
+        title="Took a phone call? Block the slot manually here. Next time, share your link to save time."
+        className="fixed bottom-20 right-4 z-40 inline-flex items-center gap-2 rounded-full border border-emerald-300/40 bg-emerald-400 px-4 py-3 text-sm font-semibold text-slate-950 shadow-xl shadow-emerald-500/35 transition hover:bg-emerald-300 md:hidden"
+      >
+        + Add Manual Booking
+      </button>
+      <ManualBookingFlow
+        open={manualBookingOpen}
+        doctorId={doctorId}
+        doctorSlug={doctorSlug}
+        appointments={appointments}
+        workingHours={workingHours}
+        onClose={() => setManualBookingOpen(false)}
+        onBooked={() => {
+          void refreshAppointmentsFromServer();
+        }}
+      />
 
       {selected && (
         <div
