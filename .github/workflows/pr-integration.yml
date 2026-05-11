@@ -150,6 +150,8 @@ jobs:
             tests/schedule_constraints.spec.ts \
             tests/integration/finder_user_behaviors.integration.spec.ts \
             tests/booking_flow.spec.ts \
+            tests/manual_booking_flow.spec.ts \
+            tests/manual_booking_modal_ux.spec.ts \
             tests/integration/doctor_confirmation_flow.integration.spec.ts \
             --project="Desktop Large (Chromium)" \
             --workers=1 \

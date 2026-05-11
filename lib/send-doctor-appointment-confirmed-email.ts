@@ -26,6 +26,7 @@ export async function sendDoctorAppointmentConfirmedEmail(opts: {
   patientPhone?: string | null;
   reason?: string | null;
   resendToOverride?: string | null;
+  manualCreated?: boolean;
 }): Promise<void> {
   const doctorEmail = String(opts.doctorEmail).trim();
   if (!doctorEmail) return;
@@ -65,9 +66,21 @@ export async function sendDoctorAppointmentConfirmedEmail(opts: {
   const agendaUrl = new URL("/agenda", opts.siteUrl).toString();
 
   const recipient = opts.resendToOverride || doctorEmail;
+  const heading = opts.manualCreated
+    ? "Manual booking created"
+    : "Appointment confirmed";
+  const opening = opts.manualCreated
+    ? `Hi ${opts.doctorName}, you manually created and confirmed a booking for <strong>${escapeHtml(
+        opts.patientName,
+      )}</strong> on <strong>${escapeHtml(whenLabel)}</strong> (Cyprus time).`
+    : `Hi ${opts.doctorName}, you confirmed <strong>${escapeHtml(
+        opts.patientName,
+      )}</strong> for <strong>${escapeHtml(whenLabel)}</strong> (Cyprus time).`;
   const text =
     `Hi ${opts.doctorName},\n\n` +
-    `You confirmed ${opts.patientName}'s appointment for ${whenLabel} (Cyprus time).\n\n` +
+    (opts.manualCreated
+      ? `You manually created and confirmed ${opts.patientName}'s appointment for ${whenLabel} (Cyprus time).\n\n`
+      : `You confirmed ${opts.patientName}'s appointment for ${whenLabel} (Cyprus time).\n\n`) +
     `Manage any changes from your DocCy agenda: ${agendaUrl}\n` +
     `Google Calendar is optional and does not sync edits back to DocCy.\n\n` +
     `Add to calendar:\n` +
@@ -78,11 +91,9 @@ export async function sendDoctorAppointmentConfirmedEmail(opts: {
   const html = `
 <div style="margin:0;padding:20px;background:#020617;color:#e2e8f0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
   <div style="max-width:560px;margin:0 auto;background:#0f172a;border:1px solid rgba(148,163,184,.2);border-radius:16px;padding:22px;">
-    <h2 style="margin:0 0 12px;font-size:20px;line-height:1.3;color:#f8fafc;">Appointment confirmed</h2>
+    <h2 style="margin:0 0 12px;font-size:20px;line-height:1.3;color:#f8fafc;">${heading}</h2>
     <p style="margin:0 0 10px;font-size:15px;line-height:1.6;color:#e2e8f0;">
-      Hi ${escapeHtml(opts.doctorName)}, you confirmed <strong>${escapeHtml(
-    opts.patientName,
-  )}</strong> for <strong>${escapeHtml(whenLabel)}</strong> (Cyprus time).
+      ${opening}
     </p>
     <p style="margin:0 0 14px;font-size:14px;line-height:1.6;color:#cbd5e1;">
       Manage all updates directly from your <a href="${agendaUrl}" style="color:#a7f3d0;font-weight:600;">DocCy agenda</a>. Google Calendar is optional and does not sync edits back to DocCy.
@@ -95,7 +106,9 @@ export async function sendDoctorAppointmentConfirmedEmail(opts: {
 
   await sendResendEmail({
     to: recipient,
-    subject: `Confirmed visit with ${opts.patientName} · ${whenLabel}`,
+    subject: opts.manualCreated
+      ? `Manual booking created: ${opts.patientName} · ${whenLabel}`
+      : `Confirmed visit with ${opts.patientName} · ${whenLabel}`,
     text,
     html,
   });

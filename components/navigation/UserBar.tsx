@@ -6,6 +6,7 @@ import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import {
+  CalendarPlus,
   CalendarDays,
   LifeBuoy,
   LogOut,
@@ -237,6 +238,16 @@ export function UserBar({ initialSessionState }: UserBarProps) {
               </div>
             </div>
 
+            <Link
+              href="/agenda?manual=1"
+              title="Took a phone call? Block the slot manually here. Next time, share your link to save time."
+              data-testid="userbar-link-manual-booking"
+              className="mb-1 flex items-center gap-2 rounded-xl border border-emerald-300/30 bg-emerald-500/10 px-3 py-2 text-sm font-semibold text-emerald-100 transition hover:bg-emerald-500/20"
+              role="menuitem"
+            >
+              <CalendarPlus className="h-4 w-4 text-emerald-200" aria-hidden />
+              + Add Manual Booking
+            </Link>
             <Link
               href="/agenda"
               data-testid="userbar-link-agenda"
