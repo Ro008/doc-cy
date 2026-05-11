@@ -5,7 +5,7 @@ import { CY_TZ } from "../lib/appointments";
 import { signInDoctorAndSetCookies } from "./helpers/doctorAuth";
 
 test.describe("Doctor action feedback toasts", () => {
-  test("confirming a requested appointment shows success toast", async ({
+  test("confirming a requested appointment opens post-confirm summary", async ({
     page,
   }) => {
     test.setTimeout(90_000);
@@ -67,17 +67,6 @@ test.describe("Doctor action feedback toasts", () => {
         },
       );
 
-      await page.route(
-        new RegExp(`/api/appointments/${appointmentId}/confirm$`),
-        async (route) => {
-          await route.fulfill({
-            status: 200,
-            contentType: "application/json",
-            body: JSON.stringify({ ok: true, message: "Appointment confirmed." }),
-          });
-        },
-      );
-
       await page.goto(`/dashboard/appointments/${appointmentId}`);
       await expect(
         page.getByRole("button", { name: /Confirm appointment/i }),
@@ -85,10 +74,17 @@ test.describe("Doctor action feedback toasts", () => {
 
       await page.getByRole("button", { name: /Confirm appointment/i }).click();
 
+      await expect(page).toHaveURL(
+        new RegExp(
+          `/dashboard/appointments/${appointmentId}\\?confirmed=1(?:$|[&#])`,
+        ),
+        { timeout: 15_000 },
+      );
       await expect(
-        page.getByText(/Appointment confirmed\. Returning to agenda/i),
-      ).toBeVisible({ timeout: 8_000 });
-      await expect(page).toHaveURL(/\/agenda/, { timeout: 10_000 });
+        page.getByText(
+          /Confirmed in DocCy\. Manage all updates in DocCy in a few clicks/i,
+        ),
+      ).toBeVisible({ timeout: 12_000 });
     } finally {
       if (appointmentId) {
         await admin.from("appointments").delete().eq("id", appointmentId);

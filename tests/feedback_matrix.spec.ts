@@ -78,7 +78,9 @@ async function seedAgendaAppointment(
 test.describe("Feedback matrix toasts", () => {
   test.describe.configure({ mode: "serial" });
 
-  test("doctor confirm success shows success toast", async ({ page }, testInfo) => {
+  test("doctor confirm success shows post-confirm summary", async ({
+    page,
+  }, testInfo) => {
     testInfo.skip(
       testInfo.project.name !== "Desktop Large (Chromium)",
       "Feedback matrix is stabilized for desktop run.",
@@ -115,24 +117,19 @@ test.describe("Feedback matrix toasts", () => {
           });
         },
       );
-      await page.route(
-        new RegExp(`/api/appointments/${appointmentId}/confirm$`),
-        async (route) => {
-          await route.fulfill({
-            status: 200,
-            contentType: "application/json",
-            body: JSON.stringify({ ok: true, message: "Appointment confirmed." }),
-          });
-        },
-      );
-
       await page.goto(`/dashboard/appointments/${appointmentId}`);
       await page.getByRole("button", { name: /Confirm appointment/i }).click();
+      await expect(page).toHaveURL(
+        new RegExp(
+          `/dashboard/appointments/${appointmentId}\\?confirmed=1(?:$|[&#])`,
+        ),
+        { timeout: 15_000 },
+      );
       await expect(
-        page
-          .locator("[data-sonner-toast]")
-          .getByText(/Appointment confirmed\. Returning to agenda/i),
-      ).toBeVisible({ timeout: 8_000 });
+        page.getByText(
+          /Confirmed in DocCy\. Manage all updates in DocCy in a few clicks/i,
+        ),
+      ).toBeVisible({ timeout: 12_000 });
     } finally {
       await admin.from("appointments").delete().eq("id", appointmentId);
     }
