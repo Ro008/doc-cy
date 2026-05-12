@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher";
 import { PendingLink } from "@/components/navigation/PendingLink";
+import { emitOpenFeedback } from "@/lib/doccy-feedback";
 
 type MarketingFooterProps = {
   className?: string;
@@ -51,6 +52,16 @@ export function MarketingFooter({
             >
               Blog
             </Link>
+          </div>
+
+          <div className="inline-flex items-center rounded-full border border-slate-200/20 bg-slate-900/30 p-1 backdrop-blur">
+            <button
+              type="button"
+              onClick={() => emitOpenFeedback()}
+              className="inline-flex rounded-full px-3 py-1.5 text-xs font-semibold text-slate-300 transition hover:bg-slate-800/70 hover:text-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
+            >
+              Support
+            </button>
           </div>
 
           <div className="inline-flex items-center rounded-full border border-slate-200/20 bg-slate-900/30 p-1 backdrop-blur">

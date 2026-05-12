@@ -16,13 +16,50 @@ test.describe("Landing page", () => {
       name: /Claim your professional profile/i,
     });
     await expect(primaryCta).toBeVisible();
-    await expect(primaryCta).toHaveAttribute("href", "/#founders-pricing");
+    await expect(primaryCta).toHaveAttribute("href", "#founders-pricing-card");
 
     const professionalLogin = page.getByRole("link", {
       name: /Professional Login/i,
     });
     await expect(professionalLogin).toBeVisible();
     await expect(professionalLogin).toHaveAttribute("href", "/login");
+  });
+
+  test("marketing footer shows core links, Support before Instagram, and Support opens feedback", async ({
+    page,
+  }) => {
+    await page.goto("/");
+
+    const footer = page.getByTestId("marketing-footer");
+    await expect(footer).toBeVisible();
+
+    await expect(footer.getByRole("link", { name: /^Find a Professional$/i })).toBeVisible();
+    await expect(footer.getByRole("link", { name: /^About DocCy$/i })).toBeVisible();
+    await expect(footer.getByRole("link", { name: /^Blog$/i })).toBeVisible();
+    await expect(footer.getByRole("button", { name: /^Support$/i })).toBeVisible();
+    await expect(footer.getByRole("link", { name: /^Instagram$/i })).toBeVisible();
+
+    const navLabels = await footer.evaluate(() =>
+      Array.from(
+        document.querySelectorAll(
+          '[data-testid="marketing-footer"] a[href], [data-testid="marketing-footer"] button[type="button"]'
+        )
+      )
+        .map((el) => el.textContent?.trim() ?? "")
+        .filter(Boolean)
+    );
+
+    expect(navLabels).toContain("Find a Professional");
+    expect(navLabels).toContain("About DocCy");
+    expect(navLabels).toContain("Blog");
+    expect(navLabels).toContain("Support");
+    expect(navLabels).toContain("Instagram");
+    expect(navLabels.indexOf("Support")).toBeLessThan(navLabels.indexOf("Instagram"));
+
+    await footer.getByRole("button", { name: /^Support$/i }).click();
+    await expect(
+      page.getByRole("dialog", { name: /How can we help you/i })
+    ).toBeVisible({ timeout: 5000 });
   });
 
   test("primary CTA navigates to founders pricing section", async ({ page }) => {
@@ -33,11 +70,11 @@ test.describe("Landing page", () => {
     await expect(cta).toBeVisible();
 
     await Promise.all([
-      page.waitForURL(/\/#founders-pricing$/, { timeout: 10000 }),
+      page.waitForURL(/\/#founders-pricing-card$/, { timeout: 10000 }),
       cta.click(),
     ]);
 
-    await expect(page).toHaveURL(/\/#founders-pricing$/);
+    await expect(page).toHaveURL(/\/#founders-pricing-card$/);
     await expect(
       page.getByRole("heading", {
         name: /Special launch pricing for the first 100 practitioners across Cyprus/i,

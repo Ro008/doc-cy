@@ -248,9 +248,10 @@
         },
         "setupTime": {
           "question": "How long does it take to set up? I am busy.",
-          "answer1": "Less than 5 minutes. We built DocCy to be plug and play. You do not need a tech team or a manual.",
-          "answer2": "You claim your profile, the DocCy team reviews it to confirm you are a real professional, and you are ready to receive requests.",
-          "answer3": "It is the fastest upgrade your practice will ever have."
+          "answer1": "Less than 5 minutes. DocCy is built to be plug and play-no tech team or manuals required.",
+          "answer2": "Want a hands-off experience? As a Founding Member, you can request Personalized Onboarding. We can do it via a quick video call or, if you are based in Paphos, we can visit your practice and set everything up for you.",
+          "answer3": "We'll even help you sync your current calendar and strategy for a smooth transition. You focus on your patients; we handle the setup.",
+          "contactCta": "Contact us here"
         }
       }
     }
