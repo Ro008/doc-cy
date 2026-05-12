@@ -16,7 +16,7 @@ test.describe("Landing page", () => {
       name: /Claim your professional profile/i,
     });
     await expect(primaryCta).toBeVisible();
-    await expect(primaryCta).toHaveAttribute("href", "/#founders-pricing");
+    await expect(primaryCta).toHaveAttribute("href", "#founders-pricing-card");
 
     const professionalLogin = page.getByRole("link", {
       name: /Professional Login/i,
@@ -33,11 +33,11 @@ test.describe("Landing page", () => {
     await expect(cta).toBeVisible();
 
     await Promise.all([
-      page.waitForURL(/\/#founders-pricing$/, { timeout: 10000 }),
+      page.waitForURL(/\/#founders-pricing-card$/, { timeout: 10000 }),
       cta.click(),
     ]);
 
-    await expect(page).toHaveURL(/\/#founders-pricing$/);
+    await expect(page).toHaveURL(/\/#founders-pricing-card$/);
     await expect(
       page.getByRole("heading", {
         name: /Special launch pricing for the first 100 practitioners across Cyprus/i,

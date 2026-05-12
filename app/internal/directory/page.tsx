@@ -61,12 +61,26 @@ function getVisitsRangeLabel(range: VisitsRangeKey): string {
   return "Last 7 days";
 }
 
+function getRuntimeEnvironmentLabel(): "production" | "preview" | "local" {
+  const vercelEnv = (process.env.VERCEL_ENV ?? "").trim().toLowerCase();
+  if (vercelEnv === "production") return "production";
+  if (vercelEnv === "preview") return "preview";
+  return "local";
+}
+
 export default async function FounderDashboardPage({
   searchParams,
 }: {
   searchParams?: { visitsRange?: string | string[] };
 }) {
   const supabase = createServiceRoleClient();
+  const runtimeLabel = getRuntimeEnvironmentLabel();
+  const runtimeBadgeClass =
+    runtimeLabel === "production"
+      ? "border-emerald-400/35 bg-emerald-500/10 text-emerald-200"
+      : runtimeLabel === "preview"
+        ? "border-violet-400/35 bg-violet-500/10 text-violet-200"
+        : "border-slate-600/60 bg-slate-800/70 text-slate-200";
 
   if (!supabase) {
     return (
@@ -437,6 +451,13 @@ export default async function FounderDashboardPage({
             <p className="mt-1 text-sm text-slate-500">
               Platform health · professionals · bookings · live data
             </p>
+            <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px]">
+              <span
+                className={`inline-flex items-center rounded-full border px-2 py-1 font-semibold uppercase tracking-[0.12em] ${runtimeBadgeClass}`}
+              >
+                Environment: {runtimeLabel}
+              </span>
+            </div>
           </div>
           <InternalSignOutButton />
         </div>

@@ -44,6 +44,14 @@ export function PendingLink({
         if (isHashNavigation) {
           event.preventDefault();
           window.dispatchEvent(new Event(START_EVENT));
+          if (href.startsWith("#")) {
+            const target = document.querySelector(href);
+            if (target instanceof HTMLElement) {
+              target.scrollIntoView({ behavior: "smooth", block: "start" });
+              window.history.pushState(null, "", href);
+              return;
+            }
+          }
           window.location.assign(href);
           return;
         }
