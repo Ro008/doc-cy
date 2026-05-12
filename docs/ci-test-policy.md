@@ -44,7 +44,7 @@ Rules:
 
 Current examples:
 - doctor UI monitor step in `prod-critical-smoke`
-- WhatsApp notification delivery in `notify-whatsapp`
+- WhatsApp notification delivery in `notify-whatsapp` (see **Nightly WhatsApp notification** below)
 - Login form UI monitor:
   - `tests/prod/prod_doctor_password_login_form_ui_monitor.spec.ts`
   - kept non-blocking by policy until sustained stability in CI
@@ -84,6 +84,30 @@ Inventory of critical flows vs tests: [`docs/critical-flow-test-coverage.md`](cr
 Move tests between lanes based on data:
 - promote to blocking after at least 10 consecutive green runs
 - demote to monitoring after 2 failures in 7 days without confirmed product bug
+
+## Nightly WhatsApp notification (`notify-whatsapp`)
+
+Workflow: `.github/workflows/prod-critical-smoke.yml` → job `notify-whatsapp` (after `prod-critical-smoke` and `business-critical-integration`). Secret: `WHATSAPP_WEBHOOK_URL` (see `docs/github-secrets-governance.md`).
+
+Schedule: two UTC crons plus `schedule-gate` so the heavy jobs (and WhatsApp) only run when local time in **Europe/Nicosia** is **06:00** (see comments in the workflow file).
+
+### 2026-05-12 — Silent failures (fixed in workflow)
+
+**Symptom:** WhatsApp messages stopped arriving for several days, with no GitHub issue opened for delivery failure.
+
+**Root cause:** The step `Send WhatsApp monitoring status (retries)` used `continue-on-error: true`. In GitHub Actions, a failed step with that flag still reports `steps.<id>.outcome == success`; only `conclusion` is `failure`. Follow-up steps used `if: steps.whatsapp.outcome != 'success'`, which is **never true** on that failure path, so **no issue was created** and the failure was easy to miss.
+
+**Change applied:** Those conditions were updated to `steps.whatsapp.conclusion == 'failure'` (with an inline comment in the YAML). After deploy, repeated webhook failures should open issues titled `[prod-monitoring] WhatsApp notification failed (run …)`.
+
+### If delivery still fails after the above (checklist)
+
+Already ruled out: wrong `if` on follow-up steps (outcome vs conclusion). Next checks:
+
+1. **Actions UI** — workflow *Production Monitoring*, job `notify-whatsapp`, step *Send WhatsApp monitoring status*: read `curl` stderr (timeouts, HTTP errors, empty `WHATSAPP_WEBHOOK_URL`).
+2. **Repository secret** — name must be `WHATSAPP_WEBHOOK_URL` (canonical list in `docs/github-secrets-governance.md`).
+3. **Scheduled workflows disabled** — GitHub can pause schedules on inactive repos; re-enable under Actions → *Production Monitoring* → … menu.
+4. **Webhook provider** — e.g. CallMeBot limits, expired API key, or URL format; workflow strips duplicate `text=` query params before sending (see script comments in YAML).
+5. **Gate** — runs at wrong UTC hour intentionally skip WhatsApp for that trigger; only the Nicosia 06:00 window runs the suite.
 
 ## Incident triage (quick)
 

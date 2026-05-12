@@ -514,8 +514,10 @@ jobs:
           echo "sent=false" >> "$GITHUB_OUTPUT"
           exit 1
 
+      # With continue-on-error on the WhatsApp step, GitHub sets outcome=success even when curl fails;
+      # use conclusion to detect real delivery failure (otherwise issues never open — silent for days).
       - name: Open issue if WhatsApp notification failed
-        if: steps.whatsapp.outcome != 'success'
+        if: steps.whatsapp.conclusion == 'failure'
         uses: actions/github-script@v7
         env:
           PROD_RESULT: ${{ needs.prod-critical-smoke.result }}
@@ -545,7 +547,7 @@ jobs:
             });
 
       - name: Notification failure note (non-blocking)
-        if: steps.whatsapp.outcome != 'success'
+        if: steps.whatsapp.conclusion == 'failure'
         shell: bash
         run: |
           echo "::warning::WhatsApp notification failed. Issue created. This does not change critical test status."
