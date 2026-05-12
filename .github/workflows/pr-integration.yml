@@ -101,6 +101,9 @@ jobs:
       - name: Validate blog image rule
         run: npm run test:content:blog-images
 
+      - name: Validate messages EN/EL parity
+        run: npm run test:content:messages-parity
+
       - name: Build Next.js (PR branch)
         run: npm run build
         env:
@@ -141,6 +144,7 @@ jobs:
           # register_onboarding_avatar.spec.ts omitted: shared integration Supabase hits Auth email rate limits on every PR push.
           npx playwright test \
             tests/blog_single_image_ui.spec.ts \
+            tests/landing_i18n.spec.ts \
             tests/integration/appointments_race_condition.integration.spec.ts \
             tests/integration/settings_clinic_address_notice.integration.spec.ts \
             tests/integration/finder_critical.integration.spec.ts \
