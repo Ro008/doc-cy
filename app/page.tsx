@@ -14,6 +14,7 @@ import { ProductShowcaseCarousel } from "@/components/landing/ProductShowcaseCar
 import { PendingLink } from "@/components/navigation/PendingLink";
 import { ProfessionalAccessButton } from "@/components/landing/ProfessionalAccessButton";
 import { MarketingFooter } from "@/components/navigation/MarketingFooter";
+import { SupportInquiryLink } from "@/components/landing/SupportInquiryLink";
 
 type Benefit = {
   icon: typeof CalendarSync;
@@ -183,6 +184,7 @@ export default async function HomePage() {
         t("FAQ.items.setupTime.answer2"),
         t("FAQ.items.setupTime.answer3"),
       ],
+      contactCta: t("FAQ.items.setupTime.contactCta"),
     },
   ];
 
@@ -484,6 +486,11 @@ export default async function HomePage() {
                         {answer}
                       </p>
                     ))}
+                    {"contactCta" in item ? (
+                      <div className="pt-1">
+                        <SupportInquiryLink label={item.contactCta} />
+                      </div>
+                    ) : null}
                   </div>
                 </details>
               ))}
