@@ -5,10 +5,19 @@ import { promises as fs } from "node:fs";
 import { compileMDX } from "next-mdx-remote/rsc";
 import Link from "next/link";
 import { createElement } from "react";
+import remarkGfm from "remark-gfm";
 import { BlogMdxImage } from "@/components/blog/BlogMdxImage";
 
 const BLOG_CONTENT_DIR = path.join(process.cwd(), "content", "blog");
 const CYPRUS_TIMEZONE = "Europe/Nicosia";
+
+/** GFM = GitHub-flavored Markdown (tables, strikethrough, etc.) for blog MDX. */
+const blogMdxCompileOptions = {
+  parseFrontmatter: true,
+  mdxOptions: {
+    remarkPlugins: [remarkGfm],
+  },
+};
 
 type BlogFrontmatter = {
   title: string;
@@ -247,9 +256,7 @@ export async function getAllBlogPostMeta(): Promise<BlogPostMeta[]> {
       const source = await fs.readFile(path.join(BLOG_CONTENT_DIR, fileName), "utf8");
       const { frontmatter } = await compileMDX<Partial<BlogFrontmatter>>({
         source,
-        options: {
-          parseFrontmatter: true,
-        },
+        options: blogMdxCompileOptions,
         components: {
           a: renderMdxAnchor,
           img: BlogMdxImage,
@@ -282,9 +289,7 @@ async function getAllBlogPostMetaIncludingScheduled(): Promise<BlogPostMeta[]> {
       const source = await fs.readFile(path.join(BLOG_CONTENT_DIR, fileName), "utf8");
       const { frontmatter } = await compileMDX<Partial<BlogFrontmatter>>({
         source,
-        options: {
-          parseFrontmatter: true,
-        },
+        options: blogMdxCompileOptions,
         components: {
           a: renderMdxAnchor,
           img: BlogMdxImage,
@@ -332,9 +337,7 @@ export async function getBlogPostBySlug(slug: string): Promise<BlogPost | null> 
 
   const { content, frontmatter } = await compileMDX<Partial<BlogFrontmatter>>({
     source,
-    options: {
-      parseFrontmatter: true,
-    },
+    options: blogMdxCompileOptions,
     components: {
       a: renderMdxAnchor,
       img: BlogMdxImage,
