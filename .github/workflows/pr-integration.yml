@@ -110,6 +110,8 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.INTEGRATION_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.INTEGRATION_SUPABASE_ANON_KEY }}
           DOC_CY_SUPPRESS_TRAFFIC_LOG_SECRET: ${{ secrets.DOC_CY_SUPPRESS_TRAFFIC_LOG_SECRET }}
+          # Placeholder so the client bundles a Formspree URL; Playwright mocks POSTs to formspree.io.
+          NEXT_PUBLIC_FORMSPREE_ID: e2e_placeholder
 
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
@@ -150,6 +152,7 @@ jobs:
             tests/integration/finder_critical.integration.spec.ts \
             tests/integration/needs_reschedule_slot_free.integration.spec.ts \
             tests/navigation.spec.ts \
+            tests/feedback_support_modal.spec.ts \
             tests/profile_structured_data.spec.ts \
             tests/schedule_constraints.spec.ts \
             tests/integration/finder_user_behaviors.integration.spec.ts \
