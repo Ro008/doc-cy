@@ -49,16 +49,43 @@ jobs:
             exit 0
           fi
 
-          hour="$(TZ=Europe/Nicosia date +%H)"
           stamp="$(TZ=Europe/Nicosia date '+%Y-%m-%d %H:%M:%S %Z')"
-          echo "Nicosia local time: ${stamp}"
+          nico_h="$(TZ=Europe/Nicosia date +%H)"
+          nico_m="$(TZ=Europe/Nicosia date +%M)"
+          utc_h="$(date -u +%H)"
+          echo "Nicosia local time: ${stamp} (local H=${nico_h} M=${nico_m}, UTC hour=${utc_h})"
 
-          if [ "${hour}" = "06" ]; then
+          # Scheduled workflows are not guaranteed to start on the minute. If we only allowed
+          # local hour == 06, a delayed 03:xx UTC run could become 07:xx local and skip everything
+          # (including WhatsApp) for that day.
+          #
+          # We run when:
+          # - local hour is 06 (intended nightly window), OR
+          # - local hour is still 07 but UTC hour is still 03 (delayed first cron in summer / EEST),
+          #   within the first ~45 minutes of that local hour — never the 04 UTC slot (07:xx local in summer).
+          should_run="false"
+          if [ "${nico_h}" = "06" ]; then
+            should_run="true"
+          elif [ "${nico_h}" = "07" ] && [ "${utc_h}" = "03" ]; then
+            mm=$((10#${nico_m}))
+            if [ "${mm}" -le 45 ]; then
+              should_run="true"
+            fi
+          fi
+
+          if [ "${should_run}" = "true" ]; then
             echo "should_run=true" >> "$GITHUB_OUTPUT"
           else
             echo "should_run=false" >> "$GITHUB_OUTPUT"
           fi
           echo "nicosia_time=${stamp}" >> "$GITHUB_OUTPUT"
+
+          {
+            echo "## Schedule gate (Production Monitoring)"
+            echo "- **should_run:** ${should_run}"
+            echo "- **Nicosia:** ${stamp}"
+            echo "- **Local H:M** ${nico_h}:${nico_m} **UTC hour** ${utc_h}"
+          } >> "${GITHUB_STEP_SUMMARY}"
 
   prod-critical-smoke:
     needs: [schedule-gate]
@@ -466,6 +493,15 @@ jobs:
             MSG="${MSG} | ${EXTRA_MESSAGE}"
           fi
 
+          wa_host="$(printf '%s' "${SEND_URL}" | sed -E 's#^https?://([^/?#]+).*#\1#')"
+          {
+            echo "## WhatsApp (notify-whatsapp)"
+            echo "- **Run:** ${RUN_URL}"
+            echo "- **Prod:** ${PROD_RESULT} | **Integration:** ${INTEGRATION_RESULT}"
+            echo "- **Doctor UI monitor:** ${PROD_DOCTOR_UI_MONITOR_OUTCOME}"
+            echo "- **Webhook host:** \`${wa_host}\`"
+          } >> "${GITHUB_STEP_SUMMARY}"
+
           attempt=1
           max_attempts=3
           while [ "${attempt}" -le "${max_attempts}" ]; do
@@ -481,6 +517,7 @@ jobs:
               -G "${SEND_URL}" \
               --data-urlencode "text=${MSG}"; then
               echo "sent=true" >> "$GITHUB_OUTPUT"
+              echo "- **Delivery:** OK (GET, attempt ${attempt})" >> "${GITHUB_STEP_SUMMARY}"
               exit 0
             fi
 
@@ -495,6 +532,7 @@ jobs:
               -X POST "${SEND_URL}" \
               --data "$(MSG="${MSG}" python3 -c 'import json, os; print(json.dumps({"text": os.environ["MSG"]}))')"; then
               echo "sent=true" >> "$GITHUB_OUTPUT"
+              echo "- **Delivery:** OK (JSON POST, attempt ${attempt})" >> "${GITHUB_STEP_SUMMARY}"
               exit 0
             fi
 
@@ -508,6 +546,7 @@ jobs:
               -X POST "${SEND_URL}" \
               --data-urlencode "text=${MSG}"; then
               echo "sent=true" >> "$GITHUB_OUTPUT"
+              echo "- **Delivery:** OK (form POST, attempt ${attempt})" >> "${GITHUB_STEP_SUMMARY}"
               exit 0
             fi
             sleep $((attempt * 5))
@@ -515,6 +554,7 @@ jobs:
           done
 
           echo "::error::WhatsApp delivery failed after ${max_attempts} attempts."
+          echo "- **Delivery:** FAILED (see job log for curl errors)" >> "${GITHUB_STEP_SUMMARY}"
           echo "sent=false" >> "$GITHUB_OUTPUT"
           exit 1
 
