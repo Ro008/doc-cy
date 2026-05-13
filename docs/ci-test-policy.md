@@ -89,7 +89,7 @@ Move tests between lanes based on data:
 
 Workflow: `.github/workflows/prod-critical-smoke.yml` → job `notify-whatsapp` (after `prod-critical-smoke` and `business-critical-integration`). Secret: `WHATSAPP_WEBHOOK_URL` (see `docs/github-secrets-governance.md`).
 
-Schedule: two UTC crons plus `schedule-gate` so the heavy jobs (and WhatsApp) only run when local time in **Europe/Nicosia** is **06:00** (see comments in the workflow file).
+Schedule: two UTC crons plus `schedule-gate` so the heavy jobs (and WhatsApp) run once for the **06:00 Europe/Nicosia** slot. The gate keys off the cron entry that fired, not the runner start time, because GitHub may start scheduled workflows hours late.
 
 ### 2026-05-12 — Silent failures (fixed in workflow)
 
@@ -107,7 +107,7 @@ Already ruled out: wrong `if` on follow-up steps (outcome vs conclusion). Next c
 2. **Repository secret** — name must be `WHATSAPP_WEBHOOK_URL` (canonical list in `docs/github-secrets-governance.md`).
 3. **Scheduled workflows disabled** — GitHub can pause schedules on inactive repos; re-enable under Actions → *Production Monitoring* → … menu.
 4. **Webhook provider** — e.g. CallMeBot limits, expired API key, or URL format; workflow strips duplicate `text=` query params before sending (see script comments in YAML).
-5. **Gate** — scheduled runs are not guaranteed to start on the minute. The gate allows the intended **06:xx Nicosia** window plus a **narrow late slice** (local **07:xx** only while UTC is still **03**, first 45 minutes of that hour) so a delayed summer cron still runs tests and WhatsApp, without running the **second** daily cron (04 UTC → 07:xx local) twice. See `schedule-gate` in `.github/workflows/prod-critical-smoke.yml` and the job summary on each run (`should_run` + timestamps).
+5. **Gate** — scheduled runs are not guaranteed to start on the minute. The gate compares `github.event.schedule` with the UTC cron that maps to **06:00 Nicosia** for the current Cyprus offset (`03 UTC` during EEST, `04 UTC` during EET), so a delayed intended cron still runs tests and WhatsApp while the duplicate DST helper cron skips. See `schedule-gate` in `.github/workflows/prod-critical-smoke.yml` and the job summary on each run (`should_run`, event schedule, expected schedule, offset).
 
 ## Incident triage (quick)
 

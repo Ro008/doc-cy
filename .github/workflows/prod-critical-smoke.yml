@@ -40,6 +40,8 @@ jobs:
       - name: Decide run window (always 06:00 Cyprus)
         id: gate
         shell: bash
+        env:
+          SCHEDULE_CRON: ${{ github.event.schedule }}
         run: |
           set -euo pipefail
           if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then
@@ -50,27 +52,25 @@ jobs:
           fi
 
           stamp="$(TZ=Europe/Nicosia date '+%Y-%m-%d %H:%M:%S %Z')"
-          nico_h="$(TZ=Europe/Nicosia date +%H)"
-          nico_m="$(TZ=Europe/Nicosia date +%M)"
-          utc_h="$(date -u +%H)"
-          echo "Nicosia local time: ${stamp} (local H=${nico_h} M=${nico_m}, UTC hour=${utc_h})"
+          nicosia_offset="$(TZ=Europe/Nicosia date +%z)"
+          schedule_cron="${SCHEDULE_CRON:-}"
+          echo "Nicosia local time: ${stamp} (offset=${nicosia_offset}, event schedule=${schedule_cron:-unknown})"
 
-          # Scheduled workflows are not guaranteed to start on the minute. If we only allowed
-          # local hour == 06, a delayed 03:xx UTC run could become 07:xx local and skip everything
-          # (including WhatsApp) for that day.
-          #
-          # We run when:
-          # - local hour is 06 (intended nightly window), OR
-          # - local hour is still 07 but UTC hour is still 03 (delayed first cron in summer / EEST),
-          #   within the first ~45 minutes of that local hour — never the 04 UTC slot (07:xx local in summer).
+          # GitHub scheduled workflows can start hours late. Gate by the cron entry that fired,
+          # not by runner wall-clock time, so the intended 06:00 Cyprus run still executes after
+          # queue delays while the duplicate DST helper slot skips.
           should_run="false"
-          if [ "${nico_h}" = "06" ]; then
+          expected_cron="0 4 * * *"
+          if [ "${nicosia_offset}" = "+0300" ]; then
+            expected_cron="0 3 * * *"
+          elif [ "${nicosia_offset}" = "+0200" ]; then
+            expected_cron="0 4 * * *"
+          else
+            echo "::warning::Unexpected Europe/Nicosia UTC offset (${nicosia_offset}); defaulting to winter cron."
+          fi
+
+          if [ "${schedule_cron}" = "${expected_cron}" ]; then
             should_run="true"
-          elif [ "${nico_h}" = "07" ] && [ "${utc_h}" = "03" ]; then
-            mm=$((10#${nico_m}))
-            if [ "${mm}" -le 45 ]; then
-              should_run="true"
-            fi
           fi
 
           if [ "${should_run}" = "true" ]; then
@@ -84,7 +84,9 @@ jobs:
             echo "## Schedule gate (Production Monitoring)"
             echo "- **should_run:** ${should_run}"
             echo "- **Nicosia:** ${stamp}"
-            echo "- **Local H:M** ${nico_h}:${nico_m} **UTC hour** ${utc_h}"
+            echo "- **Offset:** ${nicosia_offset}"
+            echo "- **Event schedule:** ${schedule_cron:-unknown}"
+            echo "- **Expected schedule:** ${expected_cron}"
           } >> "${GITHUB_STEP_SUMMARY}"
 
   prod-critical-smoke:
