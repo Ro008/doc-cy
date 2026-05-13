@@ -124,7 +124,7 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
           {formatDate(post.publishedAt)}
         </p>
         {post.updatedAt ? (
-          <p className="mt-1 text-xs text-slate-300">Last Updated: {formatDate(post.updatedAt)}</p>
+          <p className="mt-1 text-xs text-slate-300">Last updated on {formatDate(post.updatedAt)}</p>
         ) : null}
         <p className="mt-3 text-sm leading-6 text-slate-300 sm:text-base sm:leading-7">{post.description}</p>
         {post.image ? <BlogMdxImage src={post.image} alt={post.title} width={1600} height={900} /> : null}
