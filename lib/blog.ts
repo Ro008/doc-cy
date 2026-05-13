@@ -5,10 +5,19 @@ import { promises as fs } from "node:fs";
 import { compileMDX } from "next-mdx-remote/rsc";
 import Link from "next/link";
 import { createElement } from "react";
+import remarkGfm from "remark-gfm";
 import { BlogMdxImage } from "@/components/blog/BlogMdxImage";
 
 const BLOG_CONTENT_DIR = path.join(process.cwd(), "content", "blog");
 const CYPRUS_TIMEZONE = "Europe/Nicosia";
+
+/** GFM = GitHub-flavored Markdown (tables, strikethrough, etc.) for blog MDX. */
+const blogMdxCompileOptions = {
+  parseFrontmatter: true,
+  mdxOptions: {
+    remarkPlugins: [remarkGfm],
+  },
+};
 
 type BlogFrontmatter = {
   title: string;
@@ -16,8 +25,8 @@ type BlogFrontmatter = {
   date?: string;
   publishedAt?: string;
   /**
-   * Optional. Shown (with Git commit date) only when strictly after `date`.
-   * If newer than the last Git commit on this file, this value wins for `updatedAt`.
+   * Optional. If set to a date **after** `date`, overrides the Git-derived "Last updated" line.
+   * Normally you do not need this: CI uses full `git log` history (see workflows `fetch-depth: 0`).
    */
   lastUpdated?: string;
   updatedAt?: string;
@@ -98,12 +107,16 @@ function findBlogFileNameForSlugSync(slug: string): string {
   return `${slug}.mdx`;
 }
 
-/** Last commit touching this MDX, as YYYY-MM-DD (author date). Undefined if Git unavailable. */
+/**
+ * Last commit touching this MDX, as YYYY-MM-DD (committer date).
+ * Uses committer date so merges to main reflect when the change landed, not only author timestamp.
+ * Undefined if Git unavailable or shallow history hides the file's last edit.
+ */
 function getGitLastCommitDateShortForBlogFile(fileName: string): string | undefined {
   if (process.env.BLOG_SKIP_GIT_UPDATED === "1") return undefined;
   const rel = path.posix.join("content", "blog", fileName.split("\\").join("/"));
   try {
-    const out = execFileSync("git", ["log", "-1", "--format=%ad", "--date=short", "--", rel], {
+    const out = execFileSync("git", ["log", "-1", "--follow", "--format=%cd", "--date=short", "--", rel], {
       encoding: "utf8",
       cwd: process.cwd(),
       stdio: ["ignore", "pipe", "ignore"],
@@ -247,9 +260,7 @@ export async function getAllBlogPostMeta(): Promise<BlogPostMeta[]> {
       const source = await fs.readFile(path.join(BLOG_CONTENT_DIR, fileName), "utf8");
       const { frontmatter } = await compileMDX<Partial<BlogFrontmatter>>({
         source,
-        options: {
-          parseFrontmatter: true,
-        },
+        options: blogMdxCompileOptions,
         components: {
           a: renderMdxAnchor,
           img: BlogMdxImage,
@@ -282,9 +293,7 @@ async function getAllBlogPostMetaIncludingScheduled(): Promise<BlogPostMeta[]> {
       const source = await fs.readFile(path.join(BLOG_CONTENT_DIR, fileName), "utf8");
       const { frontmatter } = await compileMDX<Partial<BlogFrontmatter>>({
         source,
-        options: {
-          parseFrontmatter: true,
-        },
+        options: blogMdxCompileOptions,
         components: {
           a: renderMdxAnchor,
           img: BlogMdxImage,
@@ -332,16 +341,15 @@ export async function getBlogPostBySlug(slug: string): Promise<BlogPost | null> 
 
   const { content, frontmatter } = await compileMDX<Partial<BlogFrontmatter>>({
     source,
-    options: {
-      parseFrontmatter: true,
-    },
+    options: blogMdxCompileOptions,
     components: {
       a: renderMdxAnchor,
       img: BlogMdxImage,
     },
   });
 
-  const meta = normalizeFrontmatter(frontmatter, normalizedSlug);
+  const fileName = `${normalizedSlug}.mdx`;
+  const meta = normalizeFrontmatter(frontmatter, normalizedSlug, fileName);
   if (!isPublishedByNow(meta.publishedAt)) {
     return null;
   }

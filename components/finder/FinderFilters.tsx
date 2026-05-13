@@ -10,6 +10,8 @@ import {
 } from "@/lib/finder-seo";
 import type { CyprusDistrict } from "@/lib/cyprus-districts";
 import type { FinderSpecialtyOption } from "@/lib/finder-specialty-options";
+import { Info } from "lucide-react";
+import { PendingLink } from "@/components/navigation/PendingLink";
 
 const START_EVENT = "doccy:navigation-start";
 
@@ -153,6 +155,7 @@ export function FinderFilters({
     name.trim() ? `Name: ${name.trim()}` : null,
   ].filter((item): item is string => Boolean(item));
   const hasActiveFilters = activeFilterEntries.length > 0;
+  const showPaphosUrgentCareNote = district === "Paphos";
 
   return (
     <div className="space-y-3">
@@ -284,6 +287,28 @@ export function FinderFilters({
         <div className="flex items-end" />
       </fieldset>
       </form>
+      {showPaphosUrgentCareNote ? (
+        <div
+          role="note"
+          className="flex gap-2.5 rounded-xl border border-slate-700/40 bg-slate-950/35 px-3 py-2.5 sm:px-3.5"
+        >
+          <Info
+            className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-500"
+            strokeWidth={2}
+            aria-hidden
+          />
+          <p className="text-xs leading-relaxed text-slate-400">
+            Looking for urgent care in Paphos?{" "}
+            <PendingLink
+              href="/blog/emergency-room-paphos-gesy-faster-options"
+              className="font-medium text-emerald-400/95 underline decoration-emerald-500/35 underline-offset-[3px] transition hover:text-emerald-300"
+            >
+              Read our guide on GESY specialists & private hospitals
+            </PendingLink>
+            .
+          </p>
+        </div>
+      ) : null}
     </div>
   );
 }

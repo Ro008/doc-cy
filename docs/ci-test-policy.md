@@ -107,7 +107,7 @@ Already ruled out: wrong `if` on follow-up steps (outcome vs conclusion). Next c
 2. **Repository secret** — name must be `WHATSAPP_WEBHOOK_URL` (canonical list in `docs/github-secrets-governance.md`).
 3. **Scheduled workflows disabled** — GitHub can pause schedules on inactive repos; re-enable under Actions → *Production Monitoring* → … menu.
 4. **Webhook provider** — e.g. CallMeBot limits, expired API key, or URL format; workflow strips duplicate `text=` query params before sending (see script comments in YAML).
-5. **Gate** — runs at wrong UTC hour intentionally skip WhatsApp for that trigger; only the Nicosia 06:00 window runs the suite.
+5. **Gate** — scheduled runs are not guaranteed to start on the minute. The gate allows the intended **06:xx Nicosia** window plus a **narrow late slice** (local **07:xx** only while UTC is still **03**, first 45 minutes of that hour) so a delayed summer cron still runs tests and WhatsApp, without running the **second** daily cron (04 UTC → 07:xx local) twice. See `schedule-gate` in `.github/workflows/prod-critical-smoke.yml` and the job summary on each run (`should_run` + timestamps).
 
 ## Incident triage (quick)
 

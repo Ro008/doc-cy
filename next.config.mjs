@@ -36,6 +36,11 @@ const nextConfig = {
         destination: "/blog/gesy-tax-trap-cyprus-expats",
         permanent: true,
       },
+      {
+        source: "/blog/sick-at-10pm-duty-pharmacies-paphos-limassol",
+        destination: "/blog/sick-at-10pm-duty-pharmacies-paphos",
+        permanent: true,
+      },
     ];
   },
 };

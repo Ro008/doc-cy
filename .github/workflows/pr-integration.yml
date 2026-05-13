@@ -44,6 +44,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Validate isolated Supabase configuration
         shell: bash
@@ -227,6 +229,8 @@ jobs:
       - name: Checkout
         if: steps.fork.outputs.skip == 'false'
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node
         if: steps.fork.outputs.skip == 'false'
