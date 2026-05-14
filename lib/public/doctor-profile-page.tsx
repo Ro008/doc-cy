@@ -26,9 +26,12 @@ import { CLINIC_ADDRESS, buildMapsUrlFromAddress } from "@/lib/clinic-info";
 import {
   DOCTOR_FIELD_LIST_PUBLIC_PROFILE_BASE,
   DOCTOR_FIELD_LIST_METADATA,
+  DOCTOR_FIELD_LIST_METADATA_NO_DISTRICT,
   DOCTOR_FIELD_LIST_PUBLIC_PROFILE,
   DOCTOR_FIELD_LIST_PUBLIC_PROFILE_NO_LANG,
 } from "@/lib/doctor-fieldsets";
+import { CYPRUS_DISTRICTS, isCyprusDistrict } from "@/lib/cyprus-districts";
+import { slugToDistrict } from "@/lib/finder-seo";
 import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher";
 import { DocCyWordmark } from "@/components/brand/DocCyWordmark";
 import { getTranslations } from "next-intl/server";
@@ -260,6 +263,27 @@ function buildHealthcareStructuredData(input: {
   };
 }
 
+function normalizeDistrictForSeoTitle(raw: string | null | undefined): string | null {
+  const s = String(raw ?? "").trim();
+  if (!s) return null;
+  if (isCyprusDistrict(s)) return s;
+  const fromSlug = slugToDistrict(s);
+  if (fromSlug) return fromSlug;
+  const lower = s.toLowerCase();
+  for (const d of CYPRUS_DISTRICTS) {
+    if (d.toLowerCase() === lower) return d;
+  }
+  return null;
+}
+
+/** "Dr. Name" without doubling an existing Dr. prefix. */
+function withDoctorTitleHonorific(name: string): string {
+  const n = name.trim();
+  if (!n) return "";
+  if (/^dr\.?\s/i.test(n)) return n;
+  return `Dr. ${n}`;
+}
+
 export async function generateMetadata({
   params,
 }: PageProps): Promise<Metadata> {
@@ -268,27 +292,32 @@ export async function generateMetadata({
   const profileUrl = `${siteUrl}/${params.slug}`;
   const fallbackTitle = "Healthcare Professional | DocCy";
 
-  let meta = await supabase
-    .from("doctors_public")
-    .select(DOCTOR_FIELD_LIST_METADATA)
-    .eq("slug", params.slug)
-    .maybeSingle();
-
-  if (
-    meta.error &&
-    isDoctorsPublicUnavailable(meta.error.message ?? "", meta.error.code)
-  ) {
-    meta = await supabase
-      .from("doctors")
-      .select(DOCTOR_FIELD_LIST_METADATA)
+  const loadMeta = async (fields: typeof DOCTOR_FIELD_LIST_METADATA | typeof DOCTOR_FIELD_LIST_METADATA_NO_DISTRICT) => {
+    let m = await supabase
+      .from("doctors_public")
+      .select(fields)
       .eq("slug", params.slug)
       .maybeSingle();
+
+    if (
+      m.error &&
+      isDoctorsPublicUnavailable(m.error.message ?? "", m.error.code)
+    ) {
+      m = await supabase.from("doctors").select(fields).eq("slug", params.slug).maybeSingle();
+    }
+    return m;
+  };
+
+  let meta = await loadMeta(DOCTOR_FIELD_LIST_METADATA);
+  if (meta.error && isOptionalProfileColumnError(meta.error.message ?? "")) {
+    meta = await loadMeta(DOCTOR_FIELD_LIST_METADATA_NO_DISTRICT);
   }
 
   const doctor = meta.data as {
     name?: string;
     specialty?: string;
     status?: string;
+    district?: string | null;
   } | null;
 
   if (meta.error || !doctor) {
@@ -314,14 +343,26 @@ export async function generateMetadata({
   const st = (doctor.status ?? "").trim().toLowerCase();
   const doctorName = (doctor.name ?? "").trim();
   const specialty = (doctor.specialty ?? "").trim();
-  const hasNameAndSpecialty = doctorName.length > 0 && specialty.length > 0;
+  const districtLabel = normalizeDistrictForSeoTitle(doctor.district);
+  const titledName = withDoctorTitleHonorific(doctorName);
+  const hasDisplayTitle = doctorName.length > 0;
+  const locationPhrase = districtLabel
+    ? `Book Online in ${districtLabel}`
+    : "Book Online in Cyprus";
 
-  const dynamicTitle = hasNameAndSpecialty
-    ? `Book an appointment with ${doctorName} | ${specialty} | DocCy`
+  const dynamicTitle = hasDisplayTitle
+    ? `${titledName} | ${locationPhrase} | DocCy`
     : fallbackTitle;
-  const dynamicDescription = hasNameAndSpecialty
-    ? `Book your next ${specialty} appointment with ${doctorName} in Cyprus via DocCy.`
-    : "Book healthcare appointments in Cyprus via DocCy.";
+  const dynamicDescription =
+    hasDisplayTitle && specialty.length > 0
+      ? `Book your next ${specialty} appointment online with ${titledName}${
+          districtLabel ? ` in ${districtLabel}` : " in Cyprus"
+        }. Secure scheduling via DocCy.`
+      : hasDisplayTitle
+        ? `Book online with ${titledName}${
+            districtLabel ? ` in ${districtLabel}` : " in Cyprus"
+          } via DocCy.`
+        : "Book healthcare appointments in Cyprus via DocCy.";
 
   if (st !== "verified") {
     return {
