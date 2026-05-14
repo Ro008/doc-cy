@@ -604,6 +604,10 @@ export default async function DoctorPage({ params }: PageProps) {
     }))
     .filter((row) => row.name.length > 0);
 
+  const profileDistrictLabel = normalizeDistrictForSeoTitle(profile.district);
+  const profileHeadingCity =
+    profileDistrictLabel ?? t("profileHeadingCityFallback");
+
   return (
     <main className="min-h-screen bg-slate-950 text-slate-50">
       <script
@@ -641,7 +645,7 @@ export default async function DoctorPage({ params }: PageProps) {
             </div>
             <LanguageSwitcher compact />
           </div>
-          <div className="flex gap-5">
+          <div className="flex items-start gap-5">
             <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-2xl border-2 border-emerald-400/30 shadow-lg shadow-slate-950/50 sm:h-28 sm:w-28">
               <Image
                 src={avatarUrl}
@@ -653,12 +657,17 @@ export default async function DoctorPage({ params }: PageProps) {
               />
             </div>
             <div className="min-w-0 flex-1">
-              <h1 className="mt-3 text-balance text-3xl font-semibold tracking-tight text-slate-50 sm:text-4xl">
-                {profile.name}
+              <h1 className="text-balance leading-tight">
+                <span className="block text-3xl font-semibold tracking-tight text-slate-50 sm:text-4xl">
+                  {profile.name}
+                </span>
+                <span className="mt-1.5 block text-base font-medium capitalize tracking-wide text-emerald-200/95 sm:text-lg">
+                  {profile.specialty}
+                </span>
+                <span className="mt-1 block text-base font-medium tracking-wide text-slate-300 sm:text-lg">
+                  {profileHeadingCity}
+                </span>
               </h1>
-              <p className="mt-1.5 text-base font-medium capitalize tracking-wide text-emerald-200/95 sm:text-lg">
-                {profile.specialty}
-              </p>
               {Array.isArray(profile.languages) &&
               profile.languages.length > 0 ? (
                 <LanguagesSpoken
