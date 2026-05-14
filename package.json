@@ -5,6 +5,8 @@
   "scripts": {
     "free:3000": "powershell -NoProfile -ExecutionPolicy Bypass -File \"./free-port.ps1\" -Port 3000",
     "dev": "node scripts/dev-with-env.mjs .env.testing.local 3000",
+    "env:vote-secret": "node scripts/set-vote-fingerprint-secret.mjs .env.testing.local",
+    "env:vote-secret:prod-local": "node scripts/set-vote-fingerprint-secret.mjs .env.production.local",
     "dev:testing": "node scripts/dev-with-env.mjs .env.testing.local 3000",
     "dev:prod": "node scripts/dev-with-env.mjs .env.production.local 3000",
     "build": "next build",

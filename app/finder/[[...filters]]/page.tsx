@@ -11,6 +11,10 @@ import { FinderResultsTransition } from "@/components/finder/FinderResultsTransi
 import { FinderStructuredData } from "@/components/finder/FinderStructuredData";
 import { FinderFaqSection } from "@/components/finder/FinderFaqSection";
 import {
+  ManualDirectoryDoctorClaimFooter,
+  ManualDirectoryVoteButton,
+} from "@/components/finder/ManualDirectoryPatientActions";
+import {
   districtToSlug,
   isAllSlug,
   slugToDistrict,
@@ -552,7 +556,7 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                 return (
                   <article
                     key={`manual-${row.id}`}
-                    className="flex h-full min-h-[276px] flex-col rounded-2xl border border-slate-700 bg-slate-900/65 p-4"
+                    className="flex h-full min-h-[340px] flex-col rounded-2xl border border-slate-700 bg-slate-900/65 p-4"
                   >
                     <div className="flex items-start gap-3">
                       <div className="flex h-[72px] w-[72px] shrink-0 items-center justify-center overflow-hidden rounded-full border border-slate-600 bg-slate-800/80 ring-2 ring-slate-500/10">
@@ -572,6 +576,13 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                       </div>
                     </div>
 
+                    <p className="mt-3 text-sm leading-relaxed text-slate-300">
+                      Online booking is not active for this professional yet. Want to skip the phone
+                      call next time?
+                    </p>
+
+                    <ManualDirectoryVoteButton manualId={row.id} className="mt-2" />
+
                     <div className="mt-4 min-h-[84px]">
                       <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">
                         Location
@@ -587,15 +598,9 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                       </a>
                     </div>
 
-                    <p className="mt-auto mb-2 text-center text-xs font-medium tracking-wide text-emerald-200/90">
-                      Is this you?
-                    </p>
-                    <PendingLink
-                      href="/#founders-pricing"
-                      className="inline-flex w-full items-center justify-center rounded-xl bg-emerald-400 px-4 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-emerald-300"
-                    >
-                      Activate online booking
-                    </PendingLink>
+                    <div className="mt-auto border-t border-slate-800/50 pt-3">
+                      <ManualDirectoryDoctorClaimFooter />
+                    </div>
                   </article>
                 );
               })}

@@ -1,6 +1,17 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { startOfMonth, startOfWeek, subMonths } from "date-fns";
 import { createServiceRoleClient } from "@/lib/supabase-service";
+import {
+  founderDirectoryHref,
+  getManualVotesWindowDays,
+  getVisitsRangeLabel,
+  getVisitsWindowDays,
+  parseFounderDashboardQuery,
+  type FounderDashboardQuery,
+  type ManualVotesSortCol,
+  type SortDir,
+} from "@/lib/founder-dashboard-query";
 import { InternalDirectoryClient } from "@/components/internal/InternalDirectoryClient";
 import {
   PendingSpecialtiesPanel,
@@ -36,30 +47,47 @@ import {
   type DuplicateNotificationItem,
 } from "@/components/internal/DuplicateNotificationsPanel";
 import { buildDuplicateSuggestions } from "@/lib/duplicate-matching";
+import { InternalDirectoryShell } from "@/components/internal/DirectoryNavContext";
+import {
+  ManualPatientVotesSection,
+  type ManualPatientVoteRow,
+} from "@/components/internal/ManualPatientVotesSection";
+
+function sortManualPatientVoteRows(
+  rows: ManualPatientVoteRow[],
+  col: ManualVotesSortCol,
+  dir: SortDir,
+): ManualPatientVoteRow[] {
+  const mul = dir === "asc" ? 1 : -1;
+  return [...rows].sort((a, b) => {
+    let c = 0;
+    switch (col) {
+      case "votes":
+        c = a.count - b.count;
+        break;
+      case "last":
+        c = new Date(a.lastAt).getTime() - new Date(b.lastAt).getTime();
+        break;
+      case "name":
+        c = a.name.localeCompare(b.name, "en", { sensitivity: "base" });
+        break;
+      case "district":
+        c = (a.district ?? "").localeCompare(b.district ?? "", "en", { sensitivity: "base" });
+        break;
+      case "specialty":
+        c = (a.specialty ?? "").localeCompare(b.specialty ?? "", "en", { sensitivity: "base" });
+        break;
+      default:
+        c = 0;
+    }
+    if (c !== 0) return mul * c;
+    return a.name.localeCompare(b.name, "en", { sensitivity: "base" });
+  });
+}
 
 /** Always run on the server per request — no static cache of dashboard numbers */
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
-
-type VisitsRangeKey = "7d" | "30d" | "90d";
-
-function parseVisitsRange(value: string | string[] | undefined): VisitsRangeKey {
-  const raw = Array.isArray(value) ? value[0] : value;
-  if (raw === "30d" || raw === "90d") return raw;
-  return "7d";
-}
-
-function getVisitsWindowDays(range: VisitsRangeKey): number {
-  if (range === "30d") return 30;
-  if (range === "90d") return 90;
-  return 7;
-}
-
-function getVisitsRangeLabel(range: VisitsRangeKey): string {
-  if (range === "30d") return "Last 30 days";
-  if (range === "90d") return "Last 90 days";
-  return "Last 7 days";
-}
 
 function getRuntimeEnvironmentLabel(): "production" | "preview" | "local" {
   const vercelEnv = (process.env.VERCEL_ENV ?? "").trim().toLowerCase();
@@ -71,7 +99,12 @@ function getRuntimeEnvironmentLabel(): "production" | "preview" | "local" {
 export default async function FounderDashboardPage({
   searchParams,
 }: {
-  searchParams?: { visitsRange?: string | string[] };
+  searchParams?: {
+    visitsRange?: string | string[];
+    manualVotesRange?: string | string[];
+    manualVotesCol?: string | string[];
+    manualVotesDir?: string | string[];
+  };
 }) {
   const supabase = createServiceRoleClient();
   const runtimeLabel = getRuntimeEnvironmentLabel();
@@ -105,7 +138,8 @@ export default async function FounderDashboardPage({
 
   const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
   const sevenDaysAgoIso = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-  const visitsRange = parseVisitsRange(searchParams?.visitsRange);
+  const dashboardQuery: FounderDashboardQuery = parseFounderDashboardQuery(searchParams);
+  const visitsRange = dashboardQuery.visitsRange;
   const visitsWindowDays = getVisitsWindowDays(visitsRange);
   const visitsWindowStartIso = new Date(
     Date.now() - visitsWindowDays * 24 * 60 * 60 * 1000
@@ -391,6 +425,83 @@ export default async function FounderDashboardPage({
     console.error("[DocCy] Duplicate suggestion refresh failed", dupeErr);
   }
 
+  let manualVoteRowsUnsorted: ManualPatientVoteRow[] = [];
+  try {
+    const manualVotesDays = getManualVotesWindowDays(dashboardQuery.manualVotesRange);
+    const sinceIso = new Date(Date.now() - manualVotesDays * 24 * 60 * 60 * 1000).toISOString();
+    const { data: reqRows, error: reqErr } = await supabase
+      .from("directory_manual_patient_booking_requests")
+      .select("id, manual_id, created_at, voter_key")
+      .gte("created_at", sinceIso)
+      .limit(12000);
+    if (!reqErr && reqRows?.length) {
+      const byManual = new Map<string, { voters: Set<string>; lastAt: string }>();
+      for (const r of reqRows) {
+        const mid = String((r as { manual_id?: string }).manual_id ?? "");
+        const ca = String((r as { created_at?: string }).created_at ?? "");
+        const id = String((r as { id?: string }).id ?? "");
+        const vk = (r as { voter_key?: string | null }).voter_key?.trim();
+        const dedupeId = vk || `legacy:${id}`;
+        if (!mid) continue;
+        const cur = byManual.get(mid);
+        if (!cur) {
+          byManual.set(mid, { voters: new Set([dedupeId]), lastAt: ca });
+        } else {
+          cur.voters.add(dedupeId);
+          if (ca > cur.lastAt) cur.lastAt = ca;
+        }
+      }
+      const ids = Array.from(byManual.keys());
+      const { data: namesRows } = await supabase
+        .from("directory_manual")
+        .select("id, name, district, specialty")
+        .in("id", ids.length > 500 ? ids.slice(0, 500) : ids);
+      const nameMap = new Map(
+        (namesRows ?? []).map((n) => [
+          String(n.id),
+          {
+            name: String((n as { name?: string }).name ?? ""),
+            district: (n as { district?: string | null }).district ?? null,
+            specialty: (n as { specialty?: string | null }).specialty ?? null,
+          },
+        ])
+      );
+      manualVoteRowsUnsorted = ids.map((id) => {
+        const agg = byManual.get(id)!;
+        const meta = nameMap.get(id);
+        return {
+          manualId: id,
+          name: meta?.name?.trim() || id.slice(0, 8),
+          district: meta?.district ?? null,
+          specialty: meta?.specialty ?? null,
+          count: agg.voters.size,
+          lastAt: agg.lastAt,
+        };
+      });
+    }
+  } catch (reqStatsErr) {
+    console.error("[DocCy] manual patient request stats failed", reqStatsErr);
+  }
+
+  const manualVoteRowsSorted = sortManualPatientVoteRows(
+    manualVoteRowsUnsorted,
+    dashboardQuery.manualVotesCol,
+    dashboardQuery.manualVotesDir,
+  ).slice(0, 120);
+
+  const podiumSorted = [...manualVoteRowsUnsorted].sort(
+    (a, b) =>
+      b.count - a.count ||
+      a.name.localeCompare(b.name, "en", { sensitivity: "base" }),
+  );
+  const patientVotesPodium = podiumSorted.slice(0, 3).map((r, i) => ({
+    rank: (i + 1) as 1 | 2 | 3,
+    name: r.name,
+    specialty: r.specialty,
+    count: r.count,
+  }));
+  const patientVotesPodiumMax = Math.max(podiumSorted[0]?.count ?? 0, 1);
+
   const doctorIds = Array.from(
     new Set(recentApptRowsRaw.map((a) => a.doctor_id as string))
   );
@@ -463,7 +574,17 @@ export default async function FounderDashboardPage({
         </div>
       </header>
 
-      <div className="mx-auto max-w-7xl space-y-8 px-4 py-8 lg:px-8">
+      <Suspense
+        fallback={
+          <div className="mx-auto max-w-7xl space-y-8 px-4 py-8 lg:px-8">
+            <p className="rounded-xl border border-slate-800/80 bg-slate-900/40 px-4 py-8 text-center text-sm text-slate-400">
+              Loading dashboard…
+            </p>
+          </div>
+        }
+      >
+        <InternalDirectoryShell>
+          <div className="mx-auto max-w-7xl space-y-8 px-4 py-8 lg:px-8">
         {pendingDoctorsCount > 0 ? (
           <section className="rounded-2xl border border-amber-500/45 bg-amber-500/10 p-5 shadow-lg shadow-black/20">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -499,6 +620,12 @@ export default async function FounderDashboardPage({
 
         <PendingSpecialtiesPanel items={pendingSpecialtyItems} />
         <DuplicateNotificationsPanel items={duplicateNotificationItems} />
+        <ManualPatientVotesSection
+          query={dashboardQuery}
+          rows={manualVoteRowsSorted}
+          podium={patientVotesPodium}
+          maxVotes={patientVotesPodiumMax}
+        />
         <div className="rounded-2xl border border-slate-800/80 bg-slate-900/20 p-3 text-xs text-slate-400">
           Trial policy: <span className="font-medium text-slate-200">{trialPeriodDays} days</span>{" "}
           from registration date.
@@ -509,9 +636,21 @@ export default async function FounderDashboardPage({
           doctorProfileQrTop={topDoctorProfileQrScans}
           visitsRangeLabel={getVisitsRangeLabel(visitsRange)}
           rangeOptions={[
-            { key: "7d", label: "7d", href: "/internal/directory?visitsRange=7d" },
-            { key: "30d", label: "30d", href: "/internal/directory?visitsRange=30d" },
-            { key: "90d", label: "90d", href: "/internal/directory?visitsRange=90d" },
+            {
+              key: "7d",
+              label: "7d",
+              href: founderDirectoryHref(dashboardQuery, { visitsRange: "7d" }),
+            },
+            {
+              key: "30d",
+              label: "30d",
+              href: founderDirectoryHref(dashboardQuery, { visitsRange: "30d" }),
+            },
+            {
+              key: "90d",
+              label: "90d",
+              href: founderDirectoryHref(dashboardQuery, { visitsRange: "90d" }),
+            },
           ]}
           activeRange={visitsRange}
         />
@@ -546,7 +685,9 @@ export default async function FounderDashboardPage({
             <RecentActivityFeed items={activityItems} />
           </div>
         </div>
-      </div>
+          </div>
+        </InternalDirectoryShell>
+      </Suspense>
     </main>
   );
 }

@@ -30,11 +30,13 @@ import {
   DOCTOR_FIELD_LIST_PUBLIC_PROFILE,
   DOCTOR_FIELD_LIST_PUBLIC_PROFILE_NO_LANG,
 } from "@/lib/doctor-fieldsets";
-import { CYPRUS_DISTRICTS, isCyprusDistrict } from "@/lib/cyprus-districts";
-import { slugToDistrict } from "@/lib/finder-seo";
 import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher";
 import { DocCyWordmark } from "@/components/brand/DocCyWordmark";
 import { getTranslations } from "next-intl/server";
+import {
+  normalizeDistrictForSeoTitle,
+  withDoctorTitleHonorific,
+} from "@/lib/doctor-seo-formatting";
 
 const DOCTOR_AVATAR_URL =
   "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=400&h=400&fit=crop";
@@ -264,33 +266,37 @@ function buildPhysicianStructuredData(input: {
   };
 }
 
-function normalizeDistrictForSeoTitle(raw: string | null | undefined): string | null {
-  const s = String(raw ?? "").trim();
-  if (!s) return null;
-  if (isCyprusDistrict(s)) return s;
-  const fromSlug = slugToDistrict(s);
-  if (fromSlug) return fromSlug;
-  const lower = s.toLowerCase();
-  for (const d of CYPRUS_DISTRICTS) {
-    if (d.toLowerCase() === lower) return d;
-  }
-  return null;
-}
-
-/** Meta title: Book Online with [Name] | [Specialty] in [City] */
-function formatProfileMetaTitle(input: {
+function buildVerifiedRegisteredMetaTitle(input: {
   doctorName: string;
   specialty: string;
   districtLabel: string | null;
 }): string | null {
   const name = input.doctorName.trim();
   if (!name) return null;
+  const titled = withDoctorTitleHonorific(name);
   const spec = input.specialty.trim();
   const city = input.districtLabel?.trim() || "Cyprus";
   if (spec.length > 0) {
-    return `Book Online with ${name} | ${spec} in ${city}`;
+    return `Book Online with ${titled} | ${spec} in ${city} | DocCy`;
   }
-  return `Book Online with ${name} in ${city}`;
+  return `Book Online with ${titled} in ${city} | DocCy`;
+}
+
+/** Pending / rejected slug pages: informative, no instant-booking promise. */
+function buildNonLiveDoctorMetaTitle(input: {
+  doctorName: string;
+  specialty: string;
+  districtLabel: string | null;
+}): string | null {
+  const name = input.doctorName.trim();
+  if (!name) return null;
+  const titled = withDoctorTitleHonorific(name);
+  const spec = input.specialty.trim();
+  const city = input.districtLabel?.trim() || "Cyprus";
+  if (spec.length > 0) {
+    return `${titled} | ${spec} in ${city} | Profile & Contact | DocCy`;
+  }
+  return `${titled} in ${city} | Profile & Contact | DocCy`;
 }
 
 export async function generateMetadata({
@@ -354,18 +360,19 @@ export async function generateMetadata({
   const specialty = (doctor.specialty ?? "").trim();
   const districtLabel = normalizeDistrictForSeoTitle(doctor.district);
   const cityLabel = districtLabel ?? "Cyprus";
-  const metaTitleCore = formatProfileMetaTitle({
-    doctorName,
-    specialty,
-    districtLabel,
-  });
+  const metaTitleCore =
+    st === "verified"
+      ? buildVerifiedRegisteredMetaTitle({ doctorName, specialty, districtLabel })
+      : buildNonLiveDoctorMetaTitle({ doctorName, specialty, districtLabel });
   const dynamicTitle = metaTitleCore ?? fallbackTitle;
   const dynamicDescription =
-    metaTitleCore && specialty.length > 0
-      ? `Book your next ${specialty} appointment online with ${doctorName} in ${cityLabel}. Secure scheduling via DocCy.`
-      : metaTitleCore
-        ? `Book online with ${doctorName} in ${cityLabel} via DocCy.`
-        : "Book healthcare appointments in Cyprus via DocCy.";
+    st === "verified" && specialty.length > 0
+      ? `Book your next ${specialty} appointment online with ${withDoctorTitleHonorific(doctorName)} in ${cityLabel}. Secure scheduling via DocCy.`
+      : st === "verified"
+        ? `Book online with ${withDoctorTitleHonorific(doctorName)} in ${cityLabel} via DocCy.`
+        : specialty.length > 0
+          ? `View profile and contact details for ${withDoctorTitleHonorific(doctorName)} (${specialty} in ${cityLabel}) on DocCy.`
+          : `View profile and contact details for ${withDoctorTitleHonorific(doctorName)} in ${cityLabel} on DocCy.`;
 
   if (st !== "verified") {
     return {

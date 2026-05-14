@@ -1,3 +1,5 @@
+import { AnalyticsVisitsRangeTabs } from "@/components/internal/AnalyticsVisitsRangeTabs";
+
 type Props = {
   businessCardVisitsCount: number;
   doctorProfileQrTop: {
@@ -29,23 +31,8 @@ export function WebsiteAnalyticsPanel({
         <p className="text-xs text-slate-500">
           {visitsRangeLabel} · business card visits tracked from your printed QR campaign.
         </p>
-        <div className="mt-3 inline-flex rounded-lg border border-slate-700/80 bg-slate-950/50 p-1">
-          {rangeOptions.map((option) => {
-            const isActive = option.key === activeRange;
-            return (
-              <a
-                key={option.key}
-                href={option.href}
-                className={`rounded-md px-2.5 py-1 text-xs font-medium transition ${
-                  isActive
-                    ? "bg-emerald-500/20 text-emerald-200"
-                    : "text-slate-400 hover:text-slate-200"
-                }`}
-              >
-                {option.label}
-              </a>
-            );
-          })}
+        <div className="mt-3">
+          <AnalyticsVisitsRangeTabs activeRange={activeRange} rangeOptions={rangeOptions} />
         </div>
       </div>
 
