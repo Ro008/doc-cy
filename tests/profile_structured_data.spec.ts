@@ -24,15 +24,13 @@ test.describe("Public profile structured data", () => {
 
       return parsed.find((entry) => {
         const type = String(entry["@type"] ?? "");
-        return type === "Physician" || type === "MedicalBusiness";
+        return type === "Physician";
       });
     });
 
     expect(structuredData).toBeTruthy();
     expect(String(structuredData?.["@context"] ?? "")).toBe("https://schema.org");
-    expect(["Physician", "MedicalBusiness"]).toContain(
-      String(structuredData?.["@type"] ?? "")
-    );
+    expect(String(structuredData?.["@type"] ?? "")).toBe("Physician");
 
     const address = (structuredData?.["address"] ?? null) as
       | Record<string, unknown>

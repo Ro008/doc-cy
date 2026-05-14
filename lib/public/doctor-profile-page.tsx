@@ -170,10 +170,12 @@ async function fetchPublicDoctorBySlug(
 
 export const revalidate = 0;
 
-type HealthcareStructuredData = {
+type PhysicianStructuredData = {
   "@context": "https://schema.org";
-  "@type": "Physician" | "MedicalBusiness";
+  "@type": "Physician";
   name: string;
+  url?: string;
+  sameAs?: string;
   areaServed: "Cyprus";
   address: {
     "@type": "PostalAddress";
@@ -189,14 +191,6 @@ type HealthcareStructuredData = {
   description?: string;
 };
 
-function inferHealthcareSchemaType(name: string): "Physician" | "MedicalBusiness" {
-  const n = name.toLowerCase();
-  if (/\b(clinic|medical|center|centre|hospital|polyclinic)\b/.test(n)) {
-    return "MedicalBusiness";
-  }
-  return "Physician";
-}
-
 function parseAddressParts(address: string): { streetAddress?: string; addressLocality?: string } {
   const parts = address
     .split(",")
@@ -210,7 +204,7 @@ function parseAddressParts(address: string): { streetAddress?: string; addressLo
   };
 }
 
-function buildHealthcareStructuredData(input: {
+function buildPhysicianStructuredData(input: {
   name: string;
   specialty?: string | null;
   bio?: string | null;
@@ -219,7 +213,9 @@ function buildHealthcareStructuredData(input: {
   phone?: string | null;
   languages?: string[] | null;
   imageUrl?: string | null;
-}): HealthcareStructuredData {
+  profileUrl?: string | null;
+  sameAs?: string | null;
+}): PhysicianStructuredData {
   const name = input.name.trim();
   const specialty = (input.specialty ?? "").trim();
   const bio = (input.bio ?? "").trim();
@@ -231,7 +227,7 @@ function buildHealthcareStructuredData(input: {
   const addressRaw = (input.clinicAddress ?? "").trim();
   const addressParts = parseAddressParts(addressRaw);
 
-  const address: HealthcareStructuredData["address"] = {
+  const address: PhysicianStructuredData["address"] = {
     "@type": "PostalAddress",
     addressCountry: "CY",
     ...(addressParts.streetAddress ? { streetAddress: addressParts.streetAddress } : {}),
@@ -249,10 +245,15 @@ function buildHealthcareStructuredData(input: {
       ? `${name} provides ${specialty} services in Cyprus via DocCy.`
       : `${name} provides healthcare services in Cyprus via DocCy.`);
 
+  const profileUrl = String(input.profileUrl ?? "").trim();
+  const sameAs = String(input.sameAs ?? "").trim();
+
   return {
     "@context": "https://schema.org",
-    "@type": inferHealthcareSchemaType(name),
+    "@type": "Physician",
     name,
+    ...(profileUrl ? { url: profileUrl } : {}),
+    ...(sameAs ? { sameAs } : {}),
     ...(input.imageUrl ? { image: input.imageUrl } : {}),
     ...(specialty ? { medicalSpecialty: specialty } : {}),
     address,
@@ -276,12 +277,20 @@ function normalizeDistrictForSeoTitle(raw: string | null | undefined): string | 
   return null;
 }
 
-/** "Dr. Name" without doubling an existing Dr. prefix. */
-function withDoctorTitleHonorific(name: string): string {
-  const n = name.trim();
-  if (!n) return "";
-  if (/^dr\.?\s/i.test(n)) return n;
-  return `Dr. ${n}`;
+/** Meta title: Book Online with [Name] | [Specialty] in [City] */
+function formatProfileMetaTitle(input: {
+  doctorName: string;
+  specialty: string;
+  districtLabel: string | null;
+}): string | null {
+  const name = input.doctorName.trim();
+  if (!name) return null;
+  const spec = input.specialty.trim();
+  const city = input.districtLabel?.trim() || "Cyprus";
+  if (spec.length > 0) {
+    return `Book Online with ${name} | ${spec} in ${city}`;
+  }
+  return `Book Online with ${name} in ${city}`;
 }
 
 export async function generateMetadata({
@@ -344,24 +353,18 @@ export async function generateMetadata({
   const doctorName = (doctor.name ?? "").trim();
   const specialty = (doctor.specialty ?? "").trim();
   const districtLabel = normalizeDistrictForSeoTitle(doctor.district);
-  const titledName = withDoctorTitleHonorific(doctorName);
-  const hasDisplayTitle = doctorName.length > 0;
-  const locationPhrase = districtLabel
-    ? `Book Online in ${districtLabel}`
-    : "Book Online in Cyprus";
-
-  const dynamicTitle = hasDisplayTitle
-    ? `${titledName} | ${locationPhrase} | DocCy`
-    : fallbackTitle;
+  const cityLabel = districtLabel ?? "Cyprus";
+  const metaTitleCore = formatProfileMetaTitle({
+    doctorName,
+    specialty,
+    districtLabel,
+  });
+  const dynamicTitle = metaTitleCore ?? fallbackTitle;
   const dynamicDescription =
-    hasDisplayTitle && specialty.length > 0
-      ? `Book your next ${specialty} appointment online with ${titledName}${
-          districtLabel ? ` in ${districtLabel}` : " in Cyprus"
-        }. Secure scheduling via DocCy.`
-      : hasDisplayTitle
-        ? `Book online with ${titledName}${
-            districtLabel ? ` in ${districtLabel}` : " in Cyprus"
-          } via DocCy.`
+    metaTitleCore && specialty.length > 0
+      ? `Book your next ${specialty} appointment online with ${doctorName} in ${cityLabel}. Secure scheduling via DocCy.`
+      : metaTitleCore
+        ? `Book online with ${doctorName} in ${cityLabel} via DocCy.`
         : "Book healthcare appointments in Cyprus via DocCy.";
 
   if (st !== "verified") {
@@ -475,7 +478,12 @@ export default async function DoctorPage({ params }: PageProps) {
     }
   }
 
-  const structuredData = buildHealthcareStructuredData({
+  const siteBase = (process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.mydoccy.com")
+    .trim()
+    .replace(/\/+$/, "");
+  const profileCanonicalUrl = `${siteBase}/${params.slug}`;
+
+  const structuredData = buildPhysicianStructuredData({
     name: profile.name,
     specialty: profile.specialty,
     bio: profile.bio,
@@ -484,6 +492,8 @@ export default async function DoctorPage({ params }: PageProps) {
     phone: publicPhone,
     languages: profile.languages ?? null,
     imageUrl: hasCustomAvatar ? avatarUrl : null,
+    profileUrl: profileCanonicalUrl,
+    sameAs: mapsUrl || null,
   });
 
   const settingsSelectFull =
