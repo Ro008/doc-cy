@@ -51,7 +51,9 @@ test.describe("Public profile states", () => {
     await expect(
       page.getByRole("heading", { name: /I want to book/i })
     ).toBeVisible({ timeout: 10000 });
-    const findProfessionalPending = page.getByRole("link", { name: /Find a professional/i });
+    const findProfessionalPending = page
+      .getByRole("link", { name: /Find a professional/i })
+      .first();
     await expect(findProfessionalPending).toBeVisible({ timeout: 10000 });
     await expect(findProfessionalPending).toHaveAttribute("href", "/finder");
   });
@@ -85,9 +87,9 @@ test.describe("Public profile states", () => {
     await expect(
       page.getByRole("heading", { name: /I want to book/i })
     ).toBeVisible({ timeout: 10000 });
-    const findProfessionalRejected = page.getByRole("link", {
-      name: /Find a professional/i,
-    });
+    const findProfessionalRejected = page
+      .getByRole("link", { name: /Find a professional/i })
+      .first();
     await expect(findProfessionalRejected).toBeVisible({ timeout: 10000 });
     await expect(findProfessionalRejected).toHaveAttribute("href", "/finder");
   });
