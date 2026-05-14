@@ -124,6 +124,13 @@ function isTestProfileLike(row: {
   return false;
 }
 
+/** Local/dev only: never set on production deploys. */
+function finderIncludesRegisteredTestProfiles(): boolean {
+  return (
+    String(process.env.NEXT_PUBLIC_DOC_CY_FINDER_INCLUDE_TEST_PROFILES ?? "").trim() === "1"
+  );
+}
+
 function normalizeSpecialtyTerm(value: string): string {
   return value
     .toLowerCase()
@@ -306,6 +313,7 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
         })
         .filter(
           (row) =>
+            finderIncludesRegisteredTestProfiles() ||
             !isTestProfileLike({
               name: row.name,
               slug: row.slug,

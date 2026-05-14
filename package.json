@@ -28,6 +28,7 @@
     "test:cleanup:testing": "powershell -NoProfile -Command \"$env:PLAYWRIGHT_ENV_FILE='.env.testing.local'; node scripts/cleanup-test-doctors.mjs\"",
     "test:cleanup:testing:dry": "powershell -NoProfile -Command \"$env:PLAYWRIGHT_ENV_FILE='.env.testing.local'; node scripts/cleanup-test-doctors.mjs --dry-run\"",
     "seed:languages": "node scripts/seed-doctor-languages.mjs",
+    "db:local:reset": "supabase db reset",
     "db:status": "node scripts/supabase-safe.mjs status",
     "db:testing:link": "node scripts/supabase-safe.mjs link-testing",
     "db:testing:push": "node scripts/supabase-safe.mjs push-testing",
