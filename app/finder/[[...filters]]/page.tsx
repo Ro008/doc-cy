@@ -50,6 +50,8 @@ type RegisteredFinderRow = {
   languages: string[];
   avatarUrl: string | null;
   isTestProfile: boolean;
+  /** Address as entered at registration. */
+  clinic_address: string | null;
 };
 
 type ManualFinderRow = {
@@ -262,6 +264,8 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
 
   if (supabase) {
     const registeredSelectAttempts = [
+      "id, name, specialty, district, slug, email, languages, avatar_url, is_test_profile, clinic_address",
+      "id, name, specialty, district, slug, email, languages, avatar_url, clinic_address",
       "id, name, specialty, district, slug, email, languages, avatar_url, is_test_profile",
       "id, name, specialty, district, slug, email, languages, avatar_url",
       "id, name, specialty, district, slug, email, languages, is_test_profile",
@@ -313,6 +317,7 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
             languages: normalizeLanguages(raw.languages),
             avatarUrl: toPublicAvatarUrl(raw.avatar_url),
             isTestProfile: Boolean(raw.is_test_profile ?? false),
+            clinic_address: (raw.clinic_address as string | null) ?? null,
           };
         })
         .filter(
@@ -512,9 +517,6 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                               {row.specialty ?? "Specialty not set"}
                             </span>
                           </p>
-                          <p className="mt-1 text-xs text-slate-500">
-                            {row.district ?? "District pending"}
-                          </p>
                         </div>
                       </div>
                       <div className="mt-4 min-h-[64px]">
@@ -540,6 +542,16 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                           <p className="text-xs text-slate-500">Not specified</p>
                         )}
                       </div>
+                      <div className="mt-4">
+                        <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">
+                          Location
+                        </p>
+                        <p className="text-xs leading-relaxed text-slate-300 whitespace-pre-wrap break-words">
+                          {row.clinic_address?.trim()
+                            ? row.clinic_address.trim()
+                            : "Not provided yet"}
+                        </p>
+                      </div>
                       {row.slug ? (
                         <PendingLink
                           href={`/${row.slug}`}
@@ -558,48 +570,50 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                     key={`manual-${row.id}`}
                     className="flex h-full min-h-[340px] flex-col rounded-2xl border border-slate-700 bg-slate-900/65 p-4"
                   >
-                    <div className="flex items-start gap-3">
-                      <div className="flex h-[72px] w-[72px] shrink-0 items-center justify-center overflow-hidden rounded-full border border-slate-600 bg-slate-800/80 ring-2 ring-slate-500/10">
-                        <span className="text-sm font-semibold text-slate-200">
-                          {getInitials(row.displayName)}
-                        </span>
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-[17px] font-bold leading-[1.2] tracking-tight text-slate-50">
-                          {row.displayName}
-                        </p>
-                        <p className="mt-2 inline-flex max-w-full items-center rounded-full border border-slate-700/80 bg-slate-900/90 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-300">
-                          <span className="whitespace-normal break-words text-center leading-snug">
-                            {row.specialty}
+                    <div className="flex min-h-0 flex-1 flex-col">
+                      <div className="flex items-start gap-3">
+                        <div className="flex h-[72px] w-[72px] shrink-0 items-center justify-center overflow-hidden rounded-full border border-slate-600 bg-slate-800/80 ring-2 ring-slate-500/10">
+                          <span className="text-sm font-semibold text-slate-200">
+                            {getInitials(row.displayName)}
                           </span>
-                        </p>
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-[17px] font-bold leading-[1.2] tracking-tight text-slate-50">
+                            {row.displayName}
+                          </p>
+                          <p className="mt-2 inline-flex max-w-full items-center rounded-full border border-slate-700/80 bg-slate-900/90 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-300">
+                            <span className="whitespace-normal break-words text-center leading-snug">
+                              {row.specialty}
+                            </span>
+                          </p>
+                        </div>
                       </div>
-                    </div>
 
-                    <p className="mt-3 text-sm leading-relaxed text-slate-300">
-                      Online booking is not active for this professional yet. Want to skip the phone
-                      call next time?
-                    </p>
-
-                    <ManualDirectoryVoteButton manualId={row.id} className="mt-2" />
-
-                    <div className="mt-4 min-h-[84px]">
-                      <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">
-                        Location
+                      <p className="mt-3 text-sm leading-relaxed text-slate-300">
+                        Online booking is not active for this professional yet. Want to skip the phone
+                        call next time?
                       </p>
-                      <p className="mb-1.5 text-xs font-medium text-slate-400">{row.district}</p>
-                      <a
-                        href={row.address_maps_link}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-xs text-emerald-300 hover:text-emerald-200"
-                      >
-                        Open in Google Maps ↗
-                      </a>
                     </div>
 
-                    <div className="mt-auto border-t border-slate-800/50 pt-3">
-                      <ManualDirectoryDoctorClaimFooter />
+                    <div className="mt-auto flex shrink-0 flex-col gap-0">
+                      <ManualDirectoryVoteButton manualId={row.id} className="mt-2 w-full" />
+                      <div className="mt-4 min-h-[84px]">
+                        <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">
+                          Location
+                        </p>
+                        <p className="mb-1.5 text-xs font-medium text-slate-400">{row.district}</p>
+                        <a
+                          href={row.address_maps_link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-emerald-300 hover:text-emerald-200"
+                        >
+                          Open in Google Maps ↗
+                        </a>
+                      </div>
+                      <div className="mt-3 border-t border-slate-800/50 pt-3">
+                        <ManualDirectoryDoctorClaimFooter />
+                      </div>
                     </div>
                   </article>
                 );
