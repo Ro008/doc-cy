@@ -40,6 +40,8 @@ jobs:
       - name: Decide run window (always 06:00 Cyprus)
         id: gate
         shell: bash
+        env:
+          TRIGGERED_SCHEDULE: ${{ github.event.schedule || '' }}
         run: |
           set -euo pipefail
           if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then
@@ -52,25 +54,19 @@ jobs:
           stamp="$(TZ=Europe/Nicosia date '+%Y-%m-%d %H:%M:%S %Z')"
           nico_h="$(TZ=Europe/Nicosia date +%H)"
           nico_m="$(TZ=Europe/Nicosia date +%M)"
+          nico_offset="$(TZ=Europe/Nicosia date +%z)"
           utc_h="$(date -u +%H)"
-          echo "Nicosia local time: ${stamp} (local H=${nico_h} M=${nico_m}, UTC hour=${utc_h})"
+          triggered_schedule="${TRIGGERED_SCHEDULE:-}"
+          echo "Nicosia local time: ${stamp} (local H=${nico_h} M=${nico_m}, UTC hour=${utc_h}, offset=${nico_offset}, schedule='${triggered_schedule}')"
 
-          # Scheduled workflows are not guaranteed to start on the minute. If we only allowed
-          # local hour == 06, a delayed 03:xx UTC run could become 07:xx local and skip everything
-          # (including WhatsApp) for that day.
-          #
-          # We run when:
-          # - local hour is 06 (intended nightly window), OR
-          # - local hour is still 07 but UTC hour is still 03 (delayed first cron in summer / EEST),
-          #   within the first ~45 minutes of that local hour — never the 04 UTC slot (07:xx local in summer).
+          # Scheduled workflows can start long after their cron minute. Gate on the
+          # cron slot GitHub triggered, using today's Cyprus offset, so delayed
+          # runners do not silently skip the nightly tests and WhatsApp status.
           should_run="false"
-          if [ "${nico_h}" = "06" ]; then
+          if [ "${triggered_schedule}" = "0 3 * * *" ] && [ "${nico_offset}" = "+0300" ]; then
             should_run="true"
-          elif [ "${nico_h}" = "07" ] && [ "${utc_h}" = "03" ]; then
-            mm=$((10#${nico_m}))
-            if [ "${mm}" -le 45 ]; then
-              should_run="true"
-            fi
+          elif [ "${triggered_schedule}" = "0 4 * * *" ] && [ "${nico_offset}" = "+0200" ]; then
+            should_run="true"
           fi
 
           if [ "${should_run}" = "true" ]; then
@@ -84,7 +80,8 @@ jobs:
             echo "## Schedule gate (Production Monitoring)"
             echo "- **should_run:** ${should_run}"
             echo "- **Nicosia:** ${stamp}"
-            echo "- **Local H:M** ${nico_h}:${nico_m} **UTC hour** ${utc_h}"
+            echo "- **Local H:M** ${nico_h}:${nico_m} **UTC hour** ${utc_h} **offset** ${nico_offset}"
+            echo "- **Triggered schedule:** ${triggered_schedule:-unknown}"
           } >> "${GITHUB_STEP_SUMMARY}"
 
   prod-critical-smoke:
