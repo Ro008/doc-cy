@@ -12,10 +12,11 @@ import {
 } from "@/lib/patient-calendar-event";
 import { getTranslations } from "next-intl/server";
 import { isConfirmedForCalendar } from "@/lib/appointment-status";
+import { isValidAppointmentCalendarToken } from "@/lib/appointment-calendar-token";
 
 type PageProps = {
   params: { slug: string };
-  searchParams?: { appointmentId?: string };
+  searchParams?: { appointmentId?: string; token?: string };
 };
 
 export const revalidate = 0;
@@ -26,6 +27,7 @@ export default async function BookingSuccessPage({
 }: PageProps) {
   const t = await getTranslations("BookingPage");
   const appointmentId = (searchParams?.appointmentId ?? "").trim();
+  const calendarToken = (searchParams?.token ?? "").trim();
   if (!appointmentId) {
     redirect(`/${params.slug}`);
   }
@@ -67,8 +69,10 @@ export default async function BookingSuccessPage({
   const doctor = doctorResult.data;
 
   if (doctor.slug !== params.slug) {
+    const targetParams = new URLSearchParams({ appointmentId });
+    if (calendarToken) targetParams.set("token", calendarToken);
     redirect(
-      `/${doctor.slug}/request-sent?appointmentId=${encodeURIComponent(appointmentId)}`,
+      `/${doctor.slug}/request-sent?${targetParams.toString()}`,
     );
   }
 
@@ -90,6 +94,14 @@ export default async function BookingSuccessPage({
   };
 
   const confirmed = isConfirmedForCalendar(appointment.status as string);
+  const hasValidCalendarToken = isValidAppointmentCalendarToken(
+    appointmentId,
+    "patient",
+    calendarToken
+  );
+  if (confirmed && !hasValidCalendarToken) {
+    redirect(`/${params.slug}`);
+  }
 
   const cal = getCalendarEventDetails(
     {
@@ -250,7 +262,9 @@ export default async function BookingSuccessPage({
                 </a>
 
                 <a
-                  href={`/api/appointments/${encodeURIComponent(appointmentId)}/calendar`}
+                  href={`/api/appointments/${encodeURIComponent(
+                    appointmentId
+                  )}/calendar?token=${encodeURIComponent(calendarToken)}`}
                   className="flex items-center justify-center gap-2 rounded-2xl border border-emerald-400/40 bg-emerald-400/10 px-4 py-2.5 text-sm font-semibold text-emerald-200 shadow-lg shadow-emerald-500/10 transition hover:border-emerald-400/60 hover:bg-emerald-400/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
                 >
                   {t("downloadIcsLabel")}

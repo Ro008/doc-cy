@@ -21,6 +21,7 @@ import { sendPatientAppointmentConfirmedEmail } from "@/lib/send-patient-appoint
 import { sendDoctorAppointmentConfirmedEmail } from "@/lib/send-doctor-appointment-confirmed-email";
 import { getDoctorCalendarEventDetails } from "@/lib/doctor-calendar-event";
 import { buildGoogleCalendarUrl } from "@/lib/patient-calendar-event";
+import { buildAppointmentCalendarToken } from "@/lib/appointment-calendar-token";
 
 export async function POST(req: NextRequest) {
   const authSupabase = createRouteHandlerClient({ cookies });
@@ -288,7 +289,15 @@ export async function POST(req: NextRequest) {
     startUtc,
     endUtc,
   });
-  const iCalUrl = `/api/appointments/${encodeURIComponent(String(inserted.id))}/calendar?audience=doctor`;
+  const doctorIcsParams = new URLSearchParams({ audience: "doctor" });
+  const doctorCalendarToken = buildAppointmentCalendarToken(
+    String(inserted.id),
+    "doctor"
+  );
+  if (doctorCalendarToken) doctorIcsParams.set("token", doctorCalendarToken);
+  const iCalUrl = `/api/appointments/${encodeURIComponent(
+    String(inserted.id)
+  )}/calendar?${doctorIcsParams.toString()}`;
   const profileUrl = doctor.slug
     ? new URL(`/${doctor.slug}`, siteUrl).toString()
     : null;

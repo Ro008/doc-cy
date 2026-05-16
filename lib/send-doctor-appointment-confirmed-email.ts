@@ -9,6 +9,7 @@ import {
 } from "@/lib/resend";
 import { buildGoogleCalendarUrl } from "@/lib/patient-calendar-event";
 import { getDoctorCalendarEventDetails } from "@/lib/doctor-calendar-event";
+import { buildAppointmentCalendarToken } from "@/lib/appointment-calendar-token";
 
 const CAL_GOOGLE_STYLE =
   "display:block;text-align:center;background:#34d399;color:#022c22;text-decoration:none;font-weight:700;padding:12px 14px;border-radius:12px;margin:0 0 10px;font-size:15px;";
@@ -59,8 +60,16 @@ export async function sendDoctorAppointmentConfirmedEmail(opts: {
     startUtc,
     endUtc,
   });
+  const doctorIcsParams = new URLSearchParams({ audience: "doctor" });
+  const doctorCalendarToken = buildAppointmentCalendarToken(
+    opts.appointmentId,
+    "doctor"
+  );
+  if (doctorCalendarToken) doctorIcsParams.set("token", doctorCalendarToken);
   const icsUrl = new URL(
-    `/api/appointments/${encodeURIComponent(opts.appointmentId)}/calendar?audience=doctor`,
+    `/api/appointments/${encodeURIComponent(
+      opts.appointmentId
+    )}/calendar?${doctorIcsParams.toString()}`,
     opts.siteUrl,
   ).toString();
   const agendaUrl = new URL("/agenda", opts.siteUrl).toString();

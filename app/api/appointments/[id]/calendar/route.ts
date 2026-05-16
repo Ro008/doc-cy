@@ -1,9 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import { addMinutes } from "date-fns";
+import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 import { createServiceRoleClient } from "@/lib/supabase-service";
 import { getDoctorCalendarEventDetails } from "@/lib/doctor-calendar-event";
 import { getCalendarEventDetails } from "@/lib/patient-calendar-event";
 import { isConfirmedForCalendar } from "@/lib/appointment-status";
+import {
+  isValidAppointmentCalendarToken,
+  type AppointmentCalendarAudience,
+} from "@/lib/appointment-calendar-token";
 
 type RouteContext = {
   params: { id: string };
@@ -24,6 +30,23 @@ function escapeIcsText(text: string) {
     .replace(/;/g, "\\;");
 }
 
+async function authenticatedDoctorOwnsAppointment(doctorId: string): Promise<boolean> {
+  const authSupabase = createRouteHandlerClient({ cookies });
+  const {
+    data: { user },
+  } = await authSupabase.auth.getUser();
+  if (!user) return false;
+
+  const { data: doctor, error } = await authSupabase
+    .from("doctors")
+    .select("id")
+    .eq("id", doctorId)
+    .eq("auth_user_id", user.id)
+    .maybeSingle();
+
+  return !error && Boolean(doctor?.id);
+}
+
 export async function GET(req: NextRequest, { params }: RouteContext) {
   const appointmentId = params.id;
   if (!appointmentId) {
@@ -41,6 +64,13 @@ export async function GET(req: NextRequest, { params }: RouteContext) {
   const forDoctor =
     req.nextUrl.searchParams.get("audience") === "doctor" ||
     req.nextUrl.searchParams.get("for") === "doctor";
+  const audience: AppointmentCalendarAudience = forDoctor ? "doctor" : "patient";
+  const token = req.nextUrl.searchParams.get("token");
+  const hasValidToken = isValidAppointmentCalendarToken(
+    appointmentId,
+    audience,
+    token
+  );
 
   const { data: appointment, error: apptError } = await supabase
     .from("appointments")
@@ -62,6 +92,18 @@ export async function GET(req: NextRequest, { params }: RouteContext) {
       },
       { status: 403 }
     );
+  }
+
+  if (!hasValidToken) {
+    const isOwner =
+      forDoctor &&
+      (await authenticatedDoctorOwnsAppointment(appointment.doctor_id as string));
+    if (!isOwner) {
+      return NextResponse.json(
+        { message: "Calendar link is invalid or expired." },
+        { status: 403 }
+      );
+    }
   }
 
   const { data: doctor } = await supabase

@@ -31,6 +31,7 @@ import {
   normalizeAppointmentReason,
 } from "@/lib/visit-types";
 import { professionalFirstName } from "@/lib/professional-name";
+import { buildAppointmentCalendarToken } from "@/lib/appointment-calendar-token";
 
 const PRIMARY_ACTIONS_LABEL =
   "margin:18px 0 10px;font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#94a3b8;";
@@ -479,6 +480,10 @@ export async function POST(req: NextRequest) {
   return NextResponse.json(
     {
       appointment: inserted,
+      calendarAccessToken: buildAppointmentCalendarToken(
+        String(inserted.id),
+        "patient"
+      ),
       message: "Your booking request was submitted.",
     },
     { status: 201 }

@@ -281,13 +281,19 @@ export function BookingSection({
         }
         const newId =
           (data?.appointment?.id as string | undefined) ?? null;
+        const calendarAccessToken =
+          typeof data?.calendarAccessToken === "string"
+            ? data.calendarAccessToken
+            : "";
         setLastAppointmentId(newId);
         if (profileSlug && newId) {
+          const successParams = new URLSearchParams({ appointmentId: newId });
+          if (calendarAccessToken) {
+            successParams.set("token", calendarAccessToken);
+          }
           didNavigateToSuccess = true;
           router.push(
-            `/${activeLocale}/${profileSlug}/request-sent?appointmentId=${encodeURIComponent(
-              newId
-            )}`
+            `/${activeLocale}/${profileSlug}/request-sent?${successParams.toString()}`
           );
           return;
         }
@@ -320,6 +326,7 @@ export function BookingSection({
       visitReason,
       doctorId,
       profileSlug,
+      activeLocale,
       router,
       t,
     ]

@@ -12,6 +12,7 @@ import {
   getCalendarEventDetails,
 } from "@/lib/patient-calendar-event";
 import { phoneToWaMeLink } from "@/lib/whatsapp";
+import { buildAppointmentCalendarToken } from "@/lib/appointment-calendar-token";
 
 const CAL_GOOGLE_STYLE =
   "display:block;text-align:center;background:#34d399;color:#022c22;text-decoration:none;font-weight:700;padding:12px 14px;border-radius:12px;margin:0 0 10px;font-size:15px;";
@@ -112,10 +113,16 @@ export function buildPatientAppointmentConfirmedEmailContent(opts: {
     endUtc,
   });
 
-  const patientIcsUrl = new URL(
-    `/api/appointments/${encodeURIComponent(appointmentId)}/calendar`,
-    siteUrl
-  ).toString();
+  const patientIcsParams = new URLSearchParams();
+  const patientCalendarToken = buildAppointmentCalendarToken(
+    appointmentId,
+    "patient"
+  );
+  if (patientCalendarToken) patientIcsParams.set("token", patientCalendarToken);
+  const patientIcsPath = `/api/appointments/${encodeURIComponent(
+    appointmentId
+  )}/calendar${patientIcsParams.toString() ? `?${patientIcsParams.toString()}` : ""}`;
+  const patientIcsUrl = new URL(patientIcsPath, siteUrl).toString();
 
   let text =
     `Hi ${patientName},\n\n` +

@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 import { zonedTimeToUtc } from "date-fns-tz";
 
 import { CY_TZ } from "@/lib/appointments";
+import { isValidAppointmentCalendarToken } from "@/lib/appointment-calendar-token";
 import { buildPatientAppointmentConfirmedEmailContent } from "@/lib/send-patient-appointment-confirmed-email";
 import { buildPatientRescheduleProposalEmailContent } from "@/lib/send-patient-reschedule-proposal-email";
 
@@ -83,26 +84,42 @@ test.describe("Critical reschedule email content", () => {
   });
 
   test("confirmation email keeps normal subject when not after reschedule", () => {
+    const previousSecret = process.env.APPOINTMENT_CALENDAR_TOKEN_SECRET;
+    process.env.APPOINTMENT_CALENDAR_TOKEN_SECRET = "calendar-email-test-secret";
     const appointmentDatetimeIso = futureCyIso(1, 11, 0);
-    const content = buildPatientAppointmentConfirmedEmailContent({
-      siteUrl: "https://mydoccy.com",
-      patientEmail: "patient@example.com",
-      patientName: "Karina",
-      appointmentId: "appt-4",
-      appointmentDatetimeIso,
-      durationMinutes: 30,
-      doctor: {
-        name: "Andreas Nikos",
-        specialty: "Pediatrics",
-        phone: "+35799123456",
-        clinic_address: "Nicosia",
-      },
-      isAfterReschedule: false,
-    });
+    try {
+      const content = buildPatientAppointmentConfirmedEmailContent({
+        siteUrl: "https://mydoccy.com",
+        patientEmail: "patient@example.com",
+        patientName: "Karina",
+        appointmentId: "appt-4",
+        appointmentDatetimeIso,
+        durationMinutes: 30,
+        doctor: {
+          name: "Andreas Nikos",
+          specialty: "Pediatrics",
+          phone: "+35799123456",
+          clinic_address: "Nicosia",
+        },
+        isAfterReschedule: false,
+      });
 
-    expect(content.subject).toContain("Confirmed — Andreas Nikos");
-    expect(content.subject).not.toContain("Rescheduled confirmed");
-    expect(content.text).not.toContain("IMPORTANT - RESCHEDULED VISIT");
-    expect(content.html).not.toContain("Appointment re-confirmed (rescheduled)");
+      const token = new URL(
+        content.text.match(/Apple \/ Outlook \(\.ics\): (https:\/\/\S+)/)?.[1] ?? "",
+      ).searchParams.get("token");
+
+      expect(content.subject).toContain("Confirmed — Andreas Nikos");
+      expect(content.subject).not.toContain("Rescheduled confirmed");
+      expect(content.text).not.toContain("IMPORTANT - RESCHEDULED VISIT");
+      expect(content.html).not.toContain("Appointment re-confirmed (rescheduled)");
+      expect(token).toBeTruthy();
+      expect(isValidAppointmentCalendarToken("appt-4", "patient", token)).toBe(true);
+    } finally {
+      if (previousSecret === undefined) {
+        delete process.env.APPOINTMENT_CALENDAR_TOKEN_SECRET;
+      } else {
+        process.env.APPOINTMENT_CALENDAR_TOKEN_SECRET = previousSecret;
+      }
+    }
   });
 });
