@@ -156,4 +156,45 @@ test.describe("Integration: finder manual card vote", () => {
 
     // Keep rows in testing Supabase for founder dashboard visuals.
   });
+
+  test("direct anon writes to manual vote table are blocked", async () => {
+    const baseUrl = (process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000").trim();
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
+    const serviceRole = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
+
+    const unsafeReason = assertSafeIntegrationTarget(baseUrl, supabaseUrl);
+    test.skip(Boolean(unsafeReason), unsafeReason ?? undefined);
+    test.skip(!supabaseUrl || !anonKey || !serviceRole, "Missing integration env vars.");
+
+    const admin = createClient(supabaseUrl, serviceRole);
+    const anon = createClient(supabaseUrl, anonKey);
+    const { data: manual, error: manualErr } = await admin
+      .from("directory_manual")
+      .select("id")
+      .eq("is_archived", false)
+      .limit(1)
+      .maybeSingle();
+
+    expect(manualErr).toBeNull();
+    expect(manual?.id).toBeTruthy();
+
+    const source = `anon_direct_test_${Date.now()}`;
+    const { error: insertErr } = await anon
+      .from("directory_manual_patient_booking_requests")
+      .insert({ manual_id: manual!.id, source });
+
+    if (!insertErr) {
+      await admin
+        .from("directory_manual_patient_booking_requests")
+        .delete()
+        .eq("manual_id", manual!.id)
+        .eq("source", source);
+    }
+
+    expect(
+      insertErr,
+      "browser clients must not bypass the service-role vote API",
+    ).not.toBeNull();
+  });
 });
