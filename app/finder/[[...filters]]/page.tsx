@@ -24,6 +24,7 @@ import {
 } from "@/lib/finder-seo";
 import { buildFinderSpecialtyOptions } from "@/lib/finder-specialty-options";
 import { harmonizeFinderSpecialtyLabel } from "@/lib/finder-specialty-harmonize";
+import { getFinderManualPhotoUrl } from "@/lib/finder-manual-photos";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -61,6 +62,7 @@ type ManualFinderRow = {
   specialty: string;
   district: CyprusDistrict;
   address_maps_link: string;
+  photoUrl: string | null;
 };
 
 const TEST_NAME_MARKER = /\btest\b/i;
@@ -343,14 +345,18 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
     if (manualRes.error) {
       dataWarning = dataWarning ?? "Could not load manual directory entries.";
     } else {
-      manualRows = (manualRes.data ?? []).map((row) => ({
-        id: row.id as string,
-        name: String(row.name ?? "Professional"),
-        displayName: doctorDashboardDisplayName(String(row.name ?? "Professional")),
-        specialty: String(row.specialty ?? "Specialty not set"),
-        district: row.district as CyprusDistrict,
-        address_maps_link: String(row.address_maps_link ?? ""),
-      }));
+      manualRows = (manualRes.data ?? []).map((row) => {
+        const addressMapsLink = String(row.address_maps_link ?? "");
+        return {
+          id: row.id as string,
+          name: String(row.name ?? "Professional"),
+          displayName: doctorDashboardDisplayName(String(row.name ?? "Professional")),
+          specialty: String(row.specialty ?? "Specialty not set"),
+          district: row.district as CyprusDistrict,
+          address_maps_link: addressMapsLink,
+          photoUrl: getFinderManualPhotoUrl(addressMapsLink),
+        };
+      });
     }
   } else {
     dataWarning = "Finder is not configured. Missing Supabase service credentials.";
@@ -572,10 +578,27 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                   >
                     <div className="flex min-h-0 flex-1 flex-col">
                       <div className="flex items-start gap-3">
-                        <div className="flex h-[72px] w-[72px] shrink-0 items-center justify-center overflow-hidden rounded-full border border-slate-600 bg-slate-800/80 ring-2 ring-slate-500/10">
-                          <span className="text-sm font-semibold text-slate-200">
-                            {getInitials(row.displayName)}
-                          </span>
+                        <div
+                          className={`h-[72px] w-[72px] shrink-0 overflow-hidden rounded-full border bg-slate-800/80 ring-2 ${
+                            row.photoUrl
+                              ? "border-emerald-300/35 ring-emerald-400/10"
+                              : "border-slate-600 ring-slate-500/10"
+                          }`}
+                        >
+                          {row.photoUrl ? (
+                            <img
+                              src={row.photoUrl}
+                              alt={`${row.displayName} profile photo`}
+                              className="h-full w-full object-cover"
+                              loading="lazy"
+                            />
+                          ) : (
+                            <div className="flex h-full w-full items-center justify-center">
+                              <span className="text-sm font-semibold text-slate-200">
+                                {getInitials(row.displayName)}
+                              </span>
+                            </div>
+                          )}
                         </div>
                         <div className="min-w-0 flex-1">
                           <p className="text-[17px] font-bold leading-[1.2] tracking-tight text-slate-50">
