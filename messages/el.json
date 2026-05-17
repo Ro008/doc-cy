@@ -83,6 +83,7 @@
     "printDialogFailed": "Δεν ήταν δυνατό το άνοιγμα του διαλόγου εκτύπωσης."
   },
   "DoctorProfilePage": {
+    "profileHeadingCityFallback": "Κύπρος",
     "profileTag": "Επαγγελματικό προφίλ",
     "cyprusLocalTime": "Τοπική ώρα Κύπρου",
     "whatToExpectTitle": "Τι να περιμένετε",

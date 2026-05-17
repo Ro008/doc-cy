@@ -83,6 +83,7 @@
     "printDialogFailed": "Could not open the print dialog."
   },
   "DoctorProfilePage": {
+    "profileHeadingCityFallback": "Cyprus",
     "profileTag": "Professional profile",
     "cyprusLocalTime": "Cyprus local time",
     "whatToExpectTitle": "What to expect",

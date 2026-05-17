@@ -24,6 +24,27 @@ function assertSafeIntegrationTarget(baseUrl: string, supabaseUrl: string): stri
   return null;
 }
 
+const TEST_NAME_MARKER = /\btest\b/i;
+const TEST_EMAIL_MARKER = /@(integration\.test|.*\.testing)$/i;
+const TEST_SLUG_MARKER = /^(booking-flow-|finder-card-|finder-ux-|finder-filter-)/i;
+
+function finderIncludesRegisteredTestProfiles(): boolean {
+  return String(process.env.NEXT_PUBLIC_DOC_CY_FINDER_INCLUDE_TEST_PROFILES ?? "").trim() === "1";
+}
+
+function isTestProfileLike(row: {
+  name: string;
+  slug?: string | null;
+  email?: string | null;
+  isTestProfile?: boolean | null;
+}): boolean {
+  if (row.isTestProfile === true) return true;
+  if (TEST_NAME_MARKER.test(row.name)) return true;
+  if (TEST_SLUG_MARKER.test(String(row.slug ?? ""))) return true;
+  if (TEST_EMAIL_MARKER.test(String(row.email ?? ""))) return true;
+  return false;
+}
+
 async function createVerifiedDoctor(
   admin: ReturnType<typeof createClient>,
   nonce: string,
@@ -171,10 +192,11 @@ test.describe("Integration: finder business-critical UX", () => {
 
     const doctorsRes = await admin
       .from("doctors")
-      .select("id, name, slug, status, is_test_profile")
+      .select("id, name, slug, status, is_test_profile, email")
       .eq("status", "verified")
       .not("slug", "is", null)
-      .limit(1000);
+      .order("name", { ascending: true })
+      .limit(300);
 
     if (doctorsRes.error) {
       throw new Error(`Failed reading doctors for finder count: ${doctorsRes.error.message}`);
@@ -191,9 +213,15 @@ test.describe("Integration: finder business-critical UX", () => {
     }
 
     const expectedRegistered = (doctorsRes.data ?? []).filter((row) => {
-      const isExplicitTest = Boolean((row as { is_test_profile?: boolean | null }).is_test_profile);
-      if (isExplicitTest) return false;
-      return !/\btest\b/i.test(String(row.name ?? ""));
+      if (finderIncludesRegisteredTestProfiles()) {
+        return true;
+      }
+      return !isTestProfileLike({
+        name: String(row.name ?? ""),
+        slug: row.slug,
+        email: (row as { email?: string | null }).email ?? null,
+        isTestProfile: Boolean((row as { is_test_profile?: boolean | null }).is_test_profile),
+      });
     }).length;
     const expectedManual = (manualRes.data ?? []).length;
     const expectedTotal = expectedRegistered + expectedManual;
@@ -201,9 +229,10 @@ test.describe("Integration: finder business-critical UX", () => {
     await page.goto("/");
     const finderLink = page.getByRole("link", { name: /^Find a Professional$/i }).first();
     await expect(finderLink).toBeVisible();
-    await finderLink.click();
-
-    await expect(page).toHaveURL(/\/finder(?:\?|$)/);
+    await Promise.all([
+      page.waitForURL(/\/finder(?:\?|$)/, { timeout: 20_000 }),
+      finderLink.click(),
+    ]);
     await expect(
       page.getByRole("heading", {
         level: 1,

@@ -51,11 +51,11 @@ test.describe("Public profile states", () => {
     await expect(
       page.getByRole("heading", { name: /I want to book/i })
     ).toBeVisible({ timeout: 10000 });
-    const findProfessionalPending = page.getByRole("button", { name: /Find a professional/i });
+    const findProfessionalPending = page
+      .getByRole("link", { name: /Find a professional/i })
+      .first();
     await expect(findProfessionalPending).toBeVisible({ timeout: 10000 });
-    await expect(findProfessionalPending).toBeDisabled();
-    await expect(findProfessionalPending).toHaveAttribute("title", "Coming soon");
-    await expect(page.getByText(/Directory coming soon/i)).toBeVisible({ timeout: 10000 });
+    await expect(findProfessionalPending).toHaveAttribute("href", "/finder");
   });
 
   test("rejected: shows profile unavailable + no booking calendar", async ({
@@ -87,13 +87,11 @@ test.describe("Public profile states", () => {
     await expect(
       page.getByRole("heading", { name: /I want to book/i })
     ).toBeVisible({ timeout: 10000 });
-    const findProfessionalRejected = page.getByRole("button", {
-      name: /Find a professional/i,
-    });
+    const findProfessionalRejected = page
+      .getByRole("link", { name: /Find a professional/i })
+      .first();
     await expect(findProfessionalRejected).toBeVisible({ timeout: 10000 });
-    await expect(findProfessionalRejected).toBeDisabled();
-    await expect(findProfessionalRejected).toHaveAttribute("title", "Coming soon");
-    await expect(page.getByText(/Directory coming soon/i)).toBeVisible({ timeout: 10000 });
+    await expect(findProfessionalRejected).toHaveAttribute("href", "/finder");
   });
 
   test("activated/verified: shows live profile + booking calendar", async ({

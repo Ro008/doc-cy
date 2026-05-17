@@ -5,6 +5,8 @@
   "scripts": {
     "free:3000": "powershell -NoProfile -ExecutionPolicy Bypass -File \"./free-port.ps1\" -Port 3000",
     "dev": "node scripts/dev-with-env.mjs .env.testing.local 3000",
+    "env:vote-secret": "node scripts/set-vote-fingerprint-secret.mjs .env.testing.local",
+    "env:vote-secret:prod-local": "node scripts/set-vote-fingerprint-secret.mjs .env.production.local",
     "dev:testing": "node scripts/dev-with-env.mjs .env.testing.local 3000",
     "dev:prod": "node scripts/dev-with-env.mjs .env.production.local 3000",
     "build": "next build",
@@ -28,6 +30,7 @@
     "test:cleanup:testing": "powershell -NoProfile -Command \"$env:PLAYWRIGHT_ENV_FILE='.env.testing.local'; node scripts/cleanup-test-doctors.mjs\"",
     "test:cleanup:testing:dry": "powershell -NoProfile -Command \"$env:PLAYWRIGHT_ENV_FILE='.env.testing.local'; node scripts/cleanup-test-doctors.mjs --dry-run\"",
     "seed:languages": "node scripts/seed-doctor-languages.mjs",
+    "db:local:reset": "supabase db reset",
     "db:status": "node scripts/supabase-safe.mjs status",
     "db:testing:link": "node scripts/supabase-safe.mjs link-testing",
     "db:testing:push": "node scripts/supabase-safe.mjs push-testing",

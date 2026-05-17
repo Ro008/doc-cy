@@ -13,4 +13,8 @@ export const DOCTOR_FIELD_LIST_PUBLIC_PROFILE_BASE =
   "id, name, specialty, bio, clinic_address, slug, status" as const;
 
 export const DOCTOR_FIELD_LIST_METADATA =
+  "name, specialty, status, district" as const;
+
+/** Metadata select without `district` when the column/view is unavailable. */
+export const DOCTOR_FIELD_LIST_METADATA_NO_DISTRICT =
   "name, specialty, status" as const;

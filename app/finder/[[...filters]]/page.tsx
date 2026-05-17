@@ -11,6 +11,10 @@ import { FinderResultsTransition } from "@/components/finder/FinderResultsTransi
 import { FinderStructuredData } from "@/components/finder/FinderStructuredData";
 import { FinderFaqSection } from "@/components/finder/FinderFaqSection";
 import {
+  ManualDirectoryDoctorClaimFooter,
+  ManualDirectoryVoteButton,
+} from "@/components/finder/ManualDirectoryPatientActions";
+import {
   districtToSlug,
   isAllSlug,
   slugToDistrict,
@@ -20,6 +24,7 @@ import {
 } from "@/lib/finder-seo";
 import { buildFinderSpecialtyOptions } from "@/lib/finder-specialty-options";
 import { harmonizeFinderSpecialtyLabel } from "@/lib/finder-specialty-harmonize";
+import { getFinderManualPhotoUrl } from "@/lib/finder-manual-photos";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -46,6 +51,8 @@ type RegisteredFinderRow = {
   languages: string[];
   avatarUrl: string | null;
   isTestProfile: boolean;
+  /** Address as entered at registration. */
+  clinic_address: string | null;
 };
 
 type ManualFinderRow = {
@@ -55,6 +62,7 @@ type ManualFinderRow = {
   specialty: string;
   district: CyprusDistrict;
   address_maps_link: string;
+  photoUrl: string | null;
 };
 
 const TEST_NAME_MARKER = /\btest\b/i;
@@ -122,6 +130,13 @@ function isTestProfileLike(row: {
   if (TEST_SLUG_MARKER.test(String(row.slug ?? ""))) return true;
   if (TEST_EMAIL_MARKER.test(String(row.email ?? ""))) return true;
   return false;
+}
+
+/** Local/dev only: never set on production deploys. */
+function finderIncludesRegisteredTestProfiles(): boolean {
+  return (
+    String(process.env.NEXT_PUBLIC_DOC_CY_FINDER_INCLUDE_TEST_PROFILES ?? "").trim() === "1"
+  );
 }
 
 function normalizeSpecialtyTerm(value: string): string {
@@ -251,6 +266,8 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
 
   if (supabase) {
     const registeredSelectAttempts = [
+      "id, name, specialty, district, slug, email, languages, avatar_url, is_test_profile, clinic_address",
+      "id, name, specialty, district, slug, email, languages, avatar_url, clinic_address",
       "id, name, specialty, district, slug, email, languages, avatar_url, is_test_profile",
       "id, name, specialty, district, slug, email, languages, avatar_url",
       "id, name, specialty, district, slug, email, languages, is_test_profile",
@@ -302,10 +319,12 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
             languages: normalizeLanguages(raw.languages),
             avatarUrl: toPublicAvatarUrl(raw.avatar_url),
             isTestProfile: Boolean(raw.is_test_profile ?? false),
+            clinic_address: (raw.clinic_address as string | null) ?? null,
           };
         })
         .filter(
           (row) =>
+            finderIncludesRegisteredTestProfiles() ||
             !isTestProfileLike({
               name: row.name,
               slug: row.slug,
@@ -326,14 +345,18 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
     if (manualRes.error) {
       dataWarning = dataWarning ?? "Could not load manual directory entries.";
     } else {
-      manualRows = (manualRes.data ?? []).map((row) => ({
-        id: row.id as string,
-        name: String(row.name ?? "Professional"),
-        displayName: doctorDashboardDisplayName(String(row.name ?? "Professional")),
-        specialty: String(row.specialty ?? "Specialty not set"),
-        district: row.district as CyprusDistrict,
-        address_maps_link: String(row.address_maps_link ?? ""),
-      }));
+      manualRows = (manualRes.data ?? []).map((row) => {
+        const addressMapsLink = String(row.address_maps_link ?? "");
+        return {
+          id: row.id as string,
+          name: String(row.name ?? "Professional"),
+          displayName: doctorDashboardDisplayName(String(row.name ?? "Professional")),
+          specialty: String(row.specialty ?? "Specialty not set"),
+          district: row.district as CyprusDistrict,
+          address_maps_link: addressMapsLink,
+          photoUrl: getFinderManualPhotoUrl(addressMapsLink),
+        };
+      });
     }
   } else {
     dataWarning = "Finder is not configured. Missing Supabase service credentials.";
@@ -500,9 +523,6 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                               {row.specialty ?? "Specialty not set"}
                             </span>
                           </p>
-                          <p className="mt-1 text-xs text-slate-500">
-                            {row.district ?? "District pending"}
-                          </p>
                         </div>
                       </div>
                       <div className="mt-4 min-h-[64px]">
@@ -528,6 +548,16 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                           <p className="text-xs text-slate-500">Not specified</p>
                         )}
                       </div>
+                      <div className="mt-4">
+                        <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">
+                          Location
+                        </p>
+                        <p className="text-xs leading-relaxed text-slate-300 whitespace-pre-wrap break-words">
+                          {row.clinic_address?.trim()
+                            ? row.clinic_address.trim()
+                            : "Not provided yet"}
+                        </p>
+                      </div>
                       {row.slug ? (
                         <PendingLink
                           href={`/${row.slug}`}
@@ -544,50 +574,70 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                 return (
                   <article
                     key={`manual-${row.id}`}
-                    className="flex h-full min-h-[276px] flex-col rounded-2xl border border-slate-700 bg-slate-900/65 p-4"
+                    className="flex h-full min-h-[340px] flex-col rounded-2xl border border-slate-700 bg-slate-900/65 p-4"
                   >
-                    <div className="flex items-start gap-3">
-                      <div className="flex h-[72px] w-[72px] shrink-0 items-center justify-center overflow-hidden rounded-full border border-slate-600 bg-slate-800/80 ring-2 ring-slate-500/10">
-                        <span className="text-sm font-semibold text-slate-200">
-                          {getInitials(row.displayName)}
-                        </span>
+                    <div className="flex min-h-0 flex-1 flex-col">
+                      <div className="flex items-start gap-3">
+                        <div
+                          className={`h-[72px] w-[72px] shrink-0 overflow-hidden rounded-full border bg-slate-800/80 ring-2 ${
+                            row.photoUrl
+                              ? "border-emerald-300/35 ring-emerald-400/10"
+                              : "border-slate-600 ring-slate-500/10"
+                          }`}
+                        >
+                          {row.photoUrl ? (
+                            <img
+                              src={row.photoUrl}
+                              alt={`${row.displayName} profile photo`}
+                              className="h-full w-full object-cover"
+                              loading="lazy"
+                            />
+                          ) : (
+                            <div className="flex h-full w-full items-center justify-center">
+                              <span className="text-sm font-semibold text-slate-200">
+                                {getInitials(row.displayName)}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-[17px] font-bold leading-[1.2] tracking-tight text-slate-50">
+                            {row.displayName}
+                          </p>
+                          <p className="mt-2 inline-flex max-w-full items-center rounded-full border border-slate-700/80 bg-slate-900/90 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-300">
+                            <span className="whitespace-normal break-words text-center leading-snug">
+                              {row.specialty}
+                            </span>
+                          </p>
+                        </div>
                       </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-[17px] font-bold leading-[1.2] tracking-tight text-slate-50">
-                          {row.displayName}
-                        </p>
-                        <p className="mt-2 inline-flex max-w-full items-center rounded-full border border-slate-700/80 bg-slate-900/90 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-300">
-                          <span className="whitespace-normal break-words text-center leading-snug">
-                            {row.specialty}
-                          </span>
-                        </p>
-                      </div>
-                    </div>
 
-                    <div className="mt-4 min-h-[84px]">
-                      <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">
-                        Location
+                      <p className="mt-3 text-sm leading-relaxed text-slate-300">
+                        Online booking is not active for this professional yet. Want to skip the phone
+                        call next time?
                       </p>
-                      <p className="mb-1.5 text-xs font-medium text-slate-400">{row.district}</p>
-                      <a
-                        href={row.address_maps_link}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-xs text-emerald-300 hover:text-emerald-200"
-                      >
-                        Open in Google Maps ↗
-                      </a>
                     </div>
 
-                    <p className="mt-auto mb-2 text-center text-xs font-medium tracking-wide text-emerald-200/90">
-                      Is this you?
-                    </p>
-                    <PendingLink
-                      href="/#founders-pricing"
-                      className="inline-flex w-full items-center justify-center rounded-xl bg-emerald-400 px-4 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-emerald-300"
-                    >
-                      Activate online booking
-                    </PendingLink>
+                    <div className="mt-auto flex shrink-0 flex-col gap-0">
+                      <ManualDirectoryVoteButton manualId={row.id} className="mt-2 w-full" />
+                      <div className="mt-4 min-h-[84px]">
+                        <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">
+                          Location
+                        </p>
+                        <p className="mb-1.5 text-xs font-medium text-slate-400">{row.district}</p>
+                        <a
+                          href={row.address_maps_link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-emerald-300 hover:text-emerald-200"
+                        >
+                          Open in Google Maps ↗
+                        </a>
+                      </div>
+                      <div className="mt-3 border-t border-slate-800/50 pt-3">
+                        <ManualDirectoryDoctorClaimFooter />
+                      </div>
+                    </div>
                   </article>
                 );
               })}

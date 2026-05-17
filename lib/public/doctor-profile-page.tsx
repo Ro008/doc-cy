@@ -26,12 +26,17 @@ import { CLINIC_ADDRESS, buildMapsUrlFromAddress } from "@/lib/clinic-info";
 import {
   DOCTOR_FIELD_LIST_PUBLIC_PROFILE_BASE,
   DOCTOR_FIELD_LIST_METADATA,
+  DOCTOR_FIELD_LIST_METADATA_NO_DISTRICT,
   DOCTOR_FIELD_LIST_PUBLIC_PROFILE,
   DOCTOR_FIELD_LIST_PUBLIC_PROFILE_NO_LANG,
 } from "@/lib/doctor-fieldsets";
 import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher";
 import { DocCyWordmark } from "@/components/brand/DocCyWordmark";
 import { getTranslations } from "next-intl/server";
+import {
+  normalizeDistrictForSeoTitle,
+  withDoctorTitleHonorific,
+} from "@/lib/doctor-seo-formatting";
 
 const DOCTOR_AVATAR_URL =
   "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=400&h=400&fit=crop";
@@ -167,10 +172,12 @@ async function fetchPublicDoctorBySlug(
 
 export const revalidate = 0;
 
-type HealthcareStructuredData = {
+type PhysicianStructuredData = {
   "@context": "https://schema.org";
-  "@type": "Physician" | "MedicalBusiness";
+  "@type": "Physician";
   name: string;
+  url?: string;
+  sameAs?: string;
   areaServed: "Cyprus";
   address: {
     "@type": "PostalAddress";
@@ -186,14 +193,6 @@ type HealthcareStructuredData = {
   description?: string;
 };
 
-function inferHealthcareSchemaType(name: string): "Physician" | "MedicalBusiness" {
-  const n = name.toLowerCase();
-  if (/\b(clinic|medical|center|centre|hospital|polyclinic)\b/.test(n)) {
-    return "MedicalBusiness";
-  }
-  return "Physician";
-}
-
 function parseAddressParts(address: string): { streetAddress?: string; addressLocality?: string } {
   const parts = address
     .split(",")
@@ -207,7 +206,7 @@ function parseAddressParts(address: string): { streetAddress?: string; addressLo
   };
 }
 
-function buildHealthcareStructuredData(input: {
+function buildPhysicianStructuredData(input: {
   name: string;
   specialty?: string | null;
   bio?: string | null;
@@ -216,7 +215,9 @@ function buildHealthcareStructuredData(input: {
   phone?: string | null;
   languages?: string[] | null;
   imageUrl?: string | null;
-}): HealthcareStructuredData {
+  profileUrl?: string | null;
+  sameAs?: string | null;
+}): PhysicianStructuredData {
   const name = input.name.trim();
   const specialty = (input.specialty ?? "").trim();
   const bio = (input.bio ?? "").trim();
@@ -228,7 +229,7 @@ function buildHealthcareStructuredData(input: {
   const addressRaw = (input.clinicAddress ?? "").trim();
   const addressParts = parseAddressParts(addressRaw);
 
-  const address: HealthcareStructuredData["address"] = {
+  const address: PhysicianStructuredData["address"] = {
     "@type": "PostalAddress",
     addressCountry: "CY",
     ...(addressParts.streetAddress ? { streetAddress: addressParts.streetAddress } : {}),
@@ -246,10 +247,15 @@ function buildHealthcareStructuredData(input: {
       ? `${name} provides ${specialty} services in Cyprus via DocCy.`
       : `${name} provides healthcare services in Cyprus via DocCy.`);
 
+  const profileUrl = String(input.profileUrl ?? "").trim();
+  const sameAs = String(input.sameAs ?? "").trim();
+
   return {
     "@context": "https://schema.org",
-    "@type": inferHealthcareSchemaType(name),
+    "@type": "Physician",
     name,
+    ...(profileUrl ? { url: profileUrl } : {}),
+    ...(sameAs ? { sameAs } : {}),
     ...(input.imageUrl ? { image: input.imageUrl } : {}),
     ...(specialty ? { medicalSpecialty: specialty } : {}),
     address,
@@ -260,6 +266,39 @@ function buildHealthcareStructuredData(input: {
   };
 }
 
+function buildVerifiedRegisteredMetaTitle(input: {
+  doctorName: string;
+  specialty: string;
+  districtLabel: string | null;
+}): string | null {
+  const name = input.doctorName.trim();
+  if (!name) return null;
+  const titled = withDoctorTitleHonorific(name);
+  const spec = input.specialty.trim();
+  const city = input.districtLabel?.trim() || "Cyprus";
+  if (spec.length > 0) {
+    return `Book Online with ${titled} | ${spec} in ${city} | DocCy`;
+  }
+  return `Book Online with ${titled} in ${city} | DocCy`;
+}
+
+/** Pending / rejected slug pages: informative, no instant-booking promise. */
+function buildNonLiveDoctorMetaTitle(input: {
+  doctorName: string;
+  specialty: string;
+  districtLabel: string | null;
+}): string | null {
+  const name = input.doctorName.trim();
+  if (!name) return null;
+  const titled = withDoctorTitleHonorific(name);
+  const spec = input.specialty.trim();
+  const city = input.districtLabel?.trim() || "Cyprus";
+  if (spec.length > 0) {
+    return `${titled} | ${spec} in ${city} | Profile & Contact | DocCy`;
+  }
+  return `${titled} in ${city} | Profile & Contact | DocCy`;
+}
+
 export async function generateMetadata({
   params,
 }: PageProps): Promise<Metadata> {
@@ -268,27 +307,32 @@ export async function generateMetadata({
   const profileUrl = `${siteUrl}/${params.slug}`;
   const fallbackTitle = "Healthcare Professional | DocCy";
 
-  let meta = await supabase
-    .from("doctors_public")
-    .select(DOCTOR_FIELD_LIST_METADATA)
-    .eq("slug", params.slug)
-    .maybeSingle();
-
-  if (
-    meta.error &&
-    isDoctorsPublicUnavailable(meta.error.message ?? "", meta.error.code)
-  ) {
-    meta = await supabase
-      .from("doctors")
-      .select(DOCTOR_FIELD_LIST_METADATA)
+  const loadMeta = async (fields: typeof DOCTOR_FIELD_LIST_METADATA | typeof DOCTOR_FIELD_LIST_METADATA_NO_DISTRICT) => {
+    let m = await supabase
+      .from("doctors_public")
+      .select(fields)
       .eq("slug", params.slug)
       .maybeSingle();
+
+    if (
+      m.error &&
+      isDoctorsPublicUnavailable(m.error.message ?? "", m.error.code)
+    ) {
+      m = await supabase.from("doctors").select(fields).eq("slug", params.slug).maybeSingle();
+    }
+    return m;
+  };
+
+  let meta = await loadMeta(DOCTOR_FIELD_LIST_METADATA);
+  if (meta.error && isOptionalProfileColumnError(meta.error.message ?? "")) {
+    meta = await loadMeta(DOCTOR_FIELD_LIST_METADATA_NO_DISTRICT);
   }
 
   const doctor = meta.data as {
     name?: string;
     specialty?: string;
     status?: string;
+    district?: string | null;
   } | null;
 
   if (meta.error || !doctor) {
@@ -314,14 +358,21 @@ export async function generateMetadata({
   const st = (doctor.status ?? "").trim().toLowerCase();
   const doctorName = (doctor.name ?? "").trim();
   const specialty = (doctor.specialty ?? "").trim();
-  const hasNameAndSpecialty = doctorName.length > 0 && specialty.length > 0;
-
-  const dynamicTitle = hasNameAndSpecialty
-    ? `Book an appointment with ${doctorName} | ${specialty} | DocCy`
-    : fallbackTitle;
-  const dynamicDescription = hasNameAndSpecialty
-    ? `Book your next ${specialty} appointment with ${doctorName} in Cyprus via DocCy.`
-    : "Book healthcare appointments in Cyprus via DocCy.";
+  const districtLabel = normalizeDistrictForSeoTitle(doctor.district);
+  const cityLabel = districtLabel ?? "Cyprus";
+  const metaTitleCore =
+    st === "verified"
+      ? buildVerifiedRegisteredMetaTitle({ doctorName, specialty, districtLabel })
+      : buildNonLiveDoctorMetaTitle({ doctorName, specialty, districtLabel });
+  const dynamicTitle = metaTitleCore ?? fallbackTitle;
+  const dynamicDescription =
+    st === "verified" && specialty.length > 0
+      ? `Book your next ${specialty} appointment online with ${withDoctorTitleHonorific(doctorName)} in ${cityLabel}. Secure scheduling via DocCy.`
+      : st === "verified"
+        ? `Book online with ${withDoctorTitleHonorific(doctorName)} in ${cityLabel} via DocCy.`
+        : specialty.length > 0
+          ? `View profile and contact details for ${withDoctorTitleHonorific(doctorName)} (${specialty} in ${cityLabel}) on DocCy.`
+          : `View profile and contact details for ${withDoctorTitleHonorific(doctorName)} in ${cityLabel} on DocCy.`;
 
   if (st !== "verified") {
     return {
@@ -434,7 +485,12 @@ export default async function DoctorPage({ params }: PageProps) {
     }
   }
 
-  const structuredData = buildHealthcareStructuredData({
+  const siteBase = (process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.mydoccy.com")
+    .trim()
+    .replace(/\/+$/, "");
+  const profileCanonicalUrl = `${siteBase}/${params.slug}`;
+
+  const structuredData = buildPhysicianStructuredData({
     name: profile.name,
     specialty: profile.specialty,
     bio: profile.bio,
@@ -443,6 +499,8 @@ export default async function DoctorPage({ params }: PageProps) {
     phone: publicPhone,
     languages: profile.languages ?? null,
     imageUrl: hasCustomAvatar ? avatarUrl : null,
+    profileUrl: profileCanonicalUrl,
+    sameAs: mapsUrl || null,
   });
 
   const settingsSelectFull =
@@ -563,6 +621,10 @@ export default async function DoctorPage({ params }: PageProps) {
     }))
     .filter((row) => row.name.length > 0);
 
+  const profileDistrictLabel = normalizeDistrictForSeoTitle(profile.district);
+  const profileHeadingCity =
+    profileDistrictLabel ?? t("profileHeadingCityFallback");
+
   return (
     <main className="min-h-screen bg-slate-950 text-slate-50">
       <script
@@ -600,7 +662,7 @@ export default async function DoctorPage({ params }: PageProps) {
             </div>
             <LanguageSwitcher compact />
           </div>
-          <div className="flex gap-5">
+          <div className="flex items-start gap-5">
             <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-2xl border-2 border-emerald-400/30 shadow-lg shadow-slate-950/50 sm:h-28 sm:w-28">
               <Image
                 src={avatarUrl}
@@ -612,12 +674,17 @@ export default async function DoctorPage({ params }: PageProps) {
               />
             </div>
             <div className="min-w-0 flex-1">
-              <h1 className="mt-3 text-balance text-3xl font-semibold tracking-tight text-slate-50 sm:text-4xl">
-                {profile.name}
+              <h1 className="text-balance leading-tight">
+                <span className="block text-3xl font-semibold tracking-tight text-slate-50 sm:text-4xl">
+                  {profile.name}
+                </span>
+                <span className="mt-1.5 block text-base font-medium capitalize tracking-wide text-emerald-200/95 sm:text-lg">
+                  {profile.specialty}
+                </span>
+                <span className="mt-1 block text-base font-medium tracking-wide text-slate-300 sm:text-lg">
+                  {profileHeadingCity}
+                </span>
               </h1>
-              <p className="mt-1.5 text-base font-medium capitalize tracking-wide text-emerald-200/95 sm:text-lg">
-                {profile.specialty}
-              </p>
               {Array.isArray(profile.languages) &&
               profile.languages.length > 0 ? (
                 <LanguagesSpoken

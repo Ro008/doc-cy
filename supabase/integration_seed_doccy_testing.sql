@@ -1,5 +1,6 @@
--- DocCy — Integration DB seed (Supabase "DocCy - Testing")
--- Paste once in SQL Editor. Safe to re-run: idempotent upserts.
+-- DocCy — Integration DB seed (Supabase "DocCy - Testing"; paste in SQL Editor)
+-- Local CLI: also loaded from supabase/seed.sql after `supabase db reset`.
+-- Safe to re-run: idempotent upserts.
 --
 -- Does:
 --   1) appointments.duration_minutes (INTEGER, default 30) if missing

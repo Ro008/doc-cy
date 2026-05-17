@@ -138,7 +138,7 @@ test.describe("Integration: finder user-like filter behavior matrix", () => {
 
       const districtSelect = page.getByLabel("District");
       const specialtySelect = page.getByLabel("Specialty");
-      const nameInput = page.getByLabel("Name");
+      const nameInput = page.getByRole("searchbox", { name: "Name" });
 
       // Scenario 1: District-only exploration.
       await districtSelect.selectOption("Limassol");
@@ -159,9 +159,11 @@ test.describe("Integration: finder user-like filter behavior matrix", () => {
       await expect(page.getByText(created[1].name, { exact: true })).toBeVisible();
       await expect(page.getByText(created[0].name, { exact: true })).toHaveCount(0);
 
-      // Scenario 3: Name search after existing filters.
+      // Scenario 3: Name search only applies on explicit submit (not while typing).
       await nameInput.fill("Dent");
-      await page.waitForTimeout(500);
+      await expect(page).not.toHaveURL(/name=/);
+      await expect(page.getByText(created[1].name, { exact: true })).toBeVisible();
+      await page.getByRole("button", { name: /Search by name/i }).click();
       await expect(page).toHaveURL(/name=Dent/);
       await expect(page.getByText(created[1].name, { exact: true })).toBeVisible();
 

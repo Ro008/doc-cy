@@ -1,4 +1,5 @@
 import { Stethoscope, UserRound } from "lucide-react";
+import { MarketingFooter } from "@/components/navigation/MarketingFooter";
 import { PendingLink } from "@/components/navigation/PendingLink";
 
 export type PublicProfileBlockReason = "pending" | "rejected";
@@ -87,21 +88,17 @@ export function ProfileNotLive({
               Browse other verified professionals on DocCy, or try this link again once the profile is
               live.
             </p>
-            <button
-              type="button"
-              disabled
-              title="Coming soon"
-              aria-disabled="true"
-              className="mt-4 inline-flex w-full cursor-not-allowed items-center justify-center rounded-xl border border-slate-700 bg-slate-800/25 py-2.5 text-sm font-semibold text-slate-400"
+            <PendingLink
+              href="/finder"
+              className="mt-4 inline-flex w-full items-center justify-center rounded-xl border border-sky-500/50 bg-sky-500/10 py-2.5 text-sm font-semibold text-sky-100 transition hover:border-sky-400/60 hover:bg-sky-500/20"
             >
               Find a professional
-            </button>
-            <p className="mt-2 text-center text-[11px] font-medium uppercase tracking-[0.08em] text-slate-500">
-              Directory coming soon
-            </p>
+            </PendingLink>
           </div>
         </div>
       </div>
+
+      <MarketingFooter className="mx-auto mt-16 w-full max-w-6xl pb-24 pt-6 sm:pb-16 lg:pb-12" />
     </main>
   );
 }

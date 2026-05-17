@@ -10,7 +10,7 @@ import {
 } from "@/lib/finder-seo";
 import type { CyprusDistrict } from "@/lib/cyprus-districts";
 import type { FinderSpecialtyOption } from "@/lib/finder-specialty-options";
-import { Info } from "lucide-react";
+import { Info, Search } from "lucide-react";
 import { PendingLink } from "@/components/navigation/PendingLink";
 
 const START_EVENT = "doccy:navigation-start";
@@ -38,12 +38,9 @@ export function FinderFilters({
     activeSpecialty ? specialtyToSlug(activeSpecialty) : ""
   );
   const [name, setName] = React.useState(activeName);
-  const [pendingAction, setPendingAction] = React.useState<"apply" | "reset" | null>(null);
+  const [pendingAction, setPendingAction] = React.useState<"apply" | "reset" | "search" | null>(null);
   const [isNavigating, setIsNavigating] = React.useState(false);
-  const nameDebounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingGuardRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
-  const nameTypingGuardRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
-  const isEditingNameRef = React.useRef(false);
 
   const mergedSpecialtyOptions = React.useMemo(() => {
     const slug = activeSpecialty ? specialtyToSlug(activeSpecialty) : "";
@@ -59,9 +56,7 @@ export function FinderFilters({
     // Keep district in sync with URL-driven state.
     setDistrict(activeDistrict);
     setSpecialtySlug(activeSpecialty ? specialtyToSlug(activeSpecialty) : "");
-    if (!isEditingNameRef.current) {
-      setName(activeName);
-    }
+    setName(activeName);
     setPendingAction(null);
   }, [activeDistrict, activeSpecialty, activeName]);
 
@@ -81,11 +76,24 @@ export function FinderFilters({
 
   React.useEffect(() => {
     return () => {
-      if (nameDebounceRef.current) clearTimeout(nameDebounceRef.current);
       if (pendingGuardRef.current) clearTimeout(pendingGuardRef.current);
-      if (nameTypingGuardRef.current) clearTimeout(nameTypingGuardRef.current);
     };
   }, []);
+
+  function specialtyLabelFromSlug(slug: string): string {
+    if (!slug) return "";
+    return (
+      mergedSpecialtyOptions.find((o) => o.slug === slug)?.label ?? slugToSpecialty(slug)
+    );
+  }
+
+  function submitNameSearch() {
+    setPendingAction("search");
+    if (pendingGuardRef.current) clearTimeout(pendingGuardRef.current);
+    pendingGuardRef.current = setTimeout(() => setPendingAction(null), 1500);
+    window.dispatchEvent(new Event(START_EVENT));
+    pushFilters(district, specialtyLabelFromSlug(specialtySlug), name.trim());
+  }
 
   function pushFilters(nextDistrict: string, nextSpecialty: string, nextName: string) {
     const districtSlug = nextDistrict ? districtToSlug(nextDistrict as CyprusDistrict) : "all";
@@ -130,7 +138,7 @@ export function FinderFilters({
   }
 
   async function resetFilters() {
-    if (!district && !specialtySlug && !name) {
+    if (!district && !specialtySlug && !activeName) {
       setPendingAction(null);
       return;
     }
@@ -152,7 +160,7 @@ export function FinderFilters({
   const activeFilterEntries = [
     district ? `District: ${district}` : null,
     specialtyFilterLabel ? `Specialty: ${specialtyFilterLabel}` : null,
-    name.trim() ? `Name: ${name.trim()}` : null,
+    activeName.trim() ? `Name: ${activeName.trim()}` : null,
   ].filter((item): item is string => Boolean(item));
   const hasActiveFilters = activeFilterEntries.length > 0;
   const showPaphosUrgentCareNote = district === "Paphos";
@@ -192,9 +200,10 @@ export function FinderFilters({
         </div>
       </div>
       <form
-        className="grid gap-3 sm:grid-cols-4"
+        className="grid gap-3 sm:grid-cols-3"
         onSubmit={(e) => {
           e.preventDefault();
+          submitNameSearch();
         }}
       >
       <fieldset
@@ -210,14 +219,7 @@ export function FinderFilters({
           onChange={(e) => {
             const nextDistrict = e.target.value;
             setDistrict(nextDistrict);
-            applyFilters(
-              nextDistrict,
-              specialtySlug
-                ? mergedSpecialtyOptions.find((o) => o.slug === specialtySlug)?.label ??
-                  slugToSpecialty(specialtySlug)
-                : "",
-              name.trim()
-            );
+            applyFilters(nextDistrict, specialtyLabelFromSlug(specialtySlug), activeName);
           }}
           className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950/80 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
         >
@@ -237,11 +239,9 @@ export function FinderFilters({
           onChange={(e) => {
             const nextSlug = e.target.value;
             setSpecialtySlug(nextSlug);
-            const nextLabel = nextSlug
-              ? mergedSpecialtyOptions.find((o) => o.slug === nextSlug)?.label ??
-                slugToSpecialty(nextSlug)
-              : "";
-            applyFilters(district, nextLabel, name.trim(), { showPending: false });
+            applyFilters(district, specialtyLabelFromSlug(nextSlug), activeName, {
+              showPending: false,
+            });
           }}
           className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950/80 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
         >
@@ -253,38 +253,34 @@ export function FinderFilters({
           ))}
         </select>
       </label>
-      <label className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-        Name
-        <input
-          name="name"
-          type="text"
-          value={name}
-          onChange={(e) => {
-            const nextName = e.target.value;
-            setName(nextName);
-            isEditingNameRef.current = true;
-            if (nameTypingGuardRef.current) clearTimeout(nameTypingGuardRef.current);
-            nameTypingGuardRef.current = setTimeout(() => {
-              isEditingNameRef.current = false;
-            }, 900);
-            if (nameDebounceRef.current) clearTimeout(nameDebounceRef.current);
-            nameDebounceRef.current = setTimeout(() => {
-              applyFilters(
-                district,
-                specialtySlug
-                  ? mergedSpecialtyOptions.find((o) => o.slug === specialtySlug)?.label ??
-                    slugToSpecialty(specialtySlug)
-                  : "",
-                nextName.trim(),
-                { showPending: false }
-              );
-            }, 350);
-          }}
-          placeholder="Search by name..."
-          className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950/80 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
-        />
-      </label>
-        <div className="flex items-end" />
+      <div>
+        <label
+          htmlFor="finder-name-filter"
+          className="text-xs font-semibold uppercase tracking-wide text-slate-400"
+        >
+          Name
+        </label>
+        <div className="relative mt-2">
+          <input
+            id="finder-name-filter"
+            name="name"
+            type="search"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Search by name..."
+            enterKeyHint="search"
+            className="w-full rounded-xl border border-slate-700 bg-slate-950/80 py-2 pl-3 pr-11 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+          />
+          <button
+            type="submit"
+            disabled={isPending}
+            aria-label={pendingAction === "search" ? "Searching by name" : "Search by name"}
+            className="absolute right-1.5 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg border border-slate-600 bg-slate-800/90 text-slate-400 transition hover:border-slate-500 hover:bg-slate-700/90 hover:text-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <Search className="h-4 w-4" strokeWidth={2.25} aria-hidden />
+          </button>
+        </div>
+      </div>
       </fieldset>
       </form>
       {showPaphosUrgentCareNote ? (
