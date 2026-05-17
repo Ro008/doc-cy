@@ -19,7 +19,7 @@ export function useDirectoryNav(): Ctx {
 }
 
 function sortedQueryString(sp: URLSearchParams): string {
-  return [...sp.entries()]
+  return Array.from(sp.entries())
     .sort((a, b) => a[0].localeCompare(b[0]))
     .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
     .join("&");
