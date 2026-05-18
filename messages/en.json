@@ -114,7 +114,31 @@
       "confirmTitle": "Patients Book Without Interruptions",
       "confirmDesc": "Patients request a slot online instead of calling your practice. You confirm with one click and avoid constant WhatsApp back-and-forth.",
       "profileTitle": "Train your patients to book smarter",
-      "profileDesc": "Use your unique QR code in your waiting room or share your professional link via WhatsApp. Stop being a 24/7 receptionist and let your patients book whenever it suits them-even while you sleep."
+      "profileDesc": "Use your unique QR code in your waiting room or share your professional link via WhatsApp. Stop being a 24/7 receptionist and let your patients book whenever it suits them, even while you sleep."
+    },
+    "AdoptionPlaybook": {
+      "eyebrow": "ADOPTION PLAYBOOK",
+      "title": "Shift phone traffic to the screen",
+      "lead": "Your patients don't want to wait on hold, and your staff shouldn't spend four hours a day repeating available slots.",
+      "steps": {
+        "weekendShield": {
+          "title": "The Weekend Shield",
+          "body": "Clinics in Cyprus close evenings, weekends, and lunch breaks. We give you a voicemail script that sends callers to your DocCy link, so Saturday callers book instead of waiting until Monday.",
+          "result": "Your team arrives Monday to an organized dashboard, not a chaotic list of missed calls."
+        },
+        "liveHandoff": {
+          "title": "The 10-second handoff",
+          "body": "When patients call during opening hours, your receptionist books the slot and adds one line: next time they can see your open times and book online on DocCy.",
+          "result": "Patients type their own name and details; your team reviews and clicks Approve."
+        },
+        "websiteButton": {
+          "title": "The website button",
+          "body": "Already have a website? Send your web person a simple \"Book online\" button that links to your DocCy page. We don't replace your site, we add a booking path.",
+          "result": "Need a hand? Contact us through Support and we can add it for you at no extra cost."
+        }
+      },
+      "closing": "Once you're verified, open Promote your practice in Settings for ready-made scripts and your booking link.",
+      "cta": "See launch pricing"
     },
     "Showcase": {
       "title": "See how DocCy puts you back in charge",
@@ -125,7 +149,7 @@
       "slides": {
         "automatedFollowup": {
           "title": "Professional automated follow-up",
-          "body": "Once you approve, DocCy does the heavy lifting: confirmation emails, calendar add-ons, and WhatsApp links—no manual busywork."
+          "body": "Once you approve, DocCy does the heavy lifting: confirmation emails, calendar add-ons, and WhatsApp links, with no manual busywork."
         },
         "overlapGuard": {
           "title": "Chaos blocked before it starts",
@@ -161,7 +185,7 @@
         },
         "premiumStorefront": {
           "title": "Your Premium Digital Storefront",
-          "body": "For independents, brand is everything—yet many still lack a real site or settle for cluttered directory pages. DocCy is your showroom: a clean, modern public profile with your photo, specialty, and languages patients scan first, especially across Cyprus's tourism and expat mix."
+          "body": "For independents, brand is everything, yet many still lack a real site or settle for cluttered directory pages. DocCy is your showroom: a clean, modern public profile with your photo, specialty, and languages patients scan first, especially across Cyprus's tourism and expat mix."
         },
         "settingsProfile": {
           "title": "Profile & Visibility Controls",
@@ -201,7 +225,7 @@
       "eyebrow": "The End of the Expensive, Invisible Website",
       "title": "Your professional profile is your new website.",
       "subtitle": "(Only smarter, faster, and built to be found).",
-      "intro": "Building a private website in Cyprus can cost you thousands in development and monthly maintenance-and yet, most stay hidden on page 10 of Google.",
+      "intro": "Building a private website in Cyprus can cost you thousands in development and monthly maintenance, and yet most stay hidden on page 10 of Google.",
       "beforeTitle": "Old way: private website",
       "afterTitle": "DocCy way: visibility first",
       "beforePoints": {
@@ -249,7 +273,7 @@
         },
         "setupTime": {
           "question": "How long does it take to set up? I am busy.",
-          "answer1": "Less than 5 minutes. DocCy is built to be plug and play-no tech team or manuals required.",
+          "answer1": "Less than 5 minutes. DocCy is built to be plug and play, with no tech team or manuals required.",
           "answer2": "Want a hands-off experience? As a Founding Member, you can request Personalized Onboarding. We can do it via a quick video call or, if you are based in Paphos, we can visit your practice and set everything up for you.",
           "answer3": "We'll even help you sync your current calendar and strategy for a smooth transition. You focus on your patients; we handle the setup.",
           "contactCta": "Contact us here"

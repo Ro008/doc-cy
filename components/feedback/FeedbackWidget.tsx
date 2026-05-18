@@ -4,7 +4,11 @@ import * as React from "react";
 import { HelpCircle, X, Send } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
-import { DOCCY_OPEN_FEEDBACK_EVENT, type DocCyOpenFeedbackDetail } from "@/lib/doccy-feedback";
+import {
+  DOCCY_FEEDBACK_SUBJECT_WEBSITE_BOOKING,
+  DOCCY_OPEN_FEEDBACK_EVENT,
+  type DocCyOpenFeedbackDetail,
+} from "@/lib/doccy-feedback";
 const INSTALL_BANNER_VISIBILITY_EVENT = "doccy:install-banner-visibility";
 
 /**
@@ -17,7 +21,17 @@ type Subject =
   | "I have a suggestion"
   | "Something isn't working"
   | "General Question"
-  | "Founding Member Inquiry";
+  | "Founding Member Inquiry"
+  | typeof DOCCY_FEEDBACK_SUBJECT_WEBSITE_BOOKING;
+
+const LOCKED_FEEDBACK_SUBJECTS: readonly Subject[] = [
+  "Founding Member Inquiry",
+  DOCCY_FEEDBACK_SUBJECT_WEBSITE_BOOKING,
+];
+
+function isLockedFeedbackSubject(value: string): value is Subject {
+  return (LOCKED_FEEDBACK_SUBJECTS as readonly string[]).includes(value);
+}
 
 type HintStage = "off" | "anim-in" | "shown" | "anim-out";
 
@@ -78,10 +92,14 @@ export function FeedbackWidget() {
       const next = ce.detail?.subject;
       if (next === "Founding Member Inquiry") {
         setSubject("Founding Member Inquiry");
+      } else if (next === DOCCY_FEEDBACK_SUBJECT_WEBSITE_BOOKING) {
+        setSubject(DOCCY_FEEDBACK_SUBJECT_WEBSITE_BOOKING);
+      } else if (next === "General Question") {
+        setSubject("General Question");
       } else {
         setSubject("I have a suggestion");
       }
-      setMessage("");
+      setMessage(ce.detail?.message ?? "");
       setError(null);
       setSent(false);
       setOpen(true);
@@ -344,14 +362,15 @@ export function FeedbackWidget() {
 
                   <div className="block text-xs font-medium text-slate-200">
                     Topic
-                    {subject === "Founding Member Inquiry" ? (
+                    {isLockedFeedbackSubject(subject) ? (
                       <div className="mt-1 rounded-2xl border border-emerald-400/35 bg-emerald-400/10 px-3 py-2.5">
-                        <p className="text-sm font-medium text-emerald-100">
-                          Founding Member Inquiry
-                        </p>
+                        <p className="text-sm font-medium text-emerald-100">{subject}</p>
                         <button
                           type="button"
-                          onClick={() => setSubject("I have a suggestion")}
+                          onClick={() => {
+                            setSubject("I have a suggestion");
+                            setMessage("");
+                          }}
                           className="mt-1.5 text-[11px] text-slate-400 underline decoration-slate-500 underline-offset-2 transition hover:text-slate-300"
                         >
                           Use a different topic

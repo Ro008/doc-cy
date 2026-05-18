@@ -3,6 +3,9 @@ import {
   CalendarSync,
   CheckCircle2,
   ChevronDown,
+  Globe,
+  Moon,
+  PhoneCall,
   ShieldCheck,
   XCircle,
   UserRound,
@@ -31,6 +34,36 @@ export default async function HomePage() {
   const t = await getTranslations("LandingPage");
   const locale = await getLocale();
   const isGreek = locale === "el";
+
+  const adoptionPlaybookSteps: Benefit[] = [
+    {
+      icon: Moon,
+      title: t("AdoptionPlaybook.steps.weekendShield.title"),
+      body: t("AdoptionPlaybook.steps.weekendShield.body"),
+      iconWell:
+        "bg-indigo-400/25 text-indigo-200 shadow-[0_0_24px_-4px_rgba(129,140,248,0.55)] ring-2 ring-indigo-300/50",
+    },
+    {
+      icon: PhoneCall,
+      title: t("AdoptionPlaybook.steps.liveHandoff.title"),
+      body: t("AdoptionPlaybook.steps.liveHandoff.body"),
+      iconWell:
+        "bg-amber-400/25 text-amber-200 shadow-[0_0_24px_-4px_rgba(251,191,36,0.5)] ring-2 ring-amber-300/55",
+    },
+    {
+      icon: Globe,
+      title: t("AdoptionPlaybook.steps.websiteButton.title"),
+      body: t("AdoptionPlaybook.steps.websiteButton.body"),
+      iconWell:
+        "bg-violet-400/25 text-violet-200 shadow-[0_0_24px_-4px_rgba(167,139,250,0.5)] ring-2 ring-violet-300/55",
+    },
+  ];
+
+  const adoptionPlaybookResults = [
+    t("AdoptionPlaybook.steps.weekendShield.result"),
+    t("AdoptionPlaybook.steps.liveHandoff.result"),
+    t("AdoptionPlaybook.steps.websiteButton.result"),
+  ];
 
   const benefits: Benefit[] = [
     {
@@ -325,6 +358,62 @@ export default async function HomePage() {
                 </li>
               ))}
             </ul>
+          </div>
+        </section>
+
+        <section
+          id="adoption-playbook"
+          className="mx-auto w-full max-w-6xl pb-8 pt-2 sm:pb-10 [overflow-anchor:none]"
+        >
+          <div className="rounded-3xl border border-emerald-300/20 bg-slate-900/65 p-5 shadow-[0_0_56px_-22px_rgba(16,185,129,0.28)] backdrop-blur-md sm:p-7">
+            <p className="text-xs font-semibold tracking-[0.18em] text-emerald-300/95">
+              {t("AdoptionPlaybook.eyebrow")}
+            </p>
+            <h2 className="mt-2 max-w-3xl text-2xl font-semibold tracking-tight text-neutral-50 sm:text-3xl">
+              {t("AdoptionPlaybook.title")}
+            </h2>
+            <p className="mt-3 max-w-3xl text-sm leading-relaxed text-slate-300 sm:text-base">
+              {t("AdoptionPlaybook.lead")}
+            </p>
+
+            <ul className="mt-6 grid gap-4 lg:grid-cols-3">
+              {adoptionPlaybookSteps.map(({ icon: Icon, title, body, iconWell }, idx) => (
+                <li key={title} className={benefitCardShell}>
+                  <div className="flex gap-4">
+                    <div
+                      className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl sm:h-14 sm:w-14 ${iconWell}`}
+                    >
+                      <Icon className="h-6 w-6 sm:h-7 sm:w-7" strokeWidth={2} aria-hidden />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-emerald-200/90">
+                        {String(idx + 1).padStart(2, "0")}
+                      </span>
+                      <p className="text-base font-bold leading-snug tracking-tight text-neutral-50">
+                        {title}
+                      </p>
+                      <p className="mt-1 text-sm font-normal leading-snug text-neutral-300">{body}</p>
+                      <p className="mt-2 text-xs font-medium leading-relaxed text-emerald-100/90">
+                        {adoptionPlaybookResults[idx]}
+                      </p>
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+
+            <p className="mt-5 max-w-3xl rounded-2xl border border-slate-700/80 bg-slate-950/45 px-4 py-3 text-sm leading-relaxed text-slate-300">
+              {t("AdoptionPlaybook.closing")}
+            </p>
+            <div className="mt-4 flex justify-center sm:justify-start">
+              <a
+                href="#founders-pricing-card"
+                className="inline-flex items-center gap-1.5 rounded-full border border-emerald-300/45 bg-emerald-400/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-100 transition hover:bg-emerald-400/20 hover:text-emerald-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/80"
+              >
+                {t("AdoptionPlaybook.cta")}
+                <ChevronDown className="h-3.5 w-3.5 motion-safe:animate-bounce" aria-hidden />
+              </a>
+            </div>
           </div>
         </section>
 
