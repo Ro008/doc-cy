@@ -37,6 +37,7 @@ import {
   normalizeDistrictForSeoTitle,
   withDoctorTitleHonorific,
 } from "@/lib/doctor-seo-formatting";
+import { stringifyJsonLd } from "@/lib/json-ld";
 
 const DOCTOR_AVATAR_URL =
   "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=400&h=400&fit=crop";
@@ -629,7 +630,7 @@ export default async function DoctorPage({ params }: PageProps) {
     <main className="min-h-screen bg-slate-950 text-slate-50">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+        dangerouslySetInnerHTML={{ __html: stringifyJsonLd(structuredData) }}
       />
       {/* Background gradient / glow (consistent with landing) */}
       <div className="pointer-events-none fixed inset-0 -z-10">
