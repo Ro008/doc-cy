@@ -1,5 +1,6 @@
 import { sendResendEmail } from "@/lib/resend";
 import { getPublicBookingBaseUrl } from "@/lib/site-url";
+import { sendWhatsAppWebhookMessage } from "@/lib/whatsapp-webhook.mjs";
 
 export type NewRegistrationNotifyPayload = {
   doctorId: string;
@@ -11,29 +12,10 @@ export type NewRegistrationNotifyPayload = {
   needsSpecialtyReview: boolean;
 };
 
-/**
- * Strips legacy `text=` from webhook query (same idea as prod monitoring curl).
- */
-function buildWhatsAppWebhookUrlWithText(webhookUrl: string, text: string): string {
-  const trimmed = webhookUrl.trim().replace(/\r|\n/g, "");
-  const withoutText = trimmed
-    .replace(/([?&])text=[^&]*(&|$)/g, (_m, p1: string, p2: string) =>
-      p2 === "&" ? p1 : ""
-    )
-    .replace(/\?&/g, "?")
-    .replace(/&&/g, "&")
-    .replace(/[?&]$/, "");
-  const u = new URL(withoutText);
-  u.searchParams.set("text", text);
-  return u.toString();
-}
-
-async function sendFounderWhatsApp(webhookUrl: string, text: string): Promise<void> {
-  const url = buildWhatsAppWebhookUrlWithText(webhookUrl, text);
-  const res = await fetch(url, { method: "GET", signal: AbortSignal.timeout(20_000) });
-  if (!res.ok) {
-    throw new Error(`WhatsApp webhook HTTP ${res.status}`);
-  }
+function resolveFounderWhatsAppWebhook(): string | null {
+  const dedicated = process.env.FOUNDER_REGISTRATION_WHATSAPP_WEBHOOK_URL?.trim();
+  if (dedicated) return dedicated;
+  return process.env.WHATSAPP_WEBHOOK_URL?.trim() || null;
 }
 
 /**
@@ -41,13 +23,13 @@ async function sendFounderWhatsApp(webhookUrl: string, text: string): Promise<vo
  *
  * Configure either or both:
  * - FOUNDER_NOTIFY_EMAIL — Resend recipient(s), comma-separated allowed
- * - FOUNDER_REGISTRATION_WHATSAPP_WEBHOOK_URL — GET webhook with `text` param (e.g. same style as WHATSAPP_WEBHOOK_URL in CI)
+ * - FOUNDER_REGISTRATION_WHATSAPP_WEBHOOK_URL — webhook URL (falls back to WHATSAPP_WEBHOOK_URL)
  */
 export async function notifyFounderNewRegistration(
   payload: NewRegistrationNotifyPayload
 ): Promise<void> {
   const emailTo = process.env.FOUNDER_NOTIFY_EMAIL?.trim();
-  const waWebhook = process.env.FOUNDER_REGISTRATION_WHATSAPP_WEBHOOK_URL?.trim();
+  const waWebhook = resolveFounderWhatsAppWebhook();
 
   if (!emailTo && !waWebhook) {
     return;
@@ -90,7 +72,16 @@ export async function notifyFounderNewRegistration(
   }
 
   if (waWebhook) {
-    tasks.push(sendFounderWhatsApp(waWebhook, shortWa));
+    tasks.push(
+      (async () => {
+        const result = await sendWhatsAppWebhookMessage(waWebhook, shortWa);
+        if (result.ok === false) {
+          throw new Error(
+            `WhatsApp webhook failed: ${result.error}\n${result.log.join("\n")}`
+          );
+        }
+      })()
+    );
   }
 
   const results = await Promise.allSettled(tasks);

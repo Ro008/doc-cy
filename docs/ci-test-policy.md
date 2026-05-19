@@ -89,27 +89,27 @@ Move tests between lanes based on data:
 
 ## Nightly WhatsApp notification (`notify-whatsapp`)
 
-Workflow: `.github/workflows/prod-critical-smoke.yml` → job `notify-whatsapp` (after `prod-critical-smoke` and `business-critical-integration`). Secret: `WHATSAPP_WEBHOOK_URL` (see `docs/github-secrets-governance.md`).
+Workflow: `.github/workflows/prod-critical-smoke.yml` → job `notify-whatsapp` → `node scripts/send-whatsapp-monitoring.mjs`. Shared sender: `lib/whatsapp-webhook.mjs` (also used for founder signup alerts in `lib/notify-founder-new-registration.ts`). Secret: `WHATSAPP_WEBHOOK_URL` (see `docs/github-secrets-governance.md`).
 
 Schedule: two UTC crons plus `schedule-gate` so the heavy jobs (and WhatsApp) only run when local time in **Europe/Nicosia** is **06:00** (see comments in the workflow file).
 
-### 2026-05-12 — Silent failures (fixed in workflow)
+Delivery failures use `steps.whatsapp.conclusion == 'failure'` to open a GitHub issue (the send step uses `continue-on-error: true`, so check `conclusion`, not `outcome`).
 
-**Symptom:** WhatsApp messages stopped arriving for several days, with no GitHub issue opened for delivery failure.
+### Local / manual test
 
-**Root cause:** The step `Send WhatsApp monitoring status (retries)` used `continue-on-error: true`. In GitHub Actions, a failed step with that flag still reports `steps.<id>.outcome == success`; only `conclusion` is `failure`. Follow-up steps used `if: steps.whatsapp.outcome != 'success'`, which is **never true** on that failure path, so **no issue was created** and the failure was easy to miss.
+```bash
+WHATSAPP_WEBHOOK_URL="https://…" npm run whatsapp:test -- "Hello from DocCy"
+```
 
-**Change applied:** Those conditions were updated to `steps.whatsapp.conclusion == 'failure'` (with an inline comment in the YAML). After deploy, repeated webhook failures should open issues titled `[prod-monitoring] WhatsApp notification failed (run …)`.
+Or workflow dispatch → *Send only WhatsApp notification*.
 
-### If delivery still fails after the above (checklist)
+### If delivery fails (checklist)
 
-Already ruled out: wrong `if` on follow-up steps (outcome vs conclusion). Next checks:
-
-1. **Actions UI** — workflow *Production Monitoring*, job `notify-whatsapp`, step *Send WhatsApp monitoring status*: read `curl` stderr (timeouts, HTTP errors, empty `WHATSAPP_WEBHOOK_URL`).
-2. **Repository secret** — name must be `WHATSAPP_WEBHOOK_URL` (canonical list in `docs/github-secrets-governance.md`).
-3. **Scheduled workflows disabled** — GitHub can pause schedules on inactive repos; re-enable under Actions → *Production Monitoring* → … menu.
-4. **Webhook provider** — e.g. CallMeBot limits, expired API key, or URL format; workflow strips duplicate `text=` query params before sending (see script comments in YAML).
-5. **Gate** — scheduled runs are not guaranteed to start on the minute. The gate allows the intended **06:xx Nicosia** window plus a **narrow late slice** (local **07:xx** only while UTC is still **03**, first 45 minutes of that hour) so a delayed summer cron still runs tests and WhatsApp, without running the **second** daily cron (04 UTC → 07:xx local) twice. See `schedule-gate` in `.github/workflows/prod-critical-smoke.yml` and the job summary on each run (`should_run` + timestamps).
+1. **Job log** — each attempt logs GET / POST JSON / POST form results from `lib/whatsapp-webhook.mjs`.
+2. **Secret** — `WHATSAPP_WEBHOOK_URL` must be the provider URL **without** a baked-in `text=` placeholder (we set `text` on send).
+3. **Provider** — CallMeBot (or similar): API key active, phone linked, not rate-limited.
+4. **Scheduled workflows** — re-enable if GitHub paused them on an inactive repo.
+5. **Gate** — see `schedule-gate` in the workflow; only runs in the intended Nicosia morning window.
 
 ## Incident triage (quick)
 

@@ -416,12 +416,17 @@ jobs:
     continue-on-error: true
     timeout-minutes: 10
     steps:
-      - name: Send WhatsApp monitoring status (retries)
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Send WhatsApp monitoring status
         id: whatsapp
         continue-on-error: true
-        shell: bash
         env:
-          WEBHOOK_URL: ${{ secrets.WHATSAPP_WEBHOOK_URL }}
+          WHATSAPP_WEBHOOK_URL: ${{ secrets.WHATSAPP_WEBHOOK_URL }}
           PROD_RESULT: ${{ needs.prod-critical-smoke.result }}
           PROD_DOCTOR_UI_MONITOR_OUTCOME: ${{ needs.prod-critical-smoke.outputs.doctor_ui_monitor_outcome || 'skipped' }}
           INTEGRATION_RESULT: ${{ needs.business-critical-integration.result }}
@@ -429,134 +434,7 @@ jobs:
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           NOTIFY_ONLY: ${{ github.event.inputs.notify_only || 'false' }}
           EXTRA_MESSAGE: ${{ github.event.inputs.notification_message || '' }}
-        run: |
-          set -u
-
-          WEBHOOK_URL="$(echo -n "${WEBHOOK_URL:-}" | tr -d '\r\n')"
-          if [ -z "${WEBHOOK_URL}" ]; then
-            echo "::error::WHATSAPP_WEBHOOK_URL is empty or missing."
-            exit 1
-          fi
-
-          # Many WhatsApp webhook secrets embed `text=` in the URL (e.g. CallMeBot templates).
-          # Strip any existing `text=` segment so curl `-G` + `--data-urlencode "text=..."` sends
-          # exactly one message param (duplicate/empty `text=` breaks delivery; see workflow history).
-          SEND_URL="$(printf '%s' "${WEBHOOK_URL}" | sed -E 's/([?&])text=[^&]*(&|$)/\1\2/g' | sed -E 's/\?&/\?/g; s/&&/&/g; s/[?&]$//')"
-
-          OVERALL_RESULT="success"
-          if [ "${PROD_RESULT}" != "success" ] || [ "${INTEGRATION_RESULT}" != "success" ]; then
-            OVERALL_RESULT="failure"
-          fi
-
-          format_job_status() {
-            case "$1" in
-              success) echo "✅ $2 OK" ;;
-              cancelled) echo "⚠️ $2 CANCELLED" ;;
-              *) echo "❌ $2 FAIL" ;;
-            esac
-          }
-
-          format_non_blocking_status() {
-            case "$1" in
-              success) echo "✅ $2 OK (non-blocking)" ;;
-              cancelled) echo "⚠️ $2 CANCELLED (non-blocking)" ;;
-              skipped) echo "⚪ $2 SKIPPED (non-blocking)" ;;
-              *) echo "⚠️ $2 FAIL (non-blocking)" ;;
-            esac
-          }
-
-          PROD_LINE="$(format_job_status "${PROD_RESULT}" "Prod")"
-          INTEGRATION_LINE="$(format_job_status "${INTEGRATION_RESULT}" "Integration")"
-          DOCTOR_UI_MONITOR_LINE="$(format_non_blocking_status "${PROD_DOCTOR_UI_MONITOR_OUTCOME}" "Doctor login/agenda UI monitor")"
-
-          HAS_NON_BLOCKING_WARNING="false"
-          if [ "${PROD_DOCTOR_UI_MONITOR_OUTCOME}" != "success" ] && [ "${PROD_DOCTOR_UI_MONITOR_OUTCOME}" != "skipped" ]; then
-            HAS_NON_BLOCKING_WARNING="true"
-          fi
-
-          case "${OVERALL_RESULT}" in
-            success) ICON="✅" ;;
-            cancelled) ICON="⚠️" ;;
-            *) ICON="❌" ;;
-          esac
-
-          if [ "${OVERALL_RESULT}" = "success" ] && [ "${HAS_NON_BLOCKING_WARNING}" = "true" ]; then
-            ICON="⚠️"
-          fi
-
-          if [ "${NOTIFY_ONLY}" = "true" ]; then
-            MSG="🧪 DocCy PROD manual WhatsApp test | run ${RUN_ID}"
-          else
-            MSG="${ICON} DocCy nightly | ${PROD_LINE} | ${INTEGRATION_LINE} | ${DOCTOR_UI_MONITOR_LINE} | run ${RUN_ID}"
-          fi
-          if [ -n "${EXTRA_MESSAGE}" ]; then
-            MSG="${MSG} | ${EXTRA_MESSAGE}"
-          fi
-
-          wa_host="$(printf '%s' "${SEND_URL}" | sed -E 's#^https?://([^/?#]+).*#\1#')"
-          {
-            echo "## WhatsApp (notify-whatsapp)"
-            echo "- **Run:** ${RUN_URL}"
-            echo "- **Prod:** ${PROD_RESULT} | **Integration:** ${INTEGRATION_RESULT}"
-            echo "- **Doctor UI monitor:** ${PROD_DOCTOR_UI_MONITOR_OUTCOME}"
-            echo "- **Webhook host:** \`${wa_host}\`"
-          } >> "${GITHUB_STEP_SUMMARY}"
-
-          attempt=1
-          max_attempts=3
-          while [ "${attempt}" -le "${max_attempts}" ]; do
-            echo "WhatsApp attempt ${attempt}/${max_attempts}"
-            # Some webhook providers intermittently stall before first byte.
-            # Use longer network timeouts and try common webhook patterns (GET + POST).
-            if curl -fsS \
-              --connect-timeout 15 \
-              --max-time 60 \
-              --retry 2 \
-              --retry-delay 2 \
-              --retry-all-errors \
-              -G "${SEND_URL}" \
-              --data-urlencode "text=${MSG}"; then
-              echo "sent=true" >> "$GITHUB_OUTPUT"
-              echo "- **Delivery:** OK (GET, attempt ${attempt})" >> "${GITHUB_STEP_SUMMARY}"
-              exit 0
-            fi
-
-            # Fallback: JSON POST webhooks.
-            if curl -fsS \
-              --connect-timeout 15 \
-              --max-time 60 \
-              --retry 2 \
-              --retry-delay 2 \
-              --retry-all-errors \
-              -H "Content-Type: application/json" \
-              -X POST "${SEND_URL}" \
-              --data "$(MSG="${MSG}" python3 -c 'import json, os; print(json.dumps({"text": os.environ["MSG"]}))')"; then
-              echo "sent=true" >> "$GITHUB_OUTPUT"
-              echo "- **Delivery:** OK (JSON POST, attempt ${attempt})" >> "${GITHUB_STEP_SUMMARY}"
-              exit 0
-            fi
-
-            # Fallback: form-style POST webhooks.
-            if curl -fsS \
-              --connect-timeout 15 \
-              --max-time 60 \
-              --retry 2 \
-              --retry-delay 2 \
-              --retry-all-errors \
-              -X POST "${SEND_URL}" \
-              --data-urlencode "text=${MSG}"; then
-              echo "sent=true" >> "$GITHUB_OUTPUT"
-              echo "- **Delivery:** OK (form POST, attempt ${attempt})" >> "${GITHUB_STEP_SUMMARY}"
-              exit 0
-            fi
-            sleep $((attempt * 5))
-            attempt=$((attempt + 1))
-          done
-
-          echo "::error::WhatsApp delivery failed after ${max_attempts} attempts."
-          echo "- **Delivery:** FAILED (see job log for curl errors)" >> "${GITHUB_STEP_SUMMARY}"
-          echo "sent=false" >> "$GITHUB_OUTPUT"
-          exit 1
+        run: node scripts/send-whatsapp-monitoring.mjs
 
       # With continue-on-error on the WhatsApp step, GitHub sets outcome=success even when curl fails;
       # use conclusion to detect real delivery failure (otherwise issues never open — silent for days).
