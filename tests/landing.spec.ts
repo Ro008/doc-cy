@@ -132,6 +132,9 @@ test.describe("Landing page", () => {
       page.getByText(/What if a patient calls me by phone\? Will I have double bookings\?/i),
     ).toBeVisible();
     await expect(
+      page.getByText(/Will using DocCy create extra work for my front desk staff\?/i),
+    ).toBeVisible();
+    await expect(
       page.getByText(/Won't a private website give me more visibility than a profile\?/i),
     ).toBeVisible();
     await expect(

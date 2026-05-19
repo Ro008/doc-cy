@@ -255,6 +255,12 @@
           "answer1": "Not at all. DocCy is designed to be your single source of truth. When you or your secretary take a call, you simply add it to your DocCy calendar and (optionally) sync it with your Google/iOS calendar.",
           "answer2": "The slot is instantly blocked on your public profile, so no one can book it online. It is like having a digital shield for your schedule."
         },
+        "frontDeskWorkload": {
+          "question": "Will using DocCy create extra work for my front desk staff?",
+          "answer1": "Quite the contrary: it is designed to eliminate phone tag.",
+          "answer2": "Right now, your staff spends hours every day managing the \"calendar dance\": taking calls, checking availability, and playing back-and-forth.",
+          "answer3": "With DocCy, you shift your phone traffic to your digital profile. Patients request slots that fit your availability, and your staff simply clicks \"Approve\" on the dashboard. They spend zero time typing, spelling names, or searching for gaps. It doesn't add to their workload; it acts as a digital shield that protects them from unnecessary phone interruptions, allowing them to focus on the patients standing right in front of them."
+        },
         "patientHabit": {
           "question": "How do I get my current patients to start using this?",
           "answer1": "It is easier than you think. DocCy includes Practice Promotion tools: you can print a QR code for your reception or share your professional link by WhatsApp.",

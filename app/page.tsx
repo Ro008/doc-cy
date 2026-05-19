@@ -195,6 +195,14 @@ export default async function HomePage() {
       answers: [t("FAQ.items.doubleBookings.answer1"), t("FAQ.items.doubleBookings.answer2")],
     },
     {
+      question: t("FAQ.items.frontDeskWorkload.question"),
+      answers: [
+        t("FAQ.items.frontDeskWorkload.answer1"),
+        t("FAQ.items.frontDeskWorkload.answer2"),
+        t("FAQ.items.frontDeskWorkload.answer3"),
+      ],
+    },
+    {
       question: t("FAQ.items.patientHabit.question"),
       answers: [t("FAQ.items.patientHabit.answer1"), t("FAQ.items.patientHabit.answer2")],
     },
