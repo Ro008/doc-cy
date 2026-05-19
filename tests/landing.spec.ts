@@ -77,7 +77,7 @@ test.describe("Landing page", () => {
     await expect(page).toHaveURL(/\/#founders-pricing-card$/);
     await expect(
       page.getByRole("heading", {
-        name: /Special launch pricing for the first 100 practitioners across Cyprus/i,
+        name: /€19\/month\. Locked for life\./i,
       }),
     ).toBeVisible({ timeout: 5000 });
   });

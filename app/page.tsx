@@ -531,28 +531,21 @@ export default async function HomePage() {
 
           <div
             id="founders-pricing-card"
-            className="rounded-3xl border border-emerald-300/20 bg-slate-900/70 p-5 shadow-[0_0_56px_-22px_rgba(16,185,129,0.35)] backdrop-blur-md sm:p-7"
+            className="mx-auto max-w-lg rounded-3xl border border-emerald-300/20 bg-slate-900/70 p-5 shadow-[0_0_56px_-22px_rgba(16,185,129,0.35)] backdrop-blur-md sm:p-6"
           >
-            <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(280px,360px)] lg:items-start">
-              <div>
-                <p className="text-xs font-semibold tracking-[0.18em] text-emerald-300/95">
-                  {t("Pricing.badge")}
-                </p>
-                <h2 className="mt-2 max-w-2xl text-2xl font-semibold tracking-tight text-neutral-50 sm:text-3xl">
-                  {t("Pricing.title")}
-                </h2>
-                <div className="mt-4 rounded-2xl border border-slate-700/80 bg-slate-950/45 p-4">
-                  <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-300">
-                    {t("Pricing.why90Days")}
-                  </h3>
-                  <p className="mt-2 text-sm leading-relaxed text-slate-300">
-                    {t("Pricing.why90Desc")}
-                  </p>
-                </div>
-              </div>
+            <header>
+              <p className="text-center text-xs font-semibold tracking-[0.18em] text-emerald-300/95">
+                {t("Pricing.badge")}
+              </p>
+              <h2 className="mt-2 text-center text-2xl font-semibold tracking-tight text-neutral-50 sm:text-[1.65rem]">
+                {t("Pricing.title")}
+              </h2>
+              <p className="mt-2 text-center text-sm leading-relaxed text-slate-300">
+                {t("Pricing.subtitle")}
+              </p>
+            </header>
 
-              <FoundersPricingCard />
-            </div>
+            <FoundersPricingCard embedded />
           </div>
         </section>
         <section className="mx-auto w-full max-w-6xl pb-10 pt-2 sm:pb-12 [overflow-anchor:none]">

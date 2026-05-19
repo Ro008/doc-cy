@@ -205,24 +205,22 @@
       "foundingMemberStatus": "Founding Member",
       "standardPricing": "Standard Pricing",
       "loading": "Checking availability...",
-      "badge": "JOIN THE DocCy FOUNDING MEMBERS CLUB",
-      "title": "Special launch pricing for the first 100 practitioners across Cyprus",
-      "why90Days": "WHY 90 DAYS?",
-      "why90Desc": "We want you to test DocCy through a full business quarter, including holidays and seasonal shifts. It gives enough real-world data to judge impact on your practice with confidence.",
+      "badge": "FOUNDING MEMBERS CLUB",
+      "title": "€19/month. Locked for life.",
+      "subtitle": "Launch offer for the first 100 practices that register in Cyprus. Once the club is full, new sign-ups move to standard pricing.",
       "price": "€19/month",
       "oldPrice": "€49/month",
-      "limited": "Limited Availability: <spots>{count}</spots> spots remaining out of 100",
+      "limited": "<spots>{count}</spots> spots left of 100",
+      "trustLine": "No hidden costs. Cancel anytime.",
       "foundersUnavailable": "Founders Club offer is no longer available. Standard pricing is now active.",
       "benefits": {
-        "seoProfilePage": "SEO-Optimized profile page",
-        "appointments": "Unlimited appointments",
-        "support": "Direct support with us",
-        "directoryPriority": "Priority Search Ranking",
-        "directoryPriorityNote": "Priority placement in our professional directory"
+        "seoProfilePage": "Profile built to be found",
+        "appointments": "Unlimited bookings",
+        "support": "Direct support",
+        "directoryPriority": "Priority in Finder",
+        "directoryPriorityNote": "Higher placement in search"
       },
-      "cta": "Get my Professional Profile",
-      "microCopy": "The smartest alternative to a €2,000 website. Join the future of Cyprus healthcare management.",
-      "noCard": "No credit card needed to start. Join now to lock in €19/month for life before last spots run out."
+      "cta": "Get my Professional Profile"
     },
     "Visibility": {
       "eyebrow": "The End of the Expensive, Invisible Website",
