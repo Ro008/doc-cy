@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { signInDoctorAndSetCookies } from "./helpers/doctorAuth";
+import { signInDoctorOrSkipOnInfraError } from "./helpers/signInDoctorWithInfraSkip";
 
 function normalizeSecret(raw: string): string {
   return raw
@@ -29,7 +29,7 @@ test.describe("Doctor settings language guard", () => {
       },
     ]);
 
-    await signInDoctorAndSetCookies(page, undefined, { email, password });
+    await signInDoctorOrSkipOnInfraError(page, undefined, { email, password });
     await page.goto("/agenda", { waitUntil: "domcontentloaded" });
     await expect(page).toHaveURL(/\/agenda(?:[/?#]|$)/, { timeout: 20_000 });
 

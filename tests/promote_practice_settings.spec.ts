@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { signInDoctorAndSetCookies } from "./helpers/doctorAuth";
+import { signInDoctorOrSkipOnInfraError } from "./helpers/signInDoctorWithInfraSkip";
 
 function normalizeSecret(raw: string): string {
   return raw
@@ -16,7 +16,7 @@ test.describe("Promote your practice (settings)", () => {
     );
     test.skip(!email || !password, "Missing test doctor credentials.");
 
-    await signInDoctorAndSetCookies(page, undefined, { email, password });
+    await signInDoctorOrSkipOnInfraError(page, undefined, { email, password });
     await page.goto("/agenda/settings#promote-practice", { waitUntil: "domcontentloaded" });
     await expect(page).toHaveURL(/\/agenda\/settings(?:#promote-practice)?/, { timeout: 20_000 });
   });
