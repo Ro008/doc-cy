@@ -41,6 +41,8 @@ test.describe("Doctor settings language guard", () => {
     await expect(page.getByRole("button", { name: "Save settings" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Promote your practice" })).toBeVisible();
     await expect(page.getByText("Patients scan to open")).toBeVisible();
+    await expect(page.getByText("Phone and website scripts")).toBeVisible();
+    await expect(page.getByTestId("promote-voicemail-script")).toBeVisible();
 
     await expect(page.getByText("Προωθήστε το ιατρείο σας")).toHaveCount(0);
     await expect(page.getByText("Οι ασθενείς σκανάρουν για να ανοίξουν")).toHaveCount(0);

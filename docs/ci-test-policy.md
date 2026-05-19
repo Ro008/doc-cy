@@ -17,6 +17,8 @@ Rules:
 Current source of truth:
 - `.github/workflows/pr-integration.yml`
 
+**Support → Formspree (PR):** `tests/feedback_support_modal.spec.ts` — UI + success when POST is stubbed (build uses `NEXT_PUBLIC_FORMSPREE_ID=e2e_placeholder`). Real Formspree delivery is **local-only**: `tests/feedback_support_live_formspree.spec.ts`.
+
 **Removed from PR blocking (2026-05):** responsive authenticated navigation specs previously exercised `UserBar` + marketing footer surfaces. They were removed entirely from the repo because they repeatedly failed with Supabase `AuthApiError: Database error querying schema` (infra flake), not product bugs. See **Reintroduction criteria** below.
 
 ### 2) Nightly blocking (must pass every night)

@@ -155,6 +155,8 @@ jobs:
             tests/integration/needs_reschedule_slot_free.integration.spec.ts \
             tests/navigation.spec.ts \
             tests/feedback_support_modal.spec.ts \
+            tests/promote_practice_settings.spec.ts \
+            tests/doctor_settings_language_guard.spec.ts \
             tests/profile_structured_data.spec.ts \
             tests/schedule_constraints.spec.ts \
             tests/integration/finder_user_behaviors.integration.spec.ts \

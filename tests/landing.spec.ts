@@ -103,6 +103,22 @@ test.describe("Landing page", () => {
     expect(bounds.right).toBeLessThanOrEqual(bounds.viewportWidth - 4);
   });
 
+  test("adoption playbook section links to founders pricing", async ({ page }) => {
+    await page.goto("/");
+
+    const playbook = page.locator("#adoption-playbook");
+    await expect(
+      playbook.getByRole("heading", { name: /Shift phone traffic to the screen/i }),
+    ).toBeVisible();
+    await expect(
+      playbook.getByText(/Once you're verified, open Promote your practice in Settings/i),
+    ).toBeVisible();
+
+    const playbookCta = playbook.getByRole("link", { name: "See launch pricing", exact: true });
+    await expect(playbookCta).toBeVisible();
+    await expect(playbookCta).toHaveAttribute("href", "#founders-pricing-card");
+  });
+
   test("FAQ section shows key objections below pricing", async ({ page }) => {
     await page.goto("/#founders-pricing");
 

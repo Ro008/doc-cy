@@ -133,6 +133,8 @@ test.describe("Doctor dashboard", () => {
     await expect(page.getByText(/Patients scan to open|Οι ασθενείς σκανάρουν/i)).toBeVisible({
       timeout: 10000,
     });
+    await expect(page.getByTestId("promote-voicemail-script")).toBeVisible();
+    await expect(page.getByTestId("promote-website-script")).toBeVisible();
     const downloadBtn = page.getByRole("button", {
       name: /Download QR \(PNG\)|Λήψη QR \(PNG\)/i,
     });
