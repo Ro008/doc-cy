@@ -200,7 +200,7 @@ export function FinderFilters({
         </div>
       </div>
       <form
-        className="grid gap-3 sm:grid-cols-3"
+        className="grid gap-3 sm:grid-cols-3 sm:items-end"
         onSubmit={(e) => {
           e.preventDefault();
           submitNameSearch();
@@ -211,8 +211,10 @@ export function FinderFilters({
         aria-busy={isNavigating}
         className="contents disabled:cursor-not-allowed"
       >
-      <label className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-        District
+      <label className="flex flex-col gap-2">
+        <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+          District
+        </span>
         <select
           name="district"
           value={district}
@@ -221,7 +223,7 @@ export function FinderFilters({
             setDistrict(nextDistrict);
             applyFilters(nextDistrict, specialtyLabelFromSlug(specialtySlug), activeName);
           }}
-          className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950/80 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+          className="h-10 w-full rounded-xl border border-slate-700 bg-slate-950/80 px-3 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
         >
           <option value="">All districts</option>
           {districts.map((item) => (
@@ -231,8 +233,10 @@ export function FinderFilters({
           ))}
         </select>
       </label>
-      <label className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-        Specialty
+      <label className="flex flex-col gap-2">
+        <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+          Specialty
+        </span>
         <select
           name="specialty"
           value={specialtySlug}
@@ -243,7 +247,7 @@ export function FinderFilters({
               showPending: false,
             });
           }}
-          className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950/80 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+          className="h-10 w-full rounded-xl border border-slate-700 bg-slate-950/80 px-3 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
         >
           <option value="">All specialties</option>
           {mergedSpecialtyOptions.map((opt) => (
@@ -253,14 +257,11 @@ export function FinderFilters({
           ))}
         </select>
       </label>
-      <div>
-        <label
-          htmlFor="finder-name-filter"
-          className="text-xs font-semibold uppercase tracking-wide text-slate-400"
-        >
+      <label htmlFor="finder-name-filter" className="flex flex-col gap-2">
+        <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
           Name
-        </label>
-        <div className="relative mt-2">
+        </span>
+        <div className="relative">
           <input
             id="finder-name-filter"
             name="name"
@@ -269,7 +270,7 @@ export function FinderFilters({
             onChange={(e) => setName(e.target.value)}
             placeholder="Search by name..."
             enterKeyHint="search"
-            className="w-full rounded-xl border border-slate-700 bg-slate-950/80 py-2 pl-3 pr-11 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+            className="h-10 w-full rounded-xl border border-slate-700 bg-slate-950/80 pl-3 pr-11 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
           />
           <button
             type="submit"
@@ -280,7 +281,7 @@ export function FinderFilters({
             <Search className="h-4 w-4" strokeWidth={2.25} aria-hidden />
           </button>
         </div>
-      </div>
+      </label>
       </fieldset>
       </form>
       {showPaphosUrgentCareNote ? (

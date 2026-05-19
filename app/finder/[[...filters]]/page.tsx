@@ -7,6 +7,7 @@ import { languageThemeForLabel } from "@/lib/cyprus-languages";
 import { createServiceRoleClient } from "@/lib/supabase-service";
 import { doctorDashboardDisplayName } from "@/lib/doctor-display-name";
 import { FinderFilters } from "@/components/finder/FinderFilters";
+import { FinderResultsCount } from "@/components/finder/FinderResultsCount";
 import { FinderResultsTransition } from "@/components/finder/FinderResultsTransition";
 import { FinderStructuredData } from "@/components/finder/FinderStructuredData";
 import { FinderFaqSection } from "@/components/finder/FinderFaqSection";
@@ -490,6 +491,13 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
           ) : null}
 
           <section className="mt-6">
+            <FinderResultsCount
+              count={unifiedResults.length}
+              hasActiveFilters={hasActiveFilters}
+              districtLabel={activeDistrict ? districtLabel : undefined}
+              specialtyLabel={activeSpecialty ? specialtyLabel : undefined}
+              activeName={activeName || undefined}
+            />
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
               {unifiedResults.map((item) => {
                 if (item.kind === "registered") {
