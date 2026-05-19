@@ -1,15 +1,18 @@
 // app/page.tsx
 import {
+  BellRing,
   CalendarSync,
   CheckCircle2,
   ChevronDown,
+  ClipboardList,
   Globe,
   Moon,
   PhoneCall,
+  PhoneMissed,
   ShieldCheck,
   XCircle,
-  UserRound,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { FoundersPricingCard } from "@/components/landing/FoundersPricingCard";
 import { HomeLandingScroll } from "@/components/landing/HomeLandingScroll";
 import { getTranslations, getLocale } from "next-intl/server";
@@ -20,7 +23,7 @@ import { MarketingFooter } from "@/components/navigation/MarketingFooter";
 import { SupportInquiryLink } from "@/components/landing/SupportInquiryLink";
 
 type Benefit = {
-  icon: typeof CalendarSync;
+  icon: LucideIcon;
   title: string;
   body: string;
   iconWell: string;
@@ -65,27 +68,27 @@ export default async function HomePage() {
     t("AdoptionPlaybook.steps.websiteButton.result"),
   ];
 
-  const benefits: Benefit[] = [
+  const manualBookingPains: Benefit[] = [
     {
-      icon: CalendarSync,
-      title: t("Features.syncTitle"),
-      body: t("Features.syncDesc"),
+      icon: BellRing,
+      title: t("Features.painDistractionLabel"),
+      body: t("Features.painDistractionBody"),
       iconWell:
-        "bg-emerald-400/25 text-emerald-300 shadow-[0_0_24px_-4px_rgba(52,211,153,0.55)] ring-2 ring-emerald-400/50",
+        "bg-rose-400/20 text-rose-200 shadow-[0_0_20px_-6px_rgba(251,113,133,0.45)] ring-2 ring-rose-300/40",
     },
     {
-      icon: ShieldCheck,
-      title: t("Features.confirmTitle"),
-      body: t("Features.confirmDesc"),
+      icon: ClipboardList,
+      title: t("Features.painAdminDebtLabel"),
+      body: t("Features.painAdminDebtBody"),
       iconWell:
-        "bg-teal-400/30 text-teal-200 shadow-[0_0_24px_-4px_rgba(45,212,191,0.5)] ring-2 ring-teal-300/55",
+        "bg-amber-400/20 text-amber-200 shadow-[0_0_20px_-6px_rgba(251,191,36,0.45)] ring-2 ring-amber-300/40",
     },
     {
-      icon: UserRound,
-      title: t("Features.profileTitle"),
-      body: t("Features.profileDesc"),
+      icon: PhoneMissed,
+      title: t("Features.painSilentLeaksLabel"),
+      body: t("Features.painSilentLeaksBody"),
       iconWell:
-        "bg-sky-400/30 text-sky-200 shadow-[0_0_24px_-4px_rgba(56,189,248,0.5)] ring-2 ring-sky-300/55",
+        "bg-slate-400/20 text-slate-200 shadow-[0_0_20px_-6px_rgba(148,163,184,0.4)] ring-2 ring-slate-300/35",
     },
   ];
 
@@ -331,41 +334,40 @@ export default async function HomePage() {
 
         <section id="why-doccy" className="mx-auto w-full max-w-6xl pb-8 pt-2 sm:pb-10 [overflow-anchor:none]">
           <div className="rounded-3xl border border-emerald-300/20 bg-slate-900/65 p-5 shadow-[0_0_56px_-22px_rgba(16,185,129,0.28)] backdrop-blur-md sm:p-7">
-            <h2 className="text-2xl font-semibold tracking-tight text-neutral-50 sm:text-3xl">
-              {t("Features.heading")}
+            <p className="text-xs font-semibold tracking-[0.18em] text-emerald-300/95">
+              {t("Features.eyebrow")}
+            </p>
+            <h2 className="mt-2 max-w-3xl text-2xl font-semibold tracking-tight text-neutral-50 sm:text-3xl">
+              {t("Features.title")}
             </h2>
-            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate-300 sm:text-base">
-              {t("Features.scanLead")}
+            <p className="mt-3 max-w-3xl text-sm leading-relaxed text-slate-300 sm:text-base">
+              {t("Features.intro")}
             </p>
 
-            <ul className="mt-5 grid gap-4 lg:grid-cols-3">
-              {benefits.map(({ icon: Icon, title, body, iconWell }, idx) => (
-                <li key={title} className={benefitCardShell}>
-                  <div className="flex gap-4 sm:gap-4">
-                    <div
-                      className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl sm:h-14 sm:w-14 ${iconWell}`}
-                    >
-                      <Icon
-                        className="h-6 w-6 sm:h-7 sm:w-7"
-                        strokeWidth={2}
-                        aria-hidden
-                      />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-emerald-200/90">
-                        {String(idx + 1).padStart(2, "0")}
-                      </span>
-                      <p className="text-base font-bold leading-snug tracking-tight text-neutral-50">
-                        {title}
-                      </p>
-                      <p className="mt-0.5 text-sm font-normal leading-snug text-neutral-300">
-                        {body}
-                      </p>
-                    </div>
+            <p className="mt-6 text-sm font-semibold text-slate-200 sm:text-base">
+              {t("Features.painHeading")}
+            </p>
+            <ul className="mt-3 space-y-3">
+              {manualBookingPains.map(({ icon: Icon, title, body, iconWell }) => (
+                <li
+                  key={title}
+                  className="flex gap-3 rounded-xl border border-slate-700/60 bg-slate-950/40 px-3 py-3 sm:gap-4 sm:px-4"
+                >
+                  <div
+                    className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg sm:h-11 sm:w-11 ${iconWell}`}
+                  >
+                    <Icon className="h-5 w-5 sm:h-[1.35rem] sm:w-[1.35rem]" strokeWidth={2} aria-hidden />
                   </div>
+                  <p className="min-w-0 pt-0.5 text-sm leading-relaxed text-slate-300 sm:text-base">
+                    <span className="font-semibold text-slate-100">{title}:</span> {body}
+                  </p>
                 </li>
               ))}
             </ul>
+
+            <p className="mt-6 rounded-2xl border border-emerald-400/25 bg-emerald-400/10 px-4 py-3 text-sm font-medium leading-relaxed text-emerald-100 sm:text-base">
+              {t("Features.closing")}
+            </p>
           </div>
         </section>
 

@@ -107,14 +107,17 @@
       "ctaLogin": "Professional Login"
     },
     "Features": {
-      "heading": "Why DocCy?",
-      "scanLead": "Designed for healthcare and wellness professionals who want fewer interruptions and better control of their day.",
-      "syncTitle": "Your Schedule, Your Rules",
-      "syncDesc": "Google & Apple Calendar integration. See your real-time availability and manage requests from any device.",
-      "confirmTitle": "Patients Book Without Interruptions",
-      "confirmDesc": "Patients request a slot online instead of calling your practice. You confirm with one click and avoid constant WhatsApp back-and-forth.",
-      "profileTitle": "Train your patients to book smarter",
-      "profileDesc": "Use your unique QR code in your waiting room or share your professional link via WhatsApp. Stop being a 24/7 receptionist and let your patients book whenever it suits them, even while you sleep."
+      "eyebrow": "THE CHAOS OF PHONE-BASED BOOKING",
+      "title": "Your practice shouldn't feel like a call center",
+      "intro": "Every phone call you answer during patient care is a lost moment of focus. Every voicemail you return is a chore. Every \"calendar dance\" is a waste of time.",
+      "painHeading": "The reality of manual booking:",
+      "painDistractionLabel": "Distraction",
+      "painDistractionBody": "Every ring interrupts a consultation.",
+      "painAdminDebtLabel": "Admin Debt",
+      "painAdminDebtBody": "Your staff spends hours repeating availability, spelling names, and checking slots.",
+      "painSilentLeaksLabel": "Silent Leaks",
+      "painSilentLeaksBody": "Patients call after hours, get no answer, and book with the clinic down the street.",
+      "closing": "DocCy was built to stop this cycle."
     },
     "AdoptionPlaybook": {
       "eyebrow": "ADOPTION PLAYBOOK",
