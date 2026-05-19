@@ -66,9 +66,11 @@ test.describe("Landing i18n", () => {
         name: /€19\/μήνα\. Κλειδωμένο για πάντα\./i,
       }),
     ).toBeVisible({ timeout: 10000 });
-    await expect(
-      page.getByText(/Ιδρυτικό Μέλος|Κανονική Τιμολόγηση/i),
-    ).toBeVisible({ timeout: 10000 });
+    const pricingEl = page.locator("#founders-pricing-card");
+    await expect(pricingEl.getByText(/Ιδρυτικό Μέλος/i)).toBeVisible({ timeout: 10000 });
+    await expect(pricingEl.getByText(/Πρώτοι 3 μήνες δωρεάν/i)).toBeVisible({
+      timeout: 10000,
+    });
     await expect(
       page.getByRole("heading", { level: 2, name: /^Συχνές ερωτήσεις$/ }),
     ).toBeVisible({ timeout: 10000 });
