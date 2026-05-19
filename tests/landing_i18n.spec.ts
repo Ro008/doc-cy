@@ -30,7 +30,12 @@ test.describe("Landing i18n", () => {
       }),
     ).toBeVisible({ timeout: 10000 });
     await expect(
-      page.getByText(/JOIN THE\s+DocCy\s+FOUNDING MEMBERS CLUB/i),
+      page.getByText(/FOUNDING MEMBERS CLUB/i),
+    ).toBeVisible({ timeout: 10000 });
+    await expect(
+      page.getByRole("heading", {
+        name: /€19\/month\. Locked for life\./i,
+      }),
     ).toBeVisible({ timeout: 10000 });
 
     await expect(
@@ -54,14 +59,18 @@ test.describe("Landing i18n", () => {
       page.getByRole("link", { name: /Διεκδικήστε το προφίλ σας/i }),
     ).toBeVisible({ timeout: 10000 });
     await expect(
-      page.getByText(/ΓΙΝΕΣΤΕ ΜΕΛΟΣ ΤΟΥ CLUB ΙΔΡΥΤΙΚΩΝ ΜΕΛΩΝ DOC CY/),
+      page.getByText(/FOUNDING MEMBERS CLUB/i),
     ).toBeVisible({ timeout: 10000 });
     await expect(
-      page.getByText(/JOIN THE\s+DocCy\s+FOUNDING MEMBERS CLUB/i),
-    ).toHaveCount(0);
-    await expect(
-      page.getByText(/Ιδρυτικό Μέλος|Κανονική Τιμολόγηση/i),
+      page.getByRole("heading", {
+        name: /€19\/μήνα\. Κλειδωμένο για πάντα\./i,
+      }),
     ).toBeVisible({ timeout: 10000 });
+    const pricingEl = page.locator("#founders-pricing-card");
+    await expect(pricingEl.getByText(/Ιδρυτικό Μέλος/i)).toBeVisible({ timeout: 10000 });
+    await expect(pricingEl.getByText(/Πρώτοι 3 μήνες δωρεάν/i)).toBeVisible({
+      timeout: 10000,
+    });
     await expect(
       page.getByRole("heading", { level: 2, name: /^Συχνές ερωτήσεις$/ }),
     ).toBeVisible({ timeout: 10000 });

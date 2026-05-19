@@ -1,8 +1,8 @@
 import { test, expect } from "@playwright/test";
 import { authenticateDoctorViaPasswordUi } from "./helpers/doctorLogin";
 
-test.describe("Prod smoke: agenda and QR with authenticated session", () => {
-  test("doctor can access agenda and open QR modal", async ({ page }) => {
+test.describe("Prod smoke: agenda settings promote practice", () => {
+  test("doctor can open settings promote section with QR actions", async ({ page }) => {
     test.setTimeout(90_000);
     const baseUrl = process.env.PLAYWRIGHT_BASE_URL ?? "";
     const email = (process.env.TEST_DOCTOR_EMAIL ?? process.env.TEST_USER_EMAIL ?? "").trim();
@@ -21,14 +21,16 @@ test.describe("Prod smoke: agenda and QR with authenticated session", () => {
       page.getByText(/Weekly calendar on desktop · Daily focus on mobile/i)
     ).toBeVisible({ timeout: 20_000 });
 
-    const qrFab = page.getByRole("button", { name: /booking QR|QR|κρατήσεων/i });
-    await expect(qrFab).toBeVisible({ timeout: 10_000 });
-    await qrFab.click();
-
-    const qrDialog = page.getByRole("dialog");
-    await expect(qrDialog).toBeVisible({ timeout: 5_000 });
+    await page.goto(`${baseUrl.replace(/\/$/, "")}/agenda/settings#promote-practice`, {
+      waitUntil: "domcontentloaded",
+    });
+    await expect(page.getByRole("heading", { name: /Promote your practice/i })).toBeVisible({
+      timeout: 15_000,
+    });
+    await expect(page.getByRole("button", { name: /Print booking sign/i })).toBeVisible();
+    await expect(page.getByRole("button", { name: /Download QR \(PNG\)/i })).toBeVisible();
     await expect(
-      qrDialog.getByRole("button", { name: /Download QR \(PNG\)|Λήψη QR \(PNG\)/i })
-    ).toBeVisible();
+      page.getByRole("button", { name: /Promote your practice, booking QR/i })
+    ).toHaveCount(0);
   });
 });

@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { signInDoctorAndSetCookies } from "./helpers/doctorAuth";
+import { signInDoctorOrSkipOnInfraError } from "./helpers/signInDoctorWithInfraSkip";
 
 function normalizeSecret(raw: string): string {
   return raw
@@ -29,7 +29,7 @@ test.describe("Doctor settings language guard", () => {
       },
     ]);
 
-    await signInDoctorAndSetCookies(page, undefined, { email, password });
+    await signInDoctorOrSkipOnInfraError(page, undefined, { email, password });
     await page.goto("/agenda", { waitUntil: "domcontentloaded" });
     await expect(page).toHaveURL(/\/agenda(?:[/?#]|$)/, { timeout: 20_000 });
 
@@ -41,6 +41,8 @@ test.describe("Doctor settings language guard", () => {
     await expect(page.getByRole("button", { name: "Save settings" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Promote your practice" })).toBeVisible();
     await expect(page.getByText("Patients scan to open")).toBeVisible();
+    await expect(page.getByText("Phone and website scripts")).toBeVisible();
+    await expect(page.getByTestId("promote-voicemail-script")).toBeVisible();
 
     await expect(page.getByText("Προωθήστε το ιατρείο σας")).toHaveCount(0);
     await expect(page.getByText("Οι ασθενείς σκανάρουν για να ανοίξουν")).toHaveCount(0);

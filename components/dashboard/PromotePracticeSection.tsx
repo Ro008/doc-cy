@@ -3,8 +3,9 @@
 import * as React from "react";
 import { QRCodeCanvas } from "qrcode.react";
 import { Download, Printer, QrCode } from "lucide-react";
-import { getPublicBookingBaseUrl } from "@/lib/site-url";
 import { resolvePromotePracticeCopy } from "@/lib/promote-practice-copy";
+import { buildPublicProfileUrl } from "@/lib/promote-practice-script-templates";
+import { PromotePracticeScripts } from "@/components/dashboard/PromotePracticeScripts";
 
 function escapeHtml(s: string): string {
   return s
@@ -18,23 +19,21 @@ type Props = {
   slug: string | null | undefined;
   doctorName: string;
   localeLike?: string | null;
-  /** `modal`: flatter layout for the floating-action modal (no outer card). */
-  variant?: "card" | "modal";
 };
 
 export function PromotePracticeSection({
   slug,
   doctorName,
   localeLike,
-  variant = "card",
 }: Props) {
   const copy = React.useMemo(
     () => resolvePromotePracticeCopy(localeLike),
     [localeLike]
   );
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
+  const profileBookingUrl = slug ? buildPublicProfileUrl(slug) : "";
   const bookingUrl = slug
-    ? `${getPublicBookingBaseUrl()}/${encodeURIComponent(slug)}?utm_source=doctor_qr&utm_medium=profile_card&ref=doctor_profile_qr`
+    ? `${profileBookingUrl}?utm_source=doctor_qr&utm_medium=profile_card&ref=doctor_profile_qr`
     : "";
 
   const downloadPng = React.useCallback(() => {
@@ -137,8 +136,6 @@ export function PromotePracticeSection({
 </body>
 </html>`;
 
-    // Avoid window.open(): pop-up blockers return null and the print flow breaks.
-    // Printing from a same-origin hidden iframe works without extra permissions.
     const iframe = document.createElement("iframe");
     iframe.setAttribute("title", "DocCy booking sign");
     iframe.setAttribute("aria-hidden", "true");
@@ -193,58 +190,36 @@ export function PromotePracticeSection({
     });
   }, [slug, bookingUrl, doctorName, copy.printCta, copy.printPrepareFailed, copy.printDialogFailed]);
 
-  const shell = (className: string, children: React.ReactNode) =>
-    variant === "modal" ? (
-      <div className={className}>{children}</div>
-    ) : (
-      <section className={className}>{children}</section>
-    );
-
-  const outerMuted =
-    variant === "modal"
-      ? "space-y-4"
-      : "rounded-2xl border border-slate-800/80 bg-slate-900/40 p-5";
-
   if (!slug?.trim()) {
-    return shell(
-      outerMuted,
-      <>
+    return (
+      <section className="rounded-2xl border border-slate-800/80 bg-slate-900/40 p-5">
         <div className="flex items-center gap-2 text-amber-200/90">
           <QrCode className="h-5 w-5 shrink-0" aria-hidden />
           <h2 className="text-sm font-semibold text-slate-100">{copy.missingSlugTitle}</h2>
         </div>
-        <p className="mt-2 text-sm text-slate-400">
-          {copy.missingSlugBody}
-        </p>
-      </>
+        <p className="mt-2 text-sm text-slate-400">{copy.missingSlugBody}</p>
+      </section>
     );
   }
 
-  return shell(
-    outerMuted,
-    <>
-      {variant === "card" && (
-        <div className="flex items-center gap-2">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-300">
-            <QrCode className="h-4 w-4" strokeWidth={1.75} aria-hidden />
-          </div>
-          <div>
-            <h2 className="text-sm font-semibold text-slate-100">{copy.title}</h2>
-            <p className="text-xs text-slate-500">{copy.subtitle}</p>
-          </div>
+  return (
+    <section className="rounded-2xl border border-slate-800/80 bg-slate-900/40 p-5">
+      <div className="flex items-center gap-2">
+        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-300">
+          <QrCode className="h-4 w-4" strokeWidth={1.75} aria-hidden />
         </div>
-      )}
+        <div>
+          <h2 className="text-sm font-semibold text-slate-100">{copy.title}</h2>
+          <p className="text-xs text-slate-500">{copy.subtitle}</p>
+        </div>
+      </div>
 
-      <p className={`text-xs text-slate-500 ${variant === "card" ? "mt-4" : ""}`}>
+      <p className="mt-4 text-xs text-slate-500">
         {copy.patientsScanPrefix}{" "}
         <span className="break-all font-mono text-slate-400">{bookingUrl}</span>
       </p>
 
-      <div
-        className={`flex flex-col items-center gap-4 rounded-xl border border-slate-800/60 bg-white p-6 sm:flex-row sm:items-start sm:justify-center ${
-          variant === "card" ? "mt-4" : "mt-3"
-        }`}
-      >
+      <div className="mt-4 flex flex-col items-center gap-4 rounded-xl border border-slate-800/60 bg-white p-6 sm:flex-row sm:items-start sm:justify-center">
         <div className="rounded-lg bg-white p-2 shadow-inner ring-1 ring-slate-200/80">
           <QRCodeCanvas
             ref={canvasRef}
@@ -276,6 +251,16 @@ export function PromotePracticeSection({
           <p className="text-[11px] leading-relaxed text-slate-500">{copy.printHelper}</p>
         </div>
       </div>
-    </>
+
+      {profileBookingUrl && slug ? (
+        <PromotePracticeScripts
+          slug={slug}
+          doctorName={doctorName}
+          bookingUrl={profileBookingUrl}
+          localeLike={localeLike}
+          copy={copy}
+        />
+      ) : null}
+    </section>
   );
 }

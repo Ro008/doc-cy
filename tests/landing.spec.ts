@@ -77,7 +77,7 @@ test.describe("Landing page", () => {
     await expect(page).toHaveURL(/\/#founders-pricing-card$/);
     await expect(
       page.getByRole("heading", {
-        name: /Special launch pricing for the first 100 practitioners across Cyprus/i,
+        name: /€19\/month\. Locked for life\./i,
       }),
     ).toBeVisible({ timeout: 5000 });
   });
@@ -103,6 +103,22 @@ test.describe("Landing page", () => {
     expect(bounds.right).toBeLessThanOrEqual(bounds.viewportWidth - 4);
   });
 
+  test("adoption playbook section links to founders pricing", async ({ page }) => {
+    await page.goto("/");
+
+    const playbook = page.locator("#adoption-playbook");
+    await expect(
+      playbook.getByRole("heading", { name: /Shift phone traffic to the screen/i }),
+    ).toBeVisible();
+    await expect(
+      playbook.getByText(/Once you're verified, open Promote your practice in Settings/i),
+    ).toBeVisible();
+
+    const playbookCta = playbook.getByRole("link", { name: "See launch pricing", exact: true });
+    await expect(playbookCta).toBeVisible();
+    await expect(playbookCta).toHaveAttribute("href", "#founders-pricing-card");
+  });
+
   test("FAQ section shows key objections below pricing", async ({ page }) => {
     await page.goto("/#founders-pricing");
 
@@ -114,6 +130,9 @@ test.describe("Landing page", () => {
 
     await expect(
       page.getByText(/What if a patient calls me by phone\? Will I have double bookings\?/i),
+    ).toBeVisible();
+    await expect(
+      page.getByText(/Will using DocCy create extra work for my front desk staff\?/i),
     ).toBeVisible();
     await expect(
       page.getByText(/Won't a private website give me more visibility than a profile\?/i),

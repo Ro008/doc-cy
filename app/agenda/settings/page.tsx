@@ -343,18 +343,11 @@ export default async function AgendaSettingsPage() {
 
         <div id="promote-practice" className="mt-8 scroll-mt-24">
           {isVerified ? (
-            <>
-              <p className="mb-3 text-xs text-slate-500">
-                <span className="font-medium text-slate-400">Quick access:</span> use the floating{" "}
-                <span className="text-emerald-300/90">QR</span> button (bottom-right, above Feedback)
-                on any agenda page for the same poster and download.
-              </p>
-              <PromotePracticeSection
-                slug={doctor.slug}
-                doctorName={doctor.name}
-                localeLike={localeLike}
-              />
-            </>
+            <PromotePracticeSection
+              slug={doctor.slug}
+              doctorName={doctor.name}
+              localeLike={localeLike}
+            />
           ) : (
             <section className="rounded-2xl border border-slate-800/80 bg-slate-900/40 p-5">
               <h2 className="text-sm font-semibold text-slate-100">Promote your practice</h2>

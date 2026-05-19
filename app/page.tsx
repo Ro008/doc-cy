@@ -1,12 +1,18 @@
 // app/page.tsx
 import {
+  BellRing,
   CalendarSync,
   CheckCircle2,
   ChevronDown,
+  ClipboardList,
+  Globe,
+  Moon,
+  PhoneCall,
+  PhoneMissed,
   ShieldCheck,
   XCircle,
-  UserRound,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { FoundersPricingCard } from "@/components/landing/FoundersPricingCard";
 import { HomeLandingScroll } from "@/components/landing/HomeLandingScroll";
 import { getTranslations, getLocale } from "next-intl/server";
@@ -17,7 +23,7 @@ import { MarketingFooter } from "@/components/navigation/MarketingFooter";
 import { SupportInquiryLink } from "@/components/landing/SupportInquiryLink";
 
 type Benefit = {
-  icon: typeof CalendarSync;
+  icon: LucideIcon;
   title: string;
   body: string;
   iconWell: string;
@@ -32,27 +38,57 @@ export default async function HomePage() {
   const locale = await getLocale();
   const isGreek = locale === "el";
 
-  const benefits: Benefit[] = [
+  const adoptionPlaybookSteps: Benefit[] = [
     {
-      icon: CalendarSync,
-      title: t("Features.syncTitle"),
-      body: t("Features.syncDesc"),
+      icon: Moon,
+      title: t("AdoptionPlaybook.steps.weekendShield.title"),
+      body: t("AdoptionPlaybook.steps.weekendShield.body"),
       iconWell:
-        "bg-emerald-400/25 text-emerald-300 shadow-[0_0_24px_-4px_rgba(52,211,153,0.55)] ring-2 ring-emerald-400/50",
+        "bg-indigo-400/25 text-indigo-200 shadow-[0_0_24px_-4px_rgba(129,140,248,0.55)] ring-2 ring-indigo-300/50",
     },
     {
-      icon: ShieldCheck,
-      title: t("Features.confirmTitle"),
-      body: t("Features.confirmDesc"),
+      icon: PhoneCall,
+      title: t("AdoptionPlaybook.steps.liveHandoff.title"),
+      body: t("AdoptionPlaybook.steps.liveHandoff.body"),
       iconWell:
-        "bg-teal-400/30 text-teal-200 shadow-[0_0_24px_-4px_rgba(45,212,191,0.5)] ring-2 ring-teal-300/55",
+        "bg-amber-400/25 text-amber-200 shadow-[0_0_24px_-4px_rgba(251,191,36,0.5)] ring-2 ring-amber-300/55",
     },
     {
-      icon: UserRound,
-      title: t("Features.profileTitle"),
-      body: t("Features.profileDesc"),
+      icon: Globe,
+      title: t("AdoptionPlaybook.steps.websiteButton.title"),
+      body: t("AdoptionPlaybook.steps.websiteButton.body"),
       iconWell:
-        "bg-sky-400/30 text-sky-200 shadow-[0_0_24px_-4px_rgba(56,189,248,0.5)] ring-2 ring-sky-300/55",
+        "bg-violet-400/25 text-violet-200 shadow-[0_0_24px_-4px_rgba(167,139,250,0.5)] ring-2 ring-violet-300/55",
+    },
+  ];
+
+  const adoptionPlaybookResults = [
+    t("AdoptionPlaybook.steps.weekendShield.result"),
+    t("AdoptionPlaybook.steps.liveHandoff.result"),
+    t("AdoptionPlaybook.steps.websiteButton.result"),
+  ];
+
+  const manualBookingPains: Benefit[] = [
+    {
+      icon: BellRing,
+      title: t("Features.painDistractionLabel"),
+      body: t("Features.painDistractionBody"),
+      iconWell:
+        "bg-rose-400/20 text-rose-200 shadow-[0_0_20px_-6px_rgba(251,113,133,0.45)] ring-2 ring-rose-300/40",
+    },
+    {
+      icon: ClipboardList,
+      title: t("Features.painAdminDebtLabel"),
+      body: t("Features.painAdminDebtBody"),
+      iconWell:
+        "bg-amber-400/20 text-amber-200 shadow-[0_0_20px_-6px_rgba(251,191,36,0.45)] ring-2 ring-amber-300/40",
+    },
+    {
+      icon: PhoneMissed,
+      title: t("Features.painSilentLeaksLabel"),
+      body: t("Features.painSilentLeaksBody"),
+      iconWell:
+        "bg-slate-400/20 text-slate-200 shadow-[0_0_20px_-6px_rgba(148,163,184,0.4)] ring-2 ring-slate-300/35",
     },
   ];
 
@@ -160,6 +196,14 @@ export default async function HomePage() {
     {
       question: t("FAQ.items.doubleBookings.question"),
       answers: [t("FAQ.items.doubleBookings.answer1"), t("FAQ.items.doubleBookings.answer2")],
+    },
+    {
+      question: t("FAQ.items.frontDeskWorkload.question"),
+      answers: [
+        t("FAQ.items.frontDeskWorkload.answer1"),
+        t("FAQ.items.frontDeskWorkload.answer2"),
+        t("FAQ.items.frontDeskWorkload.answer3"),
+      ],
     },
     {
       question: t("FAQ.items.patientHabit.question"),
@@ -290,25 +334,66 @@ export default async function HomePage() {
 
         <section id="why-doccy" className="mx-auto w-full max-w-6xl pb-8 pt-2 sm:pb-10 [overflow-anchor:none]">
           <div className="rounded-3xl border border-emerald-300/20 bg-slate-900/65 p-5 shadow-[0_0_56px_-22px_rgba(16,185,129,0.28)] backdrop-blur-md sm:p-7">
-            <h2 className="text-2xl font-semibold tracking-tight text-neutral-50 sm:text-3xl">
-              {t("Features.heading")}
+            <p className="text-xs font-semibold tracking-[0.18em] text-emerald-300/95">
+              {t("Features.eyebrow")}
+            </p>
+            <h2 className="mt-2 max-w-3xl text-2xl font-semibold tracking-tight text-neutral-50 sm:text-3xl">
+              {t("Features.title")}
             </h2>
-            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate-300 sm:text-base">
-              {t("Features.scanLead")}
+            <p className="mt-3 max-w-3xl text-sm leading-relaxed text-slate-300 sm:text-base">
+              {t("Features.intro")}
             </p>
 
-            <ul className="mt-5 grid gap-4 lg:grid-cols-3">
-              {benefits.map(({ icon: Icon, title, body, iconWell }, idx) => (
+            <p className="mt-6 text-sm font-semibold text-slate-200 sm:text-base">
+              {t("Features.painHeading")}
+            </p>
+            <ul className="mt-3 space-y-3">
+              {manualBookingPains.map(({ icon: Icon, title, body, iconWell }) => (
+                <li
+                  key={title}
+                  className="flex gap-3 rounded-xl border border-slate-700/60 bg-slate-950/40 px-3 py-3 sm:gap-4 sm:px-4"
+                >
+                  <div
+                    className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg sm:h-11 sm:w-11 ${iconWell}`}
+                  >
+                    <Icon className="h-5 w-5 sm:h-[1.35rem] sm:w-[1.35rem]" strokeWidth={2} aria-hidden />
+                  </div>
+                  <p className="min-w-0 pt-0.5 text-sm leading-relaxed text-slate-300 sm:text-base">
+                    <span className="font-semibold text-slate-100">{title}:</span> {body}
+                  </p>
+                </li>
+              ))}
+            </ul>
+
+            <p className="mt-6 rounded-2xl border border-emerald-400/25 bg-emerald-400/10 px-4 py-3 text-sm font-medium leading-relaxed text-emerald-100 sm:text-base">
+              {t("Features.closing")}
+            </p>
+          </div>
+        </section>
+
+        <section
+          id="adoption-playbook"
+          className="mx-auto w-full max-w-6xl pb-8 pt-2 sm:pb-10 [overflow-anchor:none]"
+        >
+          <div className="rounded-3xl border border-emerald-300/20 bg-slate-900/65 p-5 shadow-[0_0_56px_-22px_rgba(16,185,129,0.28)] backdrop-blur-md sm:p-7">
+            <p className="text-xs font-semibold tracking-[0.18em] text-emerald-300/95">
+              {t("AdoptionPlaybook.eyebrow")}
+            </p>
+            <h2 className="mt-2 max-w-3xl text-2xl font-semibold tracking-tight text-neutral-50 sm:text-3xl">
+              {t("AdoptionPlaybook.title")}
+            </h2>
+            <p className="mt-3 max-w-3xl text-sm leading-relaxed text-slate-300 sm:text-base">
+              {t("AdoptionPlaybook.lead")}
+            </p>
+
+            <ul className="mt-6 grid gap-4 lg:grid-cols-3">
+              {adoptionPlaybookSteps.map(({ icon: Icon, title, body, iconWell }, idx) => (
                 <li key={title} className={benefitCardShell}>
-                  <div className="flex gap-4 sm:gap-4">
+                  <div className="flex gap-4">
                     <div
                       className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl sm:h-14 sm:w-14 ${iconWell}`}
                     >
-                      <Icon
-                        className="h-6 w-6 sm:h-7 sm:w-7"
-                        strokeWidth={2}
-                        aria-hidden
-                      />
+                      <Icon className="h-6 w-6 sm:h-7 sm:w-7" strokeWidth={2} aria-hidden />
                     </div>
                     <div className="min-w-0 flex-1">
                       <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-emerald-200/90">
@@ -317,14 +402,28 @@ export default async function HomePage() {
                       <p className="text-base font-bold leading-snug tracking-tight text-neutral-50">
                         {title}
                       </p>
-                      <p className="mt-0.5 text-sm font-normal leading-snug text-neutral-300">
-                        {body}
+                      <p className="mt-1 text-sm font-normal leading-snug text-neutral-300">{body}</p>
+                      <p className="mt-2 text-xs font-medium leading-relaxed text-emerald-100/90">
+                        {adoptionPlaybookResults[idx]}
                       </p>
                     </div>
                   </div>
                 </li>
               ))}
             </ul>
+
+            <p className="mt-5 max-w-3xl rounded-2xl border border-slate-700/80 bg-slate-950/45 px-4 py-3 text-sm leading-relaxed text-slate-300">
+              {t("AdoptionPlaybook.closing")}
+            </p>
+            <div className="mt-4 flex justify-center sm:justify-start">
+              <a
+                href="#founders-pricing-card"
+                className="inline-flex items-center gap-1.5 rounded-full border border-emerald-300/45 bg-emerald-400/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-100 transition hover:bg-emerald-400/20 hover:text-emerald-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/80"
+              >
+                {t("AdoptionPlaybook.cta")}
+                <ChevronDown className="h-3.5 w-3.5 motion-safe:animate-bounce" aria-hidden />
+              </a>
+            </div>
           </div>
         </section>
 
@@ -432,28 +531,21 @@ export default async function HomePage() {
 
           <div
             id="founders-pricing-card"
-            className="rounded-3xl border border-emerald-300/20 bg-slate-900/70 p-5 shadow-[0_0_56px_-22px_rgba(16,185,129,0.35)] backdrop-blur-md sm:p-7"
+            className="mx-auto max-w-lg rounded-3xl border border-emerald-300/20 bg-slate-900/70 p-5 shadow-[0_0_56px_-22px_rgba(16,185,129,0.35)] backdrop-blur-md sm:p-6"
           >
-            <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(280px,360px)] lg:items-start">
-              <div>
-                <p className="text-xs font-semibold tracking-[0.18em] text-emerald-300/95">
-                  {t("Pricing.badge")}
-                </p>
-                <h2 className="mt-2 max-w-2xl text-2xl font-semibold tracking-tight text-neutral-50 sm:text-3xl">
-                  {t("Pricing.title")}
-                </h2>
-                <div className="mt-4 rounded-2xl border border-slate-700/80 bg-slate-950/45 p-4">
-                  <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-300">
-                    {t("Pricing.why90Days")}
-                  </h3>
-                  <p className="mt-2 text-sm leading-relaxed text-slate-300">
-                    {t("Pricing.why90Desc")}
-                  </p>
-                </div>
-              </div>
+            <header>
+              <p className="text-center text-xs font-semibold tracking-[0.18em] text-emerald-300/95">
+                {t("Pricing.badge")}
+              </p>
+              <h2 className="mt-2 text-center text-2xl font-semibold tracking-tight text-neutral-50 sm:text-[1.65rem]">
+                {t("Pricing.title")}
+              </h2>
+              <p className="mt-2 text-center text-sm leading-relaxed text-slate-300">
+                {t("Pricing.subtitle")}
+              </p>
+            </header>
 
-              <FoundersPricingCard />
-            </div>
+            <FoundersPricingCard embedded />
           </div>
         </section>
         <section className="mx-auto w-full max-w-6xl pb-10 pt-2 sm:pb-12 [overflow-anchor:none]">
