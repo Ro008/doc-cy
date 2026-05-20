@@ -47,7 +47,7 @@ WHERE lower(trim(specialty)) IN (
   'psychology', 'psychologist', 'clinical psychology'
 );
 
-UPDATE public.doctors SET specialty = 'Medical Aesthetics & Laser'
+UPDATE public.doctors SET specialty = 'Laser & Medical Aesthetics'
 WHERE lower(trim(specialty)) IN (
   'medical aesthetics', 'aesthetics', 'aesthetic medicine', 'laser', 'laser therapy',
   'medical aesthetics & laser', 'aesthetic medicine & laser'
@@ -139,7 +139,7 @@ WHERE trim(coalesce(specialty, '')) <> ''
     'Pediatrics',
     'Dermatology',
     'Gynecology',
-    'Medical Aesthetics & Laser',
+    'Laser & Medical Aesthetics',
     'Physiotherapy & Rehabilitation',
     'Psychology',
     'Nutrition & Dietetics',
@@ -167,7 +167,7 @@ WHERE specialty IN (
     'Pediatrics',
     'Dermatology',
     'Gynecology',
-    'Medical Aesthetics & Laser',
+    'Laser & Medical Aesthetics',
     'Physiotherapy & Rehabilitation',
     'Psychology',
     'Nutrition & Dietetics',

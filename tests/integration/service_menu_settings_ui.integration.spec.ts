@@ -47,7 +47,7 @@ test.describe("Integration UI: doctor settings Service Menu", () => {
         .insert({
           auth_user_id: authUserId,
           name: `Service UI Doctor ${nonce}`,
-          specialty: "Medical Aesthetics & Laser",
+          specialty: "Laser & Medical Aesthetics",
           email: doctorEmail,
           phone: "+35799123456",
           languages: ["English"],

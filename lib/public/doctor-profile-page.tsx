@@ -28,8 +28,10 @@ import {
   DOCTOR_FIELD_LIST_METADATA,
   DOCTOR_FIELD_LIST_METADATA_NO_DISTRICT,
   DOCTOR_FIELD_LIST_PUBLIC_PROFILE,
+  DOCTOR_FIELD_LIST_PUBLIC_PROFILE_NO_GESY,
   DOCTOR_FIELD_LIST_PUBLIC_PROFILE_NO_LANG,
 } from "@/lib/doctor-fieldsets";
+import { GesyProviderBadge } from "@/components/brand/GesyProviderBadge";
 import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher";
 import { DocCyWordmark } from "@/components/brand/DocCyWordmark";
 import { getTranslations } from "next-intl/server";
@@ -51,6 +53,7 @@ type DoctorProfileRow = {
   slug: string;
   status: string;
   languages?: string[] | null;
+  is_gesy?: boolean | null;
 };
 
 export type PageProps = {
@@ -59,7 +62,7 @@ export type PageProps = {
 
 function isOptionalProfileColumnError(msg: string): boolean {
   return (
-    /(languages|district)/i.test(msg) &&
+    /(languages|district|is_gesy)/i.test(msg) &&
     (/schema cache|does not exist|column|Could not find|42703/i.test(msg) ||
       msg.includes("Could not find"))
   );
@@ -121,7 +124,26 @@ async function fetchPublicDoctorBySlug(
 
   if (first.error) {
     const msg = first.error.message ?? "";
-    if (isOptionalProfileColumnError(msg)) {
+    if (/is_gesy/i.test(msg)) {
+      const noGesy = await supabase
+        .from("doctors_public")
+        .select(DOCTOR_FIELD_LIST_PUBLIC_PROFILE_NO_GESY)
+        .eq("slug", slug)
+        .maybeSingle();
+      if (!noGesy.error && noGesy.data) {
+        row = { ...noGesy.data, is_gesy: false } as DoctorProfileRow;
+      } else {
+        const noGesyDoctors = await supabase
+          .from("doctors")
+          .select(DOCTOR_FIELD_LIST_PUBLIC_PROFILE_NO_GESY)
+          .eq("slug", slug)
+          .maybeSingle();
+        if (!noGesyDoctors.error && noGesyDoctors.data) {
+          row = { ...noGesyDoctors.data, is_gesy: false } as DoctorProfileRow;
+        }
+      }
+    }
+    if (!row && isOptionalProfileColumnError(msg)) {
       const second = await supabase
         .from("doctors")
         .select(basicList)
@@ -140,7 +162,12 @@ async function fetchPublicDoctorBySlug(
           );
           return { kind: "not_found" };
         }
-        row = { ...third.data, languages: null, district: null } as DoctorProfileRow;
+        row = {
+          ...third.data,
+          languages: null,
+          district: null,
+          is_gesy: false,
+        } as DoctorProfileRow;
       } else if (second.error || !second.data) {
         console.error(
           "[DocCy] Doctor profile fallback query failed:",
@@ -148,7 +175,7 @@ async function fetchPublicDoctorBySlug(
         );
         return { kind: "not_found" };
       } else {
-        row = { ...second.data, languages: null } as DoctorProfileRow;
+        row = { ...second.data, languages: null, is_gesy: false } as DoctorProfileRow;
       }
     } else {
       console.error("[DocCy] Doctor profile query failed:", first.error);
@@ -675,8 +702,13 @@ export default async function DoctorPage({ params }: PageProps) {
             </div>
             <div className="min-w-0 flex-1">
               <h1 className="text-balance leading-tight">
-                <span className="block text-3xl font-semibold tracking-tight text-slate-50 sm:text-4xl">
-                  {profile.name}
+                <span className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
+                  <span className="text-3xl font-semibold tracking-tight text-slate-50 sm:text-4xl">
+                    {profile.name}
+                  </span>
+                  {profile.is_gesy ? (
+                    <GesyProviderBadge size="xs" className="shrink-0" />
+                  ) : null}
                 </span>
                 <span className="mt-1.5 block text-base font-medium capitalize tracking-wide text-emerald-200/95 sm:text-lg">
                   {profile.specialty}

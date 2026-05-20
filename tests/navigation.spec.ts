@@ -26,6 +26,10 @@ test.describe("Navigation and routing", () => {
       page.getByRole("heading", { level: 1, name: /Health Professionals in Cyprus|Find a Professional/i })
     ).toBeVisible();
     await expect(page.locator("article").first()).toBeVisible();
+    const resultsCount = page.getByTestId("finder-results-count");
+    await expect(resultsCount).toBeVisible();
+    await expect(resultsCount).toContainText(/health professionals on DocCy across Cyprus/i);
+    await expect(resultsCount).toContainText(/\d+/);
     await expect(page.getByText("No professionals available right now. Please check back soon.")).toHaveCount(0);
     await expect(page.getByText("No professionals match these filters.")).toHaveCount(0);
 

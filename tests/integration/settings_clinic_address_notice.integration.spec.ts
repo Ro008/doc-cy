@@ -71,7 +71,7 @@ test.describe("Integration UI: settings clinic address notice (local only)", () 
         .insert({
           auth_user_id: authUserId,
           name: `Address Notice Doctor ${nonce}`,
-          specialty: "Medical Aesthetics & Laser",
+          specialty: "Laser & Medical Aesthetics",
           district: "Nicosia",
           clinic_address: "",
           email: doctorEmail,

@@ -7,11 +7,14 @@ import { languageThemeForLabel } from "@/lib/cyprus-languages";
 import { createServiceRoleClient } from "@/lib/supabase-service";
 import { doctorDashboardDisplayName } from "@/lib/doctor-display-name";
 import { FinderFilters } from "@/components/finder/FinderFilters";
+import { FinderResultsCount } from "@/components/finder/FinderResultsCount";
 import { FinderResultsTransition } from "@/components/finder/FinderResultsTransition";
 import { FinderStructuredData } from "@/components/finder/FinderStructuredData";
 import { FinderFaqSection } from "@/components/finder/FinderFaqSection";
+import { GesyProviderBadge } from "@/components/brand/GesyProviderBadge";
 import {
   ManualDirectoryDoctorClaimFooter,
+  ManualDirectoryReportIncorrectInfoLink,
   ManualDirectoryVoteButton,
 } from "@/components/finder/ManualDirectoryPatientActions";
 import {
@@ -53,6 +56,7 @@ type RegisteredFinderRow = {
   isTestProfile: boolean;
   /** Address as entered at registration. */
   clinic_address: string | null;
+  isGesy: boolean;
 };
 
 type ManualFinderRow = {
@@ -266,6 +270,7 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
 
   if (supabase) {
     const registeredSelectAttempts = [
+      "id, name, specialty, district, slug, email, languages, avatar_url, is_test_profile, clinic_address, is_gesy",
       "id, name, specialty, district, slug, email, languages, avatar_url, is_test_profile, clinic_address",
       "id, name, specialty, district, slug, email, languages, avatar_url, clinic_address",
       "id, name, specialty, district, slug, email, languages, avatar_url, is_test_profile",
@@ -320,6 +325,7 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
             avatarUrl: toPublicAvatarUrl(raw.avatar_url),
             isTestProfile: Boolean(raw.is_test_profile ?? false),
             clinic_address: (raw.clinic_address as string | null) ?? null,
+            isGesy: Boolean(raw.is_gesy ?? false),
           };
         })
         .filter(
@@ -490,6 +496,13 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
           ) : null}
 
           <section className="mt-6">
+            <FinderResultsCount
+              count={unifiedResults.length}
+              hasActiveFilters={hasActiveFilters}
+              districtLabel={activeDistrict ? districtLabel : undefined}
+              specialtyLabel={activeSpecialty ? specialtyLabel : undefined}
+              activeName={activeName || undefined}
+            />
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
               {unifiedResults.map((item) => {
                 if (item.kind === "registered") {
@@ -514,15 +527,20 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                             </div>
                           )}
                         </div>
-                        <div className="min-w-0 flex-1">
+                        <div className="min-w-0 flex-1 flex flex-col items-stretch gap-2 text-left">
                           <p className="text-[17px] font-bold leading-[1.2] tracking-tight text-slate-50">
                             {row.displayName}
                           </p>
-                          <p className="mt-2 inline-flex max-w-full items-center rounded-full border border-slate-700/80 bg-slate-900/90 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-300">
-                            <span className="whitespace-normal break-words text-center leading-snug">
+                          <span className="-ml-2 inline-flex max-w-full items-center self-start rounded-full border border-slate-700/80 bg-slate-900/90 px-2.5 py-1 text-left text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-300">
+                            <span className="whitespace-normal break-words leading-snug">
                               {row.specialty ?? "Specialty not set"}
                             </span>
-                          </p>
+                          </span>
+                          {row.isGesy ? (
+                            <div className="self-start">
+                              <GesyProviderBadge size="sm" />
+                            </div>
+                          ) : null}
                         </div>
                       </div>
                       <div className="mt-4 min-h-[64px]">
@@ -604,7 +622,7 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                           <p className="text-[17px] font-bold leading-[1.2] tracking-tight text-slate-50">
                             {row.displayName}
                           </p>
-                          <p className="mt-2 inline-flex max-w-full items-center rounded-full border border-slate-700/80 bg-slate-900/90 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-300">
+                          <p className="mt-2 -ml-2 inline-flex max-w-full items-center rounded-full border border-slate-700/80 bg-slate-900/90 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-300">
                             <span className="whitespace-normal break-words text-center leading-snug">
                               {row.specialty}
                             </span>
@@ -633,6 +651,13 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                         >
                           Open in Google Maps ↗
                         </a>
+                        <p className="mt-2.5">
+                          <ManualDirectoryReportIncorrectInfoLink
+                            displayName={row.displayName}
+                            specialty={row.specialty}
+                            district={row.district}
+                          />
+                        </p>
                       </div>
                       <div className="mt-3 border-t border-slate-800/50 pt-3">
                         <ManualDirectoryDoctorClaimFooter />

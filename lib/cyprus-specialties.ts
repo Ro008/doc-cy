@@ -8,7 +8,7 @@ export const CYPRUS_MASTER_SPECIALTIES = [
   "Pediatrics",
   "Dermatology",
   "Gynecology",
-  "Medical Aesthetics & Laser",
+  "Laser & Medical Aesthetics",
   "Physiotherapy & Rehabilitation",
   "Psychology",
   "Nutrition & Dietetics",

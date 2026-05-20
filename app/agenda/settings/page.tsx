@@ -14,6 +14,7 @@ import type {
 import { PromotePracticeSection } from "@/components/dashboard/PromotePracticeSection";
 import { FoundingMemberBadge } from "@/components/dashboard/FoundingMemberBadge";
 import { OnlineBookingsPauseToggle } from "@/components/dashboard/OnlineBookingsPauseToggle";
+import { GesyPatientsToggle } from "@/components/dashboard/GesyPatientsToggle";
 import { SignOutOtherSessionsButton } from "@/components/auth/SignOutOtherSessionsButton";
 import { doctorDashboardDisplayName } from "@/lib/doctor-display-name";
 import {
@@ -57,6 +58,7 @@ export default async function AgendaSettingsPage() {
     status?: string | null;
     is_specialty_approved?: boolean | null;
     subscription_tier?: string | null;
+    is_gesy?: boolean | null;
   } | null = null;
   let doctorError: unknown = null;
   const hasColError = (err: unknown, col: string): boolean =>
@@ -67,11 +69,20 @@ export default async function AgendaSettingsPage() {
     let res = await supabase
       .from("doctors")
       .select(
-        "id, name, avatar_url, phone, slug, specialty, languages, district, clinic_address, status, subscription_tier"
+        "id, name, avatar_url, phone, slug, specialty, languages, district, clinic_address, status, subscription_tier, is_gesy"
       )
       .eq("auth_user_id", user.id)
       .single();
 
+    if (res.error && hasColError(res.error, "is_gesy")) {
+      res = await supabase
+        .from("doctors")
+        .select(
+          "id, name, avatar_url, phone, slug, specialty, languages, district, clinic_address, status, subscription_tier"
+        )
+        .eq("auth_user_id", user.id)
+        .single();
+    }
     if (res.error && hasColError(res.error, "avatar_url")) {
       res = await supabase
         .from("doctors")
@@ -332,8 +343,9 @@ export default async function AgendaSettingsPage() {
           </div>
         </header>
 
-        <section className="w-full rounded-3xl border border-emerald-100/10 bg-slate-900/50 p-6 shadow-2xl shadow-slate-950/50 backdrop-blur-xl sm:p-8">
+        <section className="w-full space-y-5 rounded-3xl border border-emerald-100/10 bg-slate-900/50 p-6 shadow-2xl shadow-slate-950/50 backdrop-blur-xl sm:p-8">
           <SettingsForm initial={initial} />
+          <GesyPatientsToggle initialAcceptsGesy={Boolean(doctor.is_gesy)} />
         </section>
 
         <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">

@@ -4,6 +4,9 @@
  * internal_email, license_*, auth_user_id) so PostgREST never returns them to anon clients.
  */
 export const DOCTOR_FIELD_LIST_PUBLIC_PROFILE =
+  "id, name, specialty, bio, clinic_address, district, slug, status, languages, is_gesy" as const;
+
+export const DOCTOR_FIELD_LIST_PUBLIC_PROFILE_NO_GESY =
   "id, name, specialty, bio, clinic_address, district, slug, status, languages" as const;
 
 export const DOCTOR_FIELD_LIST_PUBLIC_PROFILE_NO_LANG =
