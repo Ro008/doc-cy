@@ -342,7 +342,9 @@ END $$;
 -- Run doctors_add_languages.sql + doctors_specialty_cleanup.sql first if `languages` /
 -- `is_specialty_approved` are missing.
 DROP VIEW IF EXISTS public.doctors_public;
-CREATE VIEW public.doctors_public AS
+CREATE VIEW public.doctors_public
+WITH (security_invoker = on)
+AS
 SELECT
   d.id,
   d.name,
@@ -353,7 +355,8 @@ SELECT
   d.status,
   d.languages,
   d.created_at,
-  d.is_specialty_approved
+  d.is_specialty_approved,
+  d.is_gesy
 FROM public.doctors d;
 
 GRANT SELECT ON public.doctors_public TO anon, authenticated;
