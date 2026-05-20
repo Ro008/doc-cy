@@ -11,6 +11,7 @@ import { FinderResultsCount } from "@/components/finder/FinderResultsCount";
 import { FinderResultsTransition } from "@/components/finder/FinderResultsTransition";
 import { FinderStructuredData } from "@/components/finder/FinderStructuredData";
 import { FinderFaqSection } from "@/components/finder/FinderFaqSection";
+import { GesyProviderBadge } from "@/components/brand/GesyProviderBadge";
 import {
   ManualDirectoryDoctorClaimFooter,
   ManualDirectoryVoteButton,
@@ -54,6 +55,7 @@ type RegisteredFinderRow = {
   isTestProfile: boolean;
   /** Address as entered at registration. */
   clinic_address: string | null;
+  isGesy: boolean;
 };
 
 type ManualFinderRow = {
@@ -267,6 +269,7 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
 
   if (supabase) {
     const registeredSelectAttempts = [
+      "id, name, specialty, district, slug, email, languages, avatar_url, is_test_profile, clinic_address, is_gesy",
       "id, name, specialty, district, slug, email, languages, avatar_url, is_test_profile, clinic_address",
       "id, name, specialty, district, slug, email, languages, avatar_url, clinic_address",
       "id, name, specialty, district, slug, email, languages, avatar_url, is_test_profile",
@@ -321,6 +324,7 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
             avatarUrl: toPublicAvatarUrl(raw.avatar_url),
             isTestProfile: Boolean(raw.is_test_profile ?? false),
             clinic_address: (raw.clinic_address as string | null) ?? null,
+            isGesy: Boolean(raw.is_gesy ?? false),
           };
         })
         .filter(
@@ -522,15 +526,20 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                             </div>
                           )}
                         </div>
-                        <div className="min-w-0 flex-1">
+                        <div className="min-w-0 flex-1 flex flex-col items-stretch gap-2 text-left">
                           <p className="text-[17px] font-bold leading-[1.2] tracking-tight text-slate-50">
                             {row.displayName}
                           </p>
-                          <p className="mt-2 inline-flex max-w-full items-center rounded-full border border-slate-700/80 bg-slate-900/90 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-300">
-                            <span className="whitespace-normal break-words text-center leading-snug">
+                          <span className="-ml-2 inline-flex max-w-full items-center self-start rounded-full border border-slate-700/80 bg-slate-900/90 px-2.5 py-1 text-left text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-300">
+                            <span className="whitespace-normal break-words leading-snug">
                               {row.specialty ?? "Specialty not set"}
                             </span>
-                          </p>
+                          </span>
+                          {row.isGesy ? (
+                            <div className="self-start">
+                              <GesyProviderBadge size="sm" />
+                            </div>
+                          ) : null}
                         </div>
                       </div>
                       <div className="mt-4 min-h-[64px]">
@@ -612,7 +621,7 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                           <p className="text-[17px] font-bold leading-[1.2] tracking-tight text-slate-50">
                             {row.displayName}
                           </p>
-                          <p className="mt-2 inline-flex max-w-full items-center rounded-full border border-slate-700/80 bg-slate-900/90 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-300">
+                          <p className="mt-2 -ml-2 inline-flex max-w-full items-center rounded-full border border-slate-700/80 bg-slate-900/90 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-300">
                             <span className="whitespace-normal break-words text-center leading-snug">
                               {row.specialty}
                             </span>
