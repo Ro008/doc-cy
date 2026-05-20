@@ -344,8 +344,8 @@ export default async function AgendaSettingsPage() {
         </header>
 
         <section className="w-full space-y-5 rounded-3xl border border-emerald-100/10 bg-slate-900/50 p-6 shadow-2xl shadow-slate-950/50 backdrop-blur-xl sm:p-8">
-          <GesyPatientsToggle initialAcceptsGesy={Boolean(doctor.is_gesy)} />
           <SettingsForm initial={initial} />
+          <GesyPatientsToggle initialAcceptsGesy={Boolean(doctor.is_gesy)} />
         </section>
 
         <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
