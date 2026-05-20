@@ -48,7 +48,7 @@ test.describe("Integration: public Service Menu section", () => {
         .insert({
           auth_user_id: authUserId,
           name: `Service Menu Doctor ${nonce}`,
-          specialty: "Medical Aesthetics & Laser",
+          specialty: "Laser & Medical Aesthetics",
           email: doctorEmail,
           phone: "+35799123456",
           languages: ["English"],
