@@ -3,6 +3,7 @@
 import * as React from "react";
 import { toast } from "sonner";
 import { PendingLink } from "@/components/navigation/PendingLink";
+import { emitOpenFeedback } from "@/lib/doccy-feedback";
 
 type ManualIdProps = {
   manualId: string;
@@ -79,6 +80,52 @@ export function ManualDirectoryVoteButton({
       className={`inline-flex w-full items-center justify-center rounded-xl border border-sky-500/55 bg-sky-500/15 px-4 py-2.5 text-sm font-semibold text-sky-100 transition hover:border-sky-400/70 hover:bg-sky-500/25 disabled:cursor-not-allowed disabled:opacity-60 ${className}`}
     >
       {pending ? "Voting..." : "Vote for Online Booking"}
+    </button>
+  );
+}
+
+type ManualListingContext = {
+  displayName: string;
+  specialty: string;
+  district: string;
+};
+
+function buildIncorrectInfoMessage(ctx: ManualListingContext): string {
+  return [
+    "I'm reporting incorrect information about a Health Finder listing.",
+    "",
+    `Professional: ${ctx.displayName}`,
+    `Specialty: ${ctx.specialty}`,
+    `District: ${ctx.district}`,
+    "",
+    "What seems incorrect:",
+    "",
+  ].join("\n");
+}
+
+/** Opens the global contact / feedback form with listing context pre-filled. */
+export function ManualDirectoryReportIncorrectInfoLink({
+  displayName,
+  specialty,
+  district,
+  className = "",
+}: ManualListingContext & { className?: string }) {
+  return (
+    <button
+      type="button"
+      onClick={() =>
+        emitOpenFeedback({
+          subject: "General Question",
+          message: buildIncorrectInfoMessage({
+            displayName,
+            specialty,
+            district,
+          }),
+        })
+      }
+      className={`text-[11px] font-medium text-slate-500 underline decoration-slate-600 underline-offset-2 transition hover:text-slate-400 hover:decoration-slate-500 ${className}`}
+    >
+      Report incorrect info
     </button>
   );
 }

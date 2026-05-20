@@ -14,6 +14,7 @@ import { FinderFaqSection } from "@/components/finder/FinderFaqSection";
 import { GesyProviderBadge } from "@/components/brand/GesyProviderBadge";
 import {
   ManualDirectoryDoctorClaimFooter,
+  ManualDirectoryReportIncorrectInfoLink,
   ManualDirectoryVoteButton,
 } from "@/components/finder/ManualDirectoryPatientActions";
 import {
@@ -650,6 +651,13 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                         >
                           Open in Google Maps ↗
                         </a>
+                        <p className="mt-2.5">
+                          <ManualDirectoryReportIncorrectInfoLink
+                            displayName={row.displayName}
+                            specialty={row.specialty}
+                            district={row.district}
+                          />
+                        </p>
                       </div>
                       <div className="mt-3 border-t border-slate-800/50 pt-3">
                         <ManualDirectoryDoctorClaimFooter />
