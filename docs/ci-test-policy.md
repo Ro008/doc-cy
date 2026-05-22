@@ -91,7 +91,7 @@ Move tests between lanes based on data:
 
 Workflow: `.github/workflows/prod-critical-smoke.yml` → job `notify-whatsapp` → `node scripts/send-whatsapp-monitoring.mjs`. Shared sender: `lib/whatsapp-webhook.mjs` (also used for founder signup alerts in `lib/notify-founder-new-registration.ts`). Secret: `WHATSAPP_WEBHOOK_URL` (see `docs/github-secrets-governance.md`).
 
-Schedule: two UTC crons plus `schedule-gate` so the heavy jobs (and WhatsApp) only run when local time in **Europe/Nicosia** is **06:00** (see comments in the workflow file).
+Schedule: one UTC cron (`30 3 * * *`) plus `schedule-gate` so jobs run when **Europe/Nicosia** local time is **05:00–13:59**. GitHub often starts scheduled workflows hours late; a narrow 06:00-only gate previously skipped smoke and WhatsApp for weeks while the workflow still showed green.
 
 Delivery failures use `steps.whatsapp.conclusion == 'failure'` to open a GitHub issue (the send step uses `continue-on-error: true`, so check `conclusion`, not `outcome`).
 
