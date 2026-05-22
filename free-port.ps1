@@ -36,18 +36,18 @@ if ($pids.Count -eq 0) {
   exit 1
 }
 
-foreach ($pid in $pids) {
-  $proc = Get-Process -Id $pid -ErrorAction SilentlyContinue
+foreach ($processId in $pids) {
+  $proc = Get-Process -Id $processId -ErrorAction SilentlyContinue
   $name = if ($proc) { $proc.ProcessName } else { "unknown" }
 
   # Safety: only auto-kill Node/Next processes unless -Force is provided.
   if (-not $Force -and $name -notin @("node", "next")) {
-    Write-Warning ("[free-port] Refusing to kill PID {0} ({1}). Use -Force to override." -f $pid, $name)
+    Write-Warning ("[free-port] Refusing to kill PID {0} ({1}). Use -Force to override." -f $processId, $name)
     continue
   }
 
-  Write-Host ("[free-port] Killing PID {0} ({1})..." -f $pid, $name)
-  taskkill /PID $pid /F | Out-Null
+  Write-Host ("[free-port] Killing PID {0} ({1})..." -f $processId, $name)
+  taskkill /PID $processId /F | Out-Null
 }
 
 Write-Host ("[free-port] Done. Re-check port {0} if needed." -f $Port)

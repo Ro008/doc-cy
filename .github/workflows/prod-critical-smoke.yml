@@ -21,14 +21,17 @@ on:
         default: ""
         type: string
   schedule:
-    # GitHub Actions cron is UTC (no fixed local timezone).
-    # Fire both candidate UTC slots, then gate in Europe/Nicosia so it runs only at 06:00 local.
-    - cron: "0 3 * * *" # 06:00 during EEST (UTC+3)
-    - cron: "0 4 * * *" # 06:00 during EET  (UTC+2)
+    # GitHub Actions cron is UTC. Scheduled runs are often delayed by hours (see schedule-gate).
+    - cron: "30 3 * * *" # ~06:30 Nicosia (EEST/EET); gate allows 05:00–13:59 local if delayed
 
 permissions:
   contents: read
   issues: write
+
+# Avoid overlapping nightly runs when GitHub queues multiple schedule triggers.
+concurrency:
+  group: production-monitoring-nightly
+  cancel-in-progress: false
 
 jobs:
   schedule-gate:
@@ -55,22 +58,13 @@ jobs:
           utc_h="$(date -u +%H)"
           echo "Nicosia local time: ${stamp} (local H=${nico_h} M=${nico_m}, UTC hour=${utc_h})"
 
-          # Scheduled workflows are not guaranteed to start on the minute. If we only allowed
-          # local hour == 06, a delayed 03:xx UTC run could become 07:xx local and skip everything
-          # (including WhatsApp) for that day.
-          #
-          # We run when:
-          # - local hour is 06 (intended nightly window), OR
-          # - local hour is still 07 but UTC hour is still 03 (delayed first cron in summer / EEST),
-          #   within the first ~45 minutes of that local hour — never the 04 UTC slot (07:xx local in summer).
+          # Scheduled workflows are often delayed (e.g. 03:30 UTC cron starting at 07:37 UTC).
+          # A narrow 06:00–07:45 window caused weeks of skipped smoke + WhatsApp (should_run=false).
+          # Allow morning local hours 05–13 so delayed runs still execute once per day.
+          nico_h_num=$((10#${nico_h}))
           should_run="false"
-          if [ "${nico_h}" = "06" ]; then
+          if [ "${nico_h_num}" -ge 5 ] && [ "${nico_h_num}" -le 13 ]; then
             should_run="true"
-          elif [ "${nico_h}" = "07" ] && [ "${utc_h}" = "03" ]; then
-            mm=$((10#${nico_m}))
-            if [ "${mm}" -le 45 ]; then
-              should_run="true"
-            fi
           fi
 
           if [ "${should_run}" = "true" ]; then
@@ -413,7 +407,6 @@ jobs:
     if: always() && needs.schedule-gate.outputs.should_run == 'true'
     needs: [schedule-gate, prod-critical-smoke, business-critical-integration]
     runs-on: ubuntu-latest
-    continue-on-error: true
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
