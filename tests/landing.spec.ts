@@ -119,6 +119,32 @@ test.describe("Landing page", () => {
     await expect(playbookCta).toHaveAttribute("href", "#founders-pricing-card");
   });
 
+  test("skepticism killer appears before founders pricing card", async ({ page }) => {
+    await page.goto("/#founders-pricing");
+
+    const skepticismHeading = page.getByRole("heading", {
+      level: 3,
+      name: /No more profiles collecting digital dust/i,
+    });
+    const pricingCard = page.locator("#founders-pricing-card");
+
+    await expect(skepticismHeading).toBeVisible({ timeout: 10000 });
+    await expect(
+      page.getByText(/before you ever pay a single cent/i),
+    ).toBeVisible();
+    await expect(pricingCard).toBeVisible();
+
+    const order = await page.evaluate(() => {
+      const skepticism = document.getElementById("skepticism-killer-heading");
+      const pricing = document.getElementById("founders-pricing-card");
+      if (!skepticism || !pricing) return null;
+      return (
+        skepticism.compareDocumentPosition(pricing) & Node.DOCUMENT_POSITION_FOLLOWING
+      );
+    });
+    expect(order).toBeTruthy();
+  });
+
   test("FAQ section shows key objections below pricing", async ({ page }) => {
     await page.goto("/#founders-pricing");
 
@@ -141,6 +167,32 @@ test.describe("Landing page", () => {
       page.getByText(/Can my secretary or team manage the agenda for me\?/i),
     ).toBeVisible();
     await expect(page.getByText(/How long does it take to set up\? I am busy\./i)).toBeVisible();
+    await expect(
+      page.getByText(
+        /I’ve listed my practice on other directories before and got zero results\. Why is DocCy different\?/i,
+      ),
+    ).toBeVisible();
+  });
+
+  test("FAQ accordion reveals directories objection answer", async ({ page }) => {
+    await page.goto("/#founders-pricing");
+
+    const faqToggle = page
+      .locator("summary")
+      .filter({
+        hasText:
+          /I’ve listed my practice on other directories before and got zero results\. Why is DocCy different\?/i,
+      })
+      .first();
+    await expect(faqToggle).toBeVisible({ timeout: 10000 });
+    await faqToggle.click();
+
+    await expect(
+      page.getByText(/We only win when your clinic wins/i),
+    ).toBeVisible();
+    await expect(
+      page.getByText(/sit invisibly in a database/i),
+    ).toBeVisible();
   });
 
   test("FAQ accordion reveals answer for double bookings objection", async ({ page }) => {
