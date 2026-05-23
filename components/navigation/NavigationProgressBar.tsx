@@ -3,7 +3,7 @@
 import * as React from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 
-const START_EVENT = "doccy:navigation-start";
+import { NAVIGATION_START_EVENT } from "@/lib/doccy-navigation";
 
 function isInternalNavigableAnchor(anchor: HTMLAnchorElement): boolean {
   const href = anchor.getAttribute("href") || "";
@@ -75,10 +75,10 @@ export function NavigationProgressBar() {
     const onStartEvent = () => start();
 
     document.addEventListener("click", onDocClick, true);
-    window.addEventListener(START_EVENT, onStartEvent);
+    window.addEventListener(NAVIGATION_START_EVENT, onStartEvent);
     return () => {
       document.removeEventListener("click", onDocClick, true);
-      window.removeEventListener(START_EVENT, onStartEvent);
+      window.removeEventListener(NAVIGATION_START_EVENT, onStartEvent);
       stopTimers();
     };
   }, [start, stopTimers]);

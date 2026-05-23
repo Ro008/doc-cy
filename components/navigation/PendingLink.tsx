@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import * as React from "react";
 
-const START_EVENT = "doccy:navigation-start";
+import { emitNavigationStart } from "@/lib/doccy-navigation";
 
 type PendingLinkProps = {
   href: string;
@@ -43,7 +43,7 @@ export function PendingLink({
         }
         if (isHashNavigation) {
           event.preventDefault();
-          window.dispatchEvent(new Event(START_EVENT));
+          emitNavigationStart();
           if (href.startsWith("#")) {
             const target = document.querySelector(href);
             if (target instanceof HTMLElement) {
@@ -56,7 +56,7 @@ export function PendingLink({
           return;
         }
         event.preventDefault();
-        window.dispatchEvent(new Event(START_EVENT));
+        emitNavigationStart();
         setPending(true);
         router.push(href);
       }}

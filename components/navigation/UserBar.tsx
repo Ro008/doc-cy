@@ -5,12 +5,17 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import { UserMenuNavLink } from "@/components/navigation/UserMenuNavLink";
+import { UserBarMoreMenuItems } from "@/components/navigation/UserBarMoreMenuItems";
+import { MobileTabNavLink } from "@/components/navigation/MobileTabNavLink";
 import {
+  BarChart3,
   CalendarPlus,
   CalendarDays,
   LifeBuoy,
   LogOut,
   Megaphone,
+  MoreHorizontal,
   Settings,
   UserCircle,
   UserRound,
@@ -51,8 +56,11 @@ export function UserBar({ initialSessionState }: UserBarProps) {
     }
   );
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isMobileMoreOpen, setIsMobileMoreOpen] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
+  const mobileMoreMenuRef = useRef<HTMLDivElement | null>(null);
+  const mobileMoreAnchorRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     let isActive = true;
@@ -116,14 +124,22 @@ export function UserBar({ initialSessionState }: UserBarProps) {
 
   useEffect(() => {
     function onDocumentPointerDown(event: MouseEvent) {
-      if (!menuRef.current) return;
-      if (menuRef.current.contains(event.target as Node)) return;
+      const target = event.target as Node;
+      if (menuRef.current?.contains(target)) return;
+      if (mobileMoreMenuRef.current?.contains(target)) return;
+      if (mobileMoreAnchorRef.current?.contains(target)) return;
       setIsMenuOpen(false);
+      setIsMobileMoreOpen(false);
     }
 
     document.addEventListener("pointerdown", onDocumentPointerDown);
     return () => document.removeEventListener("pointerdown", onDocumentPointerDown);
   }, []);
+
+  useEffect(() => {
+    setIsMenuOpen(false);
+    setIsMobileMoreOpen(false);
+  }, [pathname]);
 
   function handleToggleMenu(event: React.MouseEvent<HTMLButtonElement>) {
     // Prevent outer pointer handlers from seeing this interaction as an outside click.
@@ -137,6 +153,7 @@ export function UserBar({ initialSessionState }: UserBarProps) {
       setIsSigningOut(true);
       await supabase.auth.signOut();
       setIsMenuOpen(false);
+      setIsMobileMoreOpen(false);
       router.push("/");
       router.refresh();
     } finally {
@@ -144,9 +161,20 @@ export function UserBar({ initialSessionState }: UserBarProps) {
     }
   }
 
-  function handleOpenSupport() {
+  function handleCloseMenus() {
     setIsMenuOpen(false);
+    setIsMobileMoreOpen(false);
+  }
+
+  function handleOpenSupport() {
+    handleCloseMenus();
     emitOpenFeedback({ subject: "General Question" });
+  }
+
+  function handleToggleMobileMore(event: React.MouseEvent<HTMLButtonElement>) {
+    event.preventDefault();
+    event.stopPropagation();
+    setIsMobileMoreOpen((prev) => !prev);
   }
 
   const isDistractionFreeDoctorFlow = pathname.startsWith("/dashboard/appointments/");
@@ -162,10 +190,12 @@ export function UserBar({ initialSessionState }: UserBarProps) {
   const pathNorm = pathname.replace(/\/$/, "") || "/";
 
   const isAgendaActive = pathNorm === "/agenda";
+  const isInsightsActive = pathname.startsWith("/agenda/insights");
   const isSettingsActive = pathname.startsWith("/agenda/settings");
   const isPublicProfileActive = Boolean(
     slug && (pathNorm === `/${slug}` || pathNorm.endsWith(`/${slug}`)),
   );
+  const isMoreActive = isMobileMoreOpen || isPublicProfileActive;
 
   const tabBaseClass =
     "flex min-h-[3.25rem] flex-1 flex-col items-center justify-center gap-0.5 px-1 py-1 text-[10px] font-medium leading-tight transition active:scale-[0.98] sm:text-[11px]";
@@ -238,63 +268,61 @@ export function UserBar({ initialSessionState }: UserBarProps) {
               </div>
             </div>
 
-            <Link
+            <UserMenuNavLink
               href="/agenda?manual=1"
               title="Took a phone call? Block the slot manually here. Next time, share your link to save time."
               data-testid="userbar-link-manual-booking"
-              className="mb-1 flex items-center gap-2 rounded-xl border border-emerald-300/30 bg-emerald-500/10 px-3 py-2 text-sm font-semibold text-emerald-100 transition hover:bg-emerald-500/20"
-              role="menuitem"
+              className="mb-1 border border-emerald-300/30 bg-emerald-500/10 font-semibold text-emerald-100 hover:bg-emerald-500/20"
+              icon={<CalendarPlus className="h-4 w-4 text-emerald-200" aria-hidden />}
             >
-              <CalendarPlus className="h-4 w-4 text-emerald-200" aria-hidden />
               + Add Manual Booking
-            </Link>
-            <Link
+            </UserMenuNavLink>
+            <UserMenuNavLink
               href="/agenda"
               data-testid="userbar-link-agenda"
-              className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-slate-100 transition hover:bg-slate-800/90"
-              role="menuitem"
+              icon={<CalendarDays className="h-4 w-4 text-emerald-300" aria-hidden />}
             >
-              <CalendarDays className="h-4 w-4 text-emerald-300" aria-hidden />
               My Agenda
-            </Link>
-            <Link
+            </UserMenuNavLink>
+            <UserMenuNavLink
+              href="/agenda/insights"
+              data-testid="userbar-link-insights"
+              icon={<BarChart3 className="h-4 w-4 text-emerald-300" aria-hidden />}
+            >
+              Practice insights
+            </UserMenuNavLink>
+            <UserMenuNavLink
               href="/agenda/settings"
               data-testid="userbar-link-settings"
-              className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-slate-100 transition hover:bg-slate-800/90"
-              role="menuitem"
+              icon={<Settings className="h-4 w-4 text-emerald-300" aria-hidden />}
             >
-              <Settings className="h-4 w-4 text-emerald-300" aria-hidden />
               Settings
-            </Link>
-            <Link
+            </UserMenuNavLink>
+            <UserMenuNavLink
               href="/agenda/settings#promote-practice"
               data-testid="userbar-link-promote"
-              className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-slate-100 transition hover:bg-slate-800/90"
-              role="menuitem"
+              icon={<Megaphone className="h-4 w-4 text-emerald-300" aria-hidden />}
             >
-              <Megaphone className="h-4 w-4 text-emerald-300" aria-hidden />
               Promote Your Practice
-            </Link>
+            </UserMenuNavLink>
             <button
               type="button"
               onClick={handleOpenSupport}
               data-testid="userbar-action-support"
-              className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm text-slate-100 transition hover:bg-slate-800/90"
+              className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm text-slate-100 transition hover:bg-slate-800/90 active:scale-[0.99] active:bg-slate-800/90"
               role="menuitem"
             >
               <LifeBuoy className="h-4 w-4 text-emerald-300" aria-hidden />
               Support
             </button>
             {slug ? (
-              <Link
+              <UserMenuNavLink
                 href={publicProfilePath!}
                 data-testid="userbar-link-public-profile"
-                className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-slate-100 transition hover:bg-slate-800/90"
-                role="menuitem"
+                icon={<UserCircle className="h-4 w-4 text-emerald-300" aria-hidden />}
               >
-                <UserCircle className="h-4 w-4 text-emerald-300" aria-hidden />
                 View Public Profile
-              </Link>
+              </UserMenuNavLink>
             ) : null}
             <button
               type="button"
@@ -312,54 +340,93 @@ export function UserBar({ initialSessionState }: UserBarProps) {
       </div>
 
       {/* Mobile / tablet: fixed bottom tab bar (<lg) */}
+      {isMobileMoreOpen ? (
+        <button
+          type="button"
+          aria-label="Close menu"
+          data-testid="userbar-mobile-more-backdrop"
+          className="fixed inset-0 z-40 bg-slate-950/50 lg:hidden"
+          onClick={handleCloseMenus}
+        />
+      ) : null}
       <nav
         aria-label="Professional navigation"
         data-testid="userbar-mobile-tabs"
-        className="fixed inset-x-0 bottom-0 z-50 overflow-hidden border-t border-white/20 bg-slate-900/55 pb-[env(safe-area-inset-bottom,0px)] shadow-[0_-10px_35px_rgba(2,6,23,0.45)] backdrop-blur-2xl supports-[backdrop-filter]:bg-slate-900/45 lg:hidden"
+        className="fixed inset-x-0 bottom-0 z-50 overflow-visible border-t border-white/20 bg-slate-900/55 pb-[env(safe-area-inset-bottom,0px)] shadow-[0_-10px_35px_rgba(2,6,23,0.45)] backdrop-blur-2xl supports-[backdrop-filter]:bg-slate-900/45 lg:hidden"
       >
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.16)_0%,rgba(255,255,255,0.03)_45%,rgba(255,255,255,0.01)_100%)]"
+          className="pointer-events-none absolute inset-0 overflow-hidden bg-[linear-gradient(180deg,rgba(255,255,255,0.16)_0%,rgba(255,255,255,0.03)_45%,rgba(255,255,255,0.01)_100%)]"
         />
+        {isMobileMoreOpen ? (
+          <div
+            ref={mobileMoreMenuRef}
+            role="menu"
+            data-testid="userbar-mobile-more-menu"
+            className="absolute inset-x-2 bottom-[calc(100%+0.35rem)] z-[60] overflow-hidden rounded-2xl border border-emerald-200/20 bg-slate-900/95 p-1.5 shadow-2xl shadow-slate-950/70 backdrop-blur"
+          >
+            <UserBarMoreMenuItems
+              publicProfilePath={publicProfilePath}
+              isSigningOut={isSigningOut}
+              onLogout={handleLogout}
+              onSupport={handleOpenSupport}
+              testIdPrefix="userbar-mobile-more"
+            />
+          </div>
+        ) : null}
         <div className="relative mx-auto flex max-w-2xl items-stretch justify-between gap-0 px-1 pt-0.5">
-          <Link
+          <MobileTabNavLink
             href="/agenda"
+            label="Agenda"
             data-testid="userbar-tab-agenda"
-            aria-current={isAgendaActive ? "page" : undefined}
-            className={`${tabBaseClass} ${isAgendaActive ? tabActiveClass : tabInactiveClass}`}
-          >
-            <CalendarDays className="h-5 w-5 shrink-0 sm:h-[1.35rem] sm:w-[1.35rem]" aria-hidden />
-            <span>Agenda</span>
-          </Link>
-          <Link
+            isActive={isAgendaActive}
+            baseClass={tabBaseClass}
+            activeClass={tabActiveClass}
+            inactiveClass={tabInactiveClass}
+            icon={
+              <CalendarDays className="h-5 w-5 shrink-0 sm:h-[1.35rem] sm:w-[1.35rem]" aria-hidden />
+            }
+          />
+          <MobileTabNavLink
+            href="/agenda/insights"
+            label="Insights"
+            data-testid="userbar-tab-insights"
+            isActive={isInsightsActive}
+            baseClass={tabBaseClass}
+            activeClass={tabActiveClass}
+            inactiveClass={tabInactiveClass}
+            icon={
+              <BarChart3 className="h-5 w-5 shrink-0 sm:h-[1.35rem] sm:w-[1.35rem]" aria-hidden />
+            }
+          />
+          <MobileTabNavLink
             href="/agenda/settings"
+            label="Settings"
             data-testid="userbar-tab-settings"
-            aria-current={isSettingsActive ? "page" : undefined}
-            className={`${tabBaseClass} ${isSettingsActive ? tabActiveClass : tabInactiveClass}`}
-          >
-            <Settings className="h-5 w-5 shrink-0 sm:h-[1.35rem] sm:w-[1.35rem]" aria-hidden />
-            <span>Settings</span>
-          </Link>
-          {publicProfilePath ? (
-            <Link
-              href={publicProfilePath}
-              data-testid="userbar-tab-public-profile"
-              aria-current={isPublicProfileActive ? "page" : undefined}
-              className={`${tabBaseClass} ${isPublicProfileActive ? tabActiveClass : tabInactiveClass}`}
+            isActive={isSettingsActive}
+            baseClass={tabBaseClass}
+            activeClass={tabActiveClass}
+            inactiveClass={tabInactiveClass}
+            icon={
+              <Settings className="h-5 w-5 shrink-0 sm:h-[1.35rem] sm:w-[1.35rem]" aria-hidden />
+            }
+          />
+          <div ref={mobileMoreAnchorRef} className="relative flex min-w-0 flex-1">
+            <button
+              type="button"
+              data-testid="userbar-tab-more"
+              aria-expanded={isMobileMoreOpen}
+              aria-haspopup="menu"
+              onClick={handleToggleMobileMore}
+              className={`${tabBaseClass} w-full ${isMoreActive ? tabActiveClass : tabInactiveClass}`}
             >
-              <UserCircle className="h-5 w-5 shrink-0 sm:h-[1.35rem] sm:w-[1.35rem]" aria-hidden />
-              <span className="max-w-[4.5rem] text-center">Profile</span>
-            </Link>
-          ) : null}
-          <button
-            type="button"
-            data-testid="userbar-tab-support"
-            onClick={() => emitOpenFeedback({ subject: "General Question" })}
-            className={`${tabBaseClass} ${tabInactiveClass}`}
-          >
-            <LifeBuoy className="h-5 w-5 shrink-0 sm:h-[1.35rem] sm:w-[1.35rem]" aria-hidden />
-            <span>Support</span>
-          </button>
+              <MoreHorizontal
+                className="h-5 w-5 shrink-0 sm:h-[1.35rem] sm:w-[1.35rem]"
+                aria-hidden
+              />
+              <span>More</span>
+            </button>
+          </div>
         </div>
       </nav>
     </>
