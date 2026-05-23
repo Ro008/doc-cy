@@ -230,6 +230,14 @@ export default async function HomePage() {
       ],
       contactCta: t("FAQ.items.setupTime.contactCta"),
     },
+    {
+      question: t("FAQ.items.directoriesZeroResults.question"),
+      answers: [
+        t("FAQ.items.directoriesZeroResults.answer1"),
+        t("FAQ.items.directoriesZeroResults.answer2"),
+        t("FAQ.items.directoriesZeroResults.answer3"),
+      ],
+    },
   ];
 
   return (
@@ -518,6 +526,24 @@ export default async function HomePage() {
             <p className="mt-5 max-w-4xl rounded-2xl border border-rose-300/25 bg-rose-950/20 px-4 py-3 text-sm leading-relaxed text-rose-100 sm:text-base">
               {t("Visibility.closing")}
             </p>
+
+            <article
+              className="mx-auto mt-8 max-w-2xl rounded-2xl border border-slate-700/80 bg-slate-950/55 px-5 py-6 sm:px-6 sm:py-7"
+              aria-labelledby="skepticism-killer-heading"
+            >
+              <h3
+                id="skepticism-killer-heading"
+                className="text-center text-lg font-semibold tracking-tight text-neutral-50 sm:text-xl"
+              >
+                {t("SkepticismKiller.title")}
+              </h3>
+              <div className="mt-4 space-y-3 text-sm leading-relaxed text-slate-300 sm:text-base">
+                <p>{t("SkepticismKiller.p1")}</p>
+                <p className="text-slate-200">{t("SkepticismKiller.p2")}</p>
+                <p>{t("SkepticismKiller.p3")}</p>
+              </div>
+            </article>
+
             <div className="mt-4 flex justify-center">
               <a
                 href="#founders-pricing-card"
