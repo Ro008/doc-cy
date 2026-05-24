@@ -7,3 +7,11 @@ export function getPublicBookingBaseUrl(): string {
   if (raw) return raw.replace(/\/$/, "");
   return "https://www.mydoccy.com";
 }
+
+/** Login URL that returns to a doctor dashboard path after sign-in. */
+export function getDoctorLoginUrl(nextPath = "/agenda", baseUrl?: string): string {
+  const base = (baseUrl?.trim() || getPublicBookingBaseUrl()).replace(/\/$/, "");
+  const url = new URL("/login", base);
+  url.searchParams.set("next", nextPath);
+  return url.toString();
+}
