@@ -1,3 +1,7 @@
+/**
+ * Manual booking E2E. Policy: optional UI fields must have an empty-field case — see
+ * docs/ci-test-policy.md § "Optional UI fields (PR tests, Pareto rule)".
+ */
 import { test, expect } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
 import { signInDoctorOrSkipOnInfraError } from "./helpers/signInDoctorWithInfraSkip";
