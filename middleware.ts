@@ -134,6 +134,7 @@ export async function middleware(req: NextRequest, event: NextFetchEvent) {
   if (pathname === "/agenda" || pathname.startsWith("/agenda/")) {
     if (!session) {
       const loginUrl = new URL("/login", req.url);
+      loginUrl.searchParams.set("next", pathname);
       return NextResponse.redirect(loginUrl);
     }
 
@@ -162,6 +163,7 @@ export async function middleware(req: NextRequest, event: NextFetchEvent) {
 
         if (isRevoked) {
           const loginUrl = new URL("/login", req.url);
+          loginUrl.searchParams.set("next", pathname);
           return NextResponse.redirect(loginUrl);
         }
       } else if ((doctorAuthError as {code?: string} | null)?.code !== "42703") {

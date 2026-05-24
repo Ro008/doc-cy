@@ -6,9 +6,10 @@ import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { PasswordToggleInput } from "@/components/auth/PasswordToggleInput";
 import { PendingLink } from "@/components/navigation/PendingLink";
 
-export function LoginPageClient() {
+export function LoginPageClient({ nextPath }: { nextPath?: string | null }) {
   const router = useRouter();
   const supabase = createClientComponentClient();
+  const destination = nextPath ?? "/agenda";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -42,7 +43,7 @@ export function LoginPageClient() {
       console.warn("[DocCy] Session audit failed", auditError);
     }
 
-    router.push("/agenda");
+    router.push(destination);
     router.refresh();
   }
 

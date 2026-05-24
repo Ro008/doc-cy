@@ -1,4 +1,55 @@
 {
+  "PracticeInsights": {
+    "pageTitle": "Practice insights",
+    "pageSubtitle": "Real numbers from your DocCy bookings — {name}",
+    "comingSoon": "Coming soon",
+    "hero": {
+      "eyebrow": "Time back for your front desk",
+      "hoursValue": "{hours} hours saved this month",
+      "minutesValue": "{minutes} minutes saved this month",
+      "body": "Based on confirmed bookings in {month}. Each online booking replaces roughly 4 minutes of phone tag at reception.",
+      "footnote": "Estimate uses 4 minutes per confirmed booking (availability check, spelling names, confirming the slot)."
+    },
+    "kpis": {
+      "heading": "Quick overview",
+      "totalBookings": {
+        "label": "Total bookings (this month)",
+        "hint": "Confirmed and pending requests created in {month}."
+      },
+      "weekendShield": {
+        "label": "Weekend shield",
+        "hint": "Confirmed visits booked outside your published hours — evenings, Saturdays, or Sundays."
+      },
+      "newPatients": {
+        "label": "New patients captured",
+        "hint": "First-time bookers through your profile."
+      }
+    },
+    "charts": {
+      "heading": "When patients book",
+      "tooltipBookings": "Bookings",
+      "weekdays": {
+        "monday": "Mon",
+        "tuesday": "Tue",
+        "wednesday": "Wed",
+        "thursday": "Thu",
+        "friday": "Fri",
+        "saturday": "Sat",
+        "sunday": "Sun"
+      },
+      "peakTimes": {
+        "title": "Peak booking times",
+        "subtitle": "Confirmed visits by day of week"
+      },
+      "peakHours": {
+        "subtitle": "By hour (Cyprus time)"
+      },
+      "visitReasons": {
+        "title": "Top reasons for visit",
+        "comingSoonNote": "Coming soon — visit reasons are still free text today. Once we structure this field, you will see which complaints drive the most bookings."
+      }
+    }
+  },
   "BookingPage": {
     "title": "Book an appointment",
     "bookButton": "Book appointment",

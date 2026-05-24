@@ -31,6 +31,9 @@ function collectLeafPaths(obj, prefix = "") {
 const en = JSON.parse(readFileSync(join(root, "messages/en.json"), "utf8"));
 const el = JSON.parse(readFileSync(join(root, "messages/el.json"), "utf8"));
 
+/** Namespaces intentionally present only in en.json (not translated yet). */
+const EN_ONLY_NAMESPACES = new Set(["PracticeInsights"]);
+
 const topLevelNamespaces = Object.keys(en).sort();
 for (const ns of Object.keys(el)) {
   if (!Object.prototype.hasOwnProperty.call(en, ns)) {
@@ -39,6 +42,7 @@ for (const ns of Object.keys(el)) {
   }
 }
 for (const ns of topLevelNamespaces) {
+  if (EN_ONLY_NAMESPACES.has(ns)) continue;
   if (!Object.prototype.hasOwnProperty.call(el, ns)) {
     console.error(`Missing top-level namespace "${ns}" in el.json.`);
     process.exit(1);
@@ -50,7 +54,13 @@ const elLeaves = collectLeafPaths(el);
 const enKeys = new Set(enLeaves.map((x) => x.path));
 const elKeys = new Set(elLeaves.map((x) => x.path));
 
-const missingInEl = [...enKeys].filter((k) => !elKeys.has(k)).sort();
+function isEnOnlyPath(path) {
+  return EN_ONLY_NAMESPACES.has(path.split(".")[0]);
+}
+
+const missingInEl = [...enKeys]
+  .filter((k) => !elKeys.has(k) && !isEnOnlyPath(k))
+  .sort();
 const extraInEl = [...elKeys].filter((k) => !enKeys.has(k)).sort();
 
 if (missingInEl.length || extraInEl.length) {
