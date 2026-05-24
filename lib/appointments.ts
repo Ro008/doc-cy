@@ -9,7 +9,7 @@ export type AppointmentRow = {
   doctor_id: string;
   patient_name: string;
   patient_phone: string;
-  patient_email: string;
+  patient_email: string | null;
   appointment_datetime: string; // UTC ISO (timestamptz)
   status: "REQUESTED" | "CONFIRMED" | "CANCELLED";
   reason?: string | null;

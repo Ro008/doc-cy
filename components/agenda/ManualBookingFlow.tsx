@@ -292,8 +292,10 @@ export function ManualBookingFlow({
 
   const whatsappLink = React.useMemo(() => {
     if (!success) return null;
+    const digits = (success.patientPhone ?? "").replace(/\D/g, "");
+    if (!digits) return null;
     const msg = `Hi ${success.patientName}, your appointment is confirmed for ${success.dateLabel} at ${success.timeLabel}. For future bookings, you can see my real-time availability and book directly here: ${success.profileUrl ?? ""}. See you soon!`;
-    return buildWhatsAppMessageLink(msg, success.patientPhone || null);
+    return buildWhatsAppMessageLink(msg, success.patientPhone);
   }, [success]);
 
   if (!open) return null;
@@ -335,7 +337,9 @@ export function ManualBookingFlow({
               {success.timeLabel} (Cyprus time).
             </p>
 
-            <div className="mt-6 grid gap-3 sm:grid-cols-3">
+            <div
+              className={`mt-6 grid gap-3 ${whatsappLink ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}
+            >
               <a
                 href={success.googleCalendarUrl}
                 target="_blank"
@@ -351,15 +355,17 @@ export function ManualBookingFlow({
               >
                 Add to iCal (.ics)
               </a>
-              <a
-                href={whatsappLink ?? "#"}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-green-400/40 bg-green-500/15 px-4 py-2.5 text-sm font-semibold text-green-100 transition hover:border-green-400/60 hover:bg-green-500/25"
-              >
-                <WhatsAppLogoIcon className="h-4 w-4" />
-                Share Link via WhatsApp
-              </a>
+              {whatsappLink ? (
+                <a
+                  href={whatsappLink}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center justify-center gap-2 rounded-2xl border border-green-400/40 bg-green-500/15 px-4 py-2.5 text-sm font-semibold text-green-100 transition hover:border-green-400/60 hover:bg-green-500/25"
+                >
+                  <WhatsAppLogoIcon className="h-4 w-4" />
+                  Share Link via WhatsApp
+                </a>
+              ) : null}
             </div>
 
             <button
