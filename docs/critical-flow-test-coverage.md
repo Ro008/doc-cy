@@ -32,7 +32,8 @@ PR blocking lane: `.github/workflows/pr-integration.yml` → job `PR Playwright 
 | Settings (clinic address notice) | `settings_clinic_address_notice.integration.spec.ts` | `prod_settings_profile_smoke.spec.ts` | |
 | Schedule constraints | `schedule_constraints.spec.ts` | — | Uses configured slug |
 | Multi-session / visit reason | `agenda_multisession_sync`, `agenda_visit_reason` (email guards step) | — | Desktop |
-| UserBar (desktop dropdown + mobile tabs) | **Gap** | Removed (flake) | Was `tests/user_bar.spec.ts` |
+| UserBar (desktop dropdown + mobile tabs) | Partial | `practice_insights.spec.ts`, `navigation_feedback.spec.ts` | Mobile tabs, no FAB, Settings loading affordance |
+| Practice insights page | `practice_insights.spec.ts` | — | English-only; mobile tab navigation to Insights |
 | Marketing footer + auth footer routing | **Gap** | Removed (flake) | Was `tests/footer_navigation.spec.ts` |
 
 ## Booking / appointments
@@ -56,7 +57,7 @@ PR blocking lane: `.github/workflows/pr-integration.yml` → job `PR Playwright 
 
 ## Prioritized gaps (business risk)
 
-1. **High — Doctor chrome after login:** bottom tabs vs dropdown, links to agenda/settings/profile/support (previously `user_bar`). No PR coverage until redesigned.
+1. **High — Doctor chrome after login:** partial via `practice_insights.spec.ts` + `navigation_feedback.spec.ts` (Agenda/Insights/Settings/More tabs; More menu; no mobile manual-booking FAB). Desktop dropdown not E2E-tested.
 2. **Medium — Footer visibility rules:** marketing vs `AuthAboutFooter` by route (previously `footer_navigation`). Manual/visual regression risk only.
 3. **Medium — Auth/session edge cases:** revocation, multi-session; have integration files but not in PR gate.
 4. **Lower — PWA install banner, brand consistency:** specs exist; optional for merge.

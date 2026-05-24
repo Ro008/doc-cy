@@ -21,6 +21,10 @@ Current source of truth:
 
 **Removed from PR blocking (2026-05):** responsive authenticated navigation specs previously exercised `UserBar` + marketing footer surfaces. They were removed entirely from the repo because they repeatedly failed with Supabase `AuthApiError: Database error querying schema` (infra flake), not product bugs. See **Reintroduction criteria** below.
 
+**PR (2026-05):** `tests/practice_insights.spec.ts` — insights English shell copy + mobile tab bar (four tabs, navigate to Insights via tab). Chromium, viewport resize, `signInDoctorOrSkipOnInfraError`. Same lane as `promote_practice_settings.spec.ts`; not nightly-only.
+
+**PR (2026-05):** `tests/navigation_feedback.spec.ts` — mobile agenda has no manual-booking FAB; Settings tab shows `navigation-progress-bar`, `aria-busy`, or URL during client navigation (Chromium, viewport 390).
+
 ### 2) Nightly blocking (must pass every night)
 
 Purpose: detect real production-impacting issues that PR cannot fully simulate.

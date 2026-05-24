@@ -156,6 +156,8 @@ jobs:
             tests/navigation.spec.ts \
             tests/feedback_support_modal.spec.ts \
             tests/promote_practice_settings.spec.ts \
+            tests/practice_insights.spec.ts \
+            tests/navigation_feedback.spec.ts \
             tests/doctor_settings_language_guard.spec.ts \
             tests/profile_structured_data.spec.ts \
             tests/schedule_constraints.spec.ts \

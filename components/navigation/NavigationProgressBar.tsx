@@ -91,7 +91,10 @@ export function NavigationProgressBar() {
   if (!visible) return null;
 
   return (
-    <div className="pointer-events-none fixed inset-x-0 top-0 z-[999] h-[3px] bg-transparent">
+    <div
+      data-testid="navigation-progress-bar"
+      className="pointer-events-none fixed inset-x-0 top-0 z-[999] h-[3px] bg-transparent"
+    >
       <div
         className="h-full bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.8)] transition-[width] duration-150 ease-out"
         style={{ width: `${progress}%` }}

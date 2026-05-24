@@ -61,6 +61,16 @@ export function UserBar({ initialSessionState }: UserBarProps) {
   const menuRef = useRef<HTMLDivElement | null>(null);
   const mobileMoreMenuRef = useRef<HTMLDivElement | null>(null);
   const mobileMoreAnchorRef = useRef<HTMLDivElement | null>(null);
+  const isMenuOpenRef = useRef(isMenuOpen);
+  const isMobileMoreOpenRef = useRef(isMobileMoreOpen);
+
+  useEffect(() => {
+    isMenuOpenRef.current = isMenuOpen;
+  }, [isMenuOpen]);
+
+  useEffect(() => {
+    isMobileMoreOpenRef.current = isMobileMoreOpen;
+  }, [isMobileMoreOpen]);
 
   useEffect(() => {
     let isActive = true;
@@ -123,35 +133,46 @@ export function UserBar({ initialSessionState }: UserBarProps) {
   }, [supabase]);
 
   useEffect(() => {
-    function onDocumentPointerDown(event: MouseEvent) {
+    function onDocumentClick(event: MouseEvent) {
+      if (!isMenuOpenRef.current && !isMobileMoreOpenRef.current) return;
+
       const target = event.target as Node;
       if (menuRef.current?.contains(target)) return;
       if (mobileMoreMenuRef.current?.contains(target)) return;
       if (mobileMoreAnchorRef.current?.contains(target)) return;
+      isMenuOpenRef.current = false;
+      isMobileMoreOpenRef.current = false;
       setIsMenuOpen(false);
       setIsMobileMoreOpen(false);
     }
 
-    document.addEventListener("pointerdown", onDocumentPointerDown);
-    return () => document.removeEventListener("pointerdown", onDocumentPointerDown);
+    document.addEventListener("click", onDocumentClick);
+    return () => document.removeEventListener("click", onDocumentClick);
   }, []);
 
   useEffect(() => {
+    isMenuOpenRef.current = false;
+    isMobileMoreOpenRef.current = false;
     setIsMenuOpen(false);
     setIsMobileMoreOpen(false);
   }, [pathname]);
 
   function handleToggleMenu(event: React.MouseEvent<HTMLButtonElement>) {
-    // Prevent outer pointer handlers from seeing this interaction as an outside click.
-    event.preventDefault();
     event.stopPropagation();
-    setIsMenuOpen((prev) => !prev);
+    setIsMenuOpen((prev) => {
+      const next = !prev;
+      isMenuOpenRef.current = next;
+      if (next) isMobileMoreOpenRef.current = false;
+      return next;
+    });
   }
 
   async function handleLogout() {
     try {
       setIsSigningOut(true);
       await supabase.auth.signOut();
+      isMenuOpenRef.current = false;
+      isMobileMoreOpenRef.current = false;
       setIsMenuOpen(false);
       setIsMobileMoreOpen(false);
       router.push("/");
@@ -162,6 +183,8 @@ export function UserBar({ initialSessionState }: UserBarProps) {
   }
 
   function handleCloseMenus() {
+    isMenuOpenRef.current = false;
+    isMobileMoreOpenRef.current = false;
     setIsMenuOpen(false);
     setIsMobileMoreOpen(false);
   }
@@ -172,9 +195,13 @@ export function UserBar({ initialSessionState }: UserBarProps) {
   }
 
   function handleToggleMobileMore(event: React.MouseEvent<HTMLButtonElement>) {
-    event.preventDefault();
     event.stopPropagation();
-    setIsMobileMoreOpen((prev) => !prev);
+    setIsMobileMoreOpen((prev) => {
+      const next = !prev;
+      isMobileMoreOpenRef.current = next;
+      if (next) isMenuOpenRef.current = false;
+      return next;
+    });
   }
 
   const isDistractionFreeDoctorFlow = pathname.startsWith("/dashboard/appointments/");
