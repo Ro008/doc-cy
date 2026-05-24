@@ -23,6 +23,10 @@ Current source of truth:
 
 **PR (2026-05):** `tests/practice_insights.spec.ts` — insights English shell copy + mobile tab bar (four tabs, navigate to Insights via tab). Chromium, viewport resize, `signInDoctorOrSkipOnInfraError`. Same lane as `promote_practice_settings.spec.ts`; not nightly-only.
 
+**PR (2026-05):** `tests/integration/monthly_digest.integration.spec.ts` — month-end digest metrics + email copy (login link with `next=/agenda/insights`). No Resend send in CI.
+
+**PR (2026-05):** `tests/agenda_auth.spec.ts` — unauthenticated `/agenda`, `/agenda/settings`, `/agenda/insights` redirect to login; insights preserves `next` query param.
+
 **PR (2026-05):** `tests/navigation_feedback.spec.ts` — mobile agenda has no manual-booking FAB; Settings tab shows `navigation-progress-bar`, `aria-busy`, or URL during client navigation (Chromium, viewport 390).
 
 ### 2) Nightly blocking (must pass every night)

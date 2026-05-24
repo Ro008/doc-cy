@@ -29,6 +29,20 @@ test.describe("Agenda route protection", () => {
     await expect(page.getByText(/^Settings$/i)).not.toBeVisible();
   });
 
+  test("unauthenticated user visiting /agenda/insights is redirected to login with next", async ({
+    page,
+  }) => {
+    await page.goto("/agenda/insights");
+
+    await expect(page).toHaveURL(/\/login/, { timeout: 10000 });
+    const url = new URL(page.url());
+    expect(url.searchParams.get("next")).toBe("/agenda/insights");
+    await expect(
+      page.getByRole("heading", { name: /Welcome back|Sign in/i })
+    ).toBeVisible({ timeout: 5000 });
+    await expect(page.getByRole("heading", { name: "Practice insights" })).not.toBeVisible();
+  });
+
   test("login page is functional after redirect (no broken redirect loop)", async ({
     page,
   }) => {
