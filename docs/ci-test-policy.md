@@ -89,6 +89,16 @@ Before adding PR-blocking tests that require programmatic Supabase password logi
 
 Inventory of critical flows vs tests: [`docs/critical-flow-test-coverage.md`](critical-flow-test-coverage.md).
 
+## Optional UI fields (PR tests, Pareto rule)
+
+When a **PR-blocking** flow labels a field **optional** in the UI, at least one test in that flow must submit it **empty** (omit or clear the input). Do not only test the “developer happy path” where every field is filled.
+
+- **One test per optional field group** is enough (e.g. manual booking: one case with no email and no phone; a separate case only if another optional field has distinct behavior, such as WhatsApp when phone is set).
+- Prefer the same test file as the happy path (`@booking-creates` E2E or integration spec that hits the API).
+- If the UI says optional but the database column is `NOT NULL`, the empty-field test should **fail in CI** — fix schema or copy, not the test.
+
+Current example: `tests/manual_booking_flow.spec.ts` (`doctor can create manual booking without email or phone`).
+
 ## Promotion / demotion rule
 
 Move tests between lanes based on data:
