@@ -45,6 +45,7 @@ test.describe("Prod smoke: appointment booking flow", () => {
         name: /Phone.*priority contact/i,
       });
       await phoneInput.fill("99123456");
+      await page.getByRole("radio", { name: /This is my first visit/i }).check();
       await page.locator("#visitReason").fill("Prod smoke — brief reason for visit.");
       await page.getByRole("button", { name: /Send booking request/i }).click();
 

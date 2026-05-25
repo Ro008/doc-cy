@@ -327,7 +327,7 @@ export default async function DashboardAppointmentDetailPage({
 
         <PendingLink
           href={`/agenda?date=${agendaDateKey}`}
-          className="mt-8 flex w-full items-center justify-center rounded-2xl bg-emerald-400 px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-300"
+          className="mt-8 flex w-full items-center justify-center rounded-2xl px-3 py-2 text-sm font-medium text-slate-500 transition hover:bg-slate-800/60 hover:text-emerald-200"
         >
           Open that day in agenda
         </PendingLink>

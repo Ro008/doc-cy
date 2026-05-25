@@ -33,7 +33,8 @@ test.describe("Practice insights (doctor dashboard)", () => {
     await expect(page.getByText("Back to agenda", { exact: true })).toHaveCount(0);
     await expect(page.getByText(REMOVED_COPY)).toHaveCount(0);
     await expect(page.getByText("Quick overview")).toBeVisible();
-    await expect(page.getByText("Coming soon").first()).toBeVisible();
+    await expect(page.getByText("New patients captured")).toBeVisible();
+    await expect(page.getByText("Coming soon")).toHaveCount(0);
   });
 
   test("mobile tab bar shows four tabs and navigates to insights", async ({ page }) => {

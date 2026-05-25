@@ -115,11 +115,11 @@ test.describe("Agenda multi-session sync", () => {
         .poll(
           async () => {
             await mobileCard.click();
-            const hasWhatsapp = await mobile
-              .getByRole("link", { name: /chat on whatsapp/i })
+            const hasReschedule = await mobile
+              .getByRole("button", { name: /Reschedule appointment/i })
               .count();
             await mobile.getByRole("button", { name: "Close" }).click();
-            return hasWhatsapp;
+            return hasReschedule;
           },
           { timeout: 20000, intervals: [1000, 2000, 3000] },
         )

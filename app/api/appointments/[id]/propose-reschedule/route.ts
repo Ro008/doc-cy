@@ -182,11 +182,17 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
     .eq("doctor_id", doctor.id);
 
   if (updateErr) {
-    console.error(updateErr);
-    return NextResponse.json(
-      { message: "Could not save the proposal." },
-      { status: 500 }
-    );
+    console.error("[DocCy] propose-reschedule update failed", updateErr);
+    const errMeta = updateErr as { code?: string; message?: string; hint?: string };
+    const body: Record<string, unknown> = {
+      message: "Could not save the proposal.",
+    };
+    if (process.env.NODE_ENV !== "production") {
+      body.code = errMeta.code ?? null;
+      body.details = errMeta.message ?? null;
+      body.hint = errMeta.hint ?? null;
+    }
+    return NextResponse.json(body, { status: 500 });
   }
 
   const siteUrl =

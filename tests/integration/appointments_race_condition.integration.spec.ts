@@ -149,6 +149,7 @@ test.describe("Integration: appointment race condition guard", () => {
         patientEmail: `race-a-${nonce}@integration.test`,
         patientPhone: "99123456",
         appointmentLocal: targetLocal,
+        isNewPatient: true,
         reason: "Integration race test — reason for visit.",
       };
       const payloadB = {
@@ -157,6 +158,7 @@ test.describe("Integration: appointment race condition guard", () => {
         patientEmail: `race-b-${nonce}@integration.test`,
         patientPhone: "99123456",
         appointmentLocal: targetLocal,
+        isNewPatient: true,
         reason: "Integration race test — reason for visit.",
       };
 

@@ -93,6 +93,7 @@ test.describe("Future appointments cancellation @booking-creates", () => {
             patientEmail,
             patientPhone,
             appointmentLocal,
+            isNewPatient: true,
             reason: visitReason,
           },
         });
@@ -199,7 +200,7 @@ test.describe("Future appointments cancellation @booking-creates", () => {
     await expect(dialog).toBeVisible({ timeout: 10000 });
 
     const startCancelBtn = dialog.getByRole("button", {
-      name: /^(Cancel|Decline)$/i,
+      name: /^(Cancel appointment|Decline request)$/i,
     });
     await expect(startCancelBtn).toBeVisible({ timeout: 10000 });
     await startCancelBtn.click();
