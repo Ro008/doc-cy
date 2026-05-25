@@ -27,6 +27,7 @@ import {
   escapeHtml,
 } from "@/lib/resend";
 import type { DoctorRow } from "@/lib/doctors";
+import { parseIsNewPatient } from "@/lib/patient-visit-status";
 import {
   normalizeAppointmentReason,
 } from "@/lib/visit-types";
@@ -71,6 +72,7 @@ export async function POST(req: NextRequest) {
     patientPhone,
     appointmentLocal,
     reason: rawReason,
+    isNewPatient: rawIsNewPatient,
   } = body as {
     doctorId?: string;
     doctorSlug?: string;
@@ -79,6 +81,7 @@ export async function POST(req: NextRequest) {
     patientPhone?: string;
     appointmentLocal?: string; // "YYYY-MM-DDTHH:mm" in Europe/Nicosia
     reason?: string;
+    isNewPatient?: unknown;
   };
 
   let doctorId = rawDoctorId;
@@ -117,6 +120,14 @@ export async function POST(req: NextRequest) {
   if (!reason) {
     return NextResponse.json(
       { message: "Please tell us briefly why you need this visit." },
+      { status: 400 }
+    );
+  }
+
+  const isNewPatient = parseIsNewPatient(rawIsNewPatient);
+  if (isNewPatient === null) {
+    return NextResponse.json(
+      { message: "Please tell us if this is your first visit with this professional." },
       { status: 400 }
     );
   }
@@ -333,6 +344,7 @@ export async function POST(req: NextRequest) {
       appointment_datetime: appointmentUtc.toISOString(),
       status: "REQUESTED",
       reason,
+      is_new_patient: isNewPatient,
       duration_minutes: slotDuration,
       // Exact moment the patient submitted the request (dashboard KPIs)
       created_at: bookedAtIso,

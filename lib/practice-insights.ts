@@ -14,6 +14,7 @@ export type InsightsAppointmentRow = {
   appointment_datetime: string;
   status: string;
   created_at: string | null;
+  is_new_patient?: boolean | null;
 };
 
 export type WeekdayBucketKey =
@@ -30,6 +31,7 @@ export type PracticeInsightsSnapshot = {
   phoneTimeSavedHours: number;
   confirmedThisMonth: number;
   totalBookingsThisMonth: number;
+  newPatientsCapturedThisMonth: number;
   weekendShieldCount: number;
   peakByWeekday: { day: WeekdayBucketKey; count: number }[];
   peakByHour: { hour: number; label: string; count: number }[];
@@ -120,6 +122,7 @@ export function buildPracticeInsights(
 
   let confirmedThisMonth = 0;
   let totalBookingsThisMonth = 0;
+  let newPatientsCapturedThisMonth = 0;
   let weekendShieldCount = 0;
 
   const weekdayCounts = Object.fromEntries(
@@ -136,6 +139,9 @@ export function buildPracticeInsights(
 
     if (inMonth && isActiveBookingStatus(status)) {
       totalBookingsThisMonth += 1;
+      if (row.is_new_patient === true) {
+        newPatientsCapturedThisMonth += 1;
+      }
     }
     if (inMonth && isConfirmedStatus(status)) {
       confirmedThisMonth += 1;
@@ -175,6 +181,7 @@ export function buildPracticeInsights(
     phoneTimeSavedHours,
     confirmedThisMonth,
     totalBookingsThisMonth,
+    newPatientsCapturedThisMonth,
     weekendShieldCount,
     peakByWeekday,
     peakByHour,

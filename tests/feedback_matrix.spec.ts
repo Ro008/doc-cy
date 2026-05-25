@@ -292,7 +292,7 @@ test.describe("Feedback matrix toasts", () => {
       await expect(appt).toBeVisible({ timeout: 12_000 });
       await appt.click();
 
-      await page.getByRole("button", { name: /^Decline$/i }).click();
+      await page.getByRole("button", { name: /Decline request/i }).click();
       await page
         .getByPlaceholder(/e\.g\./i)
         .fill("Matrix decline reason for automated test.");

@@ -102,8 +102,13 @@ export function ReschedulePickClient({
     );
   }
 
+  const locked = submitting;
+
   return (
-    <div className="mx-auto max-w-lg space-y-8">
+    <div
+      className="mx-auto max-w-lg space-y-8"
+      aria-busy={locked}
+    >
       <div className="text-center">
         <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-sky-500/30 bg-sky-500/15">
           <CalendarClock className="h-7 w-7 text-sky-300" aria-hidden />
@@ -119,15 +124,24 @@ export function ReschedulePickClient({
         </p>
       </div>
 
-      <div className="space-y-3">
+      <fieldset
+        disabled={locked}
+        className="m-0 space-y-3 border-0 p-0 disabled:opacity-80"
+      >
+        <legend className="sr-only">Proposed visit times</legend>
         {slots.map((s) => {
           const active = selectedIso === s.iso;
           return (
             <button
               key={s.iso}
               type="button"
-              onClick={() => setSelectedIso(s.iso)}
-              className={`flex w-full items-center gap-4 rounded-2xl border px-4 py-4 text-left transition ${
+              disabled={locked}
+              aria-pressed={active}
+              onClick={() => {
+                if (locked) return;
+                setSelectedIso(s.iso);
+              }}
+              className={`flex w-full items-center gap-4 rounded-2xl border px-4 py-4 text-left transition disabled:cursor-not-allowed disabled:hover:border-slate-700/80 disabled:hover:bg-slate-900/50 ${
                 active
                   ? "border-emerald-400/60 bg-emerald-400/15 shadow-lg shadow-emerald-950/30"
                   : "border-slate-700/80 bg-slate-900/50 hover:border-slate-600 hover:bg-slate-800/60"
@@ -148,7 +162,7 @@ export function ReschedulePickClient({
             </button>
           );
         })}
-      </div>
+      </fieldset>
 
       {error ? (
         <div className="rounded-2xl border border-red-500/35 bg-red-500/10 px-4 py-3 text-sm text-red-100">

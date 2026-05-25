@@ -131,8 +131,8 @@ export function PracticeInsightsDashboard({ insights }: Props) {
           />
           <KpiCard
             label={t("kpis.newPatients.label")}
-            value={t("comingSoon")}
-            hint={t("kpis.newPatients.hint")}
+            value={insights.newPatientsCapturedThisMonth}
+            hint={t("kpis.newPatients.hint", { month: insights.monthLabel })}
             icon={<Users className="h-4 w-4" aria-hidden />}
           />
         </div>

@@ -96,6 +96,8 @@ test.describe("Booking flow @booking-creates", () => {
       page.getByText(/Please enter a valid phone number|double‑check the phone number length/i)
     ).toBeHidden({ timeout: 3000 });
 
+    await page.getByRole("radio", { name: /This is my first visit/i }).check();
+
     await page.locator("#visitReason").fill("Routine check-up — E2E booking flow.");
 
     // 5. Submit booking
@@ -130,7 +132,9 @@ test.describe("Booking flow @booking-creates", () => {
 
       await selectButtons.nth((slotIndex + 1) % count).click();
       await page.getByRole("button", { name: /Confirm/i }).first().click();
-      await page.locator("#visitReason").fill("Routine check-up — E2E booking flow.");
+      await page.getByRole("radio", { name: /This is my first visit/i }).check();
+
+    await page.locator("#visitReason").fill("Routine check-up — E2E booking flow.");
       await page.getByRole("button", { name: /Send booking request/i }).click();
 
       await page.waitForURL(successUrlRegex, { timeout: 25000 });

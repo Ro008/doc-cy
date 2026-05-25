@@ -176,6 +176,7 @@ test.describe("Integration: NEEDS_RESCHEDULE frees original slot", () => {
           patientEmail: `new-${nonce}@integration.test`,
           patientPhone: "99123456",
           appointmentLocal: originalLocal,
+          isNewPatient: true,
           reason: "Integration — book slot freed by NEEDS_RESCHEDULE semantics.",
         },
       });

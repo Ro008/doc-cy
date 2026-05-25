@@ -89,6 +89,7 @@ test.describe("Schedule constraints @booking-creates", () => {
         patientEmail: "friday.allowed@test.com",
         patientPhone: "99123456",
         appointmentLocal: `${fridayKey}T14:30`,
+        isNewPatient: true,
         reason: "Schedule constraint test — visit reason.",
       },
     });
@@ -101,6 +102,7 @@ test.describe("Schedule constraints @booking-creates", () => {
         patientEmail: "friday.blocked@test.com",
         patientPhone: "99123456",
         appointmentLocal: `${fridayKey}T15:00`,
+        isNewPatient: true,
         reason: "Schedule constraint test — visit reason.",
       },
     });
@@ -167,6 +169,7 @@ test.describe("Schedule constraints @booking-creates", () => {
         patientEmail: "holiday.block@test.com",
         patientPhone: "99123456",
         appointmentLocal: `${start}T10:00`,
+        isNewPatient: true,
         reason: "Schedule constraint test — visit reason.",
       },
     });
@@ -237,6 +240,7 @@ test.describe("Schedule constraints @booking-creates", () => {
         patientEmail: "misaligned.1645@test.com",
         patientPhone: "99123456",
         appointmentLocal: `${targetDate}T16:45`,
+        isNewPatient: true,
         reason: "Schedule constraint test — visit reason.",
       },
     });
@@ -276,7 +280,8 @@ test.describe("Schedule constraints @booking-creates", () => {
           patientEmail: "overlap.1700@test.com",
           patientPhone: "99123456",
           appointmentLocal: `${targetDate}T17:00`,
-          reason: "Schedule constraint test — visit reason.",
+          isNewPatient: true,
+        reason: "Schedule constraint test — visit reason.",
         },
       });
 
@@ -296,7 +301,8 @@ test.describe("Schedule constraints @booking-creates", () => {
             patientEmail: "overlap.1700@test.com",
             patientPhone: "99123456",
             appointmentLocal: `${targetDate}T17:00`,
-            reason: "Schedule constraint test — visit reason.",
+            isNewPatient: true,
+        reason: "Schedule constraint test — visit reason.",
           },
         });
       }

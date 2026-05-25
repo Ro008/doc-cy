@@ -97,6 +97,7 @@ export function BookingSection({
   const [patientPhone, setPatientPhone] = React.useState("");
   const [phoneValid, setPhoneValid] = React.useState(true);
   const [showPhoneError, setShowPhoneError] = React.useState(false);
+  const [isNewPatient, setIsNewPatient] = React.useState<boolean | null>(null);
   const [visitReason, setVisitReason] = React.useState("");
   const [submitting, setSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -245,6 +246,10 @@ export function BookingSection({
         setError(t("errors.validPhone"));
         return;
       }
+      if (isNewPatient === null) {
+        setError(t("errors.selectVisitHistory"));
+        return;
+      }
       const reasonTrim = visitReason.slice(0, APPOINTMENT_REASON_MAX_LENGTH).trim();
       if (!reasonTrim) {
         setError(t("errors.reasonRequired"));
@@ -263,6 +268,7 @@ export function BookingSection({
             patientPhone,
             appointmentLocal: selectedSlot.slotKey,
             reason: reasonTrim,
+            isNewPatient,
           }),
         });
         const data = await res.json().catch(() => null);
@@ -298,6 +304,7 @@ export function BookingSection({
         setPatientName("");
         setPatientEmail("");
         setPatientPhone("");
+        setIsNewPatient(null);
         setVisitReason("");
         setShowPhoneError(false);
       } catch (err) {
@@ -317,6 +324,7 @@ export function BookingSection({
       patientEmail,
       patientPhone,
       phoneValid,
+      isNewPatient,
       visitReason,
       doctorId,
       profileSlug,
@@ -484,6 +492,46 @@ export function BookingSection({
               showValidationError={showPhoneError}
             />
           </div>
+          <fieldset className="space-y-2">
+            <legend className="text-xs font-semibold text-slate-200">
+              {t("visitHistoryLabel", { doctorName })}{" "}
+              <span className="text-red-300">*</span>
+            </legend>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <label
+                className={`flex cursor-pointer items-center gap-2 rounded-2xl border px-3 py-2.5 text-sm transition ${
+                  isNewPatient === true
+                    ? "border-emerald-400/60 bg-emerald-400/15 text-emerald-100"
+                    : "border-slate-800/80 bg-slate-950/40 text-slate-200 hover:border-slate-700"
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="visitHistory"
+                  className="h-4 w-4 border-slate-600 text-emerald-400 focus:ring-emerald-400/60"
+                  checked={isNewPatient === true}
+                  onChange={() => setIsNewPatient(true)}
+                />
+                {t("visitHistoryFirstTime")}
+              </label>
+              <label
+                className={`flex cursor-pointer items-center gap-2 rounded-2xl border px-3 py-2.5 text-sm transition ${
+                  isNewPatient === false
+                    ? "border-emerald-400/60 bg-emerald-400/15 text-emerald-100"
+                    : "border-slate-800/80 bg-slate-950/40 text-slate-200 hover:border-slate-700"
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="visitHistory"
+                  className="h-4 w-4 border-slate-600 text-emerald-400 focus:ring-emerald-400/60"
+                  checked={isNewPatient === false}
+                  onChange={() => setIsNewPatient(false)}
+                />
+                {t("visitHistoryReturning")}
+              </label>
+            </div>
+          </fieldset>
           <div className="space-y-2">
             <label
               htmlFor="visitReason"

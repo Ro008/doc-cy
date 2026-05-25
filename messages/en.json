@@ -22,7 +22,7 @@
       },
       "newPatients": {
         "label": "New patients captured",
-        "hint": "First-time bookers through your profile."
+        "hint": "Patients who chose “first visit” when booking in {month}."
       }
     },
     "charts": {
@@ -98,6 +98,9 @@
     "emailLabel": "Email",
     "emailPlaceholder": "you@email.com",
     "phonePriorityContactLabel": "Phone (priority contact)",
+    "visitHistoryLabel": "Is this your first visit with {doctorName}?",
+    "visitHistoryFirstTime": "This is my first visit",
+    "visitHistoryReturning": "I've been here before",
     "visitTypeLabel": "Type of visit",
     "selectOnePlaceholder": "Select one…",
     "reasonForVisit": "Briefly describe your reason",
@@ -111,6 +114,7 @@
       "completePatientDetails": "Please complete all patient details.",
       "validPhone": "Please enter a valid phone number.",
       "selectVisitType": "Please select a type of visit.",
+      "selectVisitHistory": "Please tell us if this is your first visit.",
       "reasonRequired": "Please tell us briefly why you need this visit.",
       "timeSlotJustBooked": "This time slot has just been booked. Please choose another slot.",
       "bookingFailed": "We could not complete your booking. Please try again.",

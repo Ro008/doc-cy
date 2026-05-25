@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import {
   addDays,
@@ -16,7 +16,7 @@ import {
 } from "date-fns";
 import { enGB } from "date-fns/locale";
 import { formatInTimeZone, utcToZonedTime } from "date-fns-tz";
-import { ChevronLeft, ChevronRight, Trash2, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Loader2, Trash2, X } from "lucide-react";
 import { toast as sonnerToast } from "sonner";
 import { useTranslations } from "next-intl";
 import {
@@ -32,9 +32,9 @@ import {
   CY_TZ,
 } from "@/lib/appointments";
 import { patientVisitReasonFromAppointmentRow } from "@/lib/agenda-visit-reason";
-import { WhatsAppLogoIcon } from "@/components/icons/WhatsAppLogoIcon";
 import type { WeeklySchedule } from "@/lib/doctor-settings";
 import { ManualBookingFlow } from "@/components/agenda/ManualBookingFlow";
+import { emitNavigationStart } from "@/lib/doccy-navigation";
 
 type AgendaAppointmentRow = {
   id: string;
@@ -159,12 +159,6 @@ type AgendaWorkingHours = {
   slotDurationMinutes: number;
 };
 
-function getWhatsAppUrl(phone: string): string | null {
-  const digits = phone.replace(/\D/g, "");
-  if (!digits) return null;
-  return `https://wa.me/${digits}`;
-}
-
 function AgendaAppointmentCardInner({
   timeLabel,
   patientName,
@@ -288,7 +282,10 @@ export function AgendaRealtime({
   initialDateKey?: string | null;
   openManualBooking?: boolean;
 }) {
+  const router = useRouter();
+  const pathname = usePathname();
   const supabase = React.useMemo(() => createClientComponentClient(), []);
+  const [openingReview, setOpeningReview] = React.useState(false);
   const [appointments, setAppointments] =
     React.useState<AgendaAppointmentRow[]>(initialAppointments);
   const [toast, setToast] = React.useState(false);
@@ -300,7 +297,6 @@ export function AgendaRealtime({
         dateKey: string;
         dateLabel: string;
         timeLabel: string;
-        whatsappUrl: string | null;
         minutesFromStart: number;
         isPendingRequest: boolean;
         isRequested: boolean;
@@ -327,6 +323,16 @@ export function AgendaRealtime({
     null,
   );
   const [previewSlots, setPreviewSlots] = React.useState<string[] | null>(null);
+
+  React.useEffect(() => {
+    setOpeningReview(false);
+  }, [pathname]);
+
+  React.useEffect(() => {
+    setOpeningReview(false);
+  }, [selected?.id]);
+
+  const modalBusy = isCancelling || openingReview;
   const [weekOffset, setWeekOffset] = React.useState(0);
   const [mobileDayOffset, setMobileDayOffset] = React.useState(0);
   const [manualBookingOpen, setManualBookingOpen] = React.useState(false);
@@ -491,8 +497,6 @@ export function AgendaRealtime({
     const su = String(a.status ?? "").toUpperCase();
     const isPendingRequest = su === "REQUESTED" || su === "NEEDS_RESCHEDULE";
     const isRequested = su === "REQUESTED";
-    const waForPatient =
-      su === "CONFIRMED" ? getWhatsAppUrl(a.patient_phone) : null;
     return {
       ...a,
       dateKey,
@@ -500,7 +504,6 @@ export function AgendaRealtime({
         locale: enGB,
       }),
       timeLabel: appointmentTimeLabelCyprus(utc),
-      whatsappUrl: waForPatient,
       minutesFromStart,
       rowDurationMinutes,
       isPendingRequest,
@@ -1320,7 +1323,7 @@ export function AgendaRealtime({
           <button
             type="button"
             onClick={() => {
-              if (isCancelling) return;
+              if (modalBusy) return;
               setSelected(null);
               setConfirmingCancel(false);
               setCancelMode(null);
@@ -1333,13 +1336,13 @@ export function AgendaRealtime({
             }}
             className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm"
             aria-label="Close"
-            disabled={isCancelling}
+            disabled={modalBusy}
           />
           <div className="relative z-10 w-full max-w-sm max-h-[calc(100dvh-1.5rem)] overflow-y-auto rounded-3xl border border-emerald-100/10 bg-slate-900/95 p-6 shadow-2xl backdrop-blur-xl sm:max-h-[calc(100dvh-2rem)]">
             <button
               type="button"
               onClick={() => {
-                if (isCancelling) return;
+                if (modalBusy) return;
                 setSelected(null);
                 setConfirmingCancel(false);
                 setCancelMode(null);
@@ -1352,7 +1355,7 @@ export function AgendaRealtime({
               }}
               className="absolute right-4 top-4 rounded-full p-1 text-slate-400 transition hover:bg-slate-800 hover:text-slate-200 disabled:cursor-not-allowed disabled:opacity-50"
               aria-label="Close"
-              disabled={isCancelling}
+              disabled={modalBusy}
             >
               <X className="h-5 w-5" />
             </button>
@@ -1388,67 +1391,67 @@ export function AgendaRealtime({
                 · {appointmentTimeLabelCyprus(selected.appointment_datetime)}
               </p>
             ) : null}
-            {selected.showReviewLink ? (
-              <Link
-                href={`/dashboard/appointments/${selected.id}`}
-                className="mt-3 inline-flex text-sm font-medium text-emerald-300 hover:text-emerald-200"
-              >
-                Review &amp; confirm request
-              </Link>
+            {selected.showReviewLink &&
+            !confirmingCancel &&
+            !rescheduleOpen ? (
+              <div className="mt-6 flex flex-col gap-2">
+                <button
+                  type="button"
+                  disabled={openingReview}
+                  aria-busy={openingReview}
+                  onClick={() => {
+                    if (openingReview) return;
+                    setOpeningReview(true);
+                    emitNavigationStart();
+                    router.push(`/dashboard/appointments/${selected.id}`);
+                  }}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-400 px-4 py-3 text-sm font-semibold text-slate-950 shadow-lg shadow-emerald-500/30 transition hover:bg-emerald-300 disabled:cursor-wait disabled:bg-slate-700 disabled:text-slate-400 disabled:shadow-none"
+                >
+                  {openingReview ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                      Opening review…
+                    </>
+                  ) : (
+                    "Review & confirm request"
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => openCancelFlow(selected)}
+                  disabled={openingReview}
+                  className="inline-flex w-full items-center justify-center rounded-2xl px-3 py-2 text-sm font-medium text-slate-500 transition hover:bg-slate-800/60 hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  Decline request
+                </button>
+              </div>
             ) : String(selected.status ?? "").toUpperCase() ===
               "NEEDS_RESCHEDULE" ? (
               <p className="mt-3 text-sm text-amber-200/90">
                 Waiting for the patient to choose one of the proposed times.
               </p>
             ) : null}
-            {String(selected.status ?? "").toUpperCase() === "CONFIRMED" ? (
-              <div className="mt-4 space-y-2 text-sm">
-                <p className="text-slate-200">
-                  <span className="text-slate-400">Phone</span>{" "}
-                  {selected.patient_phone}
-                </p>
-              </div>
-            ) : null}
-            <div className="mt-6 flex gap-2">
-              {selected.whatsappUrl ? (
-                <a
-                  href={selected.whatsappUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl bg-emerald-400 px-4 py-2.5 text-sm font-semibold text-slate-950 shadow-lg shadow-emerald-500/30 transition hover:bg-emerald-300"
-                >
-                  <WhatsAppLogoIcon className="h-4 w-4" />
-                  Chat on WhatsApp
-                </a>
-              ) : null}
-              {!confirmingCancel &&
-              !rescheduleOpen &&
-              String(selected.status ?? "").toUpperCase() === "CONFIRMED" ? (
+            {String(selected.status ?? "").toUpperCase() === "CONFIRMED" &&
+            !confirmingCancel &&
+            !rescheduleOpen ? (
+              <div className="mt-6 flex flex-col gap-2">
                 <button
                   type="button"
                   onClick={() => openRescheduleFlow(selected)}
-                  className="inline-flex items-center justify-center gap-2 rounded-2xl border border-sky-500/30 bg-sky-500/10 px-4 py-2.5 text-sm font-semibold text-sky-200 transition hover:border-sky-400/60 hover:bg-sky-500/20"
+                  className="inline-flex w-full items-center justify-center rounded-2xl border border-sky-400/50 bg-sky-500/20 px-4 py-3 text-sm font-semibold text-sky-100 shadow-sm shadow-sky-500/10 transition hover:border-sky-400/70 hover:bg-sky-500/30"
                 >
-                  Reschedule
+                  Reschedule appointment
                 </button>
-              ) : null}
-              {!confirmingCancel &&
-              !rescheduleOpen &&
-              (String(selected.status ?? "").toUpperCase() === "REQUESTED" ||
-                String(selected.status ?? "").toUpperCase() ===
-                  "CONFIRMED") ? (
                 <button
                   type="button"
                   onClick={() => openCancelFlow(selected)}
-                  className="inline-flex items-center justify-center gap-2 rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-2.5 text-sm font-semibold text-red-200 transition hover:border-red-400/60 hover:bg-red-500/20"
+                  className="inline-flex w-full items-center justify-center gap-1.5 rounded-2xl px-3 py-2 text-sm font-medium text-slate-500 transition hover:bg-slate-800/60 hover:text-red-300"
                 >
-                  <Trash2 className="h-4 w-4" />
-                  {String(selected.status ?? "").toUpperCase() === "REQUESTED"
-                    ? "Decline"
-                    : "Cancel"}
+                  <Trash2 className="h-3.5 w-3.5 opacity-70" aria-hidden />
+                  Cancel appointment
                 </button>
-              ) : null}
-            </div>
+              </div>
+            ) : null}
 
             {rescheduleOpen &&
             String(selected.status ?? "").toUpperCase() === "CONFIRMED" ? (
