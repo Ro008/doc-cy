@@ -30,6 +30,8 @@ import {
   appointmentTimeLabelCyprus,
   appointmentToCyprusDate,
   CY_TZ,
+  isRescheduleProposalLive,
+  isVisitSlotEnded,
 } from "@/lib/appointments";
 import { patientVisitReasonFromAppointmentRow } from "@/lib/agenda-visit-reason";
 import type { WeeklySchedule } from "@/lib/doctor-settings";
@@ -484,6 +486,21 @@ export function AgendaRealtime({
       : 30;
 
   const nowMs = nowUtc.getTime();
+  const selectedStatus = String(selected?.status ?? "").toUpperCase();
+  const selectedPast = selected
+    ? isVisitSlotEnded(
+        selected.gridStartIso,
+        selected.rowDurationMinutes,
+        nowMs,
+      )
+    : false;
+  const selectedProposalLive = selected
+    ? isRescheduleProposalLive(
+        selected.status,
+        selected.proposal_expires_at,
+        nowMs,
+      )
+    : false;
   const expanded = expandAgendaAppointmentsForGrid(appointments, nowMs);
   const rows = expanded.map((a) => {
     const utc = a.gridStartIso;
@@ -822,6 +839,8 @@ export function AgendaRealtime({
   function openCancelFlow(row: (typeof rows)[number]) {
     const su = String(row.status ?? "").toUpperCase();
     if (su === "NEEDS_RESCHEDULE") return;
+    const past = isVisitSlotEnded(row.gridStartIso, row.rowDurationMinutes, nowMs);
+    if (past && su !== "REQUESTED") return;
     setCancelError(null);
     setRejectReason("");
     setSelected(row);
@@ -835,6 +854,7 @@ export function AgendaRealtime({
   function openRescheduleFlow(row: (typeof rows)[number]) {
     const su = String(row.status ?? "").toUpperCase();
     if (su !== "CONFIRMED") return;
+    if (isVisitSlotEnded(row.gridStartIso, row.rowDurationMinutes, nowMs)) return;
     setSelected(row);
     setConfirmingCancel(false);
     setCancelMode(null);
@@ -1365,6 +1385,11 @@ export function AgendaRealtime({
             <p className="mt-1 text-sm text-slate-400">
               {selected.dateLabel} · {selected.timeLabel}
             </p>
+            {selectedPast ? (
+              <p className="mt-2 inline-flex rounded-full border border-slate-600/80 bg-slate-800/80 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-slate-300">
+                Past visit
+              </p>
+            ) : null}
             <div className="mt-3 rounded-xl border border-slate-700/70 bg-slate-900/60 px-3 py-2">
               <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
                 Reason for visit
@@ -1391,7 +1416,32 @@ export function AgendaRealtime({
                 · {appointmentTimeLabelCyprus(selected.appointment_datetime)}
               </p>
             ) : null}
+            {selectedPast &&
+            !confirmingCancel &&
+            !rescheduleOpen ? (
+              <div className="mt-4 space-y-3">
+                <p className="text-sm leading-relaxed text-slate-400">
+                  {selectedStatus === "REQUESTED"
+                    ? "This request was not confirmed before the visit time."
+                    : selectedStatus === "NEEDS_RESCHEDULE" &&
+                        !selectedProposalLive
+                      ? "The patient did not choose a new time before the offer expired."
+                      : "This visit is in the past. Details are read-only."}
+                </p>
+                {selectedStatus === "REQUESTED" ? (
+                  <button
+                    type="button"
+                    onClick={() => openCancelFlow(selected)}
+                    disabled={openingReview}
+                    className="inline-flex w-full items-center justify-center rounded-2xl border border-slate-600 px-3 py-2.5 text-sm font-medium text-slate-300 transition hover:border-slate-500 hover:bg-slate-800/60 hover:text-red-200 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    Close expired request
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
             {selected.showReviewLink &&
+            !selectedPast &&
             !confirmingCancel &&
             !rescheduleOpen ? (
               <div className="mt-6 flex flex-col gap-2">
@@ -1425,13 +1475,25 @@ export function AgendaRealtime({
                   Decline request
                 </button>
               </div>
-            ) : String(selected.status ?? "").toUpperCase() ===
-              "NEEDS_RESCHEDULE" ? (
+            ) : selectedStatus === "NEEDS_RESCHEDULE" &&
+              !selectedPast &&
+              selectedProposalLive &&
+              !confirmingCancel &&
+              !rescheduleOpen ? (
               <p className="mt-3 text-sm text-amber-200/90">
                 Waiting for the patient to choose one of the proposed times.
               </p>
+            ) : selectedStatus === "NEEDS_RESCHEDULE" &&
+              !selectedProposalLive &&
+              !confirmingCancel &&
+              !rescheduleOpen ? (
+              <p className="mt-3 text-sm text-slate-400">
+                The reschedule offer has expired. The patient can book again from
+                your profile.
+              </p>
             ) : null}
-            {String(selected.status ?? "").toUpperCase() === "CONFIRMED" &&
+            {selectedStatus === "CONFIRMED" &&
+            !selectedPast &&
             !confirmingCancel &&
             !rescheduleOpen ? (
               <div className="mt-6 flex flex-col gap-2">
@@ -1454,7 +1516,8 @@ export function AgendaRealtime({
             ) : null}
 
             {rescheduleOpen &&
-            String(selected.status ?? "").toUpperCase() === "CONFIRMED" ? (
+            selectedStatus === "CONFIRMED" &&
+            !selectedPast ? (
               <div className="mt-4 rounded-2xl border border-sky-500/20 bg-sky-500/5 p-3 text-xs text-slate-300">
                 <p>
                   Propose three new times to the patient. They will receive an
