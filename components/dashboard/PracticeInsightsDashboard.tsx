@@ -10,7 +10,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { Clock, Moon, Users, CalendarCheck, Sparkles } from "lucide-react";
+import { Clock, Moon, Users, CalendarCheck, Sparkles, UserX } from "lucide-react";
 import type { PracticeInsightsSnapshot, WeekdayBucketKey } from "@/lib/practice-insights";
 import { useTranslations } from "next-intl";
 
@@ -91,6 +91,22 @@ export function PracticeInsightsDashboard({ insights }: Props) {
           minutes: insights.confirmedThisMonth * 4,
         });
 
+  const noShowsValue =
+    insights.noShowRatePercent != null
+      ? `${insights.noShowsThisMonth} (${insights.noShowRatePercent}%)`
+      : insights.noShowsThisMonth;
+
+  const noShowsHint =
+    insights.noShowRatePercent != null
+      ? t("kpis.noShows.hintWithRate", {
+          count: insights.noShowsThisMonth,
+          total: insights.endedConfirmedVisitsThisMonth,
+          rate: insights.noShowRatePercent,
+        })
+      : insights.noShowsThisMonth > 0
+        ? t("kpis.noShows.hint", { month: insights.monthLabel })
+        : t("kpis.noShows.hintEmpty", { month: insights.monthLabel });
+
   return (
     <div className="space-y-8">
       <section
@@ -116,7 +132,7 @@ export function PracticeInsightsDashboard({ insights }: Props) {
         <h2 id="practice-insights-kpis" className="sr-only">
           {t("kpis.heading")}
         </h2>
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <KpiCard
             label={t("kpis.totalBookings.label")}
             value={insights.totalBookingsThisMonth}
@@ -134,6 +150,12 @@ export function PracticeInsightsDashboard({ insights }: Props) {
             value={insights.newPatientsCapturedThisMonth}
             hint={t("kpis.newPatients.hint", { month: insights.monthLabel })}
             icon={<Users className="h-4 w-4" aria-hidden />}
+          />
+          <KpiCard
+            label={t("kpis.noShows.label")}
+            value={noShowsValue}
+            hint={noShowsHint}
+            icon={<UserX className="h-4 w-4" aria-hidden />}
           />
         </div>
       </section>

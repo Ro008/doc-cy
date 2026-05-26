@@ -61,6 +61,8 @@ test.describe("Doctor dashboard", () => {
           .getByRole("button", { name: /Review & confirm request/i })
           .or(modal.getByRole("button", { name: /Reschedule appointment/i }))
           .or(modal.getByText(/Waiting for the patient to choose/i))
+          .or(modal.getByText(/^Past visit$/i))
+          .or(modal.getByRole("button", { name: /Close expired request/i }))
       ).toBeVisible();
     } else {
       await expect(

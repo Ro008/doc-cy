@@ -87,7 +87,7 @@ export default async function AgendaPage({ searchParams }: AgendaPageProps) {
   const { data: appointments, error } = await supabase
     .from("appointments")
     .select(
-      "id, doctor_id, patient_name, patient_phone, reason, appointment_datetime, status, duration_minutes, proposed_slots, proposal_expires_at",
+      "id, doctor_id, patient_name, patient_phone, reason, appointment_datetime, status, duration_minutes, proposed_slots, proposal_expires_at, attendance",
     )
     .eq("doctor_id", doctor.id)
     .order("appointment_datetime", { ascending: true });

@@ -87,3 +87,28 @@ export function appointmentTimeLabelCyprus(utcIso: string): string {
   return formatInTimeZone(new Date(utcIso), CY_TZ, "HH:mm");
 }
 
+/** True when visit start + duration is at or before `nowMs` (default: now). */
+export function isVisitSlotEnded(
+  startUtcIso: string,
+  durationMinutes: number,
+  nowMs: number = Date.now(),
+): boolean {
+  const startMs = new Date(startUtcIso).getTime();
+  if (!Number.isFinite(startMs) || durationMinutes <= 0) return false;
+  return startMs + durationMinutes * 60_000 <= nowMs;
+}
+
+export function isRescheduleProposalLive(
+  status: string | null | undefined,
+  proposalExpiresAtIso: string | null | undefined,
+  nowMs: number = Date.now(),
+): boolean {
+  if (String(status ?? "").trim().toUpperCase() !== "NEEDS_RESCHEDULE") {
+    return false;
+  }
+  const expMs = proposalExpiresAtIso
+    ? new Date(proposalExpiresAtIso).getTime()
+    : NaN;
+  return Number.isFinite(expMs) && expMs > nowMs;
+}
+

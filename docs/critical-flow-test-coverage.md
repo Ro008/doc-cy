@@ -41,7 +41,7 @@ PR blocking lane: `.github/workflows/pr-integration.yml` → job `PR Playwright 
 | Flow | PR blocking | Other | Notes |
 | --- | --- | --- | --- |
 | Patient booking (happy path) | `booking_flow.spec.ts` | `prod_appointment_booking_flow.spec.ts` | Requires first-visit choice (`is_new_patient`) |
-| Practice insights — new patients KPI | `practice_insights_metrics.spec.ts` | `practice_insights.spec.ts` | Counts `is_new_patient` in current month |
+| Practice insights — new patients / no-shows KPIs | `practice_insights_metrics.spec.ts` | `practice_insights.spec.ts` | `is_new_patient`, `attendance=no_show` on ended visits |
 | Manual booking (doctor) | `manual_booking_flow.spec.ts`, `manual_booking_modal_ux.spec.ts` | — | Empty email/phone case + WhatsApp only when phone set; see **Optional UI fields** in `ci-test-policy.md` |
 | Race / concurrency | `appointments_race_condition.integration.spec.ts` | — | |
 | Reschedule slot free | `needs_reschedule_slot_free.integration.spec.ts` | — | |

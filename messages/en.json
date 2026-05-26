@@ -23,6 +23,12 @@
       "newPatients": {
         "label": "New patients captured",
         "hint": "Patients who chose “first visit” when booking in {month}."
+      },
+      "noShows": {
+        "label": "No-shows (this month)",
+        "hint": "Past confirmed visits you marked as no-show in {month}.",
+        "hintWithRate": "{count} of {total} ended visits ({rate}%).",
+        "hintEmpty": "No ended confirmed visits in {month} yet."
       }
     },
     "charts": {
