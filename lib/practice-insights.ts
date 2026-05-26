@@ -1,6 +1,7 @@
 import { addMonths, format, parseISO, startOfMonth } from "date-fns";
 import { formatInTimeZone, zonedTimeToUtc } from "date-fns-tz";
-import { CY_TZ } from "@/lib/appointments";
+import { CY_TZ, isVisitSlotEnded } from "@/lib/appointments";
+import { isNoShowAttendance } from "@/lib/appointment-attendance";
 import {
   type DayKey,
   type WeeklySchedule,
@@ -15,6 +16,8 @@ export type InsightsAppointmentRow = {
   status: string;
   created_at: string | null;
   is_new_patient?: boolean | null;
+  attendance?: string | null;
+  duration_minutes?: number | null;
 };
 
 export type WeekdayBucketKey =
@@ -32,6 +35,11 @@ export type PracticeInsightsSnapshot = {
   confirmedThisMonth: number;
   totalBookingsThisMonth: number;
   newPatientsCapturedThisMonth: number;
+  noShowsThisMonth: number;
+  /** Confirmed visits in the month whose slot has already ended. */
+  endedConfirmedVisitsThisMonth: number;
+  /** Share of ended confirmed visits in the month marked no-show (0–100), or null if none ended. */
+  noShowRatePercent: number | null;
   weekendShieldCount: number;
   peakByWeekday: { day: WeekdayBucketKey; count: number }[];
   peakByHour: { hour: number; label: string; count: number }[];
@@ -123,7 +131,10 @@ export function buildPracticeInsights(
   let confirmedThisMonth = 0;
   let totalBookingsThisMonth = 0;
   let newPatientsCapturedThisMonth = 0;
+  let noShowsThisMonth = 0;
+  let endedConfirmedThisMonth = 0;
   let weekendShieldCount = 0;
+  const nowMs = now.getTime();
 
   const weekdayCounts = Object.fromEntries(
     DAY_NAMES.map((d) => [d, 0]),
@@ -145,6 +156,22 @@ export function buildPracticeInsights(
     }
     if (inMonth && isConfirmedStatus(status)) {
       confirmedThisMonth += 1;
+    }
+
+    const visitInMonth = isInCyprusMonth(row.appointment_datetime, startUtc, endUtc);
+    if (visitInMonth && isConfirmedStatus(status)) {
+      const durationMinutes =
+        typeof row.duration_minutes === "number" && row.duration_minutes > 0
+          ? row.duration_minutes
+          : 30;
+      if (
+        isVisitSlotEnded(row.appointment_datetime, durationMinutes, nowMs)
+      ) {
+        endedConfirmedThisMonth += 1;
+        if (isNoShowAttendance(row.attendance)) {
+          noShowsThisMonth += 1;
+        }
+      }
     }
 
     if (!isConfirmedStatus(status)) continue;
@@ -176,12 +203,20 @@ export function buildPracticeInsights(
       count,
     }));
 
+  const noShowRatePercent =
+    endedConfirmedThisMonth > 0
+      ? Math.round((noShowsThisMonth / endedConfirmedThisMonth) * 100)
+      : null;
+
   return {
     monthLabel: label,
     phoneTimeSavedHours,
     confirmedThisMonth,
     totalBookingsThisMonth,
     newPatientsCapturedThisMonth,
+    noShowsThisMonth,
+    endedConfirmedVisitsThisMonth: endedConfirmedThisMonth,
+    noShowRatePercent,
     weekendShieldCount,
     peakByWeekday,
     peakByHour,

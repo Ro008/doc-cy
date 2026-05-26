@@ -37,6 +37,10 @@ import { patientVisitReasonFromAppointmentRow } from "@/lib/agenda-visit-reason"
 import type { WeeklySchedule } from "@/lib/doctor-settings";
 import { ManualBookingFlow } from "@/components/agenda/ManualBookingFlow";
 import { emitNavigationStart } from "@/lib/doccy-navigation";
+import {
+  APPOINTMENT_ATTENDANCE_NO_SHOW,
+  isNoShowAttendance,
+} from "@/lib/appointment-attendance";
 
 type AgendaAppointmentRow = {
   id: string;
@@ -49,6 +53,7 @@ type AgendaAppointmentRow = {
   duration_minutes?: number | null;
   proposed_slots?: unknown;
   proposal_expires_at?: string | null;
+  attendance?: string | null;
 };
 
 function parseProposedSlotIsoList(raw: unknown): string[] {
@@ -138,6 +143,10 @@ function agendaRowFromSupabasePayload(
       raw.proposal_expires_at == null || raw.proposal_expires_at === ""
         ? null
         : String(raw.proposal_expires_at),
+    attendance:
+      raw.attendance == null || raw.attendance === ""
+        ? null
+        : String(raw.attendance),
   };
 }
 
@@ -325,6 +334,10 @@ export function AgendaRealtime({
     null,
   );
   const [previewSlots, setPreviewSlots] = React.useState<string[] | null>(null);
+  const [markingAttendance, setMarkingAttendance] = React.useState(false);
+  const [attendanceError, setAttendanceError] = React.useState<string | null>(
+    null,
+  );
 
   React.useEffect(() => {
     setOpeningReview(false);
@@ -334,7 +347,7 @@ export function AgendaRealtime({
     setOpeningReview(false);
   }, [selected?.id]);
 
-  const modalBusy = isCancelling || openingReview;
+  const modalBusy = isCancelling || openingReview || markingAttendance;
   const [weekOffset, setWeekOffset] = React.useState(0);
   const [mobileDayOffset, setMobileDayOffset] = React.useState(0);
   const [manualBookingOpen, setManualBookingOpen] = React.useState(false);
@@ -353,7 +366,7 @@ export function AgendaRealtime({
     const { data, error } = await supabase
       .from("appointments")
       .select(
-        "id, doctor_id, patient_name, patient_phone, reason, appointment_datetime, status, duration_minutes, proposed_slots, proposal_expires_at",
+        "id, doctor_id, patient_name, patient_phone, reason, appointment_datetime, status, duration_minutes, proposed_slots, proposal_expires_at, attendance",
       )
       .eq("doctor_id", doctorId)
       .order("appointment_datetime", { ascending: true });
@@ -500,6 +513,9 @@ export function AgendaRealtime({
         selected.proposal_expires_at,
         nowMs,
       )
+    : false;
+  const selectedNoShow = selected
+    ? isNoShowAttendance(selected.attendance)
     : false;
   const expanded = expandAgendaAppointmentsForGrid(appointments, nowMs);
   const rows = expanded.map((a) => {
@@ -816,7 +832,53 @@ export function AgendaRealtime({
     }
   }
 
+  async function setAttendanceNoShow(markNoShow: boolean) {
+    if (!selected || markingAttendance) return;
+    setAttendanceError(null);
+    setMarkingAttendance(true);
+    const selectedId = selected.id;
+    try {
+      const res = await fetch(
+        `/api/appointments/${encodeURIComponent(selectedId)}/attendance`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            attendance: markNoShow ? APPOINTMENT_ATTENDANCE_NO_SHOW : null,
+          }),
+        },
+      );
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        setAttendanceError(
+          typeof data?.message === "string"
+            ? data.message
+            : "Could not save attendance.",
+        );
+        return;
+      }
+      const nextAttendance = markNoShow ? APPOINTMENT_ATTENDANCE_NO_SHOW : null;
+      setAppointments((prev) =>
+        prev.map((row) =>
+          row.id === selectedId
+            ? { ...row, attendance: nextAttendance }
+            : row,
+        ),
+      );
+      setSelected((prev) =>
+        prev && prev.id === selectedId
+          ? { ...prev, attendance: nextAttendance }
+          : prev,
+      );
+    } catch {
+      setAttendanceError("Something went wrong. Please try again.");
+    } finally {
+      setMarkingAttendance(false);
+    }
+  }
+
   function openAppointment(row: (typeof rows)[number]) {
+    setAttendanceError(null);
     setCancelError(null);
     setConfirmingCancel(false);
     setCancelMode(null);
@@ -1353,6 +1415,7 @@ export function AgendaRealtime({
               setRescheduleError(null);
               setPreviewSlots(null);
               setRescheduleReason("");
+              setAttendanceError(null);
             }}
             className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm"
             aria-label="Close"
@@ -1370,8 +1433,9 @@ export function AgendaRealtime({
                 setCancelError(null);
                 setRescheduleOpen(false);
                 setRescheduleError(null);
-                setPreviewSlots(null);
-                setRescheduleReason("");
+              setPreviewSlots(null);
+              setRescheduleReason("");
+              setAttendanceError(null);
               }}
               className="absolute right-4 top-4 rounded-full p-1 text-slate-400 transition hover:bg-slate-800 hover:text-slate-200 disabled:cursor-not-allowed disabled:opacity-50"
               aria-label="Close"
@@ -1385,11 +1449,18 @@ export function AgendaRealtime({
             <p className="mt-1 text-sm text-slate-400">
               {selected.dateLabel} · {selected.timeLabel}
             </p>
-            {selectedPast ? (
-              <p className="mt-2 inline-flex rounded-full border border-slate-600/80 bg-slate-800/80 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-slate-300">
-                Past visit
-              </p>
-            ) : null}
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              {selectedPast ? (
+                <p className="inline-flex rounded-full border border-slate-600/80 bg-slate-800/80 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-slate-300">
+                  Past visit
+                </p>
+              ) : null}
+              {selectedNoShow ? (
+                <p className="inline-flex rounded-full border border-amber-500/40 bg-amber-500/15 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-amber-200">
+                  No-show
+                </p>
+              ) : null}
+            </div>
             <div className="mt-3 rounded-xl border border-slate-700/70 bg-slate-900/60 px-3 py-2">
               <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
                 Reason for visit
@@ -1426,17 +1497,63 @@ export function AgendaRealtime({
                     : selectedStatus === "NEEDS_RESCHEDULE" &&
                         !selectedProposalLive
                       ? "The patient did not choose a new time before the offer expired."
-                      : "This visit is in the past. Details are read-only."}
+                      : selectedStatus === "CONFIRMED" && selectedNoShow
+                        ? "You marked this confirmed visit as a no-show. Details are read-only."
+                        : selectedStatus === "CONFIRMED"
+                          ? "This visit is in the past. You can mark it as a no-show for your records."
+                          : "This visit is in the past. Details are read-only."}
                 </p>
                 {selectedStatus === "REQUESTED" ? (
                   <button
                     type="button"
                     onClick={() => openCancelFlow(selected)}
-                    disabled={openingReview}
+                    disabled={openingReview || markingAttendance}
                     className="inline-flex w-full items-center justify-center rounded-2xl border border-slate-600 px-3 py-2.5 text-sm font-medium text-slate-300 transition hover:border-slate-500 hover:bg-slate-800/60 hover:text-red-200 disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     Close expired request
                   </button>
+                ) : null}
+                {selectedStatus === "CONFIRMED" ? (
+                  selectedNoShow ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        void setAttendanceNoShow(false);
+                      }}
+                      disabled={markingAttendance}
+                      className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-slate-600 px-3 py-2.5 text-sm font-medium text-slate-300 transition hover:border-slate-500 hover:bg-slate-800/60 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {markingAttendance ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                          Updating…
+                        </>
+                      ) : (
+                        "Undo no-show"
+                      )}
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        void setAttendanceNoShow(true);
+                      }}
+                      disabled={markingAttendance}
+                      className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-amber-500/35 bg-amber-500/10 px-3 py-2.5 text-sm font-medium text-amber-100 transition hover:border-amber-400/50 hover:bg-amber-500/15 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {markingAttendance ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                          Saving…
+                        </>
+                      ) : (
+                        "Mark as no-show"
+                      )}
+                    </button>
+                  )
+                ) : null}
+                {attendanceError ? (
+                  <p className="text-xs text-amber-300">{attendanceError}</p>
                 ) : null}
               </div>
             ) : null}

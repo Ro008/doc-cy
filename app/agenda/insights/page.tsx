@@ -42,7 +42,9 @@ export default async function PracticeInsightsPage() {
 
   const { data: appointments } = await supabase
     .from("appointments")
-    .select("appointment_datetime, status, created_at, is_new_patient")
+    .select(
+      "appointment_datetime, status, created_at, is_new_patient, attendance, duration_minutes",
+    )
     .eq("doctor_id", doctor.id);
 
   let weeklySchedule = null;
@@ -66,6 +68,8 @@ export default async function PracticeInsightsPage() {
       status: string;
       created_at: string | null;
       is_new_patient: boolean | null;
+      attendance: string | null;
+      duration_minutes: number | null;
     }[],
     weeklySchedule,
   );

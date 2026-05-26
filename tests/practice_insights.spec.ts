@@ -34,6 +34,7 @@ test.describe("Practice insights (doctor dashboard)", () => {
     await expect(page.getByText(REMOVED_COPY)).toHaveCount(0);
     await expect(page.getByText("Quick overview")).toBeVisible();
     await expect(page.getByText("New patients captured")).toBeVisible();
+    await expect(page.getByText("No-shows (this month)")).toBeVisible();
     await expect(page.getByText("Coming soon")).toHaveCount(0);
   });
 
