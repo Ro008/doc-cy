@@ -18,9 +18,10 @@ export type PendingSpecialtyRow = {
 
 async function postReview(body: {
   doctorId: string;
-  action: "map" | "approve_new" | "approve_edited";
+  action: "map" | "approve_new" | "approve_edited" | "require_standard";
   mapTo?: string;
   editedSpecialty?: string;
+  message?: string;
 }) {
   const res = await fetch("/api/internal/doctors/specialty-review", {
     method: "POST",
@@ -42,6 +43,8 @@ export function PendingSpecialtiesPanel({ items }: { items: PendingSpecialtyRow[
   const [mapTarget, setMapTarget] = React.useState<string>("");
   const [editForId, setEditForId] = React.useState<string | null>(null);
   const [editValue, setEditValue] = React.useState<string>("");
+  const [requireForId, setRequireForId] = React.useState<string | null>(null);
+  const [requireMessage, setRequireMessage] = React.useState<string>("");
   const sortedSpecialties = React.useMemo(
     () => [...CYPRUS_MASTER_SPECIALTIES].sort((a, b) => a.localeCompare(b)),
     []
@@ -93,6 +96,30 @@ export function PendingSpecialtiesPanel({ items }: { items: PendingSpecialtyRow[
     }
   }
 
+  async function requireStandard(id: string) {
+    setError(null);
+    setBusyId(id);
+    try {
+      await postReview({
+        doctorId: id,
+        action: "require_standard",
+        message: requireMessage.trim() || undefined,
+      });
+      setRequireForId(null);
+      setRequireMessage("");
+      setMapForId(null);
+      setEditForId(null);
+      toast.success("Professional notified to choose a standard specialty.");
+      router.refresh();
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "Request failed.";
+      setError(message);
+      toast.error(message);
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   async function approveEdited(id: string) {
     const edited = editValue.trim();
     if (!edited) {
@@ -129,8 +156,9 @@ export function PendingSpecialtiesPanel({ items }: { items: PendingSpecialtyRow[
         <div className="min-w-0 flex-1">
           <h2 className="text-sm font-semibold text-amber-100">Pending specialties</h2>
           <p className="mt-1 text-xs text-amber-100/80">
-            These professionals used a custom specialty. Choose one: map to an existing specialty,
-            or approve it as a new category.
+            These professionals used a custom specialty. Map to an existing category, approve as
+            new, edit and approve, or ask them to pick a standard specialty (not added to the
+            directory).
           </p>
         </div>
       </div>
@@ -146,6 +174,7 @@ export function PendingSpecialtiesPanel({ items }: { items: PendingSpecialtyRow[
           const busy = busyId === row.id;
           const mapping = mapForId === row.id;
           const editing = editForId === row.id;
+          const requiring = requireForId === row.id;
           const spec = (row.specialty ?? "").trim() || "—";
           return (
             <li
@@ -171,6 +200,9 @@ export function PendingSpecialtiesPanel({ items }: { items: PendingSpecialtyRow[
                       onClick={() => {
                         setMapForId(row.id);
                         setMapTarget("");
+                        setRequireForId(null);
+                        setRequireMessage("");
+                        setEditForId(null);
                         setError(null);
                       }}
                       className="inline-flex items-center gap-1.5 rounded-lg border border-slate-600 bg-slate-900/60 px-3 py-1.5 text-xs font-medium text-slate-200 hover:border-slate-500 disabled:opacity-50"
@@ -194,11 +226,28 @@ export function PendingSpecialtiesPanel({ items }: { items: PendingSpecialtyRow[
                         setEditValue(spec === "—" ? "" : spec);
                         setMapForId(null);
                         setMapTarget("");
+                        setRequireForId(null);
+                        setRequireMessage("");
                         setError(null);
                       }}
                       className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-xs font-medium text-emerald-100 hover:bg-emerald-500/20 disabled:opacity-50"
                     >
                       Edit name and approve
+                    </button>
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => {
+                        setRequireForId(row.id);
+                        setRequireMessage("");
+                        setMapForId(null);
+                        setMapTarget("");
+                        setEditForId(null);
+                        setError(null);
+                      }}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-slate-600 px-3 py-1.5 text-xs font-medium text-slate-400 transition hover:border-slate-500 hover:bg-slate-800/60 hover:text-slate-200 disabled:opacity-50"
+                    >
+                      Require standard category
                     </button>
                   </div>
                 </div>
@@ -255,6 +304,50 @@ export function PendingSpecialtiesPanel({ items }: { items: PendingSpecialtyRow[
                   >
                     Save edit and approve
                   </button>
+                </div>
+              ) : null}
+
+              {requiring ? (
+                <div className="mt-4 space-y-3 border-t border-slate-800/80 pt-4">
+                  <p className="text-xs leading-relaxed text-slate-400">
+                    The professional stays on DocCy but must pick a standard specialty in
+                    settings. They receive an email; this custom label is not added to the
+                    directory.
+                  </p>
+                  <div>
+                    <label className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                      Optional note in email
+                    </label>
+                    <textarea
+                      value={requireMessage}
+                      onChange={(e) => setRequireMessage(e.target.value)}
+                      placeholder="e.g. Please choose the closest standard category (e.g. Wellness)."
+                      rows={3}
+                      disabled={busy}
+                      className="mt-2 w-full resize-y rounded-lg border border-slate-700 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-600"
+                    />
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => {
+                        setRequireForId(null);
+                        setRequireMessage("");
+                      }}
+                      className="rounded-lg border border-slate-600 px-4 py-2 text-sm font-medium text-slate-300 hover:bg-slate-800/60 disabled:opacity-50"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => requireStandard(row.id)}
+                      className="rounded-lg border border-amber-500/40 bg-amber-500/15 px-4 py-2 text-sm font-semibold text-amber-100 hover:bg-amber-500/25 disabled:opacity-50"
+                    >
+                      {busy ? "Sending…" : "Send and remove from queue"}
+                    </button>
+                  </div>
                 </div>
               ) : null}
             </li>

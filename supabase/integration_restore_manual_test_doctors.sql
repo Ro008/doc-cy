@@ -10,10 +10,12 @@
 -- Notes:
 -- - Safe to re-run (upsert-like behavior by slug).
 -- - Keeps existing doctor_settings row when present; otherwise creates one.
+-- - Auth seed password for restored doctors: demo1234
 
 DO $seed$
 DECLARE
   v_instance_id uuid;
+  v_seed_password text := 'demo1234';
   v_common jsonb := jsonb_build_object(
     'enabled', true,
     'start_time', '09:00:00',
@@ -130,7 +132,7 @@ BEGIN
           'authenticated',
           'authenticated',
           rec.email,
-          extensions.crypt('doccy-integration-seed-not-for-login', extensions.gen_salt('bf')),
+          extensions.crypt(v_seed_password, extensions.gen_salt('bf')),
           now(),
           jsonb_build_object('provider', 'email', 'providers', jsonb_build_array('email')),
           jsonb_build_object('role', 'doctor'),
@@ -164,6 +166,14 @@ BEGIN
           now()
         );
       END IF;
+
+      -- Keep password deterministic across re-runs for integration manual test accounts.
+      UPDATE auth.users
+      SET
+        encrypted_password = extensions.crypt(v_seed_password, extensions.gen_salt('bf')),
+        email_confirmed_at = coalesce(email_confirmed_at, now()),
+        updated_at = now()
+      WHERE id = v_user_id;
 
       INSERT INTO public.doctors (
         auth_user_id,

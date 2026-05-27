@@ -2,7 +2,9 @@ import { expect, test } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
 
 test.describe("Integration: internal specialty review endpoint", () => {
-  test("supports map, approve_new and approve_edited", async ({ request }) => {
+  test("supports map, approve_new, approve_edited and require_standard", async ({
+    request,
+  }) => {
     const baseUrl = process.env.PLAYWRIGHT_BASE_URL ?? "";
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
     const serviceRole = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
@@ -139,9 +141,67 @@ test.describe("Integration: internal specialty review endpoint", () => {
       expect(doctorRow.data?.specialty).toBe("Acupuncture");
       expect(doctorRow.data?.is_specialty_approved).toBe(true);
 
+      const resetForRequireStandard = await admin
+        .from("doctors")
+        .update({
+          specialty: "acupuncture",
+          is_specialty_approved: false,
+          specialty_requires_standard_at: null,
+        })
+        .eq("id", doctorId);
+      expect(resetForRequireStandard.error).toBeNull();
+
+      const requireStandardRes = await request.post(
+        "/api/internal/doctors/specialty-review",
+        {
+          headers: { Cookie: cookieHeader },
+          data: {
+            doctorId,
+            action: "require_standard",
+            message: "Please pick a standard category from the list.",
+          },
+        },
+      );
+      expect(requireStandardRes.status()).toBe(200);
+
+      doctorRow = await admin
+        .from("doctors")
+        .select(
+          "specialty, is_specialty_approved, specialty_requires_standard_at",
+        )
+        .eq("id", doctorId)
+        .single();
+      expect(doctorRow.error).toBeNull();
+      expect(doctorRow.data?.specialty).toBe("acupuncture");
+      expect(doctorRow.data?.is_specialty_approved).toBe(false);
+      expect(doctorRow.data?.specialty_requires_standard_at).toBeTruthy();
+
+      const pendingQueue = await admin
+        .from("doctors")
+        .select("id")
+        .eq("is_specialty_approved", false)
+        .is("specialty_requires_standard_at", null)
+        .eq("id", doctorId);
+      expect(pendingQueue.error).toBeNull();
+      expect(pendingQueue.data ?? []).toHaveLength(0);
+
+      const pickStandardRes = await admin
+        .from("doctors")
+        .update({
+          specialty: "General Practice",
+          is_specialty_approved: true,
+          specialty_requires_standard_at: null,
+        })
+        .eq("id", doctorId);
+      expect(pickStandardRes.error).toBeNull();
+
       const resetForReject = await admin
         .from("doctors")
-        .update({ specialty: "acupuncture", is_specialty_approved: false })
+        .update({
+          specialty: "acupuncture",
+          is_specialty_approved: false,
+          specialty_requires_standard_at: null,
+        })
         .eq("id", doctorId);
       expect(resetForReject.error).toBeNull();
 
