@@ -57,6 +57,7 @@ export default async function AgendaSettingsPage() {
     clinic_address?: string | null;
     status?: string | null;
     is_specialty_approved?: boolean | null;
+    specialty_requires_standard_at?: string | null;
     subscription_tier?: string | null;
     is_gesy?: boolean | null;
   } | null = null;
@@ -119,10 +120,20 @@ export default async function AgendaSettingsPage() {
     let fallback = await supabase
       .from("doctors")
       .select(
-        "id, name, avatar_url, slug, specialty, languages, district, clinic_address, status, is_specialty_approved, subscription_tier"
+        "id, name, avatar_url, slug, specialty, languages, district, clinic_address, status, is_specialty_approved, specialty_requires_standard_at, subscription_tier"
       )
       .eq("auth_user_id", user.id)
       .single();
+
+    if (fallback.error && hasColError(fallback.error, "specialty_requires_standard_at")) {
+      fallback = await supabase
+        .from("doctors")
+        .select(
+          "id, name, avatar_url, slug, specialty, languages, district, clinic_address, status, is_specialty_approved, subscription_tier"
+        )
+        .eq("auth_user_id", user.id)
+        .single();
+    }
 
     if (fallback.error && hasColError(fallback.error, "avatar_url")) {
       fallback = await supabase
@@ -152,6 +163,29 @@ export default async function AgendaSettingsPage() {
 
     doctor = fallback.data as typeof doctor;
     doctorError = fallback.error ?? doctorError;
+  }
+
+  if (doctor) {
+    // Always hydrate specialty review flags so banner/UI state remains correct
+    // even when primary selects use compatibility fallbacks.
+    const { data: specialtyFlags } = await supabase
+      .from("doctors")
+      .select("is_specialty_approved, specialty_requires_standard_at")
+      .eq("id", doctor.id)
+      .maybeSingle();
+    if (specialtyFlags) {
+      doctor = {
+        ...doctor,
+        is_specialty_approved:
+          (specialtyFlags as { is_specialty_approved?: boolean | null })
+            .is_specialty_approved ?? doctor.is_specialty_approved ?? null,
+        specialty_requires_standard_at:
+          (specialtyFlags as { specialty_requires_standard_at?: string | null })
+            .specialty_requires_standard_at ??
+          doctor.specialty_requires_standard_at ??
+          null,
+      };
+    }
   }
 
   if (doctorError) {
@@ -327,7 +361,13 @@ export default async function AgendaSettingsPage() {
               </h1>
               {isFoundingMember ? <FoundingMemberBadge /> : null}
             </div>
-            {doctor.is_specialty_approved === false ? (
+            {doctor.specialty_requires_standard_at ? (
+              <p className="mt-4 rounded-xl border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-xs text-amber-100">
+                We could not add your custom specialty to the DocCy directory. Please choose a
+                <strong className="font-semibold"> standard specialty </strong>
+                from the list below (not &quot;Other&quot; with custom text).
+              </p>
+            ) : doctor.is_specialty_approved === false ? (
               <p className="mt-4 rounded-xl border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-xs text-amber-100">
                 Your specialty text is pending review. You can edit it below or pick a standard
                 category — we&apos;ll align it with our directory list.

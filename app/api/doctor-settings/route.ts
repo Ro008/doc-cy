@@ -315,12 +315,14 @@ export async function POST(req: NextRequest) {
     specialty: string;
     languages: string[];
     is_specialty_approved: boolean;
+    specialty_requires_standard_at: null;
   } = {
     district: districtRaw,
     clinic_address: clinicAddress || null,
     specialty: specResult.specialty,
     languages,
     is_specialty_approved: specResult.is_specialty_approved,
+    specialty_requires_standard_at: null,
   };
   if (b.doctorPhone !== undefined) {
     const trimmed =
