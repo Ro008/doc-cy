@@ -163,6 +163,12 @@ test.describe("Integration: internal specialty review endpoint", () => {
         },
       );
       expect(requireStandardRes.status()).toBe(200);
+      const requireStandardBody = await requireStandardRes.json();
+      expect(requireStandardBody).toMatchObject({
+        ok: true,
+        is_specialty_approved: false,
+        specialty_requires_standard_at: true,
+      });
 
       doctorRow = await admin
         .from("doctors")

@@ -40,6 +40,7 @@ jobs:
       TEST_USER_PASSWORD: ${{ secrets.INTEGRATION_TEST_USER_PASSWORD || secrets.TEST_USER_PASSWORD }}
       PROD_NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.PROD_NEXT_PUBLIC_SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL }}
       INTEGRATION_SCHEDULE_TEST_DOCTOR_SLUG: ${{ vars.INTEGRATION_SCHEDULE_TEST_DOCTOR_SLUG }}
+      INTERNAL_DIRECTORY_SECRET: ${{ secrets.INTERNAL_DIRECTORY_SECRET }}
 
     steps:
       - name: Checkout
@@ -160,6 +161,8 @@ jobs:
             tests/practice_insights_metrics.spec.ts \
             tests/agenda_auth.spec.ts \
             tests/integration/monthly_digest.integration.spec.ts \
+            tests/integration/specialty_review.integration.spec.ts \
+            tests/integration/specialty_require_standard_doctor_flow.integration.spec.ts \
             tests/navigation_feedback.spec.ts \
             tests/doctor_settings_language_guard.spec.ts \
             tests/profile_structured_data.spec.ts \
