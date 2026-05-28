@@ -240,17 +240,26 @@ export function InternalDirectoryClient({
             {filtered.map((d) => {
               const busy = busyId === d.id;
               const status = d.status?.trim().toLowerCase() || "pending";
-              const canVerify = isSpecialtyResolvedForVerification({
+              const isPending = status === "pending";
+              const isRejected = status === "rejected";
+              const isVerified = status === "verified";
+              const specialtyResolved = isSpecialtyResolvedForVerification({
                 is_specialty_approved: d.is_specialty_approved,
                 specialty_requires_standard_at: d.specialty_requires_standard_at,
               });
-              const verifyBlockReason =
-                status === "pending" && !canVerify
+              const canVerifyLicense = isPending && specialtyResolved;
+              const verifyBlockReason = isPending
+                ? !specialtyResolved
                   ? verificationBlockedReason({
                       is_specialty_approved: d.is_specialty_approved,
                       specialty_requires_standard_at: d.specialty_requires_standard_at,
                     })
-                  : null;
+                  : null
+                : isRejected
+                  ? "Application closed."
+                  : isVerified
+                    ? "Already verified."
+                    : null;
               const proofHref = d.license_file_url
                 ? `/api/internal/doctors/${d.id}/license`
                 : null;
@@ -279,9 +288,17 @@ export function InternalDirectoryClient({
                   </td>
                   <td className="px-4 py-3 align-top text-slate-300">
                     <span>{d.specialty || "—"}</span>
-                    {!d.is_specialty_approved ? (
+                    {isRejected && !d.is_specialty_approved ? (
+                      <span className="mt-1 block w-fit rounded-full bg-red-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-200">
+                        Specialty rejected
+                      </span>
+                    ) : isPending && !d.is_specialty_approved ? (
                       <span className="mt-1 block w-fit rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-200">
                         Specialty pending
+                      </span>
+                    ) : isPending && d.is_specialty_approved ? (
+                      <span className="mt-1 block w-fit rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-200/90">
+                        Ready for license review
                       </span>
                     ) : null}
                   </td>
@@ -303,29 +320,36 @@ export function InternalDirectoryClient({
                   </td>
                   <td className="px-4 py-3 align-top">
                     <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-                      <button
-                        type="button"
-                        disabled={busy || (status === "pending" && !canVerify)}
-                        title={verifyBlockReason ?? undefined}
-                        onClick={() => runAction(d.id, "verify")}
-                        className="rounded-lg bg-emerald-500/20 px-3 py-1.5 text-xs font-semibold text-emerald-100 ring-1 ring-emerald-500/35 transition hover:bg-emerald-500/30 disabled:opacity-50"
-                      >
-                        Verify professional
-                      </button>
-                      {verifyBlockReason ? (
-                        <p className="text-[11px] leading-snug text-amber-200/90">
+                      {isPending ? (
+                        <>
+                          <button
+                            type="button"
+                            disabled={busy || !canVerifyLicense}
+                            title={verifyBlockReason ?? undefined}
+                            onClick={() => runAction(d.id, "verify")}
+                            className="rounded-lg bg-emerald-500/20 px-3 py-1.5 text-xs font-semibold text-emerald-100 ring-1 ring-emerald-500/35 transition hover:bg-emerald-500/30 disabled:opacity-50"
+                          >
+                            Verify professional
+                          </button>
+                          <button
+                            type="button"
+                            disabled={busy || !canVerifyLicense}
+                            title={verifyBlockReason ?? undefined}
+                            onClick={() => runAction(d.id, "reject")}
+                            className="rounded-lg bg-red-500/15 px-3 py-1.5 text-xs font-semibold text-red-100 ring-1 ring-red-500/35 transition hover:bg-red-500/25 disabled:opacity-50"
+                          >
+                            Reject license
+                          </button>
+                        </>
+                      ) : null}
+                      {verifyBlockReason && (isRejected || isVerified || (isPending && !canVerifyLicense)) ? (
+                        <p
+                          className={`text-[11px] leading-snug ${
+                            isRejected ? "text-red-200/80" : "text-amber-200/90"
+                          }`}
+                        >
                           {verifyBlockReason}
                         </p>
-                      ) : null}
-                      {status !== "rejected" ? (
-                        <button
-                          type="button"
-                          disabled={busy}
-                          onClick={() => runAction(d.id, "reject")}
-                          className="rounded-lg bg-red-500/15 px-3 py-1.5 text-xs font-semibold text-red-100 ring-1 ring-red-500/35 transition hover:bg-red-500/25 disabled:opacity-50"
-                        >
-                          Reject
-                        </button>
                       ) : null}
                       {proofHref ? (
                         <a

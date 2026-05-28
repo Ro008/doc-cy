@@ -361,18 +361,6 @@ export default async function AgendaSettingsPage() {
               </h1>
               {isFoundingMember ? <FoundingMemberBadge /> : null}
             </div>
-            {doctor.specialty_requires_standard_at ? (
-              <p className="mt-4 rounded-xl border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-xs text-amber-100">
-                We could not add your custom specialty to the DocCy directory. Please choose a
-                <strong className="font-semibold"> standard specialty </strong>
-                from the list below (not &quot;Other&quot; with custom text).
-              </p>
-            ) : doctor.is_specialty_approved === false ? (
-              <p className="mt-4 rounded-xl border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-xs text-amber-100">
-                Your specialty text is pending review. You can edit it below or pick a standard
-                category — we&apos;ll align it with our directory list.
-              </p>
-            ) : null}
           </div>
 
           <div className="flex w-full flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-center lg:w-auto lg:max-w-md lg:flex-nowrap lg:justify-end">

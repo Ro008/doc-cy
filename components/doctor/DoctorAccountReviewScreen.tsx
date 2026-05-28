@@ -1,11 +1,15 @@
 import { Clock, ShieldCheck } from "lucide-react";
 import { SignOutButton } from "@/components/auth/SignOutButton";
-import type { DoctorVerificationStatus } from "@/lib/doctor-account-access";
+import { SupportInquiryLink } from "@/components/landing/SupportInquiryLink";
+import type { DoctorRejectionKind, DoctorVerificationStatus } from "@/lib/doctor-account-access";
 
 type Props = {
   doctorName: string;
   verificationStatus: Exclude<DoctorVerificationStatus, "verified">;
+  rejectionKind?: DoctorRejectionKind | null;
 };
+
+const SUPPORT_FEEDBACK = { subject: "Application review inquiry" } as const;
 
 /**
  * Logged-in doctor view while license verification is not complete.
@@ -14,8 +18,10 @@ type Props = {
 export function DoctorAccountReviewScreen({
   doctorName,
   verificationStatus,
+  rejectionKind = null,
 }: Props) {
   const isRejected = verificationStatus === "rejected";
+  const isSpecialtyRejected = isRejected && rejectionKind === "specialty";
 
   return (
     <main className="min-h-screen bg-slate-950 px-4 py-14 text-slate-200 sm:py-20">
@@ -39,7 +45,11 @@ export function DoctorAccountReviewScreen({
         </div>
 
         <h1 className="mt-5 text-balance text-2xl font-semibold tracking-tight text-white sm:text-3xl">
-          {isRejected ? "Application not approved" : "Account under review"}
+          {isSpecialtyRejected
+            ? "Specialty not accepted"
+            : isRejected
+              ? "Application not approved"
+              : "Account under review"}
         </h1>
 
         <p className="mt-2 text-sm text-slate-400">
@@ -47,28 +57,42 @@ export function DoctorAccountReviewScreen({
           <span className="font-medium text-slate-200">{doctorName}</span>
         </p>
 
-        {isRejected ? (
+        {isSpecialtyRejected ? (
           <p className="mt-6 text-left text-sm leading-relaxed text-slate-300 sm:text-center">
-            We could not approve this account for DocCy after reviewing your professional
-            credentials. Your agenda and settings stay closed. If you believe this is a
-            mistake, contact our team and we will look into it.
+            We reviewed the specialty on your application and cannot include it on DocCy at
+            this time. Your account stays closed — we did not proceed with license verification.
+            If you think we misunderstood your practice, use our{" "}
+            <SupportInquiryLink
+              label="support form"
+              feedbackDetail={SUPPORT_FEEDBACK}
+            />
+            .
+          </p>
+        ) : isRejected ? (
+          <p className="mt-6 text-left text-sm leading-relaxed text-slate-300 sm:text-center">
+            We could not verify your professional license for DocCy. Your agenda and settings
+            stay closed. If you believe this is a mistake, use our{" "}
+            <SupportInquiryLink
+              label="support form"
+              feedbackDetail={SUPPORT_FEEDBACK}
+            />
+            .
           </p>
         ) : (
-          <p className="mt-6 text-left text-sm leading-relaxed text-slate-300 sm:text-center">
-            Thank you for applying to DocCy. Our team is verifying your professional license
-            and registration details before you can use your agenda, settings, or public
-            profile. This usually takes{" "}
-            <strong className="font-medium text-slate-100">a few hours</strong>. We will
-            email you when your account is ready.
-          </p>
+          <>
+            <p className="mt-6 text-left text-sm leading-relaxed text-slate-300 sm:text-center">
+              Thank you for applying to DocCy. Our team is reviewing your application — including
+              your specialty and professional license — before you can use your agenda, settings,
+              or public profile. This usually takes{" "}
+              <strong className="font-medium text-slate-100">a few hours</strong>. We will email
+              you when your account is ready.
+            </p>
+            <p className="mt-4 text-left text-xs leading-relaxed text-slate-500 sm:text-center">
+              Until then, DocCy stays closed for your account — no bookings, calendar, or
+              practice settings.
+            </p>
+          </>
         )}
-
-        {!isRejected ? (
-          <p className="mt-4 text-left text-xs leading-relaxed text-slate-500 sm:text-center">
-            Until then, DocCy stays closed for your account — no bookings, calendar, or
-            practice settings.
-          </p>
-        ) : null}
 
         <div className="mt-10 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
           <SignOutButton

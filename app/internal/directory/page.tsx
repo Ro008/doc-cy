@@ -250,7 +250,7 @@ export default async function FounderDashboardPage({
     .from("doctors")
     .select("id, name, specialty, email")
     .eq("is_specialty_approved", false)
-    .is("specialty_requires_standard_at", null)
+    .eq("status", "pending")
     .order("created_at", { ascending: false });
 
   const pendingSpecialtyItems: PendingSpecialtyRow[] =

@@ -15,9 +15,9 @@ export function verificationBlockedReason(doctor: {
 }): string | null {
   if (isSpecialtyResolvedForVerification(doctor)) return null;
   if (doctor.specialty_requires_standard_at) {
-    return "Resolve specialty first: the professional must choose a standard category (or map/approve in Pending specialties).";
+    return "Resolve this custom specialty in Pending specialties first (approve, merge, edit, or reject).";
   }
-  return "Resolve specialty first in Pending specialties (map, approve, or require standard category).";
+  return "Resolve specialty in Pending specialties first (approve as submitted, edit, merge, or reject).";
 }
 
 /** Public-facing specialty label; never exposes unapproved custom text. */

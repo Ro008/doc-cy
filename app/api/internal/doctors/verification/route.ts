@@ -38,17 +38,44 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  const { data: row, error: fetchErr } = await supabase
+    .from("doctors")
+    .select("id, status, is_specialty_approved, specialty_requires_standard_at")
+    .eq("id", doctorId)
+    .maybeSingle();
+
+  if (fetchErr || !row) {
+    return NextResponse.json({ message: "Professional not found." }, { status: 404 });
+  }
+
+  const currentStatus = String((row as { status?: string | null }).status ?? "")
+    .trim()
+    .toLowerCase();
+
+  if (currentStatus !== "pending") {
+    return NextResponse.json(
+      {
+        message:
+          currentStatus === "verified"
+            ? "This professional is already verified."
+            : "This application is closed (rejected).",
+      },
+      { status: 400 },
+    );
+  }
+
   if (action === "verify") {
-    const { data: row, error: fetchErr } = await supabase
-      .from("doctors")
-      .select("id, is_specialty_approved, specialty_requires_standard_at")
-      .eq("id", doctorId)
-      .maybeSingle();
-
-    if (fetchErr || !row) {
-      return NextResponse.json({ message: "Professional not found." }, { status: 404 });
+    const blockReason = verificationBlockedReason({
+      is_specialty_approved: (row as { is_specialty_approved?: boolean | null })
+        .is_specialty_approved,
+      specialty_requires_standard_at: (
+        row as { specialty_requires_standard_at?: string | null }
+      ).specialty_requires_standard_at,
+    });
+    if (blockReason) {
+      return NextResponse.json({ message: blockReason }, { status: 400 });
     }
-
+  } else {
     const blockReason = verificationBlockedReason({
       is_specialty_approved: (row as { is_specialty_approved?: boolean | null })
         .is_specialty_approved,

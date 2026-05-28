@@ -6,6 +6,7 @@ import { cookies } from "next/headers";
 import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
 import { DoctorAccountReviewScreen } from "@/components/doctor/DoctorAccountReviewScreen";
 import {
+  getDoctorRejectionKind,
   isDoctorVerifiedForProduct,
   normalizeDoctorVerificationStatus,
 } from "@/lib/doctor-account-access";
@@ -25,7 +26,7 @@ export default async function DoctorAccountReviewPage() {
 
   const { data: doctor, error: doctorError } = await supabase
     .from("doctors")
-    .select("id, name, status")
+    .select("id, name, status, is_specialty_approved")
     .eq("auth_user_id", user.id)
     .maybeSingle();
 
@@ -50,11 +51,17 @@ export default async function DoctorAccountReviewPage() {
   }
 
   const verificationStatus = normalizeDoctorVerificationStatus(doctor.status);
+  const rejectionKind = getDoctorRejectionKind({
+    status: doctor.status,
+    is_specialty_approved: (doctor as { is_specialty_approved?: boolean | null })
+      .is_specialty_approved,
+  });
 
   return (
     <DoctorAccountReviewScreen
       doctorName={doctorDashboardDisplayName(doctor.name)}
       verificationStatus={verificationStatus}
+      rejectionKind={rejectionKind}
     />
   );
 }

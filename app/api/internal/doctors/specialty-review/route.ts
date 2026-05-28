@@ -3,20 +3,15 @@ import { createServiceRoleClient } from "@/lib/supabase-service";
 import { isInternalDirectoryAuthenticated } from "@/lib/internal-directory-auth";
 import { isMasterSpecialty } from "@/lib/cyprus-specialties";
 import { normalizeApprovedCustomSpecialty } from "@/lib/specialty-submission";
-import { sendDoctorSpecialtyRequireStandardEmail } from "@/lib/send-doctor-specialty-require-standard-email";
 
 type Body = {
   doctorId?: string;
-  action?: "map" | "approve_new" | "approve_edited" | "require_standard";
+  action?: "map" | "approve_new" | "approve_edited" | "reject_specialty";
   /** Required when action is map — must be a canonical master specialty */
   mapTo?: string;
   /** Required when action is approve_edited */
   editedSpecialty?: string;
-  /** Optional note included in the email when action is require_standard */
-  message?: string;
 };
-
-const MESSAGE_MAX = 2000;
 
 function clearRequiresStandard() {
   return { specialty_requires_standard_at: null };
@@ -47,30 +42,21 @@ export async function POST(req: NextRequest) {
     (action !== "map" &&
       action !== "approve_new" &&
       action !== "approve_edited" &&
-      action !== "require_standard")
+      action !== "reject_specialty")
   ) {
     return NextResponse.json(
       {
         message:
-          "doctorId and action (map | approve_new | approve_edited | require_standard) are required.",
+          "doctorId and action (map | approve_new | approve_edited | reject_specialty) are required.",
       },
       { status: 400 },
     );
   }
 
-  if (action === "require_standard") {
-    const messageRaw =
-      typeof body.message === "string" ? body.message.trim() : "";
-    if (messageRaw.length > MESSAGE_MAX) {
-      return NextResponse.json(
-        { message: "Message is too long." },
-        { status: 400 },
-      );
-    }
-
+  if (action === "reject_specialty") {
     const { data: row, error: fetchErr } = await supabase
       .from("doctors")
-      .select("id, name, email, specialty, is_specialty_approved")
+      .select("id, is_specialty_approved, status")
       .eq("id", doctorId)
       .maybeSingle();
 
@@ -85,22 +71,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const submitted = String(
-      (row as { specialty?: string | null }).specialty ?? "",
-    ).trim();
-    if (!submitted) {
+    const currentStatus = String((row as { status?: string | null }).status ?? "")
+      .trim()
+      .toLowerCase();
+    if (currentStatus === "verified") {
       return NextResponse.json(
-        { message: "Professional has no specialty text on file." },
-        { status: 400 },
-      );
-    }
-
-    if (isMasterSpecialty(submitted)) {
-      return NextResponse.json(
-        {
-          message:
-            "This is already a standard specialty. Use Map to existing if you need to change it.",
-        },
+        { message: "Cannot reject specialty for an already verified professional." },
         { status: 400 },
       );
     }
@@ -108,40 +84,21 @@ export async function POST(req: NextRequest) {
     const { error: updateErr } = await supabase
       .from("doctors")
       .update({
+        status: "rejected",
         is_specialty_approved: false,
-        specialty_requires_standard_at: new Date().toISOString(),
+        ...clearRequiresStandard(),
       })
       .eq("id", doctorId);
 
     if (updateErr) {
-      console.error("[specialty-review] require_standard failed", updateErr);
+      console.error("[specialty-review] reject_specialty failed", updateErr);
       return NextResponse.json({ message: "Update failed." }, { status: 500 });
-    }
-
-    const siteUrl =
-      process.env.NEXT_PUBLIC_SITE_URL?.trim() || "https://www.mydoccy.com";
-    const resendToOverride =
-      process.env.NODE_ENV !== "production"
-        ? process.env.RESEND_TO_OVERRIDE?.trim() || null
-        : null;
-
-    try {
-      await sendDoctorSpecialtyRequireStandardEmail({
-        siteUrl,
-        doctorEmail: String((row as { email?: string | null }).email ?? ""),
-        doctorName: String((row as { name?: string | null }).name ?? "there"),
-        submittedSpecialty: submitted,
-        founderMessage: messageRaw || null,
-        resendToOverride,
-      });
-    } catch (e) {
-      console.error("[specialty-review] require_standard email failed", e);
     }
 
     return NextResponse.json({
       ok: true,
+      status: "rejected",
       is_specialty_approved: false,
-      specialty_requires_standard_at: true,
     });
   }
 
@@ -185,7 +142,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           message:
-            "This matches a standard specialty. Use 'Map to existing' for canonical categories.",
+            "This matches a standard specialty. Use 'Merge with existing' for canonical categories.",
         },
         { status: 400 },
       );

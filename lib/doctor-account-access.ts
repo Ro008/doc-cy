@@ -32,3 +32,14 @@ export function isDoctorAccountReviewPath(pathname: string): boolean {
     norm.startsWith(`${DOCTOR_ACCOUNT_REVIEW_PATH}/`)
   );
 }
+
+/** Distinguish specialty rejection vs license rejection on the doctor-facing screen. */
+export type DoctorRejectionKind = "specialty" | "license";
+
+export function getDoctorRejectionKind(input: {
+  status: string | null | undefined;
+  is_specialty_approved?: boolean | null;
+}): DoctorRejectionKind | null {
+  if (normalizeDoctorVerificationStatus(input.status) !== "rejected") return null;
+  return input.is_specialty_approved === false ? "specialty" : "license";
+}
