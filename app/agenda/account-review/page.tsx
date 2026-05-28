@@ -51,6 +51,9 @@ export default async function DoctorAccountReviewPage() {
   }
 
   const verificationStatus = normalizeDoctorVerificationStatus(doctor.status);
+  if (verificationStatus === "verified") {
+    redirect("/agenda");
+  }
   const rejectionKind = getDoctorRejectionKind({
     status: doctor.status,
     is_specialty_approved: (doctor as { is_specialty_approved?: boolean | null })
