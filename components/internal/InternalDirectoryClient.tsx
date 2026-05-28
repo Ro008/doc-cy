@@ -8,6 +8,10 @@ import {
   CYPRUS_SPOKEN_LANGUAGE_LABELS,
   canonicalLanguageLabel,
 } from "@/lib/cyprus-languages";
+import {
+  isSpecialtyResolvedForVerification,
+  verificationBlockedReason,
+} from "@/lib/doctor-specialty-public";
 
 export type DirectoryDoctorRow = {
   id: string;
@@ -19,6 +23,7 @@ export type DirectoryDoctorRow = {
   license_number: string | null;
   license_file_url: string | null;
   is_specialty_approved: boolean;
+  specialty_requires_standard_at: string | null;
 };
 
 async function postVerification(doctorId: string, action: "verify" | "reject") {
@@ -235,6 +240,17 @@ export function InternalDirectoryClient({
             {filtered.map((d) => {
               const busy = busyId === d.id;
               const status = d.status?.trim().toLowerCase() || "pending";
+              const canVerify = isSpecialtyResolvedForVerification({
+                is_specialty_approved: d.is_specialty_approved,
+                specialty_requires_standard_at: d.specialty_requires_standard_at,
+              });
+              const verifyBlockReason =
+                status === "pending" && !canVerify
+                  ? verificationBlockedReason({
+                      is_specialty_approved: d.is_specialty_approved,
+                      specialty_requires_standard_at: d.specialty_requires_standard_at,
+                    })
+                  : null;
               const proofHref = d.license_file_url
                 ? `/api/internal/doctors/${d.id}/license`
                 : null;
@@ -289,12 +305,18 @@ export function InternalDirectoryClient({
                     <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                       <button
                         type="button"
-                        disabled={busy}
+                        disabled={busy || (status === "pending" && !canVerify)}
+                        title={verifyBlockReason ?? undefined}
                         onClick={() => runAction(d.id, "verify")}
                         className="rounded-lg bg-emerald-500/20 px-3 py-1.5 text-xs font-semibold text-emerald-100 ring-1 ring-emerald-500/35 transition hover:bg-emerald-500/30 disabled:opacity-50"
                       >
                         Verify professional
                       </button>
+                      {verifyBlockReason ? (
+                        <p className="text-[11px] leading-snug text-amber-200/90">
+                          {verifyBlockReason}
+                        </p>
+                      ) : null}
                       {status !== "rejected" ? (
                         <button
                           type="button"

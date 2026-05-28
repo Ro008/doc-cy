@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceRoleClient } from "@/lib/supabase-service";
 import { isInternalDirectoryAuthenticated } from "@/lib/internal-directory-auth";
+import { verificationBlockedReason } from "@/lib/doctor-specialty-public";
 
 type Body = {
   doctorId?: string;
@@ -35,6 +36,29 @@ export async function POST(req: NextRequest) {
       { message: "doctorId and action (verify | reject) are required." },
       { status: 400 }
     );
+  }
+
+  if (action === "verify") {
+    const { data: row, error: fetchErr } = await supabase
+      .from("doctors")
+      .select("id, is_specialty_approved, specialty_requires_standard_at")
+      .eq("id", doctorId)
+      .maybeSingle();
+
+    if (fetchErr || !row) {
+      return NextResponse.json({ message: "Professional not found." }, { status: 404 });
+    }
+
+    const blockReason = verificationBlockedReason({
+      is_specialty_approved: (row as { is_specialty_approved?: boolean | null })
+        .is_specialty_approved,
+      specialty_requires_standard_at: (
+        row as { specialty_requires_standard_at?: string | null }
+      ).specialty_requires_standard_at,
+    });
+    if (blockReason) {
+      return NextResponse.json({ message: blockReason }, { status: 400 });
+    }
   }
 
   const status = action === "verify" ? "verified" : "rejected";

@@ -159,7 +159,7 @@ export default async function FounderDashboardPage({
     supabase
       .from("doctors")
       .select(
-        "id, name, email, phone, slug, specialty, languages, status, created_at, license_number, license_file_url, is_specialty_approved"
+        "id, name, email, phone, slug, specialty, languages, status, created_at, license_number, license_file_url, is_specialty_approved, specialty_requires_standard_at"
       )
       .order("created_at", { ascending: false }),
     supabase.from("appointments").select("id", { count: "exact", head: true }),
@@ -241,6 +241,9 @@ export default async function FounderDashboardPage({
     created_at: (d as { created_at?: string | null }).created_at ?? null,
     is_specialty_approved:
       (d as { is_specialty_approved?: boolean | null }).is_specialty_approved ?? true,
+    specialty_requires_standard_at:
+      (d as { specialty_requires_standard_at?: string | null })
+        .specialty_requires_standard_at ?? null,
   }));
 
   const pendingRes = await supabase

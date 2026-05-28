@@ -39,6 +39,7 @@ import {
   normalizeDistrictForSeoTitle,
   withDoctorTitleHonorific,
 } from "@/lib/doctor-seo-formatting";
+import { getPublicSpecialtyDisplayLabel } from "@/lib/doctor-specialty-public";
 
 const DOCTOR_AVATAR_URL =
   "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=400&h=400&fit=crop";
@@ -54,6 +55,7 @@ type DoctorProfileRow = {
   status: string;
   languages?: string[] | null;
   is_gesy?: boolean | null;
+  is_specialty_approved?: boolean | null;
 };
 
 export type PageProps = {
@@ -62,7 +64,7 @@ export type PageProps = {
 
 function isOptionalProfileColumnError(msg: string): boolean {
   return (
-    /(languages|district|is_gesy)/i.test(msg) &&
+    /(languages|district|is_gesy|is_specialty_approved)/i.test(msg) &&
     (/schema cache|does not exist|column|Could not find|42703/i.test(msg) ||
       msg.includes("Could not find"))
   );
@@ -189,7 +191,14 @@ async function fetchPublicDoctorBySlug(
 
   const st = (row.status ?? "").trim().toLowerCase();
   if (st === "verified") {
-    return { kind: "ok", profile: row };
+    const profile: DoctorProfileRow = {
+      ...row,
+      specialty: getPublicSpecialtyDisplayLabel({
+        specialty: row.specialty,
+        is_specialty_approved: row.is_specialty_approved,
+      }),
+    };
+    return { kind: "ok", profile };
   }
 
   const verificationStatus: PublicProfileBlockReason =
@@ -384,21 +393,38 @@ export async function generateMetadata({
 
   const st = (doctor.status ?? "").trim().toLowerCase();
   const doctorName = (doctor.name ?? "").trim();
-  const specialty = (doctor.specialty ?? "").trim();
+  const specialty = getPublicSpecialtyDisplayLabel({
+    specialty: doctor.specialty,
+    is_specialty_approved: (doctor as { is_specialty_approved?: boolean | null })
+      .is_specialty_approved,
+    fallback: "",
+  });
+  const specialtyForSeo =
+    (doctor as { is_specialty_approved?: boolean | null }).is_specialty_approved === false
+      ? ""
+      : (doctor.specialty ?? "").trim();
   const districtLabel = normalizeDistrictForSeoTitle(doctor.district);
   const cityLabel = districtLabel ?? "Cyprus";
   const metaTitleCore =
     st === "verified"
-      ? buildVerifiedRegisteredMetaTitle({ doctorName, specialty, districtLabel })
-      : buildNonLiveDoctorMetaTitle({ doctorName, specialty, districtLabel });
+      ? buildVerifiedRegisteredMetaTitle({
+          doctorName,
+          specialty: specialtyForSeo || specialty,
+          districtLabel,
+        })
+      : buildNonLiveDoctorMetaTitle({
+          doctorName,
+          specialty: specialtyForSeo || specialty,
+          districtLabel,
+        });
   const dynamicTitle = metaTitleCore ?? fallbackTitle;
   const dynamicDescription =
-    st === "verified" && specialty.length > 0
-      ? `Book your next ${specialty} appointment online with ${withDoctorTitleHonorific(doctorName)} in ${cityLabel}. Secure scheduling via DocCy.`
+    st === "verified" && specialtyForSeo.length > 0
+      ? `Book your next ${specialtyForSeo} appointment online with ${withDoctorTitleHonorific(doctorName)} in ${cityLabel}. Secure scheduling via DocCy.`
       : st === "verified"
         ? `Book online with ${withDoctorTitleHonorific(doctorName)} in ${cityLabel} via DocCy.`
-        : specialty.length > 0
-          ? `View profile and contact details for ${withDoctorTitleHonorific(doctorName)} (${specialty} in ${cityLabel}) on DocCy.`
+        : specialtyForSeo.length > 0
+          ? `View profile and contact details for ${withDoctorTitleHonorific(doctorName)} (${specialtyForSeo} in ${cityLabel}) on DocCy.`
           : `View profile and contact details for ${withDoctorTitleHonorific(doctorName)} in ${cityLabel} on DocCy.`;
 
   if (st !== "verified") {
@@ -519,7 +545,8 @@ export default async function DoctorPage({ params }: PageProps) {
 
   const structuredData = buildPhysicianStructuredData({
     name: profile.name,
-    specialty: profile.specialty,
+    specialty:
+      profile.is_specialty_approved === false ? null : profile.specialty,
     bio: profile.bio,
     clinicAddress: clinicAddress,
     district: profile.district ?? null,

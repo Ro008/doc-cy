@@ -14,7 +14,6 @@ const TEST_NAME_PREFIXES = [
 const TEST_SLUG_PREFIXES = ["booking-flow-", "finder-card-", "finder-ux-", "finder-filter-"];
 const DEFAULT_PRESERVED_SLUGS = [
   "andreas-nikos",
-  "kasia-petrova",
   "ross-geller",
   "tasos-smith",
 ];

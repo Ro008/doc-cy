@@ -163,6 +163,7 @@ jobs:
             tests/integration/monthly_digest.integration.spec.ts \
             tests/integration/specialty_review.integration.spec.ts \
             tests/integration/specialty_require_standard_doctor_flow.integration.spec.ts \
+            tests/integration/doctor_verification_specialty_gate.integration.spec.ts \
             tests/navigation_feedback.spec.ts \
             tests/doctor_settings_language_guard.spec.ts \
             tests/profile_structured_data.spec.ts \
