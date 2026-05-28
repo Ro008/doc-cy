@@ -1,4 +1,6 @@
+import type { Page } from "@playwright/test";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { signInDoctorAndSetCookies } from "../../helpers/doctorAuth";
 
 export const INTEGRATION_DOCTOR_PASSWORD = "StrongPass123!";
 
@@ -84,17 +86,11 @@ export async function deleteTestDoctor(fixture: TestDoctorFixture): Promise<void
   }
 }
 
+/** Programmatic session (stable on CI with `npm run start` + 127.0.0.1). */
 export async function loginDoctorUi(
-  page: import("@playwright/test").Page,
+  page: Page,
   email: string,
   password: string,
 ): Promise<void> {
-  await page.goto("/login");
-  await page.getByLabel(/email/i).fill(email);
-  await page.getByLabel(/password/i).fill(password);
-  await page.getByRole("button", { name: /sign in/i }).click();
-  await page.waitForURL(
-    (url) => !new URL(url).pathname.startsWith("/login"),
-    { timeout: 20000 },
-  );
+  await signInDoctorAndSetCookies(page, undefined, { email, password });
 }
