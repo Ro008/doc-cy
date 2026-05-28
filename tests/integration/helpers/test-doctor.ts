@@ -93,4 +93,5 @@ export async function loginDoctorUi(
   password: string,
 ): Promise<void> {
   await signInDoctorAndSetCookies(page, undefined, { email, password });
+  await page.goto("/");
 }

@@ -161,7 +161,8 @@ test.describe("Integration: doctor account access", () => {
       ).toBe(200);
 
       await loginDoctorUi(page, fixture.email, fixture.password);
-      await page.waitForURL(
+      await page.goto("/agenda");
+      await expect(page).toHaveURL(
         (url) => new URL(url).pathname.replace(/\/$/, "") === "/agenda",
         { timeout: 20000 },
       );
