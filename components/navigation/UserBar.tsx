@@ -205,8 +205,14 @@ export function UserBar({ initialSessionState }: UserBarProps) {
   }
 
   const isDistractionFreeDoctorFlow = pathname.startsWith("/dashboard/appointments/");
+  const isAccountReviewGate = pathname.startsWith("/agenda/account-review");
 
-  if (!sessionState.isLoggedIn || pathname === "/login" || isDistractionFreeDoctorFlow) {
+  if (
+    !sessionState.isLoggedIn ||
+    pathname === "/login" ||
+    isDistractionFreeDoctorFlow ||
+    isAccountReviewGate
+  ) {
     return null;
   }
 

@@ -43,6 +43,26 @@ test.describe("Agenda route protection", () => {
     await expect(page.getByRole("heading", { name: "Practice insights" })).not.toBeVisible();
   });
 
+  test("pending doctor visiting /agenda is redirected to account review", async ({
+    page,
+  }) => {
+    const email = process.env.PLAYWRIGHT_PENDING_DOCTOR_EMAIL?.trim();
+    const password = process.env.PLAYWRIGHT_PENDING_DOCTOR_PASSWORD?.trim();
+    test.skip(!email || !password, "Set PLAYWRIGHT_PENDING_DOCTOR_EMAIL/PASSWORD");
+
+    await page.goto("/login");
+    await page.getByLabel(/email/i).fill(email!);
+    await page.getByLabel(/password/i).fill(password!);
+    await page.getByRole("button", { name: /Sign in/i }).click();
+
+    await page.goto("/agenda");
+    await expect(page).toHaveURL(/\/agenda\/account-review/, { timeout: 15000 });
+    await expect(
+      page.getByRole("heading", { name: /Account under review/i }),
+    ).toBeVisible();
+    await expect(page.getByText(/Your Agenda/i)).not.toBeVisible();
+  });
+
   test("login page is functional after redirect (no broken redirect loop)", async ({
     page,
   }) => {
