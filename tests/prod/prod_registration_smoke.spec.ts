@@ -171,7 +171,7 @@ test.describe("Prod smoke: doctor registration", () => {
         `Doctor row not found in configured Supabase project for email ${email}. ` +
           `If running against production URL, ensure NEXT_PUBLIC_SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY point to the same production project.`
       ).toBeTruthy();
-      expect(createdDoctor?.is_test_profile ?? null).toBe(false);
+      expect(createdDoctor?.is_test_profile ?? null).toBe(true);
       expect(createdDoctor?.name ?? "").toBe(fullName);
       expect(createdDoctor?.phone ?? "").toContain("+357");
       expect(createdDoctor?.license_number ?? "").toBe(licenseNumber);

@@ -32,6 +32,7 @@ import {
   matchesFinderSpecialtyFilter,
 } from "@/lib/doctor-specialty-public";
 import { getFinderManualPhotoUrl } from "@/lib/finder-manual-photos";
+import { isRegisteredDoctorHiddenFromFinder } from "@/lib/doctor-test-profile";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -74,9 +75,6 @@ type ManualFinderRow = {
   photoUrl: string | null;
 };
 
-const TEST_NAME_MARKER = /\btest\b/i;
-const TEST_EMAIL_MARKER = /@(integration\.test|.*\.testing)$/i;
-const TEST_SLUG_MARKER = /^(booking-flow-|finder-card-|finder-ux-|finder-filter-)/i;
 const SEO_CITIES: CyprusDistrict[] = ["Nicosia", "Limassol", "Paphos", "Larnaca"];
 const SEO_SPECIALTIES = [
   { label: "Dentistry", pluralLabel: "Dentists" },
@@ -126,26 +124,6 @@ function toPublicAvatarUrl(rawValue: unknown): string | null {
   const base = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
   if (!base) return null;
   return `${base.replace(/\/+$/, "")}/storage/v1/object/public/avatars/${raw.replace(/^\/+/, "")}`;
-}
-
-function isTestProfileLike(row: {
-  name: string;
-  slug?: string | null;
-  email?: string | null;
-  isTestProfile?: boolean | null;
-}): boolean {
-  if (row.isTestProfile === true) return true;
-  if (TEST_NAME_MARKER.test(row.name)) return true;
-  if (TEST_SLUG_MARKER.test(String(row.slug ?? ""))) return true;
-  if (TEST_EMAIL_MARKER.test(String(row.email ?? ""))) return true;
-  return false;
-}
-
-/** Local/dev only: never set on production deploys. */
-function finderIncludesRegisteredTestProfiles(): boolean {
-  return (
-    String(process.env.NEXT_PUBLIC_DOC_CY_FINDER_INCLUDE_TEST_PROFILES ?? "").trim() === "1"
-  );
 }
 
 function normalizeSpecialtyTerm(value: string): string {
@@ -340,8 +318,7 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
         })
         .filter(
           (row) =>
-            finderIncludesRegisteredTestProfiles() ||
-            !isTestProfileLike({
+            !isRegisteredDoctorHiddenFromFinder({
               name: row.name,
               slug: row.slug,
               email: row.email,
