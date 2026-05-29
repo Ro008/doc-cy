@@ -9,6 +9,11 @@ import {isLikelyBotUserAgent} from "./lib/bot-user-agent";
 import {shouldSuppressTrafficLog} from "./lib/traffic-log";
 import {parseAuthTokenClaims} from "./lib/auth-token-claims";
 import {isSessionRevokedByPolicy} from "./lib/auth-session-revocation";
+import {
+  DOCTOR_ACCOUNT_REVIEW_PATH,
+  isDoctorAccountReviewPath,
+  isDoctorVerifiedForProduct,
+} from "./lib/doctor-account-access";
 
 const handleI18nRouting = createMiddleware(routing);
 
@@ -138,36 +143,46 @@ export async function middleware(req: NextRequest, event: NextFetchEvent) {
       return NextResponse.redirect(loginUrl);
     }
 
+    const {data: doctorRow, error: doctorRowError} = await supabase
+      .from("doctors")
+      .select("status, auth_session_revoked_after, auth_keep_session_id")
+      .eq("auth_user_id", session.user.id)
+      .maybeSingle();
+
+    if (doctorRowError && (doctorRowError as {code?: string}).code !== "42703") {
+      console.error("[DocCy][auth] middleware_doctor_lookup_failed", doctorRowError);
+    }
+
+    if (
+      doctorRow &&
+      !isDoctorAccountReviewPath(pathname) &&
+      !isDoctorVerifiedForProduct(
+        (doctorRow as {status?: string | null}).status,
+      )
+    ) {
+      return NextResponse.redirect(new URL(DOCTOR_ACCOUNT_REVIEW_PATH, req.url));
+    }
+
     const claims = parseAuthTokenClaims(session.access_token);
-    if (claims.sessionId) {
-      const {data: doctorAuth, error: doctorAuthError} = await supabase
-        .from("doctors")
-        .select("auth_session_revoked_after, auth_keep_session_id")
-        .eq("auth_user_id", session.user.id)
-        .maybeSingle();
+    if (claims.sessionId && doctorRow) {
+      const revokedAfterRaw = (
+        doctorRow as {auth_session_revoked_after?: string | null}
+      ).auth_session_revoked_after;
+      const keepSessionId = (
+        doctorRow as {auth_keep_session_id?: string | null}
+      ).auth_keep_session_id;
 
-      if (!doctorAuthError && doctorAuth) {
-        const revokedAfterRaw = (
-          doctorAuth as {auth_session_revoked_after?: string | null}
-        ).auth_session_revoked_after;
-        const keepSessionId = (
-          doctorAuth as {auth_keep_session_id?: string | null}
-        ).auth_keep_session_id;
+      const isRevoked = isSessionRevokedByPolicy({
+        revokedAfterIso: revokedAfterRaw,
+        keepSessionId,
+        tokenIat: claims.iat,
+        tokenSessionId: claims.sessionId,
+      });
 
-        const isRevoked = isSessionRevokedByPolicy({
-          revokedAfterIso: revokedAfterRaw,
-          keepSessionId,
-          tokenIat: claims.iat,
-          tokenSessionId: claims.sessionId,
-        });
-
-        if (isRevoked) {
-          const loginUrl = new URL("/login", req.url);
-          loginUrl.searchParams.set("next", pathname);
-          return NextResponse.redirect(loginUrl);
-        }
-      } else if ((doctorAuthError as {code?: string} | null)?.code !== "42703") {
-        console.error("[DocCy][auth] middleware_revocation_check_failed", doctorAuthError);
+      if (isRevoked) {
+        const loginUrl = new URL("/login", req.url);
+        loginUrl.searchParams.set("next", pathname);
+        return NextResponse.redirect(loginUrl);
       }
     }
   }

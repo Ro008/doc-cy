@@ -3,7 +3,6 @@
 --
 -- Creates/updates these profiles by slug using values copied from production:
 --   - andreas-nikos
---   - kasia-petrova
 --   - ross-geller
 --   - tasos-smith
 --
@@ -60,17 +59,6 @@ BEGIN
           'verified',
           true,
           ARRAY['Greek', 'English', 'Spanish']::text[]
-        ),
-        (
-          'kasia-petrova',
-          'Kasia Petrova test',
-          'rociosirvent+kasiadoctor@gmail.com',
-          'acupuncture',
-          '+34667082906',
-          'founder',
-          'verified',
-          false,
-          null::text[]
         ),
         (
           'ross-geller',

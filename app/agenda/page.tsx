@@ -165,14 +165,6 @@ export default async function AgendaPage({ searchParams }: AgendaPageProps) {
             <p className="mt-3 text-sm text-slate-400">
               Weekly calendar on desktop · Daily focus on mobile
             </p>
-            {doctor.status !== "verified" && (
-              <p className="mt-4 inline-flex max-w-prose items-center gap-2 rounded-2xl border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-xs font-medium text-amber-100">
-                <span className="inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-amber-300" />
-                {doctor.status === "rejected"
-                  ? "Your application was not approved for a public profile. Contact support if you need help."
-                  : "Your public profile is under review. We’ll notify you when it’s verified."}
-              </p>
-            )}
           </div>
         </header>
 

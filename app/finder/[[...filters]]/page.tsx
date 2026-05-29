@@ -27,6 +27,10 @@ import {
 } from "@/lib/finder-seo";
 import { buildFinderSpecialtyOptions } from "@/lib/finder-specialty-options";
 import { harmonizeFinderSpecialtyLabel } from "@/lib/finder-specialty-harmonize";
+import {
+  getPublicSpecialtyDisplayLabel,
+  matchesFinderSpecialtyFilter,
+} from "@/lib/doctor-specialty-public";
 import { getFinderManualPhotoUrl } from "@/lib/finder-manual-photos";
 
 export const dynamic = "force-dynamic";
@@ -57,6 +61,7 @@ type RegisteredFinderRow = {
   /** Address as entered at registration. */
   clinic_address: string | null;
   isGesy: boolean;
+  isSpecialtyApproved: boolean;
 };
 
 type ManualFinderRow = {
@@ -270,7 +275,7 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
 
   if (supabase) {
     const registeredSelectAttempts = [
-      "id, name, specialty, district, slug, email, languages, avatar_url, is_test_profile, clinic_address, is_gesy",
+      "id, name, specialty, district, slug, email, languages, avatar_url, is_test_profile, clinic_address, is_gesy, is_specialty_approved",
       "id, name, specialty, district, slug, email, languages, avatar_url, is_test_profile, clinic_address",
       "id, name, specialty, district, slug, email, languages, avatar_url, clinic_address",
       "id, name, specialty, district, slug, email, languages, avatar_url, is_test_profile",
@@ -317,7 +322,12 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
             id: String(raw.id ?? ""),
             name: String(raw.name ?? "Professional"),
             displayName: doctorDashboardDisplayName(String(raw.name ?? "Professional")),
-            specialty: (raw.specialty as string | null) ?? null,
+            isSpecialtyApproved:
+              (raw.is_specialty_approved as boolean | null | undefined) !== false,
+            specialty: getPublicSpecialtyDisplayLabel({
+              specialty: (raw.specialty as string | null) ?? null,
+              is_specialty_approved: raw.is_specialty_approved as boolean | null,
+            }),
             district: (raw.district as string | null) ?? null,
             slug: (raw.slug as string | null) ?? null,
             email: (raw.email as string | null) ?? null,
@@ -375,7 +385,14 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
     ) {
       return false;
     }
-    if (activeSpecialty && !matchesSpecialtyFilter(row.specialty ?? "", activeSpecialty)) {
+    if (
+      !matchesFinderSpecialtyFilter({
+        specialty: row.specialty,
+        is_specialty_approved: row.isSpecialtyApproved,
+        activeSpecialty,
+        matchesSpecialty: matchesSpecialtyFilter,
+      })
+    ) {
       return false;
     }
     if (

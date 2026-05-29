@@ -18,10 +18,9 @@ export type PendingSpecialtyRow = {
 
 async function postReview(body: {
   doctorId: string;
-  action: "map" | "approve_new" | "approve_edited" | "require_standard";
+  action: "map" | "approve_new" | "approve_edited" | "reject_specialty";
   mapTo?: string;
   editedSpecialty?: string;
-  message?: string;
 }) {
   const res = await fetch("/api/internal/doctors/specialty-review", {
     method: "POST",
@@ -43,11 +42,9 @@ export function PendingSpecialtiesPanel({ items }: { items: PendingSpecialtyRow[
   const [mapTarget, setMapTarget] = React.useState<string>("");
   const [editForId, setEditForId] = React.useState<string | null>(null);
   const [editValue, setEditValue] = React.useState<string>("");
-  const [requireForId, setRequireForId] = React.useState<string | null>(null);
-  const [requireMessage, setRequireMessage] = React.useState<string>("");
   const sortedSpecialties = React.useMemo(
     () => [...CYPRUS_MASTER_SPECIALTIES].sort((a, b) => a.localeCompare(b)),
-    []
+    [],
   );
 
   if (items.length === 0) {
@@ -56,7 +53,7 @@ export function PendingSpecialtiesPanel({ items }: { items: PendingSpecialtyRow[
 
   async function mapSubmit(id: string) {
     if (!mapTarget || !isMasterSpecialty(mapTarget)) {
-      const message = "Choose a standard specialty to map to.";
+      const message = "Choose a standard specialty to merge with.";
       setError(message);
       toast.error(message);
       return;
@@ -67,7 +64,7 @@ export function PendingSpecialtiesPanel({ items }: { items: PendingSpecialtyRow[
       await postReview({ doctorId: id, action: "map", mapTo: mapTarget });
       setMapForId(null);
       setMapTarget("");
-      toast.success("Specialty mapping saved.");
+      toast.success("Specialty merged with existing category.");
       router.refresh();
     } catch (e) {
       const message = e instanceof Error ? e.message : "Request failed.";
@@ -78,14 +75,14 @@ export function PendingSpecialtiesPanel({ items }: { items: PendingSpecialtyRow[
     }
   }
 
-  async function approveAsNew(id: string) {
+  async function approveAsSubmitted(id: string) {
     setError(null);
     setBusyId(id);
     try {
       await postReview({ doctorId: id, action: "approve_new" });
       setMapForId(null);
       setMapTarget("");
-      toast.success("Approved as a new specialty category.");
+      toast.success("Specialty approved as submitted. You can verify their license next.");
       router.refresh();
     } catch (e) {
       const message = e instanceof Error ? e.message : "Request failed.";
@@ -96,20 +93,19 @@ export function PendingSpecialtiesPanel({ items }: { items: PendingSpecialtyRow[
     }
   }
 
-  async function requireStandard(id: string) {
+  async function rejectSpecialty(id: string, submittedLabel: string) {
+    const ok = window.confirm(
+      `Reject "${submittedLabel}" for DocCy?\n\nThe professional's application will be closed (status: rejected). License review is skipped.`,
+    );
+    if (!ok) return;
+
     setError(null);
     setBusyId(id);
     try {
-      await postReview({
-        doctorId: id,
-        action: "require_standard",
-        message: requireMessage.trim() || undefined,
-      });
-      setRequireForId(null);
-      setRequireMessage("");
+      await postReview({ doctorId: id, action: "reject_specialty" });
       setMapForId(null);
       setEditForId(null);
-      toast.success("Professional notified to choose a standard specialty.");
+      toast.success("Specialty rejected. Application closed.");
       router.refresh();
     } catch (e) {
       const message = e instanceof Error ? e.message : "Request failed.";
@@ -136,7 +132,7 @@ export function PendingSpecialtiesPanel({ items }: { items: PendingSpecialtyRow[
       setMapTarget("");
       setEditForId(null);
       setEditValue("");
-      toast.success("Edited specialty approved.");
+      toast.success("Specialty approved after edit. You can verify their license next.");
       router.refresh();
     } catch (e) {
       const message = e instanceof Error ? e.message : "Request failed.";
@@ -156,9 +152,9 @@ export function PendingSpecialtiesPanel({ items }: { items: PendingSpecialtyRow[
         <div className="min-w-0 flex-1">
           <h2 className="text-sm font-semibold text-amber-100">Pending specialties</h2>
           <p className="mt-1 text-xs text-amber-100/80">
-            These professionals used a custom specialty. Map to an existing category, approve as
-            new, edit and approve, or ask them to pick a standard specialty (not added to the
-            directory).
+            Custom specialties must be resolved here before you can verify their license.
+            Approve as submitted, fix a typo, merge with an existing category, or reject the
+            specialty (closes the application).
           </p>
         </div>
       </div>
@@ -174,7 +170,6 @@ export function PendingSpecialtiesPanel({ items }: { items: PendingSpecialtyRow[
           const busy = busyId === row.id;
           const mapping = mapForId === row.id;
           const editing = editForId === row.id;
-          const requiring = requireForId === row.id;
           const spec = (row.specialty ?? "").trim() || "—";
           return (
             <li
@@ -200,23 +195,21 @@ export function PendingSpecialtiesPanel({ items }: { items: PendingSpecialtyRow[
                       onClick={() => {
                         setMapForId(row.id);
                         setMapTarget("");
-                        setRequireForId(null);
-                        setRequireMessage("");
                         setEditForId(null);
                         setError(null);
                       }}
                       className="inline-flex items-center gap-1.5 rounded-lg border border-slate-600 bg-slate-900/60 px-3 py-1.5 text-xs font-medium text-slate-200 hover:border-slate-500 disabled:opacity-50"
                     >
                       <Pencil className="h-3.5 w-3.5" aria-hidden />
-                      Map to existing
+                      Merge with existing
                     </button>
                     <button
                       type="button"
                       disabled={busy}
-                      onClick={() => approveAsNew(row.id)}
+                      onClick={() => approveAsSubmitted(row.id)}
                       className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-500/20 px-3 py-1.5 text-xs font-semibold text-emerald-100 ring-1 ring-emerald-500/40 hover:bg-emerald-500/30 disabled:opacity-50"
                     >
-                      Approve as new category
+                      Approve as submitted
                     </button>
                     <button
                       type="button"
@@ -226,28 +219,19 @@ export function PendingSpecialtiesPanel({ items }: { items: PendingSpecialtyRow[
                         setEditValue(spec === "—" ? "" : spec);
                         setMapForId(null);
                         setMapTarget("");
-                        setRequireForId(null);
-                        setRequireMessage("");
                         setError(null);
                       }}
                       className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-xs font-medium text-emerald-100 hover:bg-emerald-500/20 disabled:opacity-50"
                     >
-                      Edit name and approve
+                      Edit typo and approve
                     </button>
                     <button
                       type="button"
                       disabled={busy}
-                      onClick={() => {
-                        setRequireForId(row.id);
-                        setRequireMessage("");
-                        setMapForId(null);
-                        setMapTarget("");
-                        setEditForId(null);
-                        setError(null);
-                      }}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-slate-600 px-3 py-1.5 text-xs font-medium text-slate-400 transition hover:border-slate-500 hover:bg-slate-800/60 hover:text-slate-200 disabled:opacity-50"
+                      onClick={() => rejectSpecialty(row.id, spec)}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-1.5 text-xs font-semibold text-red-100 hover:bg-red-500/20 disabled:opacity-50"
                     >
-                      Require standard category
+                      Reject specialty
                     </button>
                   </div>
                 </div>
@@ -257,7 +241,7 @@ export function PendingSpecialtiesPanel({ items }: { items: PendingSpecialtyRow[
                 <div className="mt-4 flex flex-col gap-3 border-t border-slate-800/80 pt-4 sm:flex-row sm:items-end">
                   <div className="flex-1">
                     <label className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                      Map to standard specialty
+                      Merge into standard specialty
                     </label>
                     <select
                       value={mapTarget}
@@ -278,7 +262,7 @@ export function PendingSpecialtiesPanel({ items }: { items: PendingSpecialtyRow[
                     onClick={() => mapSubmit(row.id)}
                     className="rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-400 disabled:opacity-50"
                   >
-                    Save mapping
+                    Save merge
                   </button>
                 </div>
               ) : null}
@@ -287,12 +271,12 @@ export function PendingSpecialtiesPanel({ items }: { items: PendingSpecialtyRow[
                 <div className="mt-4 flex flex-col gap-3 border-t border-slate-800/80 pt-4 sm:flex-row sm:items-end">
                   <div className="flex-1">
                     <label className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                      Edit specialty name
+                      Corrected specialty label
                     </label>
                     <input
                       value={editValue}
                       onChange={(e) => setEditValue(e.target.value)}
-                      placeholder="e.g. Acupuncture"
+                      placeholder="e.g. Wellness"
                       className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950/60 px-3 py-2 text-sm text-slate-100"
                     />
                   </div>
@@ -302,52 +286,8 @@ export function PendingSpecialtiesPanel({ items }: { items: PendingSpecialtyRow[
                     onClick={() => approveEdited(row.id)}
                     className="rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-400 disabled:opacity-50"
                   >
-                    Save edit and approve
+                    Save and approve
                   </button>
-                </div>
-              ) : null}
-
-              {requiring ? (
-                <div className="mt-4 space-y-3 border-t border-slate-800/80 pt-4">
-                  <p className="text-xs leading-relaxed text-slate-400">
-                    The professional stays on DocCy but must pick a standard specialty in
-                    settings. They receive an email; this custom label is not added to the
-                    directory.
-                  </p>
-                  <div>
-                    <label className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                      Optional note in email
-                    </label>
-                    <textarea
-                      value={requireMessage}
-                      onChange={(e) => setRequireMessage(e.target.value)}
-                      placeholder="e.g. Please choose the closest standard category (e.g. Wellness)."
-                      rows={3}
-                      disabled={busy}
-                      className="mt-2 w-full resize-y rounded-lg border border-slate-700 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-600"
-                    />
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      disabled={busy}
-                      onClick={() => {
-                        setRequireForId(null);
-                        setRequireMessage("");
-                      }}
-                      className="rounded-lg border border-slate-600 px-4 py-2 text-sm font-medium text-slate-300 hover:bg-slate-800/60 disabled:opacity-50"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="button"
-                      disabled={busy}
-                      onClick={() => requireStandard(row.id)}
-                      className="rounded-lg border border-amber-500/40 bg-amber-500/15 px-4 py-2 text-sm font-semibold text-amber-100 hover:bg-amber-500/25 disabled:opacity-50"
-                    >
-                      {busy ? "Sending…" : "Send and remove from queue"}
-                    </button>
-                  </div>
                 </div>
               ) : null}
             </li>
