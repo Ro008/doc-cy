@@ -19,7 +19,9 @@ Using `.env.testing.local` with production URL can produce false failures (UI su
 | Founding Members counter | **Counts** verified founder test doctors (fewer spots shown) | Same — counts toward urgency display |
 | Founder tier at signup | Test rows do **not** consume one of the 100 real founder slots (RPC lock) | Same |
 
-Register prod smoke doctors with `@test-doccy.com.cy` (auto `is_test_profile`). Integration seed uses `@doccy.testing` / `andreas-nikos`.
+**Prod owner smoke:** any registration email containing `rociosirvent` (e.g. `rociosirvent+anastasiadoctor@gmail.com`) is auto `is_test_profile`. Override markers via server env `DOC_CY_TEST_DOCTOR_EMAIL_MARKERS` (comma-separated, lowercase substrings).
+
+CI smoke may still use `@test-doccy.com.cy` or `@doccy.testing`. Integration seed uses `andreas-nikos`.
 
 **Production persistent test doctor:** normal `/register` → verify in `/internal/directory` → set GitHub secrets `TEST_DOCTOR_EMAIL`, `TEST_DOCTOR_PASSWORD`, `TEST_BOOKING_DOCTOR_SLUG`. Booking uses `/{slug}`; Finder stays clean on prod.
 
