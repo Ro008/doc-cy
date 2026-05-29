@@ -15,6 +15,7 @@ import {
 } from "@/lib/specialty-submission";
 import { notifyFounderNewRegistration } from "@/lib/notify-founder-new-registration";
 import { matchesAutomatedDoctorRegistrationTestEmailForAdminBypass } from "@/lib/e2e-doctor-registration-test";
+import { isTestDoctorRegistrationEmail } from "@/lib/doctor-test-profile";
 
 type PageProps = {
   searchParams?: { submitted?: string; error?: string; debug?: string };
@@ -280,12 +281,12 @@ async function handleRegister(formData: FormData) {
     console.error("[DocCy] Failed to register doctor row (RPC)", insertError);
 
     // Fallback path when SQL RPC is unavailable/broken in the target environment.
-    // Keeps registration functional while preserving founder-tier intent.
+    // Match register_doctor_with_founder_lock: only non-test founders consume the 100 real slots.
     const { count: founderCount, error: founderCountError } = await service
       .from("doctors")
       .select("id", { head: true, count: "exact" })
       .eq("subscription_tier", "founder")
-      .eq("status", "verified");
+      .eq("is_test_profile", false);
     if (founderCountError) {
       console.error("[DocCy] Founder count fallback failed", founderCountError);
       try {
@@ -314,7 +315,7 @@ async function handleRegister(formData: FormData) {
         is_specialty_approved: isSpecialtyApproved,
         subscription_tier: fallbackTier,
         district,
-        is_test_profile: false,
+        is_test_profile: isTestDoctorRegistrationEmail(email),
       })
       .select("id")
       .single();
