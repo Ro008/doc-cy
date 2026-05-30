@@ -30,7 +30,9 @@ test.describe("Prod smoke: appointment booking flow", { tag: "@nightly-prod" }, 
         timeout: 20000,
       });
 
-      await pickFirstAvailableBookingDay(page);
+      await pickFirstAvailableBookingDay(page, {
+        doctorHint: doctorSlug,
+      });
 
       const selectSlotBtn = page.getByRole("button", { name: /Select/i }).first();
       await expect(selectSlotBtn).toBeVisible({ timeout: 10000 });

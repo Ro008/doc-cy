@@ -1,6 +1,7 @@
 // tests/booking_flow.spec.ts
 import { test, expect } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
+import { pickFirstAvailableBookingDay } from "./helpers/pickBookingCalendarDay";
 import { skipIfSafeNoBooking } from "./helpers/safeMode";
 
 test.describe("Booking flow @booking-creates", { tag: "@pr-e2e" }, () => {
@@ -27,18 +28,23 @@ test.describe("Booking flow @booking-creates", { tag: "@pr-e2e" }, () => {
 
     for (const d of doctors) {
       if (!d?.slug) continue;
-      await page.goto(`/${d.slug}`);
-      // If the doctor has no published availability yet, BookingSection hides the calendar.
-      if (await page.getByText("Select a date on the calendar").isVisible()) {
+      await page.goto(`/en/${d.slug}`);
+      if (!(await page.getByText("Select a date on the calendar").isVisible())) {
+        continue;
+      }
+      try {
+        await pickFirstAvailableBookingDay(page, { doctorHint: d.slug });
         chosenDoctor = d;
         break;
+      } catch {
+        // Next doctor — calendar visible but no clickable day in horizon.
       }
     }
 
     if (!chosenDoctor) {
       test.skip(
         true,
-        "No verified doctor with publicly visible availability found in this environment."
+        "No verified doctor with a bookable calendar day found in this environment."
       );
     }
 
@@ -48,22 +54,13 @@ test.describe("Booking flow @booking-creates", { tag: "@pr-e2e" }, () => {
 
     // 1. Verify we actually loaded the doctor profile (not the landing page).
     // If the doctor is missing/inactive, the doctor page redirects to "/".
-    await expect(page).toHaveURL(new RegExp(`/${chosenDoctor.slug}$`), {
+    await expect(page).toHaveURL(new RegExp(`/en/${chosenDoctor.slug}(?:/)?$`), {
       timeout: 10000,
     });
     // Avoid hardcoding clinic branding text; it may vary across environments.
     // URL + booking widget visibility below is the stable profile assertion.
 
-    // 2. Two-column booking: wait for panel (unique placeholder), then select first available day
-    await expect(
-      page.getByText("Select a date on the calendar")
-    ).toBeVisible({ timeout: 10000 });
-    const calendar = page.locator(".rdp-dark");
-    const firstAvailableDay = calendar
-      .locator("table button:not([disabled])")
-      .first();
-    await expect(firstAvailableDay).toBeVisible({ timeout: 5000 });
-    await firstAvailableDay.click();
+    // 2. Calendar day already selected while probing doctors above.
 
     // 3. Select a time slot, then Confirm (use different slot per worker to avoid 409)
     const selectSlotBtn = page.getByRole("button", { name: /Select/i });
@@ -133,8 +130,7 @@ test.describe("Booking flow @booking-creates", { tag: "@pr-e2e" }, () => {
       await selectButtons.nth((slotIndex + 1) % count).click();
       await page.getByRole("button", { name: /Confirm/i }).first().click();
       await page.getByRole("radio", { name: /This is my first visit/i }).check();
-
-    await page.locator("#visitReason").fill("Routine check-up — E2E booking flow.");
+      await page.locator("#visitReason").fill("Routine check-up — E2E booking flow.");
       await page.getByRole("button", { name: /Send booking request/i }).click();
 
       await page.waitForURL(successUrlRegex, { timeout: 25000 });
