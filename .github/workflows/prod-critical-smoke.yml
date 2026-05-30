@@ -342,6 +342,8 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.INTEGRATION_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.INTEGRATION_SUPABASE_ANON_KEY }}
           DOC_CY_SUPPRESS_TRAFFIC_LOG_SECRET: ${{ secrets.DOC_CY_SUPPRESS_TRAFFIC_LOG_SECRET }}
+          # Required for finder_critical: seeded doctors use @test-doccy.com.cy (see pr-integration.yml).
+          NEXT_PUBLIC_DOC_CY_FINDER_INCLUDE_TEST_PROFILES: "1"
         run: npm run build
 
       - name: Install Playwright browser
