@@ -8,7 +8,7 @@ function normalizeSecret(raw: string): string {
     .replace(/^['"]+|['"]+$/g, "");
 }
 
-test.describe("Promote your practice (settings)", () => {
+test.describe("Promote your practice (settings)", { tag: "@pr-e2e" }, () => {
   test.beforeEach(async ({ page }) => {
     const email = normalizeSecret(process.env.TEST_USER_EMAIL ?? process.env.TEST_DOCTOR_EMAIL ?? "");
     const password = normalizeSecret(

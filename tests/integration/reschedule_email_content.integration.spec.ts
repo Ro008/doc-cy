@@ -15,7 +15,7 @@ function futureCyIso(daysAhead: number, hour: number, minute = 0): string {
   return zonedTimeToUtc(local, CY_TZ).toISOString();
 }
 
-test.describe("Critical reschedule email content", () => {
+test.describe("Critical reschedule email content", { tag: "@pr-email" }, () => {
   test("proposal email includes full doctor name + reason + calendar warning for confirmed reschedules", () => {
     const proposalExpiresAtIso = futureCyIso(2, 18, 0);
     const content = buildPatientRescheduleProposalEmailContent({

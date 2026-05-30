@@ -8,7 +8,7 @@ function normalizeSecret(raw: string): string {
     .replace(/^['"]+|['"]+$/g, "");
 }
 
-test.describe("Doctor settings language guard", () => {
+test.describe("Doctor settings language guard", { tag: "@pr-e2e" }, () => {
   test("settings stays English even if NEXT_LOCALE cookie is Greek", async ({ page, baseURL }, testInfo) => {
     test.setTimeout(120_000);
     const email = normalizeSecret(process.env.TEST_USER_EMAIL ?? process.env.TEST_DOCTOR_EMAIL ?? "");

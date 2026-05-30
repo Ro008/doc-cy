@@ -9,7 +9,7 @@ import { signInDoctorAndSetCookies } from "../helpers/doctorAuth";
 const SCHEDULE_TEST_SLUG =
   process.env.INTEGRATION_SCHEDULE_TEST_DOCTOR_SLUG?.trim() || "andreas-nikos";
 
-test.describe("Agenda multi-session sync", () => {
+test.describe("Agenda multi-session sync", { tag: "@pr-email" }, () => {
   test("mobile session reflects confirm + delete without manual refresh", async ({
     browser,
   }, testInfo) => {

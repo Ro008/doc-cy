@@ -88,7 +88,7 @@ async function createVerifiedDoctor(
   };
 }
 
-test.describe("Integration: finder user-like filter behavior matrix", () => {
+test.describe("Integration: finder user-like filter behavior matrix", { tag: "@pr-e2e" }, () => {
   test("supports typical user filtering journeys without stale or broken states", async ({ page }) => {
     const baseUrl = process.env.PLAYWRIGHT_BASE_URL ?? "";
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";

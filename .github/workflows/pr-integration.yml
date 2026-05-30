@@ -1,6 +1,6 @@
-# PR gatekeeper: exercises this branch's Next.js build + isolated Supabase, and (same-repo PRs)
-# Vercel Preview HTML shell. Required checks: configure branch protection for job names below.
-# Policy reference: docs/ci-test-policy.md (PR blocking lane).
+# PR lane (blocking): integration Supabase + local app build/start on every PR.
+# Nightly prod-only lane: .github/workflows/prod-critical-smoke.yml
+# Policy: docs/ci-test-policy.md
 #
 # Secrets: INTEGRATION_SUPABASE_URL, INTEGRATION_SUPABASE_ANON_KEY,
 #          INTEGRATION_SUPABASE_SERVICE_ROLE_KEY, PROD_NEXT_PUBLIC_SUPABASE_URL (production URL only;
@@ -125,11 +125,7 @@ jobs:
           CI: "true"
           DOC_CY_SUPPRESS_TRAFFIC_LOG_SECRET: ${{ secrets.DOC_CY_SUPPRESS_TRAFFIC_LOG_SECRET }}
         run: |
-          npx playwright test \
-            tests/integration/agenda_multisession_sync.integration.spec.ts \
-            tests/integration/trial_period_logic.integration.spec.ts \
-            tests/integration/agenda_visit_reason.integration.spec.ts \
-            tests/integration/reschedule_email_content.integration.spec.ts \
+          npx playwright test --grep @pr-email \
             --project="Desktop Large (Chromium)" \
             --workers=1 \
             --reporter=line
@@ -148,32 +144,8 @@ jobs:
           PROD_NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.PROD_NEXT_PUBLIC_SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL }}
           INTEGRATION_SCHEDULE_TEST_DOCTOR_SLUG: ${{ vars.INTEGRATION_SCHEDULE_TEST_DOCTOR_SLUG }}
         run: |
-          # register_onboarding_avatar.spec.ts omitted: shared integration Supabase hits Auth email rate limits on every PR push.
-          npx playwright test \
-            tests/blog_single_image_ui.spec.ts \
-            tests/landing_i18n.spec.ts \
-            tests/integration/appointments_race_condition.integration.spec.ts \
-            tests/integration/settings_clinic_address_notice.integration.spec.ts \
-            tests/integration/finder_critical.integration.spec.ts \
-            tests/integration/needs_reschedule_slot_free.integration.spec.ts \
-            tests/navigation.spec.ts \
-            tests/feedback_support_modal.spec.ts \
-            tests/promote_practice_settings.spec.ts \
-            tests/practice_insights.spec.ts \
-            tests/practice_insights_metrics.spec.ts \
-            tests/agenda_auth.spec.ts \
-            tests/integration/monthly_digest.integration.spec.ts \
-            tests/integration/doctor_account_access.integration.spec.ts \
-            tests/navigation_feedback.spec.ts \
-            tests/doctor_settings_language_guard.spec.ts \
-            tests/profile_structured_data.spec.ts \
-            tests/schedule_constraints.spec.ts \
-            tests/integration/finder_user_behaviors.integration.spec.ts \
-            tests/booking_flow.spec.ts \
-            tests/manual_booking_flow.spec.ts \
-            tests/manual_booking_modal_ux.spec.ts \
-            tests/integration/doctor_confirmation_flow.integration.spec.ts \
-            tests/integration/propose_reschedule_confirmed.integration.spec.ts \
+          # register_onboarding_avatar.spec.ts: no @pr-e2e (Auth rate limits on shared integration).
+          npx playwright test --grep @pr-e2e \
             --project="Desktop Large (Chromium)" \
             --workers=1 \
             --reporter=line
@@ -202,7 +174,7 @@ jobs:
           DOC_CY_SUPPRESS_TRAFFIC_LOG_SECRET: ${{ secrets.DOC_CY_SUPPRESS_TRAFFIC_LOG_SECRET }}
           PROD_NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.PROD_NEXT_PUBLIC_SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL }}
         run: |
-          npx playwright test tests/integration/doctor_confirmation_flow.integration.spec.ts \
+          npx playwright test --grep @pr-mobile-monitor \
             --project="Mobile Chrome (Pixel 5)" \
             --workers=1 \
             --reporter=line
@@ -266,7 +238,7 @@ jobs:
           CI: "true"
           DOC_CY_SUPPRESS_TRAFFIC_LOG_SECRET: ${{ secrets.DOC_CY_SUPPRESS_TRAFFIC_LOG_SECRET }}
         run: |
-          npx playwright test tests/prod/prod_site_availability.spec.ts \
+          npx playwright test --grep @pr-preview \
             --project="Desktop Large (Chromium)" \
             --reporter=line
 

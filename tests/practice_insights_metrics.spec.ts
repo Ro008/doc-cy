@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { buildPracticeInsights } from "@/lib/practice-insights";
 
-test.describe("buildPracticeInsights KPIs", () => {
+test.describe("buildPracticeInsights KPIs", { tag: "@pr-e2e" }, () => {
   test("counts is_new_patient true in current Cyprus month by created_at", () => {
     const now = new Date("2026-05-15T12:00:00Z");
     const rows = [

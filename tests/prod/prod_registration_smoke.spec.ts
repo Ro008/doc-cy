@@ -85,7 +85,7 @@ async function waitForDoctorByEmail(
   return null;
 }
 
-test.describe("Prod smoke: doctor registration", () => {
+test.describe("Prod smoke: doctor registration", { tag: "@nightly-prod" }, () => {
   test("completes registration and cleans up", async ({ page }) => {
     test.setTimeout(180_000);
     const baseUrl = process.env.PLAYWRIGHT_BASE_URL ?? "";

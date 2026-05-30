@@ -16,7 +16,7 @@ function cyIso(monthKey: string, day: number, hour: number, minute = 0): string 
   return zonedTimeToUtc(`${monthKey}-${dd}T${hh}:${mm}:00`, CY_TZ).toISOString();
 }
 
-test.describe("Monthly digest (month-end effect)", () => {
+test.describe("Monthly digest (month-end effect)", { tag: "@pr-e2e" }, () => {
   test("metrics count confirmed bookings and closed-hour visits for the report month", () => {
     const monthKey = "2026-04";
     const reportMonth = cyprusMonthReferenceFromKey(monthKey);

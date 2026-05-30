@@ -5,7 +5,7 @@ function normalizeUrl(u: string): string {
   return u.replace(/\/+$/, "");
 }
 
-test.describe("Integration: internal directory duplicate actions", () => {
+test.describe("Integration: internal directory duplicate actions", { tag: "@pr-e2e" }, () => {
   test("merge archives manual and dismiss updates suggestion status", async ({ request }) => {
     const baseUrl = process.env.PLAYWRIGHT_BASE_URL ?? "";
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";

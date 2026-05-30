@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { authenticateDoctorViaPasswordUi } from "./helpers/doctorLogin";
 
-test.describe("Prod smoke: agenda settings promote practice", () => {
+test.describe("Prod smoke: agenda settings promote practice", { tag: "@nightly-monitor" }, () => {
   test("doctor can open settings promote section with QR actions", async ({ page }) => {
     test.setTimeout(90_000);
     const baseUrl = process.env.PLAYWRIGHT_BASE_URL ?? "";

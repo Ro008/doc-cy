@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-test.describe("Public profile structured data", () => {
+test.describe("Public profile structured data", { tag: "@pr-e2e" }, () => {
   test("profile page exposes healthcare JSON-LD with CY address country", async ({ page }) => {
     const slug = (process.env.TEST_BOOKING_DOCTOR_SLUG ?? "andreas-nikos").trim();
     await page.goto(`/${slug}`, { waitUntil: "domcontentloaded" });

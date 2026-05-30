@@ -25,13 +25,15 @@ CI smoke may still use `@test-doccy.com.cy` or `@doccy.testing`. Integration see
 
 **Production persistent test doctor:** normal `/register` → verify in `/internal/directory` → set GitHub secrets `TEST_DOCTOR_EMAIL`, `TEST_DOCTOR_PASSWORD`, `TEST_BOOKING_DOCTOR_SLUG`. Booking uses `/{slug}`; Finder stays clean on prod.
 
+**Nightly booking smoke (`TEST_BOOKING_DOCTOR_SLUG`):** the doctor must have at least one future bookable day in prod — weekly schedule with enabled weekdays, online bookings not paused, holiday mode off (or outside range), and slots within booking horizon. If nightly fails with “No available booking days”, fix settings in agenda for that slug (not the test suite).
+
 **Integration local / CI:** add to `.env.testing.local` (and Vercel preview for testing project):
 
 ```env
 NEXT_PUBLIC_DOC_CY_FINDER_INCLUDE_TEST_PROFILES=1
 ```
 
-PR integration workflow sets this automatically on build + Playwright.
+PR integration workflow sets this automatically on build + Playwright. The nightly workflow does **not** re-run integration E2E (see `docs/ci-test-policy.md`).
 
 ## Canonical commands
 

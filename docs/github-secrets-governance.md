@@ -69,15 +69,11 @@ At audit time, the following were referenced by workflows and not present as rep
    - `Production Monitoring`
 4. After stable period, remove alias usage from workflows and keep canonical names only.
 
-### Pending cleanup checkpoint (2026-04-25)
+### Nightly workflow secrets (2026-05)
 
-- Temporary secrets to delete after **2 consecutive green runs** of `Production Monitoring`:
-  - `INTEGRATION_BASE_URL`
-  - `PLAYWRIGHT_BASE_URL_INTEGRATION`
-- Reason: `business-critical-integration` now runs against local CI app (`http://127.0.0.1:3000`) and no longer depends on external preview URLs.
-- Verification rule:
-  - Wait for two green runs after this change.
-  - Then delete both secrets and run `Production Monitoring` once more to confirm no regression.
+`Production Monitoring` uses **production only** (`PROD_*`, `PLAYWRIGHT_BASE_URL_PROD`, `TEST_*` for smoke doctors). It does **not** run an integration Supabase job anymore.
+
+Optional cleanup after green nightly runs: `INTEGRATION_BASE_URL` and `PLAYWRIGHT_BASE_URL_INTEGRATION` if nothing else references them (PR uses `INTEGRATION_SUPABASE_URL`, not these aliases).
 
 ## 6) Operational rules
 

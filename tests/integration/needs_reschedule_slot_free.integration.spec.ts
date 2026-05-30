@@ -18,7 +18,7 @@ function nextWeekdayDateKey(daysAhead = 1): string {
  * Regression: NEEDS_RESCHEDULE must not block the original appointment_datetime for new
  * public bookings (overlap + partial unique index). See appointments_unique_slot_active_only.sql.
  */
-test.describe("Integration: NEEDS_RESCHEDULE frees original slot", () => {
+test.describe("Integration: NEEDS_RESCHEDULE frees original slot", { tag: "@pr-e2e" }, () => {
   test("another patient can book the original time while counter-proposal is pending", async ({
     request,
   }) => {

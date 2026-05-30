@@ -2,7 +2,7 @@
 import { test, expect } from "@playwright/test";
 import { signInDoctorOrSkipOnInfraError } from "./helpers/signInDoctorWithInfraSkip";
 
-test.describe("Manual booking modal UX", () => {
+test.describe("Manual booking modal UX", { tag: "@pr-e2e" }, () => {
   test.beforeEach(({}, testInfo) => {
     if (
       testInfo.project.name === "Mobile Safari (iPhone 12)" ||

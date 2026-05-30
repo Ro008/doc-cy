@@ -1,9 +1,9 @@
-# Nightly prod browser smoke: tests/prod/*
-# Policy reference: docs/ci-test-policy.md (nightly blocking + monitoring lanes).
-# Covers: public shell (home, login, register), guest booking + cleanup, doctor login → agenda,
-# optional full registration when PLAYWRIGHT_LIVE_REGISTRATION=1.
-# Not covered here (local / integration only): agenda cancel flows, confirm/decline REQUESTED,
-# reschedule token pages, race-condition DB test (see pr-integration.yml).
+# Nightly lane (production only). Policy: docs/ci-test-policy.md
+# PR lane (integration + full suite): .github/workflows/pr-integration.yml
+#
+# Blocking: prod URL + prod Supabase — public shell, guest booking, live registration, email guards.
+# Non-blocking: doctor login/agenda UI monitors (CI session volatility).
+# Integration E2E (finder, navigation, etc.) runs only on PR — not duplicated here.
 
 name: Production Monitoring
 
@@ -87,7 +87,6 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       doctor_ui_monitor_outcome: ${{ steps.doctor-ui-monitor.outcome }}
-    # Cold runs: npm ci + playwright --with-deps (apt + fonts) + prod suite can exceed 30m.
     timeout-minutes: 45
     steps:
       - name: Checkout
@@ -114,7 +113,6 @@ jobs:
             ${{ runner.os }}-playwright-
 
       - name: Install Playwright browsers
-        # --with-deps runs apt (fonts, libs). First run often takes several minutes; this is normal.
         run: npx playwright install --with-deps chromium
 
       - name: Validate Supabase production secrets
@@ -151,19 +149,17 @@ jobs:
           expected_prod_norm="$(normalize_url "${PROD_NEXT_PUBLIC_SUPABASE_URL:-}")"
           integration_norm="$(normalize_url "${INTEGRATION_SUPABASE_URL:-}")"
 
-          # If an explicit production URL secret is configured, force exact match.
           if [ -n "${expected_prod_norm}" ] && [ "${prod_norm}" != "${expected_prod_norm}" ]; then
             echo "::error::NEXT_PUBLIC_SUPABASE_URL does not match PROD_NEXT_PUBLIC_SUPABASE_URL. Refusing to run prod monitoring against a non-prod Supabase project."
             exit 1
           fi
 
-          # Guardrail: never run prod monitoring against integration/testing Supabase.
           if [ -n "${integration_norm}" ] && [ "${prod_norm}" = "${integration_norm}" ]; then
             echo "::error::NEXT_PUBLIC_SUPABASE_URL matches INTEGRATION_SUPABASE_URL. Refusing to run prod monitoring against integration/testing Supabase."
             exit 1
           fi
 
-      - name: Run reschedule email guards
+      - name: Run critical reschedule email guards
         env:
           CI: "true"
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.PROD_NEXT_PUBLIC_SUPABASE_URL }}
@@ -171,11 +167,7 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.PROD_SUPABASE_SERVICE_ROLE_KEY }}
           DOC_CY_SUPPRESS_TRAFFIC_LOG_SECRET: ${{ secrets.DOC_CY_SUPPRESS_TRAFFIC_LOG_SECRET }}
         run: |
-          npx playwright test \
-            tests/integration/agenda_multisession_sync.integration.spec.ts \
-            tests/integration/trial_period_logic.integration.spec.ts \
-            tests/integration/agenda_visit_reason.integration.spec.ts \
-            tests/integration/reschedule_email_content.integration.spec.ts \
+          npx playwright test --grep @pr-email \
             --project="Desktop Large (Chromium)" \
             --workers=1 \
             --reporter=line
@@ -207,7 +199,6 @@ jobs:
 
           if [ "${base_host}" != "${expected_host}" ]; then
             echo "::error::PLAYWRIGHT_BASE_URL_PROD host (${base_host_raw}) does not match production host (${expected_host_raw}) after normalization."
-            echo "::error::Set PLAYWRIGHT_BASE_URL_PROD to the same production site you use manually."
             exit 1
           fi
 
@@ -218,12 +209,6 @@ jobs:
               ;;
           esac
 
-      # Nightly critical contract (blocking):
-      # - Public shell availability
-      # - Patient booking request + cleanup
-      # - Doctor registration + cleanup
-      # NOTE: login/agenda UI checks are monitored in a separate non-blocking step below
-      # due to observed CI-only browser/session instability.
       - name: Run production critical smoke suite (blocking)
         env:
           PLAYWRIGHT_LIVE_REGISTRATION: "1"
@@ -238,16 +223,11 @@ jobs:
           TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD || secrets.TEST_DOCTOR_PASSWORD }}
           TEST_BOOKING_DOCTOR_SLUG: ${{ secrets.TEST_BOOKING_DOCTOR_SLUG }}
         run: |
-          npx playwright test \
-            tests/prod/prod_appointment_booking_flow.spec.ts \
-            tests/prod/prod_registration_smoke.spec.ts \
-            tests/prod/prod_site_availability.spec.ts \
+          npx playwright test --grep @nightly-prod \
             --project="Desktop Large (Chromium)" \
             --workers=1 \
             --reporter=line
 
-      # Secondary monitor (non-blocking): keeps nightly visibility on login/agenda UI volatility
-      # without weakening the blocking critical business contract above.
       - name: Run doctor login and agenda UI monitors (non-blocking)
         id: doctor-ui-monitor
         if: always()
@@ -263,12 +243,7 @@ jobs:
           TEST_USER_EMAIL: ${{ secrets.TEST_USER_EMAIL || secrets.TEST_DOCTOR_EMAIL }}
           TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD || secrets.TEST_DOCTOR_PASSWORD }}
         run: |
-          npx playwright test \
-            tests/prod/prod_doctor_password_login_smoke.spec.ts \
-            tests/prod/prod_agenda_qr_with_session.spec.ts \
-            tests/prod/prod_doctor_password_login_ui_monitor.spec.ts \
-            tests/prod/prod_doctor_password_login_form_ui_monitor.spec.ts \
-            tests/integration/doctor_confirmation_flow.integration.spec.ts \
+          npx playwright test --grep @nightly-monitor \
             --project="Desktop Large (Chromium)" \
             --workers=1 \
             --reporter=line
@@ -290,124 +265,9 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.PROD_SUPABASE_SERVICE_ROLE_KEY }}
         run: node scripts/cleanup-prod-smoke-registrations.mjs
 
-  business-critical-integration:
-    needs: [schedule-gate]
-    if: needs.schedule-gate.outputs.should_run == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 35
-    env:
-      PLAYWRIGHT_BASE_URL: http://127.0.0.1:3000
-      PLAYWRIGHT_WEB_SERVER_COMMAND: npm run start
-      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.INTEGRATION_SUPABASE_URL }}
-      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.INTEGRATION_SUPABASE_ANON_KEY }}
-      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.INTEGRATION_SUPABASE_SERVICE_ROLE_KEY }}
-      INTERNAL_DIRECTORY_SECRET: ${{ secrets.INTERNAL_DIRECTORY_SECRET }}
-      PROD_NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.PROD_NEXT_PUBLIC_SUPABASE_URL }}
-      INTEGRATION_SAFE_ENV: "1"
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-
-      - name: Validate required integration secrets
-        shell: bash
-        run: |
-          set -euo pipefail
-          missing=0
-          for v in NEXT_PUBLIC_SUPABASE_URL NEXT_PUBLIC_SUPABASE_ANON_KEY SUPABASE_SERVICE_ROLE_KEY; do
-            if [ -z "${!v:-}" ]; then
-              echo "::error::Missing required secret/env: ${v}"
-              missing=1
-            fi
-          done
-          if [ -z "${INTERNAL_DIRECTORY_SECRET:-}" ]; then
-            echo "::warning::INTERNAL_DIRECTORY_SECRET is missing. Internal duplicate-actions integration test will be skipped."
-          fi
-          if [ "${missing}" -ne 0 ]; then
-            exit 1
-          fi
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build Next.js (integration local server)
-        env:
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.INTEGRATION_SUPABASE_URL }}
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.INTEGRATION_SUPABASE_ANON_KEY }}
-          DOC_CY_SUPPRESS_TRAFFIC_LOG_SECRET: ${{ secrets.DOC_CY_SUPPRESS_TRAFFIC_LOG_SECRET }}
-          # Required for finder_critical: seeded doctors use @test-doccy.com.cy (see pr-integration.yml).
-          NEXT_PUBLIC_DOC_CY_FINDER_INCLUDE_TEST_PROFILES: "1"
-        run: npm run build
-
-      - name: Install Playwright browser
-        run: npx playwright install --with-deps chromium
-
-      - name: Run business-critical integration tests
-        run: |
-          npx playwright test \
-            tests/integration/finder_critical.integration.spec.ts \
-            tests/integration/settings_clinic_address_notice.integration.spec.ts \
-            tests/navigation.spec.ts \
-            tests/integration/directory_duplicates_actions.integration.spec.ts \
-            --project="Desktop Large (Chromium)" \
-            --workers=1 \
-            --reporter=line
-
-      - name: Upload Playwright integration report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: playwright-business-critical-integration-report
-          path: |
-            playwright-report
-            test-results
-          if-no-files-found: ignore
-
-  business-critical-integration-failure-issue:
-    if: always() && needs.schedule-gate.outputs.should_run == 'true'
-    needs: [schedule-gate, business-critical-integration]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Open issue on integration failure
-        if: needs.business-critical-integration.result != 'success'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
-            const title = `[business-critical] Integration checks failed (run ${context.runId})`;
-            const body = [
-              "Business-critical integration monitoring failed.",
-              "",
-              `Result: **${{ needs.business-critical-integration.result }}**`,
-              `Run: ${runUrl}`,
-              "",
-              "Failed suite includes:",
-              "- finder_critical.integration.spec.ts",
-              "- settings_clinic_address_notice.integration.spec.ts",
-              "- directory_duplicates_actions.integration.spec.ts",
-              "",
-              "Action:",
-              "- Open the run and inspect Playwright artifacts.",
-              "- Fix regression before next scheduled run."
-            ].join("\n");
-            await github.rest.issues.create({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              title,
-              body,
-              labels: ["ci", "monitoring", "business-critical"]
-            });
-
   notify-whatsapp:
     if: always() && needs.schedule-gate.outputs.should_run == 'true'
-    needs: [schedule-gate, prod-critical-smoke, business-critical-integration]
+    needs: [schedule-gate, prod-critical-smoke]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -424,21 +284,17 @@ jobs:
           WHATSAPP_WEBHOOK_URL: ${{ secrets.WHATSAPP_WEBHOOK_URL }}
           PROD_RESULT: ${{ needs.prod-critical-smoke.result }}
           PROD_DOCTOR_UI_MONITOR_OUTCOME: ${{ needs.prod-critical-smoke.outputs.doctor_ui_monitor_outcome || 'skipped' }}
-          INTEGRATION_RESULT: ${{ needs.business-critical-integration.result }}
           RUN_ID: ${{ github.run_id }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           NOTIFY_ONLY: ${{ github.event.inputs.notify_only || 'false' }}
           EXTRA_MESSAGE: ${{ github.event.inputs.notification_message || '' }}
         run: node scripts/send-whatsapp-monitoring.mjs
 
-      # With continue-on-error on the WhatsApp step, GitHub sets outcome=success even when curl fails;
-      # use conclusion to detect real delivery failure (otherwise issues never open — silent for days).
       - name: Open issue if WhatsApp notification failed
         if: steps.whatsapp.conclusion == 'failure'
         uses: actions/github-script@v7
         env:
           PROD_RESULT: ${{ needs.prod-critical-smoke.result }}
-          INTEGRATION_RESULT: ${{ needs.business-critical-integration.result }}
           RUN_ID: ${{ github.run_id }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         with:
@@ -447,8 +303,7 @@ jobs:
             const body = [
               "WhatsApp delivery failed after retries.",
               "",
-              `Prod result: **${process.env.PROD_RESULT}**`,
-              `Business-critical integration result: **${process.env.INTEGRATION_RESULT}**`,
+              `Prod nightly result: **${process.env.PROD_RESULT}**`,
               `Run: ${process.env.RUN_URL}`,
               "",
               "Action required:",

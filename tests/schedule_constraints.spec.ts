@@ -23,7 +23,7 @@ function nextWeekdayCyprusKey(minDaysAhead = 1): string {
   return format(d, "yyyy-MM-dd");
 }
 
-test.describe("Schedule constraints @booking-creates", () => {
+test.describe("Schedule constraints @booking-creates", { tag: "@pr-e2e" }, () => {
   test("friday end time 15:00 allows 14:30 but blocks 15:00", async ({
     request,
   }) => {

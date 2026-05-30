@@ -6,7 +6,7 @@ async function expectNoRawIntlKeys(page: import("@playwright/test").Page) {
   expect(body).not.toMatch(/LandingPage\.[A-Za-z]/);
 }
 
-test.describe("Landing i18n", () => {
+test.describe("Landing i18n", { tag: "@pr-e2e" }, () => {
   test("language switcher toggles EN/GR content on landing", async ({
     page,
   }) => {

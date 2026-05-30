@@ -107,7 +107,7 @@ async function createVerifiedDoctor(
   };
 }
 
-test.describe("Integration: finder business-critical UX", () => {
+test.describe("Integration: finder business-critical UX", { tag: "@pr-e2e" }, () => {
   test("footer popular quick links should lead to non-empty finder results", async ({ page }, testInfo) => {
     test.skip(
       testInfo.project.name !== "Desktop Large (Chromium)",

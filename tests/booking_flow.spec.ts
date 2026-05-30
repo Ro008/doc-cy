@@ -3,7 +3,7 @@ import { test, expect } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
 import { skipIfSafeNoBooking } from "./helpers/safeMode";
 
-test.describe("Booking flow @booking-creates", () => {
+test.describe("Booking flow @booking-creates", { tag: "@pr-e2e" }, () => {
   test("full booking flow on doctor profile", async ({ page, request }) => {
     test.setTimeout(120_000);
     skipIfSafeNoBooking(test.info());

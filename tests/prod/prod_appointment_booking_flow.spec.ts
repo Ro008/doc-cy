@@ -1,9 +1,10 @@
 import { test, expect } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
+import { pickFirstAvailableBookingDay } from "./helpers/pickBookingCalendarDay";
 
 const TEST_BOOKING_DOMAIN = "@test-doccy.com.cy";
 
-test.describe("Prod smoke: appointment booking flow", () => {
+test.describe("Prod smoke: appointment booking flow", { tag: "@nightly-prod" }, () => {
   test("guest can book and cleanup removes created data", async ({ page }) => {
     const baseUrl = process.env.PLAYWRIGHT_BASE_URL ?? "";
     const doctorSlug = process.env.TEST_BOOKING_DOCTOR_SLUG ?? "";
@@ -29,10 +30,7 @@ test.describe("Prod smoke: appointment booking flow", () => {
         timeout: 20000,
       });
 
-      const calendar = page.locator(".rdp-dark");
-      const firstAvailableDay = calendar.locator("table button:not([disabled])").first();
-      await expect(firstAvailableDay).toBeVisible({ timeout: 10000 });
-      await firstAvailableDay.click();
+      await pickFirstAvailableBookingDay(page);
 
       const selectSlotBtn = page.getByRole("button", { name: /Select/i }).first();
       await expect(selectSlotBtn).toBeVisible({ timeout: 10000 });
