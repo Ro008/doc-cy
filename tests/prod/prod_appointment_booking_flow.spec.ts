@@ -25,7 +25,8 @@ test.describe("Prod smoke: appointment booking flow", { tag: "@nightly-prod" }, 
     let appointmentId = "";
 
     try {
-      await page.goto(`/${doctorSlug}`);
+      // Locale-prefixed profile (next-intl localePrefix: "always").
+      await page.goto(`/en/${doctorSlug}`);
       await expect(page.getByText("Select a date on the calendar")).toBeVisible({
         timeout: 20000,
       });
