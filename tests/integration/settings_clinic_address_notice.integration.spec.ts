@@ -34,7 +34,7 @@ function assertSafeLocalIntegrationTarget(baseUrl: string, supabaseUrl: string):
   return null;
 }
 
-test.describe("Integration UI: settings clinic address notice (local only)", () => {
+test.describe("Integration UI: settings clinic address notice (local only)", { tag: "@pr-e2e" }, () => {
   test("shows address prompt when clinic address is empty", async ({ page }) => {
     test.setTimeout(120_000);
     const baseUrl = (process.env.PLAYWRIGHT_BASE_URL ?? "").trim() || "http://localhost:3000";

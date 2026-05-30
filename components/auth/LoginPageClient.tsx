@@ -70,7 +70,7 @@ export function LoginPageClient({ nextPath }: { nextPath?: string | null }) {
             </p>
           </div>
 
-          <form onSubmit={handleSubmit} method="post" className="space-y-5">
+          <form onSubmit={handleSubmit} className="space-y-5">
             {error && (
               <div className="rounded-2xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-xs text-red-100">
                 {error}

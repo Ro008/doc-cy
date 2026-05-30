@@ -11,7 +11,7 @@ This file defines the canonical secret naming and cleanup policy for CI workflow
 - `PROD_NEXT_PUBLIC_SUPABASE_URL`
 - `PROD_NEXT_PUBLIC_SUPABASE_ANON_KEY`
 - `PROD_SUPABASE_SERVICE_ROLE_KEY`
-- `TEST_DOCTOR_EMAIL`
+- `TEST_DOCTOR_EMAIL` — must match **Supabase Auth** for the smoke doctor (e.g. `rociosirvent+doccydemo@gmail.com` for `andreas-nikos`), not an outdated `doctors.email` value
 - `TEST_DOCTOR_PASSWORD`
 - `TEST_USER_EMAIL` (optional; falls back to doctor credentials)
 - `TEST_USER_PASSWORD` (optional; falls back to doctor credentials)
@@ -69,17 +69,26 @@ At audit time, the following were referenced by workflows and not present as rep
    - `Production Monitoring`
 4. After stable period, remove alias usage from workflows and keep canonical names only.
 
-### Pending cleanup checkpoint (2026-04-25)
+### Nightly workflow secrets (2026-05)
 
-- Temporary secrets to delete after **2 consecutive green runs** of `Production Monitoring`:
-  - `INTEGRATION_BASE_URL`
-  - `PLAYWRIGHT_BASE_URL_INTEGRATION`
-- Reason: `business-critical-integration` now runs against local CI app (`http://127.0.0.1:3000`) and no longer depends on external preview URLs.
-- Verification rule:
-  - Wait for two green runs after this change.
-  - Then delete both secrets and run `Production Monitoring` once more to confirm no regression.
+`Production Monitoring` uses **production only** (`PROD_*`, `PLAYWRIGHT_BASE_URL_PROD`, `TEST_*` for smoke doctors). It does **not** run an integration Supabase job anymore.
 
-## 6) Operational rules
+Optional cleanup after green nightly runs: `INTEGRATION_BASE_URL` and `PLAYWRIGHT_BASE_URL_INTEGRATION` if nothing else references them (PR uses `INTEGRATION_SUPABASE_URL`, not these aliases).
+
+## 6) Updating secrets (GitHub UI hides existing values)
+
+You cannot read a secret after saving it. To fix a wrong value, **create a new secret value** (same name, overwrite). Example with GitHub CLI:
+
+```bash
+gh secret set TEST_DOCTOR_EMAIL --body "rociosirvent+doccydemo@gmail.com"
+gh secret set TEST_BOOKING_DOCTOR_SLUG --body "andreas-nikos"
+# TEST_DOCTOR_PASSWORD: use the password you use to sign in on mydoccy.com for that account
+gh secret set TEST_DOCTOR_PASSWORD --body "YOUR_PASSWORD_HERE"
+```
+
+Optional: mirror the same three lines in `.env.production.local` for `npm run prod:smoke:ensure` and `npm run test:prod:smoke:local`.
+
+## 7) Operational rules
 
 - One owner for secrets updates (single point of accountability).
 - Every new workflow must declare required secrets in comments at top.

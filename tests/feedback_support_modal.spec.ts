@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 
-test.describe("Support feedback modal (Formspree)", () => {
+test.describe("Support feedback modal (Formspree)", { tag: "@pr-e2e" }, () => {
   test("submitting the form shows success when Formspree accepts the POST", async ({
     page,
   }, testInfo) => {

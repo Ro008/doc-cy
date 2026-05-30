@@ -69,7 +69,7 @@ function findStableAppointmentIso(opts: {
   return new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
 }
 
-test.describe("Integration: doctor confirmation flow", () => {
+test.describe("Integration: doctor confirmation flow", { tag: ["@pr-e2e", "@pr-mobile-monitor"] }, () => {
   test("confirm flow opens agenda on appointment day", async ({ page }) => {
     const supabaseUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").trim();
     const serviceRoleKey = (process.env.SUPABASE_SERVICE_ROLE_KEY ?? "").trim();

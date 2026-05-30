@@ -22,7 +22,7 @@ async function signInMobileAgenda(page: import("@playwright/test").Page) {
   await expect(page.getByTestId("userbar-mobile-tabs")).toBeVisible({ timeout: 10_000 });
 }
 
-test.describe("Doctor navigation feedback", () => {
+test.describe("Doctor navigation feedback", { tag: "@pr-e2e" }, () => {
   test("mobile agenda has no manual booking FAB", async ({ page }) => {
     test.setTimeout(120_000);
     await signInMobileAgenda(page);

@@ -7,7 +7,7 @@ const PROTECTED_ROUTES = [
   { path: "/agenda/insights", forbidden: /Practice insights/i, next: "/agenda/insights" },
 ] as const;
 
-test.describe("Agenda route protection", () => {
+test.describe("Agenda route protection", { tag: "@pr-e2e" }, () => {
   test("guest is sent to login from protected agenda routes", async ({ page }) => {
     for (const route of PROTECTED_ROUTES) {
       await page.goto(route.path);

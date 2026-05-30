@@ -31,7 +31,6 @@ function formatNonBlockingStatus(result, label) {
 
 function buildMessage() {
   const prodResult = process.env.PROD_RESULT ?? "unknown";
-  const integrationResult = process.env.INTEGRATION_RESULT ?? "unknown";
   const doctorUi = process.env.PROD_DOCTOR_UI_MONITOR_OUTCOME ?? "skipped";
   const runId = process.env.RUN_ID ?? "local";
   const notifyOnly = process.env.NOTIFY_ONLY === "true";
@@ -43,18 +42,16 @@ function buildMessage() {
     return msg;
   }
 
-  const overallOk = prodResult === "success" && integrationResult === "success";
-  const doctorUiWarning =
-    doctorUi !== "success" && doctorUi !== "skipped";
+  const prodBlockingOk = prodResult === "success";
+  const doctorUiWarning = doctorUi !== "success" && doctorUi !== "skipped";
 
-  let icon = overallOk ? "✅" : prodResult === "cancelled" || integrationResult === "cancelled" ? "⚠️" : "❌";
-  if (overallOk && doctorUiWarning) icon = "⚠️";
+  let icon = prodBlockingOk ? "✅" : prodResult === "cancelled" ? "⚠️" : "❌";
+  if (prodBlockingOk && doctorUiWarning) icon = "⚠️";
 
-  const prodLine = formatJobStatus(prodResult, "Prod");
-  const integrationLine = formatJobStatus(integrationResult, "Integration");
+  const prodLine = formatJobStatus(prodResult, "Prod nightly");
   const doctorLine = formatNonBlockingStatus(doctorUi, "Doctor login/agenda UI monitor");
 
-  let msg = `${icon} DocCy nightly | ${prodLine} | ${integrationLine} | ${doctorLine} | run ${runId}`;
+  let msg = `${icon} DocCy nightly | ${prodLine} | ${doctorLine} | run ${runId}`;
   if (extra) msg += ` | ${extra}`;
   return msg;
 }
@@ -83,7 +80,7 @@ async function main() {
   const summaryLines = [
     "## WhatsApp (notify-whatsapp)",
     runUrl ? `- **Run:** ${runUrl}` : null,
-    `- **Prod:** ${process.env.PROD_RESULT ?? "?"} | **Integration:** ${process.env.INTEGRATION_RESULT ?? "?"}`,
+    `- **Prod nightly:** ${process.env.PROD_RESULT ?? "?"}`,
     `- **Doctor UI monitor:** ${process.env.PROD_DOCTOR_UI_MONITOR_OUTCOME ?? "?"}`,
     `- **Webhook host:** \`${waHost}\``,
     result.ok

@@ -1,117 +1,127 @@
-# CI Test Policy (simple and reliable)
+# CI Test Policy (two lanes)
 
-Goal: keep PR merge safety high and nightly noise low.
+Goal: **one blocking suite on every PR** (integration) and **one small scheduled suite on production** (nightly). No duplicate integration jobs on the nightly workflow.
 
-## 3 lanes
+## The two CI lanes
 
-### 1) PR blocking (must pass to merge)
+| Lane | Workflow | When | App target | Supabase |
+|------|----------|------|------------|----------|
+| **PR** | `.github/workflows/pr-integration.yml` | Every pull request | `build` + `start` on `127.0.0.1:3000` | `INTEGRATION_*` secrets |
+| **Nightly** | `.github/workflows/prod-critical-smoke.yml` | Cron + manual dispatch | `PLAYWRIGHT_BASE_URL_PROD` (mydoccy.com) | `PROD_*` secrets |
 
-Purpose: catch code regressions before merge.
+**Local** (`npm run test:e2e`, `test:prod:smoke:local`, etc.) is for development only — not a third CI lane.
 
-Rules:
-- only stable tests
-- no optional notifications
-- deterministic environment (`integration` or Preview)
-- should finish fast enough for normal PR flow
+### Folder conventions (same Playwright runner)
 
-Current source of truth:
-- `.github/workflows/pr-integration.yml`
+| Path | Typical use in CI |
+|------|-------------------|
+| `tests/` | PR lane |
+| `tests/integration/` | PR lane (DB + `INTEGRATION_SAFE_ENV`) |
+| `tests/prod/` | Nightly lane (real prod URL); `prod_site_availability` also runs on Vercel Preview in PR |
 
-**Support → Formspree (PR):** `tests/feedback_support_modal.spec.ts` — UI + success when POST is stubbed (build uses `NEXT_PUBLIC_FORMSPREE_ID=e2e_placeholder`). Real Formspree delivery is **local-only**: `tests/feedback_support_live_formspree.spec.ts`.
+Build flag for integration finder tests: `NEXT_PUBLIC_DOC_CY_FINDER_INCLUDE_TEST_PROFILES=1` on PR build only (see `pr-integration.yml`).
 
-**Removed from PR blocking (2026-05):** responsive authenticated navigation specs previously exercised `UserBar` + marketing footer surfaces. They were removed entirely from the repo because they repeatedly failed with Supabase `AuthApiError: Database error querying schema` (infra flake), not product bugs. See **Reintroduction criteria** below.
+### Playwright tags (source of truth for CI lists)
 
-**PR (2026-05):** `tests/practice_insights.spec.ts` — insights English shell copy + mobile tab bar (four tabs, navigate to Insights via tab). Chromium, viewport resize, `signInDoctorOrSkipOnInfraError`. Same lane as `promote_practice_settings.spec.ts`; not nightly-only.
+| Tag | Workflow command | Purpose |
+|-----|------------------|---------|
+| `@pr-email` | `playwright test --grep @pr-email` | Reschedule / agenda email guards (PR + nightly prod env) |
+| `@pr-e2e` | `playwright test --grep @pr-e2e` | Main PR integration suite |
+| `@pr-preview` | `playwright test --grep @pr-preview` | Public shell on Vercel Preview |
+| `@pr-mobile-monitor` | `playwright test --grep @pr-mobile-monitor` | Doctor confirmation flow on mobile (PR, non-blocking) |
+| `@nightly-prod` | `playwright test --grep @nightly-prod` | Prod URL blocking smokes (site + booking + registration) |
+| `@nightly-monitor` | `playwright test --grep @nightly-monitor` | Prod login/agenda monitors (non-blocking) |
 
-**PR (2026-05):** `tests/integration/monthly_digest.integration.spec.ts` — month-end digest metrics + email copy (login link with `next=/agenda/insights`). No Resend send in CI.
+Constants: `tests/helpers/ciTags.ts`. To tag new specs: `node scripts/apply-ci-playwright-tags.mjs` (edit file lists first).
 
-**PR (2026-05):** `tests/agenda_auth.spec.ts` — unauthenticated `/agenda`, `/agenda/settings`, `/agenda/insights` redirect to login; insights preserves `next` query param.
+---
 
-**PR (2026-05):** `tests/navigation_feedback.spec.ts` — mobile agenda has no manual-booking FAB; Settings tab shows `navigation-progress-bar`, `aria-busy`, or URL during client navigation (Chromium, viewport 390).
+## 1) PR blocking (must pass to merge)
 
-### 2) Nightly blocking (must pass every night)
+**Jobs:** `PR Playwright (core business)` + `PR Preview site health (Vercel)` (same-repo PRs only).
 
-Purpose: detect real production-impacting issues that PR cannot fully simulate.
+**Includes:**
 
-Rules:
-- include only truly business-critical checks
-- prefer serial execution and explicit env validation
-- fail only on product/test failures, not on side channels
+- Content: `test:content:blog-images`, `test:content:messages-parity`
+- `--grep @pr-email` then `--grep @pr-e2e` (see tag table below)
+- Preview job: `--grep @pr-preview`
+- Non-blocking mobile: `--grep @pr-mobile-monitor`
 
-Current source of truth:
-- `.github/workflows/prod-critical-smoke.yml`
-  - `prod-critical-smoke`
-  - `business-critical-integration`
+**Excludes from PR:**
 
-### 3) Nightly monitoring (non-blocking)
+- Live prod registration/booking writes (nightly only)
+- `tests/feedback_support_live_formspree.spec.ts` (local only)
+- `tests/register_onboarding_avatar.spec.ts` (omitted: Auth email rate limits on shared integration)
 
-Purpose: keep visibility on flaky/volatile surfaces without waking up maintainers every morning.
+**Optional PR follow-up:** add `tests/integration/directory_duplicates_actions.integration.spec.ts` if `INTERNAL_DIRECTORY_SECRET` is set (already in PR list when secret present).
 
-Rules:
-- failures create signal (artifact/issue/warning), not red pipeline
-- keep this lane for UI volatility, third-party instability, and notifications
-- promote tests to blocking only after sustained stability
+---
 
-Current examples:
-- doctor UI monitor step in `prod-critical-smoke`
-- WhatsApp notification delivery in `notify-whatsapp` (see **Nightly WhatsApp notification** below)
-- Login form UI monitor:
-  - `tests/prod/prod_doctor_password_login_form_ui_monitor.spec.ts`
-  - kept non-blocking by policy until sustained stability in CI
+## 2) Nightly blocking (production)
 
-## Login test strategy (authoritative)
+**Job:** `prod-critical-smoke` in `prod-critical-smoke.yml`.
 
-Use two complementary layers:
+**Blocking steps:**
 
-1. **Blocking auth-dependent product flows**  
-   - Prefer deterministic session helpers where they are stable against your Supabase project.
-   - **Do not** block PR merges on flows that depend on `signInWithPassword` when that endpoint intermittently returns schema errors from Supabase Auth.
+1. `--grep @pr-email` (prod Supabase env)
+2. `--grep @nightly-prod` (site availability + guest booking + live registration)
 
-2. **Non-blocking login form monitor**  
-   - Keep at least one pure UI login form test in nightly monitoring.
-   - Purpose: detect real login-form regressions without making blocking lanes brittle.
+**Does not run on nightly (PR only):**
 
-Current implementation:
-- Session-based prod checks:
-  - `tests/prod/prod_doctor_password_login_smoke.spec.ts`
-  - `tests/prod/prod_doctor_password_login_ui_monitor.spec.ts`
-  - helper: `tests/prod/helpers/doctorSession.ts`
-- Pure UI login monitor:
-  - `tests/prod/prod_doctor_password_login_form_ui_monitor.spec.ts`
+- `finder_critical`, `navigation`, `settings_clinic_address_notice`, `directory_duplicates_actions`, and the rest of the PR Playwright list
+
+---
+
+## 3) Nightly non-blocking (signal only)
+
+Inside `prod-critical-smoke`, step `Run doctor login and agenda UI monitors` (`--grep @nightly-monitor`):
+
+Failures do not fail the workflow (`continue-on-error: true`). WhatsApp message shows ⚠️ when this step fails but prod blocking passed.
+
+**WhatsApp:** job `notify-whatsapp` — informational; delivery failure opens an issue but does not change test status.
+
+---
+
+## Login test strategy
+
+1. **PR:** auth flows use integration Supabase; prefer stable helpers; skip on known Auth infra flakes where documented.
+2. **Nightly blocking:** no doctor login in blocking suite (booking + public shell + registration only).
+3. **Nightly monitor:** prod login UI/session — non-blocking until 10 consecutive greens, then consider promoting one spec to blocking.
+
+---
 
 ## Reintroduction criteria (UserBar / footer navigation)
 
 Before adding PR-blocking tests that require programmatic Supabase password login again:
 
-1. Document **10 consecutive green** runs on a dedicated workflow (or scheduled job) using the same integration Supabase + secrets as PR.
-2. Confirm failures are **product regressions**, not `Database error querying schema` or similar Auth API infra errors.
-3. Prefer **one** consolidated smoke per surface (e.g. signed-out chrome only, or session seeded without hitting flaky Auth endpoints).
+1. Document **10 consecutive green** runs on PR integration with the same secrets.
+2. Confirm failures are product regressions, not `Database error querying schema` from Auth.
+3. Prefer one consolidated smoke per surface.
 
-Inventory of critical flows vs tests: [`docs/critical-flow-test-coverage.md`](critical-flow-test-coverage.md).
+Inventory: [`docs/critical-flow-test-coverage.md`](critical-flow-test-coverage.md).
+
+---
 
 ## Optional UI fields (PR tests, Pareto rule)
 
-When a **PR-blocking** flow labels a field **optional** in the UI, at least one test in that flow must submit it **empty** (omit or clear the input). Do not only test the “developer happy path” where every field is filled.
+When a **PR-blocking** flow labels a field **optional** in the UI, at least one test in that flow must submit it **empty**.
 
-- **One test per optional field group** is enough (e.g. manual booking: one case with no email and no phone; a separate case only if another optional field has distinct behavior, such as WhatsApp when phone is set).
-- Prefer the same test file as the happy path (`@booking-creates` E2E or integration spec that hits the API).
-- If the UI says optional but the database column is `NOT NULL`, the empty-field test should **fail in CI** — fix schema or copy, not the test.
+Current example: `tests/manual_booking_flow.spec.ts`.
 
-Current example: `tests/manual_booking_flow.spec.ts` (`doctor can create manual booking without email or phone`).
+---
 
 ## Promotion / demotion rule
 
-Move tests between lanes based on data:
-- promote to blocking after at least 10 consecutive green runs
-- demote to monitoring after 2 failures in 7 days without confirmed product bug
+- Promote nightly monitor → blocking after **10 consecutive green** nightly runs.
+- Demote blocking → monitor after **2 failures in 7 days** without confirmed product bug.
 
-## Nightly WhatsApp notification (`notify-whatsapp`)
+---
 
-Workflow: `.github/workflows/prod-critical-smoke.yml` → job `notify-whatsapp` → `node scripts/send-whatsapp-monitoring.mjs`. Shared sender: `lib/whatsapp-webhook.mjs` (also used for founder signup alerts in `lib/notify-founder-new-registration.ts`). Secret: `WHATSAPP_WEBHOOK_URL` (see `docs/github-secrets-governance.md`).
+## Nightly WhatsApp notification
 
-Schedule: one UTC cron (`30 3 * * *`) plus `schedule-gate` so jobs run when **Europe/Nicosia** local time is **05:00–13:59**. GitHub often starts scheduled workflows hours late; a narrow 06:00-only gate previously skipped smoke and WhatsApp for weeks while the workflow still showed green.
+Workflow: `prod-critical-smoke.yml` → `notify-whatsapp` → `scripts/send-whatsapp-monitoring.mjs`. Secret: `WHATSAPP_WEBHOOK_URL`.
 
-Delivery failures use `steps.whatsapp.conclusion == 'failure'` to open a GitHub issue (the send step uses `continue-on-error: true`, so check `conclusion`, not `outcome`).
+Schedule: cron `30 3 * * *` UTC + `schedule-gate` (Nicosia 05:00–13:59).
 
 ### Local / manual test
 
@@ -121,25 +131,25 @@ WHATSAPP_WEBHOOK_URL="https://…" npm run whatsapp:test -- "Hello from DocCy"
 
 Or workflow dispatch → *Send only WhatsApp notification*.
 
-### If delivery fails (checklist)
-
-1. **Job log** — each attempt logs GET / POST JSON / POST form results from `lib/whatsapp-webhook.mjs`.
-2. **Secret** — `WHATSAPP_WEBHOOK_URL` must be the provider URL **without** a baked-in `text=` placeholder (we set `text` on send).
-3. **Provider** — CallMeBot (or similar): API key active, phone linked, not rate-limited.
-4. **Scheduled workflows** — re-enable if GitHub paused them on an inactive repo.
-5. **Gate** — see `schedule-gate` in the workflow; only runs in the intended Nicosia morning window.
+---
 
 ## Incident triage (quick)
 
-When nightly fails, classify first:
-1. **Product regression** -> keep blocking, fix code.
-2. **Env/infra/third-party** -> keep blocking only if user-facing impact is high.
-3. **Flaky test** -> move to monitoring, stabilize, then re-promote.
+When nightly fails:
+
+1. **Product regression** → fix code or prod smoke doctor config (`TEST_BOOKING_DOCTOR_SLUG`, schedule).
+2. **Env/secret** → verify `PROD_*`, `TEST_DOCTOR_*`, `PLAYWRIGHT_BASE_URL_PROD`.
+3. **Flaky login monitor** → expected in non-blocking step; fix credentials if probe passes but UI fails.
+
+When PR fails: integration env / test data — not prod calendar.
+
+---
 
 ## Change discipline
 
 Any CI lane change must update:
+
 - this file (`docs/ci-test-policy.md`)
 - the corresponding workflow file
 
-This keeps expectations explicit and avoids policy drift.
+**Removed (2026-05):** nightly job `business-critical-integration` — those specs run only on PR.

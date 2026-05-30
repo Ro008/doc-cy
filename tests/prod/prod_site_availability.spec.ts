@@ -5,7 +5,7 @@ import { test, expect } from "@playwright/test";
  * - Prod: set PLAYWRIGHT_BASE_URL to the live site (not localhost).
  * - Preview CI: set PLAYWRIGHT_PREVIEW_SMOKE=1 and PLAYWRIGHT_BASE_URL to the deployment URL.
  */
-test.describe("Public shell health", () => {
+test.describe("Public shell health", { tag: ["@pr-preview", "@nightly-prod"] }, () => {
   test.beforeEach(({}, testInfo) => {
     const baseUrl = process.env.PLAYWRIGHT_BASE_URL ?? "";
     const preview = process.env.PLAYWRIGHT_PREVIEW_SMOKE === "1";

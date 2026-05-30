@@ -22,7 +22,7 @@ async function signInAndOpenAgenda(page: import("@playwright/test").Page) {
   await expect(page).toHaveURL(/\/agenda(?:[/?#]|$)/, { timeout: 20_000 });
 }
 
-test.describe("Practice insights (doctor dashboard)", () => {
+test.describe("Practice insights (doctor dashboard)", { tag: "@pr-e2e" }, () => {
   test("insights page shows expected English shell copy", async ({ page }) => {
     test.setTimeout(120_000);
     await signInAndOpenAgenda(page);

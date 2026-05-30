@@ -12,7 +12,7 @@ function nextWeekdayDateKey(daysAhead = 1): string {
 }
 
 // CI: exercises parallel POST /api/appointments against unique (doctor_id, appointment_datetime).
-test.describe("Integration: appointment race condition guard", () => {
+test.describe("Integration: appointment race condition guard", { tag: "@pr-e2e" }, () => {
   test("same slot parallel booking creates one appointment only", async ({
     request,
   }) => {

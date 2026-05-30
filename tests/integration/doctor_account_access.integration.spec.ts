@@ -13,7 +13,7 @@ import {
 
 const PROTECTED_AGENDA_ROUTES = ["/agenda", "/agenda/settings", "/agenda/insights"] as const;
 
-test.describe("Integration: doctor account access", () => {
+test.describe("Integration: doctor account access", { tag: "@pr-e2e" }, () => {
   test("pending doctor is gated on all agenda routes", async ({ page }) => {
     const env = requireSafeIntegration();
     const admin = createIntegrationAdmin(env);

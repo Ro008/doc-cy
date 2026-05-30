@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 
 import { patientVisitReasonFromAppointmentRow } from "@/lib/agenda-visit-reason";
 
-test.describe("Agenda patient visit reason mapping", () => {
+test.describe("Agenda patient visit reason mapping", { tag: "@pr-email" }, () => {
   test("reads and trims patient reason from appointments.reason", () => {
     const reason = patientVisitReasonFromAppointmentRow({
       reason: "  Tooth extraction and pain  ",

@@ -23,7 +23,20 @@ Using `.env.testing.local` with production URL can produce false failures (UI su
 
 CI smoke may still use `@test-doccy.com.cy` or `@doccy.testing`. Integration seed uses `andreas-nikos`.
 
-**Production persistent test doctor:** normal `/register` → verify in `/internal/directory` → set GitHub secrets `TEST_DOCTOR_EMAIL`, `TEST_DOCTOR_PASSWORD`, `TEST_BOOKING_DOCTOR_SLUG`. Booking uses `/{slug}`; Finder stays clean on prod.
+**Production persistent test doctor:** `andreas-nikos` with login **`rociosirvent+doccydemo@gmail.com`** (must match Supabase Auth, not only `doctors.email`). GitHub secrets `TEST_DOCTOR_EMAIL`, `TEST_DOCTOR_PASSWORD`, and `TEST_BOOKING_DOCTOR_SLUG=andreas-nikos` — you cannot re-read secrets in GitHub; to change them, **set a new value** (overwrite). Booking smoke uses `/en/andreas-nikos`. Other `is_test_profile` doctors from registration smoke are unrelated.
+
+**Nightly booking smoke (`TEST_BOOKING_DOCTOR_SLUG`):** the doctor must have at least one future bookable day in prod — weekly schedule with enabled weekdays, online bookings not paused, holiday mode off (or outside range), and slots within booking horizon. If nightly fails with “No available booking days”, fix settings in agenda for that slug (not the test suite).
+
+**Repair prod smoke doctors (local):**
+
+```bash
+npm run prod:smoke:ensure
+DOC_CY_CONFIRM_PROD=YES npm run prod:smoke:ensure:apply
+# optional auth recreate when sign-in fails:
+DOC_CY_CONFIRM_PROD=YES node scripts/ensure-prod-smoke-doctors.mjs --env-file .env.production.local --apply --repair-auth
+```
+
+Requires `TEST_BOOKING_DOCTOR_SLUG`, `TEST_DOCTOR_EMAIL`, `TEST_DOCTOR_PASSWORD` in `.env.production.local` (same values as GitHub secrets).
 
 **Integration local / CI:** add to `.env.testing.local` (and Vercel preview for testing project):
 
@@ -31,7 +44,7 @@ CI smoke may still use `@test-doccy.com.cy` or `@doccy.testing`. Integration see
 NEXT_PUBLIC_DOC_CY_FINDER_INCLUDE_TEST_PROFILES=1
 ```
 
-PR integration workflow sets this automatically on build + Playwright.
+PR integration workflow sets this automatically on build + Playwright. The nightly workflow does **not** re-run integration E2E (see `docs/ci-test-policy.md`).
 
 ## Canonical commands
 

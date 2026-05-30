@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-test.describe("Blog single-image UI rule", () => {
+test.describe("Blog single-image UI rule", { tag: "@pr-e2e" }, () => {
   test("each blog post detail renders exactly one image in the article", async ({ page }) => {
     await page.goto("/blog");
     await expect(page).toHaveURL(/\/blog(?:\?|$)/);

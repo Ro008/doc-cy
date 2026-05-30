@@ -1,14 +1,17 @@
 # Critical flow test coverage (inventory)
 
-Living document: update when workflows or specs change.  
-PR blocking lane: `.github/workflows/pr-integration.yml` → job `PR Playwright (core business)`.
+Living document: update when workflows or specs change.
+
+- **PR lane:** `.github/workflows/pr-integration.yml` → `PR Playwright (core business)`
+- **Nightly lane:** `.github/workflows/prod-critical-smoke.yml` → `prod-critical-smoke` (production URL only; no integration E2E job)
 
 ## Legend
 
 | Status | Meaning |
 | --- | --- |
 | **Stable (PR)** | Run on every PR merge gate |
-| **Stable (prod)** | Run in production monitoring / nightly |
+| **Stable (nightly)** | Blocking in `Production Monitoring` (prod URL) |
+| **Nightly monitor** | Same workflow, non-blocking step |
 | **Local / optional** | Exists in repo; not in PR gate |
 | **Gap** | No automated coverage identified |
 
@@ -19,7 +22,7 @@ PR blocking lane: `.github/workflows/pr-integration.yml` → job `PR Playwright 
 | Flow | PR blocking | Other | Notes |
 | --- | --- | --- | --- |
 | Landing / marketing shell | Partial via `navigation.spec.ts` | `landing.spec.ts`, `prod_site_availability.spec.ts` (preview) | PR navigation suite scope depends on test content |
-| Finder search & filters | `finder_critical.integration.spec.ts`, `finder_user_behaviors.integration.spec.ts` | — | Integration DB |
+| Finder search & filters | `finder_critical.integration.spec.ts`, `finder_user_behaviors.integration.spec.ts` | — | PR only (not nightly) |
 | Doctor public profile | `profile_structured_data.spec.ts`, `booking_flow.spec.ts` | `doctor_profile_mobile.spec.ts`, `service_menu_public_profile.integration.spec.ts` | Mobile layout local/supabase |
 | Blog content / MDX | `blog_single_image_ui.spec.ts` | `blog_scheduling.spec.ts`, `blog_user_flow.spec.ts` | PR runs `npm run test:content:blog-images` |
 | Language / locale | Partial | `language_switcher.spec.ts`, `landing_i18n.spec.ts` | Not all in PR gate |
@@ -40,21 +43,21 @@ PR blocking lane: `.github/workflows/pr-integration.yml` → job `PR Playwright 
 
 | Flow | PR blocking | Other | Notes |
 | --- | --- | --- | --- |
-| Patient booking (happy path) | `booking_flow.spec.ts` | `prod_appointment_booking_flow.spec.ts` | Requires first-visit choice (`is_new_patient`) |
+| Patient booking (happy path) | `booking_flow.spec.ts` | `prod_appointment_booking_flow.spec.ts` (nightly blocking) | Requires first-visit choice (`is_new_patient`) |
 | Practice insights — new patients / no-shows KPIs | `practice_insights_metrics.spec.ts` | `practice_insights.spec.ts` | `is_new_patient`, `attendance=no_show` on ended visits |
 | Manual booking (doctor) | `manual_booking_flow.spec.ts`, `manual_booking_modal_ux.spec.ts` | — | Empty email/phone case + WhatsApp only when phone set; see **Optional UI fields** in `ci-test-policy.md` |
 | Race / concurrency | `appointments_race_condition.integration.spec.ts` | — | |
 | Reschedule slot free | `needs_reschedule_slot_free.integration.spec.ts` | — | |
 | Doctor proposes reschedule (CONFIRMED → NEEDS_RESCHEDULE) | `propose_reschedule_confirmed.integration.spec.ts` | — | API: alternative-slots + propose-reschedule |
 | Reschedule email content | `reschedule_email_content.integration.spec.ts` | — | |
-| Trial period logic | `trial_period_logic.integration.spec.ts` (critical guards step) | — | |
+| Trial period logic | — | — | **Gap** (spec removed; was referenced in workflows) |
 
 ## Auth / security
 
 | Flow | PR blocking | Other | Notes |
 | --- | --- | --- | --- |
 | Sign-out / sessions | — | `auth_signout_other_sessions`, `auth_session_revocation_logic` | Integration specs, not in PR list |
-| Password login (UI) | — | `prod_doctor_password_login_form_ui_monitor.spec.ts` | Non-blocking monitoring |
+| Password login (UI) | — | `prod_doctor_password_login_*` (nightly monitor) | Non-blocking; not in PR gate |
 
 ---
 

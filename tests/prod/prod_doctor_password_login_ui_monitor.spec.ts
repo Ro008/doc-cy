@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { authenticateDoctorViaSession } from "./helpers/doctorSession";
 
-test.describe("Prod monitor: doctor password login UI", () => {
+test.describe("Prod monitor: doctor password login UI", { tag: "@nightly-monitor" }, () => {
   test("doctor can login with password and reach agenda", async ({ page }) => {
     test.setTimeout(90_000);
     const baseUrl = process.env.PLAYWRIGHT_BASE_URL ?? "";
