@@ -10,7 +10,7 @@ import {
 } from "@/lib/finder-seo";
 import type { CyprusDistrict } from "@/lib/cyprus-districts";
 import type { FinderSpecialtyOption } from "@/lib/finder-specialty-options";
-import { Info, Search } from "lucide-react";
+import { Info } from "lucide-react";
 import { PendingLink } from "@/components/navigation/PendingLink";
 
 const START_EVENT = "doccy:navigation-start";
@@ -38,7 +38,7 @@ export function FinderFilters({
     activeSpecialty ? specialtyToSlug(activeSpecialty) : ""
   );
   const [name, setName] = React.useState(activeName);
-  const [pendingAction, setPendingAction] = React.useState<"apply" | "reset" | "search" | null>(null);
+  const [pendingAction, setPendingAction] = React.useState<"apply" | "reset" | null>(null);
   const [isNavigating, setIsNavigating] = React.useState(false);
   const pendingGuardRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -53,7 +53,6 @@ export function FinderFilters({
   }, [specialtyOptions, activeSpecialty]);
 
   React.useEffect(() => {
-    // Keep district in sync with URL-driven state.
     setDistrict(activeDistrict);
     setSpecialtySlug(activeSpecialty ? specialtyToSlug(activeSpecialty) : "");
     setName(activeName);
@@ -61,7 +60,6 @@ export function FinderFilters({
   }, [activeDistrict, activeSpecialty, activeName]);
 
   React.useEffect(() => {
-    // Also clear pending when URL has updated, even if values happen to match previous state.
     setPendingAction(null);
     setIsNavigating(false);
   }, [pathname, searchParams]);
@@ -87,14 +85,6 @@ export function FinderFilters({
     );
   }
 
-  function submitNameSearch() {
-    setPendingAction("search");
-    if (pendingGuardRef.current) clearTimeout(pendingGuardRef.current);
-    pendingGuardRef.current = setTimeout(() => setPendingAction(null), 1500);
-    window.dispatchEvent(new Event(START_EVENT));
-    pushFilters(district, specialtyLabelFromSlug(specialtySlug), name.trim());
-  }
-
   function pushFilters(nextDistrict: string, nextSpecialty: string, nextName: string) {
     const districtSlug = nextDistrict ? districtToSlug(nextDistrict as CyprusDistrict) : "all";
     const specialtyPathSegment = nextSpecialty ? specialtyToSlug(nextSpecialty) : "all";
@@ -117,28 +107,15 @@ export function FinderFilters({
     router.refresh();
   }
 
-  function applyFilters(
-    nextDistrict: string,
-    nextSpecialty: string,
-    nextName: string,
-    options?: { showPending?: boolean }
-  ) {
-    const showPending = options?.showPending ?? true;
-    if (showPending) {
-      setPendingAction("apply");
-    }
-    // Safety valve: never leave button text stuck if navigation is no-op or delayed.
-    if (showPending) {
-      if (pendingGuardRef.current) clearTimeout(pendingGuardRef.current);
-      pendingGuardRef.current = setTimeout(() => setPendingAction(null), 1500);
-    } else {
-      setPendingAction(null);
-    }
-    pushFilters(nextDistrict, nextSpecialty, nextName);
+  function submitFilters() {
+    setPendingAction("apply");
+    if (pendingGuardRef.current) clearTimeout(pendingGuardRef.current);
+    pendingGuardRef.current = setTimeout(() => setPendingAction(null), 1500);
+    pushFilters(district, specialtyLabelFromSlug(specialtySlug), name.trim());
   }
 
   async function resetFilters() {
-    if (!district && !specialtySlug && !activeName) {
+    if (!activeDistrict && !activeSpecialty && !activeName.trim()) {
       setPendingAction(null);
       return;
     }
@@ -152,14 +129,12 @@ export function FinderFilters({
   }
 
   const isPending = pendingAction !== null;
-  const specialtyFilterLabel = specialtySlug
-    ? mergedSpecialtyOptions.find((o) => o.slug === specialtySlug)?.label ??
-      toTitleCaseWords(slugToSpecialty(specialtySlug))
-    : "";
 
   const activeFilterEntries = [
-    district ? `District: ${district}` : null,
-    specialtyFilterLabel ? `Specialty: ${specialtyFilterLabel}` : null,
+    activeDistrict ? `District: ${activeDistrict}` : null,
+    activeSpecialty
+      ? `Specialty: ${toTitleCaseWords(activeSpecialty)}`
+      : null,
     activeName.trim() ? `Name: ${activeName.trim()}` : null,
   ].filter((item): item is string => Boolean(item));
   const hasActiveFilters = activeFilterEntries.length > 0;
@@ -200,89 +175,79 @@ export function FinderFilters({
         </div>
       </div>
       <form
-        className="grid gap-3 sm:grid-cols-3 sm:items-end"
         onSubmit={(e) => {
           e.preventDefault();
-          submitNameSearch();
+          submitFilters();
         }}
       >
-      <fieldset
-        disabled={isNavigating}
-        aria-busy={isNavigating}
-        className="contents disabled:cursor-not-allowed"
-      >
-      <label className="flex flex-col gap-2">
-        <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-          District
-        </span>
-        <select
-          name="district"
-          value={district}
-          onChange={(e) => {
-            const nextDistrict = e.target.value;
-            setDistrict(nextDistrict);
-            applyFilters(nextDistrict, specialtyLabelFromSlug(specialtySlug), activeName);
-          }}
-          className="h-10 w-full rounded-xl border border-slate-700 bg-slate-950/80 px-3 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+        <fieldset
+          disabled={isNavigating}
+          aria-busy={isNavigating}
+          className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:items-end lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.15fr)_auto] disabled:cursor-not-allowed"
         >
-          <option value="">All districts</option>
-          {districts.map((item) => (
-            <option key={item} value={item}>
-              {item}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label className="flex flex-col gap-2">
-        <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-          Specialty
-        </span>
-        <select
-          name="specialty"
-          value={specialtySlug}
-          onChange={(e) => {
-            const nextSlug = e.target.value;
-            setSpecialtySlug(nextSlug);
-            applyFilters(district, specialtyLabelFromSlug(nextSlug), activeName, {
-              showPending: false,
-            });
-          }}
-          className="h-10 w-full rounded-xl border border-slate-700 bg-slate-950/80 px-3 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
-        >
-          <option value="">All specialties</option>
-          {mergedSpecialtyOptions.map((opt) => (
-            <option key={opt.slug} value={opt.slug}>
-              {opt.label}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label htmlFor="finder-name-filter" className="flex flex-col gap-2">
-        <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-          Name
-        </span>
-        <div className="relative">
-          <input
-            id="finder-name-filter"
-            name="name"
-            type="search"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Search by name..."
-            enterKeyHint="search"
-            className="h-10 w-full rounded-xl border border-slate-700 bg-slate-950/80 pl-3 pr-11 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
-          />
-          <button
-            type="submit"
-            disabled={isPending}
-            aria-label={pendingAction === "search" ? "Searching by name" : "Search by name"}
-            className="absolute right-1.5 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg border border-slate-600 bg-slate-800/90 text-slate-400 transition hover:border-slate-500 hover:bg-slate-700/90 hover:text-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 disabled:cursor-not-allowed disabled:opacity-50"
+          <label className="flex flex-col gap-2">
+            <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+              District
+            </span>
+            <select
+              name="district"
+              value={district}
+              onChange={(e) => setDistrict(e.target.value)}
+              className="h-10 w-full rounded-xl border border-slate-700 bg-slate-950/80 px-3 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+            >
+              <option value="">All districts</option>
+              {districts.map((item) => (
+                <option key={item} value={item}>
+                  {item}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex flex-col gap-2">
+            <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+              Specialty
+            </span>
+            <select
+              name="specialty"
+              value={specialtySlug}
+              onChange={(e) => setSpecialtySlug(e.target.value)}
+              className="h-10 w-full rounded-xl border border-slate-700 bg-slate-950/80 px-3 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+            >
+              <option value="">All specialties</option>
+              {mergedSpecialtyOptions.map((opt) => (
+                <option key={opt.slug} value={opt.slug}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label
+            htmlFor="finder-name-filter"
+            className="flex flex-col gap-2 sm:col-span-2 lg:col-span-1"
           >
-            <Search className="h-4 w-4" strokeWidth={2.25} aria-hidden />
-          </button>
-        </div>
-      </label>
-      </fieldset>
+            <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+              Name
+            </span>
+            <input
+              id="finder-name-filter"
+              name="name"
+              type="search"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              enterKeyHint="search"
+              className="h-10 w-full rounded-xl border border-slate-700 bg-slate-950/80 px-3 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+            />
+          </label>
+          <div className="sm:col-span-2 lg:col-span-1 lg:flex lg:items-end">
+            <button
+              type="submit"
+              disabled={isPending}
+              className="inline-flex h-10 w-full min-w-[10.5rem] items-center justify-center rounded-xl bg-emerald-400 px-5 text-sm font-semibold text-slate-950 shadow-lg shadow-emerald-500/25 transition hover:bg-emerald-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 disabled:cursor-not-allowed disabled:opacity-70 lg:w-auto"
+            >
+              {pendingAction === "apply" ? "Showing results..." : "Show results"}
+            </button>
+          </div>
+        </fieldset>
       </form>
       {showPaphosUrgentCareNote ? (
         <div
