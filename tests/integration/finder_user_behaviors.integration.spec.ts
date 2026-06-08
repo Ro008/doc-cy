@@ -138,10 +138,13 @@ test.describe("Integration: finder user-like filter behavior matrix", { tag: "@p
 
       const districtSelect = page.getByLabel("District");
       const specialtySelect = page.getByLabel("Specialty");
-      const nameInput = page.getByRole("searchbox", { name: "Name" });
+      const nameInput = page.locator("#finder-name-filter");
+      const showResults = page.getByRole("button", { name: /^Show results$/i });
 
-      // Scenario 1: District-only exploration.
+      // Scenario 1: District-only exploration (apply once).
       await districtSelect.selectOption("Limassol");
+      await expect(page).toHaveURL(/\/finder(?:\?|$)/);
+      await showResults.click();
       await expect(page).toHaveURL(/\/finder\/limassol(?:\?|$)/, { timeout: 15_000 });
       await expect(page.getByRole("heading", { level: 1, name: /Health Professionals in Cyprus/i })).toBeVisible();
       await expect(page.getByText(created[0].name, { exact: true })).toBeVisible();
@@ -154,16 +157,17 @@ test.describe("Integration: finder user-like filter behavior matrix", { tag: "@p
         timeout: 20_000,
       });
       await specialtySelect.selectOption("dentistry");
+      await showResults.click();
       await expect(page).toHaveURL(/\/finder\/limassol\/dentistry(?:\?|$)/, { timeout: 15_000 });
       await expect(page.getByRole("heading", { level: 1, name: /Dentistry in Limassol/i })).toBeVisible();
       await expect(page.getByText(created[1].name, { exact: true })).toBeVisible();
       await expect(page.getByText(created[0].name, { exact: true })).toHaveCount(0);
 
-      // Scenario 3: Name search only applies on explicit submit (not while typing).
+      // Scenario 3: Name filter applies on Enter or Show results (not while typing).
       await nameInput.fill("Dent");
       await expect(page).not.toHaveURL(/name=/);
       await expect(page.getByText(created[1].name, { exact: true })).toBeVisible();
-      await page.getByRole("button", { name: /Search by name/i }).click();
+      await nameInput.press("Enter");
       await expect(page).toHaveURL(/name=Dent/);
       await expect(page.getByText(created[1].name, { exact: true })).toBeVisible();
 

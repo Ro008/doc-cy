@@ -384,7 +384,9 @@ test.describe("Integration: finder business-critical UX", { tag: "@pr-e2e" }, ()
       });
 
       const districtSelect = page.getByLabel("District");
+      const showResults = page.getByRole("button", { name: /^Show results$/i });
       await districtSelect.selectOption("Nicosia");
+      await showResults.click();
       await expect(page).toHaveURL(/\/finder\/nicosia(?:\?|$)/, { timeout: 15_000 });
 
       const specialtySelect = page.getByLabel("Specialty");
@@ -393,6 +395,7 @@ test.describe("Integration: finder business-critical UX", { tag: "@pr-e2e" }, ()
         timeout: 20_000,
       });
       await specialtySelect.selectOption("dentistry");
+      await showResults.click();
       await expect(page).toHaveURL(/\/finder\/nicosia\/dentistry(?:\?|$)/, { timeout: 15_000 });
 
       await expect(page.getByText(created[0].name, { exact: true })).toBeVisible();

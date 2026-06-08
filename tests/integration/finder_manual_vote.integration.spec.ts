@@ -53,6 +53,10 @@ async function optionValuesNonEmpty(select: Locator): Promise<string[]> {
 }
 
 /** Random district × specialty until a manual card shows the vote CTA. */
+async function applyFinderFilters(page: Page): Promise<void> {
+  await page.getByRole("button", { name: /^Show results$/i }).click();
+}
+
 async function findVisibleVoteButton(page: Page): Promise<Locator> {
   const districtSelect = page.getByLabel("District");
   const specialtySelect = page.getByLabel("Specialty");
@@ -61,6 +65,7 @@ async function findVisibleVoteButton(page: Page): Promise<Locator> {
 
   for (const districtValue of districtOrder) {
     await districtSelect.selectOption(districtValue);
+    await applyFinderFilters(page);
     await expect(page).toHaveURL(/\/finder(?:\/|$)/, { timeout: 20_000 });
     await expect(specialtySelect).toBeEnabled({ timeout: 20_000 });
 
@@ -71,6 +76,7 @@ async function findVisibleVoteButton(page: Page): Promise<Locator> {
 
     for (const slug of specialtySlugs) {
       await specialtySelect.selectOption(slug);
+      await applyFinderFilters(page);
       await expect(page).toHaveURL(/\/finder\//, { timeout: 20_000 });
 
       const vote = page.getByRole("button", { name: /Vote for Online Booking/i }).first();
