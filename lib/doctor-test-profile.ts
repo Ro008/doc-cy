@@ -3,7 +3,7 @@
  *
  * - Prod: hidden from Finder; still counted in Founding Members availability (marketing urgency).
  * - Integration: set NEXT_PUBLIC_DOC_CY_FINDER_INCLUDE_TEST_PROFILES=1 so they appear in Finder too.
- * - Founder tier lock (RPC): test rows do not consume one of the 100 real founder slots at signup.
+ * - Founder tier lock (RPC): test rows do not consume one of the real founder slots at signup.
  *
  * Owner smoke aliases (e.g. rociosirvent+anastasiadoctor@gmail.com): DOC_CY_TEST_DOCTOR_EMAIL_MARKERS
  * or default marker below. CI domains (@test-doccy.com.cy, @*.testing) stay supported.

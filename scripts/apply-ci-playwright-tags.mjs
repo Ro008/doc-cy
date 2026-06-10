@@ -36,6 +36,8 @@ const prE2e = [
   "integration/directory_duplicates_actions.integration.spec.ts",
 ];
 
+const prLoginMonitor = ["doctor_password_login_form.spec.ts"];
+
 const prEmail = [
   "integration/agenda_multisession_sync.integration.spec.ts",
   "integration/agenda_visit_reason.integration.spec.ts",
@@ -47,13 +49,6 @@ const nightlyProdOnly = [
   "prod/prod_appointment_booking_flow.spec.ts",
   "prod/prod_registration_smoke.spec.ts",
 ];
-const nightlyMonitor = [
-  "prod/prod_doctor_password_login_smoke.spec.ts",
-  "prod/prod_agenda_qr_with_session.spec.ts",
-  "prod/prod_doctor_password_login_ui_monitor.spec.ts",
-  "prod/prod_doctor_password_login_form_ui_monitor.spec.ts",
-];
-
 function tagExpr(tags) {
   if (tags.length === 1) return `"${tags[0]}"`;
   return `[${tags.map((t) => `"${t}"`).join(", ")}]`;
@@ -96,4 +91,4 @@ for (const f of prE2e) {
 for (const f of prEmail) applyTag(f, ["@pr-email"]);
 for (const f of prPreviewNightly) applyTag(f, ["@pr-preview", "@nightly-prod"]);
 for (const f of nightlyProdOnly) applyTag(f, ["@nightly-prod"]);
-for (const f of nightlyMonitor) applyTag(f, ["@nightly-monitor"]);
+for (const f of prLoginMonitor) applyTag(f, ["@pr-login-monitor"]);

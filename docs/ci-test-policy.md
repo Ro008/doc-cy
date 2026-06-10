@@ -18,7 +18,6 @@ Goal: **one blocking suite on every PR** (integration) and **one small scheduled
 | `tests/` | PR lane |
 | `tests/integration/` | PR lane (DB + `INTEGRATION_SAFE_ENV`) |
 | `tests/prod/` | Nightly lane (real prod URL); `prod_site_availability` also runs on Vercel Preview in PR |
-
 Build flag for integration finder tests: `NEXT_PUBLIC_DOC_CY_FINDER_INCLUDE_TEST_PROFILES=1` on PR build only (see `pr-integration.yml`).
 
 ### Playwright tags (source of truth for CI lists)
@@ -29,8 +28,8 @@ Build flag for integration finder tests: `NEXT_PUBLIC_DOC_CY_FINDER_INCLUDE_TEST
 | `@pr-e2e` | `playwright test --grep @pr-e2e` | Main PR integration suite |
 | `@pr-preview` | `playwright test --grep @pr-preview` | Public shell on Vercel Preview |
 | `@pr-mobile-monitor` | `playwright test --grep @pr-mobile-monitor` | Doctor confirmation flow on mobile (PR, non-blocking) |
+| `@pr-login-monitor` | `playwright test --grep @pr-login-monitor` | Doctor `/login` form UI (PR, non-blocking) |
 | `@nightly-prod` | `playwright test --grep @nightly-prod` | Prod URL blocking smokes (site + booking + registration) |
-| `@nightly-monitor` | `playwright test --grep @nightly-monitor` | Prod login/agenda monitors (non-blocking) |
 
 Constants: `tests/helpers/ciTags.ts`. To tag new specs: `node scripts/apply-ci-playwright-tags.mjs` (edit file lists first).
 
@@ -46,6 +45,7 @@ Constants: `tests/helpers/ciTags.ts`. To tag new specs: `node scripts/apply-ci-p
 - `--grep @pr-email` then `--grep @pr-e2e` (see tag table below)
 - Preview job: `--grep @pr-preview`
 - Non-blocking mobile: `--grep @pr-mobile-monitor`
+- Non-blocking login form: `--grep @pr-login-monitor`
 
 **Excludes from PR:**
 
@@ -72,21 +72,15 @@ Constants: `tests/helpers/ciTags.ts`. To tag new specs: `node scripts/apply-ci-p
 
 ---
 
-## 3) Nightly non-blocking (signal only)
-
-Inside `prod-critical-smoke`, step `Run doctor login and agenda UI monitors` (`--grep @nightly-monitor`):
-
-Failures do not fail the workflow (`continue-on-error: true`). WhatsApp message shows ⚠️ when this step fails but prod blocking passed.
-
 **WhatsApp:** job `notify-whatsapp` — informational; delivery failure opens an issue but does not change test status.
 
 ---
 
 ## Login test strategy
 
-1. **PR:** auth flows use integration Supabase; prefer stable helpers; skip on known Auth infra flakes where documented.
-2. **Nightly blocking:** no doctor login in blocking suite (booking + public shell + registration only).
-3. **Nightly monitor:** prod login UI/session — non-blocking until 10 consecutive greens, then consider promoting one spec to blocking.
+1. **PR blocking:** programmatic `signInDoctorAndSetCookies` / `signInDoctorOrSkipOnInfraError` where the form is not under test.
+2. **PR monitor (non-blocking):** `doctor_password_login_form.spec.ts` (`@pr-login-monitor`) — `/login` form with hydration-safe helper + auth pre-check.
+3. **Nightly blocking:** no doctor login in blocking suite (booking + public shell + registration only).
 
 ---
 
@@ -112,7 +106,7 @@ Current example: `tests/manual_booking_flow.spec.ts`.
 
 ## Promotion / demotion rule
 
-- Promote nightly monitor → blocking after **10 consecutive green** nightly runs.
+- Promote `@pr-login-monitor` → blocking `@pr-e2e` after **10 consecutive green** PR monitor runs without integration Auth infra failures.
 - Demote blocking → monitor after **2 failures in 7 days** without confirmed product bug.
 
 ---
@@ -139,7 +133,7 @@ When nightly fails:
 
 1. **Product regression** → fix code or prod smoke doctor config (`TEST_BOOKING_DOCTOR_SLUG`, schedule).
 2. **Env/secret** → verify `PROD_*`, `TEST_DOCTOR_*`, `PLAYWRIGHT_BASE_URL_PROD`.
-3. **Flaky login monitor** → expected in non-blocking step; fix credentials if probe passes but UI fails.
+3. **Login form failure on PR** → check hydration/login UI; integration `TEST_USER_*` secrets.
 
 When PR fails: integration env / test data — not prod calendar.
 

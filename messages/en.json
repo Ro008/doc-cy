@@ -262,16 +262,16 @@
       }
     },
     "Pricing": {
-      "threeMonthsFree": "First 3 Months FREE",
+      "sixMonthsFree": "First 6 Months FREE",
       "foundingMemberStatus": "Founding Member",
       "standardPricing": "Standard Pricing",
       "loading": "Checking availability...",
       "badge": "FOUNDING MEMBERS CLUB",
       "title": "€19/month. Locked for life.",
-      "subtitle": "Launch offer for the first 100 practices that register in Cyprus. Once the club is full, new sign-ups move to standard pricing.",
+      "subtitle": "Launch offer for the first 50 practices that register in Cyprus. Once the club is full, new sign-ups move to standard pricing.",
       "price": "€19/month",
       "oldPrice": "€49/month",
-      "limited": "<spots>{count}</spots> spots left of 100",
+      "limited": "<spots>{count}</spots> spots left of {max}",
       "trustLine": "No hidden costs. Cancel anytime.",
       "foundersUnavailable": "Founders Club offer is no longer available. Standard pricing is now active.",
       "benefits": {
@@ -312,7 +312,7 @@
       "title": "No more profiles collecting digital dust",
       "p1": "We know you’ve probably been burned by healthcare platforms that promise the world, charge upfront, and leave your profile forgotten in a generic database.",
       "p2": "DocCy is built differently. We don’t want your money until we prove the system works for your practice.",
-      "p3": "That’s why we completely eliminate the upfront risk. You get a full business quarter to experience the platform, capture real patients, and see the reduction in phone chaos before you ever pay a single cent."
+      "p3": "That’s why we completely eliminate the upfront risk. You get six full months to experience the platform, capture real patients, and see the reduction in phone chaos before you ever pay a single cent."
     },
     "FAQ": {
       "heading": "Common questions",
@@ -356,7 +356,7 @@
           "question": "I’ve listed my practice on other directories before and got zero results. Why is DocCy different?",
           "answer1": "Because we don't charge you to sit invisibly in a database. Most traditional directories fail because they focus on locking doctors into upfront contracts without guaranteeing performance.",
           "answer2": "DocCy is built as a high-performance ecosystem optimized for local Google searches. But instead of asking you to trust our word, we shift 100% of the financial risk to us.",
-          "answer3": "You get 3 full months to test the platform with zero setup fees and no credit card required. If you don't see actual patient requests or a noticeable relief in your staff's workload, you can walk away without spending a single cent. We only win when your clinic wins."
+          "answer3": "You get 6 full months to test the platform with zero setup fees and no credit card required. If you don't see actual patient requests or a noticeable relief in your staff's workload, you can walk away without spending a single cent. We only win when your clinic wins."
         }
       }
     }

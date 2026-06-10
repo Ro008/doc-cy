@@ -87,8 +87,8 @@ export function FoundingMemberBadge() {
 
             <ul className="mt-3 space-y-3 text-xs leading-relaxed text-slate-300">
               <li>
-                <span className="font-semibold text-slate-200">3 Months of Onboarding:</span> Your
-                first 90 days are on us. We want you to see the impact on your practice before you
+                <span className="font-semibold text-slate-200">6 Months of Onboarding:</span> Your
+                first 180 days are on us. We want you to see the impact on your practice before you
                 pay a cent.
               </li>
               <li>

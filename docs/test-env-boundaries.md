@@ -17,7 +17,7 @@ Using `.env.testing.local` with production URL can produce false failures (UI su
 |---|-------------------------------|-------------------------------------|
 | Finder | Hidden (`is_test_profile` / test email domains) | Visible — set `NEXT_PUBLIC_DOC_CY_FINDER_INCLUDE_TEST_PROFILES=1` on the deploy |
 | Founding Members counter | **Counts** verified founder test doctors (fewer spots shown) | Same — counts toward urgency display |
-| Founder tier at signup | Test rows do **not** consume one of the 100 real founder slots (RPC lock) | Same |
+| Founder tier at signup | Test rows do **not** consume one of the 50 real founder slots (RPC lock) | Same |
 
 **Prod owner smoke:** any registration email containing `rociosirvent` (e.g. `rociosirvent+anastasiadoctor@gmail.com`) is auto `is_test_profile`. Override markers via server env `DOC_CY_TEST_DOCTOR_EMAIL_MARKERS` (comma-separated, lowercase substrings).
 

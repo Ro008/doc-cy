@@ -68,7 +68,7 @@ test.describe("Landing i18n", { tag: "@pr-e2e" }, () => {
     ).toBeVisible({ timeout: 10000 });
     const pricingEl = page.locator("#founders-pricing-card");
     await expect(pricingEl.getByText(/Ιδρυτικό Μέλος/i)).toBeVisible({ timeout: 10000 });
-    await expect(pricingEl.getByText(/Πρώτοι 3 μήνες δωρεάν/i)).toBeVisible({
+    await expect(pricingEl.getByText(/Πρώτοι 6 μήνες δωρεάν/i)).toBeVisible({
       timeout: 10000,
     });
     await expect(

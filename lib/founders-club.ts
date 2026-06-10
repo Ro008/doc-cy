@@ -1,6 +1,6 @@
 import { createServiceRoleClient } from "@/lib/supabase-service";
 
-export const MAX_FOUNDERS = 100;
+export const MAX_FOUNDERS = 50;
 const MARKETING_INCLUDED_DOCTOR_SLUGS = ["andreas-nikos"] as const;
 
 export type FoundersAvailability = {

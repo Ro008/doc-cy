@@ -2,7 +2,7 @@
 # PR lane (integration + full suite): .github/workflows/pr-integration.yml
 #
 # Blocking: prod URL + prod Supabase — public shell, guest booking, live registration, email guards.
-# Non-blocking: doctor login/agenda UI monitors (CI session volatility).
+# Doctor login form UI: PR non-blocking (`doctor_password_login_form.spec.ts` @pr-login-monitor).
 # Integration E2E (finder, navigation, etc.) runs only on PR — not duplicated here.
 
 name: Production Monitoring
@@ -85,8 +85,6 @@ jobs:
     needs: [schedule-gate]
     if: needs.schedule-gate.outputs.should_run == 'true' && (github.event_name != 'workflow_dispatch' || github.event.inputs.notify_only != 'true')
     runs-on: ubuntu-latest
-    outputs:
-      doctor_ui_monitor_outcome: ${{ steps.doctor-ui-monitor.outcome }}
     timeout-minutes: 45
     steps:
       - name: Checkout
@@ -228,26 +226,6 @@ jobs:
             --workers=1 \
             --reporter=line
 
-      - name: Run doctor login and agenda UI monitors (non-blocking)
-        id: doctor-ui-monitor
-        if: always()
-        continue-on-error: true
-        env:
-          PLAYWRIGHT_BASE_URL: ${{ secrets.PLAYWRIGHT_BASE_URL_PROD }}
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.PROD_NEXT_PUBLIC_SUPABASE_URL }}
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.PROD_NEXT_PUBLIC_SUPABASE_ANON_KEY }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.PROD_SUPABASE_SERVICE_ROLE_KEY }}
-          DOC_CY_SUPPRESS_TRAFFIC_LOG_SECRET: ${{ secrets.DOC_CY_SUPPRESS_TRAFFIC_LOG_SECRET }}
-          TEST_DOCTOR_EMAIL: ${{ secrets.TEST_DOCTOR_EMAIL }}
-          TEST_DOCTOR_PASSWORD: ${{ secrets.TEST_DOCTOR_PASSWORD }}
-          TEST_USER_EMAIL: ${{ secrets.TEST_USER_EMAIL || secrets.TEST_DOCTOR_EMAIL }}
-          TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD || secrets.TEST_DOCTOR_PASSWORD }}
-        run: |
-          npx playwright test --grep @nightly-monitor \
-            --project="Desktop Large (Chromium)" \
-            --workers=1 \
-            --reporter=line
-
       - name: Upload Playwright report
         if: always()
         uses: actions/upload-artifact@v4
@@ -283,7 +261,6 @@ jobs:
         env:
           WHATSAPP_WEBHOOK_URL: ${{ secrets.WHATSAPP_WEBHOOK_URL }}
           PROD_RESULT: ${{ needs.prod-critical-smoke.result }}
-          PROD_DOCTOR_UI_MONITOR_OUTCOME: ${{ needs.prod-critical-smoke.outputs.doctor_ui_monitor_outcome || 'skipped' }}
           RUN_ID: ${{ github.run_id }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           NOTIFY_ONLY: ${{ github.event.inputs.notify_only || 'false' }}
