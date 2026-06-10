@@ -1,10 +1,10 @@
 const DAY_MS = 24 * 60 * 60 * 1000;
-const DEFAULT_TRIAL_DAYS = 90;
+const DEFAULT_TRIAL_DAYS = 180;
 const EXPIRING_SOON_DAYS = 3;
 
 /**
  * Backend source of truth for trial duration.
- * Set TRIAL_PERIOD_DAYS in env to override (default 90 days).
+ * Set TRIAL_PERIOD_DAYS in env to override (default 180 days / 6 months).
  */
 export function getTrialPeriodDays(): number {
   const raw = process.env.TRIAL_PERIOD_DAYS?.trim();

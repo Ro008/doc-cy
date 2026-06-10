@@ -10,3 +10,4 @@ playwright/.cache
 tmp
 *.tsbuildinfo
 supabase/.temp/
+.vercel

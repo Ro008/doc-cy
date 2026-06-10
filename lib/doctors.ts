@@ -14,7 +14,7 @@ export type DoctorRow = {
   status?: string | null;
   /** false when custom “Other” specialty awaits founder review */
   is_specialty_approved?: boolean | null;
-  /** `founder` = first 100 locked pricing; `standard` otherwise */
+  /** `founder` = first 50 locked pricing; `standard` otherwise */
   subscription_tier?: "founder" | "standard" | null;
   /** When true, show GESY provider badge on finder and public profile */
   is_gesy?: boolean | null;

@@ -165,7 +165,7 @@ export function FoundersPricingCard({ embedded = false }: FoundersPricingCardPro
           {showFounderOffer ? (
             <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
               <span className="inline-flex w-fit rounded-full border border-emerald-300/50 bg-emerald-400/15 px-2.5 py-0.5 text-[11px] font-semibold tracking-wide text-emerald-200">
-                {t("Pricing.threeMonthsFree")}
+                {t("Pricing.sixMonthsFree")}
               </span>
               <span className="inline-flex w-fit rounded-full border border-emerald-400/35 bg-emerald-500/10 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-emerald-100/90">
                 {t("Pricing.foundingMemberStatus")}
@@ -215,6 +215,7 @@ export function FoundersPricingCard({ embedded = false }: FoundersPricingCardPro
                 revealLive && displaySpots !== null
                   ? displaySpots
                   : spotsRemaining || MAX_FOUNDERS,
+              max: MAX_FOUNDERS,
               spots: (chunks) => (
                 <span className="inline-flex items-center rounded-md bg-emerald-300/20 px-1.5 py-0.5 font-semibold text-emerald-100 shadow-[0_0_16px_-6px_rgba(110,231,183,0.9)] animate-pulse">
                   {chunks}

@@ -1,4 +1,4 @@
--- subscription_tier: locks Founding Member pricing to the first 100 rows with tier 'founder'.
+-- subscription_tier: locks Founding Member pricing to the first 50 rows with tier 'founder'.
 -- Run in Supabase SQL Editor (safe to re-run with IF NOT EXISTS).
 
 ALTER TABLE public.doctors
@@ -12,7 +12,7 @@ ALTER TABLE public.doctors
   CHECK (subscription_tier IN ('founder', 'standard'));
 
 COMMENT ON COLUMN public.doctors.subscription_tier IS
-  'Billing tier: founder (first 100 locked €19) or standard. Set atomically at registration.';
+  'Billing tier: founder (first 50 locked €19) or standard. Set atomically at registration.';
 
 -- Atomic registration: advisory lock + count founders + INSERT in one transaction (no double 100th slot).
 CREATE OR REPLACE FUNCTION public.register_doctor_with_founder_lock(
@@ -47,7 +47,7 @@ BEGIN
   FROM public.doctors
   WHERE subscription_tier = 'founder';
 
-  IF founder_count < 100 THEN
+  IF founder_count < 50 THEN
     tier := 'founder';
   ELSE
     tier := 'standard';
@@ -100,7 +100,7 @@ GRANT EXECUTE ON FUNCTION public.register_doctor_with_founder_lock(
 -- Option A — mark every existing doctor as founder (small / staging DBs only):
 --   UPDATE public.doctors SET subscription_tier = 'founder';
 --
--- Option B — only the first 100 by signup time (recommended for production):
+-- Option B — only the first 50 by signup time (recommended for production):
 --   UPDATE public.doctors d
 --   SET subscription_tier = 'founder'
 --   FROM (
