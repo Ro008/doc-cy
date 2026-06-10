@@ -26,6 +26,35 @@ function ensureMagicLinkRedirect(actionLink: string, redirectTarget: string): st
   return linkUrl.toString();
 }
 
+/**
+ * LoginPageClient uses controlled inputs gated by client hydration (`isHydrated`).
+ * Filling before hydration completes can leave empty React state and a stuck /login.
+ */
+async function submitLoginFormViaUi(
+  page: Page,
+  email: string,
+  password: string,
+): Promise<void> {
+  await expect(page.getByRole("heading", { name: /Welcome back/i })).toBeVisible({
+    timeout: 20_000,
+  });
+
+  const signInButton = page.getByRole("button", { name: /^Sign in$/i });
+  await expect(signInButton).toBeEnabled({ timeout: 20_000 });
+
+  const emailInput = page.locator('input[name="email"]');
+  const passwordInput = page.locator('input[name="password"]');
+  await expect(emailInput).toBeEditable({ timeout: 10_000 });
+  await expect(passwordInput).toBeEditable({ timeout: 10_000 });
+
+  await emailInput.fill(email);
+  await expect(emailInput).toHaveValue(email, { timeout: 5_000 });
+  await passwordInput.fill(password);
+  await expect(passwordInput).toHaveValue(password, { timeout: 5_000 });
+
+  await signInButton.click();
+}
+
 export async function authenticateDoctorViaMagicLink(
   page: Page,
   email: string,
@@ -126,9 +155,7 @@ export async function authenticateDoctorViaMagicLink(
       for (const candidatePassword of candidatePasswords) {
         attemptedPairs.push(`${candidateEmail}:${"*".repeat(Math.min(candidatePassword.length, 8))}`);
         await page.goto(`${normalizedBaseUrl}/login`, { waitUntil: "domcontentloaded" });
-        await page.getByLabel("Email").fill(candidateEmail);
-        await page.getByLabel("Password").fill(candidatePassword);
-        await page.getByRole("button", { name: /Sign in/i }).click();
+        await submitLoginFormViaUi(page, candidateEmail, candidatePassword);
 
         for (let attempt = 0; attempt < 10; attempt += 1) {
           await page.goto(`${normalizedBaseUrl}/agenda`, { waitUntil: "domcontentloaded" });
@@ -223,10 +250,7 @@ export async function authenticateDoctorViaPasswordUi(
 
   for (let attempt = 1; attempt <= 3; attempt += 1) {
     await page.goto(`${normalizedBaseUrl}/login`, { waitUntil: "domcontentloaded" });
-    await expect(page.getByLabel("Email")).toBeVisible({ timeout: 20_000 });
-    await page.getByLabel("Email").fill(resolvedEmail);
-    await page.getByLabel("Password").fill(resolvedPassword);
-    await page.getByRole("button", { name: /Sign in/i }).click();
+    await submitLoginFormViaUi(page, resolvedEmail, resolvedPassword);
 
     try {
       await expect(page).toHaveURL(/\/agenda(?:[/?#]|$)/, { timeout: 45_000 });

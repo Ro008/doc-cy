@@ -16,22 +16,8 @@ function formatJobStatus(result, label) {
   }
 }
 
-function formatNonBlockingStatus(result, label) {
-  switch (result) {
-    case "success":
-      return `✅ ${label} OK (non-blocking)`;
-    case "cancelled":
-      return `⚠️ ${label} CANCELLED (non-blocking)`;
-    case "skipped":
-      return `⚪ ${label} SKIPPED (non-blocking)`;
-    default:
-      return `⚠️ ${label} FAIL (non-blocking)`;
-  }
-}
-
 function buildMessage() {
   const prodResult = process.env.PROD_RESULT ?? "unknown";
-  const doctorUi = process.env.PROD_DOCTOR_UI_MONITOR_OUTCOME ?? "skipped";
   const runId = process.env.RUN_ID ?? "local";
   const notifyOnly = process.env.NOTIFY_ONLY === "true";
   const extra = (process.env.EXTRA_MESSAGE ?? "").trim();
@@ -43,15 +29,10 @@ function buildMessage() {
   }
 
   const prodBlockingOk = prodResult === "success";
-  const doctorUiWarning = doctorUi !== "success" && doctorUi !== "skipped";
-
-  let icon = prodBlockingOk ? "✅" : prodResult === "cancelled" ? "⚠️" : "❌";
-  if (prodBlockingOk && doctorUiWarning) icon = "⚠️";
-
+  const icon = prodBlockingOk ? "✅" : prodResult === "cancelled" ? "⚠️" : "❌";
   const prodLine = formatJobStatus(prodResult, "Prod nightly");
-  const doctorLine = formatNonBlockingStatus(doctorUi, "Doctor login/agenda UI monitor");
 
-  let msg = `${icon} DocCy nightly | ${prodLine} | ${doctorLine} | run ${runId}`;
+  let msg = `${icon} DocCy nightly | ${prodLine} | run ${runId}`;
   if (extra) msg += ` | ${extra}`;
   return msg;
 }
