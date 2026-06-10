@@ -179,6 +179,25 @@ jobs:
             --workers=1 \
             --reporter=line
 
+      - name: Run doctor login form monitor (non-blocking)
+        if: always()
+        continue-on-error: true
+        env:
+          CI: "true"
+          INTEGRATION_SAFE_ENV: "1"
+          PLAYWRIGHT_BASE_URL: http://127.0.0.1:3000
+          PLAYWRIGHT_WEB_SERVER_COMMAND: npm run start
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.INTEGRATION_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.INTEGRATION_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.INTEGRATION_SUPABASE_SERVICE_ROLE_KEY }}
+          DOC_CY_SUPPRESS_TRAFFIC_LOG_SECRET: ${{ secrets.DOC_CY_SUPPRESS_TRAFFIC_LOG_SECRET }}
+          PROD_NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.PROD_NEXT_PUBLIC_SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL }}
+        run: |
+          npx playwright test --grep @pr-login-monitor \
+            --project="Desktop Large (Chromium)" \
+            --workers=1 \
+            --reporter=line
+
   pr-preview-public-shell:
     name: PR Preview site health (Vercel)
     runs-on: ubuntu-latest

@@ -28,6 +28,7 @@ Build flag for integration finder tests: `NEXT_PUBLIC_DOC_CY_FINDER_INCLUDE_TEST
 | `@pr-e2e` | `playwright test --grep @pr-e2e` | Main PR integration suite |
 | `@pr-preview` | `playwright test --grep @pr-preview` | Public shell on Vercel Preview |
 | `@pr-mobile-monitor` | `playwright test --grep @pr-mobile-monitor` | Doctor confirmation flow on mobile (PR, non-blocking) |
+| `@pr-login-monitor` | `playwright test --grep @pr-login-monitor` | Doctor `/login` form UI (PR, non-blocking) |
 | `@nightly-prod` | `playwright test --grep @nightly-prod` | Prod URL blocking smokes (site + booking + registration) |
 
 Constants: `tests/helpers/ciTags.ts`. To tag new specs: `node scripts/apply-ci-playwright-tags.mjs` (edit file lists first).
@@ -44,6 +45,7 @@ Constants: `tests/helpers/ciTags.ts`. To tag new specs: `node scripts/apply-ci-p
 - `--grep @pr-email` then `--grep @pr-e2e` (see tag table below)
 - Preview job: `--grep @pr-preview`
 - Non-blocking mobile: `--grep @pr-mobile-monitor`
+- Non-blocking login form: `--grep @pr-login-monitor`
 
 **Excludes from PR:**
 
@@ -76,8 +78,9 @@ Constants: `tests/helpers/ciTags.ts`. To tag new specs: `node scripts/apply-ci-p
 
 ## Login test strategy
 
-1. **PR:** `doctor_password_login_form.spec.ts` — login via `/login` form (hydration-safe helper). Other flows use programmatic `signInDoctorAndSetCookies` where the form is not the subject under test.
-2. **Nightly blocking:** no doctor login in blocking suite (booking + public shell + registration only).
+1. **PR blocking:** programmatic `signInDoctorAndSetCookies` / `signInDoctorOrSkipOnInfraError` where the form is not under test.
+2. **PR monitor (non-blocking):** `doctor_password_login_form.spec.ts` (`@pr-login-monitor`) — `/login` form with hydration-safe helper + auth pre-check.
+3. **Nightly blocking:** no doctor login in blocking suite (booking + public shell + registration only).
 
 ---
 
@@ -103,7 +106,7 @@ Current example: `tests/manual_booking_flow.spec.ts`.
 
 ## Promotion / demotion rule
 
-- Promote PR login form smoke → nightly prod monitor only after **10 consecutive green** PR runs and stable prod credentials path.
+- Promote `@pr-login-monitor` → blocking `@pr-e2e` after **10 consecutive green** PR monitor runs without integration Auth infra failures.
 - Demote blocking → monitor after **2 failures in 7 days** without confirmed product bug.
 
 ---

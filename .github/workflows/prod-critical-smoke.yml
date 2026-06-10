@@ -2,7 +2,7 @@
 # PR lane (integration + full suite): .github/workflows/pr-integration.yml
 #
 # Blocking: prod URL + prod Supabase — public shell, guest booking, live registration, email guards.
-# Doctor login form UI: PR blocking (`doctor_password_login_form.spec.ts` @pr-e2e).
+# Doctor login form UI: PR non-blocking (`doctor_password_login_form.spec.ts` @pr-login-monitor).
 # Integration E2E (finder, navigation, etc.) runs only on PR — not duplicated here.
 
 name: Production Monitoring

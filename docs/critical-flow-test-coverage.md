@@ -57,7 +57,7 @@ Living document: update when workflows or specs change.
 | Flow | PR blocking | Other | Notes |
 | --- | --- | --- | --- |
 | Sign-out / sessions | — | `auth_signout_other_sessions`, `auth_session_revocation_logic` | Integration specs, not in PR list |
-| Password login (UI) | `doctor_password_login_form.spec.ts` | — | PR blocking; `/login` form → agenda |
+| Password login (UI) | — | `doctor_password_login_form.spec.ts` (`@pr-login-monitor`) | PR non-blocking; `/login` form → agenda |
 
 ---
 

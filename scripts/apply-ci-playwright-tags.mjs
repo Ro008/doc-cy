@@ -34,8 +34,9 @@ const prE2e = [
   "integration/doctor_confirmation_flow.integration.spec.ts",
   "integration/propose_reschedule_confirmed.integration.spec.ts",
   "integration/directory_duplicates_actions.integration.spec.ts",
-  "doctor_password_login_form.spec.ts",
 ];
+
+const prLoginMonitor = ["doctor_password_login_form.spec.ts"];
 
 const prEmail = [
   "integration/agenda_multisession_sync.integration.spec.ts",
@@ -90,3 +91,4 @@ for (const f of prE2e) {
 for (const f of prEmail) applyTag(f, ["@pr-email"]);
 for (const f of prPreviewNightly) applyTag(f, ["@pr-preview", "@nightly-prod"]);
 for (const f of nightlyProdOnly) applyTag(f, ["@nightly-prod"]);
+for (const f of prLoginMonitor) applyTag(f, ["@pr-login-monitor"]);

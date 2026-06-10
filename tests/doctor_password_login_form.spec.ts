@@ -9,7 +9,7 @@ function normalizeSecret(raw: string): string {
     .replace(/^['"]+|['"]+$/g, "");
 }
 
-test.describe("Doctor password login form", { tag: "@pr-e2e" }, () => {
+test.describe("Doctor password login form", { tag: "@pr-login-monitor" }, () => {
   test("doctor can sign in via login form and reach agenda", async ({ page, baseURL }) => {
     test.setTimeout(120_000);
     const appBaseUrl = (process.env.PLAYWRIGHT_BASE_URL ?? baseURL ?? "http://localhost:3000").trim();
