@@ -1,7 +1,13 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { PendingLink } from "@/components/navigation/PendingLink";
-import { getAllBlogPostMeta, getBlogPostBySlug, postNeedsPaphosCta } from "@/lib/blog";
+import {
+  BLOG_SHARE_OG_IMAGE_ALT,
+  BLOG_SHARE_OG_IMAGE_PATH,
+  getAllBlogPostMeta,
+  getBlogPostBySlug,
+  postNeedsPaphosCta,
+} from "@/lib/blog";
 import { DocCyWordmark } from "@/components/brand/DocCyWordmark";
 import { BlogMdxImage } from "@/components/blog/BlogMdxImage";
 import { MarketingFooter } from "@/components/navigation/MarketingFooter";
@@ -43,7 +49,7 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<M
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim() || "https://www.mydoccy.com";
   const siteBase = siteUrl.replace(/\/+$/, "");
   const canonicalPath = `/blog/${post?.slug ?? params.slug}`;
-  const defaultOgImage = `${siteBase}/showcase/16-premium-storefront.png`;
+  const blogShareImage = `${siteBase}${BLOG_SHARE_OG_IMAGE_PATH}`;
   if (!post) {
     return {
       title: "Blog post not found | DocCy",
@@ -66,8 +72,8 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<M
       modifiedTime: post.updatedAt || post.publishedAt,
       images: [
         {
-          url: toAbsoluteImageUrl(post.image, siteBase) || defaultOgImage,
-          alt: post.title,
+          url: blogShareImage,
+          alt: BLOG_SHARE_OG_IMAGE_ALT,
         },
       ],
     },
@@ -75,7 +81,7 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<M
       card: "summary_large_image",
       title: post.title,
       description: post.description,
-      images: [toAbsoluteImageUrl(post.image, siteBase) || defaultOgImage],
+      images: [blogShareImage],
     },
   };
 }

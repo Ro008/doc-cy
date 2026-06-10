@@ -5,6 +5,8 @@ type BlogMdxImageProps = {
   alt?: string;
   width?: number | string;
   height?: number | string;
+  /** Use for UI screenshots so text stays readable (default: cover crop for hero-style photos). */
+  contain?: boolean;
 };
 
 function toNumber(value: number | string | undefined, fallback: number): number {
@@ -19,20 +21,28 @@ function blurPlaceholder(width: number, height: number): string {
   return `data:image/svg+xml;base64,${Buffer.from(svg).toString("base64")}`;
 }
 
-export function BlogMdxImage({ src, alt, width, height }: BlogMdxImageProps) {
+export function BlogMdxImage({ src, alt, width, height, contain }: BlogMdxImageProps) {
   const imageSrc = String(src ?? "").trim();
   if (!imageSrc) return null;
   const safeWidth = toNumber(width, 1600);
   const safeHeight = toNumber(height, 900);
 
   return (
-    <span className="my-5 block max-w-xl overflow-hidden rounded-xl border border-slate-700/70 shadow-[0_0_14px_-12px_rgba(52,211,153,0.65)]">
+    <span
+      className={`my-5 block overflow-hidden rounded-xl border border-slate-700/70 shadow-[0_0_14px_-12px_rgba(52,211,153,0.65)] ${
+        contain ? "max-w-3xl bg-slate-900/50" : "max-w-xl"
+      }`}
+    >
       <Image
         src={imageSrc}
         alt={String(alt ?? "Blog image")}
         width={safeWidth}
         height={safeHeight}
-        className="h-44 w-full rounded-xl object-cover sm:h-56"
+        className={
+          contain
+            ? "h-auto max-h-[min(520px,70vh)] w-full rounded-xl object-contain"
+            : "h-44 w-full rounded-xl object-cover sm:h-56"
+        }
         placeholder="blur"
         blurDataURL={blurPlaceholder(safeWidth, safeHeight)}
         sizes="(max-width: 640px) 92vw, (max-width: 1024px) 70vw, 560px"

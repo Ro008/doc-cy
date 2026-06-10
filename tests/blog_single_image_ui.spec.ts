@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
-test.describe("Blog single-image UI rule", { tag: "@pr-e2e" }, () => {
-  test("each blog post detail renders exactly one image in the article", async ({ page }) => {
+test.describe("Blog post images UI", { tag: "@pr-e2e" }, () => {
+  test("blog post detail images render with src and alt text", async ({ page }) => {
     await page.goto("/blog");
     await expect(page).toHaveURL(/\/blog(?:\?|$)/);
 
@@ -25,11 +25,15 @@ test.describe("Blog single-image UI rule", { tag: "@pr-e2e" }, () => {
       const article = page.locator("article").first();
       await expect(article).toBeVisible();
 
-      const imageCount = await article.locator("img").count();
-      expect(imageCount, `Expected exactly one image in ${href}, got ${imageCount}`).toBe(1);
+      const images = article.locator("img");
+      const imageCount = await images.count();
 
-      const onlyImage = article.locator("img").first();
-      await expect(onlyImage).toBeVisible();
+      for (let i = 0; i < imageCount; i += 1) {
+        const img = images.nth(i);
+        await expect(img, `Image ${i + 1} in ${href} should have src`).toHaveAttribute("src", /.+/);
+        await expect(img, `Image ${i + 1} in ${href} should have alt`).toHaveAttribute("alt", /.+/);
+        await expect(img).toBeVisible();
+      }
     }
   });
 });
