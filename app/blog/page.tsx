@@ -1,13 +1,32 @@
 import type { Metadata } from "next";
-import { getAllBlogPostMeta } from "@/lib/blog";
+import { BLOG_SHARE_OG_IMAGE_PATH, getAllBlogPostMeta } from "@/lib/blog";
 import { PendingLink } from "@/components/navigation/PendingLink";
 import { DocCyWordmark } from "@/components/brand/DocCyWordmark";
 import { MarketingFooter } from "@/components/navigation/MarketingFooter";
+
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim() || "https://www.mydoccy.com";
+const siteBase = siteUrl.replace(/\/+$/, "");
+const blogShareImage = `${siteBase}${BLOG_SHARE_OG_IMAGE_PATH}`;
 
 export const metadata: Metadata = {
   title: "DocCy Blog | Healthcare Guides in Cyprus",
   description:
     "Practical healthcare guides for Cyprus, including GeSY and private care decisions.",
+  openGraph: {
+    type: "website",
+    title: "DocCy Blog | Healthcare Guides in Cyprus",
+    description:
+      "Practical healthcare guides for Cyprus, including GeSY and private care decisions.",
+    url: `${siteBase}/blog`,
+    images: [{ url: blogShareImage, alt: "DocCy Blog — Healthcare guides for Cyprus" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "DocCy Blog | Healthcare Guides in Cyprus",
+    description:
+      "Practical healthcare guides for Cyprus, including GeSY and private care decisions.",
+    images: [blogShareImage],
+  },
 };
 
 function formatDate(input: string): string {

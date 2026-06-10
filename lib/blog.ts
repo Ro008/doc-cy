@@ -11,6 +11,10 @@ import { BlogMdxImage } from "@/components/blog/BlogMdxImage";
 const BLOG_CONTENT_DIR = path.join(process.cwd(), "content", "blog");
 const CYPRUS_TIMEZONE = "Europe/Nicosia";
 
+/** Canonical Open Graph / Twitter image for every blog post share card. */
+export const BLOG_SHARE_OG_IMAGE_PATH = "/blog/og-default.png";
+export const BLOG_SHARE_OG_IMAGE_ALT = "DocCy Blog — Healthcare guides for Cyprus";
+
 /** GFM = GitHub-flavored Markdown (tables, strikethrough, etc.) for blog MDX. */
 const blogMdxCompileOptions = {
   parseFrontmatter: true,
@@ -112,11 +116,18 @@ function findBlogFileNameForSlugSync(slug: string): string {
  * Uses committer date so merges to main reflect when the change landed, not only author timestamp.
  * Undefined if Git unavailable or shallow history hides the file's last edit.
  */
-function getGitLastCommitDateShortForBlogFile(fileName: string): string | undefined {
+function gitCommitDateShortForBlogFile(
+  fileName: string,
+  mode: "first" | "last",
+): string | undefined {
   if (process.env.BLOG_SKIP_GIT_UPDATED === "1") return undefined;
   const rel = path.posix.join("content", "blog", fileName.split("\\").join("/"));
+  const gitArgs =
+    mode === "first"
+      ? ["log", "--follow", "--reverse", "-1", "--format=%cd", "--date=short", "--", rel]
+      : ["log", "-1", "--follow", "--format=%cd", "--date=short", "--", rel];
   try {
-    const out = execFileSync("git", ["log", "-1", "--follow", "--format=%cd", "--date=short", "--", rel], {
+    const out = execFileSync("git", gitArgs, {
       encoding: "utf8",
       cwd: process.cwd(),
       stdio: ["ignore", "pipe", "ignore"],
@@ -127,6 +138,15 @@ function getGitLastCommitDateShortForBlogFile(fileName: string): string | undefi
     /* no .git, shallow clone, git missing, path not in history */
   }
   return undefined;
+}
+
+function getGitLastCommitDateShortForBlogFile(fileName: string): string | undefined {
+  return gitCommitDateShortForBlogFile(fileName, "last");
+}
+
+/** First commit that added the post — used as publish date when frontmatter omits `date`. */
+function getGitFirstCommitDateShortForBlogFile(fileName: string): string | undefined {
+  return gitCommitDateShortForBlogFile(fileName, "first");
 }
 
 function laterIsoDate(a: string | undefined, b: string | undefined): string | undefined {
@@ -159,11 +179,14 @@ function normalizeFrontmatter(
 ): BlogPostMeta {
   const title = String(frontmatter.title ?? "").trim();
   const description = String(frontmatter.description ?? "").trim();
-  const publishedAt = String(frontmatter.date ?? frontmatter.publishedAt ?? "").trim();
-  if (!title || !description || !publishedAt) {
-    throw new Error(
-      `Post "${slug}" is missing required frontmatter (title, description, date).`
-    );
+  const resolvedFile = fileName ?? findBlogFileNameForSlugSync(slug);
+  const explicitPublishedAt = String(frontmatter.date ?? frontmatter.publishedAt ?? "").trim();
+  const publishedAt =
+    explicitPublishedAt ||
+    getGitFirstCommitDateShortForBlogFile(resolvedFile) ||
+    getCyprusTodayIsoDate();
+  if (!title || !description) {
+    throw new Error(`Post "${slug}" is missing required frontmatter (title, description).`);
   }
 
   const rawUpdated =
@@ -171,7 +194,6 @@ function normalizeFrontmatter(
     String(frontmatter.updatedAt ?? "").trim() ||
     undefined;
   const manual = effectiveUpdatedAtAfterPublication(publishedAt, rawUpdated);
-  const resolvedFile = fileName ?? findBlogFileNameForSlugSync(slug);
   const gitDay = getGitLastCommitDateShortForBlogFile(resolvedFile);
   const fromGit = gitDay ? effectiveUpdatedAtAfterPublication(publishedAt, gitDay) : undefined;
   const updatedAt = laterIsoDate(manual, fromGit);
@@ -264,6 +286,7 @@ export async function getAllBlogPostMeta(): Promise<BlogPostMeta[]> {
         components: {
           a: renderMdxAnchor,
           img: BlogMdxImage,
+          BlogMdxImage,
         },
       });
       return normalizeFrontmatter(frontmatter, slug, fileName);
@@ -297,6 +320,7 @@ async function getAllBlogPostMetaIncludingScheduled(): Promise<BlogPostMeta[]> {
         components: {
           a: renderMdxAnchor,
           img: BlogMdxImage,
+          BlogMdxImage,
         },
       });
       return normalizeFrontmatter(frontmatter, slug, fileName);
@@ -345,6 +369,7 @@ export async function getBlogPostBySlug(slug: string): Promise<BlogPost | null> 
     components: {
       a: renderMdxAnchor,
       img: BlogMdxImage,
+      BlogMdxImage,
     },
   });
 
