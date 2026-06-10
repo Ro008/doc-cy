@@ -15,6 +15,11 @@ function countMarkdownImages(content) {
   return matches ? matches.length : 0;
 }
 
+function countBlogMdxImages(content) {
+  const matches = content.match(/<BlogMdxImage\b/g);
+  return matches ? matches.length : 0;
+}
+
 function parseFrontmatterAndBody(raw) {
   const frontmatterMatch = raw.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?/);
   if (!frontmatterMatch) {
@@ -28,7 +33,12 @@ function parseFrontmatterAndBody(raw) {
 
 function countFrontmatterImage(frontmatter) {
   const matches = frontmatter.match(/^image:\s*["'][^"']+["']\s*$/m);
-  return matches ? 1 : 0;
+  return matches ? matches.length : 0;
+}
+
+function blogMdxImagesMissingAlt(body) {
+  const blocks = body.match(/<BlogMdxImage[\s\S]*?\/>/g) ?? [];
+  return blocks.filter((block) => !/\balt=["'][^"']+["']/.test(block)).length;
 }
 
 const postFiles = listPostFiles(blogDir);
@@ -39,12 +49,25 @@ for (const filePath of postFiles) {
   const { frontmatter, body } = parseFrontmatterAndBody(raw);
 
   const frontmatterImageCount = countFrontmatterImage(frontmatter);
-  const markdownImageCount = countMarkdownImages(body);
-  const totalImageCount = frontmatterImageCount + markdownImageCount;
-
-  if (totalImageCount !== 1) {
+  if (frontmatterImageCount > 1) {
     failures.push(
-      `${path.relative(process.cwd(), filePath)} -> expected 1 total image, got ${totalImageCount} (frontmatter: ${frontmatterImageCount}, markdown: ${markdownImageCount})`,
+      `${path.relative(process.cwd(), filePath)} -> expected at most one frontmatter image, got ${frontmatterImageCount}`,
+    );
+  }
+
+  const missingAlt = blogMdxImagesMissingAlt(body);
+  if (missingAlt > 0) {
+    failures.push(
+      `${path.relative(process.cwd(), filePath)} -> ${missingAlt} <BlogMdxImage> block(s) missing alt text`,
+    );
+  }
+
+  const markdownImageCount = countMarkdownImages(body);
+  const blogMdxImageCount = countBlogMdxImages(body);
+  const totalBodyImages = markdownImageCount + blogMdxImageCount;
+  if (totalBodyImages > 0 && frontmatterImageCount > 0) {
+    failures.push(
+      `${path.relative(process.cwd(), filePath)} -> use either a legacy frontmatter hero OR inline body images, not both`,
     );
   }
 }
@@ -57,4 +80,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log(`OK: ${postFiles.length} blog posts with exactly one image each.`);
+console.log(`OK: ${postFiles.length} blog posts pass image content rules.`);
