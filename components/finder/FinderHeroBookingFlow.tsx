@@ -1,7 +1,10 @@
 import Image from "next/image";
 import { CalendarCheck, Check } from "lucide-react";
 
-/** Shared vertical offset for hero copy + booking flow (keep in sync). */
+/** Vertical offset for hero headline copy. */
+export const FINDER_HERO_COPY_TOP_CLASS = "top-2 sm:top-[4%] lg:top-[6%]";
+
+/** Vertical offset for booking-flow overlay (aligned with copy previously). */
 export const FINDER_HERO_CONTENT_TOP_CLASS = "top-6 sm:top-[10%] lg:top-[12%]";
 
 function DoctorNikosAvatar({ className = "h-9 w-9" }: { className?: string }) {
@@ -41,7 +44,7 @@ function FlowConnector() {
 export function FinderHeroBookingFlow() {
   return (
     <div
-      className={`pointer-events-none absolute right-[2%] z-[5] hidden w-[min(100%,12.75rem)] flex-col sm:flex lg:right-[4%] lg:w-56 xl:right-[5%] xl:w-[15rem] ${FINDER_HERO_CONTENT_TOP_CLASS}`}
+      className={`pointer-events-none absolute right-[5%] z-[5] hidden w-[min(100%,12.75rem)] flex-col sm:flex lg:right-[6%] lg:w-56 xl:right-[7%] xl:w-[15rem] ${FINDER_HERO_CONTENT_TOP_CLASS}`}
       aria-hidden
     >
       {/* Patient sends booking request */}
@@ -56,10 +59,12 @@ export function FinderHeroBookingFlow() {
         </p>
       </div>
 
-      <FlowConnector />
+      <div className="my-1">
+        <FlowConnector />
+      </div>
 
       {/* DocCy auto-confirmation */}
-      <div className="flex items-start gap-2">
+      <div className="flex items-start gap-3">
         <DoctorNikosAvatar />
         <div className="min-w-0 flex-1 rounded-2xl rounded-tl-sm border border-emerald-400/30 bg-white/94 px-3 py-2.5 shadow-[0_8px_28px_-8px_rgba(0,0,0,0.45)] backdrop-blur-sm">
           <p className="flex items-center gap-1 text-[13px] font-bold leading-snug text-emerald-600">
