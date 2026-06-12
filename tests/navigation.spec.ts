@@ -23,7 +23,7 @@ test.describe("Navigation and routing", { tag: "@pr-e2e" }, () => {
 
     await expect(page).toHaveURL(/\/finder(?:\?|$)/);
     await expect(
-      page.getByRole("heading", { level: 1, name: /Health Professionals in Cyprus|Find a Professional/i })
+      page.getByRole("heading", { level: 1, name: /Find your next health professional in Cyprus|Health Professionals in Cyprus|Find a Professional/i })
     ).toBeVisible();
     await expect(page.locator("article").first()).toBeVisible();
     const resultsCount = page.getByTestId("finder-results-count");
@@ -45,7 +45,7 @@ test.describe("Navigation and routing", { tag: "@pr-e2e" }, () => {
 
     await expect(page).toHaveURL(/\/finder(?:\?|$)/);
     await expect(
-      page.getByRole("heading", { level: 1, name: /Health Professionals in Cyprus|Find a Professional/i })
+      page.getByRole("heading", { level: 1, name: /Find your next health professional in Cyprus|Health Professionals in Cyprus|Find a Professional/i })
     ).toBeVisible();
 
     await expect(page.getByText("No professionals match these filters.")).toHaveCount(0);

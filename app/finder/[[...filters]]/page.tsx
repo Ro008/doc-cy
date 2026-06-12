@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 import { Instagram } from "lucide-react";
-import { PendingLink } from "@/components/navigation/PendingLink";
 import { DocCyWordmark } from "@/components/brand/DocCyWordmark";
+import { PendingLink } from "@/components/navigation/PendingLink";
 import { CYPRUS_DISTRICTS, type CyprusDistrict, isCyprusDistrict } from "@/lib/cyprus-districts";
 import { languageThemeForLabel } from "@/lib/cyprus-languages";
 import { createServiceRoleClient } from "@/lib/supabase-service";
 import { doctorDashboardDisplayName } from "@/lib/doctor-display-name";
 import { FinderFilters } from "@/components/finder/FinderFilters";
+import { FinderHeroSection } from "@/components/finder/FinderHeroSection";
 import { FinderResultsCount } from "@/components/finder/FinderResultsCount";
 import { FinderResultsTransition } from "@/components/finder/FinderResultsTransition";
 import { FinderStructuredData } from "@/components/finder/FinderStructuredData";
@@ -414,10 +415,10 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
   const hasSpecificFilters = Boolean(activeDistrict && activeSpecialty);
   const finderH1 = hasSpecificFilters
     ? `${specialtyLabel} in ${districtLabel}`
-    : "Health Professionals in Cyprus";
+    : "Find your next health professional in Cyprus";
   const finderSnippet = hasSpecificFilters
-    ? `Find English-speaking ${specialtyLabel} in ${districtLabel}. Compare profiles and Book online with confidence.`
-    : "Find English-speaking Health Professionals in Cyprus. Explore specialties, compare districts, and Book online easily.";
+    ? `Find English-speaking ${specialtyLabel} in ${districtLabel}. Compare profiles and book online with confidence.`
+    : null;
   const finderPath =
     activeDistrict && activeSpecialty
       ? `/finder/${districtToSlug(activeDistrict as CyprusDistrict)}/${specialtyToSlug(
@@ -458,29 +459,46 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
         activeDistrict={activeDistrict}
         activeSpecialty={activeSpecialty}
       />
-      <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
-        <header className="mb-8">
-          <div>
-            <PendingLink
-              href="/"
-              className="inline-flex transition hover:opacity-90"
-            >
-              <DocCyWordmark />
-            </PendingLink>
-            <h1 className="mt-1 text-3xl font-semibold tracking-tight text-white">{finderH1}</h1>
-            <p className="mt-2 text-sm text-slate-400">{finderSnippet}</p>
-          </div>
-        </header>
+      <header className="px-4 pt-8 pb-8 sm:px-6 sm:pb-0 lg:px-8">
+        <PendingLink href="/" className="inline-flex transition hover:opacity-90">
+          <DocCyWordmark />
+        </PendingLink>
+      </header>
 
-        <section className="rounded-2xl border border-emerald-300/20 bg-slate-900/60 p-4 shadow-[0_0_40px_-18px_rgba(16,185,129,0.4)]">
-          <FinderFilters
-            districts={districts}
-            activeDistrict={activeDistrict}
-            activeSpecialty={activeSpecialty}
-            activeName={activeName}
-            specialtyOptions={finderSpecialtyOptions}
-          />
-        </section>
+      <div className="mx-auto max-w-6xl px-4 pb-8 sm:px-6 lg:px-8">
+        <FinderHeroSection
+          title={finderH1}
+          showHeroImage={!hasSpecificFilters}
+          subtitleClassName={
+            hasSpecificFilters
+              ? "mt-3 max-w-2xl text-base leading-relaxed text-slate-300"
+              : "mt-3 max-w-2xl text-lg leading-relaxed text-slate-300 sm:text-xl"
+          }
+          subtitle={
+            hasSpecificFilters ? (
+              finderSnippet
+            ) : (
+              <>
+                <span className="block">English-speaking specialists, ready to book online,</span>
+                <span className="mt-1 block font-medium text-emerald-300">in just a few clicks.</span>
+              </>
+            )
+          }
+        >
+          <section className="relative overflow-hidden rounded-3xl border border-emerald-400/35 bg-gradient-to-br from-emerald-500/25 via-emerald-600/15 to-slate-900/90 p-5 shadow-[0_0_64px_-10px_rgba(16,185,129,0.55)] sm:p-6 lg:p-8">
+            <div
+              className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-emerald-300/20 blur-3xl"
+              aria-hidden
+            />
+            <FinderFilters
+              districts={districts}
+              activeDistrict={activeDistrict}
+              activeSpecialty={activeSpecialty}
+              activeName={activeName}
+              specialtyOptions={finderSpecialtyOptions}
+            />
+          </section>
+        </FinderHeroSection>
 
         <FinderResultsTransition>
           {dataWarning ? (

@@ -113,7 +113,7 @@ test.describe("Integration: finder manual card vote", () => {
     await expect(
       page.getByRole("heading", {
         level: 1,
-        name: /Health Professionals in Cyprus|Find a Professional/i,
+        name: /Find your next health professional in Cyprus|Health Professionals in Cyprus|Find a Professional/i,
       })
     ).toBeVisible({ timeout: 25_000 });
 
