@@ -10,7 +10,7 @@ import {
 } from "@/lib/finder-seo";
 import type { CyprusDistrict } from "@/lib/cyprus-districts";
 import type { FinderSpecialtyOption } from "@/lib/finder-specialty-options";
-import { Info } from "lucide-react";
+import { Info, Search } from "lucide-react";
 import { PendingLink } from "@/components/navigation/PendingLink";
 
 const START_EVENT = "doccy:navigation-start";
@@ -141,23 +141,26 @@ export function FinderFilters({
   const showPaphosUrgentCareNote = district === "Paphos";
 
   return (
-    <div className="space-y-3">
+    <div className="relative space-y-4">
+      <p className="text-sm font-semibold uppercase tracking-[0.18em] text-emerald-100/90">
+        Search professionals
+      </p>
       <div
         aria-hidden={!hasActiveFilters}
         className={`overflow-hidden transition-all duration-300 ease-out ${
           hasActiveFilters ? "max-h-40 opacity-100 translate-y-0" : "max-h-0 opacity-0 -translate-y-1"
         }`}
       >
-        <div className="rounded-xl border border-emerald-400/50 bg-emerald-500/10 px-3 py-2">
+        <div className="rounded-2xl border border-white/20 bg-slate-950/25 px-3 py-2 backdrop-blur-sm">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-emerald-200">
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-white/90">
               {activeFilterEntries.length} active filter{activeFilterEntries.length > 1 ? "s" : ""}
             </p>
             <button
               type="button"
               disabled={isPending && pendingAction !== "reset"}
               onClick={resetFilters}
-              className="inline-flex items-center justify-center rounded-lg border border-emerald-300/60 bg-emerald-400/15 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-emerald-100 transition hover:bg-emerald-400/25 disabled:cursor-not-allowed disabled:opacity-70"
+              className="inline-flex items-center justify-center rounded-full border border-white/30 bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-white transition hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-70"
             >
               {pendingAction === "reset" ? "Resetting..." : "Clear all filters"}
             </button>
@@ -166,7 +169,7 @@ export function FinderFilters({
             {activeFilterEntries.map((entry) => (
               <span
                 key={entry}
-                className="inline-flex items-center rounded-full border border-emerald-300/40 bg-emerald-400/15 px-2.5 py-1 text-[11px] font-medium text-emerald-100"
+                className="inline-flex items-center rounded-full border border-white/25 bg-white/15 px-2.5 py-1 text-[11px] font-medium text-white"
               >
                 {entry}
               </span>
@@ -183,17 +186,17 @@ export function FinderFilters({
         <fieldset
           disabled={isNavigating}
           aria-busy={isNavigating}
-          className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:items-end lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.15fr)_auto] disabled:cursor-not-allowed"
+          className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:items-end lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.15fr)_auto] disabled:cursor-not-allowed"
         >
           <label className="flex flex-col gap-2">
-            <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+            <span className="text-xs font-bold uppercase tracking-[0.12em] text-emerald-50/95">
               District
             </span>
             <select
               name="district"
               value={district}
               onChange={(e) => setDistrict(e.target.value)}
-              className="h-10 w-full rounded-xl border border-slate-700 bg-slate-950/80 px-3 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+              className="h-12 w-full rounded-full border-0 bg-white px-4 text-base font-medium text-slate-900 shadow-[0_4px_14px_rgba(0,0,0,0.12)] focus:outline-none focus:ring-2 focus:ring-emerald-300"
             >
               <option value="">All districts</option>
               {districts.map((item) => (
@@ -204,14 +207,14 @@ export function FinderFilters({
             </select>
           </label>
           <label className="flex flex-col gap-2">
-            <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+            <span className="text-xs font-bold uppercase tracking-[0.12em] text-emerald-50/95">
               Specialty
             </span>
             <select
               name="specialty"
               value={specialtySlug}
               onChange={(e) => setSpecialtySlug(e.target.value)}
-              className="h-10 w-full rounded-xl border border-slate-700 bg-slate-950/80 px-3 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+              className="h-12 w-full rounded-full border-0 bg-white px-4 text-base font-medium text-slate-900 shadow-[0_4px_14px_rgba(0,0,0,0.12)] focus:outline-none focus:ring-2 focus:ring-emerald-300"
             >
               <option value="">All specialties</option>
               {mergedSpecialtyOptions.map((opt) => (
@@ -225,7 +228,7 @@ export function FinderFilters({
             htmlFor="finder-name-filter"
             className="flex flex-col gap-2 sm:col-span-2 lg:col-span-1"
           >
-            <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+            <span className="text-xs font-bold uppercase tracking-[0.12em] text-emerald-50/95">
               Name
             </span>
             <input
@@ -234,16 +237,18 @@ export function FinderFilters({
               type="search"
               value={name}
               onChange={(e) => setName(e.target.value)}
+              placeholder="Search by name..."
               enterKeyHint="search"
-              className="h-10 w-full rounded-xl border border-slate-700 bg-slate-950/80 px-3 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+              className="h-12 w-full rounded-full border-0 bg-white px-4 text-base font-medium text-slate-900 shadow-[0_4px_14px_rgba(0,0,0,0.12)] placeholder:font-normal placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-300"
             />
           </label>
           <div className="sm:col-span-2 lg:col-span-1 lg:flex lg:items-end">
             <button
               type="submit"
               disabled={isPending}
-              className="inline-flex h-10 w-full min-w-[10.5rem] items-center justify-center rounded-xl bg-emerald-400 px-5 text-sm font-semibold text-slate-950 shadow-lg shadow-emerald-500/25 transition hover:bg-emerald-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 disabled:cursor-not-allowed disabled:opacity-70 lg:w-auto"
+              className="inline-flex h-12 w-full min-w-[11rem] items-center justify-center gap-2 rounded-full border-2 border-white/90 bg-emerald-400 px-6 text-sm font-bold uppercase tracking-[0.14em] text-slate-950 shadow-[0_8px_24px_rgba(0,0,0,0.2)] transition hover:bg-emerald-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-emerald-600/40 disabled:cursor-not-allowed disabled:opacity-70 lg:w-auto"
             >
+              <Search className="h-4 w-4 shrink-0" strokeWidth={2.5} aria-hidden />
               {pendingAction === "apply" ? "Showing results..." : "Show results"}
             </button>
           </div>
@@ -252,14 +257,14 @@ export function FinderFilters({
       {showPaphosUrgentCareNote ? (
         <div
           role="note"
-          className="flex gap-2.5 rounded-xl border border-slate-700/40 bg-slate-950/35 px-3 py-2.5 sm:px-3.5"
+          className="flex gap-2.5 rounded-2xl border border-white/15 bg-slate-950/30 px-3 py-2.5 backdrop-blur-sm sm:px-3.5"
         >
           <Info
-            className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-500"
+            className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-100/70"
             strokeWidth={2}
             aria-hidden
           />
-          <p className="text-xs leading-relaxed text-slate-400">
+          <p className="text-xs leading-relaxed text-emerald-50/80">
             Looking for urgent care in Paphos?{" "}
             <PendingLink
               href="/blog/emergency-room-paphos-gesy-faster-options"

@@ -236,7 +236,7 @@ test.describe("Integration: finder business-critical UX", { tag: "@pr-e2e" }, ()
     await expect(
       page.getByRole("heading", {
         level: 1,
-        name: /Health Professionals in Cyprus|Find a Professional/i,
+        name: /Find your next health professional in Cyprus|Health Professionals in Cyprus|Find a Professional/i,
       })
     ).toBeVisible();
     await expect(page.locator("section.mt-6 article")).toHaveCount(expectedTotal, { timeout: 20000 });
@@ -377,7 +377,7 @@ test.describe("Integration: finder business-critical UX", { tag: "@pr-e2e" }, ()
       await expect(
         page.getByRole("heading", {
           level: 1,
-          name: /Health Professionals in Cyprus|Find a Professional/i,
+          name: /Find your next health professional in Cyprus|Health Professionals in Cyprus|Find a Professional/i,
         })
       ).toBeVisible({
         timeout: 20000,

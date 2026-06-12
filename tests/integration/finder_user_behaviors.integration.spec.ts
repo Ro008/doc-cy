@@ -133,7 +133,7 @@ test.describe("Integration: finder user-like filter behavior matrix", { tag: "@p
 
       await page.goto("/finder");
       await expect(
-        page.getByRole("heading", { level: 1, name: /Health Professionals in Cyprus/i })
+        page.getByRole("heading", { level: 1, name: /Find your next health professional in Cyprus/i })
       ).toBeVisible({ timeout: 20000 });
 
       const districtSelect = page.getByLabel("District");
@@ -146,7 +146,7 @@ test.describe("Integration: finder user-like filter behavior matrix", { tag: "@p
       await expect(page).toHaveURL(/\/finder(?:\?|$)/);
       await showResults.click();
       await expect(page).toHaveURL(/\/finder\/limassol(?:\?|$)/, { timeout: 15_000 });
-      await expect(page.getByRole("heading", { level: 1, name: /Health Professionals in Cyprus/i })).toBeVisible();
+      await expect(page.getByRole("heading", { level: 1, name: /Find your next health professional in Cyprus/i })).toBeVisible();
       await expect(page.getByText(created[0].name, { exact: true })).toBeVisible();
       await expect(page.getByText(created[1].name, { exact: true })).toBeVisible();
       await expect(page.getByText(created[2].name, { exact: true })).toHaveCount(0);
@@ -175,7 +175,7 @@ test.describe("Integration: finder user-like filter behavior matrix", { tag: "@p
       await page.getByRole("button", { name: /Clear all filters|Reset/i }).click();
       await expect(page).toHaveURL(/\/finder(?:\?|$)/);
       await expect(
-        page.getByRole("heading", { level: 1, name: /Health Professionals in Cyprus/i })
+        page.getByRole("heading", { level: 1, name: /Find your next health professional in Cyprus/i })
       ).toBeVisible();
       await expect(page.getByText(created[0].name, { exact: true })).toBeVisible();
       await expect(page.getByText(created[1].name, { exact: true })).toBeVisible();
