@@ -7,6 +7,13 @@ import {
 import { professionalFirstName } from "@/lib/professional-name";
 import { getDoctorLoginUrl } from "@/lib/site-url";
 import type { MonthlyDigestMetrics } from "@/lib/monthly-digest-metrics";
+import {
+  EMAIL_HEADING,
+  EMAIL_LINK_ACCENT,
+  EMAIL_SHELL_CLOSE,
+  EMAIL_SHELL_OPEN,
+  EMAIL_TEXT,
+} from "@/lib/email-brand";
 
 export type DoctorMonthlyDigestEmailContent = {
   subject: string;
@@ -47,18 +54,16 @@ export function buildDoctorMonthlyDigestEmailContent(opts: {
   const text = `${body}\n\n---\n${AUTOMATED_EMAIL_FOOTER_TEXT}`;
 
   const html = `
-<div style="margin:0;padding:20px;background:#020617;color:#e2e8f0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
-  <div style="max-width:560px;margin:0 auto;background:#0f172a;border:1px solid rgba(148,163,184,.2);border-radius:16px;padding:22px;">
-    <h2 style="margin:0 0 12px;font-size:20px;line-height:1.3;color:#f8fafc;">Your ${escapeHtml(opts.metrics.monthLabel)} summary</h2>
-    <p style="margin:0 0 14px;font-size:15px;line-height:1.65;color:#e2e8f0;">
+${EMAIL_SHELL_OPEN}
+    <h2 style="margin:0 0 12px;font-size:20px;line-height:1.3;color:${EMAIL_HEADING};">Your ${escapeHtml(opts.metrics.monthLabel)} summary</h2>
+    <p style="margin:0 0 14px;font-size:15px;line-height:1.65;color:${EMAIL_TEXT};">
       Hi ${escapeHtml(firstName)}, in ${escapeHtml(opts.metrics.monthLabel)} DocCy saved your staff <strong>${escapeHtml(hoursLabel)}</strong> of phone calls and secured <strong>${escapeHtml(appointmentsLabel)}</strong> during hours your clinic was closed.
     </p>
-    <p style="margin:0 0 14px;font-size:15px;line-height:1.65;color:#e2e8f0;">
-      <a href="${reportUrl}" style="color:#6ee7b7;font-weight:600;text-decoration:none;">See your full report here</a>
+    <p style="margin:0 0 14px;font-size:15px;line-height:1.65;color:${EMAIL_TEXT};">
+      <a href="${reportUrl}" style="${EMAIL_LINK_ACCENT}">See your full report here</a>
     </p>
     ${automatedEmailFooterHtml()}
-  </div>
-</div>`;
+${EMAIL_SHELL_CLOSE}`;
 
   return { subject, text, html };
 }

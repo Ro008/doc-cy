@@ -110,7 +110,7 @@ export function InstallBanner() {
   if (!visible) return null;
 
   return (
-    <div className="fixed inset-x-4 bottom-4 z-[95] rounded-2xl border border-[#00FFD5] bg-black/90 p-4 text-white shadow-xl backdrop-blur-sm">
+    <div className="fixed inset-x-4 bottom-4 z-[95] rounded-2xl border border-clinical-400/60 bg-ink-900/95 p-4 text-ink-50 shadow-xl backdrop-blur-sm">
       <div className="flex items-start gap-3 sm:items-center">
         <p className="text-sm leading-relaxed">{message}</p>
         {mode === "android" && deferredPrompt ? (
@@ -122,7 +122,7 @@ export function InstallBanner() {
               setDeferredPrompt(null);
               setVisible(false);
             }}
-            className="shrink-0 rounded-md bg-[#00FFD5] px-2.5 py-1.5 text-xs font-semibold text-black transition hover:opacity-90"
+            className="shrink-0 rounded-md bg-clinical-500 px-2.5 py-1.5 text-xs font-semibold text-white transition hover:bg-clinical-400"
           >
             Install
           </button>
@@ -133,7 +133,7 @@ export function InstallBanner() {
             window.localStorage.setItem(DISMISS_KEY, "1");
             setVisible(false);
           }}
-          className="shrink-0 rounded-md border border-[#00FFD5]/70 px-2 py-1 text-xs font-medium text-[#00FFD5] transition hover:bg-[#00FFD5]/10"
+          className="shrink-0 rounded-md border border-clinical-400/70 px-2 py-1 text-xs font-medium text-clinical-200 transition hover:bg-clinical-500/15"
           aria-label="Close install banner"
         >
           Close

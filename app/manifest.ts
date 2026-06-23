@@ -7,8 +7,8 @@ export default function manifest(): MetadataRoute.Manifest {
     description: "Smart clinic management and booking assistant.",
     start_url: "/",
     display: "standalone",
-    background_color: "#000000",
-    theme_color: "#000000",
+    background_color: "#F7FAFC",
+    theme_color: "#0B7BB5",
     icons: [
       {
         src: "/icon-192.png",

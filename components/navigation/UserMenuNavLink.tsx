@@ -55,14 +55,14 @@ export function UserMenuNavLink({
       }}
       className={`flex items-center gap-2 rounded-xl px-3 py-2 text-sm transition active:scale-[0.99] ${
         pending
-          ? "cursor-wait bg-emerald-500/15 text-emerald-100"
-          : "text-slate-100 hover:bg-slate-800/90"
+          ? "cursor-wait bg-clinical-500/15 text-clinical-100"
+          : "text-ink-100 hover:bg-ink-800/90"
       } ${className}`}
     >
       <span className={pending ? "opacity-60" : undefined}>{icon}</span>
       <span className="min-w-0 flex-1">{children}</span>
       {pending ? (
-        <Loader2 className="h-4 w-4 shrink-0 animate-spin text-emerald-300" aria-hidden />
+        <Loader2 className="h-4 w-4 shrink-0 animate-spin text-clinical-300" aria-hidden />
       ) : null}
     </Link>
   );

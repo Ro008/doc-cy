@@ -53,7 +53,7 @@ export function AuthAboutFooter({ visible }: AuthAboutFooterProps) {
       <div className="border-t border-slate-800/60 pt-5 text-center">
         <Link
           href="/"
-          className="text-xs font-medium tracking-wide text-slate-300 transition hover:text-emerald-200"
+          className="text-xs font-medium tracking-wide text-ink-500 transition hover:text-clinical-300"
         >
           About DocCy
         </Link>

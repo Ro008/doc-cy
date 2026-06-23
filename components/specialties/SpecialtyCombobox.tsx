@@ -92,8 +92,8 @@ export function SpecialtyCombobox({
 
   const inputBase =
     variant === "register"
-      ? "mt-1 w-full rounded-2xl border border-slate-700 bg-slate-900/60 px-3 py-2 text-sm text-slate-100 shadow-sm outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/40"
-      : "mt-2 w-full rounded-xl border border-slate-800/80 bg-slate-950/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-400/60";
+      ? "mt-1 w-full rounded-2xl border border-slate-700 bg-slate-900/60 px-3 py-2 text-sm text-slate-100 shadow-sm outline-none transition focus:border-clinical-400 focus:ring-2 focus:ring-clinical-400/40"
+      : "mt-2 w-full rounded-xl border border-slate-800/80 bg-slate-950/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-clinical-400/60";
 
   const listBoxClass =
     variant === "register"
@@ -158,7 +158,7 @@ export function SpecialtyCombobox({
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search…"
-                className="w-full rounded-lg border border-slate-700 bg-slate-950/60 py-1.5 pl-8 pr-2 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-500/50"
+                className="w-full rounded-lg border border-slate-700 bg-slate-950/60 py-1.5 pl-8 pr-2 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-clinical-500/50"
                 autoFocus
               />
             </div>
@@ -168,7 +168,7 @@ export function SpecialtyCombobox({
               <li key={s} role="option" aria-selected={mode === "master" && masterValue === s}>
                 <button
                   type="button"
-                  className="w-full px-3 py-2 text-left text-sm text-slate-200 hover:bg-emerald-500/15 hover:text-emerald-100"
+                  className="w-full px-3 py-2 text-left text-sm text-slate-200 hover:bg-clinical-500/15 hover:text-clinical-100"
                   onClick={() => {
                     setMode("master");
                     setMasterValue(s);

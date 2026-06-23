@@ -66,8 +66,8 @@ export const CYPRUS_SPOKEN_LANGUAGE_THEMES: readonly CyprusLanguageTheme[] = [
   {
     label: "Italian",
     pillClass:
-      "bg-emerald-600 text-white ring-1 ring-white/25 shadow-md shadow-emerald-950/40",
-    barClass: "bg-emerald-500",
+      "bg-clinical-600 text-white ring-1 ring-white/25 shadow-md shadow-clinical-950/40",
+    barClass: "bg-clinical-500",
   },
   {
     label: "Arabic",

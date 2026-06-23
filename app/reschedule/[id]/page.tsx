@@ -27,7 +27,7 @@ export default async function ReschedulePage({ params, searchParams }: PageProps
   const token = searchParams.token?.trim();
   if (!token) {
     return (
-      <main className="min-h-screen bg-slate-950 px-4 py-16 text-slate-50">
+      <main className="min-h-screen bg-ink-900 px-4 py-16 text-slate-50">
         <RescheduleInvalidPanel reason="missing_token" />
       </main>
     );
@@ -36,7 +36,7 @@ export default async function ReschedulePage({ params, searchParams }: PageProps
   const supabase = createServiceRoleClient();
   if (!supabase) {
     return (
-      <main className="min-h-screen bg-slate-950 px-4 py-16 text-slate-50">
+      <main className="min-h-screen bg-ink-900 px-4 py-16 text-slate-50">
         <p className="mx-auto max-w-md text-center text-slate-400">
           Booking is temporarily unavailable.
         </p>
@@ -54,7 +54,7 @@ export default async function ReschedulePage({ params, searchParams }: PageProps
 
   if (error || !appt) {
     return (
-      <main className="min-h-screen bg-slate-950 px-4 py-16 text-slate-50">
+      <main className="min-h-screen bg-ink-900 px-4 py-16 text-slate-50">
         <RescheduleInvalidPanel reason="not_found" />
       </main>
     );
@@ -65,7 +65,7 @@ export default async function ReschedulePage({ params, searchParams }: PageProps
   // so patients see "already handled" instead of a generic invalid link.
   if (st !== "NEEDS_RESCHEDULE") {
     return (
-      <main className="min-h-screen bg-slate-950 px-4 py-16 text-slate-50">
+      <main className="min-h-screen bg-ink-900 px-4 py-16 text-slate-50">
         <RescheduleResolvedPanel />
       </main>
     );
@@ -75,7 +75,7 @@ export default async function ReschedulePage({ params, searchParams }: PageProps
     .reschedule_access_token;
   if (!rowToken || rowToken !== token) {
     return (
-      <main className="min-h-screen bg-slate-950 px-4 py-16 text-slate-50">
+      <main className="min-h-screen bg-ink-900 px-4 py-16 text-slate-50">
         <RescheduleInvalidPanel reason="link_revoked" />
       </main>
     );
@@ -84,7 +84,7 @@ export default async function ReschedulePage({ params, searchParams }: PageProps
   const exp = (appt as { proposal_expires_at?: string | null }).proposal_expires_at;
   if (!exp || new Date(exp).getTime() <= Date.now()) {
     return (
-      <main className="min-h-screen bg-slate-950 px-4 py-16 text-slate-50">
+      <main className="min-h-screen bg-ink-900 px-4 py-16 text-slate-50">
         <RescheduleExpiredPanel />
       </main>
     );
@@ -97,7 +97,7 @@ export default async function ReschedulePage({ params, searchParams }: PageProps
 
   if (isoList.length === 0) {
     return (
-      <main className="min-h-screen bg-slate-950 px-4 py-16 text-slate-50">
+      <main className="min-h-screen bg-ink-900 px-4 py-16 text-slate-50">
         <RescheduleInvalidPanel reason="no_slots" />
       </main>
     );
@@ -126,9 +126,9 @@ export default async function ReschedulePage({ params, searchParams }: PageProps
   }));
 
   return (
-    <main className="min-h-screen bg-slate-950 px-4 py-12 text-slate-50 sm:py-16">
+    <main className="min-h-screen bg-ink-900 px-4 py-12 text-slate-50 sm:py-16">
       <div className="pointer-events-none fixed inset-0 -z-10">
-        <div className="absolute inset-x-0 top-[-10%] mx-auto h-80 max-w-xl rounded-full bg-emerald-500/10 blur-3xl" />
+        <div className="absolute inset-x-0 top-[-10%] mx-auto h-80 max-w-xl rounded-full bg-clinical-500/10 blur-3xl" />
         <div className="absolute inset-y-0 right-[-15%] h-full w-72 bg-sky-500/10 blur-3xl" />
       </div>
       <ReschedulePickClient

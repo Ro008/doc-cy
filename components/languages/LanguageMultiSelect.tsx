@@ -57,8 +57,8 @@ export function LanguageMultiSelect({
 
   const triggerClass =
     variant === "register"
-      ? "mt-1 flex w-full min-h-[42px] items-center justify-between gap-2 rounded-2xl border border-slate-700 bg-slate-900/60 px-3 py-2 text-left text-sm text-slate-100 shadow-sm outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/40"
-      : "flex min-h-[42px] w-full items-center justify-between gap-2 rounded-xl border border-slate-800/80 bg-slate-950/40 px-3 py-2 text-left text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-400/60";
+      ? "mt-1 flex w-full min-h-[42px] items-center justify-between gap-2 rounded-2xl border border-slate-700 bg-slate-900/60 px-3 py-2 text-left text-sm text-slate-100 shadow-sm outline-none transition focus:border-clinical-400 focus:ring-2 focus:ring-clinical-400/40"
+      : "flex min-h-[42px] w-full items-center justify-between gap-2 rounded-xl border border-slate-800/80 bg-slate-950/40 px-3 py-2 text-left text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-clinical-400/60";
 
   const listBoxClass =
     variant === "register"
@@ -156,7 +156,7 @@ export function LanguageMultiSelect({
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search languages…"
-                className="w-full rounded-lg border border-slate-700 bg-slate-900 py-1.5 pl-8 pr-2 text-xs text-slate-100 placeholder:text-slate-500 focus:border-emerald-500/50 focus:outline-none focus:ring-1 focus:ring-emerald-500/40"
+                className="w-full rounded-lg border border-slate-700 bg-slate-900 py-1.5 pl-8 pr-2 text-xs text-slate-100 placeholder:text-slate-500 focus:border-clinical-500/50 focus:outline-none focus:ring-1 focus:ring-clinical-500/40"
                 autoFocus
               />
             </div>
@@ -177,7 +177,7 @@ export function LanguageMultiSelect({
                     <span
                       className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${
                         checked
-                          ? "border-emerald-400 bg-emerald-500/20 text-emerald-300"
+                          ? "border-clinical-400 bg-clinical-500/20 text-clinical-300"
                           : "border-slate-600 bg-slate-900"
                       }`}
                     >

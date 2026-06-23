@@ -13,30 +13,30 @@ const steps = [
 export async function WhatToExpectCard() {
   const t = await getTranslations("DoctorProfilePage");
   return (
-    <div className="rounded-3xl border border-emerald-400/25 bg-emerald-400/[0.07] p-4 shadow-lg shadow-slate-950/20 backdrop-blur-sm">
-      <div className="flex items-center gap-2 text-emerald-200">
-        <CalendarCheck2 className="h-4 w-4 text-emerald-300" aria-hidden />
+    <div className="rounded-3xl border border-clinical-200 bg-clinical-50 p-4 shadow-[0_1px_3px_rgba(26,43,60,0.06),0_4px_16px_rgba(11,123,181,0.05)]">
+      <div className="flex items-center gap-2 text-clinical-700">
+        <CalendarCheck2 className="h-4 w-4 text-clinical-600" aria-hidden />
         <p
           id="what-to-expect-heading"
-          className="text-xs font-semibold tracking-[0.2em] text-emerald-200/90"
+          className="text-xs font-semibold tracking-[0.2em] text-clinical-700"
         >
           {t("whatToExpectTitle")}
         </p>
       </div>
       <ol
-        className="mt-3 list-none space-y-3.5 text-sm leading-relaxed text-slate-200/90"
+        className="mt-3 list-none space-y-3.5 text-sm leading-relaxed text-ink-700"
         aria-labelledby="what-to-expect-heading"
       >
         {steps.map(({ lead, body }, index) => (
           <li key={lead} className="flex gap-2.5">
             <span
-              className="w-5 shrink-0 pt-0.5 text-right font-semibold tabular-nums text-emerald-200/90"
+              className="w-5 shrink-0 pt-0.5 text-right font-semibold tabular-nums text-clinical-600"
               aria-hidden
             >
               {index + 1}.
             </span>
             <span>
-              <span className="font-semibold text-slate-100">{t(lead)}</span>{" "}
+              <span className="font-semibold text-ink-900">{t(lead)}</span>{" "}
               {t(body)}
             </span>
           </li>

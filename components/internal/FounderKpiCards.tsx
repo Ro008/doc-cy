@@ -71,8 +71,8 @@ export function FounderKpiCards({
         value={totalDoctors}
         sub="Verified profiles"
         Icon={Users}
-        accent="from-emerald-500/20 to-teal-500/5"
-        iconBg="bg-emerald-500/15 text-emerald-300"
+        accent="from-clinical-500/20 to-wellness-500/5"
+        iconBg="bg-clinical-500/15 text-clinical-300"
       />
       <KpiCard
         label="Total appointments"

@@ -82,7 +82,7 @@ export function UpcomingList({ items }: UpcomingListProps) {
                 onClick={(e) => {
                   if (!r.whatsappUrl) e.preventDefault();
                 }}
-                className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-emerald-400/20 bg-emerald-400/10 text-emerald-300 transition hover:bg-emerald-400/20 hover:border-emerald-400/40 md:h-8 md:w-8"
+                className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-clinical-400/20 bg-clinical-400/10 text-clinical-300 transition hover:bg-clinical-400/20 hover:border-clinical-400/40 md:h-8 md:w-8"
               >
                 <WhatsAppLogoIcon className="h-4 w-4 md:h-4 md:w-4" />
               </a>
@@ -114,10 +114,10 @@ export function UpcomingList({ items }: UpcomingListProps) {
               setToCancel(null);
               setError(null);
             }}
-            className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm"
+            className="absolute inset-0 bg-ink-900/70 backdrop-blur-sm"
             aria-label="Close"
           />
-          <div className="relative z-10 w-full max-w-sm rounded-3xl border border-emerald-100/10 bg-slate-900/95 p-6 shadow-2xl backdrop-blur-xl">
+          <div className="relative z-10 w-full max-w-sm rounded-3xl border border-clinical-100/10 bg-slate-900/95 p-6 shadow-2xl backdrop-blur-xl">
             <button
               type="button"
               onClick={() => {

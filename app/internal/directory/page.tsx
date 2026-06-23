@@ -110,7 +110,7 @@ export default async function FounderDashboardPage({
   const runtimeLabel = getRuntimeEnvironmentLabel();
   const runtimeBadgeClass =
     runtimeLabel === "production"
-      ? "border-emerald-400/35 bg-emerald-500/10 text-emerald-200"
+      ? "border-clinical-400/35 bg-clinical-500/10 text-clinical-200"
       : runtimeLabel === "preview"
         ? "border-violet-400/35 bg-violet-500/10 text-violet-200"
         : "border-slate-600/60 bg-slate-800/70 text-slate-200";
@@ -127,7 +127,7 @@ export default async function FounderDashboardPage({
           </p>
           <PendingLink
             href="/internal"
-            className="mt-6 inline-block text-sm text-emerald-300 hover:underline"
+            className="mt-6 inline-block text-sm text-clinical-300 hover:underline"
           >
             ← Back to gate
           </PendingLink>
@@ -194,7 +194,7 @@ export default async function FounderDashboardPage({
           <p className="mt-2 text-sm text-red-100/90">{doctorsRes.error.message}</p>
           <PendingLink
             href="/internal"
-            className="mt-6 inline-block text-sm text-emerald-300 hover:underline"
+            className="mt-6 inline-block text-sm text-clinical-300 hover:underline"
           >
             ← Back to gate
           </PendingLink>
@@ -550,14 +550,14 @@ export default async function FounderDashboardPage({
   return (
     <main className="min-h-screen bg-slate-950 text-slate-50">
       <div className="pointer-events-none fixed inset-0 -z-10">
-        <div className="absolute inset-x-0 top-0 mx-auto h-96 max-w-4xl rounded-full bg-emerald-600/[0.07] blur-3xl" />
+        <div className="absolute inset-x-0 top-0 mx-auto h-96 max-w-4xl rounded-full bg-clinical-600/[0.07] blur-3xl" />
         <div className="absolute right-0 top-1/4 h-64 w-64 rounded-full bg-violet-600/[0.06] blur-3xl" />
       </div>
 
       <header className="border-b border-slate-800/80 bg-slate-950/80 backdrop-blur-md">
         <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-6 sm:flex-row sm:items-center sm:justify-between lg:px-8">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-emerald-500/90">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-clinical-500/90">
               Founder
             </p>
             <h1 className="mt-1 text-2xl font-semibold tracking-tight text-white lg:text-3xl">

@@ -29,9 +29,15 @@ type Benefit = {
   iconWell: string;
 };
 
-/** Soft mint glow (emerald-300 family) for premium cards on dark UI */
+/** Premium cards on clinical light UI */
 const benefitCardShell =
-  "rounded-2xl border border-emerald-300/20 bg-slate-900/75 p-4 shadow-[0_0_36px_-14px_rgba(110,231,183,0.22),0_2px_12px_-4px_rgba(0,0,0,0.45)] backdrop-blur-sm transition hover:border-emerald-300/35 hover:shadow-[0_0_44px_-12px_rgba(110,231,183,0.32),0_4px_16px_-4px_rgba(0,0,0,0.5)] sm:p-5";
+  "rounded-2xl border border-clinical-200 bg-white p-4 shadow-[0_1px_3px_rgba(26,43,60,0.06),0_4px_16px_rgba(11,123,181,0.05)] transition hover:border-clinical-300 hover:shadow-[0_4px_20px_rgba(11,123,181,0.1)] sm:p-5";
+
+const landingCtaClass =
+  "inline-flex items-center justify-center rounded-xl bg-clinical-500 px-5 py-2.5 text-sm font-semibold text-white shadow-[0_1px_2px_rgba(11,123,181,0.2),0_4px_14px_rgba(11,123,181,0.22)] transition hover:bg-clinical-400 hover:shadow-[0_4px_18px_rgba(11,123,181,0.3)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-500 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-50";
+
+const landingSectionShell =
+  "rounded-3xl border border-clinical-200 bg-white p-5 shadow-[0_1px_3px_rgba(26,43,60,0.06),0_8px_24px_rgba(11,123,181,0.06)] sm:p-7";
 
 export default async function HomePage() {
   const t = await getTranslations("LandingPage");
@@ -241,7 +247,7 @@ export default async function HomePage() {
   ];
 
   return (
-    <main className="relative isolate flex min-h-screen flex-col overflow-x-hidden bg-slate-950 text-neutral-50 [overflow-anchor:none]">
+    <main className="relative isolate flex min-h-screen flex-col overflow-x-hidden bg-ink-50 text-ink-800 [overflow-anchor:none]">
       <HomeLandingScroll />
       {/*
         Ambient layers must stay inside this stacking context (isolate + z-0 / z-10).
@@ -259,17 +265,9 @@ export default async function HomePage() {
       <div className="relative z-10 flex flex-1 flex-col px-4 py-3 sm:px-6 lg:px-8 lg:py-4">
         <header className="flex shrink-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
           <div className="flex min-w-0 items-center gap-2 sm:gap-3">
-            <div className="min-w-0 flex flex-col gap-0.5 leading-tight">
-              <span className="text-base font-semibold tracking-tight text-neutral-50 sm:text-lg">
-                Doc<span className="text-emerald-400">Cy</span>
-              </span>
-              <span
-                className="text-[10px] font-medium uppercase tracking-[0.16em] text-emerald-200/95 sm:text-[11px] sm:tracking-[0.2em]"
-                aria-label="Cyprus Health and Wellness"
-              >
-                CYPRUS HEALTH & WELLNESS
-              </span>
-            </div>
+            <span className="text-base font-semibold tracking-tight text-ink-800 sm:text-lg">
+              Doc<span className="text-clinical-500">Cy</span>
+            </span>
           </div>
         </header>
 
@@ -277,7 +275,7 @@ export default async function HomePage() {
           <section className="mx-auto grid w-full max-w-6xl items-center gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(320px,460px)] lg:gap-12">
             <div className="min-w-0">
               <h1
-                className={`max-w-3xl text-balance font-semibold tracking-tight text-neutral-50 ${
+                className={`max-w-3xl text-balance font-semibold tracking-tight text-ink-900 ${
                   isGreek
                     ? "text-4xl leading-[1.14] sm:text-[2.35rem] sm:leading-[1.12] lg:text-[2.85rem] lg:leading-[1.08] xl:text-[3.05rem]"
                     : "text-4xl sm:text-5xl sm:leading-[1.08] lg:text-[3.2rem] lg:leading-[1.04] xl:text-[3.5rem]"
@@ -286,19 +284,16 @@ export default async function HomePage() {
                 {t("Hero.title")}
               </h1>
 
-              <p className="mt-8 flex max-w-2xl flex-col gap-3 text-base leading-8 text-neutral-200 sm:text-lg sm:leading-9">
+              <p className="mt-8 flex max-w-2xl flex-col gap-3 text-base leading-8 text-ink-600 sm:text-lg sm:leading-9">
                 <span>{t("Hero.subtitleLine1")}</span>
                 {t("Hero.subtitleLine2") ? <span>{t("Hero.subtitleLine2")}</span> : null}
               </p>
-              <p className="mt-7 whitespace-pre-line text-lg font-medium leading-relaxed text-emerald-100/95 sm:text-xl">
+              <p className="mt-7 whitespace-pre-line text-lg font-medium leading-relaxed text-wellness-700 sm:text-xl">
                 {t("Hero.kicker")}
               </p>
 
               <div className="mt-6 flex flex-col gap-2.5 sm:flex-row sm:items-center sm:gap-3">
-                <PendingLink
-                  href="#founders-pricing-card"
-                  className="inline-flex items-center justify-center rounded-xl bg-emerald-400 px-5 py-2.5 text-sm font-semibold text-neutral-950 shadow-[0_0_0_1px_rgba(52,211,153,0.35),0_0_28px_rgba(16,185,129,0.55),0_0_56px_rgba(16,185,129,0.22)] transition hover:bg-emerald-300 hover:shadow-[0_0_0_1px_rgba(110,231,183,0.5),0_0_36px_rgba(52,211,153,0.65),0_0_72px_rgba(16,185,129,0.28)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 focus-visible:ring-offset-neutral-900"
-                >
+                <PendingLink href="#founders-pricing-card" className={landingCtaClass}>
                   {t("Hero.ctaClaim")}
                 </PendingLink>
 
@@ -309,31 +304,31 @@ export default async function HomePage() {
 
             <aside className="relative hidden min-h-[390px] lg:block" aria-hidden>
               <div className="absolute inset-0 flex items-center justify-center">
-                <div className="h-72 w-72 rounded-full border border-emerald-300/30 bg-emerald-500/8 shadow-[0_0_90px_-28px_rgba(16,185,129,0.6)]" />
-                <div className="absolute h-56 w-56 rounded-full border border-emerald-200/25" />
-                <div className="absolute h-40 w-40 rounded-full border border-emerald-200/35 bg-emerald-400/10" />
+                <div className="h-72 w-72 rounded-full border border-clinical-200 bg-clinical-50 shadow-[0_0_60px_-20px_rgba(11,123,181,0.25)]" />
+                <div className="absolute h-56 w-56 rounded-full border border-clinical-200/80" />
+                <div className="absolute h-40 w-40 rounded-full border border-wellness-200 bg-wellness-50" />
               </div>
 
-              <div className="absolute left-0 top-10 w-56 rounded-2xl border border-slate-700/80 bg-slate-900/80 p-3 backdrop-blur transition duration-300 hover:-translate-y-0.5 hover:border-emerald-300/40">
+              <div className="absolute left-0 top-10 w-56 rounded-2xl border border-ink-200 bg-white p-3 shadow-md transition duration-300 hover:-translate-y-0.5 hover:border-clinical-300">
                 <div className="flex items-center gap-2">
-                  <CalendarSync className="h-4 w-4 text-emerald-300" aria-hidden />
-                  <p className="text-xs font-semibold text-slate-100">{t("Hero.visualIncoming")}</p>
+                  <CalendarSync className="h-4 w-4 text-clinical-500" aria-hidden />
+                  <p className="text-xs font-semibold text-ink-800">{t("Hero.visualIncoming")}</p>
                 </div>
               </div>
 
-              <div className="absolute right-2 top-36 w-60 rounded-2xl border border-slate-700/80 bg-slate-900/80 p-3 backdrop-blur transition duration-300 hover:-translate-y-0.5 hover:border-teal-300/40">
+              <div className="absolute right-2 top-36 w-60 rounded-2xl border border-ink-200 bg-white p-3 shadow-md transition duration-300 hover:-translate-y-0.5 hover:border-wellness-300">
                 <div className="flex items-center gap-2">
-                  <ShieldCheck className="h-4 w-4 text-teal-300" aria-hidden />
-                  <p className="text-xs font-semibold text-slate-100">
+                  <ShieldCheck className="h-4 w-4 text-wellness-500" aria-hidden />
+                  <p className="text-xs font-semibold text-ink-800">
                     {t("Hero.visualNoInterruptions")}
                   </p>
                 </div>
               </div>
 
-              <div className="absolute bottom-12 left-12 w-56 rounded-2xl border border-emerald-300/40 bg-emerald-400/12 p-3 shadow-[0_0_30px_-18px_rgba(110,231,183,0.85)] transition duration-300 hover:-translate-y-0.5">
+              <div className="absolute bottom-12 left-12 w-56 rounded-2xl border border-wellness-300 bg-wellness-50 p-3 shadow-md transition duration-300 hover:-translate-y-0.5">
                 <div className="flex items-center gap-2">
-                  <CheckCircle2 className="h-4 w-4 text-emerald-300" aria-hidden />
-                  <p className="text-xs font-semibold text-emerald-100">{t("Hero.visualConfirmed")}</p>
+                  <CheckCircle2 className="h-4 w-4 text-wellness-600" aria-hidden />
+                  <p className="text-xs font-semibold text-wellness-800">{t("Hero.visualConfirmed")}</p>
                 </div>
               </div>
             </aside>
@@ -341,39 +336,39 @@ export default async function HomePage() {
         </div>
 
         <section id="why-doccy" className="mx-auto w-full max-w-6xl pb-8 pt-2 sm:pb-10 [overflow-anchor:none]">
-          <div className="rounded-3xl border border-emerald-300/20 bg-slate-900/65 p-5 shadow-[0_0_56px_-22px_rgba(16,185,129,0.28)] backdrop-blur-md sm:p-7">
-            <p className="text-xs font-semibold tracking-[0.18em] text-emerald-300/95">
+          <div className={landingSectionShell}>
+            <p className="text-xs font-semibold tracking-[0.18em] text-clinical-600">
               {t("Features.eyebrow")}
             </p>
-            <h2 className="mt-2 max-w-3xl text-2xl font-semibold tracking-tight text-neutral-50 sm:text-3xl">
+            <h2 className="mt-2 max-w-3xl text-2xl font-semibold tracking-tight text-ink-900 sm:text-3xl">
               {t("Features.title")}
             </h2>
-            <p className="mt-3 max-w-3xl text-sm leading-relaxed text-slate-300 sm:text-base">
+            <p className="mt-3 max-w-3xl text-sm leading-relaxed text-ink-500 sm:text-base">
               {t("Features.intro")}
             </p>
 
-            <p className="mt-6 text-sm font-semibold text-slate-200 sm:text-base">
+            <p className="mt-6 text-sm font-semibold text-ink-700 sm:text-base">
               {t("Features.painHeading")}
             </p>
             <ul className="mt-3 space-y-3">
               {manualBookingPains.map(({ icon: Icon, title, body, iconWell }) => (
                 <li
                   key={title}
-                  className="flex gap-3 rounded-xl border border-slate-700/60 bg-slate-950/40 px-3 py-3 sm:gap-4 sm:px-4"
+                  className="flex gap-3 rounded-xl border border-ink-200 bg-ink-50 px-3 py-3 sm:gap-4 sm:px-4"
                 >
                   <div
                     className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg sm:h-11 sm:w-11 ${iconWell}`}
                   >
                     <Icon className="h-5 w-5 sm:h-[1.35rem] sm:w-[1.35rem]" strokeWidth={2} aria-hidden />
                   </div>
-                  <p className="min-w-0 pt-0.5 text-sm leading-relaxed text-slate-300 sm:text-base">
-                    <span className="font-semibold text-slate-100">{title}:</span> {body}
+                  <p className="min-w-0 pt-0.5 text-sm leading-relaxed text-ink-600 sm:text-base">
+                    <span className="font-semibold text-ink-800">{title}:</span> {body}
                   </p>
                 </li>
               ))}
             </ul>
 
-            <p className="mt-6 rounded-2xl border border-emerald-400/25 bg-emerald-400/10 px-4 py-3 text-sm font-medium leading-relaxed text-emerald-100 sm:text-base">
+            <p className="mt-6 rounded-2xl border border-clinical-200 bg-clinical-50 px-4 py-3 text-sm font-medium leading-relaxed text-clinical-800 sm:text-base">
               {t("Features.closing")}
             </p>
           </div>
@@ -383,14 +378,14 @@ export default async function HomePage() {
           id="adoption-playbook"
           className="mx-auto w-full max-w-6xl pb-8 pt-2 sm:pb-10 [overflow-anchor:none]"
         >
-          <div className="rounded-3xl border border-emerald-300/20 bg-slate-900/65 p-5 shadow-[0_0_56px_-22px_rgba(16,185,129,0.28)] backdrop-blur-md sm:p-7">
-            <p className="text-xs font-semibold tracking-[0.18em] text-emerald-300/95">
+          <div className={landingSectionShell}>
+            <p className="text-xs font-semibold tracking-[0.18em] text-clinical-600">
               {t("AdoptionPlaybook.eyebrow")}
             </p>
-            <h2 className="mt-2 max-w-3xl text-2xl font-semibold tracking-tight text-neutral-50 sm:text-3xl">
+            <h2 className="mt-2 max-w-3xl text-2xl font-semibold tracking-tight text-ink-900 sm:text-3xl">
               {t("AdoptionPlaybook.title")}
             </h2>
-            <p className="mt-3 max-w-3xl text-sm leading-relaxed text-slate-300 sm:text-base">
+            <p className="mt-3 max-w-3xl text-sm leading-relaxed text-ink-500 sm:text-base">
               {t("AdoptionPlaybook.lead")}
             </p>
 
@@ -404,14 +399,14 @@ export default async function HomePage() {
                       <Icon className="h-6 w-6 sm:h-7 sm:w-7" strokeWidth={2} aria-hidden />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-emerald-200/90">
+                      <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-clinical-600">
                         {String(idx + 1).padStart(2, "0")}
                       </span>
-                      <p className="text-base font-bold leading-snug tracking-tight text-neutral-50">
+                      <p className="text-base font-bold leading-snug tracking-tight text-ink-900">
                         {title}
                       </p>
-                      <p className="mt-1 text-sm font-normal leading-snug text-neutral-300">{body}</p>
-                      <p className="mt-2 text-xs font-medium leading-relaxed text-emerald-100/90">
+                      <p className="mt-1 text-sm font-normal leading-snug text-ink-500">{body}</p>
+                      <p className="mt-2 text-xs font-medium leading-relaxed text-wellness-700">
                         {adoptionPlaybookResults[idx]}
                       </p>
                     </div>
@@ -420,13 +415,13 @@ export default async function HomePage() {
               ))}
             </ul>
 
-            <p className="mt-5 max-w-3xl rounded-2xl border border-slate-700/80 bg-slate-950/45 px-4 py-3 text-sm leading-relaxed text-slate-300">
+            <p className="mt-5 max-w-3xl rounded-2xl border border-ink-200 bg-ink-50 px-4 py-3 text-sm leading-relaxed text-ink-600">
               {t("AdoptionPlaybook.closing")}
             </p>
             <div className="mt-4 flex justify-center sm:justify-start">
               <a
                 href="#founders-pricing-card"
-                className="inline-flex items-center gap-1.5 rounded-full border border-emerald-300/45 bg-emerald-400/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-100 transition hover:bg-emerald-400/20 hover:text-emerald-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/80"
+                className="inline-flex items-center gap-1.5 rounded-full border border-clinical-300 bg-clinical-50 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-clinical-700 transition hover:bg-clinical-100 hover:text-clinical-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-400"
               >
                 {t("AdoptionPlaybook.cta")}
                 <ChevronDown className="h-3.5 w-3.5 motion-safe:animate-bounce" aria-hidden />
@@ -439,9 +434,9 @@ export default async function HomePage() {
           id="showcase-section"
           className="mx-auto w-full max-w-6xl pb-8 pt-4 sm:pb-10 [overflow-anchor:none]"
         >
-          <div className="rounded-3xl border border-emerald-300/20 bg-slate-900/70 p-5 shadow-[0_0_56px_-22px_rgba(16,185,129,0.35)] backdrop-blur-md sm:p-7">
+          <div className={`${landingSectionShell} shadow-[0_1px_3px_rgba(26,43,60,0.06),0_8px_28px_rgba(11,123,181,0.08)]`}>
             <div className="mb-4 sm:mb-5">
-              <h2 className="text-2xl font-semibold tracking-tight text-neutral-50 sm:text-3xl">
+              <h2 className="text-2xl font-semibold tracking-tight text-ink-900 sm:text-3xl">
                 {t("Showcase.title")}
               </h2>
             </div>
@@ -452,62 +447,62 @@ export default async function HomePage() {
           id="founders-pricing"
           className="mx-auto w-full max-w-6xl pb-10 pt-4 sm:pb-10 [overflow-anchor:none]"
         >
-          <div className="group mb-6 rounded-3xl border border-rose-300/30 bg-gradient-to-br from-slate-900/85 via-slate-900/80 to-rose-950/30 p-5 shadow-[0_0_64px_-22px_rgba(251,113,133,0.32)] backdrop-blur-md transition sm:mb-8 sm:p-7">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-rose-200/95">
+          <div className="group mb-6 rounded-3xl border border-rose-200 bg-gradient-to-br from-white via-rose-50/40 to-rose-100/50 p-5 shadow-[0_1px_3px_rgba(26,43,60,0.06),0_8px_24px_rgba(225,29,72,0.08)] transition sm:mb-8 sm:p-7">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-rose-600">
               {t("Visibility.eyebrow")}
             </p>
 
-            <h2 className="mt-3 max-w-3xl text-2xl font-semibold tracking-tight text-neutral-50 sm:text-3xl">
+            <h2 className="mt-3 max-w-3xl text-2xl font-semibold tracking-tight text-ink-900 sm:text-3xl">
               {t("Visibility.title")}
             </h2>
-            <p className="mt-1 text-sm italic leading-relaxed text-rose-100/90 sm:text-base">
+            <p className="mt-1 text-sm italic leading-relaxed text-rose-700 sm:text-base">
               {t("Visibility.subtitle")}
             </p>
 
-            <p className="mt-4 max-w-4xl text-sm leading-relaxed text-slate-200 sm:text-base">
+            <p className="mt-4 max-w-4xl text-sm leading-relaxed text-ink-600 sm:text-base">
               {t("Visibility.intro")}
             </p>
 
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
-              <article className="rounded-2xl border border-rose-300/30 bg-rose-950/20 p-4 transition duration-200 hover:-translate-y-0.5 hover:border-rose-200/45">
-                <h3 className="text-sm font-semibold uppercase tracking-wide text-rose-100">
+              <article className="rounded-2xl border border-rose-200 bg-rose-50 p-4 transition duration-200 hover:-translate-y-0.5 hover:border-rose-300">
+                <h3 className="text-sm font-semibold uppercase tracking-wide text-rose-800">
                   {t("Visibility.beforeTitle")}
                 </h3>
                 <ul className="mt-3 space-y-2.5">
-                  <li className="flex items-start gap-2 text-sm text-rose-50/95">
-                    <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-rose-300" aria-hidden />
+                  <li className="flex items-start gap-2 text-sm text-rose-900/90">
+                    <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-rose-500" aria-hidden />
                     <span>{t("Visibility.beforePoints.cost")}</span>
                   </li>
-                  <li className="flex items-start gap-2 text-sm text-rose-50/95">
-                    <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-rose-300" aria-hidden />
+                  <li className="flex items-start gap-2 text-sm text-rose-900/90">
+                    <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-rose-500" aria-hidden />
                     <span>{t("Visibility.beforePoints.tech")}</span>
                   </li>
-                  <li className="flex items-start gap-2 text-sm text-rose-50/95">
-                    <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-rose-300" aria-hidden />
+                  <li className="flex items-start gap-2 text-sm text-rose-900/90">
+                    <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-rose-500" aria-hidden />
                     <span>{t("Visibility.beforePoints.visibility")}</span>
                   </li>
                 </ul>
               </article>
 
-              <article className="rounded-2xl border border-emerald-300/40 bg-emerald-400/10 p-4 shadow-[0_0_28px_-16px_rgba(110,231,183,0.95)] transition duration-200 hover:-translate-y-0.5 hover:border-emerald-200/60 hover:bg-emerald-400/14">
-                <h3 className="text-sm font-semibold uppercase tracking-wide text-emerald-100">
+              <article className="rounded-2xl border border-wellness-300 bg-wellness-50 p-4 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-wellness-400">
+                <h3 className="text-sm font-semibold uppercase tracking-wide text-wellness-800">
                   {t("Visibility.afterTitle")}
                 </h3>
                 <ul className="mt-3 space-y-2.5">
-                  <li className="flex items-start gap-2 text-sm text-emerald-50/95">
-                    <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-300" aria-hidden />
+                  <li className="flex items-start gap-2 text-sm text-wellness-900/90">
+                    <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-wellness-600" aria-hidden />
                     <span>{t("Visibility.afterPoints.speed")}</span>
                   </li>
-                  <li className="flex items-start gap-2 text-sm text-emerald-50/95">
-                    <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-300" aria-hidden />
+                  <li className="flex items-start gap-2 text-sm text-wellness-900/90">
+                    <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-wellness-600" aria-hidden />
                     <span>{t("Visibility.afterPoints.maintenance")}</span>
                   </li>
-                  <li className="flex items-start gap-2 text-sm text-emerald-50/95">
-                    <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-300" aria-hidden />
+                  <li className="flex items-start gap-2 text-sm text-wellness-900/90">
+                    <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-wellness-600" aria-hidden />
                     <span>{t("Visibility.afterPoints.authority")}</span>
                   </li>
-                  <li className="flex items-start gap-2 text-sm text-emerald-50/95">
-                    <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-300" aria-hidden />
+                  <li className="flex items-start gap-2 text-sm text-wellness-900/90">
+                    <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-wellness-600" aria-hidden />
                     <span>{t("Visibility.afterPoints.patientTools")}</span>
                   </li>
                 </ul>
@@ -515,31 +510,31 @@ export default async function HomePage() {
             </div>
 
             <div className="mt-4 grid gap-2 sm:grid-cols-2">
-              <p className="rounded-xl border border-slate-700/80 bg-slate-900/70 px-3 py-2 text-xs font-medium leading-relaxed text-slate-200 transition hover:-translate-y-0.5 hover:border-rose-200/35">
+              <p className="rounded-xl border border-ink-200 bg-white px-3 py-2 text-xs font-medium leading-relaxed text-ink-600 transition hover:-translate-y-0.5 hover:border-rose-200">
                 {t("Visibility.comparison.websiteCost")}
               </p>
-              <p className="rounded-xl border border-emerald-300/45 bg-emerald-400/12 px-3 py-2 text-xs font-semibold leading-relaxed text-emerald-100 shadow-[0_0_24px_-14px_rgba(52,211,153,0.8)] transition hover:-translate-y-0.5 hover:bg-emerald-400/18">
+              <p className="rounded-xl border border-clinical-200 bg-clinical-50 px-3 py-2 text-xs font-semibold leading-relaxed text-clinical-800 transition hover:-translate-y-0.5 hover:bg-clinical-100">
                 {t("Visibility.comparison.doccyCost")}
               </p>
             </div>
 
-            <p className="mt-5 max-w-4xl rounded-2xl border border-rose-300/25 bg-rose-950/20 px-4 py-3 text-sm leading-relaxed text-rose-100 sm:text-base">
+            <p className="mt-5 max-w-4xl rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm leading-relaxed text-rose-800 sm:text-base">
               {t("Visibility.closing")}
             </p>
 
             <article
-              className="mx-auto mt-8 max-w-2xl rounded-2xl border border-slate-700/80 bg-slate-950/55 px-5 py-6 sm:px-6 sm:py-7"
+              className="mx-auto mt-8 max-w-2xl rounded-2xl border border-ink-200 bg-ink-50 px-5 py-6 sm:px-6 sm:py-7"
               aria-labelledby="skepticism-killer-heading"
             >
               <h3
                 id="skepticism-killer-heading"
-                className="text-center text-lg font-semibold tracking-tight text-neutral-50 sm:text-xl"
+                className="text-center text-lg font-semibold tracking-tight text-ink-900 sm:text-xl"
               >
                 {t("SkepticismKiller.title")}
               </h3>
-              <div className="mt-4 space-y-3 text-sm leading-relaxed text-slate-300 sm:text-base">
+              <div className="mt-4 space-y-3 text-sm leading-relaxed text-ink-600 sm:text-base">
                 <p>{t("SkepticismKiller.p1")}</p>
-                <p className="text-slate-200">{t("SkepticismKiller.p2")}</p>
+                <p className="text-ink-800">{t("SkepticismKiller.p2")}</p>
                 <p>{t("SkepticismKiller.p3")}</p>
               </div>
             </article>
@@ -547,7 +542,7 @@ export default async function HomePage() {
             <div className="mt-4 flex justify-center">
               <a
                 href="#founders-pricing-card"
-                className="inline-flex items-center gap-1.5 rounded-full border border-emerald-300/45 bg-emerald-400/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-100 transition hover:bg-emerald-400/20 hover:text-emerald-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/80"
+                className="inline-flex items-center gap-1.5 rounded-full border border-clinical-300 bg-clinical-50 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-clinical-700 transition hover:bg-clinical-100 hover:text-clinical-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-400"
               >
                 {t("Visibility.scrollCue")}
                 <ChevronDown className="h-3.5 w-3.5 motion-safe:animate-bounce" aria-hidden />
@@ -557,16 +552,16 @@ export default async function HomePage() {
 
           <div
             id="founders-pricing-card"
-            className="mx-auto max-w-lg rounded-3xl border border-emerald-300/20 bg-slate-900/70 p-5 shadow-[0_0_56px_-22px_rgba(16,185,129,0.35)] backdrop-blur-md sm:p-6"
+            className="mx-auto max-w-lg rounded-3xl border border-clinical-200 bg-white p-5 shadow-[0_1px_3px_rgba(26,43,60,0.06),0_8px_28px_rgba(11,123,181,0.08)] sm:p-6"
           >
             <header>
-              <p className="text-center text-xs font-semibold tracking-[0.18em] text-emerald-300/95">
+              <p className="text-center text-xs font-semibold tracking-[0.18em] text-clinical-600">
                 {t("Pricing.badge")}
               </p>
-              <h2 className="mt-2 text-center text-2xl font-semibold tracking-tight text-neutral-50 sm:text-[1.65rem]">
+              <h2 className="mt-2 text-center text-2xl font-semibold tracking-tight text-ink-900 sm:text-[1.65rem]">
                 {t("Pricing.title")}
               </h2>
-              <p className="mt-2 text-center text-sm leading-relaxed text-slate-300">
+              <p className="mt-2 text-center text-sm leading-relaxed text-ink-500">
                 {t("Pricing.subtitle")}
               </p>
             </header>
@@ -575,11 +570,11 @@ export default async function HomePage() {
           </div>
         </section>
         <section className="mx-auto w-full max-w-6xl pb-10 pt-2 sm:pb-12 [overflow-anchor:none]">
-          <div className="rounded-3xl border border-emerald-300/20 bg-slate-900/65 p-5 shadow-[0_0_56px_-22px_rgba(16,185,129,0.28)] backdrop-blur-md sm:p-7">
-            <h2 className="text-2xl font-semibold tracking-tight text-neutral-50 sm:text-3xl">
+          <div className={landingSectionShell}>
+            <h2 className="text-2xl font-semibold tracking-tight text-ink-900 sm:text-3xl">
               {t("FAQ.heading")}
             </h2>
-            <p className="mt-2 max-w-3xl text-sm leading-relaxed text-slate-300 sm:text-base">
+            <p className="mt-2 max-w-3xl text-sm leading-relaxed text-ink-500 sm:text-base">
               {t("FAQ.intro")}
             </p>
 
@@ -587,20 +582,20 @@ export default async function HomePage() {
               {faqItems.map((item) => (
                 <details
                   key={item.question}
-                  className="group rounded-2xl border border-slate-700/80 bg-slate-950/40 p-4 transition hover:border-emerald-300/40"
+                  className="group rounded-2xl border border-ink-200 bg-ink-50 p-4 transition hover:border-clinical-300"
                 >
                   <summary className="flex cursor-pointer list-none items-start justify-between gap-3 text-left">
-                    <span className="text-sm font-semibold leading-snug text-neutral-100 sm:text-base">
+                    <span className="text-sm font-semibold leading-snug text-ink-800 sm:text-base">
                       {item.question}
                     </span>
                     <ChevronDown
-                      className="mt-0.5 h-4 w-4 shrink-0 text-emerald-300 transition group-open:rotate-180"
+                      className="mt-0.5 h-4 w-4 shrink-0 text-clinical-500 transition group-open:rotate-180"
                       aria-hidden
                     />
                   </summary>
                   <div className="mt-3 space-y-2">
                     {item.answers.map((answer) => (
-                      <p key={answer} className="text-sm leading-relaxed text-slate-300">
+                      <p key={answer} className="text-sm leading-relaxed text-ink-600">
                         {answer}
                       </p>
                     ))}
@@ -616,7 +611,7 @@ export default async function HomePage() {
           </div>
         </section>
       </div>
-      <MarketingFooter />
+      <MarketingFooter variant="light" />
     </main>
   );
 }

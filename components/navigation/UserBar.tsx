@@ -232,8 +232,8 @@ export function UserBar({ initialSessionState }: UserBarProps) {
 
   const tabBaseClass =
     "flex min-h-[3.25rem] flex-1 flex-col items-center justify-center gap-0.5 px-1 py-1 text-[10px] font-medium leading-tight transition active:scale-[0.98] sm:text-[11px]";
-  const tabInactiveClass = "text-slate-400 hover:text-slate-200";
-  const tabActiveClass = "text-emerald-300";
+  const tabInactiveClass = "text-ink-400 hover:text-clinical-200";
+  const tabActiveClass = "text-clinical-300";
 
   return (
     <>
@@ -248,9 +248,9 @@ export function UserBar({ initialSessionState }: UserBarProps) {
           aria-expanded={isMenuOpen}
           aria-haspopup="menu"
           data-testid="userbar-toggle"
-          className="inline-flex items-center gap-2 rounded-full border border-emerald-300/50 bg-slate-900/85 px-1.5 py-1 shadow-sm shadow-slate-950/40 transition hover:border-emerald-200/90"
+          className="inline-flex items-center gap-2 rounded-full border border-clinical-400/45 bg-ink-900/90 px-1.5 py-1 shadow-sm shadow-ink-900/40 transition hover:border-clinical-300/80"
         >
-          <div className="relative h-8 w-8 overflow-hidden rounded-full bg-slate-800 sm:h-9 sm:w-9">
+          <div className="relative h-8 w-8 overflow-hidden rounded-full bg-ink-800 sm:h-9 sm:w-9">
             {sessionState.avatarUrl ? (
               <Image
                 src={sessionState.avatarUrl}
@@ -260,12 +260,12 @@ export function UserBar({ initialSessionState }: UserBarProps) {
                 className="object-cover"
               />
             ) : (
-              <div className="flex h-full w-full items-center justify-center text-xs font-semibold text-emerald-200">
+              <div className="flex h-full w-full items-center justify-center text-xs font-semibold text-clinical-200">
                 {initials}
               </div>
             )}
           </div>
-          <UserRound className="hidden h-4 w-4 text-emerald-200/90 sm:inline" aria-hidden />
+          <UserRound className="hidden h-4 w-4 text-clinical-200/90 sm:inline" aria-hidden />
           <span className="sr-only">Open user menu</span>
         </button>
 
@@ -273,10 +273,10 @@ export function UserBar({ initialSessionState }: UserBarProps) {
           <div
             role="menu"
             data-testid="userbar-menu"
-            className="absolute right-0 top-[calc(100%+0.4rem)] w-64 overflow-hidden rounded-2xl border border-emerald-200/20 bg-slate-900/95 p-1.5 shadow-2xl shadow-slate-950/70 backdrop-blur"
+            className="absolute right-0 top-[calc(100%+0.4rem)] w-64 overflow-hidden rounded-2xl border border-clinical-400/25 bg-ink-900/95 p-1.5 shadow-2xl shadow-ink-900/70 backdrop-blur"
           >
             <div className="flex items-center gap-3 px-3 py-2.5">
-              <div className="relative h-9 w-9 overflow-hidden rounded-full bg-slate-800">
+              <div className="relative h-9 w-9 overflow-hidden rounded-full bg-ink-800">
                 {sessionState.avatarUrl ? (
                   <Image
                     src={sessionState.avatarUrl}
@@ -286,16 +286,16 @@ export function UserBar({ initialSessionState }: UserBarProps) {
                     className="object-cover"
                   />
                 ) : (
-                  <div className="flex h-full w-full items-center justify-center text-xs font-semibold text-emerald-200">
+                  <div className="flex h-full w-full items-center justify-center text-xs font-semibold text-clinical-200">
                     {initials}
                   </div>
                 )}
               </div>
               <div className="min-w-0 flex-1">
-                <p className="truncate text-xs font-medium text-slate-50">
+                <p className="truncate text-xs font-medium text-ink-50">
                   {sessionState.doctorName ?? "Logged in"}
                 </p>
-                <p className="truncate text-[11px] text-slate-400">
+                <p className="truncate text-[11px] text-ink-400">
                   {sessionState.email ?? ""}
                 </p>
               </div>
@@ -305,36 +305,36 @@ export function UserBar({ initialSessionState }: UserBarProps) {
               href="/agenda?manual=1"
               title="Took a phone call? Block the slot manually here. Next time, share your link to save time."
               data-testid="userbar-link-manual-booking"
-              className="mb-1 border border-emerald-300/30 bg-emerald-500/10 font-semibold text-emerald-100 hover:bg-emerald-500/20"
-              icon={<CalendarPlus className="h-4 w-4 text-emerald-200" aria-hidden />}
+              className="mb-1 border border-clinical-400/35 bg-clinical-500/10 font-semibold text-clinical-100 hover:bg-clinical-500/20"
+              icon={<CalendarPlus className="h-4 w-4 text-clinical-200" aria-hidden />}
             >
               + Add Manual Booking
             </UserMenuNavLink>
             <UserMenuNavLink
               href="/agenda"
               data-testid="userbar-link-agenda"
-              icon={<CalendarDays className="h-4 w-4 text-emerald-300" aria-hidden />}
+              icon={<CalendarDays className="h-4 w-4 text-clinical-300" aria-hidden />}
             >
               My Agenda
             </UserMenuNavLink>
             <UserMenuNavLink
               href="/agenda/insights"
               data-testid="userbar-link-insights"
-              icon={<BarChart3 className="h-4 w-4 text-emerald-300" aria-hidden />}
+              icon={<BarChart3 className="h-4 w-4 text-clinical-300" aria-hidden />}
             >
               Practice insights
             </UserMenuNavLink>
             <UserMenuNavLink
               href="/agenda/settings"
               data-testid="userbar-link-settings"
-              icon={<Settings className="h-4 w-4 text-emerald-300" aria-hidden />}
+              icon={<Settings className="h-4 w-4 text-clinical-300" aria-hidden />}
             >
               Settings
             </UserMenuNavLink>
             <UserMenuNavLink
               href="/agenda/settings#promote-practice"
               data-testid="userbar-link-promote"
-              icon={<Megaphone className="h-4 w-4 text-emerald-300" aria-hidden />}
+              icon={<Megaphone className="h-4 w-4 text-clinical-300" aria-hidden />}
             >
               Promote Your Practice
             </UserMenuNavLink>
@@ -342,17 +342,17 @@ export function UserBar({ initialSessionState }: UserBarProps) {
               type="button"
               onClick={handleOpenSupport}
               data-testid="userbar-action-support"
-              className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm text-slate-100 transition hover:bg-slate-800/90 active:scale-[0.99] active:bg-slate-800/90"
+              className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm text-ink-100 transition hover:bg-ink-800/90 active:scale-[0.99] active:bg-ink-800/90"
               role="menuitem"
             >
-              <LifeBuoy className="h-4 w-4 text-emerald-300" aria-hidden />
+              <LifeBuoy className="h-4 w-4 text-clinical-300" aria-hidden />
               Support
             </button>
             {slug ? (
               <UserMenuNavLink
                 href={publicProfilePath!}
                 data-testid="userbar-link-public-profile"
-                icon={<UserCircle className="h-4 w-4 text-emerald-300" aria-hidden />}
+                icon={<UserCircle className="h-4 w-4 text-clinical-300" aria-hidden />}
               >
                 View Public Profile
               </UserMenuNavLink>
@@ -378,14 +378,14 @@ export function UserBar({ initialSessionState }: UserBarProps) {
           type="button"
           aria-label="Close menu"
           data-testid="userbar-mobile-more-backdrop"
-          className="fixed inset-0 z-40 bg-slate-950/50 lg:hidden"
+          className="fixed inset-0 z-40 bg-ink-900/50 lg:hidden"
           onClick={handleCloseMenus}
         />
       ) : null}
       <nav
         aria-label="Professional navigation"
         data-testid="userbar-mobile-tabs"
-        className="fixed inset-x-0 bottom-0 z-50 overflow-visible border-t border-white/20 bg-slate-900/55 pb-[env(safe-area-inset-bottom,0px)] shadow-[0_-10px_35px_rgba(2,6,23,0.45)] backdrop-blur-2xl supports-[backdrop-filter]:bg-slate-900/45 lg:hidden"
+        className="fixed inset-x-0 bottom-0 z-50 overflow-visible border-t border-clinical-400/20 bg-ink-900/60 pb-[env(safe-area-inset-bottom,0px)] shadow-[0_-10px_35px_rgba(15,31,46,0.45)] backdrop-blur-2xl supports-[backdrop-filter]:bg-ink-900/50 lg:hidden"
       >
         <div
           aria-hidden
@@ -396,7 +396,7 @@ export function UserBar({ initialSessionState }: UserBarProps) {
             ref={mobileMoreMenuRef}
             role="menu"
             data-testid="userbar-mobile-more-menu"
-            className="absolute inset-x-2 bottom-[calc(100%+0.35rem)] z-[60] overflow-hidden rounded-2xl border border-emerald-200/20 bg-slate-900/95 p-1.5 shadow-2xl shadow-slate-950/70 backdrop-blur"
+            className="absolute inset-x-2 bottom-[calc(100%+0.35rem)] z-[60] overflow-hidden rounded-2xl border border-clinical-400/25 bg-ink-900/95 p-1.5 shadow-2xl shadow-ink-900/70 backdrop-blur"
           >
             <UserBarMoreMenuItems
               publicProfilePath={publicProfilePath}

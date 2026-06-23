@@ -143,7 +143,7 @@ export function InternalDirectoryClient({
             value={nameQ}
             onChange={(e) => setNameQ(e.target.value)}
             placeholder="Search by name…"
-            className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+            className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-clinical-500/40"
           />
         </div>
         <div>
@@ -153,7 +153,7 @@ export function InternalDirectoryClient({
           <select
             value={specialtyFilter}
             onChange={(e) => setSpecialtyFilter(e.target.value)}
-            className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+            className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-clinical-500/40"
           >
             <option value="">All specialties</option>
             {specialtyOptions.map((s) => (
@@ -170,7 +170,7 @@ export function InternalDirectoryClient({
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+            className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-clinical-500/40"
           >
             <option value="">All statuses</option>
             {statusOptions.map((status) => (
@@ -187,7 +187,7 @@ export function InternalDirectoryClient({
           <select
             value={languageFilter}
             onChange={(e) => setLanguageFilter(e.target.value)}
-            className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+            className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-clinical-500/40"
           >
             <option value="">All languages</option>
             {languageOptions.map((lang) => (
@@ -200,7 +200,7 @@ export function InternalDirectoryClient({
       </div>
       <div className="flex items-center justify-end gap-2">
         {activeFiltersCount > 0 ? (
-          <span className="rounded-full border border-emerald-400/35 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-emerald-200">
+          <span className="rounded-full border border-clinical-400/35 bg-clinical-500/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-clinical-200">
             {activeFiltersCount} filter{activeFiltersCount === 1 ? "" : "s"} active
           </span>
         ) : null}
@@ -278,7 +278,7 @@ export function InternalDirectoryClient({
                         href={`/${d.slug}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="mt-2 inline-block text-xs text-emerald-400/90 hover:text-emerald-300"
+                        className="mt-2 inline-block text-xs text-clinical-400/90 hover:text-clinical-300"
                       >
                         Public URL ↗
                       </Link>
@@ -297,7 +297,7 @@ export function InternalDirectoryClient({
                         Specialty pending
                       </span>
                     ) : isPending && d.is_specialty_approved ? (
-                      <span className="mt-1 block w-fit rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-200/90">
+                      <span className="mt-1 block w-fit rounded-full bg-clinical-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-clinical-200/90">
                         Ready for license review
                       </span>
                     ) : null}
@@ -309,7 +309,7 @@ export function InternalDirectoryClient({
                     <span
                       className={`inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${
                         status === "verified"
-                          ? "bg-emerald-500/15 text-emerald-200"
+                          ? "bg-clinical-500/15 text-clinical-200"
                           : status === "rejected"
                             ? "bg-red-500/15 text-red-200"
                             : "bg-amber-500/15 text-amber-100"
@@ -327,7 +327,7 @@ export function InternalDirectoryClient({
                             disabled={busy || !canVerifyLicense}
                             title={verifyBlockReason ?? undefined}
                             onClick={() => runAction(d.id, "verify")}
-                            className="rounded-lg bg-emerald-500/20 px-3 py-1.5 text-xs font-semibold text-emerald-100 ring-1 ring-emerald-500/35 transition hover:bg-emerald-500/30 disabled:opacity-50"
+                            className="rounded-lg bg-clinical-500/20 px-3 py-1.5 text-xs font-semibold text-clinical-100 ring-1 ring-clinical-500/35 transition hover:bg-clinical-500/30 disabled:opacity-50"
                           >
                             Verify professional
                           </button>

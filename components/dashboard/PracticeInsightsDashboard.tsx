@@ -26,7 +26,7 @@ function ComingSoonPanel({
   note: string;
 }) {
   return (
-    <div className="flex h-full min-h-[220px] flex-col rounded-2xl border border-dashed border-slate-600/80 bg-slate-950/40 p-5">
+    <div className="flex h-full min-h-[220px] flex-col rounded-2xl border border-dashed border-slate-600/80 bg-ink-900/40 p-5">
       <div className="flex items-center gap-2">
         <Sparkles className="h-4 w-4 text-slate-500" aria-hidden />
         <p className="text-sm font-semibold text-slate-200">{title}</p>
@@ -51,10 +51,10 @@ function KpiCard({
   icon: React.ReactNode;
 }) {
   return (
-    <article className="rounded-2xl border border-emerald-300/15 bg-slate-900/70 p-4 shadow-[0_0_32px_-18px_rgba(16,185,129,0.35)]">
+    <article className="rounded-2xl border border-clinical-300/15 bg-slate-900/70 p-4 shadow-[0_0_32px_-18px_rgba(16,185,129,0.35)]">
       <div className="flex items-start justify-between gap-2">
         <p className="text-xs font-medium uppercase tracking-wide text-slate-400">{label}</p>
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-300">
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-clinical-500/10 text-clinical-300">
           {icon}
         </div>
       </div>
@@ -110,10 +110,10 @@ export function PracticeInsightsDashboard({ insights }: Props) {
   return (
     <div className="space-y-8">
       <section
-        className="rounded-3xl border border-emerald-300/25 bg-gradient-to-br from-emerald-500/10 via-slate-900/80 to-slate-950/90 p-6 sm:p-8"
+        className="rounded-3xl border border-clinical-300/25 bg-gradient-to-br from-clinical-500/10 via-slate-900/80 to-slate-950/90 p-6 sm:p-8"
         aria-labelledby="practice-insights-hero"
       >
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-300/90">
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-clinical-300/90">
           {t("hero.eyebrow")}
         </p>
         <h2
@@ -170,7 +170,7 @@ export function PracticeInsightsDashboard({ insights }: Props) {
         <div className="grid gap-4 lg:grid-cols-2">
           <div className="rounded-2xl border border-slate-800/80 bg-slate-900/35 p-5">
             <div className="mb-4 flex items-center gap-2 border-b border-slate-800/60 pb-4">
-              <Clock className="h-4 w-4 text-emerald-300" aria-hidden />
+              <Clock className="h-4 w-4 text-clinical-300" aria-hidden />
               <div>
                 <h3 className="text-sm font-semibold text-slate-100">
                   {t("charts.peakTimes.title")}
@@ -213,7 +213,7 @@ export function PracticeInsightsDashboard({ insights }: Props) {
                   />
                   <defs>
                     <linearGradient id={`insightsBar-${gradId}`} x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#34d399" stopOpacity={0.95} />
+                      <stop offset="0%" stopColor="#0B7BB5" stopOpacity={0.95} />
                       <stop offset="100%" stopColor="#0d9488" stopOpacity={0.75} />
                     </linearGradient>
                   </defs>
@@ -245,7 +245,7 @@ export function PracticeInsightsDashboard({ insights }: Props) {
                         }}
                         formatter={(value: number) => [value, t("charts.tooltipBookings")]}
                       />
-                      <Bar dataKey="bookings" fill="#34d399" radius={[4, 4, 0, 0]} maxBarSize={20} />
+                      <Bar dataKey="bookings" fill="#0B7BB5" radius={[4, 4, 0, 0]} maxBarSize={20} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>

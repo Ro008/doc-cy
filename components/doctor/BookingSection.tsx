@@ -335,11 +335,11 @@ export function BookingSection({
 
   if (onlineBookingsPaused) {
     return (
-      <div className="rounded-3xl border border-emerald-100/10 bg-slate-900/50 p-6 shadow-2xl shadow-slate-950/50 backdrop-blur-xl">
-        <h2 className="text-lg font-semibold text-slate-50">
+      <div className="rounded-3xl border border-clinical-200 bg-white p-6 shadow-[0_1px_3px_rgba(26,43,60,0.06),0_8px_24px_rgba(11,123,181,0.06)] backdrop-blur-xl">
+        <h2 className="text-lg font-semibold text-ink-900">
           {t("bookingsTemporarilyUnavailable")}
         </h2>
-        <p className="mt-2 text-sm text-slate-300">
+        <p className="mt-2 text-sm text-ink-600">
           {t("appointmentsPaused")}
         </p>
       </div>
@@ -348,11 +348,11 @@ export function BookingSection({
 
   if (!weeklySlots || weeklySlots.length === 0) {
     return (
-      <div className="rounded-3xl border border-emerald-100/10 bg-slate-900/50 p-6 shadow-2xl shadow-slate-950/50 backdrop-blur-xl">
-        <h2 className="text-lg font-semibold text-slate-50">
+      <div className="rounded-3xl border border-clinical-200 bg-white p-6 shadow-[0_1px_3px_rgba(26,43,60,0.06),0_8px_24px_rgba(11,123,181,0.06)] backdrop-blur-xl">
+        <h2 className="text-lg font-semibold text-ink-900">
           {t("title")}
         </h2>
-        <p className="mt-2 text-sm text-slate-300">
+        <p className="mt-2 text-sm text-ink-600">
           {t("availabilityNotPublished", {doctorName})}
         </p>
       </div>
@@ -361,11 +361,11 @@ export function BookingSection({
 
   if (upcomingSlots.length === 0) {
     return (
-      <div className="rounded-3xl border border-emerald-100/10 bg-slate-900/50 p-6 shadow-2xl shadow-slate-950/50 backdrop-blur-xl">
-        <h2 className="text-lg font-semibold text-slate-50">
+      <div className="rounded-3xl border border-clinical-200 bg-white p-6 shadow-[0_1px_3px_rgba(26,43,60,0.06),0_8px_24px_rgba(11,123,181,0.06)] backdrop-blur-xl">
+        <h2 className="text-lg font-semibold text-ink-900">
           {t("bookingsTemporarilyUnavailable")}
         </h2>
-        <p className="mt-2 text-sm text-slate-300">
+        <p className="mt-2 text-sm text-ink-600">
           {holidayActive && holidayStartDate && holidayEndDate
             ? t("calendarBlockedFromTo", {
                 start: formatDateDDMMYYYY(holidayStartDate),
@@ -382,7 +382,7 @@ export function BookingSection({
       <div
         data-testid="booking-success-message"
         data-appointment-id={lastAppointmentId ?? ""}
-        className="rounded-3xl border border-amber-200/20 bg-slate-900/60 p-8 shadow-2xl shadow-amber-500/10 backdrop-blur-xl sm:p-10"
+        className="rounded-3xl border border-amber-200 bg-amber-50 p-8 shadow-[0_1px_3px_rgba(26,43,60,0.06),0_8px_24px_rgba(245,158,11,0.12)] sm:p-10"
       >
         <div className="flex flex-col items-center text-center">
           <div className="relative">
@@ -393,16 +393,16 @@ export function BookingSection({
               aria-hidden
             />
           </div>
-          <h2 className="mt-6 text-2xl font-bold tracking-tight text-slate-50 sm:text-3xl">
+          <h2 className="mt-6 text-2xl font-bold tracking-tight text-ink-900 sm:text-3xl">
             {t("requestSubmittedTitle")}
           </h2>
-          <p className="mt-3 max-w-sm text-sm leading-relaxed text-slate-300">
+          <p className="mt-3 max-w-sm text-sm leading-relaxed text-ink-600">
             {t("requestSubmittedMessage", { doctorName })}
           </p>
           {profileSlug ? (
             <PendingLink
               href={`/${activeLocale}/${profileSlug}`}
-              className="mt-8 flex w-full max-w-xs items-center justify-center rounded-2xl border border-amber-400/40 bg-amber-400/10 px-6 py-3 text-sm font-semibold text-amber-200 shadow-lg shadow-amber-500/10 transition hover:border-amber-400/60 hover:bg-amber-400/20 focus:outline-none focus:ring-2 focus:ring-amber-400/50 focus:ring-offset-2 focus:ring-offset-slate-900"
+              className="mt-8 flex w-full max-w-xs items-center justify-center rounded-2xl border border-amber-300 bg-white px-6 py-3 text-sm font-semibold text-amber-900 shadow-sm transition hover:border-amber-400 hover:bg-amber-50 focus:outline-none focus:ring-2 focus:ring-amber-400/50 focus:ring-offset-2 focus:ring-offset-white"
             >
               {t("doneButton")}
             </PendingLink>
@@ -410,7 +410,7 @@ export function BookingSection({
             <button
               type="button"
               onClick={() => setBookingSuccess(false)}
-              className="mt-8 w-full max-w-xs rounded-2xl border border-amber-400/40 bg-amber-400/10 px-6 py-3 text-sm font-semibold text-amber-200 shadow-lg shadow-amber-500/10 transition hover:border-amber-400/60 hover:bg-amber-400/20 focus:outline-none focus:ring-2 focus:ring-amber-400/50 focus:ring-offset-2 focus:ring-offset-slate-900"
+              className="mt-8 w-full max-w-xs rounded-2xl border border-amber-300 bg-white px-6 py-3 text-sm font-semibold text-amber-900 shadow-sm transition hover:border-amber-400 hover:bg-amber-50 focus:outline-none focus:ring-2 focus:ring-amber-400/50 focus:ring-offset-2 focus:ring-offset-white"
             >
               {t("doneButton")}
             </button>
@@ -423,13 +423,13 @@ export function BookingSection({
   // Contact form step (after Confirm on time slot)
   if (showContactForm && selectedSlot) {
     return (
-      <div className="rounded-3xl border border-emerald-100/10 bg-slate-900/50 p-6 shadow-2xl shadow-slate-950/50 backdrop-blur-xl">
+      <div className="rounded-3xl border border-clinical-200 bg-white p-6 shadow-[0_1px_3px_rgba(26,43,60,0.06),0_8px_24px_rgba(11,123,181,0.06)] backdrop-blur-xl">
         <div className="mb-6 flex items-center justify-between gap-3">
           <div>
-            <h2 className="text-lg font-semibold text-slate-50">
+            <h2 className="text-lg font-semibold text-ink-900">
               {t("yourDetails")}
             </h2>
-            <p className="mt-1 text-xs text-slate-400">
+            <p className="mt-1 text-xs text-ink-500">
               {selectedSlot.labelFull} · {t("cyprusTime")}
             </p>
           </div>
@@ -439,7 +439,7 @@ export function BookingSection({
               setShowContactForm(false);
               setError(null);
             }}
-            className="text-xs font-medium text-slate-400 transition hover:text-emerald-300"
+            className="text-xs font-medium text-ink-500 transition hover:text-clinical-700"
           >
             {t("changeTime")}
           </button>
@@ -448,7 +448,7 @@ export function BookingSection({
           <div className="space-y-2">
             <label
               htmlFor="name"
-              className="text-xs font-semibold text-slate-200"
+              className="text-xs font-semibold text-ink-800"
             >
               {t("patientFullNameLabel")}
             </label>
@@ -458,14 +458,14 @@ export function BookingSection({
               required
               value={patientName}
               onChange={(e) => setPatientName(e.target.value)}
-              className="w-full rounded-2xl border border-slate-800/80 bg-slate-950/40 px-3 py-2 text-sm text-slate-100 shadow-sm placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-400/60"
+              className="w-full rounded-2xl border border-ink-200 bg-white px-3 py-2 text-sm text-ink-900 shadow-sm placeholder:text-ink-400 focus:outline-none focus:ring-2 focus:ring-clinical-400/60"
               placeholder={t("patientFullNamePlaceholder")}
             />
           </div>
           <div className="space-y-2">
             <label
               htmlFor="email"
-              className="text-xs font-semibold text-slate-200"
+              className="text-xs font-semibold text-ink-800"
             >
               {t("emailLabel")}
             </label>
@@ -475,7 +475,7 @@ export function BookingSection({
               required
               value={patientEmail}
               onChange={(e) => setPatientEmail(e.target.value)}
-              className="w-full rounded-2xl border border-slate-800/80 bg-slate-950/40 px-3 py-2 text-sm text-slate-100 shadow-sm placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-400/60"
+              className="w-full rounded-2xl border border-ink-200 bg-white px-3 py-2 text-sm text-ink-900 shadow-sm placeholder:text-ink-400 focus:outline-none focus:ring-2 focus:ring-clinical-400/60"
               placeholder={t("emailPlaceholder")}
             />
           </div>
@@ -493,22 +493,22 @@ export function BookingSection({
             />
           </div>
           <fieldset className="space-y-2">
-            <legend className="text-xs font-semibold text-slate-200">
+            <legend className="text-xs font-semibold text-ink-800">
               {t("visitHistoryLabel", { doctorName })}{" "}
-              <span className="text-red-300">*</span>
+              <span className="text-red-600">*</span>
             </legend>
             <div className="grid gap-2 sm:grid-cols-2">
               <label
                 className={`flex cursor-pointer items-center gap-2 rounded-2xl border px-3 py-2.5 text-sm transition ${
                   isNewPatient === true
-                    ? "border-emerald-400/60 bg-emerald-400/15 text-emerald-100"
-                    : "border-slate-800/80 bg-slate-950/40 text-slate-200 hover:border-slate-700"
+                    ? "border-clinical-500 bg-clinical-50 text-clinical-900"
+                    : "border-ink-200 bg-white text-ink-800 hover:border-clinical-300"
                 }`}
               >
                 <input
                   type="radio"
                   name="visitHistory"
-                  className="h-4 w-4 border-slate-600 text-emerald-400 focus:ring-emerald-400/60"
+                  className="h-4 w-4 border-ink-300 text-clinical-600 focus:ring-clinical-400/60"
                   checked={isNewPatient === true}
                   onChange={() => setIsNewPatient(true)}
                 />
@@ -517,14 +517,14 @@ export function BookingSection({
               <label
                 className={`flex cursor-pointer items-center gap-2 rounded-2xl border px-3 py-2.5 text-sm transition ${
                   isNewPatient === false
-                    ? "border-emerald-400/60 bg-emerald-400/15 text-emerald-100"
-                    : "border-slate-800/80 bg-slate-950/40 text-slate-200 hover:border-slate-700"
+                    ? "border-clinical-500 bg-clinical-50 text-clinical-900"
+                    : "border-ink-200 bg-white text-ink-800 hover:border-clinical-300"
                 }`}
               >
                 <input
                   type="radio"
                   name="visitHistory"
-                  className="h-4 w-4 border-slate-600 text-emerald-400 focus:ring-emerald-400/60"
+                  className="h-4 w-4 border-ink-300 text-clinical-600 focus:ring-clinical-400/60"
                   checked={isNewPatient === false}
                   onChange={() => setIsNewPatient(false)}
                 />
@@ -535,10 +535,10 @@ export function BookingSection({
           <div className="space-y-2">
             <label
               htmlFor="visitReason"
-              className="text-xs font-semibold text-slate-200"
+              className="text-xs font-semibold text-ink-800"
             >
               {t("visitReasonLabel")}{" "}
-              <span className="text-red-300">*</span>
+              <span className="text-red-600">*</span>
             </label>
             <textarea
               id="visitReason"
@@ -552,16 +552,16 @@ export function BookingSection({
                 )
               }
               placeholder={t("visitReasonPlaceholder")}
-              className="w-full resize-y rounded-2xl border border-slate-800/80 bg-slate-950/40 px-3 py-2 text-sm text-slate-100 shadow-sm placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-400/60"
+              className="w-full resize-y rounded-2xl border border-ink-200 bg-white px-3 py-2 text-sm text-ink-900 shadow-sm placeholder:text-ink-400 focus:outline-none focus:ring-2 focus:ring-clinical-400/60"
             />
-            <p className="text-right text-[11px] text-slate-500">
+            <p className="text-right text-[11px] text-ink-500">
               {visitReason.length}/{APPOINTMENT_REASON_MAX_LENGTH}
             </p>
           </div>
           {error && (
             <div
               data-testid="booking-error-message"
-              className="rounded-2xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm text-red-200"
+              className="rounded-2xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800"
             >
               {error}
             </div>
@@ -569,7 +569,7 @@ export function BookingSection({
           <button
             type="submit"
             disabled={submitting}
-            className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-400 px-4 py-2.5 text-sm font-semibold text-slate-950 shadow-lg shadow-emerald-500/30 transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-clinical-500 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-clinical-500/20 transition hover:bg-clinical-400 disabled:cursor-not-allowed disabled:bg-ink-300 disabled:text-ink-500"
           >
             {submitting ? (
               <>
@@ -592,18 +592,18 @@ export function BookingSection({
     );
 
   return (
-    <div className="rounded-3xl border border-emerald-100/10 bg-slate-900/50 shadow-2xl shadow-slate-950/50 backdrop-blur-xl">
-      <div className="border-b border-slate-800/60 px-4 py-4 sm:px-6 sm:py-5">
+    <div className="rounded-3xl border border-clinical-200 bg-white shadow-[0_1px_3px_rgba(26,43,60,0.06),0_8px_24px_rgba(11,123,181,0.06)] backdrop-blur-xl">
+      <div className="border-b border-ink-200 px-4 py-4 sm:px-6 sm:py-5">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <h2 className="text-lg font-semibold text-slate-50">
+            <h2 className="text-lg font-semibold text-ink-900">
                 {t("title")}
             </h2>
-            <p className="mt-1 text-xs text-slate-400">
+            <p className="mt-1 text-xs text-ink-500">
               {t("allTimesInCyprusHint")}
             </p>
           </div>
-          <span className="rounded-full bg-emerald-500/10 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.2em] text-emerald-200">
+          <span className="rounded-full bg-clinical-100 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.2em] text-clinical-700">
             {t("requestBadge")}
           </span>
         </div>
@@ -611,8 +611,8 @@ export function BookingSection({
 
       <div className="grid gap-6 p-4 sm:grid-cols-2 sm:p-6">
         {/* Left: calendar */}
-        <div className="rounded-2xl border border-slate-800/60 bg-slate-950/30 p-4 backdrop-blur-sm">
-          <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
+        <div className="rounded-2xl border border-ink-200 bg-white p-4 shadow-sm">
+          <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-ink-500">
             {t("selectDate")}
           </p>
           <DayPicker
@@ -627,16 +627,16 @@ export function BookingSection({
             disabled={(date) => !isDateAvailable(date)}
             locale={dateFnsLocale}
             captionLayout="buttons"
-            className="rdp-dark"
+            className="rdp-light"
             classNames={{
               root: "p-0",
               caption: "flex justify-between items-center mb-4",
-              caption_label: "text-sm font-semibold text-slate-200",
+              caption_label: "text-sm font-semibold text-ink-800",
               nav: "flex gap-1",
-              nav_button_previous: "rounded-lg border border-slate-700 bg-slate-800/50 p-2 text-slate-300 hover:bg-slate-700/50",
-              nav_button_next: "rounded-lg border border-slate-700 bg-slate-800/50 p-2 text-slate-300 hover:bg-slate-700/50",
+              nav_button_previous: "rounded-lg border border-ink-200 bg-white p-2 text-ink-600 hover:border-clinical-300 hover:bg-clinical-50",
+              nav_button_next: "rounded-lg border border-ink-200 bg-white p-2 text-ink-600 hover:border-clinical-300 hover:bg-clinical-50",
               month: "w-full",
-              day: "p-0.5 w-9 h-9 rounded-full text-sm font-medium transition focus:outline-none focus:ring-2 focus:ring-emerald-400/60 focus:ring-offset-2 focus:ring-offset-slate-900",
+              day: "p-0.5 w-9 h-9 rounded-full text-sm font-medium transition focus:outline-none focus:ring-2 focus:ring-clinical-400/60 focus:ring-offset-2 focus:ring-offset-white",
             }}
             modifiers={{
               available: availableDates,
@@ -655,23 +655,23 @@ export function BookingSection({
         </div>
 
         {/* Right: time slots (only when date selected) */}
-        <div className="rounded-2xl border border-slate-800/60 bg-slate-950/30 p-4 backdrop-blur-sm">
+        <div className="rounded-2xl border border-ink-200 bg-white p-4 shadow-sm">
           {!selectedDate ? (
             <div className="flex flex-col items-center justify-center py-12 text-center">
-              <p className="text-sm font-medium text-slate-400">
+              <p className="text-sm font-medium text-ink-500">
                 {t("selectDateOnCalendar")}
               </p>
-              <p className="mt-1 text-xs text-slate-500">
+              <p className="mt-1 text-xs text-ink-500">
                 {t("availableTimesHere")}
               </p>
             </div>
           ) : (
             <>
-              <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
+              <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-ink-500">
                 {format(selectedDate, "EEEE, d MMMM", { locale: dateFnsLocale })}
               </p>
               {slotsForSelectedDay.length === 0 ? (
-                <p className="py-6 text-sm text-slate-500">
+                <p className="py-6 text-sm text-ink-500">
                   {t("noAvailableTimesThisDay")}
                 </p>
               ) : (
@@ -683,8 +683,8 @@ export function BookingSection({
                         key={slot.key}
                         className={`rounded-2xl border transition-all duration-200 ${
                           isSelected
-                            ? "border-emerald-400/50 bg-emerald-400/10 shadow-inner"
-                            : "border-slate-800/80 bg-slate-900/50 hover:border-emerald-400/30 hover:bg-emerald-400/5"
+                            ? "border-clinical-400 bg-clinical-50 shadow-sm"
+                            : "border-ink-200 bg-white hover:border-clinical-300 hover:bg-clinical-50/60"
                         }`}
                       >
                         <div className="flex items-center justify-between gap-2 p-3">
@@ -693,10 +693,10 @@ export function BookingSection({
                             onClick={() =>
                               setSelectedSlot(isSelected ? null : slot)
                             }
-                            className="flex flex-1 items-center gap-2 text-left text-sm font-medium text-slate-200"
+                            className="flex flex-1 items-center gap-2 text-left text-sm font-medium text-ink-800"
                           >
                             <span
-                              className="font-mono text-slate-400"
+                              className="font-mono text-ink-600"
                               style={{ minWidth: "3rem" }}
                             >
                               {slot.labelTime}
@@ -709,7 +709,7 @@ export function BookingSection({
                             <button
                               type="button"
                               onClick={() => setShowContactForm(true)}
-                              className="shrink-0 rounded-xl bg-emerald-400 px-4 py-2 text-sm font-semibold text-slate-950 shadow-lg shadow-emerald-500/30 transition hover:bg-emerald-300 focus:outline-none focus:ring-2 focus:ring-emerald-400/50"
+                              className="shrink-0 rounded-xl bg-clinical-500 px-4 py-2 text-sm font-semibold text-white shadow-md transition hover:bg-clinical-400 focus:outline-none focus:ring-2 focus:ring-clinical-400/50"
                             >
                               Confirm
                             </button>

@@ -98,7 +98,7 @@ export function DuplicateNotificationsPanel({
                     type="button"
                     disabled={busy}
                     onClick={() => runAction(item.suggestionId, "merge")}
-                    className="rounded-lg bg-emerald-500/20 px-3 py-1.5 text-xs font-semibold text-emerald-100 ring-1 ring-emerald-500/35 transition hover:bg-emerald-500/30 disabled:opacity-50"
+                    className="rounded-lg bg-clinical-500/20 px-3 py-1.5 text-xs font-semibold text-clinical-100 ring-1 ring-clinical-500/35 transition hover:bg-clinical-500/30 disabled:opacity-50"
                   >
                     Merge & Delete Manual
                   </button>

@@ -20,6 +20,28 @@ export const revalidate = 0;
 
 type PageProps = { params: { id: string }; searchParams?: { confirmed?: string } };
 
+const PRIMARY_BTN_CLASS =
+  "flex w-full items-center justify-center rounded-2xl bg-clinical-500 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-clinical-500/20 transition hover:bg-clinical-400";
+const SECONDARY_BTN_CLASS =
+  "flex w-full items-center justify-center rounded-2xl border border-clinical-400/35 bg-clinical-500/10 px-4 py-3 text-sm font-semibold text-clinical-100 transition hover:border-clinical-400/50 hover:bg-clinical-500/20";
+
+function DoctorAppointmentLinkShell({ children }: { children: React.ReactNode }) {
+  return (
+    <main className="min-h-screen bg-ink-900 text-ink-50">
+      <div className="pointer-events-none fixed inset-0 -z-10">
+        <div className="absolute inset-x-0 top-[-10%] mx-auto h-80 max-w-xl rounded-full bg-clinical-500/10 blur-3xl" />
+        <div className="absolute inset-y-0 left-[-10%] h-full w-64 bg-sky-500/5 blur-3xl" />
+        <div className="absolute inset-y-0 right-[-15%] h-full w-72 bg-clinical-400/10 blur-3xl" />
+      </div>
+      <div className="mx-auto max-w-lg px-4 py-10">
+        <div className="rounded-3xl border border-clinical-100/10 bg-ink-900/70 p-6 shadow-2xl shadow-ink-900/50 backdrop-blur-xl sm:p-8">
+          {children}
+        </div>
+      </div>
+    </main>
+  );
+}
+
 function DoctorLinkStatePanel({
   title,
   description,
@@ -28,29 +50,21 @@ function DoctorLinkStatePanel({
   description: string;
 }) {
   return (
-    <main className="min-h-screen bg-slate-950 px-4 py-10 text-slate-50">
-      <div className="mx-auto max-w-lg rounded-3xl border border-slate-800 bg-slate-900/80 p-6 shadow-xl">
-        <p className="text-xs font-semibold uppercase tracking-wide text-amber-300/90">
-          Link no longer actionable
-        </p>
-        <h1 className="mt-2 text-xl font-semibold text-slate-50">{title}</h1>
-        <p className="mt-3 text-sm text-slate-300">{description}</p>
-        <div className="mt-6 flex flex-col gap-2">
-          <PendingLink
-            href="/agenda"
-            className="flex w-full items-center justify-center rounded-2xl bg-emerald-400 px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-300"
-          >
-            Open agenda
-          </PendingLink>
-          <PendingLink
-            href="/agenda/settings"
-            className="flex w-full items-center justify-center rounded-2xl border border-emerald-300/35 bg-emerald-300/10 px-4 py-3 text-sm font-semibold text-emerald-100 transition hover:bg-emerald-300/20"
-          >
-            Open settings
-          </PendingLink>
-        </div>
+    <DoctorAppointmentLinkShell>
+      <p className="text-xs font-semibold uppercase tracking-wide text-amber-300">
+        Link no longer actionable
+      </p>
+      <h1 className="mt-2 text-xl font-semibold text-ink-50">{title}</h1>
+      <p className="mt-3 text-sm leading-relaxed text-ink-300">{description}</p>
+      <div className="mt-6 flex flex-col gap-2">
+        <PendingLink href="/agenda" className={PRIMARY_BTN_CLASS}>
+          Open agenda
+        </PendingLink>
+        <PendingLink href="/agenda/settings" className={SECONDARY_BTN_CLASS}>
+          Open settings
+        </PendingLink>
       </div>
-    </main>
+    </DoctorAppointmentLinkShell>
   );
 }
 
@@ -184,45 +198,40 @@ export default async function DashboardAppointmentDetailPage({
     const slotCount = Array.isArray(rawSlots) ? rawSlots.length : 0;
 
     return (
-      <main className="min-h-screen bg-slate-950 px-4 py-10 text-slate-50">
-        <div className="mx-auto max-w-lg rounded-3xl border border-slate-800 bg-slate-900/80 p-6 shadow-xl">
-          <p className="text-xs font-semibold uppercase tracking-wide text-amber-300/90">
-            Awaiting patient
-          </p>
-          <h1 className="mt-2 text-xl font-semibold text-slate-50">Hi {greet}</h1>
-          <p className="mt-3 text-sm text-slate-300">
-            {patientName} has been sent a link to choose among{" "}
-            {slotCount > 0 ? `${slotCount} proposed times` : "proposed times"}.
-            {expLabel ? (
-              <>
-                {" "}
-                They should respond before{" "}
-                <span className="font-medium text-amber-100/95">{expLabel}</span> (Cyprus time).
-              </>
-            ) : null}
-          </p>
-          <dl className="mt-6 space-y-3 text-sm">
-            <div>
-              <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">
-                Original request
-              </dt>
-              <dd className="mt-0.5 text-slate-100">
-                {dateStr} · {timeStr} (Cyprus time)
-              </dd>
-            </div>
-            <div>
-              <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">Reason</dt>
-              <dd className="mt-0.5 whitespace-pre-wrap text-slate-200">{reason || "—"}</dd>
-            </div>
-          </dl>
-          <PendingLink
-            href="/agenda"
-            className="mt-8 flex w-full items-center justify-center rounded-2xl bg-emerald-400 px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-300"
-          >
-            Open agenda
-          </PendingLink>
-        </div>
-      </main>
+      <DoctorAppointmentLinkShell>
+        <p className="text-xs font-semibold uppercase tracking-wide text-amber-300">
+          Awaiting patient
+        </p>
+        <h1 className="mt-2 text-xl font-semibold text-ink-50">Hi {greet}</h1>
+        <p className="mt-3 text-sm leading-relaxed text-ink-300">
+          {patientName} has been sent a link to choose among{" "}
+          {slotCount > 0 ? `${slotCount} proposed times` : "proposed times"}.
+          {expLabel ? (
+            <>
+              {" "}
+              They should respond before{" "}
+              <span className="font-medium text-amber-200">{expLabel}</span> (Cyprus time).
+            </>
+          ) : null}
+        </p>
+        <dl className="mt-6 space-y-3 text-sm">
+          <div>
+            <dt className="text-xs font-medium uppercase tracking-wide text-ink-500">
+              Original request
+            </dt>
+            <dd className="mt-0.5 text-ink-100">
+              {dateStr} · {timeStr} (Cyprus time)
+            </dd>
+          </div>
+          <div>
+            <dt className="text-xs font-medium uppercase tracking-wide text-ink-500">Reason</dt>
+            <dd className="mt-0.5 whitespace-pre-wrap text-ink-200">{reason || "—"}</dd>
+          </div>
+        </dl>
+        <PendingLink href="/agenda" className={`mt-8 ${PRIMARY_BTN_CLASS}`}>
+          Open agenda
+        </PendingLink>
+      </DoctorAppointmentLinkShell>
     );
   }
 
@@ -234,9 +243,8 @@ export default async function DashboardAppointmentDetailPage({
       status,
     });
     return (
-      <main className="min-h-screen bg-slate-950 px-4 py-10 text-slate-50">
-        <div className="mx-auto max-w-lg rounded-3xl border border-slate-800 bg-slate-900/80 p-6 shadow-xl">
-          <AppointmentReviewClient
+      <DoctorAppointmentLinkShell>
+        <AppointmentReviewClient
             appointmentId={appt.id as string}
             appointmentDatetimeIso={appt.appointment_datetime as string}
             professionalFirstName={greet}
@@ -246,9 +254,8 @@ export default async function DashboardAppointmentDetailPage({
             reason={reason}
             initialDurationMinutes={initialDurationMinutes}
             scheduleForReview={scheduleForReview}
-          />
-        </div>
-      </main>
+        />
+      </DoctorAppointmentLinkShell>
     );
   }
 
@@ -262,13 +269,12 @@ export default async function DashboardAppointmentDetailPage({
   }
 
   return (
-    <main className="min-h-screen bg-slate-950 px-4 py-10 text-slate-50">
-      <div className="mx-auto max-w-lg rounded-3xl border border-slate-800 bg-slate-900/80 p-6 shadow-xl">
-        <p className="text-xs font-semibold uppercase tracking-wide text-emerald-300/90">
-          {justConfirmed ? "Appointment confirmed" : "Appointment"}
-        </p>
-        <h1 className="mt-2 text-xl font-semibold text-slate-50">Hi {greet}</h1>
-        <p className="mt-3 text-sm text-slate-300">
+    <DoctorAppointmentLinkShell>
+      <p className="text-xs font-semibold uppercase tracking-wide text-clinical-300">
+        {justConfirmed ? "Appointment confirmed" : "Appointment"}
+      </p>
+      <h1 className="mt-2 text-xl font-semibold text-ink-50">Hi {greet}</h1>
+      <p className="mt-3 text-sm leading-relaxed text-ink-300">
           {status === "CONFIRMED" && justConfirmed
             ? "Confirmed in DocCy. Manage all updates in DocCy in a few clicks. Google Calendar is only an optional reminder and does not sync changes."
             : status === "CONFIRMED"
@@ -283,14 +289,11 @@ export default async function DashboardAppointmentDetailPage({
               href={googleCalendarUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex w-full items-center justify-center rounded-2xl bg-emerald-400 px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-300"
+              className={PRIMARY_BTN_CLASS}
             >
               Add to Google Calendar
             </a>
-            <a
-              href={doctorIcsUrl}
-              className="flex w-full items-center justify-center rounded-2xl border border-emerald-300/35 bg-emerald-300/10 px-4 py-3 text-sm font-semibold text-emerald-100 transition hover:bg-emerald-300/20"
-            >
+            <a href={doctorIcsUrl} className={SECONDARY_BTN_CLASS}>
               Add to Apple / Outlook (.ics)
             </a>
           </div>
@@ -298,40 +301,39 @@ export default async function DashboardAppointmentDetailPage({
 
         <dl className="mt-6 space-y-3 text-sm">
           <div>
-            <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">Patient</dt>
-            <dd className="mt-0.5 text-slate-100">{patientName}</dd>
+            <dt className="text-xs font-medium uppercase tracking-wide text-ink-500">Patient</dt>
+            <dd className="mt-0.5 text-ink-100">{patientName}</dd>
           </div>
           <div>
-            <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">When</dt>
-            <dd className="mt-0.5 text-slate-100">
+            <dt className="text-xs font-medium uppercase tracking-wide text-ink-500">When</dt>
+            <dd className="mt-0.5 text-ink-100">
               {dateStr} · {timeStr} (Cyprus time)
             </dd>
           </div>
           <div>
-            <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">Status</dt>
-            <dd className="mt-0.5 text-slate-100">{status}</dd>
+            <dt className="text-xs font-medium uppercase tracking-wide text-ink-500">Status</dt>
+            <dd className="mt-0.5 text-ink-100">{status}</dd>
           </div>
           {status === "CONFIRMED" ? (
             <div>
-              <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">
+              <dt className="text-xs font-medium uppercase tracking-wide text-ink-500">
                 Duration
               </dt>
-              <dd className="mt-0.5 text-slate-100">{initialDurationMinutes} minutes</dd>
+              <dd className="mt-0.5 text-ink-100">{initialDurationMinutes} minutes</dd>
             </div>
           ) : null}
           <div>
-            <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">Reason</dt>
-            <dd className="mt-0.5 whitespace-pre-wrap text-slate-200">{reason || "—"}</dd>
+            <dt className="text-xs font-medium uppercase tracking-wide text-ink-500">Reason</dt>
+            <dd className="mt-0.5 whitespace-pre-wrap text-ink-200">{reason || "—"}</dd>
           </div>
         </dl>
 
         <PendingLink
           href={`/agenda?date=${agendaDateKey}`}
-          className="mt-8 flex w-full items-center justify-center rounded-2xl px-3 py-2 text-sm font-medium text-slate-500 transition hover:bg-slate-800/60 hover:text-emerald-200"
+          className="mt-8 flex w-full items-center justify-center rounded-2xl px-3 py-2 text-sm font-medium text-ink-500 transition hover:bg-clinical-500/10 hover:text-clinical-200"
         >
           Open that day in agenda
         </PendingLink>
-      </div>
-    </main>
+    </DoctorAppointmentLinkShell>
   );
 }

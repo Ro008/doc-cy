@@ -12,15 +12,21 @@ import {
   getCalendarEventDetails,
 } from "@/lib/patient-calendar-event";
 import { phoneToWaMeLink } from "@/lib/whatsapp";
+import {
+  EMAIL_CAL_GOOGLE_BTN,
+  EMAIL_CAL_ICS_BTN,
+  EMAIL_SECTION_LABEL,
+  EMAIL_SHELL_CLOSE,
+  EMAIL_SHELL_OPEN,
+  EMAIL_TEXT,
+  EMAIL_HEADING,
+} from "@/lib/email-brand";
 
-const CAL_GOOGLE_STYLE =
-  "display:block;text-align:center;background:#34d399;color:#022c22;text-decoration:none;font-weight:700;padding:12px 14px;border-radius:12px;margin:0 0 10px;font-size:15px;";
-const CAL_ICS_STYLE =
-  "display:block;text-align:center;background:rgba(52,211,153,.14);color:#a7f3d0;text-decoration:none;font-weight:700;padding:12px 14px;border-radius:12px;border:1px solid rgba(52,211,153,.35);font-size:15px;";
+const CAL_GOOGLE_STYLE = EMAIL_CAL_GOOGLE_BTN;
+const CAL_ICS_STYLE = EMAIL_CAL_ICS_BTN;
 const WHATSAPP_CTA_STYLE =
   "display:block;text-align:center;background:#25D366;color:#ffffff;text-decoration:none;font-weight:700;padding:14px 16px;border-radius:12px;margin:0 0 12px;font-size:15px;";
-const PRIMARY_ACTIONS_LABEL =
-  "margin:18px 0 10px;font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#94a3b8;";
+const PRIMARY_ACTIONS_LABEL = EMAIL_SECTION_LABEL;
 
 type DoctorPayload = {
   name?: string | null;
@@ -136,13 +142,12 @@ export function buildPatientAppointmentConfirmedEmailContent(opts: {
   text += `---\n${AUTOMATED_EMAIL_FOOTER_TEXT}`;
 
   const html = `
-<div style="margin:0;padding:20px;background:#020617;color:#e2e8f0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
-  <div style="max-width:560px;margin:0 auto;background:#0f172a;border:1px solid rgba(148,163,184,.2);border-radius:16px;padding:22px;">
-    <h2 style="margin:0 0 12px;font-size:20px;line-height:1.3;color:#f8fafc;">
+${EMAIL_SHELL_OPEN}
+    <h2 style="margin:0 0 12px;font-size:20px;line-height:1.3;color:${EMAIL_HEADING};">
       ${isAfterReschedule ? "Appointment re-confirmed (rescheduled)" : "Appointment confirmed"}
     </h2>
-    <p style="margin:0 0 10px;font-size:15px;line-height:1.6;color:#e2e8f0;">Hi ${escapeHtml(patientName)},</p>
-    <p style="margin:0 0 10px;font-size:15px;line-height:1.6;color:#e2e8f0;">
+    <p style="margin:0 0 10px;font-size:15px;line-height:1.6;color:${EMAIL_TEXT};">Hi ${escapeHtml(patientName)},</p>
+    <p style="margin:0 0 10px;font-size:15px;line-height:1.6;color:${EMAIL_TEXT};">
       Your appointment with <strong>${escapeHtml(doctorName)}</strong> is confirmed for
       <strong>${escapeHtml(whenLabel)}</strong> (Cyprus time). You can add it to your calendar below.
     </p>
@@ -172,8 +177,7 @@ export function buildPatientAppointmentConfirmedEmailContent(opts: {
     }
 
     ${automatedEmailFooterHtml()}
-  </div>
-</div>`;
+${EMAIL_SHELL_CLOSE}`;
 
   return {
     subject: isAfterReschedule

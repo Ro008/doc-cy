@@ -33,7 +33,7 @@ function statusBadge(daysRemaining: number): { label: string; className: string 
   }
   return {
     label: "Trial Active",
-    className: "border border-emerald-500/40 bg-emerald-500/15 text-emerald-200",
+    className: "border border-clinical-500/40 bg-clinical-500/15 text-clinical-200",
   };
 }
 

@@ -24,7 +24,7 @@ export function AnalyticsVisitsRangeTabs({ activeRange, rangeOptions }: Props) {
             onClick={() => navigate(option.href)}
             className={`min-h-[40px] flex-1 rounded-md px-2.5 py-2 text-xs font-medium transition sm:min-h-0 sm:flex-none sm:py-1 ${
               isActive
-                ? "bg-emerald-500/20 text-emerald-200"
+                ? "bg-clinical-500/20 text-clinical-200"
                 : "text-slate-400 hover:text-slate-200 active:bg-slate-800/60"
             }`}
           >

@@ -439,33 +439,33 @@ export default function RegisterPage({ searchParams }: PageProps) {
   }
 
   return (
-    <main className="min-h-screen bg-slate-950 text-slate-50">
+    <main className="min-h-screen bg-ink-900 text-slate-50">
       <div className="pointer-events-none fixed inset-0 -z-10">
-        <div className="absolute inset-x-0 top-[-10%] mx-auto h-80 max-w-xl rounded-full bg-emerald-500/10 blur-3xl" />
+        <div className="absolute inset-x-0 top-[-10%] mx-auto h-80 max-w-xl rounded-full bg-clinical-500/10 blur-3xl" />
         <div className="absolute inset-y-0 left-[-10%] h-full w-64 bg-sky-500/5 blur-3xl" />
-        <div className="absolute inset-y-0 right-[-15%] h-full w-72 bg-emerald-400/10 blur-3xl" />
+        <div className="absolute inset-y-0 right-[-15%] h-full w-72 bg-clinical-400/10 blur-3xl" />
       </div>
 
       <div className="mx-auto flex min-h-screen max-w-3xl flex-col px-4 py-10 sm:px-6 lg:px-8 lg:py-14">
         <header className="mb-8">
-          <p className="text-xs font-semibold tracking-[0.2em] text-emerald-200/80">
-            Doc<span className="text-emerald-400">Cy</span> · Professional signup
+          <p className="text-xs font-semibold tracking-[0.2em] text-clinical-200/80">
+            Doc<span className="text-clinical-400">Cy</span> · Professional signup
           </p>
           <h1 className="mt-3 text-balance text-3xl font-semibold tracking-tight text-slate-50 sm:text-4xl">
             Create your professional profile
           </h1>
           <p className="mt-2 max-w-xl text-sm text-slate-300 sm:text-base">
-            Join Doc<span className="text-emerald-400">Cy</span> and modernise
+            Join Doc<span className="text-clinical-400">Cy</span> and modernise
             your clinic&apos;s patient experience with smart scheduling and
             automated notifications.
           </p>
         </header>
 
-        <section className="rounded-3xl border border-emerald-100/10 bg-slate-900/60 p-5 shadow-2xl shadow-slate-950/50 backdrop-blur-xl sm:p-6">
+        <section className="rounded-3xl border border-clinical-100/10 bg-slate-900/60 p-5 shadow-2xl shadow-ink-900/50 backdrop-blur-xl sm:p-6">
           {submitted ? (
             <div className="space-y-4 text-sm text-slate-200">
-              <div className="inline-flex items-center gap-2 rounded-full border border-emerald-400/30 bg-emerald-400/10 px-3 py-1 text-[11px] font-medium tracking-[0.25em] text-emerald-200">
-                <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400" />
+              <div className="inline-flex items-center gap-2 rounded-full border border-clinical-400/30 bg-clinical-400/10 px-3 py-1 text-[11px] font-medium tracking-[0.25em] text-clinical-200">
+                <span className="inline-block h-1.5 w-1.5 rounded-full bg-clinical-400" />
                 APPLICATION RECEIVED
               </div>
               <h2 className="text-lg font-semibold text-slate-50 sm:text-xl">
@@ -473,8 +473,8 @@ export default function RegisterPage({ searchParams }: PageProps) {
               </h2>
               <p className="text-sm text-slate-300">
                 Our team will verify your professional credentials and activate your
-                Doc<span className="text-emerald-400">Cy</span> profile within{" "}
-                <span className="font-medium text-emerald-200">24 hours</span>.
+                Doc<span className="text-clinical-400">Cy</span> profile within{" "}
+                <span className="font-medium text-clinical-200">24 hours</span>.
               </p>
               <p className="text-sm text-slate-300">
                 Once approved, you&apos;ll receive an email with a secure link
@@ -503,7 +503,7 @@ export default function RegisterPage({ searchParams }: PageProps) {
                     <input
                       name="fullName"
                       required
-                      className="mt-1 w-full rounded-2xl border border-slate-700 bg-slate-900/60 px-3 py-2 text-sm text-slate-100 shadow-sm outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/40"
+                      className="mt-1 w-full rounded-2xl border border-slate-700 bg-slate-900/60 px-3 py-2 text-sm text-slate-100 shadow-sm outline-none transition focus:border-clinical-400 focus:ring-2 focus:ring-clinical-400/40"
                     />
                   </label>
                   <p className="field-hint mt-1 hidden text-xs text-red-300 group-data-[invalid=1]:block">
@@ -521,7 +521,7 @@ export default function RegisterPage({ searchParams }: PageProps) {
                       required
                       pattern="[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}"
                       title="Use a valid email. '+' aliases are supported (e.g. rociosirvent+test@gmail.com)."
-                      className="mt-1 w-full rounded-2xl border border-slate-700 bg-slate-900/60 px-3 py-2 text-sm text-slate-100 shadow-sm outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/40"
+                      className="mt-1 w-full rounded-2xl border border-slate-700 bg-slate-900/60 px-3 py-2 text-sm text-slate-100 shadow-sm outline-none transition focus:border-clinical-400 focus:ring-2 focus:ring-clinical-400/40"
                     />
                   </label>
                   <p className="field-hint mt-1 hidden text-xs text-red-300 group-data-[invalid=1]:block">
@@ -550,7 +550,7 @@ export default function RegisterPage({ searchParams }: PageProps) {
                       name="phone"
                       required
                       placeholder="+357..."
-                      className="mt-1 w-full rounded-2xl border border-slate-700 bg-slate-900/60 px-3 py-2 text-sm text-slate-100 shadow-sm outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/40"
+                      className="mt-1 w-full rounded-2xl border border-slate-700 bg-slate-900/60 px-3 py-2 text-sm text-slate-100 shadow-sm outline-none transition focus:border-clinical-400 focus:ring-2 focus:ring-clinical-400/40"
                     />
                   </label>
                   <p className="field-hint mt-1 hidden text-xs text-red-300 group-data-[invalid=1]:block">
@@ -564,7 +564,7 @@ export default function RegisterPage({ searchParams }: PageProps) {
                       name="district"
                       required
                       defaultValue=""
-                      className="mt-1 w-full rounded-2xl border border-slate-700 bg-slate-900/60 px-3 py-2 text-sm text-slate-100 shadow-sm outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/40"
+                      className="mt-1 w-full rounded-2xl border border-slate-700 bg-slate-900/60 px-3 py-2 text-sm text-slate-100 shadow-sm outline-none transition focus:border-clinical-400 focus:ring-2 focus:ring-clinical-400/40"
                     >
                       <option value="" disabled>
                         Select district
@@ -593,7 +593,7 @@ export default function RegisterPage({ searchParams }: PageProps) {
                       name="licenseNumber"
                       required
                       autoComplete="off"
-                      className="mt-1 w-full rounded-2xl border border-slate-700 bg-slate-900/60 px-3 py-2 text-sm text-slate-100 shadow-sm outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/40"
+                      className="mt-1 w-full rounded-2xl border border-slate-700 bg-slate-900/60 px-3 py-2 text-sm text-slate-100 shadow-sm outline-none transition focus:border-clinical-400 focus:ring-2 focus:ring-clinical-400/40"
                     />
                   </label>
                   <p className="field-hint mt-1 hidden text-xs text-red-300 group-data-[invalid=1]:block">
@@ -609,7 +609,7 @@ export default function RegisterPage({ searchParams }: PageProps) {
                     name="professionalDisclaimer"
                     value="on"
                     required
-                    className="mt-1 h-4 w-4 shrink-0 rounded border-slate-600 bg-slate-900 text-emerald-500 focus:ring-emerald-400/50"
+                    className="mt-1 h-4 w-4 shrink-0 rounded border-slate-600 bg-slate-900 text-clinical-500 focus:ring-clinical-400/50"
                   />
                   <span className="text-xs leading-relaxed text-slate-300">
                     I confirm I am a qualified health or wellness professional. I accept that
@@ -637,7 +637,7 @@ export default function RegisterPage({ searchParams }: PageProps) {
                 </p>
                 <button
                   type="submit"
-                  className="inline-flex items-center justify-center rounded-2xl bg-emerald-400 px-6 py-2.5 text-sm font-semibold text-slate-950 shadow-lg shadow-emerald-500/30 transition hover:bg-emerald-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
+                  className="inline-flex items-center justify-center rounded-2xl bg-clinical-400 px-6 py-2.5 text-sm font-semibold text-slate-950 shadow-lg shadow-clinical-500/30 transition hover:bg-clinical-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-400 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-900"
                 >
                   Submit application
                 </button>

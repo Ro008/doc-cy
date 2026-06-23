@@ -680,21 +680,20 @@ export default async function DoctorPage({ params }: PageProps) {
     profileDistrictLabel ?? t("profileHeadingCityFallback");
 
   return (
-    <main className="min-h-screen bg-slate-950 text-slate-50">
+    <main className="min-h-screen bg-ink-50 text-ink-800">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
       />
-      {/* Background gradient / glow (consistent with landing) */}
       <div className="pointer-events-none fixed inset-0 -z-10">
-        <div className="absolute inset-x-0 top-[-10%] mx-auto h-80 max-w-xl rounded-full bg-emerald-500/10 blur-3xl" />
-        <div className="absolute inset-y-0 left-[-10%] h-full w-64 bg-sky-500/5 blur-3xl" />
-        <div className="absolute inset-y-0 right-[-15%] h-full w-72 bg-emerald-400/10 blur-3xl" />
+        <div className="absolute inset-x-0 top-[-10%] mx-auto h-80 max-w-xl rounded-full bg-clinical-100/80 blur-3xl" />
+        <div className="absolute inset-y-0 left-[-10%] h-full w-64 bg-wellness-50/80 blur-3xl" />
+        <div className="absolute inset-y-0 right-[-15%] h-full w-72 bg-clinical-50 blur-3xl" />
       </div>
 
       <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8 lg:py-14">
         {isOwnerView ? (
-          <div className="mb-6 rounded-2xl border border-emerald-300/35 bg-emerald-400/12 px-4 py-3 text-sm text-emerald-100">
+          <div className="mb-6 rounded-2xl border border-clinical-200 bg-clinical-50 px-4 py-3 text-sm text-clinical-800">
             You are viewing your public profile.{" "}
             <a href="/agenda/settings" className="font-semibold underline underline-offset-2">
               Edit Profile
@@ -708,16 +707,16 @@ export default async function DoctorPage({ params }: PageProps) {
                 href="/finder"
                 className="inline-flex transition hover:opacity-90"
               >
-                <DocCyWordmark />
+                <DocCyWordmark variant="light" />
               </a>
-              <span className="text-xs font-semibold tracking-[0.16em] text-emerald-200/80">
+              <span className="text-xs font-semibold tracking-[0.16em] text-ink-500">
                 · {t("profileTag")}
               </span>
             </div>
-            <LanguageSwitcher compact />
+            <LanguageSwitcher compact variant="light" />
           </div>
           <div className="flex items-start gap-5">
-            <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-2xl border-2 border-emerald-400/30 shadow-lg shadow-slate-950/50 sm:h-28 sm:w-28">
+            <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-2xl border-2 border-clinical-200 shadow-lg shadow-ink-900/10 sm:h-28 sm:w-28">
               <Image
                 src={avatarUrl}
                 alt=""
@@ -730,17 +729,17 @@ export default async function DoctorPage({ params }: PageProps) {
             <div className="min-w-0 flex-1">
               <h1 className="text-balance leading-tight">
                 <span className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
-                  <span className="text-3xl font-semibold tracking-tight text-slate-50 sm:text-4xl">
+                  <span className="text-3xl font-semibold tracking-tight text-ink-900 sm:text-4xl">
                     {profile.name}
                   </span>
                   {profile.is_gesy ? (
                     <GesyProviderBadge size="xs" className="shrink-0" />
                   ) : null}
                 </span>
-                <span className="mt-1.5 block text-base font-medium capitalize tracking-wide text-emerald-200/95 sm:text-lg">
+                <span className="mt-1.5 block text-base font-medium capitalize tracking-wide text-clinical-700 sm:text-lg">
                   {profile.specialty}
                 </span>
-                <span className="mt-1 block text-base font-medium tracking-wide text-slate-300 sm:text-lg">
+                <span className="mt-1 block text-base font-medium tracking-wide text-ink-500 sm:text-lg">
                   {profileHeadingCity}
                 </span>
               </h1>

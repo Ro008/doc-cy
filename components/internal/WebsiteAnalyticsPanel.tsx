@@ -37,8 +37,8 @@ export function WebsiteAnalyticsPanel({
       </div>
 
       <div className="grid gap-4">
-        <div className="rounded-xl border border-emerald-500/35 bg-emerald-950/20 p-4">
-          <p className="text-[11px] uppercase tracking-[0.18em] text-emerald-400/90">
+        <div className="rounded-xl border border-clinical-500/35 bg-clinical-900/20 p-4">
+          <p className="text-[11px] uppercase tracking-[0.18em] text-clinical-400/90">
             Business card (QR scan)
           </p>
           <p className="mt-2 text-3xl font-semibold text-white">{businessCardVisitsCount}</p>
@@ -108,7 +108,7 @@ export function WebsiteAnalyticsPanel({
           href="https://vercel.com/ros-projects-36c82793/doc-cy/analytics?environment=all"
           target="_blank"
           rel="noreferrer"
-          className="inline-flex items-center rounded-lg border border-slate-700 bg-slate-950/50 px-3 py-2 text-xs font-medium text-emerald-300 transition hover:border-emerald-500/50 hover:text-emerald-200"
+          className="inline-flex items-center rounded-lg border border-slate-700 bg-slate-950/50 px-3 py-2 text-xs font-medium text-clinical-300 transition hover:border-clinical-500/50 hover:text-clinical-200"
         >
           Open Vercel Analytics dashboard
         </a>
@@ -116,7 +116,7 @@ export function WebsiteAnalyticsPanel({
           href="https://search.google.com/search-console?resource_id=https%3A%2F%2Fmydoccy.com%2F"
           target="_blank"
           rel="noreferrer"
-          className="inline-flex items-center rounded-lg border border-slate-700 bg-slate-950/50 px-3 py-2 text-xs font-medium text-emerald-300 transition hover:border-emerald-500/50 hover:text-emerald-200"
+          className="inline-flex items-center rounded-lg border border-slate-700 bg-slate-950/50 px-3 py-2 text-xs font-medium text-clinical-300 transition hover:border-clinical-500/50 hover:text-clinical-200"
         >
           Open Google Search Console
         </a>

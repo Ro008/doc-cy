@@ -8,9 +8,16 @@ import {
   escapeHtml,
 } from "@/lib/resend";
 import { professionalFirstName } from "@/lib/professional-name";
+import {
+  EMAIL_HEADING,
+  EMAIL_PRIMARY_BTN,
+  EMAIL_SHELL_CLOSE,
+  EMAIL_SHELL_OPEN,
+  EMAIL_TEXT,
+  EMAIL_TEXT_MUTED,
+} from "@/lib/email-brand";
 
-const PRIMARY_BTN =
-  "display:block;text-align:center;background:#34d399;color:#022c22;text-decoration:none;font-weight:700;padding:14px 16px;border-radius:12px;margin:0 0 12px;font-size:15px;";
+const PRIMARY_BTN = EMAIL_PRIMARY_BTN;
 
 /**
  * Patient had a confirmed visit; the professional cancelled it and must explain why.
@@ -62,21 +69,19 @@ export async function sendPatientConfirmedAppointmentCancelledEmail(opts: {
     `---\n${AUTOMATED_EMAIL_FOOTER_TEXT}`;
 
   const html = `
-<div style="margin:0;padding:20px;background:#020617;color:#e2e8f0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
-  <div style="max-width:560px;margin:0 auto;background:#0f172a;border:1px solid rgba(148,163,184,.2);border-radius:16px;padding:22px;">
-    <h2 style="margin:0 0 12px;font-size:20px;line-height:1.3;color:#f8fafc;">Appointment cancelled</h2>
-    <p style="margin:0 0 10px;font-size:15px;line-height:1.6;color:#e2e8f0;">Hi ${escapeHtml(patientName.split(/\s+/)[0] ?? patientName)},</p>
-    <p style="margin:0 0 10px;font-size:15px;line-height:1.6;color:#e2e8f0;">
+${EMAIL_SHELL_OPEN}
+    <h2 style="margin:0 0 12px;font-size:20px;line-height:1.3;color:${EMAIL_HEADING};">Appointment cancelled</h2>
+    <p style="margin:0 0 10px;font-size:15px;line-height:1.6;color:${EMAIL_TEXT};">Hi ${escapeHtml(patientName.split(/\s+/)[0] ?? patientName)},</p>
+    <p style="margin:0 0 10px;font-size:15px;line-height:1.6;color:${EMAIL_TEXT};">
       Your confirmed visit with <strong>${escapeHtml(proFirst)}</strong> on
       <strong>${escapeHtml(whenLabel)}</strong> (Cyprus time) has been cancelled.
     </p>
-    <p style="margin:0 0 6px;font-size:13px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#94a3b8;">Message from the clinic</p>
-    <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#e2e8f0;white-space:pre-wrap;">${escapeHtml(cancelReason)}</p>
+    <p style="margin:0 0 6px;font-size:13px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:${EMAIL_TEXT_MUTED};">Message from the clinic</p>
+    <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:${EMAIL_TEXT};white-space:pre-wrap;">${escapeHtml(cancelReason)}</p>
     <a href="${escapeHtml(bookAgainUrl)}" style="${PRIMARY_BTN}">Book again on DocCy</a>
-    <p style="margin:0;font-size:13px;line-height:1.5;color:#94a3b8;">If the button does not work, copy this link: ${escapeHtml(bookAgainUrl)}</p>
+    <p style="margin:0;font-size:13px;line-height:1.5;color:${EMAIL_TEXT_MUTED};">If the button does not work, copy this link: ${escapeHtml(bookAgainUrl)}</p>
     ${automatedEmailFooterHtml()}
-  </div>
-</div>`;
+${EMAIL_SHELL_CLOSE}`;
 
   await sendResendEmail({
     to: recipient,

@@ -122,18 +122,18 @@ export default async function BookingSuccessPage({
 
   const accent = confirmed ? "emerald" : "amber";
   const accentBorder =
-    accent === "emerald" ? "border-emerald-200/20" : "border-amber-200/20";
+    accent === "emerald" ? "border-clinical-200" : "border-amber-200";
   const accentShadow =
     accent === "emerald"
-      ? "shadow-emerald-500/10"
+      ? "shadow-clinical-500/10"
       : "shadow-amber-500/10";
   const blurTop =
-    accent === "emerald" ? "bg-emerald-500/10" : "bg-amber-500/10";
+    accent === "emerald" ? "bg-clinical-500/10" : "bg-amber-500/10";
   const blurSide =
-    accent === "emerald" ? "bg-emerald-400/10" : "bg-amber-400/10";
+    accent === "emerald" ? "bg-clinical-400/10" : "bg-amber-400/10";
 
   return (
-    <main className="min-h-screen bg-slate-950 text-slate-50">
+    <main className="min-h-screen bg-ink-50 text-ink-800">
       <div className="pointer-events-none fixed inset-0 -z-10">
         <div
           className={`absolute inset-x-0 top-[-10%] mx-auto h-80 max-w-xl rounded-full ${blurTop} blur-3xl`}
@@ -148,20 +148,20 @@ export default async function BookingSuccessPage({
         <section
           data-testid="booking-request-sent-page"
           data-appointment-id={appointmentId}
-          className={`rounded-3xl border ${accentBorder} bg-slate-900/60 p-8 shadow-2xl ${accentShadow} backdrop-blur-xl sm:p-10`}
+          className={`rounded-3xl border ${accentBorder} bg-white p-8 shadow-[0_1px_3px_rgba(26,43,60,0.06),0_8px_24px_rgba(11,123,181,0.08)] sm:p-10`}
         >
           <div className="flex flex-col items-center text-center">
             <div className="relative">
               <div
                 className={
                   confirmed
-                    ? "absolute inset-0 scale-150 rounded-full bg-emerald-400/20 blur-2xl"
+                    ? "absolute inset-0 scale-150 rounded-full bg-clinical-400/20 blur-2xl"
                     : "absolute inset-0 scale-150 rounded-full bg-amber-400/20 blur-2xl"
                 }
               />
               {confirmed ? (
                 <CheckCircle2
-                  className="relative h-20 w-20 text-emerald-400 sm:h-24 sm:w-24"
+                  className="relative h-20 w-20 text-clinical-400 sm:h-24 sm:w-24"
                   strokeWidth={1.5}
                   aria-hidden
                 />
@@ -174,33 +174,33 @@ export default async function BookingSuccessPage({
               )}
             </div>
 
-            <h1 className="mt-6 text-2xl font-bold tracking-tight text-slate-50 sm:text-3xl">
+            <h1 className="mt-6 text-2xl font-bold tracking-tight text-ink-900 sm:text-3xl">
               {confirmed
                 ? t("appointmentConfirmedTitle")
                 : t("requestPendingTitle")}
             </h1>
 
-            <p className="mt-3 max-w-md text-sm leading-relaxed text-slate-300">
+            <p className="mt-3 max-w-md text-sm leading-relaxed text-ink-600">
               {confirmed
                 ? t("appointmentConfirmedMessage", { doctorName: doctor.name })
                 : t("requestPendingMessage", { doctorName: doctor.name })}
             </p>
 
-            <div className="mt-6 w-full max-w-md rounded-2xl border border-slate-800/70 bg-slate-950/30 px-4 py-4 text-left">
+            <div className="mt-6 w-full max-w-md rounded-2xl border border-ink-200 bg-ink-50 px-4 py-4 text-left">
               <div className="flex items-center justify-between gap-4">
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-ink-400">
                     {t("appointmentProfessionalLabel")}
                   </p>
-                  <p className="mt-1 text-sm font-medium text-slate-100">
+                  <p className="mt-1 text-sm font-medium text-ink-800">
                     {doctor.name}
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-ink-400">
                     {t("appointmentDateLabel")}
                   </p>
-                  <p className="mt-1 text-sm font-medium text-slate-100">
+                  <p className="mt-1 text-sm font-medium text-ink-800">
                     {dateLabel}
                   </p>
                 </div>
@@ -208,25 +208,25 @@ export default async function BookingSuccessPage({
 
               <div className="mt-4 flex items-center justify-between gap-4">
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-ink-400">
                     {t("appointmentTimeLabel")}
                   </p>
-                  <p className="mt-1 text-sm font-medium text-slate-100">
+                  <p className="mt-1 text-sm font-medium text-ink-800">
                     {timeLabel}{" "}
-                    <span className="text-slate-400">
+                    <span className="text-ink-400">
                       {t("cyprusTimeInParentheses")}
                     </span>
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-ink-400">
                     {t("appointmentStatusLabel")}
                   </p>
                   <p
                     className={
                       confirmed
-                        ? "mt-1 text-sm font-medium text-emerald-200"
-                        : "mt-1 text-sm font-medium text-amber-200"
+                        ? "mt-1 text-sm font-medium text-wellness-700"
+                        : "mt-1 text-sm font-medium text-amber-800"
                     }
                   >
                     {confirmed
@@ -243,7 +243,7 @@ export default async function BookingSuccessPage({
                   href={googleUrl}
                   target="_blank"
                   rel="noreferrer"
-                  className="flex items-center justify-center gap-2 rounded-2xl bg-emerald-400 px-4 py-2.5 text-sm font-semibold text-slate-950 shadow-lg shadow-emerald-500/30 transition hover:bg-emerald-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
+                  className="flex items-center justify-center gap-2 rounded-2xl bg-clinical-500 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-clinical-500/20 transition hover:bg-clinical-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-400/50 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-50"
                 >
                   <CalendarPlus className="h-4 w-4" aria-hidden />
                   {t("addToGoogleLabel")}
@@ -251,13 +251,13 @@ export default async function BookingSuccessPage({
 
                 <a
                   href={`/api/appointments/${encodeURIComponent(appointmentId)}/calendar`}
-                  className="flex items-center justify-center gap-2 rounded-2xl border border-emerald-400/40 bg-emerald-400/10 px-4 py-2.5 text-sm font-semibold text-emerald-200 shadow-lg shadow-emerald-500/10 transition hover:border-emerald-400/60 hover:bg-emerald-400/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
+                  className="flex items-center justify-center gap-2 rounded-2xl border border-clinical-300 bg-clinical-50 px-4 py-2.5 text-sm font-semibold text-clinical-800 shadow-sm transition hover:border-clinical-400 hover:bg-clinical-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-400/50 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-50"
                 >
                   {t("downloadIcsLabel")}
                 </a>
               </div>
             ) : (
-              <p className="mt-8 max-w-md text-center text-sm text-slate-400">
+              <p className="mt-8 max-w-md text-center text-sm text-ink-500">
                 {t("requestPendingCalendarHint")}
               </p>
             )}
@@ -265,7 +265,7 @@ export default async function BookingSuccessPage({
             <div className="mt-8 w-full max-w-md">
               <Link
                 href={`/${params.slug}`}
-                className="flex w-full items-center justify-center rounded-2xl border border-slate-700 bg-slate-900/50 px-4 py-2.5 text-sm font-semibold text-slate-200 transition hover:border-slate-600 hover:bg-slate-900/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400/40 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
+                className="flex w-full items-center justify-center rounded-2xl border border-ink-200 bg-white px-4 py-2.5 text-sm font-semibold text-ink-700 transition hover:border-clinical-300 hover:bg-clinical-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-400/40 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-50"
               >
                 {t("backToProfileLabel")}
               </Link>

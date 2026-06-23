@@ -26,17 +26,17 @@ export function DoctorAccountReviewScreen({
   return (
     <main className="min-h-screen bg-slate-950 px-4 py-14 text-slate-200 sm:py-20">
       <div className="pointer-events-none fixed inset-0 -z-10">
-        <div className="absolute inset-x-0 top-[-10%] mx-auto h-80 max-w-xl rounded-full bg-emerald-500/[0.07] blur-3xl" />
+        <div className="absolute inset-x-0 top-[-10%] mx-auto h-80 max-w-xl rounded-full bg-clinical-500/[0.07] blur-3xl" />
         <div className="absolute bottom-0 right-0 h-64 w-64 rounded-full bg-sky-500/[0.05] blur-3xl" />
       </div>
 
       <div className="mx-auto max-w-lg text-center">
         <p aria-label="DocCy" className="text-xs tracking-[0.16em]">
-          <span className="font-semibold text-emerald-300">Doc</span>
-          <span className="font-bold text-emerald-500">Cy</span>
+          <span className="font-semibold text-clinical-300">Doc</span>
+          <span className="font-bold text-clinical-500">Cy</span>
         </p>
 
-        <div className="mx-auto mt-6 flex h-14 w-14 items-center justify-center rounded-2xl border border-slate-800/90 bg-slate-900/60 text-emerald-300">
+        <div className="mx-auto mt-6 flex h-14 w-14 items-center justify-center rounded-2xl border border-slate-800/90 bg-slate-900/60 text-clinical-300">
           {isRejected ? (
             <ShieldCheck className="h-7 w-7" strokeWidth={1.75} aria-hidden />
           ) : (

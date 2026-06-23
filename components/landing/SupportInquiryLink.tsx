@@ -13,10 +13,9 @@ export function SupportInquiryLink({
     <button
       type="button"
       onClick={() => emitOpenFeedback(feedbackDetail)}
-      className="text-sm font-semibold text-emerald-300 underline decoration-emerald-400/60 underline-offset-2 hover:text-emerald-200"
+      className="text-sm font-semibold text-clinical-600 underline decoration-clinical-300 underline-offset-2 hover:text-clinical-500"
     >
       {label}
     </button>
   );
 }
-

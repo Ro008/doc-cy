@@ -82,7 +82,7 @@ export function ProductShowcaseCarousel({ slides }: { slides: Slide[] }) {
       aria-roledescription="carousel"
       aria-label="Product showcase"
       tabIndex={0}
-      className="rounded-3xl border border-emerald-300/20 bg-slate-900/65 p-4 shadow-[0_0_56px_-22px_rgba(16,185,129,0.25)] backdrop-blur-md sm:p-6"
+      className="rounded-3xl border border-clinical-200 bg-white p-4 shadow-[0_1px_3px_rgba(26,43,60,0.06),0_8px_24px_rgba(11,123,181,0.06)] sm:p-6"
       onKeyDown={(e) => {
         if (e.key === "ArrowRight") {
           e.preventDefault();
@@ -112,19 +112,19 @@ export function ProductShowcaseCarousel({ slides }: { slides: Slide[] }) {
         if (delta > 0) prev();
       }}
     >
-      <div className="relative overflow-hidden rounded-2xl border border-slate-800/80 bg-slate-950/55">
+      <div className="relative overflow-hidden rounded-2xl border border-ink-200 bg-ink-50">
         <article
           className={`w-full p-3 transition-opacity duration-200 motion-reduce:transition-none sm:p-4 ${
             isTransitioning ? "opacity-0" : "opacity-100"
           }`}
         >
           <div className="mx-auto mb-2 flex w-full max-w-[760px] justify-start">
-            <span className="inline-flex items-center rounded-full border border-emerald-300/40 bg-emerald-400/15 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-emerald-200">
+            <span className="inline-flex items-center rounded-full border border-clinical-300 bg-clinical-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-clinical-700">
               {activeSlide?.categoryLabel}
             </span>
           </div>
           <div
-            className={`relative mx-auto overflow-hidden rounded-2xl border border-slate-700/80 bg-slate-900/60 shadow-xl shadow-black/40 ${
+            className={`relative mx-auto overflow-hidden rounded-2xl border border-ink-200 bg-white shadow-lg shadow-ink-900/5 ${
               activeSlide?.device === "phone"
                 ? "aspect-[9/19] w-full max-w-[280px] sm:max-w-[320px]"
                 : activeSlide?.desktopWideCapture
@@ -139,18 +139,18 @@ export function ProductShowcaseCarousel({ slides }: { slides: Slide[] }) {
               <div
                 className={
                   activeSlide.desktopWideCapture
-                    ? "relative z-10 flex h-8 items-center gap-1.5 border-b border-slate-700/80 bg-slate-900/90 px-3"
-                    : "absolute inset-x-0 top-0 z-10 hidden h-8 items-center gap-1.5 border-b border-slate-700/80 bg-slate-900/90 px-3 sm:flex"
+                    ? "relative z-10 flex h-8 items-center gap-1.5 border-b border-ink-200 bg-ink-50 px-3"
+                    : "absolute inset-x-0 top-0 z-10 hidden h-8 items-center gap-1.5 border-b border-ink-200 bg-ink-50 px-3 sm:flex"
                 }
               >
                 <span className="h-2.5 w-2.5 rounded-full bg-rose-400/80" />
                 <span className="h-2.5 w-2.5 rounded-full bg-amber-300/80" />
-                <span className="h-2.5 w-2.5 rounded-full bg-emerald-400/80" />
-                <span className="ml-3 text-[10px] font-medium text-slate-400">mydoccy.com</span>
+                <span className="h-2.5 w-2.5 rounded-full bg-clinical-400/80" />
+                <span className="ml-3 text-[10px] font-medium text-ink-400">mydoccy.com</span>
               </div>
             ) : null}
             {activeSlide?.device === "desktop" && activeSlide.desktopWideCapture ? (
-              <div className="flex justify-center bg-slate-950/35 px-2 py-3 sm:px-4 sm:py-4">
+              <div className="flex justify-center bg-ink-50 px-2 py-3 sm:px-4 sm:py-4">
                 <Image
                   src={activeSlide.imageSrc}
                   alt={activeSlide.title}
@@ -189,7 +189,7 @@ export function ProductShowcaseCarousel({ slides }: { slides: Slide[] }) {
           onClick={prev}
           disabled={!canPrev || isLoadingNextSlide}
           aria-label="Previous slide"
-          className="absolute left-3 top-1/2 inline-flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-slate-600/70 bg-slate-900/80 text-slate-200 transition hover:border-slate-400 hover:text-white disabled:cursor-not-allowed disabled:opacity-35"
+          className="absolute left-3 top-1/2 inline-flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-ink-200 bg-white text-ink-600 shadow-sm transition hover:border-clinical-300 hover:text-clinical-700 disabled:cursor-not-allowed disabled:opacity-35"
         >
           <ChevronLeft className="h-4 w-4" />
         </button>
@@ -198,7 +198,7 @@ export function ProductShowcaseCarousel({ slides }: { slides: Slide[] }) {
           onClick={next}
           disabled={!canNext || isLoadingNextSlide}
           aria-label="Next slide"
-          className="absolute right-3 top-1/2 inline-flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-slate-600/70 bg-slate-900/80 text-slate-200 transition hover:border-slate-400 hover:text-white disabled:cursor-not-allowed disabled:opacity-35"
+          className="absolute right-3 top-1/2 inline-flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-ink-200 bg-white text-ink-600 shadow-sm transition hover:border-clinical-300 hover:text-clinical-700 disabled:cursor-not-allowed disabled:opacity-35"
         >
           <ChevronRight className="h-4 w-4" />
         </button>
@@ -210,18 +210,18 @@ export function ProductShowcaseCarousel({ slides }: { slides: Slide[] }) {
         }`}
         aria-live="polite"
       >
-        <h3 className="text-base font-semibold text-slate-100 sm:text-lg">
+        <h3 className="text-base font-semibold text-ink-800 sm:text-lg">
           {activeSlide?.title}
         </h3>
-        <p className="mt-1 text-sm text-slate-300">{activeSlide?.body}</p>
+        <p className="mt-1 text-sm text-ink-500">{activeSlide?.body}</p>
       </div>
 
-      <div className="mt-4 flex items-center justify-center gap-2 text-xs text-slate-400">
+      <div className="mt-4 flex items-center justify-center gap-2 text-xs text-ink-400">
         <span className="tabular-nums">
           {displayIndex + 1} / {total}
         </span>
         {isLoadingNextSlide ? (
-          <span className="text-[11px] uppercase tracking-[0.08em] text-slate-500">Loading...</span>
+          <span className="text-[11px] uppercase tracking-[0.08em] text-ink-300">Loading...</span>
         ) : null}
       </div>
       <div className="mt-2 flex items-center justify-center gap-2">
@@ -234,7 +234,7 @@ export function ProductShowcaseCarousel({ slides }: { slides: Slide[] }) {
             aria-label={`Go to slide ${i + 1}`}
             aria-current={i === displayIndex ? "true" : undefined}
             className={`h-2.5 rounded-full transition ${
-              i === displayIndex ? "w-7 bg-emerald-300" : "w-2.5 bg-slate-500 hover:bg-slate-400"
+              i === displayIndex ? "w-7 bg-clinical-500" : "w-2.5 bg-ink-300 hover:bg-ink-400"
             }`}
           />
         ))}

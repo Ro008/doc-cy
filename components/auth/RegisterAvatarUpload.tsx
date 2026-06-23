@@ -178,7 +178,7 @@ export function RegisterAvatarUpload({
       </p>
 
       <div className="mt-3 flex items-center gap-4">
-        <label className="inline-flex cursor-pointer items-center justify-center rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-3 py-2 text-xs font-medium text-emerald-200 transition hover:bg-emerald-500/20">
+        <label className="inline-flex cursor-pointer items-center justify-center rounded-xl border border-clinical-400/30 bg-clinical-500/10 px-3 py-2 text-xs font-medium text-clinical-200 transition hover:bg-clinical-500/20">
           Upload photo
           <input
             ref={sourceInputRef}
@@ -232,12 +232,12 @@ export function RegisterAvatarUpload({
       ) : null}
 
       {isModalOpen && sourceUrl ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/85 p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink-900/85 p-4">
           <div className="w-full max-w-xl rounded-2xl border border-slate-700 bg-slate-900 p-4 shadow-2xl">
             <p className="mb-2 text-sm font-semibold text-slate-100">
               Crop profile photo (1:1)
             </p>
-            <div className="relative h-72 overflow-hidden rounded-xl bg-slate-950">
+            <div className="relative h-72 overflow-hidden rounded-xl bg-ink-900">
               <Cropper
                 image={sourceUrl}
                 crop={crop}
@@ -278,7 +278,7 @@ export function RegisterAvatarUpload({
                 type="button"
                 onClick={onConfirmCrop}
                 disabled={isCropping}
-                className="rounded-xl bg-emerald-400 px-3 py-2 text-xs font-semibold text-slate-950 disabled:opacity-60"
+                className="rounded-xl bg-clinical-400 px-3 py-2 text-xs font-semibold text-slate-950 disabled:opacity-60"
               >
                 {isCropping ? "Processing..." : "Confirm crop"}
               </button>

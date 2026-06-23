@@ -37,7 +37,7 @@ export function MobileTabNavLink({
   }, [pathname, searchParams]);
 
   const stateClass = pending
-    ? "text-emerald-200"
+    ? "text-clinical-200"
     : isActive
       ? activeClass
       : inactiveClass;

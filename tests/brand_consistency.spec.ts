@@ -3,7 +3,7 @@ import { test, expect } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
 
 test.describe("Brand consistency", () => {
-  test("landing page shows DocCy with emerald Cy, not DOCCY", async ({
+  test("landing page shows DocCy with clinical Cy, not DOCCY", async ({
     page,
   }) => {
     await page.goto("/en");
@@ -15,8 +15,8 @@ test.describe("Brand consistency", () => {
       }),
     ).toBeVisible({ timeout: 10000 });
 
-    // Brand: "Cy" must be in a span with emerald accent (not "Cy" in "Cyprus")
-    const cySpan = page.locator('span[class*="emerald"]').filter({
+    // Brand: "Cy" must be in a span with clinical accent (not "Cy" in "Cyprus")
+    const cySpan = page.locator('span[class*="clinical"]').filter({
       hasText: /^Cy$/,
     });
     await expect(cySpan.first()).toBeVisible();
@@ -29,7 +29,7 @@ test.describe("Brand consistency", () => {
     await expect(brandContainer).not.toContainText("DOCCY");
   });
 
-  test("professional profile shows DocCy with emerald Cy, not DOCCY", async ({
+  test("professional profile shows DocCy with clinical Cy, not DOCCY", async ({
     page,
   }) => {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
@@ -58,8 +58,8 @@ test.describe("Brand consistency", () => {
       timeout: 10000,
     });
 
-    // Brand line: "Doc" + emerald "Cy" · Professional profile
-    const cySpan = page.locator('span[class*="emerald"]').filter({
+    // Brand line: "Doc" + clinical "Cy" · Professional profile
+    const cySpan = page.locator('span[class*="clinical"]').filter({
       hasText: /^Cy$/,
     });
     await expect(cySpan.first()).toBeVisible();

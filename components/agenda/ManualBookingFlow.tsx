@@ -308,12 +308,12 @@ export function ManualBookingFlow({
       <button
         type="button"
         onClick={onClose}
-        className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm"
+        className="absolute inset-0 bg-ink-900/70 backdrop-blur-sm"
         aria-label="Close manual booking modal"
       />
       <div
         data-testid="manual-booking-modal-panel"
-        className="relative z-10 my-2 w-full max-w-4xl max-h-[calc(100dvh-1rem)] overflow-y-auto rounded-3xl border border-emerald-100/10 bg-slate-900/95 p-5 shadow-2xl backdrop-blur-xl sm:my-4 sm:max-h-[calc(100dvh-2rem)] sm:p-6"
+        className="relative z-10 my-2 w-full max-w-4xl max-h-[calc(100dvh-1rem)] overflow-y-auto rounded-3xl border border-clinical-100/10 bg-slate-900/95 p-5 shadow-2xl backdrop-blur-xl sm:my-4 sm:max-h-[calc(100dvh-2rem)] sm:p-6"
       >
         <button
           type="button"
@@ -344,14 +344,14 @@ export function ManualBookingFlow({
                 href={success.googleCalendarUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-400 px-4 py-2.5 text-sm font-semibold text-slate-950 shadow-lg shadow-emerald-500/30 transition hover:bg-emerald-300"
+                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-clinical-400 px-4 py-2.5 text-sm font-semibold text-slate-950 shadow-lg shadow-clinical-500/30 transition hover:bg-clinical-300"
               >
                 <CalendarPlus className="h-4 w-4" />
                 Add to Google
               </a>
               <a
                 href={success.iCalUrl}
-                className="inline-flex items-center justify-center rounded-2xl border border-emerald-400/40 bg-emerald-400/10 px-4 py-2.5 text-sm font-semibold text-emerald-200 transition hover:border-emerald-400/60 hover:bg-emerald-400/20"
+                className="inline-flex items-center justify-center rounded-2xl border border-clinical-400/40 bg-clinical-400/10 px-4 py-2.5 text-sm font-semibold text-clinical-200 transition hover:border-clinical-400/60 hover:bg-clinical-400/20"
               >
                 Add to iCal (.ics)
               </a>
@@ -392,7 +392,7 @@ export function ManualBookingFlow({
             </div>
 
             <div className="grid gap-5 md:grid-cols-2">
-              <div className="rounded-2xl border border-slate-800/60 bg-slate-950/30 p-4">
+              <div className="rounded-2xl border border-slate-800/60 bg-ink-900/30 p-4">
                 <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
                   Date
                 </p>
@@ -435,7 +435,7 @@ export function ManualBookingFlow({
                 />
               </div>
 
-              <div className="rounded-2xl border border-slate-800/60 bg-slate-950/30 p-4">
+              <div className="rounded-2xl border border-slate-800/60 bg-ink-900/30 p-4">
                 <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
                   Time
                 </p>
@@ -454,8 +454,8 @@ export function ManualBookingFlow({
                           onClick={() => setSelectedSlot(isSelected ? null : slot)}
                           className={`flex items-center justify-between rounded-xl border px-3 py-2 text-left text-sm transition ${
                             isSelected
-                              ? "border-emerald-400/50 bg-emerald-400/10 text-emerald-100"
-                              : "border-slate-800/80 bg-slate-900/40 text-slate-200 hover:border-emerald-400/30 hover:bg-emerald-400/5"
+                              ? "border-clinical-400/50 bg-clinical-400/10 text-clinical-100"
+                              : "border-slate-800/80 bg-slate-900/40 text-slate-200 hover:border-clinical-400/30 hover:bg-clinical-400/5"
                           }`}
                         >
                           <span>{slot.labelTime}</span>
@@ -476,7 +476,7 @@ export function ManualBookingFlow({
                 <input
                   value={patientName}
                   onChange={(e) => setPatientName(e.target.value)}
-                  className="w-full rounded-2xl border border-slate-800/80 bg-slate-950/40 px-3 py-2 text-sm text-slate-100"
+                  className="w-full rounded-2xl border border-slate-800/80 bg-ink-900/40 px-3 py-2 text-sm text-slate-100"
                   placeholder="Patient full name"
                   required
                 />
@@ -486,7 +486,7 @@ export function ManualBookingFlow({
                 <input
                   value={patientPhone}
                   onChange={(e) => setPatientPhone(e.target.value)}
-                  className="w-full rounded-2xl border border-slate-800/80 bg-slate-950/40 px-3 py-2 text-sm text-slate-100"
+                  className="w-full rounded-2xl border border-slate-800/80 bg-ink-900/40 px-3 py-2 text-sm text-slate-100"
                   placeholder="+357..."
                 />
               </div>
@@ -497,7 +497,7 @@ export function ManualBookingFlow({
               <input
                 value={patientEmail}
                 onChange={(e) => setPatientEmail(e.target.value)}
-                className="w-full rounded-2xl border border-slate-800/80 bg-slate-950/40 px-3 py-2 text-sm text-slate-100"
+                className="w-full rounded-2xl border border-slate-800/80 bg-ink-900/40 px-3 py-2 text-sm text-slate-100"
                 placeholder="patient@email.com"
               />
             </div>
@@ -512,7 +512,7 @@ export function ManualBookingFlow({
                   setReason(e.target.value.slice(0, APPOINTMENT_REASON_MAX_LENGTH))
                 }
                 rows={3}
-                className="w-full resize-y rounded-2xl border border-slate-800/80 bg-slate-950/40 px-3 py-2 text-sm text-slate-100"
+                className="w-full resize-y rounded-2xl border border-slate-800/80 bg-ink-900/40 px-3 py-2 text-sm text-slate-100"
                 placeholder="Brief reason for this visit"
                 required
               />
@@ -529,7 +529,7 @@ export function ManualBookingFlow({
                 type="button"
                 onClick={handleConfirmBooking}
                 disabled={submitting}
-                className="inline-flex items-center gap-2 rounded-2xl bg-emerald-400 px-4 py-2.5 text-sm font-semibold text-slate-950 shadow-lg shadow-emerald-500/30 transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
+                className="inline-flex items-center gap-2 rounded-2xl bg-clinical-400 px-4 py-2.5 text-sm font-semibold text-slate-950 shadow-lg shadow-clinical-500/30 transition hover:bg-clinical-300 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
               >
                 {submitting ? (
                   <>

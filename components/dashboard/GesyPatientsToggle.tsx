@@ -46,7 +46,7 @@ export function GesyPatientsToggle({ initialAcceptsGesy }: { initialAcceptsGesy:
     }
   }
 
-  const track = acceptsGesy ? "bg-emerald-500/90" : "bg-slate-600";
+  const track = acceptsGesy ? "bg-clinical-500/90" : "bg-slate-600";
 
   return (
     <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-5">
@@ -67,7 +67,7 @@ export function GesyPatientsToggle({ initialAcceptsGesy }: { initialAcceptsGesy:
           aria-busy={saving}
           disabled={saving}
           onClick={() => void setAcceptsGesyRemote(!acceptsGesy)}
-          className={`relative mt-0.5 h-7 w-11 shrink-0 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 disabled:opacity-50 ${track}`}
+          className={`relative mt-0.5 h-7 w-11 shrink-0 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-900 disabled:opacity-50 ${track}`}
         >
           <span
             className={`absolute left-0.5 top-1/2 h-6 w-6 -translate-y-1/2 rounded-full bg-white shadow-md transition-transform duration-200 ease-out ${
