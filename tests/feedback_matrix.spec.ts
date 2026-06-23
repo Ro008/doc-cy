@@ -350,7 +350,7 @@ test.describe("Feedback matrix toasts", () => {
       await expect(appt).toBeVisible({ timeout: 12_000 });
       await appt.click();
 
-      await page.getByRole("button", { name: /^Cancel$/i }).click();
+      await page.getByRole("button", { name: /Cancel appointment/i }).click();
       await page
         .getByPlaceholder(/e\.g\./i)
         .fill("Matrix cancel reason for automated test.");
