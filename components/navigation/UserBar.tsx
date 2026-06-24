@@ -232,8 +232,8 @@ export function UserBar({ initialSessionState }: UserBarProps) {
 
   const tabBaseClass =
     "flex min-h-[3.25rem] flex-1 flex-col items-center justify-center gap-0.5 px-1 py-1 text-[10px] font-medium leading-tight transition active:scale-[0.98] sm:text-[11px]";
-  const tabInactiveClass = "text-ink-400 hover:text-clinical-200";
-  const tabActiveClass = "text-clinical-300";
+  const tabInactiveClass = "text-ink-200 hover:text-ink-50";
+  const tabActiveClass = "font-semibold text-clinical-100";
 
   return (
     <>
@@ -385,18 +385,18 @@ export function UserBar({ initialSessionState }: UserBarProps) {
       <nav
         aria-label="Professional navigation"
         data-testid="userbar-mobile-tabs"
-        className="fixed inset-x-0 bottom-0 z-50 overflow-visible border-t border-clinical-400/20 bg-ink-900/60 pb-[env(safe-area-inset-bottom,0px)] shadow-[0_-10px_35px_rgba(15,31,46,0.45)] backdrop-blur-2xl supports-[backdrop-filter]:bg-ink-900/50 lg:hidden"
+        className="fixed inset-x-0 bottom-0 z-50 overflow-visible border-t border-white/10 bg-ink-900/85 pb-[env(safe-area-inset-bottom,0px)] shadow-[0_-8px_28px_rgba(15,31,46,0.55)] backdrop-blur-2xl supports-[backdrop-filter]:bg-ink-900/72 lg:hidden"
       >
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-0 overflow-hidden bg-[linear-gradient(180deg,rgba(255,255,255,0.16)_0%,rgba(255,255,255,0.03)_45%,rgba(255,255,255,0.01)_100%)]"
+          className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.07)_0%,rgba(255,255,255,0.02)_42%,transparent_100%)]"
         />
         {isMobileMoreOpen ? (
           <div
             ref={mobileMoreMenuRef}
             role="menu"
             data-testid="userbar-mobile-more-menu"
-            className="absolute inset-x-2 bottom-[calc(100%+0.35rem)] z-[60] overflow-hidden rounded-2xl border border-clinical-400/25 bg-ink-900/95 p-1.5 shadow-2xl shadow-ink-900/70 backdrop-blur"
+            className="absolute inset-x-2 bottom-[calc(100%+0.35rem)] z-[60] overflow-hidden rounded-2xl border border-white/10 bg-ink-900/90 p-1.5 shadow-2xl shadow-ink-900/70 backdrop-blur-xl supports-[backdrop-filter]:bg-ink-900/82"
           >
             <UserBarMoreMenuItems
               publicProfilePath={publicProfilePath}

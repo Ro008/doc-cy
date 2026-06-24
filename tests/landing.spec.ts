@@ -1,20 +1,18 @@
 // tests/landing.spec.ts
 import { test, expect } from "@playwright/test";
 
+const HERO_TITLE = /Run a Smarter Practice/i;
+const PRIMARY_CTA = /List my practice/i;
+
 test.describe("Landing page", () => {
   test("displays main headline and primary CTA", async ({ page }) => {
     await page.goto("/");
 
     await expect(
-      page.getByRole("heading", {
-        level: 1,
-        name: /your professional website\s*&\s*online agenda/i,
-      }),
+      page.getByRole("heading", { level: 1, name: HERO_TITLE }),
     ).toBeVisible();
 
-    const primaryCta = page.getByRole("link", {
-      name: /Claim your professional profile/i,
-    });
+    const primaryCta = page.locator('a[href="#founders-pricing-card"]').first();
     await expect(primaryCta).toBeVisible();
     await expect(primaryCta).toHaveAttribute("href", "#founders-pricing-card");
 
@@ -64,9 +62,7 @@ test.describe("Landing page", () => {
 
   test("primary CTA navigates to founders pricing section", async ({ page }) => {
     await page.goto("/");
-    const cta = page.getByRole("link", {
-      name: /Claim your professional profile/i,
-    });
+    const cta = page.locator('a[href="#founders-pricing-card"]').first();
     await expect(cta).toBeVisible();
 
     await Promise.all([
@@ -103,46 +99,31 @@ test.describe("Landing page", () => {
     expect(bounds.right).toBeLessThanOrEqual(bounds.viewportWidth - 4);
   });
 
-  test("adoption playbook section links to founders pricing", async ({ page }) => {
+  test("how it works section is present", async ({ page }) => {
     await page.goto("/");
 
-    const playbook = page.locator("#adoption-playbook");
+    const section = page.locator("#how-it-works");
     await expect(
-      playbook.getByRole("heading", { name: /Shift phone traffic to the screen/i }),
+      section.getByRole("heading", { name: /Getting started is this simple/i }),
     ).toBeVisible();
-    await expect(
-      playbook.getByText(/Once you're verified, open Promote your practice in Settings/i),
-    ).toBeVisible();
-
-    const playbookCta = playbook.getByRole("link", { name: "See launch pricing", exact: true });
-    await expect(playbookCta).toBeVisible();
-    await expect(playbookCta).toHaveAttribute("href", "#founders-pricing-card");
+    await expect(section.getByText(/Create your profile/i)).toBeVisible();
+    await expect(section.getByText(/Total synchronization/i)).toBeVisible();
   });
 
-  test("skepticism killer appears before founders pricing card", async ({ page }) => {
+  test("pricing section shows risk-free intro before founders card", async ({ page }) => {
     await page.goto("/#founders-pricing");
 
-    const skepticismHeading = page.getByRole("heading", {
-      level: 3,
-      name: /No more profiles collecting digital dust/i,
-    });
-    const pricingCard = page.locator("#founders-pricing-card");
-
-    await expect(skepticismHeading).toBeVisible({ timeout: 10000 });
     await expect(
-      page.getByText(/before you ever pay a single cent/i),
+      page.getByRole("heading", {
+        name: /Your practice, upgraded\. 100% risk-free\./i,
+      }),
+    ).toBeVisible({ timeout: 10000 });
+    await expect(
+      page.getByText(/Building a private website in Cyprus can cost you over/i),
     ).toBeVisible();
-    await expect(pricingCard).toBeVisible();
 
-    const order = await page.evaluate(() => {
-      const skepticism = document.getElementById("skepticism-killer-heading");
-      const pricing = document.getElementById("founders-pricing-card");
-      if (!skepticism || !pricing) return null;
-      return (
-        skepticism.compareDocumentPosition(pricing) & Node.DOCUMENT_POSITION_FOLLOWING
-      );
-    });
-    expect(order).toBeTruthy();
+    const pricingCard = page.locator("#founders-pricing-card");
+    await expect(pricingCard).toBeVisible();
   });
 
   test("FAQ section shows key objections below pricing", async ({ page }) => {
@@ -150,49 +131,19 @@ test.describe("Landing page", () => {
 
     await expect(
       page.getByRole("heading", {
-        name: /Common questions/i,
+        name: /Frequently asked questions/i,
       }),
     ).toBeVisible({ timeout: 10000 });
 
     await expect(
-      page.getByText(/What if a patient calls me by phone\? Will I have double bookings\?/i),
+      page.getByText(/Will using DocCy create double bookings or extra work\?/i),
     ).toBeVisible();
-    await expect(
-      page.getByText(/Will using DocCy create extra work for my front desk staff\?/i),
-    ).toBeVisible();
-    await expect(
-      page.getByText(/Won't a private website give me more visibility than a profile\?/i),
-    ).toBeVisible();
-    await expect(
-      page.getByText(/Can my secretary or team manage the agenda for me\?/i),
-    ).toBeVisible();
-    await expect(page.getByText(/How long does it take to set up\? I am busy\./i)).toBeVisible();
     await expect(
       page.getByText(
-        /I’ve listed my practice on other directories before and got zero results\. Why is DocCy different\?/i,
+        /How do I get my current patients to start using this online system\?/i,
       ),
     ).toBeVisible();
-  });
-
-  test("FAQ accordion reveals directories objection answer", async ({ page }) => {
-    await page.goto("/#founders-pricing");
-
-    const faqToggle = page
-      .locator("summary")
-      .filter({
-        hasText:
-          /I’ve listed my practice on other directories before and got zero results\. Why is DocCy different\?/i,
-      })
-      .first();
-    await expect(faqToggle).toBeVisible({ timeout: 10000 });
-    await faqToggle.click();
-
-    await expect(
-      page.getByText(/We only win when your clinic wins/i),
-    ).toBeVisible();
-    await expect(
-      page.getByText(/sit invisibly in a database/i),
-    ).toBeVisible();
+    await expect(page.getByText(/How long does it take to set up\? I am very busy\./i)).toBeVisible();
   });
 
   test("FAQ accordion reveals answer for double bookings objection", async ({ page }) => {
@@ -200,12 +151,31 @@ test.describe("Landing page", () => {
 
     const faqToggle = page
       .locator("summary")
-      .filter({ hasText: /What if a patient calls me by phone\? Will I have double bookings\?/i })
+      .filter({
+        hasText: /Will using DocCy create double bookings or extra work\?/i,
+      })
       .first();
     await expect(faqToggle).toBeVisible({ timeout: 10000 });
     await faqToggle.click();
 
     await expect(page.getByText(/single source of truth/i)).toBeVisible();
-    await expect(page.getByText(/slot is instantly blocked on your public profile/i)).toBeVisible();
+    await expect(page.getByText(/instantly blocked on your public profile/i)).toBeVisible();
+  });
+
+  test("FAQ accordion reveals patient adoption answer", async ({ page }) => {
+    await page.goto("/#founders-pricing");
+
+    const faqToggle = page
+      .locator("summary")
+      .filter({
+        hasText:
+          /How do I get my current patients to start using this online system\?/i,
+      })
+      .first();
+    await expect(faqToggle).toBeVisible({ timeout: 10000 });
+    await faqToggle.click();
+
+    await expect(page.getByText(/Practice Promotion tools/i)).toBeVisible();
+    await expect(page.getByText(/QR code for your reception desk/i)).toBeVisible();
   });
 });

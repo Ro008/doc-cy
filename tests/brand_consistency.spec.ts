@@ -11,7 +11,7 @@ test.describe("Brand consistency", () => {
     await expect(
       page.getByRole("heading", {
         level: 1,
-        name: /Your Professional Website\s*&\s*Online Agenda/i,
+        name: /Run a Smarter Practice/i,
       }),
     ).toBeVisible({ timeout: 10000 });
 

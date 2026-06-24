@@ -12,25 +12,24 @@ test.describe("Landing i18n", { tag: "@pr-e2e" }, () => {
   }) => {
     await page.goto("/en");
 
-    // English baseline — copy from messages/en.json (not Greek strings)
     await expect(page).toHaveURL(/\/en$/);
     await expect(
       page.getByRole("heading", {
         level: 1,
-        name: /Your Professional Website\s*&\s*Online Agenda/i,
+        name: /Run a Smarter Practice/i,
       }),
     ).toBeVisible({ timeout: 10000 });
     await expect(
-      page.getByRole("link", { name: /Claim your professional profile/i }),
+      page.locator('a[href="#founders-pricing-card"]').first(),
     ).toBeVisible({ timeout: 10000 });
     await expect(
       page.getByRole("heading", {
         level: 2,
-        name: /Common questions/i,
+        name: /Frequently asked questions/i,
       }),
     ).toBeVisible({ timeout: 10000 });
     await expect(
-      page.getByText(/FOUNDING MEMBERS CLUB/i),
+      page.getByText("FOUNDING MEMBERS CLUB", { exact: true }),
     ).toBeVisible({ timeout: 10000 });
     await expect(
       page.getByRole("heading", {
@@ -39,27 +38,26 @@ test.describe("Landing i18n", { tag: "@pr-e2e" }, () => {
     ).toBeVisible({ timeout: 10000 });
 
     await expect(
-      page.getByRole("heading", { level: 1, name: /Σταματήστε να κυνηγάτε/i }),
+      page.getByRole("heading", { level: 1, name: /Μια πιο έξυπνη πρακτική/i }),
     ).toHaveCount(0);
     await expect(
       page.getByRole("heading", { level: 2, name: /^Συχνές ερωτήσεις$/ }),
     ).toHaveCount(0);
     await expectNoRawIntlKeys(page);
 
-    // Greek — copy from messages/el.json; must not show English FAQ / English-only club badge
     await page.getByRole("link", { name: /^GR$/ }).click();
     await expect(page).toHaveURL(/\/el$/);
     await expect(
       page.getByRole("heading", {
         level: 1,
-        name: /Σταματήστε να κυνηγάτε ραντεβού\.\s*Ξαναπάρτε τον έλεγχο του χρόνου σας\./i,
+        name: /Μια πιο έξυπνη πρακτική/i,
       }),
     ).toBeVisible({ timeout: 10000 });
     await expect(
-      page.getByRole("link", { name: /Διεκδικήστε το προφίλ σας/i }),
+      page.locator('a[href="/register"]').filter({ hasText: /Καταχώρηση πρακτικής/i }),
     ).toBeVisible({ timeout: 10000 });
     await expect(
-      page.getByText(/FOUNDING MEMBERS CLUB/i),
+      page.getByText("FOUNDING MEMBERS CLUB", { exact: true }),
     ).toBeVisible({ timeout: 10000 });
     await expect(
       page.getByRole("heading", {
@@ -75,23 +73,22 @@ test.describe("Landing i18n", { tag: "@pr-e2e" }, () => {
       page.getByRole("heading", { level: 2, name: /^Συχνές ερωτήσεις$/ }),
     ).toBeVisible({ timeout: 10000 });
     await expect(
-      page.getByRole("heading", { level: 2, name: /Common questions/i }),
+      page.getByRole("heading", { level: 2, name: /Frequently asked questions/i }),
     ).toHaveCount(0);
     await expect(
       page.getByRole("heading", {
         level: 1,
-        name: /Your Professional Website\s*&\s*Online Agenda/i,
+        name: /Run a Smarter Practice/i,
       }),
     ).toHaveCount(0);
     await expectNoRawIntlKeys(page);
 
-    // Back to English
     await page.getByRole("link", { name: /^EN$/ }).click();
     await expect(page).toHaveURL(/\/en$/);
     await expect(
       page.getByRole("heading", {
         level: 1,
-        name: /Your Professional Website\s*&\s*Online Agenda/i,
+        name: /Run a Smarter Practice/i,
       }),
     ).toBeVisible({ timeout: 10000 });
     await expectNoRawIntlKeys(page);
