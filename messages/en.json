@@ -235,19 +235,6 @@
         }
       }
     },
-    "Testimonials": {
-      "title": "What practices are saying",
-      "quotes": {
-        "paphos": {
-          "body": "Switching to this online agenda has completely optimized our daily organization. Our patients deeply appreciate the convenience of being able to book on a Sunday night without waiting for the clinic to open on Monday morning.",
-          "attribution": "Medical Specialist, Paphos"
-        },
-        "assistant": {
-          "body": "Since implementing the 1-click approval system, our front desk staff feels completely relieved. We no longer waste hours playing phone tag, spelling names, or manually checking gaps in the calendar.",
-          "attribution": "Practice Assistant"
-        }
-      }
-    },
     "Pricing": {
       "sixMonthsFree": "First 6 Months FREE",
       "foundingMemberStatus": "Founding Member",
