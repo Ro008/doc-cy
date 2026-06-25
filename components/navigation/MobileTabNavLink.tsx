@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import * as React from "react";
 import { Loader2 } from "lucide-react";
-import { emitNavigationStart } from "@/lib/doccy-navigation";
+import { useLinkNavigationPending } from "@/hooks/useLinkNavigationPending";
 
 type MobileTabNavLinkProps = {
   href: string;
@@ -28,13 +28,7 @@ export function MobileTabNavLink({
   "data-testid": testId,
 }: MobileTabNavLinkProps) {
   const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const [pending, setPending] = React.useState(false);
-
-  React.useEffect(() => {
-    setPending(false);
-  }, [pathname, searchParams]);
+  const { pending, beginNavigation } = useLinkNavigationPending(href);
 
   const stateClass = pending
     ? "text-clinical-100"
@@ -54,8 +48,7 @@ export function MobileTabNavLink({
           return;
         }
         event.preventDefault();
-        emitNavigationStart();
-        setPending(true);
+        beginNavigation();
         router.push(href);
       }}
       className={`${baseClass} ${stateClass} active:scale-[0.98]`}

@@ -8,6 +8,8 @@ import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { UserMenuNavLink } from "@/components/navigation/UserMenuNavLink";
 import { UserBarMoreMenuItems } from "@/components/navigation/UserBarMoreMenuItems";
 import { MobileTabNavLink } from "@/components/navigation/MobileTabNavLink";
+import { PendingLink } from "@/components/navigation/PendingLink";
+import { DocCyWordmark } from "@/components/brand/DocCyWordmark";
 import {
   BarChart3,
   CalendarPlus,
@@ -63,6 +65,7 @@ export function UserBar({ initialSessionState }: UserBarProps) {
   const mobileMoreAnchorRef = useRef<HTMLDivElement | null>(null);
   const isMenuOpenRef = useRef(isMenuOpen);
   const isMobileMoreOpenRef = useRef(isMobileMoreOpen);
+  const ignoreNextOutsideCloseRef = useRef(false);
 
   useEffect(() => {
     isMenuOpenRef.current = isMenuOpen;
@@ -83,12 +86,17 @@ export function UserBar({ initialSessionState }: UserBarProps) {
       if (!isActive) return;
 
       if (!user) {
-        setSessionState({
-          isLoggedIn: false,
-          email: null,
-          doctorSlug: null,
-          doctorName: null,
-          avatarUrl: null,
+        setSessionState((current) => {
+          if (current.isLoggedIn) {
+            return current;
+          }
+          return {
+            isLoggedIn: false,
+            email: null,
+            doctorSlug: null,
+            doctorName: null,
+            avatarUrl: null,
+          };
         });
         return;
       }
@@ -122,7 +130,17 @@ export function UserBar({ initialSessionState }: UserBarProps) {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(() => {
+    } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "SIGNED_OUT") {
+        setSessionState({
+          isLoggedIn: false,
+          email: null,
+          doctorSlug: null,
+          doctorName: null,
+          avatarUrl: null,
+        });
+        return;
+      }
       loadSessionState();
     });
 
@@ -134,6 +152,11 @@ export function UserBar({ initialSessionState }: UserBarProps) {
 
   useEffect(() => {
     function onDocumentClick(event: MouseEvent) {
+      if (ignoreNextOutsideCloseRef.current) {
+        ignoreNextOutsideCloseRef.current = false;
+        return;
+      }
+
       if (!isMenuOpenRef.current && !isMobileMoreOpenRef.current) return;
 
       const target = event.target as Node;
@@ -159,6 +182,7 @@ export function UserBar({ initialSessionState }: UserBarProps) {
 
   function handleToggleMenu(event: React.MouseEvent<HTMLButtonElement>) {
     event.stopPropagation();
+    ignoreNextOutsideCloseRef.current = true;
     setIsMenuOpen((prev) => {
       const next = !prev;
       isMenuOpenRef.current = next;
@@ -171,6 +195,13 @@ export function UserBar({ initialSessionState }: UserBarProps) {
     try {
       setIsSigningOut(true);
       await supabase.auth.signOut();
+      setSessionState({
+        isLoggedIn: false,
+        email: null,
+        doctorSlug: null,
+        doctorName: null,
+        avatarUrl: null,
+      });
       isMenuOpenRef.current = false;
       isMobileMoreOpenRef.current = false;
       setIsMenuOpen(false);
@@ -196,6 +227,7 @@ export function UserBar({ initialSessionState }: UserBarProps) {
 
   function handleToggleMobileMore(event: React.MouseEvent<HTMLButtonElement>) {
     event.stopPropagation();
+    ignoreNextOutsideCloseRef.current = true;
     setIsMobileMoreOpen((prev) => {
       const next = !prev;
       isMobileMoreOpenRef.current = next;
@@ -235,142 +267,166 @@ export function UserBar({ initialSessionState }: UserBarProps) {
   const tabInactiveClass = "text-ink-200 hover:text-ink-50";
   const tabActiveClass = "font-semibold text-clinical-100";
 
+  const useStickyDesktopChrome = pathname.startsWith("/agenda");
+
+  const desktopUserMenu = (
+    <>
+      <button
+        type="button"
+        onMouseDown={(event) => event.stopPropagation()}
+        onClick={handleToggleMenu}
+        aria-expanded={isMenuOpen}
+        aria-haspopup="menu"
+        data-testid="userbar-toggle"
+        className="inline-flex items-center gap-2 rounded-full border border-clinical-400/45 bg-ink-900/90 px-1.5 py-1 shadow-sm shadow-ink-900/40 transition hover:border-clinical-300/80"
+      >
+        <div className="relative h-8 w-8 overflow-hidden rounded-full bg-ink-800 sm:h-9 sm:w-9">
+          {sessionState.avatarUrl ? (
+            <Image
+              src={sessionState.avatarUrl}
+              alt="Doctor avatar"
+              fill
+              sizes="36px"
+              className="object-cover"
+            />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center text-xs font-semibold text-clinical-200">
+              {initials}
+            </div>
+          )}
+        </div>
+        <UserRound className="hidden h-4 w-4 text-clinical-200/90 sm:inline" aria-hidden />
+        <span className="sr-only">Open user menu</span>
+      </button>
+
+      {isMenuOpen ? (
+        <div
+          role="menu"
+          data-testid="userbar-menu"
+          className="absolute right-0 top-[calc(100%+0.4rem)] w-64 overflow-hidden rounded-2xl border border-clinical-400/25 bg-ink-900/95 p-1.5 shadow-2xl shadow-ink-900/70 backdrop-blur"
+        >
+          <div className="flex items-center gap-3 px-3 py-2.5">
+            <div className="relative h-9 w-9 overflow-hidden rounded-full bg-ink-800">
+              {sessionState.avatarUrl ? (
+                <Image
+                  src={sessionState.avatarUrl}
+                  alt="Doctor avatar"
+                  fill
+                  sizes="40px"
+                  className="object-cover"
+                />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center text-xs font-semibold text-clinical-200">
+                  {initials}
+                </div>
+              )}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-xs font-medium text-ink-50">
+                {sessionState.doctorName ?? "Logged in"}
+              </p>
+              <p className="truncate text-[11px] text-ink-400">
+                {sessionState.email ?? ""}
+              </p>
+            </div>
+          </div>
+
+          <UserMenuNavLink
+            href="/agenda?manual=1"
+            title="Took a phone call? Block the slot manually here. Next time, share your link to save time."
+            data-testid="userbar-link-manual-booking"
+            className="mb-1 border border-clinical-400/35 bg-clinical-500/10 font-semibold text-clinical-100 hover:bg-clinical-500/20"
+            icon={<CalendarPlus className="h-4 w-4 text-clinical-200" aria-hidden />}
+          >
+            + Add Manual Booking
+          </UserMenuNavLink>
+          <UserMenuNavLink
+            href="/agenda"
+            data-testid="userbar-link-agenda"
+            icon={<CalendarDays className="h-4 w-4 text-clinical-300" aria-hidden />}
+          >
+            My Agenda
+          </UserMenuNavLink>
+          <UserMenuNavLink
+            href="/agenda/insights"
+            data-testid="userbar-link-insights"
+            icon={<BarChart3 className="h-4 w-4 text-clinical-300" aria-hidden />}
+          >
+            Practice insights
+          </UserMenuNavLink>
+          <UserMenuNavLink
+            href="/agenda/settings"
+            data-testid="userbar-link-settings"
+            icon={<Settings className="h-4 w-4 text-clinical-300" aria-hidden />}
+          >
+            Settings
+          </UserMenuNavLink>
+          <UserMenuNavLink
+            href="/agenda/settings#promote-practice"
+            data-testid="userbar-link-promote"
+            icon={<Megaphone className="h-4 w-4 text-clinical-300" aria-hidden />}
+          >
+            Promote Your Practice
+          </UserMenuNavLink>
+          <button
+            type="button"
+            onClick={handleOpenSupport}
+            data-testid="userbar-action-support"
+            className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm text-ink-100 transition hover:bg-ink-800/90 active:scale-[0.99] active:bg-ink-800/90"
+            role="menuitem"
+          >
+            <LifeBuoy className="h-4 w-4 text-clinical-300" aria-hidden />
+            Support
+          </button>
+          {slug ? (
+            <UserMenuNavLink
+              href={publicProfilePath!}
+              data-testid="userbar-link-public-profile"
+              icon={<UserCircle className="h-4 w-4 text-clinical-300" aria-hidden />}
+            >
+              View Public Profile
+            </UserMenuNavLink>
+          ) : null}
+          <button
+            type="button"
+            onClick={handleLogout}
+            disabled={isSigningOut}
+            data-testid="userbar-action-logout"
+            className="mt-0.5 flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm text-red-200 transition hover:bg-red-500/15 disabled:opacity-70"
+            role="menuitem"
+          >
+            <LogOut className="h-4 w-4" aria-hidden />
+            {isSigningOut ? "Logging out..." : "Logout"}
+          </button>
+        </div>
+      ) : null}
+    </>
+  );
+
   return (
     <>
-      {/* Desktop: avatar + dropdown (lg+) */}
-      <div
-        className="absolute right-4 top-4 z-40 hidden sm:right-6 sm:top-5 lg:block"
-        ref={menuRef}
-      >
-        <button
-          type="button"
-          onClick={handleToggleMenu}
-          aria-expanded={isMenuOpen}
-          aria-haspopup="menu"
-          data-testid="userbar-toggle"
-          className="inline-flex items-center gap-2 rounded-full border border-clinical-400/45 bg-ink-900/90 px-1.5 py-1 shadow-sm shadow-ink-900/40 transition hover:border-clinical-300/80"
+      {useStickyDesktopChrome ? (
+        <header
+          data-testid="pro-sticky-header"
+          className="sticky top-0 z-50 hidden border-b border-clinical-400/15 bg-ink-900/90 shadow-sm shadow-ink-900/25 backdrop-blur-md lg:block"
         >
-          <div className="relative h-8 w-8 overflow-hidden rounded-full bg-ink-800 sm:h-9 sm:w-9">
-            {sessionState.avatarUrl ? (
-              <Image
-                src={sessionState.avatarUrl}
-                alt="Doctor avatar"
-                fill
-                sizes="36px"
-                className="object-cover"
-              />
-            ) : (
-              <div className="flex h-full w-full items-center justify-center text-xs font-semibold text-clinical-200">
-                {initials}
-              </div>
-            )}
-          </div>
-          <UserRound className="hidden h-4 w-4 text-clinical-200/90 sm:inline" aria-hidden />
-          <span className="sr-only">Open user menu</span>
-        </button>
-
-        {isMenuOpen ? (
-          <div
-            role="menu"
-            data-testid="userbar-menu"
-            className="absolute right-0 top-[calc(100%+0.4rem)] w-64 overflow-hidden rounded-2xl border border-clinical-400/25 bg-ink-900/95 p-1.5 shadow-2xl shadow-ink-900/70 backdrop-blur"
-          >
-            <div className="flex items-center gap-3 px-3 py-2.5">
-              <div className="relative h-9 w-9 overflow-hidden rounded-full bg-ink-800">
-                {sessionState.avatarUrl ? (
-                  <Image
-                    src={sessionState.avatarUrl}
-                    alt="Doctor avatar"
-                    fill
-                    sizes="40px"
-                    className="object-cover"
-                  />
-                ) : (
-                  <div className="flex h-full w-full items-center justify-center text-xs font-semibold text-clinical-200">
-                    {initials}
-                  </div>
-                )}
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-xs font-medium text-ink-50">
-                  {sessionState.doctorName ?? "Logged in"}
-                </p>
-                <p className="truncate text-[11px] text-ink-400">
-                  {sessionState.email ?? ""}
-                </p>
-              </div>
+          <div className="mx-auto flex h-14 max-w-[1920px] items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
+            <PendingLink href="/agenda" className="inline-flex shrink-0 transition hover:opacity-90">
+              <DocCyWordmark variant="dark" />
+            </PendingLink>
+            <div className="relative shrink-0" ref={menuRef}>
+              {desktopUserMenu}
             </div>
-
-            <UserMenuNavLink
-              href="/agenda?manual=1"
-              title="Took a phone call? Block the slot manually here. Next time, share your link to save time."
-              data-testid="userbar-link-manual-booking"
-              className="mb-1 border border-clinical-400/35 bg-clinical-500/10 font-semibold text-clinical-100 hover:bg-clinical-500/20"
-              icon={<CalendarPlus className="h-4 w-4 text-clinical-200" aria-hidden />}
-            >
-              + Add Manual Booking
-            </UserMenuNavLink>
-            <UserMenuNavLink
-              href="/agenda"
-              data-testid="userbar-link-agenda"
-              icon={<CalendarDays className="h-4 w-4 text-clinical-300" aria-hidden />}
-            >
-              My Agenda
-            </UserMenuNavLink>
-            <UserMenuNavLink
-              href="/agenda/insights"
-              data-testid="userbar-link-insights"
-              icon={<BarChart3 className="h-4 w-4 text-clinical-300" aria-hidden />}
-            >
-              Practice insights
-            </UserMenuNavLink>
-            <UserMenuNavLink
-              href="/agenda/settings"
-              data-testid="userbar-link-settings"
-              icon={<Settings className="h-4 w-4 text-clinical-300" aria-hidden />}
-            >
-              Settings
-            </UserMenuNavLink>
-            <UserMenuNavLink
-              href="/agenda/settings#promote-practice"
-              data-testid="userbar-link-promote"
-              icon={<Megaphone className="h-4 w-4 text-clinical-300" aria-hidden />}
-            >
-              Promote Your Practice
-            </UserMenuNavLink>
-            <button
-              type="button"
-              onClick={handleOpenSupport}
-              data-testid="userbar-action-support"
-              className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm text-ink-100 transition hover:bg-ink-800/90 active:scale-[0.99] active:bg-ink-800/90"
-              role="menuitem"
-            >
-              <LifeBuoy className="h-4 w-4 text-clinical-300" aria-hidden />
-              Support
-            </button>
-            {slug ? (
-              <UserMenuNavLink
-                href={publicProfilePath!}
-                data-testid="userbar-link-public-profile"
-                icon={<UserCircle className="h-4 w-4 text-clinical-300" aria-hidden />}
-              >
-                View Public Profile
-              </UserMenuNavLink>
-            ) : null}
-            <button
-              type="button"
-              onClick={handleLogout}
-              disabled={isSigningOut}
-              data-testid="userbar-action-logout"
-              className="mt-0.5 flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm text-red-200 transition hover:bg-red-500/15 disabled:opacity-70"
-              role="menuitem"
-            >
-              <LogOut className="h-4 w-4" aria-hidden />
-              {isSigningOut ? "Logging out..." : "Logout"}
-            </button>
           </div>
-        ) : null}
-      </div>
+        </header>
+      ) : (
+        <div
+          className="absolute right-4 top-4 z-40 hidden sm:right-6 sm:top-5 lg:block"
+          ref={menuRef}
+        >
+          {desktopUserMenu}
+        </div>
+      )}
 
       {/* Mobile / tablet: fixed bottom tab bar (<lg) */}
       {isMobileMoreOpen ? (

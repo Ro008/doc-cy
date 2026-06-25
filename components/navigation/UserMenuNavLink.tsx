@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import * as React from "react";
 import { Loader2 } from "lucide-react";
-import { emitNavigationStart } from "@/lib/doccy-navigation";
+import { useLinkNavigationPending } from "@/hooks/useLinkNavigationPending";
 
 type UserMenuNavLinkProps = {
   href: string;
@@ -26,13 +26,7 @@ export function UserMenuNavLink({
   onNavigate,
 }: UserMenuNavLinkProps) {
   const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const [pending, setPending] = React.useState(false);
-
-  React.useEffect(() => {
-    setPending(false);
-  }, [pathname, searchParams]);
+  const { pending, beginNavigation } = useLinkNavigationPending(href);
 
   return (
     <Link
@@ -49,8 +43,7 @@ export function UserMenuNavLink({
         }
         event.preventDefault();
         onNavigate?.();
-        emitNavigationStart();
-        setPending(true);
+        beginNavigation();
         router.push(href);
       }}
       className={`flex items-center gap-2 rounded-xl px-3 py-2 text-sm transition active:scale-[0.99] ${

@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import * as React from "react";
 
 import { emitNavigationStart } from "@/lib/doccy-navigation";
+import { useLinkNavigationPending } from "@/hooks/useLinkNavigationPending";
 
 type PendingLinkProps = {
   href: string;
@@ -20,15 +21,8 @@ export function PendingLink({
   "aria-current": ariaCurrent,
 }: PendingLinkProps) {
   const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const [pending, setPending] = React.useState(false);
+  const { pending, beginNavigation } = useLinkNavigationPending(href);
   const isHashNavigation = href.includes("#");
-
-  React.useEffect(() => {
-    // Clear link-level pending state once navigation URL updates.
-    setPending(false);
-  }, [pathname, searchParams]);
 
   return (
     <Link
@@ -43,7 +37,7 @@ export function PendingLink({
         }
         if (isHashNavigation) {
           event.preventDefault();
-          emitNavigationStart();
+          emitNavigationStart(href);
           if (href.startsWith("#")) {
             const target = document.querySelector(href);
             if (target instanceof HTMLElement) {
@@ -56,8 +50,7 @@ export function PendingLink({
           return;
         }
         event.preventDefault();
-        emitNavigationStart();
-        setPending(true);
+        beginNavigation();
         router.push(href);
       }}
       className={className}
