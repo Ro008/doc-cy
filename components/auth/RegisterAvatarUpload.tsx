@@ -7,6 +7,7 @@ type CropArea = { x: number; y: number; width: number; height: number };
 
 type RegisterAvatarUploadProps = {
   fieldName?: string;
+  tone?: "dark" | "light";
 };
 
 function loadImage(src: string): Promise<HTMLImageElement> {
@@ -63,6 +64,7 @@ async function cropToBlob(imageSrc: string, area: CropArea): Promise<Blob> {
 
 export function RegisterAvatarUpload({
   fieldName = "avatarFile",
+  tone = "dark",
 }: RegisterAvatarUploadProps) {
   const sourceInputRef = React.useRef<HTMLInputElement | null>(null);
   const formFileInputRef = React.useRef<HTMLInputElement | null>(null);
@@ -164,22 +166,38 @@ export function RegisterAvatarUpload({
     }
   }
 
+  const isLight = tone === "light";
+
   return (
     <div
-      className="group rounded-2xl border border-slate-700/80 bg-slate-900/40 p-4"
+      className={`group rounded-2xl border p-4 ${
+        isLight
+          ? "border-ink-200 bg-ink-50/70"
+          : "border-slate-700/80 bg-slate-900/40"
+      }`}
       data-validate-field="1"
       data-invalid="0"
     >
-      <p className="text-xs font-semibold uppercase tracking-wide text-slate-300">
-        Professional profile photo
+      <p
+        className={`text-xs font-semibold uppercase tracking-wide ${
+          isLight ? "text-ink-700" : "text-slate-300"
+        }`}
+      >
+        Professional Profile Photo<span className="text-red-600">*</span>
       </p>
-      <p className="mt-2 text-xs text-slate-300">
-        Professional photo required (Close-up, neutral background).
+      <p className={`mt-2 text-xs ${isLight ? "text-ink-600" : "text-slate-300"}`}>
+        A professional, close-up photo with a neutral background helps build patient trust.
       </p>
 
-      <div className="mt-3 flex items-center gap-4">
-        <label className="inline-flex cursor-pointer items-center justify-center rounded-xl border border-clinical-400/30 bg-clinical-500/10 px-3 py-2 text-xs font-medium text-clinical-200 transition hover:bg-clinical-500/20">
-          Upload photo
+      <div className="mt-3 flex flex-wrap items-center gap-4">
+        <label
+          className={`inline-flex cursor-pointer items-center justify-center rounded-xl border px-3 py-2 text-xs font-medium transition ${
+            isLight
+              ? "border-clinical-300 bg-clinical-50 text-clinical-700 hover:bg-clinical-100"
+              : "border-clinical-400/30 bg-clinical-500/10 text-clinical-200 hover:bg-clinical-500/20"
+          }`}
+        >
+          ⬆️ Upload Photo
           <input
             ref={sourceInputRef}
             type="file"
@@ -188,7 +206,7 @@ export function RegisterAvatarUpload({
             onChange={onPickFile}
           />
         </label>
-        <div className="text-xs text-slate-400">
+        <div className={`text-xs ${isLight ? "text-ink-500" : "text-slate-400"}`}>
           {isReady ? "Crop confirmed." : "Upload and confirm crop to continue."}
         </div>
       </div>
@@ -210,7 +228,11 @@ export function RegisterAvatarUpload({
         tabIndex={-1}
         className="pointer-events-none absolute h-0 w-0 opacity-0"
       />
-      <p className="field-hint mt-2 hidden text-xs text-red-300 group-data-[invalid=1]:block">
+      <p
+        className={`field-hint mt-2 hidden text-xs group-data-[invalid=1]:block ${
+          isLight ? "text-red-600" : "text-red-300"
+        }`}
+      >
         Please upload and confirm your profile photo.
       </p>
 
@@ -221,12 +243,20 @@ export function RegisterAvatarUpload({
             alt="Profile preview"
             className="h-20 w-20 rounded-full border border-slate-600 object-cover"
           />
-          <span className="text-xs text-slate-300">Ready for submission</span>
+          <span className={`text-xs ${isLight ? "text-ink-600" : "text-slate-300"}`}>
+            Ready for submission
+          </span>
         </div>
       ) : null}
 
       {error ? (
-        <p className="mt-3 rounded-xl border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-100">
+        <p
+          className={`mt-3 rounded-xl border px-3 py-2 text-xs ${
+            isLight
+              ? "border-red-300 bg-red-50 text-red-700"
+              : "border-red-500/40 bg-red-500/10 text-red-100"
+          }`}
+        >
           {error}
         </p>
       ) : null}

@@ -142,7 +142,7 @@ test.describe("Prod smoke: doctor registration", { tag: "@nightly-prod" }, () =>
         })
         .check();
 
-      await page.getByRole("button", { name: /Submit application/i }).click();
+      await page.getByRole("button", { name: /Submit My Application/i }).click();
 
       const successHeading = page.getByRole("heading", {
         name: /Thank you|under review|Pending Evaluation/i,

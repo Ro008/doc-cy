@@ -51,7 +51,7 @@ test.describe("Public shell health", { tag: ["@pr-preview", "@nightly-prod"] }, 
     await page.goto("/register");
     await expect(page.getByLabel("Full name")).toBeVisible({ timeout: 15000 });
     await expect(
-      page.getByRole("button", { name: /Submit application/i }),
+      page.getByRole("button", { name: /Submit My Application/i }),
     ).toBeVisible();
   });
 

@@ -141,7 +141,7 @@ test.describe("Doctor registration with mandatory avatar", () => {
           name: /I confirm I am a (qualified health or wellness|licensed) professional/i,
         })
         .check();
-      await page.getByRole("button", { name: /Submit application/i }).click();
+      await page.getByRole("button", { name: /Submit My Application/i }).click();
 
       await expect(page).toHaveURL(/\/register\?submitted=1/, { timeout: 45_000 });
       await expect(

@@ -1,15 +1,16 @@
 "use client";
 
 import { SpecialtyCombobox } from "@/components/specialties/SpecialtyCombobox";
+import { registerFieldErrorClass, registerHelperClass, registerLabelClass } from "@/lib/register-ui";
 
 export function RegisterSpecialtyFields() {
   return (
     <div className="group sm:col-span-2" data-validate-field="1" data-invalid="0">
-      <p className="block text-sm font-medium text-slate-200">
-        Specialty
+      <p className={registerLabelClass}>
+        Medical or Wellness Specialty<span className="text-red-600">*</span>
       </p>
-      <p className="mt-1 text-xs text-slate-500">
-        Choose from the standard list, or pick &quot;Other&quot; if yours isn&apos;t listed (we&apos;ll
+      <p className={registerHelperClass}>
+        Choose from the list, or select &quot;Other&quot; if yours isn&apos;t listed (our team will
         review it).
       </p>
       <SpecialtyCombobox
@@ -18,9 +19,7 @@ export function RegisterSpecialtyFields() {
         initialIsApproved={true}
         variant="register"
       />
-      <p className="field-hint mt-1 hidden text-xs text-red-300 group-data-[invalid=1]:block">
-        Please select your specialty.
-      </p>
+      <p className={registerFieldErrorClass}>Please select your specialty.</p>
     </div>
   );
 }

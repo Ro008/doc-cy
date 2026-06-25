@@ -57,12 +57,12 @@ export function LanguageMultiSelect({
 
   const triggerClass =
     variant === "register"
-      ? "mt-1 flex w-full min-h-[42px] items-center justify-between gap-2 rounded-2xl border border-slate-700 bg-slate-900/60 px-3 py-2 text-left text-sm text-slate-100 shadow-sm outline-none transition focus:border-clinical-400 focus:ring-2 focus:ring-clinical-400/40"
+      ? "mt-1 flex w-full min-h-[42px] items-center justify-between gap-2 rounded-xl border border-ink-200 bg-white px-3 py-2.5 text-left text-sm text-ink-900 shadow-sm outline-none transition focus:border-clinical-400 focus:ring-2 focus:ring-clinical-400/25"
       : "flex min-h-[42px] w-full items-center justify-between gap-2 rounded-xl border border-slate-800/80 bg-slate-950/40 px-3 py-2 text-left text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-clinical-400/60";
 
   const listBoxClass =
     variant === "register"
-      ? "absolute z-50 mt-1 max-h-64 w-full overflow-auto rounded-2xl border border-slate-700 bg-slate-900 py-1 shadow-xl"
+      ? "absolute z-50 mt-1 max-h-64 w-full overflow-auto rounded-xl border border-ink-200 bg-white py-1 shadow-lg ring-1 ring-ink-100"
       : "absolute z-50 mt-1 max-h-64 w-full overflow-auto rounded-xl border border-slate-800 bg-slate-950 py-1 shadow-xl";
 
   return (
@@ -99,17 +99,19 @@ export function LanguageMultiSelect({
         onClick={() => setOpen((o) => !o)}
         className={triggerClass}
       >
-        <span className="min-w-0 truncate text-left text-slate-200">
+        <span className={`min-w-0 truncate text-left ${variant === "register" ? "text-ink-900" : "text-slate-200"}`}>
           {selected.length === 0 ? (
-            <span className="text-slate-500">Select languages…</span>
+            <span className={variant === "register" ? "text-ink-400" : "text-slate-500"}>
+              Select languages…
+            </span>
           ) : (
-            <span className="text-slate-300">
+            <span className={variant === "register" ? "text-ink-700" : "text-slate-300"}>
               {selected.length} language{selected.length !== 1 ? "s" : ""} selected
             </span>
           )}
         </span>
         <ChevronDown
-          className={`h-4 w-4 shrink-0 text-slate-400 transition ${open ? "rotate-180" : ""}`}
+          className={`h-4 w-4 shrink-0 transition ${open ? "rotate-180" : ""} ${variant === "register" ? "text-ink-400" : "text-slate-400"}`}
           aria-hidden
         />
       </button>
@@ -145,7 +147,13 @@ export function LanguageMultiSelect({
           aria-multiselectable="true"
           className={listBoxClass}
         >
-          <div className="sticky top-0 z-10 border-b border-slate-800/80 bg-slate-950/95 px-2 py-2">
+          <div
+            className={
+              variant === "register"
+                ? "sticky top-0 z-10 border-b border-ink-100 bg-white px-2 py-2"
+                : "sticky top-0 z-10 border-b border-slate-800/80 bg-slate-950/95 px-2 py-2"
+            }
+          >
             <div className="relative">
               <Search
                 className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500"
@@ -156,7 +164,11 @@ export function LanguageMultiSelect({
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search languages…"
-                className="w-full rounded-lg border border-slate-700 bg-slate-900 py-1.5 pl-8 pr-2 text-xs text-slate-100 placeholder:text-slate-500 focus:border-clinical-500/50 focus:outline-none focus:ring-1 focus:ring-clinical-500/40"
+                className={
+                  variant === "register"
+                    ? "w-full rounded-lg border border-ink-200 bg-white py-1.5 pl-8 pr-2 text-xs text-ink-900 placeholder:text-ink-400 focus:border-clinical-400/50 focus:outline-none focus:ring-1 focus:ring-clinical-400/40"
+                    : "w-full rounded-lg border border-slate-700 bg-slate-900 py-1.5 pl-8 pr-2 text-xs text-slate-100 placeholder:text-slate-500 focus:border-clinical-500/50 focus:outline-none focus:ring-1 focus:ring-clinical-500/40"
+                }
                 autoFocus
               />
             </div>
@@ -172,13 +184,19 @@ export function LanguageMultiSelect({
                     aria-selected={checked}
                     data-testid={`language-option-${t.label.replace(/\s+/g, "-")}`}
                     onClick={() => toggle(t.label)}
-                    className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-200 hover:bg-slate-800/80"
+                    className={
+                      variant === "register"
+                        ? "flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-ink-700 hover:bg-clinical-50"
+                        : "flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-200 hover:bg-slate-800/80"
+                    }
                   >
                     <span
                       className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${
                         checked
-                          ? "border-clinical-400 bg-clinical-500/20 text-clinical-300"
-                          : "border-slate-600 bg-slate-900"
+                          ? "border-clinical-400 bg-clinical-50 text-clinical-700"
+                          : variant === "register"
+                            ? "border-ink-300 bg-white"
+                            : "border-slate-600 bg-slate-900"
                       }`}
                     >
                       {checked ? "✓" : ""}

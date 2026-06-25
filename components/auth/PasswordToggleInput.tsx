@@ -11,6 +11,7 @@ type PasswordToggleInputProps = {
   className?: string;
   value?: string;
   onChange?: (value: string) => void;
+  tone?: "dark" | "light";
 };
 
 export function PasswordToggleInput({
@@ -21,8 +22,19 @@ export function PasswordToggleInput({
   className,
   value,
   onChange,
+  tone = "dark",
 }: PasswordToggleInputProps) {
   const [showPassword, setShowPassword] = React.useState(false);
+
+  const inputClass =
+    tone === "light"
+      ? "w-full rounded-xl border border-ink-200 bg-white px-3 py-2.5 text-sm text-ink-900 shadow-sm outline-none transition placeholder:text-ink-400 focus:border-clinical-400 focus:ring-2 focus:ring-clinical-400/25"
+      : "w-full rounded-2xl border border-slate-700 bg-slate-900/60 px-3 py-2 text-sm text-slate-100 shadow-sm outline-none transition focus:border-clinical-400 focus:ring-2 focus:ring-clinical-400/40";
+
+  const toggleClass =
+    tone === "light"
+      ? "absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-1 text-ink-400 transition hover:bg-ink-100 hover:text-ink-700 focus:outline-none focus:ring-2 focus:ring-clinical-400/60"
+      : "absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-1 text-slate-400 transition hover:bg-slate-800 hover:text-slate-200 focus:outline-none focus:ring-2 focus:ring-clinical-400/60";
 
   return (
     <div className="relative mt-1">
@@ -34,9 +46,7 @@ export function PasswordToggleInput({
         placeholder={placeholder}
         required={required}
         minLength={minLength}
-        className={`w-full rounded-2xl border border-slate-700 bg-slate-900/60 px-3 py-2 text-sm text-slate-100 shadow-sm outline-none transition focus:border-clinical-400 focus:ring-2 focus:ring-clinical-400/40 ${
-          className ?? ""
-        }`}
+        className={`${inputClass} ${className ?? ""}`}
         autoComplete={name === "password" ? "current-password" : undefined}
       />
 
@@ -44,7 +54,7 @@ export function PasswordToggleInput({
         type="button"
         onClick={() => setShowPassword((v) => !v)}
         aria-label={showPassword ? "Hide" : "Show"}
-        className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-1 text-slate-400 transition hover:bg-slate-800 hover:text-slate-200 focus:outline-none focus:ring-2 focus:ring-clinical-400/60"
+        className={toggleClass}
       >
         {showPassword ? (
           <EyeOff className="h-5 w-5" aria-hidden />

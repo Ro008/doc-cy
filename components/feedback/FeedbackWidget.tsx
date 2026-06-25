@@ -5,6 +5,7 @@ import { HelpCircle, X, Send } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import {
+  DOCCY_FEEDBACK_SUBJECT_DEMO_REQUEST,
   DOCCY_FEEDBACK_SUBJECT_WEBSITE_BOOKING,
   DOCCY_OPEN_FEEDBACK_EVENT,
   type DocCyOpenFeedbackDetail,
@@ -22,11 +23,13 @@ type Subject =
   | "Something isn't working"
   | "General Question"
   | "Founding Member Inquiry"
-  | typeof DOCCY_FEEDBACK_SUBJECT_WEBSITE_BOOKING;
+  | typeof DOCCY_FEEDBACK_SUBJECT_WEBSITE_BOOKING
+  | typeof DOCCY_FEEDBACK_SUBJECT_DEMO_REQUEST;
 
 const LOCKED_FEEDBACK_SUBJECTS: readonly Subject[] = [
   "Founding Member Inquiry",
   DOCCY_FEEDBACK_SUBJECT_WEBSITE_BOOKING,
+  DOCCY_FEEDBACK_SUBJECT_DEMO_REQUEST,
 ];
 
 function isLockedFeedbackSubject(value: string): value is Subject {
@@ -94,6 +97,8 @@ export function FeedbackWidget() {
         setSubject("Founding Member Inquiry");
       } else if (next === DOCCY_FEEDBACK_SUBJECT_WEBSITE_BOOKING) {
         setSubject(DOCCY_FEEDBACK_SUBJECT_WEBSITE_BOOKING);
+      } else if (next === DOCCY_FEEDBACK_SUBJECT_DEMO_REQUEST) {
+        setSubject(DOCCY_FEEDBACK_SUBJECT_DEMO_REQUEST);
       } else if (next === "General Question") {
         setSubject("General Question");
       } else {
