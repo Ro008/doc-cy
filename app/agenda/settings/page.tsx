@@ -194,11 +194,11 @@ export default async function AgendaSettingsPage() {
 
   if (!doctor) {
     return (
-      <main className="min-h-screen bg-slate-950 text-slate-50">
+      <main className="min-h-screen bg-ink-900 text-slate-50">
         <div className="pointer-events-none fixed inset-0 -z-10">
-          <div className="absolute inset-x-0 top-[-10%] mx-auto h-80 max-w-xl rounded-full bg-emerald-500/10 blur-3xl" />
+          <div className="absolute inset-x-0 top-[-10%] mx-auto h-80 max-w-xl rounded-full bg-clinical-500/10 blur-3xl" />
           <div className="absolute inset-y-0 left-[-10%] h-full w-64 bg-sky-500/5 blur-3xl" />
-          <div className="absolute inset-y-0 right-[-15%] h-full w-72 bg-emerald-400/10 blur-3xl" />
+          <div className="absolute inset-y-0 right-[-15%] h-full w-72 bg-clinical-400/10 blur-3xl" />
         </div>
         <div className="mx-auto max-w-2xl px-4 py-12 text-center">
           <p className="text-slate-200">
@@ -342,17 +342,17 @@ export default async function AgendaSettingsPage() {
   };
 
   return (
-    <main className="min-h-screen bg-slate-950 text-slate-50">
+    <main className="min-h-screen bg-ink-900 text-slate-50">
       <div className="pointer-events-none fixed inset-0 -z-10">
-        <div className="absolute inset-x-0 top-[-10%] mx-auto h-80 max-w-xl rounded-full bg-emerald-500/10 blur-3xl" />
+        <div className="absolute inset-x-0 top-[-10%] mx-auto h-80 max-w-xl rounded-full bg-clinical-500/10 blur-3xl" />
         <div className="absolute inset-y-0 left-[-10%] h-full w-64 bg-sky-500/5 blur-3xl" />
-        <div className="absolute inset-y-0 right-[-15%] h-full w-72 bg-emerald-400/10 blur-3xl" />
+        <div className="absolute inset-y-0 right-[-15%] h-full w-72 bg-clinical-400/10 blur-3xl" />
       </div>
 
       <div className="mx-auto w-full max-w-5xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
         <header className="mb-8 mt-2 flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between lg:gap-10">
           <div className="min-w-0 flex-1">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-emerald-400/90">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-clinical-400/90">
               Settings
             </p>
             <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-3">
@@ -371,7 +371,7 @@ export default async function AgendaSettingsPage() {
           </div>
         </header>
 
-        <section className="w-full space-y-5 rounded-3xl border border-emerald-100/10 bg-slate-900/50 p-6 shadow-2xl shadow-slate-950/50 backdrop-blur-xl sm:p-8">
+        <section className="w-full space-y-5 rounded-3xl border border-clinical-100/10 bg-slate-900/50 p-6 shadow-2xl shadow-ink-900/50 backdrop-blur-xl sm:p-8">
           <SettingsForm initial={initial} />
           <GesyPatientsToggle initialAcceptsGesy={Boolean(doctor.is_gesy)} />
         </section>

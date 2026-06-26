@@ -38,10 +38,10 @@ export function ProfessionalAccessButton() {
   return (
     <PendingLink
       href={isCheckingAuth ? "/login" : isLoggedIn ? "/agenda" : "/login"}
-      className={`inline-flex min-w-[11.5rem] items-center justify-center rounded-xl border-2 border-white/45 bg-neutral-800/90 px-5 py-2.5 text-sm font-semibold text-neutral-50 shadow-md shadow-black/30 backdrop-blur transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 focus-visible:ring-offset-2 focus-visible:ring-offset-neutral-900 ${
+      className={`inline-flex min-w-[11.5rem] items-center justify-center rounded-xl border-2 border-clinical-300 bg-white px-5 py-2.5 text-sm font-semibold text-ink-800 shadow-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-400 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-50 ${
         isCheckingAuth
-          ? "cursor-not-allowed opacity-75 pointer-events-none"
-          : "hover:border-white/65 hover:bg-neutral-700/95 hover:text-white"
+          ? "pointer-events-none cursor-not-allowed opacity-75"
+          : "hover:border-clinical-400 hover:bg-clinical-50"
       }`}
       aria-busy={isCheckingAuth}
       aria-disabled={isCheckingAuth}

@@ -207,7 +207,7 @@ export function PendingSpecialtiesPanel({ items }: { items: PendingSpecialtyRow[
                       type="button"
                       disabled={busy}
                       onClick={() => approveAsSubmitted(row.id)}
-                      className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-500/20 px-3 py-1.5 text-xs font-semibold text-emerald-100 ring-1 ring-emerald-500/40 hover:bg-emerald-500/30 disabled:opacity-50"
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-clinical-500/20 px-3 py-1.5 text-xs font-semibold text-clinical-100 ring-1 ring-clinical-500/40 hover:bg-clinical-500/30 disabled:opacity-50"
                     >
                       Approve as submitted
                     </button>
@@ -221,7 +221,7 @@ export function PendingSpecialtiesPanel({ items }: { items: PendingSpecialtyRow[
                         setMapTarget("");
                         setError(null);
                       }}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-xs font-medium text-emerald-100 hover:bg-emerald-500/20 disabled:opacity-50"
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-clinical-500/40 bg-clinical-500/10 px-3 py-1.5 text-xs font-medium text-clinical-100 hover:bg-clinical-500/20 disabled:opacity-50"
                     >
                       Edit typo and approve
                     </button>
@@ -260,7 +260,7 @@ export function PendingSpecialtiesPanel({ items }: { items: PendingSpecialtyRow[
                     type="button"
                     disabled={busy || !mapTarget}
                     onClick={() => mapSubmit(row.id)}
-                    className="rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-400 disabled:opacity-50"
+                    className="rounded-lg bg-clinical-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-clinical-400 disabled:opacity-50"
                   >
                     Save merge
                   </button>
@@ -284,7 +284,7 @@ export function PendingSpecialtiesPanel({ items }: { items: PendingSpecialtyRow[
                     type="button"
                     disabled={busy || !editValue.trim()}
                     onClick={() => approveEdited(row.id)}
-                    className="rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-400 disabled:opacity-50"
+                    className="rounded-lg bg-clinical-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-clinical-400 disabled:opacity-50"
                   >
                     Save and approve
                   </button>

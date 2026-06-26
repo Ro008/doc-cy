@@ -79,9 +79,9 @@ export function ReschedulePickClient({
   if (done) {
     const picked = slots.find((s) => s.iso === selectedIso);
     return (
-      <div className="mx-auto max-w-md rounded-3xl border border-emerald-500/30 bg-emerald-500/10 p-8 text-center shadow-xl">
+      <div className="mx-auto max-w-md rounded-3xl border border-clinical-500/30 bg-clinical-500/10 p-8 text-center shadow-xl">
         <CheckCircle2
-          className="mx-auto h-14 w-14 text-emerald-300"
+          className="mx-auto h-14 w-14 text-clinical-300"
           aria-hidden
         />
         <h2 className="mt-4 text-xl font-semibold text-slate-50">
@@ -93,7 +93,7 @@ export function ReschedulePickClient({
             <>
               {" "}
               for{" "}
-              <span className="font-medium text-emerald-100">{picked.label}</span>
+              <span className="font-medium text-clinical-100">{picked.label}</span>
             </>
           ) : null}{" "}
           (Cyprus time). Check your email for calendar links.
@@ -143,14 +143,14 @@ export function ReschedulePickClient({
               }}
               className={`flex w-full items-center gap-4 rounded-2xl border px-4 py-4 text-left transition disabled:cursor-not-allowed disabled:hover:border-slate-700/80 disabled:hover:bg-slate-900/50 ${
                 active
-                  ? "border-emerald-400/60 bg-emerald-400/15 shadow-lg shadow-emerald-950/30"
+                  ? "border-clinical-400/60 bg-clinical-400/15 shadow-lg shadow-clinical-950/30"
                   : "border-slate-700/80 bg-slate-900/50 hover:border-slate-600 hover:bg-slate-800/60"
               }`}
             >
               <span
                 className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-sm font-bold ${
                   active
-                    ? "bg-emerald-400 text-slate-950"
+                    ? "bg-clinical-400 text-slate-950"
                     : "border border-slate-600 bg-slate-800 text-slate-400"
                 }`}
               >
@@ -174,7 +174,7 @@ export function ReschedulePickClient({
         type="button"
         disabled={!selectedIso || submitting}
         onClick={submit}
-        className="flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-400 px-4 py-3.5 text-sm font-semibold text-slate-950 shadow-lg shadow-emerald-500/25 transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400 disabled:shadow-none"
+        className="flex w-full items-center justify-center gap-2 rounded-2xl bg-clinical-400 px-4 py-3.5 text-sm font-semibold text-slate-950 shadow-lg shadow-clinical-500/25 transition hover:bg-clinical-300 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400 disabled:shadow-none"
       >
         {submitting ? (
           <>

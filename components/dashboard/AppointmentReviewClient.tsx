@@ -247,7 +247,7 @@ export function AppointmentReviewClient({
   return (
     <div className="mx-auto max-w-lg space-y-6">
       <div>
-        <p className="text-xs font-semibold uppercase tracking-wide text-emerald-300/90">
+        <p className="text-xs font-semibold uppercase tracking-wide text-clinical-300/90">
           Review request
         </p>
         <h1 className="mt-2 text-xl font-semibold text-slate-50">
@@ -302,7 +302,7 @@ export function AppointmentReviewClient({
                 onClick={() => setDuration(m)}
                 className={`rounded-xl border px-3 py-2 text-sm font-medium transition ${
                   active
-                    ? "border-emerald-400/60 bg-emerald-400/20 text-emerald-100"
+                    ? "border-clinical-400/60 bg-clinical-400/20 text-clinical-100"
                     : "border-slate-700 bg-slate-900/50 text-slate-300 hover:border-slate-600"
                 }`}
               >
@@ -351,7 +351,7 @@ export function AppointmentReviewClient({
           type="button"
           disabled={hasConflict || checking || submitting}
           onClick={handleConfirm}
-          className="w-full rounded-2xl bg-emerald-400 px-4 py-3.5 text-sm font-semibold text-slate-950 shadow-lg shadow-emerald-500/20 transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400 disabled:shadow-none"
+          className="w-full rounded-2xl bg-clinical-400 px-4 py-3.5 text-sm font-semibold text-slate-950 shadow-lg shadow-clinical-500/20 transition hover:bg-clinical-300 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400 disabled:shadow-none"
         >
           {submitting ? "Confirming…" : "Confirm appointment"}
         </button>
@@ -390,7 +390,7 @@ export function AppointmentReviewClient({
                   {previewSlots.map((iso, i) => (
                     <li
                       key={iso}
-                      className="rounded-xl border border-slate-700/80 bg-slate-950/50 px-3 py-2"
+                      className="rounded-xl border border-slate-700/80 bg-ink-900/50 px-3 py-2"
                     >
                       <span className="text-slate-500">{i + 1}. </span>
                       {format(

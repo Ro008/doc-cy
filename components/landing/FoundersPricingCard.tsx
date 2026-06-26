@@ -156,23 +156,23 @@ export function FoundersPricingCard({ embedded = false }: FoundersPricingCardPro
       ref={rootRef}
       className={
         embedded
-          ? "mt-5 border-t border-emerald-300/20 pt-5 [overflow-anchor:none]"
-          : "rounded-2xl border border-emerald-300/30 bg-slate-950/70 p-5 shadow-[0_0_40px_-16px_rgba(52,211,153,0.45)] [overflow-anchor:none]"
+          ? "mt-5 border-t border-clinical-200 pt-5 [overflow-anchor:none]"
+          : "rounded-2xl border border-clinical-200 bg-white p-5 shadow-[0_1px_3px_rgba(26,43,60,0.06),0_8px_24px_rgba(11,123,181,0.08)] [overflow-anchor:none]"
       }
     >
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           {showFounderOffer ? (
             <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
-              <span className="inline-flex w-fit rounded-full border border-emerald-300/50 bg-emerald-400/15 px-2.5 py-0.5 text-[11px] font-semibold tracking-wide text-emerald-200">
+              <span className="inline-flex w-fit rounded-full border border-clinical-300 bg-clinical-50 px-2.5 py-0.5 text-[11px] font-semibold tracking-wide text-clinical-700">
                 {t("Pricing.sixMonthsFree")}
               </span>
-              <span className="inline-flex w-fit rounded-full border border-emerald-400/35 bg-emerald-500/10 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-emerald-100/90">
+              <span className="inline-flex w-fit rounded-full border border-wellness-300 bg-wellness-50 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-wellness-700">
                 {t("Pricing.foundingMemberStatus")}
               </span>
             </div>
           ) : (
-            <span className="mx-auto inline-flex rounded-full border border-slate-600/70 bg-slate-800/70 px-2.5 py-0.5 text-[11px] font-semibold tracking-wide text-slate-200 sm:mx-0">
+            <span className="mx-auto inline-flex rounded-full border border-ink-200 bg-ink-100 px-2.5 py-0.5 text-[11px] font-semibold tracking-wide text-ink-600 sm:mx-0">
               {t("Pricing.standardPricing")}
             </span>
           )}
@@ -181,24 +181,24 @@ export function FoundersPricingCard({ embedded = false }: FoundersPricingCardPro
         <div className="text-center sm:text-right">
           {status === "loading" ? (
             <div className="space-y-2">
-              <p className="text-xs text-slate-400">{t("Pricing.loading")}</p>
-              <div className="mx-auto h-7 w-24 animate-pulse rounded bg-slate-700/70 sm:ml-auto sm:mr-0" aria-hidden />
+              <p className="text-xs text-ink-400">{t("Pricing.loading")}</p>
+              <div className="mx-auto h-7 w-24 animate-pulse rounded bg-ink-200 sm:ml-auto sm:mr-0" aria-hidden />
             </div>
           ) : showFounderOffer ? (
             <div className="flex flex-col items-center gap-0.5 sm:items-end">
-              <p className="relative inline-block text-sm font-semibold text-slate-400">
+              <p className="relative inline-block text-sm font-semibold text-ink-400">
                 <span>{t("Pricing.oldPrice")}</span>
                 <span
                   className="pointer-events-none absolute inset-x-0 top-1/2 h-[2px] -translate-y-[62%] bg-rose-200/95"
                   aria-hidden
                 />
               </p>
-              <p className="text-2xl font-bold tracking-tight text-neutral-50 sm:text-[1.75rem]">
+              <p className="text-2xl font-bold tracking-tight text-ink-900 sm:text-[1.75rem]">
                 {t("Pricing.price")}
               </p>
             </div>
           ) : (
-            <p className="text-2xl font-bold tracking-tight text-neutral-50 sm:text-[1.75rem]">
+            <p className="text-2xl font-bold tracking-tight text-ink-900 sm:text-[1.75rem]">
               {t("Pricing.oldPrice")}
             </p>
           )}
@@ -207,9 +207,9 @@ export function FoundersPricingCard({ embedded = false }: FoundersPricingCardPro
 
       <div className="mt-3 space-y-2">
         {status === "loading" ? (
-          <p className="text-xs text-slate-400">{t("Pricing.loading")}</p>
+          <p className="text-xs text-ink-400">{t("Pricing.loading")}</p>
         ) : showFounderOffer ? (
-          <p className="text-center text-xs text-emerald-200/95 sm:text-left">
+          <p className="text-center text-xs text-clinical-700 sm:text-left">
             {t.rich("Pricing.limited", {
               count:
                 revealLive && displaySpots !== null
@@ -217,28 +217,28 @@ export function FoundersPricingCard({ embedded = false }: FoundersPricingCardPro
                   : spotsRemaining || MAX_FOUNDERS,
               max: MAX_FOUNDERS,
               spots: (chunks) => (
-                <span className="inline-flex items-center rounded-md bg-emerald-300/20 px-1.5 py-0.5 font-semibold text-emerald-100 shadow-[0_0_16px_-6px_rgba(110,231,183,0.9)] animate-pulse">
+                <span className="inline-flex items-center rounded-md bg-clinical-100 px-1.5 py-0.5 font-semibold text-clinical-800">
                   {chunks}
                 </span>
               ),
             })}
           </p>
         ) : (
-          <p className="text-center text-xs text-slate-400 sm:text-left">
+          <p className="text-center text-xs text-ink-400 sm:text-left">
             {t("Pricing.foundersUnavailable")}
           </p>
         )}
 
-        <div className="h-2 w-full overflow-hidden rounded-full bg-slate-800/90">
+        <div className="h-2 w-full overflow-hidden rounded-full bg-ink-200">
           {status === "loading" && inView ? (
             <div
-              className="h-full w-[30%] rounded-full bg-emerald-300/45 animate-pulse"
+              className="h-full w-[30%] rounded-full bg-clinical-300 animate-pulse"
               aria-hidden
             />
           ) : (
             <div
               className={`h-full rounded-full ${
-                showFounderOffer ? "bg-emerald-300/90" : "bg-slate-500/80"
+                showFounderOffer ? "bg-clinical-500" : "bg-ink-400"
               }`}
               style={{ width: `${revealLive ? barShownPct : 0}%` }}
               aria-hidden
@@ -247,17 +247,17 @@ export function FoundersPricingCard({ embedded = false }: FoundersPricingCardPro
         </div>
 
         {showFounderOffer ? (
-          <p className="text-center text-[11px] leading-relaxed text-emerald-100/85">
+          <p className="text-center text-[11px] leading-relaxed text-wellness-700">
             {t("Pricing.trustLine")}
           </p>
         ) : null}
       </div>
 
-      <ul className="mt-4 grid gap-2 text-sm text-slate-200 sm:grid-cols-2 sm:gap-x-4">
+      <ul className="mt-4 grid gap-2 text-sm text-ink-700 sm:grid-cols-2 sm:gap-x-4">
         {features.map((feature) => (
           <li key={feature.label} className="flex items-start gap-2">
             <Check
-              className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-300"
+              className="mt-0.5 h-3.5 w-3.5 shrink-0 text-wellness-600"
               strokeWidth={2.5}
               aria-hidden
             />
@@ -267,7 +267,7 @@ export function FoundersPricingCard({ embedded = false }: FoundersPricingCardPro
                 <span className="group relative inline-flex">
                   <button
                     type="button"
-                    className="inline-flex items-center rounded-full p-0.5 text-slate-400 transition hover:text-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/80"
+                    className="inline-flex items-center rounded-full p-0.5 text-ink-400 transition hover:text-ink-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-400"
                     aria-label={t("Pricing.benefits.directoryPriorityNote")}
                     aria-expanded={showDirectoryNote}
                     onClick={() => setShowDirectoryNote((prev) => !prev)}
@@ -277,7 +277,7 @@ export function FoundersPricingCard({ embedded = false }: FoundersPricingCardPro
                   </button>
                   <span
                     role="tooltip"
-                    className={`pointer-events-none absolute right-0 top-full z-10 mt-2 w-52 max-w-[min(16rem,calc(100vw-1.5rem))] rounded-md border border-slate-600/70 bg-slate-900/95 p-2 text-[11px] leading-relaxed text-slate-300 shadow-lg transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100 sm:left-0 sm:right-auto ${
+                    className={`pointer-events-none absolute right-0 top-full z-10 mt-2 w-52 max-w-[min(16rem,calc(100vw-1.5rem))] rounded-md border border-ink-200 bg-white p-2 text-[11px] leading-relaxed text-ink-600 shadow-lg transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100 sm:left-0 sm:right-auto ${
                       showDirectoryNote ? "opacity-100" : "opacity-0"
                     }`}
                   >
@@ -292,7 +292,7 @@ export function FoundersPricingCard({ embedded = false }: FoundersPricingCardPro
 
       <PendingLink
         href="/register"
-        className="mt-5 inline-flex w-full items-center justify-center rounded-xl bg-emerald-400 px-5 py-2.5 text-sm font-semibold text-neutral-950 shadow-[0_0_0_1px_rgba(52,211,153,0.35),0_0_28px_rgba(16,185,129,0.55),0_0_56px_rgba(16,185,129,0.22)] transition hover:bg-emerald-300 hover:shadow-[0_0_0_1px_rgba(110,231,183,0.5),0_0_36px_rgba(52,211,153,0.65),0_0_72px_rgba(16,185,129,0.28)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 focus-visible:ring-offset-neutral-900"
+        className="mt-5 inline-flex w-full items-center justify-center rounded-xl bg-clinical-500 px-5 py-2.5 text-sm font-semibold text-white shadow-[0_1px_2px_rgba(11,123,181,0.2),0_4px_14px_rgba(11,123,181,0.22)] transition hover:bg-clinical-400 hover:shadow-[0_4px_18px_rgba(11,123,181,0.3)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-500 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-50"
       >
         {t("Pricing.cta")}
       </PendingLink>

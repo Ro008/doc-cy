@@ -262,7 +262,7 @@ export function ManualPatientVotesSection({ query, rows, podium, maxVotes }: Pro
                   <td className="max-w-[100px] truncate py-2.5 pr-2 text-slate-400 sm:py-2 sm:pr-3">
                     {r.district ?? "—"}
                   </td>
-                  <td className="py-2.5 pr-2 text-right tabular-nums text-emerald-200 sm:py-2 sm:pr-3">
+                  <td className="py-2.5 pr-2 text-right tabular-nums text-clinical-200 sm:py-2 sm:pr-3">
                     {r.count}
                   </td>
                   <td className="whitespace-nowrap py-2.5 text-right text-slate-500 sm:py-2">

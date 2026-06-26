@@ -1,252 +1,133 @@
 // app/page.tsx
 import {
-  BellRing,
   CalendarSync,
-  CheckCircle2,
   ChevronDown,
-  ClipboardList,
   Globe,
-  Moon,
+  LayoutTemplate,
   PhoneCall,
-  PhoneMissed,
+  Search,
   ShieldCheck,
-  XCircle,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { FoundersPricingCard } from "@/components/landing/FoundersPricingCard";
+import { HeroDoctorVisual } from "@/components/landing/HeroDoctorVisual";
 import { HomeLandingScroll } from "@/components/landing/HomeLandingScroll";
 import { getTranslations, getLocale } from "next-intl/server";
-import { ProductShowcaseCarousel } from "@/components/landing/ProductShowcaseCarousel";
 import { PendingLink } from "@/components/navigation/PendingLink";
 import { ProfessionalAccessButton } from "@/components/landing/ProfessionalAccessButton";
 import { MarketingFooter } from "@/components/navigation/MarketingFooter";
 import { SupportInquiryLink } from "@/components/landing/SupportInquiryLink";
+import { DocCyWordmark } from "@/components/brand/DocCyWordmark";
 
-type Benefit = {
-  icon: LucideIcon;
-  title: string;
-  body: string;
-  iconWell: string;
-};
-
-/** Soft mint glow (emerald-300 family) for premium cards on dark UI */
 const benefitCardShell =
-  "rounded-2xl border border-emerald-300/20 bg-slate-900/75 p-4 shadow-[0_0_36px_-14px_rgba(110,231,183,0.22),0_2px_12px_-4px_rgba(0,0,0,0.45)] backdrop-blur-sm transition hover:border-emerald-300/35 hover:shadow-[0_0_44px_-12px_rgba(110,231,183,0.32),0_4px_16px_-4px_rgba(0,0,0,0.5)] sm:p-5";
+  "rounded-2xl border border-clinical-200 bg-white p-4 shadow-[0_1px_3px_rgba(26,43,60,0.06),0_4px_16px_rgba(11,123,181,0.05)] transition hover:border-clinical-300 hover:shadow-[0_4px_20px_rgba(11,123,181,0.1)] sm:p-5";
+
+const landingCtaClass =
+  "inline-flex items-center justify-center rounded-xl bg-clinical-500 px-5 py-2.5 text-sm font-semibold text-white shadow-[0_1px_2px_rgba(11,123,181,0.2),0_4px_14px_rgba(11,123,181,0.22)] transition hover:bg-clinical-400 hover:shadow-[0_4px_18px_rgba(11,123,181,0.3)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-500 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-50";
+
+const landingSectionShell =
+  "rounded-3xl border border-clinical-200 bg-white p-5 shadow-[0_1px_3px_rgba(26,43,60,0.06),0_8px_24px_rgba(11,123,181,0.06)] sm:p-7";
 
 export default async function HomePage() {
   const t = await getTranslations("LandingPage");
   const locale = await getLocale();
   const isGreek = locale === "el";
 
-  const adoptionPlaybookSteps: Benefit[] = [
+  const heroMetrics = [
+    { label: t("Hero.metrics.freeTrial.label"), detail: t("Hero.metrics.freeTrial.detail") },
+    { label: t("Hero.metrics.cyprus.label"), detail: t("Hero.metrics.cyprus.detail") },
+    { label: t("Hero.metrics.approvals.label"), detail: t("Hero.metrics.approvals.detail") },
+    { label: t("Hero.metrics.support.label"), detail: t("Hero.metrics.support.detail") },
+  ];
+
+  const whatIsItems: { icon: LucideIcon; title: string; body: string }[] = [
     {
-      icon: Moon,
-      title: t("AdoptionPlaybook.steps.weekendShield.title"),
-      body: t("AdoptionPlaybook.steps.weekendShield.body"),
-      iconWell:
-        "bg-indigo-400/25 text-indigo-200 shadow-[0_0_24px_-4px_rgba(129,140,248,0.55)] ring-2 ring-indigo-300/50",
+      icon: CalendarSync,
+      title: t("WhatIsDocCy.items.agenda.title"),
+      body: t("WhatIsDocCy.items.agenda.body"),
+    },
+    {
+      icon: LayoutTemplate,
+      title: t("WhatIsDocCy.items.storefront.title"),
+      body: t("WhatIsDocCy.items.storefront.body"),
+    },
+    {
+      icon: ShieldCheck,
+      title: t("WhatIsDocCy.items.shield.title"),
+      body: t("WhatIsDocCy.items.shield.body"),
+    },
+  ];
+
+  const challengeItems: {
+    icon: LucideIcon;
+    category: string;
+    title: string;
+    body: string;
+    iconWell: string;
+  }[] = [
+    {
+      icon: Search,
+      category: t("Challenges.items.visibility.category"),
+      title: t("Challenges.items.visibility.title"),
+      body: t("Challenges.items.visibility.body"),
+      iconWell: "bg-clinical-100 text-clinical-700 ring-1 ring-clinical-200",
     },
     {
       icon: PhoneCall,
-      title: t("AdoptionPlaybook.steps.liveHandoff.title"),
-      body: t("AdoptionPlaybook.steps.liveHandoff.body"),
-      iconWell:
-        "bg-amber-400/25 text-amber-200 shadow-[0_0_24px_-4px_rgba(251,191,36,0.5)] ring-2 ring-amber-300/55",
+      category: t("Challenges.items.productivity.category"),
+      title: t("Challenges.items.productivity.title"),
+      body: t("Challenges.items.productivity.body"),
+      iconWell: "bg-amber-50 text-amber-800 ring-1 ring-amber-200",
     },
     {
       icon: Globe,
-      title: t("AdoptionPlaybook.steps.websiteButton.title"),
-      body: t("AdoptionPlaybook.steps.websiteButton.body"),
-      iconWell:
-        "bg-violet-400/25 text-violet-200 shadow-[0_0_24px_-4px_rgba(167,139,250,0.5)] ring-2 ring-violet-300/55",
+      category: t("Challenges.items.weekendShield.category"),
+      title: t("Challenges.items.weekendShield.title"),
+      body: t("Challenges.items.weekendShield.body"),
+      iconWell: "bg-wellness-50 text-wellness-800 ring-1 ring-wellness-200",
     },
   ];
 
-  const adoptionPlaybookResults = [
-    t("AdoptionPlaybook.steps.weekendShield.result"),
-    t("AdoptionPlaybook.steps.liveHandoff.result"),
-    t("AdoptionPlaybook.steps.websiteButton.result"),
-  ];
-
-  const manualBookingPains: Benefit[] = [
+  const howItWorksSteps = [
     {
-      icon: BellRing,
-      title: t("Features.painDistractionLabel"),
-      body: t("Features.painDistractionBody"),
-      iconWell:
-        "bg-rose-400/20 text-rose-200 shadow-[0_0_20px_-6px_rgba(251,113,133,0.45)] ring-2 ring-rose-300/40",
+      title: t("HowItWorks.steps.profile.title"),
+      body: t("HowItWorks.steps.profile.body"),
     },
     {
-      icon: ClipboardList,
-      title: t("Features.painAdminDebtLabel"),
-      body: t("Features.painAdminDebtBody"),
-      iconWell:
-        "bg-amber-400/20 text-amber-200 shadow-[0_0_20px_-6px_rgba(251,191,36,0.45)] ring-2 ring-amber-300/40",
+      title: t("HowItWorks.steps.requests.title"),
+      body: t("HowItWorks.steps.requests.body"),
     },
     {
-      icon: PhoneMissed,
-      title: t("Features.painSilentLeaksLabel"),
-      body: t("Features.painSilentLeaksBody"),
-      iconWell:
-        "bg-slate-400/20 text-slate-200 shadow-[0_0_20px_-6px_rgba(148,163,184,0.4)] ring-2 ring-slate-300/35",
+      title: t("HowItWorks.steps.sync.title"),
+      body: t("HowItWorks.steps.sync.body"),
     },
   ];
 
-  const showcaseSlides = [
-    {
-      title: t("Showcase.slides.smartRequestFilter.title"),
-      body: t("Showcase.slides.smartRequestFilter.body"),
-      imageSrc: "/showcase/13-smart-request-email.png",
-      categoryLabel: t("Showcase.badges.forYou"),
-      device: "desktop" as const,
-      desktopWideCapture: true,
-    },
-    {
-      title: t("Showcase.slides.breakGuard.title"),
-      body: t("Showcase.slides.breakGuard.body"),
-      imageSrc: "/showcase/12-break-protection.png",
-      categoryLabel: t("Showcase.badges.forYou"),
-      device: "desktop" as const,
-      desktopWideCapture: true,
-    },
-    {
-      title: t("Showcase.slides.overlapGuard.title"),
-      body: t("Showcase.slides.overlapGuard.body"),
-      imageSrc: "/showcase/10-overlap-rescue.png",
-      categoryLabel: t("Showcase.badges.forYou"),
-      device: "desktop" as const,
-      desktopWideCapture: true,
-    },
-    {
-      title: t("Showcase.slides.proposalEmail.title"),
-      body: t("Showcase.slides.proposalEmail.body"),
-      imageSrc: "/showcase/11-proposal-email.png",
-      categoryLabel: t("Showcase.badges.forPatients"),
-      device: "desktop" as const,
-      desktopWideCapture: true,
-    },
-    {
-      title: t("Showcase.slides.pendingClarity.title"),
-      body: t("Showcase.slides.pendingClarity.body"),
-      imageSrc: "/showcase/15-patient-pending-status.png",
-      categoryLabel: t("Showcase.badges.forPatients"),
-      device: "desktop" as const,
-      desktopWideCapture: true,
-    },
-    {
-      title: t("Showcase.slides.pendingVisual.title"),
-      body: t("Showcase.slides.pendingVisual.body"),
-      imageSrc: "/showcase/14-pending-slot-visual.png",
-      categoryLabel: t("Showcase.badges.forYou"),
-      device: "desktop" as const,
-      desktopWideCapture: true,
-    },
-    {
-      title: t("Showcase.slides.automatedFollowup.title"),
-      body: t("Showcase.slides.automatedFollowup.body"),
-      imageSrc: "/showcase/01-update-on-request.png",
-      categoryLabel: t("Showcase.badges.forPatients"),
-      device: "desktop" as const,
-      desktopWideCapture: true,
-    },
-    {
-      title: t("Showcase.slides.sync.title"),
-      body: t("Showcase.slides.sync.body"),
-      imageSrc: "/showcase/04-google-calendar.png",
-      categoryLabel: t("Showcase.badges.forPatients"),
-      device: "phone" as const,
-    },
-    {
-      title: t("Showcase.slides.weeklyGrid.title"),
-      body: t("Showcase.slides.weeklyGrid.body"),
-      imageSrc: "/showcase/06-weekly-grid.png",
-      categoryLabel: t("Showcase.badges.forYou"),
-      device: "desktop" as const,
-      mobileDesktopFrameClass: "aspect-[4/3] sm:h-auto sm:aspect-[16/10]",
-      mobileDesktopImageClass: "object-contain",
-    },
-    {
-      title: t("Showcase.slides.premiumStorefront.title"),
-      body: t("Showcase.slides.premiumStorefront.body"),
-      imageSrc: "/showcase/16-premium-storefront.png",
-      categoryLabel: t("Showcase.badges.forPatients"),
-      device: "desktop" as const,
-      desktopWideCapture: true,
-    },
-    {
-      title: t("Showcase.slides.settingsSchedule.title"),
-      body: t("Showcase.slides.settingsSchedule.body"),
-      imageSrc: "/showcase/09-settings-schedule.png",
-      categoryLabel: t("Showcase.badges.forYou"),
-      device: "desktop" as const,
-      mobileDesktopFrameClass: "aspect-[4/3] sm:h-auto sm:aspect-[16/10]",
-      mobileDesktopImageClass: "object-contain",
-    },
-    {
-      title: t("Showcase.slides.settingsProfile.title"),
-      body: t("Showcase.slides.settingsProfile.body"),
-      imageSrc: "/showcase/08-settings-profile.png",
-      categoryLabel: t("Showcase.badges.forYou"),
-      device: "desktop" as const,
-      mobileDesktopFrameClass: "aspect-[4/3] sm:h-auto sm:aspect-[16/10]",
-      mobileDesktopImageClass: "object-contain",
-    },
+  const pricingTiers = [
+    t("Pricing.tierFree"),
+    t("Pricing.tierFounder"),
+    t("Pricing.tierStandard"),
   ];
+
   const faqItems = [
     {
       question: t("FAQ.items.doubleBookings.question"),
-      answers: [t("FAQ.items.doubleBookings.answer1"), t("FAQ.items.doubleBookings.answer2")],
-    },
-    {
-      question: t("FAQ.items.frontDeskWorkload.question"),
-      answers: [
-        t("FAQ.items.frontDeskWorkload.answer1"),
-        t("FAQ.items.frontDeskWorkload.answer2"),
-        t("FAQ.items.frontDeskWorkload.answer3"),
-      ],
+      answers: [t("FAQ.items.doubleBookings.answer1")],
     },
     {
       question: t("FAQ.items.patientHabit.question"),
-      answers: [t("FAQ.items.patientHabit.answer1"), t("FAQ.items.patientHabit.answer2")],
-    },
-    {
-      question: t("FAQ.items.privateWebsiteVsDoccy.question"),
-      answers: [
-        t("FAQ.items.privateWebsiteVsDoccy.answer1"),
-        t("FAQ.items.privateWebsiteVsDoccy.answer2"),
-        t("FAQ.items.privateWebsiteVsDoccy.answer3"),
-      ],
-    },
-    {
-      question: t("FAQ.items.teamAccess.question"),
-      answers: [t("FAQ.items.teamAccess.answer1"), t("FAQ.items.teamAccess.answer2")],
+      answers: [t("FAQ.items.patientHabit.answer1")],
     },
     {
       question: t("FAQ.items.setupTime.question"),
-      answers: [
-        t("FAQ.items.setupTime.answer1"),
-        t("FAQ.items.setupTime.answer2"),
-        t("FAQ.items.setupTime.answer3"),
-      ],
+      answers: [t("FAQ.items.setupTime.answer1")],
       contactCta: t("FAQ.items.setupTime.contactCta"),
-    },
-    {
-      question: t("FAQ.items.directoriesZeroResults.question"),
-      answers: [
-        t("FAQ.items.directoriesZeroResults.answer1"),
-        t("FAQ.items.directoriesZeroResults.answer2"),
-        t("FAQ.items.directoriesZeroResults.answer3"),
-      ],
     },
   ];
 
   return (
-    <main className="relative isolate flex min-h-screen flex-col overflow-x-hidden bg-slate-950 text-neutral-50 [overflow-anchor:none]">
+    <main className="relative isolate flex min-h-screen flex-col overflow-x-hidden bg-ink-50 text-ink-800 [overflow-anchor:none]">
       <HomeLandingScroll />
-      {/*
-        Ambient layers must stay inside this stacking context (isolate + z-0 / z-10).
-        Fixed + negative z-index was painting under the body / wrong layer, so only the gray radial read.
-      */}
       <div
         className="pointer-events-none absolute inset-0 z-0 overflow-hidden"
         aria-hidden
@@ -259,352 +140,245 @@ export default async function HomePage() {
       <div className="relative z-10 flex flex-1 flex-col px-4 py-3 sm:px-6 lg:px-8 lg:py-4">
         <header className="flex shrink-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
           <div className="flex min-w-0 items-center gap-2 sm:gap-3">
-            <div className="min-w-0 flex flex-col gap-0.5 leading-tight">
-              <span className="text-base font-semibold tracking-tight text-neutral-50 sm:text-lg">
-                Doc<span className="text-emerald-400">Cy</span>
-              </span>
-              <span
-                className="text-[10px] font-medium uppercase tracking-[0.16em] text-emerald-200/95 sm:text-[11px] sm:tracking-[0.2em]"
-                aria-label="Cyprus Health and Wellness"
-              >
-                CYPRUS HEALTH & WELLNESS
-              </span>
-            </div>
+            <DocCyWordmark variant="light" />
           </div>
         </header>
 
+        {/* Block 1: Hero */}
         <div className="flex min-h-0 flex-1 flex-col justify-center py-8 lg:py-12">
-          <section className="mx-auto grid w-full max-w-6xl items-center gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(320px,460px)] lg:gap-12">
+          <section className="mx-auto grid w-full max-w-6xl items-center gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(400px,580px)] lg:items-stretch lg:gap-10">
             <div className="min-w-0">
               <h1
-                className={`max-w-3xl text-balance font-semibold tracking-tight text-neutral-50 ${
+                className={`max-w-3xl text-balance font-semibold tracking-tight text-ink-900 ${
                   isGreek
-                    ? "text-4xl leading-[1.14] sm:text-[2.35rem] sm:leading-[1.12] lg:text-[2.85rem] lg:leading-[1.08] xl:text-[3.05rem]"
-                    : "text-4xl sm:text-5xl sm:leading-[1.08] lg:text-[3.2rem] lg:leading-[1.04] xl:text-[3.5rem]"
+                    ? "text-4xl leading-[1.14] sm:text-[2.35rem] sm:leading-[1.12] lg:text-[2.85rem] lg:leading-[1.08]"
+                    : "text-4xl sm:text-5xl sm:leading-[1.08] lg:text-[3.2rem] lg:leading-[1.04]"
                 }`}
               >
                 {t("Hero.title")}
               </h1>
 
-              <p className="mt-8 flex max-w-2xl flex-col gap-3 text-base leading-8 text-neutral-200 sm:text-lg sm:leading-9">
-                <span>{t("Hero.subtitleLine1")}</span>
-                {t("Hero.subtitleLine2") ? <span>{t("Hero.subtitleLine2")}</span> : null}
+              <p className="mt-4 max-w-2xl text-xl font-medium leading-snug text-wellness-700 sm:text-2xl">
+                {t("Hero.tagline")}
               </p>
-              <p className="mt-7 whitespace-pre-line text-lg font-medium leading-relaxed text-emerald-100/95 sm:text-xl">
-                {t("Hero.kicker")}
+
+              <p className="mt-5 max-w-2xl text-base leading-relaxed text-ink-600 sm:text-lg">
+                {t("Hero.subheader")}
               </p>
 
               <div className="mt-6 flex flex-col gap-2.5 sm:flex-row sm:items-center sm:gap-3">
-                <PendingLink
-                  href="#founders-pricing-card"
-                  className="inline-flex items-center justify-center rounded-xl bg-emerald-400 px-5 py-2.5 text-sm font-semibold text-neutral-950 shadow-[0_0_0_1px_rgba(52,211,153,0.35),0_0_28px_rgba(16,185,129,0.55),0_0_56px_rgba(16,185,129,0.22)] transition hover:bg-emerald-300 hover:shadow-[0_0_0_1px_rgba(110,231,183,0.5),0_0_36px_rgba(52,211,153,0.65),0_0_72px_rgba(16,185,129,0.28)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 focus-visible:ring-offset-neutral-900"
-                >
+                <PendingLink href="#founders-pricing-card" className={landingCtaClass}>
                   {t("Hero.ctaClaim")}
                 </PendingLink>
-
                 <ProfessionalAccessButton />
               </div>
 
+              <ul className="mt-8 grid gap-3 sm:grid-cols-2">
+                {heroMetrics.map(({ label, detail }) => (
+                  <li
+                    key={label}
+                    className="rounded-xl border border-ink-200 bg-white/80 px-3 py-3 backdrop-blur-sm"
+                  >
+                    <p className="text-sm font-semibold text-ink-900">{label}</p>
+                    <p className="mt-0.5 text-xs leading-relaxed text-ink-500">{detail}</p>
+                  </li>
+                ))}
+              </ul>
             </div>
 
-            <aside className="relative hidden min-h-[390px] lg:block" aria-hidden>
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="h-72 w-72 rounded-full border border-emerald-300/30 bg-emerald-500/8 shadow-[0_0_90px_-28px_rgba(16,185,129,0.6)]" />
-                <div className="absolute h-56 w-56 rounded-full border border-emerald-200/25" />
-                <div className="absolute h-40 w-40 rounded-full border border-emerald-200/35 bg-emerald-400/10" />
-              </div>
-
-              <div className="absolute left-0 top-10 w-56 rounded-2xl border border-slate-700/80 bg-slate-900/80 p-3 backdrop-blur transition duration-300 hover:-translate-y-0.5 hover:border-emerald-300/40">
-                <div className="flex items-center gap-2">
-                  <CalendarSync className="h-4 w-4 text-emerald-300" aria-hidden />
-                  <p className="text-xs font-semibold text-slate-100">{t("Hero.visualIncoming")}</p>
-                </div>
-              </div>
-
-              <div className="absolute right-2 top-36 w-60 rounded-2xl border border-slate-700/80 bg-slate-900/80 p-3 backdrop-blur transition duration-300 hover:-translate-y-0.5 hover:border-teal-300/40">
-                <div className="flex items-center gap-2">
-                  <ShieldCheck className="h-4 w-4 text-teal-300" aria-hidden />
-                  <p className="text-xs font-semibold text-slate-100">
-                    {t("Hero.visualNoInterruptions")}
-                  </p>
-                </div>
-              </div>
-
-              <div className="absolute bottom-12 left-12 w-56 rounded-2xl border border-emerald-300/40 bg-emerald-400/12 p-3 shadow-[0_0_30px_-18px_rgba(110,231,183,0.85)] transition duration-300 hover:-translate-y-0.5">
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="h-4 w-4 text-emerald-300" aria-hidden />
-                  <p className="text-xs font-semibold text-emerald-100">{t("Hero.visualConfirmed")}</p>
-                </div>
-              </div>
-            </aside>
+            <HeroDoctorVisual />
           </section>
         </div>
 
-        <section id="why-doccy" className="mx-auto w-full max-w-6xl pb-8 pt-2 sm:pb-10 [overflow-anchor:none]">
-          <div className="rounded-3xl border border-emerald-300/20 bg-slate-900/65 p-5 shadow-[0_0_56px_-22px_rgba(16,185,129,0.28)] backdrop-blur-md sm:p-7">
-            <p className="text-xs font-semibold tracking-[0.18em] text-emerald-300/95">
-              {t("Features.eyebrow")}
-            </p>
-            <h2 className="mt-2 max-w-3xl text-2xl font-semibold tracking-tight text-neutral-50 sm:text-3xl">
-              {t("Features.title")}
+        {/* Block 2: What is DocCy */}
+        <section id="what-is-doccy" className="mx-auto w-full max-w-6xl pb-8 pt-2 sm:pb-10">
+          <div className={landingSectionShell}>
+            <h2 className="max-w-3xl text-2xl font-semibold tracking-tight text-ink-900 sm:text-3xl">
+              {t("WhatIsDocCy.title")}
             </h2>
-            <p className="mt-3 max-w-3xl text-sm leading-relaxed text-slate-300 sm:text-base">
-              {t("Features.intro")}
-            </p>
+            <ul className="mt-6 grid gap-4 lg:grid-cols-3">
+              {whatIsItems.map(({ icon: Icon, title, body }) => (
+                <li key={title} className={benefitCardShell}>
+                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-clinical-50 text-clinical-600 ring-1 ring-clinical-200">
+                    <Icon className="h-5 w-5" strokeWidth={2} aria-hidden />
+                  </div>
+                  <p className="mt-4 text-base font-semibold text-ink-900">{title}</p>
+                  <p className="mt-2 text-sm leading-relaxed text-ink-600">{body}</p>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </section>
 
-            <p className="mt-6 text-sm font-semibold text-slate-200 sm:text-base">
-              {t("Features.painHeading")}
+        {/* Block 3: Challenges */}
+        <section id="challenges" className="mx-auto w-full max-w-6xl pb-8 pt-2 sm:pb-10">
+          <div className={landingSectionShell}>
+            <p className="text-xs font-semibold tracking-[0.18em] text-clinical-600">
+              {t("Challenges.eyebrow")}
             </p>
-            <ul className="mt-3 space-y-3">
-              {manualBookingPains.map(({ icon: Icon, title, body, iconWell }) => (
+            <ul className="mt-6 grid gap-4 lg:grid-cols-3">
+              {challengeItems.map(({ icon: Icon, category, title, body, iconWell }) => (
+                <li key={title} className={benefitCardShell}>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-clinical-600">
+                    {category}
+                  </p>
+                  <div className="mt-3 flex gap-3">
+                    <div
+                      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${iconWell}`}
+                    >
+                      <Icon className="h-5 w-5" strokeWidth={2} aria-hidden />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-base font-semibold text-ink-900">{title}</p>
+                      <p className="mt-2 text-sm leading-relaxed text-ink-600">{body}</p>
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </section>
+
+        {/* Block 4: How it works */}
+        <section id="how-it-works" className="mx-auto w-full max-w-6xl pb-8 pt-2 sm:pb-10">
+          <div className={landingSectionShell}>
+            <h2 className="text-2xl font-semibold tracking-tight text-ink-900 sm:text-3xl">
+              {t("HowItWorks.title")}
+            </h2>
+            <ol className="mt-6 space-y-4">
+              {howItWorksSteps.map(({ title, body }, index) => (
                 <li
                   key={title}
-                  className="flex gap-3 rounded-xl border border-slate-700/60 bg-slate-950/40 px-3 py-3 sm:gap-4 sm:px-4"
+                  className="flex gap-4 rounded-2xl border border-ink-200 bg-ink-50 px-4 py-4"
                 >
-                  <div
-                    className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg sm:h-11 sm:w-11 ${iconWell}`}
+                  <span
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-clinical-500 text-sm font-bold text-white"
+                    aria-hidden
                   >
-                    <Icon className="h-5 w-5 sm:h-[1.35rem] sm:w-[1.35rem]" strokeWidth={2} aria-hidden />
-                  </div>
-                  <p className="min-w-0 pt-0.5 text-sm leading-relaxed text-slate-300 sm:text-base">
-                    <span className="font-semibold text-slate-100">{title}:</span> {body}
-                  </p>
-                </li>
-              ))}
-            </ul>
-
-            <p className="mt-6 rounded-2xl border border-emerald-400/25 bg-emerald-400/10 px-4 py-3 text-sm font-medium leading-relaxed text-emerald-100 sm:text-base">
-              {t("Features.closing")}
-            </p>
-          </div>
-        </section>
-
-        <section
-          id="adoption-playbook"
-          className="mx-auto w-full max-w-6xl pb-8 pt-2 sm:pb-10 [overflow-anchor:none]"
-        >
-          <div className="rounded-3xl border border-emerald-300/20 bg-slate-900/65 p-5 shadow-[0_0_56px_-22px_rgba(16,185,129,0.28)] backdrop-blur-md sm:p-7">
-            <p className="text-xs font-semibold tracking-[0.18em] text-emerald-300/95">
-              {t("AdoptionPlaybook.eyebrow")}
-            </p>
-            <h2 className="mt-2 max-w-3xl text-2xl font-semibold tracking-tight text-neutral-50 sm:text-3xl">
-              {t("AdoptionPlaybook.title")}
-            </h2>
-            <p className="mt-3 max-w-3xl text-sm leading-relaxed text-slate-300 sm:text-base">
-              {t("AdoptionPlaybook.lead")}
-            </p>
-
-            <ul className="mt-6 grid gap-4 lg:grid-cols-3">
-              {adoptionPlaybookSteps.map(({ icon: Icon, title, body, iconWell }, idx) => (
-                <li key={title} className={benefitCardShell}>
-                  <div className="flex gap-4">
-                    <div
-                      className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl sm:h-14 sm:w-14 ${iconWell}`}
-                    >
-                      <Icon className="h-6 w-6 sm:h-7 sm:w-7" strokeWidth={2} aria-hidden />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-emerald-200/90">
-                        {String(idx + 1).padStart(2, "0")}
-                      </span>
-                      <p className="text-base font-bold leading-snug tracking-tight text-neutral-50">
-                        {title}
-                      </p>
-                      <p className="mt-1 text-sm font-normal leading-snug text-neutral-300">{body}</p>
-                      <p className="mt-2 text-xs font-medium leading-relaxed text-emerald-100/90">
-                        {adoptionPlaybookResults[idx]}
-                      </p>
-                    </div>
+                    {index + 1}
+                  </span>
+                  <div>
+                    <p className="font-semibold text-ink-900">{title}</p>
+                    <p className="mt-1 text-sm leading-relaxed text-ink-600">{body}</p>
                   </div>
                 </li>
               ))}
-            </ul>
-
-            <p className="mt-5 max-w-3xl rounded-2xl border border-slate-700/80 bg-slate-950/45 px-4 py-3 text-sm leading-relaxed text-slate-300">
-              {t("AdoptionPlaybook.closing")}
-            </p>
-            <div className="mt-4 flex justify-center sm:justify-start">
-              <a
-                href="#founders-pricing-card"
-                className="inline-flex items-center gap-1.5 rounded-full border border-emerald-300/45 bg-emerald-400/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-100 transition hover:bg-emerald-400/20 hover:text-emerald-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/80"
-              >
-                {t("AdoptionPlaybook.cta")}
-                <ChevronDown className="h-3.5 w-3.5 motion-safe:animate-bounce" aria-hidden />
-              </a>
-            </div>
+            </ol>
           </div>
         </section>
 
-        <section
-          id="showcase-section"
-          className="mx-auto w-full max-w-6xl pb-8 pt-4 sm:pb-10 [overflow-anchor:none]"
-        >
-          <div className="rounded-3xl border border-emerald-300/20 bg-slate-900/70 p-5 shadow-[0_0_56px_-22px_rgba(16,185,129,0.35)] backdrop-blur-md sm:p-7">
-            <div className="mb-4 sm:mb-5">
-              <h2 className="text-2xl font-semibold tracking-tight text-neutral-50 sm:text-3xl">
-                {t("Showcase.title")}
-              </h2>
-            </div>
-            <ProductShowcaseCarousel slides={showcaseSlides} />
-          </div>
-        </section>
+        {/* Block 5: Pricing */}
         <section
           id="founders-pricing"
-          className="mx-auto w-full max-w-6xl pb-10 pt-4 sm:pb-10 [overflow-anchor:none]"
+          className="mx-auto w-full max-w-6xl pb-10 pt-4 sm:pb-10"
         >
-          <div className="group mb-6 rounded-3xl border border-rose-300/30 bg-gradient-to-br from-slate-900/85 via-slate-900/80 to-rose-950/30 p-5 shadow-[0_0_64px_-22px_rgba(251,113,133,0.32)] backdrop-blur-md transition sm:mb-8 sm:p-7">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-rose-200/95">
-              {t("Visibility.eyebrow")}
-            </p>
+          <div className="relative overflow-hidden rounded-[1.75rem] border border-clinical-200/80 bg-gradient-to-br from-clinical-50/90 via-white to-wellness-50/45 p-5 shadow-[0_10px_44px_-14px_rgba(11,123,181,0.2),0_2px_8px_rgba(26,43,60,0.04)] sm:rounded-3xl sm:p-8 lg:p-10">
+            <div
+              className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-[radial-gradient(circle,rgba(11,123,181,0.16),transparent_68%)]"
+              aria-hidden
+            />
+            <div
+              className="pointer-events-none absolute -bottom-28 -left-16 h-56 w-56 rounded-full bg-[radial-gradient(circle,rgba(42,157,143,0.12),transparent_70%)]"
+              aria-hidden
+            />
 
-            <h2 className="mt-3 max-w-3xl text-2xl font-semibold tracking-tight text-neutral-50 sm:text-3xl">
-              {t("Visibility.title")}
-            </h2>
-            <p className="mt-1 text-sm italic leading-relaxed text-rose-100/90 sm:text-base">
-              {t("Visibility.subtitle")}
-            </p>
-
-            <p className="mt-4 max-w-4xl text-sm leading-relaxed text-slate-200 sm:text-base">
-              {t("Visibility.intro")}
-            </p>
-
-            <div className="mt-5 grid gap-3 sm:grid-cols-2">
-              <article className="rounded-2xl border border-rose-300/30 bg-rose-950/20 p-4 transition duration-200 hover:-translate-y-0.5 hover:border-rose-200/45">
-                <h3 className="text-sm font-semibold uppercase tracking-wide text-rose-100">
-                  {t("Visibility.beforeTitle")}
-                </h3>
-                <ul className="mt-3 space-y-2.5">
-                  <li className="flex items-start gap-2 text-sm text-rose-50/95">
-                    <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-rose-300" aria-hidden />
-                    <span>{t("Visibility.beforePoints.cost")}</span>
-                  </li>
-                  <li className="flex items-start gap-2 text-sm text-rose-50/95">
-                    <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-rose-300" aria-hidden />
-                    <span>{t("Visibility.beforePoints.tech")}</span>
-                  </li>
-                  <li className="flex items-start gap-2 text-sm text-rose-50/95">
-                    <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-rose-300" aria-hidden />
-                    <span>{t("Visibility.beforePoints.visibility")}</span>
-                  </li>
+            <div className="relative grid gap-8 lg:grid-cols-[minmax(0,1.05fr)_minmax(300px,24rem)] lg:items-start lg:gap-10">
+              <div className="min-w-0">
+                <span className="inline-flex items-center rounded-full border border-clinical-300/55 bg-white/85 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-clinical-700 shadow-sm backdrop-blur-sm">
+                  {t("Pricing.badge")}
+                </span>
+                <h2 className="mt-4 max-w-2xl text-2xl font-semibold tracking-tight text-ink-900 sm:text-3xl lg:text-[2rem] lg:leading-tight">
+                  {t("Pricing.sectionTitle")}
+                </h2>
+                <div
+                  className="mt-3 h-1 w-14 rounded-full bg-gradient-to-r from-clinical-500 to-wellness-500"
+                  aria-hidden
+                />
+                <p className="mt-4 max-w-2xl text-sm leading-relaxed text-ink-600 sm:text-base">
+                  {t("Pricing.sectionIntro")}
+                </p>
+                <ul className="mt-6 space-y-3">
+                  {pricingTiers.map((tier, index) => (
+                    <li
+                      key={tier}
+                      className="flex gap-3 rounded-xl border border-white/90 bg-white/75 px-4 py-3 shadow-[0_1px_3px_rgba(26,43,60,0.05)] backdrop-blur-sm"
+                    >
+                      <span
+                        className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg text-[11px] font-bold ${
+                          index === 0
+                            ? "bg-wellness-100 text-wellness-800 ring-1 ring-wellness-200"
+                            : index === 1
+                              ? "bg-clinical-100 text-clinical-800 ring-1 ring-clinical-200"
+                              : "bg-ink-100 text-ink-600 ring-1 ring-ink-200"
+                        }`}
+                        aria-hidden
+                      >
+                        {index + 1}
+                      </span>
+                      <span className="text-sm leading-relaxed text-ink-700 sm:text-base">{tier}</span>
+                    </li>
+                  ))}
                 </ul>
-              </article>
-
-              <article className="rounded-2xl border border-emerald-300/40 bg-emerald-400/10 p-4 shadow-[0_0_28px_-16px_rgba(110,231,183,0.95)] transition duration-200 hover:-translate-y-0.5 hover:border-emerald-200/60 hover:bg-emerald-400/14">
-                <h3 className="text-sm font-semibold uppercase tracking-wide text-emerald-100">
-                  {t("Visibility.afterTitle")}
-                </h3>
-                <ul className="mt-3 space-y-2.5">
-                  <li className="flex items-start gap-2 text-sm text-emerald-50/95">
-                    <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-300" aria-hidden />
-                    <span>{t("Visibility.afterPoints.speed")}</span>
-                  </li>
-                  <li className="flex items-start gap-2 text-sm text-emerald-50/95">
-                    <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-300" aria-hidden />
-                    <span>{t("Visibility.afterPoints.maintenance")}</span>
-                  </li>
-                  <li className="flex items-start gap-2 text-sm text-emerald-50/95">
-                    <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-300" aria-hidden />
-                    <span>{t("Visibility.afterPoints.authority")}</span>
-                  </li>
-                  <li className="flex items-start gap-2 text-sm text-emerald-50/95">
-                    <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-300" aria-hidden />
-                    <span>{t("Visibility.afterPoints.patientTools")}</span>
-                  </li>
-                </ul>
-              </article>
-            </div>
-
-            <div className="mt-4 grid gap-2 sm:grid-cols-2">
-              <p className="rounded-xl border border-slate-700/80 bg-slate-900/70 px-3 py-2 text-xs font-medium leading-relaxed text-slate-200 transition hover:-translate-y-0.5 hover:border-rose-200/35">
-                {t("Visibility.comparison.websiteCost")}
-              </p>
-              <p className="rounded-xl border border-emerald-300/45 bg-emerald-400/12 px-3 py-2 text-xs font-semibold leading-relaxed text-emerald-100 shadow-[0_0_24px_-14px_rgba(52,211,153,0.8)] transition hover:-translate-y-0.5 hover:bg-emerald-400/18">
-                {t("Visibility.comparison.doccyCost")}
-              </p>
-            </div>
-
-            <p className="mt-5 max-w-4xl rounded-2xl border border-rose-300/25 bg-rose-950/20 px-4 py-3 text-sm leading-relaxed text-rose-100 sm:text-base">
-              {t("Visibility.closing")}
-            </p>
-
-            <article
-              className="mx-auto mt-8 max-w-2xl rounded-2xl border border-slate-700/80 bg-slate-950/55 px-5 py-6 sm:px-6 sm:py-7"
-              aria-labelledby="skepticism-killer-heading"
-            >
-              <h3
-                id="skepticism-killer-heading"
-                className="text-center text-lg font-semibold tracking-tight text-neutral-50 sm:text-xl"
-              >
-                {t("SkepticismKiller.title")}
-              </h3>
-              <div className="mt-4 space-y-3 text-sm leading-relaxed text-slate-300 sm:text-base">
-                <p>{t("SkepticismKiller.p1")}</p>
-                <p className="text-slate-200">{t("SkepticismKiller.p2")}</p>
-                <p>{t("SkepticismKiller.p3")}</p>
+                <p className="mt-5 rounded-lg border border-ink-200/55 bg-ink-50/85 px-3 py-2.5 text-xs font-medium text-ink-500 sm:text-sm">
+                  {t("Pricing.finePrint")}
+                </p>
               </div>
-            </article>
 
-            <div className="mt-4 flex justify-center">
-              <a
-                href="#founders-pricing-card"
-                className="inline-flex items-center gap-1.5 rounded-full border border-emerald-300/45 bg-emerald-400/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-100 transition hover:bg-emerald-400/20 hover:text-emerald-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/80"
+              <div
+                id="founders-pricing-card"
+                className="relative mx-auto w-full max-w-lg lg:mx-0 lg:max-w-none"
               >
-                {t("Visibility.scrollCue")}
-                <ChevronDown className="h-3.5 w-3.5 motion-safe:animate-bounce" aria-hidden />
-              </a>
+                <div
+                  className="absolute -inset-px rounded-[1.35rem] bg-gradient-to-br from-clinical-400/45 via-clinical-200/25 to-wellness-300/45 sm:rounded-[1.65rem]"
+                  aria-hidden
+                />
+                <div className="relative rounded-[1.35rem] border border-white/70 bg-white/95 p-5 shadow-[0_14px_44px_-18px_rgba(11,123,181,0.38)] backdrop-blur-sm sm:rounded-[1.65rem] sm:p-6">
+                  <header>
+                    <h3 className="text-center text-2xl font-semibold tracking-tight text-ink-900 sm:text-[1.65rem]">
+                      {t("Pricing.title")}
+                    </h3>
+                    <p className="mt-2 text-center text-sm leading-relaxed text-ink-500">
+                      {t("Pricing.subtitle")}
+                    </p>
+                  </header>
+                  <FoundersPricingCard embedded />
+                </div>
+              </div>
             </div>
-          </div>
-
-          <div
-            id="founders-pricing-card"
-            className="mx-auto max-w-lg rounded-3xl border border-emerald-300/20 bg-slate-900/70 p-5 shadow-[0_0_56px_-22px_rgba(16,185,129,0.35)] backdrop-blur-md sm:p-6"
-          >
-            <header>
-              <p className="text-center text-xs font-semibold tracking-[0.18em] text-emerald-300/95">
-                {t("Pricing.badge")}
-              </p>
-              <h2 className="mt-2 text-center text-2xl font-semibold tracking-tight text-neutral-50 sm:text-[1.65rem]">
-                {t("Pricing.title")}
-              </h2>
-              <p className="mt-2 text-center text-sm leading-relaxed text-slate-300">
-                {t("Pricing.subtitle")}
-              </p>
-            </header>
-
-            <FoundersPricingCard embedded />
           </div>
         </section>
-        <section className="mx-auto w-full max-w-6xl pb-10 pt-2 sm:pb-12 [overflow-anchor:none]">
-          <div className="rounded-3xl border border-emerald-300/20 bg-slate-900/65 p-5 shadow-[0_0_56px_-22px_rgba(16,185,129,0.28)] backdrop-blur-md sm:p-7">
-            <h2 className="text-2xl font-semibold tracking-tight text-neutral-50 sm:text-3xl">
+
+        {/* Block 7: FAQ */}
+        <section className="mx-auto w-full max-w-6xl pb-10 pt-2 sm:pb-12">
+          <div className={landingSectionShell}>
+            <h2 className="text-2xl font-semibold tracking-tight text-ink-900 sm:text-3xl">
               {t("FAQ.heading")}
             </h2>
-            <p className="mt-2 max-w-3xl text-sm leading-relaxed text-slate-300 sm:text-base">
+            <p className="mt-2 max-w-3xl text-sm leading-relaxed text-ink-500 sm:text-base">
               {t("FAQ.intro")}
             </p>
-
             <div className="mt-5 space-y-3">
               {faqItems.map((item) => (
                 <details
                   key={item.question}
-                  className="group rounded-2xl border border-slate-700/80 bg-slate-950/40 p-4 transition hover:border-emerald-300/40"
+                  className="group rounded-2xl border border-ink-200 bg-ink-50 p-4 transition hover:border-clinical-300"
                 >
                   <summary className="flex cursor-pointer list-none items-start justify-between gap-3 text-left">
-                    <span className="text-sm font-semibold leading-snug text-neutral-100 sm:text-base">
+                    <span className="text-sm font-semibold leading-snug text-ink-800 sm:text-base">
                       {item.question}
                     </span>
                     <ChevronDown
-                      className="mt-0.5 h-4 w-4 shrink-0 text-emerald-300 transition group-open:rotate-180"
+                      className="mt-0.5 h-4 w-4 shrink-0 text-clinical-500 transition group-open:rotate-180"
                       aria-hidden
                     />
                   </summary>
                   <div className="mt-3 space-y-2">
                     {item.answers.map((answer) => (
-                      <p key={answer} className="text-sm leading-relaxed text-slate-300">
+                      <p key={answer} className="text-sm leading-relaxed text-ink-600">
                         {answer}
                       </p>
                     ))}
-                    {"contactCta" in item ? (
+                    {"contactCta" in item && item.contactCta ? (
                       <div className="pt-1">
                         <SupportInquiryLink label={item.contactCta} />
                       </div>
@@ -616,7 +390,7 @@ export default async function HomePage() {
           </div>
         </section>
       </div>
-      <MarketingFooter />
+      <MarketingFooter variant="light" />
     </main>
   );
 }

@@ -92,12 +92,12 @@ export function SpecialtyCombobox({
 
   const inputBase =
     variant === "register"
-      ? "mt-1 w-full rounded-2xl border border-slate-700 bg-slate-900/60 px-3 py-2 text-sm text-slate-100 shadow-sm outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/40"
-      : "mt-2 w-full rounded-xl border border-slate-800/80 bg-slate-950/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-400/60";
+      ? "mt-1 w-full rounded-xl border border-ink-200 bg-white px-3 py-2.5 text-sm text-ink-900 shadow-sm outline-none transition placeholder:text-ink-400 focus:border-clinical-400 focus:ring-2 focus:ring-clinical-400/25"
+      : "mt-2 w-full rounded-xl border border-slate-800/80 bg-slate-950/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-clinical-400/60";
 
   const listBoxClass =
     variant === "register"
-      ? "absolute z-50 mt-1 max-h-64 w-full overflow-auto rounded-2xl border border-slate-700 bg-slate-900 py-1 shadow-xl"
+      ? "absolute z-50 mt-1 max-h-64 w-full overflow-auto rounded-xl border border-ink-200 bg-white py-1 shadow-lg ring-1 ring-ink-100"
       : "absolute z-50 mt-1 max-h-64 w-full overflow-auto rounded-xl border border-slate-800 bg-slate-950 py-1 shadow-xl";
 
   return (
@@ -130,11 +130,11 @@ export function SpecialtyCombobox({
         onClick={() => setOpen((o) => !o)}
         className={`flex w-full items-center justify-between gap-2 text-left ${inputBase}`}
       >
-        <span className={mode === "master" && masterValue ? "" : "text-slate-500"}>
+        <span className={mode === "master" && masterValue ? "text-ink-900" : "text-ink-400"}>
           {displayLabel}
         </span>
         <ChevronDown
-          className={`h-4 w-4 shrink-0 text-slate-500 transition ${open ? "rotate-180" : ""}`}
+          className={`h-4 w-4 shrink-0 ${variant === "register" ? "text-ink-400" : "text-slate-500"} transition ${open ? "rotate-180" : ""}`}
           aria-hidden
         />
       </button>
@@ -144,7 +144,7 @@ export function SpecialtyCombobox({
           <div
             className={
               variant === "register"
-                ? "sticky top-0 border-b border-slate-800 bg-slate-900 p-2"
+                ? "sticky top-0 border-b border-ink-100 bg-white p-2"
                 : "sticky top-0 border-b border-slate-800 bg-slate-950 p-2"
             }
           >
@@ -158,7 +158,11 @@ export function SpecialtyCombobox({
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search…"
-                className="w-full rounded-lg border border-slate-700 bg-slate-950/60 py-1.5 pl-8 pr-2 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-500/50"
+                className={
+                  variant === "register"
+                    ? "w-full rounded-lg border border-ink-200 bg-white py-1.5 pl-8 pr-2 text-xs text-ink-900 placeholder:text-ink-400 focus:outline-none focus:ring-1 focus:ring-clinical-400/50"
+                    : "w-full rounded-lg border border-slate-700 bg-slate-950/60 py-1.5 pl-8 pr-2 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-clinical-500/50"
+                }
                 autoFocus
               />
             </div>
@@ -168,7 +172,11 @@ export function SpecialtyCombobox({
               <li key={s} role="option" aria-selected={mode === "master" && masterValue === s}>
                 <button
                   type="button"
-                  className="w-full px-3 py-2 text-left text-sm text-slate-200 hover:bg-emerald-500/15 hover:text-emerald-100"
+                  className={
+                    variant === "register"
+                      ? "w-full px-3 py-2 text-left text-sm text-ink-700 hover:bg-clinical-50 hover:text-clinical-800"
+                      : "w-full px-3 py-2 text-left text-sm text-slate-200 hover:bg-clinical-500/15 hover:text-clinical-100"
+                  }
                   onClick={() => {
                     setMode("master");
                     setMasterValue(s);
@@ -184,7 +192,11 @@ export function SpecialtyCombobox({
               <li role="option">
                 <button
                   type="button"
-                  className="w-full px-3 py-2 text-left text-sm font-medium text-amber-200/95 hover:bg-amber-500/10"
+                  className={
+                    variant === "register"
+                      ? "w-full px-3 py-2 text-left text-sm font-medium text-amber-800 hover:bg-amber-50"
+                      : "w-full px-3 py-2 text-left text-sm font-medium text-amber-200/95 hover:bg-amber-500/10"
+                  }
                   onClick={() => {
                     setMode("other");
                     setMasterValue("");
@@ -206,11 +218,11 @@ export function SpecialtyCombobox({
             htmlFor={`${id}-other`}
             className={
               variant === "register"
-                ? "block text-sm font-medium text-slate-200"
+                ? "block text-sm font-medium text-ink-800"
                 : "text-xs font-medium text-slate-400"
             }
           >
-            Describe your specialty <span className="text-amber-300/90">*</span>
+            Describe your specialty <span className="text-amber-700">*</span>
           </label>
           <p className="mt-0.5 text-[11px] text-slate-500">
             Our team will review and may map it to a standard category.

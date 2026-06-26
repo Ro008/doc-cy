@@ -10,10 +10,18 @@ import {
 import { buildGoogleCalendarUrl } from "@/lib/patient-calendar-event";
 import { getDoctorCalendarEventDetails } from "@/lib/doctor-calendar-event";
 
-const CAL_GOOGLE_STYLE =
-  "display:block;text-align:center;background:#34d399;color:#022c22;text-decoration:none;font-weight:700;padding:12px 14px;border-radius:12px;margin:0 0 10px;font-size:15px;";
-const CAL_ICS_STYLE =
-  "display:block;text-align:center;background:rgba(52,211,153,.14);color:#a7f3d0;text-decoration:none;font-weight:700;padding:12px 14px;border-radius:12px;border:1px solid rgba(52,211,153,.35);font-size:15px;";
+import {
+  EMAIL_CAL_GOOGLE_BTN,
+  EMAIL_CAL_ICS_BTN,
+  EMAIL_LINK_ACCENT,
+  EMAIL_SHELL_CLOSE,
+  EMAIL_SHELL_OPEN,
+  EMAIL_TEXT,
+  EMAIL_HEADING,
+} from "@/lib/email-brand";
+
+const CAL_GOOGLE_STYLE = EMAIL_CAL_GOOGLE_BTN;
+const CAL_ICS_STYLE = EMAIL_CAL_ICS_BTN;
 
 export async function sendDoctorAppointmentConfirmedEmail(opts: {
   siteUrl: string;
@@ -89,20 +97,18 @@ export async function sendDoctorAppointmentConfirmedEmail(opts: {
     `---\n${AUTOMATED_EMAIL_FOOTER_TEXT}`;
 
   const html = `
-<div style="margin:0;padding:20px;background:#020617;color:#e2e8f0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
-  <div style="max-width:560px;margin:0 auto;background:#0f172a;border:1px solid rgba(148,163,184,.2);border-radius:16px;padding:22px;">
-    <h2 style="margin:0 0 12px;font-size:20px;line-height:1.3;color:#f8fafc;">${heading}</h2>
-    <p style="margin:0 0 10px;font-size:15px;line-height:1.6;color:#e2e8f0;">
+${EMAIL_SHELL_OPEN}
+    <h2 style="margin:0 0 12px;font-size:20px;line-height:1.3;color:${EMAIL_HEADING};">${heading}</h2>
+    <p style="margin:0 0 10px;font-size:15px;line-height:1.6;color:${EMAIL_TEXT};">
       ${opening}
     </p>
-    <p style="margin:0 0 14px;font-size:14px;line-height:1.6;color:#cbd5e1;">
-      Manage all updates directly from your <a href="${agendaUrl}" style="color:#a7f3d0;font-weight:600;">DocCy agenda</a>. Google Calendar is optional and does not sync edits back to DocCy.
+    <p style="margin:0 0 14px;font-size:14px;line-height:1.6;color:#D8E3EC;">
+      Manage all updates directly from your <a href="${agendaUrl}" style="${EMAIL_LINK_ACCENT}">DocCy agenda</a>. Google Calendar is optional and does not sync edits back to DocCy.
     </p>
     <a href="${googleUrl}" style="${CAL_GOOGLE_STYLE}">Add to Google Calendar</a>
     <a href="${icsUrl}" style="${CAL_ICS_STYLE}">Add to Apple / Outlook (.ics)</a>
     ${automatedEmailFooterHtml()}
-  </div>
-</div>`;
+${EMAIL_SHELL_CLOSE}`;
 
   await sendResendEmail({
     to: recipient,

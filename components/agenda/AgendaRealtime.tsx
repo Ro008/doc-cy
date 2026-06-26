@@ -186,7 +186,7 @@ function AgendaAppointmentCardInner({
   isCompactCounterOffer: boolean;
 }) {
   const t = useTranslations("DoctorAgenda");
-  const nameColor = isPendingRequest ? "text-amber-100" : "text-emerald-100";
+  const nameColor = isPendingRequest ? "text-amber-100" : "text-clinical-100";
   const patientDisplay = patientName.trim() || "Patient";
   const topRightBadge = isRequested
     ? t("appointmentPendingBadge")
@@ -217,7 +217,7 @@ function AgendaAppointmentCardInner({
             </span>
             {topRightBadge ? (
               <span
-                className="ml-1 shrink-0 max-w-[3.35rem] truncate rounded bg-slate-950/55 px-1 py-0 text-[8px] font-medium leading-none text-amber-100/90 ring-1 ring-amber-400/20"
+                className="ml-1 shrink-0 max-w-[3.35rem] truncate rounded bg-ink-900/55 px-1 py-0 text-[8px] font-medium leading-none text-amber-100/90 ring-1 ring-amber-400/20"
                 title={topRightBadge}
               >
                 {topRightBadge}
@@ -240,7 +240,7 @@ function AgendaAppointmentCardInner({
         </div>
         {topRightBadge ? (
           <span
-            className="pointer-events-none absolute right-0 top-0 z-10 max-w-[46%] truncate rounded bg-slate-950/55 px-0.5 py-0 text-[8px] font-medium leading-none text-amber-100/90 ring-1 ring-amber-400/20 backdrop-blur-sm"
+            className="pointer-events-none absolute right-0 top-0 z-10 max-w-[46%] truncate rounded bg-ink-900/55 px-0.5 py-0 text-[8px] font-medium leading-none text-amber-100/90 ring-1 ring-amber-400/20 backdrop-blur-sm"
             title={topRightBadge}
           >
             {topRightBadge}
@@ -259,7 +259,7 @@ function AgendaAppointmentCardInner({
     <>
       {topRightBadge ? (
         <span
-          className="pointer-events-none absolute right-0.5 top-0.5 z-10 max-w-[42%] truncate rounded bg-slate-950/50 px-0.5 py-0 text-[9px] font-medium leading-none text-amber-100/90 ring-1 ring-amber-400/20 backdrop-blur-sm"
+          className="pointer-events-none absolute right-0.5 top-0.5 z-10 max-w-[42%] truncate rounded bg-ink-900/50 px-0.5 py-0 text-[9px] font-medium leading-none text-amber-100/90 ring-1 ring-amber-400/20 backdrop-blur-sm"
           title={topRightBadge}
         >
           {topRightBadge}
@@ -996,12 +996,12 @@ export function AgendaRealtime({
   return (
     <>
       {toast && (
-        <div className="fixed right-5 top-5 z-50 rounded-2xl border border-emerald-400/30 bg-slate-900/90 px-4 py-3 text-xs font-medium text-emerald-200 shadow-2xl shadow-slate-950/60 backdrop-blur">
+        <div className="fixed right-5 top-5 z-50 rounded-2xl border border-clinical-400/30 bg-slate-900/90 px-4 py-3 text-xs font-medium text-clinical-200 shadow-2xl shadow-ink-900/60 backdrop-blur">
           New booking activity
         </div>
       )}
 
-      <section className="min-w-0 rounded-3xl border border-emerald-100/10 bg-slate-900/50 shadow-2xl shadow-slate-950/50 backdrop-blur-xl">
+      <section className="min-w-0 rounded-3xl border border-clinical-100/10 bg-slate-900/50 shadow-2xl shadow-ink-900/50 backdrop-blur-xl">
         <div className="border-b border-slate-800/60 px-4 pb-4 pt-4 sm:px-6 sm:pb-5 sm:pt-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="space-y-0.5">
@@ -1013,7 +1013,7 @@ export function AgendaRealtime({
                   "No appointments today"
                 ) : (
                   <>
-                    <span className="font-semibold tabular-nums text-emerald-300">
+                    <span className="font-semibold tabular-nums text-clinical-300">
                       {todayCount}
                     </span>{" "}
                     {todayCount === 1 ? "appointment today" : "appointments today"}
@@ -1026,7 +1026,7 @@ export function AgendaRealtime({
                 type="button"
                 onClick={() => setManualBookingOpen(true)}
                 title="Took a phone call? Block the slot manually here. Next time, share your link to save time."
-                className="rounded-lg border border-emerald-300/40 bg-emerald-400/10 px-3 py-1.5 text-xs font-semibold text-emerald-100 transition hover:border-emerald-300/60 hover:bg-emerald-400/20"
+                className="rounded-lg border border-clinical-300/40 bg-clinical-400/10 px-3 py-1.5 text-xs font-semibold text-clinical-100 transition hover:border-clinical-300/60 hover:bg-clinical-400/20"
               >
                 + Add Manual Booking
               </button>
@@ -1038,7 +1038,7 @@ export function AgendaRealtime({
                   setWeekOffset(0);
                   setMobileDayOffset(0);
                 }}
-                className="rounded-lg border border-emerald-400/30 bg-emerald-400/10 px-2.5 py-1.5 text-xs font-medium text-emerald-200 transition hover:border-emerald-300/50 hover:bg-emerald-400/20"
+                className="rounded-lg border border-clinical-400/30 bg-clinical-400/10 px-2.5 py-1.5 text-xs font-medium text-clinical-200 transition hover:border-clinical-300/50 hover:bg-clinical-400/20"
               >
                 Today
               </button>
@@ -1083,7 +1083,7 @@ export function AgendaRealtime({
                   setWeekOffset(0);
                   setMobileDayOffset(0);
                 }}
-                className="rounded-lg border border-emerald-400/30 bg-emerald-400/10 px-2 py-1 text-[11px] font-medium text-emerald-200 transition hover:border-emerald-300/50 hover:bg-emerald-400/20"
+                className="rounded-lg border border-clinical-400/30 bg-clinical-400/10 px-2 py-1 text-[11px] font-medium text-clinical-200 transition hover:border-clinical-300/50 hover:bg-clinical-400/20"
               >
                 Today
               </button>
@@ -1125,7 +1125,7 @@ export function AgendaRealtime({
                   })}
                 </div>
                 <div
-                  className="relative rounded-2xl border border-slate-800/70 bg-slate-950/45"
+                  className="relative rounded-2xl border border-slate-800/70 bg-ink-900/45"
                   style={{ height: dayHeight }}
                 >
                   {(() => {
@@ -1203,14 +1203,14 @@ export function AgendaRealtime({
                       type="button"
                       aria-label={`Appointment ${row.patient_name} at ${row.timeLabel}`}
                       onClick={() => openAppointment(row)}
-                      className={`group absolute left-1 right-1 overflow-hidden rounded-xl border text-left shadow-lg transition focus:outline-none focus:ring-2 focus:ring-emerald-300/60 ${
+                      className={`group absolute left-1 right-1 overflow-hidden rounded-xl border text-left shadow-lg transition focus:outline-none focus:ring-2 focus:ring-clinical-300/60 ${
                         row.isCounterOfferHold
                           ? "flex flex-col items-stretch justify-start px-2 py-1.5"
                           : "px-2 py-1"
                       } ${
                         row.isPendingRequest
                           ? "border-amber-300/40 bg-amber-400/15 opacity-[0.72] shadow-amber-500/10 hover:bg-amber-400/25 hover:opacity-95"
-                          : "border-emerald-300/40 bg-emerald-400/20 shadow-emerald-500/10 hover:bg-emerald-400/30"
+                          : "border-clinical-300/40 bg-clinical-400/20 shadow-clinical-500/10 hover:bg-clinical-400/30"
                       }`}
                       style={{
                         top: topForRow(row),
@@ -1243,7 +1243,7 @@ export function AgendaRealtime({
                   key={format(day, "yyyy-MM-dd")}
                   className={`min-w-0 rounded-xl border px-2 py-2 text-center text-xs ${
                     isSameDay(day, todayDate)
-                      ? "border-emerald-300/40 bg-emerald-400/10 text-emerald-200"
+                      ? "border-clinical-300/40 bg-clinical-400/10 text-clinical-200"
                       : "border-slate-800/80 bg-slate-900/40 text-slate-300"
                   }`}
                 >
@@ -1289,7 +1289,7 @@ export function AgendaRealtime({
                 return (
                   <div
                     key={dayKey}
-                    className="relative min-w-0 rounded-2xl border border-slate-800/70 bg-slate-950/45"
+                    className="relative min-w-0 rounded-2xl border border-slate-800/70 bg-ink-900/45"
                     style={{ height: dayHeight }}
                   >
                     {!work.enabled ? (
@@ -1351,14 +1351,14 @@ export function AgendaRealtime({
                         type="button"
                         aria-label={`Appointment ${row.patient_name} at ${row.timeLabel}`}
                         onClick={() => openAppointment(row)}
-                        className={`group absolute left-1 right-1 overflow-hidden rounded-xl border text-left shadow-lg transition focus:outline-none focus:ring-2 focus:ring-emerald-300/60 ${
+                        className={`group absolute left-1 right-1 overflow-hidden rounded-xl border text-left shadow-lg transition focus:outline-none focus:ring-2 focus:ring-clinical-300/60 ${
                           row.isCounterOfferHold
                             ? "flex flex-col items-stretch justify-start px-2 py-1.5"
                             : "px-2 py-1"
                         } ${
                           row.isPendingRequest
                             ? "border-amber-300/40 bg-amber-400/15 opacity-[0.72] shadow-amber-500/10 hover:bg-amber-400/25 hover:opacity-95"
-                            : "border-emerald-300/40 bg-emerald-400/20 shadow-emerald-500/10 hover:bg-emerald-400/30"
+                            : "border-clinical-300/40 bg-clinical-400/20 shadow-clinical-500/10 hover:bg-clinical-400/30"
                         }`}
                         style={{
                           top: topForRow(row),
@@ -1417,11 +1417,11 @@ export function AgendaRealtime({
               setRescheduleReason("");
               setAttendanceError(null);
             }}
-            className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm"
+            className="absolute inset-0 bg-ink-900/70 backdrop-blur-sm"
             aria-label="Close"
             disabled={modalBusy}
           />
-          <div className="relative z-10 w-full max-w-sm max-h-[calc(100dvh-1.5rem)] overflow-y-auto rounded-3xl border border-emerald-100/10 bg-slate-900/95 p-6 shadow-2xl backdrop-blur-xl sm:max-h-[calc(100dvh-2rem)]">
+          <div className="relative z-10 w-full max-w-sm max-h-[calc(100dvh-1.5rem)] overflow-y-auto rounded-3xl border border-clinical-100/10 bg-slate-900/95 p-6 shadow-2xl backdrop-blur-xl sm:max-h-[calc(100dvh-2rem)]">
             <button
               type="button"
               onClick={() => {
@@ -1572,7 +1572,7 @@ export function AgendaRealtime({
                     emitNavigationStart();
                     router.push(`/dashboard/appointments/${selected.id}`);
                   }}
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-400 px-4 py-3 text-sm font-semibold text-slate-950 shadow-lg shadow-emerald-500/30 transition hover:bg-emerald-300 disabled:cursor-wait disabled:bg-slate-700 disabled:text-slate-400 disabled:shadow-none"
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-clinical-400 px-4 py-3 text-sm font-semibold text-slate-950 shadow-lg shadow-clinical-500/30 transition hover:bg-clinical-300 disabled:cursor-wait disabled:bg-slate-700 disabled:text-slate-400 disabled:shadow-none"
                 >
                   {openingReview ? (
                     <>
@@ -1700,7 +1700,7 @@ export function AgendaRealtime({
                   onChange={(e) => setRescheduleReason(e.target.value)}
                   placeholder="e.g. I have an urgent hospital procedure and need to move this visit to another time."
                   rows={3}
-                  className="mt-1.5 w-full resize-y rounded-xl border border-slate-700 bg-slate-950/80 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:border-emerald-500/50 focus:outline-none focus:ring-1 focus:ring-emerald-500/40"
+                  className="mt-1.5 w-full resize-y rounded-xl border border-slate-700 bg-ink-900/80 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:border-clinical-500/50 focus:outline-none focus:ring-1 focus:ring-clinical-500/40"
                   disabled={loadingAlternatives || sendingProposal}
                 />
                 <p className="mt-1 text-[11px] text-slate-500">
@@ -1715,7 +1715,7 @@ export function AgendaRealtime({
                       {previewSlots.map((iso, i) => (
                         <li
                           key={iso}
-                          className="rounded-lg border border-slate-700/70 bg-slate-950/50 px-2.5 py-1.5"
+                          className="rounded-lg border border-slate-700/70 bg-ink-900/50 px-2.5 py-1.5"
                         >
                           <span className="text-slate-500">{i + 1}. </span>
                           {format(
@@ -1762,7 +1762,7 @@ export function AgendaRealtime({
                       onChange={(e) => setRejectReason(e.target.value)}
                       placeholder="e.g. A last-minute surgery came up and I need to free this slot — sorry. Please book another time on my profile."
                       rows={4}
-                      className="mt-1.5 w-full resize-y rounded-xl border border-slate-700 bg-slate-950/80 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:border-emerald-500/50 focus:outline-none focus:ring-1 focus:ring-emerald-500/40"
+                      className="mt-1.5 w-full resize-y rounded-xl border border-slate-700 bg-ink-900/80 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:border-clinical-500/50 focus:outline-none focus:ring-1 focus:ring-clinical-500/40"
                       disabled={isCancelling}
                     />
                     <p className="mt-1 text-[11px] text-slate-500">
@@ -1783,7 +1783,7 @@ export function AgendaRealtime({
                       onChange={(e) => setRejectReason(e.target.value)}
                       placeholder="e.g. An emergency procedure requires me to be elsewhere — I’m very sorry to cancel this confirmed slot. Please book again on my profile when you can."
                       rows={4}
-                      className="mt-1.5 w-full resize-y rounded-xl border border-slate-700 bg-slate-950/80 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:border-emerald-500/50 focus:outline-none focus:ring-1 focus:ring-emerald-500/40"
+                      className="mt-1.5 w-full resize-y rounded-xl border border-slate-700 bg-ink-900/80 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:border-clinical-500/50 focus:outline-none focus:ring-1 focus:ring-clinical-500/40"
                       disabled={isCancelling}
                     />
                     <p className="mt-1 text-[11px] text-slate-500">

@@ -67,10 +67,10 @@ export function FinderResultsTransition({ children }: FinderResultsTransitionPro
           isTransitioning ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-1"
         }`}
       >
-        <div className="inline-flex items-center gap-2 text-sm font-medium text-slate-200">
+        <div className="inline-flex items-center gap-2 text-sm font-medium text-ink-600">
           <span
             aria-hidden
-            className="h-3.5 w-3.5 animate-spin rounded-full border border-emerald-200/90 border-r-transparent"
+            className="h-3.5 w-3.5 animate-spin rounded-full border border-clinical-400 border-r-transparent"
           />
           <span>Updating results...</span>
         </div>

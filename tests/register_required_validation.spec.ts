@@ -6,7 +6,7 @@ test.describe("Register form required hints", () => {
   }) => {
     await page.goto("/register");
 
-    await page.getByRole("button", { name: /Submit application/i }).click();
+    await page.getByRole("button", { name: /Submit My Application/i }).click();
 
     await expect(page).toHaveURL(/\/register(?:\?|$)/);
     await expect(page.getByText("Please enter your full name.")).toBeVisible();

@@ -205,7 +205,7 @@ export function PromotePracticeSection({
   return (
     <section className="rounded-2xl border border-slate-800/80 bg-slate-900/40 p-5">
       <div className="flex items-center gap-2">
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-300">
+        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-clinical-500/15 text-clinical-300">
           <QrCode className="h-4 w-4" strokeWidth={1.75} aria-hidden />
         </div>
         <div>
@@ -235,7 +235,7 @@ export function PromotePracticeSection({
           <button
             type="button"
             onClick={printBookingSign}
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-slate-950 shadow-lg shadow-emerald-500/20 transition hover:bg-emerald-400"
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-clinical-500 px-4 py-2.5 text-sm font-semibold text-slate-950 shadow-lg shadow-clinical-500/20 transition hover:bg-clinical-400"
           >
             <Printer className="h-4 w-4" aria-hidden />
             {copy.printButton}

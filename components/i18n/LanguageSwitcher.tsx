@@ -32,7 +32,13 @@ function hrefForLocale(pathname: string, locale: LocaleValue): string {
   return `/${parts.join("/")}`;
 }
 
-export function LanguageSwitcher({ compact = false }: { compact?: boolean }) {
+export function LanguageSwitcher({
+  compact = false,
+  variant = "dark",
+}: {
+  compact?: boolean;
+  variant?: "dark" | "light";
+}) {
   const pathname = usePathname();
   const currentLocale = currentLocaleFromPath(pathname);
   const [pendingLocale, setPendingLocale] = React.useState<LocaleValue | null>(null);
@@ -41,10 +47,14 @@ export function LanguageSwitcher({ compact = false }: { compact?: boolean }) {
     setPendingLocale(null);
   }, [pathname]);
 
+  const isLight = variant === "light";
+
   return (
     <div
       className={[
-        "inline-flex items-center rounded-full border border-slate-200/20 bg-slate-900/30 p-1 backdrop-blur",
+        isLight
+          ? "inline-flex items-center rounded-full border border-ink-200 bg-white/80 p-1 shadow-sm backdrop-blur"
+          : "inline-flex items-center rounded-full border border-slate-200/20 bg-slate-900/30 p-1 backdrop-blur",
         compact ? "scale-95 origin-right" : "",
       ].join(" ")}
     >
@@ -69,8 +79,12 @@ export function LanguageSwitcher({ compact = false }: { compact?: boolean }) {
                 ? "px-2.5 py-1 text-[11px] font-semibold rounded-full transition"
                 : "px-3 py-1.5 text-xs font-semibold rounded-full transition",
               active
-                ? "bg-emerald-400 text-slate-950"
-                : "text-slate-300 hover:bg-slate-800/70 hover:text-slate-50",
+                ? isLight
+                  ? "bg-clinical-500 text-white"
+                  : "bg-clinical-400 text-slate-950"
+                : isLight
+                  ? "text-ink-600 hover:bg-clinical-50 hover:text-clinical-700"
+                  : "text-slate-300 hover:bg-slate-800/70 hover:text-slate-50",
               pendingLocale !== null ? "pointer-events-none opacity-85" : "",
             ].join(" ")}
           >

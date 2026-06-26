@@ -157,107 +157,81 @@
   },
   "LandingPage": {
     "Hero": {
-      "title": "Your Professional Website & Online Agenda",
-      "kicker": "Total control. Zero interruptions.",
-      "subtitleLine1": "You set your hours. Patients book online. You approve with one click.",
-      "subtitleLine2": "",
-      "visualIncoming": "Patient request received",
-      "visualNoInterruptions": "No call interruptions during care",
-      "visualConfirmed": "Confirmed in one click",
-      "ctaClaim": "Claim your professional profile",
-      "ctaLogin": "Professional Login"
-    },
-    "Features": {
-      "eyebrow": "THE CHAOS OF PHONE-BASED BOOKING",
-      "title": "Your practice shouldn't feel like a call center",
-      "intro": "Every phone call you answer during patient care is a lost moment of focus. Every voicemail you return is a chore. Every \"calendar dance\" is a waste of time.",
-      "painHeading": "The reality of manual booking:",
-      "painDistractionLabel": "Distraction",
-      "painDistractionBody": "Every ring interrupts a consultation.",
-      "painAdminDebtLabel": "Admin Debt",
-      "painAdminDebtBody": "Your staff spends hours repeating availability, spelling names, and checking slots.",
-      "painSilentLeaksLabel": "Silent Leaks",
-      "painSilentLeaksBody": "Patients call after hours, get no answer, and book with the clinic down the street.",
-      "closing": "DocCy was built to stop this cycle."
-    },
-    "AdoptionPlaybook": {
-      "eyebrow": "ADOPTION PLAYBOOK",
-      "title": "Shift phone traffic to the screen",
-      "lead": "Your patients don't want to wait on hold, and your staff shouldn't spend four hours a day repeating available slots.",
-      "steps": {
-        "weekendShield": {
-          "title": "The Weekend Shield",
-          "body": "Clinics in Cyprus close evenings, weekends, and lunch breaks. We give you a voicemail script that sends callers to your DocCy link, so Saturday callers book instead of waiting until Monday.",
-          "result": "Your team arrives Monday to an organized dashboard, not a chaotic list of missed calls."
+      "title": "Run a Smarter Practice.",
+      "tagline": "See more patients, eliminate phone chaos.",
+      "subheader": "Your professional website & online agenda in Cyprus. Patients request appointments 24/7; you approve with one click. Total control, zero interruptions during patient care.",
+      "ctaClaim": "List my practice",
+      "ctaLogin": "Professional Login",
+      "metrics": {
+        "freeTrial": {
+          "label": "First 6 Months FREE",
+          "detail": "Experience the platform completely risk-free"
         },
-        "liveHandoff": {
-          "title": "The 10-second handoff",
-          "body": "When patients call during opening hours, your receptionist books the slot and adds one line: next time they can see your open times and book online on DocCy.",
-          "result": "Patients type their own name and details; your team reviews and clicks Approve."
+        "cyprus": {
+          "label": "100% Cyprus Focused",
+          "detail": "Tailored specifically for the local healthcare market"
         },
-        "websiteButton": {
-          "title": "The website button",
-          "body": "Already have a website? Send your web person a simple \"Book online\" button that links to your DocCy page. We don't replace your site, we add a booking path.",
-          "result": "Need a hand? Contact us through Support and we can add it for you at no extra cost."
+        "approvals": {
+          "label": "1-Click Approvals",
+          "detail": "You always maintain absolute control over your schedule"
+        },
+        "support": {
+          "label": "Direct Support",
+          "detail": "Personalized onboarding at your practice"
         }
-      },
-      "closing": "Once you're verified, open Promote your practice in Settings for ready-made scripts and your booking link.",
-      "cta": "See launch pricing"
+      }
     },
-    "Showcase": {
-      "title": "See how DocCy puts you back in charge",
-      "badges": {
-        "forPatients": "For Patients",
-        "forYou": "For You"
-      },
-      "slides": {
-        "automatedFollowup": {
-          "title": "Professional automated follow-up",
-          "body": "Once you approve, DocCy does the heavy lifting: confirmation emails, calendar add-ons, and WhatsApp links, with no manual busywork."
+    "WhatIsDocCy": {
+      "title": "More than a scheduling tool: Your Digital Command Center",
+      "items": {
+        "agenda": {
+          "title": "Smart Online Agenda",
+          "body": "The most intuitive medical scheduling software. Fully customizable: define your own hours, breaks, slot durations, and booking rules. Accessible from any device."
         },
-        "overlapGuard": {
-          "title": "Chaos blocked before it starts",
-          "body": "When a request overlaps your agenda, DocCy warns you instantly. Adjust duration or use your power to suggest alternative times with one click."
+        "storefront": {
+          "title": "Premium Digital Storefront",
+          "body": "Your professional profile is your new website—live in minutes. Optimized to showcase your specialty, photo, and the languages you speak to easily connect with Cyprus's expat and local patient mix."
         },
-        "breakGuard": {
-          "title": "Your personal time stays protected",
-          "body": "DocCy flags conflicts with your breaks or off-hours in real time. Automation finally works for you, not against your boundaries."
+        "shield": {
+          "title": "The Schedule Shield",
+          "body": "Block the chaos before it starts. The platform flags conflicts in real time and lets you visually manage all pending requests before they ever enter your workday."
+        }
+      }
+    },
+    "Challenges": {
+      "eyebrow": "SOLVING THE CHAOS OF PHONE-BASED BOOKING",
+      "items": {
+        "visibility": {
+          "category": "VISIBILITY & GROWTH",
+          "title": "Get found by new patients online",
+          "body": "Your professional profile on DocCy is highly optimized for local Google searches. Patients filter by specialty, location, and language, view your real-time availability, and request their slot in just a few clicks."
         },
-        "smartRequestFilter": {
-          "title": "Smart Requests, not blind bookings",
-          "body": "Each request arrives structured with patient, time, and reason. You decide with full context from one professional command-center."
+        "productivity": {
+          "category": "PRODUCTIVITY & FOCUS",
+          "title": "Stop letting your practice feel like a call center",
+          "body": "Every phone call you answer during patient care is a lost moment of focus. With DocCy, you shift your phone traffic to the screen. Your staff spends zero time repeating available slots, allowing them to focus entirely on the patients in the room."
         },
-        "pendingClarity": {
-          "title": "No confusion, just clear Pending",
-          "body": "Patients see their request as 'Pending' until you give the green light. We manage their expectations to prevent unannounced visits."
+        "weekendShield": {
+          "category": "THE WEEKEND SHIELD",
+          "title": "Never miss a patient when your clinic is closed",
+          "body": "Clinics in Cyprus close evenings, weekends, and lunch breaks. We provide scripts and strategies so patients calling on a Saturday can book online autonomously. Your team arrives Monday morning to an organized dashboard, not a chaotic list of missed calls."
+        }
+      }
+    },
+    "HowItWorks": {
+      "title": "Getting started is this simple:",
+      "steps": {
+        "profile": {
+          "title": "Create your profile",
+          "body": "Define your medical specialties, languages, and specific booking rules."
         },
-        "pendingVisual": {
-          "title": "Pending is visible at a glance",
-          "body": "Pending requests stand out in your agenda, clearly separated from confirmed visits. Nothing enters your day without your explicit approval."
-        },
-        "proposalEmail": {
-          "title": "You decide, DocCy follows up",
-          "body": "Pick your best three available options. DocCy sends a polished email with a clear 24-hour deadline, so the admin work runs itself."
+        "requests": {
+          "title": "Manage requests",
+          "body": "Review incoming appointment requests with full context (patient details and reason for consultation) and confirm with one click."
         },
         "sync": {
-          "title": "Total Sync",
-          "body": "Everything is added to your Google or iOS Calendar, matching your preferred language and keeping your life in sync."
-        },
-        "weeklyGrid": {
-          "title": "Professional Command Center",
-          "body": "Run your entire week from one visual board. Every booking, request, and gap is clear at a glance. Goodbye, paper diary."
-        },
-        "premiumStorefront": {
-          "title": "Your Premium Digital Storefront",
-          "body": "For independents, brand is everything, yet many still lack a real site or settle for cluttered directory pages. DocCy is your showroom: a clean, modern public profile with your photo, specialty, and languages patients scan first, especially across Cyprus's tourism and expat mix."
-        },
-        "settingsProfile": {
-          "title": "Profile & Visibility Controls",
-          "body": "Manage your professional specialty, languages, and profile readiness from one central place."
-        },
-        "settingsSchedule": {
-          "title": "Schedule Customization",
-          "body": "Full control of your practice: set your own boundaries, breaks, slot durations, and booking rules."
+          "title": "Total synchronization",
+          "body": "Once approved, visits are automatically synced with your preferred Google or iOS Calendar."
         }
       }
     },
@@ -267,6 +241,12 @@
       "standardPricing": "Standard Pricing",
       "loading": "Checking availability...",
       "badge": "FOUNDING MEMBERS CLUB",
+      "sectionTitle": "Your practice, upgraded. 100% risk-free.",
+      "sectionIntro": "Building a private website in Cyprus can cost you over €2,000 in development plus ongoing maintenance, yet most stay hidden on page 10 of Google. DocCy gives you instant visibility for the price of a few coffees.",
+      "tierFree": "First 6 Months: €0 (Completely FREE).",
+      "tierFounder": "Founding Members Club: Only €19/month (Price locked for life for the first 50 practices that register in Cyprus).",
+      "tierStandard": "Standard Price: €49/month.",
+      "finePrint": "Cancel anytime · No hidden costs · No credit card required",
       "title": "€19/month. Locked for life.",
       "subtitle": "Launch offer for the first 50 practices that register in Cyprus. Once the club is full, new sign-ups move to standard pricing.",
       "price": "€19/month",
@@ -281,82 +261,24 @@
         "directoryPriority": "Priority in Finder",
         "directoryPriorityNote": "Higher placement in search"
       },
-      "cta": "Get my Professional Profile"
-    },
-    "Visibility": {
-      "eyebrow": "The End of the Expensive, Invisible Website",
-      "title": "Your professional profile is your new website.",
-      "subtitle": "(Only smarter, faster, and built to be found).",
-      "intro": "Building a private website in Cyprus can cost you thousands in development and monthly maintenance, and yet most stay hidden on page 10 of Google.",
-      "beforeTitle": "Old way: private website",
-      "afterTitle": "DocCy way: visibility first",
-      "beforePoints": {
-        "cost": "€2,000+ setup plus monthly maintenance",
-        "tech": "You handle updates, hosting, and fixes",
-        "visibility": "Often invisible on Google"
-      },
-      "afterPoints": {
-        "speed": "Live in minutes with instant loading",
-        "maintenance": "Zero maintenance on your side",
-        "authority": "Built inside a high-authority ecosystem",
-        "patientTools": "Integrated Patient Tools: QR codes & professional links included to automate your current patient base."
-      },
-      "closing": "Why pay for a site no one visits? With DocCy, you get the visibility of a major health platform with the personal touch of your own professional space.",
-      "comparison": {
-        "websiteCost": "Typical private website in Cyprus: €2,000+ setup + monthly maintenance",
-        "doccyCost": "DocCy: €49/month"
-      },
-      "scrollCue": "See launch pricing below"
-    },
-    "SkepticismKiller": {
-      "title": "No more profiles collecting digital dust",
-      "p1": "We know you’ve probably been burned by healthcare platforms that promise the world, charge upfront, and leave your profile forgotten in a generic database.",
-      "p2": "DocCy is built differently. We don’t want your money until we prove the system works for your practice.",
-      "p3": "That’s why we completely eliminate the upfront risk. You get six full months to experience the platform, capture real patients, and see the reduction in phone chaos before you ever pay a single cent."
+      "cta": "List my practice"
     },
     "FAQ": {
-      "heading": "Common questions",
-      "intro": "Right after pricing, most professionals ask these exact questions.",
+      "heading": "Frequently asked questions",
+      "intro": "Straight answers to what most professionals ask before they join.",
       "items": {
         "doubleBookings": {
-          "question": "What if a patient calls me by phone? Will I have double bookings?",
-          "answer1": "Not at all. DocCy is designed to be your single source of truth. When you or your secretary take a call, you simply add it to your DocCy calendar and (optionally) sync it with your Google/iOS calendar.",
-          "answer2": "The slot is instantly blocked on your public profile, so no one can book it online. It is like having a digital shield for your schedule."
-        },
-        "frontDeskWorkload": {
-          "question": "Will using DocCy create extra work for my front desk staff?",
-          "answer1": "Quite the contrary: it is designed to eliminate phone tag.",
-          "answer2": "Right now, your staff spends hours every day managing the \"calendar dance\": taking calls, checking availability, and playing back-and-forth.",
-          "answer3": "With DocCy, you shift your phone traffic to your digital profile. Patients request slots that fit your availability, and your staff simply clicks \"Approve\" on the dashboard. They spend zero time typing, spelling names, or searching for gaps. It doesn't add to their workload; it acts as a digital shield that protects them from unnecessary phone interruptions, allowing them to focus on the patients standing right in front of them."
+          "question": "Will using DocCy create double bookings or extra work?",
+          "answer1": "Not at all. DocCy acts as your single source of truth. When you or your secretary take a phone call, you simply add it manually to your DocCy panel in 5 seconds. The slot is instantly blocked on your public profile, acting as a digital shield for your schedule."
         },
         "patientHabit": {
-          "question": "How do I get my current patients to start using this?",
-          "answer1": "It is easier than you think. DocCy includes Practice Promotion tools: you can print a QR code for your reception or share your professional link by WhatsApp.",
-          "answer2": "Your patients will appreciate the freedom to book on a Sunday night without waiting for your clinic to open on Monday morning. You gain peace of mind, they gain convenience."
-        },
-        "privateWebsiteVsDoccy": {
-          "question": "Won't a private website give me more visibility than a profile?",
-          "answer1": "It is a common misconception. A private website is like a high-end clinic built in the middle of the desert: it looks great, but no one knows it is there. To appear on the first page of Google, a new website usually needs years of SEO work and thousands of euros in investment.",
-          "answer2": "DocCy is the Main Street of Cyprus healthcare. By joining, you benefit from our platform's established authority and high-performance technology (Vercel). You do not just get a link; you get an optimized professional space that is already where patients are looking.",
-          "answer3": "It is the visibility of a EUR2,000 website for the price of a few coffees."
-        },
-        "teamAccess": {
-          "question": "Can my secretary or team manage the agenda for me?",
-          "answer1": "Absolutely. You can give your team access to your profile so they can confirm, reschedule, or add manual appointments.",
-          "answer2": "DocCy does not replace your staff; it gives them a high-performance tool to stop wasting time on WhatsApp tag and focus on providing a better experience for the patients in the room."
+          "question": "How do I get my current patients to start using this online system?",
+          "answer1": "It is easier than you think. DocCy includes Practice Promotion tools: you can print a custom QR code for your reception desk or share your professional booking link via WhatsApp. Your patients will gladly embrace the freedom to book whenever they want."
         },
         "setupTime": {
-          "question": "How long does it take to set up? I am busy.",
-          "answer1": "Less than 5 minutes. DocCy is built to be plug and play, with no tech team or manuals required.",
-          "answer2": "Want a hands-off experience? As a Founding Member, you can request Personalized Onboarding. We can do it via a quick video call or, if you are based in Paphos, we can visit your practice and set everything up for you.",
-          "answer3": "We'll even help you sync your current calendar and strategy for a smooth transition. You focus on your patients; we handle the setup.",
+          "question": "How long does it take to set up? I am very busy.",
+          "answer1": "Less than 5 minutes. DocCy is built to be plug-and-play. Furthermore, as a Founding Member, you get Personalized Onboarding: we can guide you via a quick video call or, if your practice is located in the Paphos area, we can visit your clinic in person to handle the entire setup and calendar sync for you.",
           "contactCta": "Contact us here"
-        },
-        "directoriesZeroResults": {
-          "question": "I’ve listed my practice on other directories before and got zero results. Why is DocCy different?",
-          "answer1": "Because we don't charge you to sit invisibly in a database. Most traditional directories fail because they focus on locking doctors into upfront contracts without guaranteeing performance.",
-          "answer2": "DocCy is built as a high-performance ecosystem optimized for local Google searches. But instead of asking you to trust our word, we shift 100% of the financial risk to us.",
-          "answer3": "You get 6 full months to test the platform with zero setup fees and no credit card required. If you don't see actual patient requests or a noticeable relief in your staff's workload, you can walk away without spending a single cent. We only win when your clinic wins."
         }
       }
     }

@@ -24,7 +24,7 @@ export function escapeHtml(text: string): string {
 
 /** Subtle footer for HTML booking emails (doctor + patient). */
 export function automatedEmailFooterHtml(): string {
-  return `<p style="margin:28px 0 0;padding-top:18px;border-top:1px solid rgba(148,163,184,.18);font-size:11px;line-height:1.55;color:#64748b;">
+  return `<p style="margin:28px 0 0;padding-top:18px;border-top:1px solid rgba(176,190,201,.2);font-size:11px;line-height:1.55;color:#5C6F82;">
   ${escapeHtml(AUTOMATED_EMAIL_FOOTER_TEXT)}
 </p>`;
 }

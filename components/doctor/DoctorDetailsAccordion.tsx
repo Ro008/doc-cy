@@ -26,11 +26,11 @@ export function DoctorDetailsAccordion({
 
   return (
     <section className="lg:min-w-0">
-      <div className="rounded-3xl border border-emerald-100/10 bg-slate-900/50 shadow-2xl shadow-slate-950/50 backdrop-blur-xl">
+      <div className="rounded-3xl border border-clinical-200 bg-white shadow-[0_1px_3px_rgba(26,43,60,0.06),0_8px_24px_rgba(11,123,181,0.06)] backdrop-blur-xl">
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
-          className="flex w-full items-center justify-between gap-3 rounded-3xl px-5 py-4 text-left text-sm text-slate-200 outline-none transition hover:bg-slate-900/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
+          className="flex w-full items-center justify-between gap-3 rounded-3xl px-5 py-4 text-left text-sm text-ink-800 outline-none transition hover:bg-ink-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-400/60 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-50"
           aria-expanded={open}
           aria-controls="doctor-details-panel"
         >
@@ -38,7 +38,7 @@ export function DoctorDetailsAccordion({
             About {firstName}
           </span>
           <ChevronDown
-            className={`h-4 w-4 shrink-0 text-slate-400 transition-transform ${
+            className={`h-4 w-4 shrink-0 text-ink-500 transition-transform ${
               open ? "rotate-180" : ""
             }`}
             aria-hidden
@@ -53,7 +53,7 @@ export function DoctorDetailsAccordion({
         >
           <div className="px-5 pb-5 pt-1">
             <div>
-              <p className="text-sm leading-relaxed text-slate-300">
+              <p className="text-sm leading-relaxed text-ink-600">
                 {truncatedBio || "This professional has not added a bio yet."}
               </p>
             </div>

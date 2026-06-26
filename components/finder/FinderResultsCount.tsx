@@ -25,24 +25,24 @@ export function FinderResultsCount(props: FinderResultsCountProps) {
   return (
     <p
       data-testid="finder-results-count"
-      className="mb-4 text-sm leading-relaxed text-slate-400"
+      className="mb-4 text-sm leading-relaxed text-ink-500"
       aria-live="polite"
     >
       {hasActiveFilters ? (
         <>
           Showing{" "}
-          <span className="font-semibold tabular-nums text-slate-200">{count}</span>{" "}
+          <span className="font-semibold tabular-nums text-ink-800">{count}</span>{" "}
           {professionalWord}
           {filterHint ? (
-            <span className="text-slate-500">
+            <span className="text-ink-400">
               {" "}
-              · <span className="text-slate-400">{filterHint}</span>
+              · <span className="text-ink-500">{filterHint}</span>
             </span>
           ) : null}
         </>
       ) : (
         <>
-          <span className="font-semibold tabular-nums text-emerald-200/95">{count}</span> health{" "}
+          <span className="font-semibold tabular-nums text-clinical-600">{count}</span> health{" "}
           {professionalWord} on DocCy across Cyprus
         </>
       )}

@@ -1,4 +1,5 @@
 import { getPublicBookingBaseUrl } from "@/lib/site-url";
+import { EMAIL_INLINE_CTA_BTN } from "@/lib/email-brand";
 
 export function buildPublicProfileUrl(slug: string): string {
   const base = getPublicBookingBaseUrl();
@@ -52,7 +53,7 @@ export function buildWebsiteButtonHtml(
       .startsWith("gr");
   const label = isEl ? "Κράτηση online" : "Book appointment online";
   const safeUrl = bookingUrl.replace(/"/g, "&quot;");
-  return `<a href="${safeUrl}" style="display:inline-block;padding:12px 20px;background:#34d399;color:#0f172a;font-weight:600;text-decoration:none;border-radius:8px;">${label}</a>`;
+  return `<a href="${safeUrl}" style="${EMAIL_INLINE_CTA_BTN}">${label}</a>`;
 }
 
 export function buildWebsiteSupportPrefill(

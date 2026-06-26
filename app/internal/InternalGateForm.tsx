@@ -66,7 +66,7 @@ export function InternalGateForm() {
             autoComplete="current-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2.5 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+            className="w-full rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2.5 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-clinical-500/40"
             placeholder="Access code"
           />
           {error ? (
@@ -75,7 +75,7 @@ export function InternalGateForm() {
           <button
             type="submit"
             disabled={loading || !password.trim()}
-            className="w-full rounded-xl bg-emerald-500 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400 disabled:opacity-50"
+            className="w-full rounded-xl bg-clinical-500 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-clinical-400 disabled:opacity-50"
           >
             {loading ? "Checking…" : "Continue"}
           </button>

@@ -591,7 +591,7 @@ export function SettingsForm({ initial }: SettingsFormProps) {
               id="district"
               value={district}
               onChange={(e) => setDistrict(e.target.value)}
-              className="mt-2 w-full rounded-xl border border-slate-800/80 bg-slate-950/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-400/60"
+              className="mt-2 w-full rounded-xl border border-slate-800/80 bg-ink-900/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-clinical-400/60"
             >
               <option value="">Select district</option>
               {CYPRUS_DISTRICTS.map((item) => (
@@ -614,7 +614,7 @@ export function SettingsForm({ initial }: SettingsFormProps) {
               value={clinicAddress}
               onChange={(e) => setClinicAddress(e.target.value)}
               placeholder="Street, number, area"
-              className="mt-2 w-full rounded-xl border border-slate-800/80 bg-slate-950/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-400/60"
+              className="mt-2 w-full rounded-xl border border-slate-800/80 bg-ink-900/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-clinical-400/60"
             />
           </div>
         </div>
@@ -628,7 +628,7 @@ export function SettingsForm({ initial }: SettingsFormProps) {
           Keep your public profile photo up to date for better trust.
         </p>
         <div className="mt-4 flex items-center gap-4">
-          <div className="h-16 w-16 overflow-hidden rounded-full border border-slate-700 bg-slate-950/70">
+          <div className="h-16 w-16 overflow-hidden rounded-full border border-slate-700 bg-ink-900/70">
             {avatarPreviewUrl ? (
               <img
                 src={avatarPreviewUrl}
@@ -654,7 +654,7 @@ export function SettingsForm({ initial }: SettingsFormProps) {
             type="button"
             onClick={() => avatarFileInputRef.current?.click()}
             disabled={avatarUploading}
-            className="inline-flex cursor-pointer items-center justify-center rounded-xl border border-emerald-400/35 bg-emerald-500/10 px-3 py-2 text-xs font-medium text-emerald-200 transition hover:bg-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-70"
+            className="inline-flex cursor-pointer items-center justify-center rounded-xl border border-clinical-400/35 bg-clinical-500/10 px-3 py-2 text-xs font-medium text-clinical-200 transition hover:bg-clinical-500/20 disabled:cursor-not-allowed disabled:opacity-70"
           >
             {avatarUploading ? "Uploading..." : "Upload new photo"}
           </button>
@@ -663,7 +663,7 @@ export function SettingsForm({ initial }: SettingsFormProps) {
       {isClient && avatarCropOpen && avatarSourceUrl
         ? createPortal(
             <div
-              className="fixed inset-0 z-[100] flex items-center justify-center overflow-hidden bg-slate-950/75 p-4"
+              className="fixed inset-0 z-[100] flex items-center justify-center overflow-hidden bg-ink-900/75 p-4"
               role="dialog"
               aria-modal="true"
               aria-label="Crop profile photo"
@@ -672,7 +672,7 @@ export function SettingsForm({ initial }: SettingsFormProps) {
                 <p className="mb-2 text-sm font-semibold text-slate-100">
                   Crop profile photo (1:1)
                 </p>
-                <div className="relative h-72 overflow-hidden rounded-xl bg-slate-950">
+                <div className="relative h-72 overflow-hidden rounded-xl bg-ink-900">
                   <Cropper
                     image={avatarSourceUrl}
                     crop={avatarCrop}
@@ -713,7 +713,7 @@ export function SettingsForm({ initial }: SettingsFormProps) {
                     type="button"
                     onClick={onConfirmAvatarCrop}
                     disabled={avatarUploading || avatarCropping}
-                    className="rounded-xl bg-emerald-400 px-3 py-2 text-xs font-semibold text-slate-950 disabled:opacity-60"
+                    className="rounded-xl bg-clinical-400 px-3 py-2 text-xs font-semibold text-slate-950 disabled:opacity-60"
                   >
                     {avatarCropping
                       ? "Processing..."
@@ -741,7 +741,7 @@ export function SettingsForm({ initial }: SettingsFormProps) {
           value={whatsappNumber}
           onChange={(e) => setWhatsappNumber(e.target.value)}
           placeholder="+357..."
-          className="mt-2 w-full rounded-xl border border-slate-800/80 bg-slate-950/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-400/60"
+          className="mt-2 w-full rounded-xl border border-slate-800/80 bg-ink-900/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-clinical-400/60"
         />
         <p className="mt-2 text-xs text-slate-400">
           Used in appointment confirmation emails to enable{" "}
@@ -749,8 +749,8 @@ export function SettingsForm({ initial }: SettingsFormProps) {
         </p>
       </div>
 
-      <section className="rounded-2xl border border-[#00FFD5]/30 bg-slate-900/60 p-5">
-        <p className="text-xs font-semibold uppercase tracking-wide text-[#00FFD5]">
+      <section className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-5">
+        <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
           Services
         </p>
         <p className="mt-1 text-sm text-slate-400">
@@ -764,20 +764,20 @@ export function SettingsForm({ initial }: SettingsFormProps) {
             value={serviceName}
             onChange={(e) => setServiceName(e.target.value)}
             placeholder="Treatment name (e.g. Facial laser)"
-            className="w-full rounded-xl border border-slate-800/80 bg-slate-950/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-[#00FFD5]/60"
+            className="w-full rounded-xl border border-slate-800/80 bg-ink-900/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-clinical-400/60"
           />
           <input
             type="text"
             value={servicePrice}
             onChange={(e) => setServicePrice(e.target.value)}
             placeholder="e.g. 120 or From 80"
-            className="w-full rounded-xl border border-slate-800/80 bg-slate-950/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-[#00FFD5]/60"
+            className="w-full rounded-xl border border-slate-800/80 bg-ink-900/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-clinical-400/60"
           />
           <button
             type="button"
             onClick={handleAddService}
             disabled={serviceSubmitting}
-            className="inline-flex items-center justify-center rounded-xl bg-[#00FFD5] px-4 py-2 text-sm font-semibold text-slate-950 transition hover:opacity-90 disabled:opacity-60"
+            className="inline-flex items-center justify-center rounded-xl bg-clinical-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-clinical-400 disabled:opacity-60"
           >
             {serviceSubmitting ? "Adding..." : "Add"}
           </button>
@@ -787,7 +787,7 @@ export function SettingsForm({ initial }: SettingsFormProps) {
           {services.map((service) => (
             <li
               key={service.id}
-              className="flex items-center justify-between gap-3 rounded-xl border border-slate-800/70 bg-slate-950/35 px-3 py-2.5"
+              className="flex items-center justify-between gap-3 rounded-xl border border-slate-800/70 bg-ink-900/35 px-3 py-2.5"
             >
               <div className="min-w-0">
                 <p className="truncate text-sm font-medium text-slate-100">{service.name}</p>
@@ -820,7 +820,7 @@ export function SettingsForm({ initial }: SettingsFormProps) {
           {days.map(({ key, label, value }) => (
             <div
               key={key}
-              className="rounded-xl border border-slate-800/70 bg-slate-950/30 p-3"
+              className="rounded-xl border border-slate-800/70 bg-ink-900/30 p-3"
             >
               <label className="flex cursor-pointer items-center gap-2">
                 <input
@@ -832,7 +832,7 @@ export function SettingsForm({ initial }: SettingsFormProps) {
                       [key]: { ...prev[key], enabled: e.target.checked },
                     }))
                   }
-                  className="h-4 w-4 rounded border-slate-600 bg-slate-900 text-emerald-500 focus:ring-emerald-400/60"
+                  className="h-4 w-4 rounded border-slate-600 bg-slate-900 text-clinical-500 focus:ring-clinical-400/60"
                 />
                 <span className="text-sm text-slate-200">{label}</span>
               </label>
@@ -859,7 +859,7 @@ export function SettingsForm({ initial }: SettingsFormProps) {
                           },
                         }))
                       }
-                      className="mt-2 w-full rounded-xl border border-slate-800/80 bg-slate-950/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-400/60"
+                      className="mt-2 w-full rounded-xl border border-slate-800/80 bg-ink-900/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-clinical-400/60"
                     />
                   </div>
                   <div>
@@ -882,7 +882,7 @@ export function SettingsForm({ initial }: SettingsFormProps) {
                           },
                         }))
                       }
-                      className="mt-2 w-full rounded-xl border border-slate-800/80 bg-slate-950/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-400/60"
+                      className="mt-2 w-full rounded-xl border border-slate-800/80 bg-ink-900/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-clinical-400/60"
                     />
                   </div>
                 </div>
@@ -917,7 +917,7 @@ export function SettingsForm({ initial }: SettingsFormProps) {
                     : DEFAULT_BOOKING_HORIZON_DAYS
                 );
               }}
-              className="mt-2 w-full rounded-xl border border-slate-800/80 bg-slate-950/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-400/60"
+              className="mt-2 w-full rounded-xl border border-slate-800/80 bg-ink-900/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-clinical-400/60"
             >
               <option value={14}>2 weeks</option>
               <option value={30}>1 month</option>
@@ -948,7 +948,7 @@ export function SettingsForm({ initial }: SettingsFormProps) {
                     : DEFAULT_MIN_NOTICE_HOURS
                 );
               }}
-              className="mt-2 w-full rounded-xl border border-slate-800/80 bg-slate-950/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-400/60"
+              className="mt-2 w-full rounded-xl border border-slate-800/80 bg-ink-900/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-clinical-400/60"
             >
               <option value={1}>1 hour</option>
               <option value={2}>2 hours</option>
@@ -986,7 +986,7 @@ export function SettingsForm({ initial }: SettingsFormProps) {
                   setHolidayEndInput("");
                 }
               }}
-              className="h-4 w-4 rounded border-slate-600 bg-slate-900 text-emerald-500 focus:ring-emerald-400/60"
+              className="h-4 w-4 rounded border-slate-600 bg-slate-900 text-clinical-500 focus:ring-clinical-400/60"
             />
             <span>Enable</span>
           </label>
@@ -1012,7 +1012,7 @@ export function SettingsForm({ initial }: SettingsFormProps) {
                   const parsed = parseDDMMYYYYToISO(e.target.value);
                   setHolidayStartDate(parsed);
                 }}
-                className="mt-2 w-full rounded-xl border border-slate-800/80 bg-slate-950/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-400/60"
+                className="mt-2 w-full rounded-xl border border-slate-800/80 bg-ink-900/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-clinical-400/60"
               />
             </div>
             <div>
@@ -1033,7 +1033,7 @@ export function SettingsForm({ initial }: SettingsFormProps) {
                   const parsed = parseDDMMYYYYToISO(e.target.value);
                   setHolidayEndDate(parsed);
                 }}
-                className="mt-2 w-full rounded-xl border border-slate-800/80 bg-slate-950/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-400/60"
+                className="mt-2 w-full rounded-xl border border-slate-800/80 bg-ink-900/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-clinical-400/60"
               />
             </div>
           </div>
@@ -1055,7 +1055,7 @@ export function SettingsForm({ initial }: SettingsFormProps) {
               type="checkbox"
               checked={breakEnabled}
               onChange={(e) => setBreakEnabled(e.target.checked)}
-              className="h-4 w-4 rounded border-slate-600 bg-slate-900 text-emerald-500 focus:ring-emerald-400/60"
+              className="h-4 w-4 rounded border-slate-600 bg-slate-900 text-clinical-500 focus:ring-clinical-400/60"
             />
             <span>Add a daily break</span>
           </label>
@@ -1074,7 +1074,7 @@ export function SettingsForm({ initial }: SettingsFormProps) {
                 type="time"
                 value={breakStart}
                 onChange={(e) => setBreakStart(e.target.value)}
-                className="mt-2 w-full rounded-xl border border-slate-800/80 bg-slate-950/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-400/60"
+                className="mt-2 w-full rounded-xl border border-slate-800/80 bg-ink-900/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-clinical-400/60"
               />
             </div>
             <div>
@@ -1089,7 +1089,7 @@ export function SettingsForm({ initial }: SettingsFormProps) {
                 type="time"
                 value={breakEnd}
                 onChange={(e) => setBreakEnd(e.target.value)}
-                className="mt-2 w-full rounded-xl border border-slate-800/80 bg-slate-950/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-400/60"
+                className="mt-2 w-full rounded-xl border border-slate-800/80 bg-ink-900/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-clinical-400/60"
               />
             </div>
           </div>
@@ -1112,7 +1112,7 @@ export function SettingsForm({ initial }: SettingsFormProps) {
           onChange={(e) =>
             setSlotDurationMinutes(Number(e.target.value))
           }
-          className="mt-3 w-full max-w-xs rounded-xl border border-slate-800/80 bg-slate-950/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-400/60"
+          className="mt-3 w-full max-w-xs rounded-xl border border-slate-800/80 bg-ink-900/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-clinical-400/60"
         >
           {[15, 20, 30, 45, 60].map((n) => (
             <option key={n} value={n}>
@@ -1126,7 +1126,7 @@ export function SettingsForm({ initial }: SettingsFormProps) {
         <div
           className={`rounded-2xl border px-4 py-3 text-sm ${
             message.type === "success"
-              ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-200"
+              ? "border-clinical-400/20 bg-clinical-400/10 text-clinical-200"
               : "border-red-500/20 bg-red-500/10 text-red-200"
           }`}
         >
@@ -1138,7 +1138,7 @@ export function SettingsForm({ initial }: SettingsFormProps) {
         <button
           type="submit"
           disabled={saving}
-          className="inline-flex items-center justify-center rounded-2xl bg-emerald-400 px-5 py-2.5 text-sm font-semibold text-slate-950 shadow-lg shadow-emerald-500/30 transition hover:bg-emerald-300 disabled:opacity-60"
+          className="inline-flex items-center justify-center rounded-2xl bg-clinical-400 px-5 py-2.5 text-sm font-semibold text-slate-950 shadow-lg shadow-clinical-500/30 transition hover:bg-clinical-300 disabled:opacity-60"
         >
           <Save className="mr-2 h-4 w-4" />
           {saving ? "Saving..." : "Save settings"}

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { PasswordToggleInput } from "@/components/auth/PasswordToggleInput";
 import { PendingLink } from "@/components/navigation/PendingLink";
+import { DocCyWordmark } from "@/components/brand/DocCyWordmark";
 
 export function LoginPageClient({ nextPath }: { nextPath?: string | null }) {
   const router = useRouter();
@@ -48,18 +49,19 @@ export function LoginPageClient({ nextPath }: { nextPath?: string | null }) {
   }
 
   return (
-    <main className="min-h-screen bg-slate-950 text-slate-50">
+    <main className="min-h-screen bg-ink-900 text-slate-50">
       <div className="pointer-events-none fixed inset-0 -z-10">
-        <div className="absolute inset-x-0 top-[-10%] mx-auto h-80 max-w-xl rounded-full bg-emerald-500/10 blur-3xl" />
+        <div className="absolute inset-x-0 top-[-10%] mx-auto h-80 max-w-xl rounded-full bg-clinical-500/10 blur-3xl" />
         <div className="absolute inset-y-0 left-[-10%] h-full w-64 bg-sky-500/5 blur-3xl" />
-        <div className="absolute inset-y-0 right-[-15%] h-full w-72 bg-emerald-400/10 blur-3xl" />
+        <div className="absolute inset-y-0 right-[-15%] h-full w-72 bg-clinical-400/10 blur-3xl" />
       </div>
 
       <div className="mx-auto flex min-h-screen max-w-3xl flex-col items-center justify-center px-4 py-10 sm:px-6 lg:px-8">
-        <div className="w-full max-w-md rounded-3xl border border-emerald-100/10 bg-slate-900/60 p-6 shadow-2xl shadow-slate-950/50 backdrop-blur-xl sm:p-8">
+        <div className="w-full max-w-md rounded-3xl border border-clinical-100/10 bg-slate-900/60 p-6 shadow-2xl shadow-ink-900/50 backdrop-blur-xl sm:p-8">
           <div className="mb-6 text-left">
-            <p className="text-xs font-semibold tracking-[0.2em] text-emerald-200/80">
-              Doc<span className="text-emerald-400">Cy</span> · Professional login
+            <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-semibold tracking-[0.2em] text-clinical-200/80">
+              <DocCyWordmark variant="dark" size="sm" />
+              <span>· Professional login</span>
             </p>
             <h1 className="mt-3 text-2xl font-semibold tracking-tight text-slate-50 sm:text-3xl">
               Welcome back
@@ -88,7 +90,7 @@ export function LoginPageClient({ nextPath }: { nextPath?: string | null }) {
                     onChange={(e) => setEmail(e.target.value)}
                     required
                     autoComplete="email"
-                    className="mt-1 w-full rounded-2xl border border-slate-700 bg-slate-900/60 px-3 py-2 text-sm text-slate-100 shadow-sm outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/40"
+                    className="mt-1 w-full rounded-2xl border border-slate-700 bg-slate-900/60 px-3 py-2 text-sm text-slate-100 shadow-sm outline-none transition focus:border-clinical-400 focus:ring-2 focus:ring-clinical-400/40"
                   />
                 </label>
               </div>
@@ -100,7 +102,7 @@ export function LoginPageClient({ nextPath }: { nextPath?: string | null }) {
                     value={password}
                     onChange={(next) => setPassword(next)}
                     required
-                    className="w-full border border-slate-700 bg-slate-900/60 px-3 py-2 text-sm text-slate-100 shadow-sm outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/40"
+                    className="w-full border border-slate-700 bg-slate-900/60 px-3 py-2 text-sm text-slate-100 shadow-sm outline-none transition focus:border-clinical-400 focus:ring-2 focus:ring-clinical-400/40"
                   />
                 </label>
               </div>
@@ -109,7 +111,7 @@ export function LoginPageClient({ nextPath }: { nextPath?: string | null }) {
             <button
               type="submit"
               disabled={loading || !isHydrated}
-              className="mt-2 inline-flex w-full items-center justify-center rounded-2xl bg-emerald-400 px-6 py-2.5 text-sm font-semibold text-slate-950 shadow-lg shadow-emerald-500/30 transition hover:bg-emerald-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 disabled:cursor-not-allowed disabled:opacity-70"
+              className="mt-2 inline-flex w-full items-center justify-center rounded-2xl bg-clinical-400 px-6 py-2.5 text-sm font-semibold text-slate-950 shadow-lg shadow-clinical-500/30 transition hover:bg-clinical-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-400 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-900 disabled:cursor-not-allowed disabled:opacity-70"
             >
               {loading ? "Signing in..." : !isHydrated ? "Preparing sign in..." : "Sign in"}
             </button>
@@ -119,7 +121,7 @@ export function LoginPageClient({ nextPath }: { nextPath?: string | null }) {
             Don&apos;t have an account?{" "}
             <PendingLink
               href="/register"
-              className="font-medium text-emerald-300 hover:text-emerald-200"
+              className="font-medium text-clinical-300 hover:text-clinical-200"
             >
               Create your profile
             </PendingLink>

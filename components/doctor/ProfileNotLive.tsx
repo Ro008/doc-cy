@@ -22,7 +22,7 @@ export function ProfileNotLive({
   return (
     <main className="min-h-screen bg-slate-950 px-4 py-14 text-slate-200 sm:py-20">
       <div className="pointer-events-none fixed inset-0 -z-10">
-        <div className="absolute inset-x-0 top-[-10%] mx-auto h-80 max-w-xl rounded-full bg-emerald-500/[0.07] blur-3xl" />
+        <div className="absolute inset-x-0 top-[-10%] mx-auto h-80 max-w-xl rounded-full bg-clinical-500/[0.07] blur-3xl" />
         <div className="absolute bottom-0 right-0 h-64 w-64 rounded-full bg-sky-500/[0.05] blur-3xl" />
       </div>
 
@@ -31,8 +31,8 @@ export function ProfileNotLive({
           aria-label="DocCy"
           className="text-xs tracking-[0.16em]"
         >
-          <span className="font-semibold text-emerald-300">Doc</span>
-          <span className="font-bold text-emerald-500">Cy</span>
+          <span className="font-semibold text-clinical-300">Doc</span>
+          <span className="font-bold text-clinical-500">Cy</span>
         </p>
         <h1 className="mt-3 text-balance text-2xl font-semibold tracking-tight text-white sm:text-3xl">
           {isRejected ? "Profile unavailable" : "Profile under review"}
@@ -63,7 +63,7 @@ export function ProfileNotLive({
 
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <div className="flex flex-col rounded-2xl border border-slate-800/90 bg-slate-900/50 p-5 text-left shadow-lg shadow-black/20 backdrop-blur-sm">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-300">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-clinical-500/15 text-clinical-300">
               <Stethoscope className="h-5 w-5" strokeWidth={1.75} aria-hidden />
             </div>
             <h2 className="mt-3 text-sm font-semibold text-white">I&apos;m the professional</h2>
@@ -73,7 +73,7 @@ export function ProfileNotLive({
             </p>
             <PendingLink
               href="/login"
-              className="mt-4 inline-flex w-full items-center justify-center rounded-xl bg-emerald-500 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400"
+              className="mt-4 inline-flex w-full items-center justify-center rounded-xl bg-clinical-500 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-clinical-400"
             >
               Log in
             </PendingLink>

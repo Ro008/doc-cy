@@ -34,13 +34,11 @@ test.describe("Public shell health", { tag: ["@pr-preview", "@nightly-prod"] }, 
     await expect(
       page.getByRole("heading", {
         level: 1,
-        name: /Your Professional Website\s*&\s*Online Agenda/i,
+        name: /Run a Smarter Practice/i,
       }),
     ).toBeVisible({ timeout: 20000 });
 
-    const primaryCta = page.getByRole("link", {
-      name: /Claim your professional profile/i,
-    });
+    const primaryCta = page.locator('a[href="#founders-pricing-card"]').first();
     await expect(primaryCta).toBeVisible();
     await expect(primaryCta).toHaveAttribute("href", "#founders-pricing-card");
   });
@@ -53,7 +51,7 @@ test.describe("Public shell health", { tag: ["@pr-preview", "@nightly-prod"] }, 
     await page.goto("/register");
     await expect(page.getByLabel("Full name")).toBeVisible({ timeout: 15000 });
     await expect(
-      page.getByRole("button", { name: /Submit application/i }),
+      page.getByRole("button", { name: /Submit My Application/i }),
     ).toBeVisible();
   });
 

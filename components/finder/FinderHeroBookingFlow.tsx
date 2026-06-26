@@ -27,7 +27,7 @@ function DoctorNikosAvatar({ className = "h-9 w-9" }: { className?: string }) {
 function FlowConnector() {
   return (
     <div className="flex justify-end pr-5" aria-hidden>
-      <svg width="20" height="28" viewBox="0 0 20 28" fill="none" className="text-emerald-400/55">
+      <svg width="20" height="28" viewBox="0 0 20 28" fill="none" className="text-clinical-400/55">
         <path
           d="M10 0v20M10 20l-4-4M10 20l4-4"
           stroke="currentColor"
@@ -54,7 +54,7 @@ export function FinderHeroBookingFlow() {
         </p>
         <p className="mt-1 text-[13px] font-semibold leading-snug text-slate-900">Dr. Andreas Nikos</p>
         <p className="mt-0.5 flex items-center gap-1 text-[11px] text-slate-600">
-          <CalendarCheck className="h-3 w-3 shrink-0 text-emerald-600" aria-hidden />
+          <CalendarCheck className="h-3 w-3 shrink-0 text-clinical-600" aria-hidden />
           Tue 10:30 · General Practice
         </p>
       </div>
@@ -66,8 +66,8 @@ export function FinderHeroBookingFlow() {
       {/* DocCy auto-confirmation */}
       <div className="flex items-start gap-3">
         <DoctorNikosAvatar />
-        <div className="min-w-0 flex-1 rounded-2xl rounded-tl-sm border border-emerald-400/30 bg-white/94 px-3 py-2.5 shadow-[0_8px_28px_-8px_rgba(0,0,0,0.45)] backdrop-blur-sm">
-          <p className="flex items-center gap-1 text-[13px] font-bold leading-snug text-emerald-600">
+        <div className="min-w-0 flex-1 rounded-2xl rounded-tl-sm border border-clinical-400/30 bg-white/94 px-3 py-2.5 shadow-[0_8px_28px_-8px_rgba(0,0,0,0.45)] backdrop-blur-sm">
+          <p className="flex items-center gap-1 text-[13px] font-bold leading-snug text-clinical-600">
             <Check className="h-3.5 w-3.5 shrink-0" strokeWidth={2.5} aria-hidden />
             Appointment confirmed
           </p>

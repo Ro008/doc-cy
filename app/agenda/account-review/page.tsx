@@ -36,7 +36,7 @@ export default async function DoctorAccountReviewPage() {
 
   if (!doctor) {
     return (
-      <main className="min-h-screen bg-slate-950 px-4 py-14 text-slate-200">
+      <main className="min-h-screen bg-ink-900 px-4 py-14 text-slate-200">
         <div className="mx-auto max-w-lg text-center">
           <p className="text-sm text-slate-300">
             Professional profile not found for this account. Please contact support.

@@ -451,7 +451,7 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
   });
 
   return (
-    <main className="min-h-screen bg-slate-950 text-slate-100">
+    <main className="min-h-screen bg-ink-50 text-ink-800">
       <FinderStructuredData
         siteUrl={siteUrl}
         finderPath={finderPath}
@@ -461,7 +461,7 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
       />
       <header className="px-4 pt-8 pb-8 sm:px-6 sm:pb-0 lg:px-8">
         <PendingLink href="/" className="inline-flex transition hover:opacity-90">
-          <DocCyWordmark />
+          <DocCyWordmark variant="light" />
         </PendingLink>
       </header>
 
@@ -471,8 +471,8 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
           showHeroImage={!hasSpecificFilters}
           subtitleClassName={
             hasSpecificFilters
-              ? "mt-3 max-w-2xl text-base leading-relaxed text-slate-300"
-              : "mt-3 max-w-2xl text-lg leading-relaxed text-slate-300 sm:text-xl"
+              ? "mt-3 max-w-2xl text-base leading-relaxed text-ink-600"
+              : "mt-3 max-w-2xl text-lg leading-relaxed text-ink-600 sm:text-xl"
           }
           subtitle={
             hasSpecificFilters ? (
@@ -480,16 +480,12 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
             ) : (
               <>
                 <span className="block">English-speaking specialists, ready to book online,</span>
-                <span className="mt-1 block font-medium text-emerald-300">in just a few clicks.</span>
+                <span className="mt-1 block font-medium text-clinical-600">in just a few clicks.</span>
               </>
             )
           }
         >
-          <section className="relative overflow-hidden rounded-3xl border border-emerald-400/35 bg-gradient-to-br from-emerald-500/25 via-emerald-600/15 to-slate-900/90 p-5 shadow-[0_0_64px_-10px_rgba(16,185,129,0.55)] sm:p-6 lg:p-8">
-            <div
-              className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-emerald-300/20 blur-3xl"
-              aria-hidden
-            />
+          <section className="relative overflow-hidden rounded-3xl border border-clinical-200 bg-white p-5 shadow-[0_1px_3px_rgba(26,43,60,0.06),0_8px_28px_rgba(11,123,181,0.08)] sm:p-6 lg:p-8">
             <FinderFilters
               districts={districts}
               activeDistrict={activeDistrict}
@@ -502,7 +498,7 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
 
         <FinderResultsTransition>
           {dataWarning ? (
-            <div className="mt-4 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+            <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
               {dataWarning}
             </div>
           ) : null}
@@ -522,10 +518,10 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                   return (
                     <article
                       key={`registered-${row.id}`}
-                      className="flex h-full min-h-[276px] flex-col rounded-2xl border border-emerald-400/20 bg-slate-900/70 p-4 shadow-[0_0_22px_-12px_rgba(52,211,153,0.55)]"
+                      className="flex h-full min-h-[276px] flex-col rounded-2xl border border-clinical-200 bg-white p-4 shadow-[0_1px_3px_rgba(26,43,60,0.06),0_4px_16px_rgba(11,123,181,0.05)]"
                     >
                       <div className="flex items-start gap-3">
-                        <div className="h-[72px] w-[72px] shrink-0 overflow-hidden rounded-full border border-emerald-300/35 bg-slate-800 ring-2 ring-emerald-400/10">
+                        <div className="h-[72px] w-[72px] shrink-0 overflow-hidden rounded-full border border-clinical-200 bg-clinical-50 ring-2 ring-clinical-100">
                           {row.avatarUrl ? (
                             <img
                               src={row.avatarUrl}
@@ -534,16 +530,16 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                               loading="lazy"
                             />
                           ) : (
-                            <div className="flex h-full w-full items-center justify-center text-sm font-semibold text-emerald-200">
+                            <div className="flex h-full w-full items-center justify-center text-sm font-semibold text-clinical-700">
                               {getInitials(row.displayName)}
                             </div>
                           )}
                         </div>
                         <div className="min-w-0 flex-1 flex flex-col items-stretch gap-2 text-left">
-                          <p className="text-[17px] font-bold leading-[1.2] tracking-tight text-slate-50">
+                          <p className="text-[17px] font-bold leading-[1.2] tracking-tight text-ink-900">
                             {row.displayName}
                           </p>
-                          <span className="-ml-2 inline-flex max-w-full items-center self-start rounded-full border border-slate-700/80 bg-slate-900/90 px-2.5 py-1 text-left text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-300">
+                          <span className="-ml-2 inline-flex max-w-full items-center self-start rounded-full border border-ink-200 bg-ink-50 px-2.5 py-1 text-left text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-600">
                             <span className="whitespace-normal break-words leading-snug">
                               {row.specialty ?? "Specialty not set"}
                             </span>
@@ -556,7 +552,7 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                         </div>
                       </div>
                       <div className="mt-4 min-h-[64px]">
-                        <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">
+                        <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-ink-400">
                           Speaks
                         </p>
                         {row.languages.length > 0 ? (
@@ -575,14 +571,14 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                             })}
                           </div>
                         ) : (
-                          <p className="text-xs text-slate-500">Not specified</p>
+                          <p className="text-xs text-ink-400">Not specified</p>
                         )}
                       </div>
                       <div className="mt-4">
-                        <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">
+                        <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-ink-400">
                           Location
                         </p>
-                        <p className="text-xs leading-relaxed text-slate-300 whitespace-pre-wrap break-words">
+                        <p className="text-xs leading-relaxed text-ink-600 whitespace-pre-wrap break-words">
                           {row.clinic_address?.trim()
                             ? row.clinic_address.trim()
                             : "Not provided yet"}
@@ -591,7 +587,7 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                       {row.slug ? (
                         <PendingLink
                           href={`/${row.slug}`}
-                          className="mt-auto inline-flex w-full items-center justify-center rounded-xl bg-emerald-400 px-4 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-emerald-300"
+                          className="mt-auto inline-flex w-full items-center justify-center rounded-xl bg-clinical-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-clinical-400"
                         >
                           Book Online
                         </PendingLink>
@@ -604,15 +600,15 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                 return (
                   <article
                     key={`manual-${row.id}`}
-                    className="flex h-full min-h-[340px] flex-col rounded-2xl border border-slate-700 bg-slate-900/65 p-4"
+                    className="flex h-full min-h-[340px] flex-col rounded-2xl border border-ink-200 bg-white p-4 shadow-sm"
                   >
                     <div className="flex min-h-0 flex-1 flex-col">
                       <div className="flex items-start gap-3">
                         <div
-                          className={`h-[72px] w-[72px] shrink-0 overflow-hidden rounded-full border bg-slate-800/80 ring-2 ${
+                          className={`h-[72px] w-[72px] shrink-0 overflow-hidden rounded-full border bg-ink-50 ring-2 ${
                             row.photoUrl
-                              ? "border-emerald-300/35 ring-emerald-400/10"
-                              : "border-slate-600 ring-slate-500/10"
+                              ? "border-clinical-200 ring-clinical-100"
+                              : "border-ink-200 ring-ink-100"
                           }`}
                         >
                           {row.photoUrl ? (
@@ -624,17 +620,17 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                             />
                           ) : (
                             <div className="flex h-full w-full items-center justify-center">
-                              <span className="text-sm font-semibold text-slate-200">
+                              <span className="text-sm font-semibold text-ink-600">
                                 {getInitials(row.displayName)}
                               </span>
                             </div>
                           )}
                         </div>
                         <div className="min-w-0 flex-1">
-                          <p className="text-[17px] font-bold leading-[1.2] tracking-tight text-slate-50">
+                          <p className="text-[17px] font-bold leading-[1.2] tracking-tight text-ink-900">
                             {row.displayName}
                           </p>
-                          <p className="mt-2 -ml-2 inline-flex max-w-full items-center rounded-full border border-slate-700/80 bg-slate-900/90 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-300">
+                          <p className="mt-2 -ml-2 inline-flex max-w-full items-center rounded-full border border-ink-200 bg-ink-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-600">
                             <span className="whitespace-normal break-words text-center leading-snug">
                               {row.specialty}
                             </span>
@@ -642,7 +638,7 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                         </div>
                       </div>
 
-                      <p className="mt-3 text-sm leading-relaxed text-slate-300">
+                      <p className="mt-3 text-sm leading-relaxed text-ink-600">
                         Online booking is not active for this professional yet. Want to skip the phone
                         call next time?
                       </p>
@@ -651,15 +647,15 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                     <div className="mt-auto flex shrink-0 flex-col gap-0">
                       <ManualDirectoryVoteButton manualId={row.id} className="mt-2 w-full" />
                       <div className="mt-4 min-h-[84px]">
-                        <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">
+                        <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-ink-400">
                           Location
                         </p>
-                        <p className="mb-1.5 text-xs font-medium text-slate-400">{row.district}</p>
+                        <p className="mb-1.5 text-xs font-medium text-ink-500">{row.district}</p>
                         <a
                           href={row.address_maps_link}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-xs text-emerald-300 hover:text-emerald-200"
+                          className="text-xs text-clinical-600 hover:text-clinical-500"
                         >
                           Open in Google Maps ↗
                         </a>
@@ -671,7 +667,7 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                           />
                         </p>
                       </div>
-                      <div className="mt-3 border-t border-slate-800/50 pt-3">
+                      <div className="mt-3 border-t border-ink-200 pt-3">
                         <ManualDirectoryDoctorClaimFooter />
                       </div>
                     </div>
@@ -679,7 +675,7 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                 );
               })}
               {unifiedResults.length === 0 ? (
-                <p className="text-sm text-slate-500">
+                <p className="text-sm text-ink-500">
                   {hasActiveFilters
                     ? "No professionals match these filters."
                     : "No professionals available right now. Please check back soon."}
@@ -688,21 +684,21 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
             </div>
           </section>
 
-          <footer className="mt-12 border-t border-slate-800/80 pt-6 pb-2">
+          <footer className="mt-12 border-t border-ink-200 pt-6 pb-2">
             <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
               <section className="w-full">
-                <h2 className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                <h2 className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-400">
                   Popular Healthcare Searches in Cyprus
                 </h2>
 
-                <details className="mt-3 rounded-xl border border-slate-700/80 bg-slate-900/50 p-3 md:hidden">
-                  <summary className="cursor-pointer text-sm font-semibold text-slate-100">
+                <details className="mt-3 rounded-xl border border-ink-200 bg-white p-3 md:hidden">
+                  <summary className="cursor-pointer text-sm font-semibold text-ink-800">
                     Explore by city and specialty
                   </summary>
                   <div className="mt-3 grid gap-4">
                     {SEO_CITIES.map((city) => (
                       <section key={`mobile-${city}`}>
-                        <h3 className="text-xs font-semibold uppercase tracking-[0.12em] text-emerald-300">
+                        <h3 className="text-xs font-semibold uppercase tracking-[0.12em] text-clinical-600">
                           {city}
                         </h3>
                         <ul className="mt-2 space-y-1.5">
@@ -710,7 +706,7 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                             <li key={`${city}-${specialty.label}-mobile`}>
                               <a
                                 href={`/finder/${districtToSlug(city)}/${specialtyToSlug(specialty.label)}`}
-                                className="text-sm text-slate-200 underline underline-offset-4 transition hover:text-emerald-200"
+                                className="text-sm text-ink-700 underline underline-offset-4 transition hover:text-clinical-600"
                               >
                                 {specialty.pluralLabel} in {city}
                               </a>
@@ -725,7 +721,7 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                 <div className="mt-3 hidden gap-5 md:grid md:grid-cols-2 lg:grid-cols-4">
                   {SEO_CITIES.map((city) => (
                     <section key={`desktop-${city}`}>
-                      <h3 className="text-xs font-semibold uppercase tracking-[0.12em] text-emerald-300">
+                      <h3 className="text-xs font-semibold uppercase tracking-[0.12em] text-clinical-300">
                         {city}
                       </h3>
                       <ul className="mt-2 space-y-1.5">
@@ -733,7 +729,7 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                           <li key={`${city}-${specialty.label}-desktop`}>
                             <a
                               href={`/finder/${districtToSlug(city)}/${specialtyToSlug(specialty.label)}`}
-                              className="text-xs text-slate-200 underline underline-offset-4 transition hover:text-emerald-200"
+                              className="text-xs text-ink-600 underline underline-offset-4 transition hover:text-clinical-600"
                             >
                               {specialty.pluralLabel} in {city}
                             </a>
@@ -746,11 +742,11 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
               </section>
 
               <section className="md:max-w-sm">
-                <p className="text-xs text-slate-400">
+                <p className="text-xs text-ink-500">
                   Are you a healthcare professional?{" "}
                   <PendingLink
                     href="/#founders-pricing"
-                    className="font-semibold text-emerald-300 underline underline-offset-4 transition hover:text-emerald-200"
+                    className="font-semibold text-clinical-600 underline underline-offset-4 transition hover:text-clinical-500"
                   >
                     List your practice
                   </PendingLink>
@@ -760,7 +756,7 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                   href="https://www.instagram.com/doccy_cyprus?igsh=MW94Zjg1czZ6OXNzaw=="
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="mt-3 inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-700 bg-slate-900/70 text-slate-300 transition hover:border-emerald-400/50 hover:text-emerald-200"
+                  className="mt-3 inline-flex h-9 w-9 items-center justify-center rounded-full border border-ink-200 bg-white text-ink-500 transition hover:border-clinical-300 hover:text-clinical-600"
                   aria-label="Follow DocCy on Instagram"
                 >
                   <Instagram className="h-4 w-4" aria-hidden />

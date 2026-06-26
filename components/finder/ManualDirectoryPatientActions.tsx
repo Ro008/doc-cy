@@ -77,7 +77,7 @@ export function ManualDirectoryVoteButton({
       type="button"
       disabled={pending}
       onClick={submit}
-      className={`inline-flex w-full items-center justify-center rounded-xl border border-sky-500/55 bg-sky-500/15 px-4 py-2.5 text-sm font-semibold text-sky-100 transition hover:border-sky-400/70 hover:bg-sky-500/25 disabled:cursor-not-allowed disabled:opacity-60 ${className}`}
+      className={`inline-flex w-full items-center justify-center rounded-xl border border-clinical-400 bg-clinical-50 px-4 py-2.5 text-sm font-semibold text-clinical-800 transition hover:border-clinical-500 hover:bg-clinical-100 disabled:cursor-not-allowed disabled:opacity-60 ${className}`}
     >
       {pending ? "Voting..." : "Vote for Online Booking"}
     </button>
@@ -123,7 +123,7 @@ export function ManualDirectoryReportIncorrectInfoLink({
           }),
         })
       }
-      className={`text-[11px] font-medium text-slate-500 underline decoration-slate-600 underline-offset-2 transition hover:text-slate-400 hover:decoration-slate-500 ${className}`}
+      className={`text-[11px] font-medium text-ink-500 underline decoration-ink-300 underline-offset-2 transition hover:text-clinical-700 hover:decoration-clinical-300 ${className}`}
     >
       Report incorrect info
     </button>
@@ -134,11 +134,11 @@ export function ManualDirectoryReportIncorrectInfoLink({
 export function ManualDirectoryDoctorClaimFooter({ className = "" }: { className?: string }) {
   return (
     <div className={`text-left ${className}`}>
-      <p className="text-[11px] leading-snug text-slate-500">
+      <p className="text-[11px] leading-snug text-ink-500">
         Are you this professional?{" "}
         <PendingLink
           href="/#founders-pricing"
-          className="font-medium text-slate-400 underline decoration-slate-600 underline-offset-2 transition hover:text-slate-300 hover:decoration-slate-500"
+          className="font-medium text-clinical-700 underline decoration-clinical-300 underline-offset-2 transition hover:text-clinical-600"
         >
           Activate online booking
         </PendingLink>

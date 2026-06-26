@@ -26,10 +26,10 @@ button {
 /* React Day Picker – dark theme for booking calendar */
 .rdp-dark {
   --rdp-cell-size: 36px;
-  --rdp-accent-color: theme("colors.emerald.400");
-  --rdp-background-color: theme("colors.emerald.400 / 0.2");
-  --rdp-accent-color-dark: theme("colors.emerald.400");
-  --rdp-background-color-dark: theme("colors.emerald.400 / 0.15");
+  --rdp-accent-color: theme("colors.clinical.400");
+  --rdp-background-color: theme("colors.clinical.400 / 0.2");
+  --rdp-accent-color-dark: theme("colors.clinical.400");
+  --rdp-background-color-dark: theme("colors.clinical.400 / 0.15");
   --rdp-selected-color: theme("colors.slate.950");
   margin: 0;
 }
@@ -47,11 +47,11 @@ button {
   opacity: 0.5;
 }
 .rdp-dark .rdp-day_selected {
-  background: theme("colors.emerald.400") !important;
-  color: theme("colors.slate.950") !important;
+  background: theme("colors.clinical.400") !important;
+  color: theme("colors.ink.900") !important;
 }
 .rdp-dark .rdp-day_today:not(.rdp-day_selected) {
-  color: theme("colors.emerald.300");
+  color: theme("colors.clinical.300");
 }
 .rdp-dark .rdp-nav_button {
   color: theme("colors.slate.400");
@@ -67,11 +67,67 @@ button {
 }
 .rdp-dark .rdp-day_available:not(.rdp-day_selected):not([disabled]) {
   color: theme("colors.slate.200");
-  border: 1px solid theme("colors.emerald.400 / 0.4");
+  border: 1px solid theme("colors.clinical.400 / 0.4");
 }
 .rdp-dark .rdp-day_available:not(.rdp-day_selected):not([disabled]):hover {
-  background: theme("colors.emerald.400 / 0.2");
-  color: theme("colors.emerald.200");
+  background: theme("colors.clinical.400 / 0.2");
+  color: theme("colors.clinical.200");
+}
+
+/* React Day Picker – light theme for patient booking on white cards */
+.rdp-light {
+  --rdp-cell-size: 36px;
+  --rdp-accent-color: theme("colors.clinical.500");
+  --rdp-background-color: theme("colors.clinical.100");
+  --rdp-accent-color-dark: theme("colors.clinical.500");
+  --rdp-background-color-dark: theme("colors.clinical.50");
+  --rdp-selected-color: theme("colors.white");
+  margin: 0;
+}
+.rdp-light .rdp-caption {
+  color: theme("colors.ink.800");
+}
+.rdp-light .rdp-head_cell {
+  color: theme("colors.ink.500");
+  font-weight: 600;
+  font-size: 0.7rem;
+}
+.rdp-light .rdp-day {
+  color: theme("colors.ink.700");
+}
+.rdp-light .rdp-day[disabled]:not(.rdp-day_selected) {
+  color: theme("colors.ink.300");
+  opacity: 0.55;
+}
+.rdp-light .rdp-day_selected {
+  background: theme("colors.clinical.500") !important;
+  color: theme("colors.white") !important;
+}
+.rdp-light .rdp-day_today:not(.rdp-day_selected) {
+  color: theme("colors.clinical.600");
+  font-weight: 600;
+}
+.rdp-light .rdp-nav_button {
+  color: theme("colors.ink.600");
+  border-color: theme("colors.ink.200");
+  background: theme("colors.white");
+}
+.rdp-light .rdp-nav_button:hover {
+  background: theme("colors.clinical.50");
+  color: theme("colors.clinical.700");
+  border-color: theme("colors.clinical.300");
+}
+.rdp-light .rdp-day_outside {
+  color: theme("colors.ink.300");
+}
+.rdp-light .rdp-day_available:not(.rdp-day_selected):not([disabled]) {
+  color: theme("colors.ink.800");
+  border: 1px solid theme("colors.clinical.300 / 0.55");
+  font-weight: 500;
+}
+.rdp-light .rdp-day_available:not(.rdp-day_selected):not([disabled]):hover {
+  background: theme("colors.clinical.50");
+  color: theme("colors.clinical.800");
 }
 
 /* ─── Landing: ambient background (inside main.isolate; absolute, not fixed) ─── */
@@ -86,10 +142,10 @@ button {
   will-change: transform, opacity;
   background: radial-gradient(
     ellipse 108% 94% at 48% 36%,
-    rgba(125, 138, 130, 0.28) 0%,
-    rgba(72, 82, 76, 0.42) 28%,
-    rgba(40, 44, 42, 0.82) 55%,
-    #171717 100%
+    rgba(232, 244, 250, 0.95) 0%,
+    rgba(238, 244, 248, 0.98) 28%,
+    rgba(247, 250, 252, 1) 55%,
+    #f7fafc 100%
   );
   animation: landing-ambient-breathe 18s ease-in-out infinite;
 }
@@ -98,15 +154,15 @@ button {
   0%,
   100% {
     transform: scale(1);
-    opacity: 0.82;
+    opacity: 0.92;
   }
   50% {
-    transform: scale(1.09);
+    transform: scale(1.06);
     opacity: 1;
   }
 }
 
-/* Mint wash — top-left */
+/* Clinical blue wash — top-left */
 .landing-ambient-aurora-tl {
   position: absolute;
   top: -12%;
@@ -117,16 +173,16 @@ button {
   will-change: transform, opacity;
   background: radial-gradient(
     circle at 38% 38%,
-    rgba(110, 231, 183, 0.45) 0%,
-    rgba(52, 211, 153, 0.2) 42%,
-    rgba(16, 185, 129, 0.06) 62%,
+    rgba(11, 123, 181, 0.14) 0%,
+    rgba(58, 159, 206, 0.08) 42%,
+    rgba(232, 244, 250, 0.04) 62%,
     transparent 76%
   );
   filter: blur(48px);
   animation: landing-ambient-aurora-tl 14s ease-in-out infinite;
 }
 
-/* Blue-green wash — bottom-right */
+/* Wellness teal wash — bottom-right */
 .landing-ambient-aurora-br {
   position: absolute;
   bottom: -18%;
@@ -137,9 +193,9 @@ button {
   will-change: transform, opacity;
   background: radial-gradient(
     circle at 50% 50%,
-    rgba(45, 110, 118, 0.38) 0%,
-    rgba(34, 80, 88, 0.2) 44%,
-    rgba(25, 55, 60, 0.08) 62%,
+    rgba(42, 157, 143, 0.12) 0%,
+    rgba(42, 157, 143, 0.06) 44%,
+    rgba(230, 245, 243, 0.04) 62%,
     transparent 76%
   );
   filter: blur(52px);
@@ -150,24 +206,24 @@ button {
 @keyframes landing-ambient-aurora-tl {
   0%,
   100% {
-    opacity: 0.38;
+    opacity: 0.55;
     transform: translate(0, 0) scale(1);
   }
   50% {
     opacity: 1;
-    transform: translate(5%, 4%) scale(1.12);
+    transform: translate(5%, 4%) scale(1.08);
   }
 }
 
 @keyframes landing-ambient-aurora-br {
   0%,
   100% {
-    opacity: 0.28;
+    opacity: 0.45;
     transform: translate(0, 0) scale(1);
   }
   50% {
-    opacity: 0.92;
-    transform: translate(-5%, -4.5%) scale(1.1);
+    opacity: 0.88;
+    transform: translate(-5%, -4.5%) scale(1.06);
   }
 }
 
@@ -237,9 +293,9 @@ button {
 
 /* Sonner toast contrast hardening (readability on mobile + dark backgrounds). */
 [data-sonner-toaster] [data-sonner-toast][data-type="success"] {
-  background: #065f46 !important;
-  color: #ecfdf5 !important;
-  border-color: #34d399 !important;
+  background: #075278 !important;
+  color: #e8f4fa !important;
+  border-color: #3a9fce !important;
 }
 
 [data-sonner-toaster] [data-sonner-toast][data-type="error"] {

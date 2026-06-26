@@ -51,11 +51,11 @@ export function SignOutOtherSessionsButton() {
         type="button"
         onClick={handleClick}
         disabled={pending}
-        className="mt-3 inline-flex items-center rounded-xl border border-slate-700 bg-slate-900/60 px-3 py-2 text-xs font-medium text-slate-200 transition hover:border-emerald-400/40 hover:text-emerald-200 disabled:cursor-not-allowed disabled:opacity-60"
+        className="mt-3 inline-flex items-center rounded-xl border border-slate-700 bg-slate-900/60 px-3 py-2 text-xs font-medium text-slate-200 transition hover:border-clinical-400/40 hover:text-clinical-200 disabled:cursor-not-allowed disabled:opacity-60"
       >
         {pending ? "Closing sessions..." : "Sign out on other devices"}
       </button>
-      {message ? <p className="mt-2 text-xs text-emerald-300">{message}</p> : null}
+      {message ? <p className="mt-2 text-xs text-clinical-300">{message}</p> : null}
       {error ? <p className="mt-2 text-xs text-red-300">{error}</p> : null}
     </div>
   );

@@ -3,7 +3,7 @@ import { test, expect } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
 
 test.describe("Brand consistency", () => {
-  test("landing page shows DocCy with emerald Cy, not DOCCY", async ({
+  test("landing page shows DocCy logo in header, not DOCCY text", async ({
     page,
   }) => {
     await page.goto("/en");
@@ -11,25 +11,21 @@ test.describe("Brand consistency", () => {
     await expect(
       page.getByRole("heading", {
         level: 1,
-        name: /Your Professional Website\s*&\s*Online Agenda/i,
+        name: /Run a Smarter Practice/i,
       }),
     ).toBeVisible({ timeout: 10000 });
 
-    // Brand: "Cy" must be in a span with emerald accent (not "Cy" in "Cyprus")
-    const cySpan = page.locator('span[class*="emerald"]').filter({
-      hasText: /^Cy$/,
+    const brandLogo = page.locator("header").first().getByRole("img", {
+      name: "DocCy",
     });
-    await expect(cySpan.first()).toBeVisible();
-    await expect(cySpan.first()).toHaveText("Cy");
+    await expect(brandLogo).toBeVisible();
+    await expect(brandLogo).toHaveAttribute("src", /doccy-logo\.png/);
 
-    // Combined visible brand should read as DocCy (not all-caps DOCCY)
     const brandContainer = page.locator("header").first();
-    await expect(brandContainer).toContainText("Doc");
-    await expect(brandContainer).toContainText("Cy");
     await expect(brandContainer).not.toContainText("DOCCY");
   });
 
-  test("professional profile shows DocCy with emerald Cy, not DOCCY", async ({
+  test("professional profile shows DocCy logo, not DOCCY text", async ({
     page,
   }) => {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
@@ -58,12 +54,9 @@ test.describe("Brand consistency", () => {
       timeout: 10000,
     });
 
-    // Brand line: "Doc" + emerald "Cy" · Professional profile
-    const cySpan = page.locator('span[class*="emerald"]').filter({
-      hasText: /^Cy$/,
-    });
-    await expect(cySpan.first()).toBeVisible();
-    await expect(cySpan.first()).toHaveText("Cy");
+    const brandLogo = page.getByRole("img", { name: "DocCy" });
+    await expect(brandLogo).toBeVisible();
+    await expect(brandLogo).toHaveAttribute("src", /doccy-logo\.png/);
 
     await expect(page.getByText(/Professional profile/i)).toBeVisible();
     await expect(page.locator("main")).not.toContainText("DOCCY");

@@ -2,7 +2,7 @@ import { maxCount, type SpecialtyCount } from "@/lib/founder-metrics";
 import { Stethoscope } from "lucide-react";
 
 const BAR_COLORS = [
-  "bg-gradient-to-r from-emerald-500 to-teal-400",
+  "bg-gradient-to-r from-clinical-500 to-wellness-400",
   "bg-gradient-to-r from-sky-500 to-cyan-400",
   "bg-gradient-to-r from-violet-500 to-purple-400",
   "bg-gradient-to-r from-amber-500 to-orange-400",
@@ -19,7 +19,7 @@ export function SpecialtyBreakdown({ items }: Props) {
   return (
     <section className="rounded-2xl border border-slate-800/80 bg-slate-900/35 p-5 shadow-lg shadow-black/25 backdrop-blur-sm">
       <div className="flex items-center gap-2 border-b border-slate-800/60 pb-4">
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-400">
+        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-clinical-500/10 text-clinical-400">
           <Stethoscope className="h-4 w-4" strokeWidth={1.75} aria-hidden />
         </div>
         <div>

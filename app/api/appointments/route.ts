@@ -32,11 +32,18 @@ import {
   normalizeAppointmentReason,
 } from "@/lib/visit-types";
 import { professionalFirstName } from "@/lib/professional-name";
+import {
+  EMAIL_CAL_GOOGLE_BTN,
+  EMAIL_HEADING,
+  EMAIL_SECTION_LABEL,
+  EMAIL_SHELL_CLOSE,
+  EMAIL_SHELL_OPEN,
+  EMAIL_TEXT,
+  EMAIL_TEXT_MUTED,
+} from "@/lib/email-brand";
 
-const PRIMARY_ACTIONS_LABEL =
-  "margin:18px 0 10px;font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#94a3b8;";
-const DASHBOARD_LINK_STYLE =
-  "display:block;text-align:center;background:#34d399;color:#022c22;text-decoration:none;font-weight:700;padding:12px 14px;border-radius:12px;margin:0 0 10px;font-size:15px;";
+const PRIMARY_ACTIONS_LABEL = EMAIL_SECTION_LABEL;
+const DASHBOARD_LINK_STYLE = EMAIL_CAL_GOOGLE_BTN;
 
 export async function POST(req: NextRequest) {
   const supabase = createServiceRoleClient();
@@ -410,16 +417,15 @@ export async function POST(req: NextRequest) {
         `---\n${AUTOMATED_EMAIL_FOOTER_TEXT}`;
 
       const doctorHtml = `
-<div style="margin:0;padding:20px;background:#020617;color:#e2e8f0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
-  <div style="max-width:560px;margin:0 auto;background:#0f172a;border:1px solid rgba(148,163,184,.2);border-radius:16px;padding:22px;">
-    <h2 style="margin:0 0 12px;font-size:20px;line-height:1.3;color:#f8fafc;">New appointment request</h2>
-    <p style="margin:0 0 10px;font-size:15px;line-height:1.6;color:#e2e8f0;">Hi ${escapeHtml(proFirst)},</p>
-    <p style="margin:0 0 10px;font-size:15px;line-height:1.6;color:#e2e8f0;">
+${EMAIL_SHELL_OPEN}
+    <h2 style="margin:0 0 12px;font-size:20px;line-height:1.3;color:${EMAIL_HEADING};">New appointment request</h2>
+    <p style="margin:0 0 10px;font-size:15px;line-height:1.6;color:${EMAIL_TEXT};">Hi ${escapeHtml(proFirst)},</p>
+    <p style="margin:0 0 10px;font-size:15px;line-height:1.6;color:${EMAIL_TEXT};">
       You have a new request from <strong>${escapeHtml(patientName)}</strong> for
       <strong>${escapeHtml(dateLabel)}</strong> at <strong>${escapeHtml(timeLabel)}</strong> (Cyprus time).
     </p>
-    <p style="margin:0 0 10px;font-size:15px;line-height:1.6;color:#e2e8f0;"><strong>Reason:</strong> ${escapeHtml(reason)}</p>
-    <p style="margin:0 0 10px;font-size:15px;line-height:1.6;color:#e2e8f0;">
+    <p style="margin:0 0 10px;font-size:15px;line-height:1.6;color:${EMAIL_TEXT};"><strong>Reason:</strong> ${escapeHtml(reason)}</p>
+    <p style="margin:0 0 10px;font-size:15px;line-height:1.6;color:${EMAIL_TEXT};">
       Please sign in to DocCy to review, adjust the duration, and confirm.
     </p>
 
@@ -427,8 +433,7 @@ export async function POST(req: NextRequest) {
     <a href="${manageUrl}" style="${DASHBOARD_LINK_STYLE}">Open request in DocCy</a>
 
     ${automatedEmailFooterHtml()}
-  </div>
-</div>`;
+${EMAIL_SHELL_CLOSE}`;
 
       const doctorRecipient = effectiveOverride || doctorEmail;
       if (doctorRecipient) {
@@ -452,23 +457,21 @@ export async function POST(req: NextRequest) {
         `---\n${AUTOMATED_EMAIL_FOOTER_TEXT}`;
 
       const patientHtml = `
-<div style="margin:0;padding:20px;background:#020617;color:#e2e8f0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
-  <div style="max-width:560px;margin:0 auto;background:#0f172a;border:1px solid rgba(148,163,184,.2);border-radius:16px;padding:22px;">
-    <h2 style="margin:0 0 12px;font-size:20px;line-height:1.3;color:#f8fafc;">Request sent</h2>
-    <p style="margin:0 0 10px;font-size:15px;line-height:1.6;color:#e2e8f0;">Hi ${escapeHtml(patientName)},</p>
-    <p style="margin:0 0 10px;font-size:15px;line-height:1.6;color:#e2e8f0;">
+${EMAIL_SHELL_OPEN}
+    <h2 style="margin:0 0 12px;font-size:20px;line-height:1.3;color:${EMAIL_HEADING};">Request sent</h2>
+    <p style="margin:0 0 10px;font-size:15px;line-height:1.6;color:${EMAIL_TEXT};">Hi ${escapeHtml(patientName)},</p>
+    <p style="margin:0 0 10px;font-size:15px;line-height:1.6;color:${EMAIL_TEXT};">
       We've sent your request to <strong>${escapeHtml(doctorName)}</strong>. They will review the reason for your visit to assign the time you need.
     </p>
-    <p style="margin:0 0 10px;font-size:15px;line-height:1.6;color:#e2e8f0;">
+    <p style="margin:0 0 10px;font-size:15px;line-height:1.6;color:${EMAIL_TEXT};">
       We'll let you know as soon as it is confirmed. Please <strong>do not</strong> add this visit to your external calendar yet.
     </p>
-    <p style="margin:0 0 10px;font-size:14px;line-height:1.6;color:#94a3b8;">
+    <p style="margin:0 0 10px;font-size:14px;line-height:1.6;color:${EMAIL_TEXT_MUTED};">
       Please wait for DocCy to confirm your visit rather than messaging the clinic separately to book the same time.
     </p>
 
     ${automatedEmailFooterHtml()}
-  </div>
-</div>`;
+${EMAIL_SHELL_CLOSE}`;
 
       const patientRecipient = effectiveOverride || patientEmailTo;
       if (patientRecipient) {

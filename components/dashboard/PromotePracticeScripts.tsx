@@ -47,7 +47,7 @@ function ScriptBlock({
 
   return (
     <div
-      className="rounded-xl border border-slate-800/70 bg-slate-950/40 p-4"
+      className="rounded-xl border border-slate-800/70 bg-ink-900/40 p-4"
       data-testid={testId}
     >
       <div className="flex flex-wrap items-start justify-between gap-2">
@@ -58,7 +58,7 @@ function ScriptBlock({
         <button
           type="button"
           onClick={handleCopy}
-          className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-600 bg-slate-800/60 px-2.5 py-1.5 text-xs font-semibold text-slate-200 transition hover:border-emerald-400/40 hover:bg-emerald-500/10 hover:text-emerald-100"
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-600 bg-slate-800/60 px-2.5 py-1.5 text-xs font-semibold text-slate-200 transition hover:border-clinical-400/40 hover:bg-clinical-500/10 hover:text-clinical-100"
         >
           <Copy className="h-3.5 w-3.5" aria-hidden />
           {copied ? copy.copiedButton : copy.copyButton}
@@ -69,7 +69,7 @@ function ScriptBlock({
         onChange={onChange ? (e) => onChange(e.target.value) : undefined}
         readOnly={!onChange}
         rows={rows}
-        className="mt-3 w-full resize-y rounded-lg border border-slate-700 bg-slate-900/80 px-3 py-2 text-sm leading-relaxed text-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+        className="mt-3 w-full resize-y rounded-lg border border-slate-700 bg-slate-900/80 px-3 py-2 text-sm leading-relaxed text-slate-200 focus:outline-none focus:ring-2 focus:ring-clinical-500/30"
       />
     </div>
   );
@@ -92,7 +92,7 @@ function CopyBriefButton({ text, copy }: { text: string; copy: PromotePracticeCo
     <button
       type="button"
       onClick={handleCopy}
-      className="inline-flex items-center gap-1.5 rounded-lg border border-slate-600 bg-slate-800/60 px-2.5 py-1.5 text-xs font-semibold text-slate-200 transition hover:border-emerald-400/40 hover:bg-emerald-500/10 hover:text-emerald-100"
+      className="inline-flex items-center gap-1.5 rounded-lg border border-slate-600 bg-slate-800/60 px-2.5 py-1.5 text-xs font-semibold text-slate-200 transition hover:border-clinical-400/40 hover:bg-clinical-500/10 hover:text-clinical-100"
     >
       <Copy className="h-3.5 w-3.5" aria-hidden />
       {copied ? copy.copiedButton : copy.copyButton}
@@ -154,7 +154,7 @@ export function PromotePracticeScripts({
 
   return (
     <div className="mt-8 space-y-4 border-t border-slate-800/80 pt-8">
-      <h3 className="text-xs font-semibold uppercase tracking-[0.14em] text-emerald-200/90">
+      <h3 className="text-xs font-semibold uppercase tracking-[0.14em] text-clinical-200/90">
         {copy.scriptsSectionTitle}
       </h3>
 
@@ -179,7 +179,7 @@ export function PromotePracticeScripts({
       />
 
       <div
-        className="rounded-xl border border-slate-800/70 bg-slate-950/40 p-4"
+        className="rounded-xl border border-slate-800/70 bg-ink-900/40 p-4"
         data-testid="promote-website-script"
       >
         <h3 className="text-sm font-semibold text-slate-100">{copy.websiteTitle}</h3>
@@ -199,7 +199,7 @@ export function PromotePracticeScripts({
           <button
             type="button"
             onClick={openWebsiteSupport}
-            className="mt-3 inline-flex items-center gap-2 rounded-lg border border-emerald-400/35 bg-emerald-500/10 px-3 py-2 text-xs font-semibold text-emerald-100 transition hover:bg-emerald-500/20"
+            className="mt-3 inline-flex items-center gap-2 rounded-lg border border-clinical-400/35 bg-clinical-500/10 px-3 py-2 text-xs font-semibold text-clinical-100 transition hover:bg-clinical-500/20"
           >
             <LifeBuoy className="h-4 w-4" aria-hidden />
             {copy.websiteContactSupport}

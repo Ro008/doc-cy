@@ -55,7 +55,7 @@ export function OnlineBookingsPauseToggle({
   const accepting = !paused;
   const switchId = React.useId();
 
-  const track = accepting ? "bg-emerald-500/90" : "bg-slate-600";
+  const track = accepting ? "bg-clinical-500/90" : "bg-slate-600";
 
   const shell =
     layout === "header"
@@ -71,7 +71,7 @@ export function OnlineBookingsPauseToggle({
           </p>
           <p
             className={`mt-0 text-xs font-medium leading-tight ${
-              accepting ? "text-emerald-200" : "text-amber-200/95"
+              accepting ? "text-clinical-200" : "text-amber-200/95"
             }`}
           >
             {accepting ? "Accepting appointments" : "Paused"}
@@ -85,7 +85,7 @@ export function OnlineBookingsPauseToggle({
           aria-busy={saving}
           disabled={saving}
           onClick={() => setPausedRemote(!paused)}
-          className={`relative h-7 w-11 shrink-0 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 disabled:opacity-50 ${track}`}
+          className={`relative h-7 w-11 shrink-0 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-900 disabled:opacity-50 ${track}`}
         >
           <span
             className={`absolute left-0.5 top-1/2 h-6 w-6 -translate-y-1/2 rounded-full bg-white shadow-md transition-transform duration-200 ease-out ${

@@ -70,7 +70,7 @@ export function AppointmentsGrowthChart({ data }: Props) {
             />
             <defs>
               <linearGradient id={`doccyBarGradient-${gradId}`} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#34d399" stopOpacity={0.95} />
+                <stop offset="0%" stopColor="#0B7BB5" stopOpacity={0.95} />
                 <stop offset="100%" stopColor="#0d9488" stopOpacity={0.75} />
               </linearGradient>
             </defs>

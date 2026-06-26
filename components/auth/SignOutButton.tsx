@@ -30,7 +30,7 @@ export function SignOutButton({
     "inline-flex items-center rounded-lg text-xs font-medium transition disabled:cursor-not-allowed disabled:opacity-60";
 
   const defaultStyle =
-    "border border-slate-700/80 bg-slate-900/60 px-2.5 py-1.5 text-slate-300 backdrop-blur hover:border-emerald-400/40 hover:bg-emerald-400/10 hover:text-emerald-200";
+    "border border-slate-700/80 bg-slate-900/60 px-2.5 py-1.5 text-slate-300 backdrop-blur hover:border-clinical-400/40 hover:bg-clinical-400/10 hover:text-clinical-200";
 
   const utilityStyle =
     "gap-1.5 border-0 bg-transparent px-1.5 py-1 text-slate-300/95 hover:bg-slate-800/50 hover:text-slate-100";
