@@ -6,21 +6,29 @@ type GesyProviderBadgeProps = {
   size?: "xs" | "sm" | "md";
   /** Shown on hover (native tooltip); keep short for readability */
   title?: string;
+  /** `light` for white/pale surfaces; `dark` for ink/slate backgrounds */
+  variant?: "light" | "dark";
 };
 
-const HEIGHT_PX = { xs: 18, sm: 22, md: 26 } as const;
-const WIDTH_PX = { xs: 54, sm: 66, md: 78 } as const;
+const HEIGHT_PX = { xs: 36, sm: 44, md: 52 } as const;
 
 const HEIGHT_CLASS = {
-  xs: "h-[18px]",
-  sm: "h-[22px]",
-  md: "h-[26px]",
+  xs: "h-9",
+  sm: "h-11",
+  md: "h-[52px]",
 } as const;
 
-/**
- * GESY mark for dark DocCy surfaces (finder cards, public profile).
- * Uses the light-on-dark artwork with blend so the black plate reads as transparent.
- */
+const LOGO = {
+  light: {
+    src: "/brand/gesy-logo.png",
+    aspect: 600 / 450,
+  },
+  dark: {
+    src: "/brand/gesy-logo-dark.png",
+    aspect: 197 / 112,
+  },
+} as const;
+
 const DEFAULT_GESY_TOOLTIP =
   "This professional accepts patients through Cyprus GESY (the national health system).";
 
@@ -28,19 +36,28 @@ export function GesyProviderBadge({
   className = "",
   size = "sm",
   title: titleProp,
+  variant = "light",
 }: GesyProviderBadgeProps) {
   const title = titleProp ?? DEFAULT_GESY_TOOLTIP;
+  const logo = LOGO[variant];
+  const height = HEIGHT_PX[size];
+  const width = Math.round(height * logo.aspect);
+
   return (
     <span
       className={`inline-flex max-w-full cursor-help items-center ${className}`}
       title={title}
     >
       <Image
-        src="/brand/gesy-logo-dark.png"
+        src={logo.src}
         alt="GESY — accepts GESY patients"
-        width={WIDTH_PX[size]}
-        height={HEIGHT_PX[size]}
-        className={`w-auto max-w-full object-contain object-left ${HEIGHT_CLASS[size]} mix-blend-screen brightness-110 contrast-125 drop-shadow-[0_1px_3px_rgba(0,0,0,0.55)]`}
+        width={width}
+        height={height}
+        className={`w-auto max-w-full object-contain object-left ${HEIGHT_CLASS[size]} ${
+          variant === "dark"
+            ? "mix-blend-screen brightness-110 contrast-125 drop-shadow-[0_1px_3px_rgba(0,0,0,0.55)]"
+            : ""
+        }`.trim()}
       />
     </span>
   );
