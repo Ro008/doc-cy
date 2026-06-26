@@ -1,0 +1,862 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DocCy — Guía de marca · Clinical Trust</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --page-pad: 14mm;
+        --ink-900: #0f1f2e;
+        --ink-800: #1a2b3c;
+        --ink-50: #f7fafc;
+        --clinical-500: #0b7bb5;
+        --clinical-100: #c5e4f3;
+        --border: #d8e3ec;
+        --muted: #5c6f82;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        color: var(--ink-900);
+        background: #fff;
+        font-size: 10.5pt;
+        line-height: 1.45;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+
+      @page {
+        size: A4;
+        margin: 14mm 12mm;
+      }
+
+      .page {
+        page-break-after: always;
+        padding: 0;
+      }
+
+      .page:last-child {
+        page-break-after: auto;
+      }
+
+      .cover {
+        min-height: 250mm;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        background: linear-gradient(160deg, var(--ink-50) 0%, #fff 42%, #e8f4fa 100%);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 18mm 16mm;
+      }
+
+      .cover-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .cover-logo img {
+        height: 52px;
+        width: auto;
+      }
+
+      .cover-badge {
+        font-size: 8pt;
+        font-weight: 600;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--clinical-500);
+        border: 1px solid var(--clinical-100);
+        background: #fff;
+        padding: 6px 10px;
+        border-radius: 999px;
+      }
+
+      .cover h1 {
+        margin: 28mm 0 0;
+        font-size: 28pt;
+        font-weight: 700;
+        letter-spacing: -0.03em;
+        line-height: 1.1;
+        color: var(--ink-900);
+      }
+
+      .cover .subtitle {
+        margin-top: 10px;
+        font-size: 13pt;
+        color: var(--muted);
+        max-width: 34ch;
+      }
+
+      .cover-meta {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        font-size: 9pt;
+        color: var(--muted);
+        border-top: 1px solid var(--border);
+        padding-top: 14px;
+      }
+
+      .cover-meta strong {
+        display: block;
+        color: var(--ink-900);
+        font-size: 9.5pt;
+        margin-bottom: 2px;
+      }
+
+      h2 {
+        margin: 0 0 4px;
+        font-size: 16pt;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        color: var(--ink-900);
+      }
+
+      h3 {
+        margin: 18px 0 8px;
+        font-size: 11pt;
+        font-weight: 600;
+        color: var(--ink-800);
+      }
+
+      .section-lead {
+        margin: 0 0 14px;
+        color: var(--muted);
+        max-width: 68ch;
+      }
+
+      .section-header {
+        margin-bottom: 14px;
+        padding-bottom: 10px;
+        border-bottom: 2px solid var(--clinical-500);
+      }
+
+      .palette-name {
+        display: inline-block;
+        font-size: 8pt;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--clinical-500);
+        margin-bottom: 6px;
+      }
+
+      .swatch-grid {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 8px;
+        margin-bottom: 10px;
+      }
+
+      .swatch {
+        border-radius: 8px;
+        overflow: hidden;
+        border: 1px solid rgba(15, 31, 46, 0.08);
+        page-break-inside: avoid;
+      }
+
+      .swatch-color {
+        height: 42px;
+      }
+
+      .swatch-info {
+        padding: 7px 8px 8px;
+        background: #fff;
+        font-size: 7.5pt;
+        line-height: 1.35;
+      }
+
+      .swatch-info .token {
+        font-weight: 600;
+        color: var(--ink-900);
+        font-size: 8pt;
+      }
+
+      .swatch-info .hex {
+        font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+        color: var(--muted);
+      }
+
+      .swatch-info .use {
+        margin-top: 3px;
+        color: var(--muted);
+      }
+
+      .hero-colors {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+        margin: 14px 0 18px;
+      }
+
+      .hero-swatch {
+        border-radius: 10px;
+        padding: 14px;
+        min-height: 88px;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end;
+        border: 1px solid rgba(15, 31, 46, 0.1);
+        page-break-inside: avoid;
+      }
+
+      .hero-swatch .label {
+        font-size: 8pt;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        opacity: 0.85;
+      }
+
+      .hero-swatch .value {
+        font-size: 13pt;
+        font-weight: 700;
+        margin-top: 2px;
+      }
+
+      .hero-swatch .token {
+        font-size: 8pt;
+        opacity: 0.8;
+        margin-top: 2px;
+      }
+
+      .combo-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+
+      .combo-card {
+        border-radius: 10px;
+        overflow: hidden;
+        border: 1px solid var(--border);
+        page-break-inside: avoid;
+      }
+
+      .combo-preview {
+        padding: 16px 14px;
+        min-height: 72px;
+      }
+
+      .combo-preview .title {
+        font-weight: 700;
+        font-size: 11pt;
+        margin-bottom: 4px;
+      }
+
+      .combo-preview .body {
+        font-size: 9pt;
+        opacity: 0.9;
+      }
+
+      .combo-preview .cta {
+        display: inline-block;
+        margin-top: 10px;
+        padding: 7px 12px;
+        border-radius: 8px;
+        font-size: 8.5pt;
+        font-weight: 600;
+      }
+
+      .combo-meta {
+        padding: 10px 12px;
+        background: var(--ink-50);
+        font-size: 8pt;
+        color: var(--muted);
+        border-top: 1px solid var(--border);
+      }
+
+      .combo-meta code {
+        font-family: ui-monospace, Consolas, monospace;
+        font-size: 7.5pt;
+        color: var(--ink-800);
+      }
+
+      .type-sample {
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 14px;
+        margin-top: 8px;
+        page-break-inside: avoid;
+      }
+
+      .type-row {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 8px 0;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .type-row:last-child {
+        border-bottom: none;
+      }
+
+      .type-meta {
+        font-size: 8pt;
+        color: var(--muted);
+        white-space: nowrap;
+      }
+
+      .logo-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        margin-top: 10px;
+      }
+
+      .logo-card {
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 16px;
+        text-align: center;
+        page-break-inside: avoid;
+      }
+
+      .logo-card.dark-bg {
+        background: var(--ink-900);
+      }
+
+      .logo-card.light-bg {
+        background: var(--ink-50);
+      }
+
+      .logo-card img {
+        max-width: 100%;
+        height: 40px;
+        width: auto;
+        object-fit: contain;
+      }
+
+      .logo-card .caption {
+        margin-top: 10px;
+        font-size: 8pt;
+        color: var(--muted);
+      }
+
+      .logo-card.dark-bg .caption {
+        color: #b0bec9;
+      }
+
+      .footer-note {
+        margin-top: 16px;
+        padding-top: 10px;
+        border-top: 1px solid var(--border);
+        font-size: 8pt;
+        color: var(--muted);
+      }
+
+      .email-row {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 8px;
+        margin-top: 8px;
+      }
+
+      .email-swatch .swatch-color {
+        height: 36px;
+      }
+
+      @media print {
+        body {
+          background: #fff;
+        }
+
+        .cover {
+          border: none;
+          border-radius: 0;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- PAGE 1: COVER -->
+    <section class="page cover">
+      <div>
+        <div class="cover-top">
+          <div class="cover-logo">
+            <img src="../../public/brand/doccy-logo.png" alt="DocCy" />
+          </div>
+          <span class="cover-badge">Clinical Trust</span>
+        </div>
+        <h1>Guía de marca DocCy</h1>
+        <p class="subtitle">
+          Paleta de color, tipografía y combinaciones de uso para marketing, producto profesional y
+          comunicaciones.
+        </p>
+      </div>
+      <div class="cover-meta">
+        <div>
+          <strong>Versión</strong>
+          Junio 2026 · Generada desde el código fuente
+        </div>
+        <div>
+          <strong>Fuente de verdad</strong>
+          tailwind.config.ts · lib/email-brand.ts
+        </div>
+        <div>
+          <strong>Tipografía</strong>
+          Inter (400–700)
+        </div>
+        <div>
+          <strong>Dominio</strong>
+          mydoccy.com
+        </div>
+      </div>
+    </section>
+
+    <!-- PAGE 2: HERO + CLINICAL -->
+    <section class="page">
+      <div class="section-header">
+        <span class="palette-name">Identidad</span>
+        <h2>Colores principales</h2>
+        <p class="section-lead">
+          Tres escalas definen la marca: <strong>clinical</strong> (azul de acento), <strong>ink</strong>
+          (neutros fríos) y <strong>wellness</strong> (verde azulado secundario).
+        </p>
+      </div>
+
+      <div class="hero-colors">
+        <div class="hero-swatch" style="background: #0b7bb5; color: #fff">
+          <div class="label">Acento principal</div>
+          <div class="value">#0B7BB5</div>
+          <div class="token">clinical-500</div>
+        </div>
+        <div class="hero-swatch" style="background: #0f1f2e; color: #eef4f8">
+          <div class="label">Superficie oscura</div>
+          <div class="value">#0F1F2E</div>
+          <div class="token">ink-900</div>
+        </div>
+        <div class="hero-swatch" style="background: #f7fafc; color: #1a2b3c; border: 1px solid #d8e3ec">
+          <div class="label">Superficie clara</div>
+          <div class="value">#F7FAFC</div>
+          <div class="token">ink-50</div>
+        </div>
+      </div>
+
+      <span class="palette-name">Clinical — azul clínico</span>
+      <h3>Escala completa</h3>
+      <p class="section-lead" style="margin-bottom: 10px">
+        CTAs, enlaces, acentos de marca y estados interactivos. El tono 500 es el color DocCy por
+        excelencia.
+      </p>
+
+      <div class="swatch-grid">
+        <div class="swatch">
+          <div class="swatch-color" style="background: #e8f4fa"></div>
+          <div class="swatch-info">
+            <div class="token">clinical-50</div>
+            <div class="hex">#E8F4FA</div>
+            <div class="use">Fondos suaves, chips</div>
+          </div>
+        </div>
+        <div class="swatch">
+          <div class="swatch-color" style="background: #c5e4f3"></div>
+          <div class="swatch-info">
+            <div class="token">clinical-100</div>
+            <div class="hex">#C5E4F3</div>
+            <div class="use">Selección, bordes claros</div>
+          </div>
+        </div>
+        <div class="swatch">
+          <div class="swatch-color" style="background: #9fd0ea"></div>
+          <div class="swatch-info">
+            <div class="token">clinical-200</div>
+            <div class="hex">#9FD0EA</div>
+            <div class="use">Enlaces en email</div>
+          </div>
+        </div>
+        <div class="swatch">
+          <div class="swatch-color" style="background: #6bb8de"></div>
+          <div class="swatch-info">
+            <div class="token">clinical-300</div>
+            <div class="hex">#6BB8DE</div>
+            <div class="use">Hover suave</div>
+          </div>
+        </div>
+        <div class="swatch">
+          <div class="swatch-color" style="background: #3a9fce"></div>
+          <div class="swatch-info">
+            <div class="token">clinical-400</div>
+            <div class="hex">#3A9FCE</div>
+            <div class="use">Calendario, UI pro</div>
+          </div>
+        </div>
+        <div class="swatch">
+          <div class="swatch-color" style="background: #0b7bb5"></div>
+          <div class="swatch-info">
+            <div class="token">clinical-500 ★</div>
+            <div class="hex">#0B7BB5</div>
+            <div class="use">Botones primarios</div>
+          </div>
+        </div>
+        <div class="swatch">
+          <div class="swatch-color" style="background: #096694"></div>
+          <div class="swatch-info">
+            <div class="token">clinical-600</div>
+            <div class="hex">#096694</div>
+            <div class="use">Texto acento oscuro</div>
+          </div>
+        </div>
+        <div class="swatch">
+          <div class="swatch-color" style="background: #075278"></div>
+          <div class="swatch-info">
+            <div class="token">clinical-700</div>
+            <div class="hex">#075278</div>
+            <div class="use">Énfasis en fondos claros</div>
+          </div>
+        </div>
+        <div class="swatch">
+          <div class="swatch-color" style="background: #053d5c"></div>
+          <div class="swatch-info">
+            <div class="token">clinical-800</div>
+            <div class="hex">#053D5C</div>
+            <div class="use">Profundidad</div>
+          </div>
+        </div>
+        <div class="swatch">
+          <div class="swatch-color" style="background: #032a40"></div>
+          <div class="swatch-info">
+            <div class="token">clinical-900</div>
+            <div class="hex">#032A40</div>
+            <div class="use">Máximo contraste azul</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PAGE 3: INK -->
+    <section class="page">
+      <div class="section-header">
+        <span class="palette-name">Ink — neutros fríos</span>
+        <h2>Texto y superficies</h2>
+        <p class="section-lead">
+          Grises azulados para tipografía, bordes y fondos. Sustituyen el negro puro y unifican
+          marketing claro y dashboard oscuro.
+        </p>
+      </div>
+
+      <div class="swatch-grid">
+        <div class="swatch">
+          <div class="swatch-color" style="background: #f7fafc"></div>
+          <div class="swatch-info">
+            <div class="token">ink-50 ★</div>
+            <div class="hex">#F7FAFC</div>
+            <div class="use">Fondo landing / finder</div>
+          </div>
+        </div>
+        <div class="swatch">
+          <div class="swatch-color" style="background: #eef4f8"></div>
+          <div class="swatch-info">
+            <div class="token">ink-100</div>
+            <div class="hex">#EEF4F8</div>
+            <div class="use">Texto email claro</div>
+          </div>
+        </div>
+        <div class="swatch">
+          <div class="swatch-color" style="background: #d8e3ec"></div>
+          <div class="swatch-info">
+            <div class="token">ink-200</div>
+            <div class="hex">#D8E3EC</div>
+            <div class="use">Bordes, divisores</div>
+          </div>
+        </div>
+        <div class="swatch">
+          <div class="swatch-color" style="background: #b0bec9"></div>
+          <div class="swatch-info">
+            <div class="token">ink-300</div>
+            <div class="hex">#B0BEC9</div>
+            <div class="use">Texto muted email</div>
+          </div>
+        </div>
+        <div class="swatch">
+          <div class="swatch-color" style="background: #8a9bb0"></div>
+          <div class="swatch-info">
+            <div class="token">ink-400</div>
+            <div class="hex">#8A9BB0</div>
+            <div class="use">Labels, captions</div>
+          </div>
+        </div>
+        <div class="swatch">
+          <div class="swatch-color" style="background: #5c6f82"></div>
+          <div class="swatch-info">
+            <div class="token">ink-500</div>
+            <div class="hex">#5C6F82</div>
+            <div class="use">Cuerpo secundario</div>
+          </div>
+        </div>
+        <div class="swatch">
+          <div class="swatch-color" style="background: #445566"></div>
+          <div class="swatch-info">
+            <div class="token">ink-600</div>
+            <div class="hex">#445566</div>
+            <div class="use">Subtítulos</div>
+          </div>
+        </div>
+        <div class="swatch">
+          <div class="swatch-color" style="background: #334455"></div>
+          <div class="swatch-info">
+            <div class="token">ink-700</div>
+            <div class="hex">#334455</div>
+            <div class="use">Texto fuerte claro</div>
+          </div>
+        </div>
+        <div class="swatch">
+          <div class="swatch-color" style="background: #1a2b3c"></div>
+          <div class="swatch-info">
+            <div class="token">ink-800 ★</div>
+            <div class="hex">#1A2B3C</div>
+            <div class="use">Cards email, títulos</div>
+          </div>
+        </div>
+        <div class="swatch">
+          <div class="swatch-color" style="background: #0f1f2e"></div>
+          <div class="swatch-info">
+            <div class="token">ink-900 ★</div>
+            <div class="hex">#0F1F2E</div>
+            <div class="use">Login, agenda, shell</div>
+          </div>
+        </div>
+      </div>
+
+      <span class="palette-name">Wellness — acento secundario</span>
+      <h3>Escala completa</h3>
+      <p class="section-lead" style="margin-bottom: 10px">
+        Verde azulado complementario. Uso puntual: pricing, badges, métricas internas.
+      </p>
+
+      <div class="swatch-grid">
+        <div class="swatch">
+          <div class="swatch-color" style="background: #e6f5f3"></div>
+          <div class="swatch-info">
+            <div class="token">wellness-50</div>
+            <div class="hex">#E6F5F3</div>
+            <div class="use">Fondo suave</div>
+          </div>
+        </div>
+        <div class="swatch">
+          <div class="swatch-color" style="background: #c2e8e3"></div>
+          <div class="swatch-info">
+            <div class="token">wellness-100</div>
+            <div class="hex">#C2E8E3</div>
+          </div>
+        </div>
+        <div class="swatch">
+          <div class="swatch-color" style="background: #9ad9d1"></div>
+          <div class="swatch-info">
+            <div class="token">wellness-200</div>
+            <div class="hex">#9AD9D1</div>
+          </div>
+        </div>
+        <div class="swatch">
+          <div class="swatch-color" style="background: #6dc4b9"></div>
+          <div class="swatch-info">
+            <div class="token">wellness-300</div>
+            <div class="hex">#6DC4B9</div>
+          </div>
+        </div>
+        <div class="swatch">
+          <div class="swatch-color" style="background: #45b0a3"></div>
+          <div class="swatch-info">
+            <div class="token">wellness-400</div>
+            <div class="hex">#45B0A3</div>
+          </div>
+        </div>
+        <div class="swatch">
+          <div class="swatch-color" style="background: #2a9d8f"></div>
+          <div class="swatch-info">
+            <div class="token">wellness-500 ★</div>
+            <div class="hex">#2A9D8F</div>
+            <div class="use">Acento secundario</div>
+          </div>
+        </div>
+        <div class="swatch">
+          <div class="swatch-color" style="background: #228276"></div>
+          <div class="swatch-info">
+            <div class="token">wellness-600</div>
+            <div class="hex">#228276</div>
+          </div>
+        </div>
+        <div class="swatch">
+          <div class="swatch-color" style="background: #1a675e"></div>
+          <div class="swatch-info">
+            <div class="token">wellness-700</div>
+            <div class="hex">#1A675E</div>
+          </div>
+        </div>
+        <div class="swatch">
+          <div class="swatch-color" style="background: #134c46"></div>
+          <div class="swatch-info">
+            <div class="token">wellness-800</div>
+            <div class="hex">#134C46</div>
+          </div>
+        </div>
+        <div class="swatch">
+          <div class="swatch-color" style="background: #0c332f"></div>
+          <div class="swatch-info">
+            <div class="token">wellness-900</div>
+            <div class="hex">#0C332F</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PAGE 4: USAGE + TYPE + LOGO -->
+    <section class="page">
+      <div class="section-header">
+        <span class="palette-name">Aplicación</span>
+        <h2>Combinaciones de uso</h2>
+      </div>
+
+      <div class="combo-grid">
+        <div class="combo-card">
+          <div class="combo-preview" style="background: #f7fafc; color: #1a2b3c">
+            <div class="title">Marketing (landing, finder, register)</div>
+            <div class="body" style="color: #5c6f82">
+              Fondo claro, texto ink-800/900, acento clinical-500 en CTAs.
+            </div>
+            <span class="cta" style="background: #0b7bb5; color: #fff">Primary CTA</span>
+          </div>
+          <div class="combo-meta">
+            Fondo <code>ink-50</code> · Texto <code>ink-800</code> · CTA <code>clinical-500</code>
+          </div>
+        </div>
+        <div class="combo-card">
+          <div class="combo-preview" style="background: #0f1f2e; color: #eef4f8">
+            <div class="title">Producto profesional (agenda, login)</div>
+            <div class="body" style="color: #b0bec9">
+              Shell oscuro ink-900, texto claro, acentos clinical-400/500.
+            </div>
+            <span class="cta" style="background: #0b7bb5; color: #fff">Sign in</span>
+          </div>
+          <div class="combo-meta">
+            Fondo <code>ink-900</code> · Texto <code>ink-100</code> · CTA <code>clinical-500</code>
+          </div>
+        </div>
+        <div class="combo-card">
+          <div class="combo-preview" style="background: #0f1f2e; color: #eef4f8">
+            <div class="title">Emails transaccionales</div>
+            <div class="body" style="color: #b0bec9">
+              Outer <code>#0F1F2E</code>, card <code>#1A2B3C</code>, enlaces <code>#9FD0EA</code>.
+            </div>
+            <span class="cta" style="background: #0b7bb5; color: #fff">Open in DocCy</span>
+          </div>
+          <div class="combo-meta">
+            Ver <code>lib/email-brand.ts</code> para estilos inline
+          </div>
+        </div>
+        <div class="combo-card">
+          <div class="combo-preview" style="background: #fff; color: #1a2b3c; border-bottom: 1px solid #d8e3ec">
+            <div class="title">Tarjetas y superficies</div>
+            <div class="body" style="color: #5c6f82">
+              Fondo blanco, borde <code>clinical-200</code>, sombras suaves con tinte azul.
+            </div>
+            <span class="cta" style="background: #e8f4fa; color: #075278; border: 1px solid #c5e4f3"
+              >Secondary</span
+            >
+          </div>
+          <div class="combo-meta">
+            Cards finder · perfiles · formularios
+          </div>
+        </div>
+      </div>
+
+      <h3>Tipografía</h3>
+      <div class="type-sample">
+        <div class="type-row">
+          <span style="font-size: 22pt; font-weight: 700; letter-spacing: -0.02em">Run a Smarter Practice</span>
+          <span class="type-meta">H1 · 700 · Inter</span>
+        </div>
+        <div class="type-row">
+          <span style="font-size: 14pt; font-weight: 600">Section heading</span>
+          <span class="type-meta">H2 · 600</span>
+        </div>
+        <div class="type-row">
+          <span style="font-size: 10.5pt; font-weight: 400; color: #5c6f82">
+            Body copy for descriptions, form help text and secondary content across marketing pages.
+          </span>
+          <span class="type-meta">Body · 400 · ink-500</span>
+        </div>
+        <div class="type-row">
+          <span
+            style="
+              font-size: 8pt;
+              font-weight: 600;
+              letter-spacing: 0.12em;
+              text-transform: uppercase;
+              color: #0b7bb5;
+            "
+            >Label / overline</span
+          >
+          <span class="type-meta">Caps · 600 · clinical-500</span>
+        </div>
+      </div>
+
+      <h3>Logotipo</h3>
+      <div class="logo-row">
+        <div class="logo-card light-bg">
+          <img src="../../public/brand/doccy-logo.png" alt="DocCy en fondo claro" />
+          <div class="caption">doccy-logo.png · fondos claros (headers marketing)</div>
+        </div>
+        <div class="logo-card dark-bg">
+          <img src="../../public/brand/doccy-logo.png" alt="DocCy en fondo oscuro" />
+          <div class="caption">Mismo asset · fondos oscuros (UserBar, login)</div>
+        </div>
+      </div>
+
+      <h3>Colores de email (referencia rápida)</h3>
+      <div class="email-row">
+        <div class="swatch email-swatch">
+          <div class="swatch-color" style="background: #0f1f2e"></div>
+          <div class="swatch-info">
+            <div class="token">Outer bg</div>
+            <div class="hex">#0F1F2E</div>
+          </div>
+        </div>
+        <div class="swatch email-swatch">
+          <div class="swatch-color" style="background: #1a2b3c"></div>
+          <div class="swatch-info">
+            <div class="token">Card bg</div>
+            <div class="hex">#1A2B3C</div>
+          </div>
+        </div>
+        <div class="swatch email-swatch">
+          <div class="swatch-color" style="background: #eef4f8"></div>
+          <div class="swatch-info">
+            <div class="token">Text</div>
+            <div class="hex">#EEF4F8</div>
+          </div>
+        </div>
+        <div class="swatch email-swatch">
+          <div class="swatch-color" style="background: #0b7bb5"></div>
+          <div class="swatch-info">
+            <div class="token">Primary btn</div>
+            <div class="hex">#0B7BB5</div>
+          </div>
+        </div>
+      </div>
+
+      <p class="footer-note">
+        ★ = tonos más usados en producción. Para regenerar este PDF:
+        <code>npm run brand:guide:pdf</code>. Los valores hex coinciden con
+        <code>tailwind.config.ts</code>.
+      </p>
+    </section>
+  </body>
+</html>

@@ -23,6 +23,7 @@
     "test:e2e:ui": "playwright test --ui",
     "test:content:blog-images": "node scripts/test-blog-single-image.mjs",
     "test:content:messages-parity": "node scripts/validate-messages-parity.mjs",
+    "brand:guide:pdf": "node scripts/export-brand-guide-pdf.mjs",
     "diagnose:qr:utm": "node scripts/check-qr-utm-redirect.mjs",
     "whatsapp:test": "node scripts/send-whatsapp-test.mjs",
     "test:integration:doctor-access": "powershell -NoProfile -Command \"$env:PLAYWRIGHT_ENV_FILE='.env.local'; $env:PLAYWRIGHT_BASE_URL='http://localhost:3000'; $env:INTEGRATION_SAFE_ENV='1'; node scripts/run-integration-with-cleanup.mjs tests/integration/doctor_account_access.integration.spec.ts tests/agenda_auth.spec.ts --project='Desktop Large (Chromium)' --workers=1 --reporter=list\"",
