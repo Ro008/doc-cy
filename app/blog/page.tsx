@@ -47,7 +47,7 @@ export default async function BlogIndexPage() {
       <div className="mx-auto max-w-3xl">
         <h1 className="flex items-baseline gap-2 text-2xl font-semibold tracking-tight sm:text-3xl">
           <PendingLink href="/finder" className="inline-flex items-baseline hover:opacity-90">
-            <DocCyWordmark variant="light" className="!text-2xl sm:!text-3xl" />
+            <DocCyWordmark variant="light" size="lg" />
           </PendingLink>
           <span className="text-2xl font-semibold tracking-tight text-ink-900 sm:text-3xl">Blog</span>
         </h1>

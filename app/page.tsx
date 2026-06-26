@@ -17,6 +17,7 @@ import { PendingLink } from "@/components/navigation/PendingLink";
 import { ProfessionalAccessButton } from "@/components/landing/ProfessionalAccessButton";
 import { MarketingFooter } from "@/components/navigation/MarketingFooter";
 import { SupportInquiryLink } from "@/components/landing/SupportInquiryLink";
+import { DocCyWordmark } from "@/components/brand/DocCyWordmark";
 
 const benefitCardShell =
   "rounded-2xl border border-clinical-200 bg-white p-4 shadow-[0_1px_3px_rgba(26,43,60,0.06),0_4px_16px_rgba(11,123,181,0.05)] transition hover:border-clinical-300 hover:shadow-[0_4px_20px_rgba(11,123,181,0.1)] sm:p-5";
@@ -139,9 +140,7 @@ export default async function HomePage() {
       <div className="relative z-10 flex flex-1 flex-col px-4 py-3 sm:px-6 lg:px-8 lg:py-4">
         <header className="flex shrink-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
           <div className="flex min-w-0 items-center gap-2 sm:gap-3">
-            <span className="text-base font-semibold tracking-tight text-ink-800 sm:text-lg">
-              Doc<span className="text-clinical-500">Cy</span>
-            </span>
+            <DocCyWordmark variant="light" />
           </div>
         </header>
 

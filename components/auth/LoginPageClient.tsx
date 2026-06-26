@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { PasswordToggleInput } from "@/components/auth/PasswordToggleInput";
 import { PendingLink } from "@/components/navigation/PendingLink";
+import { DocCyWordmark } from "@/components/brand/DocCyWordmark";
 
 export function LoginPageClient({ nextPath }: { nextPath?: string | null }) {
   const router = useRouter();
@@ -58,8 +59,9 @@ export function LoginPageClient({ nextPath }: { nextPath?: string | null }) {
       <div className="mx-auto flex min-h-screen max-w-3xl flex-col items-center justify-center px-4 py-10 sm:px-6 lg:px-8">
         <div className="w-full max-w-md rounded-3xl border border-clinical-100/10 bg-slate-900/60 p-6 shadow-2xl shadow-ink-900/50 backdrop-blur-xl sm:p-8">
           <div className="mb-6 text-left">
-            <p className="text-xs font-semibold tracking-[0.2em] text-clinical-200/80">
-              Doc<span className="text-clinical-500">Cy</span> · Professional login
+            <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-semibold tracking-[0.2em] text-clinical-200/80">
+              <DocCyWordmark variant="dark" size="sm" />
+              <span>· Professional login</span>
             </p>
             <h1 className="mt-3 text-2xl font-semibold tracking-tight text-slate-50 sm:text-3xl">
               Welcome back
