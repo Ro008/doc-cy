@@ -111,7 +111,9 @@ test.describe("Prod smoke: doctor registration", { tag: "@nightly-prod" }, () =>
 
     try {
       await page.goto("/register", { waitUntil: "domcontentloaded" });
-      await expect(page.getByRole("heading", { name: /Create|Register|profile/i })).toBeVisible({
+      await expect(
+        page.getByRole("heading", { name: /List your practice on DocCy/i }),
+      ).toBeVisible({
         timeout: 20_000,
       });
 
