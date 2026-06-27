@@ -107,7 +107,7 @@ test.describe("Doctor registration with mandatory avatar", () => {
       await page.getByLabel("Email").fill(email);
       await page.getByLabel("Password").fill("StrongPass123!");
       await page
-        .getByLabel("WhatsApp Number (with country code, e.g., +357...)")
+        .getByLabel(/^WhatsApp Number/i)
         .fill(uniquePhone);
 
       // Specialty combobox -> pick first master option.

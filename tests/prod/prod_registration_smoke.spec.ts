@@ -111,21 +111,23 @@ test.describe("Prod smoke: doctor registration", { tag: "@nightly-prod" }, () =>
 
     try {
       await page.goto("/register", { waitUntil: "domcontentloaded" });
-      await expect(page.getByRole("heading", { name: /Create|Register|profile/i })).toBeVisible({
+      await expect(
+        page.getByRole("heading", { name: /List your practice on DocCy/i }),
+      ).toBeVisible({
         timeout: 20_000,
       });
 
       await page.getByLabel("Full name").fill(fullName);
       await page.getByLabel("Email").fill(email);
       await page.getByLabel("Password").fill(password);
-      await page.getByLabel("WhatsApp Number (with country code, e.g., +357...)").fill(uniquePhone);
+      await page.getByLabel(/^WhatsApp Number/i).fill(uniquePhone);
 
       await page.locator("#register-specialty-trigger").click();
       await page.locator("ul[role='listbox'] li button").first().click();
       await page.getByTestId("language-multiselect-trigger").click();
       await page.locator("#register-languages-listbox [role='option']").first().click();
       await page.keyboard.press("Escape");
-      await page.getByLabel("District").selectOption("Nicosia");
+      await page.getByLabel(/District \(Cyprus\)|^District$/i).selectOption("Nicosia");
 
       const avatarInput = page.locator("label:has-text('Upload photo') input[type='file']");
       await avatarInput.setInputFiles(imageFixture);
@@ -134,7 +136,7 @@ test.describe("Prod smoke: doctor registration", { tag: "@nightly-prod" }, () =>
       await expect(page.getByText("Crop confirmed.")).toBeVisible({ timeout: 10_000 });
 
       await page
-        .getByLabel(/Professional registration or certification number/i)
+        .getByLabel(/Medical Registration|Professional registration or certification number/i)
         .fill(licenseNumber);
       await page
         .getByRole("checkbox", {
