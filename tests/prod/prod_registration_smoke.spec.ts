@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import path from "node:path";
 import { postDoctorVerification } from "../integration/helpers/internal-api";
-import { signInDoctorAndSetCookies } from "../helpers/doctorAuth";
+import { authenticateDoctorViaSession } from "./helpers/doctorSession";
 
 const TEST_EMAIL_DOMAIN = "@test-doccy.com.cy";
 
@@ -201,12 +201,7 @@ test.describe("Prod smoke: doctor registration", { tag: "@nightly-prod" }, () =>
         .single();
       expect(verifiedRow.data?.status).toBe("verified");
 
-      await signInDoctorAndSetCookies(page, undefined, { email, password });
-      await page.goto("/agenda");
-      await expect(page).toHaveURL(
-        (url) => new URL(url).pathname.replace(/\/$/, "") === "/agenda",
-        { timeout: 25_000 },
-      );
+      await authenticateDoctorViaSession(page, { email, password });
       await expect(page.getByText(/Weekly calendar/i)).toBeVisible({ timeout: 20_000 });
     } finally {
       const { data: doctor } = await admin
