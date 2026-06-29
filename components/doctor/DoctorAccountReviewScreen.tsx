@@ -84,8 +84,8 @@ export function DoctorAccountReviewScreen({
               Thank you for applying to DocCy. Our team is reviewing your application — including
               your specialty and professional license — before you can use your agenda, settings,
               or public profile. This usually takes{" "}
-              <strong className="font-medium text-slate-100">a few hours</strong>. We will email
-              you when your account is ready.
+              <strong className="font-medium text-slate-100">a few hours</strong>. We&apos;ll email
+              you when your account is ready with a link to sign in.
             </p>
             <p className="mt-4 text-left text-xs leading-relaxed text-slate-500 sm:text-center">
               Until then, DocCy stays closed for your account — no bookings, calendar, or

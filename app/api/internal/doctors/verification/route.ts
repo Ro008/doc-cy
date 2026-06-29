@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceRoleClient } from "@/lib/supabase-service";
 import { isInternalDirectoryAuthenticated } from "@/lib/internal-directory-auth";
 import { verificationBlockedReason } from "@/lib/doctor-specialty-public";
+import { sendDoctorAccountVerifiedEmail } from "@/lib/send-doctor-account-verified-email";
+import { getPublicBookingBaseUrl } from "@/lib/site-url";
 
 type Body = {
   doctorId?: string;
@@ -40,7 +42,9 @@ export async function POST(req: NextRequest) {
 
   const { data: row, error: fetchErr } = await supabase
     .from("doctors")
-    .select("id, status, is_specialty_approved, specialty_requires_standard_at")
+    .select(
+      "id, name, email, status, is_specialty_approved, specialty_requires_standard_at",
+    )
     .eq("id", doctorId)
     .maybeSingle();
 
@@ -107,6 +111,19 @@ export async function POST(req: NextRequest) {
 
   if (!updated) {
     return NextResponse.json({ message: "Professional not found." }, { status: 404 });
+  }
+
+  if (action === "verify") {
+    try {
+      await sendDoctorAccountVerifiedEmail({
+        siteUrl: getPublicBookingBaseUrl(),
+        doctorEmail: String((row as { email?: string | null }).email ?? ""),
+        doctorName: String((row as { name?: string | null }).name ?? "Doctor"),
+        resendToOverride: process.env.RESEND_TO_OVERRIDE?.trim() || null,
+      });
+    } catch (err) {
+      console.error("[internal/doctors/verification] account verified email failed", err);
+    }
   }
 
   return NextResponse.json({ ok: true, status });

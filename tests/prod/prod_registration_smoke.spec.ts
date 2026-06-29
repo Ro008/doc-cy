@@ -1,6 +1,8 @@
 import { test, expect } from "@playwright/test";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import path from "node:path";
+import { postDoctorVerification } from "../integration/helpers/internal-api";
+import { signInDoctorAndSetCookies } from "../helpers/doctorAuth";
 
 const TEST_EMAIL_DOMAIN = "@test-doccy.com.cy";
 
@@ -86,7 +88,7 @@ async function waitForDoctorByEmail(
 }
 
 test.describe("Prod smoke: doctor registration", { tag: "@nightly-prod" }, () => {
-  test("completes registration and cleans up", async ({ page }) => {
+  test("completes registration, founder verify, and doctor agenda access", async ({ page, request }) => {
     test.setTimeout(180_000);
     const baseUrl = process.env.PLAYWRIGHT_BASE_URL ?? "";
     const isLiveMode = process.env.PLAYWRIGHT_LIVE_REGISTRATION === "1";
@@ -100,6 +102,12 @@ test.describe("Prod smoke: doctor registration", { tag: "@nightly-prod" }, () =>
     test.skip(!supabaseUrl || !serviceRole, "Missing Supabase credentials.");
 
     const admin = createClient(supabaseUrl, serviceRole);
+    const internalSecret = process.env.INTERNAL_DIRECTORY_SECRET?.trim() ?? "";
+    test.skip(
+      !internalSecret,
+      "Missing INTERNAL_DIRECTORY_SECRET — required for post-registration verify smoke.",
+    );
+
     const nonce = `${Date.now()}`;
     const email = `test-registration-${nonce}${TEST_EMAIL_DOMAIN}`;
     const password = `Str0ngPass!${nonce.slice(-4)}`;
@@ -177,6 +185,29 @@ test.describe("Prod smoke: doctor registration", { tag: "@nightly-prod" }, () =>
       expect(createdDoctor?.name ?? "").toBe(fullName);
       expect(createdDoctor?.phone ?? "").toContain("+357");
       expect(createdDoctor?.license_number ?? "").toBe(licenseNumber);
+
+      const verifyRes = await postDoctorVerification(request, internalSecret, {
+        doctorId: createdDoctor!.id,
+        action: "verify",
+      });
+      const verifyPayload = await verifyRes.json().catch(() => ({}));
+      expect(verifyRes.status(), JSON.stringify(verifyPayload)).toBe(200);
+      expect(verifyPayload).toMatchObject({ ok: true, status: "verified" });
+
+      const verifiedRow = await admin
+        .from("doctors")
+        .select("status")
+        .eq("id", createdDoctor!.id)
+        .single();
+      expect(verifiedRow.data?.status).toBe("verified");
+
+      await signInDoctorAndSetCookies(page, undefined, { email, password });
+      await page.goto("/agenda");
+      await expect(page).toHaveURL(
+        (url) => new URL(url).pathname.replace(/\/$/, "") === "/agenda",
+        { timeout: 25_000 },
+      );
+      await expect(page.getByText(/Weekly calendar/i)).toBeVisible({ timeout: 20_000 });
     } finally {
       const { data: doctor } = await admin
         .from("doctors")

@@ -25,19 +25,12 @@ function resolveFounderWhatsAppWebhook(): string | null {
  * - FOUNDER_NOTIFY_EMAIL — Resend recipient(s), comma-separated allowed
  * - FOUNDER_REGISTRATION_WHATSAPP_WEBHOOK_URL — webhook URL (falls back to WHATSAPP_WEBHOOK_URL)
  */
-export async function notifyFounderNewRegistration(
-  payload: NewRegistrationNotifyPayload
-): Promise<void> {
-  const emailTo = process.env.FOUNDER_NOTIFY_EMAIL?.trim();
-  const waWebhook = resolveFounderWhatsAppWebhook();
-
-  if (!emailTo && !waWebhook) {
-    return;
-  }
-
-  const base = getPublicBookingBaseUrl();
-  const reviewPath = "/internal/directory";
-  const reviewUrl = `${base}${reviewPath}`;
+export function buildFounderNewRegistrationNotifyContent(
+  payload: NewRegistrationNotifyPayload,
+  siteUrl?: string,
+): { subject: string; textBody: string; shortWa: string; reviewUrl: string } {
+  const base = (siteUrl?.trim() || getPublicBookingBaseUrl()).replace(/\/$/, "");
+  const reviewUrl = `${base}/internal/directory`;
 
   const lines = [
     `New professional registration (pending verification)`,
@@ -50,8 +43,25 @@ export async function notifyFounderNewRegistration(
     `Review: ${reviewUrl}`,
   ].filter(Boolean) as string[];
 
-  const textBody = lines.join("\n");
-  const shortWa = `DocCy: new signup — ${payload.fullName} (${payload.specialty}). Verify: ${reviewUrl}`;
+  return {
+    subject: `[DocCy] New registration — ${payload.fullName}`,
+    textBody: lines.join("\n"),
+    shortWa: `DocCy: new signup — ${payload.fullName} (${payload.specialty}). Verify: ${reviewUrl}`,
+    reviewUrl,
+  };
+}
+
+export async function notifyFounderNewRegistration(
+  payload: NewRegistrationNotifyPayload
+): Promise<void> {
+  const emailTo = process.env.FOUNDER_NOTIFY_EMAIL?.trim();
+  const waWebhook = resolveFounderWhatsAppWebhook();
+
+  if (!emailTo && !waWebhook) {
+    return;
+  }
+
+  const { subject, textBody, shortWa } = buildFounderNewRegistrationNotifyContent(payload);
 
   const tasks: Promise<unknown>[] = [];
 
@@ -64,7 +74,7 @@ export async function notifyFounderNewRegistration(
       tasks.push(
         sendResendEmail({
           to: recipients.length === 1 ? recipients[0]! : recipients,
-          subject: `[DocCy] New registration — ${payload.fullName}`,
+          subject,
           text: textBody,
         })
       );

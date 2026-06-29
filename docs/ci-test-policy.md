@@ -24,12 +24,12 @@ Build flag for integration finder tests: `NEXT_PUBLIC_DOC_CY_FINDER_INCLUDE_TEST
 
 | Tag | Workflow command | Purpose |
 |-----|------------------|---------|
-| `@pr-email` | `playwright test --grep @pr-email` | Reschedule / agenda email guards (PR + nightly prod env) |
+| `@pr-email` | `playwright test --grep @pr-email` | Onboarding + reschedule / agenda email guards (PR + nightly prod env) |
 | `@pr-e2e` | `playwright test --grep @pr-e2e` | Main PR integration suite |
 | `@pr-preview` | `playwright test --grep @pr-preview` | Public shell on Vercel Preview |
 | `@pr-mobile-monitor` | `playwright test --grep @pr-mobile-monitor` | Doctor confirmation flow on mobile (PR, non-blocking) |
 | `@pr-login-monitor` | `playwright test --grep @pr-login-monitor` | Doctor `/login` form UI (PR, non-blocking) |
-| `@nightly-prod` | `playwright test --grep @nightly-prod` | Prod URL blocking smokes (site + booking + registration) |
+| `@nightly-prod` | `playwright test --grep @nightly-prod` | Prod URL blocking smokes (site + booking + registration + verify + agenda) |
 
 Constants: `tests/helpers/ciTags.ts`. To tag new specs: `node scripts/apply-ci-playwright-tags.mjs` (edit file lists first).
 
@@ -64,7 +64,7 @@ Constants: `tests/helpers/ciTags.ts`. To tag new specs: `node scripts/apply-ci-p
 **Blocking steps:**
 
 1. `--grep @pr-email` (prod Supabase env)
-2. `--grep @nightly-prod` (site availability + guest booking + live registration)
+2. `--grep @nightly-prod` (site availability + guest booking + live registration + verify + agenda)
 
 **Does not run on nightly (PR only):**
 
