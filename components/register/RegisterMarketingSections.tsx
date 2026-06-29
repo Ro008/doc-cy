@@ -235,8 +235,8 @@ export function RegisterSubmittedPanel() {
         <span className="font-medium text-clinical-700">24 hours</span>.
       </p>
       <p>
-        Once approved, you&apos;ll receive an email with a secure link to your dashboard, where you
-        can configure working hours, appointment types, and your public profile.
+        Once approved, we&apos;ll email you a link to sign in and open your dashboard, where you can
+        configure working hours, appointment types, and your public profile.
       </p>
     </div>
   );

@@ -23,6 +23,7 @@ const prE2e = [
   "agenda_auth.spec.ts",
   "integration/monthly_digest.integration.spec.ts",
   "integration/doctor_account_access.integration.spec.ts",
+  "integration/doctor_onboarding_pipeline.integration.spec.ts",
   "navigation_feedback.spec.ts",
   "doctor_settings_language_guard.spec.ts",
   "profile_structured_data.spec.ts",
@@ -42,6 +43,7 @@ const prEmail = [
   "integration/agenda_multisession_sync.integration.spec.ts",
   "integration/agenda_visit_reason.integration.spec.ts",
   "integration/reschedule_email_content.integration.spec.ts",
+  "integration/doctor_onboarding_emails.integration.spec.ts",
 ];
 
 const prPreviewNightly = ["prod/prod_site_availability.spec.ts"];
