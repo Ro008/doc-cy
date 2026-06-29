@@ -29,7 +29,7 @@ Build flag for integration finder tests: `NEXT_PUBLIC_DOC_CY_FINDER_INCLUDE_TEST
 | `@pr-preview` | `playwright test --grep @pr-preview` | Public shell on Vercel Preview |
 | `@pr-mobile-monitor` | `playwright test --grep @pr-mobile-monitor` | Doctor confirmation flow on mobile (PR, non-blocking) |
 | `@pr-login-monitor` | `playwright test --grep @pr-login-monitor` | Doctor `/login` form UI (PR, non-blocking) |
-| `@nightly-prod` | `playwright test --grep @nightly-prod` | Prod URL blocking smokes (site + booking + registration + verify + agenda) |
+| `@nightly-prod` | `playwright test --grep @nightly-prod` | Prod URL blocking smokes (site + booking + registration + verify) |
 
 Constants: `tests/helpers/ciTags.ts`. To tag new specs: `node scripts/apply-ci-playwright-tags.mjs` (edit file lists first).
 
@@ -64,7 +64,7 @@ Constants: `tests/helpers/ciTags.ts`. To tag new specs: `node scripts/apply-ci-p
 **Blocking steps:**
 
 1. `--grep @pr-email` (prod Supabase env)
-2. `--grep @nightly-prod` (site availability + guest booking + live registration + verify + agenda)
+2. `--grep @nightly-prod` (site availability + guest booking + live registration + verify)
 
 **Does not run on nightly (PR only):**
 

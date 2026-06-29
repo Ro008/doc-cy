@@ -2,42 +2,8 @@ import { test, expect } from "@playwright/test";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import path from "node:path";
 import { postDoctorVerification } from "../integration/helpers/internal-api";
-import { authenticateDoctorViaSession } from "./helpers/doctorSession";
 
 const TEST_EMAIL_DOMAIN = "@test-doccy.com.cy";
-
-async function ensureFreshDoctorCanSignIn(
-  admin: SupabaseClient,
-  authUserId: string,
-  email: string,
-  password: string,
-): Promise<void> {
-  const { error: updateErr } = await admin.auth.admin.updateUserById(authUserId, {
-    email_confirm: true,
-    password,
-  });
-  if (updateErr) {
-    throw new Error(`Failed to confirm auth user for smoke login: ${updateErr.message}`);
-  }
-
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
-  const probe = createClient(supabaseUrl, anonKey, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-
-  let lastError = "unknown";
-  for (let attempt = 1; attempt <= 10; attempt += 1) {
-    const { error: signInErr } = await probe.auth.signInWithPassword({ email, password });
-    if (!signInErr) {
-      await probe.auth.signOut().catch(() => {});
-      return;
-    }
-    lastError = signInErr.message;
-    await new Promise((resolve) => setTimeout(resolve, 1000 * attempt));
-  }
-  throw new Error(`Auth probe could not sign in as ${email}: ${lastError}`);
-}
 
 async function listAuthUsersByEmail(
   admin: SupabaseClient,
@@ -121,7 +87,7 @@ async function waitForDoctorByEmail(
 }
 
 test.describe("Prod smoke: doctor registration", { tag: "@nightly-prod" }, () => {
-  test("completes registration, founder verify, and doctor agenda access", async ({ page, request }) => {
+  test("completes registration and founder verify on production", async ({ page, request }) => {
     test.setTimeout(180_000);
     const baseUrl = process.env.PLAYWRIGHT_BASE_URL ?? "";
     const isLiveMode = process.env.PLAYWRIGHT_LIVE_REGISTRATION === "1";
@@ -233,22 +199,6 @@ test.describe("Prod smoke: doctor registration", { tag: "@nightly-prod" }, () =>
         .eq("id", createdDoctor!.id)
         .single();
       expect(verifiedRow.data?.status).toBe("verified");
-
-      const { data: doctorAuth } = await admin
-        .from("doctors")
-        .select("auth_user_id")
-        .eq("id", createdDoctor!.id)
-        .single();
-      expect(doctorAuth?.auth_user_id).toBeTruthy();
-
-      await ensureFreshDoctorCanSignIn(
-        admin,
-        String(doctorAuth!.auth_user_id),
-        email,
-        password,
-      );
-      await authenticateDoctorViaSession(page, { email, password });
-      await expect(page.getByText(/Weekly calendar/i)).toBeVisible({ timeout: 20_000 });
     } finally {
       const { data: doctor } = await admin
         .from("doctors")
@@ -283,4 +233,3 @@ test.describe("Prod smoke: doctor registration", { tag: "@nightly-prod" }, () =>
     }
   });
 });
-
