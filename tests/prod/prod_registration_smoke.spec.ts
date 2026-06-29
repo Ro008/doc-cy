@@ -2,6 +2,7 @@ import { test, expect } from "@playwright/test";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import path from "node:path";
 import { postDoctorVerification } from "../integration/helpers/internal-api";
+import { authenticateDoctorViaSession } from "./helpers/doctorSession";
 
 const TEST_EMAIL_DOMAIN = "@test-doccy.com.cy";
 
@@ -36,23 +37,6 @@ async function ensureFreshDoctorCanSignIn(
     await new Promise((resolve) => setTimeout(resolve, 1000 * attempt));
   }
   throw new Error(`Auth probe could not sign in as ${email}: ${lastError}`);
-}
-
-async function loginVerifiedDoctorViaUi(
-  page: import("@playwright/test").Page,
-  baseUrl: string,
-  email: string,
-  password: string,
-): Promise<void> {
-  const loginUrl = `${baseUrl.replace(/\/$/, "")}/login?next=${encodeURIComponent("/agenda")}`;
-  await page.goto(loginUrl, { waitUntil: "domcontentloaded" });
-  await expect(page.getByRole("heading", { name: /Welcome back/i })).toBeVisible({
-    timeout: 20_000,
-  });
-  await page.getByLabel("Email").fill(email);
-  await page.getByLabel("Password").fill(password);
-  await page.getByRole("button", { name: /Sign in/i }).click();
-  await expect(page).toHaveURL(/\/agenda(?:[/?#]|$)/, { timeout: 45_000 });
 }
 
 async function listAuthUsersByEmail(
@@ -257,14 +241,13 @@ test.describe("Prod smoke: doctor registration", { tag: "@nightly-prod" }, () =>
         .single();
       expect(doctorAuth?.auth_user_id).toBeTruthy();
 
-      const baseUrl = process.env.PLAYWRIGHT_BASE_URL ?? "";
       await ensureFreshDoctorCanSignIn(
         admin,
         String(doctorAuth!.auth_user_id),
         email,
         password,
       );
-      await loginVerifiedDoctorViaUi(page, baseUrl, email, password);
+      await authenticateDoctorViaSession(page, { email, password });
       await expect(page.getByText(/Weekly calendar/i)).toBeVisible({ timeout: 20_000 });
     } finally {
       const { data: doctor } = await admin
