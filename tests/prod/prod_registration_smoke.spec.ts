@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import path from "node:path";
 import { postDoctorVerification } from "../integration/helpers/internal-api";
-import { authenticateDoctorViaPasswordUi } from "./helpers/doctorLogin";
+import { authenticateDoctorViaMagicLink } from "./helpers/doctorLogin";
 
 const TEST_EMAIL_DOMAIN = "@test-doccy.com.cy";
 
@@ -202,12 +202,7 @@ test.describe("Prod smoke: doctor registration", { tag: "@nightly-prod" }, () =>
       expect(verifiedRow.data?.status).toBe("verified");
 
       const baseUrl = process.env.PLAYWRIGHT_BASE_URL ?? "";
-      const authUsers = await listAuthUsersByEmail(admin, email);
-      for (const u of authUsers) {
-        await admin.auth.admin.updateUserById(u.id, { email_confirm: true });
-      }
-
-      await authenticateDoctorViaPasswordUi(page, baseUrl, email, password);
+      await authenticateDoctorViaMagicLink(page, email, baseUrl);
       await expect(page.getByText(/Weekly calendar/i)).toBeVisible({ timeout: 20_000 });
     } finally {
       const { data: doctor } = await admin
