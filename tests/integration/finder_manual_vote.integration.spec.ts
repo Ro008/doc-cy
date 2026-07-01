@@ -2,7 +2,7 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
 
 /**
- * Clicks "Vote for Online Booking" on a manual finder card after a **random** district +
+ * Clicks "Request Digital Booking" on a manual finder card after a **random** district +
  * **random** specialty (from live dropdowns), so runs tend to hit different cards and you
  * see varied rows on the founder dashboard (testing DB only).
  *
@@ -79,7 +79,7 @@ async function findVisibleVoteButton(page: Page): Promise<Locator> {
       await applyFinderFilters(page);
       await expect(page).toHaveURL(/\/finder\//, { timeout: 20_000 });
 
-      const vote = page.getByRole("button", { name: /Vote for Online Booking/i }).first();
+      const vote = page.getByRole("button", { name: /Request Digital Booking/i }).first();
       try {
         await expect(vote).toBeVisible({ timeout: 10_000 });
         return vote;
@@ -90,12 +90,12 @@ async function findVisibleVoteButton(page: Page): Promise<Locator> {
   }
 
   throw new Error(
-    "No manual finder card with “Vote for Online Booking” found for any random district/specialty combo.",
+    "No manual finder card with “Request Digital Booking” found for any random district/specialty combo.",
   );
 }
 
 test.describe("Integration: finder manual card vote", () => {
-  test("Vote for Online Booking succeeds against testing Supabase (not prod)", async ({
+  test("Request Digital Booking succeeds against testing Supabase (not prod)", async ({
     page,
   }) => {
     const baseUrl = (process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000").trim();

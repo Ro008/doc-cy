@@ -74,6 +74,8 @@ type ManualFinderRow = {
   district: CyprusDistrict;
   address_maps_link: string;
   photoUrl: string | null;
+  /** Approx. unique patient requests in the last 30 days (finder scarcity badge). */
+  monthlyRequestCount: number;
 };
 
 const SEO_CITIES: CyprusDistrict[] = ["Nicosia", "Limassol", "Paphos", "Larnaca"];
@@ -339,16 +341,47 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
     if (manualRes.error) {
       dataWarning = dataWarning ?? "Could not load manual directory entries.";
     } else {
+      const monthlySinceIso = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+      const monthlyRequestCountByManualId = new Map<string, number>();
+
+      const { data: monthlyRequestRows, error: monthlyRequestErr } = await supabase
+        .from("directory_manual_patient_booking_requests")
+        .select("id, manual_id, voter_key")
+        .gte("created_at", monthlySinceIso)
+        .limit(12000);
+
+      if (!monthlyRequestErr && monthlyRequestRows?.length) {
+        const votersByManual = new Map<string, Set<string>>();
+        for (const r of monthlyRequestRows) {
+          const mid = String((r as { manual_id?: string }).manual_id ?? "");
+          const id = String((r as { id?: string }).id ?? "");
+          const vk = (r as { voter_key?: string | null }).voter_key?.trim();
+          const dedupeId = vk || `legacy:${id}`;
+          if (!mid) continue;
+          const cur = votersByManual.get(mid);
+          if (!cur) {
+            votersByManual.set(mid, new Set([dedupeId]));
+          } else {
+            cur.add(dedupeId);
+          }
+        }
+        for (const [mid, voters] of votersByManual) {
+          monthlyRequestCountByManualId.set(mid, voters.size);
+        }
+      }
+
       manualRows = (manualRes.data ?? []).map((row) => {
         const addressMapsLink = String(row.address_maps_link ?? "");
+        const manualId = row.id as string;
         return {
-          id: row.id as string,
+          id: manualId,
           name: String(row.name ?? "Professional"),
           displayName: doctorDashboardDisplayName(String(row.name ?? "Professional")),
           specialty: String(row.specialty ?? "Specialty not set"),
           district: row.district as CyprusDistrict,
           address_maps_link: addressMapsLink,
           photoUrl: getFinderManualPhotoUrl(addressMapsLink),
+          monthlyRequestCount: monthlyRequestCountByManualId.get(manualId) ?? 0,
         };
       });
     }
@@ -645,7 +678,11 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                     </div>
 
                     <div className="mt-auto flex shrink-0 flex-col gap-0">
-                      <ManualDirectoryVoteButton manualId={row.id} className="mt-2 w-full" />
+                      <ManualDirectoryVoteButton
+                        manualId={row.id}
+                        monthlyRequestCount={row.monthlyRequestCount}
+                        className="mt-2 w-full"
+                      />
                       <div className="mt-4 min-h-[84px]">
                         <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-ink-400">
                           Location
