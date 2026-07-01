@@ -52,6 +52,10 @@ import {
   ManualPatientVotesSection,
   type ManualPatientVoteRow,
 } from "@/components/internal/ManualPatientVotesSection";
+import {
+  FinderInvitationRequestsSection,
+  type FinderInvitationRequestRow,
+} from "@/components/internal/FinderInvitationRequestsSection";
 
 function sortManualPatientVoteRows(
   rows: ManualPatientVoteRow[],
@@ -487,6 +491,62 @@ export default async function FounderDashboardPage({
     console.error("[DocCy] manual patient request stats failed", reqStatsErr);
   }
 
+  let finderInvitationRows: FinderInvitationRequestRow[] = [];
+  try {
+    const invitationSinceIso = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
+    const { data: invitationRows, error: invitationErr } = await supabase
+      .from("finder_doctor_invitation_requests")
+      .select("id, requested_name, specialty, district, created_at, voter_key")
+      .gte("created_at", invitationSinceIso)
+      .order("created_at", { ascending: false })
+      .limit(12000);
+
+    if (!invitationErr && invitationRows?.length) {
+      const byKey = new Map<
+        string,
+        { requestedName: string; specialty: string | null; district: string | null; voters: Set<string>; lastAt: string }
+      >();
+      for (const r of invitationRows) {
+        const requestedName = String((r as { requested_name?: string }).requested_name ?? "").trim();
+        const specialty = (r as { specialty?: string | null }).specialty ?? null;
+        const district = (r as { district?: string | null }).district ?? null;
+        const ca = String((r as { created_at?: string }).created_at ?? "");
+        const id = String((r as { id?: string }).id ?? "");
+        const vk = (r as { voter_key?: string | null }).voter_key?.trim();
+        const dedupeId = vk || `legacy:${id}`;
+        if (!requestedName) continue;
+        const key = `${requestedName.toLowerCase()}|${specialty ?? ""}|${district ?? ""}`;
+        const cur = byKey.get(key);
+        if (!cur) {
+          byKey.set(key, {
+            requestedName,
+            specialty,
+            district,
+            voters: new Set([dedupeId]),
+            lastAt: ca,
+          });
+        } else {
+          cur.voters.add(dedupeId);
+          if (ca > cur.lastAt) cur.lastAt = ca;
+        }
+      }
+      finderInvitationRows = Array.from(byKey.values())
+        .map((agg) => ({
+          requestedName: agg.requestedName,
+          specialty: agg.specialty,
+          district: agg.district,
+          count: agg.voters.size,
+          lastAt: agg.lastAt,
+        }))
+        .sort((a, b) => {
+          if (b.count !== a.count) return b.count - a.count;
+          return new Date(b.lastAt).getTime() - new Date(a.lastAt).getTime();
+        });
+    }
+  } catch (invitationStatsErr) {
+    console.error("[DocCy] finder invitation request stats failed", invitationStatsErr);
+  }
+
   const manualVoteRowsSorted = sortManualPatientVoteRows(
     manualVoteRowsUnsorted,
     dashboardQuery.manualVotesCol,
@@ -630,6 +690,7 @@ export default async function FounderDashboardPage({
           podium={patientVotesPodium}
           maxVotes={patientVotesPodiumMax}
         />
+        <FinderInvitationRequestsSection rows={finderInvitationRows} />
         <div className="rounded-2xl border border-slate-800/80 bg-slate-900/20 p-3 text-xs text-slate-400">
           Trial policy: <span className="font-medium text-slate-200">{trialPeriodDays} days</span>{" "}
           from registration date.

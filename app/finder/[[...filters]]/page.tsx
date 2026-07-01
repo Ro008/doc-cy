@@ -7,6 +7,7 @@ import { languageThemeForLabel } from "@/lib/cyprus-languages";
 import { createServiceRoleClient } from "@/lib/supabase-service";
 import { doctorDashboardDisplayName } from "@/lib/doctor-display-name";
 import { FinderFilters } from "@/components/finder/FinderFilters";
+import { FinderMissingDoctorCard } from "@/components/finder/FinderMissingDoctorCard";
 import { FinderHeroSection } from "@/components/finder/FinderHeroSection";
 import { FinderResultsCount } from "@/components/finder/FinderResultsCount";
 import { FinderResultsTransition } from "@/components/finder/FinderResultsTransition";
@@ -712,11 +713,13 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                 );
               })}
               {unifiedResults.length === 0 ? (
-                <p className="text-sm text-ink-500">
-                  {hasActiveFilters
-                    ? "No professionals match these filters."
-                    : "No professionals available right now. Please check back soon."}
-                </p>
+                <FinderMissingDoctorCard
+                  specialtyLabel={activeSpecialty ? specialtyLabel : null}
+                  districtLabel={activeDistrict ? districtLabel : null}
+                  activeSpecialty={activeSpecialty}
+                  activeDistrict={activeDistrict}
+                  activeSearchName={activeName}
+                />
               ) : null}
             </div>
           </section>
