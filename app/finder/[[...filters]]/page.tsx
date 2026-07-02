@@ -366,7 +366,7 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
             cur.add(dedupeId);
           }
         }
-        for (const [mid, voters] of votersByManual) {
+        for (const [mid, voters] of Array.from(votersByManual.entries())) {
           monthlyRequestCountByManualId.set(mid, voters.size);
         }
       }
