@@ -1,0 +1,37 @@
+---
+description: Never change production Supabase without explicit user consent for that action
+alwaysApply: true
+---
+
+# Production database safety (DocCy)
+
+## Hard rule
+
+**Never apply changes to the production Supabase database unless the user explicitly asks for that specific production action in the current task.**
+
+Prior consent for one prod change does **not** authorize later prod changes.
+
+## What counts as a production DB change
+
+- `npm run db:prod:push` or `DOC_CY_CONFIRM_PROD=YES npm run db:prod:push`
+- `npx supabase link --project-ref oiwlztcduxojadbcxkil` followed by `db push`
+- Any `npx supabase db push` while the CLI is linked to **DocCy** (prod ref `oiwlztcduxojadbcxkil`)
+- Direct SQL/data writes against production (insert/update/delete), including via service role
+
+## Safe default workflow
+
+1. **Ask first** before any prod DB step. State exactly what migration or data change would run.
+2. Prefer **testing** (`fwinchqdgrkpxuuttech`) for verification: `npm run db:testing:push`.
+3. Before `db push`, **verify the linked project** (`npx supabase projects list` — prod vs testing).
+4. Use `scripts/supabase-safe.mjs` for prod (`db:prod:push`), not raw `supabase db push`, unless the user explicitly requests otherwise.
+
+## If the user has not said “apply to prod” (or equivalent)
+
+- You may create or edit migration files in the repo.
+- You may apply migrations to **testing** if that helps local/debug work and is reasonable in context.
+- You must **not** run prod push, link-to-prod + push, or prod data mutations.
+
+## Example
+
+- User earlier said yes to prod push for migration A → **does not** allow prod push for migration B.
+- User says “fix the migration and apply it” without naming prod → apply to **testing only**, then ask whether to push to prod.
