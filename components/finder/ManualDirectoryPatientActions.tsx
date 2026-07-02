@@ -69,18 +69,32 @@ function useVoteForOnlineBooking(manualId: string) {
 /** Primary patient CTA: place directly under the intro line for reading flow. */
 export function ManualDirectoryVoteButton({
   manualId,
+  monthlyRequestCount = 0,
   className = "",
-}: ManualIdProps & { className?: string }) {
+}: ManualIdProps & { monthlyRequestCount?: number; className?: string }) {
   const { pending, submit } = useVoteForOnlineBooking(manualId);
+  const showScarcityBadge = monthlyRequestCount > 0;
+  const patientLabel = monthlyRequestCount === 1 ? "patient" : "patients";
+
   return (
-    <button
-      type="button"
-      disabled={pending}
-      onClick={submit}
-      className={`inline-flex w-full items-center justify-center rounded-xl border border-clinical-400 bg-clinical-50 px-4 py-2.5 text-sm font-semibold text-clinical-800 transition hover:border-clinical-500 hover:bg-clinical-100 disabled:cursor-not-allowed disabled:opacity-60 ${className}`}
-    >
-      {pending ? "Voting..." : "Vote for Online Booking"}
-    </button>
+    <div className={`flex w-full flex-col gap-2 ${className}`}>
+      {showScarcityBadge ? (
+        <p
+          className="rounded-lg border border-amber-300/80 bg-gradient-to-r from-amber-50 via-orange-50 to-amber-50 px-3 py-2 text-center text-xs font-bold leading-snug text-amber-950 shadow-[0_2px_8px_rgba(245,158,11,0.18)] ring-1 ring-amber-200/70"
+          role="status"
+        >
+          🔥 {monthlyRequestCount} {patientLabel} requested online booking this month
+        </p>
+      ) : null}
+      <button
+        type="button"
+        disabled={pending}
+        onClick={submit}
+        className="inline-flex w-full items-center justify-center rounded-xl bg-clinical-500 px-5 py-3.5 text-base font-bold text-white shadow-[0_4px_14px_rgba(11,123,181,0.35)] transition hover:bg-clinical-400 hover:shadow-[0_6px_18px_rgba(11,123,181,0.4)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-clinical-500 disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        {pending ? "Requesting..." : "Request Digital Booking"}
+      </button>
+    </div>
   );
 }
 

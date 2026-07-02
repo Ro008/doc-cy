@@ -30,8 +30,7 @@ test.describe("Navigation and routing", { tag: "@pr-e2e" }, () => {
     await expect(resultsCount).toBeVisible();
     await expect(resultsCount).toContainText(/health professionals on DocCy across Cyprus/i);
     await expect(resultsCount).toContainText(/\d+/);
-    await expect(page.getByText("No professionals available right now. Please check back soon.")).toHaveCount(0);
-    await expect(page.getByText("No professionals match these filters.")).toHaveCount(0);
+    await expect(page.getByTestId("finder-missing-doctor-card")).toHaveCount(0);
 
     // Legacy hardcoded fixtures should not be required for finder health.
     // Keep this test focused on generic UX invariants.
@@ -48,7 +47,7 @@ test.describe("Navigation and routing", { tag: "@pr-e2e" }, () => {
       page.getByRole("heading", { level: 1, name: /Find your next health professional in Cyprus|Health Professionals in Cyprus|Find a Professional/i })
     ).toBeVisible();
 
-    await expect(page.getByText("No professionals match these filters.")).toHaveCount(0);
+    await expect(page.getByTestId("finder-missing-doctor-card")).toHaveCount(0);
   });
 
   test("finder pricing CTA jumps to founders pricing section", async ({ page }) => {

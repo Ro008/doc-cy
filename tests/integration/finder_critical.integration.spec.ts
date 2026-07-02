@@ -163,12 +163,11 @@ test.describe("Integration: finder business-critical UX", { tag: "@pr-e2e" }, ()
       await expect(page).toHaveURL(new RegExp(`${search.path}(?:\\?|$)`));
 
       const cardsCount = await page.locator("section.mt-6 article").count();
-      const emptyStateVisible = await page
-        .getByText(/No professionals match these filters\./i)
-        .first()
+      const invitationCardVisible = await page
+        .getByTestId("finder-missing-doctor-card")
         .isVisible()
         .catch(() => false);
-      if (cardsCount === 0 || emptyStateVisible) {
+      if (cardsCount === 0 || invitationCardVisible) {
         missingResults.push(linkLabel);
       }
     }
