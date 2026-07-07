@@ -48,16 +48,12 @@ function FinderAnchorStickyWeekHeader({
   const headerRef = React.useRef<HTMLDivElement>(null);
   const [isPinned, setIsPinned] = React.useState(false);
   const [pinnedStyle, setPinnedStyle] = React.useState<React.CSSProperties>({});
-  const [mounted, setMounted] = React.useState(false);
-
-  React.useEffect(() => {
-    setMounted(true);
-  }, []);
 
   React.useLayoutEffect(() => {
     const header = headerRef.current;
     if (!header) return;
 
+    let frame = 0;
     const update = () => {
       const rect = header.getBoundingClientRect();
       const pinned = rect.top <= STICKY_TOP_PX;
@@ -71,14 +67,20 @@ function FinderAnchorStickyWeekHeader({
       }
     };
 
-    update();
-    window.addEventListener("scroll", update, { passive: true, capture: true });
-    window.addEventListener("resize", update);
-    document.addEventListener("scroll", update, { passive: true, capture: true });
+    const scheduleUpdate = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(update);
+    };
+
+    scheduleUpdate();
+    window.addEventListener("scroll", scheduleUpdate, { passive: true, capture: true });
+    window.addEventListener("resize", scheduleUpdate);
+    document.addEventListener("scroll", scheduleUpdate, { passive: true, capture: true });
     return () => {
-      window.removeEventListener("scroll", update, { capture: true });
-      window.removeEventListener("resize", update);
-      document.removeEventListener("scroll", update, { capture: true });
+      cancelAnimationFrame(frame);
+      window.removeEventListener("scroll", scheduleUpdate, { capture: true });
+      window.removeEventListener("resize", scheduleUpdate);
+      document.removeEventListener("scroll", scheduleUpdate, { capture: true });
     };
   }, []);
 
@@ -94,7 +96,7 @@ function FinderAnchorStickyWeekHeader({
       >
         {headerContent}
       </div>
-      {mounted && isPinned
+      {isPinned && typeof document !== "undefined"
         ? createPortal(
             <div
               data-testid="finder-availability-week-nav-pinned"

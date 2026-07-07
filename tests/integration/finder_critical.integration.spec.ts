@@ -107,6 +107,59 @@ async function createVerifiedDoctor(
   };
 }
 
+async function seedWeekdayAvailabilitySettings(
+  admin: ReturnType<typeof createClient>,
+  doctorId: string,
+): Promise<void> {
+  const day = {
+    enabled: true,
+    start_time: "09:00:00",
+    end_time: "17:00:00",
+  };
+  const disabledDay = {
+    enabled: false,
+    start_time: "09:00:00",
+    end_time: "17:00:00",
+  };
+  const settingsUpsert = await admin.from("doctor_settings").upsert(
+    {
+      doctor_id: doctorId,
+      monday: true,
+      tuesday: true,
+      wednesday: true,
+      thursday: true,
+      friday: true,
+      saturday: false,
+      sunday: false,
+      start_time: "09:00:00",
+      end_time: "17:00:00",
+      weekly_schedule: {
+        monday: day,
+        tuesday: day,
+        wednesday: day,
+        thursday: day,
+        friday: day,
+        saturday: disabledDay,
+        sunday: disabledDay,
+      },
+      break_start: null,
+      break_end: null,
+      holiday_mode_enabled: false,
+      holiday_start_date: null,
+      holiday_end_date: null,
+      pause_online_bookings: false,
+      slot_duration_minutes: 30,
+      booking_horizon_days: 90,
+      minimum_notice_hours: 1,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "doctor_id" },
+  );
+  if (settingsUpsert.error) {
+    throw new Error(`Failed preparing doctor settings: ${settingsUpsert.error.message}`);
+  }
+}
+
 test.describe("Integration: finder business-critical UX", { tag: "@pr-e2e" }, () => {
   test("footer popular quick links should lead to non-empty finder results", async ({ page }, testInfo) => {
     test.skip(
@@ -411,6 +464,72 @@ test.describe("Integration: finder business-critical UX", { tag: "@pr-e2e" }, ()
       for (const doctor of created) {
         await admin.from("doctors").delete().eq("id", doctor.doctorId);
         await admin.auth.admin.deleteUser(doctor.authUserId);
+      }
+    }
+  });
+
+  test("test profile card pins shared availability week nav on scroll", async ({ page }) => {
+    const baseUrl = process.env.PLAYWRIGHT_BASE_URL ?? "";
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+    const serviceRole = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
+
+    const unsafeReason = assertSafeIntegrationTarget(baseUrl, supabaseUrl);
+    test.skip(Boolean(unsafeReason), unsafeReason ?? undefined);
+    test.skip(!baseUrl || !supabaseUrl || !serviceRole, "Missing integration env vars.");
+    test.skip(
+      !finderIncludesRegisteredTestProfiles(),
+      "NEXT_PUBLIC_DOC_CY_FINDER_INCLUDE_TEST_PROFILES is not enabled.",
+    );
+
+    const admin = createClient(supabaseUrl, serviceRole);
+    const nonce = `${Date.now()}-${Math.floor(Math.random() * 100000)}`;
+    let created: CreatedDoctor | null = null;
+
+    try {
+      created = await createVerifiedDoctor(admin, nonce, {
+        slugPrefix: "finder-card-avail",
+        name: `Avail Sticky ${nonce}`,
+        specialty: "Dentistry",
+        district: "Paphos",
+        languages: ["English"],
+      });
+      await seedWeekdayAvailabilitySettings(admin, created.doctorId);
+
+      await page.goto(
+        `/finder/paphos/dentistry?name=${encodeURIComponent(created.name)}`,
+      );
+      const card = page
+        .locator("section.mt-6 article")
+        .filter({ has: page.getByText(created.name, { exact: true }) })
+        .first();
+
+      await expect(card).toBeVisible({ timeout: 20000 });
+      await expect(card.getByTestId("finder-card-calendar-preview")).toBeVisible();
+      await expect(page.getByTestId("finder-availability-week-nav")).toBeVisible();
+      await expect(card.getByRole("button", { name: /Show next week/i })).toBeVisible();
+
+      await page.setViewportSize({ width: 1280, height: 720 });
+      await page.locator("[data-finder-sticky-week-anchor]").scrollIntoViewIfNeeded();
+      for (let step = 0; step < 40; step += 1) {
+        await page.mouse.wheel(0, 200);
+        if ((await page.getByTestId("finder-availability-week-nav-pinned").count()) > 0) {
+          break;
+        }
+      }
+
+      await expect(page.getByTestId("finder-availability-week-nav-pinned")).toBeVisible({
+        timeout: 5000,
+      });
+      await expect(
+        page
+          .getByTestId("finder-availability-week-nav-pinned")
+          .getByRole("button", { name: /Show next week/i }),
+      ).toBeVisible();
+    } finally {
+      if (created) {
+        await admin.from("doctor_settings").delete().eq("doctor_id", created.doctorId);
+        await admin.from("doctors").delete().eq("id", created.doctorId);
+        await admin.auth.admin.deleteUser(created.authUserId);
       }
     }
   });
