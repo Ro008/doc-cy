@@ -27,7 +27,7 @@ export function useManualBookingRequestFeedback({
     setPending(true);
     try {
       const result = await submitPatientBookingRequest(manualId);
-      if (!result.ok) {
+      if (result.ok === false) {
         toast.error(patientBookingRequestErrorMessage(result.reason, result.status));
         return;
       }

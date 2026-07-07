@@ -50,7 +50,7 @@ function pickUniqueIndices(count: number, maxExclusive: number, rng: () => numbe
     indices.add(Math.floor(rng() * maxExclusive));
     guard += 1;
   }
-  return [...indices];
+  return Array.from(indices);
 }
 
 /** Stable fake availability: 4–6 open slots per manual listing (seeded per card). */
