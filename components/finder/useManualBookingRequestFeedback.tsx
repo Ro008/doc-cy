@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { ManualBookingRequestModal } from "@/components/finder/ManualBookingRequestModal";
 import {
@@ -19,21 +20,25 @@ export function useManualBookingRequestFeedback({
   doctorName,
   addressMapsLink,
 }: Options) {
-  const [pending, setPending] = React.useState(false);
+  const router = useRouter();
+  const [pendingSlotKey, setPendingSlotKey] = React.useState<string | null>(null);
   const [modalOpen, setModalOpen] = React.useState(false);
+  const [wasDuplicate, setWasDuplicate] = React.useState(false);
 
-  async function submit() {
-    if (pending) return;
-    setPending(true);
+  async function submit(slotKey: string) {
+    if (pendingSlotKey) return;
+    setPendingSlotKey(slotKey);
     try {
       const result = await submitPatientBookingRequest(manualId);
       if (result.ok === false) {
         toast.error(patientBookingRequestErrorMessage(result.reason, result.status));
         return;
       }
+      setWasDuplicate(Boolean(result.duplicate));
       setModalOpen(true);
+      router.refresh();
     } finally {
-      setPending(false);
+      setPendingSlotKey(null);
     }
   }
 
@@ -42,9 +47,10 @@ export function useManualBookingRequestFeedback({
       open={modalOpen}
       doctorName={doctorName}
       addressMapsLink={addressMapsLink}
+      wasDuplicate={wasDuplicate}
       onClose={() => setModalOpen(false)}
     />
   );
 
-  return { pending, submit, modal };
+  return { pendingSlotKey, submit, modal };
 }

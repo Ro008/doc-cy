@@ -25,7 +25,7 @@ export function FinderManualCardAvailabilityGrid({
   anchorStickyWeekNav = false,
 }: Props) {
   const { dayHeaders, windowStart, visibleDayCount, visibleDays } = useFinderAvailabilityWeek();
-  const { pending, submit, modal } = useManualBookingRequestFeedback({
+  const { pendingSlotKey, submit, modal } = useManualBookingRequestFeedback({
     manualId,
     doctorName,
     addressMapsLink,
@@ -38,12 +38,17 @@ export function FinderManualCardAvailabilityGrid({
 
   const visibleCalendarDays = previewCalendar.slice(windowStart, windowStart + visibleDayCount);
   const headerDays = anchorStickyWeekNav ? visibleDays : visibleCalendarDays;
+  const isSubmitting = pendingSlotKey !== null;
 
   if (previewCalendar.length === 0) return null;
 
   return (
     <>
-      <div data-testid="finder-card-calendar-preview">
+      <div
+        data-testid="finder-card-calendar-preview"
+        aria-busy={isSubmitting}
+        aria-live="polite"
+      >
         <div className="rounded-lg border border-ink-200 bg-white">
           {anchorStickyWeekNav ? (
             <FinderAvailabilityStickyWeekHeader days={headerDays} />
@@ -53,17 +58,38 @@ export function FinderManualCardAvailabilityGrid({
           <FinderAvailabilityDaySlotGrid
             days={visibleCalendarDays}
             resetKey={`${manualId}:${windowStart}`}
-            renderSlot={(slot, day) => (
-              <button
-                type="button"
-                disabled={pending}
-                onClick={submit}
-                className={`${finderAvailabilitySlotClassName} disabled:cursor-wait disabled:opacity-70`}
-                title={`Book ${day.weekdayLabel} ${day.dateLabel} at ${slot.timeLabel}`}
-              >
-                <span className="whitespace-nowrap tabular-nums">{slot.timeLabel}</span>
-              </button>
-            )}
+            renderSlot={(slot, day) => {
+              const isActiveSlot = pendingSlotKey === slot.slotKey;
+
+              return (
+                <button
+                  type="button"
+                  disabled={isSubmitting}
+                  aria-busy={isActiveSlot}
+                  onClick={() => submit(slot.slotKey)}
+                  className={`relative inline-flex w-full items-center justify-center rounded-md bg-clinical-500 px-1 py-1 text-[10px] font-semibold leading-none text-white transition hover:bg-clinical-400 disabled:cursor-wait disabled:hover:bg-clinical-500 ${
+                    isSubmitting && !isActiveSlot ? "opacity-45" : ""
+                  } ${isActiveSlot ? "opacity-100" : ""}`}
+                  title={`Request online booking for ${day.weekdayLabel} ${day.dateLabel} at ${slot.timeLabel}`}
+                >
+                  <span
+                    className={`whitespace-nowrap tabular-nums ${
+                      isActiveSlot ? "opacity-0" : "opacity-100"
+                    }`}
+                  >
+                    {slot.timeLabel}
+                  </span>
+                  {isActiveSlot ? (
+                    <span className="absolute inset-0 flex items-center justify-center">
+                      <span
+                        aria-hidden
+                        className="h-3 w-3 animate-spin rounded-full border border-white border-r-transparent"
+                      />
+                    </span>
+                  ) : null}
+                </button>
+              );
+            }}
           />
         </div>
       </div>

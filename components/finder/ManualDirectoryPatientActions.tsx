@@ -4,6 +4,28 @@ import * as React from "react";
 import { PendingLink } from "@/components/navigation/PendingLink";
 import { emitOpenFeedback } from "@/lib/doccy-feedback";
 
+/** Scarcity signal when patients have requested online booking recently. */
+export function ManualDirectoryMonthlyRequestBadge({
+  monthlyRequestCount,
+  className = "",
+}: {
+  monthlyRequestCount: number;
+  className?: string;
+}) {
+  if (monthlyRequestCount <= 0) return null;
+
+  const patientLabel = monthlyRequestCount === 1 ? "patient" : "patients";
+
+  return (
+    <p
+      className={`rounded-lg border border-amber-300/80 bg-gradient-to-r from-amber-50 via-orange-50 to-amber-50 px-3 py-2 text-center text-xs font-bold leading-snug text-amber-950 shadow-[0_2px_8px_rgba(245,158,11,0.18)] ring-1 ring-amber-200/70 ${className}`}
+      role="status"
+    >
+      🔥 {monthlyRequestCount} {patientLabel} requested online booking recently
+    </p>
+  );
+}
+
 type ManualListingContext = {
   displayName: string;
   specialty: string;
