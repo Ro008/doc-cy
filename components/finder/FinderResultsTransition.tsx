@@ -55,8 +55,8 @@ export function FinderResultsTransition({ children }: FinderResultsTransitionPro
     <div className="relative">
       <div
         aria-busy={isTransitioning}
-        className={`transition-all duration-200 ease-out ${
-          isTransitioning ? "opacity-60 blur-[2px]" : "opacity-100 blur-0"
+        className={`transition-opacity duration-200 ease-out ${
+          isTransitioning ? "opacity-60 blur-[2px]" : "opacity-100"
         }`}
       >
         {children}

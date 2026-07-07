@@ -241,7 +241,7 @@ test.describe("Integration: finder business-critical UX", { tag: "@pr-e2e" }, ()
     await expect(page.locator("section.mt-6 article")).toHaveCount(expectedTotal, { timeout: 20000 });
   });
 
-  test("registered card renders avatar, languages and Book Online slug CTA", async ({ page }) => {
+  test("registered card renders avatar, languages and profile links to booking page", async ({ page }) => {
     const baseUrl = process.env.PLAYWRIGHT_BASE_URL ?? "";
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
     const serviceRole = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
@@ -274,10 +274,13 @@ test.describe("Integration: finder business-critical UX", { tag: "@pr-e2e" }, ()
       await expect(card.getByText("Speaks", { exact: true })).toBeVisible();
       await expect(card.getByText("Greek", { exact: true })).toBeVisible();
       await expect(card.getByText("English", { exact: true })).toBeVisible();
-      await expect(card.getByRole("link", { name: /Book Online/i })).toHaveAttribute(
+      await expect(card.getByRole("link", { name: created.name, exact: true })).toHaveAttribute(
         "href",
-        `/${created.slug}`
+        `/${created.slug}`,
       );
+      await expect(
+        card.getByRole("link", { name: `View ${created.name} booking page` }),
+      ).toHaveAttribute("href", `/${created.slug}`);
 
       const avatar = card.locator("img").first();
       await expect(avatar).toHaveAttribute("src", new RegExp(`profiles/qa-card-${nonce}/avatar.jpg`));

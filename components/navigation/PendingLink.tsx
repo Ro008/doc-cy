@@ -12,6 +12,7 @@ type PendingLinkProps = {
   children: React.ReactNode;
   className?: string;
   "aria-current"?: "page" | undefined;
+  "aria-label"?: string;
 };
 
 export function PendingLink({
@@ -19,6 +20,7 @@ export function PendingLink({
   children,
   className,
   "aria-current": ariaCurrent,
+  "aria-label": ariaLabel,
 }: PendingLinkProps) {
   const router = useRouter();
   const { pending, beginNavigation } = useLinkNavigationPending(href);
@@ -28,6 +30,7 @@ export function PendingLink({
     <Link
       href={href}
       aria-current={ariaCurrent}
+      aria-label={ariaLabel}
       aria-disabled={pending}
       aria-busy={pending}
       onClick={(event) => {
