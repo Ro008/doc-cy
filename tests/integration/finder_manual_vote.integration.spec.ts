@@ -2,7 +2,7 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
 
 /**
- * Clicks "Request Digital Booking" on a manual finder card after a **random** district +
+ * Clicks an available calendar slot on a manual finder card after a **random** district +
  * **random** specialty (from live dropdowns), so runs tend to hit different cards and you
  * see varied rows on the founder dashboard (testing DB only).
  *
@@ -52,12 +52,11 @@ async function optionValuesNonEmpty(select: Locator): Promise<string[]> {
   return (await optionValues(select)).filter((v) => v.length > 0);
 }
 
-/** Random district × specialty until a manual card shows the vote CTA. */
 async function applyFinderFilters(page: Page): Promise<void> {
   await page.getByRole("button", { name: /^Show results$/i }).click();
 }
 
-async function findVisibleVoteButton(page: Page): Promise<Locator> {
+async function findManualCardCalendarSlot(page: Page): Promise<Locator> {
   const districtSelect = page.getByLabel("District");
   const specialtySelect = page.getByLabel("Specialty");
 
@@ -79,23 +78,30 @@ async function findVisibleVoteButton(page: Page): Promise<Locator> {
       await applyFinderFilters(page);
       await expect(page).toHaveURL(/\/finder\//, { timeout: 20_000 });
 
-      const vote = page.getByRole("button", { name: /Request Digital Booking/i }).first();
+      const manualCard = page
+        .locator("article")
+        .filter({ hasText: /Are you this professional\?/i })
+        .first();
+      const slot = manualCard
+        .getByTestId("finder-card-calendar-preview")
+        .getByRole("button")
+        .first();
       try {
-        await expect(vote).toBeVisible({ timeout: 10_000 });
-        return vote;
+        await expect(slot).toBeVisible({ timeout: 10_000 });
+        return slot;
       } catch {
-        /* no manual card for this combo */
+        /* no manual card with calendar slot for this combo */
       }
     }
   }
 
   throw new Error(
-    "No manual finder card with “Request Digital Booking” found for any random district/specialty combo.",
+    "No manual finder card with an available calendar slot found for any random district/specialty combo.",
   );
 }
 
 test.describe("Integration: finder manual card vote", () => {
-  test("Request Digital Booking succeeds against testing Supabase (not prod)", async ({
+  test("manual calendar slot vote succeeds against testing Supabase (not prod)", async ({
     page,
   }) => {
     const baseUrl = (process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000").trim();
@@ -117,7 +123,7 @@ test.describe("Integration: finder manual card vote", () => {
       })
     ).toBeVisible({ timeout: 25_000 });
 
-    const voteButton = await findVisibleVoteButton(page);
+    const calendarSlot = await findManualCardCalendarSlot(page);
 
     const responsePromise = page.waitForResponse(
       (res) =>
@@ -131,7 +137,7 @@ test.describe("Integration: finder manual card vote", () => {
         req.method() === "POST",
     );
 
-    await voteButton.click();
+    await calendarSlot.click();
 
     const [req, res] = await Promise.all([requestPromise, responsePromise]);
     const body = req.postData();
@@ -147,7 +153,8 @@ test.describe("Integration: finder manual card vote", () => {
     }
 
     expect([200, 201]).toContain(res.status());
-    await expect(page.getByText(/Thanks for your vote/i)).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("dialog")).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: /Profile not activated yet/i })).toBeVisible();
 
     if (res.status() === 201 && manualId) {
       const { data: rows, error } = await admin

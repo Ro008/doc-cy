@@ -10,6 +10,7 @@ import {
 } from "@/lib/public/compute-public-booking-slots";
 
 type FinderAvailabilityWeekContextValue = {
+  dayHeaders: FinderAvailabilityDayHeader[];
   windowStart: number;
   visibleDayCount: number;
   visibleDays: FinderAvailabilityDayHeader[];
@@ -49,6 +50,7 @@ function FinderAvailabilityWeekProvider({ dayHeaders, children }: ProviderProps)
   const value = React.useMemo<FinderAvailabilityWeekContextValue>(() => {
     const visibleDays = dayHeaders.slice(windowStart, windowStart + visibleDayCount);
     return {
+      dayHeaders,
       windowStart,
       visibleDayCount,
       visibleDays,

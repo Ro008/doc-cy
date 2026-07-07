@@ -17,9 +17,9 @@ import { GesyProviderBadge } from "@/components/brand/GesyProviderBadge";
 import {
   ManualDirectoryDoctorClaimFooter,
   ManualDirectoryReportIncorrectInfoLink,
-  ManualDirectoryVoteButton,
 } from "@/components/finder/ManualDirectoryPatientActions";
 import { FinderCardAvailabilityGrid } from "@/components/finder/FinderCardAvailabilityGrid";
+import { FinderManualCardAvailabilityGrid } from "@/components/finder/FinderManualCardAvailabilityGrid";
 import { FinderResultsAvailabilityShell } from "@/components/finder/FinderResultsAvailabilityShell";
 import {
   finderRegisteredCardDetailsGridClass,
@@ -28,8 +28,7 @@ import {
   finderRegisteredIdentityColumnClass,
 } from "@/components/finder/finder-availability-layout";
 import {
-  finderCardManualCtaColumnClass,
-  finderCardPrimaryCtaClass,
+  finderCardManualFooterClass,
 } from "@/components/finder/finder-card-cta";
 import {
   districtToSlug,
@@ -90,8 +89,6 @@ type ManualFinderRow = {
   district: CyprusDistrict;
   address_maps_link: string;
   photoUrl: string | null;
-  /** Approx. unique patient requests in the last 30 days (finder scarcity badge). */
-  monthlyRequestCount: number;
 };
 
 const SEO_CITIES: CyprusDistrict[] = ["Nicosia", "Limassol", "Paphos", "Larnaca"];
@@ -357,47 +354,16 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
     if (manualRes.error) {
       dataWarning = dataWarning ?? "Could not load manual directory entries.";
     } else {
-      const monthlySinceIso = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-      const monthlyRequestCountByManualId = new Map<string, number>();
-
-      const { data: monthlyRequestRows, error: monthlyRequestErr } = await supabase
-        .from("directory_manual_patient_booking_requests")
-        .select("id, manual_id, voter_key")
-        .gte("created_at", monthlySinceIso)
-        .limit(12000);
-
-      if (!monthlyRequestErr && monthlyRequestRows?.length) {
-        const votersByManual = new Map<string, Set<string>>();
-        for (const r of monthlyRequestRows) {
-          const mid = String((r as { manual_id?: string }).manual_id ?? "");
-          const id = String((r as { id?: string }).id ?? "");
-          const vk = (r as { voter_key?: string | null }).voter_key?.trim();
-          const dedupeId = vk || `legacy:${id}`;
-          if (!mid) continue;
-          const cur = votersByManual.get(mid);
-          if (!cur) {
-            votersByManual.set(mid, new Set([dedupeId]));
-          } else {
-            cur.add(dedupeId);
-          }
-        }
-        for (const [mid, voters] of Array.from(votersByManual.entries())) {
-          monthlyRequestCountByManualId.set(mid, voters.size);
-        }
-      }
-
       manualRows = (manualRes.data ?? []).map((row) => {
         const addressMapsLink = String(row.address_maps_link ?? "");
-        const manualId = row.id as string;
         return {
-          id: manualId,
+          id: row.id as string,
           name: String(row.name ?? "Professional"),
           displayName: doctorDashboardDisplayName(String(row.name ?? "Professional")),
           specialty: String(row.specialty ?? "Specialty not set"),
           district: row.district as CyprusDistrict,
           address_maps_link: addressMapsLink,
           photoUrl: getFinderManualPhotoUrl(addressMapsLink),
-          monthlyRequestCount: monthlyRequestCountByManualId.get(manualId) ?? 0,
         };
       });
     }
@@ -478,19 +444,20 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
     ...filteredRegistered.map((row) => ({ kind: "registered" as const, row })),
     ...filteredManual.map((row) => ({ kind: "manual" as const, row })),
   ];
-  const showFinderAvailabilityWeekNav = filteredRegistered.some((row) => {
+  const hasRegisteredAvailabilityGrid = filteredRegistered.some((row) => {
     const calendar = testDoctorAvailabilityCalendars.get(row.id);
     return Boolean(calendar && calendar.days.length > 0 && row.slug);
   });
+  const showFinderAvailabilityWeekNav =
+    hasRegisteredAvailabilityGrid || filteredManual.length > 0;
   const stickyWeekAnchorDoctorId = showFinderAvailabilityWeekNav
-    ? unifiedResults.find(
-        (item) =>
-          item.kind === "registered" &&
-          Boolean(
-            item.row.slug &&
-              testDoctorAvailabilityCalendars.get(item.row.id)?.days.length,
-          ),
-      )?.row.id ?? null
+    ? unifiedResults.find((item) => {
+        if (item.kind === "registered") {
+          const calendar = testDoctorAvailabilityCalendars.get(item.row.id);
+          return Boolean(calendar && calendar.days.length > 0 && item.row.slug);
+        }
+        return true;
+      })?.row.id ?? null
     : null;
   const finderAvailabilityDayHeaders = buildFinderAvailabilityDayHeaders();
   const hasActiveFilters = Boolean(activeDistrict || activeSpecialty || activeName);
@@ -738,9 +705,12 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                 return (
                   <article
                     key={`manual-${row.id}`}
-                    className="flex w-full flex-col gap-4 rounded-2xl border border-ink-200 bg-white p-4 shadow-sm sm:flex-row sm:items-stretch sm:gap-5 sm:p-5"
+                    className="flex flex-col gap-4 rounded-2xl border border-ink-200 bg-white p-4 shadow-sm sm:p-5"
                   >
-                    <div className="flex min-w-0 shrink-0 items-start gap-3 sm:w-[260px] lg:w-[300px]">
+                    <div className={finderRegisteredCardRowClass}>
+                      <div
+                        className={`flex min-w-0 shrink-0 items-start gap-3 ${finderRegisteredIdentityColumnClass}`}
+                      >
                       <div
                         className={`h-[72px] w-[72px] shrink-0 overflow-hidden rounded-full border bg-ink-50 ring-2 ${
                           row.photoUrl
@@ -775,43 +745,45 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                       </div>
                     </div>
 
-                    <div className="min-w-0 flex-1 border-t border-ink-100 pt-4 sm:border-l sm:border-t-0 sm:pl-5 sm:pt-0">
-                      <p className="text-sm leading-relaxed text-ink-600">
-                        Online booking is not active for this professional yet. Want to skip the phone
-                        call next time?
-                      </p>
-                      <div className="mt-4">
-                        <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-ink-400">
-                          Location
-                        </p>
-                        <p className="mb-1.5 text-xs font-medium text-ink-500">{row.district}</p>
-                        <a
-                          href={row.address_maps_link}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-xs text-clinical-600 hover:text-clinical-500"
-                        >
-                          Open in Google Maps ↗
-                        </a>
-                        <p className="mt-2.5">
-                          <ManualDirectoryReportIncorrectInfoLink
-                            displayName={row.displayName}
-                            specialty={row.specialty}
-                            district={row.district}
+                    <div className={finderRegisteredDetailsSectionClass}>
+                      <div className={finderRegisteredCardDetailsGridClass}>
+                        <div className="space-y-4">
+                          <div>
+                            <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-ink-400">
+                              Location
+                            </p>
+                            <p className="mb-1.5 text-xs font-medium text-ink-500">{row.district}</p>
+                            <a
+                              href={row.address_maps_link}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs text-clinical-600 hover:text-clinical-500"
+                            >
+                              Open in Google Maps ↗
+                            </a>
+                            <p className="mt-2.5">
+                              <ManualDirectoryReportIncorrectInfoLink
+                                displayName={row.displayName}
+                                specialty={row.specialty}
+                                district={row.district}
+                              />
+                            </p>
+                          </div>
+                        </div>
+                        <div className="min-w-0">
+                          <FinderManualCardAvailabilityGrid
+                            manualId={row.id}
+                            doctorName={row.displayName}
+                            addressMapsLink={row.address_maps_link}
+                            anchorStickyWeekNav={row.id === stickyWeekAnchorDoctorId}
                           />
-                        </p>
+                        </div>
                       </div>
                     </div>
+                    </div>
 
-                    <div className={finderCardManualCtaColumnClass}>
-                      <ManualDirectoryVoteButton
-                        manualId={row.id}
-                        monthlyRequestCount={row.monthlyRequestCount}
-                        className="w-full"
-                      />
-                      <div className="border-t border-ink-200 pt-3">
-                        <ManualDirectoryDoctorClaimFooter />
-                      </div>
+                    <div className={finderCardManualFooterClass}>
+                      <ManualDirectoryDoctorClaimFooter />
                     </div>
                   </article>
                 );
