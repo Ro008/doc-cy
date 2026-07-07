@@ -106,7 +106,7 @@ export function FinderMissingDoctorCard({
   return (
     <div
       data-testid="finder-missing-doctor-card"
-      className="col-span-full mx-auto w-full max-w-xl rounded-2xl border border-ink-200 bg-white p-6 shadow-[0_1px_3px_rgba(26,43,60,0.06),0_8px_24px_rgba(11,123,181,0.08)] sm:p-8"
+      className="mx-auto w-full max-w-2xl rounded-2xl border border-ink-200 bg-white p-6 shadow-[0_1px_3px_rgba(26,43,60,0.06),0_8px_24px_rgba(11,123,181,0.08)] sm:p-8"
     >
       <div className="text-center">
         <h2 className="text-lg font-bold leading-snug tracking-tight text-ink-900 sm:text-xl">

@@ -1,0 +1,3 @@
+# Keep Next.js build output out of Dropbox sync (avoids EPERM on trace/cache on Windows).
+.next
+.next-local

@@ -4,6 +4,8 @@ type FinderResultsCountProps = {
   districtLabel?: string;
   specialtyLabel?: string;
   activeName?: string;
+  className?: string;
+  variant?: "default" | "footer";
 };
 
 function buildFilterHint(props: FinderResultsCountProps): string | null {
@@ -15,23 +17,38 @@ function buildFilterHint(props: FinderResultsCountProps): string | null {
   return parts.length > 0 ? parts.join(" · ") : null;
 }
 
-export function FinderResultsCount(props: FinderResultsCountProps) {
+export function FinderResultsCount({
+  className,
+  variant = "default",
+  ...props
+}: FinderResultsCountProps) {
   const { count, hasActiveFilters } = props;
   if (count <= 0) return null;
 
   const professionalWord = count === 1 ? "professional" : "professionals";
   const filterHint = buildFilterHint(props);
+  const resolvedClassName =
+    className ??
+    (variant === "footer"
+      ? "mt-4 border-t border-ink-100 pt-3 text-xs leading-relaxed text-ink-400"
+      : "mb-4 text-sm leading-relaxed text-ink-500");
+  const countClassName =
+    variant === "footer"
+      ? "font-medium tabular-nums text-ink-500"
+      : hasActiveFilters
+        ? "font-semibold tabular-nums text-ink-800"
+        : "font-semibold tabular-nums text-clinical-600";
 
   return (
     <p
       data-testid="finder-results-count"
-      className="mb-4 text-sm leading-relaxed text-ink-500"
+      className={resolvedClassName}
       aria-live="polite"
     >
       {hasActiveFilters ? (
         <>
           Showing{" "}
-          <span className="font-semibold tabular-nums text-ink-800">{count}</span>{" "}
+          <span className={countClassName}>{count}</span>{" "}
           {professionalWord}
           {filterHint ? (
             <span className="text-ink-400">
@@ -42,8 +59,8 @@ export function FinderResultsCount(props: FinderResultsCountProps) {
         </>
       ) : (
         <>
-          <span className="font-semibold tabular-nums text-clinical-600">{count}</span> health{" "}
-          {professionalWord} on DocCy across Cyprus
+          <span className={countClassName}>{count}</span> health {professionalWord} on DocCy across
+          Cyprus
         </>
       )}
     </p>
