@@ -45,7 +45,7 @@ export function FinderCardAvailabilityGrid({
               href={profileHref}
               navigationReason="profile"
               className={finderAvailabilitySlotClassName}
-              title={`Book ${day.weekdayLabel} ${day.dateLabel} at ${slot.timeLabel}`}
+              aria-label={`Book ${day.weekdayLabel} ${day.dateLabel} at ${slot.timeLabel}`}
             >
               <span className="whitespace-nowrap tabular-nums">{slot.timeLabel}</span>
             </PendingLink>
