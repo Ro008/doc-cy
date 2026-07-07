@@ -20,6 +20,11 @@ import {
   ManualDirectoryVoteButton,
 } from "@/components/finder/ManualDirectoryPatientActions";
 import {
+  finderCardCtaColumnClass,
+  finderCardManualCtaColumnClass,
+  finderCardPrimaryCtaClass,
+} from "@/components/finder/finder-card-cta";
+import {
   districtToSlug,
   isAllSlug,
   slugToDistrict,
@@ -545,16 +550,16 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
               specialtyLabel={activeSpecialty ? specialtyLabel : undefined}
               activeName={activeName || undefined}
             />
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+            <div className="flex flex-col gap-4">
               {unifiedResults.map((item) => {
                 if (item.kind === "registered") {
                   const row = item.row;
                   return (
                     <article
                       key={`registered-${row.id}`}
-                      className="flex h-full min-h-[276px] flex-col rounded-2xl border border-clinical-200 bg-white p-4 shadow-[0_1px_3px_rgba(26,43,60,0.06),0_4px_16px_rgba(11,123,181,0.05)]"
+                      className="flex w-full flex-col gap-4 rounded-2xl border border-clinical-200 bg-white p-4 shadow-[0_1px_3px_rgba(26,43,60,0.06),0_4px_16px_rgba(11,123,181,0.05)] sm:flex-row sm:items-stretch sm:gap-5 sm:p-5"
                     >
-                      <div className="flex items-start gap-3">
+                      <div className="flex min-w-0 shrink-0 items-start gap-3 sm:w-[260px] lg:w-[300px]">
                         <div className="h-[72px] w-[72px] shrink-0 overflow-hidden rounded-full border border-clinical-200 bg-clinical-50 ring-2 ring-clinical-100">
                           {row.avatarUrl ? (
                             <img
@@ -585,46 +590,52 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                           ) : null}
                         </div>
                       </div>
-                      <div className="mt-4 min-h-[64px]">
-                        <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-ink-400">
-                          Speaks
-                        </p>
-                        {row.languages.length > 0 ? (
-                          <div className="flex flex-wrap gap-1.5">
-                            {row.languages.slice(0, 4).map((language, index) => {
-                              const theme = languageThemeForLabel(language);
-                              return (
-                                <span
-                                  key={`${theme.label}-${index}`}
-                                  className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold leading-snug ${theme.pillClass}`}
-                                  title={theme.label}
-                                >
-                                  <span>{theme.label}</span>
-                                </span>
-                              );
-                            })}
+                      <div className="min-w-0 flex-1 border-t border-ink-100 pt-4 sm:border-l sm:border-t-0 sm:pl-5 sm:pt-0">
+                        <div className="grid gap-4 sm:grid-cols-2">
+                          <div>
+                            <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-ink-400">
+                              Speaks
+                            </p>
+                            {row.languages.length > 0 ? (
+                              <div className="flex flex-wrap gap-1.5">
+                                {row.languages.slice(0, 4).map((language, index) => {
+                                  const theme = languageThemeForLabel(language);
+                                  return (
+                                    <span
+                                      key={`${theme.label}-${index}`}
+                                      className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold leading-snug ${theme.pillClass}`}
+                                      title={theme.label}
+                                    >
+                                      <span>{theme.label}</span>
+                                    </span>
+                                  );
+                                })}
+                              </div>
+                            ) : (
+                              <p className="text-xs text-ink-400">Not specified</p>
+                            )}
                           </div>
-                        ) : (
-                          <p className="text-xs text-ink-400">Not specified</p>
-                        )}
-                      </div>
-                      <div className="mt-4">
-                        <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-ink-400">
-                          Location
-                        </p>
-                        <p className="text-xs leading-relaxed text-ink-600 whitespace-pre-wrap break-words">
-                          {row.clinic_address?.trim()
-                            ? row.clinic_address.trim()
-                            : "Not provided yet"}
-                        </p>
+                          <div>
+                            <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-ink-400">
+                              Location
+                            </p>
+                            <p className="text-xs leading-relaxed text-ink-600 whitespace-pre-wrap break-words">
+                              {row.clinic_address?.trim()
+                                ? row.clinic_address.trim()
+                                : "Not provided yet"}
+                            </p>
+                          </div>
+                        </div>
                       </div>
                       {row.slug ? (
-                        <PendingLink
-                          href={`/${row.slug}`}
-                          className="mt-auto inline-flex w-full items-center justify-center rounded-xl bg-clinical-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-clinical-400"
-                        >
-                          Book Online
-                        </PendingLink>
+                        <div className={finderCardCtaColumnClass}>
+                          <PendingLink
+                            href={`/${row.slug}`}
+                            className={finderCardPrimaryCtaClass}
+                          >
+                            Book Online
+                          </PendingLink>
+                        </div>
                       ) : null}
                     </article>
                   );
@@ -634,57 +645,49 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                 return (
                   <article
                     key={`manual-${row.id}`}
-                    className="flex h-full min-h-[340px] flex-col rounded-2xl border border-ink-200 bg-white p-4 shadow-sm"
+                    className="flex w-full flex-col gap-4 rounded-2xl border border-ink-200 bg-white p-4 shadow-sm sm:flex-row sm:items-stretch sm:gap-5 sm:p-5"
                   >
-                    <div className="flex min-h-0 flex-1 flex-col">
-                      <div className="flex items-start gap-3">
-                        <div
-                          className={`h-[72px] w-[72px] shrink-0 overflow-hidden rounded-full border bg-ink-50 ring-2 ${
-                            row.photoUrl
-                              ? "border-clinical-200 ring-clinical-100"
-                              : "border-ink-200 ring-ink-100"
-                          }`}
-                        >
-                          {row.photoUrl ? (
-                            <img
-                              src={row.photoUrl}
-                              alt={`${row.displayName} profile photo`}
-                              className="h-full w-full object-cover"
-                              loading="lazy"
-                            />
-                          ) : (
-                            <div className="flex h-full w-full items-center justify-center">
-                              <span className="text-sm font-semibold text-ink-600">
-                                {getInitials(row.displayName)}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-[17px] font-bold leading-[1.2] tracking-tight text-ink-900">
-                            {row.displayName}
-                          </p>
-                          <p className="mt-2 -ml-2 inline-flex max-w-full items-center rounded-full border border-ink-200 bg-ink-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-600">
-                            <span className="whitespace-normal break-words text-center leading-snug">
-                              {row.specialty}
+                    <div className="flex min-w-0 shrink-0 items-start gap-3 sm:w-[260px] lg:w-[300px]">
+                      <div
+                        className={`h-[72px] w-[72px] shrink-0 overflow-hidden rounded-full border bg-ink-50 ring-2 ${
+                          row.photoUrl
+                            ? "border-clinical-200 ring-clinical-100"
+                            : "border-ink-200 ring-ink-100"
+                        }`}
+                      >
+                        {row.photoUrl ? (
+                          <img
+                            src={row.photoUrl}
+                            alt={`${row.displayName} profile photo`}
+                            className="h-full w-full object-cover"
+                            loading="lazy"
+                          />
+                        ) : (
+                          <div className="flex h-full w-full items-center justify-center">
+                            <span className="text-sm font-semibold text-ink-600">
+                              {getInitials(row.displayName)}
                             </span>
-                          </p>
-                        </div>
+                          </div>
+                        )}
                       </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[17px] font-bold leading-[1.2] tracking-tight text-ink-900">
+                          {row.displayName}
+                        </p>
+                        <p className="mt-2 -ml-2 inline-flex max-w-full items-center rounded-full border border-ink-200 bg-ink-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-600">
+                          <span className="whitespace-normal break-words text-center leading-snug">
+                            {row.specialty}
+                          </span>
+                        </p>
+                      </div>
+                    </div>
 
-                      <p className="mt-3 text-sm leading-relaxed text-ink-600">
+                    <div className="min-w-0 flex-1 border-t border-ink-100 pt-4 sm:border-l sm:border-t-0 sm:pl-5 sm:pt-0">
+                      <p className="text-sm leading-relaxed text-ink-600">
                         Online booking is not active for this professional yet. Want to skip the phone
                         call next time?
                       </p>
-                    </div>
-
-                    <div className="mt-auto flex shrink-0 flex-col gap-0">
-                      <ManualDirectoryVoteButton
-                        manualId={row.id}
-                        monthlyRequestCount={row.monthlyRequestCount}
-                        className="mt-2 w-full"
-                      />
-                      <div className="mt-4 min-h-[84px]">
+                      <div className="mt-4">
                         <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-ink-400">
                           Location
                         </p>
@@ -705,7 +708,15 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                           />
                         </p>
                       </div>
-                      <div className="mt-3 border-t border-ink-200 pt-3">
+                    </div>
+
+                    <div className={finderCardManualCtaColumnClass}>
+                      <ManualDirectoryVoteButton
+                        manualId={row.id}
+                        monthlyRequestCount={row.monthlyRequestCount}
+                        className="w-full"
+                      />
+                      <div className="border-t border-ink-200 pt-3">
                         <ManualDirectoryDoctorClaimFooter />
                       </div>
                     </div>

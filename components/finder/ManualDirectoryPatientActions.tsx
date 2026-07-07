@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { toast } from "sonner";
+import { finderCardPrimaryCtaClass } from "@/components/finder/finder-card-cta";
 import { PendingLink } from "@/components/navigation/PendingLink";
 import { emitOpenFeedback } from "@/lib/doccy-feedback";
 
@@ -90,7 +91,7 @@ export function ManualDirectoryVoteButton({
         type="button"
         disabled={pending}
         onClick={submit}
-        className="inline-flex w-full items-center justify-center rounded-xl bg-clinical-500 px-5 py-3.5 text-base font-bold text-white shadow-[0_4px_14px_rgba(11,123,181,0.35)] transition hover:bg-clinical-400 hover:shadow-[0_6px_18px_rgba(11,123,181,0.4)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-clinical-500 disabled:cursor-not-allowed disabled:opacity-60"
+        className={finderCardPrimaryCtaClass}
       >
         {pending ? "Requesting..." : "Request Digital Booking"}
       </button>
