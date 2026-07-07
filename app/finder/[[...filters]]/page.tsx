@@ -16,6 +16,7 @@ import { FinderFaqSection } from "@/components/finder/FinderFaqSection";
 import { GesyProviderBadge } from "@/components/brand/GesyProviderBadge";
 import {
   ManualDirectoryDoctorClaimFooter,
+  ManualDirectoryMonthlyRequestBadge,
   ManualDirectoryReportIncorrectInfoLink,
 } from "@/components/finder/ManualDirectoryPatientActions";
 import { FinderCardAvailabilityGrid } from "@/components/finder/FinderCardAvailabilityGrid";
@@ -44,6 +45,9 @@ import {
   getPublicSpecialtyDisplayLabel,
   matchesFinderSpecialtyFilter,
 } from "@/lib/doctor-specialty-public";
+import {
+  finderManualVoteBadgeSinceIso,
+} from "@/lib/finder-manual-vote-badge";
 import { getFinderManualPhotoUrl } from "@/lib/finder-manual-photos";
 import { isRegisteredDoctorHiddenFromFinder, isTestProfileLike } from "@/lib/doctor-test-profile";
 import { loadAvailabilityCalendarsByDoctorId } from "@/lib/public/load-doctor-next-available-slot";
@@ -89,6 +93,8 @@ type ManualFinderRow = {
   district: CyprusDistrict;
   address_maps_link: string;
   photoUrl: string | null;
+  /** Unique patient requests in the badge rolling window (see finder-manual-vote-badge). */
+  monthlyRequestCount: number;
 };
 
 const SEO_CITIES: CyprusDistrict[] = ["Nicosia", "Limassol", "Paphos", "Larnaca"];
@@ -354,16 +360,47 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
     if (manualRes.error) {
       dataWarning = dataWarning ?? "Could not load manual directory entries.";
     } else {
+      const monthlySinceIso = finderManualVoteBadgeSinceIso();
+      const monthlyRequestCountByManualId = new Map<string, number>();
+
+      const { data: monthlyRequestRows, error: monthlyRequestErr } = await supabase
+        .from("directory_manual_patient_booking_requests")
+        .select("id, manual_id, voter_key")
+        .gte("created_at", monthlySinceIso)
+        .limit(12000);
+
+      if (!monthlyRequestErr && monthlyRequestRows?.length) {
+        const votersByManual = new Map<string, Set<string>>();
+        for (const r of monthlyRequestRows) {
+          const mid = String((r as { manual_id?: string }).manual_id ?? "");
+          const id = String((r as { id?: string }).id ?? "");
+          const vk = (r as { voter_key?: string | null }).voter_key?.trim();
+          const dedupeId = vk || `legacy:${id}`;
+          if (!mid) continue;
+          const cur = votersByManual.get(mid);
+          if (!cur) {
+            votersByManual.set(mid, new Set([dedupeId]));
+          } else {
+            cur.add(dedupeId);
+          }
+        }
+        for (const [mid, voters] of Array.from(votersByManual.entries())) {
+          monthlyRequestCountByManualId.set(mid, voters.size);
+        }
+      }
+
       manualRows = (manualRes.data ?? []).map((row) => {
         const addressMapsLink = String(row.address_maps_link ?? "");
+        const manualId = row.id as string;
         return {
-          id: row.id as string,
+          id: manualId,
           name: String(row.name ?? "Professional"),
           displayName: doctorDashboardDisplayName(String(row.name ?? "Professional")),
           specialty: String(row.specialty ?? "Specialty not set"),
           district: row.district as CyprusDistrict,
           address_maps_link: addressMapsLink,
           photoUrl: getFinderManualPhotoUrl(addressMapsLink),
+          monthlyRequestCount: monthlyRequestCountByManualId.get(manualId) ?? 0,
         };
       });
     }
@@ -770,7 +807,10 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                             </p>
                           </div>
                         </div>
-                        <div className="min-w-0">
+                        <div className="min-w-0 flex flex-col gap-2">
+                          <ManualDirectoryMonthlyRequestBadge
+                            monthlyRequestCount={row.monthlyRequestCount}
+                          />
                           <FinderManualCardAvailabilityGrid
                             manualId={row.id}
                             doctorName={row.displayName}
