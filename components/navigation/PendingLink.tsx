@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import * as React from "react";
 
-import { emitNavigationStart } from "@/lib/doccy-navigation";
+import { emitNavigationStart, type NavigationStartReason } from "@/lib/doccy-navigation";
 import { useLinkNavigationPending } from "@/hooks/useLinkNavigationPending";
 
 type PendingLinkProps = {
@@ -13,6 +13,7 @@ type PendingLinkProps = {
   className?: string;
   "aria-current"?: "page" | undefined;
   "aria-label"?: string;
+  navigationReason?: NavigationStartReason;
 };
 
 export function PendingLink({
@@ -21,9 +22,10 @@ export function PendingLink({
   className,
   "aria-current": ariaCurrent,
   "aria-label": ariaLabel,
+  navigationReason = "default",
 }: PendingLinkProps) {
   const router = useRouter();
-  const { pending, beginNavigation } = useLinkNavigationPending(href);
+  const { pending, beginNavigation } = useLinkNavigationPending(href, navigationReason);
   const isHashNavigation = href.includes("#");
 
   return (
@@ -40,7 +42,7 @@ export function PendingLink({
         }
         if (isHashNavigation) {
           event.preventDefault();
-          emitNavigationStart(href);
+          emitNavigationStart(href, navigationReason);
           if (href.startsWith("#")) {
             const target = document.querySelector(href);
             if (target instanceof HTMLElement) {

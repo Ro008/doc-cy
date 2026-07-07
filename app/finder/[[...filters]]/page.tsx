@@ -619,6 +619,7 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                         {row.slug ? (
                           <PendingLink
                             href={`/${row.slug}`}
+                            navigationReason="profile"
                             aria-label={`View ${row.displayName} booking page`}
                             className="group h-[72px] w-[72px] shrink-0 overflow-hidden rounded-full border border-clinical-200 bg-clinical-50 ring-2 ring-clinical-100 transition hover:border-clinical-300 hover:ring-clinical-200"
                           >
@@ -655,6 +656,7 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                           {row.slug ? (
                             <PendingLink
                               href={`/${row.slug}`}
+                              navigationReason="profile"
                               className="text-left text-[17px] font-bold leading-[1.2] tracking-tight text-ink-900 transition hover:text-clinical-600"
                             >
                               {row.displayName}

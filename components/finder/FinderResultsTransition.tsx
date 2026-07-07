@@ -2,8 +2,11 @@
 
 import * as React from "react";
 import { usePathname, useSearchParams } from "next/navigation";
-
-const START_EVENT = "doccy:navigation-start";
+import {
+  getNavigationStartMessage,
+  NAVIGATION_START_EVENT,
+  type NavigationStartDetail,
+} from "@/lib/doccy-navigation";
 
 type FinderResultsTransitionProps = {
   children: React.ReactNode;
@@ -13,11 +16,17 @@ export function FinderResultsTransition({ children }: FinderResultsTransitionPro
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [isTransitioning, setIsTransitioning] = React.useState(false);
+  const [transitionMessage, setTransitionMessage] = React.useState(
+    getNavigationStartMessage("finder-results"),
+  );
   const transitionStartedAtRef = React.useRef<number>(0);
   const clearTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   React.useEffect(() => {
-    function onStart() {
+    function onStart(event: Event) {
+      const reason =
+        (event as CustomEvent<NavigationStartDetail>).detail?.reason ?? "default";
+      setTransitionMessage(getNavigationStartMessage(reason));
       if (clearTimerRef.current) {
         clearTimeout(clearTimerRef.current);
         clearTimerRef.current = null;
@@ -25,8 +34,8 @@ export function FinderResultsTransition({ children }: FinderResultsTransitionPro
       transitionStartedAtRef.current = Date.now();
       setIsTransitioning(true);
     }
-    window.addEventListener(START_EVENT, onStart);
-    return () => window.removeEventListener(START_EVENT, onStart);
+    window.addEventListener(NAVIGATION_START_EVENT, onStart);
+    return () => window.removeEventListener(NAVIGATION_START_EVENT, onStart);
   }, []);
 
   React.useEffect(() => {
@@ -72,10 +81,9 @@ export function FinderResultsTransition({ children }: FinderResultsTransitionPro
             aria-hidden
             className="h-3.5 w-3.5 animate-spin rounded-full border border-clinical-400 border-r-transparent"
           />
-          <span>Updating results...</span>
+          <span>{transitionMessage}</span>
         </div>
       </div>
     </div>
   );
 }
-

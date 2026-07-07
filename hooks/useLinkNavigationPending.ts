@@ -6,10 +6,14 @@ import {
   clearNavigationPending,
   emitNavigationStart,
   subscribeNavigationPending,
+  type NavigationStartReason,
 } from "@/lib/doccy-navigation";
 
 /** One global pending key so only a single nav link shows loading at a time. */
-export function useLinkNavigationPending(linkKey: string) {
+export function useLinkNavigationPending(
+  linkKey: string,
+  navigationReason: NavigationStartReason = "default",
+) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [activeKey, setActiveKey] = useState<string | null>(null);
@@ -23,8 +27,8 @@ export function useLinkNavigationPending(linkKey: string) {
   const pending = activeKey === linkKey;
 
   const beginNavigation = useCallback(() => {
-    emitNavigationStart(linkKey);
-  }, [linkKey]);
+    emitNavigationStart(linkKey, navigationReason);
+  }, [linkKey, navigationReason]);
 
   return { pending, beginNavigation };
 }

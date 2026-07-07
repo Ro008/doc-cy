@@ -12,8 +12,7 @@ import type { CyprusDistrict } from "@/lib/cyprus-districts";
 import type { FinderSpecialtyOption } from "@/lib/finder-specialty-options";
 import { Info, Search } from "lucide-react";
 import { PendingLink } from "@/components/navigation/PendingLink";
-
-const START_EVENT = "doccy:navigation-start";
+import { emitNavigationStart, NAVIGATION_START_EVENT } from "@/lib/doccy-navigation";
 
 type FinderFiltersProps = {
   districts: readonly string[];
@@ -68,8 +67,8 @@ export function FinderFilters({
     function onStart() {
       setIsNavigating(true);
     }
-    window.addEventListener(START_EVENT, onStart);
-    return () => window.removeEventListener(START_EVENT, onStart);
+    window.addEventListener(NAVIGATION_START_EVENT, onStart);
+    return () => window.removeEventListener(NAVIGATION_START_EVENT, onStart);
   }, []);
 
   React.useEffect(() => {
@@ -102,7 +101,7 @@ export function FinderFilters({
       setPendingAction(null);
       return;
     }
-    window.dispatchEvent(new Event(START_EVENT));
+    emitNavigationStart(undefined, "finder-results");
     router.push(target);
     router.refresh();
   }

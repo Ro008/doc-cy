@@ -1,6 +1,25 @@
 /** Fired when client navigation starts (progress bar). */
 export const NAVIGATION_START_EVENT = "doccy:navigation-start";
 
+export type NavigationStartReason = "default" | "finder-results" | "profile";
+
+export type NavigationStartDetail = {
+  linkKey?: string;
+  reason?: NavigationStartReason;
+};
+
+const NAVIGATION_START_MESSAGES: Record<NavigationStartReason, string> = {
+  default: "Loading...",
+  "finder-results": "Updating results...",
+  profile: "Opening booking page...",
+};
+
+export function getNavigationStartMessage(
+  reason: NavigationStartReason = "default",
+): string {
+  return NAVIGATION_START_MESSAGES[reason];
+}
+
 /** Fired when the active pending link key changes. */
 export const NAVIGATION_PENDING_EVENT = "doccy:navigation-pending";
 
@@ -34,10 +53,17 @@ export function clearNavigationPending() {
   setPendingLinkKey(null);
 }
 
-export function emitNavigationStart(linkKey?: string) {
+export function emitNavigationStart(
+  linkKey?: string,
+  reason: NavigationStartReason = "default",
+) {
   if (typeof window === "undefined") return;
   if (linkKey) {
     setPendingLinkKey(linkKey);
   }
-  window.dispatchEvent(new Event(NAVIGATION_START_EVENT));
+  window.dispatchEvent(
+    new CustomEvent<NavigationStartDetail>(NAVIGATION_START_EVENT, {
+      detail: { linkKey, reason },
+    }),
+  );
 }
