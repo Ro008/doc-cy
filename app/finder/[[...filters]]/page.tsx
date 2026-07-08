@@ -790,14 +790,6 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                               Location
                             </p>
                             <p className="mb-1.5 text-xs font-medium text-ink-500">{row.district}</p>
-                            <a
-                              href={row.address_maps_link}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-xs text-clinical-600 hover:text-clinical-500"
-                            >
-                              Open in Google Maps ↗
-                            </a>
                             <p className="mt-2.5">
                               <ManualDirectoryReportIncorrectInfoLink
                                 displayName={row.displayName}
