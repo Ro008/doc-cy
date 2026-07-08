@@ -537,7 +537,7 @@ VALUES
     'Alexandra Koumpi',
     'Ophthalmology',
     'Paphos',
-    'https://maps.app.goo.gl/TzDvzRZVzgVjUWMm7'
+    'https://share.google/UP7Bxmp3mDmCglHe4'
   ),
   (
     'Elias Elia',
