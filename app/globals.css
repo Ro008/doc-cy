@@ -23,6 +23,42 @@ button {
   @apply font-medium;
 }
 
+/* Google Places Autocomplete dropdown (doctor clinic address in settings) */
+.pac-container {
+  z-index: 10000;
+  margin-top: 4px;
+  border-radius: 0.75rem;
+  border: 1px solid rgb(203 213 225);
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.18);
+  background: #ffffff;
+  font-family: var(--font-inter), system-ui, sans-serif;
+}
+
+.pac-item {
+  padding: 0.55rem 0.75rem;
+  color: #0f172a;
+  cursor: pointer;
+  border-top: 1px solid rgb(226 232 240);
+}
+
+.pac-item:first-child {
+  border-top: 0;
+}
+
+.pac-item:hover,
+.pac-item-selected {
+  background: rgb(240 249 255);
+}
+
+.pac-item-query {
+  color: #0f172a;
+  font-size: 0.875rem;
+}
+
+.pac-matched {
+  font-weight: 600;
+}
+
 /* React Day Picker – dark theme for booking calendar */
 .rdp-dark {
   --rdp-cell-size: 36px;

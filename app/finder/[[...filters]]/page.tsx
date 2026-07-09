@@ -53,6 +53,15 @@ import { isRegisteredDoctorHiddenFromFinder, isTestProfileLike } from "@/lib/doc
 import { loadAvailabilityCalendarsByDoctorId } from "@/lib/public/load-doctor-next-available-slot";
 import type { PublicAvailabilityCalendar } from "@/lib/public/compute-public-booking-slots";
 import { buildFinderAvailabilityDayHeaders } from "@/lib/public/compute-public-booking-slots";
+import {
+  fallbackDistrictCoordinates,
+  formatApproxDistanceAway,
+  formatDistanceAway,
+  getDistanceKm,
+  isLikelyCyprusCoordinates,
+  parseOptionalCoordinates,
+  type Coordinates,
+} from "@/lib/finder-distance";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -65,6 +74,8 @@ type FinderPageProps = {
     district?: string;
     specialty?: string;
     name?: string;
+    lat?: string;
+    lon?: string;
   };
 };
 
@@ -83,6 +94,8 @@ type RegisteredFinderRow = {
   clinic_address: string | null;
   isGesy: boolean;
   isSpecialtyApproved: boolean;
+  latitude: number | null;
+  longitude: number | null;
 };
 
 type ManualFinderRow = {
@@ -95,6 +108,20 @@ type ManualFinderRow = {
   photoUrl: string | null;
   /** Unique patient requests in the badge rolling window (see finder-manual-vote-badge). */
   monthlyRequestCount: number;
+  latitude: number | null;
+  longitude: number | null;
+};
+
+type UnifiedFinderResult = {
+  kind: "registered";
+  row: RegisteredFinderRow;
+  distanceKm: number | null;
+  usedDistrictFallbackForDistance: boolean;
+} | {
+  kind: "manual";
+  row: ManualFinderRow;
+  distanceKm: number | null;
+  usedDistrictFallbackForDistance: boolean;
 };
 
 const SEO_CITIES: CyprusDistrict[] = ["Nicosia", "Limassol", "Paphos", "Larnaca"];
@@ -159,6 +186,15 @@ function normalizeSpecialtyTerm(value: string): string {
 
 function normalizeDistrictTerm(value: string): string {
   return value.toLowerCase().trim();
+}
+
+function parseUserCoordinates(searchParams: FinderPageProps["searchParams"]): Coordinates | null {
+  const latRaw = String(searchParams?.lat ?? "").trim();
+  const lonRaw = String(searchParams?.lon ?? "").trim();
+  if (!latRaw || !lonRaw) return null;
+  const lat = Number(latRaw);
+  const lon = Number(lonRaw);
+  return parseOptionalCoordinates(lat, lon);
 }
 
 function matchesSpecialtyFilter(candidate: string, query: string): boolean {
@@ -266,6 +302,7 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
   const activeDistrict = resolveDistrictValue(params.filters?.[0], searchParams?.district);
   const activeSpecialty = resolveSpecialtyValue(params.filters?.[1], searchParams?.specialty);
   const activeName = normalizeSelectValue(searchParams?.name);
+  const userCoords = parseUserCoordinates(searchParams);
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim() || "https://www.mydoccy.com";
   const districts = CYPRUS_DISTRICTS;
 
@@ -275,24 +312,42 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
 
   if (supabase) {
     const registeredSelectAttempts = [
+      "id, name, specialty, district, slug, email, languages, avatar_url, is_test_profile, clinic_address, is_gesy, is_specialty_approved, latitude, longitude",
       "id, name, specialty, district, slug, email, languages, avatar_url, is_test_profile, clinic_address, is_gesy, is_specialty_approved",
+      "id, name, specialty, district, slug, email, languages, avatar_url, is_test_profile, clinic_address, latitude, longitude",
       "id, name, specialty, district, slug, email, languages, avatar_url, is_test_profile, clinic_address",
+      "id, name, specialty, district, slug, email, languages, avatar_url, clinic_address, latitude, longitude",
       "id, name, specialty, district, slug, email, languages, avatar_url, clinic_address",
+      "id, name, specialty, district, slug, email, languages, avatar_url, is_test_profile, latitude, longitude",
       "id, name, specialty, district, slug, email, languages, avatar_url, is_test_profile",
       "id, name, specialty, district, slug, email, languages, avatar_url",
+      "id, name, specialty, district, slug, email, languages, is_test_profile, latitude, longitude",
       "id, name, specialty, district, slug, email, languages, is_test_profile",
+      "id, name, specialty, district, slug, email, languages, latitude, longitude",
       "id, name, specialty, district, slug, email, languages",
+      "id, name, specialty, district, slug, email, is_test_profile, latitude, longitude",
       "id, name, specialty, district, slug, email, is_test_profile",
+      "id, name, specialty, district, slug, email, latitude, longitude",
       "id, name, specialty, district, slug, email",
+      "id, name, specialty, slug, email, is_test_profile, latitude, longitude",
       "id, name, specialty, slug, email, is_test_profile",
+      "id, name, specialty, slug, email, latitude, longitude",
       "id, name, specialty, slug, email",
+      "id, name, specialty, district, slug, languages, avatar_url, is_test_profile, latitude, longitude",
       "id, name, specialty, district, slug, languages, avatar_url, is_test_profile",
+      "id, name, specialty, district, slug, languages, avatar_url, latitude, longitude",
       "id, name, specialty, district, slug, languages, avatar_url",
+      "id, name, specialty, district, slug, languages, is_test_profile, latitude, longitude",
       "id, name, specialty, district, slug, languages, is_test_profile",
+      "id, name, specialty, district, slug, languages, latitude, longitude",
       "id, name, specialty, district, slug, languages",
+      "id, name, specialty, district, slug, is_test_profile, latitude, longitude",
       "id, name, specialty, district, slug, is_test_profile",
+      "id, name, specialty, district, slug, latitude, longitude",
       "id, name, specialty, district, slug",
+      "id, name, specialty, slug, is_test_profile, latitude, longitude",
       "id, name, specialty, slug, is_test_profile",
+      "id, name, specialty, slug, latitude, longitude",
       "id, name, specialty, slug",
     ];
 
@@ -336,6 +391,8 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
             isTestProfile: Boolean(raw.is_test_profile ?? false),
             clinic_address: (raw.clinic_address as string | null) ?? null,
             isGesy: Boolean(raw.is_gesy ?? false),
+            latitude: parseOptionalCoordinates(raw.latitude, raw.longitude)?.latitude ?? null,
+            longitude: parseOptionalCoordinates(raw.latitude, raw.longitude)?.longitude ?? null,
           };
         })
         .filter(
@@ -350,14 +407,48 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
       break;
     }
 
-    const manualRes = await supabase
-      .from("directory_manual")
-      .select("id, name, specialty, district, address_maps_link")
-      .eq("is_archived", false)
-      .order("name", { ascending: true })
-      .limit(600);
+    let manualRowsRaw: Array<{
+      id: string;
+      name: string | null;
+      specialty: string | null;
+      district: CyprusDistrict;
+      address_maps_link: string | null;
+      latitude?: unknown;
+      longitude?: unknown;
+    }> = [];
+    const manualSelectAttempts = [
+      "id, name, specialty, district, address_maps_link, latitude, longitude",
+      "id, name, specialty, district, address_maps_link",
+    ];
+    let manualLoadError: { code?: string; message?: string } | null = null;
+    for (const selectClause of manualSelectAttempts) {
+      const manualRes = await supabase
+        .from("directory_manual")
+        .select(selectClause)
+        .eq("is_archived", false)
+        .order("name", { ascending: true })
+        .limit(600);
+      if (manualRes.error) {
+        manualLoadError = manualRes.error;
+        if (isRecoverableSelectSchemaError(manualRes.error)) {
+          continue;
+        }
+        break;
+      }
+      manualRowsRaw = ((manualRes.data ?? []) as unknown) as Array<{
+        id: string;
+        name: string | null;
+        specialty: string | null;
+        district: CyprusDistrict;
+        address_maps_link: string | null;
+        latitude?: unknown;
+        longitude?: unknown;
+      }>;
+      manualLoadError = null;
+      break;
+    }
 
-    if (manualRes.error) {
+    if (manualLoadError) {
       dataWarning = dataWarning ?? "Could not load manual directory entries.";
     } else {
       const monthlySinceIso = finderManualVoteBadgeSinceIso();
@@ -389,7 +480,7 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
         }
       }
 
-      manualRows = (manualRes.data ?? []).map((row) => {
+      manualRows = manualRowsRaw.map((row) => {
         const addressMapsLink = String(row.address_maps_link ?? "");
         const manualId = row.id as string;
         return {
@@ -401,6 +492,8 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
           address_maps_link: addressMapsLink,
           photoUrl: getFinderManualPhotoUrl(addressMapsLink),
           monthlyRequestCount: monthlyRequestCountByManualId.get(manualId) ?? 0,
+          latitude: parseOptionalCoordinates(row.latitude, row.longitude)?.latitude ?? null,
+          longitude: parseOptionalCoordinates(row.latitude, row.longitude)?.longitude ?? null,
         };
       });
     }
@@ -477,10 +570,52 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
     }
   }
 
-  const unifiedResults = [
-    ...filteredRegistered.map((row) => ({ kind: "registered" as const, row })),
-    ...filteredManual.map((row) => ({ kind: "manual" as const, row })),
+  function computeDistanceInfo(
+    district: string | null | undefined,
+    latitude: number | null,
+    longitude: number | null,
+  ): { distanceKm: number | null; usedDistrictFallbackForDistance: boolean } {
+    if (!userCoords) return { distanceKm: null, usedDistrictFallbackForDistance: false };
+    const exactCoords = parseOptionalCoordinates(latitude, longitude);
+    if (exactCoords) {
+      if (district && isCyprusDistrict(district) && !isLikelyCyprusCoordinates(exactCoords)) {
+        return {
+          distanceKm: getDistanceKm(userCoords, fallbackDistrictCoordinates(district)),
+          usedDistrictFallbackForDistance: true,
+        };
+      }
+      return {
+        distanceKm: getDistanceKm(userCoords, exactCoords),
+        usedDistrictFallbackForDistance: false,
+      };
+    }
+    if (district && isCyprusDistrict(district)) {
+      return {
+        distanceKm: getDistanceKm(userCoords, fallbackDistrictCoordinates(district)),
+        usedDistrictFallbackForDistance: true,
+      };
+    }
+    return { distanceKm: null, usedDistrictFallbackForDistance: false };
+  }
+
+  const unifiedResults: UnifiedFinderResult[] = [
+    ...filteredRegistered.map((row) => {
+      const distanceInfo = computeDistanceInfo(row.district, row.latitude, row.longitude);
+      return { kind: "registered" as const, row, ...distanceInfo };
+    }),
+    ...filteredManual.map((row) => {
+      const distanceInfo = computeDistanceInfo(row.district, row.latitude, row.longitude);
+      return { kind: "manual" as const, row, ...distanceInfo };
+    }),
   ];
+  if (userCoords) {
+    unifiedResults.sort((a, b) => {
+      if (a.distanceKm === null && b.distanceKm === null) return 0;
+      if (a.distanceKm === null) return 1;
+      if (b.distanceKm === null) return -1;
+      return a.distanceKm - b.distanceKm;
+    });
+  }
   const hasRegisteredAvailabilityGrid = filteredRegistered.some((row) => {
     const calendar = testDoctorAvailabilityCalendars.get(row.id);
     return Boolean(calendar && calendar.days.length > 0 && row.slug);
@@ -579,6 +714,8 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
               activeDistrict={activeDistrict}
               activeSpecialty={activeSpecialty}
               activeName={activeName}
+              activeLatitude={userCoords?.latitude ?? null}
+              activeLongitude={userCoords?.longitude ?? null}
               specialtyOptions={finderSpecialtyOptions}
             />
             <FinderResultsCount
@@ -680,6 +817,19 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                               <GesyProviderBadge size="sm" />
                             </div>
                           ) : null}
+                          {item.distanceKm !== null ? (
+                            <p
+                              className={
+                                item.usedDistrictFallbackForDistance
+                                  ? "text-xs font-medium text-ink-500"
+                                  : "text-xs font-semibold text-clinical-700"
+                              }
+                            >
+                              {item.usedDistrictFallbackForDistance
+                                ? formatApproxDistanceAway(item.distanceKm)
+                                : formatDistanceAway(item.distanceKm)}
+                            </p>
+                          ) : null}
                         </div>
                       </div>
                       <div className={finderRegisteredDetailsSectionClass}>
@@ -779,6 +929,19 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                             {row.specialty}
                           </span>
                         </p>
+                        {item.distanceKm !== null ? (
+                          <p
+                            className={`mt-2 text-xs ${
+                              item.usedDistrictFallbackForDistance
+                                ? "font-medium text-ink-500"
+                                : "font-semibold text-clinical-700"
+                            }`}
+                          >
+                            {item.usedDistrictFallbackForDistance
+                              ? formatApproxDistanceAway(item.distanceKm)
+                              : formatDistanceAway(item.distanceKm)}
+                          </p>
+                        ) : null}
                       </div>
                     </div>
 

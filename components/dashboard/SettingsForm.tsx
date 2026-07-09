@@ -24,6 +24,13 @@ import {
   parseDDMMYYYYToISO,
 } from "@/lib/date-format";
 import { CYPRUS_DISTRICTS, isCyprusDistrict } from "@/lib/cyprus-districts";
+import { ClinicAddressAutocomplete } from "@/components/dashboard/ClinicAddressAutocomplete";
+import {
+  clinicLocationFromParts,
+  clinicLocationRequiresSelection,
+  hasConfirmedClinicCoordinates,
+  type ClinicLocation,
+} from "@/lib/clinic-location";
 
 export type DoctorSettingsFormData = {
   doctorId: string;
@@ -38,6 +45,9 @@ export type DoctorSettingsFormData = {
   whatsappNumber?: string;
   district: string;
   clinicAddress: string;
+  clinicLatitude?: number | null;
+  clinicLongitude?: number | null;
+  clinicPlaceId?: string | null;
   monday: boolean;
   tuesday: boolean;
   wednesday: boolean;
@@ -174,7 +184,23 @@ export function SettingsForm({ initial }: SettingsFormProps) {
     initial.whatsappNumber ?? ""
   );
   const [district, setDistrict] = React.useState(initial.district ?? "");
-  const [clinicAddress, setClinicAddress] = React.useState(initial.clinicAddress ?? "");
+  const initialClinicAddressRef = React.useRef(initial.clinicAddress ?? "");
+  const [clinicLocation, setClinicLocation] = React.useState<ClinicLocation>(() =>
+    clinicLocationFromParts({
+      address: initial.clinicAddress,
+      latitude: initial.clinicLatitude,
+      longitude: initial.clinicLongitude,
+      placeId: initial.clinicPlaceId,
+      district: initial.district,
+    }),
+  );
+
+  const handleClinicLocationChange = React.useCallback((nextLocation: ClinicLocation) => {
+    setClinicLocation(nextLocation);
+    if (nextLocation.district) {
+      setDistrict(nextLocation.district);
+    }
+  }, []);
 
   const [weeklySchedule, setWeeklySchedule] = React.useState<WeeklySchedule>(
     initial.weeklySchedule
@@ -427,7 +453,18 @@ export function SettingsForm({ initial }: SettingsFormProps) {
       return;
     }
     if (!isCyprusDistrict(district)) {
-      const text = "Select your district so patients can find you in Health Finder.";
+      const text = hasConfirmedClinicCoordinates(clinicLocation)
+        ? "We could not detect your clinic district. Please re-select your clinic from Google suggestions."
+        : clinicLocation.address.trim()
+          ? "Select your district so patients can find you in Health Finder."
+          : "Add your clinic address so patients can find you in Health Finder.";
+      setMessage({ type: "error", text });
+      toast.error(text);
+      return;
+    }
+
+    if (clinicLocationRequiresSelection(clinicLocation, initialClinicAddressRef.current)) {
+      const text = "Please select your clinic from the Google suggestions.";
       setMessage({ type: "error", text });
       toast.error(text);
       return;
@@ -458,35 +495,47 @@ export function SettingsForm({ initial }: SettingsFormProps) {
 
     setSaving(true);
     try {
+      const savePayload: Record<string, unknown> = {
+        doctorId: initial.doctorId,
+        doctorPhone: whatsappNumber || null,
+        district: clinicLocation.district ?? district,
+        clinicAddress: clinicLocation.address.trim() || null,
+        specialty: specResult.specialty,
+        specialtyFromMaster: specResult.is_specialty_approved,
+        languages: langList,
+        monday: weeklySchedule.monday.enabled,
+        tuesday: weeklySchedule.tuesday.enabled,
+        wednesday: weeklySchedule.wednesday.enabled,
+        thursday: weeklySchedule.thursday.enabled,
+        friday: weeklySchedule.friday.enabled,
+        saturday: weeklySchedule.saturday.enabled,
+        sunday: weeklySchedule.sunday.enabled,
+        weeklySchedule,
+        breakEnabled,
+        breakStart,
+        breakEnd,
+        slotDurationMinutes,
+        bookingHorizonDays,
+        minimumNoticeHours,
+        holidayModeEnabled,
+        holidayStartDate: parsedHolidayStart,
+        holidayEndDate: parsedHolidayEnd,
+      };
+
+      if (clinicLocation.latitude != null && clinicLocation.longitude != null) {
+        savePayload.clinicLatitude = clinicLocation.latitude;
+        savePayload.clinicLongitude = clinicLocation.longitude;
+        savePayload.clinicPlaceId = clinicLocation.placeId;
+      } else if (!clinicLocation.address.trim()) {
+        savePayload.clinicLatitude = null;
+        savePayload.clinicLongitude = null;
+        savePayload.clinicPlaceId = null;
+      }
+
       const res = await fetch("/api/doctor-settings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          doctorId: initial.doctorId,
-          doctorPhone: whatsappNumber || null,
-          district,
-          clinicAddress: clinicAddress.trim() || null,
-          specialty: specResult.specialty,
-          specialtyFromMaster: specResult.is_specialty_approved,
-          languages: langList,
-          monday: weeklySchedule.monday.enabled,
-          tuesday: weeklySchedule.tuesday.enabled,
-          wednesday: weeklySchedule.wednesday.enabled,
-          thursday: weeklySchedule.thursday.enabled,
-          friday: weeklySchedule.friday.enabled,
-          saturday: weeklySchedule.saturday.enabled,
-          sunday: weeklySchedule.sunday.enabled,
-          weeklySchedule,
-          breakEnabled,
-          breakStart,
-          breakEnd,
-          slotDurationMinutes,
-          bookingHorizonDays,
-          minimumNoticeHours,
-          holidayModeEnabled,
-          holidayStartDate: parsedHolidayStart,
-          holidayEndDate: parsedHolidayEnd,
-        }),
+        body: JSON.stringify(savePayload),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -502,6 +551,7 @@ export function SettingsForm({ initial }: SettingsFormProps) {
         setHolidayStartDate(parsedHolidayStart);
         setHolidayEndDate(parsedHolidayEnd);
       }
+      initialClinicAddressRef.current = clinicLocation.address.trim();
       setMessage({ type: "success", text: "Settings saved." });
       toast.success("Settings saved.");
     } catch (err) {
@@ -564,43 +614,23 @@ export function SettingsForm({ initial }: SettingsFormProps) {
           Finder location
         </p>
         <p className="mt-1 text-sm text-slate-400">
-          District is required for Health Finder ranking and filtering.
+          Search your clinic on Google Maps. We use the pinned location for Health Finder distance
+          and set your district automatically.
         </p>
-        {!clinicAddress.trim() ? (
+        {!clinicLocation.address.trim() ? (
           <div
             className="mt-3 rounded-xl border border-amber-500/35 bg-amber-500/10 px-4 py-3 text-sm text-amber-50"
             role="status"
           >
             <p className="font-medium text-amber-100">Add your clinic address</p>
             <p className="mt-1 text-xs leading-relaxed text-amber-100/90">
-              Patients see a map link from this address on your public profile. A clear street
-              address helps Google Maps open in the right place — you can paste it from Google Maps
-              if you prefer.
+              Search your clinic on Google Maps and pick it from the suggestions. Patients see this
+              address on your public profile, and we use the pinned location for accurate distance
+              in Health Finder.
             </p>
           </div>
         ) : null}
-        <div className="mt-4 grid gap-4 sm:grid-cols-2">
-          <div>
-            <label
-              htmlFor="district"
-              className="text-[11px] font-semibold uppercase tracking-wide text-slate-400"
-            >
-              District <span className="text-red-300">*</span>
-            </label>
-            <select
-              id="district"
-              value={district}
-              onChange={(e) => setDistrict(e.target.value)}
-              className="mt-2 w-full rounded-xl border border-slate-800/80 bg-ink-900/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-clinical-400/60"
-            >
-              <option value="">Select district</option>
-              {CYPRUS_DISTRICTS.map((item) => (
-                <option key={item} value={item}>
-                  {item}
-                </option>
-              ))}
-            </select>
-          </div>
+        <div className="mt-4 space-y-4">
           <div>
             <label
               htmlFor="clinicAddress"
@@ -608,15 +638,38 @@ export function SettingsForm({ initial }: SettingsFormProps) {
             >
               Clinic address
             </label>
-            <input
+            <ClinicAddressAutocomplete
               id="clinicAddress"
-              type="text"
-              value={clinicAddress}
-              onChange={(e) => setClinicAddress(e.target.value)}
-              placeholder="Street, number, area"
-              className="mt-2 w-full rounded-xl border border-slate-800/80 bg-ink-900/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-clinical-400/60"
+              value={clinicLocation}
+              onChange={handleClinicLocationChange}
             />
           </div>
+          {!hasConfirmedClinicCoordinates(clinicLocation) && clinicLocation.address.trim() ? (
+            <div>
+              <label
+                htmlFor="district"
+                className="text-[11px] font-semibold uppercase tracking-wide text-slate-400"
+              >
+                District <span className="text-red-300">*</span>
+              </label>
+              <p className="mt-1 text-xs text-amber-100/90">
+                Re-select your clinic from Google suggestions to set district automatically.
+              </p>
+              <select
+                id="district"
+                value={district}
+                onChange={(e) => setDistrict(e.target.value)}
+                className="mt-2 w-full rounded-xl border border-slate-800/80 bg-ink-900/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-clinical-400/60"
+              >
+                <option value="">Select district</option>
+                {CYPRUS_DISTRICTS.map((item) => (
+                  <option key={item} value={item}>
+                    {item}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : null}
         </div>
       </div>
 

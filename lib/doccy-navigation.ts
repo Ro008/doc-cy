@@ -1,7 +1,11 @@
 /** Fired when client navigation starts (progress bar). */
 export const NAVIGATION_START_EVENT = "doccy:navigation-start";
 
-export type NavigationStartReason = "default" | "finder-results" | "profile";
+export type NavigationStartReason =
+  | "default"
+  | "finder-results"
+  | "finder-near-me"
+  | "profile";
 
 export type NavigationStartDetail = {
   linkKey?: string;
@@ -11,6 +15,7 @@ export type NavigationStartDetail = {
 const NAVIGATION_START_MESSAGES: Record<NavigationStartReason, string> = {
   default: "Loading...",
   "finder-results": "Updating results...",
+  "finder-near-me": "Finding doctors near you...",
   profile: "Opening booking page...",
 };
 
