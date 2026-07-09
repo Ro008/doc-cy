@@ -187,5 +187,35 @@ test.describe("Integration: finder user-like filter behavior matrix", { tag: "@p
       }
     }
   });
+
+  test("clears near-me lat/lon when clearing all filters", async ({ page, context }) => {
+    test.setTimeout(60_000);
+    const baseUrl = process.env.PLAYWRIGHT_BASE_URL ?? "";
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+    const serviceRole = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
+
+    const unsafeReason = assertSafeIntegrationTarget(baseUrl, supabaseUrl);
+    test.skip(Boolean(unsafeReason), unsafeReason ?? undefined);
+    test.skip(!baseUrl || !supabaseUrl || !serviceRole, "Missing integration env vars.");
+
+    await context.grantPermissions(["geolocation"]);
+    await context.setGeolocation({ latitude: 34.7071, longitude: 33.0226 });
+
+    await page.goto("/finder");
+    await expect(
+      page.getByRole("heading", { level: 1, name: /Find your next health professional in Cyprus/i }),
+    ).toBeVisible({ timeout: 20_000 });
+
+    await page.getByRole("button", { name: /Doctor near me/i }).click();
+    await expect(page).toHaveURL(/[?&]lat=/, { timeout: 15_000 });
+    await expect(page).toHaveURL(/[?&]lon=/, { timeout: 15_000 });
+    await expect(page.getByText("Near me: enabled")).toBeVisible({ timeout: 15_000 });
+
+    await page.getByRole("button", { name: /Clear all filters/i }).click();
+    await expect(page).toHaveURL(/\/finder(?:\?|$)/, { timeout: 15_000 });
+    await expect(page).not.toHaveURL(/[?&]lat=/);
+    await expect(page).not.toHaveURL(/[?&]lon=/);
+    await expect(page.getByText("Near me: enabled")).toHaveCount(0);
+  });
 });
 

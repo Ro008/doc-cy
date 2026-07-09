@@ -130,7 +130,8 @@ export function FinderFilters({
           : `/finder/${districtSlug}/${specialtyPathSegment}`;
     const qs = params.toString();
     const target = qs ? `${finderPath}?${qs}` : finderPath;
-    if (`${pathname}${searchParams?.toString() ? `?${searchParams.toString()}` : ""}` === target) {
+    const currentHref = `${pathname}${searchParams?.toString() ? `?${searchParams.toString()}` : ""}`;
+    if (currentHref === target) {
       setPendingAction(null);
       if (isLocating) setIsLocating(false);
       return;
@@ -138,7 +139,12 @@ export function FinderFilters({
     if (!options?.skipNavigationStart) {
       emitNavigationStart(undefined, options?.navigationReason ?? "finder-results");
     }
-    router.push(target);
+    const isClearingSearchParams = Boolean(searchParams?.toString()) && !qs;
+    if (isClearingSearchParams) {
+      router.replace(target);
+    } else {
+      router.push(target);
+    }
     router.refresh();
   }
 
