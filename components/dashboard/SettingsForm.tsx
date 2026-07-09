@@ -31,6 +31,12 @@ import {
   hasConfirmedClinicCoordinates,
   type ClinicLocation,
 } from "@/lib/clinic-location";
+import {
+  buildSettingsDirtySnapshot,
+  settingsFormHasUnsavedChanges,
+  type SettingsDirtySnapshot,
+} from "@/lib/settings-form-dirty";
+import { useSettingsUnsavedChangesWarning } from "@/components/dashboard/useSettingsUnsavedChangesWarning";
 
 export type DoctorSettingsFormData = {
   doctorId: string;
@@ -256,6 +262,82 @@ export function SettingsForm({ initial }: SettingsFormProps) {
   const [avatarCroppedPixels, setAvatarCroppedPixels] = React.useState<CropArea | null>(null);
   const [avatarCropOpen, setAvatarCropOpen] = React.useState(false);
   const avatarFileInputRef = React.useRef<HTMLInputElement | null>(null);
+
+  const buildCurrentDirtySnapshot = React.useCallback(
+    (): SettingsDirtySnapshot =>
+      buildSettingsDirtySnapshot({
+        specialty: spec.specialty,
+        specialtyFromMaster: spec.fromMaster,
+        languages,
+        whatsappNumber,
+        district,
+        clinicLocation,
+        weeklySchedule,
+        breakEnabled,
+        breakStart,
+        breakEnd,
+        slotDurationMinutes,
+        bookingHorizonDays,
+        minimumNoticeHours,
+        holidayModeEnabled,
+        holidayStartInput,
+        holidayEndInput,
+      }),
+    [
+      spec.specialty,
+      spec.fromMaster,
+      languages,
+      whatsappNumber,
+      district,
+      clinicLocation,
+      weeklySchedule,
+      breakEnabled,
+      breakStart,
+      breakEnd,
+      slotDurationMinutes,
+      bookingHorizonDays,
+      minimumNoticeHours,
+      holidayModeEnabled,
+      holidayStartInput,
+      holidayEndInput,
+    ],
+  );
+
+  const [savedSnapshot, setSavedSnapshot] = React.useState<SettingsDirtySnapshot>(() => {
+    const specialty = (initial.specialty ?? "").trim();
+    return buildSettingsDirtySnapshot({
+      specialty,
+      specialtyFromMaster:
+        (initial.isSpecialtyApproved ?? true) !== false && isMasterSpecialty(specialty),
+      languages: Array.isArray(initial.languages) ? [...initial.languages] : [],
+      whatsappNumber: initial.whatsappNumber ?? "",
+      district: initial.district ?? "",
+      clinicLocation: clinicLocationFromParts({
+        address: initial.clinicAddress,
+        latitude: initial.clinicLatitude,
+        longitude: initial.clinicLongitude,
+        placeId: initial.clinicPlaceId,
+        district: initial.district,
+      }),
+      weeklySchedule: initial.weeklySchedule,
+      breakEnabled: initial.breakEnabled,
+      breakStart: timeToInputValue(initial.breakStart),
+      breakEnd: timeToInputValue(initial.breakEnd),
+      slotDurationMinutes: initial.slotDurationMinutes,
+      bookingHorizonDays: initial.bookingHorizonDays,
+      minimumNoticeHours: initial.minimumNoticeHours,
+      holidayModeEnabled: initial.holidayModeEnabled,
+      holidayStartInput: formatISOToDDMMYYYYOrEmpty(initial.holidayStartDate),
+      holidayEndInput: formatISOToDDMMYYYYOrEmpty(initial.holidayEndDate),
+    });
+  });
+
+  const hasUnsavedChanges = React.useMemo(
+    () => settingsFormHasUnsavedChanges(buildCurrentDirtySnapshot(), savedSnapshot),
+    [buildCurrentDirtySnapshot, savedSnapshot],
+  );
+
+  useSettingsUnsavedChangesWarning(hasUnsavedChanges);
 
   React.useEffect(() => {
     setIsClient(true);
@@ -552,6 +634,7 @@ export function SettingsForm({ initial }: SettingsFormProps) {
         setHolidayEndDate(parsedHolidayEnd);
       }
       initialClinicAddressRef.current = clinicLocation.address.trim();
+      setSavedSnapshot(buildCurrentDirtySnapshot());
       setMessage({ type: "success", text: "Settings saved." });
       toast.success("Settings saved.");
     } catch (err) {
@@ -572,6 +655,15 @@ export function SettingsForm({ initial }: SettingsFormProps) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      {hasUnsavedChanges ? (
+        <div
+          role="status"
+          data-testid="settings-unsaved-changes"
+          className="rounded-2xl border border-amber-400/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100"
+        >
+          You have unsaved changes. Save settings before leaving this page.
+        </div>
+      ) : null}
       <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-5">
         <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
           Directory &amp; profile
@@ -1191,7 +1283,9 @@ export function SettingsForm({ initial }: SettingsFormProps) {
         <button
           type="submit"
           disabled={saving}
-          className="inline-flex items-center justify-center rounded-2xl bg-clinical-400 px-5 py-2.5 text-sm font-semibold text-slate-950 shadow-lg shadow-clinical-500/30 transition hover:bg-clinical-300 disabled:opacity-60"
+          className={`inline-flex items-center justify-center rounded-2xl bg-clinical-400 px-5 py-2.5 text-sm font-semibold text-slate-950 shadow-lg shadow-clinical-500/30 transition hover:bg-clinical-300 disabled:opacity-60 ${
+            hasUnsavedChanges ? "ring-2 ring-amber-300/70 ring-offset-2 ring-offset-slate-950" : ""
+          }`}
         >
           <Save className="mr-2 h-4 w-4" />
           {saving ? "Saving..." : "Save settings"}
