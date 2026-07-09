@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS public.doctor_settings (
   break_start time NULL,
   break_end time NULL,
   pause_online_bookings boolean NOT NULL DEFAULT false,
+  show_phone_public boolean NOT NULL DEFAULT false,
   holiday_mode_enabled boolean NOT NULL DEFAULT false,
   holiday_start_date date NULL,
   holiday_end_date date NULL,
@@ -31,6 +32,7 @@ CREATE TABLE IF NOT EXISTS public.doctor_settings (
 --   ALTER TABLE public.doctor_settings ADD COLUMN IF NOT EXISTS saturday boolean NOT NULL DEFAULT false;
 --   ALTER TABLE public.doctor_settings ADD COLUMN IF NOT EXISTS sunday boolean NOT NULL DEFAULT false;
 --   ALTER TABLE public.doctor_settings ADD COLUMN IF NOT EXISTS pause_online_bookings boolean NOT NULL DEFAULT false;
+--   ALTER TABLE public.doctor_settings ADD COLUMN IF NOT EXISTS show_phone_public boolean NOT NULL DEFAULT false;
 --   ALTER TABLE public.doctor_settings ADD COLUMN IF NOT EXISTS holiday_mode_enabled boolean NOT NULL DEFAULT false;
 --   ALTER TABLE public.doctor_settings ADD COLUMN IF NOT EXISTS holiday_start_date date NULL;
 --   ALTER TABLE public.doctor_settings ADD COLUMN IF NOT EXISTS holiday_end_date date NULL;

@@ -124,6 +124,7 @@ export async function POST(req: NextRequest) {
     holidayModeEnabled?: boolean;
     holidayStartDate?: string | null;
     holidayEndDate?: string | null;
+    showPhonePublic?: boolean;
   };
 
   if (!b.doctorId) {
@@ -177,6 +178,14 @@ export async function POST(req: NextRequest) {
   }
   const clinicAddress =
     typeof b.clinicAddress === "string" ? b.clinicAddress.trim() : "";
+  const doctorPhoneTrimmed =
+    typeof b.doctorPhone === "string" ? b.doctorPhone.trim() : "";
+  if (Boolean(b.showPhonePublic) && doctorPhoneTrimmed.length === 0) {
+    return NextResponse.json(
+      { message: "Add a phone number before enabling public phone display." },
+      { status: 400 },
+    );
+  }
   const clinicLocation = clinicLocationFromParts({
     address: clinicAddress,
     latitude: b.clinicLatitude,
@@ -263,6 +272,7 @@ export async function POST(req: NextRequest) {
     holiday_end_date: Boolean(b.holidayModeEnabled)
       ? (b.holidayEndDate ?? null)
       : null,
+    show_phone_public: Boolean(b.showPhonePublic),
     updated_at: new Date().toISOString(),
   };
 
@@ -295,7 +305,7 @@ export async function POST(req: NextRequest) {
     // Missing new scheduling columns means advanced availability cannot be saved reliably.
     const errMsg = String((errorFull as any)?.message ?? "");
     const missingNewCols =
-      /(saturday|sunday|weekly_schedule|pause_online_bookings|holiday_mode_enabled|holiday_start_date|holiday_end_date|booking_horizon_days|minimum_notice_hours)/i.test(
+      /(saturday|sunday|weekly_schedule|pause_online_bookings|show_phone_public|holiday_mode_enabled|holiday_start_date|holiday_end_date|booking_horizon_days|minimum_notice_hours)/i.test(
         errMsg
       );
 
@@ -358,9 +368,7 @@ export async function POST(req: NextRequest) {
     specialty_requires_standard_at: null,
   };
   if (b.doctorPhone !== undefined) {
-    const trimmed =
-      typeof b.doctorPhone === "string" ? b.doctorPhone.trim() : "";
-    phoneUpdateBase.phone = trimmed ? trimmed : null;
+    phoneUpdateBase.phone = doctorPhoneTrimmed ? doctorPhoneTrimmed : null;
   }
 
   let docErr = (

@@ -23,6 +23,7 @@ function baseSnapshotInput() {
     specialtyFromMaster: true,
     languages: ["English", "Greek"],
     whatsappNumber: "+35799111222",
+    showPhonePublic: false,
     district: "Nicosia",
     clinicLocation: {
       address: "1 Clinic St, Nicosia",

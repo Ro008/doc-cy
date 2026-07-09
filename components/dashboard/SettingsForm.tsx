@@ -49,6 +49,7 @@ export type DoctorSettingsFormData = {
   /** Canonical labels, saved as string[] on doctors */
   languages: string[];
   whatsappNumber?: string;
+  showPhonePublic: boolean;
   district: string;
   clinicAddress: string;
   clinicLatitude?: number | null;
@@ -189,6 +190,7 @@ export function SettingsForm({ initial }: SettingsFormProps) {
   const [whatsappNumber, setWhatsappNumber] = React.useState(
     initial.whatsappNumber ?? ""
   );
+  const [showPhonePublic, setShowPhonePublic] = React.useState(Boolean(initial.showPhonePublic));
   const [district, setDistrict] = React.useState(initial.district ?? "");
   const initialClinicAddressRef = React.useRef(initial.clinicAddress ?? "");
   const [clinicLocation, setClinicLocation] = React.useState<ClinicLocation>(() =>
@@ -270,6 +272,7 @@ export function SettingsForm({ initial }: SettingsFormProps) {
         specialtyFromMaster: spec.fromMaster,
         languages,
         whatsappNumber,
+        showPhonePublic,
         district,
         clinicLocation,
         weeklySchedule,
@@ -288,6 +291,7 @@ export function SettingsForm({ initial }: SettingsFormProps) {
       spec.fromMaster,
       languages,
       whatsappNumber,
+      showPhonePublic,
       district,
       clinicLocation,
       weeklySchedule,
@@ -311,6 +315,7 @@ export function SettingsForm({ initial }: SettingsFormProps) {
         (initial.isSpecialtyApproved ?? true) !== false && isMasterSpecialty(specialty),
       languages: Array.isArray(initial.languages) ? [...initial.languages] : [],
       whatsappNumber: initial.whatsappNumber ?? "",
+      showPhonePublic: Boolean(initial.showPhonePublic),
       district: initial.district ?? "",
       clinicLocation: clinicLocationFromParts({
         address: initial.clinicAddress,
@@ -544,6 +549,12 @@ export function SettingsForm({ initial }: SettingsFormProps) {
       toast.error(text);
       return;
     }
+    if (showPhonePublic && whatsappNumber.trim().length === 0) {
+      const text = "Add a WhatsApp number before enabling public phone display.";
+      setMessage({ type: "error", text });
+      toast.error(text);
+      return;
+    }
 
     if (clinicLocationRequiresSelection(clinicLocation, initialClinicAddressRef.current)) {
       const text = "Please select your clinic from the Google suggestions.";
@@ -580,6 +591,7 @@ export function SettingsForm({ initial }: SettingsFormProps) {
       const savePayload: Record<string, unknown> = {
         doctorId: initial.doctorId,
         doctorPhone: whatsappNumber || null,
+        showPhonePublic,
         district: clinicLocation.district ?? district,
         clinicAddress: clinicLocation.address.trim() || null,
         specialty: specResult.specialty,
@@ -892,6 +904,24 @@ export function SettingsForm({ initial }: SettingsFormProps) {
           Used in appointment confirmation emails to enable{" "}
           <span className="font-medium text-slate-300">Chat on WhatsApp</span>.
         </p>
+        <div className="mt-4 rounded-xl border border-slate-700/80 bg-ink-900/35 p-3">
+          <label className="inline-flex cursor-pointer items-start gap-2 text-sm text-slate-200">
+            <input
+              type="checkbox"
+              checked={showPhonePublic}
+              onChange={(e) => setShowPhonePublic(e.target.checked)}
+              className="mt-0.5 h-4 w-4 rounded border-slate-600 bg-slate-900 text-clinical-500 focus:ring-clinical-400/60"
+            />
+            <span>
+              Show my phone number on my public profile
+              <span className="mt-1 block text-xs text-slate-400">
+                {showPhonePublic
+                  ? "Patients can contact you directly from your profile."
+                  : "Keep this off to encourage online bookings and reduce direct calls."}
+              </span>
+            </span>
+          </label>
+        </div>
       </div>
 
       <section className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-5">

@@ -1,0 +1,10 @@
+---
+description: Product copy language policy for DocCy
+alwaysApply: true
+---
+
+# Product Copy Language Policy
+
+- DocCy product copy must be in English by default.
+- Greek may be added where the product already supports Greek translations.
+- When offering translation options for product text, prioritize English first, then Greek if applicable.

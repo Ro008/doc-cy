@@ -275,6 +275,9 @@ export default async function AgendaSettingsPage() {
     isSpecialtyApproved: doctor.is_specialty_approved ?? true,
     languages: langArr,
     whatsappNumber: doctor.phone ?? undefined,
+    showPhonePublic: Boolean(
+      (settings as { show_phone_public?: boolean | null } | null)?.show_phone_public
+    ),
     district: (doctor.district ?? "").trim(),
     clinicAddress: (doctor.clinic_address ?? "").trim(),
     clinicLatitude: doctor.latitude ?? null,
