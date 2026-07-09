@@ -119,6 +119,31 @@ export async function loadDoctorNearestAvailableSlots(
   return slots;
 }
 
+export async function loadOnlineBookingsPausedByDoctorId(
+  supabase: SupabaseClient,
+  doctorIds: string[],
+): Promise<Map<string, boolean>> {
+  const uniqueIds = Array.from(new Set(doctorIds.filter(Boolean)));
+  if (uniqueIds.length === 0) return new Map();
+
+  const { data, error } = await supabase
+    .from("doctor_settings")
+    .select("doctor_id, pause_online_bookings")
+    .in("doctor_id", uniqueIds);
+
+  if (error) {
+    console.error("[DocCy] finder pause_online_bookings lookup failed:", error);
+    return new Map();
+  }
+
+  return new Map(
+    (data ?? []).map((row) => [
+      String((row as { doctor_id: string }).doctor_id),
+      Boolean((row as { pause_online_bookings?: boolean | null }).pause_online_bookings),
+    ]),
+  );
+}
+
 export async function loadAvailabilityCalendarsByDoctorId(
   supabase: SupabaseClient,
   doctorIds: string[],

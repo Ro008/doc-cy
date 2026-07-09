@@ -20,6 +20,7 @@ import {
   ManualDirectoryReportIncorrectInfoLink,
 } from "@/components/finder/ManualDirectoryPatientActions";
 import { FinderCardAvailabilityGrid } from "@/components/finder/FinderCardAvailabilityGrid";
+import { FinderCardOnlineBookingPaused } from "@/components/finder/FinderCardOnlineBookingPaused";
 import { FinderManualCardAvailabilityGrid } from "@/components/finder/FinderManualCardAvailabilityGrid";
 import { FinderResultsAvailabilityShell } from "@/components/finder/FinderResultsAvailabilityShell";
 import {
@@ -50,7 +51,10 @@ import {
 } from "@/lib/finder-manual-vote-badge";
 import { getFinderManualPhotoUrl } from "@/lib/finder-manual-photos";
 import { isRegisteredDoctorHiddenFromFinder, isTestProfileLike } from "@/lib/doctor-test-profile";
-import { loadAvailabilityCalendarsByDoctorId } from "@/lib/public/load-doctor-next-available-slot";
+import {
+  loadAvailabilityCalendarsByDoctorId,
+  loadOnlineBookingsPausedByDoctorId,
+} from "@/lib/public/load-doctor-next-available-slot";
 import type { PublicAvailabilityCalendar } from "@/lib/public/compute-public-booking-slots";
 import { buildFinderAvailabilityDayHeaders } from "@/lib/public/compute-public-booking-slots";
 import {
@@ -551,7 +555,16 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
   });
 
   let testDoctorAvailabilityCalendars = new Map<string, PublicAvailabilityCalendar>();
+  let registeredOnlineBookingsPaused = new Map<string, boolean>();
   if (supabase) {
+    const registeredDoctorIds = filteredRegistered.map((row) => row.id);
+    if (registeredDoctorIds.length > 0) {
+      registeredOnlineBookingsPaused = await loadOnlineBookingsPausedByDoctorId(
+        supabase,
+        registeredDoctorIds,
+      );
+    }
+
     const testDoctorIds = filteredRegistered
       .filter((row) =>
         isTestProfileLike({
@@ -746,9 +759,15 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                 if (item.kind === "registered") {
                   const row = item.row;
                   const availabilityCalendar = testDoctorAvailabilityCalendars.get(row.id);
+                  const onlineBookingsPaused =
+                    registeredOnlineBookingsPaused.get(row.id) ?? false;
                   const showAvailabilityGrid = Boolean(
                     availabilityCalendar && availabilityCalendar.days.length > 0 && row.slug,
                   );
+                  const showPausedNotice = Boolean(
+                    onlineBookingsPaused && row.slug && !showAvailabilityGrid,
+                  );
+                  const showRightColumn = showAvailabilityGrid || showPausedNotice;
                   return (
                     <article
                       key={`registered-${row.id}`}
@@ -835,7 +854,7 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                       <div className={finderRegisteredDetailsSectionClass}>
                         <div
                           className={
-                            showAvailabilityGrid ? finderRegisteredCardDetailsGridClass : ""
+                            showRightColumn ? finderRegisteredCardDetailsGridClass : ""
                           }
                         >
                           <div className="space-y-4">
@@ -880,6 +899,10 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                                 profileSlug={row.slug}
                                 anchorStickyWeekNav={row.id === stickyWeekAnchorDoctorId}
                               />
+                            </div>
+                          ) : showPausedNotice && row.slug ? (
+                            <div className="min-w-0">
+                              <FinderCardOnlineBookingPaused profileSlug={row.slug} />
                             </div>
                           ) : null}
                         </div>
