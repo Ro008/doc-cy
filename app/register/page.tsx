@@ -8,6 +8,10 @@ import { RegisterAvatarUpload } from "@/components/auth/RegisterAvatarUpload";
 import { RegisterDevErrorConsole } from "@/components/auth/RegisterDevErrorConsole";
 import { RegisterFormValidation } from "@/components/auth/RegisterFormValidation";
 import {
+  RegisterFormSubmitFeedback,
+  RegisterSubmitButton,
+} from "@/components/auth/RegisterFormSubmitFeedback";
+import {
   RegisterDemoAside,
   RegisterFaqSection,
   RegisterIntroSection,
@@ -21,10 +25,8 @@ import {
   registerInputClass,
   registerLabelClass,
   registerSectionShell,
-  registerSubmitClass,
 } from "@/lib/register-ui";
 import { validateLanguageSelection } from "@/lib/cyprus-languages";
-import { CYPRUS_DISTRICTS, isCyprusDistrict } from "@/lib/cyprus-districts";
 import {
   parseSpecialtyFromMasterField,
   validateSpecialtySubmission,
@@ -32,7 +34,17 @@ import {
 import { notifyFounderNewRegistration } from "@/lib/notify-founder-new-registration";
 import { matchesAutomatedDoctorRegistrationTestEmailForAdminBypass } from "@/lib/e2e-doctor-registration-test";
 import { isTestDoctorRegistrationEmail } from "@/lib/doctor-test-profile";
+import {
+  persistLocalTestLoginPassword,
+  shouldPersistLocalTestLoginPassword,
+  TEST_LOGIN_PASSWORD_METADATA_KEY,
+} from "@/lib/local-test-login-credentials";
 import { MAX_FOUNDERS } from "@/lib/founders-club";
+import {
+  resolveRegisterClinicLocation,
+  shouldAllowRegisterClinicE2eFallback,
+} from "@/lib/register-clinic-location";
+import { RegisterClinicAddressField } from "@/components/auth/RegisterClinicAddressField";
 
 type PageProps = {
   searchParams?: { submitted?: string; error?: string; debug?: string };
@@ -137,14 +149,20 @@ async function handleRegister(formData: FormData) {
     (formData.get("licenseNumber") as string | null)?.trim() || "";
   const avatarFile = formData.get("avatarFile") as File | null;
   const professionalDisclaimer = formData.get("professionalDisclaimer");
-  const district = (formData.get("district") as string | null)?.trim() || "";
+  const clinicResolved = resolveRegisterClinicLocation({
+    clinicAddress: formData.get("clinicAddress"),
+    clinicLatitude: formData.get("clinicLatitude"),
+    clinicLongitude: formData.get("clinicLongitude"),
+    clinicPlaceId: formData.get("clinicPlaceId"),
+    district: formData.get("district"),
+    allowE2eFallback: shouldAllowRegisterClinicE2eFallback(email),
+  });
 
   if (
     !fullName ||
     !email ||
     !password ||
     !phone ||
-    !district ||
     !specialtyRaw.trim() ||
     !licenseNumber ||
     !avatarFile ||
@@ -153,11 +171,20 @@ async function handleRegister(formData: FormData) {
     redirectWithError("validation");
   }
 
+  if (clinicResolved.ok === false) {
+    redirectWithError(clinicResolved.code);
+  }
+
+  const {
+    clinicAddress,
+    district,
+    latitude: clinicLatitude,
+    longitude: clinicLongitude,
+    clinicPlaceId,
+  } = clinicResolved.value;
+
   if (!emailRegex.test(email)) {
     redirectWithError("invalid_email_format");
-  }
-  if (!isCyprusDistrict(district)) {
-    redirectWithError("district");
   }
 
   const specialtyFromMaster = parseSpecialtyFromMasterField(
@@ -205,15 +232,20 @@ async function handleRegister(formData: FormData) {
 
   let authUserId: string;
 
+  const doctorAuthMetadata = {
+    full_name: fullName,
+    role: "doctor",
+    ...(shouldPersistLocalTestLoginPassword()
+      ? { [TEST_LOGIN_PASSWORD_METADATA_KEY]: password }
+      : {}),
+  };
+
   if (shouldUseAdminAuthForAutomatedRegistration(email)) {
     const { data: adminData, error: adminError } = await service.auth.admin.createUser({
       email,
       password,
       email_confirm: true,
-      user_metadata: {
-        full_name: fullName,
-        role: "doctor",
-      },
+      user_metadata: doctorAuthMetadata,
     });
     if (adminError || !adminData.user) {
       console.error("[DocCy] Auth admin create (E2E registration) failed", adminError);
@@ -245,6 +277,10 @@ async function handleRegister(formData: FormData) {
     }
 
     authUserId = signUpData.user.id;
+    await persistLocalTestLoginPassword(service, authUserId, password, {
+      full_name: fullName,
+      role: "doctor",
+    });
   }
 
   // Generate a simple slug from the doctor's name
@@ -332,6 +368,10 @@ async function handleRegister(formData: FormData) {
         is_specialty_approved: isSpecialtyApproved,
         subscription_tier: fallbackTier,
         district,
+        clinic_address: clinicAddress,
+        latitude: clinicLatitude,
+        longitude: clinicLongitude,
+        clinic_place_id: clinicPlaceId,
         is_test_profile: isTestDoctorRegistrationEmail(email),
       })
       .select("id")
@@ -364,14 +404,28 @@ async function handleRegister(formData: FormData) {
     );
   };
 
+  const profileUpdateBase = {
+    avatar_url: avatarFileUrl,
+    district,
+    clinic_address: clinicAddress,
+    latitude: clinicLatitude,
+    longitude: clinicLongitude,
+    clinic_place_id: clinicPlaceId,
+  };
+
   const { error: avatarSaveError } = await service
     .from("doctors")
-    .update({ avatar_url: avatarFileUrl, district })
+    .update(profileUpdateBase)
     .eq("id", doctorId);
   if (avatarSaveError) {
     const missingAvatarColumn =
       avatarSaveError.code === "PGRST204" &&
       String(avatarSaveError.message ?? "").includes("avatar_url");
+    const missingClinicColumns =
+      (avatarSaveError.code === "42703" || avatarSaveError.code === "PGRST204") &&
+      /(latitude|longitude|clinic_place_id|clinic_address)/i.test(
+        String(avatarSaveError.message ?? ""),
+      );
     if (missingAvatarColumn) {
       // Backward compatibility: some environments may not have avatar_url migrated yet.
       // Keep registration successful and preserve uploaded avatar in storage.
@@ -380,6 +434,22 @@ async function handleRegister(formData: FormData) {
       );
       queueFounderSignupNotify();
       redirect("/register?submitted=1");
+    }
+    if (missingClinicColumns) {
+      const { error: legacyProfileError } = await service
+        .from("doctors")
+        .update({
+          avatar_url: avatarFileUrl,
+          district,
+          clinic_address: clinicAddress,
+        })
+        .eq("id", doctorId);
+      if (legacyProfileError) {
+        console.error("[DocCy] Failed legacy profile save on doctor", legacyProfileError);
+      } else {
+        queueFounderSignupNotify();
+        redirect("/register?submitted=1");
+      }
     }
     console.error("[DocCy] Failed to save avatar_url on doctor", avatarSaveError);
     try {
@@ -450,8 +520,10 @@ export default function RegisterPage({ searchParams }: PageProps) {
   } else if (errorCode === "languages") {
     errorMessage =
       "Select at least one spoken language from the list (you can choose several).";
+  } else if (errorCode === "clinic_address") {
+    errorMessage = "Please search for your clinic and pick it from the Google Maps suggestions.";
   } else if (errorCode === "district") {
-    errorMessage = "Please select your district in Cyprus.";
+    errorMessage = "We could not determine your clinic district. Try another Google Maps result.";
   }
 
   return (
@@ -494,6 +566,10 @@ export default function RegisterPage({ searchParams }: PageProps) {
                   </div>
                 ) : null}
 
+                <RegisterFormSubmitFeedback
+                  formId="register-form"
+                  clearSubmitting={Boolean(errorCode)}
+                >
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="group sm:col-span-2" data-validate-field="1" data-invalid="0">
                     <label className={registerLabelClass}>
@@ -505,6 +581,8 @@ export default function RegisterPage({ searchParams }: PageProps) {
 
                   <RegisterSpecialtyFields />
                   <RegisterLanguageFields />
+
+                  <RegisterClinicAddressField />
 
                   <div className="group" data-validate-field="1" data-invalid="0">
                     <label className={registerLabelClass}>
@@ -554,28 +632,6 @@ export default function RegisterPage({ searchParams }: PageProps) {
                     <p className={registerFieldErrorClass}>
                       Please enter your WhatsApp number with country code.
                     </p>
-                  </div>
-
-                  <div className="group" data-validate-field="1" data-invalid="0">
-                    <label className={registerLabelClass}>
-                      District (Cyprus)<span className="text-red-600">*</span>
-                      <select
-                        name="district"
-                        required
-                        defaultValue=""
-                        className={registerInputClass}
-                      >
-                        <option value="" disabled>
-                          Select district
-                        </option>
-                        {CYPRUS_DISTRICTS.map((item) => (
-                          <option key={item} value={item}>
-                            {item}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <p className={registerFieldErrorClass}>Please select your district.</p>
                   </div>
                 </div>
 
@@ -632,10 +688,11 @@ export default function RegisterPage({ searchParams }: PageProps) {
                 </div>
 
                 <div className="flex flex-col gap-3 border-t border-ink-200/80 pt-5 sm:flex-row sm:items-center sm:justify-end">
-                  <button type="submit" className={registerSubmitClass}>
+                  <RegisterSubmitButton>
                     Submit My Application &amp; Claim 6 Months Free
-                  </button>
+                  </RegisterSubmitButton>
                 </div>
+                </RegisterFormSubmitFeedback>
               </form>
             </section>
 

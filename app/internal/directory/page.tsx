@@ -13,6 +13,7 @@ import {
   type SortDir,
 } from "@/lib/founder-dashboard-query";
 import { InternalDirectoryClient } from "@/components/internal/InternalDirectoryClient";
+import type { DirectoryDoctorRow } from "@/components/internal/InternalDirectoryClient";
 import {
   PendingSpecialtiesPanel,
   type PendingSpecialtyRow,
@@ -56,6 +57,7 @@ import {
   FinderInvitationRequestsSection,
   type FinderInvitationRequestRow,
 } from "@/components/internal/FinderInvitationRequestsSection";
+import { loadLocalTestLoginPasswordsByAuthUserId } from "@/lib/local-test-login-credentials";
 
 function sortManualPatientVoteRows(
   rows: ManualPatientVoteRow[],
@@ -163,7 +165,7 @@ export default async function FounderDashboardPage({
     supabase
       .from("doctors")
       .select(
-        "id, name, email, phone, slug, specialty, languages, status, created_at, license_number, license_file_url, is_specialty_approved, specialty_requires_standard_at"
+        "id, name, email, phone, slug, specialty, languages, status, created_at, license_number, license_file_url, is_specialty_approved, specialty_requires_standard_at, auth_user_id"
       )
       .order("created_at", { ascending: false }),
     supabase.from("appointments").select("id", { count: "exact", head: true }),
@@ -248,7 +250,46 @@ export default async function FounderDashboardPage({
     specialty_requires_standard_at:
       (d as { specialty_requires_standard_at?: string | null })
         .specialty_requires_standard_at ?? null,
+    auth_user_id: (d as { auth_user_id?: string | null }).auth_user_id ?? null,
   }));
+
+  const showLocalTestCredentials = runtimeLabel === "local";
+  let directoryDoctorRows: DirectoryDoctorRow[] = rows.map((r) => ({
+    id: r.id,
+    name: r.name,
+    slug: r.slug,
+    specialty: r.specialty,
+    languages: r.languages,
+    status: r.status,
+    license_number: r.license_number,
+    license_file_url: r.license_file_url,
+    is_specialty_approved: r.is_specialty_approved,
+    specialty_requires_standard_at: r.specialty_requires_standard_at,
+  }));
+
+  if (showLocalTestCredentials) {
+    const loginPasswordsByAuthUserId = await loadLocalTestLoginPasswordsByAuthUserId(
+      supabase,
+      rows.map((r) => r.auth_user_id).filter((id): id is string => Boolean(id)),
+    );
+
+    directoryDoctorRows = rows.map((r) => ({
+      id: r.id,
+      name: r.name,
+      slug: r.slug,
+      specialty: r.specialty,
+      languages: r.languages,
+      status: r.status,
+      license_number: r.license_number,
+      license_file_url: r.license_file_url,
+      is_specialty_approved: r.is_specialty_approved,
+      specialty_requires_standard_at: r.specialty_requires_standard_at,
+      email: r.email,
+      loginPassword: r.auth_user_id
+        ? loginPasswordsByAuthUserId.get(r.auth_user_id) ?? null
+        : null,
+    }));
+  }
 
   const pendingRes = await supabase
     .from("doctors")
@@ -721,7 +762,6 @@ export default async function FounderDashboardPage({
         />
 
         <div className="grid gap-6 xl:grid-cols-12">
-          {/* Mobile: activity under KPIs; desktop: right rail */}
           <div className="order-2 space-y-6 xl:order-1 xl:col-span-8">
             <AppointmentsGrowthChart data={chartData} />
 
@@ -729,27 +769,28 @@ export default async function FounderDashboardPage({
               <SpecialtyBreakdown items={specialtyItems} />
               <LanguageDistribution items={languageItems} totalDoctorCount={totalDoctors} />
             </div>
-
-            <section
-              id="professional-directory"
-              className="rounded-2xl border border-slate-800/80 bg-slate-900/25 p-5 shadow-inner shadow-black/20 backdrop-blur-sm"
-            >
-              <div className="mb-5 flex flex-col gap-1 border-b border-slate-800/60 pb-4 sm:flex-row sm:items-end sm:justify-between">
-                <div>
-                  <h2 className="text-sm font-semibold text-slate-100">
-                    Professional directory
-                  </h2>
-                  <p className="text-xs text-slate-500">Search, filter, open public profiles</p>
-                </div>
-              </div>
-              <InternalDirectoryClient doctors={rows} />
-            </section>
           </div>
 
           <div className="order-1 xl:order-2 xl:col-span-4">
             <RecentActivityFeed items={activityItems} />
           </div>
         </div>
+
+        <section
+          id="professional-directory"
+          className="rounded-2xl border border-slate-800/80 bg-slate-900/25 p-5 shadow-inner shadow-black/20 backdrop-blur-sm"
+        >
+          <div className="mb-5 flex flex-col gap-1 border-b border-slate-800/60 pb-4 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <h2 className="text-sm font-semibold text-slate-100">Professional directory</h2>
+              <p className="text-xs text-slate-500">Search, filter, open public profiles</p>
+            </div>
+          </div>
+          <InternalDirectoryClient
+            doctors={directoryDoctorRows}
+            showLocalTestCredentials={showLocalTestCredentials}
+          />
+        </section>
           </div>
         </InternalDirectoryShell>
       </Suspense>

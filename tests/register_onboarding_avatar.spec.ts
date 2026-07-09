@@ -122,7 +122,9 @@ test.describe("Doctor registration with mandatory avatar", () => {
         .click();
       await page.keyboard.press("Escape");
 
-      await page.getByLabel("District").selectOption("Nicosia");
+      await page.getByLabel(/Clinic address/i).fill("Nicosia");
+      await page.locator(".pac-container .pac-item").first().click({ timeout: 20_000 });
+      await expect(page.getByText(/District:\s*Nicosia/i)).toBeVisible({ timeout: 15_000 });
 
       // Mandatory avatar flow: upload -> crop modal -> confirm crop.
       const avatarInput = page.locator("label:has-text('Upload photo') input[type='file']");

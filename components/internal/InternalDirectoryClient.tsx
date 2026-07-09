@@ -24,6 +24,10 @@ export type DirectoryDoctorRow = {
   license_file_url: string | null;
   is_specialty_approved: boolean;
   specialty_requires_standard_at: string | null;
+  /** Local founder dashboard only */
+  email?: string | null;
+  /** Local founder dashboard only — from auth user metadata */
+  loginPassword?: string | null;
 };
 
 async function postVerification(doctorId: string, action: "verify" | "reject") {
@@ -41,8 +45,10 @@ async function postVerification(doctorId: string, action: "verify" | "reject") {
 
 export function InternalDirectoryClient({
   doctors,
+  showLocalTestCredentials = false,
 }: {
   doctors: DirectoryDoctorRow[];
+  showLocalTestCredentials?: boolean;
 }) {
   const router = useRouter();
   const [nameQ, setNameQ] = React.useState("");
@@ -225,11 +231,24 @@ export function InternalDirectoryClient({
         <span className="font-medium text-slate-200">{doctors.length}</span> loaded
       </p>
 
+      {showLocalTestCredentials ? (
+        <p className="text-xs text-slate-500">
+          Local dev: email and password columns help track test doctors. Passwords are saved on new
+          registrations only (not recoverable from Supabase for older accounts).
+        </p>
+      ) : null}
+
       <div className="w-full overflow-x-auto rounded-2xl border border-slate-800/80 bg-slate-950/30">
         <table className="w-full min-w-full border-collapse text-left text-sm">
           <thead>
             <tr className="border-b border-slate-800/80 text-xs uppercase tracking-wide text-slate-500">
               <th className="px-4 py-3 font-semibold">Professional</th>
+              {showLocalTestCredentials ? (
+                <>
+                  <th className="px-4 py-3 font-semibold">Email</th>
+                  <th className="px-4 py-3 font-semibold">Password</th>
+                </>
+              ) : null}
               <th className="px-4 py-3 font-semibold">Specialty</th>
               <th className="px-4 py-3 font-semibold">License #</th>
               <th className="px-4 py-3 font-semibold">Status</th>
@@ -286,6 +305,16 @@ export function InternalDirectoryClient({
                       <p className="mt-2 text-xs text-slate-600">No slug</p>
                     )}
                   </td>
+                  {showLocalTestCredentials ? (
+                    <>
+                      <td className="max-w-[220px] px-4 py-3 align-top font-mono text-xs text-slate-300">
+                        <span className="break-all">{d.email?.trim() || "—"}</span>
+                      </td>
+                      <td className="max-w-[160px] px-4 py-3 align-top font-mono text-xs text-slate-300">
+                        <span className="break-all">{d.loginPassword?.trim() || "—"}</span>
+                      </td>
+                    </>
+                  ) : null}
                   <td className="px-4 py-3 align-top text-slate-300">
                     <span>{d.specialty || "—"}</span>
                     {isRejected && !d.is_specialty_approved ? (

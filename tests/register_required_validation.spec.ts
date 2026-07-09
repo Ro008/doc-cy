@@ -13,6 +13,9 @@ test.describe("Register form required hints", () => {
     await expect(page.getByText("Please enter a valid email address.")).toBeVisible();
     await expect(page.getByText("Please select your specialty.")).toBeVisible();
     await expect(page.getByText("Please select at least one spoken language.")).toBeVisible();
+    await expect(
+      page.getByText("Please select your clinic from the Google Maps suggestions."),
+    ).toBeVisible();
     await expect(page.getByText("Please upload and confirm your profile photo.")).toBeVisible();
     await expect(
       page.getByText("Please confirm the professional disclaimer to continue."),
