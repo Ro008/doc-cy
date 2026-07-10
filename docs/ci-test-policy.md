@@ -42,7 +42,7 @@ Constants: `tests/helpers/ciTags.ts`. To tag new specs: `node scripts/apply-ci-p
 **Includes:**
 
 - Content: `test:content:blog-images`, `test:content:messages-parity`
-- Unit: `npm run test:unit` (`lib/finder-distance`, `lib/clinic-location`, `lib/register-clinic-location`)
+- Unit: `npm run test:unit` (`lib/finder-distance`, `lib/finder-specialty-filter`, `lib/clinic-location`, `lib/register-clinic-location`)
 - `--grep @pr-email` then `--grep @pr-e2e` (see tag table below)
 - Preview job: `--grep @pr-preview`
 - Non-blocking mobile: `--grep @pr-mobile-monitor`

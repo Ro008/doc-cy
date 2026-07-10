@@ -41,7 +41,7 @@ import {
   toTitleCaseWords,
 } from "@/lib/finder-seo";
 import { buildFinderSpecialtyOptions } from "@/lib/finder-specialty-options";
-import { harmonizeFinderSpecialtyLabel } from "@/lib/finder-specialty-harmonize";
+import { matchesSpecialtyFilter } from "@/lib/finder-specialty-filter";
 import {
   getPublicSpecialtyDisplayLabel,
   matchesFinderSpecialtyFilter,
@@ -180,15 +180,6 @@ function toPublicAvatarUrl(rawValue: unknown): string | null {
   return `${base.replace(/\/+$/, "")}/storage/v1/object/public/avatars/${raw.replace(/^\/+/, "")}`;
 }
 
-function normalizeSpecialtyTerm(value: string): string {
-  return value
-    .toLowerCase()
-    .replace(/\bdentistry\b/g, "dentist")
-    .replace(/\bdental\b/g, "dentist")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
 function normalizeDistrictTerm(value: string): string {
   return value.toLowerCase().trim();
 }
@@ -200,17 +191,6 @@ function parseUserCoordinates(searchParams: FinderPageProps["searchParams"]): Co
   const lat = Number(latRaw);
   const lon = Number(lonRaw);
   return parseOptionalCoordinates(lat, lon);
-}
-
-function matchesSpecialtyFilter(candidate: string, query: string): boolean {
-  const normalizedQuery = normalizeSelectValue(query);
-  if (!normalizedQuery) return true;
-  const candidateCanon = harmonizeFinderSpecialtyLabel(candidate);
-  const queryCanon = harmonizeFinderSpecialtyLabel(normalizedQuery);
-  if (specialtyToSlug(candidateCanon) === specialtyToSlug(queryCanon)) return true;
-  const normalizedCandidate = normalizeSpecialtyTerm(candidate);
-  const normalizedQueryFuzzy = normalizeSpecialtyTerm(normalizedQuery);
-  return normalizedCandidate.includes(normalizedQueryFuzzy);
 }
 
 function decodeSegment(raw: string | undefined): string {

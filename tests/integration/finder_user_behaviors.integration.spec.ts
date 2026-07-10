@@ -188,7 +188,7 @@ test.describe("Integration: finder user-like filter behavior matrix", { tag: "@p
     }
   });
 
-  test("clears near-me lat/lon when clearing all filters", async ({ page, context }) => {
+  test("keeps specialty filter when using Doctor near me", async ({ page, context }) => {
     test.setTimeout(60_000);
     const baseUrl = process.env.PLAYWRIGHT_BASE_URL ?? "";
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
@@ -206,10 +206,18 @@ test.describe("Integration: finder user-like filter behavior matrix", { tag: "@p
       page.getByRole("heading", { level: 1, name: /Find your next health professional in Cyprus/i }),
     ).toBeVisible({ timeout: 20_000 });
 
+    const specialtySelect = page.getByLabel("Specialty");
+    await expect(specialtySelect.locator('option[value="ent"]')).toHaveCount(1, {
+      timeout: 20_000,
+    });
+    await specialtySelect.selectOption("ent");
+
     await page.getByRole("button", { name: /Doctor near me/i }).click();
+    await expect(page).toHaveURL(/\/finder\/all\/ent(?:\?|$)/, { timeout: 15_000 });
     await expect(page).toHaveURL(/[?&]lat=/, { timeout: 15_000 });
     await expect(page).toHaveURL(/[?&]lon=/, { timeout: 15_000 });
     await expect(page.getByText("Near me: enabled")).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText("Specialty: ENT", { exact: false })).toBeVisible();
 
     await page.getByRole("button", { name: /Clear all filters/i }).click();
     await expect(page).toHaveURL(/\/finder(?:\?|$)/, { timeout: 15_000 });
