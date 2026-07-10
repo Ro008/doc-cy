@@ -41,7 +41,7 @@ from (
     ('Nikolas Stavris', 'Ophthalmology', 'Paphos', 'https://maps.app.goo.gl/w1httwyHHqnT9bqo6'),
     ('Savvas Hadjiraftis', 'Ophthalmology', 'Paphos', 'https://maps.app.goo.gl/bJzeXPVRBfWhsADJ6'),
     ('Panayiotis Christou', 'Ophthalmology', 'Paphos', 'https://maps.app.goo.gl/ytswnWjHq9sKJoyg8'),
-    ('Alexandra Koumpi', 'Ophthalmology', 'Paphos', 'https://maps.app.goo.gl/TzDvzRZVzgVjUWMm7'),
+    ('Alexandra Koumpi', 'Ophthalmology', 'Paphos', 'https://share.google/UP7Bxmp3mDmCglHe4'),
     ('Elias Elia', 'Ophthalmology', 'Limassol', 'https://maps.app.goo.gl/64hbdM1CsF9zbyQ38'),
     ('Antonis Glykeriou', 'Ophthalmology', 'Nicosia', 'https://maps.app.goo.gl/LPpTMA7ptkcDpV726'),
     ('Maria Phylactou', 'Ophthalmology', 'Nicosia', 'https://maps.app.goo.gl/j3WEHEfeoGMHhoFD9')

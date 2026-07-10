@@ -2,11 +2,13 @@
 
 import * as React from "react";
 import { X } from "lucide-react";
+import { phoneToTelHref } from "@/lib/phone-link";
 
 type Props = {
   open: boolean;
   doctorName: string;
   addressMapsLink: string;
+  phone?: string | null;
   wasDuplicate?: boolean;
   onClose: () => void;
 };
@@ -15,10 +17,13 @@ export function ManualBookingRequestModal({
   open,
   doctorName,
   addressMapsLink,
+  phone = null,
   wasDuplicate = false,
   onClose,
 }: Props) {
   const closeButtonRef = React.useRef<HTMLButtonElement>(null);
+  const phoneDisplay = String(phone ?? "").trim();
+  const phoneHref = phoneToTelHref(phoneDisplay);
 
   React.useEffect(() => {
     if (!open) return;
@@ -88,9 +93,23 @@ export function ManualBookingRequestModal({
 
           <div className="rounded-xl border border-clinical-200 bg-clinical-50/70 px-4 py-4">
             <p className="font-semibold text-ink-950">☎️ Need to book right now?</p>
-            <p className="mt-2 text-ink-700">
-              Their phone is currently the only way to get an appointment:
-            </p>
+            {phoneDisplay && phoneHref ? (
+              <>
+                <p className="mt-2 text-ink-700">Call their clinic directly:</p>
+                <p className="mt-3">
+                  <a
+                    href={phoneHref}
+                    className="inline-flex items-center gap-1.5 text-lg font-bold tabular-nums text-clinical-700 underline decoration-clinical-300 underline-offset-2 transition hover:text-clinical-600"
+                  >
+                    📞 {phoneDisplay}
+                  </a>
+                </p>
+              </>
+            ) : (
+              <p className="mt-2 text-ink-700">
+                Their phone is currently the only way to get an appointment:
+              </p>
+            )}
             <p className="mt-3">
               <a
                 href={addressMapsLink}

@@ -134,7 +134,10 @@ test.describe("Prod smoke: doctor registration", { tag: "@nightly-prod" }, () =>
       await page.getByTestId("language-multiselect-trigger").click();
       await page.locator("#register-languages-listbox [role='option']").first().click();
       await page.keyboard.press("Escape");
-      await page.getByLabel(/District \(Cyprus\)|^District$/i).selectOption("Nicosia");
+
+      await page.getByLabel(/Clinic address/i).fill("Nicosia");
+      await page.locator(".pac-container .pac-item").first().click({ timeout: 20_000 });
+      await expect(page.getByText(/District:\s*Nicosia/i)).toBeVisible({ timeout: 15_000 });
 
       const avatarInput = page.locator("label:has-text('Upload photo') input[type='file']");
       await avatarInput.setInputFiles(imageFixture);

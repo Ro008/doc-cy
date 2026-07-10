@@ -34,6 +34,7 @@ export type DoctorSettingsRow = {
   break_start: string | null;
   break_end: string | null;
   pause_online_bookings: boolean;
+  show_phone_public: boolean;
   holiday_mode_enabled: boolean;
   holiday_start_date: string | null; // "YYYY-MM-DD"
   holiday_end_date: string | null; // "YYYY-MM-DD"

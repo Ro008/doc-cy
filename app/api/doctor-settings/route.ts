@@ -7,6 +7,11 @@ import { isMasterSpecialty } from "@/lib/cyprus-specialties";
 import { validateLanguageSelection } from "@/lib/cyprus-languages";
 import { isCyprusDistrict } from "@/lib/cyprus-districts";
 import {
+  hasConfirmedClinicCoordinates,
+  clinicLocationFromParts,
+} from "@/lib/clinic-location";
+import { parseOptionalCoordinates } from "@/lib/finder-distance";
+import {
   BOOKING_HORIZON_OPTIONS_DAYS,
   DAY_NAMES,
   DEFAULT_BOOKING_HORIZON_DAYS,
@@ -93,6 +98,9 @@ export async function POST(req: NextRequest) {
     doctorPhone?: string | null;
     district?: string | null;
     clinicAddress?: string | null;
+    clinicLatitude?: number | null;
+    clinicLongitude?: number | null;
+    clinicPlaceId?: string | null;
     specialty?: string;
     /** true when chosen from master list (JSON boolean) */
     specialtyFromMaster?: boolean | string | number;
@@ -116,6 +124,7 @@ export async function POST(req: NextRequest) {
     holidayModeEnabled?: boolean;
     holidayStartDate?: string | null;
     holidayEndDate?: string | null;
+    showPhonePublic?: boolean;
   };
 
   if (!b.doctorId) {
@@ -169,6 +178,33 @@ export async function POST(req: NextRequest) {
   }
   const clinicAddress =
     typeof b.clinicAddress === "string" ? b.clinicAddress.trim() : "";
+  const doctorPhoneTrimmed =
+    typeof b.doctorPhone === "string" ? b.doctorPhone.trim() : "";
+  if (Boolean(b.showPhonePublic) && doctorPhoneTrimmed.length === 0) {
+    return NextResponse.json(
+      { message: "Add a phone number before enabling public phone display." },
+      { status: 400 },
+    );
+  }
+  const clinicLocation = clinicLocationFromParts({
+    address: clinicAddress,
+    latitude: b.clinicLatitude,
+    longitude: b.clinicLongitude,
+    placeId: b.clinicPlaceId,
+  });
+  const coords = parseOptionalCoordinates(b.clinicLatitude, b.clinicLongitude);
+  const hasLegacyAddressOnly =
+    clinicAddress.length > 0 &&
+    !coords &&
+    typeof b.clinicLatitude === "undefined" &&
+    typeof b.clinicLongitude === "undefined";
+
+  if (clinicAddress && !hasConfirmedClinicCoordinates(clinicLocation) && !hasLegacyAddressOnly) {
+    return NextResponse.json(
+      { message: "Please select your clinic from the Google suggestions." },
+      { status: 400 },
+    );
+  }
 
   const toTime = (v: string | undefined, fallback: string) => {
     if (!v || typeof v !== "string") return fallback;
@@ -236,6 +272,7 @@ export async function POST(req: NextRequest) {
     holiday_end_date: Boolean(b.holidayModeEnabled)
       ? (b.holidayEndDate ?? null)
       : null,
+    show_phone_public: Boolean(b.showPhonePublic),
     updated_at: new Date().toISOString(),
   };
 
@@ -268,7 +305,7 @@ export async function POST(req: NextRequest) {
     // Missing new scheduling columns means advanced availability cannot be saved reliably.
     const errMsg = String((errorFull as any)?.message ?? "");
     const missingNewCols =
-      /(saturday|sunday|weekly_schedule|pause_online_bookings|holiday_mode_enabled|holiday_start_date|holiday_end_date|booking_horizon_days|minimum_notice_hours)/i.test(
+      /(saturday|sunday|weekly_schedule|pause_online_bookings|show_phone_public|holiday_mode_enabled|holiday_start_date|holiday_end_date|booking_horizon_days|minimum_notice_hours)/i.test(
         errMsg
       );
 
@@ -308,10 +345,13 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const phoneUpdate: {
+  const phoneUpdateBase: {
     phone?: string | null;
     district: string;
     clinic_address: string | null;
+    latitude?: number | null;
+    longitude?: number | null;
+    clinic_place_id?: string | null;
     specialty: string;
     languages: string[];
     is_specialty_approved: boolean;
@@ -319,21 +359,34 @@ export async function POST(req: NextRequest) {
   } = {
     district: districtRaw,
     clinic_address: clinicAddress || null,
+    latitude: clinicAddress ? clinicLocation.latitude : null,
+    longitude: clinicAddress ? clinicLocation.longitude : null,
+    clinic_place_id: clinicAddress ? clinicLocation.placeId : null,
     specialty: specResult.specialty,
     languages,
     is_specialty_approved: specResult.is_specialty_approved,
     specialty_requires_standard_at: null,
   };
   if (b.doctorPhone !== undefined) {
-    const trimmed =
-      typeof b.doctorPhone === "string" ? b.doctorPhone.trim() : "";
-    phoneUpdate.phone = trimmed ? trimmed : null;
+    phoneUpdateBase.phone = doctorPhoneTrimmed ? doctorPhoneTrimmed : null;
   }
 
-  const { error: docErr } = await supabase
-    .from("doctors")
-    .update(phoneUpdate)
-    .eq("id", doctorId);
+  let docErr = (
+    await supabase.from("doctors").update(phoneUpdateBase).eq("id", doctorId)
+  ).error;
+
+  if (
+    docErr &&
+    (docErr.code === "42703" ||
+      docErr.code === "PGRST204" ||
+      String(docErr.message ?? "").toLowerCase().includes("column"))
+  ) {
+    const { latitude: _lat, longitude: _lon, clinic_place_id: _placeId, ...legacyPhoneUpdate } =
+      phoneUpdateBase;
+    docErr = (
+      await supabase.from("doctors").update(legacyPhoneUpdate).eq("id", doctorId)
+    ).error;
+  }
 
   if (docErr) {
     console.error("[DocCy] Failed to update doctors row", docErr);

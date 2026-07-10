@@ -24,6 +24,19 @@ import {
   parseDDMMYYYYToISO,
 } from "@/lib/date-format";
 import { CYPRUS_DISTRICTS, isCyprusDistrict } from "@/lib/cyprus-districts";
+import { ClinicAddressAutocomplete } from "@/components/dashboard/ClinicAddressAutocomplete";
+import {
+  clinicLocationFromParts,
+  clinicLocationRequiresSelection,
+  hasConfirmedClinicCoordinates,
+  type ClinicLocation,
+} from "@/lib/clinic-location";
+import {
+  buildSettingsDirtySnapshot,
+  settingsFormHasUnsavedChanges,
+  type SettingsDirtySnapshot,
+} from "@/lib/settings-form-dirty";
+import { useSettingsUnsavedChangesWarning } from "@/components/dashboard/useSettingsUnsavedChangesWarning";
 
 export type DoctorSettingsFormData = {
   doctorId: string;
@@ -36,8 +49,12 @@ export type DoctorSettingsFormData = {
   /** Canonical labels, saved as string[] on doctors */
   languages: string[];
   whatsappNumber?: string;
+  showPhonePublic: boolean;
   district: string;
   clinicAddress: string;
+  clinicLatitude?: number | null;
+  clinicLongitude?: number | null;
+  clinicPlaceId?: string | null;
   monday: boolean;
   tuesday: boolean;
   wednesday: boolean;
@@ -173,8 +190,25 @@ export function SettingsForm({ initial }: SettingsFormProps) {
   const [whatsappNumber, setWhatsappNumber] = React.useState(
     initial.whatsappNumber ?? ""
   );
+  const [showPhonePublic, setShowPhonePublic] = React.useState(Boolean(initial.showPhonePublic));
   const [district, setDistrict] = React.useState(initial.district ?? "");
-  const [clinicAddress, setClinicAddress] = React.useState(initial.clinicAddress ?? "");
+  const initialClinicAddressRef = React.useRef(initial.clinicAddress ?? "");
+  const [clinicLocation, setClinicLocation] = React.useState<ClinicLocation>(() =>
+    clinicLocationFromParts({
+      address: initial.clinicAddress,
+      latitude: initial.clinicLatitude,
+      longitude: initial.clinicLongitude,
+      placeId: initial.clinicPlaceId,
+      district: initial.district,
+    }),
+  );
+
+  const handleClinicLocationChange = React.useCallback((nextLocation: ClinicLocation) => {
+    setClinicLocation(nextLocation);
+    if (nextLocation.district) {
+      setDistrict(nextLocation.district);
+    }
+  }, []);
 
   const [weeklySchedule, setWeeklySchedule] = React.useState<WeeklySchedule>(
     initial.weeklySchedule
@@ -230,6 +264,85 @@ export function SettingsForm({ initial }: SettingsFormProps) {
   const [avatarCroppedPixels, setAvatarCroppedPixels] = React.useState<CropArea | null>(null);
   const [avatarCropOpen, setAvatarCropOpen] = React.useState(false);
   const avatarFileInputRef = React.useRef<HTMLInputElement | null>(null);
+
+  const buildCurrentDirtySnapshot = React.useCallback(
+    (): SettingsDirtySnapshot =>
+      buildSettingsDirtySnapshot({
+        specialty: spec.specialty,
+        specialtyFromMaster: spec.fromMaster,
+        languages,
+        whatsappNumber,
+        showPhonePublic,
+        district,
+        clinicLocation,
+        weeklySchedule,
+        breakEnabled,
+        breakStart,
+        breakEnd,
+        slotDurationMinutes,
+        bookingHorizonDays,
+        minimumNoticeHours,
+        holidayModeEnabled,
+        holidayStartInput,
+        holidayEndInput,
+      }),
+    [
+      spec.specialty,
+      spec.fromMaster,
+      languages,
+      whatsappNumber,
+      showPhonePublic,
+      district,
+      clinicLocation,
+      weeklySchedule,
+      breakEnabled,
+      breakStart,
+      breakEnd,
+      slotDurationMinutes,
+      bookingHorizonDays,
+      minimumNoticeHours,
+      holidayModeEnabled,
+      holidayStartInput,
+      holidayEndInput,
+    ],
+  );
+
+  const [savedSnapshot, setSavedSnapshot] = React.useState<SettingsDirtySnapshot>(() => {
+    const specialty = (initial.specialty ?? "").trim();
+    return buildSettingsDirtySnapshot({
+      specialty,
+      specialtyFromMaster:
+        (initial.isSpecialtyApproved ?? true) !== false && isMasterSpecialty(specialty),
+      languages: Array.isArray(initial.languages) ? [...initial.languages] : [],
+      whatsappNumber: initial.whatsappNumber ?? "",
+      showPhonePublic: Boolean(initial.showPhonePublic),
+      district: initial.district ?? "",
+      clinicLocation: clinicLocationFromParts({
+        address: initial.clinicAddress,
+        latitude: initial.clinicLatitude,
+        longitude: initial.clinicLongitude,
+        placeId: initial.clinicPlaceId,
+        district: initial.district,
+      }),
+      weeklySchedule: initial.weeklySchedule,
+      breakEnabled: initial.breakEnabled,
+      breakStart: timeToInputValue(initial.breakStart),
+      breakEnd: timeToInputValue(initial.breakEnd),
+      slotDurationMinutes: initial.slotDurationMinutes,
+      bookingHorizonDays: initial.bookingHorizonDays,
+      minimumNoticeHours: initial.minimumNoticeHours,
+      holidayModeEnabled: initial.holidayModeEnabled,
+      holidayStartInput: formatISOToDDMMYYYYOrEmpty(initial.holidayStartDate),
+      holidayEndInput: formatISOToDDMMYYYYOrEmpty(initial.holidayEndDate),
+    });
+  });
+
+  const hasUnsavedChanges = React.useMemo(
+    () => settingsFormHasUnsavedChanges(buildCurrentDirtySnapshot(), savedSnapshot),
+    [buildCurrentDirtySnapshot, savedSnapshot],
+  );
+
+  useSettingsUnsavedChangesWarning(hasUnsavedChanges);
 
   React.useEffect(() => {
     setIsClient(true);
@@ -427,7 +540,24 @@ export function SettingsForm({ initial }: SettingsFormProps) {
       return;
     }
     if (!isCyprusDistrict(district)) {
-      const text = "Select your district so patients can find you in Health Finder.";
+      const text = hasConfirmedClinicCoordinates(clinicLocation)
+        ? "We could not detect your clinic district. Please re-select your clinic from Google suggestions."
+        : clinicLocation.address.trim()
+          ? "Select your district so patients can find you in Health Finder."
+          : "Add your clinic address so patients can find you in Health Finder.";
+      setMessage({ type: "error", text });
+      toast.error(text);
+      return;
+    }
+    if (showPhonePublic && whatsappNumber.trim().length === 0) {
+      const text = "Add a WhatsApp number before enabling public phone display.";
+      setMessage({ type: "error", text });
+      toast.error(text);
+      return;
+    }
+
+    if (clinicLocationRequiresSelection(clinicLocation, initialClinicAddressRef.current)) {
+      const text = "Please select your clinic from the Google suggestions.";
       setMessage({ type: "error", text });
       toast.error(text);
       return;
@@ -458,35 +588,48 @@ export function SettingsForm({ initial }: SettingsFormProps) {
 
     setSaving(true);
     try {
+      const savePayload: Record<string, unknown> = {
+        doctorId: initial.doctorId,
+        doctorPhone: whatsappNumber || null,
+        showPhonePublic,
+        district: clinicLocation.district ?? district,
+        clinicAddress: clinicLocation.address.trim() || null,
+        specialty: specResult.specialty,
+        specialtyFromMaster: specResult.is_specialty_approved,
+        languages: langList,
+        monday: weeklySchedule.monday.enabled,
+        tuesday: weeklySchedule.tuesday.enabled,
+        wednesday: weeklySchedule.wednesday.enabled,
+        thursday: weeklySchedule.thursday.enabled,
+        friday: weeklySchedule.friday.enabled,
+        saturday: weeklySchedule.saturday.enabled,
+        sunday: weeklySchedule.sunday.enabled,
+        weeklySchedule,
+        breakEnabled,
+        breakStart,
+        breakEnd,
+        slotDurationMinutes,
+        bookingHorizonDays,
+        minimumNoticeHours,
+        holidayModeEnabled,
+        holidayStartDate: parsedHolidayStart,
+        holidayEndDate: parsedHolidayEnd,
+      };
+
+      if (clinicLocation.latitude != null && clinicLocation.longitude != null) {
+        savePayload.clinicLatitude = clinicLocation.latitude;
+        savePayload.clinicLongitude = clinicLocation.longitude;
+        savePayload.clinicPlaceId = clinicLocation.placeId;
+      } else if (!clinicLocation.address.trim()) {
+        savePayload.clinicLatitude = null;
+        savePayload.clinicLongitude = null;
+        savePayload.clinicPlaceId = null;
+      }
+
       const res = await fetch("/api/doctor-settings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          doctorId: initial.doctorId,
-          doctorPhone: whatsappNumber || null,
-          district,
-          clinicAddress: clinicAddress.trim() || null,
-          specialty: specResult.specialty,
-          specialtyFromMaster: specResult.is_specialty_approved,
-          languages: langList,
-          monday: weeklySchedule.monday.enabled,
-          tuesday: weeklySchedule.tuesday.enabled,
-          wednesday: weeklySchedule.wednesday.enabled,
-          thursday: weeklySchedule.thursday.enabled,
-          friday: weeklySchedule.friday.enabled,
-          saturday: weeklySchedule.saturday.enabled,
-          sunday: weeklySchedule.sunday.enabled,
-          weeklySchedule,
-          breakEnabled,
-          breakStart,
-          breakEnd,
-          slotDurationMinutes,
-          bookingHorizonDays,
-          minimumNoticeHours,
-          holidayModeEnabled,
-          holidayStartDate: parsedHolidayStart,
-          holidayEndDate: parsedHolidayEnd,
-        }),
+        body: JSON.stringify(savePayload),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -502,6 +645,8 @@ export function SettingsForm({ initial }: SettingsFormProps) {
         setHolidayStartDate(parsedHolidayStart);
         setHolidayEndDate(parsedHolidayEnd);
       }
+      initialClinicAddressRef.current = clinicLocation.address.trim();
+      setSavedSnapshot(buildCurrentDirtySnapshot());
       setMessage({ type: "success", text: "Settings saved." });
       toast.success("Settings saved.");
     } catch (err) {
@@ -522,6 +667,15 @@ export function SettingsForm({ initial }: SettingsFormProps) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      {hasUnsavedChanges ? (
+        <div
+          role="status"
+          data-testid="settings-unsaved-changes"
+          className="rounded-2xl border border-amber-400/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100"
+        >
+          You have unsaved changes. Save settings before leaving this page.
+        </div>
+      ) : null}
       <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-5">
         <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
           Directory &amp; profile
@@ -564,43 +718,23 @@ export function SettingsForm({ initial }: SettingsFormProps) {
           Finder location
         </p>
         <p className="mt-1 text-sm text-slate-400">
-          District is required for Health Finder ranking and filtering.
+          Search your clinic on Google Maps. We use the pinned location for Health Finder distance
+          and set your district automatically.
         </p>
-        {!clinicAddress.trim() ? (
+        {!clinicLocation.address.trim() ? (
           <div
             className="mt-3 rounded-xl border border-amber-500/35 bg-amber-500/10 px-4 py-3 text-sm text-amber-50"
             role="status"
           >
             <p className="font-medium text-amber-100">Add your clinic address</p>
             <p className="mt-1 text-xs leading-relaxed text-amber-100/90">
-              Patients see a map link from this address on your public profile. A clear street
-              address helps Google Maps open in the right place — you can paste it from Google Maps
-              if you prefer.
+              Search your clinic on Google Maps and pick it from the suggestions. Patients see this
+              address on your public profile, and we use the pinned location for accurate distance
+              in Health Finder.
             </p>
           </div>
         ) : null}
-        <div className="mt-4 grid gap-4 sm:grid-cols-2">
-          <div>
-            <label
-              htmlFor="district"
-              className="text-[11px] font-semibold uppercase tracking-wide text-slate-400"
-            >
-              District <span className="text-red-300">*</span>
-            </label>
-            <select
-              id="district"
-              value={district}
-              onChange={(e) => setDistrict(e.target.value)}
-              className="mt-2 w-full rounded-xl border border-slate-800/80 bg-ink-900/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-clinical-400/60"
-            >
-              <option value="">Select district</option>
-              {CYPRUS_DISTRICTS.map((item) => (
-                <option key={item} value={item}>
-                  {item}
-                </option>
-              ))}
-            </select>
-          </div>
+        <div className="mt-4 space-y-4">
           <div>
             <label
               htmlFor="clinicAddress"
@@ -608,15 +742,38 @@ export function SettingsForm({ initial }: SettingsFormProps) {
             >
               Clinic address
             </label>
-            <input
+            <ClinicAddressAutocomplete
               id="clinicAddress"
-              type="text"
-              value={clinicAddress}
-              onChange={(e) => setClinicAddress(e.target.value)}
-              placeholder="Street, number, area"
-              className="mt-2 w-full rounded-xl border border-slate-800/80 bg-ink-900/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-clinical-400/60"
+              value={clinicLocation}
+              onChange={handleClinicLocationChange}
             />
           </div>
+          {!hasConfirmedClinicCoordinates(clinicLocation) && clinicLocation.address.trim() ? (
+            <div>
+              <label
+                htmlFor="district"
+                className="text-[11px] font-semibold uppercase tracking-wide text-slate-400"
+              >
+                District <span className="text-red-300">*</span>
+              </label>
+              <p className="mt-1 text-xs text-amber-100/90">
+                Re-select your clinic from Google suggestions to set district automatically.
+              </p>
+              <select
+                id="district"
+                value={district}
+                onChange={(e) => setDistrict(e.target.value)}
+                className="mt-2 w-full rounded-xl border border-slate-800/80 bg-ink-900/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-clinical-400/60"
+              >
+                <option value="">Select district</option>
+                {CYPRUS_DISTRICTS.map((item) => (
+                  <option key={item} value={item}>
+                    {item}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : null}
         </div>
       </div>
 
@@ -747,6 +904,24 @@ export function SettingsForm({ initial }: SettingsFormProps) {
           Used in appointment confirmation emails to enable{" "}
           <span className="font-medium text-slate-300">Chat on WhatsApp</span>.
         </p>
+        <div className="mt-4 rounded-xl border border-slate-700/80 bg-ink-900/35 p-3">
+          <label className="inline-flex cursor-pointer items-start gap-2 text-sm text-slate-200">
+            <input
+              type="checkbox"
+              checked={showPhonePublic}
+              onChange={(e) => setShowPhonePublic(e.target.checked)}
+              className="mt-0.5 h-4 w-4 rounded border-slate-600 bg-slate-900 text-clinical-500 focus:ring-clinical-400/60"
+            />
+            <span>
+              Show my phone number on my public profile
+              <span className="mt-1 block text-xs text-slate-400">
+                {showPhonePublic
+                  ? "Patients can contact you directly from your profile."
+                  : "Keep this off to encourage online bookings and reduce direct calls."}
+              </span>
+            </span>
+          </label>
+        </div>
       </div>
 
       <section className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-5">
@@ -1138,7 +1313,9 @@ export function SettingsForm({ initial }: SettingsFormProps) {
         <button
           type="submit"
           disabled={saving}
-          className="inline-flex items-center justify-center rounded-2xl bg-clinical-400 px-5 py-2.5 text-sm font-semibold text-slate-950 shadow-lg shadow-clinical-500/30 transition hover:bg-clinical-300 disabled:opacity-60"
+          className={`inline-flex items-center justify-center rounded-2xl bg-clinical-400 px-5 py-2.5 text-sm font-semibold text-slate-950 shadow-lg shadow-clinical-500/30 transition hover:bg-clinical-300 disabled:opacity-60 ${
+            hasUnsavedChanges ? "ring-2 ring-amber-300/70 ring-offset-2 ring-offset-slate-950" : ""
+          }`}
         >
           <Save className="mr-2 h-4 w-4" />
           {saving ? "Saving..." : "Save settings"}

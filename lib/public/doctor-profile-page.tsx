@@ -32,9 +32,11 @@ import {
   DOCTOR_FIELD_LIST_PUBLIC_PROFILE_NO_LANG,
 } from "@/lib/doctor-fieldsets";
 import { GesyProviderBadge } from "@/components/brand/GesyProviderBadge";
+import { WhatsAppLogoIcon } from "@/components/icons/WhatsAppLogoIcon";
 import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher";
 import { DocCyWordmark } from "@/components/brand/DocCyWordmark";
 import { getTranslations } from "next-intl/server";
+import { Phone } from "lucide-react";
 import {
   normalizeDistrictForSeoTitle,
   withDoctorTitleHonorific,
@@ -302,6 +304,11 @@ function buildPhysicianStructuredData(input: {
   };
 }
 
+function toWhatsAppHref(phone: string): string {
+  const digits = phone.replace(/[^\d]/g, "");
+  return `https://wa.me/${digits}`;
+}
+
 function buildVerifiedRegisteredMetaTitle(input: {
   doctorName: string;
   specialty: string;
@@ -543,22 +550,8 @@ export default async function DoctorPage({ params }: PageProps) {
     .replace(/\/+$/, "");
   const profileCanonicalUrl = `${siteBase}/${params.slug}`;
 
-  const structuredData = buildPhysicianStructuredData({
-    name: profile.name,
-    specialty:
-      profile.is_specialty_approved === false ? null : profile.specialty,
-    bio: profile.bio,
-    clinicAddress: clinicAddress,
-    district: profile.district ?? null,
-    phone: publicPhone,
-    languages: profile.languages ?? null,
-    imageUrl: hasCustomAvatar ? avatarUrl : null,
-    profileUrl: profileCanonicalUrl,
-    sameAs: mapsUrl || null,
-  });
-
   const settingsSelectFull =
-    "doctor_id, monday, tuesday, wednesday, thursday, friday, saturday, sunday, start_time, end_time, weekly_schedule, break_start, break_end, slot_duration_minutes, pause_online_bookings, holiday_mode_enabled, holiday_start_date, holiday_end_date, booking_horizon_days, minimum_notice_hours";
+    "doctor_id, monday, tuesday, wednesday, thursday, friday, saturday, sunday, start_time, end_time, weekly_schedule, break_start, break_end, slot_duration_minutes, pause_online_bookings, show_phone_public, holiday_mode_enabled, holiday_start_date, holiday_end_date, booking_horizon_days, minimum_notice_hours";
   const settingsSelectLegacy =
     "doctor_id, monday, tuesday, wednesday, thursday, friday, start_time, end_time, break_start, break_end, slot_duration_minutes";
 
@@ -592,6 +585,7 @@ export default async function DoctorPage({ params }: PageProps) {
         pause_online_bookings: Boolean(
           (settings as any).pause_online_bookings ?? false,
         ),
+        show_phone_public: Boolean((settings as any).show_phone_public ?? false),
         holiday_mode_enabled: Boolean(
           (settings as any).holiday_mode_enabled ?? false,
         ),
@@ -678,6 +672,24 @@ export default async function DoctorPage({ params }: PageProps) {
   const profileDistrictLabel = normalizeDistrictForSeoTitle(profile.district);
   const profileHeadingCity =
     profileDistrictLabel ?? t("profileHeadingCityFallback");
+  const showPhonePublic = Boolean(
+    (normalizedSettings as { show_phone_public?: boolean | null } | null)?.show_phone_public,
+  );
+  const publicContactPhone = showPhonePublic ? publicPhone : null;
+  const whatsappHref = publicContactPhone ? toWhatsAppHref(publicContactPhone) : null;
+  const structuredData = buildPhysicianStructuredData({
+    name: profile.name,
+    specialty:
+      profile.is_specialty_approved === false ? null : profile.specialty,
+    bio: profile.bio,
+    clinicAddress: clinicAddress,
+    district: profile.district ?? null,
+    phone: publicContactPhone,
+    languages: profile.languages ?? null,
+    imageUrl: hasCustomAvatar ? avatarUrl : null,
+    profileUrl: profileCanonicalUrl,
+    sameAs: mapsUrl || null,
+  });
 
   return (
     <main className="min-h-screen bg-ink-50 text-ink-800">
@@ -818,6 +830,32 @@ export default async function DoctorPage({ params }: PageProps) {
               name={profile.name}
               bio={profile.bio}
             />
+            {publicContactPhone ? (
+              <section className="lg:min-w-0">
+                <div className="rounded-3xl border border-clinical-200 bg-white p-5 shadow-[0_1px_3px_rgba(26,43,60,0.06),0_8px_24px_rgba(11,123,181,0.06)] backdrop-blur-xl sm:p-6">
+                  <h2 className="text-sm font-semibold tracking-wide text-ink-900">
+                    Contact
+                  </h2>
+                  <div className="mt-3 flex flex-col gap-3">
+                    {whatsappHref ? (
+                      <a
+                        href={whatsappHref}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100"
+                      >
+                        <WhatsAppLogoIcon className="h-4 w-4" />
+                        Chat on WhatsApp
+                      </a>
+                    ) : null}
+                    <p className="flex items-center gap-2 text-sm text-ink-700">
+                      <Phone className="h-4 w-4 text-clinical-600" />
+                      <span>{publicContactPhone}</span>
+                    </p>
+                  </div>
+                </div>
+              </section>
+            ) : null}
             <DoctorLocationSection clinicAddress={clinicAddress} mapsUrl={mapsUrl} />
             <ServiceMenuSection services={services} />
           </div>

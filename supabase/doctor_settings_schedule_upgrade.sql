@@ -6,6 +6,7 @@ ALTER TABLE public.doctor_settings
   ADD COLUMN IF NOT EXISTS sunday boolean NOT NULL DEFAULT false,
   ADD COLUMN IF NOT EXISTS weekly_schedule jsonb NULL,
   ADD COLUMN IF NOT EXISTS pause_online_bookings boolean NOT NULL DEFAULT false,
+  ADD COLUMN IF NOT EXISTS show_phone_public boolean NOT NULL DEFAULT false,
   ADD COLUMN IF NOT EXISTS holiday_mode_enabled boolean NOT NULL DEFAULT false,
   ADD COLUMN IF NOT EXISTS holiday_start_date date NULL,
   ADD COLUMN IF NOT EXISTS holiday_end_date date NULL,

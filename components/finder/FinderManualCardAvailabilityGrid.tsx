@@ -15,6 +15,7 @@ type Props = {
   manualId: string;
   doctorName: string;
   addressMapsLink: string;
+  phone?: string | null;
   anchorStickyWeekNav?: boolean;
 };
 
@@ -22,6 +23,7 @@ export function FinderManualCardAvailabilityGrid({
   manualId,
   doctorName,
   addressMapsLink,
+  phone = null,
   anchorStickyWeekNav = false,
 }: Props) {
   const { dayHeaders, windowStart, visibleDayCount, visibleDays } = useFinderAvailabilityWeek();
@@ -29,6 +31,7 @@ export function FinderManualCardAvailabilityGrid({
     manualId,
     doctorName,
     addressMapsLink,
+    phone,
   });
 
   const previewCalendar = React.useMemo(
@@ -69,7 +72,7 @@ export function FinderManualCardAvailabilityGrid({
                   onClick={() => submit(slot.slotKey)}
                   className={`relative inline-flex w-full items-center justify-center rounded-md bg-clinical-500 px-1 py-1 text-[10px] font-semibold leading-none text-white transition hover:bg-clinical-400 disabled:cursor-wait disabled:hover:bg-clinical-500 ${
                     isSubmitting && !isActiveSlot ? "opacity-45" : ""
-                  } ${isActiveSlot ? "opacity-100" : ""}`}
+                  } ${isActiveSlot ? "opacity-100" : "motion-safe:animate-pulse"}`}
                   title={`Request online booking for ${day.weekdayLabel} ${day.dateLabel} at ${slot.timeLabel}`}
                 >
                   <span

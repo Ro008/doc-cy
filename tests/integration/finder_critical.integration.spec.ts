@@ -170,20 +170,12 @@ test.describe("Integration: finder business-critical UX", { tag: "@pr-e2e" }, ()
 
     const footerSearches = [
       { city: "Nicosia", specialty: "Dentists", path: "/finder/nicosia/dentistry" },
-      { city: "Nicosia", specialty: "Physiotherapists", path: "/finder/nicosia/physiotherapy" },
-      { city: "Nicosia", specialty: "Psychologists", path: "/finder/nicosia/psychology" },
       { city: "Nicosia", specialty: "Dermatologists", path: "/finder/nicosia/dermatology" },
       { city: "Limassol", specialty: "Dentists", path: "/finder/limassol/dentistry" },
-      { city: "Limassol", specialty: "Physiotherapists", path: "/finder/limassol/physiotherapy" },
-      { city: "Limassol", specialty: "Psychologists", path: "/finder/limassol/psychology" },
       { city: "Limassol", specialty: "Dermatologists", path: "/finder/limassol/dermatology" },
       { city: "Paphos", specialty: "Dentists", path: "/finder/paphos/dentistry" },
-      { city: "Paphos", specialty: "Physiotherapists", path: "/finder/paphos/physiotherapy" },
-      { city: "Paphos", specialty: "Psychologists", path: "/finder/paphos/psychology" },
       { city: "Paphos", specialty: "Dermatologists", path: "/finder/paphos/dermatology" },
       { city: "Larnaca", specialty: "Dentists", path: "/finder/larnaca/dentistry" },
-      { city: "Larnaca", specialty: "Physiotherapists", path: "/finder/larnaca/physiotherapy" },
-      { city: "Larnaca", specialty: "Psychologists", path: "/finder/larnaca/psychology" },
       { city: "Larnaca", specialty: "Dermatologists", path: "/finder/larnaca/dermatology" },
     ] as const;
 

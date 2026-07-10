@@ -65,7 +65,7 @@ export function FinderResultsTransition({ children }: FinderResultsTransitionPro
       <div
         aria-busy={isTransitioning}
         className={`transition-opacity duration-200 ease-out ${
-          isTransitioning ? "opacity-60 blur-[2px]" : "opacity-100"
+          isTransitioning ? "pointer-events-none opacity-60 blur-[2px]" : "opacity-100"
         }`}
       >
         {children}
@@ -73,7 +73,9 @@ export function FinderResultsTransition({ children }: FinderResultsTransitionPro
       <div
         aria-live="polite"
         className={`pointer-events-none absolute inset-x-0 top-2 z-20 flex justify-center transition-all duration-200 ${
-          isTransitioning ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-1"
+          isTransitioning && transitionMessage !== getNavigationStartMessage("finder-near-me")
+            ? "opacity-100 translate-y-0"
+            : "opacity-0 -translate-y-1"
         }`}
       >
         <div className="inline-flex items-center gap-2 text-sm font-medium text-ink-600">

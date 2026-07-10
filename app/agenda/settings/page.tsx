@@ -55,6 +55,9 @@ export default async function AgendaSettingsPage() {
     languages?: string[] | null;
     district?: string | null;
     clinic_address?: string | null;
+    latitude?: number | null;
+    longitude?: number | null;
+    clinic_place_id?: string | null;
     status?: string | null;
     is_specialty_approved?: boolean | null;
     specialty_requires_standard_at?: string | null;
@@ -70,10 +73,25 @@ export default async function AgendaSettingsPage() {
     let res = await supabase
       .from("doctors")
       .select(
-        "id, name, avatar_url, phone, slug, specialty, languages, district, clinic_address, status, subscription_tier, is_gesy"
+        "id, name, avatar_url, phone, slug, specialty, languages, district, clinic_address, latitude, longitude, clinic_place_id, status, subscription_tier, is_gesy"
       )
       .eq("auth_user_id", user.id)
       .single();
+
+    if (
+      res.error &&
+      (hasColError(res.error, "latitude") ||
+        hasColError(res.error, "longitude") ||
+        hasColError(res.error, "clinic_place_id"))
+    ) {
+      res = await supabase
+        .from("doctors")
+        .select(
+          "id, name, avatar_url, phone, slug, specialty, languages, district, clinic_address, status, subscription_tier, is_gesy"
+        )
+        .eq("auth_user_id", user.id)
+        .single();
+    }
 
     if (res.error && hasColError(res.error, "is_gesy")) {
       res = await supabase
@@ -257,8 +275,14 @@ export default async function AgendaSettingsPage() {
     isSpecialtyApproved: doctor.is_specialty_approved ?? true,
     languages: langArr,
     whatsappNumber: doctor.phone ?? undefined,
+    showPhonePublic: Boolean(
+      (settings as { show_phone_public?: boolean | null } | null)?.show_phone_public
+    ),
     district: (doctor.district ?? "").trim(),
     clinicAddress: (doctor.clinic_address ?? "").trim(),
+    clinicLatitude: doctor.latitude ?? null,
+    clinicLongitude: doctor.longitude ?? null,
+    clinicPlaceId: doctor.clinic_place_id ?? null,
     monday: (settings as { monday?: boolean } | null)?.monday ?? true,
     tuesday: (settings as { tuesday?: boolean } | null)?.tuesday ?? true,
     wednesday: (settings as { wednesday?: boolean } | null)?.wednesday ?? true,
@@ -289,6 +313,9 @@ export default async function AgendaSettingsPage() {
       pause_online_bookings: Boolean(
         (settings as { pause_online_bookings?: boolean } | null)
           ?.pause_online_bookings
+      ),
+      show_phone_public: Boolean(
+        (settings as { show_phone_public?: boolean | null } | null)?.show_phone_public
       ),
       holiday_mode_enabled: Boolean(
         (settings as { holiday_mode_enabled?: boolean } | null)

@@ -107,6 +107,9 @@ jobs:
       - name: Validate messages EN/EL parity
         run: npm run test:content:messages-parity
 
+      - name: Run unit tests (finder distance / clinic location)
+        run: npm run test:unit
+
       - name: Build Next.js (PR branch)
         run: npm run build
         env:

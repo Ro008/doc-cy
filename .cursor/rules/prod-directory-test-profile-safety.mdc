@@ -1,0 +1,14 @@
+---
+description: Prevent test-profile data from reaching production directory changes
+alwaysApply: true
+---
+
+# Production Directory Test-Profile Safety
+
+- For any directory/listing change intended for production, explicitly block test profiles and test markers.
+- Never include records with emails using the pattern `rociosirvent+*` in production directory data or production seed/migration payloads.
+- Treat `is_test_profile = true` as a hard exclusion for production directory content.
+- Before any production directory push, perform and report a preflight check confirming:
+  - no `rociosirvent+*` emails in the payload,
+  - no `is_test_profile = true` records in the payload.
+- If there is uncertainty about a record being test vs real, stop and ask the user before any production action.
