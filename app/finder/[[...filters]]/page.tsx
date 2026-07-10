@@ -132,8 +132,6 @@ type UnifiedFinderResult = {
 const SEO_CITIES: CyprusDistrict[] = ["Nicosia", "Limassol", "Paphos", "Larnaca"];
 const SEO_SPECIALTIES = [
   { label: "Dentistry", pluralLabel: "Dentists" },
-  { label: "Physiotherapy", pluralLabel: "Physiotherapists" },
-  { label: "Psychology", pluralLabel: "Psychologists" },
   { label: "Dermatology", pluralLabel: "Dermatologists" },
 ] as const;
 
