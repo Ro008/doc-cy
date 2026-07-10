@@ -1,6 +1,14 @@
 /**
  * Curated photos for manual finder cards (GSC / popular searches).
  * Keys are normalized Google Maps links from `directory_manual.address_maps_link`.
+ *
+ * Preserved roster (keep assets + map entries across directory_manual replacements):
+ * - Valentina Oflidou (Dermatology, Paphos)
+ * - Vera Politou (Dermatology, Paphos)
+ * - Korina Tryfonos (Dermatology, Paphos)
+ * - Georgina Sarika (Dermatology, Paphos)
+ *
+ * See `.cursor/rules/manual-directory-preserved-photos.mdc`.
  */
 const FINDER_MANUAL_PHOTOS_BY_MAPS_LINK: Record<string, string> = {
   "https://maps.app.goo.gl/RDejcWME7Xr6tZtM6": "/finder/manual-photos/valentina-oflidou.png",
