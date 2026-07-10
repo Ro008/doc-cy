@@ -15,6 +15,7 @@ type Props = {
   manualId: string;
   doctorName: string;
   addressMapsLink: string;
+  phone?: string | null;
   anchorStickyWeekNav?: boolean;
 };
 
@@ -22,6 +23,7 @@ export function FinderManualCardAvailabilityGrid({
   manualId,
   doctorName,
   addressMapsLink,
+  phone = null,
   anchorStickyWeekNav = false,
 }: Props) {
   const { dayHeaders, windowStart, visibleDayCount, visibleDays } = useFinderAvailabilityWeek();
@@ -29,6 +31,7 @@ export function FinderManualCardAvailabilityGrid({
     manualId,
     doctorName,
     addressMapsLink,
+    phone,
   });
 
   const previewCalendar = React.useMemo(

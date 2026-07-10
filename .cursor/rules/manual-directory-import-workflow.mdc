@@ -1,0 +1,110 @@
+---
+description: How to import, replace, and maintain the manual finder directory (directory_manual)
+alwaysApply: true
+---
+
+# Manual Directory Import Workflow
+
+Use this when the user passes a new doctor list (Excel/CSV) for the **manual finder** (`directory_manual`). This is separate from registered DocCy doctors (`doctors`).
+
+## What the manual directory is
+
+- **Table:** `public.directory_manual`
+- **Shown in:** `/finder` (cards with fake calendar + “Profile not activated yet” modal)
+- **Not shown:** registered verified doctors (different table)
+
+### Required columns per row
+
+| Field | DB column | Notes |
+|-------|-----------|--------|
+| Name | `name` | Person name; Title Case (not clinic brand) |
+| Specialty | `specialty` | Use canonical labels (e.g. `Dentistry`, `Dermatology`) — see `lib/cyprus-specialties.ts` / `lib/finder-specialty-harmonize.ts` |
+| District | `district` | One of: `Nicosia`, `Limassol`, `Paphos`, `Larnaca`, `Famagusta` |
+| Google Maps URL | `address_maps_link` | Used for Maps CTA and curated photo lookup |
+| Phone | `phone` | Optional; shown in manual booking modal (`ManualBookingRequestModal`) |
+| Latitude | `latitude` | For “doctor near me” distance sorting |
+| Longitude | `longitude` | For “doctor near me” distance sorting |
+
+### User spreadsheet aliases (map on import)
+
+- `google_maps_url` / `maps_url` / `google_maps_link` → `address_maps_link`
+- `speciality` → `specialty`
+- `telephone` / `tel` → `phone`
+- `lat` / `lon` / `lng` → `latitude` / `longitude`
+- `city` → ignore if `district` is present
+- Specialty values like `dentist`, `dermatologist`, `dental` → normalized via `scripts/generate-manual-directory-migration.mjs` (mirrors `lib/finder-specialty-harmonize.ts` + common aliases)
+
+## Generating a migration from Excel
+
+Script: `scripts/generate-manual-directory-migration.mjs`  
+(Legacy alias: `scripts/generate-dentist-directory-migration.mjs`)
+
+```bash
+# Full replace (wipe directory_manual, then insert all rows)
+node scripts/generate-manual-directory-migration.mjs --replace "path/to/file.xlsx" "supabase/migrations/TIMESTAMP_description.sql"
+
+# Append batch (insert only new rows)
+node scripts/generate-manual-directory-migration.mjs --append "path/to/file.xlsx" "supabase/migrations/TIMESTAMP_description.sql"
+```
+
+Script behavior:
+
+- Reads `specialty` from each row (single-specialty files and mixed-specialty files)
+- Normalizes specialty labels (Dentistry, Dermatology, Gynecology, master list, common aliases)
+- Title-cases person names
+- Dedupes by `google_maps_url`
+- Dedupes same person when **name + district + phone** match (keeps first row; drops duplicate Google Place IDs)
+- Outputs SQL with `phone`, `latitude`, `longitude`
+- Prints a specialty breakdown after generation
+
+## Full replace vs incremental add
+
+**Full replace (user says “empezar de cero”, new clean list):**
+
+1. Generate with `--replace` (default): `DELETE FROM public.directory_manual;` then bulk `INSERT`.
+2. Cascades delete: `directory_manual_patient_booking_requests`, `directory_duplicate_suggestions`.
+3. Do **not** delete curated photo assets — see `manual-directory-preserved-photos.mdc`.
+
+**Incremental add (small batch):**
+
+- Generate with `--append`, or hand-write `INSERT … SELECT … WHERE NOT EXISTS` deduping by `lower(name)` or `address_maps_link`.
+
+After generating, review for:
+
+- clinic names instead of person names
+- duplicate people with different name spelling (e.g. hyphen vs space)
+- missing phone (modal falls back to Maps only)
+- wrong district enum values
+
+## Curated finder photos
+
+- Assets: `public/finder/manual-photos/*.png`
+- Map: `lib/finder-manual-photos.ts` (key = `address_maps_link`)
+- After import, re-link preserved roster if those doctors are in the new list
+- See `.cursor/rules/manual-directory-preserved-photos.mdc`
+
+## App code touchpoints (when schema or fields change)
+
+| Area | File |
+|------|------|
+| Finder load + card data | `app/finder/[[...filters]]/page.tsx` |
+| Booking modal + phone | `components/finder/ManualBookingRequestModal.tsx` |
+| Card calendar + modal hook | `components/finder/FinderManualCardAvailabilityGrid.tsx`, `useManualBookingRequestFeedback.tsx` |
+| Phone `tel:` links | `lib/phone-link.ts` |
+| Patient vote API | `app/api/directory-manual/patient-booking-request/route.ts` |
+| Sitemap pairs | `app/sitemap.ts` |
+| Internal duplicate queue | `app/internal/directory/page.tsx` |
+
+## Deploy workflow
+
+1. Create/edit migration(s) in `supabase/migrations/`.
+2. **Testing first:** `npm run db:testing:push` (project `fwinchqdgrkpxuuttech`).
+3. Verify `/finder/{district}/{specialty}`, modal phone, distance sort.
+4. **Production only when user explicitly asks:** `npm run db:prod:push` — never assume prior consent.
+5. Before prod directory changes, run test-profile preflight per `prod-directory-test-profile-safety.mdc`.
+
+## Safety rules (always)
+
+- Never push prod DB without explicit user request in the current task.
+- Manual directory has no `is_test_profile` column, but still avoid junk/test names in curated data.
+- Product copy in UI stays **English** (Greek only where product already supports it).

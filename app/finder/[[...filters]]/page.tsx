@@ -109,6 +109,7 @@ type ManualFinderRow = {
   specialty: string;
   district: CyprusDistrict;
   address_maps_link: string;
+  phone: string | null;
   photoUrl: string | null;
   /** Unique patient requests in the badge rolling window (see finder-manual-vote-badge). */
   monthlyRequestCount: number;
@@ -417,10 +418,12 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
       specialty: string | null;
       district: CyprusDistrict;
       address_maps_link: string | null;
+      phone?: string | null;
       latitude?: unknown;
       longitude?: unknown;
     }> = [];
     const manualSelectAttempts = [
+      "id, name, specialty, district, address_maps_link, phone, latitude, longitude",
       "id, name, specialty, district, address_maps_link, latitude, longitude",
       "id, name, specialty, district, address_maps_link",
     ];
@@ -445,6 +448,7 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
         specialty: string | null;
         district: CyprusDistrict;
         address_maps_link: string | null;
+        phone?: string | null;
         latitude?: unknown;
         longitude?: unknown;
       }>;
@@ -494,6 +498,7 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
           specialty: String(row.specialty ?? "Specialty not set"),
           district: row.district as CyprusDistrict,
           address_maps_link: addressMapsLink,
+          phone: String(row.phone ?? "").trim() || null,
           photoUrl: getFinderManualPhotoUrl(addressMapsLink),
           monthlyRequestCount: monthlyRequestCountByManualId.get(manualId) ?? 0,
           latitude: parseOptionalCoordinates(row.latitude, row.longitude)?.latitude ?? null,
@@ -993,6 +998,7 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                             manualId={row.id}
                             doctorName={row.displayName}
                             addressMapsLink={row.address_maps_link}
+                            phone={row.phone}
                             anchorStickyWeekNav={row.id === stickyWeekAnchorDoctorId}
                           />
                         </div>

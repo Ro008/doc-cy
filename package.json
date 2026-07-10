@@ -23,7 +23,7 @@
     "test:e2e:ui": "playwright test --ui",
     "test:content:blog-images": "node scripts/test-blog-single-image.mjs",
     "test:content:messages-parity": "node scripts/validate-messages-parity.mjs",
-    "test:unit": "npx --yes tsx --test tests/unit/finder-distance.test.ts tests/unit/clinic-location.test.ts tests/unit/register-clinic-location.test.ts tests/unit/settings-form-dirty.test.ts tests/unit/doctor-slug.test.ts",
+    "test:unit": "npx --yes tsx --test tests/unit/finder-distance.test.ts tests/unit/clinic-location.test.ts tests/unit/register-clinic-location.test.ts tests/unit/settings-form-dirty.test.ts tests/unit/doctor-slug.test.ts tests/unit/phone-link.test.ts",
     "brand:guide:pdf": "node scripts/export-brand-guide-pdf.mjs",
     "diagnose:qr:utm": "node scripts/check-qr-utm-redirect.mjs",
     "whatsapp:test": "node scripts/send-whatsapp-test.mjs",
@@ -80,6 +80,7 @@
     "eslint-config-next": "14.2.0",
     "postcss": "^8",
     "tailwindcss": "^3",
-    "typescript": "^5"
+    "typescript": "^5",
+    "xlsx": "^0.18.5"
   }
 }

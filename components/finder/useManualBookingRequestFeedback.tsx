@@ -13,12 +13,14 @@ type Options = {
   manualId: string;
   doctorName: string;
   addressMapsLink: string;
+  phone?: string | null;
 };
 
 export function useManualBookingRequestFeedback({
   manualId,
   doctorName,
   addressMapsLink,
+  phone = null,
 }: Options) {
   const router = useRouter();
   const [pendingSlotKey, setPendingSlotKey] = React.useState<string | null>(null);
@@ -47,6 +49,7 @@ export function useManualBookingRequestFeedback({
       open={modalOpen}
       doctorName={doctorName}
       addressMapsLink={addressMapsLink}
+      phone={phone}
       wasDuplicate={wasDuplicate}
       onClose={() => setModalOpen(false)}
     />
