@@ -29,7 +29,9 @@ export async function loadLocalTestLoginPasswordsByAuthUserId(
   admin: SupabaseClient,
   authUserIds: string[],
 ): Promise<Map<string, string>> {
-  const unique = [...new Set(authUserIds.map((id) => id.trim()).filter(Boolean))];
+  const unique = Array.from(
+    new Set(authUserIds.map((id) => id.trim()).filter(Boolean)),
+  );
   const passwords = new Map<string, string>();
   if (unique.length === 0) return passwords;
 
