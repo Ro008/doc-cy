@@ -45,6 +45,7 @@ import {
   shouldAllowRegisterClinicE2eFallback,
 } from "@/lib/register-clinic-location";
 import { RegisterClinicAddressField } from "@/components/auth/RegisterClinicAddressField";
+import { allocateUniqueDoctorSlug } from "@/lib/doctor-slug";
 
 type PageProps = {
   searchParams?: { submitted?: string; error?: string; debug?: string };
@@ -283,15 +284,11 @@ async function handleRegister(formData: FormData) {
     });
   }
 
-  // Generate a simple slug from the doctor's name
-  const baseSlug = fullName
-    .toLowerCase()
-    .replace(/[^a-z0-9\s-]/g, "")
-    .trim()
-    .replace(/\s+/g, "-")
-    .slice(0, 60);
-
-  const slug = baseSlug || `doctor-${authUserId.slice(0, 8)}`;
+  const slug = await allocateUniqueDoctorSlug(service, {
+    name: fullName,
+    district,
+    authUserId,
+  });
 
   const avatarPath = `profiles/${authUserId}/avatar-${Date.now()}-${Math.random()
     .toString(36)
