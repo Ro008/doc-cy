@@ -314,6 +314,9 @@ export default async function AgendaSettingsPage() {
         (settings as { pause_online_bookings?: boolean } | null)
           ?.pause_online_bookings
       ),
+      show_phone_public: Boolean(
+        (settings as { show_phone_public?: boolean | null } | null)?.show_phone_public
+      ),
       holiday_mode_enabled: Boolean(
         (settings as { holiday_mode_enabled?: boolean } | null)
           ?.holiday_mode_enabled
