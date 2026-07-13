@@ -171,12 +171,16 @@ test.describe("Integration: finder business-critical UX", { tag: "@pr-e2e" }, ()
     const footerSearches = [
       { city: "Nicosia", specialty: "Dentists", path: "/finder/nicosia/dentistry" },
       { city: "Nicosia", specialty: "Dermatologists", path: "/finder/nicosia/dermatology" },
+      { city: "Nicosia", specialty: "Physiotherapists", path: "/finder/nicosia/physiotherapy" },
       { city: "Limassol", specialty: "Dentists", path: "/finder/limassol/dentistry" },
       { city: "Limassol", specialty: "Dermatologists", path: "/finder/limassol/dermatology" },
+      { city: "Limassol", specialty: "Physiotherapists", path: "/finder/limassol/physiotherapy" },
       { city: "Paphos", specialty: "Dentists", path: "/finder/paphos/dentistry" },
       { city: "Paphos", specialty: "Dermatologists", path: "/finder/paphos/dermatology" },
+      { city: "Paphos", specialty: "Physiotherapists", path: "/finder/paphos/physiotherapy" },
       { city: "Larnaca", specialty: "Dentists", path: "/finder/larnaca/dentistry" },
       { city: "Larnaca", specialty: "Dermatologists", path: "/finder/larnaca/dermatology" },
+      { city: "Larnaca", specialty: "Physiotherapists", path: "/finder/larnaca/physiotherapy" },
     ] as const;
 
     const missingResults: string[] = [];

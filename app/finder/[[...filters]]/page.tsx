@@ -133,6 +133,7 @@ const SEO_CITIES: CyprusDistrict[] = ["Nicosia", "Limassol", "Paphos", "Larnaca"
 const SEO_SPECIALTIES = [
   { label: "Dentistry", pluralLabel: "Dentists" },
   { label: "Dermatology", pluralLabel: "Dermatologists" },
+  { label: "Physiotherapy", pluralLabel: "Physiotherapists" },
 ] as const;
 
 function isRecoverableSelectSchemaError(error: { code?: string; message?: string } | null): boolean {
