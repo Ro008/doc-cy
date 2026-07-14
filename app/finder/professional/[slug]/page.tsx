@@ -4,14 +4,14 @@ import { DocCyWordmark } from "@/components/brand/DocCyWordmark";
 import { ManualDirectoryLandingBrowseLink, ManualDirectoryLandingCard } from "@/components/finder/ManualDirectoryLandingCard";
 import { ManualDirectoryStructuredData } from "@/components/finder/ManualDirectoryStructuredData";
 import { PendingLink } from "@/components/navigation/PendingLink";
+import { districtToSlug, specialtyToSlug } from "@/lib/finder-seo";
 import { loadManualDirectoryBySlug } from "@/lib/load-manual-directory-by-slug";
+import { manualDirectoryLandingPath } from "@/lib/manual-directory-landing-path";
 import {
   buildManualDirectorySeoDescription,
   buildManualDirectorySeoTitle,
   getManualDirectorySpecialtySeoLabel,
 } from "@/lib/manual-directory-seo";
-import { districtToSlug, specialtyToSlug } from "@/lib/finder-seo";
-import { phoneToTelHref } from "@/lib/phone-link";
 import { buildFinderAvailabilityDayHeaders } from "@/lib/public/compute-public-booking-slots";
 import { createServiceRoleClient } from "@/lib/supabase-service";
 
@@ -40,7 +40,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     return { title: "Professional not found | DocCy", robots: { index: false, follow: false } };
   }
 
-  const pageUrl = `${siteBaseUrl()}/finder/doctor/${row.slug}`;
+  const pageUrl = `${siteBaseUrl()}${manualDirectoryLandingPath(row.slug)}`;
   const title = buildManualDirectorySeoTitle({
     name: row.displayName,
     specialty: row.specialty,
@@ -50,7 +50,6 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     name: row.displayName,
     specialty: row.specialty,
     district: row.district,
-    phone: row.phone,
   });
 
   return {
@@ -73,7 +72,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   };
 }
 
-export default async function ManualDirectoryDoctorPage({ params }: PageProps) {
+export default async function ManualDirectoryProfessionalPage({ params }: PageProps) {
   const supabase = createServiceRoleClient();
   if (!supabase) notFound();
 
@@ -81,12 +80,10 @@ export default async function ManualDirectoryDoctorPage({ params }: PageProps) {
   if (!row) notFound();
 
   const siteUrl = siteBaseUrl();
-  const pageUrl = `${siteUrl}/finder/doctor/${row.slug}`;
+  const pageUrl = `${siteUrl}${manualDirectoryLandingPath(row.slug)}`;
   const specialtySeoLabel = getManualDirectorySpecialtySeoLabel(row.specialty);
   const districtSlug = districtToSlug(row.district);
   const specialtySlug = specialtyToSlug(row.specialty);
-  const mapsUrl = row.address_maps_link.trim();
-  const telHref = phoneToTelHref(row.phone);
   const dayHeaders = buildFinderAvailabilityDayHeaders();
 
   return (
@@ -97,25 +94,18 @@ export default async function ManualDirectoryDoctorPage({ params }: PageProps) {
         name={row.displayName}
         specialty={row.specialty}
         district={row.district}
-        phone={row.phone}
-        mapsUrl={mapsUrl}
+        mapsUrl={row.address_maps_link.trim()}
       />
 
       <header className="border-b border-ink-200 bg-white">
-        <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-4 sm:px-6">
+        <div className="mx-auto max-w-6xl px-4 py-4 sm:px-6 lg:px-8">
           <PendingLink href="/finder" className="inline-flex items-center">
             <DocCyWordmark className="h-7 w-auto" />
-          </PendingLink>
-          <PendingLink
-            href="/finder"
-            className="text-sm font-medium text-clinical-700 hover:underline"
-          >
-            Back to Finder
           </PendingLink>
         </div>
       </header>
 
-      <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6">
+      <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
         <nav aria-label="Breadcrumb" className="mb-4 text-sm text-ink-500">
           <ol className="flex flex-wrap items-center gap-1">
             <li>
@@ -144,35 +134,7 @@ export default async function ManualDirectoryDoctorPage({ params }: PageProps) {
           {specialtySeoLabel} · {row.district}, Cyprus
         </p>
 
-        <p className="mt-4 max-w-2xl text-sm leading-relaxed text-ink-700">
-          {row.displayName} is listed on DocCy as a {specialtySeoLabel.toLowerCase()} professional
-          in {row.district}. View their location on Google Maps
-          {row.phone ? " or call the clinic" : ""}, then request an appointment through DocCy when
-          online booking is not yet activated on their profile.
-        </p>
-
-        <div className="mt-5 flex flex-wrap gap-3">
-          {mapsUrl ? (
-            <a
-              href={mapsUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center rounded-full border border-ink-200 bg-white px-4 py-2 text-sm font-semibold text-ink-800 shadow-sm hover:border-clinical-300 hover:text-clinical-800"
-            >
-              View on Google Maps
-            </a>
-          ) : null}
-          {telHref ? (
-            <a
-              href={telHref}
-              className="inline-flex items-center rounded-full border border-clinical-200 bg-clinical-50 px-4 py-2 text-sm font-semibold text-clinical-800 hover:bg-clinical-100"
-            >
-              Call {row.phone}
-            </a>
-          ) : null}
-        </div>
-
-        <section className="mt-8" aria-label="Directory listing">
+        <section className="mt-6" aria-label="Directory listing">
           <ManualDirectoryLandingCard row={row} dayHeaders={dayHeaders} />
         </section>
 

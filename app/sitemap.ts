@@ -3,6 +3,7 @@ import { CYPRUS_DISTRICTS, isCyprusDistrict, type CyprusDistrict } from "@/lib/c
 import { createServiceRoleClient } from "@/lib/supabase-service";
 import { districtToSlug, specialtyToSlug, slugToDistrict } from "@/lib/finder-seo";
 import { getAllBlogPostMeta } from "@/lib/blog";
+import { manualDirectoryLandingPath } from "@/lib/manual-directory-landing-path";
 
 function normalizeDistrictSlug(value: unknown): string {
   const raw = String(value ?? "").trim();
@@ -153,7 +154,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         const slug = String((row as { slug?: string | null }).slug ?? "").trim();
         if (!slug) return null;
         return {
-          url: `${siteBase}/finder/doctor/${slug}`,
+          url: `${siteBase}${manualDirectoryLandingPath(slug)}`,
           lastModified: now,
           changeFrequency: "monthly" as const,
           priority: 0.6,
