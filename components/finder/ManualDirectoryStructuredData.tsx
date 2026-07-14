@@ -4,7 +4,6 @@ type ManualDirectoryStructuredDataProps = {
   name: string;
   specialty: string;
   district: string;
-  phone?: string | null;
   mapsUrl: string;
 };
 
@@ -18,14 +17,12 @@ export function ManualDirectoryStructuredData({
   name,
   specialty,
   district,
-  phone,
   mapsUrl,
 }: ManualDirectoryStructuredDataProps) {
-  const tel = String(phone ?? "").trim();
   const payload = {
     "@context": "https://schema.org",
-    "@type": "Physician",
-    "@id": `${pageUrl}#physician`,
+    "@type": "MedicalBusiness",
+    "@id": `${pageUrl}#professional`,
     name,
     medicalSpecialty: specialty,
     url: pageUrl,
@@ -35,7 +32,6 @@ export function ManualDirectoryStructuredData({
       addressLocality: district,
       addressCountry: "CY",
     },
-    ...(tel ? { telephone: tel } : {}),
     isPartOf: {
       "@type": "WebSite",
       name: "DocCy",

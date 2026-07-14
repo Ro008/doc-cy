@@ -20,11 +20,7 @@ export function buildManualDirectorySeoDescription(input: {
   name: string;
   specialty: string;
   district: string;
-  phone?: string | null;
 }): string {
   const specialtyLabel = getManualDirectorySpecialtySeoLabel(input.specialty);
-  const base = `Find ${input.name.trim()}, a ${specialtyLabel.toLowerCase()} professional in ${input.district.trim()}, Cyprus on DocCy. View contact details and request an appointment.`;
-  const phone = String(input.phone ?? "").trim();
-  if (!phone) return base;
-  return `${base} Clinic phone: ${phone}.`;
+  return `Find ${input.name.trim()}, a ${specialtyLabel.toLowerCase()} professional in ${input.district.trim()}, Cyprus on DocCy. Browse availability and request an appointment.`;
 }

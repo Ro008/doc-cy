@@ -233,7 +233,7 @@ test.describe("Integration: finder business-critical UX", { tag: "@pr-e2e" }, ()
       "Run once on desktop.",
     );
 
-    await page.goto("/finder/doctor/savvas-themistocleous");
+    await page.goto("/finder/professional/savvas-themistocleous");
     await expect(page).toHaveTitle(/Savvas Themistocleous/i);
     await expect(
       page.getByRole("heading", { level: 1, name: /Savvas Themistocleous/i }),

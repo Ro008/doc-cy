@@ -1,0 +1,12 @@
+---
+description: DocCy serves health professionals, not only medical doctors
+alwaysApply: true
+---
+
+# Health Professionals Terminology
+
+- DocCy lists **health professionals** (doctors, physiotherapists, dentists, psychologists, etc.).
+- Do **not** assume every listed person is a medical doctor.
+- Prefer **professional**, **health professional**, or **healthcare professional** in user-facing copy and URLs.
+- Avoid `/doctor/` in public routes for manual directory listings unless the UI explicitly refers to a registered doctor profile.
+- Registered doctor booking pages under `/{slug}` are unchanged; this rule applies to directory/finder language and manual listing landings.

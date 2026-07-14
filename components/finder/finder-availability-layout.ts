@@ -9,3 +9,7 @@ export const finderRegisteredCardRowClass =
 
 export const finderRegisteredDetailsSectionClass =
   "min-w-0 flex-1 border-t border-ink-100 pt-4 sm:border-l sm:border-t-0 sm:pl-5 sm:pt-0";
+
+/** Landing pages are narrower; stack location + calendar until large breakpoints. */
+export const finderLandingCardDetailsGridClass =
+  "grid gap-5 lg:grid-cols-[minmax(0,0.72fr)_minmax(300px,1.28fr)]";

@@ -9,7 +9,7 @@ import {
 import { FinderManualCardAvailabilityGrid } from "@/components/finder/FinderManualCardAvailabilityGrid";
 import { FinderResultsAvailabilityShell } from "@/components/finder/FinderResultsAvailabilityShell";
 import {
-  finderRegisteredCardDetailsGridClass,
+  finderLandingCardDetailsGridClass,
   finderRegisteredCardRowClass,
   finderRegisteredDetailsSectionClass,
   finderRegisteredIdentityColumnClass,
@@ -28,7 +28,7 @@ function getInitials(name: string): string {
     .split(" ")
     .map((part) => part.trim())
     .filter(Boolean);
-  if (parts.length === 0) return "DR";
+  if (parts.length === 0) return "HP";
   if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
   return `${parts[0][0] ?? ""}${parts[1][0] ?? ""}`.toUpperCase();
 }
@@ -79,8 +79,8 @@ export function ManualDirectoryLandingCard({
           </div>
 
           <div className={finderRegisteredDetailsSectionClass}>
-            <div className={finderRegisteredCardDetailsGridClass}>
-              <div className="space-y-4">
+            <div className={finderLandingCardDetailsGridClass}>
+              <div className="min-w-0 space-y-4">
                 <div>
                   <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-ink-400">
                     Location

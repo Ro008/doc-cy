@@ -54,15 +54,15 @@ describe("manual-directory-seo", () => {
     );
   });
 
-  it("does not promise instant online booking in descriptions", () => {
+  it("does not expose contact details in meta descriptions", () => {
     const description = buildManualDirectorySeoDescription({
       name: "Savvas Themistocleous",
       specialty: "Physiotherapy & Rehabilitation",
       district: "Paphos",
-      phone: "99 999840",
     });
     assert.match(description, /request an appointment/i);
     assert.doesNotMatch(description, /book online instantly/i);
-    assert.match(description, /99 999840/);
+    assert.doesNotMatch(description, /99 999840/);
+    assert.doesNotMatch(description, /view contact details/i);
   });
 });
