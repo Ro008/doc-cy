@@ -37,8 +37,8 @@ const nextConfig = {
         permanent: true,
       },
       {
-        source: "/finder/doctor/:slug",
-        destination: "/finder/professional/:slug",
+        source: "/blog/sick-at-10pm-duty-pharmacies-paphos-limassol",
+        destination: "/blog/sick-at-10pm-duty-pharmacies-paphos",
         permanent: true,
       },
     ];
