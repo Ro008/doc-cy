@@ -76,6 +76,34 @@ After generating, review for:
 - missing phone (modal falls back to Maps only)
 - wrong district enum values
 
+## Clinic-style names (exclude from manual directory)
+
+DocCy lists **individual health professionals**, not clinic or centre brands. Skip or fix rows on import when `name` looks like an organisation, for example:
+
+- contains `Center`, `Centre`, `Clinic`, `Studio`, `Practice`, `Hospital`, `Group`, `Performance` (as a business name), `&` in a brand sense, etc.
+- is clearly a business (`Papapavlou Dental Clinic`) rather than a person (`Andreas Pallouras`)
+
+**Import script follow-up (include in a future branch):** add a filter or validation step in `scripts/generate-manual-directory-migration.mjs` so clinic-style rows are rejected at generation time, not only removed after the fact.
+
+### Removed clinic entries (2026-07-14)
+
+These were removed from prod + testing via direct SQL (no PR). A follow-up migration keeps them out on **migration replay** / fresh environments:
+
+| Name | Slug | Source migration |
+|------|------|------------------|
+| Body And Brain Physiotherapy Center | `body-and-brain-physiotherapy-center` | `20260713190000_add_physiotherapy_manual_directory_batch.sql` |
+| The Physical Therapy Center | `the-physical-therapy-center` | same |
+| Nbg Physiotherapy & Performance | `nbg-physiotherapy-performance` | same |
+| Papapavlou Dental Clinic | `papapavlou-dental-clinic` | `20260710140000_directory_manual_phone_and_dentist_directory_reset.sql` |
+
+**Idempotent cleanup migration:** `20260714163000_remove_clinic_style_manual_directory_entries.sql`
+
+When working on the next feature branch that touches directory data:
+
+1. Ensure that migration is included before `db:testing:push` / prod push.
+2. Prefer adding import-script validation so new Excel batches do not reintroduce clinic brands.
+3. Do **not** edit old INSERT migrations in place unless doing a full directory replace — the cleanup migration is the safe fix for historical inserts.
+
 ## Curated finder photos
 
 - Assets: `public/finder/manual-photos/*.png`
