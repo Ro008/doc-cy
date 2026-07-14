@@ -83,7 +83,7 @@ DocCy lists **individual health professionals**, not clinic or centre brands. Sk
 - contains `Center`, `Centre`, `Clinic`, `Studio`, `Practice`, `Hospital`, `Group`, `Performance` (as a business name), `&` in a brand sense, etc.
 - is clearly a business (`Papapavlou Dental Clinic`) rather than a person (`Andreas Pallouras`)
 
-**Import script follow-up (include in a future branch):** add a filter or validation step in `scripts/generate-manual-directory-migration.mjs` so clinic-style rows are rejected at generation time, not only removed after the fact.
+**Import script:** clinic-style rows are skipped in `scripts/generate-manual-directory-migration.mjs` (`isClinicStyleName`).
 
 ### Removed clinic entries (2026-07-14)
 

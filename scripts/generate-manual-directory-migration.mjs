@@ -87,6 +87,8 @@ const SPECIALTY_ALIASES = {
   gp: "General Practice",
   "general practitioner": "General Practice",
   "family medicine": "General Practice",
+  "family doctor": "General Practice",
+  "personal doctor": "General Practice",
   pediatrics: "Pediatrics",
   pediatrician: "Pediatrics",
   paediatrics: "Pediatrics",
@@ -217,6 +219,14 @@ function normalizeSpecialty(raw) {
 
 function formatPersonName(name) {
   return toTitleCaseWords(String(name ?? "").trim());
+}
+
+function isClinicStyleName(name) {
+  const normalized = String(name ?? "").trim();
+  if (!normalized) return false;
+  return /\b(center|centre|clinic|studio|hospital|medical centre|medical center)\b/i.test(
+    normalized,
+  );
 }
 
 function sqlLiteral(value) {
@@ -438,6 +448,7 @@ const seenMapsLinks = new Set();
 const seenPeople = new Set();
 let skippedDuplicateMaps = 0;
 let skippedDuplicatePerson = 0;
+let skippedClinicStyleNames = 0;
 
 for (const [index, row] of rows.entries()) {
   const name = formatPersonName(pickField(row, ["name"]));
@@ -456,6 +467,11 @@ for (const [index, row] of rows.entries()) {
 
   if (!name || !district || !mapsLink || !specialtyRaw) {
     throw new Error(`Invalid row ${index + 2}: ${JSON.stringify(row)}`);
+  }
+  if (isClinicStyleName(name)) {
+    skippedClinicStyleNames += 1;
+    console.warn(`Skipping clinic-style name (row ${index + 2}): ${name}`);
+    continue;
   }
   if (!VALID_DISTRICTS.has(district)) {
     throw new Error(`Invalid district "${district}" for ${name} (row ${index + 2})`);
@@ -525,4 +541,7 @@ if (skippedDuplicatePerson > 0) {
   console.log(
     `Skipped ${skippedDuplicatePerson} duplicate person row(s) (same name + district + phone).`,
   );
+}
+if (skippedClinicStyleNames > 0) {
+  console.log(`Skipped ${skippedClinicStyleNames} clinic-style name row(s).`);
 }
