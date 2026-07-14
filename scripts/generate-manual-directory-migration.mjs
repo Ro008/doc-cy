@@ -233,6 +233,75 @@ function personDedupeKey(name, district, phone) {
   return `${name.toLowerCase()}|${district}|${phoneDigits}`;
 }
 
+const MAX_SLUG_LENGTH = 60;
+const DISTRICT_SLUG = {
+  Nicosia: "nicosia",
+  Limassol: "limassol",
+  Paphos: "paphos",
+  Larnaca: "larnaca",
+  Famagusta: "famagusta",
+};
+
+function slugifyDoctorPublicName(name) {
+  return String(name || "")
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, MAX_SLUG_LENGTH);
+}
+
+function trimSlug(value) {
+  return value.slice(0, MAX_SLUG_LENGTH).replace(/-+$/g, "");
+}
+
+function buildManualDirectorySlugCandidates({ name, district }) {
+  const nameSlug = slugifyDoctorPublicName(name);
+  const base = nameSlug || "professional";
+  const candidates = [];
+  const seen = new Set();
+
+  const push = (value) => {
+    const normalized = trimSlug(value);
+    const key = normalized.toLowerCase();
+    if (!normalized || seen.has(key)) return;
+    seen.add(key);
+    candidates.push(normalized);
+  };
+
+  push(base);
+  if (district && DISTRICT_SLUG[district]) {
+    push(`${base}-${DISTRICT_SLUG[district]}`);
+  }
+  for (let suffix = 2; suffix <= 200; suffix += 1) {
+    push(`${base}-${suffix}`);
+  }
+  return candidates;
+}
+
+function allocateImportSlug(takenLowercase, name, district) {
+  const candidates = buildManualDirectorySlugCandidates({ name, district });
+  for (const candidate of candidates) {
+    const key = candidate.toLowerCase();
+    if (!takenLowercase.has(key)) {
+      takenLowercase.add(key);
+      return candidate;
+    }
+  }
+  throw new Error(`Could not allocate slug for import row "${name}" (${district})`);
+}
+
+function assignImportSlugs(entries) {
+  const taken = new Set();
+  for (const entry of entries) {
+    entry.slug = allocateImportSlug(taken, entry.name, entry.district);
+  }
+}
+
 function parseNumber(value) {
   if (value === null || value === undefined || value === "") return null;
   const num = Number(value);
@@ -262,13 +331,16 @@ function buildReplaceMigration(entries, sourceLabel) {
     const latSql = entry.latitude === null ? "null" : String(entry.latitude);
     const lonSql = entry.longitude === null ? "null" : String(entry.longitude);
 
-    return `  (${sqlLiteral(entry.name)}, ${sqlLiteral(entry.specialty)}, ${sqlLiteral(entry.district)}::public.cyprus_district, ${sqlLiteral(entry.address_maps_link)}, ${phoneSql}, ${latSql}, ${lonSql})`;
+    return `  (${sqlLiteral(entry.name)}, ${sqlLiteral(entry.specialty)}, ${sqlLiteral(entry.district)}::public.cyprus_district, ${sqlLiteral(entry.address_maps_link)}, ${phoneSql}, ${latSql}, ${lonSql}, ${sqlLiteral(entry.slug)})`;
   });
 
   return `-- Reset manual directory from spreadsheet (${sourceLabel}).
 
 alter table public.directory_manual
   add column if not exists phone text;
+
+alter table public.directory_manual
+  add column if not exists slug text;
 
 comment on column public.directory_manual.phone is
   'Optional clinic phone shown to patients when online booking is not activated yet.';
@@ -282,7 +354,8 @@ insert into public.directory_manual (
   address_maps_link,
   phone,
   latitude,
-  longitude
+  longitude,
+  slug
 )
 values
 ${valueLines.join(",\n")};
@@ -295,13 +368,16 @@ function buildAppendMigration(entries, sourceLabel) {
     const latSql = entry.latitude === null ? "null" : String(entry.latitude);
     const lonSql = entry.longitude === null ? "null" : String(entry.longitude);
 
-    return `    (${sqlLiteral(entry.name)}, ${sqlLiteral(entry.specialty)}, ${sqlLiteral(entry.district)}, ${sqlLiteral(entry.address_maps_link)}, ${phoneSql}, ${latSql}, ${lonSql})`;
+    return `    (${sqlLiteral(entry.name)}, ${sqlLiteral(entry.specialty)}, ${sqlLiteral(entry.district)}, ${sqlLiteral(entry.address_maps_link)}, ${phoneSql}, ${latSql}, ${lonSql}, ${sqlLiteral(entry.slug)})`;
   });
 
   return `-- Append manual directory rows from spreadsheet (${sourceLabel}).
 
 alter table public.directory_manual
   add column if not exists phone text;
+
+alter table public.directory_manual
+  add column if not exists slug text;
 
 insert into public.directory_manual (
   name,
@@ -310,7 +386,8 @@ insert into public.directory_manual (
   address_maps_link,
   phone,
   latitude,
-  longitude
+  longitude,
+  slug
 )
 select
   v.name,
@@ -319,11 +396,12 @@ select
   v.address_maps_link,
   v.phone,
   v.latitude,
-  v.longitude
+  v.longitude,
+  v.slug
 from (
   values
 ${valueLines.join(",\n")}
-) as v(name, specialty, district, address_maps_link, phone, latitude, longitude)
+) as v(name, specialty, district, address_maps_link, phone, latitude, longitude, slug)
 where not exists (
   select 1
   from public.directory_manual d
@@ -423,6 +501,8 @@ entries.sort((a, b) => {
   if (specialty !== 0) return specialty;
   return a.name.localeCompare(b.name);
 });
+
+assignImportSlugs(entries);
 
 const sql =
   mode === "append"

@@ -227,6 +227,22 @@ test.describe("Integration: finder business-critical UX", { tag: "@pr-e2e" }, ()
     ).toEqual([]);
   });
 
+  test("manual directory landing page loads for known slug @pr-e2e", async ({ page }, testInfo) => {
+    test.skip(
+      testInfo.project.name !== "Desktop Large (Chromium)",
+      "Run once on desktop.",
+    );
+
+    await page.goto("/finder/doctor/savvas-themistocleous");
+    await expect(page).toHaveTitle(/Savvas Themistocleous/i);
+    await expect(
+      page.getByRole("heading", { level: 1, name: /Savvas Themistocleous/i }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("region", { name: /Directory listing/i }).locator("article"),
+    ).toBeVisible();
+  });
+
   test("landing to finder shows complete unfiltered directory results", async ({ page }) => {
     const baseUrl = process.env.PLAYWRIGHT_BASE_URL ?? "";
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";

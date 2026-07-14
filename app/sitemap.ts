@@ -132,6 +132,39 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.7,
   }));
 
-  return [...staticEntries, ...dynamicFinderEntries, ...blogEntries];
+  let manualDoctorEntries: MetadataRoute.Sitemap = [];
+  let manualSlugSelect = supabase
+    .from("directory_manual")
+    .select("slug")
+    .eq("is_archived", false)
+    .not("slug", "is", null)
+    .limit(5000);
+
+  let manualSlugRes = await manualSlugSelect;
+
+  if (
+    manualSlugRes.error &&
+    String(manualSlugRes.error.message ?? "").toLowerCase().includes("slug")
+  ) {
+    manualSlugRes = { data: [], error: null };
+  }
+
+  if (!manualSlugRes.error && manualSlugRes.data?.length) {
+    manualDoctorEntries = manualSlugRes.data
+      .map((row) => {
+        const slug = String((row as { slug?: string | null }).slug ?? "").trim();
+        if (!slug) return null;
+        return {
+          url: `${siteBase}/finder/doctor/${slug}`,
+          lastModified: now,
+          changeFrequency: "monthly" as const,
+          priority: 0.6,
+        };
+      })
+      .filter((entry): entry is NonNullable<typeof entry> => entry !== null)
+      .sort((a, b) => a.url.localeCompare(b.url));
+  }
+
+  return [...staticEntries, ...dynamicFinderEntries, ...manualDoctorEntries, ...blogEntries];
 }
 
