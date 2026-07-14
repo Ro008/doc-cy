@@ -106,6 +106,7 @@ const SPECIALTY_ALIASES = {
   ophtalmologist: "Ophthalmology",
   ophtalmology: "Ophthalmology",
   cardiologist: "Cardiology",
+  cardiology: "Cardiology",
   orthopedics: "Orthopedics",
   orthopaedic: "Orthopedics",
   urologist: "Urology",
