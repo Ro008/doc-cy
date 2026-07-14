@@ -93,7 +93,7 @@ export async function allocateUniqueManualDirectorySlug(
   extraTakenLowercase: ReadonlySet<string> = new Set(),
 ): Promise<string> {
   const taken = await loadTakenPublicSlugs(supabase);
-  for (const slug of extraTakenLowercase) {
+  for (const slug of Array.from(extraTakenLowercase)) {
     taken.add(slug.toLowerCase());
   }
 

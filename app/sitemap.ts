@@ -133,24 +133,22 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   }));
 
   let manualDoctorEntries: MetadataRoute.Sitemap = [];
-  let manualSlugSelect = supabase
+  const manualSlugRes = await supabase
     .from("directory_manual")
     .select("slug")
     .eq("is_archived", false)
     .not("slug", "is", null)
     .limit(5000);
 
-  let manualSlugRes = await manualSlugSelect;
-
-  if (
+  const slugColumnMissing =
     manualSlugRes.error &&
-    String(manualSlugRes.error.message ?? "").toLowerCase().includes("slug")
-  ) {
-    manualSlugRes = { data: [], error: null };
-  }
+    String(manualSlugRes.error.message ?? "").toLowerCase().includes("slug");
 
-  if (!manualSlugRes.error && manualSlugRes.data?.length) {
-    manualDoctorEntries = manualSlugRes.data
+  const manualSlugRows = slugColumnMissing ? [] : (manualSlugRes.data ?? []);
+
+  if (!manualSlugRes.error || slugColumnMissing) {
+    if (manualSlugRows.length > 0) {
+      manualDoctorEntries = manualSlugRows
       .map((row) => {
         const slug = String((row as { slug?: string | null }).slug ?? "").trim();
         if (!slug) return null;
@@ -163,6 +161,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       })
       .filter((entry): entry is NonNullable<typeof entry> => entry !== null)
       .sort((a, b) => a.url.localeCompare(b.url));
+    }
   }
 
   return [...staticEntries, ...dynamicFinderEntries, ...manualDoctorEntries, ...blogEntries];
