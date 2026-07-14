@@ -734,10 +734,7 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
           ) : null}
 
           <section className="mt-6">
-            <FinderResultsAvailabilityShell
-              dayHeaders={finderAvailabilityDayHeaders}
-              showWeekNav={showFinderAvailabilityWeekNav}
-            >
+            <FinderResultsAvailabilityShell dayHeaders={finderAvailabilityDayHeaders}>
               <div className="flex flex-col gap-4">
                 {unifiedResults.map((item) => {
                 if (item.kind === "registered") {

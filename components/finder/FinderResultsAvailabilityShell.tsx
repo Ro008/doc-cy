@@ -2,9 +2,7 @@
 
 import * as React from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { FinderAvailabilityDayHeaderRow } from "@/components/finder/FinderAvailabilityDayHeaderRow";
 import {
-  FINDER_AVAILABILITY_CALENDAR_DAY_COUNT,
   FINDER_AVAILABILITY_VISIBLE_DAY_COUNT,
   type FinderAvailabilityDayHeader,
 } from "@/lib/public/compute-public-booking-slots";
@@ -99,29 +97,15 @@ export function FinderAvailabilityWeekControls() {
 
 type ShellProps = {
   dayHeaders: FinderAvailabilityDayHeader[];
-  showWeekNav: boolean;
   children: React.ReactNode;
 };
 
-export function FinderResultsAvailabilityShell({
-  dayHeaders,
-  showWeekNav,
-  children,
-}: ShellProps) {
-  if (!showWeekNav || dayHeaders.length === 0) {
+export function FinderResultsAvailabilityShell({ dayHeaders, children }: ShellProps) {
+  if (dayHeaders.length === 0) {
     return <>{children}</>;
   }
 
-  const headers =
-    dayHeaders.length > 0
-      ? dayHeaders
-      : Array.from({ length: FINDER_AVAILABILITY_CALENDAR_DAY_COUNT }, () => ({
-          dateKey: "",
-          weekdayLabel: "",
-          dateLabel: "",
-        }));
-
   return (
-    <FinderAvailabilityWeekProvider dayHeaders={headers}>{children}</FinderAvailabilityWeekProvider>
+    <FinderAvailabilityWeekProvider dayHeaders={dayHeaders}>{children}</FinderAvailabilityWeekProvider>
   );
 }
