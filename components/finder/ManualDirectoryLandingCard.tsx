@@ -38,7 +38,7 @@ export function ManualDirectoryLandingCard({
   dayHeaders,
 }: ManualDirectoryLandingCardProps) {
   return (
-    <FinderResultsAvailabilityShell dayHeaders={dayHeaders} showWeekNav={false}>
+    <FinderResultsAvailabilityShell dayHeaders={dayHeaders}>
       <article className="flex flex-col gap-4 rounded-2xl border border-ink-200 bg-white p-4 shadow-sm sm:p-5">
         <div className={finderRegisteredCardRowClass}>
           <div
