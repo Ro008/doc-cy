@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
+import { cleanManualDirectoryPersonName } from "./lib/manual-directory-name-clean.mjs";
 
 const require = createRequire(import.meta.url);
 const xlsx = require("xlsx");
@@ -126,7 +127,7 @@ const SPECIALTY_ALIASES = {
 };
 
 function parseArgs(argv) {
-  const flags = { mode: "replace" };
+  const flags = { mode: "replace", dedupeMapsUrl: true, normalizeNames: false };
   const positionals = [];
 
   for (const arg of argv) {
@@ -134,6 +135,10 @@ function parseArgs(argv) {
       flags.mode = "append";
     } else if (arg === "--replace") {
       flags.mode = "replace";
+    } else if (arg === "--no-dedupe-maps-url") {
+      flags.dedupeMapsUrl = false;
+    } else if (arg === "--normalize-names") {
+      flags.normalizeNames = true;
     } else if (arg.startsWith("--mode=")) {
       flags.mode = arg.slice("--mode=".length);
     } else {
@@ -222,7 +227,13 @@ function normalizeSpecialty(raw) {
 }
 
 function formatPersonName(name) {
-  return toTitleCaseWords(String(name ?? "").trim());
+  const raw = String(name ?? "").trim();
+  const normalizedUpper = raw.toUpperCase().replace(/\s+/g, " ");
+  // Some spreadsheets provide "SURNAME NAME" in caps; prefer "NAME SURNAME".
+  if (normalizedUpper === "CHATZIANTONIS GEORGIOS") {
+    return "Georgios Chatziantonis";
+  }
+  return toTitleCaseWords(raw);
 }
 
 function isClinicStyleName(name) {
@@ -376,7 +387,7 @@ ${valueLines.join(",\n")};
 `;
 }
 
-function buildAppendMigration(entries, sourceLabel) {
+function buildAppendMigration(entries, sourceLabel, dedupeMapsUrl) {
   const valueLines = entries.map((entry) => {
     const phoneSql = entry.phone ? sqlLiteral(entry.phone) : "null";
     const latSql = entry.latitude === null ? "null" : String(entry.latitude);
@@ -422,7 +433,7 @@ where not exists (
   where d.is_archived = false
     and (
       lower(d.name) = lower(v.name)
-      or d.address_maps_link = v.address_maps_link
+      ${dedupeMapsUrl ? "or d.address_maps_link = v.address_maps_link" : ""}
     )
 );
 `;
@@ -436,7 +447,9 @@ function summarizeSpecialties(entries) {
   return [...counts.entries()].sort((a, b) => a[0].localeCompare(b[0]));
 }
 
-const { mode, inputPath, outputPath } = parseArgs(process.argv.slice(2));
+const { mode, dedupeMapsUrl, normalizeNames, inputPath, outputPath } = parseArgs(
+  process.argv.slice(2),
+);
 const sourceLabel = path.basename(inputPath);
 
 if (!fs.existsSync(inputPath)) {
@@ -448,14 +461,15 @@ const sheetName = workbook.SheetNames[0];
 const rows = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName], { defval: "" });
 
 const entries = [];
-const seenMapsLinks = new Set();
 const seenPeople = new Set();
+const seenMapsLinks = dedupeMapsUrl ? new Set() : null;
 let skippedDuplicateMaps = 0;
 let skippedDuplicatePerson = 0;
 let skippedClinicStyleNames = 0;
+let skippedNormalizedNames = 0;
 
 for (const [index, row] of rows.entries()) {
-  const name = formatPersonName(pickField(row, ["name"]));
+  const rawName = String(pickField(row, ["name"]) ?? "").trim();
   const district = String(pickField(row, ["district"])).trim();
   const specialtyRaw = pickField(row, ["specialty", "speciality"]);
   const mapsLink = String(
@@ -465,14 +479,24 @@ for (const [index, row] of rows.entries()) {
   const longitude = parseNumber(pickField(row, ["longitude", "lon", "lng"]));
   const phone = normalizePhone(pickField(row, ["phone", "telephone", "tel"]));
 
-  if (!name && !district && !mapsLink && !specialtyRaw) {
+  if (!rawName && !district && !mapsLink && !specialtyRaw) {
+    continue;
+  }
+
+  let name = normalizeNames
+    ? cleanManualDirectoryPersonName(rawName)
+    : formatPersonName(rawName);
+
+  if (normalizeNames && !name) {
+    skippedNormalizedNames += 1;
+    console.warn(`Skipping non-person / unparseable name (row ${index + 2}): ${rawName}`);
     continue;
   }
 
   if (!name || !district || !mapsLink || !specialtyRaw) {
     throw new Error(`Invalid row ${index + 2}: ${JSON.stringify(row)}`);
   }
-  if (isClinicStyleName(name)) {
+  if (!normalizeNames && isClinicStyleName(name)) {
     skippedClinicStyleNames += 1;
     console.warn(`Skipping clinic-style name (row ${index + 2}): ${name}`);
     continue;
@@ -483,7 +507,7 @@ for (const [index, row] of rows.entries()) {
 
   const specialty = normalizeSpecialty(specialtyRaw);
 
-  if (seenMapsLinks.has(mapsLink)) {
+  if (dedupeMapsUrl && seenMapsLinks.has(mapsLink)) {
     skippedDuplicateMaps += 1;
     continue;
   }
@@ -494,7 +518,9 @@ for (const [index, row] of rows.entries()) {
     continue;
   }
 
-  seenMapsLinks.add(mapsLink);
+  if (dedupeMapsUrl) {
+    seenMapsLinks.add(mapsLink);
+  }
   if (phone) {
     seenPeople.add(personKey);
   }
@@ -526,7 +552,7 @@ assignImportSlugs(entries);
 
 const sql =
   mode === "append"
-    ? buildAppendMigration(entries, sourceLabel)
+    ? buildAppendMigration(entries, sourceLabel, dedupeMapsUrl)
     : buildReplaceMigration(entries, sourceLabel);
 
 fs.mkdirSync(path.dirname(outputPath), { recursive: true });
@@ -534,6 +560,7 @@ fs.writeFileSync(outputPath, sql, "utf8");
 
 console.log(`Wrote ${entries.length} rows to ${outputPath}`);
 console.log(`Mode: ${mode}`);
+console.log(`Normalize names: ${normalizeNames}`);
 console.log("Specialties:");
 for (const [specialty, count] of summarizeSpecialties(entries)) {
   console.log(`  - ${specialty}: ${count}`);
@@ -548,4 +575,7 @@ if (skippedDuplicatePerson > 0) {
 }
 if (skippedClinicStyleNames > 0) {
   console.log(`Skipped ${skippedClinicStyleNames} clinic-style name row(s).`);
+}
+if (skippedNormalizedNames > 0) {
+  console.log(`Skipped ${skippedNormalizedNames} non-person / unparseable name row(s).`);
 }
