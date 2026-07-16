@@ -139,13 +139,21 @@ export function FinderFilters({
     if (!options?.skipNavigationStart) {
       emitNavigationStart(undefined, options?.navigationReason ?? "finder-results");
     }
-    const isClearingSearchParams = Boolean(searchParams?.toString()) && !qs;
-    if (isClearingSearchParams) {
+    const pathChanged = pathname !== finderPath;
+    // Clearing path filters (e.g. /finder/nicosia/dentistry → /finder) or query-only
+    // filters should replace history. Avoid router.refresh() on path changes: on the
+    // optional catch-all [[...filters]] it races soft navigation and can leave the
+    // filtered URL in place (Clear all filters appears to do nothing).
+    const shouldReplace =
+      Boolean(searchParams?.toString()) && !qs ? true : pathChanged && finderPath === "/finder";
+    if (shouldReplace) {
       router.replace(target);
     } else {
       router.push(target);
     }
-    router.refresh();
+    if (!pathChanged) {
+      router.refresh();
+    }
   }
 
   function submitFilters() {
@@ -155,7 +163,7 @@ export function FinderFilters({
     pushFilters(district, specialtyLabelFromSlug(specialtySlug), name.trim(), nearMeCoords);
   }
 
-  async function resetFilters() {
+  function resetFilters() {
     if (
       !activeDistrict &&
       !activeSpecialty &&
@@ -175,7 +183,9 @@ export function FinderFilters({
     setPendingAction("reset");
     if (pendingGuardRef.current) clearTimeout(pendingGuardRef.current);
     pendingGuardRef.current = setTimeout(() => setPendingAction(null), 1500);
-    pushFilters("", "", "", null);
+    // Always hard-clear to unfiltered finder via replace (no refresh race).
+    emitNavigationStart(undefined, "finder-results");
+    router.replace("/finder");
   }
 
   React.useEffect(() => {

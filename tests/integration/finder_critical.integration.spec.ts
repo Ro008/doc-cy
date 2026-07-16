@@ -209,7 +209,13 @@ test.describe("Integration: finder business-critical UX", { tag: "@pr-e2e" }, ()
         continue;
       }
       await link.click();
-      await expect(page).toHaveURL(new RegExp(`${search.path}(?:\\?|$)`));
+      await expect(page).toHaveURL(new RegExp(`${search.path}(?:\\?|$)`), {
+        timeout: 20_000,
+      });
+      await expect(page.getByText(`District: ${search.city}`, { exact: false })).toBeVisible({
+        timeout: 20_000,
+      });
+      await expect(page.getByRole("button", { name: /Clear all filters/i })).toBeVisible();
 
       const cardsCount = await page.locator("section.mt-6 article").count();
       const invitationCardVisible = await page
@@ -454,7 +460,10 @@ test.describe("Integration: finder business-critical UX", { tag: "@pr-e2e" }, ()
       const showResults = page.getByRole("button", { name: /^Show results$/i });
       await districtSelect.selectOption("Nicosia");
       await showResults.click();
-      await expect(page).toHaveURL(/\/finder\/nicosia(?:\?|$)/, { timeout: 15_000 });
+      await expect(page).toHaveURL(/\/finder\/nicosia(?:\?|$)/, { timeout: 20_000 });
+      await expect(page.getByText("District: Nicosia", { exact: false })).toBeVisible({
+        timeout: 20_000,
+      });
 
       const specialtySelect = page.getByLabel("Specialty");
       await expect(specialtySelect).toBeEnabled({ timeout: 15_000 });
@@ -463,13 +472,25 @@ test.describe("Integration: finder business-critical UX", { tag: "@pr-e2e" }, ()
       });
       await specialtySelect.selectOption("dentistry");
       await showResults.click();
-      await expect(page).toHaveURL(/\/finder\/nicosia\/dentistry(?:\?|$)/, { timeout: 15_000 });
+      await expect(page).toHaveURL(/\/finder\/nicosia\/dentistry(?:\?|$)/, { timeout: 20_000 });
+      await expect(page.getByText("Specialty: Dentistry", { exact: false })).toBeVisible({
+        timeout: 20_000,
+      });
 
       await expect(page.getByText(created[0].name, { exact: true })).toBeVisible();
       await expect(page.getByText(created[1].name, { exact: true })).toHaveCount(0);
 
       await page.getByRole("button", { name: /Clear all filters|Reset/i }).click();
-      await expect(page).toHaveURL(/\/finder(?:\?|$)/);
+      await expect(page).toHaveURL(/\/finder(?:\?|$)/, { timeout: 20_000 });
+      await expect(page.getByRole("button", { name: /Clear all filters/i })).toBeHidden();
+      await expect(page.getByText("District: Nicosia", { exact: false })).toBeHidden();
+      await expect(page.getByText("Specialty: Dentistry", { exact: false })).toBeHidden();
+      await expect(
+        page.getByRole("heading", {
+          level: 1,
+          name: /Find your next health professional in Cyprus|Health Professionals in Cyprus|Find a Professional/i,
+        }),
+      ).toBeVisible({ timeout: 20_000 });
       await expect(page.getByText(created[0].name, { exact: true })).toBeVisible();
       await expect(page.getByText(created[1].name, { exact: true })).toBeVisible();
     } finally {
