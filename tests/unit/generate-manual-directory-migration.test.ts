@@ -5,17 +5,21 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
-import * as XLSX from "xlsx";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, "..", "..");
 const scriptPath = path.join(repoRoot, "scripts", "generate-manual-directory-migration.mjs");
+const writeXlsxHelper = path.join(__dirname, "helpers", "write-xlsx-fixture.mjs");
 
 function writeWorkbook(filePath: string, rows: Array<Record<string, unknown>>) {
-  const wb = XLSX.utils.book_new();
-  const ws = XLSX.utils.json_to_sheet(rows);
-  XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
-  XLSX.writeFile(wb, filePath);
+  const result = spawnSync(
+    process.execPath,
+    [writeXlsxHelper, filePath, JSON.stringify(rows)],
+    { cwd: repoRoot, encoding: "utf8" },
+  );
+  if (result.status !== 0) {
+    throw new Error(`write-xlsx-fixture failed:\n${result.stderr || result.stdout}`);
+  }
 }
 
 function runGenerator(args: string[]) {

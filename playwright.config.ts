@@ -70,6 +70,8 @@ const isCi = Boolean(process.env.CI);
 
 export default defineConfig({
   testDir: "./tests",
+  // Node unit tests under tests/unit use node:test + tsx, not Playwright.
+  testIgnore: ["**/unit/**"],
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 1,
