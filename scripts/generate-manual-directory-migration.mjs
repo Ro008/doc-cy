@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
+import { cleanManualDirectoryPersonName } from "./lib/manual-directory-name-clean.mjs";
 
 const require = createRequire(import.meta.url);
 const xlsx = require("xlsx");
@@ -126,7 +127,7 @@ const SPECIALTY_ALIASES = {
 };
 
 function parseArgs(argv) {
-  const flags = { mode: "replace", dedupeMapsUrl: true };
+  const flags = { mode: "replace", dedupeMapsUrl: true, normalizeNames: false };
   const positionals = [];
 
   for (const arg of argv) {
@@ -136,6 +137,8 @@ function parseArgs(argv) {
       flags.mode = "replace";
     } else if (arg === "--no-dedupe-maps-url") {
       flags.dedupeMapsUrl = false;
+    } else if (arg === "--normalize-names") {
+      flags.normalizeNames = true;
     } else if (arg.startsWith("--mode=")) {
       flags.mode = arg.slice("--mode=".length);
     } else {
@@ -444,7 +447,9 @@ function summarizeSpecialties(entries) {
   return [...counts.entries()].sort((a, b) => a[0].localeCompare(b[0]));
 }
 
-const { mode, dedupeMapsUrl, inputPath, outputPath } = parseArgs(process.argv.slice(2));
+const { mode, dedupeMapsUrl, normalizeNames, inputPath, outputPath } = parseArgs(
+  process.argv.slice(2),
+);
 const sourceLabel = path.basename(inputPath);
 
 if (!fs.existsSync(inputPath)) {
@@ -461,9 +466,10 @@ const seenMapsLinks = dedupeMapsUrl ? new Set() : null;
 let skippedDuplicateMaps = 0;
 let skippedDuplicatePerson = 0;
 let skippedClinicStyleNames = 0;
+let skippedNormalizedNames = 0;
 
 for (const [index, row] of rows.entries()) {
-  const name = formatPersonName(pickField(row, ["name"]));
+  const rawName = String(pickField(row, ["name"]) ?? "").trim();
   const district = String(pickField(row, ["district"])).trim();
   const specialtyRaw = pickField(row, ["specialty", "speciality"]);
   const mapsLink = String(
@@ -473,14 +479,24 @@ for (const [index, row] of rows.entries()) {
   const longitude = parseNumber(pickField(row, ["longitude", "lon", "lng"]));
   const phone = normalizePhone(pickField(row, ["phone", "telephone", "tel"]));
 
-  if (!name && !district && !mapsLink && !specialtyRaw) {
+  if (!rawName && !district && !mapsLink && !specialtyRaw) {
+    continue;
+  }
+
+  let name = normalizeNames
+    ? cleanManualDirectoryPersonName(rawName)
+    : formatPersonName(rawName);
+
+  if (normalizeNames && !name) {
+    skippedNormalizedNames += 1;
+    console.warn(`Skipping non-person / unparseable name (row ${index + 2}): ${rawName}`);
     continue;
   }
 
   if (!name || !district || !mapsLink || !specialtyRaw) {
     throw new Error(`Invalid row ${index + 2}: ${JSON.stringify(row)}`);
   }
-  if (isClinicStyleName(name)) {
+  if (!normalizeNames && isClinicStyleName(name)) {
     skippedClinicStyleNames += 1;
     console.warn(`Skipping clinic-style name (row ${index + 2}): ${name}`);
     continue;
@@ -544,6 +560,7 @@ fs.writeFileSync(outputPath, sql, "utf8");
 
 console.log(`Wrote ${entries.length} rows to ${outputPath}`);
 console.log(`Mode: ${mode}`);
+console.log(`Normalize names: ${normalizeNames}`);
 console.log("Specialties:");
 for (const [specialty, count] of summarizeSpecialties(entries)) {
   console.log(`  - ${specialty}: ${count}`);
@@ -558,4 +575,7 @@ if (skippedDuplicatePerson > 0) {
 }
 if (skippedClinicStyleNames > 0) {
   console.log(`Skipped ${skippedClinicStyleNames} clinic-style name row(s).`);
+}
+if (skippedNormalizedNames > 0) {
+  console.log(`Skipped ${skippedNormalizedNames} non-person / unparseable name row(s).`);
 }
