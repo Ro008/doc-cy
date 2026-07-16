@@ -4,21 +4,18 @@ import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { describe, it } from "node:test";
-import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
-
-const require = createRequire(import.meta.url);
-const xlsx = require("xlsx");
+import * as XLSX from "xlsx";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, "..", "..");
 const scriptPath = path.join(repoRoot, "scripts", "generate-manual-directory-migration.mjs");
 
 function writeWorkbook(filePath: string, rows: Array<Record<string, unknown>>) {
-  const wb = xlsx.utils.book_new();
-  const ws = xlsx.utils.json_to_sheet(rows);
-  xlsx.utils.book_append_sheet(wb, ws, "Sheet1");
-  xlsx.writeFile(wb, filePath);
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.json_to_sheet(rows);
+  XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
+  XLSX.writeFile(wb, filePath);
 }
 
 function runGenerator(args: string[]) {
