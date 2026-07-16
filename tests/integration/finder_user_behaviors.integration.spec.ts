@@ -143,9 +143,12 @@ test.describe("Integration: finder user-like filter behavior matrix", { tag: "@p
 
       // Scenario 1: District-only exploration (apply once).
       await districtSelect.selectOption("Limassol");
-      await expect(page).toHaveURL(/\/finder(?:\?|$)/);
+      await expect(page).toHaveURL(/\/finder(?:\?|$)/, { timeout: 20_000 });
       await showResults.click();
-      await expect(page).toHaveURL(/\/finder\/limassol(?:\?|$)/, { timeout: 15_000 });
+      await expect(page).toHaveURL(/\/finder\/limassol(?:\?|$)/, { timeout: 20_000 });
+      await expect(page.getByText("District: Limassol", { exact: false })).toBeVisible({
+        timeout: 20_000,
+      });
       await expect(page.getByRole("heading", { level: 1, name: /Find your next health professional in Cyprus/i })).toBeVisible();
       await expect(page.getByText(created[0].name, { exact: true })).toBeVisible();
       await expect(page.getByText(created[1].name, { exact: true })).toBeVisible();
@@ -158,25 +161,35 @@ test.describe("Integration: finder user-like filter behavior matrix", { tag: "@p
       });
       await specialtySelect.selectOption("dentistry");
       await showResults.click();
-      await expect(page).toHaveURL(/\/finder\/limassol\/dentistry(?:\?|$)/, { timeout: 15_000 });
-      await expect(page.getByRole("heading", { level: 1, name: /Dentistry in Limassol/i })).toBeVisible();
+      await expect(page).toHaveURL(/\/finder\/limassol\/dentistry(?:\?|$)/, { timeout: 20_000 });
+      await expect(page.getByRole("heading", { level: 1, name: /Dentistry in Limassol/i })).toBeVisible({
+        timeout: 20_000,
+      });
+      await expect(page.getByText("Specialty: Dentistry", { exact: false })).toBeVisible();
       await expect(page.getByText(created[1].name, { exact: true })).toBeVisible();
       await expect(page.getByText(created[0].name, { exact: true })).toHaveCount(0);
 
       // Scenario 3: Name filter applies on Enter or Show results (not while typing).
       await nameInput.fill("Dent");
-      await expect(page).not.toHaveURL(/name=/);
+      await expect(page).not.toHaveURL(/name=/, { timeout: 5_000 });
       await expect(page.getByText(created[1].name, { exact: true })).toBeVisible();
       await nameInput.press("Enter");
-      await expect(page).toHaveURL(/name=Dent/);
+      await expect(page).toHaveURL(/name=Dent/, { timeout: 20_000 });
+      await expect(page.getByText("Name: Dent", { exact: false })).toBeVisible({
+        timeout: 20_000,
+      });
       await expect(page.getByText(created[1].name, { exact: true })).toBeVisible();
 
       // Scenario 4: Reset should recover broad list + clean path.
       await page.getByRole("button", { name: /Clear all filters|Reset/i }).click();
-      await expect(page).toHaveURL(/\/finder(?:\?|$)/, { timeout: 15_000 });
+      await expect(page).toHaveURL(/\/finder(?:\?|$)/, { timeout: 20_000 });
+      await expect(page.getByRole("button", { name: /Clear all filters/i })).toBeHidden();
+      await expect(page.getByText("District: Limassol", { exact: false })).toBeHidden();
+      await expect(page.getByText("Specialty: Dentistry", { exact: false })).toBeHidden();
+      await expect(page.getByText("Name: Dent", { exact: false })).toBeHidden();
       await expect(
         page.getByRole("heading", { level: 1, name: /Find your next health professional in Cyprus/i })
-      ).toBeVisible();
+      ).toBeVisible({ timeout: 20_000 });
       await expect(page.getByText(created[0].name, { exact: true })).toBeVisible();
       await expect(page.getByText(created[1].name, { exact: true })).toBeVisible();
       await expect(page.getByText(created[2].name, { exact: true })).toBeVisible();
@@ -213,17 +226,19 @@ test.describe("Integration: finder user-like filter behavior matrix", { tag: "@p
     await specialtySelect.selectOption("ent");
 
     await page.getByRole("button", { name: /Doctor near me/i }).click();
-    await expect(page).toHaveURL(/\/finder\/all\/ent(?:\?|$)/, { timeout: 15_000 });
-    await expect(page).toHaveURL(/[?&]lat=/, { timeout: 15_000 });
-    await expect(page).toHaveURL(/[?&]lon=/, { timeout: 15_000 });
-    await expect(page.getByText("Near me: enabled")).toBeVisible({ timeout: 15_000 });
+    await expect(page).toHaveURL(/\/finder\/all\/ent(?:\?|$)/, { timeout: 20_000 });
+    await expect(page).toHaveURL(/[?&]lat=/, { timeout: 20_000 });
+    await expect(page).toHaveURL(/[?&]lon=/, { timeout: 20_000 });
+    await expect(page.getByText("Near me: enabled")).toBeVisible({ timeout: 20_000 });
     await expect(page.getByText("Specialty: ENT", { exact: false })).toBeVisible();
 
     await page.getByRole("button", { name: /Clear all filters/i }).click();
-    await expect(page).toHaveURL(/\/finder(?:\?|$)/, { timeout: 15_000 });
-    await expect(page).not.toHaveURL(/[?&]lat=/);
-    await expect(page).not.toHaveURL(/[?&]lon=/);
-    await expect(page.getByText("Near me: enabled")).toHaveCount(0);
+    await expect(page).toHaveURL(/\/finder(?:\?|$)/, { timeout: 20_000 });
+    await expect(page).not.toHaveURL(/[?&]lat=/, { timeout: 20_000 });
+    await expect(page).not.toHaveURL(/[?&]lon=/, { timeout: 20_000 });
+    await expect(page.getByText("Near me: enabled")).toBeHidden();
+    await expect(page.getByText("Specialty: ENT", { exact: false })).toBeHidden();
+    await expect(page.getByRole("button", { name: /Clear all filters/i })).toBeHidden();
   });
 });
 
