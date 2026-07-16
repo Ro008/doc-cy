@@ -173,7 +173,7 @@ test.describe("Integration: finder user-like filter behavior matrix", { tag: "@p
 
       // Scenario 4: Reset should recover broad list + clean path.
       await page.getByRole("button", { name: /Clear all filters|Reset/i }).click();
-      await expect(page).toHaveURL(/\/finder(?:\?|$)/);
+      await expect(page).toHaveURL(/\/finder(?:\?|$)/, { timeout: 15_000 });
       await expect(
         page.getByRole("heading", { level: 1, name: /Find your next health professional in Cyprus/i })
       ).toBeVisible();

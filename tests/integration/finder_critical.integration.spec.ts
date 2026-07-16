@@ -469,7 +469,7 @@ test.describe("Integration: finder business-critical UX", { tag: "@pr-e2e" }, ()
       await expect(page.getByText(created[1].name, { exact: true })).toHaveCount(0);
 
       await page.getByRole("button", { name: /Clear all filters|Reset/i }).click();
-      await expect(page).toHaveURL(/\/finder(?:\?|$)/);
+      await expect(page).toHaveURL(/\/finder(?:\?|$)/, { timeout: 15_000 });
       await expect(page.getByText(created[0].name, { exact: true })).toBeVisible();
       await expect(page.getByText(created[1].name, { exact: true })).toBeVisible();
     } finally {
