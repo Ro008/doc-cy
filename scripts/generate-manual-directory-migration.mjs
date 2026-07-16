@@ -126,7 +126,7 @@ const SPECIALTY_ALIASES = {
 };
 
 function parseArgs(argv) {
-  const flags = { mode: "replace" };
+  const flags = { mode: "replace", dedupeMapsUrl: true };
   const positionals = [];
 
   for (const arg of argv) {
@@ -134,6 +134,8 @@ function parseArgs(argv) {
       flags.mode = "append";
     } else if (arg === "--replace") {
       flags.mode = "replace";
+    } else if (arg === "--no-dedupe-maps-url") {
+      flags.dedupeMapsUrl = false;
     } else if (arg.startsWith("--mode=")) {
       flags.mode = arg.slice("--mode=".length);
     } else {
@@ -222,7 +224,13 @@ function normalizeSpecialty(raw) {
 }
 
 function formatPersonName(name) {
-  return toTitleCaseWords(String(name ?? "").trim());
+  const raw = String(name ?? "").trim();
+  const normalizedUpper = raw.toUpperCase().replace(/\s+/g, " ");
+  // Some spreadsheets provide "SURNAME NAME" in caps; prefer "NAME SURNAME".
+  if (normalizedUpper === "CHATZIANTONIS GEORGIOS") {
+    return "Georgios Chatziantonis";
+  }
+  return toTitleCaseWords(raw);
 }
 
 function isClinicStyleName(name) {
@@ -376,7 +384,7 @@ ${valueLines.join(",\n")};
 `;
 }
 
-function buildAppendMigration(entries, sourceLabel) {
+function buildAppendMigration(entries, sourceLabel, dedupeMapsUrl) {
   const valueLines = entries.map((entry) => {
     const phoneSql = entry.phone ? sqlLiteral(entry.phone) : "null";
     const latSql = entry.latitude === null ? "null" : String(entry.latitude);
@@ -422,7 +430,7 @@ where not exists (
   where d.is_archived = false
     and (
       lower(d.name) = lower(v.name)
-      or d.address_maps_link = v.address_maps_link
+      ${dedupeMapsUrl ? "or d.address_maps_link = v.address_maps_link" : ""}
     )
 );
 `;
@@ -436,7 +444,7 @@ function summarizeSpecialties(entries) {
   return [...counts.entries()].sort((a, b) => a[0].localeCompare(b[0]));
 }
 
-const { mode, inputPath, outputPath } = parseArgs(process.argv.slice(2));
+const { mode, dedupeMapsUrl, inputPath, outputPath } = parseArgs(process.argv.slice(2));
 const sourceLabel = path.basename(inputPath);
 
 if (!fs.existsSync(inputPath)) {
@@ -448,8 +456,8 @@ const sheetName = workbook.SheetNames[0];
 const rows = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName], { defval: "" });
 
 const entries = [];
-const seenMapsLinks = new Set();
 const seenPeople = new Set();
+const seenMapsLinks = dedupeMapsUrl ? new Set() : null;
 let skippedDuplicateMaps = 0;
 let skippedDuplicatePerson = 0;
 let skippedClinicStyleNames = 0;
@@ -483,7 +491,7 @@ for (const [index, row] of rows.entries()) {
 
   const specialty = normalizeSpecialty(specialtyRaw);
 
-  if (seenMapsLinks.has(mapsLink)) {
+  if (dedupeMapsUrl && seenMapsLinks.has(mapsLink)) {
     skippedDuplicateMaps += 1;
     continue;
   }
@@ -494,7 +502,9 @@ for (const [index, row] of rows.entries()) {
     continue;
   }
 
-  seenMapsLinks.add(mapsLink);
+  if (dedupeMapsUrl) {
+    seenMapsLinks.add(mapsLink);
+  }
   if (phone) {
     seenPeople.add(personKey);
   }
@@ -526,7 +536,7 @@ assignImportSlugs(entries);
 
 const sql =
   mode === "append"
-    ? buildAppendMigration(entries, sourceLabel)
+    ? buildAppendMigration(entries, sourceLabel, dedupeMapsUrl)
     : buildReplaceMigration(entries, sourceLabel);
 
 fs.mkdirSync(path.dirname(outputPath), { recursive: true });
