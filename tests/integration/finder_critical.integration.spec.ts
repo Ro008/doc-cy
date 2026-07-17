@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
+import { fetchAllSupabaseRows } from "@/lib/supabase-fetch-all";
 
 type CreatedDoctor = {
   doctorId: string;
@@ -250,6 +251,7 @@ test.describe("Integration: finder business-critical UX", { tag: "@pr-e2e" }, ()
   });
 
   test("landing to finder shows complete unfiltered directory results", async ({ page }) => {
+    test.setTimeout(120_000);
     const baseUrl = process.env.PLAYWRIGHT_BASE_URL ?? "";
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
     const serviceRole = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
@@ -260,26 +262,26 @@ test.describe("Integration: finder business-critical UX", { tag: "@pr-e2e" }, ()
 
     const admin = createClient(supabaseUrl, serviceRole);
 
-    const doctorsRes = await admin
-      .from("doctors")
-      .select("id, name, slug, status, is_test_profile, email")
-      .eq("status", "verified")
-      .not("slug", "is", null)
-      .order("name", { ascending: true })
-      .limit(300);
+    const doctorsRes = await fetchAllSupabaseRows(() =>
+      admin
+        .from("doctors")
+        .select("id, name, slug, status, is_test_profile, email")
+        .eq("status", "verified")
+        .not("slug", "is", null)
+        .order("name", { ascending: true }),
+    );
 
     if (doctorsRes.error) {
       throw new Error(`Failed reading doctors for finder count: ${doctorsRes.error.message}`);
     }
 
-    const manualRes = await admin
+    const { count: manualCount, error: manualCountError } = await admin
       .from("directory_manual")
-      .select("id")
-      .eq("is_archived", false)
-      .limit(600);
+      .select("id", { count: "exact", head: true })
+      .eq("is_archived", false);
 
-    if (manualRes.error) {
-      throw new Error(`Failed reading directory_manual for finder count: ${manualRes.error.message}`);
+    if (manualCountError) {
+      throw new Error(`Failed reading directory_manual for finder count: ${manualCountError.message}`);
     }
 
     const expectedRegistered = (doctorsRes.data ?? []).filter((row) => {
@@ -293,7 +295,7 @@ test.describe("Integration: finder business-critical UX", { tag: "@pr-e2e" }, ()
         isTestProfile: Boolean((row as { is_test_profile?: boolean | null }).is_test_profile),
       });
     }).length;
-    const expectedManual = (manualRes.data ?? []).length;
+    const expectedManual = manualCount ?? 0;
     const expectedTotal = expectedRegistered + expectedManual;
 
     await page.goto("/");
@@ -309,7 +311,7 @@ test.describe("Integration: finder business-critical UX", { tag: "@pr-e2e" }, ()
         name: /Find your next health professional in Cyprus|Health Professionals in Cyprus|Find a Professional/i,
       })
     ).toBeVisible();
-    await expect(page.locator("section.mt-6 article")).toHaveCount(expectedTotal, { timeout: 20000 });
+    await expect(page.locator("section.mt-6 article")).toHaveCount(expectedTotal, { timeout: 60_000 });
   });
 
   test("registered card renders avatar, languages and profile links to booking page", async ({ page }) => {
@@ -414,6 +416,8 @@ test.describe("Integration: finder business-critical UX", { tag: "@pr-e2e" }, ()
   });
 
   test("finder apply/reset filters updates results for registered professionals", async ({ page }) => {
+    // Full unfiltered finder now loads the entire directory (no 600-row cap).
+    test.setTimeout(120_000);
     const baseUrl = process.env.PLAYWRIGHT_BASE_URL ?? "";
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
     const serviceRole = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
@@ -453,36 +457,38 @@ test.describe("Integration: finder business-critical UX", { tag: "@pr-e2e" }, ()
           name: /Find your next health professional in Cyprus|Health Professionals in Cyprus|Find a Professional/i,
         })
       ).toBeVisible({
-        timeout: 20000,
+        timeout: 60_000,
       });
 
       const districtSelect = page.getByLabel("District");
       const showResults = page.getByRole("button", { name: /^Show results$/i });
       await districtSelect.selectOption("Nicosia");
       await showResults.click();
-      await expect(page).toHaveURL(/\/finder\/nicosia(?:\?|$)/, { timeout: 20_000 });
+      await expect(page).toHaveURL(/\/finder\/nicosia(?:\?|$)/, { timeout: 60_000 });
       await expect(page.getByText("District: Nicosia", { exact: false })).toBeVisible({
-        timeout: 20_000,
+        timeout: 60_000,
       });
 
       const specialtySelect = page.getByLabel("Specialty");
-      await expect(specialtySelect).toBeEnabled({ timeout: 15_000 });
+      await expect(specialtySelect).toBeEnabled({ timeout: 30_000 });
       await expect(specialtySelect.locator('option[value="dentistry"]')).toHaveCount(1, {
-        timeout: 20_000,
+        timeout: 60_000,
       });
       await specialtySelect.selectOption("dentistry");
       await showResults.click();
-      await expect(page).toHaveURL(/\/finder\/nicosia\/dentistry(?:\?|$)/, { timeout: 20_000 });
+      await expect(page).toHaveURL(/\/finder\/nicosia\/dentistry(?:\?|$)/, { timeout: 60_000 });
       await expect(page.getByText("Specialty: Dentistry", { exact: false })).toBeVisible({
-        timeout: 20_000,
+        timeout: 60_000,
       });
 
-      await expect(page.getByText(created[0].name, { exact: true })).toBeVisible();
+      await expect(page.getByText(created[0].name, { exact: true })).toBeVisible({ timeout: 60_000 });
       await expect(page.getByText(created[1].name, { exact: true })).toHaveCount(0);
 
       await page.getByRole("button", { name: /Clear all filters|Reset/i }).click();
-      await expect(page).toHaveURL(/\/finder(?:\?|$)/, { timeout: 20_000 });
-      await expect(page.getByRole("button", { name: /Clear all filters/i })).toBeHidden();
+      await expect(page).toHaveURL(/\/finder(?:\?|$)/, { timeout: 60_000 });
+      await expect(page.getByRole("button", { name: /Clear all filters/i })).toBeHidden({
+        timeout: 60_000,
+      });
       await expect(page.getByText("District: Nicosia", { exact: false })).toBeHidden();
       await expect(page.getByText("Specialty: Dentistry", { exact: false })).toBeHidden();
       await expect(
@@ -490,9 +496,9 @@ test.describe("Integration: finder business-critical UX", { tag: "@pr-e2e" }, ()
           level: 1,
           name: /Find your next health professional in Cyprus|Health Professionals in Cyprus|Find a Professional/i,
         }),
-      ).toBeVisible({ timeout: 20_000 });
-      await expect(page.getByText(created[0].name, { exact: true })).toBeVisible();
-      await expect(page.getByText(created[1].name, { exact: true })).toBeVisible();
+      ).toBeVisible({ timeout: 60_000 });
+      await expect(page.getByText(created[0].name, { exact: true })).toBeVisible({ timeout: 60_000 });
+      await expect(page.getByText(created[1].name, { exact: true })).toBeVisible({ timeout: 60_000 });
     } finally {
       for (const doctor of created) {
         await admin.from("doctors").delete().eq("id", doctor.doctorId);

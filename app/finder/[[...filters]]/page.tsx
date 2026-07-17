@@ -5,6 +5,7 @@ import { PendingLink } from "@/components/navigation/PendingLink";
 import { CYPRUS_DISTRICTS, type CyprusDistrict, isCyprusDistrict } from "@/lib/cyprus-districts";
 import { languageThemeForLabel } from "@/lib/cyprus-languages";
 import { createServiceRoleClient } from "@/lib/supabase-service";
+import { fetchAllSupabaseRows } from "@/lib/supabase-fetch-all";
 import { doctorDashboardDisplayName } from "@/lib/doctor-display-name";
 import { FinderFilters } from "@/components/finder/FinderFilters";
 import { FinderMissingDoctorCard } from "@/components/finder/FinderMissingDoctorCard";
@@ -338,13 +339,14 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
     ];
 
     for (const selectClause of registeredSelectAttempts) {
-      const result = await supabase
-        .from("doctors")
-        .select(selectClause)
-        .eq("status", "verified")
-        .not("slug", "is", null)
-        .order("name", { ascending: true })
-        .limit(300);
+      const result = await fetchAllSupabaseRows(() =>
+        supabase
+          .from("doctors")
+          .select(selectClause)
+          .eq("status", "verified")
+          .not("slug", "is", null)
+          .order("name", { ascending: true }),
+      );
 
       if (result.error) {
         if (isRecoverableSelectSchemaError(result.error)) {
@@ -412,12 +414,13 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
     ];
     let manualLoadError: { code?: string; message?: string } | null = null;
     for (const selectClause of manualSelectAttempts) {
-      const manualRes = await supabase
-        .from("directory_manual")
-        .select(selectClause)
-        .eq("is_archived", false)
-        .order("name", { ascending: true })
-        .limit(600);
+      const manualRes = await fetchAllSupabaseRows(() =>
+        supabase
+          .from("directory_manual")
+          .select(selectClause)
+          .eq("is_archived", false)
+          .order("name", { ascending: true }),
+      );
       if (manualRes.error) {
         manualLoadError = manualRes.error;
         if (isRecoverableSelectSchemaError(manualRes.error)) {

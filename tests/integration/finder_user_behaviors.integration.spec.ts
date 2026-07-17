@@ -90,6 +90,8 @@ async function createVerifiedDoctor(
 
 test.describe("Integration: finder user-like filter behavior matrix", { tag: "@pr-e2e" }, () => {
   test("supports typical user filtering journeys without stale or broken states", async ({ page }) => {
+    // Full unfiltered finder now loads the entire directory (no 600-row cap).
+    test.setTimeout(120_000);
     const baseUrl = process.env.PLAYWRIGHT_BASE_URL ?? "";
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
     const serviceRole = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
@@ -134,7 +136,7 @@ test.describe("Integration: finder user-like filter behavior matrix", { tag: "@p
       await page.goto("/finder");
       await expect(
         page.getByRole("heading", { level: 1, name: /Find your next health professional in Cyprus/i })
-      ).toBeVisible({ timeout: 20000 });
+      ).toBeVisible({ timeout: 60_000 });
 
       const districtSelect = page.getByLabel("District");
       const specialtySelect = page.getByLabel("Specialty");
@@ -143,56 +145,60 @@ test.describe("Integration: finder user-like filter behavior matrix", { tag: "@p
 
       // Scenario 1: District-only exploration (apply once).
       await districtSelect.selectOption("Limassol");
-      await expect(page).toHaveURL(/\/finder(?:\?|$)/, { timeout: 20_000 });
+      await expect(page).toHaveURL(/\/finder(?:\?|$)/, { timeout: 60_000 });
       await showResults.click();
-      await expect(page).toHaveURL(/\/finder\/limassol(?:\?|$)/, { timeout: 20_000 });
+      await expect(page).toHaveURL(/\/finder\/limassol(?:\?|$)/, { timeout: 60_000 });
       await expect(page.getByText("District: Limassol", { exact: false })).toBeVisible({
-        timeout: 20_000,
+        timeout: 60_000,
       });
       await expect(page.getByRole("heading", { level: 1, name: /Find your next health professional in Cyprus/i })).toBeVisible();
-      await expect(page.getByText(created[0].name, { exact: true })).toBeVisible();
-      await expect(page.getByText(created[1].name, { exact: true })).toBeVisible();
+      await expect(page.getByText(created[0].name, { exact: true })).toBeVisible({ timeout: 60_000 });
+      await expect(page.getByText(created[1].name, { exact: true })).toBeVisible({ timeout: 60_000 });
       await expect(page.getByText(created[2].name, { exact: true })).toHaveCount(0);
 
       // Scenario 2: District + specialty narrowing.
-      await expect(specialtySelect).toBeEnabled({ timeout: 15_000 });
+      await expect(specialtySelect).toBeEnabled({ timeout: 30_000 });
       await expect(specialtySelect.locator('option[value="dentistry"]')).toHaveCount(1, {
-        timeout: 20_000,
+        timeout: 60_000,
       });
       await specialtySelect.selectOption("dentistry");
       await showResults.click();
-      await expect(page).toHaveURL(/\/finder\/limassol\/dentistry(?:\?|$)/, { timeout: 20_000 });
+      await expect(page).toHaveURL(/\/finder\/limassol\/dentistry(?:\?|$)/, { timeout: 60_000 });
       await expect(page.getByRole("heading", { level: 1, name: /Dentistry in Limassol/i })).toBeVisible({
-        timeout: 20_000,
+        timeout: 60_000,
       });
-      await expect(page.getByText("Specialty: Dentistry", { exact: false })).toBeVisible();
-      await expect(page.getByText(created[1].name, { exact: true })).toBeVisible();
+      await expect(page.getByText("Specialty: Dentistry", { exact: false })).toBeVisible({
+        timeout: 60_000,
+      });
+      await expect(page.getByText(created[1].name, { exact: true })).toBeVisible({ timeout: 60_000 });
       await expect(page.getByText(created[0].name, { exact: true })).toHaveCount(0);
 
       // Scenario 3: Name filter applies on Enter or Show results (not while typing).
       await nameInput.fill("Dent");
       await expect(page).not.toHaveURL(/name=/, { timeout: 5_000 });
-      await expect(page.getByText(created[1].name, { exact: true })).toBeVisible();
+      await expect(page.getByText(created[1].name, { exact: true })).toBeVisible({ timeout: 60_000 });
       await nameInput.press("Enter");
-      await expect(page).toHaveURL(/name=Dent/, { timeout: 20_000 });
+      await expect(page).toHaveURL(/name=Dent/, { timeout: 60_000 });
       await expect(page.getByText("Name: Dent", { exact: false })).toBeVisible({
-        timeout: 20_000,
+        timeout: 60_000,
       });
-      await expect(page.getByText(created[1].name, { exact: true })).toBeVisible();
+      await expect(page.getByText(created[1].name, { exact: true })).toBeVisible({ timeout: 60_000 });
 
       // Scenario 4: Reset should recover broad list + clean path.
       await page.getByRole("button", { name: /Clear all filters|Reset/i }).click();
-      await expect(page).toHaveURL(/\/finder(?:\?|$)/, { timeout: 20_000 });
-      await expect(page.getByRole("button", { name: /Clear all filters/i })).toBeHidden();
+      await expect(page).toHaveURL(/\/finder(?:\?|$)/, { timeout: 60_000 });
+      await expect(page.getByRole("button", { name: /Clear all filters/i })).toBeHidden({
+        timeout: 60_000,
+      });
       await expect(page.getByText("District: Limassol", { exact: false })).toBeHidden();
       await expect(page.getByText("Specialty: Dentistry", { exact: false })).toBeHidden();
       await expect(page.getByText("Name: Dent", { exact: false })).toBeHidden();
       await expect(
         page.getByRole("heading", { level: 1, name: /Find your next health professional in Cyprus/i })
-      ).toBeVisible({ timeout: 20_000 });
-      await expect(page.getByText(created[0].name, { exact: true })).toBeVisible();
-      await expect(page.getByText(created[1].name, { exact: true })).toBeVisible();
-      await expect(page.getByText(created[2].name, { exact: true })).toBeVisible();
+      ).toBeVisible({ timeout: 60_000 });
+      await expect(page.getByText(created[0].name, { exact: true })).toBeVisible({ timeout: 60_000 });
+      await expect(page.getByText(created[1].name, { exact: true })).toBeVisible({ timeout: 60_000 });
+      await expect(page.getByText(created[2].name, { exact: true })).toBeVisible({ timeout: 60_000 });
     } finally {
       for (const doctor of created) {
         await admin.from("doctors").delete().eq("id", doctor.doctorId);
@@ -202,7 +208,7 @@ test.describe("Integration: finder user-like filter behavior matrix", { tag: "@p
   });
 
   test("keeps specialty filter when using Doctor near me", async ({ page, context }) => {
-    test.setTimeout(60_000);
+    test.setTimeout(120_000);
     const baseUrl = process.env.PLAYWRIGHT_BASE_URL ?? "";
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
     const serviceRole = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
