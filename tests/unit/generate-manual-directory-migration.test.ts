@@ -115,6 +115,51 @@ describe("generate-manual-directory-migration", () => {
     assert.equal((sql.match(/Theodoros Athinodorou/g) || []).length, 1);
     assert.equal((sql.match(/Georgios Chatziantonis/g) || []).length, 1);
     assert.equal((sql.match(/Chatziantonis Georgios/g) || []).length, 0);
+    assert.match(sql, /lower\(d\.name\) = lower\(v\.name\)/);
+    assert.match(sql, /d\.district = v\.district::public\.cyprus_district/);
+    assert.match(sql, /lower\(trim\(d\.specialty\)\) = lower\(trim\(v\.specialty\)\)/);
+    assert.ok(!sql.includes("or d.address_maps_link = v.address_maps_link"));
+  });
+
+  it("append dedupes by name + specialty + district, not name alone", () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "manual-dir-test-"));
+    const inputPath = path.join(tempDir, "input.xlsx");
+    const outputPath = path.join(tempDir, "out.sql");
+
+    writeWorkbook(inputPath, [
+      {
+        name: "Andreas Matheou",
+        specialty: "gynecologist",
+        district: "Paphos",
+        phone: "99 055649",
+        google_maps_url: "https://maps.google.com/?cid=paphos-a",
+        latitude: 34.76,
+        longitude: 32.43,
+      },
+      {
+        name: "Andreas Matheou",
+        specialty: "gynecologist",
+        district: "Paphos",
+        phone: "99 055649",
+        google_maps_url: "https://maps.google.com/?cid=paphos-b",
+        latitude: 35.03,
+        longitude: 32.42,
+      },
+      {
+        name: "Andreas Matheou",
+        specialty: "gynecologist",
+        district: "Nicosia",
+        phone: "22 000000",
+        google_maps_url: "https://maps.google.com/?cid=nicosia",
+        latitude: 35.17,
+        longitude: 33.36,
+      },
+    ]);
+
+    runGenerator(["--append", "--no-dedupe-maps-url", inputPath, outputPath]);
+    const sql = fs.readFileSync(outputPath, "utf8");
+
+    assert.equal((sql.match(/Andreas Matheou/g) || []).length, 3);
     assert.ok(!sql.includes("or d.address_maps_link = v.address_maps_link"));
   });
 });

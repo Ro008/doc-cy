@@ -39,22 +39,53 @@ Use this when the user passes a new doctor list (Excel/CSV) for the **manual fin
 Script: `scripts/generate-manual-directory-migration.mjs`  
 (Legacy alias: `scripts/generate-dentist-directory-migration.mjs`)
 
+Optional pre-clean for dirty Google Places names: `scripts/clean-gynecologist-spreadsheet.mjs` (pattern for specialty-specific cleaners).
+
 ```bash
 # Full replace (wipe directory_manual, then insert all rows)
 node scripts/generate-manual-directory-migration.mjs --replace "path/to/file.xlsx" "supabase/migrations/TIMESTAMP_description.sql"
 
-# Append batch (insert only new rows)
+# Append batch (insert only rows not already present under dedupe rules below)
 node scripts/generate-manual-directory-migration.mjs --append "path/to/file.xlsx" "supabase/migrations/TIMESTAMP_description.sql"
+
+# Multi-consultation batch (same person, several Maps links / phones in one file)
+node scripts/generate-manual-directory-migration.mjs --append --no-dedupe-maps-url "path/to/file.xlsx" "supabase/migrations/TIMESTAMP_description.sql"
 ```
+
+### Append dedupe rules (important)
+
+A row is considered **already in the directory** (and skipped on `--append`) only when **all three** match an active (`is_archived = false`) row:
+
+1. **Name** (`lower(name)`)
+2. **Specialty** (exact label, plus legacy Ob/Gyn aliases when importing `Gynecology`)
+3. **District**
+
+This allows:
+
+- Same name in **different districts** (e.g. Paphos + Nicosia)
+- Same name + district with **different specialties** in DB (e.g. Physiotherapy vs Gynecology)
+- **Multiple cards** for several consultations when Maps/phone differ (use `--no-dedupe-maps-url`)
+
+**Not** a duplicate: same name in different district, or same name with a different specialty already in DB.
+
+**Optional extra dedupe** (flags):
+
+| Flag | Effect |
+|------|--------|
+| `--no-dedupe-maps-url` | Do not drop shared `google_maps_url` rows within the spreadsheet; omit Maps URL from SQL `NOT EXISTS`. Use for shared clinic addresses (e.g. pediatrics batch). |
+| `--dedupe-spreadsheet-person` | Within the spreadsheet only, keep first row when **name + district + phone** match. Off by default. |
+| `--normalize-names` | Run `scripts/lib/manual-directory-name-clean.mjs` (titles, Greek, clinic fluff). Use for psychology-style dirty exports. |
+
+**Historical note:** older append migrations used `lower(name)` alone (or OR `address_maps_link`), which blocked valid multi-location rows. New imports must use the generator as updated above.
 
 Script behavior:
 
 - Reads `specialty` from each row (single-specialty files and mixed-specialty files)
 - Normalizes specialty labels (Dentistry, Dermatology, Gynecology, master list, common aliases)
-- Title-cases person names
-- Dedupes by `google_maps_url`
-- Dedupes same person when **name + district + phone** match (keeps first row; drops duplicate Google Place IDs)
-- Outputs SQL with `phone`, `latitude`, `longitude`
+- Title-cases person names (or `--normalize-names` for dirty exports)
+- By default, dedupes duplicate `google_maps_url` **within the spreadsheet** only
+- Outputs SQL with `phone`, `latitude`, `longitude`, `slug`
+- **Append slugs** prefer `{name}-{district}` first (e.g. `maria-paschalidou-paphos`) to avoid colliding with existing name-only slugs in DB; numeric suffix for multi-consultation rows in the same district
 - Prints a specialty breakdown after generation
 
 ## Full replace vs incremental add
@@ -67,7 +98,7 @@ Script behavior:
 
 **Incremental add (small batch):**
 
-- Generate with `--append`, or hand-write `INSERT … SELECT … WHERE NOT EXISTS` deduping by `lower(name)` or `address_maps_link`.
+- Generate with `--append` (see dedupe rules above), or hand-write `INSERT … SELECT … WHERE NOT EXISTS` matching **name + specialty + district**.
 
 After generating, review for:
 

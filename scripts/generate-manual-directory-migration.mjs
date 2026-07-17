@@ -127,7 +127,12 @@ const SPECIALTY_ALIASES = {
 };
 
 function parseArgs(argv) {
-  const flags = { mode: "replace", dedupeMapsUrl: true, normalizeNames: false };
+  const flags = {
+    mode: "replace",
+    dedupeMapsUrl: true,
+    dedupeSpreadsheetPerson: false,
+    normalizeNames: false,
+  };
   const positionals = [];
 
   for (const arg of argv) {
@@ -137,6 +142,8 @@ function parseArgs(argv) {
       flags.mode = "replace";
     } else if (arg === "--no-dedupe-maps-url") {
       flags.dedupeMapsUrl = false;
+    } else if (arg === "--dedupe-spreadsheet-person") {
+      flags.dedupeSpreadsheetPerson = true;
     } else if (arg === "--normalize-names") {
       flags.normalizeNames = true;
     } else if (arg.startsWith("--mode=")) {
@@ -284,7 +291,7 @@ function trimSlug(value) {
   return value.slice(0, MAX_SLUG_LENGTH).replace(/-+$/g, "");
 }
 
-function buildManualDirectorySlugCandidates({ name, district }) {
+function buildManualDirectorySlugCandidates({ name, district, preferDistrictSuffix = false }) {
   const nameSlug = slugifyDoctorPublicName(name);
   const base = nameSlug || "professional";
   const candidates = [];
@@ -298,8 +305,16 @@ function buildManualDirectorySlugCandidates({ name, district }) {
     candidates.push(normalized);
   };
 
+  if (preferDistrictSuffix && district && DISTRICT_SLUG[district]) {
+    const withDistrict = `${base}-${DISTRICT_SLUG[district]}`;
+    push(withDistrict);
+    for (let suffix = 2; suffix <= 200; suffix += 1) {
+      push(`${withDistrict}-${suffix}`);
+    }
+  }
+
   push(base);
-  if (district && DISTRICT_SLUG[district]) {
+  if (!preferDistrictSuffix && district && DISTRICT_SLUG[district]) {
     push(`${base}-${DISTRICT_SLUG[district]}`);
   }
   for (let suffix = 2; suffix <= 200; suffix += 1) {
@@ -308,8 +323,12 @@ function buildManualDirectorySlugCandidates({ name, district }) {
   return candidates;
 }
 
-function allocateImportSlug(takenLowercase, name, district) {
-  const candidates = buildManualDirectorySlugCandidates({ name, district });
+function allocateImportSlug(takenLowercase, name, district, preferDistrictSuffix = false) {
+  const candidates = buildManualDirectorySlugCandidates({
+    name,
+    district,
+    preferDistrictSuffix,
+  });
   for (const candidate of candidates) {
     const key = candidate.toLowerCase();
     if (!takenLowercase.has(key)) {
@@ -320,10 +339,15 @@ function allocateImportSlug(takenLowercase, name, district) {
   throw new Error(`Could not allocate slug for import row "${name}" (${district})`);
 }
 
-function assignImportSlugs(entries) {
+function assignImportSlugs(entries, { preferDistrictSuffix = false } = {}) {
   const taken = new Set();
   for (const entry of entries) {
-    entry.slug = allocateImportSlug(taken, entry.name, entry.district);
+    entry.slug = allocateImportSlug(
+      taken,
+      entry.name,
+      entry.district,
+      preferDistrictSuffix,
+    );
   }
 }
 
@@ -387,6 +411,34 @@ ${valueLines.join(",\n")};
 `;
 }
 
+/** SQL fragment: imported specialty matches an existing row (incl. legacy Ob/Gyn labels). */
+function appendSpecialtyMatchSql(vAlias = "v") {
+  return `(
+      lower(trim(d.specialty)) = lower(trim(${vAlias}.specialty))
+      or (
+        lower(trim(${vAlias}.specialty)) = 'gynecology'
+        and lower(trim(d.specialty)) in (
+          'gynecology',
+          'obstetrics/ gynecology',
+          'gynecologic oncology'
+        )
+      )
+    )`;
+}
+
+function buildAppendExistsClause(dedupeMapsUrl) {
+  const identityMatch = `
+      lower(d.name) = lower(v.name)
+      and d.district = v.district::public.cyprus_district
+      and ${appendSpecialtyMatchSql()}`;
+
+  if (dedupeMapsUrl) {
+    return `((${identityMatch}) or d.address_maps_link = v.address_maps_link)`;
+  }
+
+  return `(${identityMatch})`;
+}
+
 function buildAppendMigration(entries, sourceLabel, dedupeMapsUrl) {
   const valueLines = entries.map((entry) => {
     const phoneSql = entry.phone ? sqlLiteral(entry.phone) : "null";
@@ -431,10 +483,7 @@ where not exists (
   select 1
   from public.directory_manual d
   where d.is_archived = false
-    and (
-      lower(d.name) = lower(v.name)
-      ${dedupeMapsUrl ? "or d.address_maps_link = v.address_maps_link" : ""}
-    )
+    and ${buildAppendExistsClause(dedupeMapsUrl)}
 );
 `;
 }
@@ -447,9 +496,8 @@ function summarizeSpecialties(entries) {
   return [...counts.entries()].sort((a, b) => a[0].localeCompare(b[0]));
 }
 
-const { mode, dedupeMapsUrl, normalizeNames, inputPath, outputPath } = parseArgs(
-  process.argv.slice(2),
-);
+const { mode, dedupeMapsUrl, dedupeSpreadsheetPerson, normalizeNames, inputPath, outputPath } =
+  parseArgs(process.argv.slice(2));
 const sourceLabel = path.basename(inputPath);
 
 if (!fs.existsSync(inputPath)) {
@@ -512,17 +560,19 @@ for (const [index, row] of rows.entries()) {
     continue;
   }
 
-  const personKey = personDedupeKey(name, district, phone);
-  if (phone && seenPeople.has(personKey)) {
-    skippedDuplicatePerson += 1;
-    continue;
+  if (dedupeSpreadsheetPerson) {
+    const personKey = personDedupeKey(name, district, phone);
+    if (phone && seenPeople.has(personKey)) {
+      skippedDuplicatePerson += 1;
+      continue;
+    }
+    if (phone) {
+      seenPeople.add(personKey);
+    }
   }
 
   if (dedupeMapsUrl) {
     seenMapsLinks.add(mapsLink);
-  }
-  if (phone) {
-    seenPeople.add(personKey);
   }
 
   entries.push({
@@ -548,7 +598,7 @@ entries.sort((a, b) => {
   return a.name.localeCompare(b.name);
 });
 
-assignImportSlugs(entries);
+assignImportSlugs(entries, { preferDistrictSuffix: mode === "append" });
 
 const sql =
   mode === "append"
@@ -560,6 +610,8 @@ fs.writeFileSync(outputPath, sql, "utf8");
 
 console.log(`Wrote ${entries.length} rows to ${outputPath}`);
 console.log(`Mode: ${mode}`);
+console.log(`Dedupe maps URL (spreadsheet + SQL): ${dedupeMapsUrl}`);
+console.log(`Dedupe spreadsheet person (name + district + phone): ${dedupeSpreadsheetPerson}`);
 console.log(`Normalize names: ${normalizeNames}`);
 console.log("Specialties:");
 for (const [specialty, count] of summarizeSpecialties(entries)) {
