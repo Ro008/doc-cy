@@ -32,7 +32,7 @@ Use this when the user passes a new doctor list (Excel/CSV) for the **manual fin
 - `telephone` / `tel` → `phone`
 - `lat` / `lon` / `lng` → `latitude` / `longitude`
 - `city` → ignore if `district` is present
-- Specialty values like `dentist`, `dermatologist`, `dental` → normalized via `scripts/generate-manual-directory-migration.mjs` (mirrors `lib/finder-specialty-harmonize.ts` + common aliases)
+- Specialty values like `dentist`, `dermatologist`, `dental`, `psychiatrist` → normalized via `scripts/generate-manual-directory-migration.mjs` (mirrors `lib/finder-specialty-harmonize.ts` + common aliases; **`psychiatrist` → `Psychiatry`**, not Psychology)
 
 ## Generating a migration from Excel
 

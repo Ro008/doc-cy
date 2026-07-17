@@ -162,4 +162,29 @@ describe("generate-manual-directory-migration", () => {
     assert.equal((sql.match(/Andreas Matheou/g) || []).length, 3);
     assert.ok(!sql.includes("or d.address_maps_link = v.address_maps_link"));
   });
+
+  it("maps psychiatrist to Psychiatry, not Psychology", () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "manual-dir-test-"));
+    const inputPath = path.join(tempDir, "input.xlsx");
+    const outputPath = path.join(tempDir, "out.sql");
+
+    writeWorkbook(inputPath, [
+      {
+        name: "Olympia Evagorou",
+        specialty: "psychiatrist",
+        district: "Paphos",
+        phone: "26 622232",
+        google_maps_url: "https://maps.google.com/?cid=psych-1",
+        latitude: 34.78,
+        longitude: 32.42,
+      },
+    ]);
+
+    const result = runGenerator(["--append", inputPath, outputPath]);
+    const sql = fs.readFileSync(outputPath, "utf8");
+
+    assert.match(result.stdout, /Psychiatry: 1/);
+    assert.match(sql, /'Psychiatry'/);
+    assert.doesNotMatch(sql, /'Psychology'/);
+  });
 });

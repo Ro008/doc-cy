@@ -63,7 +63,6 @@ const PSYCHOLOGY_GROUP = new Set([
   "psychology",
   "psychotherapy",
   "psychologist",
-  "psychiatrist",
 ]);
 
 const DENTISTRY_GROUP = new Set([
@@ -118,6 +117,8 @@ const SPECIALTY_ALIASES = {
   rheumatologist: "Rheumatology",
   nephrologist: "Nephrology",
   endocrinologist: "Endocrinology",
+  psychiatrist: "Psychiatry",
+  psychiatry: "Psychiatry",
   midwifery: "Gynecology",
   midwife: "Gynecology",
   "plastic surgery": "Plastic Surgery",
