@@ -72,7 +72,7 @@ This allows:
 
 | Flag | Effect |
 |------|--------|
-| `--no-dedupe-maps-url` | Do not drop shared `google_maps_url` rows within the spreadsheet; omit Maps URL from SQL `NOT EXISTS`. Use for shared clinic addresses (e.g. pediatrics batch). |
+| `--no-dedupe-maps-url` | Do not drop shared `google_maps_url` rows within the spreadsheet; omit Maps URL from SQL `NOT EXISTS`. Use for shared clinic addresses (e.g. pediatrics) **or** the same Maps link already used by another specialty for that person (e.g. Urology after Gynecology/GP). Prefer this for specialty append batches when overlap is likely. |
 | `--dedupe-spreadsheet-person` | Within the spreadsheet only, keep first row when **name + district + phone** match. Off by default. |
 | `--normalize-names` | Run `scripts/lib/manual-directory-name-clean.mjs` (titles, Greek, clinic fluff). Use for psychology-style dirty exports. |
 
