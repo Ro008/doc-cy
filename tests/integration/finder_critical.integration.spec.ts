@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
+import { fetchAllSupabaseRows } from "@/lib/supabase-fetch-all";
 
 type CreatedDoctor = {
   doctorId: string;
@@ -260,26 +261,26 @@ test.describe("Integration: finder business-critical UX", { tag: "@pr-e2e" }, ()
 
     const admin = createClient(supabaseUrl, serviceRole);
 
-    const doctorsRes = await admin
-      .from("doctors")
-      .select("id, name, slug, status, is_test_profile, email")
-      .eq("status", "verified")
-      .not("slug", "is", null)
-      .order("name", { ascending: true })
-      .limit(300);
+    const doctorsRes = await fetchAllSupabaseRows(() =>
+      admin
+        .from("doctors")
+        .select("id, name, slug, status, is_test_profile, email")
+        .eq("status", "verified")
+        .not("slug", "is", null)
+        .order("name", { ascending: true }),
+    );
 
     if (doctorsRes.error) {
       throw new Error(`Failed reading doctors for finder count: ${doctorsRes.error.message}`);
     }
 
-    const manualRes = await admin
+    const { count: manualCount, error: manualCountError } = await admin
       .from("directory_manual")
-      .select("id")
-      .eq("is_archived", false)
-      .limit(600);
+      .select("id", { count: "exact", head: true })
+      .eq("is_archived", false);
 
-    if (manualRes.error) {
-      throw new Error(`Failed reading directory_manual for finder count: ${manualRes.error.message}`);
+    if (manualCountError) {
+      throw new Error(`Failed reading directory_manual for finder count: ${manualCountError.message}`);
     }
 
     const expectedRegistered = (doctorsRes.data ?? []).filter((row) => {
@@ -293,7 +294,7 @@ test.describe("Integration: finder business-critical UX", { tag: "@pr-e2e" }, ()
         isTestProfile: Boolean((row as { is_test_profile?: boolean | null }).is_test_profile),
       });
     }).length;
-    const expectedManual = (manualRes.data ?? []).length;
+    const expectedManual = manualCount ?? 0;
     const expectedTotal = expectedRegistered + expectedManual;
 
     await page.goto("/");
