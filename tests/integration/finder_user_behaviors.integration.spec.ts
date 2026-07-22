@@ -66,8 +66,9 @@ async function createVerifiedDoctor(
       status: "verified",
       slug,
       is_specialty_approved: true,
-      // Must stay visible in finder for user-behavior assertions.
-      is_test_profile: false,
+      // Mark as test so cleanup + prod finder hide are reliable; still visible when
+      // NEXT_PUBLIC_DOC_CY_FINDER_INCLUDE_TEST_PROFILES=1 (integration).
+      is_test_profile: true,
       subscription_tier: "standard",
     })
     .select("id")
@@ -107,7 +108,7 @@ test.describe("Integration: finder user-like filter behavior matrix", { tag: "@p
     try {
       created.push(
         await createVerifiedDoctor(admin, `${nonce}-a`, {
-          slugPrefix: "qa-ux-limassol-derm",
+          slugPrefix: "finder-ux-limassol-derm",
           name: `Finder UX Limassol Derm ${nonce}`,
           specialty: "Dermatology",
           district: "Limassol",
@@ -116,7 +117,7 @@ test.describe("Integration: finder user-like filter behavior matrix", { tag: "@p
       );
       created.push(
         await createVerifiedDoctor(admin, `${nonce}-b`, {
-          slugPrefix: "qa-ux-limassol-dent",
+          slugPrefix: "finder-ux-limassol-dent",
           name: `Finder UX Limassol Dent ${nonce}`,
           specialty: "Dentistry",
           district: "Limassol",
@@ -125,7 +126,7 @@ test.describe("Integration: finder user-like filter behavior matrix", { tag: "@p
       );
       created.push(
         await createVerifiedDoctor(admin, `${nonce}-c`, {
-          slugPrefix: "qa-ux-paphos-dent",
+          slugPrefix: "finder-ux-paphos-dent",
           name: `Finder UX Paphos Dent ${nonce}`,
           specialty: "Dentistry",
           district: "Paphos",

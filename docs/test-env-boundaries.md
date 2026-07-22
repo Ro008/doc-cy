@@ -46,6 +46,24 @@ NEXT_PUBLIC_DOC_CY_FINDER_INCLUDE_TEST_PROFILES=1
 
 PR integration workflow sets this automatically on build + Playwright. The nightly workflow does **not** re-run integration E2E (see `docs/ci-test-policy.md`).
 
+### Orphan “Finder Filter …” doctors in `/finder`
+
+Integration specs create ephemeral verified doctors named like `Finder Filter B <nonce>` so filter assertions have stable cards. If a run is interrupted (timeout, cancelled CI, crash before `finally`), those rows can remain in the **testing** DB and show up in the finder while `NEXT_PUBLIC_DOC_CY_FINDER_INCLUDE_TEST_PROFILES=1`.
+
+**Cleanup (testing only):**
+
+```bash
+npm run test:cleanup:testing:dry    # list orphans
+npm run test:cleanup:testing        # delete
+npm run test:cleanup:testing:assert # delete + fail if any remain
+```
+
+**Guards:**
+
+- Playwright helpers mark these rows `is_test_profile: true` and use `finder-filter-` / `finder-ux-` slug prefixes.
+- `isTestProfileLike` also matches name prefixes (`Finder Filter `, `Finder UX `, …) and legacy `qa-filter-` / `qa-ux-` slugs.
+- PR integration CI runs `node scripts/cleanup-test-doctors.mjs --assert-empty` after the `@pr-e2e` suite (`if: always()`).
+
 ## Canonical commands
 
 - Full production smoke (local):

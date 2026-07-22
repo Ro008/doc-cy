@@ -58,7 +58,8 @@ async function createVerifiedDoctor(
     avatarPath?: string;
   }
 ): Promise<CreatedDoctor> {
-  // Use a cleanup-recognized suffix but avoid finder's test-marker filters.
+  // Use a cleanup-recognized suffix. Visibility in finder requires
+  // NEXT_PUBLIC_DOC_CY_FINDER_INCLUDE_TEST_PROFILES=1 (set in CI / .env.testing.local).
   const email = `${input.slugPrefix}-${nonce}@test-doccy.com.cy`;
   const slug = `${input.slugPrefix}-${nonce}`;
   const userRes = await admin.auth.admin.createUser({
@@ -88,8 +89,9 @@ async function createVerifiedDoctor(
       status: "verified",
       slug,
       is_specialty_approved: true,
-      // Must be visible in finder during assertions.
-      is_test_profile: false,
+      // Mark as test so cleanup + prod finder hide are reliable; still visible when
+      // NEXT_PUBLIC_DOC_CY_FINDER_INCLUDE_TEST_PROFILES=1 (integration).
+      is_test_profile: true,
       subscription_tier: "standard",
     })
     .select("id")
@@ -433,7 +435,7 @@ test.describe("Integration: finder business-critical UX", { tag: "@pr-e2e" }, ()
     try {
       created.push(
         await createVerifiedDoctor(admin, `${nonce}-a`, {
-          slugPrefix: "qa-filter-a",
+          slugPrefix: "finder-filter-a",
           name: `Finder Filter A ${nonce}`,
           specialty: "Dentistry",
           district: "Nicosia",
@@ -442,7 +444,7 @@ test.describe("Integration: finder business-critical UX", { tag: "@pr-e2e" }, ()
       );
       created.push(
         await createVerifiedDoctor(admin, `${nonce}-b`, {
-          slugPrefix: "qa-filter-b",
+          slugPrefix: "finder-filter-b",
           name: `Finder Filter B ${nonce}`,
           specialty: "Dermatology",
           district: "Limassol",
