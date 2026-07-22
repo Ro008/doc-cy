@@ -9,7 +9,6 @@ type Props = {
   doctorName: string;
   addressMapsLink: string;
   phone?: string | null;
-  wasDuplicate?: boolean;
   onClose: () => void;
 };
 
@@ -18,7 +17,6 @@ export function ManualBookingRequestModal({
   doctorName,
   addressMapsLink,
   phone = null,
-  wasDuplicate = false,
   onClose,
 }: Props) {
   const closeButtonRef = React.useRef<HTMLButtonElement>(null);
@@ -77,18 +75,8 @@ export function ManualBookingRequestModal({
         <div className="space-y-5 px-5 py-5 text-sm leading-relaxed text-ink-800 sm:px-6">
           <p>
             <span className="font-semibold text-ink-950">{doctorName}</span> hasn&apos;t activated
-            online booking on DocCy yet.{" "}
-            {wasDuplicate ? (
-              <>
-                We already counted your request from this device in the last few months — no need to
-                vote again. We&apos;ll still alert their clinic that patients are waiting here! 🚀
-              </>
-            ) : (
-              <>
-                We just counted your click as an official request to open their digital calendar.
-                We&apos;ll alert their clinic that patients are waiting here! 🚀
-              </>
-            )}
+            online booking on DocCy yet. We counted your click as a request to open their digital
+            calendar — we&apos;ll alert their clinic that patients are waiting here.
           </p>
 
           <div className="rounded-xl border border-clinical-200 bg-clinical-50/70 px-4 py-4">
@@ -120,11 +108,12 @@ export function ManualBookingRequestModal({
                 👉 Open clinic on Google Maps ↗
               </a>
             </p>
-            <p className="mt-4 text-ink-700">
-              Next time you talk to them, tell them to activate their DocCy profile so you can book
-              online!
-            </p>
           </div>
+
+          <p className="text-xs leading-relaxed text-ink-500">
+            Contact details on inactive listings may be incomplete or out of date. Prefer calling or
+            checking Google Maps, and ask them to activate DocCy for an up-to-date profile.
+          </p>
 
           <button
             type="button"
