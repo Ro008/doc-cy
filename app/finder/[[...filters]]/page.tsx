@@ -60,11 +60,8 @@ import {
 import type { PublicAvailabilityCalendar } from "@/lib/public/compute-public-booking-slots";
 import { buildFinderAvailabilityDayHeaders } from "@/lib/public/compute-public-booking-slots";
 import {
-  fallbackDistrictCoordinates,
-  formatApproxDistanceAway,
+  computeFinderDistanceKm,
   formatDistanceAway,
-  getDistanceKm,
-  isLikelyCyprusCoordinates,
   parseOptionalCoordinates,
   type Coordinates,
 } from "@/lib/finder-distance";
@@ -577,31 +574,15 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
   }
 
   function computeDistanceInfo(
-    district: string | null | undefined,
+    _district: string | null | undefined,
     latitude: number | null,
     longitude: number | null,
   ): { distanceKm: number | null; usedDistrictFallbackForDistance: boolean } {
-    if (!userCoords) return { distanceKm: null, usedDistrictFallbackForDistance: false };
-    const exactCoords = parseOptionalCoordinates(latitude, longitude);
-    if (exactCoords) {
-      if (district && isCyprusDistrict(district) && !isLikelyCyprusCoordinates(exactCoords)) {
-        return {
-          distanceKm: getDistanceKm(userCoords, fallbackDistrictCoordinates(district)),
-          usedDistrictFallbackForDistance: true,
-        };
-      }
-      return {
-        distanceKm: getDistanceKm(userCoords, exactCoords),
-        usedDistrictFallbackForDistance: false,
-      };
-    }
-    if (district && isCyprusDistrict(district)) {
-      return {
-        distanceKm: getDistanceKm(userCoords, fallbackDistrictCoordinates(district)),
-        usedDistrictFallbackForDistance: true,
-      };
-    }
-    return { distanceKm: null, usedDistrictFallbackForDistance: false };
+    return {
+      distanceKm: computeFinderDistanceKm(userCoords, latitude, longitude),
+      // Always false: district-centre approximate distances are not allowed.
+      usedDistrictFallbackForDistance: false,
+    };
   }
 
   const unifiedResults: UnifiedFinderResult[] = [
@@ -828,16 +809,8 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                             </div>
                           ) : null}
                           {item.distanceKm !== null ? (
-                            <p
-                              className={
-                                item.usedDistrictFallbackForDistance
-                                  ? "text-xs font-medium text-ink-500"
-                                  : "text-xs font-semibold text-clinical-700"
-                              }
-                            >
-                              {item.usedDistrictFallbackForDistance
-                                ? formatApproxDistanceAway(item.distanceKm)
-                                : formatDistanceAway(item.distanceKm)}
+                            <p className="text-xs font-semibold text-clinical-700">
+                              {formatDistanceAway(item.distanceKm)}
                             </p>
                           ) : null}
                         </div>
@@ -982,16 +955,8 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                           </span>
                         </span>
                         {item.distanceKm !== null ? (
-                          <p
-                            className={`mt-2 text-xs ${
-                              item.usedDistrictFallbackForDistance
-                                ? "font-medium text-ink-500"
-                                : "font-semibold text-clinical-700"
-                            }`}
-                          >
-                            {item.usedDistrictFallbackForDistance
-                              ? formatApproxDistanceAway(item.distanceKm)
-                              : formatDistanceAway(item.distanceKm)}
+                          <p className="mt-2 text-xs font-semibold text-clinical-700">
+                            {formatDistanceAway(item.distanceKm)}
                           </p>
                         ) : null}
                       </div>

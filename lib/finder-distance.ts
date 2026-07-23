@@ -54,6 +54,25 @@ export function fallbackDistrictCoordinates(district: CyprusDistrict): Coordinat
   return DISTRICT_CENTER_COORDS[district];
 }
 
+/**
+ * Distance for finder "Doctor near me" labels/sorting.
+ *
+ * Product rule: never invent distance from a district centre. Only return a
+ * distance when the listing has real coordinates in Cyprus. Listings without
+ * lat/lon (e.g. GeSY imports pending Places) must show no "X km away".
+ */
+export function computeFinderDistanceKm(
+  userCoords: Coordinates | null | undefined,
+  latitude: unknown,
+  longitude: unknown,
+): number | null {
+  if (!userCoords) return null;
+  const exactCoords = parseOptionalCoordinates(latitude, longitude);
+  if (!exactCoords) return null;
+  if (!isLikelyCyprusCoordinates(exactCoords)) return null;
+  return getDistanceKm(userCoords, exactCoords);
+}
+
 export function formatDistanceAway(distanceKm: number): string {
   if (!Number.isFinite(distanceKm)) return "";
   if (distanceKm < 1) {
