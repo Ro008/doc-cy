@@ -155,6 +155,9 @@ test.describe("Integration: finder manual card vote", () => {
     expect([200, 201]).toContain(res.status());
     await expect(page.getByRole("dialog")).toBeVisible({ timeout: 15_000 });
     await expect(page.getByRole("heading", { name: /Profile not activated yet/i })).toBeVisible();
+    await expect(
+      page.getByText(/Contact details on inactive listings may be incomplete or out of date/i),
+    ).toBeVisible();
 
     if (res.status() === 201 && manualId) {
       const { data: rows, error } = await admin

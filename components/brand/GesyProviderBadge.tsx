@@ -18,10 +18,11 @@ const HEIGHT_CLASS = {
   md: "h-[52px]",
 } as const;
 
+/** English default + Greek alternate (crossfade). Dark variant stays single-asset. */
 const LOGO = {
   light: {
-    src: "/brand/gesy-logo.png",
-    aspect: 600 / 450,
+    en: { src: "/brand/GesyEN.png", aspect: 786 / 450 },
+    el: { src: "/brand/gesy-logo.png", aspect: 600 / 450 },
   },
   dark: {
     src: "/brand/gesy-logo-dark.png",
@@ -39,26 +40,59 @@ export function GesyProviderBadge({
   variant = "light",
 }: GesyProviderBadgeProps) {
   const title = titleProp ?? DEFAULT_GESY_TOOLTIP;
-  const logo = LOGO[variant];
   const height = HEIGHT_PX[size];
-  const width = Math.round(height * logo.aspect);
+  const heightClass = HEIGHT_CLASS[size];
+
+  if (variant === "dark") {
+    const logo = LOGO.dark;
+    const width = Math.round(height * logo.aspect);
+    return (
+      <span
+        className={`inline-flex max-w-full cursor-help items-center ${className}`}
+        title={title}
+      >
+        <Image
+          src={logo.src}
+          alt="GESY — accepts GESY patients"
+          width={width}
+          height={height}
+          className={`w-auto max-w-full object-contain object-left mix-blend-screen brightness-110 contrast-125 drop-shadow-[0_1px_3px_rgba(0,0,0,0.55)] ${heightClass}`}
+        />
+      </span>
+    );
+  }
+
+  // Size to the Greek logo; English scales down inside the same frame.
+  const width = Math.round(height * LOGO.light.el.aspect);
+  const imgClass = `h-full w-full object-contain object-left`;
 
   return (
     <span
       className={`inline-flex max-w-full cursor-help items-center ${className}`}
       title={title}
     >
-      <Image
-        src={logo.src}
-        alt="GESY — accepts GESY patients"
-        width={width}
-        height={height}
-        className={`w-auto max-w-full object-contain object-left ${HEIGHT_CLASS[size]} ${
-          variant === "dark"
-            ? "mix-blend-screen brightness-110 contrast-125 drop-shadow-[0_1px_3px_rgba(0,0,0,0.55)]"
-            : ""
-        }`.trim()}
-      />
+      <span
+        className="gesy-badge-bilingual relative inline-block max-w-full"
+        style={{ width, height }}
+      >
+        <Image
+          src={LOGO.light.en.src}
+          alt="GESY — accepts GESY patients"
+          width={width}
+          height={height}
+          className={`gesy-badge-logo-en absolute inset-0 origin-left scale-90 ${imgClass}`}
+          priority={false}
+        />
+        <Image
+          src={LOGO.light.el.src}
+          alt=""
+          width={width}
+          height={height}
+          className={`gesy-badge-logo-el absolute inset-0 ${imgClass}`}
+          aria-hidden
+          priority={false}
+        />
+      </span>
     </span>
   );
 }

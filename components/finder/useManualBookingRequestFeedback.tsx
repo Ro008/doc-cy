@@ -14,6 +14,7 @@ type Options = {
   doctorName: string;
   addressMapsLink: string;
   phone?: string | null;
+  addressText?: string | null;
 };
 
 export function useManualBookingRequestFeedback({
@@ -21,11 +22,11 @@ export function useManualBookingRequestFeedback({
   doctorName,
   addressMapsLink,
   phone = null,
+  addressText = null,
 }: Options) {
   const router = useRouter();
   const [pendingSlotKey, setPendingSlotKey] = React.useState<string | null>(null);
   const [modalOpen, setModalOpen] = React.useState(false);
-  const [wasDuplicate, setWasDuplicate] = React.useState(false);
 
   async function submit(slotKey: string) {
     if (pendingSlotKey) return;
@@ -36,7 +37,6 @@ export function useManualBookingRequestFeedback({
         toast.error(patientBookingRequestErrorMessage(result.reason, result.status));
         return;
       }
-      setWasDuplicate(Boolean(result.duplicate));
       setModalOpen(true);
       router.refresh();
     } finally {
@@ -50,7 +50,7 @@ export function useManualBookingRequestFeedback({
       doctorName={doctorName}
       addressMapsLink={addressMapsLink}
       phone={phone}
-      wasDuplicate={wasDuplicate}
+      addressText={addressText}
       onClose={() => setModalOpen(false)}
     />
   );

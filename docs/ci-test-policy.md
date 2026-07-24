@@ -20,6 +20,8 @@ Goal: **one blocking suite on every PR** (integration) and **one small scheduled
 | `tests/prod/` | Nightly lane (real prod URL); `prod_site_availability` also runs on Vercel Preview in PR |
 Build flag for integration finder tests: `NEXT_PUBLIC_DOC_CY_FINDER_INCLUDE_TEST_PROFILES=1` on PR build only (see `pr-integration.yml`).
 
+After the `@pr-e2e` suite, PR CI always runs `scripts/cleanup-test-doctors.mjs --assert-empty` so interrupted finder tests cannot leave `Finder Filter …` / `Finder UX …` orphans in the shared testing DB (see `docs/test-env-boundaries.md`).
+
 ### Playwright tags (source of truth for CI lists)
 
 | Tag | Workflow command | Purpose |

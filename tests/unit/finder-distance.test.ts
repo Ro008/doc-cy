@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  computeFinderDistanceKm,
+  fallbackDistrictCoordinates,
   formatApproxDistanceAway,
   formatDistanceAway,
   getDistanceKm,
@@ -69,5 +71,37 @@ describe("getDistanceKm", () => {
   it("returns zero for identical coordinates", () => {
     const point = { latitude: 34.7071, longitude: 33.0226 };
     assert.equal(getDistanceKm(point, point), 0);
+  });
+});
+
+describe("computeFinderDistanceKm", () => {
+  const userInPaphos = { latitude: 34.7754, longitude: 32.4245 };
+
+  it("returns null when the user has no coordinates", () => {
+    assert.equal(computeFinderDistanceKm(null, 34.789, 32.44), null);
+  });
+
+  it("returns a distance for real Cyprus listing coordinates", () => {
+    const km = computeFinderDistanceKm(userInPaphos, 34.7894721, 32.4403038);
+    assert.equal(typeof km, "number");
+    assert.ok(km !== null && km > 0 && km < 5);
+  });
+
+  it("does not invent distance from a district centre when lat/lon are missing", () => {
+    // Regression guard: GeSY imports without Places must not show "~X km away (approx.)".
+    assert.equal(computeFinderDistanceKm(userInPaphos, null, null), null);
+    assert.equal(computeFinderDistanceKm(userInPaphos, undefined, undefined), null);
+  });
+
+  it("does not use district-centre fallback helpers for public distance labels", () => {
+    const centre = fallbackDistrictCoordinates("Paphos");
+    // Helper still exists for non-UI uses, but public distance must ignore it when
+    // the listing itself has no coordinates.
+    assert.deepEqual(centre, { latitude: 34.7754, longitude: 32.4245 });
+    assert.equal(computeFinderDistanceKm(userInPaphos, null, null), null);
+  });
+
+  it("returns null for coordinates outside Cyprus", () => {
+    assert.equal(computeFinderDistanceKm(userInPaphos, 40.4168, -3.7038), null);
   });
 });

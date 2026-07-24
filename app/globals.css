@@ -263,6 +263,56 @@ button {
   }
 }
 
+/* GeSY badge: soft EN ↔ EL logo crossfade (~5s each language). */
+@keyframes gesy-badge-en-fade {
+  0%,
+  42% {
+    opacity: 1;
+  }
+  50%,
+  92% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes gesy-badge-el-fade {
+  0%,
+  42% {
+    opacity: 0;
+  }
+  50%,
+  92% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+.gesy-badge-bilingual .gesy-badge-logo-en {
+  animation: gesy-badge-en-fade 10s ease-in-out infinite;
+}
+
+.gesy-badge-bilingual .gesy-badge-logo-el {
+  opacity: 0;
+  animation: gesy-badge-el-fade 10s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gesy-badge-bilingual .gesy-badge-logo-en {
+    animation: none;
+    opacity: 1;
+  }
+
+  .gesy-badge-bilingual .gesy-badge-logo-el {
+    animation: none;
+    opacity: 0;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .landing-ambient-radial,
   .landing-ambient-aurora-tl,

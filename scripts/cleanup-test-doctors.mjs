@@ -5,13 +5,26 @@ import { createClient } from "@supabase/supabase-js";
 
 const DEFAULT_ENV_FILE = ".env.testing.local";
 const TEST_EMAIL_SUFFIXES = ["@integration.test", "@test-doccy.com.cy"];
+/** Keep in sync with lib/doctor-test-profile.ts INTEGRATION_TEST_NAME_PREFIXES. */
 const TEST_NAME_PREFIXES = [
   "Booking Flow Doctor ",
   "Finder Card ",
   "Finder UX ",
   "Finder Filter ",
+  "Prefix Cleanup ",
 ];
-const TEST_SLUG_PREFIXES = ["booking-flow-", "finder-card-", "finder-ux-", "finder-filter-"];
+/** Keep in sync with lib/doctor-test-profile.ts INTEGRATION_TEST_SLUG_PREFIXES. */
+const TEST_SLUG_PREFIXES = [
+  "booking-flow-",
+  "finder-card-",
+  "finder-ux-",
+  "finder-filter-",
+  "qa-filter-",
+  "qa-ux-",
+  "qa-card-",
+  "qa-prefix-",
+  "finder-prefix-",
+];
 const DEFAULT_PRESERVED_SLUGS = [
   "andreas-nikos",
   "ross-geller",
@@ -37,6 +50,8 @@ function parseArgs(argv) {
   return {
     dryRun: flags.has("--dry-run"),
     allowProd: flags.has("--allow-prod"),
+    /** Exit 1 if any ephemeral integration doctors remain (after optional cleanup). */
+    assertEmpty: flags.has("--assert-empty"),
   };
 }
 
@@ -152,6 +167,15 @@ async function main() {
     console.log(
       `[cleanup-test-doctors] dry-run doctors=${doctorIds.length} authUsers=${authUserIds.size} on ${supabaseUrl}`
     );
+    if (args.assertEmpty && doctorIds.length > 0) {
+      console.error(
+        `[cleanup-test-doctors] assert-empty failed: ${doctorIds.length} orphan integration doctor(s) still present.`
+      );
+      for (const row of doctors.slice(0, 20)) {
+        console.error(`  - ${row.name} <${row.email}> slug=${row.slug}`);
+      }
+      process.exit(1);
+    }
     return;
   }
 
@@ -168,6 +192,20 @@ async function main() {
   }
 
   console.log(`[cleanup-test-doctors] removed doctors=${doctorIds.length} authUsers=${authUserIds.size}`);
+
+  if (args.assertEmpty) {
+    const remaining = await selectDoctors(admin);
+    if (remaining.length > 0) {
+      console.error(
+        `[cleanup-test-doctors] assert-empty failed after cleanup: ${remaining.length} doctor(s) still present.`
+      );
+      for (const row of remaining.slice(0, 20)) {
+        console.error(`  - ${row.name} <${row.email}> slug=${row.slug}`);
+      }
+      process.exit(1);
+    }
+    console.log("[cleanup-test-doctors] assert-empty ok (0 orphan integration doctors)");
+  }
 }
 
 main().catch((err) => {

@@ -34,6 +34,34 @@ export function isTestDoctorRegistrationEmail(email: string | null | undefined):
   return TEST_EMAIL_DOMAIN_PATTERN.test(normalized);
 }
 
+/**
+ * Integration Playwright doctors use these name prefixes (see finder_*.integration.spec.ts).
+ * Keep in sync with scripts/cleanup-test-doctors.mjs TEST_NAME_PREFIXES.
+ */
+export const INTEGRATION_TEST_NAME_PREFIXES = [
+  "Booking Flow Doctor ",
+  "Finder Card ",
+  "Finder UX ",
+  "Finder Filter ",
+  "Prefix Cleanup ",
+] as const;
+
+/**
+ * Slug prefixes for ephemeral integration doctors.
+ * Keep in sync with scripts/cleanup-test-doctors.mjs TEST_SLUG_PREFIXES.
+ */
+export const INTEGRATION_TEST_SLUG_PREFIXES = [
+  "booking-flow-",
+  "finder-card-",
+  "finder-ux-",
+  "finder-filter-",
+  "qa-filter-",
+  "qa-ux-",
+  "qa-card-",
+  "qa-prefix-",
+  "finder-prefix-",
+] as const;
+
 export function isTestProfileLike(row: {
   name?: string | null;
   slug?: string | null;
@@ -43,8 +71,11 @@ export function isTestProfileLike(row: {
   if (row.isTestProfile === true) return true;
   const name = String(row.name ?? "");
   if (/\btest\b/i.test(name)) return true;
-  const slug = String(row.slug ?? "");
-  if (/^(booking-flow-|finder-card-|finder-ux-|finder-filter-)/i.test(slug)) return true;
+  if (INTEGRATION_TEST_NAME_PREFIXES.some((prefix) => name.startsWith(prefix))) return true;
+  // Legacy names that still contain the nonce after a title-stripped display form.
+  if (/^Finder Filter [AB] /i.test(name)) return true;
+  const slug = String(row.slug ?? "").toLowerCase();
+  if (INTEGRATION_TEST_SLUG_PREFIXES.some((prefix) => slug.startsWith(prefix))) return true;
   if (isTestDoctorRegistrationEmail(row.email)) return true;
   return false;
 }

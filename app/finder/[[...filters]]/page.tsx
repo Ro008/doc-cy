@@ -60,11 +60,8 @@ import {
 import type { PublicAvailabilityCalendar } from "@/lib/public/compute-public-booking-slots";
 import { buildFinderAvailabilityDayHeaders } from "@/lib/public/compute-public-booking-slots";
 import {
-  fallbackDistrictCoordinates,
-  formatApproxDistanceAway,
+  computeFinderDistanceKm,
   formatDistanceAway,
-  getDistanceKm,
-  isLikelyCyprusCoordinates,
   parseOptionalCoordinates,
   type Coordinates,
 } from "@/lib/finder-distance";
@@ -113,9 +110,11 @@ type ManualFinderRow = {
   district: CyprusDistrict;
   address_maps_link: string;
   phone: string | null;
+  address: string | null;
   photoUrl: string | null;
   /** Unique patient requests in the badge rolling window (see finder-manual-vote-badge). */
   monthlyRequestCount: number;
+  isGesy: boolean;
   latitude: number | null;
   longitude: number | null;
 };
@@ -403,10 +402,14 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
       district: CyprusDistrict;
       address_maps_link: string | null;
       phone?: string | null;
+      address?: string | null;
+      is_gesy?: boolean | null;
       latitude?: unknown;
       longitude?: unknown;
     }> = [];
     const manualSelectAttempts = [
+      "id, slug, name, specialty, district, address_maps_link, phone, address, is_gesy, latitude, longitude",
+      "id, slug, name, specialty, district, address_maps_link, phone, address, latitude, longitude",
       "id, slug, name, specialty, district, address_maps_link, phone, latitude, longitude",
       "id, name, specialty, district, address_maps_link, phone, latitude, longitude",
       "id, name, specialty, district, address_maps_link, latitude, longitude",
@@ -436,6 +439,8 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
         district: CyprusDistrict;
         address_maps_link: string | null;
         phone?: string | null;
+        address?: string | null;
+        is_gesy?: boolean | null;
         latitude?: unknown;
         longitude?: unknown;
       }>;
@@ -487,8 +492,10 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
           district: row.district as CyprusDistrict,
           address_maps_link: addressMapsLink,
           phone: String(row.phone ?? "").trim() || null,
+          address: String(row.address ?? "").trim() || null,
           photoUrl: getFinderManualPhotoUrl(addressMapsLink),
           monthlyRequestCount: monthlyRequestCountByManualId.get(manualId) ?? 0,
+          isGesy: Boolean(row.is_gesy ?? false),
           latitude: parseOptionalCoordinates(row.latitude, row.longitude)?.latitude ?? null,
           longitude: parseOptionalCoordinates(row.latitude, row.longitude)?.longitude ?? null,
         };
@@ -577,31 +584,15 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
   }
 
   function computeDistanceInfo(
-    district: string | null | undefined,
+    _district: string | null | undefined,
     latitude: number | null,
     longitude: number | null,
   ): { distanceKm: number | null; usedDistrictFallbackForDistance: boolean } {
-    if (!userCoords) return { distanceKm: null, usedDistrictFallbackForDistance: false };
-    const exactCoords = parseOptionalCoordinates(latitude, longitude);
-    if (exactCoords) {
-      if (district && isCyprusDistrict(district) && !isLikelyCyprusCoordinates(exactCoords)) {
-        return {
-          distanceKm: getDistanceKm(userCoords, fallbackDistrictCoordinates(district)),
-          usedDistrictFallbackForDistance: true,
-        };
-      }
-      return {
-        distanceKm: getDistanceKm(userCoords, exactCoords),
-        usedDistrictFallbackForDistance: false,
-      };
-    }
-    if (district && isCyprusDistrict(district)) {
-      return {
-        distanceKm: getDistanceKm(userCoords, fallbackDistrictCoordinates(district)),
-        usedDistrictFallbackForDistance: true,
-      };
-    }
-    return { distanceKm: null, usedDistrictFallbackForDistance: false };
+    return {
+      distanceKm: computeFinderDistanceKm(userCoords, latitude, longitude),
+      // Always false: district-centre approximate distances are not allowed.
+      usedDistrictFallbackForDistance: false,
+    };
   }
 
   const unifiedResults: UnifiedFinderResult[] = [
@@ -828,16 +819,8 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                             </div>
                           ) : null}
                           {item.distanceKm !== null ? (
-                            <p
-                              className={
-                                item.usedDistrictFallbackForDistance
-                                  ? "text-xs font-medium text-ink-500"
-                                  : "text-xs font-semibold text-clinical-700"
-                              }
-                            >
-                              {item.usedDistrictFallbackForDistance
-                                ? formatApproxDistanceAway(item.distanceKm)
-                                : formatDistanceAway(item.distanceKm)}
+                            <p className="text-xs font-semibold text-clinical-700">
+                              {formatDistanceAway(item.distanceKm)}
                             </p>
                           ) : null}
                         </div>
@@ -981,17 +964,14 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                             {row.specialty}
                           </span>
                         </span>
+                        {row.isGesy ? (
+                          <div className="self-start">
+                            <GesyProviderBadge size="sm" />
+                          </div>
+                        ) : null}
                         {item.distanceKm !== null ? (
-                          <p
-                            className={`mt-2 text-xs ${
-                              item.usedDistrictFallbackForDistance
-                                ? "font-medium text-ink-500"
-                                : "font-semibold text-clinical-700"
-                            }`}
-                          >
-                            {item.usedDistrictFallbackForDistance
-                              ? formatApproxDistanceAway(item.distanceKm)
-                              : formatDistanceAway(item.distanceKm)}
+                          <p className="mt-2 text-xs font-semibold text-clinical-700">
+                            {formatDistanceAway(item.distanceKm)}
                           </p>
                         ) : null}
                       </div>
@@ -1023,6 +1003,7 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                             doctorName={row.displayName}
                             addressMapsLink={row.address_maps_link}
                             phone={row.phone}
+                            addressText={row.address}
                             anchorStickyWeekNav={row.id === stickyWeekAnchorDoctorId}
                           />
                         </div>
