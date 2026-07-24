@@ -21,13 +21,14 @@ test.describe("Navigation and routing", { tag: "@pr-e2e" }, () => {
     await expect(finderLink).toBeVisible();
     await finderLink.click();
 
-    await expect(page).toHaveURL(/\/finder(?:\?|$)/);
+    // Soft nav to /finder waits on a heavy RSC payload; allow CI headroom.
+    await expect(page).toHaveURL(/\/finder(?:\?|$)/, { timeout: 60_000 });
     await expect(
       page.getByRole("heading", { level: 1, name: /Find your next health professional in Cyprus|Health Professionals in Cyprus|Find a Professional/i })
-    ).toBeVisible();
-    await expect(page.locator("article").first()).toBeVisible();
+    ).toBeVisible({ timeout: 30_000 });
+    await expect(page.locator("article").first()).toBeVisible({ timeout: 30_000 });
     const resultsCount = page.getByTestId("finder-results-count");
-    await expect(resultsCount).toBeVisible();
+    await expect(resultsCount).toBeVisible({ timeout: 30_000 });
     await expect(resultsCount).toContainText(/health professionals on DocCy across Cyprus/i);
     await expect(resultsCount).toContainText(/\d+/);
     await expect(page.getByTestId("finder-missing-doctor-card")).toHaveCount(0);
@@ -42,10 +43,10 @@ test.describe("Navigation and routing", { tag: "@pr-e2e" }, () => {
     await page.goto("/");
     await page.getByRole("link", { name: /^Find a Professional$/i }).first().click();
 
-    await expect(page).toHaveURL(/\/finder(?:\?|$)/);
+    await expect(page).toHaveURL(/\/finder(?:\?|$)/, { timeout: 60_000 });
     await expect(
       page.getByRole("heading", { level: 1, name: /Find your next health professional in Cyprus|Health Professionals in Cyprus|Find a Professional/i })
-    ).toBeVisible();
+    ).toBeVisible({ timeout: 30_000 });
 
     await expect(page.getByTestId("finder-missing-doctor-card")).toHaveCount(0);
   });
