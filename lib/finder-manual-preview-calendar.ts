@@ -107,12 +107,11 @@ export function buildManualPreviewCalendar(
 
       const preferred =
         SLOT_TIME_POOL[(dayIndex * MANUAL_PREVIEW_SLOTS_PER_DAY + slotIndex) % SLOT_TIME_POOL.length];
-      let timeLabel =
+      let timeLabel: string | null =
         futurePool.includes(preferred) && !usedTimes.has(preferred) ? preferred : null;
 
       if (!timeLabel) {
-        timeLabel =
-          futurePool.find((candidate) => !usedTimes.has(candidate)) ?? null;
+        timeLabel = futurePool.find((candidate) => !usedTimes.has(candidate)) ?? null;
       }
       if (!timeLabel) continue;
 
