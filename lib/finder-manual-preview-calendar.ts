@@ -1,3 +1,6 @@
+import { format } from "date-fns";
+import { utcToZonedTime } from "date-fns-tz";
+import { CY_TZ } from "@/lib/appointments";
 import type {
   FinderAvailabilityDayHeader,
   PublicAvailabilitySlot,
@@ -53,10 +56,33 @@ function pickUniqueIndices(count: number, maxExclusive: number, rng: () => numbe
   return Array.from(indices);
 }
 
-/** Stable fake availability: 4–6 open slots per manual listing (seeded per card). */
+/** HH:mm string compare is safe for zero-padded 24h labels. */
+export function isManualPreviewSlotInFuture(
+  dateKey: string,
+  timeLabel: string,
+  now: Date = new Date(),
+): boolean {
+  const nowCyprus = utcToZonedTime(now, CY_TZ);
+  const todayKey = format(nowCyprus, "yyyy-MM-dd");
+  if (dateKey !== todayKey) return true;
+  const nowCyprusTime = format(nowCyprus, "HH:mm");
+  return timeLabel >= nowCyprusTime;
+}
+
+function futureTimesForDay(dateKey: string, now: Date): string[] {
+  return SLOT_TIME_POOL.filter((timeLabel) =>
+    isManualPreviewSlotInFuture(dateKey, timeLabel, now),
+  );
+}
+
+/**
+ * Stable fake availability: ~4–6 open slots per manual listing (seeded per card).
+ * Never surfaces times that have already passed today (Cyprus wall clock).
+ */
 export function buildManualPreviewCalendar(
   dayHeaders: FinderAvailabilityDayHeader[],
   seedKey: string,
+  now: Date = new Date(),
 ): ManualPreviewDay[] {
   if (dayHeaders.length === 0) return [];
 
@@ -69,19 +95,35 @@ export function buildManualPreviewCalendar(
 
   return dayHeaders.map((day, dayIndex) => {
     const slots: PublicAvailabilitySlot[] = [];
+    const usedTimes = new Set<string>();
+    const futurePool = futureTimesForDay(day.dateKey, now);
+    if (futurePool.length === 0) {
+      return { ...day, slots };
+    }
 
     for (let slotIndex = 0; slotIndex < MANUAL_PREVIEW_SLOTS_PER_DAY; slotIndex += 1) {
       const flatIndex = dayIndex * MANUAL_PREVIEW_SLOTS_PER_DAY + slotIndex;
       if (!availableIndices.has(flatIndex)) continue;
 
-      const timeLabel =
+      const preferred =
         SLOT_TIME_POOL[(dayIndex * MANUAL_PREVIEW_SLOTS_PER_DAY + slotIndex) % SLOT_TIME_POOL.length];
+      let timeLabel =
+        futurePool.includes(preferred) && !usedTimes.has(preferred) ? preferred : null;
+
+      if (!timeLabel) {
+        timeLabel =
+          futurePool.find((candidate) => !usedTimes.has(candidate)) ?? null;
+      }
+      if (!timeLabel) continue;
+
+      usedTimes.add(timeLabel);
       slots.push({
         slotKey: `${day.dateKey}-${slotIndex}`,
         timeLabel,
       });
     }
 
+    slots.sort((a, b) => a.timeLabel.localeCompare(b.timeLabel));
     return { ...day, slots };
   });
 }
