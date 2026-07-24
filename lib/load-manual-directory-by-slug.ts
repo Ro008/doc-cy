@@ -14,8 +14,10 @@ export type ManualDirectoryLandingRow = {
   district: CyprusDistrict;
   address_maps_link: string;
   phone: string | null;
+  address: string | null;
   photoUrl: string | null;
   monthlyRequestCount: number;
+  isGesy: boolean;
   latitude: number | null;
   longitude: number | null;
 };
@@ -30,11 +32,41 @@ export async function loadManualDirectoryBySlug(
   let res = await supabase
     .from("directory_manual")
     .select(
-      "id, slug, name, specialty, district, address_maps_link, phone, latitude, longitude",
+      "id, slug, name, specialty, district, address_maps_link, phone, address, is_gesy, latitude, longitude",
     )
     .eq("is_archived", false)
     .eq("slug", normalizedSlug.toLowerCase())
     .maybeSingle();
+
+  if (
+    res.error &&
+    (String(res.error.message ?? "").toLowerCase().includes("is_gesy") ||
+      (res.error as { code?: string }).code === "42703")
+  ) {
+    res = await supabase
+      .from("directory_manual")
+      .select(
+        "id, slug, name, specialty, district, address_maps_link, phone, address, latitude, longitude",
+      )
+      .eq("is_archived", false)
+      .eq("slug", normalizedSlug.toLowerCase())
+      .maybeSingle();
+  }
+
+  if (
+    res.error &&
+    (String(res.error.message ?? "").toLowerCase().includes("address") ||
+      (res.error as { code?: string }).code === "42703")
+  ) {
+    res = await supabase
+      .from("directory_manual")
+      .select(
+        "id, slug, name, specialty, district, address_maps_link, phone, latitude, longitude",
+      )
+      .eq("is_archived", false)
+      .eq("slug", normalizedSlug.toLowerCase())
+      .maybeSingle();
+  }
 
   if (
     res.error &&
@@ -56,6 +88,8 @@ export async function loadManualDirectoryBySlug(
     district: CyprusDistrict;
     address_maps_link: string;
     phone?: string | null;
+    address?: string | null;
+    is_gesy?: boolean | null;
     latitude?: unknown;
     longitude?: unknown;
   };
@@ -93,8 +127,10 @@ export async function loadManualDirectoryBySlug(
     district: row.district,
     address_maps_link: addressMapsLink,
     phone: String(row.phone ?? "").trim() || null,
+    address: String(row.address ?? "").trim() || null,
     photoUrl: getFinderManualPhotoUrl(addressMapsLink),
     monthlyRequestCount,
+    isGesy: Boolean(row.is_gesy ?? false),
     latitude: coords?.latitude ?? null,
     longitude: coords?.longitude ?? null,
   };

@@ -1,6 +1,7 @@
 "use client";
 
 import { PendingLink } from "@/components/navigation/PendingLink";
+import { GesyProviderBadge } from "@/components/brand/GesyProviderBadge";
 import {
   ManualDirectoryDoctorClaimFooter,
   ManualDirectoryMonthlyRequestBadge,
@@ -66,15 +67,20 @@ export function ManualDirectoryLandingCard({
                 </div>
               )}
             </div>
-            <div className="min-w-0 flex-1">
+            <div className="min-w-0 flex-1 flex flex-col items-stretch gap-2 text-left">
               <p className="text-[17px] font-bold leading-[1.2] tracking-tight text-ink-900">
                 {row.displayName}
               </p>
-              <p className="mt-2 -ml-2 inline-flex max-w-full items-center rounded-full border border-ink-200 bg-ink-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-600">
-                <span className="whitespace-normal break-words text-center leading-snug">
+              <span className="-ml-2 inline-flex max-w-full items-center self-start rounded-full border border-ink-200 bg-ink-50 px-2.5 py-1 text-left text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-600">
+                <span className="whitespace-normal break-words leading-snug">
                   {row.specialty}
                 </span>
-              </p>
+              </span>
+              {row.isGesy ? (
+                <div className="self-start">
+                  <GesyProviderBadge size="sm" />
+                </div>
+              ) : null}
             </div>
           </div>
 
@@ -104,6 +110,7 @@ export function ManualDirectoryLandingCard({
                   doctorName={row.displayName}
                   addressMapsLink={row.address_maps_link}
                   phone={row.phone}
+                  addressText={row.address}
                 />
               </div>
             </div>

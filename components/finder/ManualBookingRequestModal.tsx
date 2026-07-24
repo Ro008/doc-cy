@@ -9,6 +9,7 @@ type Props = {
   doctorName: string;
   addressMapsLink: string;
   phone?: string | null;
+  addressText?: string | null;
   onClose: () => void;
 };
 
@@ -17,11 +18,14 @@ export function ManualBookingRequestModal({
   doctorName,
   addressMapsLink,
   phone = null,
+  addressText = null,
   onClose,
 }: Props) {
   const closeButtonRef = React.useRef<HTMLButtonElement>(null);
   const phoneDisplay = String(phone ?? "").trim();
   const phoneHref = phoneToTelHref(phoneDisplay);
+  const mapsHref = String(addressMapsLink ?? "").trim();
+  const addressDisplay = String(addressText ?? "").trim();
 
   React.useEffect(() => {
     if (!open) return;
@@ -98,16 +102,23 @@ export function ManualBookingRequestModal({
                 Their phone is currently the only way to get an appointment:
               </p>
             )}
-            <p className="mt-3">
-              <a
-                href={addressMapsLink}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 font-semibold text-clinical-700 underline decoration-clinical-300 underline-offset-2 transition hover:text-clinical-600"
-              >
-                👉 Open clinic on Google Maps ↗
-              </a>
-            </p>
+            {mapsHref ? (
+              <p className="mt-3">
+                <a
+                  href={mapsHref}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 font-semibold text-clinical-700 underline decoration-clinical-300 underline-offset-2 transition hover:text-clinical-600"
+                >
+                  👉 Open clinic on Google Maps ↗
+                </a>
+              </p>
+            ) : null}
+            {addressDisplay ? (
+              <p className={mapsHref ? "mt-2 text-sm leading-snug text-ink-600" : "mt-3 text-sm leading-snug text-ink-600"}>
+                {addressDisplay}
+              </p>
+            ) : null}
           </div>
 
           <p className="text-xs leading-relaxed text-ink-500">

@@ -110,9 +110,11 @@ type ManualFinderRow = {
   district: CyprusDistrict;
   address_maps_link: string;
   phone: string | null;
+  address: string | null;
   photoUrl: string | null;
   /** Unique patient requests in the badge rolling window (see finder-manual-vote-badge). */
   monthlyRequestCount: number;
+  isGesy: boolean;
   latitude: number | null;
   longitude: number | null;
 };
@@ -400,10 +402,14 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
       district: CyprusDistrict;
       address_maps_link: string | null;
       phone?: string | null;
+      address?: string | null;
+      is_gesy?: boolean | null;
       latitude?: unknown;
       longitude?: unknown;
     }> = [];
     const manualSelectAttempts = [
+      "id, slug, name, specialty, district, address_maps_link, phone, address, is_gesy, latitude, longitude",
+      "id, slug, name, specialty, district, address_maps_link, phone, address, latitude, longitude",
       "id, slug, name, specialty, district, address_maps_link, phone, latitude, longitude",
       "id, name, specialty, district, address_maps_link, phone, latitude, longitude",
       "id, name, specialty, district, address_maps_link, latitude, longitude",
@@ -433,6 +439,8 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
         district: CyprusDistrict;
         address_maps_link: string | null;
         phone?: string | null;
+        address?: string | null;
+        is_gesy?: boolean | null;
         latitude?: unknown;
         longitude?: unknown;
       }>;
@@ -484,8 +492,10 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
           district: row.district as CyprusDistrict,
           address_maps_link: addressMapsLink,
           phone: String(row.phone ?? "").trim() || null,
+          address: String(row.address ?? "").trim() || null,
           photoUrl: getFinderManualPhotoUrl(addressMapsLink),
           monthlyRequestCount: monthlyRequestCountByManualId.get(manualId) ?? 0,
+          isGesy: Boolean(row.is_gesy ?? false),
           latitude: parseOptionalCoordinates(row.latitude, row.longitude)?.latitude ?? null,
           longitude: parseOptionalCoordinates(row.latitude, row.longitude)?.longitude ?? null,
         };
@@ -954,6 +964,11 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                             {row.specialty}
                           </span>
                         </span>
+                        {row.isGesy ? (
+                          <div className="self-start">
+                            <GesyProviderBadge size="sm" />
+                          </div>
+                        ) : null}
                         {item.distanceKm !== null ? (
                           <p className="mt-2 text-xs font-semibold text-clinical-700">
                             {formatDistanceAway(item.distanceKm)}
@@ -988,6 +1003,7 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                             doctorName={row.displayName}
                             addressMapsLink={row.address_maps_link}
                             phone={row.phone}
+                            addressText={row.address}
                             anchorStickyWeekNav={row.id === stickyWeekAnchorDoctorId}
                           />
                         </div>

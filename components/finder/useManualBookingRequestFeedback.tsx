@@ -14,6 +14,7 @@ type Options = {
   doctorName: string;
   addressMapsLink: string;
   phone?: string | null;
+  addressText?: string | null;
 };
 
 export function useManualBookingRequestFeedback({
@@ -21,6 +22,7 @@ export function useManualBookingRequestFeedback({
   doctorName,
   addressMapsLink,
   phone = null,
+  addressText = null,
 }: Options) {
   const router = useRouter();
   const [pendingSlotKey, setPendingSlotKey] = React.useState<string | null>(null);
@@ -48,6 +50,7 @@ export function useManualBookingRequestFeedback({
       doctorName={doctorName}
       addressMapsLink={addressMapsLink}
       phone={phone}
+      addressText={addressText}
       onClose={() => setModalOpen(false)}
     />
   );
