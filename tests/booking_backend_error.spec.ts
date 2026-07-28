@@ -15,7 +15,7 @@ test.describe("Booking backend errors @booking-creates", () => {
 
     const supabase = createClient(supabaseUrl, supabaseAnonKey);
     const { data: activeDoctors } = await supabase
-      .from("doctors")
+      .from("doctors_public")
       .select("slug,name,id")
       .eq("status", "verified")
       .limit(8);
@@ -138,7 +138,7 @@ test.describe("Booking backend errors @booking-creates", () => {
 
     // Pick a non-verified professional (pending/rejected) to force backend 403.
     const { data: pending } = await supabase
-      .from("doctors")
+      .from("doctors_public")
       .select("id,status")
       .eq("status", "pending")
       .limit(5);
@@ -150,7 +150,7 @@ test.describe("Booking backend errors @booking-creates", () => {
       pendingDoctorId ??
       (
         await supabase
-          .from("doctors")
+          .from("doctors_public")
           .select("id,status")
           .eq("status", "rejected")
           .limit(5)
@@ -164,7 +164,7 @@ test.describe("Booking backend errors @booking-creates", () => {
 
     // Pick a verified doctor whose calendar is visible so we can reach the booking form UI.
     const { data: activeDoctors } = await supabase
-      .from("doctors")
+      .from("doctors_public")
       .select("slug,name,id")
       .eq("status", "verified")
       .limit(8);

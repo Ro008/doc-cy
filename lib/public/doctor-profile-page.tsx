@@ -116,11 +116,8 @@ async function fetchPublicDoctorBySlug(
     const msg = first.error.message ?? "";
     const code = (first.error as { code?: string }).code;
     if (isDoctorsPublicUnavailable(msg, code)) {
-      first = await supabase
-        .from("doctors")
-        .select(fullList)
-        .eq("slug", slug)
-        .maybeSingle();
+      console.error("[DocCy] doctors_public view unavailable:", first.error);
+      return { kind: "not_found" };
     }
   }
 
@@ -136,26 +133,17 @@ async function fetchPublicDoctorBySlug(
         .maybeSingle();
       if (!noGesy.error && noGesy.data) {
         row = { ...noGesy.data, is_gesy: false } as DoctorProfileRow;
-      } else {
-        const noGesyDoctors = await supabase
-          .from("doctors")
-          .select(DOCTOR_FIELD_LIST_PUBLIC_PROFILE_NO_GESY)
-          .eq("slug", slug)
-          .maybeSingle();
-        if (!noGesyDoctors.error && noGesyDoctors.data) {
-          row = { ...noGesyDoctors.data, is_gesy: false } as DoctorProfileRow;
-        }
       }
     }
     if (!row && isOptionalProfileColumnError(msg)) {
       const second = await supabase
-        .from("doctors")
+        .from("doctors_public")
         .select(basicList)
         .eq("slug", slug)
         .maybeSingle();
       if (second.error && isOptionalProfileColumnError(second.error.message ?? "")) {
         const third = await supabase
-          .from("doctors")
+          .from("doctors_public")
           .select(baseList)
           .eq("slug", slug)
           .maybeSingle();
@@ -361,7 +349,7 @@ export async function generateMetadata({
       m.error &&
       isDoctorsPublicUnavailable(m.error.message ?? "", m.error.code)
     ) {
-      m = await supabase.from("doctors").select(fields).eq("slug", params.slug).maybeSingle();
+      return m;
     }
     return m;
   };
@@ -512,37 +500,24 @@ export default async function DoctorPage({ params }: PageProps) {
   let avatarUrl = DOCTOR_AVATAR_URL;
   let hasCustomAvatar = false;
   let publicPhone: string | null = null;
-  const avatarLookup = await supabase
-    .from("doctors")
+  const contactLookup = await supabase
+    .from("doctors_public")
     .select("avatar_url, phone")
     .eq("id", profile.id)
     .maybeSingle();
-  if (avatarLookup.error) {
-    const avatarOnlyLookup = await supabase
-      .from("doctors")
-      .select("avatar_url")
-      .eq("id", profile.id)
-      .maybeSingle();
+  if (!contactLookup.error && contactLookup.data) {
     const avatarPath = String(
-      (avatarOnlyLookup.data as { avatar_url?: string | null } | null)?.avatar_url ??
-        "",
+      (contactLookup.data as { avatar_url?: string | null }).avatar_url ?? "",
     ).trim();
+    publicPhone =
+      String((contactLookup.data as { phone?: string | null }).phone ?? "").trim() ||
+      null;
     if (avatarPath) {
       avatarUrl = supabase.storage.from("avatars").getPublicUrl(avatarPath).data.publicUrl;
       hasCustomAvatar = true;
     }
-  } else {
-    const avatarPath = String(
-      (avatarLookup.data as { avatar_url?: string | null; phone?: string | null } | null)
-        ?.avatar_url ?? "",
-    ).trim();
-    publicPhone = String(
-      (avatarLookup.data as { phone?: string | null } | null)?.phone ?? "",
-    ).trim() || null;
-    if (avatarPath) {
-      avatarUrl = supabase.storage.from("avatars").getPublicUrl(avatarPath).data.publicUrl;
-      hasCustomAvatar = true;
-    }
+  } else if (contactLookup.error) {
+    console.error("[DocCy] doctors_public contact lookup failed:", contactLookup.error);
   }
 
   const siteBase = (process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.mydoccy.com")
@@ -672,10 +647,7 @@ export default async function DoctorPage({ params }: PageProps) {
   const profileDistrictLabel = normalizeDistrictForSeoTitle(profile.district);
   const profileHeadingCity =
     profileDistrictLabel ?? t("profileHeadingCityFallback");
-  const showPhonePublic = Boolean(
-    (normalizedSettings as { show_phone_public?: boolean | null } | null)?.show_phone_public,
-  );
-  const publicContactPhone = showPhonePublic ? publicPhone : null;
+  const publicContactPhone = publicPhone;
   const whatsappHref = publicContactPhone ? toWhatsAppHref(publicContactPhone) : null;
   const structuredData = buildPhysicianStructuredData({
     name: profile.name,

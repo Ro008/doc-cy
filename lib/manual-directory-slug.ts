@@ -57,11 +57,10 @@ export async function loadTakenPublicSlugs(
   const taken = new Set<string>();
 
   const [doctorsRes, manualRes] = await Promise.all([
-    supabase.from("doctors").select("slug").not("slug", "is", null).limit(10000),
+    supabase.from("doctors_public").select("slug").not("slug", "is", null).limit(10000),
     supabase
-      .from("directory_manual")
+      .from("directory_manual_public")
       .select("slug")
-      .eq("is_archived", false)
       .not("slug", "is", null)
       .limit(10000),
   ]);

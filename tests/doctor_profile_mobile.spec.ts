@@ -14,7 +14,7 @@ test.describe("Doctor profile mobile layout", () => {
 
     const supabase = createClient(supabaseUrl, supabaseAnonKey);
     const { data: activeDoctors } = await supabase
-      .from("doctors")
+      .from("doctors_public")
       .select("slug")
       .eq("status", "verified")
       .limit(5);
