@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServiceRoleClient } from "@/lib/supabase-service";
 import { isSupabaseMissingTableError } from "@/lib/supabase-db-errors";
+import { enforcePublicApiRateLimit } from "@/lib/public-api-rate-limit";
 import { getClientIp, voterFingerprint } from "@/lib/vote-fingerprint";
 
 const DEDUPE_WINDOW_MS = 90 * 24 * 60 * 60 * 1000;
@@ -40,6 +41,9 @@ type Body = {
 };
 
 export async function POST(req: Request) {
+  const limited = enforcePublicApiRateLimit(req, "doctorInvitation");
+  if (limited) return limited;
+
   const supabase = createServiceRoleClient();
   if (!supabase) {
     return NextResponse.json({ ok: false, reason: "service_role_not_configured" }, { status: 503 });

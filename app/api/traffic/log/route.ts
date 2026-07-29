@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createServiceRoleClient } from "@/lib/supabase-service";
+import { enforcePublicApiRateLimit } from "@/lib/public-api-rate-limit";
 
 type TrafficPayload = {
   session_id?: string;
@@ -22,6 +23,9 @@ function sanitizeText(value: unknown, max = 200): string | null {
 }
 
 export async function POST(req: Request) {
+  const limited = enforcePublicApiRateLimit(req, "trafficLog");
+  if (limited) return limited;
+
   const supabase = createServiceRoleClient();
   if (!supabase) {
     return NextResponse.json({ ok: false, reason: "service_role_not_configured" }, { status: 503 });

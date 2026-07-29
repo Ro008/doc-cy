@@ -41,11 +41,19 @@ import {
   EMAIL_TEXT,
   EMAIL_TEXT_MUTED,
 } from "@/lib/email-brand";
+import { enforcePublicApiRateLimit } from "@/lib/public-api-rate-limit";
 
 const PRIMARY_ACTIONS_LABEL = EMAIL_SECTION_LABEL;
 const DASHBOARD_LINK_STYLE = EMAIL_CAL_GOOGLE_BTN;
 
 export async function POST(req: NextRequest) {
+  const limited = enforcePublicApiRateLimit(req, "appointments", {
+    body: {
+      message: "Too many booking attempts. Please try again later.",
+    },
+  });
+  if (limited) return limited;
+
   const supabase = createServiceRoleClient();
   if (!supabase) {
     return NextResponse.json(
