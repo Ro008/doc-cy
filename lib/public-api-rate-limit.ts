@@ -112,8 +112,9 @@ export function enforcePublicApiRateLimit(
 
   if (result.ok) return null;
 
+  const limited = result as { ok: false; remaining: 0; resetAt: number; retryAfterSec: number };
   console.warn(
-    `[DocCy][rate-limit] bucket=${bucket} ip=${ip.slice(0, 48)} retryAfterSec=${result.retryAfterSec}`,
+    `[DocCy][rate-limit] bucket=${bucket} ip=${ip.slice(0, 48)} retryAfterSec=${limited.retryAfterSec}`,
   );
 
   const body =
