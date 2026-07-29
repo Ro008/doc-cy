@@ -1,6 +1,7 @@
-import { createHmac } from "node:crypto";
 import { NextResponse } from "next/server";
 import { createServiceRoleClient } from "@/lib/supabase-service";
+import { enforcePublicApiRateLimit } from "@/lib/public-api-rate-limit";
+import { getClientIp, voterFingerprint } from "@/lib/vote-fingerprint";
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -8,28 +9,14 @@ const UUID_RE =
 /** Same window as internal /directory stats (approx. unique voters). */
 const DEDUPE_WINDOW_MS = 90 * 24 * 60 * 60 * 1000;
 
-function getClientIp(req: Request): string {
-  const xff = req.headers.get("x-forwarded-for");
-  if (xff) {
-    const first = xff.split(",")[0]?.trim();
-    if (first) return first;
-  }
-  const xri = req.headers.get("x-real-ip")?.trim();
-  if (xri) return xri;
-  return "";
-}
-
-function voterFingerprint(ip: string, manualId: string): string | null {
-  const secret = process.env.DOC_CY_VOTE_FINGERPRINT_SECRET?.trim();
-  if (!secret || !ip) return null;
-  return createHmac("sha256", secret).update(`${ip}|${manualId}`).digest("hex");
-}
-
 type Body = {
   manualId?: string;
 };
 
 export async function POST(req: Request) {
+  const limited = enforcePublicApiRateLimit(req, "manualBookingRequest");
+  if (limited) return limited;
+
   const supabase = createServiceRoleClient();
   if (!supabase) {
     return NextResponse.json({ ok: false, reason: "service_role_not_configured" }, { status: 503 });
@@ -63,7 +50,7 @@ export async function POST(req: Request) {
   }
 
   const ip = getClientIp(req);
-  const voterKey = voterFingerprint(ip, manualId);
+  const voterKey = voterFingerprint(manualId, ip);
   const sinceIso = new Date(Date.now() - DEDUPE_WINDOW_MS).toISOString();
 
   if (voterKey) {

@@ -192,11 +192,13 @@ GRANT EXECUTE ON FUNCTION public.public_doctor_occupied_datetimes(uuid, timestam
 ALTER TABLE public.doctors ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS doctors_select_public ON public.doctors;
-CREATE POLICY doctors_select_public
+
+DROP POLICY IF EXISTS doctors_select_own ON public.doctors;
+CREATE POLICY doctors_select_own
   ON public.doctors
   FOR SELECT
-  TO anon, authenticated
-  USING (true);
+  TO authenticated
+  USING (auth.uid() = auth_user_id);
 
 DROP POLICY IF EXISTS doctors_insert_own_profile ON public.doctors;
 CREATE POLICY doctors_insert_own_profile
@@ -343,7 +345,7 @@ END $$;
 -- `is_specialty_approved` are missing.
 DROP VIEW IF EXISTS public.doctors_public;
 CREATE VIEW public.doctors_public
-WITH (security_invoker = on)
+WITH (security_invoker = false)
 AS
 SELECT
   d.id,
@@ -356,10 +358,48 @@ SELECT
   d.languages,
   d.created_at,
   d.is_specialty_approved,
-  d.is_gesy
-FROM public.doctors d;
+  d.is_gesy,
+  d.district,
+  d.avatar_url,
+  d.latitude,
+  d.longitude,
+  CASE
+    WHEN COALESCE(ds.show_phone_public, false) THEN NULLIF(BTRIM(d.phone), '')
+    ELSE NULL
+  END AS phone
+FROM public.doctors d
+LEFT JOIN public.doctor_settings ds ON ds.doctor_id = d.id;
 
 GRANT SELECT ON public.doctors_public TO anon, authenticated;
 
 COMMENT ON VIEW public.doctors_public IS
-  'Public directory / profile fields only. Do not add email, phone, internal_email, or license columns.';
+  'Public directory / profile fields only. Phone when show_phone_public. Do not add email, internal_email, or license columns.';
+
+DROP VIEW IF EXISTS public.directory_manual_public;
+CREATE VIEW public.directory_manual_public
+WITH (security_invoker = false)
+AS
+SELECT
+  id,
+  name,
+  specialty,
+  district,
+  address_maps_link,
+  phone,
+  address,
+  is_gesy,
+  latitude,
+  longitude,
+  slug,
+  is_archived,
+  created_at,
+  updated_at
+FROM public.directory_manual
+WHERE is_archived = false;
+
+GRANT SELECT ON public.directory_manual_public TO anon, authenticated;
+
+COMMENT ON VIEW public.directory_manual_public IS
+  'Public manual finder fields only. Excludes ghs_code, email, gender.';
+
+ALTER TABLE public.directory_manual ENABLE ROW LEVEL SECURITY;
