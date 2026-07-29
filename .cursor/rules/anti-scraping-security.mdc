@@ -1,0 +1,52 @@
+---
+description: Anti-scraping security measures implemented in DocCy — what we did, why, and how to maintain them.
+alwaysApply: false
+---
+
+# Anti-Scraping Security — DocCy
+
+Implemented: 2026-07-28/29 (PR #116 `security/public-api-hardening`)
+
+## Why we did this
+
+The Supabase anon key is public (embedded in the browser bundle). Without RLS, anyone could call PostgREST directly and dump all doctor emails, phones, GHS codes, and license numbers in seconds — no scraping HTML needed.
+
+## What we implemented
+
+### 1. RLS hardening on base tables (migration `20260728180000`)
+
+**`public.doctors`** — anon can no longer SELECT any row. Authenticated doctors can only SELECT their own row (`auth.uid() = auth_user_id`).
+
+**`public.directory_manual`** — anon has no SELECT/INSERT/UPDATE/DELETE policies. Service role (server-side only) continues to work.
+
+### 2. Safe public views (same migration)
+
+**`public.doctors_public`** (`security_invoker = false`) — exposes only: `id, name, specialty, bio, clinic_address, slug, status, languages, created_at, is_specialty_approved, is_gesy, district, avatar_url, latitude, longitude, phone` (phone only when `doctor_settings.show_phone_public = true`). No `email`, `internal_email`, `ghs_code`, `license_*`.
+
+**`public.directory_manual_public`** (`security_invoker = false`) — exposes only non-PII finder fields. No `email`, `ghs_code`, `gender`.
+
+All app code queries these views, never the base tables, for public-facing reads.
+
+### 3. In-memory rate limiting (`lib/public-api-rate-limit.ts`)
+
+Silent (returns 429 but no error UI) on 4 public write APIs:
+
+| Route | Limit |
+|---|---|
+| `POST /api/directory-manual/patient-booking-request` | 10 req / hour / IP |
+| `POST /api/finder/doctor-invitation-request` | 5 req / hour / IP |
+| `POST /api/appointments` | 20 req / hour / IP |
+| `POST /api/traffic/log` | 60 req / min / IP |
+
+Disable for tests: `DOC_CY_PUBLIC_API_RATE_LIMIT=off`.
+
+### 4. Finder traffic spike alert (`lib/finder-traffic-alert.ts`, `lib/run-finder-traffic-alert-job.ts`)
+
+Daily cron at 03:00 UTC (`/api/cron/finder-traffic-alert`). Compares last-hour human `/finder` traffic against a 4-week same-hour baseline. Sends email to `FOUNDER_NOTIFY_EMAIL` if traffic exceeds **3× baseline** (min 30 views absolute, min 10 baseline). 6-hour cooldown via `public.ops_traffic_alerts` table (migration `20260729110000`).
+
+## Rules for future changes
+
+- **Never add `email`, `internal_email`, `ghs_code`, `license_*`** to `doctors_public` or `directory_manual_public`.
+- **App public reads must use the views**, not the base tables. The only exception is service-role server code (migrations, admin scripts).
+- If adding a new public write API, wire `enforcePublicApiRateLimit` from `lib/public-api-rate-limit.ts` at the top of the handler.
+- If the `doctors` or `directory_manual` schema changes, verify RLS policies still hold (`supabase/migrations/20260728180000_harden_public_directory_rls.sql`).
