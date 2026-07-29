@@ -112,7 +112,8 @@ export function enforcePublicApiRateLimit(
 
   if (result.ok) return null;
 
-  const limited = result as { ok: false; remaining: 0; resetAt: number; retryAfterSec: number };
+  // Narrowed: result is the { ok: false } variant — cast for TS targets that don't narrow discriminated unions
+  const limited = result as Extract<ConsumeRateLimitResult, { ok: false }>;
   console.warn(
     `[DocCy][rate-limit] bucket=${bucket} ip=${ip.slice(0, 48)} retryAfterSec=${limited.retryAfterSec}`,
   );
@@ -127,7 +128,7 @@ export function enforcePublicApiRateLimit(
   return NextResponse.json(body, {
     status: 429,
     headers: {
-      "Retry-After": String(result.retryAfterSec),
+      "Retry-After": String(limited.retryAfterSec),
     },
   });
 }
