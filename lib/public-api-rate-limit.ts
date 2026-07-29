@@ -33,9 +33,9 @@ function storeKey(bucket: string, key: string): string {
 }
 
 function pruneExpired(now: number): void {
-  for (const [k, state] of store) {
+  store.forEach((state, k) => {
     if (state.resetAt <= now) store.delete(k);
-  }
+  });
 }
 
 export type ConsumeRateLimitResult =
