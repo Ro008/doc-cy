@@ -202,17 +202,17 @@ export function aggregateFinderTrafficRows(rows: FinderTrafficAggregateRow[]): {
     }
   }
 
-  const topPages = [...pageCounts.entries()]
+  const topPages = Array.from(pageCounts.entries())
     .sort((a, b) => b[1] - a[1])
     .map(([path, count]) => ({ path, count }));
 
-  const topCountries = [...countryCounts.entries()]
+  const topCountries = Array.from(countryCounts.entries())
     .sort((a, b) => b[1] - a[1])
     .map(([country, count]) => ({ country, count }));
 
   return {
     topPages,
     topCountries,
-    sampleUserAgents: [...uaSet],
+    sampleUserAgents: Array.from(uaSet),
   };
 }
