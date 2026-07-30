@@ -73,6 +73,9 @@ function isOptionalProfileColumnError(msg: string): boolean {
 }
 
 function isDoctorsPublicUnavailable(msg: string, code?: string): boolean {
+  // Missing optional columns (e.g. district before migration) must fall through to
+  // isOptionalProfileColumnError — not be treated as a missing view.
+  if (code === "42703" || isOptionalProfileColumnError(msg)) return false;
   return (
     code === "PGRST205" ||
     /doctors_public|schema cache|not find.*table|does not exist/i.test(msg)
