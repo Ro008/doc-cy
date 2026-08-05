@@ -720,7 +720,7 @@ export default async function DoctorPage({ params }: PageProps) {
                     {profile.name}
                   </span>
                   {profile.is_gesy ? (
-                    <GesyProviderBadge size="xs" className="shrink-0" />
+                    <GesyProviderBadge size="xs" language="el" className="shrink-0" />
                   ) : null}
                 </span>
                 <span className="mt-1.5 block text-base font-medium capitalize tracking-wide text-clinical-700 sm:text-lg">
