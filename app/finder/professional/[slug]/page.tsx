@@ -4,6 +4,7 @@ import { DocCyWordmark } from "@/components/brand/DocCyWordmark";
 import { ManualDirectoryLandingBrowseLink, ManualDirectoryLandingCard } from "@/components/finder/ManualDirectoryLandingCard";
 import { ManualDirectoryStructuredData } from "@/components/finder/ManualDirectoryStructuredData";
 import { PendingLink } from "@/components/navigation/PendingLink";
+import { clinicLandingPath } from "@/lib/clinic-landing-path";
 import { districtToSlug, specialtyToSlug } from "@/lib/finder-seo";
 import { loadManualDirectoryBySlug } from "@/lib/load-manual-directory-by-slug";
 import { manualDirectoryLandingPath } from "@/lib/manual-directory-landing-path";
@@ -132,6 +133,17 @@ export default async function ManualDirectoryProfessionalPage({ params }: PagePr
         </h1>
         <p className="mt-2 text-sm font-medium text-ink-600">
           {specialtySeoLabel} · {row.district}, Cyprus
+          {row.clinic ? (
+            <>
+              {" · "}
+              <PendingLink
+                href={clinicLandingPath(row.clinic.slug)}
+                className="text-clinical-700 hover:underline"
+              >
+                {row.clinic.name}
+              </PendingLink>
+            </>
+          ) : null}
         </p>
 
         <section className="mt-6" aria-label="Directory listing">

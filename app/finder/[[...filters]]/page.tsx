@@ -15,6 +15,8 @@ import { FinderResultsTransition } from "@/components/finder/FinderResultsTransi
 import { FinderStructuredData } from "@/components/finder/FinderStructuredData";
 import { FinderFaqSection } from "@/components/finder/FinderFaqSection";
 import { GesyProviderBadge } from "@/components/brand/GesyProviderBadge";
+import { FinderClinicLocationBlock } from "@/components/finder/FinderClinicLocationBlock";
+import { FinderSpecialtyLink } from "@/components/finder/FinderSpecialtyLink";
 import {
   ManualDirectoryDoctorClaimFooter,
   ManualDirectoryMonthlyRequestBadge,
@@ -51,6 +53,7 @@ import {
   finderManualVoteBadgeSinceIso,
 } from "@/lib/finder-manual-vote-badge";
 import { getFinderManualPhotoUrl } from "@/lib/finder-manual-photos";
+import { resolveFinderDisplayPhotoUrl } from "@/lib/finder-default-avatars";
 import { manualDirectoryLandingPath } from "@/lib/manual-directory-landing-path";
 import { isRegisteredDoctorHiddenFromFinder, isTestProfileLike } from "@/lib/doctor-test-profile";
 import {
@@ -111,12 +114,13 @@ type ManualFinderRow = {
   address_maps_link: string;
   phone: string | null;
   address: string | null;
-  photoUrl: string | null;
+  photoUrl: string;
   /** Unique patient requests in the badge rolling window (see finder-manual-vote-badge). */
   monthlyRequestCount: number;
   isGesy: boolean;
   latitude: number | null;
   longitude: number | null;
+  clinic: { name: string; slug: string } | null;
 };
 
 type UnifiedFinderResult = {
@@ -406,8 +410,12 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
       is_gesy?: boolean | null;
       latitude?: unknown;
       longitude?: unknown;
+      clinic_id?: string | null;
+      gender?: string | null;
     }> = [];
     const manualSelectAttempts = [
+      "id, slug, name, specialty, district, address_maps_link, phone, address, is_gesy, latitude, longitude, clinic_id, gender",
+      "id, slug, name, specialty, district, address_maps_link, phone, address, is_gesy, latitude, longitude, clinic_id",
       "id, slug, name, specialty, district, address_maps_link, phone, address, is_gesy, latitude, longitude",
       "id, slug, name, specialty, district, address_maps_link, phone, address, latitude, longitude",
       "id, slug, name, specialty, district, address_maps_link, phone, latitude, longitude",
@@ -443,6 +451,8 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
         is_gesy?: boolean | null;
         latitude?: unknown;
         longitude?: unknown;
+        clinic_id?: string | null;
+        gender?: string | null;
       }>;
       manualLoadError = null;
       break;
@@ -480,9 +490,36 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
         }
       }
 
+      const clinicIds = Array.from(
+        new Set(
+          manualRowsRaw
+            .map((row) => String(row.clinic_id ?? "").trim())
+            .filter(Boolean),
+        ),
+      );
+      const clinicById = new Map<string, { name: string; slug: string }>();
+      if (clinicIds.length > 0) {
+        const clinicsRes = await supabase
+          .from("clinics")
+          .select("id, name, slug")
+          .eq("is_archived", false)
+          .in("id", clinicIds);
+        if (!clinicsRes.error && clinicsRes.data?.length) {
+          for (const c of clinicsRes.data) {
+            const id = String((c as { id?: string }).id ?? "");
+            const name = String((c as { name?: string }).name ?? "").trim();
+            const slug = String((c as { slug?: string }).slug ?? "").trim();
+            if (id && name && slug) {
+              clinicById.set(id, { name, slug });
+            }
+          }
+        }
+      }
+
       manualRows = manualRowsRaw.map((row) => {
         const addressMapsLink = String(row.address_maps_link ?? "");
         const manualId = row.id as string;
+        const clinicId = String(row.clinic_id ?? "").trim();
         return {
           id: manualId,
           slug: String(row.slug ?? "").trim() || null,
@@ -493,11 +530,15 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
           address_maps_link: addressMapsLink,
           phone: String(row.phone ?? "").trim() || null,
           address: String(row.address ?? "").trim() || null,
-          photoUrl: getFinderManualPhotoUrl(addressMapsLink),
+          photoUrl: resolveFinderDisplayPhotoUrl({
+            curatedOrCustomPhotoUrl: getFinderManualPhotoUrl(addressMapsLink),
+            gender: row.gender,
+          }),
           monthlyRequestCount: monthlyRequestCountByManualId.get(manualId) ?? 0,
           isGesy: Boolean(row.is_gesy ?? false),
           latitude: parseOptionalCoordinates(row.latitude, row.longitude)?.latitude ?? null,
           longitude: parseOptionalCoordinates(row.latitude, row.longitude)?.longitude ?? null,
+          clinic: clinicId ? clinicById.get(clinicId) ?? null : null,
         };
       });
     }
@@ -762,14 +803,15 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                             href={`/${row.slug}`}
                             navigationReason="profile"
                             fill
+                            prefetch={false}
                             aria-label={`View ${row.displayName} booking page`}
-                            className="group h-[72px] w-[72px] shrink-0 overflow-hidden rounded-full border border-clinical-200 bg-clinical-50 ring-2 ring-clinical-100 transition hover:border-clinical-300 hover:ring-clinical-200"
+                            className="group h-[72px] w-[72px] shrink-0 overflow-hidden rounded-full border border-clinical-200 bg-clinical-50 ring-2 ring-clinical-100 transition-none hover:border-clinical-300 hover:ring-clinical-200"
                           >
                             {row.avatarUrl ? (
                               <img
                                 src={row.avatarUrl}
                                 alt=""
-                                className="h-full w-full object-cover transition group-hover:scale-[1.02]"
+                                className="h-full w-full object-cover"
                                 loading="lazy"
                               />
                             ) : (
@@ -799,7 +841,8 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                             <PendingLink
                               href={`/${row.slug}`}
                               navigationReason="profile"
-                              className="text-left text-[17px] font-bold leading-[1.2] tracking-tight text-ink-900 transition hover:text-clinical-600"
+                              prefetch={false}
+                              className="text-left text-[17px] font-bold leading-[1.2] tracking-tight text-ink-900 transition-none hover:text-clinical-600"
                             >
                               {row.displayName}
                             </PendingLink>
@@ -808,14 +851,17 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                               {row.displayName}
                             </p>
                           )}
-                          <span className="-ml-2 inline-flex max-w-full items-center self-start rounded-full border border-ink-200 bg-ink-50 px-2.5 py-1 text-left text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-600">
+                          <FinderSpecialtyLink
+                            specialty={row.specialty ?? "Specialty not set"}
+                            className="-ml-2 inline-flex max-w-full items-center self-start rounded-full border border-ink-200 bg-ink-50 px-2.5 py-1 text-left text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-600 transition-none hover:border-clinical-300 hover:bg-clinical-50 hover:text-clinical-800"
+                          >
                             <span className="whitespace-normal break-words leading-snug">
                               {row.specialty ?? "Specialty not set"}
                             </span>
-                          </span>
+                          </FinderSpecialtyLink>
                           {row.isGesy ? (
                             <div className="self-start">
-                              <GesyProviderBadge size="sm" />
+                              <GesyProviderBadge size="sm" language="en" />
                             </div>
                           ) : null}
                           {item.distanceKm !== null ? (
@@ -856,9 +902,6 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                               )}
                             </div>
                             <div>
-                              <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-ink-400">
-                                Location
-                              </p>
                               <p className="text-xs leading-relaxed text-ink-600 whitespace-pre-wrap break-words">
                                 {row.clinic_address?.trim()
                                   ? row.clinic_address.trim()
@@ -903,46 +946,25 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                           href={manualLandingHref}
                           navigationReason="profile"
                           fill
+                          prefetch={false}
                           aria-label={`View ${row.displayName} directory profile`}
-                          className={`group h-[72px] w-[72px] shrink-0 overflow-hidden rounded-full border bg-ink-50 ring-2 transition hover:border-clinical-300 hover:ring-clinical-200 ${
-                            row.photoUrl
-                              ? "border-clinical-200 ring-clinical-100"
-                              : "border-ink-200 ring-ink-100"
-                          }`}
+                        className={`group h-[72px] w-[72px] shrink-0 overflow-hidden rounded-full border bg-ink-50 ring-2 transition-none hover:border-clinical-300 hover:ring-clinical-200 border-clinical-200 ring-clinical-100`}
                         >
-                          {row.photoUrl ? (
-                            <img
-                              src={row.photoUrl}
-                              alt=""
-                              className="h-full w-full object-cover transition group-hover:scale-[1.02]"
-                              loading="lazy"
-                            />
-                          ) : (
-                            <div className="flex h-full w-full items-center justify-center text-sm font-semibold text-ink-600">
-                              {getInitials(row.displayName)}
-                            </div>
-                          )}
+                          <img
+                            src={row.photoUrl}
+                            alt=""
+                            className="h-full w-full object-cover"
+                            loading="lazy"
+                          />
                         </PendingLink>
                       ) : (
-                        <div
-                          className={`h-[72px] w-[72px] shrink-0 overflow-hidden rounded-full border bg-ink-50 ring-2 ${
-                            row.photoUrl
-                              ? "border-clinical-200 ring-clinical-100"
-                              : "border-ink-200 ring-ink-100"
-                          }`}
-                        >
-                          {row.photoUrl ? (
-                            <img
-                              src={row.photoUrl}
-                              alt={`${row.displayName} profile photo`}
-                              className="h-full w-full object-cover"
-                              loading="lazy"
-                            />
-                          ) : (
-                            <div className="flex h-full w-full items-center justify-center text-sm font-semibold text-ink-600">
-                              {getInitials(row.displayName)}
-                            </div>
-                          )}
+                        <div className="h-[72px] w-[72px] shrink-0 overflow-hidden rounded-full border border-clinical-200 bg-ink-50 ring-2 ring-clinical-100">
+                          <img
+                            src={row.photoUrl}
+                            alt={`${row.displayName} profile photo`}
+                            className="h-full w-full object-cover"
+                            loading="lazy"
+                          />
                         </div>
                       )}
                       <div className="min-w-0 flex-1 flex flex-col items-stretch gap-2 text-left">
@@ -950,7 +972,8 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                           <PendingLink
                             href={manualLandingHref}
                             navigationReason="profile"
-                            className="text-left text-[17px] font-bold leading-[1.2] tracking-tight text-ink-900 transition hover:text-clinical-600"
+                            prefetch={false}
+                            className="text-left text-[17px] font-bold leading-[1.2] tracking-tight text-ink-900 transition-none hover:text-clinical-600"
                           >
                             {row.displayName}
                           </PendingLink>
@@ -959,14 +982,17 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                             {row.displayName}
                           </p>
                         )}
-                        <span className="-ml-2 inline-flex max-w-full items-center self-start rounded-full border border-ink-200 bg-ink-50 px-2.5 py-1 text-left text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-600">
+                        <FinderSpecialtyLink
+                          specialty={row.specialty}
+                          className="-ml-2 inline-flex max-w-full items-center self-start rounded-full border border-ink-200 bg-ink-50 px-2.5 py-1 text-left text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-600 transition-none hover:border-clinical-300 hover:bg-clinical-50 hover:text-clinical-800"
+                        >
                           <span className="whitespace-normal break-words leading-snug">
                             {row.specialty}
                           </span>
-                        </span>
+                        </FinderSpecialtyLink>
                         {row.isGesy ? (
                           <div className="self-start">
-                            <GesyProviderBadge size="sm" />
+                            <GesyProviderBadge size="sm" language="en" />
                           </div>
                         ) : null}
                         {item.distanceKm !== null ? (
@@ -980,19 +1006,12 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                     <div className={finderRegisteredDetailsSectionClass}>
                       <div className={finderRegisteredCardDetailsGridClass}>
                         <div className="space-y-4">
-                          <div>
-                            <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-ink-400">
-                              Location
-                            </p>
-                            <p className="mb-1.5 text-xs font-medium text-ink-500">{row.district}</p>
-                            <p className="mt-2.5">
-                              <ManualDirectoryReportIncorrectInfoLink
-                                displayName={row.displayName}
-                                specialty={row.specialty}
-                                district={row.district}
-                              />
-                            </p>
-                          </div>
+                          <FinderClinicLocationBlock
+                            district={row.district}
+                            address={row.address}
+                            addressMapsLink={row.address_maps_link}
+                            clinic={row.clinic}
+                          />
                         </div>
                         <div className="min-w-0 flex flex-col gap-2">
                           <ManualDirectoryMonthlyRequestBadge
@@ -1011,8 +1030,16 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                     </div>
                     </div>
 
-                    <div className={finderCardManualFooterClass}>
+                    <div
+                      className={`${finderCardManualFooterClass} flex flex-wrap items-end justify-between gap-x-4 gap-y-2`}
+                    >
                       <ManualDirectoryDoctorClaimFooter />
+                      <ManualDirectoryReportIncorrectInfoLink
+                        displayName={row.displayName}
+                        specialty={row.specialty}
+                        district={row.district}
+                        className="ml-auto shrink-0 text-right"
+                      />
                     </div>
                   </article>
                 );

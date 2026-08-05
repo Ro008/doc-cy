@@ -2,6 +2,8 @@
 
 import { PendingLink } from "@/components/navigation/PendingLink";
 import { GesyProviderBadge } from "@/components/brand/GesyProviderBadge";
+import { FinderClinicLocationBlock } from "@/components/finder/FinderClinicLocationBlock";
+import { FinderSpecialtyLink } from "@/components/finder/FinderSpecialtyLink";
 import {
   ManualDirectoryDoctorClaimFooter,
   ManualDirectoryMonthlyRequestBadge,
@@ -24,16 +26,6 @@ type ManualDirectoryLandingCardProps = {
   dayHeaders: FinderAvailabilityDayHeader[];
 };
 
-function getInitials(name: string): string {
-  const parts = name
-    .split(" ")
-    .map((part) => part.trim())
-    .filter(Boolean);
-  if (parts.length === 0) return "HP";
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return `${parts[0][0] ?? ""}${parts[1][0] ?? ""}`.toUpperCase();
-}
-
 export function ManualDirectoryLandingCard({
   row,
   dayHeaders,
@@ -45,40 +37,29 @@ export function ManualDirectoryLandingCard({
           <div
             className={`flex min-w-0 shrink-0 items-start gap-3 ${finderRegisteredIdentityColumnClass}`}
           >
-            <div
-              className={`h-[72px] w-[72px] shrink-0 overflow-hidden rounded-full border bg-ink-50 ring-2 ${
-                row.photoUrl
-                  ? "border-clinical-200 ring-clinical-100"
-                  : "border-ink-200 ring-ink-100"
-              }`}
-            >
-              {row.photoUrl ? (
-                <img
-                  src={row.photoUrl}
-                  alt={`${row.displayName} profile photo`}
-                  className="h-full w-full object-cover"
-                  loading="lazy"
-                />
-              ) : (
-                <div className="flex h-full w-full items-center justify-center">
-                  <span className="text-sm font-semibold text-ink-600">
-                    {getInitials(row.displayName)}
-                  </span>
-                </div>
-              )}
+            <div className="h-[72px] w-[72px] shrink-0 overflow-hidden rounded-full border border-clinical-200 bg-ink-50 ring-2 ring-clinical-100">
+              <img
+                src={row.photoUrl}
+                alt={`${row.displayName} profile photo`}
+                className="h-full w-full object-cover"
+                loading="lazy"
+              />
             </div>
             <div className="min-w-0 flex-1 flex flex-col items-stretch gap-2 text-left">
               <p className="text-[17px] font-bold leading-[1.2] tracking-tight text-ink-900">
                 {row.displayName}
               </p>
-              <span className="-ml-2 inline-flex max-w-full items-center self-start rounded-full border border-ink-200 bg-ink-50 px-2.5 py-1 text-left text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-600">
+              <FinderSpecialtyLink
+                specialty={row.specialty}
+                className="-ml-2 inline-flex max-w-full items-center self-start rounded-full border border-ink-200 bg-ink-50 px-2.5 py-1 text-left text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-600 transition-none hover:border-clinical-300 hover:bg-clinical-50 hover:text-clinical-800"
+              >
                 <span className="whitespace-normal break-words leading-snug">
                   {row.specialty}
                 </span>
-              </span>
+              </FinderSpecialtyLink>
               {row.isGesy ? (
                 <div className="self-start">
-                  <GesyProviderBadge size="sm" />
+                  <GesyProviderBadge size="sm" language="el" />
                 </div>
               ) : null}
             </div>
@@ -87,19 +68,12 @@ export function ManualDirectoryLandingCard({
           <div className={finderRegisteredDetailsSectionClass}>
             <div className={finderLandingCardDetailsGridClass}>
               <div className="min-w-0 space-y-4">
-                <div>
-                  <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-ink-400">
-                    Location
-                  </p>
-                  <p className="mb-1.5 text-xs font-medium text-ink-500">{row.district}</p>
-                  <p className="mt-2.5">
-                    <ManualDirectoryReportIncorrectInfoLink
-                      displayName={row.displayName}
-                      specialty={row.specialty}
-                      district={row.district}
-                    />
-                  </p>
-                </div>
+                <FinderClinicLocationBlock
+                  district={row.district}
+                  address={row.address}
+                  addressMapsLink={row.address_maps_link}
+                  clinic={row.clinic}
+                />
               </div>
               <div className="flex min-w-0 flex-col gap-2">
                 <ManualDirectoryMonthlyRequestBadge
@@ -117,8 +91,16 @@ export function ManualDirectoryLandingCard({
           </div>
         </div>
 
-        <div className={finderCardManualFooterClass}>
+        <div
+          className={`${finderCardManualFooterClass} flex flex-wrap items-end justify-between gap-x-4 gap-y-2`}
+        >
           <ManualDirectoryDoctorClaimFooter />
+          <ManualDirectoryReportIncorrectInfoLink
+            displayName={row.displayName}
+            specialty={row.specialty}
+            district={row.district}
+            className="ml-auto shrink-0 text-right"
+          />
         </div>
       </article>
     </FinderResultsAvailabilityShell>
