@@ -73,9 +73,9 @@ export function FinderManualCardAvailabilityGrid({
                   disabled={isSubmitting}
                   aria-busy={isActiveSlot}
                   onClick={() => submit(slot.slotKey)}
-                  className={`relative inline-flex w-full items-center justify-center rounded-md bg-clinical-500 px-1 py-1 text-[10px] font-semibold leading-none text-white transition hover:bg-clinical-400 disabled:cursor-wait disabled:hover:bg-clinical-500 ${
+                  className={`relative inline-flex w-full items-center justify-center rounded-md bg-clinical-500 px-1 py-1 text-[10px] font-semibold leading-none text-white hover:bg-clinical-400 disabled:cursor-wait disabled:hover:bg-clinical-500 ${
                     isSubmitting && !isActiveSlot ? "opacity-45" : ""
-                  } ${isActiveSlot ? "opacity-100" : "motion-safe:animate-pulse"}`}
+                  }`}
                   title={`Request online booking for ${day.weekdayLabel} ${day.dateLabel} at ${slot.timeLabel}`}
                 >
                   <span
