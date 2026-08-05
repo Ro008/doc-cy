@@ -46,7 +46,8 @@ Daily cron at 03:00 UTC (`/api/cron/finder-traffic-alert`). Compares last-hour h
 
 ## Rules for future changes
 
-- **Never add `email`, `internal_email`, `ghs_code`, `license_*`** to `doctors_public` or `directory_manual_public`.
+- **Never add `email`, `internal_email`, `ghs_code`, `license_*`, or `gender`** to `doctors_public` or `directory_manual_public`.
+- `directory_manual.gender` is internal-only; server code may use it to pick a default avatar, but must not send `gender` to the client.
 - **App public reads must use the views**, not the base tables. The only exception is service-role server code (migrations, admin scripts).
 - If adding a new public write API, wire `enforcePublicApiRateLimit` from `lib/public-api-rate-limit.ts` at the top of the handler.
 - If the `doctors` or `directory_manual` schema changes, verify RLS policies still hold (`supabase/migrations/20260728180000_harden_public_directory_rls.sql`).
