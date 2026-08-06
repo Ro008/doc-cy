@@ -52,7 +52,7 @@ export function isLegacyFinderFilterPath(pathname: string): boolean {
   if (pathname === FINDER_INTERNAL_BASE) return true;
   if (!pathname.startsWith(`${FINDER_INTERNAL_BASE}/`)) return false;
   const first = pathname.slice(FINDER_INTERNAL_BASE.length + 1).split("/")[0] ?? "";
-  // Keep professional + clinic landings on /finder/...
+  // Keep manual professional landings on /finder/professional/...
   if (first === "professional" || first === "clinic") return false;
   return true;
 }

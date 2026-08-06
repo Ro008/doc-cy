@@ -7,6 +7,7 @@ import { languageThemeForLabel } from "@/lib/cyprus-languages";
 import { createServiceRoleClient } from "@/lib/supabase-service";
 import { fetchAllSupabaseRows } from "@/lib/supabase-fetch-all";
 import { doctorDashboardDisplayName } from "@/lib/doctor-display-name";
+import { FinderAudienceToggle } from "@/components/finder/FinderAudienceToggle";
 import { FinderFilters } from "@/components/finder/FinderFilters";
 import { FinderMissingDoctorCard } from "@/components/finder/FinderMissingDoctorCard";
 import { FinderHeroSection } from "@/components/finder/FinderHeroSection";
@@ -744,6 +745,7 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
           }
         >
           <section className="relative overflow-hidden rounded-3xl border border-clinical-200 bg-white p-5 shadow-[0_1px_3px_rgba(26,43,60,0.06),0_8px_28px_rgba(11,123,181,0.08)] sm:p-6 lg:p-8">
+            <FinderAudienceToggle active="professionals" className="mb-5" />
             <FinderFilters
               districts={districts}
               activeDistrict={activeDistrict}

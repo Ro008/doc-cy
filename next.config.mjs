@@ -41,7 +41,7 @@ const nextConfig = {
         destination: "/blog/sick-at-10pm-duty-pharmacies-paphos",
         permanent: true,
       },
-      // Patient finder is now the homepage; keep /finder/professional|clinic as-is.
+      // Patient finder is now the homepage.
       {
         source: "/finder",
         destination: "/",

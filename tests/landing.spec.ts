@@ -32,6 +32,7 @@ test.describe("Landing page", () => {
     await expect(footer).toBeVisible();
 
     await expect(footer.getByRole("link", { name: /^Find a Professional$/i })).toBeVisible();
+    await expect(footer.getByRole("link", { name: /^Find a Clinic$/i })).toBeVisible();
     await expect(footer.getByRole("link", { name: /^About DocCy$/i })).toBeVisible();
     await expect(footer.getByRole("link", { name: /^Blog$/i })).toBeVisible();
     await expect(footer.getByRole("button", { name: /^Support$/i })).toBeVisible();
@@ -48,6 +49,7 @@ test.describe("Landing page", () => {
     );
 
     expect(navLabels).toContain("Find a Professional");
+    expect(navLabels).toContain("Find a Clinic");
     expect(navLabels).toContain("About DocCy");
     expect(navLabels).toContain("Blog");
     expect(navLabels).toContain("Support");

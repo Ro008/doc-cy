@@ -27,6 +27,7 @@ const handleI18nRouting = createMiddleware(routing);
 const RESERVED_TOP_LEVEL = new Set([
   "agenda",
   "blog",
+  "clinics",
   "dashboard",
   "finder",
   "for-professionals",

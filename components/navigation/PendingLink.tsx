@@ -43,15 +43,63 @@ export function PendingLink({
 }: PendingLinkProps) {
   const { pending, beginNavigation } = useLinkNavigationPending(href, navigationReason);
   const isHashNavigation = href.includes("#");
-  // Public finder URLs (`/`, `/paphos/...`) are not reliable for App Router soft
-  // navigation (middleware rewrite + shared page module). Full document loads work.
+  // Public finder URLs (`/`, `/paphos/...`, `/all/...`) are not reliable for App Router
+  // soft navigation (middleware rewrite). Use a native anchor so the browser always
+  // does a full document load — Next <Link> can still race soft-nav despite preventDefault.
   const needsFinderHardNav =
     !isHashNavigation && isPublicFinderResultsPath(pathOnly(href));
+
+  if (needsFinderHardNav) {
+    return (
+      <a
+        href={href}
+        aria-current={ariaCurrent}
+        aria-label={ariaLabel}
+        aria-disabled={pending}
+        aria-busy={pending}
+        onClick={(event) => {
+          if (pending) {
+            event.preventDefault();
+            return;
+          }
+          emitNavigationStart(href, navigationReason);
+          beginNavigation();
+        }}
+        className={fill ? `flex ${className ?? ""}`.trim() : className}
+      >
+        <span
+          className={
+            fill
+              ? "relative flex h-full w-full items-center justify-center"
+              : "relative inline-flex max-w-full items-center justify-center"
+          }
+        >
+          <span
+            className={
+              fill
+                ? `flex h-full w-full items-center justify-center transition-none ${pending ? "opacity-0" : "opacity-100"}`
+                : `transition-none ${pending ? "opacity-0" : "opacity-100"}`
+            }
+          >
+            {children}
+          </span>
+          <span
+            aria-hidden
+            className={`pointer-events-none absolute inset-0 flex items-center justify-center transition-none ${
+              pending ? "opacity-100" : "opacity-0"
+            }`}
+          >
+            <span className="h-3 w-3 animate-spin rounded-full border border-current border-r-transparent" />
+          </span>
+        </span>
+      </a>
+    );
+  }
 
   return (
     <Link
       href={href}
-      prefetch={needsFinderHardNav ? false : prefetch}
+      prefetch={prefetch}
       aria-current={ariaCurrent}
       aria-label={ariaLabel}
       aria-disabled={pending}
@@ -72,13 +120,6 @@ export function PendingLink({
               return;
             }
           }
-          window.location.assign(href);
-          return;
-        }
-        if (needsFinderHardNav) {
-          event.preventDefault();
-          emitNavigationStart(href, navigationReason);
-          beginNavigation();
           window.location.assign(href);
           return;
         }

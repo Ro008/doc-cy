@@ -59,6 +59,12 @@ export function MarketingFooter({
           </div>
 
           <div className={pillShell}>
+            <PendingLink href="/clinics" className={pillLink}>
+              Find a Clinic
+            </PendingLink>
+          </div>
+
+          <div className={pillShell}>
             <Link href="/for-professionals" className={pillLink}>
               About DocCy
             </Link>

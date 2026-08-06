@@ -123,4 +123,20 @@ test.describe("Navigation and routing", { tag: "@pr-e2e" }, () => {
     await page.goto("/finder/paphos/dentistry");
     await expect(page).toHaveURL(/\/paphos\/dentistry(?:\?|$)/);
   });
+
+  test("clinics search is reachable from homepage toggle and footer", async ({ page }) => {
+    await page.goto("/");
+
+    const toggle = page.getByTestId("finder-audience-toggle");
+    await expect(toggle).toBeVisible();
+    await toggle.getByRole("link", { name: /^Clinics$/i }).click();
+    await expect(page).toHaveURL(/\/clinics(?:\?|$)/);
+    await expect(page.getByRole("heading", { level: 1, name: /Find clinics in Cyprus/i })).toBeVisible();
+    await expect(page.getByText(/Search clinics/i)).toBeVisible();
+    await expect(page.getByRole("button", { name: /Clinic near me/i })).toBeVisible();
+
+    await page.goto("/for-professionals");
+    await page.getByRole("link", { name: /^Find a Clinic$/i }).click();
+    await expect(page).toHaveURL(/\/clinics(?:\?|$)/);
+  });
 });

@@ -1,5 +1,5 @@
-/** Public clinic profile pages (not searchable in Finder v1). */
-export const CLINIC_LANDING_BASE_PATH = "/finder/clinic";
+/** Public clinic profile pages (`/clinics/{slug}`). */
+export const CLINIC_LANDING_BASE_PATH = "/clinics";
 
 export function clinicLandingPath(slug: string): string {
   const normalized = String(slug ?? "").trim();

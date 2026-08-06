@@ -1,72 +1,11 @@
-import type { Metadata } from "next";
-import { notFound } from "next/navigation";
 import { DocCyWordmark } from "@/components/brand/DocCyWordmark";
 import { ClinicProfessionalsBySpecialty } from "@/components/finder/ClinicProfessionalsBySpecialty";
 import { PendingLink } from "@/components/navigation/PendingLink";
-import { clinicLandingPath } from "@/lib/clinic-landing-path";
-import { FINDER_CLINIC_HERO_ILLUSTRATION } from "@/lib/finder-default-avatars";
-import { finderResultsPath } from "@/lib/finder-public-path";
-import { loadClinicBySlug } from "@/lib/load-clinic-by-slug";
+import { clinicsResultsPath } from "@/lib/clinics-public-path";
+import type { ClinicLandingRow } from "@/lib/load-clinic-by-slug";
 import { phoneToTelHref } from "@/lib/phone-link";
-import { createServiceRoleClient } from "@/lib/supabase-service";
 
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
-
-type PageProps = {
-  params: { slug: string };
-};
-
-function siteBaseUrl(): string {
-  return (process.env.NEXT_PUBLIC_SITE_URL?.trim() || "https://www.mydoccy.com").replace(
-    /\/+$/,
-    "",
-  );
-}
-
-export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const supabase = createServiceRoleClient();
-  if (!supabase) {
-    return { title: "Clinic | DocCy" };
-  }
-
-  const clinic = await loadClinicBySlug(supabase, params.slug);
-  if (!clinic) {
-    return { title: "Clinic not found | DocCy", robots: { index: false, follow: false } };
-  }
-
-  const pageUrl = `${siteBaseUrl()}${clinicLandingPath(clinic.slug)}`;
-  const title = `${clinic.name} | ${clinic.district}, Cyprus | DocCy`;
-  const description = `Healthcare professionals practicing at ${clinic.name} in ${clinic.district}, Cyprus. View profiles and request appointments on DocCy.`;
-  const ogImage = `${siteBaseUrl()}${FINDER_CLINIC_HERO_ILLUSTRATION}`;
-
-  return {
-    title,
-    description,
-    alternates: { canonical: pageUrl },
-    openGraph: {
-      title,
-      description,
-      type: "website",
-      url: pageUrl,
-      images: [{ url: ogImage }],
-    },
-    twitter: {
-      card: "summary_large_image",
-      title,
-      description,
-      images: [ogImage],
-    },
-  };
-}
-
-export default async function ClinicLandingPage({ params }: PageProps) {
-  const supabase = createServiceRoleClient();
-  if (!supabase) notFound();
-
-  const clinic = await loadClinicBySlug(supabase, params.slug);
-  if (!clinic) notFound();
-
+export function ClinicLandingView({ clinic }: { clinic: ClinicLandingRow }) {
   const telHref = phoneToTelHref(clinic.phone);
   const mapsHref = clinic.address_maps_link?.trim() || null;
 
@@ -84,14 +23,14 @@ export default async function ClinicLandingPage({ params }: PageProps) {
         <nav aria-label="Breadcrumb" className="mb-4 text-sm text-ink-500">
           <ol className="flex flex-wrap items-center gap-1">
             <li>
-              <PendingLink href="/" className="hover:text-clinical-700 hover:underline">
-                Find a Professional
+              <PendingLink href="/clinics" className="hover:text-clinical-700 hover:underline">
+                Find a Clinic
               </PendingLink>
             </li>
             <li aria-hidden="true">›</li>
             <li>
               <PendingLink
-                href={finderResultsPath(clinic.district)}
+                href={clinicsResultsPath(clinic.district)}
                 className="hover:text-clinical-700 hover:underline"
               >
                 {clinic.district}
@@ -158,4 +97,8 @@ export default async function ClinicLandingPage({ params }: PageProps) {
       </div>
     </main>
   );
+}
+
+export function clinicLandingCanonicalPath(slug: string): string {
+  return clinicLandingPath(slug);
 }
