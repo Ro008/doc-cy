@@ -81,7 +81,7 @@ export function ClinicsFilters({
     nextDistrict: string,
     nextName: string,
     nextCoords: { latitude: number; longitude: number } | null,
-    options?: { skipNavigationStart?: boolean; navigationReason?: "finder-results" | "finder-near-me" },
+    options?: { skipNavigationStart?: boolean; navigationReason?: "finder-results" | "clinics-near-me" },
   ) {
     const params = new URLSearchParams();
     if (nextName) params.set("name", nextName);
@@ -146,7 +146,7 @@ export function ClinicsFilters({
     }
     setGeolocationError(null);
     setIsLocating(true);
-    emitNavigationStart(undefined, "finder-near-me");
+    emitNavigationStart(undefined, "clinics-near-me");
     navigator.geolocation.getCurrentPosition(
       (position) => {
         const coords = {
@@ -178,7 +178,7 @@ export function ClinicsFilters({
   const isPending = pendingAction !== null;
   const isNearMeBusy = isLocating;
   const isFilterFormBusy = isNavigating || isNearMeBusy;
-  const nearMeBusyMessage = getNavigationStartMessage("finder-near-me");
+  const nearMeBusyMessage = getNavigationStartMessage("clinics-near-me");
 
   const activeFilterEntries = [
     activeDistrict ? `District: ${activeDistrict}` : null,

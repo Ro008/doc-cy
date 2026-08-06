@@ -5,6 +5,7 @@ export type NavigationStartReason =
   | "default"
   | "finder-results"
   | "finder-near-me"
+  | "clinics-near-me"
   | "profile";
 
 export type NavigationStartDetail = {
@@ -16,6 +17,7 @@ const NAVIGATION_START_MESSAGES: Record<NavigationStartReason, string> = {
   default: "Loading...",
   "finder-results": "Updating results...",
   "finder-near-me": "Finding doctors near you...",
+  "clinics-near-me": "Finding clinics near you...",
   profile: "Opening booking page...",
 };
 
