@@ -21,14 +21,16 @@ test.describe("Blog natural user flow", () => {
     const isMobileProject = testInfo.project.name.includes("Mobile");
     if (!isMobileProject && (await paphosCta.count())) {
       await paphosCta.click();
-      await expect(page).toHaveURL(/\/finder\/paphos(?:\?|$)/);
+      await expect(page).toHaveURL(/\/paphos(?:\?|$)/);
       return;
     }
 
     // Mobile-safe route: use header brand link from the post detail.
     const postBrandLink = page.getByRole("link", { name: "DocCy" }).first();
     await expect(postBrandLink).toBeVisible();
-    await postBrandLink.click();
-    await expect(page).toHaveURL(/\/finder(?:\?|$)/);
+    await Promise.all([
+      page.waitForURL(/^https?:\/\/[^/?#]+\/?(?:\?.*)?$/, { timeout: 60_000 }),
+      postBrandLink.click(),
+    ]);
   });
 });

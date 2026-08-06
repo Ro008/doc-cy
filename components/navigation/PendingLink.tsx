@@ -5,6 +5,7 @@ import * as React from "react";
 
 import { emitNavigationStart, type NavigationStartReason } from "@/lib/doccy-navigation";
 import { useLinkNavigationPending } from "@/hooks/useLinkNavigationPending";
+import { isPublicFinderResultsPath } from "@/lib/finder-public-path";
 
 type PendingLinkProps = {
   href: string;
@@ -19,6 +20,17 @@ type PendingLinkProps = {
   prefetch?: boolean;
 };
 
+function pathOnly(href: string): string {
+  try {
+    if (href.startsWith("http://") || href.startsWith("https://")) {
+      return new URL(href).pathname;
+    }
+  } catch {
+    // ignore
+  }
+  return href.split("?")[0]?.split("#")[0] || href;
+}
+
 export function PendingLink({
   href,
   children,
@@ -31,11 +43,15 @@ export function PendingLink({
 }: PendingLinkProps) {
   const { pending, beginNavigation } = useLinkNavigationPending(href, navigationReason);
   const isHashNavigation = href.includes("#");
+  // Public finder URLs (`/`, `/paphos/...`) are not reliable for App Router soft
+  // navigation (middleware rewrite + shared page module). Full document loads work.
+  const needsFinderHardNav =
+    !isHashNavigation && isPublicFinderResultsPath(pathOnly(href));
 
   return (
     <Link
       href={href}
-      prefetch={prefetch}
+      prefetch={needsFinderHardNav ? false : prefetch}
       aria-current={ariaCurrent}
       aria-label={ariaLabel}
       aria-disabled={pending}
@@ -56,6 +72,13 @@ export function PendingLink({
               return;
             }
           }
+          window.location.assign(href);
+          return;
+        }
+        if (needsFinderHardNav) {
+          event.preventDefault();
+          emitNavigationStart(href, navigationReason);
+          beginNavigation();
           window.location.assign(href);
           return;
         }

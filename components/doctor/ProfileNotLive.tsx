@@ -89,7 +89,7 @@ export function ProfileNotLive({
               live.
             </p>
             <PendingLink
-              href="/finder"
+              href="/"
               className="mt-4 inline-flex w-full items-center justify-center rounded-xl border border-sky-500/50 bg-sky-500/10 py-2.5 text-sm font-semibold text-sky-100 transition hover:border-sky-400/60 hover:bg-sky-500/20"
             >
               Find a professional

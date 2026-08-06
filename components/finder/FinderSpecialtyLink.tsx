@@ -1,12 +1,10 @@
 import type { ReactNode } from "react";
 import { PendingLink } from "@/components/navigation/PendingLink";
-import { specialtyToSlug } from "@/lib/finder-seo";
+import { finderResultsPath } from "@/lib/finder-public-path";
 
-/** Island-wide Finder results for a specialty (`/finder/all/gynecology`). */
+/** Island-wide Finder results for a specialty (`/all/gynecology`). */
 export function finderSpecialtyPath(specialty: string): string {
-  const slug = specialtyToSlug(specialty);
-  if (!slug || slug === "all") return "/finder";
-  return `/finder/all/${slug}`;
+  return finderResultsPath(null, specialty);
 }
 
 type FinderSpecialtyLinkProps = {

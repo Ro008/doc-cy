@@ -1,14 +1,13 @@
 "use client";
 
 import * as React from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import {
-  districtToSlug,
   slugToSpecialty,
   specialtyToSlug,
   toTitleCaseWords,
 } from "@/lib/finder-seo";
-import type { CyprusDistrict } from "@/lib/cyprus-districts";
+import { finderResultsPath } from "@/lib/finder-public-path";
 import type { FinderSpecialtyOption } from "@/lib/finder-specialty-options";
 import { Info, Search } from "lucide-react";
 import { PendingLink } from "@/components/navigation/PendingLink";
@@ -33,7 +32,6 @@ export function FinderFilters({
   activeLongitude,
   specialtyOptions,
 }: FinderFiltersProps) {
-  const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [district, setDistrict] = React.useState(activeDistrict);
@@ -114,20 +112,16 @@ export function FinderFilters({
     nextCoords: { latitude: number; longitude: number } | null,
     options?: { skipNavigationStart?: boolean; navigationReason?: "finder-results" | "finder-near-me" },
   ) {
-    const districtSlug = nextDistrict ? districtToSlug(nextDistrict as CyprusDistrict) : "all";
-    const specialtyPathSegment = nextSpecialty ? specialtyToSlug(nextSpecialty) : "all";
     const params = new URLSearchParams();
     if (nextName) params.set("name", nextName);
     if (nextCoords) {
       params.set("lat", String(nextCoords.latitude));
       params.set("lon", String(nextCoords.longitude));
     }
-    const finderPath =
-      !nextDistrict && !nextSpecialty
-        ? "/finder"
-        : !nextSpecialty
-          ? `/finder/${districtSlug}`
-          : `/finder/${districtSlug}/${specialtyPathSegment}`;
+    const finderPath = finderResultsPath(
+      nextDistrict || null,
+      nextSpecialty || null,
+    );
     const qs = params.toString();
     const target = qs ? `${finderPath}?${qs}` : finderPath;
     const currentHref = `${pathname}${searchParams?.toString() ? `?${searchParams.toString()}` : ""}`;
@@ -139,21 +133,8 @@ export function FinderFilters({
     if (!options?.skipNavigationStart) {
       emitNavigationStart(undefined, options?.navigationReason ?? "finder-results");
     }
-    const pathChanged = pathname !== finderPath;
-    // Clearing path filters (e.g. /finder/nicosia/dentistry → /finder) or query-only
-    // filters should replace history. Avoid router.refresh() on path changes: on the
-    // optional catch-all [[...filters]] it races soft navigation and can leave the
-    // filtered URL in place (Clear all filters appears to do nothing).
-    const shouldReplace =
-      Boolean(searchParams?.toString()) && !qs ? true : pathChanged && finderPath === "/finder";
-    if (shouldReplace) {
-      router.replace(target);
-    } else {
-      router.push(target);
-    }
-    if (!pathChanged) {
-      router.refresh();
-    }
+    // Public finder URLs are not reliable for App Router soft navigation.
+    window.location.assign(target);
   }
 
   function submitFilters() {
@@ -183,9 +164,8 @@ export function FinderFilters({
     setPendingAction("reset");
     if (pendingGuardRef.current) clearTimeout(pendingGuardRef.current);
     pendingGuardRef.current = setTimeout(() => setPendingAction(null), 1500);
-    // Always hard-clear to unfiltered finder via replace (no refresh race).
     emitNavigationStart(undefined, "finder-results");
-    router.replace("/finder");
+    window.location.assign("/");
   }
 
   React.useEffect(() => {

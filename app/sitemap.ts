@@ -28,14 +28,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     {
       url: `${siteBase}/`,
       lastModified: now,
-      changeFrequency: "weekly",
+      changeFrequency: "daily",
       priority: 1.0,
     },
     {
-      url: `${siteBase}/finder`,
+      url: `${siteBase}/for-professionals`,
       lastModified: now,
-      changeFrequency: "daily",
-      priority: 0.8,
+      changeFrequency: "weekly",
+      priority: 0.7,
     },
   ];
 
@@ -105,7 +105,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const districtSlug = districtToSlug(district);
     if (districtSet.has(districtSlug)) {
       staticEntries.push({
-        url: `${siteBase}/finder/${districtSlug}`,
+        url: `${siteBase}/${districtSlug}`,
         lastModified: now,
         changeFrequency: "daily",
         priority: 0.8,
@@ -118,7 +118,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     .map((pair) => {
       const [districtSlug, specialtySlug] = pair.split("::");
       return {
-        url: `${siteBase}/finder/${districtSlug}/${specialtySlug}`,
+        url: `${siteBase}/${districtSlug}/${specialtySlug}`,
         lastModified: now,
         changeFrequency: "daily" as const,
         priority: 0.8,

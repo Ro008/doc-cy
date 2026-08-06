@@ -4,8 +4,8 @@ import { DocCyWordmark } from "@/components/brand/DocCyWordmark";
 import { ClinicProfessionalsBySpecialty } from "@/components/finder/ClinicProfessionalsBySpecialty";
 import { PendingLink } from "@/components/navigation/PendingLink";
 import { clinicLandingPath } from "@/lib/clinic-landing-path";
-import { districtToSlug } from "@/lib/finder-seo";
 import { FINDER_CLINIC_HERO_ILLUSTRATION } from "@/lib/finder-default-avatars";
+import { finderResultsPath } from "@/lib/finder-public-path";
 import { loadClinicBySlug } from "@/lib/load-clinic-by-slug";
 import { phoneToTelHref } from "@/lib/phone-link";
 import { createServiceRoleClient } from "@/lib/supabase-service";
@@ -67,7 +67,6 @@ export default async function ClinicLandingPage({ params }: PageProps) {
   const clinic = await loadClinicBySlug(supabase, params.slug);
   if (!clinic) notFound();
 
-  const districtSlug = districtToSlug(clinic.district);
   const telHref = phoneToTelHref(clinic.phone);
   const mapsHref = clinic.address_maps_link?.trim() || null;
 
@@ -75,7 +74,7 @@ export default async function ClinicLandingPage({ params }: PageProps) {
     <main className="min-h-screen bg-ink-50 text-ink-900">
       <header className="border-b border-ink-200 bg-white">
         <div className="mx-auto max-w-6xl px-4 py-4 sm:px-6 lg:px-8">
-          <PendingLink href="/finder" className="inline-flex items-center">
+          <PendingLink href="/" className="inline-flex items-center">
             <DocCyWordmark className="h-7 w-auto" />
           </PendingLink>
         </div>
@@ -85,14 +84,14 @@ export default async function ClinicLandingPage({ params }: PageProps) {
         <nav aria-label="Breadcrumb" className="mb-4 text-sm text-ink-500">
           <ol className="flex flex-wrap items-center gap-1">
             <li>
-              <PendingLink href="/finder" className="hover:text-clinical-700 hover:underline">
-                Finder
+              <PendingLink href="/" className="hover:text-clinical-700 hover:underline">
+                Find a Professional
               </PendingLink>
             </li>
             <li aria-hidden="true">›</li>
             <li>
               <PendingLink
-                href={`/finder/${districtSlug}`}
+                href={finderResultsPath(clinic.district)}
                 className="hover:text-clinical-700 hover:underline"
               >
                 {clinic.district}

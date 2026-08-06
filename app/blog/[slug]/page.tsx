@@ -116,7 +116,7 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
 
       <article className="mx-auto max-w-3xl rounded-2xl border border-clinical-200 bg-white p-4 shadow-[0_1px_3px_rgba(26,43,60,0.06),0_8px_24px_rgba(11,123,181,0.06)] sm:p-6">
         <div className="mb-5 flex items-center justify-between border-b border-ink-200 pb-4">
-          <PendingLink href="/finder" className="inline-flex items-baseline hover:opacity-90">
+          <PendingLink href="/" className="inline-flex items-baseline hover:opacity-90">
             <DocCyWordmark variant="light" />
           </PendingLink>
           <PendingLink href="/blog" className="text-sm font-medium text-clinical-600 hover:text-clinical-500">
@@ -145,7 +145,7 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
               Looking for a professional in Paphos? Browse our verified list here.
             </p>
             <PendingLink
-              href="/finder/paphos"
+              href="/paphos"
               className="mt-3 inline-flex rounded-lg bg-clinical-500 px-4 py-2 text-sm font-semibold text-white hover:bg-clinical-400"
             >
               Browse Paphos Professionals

@@ -54,6 +54,7 @@ import {
 } from "@/lib/finder-manual-vote-badge";
 import { getFinderManualPhotoUrl } from "@/lib/finder-manual-photos";
 import { resolveFinderDisplayPhotoUrl } from "@/lib/finder-default-avatars";
+import { finderResultsPath, FOR_PROFESSIONALS_PATH } from "@/lib/finder-public-path";
 import { manualDirectoryLandingPath } from "@/lib/manual-directory-landing-path";
 import { isRegisteredDoctorHiddenFromFinder, isTestProfileLike } from "@/lib/doctor-test-profile";
 import {
@@ -680,14 +681,10 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
   const finderSnippet = hasSpecificFilters
     ? `Find English-speaking ${specialtyLabel} in ${districtLabel}. Compare profiles and book online with confidence.`
     : null;
-  const finderPath =
-    activeDistrict && activeSpecialty
-      ? `/finder/${districtToSlug(activeDistrict as CyprusDistrict)}/${specialtyToSlug(
-          activeSpecialty
-        )}`
-      : activeDistrict
-        ? `/finder/${districtToSlug(activeDistrict as CyprusDistrict)}`
-        : "/finder";
+  const finderPath = finderResultsPath(
+    activeDistrict || null,
+    activeSpecialty || null,
+  );
   const schemaEntries = unifiedResults.map((item) => {
     if (item.kind === "registered") {
       const row = item.row;
@@ -1078,7 +1075,7 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                           {SEO_SPECIALTIES.map((specialty) => (
                             <li key={`${city}-${specialty.label}-mobile`}>
                               <a
-                                href={`/finder/${districtToSlug(city)}/${specialtyToSlug(specialty.label)}`}
+                                href={finderResultsPath(city, specialty.label)}
                                 className="text-sm text-ink-700 underline underline-offset-4 transition hover:text-clinical-600"
                               >
                                 {specialty.pluralLabel} in {city}
@@ -1101,7 +1098,7 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                         {SEO_SPECIALTIES.map((specialty) => (
                           <li key={`${city}-${specialty.label}-desktop`}>
                             <a
-                              href={`/finder/${districtToSlug(city)}/${specialtyToSlug(specialty.label)}`}
+                              href={finderResultsPath(city, specialty.label)}
                               className="text-xs text-ink-600 underline underline-offset-4 transition hover:text-clinical-600"
                             >
                               {specialty.pluralLabel} in {city}
@@ -1118,7 +1115,7 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                 <p className="text-xs text-ink-500">
                   Are you a healthcare professional?{" "}
                   <PendingLink
-                    href="/#founders-pricing"
+                    href={`${FOR_PROFESSIONALS_PATH}#founders-pricing`}
                     className="font-semibold text-clinical-600 underline underline-offset-4 transition hover:text-clinical-500"
                   >
                     List your practice

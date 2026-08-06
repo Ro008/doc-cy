@@ -55,7 +55,7 @@ test.describe("Public profile states", () => {
       .getByRole("link", { name: /Find a professional/i })
       .first();
     await expect(findProfessionalPending).toBeVisible({ timeout: 10000 });
-    await expect(findProfessionalPending).toHaveAttribute("href", "/finder");
+    await expect(findProfessionalPending).toHaveAttribute("href", "/");
   });
 
   test("rejected: shows profile unavailable + no booking calendar", async ({
@@ -91,7 +91,7 @@ test.describe("Public profile states", () => {
       .getByRole("link", { name: /Find a professional/i })
       .first();
     await expect(findProfessionalRejected).toBeVisible({ timeout: 10000 });
-    await expect(findProfessionalRejected).toHaveAttribute("href", "/finder");
+    await expect(findProfessionalRejected).toHaveAttribute("href", "/");
   });
 
   test("activated/verified: shows live profile + booking calendar", async ({

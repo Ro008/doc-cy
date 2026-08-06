@@ -20,6 +20,15 @@ function currentLocaleFromPath(pathname: string): LocaleValue {
 }
 
 function hrefForLocale(pathname: string, locale: LocaleValue): string {
+  // Doctor marketing pages: EN lives at /for-professionals, GR at /el (and /en alias).
+  if (
+    pathname === "/for-professionals" ||
+    pathname === "/" ||
+    /^\/(en|el)\/?$/.test(pathname)
+  ) {
+    return locale === "en" ? "/for-professionals" : `/${locale}`;
+  }
+
   const parts = pathname.split("/").filter(Boolean);
   if (parts.length === 0) return `/${locale}`;
 

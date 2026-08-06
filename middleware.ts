@@ -14,6 +14,13 @@ import {
   isDoctorAccountReviewPath,
   isDoctorVerifiedForProduct,
 } from "./lib/doctor-account-access";
+import {
+  FINDER_DISTRICT_PATH_SLUGS,
+  isLegacyFinderFilterPath,
+  legacyFinderFilterToPublicPath,
+  needsMiddlewareFinderRewrite,
+  publicFinderPathToInternal,
+} from "./lib/finder-public-path";
 
 const handleI18nRouting = createMiddleware(routing);
 
@@ -22,6 +29,7 @@ const RESERVED_TOP_LEVEL = new Set([
   "blog",
   "dashboard",
   "finder",
+  "for-professionals",
   "internal",
   "login",
   "register",
@@ -48,6 +56,8 @@ function isPublicPatientRoute(pathname: string): boolean {
 
   // Unprefixed public routes: /{slug}, /{slug}/request-sent, legacy /success
   if (RESERVED_TOP_LEVEL.has(first)) return false;
+  // District filter paths are finder results, not doctor booking pages.
+  if (FINDER_DISTRICT_PATH_SLUGS.has(first)) return false;
   if (segments.length === 1) return true;
   if (
     segments.length === 2 &&
@@ -122,11 +132,27 @@ function queueTrafficLog(req: NextRequest, sessionId: string, event: NextFetchEv
 export async function middleware(req: NextRequest, event: NextFetchEvent) {
   const pathname = req.nextUrl.pathname;
 
-  // Step 1: Apply next-intl routing only for public patient-facing booking pages.
-  // Internal /agenda dashboard routes are intentionally left unprefixed.
-  const res = isPublicPatientRoute(pathname)
-    ? handleI18nRouting(req)
-    : NextResponse.next();
+  // Legacy /finder filter URLs → public unprefixed paths (keep /finder/professional|clinic).
+  if (isLegacyFinderFilterPath(pathname)) {
+    const dest = new URL(legacyFinderFilterToPublicPath(pathname), req.url);
+    dest.search = req.nextUrl.search;
+    return NextResponse.redirect(dest, 308);
+  }
+
+  // Public finder filter URLs → internal /finder implementation (URL bar stays patient-friendly).
+  // `/` is a real App Router page (`app/page.tsx`) so it is not rewritten.
+  let res: NextResponse;
+  if (needsMiddlewareFinderRewrite(pathname)) {
+    const rewriteUrl = req.nextUrl.clone();
+    rewriteUrl.pathname = publicFinderPathToInternal(pathname);
+    res = NextResponse.rewrite(rewriteUrl);
+  } else {
+    // Step 1: Apply next-intl routing only for public patient-facing booking pages.
+    // Internal /agenda dashboard routes are intentionally left unprefixed.
+    res = isPublicPatientRoute(pathname)
+      ? handleI18nRouting(req)
+      : NextResponse.next();
+  }
 
   // Step 2: Refresh Supabase session on every request so server components
   // (like /agenda) can see the authenticated user via cookies.

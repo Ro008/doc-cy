@@ -13,7 +13,10 @@ type MarketingFooterProps = {
 };
 
 function routeHasTwoLanguageVariants(pathname: string): boolean {
-  return pathname === "/" || /^\/(en|el)\/?$/.test(pathname);
+  return (
+    pathname === "/for-professionals" ||
+    /^\/(en|el)\/?$/.test(pathname)
+  );
 }
 
 const pillShellDark =
@@ -50,13 +53,13 @@ export function MarketingFooter({
       <div className={`border-t ${borderTop} pt-5`}>
         <div className="flex flex-wrap items-center justify-start gap-2">
           <div className={pillShell}>
-            <PendingLink href="/finder" className={pillLink}>
+            <PendingLink href="/" className={pillLink}>
               Find a Professional
             </PendingLink>
           </div>
 
           <div className={pillShell}>
-            <Link href="/" className={pillLink}>
+            <Link href="/for-professionals" className={pillLink}>
               About DocCy
             </Link>
           </div>

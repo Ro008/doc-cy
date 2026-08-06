@@ -172,24 +172,24 @@ test.describe("Integration: finder business-critical UX", { tag: "@pr-e2e" }, ()
     test.setTimeout(180000);
 
     const footerSearches = [
-      { city: "Nicosia", specialty: "Dentists", path: "/finder/nicosia/dentistry" },
-      { city: "Nicosia", specialty: "Dermatologists", path: "/finder/nicosia/dermatology" },
-      { city: "Nicosia", specialty: "Physiotherapists", path: "/finder/nicosia/physiotherapy" },
-      { city: "Limassol", specialty: "Dentists", path: "/finder/limassol/dentistry" },
-      { city: "Limassol", specialty: "Dermatologists", path: "/finder/limassol/dermatology" },
-      { city: "Limassol", specialty: "Physiotherapists", path: "/finder/limassol/physiotherapy" },
-      { city: "Paphos", specialty: "Dentists", path: "/finder/paphos/dentistry" },
-      { city: "Paphos", specialty: "Dermatologists", path: "/finder/paphos/dermatology" },
-      { city: "Paphos", specialty: "Physiotherapists", path: "/finder/paphos/physiotherapy" },
-      { city: "Larnaca", specialty: "Dentists", path: "/finder/larnaca/dentistry" },
-      { city: "Larnaca", specialty: "Dermatologists", path: "/finder/larnaca/dermatology" },
-      { city: "Larnaca", specialty: "Physiotherapists", path: "/finder/larnaca/physiotherapy" },
+      { city: "Nicosia", specialty: "Dentists", path: "/nicosia/dentistry" },
+      { city: "Nicosia", specialty: "Dermatologists", path: "/nicosia/dermatology" },
+      { city: "Nicosia", specialty: "Physiotherapists", path: "/nicosia/physiotherapy" },
+      { city: "Limassol", specialty: "Dentists", path: "/limassol/dentistry" },
+      { city: "Limassol", specialty: "Dermatologists", path: "/limassol/dermatology" },
+      { city: "Limassol", specialty: "Physiotherapists", path: "/limassol/physiotherapy" },
+      { city: "Paphos", specialty: "Dentists", path: "/paphos/dentistry" },
+      { city: "Paphos", specialty: "Dermatologists", path: "/paphos/dermatology" },
+      { city: "Paphos", specialty: "Physiotherapists", path: "/paphos/physiotherapy" },
+      { city: "Larnaca", specialty: "Dentists", path: "/larnaca/dentistry" },
+      { city: "Larnaca", specialty: "Dermatologists", path: "/larnaca/dermatology" },
+      { city: "Larnaca", specialty: "Physiotherapists", path: "/larnaca/physiotherapy" },
     ] as const;
 
     const missingResults: string[] = [];
 
     for (const search of footerSearches) {
-      await page.goto("/finder");
+      await page.goto("/");
       await expect(
         page.getByRole("heading", {
           level: 2,
@@ -300,7 +300,7 @@ test.describe("Integration: finder business-critical UX", { tag: "@pr-e2e" }, ()
     const expectedManual = manualCount ?? 0;
     const expectedTotal = expectedRegistered + expectedManual;
 
-    await page.goto("/");
+    await page.goto("/for-professionals");
     const finderLink = page.getByRole("link", { name: /^Find a Professional$/i }).first();
     await expect(finderLink).toBeVisible();
     await Promise.all([
@@ -339,7 +339,7 @@ test.describe("Integration: finder business-critical UX", { tag: "@pr-e2e" }, ()
         avatarPath: `profiles/qa-card-${nonce}/avatar.jpg`,
       });
 
-      await page.goto("/finder/paphos/dentistry");
+      await page.goto("/paphos/dentistry");
       const card = page
         .locator("section.mt-6 article")
         .filter({ has: page.getByText(created.name, { exact: true }) })
@@ -399,7 +399,7 @@ test.describe("Integration: finder business-critical UX", { tag: "@pr-e2e" }, ()
         );
       }
 
-      await page.goto("/finder/nicosia/dentistry");
+      await page.goto("/nicosia/dentistry");
       for (const testCase of cases) {
         const card = page
           .locator("section.mt-6 article")
@@ -452,7 +452,7 @@ test.describe("Integration: finder business-critical UX", { tag: "@pr-e2e" }, ()
         })
       );
 
-      await page.goto("/finder");
+      await page.goto("/");
       await expect(
         page.getByRole("heading", {
           level: 1,
@@ -466,7 +466,7 @@ test.describe("Integration: finder business-critical UX", { tag: "@pr-e2e" }, ()
       const showResults = page.getByRole("button", { name: /^Show results$/i });
       await districtSelect.selectOption("Nicosia");
       await showResults.click();
-      await expect(page).toHaveURL(/\/finder\/nicosia(?:\?|$)/, { timeout: 60_000 });
+      await expect(page).toHaveURL(/\/nicosia(?:\?|$)/, { timeout: 60_000 });
       await expect(page.getByText("District: Nicosia", { exact: false })).toBeVisible({
         timeout: 60_000,
       });
@@ -478,7 +478,7 @@ test.describe("Integration: finder business-critical UX", { tag: "@pr-e2e" }, ()
       });
       await specialtySelect.selectOption("dentistry");
       await showResults.click();
-      await expect(page).toHaveURL(/\/finder\/nicosia\/dentistry(?:\?|$)/, { timeout: 60_000 });
+      await expect(page).toHaveURL(/\/nicosia\/dentistry(?:\?|$)/, { timeout: 60_000 });
       await expect(page.getByText("Specialty: Dentistry", { exact: false })).toBeVisible({
         timeout: 60_000,
       });
@@ -487,7 +487,7 @@ test.describe("Integration: finder business-critical UX", { tag: "@pr-e2e" }, ()
       await expect(page.getByText(created[1].name, { exact: true })).toHaveCount(0);
 
       await page.getByRole("button", { name: /Clear all filters|Reset/i }).click();
-      await expect(page).toHaveURL(/\/finder(?:\?|$)/, { timeout: 60_000 });
+      await expect(page).toHaveURL(/^https?:\/\/[^/?#]+\/?(?:\?.*)?$/, { timeout: 60_000 });
       await expect(page.getByRole("button", { name: /Clear all filters/i })).toBeHidden({
         timeout: 60_000,
       });
@@ -537,7 +537,7 @@ test.describe("Integration: finder business-critical UX", { tag: "@pr-e2e" }, ()
       await seedWeekdayAvailabilitySettings(admin, created.doctorId);
 
       await page.goto(
-        `/finder/paphos/dentistry?name=${encodeURIComponent(created.name)}`,
+        `/paphos/dentistry?name=${encodeURIComponent(created.name)}`,
       );
       const card = page
         .locator("section.mt-6 article")

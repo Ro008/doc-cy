@@ -6,7 +6,7 @@ const PRIMARY_CTA = /List my practice/i;
 
 test.describe("Landing page", () => {
   test("displays main headline and primary CTA", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/for-professionals");
 
     await expect(
       page.getByRole("heading", { level: 1, name: HERO_TITLE }),
@@ -26,7 +26,7 @@ test.describe("Landing page", () => {
   test("marketing footer shows core links, Support before Instagram, and Support opens feedback", async ({
     page,
   }) => {
-    await page.goto("/");
+    await page.goto("/for-professionals");
 
     const footer = page.getByTestId("marketing-footer");
     await expect(footer).toBeVisible();
@@ -61,16 +61,16 @@ test.describe("Landing page", () => {
   });
 
   test("primary CTA navigates to founders pricing section", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/for-professionals");
     const cta = page.locator('a[href="#founders-pricing-card"]').first();
     await expect(cta).toBeVisible();
 
     await Promise.all([
-      page.waitForURL(/\/#founders-pricing-card$/, { timeout: 10000 }),
+      page.waitForURL(/\/for-professionals#founders-pricing-card$/, { timeout: 10000 }),
       cta.click(),
     ]);
 
-    await expect(page).toHaveURL(/\/#founders-pricing-card$/);
+    await expect(page).toHaveURL(/\/for-professionals#founders-pricing-card$/);
     await expect(
       page.getByRole("heading", {
         name: /€19\/month\. Locked for life\./i,
@@ -81,7 +81,7 @@ test.describe("Landing page", () => {
   test("priority ranking tooltip stays within viewport on mobile", async ({ page }, testInfo) => {
     test.skip(!testInfo.project.name.includes("Mobile"), "Mobile-only coverage.");
 
-    await page.goto("/#founders-pricing");
+    await page.goto("/for-professionals#founders-pricing");
 
     const infoButton = page.getByRole("button", { name: /priority placement/i }).first();
     await expect(infoButton).toBeVisible({ timeout: 10000 });
@@ -100,7 +100,7 @@ test.describe("Landing page", () => {
   });
 
   test("how it works section is present", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/for-professionals");
 
     const section = page.locator("#how-it-works");
     await expect(
@@ -111,7 +111,7 @@ test.describe("Landing page", () => {
   });
 
   test("pricing section shows risk-free intro before founders card", async ({ page }) => {
-    await page.goto("/#founders-pricing");
+    await page.goto("/for-professionals#founders-pricing");
 
     await expect(
       page.getByRole("heading", {
@@ -127,7 +127,7 @@ test.describe("Landing page", () => {
   });
 
   test("FAQ section shows key objections below pricing", async ({ page }) => {
-    await page.goto("/#founders-pricing");
+    await page.goto("/for-professionals#founders-pricing");
 
     await expect(
       page.getByRole("heading", {
@@ -147,7 +147,7 @@ test.describe("Landing page", () => {
   });
 
   test("FAQ accordion reveals answer for double bookings objection", async ({ page }) => {
-    await page.goto("/#founders-pricing");
+    await page.goto("/for-professionals#founders-pricing");
 
     const faqToggle = page
       .locator("summary")
@@ -163,7 +163,7 @@ test.describe("Landing page", () => {
   });
 
   test("FAQ accordion reveals patient adoption answer", async ({ page }) => {
-    await page.goto("/#founders-pricing");
+    await page.goto("/for-professionals#founders-pricing");
 
     const faqToggle = page
       .locator("summary")

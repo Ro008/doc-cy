@@ -5,6 +5,7 @@ import {
   FINDER_TRAFFIC_SPIKE_MULTIPLIER,
   aggregateFinderTrafficRows,
   buildFinderTrafficAlertEmail,
+  finderTrafficPathOrFilter,
   isFinderTrafficPath,
   shouldSendFinderTrafficAlert,
   type FinderTrafficAggregateRow,
@@ -42,7 +43,7 @@ async function countFinderVisitsInWindow(
   if (botFilter === "human") query = query.eq("is_bot", false);
   if (botFilter === "bot") query = query.eq("is_bot", true);
 
-  const { count, error } = await query.or("page_path.eq./finder,page_path.like./finder/%");
+  const { count, error } = await query.or(finderTrafficPathOrFilter());
   if (error) {
     throw new Error(`finder visit count failed: ${error.message}`);
   }
@@ -59,7 +60,7 @@ async function loadFinderVisitRows(
     .select("page_path, country, user_agent, is_bot")
     .gte("created_at", start.toISOString())
     .lt("created_at", end.toISOString())
-    .or("page_path.eq./finder,page_path.like./finder/%")
+    .or(finderTrafficPathOrFilter())
     .limit(5000);
 
   if (error) {

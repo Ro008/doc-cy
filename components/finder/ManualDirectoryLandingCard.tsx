@@ -11,6 +11,7 @@ import {
 } from "@/components/finder/ManualDirectoryPatientActions";
 import { FinderManualCardAvailabilityGrid } from "@/components/finder/FinderManualCardAvailabilityGrid";
 import { FinderResultsAvailabilityShell } from "@/components/finder/FinderResultsAvailabilityShell";
+import { finderResultsPath } from "@/lib/finder-public-path";
 import {
   finderLandingCardDetailsGridClass,
   finderRegisteredCardRowClass,
@@ -117,13 +118,11 @@ type ManualDirectoryLandingBrowseLinkProps = {
 export function ManualDirectoryLandingBrowseLink({
   district,
   specialty,
-  specialtySlug,
-  districtSlug,
 }: ManualDirectoryLandingBrowseLinkProps) {
   return (
     <p className="text-sm text-ink-600">
       <PendingLink
-        href={`/finder/${districtSlug}/${specialtySlug}`}
+        href={finderResultsPath(district, specialty)}
         className="font-medium text-clinical-700 underline-offset-2 hover:underline"
       >
         Browse all {specialty} in {district}

@@ -691,7 +691,7 @@ export default async function DoctorPage({ params }: PageProps) {
           <div className="flex items-center justify-between gap-3">
             <div className="flex min-w-0 items-center gap-2 break-words">
               <a
-                href="/finder"
+                href="/"
                 className="inline-flex transition hover:opacity-90"
               >
                 <DocCyWordmark variant="light" />

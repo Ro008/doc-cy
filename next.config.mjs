@@ -41,6 +41,22 @@ const nextConfig = {
         destination: "/blog/sick-at-10pm-duty-pharmacies-paphos",
         permanent: true,
       },
+      // Patient finder is now the homepage; keep /finder/professional|clinic as-is.
+      {
+        source: "/finder",
+        destination: "/",
+        permanent: true,
+      },
+      {
+        source: "/finder/:district(nicosia|limassol|paphos|larnaca|famagusta|all)",
+        destination: "/:district",
+        permanent: true,
+      },
+      {
+        source: "/finder/:district(nicosia|limassol|paphos|larnaca|famagusta|all)/:specialty*",
+        destination: "/:district/:specialty*",
+        permanent: true,
+      },
     ];
   },
 };

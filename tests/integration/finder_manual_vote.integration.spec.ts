@@ -65,7 +65,7 @@ async function findManualCardCalendarSlot(page: Page): Promise<Locator> {
   for (const districtValue of districtOrder) {
     await districtSelect.selectOption(districtValue);
     await applyFinderFilters(page);
-    await expect(page).toHaveURL(/\/finder(?:\/|$)/, { timeout: 20_000 });
+    await expect(page).toHaveURL(/\/(?:nicosia|limassol|paphos|larnaca|famagusta|all)(?:\/|$)/, { timeout: 20_000 });
     await expect(specialtySelect).toBeEnabled({ timeout: 20_000 });
 
     const specialtySlugs = shuffle(await optionValuesNonEmpty(specialtySelect));
@@ -76,7 +76,7 @@ async function findManualCardCalendarSlot(page: Page): Promise<Locator> {
     for (const slug of specialtySlugs) {
       await specialtySelect.selectOption(slug);
       await applyFinderFilters(page);
-      await expect(page).toHaveURL(/\/finder\//, { timeout: 20_000 });
+      await expect(page).toHaveURL(/\/(?:nicosia|limassol|paphos|larnaca|famagusta|all)\//, { timeout: 20_000 });
 
       const manualCard = page
         .locator("article")
@@ -115,7 +115,7 @@ test.describe("Integration: finder manual card vote", () => {
     const admin = createClient(supabaseUrl, serviceRole);
     let manualId: string | null = null;
 
-    await page.goto("/finder");
+    await page.goto("/");
     await expect(
       page.getByRole("heading", {
         level: 1,
