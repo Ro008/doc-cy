@@ -5,8 +5,11 @@ import { ClinicLandingView } from "@/components/finder/ClinicLandingView";
 import { ClinicsFilters } from "@/components/finder/ClinicsFilters";
 import { FinderAudienceToggle } from "@/components/finder/FinderAudienceToggle";
 import { FinderHeroSection } from "@/components/finder/FinderHeroSection";
+import { FinderRecentlyViewed } from "@/components/finder/FinderRecentlyViewed";
 import { FinderResultsTransition } from "@/components/finder/FinderResultsTransition";
-import { FinderSearchBar } from "@/components/finder/FinderSearchBar";import { MarketingFooter } from "@/components/navigation/MarketingFooter";
+import { FinderSearchBar } from "@/components/finder/FinderSearchBar";
+import { finderResultCardClass } from "@/components/finder/finder-surface";
+import { MarketingFooter } from "@/components/navigation/MarketingFooter";
 import { PendingLink } from "@/components/navigation/PendingLink";
 import { clinicLandingPath } from "@/lib/clinic-landing-path";
 import { CLINICS_SEARCH_BASE, clinicsResultsPath } from "@/lib/clinics-public-path";
@@ -357,6 +360,7 @@ async function ClinicsSearchPage({ params, searchParams }: ClinicsPageProps) {
       </FinderSearchBar>
 
       <div className="mx-auto max-w-6xl px-4 pb-8 sm:px-6 lg:px-8">
+        <FinderRecentlyViewed kind="clinic" />
         {dataWarning ? (
           <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
             {dataWarning}
@@ -395,7 +399,7 @@ async function ClinicsSearchPage({ params, searchParams }: ClinicsPageProps) {
                   return (
                     <article
                       key={clinic.id}
-                      className="rounded-2xl border border-clinical-200 bg-white p-4 shadow-[0_1px_3px_rgba(26,43,60,0.06),0_4px_16px_rgba(11,123,181,0.05)] sm:p-5"
+                      className={finderResultCardClass}
                     >
                       <div className="flex items-start gap-3 sm:gap-4">
                         <PendingLink

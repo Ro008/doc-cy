@@ -19,6 +19,7 @@ import {
   finderRegisteredIdentityColumnClass,
 } from "@/components/finder/finder-availability-layout";
 import { finderCardManualFooterClass } from "@/components/finder/finder-card-cta";
+import { finderResultCardClass } from "@/components/finder/finder-surface";
 import type { ManualDirectoryLandingRow } from "@/lib/load-manual-directory-by-slug";
 import type { FinderAvailabilityDayHeader } from "@/lib/public/compute-public-booking-slots";
 
@@ -33,7 +34,7 @@ export function ManualDirectoryLandingCard({
 }: ManualDirectoryLandingCardProps) {
   return (
     <FinderResultsAvailabilityShell dayHeaders={dayHeaders}>
-      <article className="flex flex-col gap-4 rounded-2xl border border-ink-200 bg-white p-4 shadow-sm sm:p-5">
+      <article className={`flex flex-col gap-4 ${finderResultCardClass}`}>
         <div className={finderRegisteredCardRowClass}>
           <div
             className={`flex min-w-0 shrink-0 items-start gap-3 ${finderRegisteredIdentityColumnClass}`}

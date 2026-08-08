@@ -11,11 +11,13 @@ import { FinderAudienceToggle } from "@/components/finder/FinderAudienceToggle";
 import { FinderFilters } from "@/components/finder/FinderFilters";
 import { FinderMissingDoctorCard } from "@/components/finder/FinderMissingDoctorCard";
 import { FinderHeroSection } from "@/components/finder/FinderHeroSection";
+import { FinderRecentlyViewed } from "@/components/finder/FinderRecentlyViewed";
 import { FinderResultsCount } from "@/components/finder/FinderResultsCount";
 import { FinderResultsTransition } from "@/components/finder/FinderResultsTransition";
 import { FinderSearchBar } from "@/components/finder/FinderSearchBar";
 import { FinderStructuredData } from "@/components/finder/FinderStructuredData";
-import { FinderFaqSection } from "@/components/finder/FinderFaqSection";import { GesyProviderBadge } from "@/components/brand/GesyProviderBadge";
+import { FinderFaqSection } from "@/components/finder/FinderFaqSection";
+import { GesyProviderBadge } from "@/components/brand/GesyProviderBadge";
 import { FinderClinicLocationBlock } from "@/components/finder/FinderClinicLocationBlock";
 import { FinderSpecialtyLink } from "@/components/finder/FinderSpecialtyLink";
 import {
@@ -33,9 +35,13 @@ import {
   finderRegisteredDetailsSectionClass,
   finderRegisteredIdentityColumnClass,
 } from "@/components/finder/finder-availability-layout";
+import { finderCardManualFooterClass } from "@/components/finder/finder-card-cta";
 import {
-  finderCardManualFooterClass,
-} from "@/components/finder/finder-card-cta";
+  finderBrowseRowClass,
+  finderBrowseRowCompactClass,
+  finderResultCardClass,
+  finderSoftButtonClass,
+} from "@/components/finder/finder-surface";
 import {
   districtToSlug,
   isAllSlug,
@@ -871,6 +877,7 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
       </FinderSearchBar>
 
       <div className="mx-auto max-w-6xl px-4 pb-8 sm:px-6 lg:px-8">
+        <FinderRecentlyViewed kind="professional" />
         <FinderResultsTransition>
           {dataWarning ? (
             <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
@@ -897,7 +904,7 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                   return (
                     <article
                       key={`registered-${row.id}`}
-                      className={`rounded-2xl border border-clinical-200 bg-white p-4 shadow-[0_1px_3px_rgba(26,43,60,0.06),0_4px_16px_rgba(11,123,181,0.05)] sm:p-5 ${finderRegisteredCardRowClass}`}
+                      className={`${finderResultCardClass} ${finderRegisteredCardRowClass}`}
                     >
                       <div
                         className={`flex min-w-0 shrink-0 items-start gap-3 ${finderRegisteredIdentityColumnClass}`}
@@ -1039,7 +1046,7 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                 return (
                   <article
                     key={`manual-${row.id}`}
-                    className="flex flex-col gap-4 rounded-2xl border border-ink-200 bg-white p-4 shadow-sm sm:p-5"
+                    className={`flex flex-col gap-4 ${finderResultCardClass}`}
                   >
                     <div className={finderRegisteredCardRowClass}>
                       <div
@@ -1161,7 +1168,7 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                 <div className="flex justify-center pt-2">
                   <PendingLink
                     href={loadMoreHref}
-                    className="inline-flex min-h-11 items-center justify-center rounded-full border border-clinical-200 bg-white px-5 text-sm font-semibold text-clinical-700 shadow-sm transition hover:border-clinical-300 hover:bg-clinical-50"
+                    className={finderSoftButtonClass}
                   >
                     Show more professionals
                   </PendingLink>
@@ -1193,7 +1200,7 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                             <li key={`${city}-${specialty.label}-mobile`}>
                               <a
                                 href={finderResultsPath(city, specialty.label)}
-                                className="text-sm text-ink-700 underline underline-offset-4 transition hover:text-clinical-600"
+                                className={finderBrowseRowClass}
                               >
                                 {specialty.pluralLabel} in {city}
                               </a>
@@ -1216,7 +1223,7 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                           <li key={`${city}-${specialty.label}-desktop`}>
                             <a
                               href={finderResultsPath(city, specialty.label)}
-                              className="text-xs text-ink-600 underline underline-offset-4 transition hover:text-clinical-600"
+                              className={finderBrowseRowCompactClass}
                             >
                               {specialty.pluralLabel} in {city}
                             </a>

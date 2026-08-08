@@ -35,6 +35,7 @@ import { GesyProviderBadge } from "@/components/brand/GesyProviderBadge";
 import { WhatsAppLogoIcon } from "@/components/icons/WhatsAppLogoIcon";
 import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher";
 import { DocCyWordmark } from "@/components/brand/DocCyWordmark";
+import { RecordRecentlyViewed } from "@/components/finder/RecordRecentlyViewed";
 import { getTranslations } from "next-intl/server";
 import { Phone } from "lucide-react";
 import {
@@ -668,6 +669,18 @@ export default async function DoctorPage({ params }: PageProps) {
 
   return (
     <main className="min-h-screen bg-ink-50 text-ink-800">
+      {!isOwnerView ? (
+        <RecordRecentlyViewed
+          item={{
+            kind: "professional",
+            href: `/${params.slug}`,
+            name: profile.name,
+            subtitle: profile.specialty,
+            location: profileHeadingCity,
+            photoUrl: hasCustomAvatar ? avatarUrl : null,
+          }}
+        />
+      ) : null}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}

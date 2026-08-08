@@ -1,6 +1,8 @@
 import { DocCyWordmark } from "@/components/brand/DocCyWordmark";
 import { ClinicProfessionalsBySpecialty } from "@/components/finder/ClinicProfessionalsBySpecialty";
+import { RecordRecentlyViewed } from "@/components/finder/RecordRecentlyViewed";
 import { PendingLink } from "@/components/navigation/PendingLink";
+import { clinicLandingPath } from "@/lib/clinic-landing-path";
 import { clinicsResultsPath } from "@/lib/clinics-public-path";
 import type { ClinicLandingRow } from "@/lib/load-clinic-by-slug";
 import { phoneToTelHref } from "@/lib/phone-link";
@@ -11,7 +13,18 @@ export function ClinicLandingView({ clinic }: { clinic: ClinicLandingRow }) {
 
   return (
     <main className="min-h-screen bg-ink-50 text-ink-900">
+      <RecordRecentlyViewed
+        item={{
+          kind: "clinic",
+          href: clinicLandingPath(clinic.slug),
+          name: clinic.name,
+          subtitle: "Clinic",
+          location: clinic.district,
+          photoUrl: clinic.photoUrl,
+        }}
+      />
       <header className="border-b border-ink-200 bg-white">
+
         <div className="mx-auto max-w-6xl px-4 py-4 sm:px-6 lg:px-8">
           <PendingLink href="/" className="inline-flex items-center">
             <DocCyWordmark className="h-7 w-auto" />

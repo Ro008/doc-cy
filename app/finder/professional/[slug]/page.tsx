@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { DocCyWordmark } from "@/components/brand/DocCyWordmark";
 import { ManualDirectoryLandingBrowseLink, ManualDirectoryLandingCard } from "@/components/finder/ManualDirectoryLandingCard";
 import { ManualDirectoryStructuredData } from "@/components/finder/ManualDirectoryStructuredData";
+import { RecordRecentlyViewed } from "@/components/finder/RecordRecentlyViewed";
 import { PendingLink } from "@/components/navigation/PendingLink";
 import { clinicLandingPath } from "@/lib/clinic-landing-path";
 import { districtToSlug, specialtyToSlug } from "@/lib/finder-seo";
@@ -90,6 +91,16 @@ export default async function ManualDirectoryProfessionalPage({ params }: PagePr
 
   return (
     <main className="min-h-screen bg-ink-50 text-ink-900">
+      <RecordRecentlyViewed
+        item={{
+          kind: "professional",
+          href: manualDirectoryLandingPath(row.slug),
+          name: row.displayName,
+          subtitle: specialtySeoLabel,
+          location: row.district,
+          photoUrl: row.photoUrl,
+        }}
+      />
       <ManualDirectoryStructuredData
         siteUrl={siteUrl}
         pageUrl={pageUrl}
