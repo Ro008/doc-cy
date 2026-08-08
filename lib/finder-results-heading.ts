@@ -24,6 +24,22 @@ export function buildFinderResultsHeading(params: {
   return fallback;
 }
 
+/**
+ * Supporting sentence under the results H1 when district and/or specialty filters are active.
+ * Place lives in the H1 when both are set; the snippet always leads with “professionals in …”.
+ */
+export function buildFinderResultsSnippet(params: {
+  specialtyLabel?: string | null;
+  districtLabel?: string | null;
+}): string | null {
+  const specialty = params.specialtyLabel?.trim() || "";
+  const district = params.districtLabel?.trim() || "";
+  if (!specialty && !district) return null;
+
+  const focus = specialty || district;
+  return `Find English-speaking professionals in ${focus}. Compare profiles and book online with confidence.`;
+}
+
 export function buildClinicsResultsHeading(params: {
   districtLabel?: string | null;
   unfilteredFallback?: string;

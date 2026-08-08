@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import {
   buildClinicsResultsHeading,
   buildFinderResultsHeading,
+  buildFinderResultsSnippet,
 } from "@/lib/finder-results-heading";
 
 describe("buildFinderResultsHeading", () => {
@@ -42,6 +43,33 @@ describe("buildFinderResultsHeading", () => {
       buildFinderResultsHeading({}),
       "Find your next health professional in Cyprus",
     );
+  });
+});
+
+describe("buildFinderResultsSnippet", () => {
+  it("uses professionals in specialty for all specialty combinations", () => {
+    assert.equal(
+      buildFinderResultsSnippet({ specialtyLabel: "Gynecology" }),
+      "Find English-speaking professionals in Gynecology. Compare profiles and book online with confidence.",
+    );
+    assert.equal(
+      buildFinderResultsSnippet({
+        specialtyLabel: "Gynecology",
+        districtLabel: "Paphos",
+      }),
+      "Find English-speaking professionals in Gynecology. Compare profiles and book online with confidence.",
+    );
+  });
+
+  it("uses district when specialty is absent", () => {
+    assert.equal(
+      buildFinderResultsSnippet({ districtLabel: "Limassol" }),
+      "Find English-speaking professionals in Limassol. Compare profiles and book online with confidence.",
+    );
+  });
+
+  it("returns null when unfiltered", () => {
+    assert.equal(buildFinderResultsSnippet({}), null);
   });
 });
 

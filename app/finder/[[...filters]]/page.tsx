@@ -56,7 +56,7 @@ import {
 import { getFinderManualPhotoUrl } from "@/lib/finder-manual-photos";
 import { resolveFinderDisplayPhotoUrl } from "@/lib/finder-default-avatars";
 import { finderResultsPath, FOR_PROFESSIONALS_PATH } from "@/lib/finder-public-path";
-import { buildFinderResultsHeading } from "@/lib/finder-results-heading";
+import { buildFinderResultsHeading, buildFinderResultsSnippet } from "@/lib/finder-results-heading";
 import {
   buildFinderResultsPageHref,
   escapeIlikePattern,
@@ -768,14 +768,10 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
     specialtyLabel: activeSpecialty ? specialtyLabel : null,
     districtLabel: activeDistrict ? districtLabel : null,
   });
-  const finderSnippet =
-    activeDistrict && activeSpecialty
-      ? `Find English-speaking ${specialtyLabel} in ${districtLabel}. Compare profiles and book online with confidence.`
-      : activeSpecialty
-        ? `Find English-speaking ${specialtyLabel} across Cyprus. Compare profiles and book online with confidence.`
-        : activeDistrict
-          ? `Find English-speaking healthcare professionals in ${districtLabel}. Compare profiles and book online with confidence.`
-          : null;
+  const finderSnippet = buildFinderResultsSnippet({
+    specialtyLabel: activeSpecialty ? specialtyLabel : null,
+    districtLabel: activeDistrict ? districtLabel : null,
+  });
   const finderPath = finderResultsPath(
     activeDistrict || null,
     activeSpecialty || null,
