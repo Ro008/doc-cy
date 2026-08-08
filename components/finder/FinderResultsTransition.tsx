@@ -16,9 +16,9 @@ export function FinderResultsTransition({ children }: FinderResultsTransitionPro
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [isTransitioning, setIsTransitioning] = React.useState(false);
-  const [transitionMessage, setTransitionMessage] = React.useState(
-    getNavigationStartMessage("finder-results"),
-  );
+  const [transitionReason, setTransitionReason] = React.useState<
+    NavigationStartDetail["reason"]
+  >("finder-results");
   const transitionStartedAtRef = React.useRef<number>(0);
   const clearTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -26,7 +26,7 @@ export function FinderResultsTransition({ children }: FinderResultsTransitionPro
     function onStart(event: Event) {
       const reason =
         (event as CustomEvent<NavigationStartDetail>).detail?.reason ?? "default";
-      setTransitionMessage(getNavigationStartMessage(reason));
+      setTransitionReason(reason);
       if (clearTimerRef.current) {
         clearTimeout(clearTimerRef.current);
         clearTimerRef.current = null;
@@ -60,6 +60,13 @@ export function FinderResultsTransition({ children }: FinderResultsTransitionPro
     };
   }, []);
 
+  const transitionMessage = getNavigationStartMessage(transitionReason ?? "default");
+  // Near-me copy already appears on the filter button; keep the list dimmed only.
+  const showOverlayMessage =
+    isTransitioning &&
+    transitionReason !== "finder-near-me" &&
+    transitionReason !== "clinics-near-me";
+
   return (
     <div className="relative">
       <div
@@ -73,9 +80,7 @@ export function FinderResultsTransition({ children }: FinderResultsTransitionPro
       <div
         aria-live="polite"
         className={`pointer-events-none absolute inset-x-0 top-2 z-20 flex justify-center transition-all duration-200 ${
-          isTransitioning && transitionMessage !== getNavigationStartMessage("finder-near-me")
-            ? "opacity-100 translate-y-0"
-            : "opacity-0 -translate-y-1"
+          showOverlayMessage ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-1"
         }`}
       >
         <div className="inline-flex items-center gap-2 text-sm font-medium text-ink-600">

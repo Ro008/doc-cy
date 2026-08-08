@@ -5,6 +5,7 @@ import { ClinicLandingView } from "@/components/finder/ClinicLandingView";
 import { ClinicsFilters } from "@/components/finder/ClinicsFilters";
 import { FinderAudienceToggle } from "@/components/finder/FinderAudienceToggle";
 import { FinderHeroSection } from "@/components/finder/FinderHeroSection";
+import { FinderResultsTransition } from "@/components/finder/FinderResultsTransition";
 import { MarketingFooter } from "@/components/navigation/MarketingFooter";
 import { PendingLink } from "@/components/navigation/PendingLink";
 import { clinicLandingPath } from "@/lib/clinic-landing-path";
@@ -359,125 +360,127 @@ async function ClinicsSearchPage({ params, searchParams }: ClinicsPageProps) {
           </div>
         ) : null}
 
-        <section className="mt-6">
-          {clinics.length === 0 && !dataWarning ? (
-            <div className="rounded-2xl border border-dashed border-clinical-200 bg-white px-5 py-10 text-center">
-              <p className="text-base font-semibold text-ink-800">No clinics matched these filters</p>
-              <p className="mt-2 text-sm text-ink-500">
-                Try another district or name, or{" "}
-                <PendingLink
-                  href={CLINICS_SEARCH_BASE}
-                  className="font-medium text-clinical-600 underline underline-offset-4"
-                >
-                  clear clinic search
-                </PendingLink>
-                .
-              </p>
-            </div>
-          ) : (
-            <div className="flex flex-col gap-4">
-              {clinics.map((clinic) => {
-                const href = clinicLandingPath(clinic.slug);
-                const telHref = phoneToTelHref(clinic.phone);
-                const mapsHref = clinic.address_maps_link;
-                const distanceLabel =
-                  clinic.distanceKm !== null ? formatDistanceAway(clinic.distanceKm) : null;
-                const professionalLabel =
-                  clinic.professionalCount === 1
-                    ? "1 professional"
-                    : `${clinic.professionalCount} professionals`;
-
-                return (
-                  <article
-                    key={clinic.id}
-                    className="rounded-2xl border border-clinical-200 bg-white p-4 shadow-[0_1px_3px_rgba(26,43,60,0.06),0_4px_16px_rgba(11,123,181,0.05)] sm:p-5"
+        <FinderResultsTransition>
+          <section className="mt-6">
+            {clinics.length === 0 && !dataWarning ? (
+              <div className="rounded-2xl border border-dashed border-clinical-200 bg-white px-5 py-10 text-center">
+                <p className="text-base font-semibold text-ink-800">No clinics matched these filters</p>
+                <p className="mt-2 text-sm text-ink-500">
+                  Try another district or name, or{" "}
+                  <PendingLink
+                    href={CLINICS_SEARCH_BASE}
+                    className="font-medium text-clinical-600 underline underline-offset-4"
                   >
-                    <div className="flex items-start gap-3 sm:gap-4">
-                      <PendingLink
-                        href={href}
-                        navigationReason="profile"
-                        fill
-                        prefetch={false}
-                        aria-label={`View ${clinic.name}`}
-                        className="group h-[72px] w-[72px] shrink-0 overflow-hidden rounded-full border border-clinical-200 bg-clinical-50 ring-2 ring-clinical-100 transition-none hover:border-clinical-300 hover:ring-clinical-200"
-                      >
-                        <img
-                          src={clinic.photoUrl}
-                          alt=""
-                          className="h-full w-full object-cover"
-                          loading="lazy"
-                        />
-                      </PendingLink>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-start justify-between gap-2">
-                          <div className="min-w-0">
-                            <h2 className="text-lg font-semibold tracking-tight text-ink-900">
-                              <PendingLink
-                                href={href}
-                                navigationReason="profile"
-                                prefetch={false}
-                                className="transition hover:text-clinical-700"
-                              >
-                                {clinic.name}
-                              </PendingLink>
-                            </h2>
-                            <p className="mt-1 text-sm text-ink-600">
-                              Clinic · {clinic.district}, Cyprus
-                              {distanceLabel ? (
-                                <span className="text-ink-500"> · {distanceLabel}</span>
-                              ) : null}
-                            </p>
+                    clear clinic search
+                  </PendingLink>
+                  .
+                </p>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-4">
+                {clinics.map((clinic) => {
+                  const href = clinicLandingPath(clinic.slug);
+                  const telHref = phoneToTelHref(clinic.phone);
+                  const mapsHref = clinic.address_maps_link;
+                  const distanceLabel =
+                    clinic.distanceKm !== null ? formatDistanceAway(clinic.distanceKm) : null;
+                  const professionalLabel =
+                    clinic.professionalCount === 1
+                      ? "1 professional"
+                      : `${clinic.professionalCount} professionals`;
+
+                  return (
+                    <article
+                      key={clinic.id}
+                      className="rounded-2xl border border-clinical-200 bg-white p-4 shadow-[0_1px_3px_rgba(26,43,60,0.06),0_4px_16px_rgba(11,123,181,0.05)] sm:p-5"
+                    >
+                      <div className="flex items-start gap-3 sm:gap-4">
+                        <PendingLink
+                          href={href}
+                          navigationReason="profile"
+                          fill
+                          prefetch={false}
+                          aria-label={`View ${clinic.name}`}
+                          className="group h-[72px] w-[72px] shrink-0 overflow-hidden rounded-full border border-clinical-200 bg-clinical-50 ring-2 ring-clinical-100 transition-none hover:border-clinical-300 hover:ring-clinical-200"
+                        >
+                          <img
+                            src={clinic.photoUrl}
+                            alt=""
+                            className="h-full w-full object-cover"
+                            loading="lazy"
+                          />
+                        </PendingLink>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <h2 className="text-lg font-semibold tracking-tight text-ink-900">
+                                <PendingLink
+                                  href={href}
+                                  navigationReason="profile"
+                                  prefetch={false}
+                                  className="transition hover:text-clinical-700"
+                                >
+                                  {clinic.name}
+                                </PendingLink>
+                              </h2>
+                              <p className="mt-1 text-sm text-ink-600">
+                                Clinic · {clinic.district}, Cyprus
+                                {distanceLabel ? (
+                                  <span className="text-ink-500"> · {distanceLabel}</span>
+                                ) : null}
+                              </p>
+                            </div>
+                            <PendingLink
+                              href={clinicsResultsPath(clinic.district)}
+                              className="inline-flex rounded-full border border-clinical-200 bg-clinical-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-clinical-800 transition hover:bg-clinical-100"
+                            >
+                              {clinic.district}
+                            </PendingLink>
                           </div>
-                          <PendingLink
-                            href={clinicsResultsPath(clinic.district)}
-                            className="inline-flex rounded-full border border-clinical-200 bg-clinical-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-clinical-800 transition hover:bg-clinical-100"
-                          >
-                            {clinic.district}
-                          </PendingLink>
-                        </div>
 
-                        {clinic.address ? (
-                          <p className="mt-2 text-sm leading-relaxed text-ink-600">{clinic.address}</p>
-                        ) : null}
-
-                        <p className="mt-2 text-xs font-medium text-ink-500">{professionalLabel} listed</p>
-
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          {mapsHref ? (
-                            <a
-                              href={mapsHref}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center rounded-full border border-clinical-200 bg-white px-3 py-1.5 text-xs font-semibold text-clinical-700 transition hover:border-clinical-300 hover:bg-clinical-50"
-                            >
-                              Open in Maps ↗
-                            </a>
+                          {clinic.address ? (
+                            <p className="mt-2 text-sm leading-relaxed text-ink-600">{clinic.address}</p>
                           ) : null}
-                          {telHref ? (
-                            <a
-                              href={telHref}
-                              className="inline-flex items-center rounded-full border border-clinical-200 bg-white px-3 py-1.5 text-xs font-semibold text-clinical-700 transition hover:border-clinical-300 hover:bg-clinical-50"
+
+                          <p className="mt-2 text-xs font-medium text-ink-500">{professionalLabel} listed</p>
+
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            {mapsHref ? (
+                              <a
+                                href={mapsHref}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center rounded-full border border-clinical-200 bg-white px-3 py-1.5 text-xs font-semibold text-clinical-700 transition hover:border-clinical-300 hover:bg-clinical-50"
+                              >
+                                Open in Maps ↗
+                              </a>
+                            ) : null}
+                            {telHref ? (
+                              <a
+                                href={telHref}
+                                className="inline-flex items-center rounded-full border border-clinical-200 bg-white px-3 py-1.5 text-xs font-semibold text-clinical-700 transition hover:border-clinical-300 hover:bg-clinical-50"
+                              >
+                                Call
+                              </a>
+                            ) : null}
+                            <PendingLink
+                              href={href}
+                              navigationReason="profile"
+                              prefetch={false}
+                              className="inline-flex items-center rounded-full bg-clinical-500 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-clinical-400"
                             >
-                              Call
-                            </a>
-                          ) : null}
-                          <PendingLink
-                            href={href}
-                            navigationReason="profile"
-                            prefetch={false}
-                            className="inline-flex items-center rounded-full bg-clinical-500 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-clinical-400"
-                          >
-                            View clinic
-                          </PendingLink>
+                              View clinic
+                            </PendingLink>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </article>
-                );
-              })}
-            </div>
-          )}
-        </section>
+                    </article>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+        </FinderResultsTransition>
 
         <MarketingFooter variant="light" className="mx-auto mt-10 w-full max-w-6xl pb-24 pt-2 sm:pb-16 lg:pb-12" />
       </div>

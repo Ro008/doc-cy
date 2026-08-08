@@ -105,6 +105,7 @@ export function ClinicsFilters({
   }
 
   function submitFilters() {
+    if (pendingAction || isNavigating || isLocating) return;
     setPendingAction("apply");
     if (pendingGuardRef.current) clearTimeout(pendingGuardRef.current);
     pendingGuardRef.current = setTimeout(() => setPendingAction(null), 1500);
@@ -112,6 +113,7 @@ export function ClinicsFilters({
   }
 
   function resetFilters() {
+    if (pendingAction || isNavigating || isLocating) return;
     if (
       !activeDistrict &&
       !activeName.trim() &&
@@ -140,6 +142,7 @@ export function ClinicsFilters({
   }, [isLocating]);
 
   function locateNearMeAndApply() {
+    if (pendingAction || isNavigating || isLocating) return;
     if (!navigator.geolocation) {
       setGeolocationError("Geolocation is not supported by your browser.");
       return;
@@ -177,7 +180,7 @@ export function ClinicsFilters({
 
   const isPending = pendingAction !== null;
   const isNearMeBusy = isLocating;
-  const isFilterFormBusy = isNavigating || isNearMeBusy;
+  const isFilterFormBusy = isNavigating || isNearMeBusy || isPending;
   const nearMeBusyMessage = getNavigationStartMessage("clinics-near-me");
 
   const activeFilterEntries = [
@@ -205,7 +208,7 @@ export function ClinicsFilters({
             </p>
             <button
               type="button"
-              disabled={isPending && pendingAction !== "reset"}
+              disabled={isFilterFormBusy}
               onClick={resetFilters}
               className="inline-flex items-center justify-center rounded-full border border-clinical-300 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-clinical-700 transition hover:bg-clinical-50 disabled:cursor-not-allowed disabled:opacity-70"
             >
@@ -271,7 +274,7 @@ export function ClinicsFilters({
           <div className="sm:col-span-2 lg:col-span-1 lg:flex lg:items-end">
             <button
               type="submit"
-              disabled={isPending || isFilterFormBusy}
+              disabled={isFilterFormBusy}
               className="inline-flex h-12 w-full min-w-[11rem] items-center justify-center gap-2 rounded-full bg-clinical-500 px-6 text-sm font-bold uppercase tracking-[0.14em] text-white shadow-[0_4px_14px_rgba(11,123,181,0.25)] transition hover:bg-clinical-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white disabled:cursor-not-allowed disabled:opacity-70 lg:w-auto"
             >
               <Search className="h-4 w-4 shrink-0" strokeWidth={2.5} aria-hidden />
@@ -282,7 +285,7 @@ export function ClinicsFilters({
             <button
               type="button"
               onClick={locateNearMeAndApply}
-              disabled={isPending || isFilterFormBusy}
+              disabled={isFilterFormBusy}
               aria-busy={isNearMeBusy}
               aria-label={isNearMeBusy ? nearMeBusyMessage : undefined}
               className="inline-flex h-12 w-full min-w-[11rem] items-center justify-center gap-2 rounded-full border border-clinical-300 bg-white px-6 text-sm font-bold text-clinical-700 shadow-sm transition hover:border-clinical-400 hover:bg-clinical-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white disabled:cursor-not-allowed disabled:opacity-70 lg:w-auto"

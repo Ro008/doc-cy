@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { PendingLink } from "@/components/navigation/PendingLink";
 import { finderResultsPath } from "@/lib/finder-public-path";
 
 /** Island-wide Finder results for a specialty (`/all/gynecology`). */
@@ -13,9 +14,9 @@ type FinderSpecialtyLinkProps = {
 };
 
 /**
- * Specialty → public finder results. Uses a plain `<a>` (full document load)
- * because App Router soft-nav cannot resolve middleware-rewritten `/all/...` URLs
- * and leaves PendingLink stuck in a loading state.
+ * Specialty → public finder results.
+ * Uses PendingLink so the clicked specialty shows loading and ignores double-clicks;
+ * public `/all/...` paths hard-navigate via PendingLink.
  */
 export function FinderSpecialtyLink({
   specialty,
@@ -28,8 +29,8 @@ export function FinderSpecialtyLink({
   }
 
   return (
-    <a href={finderSpecialtyPath(label)} className={className}>
+    <PendingLink href={finderSpecialtyPath(label)} prefetch={false} className={className}>
       {children ?? label}
-    </a>
+    </PendingLink>
   );
 }
