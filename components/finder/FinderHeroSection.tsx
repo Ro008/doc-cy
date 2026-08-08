@@ -9,7 +9,8 @@ type FinderHeroSectionProps = {
   subtitle: React.ReactNode;
   subtitleClassName?: string;
   showHeroImage?: boolean;
-  children: React.ReactNode;
+  /** Optional content under the hero (legacy). Prefer sibling full-bleed search bar. */
+  children?: React.ReactNode;
 };
 
 export function FinderHeroSection({
@@ -35,7 +36,7 @@ export function FinderHeroSection({
 
   return (
     <div>
-      <div className="relative">
+      <div className="relative pb-2 sm:pb-6 lg:pb-8">
         {/* sm+ — decorative hero image + booking flow (hidden on mobile for readable copy) */}
         <div className="relative hidden aspect-[16/11] w-full -translate-y-[14%] overflow-visible sm:ml-[28%] sm:block sm:w-[72%] lg:ml-[44%] lg:w-[58%] lg:aspect-[2.15/1]">
           <Image
@@ -52,7 +53,7 @@ export function FinderHeroSection({
 
         {/* Copy — in document flow on mobile; overlays image from sm up */}
         <header
-          className={`mb-8 max-w-2xl sm:absolute sm:mb-0 sm:left-0 sm:z-10 sm:flex sm:w-[min(100%,27rem)] sm:flex-col sm:pb-3 sm:pr-4 lg:w-[45%] lg:max-w-xl lg:pb-4 lg:pl-1 lg:pr-6 ${FINDER_HERO_COPY_TOP_CLASS}`}
+          className={`mb-2 max-w-2xl sm:absolute sm:mb-0 sm:left-0 sm:z-10 sm:flex sm:w-[min(100%,27rem)] sm:flex-col sm:pb-3 sm:pr-4 lg:w-[45%] lg:max-w-xl lg:pb-4 lg:pl-1 lg:pr-6 ${FINDER_HERO_COPY_TOP_CLASS}`}
         >
           <h1 className="text-2xl font-bold leading-tight tracking-tight text-ink-900 sm:text-3xl lg:text-[2.35rem] lg:leading-[1.12]">
             {title}
@@ -60,9 +61,8 @@ export function FinderHeroSection({
           <p className={subtitleClassName}>{subtitle}</p>
         </header>
 
-        <div className="relative z-20 sm:-mt-4 lg:-mt-6">{children}</div>
+        {children ? <div className="relative z-20 sm:-mt-4 lg:-mt-6">{children}</div> : null}
       </div>
     </div>
   );
 }
-

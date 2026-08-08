@@ -142,17 +142,17 @@ test.describe("Integration: finder user-like filter behavior matrix", { tag: "@p
       const districtSelect = page.getByLabel("District");
       const specialtySelect = page.getByLabel("Specialty");
       const nameInput = page.locator("#finder-name-filter");
-      const showResults = page.getByRole("button", { name: /^Show results$/i });
+      const showResults = page.getByRole("button", { name: /^Find$/i });
 
       // Scenario 1: District-only exploration (apply once).
       await districtSelect.selectOption("Limassol");
       await expect(page).toHaveURL(/^https?:\/\/[^/?#]+\/?(?:\?.*)?$/, { timeout: 60_000 });
       await showResults.click();
       await expect(page).toHaveURL(/\/limassol(?:\?|$)/, { timeout: 60_000 });
-      await expect(page.getByText("District: Limassol", { exact: false })).toBeVisible({
-        timeout: 60_000,
-      });
-      await expect(page.getByRole("heading", { level: 1, name: /Find your next health professional in Cyprus/i })).toBeVisible();
+      await expect(page.getByTestId("finder-active-filters")).toContainText("Limassol");
+      await expect(
+        page.getByRole("heading", { level: 1, name: /Book an appointment in Limassol/i }),
+      ).toBeVisible();
       await expect(page.getByText(created[0].name, { exact: true })).toBeVisible({ timeout: 60_000 });
       await expect(page.getByText(created[1].name, { exact: true })).toBeVisible({ timeout: 60_000 });
       await expect(page.getByText(created[2].name, { exact: true })).toHaveCount(0);
@@ -165,35 +165,28 @@ test.describe("Integration: finder user-like filter behavior matrix", { tag: "@p
       await specialtySelect.selectOption("dentistry");
       await showResults.click();
       await expect(page).toHaveURL(/\/limassol\/dentistry(?:\?|$)/, { timeout: 60_000 });
-      await expect(page.getByRole("heading", { level: 1, name: /Dentistry in Limassol/i })).toBeVisible({
+      await expect(
+        page.getByRole("heading", { level: 1, name: /Book a Dentistry appointment in Limassol/i }),
+      ).toBeVisible({
         timeout: 60_000,
       });
-      await expect(page.getByText("Specialty: Dentistry", { exact: false })).toBeVisible({
-        timeout: 60_000,
-      });
+      await expect(page.getByTestId("finder-active-filters")).toContainText("Dentistry");
       await expect(page.getByText(created[1].name, { exact: true })).toBeVisible({ timeout: 60_000 });
       await expect(page.getByText(created[0].name, { exact: true })).toHaveCount(0);
 
-      // Scenario 3: Name filter applies on Enter or Show results (not while typing).
+      // Scenario 3: Name filter applies on Enter or Find (not while typing).
       await nameInput.fill("Dent");
       await expect(page).not.toHaveURL(/name=/, { timeout: 5_000 });
       await expect(page.getByText(created[1].name, { exact: true })).toBeVisible({ timeout: 60_000 });
       await nameInput.press("Enter");
       await expect(page).toHaveURL(/name=Dent/, { timeout: 60_000 });
-      await expect(page.getByText("Name: Dent", { exact: false })).toBeVisible({
-        timeout: 60_000,
-      });
+      await expect(page.getByTestId("finder-active-filters")).toContainText("Dent");
       await expect(page.getByText(created[1].name, { exact: true })).toBeVisible({ timeout: 60_000 });
 
       // Scenario 4: Reset should recover broad list + clean path.
-      await page.getByRole("button", { name: /Clear all filters|Reset/i }).click();
+      await page.getByRole("button", { name: /^Clear$/i }).click();
       await expect(page).toHaveURL(/^https?:\/\/[^/?#]+\/?(?:\?.*)?$/, { timeout: 60_000 });
-      await expect(page.getByRole("button", { name: /Clear all filters/i })).toBeHidden({
-        timeout: 60_000,
-      });
-      await expect(page.getByText("District: Limassol", { exact: false })).toBeHidden();
-      await expect(page.getByText("Specialty: Dentistry", { exact: false })).toBeHidden();
-      await expect(page.getByText("Name: Dent", { exact: false })).toBeHidden();
+      await expect(page.getByTestId("finder-active-filters")).toHaveCount(0);
       await expect(
         page.getByRole("heading", { level: 1, name: /Find your next health professional in Cyprus/i })
       ).toBeVisible({ timeout: 60_000 });
@@ -236,16 +229,16 @@ test.describe("Integration: finder user-like filter behavior matrix", { tag: "@p
     await expect(page).toHaveURL(/\/all\/ent(?:\?|$)/, { timeout: 20_000 });
     await expect(page).toHaveURL(/[?&]lat=/, { timeout: 20_000 });
     await expect(page).toHaveURL(/[?&]lon=/, { timeout: 20_000 });
-    await expect(page.getByText("Near me: enabled")).toBeVisible({ timeout: 20_000 });
-    await expect(page.getByText("Specialty: ENT", { exact: false })).toBeVisible();
+    await expect(page.getByTestId("finder-active-filters")).toContainText("Near me", {
+      timeout: 20_000,
+    });
+    await expect(page.getByTestId("finder-active-filters")).toContainText("ENT");
 
-    await page.getByRole("button", { name: /Clear all filters/i }).click();
+    await page.getByRole("button", { name: /^Clear$/i }).click();
     await expect(page).toHaveURL(/^https?:\/\/[^/?#]+\/?(?:\?.*)?$/, { timeout: 20_000 });
     await expect(page).not.toHaveURL(/[?&]lat=/, { timeout: 20_000 });
     await expect(page).not.toHaveURL(/[?&]lon=/, { timeout: 20_000 });
-    await expect(page.getByText("Near me: enabled")).toBeHidden();
-    await expect(page.getByText("Specialty: ENT", { exact: false })).toBeHidden();
-    await expect(page.getByRole("button", { name: /Clear all filters/i })).toBeHidden();
+    await expect(page.getByTestId("finder-active-filters")).toHaveCount(0);
   });
 });
 

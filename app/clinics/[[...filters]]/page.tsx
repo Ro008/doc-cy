@@ -6,10 +6,11 @@ import { ClinicsFilters } from "@/components/finder/ClinicsFilters";
 import { FinderAudienceToggle } from "@/components/finder/FinderAudienceToggle";
 import { FinderHeroSection } from "@/components/finder/FinderHeroSection";
 import { FinderResultsTransition } from "@/components/finder/FinderResultsTransition";
-import { MarketingFooter } from "@/components/navigation/MarketingFooter";
+import { FinderSearchBar } from "@/components/finder/FinderSearchBar";import { MarketingFooter } from "@/components/navigation/MarketingFooter";
 import { PendingLink } from "@/components/navigation/PendingLink";
 import { clinicLandingPath } from "@/lib/clinic-landing-path";
 import { CLINICS_SEARCH_BASE, clinicsResultsPath } from "@/lib/clinics-public-path";
+import { buildClinicsResultsHeading } from "@/lib/finder-results-heading";
 import { CYPRUS_DISTRICTS, type CyprusDistrict, isCyprusDistrict } from "@/lib/cyprus-districts";
 import { FINDER_CLINIC_HERO_ILLUSTRATION, resolveClinicDisplayPhotoUrl } from "@/lib/finder-default-avatars";
 import {
@@ -281,9 +282,9 @@ async function ClinicsSearchPage({ params, searchParams }: ClinicsPageProps) {
     }
   }
 
-  const title = districtLabel
-    ? `Clinics in ${districtLabel}`
-    : "Find clinics in Cyprus";
+  const title = buildClinicsResultsHeading({
+    districtLabel: districtLabel || null,
+  });
 
   return (
     <main className="min-h-screen bg-ink-50 text-ink-800">
@@ -293,7 +294,7 @@ async function ClinicsSearchPage({ params, searchParams }: ClinicsPageProps) {
         </PendingLink>
       </header>
 
-      <div className="mx-auto max-w-6xl px-4 pb-8 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
         <FinderHeroSection
           title={title}
           showHeroImage={false}
@@ -310,50 +311,52 @@ async function ClinicsSearchPage({ params, searchParams }: ClinicsPageProps) {
               </>
             )
           }
-        >
-          <section className="relative overflow-hidden rounded-3xl border border-clinical-200 bg-white p-5 shadow-[0_1px_3px_rgba(26,43,60,0.06),0_8px_28px_rgba(11,123,181,0.08)] sm:p-6 lg:p-8">
-            <FinderAudienceToggle active="clinics" className="mb-5" />
-            <ClinicsFilters
-              districts={districts}
-              activeDistrict={activeDistrict}
-              activeName={activeName}
-              activeLatitude={userCoords?.latitude ?? null}
-              activeLongitude={userCoords?.longitude ?? null}
-            />
-            {clinics.length > 0 ? (
-              <p
-                data-testid="clinics-results-count"
-                className="mt-4 border-t border-ink-100 pt-3 text-xs leading-relaxed text-ink-400"
-                aria-live="polite"
-              >
-                {hasActiveFilters ? (
-                  <>
-                    Showing{" "}
-                    <span className="font-medium tabular-nums text-ink-500">{clinics.length}</span>{" "}
-                    {clinics.length === 1 ? "clinic" : "clinics"}
-                    {districtLabel || activeName ? (
-                      <span className="text-ink-400">
-                        {" "}
-                        ·{" "}
-                        <span className="text-ink-500">
-                          {[districtLabel, activeName ? `“${activeName}”` : null]
-                            .filter(Boolean)
-                            .join(" · ")}
-                        </span>
-                      </span>
-                    ) : null}
-                  </>
-                ) : (
-                  <>
-                    <span className="font-medium tabular-nums text-ink-500">{clinics.length}</span>{" "}
-                    clinics on DocCy across Cyprus
-                  </>
-                )}
-              </p>
-            ) : null}
-          </section>
-        </FinderHeroSection>
+        />
+      </div>
 
+      <FinderSearchBar>
+        <FinderAudienceToggle active="clinics" variant="bar" className="mb-5" />
+        <ClinicsFilters
+          districts={districts}
+          activeDistrict={activeDistrict}
+          activeName={activeName}
+          activeLatitude={userCoords?.latitude ?? null}
+          activeLongitude={userCoords?.longitude ?? null}
+        />
+        {clinics.length > 0 ? (
+          <p
+            data-testid="clinics-results-count"
+            className="mt-3 text-xs leading-relaxed text-white/75"
+            aria-live="polite"
+          >
+            {hasActiveFilters ? (
+              <>
+                Showing{" "}
+                <span className="font-medium tabular-nums text-white">{clinics.length}</span>{" "}
+                {clinics.length === 1 ? "clinic" : "clinics"}
+                {districtLabel || activeName ? (
+                  <span className="text-white/65">
+                    {" "}
+                    ·{" "}
+                    <span className="text-white/85">
+                      {[districtLabel, activeName ? `“${activeName}”` : null]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </span>
+                  </span>
+                ) : null}
+              </>
+            ) : (
+              <>
+                <span className="font-medium tabular-nums text-white">{clinics.length}</span>{" "}
+                clinics on DocCy across Cyprus
+              </>
+            )}
+          </p>
+        ) : null}
+      </FinderSearchBar>
+
+      <div className="mx-auto max-w-6xl px-4 pb-8 sm:px-6 lg:px-8">
         {dataWarning ? (
           <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
             {dataWarning}

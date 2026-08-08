@@ -215,10 +215,10 @@ test.describe("Integration: finder business-critical UX", { tag: "@pr-e2e" }, ()
       await expect(page).toHaveURL(new RegExp(`${search.path}(?:\\?|$)`), {
         timeout: 20_000,
       });
-      await expect(page.getByText(`District: ${search.city}`, { exact: false })).toBeVisible({
+      await expect(page.getByTestId("finder-active-filters")).toContainText(search.city, {
         timeout: 20_000,
       });
-      await expect(page.getByRole("button", { name: /Clear all filters/i })).toBeVisible();
+      await expect(page.getByRole("button", { name: /^Clear$/i })).toBeVisible();
 
       const cardsCount = await page.locator("section.mt-6 article").count();
       const invitationCardVisible = await page
@@ -463,13 +463,11 @@ test.describe("Integration: finder business-critical UX", { tag: "@pr-e2e" }, ()
       });
 
       const districtSelect = page.getByLabel("District");
-      const showResults = page.getByRole("button", { name: /^Show results$/i });
+      const showResults = page.getByRole("button", { name: /^Find$/i });
       await districtSelect.selectOption("Nicosia");
       await showResults.click();
       await expect(page).toHaveURL(/\/nicosia(?:\?|$)/, { timeout: 60_000 });
-      await expect(page.getByText("District: Nicosia", { exact: false })).toBeVisible({
-        timeout: 60_000,
-      });
+      await expect(page.getByTestId("finder-active-filters")).toContainText("Nicosia");
 
       const specialtySelect = page.getByLabel("Specialty");
       await expect(specialtySelect).toBeEnabled({ timeout: 30_000 });
@@ -479,20 +477,14 @@ test.describe("Integration: finder business-critical UX", { tag: "@pr-e2e" }, ()
       await specialtySelect.selectOption("dentistry");
       await showResults.click();
       await expect(page).toHaveURL(/\/nicosia\/dentistry(?:\?|$)/, { timeout: 60_000 });
-      await expect(page.getByText("Specialty: Dentistry", { exact: false })).toBeVisible({
-        timeout: 60_000,
-      });
+      await expect(page.getByTestId("finder-active-filters")).toContainText("Dentistry");
 
       await expect(page.getByText(created[0].name, { exact: true })).toBeVisible({ timeout: 60_000 });
       await expect(page.getByText(created[1].name, { exact: true })).toHaveCount(0);
 
-      await page.getByRole("button", { name: /Clear all filters|Reset/i }).click();
+      await page.getByRole("button", { name: /^Clear$/i }).click();
       await expect(page).toHaveURL(/^https?:\/\/[^/?#]+\/?(?:\?.*)?$/, { timeout: 60_000 });
-      await expect(page.getByRole("button", { name: /Clear all filters/i })).toBeHidden({
-        timeout: 60_000,
-      });
-      await expect(page.getByText("District: Nicosia", { exact: false })).toBeHidden();
-      await expect(page.getByText("Specialty: Dentistry", { exact: false })).toBeHidden();
+      await expect(page.getByTestId("finder-active-filters")).toHaveCount(0);
       await expect(
         page.getByRole("heading", {
           level: 1,

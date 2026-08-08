@@ -13,9 +13,9 @@ import { FinderMissingDoctorCard } from "@/components/finder/FinderMissingDoctor
 import { FinderHeroSection } from "@/components/finder/FinderHeroSection";
 import { FinderResultsCount } from "@/components/finder/FinderResultsCount";
 import { FinderResultsTransition } from "@/components/finder/FinderResultsTransition";
+import { FinderSearchBar } from "@/components/finder/FinderSearchBar";
 import { FinderStructuredData } from "@/components/finder/FinderStructuredData";
-import { FinderFaqSection } from "@/components/finder/FinderFaqSection";
-import { GesyProviderBadge } from "@/components/brand/GesyProviderBadge";
+import { FinderFaqSection } from "@/components/finder/FinderFaqSection";import { GesyProviderBadge } from "@/components/brand/GesyProviderBadge";
 import { FinderClinicLocationBlock } from "@/components/finder/FinderClinicLocationBlock";
 import { FinderSpecialtyLink } from "@/components/finder/FinderSpecialtyLink";
 import {
@@ -56,6 +56,7 @@ import {
 import { getFinderManualPhotoUrl } from "@/lib/finder-manual-photos";
 import { resolveFinderDisplayPhotoUrl } from "@/lib/finder-default-avatars";
 import { finderResultsPath, FOR_PROFESSIONALS_PATH } from "@/lib/finder-public-path";
+import { buildFinderResultsHeading } from "@/lib/finder-results-heading";
 import { manualDirectoryLandingPath } from "@/lib/manual-directory-landing-path";
 import { isRegisteredDoctorHiddenFromFinder, isTestProfileLike } from "@/lib/doctor-test-profile";
 import {
@@ -675,13 +676,19 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
   const hasActiveFilters = Boolean(activeDistrict || activeSpecialty || activeName);
   const specialtyLabel = activeSpecialty ? toTitleCaseWords(activeSpecialty) : "Health Professionals";
   const districtLabel = activeDistrict ? toTitleCaseWords(activeDistrict) : "Cyprus";
-  const hasSpecificFilters = Boolean(activeDistrict && activeSpecialty);
-  const finderH1 = hasSpecificFilters
-    ? `${specialtyLabel} in ${districtLabel}`
-    : "Find your next health professional in Cyprus";
-  const finderSnippet = hasSpecificFilters
-    ? `Find English-speaking ${specialtyLabel} in ${districtLabel}. Compare profiles and book online with confidence.`
-    : null;
+  const hasSpecificFilters = Boolean(activeDistrict || activeSpecialty);
+  const finderH1 = buildFinderResultsHeading({
+    specialtyLabel: activeSpecialty ? specialtyLabel : null,
+    districtLabel: activeDistrict ? districtLabel : null,
+  });
+  const finderSnippet =
+    activeDistrict && activeSpecialty
+      ? `Find English-speaking ${specialtyLabel} in ${districtLabel}. Compare profiles and book online with confidence.`
+      : activeSpecialty
+        ? `Find English-speaking ${specialtyLabel} across Cyprus. Compare profiles and book online with confidence.`
+        : activeDistrict
+          ? `Find English-speaking healthcare professionals in ${districtLabel}. Compare profiles and book online with confidence.`
+          : null;
   const finderPath = finderResultsPath(
     activeDistrict || null,
     activeSpecialty || null,
@@ -724,7 +731,7 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
         </PendingLink>
       </header>
 
-      <div className="mx-auto max-w-6xl px-4 pb-8 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
         <FinderHeroSection
           title={finderH1}
           showHeroImage={!hasSpecificFilters}
@@ -743,29 +750,37 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
               </>
             )
           }
-        >
-          <section className="relative overflow-hidden rounded-3xl border border-clinical-200 bg-white p-5 shadow-[0_1px_3px_rgba(26,43,60,0.06),0_8px_28px_rgba(11,123,181,0.08)] sm:p-6 lg:p-8">
-            <FinderAudienceToggle active="professionals" className="mb-5" />
-            <FinderFilters
-              districts={districts}
-              activeDistrict={activeDistrict}
-              activeSpecialty={activeSpecialty}
-              activeName={activeName}
-              activeLatitude={userCoords?.latitude ?? null}
-              activeLongitude={userCoords?.longitude ?? null}
-              specialtyOptions={finderSpecialtyOptions}
-            />
-            <FinderResultsCount
-              count={unifiedResults.length}
-              hasActiveFilters={hasActiveFilters}
-              districtLabel={activeDistrict ? districtLabel : undefined}
-              specialtyLabel={activeSpecialty ? specialtyLabel : undefined}
-              activeName={activeName || undefined}
-              variant="footer"
-            />
-          </section>
-        </FinderHeroSection>
+        />
+      </div>
 
+      <FinderSearchBar
+        className={
+          hasSpecificFilters
+            ? "mt-1"
+            : "relative z-20 mt-2 sm:-mt-10 lg:-mt-16"
+        }
+      >
+        <FinderAudienceToggle active="professionals" variant="bar" className="mb-5" />
+        <FinderFilters
+          districts={districts}
+          activeDistrict={activeDistrict}
+          activeSpecialty={activeSpecialty}
+          activeName={activeName}
+          activeLatitude={userCoords?.latitude ?? null}
+          activeLongitude={userCoords?.longitude ?? null}
+          specialtyOptions={finderSpecialtyOptions}
+        />
+        <FinderResultsCount
+          count={unifiedResults.length}
+          hasActiveFilters={hasActiveFilters}
+          districtLabel={activeDistrict ? districtLabel : undefined}
+          specialtyLabel={activeSpecialty ? specialtyLabel : undefined}
+          activeName={activeName || undefined}
+          variant="bar"
+        />
+      </FinderSearchBar>
+
+      <div className="mx-auto max-w-6xl px-4 pb-8 sm:px-6 lg:px-8">
         <FinderResultsTransition>
           {dataWarning ? (
             <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">

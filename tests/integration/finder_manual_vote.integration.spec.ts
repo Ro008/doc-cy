@@ -53,7 +53,7 @@ async function optionValuesNonEmpty(select: Locator): Promise<string[]> {
 }
 
 async function applyFinderFilters(page: Page): Promise<void> {
-  await page.getByRole("button", { name: /^Show results$/i }).click();
+  await page.getByRole("button", { name: /^Find$/i }).click();
 }
 
 async function findManualCardCalendarSlot(page: Page): Promise<Locator> {

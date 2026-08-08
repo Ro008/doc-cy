@@ -5,7 +5,7 @@ type FinderResultsCountProps = {
   specialtyLabel?: string;
   activeName?: string;
   className?: string;
-  variant?: "default" | "footer";
+  variant?: "default" | "footer" | "bar";
 };
 
 function buildFilterHint(props: FinderResultsCountProps): string | null {
@@ -27,17 +27,23 @@ export function FinderResultsCount({
 
   const professionalWord = count === 1 ? "professional" : "professionals";
   const filterHint = buildFilterHint(props);
+  const onBar = variant === "bar";
   const resolvedClassName =
     className ??
-    (variant === "footer"
-      ? "mt-4 border-t border-ink-100 pt-3 text-xs leading-relaxed text-ink-400"
-      : "mb-4 text-sm leading-relaxed text-ink-500");
-  const countClassName =
-    variant === "footer"
+    (onBar
+      ? "mt-3 text-xs leading-relaxed text-white/75"
+      : variant === "footer"
+        ? "mt-4 text-xs leading-relaxed text-ink-400"
+        : "mb-4 text-sm leading-relaxed text-ink-500");
+  const countClassName = onBar
+    ? "font-medium tabular-nums text-white"
+    : variant === "footer"
       ? "font-medium tabular-nums text-ink-500"
       : hasActiveFilters
         ? "font-semibold tabular-nums text-ink-800"
         : "font-semibold tabular-nums text-clinical-600";
+  const hintMutedClass = onBar ? "text-white/65" : "text-ink-400";
+  const hintStrongClass = onBar ? "text-white/85" : "text-ink-500";
 
   return (
     <p
@@ -51,9 +57,9 @@ export function FinderResultsCount({
           <span className={countClassName}>{count}</span>{" "}
           {professionalWord}
           {filterHint ? (
-            <span className="text-ink-400">
+            <span className={hintMutedClass}>
               {" "}
-              · <span className="text-ink-500">{filterHint}</span>
+              · <span className={hintStrongClass}>{filterHint}</span>
             </span>
           ) : null}
         </>
