@@ -129,7 +129,8 @@ type ManualFinderRow = {
   specialty: string;
   district: CyprusDistrict;
   address_maps_link: string;
-  phone: string | null;
+  /** Phone exists server-side; value is revealed via API after click (not in SSR props). */
+  hasPhone: boolean;
   address: string | null;
   photoUrl: string;
   /** Unique patient requests in the badge rolling window (see finder-manual-vote-badge). */
@@ -333,8 +334,11 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
   const activeDistrict = resolveDistrictValue(params.filters?.[0], searchParams?.district);
   const activeSpecialty = resolveSpecialtyValue(params.filters?.[1], searchParams?.specialty);
   const activeName = normalizeSelectValue(searchParams?.name);
-  const resultsPage = parseFinderResultsPage(searchParams?.page);
   const userCoords = parseUserCoordinates(searchParams);
+  const hasListFilter = Boolean(
+    activeDistrict || activeSpecialty || activeName || userCoords,
+  );
+  const resultsPage = parseFinderResultsPage(searchParams?.page, { hasListFilter });
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim() || "https://www.mydoccy.com";
   const districts = CYPRUS_DISTRICTS;
   const listFilters = {
@@ -553,7 +557,7 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
           specialty: String(row.specialty ?? "Specialty not set"),
           district: row.district as CyprusDistrict,
           address_maps_link: addressMapsLink,
-          phone: String(row.phone ?? "").trim() || null,
+          hasPhone: Boolean(String(row.phone ?? "").trim()),
           address: String(row.address ?? "").trim() || null,
           photoUrl: resolveFinderDisplayPhotoUrl({
             curatedOrCustomPhotoUrl: getFinderManualPhotoUrl(addressMapsLink),
@@ -1132,7 +1136,7 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                             manualId={row.id}
                             doctorName={row.displayName}
                             addressMapsLink={row.address_maps_link}
-                            phone={row.phone}
+                            hasPhone={row.hasPhone}
                             addressText={row.address}
                             anchorStickyWeekNav={row.id === stickyWeekAnchorDoctorId}
                           />

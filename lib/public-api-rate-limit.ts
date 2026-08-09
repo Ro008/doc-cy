@@ -5,7 +5,8 @@ export type PublicApiRateLimitBucket =
   | "manualBookingRequest"
   | "doctorInvitation"
   | "appointments"
-  | "trafficLog";
+  | "trafficLog"
+  | "contactReveal";
 
 type RateLimitConfig = {
   limit: number;
@@ -18,6 +19,8 @@ export const PUBLIC_API_RATE_LIMITS: Record<PublicApiRateLimitBucket, RateLimitC
   doctorInvitation: { limit: 5, windowMs: 60 * 60 * 1000 },
   appointments: { limit: 20, windowMs: 60 * 60 * 1000 },
   trafficLog: { limit: 60, windowMs: 60 * 1000 },
+  /** Phone reveal clicks — blunt bulk extraction of directory phones. */
+  contactReveal: { limit: 40, windowMs: 60 * 60 * 1000 },
 };
 
 type BucketState = {

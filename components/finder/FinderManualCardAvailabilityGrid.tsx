@@ -15,7 +15,7 @@ type Props = {
   manualId: string;
   doctorName: string;
   addressMapsLink: string;
-  phone?: string | null;
+  hasPhone?: boolean;
   addressText?: string | null;
   anchorStickyWeekNav?: boolean;
 };
@@ -24,7 +24,7 @@ export function FinderManualCardAvailabilityGrid({
   manualId,
   doctorName,
   addressMapsLink,
-  phone = null,
+  hasPhone = false,
   addressText = null,
   anchorStickyWeekNav = false,
 }: Props) {
@@ -33,7 +33,7 @@ export function FinderManualCardAvailabilityGrid({
     manualId,
     doctorName,
     addressMapsLink,
-    phone,
+    hasPhone,
     addressText,
   });
 

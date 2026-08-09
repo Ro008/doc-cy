@@ -30,6 +30,23 @@ Migration `20260809120000_revoke_anon_directory_view_grants.sql`:
 
 Browser bundles still contain the anon key, but PostgREST list dumps of the curated directory via those views must return empty/denied. Finder, clinics, and registered public profiles load data with `createServiceRoleClient()` on the server.
 
+### P1 — HTML scrape friction (app + Cloudflare)
+
+**In app (shipped in code):**
+
+- Phone numbers for manual listings / clinics are **not** in SSR props; revealed via `POST /api/directory/contact-reveal` after click (rate limit bucket `contactReveal`: 40/hour/IP).
+- Finder `?page=` capped at **2** without list filters, **20** with district/specialty/name/near-me.
+
+**Cloudflare Free (manual DNS — finish when domain status is Active):**
+
+> **PENDING:** `mydoccy.com` was added and nameservers pointed to Cloudflare (`sarah` / `uriah`). Wait until Overview shows **Active** (not “Waiting for…propagation”). Then:
+>
+> 1. **Security → Bots** → enable **Bot Fight Mode**
+> 2. **DNS → Records** → confirm `mydoccy.com` and `www` (and `*` if present) show **orange cloud (Proxied)**, not grey DNS only
+> 3. Optional later: rate-limit / WAF rules on finder & clinics paths if Free UI allows
+
+Cloudflare Free does **not** replace P0; it slows HTML scrapers once PostgREST dumps are closed.
+
 ## What we implemented
 
 ### 1. RLS hardening on base tables (migration `20260728180000`)
@@ -56,6 +73,7 @@ Silent (returns 429 but no error UI) on 4 public write APIs:
 | `POST /api/finder/doctor-invitation-request` | 5 req / hour / IP |
 | `POST /api/appointments` | 20 req / hour / IP |
 | `POST /api/traffic/log` | 60 req / min / IP |
+| `POST /api/directory/contact-reveal` | 40 req / hour / IP |
 
 Disable for tests: `DOC_CY_PUBLIC_API_RATE_LIMIT=off`.
 

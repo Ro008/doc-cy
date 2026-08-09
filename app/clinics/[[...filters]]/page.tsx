@@ -6,6 +6,7 @@ import { ClinicsFilters } from "@/components/finder/ClinicsFilters";
 import { FinderAudienceToggle } from "@/components/finder/FinderAudienceToggle";
 import { FinderHeroSection } from "@/components/finder/FinderHeroSection";
 import { FinderRecentlyViewed } from "@/components/finder/FinderRecentlyViewed";
+import { RevealPhoneButton } from "@/components/finder/RevealPhoneButton";
 import { FinderResultsTransition } from "@/components/finder/FinderResultsTransition";
 import { FinderSearchBar } from "@/components/finder/FinderSearchBar";
 import { finderResultCardClass } from "@/components/finder/finder-surface";
@@ -24,7 +25,6 @@ import {
 } from "@/lib/finder-distance";
 import { isAllSlug, slugToDistrict, toTitleCaseWords } from "@/lib/finder-seo";
 import { loadClinicBySlug } from "@/lib/load-clinic-by-slug";
-import { phoneToTelHref } from "@/lib/phone-link";
 import { createServiceRoleClient } from "@/lib/supabase-service";
 import { fetchAllSupabaseRows } from "@/lib/supabase-fetch-all";
 
@@ -48,7 +48,7 @@ type ClinicSearchRow = {
   slug: string;
   district: CyprusDistrict;
   address: string | null;
-  phone: string | null;
+  hasPhone: boolean;
   address_maps_link: string | null;
   latitude: number | null;
   longitude: number | null;
@@ -260,7 +260,7 @@ async function ClinicsSearchPage({ params, searchParams }: ClinicsPageProps) {
             slug: String(row.slug ?? "").trim(),
             district: row.district,
             address: String(row.address ?? "").trim() || null,
-            phone: String(row.phone ?? "").trim() || null,
+            hasPhone: Boolean(String(row.phone ?? "").trim()),
             address_maps_link: String(row.address_maps_link ?? "").trim() || null,
             latitude: coords?.latitude ?? null,
             longitude: coords?.longitude ?? null,
@@ -387,8 +387,8 @@ async function ClinicsSearchPage({ params, searchParams }: ClinicsPageProps) {
               <div className="flex flex-col gap-4">
                 {clinics.map((clinic) => {
                   const href = clinicLandingPath(clinic.slug);
-                  const telHref = phoneToTelHref(clinic.phone);
                   const mapsHref = clinic.address_maps_link;
+                  const hasPhone = clinic.hasPhone;
                   const distanceLabel =
                     clinic.distanceKm !== null ? formatDistanceAway(clinic.distanceKm) : null;
                   const professionalLabel =
@@ -451,7 +451,7 @@ async function ClinicsSearchPage({ params, searchParams }: ClinicsPageProps) {
 
                           <p className="mt-2 text-xs font-medium text-ink-500">{professionalLabel} listed</p>
 
-                          <div className="mt-3 flex flex-wrap gap-2">
+                          <div className="mt-3 flex flex-wrap items-center gap-2">
                             {mapsHref ? (
                               <a
                                 href={mapsHref}
@@ -462,14 +462,13 @@ async function ClinicsSearchPage({ params, searchParams }: ClinicsPageProps) {
                                 Open in Maps ↗
                               </a>
                             ) : null}
-                            {telHref ? (
-                              <a
-                                href={telHref}
-                                className="inline-flex items-center rounded-full border border-clinical-200 bg-white px-3 py-1.5 text-xs font-semibold text-clinical-700 transition hover:border-clinical-300 hover:bg-clinical-50"
-                              >
-                                Call
-                              </a>
-                            ) : null}
+                            <RevealPhoneButton
+                              kind="clinic"
+                              id={clinic.id}
+                              hasPhone={hasPhone}
+                              className="inline-flex items-center rounded-full border border-clinical-200 bg-white px-3 py-1.5 text-xs font-semibold text-clinical-700 transition hover:border-clinical-300 hover:bg-clinical-50 disabled:cursor-wait disabled:opacity-60"
+                              revealedClassName="inline-flex items-center rounded-full border border-clinical-200 bg-clinical-50 px-3 py-1.5 text-xs font-semibold tabular-nums text-clinical-800"
+                            />
                             <PendingLink
                               href={href}
                               navigationReason="profile"

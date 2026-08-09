@@ -1,15 +1,15 @@
 import { DocCyWordmark } from "@/components/brand/DocCyWordmark";
+import { ClinicContactActions } from "@/components/finder/ClinicContactActions";
 import { ClinicProfessionalsBySpecialty } from "@/components/finder/ClinicProfessionalsBySpecialty";
 import { RecordRecentlyViewed } from "@/components/finder/RecordRecentlyViewed";
 import { PendingLink } from "@/components/navigation/PendingLink";
 import { clinicLandingPath } from "@/lib/clinic-landing-path";
 import { clinicsResultsPath } from "@/lib/clinics-public-path";
 import type { ClinicLandingRow } from "@/lib/load-clinic-by-slug";
-import { phoneToTelHref } from "@/lib/phone-link";
 
 export function ClinicLandingView({ clinic }: { clinic: ClinicLandingRow }) {
-  const telHref = phoneToTelHref(clinic.phone);
   const mapsHref = clinic.address_maps_link?.trim() || null;
+  const hasPhone = Boolean(String(clinic.phone ?? "").trim());
 
   return (
     <main className="min-h-screen bg-ink-50 text-ink-900">
@@ -24,7 +24,6 @@ export function ClinicLandingView({ clinic }: { clinic: ClinicLandingRow }) {
         }}
       />
       <header className="border-b border-ink-200 bg-white">
-
         <div className="mx-auto max-w-6xl px-4 py-4 sm:px-6 lg:px-8">
           <PendingLink href="/" className="inline-flex items-center">
             <DocCyWordmark className="h-7 w-auto" />
@@ -79,25 +78,12 @@ export function ClinicLandingView({ clinic }: { clinic: ClinicLandingRow }) {
           {clinic.address ? (
             <p className="text-sm leading-relaxed text-ink-700">{clinic.address}</p>
           ) : null}
-          <div className={`${clinic.address ? "mt-4" : ""} flex flex-wrap gap-3`}>
-            {mapsHref ? (
-              <a
-                href={mapsHref}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center rounded-lg border border-ink-200 bg-ink-50 px-3 py-2 text-sm font-semibold text-ink-800 transition-none hover:border-clinical-300 hover:bg-clinical-50 hover:text-clinical-700"
-              >
-                Open in Google Maps
-              </a>
-            ) : null}
-            {telHref && clinic.phone ? (
-              <a
-                href={telHref}
-                className="inline-flex items-center rounded-lg border border-ink-200 bg-ink-50 px-3 py-2 text-sm font-semibold text-ink-800 transition-none hover:border-clinical-300 hover:bg-clinical-50 hover:text-clinical-700"
-              >
-                Call {clinic.phone}
-              </a>
-            ) : null}
+          <div className={clinic.address ? "mt-4" : ""}>
+            <ClinicContactActions
+              clinicId={clinic.id}
+              hasPhone={hasPhone}
+              mapsHref={mapsHref}
+            />
           </div>
         </section>
 

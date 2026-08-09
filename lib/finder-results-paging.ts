@@ -6,6 +6,12 @@ import { harmonizeFinderSpecialtyLabel } from "@/lib/finder-specialty-harmonize"
  */
 export const FINDER_RESULTS_PAGE_SIZE = 30;
 
+/** Max ?page= when browsing without district/specialty/name/near-me. */
+export const FINDER_RESULTS_MAX_PAGE_UNFILTERED = 2;
+
+/** Max ?page= when at least one list filter is active. */
+export const FINDER_RESULTS_MAX_PAGE_FILTERED = 20;
+
 /** Escape `%` / `_` / `\` for PostgREST `ilike` patterns. */
 export function escapeIlikePattern(value: string): string {
   return value.replace(/\\/g, "\\\\").replace(/%/g, "\\%").replace(/_/g, "\\_");
@@ -47,11 +53,17 @@ export function finderSpecialtyDbMatchValues(activeSpecialty: string): string[] 
   return Array.from(new Set([trimmed, canon, ...variants].map((v) => v.trim()).filter(Boolean)));
 }
 
-export function parseFinderResultsPage(raw: string | string[] | undefined): number {
+export function parseFinderResultsPage(
+  raw: string | string[] | undefined,
+  options?: { hasListFilter?: boolean },
+): number {
   const value = Array.isArray(raw) ? raw[0] : raw;
   const n = Number(String(value ?? "1").trim());
   if (!Number.isFinite(n) || n < 1) return 1;
-  return Math.min(Math.floor(n), 100);
+  const maxPage = options?.hasListFilter
+    ? FINDER_RESULTS_MAX_PAGE_FILTERED
+    : FINDER_RESULTS_MAX_PAGE_UNFILTERED;
+  return Math.min(Math.floor(n), maxPage);
 }
 
 export function buildFinderResultsPageHref(params: {
