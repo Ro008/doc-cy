@@ -39,11 +39,15 @@ Browser bundles still contain the anon key, but PostgREST list dumps of the cura
 
 **Cloudflare Free (manual DNS — finish when domain status is Active):**
 
-> **PENDING:** `mydoccy.com` was added and nameservers pointed to Cloudflare (`sarah` / `uriah`). Wait until Overview shows **Active** (not “Waiting for…propagation”). Then:
->
-> 1. **Security → Bots** → enable **Bot Fight Mode**
-> 2. **DNS → Records** → confirm `mydoccy.com` and `www` (and `*` if present) show **orange cloud (Proxied)**, not grey DNS only
-> 3. Optional later: rate-limit / WAF rules on finder & clinics paths if Free UI allows
+> **DONE (2026-08-09):** Domain Active on Free plan; Bot Fight Mode ON; apex/`www`/`*` Proxied (orange). Email MX/TXT remain DNS only.
+
+### P2 — canary honeytokens (legal proof)
+
+- Registry: `lib/directory-canaries.ts` (6 profiles; phones `+35799041801`–`806`; unique Maps `cid=904817362014820260x`).
+- Migration: `20260809140000_directory_manual_anti_scrape_canaries.sql` (idempotent insert).
+- Listed in finder (Famagusta/Larnaca, lower-traffic specialties) so scrapers copy them.
+- **Excluded from sitemap** via `isDirectoryCanarySlug`.
+- If a competitor later shows the same name+phone+maps fingerprint → evidence of extraction (Terms §5 €50/record).
 
 Cloudflare Free does **not** replace P0; it slows HTML scrapers once PostgREST dumps are closed.
 

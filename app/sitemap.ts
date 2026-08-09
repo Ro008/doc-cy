@@ -4,6 +4,7 @@ import { createServiceRoleClient } from "@/lib/supabase-service";
 import { districtToSlug, specialtyToSlug, slugToDistrict } from "@/lib/finder-seo";
 import { getAllBlogPostMeta } from "@/lib/blog";
 import { manualDirectoryLandingPath } from "@/lib/manual-directory-landing-path";
+import { isDirectoryCanarySlug } from "@/lib/directory-canaries";
 
 function normalizeDistrictSlug(value: unknown): string {
   const raw = String(value ?? "").trim();
@@ -152,7 +153,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       manualDoctorEntries = manualSlugRows
       .map((row) => {
         const slug = String((row as { slug?: string | null }).slug ?? "").trim();
-        if (!slug) return null;
+        if (!slug || isDirectoryCanarySlug(slug)) return null;
         return {
           url: `${siteBase}${manualDirectoryLandingPath(slug)}`,
           lastModified: now,
