@@ -1246,15 +1246,23 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                   </PendingLink>
                   .
                 </p>
-                <a
-                  href="https://www.instagram.com/doccy_cyprus?igsh=MW94Zjg1czZ6OXNzaw=="
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="mt-3 inline-flex h-9 w-9 items-center justify-center rounded-full border border-ink-200 bg-white text-ink-500 transition hover:border-clinical-300 hover:text-clinical-600"
-                  aria-label="Follow DocCy on Instagram"
-                >
-                  <Instagram className="h-4 w-4" aria-hidden />
-                </a>
+                <div className="mt-3 flex flex-wrap items-center gap-3">
+                  <PendingLink
+                    href="/terms"
+                    className="text-xs font-semibold text-ink-500 underline underline-offset-4 transition hover:text-clinical-600"
+                  >
+                    Terms of Use
+                  </PendingLink>
+                  <a
+                    href="https://www.instagram.com/doccy_cyprus?igsh=MW94Zjg1czZ6OXNzaw=="
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-ink-200 bg-white text-ink-500 transition hover:border-clinical-300 hover:text-clinical-600"
+                    aria-label="Follow DocCy on Instagram"
+                  >
+                    <Instagram className="h-4 w-4" aria-hidden />
+                  </a>
+                </div>
               </section>
             </div>
           </footer>

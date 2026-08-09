@@ -34,6 +34,7 @@ const RESERVED_TOP_LEVEL = new Set([
   "internal",
   "login",
   "register",
+  "terms",
 ]);
 
 function isPublicPatientRoute(pathname: string): boolean {

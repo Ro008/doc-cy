@@ -29,6 +29,21 @@ const nextConfig = {
   images: {
     remotePatterns,
   },
+  async headers() {
+    return [
+      {
+        // Notice on DocCy API responses: reinforce Terms §5 (no scraping / noindex).
+        // `noscrape` is a custom machine-readable signal (not a Google robots directive).
+        source: "/api/:path*",
+        headers: [
+          {
+            key: "X-Robots-Tag",
+            value: "noindex, nofollow, noscrape",
+          },
+        ],
+      },
+    ];
+  },
   async redirects() {
     return [
       {

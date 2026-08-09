@@ -77,6 +77,12 @@ export function MarketingFooter({
           </div>
 
           <div className={pillShell}>
+            <Link href="/terms" className={pillLink}>
+              Terms
+            </Link>
+          </div>
+
+          <div className={pillShell}>
             <button
               type="button"
               onClick={() => emitOpenFeedback()}

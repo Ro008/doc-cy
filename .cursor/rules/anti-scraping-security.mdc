@@ -11,6 +11,16 @@ Implemented: 2026-07-28/29 (PR #116 `security/public-api-hardening`)
 
 The Supabase anon key is public (embedded in the browser bundle). Without RLS, anyone could call PostgREST directly and dump all doctor emails, phones, GHS codes, and license numbers in seconds — no scraping HTML needed.
 
+## Legal layer
+
+Public **Terms of Use** at `/terms` prohibit scraping, bulk extraction, and copying of DocCy directory/database data. Linked from `MarketingFooter` and the finder SEO footer. Keep the Terms URL reserved in middleware (`terms`) so it is never treated as a doctor slug.
+
+Liquidated damages (Terms §5): **€50 per record/profile** extracted without authorisation, without prejudice to higher actual damages.
+
+### API notice header
+
+All `/api/*` responses set `X-Robots-Tag: noindex, nofollow, noscrape` via `next.config.mjs` `headers()` — reinforces Terms §5 for automated clients. (`noscrape` is a custom signal, not a Google robots directive.)
+
 ## What we implemented
 
 ### 1. RLS hardening on base tables (migration `20260728180000`)
