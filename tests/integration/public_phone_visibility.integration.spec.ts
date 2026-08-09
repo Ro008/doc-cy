@@ -30,7 +30,6 @@ test.describe("Integration: public phone visibility toggle", () => {
     test.skip(!baseUrl || !supabaseUrl || !serviceRole || !anonKey, "Missing integration env vars.");
 
     const admin = createClient(supabaseUrl, serviceRole);
-    const publicClient = createClient(supabaseUrl, anonKey);
     const nonce = `${Date.now()}-${Math.floor(Math.random() * 100000)}`;
     const doctorEmail = `public-phone-${nonce}@integration.test`;
     const doctorSlug = `public-phone-${nonce}`;
@@ -99,7 +98,7 @@ test.describe("Integration: public phone visibility toggle", () => {
 
       let visiblePublic = false;
       for (let i = 0; i < 10; i += 1) {
-        const check = await publicClient
+        const check = await admin
           .from("doctors_public")
           .select("id")
           .eq("slug", doctorSlug)

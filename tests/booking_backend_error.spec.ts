@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
-import { createClient } from "@supabase/supabase-js";
 import { skipIfSafeNoBooking } from "./helpers/safeMode";
+import { createTestDataClient } from "./helpers/testDataClient";
 
 test.describe("Booking backend errors @booking-creates", () => {
   test("shows requested time outside availability inline", async ({
@@ -8,16 +8,12 @@ test.describe("Booking backend errors @booking-creates", () => {
   }) => {
     skipIfSafeNoBooking(test.info());
 
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
-    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
-    expect(supabaseUrl).not.toBe("");
-    expect(supabaseAnonKey).not.toBe("");
-
-    const supabase = createClient(supabaseUrl, supabaseAnonKey);
+    const supabase = createTestDataClient();
     const { data: activeDoctors } = await supabase
-      .from("doctors_public")
+      .from("doctors")
       .select("slug,name,id")
       .eq("status", "verified")
+      .not("slug", "is", null)
       .limit(8);
 
     const doctors = activeDoctors ?? [];
@@ -129,16 +125,11 @@ test.describe("Booking backend errors @booking-creates", () => {
   test("shows not accepting public bookings inline", async ({ page }) => {
     skipIfSafeNoBooking(test.info());
 
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
-    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
-    expect(supabaseUrl).not.toBe("");
-    expect(supabaseAnonKey).not.toBe("");
-
-    const supabase = createClient(supabaseUrl, supabaseAnonKey);
+    const supabase = createTestDataClient();
 
     // Pick a non-verified professional (pending/rejected) to force backend 403.
     const { data: pending } = await supabase
-      .from("doctors_public")
+      .from("doctors")
       .select("id,status")
       .eq("status", "pending")
       .limit(5);
@@ -150,7 +141,7 @@ test.describe("Booking backend errors @booking-creates", () => {
       pendingDoctorId ??
       (
         await supabase
-          .from("doctors_public")
+          .from("doctors")
           .select("id,status")
           .eq("status", "rejected")
           .limit(5)
@@ -164,9 +155,10 @@ test.describe("Booking backend errors @booking-creates", () => {
 
     // Pick a verified doctor whose calendar is visible so we can reach the booking form UI.
     const { data: activeDoctors } = await supabase
-      .from("doctors_public")
+      .from("doctors")
       .select("slug,name,id")
       .eq("status", "verified")
+      .not("slug", "is", null)
       .limit(8);
 
     const doctors = activeDoctors ?? [];

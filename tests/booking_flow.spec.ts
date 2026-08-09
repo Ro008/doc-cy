@@ -3,6 +3,7 @@ import { test, expect } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
 import { pickFirstAvailableBookingDay } from "./helpers/pickBookingCalendarDay";
 import { skipIfSafeNoBooking } from "./helpers/safeMode";
+import { createTestDataClient } from "./helpers/testDataClient";
 
 test.describe("Booking flow @booking-creates", { tag: "@pr-e2e" }, () => {
   test("full booking flow on doctor profile", async ({ page, request }) => {
@@ -10,17 +11,16 @@ test.describe("Booking flow @booking-creates", { tag: "@pr-e2e" }, () => {
     skipIfSafeNoBooking(test.info());
 
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
-    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
     expect(supabaseUrl).not.toBe("");
-    expect(supabaseAnonKey).not.toBe("");
 
-    const supabase = createClient(supabaseUrl, supabaseAnonKey);
+    const supabase = createTestDataClient();
     const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
     const admin = serviceKey ? createClient(supabaseUrl, serviceKey) : null;
     const { data: activeDoctors } = await supabase
-      .from("doctors_public")
+      .from("doctors")
       .select("slug,name,id")
       .eq("status", "verified")
+      .not("slug", "is", null)
       .limit(8);
 
     const doctors = activeDoctors ?? [];

@@ -1,18 +1,14 @@
 import { test, expect } from "@playwright/test";
-import { createClient } from "@supabase/supabase-js";
+import { createTestDataClient } from "./helpers/testDataClient";
 
 test.describe("LanguageSwitcher", () => {
   test("toggles booking UI between EN and GR", async ({ page }) => {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
-    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
-    expect(supabaseUrl).not.toBe("");
-    expect(supabaseAnonKey).not.toBe("");
-
-    const supabase = createClient(supabaseUrl, supabaseAnonKey);
+    const supabase = createTestDataClient();
     const { data: activeDoctors } = await supabase
-      .from("doctors_public")
+      .from("doctors")
       .select("slug")
       .eq("status", "verified")
+      .not("slug", "is", null)
       .limit(12);
 
     const doctors = activeDoctors ?? [];

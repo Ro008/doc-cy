@@ -4,7 +4,7 @@ import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
 
-import { supabase } from "@/lib/supabase";
+import { createServiceRoleClient } from "@/lib/supabase-service";
 import { BookingSection } from "@/components/doctor/BookingSection";
 import { DoctorDetailsAccordion } from "@/components/doctor/DoctorDetailsAccordion";
 import { LanguagesSpoken } from "@/components/doctor/LanguagesSpoken";
@@ -43,9 +43,15 @@ import {
   withDoctorTitleHonorific,
 } from "@/lib/doctor-seo-formatting";
 import { getPublicSpecialtyDisplayLabel } from "@/lib/doctor-specialty-public";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 const DOCTOR_AVATAR_URL =
   "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=400&h=400&fit=crop";
+
+/** Public profile SSR reads — service_role only (doctors_public is not granted to anon). */
+function getPublicDirectoryDb(): SupabaseClient | null {
+  return createServiceRoleClient();
+}
 
 type DoctorProfileRow = {
   id: string;
@@ -106,6 +112,12 @@ type PublicDoctorFetch =
 async function fetchPublicDoctorBySlug(
   slug: string,
 ): Promise<PublicDoctorFetch> {
+  const supabase = getPublicDirectoryDb();
+  if (!supabase) {
+    console.error("[DocCy] service role client unavailable for public doctor profile");
+    return { kind: "not_found" };
+  }
+
   const fullList = DOCTOR_FIELD_LIST_PUBLIC_PROFILE;
   const basicList = DOCTOR_FIELD_LIST_PUBLIC_PROFILE_NO_LANG;
   const baseList = DOCTOR_FIELD_LIST_PUBLIC_PROFILE_BASE;
@@ -343,6 +355,13 @@ export async function generateMetadata({
   const fallbackTitle = "Healthcare Professional | DocCy";
 
   const loadMeta = async (fields: typeof DOCTOR_FIELD_LIST_METADATA | typeof DOCTOR_FIELD_LIST_METADATA_NO_DISTRICT) => {
+    const supabase = getPublicDirectoryDb();
+    if (!supabase) {
+      return {
+        data: null,
+        error: { message: "service role unavailable", code: "DOC_CY_NO_SERVICE_ROLE" },
+      };
+    }
     let m = await supabase
       .from("doctors_public")
       .select(fields)
@@ -487,6 +506,12 @@ export default async function DoctorPage({ params }: PageProps) {
   }
 
   const profile = result.profile;
+  const supabase = getPublicDirectoryDb();
+  if (!supabase) {
+    console.error("[DocCy] service role client unavailable for public doctor profile data");
+    redirect("/");
+  }
+
   const {
     data: { user },
   } = await authSupabase.auth.getUser();

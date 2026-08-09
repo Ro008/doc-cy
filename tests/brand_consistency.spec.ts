@@ -1,6 +1,6 @@
 // tests/brand_consistency.spec.ts
 import { test, expect } from "@playwright/test";
-import { createClient } from "@supabase/supabase-js";
+import { createTestDataClient } from "./helpers/testDataClient";
 
 test.describe("Brand consistency", () => {
   test("landing page shows DocCy logo in header, not DOCCY text", async ({
@@ -28,16 +28,12 @@ test.describe("Brand consistency", () => {
   test("professional profile shows DocCy logo, not DOCCY text", async ({
     page,
   }) => {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
-    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
-    expect(supabaseUrl).not.toBe("");
-    expect(supabaseAnonKey).not.toBe("");
-
-    const supabase = createClient(supabaseUrl, supabaseAnonKey);
+    const supabase = createTestDataClient();
     const { data: activeDoctors } = await supabase
-      .from("doctors_public")
+      .from("doctors")
       .select("slug")
       .eq("status", "verified")
+      .not("slug", "is", null)
       .limit(5);
 
     const firstSlug = activeDoctors?.[0]?.slug;

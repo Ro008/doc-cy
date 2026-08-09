@@ -56,11 +56,13 @@ export async function loadTakenPublicSlugs(
 ): Promise<Set<string>> {
   const taken = new Set<string>();
 
+  // Prefer base tables (service_role). Public views are revoked from anon.
   const [doctorsRes, manualRes] = await Promise.all([
-    supabase.from("doctors_public").select("slug").not("slug", "is", null).limit(10000),
+    supabase.from("doctors").select("slug").not("slug", "is", null).limit(10000),
     supabase
-      .from("directory_manual_public")
+      .from("directory_manual")
       .select("slug")
+      .eq("is_archived", false)
       .not("slug", "is", null)
       .limit(10000),
   ]);

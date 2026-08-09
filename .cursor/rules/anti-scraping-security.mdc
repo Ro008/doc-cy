@@ -21,6 +21,15 @@ Liquidated damages (Terms §5): **€50 per record/profile** extracted without a
 
 All `/api/*` responses set `X-Robots-Tag: noindex, nofollow, noscrape` via `next.config.mjs` `headers()` — reinforces Terms §5 for automated clients. (`noscrape` is a custom signal, not a Google robots directive.)
 
+### P0 — revoke anon/authenticated SELECT on public directory views
+
+Migration `20260809120000_revoke_anon_directory_view_grants.sql`:
+
+- `REVOKE SELECT` on `directory_manual_public`, `clinics_public`, and `doctors_public` from `anon` and `authenticated`
+- `GRANT SELECT` on those views to `service_role` only (SSR / trusted servers)
+
+Browser bundles still contain the anon key, but PostgREST list dumps of the curated directory via those views must return empty/denied. Finder, clinics, and registered public profiles load data with `createServiceRoleClient()` on the server.
+
 ## What we implemented
 
 ### 1. RLS hardening on base tables (migration `20260728180000`)
