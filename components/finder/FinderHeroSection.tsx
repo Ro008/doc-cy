@@ -1,8 +1,5 @@
 import Image from "next/image";
-import {
-  FINDER_HERO_COPY_TOP_CLASS,
-  FinderHeroBookingFlow,
-} from "@/components/finder/FinderHeroBookingFlow";
+import { FINDER_HERO_COPY_TOP_CLASS } from "@/components/finder/FinderHeroBookingFlow";
 
 type FinderHeroSectionProps = {
   title: string;
@@ -38,17 +35,16 @@ export function FinderHeroSection({
     <div>
       <div className="relative pb-2 sm:pb-6 lg:pb-8">
         {/* sm+ — decorative hero image + booking flow (hidden on mobile for readable copy) */}
-        <div className="relative hidden aspect-[16/11] w-full -translate-y-[14%] overflow-visible sm:ml-[28%] sm:block sm:w-[72%] lg:ml-[44%] lg:w-[58%] lg:aspect-[2.15/1]">
+        <div className="relative hidden aspect-[16/11] w-full overflow-visible sm:ml-[24%] sm:block sm:w-[76%] lg:ml-[40%] lg:w-[62%] lg:aspect-[2.15/1]">
           <Image
             src="/finder/finder-hero.png"
             alt=""
             fill
             priority
             sizes="(max-width: 640px) 0px, 860px"
-            className="origin-top-right scale-[1.2] object-contain object-right object-top [mask-image:linear-gradient(to_bottom,black_78%,transparent_100%)] [-webkit-mask-image:linear-gradient(to_bottom,black_78%,transparent_100%)]"
+            className="object-contain object-right object-top"
             aria-hidden
           />
-          <FinderHeroBookingFlow />
         </div>
 
         {/* Copy — in document flow on mobile; overlays image from sm up */}
