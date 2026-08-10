@@ -275,8 +275,8 @@ export function AppointmentReviewClient({
         </p>
       </div>
 
-      <div className="rounded-2xl border border-sky-500/25 bg-sky-500/10 p-4 shadow-inner shadow-sky-950/20">
-        <p className="text-xs font-semibold uppercase tracking-wide text-sky-200/90">
+      <div className="rounded-2xl border border-clinical-500/25 bg-clinical-500/10 p-4 shadow-inner shadow-ink-900/20">
+        <p className="text-xs font-semibold uppercase tracking-wide text-clinical-200/90">
           Reason for visit
         </p>
         <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-slate-100">
@@ -411,7 +411,7 @@ export function AppointmentReviewClient({
                   type="button"
                   disabled={sendingProposal}
                   onClick={() => void sendProposal()}
-                  className="w-full rounded-2xl bg-sky-500/90 px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-sky-400 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="w-full rounded-2xl bg-clinical-500/90 px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-clinical-400 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {sendingProposal ? (
                     <span className="inline-flex items-center justify-center gap-2">

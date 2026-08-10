@@ -20,13 +20,13 @@ import { SupportInquiryLink } from "@/components/landing/SupportInquiryLink";
 import { DocCyWordmark } from "@/components/brand/DocCyWordmark";
 
 const benefitCardShell =
-  "rounded-2xl border border-clinical-200 bg-white p-4 shadow-[0_1px_3px_rgba(26,43,60,0.06),0_4px_16px_rgba(11,123,181,0.05)] transition hover:border-clinical-300 hover:shadow-[0_4px_20px_rgba(11,123,181,0.1)] sm:p-5";
+  "rounded-2xl border border-clinical-200 bg-white p-4 shadow-[0_1px_3px_rgba(26,43,60,0.06),0_4px_16px_rgba(18,184,192,0.05)] transition hover:border-clinical-300 hover:shadow-[0_4px_20px_rgba(18,184,192,0.1)] sm:p-5";
 
 const landingCtaClass =
-  "inline-flex items-center justify-center rounded-xl bg-clinical-500 px-5 py-2.5 text-sm font-semibold text-white shadow-[0_1px_2px_rgba(11,123,181,0.2),0_4px_14px_rgba(11,123,181,0.22)] transition hover:bg-clinical-400 hover:shadow-[0_4px_18px_rgba(11,123,181,0.3)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-500 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-50";
+  "inline-flex items-center justify-center rounded-xl bg-clinical-500 px-5 py-2.5 text-sm font-semibold text-white shadow-[0_1px_2px_rgba(18,184,192,0.2),0_4px_14px_rgba(18,184,192,0.22)] transition hover:bg-clinical-400 hover:shadow-[0_4px_18px_rgba(18,184,192,0.3)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-500 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-50";
 
 const landingSectionShell =
-  "rounded-3xl border border-clinical-200 bg-white p-5 shadow-[0_1px_3px_rgba(26,43,60,0.06),0_8px_24px_rgba(11,123,181,0.06)] sm:p-7";
+  "rounded-3xl border border-clinical-200 bg-white p-5 shadow-[0_1px_3px_rgba(26,43,60,0.06),0_8px_24px_rgba(18,184,192,0.06)] sm:p-7";
 
 export default async function HomePage() {
   const t = await getTranslations("LandingPage");
@@ -272,9 +272,9 @@ export default async function HomePage() {
           id="founders-pricing"
           className="mx-auto w-full max-w-6xl pb-10 pt-4 sm:pb-10"
         >
-          <div className="relative overflow-hidden rounded-[1.75rem] border border-clinical-200/80 bg-gradient-to-br from-clinical-50/90 via-white to-wellness-50/45 p-5 shadow-[0_10px_44px_-14px_rgba(11,123,181,0.2),0_2px_8px_rgba(26,43,60,0.04)] sm:rounded-3xl sm:p-8 lg:p-10">
+          <div className="relative overflow-hidden rounded-[1.75rem] border border-clinical-200/80 bg-gradient-to-br from-clinical-50/90 via-white to-wellness-50/45 p-5 shadow-[0_10px_44px_-14px_rgba(18,184,192,0.2),0_2px_8px_rgba(26,43,60,0.04)] sm:rounded-3xl sm:p-8 lg:p-10">
             <div
-              className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-[radial-gradient(circle,rgba(11,123,181,0.16),transparent_68%)]"
+              className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-[radial-gradient(circle,rgba(18,184,192,0.16),transparent_68%)]"
               aria-hidden
             />
             <div
@@ -332,7 +332,7 @@ export default async function HomePage() {
                   className="absolute -inset-px rounded-[1.35rem] bg-gradient-to-br from-clinical-400/45 via-clinical-200/25 to-wellness-300/45 sm:rounded-[1.65rem]"
                   aria-hidden
                 />
-                <div className="relative rounded-[1.35rem] border border-white/70 bg-white/95 p-5 shadow-[0_14px_44px_-18px_rgba(11,123,181,0.38)] backdrop-blur-sm sm:rounded-[1.65rem] sm:p-6">
+                <div className="relative rounded-[1.35rem] border border-white/70 bg-white/95 p-5 shadow-[0_14px_44px_-18px_rgba(18,184,192,0.38)] backdrop-blur-sm sm:rounded-[1.65rem] sm:p-6">
                   <header>
                     <h3 className="text-center text-2xl font-semibold tracking-tight text-ink-900 sm:text-[1.65rem]">
                       {t("Pricing.title")}

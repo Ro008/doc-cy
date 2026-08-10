@@ -114,7 +114,7 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
         dangerouslySetInnerHTML={{ __html: stringifyJsonLd(articleJsonLd) }}
       />
 
-      <article className="mx-auto max-w-3xl rounded-2xl border border-clinical-200 bg-white p-4 shadow-[0_1px_3px_rgba(26,43,60,0.06),0_8px_24px_rgba(11,123,181,0.06)] sm:p-6">
+      <article className="mx-auto max-w-3xl rounded-2xl border border-clinical-200 bg-white p-4 shadow-[0_1px_3px_rgba(26,43,60,0.06),0_8px_24px_rgba(18,184,192,0.06)] sm:p-6">
         <div className="mb-5 flex items-center justify-between border-b border-ink-200 pb-4">
           <PendingLink href="/" className="inline-flex items-baseline hover:opacity-90">
             <DocCyWordmark variant="light" />

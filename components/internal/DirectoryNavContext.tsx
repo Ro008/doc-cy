@@ -84,8 +84,8 @@ export function InternalDirectoryShell({ children }: { children: React.ReactNode
             aria-live="polite"
             role="status"
           >
-            <div className="pointer-events-none rounded-2xl border border-sky-500/35 bg-slate-900/95 px-5 py-3 text-center shadow-2xl shadow-black/40">
-              <p className="text-sm font-semibold text-sky-100">Updating dashboard…</p>
+            <div className="pointer-events-none rounded-2xl border border-clinical-500/35 bg-slate-900/95 px-5 py-3 text-center shadow-2xl shadow-black/40">
+              <p className="text-sm font-semibold text-clinical-100">Updating dashboard…</p>
               <p className="mt-1 text-xs text-slate-400">Applying filters or sort</p>
             </div>
           </div>

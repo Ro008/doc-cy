@@ -3,11 +3,11 @@ import { Stethoscope } from "lucide-react";
 
 const BAR_COLORS = [
   "bg-gradient-to-r from-clinical-500 to-wellness-400",
-  "bg-gradient-to-r from-sky-500 to-cyan-400",
+  "bg-gradient-to-r from-clinical-600 to-clinical-300",
   "bg-gradient-to-r from-violet-500 to-purple-400",
   "bg-gradient-to-r from-amber-500 to-orange-400",
   "bg-gradient-to-r from-rose-500 to-pink-400",
-  "bg-gradient-to-r from-indigo-500 to-blue-400",
+  "bg-gradient-to-r from-ink-700 to-clinical-400",
 ];
 
 type Props = { items: SpecialtyCount[] };

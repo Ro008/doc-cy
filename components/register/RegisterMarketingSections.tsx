@@ -132,7 +132,7 @@ export function RegisterDemoAside() {
   return (
     <aside
       id="register-in-person-demo"
-      className="scroll-mt-8 rounded-3xl border border-clinical-300/60 bg-gradient-to-b from-clinical-50/90 to-white p-5 shadow-[0_8px_28px_rgba(11,123,181,0.12)] sm:p-6 lg:sticky lg:top-8"
+      className="scroll-mt-8 rounded-3xl border border-clinical-300/60 bg-gradient-to-b from-clinical-50/90 to-white p-5 shadow-[0_8px_28px_rgba(18,184,192,0.12)] sm:p-6 lg:sticky lg:top-8"
     >
       <p className="text-lg font-semibold leading-snug text-ink-900">
         <span className="mr-1" aria-hidden>

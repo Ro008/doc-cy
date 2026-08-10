@@ -36,6 +36,30 @@ import {
 import { patientVisitReasonFromAppointmentRow } from "@/lib/agenda-visit-reason";
 import type { WeeklySchedule } from "@/lib/doctor-settings";
 import { ManualBookingFlow } from "@/components/agenda/ManualBookingFlow";
+import {
+  agendaAppointmentBadgeClass,
+  agendaAppointmentConfirmedClass,
+  agendaAppointmentNameConfirmedClass,
+  agendaAppointmentNamePendingClass,
+  agendaAppointmentPendingClass,
+  agendaAppointmentTimeClass,
+  agendaBreakBandClass,
+  agendaCalendarShellClass,
+  agendaDayColumnClass,
+  agendaDayHeaderClass,
+  agendaHourAxisClass,
+  agendaHourGridLineClass,
+  agendaHourAxisLabelClass,
+  agendaHourZebraBandClass,
+  agendaHourZebraBandTodayClass,
+  agendaNavIconButtonClass,
+  agendaOffHoursBandClass,
+  agendaOffHoursOverlayClass,
+  agendaPrimaryChipButtonClass,
+  agendaStickyWeekHeaderClass,
+  agendaTodayChipButtonClass,
+  agendaToolbarDividerClass,
+} from "@/components/agenda/agenda-surface";
 import { emitNavigationStart } from "@/lib/doccy-navigation";
 import {
   APPOINTMENT_ATTENDANCE_NO_SHOW,
@@ -163,6 +187,27 @@ function sortAgendaRowsByDatetime(rows: AgendaAppointmentRow[]): AgendaAppointme
 const START_HOUR = 8;
 const END_HOUR = 20;
 const HOUR_ROW_HEIGHT = 56;
+
+function renderAgendaHourZebraBands(isTodayColumn: boolean) {
+  const bandClass = isTodayColumn
+    ? agendaHourZebraBandTodayClass
+    : agendaHourZebraBandClass;
+  const bands: React.ReactNode[] = [];
+  for (let hour = START_HOUR; hour < END_HOUR; hour++) {
+    if ((hour - START_HOUR) % 2 !== 0) continue;
+    bands.push(
+      <div
+        key={`zebra-${hour}`}
+        className={bandClass}
+        style={{
+          top: (hour - START_HOUR) * HOUR_ROW_HEIGHT,
+          height: HOUR_ROW_HEIGHT,
+        }}
+      />,
+    );
+  }
+  return bands;
+}
 type AgendaWorkingHours = {
   weeklySchedule: WeeklySchedule;
   breakStart: string | null;
@@ -186,7 +231,9 @@ function AgendaAppointmentCardInner({
   isCompactCounterOffer: boolean;
 }) {
   const t = useTranslations("DoctorAgenda");
-  const nameColor = isPendingRequest ? "text-amber-100" : "text-clinical-100";
+  const nameColor = isPendingRequest
+    ? agendaAppointmentNamePendingClass
+    : agendaAppointmentNameConfirmedClass;
   const patientDisplay = patientName.trim() || "Patient";
   const topRightBadge = isRequested
     ? t("appointmentPendingBadge")
@@ -206,18 +253,18 @@ function AgendaAppointmentCardInner({
           title={cardTitle}
         >
           <p
-            className={`flex min-h-0 min-w-0 items-center gap-0.5 truncate text-left text-[11px] font-semibold leading-tight ${nameColor}`}
+            className={`flex min-h-0 min-w-0 items-center gap-0.5 truncate text-left text-xs font-semibold leading-tight sm:text-[13px] ${nameColor}`}
           >
-            <span className="shrink-0 tabular-nums text-[10px] font-semibold leading-none text-slate-300/95">
+            <span className={agendaAppointmentTimeClass}>
               {timeLabel}
             </span>
-            <span className="shrink-0 opacity-50">·</span>
+            <span className="shrink-0 text-white/50">·</span>
             <span className="min-w-0 flex-1 truncate" title={patientDisplay}>
               {patientDisplay}
             </span>
             {topRightBadge ? (
               <span
-                className="ml-1 shrink-0 max-w-[3.35rem] truncate rounded bg-ink-900/55 px-1 py-0 text-[8px] font-medium leading-none text-amber-100/90 ring-1 ring-amber-400/20"
+                className={`ml-1 shrink-0 max-w-[3.35rem] truncate ${agendaAppointmentBadgeClass}`}
                 title={topRightBadge}
               >
                 {topRightBadge}
@@ -234,19 +281,19 @@ function AgendaAppointmentCardInner({
         title={cardTitle}
       >
         <div className={`flex min-w-0 items-center ${topRightBadge ? "pr-[2.55rem]" : ""}`}>
-          <span className="shrink-0 tabular-nums text-[10px] font-semibold leading-none text-slate-300/95">
+          <span className={agendaAppointmentTimeClass}>
             {timeLabel}
           </span>
         </div>
         {topRightBadge ? (
           <span
-            className="pointer-events-none absolute right-0 top-0 z-10 max-w-[46%] truncate rounded bg-ink-900/55 px-0.5 py-0 text-[8px] font-medium leading-none text-amber-100/90 ring-1 ring-amber-400/20 backdrop-blur-sm"
+            className={`pointer-events-none absolute right-0 top-0 z-10 max-w-[46%] truncate ${agendaAppointmentBadgeClass}`}
             title={topRightBadge}
           >
             {topRightBadge}
           </span>
         ) : null}
-        <p className="mt-0.5 min-w-0 truncate text-left text-[11px] font-semibold leading-tight">
+        <p className="mt-0.5 min-w-0 truncate text-left text-xs font-semibold leading-tight sm:text-[13px]">
           <span className={`min-w-0 truncate ${nameColor}`} title={patientDisplay}>
             {patientDisplay}
           </span>
@@ -259,17 +306,17 @@ function AgendaAppointmentCardInner({
     <>
       {topRightBadge ? (
         <span
-          className="pointer-events-none absolute right-0.5 top-0.5 z-10 max-w-[42%] truncate rounded bg-ink-900/50 px-0.5 py-0 text-[9px] font-medium leading-none text-amber-100/90 ring-1 ring-amber-400/20 backdrop-blur-sm"
+          className={`pointer-events-none absolute right-0.5 top-0.5 z-10 max-w-[42%] truncate ${agendaAppointmentBadgeClass}`}
           title={topRightBadge}
         >
           {topRightBadge}
         </span>
       ) : null}
       <p
-        className={`flex min-h-0 min-w-0 items-center gap-0.5 truncate text-left text-xs font-semibold leading-tight ${nameColor} ${topRightBadge ? "pr-[2.15rem]" : ""}`}
+        className={`flex min-h-0 min-w-0 items-center gap-0.5 truncate text-left text-xs font-semibold leading-tight sm:text-[13px] ${nameColor} ${topRightBadge ? "pr-[2.15rem]" : ""}`}
       >
-        <span className="shrink-0 tabular-nums">{timeLabel}</span>
-        <span className="shrink-0 opacity-50">·</span>
+        <span className={agendaAppointmentTimeClass}>{timeLabel}</span>
+        <span className="shrink-0 text-white/50">·</span>
         <span className="min-w-0 truncate" title={patientDisplay}>
           {patientDisplay}
         </span>
@@ -1001,19 +1048,19 @@ export function AgendaRealtime({
         </div>
       )}
 
-      <section className="min-w-0 rounded-3xl border border-clinical-100/10 bg-slate-900/50 shadow-2xl shadow-ink-900/50 backdrop-blur-xl">
-        <div className="border-b border-slate-800/60 px-4 pb-4 pt-4 sm:px-6 sm:pb-5 sm:pt-5">
+      <section className={agendaCalendarShellClass}>
+        <div className={`${agendaToolbarDividerClass} px-4 pb-4 pt-4 sm:px-6 sm:pb-5 sm:pt-5`}>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="space-y-0.5">
-              <h2 className="text-sm font-semibold text-slate-200">
+              <h2 className="text-base font-semibold text-white">
                 {format(nowCyprus, "dd/MM/yyyy", { locale: enGB })}
               </h2>
-              <p className="text-xs leading-snug text-slate-400">
+              <p className="text-sm leading-snug text-slate-300">
                 {todayCount === 0 ? (
                   "No appointments today"
                 ) : (
                   <>
-                    <span className="font-semibold tabular-nums text-clinical-300">
+                    <span className="font-bold tabular-nums text-clinical-300">
                       {todayCount}
                     </span>{" "}
                     {todayCount === 1 ? "appointment today" : "appointments today"}
@@ -1026,7 +1073,7 @@ export function AgendaRealtime({
                 type="button"
                 onClick={() => setManualBookingOpen(true)}
                 title="Took a phone call? Block the slot manually here. Next time, share your link to save time."
-                className="rounded-lg border border-clinical-300/40 bg-clinical-400/10 px-3 py-1.5 text-xs font-semibold text-clinical-100 transition hover:border-clinical-300/60 hover:bg-clinical-400/20"
+                className={agendaPrimaryChipButtonClass}
               >
                 + Add Manual Booking
               </button>
@@ -1038,26 +1085,26 @@ export function AgendaRealtime({
                   setWeekOffset(0);
                   setMobileDayOffset(0);
                 }}
-                className="rounded-lg border border-clinical-400/30 bg-clinical-400/10 px-2.5 py-1.5 text-xs font-medium text-clinical-200 transition hover:border-clinical-300/50 hover:bg-clinical-400/20"
+                className={agendaTodayChipButtonClass}
               >
                 Today
               </button>
               <button
                 type="button"
                 onClick={() => setWeekOffset((w) => w - 1)}
-                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-700 bg-slate-800/70 text-slate-300 transition hover:border-slate-500 hover:text-white"
+                className={agendaNavIconButtonClass}
                 aria-label="Previous week"
               >
                 <ChevronLeft className="h-4 w-4" />
               </button>
-              <p className="text-xs text-slate-400">
+              <p className="text-xs font-medium text-slate-300">
                 {format(weekDays[0], "dd MMM", { locale: enGB })} -{" "}
                 {format(weekDays[4], "dd MMM", { locale: enGB })}
               </p>
               <button
                 type="button"
                 onClick={() => setWeekOffset((w) => w + 1)}
-                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-700 bg-slate-800/70 text-slate-300 transition hover:border-slate-500 hover:text-white"
+                className={agendaNavIconButtonClass}
                 aria-label="Next week"
               >
                 <ChevronRight className="h-4 w-4" />
@@ -1068,12 +1115,12 @@ export function AgendaRealtime({
             <button
               type="button"
               onClick={() => setMobileDayOffset((v) => v - 1)}
-              className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-700 bg-slate-800/70 text-slate-300 transition hover:border-slate-500 hover:text-white"
+              className={agendaNavIconButtonClass}
               aria-label="Previous day"
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
-            <p className="text-xs font-medium text-slate-300">
+            <p className="text-sm font-semibold text-white">
               {format(selectedMobileDate, "EEE, dd MMM", { locale: enGB })}
             </p>
             <div className="flex items-center gap-2">
@@ -1083,14 +1130,14 @@ export function AgendaRealtime({
                   setWeekOffset(0);
                   setMobileDayOffset(0);
                 }}
-                className="rounded-lg border border-clinical-400/30 bg-clinical-400/10 px-2 py-1 text-[11px] font-medium text-clinical-200 transition hover:border-clinical-300/50 hover:bg-clinical-400/20"
+                className={`${agendaTodayChipButtonClass} px-2 py-1 text-[11px]`}
               >
                 Today
               </button>
               <button
                 type="button"
                 onClick={() => setMobileDayOffset((v) => v + 1)}
-                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-700 bg-slate-800/70 text-slate-300 transition hover:border-slate-500 hover:text-white"
+                className={agendaNavIconButtonClass}
                 aria-label="Next day"
               >
                 <ChevronRight className="h-4 w-4" />
@@ -1102,21 +1149,22 @@ export function AgendaRealtime({
         <div className="px-4 pb-4 pt-3 sm:px-6 sm:pb-6">
           <div className="md:hidden">
             {mobileRows.length === 0 && !mobileShowsToday ? (
-              <p className="mb-2 text-center text-xs text-slate-500">
+              <p className="mb-2 text-center text-xs text-slate-400">
                 No appointments this day
               </p>
             ) : null}
             <div className="grid grid-cols-[50px_1fr] gap-3">
                 <div
-                  className="relative text-[11px] text-slate-500"
+                  className={agendaHourAxisClass}
                   style={{ height: dayHeight }}
                 >
+                  {renderAgendaHourZebraBands(false)}
                   {hours.map((hour) => {
                     const y = (hour - START_HOUR) * HOUR_ROW_HEIGHT;
                     return (
                       <span
                         key={hour}
-                        className="absolute -translate-y-1/2"
+                        className={agendaHourAxisLabelClass(hour, START_HOUR)}
                         style={{ top: y, left: 0 }}
                       >
                         {String(hour).padStart(2, "0")}:00
@@ -1125,9 +1173,10 @@ export function AgendaRealtime({
                   })}
                 </div>
                 <div
-                  className="relative rounded-2xl border border-slate-800/70 bg-ink-900/45"
+                  className={agendaDayColumnClass(mobileShowsToday)}
                   style={{ height: dayHeight }}
                 >
+                  {renderAgendaHourZebraBands(mobileShowsToday)}
                   {(() => {
                     const w = workingWindowsForDate(selectedMobileDate);
                     const startMin = START_HOUR * 60;
@@ -1139,7 +1188,7 @@ export function AgendaRealtime({
                       overlays.push(
                         <div
                           key="mobile-disabled-day"
-                          className="absolute inset-0 bg-slate-900/70"
+                          className={agendaOffHoursOverlayClass}
                         />,
                       );
                     } else {
@@ -1147,7 +1196,7 @@ export function AgendaRealtime({
                         overlays.push(
                           <div
                             key="mobile-before-start"
-                            className="absolute inset-x-0 bg-slate-900/70"
+                            className={agendaOffHoursBandClass}
                             style={{
                               top: 0,
                               height: y(Math.min(w.start, endMin)),
@@ -1159,7 +1208,7 @@ export function AgendaRealtime({
                         overlays.push(
                           <div
                             key="mobile-after-end"
-                            className="absolute inset-x-0 bg-slate-900/70"
+                            className={agendaOffHoursBandClass}
                             style={{
                               top: y(Math.max(w.end, startMin)),
                               bottom: 0,
@@ -1178,7 +1227,7 @@ export function AgendaRealtime({
                           overlays.push(
                             <div
                               key="mobile-break"
-                              className="absolute inset-x-0 bg-slate-900/65"
+                              className={agendaBreakBandClass}
                               style={{ top, height: bottom - top }}
                             />,
                           );
@@ -1192,7 +1241,7 @@ export function AgendaRealtime({
                     return (
                       <div
                         key={`mobile-line-${hour}`}
-                        className="absolute inset-x-0 border-t border-slate-800/60"
+                        className={agendaHourGridLineClass}
                         style={{ top: y }}
                       />
                     );
@@ -1203,14 +1252,14 @@ export function AgendaRealtime({
                       type="button"
                       aria-label={`Appointment ${row.patient_name} at ${row.timeLabel}`}
                       onClick={() => openAppointment(row)}
-                      className={`group absolute left-1 right-1 overflow-hidden rounded-xl border text-left shadow-lg transition focus:outline-none focus:ring-2 focus:ring-clinical-300/60 ${
+                      className={`group absolute left-1 right-1 overflow-hidden rounded-xl border text-left shadow-lg transition focus:outline-none ${
                         row.isCounterOfferHold
                           ? "flex flex-col items-stretch justify-start px-2 py-1.5"
                           : "px-2 py-1"
                       } ${
                         row.isPendingRequest
-                          ? "border-amber-300/40 bg-amber-400/15 opacity-[0.72] shadow-amber-500/10 hover:bg-amber-400/25 hover:opacity-95"
-                          : "border-clinical-300/40 bg-clinical-400/20 shadow-clinical-500/10 hover:bg-clinical-400/30"
+                          ? agendaAppointmentPendingClass
+                          : agendaAppointmentConfirmedClass
                       }`}
                       style={{
                         top: topForRow(row),
@@ -1236,16 +1285,12 @@ export function AgendaRealtime({
           </div>
 
           <div className="hidden min-w-0 md:block">
-            <div className="sticky top-0 z-20 grid grid-cols-[64px_repeat(5,minmax(104px,1fr))] gap-3 border-b border-slate-800/70 bg-slate-900/90 pb-2 pt-1 backdrop-blur lg:grid-cols-[72px_repeat(5,minmax(120px,1fr))] xl:grid-cols-[80px_repeat(5,minmax(140px,1fr))]">
+            <div className={agendaStickyWeekHeaderClass}>
               <div />
               {weekDays.map((day) => (
                 <div
                   key={format(day, "yyyy-MM-dd")}
-                  className={`min-w-0 rounded-xl border px-2 py-2 text-center text-xs ${
-                    isSameDay(day, todayDate)
-                      ? "border-clinical-300/40 bg-clinical-400/10 text-clinical-200"
-                      : "border-slate-800/80 bg-slate-900/40 text-slate-300"
-                  }`}
+                  className={agendaDayHeaderClass(isSameDay(day, todayDate))}
                 >
                   <p className="font-semibold">
                     {format(day, "EEE", { locale: enGB })}
@@ -1253,21 +1298,27 @@ export function AgendaRealtime({
                   <p className="mt-0.5 text-[11px]">
                     {format(day, "dd MMM", { locale: enGB })}
                   </p>
+                  {isSameDay(day, todayDate) ? (
+                    <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.14em] text-clinical-100">
+                      Today
+                    </p>
+                  ) : null}
                 </div>
               ))}
             </div>
 
             <div className="grid grid-cols-[64px_repeat(5,minmax(104px,1fr))] gap-3 lg:grid-cols-[72px_repeat(5,minmax(120px,1fr))] xl:grid-cols-[80px_repeat(5,minmax(140px,1fr))]">
               <div
-                className="relative shrink-0 text-[11px] text-slate-500"
+                className={agendaHourAxisClass}
                 style={{ height: dayHeight }}
               >
+                {renderAgendaHourZebraBands(false)}
                 {hours.map((hour) => {
                   const y = (hour - START_HOUR) * HOUR_ROW_HEIGHT;
                   return (
                     <span
                       key={hour}
-                      className="absolute -translate-y-1/2"
+                      className={agendaHourAxisLabelClass(hour, START_HOUR)}
                       style={{ top: y, left: 0 }}
                     >
                       {String(hour).padStart(2, "0")}:00
@@ -1281,6 +1332,7 @@ export function AgendaRealtime({
                   .filter((r) => r.dateKey === dayKey)
                   .sort((a, b) => a.sortKeyMs - b.sortKeyMs);
                 const dayDate = weekDays[weekKeys.indexOf(dayKey)];
+                const isTodayCol = isSameDay(dayDate, todayDate);
                 const work = workingWindowsForDate(dayDate);
                 const startMin = START_HOUR * 60;
                 const endMin = END_HOUR * 60;
@@ -1289,16 +1341,17 @@ export function AgendaRealtime({
                 return (
                   <div
                     key={dayKey}
-                    className="relative min-w-0 rounded-2xl border border-slate-800/70 bg-ink-900/45"
+                    className={agendaDayColumnClass(isTodayCol)}
                     style={{ height: dayHeight }}
                   >
+                    {renderAgendaHourZebraBands(isTodayCol)}
                     {!work.enabled ? (
-                      <div className="absolute inset-0 bg-slate-900/70" />
+                      <div className={agendaOffHoursOverlayClass} />
                     ) : (
                       <>
                         {work.start > startMin ? (
                           <div
-                            className="absolute inset-x-0 bg-slate-900/70"
+                            className={agendaOffHoursBandClass}
                             style={{
                               top: 0,
                               height: y(Math.min(work.start, endMin)),
@@ -1307,7 +1360,7 @@ export function AgendaRealtime({
                         ) : null}
                         {work.end < endMin ? (
                           <div
-                            className="absolute inset-x-0 bg-slate-900/70"
+                            className={agendaOffHoursBandClass}
                             style={{
                               top: y(Math.max(work.end, startMin)),
                               bottom: 0,
@@ -1327,7 +1380,7 @@ export function AgendaRealtime({
                               if (bottom <= top) return null;
                               return (
                                 <div
-                                  className="absolute inset-x-0 bg-slate-900/65"
+                                  className={agendaBreakBandClass}
                                   style={{ top, height: bottom - top }}
                                 />
                               );
@@ -1340,7 +1393,7 @@ export function AgendaRealtime({
                       return (
                         <div
                           key={`${dayKey}-line-${hour}`}
-                          className="absolute inset-x-0 border-t border-slate-800/60"
+                          className={agendaHourGridLineClass}
                           style={{ top: y }}
                         />
                       );
@@ -1351,14 +1404,14 @@ export function AgendaRealtime({
                         type="button"
                         aria-label={`Appointment ${row.patient_name} at ${row.timeLabel}`}
                         onClick={() => openAppointment(row)}
-                        className={`group absolute left-1 right-1 overflow-hidden rounded-xl border text-left shadow-lg transition focus:outline-none focus:ring-2 focus:ring-clinical-300/60 ${
+                        className={`group absolute left-1 right-1 overflow-hidden rounded-xl border text-left shadow-lg transition focus:outline-none ${
                           row.isCounterOfferHold
                             ? "flex flex-col items-stretch justify-start px-2 py-1.5"
                             : "px-2 py-1"
                         } ${
                           row.isPendingRequest
-                            ? "border-amber-300/40 bg-amber-400/15 opacity-[0.72] shadow-amber-500/10 hover:bg-amber-400/25 hover:opacity-95"
-                            : "border-clinical-300/40 bg-clinical-400/20 shadow-clinical-500/10 hover:bg-clinical-400/30"
+                            ? agendaAppointmentPendingClass
+                            : agendaAppointmentConfirmedClass
                         }`}
                         style={{
                           top: topForRow(row),
@@ -1617,7 +1670,7 @@ export function AgendaRealtime({
                 <button
                   type="button"
                   onClick={() => openRescheduleFlow(selected)}
-                  className="inline-flex w-full items-center justify-center rounded-2xl border border-sky-400/50 bg-sky-500/20 px-4 py-3 text-sm font-semibold text-sky-100 shadow-sm shadow-sky-500/10 transition hover:border-sky-400/70 hover:bg-sky-500/30"
+                  className="inline-flex w-full items-center justify-center rounded-2xl border border-clinical-400/50 bg-clinical-500/20 px-4 py-3 text-sm font-semibold text-clinical-100 shadow-sm shadow-clinical-500/10 transition hover:border-clinical-400/70 hover:bg-clinical-500/30"
                 >
                   Reschedule appointment
                 </button>
@@ -1635,7 +1688,7 @@ export function AgendaRealtime({
             {rescheduleOpen &&
             selectedStatus === "CONFIRMED" &&
             !selectedPast ? (
-              <div className="mt-4 rounded-2xl border border-sky-500/20 bg-sky-500/5 p-3 text-xs text-slate-300">
+              <div className="mt-4 rounded-2xl border border-clinical-500/20 bg-clinical-500/5 p-3 text-xs text-slate-300">
                 <p>
                   Propose three new times to the patient. They will receive an
                   email and choose one slot.
@@ -1657,7 +1710,7 @@ export function AgendaRealtime({
                         }}
                         className={`rounded-xl border px-2.5 py-1.5 text-xs font-medium transition ${
                           active
-                            ? "border-sky-400/60 bg-sky-400/20 text-sky-100"
+                            ? "border-clinical-400/60 bg-clinical-400/20 text-clinical-100"
                             : "border-slate-700 bg-slate-900/50 text-slate-300 hover:border-slate-600"
                         }`}
                         disabled={loadingAlternatives || sendingProposal}
@@ -1686,7 +1739,7 @@ export function AgendaRealtime({
                     onClick={() => {
                       void loadRescheduleAlternatives();
                     }}
-                    className="inline-flex flex-1 items-center justify-center rounded-2xl border border-sky-500/40 bg-sky-500/10 px-3 py-2 text-xs font-semibold text-sky-200 transition hover:border-sky-400/60 hover:bg-sky-500/20 disabled:cursor-not-allowed disabled:opacity-70"
+                    className="inline-flex flex-1 items-center justify-center rounded-2xl border border-clinical-500/40 bg-clinical-500/10 px-3 py-2 text-xs font-semibold text-clinical-200 transition hover:border-clinical-400/60 hover:bg-clinical-500/20 disabled:cursor-not-allowed disabled:opacity-70"
                     disabled={loadingAlternatives || sendingProposal}
                   >
                     {loadingAlternatives ? "Finding times..." : "Find 3 slots"}
@@ -1731,7 +1784,7 @@ export function AgendaRealtime({
                       onClick={() => {
                         void sendRescheduleProposal();
                       }}
-                      className="mt-1 inline-flex w-full items-center justify-center rounded-2xl border border-sky-500/40 bg-sky-500/10 px-3 py-2 text-xs font-semibold text-sky-200 transition hover:border-sky-400/60 hover:bg-sky-500/20 disabled:cursor-not-allowed disabled:opacity-70"
+                      className="mt-1 inline-flex w-full items-center justify-center rounded-2xl border border-clinical-500/40 bg-clinical-500/10 px-3 py-2 text-xs font-semibold text-clinical-200 transition hover:border-clinical-400/60 hover:bg-clinical-500/20 disabled:cursor-not-allowed disabled:opacity-70"
                       disabled={
                         sendingProposal || rescheduleReason.trim().length < 10
                       }

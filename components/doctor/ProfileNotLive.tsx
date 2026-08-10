@@ -23,7 +23,7 @@ export function ProfileNotLive({
     <main className="min-h-screen bg-slate-950 px-4 py-14 text-slate-200 sm:py-20">
       <div className="pointer-events-none fixed inset-0 -z-10">
         <div className="absolute inset-x-0 top-[-10%] mx-auto h-80 max-w-xl rounded-full bg-clinical-500/[0.07] blur-3xl" />
-        <div className="absolute bottom-0 right-0 h-64 w-64 rounded-full bg-sky-500/[0.05] blur-3xl" />
+        <div className="absolute bottom-0 right-0 h-64 w-64 rounded-full bg-clinical-500/[0.05] blur-3xl" />
       </div>
 
       <div className="mx-auto max-w-xl text-center">
@@ -80,7 +80,7 @@ export function ProfileNotLive({
           </div>
 
           <div className="flex flex-col rounded-2xl border border-slate-800/90 bg-slate-900/50 p-5 text-left shadow-lg shadow-black/20 backdrop-blur-sm">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-sky-500/15 text-sky-300">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-clinical-500/15 text-clinical-300">
               <UserRound className="h-5 w-5" strokeWidth={1.75} aria-hidden />
             </div>
             <h2 className="mt-3 text-sm font-semibold text-white">I want to book</h2>
@@ -90,7 +90,7 @@ export function ProfileNotLive({
             </p>
             <PendingLink
               href="/"
-              className="mt-4 inline-flex w-full items-center justify-center rounded-xl border border-sky-500/50 bg-sky-500/10 py-2.5 text-sm font-semibold text-sky-100 transition hover:border-sky-400/60 hover:bg-sky-500/20"
+              className="mt-4 inline-flex w-full items-center justify-center rounded-xl border border-clinical-400/50 bg-clinical-500/10 py-2.5 text-sm font-semibold text-clinical-100 transition hover:border-clinical-300/60 hover:bg-clinical-500/20"
             >
               Find a professional
             </PendingLink>

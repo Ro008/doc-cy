@@ -50,7 +50,7 @@ export function RecentActivityFeed({ items }: Props) {
               className="relative rounded-xl border border-slate-800/60 bg-slate-950/40 p-3 pl-4"
             >
               <span
-                className="absolute left-0 top-3 h-8 w-0.5 rounded-full bg-gradient-to-b from-clinical-400 to-sky-500"
+                className="absolute left-0 top-3 h-8 w-0.5 rounded-full bg-gradient-to-b from-clinical-400 to-clinical-500"
                 aria-hidden
               />
               <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-600">

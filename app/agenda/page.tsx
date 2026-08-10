@@ -71,9 +71,7 @@ export default async function AgendaPage({ searchParams }: AgendaPageProps) {
   if (!doctor) {
     return (
       <main className="min-h-screen bg-ink-900 text-slate-50">
-        <div className="pointer-events-none fixed inset-0 -z-10">
-          <div className="absolute inset-x-0 top-[-10%] mx-auto h-80 max-w-xl rounded-full bg-clinical-500/10 blur-3xl" />
-        </div>
+        <div className="pointer-events-none fixed inset-0 -z-10 bg-gradient-to-b from-clinical-500/[0.04] via-transparent to-transparent" />
         <div className="mx-auto flex min-h-screen max-w-2xl flex-col items-center justify-center gap-6 px-4 py-12 text-center">
           <p className="text-slate-200">
             Professional profile not found for this account. Please contact
@@ -150,11 +148,7 @@ export default async function AgendaPage({ searchParams }: AgendaPageProps) {
 
   return (
     <main className="min-h-screen bg-ink-900 text-slate-50">
-      <div className="pointer-events-none fixed inset-0 -z-10">
-        <div className="absolute inset-x-0 top-[-10%] mx-auto h-80 max-w-xl rounded-full bg-clinical-500/10 blur-3xl" />
-        <div className="absolute inset-y-0 left-[-10%] h-full w-64 bg-sky-500/5 blur-3xl" />
-        <div className="absolute inset-y-0 right-[-15%] h-full w-72 bg-clinical-400/10 blur-3xl" />
-      </div>
+      <div className="pointer-events-none fixed inset-0 -z-10 bg-gradient-to-b from-clinical-500/[0.04] via-transparent to-transparent" />
 
       <div className="mx-auto flex min-h-screen w-full max-w-[1920px] flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
         <header className="flex flex-col gap-8">
@@ -165,7 +159,7 @@ export default async function AgendaPage({ searchParams }: AgendaPageProps) {
               </h1>
               {isFoundingMember ? <FoundingMemberBadge /> : null}
             </div>
-            <p className="mt-3 text-sm text-slate-400">
+            <p className="mt-3 text-sm text-slate-300">
               Weekly calendar on desktop · Daily focus on mobile
             </p>
           </div>

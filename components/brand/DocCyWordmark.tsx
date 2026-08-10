@@ -1,7 +1,8 @@
 import Image from "next/image";
 
 const LOGO_SRC = "/brand/doccy-logo.png";
-const LOGO_ASPECT = 483 / 140;
+/** Trimmed wordmark aspect (1518×461). */
+const LOGO_ASPECT = 1518 / 461;
 
 type DocCyWordmarkProps = {
   className?: string;
@@ -26,10 +27,11 @@ export function DocCyWordmark({
     <span className={`inline-flex shrink-0 items-center ${className}`.trim()}>
       <Image
         src={LOGO_SRC}
-        alt="DocCy"
+        alt="my doccy"
         width={width}
         height={height}
         className={`w-auto object-contain object-left ${HEIGHT_CLASS[size]}`}
+        priority={size === "lg"}
       />
     </span>
   );

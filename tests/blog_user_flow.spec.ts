@@ -5,7 +5,7 @@ test.describe("Blog natural user flow", () => {
     await page.goto("/blog");
 
     // Header brand link from blog should drive users to finder.
-    const brandLink = page.getByRole("link", { name: "DocCy" }).first();
+    const brandLink = page.getByRole("link", { name: /my doccy/i }).first();
     await expect(brandLink).toBeVisible();
 
     // Typical blog behavior: browse list and open an article.
@@ -26,7 +26,7 @@ test.describe("Blog natural user flow", () => {
     }
 
     // Mobile-safe route: use header brand link from the post detail.
-    const postBrandLink = page.getByRole("link", { name: "DocCy" }).first();
+    const postBrandLink = page.getByRole("link", { name: /my doccy/i }).first();
     await expect(postBrandLink).toBeVisible();
     await Promise.all([
       page.waitForURL(/^https?:\/\/[^/?#]+\/?(?:\?.*)?$/, { timeout: 60_000 }),

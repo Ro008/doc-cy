@@ -51,7 +51,7 @@ function KpiCard({
   icon: React.ReactNode;
 }) {
   return (
-    <article className="rounded-2xl border border-clinical-300/15 bg-slate-900/70 p-4 shadow-[0_0_32px_-18px_rgba(16,185,129,0.35)]">
+    <article className="rounded-2xl border border-clinical-300/15 bg-slate-900/70 p-4 shadow-[0_0_32px_-18px_rgba(18,184,192,0.35)]">
       <div className="flex items-start justify-between gap-2">
         <p className="text-xs font-medium uppercase tracking-wide text-slate-400">{label}</p>
         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-clinical-500/10 text-clinical-300">
@@ -213,7 +213,7 @@ export function PracticeInsightsDashboard({ insights }: Props) {
                   />
                   <defs>
                     <linearGradient id={`insightsBar-${gradId}`} x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#0B7BB5" stopOpacity={0.95} />
+                      <stop offset="0%" stopColor="#12B8C0" stopOpacity={0.95} />
                       <stop offset="100%" stopColor="#0d9488" stopOpacity={0.75} />
                     </linearGradient>
                   </defs>
@@ -245,7 +245,7 @@ export function PracticeInsightsDashboard({ insights }: Props) {
                         }}
                         formatter={(value: number) => [value, t("charts.tooltipBookings")]}
                       />
-                      <Bar dataKey="bookings" fill="#0B7BB5" radius={[4, 4, 0, 0]} maxBarSize={20} />
+                      <Bar dataKey="bookings" fill="#12B8C0" radius={[4, 4, 0, 0]} maxBarSize={20} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>

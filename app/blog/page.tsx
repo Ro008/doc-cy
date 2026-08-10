@@ -59,7 +59,7 @@ export default async function BlogIndexPage() {
           {posts.map((post) => (
             <article
               key={post.slug}
-              className="rounded-2xl border border-clinical-200 bg-white p-4 shadow-[0_1px_3px_rgba(26,43,60,0.06),0_4px_16px_rgba(11,123,181,0.05)] sm:p-5"
+              className="rounded-2xl border border-clinical-200 bg-white p-4 shadow-[0_1px_3px_rgba(26,43,60,0.06),0_4px_16px_rgba(18,184,192,0.05)] sm:p-5"
             >
               <p className="text-xs uppercase tracking-[0.14em] text-clinical-600">
                 {formatDate(post.publishedAt)}

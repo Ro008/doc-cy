@@ -26,7 +26,7 @@ export function DoctorDetailsAccordion({
 
   return (
     <section className="lg:min-w-0">
-      <div className="rounded-3xl border border-clinical-200 bg-white shadow-[0_1px_3px_rgba(26,43,60,0.06),0_8px_24px_rgba(11,123,181,0.06)] backdrop-blur-xl">
+      <div className="rounded-3xl border border-clinical-200 bg-white shadow-[0_1px_3px_rgba(26,43,60,0.06),0_8px_24px_rgba(18,184,192,0.06)] backdrop-blur-xl">
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}

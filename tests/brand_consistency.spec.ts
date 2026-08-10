@@ -16,7 +16,7 @@ test.describe("Brand consistency", () => {
     ).toBeVisible({ timeout: 10000 });
 
     const brandLogo = page.locator("header").first().getByRole("img", {
-      name: "DocCy",
+      name: /my doccy/i,
     });
     await expect(brandLogo).toBeVisible();
     await expect(brandLogo).toHaveAttribute("src", /doccy-logo\.png/);
@@ -50,7 +50,7 @@ test.describe("Brand consistency", () => {
       timeout: 10000,
     });
 
-    const brandLogo = page.getByRole("img", { name: "DocCy" });
+    const brandLogo = page.getByRole("img", { name: /my doccy/i });
     await expect(brandLogo).toBeVisible();
     await expect(brandLogo).toHaveAttribute("src", /doccy-logo\.png/);
 

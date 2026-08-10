@@ -335,7 +335,7 @@ export function BookingSection({
 
   if (onlineBookingsPaused) {
     return (
-      <div className="rounded-3xl border border-clinical-200 bg-white p-6 shadow-[0_1px_3px_rgba(26,43,60,0.06),0_8px_24px_rgba(11,123,181,0.06)] backdrop-blur-xl">
+      <div className="rounded-3xl border border-clinical-200 bg-white p-6 shadow-[0_1px_3px_rgba(26,43,60,0.06),0_8px_24px_rgba(18,184,192,0.06)] backdrop-blur-xl">
         <h2 className="text-lg font-semibold text-ink-900">
           {t("bookingsTemporarilyUnavailable")}
         </h2>
@@ -348,7 +348,7 @@ export function BookingSection({
 
   if (!weeklySlots || weeklySlots.length === 0) {
     return (
-      <div className="rounded-3xl border border-clinical-200 bg-white p-6 shadow-[0_1px_3px_rgba(26,43,60,0.06),0_8px_24px_rgba(11,123,181,0.06)] backdrop-blur-xl">
+      <div className="rounded-3xl border border-clinical-200 bg-white p-6 shadow-[0_1px_3px_rgba(26,43,60,0.06),0_8px_24px_rgba(18,184,192,0.06)] backdrop-blur-xl">
         <h2 className="text-lg font-semibold text-ink-900">
           {t("title")}
         </h2>
@@ -361,7 +361,7 @@ export function BookingSection({
 
   if (upcomingSlots.length === 0) {
     return (
-      <div className="rounded-3xl border border-clinical-200 bg-white p-6 shadow-[0_1px_3px_rgba(26,43,60,0.06),0_8px_24px_rgba(11,123,181,0.06)] backdrop-blur-xl">
+      <div className="rounded-3xl border border-clinical-200 bg-white p-6 shadow-[0_1px_3px_rgba(26,43,60,0.06),0_8px_24px_rgba(18,184,192,0.06)] backdrop-blur-xl">
         <h2 className="text-lg font-semibold text-ink-900">
           {t("bookingsTemporarilyUnavailable")}
         </h2>
@@ -423,7 +423,7 @@ export function BookingSection({
   // Contact form step (after Confirm on time slot)
   if (showContactForm && selectedSlot) {
     return (
-      <div className="rounded-3xl border border-clinical-200 bg-white p-6 shadow-[0_1px_3px_rgba(26,43,60,0.06),0_8px_24px_rgba(11,123,181,0.06)] backdrop-blur-xl">
+      <div className="rounded-3xl border border-clinical-200 bg-white p-6 shadow-[0_1px_3px_rgba(26,43,60,0.06),0_8px_24px_rgba(18,184,192,0.06)] backdrop-blur-xl">
         <div className="mb-6 flex items-center justify-between gap-3">
           <div>
             <h2 className="text-lg font-semibold text-ink-900">
@@ -592,7 +592,7 @@ export function BookingSection({
     );
 
   return (
-    <div className="rounded-3xl border border-clinical-200 bg-white shadow-[0_1px_3px_rgba(26,43,60,0.06),0_8px_24px_rgba(11,123,181,0.06)] backdrop-blur-xl">
+    <div className="rounded-3xl border border-clinical-200 bg-white shadow-[0_1px_3px_rgba(26,43,60,0.06),0_8px_24px_rgba(18,184,192,0.06)] backdrop-blur-xl">
       <div className="border-b border-ink-200 px-4 py-4 sm:px-6 sm:py-5">
         <div className="flex items-center justify-between gap-3">
           <div>

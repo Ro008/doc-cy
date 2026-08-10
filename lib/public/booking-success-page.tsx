@@ -138,7 +138,7 @@ export default async function BookingSuccessPage({
         <div
           className={`absolute inset-x-0 top-[-10%] mx-auto h-80 max-w-xl rounded-full ${blurTop} blur-3xl`}
         />
-        <div className="absolute inset-y-0 left-[-10%] h-full w-64 bg-sky-500/5 blur-3xl" />
+        <div className="absolute inset-y-0 left-[-10%] h-full w-64 bg-clinical-500/5 blur-3xl" />
         <div
           className={`absolute inset-y-0 right-[-15%] h-full w-72 ${blurSide} blur-3xl`}
         />
@@ -148,7 +148,7 @@ export default async function BookingSuccessPage({
         <section
           data-testid="booking-request-sent-page"
           data-appointment-id={appointmentId}
-          className={`rounded-3xl border ${accentBorder} bg-white p-8 shadow-[0_1px_3px_rgba(26,43,60,0.06),0_8px_24px_rgba(11,123,181,0.08)] sm:p-10`}
+          className={`rounded-3xl border ${accentBorder} bg-white p-8 shadow-[0_1px_3px_rgba(26,43,60,0.06),0_8px_24px_rgba(18,184,192,0.08)] sm:p-10`}
         >
           <div className="flex flex-col items-center text-center">
             <div className="relative">

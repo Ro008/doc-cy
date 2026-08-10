@@ -29,7 +29,7 @@ test.describe("Professional sticky header", { tag: "@pr-e2e" }, () => {
 
     const stickyHeader = page.getByTestId("pro-sticky-header");
     await expect(stickyHeader).toBeVisible();
-    await expect(stickyHeader.getByRole("link", { name: "DocCy" })).toBeVisible();
+    await expect(stickyHeader.getByRole("link", { name: /my doccy/i })).toBeVisible();
 
     const toggle = stickyHeader.getByTestId("userbar-toggle");
     await expect(toggle).toBeVisible();
