@@ -7,6 +7,8 @@ alwaysApply: false
 
 Implemented: 2026-07-28/29 (PR #116 `security/public-api-hardening`)
 
+> **Pending (step 2):** This file previously listed honeytoken identifiers (phones, Maps `cid`, etc.). Those details were removed from the working tree, but **older git commits on the public GitHub history may still contain them**. A history rewrite + coordinated force-push is still outstanding when you choose to do it.
+
 ## Why we did this
 
 The Supabase anon key is public (embedded in the browser bundle). Without RLS, anyone could call PostgREST directly and dump all doctor emails, phones, GHS codes, and license numbers in seconds — no scraping HTML needed.
@@ -43,11 +45,13 @@ Browser bundles still contain the anon key, but PostgREST list dumps of the cura
 
 ### P2 — canary honeytokens (legal proof)
 
-- Registry: `lib/directory-canaries.ts` (6 profiles; phones `+35799041801`–`806`; unique Maps `cid=904817362014820260x`).
-- Migration: `20260809140000_directory_manual_anti_scrape_canaries.sql` (idempotent insert).
-- Listed in finder (Famagusta/Larnaca, lower-traffic specialties) so scrapers copy them.
+Honeytoken profiles exist so an unauthorized bulk copy of the directory can later be proven (Terms §5).
+
+- **Registry (source of truth):** `lib/directory-canaries.ts` — do not paste identifiers (phones, Maps links, slugs, names) into public docs or chats.
+- **Seed migration:** `20260809140000_directory_manual_anti_scrape_canaries.sql` (idempotent insert).
+- Listed in finder in lower-traffic districts/specialties so scrapers may copy them.
 - **Excluded from sitemap** via `isDirectoryCanarySlug`.
-- If a competitor later shows the same name+phone+maps fingerprint → evidence of extraction (Terms §5 €50/record).
+- If a competitor later shows the same fingerprint as a canary row → evidence of extraction.
 
 Cloudflare Free does **not** replace P0; it slows HTML scrapers once PostgREST dumps are closed.
 
@@ -69,7 +73,7 @@ All app code queries these views, never the base tables, for public-facing reads
 
 ### 3. In-memory rate limiting (`lib/public-api-rate-limit.ts`)
 
-Silent (returns 429 but no error UI) on 4 public write APIs:
+Silent (returns 429 but no error UI) on public write APIs:
 
 | Route | Limit |
 |---|---|
@@ -92,3 +96,4 @@ Daily cron at 03:00 UTC (`/api/cron/finder-traffic-alert`). Compares last-hour h
 - **App public reads must use the views**, not the base tables. The only exception is service-role server code (migrations, admin scripts).
 - If adding a new public write API, wire `enforcePublicApiRateLimit` from `lib/public-api-rate-limit.ts` at the top of the handler.
 - If the `doctors` or `directory_manual` schema changes, verify RLS policies still hold (`supabase/migrations/20260728180000_harden_public_directory_rls.sql`).
+- **Do not document honeytoken identifiers** (phones, Maps `cid`, slugs, exact names) in public repo docs, READMEs, or Cursor rules. Keep them in code/migrations only.
