@@ -158,7 +158,7 @@ export default async function HomePage() {
                 {t("Hero.title")}
               </h1>
 
-              <p className="mt-4 max-w-2xl text-xl font-medium leading-snug text-wellness-700 sm:text-2xl">
+              <p className="mt-4 max-w-2xl text-xl font-medium leading-snug text-clinical-700 sm:text-2xl">
                 {t("Hero.tagline")}
               </p>
 
