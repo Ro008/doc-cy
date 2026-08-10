@@ -36,6 +36,10 @@ import { WhatsAppLogoIcon } from "@/components/icons/WhatsAppLogoIcon";
 import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher";
 import { DocCyWordmark } from "@/components/brand/DocCyWordmark";
 import { RecordRecentlyViewed } from "@/components/finder/RecordRecentlyViewed";
+import {
+  FinderDistrictLink,
+  FinderSpecialtyLink,
+} from "@/components/finder/FinderSpecialtyLink";
 import { getTranslations } from "next-intl/server";
 import { Phone } from "lucide-react";
 import {
@@ -761,12 +765,21 @@ export default async function DoctorPage({ params }: PageProps) {
                     <GesyProviderBadge size="xs" language="el" className="shrink-0" />
                   ) : null}
                 </span>
-                <span className="mt-1.5 block text-base font-medium capitalize tracking-wide text-clinical-700 sm:text-lg">
-                  {profile.specialty}
-                </span>
-                <span className="mt-1 block text-base font-medium tracking-wide text-ink-500 sm:text-lg">
-                  {profileHeadingCity}
-                </span>
+                <FinderSpecialtyLink
+                  specialty={profile.specialty}
+                  district={profileDistrictLabel}
+                  className="mt-1.5 block text-base font-medium capitalize tracking-wide text-clinical-700 underline-offset-2 transition hover:text-clinical-600 hover:underline sm:text-lg"
+                />
+                {profileDistrictLabel ? (
+                  <FinderDistrictLink
+                    district={profileDistrictLabel}
+                    className="mt-1 block text-base font-medium tracking-wide text-ink-500 underline-offset-2 transition hover:text-clinical-700 hover:underline sm:text-lg"
+                  />
+                ) : (
+                  <span className="mt-1 block text-base font-medium tracking-wide text-ink-500 sm:text-lg">
+                    {profileHeadingCity}
+                  </span>
+                )}
               </h1>
               {Array.isArray(profile.languages) &&
               profile.languages.length > 0 ? (
