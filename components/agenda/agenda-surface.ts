@@ -4,12 +4,12 @@
  */
 
 export const agendaCalendarShellClass =
-  "min-w-0 rounded-3xl border border-slate-700 bg-slate-950 shadow-xl shadow-black/40";
+  "min-w-0 overflow-visible rounded-3xl border border-slate-700 bg-slate-950 shadow-xl shadow-black/40";
 
 export const agendaToolbarDividerClass = "border-b border-slate-700";
 
 export const agendaStickyWeekHeaderClass =
-  "sticky top-0 z-20 grid grid-cols-[64px_repeat(5,minmax(104px,1fr))] gap-3 border-b border-slate-700 bg-slate-950 pb-2 pt-1 lg:grid-cols-[72px_repeat(5,minmax(120px,1fr))] xl:grid-cols-[80px_repeat(5,minmax(140px,1fr))]";
+  "sticky top-0 z-30 grid min-h-[3.5rem] grid-cols-[64px_repeat(5,minmax(104px,1fr))] items-end gap-3 border-b border-slate-700 bg-slate-950 py-2 shadow-sm lg:top-14 lg:grid-cols-[72px_repeat(5,minmax(120px,1fr))] xl:grid-cols-[80px_repeat(5,minmax(140px,1fr))]";
 
 export const agendaHourAxisClass =
   "relative shrink-0 text-xs tabular-nums text-slate-300";
@@ -52,11 +52,20 @@ export const agendaAppointmentConfirmedClass =
 export const agendaAppointmentPendingClass =
   "border-amber-400/75 bg-amber-500/30 text-amber-50 shadow-md shadow-amber-500/20 hover:bg-amber-500/40 focus-visible:ring-2 focus-visible:ring-amber-400/70";
 
-export function agendaDayHeaderClass(isToday: boolean): string {
-  const base = "min-w-0 rounded-xl border px-2 py-2 text-center text-xs";
+/** Google Calendar–style week column headers (day label + large date). */
+export const agendaDayHeaderShellClass =
+  "flex min-w-0 flex-col items-center justify-end pb-0.5 text-center";
+
+export function agendaDayNameClass(isToday: boolean): string {
   return isToday
-    ? `${base} border-clinical-400 bg-clinical-500/30 text-white shadow-md shadow-clinical-500/25 ring-1 ring-clinical-400/40`
-    : `${base} border-slate-600 bg-slate-900 text-slate-300`;
+    ? "text-[10px] font-medium uppercase tracking-[0.08em] text-clinical-400"
+    : "text-[10px] font-medium uppercase tracking-[0.08em] text-slate-400";
+}
+
+export function agendaDayNumberClass(isToday: boolean): string {
+  return isToday
+    ? "mt-0.5 flex h-8 w-8 items-center justify-center rounded-full bg-clinical-500 text-lg font-normal leading-none tabular-nums text-white"
+    : "text-[22px] font-normal leading-none tabular-nums text-slate-200";
 }
 
 export function agendaDayColumnClass(isToday: boolean): string {

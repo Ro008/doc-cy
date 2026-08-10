@@ -150,19 +150,12 @@ export default async function AgendaPage({ searchParams }: AgendaPageProps) {
     <main className="min-h-screen bg-ink-900 text-slate-50">
       <div className="pointer-events-none fixed inset-0 -z-10 bg-gradient-to-b from-clinical-500/[0.04] via-transparent to-transparent" />
 
-      <div className="mx-auto flex min-h-screen w-full max-w-[1920px] flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
-        <header className="flex flex-col gap-8">
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-3">
-              <h1 className="text-balance text-3xl font-semibold tracking-tight text-slate-50 sm:text-4xl">
-                {displayName}
-              </h1>
-              {isFoundingMember ? <FoundingMemberBadge /> : null}
-            </div>
-            <p className="mt-3 text-sm text-slate-300">
-              Weekly calendar on desktop · Daily focus on mobile
-            </p>
-          </div>
+      <div className="mx-auto flex min-h-screen w-full max-w-[1920px] flex-col gap-3 px-4 py-4 sm:px-6 lg:gap-4 lg:px-8 lg:py-4">
+        <header className="flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1">
+          <h1 className="min-w-0 truncate text-xl font-semibold tracking-tight text-slate-50 sm:text-2xl">
+            {displayName}
+          </h1>
+          {isFoundingMember ? <FoundingMemberBadge compact /> : null}
         </header>
 
         <AgendaRealtime

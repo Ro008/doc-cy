@@ -46,7 +46,9 @@ import {
   agendaBreakBandClass,
   agendaCalendarShellClass,
   agendaDayColumnClass,
-  agendaDayHeaderClass,
+  agendaDayHeaderShellClass,
+  agendaDayNameClass,
+  agendaDayNumberClass,
   agendaHourAxisClass,
   agendaHourGridLineClass,
   agendaHourAxisLabelClass,
@@ -187,6 +189,8 @@ function sortAgendaRowsByDatetime(rows: AgendaAppointmentRow[]): AgendaAppointme
 const START_HOUR = 8;
 const END_HOUR = 20;
 const HOUR_ROW_HEIGHT = 56;
+/** Room for the first hour label (-translate-y-1/2 at y=0). */
+const CALENDAR_TOP_INSET = 14;
 
 function renderAgendaHourZebraBands(isTodayColumn: boolean) {
   const bandClass = isTodayColumn
@@ -200,7 +204,7 @@ function renderAgendaHourZebraBands(isTodayColumn: boolean) {
         key={`zebra-${hour}`}
         className={bandClass}
         style={{
-          top: (hour - START_HOUR) * HOUR_ROW_HEIGHT,
+          top: CALENDAR_TOP_INSET + (hour - START_HOUR) * HOUR_ROW_HEIGHT,
           height: HOUR_ROW_HEIGHT,
         }}
       />,
@@ -629,6 +633,7 @@ export function AgendaRealtime({
     [],
   );
   const dayHeight = (END_HOUR - START_HOUR) * HOUR_ROW_HEIGHT;
+  const calendarBodyHeight = dayHeight + CALENDAR_TOP_INSET;
   const maxMinutes = (END_HOUR - START_HOUR) * 60;
   const appointmentDurationMinutes = defaultSlotMinutes;
 
@@ -984,7 +989,7 @@ export function AgendaRealtime({
 
   function topForRow(row: (typeof rows)[number]): number {
     const minutes = Math.min(Math.max(row.minutesFromStart, 0), maxMinutes);
-    return (minutes / 60) * HOUR_ROW_HEIGHT;
+    return CALENDAR_TOP_INSET + (minutes / 60) * HOUR_ROW_HEIGHT;
   }
 
   type PositionedRow = (typeof rows)[number] & {
@@ -1049,13 +1054,13 @@ export function AgendaRealtime({
       )}
 
       <section className={agendaCalendarShellClass}>
-        <div className={`${agendaToolbarDividerClass} px-4 pb-4 pt-4 sm:px-6 sm:pb-5 sm:pt-5`}>
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="space-y-0.5">
-              <h2 className="text-base font-semibold text-white">
+        <div className={`${agendaToolbarDividerClass} px-4 py-2.5 sm:px-6 md:py-2`}>
+          <div className="flex flex-wrap items-center justify-between gap-2 md:gap-3">
+            <div className="min-w-0 space-y-0.5 md:flex md:items-baseline md:gap-2 md:space-y-0">
+              <h2 className="text-sm font-semibold text-white md:text-[13px]">
                 {format(nowCyprus, "dd/MM/yyyy", { locale: enGB })}
               </h2>
-              <p className="text-sm leading-snug text-slate-300">
+              <p className="text-xs leading-snug text-slate-300 md:text-[13px]">
                 {todayCount === 0 ? (
                   "No appointments today"
                 ) : (
@@ -1146,7 +1151,7 @@ export function AgendaRealtime({
           </div>
         </div>
 
-        <div className="px-4 pb-4 pt-3 sm:px-6 sm:pb-6">
+        <div className="px-4 pb-4 pt-2 sm:px-6 sm:pb-5 sm:pt-2">
           <div className="md:hidden">
             {mobileRows.length === 0 && !mobileShowsToday ? (
               <p className="mb-2 text-center text-xs text-slate-400">
@@ -1156,11 +1161,13 @@ export function AgendaRealtime({
             <div className="grid grid-cols-[50px_1fr] gap-3">
                 <div
                   className={agendaHourAxisClass}
-                  style={{ height: dayHeight }}
+                  style={{ height: calendarBodyHeight }}
                 >
                   {renderAgendaHourZebraBands(false)}
                   {hours.map((hour) => {
-                    const y = (hour - START_HOUR) * HOUR_ROW_HEIGHT;
+                    const y =
+                      CALENDAR_TOP_INSET +
+                      (hour - START_HOUR) * HOUR_ROW_HEIGHT;
                     return (
                       <span
                         key={hour}
@@ -1174,15 +1181,16 @@ export function AgendaRealtime({
                 </div>
                 <div
                   className={agendaDayColumnClass(mobileShowsToday)}
-                  style={{ height: dayHeight }}
+                  style={{ height: calendarBodyHeight }}
                 >
                   {renderAgendaHourZebraBands(mobileShowsToday)}
                   {(() => {
                     const w = workingWindowsForDate(selectedMobileDate);
                     const startMin = START_HOUR * 60;
                     const endMin = END_HOUR * 60;
-                    const y = (m: number) =>
-                      ((m - startMin) / 60) * HOUR_ROW_HEIGHT;
+                      const y = (m: number) =>
+                        CALENDAR_TOP_INSET +
+                        ((m - startMin) / 60) * HOUR_ROW_HEIGHT;
                     const overlays: React.ReactNode[] = [];
                     if (!w.enabled) {
                       overlays.push(
@@ -1237,7 +1245,9 @@ export function AgendaRealtime({
                     return overlays;
                   })()}
                   {hours.slice(0, -1).map((hour) => {
-                    const y = (hour - START_HOUR + 1) * HOUR_ROW_HEIGHT;
+                    const y =
+                      CALENDAR_TOP_INSET +
+                      (hour - START_HOUR + 1) * HOUR_ROW_HEIGHT;
                     return (
                       <div
                         key={`mobile-line-${hour}`}
@@ -1287,34 +1297,34 @@ export function AgendaRealtime({
           <div className="hidden min-w-0 md:block">
             <div className={agendaStickyWeekHeaderClass}>
               <div />
-              {weekDays.map((day) => (
+              {weekDays.map((day) => {
+                const isTodayHeader = isSameDay(day, todayDate);
+                return (
                 <div
                   key={format(day, "yyyy-MM-dd")}
-                  className={agendaDayHeaderClass(isSameDay(day, todayDate))}
+                  className={agendaDayHeaderShellClass}
                 >
-                  <p className="font-semibold">
+                  <p className={agendaDayNameClass(isTodayHeader)}>
                     {format(day, "EEE", { locale: enGB })}
                   </p>
-                  <p className="mt-0.5 text-[11px]">
-                    {format(day, "dd MMM", { locale: enGB })}
+                  <p className={agendaDayNumberClass(isTodayHeader)}>
+                    {format(day, "d")}
                   </p>
-                  {isSameDay(day, todayDate) ? (
-                    <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.14em] text-clinical-100">
-                      Today
-                    </p>
-                  ) : null}
                 </div>
-              ))}
+              );
+              })}
             </div>
 
             <div className="grid grid-cols-[64px_repeat(5,minmax(104px,1fr))] gap-3 lg:grid-cols-[72px_repeat(5,minmax(120px,1fr))] xl:grid-cols-[80px_repeat(5,minmax(140px,1fr))]">
               <div
                 className={agendaHourAxisClass}
-                style={{ height: dayHeight }}
+                style={{ height: calendarBodyHeight }}
               >
                 {renderAgendaHourZebraBands(false)}
                 {hours.map((hour) => {
-                  const y = (hour - START_HOUR) * HOUR_ROW_HEIGHT;
+                  const y =
+                    CALENDAR_TOP_INSET +
+                    (hour - START_HOUR) * HOUR_ROW_HEIGHT;
                   return (
                     <span
                       key={hour}
@@ -1337,12 +1347,13 @@ export function AgendaRealtime({
                 const startMin = START_HOUR * 60;
                 const endMin = END_HOUR * 60;
                 const y = (m: number) =>
+                  CALENDAR_TOP_INSET +
                   ((m - startMin) / 60) * HOUR_ROW_HEIGHT;
                 return (
                   <div
                     key={dayKey}
                     className={agendaDayColumnClass(isTodayCol)}
-                    style={{ height: dayHeight }}
+                    style={{ height: calendarBodyHeight }}
                   >
                     {renderAgendaHourZebraBands(isTodayCol)}
                     {!work.enabled ? (
@@ -1389,7 +1400,9 @@ export function AgendaRealtime({
                       </>
                     )}
                     {hours.slice(0, -1).map((hour) => {
-                      const y = (hour - START_HOUR + 1) * HOUR_ROW_HEIGHT;
+                      const y =
+                      CALENDAR_TOP_INSET +
+                      (hour - START_HOUR + 1) * HOUR_ROW_HEIGHT;
                       return (
                         <div
                           key={`${dayKey}-line-${hour}`}

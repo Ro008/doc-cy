@@ -4,7 +4,7 @@ import * as React from "react";
 import { X } from "lucide-react";
 import { emitOpenFeedback } from "@/lib/doccy-feedback";
 
-export function FoundingMemberBadge() {
+export function FoundingMemberBadge({ compact = false }: { compact?: boolean }) {
   const [open, setOpen] = React.useState(false);
   const panelRef = React.useRef<HTMLDivElement>(null);
 
@@ -41,7 +41,11 @@ export function FoundingMemberBadge() {
         type="button"
         data-founding-badge-trigger
         onClick={() => setOpen((v) => !v)}
-        className="inline-flex shrink-0 items-center rounded-lg border border-clinical-400/50 bg-clinical-400/[0.07] px-3 py-2 text-[10px] font-semibold uppercase leading-none tracking-[0.26em] text-clinical-100 shadow-[0_0_22px_-6px_rgba(18,184,192,0.5)] transition hover:border-clinical-300/75 hover:bg-clinical-400/12 hover:shadow-[0_0_30px_-4px_rgba(18,184,192,0.58)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-900 sm:text-[11px] sm:tracking-[0.3em]"
+        className={
+          compact
+            ? "inline-flex shrink-0 items-center rounded-md border border-clinical-400/50 bg-clinical-400/[0.07] px-2 py-0.5 text-[9px] font-semibold uppercase leading-none tracking-[0.18em] text-clinical-100 shadow-[0_0_16px_-6px_rgba(18,184,192,0.45)] transition hover:border-clinical-300/75 hover:bg-clinical-400/12 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-900"
+            : "inline-flex shrink-0 items-center rounded-lg border border-clinical-400/50 bg-clinical-400/[0.07] px-3 py-2 text-[10px] font-semibold uppercase leading-none tracking-[0.26em] text-clinical-100 shadow-[0_0_22px_-6px_rgba(18,184,192,0.5)] transition hover:border-clinical-300/75 hover:bg-clinical-400/12 hover:shadow-[0_0_30px_-4px_rgba(18,184,192,0.58)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-900 sm:text-[11px] sm:tracking-[0.3em]"
+        }
         aria-expanded={open}
         aria-haspopup="dialog"
         aria-controls="founding-member-status-panel"
