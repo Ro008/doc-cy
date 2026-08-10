@@ -4,9 +4,8 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(__dirname, "..");
-const imagePath = path.join(root, "public", "finder", "finder-hero.png");
 
-/** DocCy token ink-50 — finder page background */
+/** DocCy token ink-50 — public page background */
 const BG = { r: 0xf7, g: 0xfa, b: 0xfc };
 
 function isBackgroundPixel(r, g, b, a) {
@@ -53,17 +52,27 @@ function floodFillBackground(data, width, height) {
   }
 }
 
-const { data, info } = await sharp(imagePath)
-  .ensureAlpha()
-  .raw()
-  .toBuffer({ resolveWithObject: true });
+const targets = process.argv.slice(2);
+const relativePaths =
+  targets.length > 0 ? targets : ["public/finder/finder-hero.png"];
 
-floodFillBackground(data, info.width, info.height);
+for (const relative of relativePaths) {
+  const imagePath = path.isAbsolute(relative)
+    ? relative
+    : path.join(root, relative);
 
-await sharp(data, {
-  raw: { width: info.width, height: info.height, channels: 4 },
-})
-  .png()
-  .toFile(imagePath);
+  const { data, info } = await sharp(imagePath)
+    .ensureAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
 
-console.log(`Tinted finder hero background to ink-50 (#F7FAFC): ${imagePath}`);
+  floodFillBackground(data, info.width, info.height);
+
+  await sharp(data, {
+    raw: { width: info.width, height: info.height, channels: 4 },
+  })
+    .png()
+    .toFile(imagePath);
+
+  console.log(`Tinted background to ink-50 (#F7FAFC): ${imagePath}`);
+}
