@@ -831,7 +831,7 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
         </PendingLink>
       </header>
 
-      <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <FinderHeroSection
           title={finderH1}
           showHeroImage={!hasSpecificFilters}
@@ -880,7 +880,7 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
         />
       </FinderSearchBar>
 
-      <div className="mx-auto max-w-6xl px-4 pb-8 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl px-4 pb-8 sm:px-6 lg:px-8">
         <FinderRecentlyViewed kind="professional" />
         <FinderResultsTransition>
           {dataWarning ? (

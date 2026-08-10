@@ -111,14 +111,14 @@ export default async function ManualDirectoryProfessionalPage({ params }: PagePr
       />
 
       <header className="border-b border-ink-200 bg-white">
-        <div className="mx-auto max-w-6xl px-4 py-4 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
           <PendingLink href="/" className="inline-flex items-center">
             <DocCyWordmark className="h-7 w-auto" />
           </PendingLink>
         </div>
       </header>
 
-      <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <nav aria-label="Breadcrumb" className="mb-4 text-sm text-ink-500">
           <ol className="flex flex-wrap items-center gap-1">
             <li>

@@ -297,7 +297,7 @@ async function ClinicsSearchPage({ params, searchParams }: ClinicsPageProps) {
         </PendingLink>
       </header>
 
-      <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <FinderHeroSection
           title={title}
           showHeroImage={false}
@@ -359,7 +359,7 @@ async function ClinicsSearchPage({ params, searchParams }: ClinicsPageProps) {
         ) : null}
       </FinderSearchBar>
 
-      <div className="mx-auto max-w-6xl px-4 pb-8 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl px-4 pb-8 sm:px-6 lg:px-8">
         <FinderRecentlyViewed kind="clinic" />
         {dataWarning ? (
           <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
@@ -488,7 +488,7 @@ async function ClinicsSearchPage({ params, searchParams }: ClinicsPageProps) {
           </section>
         </FinderResultsTransition>
 
-        <MarketingFooter variant="light" className="mx-auto mt-10 w-full max-w-6xl pb-24 pt-2 sm:pb-16 lg:pb-12" />
+        <MarketingFooter variant="light" className="mx-auto mt-10 w-full max-w-7xl pb-24 pt-2 sm:pb-16 lg:pb-12" />
       </div>
     </main>
   );
