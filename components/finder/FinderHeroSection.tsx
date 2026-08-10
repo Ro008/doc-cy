@@ -6,6 +6,8 @@ type FinderHeroSectionProps = {
   subtitle: React.ReactNode;
   subtitleClassName?: string;
   showHeroImage?: boolean;
+  /** Defaults to the professionals finder hero. */
+  heroImageSrc?: string;
   /** Optional content under the hero (legacy). Prefer sibling full-bleed search bar. */
   children?: React.ReactNode;
 };
@@ -15,6 +17,7 @@ export function FinderHeroSection({
   subtitle,
   subtitleClassName = "mt-3 max-w-2xl text-base leading-relaxed text-ink-600",
   showHeroImage = false,
+  heroImageSrc = "/finder/finder-hero.png",
   children,
 }: FinderHeroSectionProps) {
   if (!showHeroImage) {
@@ -34,10 +37,10 @@ export function FinderHeroSection({
   return (
     <div>
       <div className="relative pb-2 sm:pb-6 lg:pb-8">
-        {/* sm+ — decorative hero image + booking flow (hidden on mobile for readable copy) */}
+        {/* sm+ — decorative hero image (hidden on mobile for readable copy) */}
         <div className="relative hidden aspect-[16/11] w-full overflow-visible sm:ml-[24%] sm:block sm:w-[76%] lg:ml-[40%] lg:w-[62%] lg:aspect-[2.15/1]">
           <Image
-            src="/finder/finder-hero.png"
+            src={heroImageSrc}
             alt=""
             fill
             priority

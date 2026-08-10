@@ -288,20 +288,26 @@ async function ClinicsSearchPage({ params, searchParams }: ClinicsPageProps) {
   const title = buildClinicsResultsHeading({
     districtLabel: districtLabel || null,
   });
+  const showClinicsHero = !hasActiveFilters;
 
   return (
     <main className="min-h-screen bg-ink-50 text-ink-800">
       <header className="px-4 pt-8 pb-8 sm:px-6 sm:pb-0 lg:px-8">
         <PendingLink href="/" className="inline-flex transition hover:opacity-90">
-          <DocCyWordmark variant="light" />
+          <DocCyWordmark variant="light" size="xl" />
         </PendingLink>
       </header>
 
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <FinderHeroSection
           title={title}
-          showHeroImage={false}
-          subtitleClassName="mt-3 max-w-2xl text-base leading-relaxed text-ink-600 sm:text-lg"
+          showHeroImage={showClinicsHero}
+          heroImageSrc="/finder/clinics-hero.png"
+          subtitleClassName={
+            showClinicsHero
+              ? "mt-3 max-w-2xl text-lg leading-relaxed text-ink-600 sm:text-xl"
+              : "mt-3 max-w-2xl text-base leading-relaxed text-ink-600 sm:text-lg"
+          }
           subtitle={
             districtLabel ? (
               <>Browse healthcare clinics in {districtLabel} and open a clinic to see professionals.</>
@@ -317,7 +323,13 @@ async function ClinicsSearchPage({ params, searchParams }: ClinicsPageProps) {
         />
       </div>
 
-      <FinderSearchBar>
+      <FinderSearchBar
+        className={
+          showClinicsHero
+            ? "relative z-20 mt-2 sm:-mt-10 lg:-mt-16"
+            : "mt-1"
+        }
+      >
         <FinderAudienceToggle active="clinics" variant="bar" className="mb-5" />
         <ClinicsFilters
           districts={districts}
