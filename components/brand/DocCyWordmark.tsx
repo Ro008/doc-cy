@@ -8,12 +8,12 @@ type DocCyWordmarkProps = {
   className?: string;
   /** Kept for call-site compatibility; single artwork works on light and dark surfaces. */
   variant?: "light" | "dark";
-  /** `sm` = compact headers; `md` = default; `lg` = blog / marketing hero headers */
-  size?: "sm" | "md" | "lg";
+  /** `sm` = compact headers; `md` = default; `lg` = blog / marketing; `xl` = finder (~1.5× md) */
+  size?: "sm" | "md" | "lg" | "xl";
 };
 
-const HEIGHT_PX = { sm: 24, md: 28, lg: 36 } as const;
-const HEIGHT_CLASS = { sm: "h-6", md: "h-7", lg: "h-9" } as const;
+const HEIGHT_PX = { sm: 24, md: 28, lg: 36, xl: 42 } as const;
+const HEIGHT_CLASS = { sm: "h-6", md: "h-7", lg: "h-9", xl: "h-[42px]" } as const;
 
 export function DocCyWordmark({
   className = "",

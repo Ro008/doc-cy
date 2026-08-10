@@ -140,7 +140,7 @@ export default async function HomePage() {
       <div className="relative z-10 flex flex-1 flex-col px-4 py-3 sm:px-6 lg:px-8 lg:py-4">
         <header className="flex shrink-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
           <div className="flex min-w-0 items-center gap-2 sm:gap-3">
-            <DocCyWordmark variant="light" />
+            <DocCyWordmark variant="light" size="xl" />
           </div>
         </header>
 

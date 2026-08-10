@@ -827,7 +827,7 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
       />
       <header className="px-4 pt-8 pb-8 sm:px-6 sm:pb-0 lg:px-8">
         <PendingLink href="/" className="inline-flex transition hover:opacity-90">
-          <DocCyWordmark variant="light" />
+          <DocCyWordmark variant="light" size="xl" />
         </PendingLink>
       </header>
 
