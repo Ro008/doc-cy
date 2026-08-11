@@ -259,22 +259,32 @@ function primarySegment(person, batchKey) {
   return [...person.segments][0] ?? null;
 }
 
+async function loadAllSlugsFromTable(supabase, table) {
+  const out = [];
+  const pageSize = 1000;
+  for (let from = 0; ; from += pageSize) {
+    const to = from + pageSize - 1;
+    const { data, error } = await supabase
+      .from(table)
+      .select("slug")
+      .not("slug", "is", null)
+      .range(from, to);
+    if (error) throw new Error(`Load slugs from ${table}: ${error.message}`);
+    const rows = data ?? [];
+    out.push(...rows);
+    if (rows.length < pageSize) break;
+  }
+  return out;
+}
+
 async function loadTakenSlugs(supabase) {
   const taken = new Set();
-  const [doctorsRes, manualRes, clinicsRes] = await Promise.all([
-    supabase.from("doctors").select("slug").not("slug", "is", null).limit(20000),
-    supabase.from("directory_manual").select("slug").not("slug", "is", null).limit(20000),
-    supabase.from("clinics").select("slug").not("slug", "is", null).limit(20000),
+  const [doctorsRows, manualRows, clinicsRows] = await Promise.all([
+    loadAllSlugsFromTable(supabase, "doctors"),
+    loadAllSlugsFromTable(supabase, "directory_manual"),
+    loadAllSlugsFromTable(supabase, "clinics"),
   ]);
-  for (const row of doctorsRes.data ?? []) {
-    const s = String(row.slug ?? "").trim().toLowerCase();
-    if (s) taken.add(s);
-  }
-  for (const row of manualRes.data ?? []) {
-    const s = String(row.slug ?? "").trim().toLowerCase();
-    if (s) taken.add(s);
-  }
-  for (const row of clinicsRes.data ?? []) {
+  for (const row of [...doctorsRows, ...manualRows, ...clinicsRows]) {
     const s = String(row.slug ?? "").trim().toLowerCase();
     if (s) taken.add(s);
   }
@@ -307,28 +317,46 @@ async function upsertClinic(supabase, clinic, takenSlugs, dryRun) {
     return { id: existing.data.id, slug: existing.data.slug };
   }
 
-  const slug = pickSlug(clinic.name, clinic.district, takenSlugs);
+  // Prefer a stable unique suffix from ghs_code when the display name collides
+  // (common for solo practices that share a person's name across GHS codes).
+  const ghsSlug = String(clinic.ghs_code || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "")
+    .slice(0, 12);
+  const nameForSlug = ghsSlug ? `${clinic.name} ${ghsSlug}` : clinic.name;
+  let slug = pickSlug(nameForSlug, clinic.district, takenSlugs);
   if (dryRun) return { id: `dry-clinic-${clinic.ghs_code}`, slug };
 
-  const insert = await supabase
-    .from("clinics")
-    .insert({
-      name: clinic.name,
-      slug,
-      district: clinic.district,
-      address: clinic.address,
-      phone: clinic.phone,
-      address_maps_link: clinic.address_maps_link,
-      latitude: clinic.latitude,
-      longitude: clinic.longitude,
-      ghs_code: clinic.ghs_code,
-      is_archived: false,
-    })
-    .select("id, slug")
-    .single();
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const insert = await supabase
+      .from("clinics")
+      .insert({
+        name: clinic.name,
+        slug,
+        district: clinic.district,
+        address: clinic.address,
+        phone: clinic.phone,
+        address_maps_link: clinic.address_maps_link,
+        latitude: clinic.latitude,
+        longitude: clinic.longitude,
+        ghs_code: clinic.ghs_code,
+        is_archived: false,
+      })
+      .select("id, slug")
+      .single();
 
-  if (insert.error) throw new Error(`Clinic insert ${clinic.ghs_code}: ${insert.error.message}`);
-  return insert.data;
+    if (!insert.error) return insert.data;
+
+    const isSlugConflict = /clinics_slug_unique|duplicate key/i.test(insert.error.message || "");
+    if (!isSlugConflict || attempt === 4) {
+      throw new Error(`Clinic insert ${clinic.ghs_code}: ${insert.error.message}`);
+    }
+    // Another row took this slug (stale taken set / race). Reserve and retry.
+    takenSlugs.add(slug);
+    slug = pickSlug(`${clinic.name} ${ghsSlug || "clinic"} ${attempt + 2}`, clinic.district, takenSlugs);
+  }
+
+  throw new Error(`Clinic insert ${clinic.ghs_code}: exhausted slug retries`);
 }
 
 async function main() {
