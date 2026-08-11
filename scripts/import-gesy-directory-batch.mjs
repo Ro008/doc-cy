@@ -20,6 +20,7 @@ import path from "node:path";
 import { createRequire } from "node:module";
 import { createClient } from "@supabase/supabase-js";
 import { config as loadEnv } from "dotenv";
+import { cleanGesyDirectoryDisplayName } from "./lib/gesy-directory-display-name.mjs";
 
 const require = createRequire(import.meta.url);
 const xlsx = require("xlsx");
@@ -185,7 +186,7 @@ function aggregatePeople(rows) {
     if (!byGhs.has(ghs)) {
       byGhs.set(ghs, {
         ghs_code: ghs,
-        name: String(row.name ?? "").trim(),
+        name: cleanGesyDirectoryDisplayName(String(row.name ?? "").trim()),
         email: String(row.email ?? "").trim() || null,
         gender: normalizeGender(row.gender),
         segments: new Set(),
@@ -451,7 +452,7 @@ async function main() {
     let slug = existing.data?.slug ?? null;
 
     const payload = {
-      name: person.name,
+      name: cleanGesyDirectoryDisplayName(person.name),
       specialty: specialties[0],
       specialties,
       district,
