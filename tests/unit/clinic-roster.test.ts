@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   filterClinicRosterBySpecialty,
+  splitClinicRosterByFinderVisibility,
   uniqueClinicRosterProfessionals,
 } from "../../lib/clinic-roster";
 
@@ -40,6 +41,30 @@ describe("clinic roster (unique + specialty filter)", () => {
     assert.deepEqual(
       dentists.map((p) => p.id),
       ["d1", "d2"],
+    );
+  });
+
+  it("splits bookable vs inpatient-only for separate roster sections", () => {
+    const inpatient = {
+      id: "i1",
+      displayName: "Inpatient Only",
+      specialty: "Personal Doctor",
+      specialties: ["Personal Doctor"],
+      finderVisible: false as const,
+    };
+    const bookablePro = { ...panagiotis, finderVisible: true as const };
+    const { bookable, inpatientOnly } = splitClinicRosterByFinderVisibility([
+      bookablePro,
+      inpatient,
+      bookablePro,
+    ]);
+    assert.deepEqual(
+      bookable.map((p) => p.id),
+      ["d2"],
+    );
+    assert.deepEqual(
+      inpatientOnly.map((p) => p.id),
+      ["i1"],
     );
   });
 });

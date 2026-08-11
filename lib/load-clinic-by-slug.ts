@@ -152,7 +152,11 @@ export async function loadClinicBySlug(
             gender: row.gender,
           }),
           isGesy: Boolean(row.is_gesy ?? false),
-          profileHref: slugValue ? manualDirectoryLandingPath(slugValue) : null,
+          // Inpatient-only: listed on the clinic, but no public professional landing.
+          profileHref:
+            slugValue && row.finder_visible !== false
+              ? manualDirectoryLandingPath(slugValue)
+              : null,
           finderVisible: row.finder_visible !== false,
         };
       });
