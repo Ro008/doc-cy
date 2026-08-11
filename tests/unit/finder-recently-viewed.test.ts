@@ -6,6 +6,7 @@ import {
   FINDER_RECENTLY_VIEWED_STORAGE_KEY,
   readRecentlyViewed,
   recordRecentlyViewed,
+  trimRecentlyViewedPerKind,
 } from "@/lib/finder-recently-viewed";
 
 function memoryStorage(): Storage {
@@ -80,7 +81,7 @@ describe("finder recently viewed", () => {
     assert.equal(rows[1]?.href, "/clinics/sunrise");
   });
 
-  it("caps list length", () => {
+  it("caps length per kind, not across kinds", () => {
     const storage = memoryStorage();
     for (let i = 0; i < FINDER_RECENTLY_VIEWED_MAX + 3; i += 1) {
       recordRecentlyViewed(
@@ -95,10 +96,67 @@ describe("finder recently viewed", () => {
         storage,
         i,
       );
+      recordRecentlyViewed(
+        {
+          kind: "clinic",
+          href: `/c/${i}`,
+          name: `Clinic ${i}`,
+          subtitle: "Clinic",
+          location: "Limassol",
+          photoUrl: null,
+        },
+        storage,
+        i + 100,
+      );
     }
+
     const rows = readRecentlyViewed(storage);
-    assert.equal(rows.length, FINDER_RECENTLY_VIEWED_MAX);
-    assert.equal(rows[0]?.href, `/p/${FINDER_RECENTLY_VIEWED_MAX + 2}`);
+    const pros = rows.filter((row) => row.kind === "professional");
+    const clinics = rows.filter((row) => row.kind === "clinic");
+    assert.equal(pros.length, FINDER_RECENTLY_VIEWED_MAX);
+    assert.equal(clinics.length, FINDER_RECENTLY_VIEWED_MAX);
+    assert.equal(rows.length, FINDER_RECENTLY_VIEWED_MAX * 2);
+    assert.equal(pros[0]?.href, `/p/${FINDER_RECENTLY_VIEWED_MAX + 2}`);
+    assert.equal(clinics[0]?.href, `/c/${FINDER_RECENTLY_VIEWED_MAX + 2}`);
+  });
+
+  it("trimRecentlyViewedPerKind keeps newest of each kind", () => {
+    const trimmed = trimRecentlyViewedPerKind(
+      [
+        {
+          kind: "clinic",
+          href: "/c/new",
+          name: "New",
+          subtitle: "Clinic",
+          location: "Nicosia",
+          photoUrl: null,
+          viewedAt: 3,
+        },
+        {
+          kind: "professional",
+          href: "/p/a",
+          name: "A",
+          subtitle: "GP",
+          location: "Nicosia",
+          photoUrl: null,
+          viewedAt: 2,
+        },
+        {
+          kind: "clinic",
+          href: "/c/old",
+          name: "Old",
+          subtitle: "Clinic",
+          location: "Nicosia",
+          photoUrl: null,
+          viewedAt: 1,
+        },
+      ],
+      1,
+    );
+    assert.deepEqual(
+      trimmed.map((row) => row.href),
+      ["/c/new", "/p/a"],
+    );
   });
 
   it("ignores corrupt storage", () => {
