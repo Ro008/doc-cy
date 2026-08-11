@@ -82,7 +82,7 @@ function BookableProfessionalCard({ pro }: { pro: ClinicLandingProfessional }) {
         </div>
         {pro.isGesy ? (
           <div className="mt-2">
-            <GesyProviderBadge size="sm" language="en" />
+            <GesyProviderBadge size="xs" language="en" />
           </div>
         ) : null}
       </div>
@@ -115,7 +115,7 @@ function InpatientProfessionalRow({ pro }: { pro: ClinicLandingProfessional }) {
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
           <p className="truncate text-sm font-medium text-ink-800">{pro.displayName}</p>
-          {pro.isGesy ? <GesyProviderBadge size="sm" language="en" /> : null}
+          {pro.isGesy ? <GesyProviderBadge size="xs" language="en" /> : null}
         </div>
         {specialtyLabels.length > 0 ? (
           <p className="mt-0.5 truncate text-xs text-ink-500">

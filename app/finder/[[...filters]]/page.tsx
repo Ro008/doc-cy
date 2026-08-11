@@ -1128,7 +1128,7 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                           />
                           {row.isGesy ? (
                             <div className="self-start">
-                              <GesyProviderBadge size="sm" language="en" />
+                              <GesyProviderBadge size="xs" language="en" />
                             </div>
                           ) : null}
                           {item.distanceKm !== null ? (
@@ -1257,7 +1257,7 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                         />
                         {row.isGesy ? (
                           <div className="self-start">
-                            <GesyProviderBadge size="sm" language="en" />
+                            <GesyProviderBadge size="xs" language="en" />
                           </div>
                         ) : null}
                         {item.distanceKm !== null ? (
