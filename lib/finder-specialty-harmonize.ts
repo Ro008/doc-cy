@@ -1,12 +1,9 @@
 /**
- * Finder-only canonical labels for directory cards.
+ * Finder specialty label harmonization.
  *
- * Decoupled from registration master list (`lib/cyprus-specialties.ts`).
- * GeSY manual specialties are the preferred finder labels; older registered-doctor
- * labels are bridged into GeSY equivalents so filters stay unified.
- *
- * URL segments arrive as slug-decoded lowercase (e.g. "personal doctor"); we
- * resolve those back to canonical GeSY labels so SQL `overlaps` matches.
+ * GeSY manual labels are preferred. Legacy registration spellings bridge into GeSY
+ * so filters stay unified — except `Psychology`, which is a deliberate DocCy label
+ * distinct from GeSY `Clinical Psychologist` (do not merge).
  */
 import { specialtyToSlug } from "@/lib/finder-seo";
 import { GESY_MANUAL_SPECIALTIES } from "@/lib/gesy-specialties";
@@ -37,7 +34,7 @@ const LEGACY_TO_GESY: Record<string, string> = {
   "obstetrics and gynecology": "Obstetrics - Gynaecology",
   "physiotherapy & rehabilitation": "Physiotherapist",
   physiotherapy: "Physiotherapist",
-  psychology: "Clinical Psychologist",
+  // Psychology is a DocCy registration specialty — do NOT map to Clinical Psychologist.
   psychotherapy: "Clinical Psychologist",
   dermatology: "Dermato-Venereology",
   orthopedics: "Orthopaedics",
@@ -49,13 +46,17 @@ const LEGACY_TO_GESY: Record<string, string> = {
   "general practice": "Personal Doctor",
   "laser & medical aesthetics": "Plastic Surgery",
   wellness: "Personal Doctor",
+  oncology: "Medical Oncology",
+  hematology: "Haematology",
 };
 
 const GESY_BY_SLUG = new Map(
   GESY_MANUAL_SPECIALTIES.map((label) => [specialtyToSlug(label), label]),
 );
+// DocCy exception also resolves by slug for finder URLs.
+GESY_BY_SLUG.set(specialtyToSlug("Psychology"), "Psychology");
 
-/** Resolve slug-decoded / casing variants to the canonical GeSY label. */
+/** Resolve slug-decoded / casing variants to the canonical GeSY (or DocCy) label. */
 function resolveGesyLabelBySlug(raw: string): string | null {
   const slug = specialtyToSlug(raw);
   if (!slug || slug === "all") return null;
@@ -66,6 +67,7 @@ export function harmonizeFinderSpecialtyLabel(raw: string): string {
   const trimmed = raw.trim();
   if (!trimmed) return "";
   const key = specialtyMatchKey(trimmed);
+  if (key === "psychology") return "Psychology";
   if (LEGACY_TO_GESY[key]) return LEGACY_TO_GESY[key];
   const bySlug = resolveGesyLabelBySlug(trimmed);
   if (bySlug) return bySlug;

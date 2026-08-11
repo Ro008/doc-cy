@@ -1,0 +1,30 @@
+---
+description: Deferred cleanup — remove legacy registration specialty grandfathering after test doctors are gone (post GeSY specialty merge).
+alwaysApply: true
+---
+
+# Deferred: legacy specialty grandfather cleanup
+
+**Do this in a later branch**, after the GeSY registration-specialty work has been merged and the old test doctor profiles are removed.
+
+## Context
+
+Registration specialties are now GeSY labels + DocCy `Psychology` (+ Other).  
+`LEGACY_CYPRUS_REGISTRATION_SPECIALTIES` in `lib/cyprus-specialties.ts` only exists so already-saved test rows (`Dentistry`, `ENT`, `Pediatrics`, `Pulmonology`, …) still validate / show in the settings combobox.
+
+Real prod doctor **Stephan Meyer** uses `Psychology` (current list) — not legacy.
+
+## When to implement
+
+1. Delete or archive testing registered doctors that still store legacy labels (typically `rociosirvent+*` / `*test` profiles on testing and prod).
+2. Confirm no remaining `doctors.specialty` values are only in the legacy set (safe to query testing + prod read-only first).
+3. Then remove:
+   - `LEGACY_CYPRUS_REGISTRATION_SPECIALTIES`
+   - grandfather branches in `isMasterSpecialty` / `SpecialtyCombobox` (legacy-only option injection)
+4. Keep `Psychology` as the DocCy exception alongside GeSY.
+
+## Do not
+
+- Remap Stephan Meyer to `Clinical Psychologist`.
+- Drop `Psychology` when removing legacy.
+- Touch prod doctor rows without an explicit ask in that task.

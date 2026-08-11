@@ -38,7 +38,8 @@ const SPECIALTY_DB_VARIANTS: Record<string, readonly string[]> = {
     "Physiotherapy & Rehabilitation",
     "Physiotherapy and Rehabilitation",
   ],
-  "Clinical Psychologist": ["Clinical Psychologist", "Psychology", "Psychotherapy"],
+  "Clinical Psychologist": ["Clinical Psychologist"],
+  Psychology: ["Psychology"],
   "Dermato-Venereology": ["Dermato-Venereology", "Dermatology"],
   Orthopaedics: ["Orthopaedics", "Orthopedics"],
   Otorhinolaryngology: ["Otorhinolaryngology", "ENT"],
@@ -46,6 +47,7 @@ const SPECIALTY_DB_VARIANTS: Record<string, readonly string[]> = {
   "Renal Diseases": ["Renal Diseases", "Nephrology"],
   "Clinical Dietitian": ["Clinical Dietitian", "Nutrition & Dietetics"],
   "Personal Doctor": ["Personal Doctor", "General Practice", "Wellness"],
+  "Medical Oncology": ["Medical Oncology", "Oncology"],
 };
 
 export function finderSpecialtyDbMatchValues(activeSpecialty: string): string[] {

@@ -1,8 +1,8 @@
 /**
  * GeSY specialty labels for the manual directory (Excel `professionals.specialty`).
  *
- * Intentionally decoupled from `lib/cyprus-specialties.ts`, which gates
- * registered-doctor signup / settings / pending review. Do not merge the two lists.
+ * Registration / settings use `lib/cyprus-specialties.ts`, which is built from this
+ * list plus DocCy extras (e.g. Psychology) and excludes Pharmacy / Laboratory.
  */
 
 /** Canonical labels after splitting Excel cells on `;`. */
