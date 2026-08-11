@@ -26,7 +26,8 @@ const HEIGHT_CLASS = {
 const LOGO = {
   light: {
     en: { src: "/brand/GesyEN.png", aspect: 786 / 450 },
-    el: { src: "/brand/gesy-logo.png", aspect: 600 / 450 },
+    // Filename bumps cache after transparency fix (old gesy-logo.png may linger in Next/Image).
+    el: { src: "/brand/gesy-logo-el.png", aspect: 600 / 450 },
   },
   dark: {
     src: "/brand/gesy-logo-dark.png",
@@ -71,7 +72,7 @@ export function GesyProviderBadge({
         className={`w-auto max-w-full object-contain object-left ${heightClass} ${scaleClass} ${
           variant === "dark"
             ? "mix-blend-screen brightness-110 contrast-125 drop-shadow-[0_1px_3px_rgba(0,0,0,0.55)]"
-            : ""
+            : "mix-blend-multiply"
         }`}
         priority={false}
       />

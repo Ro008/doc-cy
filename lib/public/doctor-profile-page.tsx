@@ -745,13 +745,13 @@ export default async function DoctorPage({ params }: PageProps) {
             <LanguageSwitcher compact variant="light" />
           </div>
           <div className="flex items-start gap-5">
-            <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-2xl border-2 border-clinical-200 shadow-lg shadow-ink-900/10 sm:h-28 sm:w-28">
+            <div className="relative h-36 w-36 shrink-0 overflow-hidden rounded-2xl border-2 border-clinical-200 shadow-lg shadow-ink-900/10 sm:h-44 sm:w-44">
               <Image
                 src={avatarUrl}
                 alt=""
                 fill
                 className="object-cover"
-                sizes="112px"
+                sizes="(max-width: 640px) 144px, 176px"
                 priority
               />
             </div>
