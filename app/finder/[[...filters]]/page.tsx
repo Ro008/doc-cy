@@ -19,7 +19,7 @@ import { FinderStructuredData } from "@/components/finder/FinderStructuredData";
 import { FinderFaqSection } from "@/components/finder/FinderFaqSection";
 import { GesyProviderBadge } from "@/components/brand/GesyProviderBadge";
 import { FinderClinicLocationBlock } from "@/components/finder/FinderClinicLocationBlock";
-import { FinderSpecialtyLink } from "@/components/finder/FinderSpecialtyLink";
+import { FinderSpecialtyPills } from "@/components/finder/FinderSpecialtyPills";
 import {
   ManualDirectoryDoctorClaimFooter,
   ManualDirectoryMonthlyRequestBadge,
@@ -51,7 +51,10 @@ import {
   toTitleCaseWords,
 } from "@/lib/finder-seo";
 import { buildFinderSpecialtyOptions } from "@/lib/finder-specialty-options";
-import { matchesSpecialtyFilter } from "@/lib/finder-specialty-filter";
+import {
+  matchesAnySpecialtyFilter,
+  matchesSpecialtyFilter,
+} from "@/lib/finder-specialty-filter";
 import {
   getPublicSpecialtyDisplayLabel,
   matchesFinderSpecialtyFilter,
@@ -127,6 +130,8 @@ type ManualFinderRow = {
   name: string;
   displayName: string;
   specialty: string;
+  /** Individual GeSY specialties (for multi-specialty filter matching). */
+  specialties: string[];
   district: CyprusDistrict;
   address_maps_link: string;
   /** Phone exists server-side; value is revealed via API after click (not in SSR props). */
@@ -309,6 +314,7 @@ function applyFinderListFilters(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   query: any,
   filters: { district: string; name: string; specialty: string },
+  options?: { specialtyColumn?: "specialty" | "specialties" },
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ): any {
   let next = query;
@@ -320,10 +326,15 @@ function applyFinderListFilters(
   }
   if (filters.specialty) {
     const values = finderSpecialtyDbMatchValues(filters.specialty);
-    if (values.length === 1) {
-      next = next.eq("specialty", values[0]!);
-    } else if (values.length > 1) {
-      next = next.in("specialty", values);
+    if (values.length > 0) {
+      if (options?.specialtyColumn === "specialties") {
+        // Multi-specialty GeSY cards: match if ANY specialty overlaps the filter variants.
+        next = next.overlaps("specialties", values);
+      } else if (values.length === 1) {
+        next = next.eq("specialty", values[0]!);
+      } else {
+        next = next.in("specialty", values);
+      }
     }
   }
   return next;
@@ -458,6 +469,7 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
       slug?: string | null;
       name: string | null;
       specialty: string | null;
+      specialties?: string[] | null;
       district: CyprusDistrict;
       address_maps_link: string | null;
       phone?: string | null;
@@ -469,6 +481,8 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
       gender?: string | null;
     }> = [];
     const manualSelectAttempts = [
+      "id, slug, name, specialty, specialties, district, address_maps_link, phone, address, is_gesy, latitude, longitude, clinic_id, gender, finder_visible",
+      "id, slug, name, specialty, specialties, district, address_maps_link, phone, address, is_gesy, latitude, longitude, clinic_id, gender",
       "id, slug, name, specialty, district, address_maps_link, phone, address, is_gesy, latitude, longitude, clinic_id, gender",
       "id, slug, name, specialty, district, address_maps_link, phone, address, is_gesy, latitude, longitude, clinic_id",
       "id, slug, name, specialty, district, address_maps_link, phone, address, is_gesy, latitude, longitude",
@@ -479,12 +493,20 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
       "id, name, specialty, district, address_maps_link",
     ];
     let manualLoadError: { code?: string; message?: string } | null = null;
+    let manualUsesSpecialtiesColumn = false;
     for (const selectClause of manualSelectAttempts) {
+      const useSpecialtiesFilter = selectClause.includes("specialties");
+      let manualQuery = supabase
+        .from("directory_manual")
+        .select(selectClause)
+        .eq("is_archived", false);
+      if (selectClause.includes("finder_visible")) {
+        manualQuery = manualQuery.eq("finder_visible", true);
+      }
       const manualRes = await fetchAllSupabaseRows(() =>
-        applyFinderListFilters(
-          supabase.from("directory_manual").select(selectClause).eq("is_archived", false),
-          listFilters,
-        ).order("name", { ascending: true }),
+        applyFinderListFilters(manualQuery, listFilters, {
+          specialtyColumn: useSpecialtiesFilter ? "specialties" : "specialty",
+        }).order("name", { ascending: true }),
       );
       if (manualRes.error) {
         manualLoadError = manualRes.error;
@@ -498,6 +520,7 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
         slug?: string | null;
         name: string | null;
         specialty: string | null;
+        specialties?: string[] | null;
         district: CyprusDistrict;
         address_maps_link: string | null;
         phone?: string | null;
@@ -509,6 +532,7 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
         gender?: string | null;
       }>;
       manualLoadError = null;
+      manualUsesSpecialtiesColumn = useSpecialtiesFilter;
       break;
     }
 
@@ -518,12 +542,19 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
       name: "",
       specialty: "",
     };
+    const manualSpecialtySelect = manualUsesSpecialtiesColumn
+      ? "specialty, specialties"
+      : "specialty";
+    let manualSpecialtyQuery = supabase
+      .from("directory_manual")
+      .select(manualSpecialtySelect)
+      .eq("is_archived", false);
+    if (manualUsesSpecialtiesColumn) {
+      manualSpecialtyQuery = manualSpecialtyQuery.eq("finder_visible", true);
+    }
     const [manualSpecialtyRes, registeredSpecialtyRes] = await Promise.all([
       fetchAllSupabaseRows(() =>
-        applyFinderListFilters(
-          supabase.from("directory_manual").select("specialty").eq("is_archived", false),
-          specialtyOptionFilters,
-        ),
+        applyFinderListFilters(manualSpecialtyQuery, specialtyOptionFilters),
       ),
       fetchAllSupabaseRows(() =>
         applyFinderListFilters(
@@ -537,7 +568,10 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
       ),
     ]);
     finderSpecialtyOptions = buildFinderSpecialtyOptions(
-      (manualSpecialtyRes.data ?? []) as { specialty: string | null | undefined }[],
+      (manualSpecialtyRes.data ?? []) as {
+        specialty: string | null | undefined;
+        specialties?: string[] | null;
+      }[],
       (registeredSpecialtyRes.data ?? []) as { specialty: string | null | undefined }[],
     );
 
@@ -549,12 +583,20 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
         const manualId = row.id as string;
         const clinicId = String(row.clinic_id ?? "").trim();
         if (clinicId) manualClinicIdByRowId.set(manualId, clinicId);
+        const specialties = Array.isArray(row.specialties)
+          ? row.specialties.map((s) => String(s ?? "").trim()).filter(Boolean)
+          : [];
+        const specialtyParts =
+          specialties.length > 0
+            ? specialties
+            : [String(row.specialty ?? "").trim()].filter(Boolean);
         return {
           id: manualId,
           slug: String(row.slug ?? "").trim() || null,
           name: String(row.name ?? "Professional"),
           displayName: doctorDashboardDisplayName(String(row.name ?? "Professional")),
-          specialty: String(row.specialty ?? "Specialty not set"),
+          specialty: specialtyParts[0] ?? "Specialty not set",
+          specialties: specialtyParts,
           district: row.district as CyprusDistrict,
           address_maps_link: addressMapsLink,
           hasPhone: Boolean(String(row.phone ?? "").trim()),
@@ -609,7 +651,13 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
     ) {
       return false;
     }
-    if (activeSpecialty && !matchesSpecialtyFilter(row.specialty, activeSpecialty)) {
+    if (
+      activeSpecialty &&
+      !matchesAnySpecialtyFilter(
+        row.specialties.length > 0 ? row.specialties : [row.specialty],
+        activeSpecialty,
+      )
+    ) {
       return false;
     }
     if (
@@ -966,14 +1014,11 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                               {row.displayName}
                             </p>
                           )}
-                          <FinderSpecialtyLink
+                          <FinderSpecialtyPills
+                            specialties={[]}
                             specialty={row.specialty ?? "Specialty not set"}
-                            className="-ml-2 inline-flex max-w-full items-center self-start rounded-full border border-ink-200 bg-ink-50 px-2.5 py-1 text-left text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-600 transition-none hover:border-clinical-300 hover:bg-clinical-50 hover:text-clinical-800"
-                          >
-                            <span className="whitespace-normal break-words leading-snug">
-                              {row.specialty ?? "Specialty not set"}
-                            </span>
-                          </FinderSpecialtyLink>
+                            className="-ml-2"
+                          />
                           {row.isGesy ? (
                             <div className="self-start">
                               <GesyProviderBadge size="sm" language="en" />
@@ -1097,14 +1142,12 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                             {row.displayName}
                           </p>
                         )}
-                        <FinderSpecialtyLink
+                        <FinderSpecialtyPills
+                          specialties={row.specialties}
                           specialty={row.specialty}
-                          className="-ml-2 inline-flex max-w-full items-center self-start rounded-full border border-ink-200 bg-ink-50 px-2.5 py-1 text-left text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-600 transition-none hover:border-clinical-300 hover:bg-clinical-50 hover:text-clinical-800"
-                        >
-                          <span className="whitespace-normal break-words leading-snug">
-                            {row.specialty}
-                          </span>
-                        </FinderSpecialtyLink>
+                          district={row.district}
+                          className="-ml-2"
+                        />
                         {row.isGesy ? (
                           <div className="self-start">
                             <GesyProviderBadge size="sm" language="en" />

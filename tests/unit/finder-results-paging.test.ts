@@ -12,11 +12,13 @@ describe("finder results paging helpers", () => {
     assert.equal(escapeIlikePattern("100%_x\\y"), "100\\%\\_x\\\\y");
   });
 
-  it("expands dentistry specialty variants for SQL", () => {
+  it("expands dentistry specialty variants for SQL (GeSY Dentist + legacy)", () => {
     const values = finderSpecialtyDbMatchValues("Dentistry");
+    assert.ok(values.includes("Dentist"));
     assert.ok(values.includes("Dentistry"));
     assert.ok(values.includes("Pediatric Dentistry"));
-    assert.ok(values.includes("Orthodontics"));
+    // Orthodontics is its own GeSY specialty — not collapsed into Dentist.
+    assert.ok(!values.includes("Orthodontics"));
   });
 
   it("parses page and builds href", () => {

@@ -19,30 +19,33 @@ export function escapeIlikePattern(value: string): string {
 
 /**
  * Raw specialty strings that should match a finder specialty filter in SQL.
- * Mirrors harmonize groups so Pediatric Dentistry etc. match "Dentistry".
+ * Includes GeSY labels plus legacy registration labels bridged by harmonize.
  */
 const SPECIALTY_DB_VARIANTS: Record<string, readonly string[]> = {
-  Gynecology: [
+  Dentist: ["Dentist", "Dentistry", "Pediatric Dentistry", "Cosmetic Dentistry", "Dental"],
+  Paediatrics: ["Paediatrics", "Pediatrics", "Paediatric"],
+  "Obstetrics - Gynaecology": [
+    "Obstetrics - Gynaecology",
     "Gynecology",
     "Gynecologic Oncology",
     "Obstetrics/Gynecology",
     "Obstetrics / Gynecology",
     "Obstetrics and Gynecology",
   ],
-  "Physiotherapy & Rehabilitation": [
+  Physiotherapist: [
+    "Physiotherapist",
     "Physiotherapy",
     "Physiotherapy & Rehabilitation",
     "Physiotherapy and Rehabilitation",
   ],
-  Psychology: ["Psychology", "Psychotherapy"],
-  Dentistry: [
-    "Dentistry",
-    "Pediatric Dentistry",
-    "Cosmetic Dentistry",
-    "Orthodontics",
-    "Endodontics",
-    "Oral Surgery",
-  ],
+  "Clinical Psychologist": ["Clinical Psychologist", "Psychology", "Psychotherapy"],
+  "Dermato-Venereology": ["Dermato-Venereology", "Dermatology"],
+  Orthopaedics: ["Orthopaedics", "Orthopedics"],
+  Otorhinolaryngology: ["Otorhinolaryngology", "ENT"],
+  "Respiratory Medicine": ["Respiratory Medicine", "Pulmonology"],
+  "Renal Diseases": ["Renal Diseases", "Nephrology"],
+  "Clinical Dietitian": ["Clinical Dietitian", "Nutrition & Dietetics"],
+  "Personal Doctor": ["Personal Doctor", "General Practice", "Wellness"],
 };
 
 export function finderSpecialtyDbMatchValues(activeSpecialty: string): string[] {

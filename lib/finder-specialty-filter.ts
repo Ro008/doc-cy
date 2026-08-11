@@ -23,3 +23,14 @@ export function matchesSpecialtyFilter(candidate: string, query: string): boolea
   if (normalizedQueryFuzzy.length < 4) return false;
   return normalizedCandidate.includes(normalizedQueryFuzzy);
 }
+
+/** True if any specialty on a multi-specialty card matches the active filter. */
+export function matchesAnySpecialtyFilter(
+  candidates: readonly string[],
+  query: string,
+): boolean {
+  const normalizedQuery = String(query ?? "").trim();
+  if (!normalizedQuery) return true;
+  if (!candidates.length) return false;
+  return candidates.some((candidate) => matchesSpecialtyFilter(candidate, normalizedQuery));
+}

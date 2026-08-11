@@ -1,7 +1,16 @@
 /**
- * Finder-only canonical labels for directory cards (decoupled from registration master list).
- * Used for dropdown grouping and filter matching.
+ * Finder-only canonical labels for directory cards.
+ *
+ * Decoupled from registration master list (`lib/cyprus-specialties.ts`).
+ * GeSY manual specialties are the preferred finder labels; older registered-doctor
+ * labels are bridged into GeSY equivalents so filters stay unified.
+ *
+ * URL segments arrive as slug-decoded lowercase (e.g. "personal doctor"); we
+ * resolve those back to canonical GeSY labels so SQL `overlaps` matches.
  */
+import { specialtyToSlug } from "@/lib/finder-seo";
+import { GESY_MANUAL_SPECIALTIES } from "@/lib/gesy-specialties";
+
 function specialtyMatchKey(raw: string): string {
   return raw
     .normalize("NFKD")
@@ -13,32 +22,52 @@ function specialtyMatchKey(raw: string): string {
     .trim();
 }
 
-const GYNECOLOGY_GROUP = new Set([
-  "gynecologic oncology",
-  "gynecology",
-  "obstetrics/gynecology",
-]);
+/** Old registration / legacy labels → GeSY manual directory labels. */
+const LEGACY_TO_GESY: Record<string, string> = {
+  dentistry: "Dentist",
+  "pediatric dentistry": "Dentist",
+  "cosmetic dentistry": "Dentist",
+  dental: "Dentist",
+  pediatrics: "Paediatrics",
+  paediatric: "Paediatrics",
+  gynecology: "Obstetrics - Gynaecology",
+  "gynecologic oncology": "Obstetrics - Gynaecology",
+  "obstetrics/gynecology": "Obstetrics - Gynaecology",
+  "obstetrics / gynecology": "Obstetrics - Gynaecology",
+  "obstetrics and gynecology": "Obstetrics - Gynaecology",
+  "physiotherapy & rehabilitation": "Physiotherapist",
+  physiotherapy: "Physiotherapist",
+  psychology: "Clinical Psychologist",
+  psychotherapy: "Clinical Psychologist",
+  dermatology: "Dermato-Venereology",
+  orthopedics: "Orthopaedics",
+  orthopaedics: "Orthopaedics",
+  ent: "Otorhinolaryngology",
+  pulmonology: "Respiratory Medicine",
+  nephrology: "Renal Diseases",
+  "nutrition & dietetics": "Clinical Dietitian",
+  "general practice": "Personal Doctor",
+  "laser & medical aesthetics": "Plastic Surgery",
+  wellness: "Personal Doctor",
+};
 
-const PHYSIOTHERAPY_GROUP = new Set(["physiotherapy", "physiotherapy & rehabilitation"]);
+const GESY_BY_SLUG = new Map(
+  GESY_MANUAL_SPECIALTIES.map((label) => [specialtyToSlug(label), label]),
+);
 
-const PSYCHOLOGY_GROUP = new Set(["psychology", "psychotherapy"]);
-
-const DENTISTRY_GROUP = new Set([
-  "dentistry",
-  "pediatric dentistry",
-  "cosmetic dentistry",
-  "orthodontics",
-  "endodontics",
-  "oral surgery",
-]);
+/** Resolve slug-decoded / casing variants to the canonical GeSY label. */
+function resolveGesyLabelBySlug(raw: string): string | null {
+  const slug = specialtyToSlug(raw);
+  if (!slug || slug === "all") return null;
+  return GESY_BY_SLUG.get(slug) ?? null;
+}
 
 export function harmonizeFinderSpecialtyLabel(raw: string): string {
   const trimmed = raw.trim();
   if (!trimmed) return "";
   const key = specialtyMatchKey(trimmed);
-  if (GYNECOLOGY_GROUP.has(key)) return "Gynecology";
-  if (PHYSIOTHERAPY_GROUP.has(key)) return "Physiotherapy & Rehabilitation";
-  if (PSYCHOLOGY_GROUP.has(key)) return "Psychology";
-  if (DENTISTRY_GROUP.has(key)) return "Dentistry";
+  if (LEGACY_TO_GESY[key]) return LEGACY_TO_GESY[key];
+  const bySlug = resolveGesyLabelBySlug(trimmed);
+  if (bySlug) return bySlug;
   return trimmed;
 }

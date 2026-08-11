@@ -3,7 +3,7 @@
 import { PendingLink } from "@/components/navigation/PendingLink";
 import { GesyProviderBadge } from "@/components/brand/GesyProviderBadge";
 import { FinderClinicLocationBlock } from "@/components/finder/FinderClinicLocationBlock";
-import { FinderSpecialtyLink } from "@/components/finder/FinderSpecialtyLink";
+import { FinderSpecialtyPills } from "@/components/finder/FinderSpecialtyPills";
 import {
   ManualDirectoryDoctorClaimFooter,
   ManualDirectoryMonthlyRequestBadge,
@@ -55,14 +55,12 @@ export function ManualDirectoryLandingCard({
               <p className="text-[17px] font-bold leading-[1.2] tracking-tight text-ink-900">
                 {row.displayName}
               </p>
-              <FinderSpecialtyLink
+              <FinderSpecialtyPills
+                specialties={row.specialties}
                 specialty={row.specialty}
-                className="-ml-2 inline-flex max-w-full items-center self-start rounded-full border border-ink-200 bg-ink-50 px-2.5 py-1 text-left text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-600 transition-none hover:border-clinical-300 hover:bg-clinical-50 hover:text-clinical-800"
-              >
-                <span className="whitespace-normal break-words leading-snug">
-                  {row.specialty}
-                </span>
-              </FinderSpecialtyLink>
+                district={row.district}
+                className="-ml-2"
+              />
               {row.isGesy ? (
                 <div className="self-start">
                   <GesyProviderBadge size="sm" language="el" />

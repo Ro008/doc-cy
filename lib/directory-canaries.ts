@@ -29,7 +29,7 @@ export const DIRECTORY_CANARIES: readonly DirectoryCanary[] = [
     id: "c0418010-d0cc-4a01-8001-cafebabe0001",
     slug: "melina-orphanidou-famagusta",
     name: "Melina Orphanidou",
-    specialty: "Nutrition & Dietetics",
+    specialty: "Clinical Dietitian",
     district: "Famagusta",
     phone: "+35799041801",
     addressMapsLink:
@@ -41,7 +41,7 @@ export const DIRECTORY_CANARIES: readonly DirectoryCanary[] = [
     id: "c0418020-d0cc-4a01-8002-cafebabe0002",
     slug: "stavros-pelides-famagusta",
     name: "Stavros Pelides",
-    specialty: "ENT",
+    specialty: "Otorhinolaryngology",
     district: "Famagusta",
     phone: "+35799041802",
     addressMapsLink:
@@ -65,7 +65,7 @@ export const DIRECTORY_CANARIES: readonly DirectoryCanary[] = [
     id: "c0418040-d0cc-4a01-8004-cafebabe0004",
     slug: "kyriakos-demetriades-famagusta",
     name: "Kyriakos Demetriades",
-    specialty: "Pulmonology",
+    specialty: "Respiratory Medicine",
     district: "Famagusta",
     phone: "+35799041804",
     addressMapsLink:
@@ -77,7 +77,7 @@ export const DIRECTORY_CANARIES: readonly DirectoryCanary[] = [
     id: "c0418050-d0cc-4a01-8005-cafebabe0005",
     slug: "marilena-sofocleous-larnaca",
     name: "Marilena Sofocleous",
-    specialty: "Nephrology",
+    specialty: "Renal Diseases",
     district: "Larnaca",
     phone: "+35799041805",
     addressMapsLink:

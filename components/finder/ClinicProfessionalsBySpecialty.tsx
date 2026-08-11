@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { GesyProviderBadge } from "@/components/brand/GesyProviderBadge";
 import { FinderSpecialtyLink } from "@/components/finder/FinderSpecialtyLink";
+import { FinderSpecialtyPills } from "@/components/finder/FinderSpecialtyPills";
 import { PendingLink } from "@/components/navigation/PendingLink";
 import type { ClinicLandingProfessional } from "@/lib/load-clinic-by-slug";
 
@@ -18,10 +19,19 @@ function groupProfessionalsBySpecialty(
 ): SpecialtyGroup[] {
   const bySpecialty = new Map<string, ClinicLandingProfessional[]>();
   for (const pro of professionals) {
-    const key = pro.specialty.trim() || "Specialty not set";
-    const list = bySpecialty.get(key);
-    if (list) list.push(pro);
-    else bySpecialty.set(key, [pro]);
+    const keys =
+      pro.specialties?.length > 0
+        ? pro.specialties.map((s) => s.trim()).filter(Boolean)
+        : [pro.specialty.trim() || "Specialty not set"];
+    // Multi-specialty pros appear under each specialty chip/group.
+    for (const key of keys.length > 0 ? keys : ["Specialty not set"]) {
+      const list = bySpecialty.get(key);
+      if (list) {
+        if (!list.some((existing) => existing.id === pro.id)) list.push(pro);
+      } else {
+        bySpecialty.set(key, [pro]);
+      }
+    }
   }
 
   return Array.from(bySpecialty.entries())
@@ -79,12 +89,13 @@ function ProfessionalCard({ pro }: { pro: ClinicLandingProfessional }) {
         ) : (
           <p className="font-semibold text-ink-900">{pro.displayName}</p>
         )}
-        <p className="mt-0.5 text-xs font-medium uppercase tracking-wide text-ink-500">
-          <FinderSpecialtyLink
+        <div className="mt-0.5">
+          <FinderSpecialtyPills
+            specialties={pro.specialties}
             specialty={pro.specialty}
-            className="text-ink-500 transition-none underline-offset-2 hover:text-clinical-700 hover:underline"
+            district={pro.district}
           />
-        </p>
+        </div>
         {pro.isGesy ? (
           <div className="mt-2">
             <GesyProviderBadge size="sm" language="en" />

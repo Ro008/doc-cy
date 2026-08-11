@@ -14,10 +14,13 @@ export type ClinicLandingProfessional = {
   slug: string | null;
   displayName: string;
   specialty: string;
+  specialties: string[];
   district: CyprusDistrict;
   photoUrl: string;
   isGesy: boolean;
   profileHref: string | null;
+  /** False for inpatient-only (still listed on clinic profile). */
+  finderVisible: boolean;
 };
 
 export type ClinicLandingRow = {
@@ -34,6 +37,18 @@ export type ClinicLandingRow = {
   photoUrl: string;
   professionals: ClinicLandingProfessional[];
 };
+
+function normalizeSpecialties(row: {
+  specialty?: string | null;
+  specialties?: string[] | null;
+}): string[] {
+  const fromArray = Array.isArray(row.specialties)
+    ? row.specialties.map((s) => String(s ?? "").trim()).filter(Boolean)
+    : [];
+  if (fromArray.length > 0) return fromArray;
+  const primary = String(row.specialty ?? "").trim();
+  return primary ? [primary] : [];
+}
 
 export async function loadClinicBySlug(
   supabase: SupabaseClient,
@@ -69,46 +84,79 @@ export async function loadClinicBySlug(
 
   const coords = parseOptionalCoordinates(clinic.latitude, clinic.longitude);
 
-  let professionals: ClinicLandingProfessional[] = [];
-  const docsRes = await supabase
-    .from("directory_manual")
-    .select(
-      "id, slug, name, specialty, district, address_maps_link, is_gesy, gender",
-    )
-    .eq("is_archived", false)
-    .eq("clinic_id", clinic.id)
-    .order("specialty", { ascending: true })
-    .order("name", { ascending: true });
+  const memberIds = new Set<string>();
 
-  if (!docsRes.error && docsRes.data?.length) {
-    professionals = docsRes.data.map((raw) => {
-      const row = raw as {
-        id: string;
-        slug?: string | null;
-        name: string | null;
-        specialty: string | null;
-        district: CyprusDistrict;
-        address_maps_link?: string | null;
-        is_gesy?: boolean | null;
-        gender?: string | null;
-      };
-      const slugValue = String(row.slug ?? "").trim() || null;
-      return {
-        id: String(row.id),
-        slug: slugValue,
-        displayName: doctorDashboardDisplayName(String(row.name ?? "Professional")),
-        specialty: String(row.specialty ?? "Specialty not set"),
-        district: row.district,
-        photoUrl: resolveFinderDisplayPhotoUrl({
-          curatedOrCustomPhotoUrl: getFinderManualPhotoUrl(
-            String(row.address_maps_link ?? ""),
-          ),
-          gender: row.gender,
-        }),
-        isGesy: Boolean(row.is_gesy ?? false),
-        profileHref: slugValue ? manualDirectoryLandingPath(slugValue) : null,
-      };
-    });
+  const joinRes = await supabase
+    .from("directory_manual_clinics")
+    .select("directory_manual_id")
+    .eq("clinic_id", clinic.id);
+  if (!joinRes.error && joinRes.data?.length) {
+    for (const row of joinRes.data) {
+      const id = String((row as { directory_manual_id?: string }).directory_manual_id ?? "");
+      if (id) memberIds.add(id);
+    }
+  }
+
+  // Legacy single FK (still populated as primary clinic by GeSY import).
+  const legacyRes = await supabase
+    .from("directory_manual")
+    .select("id")
+    .eq("is_archived", false)
+    .eq("clinic_id", clinic.id);
+  if (!legacyRes.error && legacyRes.data?.length) {
+    for (const row of legacyRes.data) {
+      const id = String((row as { id?: string }).id ?? "");
+      if (id) memberIds.add(id);
+    }
+  }
+
+  let professionals: ClinicLandingProfessional[] = [];
+  if (memberIds.size > 0) {
+    const docsRes = await supabase
+      .from("directory_manual")
+      .select(
+        "id, slug, name, specialty, specialties, district, address_maps_link, is_gesy, gender, finder_visible",
+      )
+      .eq("is_archived", false)
+      .in("id", Array.from(memberIds))
+      .order("specialty", { ascending: true })
+      .order("name", { ascending: true });
+
+    if (!docsRes.error && docsRes.data?.length) {
+      professionals = docsRes.data.map((raw) => {
+        const row = raw as {
+          id: string;
+          slug?: string | null;
+          name: string | null;
+          specialty: string | null;
+          specialties?: string[] | null;
+          district: CyprusDistrict;
+          address_maps_link?: string | null;
+          is_gesy?: boolean | null;
+          gender?: string | null;
+          finder_visible?: boolean | null;
+        };
+        const specialties = normalizeSpecialties(row);
+        const slugValue = String(row.slug ?? "").trim() || null;
+        return {
+          id: String(row.id),
+          slug: slugValue,
+          displayName: doctorDashboardDisplayName(String(row.name ?? "Professional")),
+          specialty: specialties[0] ?? "Specialty not set",
+          specialties,
+          district: row.district,
+          photoUrl: resolveFinderDisplayPhotoUrl({
+            curatedOrCustomPhotoUrl: getFinderManualPhotoUrl(
+              String(row.address_maps_link ?? ""),
+            ),
+            gender: row.gender,
+          }),
+          isGesy: Boolean(row.is_gesy ?? false),
+          profileHref: slugValue ? manualDirectoryLandingPath(slugValue) : null,
+          finderVisible: row.finder_visible !== false,
+        };
+      });
+    }
   }
 
   return {

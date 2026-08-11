@@ -57,9 +57,17 @@ export function FinderFilters({
     const slug = activeSpecialty ? specialtyToSlug(activeSpecialty) : "";
     if (!slug) return [...specialtyOptions];
     if (specialtyOptions.some((o) => o.slug === slug)) return [...specialtyOptions];
+    // Do not invent combined ghost options like "Personal Doctor Paediatrics"
+    // from joined card labels / bad URLs (contain · ; or multiple specialty words
+    // that are not a single known option).
+    const raw = String(activeSpecialty ?? "").trim();
+    if (/[·;|]/.test(raw)) return [...specialtyOptions];
+    const label = toTitleCaseWords(slugToSpecialty(activeSpecialty));
+    // Only inject when it looks like a single specialty label (few words).
+    if (label.split(/\s+/).length > 4) return [...specialtyOptions];
     return [
       ...specialtyOptions,
-      { slug, label: toTitleCaseWords(slugToSpecialty(activeSpecialty)) },
+      { slug, label },
     ].sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: "base" }));
   }, [specialtyOptions, activeSpecialty]);
 
