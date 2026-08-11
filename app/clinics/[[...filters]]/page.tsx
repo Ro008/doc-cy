@@ -9,12 +9,20 @@ import { FinderRecentlyViewed } from "@/components/finder/FinderRecentlyViewed";
 import { RevealPhoneButton } from "@/components/finder/RevealPhoneButton";
 import { FinderResultsTransition } from "@/components/finder/FinderResultsTransition";
 import { FinderSearchBar } from "@/components/finder/FinderSearchBar";
-import { finderResultCardClass } from "@/components/finder/finder-surface";
+import { finderResultCardClass, finderSoftButtonClass } from "@/components/finder/finder-surface";
 import { MarketingFooter } from "@/components/navigation/MarketingFooter";
 import { PendingLink } from "@/components/navigation/PendingLink";
 import { clinicLandingPath } from "@/lib/clinic-landing-path";
 import { CLINICS_SEARCH_BASE, clinicsResultsPath } from "@/lib/clinics-public-path";
 import { buildClinicsResultsHeading } from "@/lib/finder-results-heading";
+import {
+  FINDER_RESULTS_MAX_PAGE_FILTERED,
+  FINDER_RESULTS_MAX_PAGE_UNFILTERED,
+  FINDER_RESULTS_PAGE_SIZE,
+  buildFinderResultsPageHref,
+  escapeIlikePattern,
+  parseFinderResultsPage,
+} from "@/lib/finder-results-paging";
 import { CYPRUS_DISTRICTS, type CyprusDistrict, isCyprusDistrict } from "@/lib/cyprus-districts";
 import { FINDER_CLINIC_HERO_ILLUSTRATION, resolveClinicDisplayPhotoUrl } from "@/lib/finder-default-avatars";
 import {
@@ -27,9 +35,8 @@ import { isAllSlug, slugToDistrict, toTitleCaseWords } from "@/lib/finder-seo";
 import { loadClinicBySlug } from "@/lib/load-clinic-by-slug";
 import { createServiceRoleClient } from "@/lib/supabase-service";
 import {
-  SUPABASE_IN_FILTER_CHUNK,
-  chunkArray,
   fetchAllSupabaseRows,
+  fetchAllSupabaseRowsForIdChunks,
 } from "@/lib/supabase-fetch-all";
 
 export const dynamic = "force-dynamic";
@@ -43,6 +50,7 @@ type ClinicsPageProps = {
     name?: string;
     lat?: string;
     lon?: string;
+    page?: string;
   };
 };
 
@@ -189,6 +197,11 @@ async function ClinicsSearchPage({ params, searchParams }: ClinicsPageProps) {
   const userCoords = parseUserCoordinates(searchParams);
   const districts = CYPRUS_DISTRICTS;
   const hasActiveFilters = Boolean(activeDistrict || activeName || userCoords);
+  const hasListFilter = hasActiveFilters;
+  const resultsPage = parseFinderResultsPage(searchParams?.page, { hasListFilter });
+  const maxResultsPage = hasListFilter
+    ? FINDER_RESULTS_MAX_PAGE_FILTERED
+    : FINDER_RESULTS_MAX_PAGE_UNFILTERED;
   const districtLabel = activeDistrict ? toTitleCaseWords(activeDistrict) : "";
 
   let clinics: ClinicSearchRow[] = [];
@@ -208,7 +221,7 @@ async function ClinicsSearchPage({ params, searchParams }: ClinicsPageProps) {
         query = query.eq("district", activeDistrict);
       }
       if (activeName) {
-        query = query.ilike("name", `%${activeName}%`);
+        query = query.ilike("name", `%${escapeIlikePattern(activeName)}%`);
       }
       return query;
     });
@@ -227,85 +240,6 @@ async function ClinicsSearchPage({ params, searchParams }: ClinicsPageProps) {
         latitude?: unknown;
         longitude?: unknown;
       }>;
-
-      const clinicIds = rows.map((row) => String(row.id));
-      const professionalIdsByClinic = new Map<string, Set<string>>();
-
-      function addProfessional(clinicId: string, professionalId: string) {
-        if (!clinicId || !professionalId) return;
-        let set = professionalIdsByClinic.get(clinicId);
-        if (!set) {
-          set = new Set();
-          professionalIdsByClinic.set(clinicId, set);
-        }
-        set.add(professionalId);
-      }
-
-      if (clinicIds.length > 0) {
-        // Prefer N:M links (same source as clinic landing roster).
-        const linksRes = await fetchAllSupabaseRows<{
-          clinic_id: string;
-          directory_manual_id: string;
-        }>(() =>
-          supabase.from("directory_manual_clinics").select("clinic_id, directory_manual_id"),
-        );
-
-        if (!linksRes.error && linksRes.data?.length) {
-          const linkedProfessionalIds = [
-            ...new Set(
-              linksRes.data
-                .map((row) => String(row.directory_manual_id ?? "").trim())
-                .filter(Boolean),
-            ),
-          ];
-          const activeProfessionalIds = new Set<string>();
-
-          // Chunk so we only count non-archived professionals.
-          for (const chunk of chunkArray(linkedProfessionalIds, SUPABASE_IN_FILTER_CHUNK)) {
-            const activeRes = await supabase
-              .from("directory_manual")
-              .select("id")
-              .eq("is_archived", false)
-              .in("id", chunk);
-            if (activeRes.error || !activeRes.data) continue;
-            for (const row of activeRes.data) {
-              const id = String((row as { id?: string }).id ?? "").trim();
-              if (id) activeProfessionalIds.add(id);
-            }
-          }
-
-          const clinicIdSet = new Set(clinicIds);
-          for (const row of linksRes.data) {
-            const clinicId = String(row.clinic_id ?? "").trim();
-            const professionalId = String(row.directory_manual_id ?? "").trim();
-            if (!clinicIdSet.has(clinicId)) continue;
-            if (!activeProfessionalIds.has(professionalId)) continue;
-            addProfessional(clinicId, professionalId);
-          }
-        }
-
-        // Legacy primary FK (canaries / rows without junction links).
-        const legacyRes = await fetchAllSupabaseRows<{
-          id: string;
-          clinic_id: string | null;
-        }>(() =>
-          supabase
-            .from("directory_manual")
-            .select("id, clinic_id")
-            .eq("is_archived", false)
-            .not("clinic_id", "is", null),
-        );
-
-        if (!legacyRes.error && legacyRes.data?.length) {
-          const clinicIdSet = new Set(clinicIds);
-          for (const row of legacyRes.data) {
-            const clinicId = String(row.clinic_id ?? "").trim();
-            const professionalId = String(row.id ?? "").trim();
-            if (!clinicIdSet.has(clinicId)) continue;
-            addProfessional(clinicId, professionalId);
-          }
-        }
-      }
 
       clinics = rows
         .map((row) => {
@@ -326,7 +260,7 @@ async function ClinicsSearchPage({ params, searchParams }: ClinicsPageProps) {
             latitude: coords?.latitude ?? null,
             longitude: coords?.longitude ?? null,
             photoUrl: resolveClinicDisplayPhotoUrl(null),
-            professionalCount: professionalIdsByClinic.get(String(row.id))?.size ?? 0,
+            professionalCount: 0,
             distanceKm,
           };
         })
@@ -345,6 +279,105 @@ async function ClinicsSearchPage({ params, searchParams }: ClinicsPageProps) {
       }
     }
   }
+
+  const visibleLimit = resultsPage * FINDER_RESULTS_PAGE_SIZE;
+  const visibleClinics = clinics.slice(0, visibleLimit);
+  const hasMoreResults =
+    clinics.length > visibleClinics.length && resultsPage < maxResultsPage;
+
+  if (supabase && visibleClinics.length > 0) {
+    const visibleClinicIds = visibleClinics.map((clinic) => clinic.id);
+    const professionalIdsByClinic = new Map<string, Set<string>>();
+
+    function addProfessional(clinicId: string, professionalId: string) {
+      if (!clinicId || !professionalId) return;
+      let set = professionalIdsByClinic.get(clinicId);
+      if (!set) {
+        set = new Set();
+        professionalIdsByClinic.set(clinicId, set);
+      }
+      set.add(professionalId);
+    }
+
+    // Prefer N:M links (same source as clinic landing roster).
+    const linksRes = await fetchAllSupabaseRowsForIdChunks<{
+      clinic_id: string;
+      directory_manual_id: string;
+    }>(visibleClinicIds, (chunk) =>
+      supabase
+        .from("directory_manual_clinics")
+        .select("clinic_id, directory_manual_id")
+        .in("clinic_id", chunk),
+    );
+
+    if (!linksRes.error && linksRes.data?.length) {
+      const linkedProfessionalIds = [
+        ...new Set(
+          linksRes.data
+            .map((row) => String(row.directory_manual_id ?? "").trim())
+            .filter(Boolean),
+        ),
+      ];
+      const activeProfessionalIds = new Set<string>();
+
+      if (linkedProfessionalIds.length > 0) {
+        const activeRes = await fetchAllSupabaseRowsForIdChunks<{ id: string }>(
+          linkedProfessionalIds,
+          (chunk) =>
+            supabase
+              .from("directory_manual")
+              .select("id")
+              .eq("is_archived", false)
+              .in("id", chunk),
+        );
+        if (!activeRes.error && activeRes.data?.length) {
+          for (const row of activeRes.data) {
+            const id = String(row.id ?? "").trim();
+            if (id) activeProfessionalIds.add(id);
+          }
+        }
+      }
+
+      for (const row of linksRes.data) {
+        const clinicId = String(row.clinic_id ?? "").trim();
+        const professionalId = String(row.directory_manual_id ?? "").trim();
+        if (!activeProfessionalIds.has(professionalId)) continue;
+        addProfessional(clinicId, professionalId);
+      }
+    }
+
+    // Legacy primary FK (canaries / rows without junction links).
+    const legacyRes = await fetchAllSupabaseRowsForIdChunks<{
+      id: string;
+      clinic_id: string | null;
+    }>(visibleClinicIds, (chunk) =>
+      supabase
+        .from("directory_manual")
+        .select("id, clinic_id")
+        .eq("is_archived", false)
+        .in("clinic_id", chunk),
+    );
+
+    if (!legacyRes.error && legacyRes.data?.length) {
+      for (const row of legacyRes.data) {
+        const clinicId = String(row.clinic_id ?? "").trim();
+        const professionalId = String(row.id ?? "").trim();
+        addProfessional(clinicId, professionalId);
+      }
+    }
+
+    for (const clinic of visibleClinics) {
+      clinic.professionalCount = professionalIdsByClinic.get(clinic.id)?.size ?? 0;
+    }
+  }
+
+  const loadMoreHref = buildFinderResultsPageHref({
+    finderPath: clinicsResultsPath(activeDistrict || null),
+    name: activeName || undefined,
+    lat: searchParams?.lat ?? null,
+    lon: searchParams?.lon ?? null,
+    page: resultsPage + 1,
+  });
 
   const title = buildClinicsResultsHeading({
     districtLabel: districtLabel || null,
@@ -458,7 +491,7 @@ async function ClinicsSearchPage({ params, searchParams }: ClinicsPageProps) {
               </div>
             ) : (
               <div className="flex flex-col gap-4">
-                {clinics.map((clinic) => {
+                {visibleClinics.map((clinic) => {
                   const href = clinicLandingPath(clinic.slug);
                   const mapsHref = clinic.address_maps_link;
                   const hasPhone = clinic.hasPhone;
@@ -556,6 +589,13 @@ async function ClinicsSearchPage({ params, searchParams }: ClinicsPageProps) {
                     </article>
                   );
                 })}
+                {hasMoreResults ? (
+                  <div className="flex justify-center pt-2">
+                    <PendingLink href={loadMoreHref} className={finderSoftButtonClass}>
+                      Show more clinics
+                    </PendingLink>
+                  </div>
+                ) : null}
               </div>
             )}
           </section>
