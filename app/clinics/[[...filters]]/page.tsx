@@ -466,8 +466,8 @@ async function ClinicsSearchPage({ params, searchParams }: ClinicsPageProps) {
                     clinic.distanceKm !== null ? formatDistanceAway(clinic.distanceKm) : null;
                   const professionalLabel =
                     clinic.professionalCount === 1
-                      ? "1 professional"
-                      : `${clinic.professionalCount} professionals`;
+                      ? "1 professional works here"
+                      : `${clinic.professionalCount} professionals work here`;
 
                   return (
                     <article
@@ -522,7 +522,7 @@ async function ClinicsSearchPage({ params, searchParams }: ClinicsPageProps) {
                             <p className="mt-2 text-sm leading-relaxed text-ink-600">{clinic.address}</p>
                           ) : null}
 
-                          <p className="mt-2 text-xs font-medium text-ink-500">{professionalLabel} listed</p>
+                          <p className="mt-2 text-xs font-medium text-ink-500">{professionalLabel}</p>
 
                           <div className="mt-3 flex flex-wrap items-center gap-2">
                             {mapsHref ? (
