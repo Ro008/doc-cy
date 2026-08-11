@@ -6,6 +6,7 @@ import {
   slugifyDoctorPublicName,
 } from "@/lib/doctor-slug";
 import { districtToSlug } from "@/lib/finder-seo";
+import { fetchAllSupabaseRows } from "@/lib/supabase-fetch-all";
 
 function trimSlug(value: string): string {
   return value.slice(0, MAX_DOCTOR_SLUG_LENGTH).replace(/-+$/g, "");
@@ -58,13 +59,16 @@ export async function loadTakenPublicSlugs(
 
   // Prefer base tables (service_role). Public views are revoked from anon.
   const [doctorsRes, manualRes] = await Promise.all([
-    supabase.from("doctors").select("slug").not("slug", "is", null).limit(10000),
-    supabase
-      .from("directory_manual")
-      .select("slug")
-      .eq("is_archived", false)
-      .not("slug", "is", null)
-      .limit(10000),
+    fetchAllSupabaseRows(() =>
+      supabase.from("doctors").select("slug").not("slug", "is", null),
+    ),
+    fetchAllSupabaseRows(() =>
+      supabase
+        .from("directory_manual")
+        .select("slug")
+        .eq("is_archived", false)
+        .not("slug", "is", null),
+    ),
   ]);
 
   for (const row of doctorsRes.data ?? []) {

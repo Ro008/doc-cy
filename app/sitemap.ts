@@ -5,6 +5,7 @@ import { districtToSlug, specialtyToSlug, slugToDistrict } from "@/lib/finder-se
 import { getAllBlogPostMeta } from "@/lib/blog";
 import { manualDirectoryLandingPath } from "@/lib/manual-directory-landing-path";
 import { isDirectoryCanarySlug } from "@/lib/directory-canaries";
+import { fetchAllSupabaseRows } from "@/lib/supabase-fetch-all";
 
 function normalizeDistrictSlug(value: unknown): string {
   const raw = String(value ?? "").trim();
@@ -46,22 +47,22 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // Registered professionals live in `doctors` (verified + public slug).
   // We also attempt `profiles` for backward compatibility with older naming.
   const [doctorsRes, profilesRes, manualRes] = await Promise.all([
-    supabase
-      .from("doctors")
-      .select("district, specialty, is_test_profile, name")
-      .eq("status", "verified")
-      .not("slug", "is", null)
-      .limit(5000),
-    supabase
-      .from("profiles")
-      .select("district, specialty")
-      .eq("status", "verified")
-      .limit(5000),
-    supabase
-      .from("directory_manual")
-      .select("district, specialty")
-      .eq("is_archived", false)
-      .limit(5000),
+    fetchAllSupabaseRows(() =>
+      supabase
+        .from("doctors")
+        .select("district, specialty, is_test_profile, name")
+        .eq("status", "verified")
+        .not("slug", "is", null),
+    ),
+    fetchAllSupabaseRows(() =>
+      supabase.from("profiles").select("district, specialty").eq("status", "verified"),
+    ),
+    fetchAllSupabaseRows(() =>
+      supabase
+        .from("directory_manual")
+        .select("district, specialty")
+        .eq("is_archived", false),
+    ),
   ]);
 
   const pairSet = new Set<string>();
@@ -135,12 +136,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   }));
 
   let manualDoctorEntries: MetadataRoute.Sitemap = [];
-  const manualSlugRes = await supabase
-    .from("directory_manual")
-    .select("slug")
-    .eq("is_archived", false)
-    .not("slug", "is", null)
-    .limit(5000);
+  const manualSlugRes = await fetchAllSupabaseRows(() =>
+    supabase
+      .from("directory_manual")
+      .select("slug")
+      .eq("is_archived", false)
+      .not("slug", "is", null),
+  );
 
   const slugColumnMissing =
     manualSlugRes.error &&
@@ -168,4 +170,3 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   return [...staticEntries, ...dynamicFinderEntries, ...manualDoctorEntries, ...blogEntries];
 }
-

@@ -14,6 +14,7 @@ import {
 } from "@/lib/doctor-settings";
 import { buildPracticeInsights } from "@/lib/practice-insights";
 import { isFounderSubscriptionTier } from "@/lib/subscription-tier";
+import { fetchAllSupabaseRows } from "@/lib/supabase-fetch-all";
 
 export default async function PracticeInsightsPage() {
   const t = createPracticeInsightsTranslator();
@@ -40,12 +41,14 @@ export default async function PracticeInsightsPage() {
 
   const doctor = doctorRes.data;
 
-  const { data: appointments } = await supabase
-    .from("appointments")
-    .select(
-      "appointment_datetime, status, created_at, is_new_patient, attendance, duration_minutes",
-    )
-    .eq("doctor_id", doctor.id);
+  const { data: appointments } = await fetchAllSupabaseRows(() =>
+    supabase
+      .from("appointments")
+      .select(
+        "appointment_datetime, status, created_at, is_new_patient, attendance, duration_minutes",
+      )
+      .eq("doctor_id", doctor.id),
+  );
 
   let weeklySchedule = null;
   const settingsRes = await supabase

@@ -13,6 +13,7 @@ import {
 } from "@/lib/finder-traffic-alert";
 import { sendResendEmail } from "@/lib/resend";
 import { createServiceRoleClient } from "@/lib/supabase-service";
+import { fetchAllSupabaseRows } from "@/lib/supabase-fetch-all";
 
 const WINDOW_MS = 60 * 60 * 1000;
 const BASELINE_DAYS = 7;
@@ -55,13 +56,14 @@ async function loadFinderVisitRows(
   start: Date,
   end: Date,
 ): Promise<FinderTrafficAggregateRow[]> {
-  const { data, error } = await supabase
-    .from("website_visits")
-    .select("page_path, country, user_agent, is_bot")
-    .gte("created_at", start.toISOString())
-    .lt("created_at", end.toISOString())
-    .or(finderTrafficPathOrFilter())
-    .limit(5000);
+  const { data, error } = await fetchAllSupabaseRows(() =>
+    supabase
+      .from("website_visits")
+      .select("page_path, country, user_agent, is_bot")
+      .gte("created_at", start.toISOString())
+      .lt("created_at", end.toISOString())
+      .or(finderTrafficPathOrFilter()),
+  );
 
   if (error) {
     throw new Error(`finder visit rows failed: ${error.message}`);

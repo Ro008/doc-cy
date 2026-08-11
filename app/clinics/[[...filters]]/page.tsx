@@ -26,7 +26,11 @@ import {
 import { isAllSlug, slugToDistrict, toTitleCaseWords } from "@/lib/finder-seo";
 import { loadClinicBySlug } from "@/lib/load-clinic-by-slug";
 import { createServiceRoleClient } from "@/lib/supabase-service";
-import { fetchAllSupabaseRows } from "@/lib/supabase-fetch-all";
+import {
+  SUPABASE_IN_FILTER_CHUNK,
+  chunkArray,
+  fetchAllSupabaseRows,
+} from "@/lib/supabase-fetch-all";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -225,23 +229,80 @@ async function ClinicsSearchPage({ params, searchParams }: ClinicsPageProps) {
       }>;
 
       const clinicIds = rows.map((row) => String(row.id));
-      const professionalCountByClinic = new Map<string, number>();
+      const professionalIdsByClinic = new Map<string, Set<string>>();
+
+      function addProfessional(clinicId: string, professionalId: string) {
+        if (!clinicId || !professionalId) return;
+        let set = professionalIdsByClinic.get(clinicId);
+        if (!set) {
+          set = new Set();
+          professionalIdsByClinic.set(clinicId, set);
+        }
+        set.add(professionalId);
+      }
 
       if (clinicIds.length > 0) {
-        const prosRes = await supabase
-          .from("directory_manual")
-          .select("clinic_id")
-          .eq("is_archived", false)
-          .in("clinic_id", clinicIds);
+        // Prefer N:M links (same source as clinic landing roster).
+        const linksRes = await fetchAllSupabaseRows<{
+          clinic_id: string;
+          directory_manual_id: string;
+        }>(() =>
+          supabase.from("directory_manual_clinics").select("clinic_id, directory_manual_id"),
+        );
 
-        if (!prosRes.error && prosRes.data) {
-          for (const raw of prosRes.data) {
-            const clinicId = String((raw as { clinic_id?: string | null }).clinic_id ?? "");
-            if (!clinicId) continue;
-            professionalCountByClinic.set(
-              clinicId,
-              (professionalCountByClinic.get(clinicId) ?? 0) + 1,
-            );
+        if (!linksRes.error && linksRes.data?.length) {
+          const linkedProfessionalIds = [
+            ...new Set(
+              linksRes.data
+                .map((row) => String(row.directory_manual_id ?? "").trim())
+                .filter(Boolean),
+            ),
+          ];
+          const activeProfessionalIds = new Set<string>();
+
+          // Chunk so we only count non-archived professionals.
+          for (const chunk of chunkArray(linkedProfessionalIds, SUPABASE_IN_FILTER_CHUNK)) {
+            const activeRes = await supabase
+              .from("directory_manual")
+              .select("id")
+              .eq("is_archived", false)
+              .in("id", chunk);
+            if (activeRes.error || !activeRes.data) continue;
+            for (const row of activeRes.data) {
+              const id = String((row as { id?: string }).id ?? "").trim();
+              if (id) activeProfessionalIds.add(id);
+            }
+          }
+
+          const clinicIdSet = new Set(clinicIds);
+          for (const row of linksRes.data) {
+            const clinicId = String(row.clinic_id ?? "").trim();
+            const professionalId = String(row.directory_manual_id ?? "").trim();
+            if (!clinicIdSet.has(clinicId)) continue;
+            if (!activeProfessionalIds.has(professionalId)) continue;
+            addProfessional(clinicId, professionalId);
+          }
+        }
+
+        // Legacy primary FK (canaries / rows without junction links).
+        const legacyRes = await fetchAllSupabaseRows<{
+          id: string;
+          clinic_id: string | null;
+        }>(() =>
+          supabase
+            .from("directory_manual")
+            .select("id, clinic_id")
+            .eq("is_archived", false)
+            .not("clinic_id", "is", null),
+        );
+
+        if (!legacyRes.error && legacyRes.data?.length) {
+          const clinicIdSet = new Set(clinicIds);
+          for (const row of legacyRes.data) {
+            const clinicId = String(row.clinic_id ?? "").trim();
+            const professionalId = String(row.id ?? "").trim();
+            if (!clinicIdSet.has(clinicId)) continue;
+            addProfessional(clinicId, professionalId);
           }
         }
       }
@@ -265,7 +326,7 @@ async function ClinicsSearchPage({ params, searchParams }: ClinicsPageProps) {
             latitude: coords?.latitude ?? null,
             longitude: coords?.longitude ?? null,
             photoUrl: resolveClinicDisplayPhotoUrl(null),
-            professionalCount: professionalCountByClinic.get(String(row.id)) ?? 0,
+            professionalCount: professionalIdsByClinic.get(String(row.id))?.size ?? 0,
             distanceKm,
           };
         })

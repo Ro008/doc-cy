@@ -119,13 +119,27 @@ async function main() {
   const { createClient } = require("@supabase/supabase-js");
   const admin = createClient(supabaseUrl, serviceRole);
 
+  async function fetchAll(buildQuery) {
+    const all = [];
+    const pageSize = 1000;
+    for (let from = 0; ; from += pageSize) {
+      const to = from + pageSize - 1;
+      const { data, error } = await buildQuery().range(from, to);
+      if (error) return { data: null, error };
+      all.push(...(data ?? []));
+      if (!data || data.length < pageSize) return { data: all, error: null };
+    }
+  }
+
   const [manualRes, doctorsRes] = await Promise.all([
-    admin
-      .from("directory_manual")
-      .select("id, name, district, slug")
-      .eq("is_archived", false)
-      .order("name", { ascending: true }),
-    admin.from("doctors").select("slug").not("slug", "is", null).limit(10000),
+    fetchAll(() =>
+      admin
+        .from("directory_manual")
+        .select("id, name, district, slug")
+        .eq("is_archived", false)
+        .order("name", { ascending: true }),
+    ),
+    fetchAll(() => admin.from("doctors").select("slug").not("slug", "is", null)),
   ]);
 
   if (manualRes.error) {

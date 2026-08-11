@@ -5,7 +5,10 @@ import { PendingLink } from "@/components/navigation/PendingLink";
 import { CYPRUS_DISTRICTS, type CyprusDistrict, isCyprusDistrict } from "@/lib/cyprus-districts";
 import { languageThemeForLabel } from "@/lib/cyprus-languages";
 import { createServiceRoleClient } from "@/lib/supabase-service";
-import { fetchAllSupabaseRows } from "@/lib/supabase-fetch-all";
+import {
+  fetchAllSupabaseRows,
+  fetchAllSupabaseRowsForIdChunks,
+} from "@/lib/supabase-fetch-all";
 import { doctorDashboardDisplayName } from "@/lib/doctor-display-name";
 import { FinderAudienceToggle } from "@/components/finder/FinderAudienceToggle";
 import { FinderFilters } from "@/components/finder/FinderFilters";
@@ -387,20 +390,22 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
 
   if (supabase) {
     if (activeDistrict) {
-      const clinicsInDistrictRes = await supabase
-        .from("clinics")
-        .select("id")
-        .eq("is_archived", false)
-        .eq("district", activeDistrict);
+      const clinicsInDistrictRes = await fetchAllSupabaseRows(() =>
+        supabase
+          .from("clinics")
+          .select("id")
+          .eq("is_archived", false)
+          .eq("district", activeDistrict),
+      );
       const clinicIds = (clinicsInDistrictRes.data ?? [])
         .map((row) => String((row as { id?: string }).id ?? "").trim())
         .filter(Boolean);
       if (clinicIds.length > 0) {
-        const linksRes = await fetchAllSupabaseRows(() =>
+        const linksRes = await fetchAllSupabaseRowsForIdChunks(clinicIds, (clinicIdChunk) =>
           supabase
             .from("directory_manual_clinics")
             .select("directory_manual_id")
-            .in("clinic_id", clinicIds),
+            .in("clinic_id", clinicIdChunk),
         );
         for (const link of linksRes.data ?? []) {
           const id = String(
@@ -797,15 +802,19 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
     if (visibleManualIds.length > 0) {
       const monthlySinceIso = finderManualVoteBadgeSinceIso();
       const monthlyRequestCountByManualId = new Map<string, number>();
-      const { data: monthlyRequestRows, error: monthlyRequestErr } = await supabase
-        .from("directory_manual_patient_booking_requests")
-        .select("id, manual_id, voter_key")
-        .in("manual_id", visibleManualIds)
-        .gte("created_at", monthlySinceIso);
+      const monthlyRequestRes = await fetchAllSupabaseRowsForIdChunks(
+        visibleManualIds,
+        (idChunk) =>
+          supabase
+            .from("directory_manual_patient_booking_requests")
+            .select("id, manual_id, voter_key")
+            .in("manual_id", idChunk)
+            .gte("created_at", monthlySinceIso),
+      );
 
-      if (!monthlyRequestErr && monthlyRequestRows?.length) {
+      if (!monthlyRequestRes.error && monthlyRequestRes.data?.length) {
         const votersByManual = new Map<string, Set<string>>();
-        for (const r of monthlyRequestRows) {
+        for (const r of monthlyRequestRes.data) {
           const mid = String((r as { manual_id?: string }).manual_id ?? "");
           const id = String((r as { id?: string }).id ?? "");
           const vk = (r as { voter_key?: string | null }).voter_key?.trim();
@@ -841,11 +850,13 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
         }
       >();
       if (clinicIds.length > 0) {
-        const clinicsRes = await supabase
-          .from("clinics")
-          .select("id, name, slug, address, address_maps_link, district")
-          .eq("is_archived", false)
-          .in("id", clinicIds);
+        const clinicsRes = await fetchAllSupabaseRowsForIdChunks(clinicIds, (idChunk) =>
+          supabase
+            .from("clinics")
+            .select("id, name, slug, address, address_maps_link, district")
+            .eq("is_archived", false)
+            .in("id", idChunk),
+        );
         if (!clinicsRes.error && clinicsRes.data?.length) {
           for (const c of clinicsRes.data) {
             const id = String((c as { id?: string }).id ?? "");
@@ -878,12 +889,14 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
         }>
       >();
       if (visibleManualIds.length > 0) {
-        const linksRes = await supabase
-          .from("directory_manual_clinics")
-          .select(
-            "directory_manual_id, is_primary, clinics ( id, name, slug, address, address_maps_link, district, is_archived )",
-          )
-          .in("directory_manual_id", visibleManualIds);
+        const linksRes = await fetchAllSupabaseRowsForIdChunks(visibleManualIds, (idChunk) =>
+          supabase
+            .from("directory_manual_clinics")
+            .select(
+              "directory_manual_id, is_primary, clinics ( id, name, slug, address, address_maps_link, district, is_archived )",
+            )
+            .in("directory_manual_id", idChunk),
+        );
         if (!linksRes.error && linksRes.data?.length) {
           const sorted = [...linksRes.data].sort((a, b) => {
             const ap = Boolean((a as { is_primary?: boolean }).is_primary);

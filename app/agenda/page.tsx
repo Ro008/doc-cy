@@ -13,6 +13,7 @@ import {
   type DoctorSettingsRow,
   type WeeklySchedule,
 } from "@/lib/doctor-settings";
+import { fetchAllSupabaseRows } from "@/lib/supabase-fetch-all";
 
 type AgendaWorkingHours = {
   weeklySchedule: WeeklySchedule;
@@ -82,13 +83,15 @@ export default async function AgendaPage({ searchParams }: AgendaPageProps) {
     );
   }
 
-  const { data: appointments, error } = await supabase
-    .from("appointments")
-    .select(
-      "id, doctor_id, patient_name, patient_phone, reason, appointment_datetime, status, duration_minutes, proposed_slots, proposal_expires_at, attendance",
-    )
-    .eq("doctor_id", doctor.id)
-    .order("appointment_datetime", { ascending: true });
+  const { data: appointments, error } = await fetchAllSupabaseRows(() =>
+    supabase
+      .from("appointments")
+      .select(
+        "id, doctor_id, patient_name, patient_phone, reason, appointment_datetime, status, duration_minutes, proposed_slots, proposal_expires_at, attendance",
+      )
+      .eq("doctor_id", doctor.id)
+      .order("appointment_datetime", { ascending: true }),
+  );
 
   if (error) {
     console.error(error);

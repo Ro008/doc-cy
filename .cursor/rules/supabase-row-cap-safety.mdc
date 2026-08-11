@@ -1,0 +1,77 @@
+---
+description: Prevent silent Supabase/PostgREST ~1000-row truncation in list/count queries
+alwaysApply: true
+---
+
+# Supabase row-cap safety (DocCy)
+
+## Hard rule
+
+**Never assume a Supabase/PostgREST `.select()` returns the full result set.**
+
+The API silently caps rows at ~**1000** (`max-rows`). Incomplete data looks like “success” — no error.
+
+## What does NOT work
+
+```ts
+// ❌ Still capped at ~1000 server-side
+.limit(5000)
+.limit(10000)
+.limit(12000)
+```
+
+`.limit(N)` only lowers the cap when `N < max-rows`. It does **not** raise it.
+
+## What to use instead
+
+Prefer `lib/supabase-fetch-all.ts`:
+
+| Helper | When |
+|---|---|
+| `fetchAllSupabaseRows(() => query)` | Unbounded or large lists (directory, clinics, visits, sitemap, slug inventory, jobs) |
+| `fetchAllSupabaseRowsForIdChunks(ids, (chunk) => query.in(..., chunk))` | Large `.in(...)` filters (chunk size `SUPABASE_IN_FILTER_CHUNK` = 200) |
+| `count: "exact", head: true` | You only need a count, not rows |
+| SQL aggregates / `group by` | Stats dashboards (prefer over pulling all rows) |
+
+```ts
+import { fetchAllSupabaseRows, fetchAllSupabaseRowsForIdChunks } from "@/lib/supabase-fetch-all";
+
+const { data, error } = await fetchAllSupabaseRows(() =>
+  supabase.from("directory_manual").select("id, slug").eq("is_archived", false),
+);
+```
+
+## When pagination is required
+
+Use `fetchAll*` (or DB-side aggregation) whenever the set **can grow past ~1000**, including:
+
+- `directory_manual`, `clinics`, `directory_manual_clinics`
+- Finder/clinics list enrichment (votes, clinic links, district→clinic membership)
+- `app/sitemap.ts` URL generation
+- Internal founder analytics (`website_visits`, appointment chart series)
+- Agenda / practice insights / monthly digest appointment history
+- Slug “taken” sets (`loadTakenPublicSlugs`, import/backfill scripts)
+
+## When a plain `.select()` is OK
+
+- Single-row lookups (`.maybeSingle()` / `.single()`)
+- Intentionally tiny samples (`.limit(5)`, `.limit(30)`)
+- Narrow filters where the upper bound is obviously ≪1000 (document why if non-obvious)
+
+## Incident memory (2026-08)
+
+Clinic cards showed **“0 professionals”** while the clinic page listed **20**:
+
+1. Counts used only legacy `directory_manual.clinic_id`, missing N:M `directory_manual_clinics`.
+2. The count query returned at most ~1000 rows across all clinics, so many clinics got **0**.
+
+Fix pattern: source of truth = same join/roster as the detail page + `fetchAllSupabaseRows`.
+
+## Review checklist
+
+Before merging code that loads many Supabase rows:
+
+1. Could this table/filter exceed ~1000 rows in testing or prod soon?
+2. If yes → `fetchAllSupabaseRows` / `fetchAllSupabaseRowsForIdChunks`, or exact count / SQL aggregate.
+3. Do not “fix” truncation with a larger `.limit()`.
+4. Keep unit coverage in `tests/unit/supabase-fetch-all.test.ts` when changing the helper.

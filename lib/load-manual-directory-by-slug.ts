@@ -6,6 +6,7 @@ import { resolveFinderDisplayPhotoUrl } from "@/lib/finder-default-avatars";
 import { finderManualVoteBadgeSinceIso } from "@/lib/finder-manual-vote-badge";
 import { parseOptionalCoordinates } from "@/lib/finder-distance";
 import { buildManualDirectoryClinicRefs } from "@/lib/manual-directory-clinics";
+import { fetchAllSupabaseRows } from "@/lib/supabase-fetch-all";
 
 export type ManualDirectoryLandingClinic = {
   name: string;
@@ -143,12 +144,13 @@ export async function loadManualDirectoryBySlug(
   const monthlySinceIso = finderManualVoteBadgeSinceIso();
   let monthlyRequestCount = 0;
 
-  const { data: monthlyRequestRows } = await supabase
-    .from("directory_manual_patient_booking_requests")
-    .select("id, voter_key")
-    .eq("manual_id", manualId)
-    .gte("created_at", monthlySinceIso)
-    .limit(5000);
+  const { data: monthlyRequestRows } = await fetchAllSupabaseRows(() =>
+    supabase
+      .from("directory_manual_patient_booking_requests")
+      .select("id, voter_key")
+      .eq("manual_id", manualId)
+      .gte("created_at", monthlySinceIso),
+  );
 
   if (monthlyRequestRows?.length) {
     const voters = new Set<string>();

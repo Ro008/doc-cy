@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { startOfMonth, startOfWeek, subMonths } from "date-fns";
 import { createServiceRoleClient } from "@/lib/supabase-service";
+import { fetchAllSupabaseRows } from "@/lib/supabase-fetch-all";
 import {
   founderDirectoryHref,
   getManualVotesWindowDays,
@@ -162,32 +163,40 @@ export default async function FounderDashboardPage({
     apptsForChartRes,
     websiteVisitsLast7dRes,
   ] = await Promise.all([
-    supabase
-      .from("doctors")
-      .select(
-        "id, name, email, phone, slug, specialty, languages, status, created_at, license_number, license_file_url, is_specialty_approved, specialty_requires_standard_at, auth_user_id"
-      )
-      .order("created_at", { ascending: false }),
+    fetchAllSupabaseRows(() =>
+      supabase
+        .from("doctors")
+        .select(
+          "id, name, email, phone, slug, specialty, languages, status, created_at, license_number, license_file_url, is_specialty_approved, specialty_requires_standard_at, auth_user_id"
+        )
+        .order("created_at", { ascending: false }),
+    ),
     supabase.from("appointments").select("id", { count: "exact", head: true }),
     supabase
       .from("appointments")
       .select("id", { count: "exact", head: true })
       .gte("created_at", monthStartIso),
-    supabase.from("appointments").select("doctor_id").gte("created_at", sevenDaysAgoIso),
+    fetchAllSupabaseRows(() =>
+      supabase.from("appointments").select("doctor_id").gte("created_at", sevenDaysAgoIso),
+    ),
     supabase
       .from("appointments")
       .select("id, patient_name, appointment_datetime, created_at, doctor_id")
       .order("created_at", { ascending: false })
       .limit(5),
-    supabase
-      .from("appointments")
-      .select("created_at")
-      .gte("created_at", chartRangeStart.toISOString()),
-    supabase
-      .from("website_visits")
-      .select("session_id, page_path, city, country, traffic_origin, ref_code, utm_source, utm_medium, user_agent, is_bot, created_at")
-      .gte("created_at", visitsWindowStartIso)
-      .eq("is_bot", false),
+    fetchAllSupabaseRows(() =>
+      supabase
+        .from("appointments")
+        .select("created_at")
+        .gte("created_at", chartRangeStart.toISOString()),
+    ),
+    fetchAllSupabaseRows(() =>
+      supabase
+        .from("website_visits")
+        .select("session_id, page_path, city, country, traffic_origin, ref_code, utm_source, utm_medium, user_agent, is_bot, created_at")
+        .gte("created_at", visitsWindowStartIso)
+        .eq("is_bot", false),
+    ),
   ]);
 
   if (doctorsRes.error) {
@@ -478,11 +487,12 @@ export default async function FounderDashboardPage({
   try {
     const manualVotesDays = getManualVotesWindowDays(dashboardQuery.manualVotesRange);
     const sinceIso = new Date(Date.now() - manualVotesDays * 24 * 60 * 60 * 1000).toISOString();
-    const { data: reqRows, error: reqErr } = await supabase
-      .from("directory_manual_patient_booking_requests")
-      .select("id, manual_id, created_at, voter_key")
-      .gte("created_at", sinceIso)
-      .limit(12000);
+    const { data: reqRows, error: reqErr } = await fetchAllSupabaseRows(() =>
+      supabase
+        .from("directory_manual_patient_booking_requests")
+        .select("id, manual_id, created_at, voter_key")
+        .gte("created_at", sinceIso),
+    );
     if (!reqErr && reqRows?.length) {
       const byManual = new Map<string, { voters: Set<string>; lastAt: string }>();
       for (const r of reqRows) {
@@ -535,12 +545,13 @@ export default async function FounderDashboardPage({
   let finderInvitationRows: FinderInvitationRequestRow[] = [];
   try {
     const invitationSinceIso = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
-    const { data: invitationRows, error: invitationErr } = await supabase
-      .from("finder_doctor_invitation_requests")
-      .select("id, requested_name, specialty, district, created_at, voter_key")
-      .gte("created_at", invitationSinceIso)
-      .order("created_at", { ascending: false })
-      .limit(12000);
+    const { data: invitationRows, error: invitationErr } = await fetchAllSupabaseRows(() =>
+      supabase
+        .from("finder_doctor_invitation_requests")
+        .select("id, requested_name, specialty, district, created_at, voter_key")
+        .gte("created_at", invitationSinceIso)
+        .order("created_at", { ascending: false }),
+    );
 
     if (!invitationErr && invitationRows?.length) {
       const byKey = new Map<
