@@ -59,7 +59,27 @@ describe("buildManualPreviewCalendar", () => {
     assert.equal(today.slots.length, 0);
     const tomorrow = calendar.find((day) => day.dateKey === "2026-07-25");
     assert.ok(tomorrow);
-    assert.ok(tomorrow.slots.length >= 0);
+    assert.ok(tomorrow.slots.length >= 2);
+  });
+
+  it("always seeds slots into the first visible week strip", () => {
+    const now = new Date("2026-08-11T18:00:00+03:00");
+    const dateKeys = Array.from({ length: 14 }, (_, i) => {
+      const day = 11 + i;
+      return `2026-08-${String(day).padStart(2, "0")}`;
+    });
+    const headers = headersFor(dateKeys);
+
+    for (let i = 0; i < 40; i += 1) {
+      const calendar = buildManualPreviewCalendar(headers, `listing-seed-${i}`, now);
+      const firstWindowSlots = calendar
+        .slice(0, 5)
+        .reduce((sum, day) => sum + day.slots.length, 0);
+      assert.ok(
+        firstWindowSlots >= 2,
+        `seed listing-seed-${i} left first window empty (${firstWindowSlots} slots)`,
+      );
+    }
   });
 
   it("is stable for the same seed and now", () => {
