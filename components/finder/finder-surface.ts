@@ -3,9 +3,12 @@
  * Prefer transform/shadow/border transitions only — avoid animating layout-heavy props.
  */
 
-/** Result cards (professionals + clinics lists). */
+/**
+ * Result cards (professionals + clinics lists).
+ * Matches clinic-roster professional cards: border + shadow deepen, no lift/bg wash.
+ */
 export const finderResultCardClass =
-  "rounded-2xl border border-clinical-200 bg-white p-4 shadow-[0_1px_3px_rgba(26,43,60,0.06),0_4px_16px_rgba(18,184,192,0.05)] sm:p-5 motion-safe:transition-[border-color,background-color] motion-safe:duration-150 motion-safe:ease-out hover:border-clinical-300 hover:bg-clinical-50";
+  "rounded-2xl border border-clinical-200 bg-white p-4 shadow-sm sm:p-5 transition-none hover:border-clinical-300 hover:shadow-md";
 
 /** Clickable browse / SEO rows (district × specialty links). */
 export const finderBrowseRowClass =
