@@ -77,6 +77,8 @@ export function ManualDirectoryLandingCard({
                   address={row.address}
                   addressMapsLink={row.address_maps_link}
                   clinic={row.clinic}
+                  clinics={row.clinics}
+                  variant="full"
                 />
               </div>
               <div className="flex min-w-0 flex-col gap-2">

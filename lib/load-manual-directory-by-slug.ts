@@ -5,11 +5,15 @@ import { getFinderManualPhotoUrl } from "@/lib/finder-manual-photos";
 import { resolveFinderDisplayPhotoUrl } from "@/lib/finder-default-avatars";
 import { finderManualVoteBadgeSinceIso } from "@/lib/finder-manual-vote-badge";
 import { parseOptionalCoordinates } from "@/lib/finder-distance";
+import { buildManualDirectoryClinicRefs } from "@/lib/manual-directory-clinics";
 
 export type ManualDirectoryLandingClinic = {
   name: string;
   slug: string;
   isPrimary: boolean;
+  address?: string | null;
+  addressMapsLink?: string | null;
+  district?: string | null;
 };
 
 export type ManualDirectoryLandingRow = {
@@ -161,36 +165,16 @@ export async function loadManualDirectoryBySlug(
   const specialties = normalizeSpecialties(row);
 
   const clinics: ManualDirectoryLandingClinic[] = [];
-  const seenClinicIds = new Set<string>();
 
   const joinRes = await supabase
     .from("directory_manual_clinics")
-    .select("clinic_id, is_primary, clinics ( name, slug, is_archived )")
+    .select(
+      "clinic_id, is_primary, clinics ( name, slug, address, address_maps_link, district, is_archived )",
+    )
     .eq("directory_manual_id", manualId);
 
   if (!joinRes.error && joinRes.data?.length) {
-    const sorted = [...joinRes.data].sort((a, b) => {
-      const ap = Boolean((a as { is_primary?: boolean }).is_primary);
-      const bp = Boolean((b as { is_primary?: boolean }).is_primary);
-      if (ap === bp) return 0;
-      return ap ? -1 : 1;
-    });
-    for (const link of sorted) {
-      const clinicId = String((link as { clinic_id?: string }).clinic_id ?? "");
-      const clinic = (link as { clinics?: { name?: string; slug?: string; is_archived?: boolean } | null })
-        .clinics;
-      if (!clinicId || !clinic || clinic.is_archived) continue;
-      const name = String(clinic.name ?? "").trim();
-      const clinicSlug = String(clinic.slug ?? "").trim();
-      if (!name || !clinicSlug) continue;
-      if (seenClinicIds.has(clinicId)) continue;
-      seenClinicIds.add(clinicId);
-      clinics.push({
-        name,
-        slug: clinicSlug,
-        isPrimary: Boolean((link as { is_primary?: boolean }).is_primary),
-      });
-    }
+    clinics.push(...buildManualDirectoryClinicRefs(joinRes.data));
   }
 
   if (clinics.length === 0) {
@@ -198,16 +182,28 @@ export async function loadManualDirectoryBySlug(
     if (clinicId) {
       const clinicRes = await supabase
         .from("clinics")
-        .select("name, slug")
+        .select("name, slug, address, address_maps_link, district")
         .eq("id", clinicId)
         .eq("is_archived", false)
         .maybeSingle();
       if (!clinicRes.error && clinicRes.data) {
-        const name = String((clinicRes.data as { name?: string }).name ?? "").trim();
-        const clinicSlug = String((clinicRes.data as { slug?: string }).slug ?? "").trim();
-        if (name && clinicSlug) {
-          clinics.push({ name, slug: clinicSlug, isPrimary: true });
-        }
+        clinics.push(
+          ...buildManualDirectoryClinicRefs([
+            {
+              clinic_id: clinicId,
+              is_primary: true,
+              clinics: {
+                name: (clinicRes.data as { name?: string }).name,
+                slug: (clinicRes.data as { slug?: string }).slug,
+                address: (clinicRes.data as { address?: string | null }).address,
+                address_maps_link: (clinicRes.data as { address_maps_link?: string | null })
+                  .address_maps_link,
+                district: (clinicRes.data as { district?: string | null }).district,
+                is_archived: false,
+              },
+            },
+          ]),
+        );
       }
     }
   }

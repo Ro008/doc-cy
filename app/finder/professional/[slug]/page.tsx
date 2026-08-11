@@ -6,6 +6,7 @@ import { ManualDirectoryStructuredData } from "@/components/finder/ManualDirecto
 import { RecordRecentlyViewed } from "@/components/finder/RecordRecentlyViewed";
 import { PendingLink } from "@/components/navigation/PendingLink";
 import { clinicLandingPath } from "@/lib/clinic-landing-path";
+import { formatClinicCountLabel } from "@/lib/manual-directory-clinics";
 import { districtToSlug, specialtyToSlug } from "@/lib/finder-seo";
 import { finderResultsPath } from "@/lib/finder-public-path";
 import { loadManualDirectoryBySlug } from "@/lib/load-manual-directory-by-slug";
@@ -155,6 +156,9 @@ export default async function ManualDirectoryProfessionalPage({ params }: PagePr
                 {row.clinic.name}
               </PendingLink>
             </>
+          ) : null}
+          {row.clinics.length > 1 ? (
+            <span className="text-ink-500"> · {formatClinicCountLabel(row.clinics.length)}</span>
           ) : null}
         </p>
 
