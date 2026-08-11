@@ -78,15 +78,15 @@ export function PendingLink({
     <span
       className={
         fill
-          ? "relative flex h-full w-full items-center justify-center"
-          : "relative inline-flex max-w-full items-center justify-center"
+          ? "relative flex h-full w-full min-w-0 items-center justify-center"
+          : "relative inline-flex max-w-full min-w-0 items-center justify-center"
       }
     >
       <span
         className={
           fill
-            ? `flex h-full w-full items-center justify-center transition-none ${pending ? "opacity-0" : "opacity-100"}`
-            : `transition-none ${pending ? "opacity-0" : "opacity-100"}`
+            ? `flex h-full w-full min-w-0 items-center justify-center transition-none ${pending ? "opacity-0" : "opacity-100"}`
+            : `min-w-0 max-w-full transition-none ${pending ? "opacity-0" : "opacity-100"}`
         }
       >
         {children}
