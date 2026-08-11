@@ -72,11 +72,13 @@ import { finderResultsPath, FOR_PROFESSIONALS_PATH } from "@/lib/finder-public-p
 import { buildFinderResultsHeading, buildFinderResultsSnippet } from "@/lib/finder-results-heading";
 import {
   buildFinderResultsPageHref,
-  escapeIlikePattern,
   FINDER_RESULTS_PAGE_SIZE,
-  finderSpecialtyDbMatchValues,
   parseFinderResultsPage,
 } from "@/lib/finder-results-paging";
+import {
+  applyFinderListFilters,
+  fetchManualDirectoryForFinder,
+} from "@/lib/finder-manual-directory-load";
 import { manualDirectoryLandingPath } from "@/lib/manual-directory-landing-path";
 import { isRegisteredDoctorHiddenFromFinder, isTestProfileLike } from "@/lib/doctor-test-profile";
 import {
@@ -321,47 +323,6 @@ export async function generateMetadata({ params }: FinderPageProps): Promise<Met
   };
 }
 
-function applyFinderListFilters(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  query: any,
-  filters: { district: string; name: string; specialty: string },
-  options?: {
-    specialtyColumn?: "specialty" | "specialties";
-    /** Manual rows: also include professionals linked to a clinic in this district. */
-    extraDistrictManualIds?: readonly string[];
-  },
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-): any {
-  let next = query;
-  if (filters.district) {
-    const extraIds = (options?.extraDistrictManualIds ?? [])
-      .map((id) => String(id ?? "").trim())
-      .filter(Boolean);
-    if (extraIds.length > 0) {
-      next = next.or(`district.eq.${filters.district},id.in.(${extraIds.join(",")})`);
-    } else {
-      next = next.eq("district", filters.district);
-    }
-  }
-  if (filters.name) {
-    next = next.ilike("name", `%${escapeIlikePattern(filters.name)}%`);
-  }
-  if (filters.specialty) {
-    const values = finderSpecialtyDbMatchValues(filters.specialty);
-    if (values.length > 0) {
-      if (options?.specialtyColumn === "specialties") {
-        // Multi-specialty GeSY cards: match if ANY specialty overlaps the filter variants.
-        next = next.overlaps("specialties", values);
-      } else if (values.length === 1) {
-        next = next.eq("specialty", values[0]!);
-      } else {
-        next = next.in("specialty", values);
-      }
-    }
-  }
-  return next;
-}
-
 export default async function FinderPage({ params, searchParams }: FinderPageProps) {
   const supabase = createServiceRoleClient();
   const activeDistrict = resolveDistrictValue(params.filters?.[0], searchParams?.district);
@@ -547,19 +508,15 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
     let manualUsesSpecialtiesColumn = false;
     for (const selectClause of manualSelectAttempts) {
       const useSpecialtiesFilter = selectClause.includes("specialties");
-      let manualQuery = supabase
-        .from("directory_manual")
-        .select(selectClause)
-        .eq("is_archived", false);
-      if (selectClause.includes("finder_visible")) {
-        manualQuery = manualQuery.eq("finder_visible", true);
-      }
-      const manualRes = await fetchAllSupabaseRows(() =>
-        applyFinderListFilters(manualQuery, listFilters, {
-          specialtyColumn: useSpecialtiesFilter ? "specialties" : "specialty",
-          extraDistrictManualIds: Array.from(manualIdsWithClinicInActiveDistrict),
-        }).order("name", { ascending: true }),
-      );
+      const manualRes = await fetchManualDirectoryForFinder({
+        supabase,
+        selectClause,
+        filters: listFilters,
+        specialtyColumn: useSpecialtiesFilter ? "specialties" : "specialty",
+        extraDistrictManualIds: Array.from(manualIdsWithClinicInActiveDistrict),
+        requireFinderVisible: selectClause.includes("finder_visible"),
+        orderByName: true,
+      });
       if (manualRes.error) {
         manualLoadError = manualRes.error;
         if (isRecoverableSelectSchemaError(manualRes.error)) {
@@ -595,21 +552,16 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
       specialty: "",
     };
     const manualSpecialtySelect = manualUsesSpecialtiesColumn
-      ? "specialty, specialties"
+      ? "specialty, specialties, finder_visible"
       : "specialty";
-    let manualSpecialtyQuery = supabase
-      .from("directory_manual")
-      .select(manualSpecialtySelect)
-      .eq("is_archived", false);
-    if (manualUsesSpecialtiesColumn) {
-      manualSpecialtyQuery = manualSpecialtyQuery.eq("finder_visible", true);
-    }
     const [manualSpecialtyRes, registeredSpecialtyRes] = await Promise.all([
-      fetchAllSupabaseRows(() =>
-        applyFinderListFilters(manualSpecialtyQuery, specialtyOptionFilters, {
-          extraDistrictManualIds: Array.from(manualIdsWithClinicInActiveDistrict),
-        }),
-      ),
+      fetchManualDirectoryForFinder({
+        supabase,
+        selectClause: manualSpecialtySelect,
+        filters: specialtyOptionFilters,
+        extraDistrictManualIds: Array.from(manualIdsWithClinicInActiveDistrict),
+        requireFinderVisible: manualUsesSpecialtiesColumn,
+      }),
       fetchAllSupabaseRows(() =>
         applyFinderListFilters(
           supabase

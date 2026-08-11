@@ -11,6 +11,8 @@ alwaysApply: true
 
 The API silently caps rows at ~**1000** (`max-rows`). Incomplete data looks like “success” — no error.
 
+Also never build a single PostgREST `.or(...)` / `.in(...)` with thousands of UUIDs (URL/body blow-up). Example failure: Limassol clinic-linked professional IDs (~2k) in one `id.in.(...)` → empty error and “Could not load manual directory entries.” Use `fetchAllSupabaseRowsForIdChunks` and merge in memory instead.
+
 ## What does NOT work
 
 ```ts
@@ -60,12 +62,20 @@ Use `fetchAll*` (or DB-side aggregation) whenever the set **can grow past ~1000*
 
 ## Incident memory (2026-08)
 
-Clinic cards showed **“0 professionals”** while the clinic page listed **20**:
+### Clinic cards showed “0 professionals”
 
 1. Counts used only legacy `directory_manual.clinic_id`, missing N:M `directory_manual_clinics`.
 2. The count query returned at most ~1000 rows across all clinics, so many clinics got **0**.
 
 Fix pattern: source of truth = same join/roster as the detail page + `fetchAllSupabaseRows`.
+
+### Finder “Could not load manual directory entries” (Limassol + specialty)
+
+Cause: one PostgREST filter  
+`or(district.eq.X,id.in.(uuid1,uuid2,…~2000))`  
+for clinic-linked professionals blew past request size limits (empty error).
+
+Fix pattern: `lib/finder-manual-directory-load.ts` — primary district query + **chunked** extras via `fetchAllSupabaseRowsForIdChunks` (`SUPABASE_IN_FILTER_CHUNK` = 200). Never interpolate `ids.join(",")` into `id.in.(...)`.
 
 ## Review checklist
 
@@ -74,4 +84,8 @@ Before merging code that loads many Supabase rows:
 1. Could this table/filter exceed ~1000 rows in testing or prod soon?
 2. If yes → `fetchAllSupabaseRows` / `fetchAllSupabaseRowsForIdChunks`, or exact count / SQL aggregate.
 3. Do not “fix” truncation with a larger `.limit()`.
-4. Keep unit coverage in `tests/unit/supabase-fetch-all.test.ts` when changing the helper.
+4. Do not build `.or(...id.in.(${ids.join(",")}))` for large ID sets — chunk instead.
+5. Keep unit coverage:
+   - `tests/unit/supabase-fetch-all.test.ts`
+   - `tests/unit/supabase-row-cap-safety.test.ts` (static anti-patterns)
+   - `tests/unit/finder-manual-directory-load.test.ts` (clinic-district extras)

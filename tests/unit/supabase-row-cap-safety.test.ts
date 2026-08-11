@@ -18,6 +18,13 @@ const CODE_EXT = new Set([".ts", ".tsx", ".js", ".mjs", ".cjs"]);
 /** Limits that look like “please return more than the server max” — always wrong. */
 const FAKE_HIGH_LIMIT_RE = /\.limit\(\s*(?:5000|10000|12000)\s*\)/g;
 
+/**
+ * Building one PostgREST `id.in.(${ids.join(",")})` (often inside `.or(...)`)
+ * with thousands of UUIDs blows the request (Limassol finder incident, 2026-08).
+ * Chunk via `fetchAllSupabaseRowsForIdChunks` / `.in("id", chunk)` instead.
+ */
+const HUGE_IN_JOIN_RE = /id\.in\.\(\$\{[^;\n]*\.join\(/g;
+
 function listCodeFiles(dir: string): string[] {
   const abs = path.join(repoRoot, dir);
   if (!fs.existsSync(abs)) return [];
@@ -64,6 +71,28 @@ describe("supabase row-cap anti-patterns", () => {
       [],
       `Fake high .limit() does not bypass PostgREST max-rows (~1000). ` +
         `Use fetchAllSupabaseRows instead. Offenders:\n${offenders.join("\n")}`,
+    );
+  });
+
+  it("does not build a single id.in.(${...join(...)}) for large UUID lists", () => {
+    const offenders: string[] = [];
+    for (const dir of SCAN_DIRS) {
+      for (const file of listCodeFiles(dir)) {
+        const text = stripComments(fs.readFileSync(file, "utf8"));
+        HUGE_IN_JOIN_RE.lastIndex = 0;
+        if (!HUGE_IN_JOIN_RE.test(text)) continue;
+        HUGE_IN_JOIN_RE.lastIndex = 0;
+        const rel = path.relative(repoRoot, file).replace(/\\/g, "/");
+        offenders.push(rel);
+      }
+    }
+
+    assert.deepEqual(
+      offenders,
+      [],
+      `Do not interpolate large UUID lists into id.in.(...). ` +
+        `Use fetchAllSupabaseRowsForIdChunks (see Limassol finder incident). ` +
+        `Offenders:\n${offenders.join("\n")}`,
     );
   });
 });
