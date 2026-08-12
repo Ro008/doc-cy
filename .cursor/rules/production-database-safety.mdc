@@ -24,6 +24,7 @@ Prior consent for one prod change does **not** authorize later prod changes.
 2. Prefer **testing** (`fwinchqdgrkpxuuttech`) for verification: `npm run db:testing:push`.
 3. Before `db push`, **verify the linked project** (`npx supabase projects list` — prod vs testing).
 4. Use `scripts/supabase-safe.mjs` for prod (`db:prod:push`), not raw `supabase db push`, unless the user explicitly requests otherwise.
+5. After `db:prod:push`, the safe script **must restore the CLI link to testing** (even if the push failed), so a later bare `supabase db push` cannot hit prod by accident.
 
 ## If the user has not said “apply to prod” (or equivalent)
 
