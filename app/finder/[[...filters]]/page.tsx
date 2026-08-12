@@ -573,7 +573,7 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
       ),
     );
     const gesyDropdownSeed = GESY_MANUAL_SPECIALTIES.filter(
-      (label) => label !== "Pharmacy" && label !== "Laboratory",
+      (label) => label !== "Pharmacy",
     ).map((specialty) => ({ specialty }));
     const doccyExtraSeed = DOCCY_EXTRA_REGISTRATION_SPECIALTIES.map((specialty) => ({
       specialty,
