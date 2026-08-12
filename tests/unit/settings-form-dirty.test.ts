@@ -21,6 +21,7 @@ function baseSnapshotInput() {
   return {
     specialty: "General Practice",
     specialtyFromMaster: true,
+    bio: "Helping patients across Cyprus.",
     languages: ["English", "Greek"],
     whatsappNumber: "+35799111222",
     showPhonePublic: false,
@@ -71,6 +72,15 @@ describe("settings-form-dirty", () => {
       },
     });
     assert.equal(settingsFormHasUnsavedChanges(changedClinic, saved), true);
+  });
+
+  it("detects bio edits", () => {
+    const saved = buildSettingsDirtySnapshot(baseSnapshotInput());
+    const changed = buildSettingsDirtySnapshot({
+      ...baseSnapshotInput(),
+      bio: "Updated about text.",
+    });
+    assert.equal(settingsFormHasUnsavedChanges(changed, saved), true);
   });
 
   it("normalizes language order when comparing", () => {

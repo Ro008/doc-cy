@@ -52,6 +52,7 @@ export default async function AgendaSettingsPage() {
     phone?: string | null;
     slug?: string | null;
     specialty?: string | null;
+    bio?: string | null;
     languages?: string[] | null;
     district?: string | null;
     clinic_address?: string | null;
@@ -73,7 +74,7 @@ export default async function AgendaSettingsPage() {
     let res = await supabase
       .from("doctors")
       .select(
-        "id, name, avatar_url, phone, slug, specialty, languages, district, clinic_address, latitude, longitude, clinic_place_id, status, subscription_tier, is_gesy"
+        "id, name, avatar_url, phone, slug, specialty, bio, languages, district, clinic_address, latitude, longitude, clinic_place_id, status, subscription_tier, is_gesy"
       )
       .eq("auth_user_id", user.id)
       .single();
@@ -273,6 +274,7 @@ export default async function AgendaSettingsPage() {
         : null,
     specialty: (doctor.specialty ?? "").trim(),
     isSpecialtyApproved: doctor.is_specialty_approved ?? true,
+    bio: (doctor.bio ?? "").trim(),
     languages: langArr,
     whatsappNumber: doctor.phone ?? undefined,
     showPhonePublic: Boolean(

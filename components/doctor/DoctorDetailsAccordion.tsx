@@ -14,8 +14,6 @@ export function DoctorDetailsAccordion({
 }: DoctorDetailsAccordionProps) {
   const [open, setOpen] = React.useState(false);
   const bioText = (bio ?? "").trim();
-  const truncatedBio =
-    bioText.length > 500 ? `${bioText.slice(0, 500).trimEnd()}...` : bioText;
   const firstName = name.trim().split(/\s+/)[0] || name;
 
   React.useEffect(() => {
@@ -48,13 +46,13 @@ export function DoctorDetailsAccordion({
         <div
           id="doctor-details-panel"
           className={`overflow-hidden transition-all duration-300 ${
-            open ? "max-h-[720px] opacity-100" : "max-h-0 opacity-0"
+            open ? "max-h-[1200px] opacity-100" : "max-h-0 opacity-0"
           }`}
         >
           <div className="px-5 pb-5 pt-1">
             <div>
-              <p className="text-sm leading-relaxed text-ink-600">
-                {truncatedBio || "This professional has not added a bio yet."}
+              <p className="whitespace-pre-wrap text-sm leading-relaxed text-ink-600">
+                {bioText || "This professional has not added a bio yet."}
               </p>
             </div>
 
