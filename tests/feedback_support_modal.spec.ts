@@ -12,6 +12,7 @@ test.describe("Support feedback modal (Formspree)", { tag: "@pr-e2e" }, () => {
       testInfo.project.name !== "Desktop Large (Chromium)",
       "Stabilized for desktop Chromium.",
     );
+    test.setTimeout(60_000);
 
     await page.route("https://formspree.io/f/**", async (route) => {
       if (route.request().method() !== "POST") {
@@ -26,6 +27,12 @@ test.describe("Support feedback modal (Formspree)", { tag: "@pr-e2e" }, () => {
     });
 
     await page.goto("/");
+    await expect(
+      page.getByRole("heading", {
+        level: 1,
+        name: /Find your next health professional in Cyprus|Health Professionals in Cyprus|Find a Professional/i,
+      }),
+    ).toBeVisible({ timeout: 30_000 });
 
     await page.getByTestId("marketing-footer").getByRole("button", { name: /^Support$/i }).click();
     await expect(

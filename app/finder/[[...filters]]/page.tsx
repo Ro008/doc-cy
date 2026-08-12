@@ -77,8 +77,11 @@ import {
 } from "@/lib/finder-results-paging";
 import {
   applyFinderListFilters,
+  countManualDirectoryForFinder,
   fetchManualDirectoryForFinder,
 } from "@/lib/finder-manual-directory-load";
+import { DOCCY_EXTRA_REGISTRATION_SPECIALTIES } from "@/lib/cyprus-specialties";
+import { GESY_MANUAL_SPECIALTIES } from "@/lib/gesy-specialties";
 import { manualDirectoryLandingPath } from "@/lib/manual-directory-landing-path";
 import { isRegisteredDoctorHiddenFromFinder, isTestProfileLike } from "@/lib/doctor-test-profile";
 import {
@@ -173,9 +176,9 @@ type UnifiedFinderResult = {
 
 const SEO_CITIES: CyprusDistrict[] = ["Nicosia", "Limassol", "Paphos", "Larnaca"];
 const SEO_SPECIALTIES = [
-  { label: "Dentistry", pluralLabel: "Dentists" },
-  { label: "Dermatology", pluralLabel: "Dermatologists" },
-  { label: "Physiotherapy", pluralLabel: "Physiotherapists" },
+  { label: "Dentist", pluralLabel: "Dentists" },
+  { label: "Dermato-Venereology", pluralLabel: "Dermatologists" },
+  { label: "Physiotherapist", pluralLabel: "Physiotherapists" },
 ] as const;
 
 function isRecoverableSelectSchemaError(error: { code?: string; message?: string } | null): boolean {
@@ -333,6 +336,10 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
     activeDistrict || activeSpecialty || activeName || userCoords,
   );
   const resultsPage = parseFinderResultsPage(searchParams?.page, { hasListFilter });
+  const visibleLimit = resultsPage * FINDER_RESULTS_PAGE_SIZE;
+  /** Near-me needs the full matching set to sort by distance; otherwise page the query. */
+  const unboundedManualFetch = Boolean(userCoords);
+  const manualListLimit = unboundedManualFetch ? undefined : visibleLimit;
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim() || "https://www.mydoccy.com";
   const districts = CYPRUS_DISTRICTS;
   const listFilters = {
@@ -343,6 +350,7 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
 
   let registeredRows: RegisteredFinderRow[] = [];
   let manualRows: ManualFinderRow[] = [];
+  let manualDirectoryTotalCount: number | null = null;
   const manualClinicIdByRowId = new Map<string, string>();
   /** Pros whose primary district differs but who practice at a clinic in the active district. */
   const manualIdsWithClinicInActiveDistrict = new Set<string>();
@@ -350,7 +358,8 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
   let dataWarning: string | null = null;
 
   if (supabase) {
-    if (activeDistrict) {
+    // Clinic-linked extras require an unbounded merge; skip on paged list loads.
+    if (activeDistrict && unboundedManualFetch) {
       const clinicsInDistrictRes = await fetchAllSupabaseRows(() =>
         supabase
           .from("clinics")
@@ -516,6 +525,7 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
         extraDistrictManualIds: Array.from(manualIdsWithClinicInActiveDistrict),
         requireFinderVisible: selectClause.includes("finder_visible"),
         orderByName: true,
+        limit: manualListLimit,
       });
       if (manualRes.error) {
         manualLoadError = manualRes.error;
@@ -545,41 +555,45 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
       break;
     }
 
-    // Lightweight specialty dropdown source (district-scoped when filtered; ignore name/specialty).
+    // Dropdown options: GeSY vocabulary (+ DocCy Psychology) and registered specialties.
+    // Avoid scanning the full manual roster just to build <option> values.
     const specialtyOptionFilters = {
       district: activeDistrict,
       name: "",
       specialty: "",
     };
-    const manualSpecialtySelect = manualUsesSpecialtiesColumn
-      ? "specialty, specialties, finder_visible"
-      : "specialty";
-    const [manualSpecialtyRes, registeredSpecialtyRes] = await Promise.all([
-      fetchManualDirectoryForFinder({
-        supabase,
-        selectClause: manualSpecialtySelect,
-        filters: specialtyOptionFilters,
-        extraDistrictManualIds: Array.from(manualIdsWithClinicInActiveDistrict),
-        requireFinderVisible: manualUsesSpecialtiesColumn,
-      }),
-      fetchAllSupabaseRows(() =>
-        applyFinderListFilters(
-          supabase
-            .from("doctors")
-            .select("specialty")
-            .eq("status", "verified")
-            .not("slug", "is", null),
-          specialtyOptionFilters,
-        ),
+    const registeredSpecialtyRes = await fetchAllSupabaseRows(() =>
+      applyFinderListFilters(
+        supabase
+          .from("doctors")
+          .select("specialty")
+          .eq("status", "verified")
+          .not("slug", "is", null),
+        specialtyOptionFilters,
       ),
-    ]);
+    );
+    const gesyDropdownSeed = GESY_MANUAL_SPECIALTIES.filter(
+      (label) => label !== "Pharmacy" && label !== "Laboratory",
+    ).map((specialty) => ({ specialty }));
+    const doccyExtraSeed = DOCCY_EXTRA_REGISTRATION_SPECIALTIES.map((specialty) => ({
+      specialty,
+    }));
     finderSpecialtyOptions = buildFinderSpecialtyOptions(
-      (manualSpecialtyRes.data ?? []) as {
-        specialty: string | null | undefined;
-        specialties?: string[] | null;
-      }[],
+      [...gesyDropdownSeed, ...doccyExtraSeed],
       (registeredSpecialtyRes.data ?? []) as { specialty: string | null | undefined }[],
     );
+
+    if (!manualLoadError) {
+      const manualCountRes = await countManualDirectoryForFinder({
+        supabase,
+        filters: listFilters,
+        specialtyColumn: manualUsesSpecialtiesColumn ? "specialties" : "specialty",
+        requireFinderVisible: manualUsesSpecialtiesColumn,
+      });
+      if (!manualCountRes.error) {
+        manualDirectoryTotalCount = manualCountRes.count;
+      }
+    }
 
     if (manualLoadError) {
       dataWarning = dataWarning ?? "Could not load manual directory entries.";
@@ -712,9 +726,10 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
     });
   }
 
-  const visibleLimit = resultsPage * FINDER_RESULTS_PAGE_SIZE;
   const visibleResults = unifiedResults.slice(0, visibleLimit);
-  const hasMoreResults = unifiedResults.length > visibleResults.length;
+  const totalResultsCount =
+    (manualDirectoryTotalCount ?? filteredManual.length) + filteredRegistered.length;
+  const hasMoreResults = totalResultsCount > visibleResults.length;
   const visibleRegistered = visibleResults.filter(
     (item): item is Extract<UnifiedFinderResult, { kind: "registered" }> => item.kind === "registered",
   );
@@ -1026,7 +1041,7 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
           specialtyOptions={finderSpecialtyOptions}
         />
         <FinderResultsCount
-          count={unifiedResults.length}
+          count={totalResultsCount}
           hasActiveFilters={hasActiveFilters}
           districtLabel={activeDistrict ? districtLabel : undefined}
           specialtyLabel={activeSpecialty ? specialtyLabel : undefined}

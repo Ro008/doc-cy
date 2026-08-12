@@ -69,10 +69,37 @@ export function mustChunkExtraManualIds(extraCount: number): boolean {
 }
 
 /**
+ * Exact count for finder list filters (primary district only — clinic-linked
+ * extras are omitted when {@link fetchManualDirectoryForFinder} uses `limit`).
+ */
+export async function countManualDirectoryForFinder(input: {
+  supabase: any;
+  filters: FinderListFilters;
+  specialtyColumn?: "specialty" | "specialties";
+  requireFinderVisible?: boolean;
+}): Promise<{ count: number; error: { code?: string; message?: string } | null }> {
+  const { supabase, filters, specialtyColumn, requireFinderVisible = false } = input;
+  let q = supabase
+    .from("directory_manual")
+    .select("id", { count: "exact", head: true })
+    .eq("is_archived", false);
+  if (requireFinderVisible) {
+    q = q.eq("finder_visible", true);
+  }
+  q = applyFinderListFilters(q, filters, { specialtyColumn });
+  const { count, error } = await q;
+  if (error) return { count: 0, error };
+  return { count: count ?? 0, error: null };
+}
+
+/**
  * Load manual directory rows for finder filters.
  *
  * Pros linked to a clinic in the active district (but with another primary district)
  * are merged via chunked `id.in` — never a single huge PostgREST `or`/`in` URL.
+ *
+ * Pass `limit` for paged list views (avoids pulling the full GeSY roster into memory).
+ * When `limit` is set, clinic-linked extras are skipped so the page stays bounded.
  */
 export async function fetchManualDirectoryForFinder(input: {
   supabase: any;
@@ -82,6 +109,8 @@ export async function fetchManualDirectoryForFinder(input: {
   extraDistrictManualIds?: readonly string[];
   requireFinderVisible?: boolean;
   orderByName?: boolean;
+  /** Max rows to return (PostgREST range). Omit for unbounded near-me sorts. */
+  limit?: number;
 }): Promise<{ data: unknown[] | null; error: { code?: string; message?: string } | null }> {
   const {
     supabase,
@@ -91,6 +120,7 @@ export async function fetchManualDirectoryForFinder(input: {
     extraDistrictManualIds = [],
     requireFinderVisible = false,
     orderByName = false,
+    limit,
   } = input;
 
   const baseQuery = (): any => {
@@ -100,6 +130,20 @@ export async function fetchManualDirectoryForFinder(input: {
     }
     return q;
   };
+
+  const boundedLimit =
+    typeof limit === "number" && Number.isFinite(limit) && limit > 0
+      ? Math.floor(limit)
+      : null;
+
+  if (boundedLimit != null) {
+    let q = applyFinderListFilters(baseQuery(), filters, { specialtyColumn });
+    if (orderByName) q = q.order("name", { ascending: true });
+    q = q.range(0, boundedLimit - 1);
+    const { data, error } = await q;
+    if (error) return { data: null, error };
+    return { data: (data ?? []) as unknown[], error: null };
+  }
 
   const primaryRes = await fetchAllSupabaseRows(() => {
     let q = applyFinderListFilters(baseQuery(), filters, { specialtyColumn });

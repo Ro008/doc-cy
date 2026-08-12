@@ -110,11 +110,11 @@ test.describe("Navigation and routing", { tag: "@pr-e2e" }, () => {
     await expect(dentistsQuickLink).toBeVisible();
     await dentistsQuickLink.click();
 
-    await expect(page).toHaveURL(/\/paphos\/dentistry(?:\?|$)/);
+    await expect(page).toHaveURL(/\/paphos\/dentist(?:\?|$)/);
     await expect(
       page.getByRole("heading", {
         level: 1,
-        name: /Dentistry in Paphos/i,
+        name: /Book a Dentist appointment in Paphos/i,
       })
     ).toBeVisible();
   });
@@ -132,7 +132,7 @@ test.describe("Navigation and routing", { tag: "@pr-e2e" }, () => {
     await toggle.getByRole("link", { name: /^Clinics$/i }).click();
     await expect(page).toHaveURL(/\/clinics(?:\?|$)/);
     await expect(page.getByRole("heading", { level: 1, name: /Find clinics in Cyprus/i })).toBeVisible();
-    await expect(page.getByText(/Search clinics/i)).toBeVisible();
+    await expect(page.getByPlaceholder(/Search by clinic name/i)).toBeVisible();
     await expect(page.getByRole("button", { name: /Clinic near me/i })).toBeVisible();
 
     await page.goto("/for-professionals");

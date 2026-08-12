@@ -159,18 +159,18 @@ test.describe("Integration: finder user-like filter behavior matrix", { tag: "@p
 
       // Scenario 2: District + specialty narrowing.
       await expect(specialtySelect).toBeEnabled({ timeout: 30_000 });
-      await expect(specialtySelect.locator('option[value="dentistry"]')).toHaveCount(1, {
+      await expect(specialtySelect.locator('option[value="dentist"]')).toHaveCount(1, {
         timeout: 60_000,
       });
-      await specialtySelect.selectOption("dentistry");
+      await specialtySelect.selectOption("dentist");
       await showResults.click();
-      await expect(page).toHaveURL(/\/limassol\/dentistry(?:\?|$)/, { timeout: 60_000 });
+      await expect(page).toHaveURL(/\/limassol\/dentist(?:\?|$)/, { timeout: 60_000 });
       await expect(
-        page.getByRole("heading", { level: 1, name: /Book a Dentistry appointment in Limassol/i }),
+        page.getByRole("heading", { level: 1, name: /Book a Dentist appointment in Limassol/i }),
       ).toBeVisible({
         timeout: 60_000,
       });
-      await expect(page.getByTestId("finder-active-filters")).toContainText("Dentistry");
+      await expect(page.getByTestId("finder-active-filters")).toContainText("Dentist");
       await expect(page.getByText(created[1].name, { exact: true })).toBeVisible({ timeout: 60_000 });
       await expect(page.getByText(created[0].name, { exact: true })).toHaveCount(0);
 
@@ -220,19 +220,19 @@ test.describe("Integration: finder user-like filter behavior matrix", { tag: "@p
     ).toBeVisible({ timeout: 20_000 });
 
     const specialtySelect = page.getByLabel("Specialty");
-    await expect(specialtySelect.locator('option[value="ent"]')).toHaveCount(1, {
+    await expect(specialtySelect.locator('option[value="otorhinolaryngology"]')).toHaveCount(1, {
       timeout: 20_000,
     });
-    await specialtySelect.selectOption("ent");
+    await specialtySelect.selectOption("otorhinolaryngology");
 
     await page.getByRole("button", { name: /Doctor near me/i }).click();
-    await expect(page).toHaveURL(/\/all\/ent(?:\?|$)/, { timeout: 20_000 });
+    await expect(page).toHaveURL(/\/all\/otorhinolaryngology(?:\?|$)/, { timeout: 20_000 });
     await expect(page).toHaveURL(/[?&]lat=/, { timeout: 20_000 });
     await expect(page).toHaveURL(/[?&]lon=/, { timeout: 20_000 });
     await expect(page.getByTestId("finder-active-filters")).toContainText("Near me", {
       timeout: 20_000,
     });
-    await expect(page.getByTestId("finder-active-filters")).toContainText("ENT");
+    await expect(page.getByTestId("finder-active-filters")).toContainText("Otorhinolaryngology");
 
     await page.getByRole("button", { name: /^Clear$/i }).click();
     await expect(page).toHaveURL(/^https?:\/\/[^/?#]+\/?(?:\?.*)?$/, { timeout: 20_000 });

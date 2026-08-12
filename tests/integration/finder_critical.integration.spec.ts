@@ -172,18 +172,18 @@ test.describe("Integration: finder business-critical UX", { tag: "@pr-e2e" }, ()
     test.setTimeout(180000);
 
     const footerSearches = [
-      { city: "Nicosia", specialty: "Dentists", path: "/nicosia/dentistry" },
-      { city: "Nicosia", specialty: "Dermatologists", path: "/nicosia/dermatology" },
-      { city: "Nicosia", specialty: "Physiotherapists", path: "/nicosia/physiotherapy" },
-      { city: "Limassol", specialty: "Dentists", path: "/limassol/dentistry" },
-      { city: "Limassol", specialty: "Dermatologists", path: "/limassol/dermatology" },
-      { city: "Limassol", specialty: "Physiotherapists", path: "/limassol/physiotherapy" },
-      { city: "Paphos", specialty: "Dentists", path: "/paphos/dentistry" },
-      { city: "Paphos", specialty: "Dermatologists", path: "/paphos/dermatology" },
-      { city: "Paphos", specialty: "Physiotherapists", path: "/paphos/physiotherapy" },
-      { city: "Larnaca", specialty: "Dentists", path: "/larnaca/dentistry" },
-      { city: "Larnaca", specialty: "Dermatologists", path: "/larnaca/dermatology" },
-      { city: "Larnaca", specialty: "Physiotherapists", path: "/larnaca/physiotherapy" },
+      { city: "Nicosia", specialty: "Dentists", path: "/nicosia/dentist" },
+      { city: "Nicosia", specialty: "Dermatologists", path: "/nicosia/dermato-venereology" },
+      { city: "Nicosia", specialty: "Physiotherapists", path: "/nicosia/physiotherapist" },
+      { city: "Limassol", specialty: "Dentists", path: "/limassol/dentist" },
+      { city: "Limassol", specialty: "Dermatologists", path: "/limassol/dermato-venereology" },
+      { city: "Limassol", specialty: "Physiotherapists", path: "/limassol/physiotherapist" },
+      { city: "Paphos", specialty: "Dentists", path: "/paphos/dentist" },
+      { city: "Paphos", specialty: "Dermatologists", path: "/paphos/dermato-venereology" },
+      { city: "Paphos", specialty: "Physiotherapists", path: "/paphos/physiotherapist" },
+      { city: "Larnaca", specialty: "Dentists", path: "/larnaca/dentist" },
+      { city: "Larnaca", specialty: "Dermatologists", path: "/larnaca/dermato-venereology" },
+      { city: "Larnaca", specialty: "Physiotherapists", path: "/larnaca/physiotherapist" },
     ] as const;
 
     const missingResults: string[] = [];
@@ -242,11 +242,37 @@ test.describe("Integration: finder business-critical UX", { tag: "@pr-e2e" }, ()
       "Run once on desktop.",
     );
 
-    await page.goto("/finder/professional/savvas-themistocleous");
-    await expect(page).toHaveTitle(/Savvas Themistocleous/i);
-    await expect(
-      page.getByRole("heading", { level: 1, name: /Savvas Themistocleous/i }),
-    ).toBeVisible();
+    const baseUrl = process.env.PLAYWRIGHT_BASE_URL ?? "";
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+    const serviceRole = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
+
+    const unsafeReason = assertSafeIntegrationTarget(baseUrl, supabaseUrl);
+    test.skip(Boolean(unsafeReason), unsafeReason ?? undefined);
+    test.skip(!baseUrl || !supabaseUrl || !serviceRole, "Missing integration env vars.");
+
+    const admin = createClient(supabaseUrl, serviceRole);
+    const { data: sample, error } = await admin
+      .from("directory_manual")
+      .select("slug, name")
+      .eq("is_archived", false)
+      .eq("finder_visible", true)
+      .not("slug", "is", null)
+      .order("name", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+
+    if (error || !sample?.slug || !sample?.name) {
+      test.skip(true, `No finder-visible manual directory slug available: ${error?.message ?? "empty"}`);
+      return;
+    }
+
+    const slug = String(sample.slug);
+    const name = String(sample.name);
+    const namePattern = new RegExp(name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
+
+    await page.goto(`/finder/professional/${slug}`);
+    await expect(page).toHaveTitle(namePattern);
+    await expect(page.getByRole("heading", { level: 1, name: namePattern })).toBeVisible();
     await expect(
       page.getByRole("region", { name: /Directory listing/i }).locator("article"),
     ).toBeVisible();
@@ -280,7 +306,8 @@ test.describe("Integration: finder business-critical UX", { tag: "@pr-e2e" }, ()
     const { count: manualCount, error: manualCountError } = await admin
       .from("directory_manual")
       .select("id", { count: "exact", head: true })
-      .eq("is_archived", false);
+      .eq("is_archived", false)
+      .eq("finder_visible", true);
 
     if (manualCountError) {
       throw new Error(`Failed reading directory_manual for finder count: ${manualCountError.message}`);
@@ -304,7 +331,7 @@ test.describe("Integration: finder business-critical UX", { tag: "@pr-e2e" }, ()
     const finderLink = page.getByRole("link", { name: /^Find a Professional$/i }).first();
     await expect(finderLink).toBeVisible();
     await Promise.all([
-      page.waitForURL(/\/finder(?:\?|$)/, { timeout: 20_000 }),
+      page.waitForURL(/^https?:\/\/[^/?#]+\/?(?:\?.*)?$/, { timeout: 20_000 }),
       finderLink.click(),
     ]);
     await expect(
@@ -313,7 +340,13 @@ test.describe("Integration: finder business-critical UX", { tag: "@pr-e2e" }, ()
         name: /Find your next health professional in Cyprus|Health Professionals in Cyprus|Find a Professional/i,
       })
     ).toBeVisible();
-    await expect(page.locator("section.mt-6 article")).toHaveCount(expectedTotal, { timeout: 60_000 });
+    const resultsCount = page.getByTestId("finder-results-count");
+    await expect(resultsCount).toBeVisible({ timeout: 60_000 });
+    await expect(resultsCount).toContainText(String(expectedTotal));
+    // First page only renders a page-size slice; do not expect every row in the DOM.
+    const cardCount = await page.locator("section.mt-6 article").count();
+    expect(cardCount).toBeGreaterThan(0);
+    expect(cardCount).toBeLessThanOrEqual(Math.min(expectedTotal, 30));
   });
 
   test("registered card renders avatar, languages and profile links to booking page", async ({ page }) => {
@@ -339,7 +372,7 @@ test.describe("Integration: finder business-critical UX", { tag: "@pr-e2e" }, ()
         avatarPath: `profiles/qa-card-${nonce}/avatar.jpg`,
       });
 
-      await page.goto("/paphos/dentistry");
+      await page.goto(`/paphos/dentist?name=${encodeURIComponent(created.name)}`);
       const card = page
         .locator("section.mt-6 article")
         .filter({ has: page.getByText(created.name, { exact: true }) })
@@ -399,7 +432,7 @@ test.describe("Integration: finder business-critical UX", { tag: "@pr-e2e" }, ()
         );
       }
 
-      await page.goto("/nicosia/dentistry");
+      await page.goto(`/nicosia/dentist?name=${encodeURIComponent(`Prefix Cleanup ${nonce}`)}`);
       for (const testCase of cases) {
         const card = page
           .locator("section.mt-6 article")
@@ -471,13 +504,13 @@ test.describe("Integration: finder business-critical UX", { tag: "@pr-e2e" }, ()
 
       const specialtySelect = page.getByLabel("Specialty");
       await expect(specialtySelect).toBeEnabled({ timeout: 30_000 });
-      await expect(specialtySelect.locator('option[value="dentistry"]')).toHaveCount(1, {
+      await expect(specialtySelect.locator('option[value="dentist"]')).toHaveCount(1, {
         timeout: 60_000,
       });
-      await specialtySelect.selectOption("dentistry");
+      await specialtySelect.selectOption("dentist");
       await showResults.click();
-      await expect(page).toHaveURL(/\/nicosia\/dentistry(?:\?|$)/, { timeout: 60_000 });
-      await expect(page.getByTestId("finder-active-filters")).toContainText("Dentistry");
+      await expect(page).toHaveURL(/\/nicosia\/dentist(?:\?|$)/, { timeout: 60_000 });
+      await expect(page.getByTestId("finder-active-filters")).toContainText("Dentist");
 
       await expect(page.getByText(created[0].name, { exact: true })).toBeVisible({ timeout: 60_000 });
       await expect(page.getByText(created[1].name, { exact: true })).toHaveCount(0);
@@ -529,7 +562,7 @@ test.describe("Integration: finder business-critical UX", { tag: "@pr-e2e" }, ()
       await seedWeekdayAvailabilitySettings(admin, created.doctorId);
 
       await page.goto(
-        `/paphos/dentistry?name=${encodeURIComponent(created.name)}`,
+        `/paphos/dentist?name=${encodeURIComponent(created.name)}`,
       );
       const card = page
         .locator("section.mt-6 article")

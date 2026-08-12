@@ -4,7 +4,7 @@ import { harmonizeFinderSpecialtyLabel } from "@/lib/finder-specialty-harmonize"
 export type FinderSpecialtyOption = { slug: string; label: string };
 
 /** Slugs excluded from the finder specialty dropdown (e.g. overly generic labels); rows still appear unfiltered. */
-const EXCLUDED_FINDER_SPECIALTY_SLUGS = new Set(["medicine", "pharmacy"]);
+const EXCLUDED_FINDER_SPECIALTY_SLUGS = new Set(["medicine", "pharmacy", "laboratory"]);
 
 export type FinderSpecialtyOptionSource = {
   specialty?: string | null | undefined;
