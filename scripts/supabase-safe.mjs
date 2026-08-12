@@ -3,15 +3,17 @@ import { spawnSync } from "node:child_process";
 const PROD_REF = "oiwlztcduxojadbcxkil";
 const TESTING_REF = "fwinchqdgrkpxuuttech";
 
-function runSupabase(args) {
+function runSupabase(args, { exitOnError = true } = {}) {
   const result = spawnSync("npx", ["supabase", ...args], {
     stdio: "inherit",
     shell: process.platform === "win32",
   });
 
-  if (result.status !== 0) {
-    process.exit(result.status ?? 1);
+  const status = result.status ?? 1;
+  if (status !== 0 && exitOnError) {
+    process.exit(status);
   }
+  return status;
 }
 
 function linkTesting() {
@@ -45,7 +47,8 @@ function usage() {
       "  link-testing   - Link CLI to DocCy - Testing",
       "  push-testing   - Link to testing, then run db push",
       "  link-prod      - Link CLI to DocCy production",
-      "  push-prod      - Link to prod, then run db push (requires DOC_CY_CONFIRM_PROD=YES)",
+      "  push-prod      - Link to prod, run db push, then restore link to testing",
+      "                  (requires DOC_CY_CONFIRM_PROD=YES)",
       "",
     ].join("\n")
   );
@@ -70,12 +73,22 @@ switch (command) {
     linkProd();
     runSupabase(["projects", "list"]);
     break;
-  case "push-prod":
+  case "push-prod": {
     requireProdConfirmation();
     linkProd();
     runSupabase(["projects", "list"]);
-    runSupabase(["db", "push"]);
+    // Keep going to restore testing link even if push fails.
+    const pushStatus = runSupabase(["db", "push"], { exitOnError: false });
+    console.log(
+      "\nRestoring CLI link to DocCy - Testing (safe default after prod push)...\n"
+    );
+    linkTesting();
+    runSupabase(["projects", "list"]);
+    if (pushStatus !== 0) {
+      process.exit(pushStatus);
+    }
     break;
+  }
   default:
     usage();
     process.exit(command ? 1 : 0);
