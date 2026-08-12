@@ -47,7 +47,6 @@ declare namespace google.maps {
   }
 
   class MVCObject {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     addListener(eventName: string, handler: () => void): MapsEventListener;
   }
 }

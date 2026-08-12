@@ -19,13 +19,11 @@ export type FinderListFilters = {
  * Merge clinic-linked extras via {@link fetchManualDirectoryForFinder} instead.
  */
 export function applyFinderListFilters(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   query: any,
   filters: FinderListFilters,
   options?: {
     specialtyColumn?: "specialty" | "specialties";
   },
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ): any {
   let next = query;
   if (filters.district) {
@@ -77,7 +75,6 @@ export function mustChunkExtraManualIds(extraCount: number): boolean {
  * are merged via chunked `id.in` — never a single huge PostgREST `or`/`in` URL.
  */
 export async function fetchManualDirectoryForFinder(input: {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabase: any;
   selectClause: string;
   filters: FinderListFilters;
@@ -96,7 +93,6 @@ export async function fetchManualDirectoryForFinder(input: {
     orderByName = false,
   } = input;
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   function baseQuery(): any {
     let q = supabase.from("directory_manual").select(selectClause).eq("is_archived", false);
     if (requireFinderVisible && selectClause.includes("finder_visible")) {
