@@ -289,7 +289,7 @@ async function ClinicsSearchPage({ params, searchParams }: ClinicsPageProps) {
     const visibleClinicIds = visibleClinics.map((clinic) => clinic.id);
     const professionalIdsByClinic = new Map<string, Set<string>>();
 
-    function addProfessional(clinicId: string, professionalId: string) {
+    const addProfessional = (clinicId: string, professionalId: string) => {
       if (!clinicId || !professionalId) return;
       let set = professionalIdsByClinic.get(clinicId);
       if (!set) {
@@ -297,7 +297,7 @@ async function ClinicsSearchPage({ params, searchParams }: ClinicsPageProps) {
         professionalIdsByClinic.set(clinicId, set);
       }
       set.add(professionalId);
-    }
+    };
 
     // Prefer N:M links (same source as clinic landing roster).
     const linksRes = await fetchAllSupabaseRowsForIdChunks<{
@@ -311,13 +311,13 @@ async function ClinicsSearchPage({ params, searchParams }: ClinicsPageProps) {
     );
 
     if (!linksRes.error && linksRes.data?.length) {
-      const linkedProfessionalIds = [
-        ...new Set(
+      const linkedProfessionalIds = Array.from(
+        new Set(
           linksRes.data
             .map((row) => String(row.directory_manual_id ?? "").trim())
             .filter(Boolean),
         ),
-      ];
+      );
       const activeProfessionalIds = new Set<string>();
 
       if (linkedProfessionalIds.length > 0) {

@@ -50,7 +50,7 @@ const LEGACY_TO_GESY: Record<string, string> = {
   hematology: "Haematology",
 };
 
-const GESY_BY_SLUG = new Map(
+const GESY_BY_SLUG = new Map<string, string>(
   GESY_MANUAL_SPECIALTIES.map((label) => [specialtyToSlug(label), label]),
 );
 // DocCy exception also resolves by slug for finder URLs.

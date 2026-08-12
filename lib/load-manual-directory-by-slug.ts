@@ -5,7 +5,10 @@ import { getFinderManualPhotoUrl } from "@/lib/finder-manual-photos";
 import { resolveFinderDisplayPhotoUrl } from "@/lib/finder-default-avatars";
 import { finderManualVoteBadgeSinceIso } from "@/lib/finder-manual-vote-badge";
 import { parseOptionalCoordinates } from "@/lib/finder-distance";
-import { buildManualDirectoryClinicRefs } from "@/lib/manual-directory-clinics";
+import {
+  buildManualDirectoryClinicRefs,
+  type ManualClinicJoinLink,
+} from "@/lib/manual-directory-clinics";
 import { fetchAllSupabaseRows } from "@/lib/supabase-fetch-all";
 
 export type ManualDirectoryLandingClinic = {
@@ -176,7 +179,9 @@ export async function loadManualDirectoryBySlug(
     .eq("directory_manual_id", manualId);
 
   if (!joinRes.error && joinRes.data?.length) {
-    clinics.push(...buildManualDirectoryClinicRefs(joinRes.data));
+    clinics.push(
+      ...buildManualDirectoryClinicRefs(joinRes.data as unknown as ManualClinicJoinLink[]),
+    );
   }
 
   if (clinics.length === 0) {

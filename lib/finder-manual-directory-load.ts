@@ -93,13 +93,13 @@ export async function fetchManualDirectoryForFinder(input: {
     orderByName = false,
   } = input;
 
-  function baseQuery(): any {
+  const baseQuery = (): any => {
     let q = supabase.from("directory_manual").select(selectClause).eq("is_archived", false);
     if (requireFinderVisible && selectClause.includes("finder_visible")) {
       q = q.eq("finder_visible", true);
     }
     return q;
-  }
+  };
 
   const primaryRes = await fetchAllSupabaseRows(() => {
     let q = applyFinderListFilters(baseQuery(), filters, { specialtyColumn });
