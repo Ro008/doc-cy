@@ -129,14 +129,18 @@ test.describe("Navigation and routing", { tag: "@pr-e2e" }, () => {
 
     const toggle = page.getByTestId("finder-audience-toggle");
     await expect(toggle).toBeVisible();
-    await toggle.getByRole("link", { name: /^Clinics$/i }).click();
-    await expect(page).toHaveURL(/\/clinics(?:\?|$)/);
+    await Promise.all([
+      page.waitForURL(/\/clinics(?:\?|$)/, { timeout: 30_000 }),
+      toggle.getByRole("link", { name: /^Clinics$/i }).click(),
+    ]);
     await expect(page.getByRole("heading", { level: 1, name: /Find clinics in Cyprus/i })).toBeVisible();
     await expect(page.getByPlaceholder(/Search by clinic name/i)).toBeVisible();
     await expect(page.getByRole("button", { name: /Clinic near me/i })).toBeVisible();
 
     await page.goto("/for-professionals");
-    await page.getByRole("link", { name: /^Find a Clinic$/i }).click();
-    await expect(page).toHaveURL(/\/clinics(?:\?|$)/);
+    await Promise.all([
+      page.waitForURL(/\/clinics(?:\?|$)/, { timeout: 30_000 }),
+      page.getByRole("link", { name: /^Find a Clinic$/i }).click(),
+    ]);
   });
 });

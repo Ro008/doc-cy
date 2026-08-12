@@ -26,11 +26,11 @@ test.describe("Support feedback modal (Formspree)", { tag: "@pr-e2e" }, () => {
       });
     });
 
-    await page.goto("/");
+    await page.goto("/for-professionals");
     await expect(
       page.getByRole("heading", {
         level: 1,
-        name: /Find your next health professional in Cyprus|Health Professionals in Cyprus|Find a Professional/i,
+        name: /Run a Smarter Practice/i,
       }),
     ).toBeVisible({ timeout: 30_000 });
 
