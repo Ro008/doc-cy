@@ -3,6 +3,7 @@ import { addDays, format } from "date-fns";
 import { utcToZonedTime, zonedTimeToUtc } from "date-fns-tz";
 import { appointmentToCyprusDate, CY_TZ } from "@/lib/appointments";
 import type { DoctorSettingsRow } from "@/lib/doctor-settings";
+import { normalizeMinimumNoticeHours } from "@/lib/doctor-settings";
 import { loadDoctorSettingsForSlots } from "@/lib/load-doctor-settings-for-slots";
 import {
   computePublicAvailabilityCalendar,
@@ -68,9 +69,9 @@ function buildSlotParams(
   const maxHorizonDays = [14, 30, 90, 180].includes(Number(settings.booking_horizon_days))
     ? Number(settings.booking_horizon_days)
     : 90;
-  const minimumNoticeHours = [1, 2, 12, 24].includes(Number(settings.minimum_notice_hours))
-    ? Number(settings.minimum_notice_hours)
-    : 2;
+  const minimumNoticeHours = normalizeMinimumNoticeHours(
+    settings.minimum_notice_hours,
+  );
 
   return {
     weeklySlots,

@@ -18,6 +18,7 @@ import {
   buildWeeklyScheduleFromSettings,
   isDateInHolidayRange,
   isTimeWithinSettings,
+  normalizeMinimumNoticeHours,
   type DoctorSettingsRow,
 } from "@/lib/doctor-settings";
 import {
@@ -243,12 +244,9 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const noticeHours = Number(
-    (settings as DoctorSettingsRow).minimum_notice_hours ?? 2
+  const minimumNoticeHours = normalizeMinimumNoticeHours(
+    (settings as DoctorSettingsRow).minimum_notice_hours,
   );
-  const minimumNoticeHours = [1, 2, 12, 24].includes(noticeHours)
-    ? noticeHours
-    : 2;
   const minimumNoticeCutoffUtc = addHours(new Date(), minimumNoticeHours);
   if (appointmentUtc.getTime() < minimumNoticeCutoffUtc.getTime()) {
     return NextResponse.json(

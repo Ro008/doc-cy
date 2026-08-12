@@ -3,6 +3,7 @@ import { enGB } from "date-fns/locale";
 import { utcToZonedTime, zonedTimeToUtc } from "date-fns-tz";
 import { CY_TZ } from "@/lib/appointments";
 import type { WeeklySlotFromSettings } from "@/lib/doctor-settings";
+import { normalizeMinimumNoticeHours } from "@/lib/doctor-settings";
 
 export const FINDER_CALENDAR_PREVIEW_SLOT_COUNT = 3;
 export const FINDER_AVAILABILITY_CALENDAR_DAY_COUNT = 14;
@@ -89,10 +90,6 @@ type SlotGenerationContext = {
 
 function normalizeBookingHorizonDays(value: number | undefined): number {
   return [14, 30, 90, 180].includes(Number(value)) ? Number(value) : 90;
-}
-
-function normalizeMinimumNoticeHours(value: number | undefined): number {
-  return [1, 2, 12, 24].includes(Number(value)) ? Number(value) : 2;
 }
 
 function buildWhenLabel(dateKey: string, todayCyprusKey: string, tomorrowCyprusKey: string): string {

@@ -1168,8 +1168,12 @@ export function SettingsForm({ initial }: SettingsFormProps) {
             >
               <option value={1}>1 hour</option>
               <option value={2}>2 hours</option>
+              <option value={4}>4 hours</option>
               <option value={12}>12 hours</option>
-              <option value={24}>24 hours</option>
+              <option value={24}>24 hours (1 day)</option>
+              <option value={48}>2 days</option>
+              <option value={72}>3 days</option>
+              <option value={168}>1 week</option>
             </select>
             <p className="mt-2 text-xs text-slate-400">
               Prevent last-minute surprises. Slots will be hidden if they are too close to the current time.

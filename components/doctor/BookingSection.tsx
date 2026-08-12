@@ -14,6 +14,7 @@ import { DayPicker } from "react-day-picker";
 import { ChevronLeft, ChevronRight, Clock, Loader2 } from "lucide-react";
 import { PhoneInput } from "@/components/ui/PhoneInput";
 import { CY_TZ } from "@/lib/appointments";
+import { normalizeMinimumNoticeHours } from "@/lib/doctor-settings";
 import { APPOINTMENT_REASON_MAX_LENGTH } from "@/lib/visit-types";
 import { formatDateDDMMYYYY } from "@/lib/date-format";
 import "react-day-picker/dist/style.css";
@@ -73,11 +74,8 @@ export function BookingSection({
   )
     ? bookingHorizonDays
     : 90;
-  const normalizedMinimumNoticeHours = [1, 2, 12, 24].includes(
-    minimumNoticeHours
-  )
-    ? minimumNoticeHours
-    : 2;
+  const normalizedMinimumNoticeHours =
+    normalizeMinimumNoticeHours(minimumNoticeHours);
 
   const router = useRouter();
   const t = useTranslations("BookingPage");

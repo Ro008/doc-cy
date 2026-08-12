@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS public.doctor_settings (
   holiday_start_date date NULL,
   holiday_end_date date NULL,
   booking_horizon_days integer NOT NULL DEFAULT 90 CHECK (booking_horizon_days IN (14, 30, 90, 180)),
-  minimum_notice_hours integer NOT NULL DEFAULT 2 CHECK (minimum_notice_hours IN (1, 2, 12, 24)),
+  minimum_notice_hours integer NOT NULL DEFAULT 2 CHECK (minimum_notice_hours IN (1, 2, 4, 12, 24, 48, 72, 168)),
   slot_duration_minutes integer NOT NULL DEFAULT 30 CHECK (slot_duration_minutes > 0),
   updated_at timestamptz NOT NULL DEFAULT now()
 );

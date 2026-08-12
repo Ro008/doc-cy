@@ -2,6 +2,7 @@ import { test, expect } from "@playwright/test";
 import { addHours, format } from "date-fns";
 import { utcToZonedTime } from "date-fns-tz";
 import { CY_TZ } from "@/lib/appointments";
+import { normalizeMinimumNoticeHours } from "@/lib/doctor-settings";
 import { createTestDataClient } from "./helpers/testDataClient";
 
 function monthDiffInclusive(from: Date, to: Date): number {
@@ -43,10 +44,9 @@ test.describe("Scheduling boundaries UI (read-only)", () => {
       [14, 30, 90, 180].includes(Number(settings.booking_horizon_days))
         ? Number(settings.booking_horizon_days)
         : 90;
-    const noticeHours =
-      [1, 2, 12, 24].includes(Number(settings.minimum_notice_hours))
-        ? Number(settings.minimum_notice_hours)
-        : 2;
+    const noticeHours = normalizeMinimumNoticeHours(
+      settings.minimum_notice_hours,
+    );
 
     await page.goto(`/${doctor.slug}`);
     await expect(page.getByText("Select a date on the calendar")).toBeVisible({
