@@ -12,11 +12,11 @@ html {
 }
 
 body {
-  @apply bg-slate-50 text-slate-900 antialiased;
+  @apply bg-ink-50 text-ink-800 antialiased;
 }
 
 a {
-  @apply text-sky-700 underline-offset-2;
+  @apply text-clinical-800 underline-offset-2;
 }
 
 button {
@@ -28,17 +28,17 @@ button {
   z-index: 10000;
   margin-top: 4px;
   border-radius: 0.75rem;
-  border: 1px solid rgb(203 213 225);
-  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.18);
+  border: 1px solid #dde7ed;
+  box-shadow: 0 10px 30px rgba(7, 59, 120, 0.14);
   background: #ffffff;
   font-family: var(--font-inter), system-ui, sans-serif;
 }
 
 .pac-item {
   padding: 0.55rem 0.75rem;
-  color: #0f172a;
+  color: #24364b;
   cursor: pointer;
-  border-top: 1px solid rgb(226 232 240);
+  border-top: 1px solid #dde7ed;
 }
 
 .pac-item:first-child {
@@ -47,11 +47,11 @@ button {
 
 .pac-item:hover,
 .pac-item-selected {
-  background: rgb(240 249 255);
+  background: #e6f8f9;
 }
 
 .pac-item-query {
-  color: #0f172a;
+  color: #24364b;
   font-size: 0.875rem;
 }
 
@@ -178,7 +178,7 @@ button {
   will-change: transform, opacity;
   background: radial-gradient(
     ellipse 108% 94% at 48% 36%,
-    rgba(232, 244, 250, 0.95) 0%,
+    rgba(230, 248, 249, 0.95) 0%,
     rgba(238, 244, 248, 0.98) 28%,
     rgba(247, 250, 252, 1) 55%,
     #f7fafc 100%
@@ -198,7 +198,7 @@ button {
   }
 }
 
-/* Clinical blue wash — top-left */
+/* DocCy Teal wash — top-left */
 .landing-ambient-aurora-tl {
   position: absolute;
   top: -12%;
@@ -209,9 +209,9 @@ button {
   will-change: transform, opacity;
   background: radial-gradient(
     circle at 38% 38%,
-    rgba(11, 123, 181, 0.14) 0%,
-    rgba(58, 159, 206, 0.08) 42%,
-    rgba(232, 244, 250, 0.04) 62%,
+    rgba(18, 184, 192, 0.14) 0%,
+    rgba(58, 197, 205, 0.08) 42%,
+    rgba(230, 248, 249, 0.04) 62%,
     transparent 76%
   );
   filter: blur(48px);
@@ -263,55 +263,7 @@ button {
   }
 }
 
-/* GeSY badge: soft EN ↔ EL logo crossfade (~5s each language). */
-@keyframes gesy-badge-en-fade {
-  0%,
-  42% {
-    opacity: 1;
-  }
-  50%,
-  92% {
-    opacity: 0;
-  }
-  100% {
-    opacity: 1;
-  }
-}
 
-@keyframes gesy-badge-el-fade {
-  0%,
-  42% {
-    opacity: 0;
-  }
-  50%,
-  92% {
-    opacity: 1;
-  }
-  100% {
-    opacity: 0;
-  }
-}
-
-.gesy-badge-bilingual .gesy-badge-logo-en {
-  animation: gesy-badge-en-fade 10s ease-in-out infinite;
-}
-
-.gesy-badge-bilingual .gesy-badge-logo-el {
-  opacity: 0;
-  animation: gesy-badge-el-fade 10s ease-in-out infinite;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .gesy-badge-bilingual .gesy-badge-logo-en {
-    animation: none;
-    opacity: 1;
-  }
-
-  .gesy-badge-bilingual .gesy-badge-logo-el {
-    animation: none;
-    opacity: 0;
-  }
-}
 
 @media (prefers-reduced-motion: reduce) {
   .landing-ambient-radial,
@@ -379,9 +331,9 @@ button {
 
 /* Sonner toast contrast hardening (readability on mobile + dark backgrounds). */
 [data-sonner-toaster] [data-sonner-toast][data-type="success"] {
-  background: #075278 !important;
-  color: #e8f4fa !important;
-  border-color: #3a9fce !important;
+  background: #0d8a94 !important;
+  color: #e6f8f9 !important;
+  border-color: #3ac5cd !important;
 }
 
 [data-sonner-toaster] [data-sonner-toast][data-type="error"] {

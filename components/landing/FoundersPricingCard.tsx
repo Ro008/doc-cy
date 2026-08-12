@@ -157,7 +157,7 @@ export function FoundersPricingCard({ embedded = false }: FoundersPricingCardPro
       className={
         embedded
           ? "mt-5 border-t border-clinical-200 pt-5 [overflow-anchor:none]"
-          : "rounded-2xl border border-clinical-200 bg-white p-5 shadow-[0_1px_3px_rgba(26,43,60,0.06),0_8px_24px_rgba(11,123,181,0.08)] [overflow-anchor:none]"
+          : "rounded-2xl border border-clinical-200 bg-white p-5 shadow-[0_1px_3px_rgba(26,43,60,0.06),0_8px_24px_rgba(18,184,192,0.08)] [overflow-anchor:none]"
       }
     >
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -292,7 +292,7 @@ export function FoundersPricingCard({ embedded = false }: FoundersPricingCardPro
 
       <PendingLink
         href="/register"
-        className="mt-5 inline-flex w-full items-center justify-center rounded-xl bg-clinical-500 px-5 py-2.5 text-sm font-semibold text-white shadow-[0_1px_2px_rgba(11,123,181,0.2),0_4px_14px_rgba(11,123,181,0.22)] transition hover:bg-clinical-400 hover:shadow-[0_4px_18px_rgba(11,123,181,0.3)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-500 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-50"
+        className="mt-5 inline-flex w-full items-center justify-center rounded-xl bg-clinical-500 px-5 py-2.5 text-sm font-semibold text-white shadow-[0_1px_2px_rgba(18,184,192,0.2),0_4px_14px_rgba(18,184,192,0.22)] transition hover:bg-clinical-400 hover:shadow-[0_4px_18px_rgba(18,184,192,0.3)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-500 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-50"
       >
         {t("Pricing.cta")}
       </PendingLink>

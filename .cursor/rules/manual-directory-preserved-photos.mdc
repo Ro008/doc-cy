@@ -1,30 +1,9 @@
----
-description: Preserve curated manual finder photos across directory replacements
-alwaysApply: true
----
+# Manual Directory Curated Photos
 
-# Manual Directory Preserved Photos
+GeSY full-directory rebuild (2026-08): the previous curated finder photo roster was **intentionally removed**. Default gender/clinic avatars are used until new curated assets are added.
 
-When replacing or wiping `directory_manual`, keep these curated finder card photos unless the user explicitly asks to remove them.
+## How to add photos later
 
-## Preserved professionals (4)
-
-| Name | Specialty | District | Maps link key | Asset |
-|------|-----------|----------|---------------|-------|
-| Valentina Oflidou | Dermatology | Paphos | `https://maps.google.com/?cid=1665628448012477822&g_mp=Cidnb29nbGUubWFwcy5wbGFjZXMudjEuUGxhY2VzLlNlYXJjaFRleHQQAhgEIAA` | `public/finder/manual-photos/valentina-oflidou.png` |
-| Vera Politou | Dermatology | Paphos | `https://maps.google.com/?cid=15591583625893490566&g_mp=Cidnb29nbGUubWFwcy5wbGFjZXMudjEuUGxhY2VzLlNlYXJjaFRleHQQAhgEIAA` | `public/finder/manual-photos/vera-politou.png` |
-| Korina Tryfonos | Dermatology | Paphos | `https://maps.google.com/?cid=9115583058084629147&g_mp=Cidnb29nbGUubWFwcy5wbGFjZXMudjEuUGxhY2VzLlNlYXJjaFRleHQQAhgEIAA` | `public/finder/manual-photos/korina-tryfonos.png` |
-| Georgina Sarika | Dermatology | Paphos | `https://maps.google.com/?cid=14943462510182054898&g_mp=Cidnb29nbGUubWFwcy5wbGFjZXMudjEuUGxhY2VzLlNlYXJjaFRleHQQAhgEIAA` | `public/finder/manual-photos/georgina-sarika.png` |
-
-## How photos attach
-
-- Mapping lives in `lib/finder-manual-photos.ts`.
-- Finder resolves photos by `directory_manual.address_maps_link` (not by name).
-- Do **not** delete the PNG files or clear the map when rebuilding the manual directory.
-
-## After a new manual directory import
-
-1. Confirm these 4 are still in the new payload.
-2. If their Google Maps links are unchanged, photos work automatically.
-3. If a Maps link changed, update the key in `lib/finder-manual-photos.ts` (keep the same PNG filename).
-4. If name/district changed but it is the same person, match by name and re-link the existing asset.
+- Assets: `public/finder/manual-photos/*.png`
+- Map: `lib/finder-manual-photos.ts` — key = normalized `directory_manual.address_maps_link`
+- Prefer linking by Maps URL (stable across name edits), not by person name alone

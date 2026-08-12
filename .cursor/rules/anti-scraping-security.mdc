@@ -7,9 +7,53 @@ alwaysApply: false
 
 Implemented: 2026-07-28/29 (PR #116 `security/public-api-hardening`)
 
+> **Pending (step 2):** This file previously listed honeytoken identifiers (phones, Maps `cid`, etc.). Those details were removed from the working tree, but **older git commits on the public GitHub history may still contain them**. A history rewrite + coordinated force-push is still outstanding when you choose to do it.
+
 ## Why we did this
 
 The Supabase anon key is public (embedded in the browser bundle). Without RLS, anyone could call PostgREST directly and dump all doctor emails, phones, GHS codes, and license numbers in seconds — no scraping HTML needed.
+
+## Legal layer
+
+Public **Terms of Use** at `/terms` prohibit scraping, bulk extraction, and copying of DocCy directory/database data. Linked from `MarketingFooter` and the finder SEO footer. Keep the Terms URL reserved in middleware (`terms`) so it is never treated as a doctor slug.
+
+Liquidated damages (Terms §5): **€50 per record/profile** extracted without authorisation, without prejudice to higher actual damages.
+
+### API notice header
+
+All `/api/*` responses set `X-Robots-Tag: noindex, nofollow, noscrape` via `next.config.mjs` `headers()` — reinforces Terms §5 for automated clients. (`noscrape` is a custom signal, not a Google robots directive.)
+
+### P0 — revoke anon/authenticated SELECT on public directory views
+
+Migration `20260809120000_revoke_anon_directory_view_grants.sql`:
+
+- `REVOKE SELECT` on `directory_manual_public`, `clinics_public`, and `doctors_public` from `anon` and `authenticated`
+- `GRANT SELECT` on those views to `service_role` only (SSR / trusted servers)
+
+Browser bundles still contain the anon key, but PostgREST list dumps of the curated directory via those views must return empty/denied. Finder, clinics, and registered public profiles load data with `createServiceRoleClient()` on the server.
+
+### P1 — HTML scrape friction (app + Cloudflare)
+
+**In app (shipped in code):**
+
+- Phone numbers for manual listings / clinics are **not** in SSR props; revealed via `POST /api/directory/contact-reveal` after click (rate limit bucket `contactReveal`: 40/hour/IP).
+- Finder `?page=` capped at **2** without list filters, **20** with district/specialty/name/near-me.
+
+**Cloudflare Free (manual DNS — finish when domain status is Active):**
+
+> **DONE (2026-08-09):** Domain Active on Free plan; Bot Fight Mode ON; apex/`www`/`*` Proxied (orange). Email MX/TXT remain DNS only.
+
+### P2 — canary honeytokens (legal proof)
+
+Honeytoken profiles exist so an unauthorized bulk copy of the directory can later be proven (Terms §5).
+
+- **Registry (source of truth):** `lib/directory-canaries.ts` — do not paste identifiers (phones, Maps links, slugs, names) into public docs or chats.
+- **Seed migration:** `20260809140000_directory_manual_anti_scrape_canaries.sql` (idempotent insert).
+- Listed in finder in lower-traffic districts/specialties so scrapers may copy them.
+- **Excluded from sitemap** via `isDirectoryCanarySlug`.
+- If a competitor later shows the same fingerprint as a canary row → evidence of extraction.
+
+Cloudflare Free does **not** replace P0; it slows HTML scrapers once PostgREST dumps are closed.
 
 ## What we implemented
 
@@ -29,7 +73,7 @@ All app code queries these views, never the base tables, for public-facing reads
 
 ### 3. In-memory rate limiting (`lib/public-api-rate-limit.ts`)
 
-Silent (returns 429 but no error UI) on 4 public write APIs:
+Silent (returns 429 but no error UI) on public write APIs:
 
 | Route | Limit |
 |---|---|
@@ -37,6 +81,7 @@ Silent (returns 429 but no error UI) on 4 public write APIs:
 | `POST /api/finder/doctor-invitation-request` | 5 req / hour / IP |
 | `POST /api/appointments` | 20 req / hour / IP |
 | `POST /api/traffic/log` | 60 req / min / IP |
+| `POST /api/directory/contact-reveal` | 40 req / hour / IP |
 
 Disable for tests: `DOC_CY_PUBLIC_API_RATE_LIMIT=off`.
 
@@ -46,7 +91,9 @@ Daily cron at 03:00 UTC (`/api/cron/finder-traffic-alert`). Compares last-hour h
 
 ## Rules for future changes
 
-- **Never add `email`, `internal_email`, `ghs_code`, `license_*`** to `doctors_public` or `directory_manual_public`.
+- **Never add `email`, `internal_email`, `ghs_code`, `license_*`, or `gender`** to `doctors_public` or `directory_manual_public`.
+- `directory_manual.gender` is internal-only; server code may use it to pick a default avatar, but must not send `gender` to the client.
 - **App public reads must use the views**, not the base tables. The only exception is service-role server code (migrations, admin scripts).
 - If adding a new public write API, wire `enforcePublicApiRateLimit` from `lib/public-api-rate-limit.ts` at the top of the handler.
 - If the `doctors` or `directory_manual` schema changes, verify RLS policies still hold (`supabase/migrations/20260728180000_harden_public_directory_rls.sql`).
+- **Do not document honeytoken identifiers** (phones, Maps `cid`, slugs, exact names) in public repo docs, READMEs, or Cursor rules. Keep them in code/migrations only.

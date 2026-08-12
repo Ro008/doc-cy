@@ -2,6 +2,12 @@
 # Nightly prod-only lane: .github/workflows/prod-critical-smoke.yml
 # Policy: docs/ci-test-policy.md
 #
+# Layout:
+#   1) pr-build — unit + Next build, uploads `.next`
+#   2) pr-playwright-core + pr-playwright-finder — parallel Playwright lanes (reuse build)
+#   3) pr-playwright-gate — single required check name for branch protection
+#   4) pr-preview-public-shell — Vercel preview smoke (unchanged)
+#
 # Secrets: INTEGRATION_SUPABASE_URL, INTEGRATION_SUPABASE_ANON_KEY,
 #          INTEGRATION_SUPABASE_SERVICE_ROLE_KEY, PROD_NEXT_PUBLIC_SUPABASE_URL (production URL only;
 #          used to refuse running integration tests against prod Supabase).
@@ -23,25 +29,27 @@ concurrency:
 permissions:
   contents: read
 
-jobs:
-  pr-playwright-core:
-    name: PR Playwright (core business)
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
-    env:
-      INTEGRATION_SAFE_ENV: "1"
-      PLAYWRIGHT_BASE_URL: http://127.0.0.1:3000
-      PLAYWRIGHT_WEB_SERVER_COMMAND: npm run start
-      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.INTEGRATION_SUPABASE_URL }}
-      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.INTEGRATION_SUPABASE_ANON_KEY }}
-      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.INTEGRATION_SUPABASE_SERVICE_ROLE_KEY }}
-      DOC_CY_SUPPRESS_TRAFFIC_LOG_SECRET: ${{ secrets.DOC_CY_SUPPRESS_TRAFFIC_LOG_SECRET }}
-      TEST_USER_EMAIL: ${{ secrets.INTEGRATION_TEST_USER_EMAIL || secrets.TEST_USER_EMAIL }}
-      TEST_USER_PASSWORD: ${{ secrets.INTEGRATION_TEST_USER_PASSWORD || secrets.TEST_USER_PASSWORD }}
-      PROD_NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.PROD_NEXT_PUBLIC_SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL }}
-      INTEGRATION_SCHEDULE_TEST_DOCTOR_SLUG: ${{ vars.INTEGRATION_SCHEDULE_TEST_DOCTOR_SLUG }}
-      INTERNAL_DIRECTORY_SECRET: ${{ secrets.INTERNAL_DIRECTORY_SECRET }}
+env:
+  INTEGRATION_SAFE_ENV: "1"
+  PLAYWRIGHT_BASE_URL: http://127.0.0.1:3000
+  PLAYWRIGHT_WEB_SERVER_COMMAND: npm run start
+  NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.INTEGRATION_SUPABASE_URL }}
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.INTEGRATION_SUPABASE_ANON_KEY }}
+  SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.INTEGRATION_SUPABASE_SERVICE_ROLE_KEY }}
+  DOC_CY_SUPPRESS_TRAFFIC_LOG_SECRET: ${{ secrets.DOC_CY_SUPPRESS_TRAFFIC_LOG_SECRET }}
+  TEST_USER_EMAIL: ${{ secrets.INTEGRATION_TEST_USER_EMAIL || secrets.TEST_USER_EMAIL }}
+  TEST_USER_PASSWORD: ${{ secrets.INTEGRATION_TEST_USER_PASSWORD || secrets.TEST_USER_PASSWORD }}
+  PROD_NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.PROD_NEXT_PUBLIC_SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL }}
+  INTEGRATION_SCHEDULE_TEST_DOCTOR_SLUG: ${{ vars.INTEGRATION_SCHEDULE_TEST_DOCTOR_SLUG }}
+  INTERNAL_DIRECTORY_SECRET: ${{ secrets.INTERNAL_DIRECTORY_SECRET }}
+  NEXT_PUBLIC_DOC_CY_FINDER_INCLUDE_TEST_PROFILES: "1"
+  NEXT_PUBLIC_FORMSPREE_ID: e2e_placeholder
 
+jobs:
+  pr-build:
+    name: PR build + unit
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -112,13 +120,40 @@ jobs:
 
       - name: Build Next.js (PR branch)
         run: npm run build
-        env:
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.INTEGRATION_SUPABASE_URL }}
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.INTEGRATION_SUPABASE_ANON_KEY }}
-          NEXT_PUBLIC_DOC_CY_FINDER_INCLUDE_TEST_PROFILES: "1"
-          DOC_CY_SUPPRESS_TRAFFIC_LOG_SECRET: ${{ secrets.DOC_CY_SUPPRESS_TRAFFIC_LOG_SECRET }}
-          # Placeholder so the client bundles a Formspree URL; Playwright mocks POSTs to formspree.io.
-          NEXT_PUBLIC_FORMSPREE_ID: e2e_placeholder
+
+      - name: Upload Next.js build
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr-next-build
+          path: .next
+          retention-days: 1
+          include-hidden-files: true
+
+  pr-playwright-core:
+    name: PR Playwright · core
+    needs: pr-build
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Download Next.js build
+        uses: actions/download-artifact@v4
+        with:
+          name: pr-next-build
+          path: .next
 
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
@@ -126,44 +161,23 @@ jobs:
       - name: Run critical reschedule email guards
         env:
           CI: "true"
-          DOC_CY_SUPPRESS_TRAFFIC_LOG_SECRET: ${{ secrets.DOC_CY_SUPPRESS_TRAFFIC_LOG_SECRET }}
         run: |
           npx playwright test --grep @pr-email \
             --project="Desktop Large (Chromium)" \
             --workers=1 \
             --reporter=line
 
-      - name: Run critical Playwright suite
+      - name: Run core Playwright suite
         env:
           CI: "true"
-          INTEGRATION_SAFE_ENV: "1"
-          PLAYWRIGHT_BASE_URL: http://127.0.0.1:3000
-          PLAYWRIGHT_WEB_SERVER_COMMAND: npm run start
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.INTEGRATION_SUPABASE_URL }}
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.INTEGRATION_SUPABASE_ANON_KEY }}
-          NEXT_PUBLIC_DOC_CY_FINDER_INCLUDE_TEST_PROFILES: "1"
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.INTEGRATION_SUPABASE_SERVICE_ROLE_KEY }}
-          DOC_CY_SUPPRESS_TRAFFIC_LOG_SECRET: ${{ secrets.DOC_CY_SUPPRESS_TRAFFIC_LOG_SECRET }}
-          PROD_NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.PROD_NEXT_PUBLIC_SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          INTEGRATION_SCHEDULE_TEST_DOCTOR_SLUG: ${{ vars.INTEGRATION_SCHEDULE_TEST_DOCTOR_SLUG }}
         run: |
-          # register_onboarding_avatar.spec.ts: no @pr-e2e (Auth rate limits on shared integration).
-          npx playwright test --grep @pr-e2e \
+          # Everything tagged @pr-e2e except the finder lane (@pr-e2e-finder).
+          npx playwright test --grep @pr-e2e --grep-invert @pr-e2e-finder \
             --project="Desktop Large (Chromium)" \
             --workers=1 \
             --reporter=line
 
-      # Always sweep ephemeral Finder Filter / Finder UX doctors left by interrupted runs.
-      - name: Cleanup orphan integration test doctors
-        if: always()
-        env:
-          PLAYWRIGHT_ENV_FILE: ""
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.INTEGRATION_SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.INTEGRATION_SUPABASE_SERVICE_ROLE_KEY }}
-          PROD_NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.PROD_NEXT_PUBLIC_SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL }}
-        run: node scripts/cleanup-test-doctors.mjs --assert-empty
-
-      - name: Upload Playwright report
+      - name: Upload Playwright report (core)
         if: failure()
         uses: actions/upload-artifact@v4
         with:
@@ -178,14 +192,6 @@ jobs:
         continue-on-error: true
         env:
           CI: "true"
-          INTEGRATION_SAFE_ENV: "1"
-          PLAYWRIGHT_BASE_URL: http://127.0.0.1:3000
-          PLAYWRIGHT_WEB_SERVER_COMMAND: npm run start
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.INTEGRATION_SUPABASE_URL }}
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.INTEGRATION_SUPABASE_ANON_KEY }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.INTEGRATION_SUPABASE_SERVICE_ROLE_KEY }}
-          DOC_CY_SUPPRESS_TRAFFIC_LOG_SECRET: ${{ secrets.DOC_CY_SUPPRESS_TRAFFIC_LOG_SECRET }}
-          PROD_NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.PROD_NEXT_PUBLIC_SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL }}
         run: |
           npx playwright test --grep @pr-mobile-monitor \
             --project="Mobile Chrome (Pixel 5)" \
@@ -197,19 +203,102 @@ jobs:
         continue-on-error: true
         env:
           CI: "true"
-          INTEGRATION_SAFE_ENV: "1"
-          PLAYWRIGHT_BASE_URL: http://127.0.0.1:3000
-          PLAYWRIGHT_WEB_SERVER_COMMAND: npm run start
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.INTEGRATION_SUPABASE_URL }}
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.INTEGRATION_SUPABASE_ANON_KEY }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.INTEGRATION_SUPABASE_SERVICE_ROLE_KEY }}
-          DOC_CY_SUPPRESS_TRAFFIC_LOG_SECRET: ${{ secrets.DOC_CY_SUPPRESS_TRAFFIC_LOG_SECRET }}
-          PROD_NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.PROD_NEXT_PUBLIC_SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL }}
         run: |
           npx playwright test --grep @pr-login-monitor \
             --project="Desktop Large (Chromium)" \
             --workers=1 \
             --reporter=line
+
+  pr-playwright-finder:
+    name: PR Playwright · finder
+    needs: pr-build
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Download Next.js build
+        uses: actions/download-artifact@v4
+        with:
+          name: pr-next-build
+          path: .next
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run finder Playwright suite
+        env:
+          CI: "true"
+        run: |
+          npx playwright test --grep @pr-e2e-finder \
+            --project="Desktop Large (Chromium)" \
+            --workers=1 \
+            --reporter=line
+
+      - name: Upload Playwright report (finder)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-pr-finder-report
+          path: |
+            playwright-report
+            test-results
+          if-no-files-found: ignore
+
+  pr-cleanup-test-doctors:
+    name: Cleanup integration test doctors
+    needs: [pr-build, pr-playwright-core, pr-playwright-finder]
+    if: always() && needs.pr-build.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Sweep ephemeral Finder Filter / Finder UX doctors left by interrupted runs.
+      - name: Cleanup orphan integration test doctors
+        env:
+          PLAYWRIGHT_ENV_FILE: ""
+        run: node scripts/cleanup-test-doctors.mjs --assert-empty
+
+  # Preserves the historical required-check name used in branch protection.
+  pr-playwright-gate:
+    name: PR Playwright (core business)
+    needs: [pr-playwright-core, pr-playwright-finder, pr-cleanup-test-doctors]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require both Playwright lanes (+ cleanup)
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "core=${{ needs.pr-playwright-core.result }}"
+          echo "finder=${{ needs.pr-playwright-finder.result }}"
+          echo "cleanup=${{ needs.pr-cleanup-test-doctors.result }}"
+          test "${{ needs.pr-playwright-core.result }}" = "success"
+          test "${{ needs.pr-playwright-finder.result }}" = "success"
+          test "${{ needs.pr-cleanup-test-doctors.result }}" = "success"
 
   pr-preview-public-shell:
     name: PR Preview site health (Vercel)

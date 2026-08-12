@@ -106,7 +106,7 @@ export function FinderMissingDoctorCard({
   return (
     <div
       data-testid="finder-missing-doctor-card"
-      className="mx-auto w-full max-w-2xl rounded-2xl border border-ink-200 bg-white p-6 shadow-[0_1px_3px_rgba(26,43,60,0.06),0_8px_24px_rgba(11,123,181,0.08)] sm:p-8"
+      className="mx-auto w-full max-w-2xl rounded-2xl border border-ink-200 bg-white p-6 shadow-[0_1px_3px_rgba(26,43,60,0.06),0_8px_24px_rgba(18,184,192,0.08)] sm:p-8"
     >
       <div className="text-center">
         <h2 className="text-lg font-bold leading-snug tracking-tight text-ink-900 sm:text-xl">
@@ -160,7 +160,7 @@ export function FinderMissingDoctorCard({
         <button
           type="submit"
           disabled={pending}
-          className="inline-flex w-full items-center justify-center rounded-xl bg-clinical-500 px-5 py-3.5 text-base font-bold text-white shadow-[0_4px_14px_rgba(11,123,181,0.35)] transition hover:bg-clinical-400 hover:shadow-[0_6px_18px_rgba(11,123,181,0.4)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-clinical-500 disabled:cursor-not-allowed disabled:opacity-60"
+          className="inline-flex w-full items-center justify-center rounded-xl bg-clinical-500 px-5 py-3.5 text-base font-bold text-white shadow-[0_4px_14px_rgba(18,184,192,0.35)] transition hover:bg-clinical-400 hover:shadow-[0_6px_18px_rgba(18,184,192,0.4)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-clinical-500 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {pending ? "Submitting..." : "Suggest a professional"}
         </button>

@@ -82,7 +82,7 @@ export function ProductShowcaseCarousel({ slides }: { slides: Slide[] }) {
       aria-roledescription="carousel"
       aria-label="Product showcase"
       tabIndex={0}
-      className="rounded-3xl border border-clinical-200 bg-white p-4 shadow-[0_1px_3px_rgba(26,43,60,0.06),0_8px_24px_rgba(11,123,181,0.06)] sm:p-6"
+      className="rounded-3xl border border-clinical-200 bg-white p-4 shadow-[0_1px_3px_rgba(26,43,60,0.06),0_8px_24px_rgba(18,184,192,0.06)] sm:p-6"
       onKeyDown={(e) => {
         if (e.key === "ArrowRight") {
           e.preventDefault();

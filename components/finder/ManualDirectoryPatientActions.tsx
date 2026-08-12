@@ -79,7 +79,7 @@ export function ManualDirectoryDoctorClaimFooter({ className = "" }: { className
       <p className="text-[11px] leading-snug text-ink-500">
         Are you this professional?{" "}
         <PendingLink
-          href="/#founders-pricing"
+          href="/for-professionals#founders-pricing"
           className="font-medium text-clinical-700 underline decoration-clinical-300 underline-offset-2 transition hover:text-clinical-600"
         >
           Activate online booking

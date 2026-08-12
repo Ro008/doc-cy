@@ -4,6 +4,8 @@ import { createServiceRoleClient } from "@/lib/supabase-service";
 import { districtToSlug, specialtyToSlug, slugToDistrict } from "@/lib/finder-seo";
 import { getAllBlogPostMeta } from "@/lib/blog";
 import { manualDirectoryLandingPath } from "@/lib/manual-directory-landing-path";
+import { isDirectoryCanarySlug } from "@/lib/directory-canaries";
+import { fetchAllSupabaseRows } from "@/lib/supabase-fetch-all";
 
 function normalizeDistrictSlug(value: unknown): string {
   const raw = String(value ?? "").trim();
@@ -28,14 +30,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     {
       url: `${siteBase}/`,
       lastModified: now,
-      changeFrequency: "weekly",
+      changeFrequency: "daily",
       priority: 1.0,
     },
     {
-      url: `${siteBase}/finder`,
+      url: `${siteBase}/for-professionals`,
       lastModified: now,
-      changeFrequency: "daily",
-      priority: 0.8,
+      changeFrequency: "weekly",
+      priority: 0.7,
     },
   ];
 
@@ -45,22 +47,22 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // Registered professionals live in `doctors` (verified + public slug).
   // We also attempt `profiles` for backward compatibility with older naming.
   const [doctorsRes, profilesRes, manualRes] = await Promise.all([
-    supabase
-      .from("doctors")
-      .select("district, specialty, is_test_profile, name")
-      .eq("status", "verified")
-      .not("slug", "is", null)
-      .limit(5000),
-    supabase
-      .from("profiles")
-      .select("district, specialty")
-      .eq("status", "verified")
-      .limit(5000),
-    supabase
-      .from("directory_manual")
-      .select("district, specialty")
-      .eq("is_archived", false)
-      .limit(5000),
+    fetchAllSupabaseRows(() =>
+      supabase
+        .from("doctors")
+        .select("district, specialty, is_test_profile, name")
+        .eq("status", "verified")
+        .not("slug", "is", null),
+    ),
+    fetchAllSupabaseRows(() =>
+      supabase.from("profiles").select("district, specialty").eq("status", "verified"),
+    ),
+    fetchAllSupabaseRows(() =>
+      supabase
+        .from("directory_manual")
+        .select("district, specialty")
+        .eq("is_archived", false),
+    ),
   ]);
 
   const pairSet = new Set<string>();
@@ -105,7 +107,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const districtSlug = districtToSlug(district);
     if (districtSet.has(districtSlug)) {
       staticEntries.push({
-        url: `${siteBase}/finder/${districtSlug}`,
+        url: `${siteBase}/${districtSlug}`,
         lastModified: now,
         changeFrequency: "daily",
         priority: 0.8,
@@ -118,7 +120,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     .map((pair) => {
       const [districtSlug, specialtySlug] = pair.split("::");
       return {
-        url: `${siteBase}/finder/${districtSlug}/${specialtySlug}`,
+        url: `${siteBase}/${districtSlug}/${specialtySlug}`,
         lastModified: now,
         changeFrequency: "daily" as const,
         priority: 0.8,
@@ -134,12 +136,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   }));
 
   let manualDoctorEntries: MetadataRoute.Sitemap = [];
-  const manualSlugRes = await supabase
-    .from("directory_manual")
-    .select("slug")
-    .eq("is_archived", false)
-    .not("slug", "is", null)
-    .limit(5000);
+  const manualSlugRes = await fetchAllSupabaseRows(() =>
+    supabase
+      .from("directory_manual")
+      .select("slug")
+      .eq("is_archived", false)
+      .not("slug", "is", null),
+  );
 
   const slugColumnMissing =
     manualSlugRes.error &&
@@ -152,7 +155,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       manualDoctorEntries = manualSlugRows
       .map((row) => {
         const slug = String((row as { slug?: string | null }).slug ?? "").trim();
-        if (!slug) return null;
+        if (!slug || isDirectoryCanarySlug(slug)) return null;
         return {
           url: `${siteBase}${manualDirectoryLandingPath(slug)}`,
           lastModified: now,
@@ -167,4 +170,3 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   return [...staticEntries, ...dynamicFinderEntries, ...manualDoctorEntries, ...blogEntries];
 }
-

@@ -13,6 +13,7 @@ import type { InsightsAppointmentRow } from "@/lib/practice-insights";
 import { sendDoctorMonthlyDigestEmail } from "@/lib/send-doctor-monthly-digest-email";
 import { getPublicBookingBaseUrl } from "@/lib/site-url";
 import { createServiceRoleClient } from "@/lib/supabase-service";
+import { fetchAllSupabaseRows } from "@/lib/supabase-fetch-all";
 
 export type MonthlyDigestJobResult = {
   monthKey: string;
@@ -103,11 +104,13 @@ export async function runMonthlyDigestJob(opts?: {
     errors: [],
   };
 
-  const { data: doctors, error: doctorsError } = await supabase
-    .from("doctors")
-    .select("id, name, email")
-    .eq("is_test_profile", false)
-    .not("email", "is", null);
+  const { data: doctors, error: doctorsError } = await fetchAllSupabaseRows(() =>
+    supabase
+      .from("doctors")
+      .select("id, name, email")
+      .eq("is_test_profile", false)
+      .not("email", "is", null),
+  );
 
   if (doctorsError) {
     throw new Error(doctorsError.message);
@@ -127,10 +130,12 @@ export async function runMonthlyDigestJob(opts?: {
         continue;
       }
 
-      const { data: appointments, error: apptError } = await supabase
-        .from("appointments")
-        .select("appointment_datetime, status, created_at")
-        .eq("doctor_id", doctor.id);
+      const { data: appointments, error: apptError } = await fetchAllSupabaseRows(() =>
+        supabase
+          .from("appointments")
+          .select("appointment_datetime, status, created_at")
+          .eq("doctor_id", doctor.id),
+      );
 
       if (apptError) {
         throw new Error(apptError.message);

@@ -1,6 +1,6 @@
 // tests/brand_consistency.spec.ts
 import { test, expect } from "@playwright/test";
-import { createClient } from "@supabase/supabase-js";
+import { createTestDataClient } from "./helpers/testDataClient";
 
 test.describe("Brand consistency", () => {
   test("landing page shows DocCy logo in header, not DOCCY text", async ({
@@ -16,7 +16,7 @@ test.describe("Brand consistency", () => {
     ).toBeVisible({ timeout: 10000 });
 
     const brandLogo = page.locator("header").first().getByRole("img", {
-      name: "DocCy",
+      name: /my doccy/i,
     });
     await expect(brandLogo).toBeVisible();
     await expect(brandLogo).toHaveAttribute("src", /doccy-logo\.png/);
@@ -28,16 +28,12 @@ test.describe("Brand consistency", () => {
   test("professional profile shows DocCy logo, not DOCCY text", async ({
     page,
   }) => {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
-    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
-    expect(supabaseUrl).not.toBe("");
-    expect(supabaseAnonKey).not.toBe("");
-
-    const supabase = createClient(supabaseUrl, supabaseAnonKey);
+    const supabase = createTestDataClient();
     const { data: activeDoctors } = await supabase
-      .from("doctors_public")
+      .from("doctors")
       .select("slug")
       .eq("status", "verified")
+      .not("slug", "is", null)
       .limit(5);
 
     const firstSlug = activeDoctors?.[0]?.slug;
@@ -54,7 +50,7 @@ test.describe("Brand consistency", () => {
       timeout: 10000,
     });
 
-    const brandLogo = page.getByRole("img", { name: "DocCy" });
+    const brandLogo = page.getByRole("img", { name: /my doccy/i });
     await expect(brandLogo).toBeVisible();
     await expect(brandLogo).toHaveAttribute("src", /doccy-logo\.png/);
 

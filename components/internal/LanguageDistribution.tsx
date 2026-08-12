@@ -11,7 +11,7 @@ export function LanguageDistribution({ items, totalDoctorCount }: Props) {
   return (
     <section className="rounded-2xl border border-slate-800/80 bg-slate-900/35 p-5 shadow-lg shadow-black/25 backdrop-blur-sm">
       <div className="flex items-center gap-2 border-b border-slate-800/60 pb-4">
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-sky-500/10 text-sky-400">
+        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-clinical-500/10 text-clinical-400">
           <Languages className="h-4 w-4" strokeWidth={1.75} aria-hidden />
         </div>
         <div>

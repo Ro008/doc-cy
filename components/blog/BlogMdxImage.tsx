@@ -29,7 +29,7 @@ export function BlogMdxImage({ src, alt, width, height, contain }: BlogMdxImageP
 
   return (
     <span
-      className={`my-5 block overflow-hidden rounded-xl border border-slate-700/70 shadow-[0_0_14px_-12px_rgba(52,211,153,0.65)] ${
+      className={`my-5 block overflow-hidden rounded-xl border border-slate-700/70 shadow-[0_0_14px_-12px_rgba(18,184,192,0.65)] ${
         contain ? "max-w-3xl bg-slate-900/50" : "max-w-xl"
       }`}
     >

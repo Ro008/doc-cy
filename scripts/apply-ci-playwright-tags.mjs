@@ -8,14 +8,18 @@ import path from "node:path";
 
 const root = path.join(process.cwd(), "tests");
 
+const prE2eFinder = [
+  "integration/finder_critical.integration.spec.ts",
+  "integration/finder_user_behaviors.integration.spec.ts",
+  "navigation.spec.ts",
+];
+
 const prE2e = [
   "blog_single_image_ui.spec.ts",
   "landing_i18n.spec.ts",
   "integration/appointments_race_condition.integration.spec.ts",
   "integration/settings_clinic_address_notice.integration.spec.ts",
-  "integration/finder_critical.integration.spec.ts",
   "integration/needs_reschedule_slot_free.integration.spec.ts",
-  "navigation.spec.ts",
   "feedback_support_modal.spec.ts",
   "promote_practice_settings.spec.ts",
   "practice_insights.spec.ts",
@@ -28,13 +32,13 @@ const prE2e = [
   "doctor_settings_language_guard.spec.ts",
   "profile_structured_data.spec.ts",
   "schedule_constraints.spec.ts",
-  "integration/finder_user_behaviors.integration.spec.ts",
   "booking_flow.spec.ts",
   "manual_booking_flow.spec.ts",
   "manual_booking_modal_ux.spec.ts",
   "integration/doctor_confirmation_flow.integration.spec.ts",
   "integration/propose_reschedule_confirmed.integration.spec.ts",
   "integration/directory_duplicates_actions.integration.spec.ts",
+  ...prE2eFinder,
 ];
 
 const prLoginMonitor = ["doctor_password_login_form.spec.ts"];
@@ -87,7 +91,9 @@ for (const f of prE2e) {
   const tags =
     f === "integration/doctor_confirmation_flow.integration.spec.ts"
       ? ["@pr-e2e", "@pr-mobile-monitor"]
-      : ["@pr-e2e"];
+      : prE2eFinder.includes(f)
+        ? ["@pr-e2e", "@pr-e2e-finder"]
+        : ["@pr-e2e"];
   applyTag(f, tags);
 }
 for (const f of prEmail) applyTag(f, ["@pr-email"]);

@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" role="img" aria-label="Clinic">
+  <rect width="128" height="128" rx="64" fill="#E6F8F9"/>
+  <!-- Building -->
+  <rect x="34" y="44" width="60" height="52" rx="4" fill="#12B8C0"/>
+  <!-- Door -->
+  <rect x="54" y="72" width="20" height="24" rx="2" fill="#E6F8F9"/>
+  <!-- Windows -->
+  <rect x="42" y="52" width="12" height="12" rx="1.5" fill="#B8EBEF"/>
+  <rect x="74" y="52" width="12" height="12" rx="1.5" fill="#B8EBEF"/>
+  <!-- Medical cross badge -->
+  <circle cx="92" cy="40" r="16" fill="#ffffff"/>
+  <rect x="88" y="30" width="8" height="20" rx="2" fill="#12B8C0"/>
+  <rect x="82" y="36" width="20" height="8" rx="2" fill="#12B8C0"/>
+</svg>

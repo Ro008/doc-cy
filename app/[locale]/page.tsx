@@ -1,4 +1,4 @@
-import HomePage from "../page";
+import ForProfessionalsPage from "../for-professionals/page";
 import { setRequestLocale } from "next-intl/server";
 
 export default async function LocaleHomePage({
@@ -7,6 +7,5 @@ export default async function LocaleHomePage({
   params: { locale: string };
 }) {
   setRequestLocale(params.locale);
-  return <HomePage />;
+  return <ForProfessionalsPage />;
 }
-

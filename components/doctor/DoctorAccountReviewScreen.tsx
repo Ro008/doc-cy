@@ -27,7 +27,7 @@ export function DoctorAccountReviewScreen({
     <main className="min-h-screen bg-slate-950 px-4 py-14 text-slate-200 sm:py-20">
       <div className="pointer-events-none fixed inset-0 -z-10">
         <div className="absolute inset-x-0 top-[-10%] mx-auto h-80 max-w-xl rounded-full bg-clinical-500/[0.07] blur-3xl" />
-        <div className="absolute bottom-0 right-0 h-64 w-64 rounded-full bg-sky-500/[0.05] blur-3xl" />
+        <div className="absolute bottom-0 right-0 h-64 w-64 rounded-full bg-clinical-500/[0.05] blur-3xl" />
       </div>
 
       <div className="mx-auto max-w-lg text-center">

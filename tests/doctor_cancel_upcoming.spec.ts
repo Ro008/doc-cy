@@ -165,9 +165,7 @@ test.describe("Future appointments cancellation @booking-creates", () => {
     // 2. Visit dashboard and locate the appointment by paging the calendar weeks.
     await page.goto("/agenda");
 
-    await expect(
-      page.getByText(/Weekly calendar on desktop · Daily focus on mobile/i)
-    ).toBeVisible({
+    await expect(page.getByRole("button", { name: /^Today$/i })).toBeVisible({
       timeout: 10000,
     });
 

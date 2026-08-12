@@ -5,6 +5,7 @@ import { ChevronDown, Search } from "lucide-react";
 import {
   CYPRUS_MASTER_SPECIALTIES,
   SPECIALTY_OTHER_LABEL,
+  isCurrentRegistrationSpecialty,
   isMasterSpecialty,
 } from "@/lib/cyprus-specialties";
 
@@ -75,7 +76,13 @@ export function SpecialtyCombobox({
   }, []);
 
   const q = query.trim().toLowerCase();
-  const filteredMasters = CYPRUS_MASTER_SPECIALTIES.filter((s) =>
+  const masterOptions =
+    masterValue &&
+    isMasterSpecialty(masterValue) &&
+    !isCurrentRegistrationSpecialty(masterValue)
+      ? [masterValue, ...CYPRUS_MASTER_SPECIALTIES]
+      : CYPRUS_MASTER_SPECIALTIES;
+  const filteredMasters = masterOptions.filter((s) =>
     q ? s.toLowerCase().includes(q) : true
   );
   const showOther =

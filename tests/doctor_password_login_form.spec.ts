@@ -23,8 +23,8 @@ test.describe("Doctor password login form", { tag: "@pr-login-monitor" }, () => 
     await assertDoctorPasswordAuthReachable(email, password);
     await authenticateDoctorViaPasswordUi(page, appBaseUrl, email, password);
     await expect(page).toHaveURL(/\/agenda(?:[/?#]|$)/, { timeout: 45_000 });
-    await expect(
-      page.getByText(/Weekly calendar on desktop · Daily focus on mobile/i),
-    ).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByRole("button", { name: /^Today$/i })).toBeVisible({
+      timeout: 20_000,
+    });
   });
 });

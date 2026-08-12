@@ -81,7 +81,9 @@ test.describe("Integration: doctor onboarding pipeline", { tag: "@pr-e2e" }, () 
         (url) => new URL(url).pathname.replace(/\/$/, "") === "/agenda",
         { timeout: 20000 },
       );
-      await expect(page.getByText(/Weekly calendar/i)).toBeVisible({ timeout: 15000 });
+      await expect(page.getByRole("button", { name: /^Today$/i })).toBeVisible({
+        timeout: 15000,
+      });
     } finally {
       if (fixture) await deleteTestDoctor(fixture);
     }
@@ -152,7 +154,9 @@ test.describe("Integration: doctor onboarding pipeline", { tag: "@pr-e2e" }, () 
       await loginDoctorUi(page, fixture.email, fixture.password);
       await page.goto("/agenda");
       await expect(page).toHaveURL(/\/agenda\/?$/, { timeout: 20000 });
-      await expect(page.getByText(/Weekly calendar/i)).toBeVisible({ timeout: 15000 });
+      await expect(page.getByRole("button", { name: /^Today$/i })).toBeVisible({
+        timeout: 15000,
+      });
     } finally {
       if (fixture) await deleteTestDoctor(fixture);
     }

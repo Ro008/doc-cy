@@ -24,7 +24,7 @@ test.describe("Support feedback live Formspree (local only)", () => {
 
     const message = `[DocCy local E2E] ${new Date().toISOString()} — safe to ignore.`;
 
-    await page.goto("/");
+    await page.goto("/for-professionals");
 
     await page.getByTestId("marketing-footer").getByRole("button", { name: /^Support$/i }).click();
     const dialog = page.getByRole("dialog", { name: /How can we help you/i });

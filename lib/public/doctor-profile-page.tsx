@@ -4,7 +4,7 @@ import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
 
-import { supabase } from "@/lib/supabase";
+import { createServiceRoleClient } from "@/lib/supabase-service";
 import { BookingSection } from "@/components/doctor/BookingSection";
 import { DoctorDetailsAccordion } from "@/components/doctor/DoctorDetailsAccordion";
 import { LanguagesSpoken } from "@/components/doctor/LanguagesSpoken";
@@ -35,6 +35,11 @@ import { GesyProviderBadge } from "@/components/brand/GesyProviderBadge";
 import { WhatsAppLogoIcon } from "@/components/icons/WhatsAppLogoIcon";
 import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher";
 import { DocCyWordmark } from "@/components/brand/DocCyWordmark";
+import { RecordRecentlyViewed } from "@/components/finder/RecordRecentlyViewed";
+import {
+  FinderDistrictLink,
+  FinderSpecialtyLink,
+} from "@/components/finder/FinderSpecialtyLink";
 import { getTranslations } from "next-intl/server";
 import { Phone } from "lucide-react";
 import {
@@ -42,9 +47,15 @@ import {
   withDoctorTitleHonorific,
 } from "@/lib/doctor-seo-formatting";
 import { getPublicSpecialtyDisplayLabel } from "@/lib/doctor-specialty-public";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 const DOCTOR_AVATAR_URL =
   "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=400&h=400&fit=crop";
+
+/** Public profile SSR reads — service_role only (doctors_public is not granted to anon). */
+function getPublicDirectoryDb(): SupabaseClient | null {
+  return createServiceRoleClient();
+}
 
 type DoctorProfileRow = {
   id: string;
@@ -105,6 +116,12 @@ type PublicDoctorFetch =
 async function fetchPublicDoctorBySlug(
   slug: string,
 ): Promise<PublicDoctorFetch> {
+  const supabase = getPublicDirectoryDb();
+  if (!supabase) {
+    console.error("[DocCy] service role client unavailable for public doctor profile");
+    return { kind: "not_found" };
+  }
+
   const fullList = DOCTOR_FIELD_LIST_PUBLIC_PROFILE;
   const basicList = DOCTOR_FIELD_LIST_PUBLIC_PROFILE_NO_LANG;
   const baseList = DOCTOR_FIELD_LIST_PUBLIC_PROFILE_BASE;
@@ -342,6 +359,13 @@ export async function generateMetadata({
   const fallbackTitle = "Healthcare Professional | DocCy";
 
   const loadMeta = async (fields: typeof DOCTOR_FIELD_LIST_METADATA | typeof DOCTOR_FIELD_LIST_METADATA_NO_DISTRICT) => {
+    const supabase = getPublicDirectoryDb();
+    if (!supabase) {
+      return {
+        data: null,
+        error: { message: "service role unavailable", code: "DOC_CY_NO_SERVICE_ROLE" },
+      };
+    }
     let m = await supabase
       .from("doctors_public")
       .select(fields)
@@ -486,6 +510,12 @@ export default async function DoctorPage({ params }: PageProps) {
   }
 
   const profile = result.profile;
+  const supabase = getPublicDirectoryDb();
+  if (!supabase) {
+    console.error("[DocCy] service role client unavailable for public doctor profile data");
+    redirect("/");
+  }
+
   const {
     data: { user },
   } = await authSupabase.auth.getUser();
@@ -668,6 +698,18 @@ export default async function DoctorPage({ params }: PageProps) {
 
   return (
     <main className="min-h-screen bg-ink-50 text-ink-800">
+      {!isOwnerView ? (
+        <RecordRecentlyViewed
+          item={{
+            kind: "professional",
+            href: `/${params.slug}`,
+            name: profile.name,
+            subtitle: profile.specialty,
+            location: profileHeadingCity,
+            photoUrl: hasCustomAvatar ? avatarUrl : null,
+          }}
+        />
+      ) : null}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
@@ -691,7 +733,7 @@ export default async function DoctorPage({ params }: PageProps) {
           <div className="flex items-center justify-between gap-3">
             <div className="flex min-w-0 items-center gap-2 break-words">
               <a
-                href="/finder"
+                href="/"
                 className="inline-flex transition hover:opacity-90"
               >
                 <DocCyWordmark variant="light" />
@@ -703,13 +745,13 @@ export default async function DoctorPage({ params }: PageProps) {
             <LanguageSwitcher compact variant="light" />
           </div>
           <div className="flex items-start gap-5">
-            <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-2xl border-2 border-clinical-200 shadow-lg shadow-ink-900/10 sm:h-28 sm:w-28">
+            <div className="relative h-36 w-36 shrink-0 overflow-hidden rounded-2xl border-2 border-clinical-200 shadow-lg shadow-ink-900/10 sm:h-44 sm:w-44">
               <Image
                 src={avatarUrl}
                 alt=""
                 fill
                 className="object-cover"
-                sizes="112px"
+                sizes="(max-width: 640px) 144px, 176px"
                 priority
               />
             </div>
@@ -720,15 +762,24 @@ export default async function DoctorPage({ params }: PageProps) {
                     {profile.name}
                   </span>
                   {profile.is_gesy ? (
-                    <GesyProviderBadge size="xs" className="shrink-0" />
+                    <GesyProviderBadge size="xs" language="el" className="shrink-0" />
                   ) : null}
                 </span>
-                <span className="mt-1.5 block text-base font-medium capitalize tracking-wide text-clinical-700 sm:text-lg">
-                  {profile.specialty}
-                </span>
-                <span className="mt-1 block text-base font-medium tracking-wide text-ink-500 sm:text-lg">
-                  {profileHeadingCity}
-                </span>
+                <FinderSpecialtyLink
+                  specialty={profile.specialty}
+                  district={profileDistrictLabel}
+                  className="mt-1.5 block text-base font-medium capitalize tracking-wide text-clinical-700 underline-offset-2 transition hover:text-clinical-600 hover:underline sm:text-lg"
+                />
+                {profileDistrictLabel ? (
+                  <FinderDistrictLink
+                    district={profileDistrictLabel}
+                    className="mt-1 block text-base font-medium tracking-wide text-ink-500 underline-offset-2 transition hover:text-clinical-700 hover:underline sm:text-lg"
+                  />
+                ) : (
+                  <span className="mt-1 block text-base font-medium tracking-wide text-ink-500 sm:text-lg">
+                    {profileHeadingCity}
+                  </span>
+                )}
               </h1>
               {Array.isArray(profile.languages) &&
               profile.languages.length > 0 ? (
@@ -807,7 +858,7 @@ export default async function DoctorPage({ params }: PageProps) {
             />
             {publicContactPhone ? (
               <section className="lg:min-w-0">
-                <div className="rounded-3xl border border-clinical-200 bg-white p-5 shadow-[0_1px_3px_rgba(26,43,60,0.06),0_8px_24px_rgba(11,123,181,0.06)] backdrop-blur-xl sm:p-6">
+                <div className="rounded-3xl border border-clinical-200 bg-white p-5 shadow-[0_1px_3px_rgba(26,43,60,0.06),0_8px_24px_rgba(18,184,192,0.06)] backdrop-blur-xl sm:p-6">
                   <h2 className="text-sm font-semibold tracking-wide text-ink-900">
                     Contact
                   </h2>

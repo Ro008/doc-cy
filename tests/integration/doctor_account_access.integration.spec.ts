@@ -39,7 +39,7 @@ test.describe("Integration: doctor account access", { tag: "@pr-e2e" }, () => {
       await expect(
         page.getByRole("heading", { name: /Account under review/i }),
       ).toBeVisible();
-      await expect(page.getByText(/Weekly calendar/i)).not.toBeVisible();
+      await expect(page.getByRole("button", { name: /^Today$/i })).not.toBeVisible();
     } finally {
       if (fixture) await deleteTestDoctor(fixture);
     }
@@ -166,7 +166,9 @@ test.describe("Integration: doctor account access", { tag: "@pr-e2e" }, () => {
         (url) => new URL(url).pathname.replace(/\/$/, "") === "/agenda",
         { timeout: 20000 },
       );
-      await expect(page.getByText(/Weekly calendar/i)).toBeVisible({ timeout: 15000 });
+      await expect(page.getByRole("button", { name: /^Today$/i })).toBeVisible({
+        timeout: 15000,
+      });
     } finally {
       if (fixture) await deleteTestDoctor(fixture);
     }

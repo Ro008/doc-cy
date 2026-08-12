@@ -26,7 +26,7 @@ export function AppointmentsGrowthChart({ data }: Props) {
   return (
     <section className="rounded-2xl border border-slate-800/80 bg-slate-900/35 p-5 shadow-lg shadow-black/25 backdrop-blur-sm">
       <div className="mb-4 flex items-center gap-2 border-b border-slate-800/60 pb-4">
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-cyan-500/10 text-cyan-400">
+        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-clinical-500/10 text-clinical-400">
           <BarChart3 className="h-4 w-4" strokeWidth={1.75} aria-hidden />
         </div>
         <div>
@@ -70,7 +70,7 @@ export function AppointmentsGrowthChart({ data }: Props) {
             />
             <defs>
               <linearGradient id={`doccyBarGradient-${gradId}`} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#0B7BB5" stopOpacity={0.95} />
+                <stop offset="0%" stopColor="#12B8C0" stopOpacity={0.95} />
                 <stop offset="100%" stopColor="#0d9488" stopOpacity={0.75} />
               </linearGradient>
             </defs>

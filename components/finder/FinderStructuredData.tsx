@@ -68,22 +68,20 @@ export function FinderStructuredData({
     {
       "@type": "ListItem",
       position: 1,
-      name: "Home",
-      item: `${siteUrl}/`,
-    },
-    {
-      "@type": "ListItem",
-      position: 2,
       name: "Find a Professional",
-      item: `${siteUrl}/finder`,
+      item: `${siteUrl}/`,
     },
     ...(activeDistrict
       ? [
           {
             "@type": "ListItem",
-            position: 3,
+            position: 2,
             name: activeDistrict,
-            item: `${siteUrl}/finder/${finderPath.split("/")[2] ?? ""}`,
+            item: `${siteUrl}${
+              finderPath === "/"
+                ? "/"
+                : `/${finderPath.split("/").filter(Boolean)[0] ?? ""}`
+            }`,
           },
         ]
       : []),
@@ -91,7 +89,7 @@ export function FinderStructuredData({
       ? [
           {
             "@type": "ListItem",
-            position: 4,
+            position: 3,
             name: activeSpecialty,
             item: `${siteUrl}${finderPath}`,
           },

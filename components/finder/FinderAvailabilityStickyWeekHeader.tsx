@@ -13,7 +13,7 @@ const anchorHeaderClassName =
   "overflow-hidden rounded-t-lg border-b border-ink-100 bg-ink-50/95 backdrop-blur-sm";
 
 const pinnedHeaderClassName =
-  "overflow-hidden rounded-xl border border-clinical-200/80 bg-white/75 shadow-[0_4px_24px_rgba(26,43,60,0.12),0_8px_32px_rgba(11,123,181,0.14)] ring-1 ring-white/60 backdrop-blur-md backdrop-saturate-150";
+  "overflow-hidden rounded-xl border border-clinical-200/80 bg-white/75 shadow-[0_4px_24px_rgba(26,43,60,0.12),0_8px_32px_rgba(18,184,192,0.14)] ring-1 ring-white/60 backdrop-blur-md backdrop-saturate-150";
 
 type DayHeader = Parameters<typeof FinderAvailabilityDayHeaderRow>[0]["days"];
 

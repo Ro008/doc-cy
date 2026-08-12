@@ -1,8 +1,8 @@
 import { test, expect } from "@playwright/test";
-import { createClient } from "@supabase/supabase-js";
 import { addHours, format } from "date-fns";
 import { utcToZonedTime } from "date-fns-tz";
 import { CY_TZ } from "@/lib/appointments";
+import { createTestDataClient } from "./helpers/testDataClient";
 
 function monthDiffInclusive(from: Date, to: Date): number {
   return (to.getFullYear() - from.getFullYear()) * 12 + (to.getMonth() - from.getMonth());
@@ -18,13 +18,12 @@ test.describe("Scheduling boundaries UI (read-only)", () => {
       "andreas-nikos";
 
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
-    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
-    test.skip(!supabaseUrl || !supabaseAnonKey, "Missing Supabase env vars.");
+    test.skip(!supabaseUrl, "Missing NEXT_PUBLIC_SUPABASE_URL.");
 
-    const supabase = createClient(supabaseUrl, supabaseAnonKey);
+    const supabase = createTestDataClient();
 
     const { data: doctor } = await supabase
-      .from("doctors_public")
+      .from("doctors")
       .select("id,slug,status")
       .eq("slug", targetSlug)
       .single();

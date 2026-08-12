@@ -3,12 +3,15 @@
 import * as React from "react";
 import { X } from "lucide-react";
 import { phoneToTelHref } from "@/lib/phone-link";
+import { useContactPhoneReveal } from "@/components/finder/RevealPhoneButton";
 
 type Props = {
   open: boolean;
   doctorName: string;
+  manualId: string;
   addressMapsLink: string;
-  phone?: string | null;
+  /** Whether a phone exists server-side (value is not passed in SSR props). */
+  hasPhone?: boolean;
   addressText?: string | null;
   onClose: () => void;
 };
@@ -16,13 +19,16 @@ type Props = {
 export function ManualBookingRequestModal({
   open,
   doctorName,
+  manualId,
   addressMapsLink,
-  phone = null,
+  hasPhone = false,
   addressText = null,
   onClose,
 }: Props) {
   const closeButtonRef = React.useRef<HTMLButtonElement>(null);
-  const phoneDisplay = String(phone ?? "").trim();
+  const phoneState = useContactPhoneReveal("manual", manualId, open, hasPhone);
+  const phoneDisplay =
+    phoneState.status === "ready" ? phoneState.phone : "";
   const phoneHref = phoneToTelHref(phoneDisplay);
   const mapsHref = String(addressMapsLink ?? "").trim();
   const addressDisplay = String(addressText ?? "").trim();
@@ -85,6 +91,17 @@ export function ManualBookingRequestModal({
 
           <div className="rounded-xl border border-clinical-200 bg-clinical-50/70 px-4 py-4">
             <p className="font-semibold text-ink-950">☎️ Need to book right now?</p>
+            {phoneState.status === "loading" ? (
+              <p className="mt-2 text-ink-700">Loading phone number…</p>
+            ) : null}
+            {phoneState.status === "error" ? (
+              <p className="mt-2 text-amber-800">{phoneState.message}</p>
+            ) : null}
+            {phoneState.status === "empty" || (!hasPhone && phoneState.status === "idle") ? (
+              <p className="mt-2 text-ink-700">
+                Their phone is currently the only way to get an appointment:
+              </p>
+            ) : null}
             {phoneDisplay && phoneHref ? (
               <>
                 <p className="mt-2 text-ink-700">Call their clinic directly:</p>
@@ -97,11 +114,7 @@ export function ManualBookingRequestModal({
                   </a>
                 </p>
               </>
-            ) : (
-              <p className="mt-2 text-ink-700">
-                Their phone is currently the only way to get an appointment:
-              </p>
-            )}
+            ) : null}
             {mapsHref ? (
               <p className="mt-3">
                 <a

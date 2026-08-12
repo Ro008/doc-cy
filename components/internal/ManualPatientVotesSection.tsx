@@ -55,7 +55,7 @@ function formatShortDate(iso: string) {
 }
 
 const headerBtn =
-  "touch-manipulation text-left text-slate-400 transition hover:text-sky-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-500/60";
+  "touch-manipulation text-left text-slate-400 transition hover:text-clinical-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-clinical-500/60";
 
 export function ManualPatientVotesSection({ query, rows, podium, maxVotes }: Props) {
   const { navigate } = useDirectoryNav();
@@ -71,13 +71,13 @@ export function ManualPatientVotesSection({ query, rows, podium, maxVotes }: Pro
   const podiumSorted = [...podium].sort((a, b) => a.rank - b.rank);
 
   return (
-    <section className="rounded-2xl border border-sky-500/25 bg-sky-500/5 p-4 sm:p-5">
-      <div className="flex flex-col gap-4 border-b border-sky-500/20 pb-4 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
+    <section className="rounded-2xl border border-clinical-500/25 bg-clinical-500/5 p-4 sm:p-5">
+      <div className="flex flex-col gap-4 border-b border-clinical-500/20 pb-4 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
         <div className="min-w-0">
-          <h2 className="text-sm font-semibold text-sky-100">
+          <h2 className="text-sm font-semibold text-clinical-100">
             Manual directory: patient votes for online booking
           </h2>
-          <p className="mt-1 max-w-3xl text-xs leading-relaxed text-sky-100/80">
+          <p className="mt-1 max-w-3xl text-xs leading-relaxed text-clinical-100/80">
             Finder manual cards — rows in{" "}
             <code className="rounded bg-black/30 px-1">directory_manual_patient_booking_requests</code>.
             With <code className="rounded bg-black/30 px-1">DOC_CY_VOTE_FINGERPRINT_SECRET</code>,{" "}
@@ -87,10 +87,10 @@ export function ManualPatientVotesSection({ query, rows, podium, maxVotes }: Pro
           </p>
         </div>
         <div className="w-full shrink-0 sm:w-auto sm:max-w-[220px]">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-sky-300/80">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-clinical-300/80">
             Date range
           </p>
-          <div className="mt-2 grid grid-cols-3 gap-1 rounded-lg border border-sky-500/30 bg-slate-950/50 p-1 sm:flex sm:gap-0">
+          <div className="mt-2 grid grid-cols-3 gap-1 rounded-lg border border-clinical-500/30 bg-slate-950/50 p-1 sm:flex sm:gap-0">
             {RANGE_KEYS.map((key) => {
               const active = query.manualVotesRange === key;
               return (
@@ -100,7 +100,7 @@ export function ManualPatientVotesSection({ query, rows, podium, maxVotes }: Pro
                   onClick={() => navigate(founderDirectoryHref(query, { manualVotesRange: key }))}
                   className={`min-h-[44px] touch-manipulation rounded-md px-2 py-2 text-xs font-medium transition sm:min-h-0 sm:px-2.5 sm:py-1.5 ${
                     active
-                      ? "bg-sky-500/25 text-sky-100"
+                      ? "bg-clinical-500/25 text-clinical-100"
                       : "text-slate-400 hover:bg-slate-800/50 hover:text-slate-200 active:bg-slate-800/70"
                   }`}
                 >
@@ -112,8 +112,8 @@ export function ManualPatientVotesSection({ query, rows, podium, maxVotes }: Pro
         </div>
       </div>
 
-      <p className="mt-3 text-[11px] font-medium text-sky-200/90">
-        Showing: <span className="text-sky-50">{rangeLabel}</span>
+      <p className="mt-3 text-[11px] font-medium text-clinical-200/90">
+        Showing: <span className="text-clinical-50">{rangeLabel}</span>
       </p>
 
       {podium.length > 0 ? (

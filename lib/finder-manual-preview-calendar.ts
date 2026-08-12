@@ -5,8 +5,11 @@ import type {
   FinderAvailabilityDayHeader,
   PublicAvailabilitySlot,
 } from "@/lib/public/compute-public-booking-slots";
+import { FINDER_AVAILABILITY_VISIBLE_DAY_COUNT } from "@/lib/public/compute-public-booking-slots";
 
 export const MANUAL_PREVIEW_SLOTS_PER_DAY = 4;
+/** At least this many fake slots land in the first visible week strip. */
+export const MANUAL_PREVIEW_MIN_FIRST_WINDOW_SLOTS = 2;
 
 export type ManualPreviewDay = FinderAvailabilityDayHeader & {
   slots: PublicAvailabilitySlot[];
@@ -46,14 +49,20 @@ function createSeededRng(seed: number): () => number {
   };
 }
 
-function pickUniqueIndices(count: number, maxExclusive: number, rng: () => number): number[] {
-  const indices = new Set<number>();
-  let guard = 0;
-  while (indices.size < count && guard < maxExclusive * 4) {
-    indices.add(Math.floor(rng() * maxExclusive));
-    guard += 1;
+function pickUniqueIndices(
+  count: number,
+  candidates: readonly number[],
+  rng: () => number,
+): number[] {
+  if (count <= 0 || candidates.length === 0) return [];
+  const pool = [...candidates];
+  const picked: number[] = [];
+  while (picked.length < count && pool.length > 0) {
+    const at = Math.floor(rng() * pool.length);
+    picked.push(pool[at]!);
+    pool.splice(at, 1);
   }
-  return Array.from(indices);
+  return picked;
 }
 
 /** HH:mm string compare is safe for zero-padded 24h labels. */
@@ -76,8 +85,9 @@ function futureTimesForDay(dateKey: string, now: Date): string[] {
 }
 
 /**
- * Stable fake availability: ~4–6 open slots per manual listing (seeded per card).
- * Never surfaces times that have already passed today (Cyprus wall clock).
+ * Stable fake availability for manual/GeSY cards (seeded per listing).
+ * Sparse overall (~6–10 slots across 14 days), but always seeds enough slots into
+ * the first visible week so the strip does not render as an empty calendar.
  */
 export function buildManualPreviewCalendar(
   dayHeaders: FinderAvailabilityDayHeader[],
@@ -87,11 +97,36 @@ export function buildManualPreviewCalendar(
   if (dayHeaders.length === 0) return [];
 
   const rng = createSeededRng(seedFromString(seedKey));
-  const availableCount = (2 + Math.floor(rng() * 2)) * 2;
-  const totalSlots = dayHeaders.length * MANUAL_PREVIEW_SLOTS_PER_DAY;
-  const availableIndices = new Set(
-    pickUniqueIndices(Math.min(availableCount, totalSlots), totalSlots, rng),
+  // 6, 8, or 10 — denser than before so week navigation rarely looks empty.
+  const availableCount = 6 + Math.floor(rng() * 3) * 2;
+  const firstWindowDays = Math.min(dayHeaders.length, FINDER_AVAILABILITY_VISIBLE_DAY_COUNT);
+
+  const flatCandidatesForDayRange = (fromDay: number, toDayExclusive: number): number[] => {
+    const out: number[] = [];
+    for (let dayIndex = fromDay; dayIndex < toDayExclusive; dayIndex += 1) {
+      const day = dayHeaders[dayIndex];
+      if (!day || futureTimesForDay(day.dateKey, now).length === 0) continue;
+      for (let slotIndex = 0; slotIndex < MANUAL_PREVIEW_SLOTS_PER_DAY; slotIndex += 1) {
+        out.push(dayIndex * MANUAL_PREVIEW_SLOTS_PER_DAY + slotIndex);
+      }
+    }
+    return out;
+  };
+
+  const firstWindowCandidates = flatCandidatesForDayRange(0, firstWindowDays);
+  const restCandidates = flatCandidatesForDayRange(firstWindowDays, dayHeaders.length);
+
+  const firstWindowTarget = Math.min(
+    MANUAL_PREVIEW_MIN_FIRST_WINDOW_SLOTS,
+    availableCount,
+    firstWindowCandidates.length,
   );
+  const firstWindowPicks = pickUniqueIndices(firstWindowTarget, firstWindowCandidates, rng);
+  const remaining = Math.max(0, availableCount - firstWindowPicks.length);
+  // Prefer later days for the rest; if the range is short, fill from leftover first-window cells.
+  const leftoverFirst = firstWindowCandidates.filter((i) => !firstWindowPicks.includes(i));
+  const restPicks = pickUniqueIndices(remaining, [...restCandidates, ...leftoverFirst], rng);
+  const availableIndices = new Set([...firstWindowPicks, ...restPicks]);
 
   return dayHeaders.map((day, dayIndex) => {
     const slots: PublicAvailabilitySlot[] = [];

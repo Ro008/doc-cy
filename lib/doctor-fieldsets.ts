@@ -1,7 +1,8 @@
 /**
  * Column lists for `doctors` / `doctors_public` queries.
  * Keep public-facing selects free of signup and account fields (email, internal_email,
- * license_*, auth_user_id). Use `doctors_public` (includes conditional phone, avatar_url).
+ * license_*, auth_user_id). Use `doctors_public` via service_role on the server
+ * (anon/authenticated SELECT revoked — includes conditional phone, avatar_url).
  */
 export const DOCTOR_FIELD_LIST_PUBLIC_PROFILE =
   "id, name, specialty, bio, clinic_address, district, slug, status, languages, is_gesy, is_specialty_approved" as const;

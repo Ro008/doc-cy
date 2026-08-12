@@ -56,7 +56,7 @@ test.describe("Public shell health", { tag: ["@pr-preview", "@nightly-prod"] }, 
   });
 
   test("finder route renders district/specialty filters", async ({ page }) => {
-    await page.goto("/finder");
+    await page.goto("/");
     await expect(
       page.getByRole("heading", {
         level: 1,

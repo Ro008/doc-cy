@@ -1,21 +1,22 @@
 import { test, expect } from "@playwright/test";
-import { createClient } from "@supabase/supabase-js";
+import { createTestDataClient } from "./helpers/testDataClient";
 
 test.describe("Public profile states", () => {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
-
   test.beforeAll(() => {
-    expect(supabaseUrl).not.toBe("");
-    expect(supabaseAnonKey).not.toBe("");
+    expect(process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").not.toBe("");
+    expect(
+      (process.env.SUPABASE_SERVICE_ROLE_KEY ?? "").trim() ||
+        (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "").trim(),
+    ).not.toBe("");
   });
 
   async function getFirstSlugByStatus(status: string): Promise<string | null> {
-    const supabase = createClient(supabaseUrl, supabaseAnonKey);
+    const supabase = createTestDataClient();
     const { data } = await supabase
-      .from("doctors_public")
+      .from("doctors")
       .select("slug")
       .eq("status", status)
+      .not("slug", "is", null)
       .limit(10);
 
     const slug = data?.[0]?.slug;
@@ -55,7 +56,7 @@ test.describe("Public profile states", () => {
       .getByRole("link", { name: /Find a professional/i })
       .first();
     await expect(findProfessionalPending).toBeVisible({ timeout: 10000 });
-    await expect(findProfessionalPending).toHaveAttribute("href", "/finder");
+    await expect(findProfessionalPending).toHaveAttribute("href", "/");
   });
 
   test("rejected: shows profile unavailable + no booking calendar", async ({
@@ -91,17 +92,18 @@ test.describe("Public profile states", () => {
       .getByRole("link", { name: /Find a professional/i })
       .first();
     await expect(findProfessionalRejected).toBeVisible({ timeout: 10000 });
-    await expect(findProfessionalRejected).toHaveAttribute("href", "/finder");
+    await expect(findProfessionalRejected).toHaveAttribute("href", "/");
   });
 
   test("activated/verified: shows live profile + booking calendar", async ({
     page,
   }) => {
-    const supabase = createClient(supabaseUrl, supabaseAnonKey);
+    const supabase = createTestDataClient();
     const { data } = await supabase
-      .from("doctors_public")
+      .from("doctors")
       .select("slug")
       .eq("status", "verified")
+      .not("slug", "is", null)
       .limit(12);
 
     const candidates = data ?? [];

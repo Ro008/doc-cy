@@ -94,7 +94,7 @@ export function PromotePracticeSection({
     margin-bottom: 2mm;
     color: #0f172a;
   }
-  .logo span { color: #10b981; }
+  .logo span { color: #12B8C0; }
   .name {
     font-size: 0.9rem;
     font-weight: 600;

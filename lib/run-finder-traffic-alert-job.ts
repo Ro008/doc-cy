@@ -5,6 +5,7 @@ import {
   FINDER_TRAFFIC_SPIKE_MULTIPLIER,
   aggregateFinderTrafficRows,
   buildFinderTrafficAlertEmail,
+  finderTrafficPathOrFilter,
   isFinderTrafficPath,
   shouldSendFinderTrafficAlert,
   type FinderTrafficAggregateRow,
@@ -12,6 +13,7 @@ import {
 } from "@/lib/finder-traffic-alert";
 import { sendResendEmail } from "@/lib/resend";
 import { createServiceRoleClient } from "@/lib/supabase-service";
+import { fetchAllSupabaseRows } from "@/lib/supabase-fetch-all";
 
 const WINDOW_MS = 60 * 60 * 1000;
 const BASELINE_DAYS = 7;
@@ -42,7 +44,7 @@ async function countFinderVisitsInWindow(
   if (botFilter === "human") query = query.eq("is_bot", false);
   if (botFilter === "bot") query = query.eq("is_bot", true);
 
-  const { count, error } = await query.or("page_path.eq./finder,page_path.like./finder/%");
+  const { count, error } = await query.or(finderTrafficPathOrFilter());
   if (error) {
     throw new Error(`finder visit count failed: ${error.message}`);
   }
@@ -54,13 +56,14 @@ async function loadFinderVisitRows(
   start: Date,
   end: Date,
 ): Promise<FinderTrafficAggregateRow[]> {
-  const { data, error } = await supabase
-    .from("website_visits")
-    .select("page_path, country, user_agent, is_bot")
-    .gte("created_at", start.toISOString())
-    .lt("created_at", end.toISOString())
-    .or("page_path.eq./finder,page_path.like./finder/%")
-    .limit(5000);
+  const { data, error } = await fetchAllSupabaseRows(() =>
+    supabase
+      .from("website_visits")
+      .select("page_path, country, user_agent, is_bot")
+      .gte("created_at", start.toISOString())
+      .lt("created_at", end.toISOString())
+      .or(finderTrafficPathOrFilter()),
+  );
 
   if (error) {
     throw new Error(`finder visit rows failed: ${error.message}`);

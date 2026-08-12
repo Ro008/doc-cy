@@ -22,8 +22,6 @@ test.describe("Integration: public Service Menu section", () => {
     test.skip(!baseUrl || !supabaseUrl || !serviceRole, "Missing integration env vars.");
 
     const admin = createClient(supabaseUrl, serviceRole);
-    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
-    const publicClient = createClient(supabaseUrl, anonKey);
     const nonce = `${Date.now()}-${Math.floor(Math.random() * 100000)}`;
     const doctorEmail = `service-menu-${nonce}@integration.test`;
     const doctorSlug = `service-menu-${nonce}`;
@@ -74,10 +72,10 @@ test.describe("Integration: public Service Menu section", () => {
         throw new Error(`Failed inserting doctor services: ${serviceInsert.error.message}`);
       }
 
-      // doctors_public visibility can lag briefly after insert/update triggers.
+      // doctors_public is server-only; poll via service role after insert.
       let visiblePublic = false;
       for (let i = 0; i < 10; i++) {
-        const check = await publicClient
+        const check = await admin
           .from("doctors_public")
           .select("id")
           .eq("slug", doctorSlug)

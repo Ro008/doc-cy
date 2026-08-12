@@ -13,7 +13,7 @@ type Options = {
   manualId: string;
   doctorName: string;
   addressMapsLink: string;
-  phone?: string | null;
+  hasPhone?: boolean;
   addressText?: string | null;
 };
 
@@ -21,7 +21,7 @@ export function useManualBookingRequestFeedback({
   manualId,
   doctorName,
   addressMapsLink,
-  phone = null,
+  hasPhone = false,
   addressText = null,
 }: Options) {
   const router = useRouter();
@@ -48,8 +48,9 @@ export function useManualBookingRequestFeedback({
     <ManualBookingRequestModal
       open={modalOpen}
       doctorName={doctorName}
+      manualId={manualId}
       addressMapsLink={addressMapsLink}
-      phone={phone}
+      hasPhone={hasPhone}
       addressText={addressText}
       onClose={() => setModalOpen(false)}
     />

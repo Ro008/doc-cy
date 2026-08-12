@@ -13,6 +13,7 @@ import {
   type DoctorSettingsRow,
   type WeeklySchedule,
 } from "@/lib/doctor-settings";
+import { fetchAllSupabaseRows } from "@/lib/supabase-fetch-all";
 
 type AgendaWorkingHours = {
   weeklySchedule: WeeklySchedule;
@@ -71,9 +72,7 @@ export default async function AgendaPage({ searchParams }: AgendaPageProps) {
   if (!doctor) {
     return (
       <main className="min-h-screen bg-ink-900 text-slate-50">
-        <div className="pointer-events-none fixed inset-0 -z-10">
-          <div className="absolute inset-x-0 top-[-10%] mx-auto h-80 max-w-xl rounded-full bg-clinical-500/10 blur-3xl" />
-        </div>
+        <div className="pointer-events-none fixed inset-0 -z-10 bg-gradient-to-b from-clinical-500/[0.04] via-transparent to-transparent" />
         <div className="mx-auto flex min-h-screen max-w-2xl flex-col items-center justify-center gap-6 px-4 py-12 text-center">
           <p className="text-slate-200">
             Professional profile not found for this account. Please contact
@@ -84,13 +83,15 @@ export default async function AgendaPage({ searchParams }: AgendaPageProps) {
     );
   }
 
-  const { data: appointments, error } = await supabase
-    .from("appointments")
-    .select(
-      "id, doctor_id, patient_name, patient_phone, reason, appointment_datetime, status, duration_minutes, proposed_slots, proposal_expires_at, attendance",
-    )
-    .eq("doctor_id", doctor.id)
-    .order("appointment_datetime", { ascending: true });
+  const { data: appointments, error } = await fetchAllSupabaseRows(() =>
+    supabase
+      .from("appointments")
+      .select(
+        "id, doctor_id, patient_name, patient_phone, reason, appointment_datetime, status, duration_minutes, proposed_slots, proposal_expires_at, attendance",
+      )
+      .eq("doctor_id", doctor.id)
+      .order("appointment_datetime", { ascending: true }),
+  );
 
   if (error) {
     console.error(error);
@@ -150,25 +151,14 @@ export default async function AgendaPage({ searchParams }: AgendaPageProps) {
 
   return (
     <main className="min-h-screen bg-ink-900 text-slate-50">
-      <div className="pointer-events-none fixed inset-0 -z-10">
-        <div className="absolute inset-x-0 top-[-10%] mx-auto h-80 max-w-xl rounded-full bg-clinical-500/10 blur-3xl" />
-        <div className="absolute inset-y-0 left-[-10%] h-full w-64 bg-sky-500/5 blur-3xl" />
-        <div className="absolute inset-y-0 right-[-15%] h-full w-72 bg-clinical-400/10 blur-3xl" />
-      </div>
+      <div className="pointer-events-none fixed inset-0 -z-10 bg-gradient-to-b from-clinical-500/[0.04] via-transparent to-transparent" />
 
-      <div className="mx-auto flex min-h-screen w-full max-w-[1920px] flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
-        <header className="flex flex-col gap-8">
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-3">
-              <h1 className="text-balance text-3xl font-semibold tracking-tight text-slate-50 sm:text-4xl">
-                {displayName}
-              </h1>
-              {isFoundingMember ? <FoundingMemberBadge /> : null}
-            </div>
-            <p className="mt-3 text-sm text-slate-400">
-              Weekly calendar on desktop · Daily focus on mobile
-            </p>
-          </div>
+      <div className="mx-auto flex min-h-screen w-full max-w-[1920px] flex-col gap-3 px-4 py-4 sm:px-6 lg:gap-4 lg:px-8 lg:py-4">
+        <header className="flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1">
+          <h1 className="min-w-0 truncate text-xl font-semibold tracking-tight text-slate-50 sm:text-2xl">
+            {displayName}
+          </h1>
+          {isFoundingMember ? <FoundingMemberBadge compact /> : null}
         </header>
 
         <AgendaRealtime

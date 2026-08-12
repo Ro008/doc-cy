@@ -18,11 +18,21 @@ function assertSafeIntegrationTarget(baseUrl: string, supabaseUrl: string): stri
   return null;
 }
 
+function isDeniedOrEmpty(result: {
+  data: unknown;
+  error: { message?: string; code?: string } | null;
+}): boolean {
+  if (result.error) return true;
+  const rows = Array.isArray(result.data) ? result.data : result.data ? [result.data] : [];
+  return rows.length === 0;
+}
+
 test.describe("Integration: public directory RLS hardening", () => {
-  test("anon cannot read PII columns from base tables; public views still work", async () => {
+  test("anon cannot dump base tables or public directory views", async () => {
     const baseUrl = process.env.PLAYWRIGHT_BASE_URL ?? "";
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
     const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
 
     const unsafeReason = assertSafeIntegrationTarget(baseUrl, supabaseUrl);
     test.skip(Boolean(unsafeReason), unsafeReason ?? undefined);
@@ -31,34 +41,41 @@ test.describe("Integration: public directory RLS hardening", () => {
     const anon = createClient(supabaseUrl, anonKey);
 
     const doctorsDump = await anon.from("doctors").select("email, phone").limit(1);
-    expect(doctorsDump.error).toBeNull();
-    expect(doctorsDump.data ?? []).toHaveLength(0);
+    expect(isDeniedOrEmpty(doctorsDump)).toBe(true);
 
     const manualDump = await anon
       .from("directory_manual")
-      .select("email, ghs_code, gender")
+      .select("email, ghs_code, gender, name, phone")
       .limit(1);
-    expect(manualDump.error).toBeNull();
-    expect(manualDump.data ?? []).toHaveLength(0);
+    expect(isDeniedOrEmpty(manualDump)).toBe(true);
 
-    const doctorsPublic = await anon
+    const manualPublicDump = await anon
+      .from("directory_manual_public")
+      .select("id, name, specialty, phone, slug")
+      .limit(5);
+    expect(isDeniedOrEmpty(manualPublicDump)).toBe(true);
+
+    const clinicsPublicDump = await anon
+      .from("clinics_public")
+      .select("id, name, phone, slug")
+      .limit(5);
+    expect(isDeniedOrEmpty(clinicsPublicDump)).toBe(true);
+
+    const doctorsPublicDump = await anon
       .from("doctors_public")
       .select("id, slug, name, phone")
-      .eq("status", "verified")
-      .not("slug", "is", null)
-      .limit(1)
-      .maybeSingle();
+      .limit(5);
+    expect(isDeniedOrEmpty(doctorsPublicDump)).toBe(true);
 
-    expect(doctorsPublic.error).toBeNull();
-    expect(doctorsPublic.data?.slug).toBeTruthy();
-
-    const manualPublic = await anon
+    // Service role still reads views for SSR / trusted servers.
+    test.skip(!serviceKey, "Missing SUPABASE_SERVICE_ROLE_KEY for positive control.");
+    const admin = createClient(supabaseUrl, serviceKey, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+    const serviceManual = await admin
       .from("directory_manual_public")
-      .select("id, name, specialty, phone")
-      .limit(1)
-      .maybeSingle();
-
-    expect(manualPublic.error).toBeNull();
-    expect(manualPublic.data?.name).toBeTruthy();
+      .select("id, name")
+      .limit(1);
+    expect(serviceManual.error).toBeNull();
   });
 });

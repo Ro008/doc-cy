@@ -79,8 +79,8 @@ export function FounderKpiCards({
         value={totalAppointments}
         sub="All-time bookings"
         Icon={CalendarDays}
-        accent="from-sky-500/20 to-blue-500/5"
-        iconBg="bg-sky-500/15 text-sky-300"
+        accent="from-clinical-500/20 to-clinical-600/5"
+        iconBg="bg-clinical-500/15 text-clinical-300"
       />
       <div className="flex flex-col gap-3 sm:col-span-2 xl:col-span-1">
         <KpiCard
@@ -88,8 +88,8 @@ export function FounderKpiCards({
           value={appointmentsThisMonth}
           sub={`From 1 ${monthLabelCy} (Cyprus) · counts when the booking was submitted, not the visit date`}
           Icon={CalendarRange}
-          accent="from-cyan-500/20 to-sky-500/5"
-          iconBg="bg-cyan-500/15 text-cyan-300"
+          accent="from-clinical-400/20 to-clinical-500/5"
+          iconBg="bg-clinical-500/15 text-clinical-300"
         />
         <ResendUsageBar />
       </div>

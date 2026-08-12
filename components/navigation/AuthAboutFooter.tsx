@@ -3,23 +3,33 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import { FINDER_DISTRICT_PATH_SLUGS, FOR_PROFESSIONALS_PATH } from "@/lib/finder-public-path";
+
 type AuthAboutFooterProps = {
   visible: boolean;
 };
 
 const RESERVED_TOP_LEVEL_SEGMENTS = new Set([
   "agenda",
+  "clinics",
   "finder",
+  "for-professionals",
   "blog",
   "login",
   "internal",
   "api",
+  "terms",
   "en",
   "el",
+  ...FINDER_DISTRICT_PATH_SLUGS,
 ]);
 
 function isLandingPath(pathname: string): boolean {
-  return pathname === "/" || /^\/(en|el)\/?$/.test(pathname);
+  return (
+    pathname === FOR_PROFESSIONALS_PATH ||
+    pathname === `${FOR_PROFESSIONALS_PATH}/` ||
+    /^\/(en|el)\/?$/.test(pathname)
+  );
 }
 
 function isDoctorPublicProfilePath(pathname: string): boolean {
@@ -52,7 +62,7 @@ export function AuthAboutFooter({ visible }: AuthAboutFooterProps) {
     <footer className="mx-auto mt-8 w-full max-w-6xl px-4 pb-3 sm:px-6 lg:px-8" data-testid="auth-about-footer">
       <div className="border-t border-slate-800/60 pt-5 text-center">
         <Link
-          href="/"
+          href={FOR_PROFESSIONALS_PATH}
           className="text-xs font-medium tracking-wide text-ink-500 transition hover:text-clinical-300"
         >
           About DocCy

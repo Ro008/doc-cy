@@ -42,9 +42,27 @@ export type FinderTrafficAlertMetrics = {
   sampleUserAgents: string[];
 };
 
+import { FINDER_DISTRICT_PATH_SLUGS } from "@/lib/finder-public-path";
+
 export function isFinderTrafficPath(pagePath: string): boolean {
   const path = pagePath.trim();
-  return path === "/finder" || path.startsWith("/finder/");
+  if (path === "/" || path === "/finder" || path.startsWith("/finder/")) return true;
+  const first = path.split("/").filter(Boolean)[0] ?? "";
+  return FINDER_DISTRICT_PATH_SLUGS.has(first);
+}
+
+/** PostgREST `.or()` filter for finder traffic windows (legacy + public paths). */
+export function finderTrafficPathOrFilter(): string {
+  const parts = [
+    "page_path.eq./",
+    "page_path.eq./finder",
+    "page_path.like./finder/%",
+  ];
+  for (const district of FINDER_DISTRICT_PATH_SLUGS) {
+    parts.push(`page_path.eq./${district}`);
+    parts.push(`page_path.like./${district}/%`);
+  }
+  return parts.join(",");
 }
 
 export function computeBaselineAverage(counts: number[]): number {

@@ -110,8 +110,8 @@ export function ReschedulePickClient({
       aria-busy={locked}
     >
       <div className="text-center">
-        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-sky-500/30 bg-sky-500/15">
-          <CalendarClock className="h-7 w-7 text-sky-300" aria-hidden />
+        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-clinical-500/30 bg-clinical-500/15">
+          <CalendarClock className="h-7 w-7 text-clinical-300" aria-hidden />
         </div>
         <h1 className="mt-5 text-2xl font-semibold tracking-tight text-slate-50">
           Pick a time
@@ -143,7 +143,7 @@ export function ReschedulePickClient({
               }}
               className={`flex w-full items-center gap-4 rounded-2xl border px-4 py-4 text-left transition disabled:cursor-not-allowed disabled:hover:border-slate-700/80 disabled:hover:bg-slate-900/50 ${
                 active
-                  ? "border-clinical-400/60 bg-clinical-400/15 shadow-lg shadow-clinical-950/30"
+                  ? "border-clinical-400/60 bg-clinical-400/15 shadow-lg shadow-ink-900/30"
                   : "border-slate-700/80 bg-slate-900/50 hover:border-slate-600 hover:bg-slate-800/60"
               }`}
             >

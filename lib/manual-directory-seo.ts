@@ -3,7 +3,12 @@ import { harmonizeFinderSpecialtyLabel } from "@/lib/finder-specialty-harmonize"
 /** Shorter specialty label for manual directory SEO titles. */
 export function getManualDirectorySpecialtySeoLabel(specialty: string): string {
   const harmonized = harmonizeFinderSpecialtyLabel(specialty);
-  if (harmonized === "Physiotherapy & Rehabilitation") return "Physiotherapy";
+  if (
+    harmonized === "Physiotherapy & Rehabilitation" ||
+    harmonized === "Physiotherapist"
+  ) {
+    return "Physiotherapy";
+  }
   return harmonized || specialty.trim() || "Healthcare";
 }
 

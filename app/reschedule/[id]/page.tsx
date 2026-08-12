@@ -129,7 +129,7 @@ export default async function ReschedulePage({ params, searchParams }: PageProps
     <main className="min-h-screen bg-ink-900 px-4 py-12 text-slate-50 sm:py-16">
       <div className="pointer-events-none fixed inset-0 -z-10">
         <div className="absolute inset-x-0 top-[-10%] mx-auto h-80 max-w-xl rounded-full bg-clinical-500/10 blur-3xl" />
-        <div className="absolute inset-y-0 right-[-15%] h-full w-72 bg-sky-500/10 blur-3xl" />
+        <div className="absolute inset-y-0 right-[-15%] h-full w-72 bg-clinical-500/10 blur-3xl" />
       </div>
       <ReschedulePickClient
         appointmentId={params.id}

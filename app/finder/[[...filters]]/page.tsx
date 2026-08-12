@@ -5,16 +5,24 @@ import { PendingLink } from "@/components/navigation/PendingLink";
 import { CYPRUS_DISTRICTS, type CyprusDistrict, isCyprusDistrict } from "@/lib/cyprus-districts";
 import { languageThemeForLabel } from "@/lib/cyprus-languages";
 import { createServiceRoleClient } from "@/lib/supabase-service";
-import { fetchAllSupabaseRows } from "@/lib/supabase-fetch-all";
+import {
+  fetchAllSupabaseRows,
+  fetchAllSupabaseRowsForIdChunks,
+} from "@/lib/supabase-fetch-all";
 import { doctorDashboardDisplayName } from "@/lib/doctor-display-name";
+import { FinderAudienceToggle } from "@/components/finder/FinderAudienceToggle";
 import { FinderFilters } from "@/components/finder/FinderFilters";
 import { FinderMissingDoctorCard } from "@/components/finder/FinderMissingDoctorCard";
 import { FinderHeroSection } from "@/components/finder/FinderHeroSection";
+import { FinderRecentlyViewed } from "@/components/finder/FinderRecentlyViewed";
 import { FinderResultsCount } from "@/components/finder/FinderResultsCount";
 import { FinderResultsTransition } from "@/components/finder/FinderResultsTransition";
+import { FinderSearchBar } from "@/components/finder/FinderSearchBar";
 import { FinderStructuredData } from "@/components/finder/FinderStructuredData";
 import { FinderFaqSection } from "@/components/finder/FinderFaqSection";
 import { GesyProviderBadge } from "@/components/brand/GesyProviderBadge";
+import { FinderClinicLocationBlock } from "@/components/finder/FinderClinicLocationBlock";
+import { FinderSpecialtyPills } from "@/components/finder/FinderSpecialtyPills";
 import {
   ManualDirectoryDoctorClaimFooter,
   ManualDirectoryMonthlyRequestBadge,
@@ -30,9 +38,13 @@ import {
   finderRegisteredDetailsSectionClass,
   finderRegisteredIdentityColumnClass,
 } from "@/components/finder/finder-availability-layout";
+import { finderCardManualFooterClass } from "@/components/finder/finder-card-cta";
 import {
-  finderCardManualFooterClass,
-} from "@/components/finder/finder-card-cta";
+  finderBrowseRowClass,
+  finderBrowseRowCompactClass,
+  finderResultCardClass,
+  finderSoftButtonClass,
+} from "@/components/finder/finder-surface";
 import {
   districtToSlug,
   isAllSlug,
@@ -42,7 +54,11 @@ import {
   toTitleCaseWords,
 } from "@/lib/finder-seo";
 import { buildFinderSpecialtyOptions } from "@/lib/finder-specialty-options";
-import { matchesSpecialtyFilter } from "@/lib/finder-specialty-filter";
+import {
+  matchesAnySpecialtyFilter,
+  matchesSpecialtyFilter,
+} from "@/lib/finder-specialty-filter";
+import { professionalMatchesDistrictFilter } from "@/lib/manual-directory-clinics";
 import {
   getPublicSpecialtyDisplayLabel,
   matchesFinderSpecialtyFilter,
@@ -51,6 +67,21 @@ import {
   finderManualVoteBadgeSinceIso,
 } from "@/lib/finder-manual-vote-badge";
 import { getFinderManualPhotoUrl } from "@/lib/finder-manual-photos";
+import { resolveFinderDisplayPhotoUrl } from "@/lib/finder-default-avatars";
+import { finderResultsPath, FOR_PROFESSIONALS_PATH } from "@/lib/finder-public-path";
+import { buildFinderResultsHeading, buildFinderResultsSnippet } from "@/lib/finder-results-heading";
+import {
+  buildFinderResultsPageHref,
+  FINDER_RESULTS_PAGE_SIZE,
+  parseFinderResultsPage,
+} from "@/lib/finder-results-paging";
+import {
+  applyFinderListFilters,
+  countManualDirectoryForFinder,
+  fetchManualDirectoryForFinder,
+} from "@/lib/finder-manual-directory-load";
+import { DOCCY_EXTRA_REGISTRATION_SPECIALTIES } from "@/lib/cyprus-specialties";
+import { GESY_MANUAL_SPECIALTIES } from "@/lib/gesy-specialties";
 import { manualDirectoryLandingPath } from "@/lib/manual-directory-landing-path";
 import { isRegisteredDoctorHiddenFromFinder, isTestProfileLike } from "@/lib/doctor-test-profile";
 import {
@@ -79,6 +110,7 @@ type FinderPageProps = {
     name?: string;
     lat?: string;
     lon?: string;
+    page?: string;
   };
 };
 
@@ -107,16 +139,27 @@ type ManualFinderRow = {
   name: string;
   displayName: string;
   specialty: string;
+  /** Individual GeSY specialties (for multi-specialty filter matching). */
+  specialties: string[];
   district: CyprusDistrict;
   address_maps_link: string;
-  phone: string | null;
+  /** Phone exists server-side; value is revealed via API after click (not in SSR props). */
+  hasPhone: boolean;
   address: string | null;
-  photoUrl: string | null;
+  photoUrl: string;
   /** Unique patient requests in the badge rolling window (see finder-manual-vote-badge). */
   monthlyRequestCount: number;
   isGesy: boolean;
   latitude: number | null;
   longitude: number | null;
+  clinic: { name: string; slug: string } | null;
+  clinics: Array<{
+    name: string;
+    slug: string;
+    address?: string | null;
+    addressMapsLink?: string | null;
+    district?: string | null;
+  }>;
 };
 
 type UnifiedFinderResult = {
@@ -133,9 +176,9 @@ type UnifiedFinderResult = {
 
 const SEO_CITIES: CyprusDistrict[] = ["Nicosia", "Limassol", "Paphos", "Larnaca"];
 const SEO_SPECIALTIES = [
-  { label: "Dentistry", pluralLabel: "Dentists" },
-  { label: "Dermatology", pluralLabel: "Dermatologists" },
-  { label: "Physiotherapy", pluralLabel: "Physiotherapists" },
+  { label: "Dentist", pluralLabel: "Dentists" },
+  { label: "Dermato-Venereology", pluralLabel: "Dermatologists" },
+  { label: "Physiotherapist", pluralLabel: "Physiotherapists" },
 ] as const;
 
 function isRecoverableSelectSchemaError(error: { code?: string; message?: string } | null): boolean {
@@ -289,14 +332,60 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
   const activeSpecialty = resolveSpecialtyValue(params.filters?.[1], searchParams?.specialty);
   const activeName = normalizeSelectValue(searchParams?.name);
   const userCoords = parseUserCoordinates(searchParams);
+  const hasListFilter = Boolean(
+    activeDistrict || activeSpecialty || activeName || userCoords,
+  );
+  const resultsPage = parseFinderResultsPage(searchParams?.page, { hasListFilter });
+  const visibleLimit = resultsPage * FINDER_RESULTS_PAGE_SIZE;
+  /** Near-me needs the full matching set to sort by distance; otherwise page the query. */
+  const unboundedManualFetch = Boolean(userCoords);
+  const manualListLimit = unboundedManualFetch ? undefined : visibleLimit;
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim() || "https://www.mydoccy.com";
   const districts = CYPRUS_DISTRICTS;
+  const listFilters = {
+    district: activeDistrict,
+    name: activeName,
+    specialty: activeSpecialty,
+  };
 
   let registeredRows: RegisteredFinderRow[] = [];
   let manualRows: ManualFinderRow[] = [];
+  let manualDirectoryTotalCount: number | null = null;
+  const manualClinicIdByRowId = new Map<string, string>();
+  /** Pros whose primary district differs but who practice at a clinic in the active district. */
+  const manualIdsWithClinicInActiveDistrict = new Set<string>();
+  let finderSpecialtyOptions: ReturnType<typeof buildFinderSpecialtyOptions> = [];
   let dataWarning: string | null = null;
 
   if (supabase) {
+    // Clinic-linked extras require an unbounded merge; skip on paged list loads.
+    if (activeDistrict && unboundedManualFetch) {
+      const clinicsInDistrictRes = await fetchAllSupabaseRows(() =>
+        supabase
+          .from("clinics")
+          .select("id")
+          .eq("is_archived", false)
+          .eq("district", activeDistrict),
+      );
+      const clinicIds = (clinicsInDistrictRes.data ?? [])
+        .map((row) => String((row as { id?: string }).id ?? "").trim())
+        .filter(Boolean);
+      if (clinicIds.length > 0) {
+        const linksRes = await fetchAllSupabaseRowsForIdChunks(clinicIds, (clinicIdChunk) =>
+          supabase
+            .from("directory_manual_clinics")
+            .select("directory_manual_id")
+            .in("clinic_id", clinicIdChunk),
+        );
+        for (const link of linksRes.data ?? []) {
+          const id = String(
+            (link as { directory_manual_id?: string }).directory_manual_id ?? "",
+          ).trim();
+          if (id) manualIdsWithClinicInActiveDistrict.add(id);
+        }
+      }
+    }
+
     const registeredSelectAttempts = [
       "id, name, specialty, district, slug, email, languages, avatar_url, is_test_profile, clinic_address, is_gesy, is_specialty_approved, latitude, longitude",
       "id, name, specialty, district, slug, email, languages, avatar_url, is_test_profile, clinic_address, is_gesy, is_specialty_approved",
@@ -339,12 +428,14 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
 
     for (const selectClause of registeredSelectAttempts) {
       const result = await fetchAllSupabaseRows(() =>
-        supabase
-          .from("doctors")
-          .select(selectClause)
-          .eq("status", "verified")
-          .not("slug", "is", null)
-          .order("name", { ascending: true }),
+        applyFinderListFilters(
+          supabase
+            .from("doctors")
+            .select(selectClause)
+            .eq("status", "verified")
+            .not("slug", "is", null),
+          listFilters,
+        ).order("name", { ascending: true }),
       );
 
       if (result.error) {
@@ -399,6 +490,7 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
       slug?: string | null;
       name: string | null;
       specialty: string | null;
+      specialties?: string[] | null;
       district: CyprusDistrict;
       address_maps_link: string | null;
       phone?: string | null;
@@ -406,8 +498,14 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
       is_gesy?: boolean | null;
       latitude?: unknown;
       longitude?: unknown;
+      clinic_id?: string | null;
+      gender?: string | null;
     }> = [];
     const manualSelectAttempts = [
+      "id, slug, name, specialty, specialties, district, address_maps_link, phone, address, is_gesy, latitude, longitude, clinic_id, gender, finder_visible",
+      "id, slug, name, specialty, specialties, district, address_maps_link, phone, address, is_gesy, latitude, longitude, clinic_id, gender",
+      "id, slug, name, specialty, district, address_maps_link, phone, address, is_gesy, latitude, longitude, clinic_id, gender",
+      "id, slug, name, specialty, district, address_maps_link, phone, address, is_gesy, latitude, longitude, clinic_id",
       "id, slug, name, specialty, district, address_maps_link, phone, address, is_gesy, latitude, longitude",
       "id, slug, name, specialty, district, address_maps_link, phone, address, latitude, longitude",
       "id, slug, name, specialty, district, address_maps_link, phone, latitude, longitude",
@@ -416,14 +514,19 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
       "id, name, specialty, district, address_maps_link",
     ];
     let manualLoadError: { code?: string; message?: string } | null = null;
+    let manualUsesSpecialtiesColumn = false;
     for (const selectClause of manualSelectAttempts) {
-      const manualRes = await fetchAllSupabaseRows(() =>
-        supabase
-          .from("directory_manual")
-          .select(selectClause)
-          .eq("is_archived", false)
-          .order("name", { ascending: true }),
-      );
+      const useSpecialtiesFilter = selectClause.includes("specialties");
+      const manualRes = await fetchManualDirectoryForFinder({
+        supabase,
+        selectClause,
+        filters: listFilters,
+        specialtyColumn: useSpecialtiesFilter ? "specialties" : "specialty",
+        extraDistrictManualIds: Array.from(manualIdsWithClinicInActiveDistrict),
+        requireFinderVisible: selectClause.includes("finder_visible"),
+        orderByName: true,
+        limit: manualListLimit,
+      });
       if (manualRes.error) {
         manualLoadError = manualRes.error;
         if (isRecoverableSelectSchemaError(manualRes.error)) {
@@ -436,6 +539,7 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
         slug?: string | null;
         name: string | null;
         specialty: string | null;
+        specialties?: string[] | null;
         district: CyprusDistrict;
         address_maps_link: string | null;
         phone?: string | null;
@@ -443,61 +547,90 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
         is_gesy?: boolean | null;
         latitude?: unknown;
         longitude?: unknown;
+        clinic_id?: string | null;
+        gender?: string | null;
       }>;
       manualLoadError = null;
+      manualUsesSpecialtiesColumn = useSpecialtiesFilter;
       break;
+    }
+
+    // Dropdown options: GeSY vocabulary (+ DocCy Psychology) and registered specialties.
+    // Avoid scanning the full manual roster just to build <option> values.
+    const specialtyOptionFilters = {
+      district: activeDistrict,
+      name: "",
+      specialty: "",
+    };
+    const registeredSpecialtyRes = await fetchAllSupabaseRows(() =>
+      applyFinderListFilters(
+        supabase
+          .from("doctors")
+          .select("specialty")
+          .eq("status", "verified")
+          .not("slug", "is", null),
+        specialtyOptionFilters,
+      ),
+    );
+    const gesyDropdownSeed = GESY_MANUAL_SPECIALTIES.filter(
+      (label) => label !== "Pharmacy",
+    ).map((specialty) => ({ specialty }));
+    const doccyExtraSeed = DOCCY_EXTRA_REGISTRATION_SPECIALTIES.map((specialty) => ({
+      specialty,
+    }));
+    finderSpecialtyOptions = buildFinderSpecialtyOptions(
+      [...gesyDropdownSeed, ...doccyExtraSeed],
+      (registeredSpecialtyRes.data ?? []) as { specialty: string | null | undefined }[],
+    );
+
+    if (!manualLoadError) {
+      const manualCountRes = await countManualDirectoryForFinder({
+        supabase,
+        filters: listFilters,
+        specialtyColumn: manualUsesSpecialtiesColumn ? "specialties" : "specialty",
+        requireFinderVisible: manualUsesSpecialtiesColumn,
+      });
+      if (!manualCountRes.error) {
+        manualDirectoryTotalCount = manualCountRes.count;
+      }
     }
 
     if (manualLoadError) {
       dataWarning = dataWarning ?? "Could not load manual directory entries.";
     } else {
-      const monthlySinceIso = finderManualVoteBadgeSinceIso();
-      const monthlyRequestCountByManualId = new Map<string, number>();
-
-      const { data: monthlyRequestRows, error: monthlyRequestErr } = await supabase
-        .from("directory_manual_patient_booking_requests")
-        .select("id, manual_id, voter_key")
-        .gte("created_at", monthlySinceIso)
-        .limit(12000);
-
-      if (!monthlyRequestErr && monthlyRequestRows?.length) {
-        const votersByManual = new Map<string, Set<string>>();
-        for (const r of monthlyRequestRows) {
-          const mid = String((r as { manual_id?: string }).manual_id ?? "");
-          const id = String((r as { id?: string }).id ?? "");
-          const vk = (r as { voter_key?: string | null }).voter_key?.trim();
-          const dedupeId = vk || `legacy:${id}`;
-          if (!mid) continue;
-          const cur = votersByManual.get(mid);
-          if (!cur) {
-            votersByManual.set(mid, new Set([dedupeId]));
-          } else {
-            cur.add(dedupeId);
-          }
-        }
-        for (const [mid, voters] of Array.from(votersByManual.entries())) {
-          monthlyRequestCountByManualId.set(mid, voters.size);
-        }
-      }
-
       manualRows = manualRowsRaw.map((row) => {
         const addressMapsLink = String(row.address_maps_link ?? "");
         const manualId = row.id as string;
+        const clinicId = String(row.clinic_id ?? "").trim();
+        if (clinicId) manualClinicIdByRowId.set(manualId, clinicId);
+        const specialties = Array.isArray(row.specialties)
+          ? row.specialties.map((s) => String(s ?? "").trim()).filter(Boolean)
+          : [];
+        const specialtyParts =
+          specialties.length > 0
+            ? specialties
+            : [String(row.specialty ?? "").trim()].filter(Boolean);
         return {
           id: manualId,
           slug: String(row.slug ?? "").trim() || null,
           name: String(row.name ?? "Professional"),
           displayName: doctorDashboardDisplayName(String(row.name ?? "Professional")),
-          specialty: String(row.specialty ?? "Specialty not set"),
+          specialty: specialtyParts[0] ?? "Specialty not set",
+          specialties: specialtyParts,
           district: row.district as CyprusDistrict,
           address_maps_link: addressMapsLink,
-          phone: String(row.phone ?? "").trim() || null,
+          hasPhone: Boolean(String(row.phone ?? "").trim()),
           address: String(row.address ?? "").trim() || null,
-          photoUrl: getFinderManualPhotoUrl(addressMapsLink),
-          monthlyRequestCount: monthlyRequestCountByManualId.get(manualId) ?? 0,
+          photoUrl: resolveFinderDisplayPhotoUrl({
+            curatedOrCustomPhotoUrl: getFinderManualPhotoUrl(addressMapsLink),
+            gender: row.gender,
+          }),
+          monthlyRequestCount: 0,
           isGesy: Boolean(row.is_gesy ?? false),
           latitude: parseOptionalCoordinates(row.latitude, row.longitude)?.latitude ?? null,
           longitude: parseOptionalCoordinates(row.latitude, row.longitude)?.longitude ?? null,
+          clinic: null,
+          clinics: [],
         };
       });
     }
@@ -532,16 +665,25 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
     return true;
   });
 
-  const finderSpecialtyOptions = buildFinderSpecialtyOptions(manualRows, registeredRows);
-
   const filteredManual = manualRows.filter((row) => {
     if (
       activeDistrict &&
-      normalizeDistrictTerm(row.district) !== normalizeDistrictTerm(activeDistrict)
+      !professionalMatchesDistrictFilter({
+        district: row.district,
+        clinicDistricts: row.clinics.map((c) => c.district),
+        activeDistrict,
+      }) &&
+      !manualIdsWithClinicInActiveDistrict.has(row.id)
     ) {
       return false;
     }
-    if (activeSpecialty && !matchesSpecialtyFilter(row.specialty, activeSpecialty)) {
+    if (
+      activeSpecialty &&
+      !matchesAnySpecialtyFilter(
+        row.specialties.length > 0 ? row.specialties : [row.specialty],
+        activeSpecialty,
+      )
+    ) {
       return false;
     }
     if (
@@ -554,35 +696,6 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
     return true;
   });
 
-  let testDoctorAvailabilityCalendars = new Map<string, PublicAvailabilityCalendar>();
-  let registeredOnlineBookingsPaused = new Map<string, boolean>();
-  if (supabase) {
-    const registeredDoctorIds = filteredRegistered.map((row) => row.id);
-    if (registeredDoctorIds.length > 0) {
-      registeredOnlineBookingsPaused = await loadOnlineBookingsPausedByDoctorId(
-        supabase,
-        registeredDoctorIds,
-      );
-    }
-
-    const testDoctorIds = filteredRegistered
-      .filter((row) =>
-        isTestProfileLike({
-          name: row.name,
-          slug: row.slug,
-          email: row.email,
-          isTestProfile: row.isTestProfile,
-        }),
-      )
-      .map((row) => row.id);
-    if (testDoctorIds.length > 0) {
-      testDoctorAvailabilityCalendars = await loadAvailabilityCalendarsByDoctorId(
-        supabase,
-        testDoctorIds,
-      );
-    }
-  }
-
   function computeDistanceInfo(
     _district: string | null | undefined,
     latitude: number | null,
@@ -590,7 +703,6 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
   ): { distanceKm: number | null; usedDistrictFallbackForDistance: boolean } {
     return {
       distanceKm: computeFinderDistanceKm(userCoords, latitude, longitude),
-      // Always false: district-centre approximate distances are not allowed.
       usedDistrictFallbackForDistance: false,
     };
   }
@@ -613,14 +725,213 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
       return a.distanceKm - b.distanceKm;
     });
   }
-  const hasRegisteredAvailabilityGrid = filteredRegistered.some((row) => {
-    const calendar = testDoctorAvailabilityCalendars.get(row.id);
-    return Boolean(calendar && calendar.days.length > 0 && row.slug);
+
+  const visibleResults = unifiedResults.slice(0, visibleLimit);
+  const totalResultsCount =
+    (manualDirectoryTotalCount ?? filteredManual.length) + filteredRegistered.length;
+  const hasMoreResults = totalResultsCount > visibleResults.length;
+  const visibleRegistered = visibleResults.filter(
+    (item): item is Extract<UnifiedFinderResult, { kind: "registered" }> => item.kind === "registered",
+  );
+  const visibleManual = visibleResults.filter(
+    (item): item is Extract<UnifiedFinderResult, { kind: "manual" }> => item.kind === "manual",
+  );
+
+  let testDoctorAvailabilityCalendars = new Map<string, PublicAvailabilityCalendar>();
+  let registeredOnlineBookingsPaused = new Map<string, boolean>();
+  if (supabase) {
+    const registeredDoctorIds = visibleRegistered.map((item) => item.row.id);
+    if (registeredDoctorIds.length > 0) {
+      registeredOnlineBookingsPaused = await loadOnlineBookingsPausedByDoctorId(
+        supabase,
+        registeredDoctorIds,
+      );
+    }
+
+    const testDoctorIds = visibleRegistered
+      .filter((item) =>
+        isTestProfileLike({
+          name: item.row.name,
+          slug: item.row.slug,
+          email: item.row.email,
+          isTestProfile: item.row.isTestProfile,
+        }),
+      )
+      .map((item) => item.row.id);
+    if (testDoctorIds.length > 0) {
+      testDoctorAvailabilityCalendars = await loadAvailabilityCalendarsByDoctorId(
+        supabase,
+        testDoctorIds,
+      );
+    }
+
+    const visibleManualIds = visibleManual.map((item) => item.row.id);
+    if (visibleManualIds.length > 0) {
+      const monthlySinceIso = finderManualVoteBadgeSinceIso();
+      const monthlyRequestCountByManualId = new Map<string, number>();
+      const monthlyRequestRes = await fetchAllSupabaseRowsForIdChunks(
+        visibleManualIds,
+        (idChunk) =>
+          supabase
+            .from("directory_manual_patient_booking_requests")
+            .select("id, manual_id, voter_key")
+            .in("manual_id", idChunk)
+            .gte("created_at", monthlySinceIso),
+      );
+
+      if (!monthlyRequestRes.error && monthlyRequestRes.data?.length) {
+        const votersByManual = new Map<string, Set<string>>();
+        for (const r of monthlyRequestRes.data) {
+          const mid = String((r as { manual_id?: string }).manual_id ?? "");
+          const id = String((r as { id?: string }).id ?? "");
+          const vk = (r as { voter_key?: string | null }).voter_key?.trim();
+          const dedupeId = vk || `legacy:${id}`;
+          if (!mid) continue;
+          const cur = votersByManual.get(mid);
+          if (!cur) {
+            votersByManual.set(mid, new Set([dedupeId]));
+          } else {
+            cur.add(dedupeId);
+          }
+        }
+        for (const [mid, voters] of Array.from(votersByManual.entries())) {
+          monthlyRequestCountByManualId.set(mid, voters.size);
+        }
+      }
+
+      const clinicIds = Array.from(
+        new Set(
+          visibleManualIds
+            .map((id) => manualClinicIdByRowId.get(id) ?? "")
+            .filter(Boolean),
+        ),
+      );
+      const clinicById = new Map<
+        string,
+        {
+          name: string;
+          slug: string;
+          address?: string | null;
+          addressMapsLink?: string | null;
+          district?: string | null;
+        }
+      >();
+      if (clinicIds.length > 0) {
+        const clinicsRes = await fetchAllSupabaseRowsForIdChunks(clinicIds, (idChunk) =>
+          supabase
+            .from("clinics")
+            .select("id, name, slug, address, address_maps_link, district")
+            .eq("is_archived", false)
+            .in("id", idChunk),
+        );
+        if (!clinicsRes.error && clinicsRes.data?.length) {
+          for (const c of clinicsRes.data) {
+            const id = String((c as { id?: string }).id ?? "");
+            const name = String((c as { name?: string }).name ?? "").trim();
+            const slug = String((c as { slug?: string }).slug ?? "").trim();
+            if (id && name && slug) {
+              clinicById.set(id, {
+                name,
+                slug,
+                address: String((c as { address?: string | null }).address ?? "").trim() || null,
+                addressMapsLink:
+                  String((c as { address_maps_link?: string | null }).address_maps_link ?? "").trim() ||
+                  null,
+                district:
+                  String((c as { district?: string | null }).district ?? "").trim() || null,
+              });
+            }
+          }
+        }
+      }
+
+      const clinicsByManualId = new Map<
+        string,
+        Array<{
+          name: string;
+          slug: string;
+          address?: string | null;
+          addressMapsLink?: string | null;
+          district?: string | null;
+        }>
+      >();
+      if (visibleManualIds.length > 0) {
+        const linksRes = await fetchAllSupabaseRowsForIdChunks(visibleManualIds, (idChunk) =>
+          supabase
+            .from("directory_manual_clinics")
+            .select(
+              "directory_manual_id, is_primary, clinics ( id, name, slug, address, address_maps_link, district, is_archived )",
+            )
+            .in("directory_manual_id", idChunk),
+        );
+        if (!linksRes.error && linksRes.data?.length) {
+          const sorted = [...linksRes.data].sort((a, b) => {
+            const ap = Boolean((a as { is_primary?: boolean }).is_primary);
+            const bp = Boolean((b as { is_primary?: boolean }).is_primary);
+            if (ap === bp) return 0;
+            return ap ? -1 : 1;
+          });
+          for (const link of sorted) {
+            const manualId = String(
+              (link as { directory_manual_id?: string }).directory_manual_id ?? "",
+            );
+            const clinic = (
+              link as {
+                clinics?: {
+                  id?: string;
+                  name?: string;
+                  slug?: string;
+                  address?: string | null;
+                  address_maps_link?: string | null;
+                  district?: string | null;
+                  is_archived?: boolean;
+                } | null;
+              }
+            ).clinics;
+            if (!manualId || !clinic || clinic.is_archived) continue;
+            const name = String(clinic.name ?? "").trim();
+            const slug = String(clinic.slug ?? "").trim();
+            if (!name || !slug) continue;
+            const entry = {
+              name,
+              slug,
+              address: String(clinic.address ?? "").trim() || null,
+              addressMapsLink: String(clinic.address_maps_link ?? "").trim() || null,
+              district: String(clinic.district ?? "").trim() || null,
+            };
+            const list = clinicsByManualId.get(manualId) ?? [];
+            if (!list.some((c) => c.slug === entry.slug)) {
+              list.push(entry);
+              clinicsByManualId.set(manualId, list);
+            }
+          }
+        }
+      }
+
+      for (const item of visibleManual) {
+        item.row.monthlyRequestCount = monthlyRequestCountByManualId.get(item.row.id) ?? 0;
+        const clinics = clinicsByManualId.get(item.row.id) ?? [];
+        if (clinics.length > 0) {
+          item.row.clinics = clinics;
+          item.row.clinic = clinics[0] ?? null;
+        } else {
+          const clinicId = manualClinicIdByRowId.get(item.row.id);
+          const primary = clinicId ? clinicById.get(clinicId) ?? null : null;
+          item.row.clinic = primary;
+          item.row.clinics = primary ? [primary] : [];
+        }
+      }
+    }
+  }
+
+  const hasRegisteredAvailabilityGrid = visibleRegistered.some((item) => {
+    const calendar = testDoctorAvailabilityCalendars.get(item.row.id);
+    return Boolean(calendar && calendar.days.length > 0 && item.row.slug);
   });
   const showFinderAvailabilityWeekNav =
-    hasRegisteredAvailabilityGrid || filteredManual.length > 0;
+    hasRegisteredAvailabilityGrid || visibleManual.length > 0;
   const stickyWeekAnchorDoctorId = showFinderAvailabilityWeekNav
-    ? unifiedResults.find((item) => {
+    ? visibleResults.find((item) => {
         if (item.kind === "registered") {
           const calendar = testDoctorAvailabilityCalendars.get(item.row.id);
           return Boolean(calendar && calendar.days.length > 0 && item.row.slug);
@@ -632,22 +943,27 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
   const hasActiveFilters = Boolean(activeDistrict || activeSpecialty || activeName);
   const specialtyLabel = activeSpecialty ? toTitleCaseWords(activeSpecialty) : "Health Professionals";
   const districtLabel = activeDistrict ? toTitleCaseWords(activeDistrict) : "Cyprus";
-  const hasSpecificFilters = Boolean(activeDistrict && activeSpecialty);
-  const finderH1 = hasSpecificFilters
-    ? `${specialtyLabel} in ${districtLabel}`
-    : "Find your next health professional in Cyprus";
-  const finderSnippet = hasSpecificFilters
-    ? `Find English-speaking ${specialtyLabel} in ${districtLabel}. Compare profiles and book online with confidence.`
-    : null;
-  const finderPath =
-    activeDistrict && activeSpecialty
-      ? `/finder/${districtToSlug(activeDistrict as CyprusDistrict)}/${specialtyToSlug(
-          activeSpecialty
-        )}`
-      : activeDistrict
-        ? `/finder/${districtToSlug(activeDistrict as CyprusDistrict)}`
-        : "/finder";
-  const schemaEntries = unifiedResults.map((item) => {
+  const hasSpecificFilters = Boolean(activeDistrict || activeSpecialty);
+  const finderH1 = buildFinderResultsHeading({
+    specialtyLabel: activeSpecialty ? specialtyLabel : null,
+    districtLabel: activeDistrict ? districtLabel : null,
+  });
+  const finderSnippet = buildFinderResultsSnippet({
+    specialtyLabel: activeSpecialty ? specialtyLabel : null,
+    districtLabel: activeDistrict ? districtLabel : null,
+  });
+  const finderPath = finderResultsPath(
+    activeDistrict || null,
+    activeSpecialty || null,
+  );
+  const loadMoreHref = buildFinderResultsPageHref({
+    finderPath,
+    name: activeName || undefined,
+    lat: searchParams?.lat ?? null,
+    lon: searchParams?.lon ?? null,
+    page: resultsPage + 1,
+  });
+  const schemaEntries = visibleResults.map((item) => {
     if (item.kind === "registered") {
       const row = item.row;
       const profileUrl = row.slug ? `${siteUrl}/${row.slug}` : null;
@@ -681,11 +997,11 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
       />
       <header className="px-4 pt-8 pb-8 sm:px-6 sm:pb-0 lg:px-8">
         <PendingLink href="/" className="inline-flex transition hover:opacity-90">
-          <DocCyWordmark variant="light" />
+          <DocCyWordmark variant="light" size="xl" />
         </PendingLink>
       </header>
 
-      <div className="mx-auto max-w-6xl px-4 pb-8 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <FinderHeroSection
           title={finderH1}
           showHeroImage={!hasSpecificFilters}
@@ -704,28 +1020,38 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
               </>
             )
           }
-        >
-          <section className="relative overflow-hidden rounded-3xl border border-clinical-200 bg-white p-5 shadow-[0_1px_3px_rgba(26,43,60,0.06),0_8px_28px_rgba(11,123,181,0.08)] sm:p-6 lg:p-8">
-            <FinderFilters
-              districts={districts}
-              activeDistrict={activeDistrict}
-              activeSpecialty={activeSpecialty}
-              activeName={activeName}
-              activeLatitude={userCoords?.latitude ?? null}
-              activeLongitude={userCoords?.longitude ?? null}
-              specialtyOptions={finderSpecialtyOptions}
-            />
-            <FinderResultsCount
-              count={unifiedResults.length}
-              hasActiveFilters={hasActiveFilters}
-              districtLabel={activeDistrict ? districtLabel : undefined}
-              specialtyLabel={activeSpecialty ? specialtyLabel : undefined}
-              activeName={activeName || undefined}
-              variant="footer"
-            />
-          </section>
-        </FinderHeroSection>
+        />
+      </div>
 
+      <FinderSearchBar
+        className={
+          hasSpecificFilters
+            ? "mt-1"
+            : "relative z-20 mt-2 sm:-mt-10 lg:-mt-16"
+        }
+      >
+        <FinderAudienceToggle active="professionals" variant="bar" className="mb-5" />
+        <FinderFilters
+          districts={districts}
+          activeDistrict={activeDistrict}
+          activeSpecialty={activeSpecialty}
+          activeName={activeName}
+          activeLatitude={userCoords?.latitude ?? null}
+          activeLongitude={userCoords?.longitude ?? null}
+          specialtyOptions={finderSpecialtyOptions}
+        />
+        <FinderResultsCount
+          count={totalResultsCount}
+          hasActiveFilters={hasActiveFilters}
+          districtLabel={activeDistrict ? districtLabel : undefined}
+          specialtyLabel={activeSpecialty ? specialtyLabel : undefined}
+          activeName={activeName || undefined}
+          variant="bar"
+        />
+      </FinderSearchBar>
+
+      <div className="mx-auto max-w-7xl px-4 pb-8 sm:px-6 lg:px-8">
+        <FinderRecentlyViewed kind="professional" />
         <FinderResultsTransition>
           {dataWarning ? (
             <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
@@ -736,7 +1062,7 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
           <section className="mt-6">
             <FinderResultsAvailabilityShell dayHeaders={finderAvailabilityDayHeaders}>
               <div className="flex flex-col gap-4">
-                {unifiedResults.map((item) => {
+                {visibleResults.map((item) => {
                 if (item.kind === "registered") {
                   const row = item.row;
                   const availabilityCalendar = testDoctorAvailabilityCalendars.get(row.id);
@@ -752,7 +1078,7 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                   return (
                     <article
                       key={`registered-${row.id}`}
-                      className={`rounded-2xl border border-clinical-200 bg-white p-4 shadow-[0_1px_3px_rgba(26,43,60,0.06),0_4px_16px_rgba(11,123,181,0.05)] sm:p-5 ${finderRegisteredCardRowClass}`}
+                      className={`${finderResultCardClass} ${finderRegisteredCardRowClass}`}
                     >
                       <div
                         className={`flex min-w-0 shrink-0 items-start gap-3 ${finderRegisteredIdentityColumnClass}`}
@@ -762,14 +1088,15 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                             href={`/${row.slug}`}
                             navigationReason="profile"
                             fill
+                            prefetch={false}
                             aria-label={`View ${row.displayName} booking page`}
-                            className="group h-[72px] w-[72px] shrink-0 overflow-hidden rounded-full border border-clinical-200 bg-clinical-50 ring-2 ring-clinical-100 transition hover:border-clinical-300 hover:ring-clinical-200"
+                            className="group h-[72px] w-[72px] shrink-0 overflow-hidden rounded-full border border-clinical-200 bg-clinical-50 ring-2 ring-clinical-100 transition-none hover:border-clinical-300 hover:ring-clinical-200"
                           >
                             {row.avatarUrl ? (
                               <img
                                 src={row.avatarUrl}
                                 alt=""
-                                className="h-full w-full object-cover transition group-hover:scale-[1.02]"
+                                className="h-full w-full object-cover"
                                 loading="lazy"
                               />
                             ) : (
@@ -799,7 +1126,8 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                             <PendingLink
                               href={`/${row.slug}`}
                               navigationReason="profile"
-                              className="text-left text-[17px] font-bold leading-[1.2] tracking-tight text-ink-900 transition hover:text-clinical-600"
+                              prefetch={false}
+                              className="text-left text-[17px] font-bold leading-[1.2] tracking-tight text-ink-900 transition-none hover:text-clinical-600"
                             >
                               {row.displayName}
                             </PendingLink>
@@ -808,14 +1136,14 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                               {row.displayName}
                             </p>
                           )}
-                          <span className="-ml-2 inline-flex max-w-full items-center self-start rounded-full border border-ink-200 bg-ink-50 px-2.5 py-1 text-left text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-600">
-                            <span className="whitespace-normal break-words leading-snug">
-                              {row.specialty ?? "Specialty not set"}
-                            </span>
-                          </span>
+                          <FinderSpecialtyPills
+                            specialties={[]}
+                            specialty={row.specialty ?? "Specialty not set"}
+                            className="-ml-2"
+                          />
                           {row.isGesy ? (
                             <div className="self-start">
-                              <GesyProviderBadge size="sm" />
+                              <GesyProviderBadge size="xs" language="en" />
                             </div>
                           ) : null}
                           {item.distanceKm !== null ? (
@@ -856,9 +1184,6 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                               )}
                             </div>
                             <div>
-                              <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-ink-400">
-                                Location
-                              </p>
                               <p className="text-xs leading-relaxed text-ink-600 whitespace-pre-wrap break-words">
                                 {row.clinic_address?.trim()
                                   ? row.clinic_address.trim()
@@ -892,7 +1217,7 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                 return (
                   <article
                     key={`manual-${row.id}`}
-                    className="flex flex-col gap-4 rounded-2xl border border-ink-200 bg-white p-4 shadow-sm sm:p-5"
+                    className={`flex flex-col gap-4 ${finderResultCardClass}`}
                   >
                     <div className={finderRegisteredCardRowClass}>
                       <div
@@ -903,46 +1228,25 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                           href={manualLandingHref}
                           navigationReason="profile"
                           fill
+                          prefetch={false}
                           aria-label={`View ${row.displayName} directory profile`}
-                          className={`group h-[72px] w-[72px] shrink-0 overflow-hidden rounded-full border bg-ink-50 ring-2 transition hover:border-clinical-300 hover:ring-clinical-200 ${
-                            row.photoUrl
-                              ? "border-clinical-200 ring-clinical-100"
-                              : "border-ink-200 ring-ink-100"
-                          }`}
+                        className={`group h-[72px] w-[72px] shrink-0 overflow-hidden rounded-full border bg-ink-50 ring-2 transition-none hover:border-clinical-300 hover:ring-clinical-200 border-clinical-200 ring-clinical-100`}
                         >
-                          {row.photoUrl ? (
-                            <img
-                              src={row.photoUrl}
-                              alt=""
-                              className="h-full w-full object-cover transition group-hover:scale-[1.02]"
-                              loading="lazy"
-                            />
-                          ) : (
-                            <div className="flex h-full w-full items-center justify-center text-sm font-semibold text-ink-600">
-                              {getInitials(row.displayName)}
-                            </div>
-                          )}
+                          <img
+                            src={row.photoUrl}
+                            alt=""
+                            className="h-full w-full object-cover"
+                            loading="lazy"
+                          />
                         </PendingLink>
                       ) : (
-                        <div
-                          className={`h-[72px] w-[72px] shrink-0 overflow-hidden rounded-full border bg-ink-50 ring-2 ${
-                            row.photoUrl
-                              ? "border-clinical-200 ring-clinical-100"
-                              : "border-ink-200 ring-ink-100"
-                          }`}
-                        >
-                          {row.photoUrl ? (
-                            <img
-                              src={row.photoUrl}
-                              alt={`${row.displayName} profile photo`}
-                              className="h-full w-full object-cover"
-                              loading="lazy"
-                            />
-                          ) : (
-                            <div className="flex h-full w-full items-center justify-center text-sm font-semibold text-ink-600">
-                              {getInitials(row.displayName)}
-                            </div>
-                          )}
+                        <div className="h-[72px] w-[72px] shrink-0 overflow-hidden rounded-full border border-clinical-200 bg-ink-50 ring-2 ring-clinical-100">
+                          <img
+                            src={row.photoUrl}
+                            alt={`${row.displayName} profile photo`}
+                            className="h-full w-full object-cover"
+                            loading="lazy"
+                          />
                         </div>
                       )}
                       <div className="min-w-0 flex-1 flex flex-col items-stretch gap-2 text-left">
@@ -950,7 +1254,8 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                           <PendingLink
                             href={manualLandingHref}
                             navigationReason="profile"
-                            className="text-left text-[17px] font-bold leading-[1.2] tracking-tight text-ink-900 transition hover:text-clinical-600"
+                            prefetch={false}
+                            className="text-left text-[17px] font-bold leading-[1.2] tracking-tight text-ink-900 transition-none hover:text-clinical-600"
                           >
                             {row.displayName}
                           </PendingLink>
@@ -959,14 +1264,15 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                             {row.displayName}
                           </p>
                         )}
-                        <span className="-ml-2 inline-flex max-w-full items-center self-start rounded-full border border-ink-200 bg-ink-50 px-2.5 py-1 text-left text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-600">
-                          <span className="whitespace-normal break-words leading-snug">
-                            {row.specialty}
-                          </span>
-                        </span>
+                        <FinderSpecialtyPills
+                          specialties={row.specialties}
+                          specialty={row.specialty}
+                          district={row.district}
+                          className="-ml-2"
+                        />
                         {row.isGesy ? (
                           <div className="self-start">
-                            <GesyProviderBadge size="sm" />
+                            <GesyProviderBadge size="xs" language="en" />
                           </div>
                         ) : null}
                         {item.distanceKm !== null ? (
@@ -980,19 +1286,14 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                     <div className={finderRegisteredDetailsSectionClass}>
                       <div className={finderRegisteredCardDetailsGridClass}>
                         <div className="space-y-4">
-                          <div>
-                            <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-ink-400">
-                              Location
-                            </p>
-                            <p className="mb-1.5 text-xs font-medium text-ink-500">{row.district}</p>
-                            <p className="mt-2.5">
-                              <ManualDirectoryReportIncorrectInfoLink
-                                displayName={row.displayName}
-                                specialty={row.specialty}
-                                district={row.district}
-                              />
-                            </p>
-                          </div>
+                          <FinderClinicLocationBlock
+                            district={row.district}
+                            address={row.address}
+                            addressMapsLink={row.address_maps_link}
+                            clinic={row.clinic}
+                            clinics={row.clinics}
+                            variant="full"
+                          />
                         </div>
                         <div className="min-w-0 flex flex-col gap-2">
                           <ManualDirectoryMonthlyRequestBadge
@@ -1002,7 +1303,7 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                             manualId={row.id}
                             doctorName={row.displayName}
                             addressMapsLink={row.address_maps_link}
-                            phone={row.phone}
+                            hasPhone={row.hasPhone}
                             addressText={row.address}
                             anchorStickyWeekNav={row.id === stickyWeekAnchorDoctorId}
                           />
@@ -1011,8 +1312,16 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                     </div>
                     </div>
 
-                    <div className={finderCardManualFooterClass}>
+                    <div
+                      className={`${finderCardManualFooterClass} flex flex-wrap items-end justify-between gap-x-4 gap-y-2`}
+                    >
                       <ManualDirectoryDoctorClaimFooter />
+                      <ManualDirectoryReportIncorrectInfoLink
+                        displayName={row.displayName}
+                        specialty={row.specialty}
+                        district={row.district}
+                        className="ml-auto shrink-0 text-right"
+                      />
                     </div>
                   </article>
                 );
@@ -1025,6 +1334,16 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                   activeDistrict={activeDistrict}
                   activeSearchName={activeName}
                 />
+              ) : null}
+              {hasMoreResults ? (
+                <div className="flex justify-center pt-2">
+                  <PendingLink
+                    href={loadMoreHref}
+                    className={finderSoftButtonClass}
+                  >
+                    Show more professionals
+                  </PendingLink>
+                </div>
               ) : null}
               </div>
             </FinderResultsAvailabilityShell>
@@ -1051,8 +1370,8 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                           {SEO_SPECIALTIES.map((specialty) => (
                             <li key={`${city}-${specialty.label}-mobile`}>
                               <a
-                                href={`/finder/${districtToSlug(city)}/${specialtyToSlug(specialty.label)}`}
-                                className="text-sm text-ink-700 underline underline-offset-4 transition hover:text-clinical-600"
+                                href={finderResultsPath(city, specialty.label)}
+                                className={finderBrowseRowClass}
                               >
                                 {specialty.pluralLabel} in {city}
                               </a>
@@ -1074,8 +1393,8 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                         {SEO_SPECIALTIES.map((specialty) => (
                           <li key={`${city}-${specialty.label}-desktop`}>
                             <a
-                              href={`/finder/${districtToSlug(city)}/${specialtyToSlug(specialty.label)}`}
-                              className="text-xs text-ink-600 underline underline-offset-4 transition hover:text-clinical-600"
+                              href={finderResultsPath(city, specialty.label)}
+                              className={finderBrowseRowCompactClass}
                             >
                               {specialty.pluralLabel} in {city}
                             </a>
@@ -1091,22 +1410,30 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                 <p className="text-xs text-ink-500">
                   Are you a healthcare professional?{" "}
                   <PendingLink
-                    href="/#founders-pricing"
+                    href={`${FOR_PROFESSIONALS_PATH}#founders-pricing`}
                     className="font-semibold text-clinical-600 underline underline-offset-4 transition hover:text-clinical-500"
                   >
                     List your practice
                   </PendingLink>
                   .
                 </p>
-                <a
-                  href="https://www.instagram.com/doccy_cyprus?igsh=MW94Zjg1czZ6OXNzaw=="
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="mt-3 inline-flex h-9 w-9 items-center justify-center rounded-full border border-ink-200 bg-white text-ink-500 transition hover:border-clinical-300 hover:text-clinical-600"
-                  aria-label="Follow DocCy on Instagram"
-                >
-                  <Instagram className="h-4 w-4" aria-hidden />
-                </a>
+                <div className="mt-3 flex flex-wrap items-center gap-3">
+                  <PendingLink
+                    href="/terms"
+                    className="text-xs font-semibold text-ink-500 underline underline-offset-4 transition hover:text-clinical-600"
+                  >
+                    Terms of Use
+                  </PendingLink>
+                  <a
+                    href="https://www.instagram.com/doccy_cyprus?igsh=MW94Zjg1czZ6OXNzaw=="
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-ink-200 bg-white text-ink-500 transition hover:border-clinical-300 hover:text-clinical-600"
+                    aria-label="Follow DocCy on Instagram"
+                  >
+                    <Instagram className="h-4 w-4" aria-hidden />
+                  </a>
+                </div>
               </section>
             </div>
           </footer>

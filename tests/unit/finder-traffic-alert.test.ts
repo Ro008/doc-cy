@@ -12,10 +12,12 @@ import {
 
 describe("finder traffic alert thresholds", () => {
   it("matches finder paths", () => {
-    assert.equal(isFinderTrafficPath("/finder"), true);
+    assert.equal(isFinderTrafficPath("/"), true);
+    assert.equal(isFinderTrafficPath("/paphos/dermatology"), true);
     assert.equal(isFinderTrafficPath("/finder/paphos/dermatology"), true);
     assert.equal(isFinderTrafficPath("/finder/professional/maria-pap"), true);
     assert.equal(isFinderTrafficPath("/agenda"), false);
+    assert.equal(isFinderTrafficPath("/for-professionals"), false);
   });
 
   it("computes baseline average", () => {
@@ -80,7 +82,7 @@ describe("buildFinderTrafficAlertEmail", () => {
       multiplier: 4.2,
       topPages: [
         { path: "/finder", count: 120 },
-        { path: "/finder/paphos/dermatology", count: 85 },
+        { path: "/paphos/dermatology", count: 85 },
       ],
       topCountries: [
         { country: "CY", count: 180 },

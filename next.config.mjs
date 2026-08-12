@@ -29,6 +29,21 @@ const nextConfig = {
   images: {
     remotePatterns,
   },
+  async headers() {
+    return [
+      {
+        // Notice on DocCy API responses: reinforce Terms §5 (no scraping / noindex).
+        // `noscrape` is a custom machine-readable signal (not a Google robots directive).
+        source: "/api/:path*",
+        headers: [
+          {
+            key: "X-Robots-Tag",
+            value: "noindex, nofollow, noscrape",
+          },
+        ],
+      },
+    ];
+  },
   async redirects() {
     return [
       {
@@ -39,6 +54,22 @@ const nextConfig = {
       {
         source: "/blog/sick-at-10pm-duty-pharmacies-paphos-limassol",
         destination: "/blog/sick-at-10pm-duty-pharmacies-paphos",
+        permanent: true,
+      },
+      // Patient finder is now the homepage.
+      {
+        source: "/finder",
+        destination: "/",
+        permanent: true,
+      },
+      {
+        source: "/finder/:district(nicosia|limassol|paphos|larnaca|famagusta|all)",
+        destination: "/:district",
+        permanent: true,
+      },
+      {
+        source: "/finder/:district(nicosia|limassol|paphos|larnaca|famagusta|all)/:specialty*",
+        destination: "/:district/:specialty*",
         permanent: true,
       },
     ];

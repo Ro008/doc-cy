@@ -84,7 +84,7 @@ test.describe("Landing i18n", { tag: "@pr-e2e" }, () => {
     await expectNoRawIntlKeys(page);
 
     await page.getByRole("link", { name: /^EN$/ }).click();
-    await expect(page).toHaveURL(/\/en$/);
+    await expect(page).toHaveURL(/\/for-professionals\/?$/);
     await expect(
       page.getByRole("heading", {
         level: 1,

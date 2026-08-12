@@ -59,8 +59,8 @@ export function WebsiteAnalyticsPanel({
           </p>
         </div>
 
-        <div className="rounded-xl border border-sky-500/35 bg-sky-950/20 p-4">
-          <p className="text-[11px] uppercase tracking-[0.18em] text-sky-300/90">
+        <div className="rounded-xl border border-clinical-500/35 bg-ink-900/20 p-4">
+          <p className="text-[11px] uppercase tracking-[0.18em] text-clinical-300/90">
             Doctor profile QR scans
           </p>
           <p className="mt-2 text-xs leading-relaxed text-slate-500">
@@ -95,7 +95,7 @@ export function WebsiteAnalyticsPanel({
                     </p>
                     <p className="truncate text-[11px] text-slate-500">/{row.doctorSlug}</p>
                   </div>
-                  <p className="ml-3 text-sm font-semibold text-sky-200">{row.scans}</p>
+                  <p className="ml-3 text-sm font-semibold text-clinical-200">{row.scans}</p>
                 </div>
               ))
             )}
