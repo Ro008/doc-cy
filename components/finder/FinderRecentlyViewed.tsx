@@ -25,21 +25,40 @@ function photoFor(item: RecentlyViewedItem): string {
   return item.kind === "clinic" ? FINDER_DEFAULT_AVATAR_CLINIC : FINDER_DEFAULT_AVATAR_UNKNOWN;
 }
 
-export function FinderRecentlyViewed({ kind, className }: FinderRecentlyViewedProps) {
-  const [items, setItems] = useState<RecentlyViewedItem[]>([]);
+/** Same footprint as the real strip so results do not jump on hydrate. */
+function RecentlyViewedSpaceReserve() {
+  return (
+    <div aria-hidden className="invisible pointer-events-none select-none">
+      <div className="h-5 w-32" />
+      <ul className="mt-3 flex gap-3 overflow-hidden pb-1">
+        <li className="w-[220px] shrink-0 sm:w-[240px]">
+          <div className={`${finderRecentlyViewedCardClass} flex w-full items-center gap-3`}>
+            <div className="h-12 w-12 shrink-0 rounded-full" />
+            <div className="min-w-0 flex-1 space-y-2">
+              <div className="h-3.5 w-28" />
+              <div className="h-3 w-20" />
+            </div>
+          </div>
+        </li>
+      </ul>
+    </div>
+  );
+}
+
+function RecentlyViewedList({ items }: { items: RecentlyViewedItem[] }) {
+  const [revealed, setRevealed] = useState(false);
 
   useEffect(() => {
-    const rows = readRecentlyViewed();
-    setItems(kind ? rows.filter((row) => row.kind === kind) : rows);
-  }, [kind]);
-
-  if (items.length === 0) return null;
+    const id = window.requestAnimationFrame(() => setRevealed(true));
+    return () => window.cancelAnimationFrame(id);
+  }, []);
 
   return (
-    <section
-      className={["mt-6", className].filter(Boolean).join(" ")}
-      aria-label="Recently viewed"
-      data-testid="finder-recently-viewed"
+    <div
+      className={[
+        "motion-safe:transition-opacity motion-safe:duration-200 motion-safe:ease-out",
+        revealed ? "opacity-100" : "opacity-0",
+      ].join(" ")}
     >
       <h2 className="text-sm font-semibold tracking-tight text-ink-800">Recently viewed</h2>
       <ul className="mt-3 flex gap-3 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -80,6 +99,55 @@ export function FinderRecentlyViewed({ kind, className }: FinderRecentlyViewedPr
           );
         })}
       </ul>
+    </div>
+  );
+}
+
+export function FinderRecentlyViewed({ kind, className }: FinderRecentlyViewedProps) {
+  const [items, setItems] = useState<RecentlyViewedItem[] | null>(null);
+  const [shellMounted, setShellMounted] = useState(true);
+
+  useEffect(() => {
+    const rows = readRecentlyViewed();
+    setItems(kind ? rows.filter((row) => row.kind === kind) : rows);
+  }, [kind]);
+
+  const pending = items === null;
+  const hasItems = Boolean(items && items.length > 0);
+  const open = pending || hasItems;
+
+  useEffect(() => {
+    if (open) {
+      setShellMounted(true);
+      return;
+    }
+    const timeoutId = window.setTimeout(() => setShellMounted(false), 220);
+    return () => window.clearTimeout(timeoutId);
+  }, [open]);
+
+  if (!shellMounted && !open) return null;
+
+  return (
+    <section
+      className={[
+        "grid motion-safe:transition-[grid-template-rows,margin] motion-safe:duration-200 motion-safe:ease-out",
+        open ? "mt-6 grid-rows-[1fr]" : "mt-0 grid-rows-[0fr]",
+        className,
+      ]
+        .filter(Boolean)
+        .join(" ")}
+      aria-label={hasItems ? "Recently viewed" : undefined}
+      aria-hidden={pending || !hasItems ? true : undefined}
+      data-testid="finder-recently-viewed"
+      data-ready={pending ? "false" : "true"}
+    >
+      <div className="min-h-0 overflow-hidden">
+        {pending ? (
+          <RecentlyViewedSpaceReserve />
+        ) : hasItems && items ? (
+          <RecentlyViewedList items={items} />
+        ) : null}
+      </div>
     </section>
   );
 }

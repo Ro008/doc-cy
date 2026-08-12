@@ -83,7 +83,7 @@ import {
 import { DOCCY_EXTRA_REGISTRATION_SPECIALTIES } from "@/lib/cyprus-specialties";
 import { GESY_MANUAL_SPECIALTIES } from "@/lib/gesy-specialties";
 import { manualDirectoryLandingPath } from "@/lib/manual-directory-landing-path";
-import { isRegisteredDoctorHiddenFromFinder, isTestProfileLike } from "@/lib/doctor-test-profile";
+import { isRegisteredDoctorHiddenFromFinder } from "@/lib/doctor-test-profile";
 import {
   loadAvailabilityCalendarsByDoctorId,
   loadOnlineBookingsPausedByDoctorId,
@@ -737,7 +737,7 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
     (item): item is Extract<UnifiedFinderResult, { kind: "manual" }> => item.kind === "manual",
   );
 
-  let testDoctorAvailabilityCalendars = new Map<string, PublicAvailabilityCalendar>();
+  let registeredAvailabilityCalendars = new Map<string, PublicAvailabilityCalendar>();
   let registeredOnlineBookingsPaused = new Map<string, boolean>();
   if (supabase) {
     const registeredDoctorIds = visibleRegistered.map((item) => item.row.id);
@@ -748,20 +748,14 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
       );
     }
 
-    const testDoctorIds = visibleRegistered
-      .filter((item) =>
-        isTestProfileLike({
-          name: item.row.name,
-          slug: item.row.slug,
-          email: item.row.email,
-          isTestProfile: item.row.isTestProfile,
-        }),
-      )
+    // Real slots for registered cards; skip paused (paused notice UI instead).
+    const availabilityDoctorIds = visibleRegistered
+      .filter((item) => !(registeredOnlineBookingsPaused.get(item.row.id) ?? false))
       .map((item) => item.row.id);
-    if (testDoctorIds.length > 0) {
-      testDoctorAvailabilityCalendars = await loadAvailabilityCalendarsByDoctorId(
+    if (availabilityDoctorIds.length > 0) {
+      registeredAvailabilityCalendars = await loadAvailabilityCalendarsByDoctorId(
         supabase,
-        testDoctorIds,
+        availabilityDoctorIds,
       );
     }
 
@@ -925,7 +919,7 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
   }
 
   const hasRegisteredAvailabilityGrid = visibleRegistered.some((item) => {
-    const calendar = testDoctorAvailabilityCalendars.get(item.row.id);
+    const calendar = registeredAvailabilityCalendars.get(item.row.id);
     return Boolean(calendar && calendar.days.length > 0 && item.row.slug);
   });
   const showFinderAvailabilityWeekNav =
@@ -933,7 +927,7 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
   const stickyWeekAnchorDoctorId = showFinderAvailabilityWeekNav
     ? visibleResults.find((item) => {
         if (item.kind === "registered") {
-          const calendar = testDoctorAvailabilityCalendars.get(item.row.id);
+          const calendar = registeredAvailabilityCalendars.get(item.row.id);
           return Boolean(calendar && calendar.days.length > 0 && item.row.slug);
         }
         return true;
@@ -1065,7 +1059,7 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                 {visibleResults.map((item) => {
                 if (item.kind === "registered") {
                   const row = item.row;
-                  const availabilityCalendar = testDoctorAvailabilityCalendars.get(row.id);
+                  const availabilityCalendar = registeredAvailabilityCalendars.get(row.id);
                   const onlineBookingsPaused =
                     registeredOnlineBookingsPaused.get(row.id) ?? false;
                   const showAvailabilityGrid = Boolean(

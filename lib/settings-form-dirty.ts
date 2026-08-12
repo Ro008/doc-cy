@@ -4,6 +4,7 @@ import type { ClinicLocation } from "@/lib/clinic-location";
 export type SettingsDirtySnapshot = {
   specialty: string;
   specialtyFromMaster: boolean;
+  bio: string;
   languages: string[];
   whatsappNumber: string;
   showPhonePublic: boolean;
@@ -27,6 +28,7 @@ export type SettingsDirtySnapshot = {
 export function buildSettingsDirtySnapshot(input: {
   specialty: string;
   specialtyFromMaster: boolean;
+  bio: string;
   languages: string[];
   whatsappNumber: string;
   showPhonePublic: boolean;
@@ -46,6 +48,7 @@ export function buildSettingsDirtySnapshot(input: {
   return {
     specialty: input.specialty.trim(),
     specialtyFromMaster: input.specialtyFromMaster,
+    bio: input.bio.trim(),
     languages: [...input.languages].map((l) => l.trim()).filter(Boolean).sort(),
     whatsappNumber: input.whatsappNumber.trim(),
     showPhonePublic: input.showPhonePublic,

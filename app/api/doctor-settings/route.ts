@@ -104,6 +104,8 @@ export async function POST(req: NextRequest) {
     specialty?: string;
     /** true when chosen from master list (JSON boolean) */
     specialtyFromMaster?: boolean | string | number;
+    /** Public profile “About” text (doctors.bio). */
+    bio?: string | null;
     languages?: unknown;
     monday?: boolean;
     tuesday?: boolean;
@@ -162,6 +164,15 @@ export async function POST(req: NextRequest) {
   );
   if (specResult.ok === false) {
     return NextResponse.json({ message: specResult.message }, { status: 400 });
+  }
+
+  const BIO_MAX_CHARS = 1000;
+  const bioRaw = typeof b.bio === "string" ? b.bio.trim() : "";
+  if (b.bio !== undefined && bioRaw.length > BIO_MAX_CHARS) {
+    return NextResponse.json(
+      { message: `Bio must be ${BIO_MAX_CHARS} characters or fewer.` },
+      { status: 400 },
+    );
   }
 
   const langsParsed = validateLanguageSelection(b.languages);
@@ -347,6 +358,7 @@ export async function POST(req: NextRequest) {
 
   const phoneUpdateBase: {
     phone?: string | null;
+    bio?: string | null;
     district: string;
     clinic_address: string | null;
     latitude?: number | null;
@@ -369,6 +381,9 @@ export async function POST(req: NextRequest) {
   };
   if (b.doctorPhone !== undefined) {
     phoneUpdateBase.phone = doctorPhoneTrimmed ? doctorPhoneTrimmed : null;
+  }
+  if (b.bio !== undefined) {
+    phoneUpdateBase.bio = bioRaw.length > 0 ? bioRaw : null;
   }
 
   let docErr = (

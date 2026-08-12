@@ -44,9 +44,20 @@ export type DoctorSettingsRow = {
 };
 
 export const BOOKING_HORIZON_OPTIONS_DAYS = [14, 30, 90, 180] as const;
-export const MIN_NOTICE_OPTIONS_HOURS = [1, 2, 12, 24] as const;
+/** Allowed minimum-notice values (hours). Keep in sync with DB CHECK constraint. */
+export const MIN_NOTICE_OPTIONS_HOURS = [1, 2, 4, 12, 24, 48, 72, 168] as const;
+export type MinNoticeHours = (typeof MIN_NOTICE_OPTIONS_HOURS)[number];
 export const DEFAULT_BOOKING_HORIZON_DAYS = 90;
 export const DEFAULT_MIN_NOTICE_HOURS = 2;
+
+export function isMinNoticeHours(value: number): value is MinNoticeHours {
+  return (MIN_NOTICE_OPTIONS_HOURS as readonly number[]).includes(value);
+}
+
+export function normalizeMinimumNoticeHours(value: number | null | undefined): number {
+  const n = Number(value);
+  return isMinNoticeHours(n) ? n : DEFAULT_MIN_NOTICE_HOURS;
+}
 
 export type WeeklySlotFromSettings = {
   id: string;

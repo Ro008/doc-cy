@@ -20,6 +20,7 @@ import {
   type DoctorSettingsRow,
 } from "@/lib/doctor-settings";
 import { appointmentToCyprusDate, CY_TZ } from "@/lib/appointments";
+import { parseBookingSlotParam } from "@/lib/booking-slot-param";
 import { addDays, format } from "date-fns";
 import { utcToZonedTime, zonedTimeToUtc } from "date-fns-tz";
 import { CLINIC_ADDRESS, buildMapsUrlFromAddress } from "@/lib/clinic-info";
@@ -73,6 +74,7 @@ type DoctorProfileRow = {
 
 export type PageProps = {
   params: { slug: string };
+  searchParams?: { slot?: string | string[] };
 };
 
 function isOptionalProfileColumnError(msg: string): boolean {
@@ -488,7 +490,7 @@ export async function generateMetadata({
   };
 }
 
-export default async function DoctorPage({ params }: PageProps) {
+export default async function DoctorPage({ params, searchParams }: PageProps) {
   const result = await fetchPublicDoctorBySlug(params.slug);
   const t = await getTranslations("DoctorProfilePage");
   const authSupabase = createServerComponentClient({ cookies });
@@ -802,6 +804,13 @@ export default async function DoctorPage({ params }: PageProps) {
               weeklySlots={weeklySlots}
               takenSlotTimes={takenSlotTimes}
               profileSlug={params.slug}
+              initialSlotKey={
+                parseBookingSlotParam(
+                  Array.isArray(searchParams?.slot)
+                    ? searchParams?.slot[0]
+                    : searchParams?.slot,
+                )
+              }
               breakStart={breakStart ? breakStart.slice(0, 5) : undefined}
               breakEnd={breakEnd ? breakEnd.slice(0, 5) : undefined}
               onlineBookingsPaused={Boolean(

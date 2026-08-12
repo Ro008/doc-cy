@@ -11,12 +11,13 @@ export {revalidate};
 
 export default async function LocaleSlugPage({
   params,
+  searchParams,
 }: {
   params: {locale: string; slug: string};
+  searchParams?: {slot?: string | string[]};
 }) {
   setRequestLocale(params.locale);
 
   const doctorParams: PageProps["params"] = {slug: params.slug};
-  return <DoctorPage params={doctorParams} />;
+  return <DoctorPage params={doctorParams} searchParams={searchParams} />;
 }
-

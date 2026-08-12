@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   addDays,
   addHours,
@@ -14,6 +14,11 @@ import { DayPicker } from "react-day-picker";
 import { ChevronLeft, ChevronRight, Clock, Loader2 } from "lucide-react";
 import { PhoneInput } from "@/components/ui/PhoneInput";
 import { CY_TZ } from "@/lib/appointments";
+import {
+  bookingSlotDateFromKey,
+  parseBookingSlotParam,
+} from "@/lib/booking-slot-param";
+import { normalizeMinimumNoticeHours } from "@/lib/doctor-settings";
 import { APPOINTMENT_REASON_MAX_LENGTH } from "@/lib/visit-types";
 import { formatDateDDMMYYYY } from "@/lib/date-format";
 import "react-day-picker/dist/style.css";
@@ -34,6 +39,8 @@ type BookingSectionProps = {
   weeklySlots: WeeklySlot[];
   takenSlotTimes?: string[];
   profileSlug?: string;
+  /** Cyprus wall-clock slot from finder deep-link (`YYYY-MM-DDTHH:mm`). */
+  initialSlotKey?: string | null;
   breakStart?: string;
   breakEnd?: string;
   onlineBookingsPaused?: boolean;
@@ -59,6 +66,7 @@ export function BookingSection({
   weeklySlots,
   takenSlotTimes = [],
   profileSlug,
+  initialSlotKey = null,
   breakStart,
   breakEnd,
   onlineBookingsPaused = false,
@@ -73,13 +81,11 @@ export function BookingSection({
   )
     ? bookingHorizonDays
     : 90;
-  const normalizedMinimumNoticeHours = [1, 2, 12, 24].includes(
-    minimumNoticeHours
-  )
-    ? minimumNoticeHours
-    : 2;
+  const normalizedMinimumNoticeHours =
+    normalizeMinimumNoticeHours(minimumNoticeHours);
 
   const router = useRouter();
+  const pathname = usePathname();
   const t = useTranslations("BookingPage");
   const activeLocale = useLocale();
   const dateFnsLocale = activeLocale === "el" ? elLocale : enGB;
@@ -105,6 +111,7 @@ export function BookingSection({
   const [lastAppointmentId, setLastAppointmentId] = React.useState<string | null>(
     null
   );
+  const appliedInitialSlotRef = React.useRef(false);
 
   const holidayActive =
     Boolean(holidayModeEnabled) &&
@@ -205,6 +212,51 @@ export function BookingSection({
   ]);
 
   const isSlotTaken = (slot: SlotOption) => takenSet.has(slot.slotKey);
+
+  React.useEffect(() => {
+    if (appliedInitialSlotRef.current) return;
+    if (onlineBookingsPaused) return;
+
+    const slotKey = parseBookingSlotParam(initialSlotKey);
+    if (!slotKey) return;
+
+    // Wait until we know whether this doctor has any bookable slots.
+    if (!weeklySlots || weeklySlots.length === 0) return;
+    appliedInitialSlotRef.current = true;
+
+    const clearSlotQuery = () => {
+      if (typeof window === "undefined") return;
+      if (!window.location.search.includes("slot=")) return;
+      router.replace(pathname, { scroll: false });
+    };
+
+    const match = upcomingSlots.find((slot) => slot.slotKey === slotKey);
+    const date = bookingSlotDateFromKey(slotKey);
+
+    if (match && !takenSet.has(match.slotKey)) {
+      setSelectedDate(date ?? match.date);
+      setSelectedSlot(match);
+      setShowContactForm(true);
+      setError(null);
+      clearSlotQuery();
+      return;
+    }
+
+    if (date) setSelectedDate(date);
+    setSelectedSlot(null);
+    setShowContactForm(false);
+    setError(t("errors.preselectedSlotUnavailable"));
+    clearSlotQuery();
+  }, [
+    initialSlotKey,
+    onlineBookingsPaused,
+    weeklySlots,
+    upcomingSlots,
+    takenSet,
+    pathname,
+    router,
+    t,
+  ]);
 
   // Dates that have at least one available (non-taken) slot
   const availableDates = React.useMemo(() => {
@@ -607,6 +659,14 @@ export function BookingSection({
             {t("requestBadge")}
           </span>
         </div>
+        {error ? (
+          <div
+            data-testid="booking-error-message"
+            className="mt-3 rounded-2xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800"
+          >
+            {error}
+          </div>
+        ) : null}
       </div>
 
       <div className="grid gap-6 p-4 sm:grid-cols-2 sm:p-6">
@@ -621,6 +681,7 @@ export function BookingSection({
             onSelect={(d) => {
               setSelectedDate(d ?? null);
               setSelectedSlot(null);
+              setError(null);
             }}
             fromDate={new Date()}
             toDate={addDays(new Date(), normalizedBookingHorizonDays)}
@@ -690,9 +751,10 @@ export function BookingSection({
                         <div className="flex items-center justify-between gap-2 p-3">
                           <button
                             type="button"
-                            onClick={() =>
-                              setSelectedSlot(isSelected ? null : slot)
-                            }
+                            onClick={() => {
+                              setSelectedSlot(isSelected ? null : slot);
+                              setError(null);
+                            }}
                             className="flex flex-1 items-center gap-2 text-left text-sm font-medium text-ink-800"
                           >
                             <span

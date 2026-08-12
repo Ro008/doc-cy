@@ -46,6 +46,8 @@ export type DoctorSettingsFormData = {
   specialty: string;
   /** false = custom “Other” text pending founder approval */
   isSpecialtyApproved?: boolean;
+  /** Public profile “About” section */
+  bio: string;
   /** Canonical labels, saved as string[] on doctors */
   languages: string[];
   whatsappNumber?: string;
@@ -94,6 +96,7 @@ const ALLOWED_AVATAR_MIME_TYPES = new Set([
   "image/webp",
   "image/gif",
 ]);
+const BIO_MAX_CHARS = 1000;
 
 function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
@@ -186,6 +189,7 @@ export function SettingsForm({ initial }: SettingsFormProps) {
   const [languages, setLanguages] = React.useState<string[]>(() =>
     Array.isArray(initial.languages) ? [...initial.languages] : []
   );
+  const [bio, setBio] = React.useState(() => (initial.bio ?? "").trim());
 
   const [whatsappNumber, setWhatsappNumber] = React.useState(
     initial.whatsappNumber ?? ""
@@ -270,6 +274,7 @@ export function SettingsForm({ initial }: SettingsFormProps) {
       buildSettingsDirtySnapshot({
         specialty: spec.specialty,
         specialtyFromMaster: spec.fromMaster,
+        bio,
         languages,
         whatsappNumber,
         showPhonePublic,
@@ -289,6 +294,7 @@ export function SettingsForm({ initial }: SettingsFormProps) {
     [
       spec.specialty,
       spec.fromMaster,
+      bio,
       languages,
       whatsappNumber,
       showPhonePublic,
@@ -313,6 +319,7 @@ export function SettingsForm({ initial }: SettingsFormProps) {
       specialty,
       specialtyFromMaster:
         (initial.isSpecialtyApproved ?? true) !== false && isMasterSpecialty(specialty),
+      bio: (initial.bio ?? "").trim(),
       languages: Array.isArray(initial.languages) ? [...initial.languages] : [],
       whatsappNumber: initial.whatsappNumber ?? "",
       showPhonePublic: Boolean(initial.showPhonePublic),
@@ -539,6 +546,13 @@ export function SettingsForm({ initial }: SettingsFormProps) {
       toast.error(text);
       return;
     }
+    const bioTrimmed = bio.trim();
+    if (bioTrimmed.length > BIO_MAX_CHARS) {
+      const text = `Bio must be ${BIO_MAX_CHARS} characters or fewer.`;
+      setMessage({ type: "error", text });
+      toast.error(text);
+      return;
+    }
     if (!isCyprusDistrict(district)) {
       const text = hasConfirmedClinicCoordinates(clinicLocation)
         ? "We could not detect your clinic district. Please re-select your clinic from Google suggestions."
@@ -596,6 +610,7 @@ export function SettingsForm({ initial }: SettingsFormProps) {
         clinicAddress: clinicLocation.address.trim() || null,
         specialty: specResult.specialty,
         specialtyFromMaster: specResult.is_specialty_approved,
+        bio: bioTrimmed,
         languages: langList,
         monday: weeklySchedule.monday.enabled,
         tuesday: weeklySchedule.tuesday.enabled,
@@ -681,7 +696,8 @@ export function SettingsForm({ initial }: SettingsFormProps) {
           Directory &amp; profile
         </p>
         <p className="mt-1 text-sm text-slate-400">
-          Required so patients can find you by specialty and language.
+          Specialty and languages help patients find you. Your bio helps DocCy
+          match you with the right ones.
         </p>
         <div className="mt-4 space-y-4">
           <div>
@@ -698,6 +714,31 @@ export function SettingsForm({ initial }: SettingsFormProps) {
               variant="settings"
               onSelectionChange={onSpecChange}
             />
+          </div>
+          <div>
+            <label
+              htmlFor="settings-bio"
+              className="text-xs font-semibold uppercase tracking-wide text-slate-400"
+            >
+              How you help patients
+            </label>
+            <p className="mt-1 text-xs leading-relaxed text-slate-500">
+              Write what you treat and how you help. DocCy uses this to match you
+              with the right patients.
+            </p>
+            <textarea
+              id="settings-bio"
+              name="bio"
+              rows={5}
+              value={bio}
+              maxLength={BIO_MAX_CHARS}
+              onChange={(e) => setBio(e.target.value)}
+              placeholder="Example: I treat back pain, sports injuries, and post-surgery rehab."
+              className="mt-2 w-full resize-y rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2.5 text-sm text-slate-100 placeholder:text-slate-500 outline-none transition focus:border-clinical-400/60 focus:ring-2 focus:ring-clinical-400/30"
+            />
+            <p className="mt-1.5 text-right text-[11px] tabular-nums text-slate-500">
+              {bio.trim().length}/{BIO_MAX_CHARS}
+            </p>
           </div>
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
@@ -1127,8 +1168,12 @@ export function SettingsForm({ initial }: SettingsFormProps) {
             >
               <option value={1}>1 hour</option>
               <option value={2}>2 hours</option>
+              <option value={4}>4 hours</option>
               <option value={12}>12 hours</option>
-              <option value={24}>24 hours</option>
+              <option value={24}>24 hours (1 day)</option>
+              <option value={48}>2 days</option>
+              <option value={72}>3 days</option>
+              <option value={168}>1 week</option>
             </select>
             <p className="mt-2 text-xs text-slate-400">
               Prevent last-minute surprises. Slots will be hidden if they are too close to the current time.

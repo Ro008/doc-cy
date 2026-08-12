@@ -66,6 +66,7 @@
       "selectVisitHistory": "Παρακαλούμε δηλώστε αν είναι η πρώτη σας επίσκεψη.",
       "reasonRequired": "Please tell us briefly why you need this visit.",
       "timeSlotJustBooked": "Αυτή η χρονική θέση μόλις κρατήθηκε. Παρακαλούμε επιλέξτε άλλη.",
+      "preselectedSlotUnavailable": "Αυτή η ώρα δεν είναι πλέον διαθέσιμη. Παρακαλούμε επιλέξτε άλλη.",
       "bookingFailed": "Δεν ήταν δυνατή η ολοκλήρωση της κράτησης. Παρακαλούμε δοκιμάστε ξανά.",
       "somethingWentWrong": "Κάτι πήγε στραβά. Παρακαλούμε δοκιμάστε ξανά."
     }

@@ -21,5 +21,5 @@ ALTER TABLE public.doctor_settings
 ALTER TABLE public.doctor_settings
   DROP CONSTRAINT IF EXISTS doctor_settings_minimum_notice_hours_check,
   ADD CONSTRAINT doctor_settings_minimum_notice_hours_check
-    CHECK (minimum_notice_hours IN (1, 2, 12, 24));
+    CHECK (minimum_notice_hours IN (1, 2, 4, 12, 24, 48, 72, 168));
 
