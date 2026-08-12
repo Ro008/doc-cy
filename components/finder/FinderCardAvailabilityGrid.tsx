@@ -9,6 +9,7 @@ import {
 } from "@/components/finder/FinderAvailabilityDaySlotGrid";
 import { FinderAvailabilityStickyWeekHeader } from "@/components/finder/FinderAvailabilityStickyWeekHeader";
 import { useFinderAvailabilityWeek } from "@/components/finder/FinderResultsAvailabilityShell";
+import { buildDoctorBookingHref } from "@/lib/booking-slot-param";
 import type { PublicAvailabilityCalendar } from "@/lib/public/compute-public-booking-slots";
 
 type Props = {
@@ -23,7 +24,6 @@ export function FinderCardAvailabilityGrid({
   anchorStickyWeekNav = false,
 }: Props) {
   const { windowStart, visibleDayCount, visibleDays } = useFinderAvailabilityWeek();
-  const profileHref = `/${profileSlug}`;
   const visibleCalendarDays = calendar.days.slice(windowStart, windowStart + visibleDayCount);
   const headerDays = anchorStickyWeekNav ? visibleDays : visibleCalendarDays;
 
@@ -42,7 +42,7 @@ export function FinderCardAvailabilityGrid({
           resetKey={`${profileSlug}:${windowStart}`}
           renderSlot={(slot, day) => (
             <PendingLink
-              href={profileHref}
+              href={buildDoctorBookingHref(profileSlug, slot.slotKey)}
               navigationReason="profile"
               className={finderAvailabilitySlotClassName}
               aria-label={`Book ${day.weekdayLabel} ${day.dateLabel} at ${slot.timeLabel}`}
