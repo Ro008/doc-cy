@@ -2,6 +2,8 @@
  * Playwright CI lane tags. Workflows select suites with --grep (see docs/ci-test-policy.md).
  */
 export const TAG_PR_E2E = "@pr-e2e";
+/** Finder / patient-directory slice of `@pr-e2e` (runs in parallel PR job). */
+export const TAG_PR_E2E_FINDER = "@pr-e2e-finder";
 export const TAG_PR_EMAIL = "@pr-email";
 export const TAG_PR_PREVIEW = "@pr-preview";
 export const TAG_PR_MOBILE = "@pr-mobile-monitor";

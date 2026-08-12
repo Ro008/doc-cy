@@ -1,7 +1,7 @@
 // tests/navigation.spec.ts
 import { test, expect } from "@playwright/test";
 
-test.describe("Navigation and routing", { tag: "@pr-e2e" }, () => {
+test.describe("Navigation and routing", { tag: ["@pr-e2e", "@pr-e2e-finder"] }, () => {
   test("invalid doctor slug redirects to patient home (finder)", async ({ page }) => {
     await page.goto("/invalid-doctor-slug-xyz");
 

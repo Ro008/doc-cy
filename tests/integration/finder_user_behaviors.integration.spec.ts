@@ -89,7 +89,7 @@ async function createVerifiedDoctor(
   };
 }
 
-test.describe("Integration: finder user-like filter behavior matrix", { tag: "@pr-e2e" }, () => {
+test.describe("Integration: finder user-like filter behavior matrix", { tag: ["@pr-e2e", "@pr-e2e-finder"] }, () => {
   test("supports typical user filtering journeys without stale or broken states", async ({ page }) => {
     // Full unfiltered finder now loads the entire directory (no 600-row cap).
     test.setTimeout(120_000);

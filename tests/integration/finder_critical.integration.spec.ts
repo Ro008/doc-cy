@@ -163,7 +163,7 @@ async function seedWeekdayAvailabilitySettings(
   }
 }
 
-test.describe("Integration: finder business-critical UX", { tag: "@pr-e2e" }, () => {
+test.describe("Integration: finder business-critical UX", { tag: ["@pr-e2e", "@pr-e2e-finder"] }, () => {
   test("footer popular quick links should lead to non-empty finder results", async ({ page }, testInfo) => {
     test.skip(
       testInfo.project.name !== "Desktop Large (Chromium)",

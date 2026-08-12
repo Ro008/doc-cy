@@ -2,7 +2,7 @@
 
 Living document: update when workflows or specs change.
 
-- **PR lane:** `.github/workflows/pr-integration.yml` → `PR Playwright (core business)`
+- **PR lane:** `.github/workflows/pr-integration.yml` → `PR Playwright (core business)` gate (`PR Playwright · core` + `PR Playwright · finder`)
 - **Nightly lane:** `.github/workflows/prod-critical-smoke.yml` → `prod-critical-smoke` (production URL only; no integration E2E job)
 
 ## Legend

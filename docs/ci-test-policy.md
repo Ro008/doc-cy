@@ -20,14 +20,15 @@ Goal: **one blocking suite on every PR** (integration) and **one small scheduled
 | `tests/prod/` | Nightly lane (real prod URL); `prod_site_availability` also runs on Vercel Preview in PR |
 Build flag for integration finder tests: `NEXT_PUBLIC_DOC_CY_FINDER_INCLUDE_TEST_PROFILES=1` on PR build only (see `pr-integration.yml`).
 
-After the `@pr-e2e` suite, PR CI always runs `scripts/cleanup-test-doctors.mjs --assert-empty` so interrupted finder tests cannot leave `Finder Filter …` / `Finder UX …` orphans in the shared testing DB (see `docs/test-env-boundaries.md`).
+After the Playwright lanes, PR CI always runs `scripts/cleanup-test-doctors.mjs --assert-empty` so interrupted finder tests cannot leave `Finder Filter …` / `Finder UX …` orphans in the shared testing DB (see `docs/test-env-boundaries.md`).
 
 ### Playwright tags (source of truth for CI lists)
 
 | Tag | Workflow command | Purpose |
 |-----|------------------|---------|
 | `@pr-email` | `playwright test --grep @pr-email` | Onboarding + reschedule / agenda email guards (PR + nightly prod env) |
-| `@pr-e2e` | `playwright test --grep @pr-e2e` | Main PR integration suite |
+| `@pr-e2e` | Main PR suite (split across two jobs) | Base tag for PR integration specs |
+| `@pr-e2e-finder` | `playwright test --grep @pr-e2e-finder` | Finder / navigation slice (parallel job; also tagged `@pr-e2e`) |
 | `@pr-preview` | `playwright test --grep @pr-preview` | Public shell on Vercel Preview |
 | `@pr-mobile-monitor` | `playwright test --grep @pr-mobile-monitor` | Doctor confirmation flow on mobile (PR, non-blocking) |
 | `@pr-login-monitor` | `playwright test --grep @pr-login-monitor` | Doctor `/login` form UI (PR, non-blocking) |
@@ -39,16 +40,25 @@ Constants: `tests/helpers/ciTags.ts`. To tag new specs: `node scripts/apply-ci-p
 
 ## 1) PR blocking (must pass to merge)
 
-**Jobs:** `PR Playwright (core business)` + `PR Preview site health (Vercel)` (same-repo PRs only).
+**Jobs:**
+
+| Check name | What it runs |
+|------------|--------------|
+| `PR build + unit` | Content checks, unit tests, Next.js build (uploads `.next`) |
+| `PR Playwright · core` | `@pr-email` + `@pr-e2e` excluding `@pr-e2e-finder` (reuses build artifact) |
+| `PR Playwright · finder` | `@pr-e2e-finder` (reuses build artifact) |
+| `PR Playwright (core business)` | Gate: both Playwright lanes + orphan-doctor cleanup must succeed (keeps the historical required-check name) |
+| `PR Preview site health (Vercel)` | `@pr-preview` against the Vercel Preview URL (same-repo PRs only) |
 
 **Includes:**
 
 - Content: `test:content:blog-images`, `test:content:messages-parity`
-- Unit: `npm run test:unit` (`lib/finder-distance`, `lib/finder-specialty-filter`, `lib/clinic-location`, `lib/register-clinic-location`)
-- `--grep @pr-email` then `--grep @pr-e2e` (see tag table below)
+- Unit: `npm run test:unit`
+- Core lane: `--grep @pr-email` then `--grep @pr-e2e --grep-invert @pr-e2e-finder`
+- Finder lane: `--grep @pr-e2e-finder` (today: `finder_critical`, `finder_user_behaviors`, `navigation`)
 - Preview job: `--grep @pr-preview`
-- Non-blocking mobile: `--grep @pr-mobile-monitor`
-- Non-blocking login form: `--grep @pr-login-monitor`
+- Non-blocking mobile: `--grep @pr-mobile-monitor` (on core lane)
+- Non-blocking login form: `--grep @pr-login-monitor` (on core lane)
 
 **Excludes from PR:**
 
@@ -57,6 +67,8 @@ Constants: `tests/helpers/ciTags.ts`. To tag new specs: `node scripts/apply-ci-p
 - `tests/register_onboarding_avatar.spec.ts` (omitted: Auth email rate limits on shared integration)
 
 **Optional PR follow-up:** add `tests/integration/directory_duplicates_actions.integration.spec.ts` if `INTERNAL_DIRECTORY_SECRET` is set (already in PR list when secret present).
+
+**Retry tip:** re-run only `PR Playwright · finder` or `PR Playwright · core` from the Actions UI when a single lane fails — the shared build artifact is reused within the same workflow run; a fresh push rebuilds once for both.
 
 ---
 
