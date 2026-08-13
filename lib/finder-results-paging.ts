@@ -88,3 +88,17 @@ export function buildFinderResultsPageHref(params: {
   const query = qs.toString();
   return query ? `${params.finderPath}?${query}` : params.finderPath;
 }
+
+/** CI/QA only: keep freshly created test doctors on the first page of 12. */
+export function pinRegisteredTestProfilesFirst<T extends {
+  kind: "registered" | "manual";
+  row: { isTestProfile?: boolean };
+}>(results: T[], enabled: boolean): void {
+  if (!enabled) return;
+  results.sort((a, b) => {
+    const aTest = a.kind === "registered" && Boolean(a.row.isTestProfile);
+    const bTest = b.kind === "registered" && Boolean(b.row.isTestProfile);
+    if (aTest === bTest) return 0;
+    return aTest ? -1 : 1;
+  });
+}

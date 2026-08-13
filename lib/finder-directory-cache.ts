@@ -1,5 +1,6 @@
 import { unstable_cache } from "next/cache";
 
+import { finderIncludesRegisteredTestProfiles } from "@/lib/doctor-test-profile";
 import {
   FINDER_DIRECTORY_CACHE_TAG,
   FINDER_DIRECTORY_REVALIDATE_SECONDS,
@@ -12,6 +13,11 @@ export {
 } from "@/lib/finder-directory-cache-key";
 
 type DirectoryError = { code?: string; message?: string };
+
+/** Integration Playwright creates doctors mid-run; a 45s listing cache would hide them. */
+export function shouldBypassFinderDirectoryCache(): boolean {
+  return finderIncludesRegisteredTestProfiles();
+}
 
 export class FinderDirectoryLoadError extends Error {
   code?: string;
@@ -26,6 +32,9 @@ export async function getCachedDirectoryPayload<T>(
   keyParts: readonly string[],
   load: () => Promise<T>,
 ): Promise<T> {
+  if (shouldBypassFinderDirectoryCache()) {
+    return load();
+  }
   return unstable_cache(load, [FINDER_DIRECTORY_CACHE_TAG, ...keyParts], {
     revalidate: FINDER_DIRECTORY_REVALIDATE_SECONDS,
     tags: [FINDER_DIRECTORY_CACHE_TAG],

@@ -78,6 +78,7 @@ import {
   buildFinderResultsPageHref,
   FINDER_RESULTS_PAGE_SIZE,
   parseFinderResultsPage,
+  pinRegisteredTestProfilesFirst,
 } from "@/lib/finder-results-paging";
 import {
   applyFinderListFilters,
@@ -92,7 +93,7 @@ import {
 import { DOCCY_EXTRA_REGISTRATION_SPECIALTIES } from "@/lib/cyprus-specialties";
 import { GESY_MANUAL_SPECIALTIES } from "@/lib/gesy-specialties";
 import { manualDirectoryLandingPath } from "@/lib/manual-directory-landing-path";
-import { isRegisteredDoctorHiddenFromFinder } from "@/lib/doctor-test-profile";
+import { finderIncludesRegisteredTestProfiles, isRegisteredDoctorHiddenFromFinder } from "@/lib/doctor-test-profile";
 import { finderAvailabilityRequestKey } from "@/lib/public/finder-availability-request-key";
 import { buildFinderAvailabilityDayHeaders } from "@/lib/public/compute-public-booking-slots";
 import {
@@ -780,6 +781,11 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
       if (b.distanceKm === null) return -1;
       return a.distanceKm - b.distanceKm;
     });
+  } else {
+    pinRegisteredTestProfilesFirst(
+      unifiedResults,
+      finderIncludesRegisteredTestProfiles(),
+    );
   }
 
   const visibleResults = unifiedResults.slice(0, visibleLimit);

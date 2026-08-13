@@ -6,6 +6,7 @@ import {
   FINDER_RESULTS_PAGE_SIZE,
   finderSpecialtyDbMatchValues,
   parseFinderResultsPage,
+  pinRegisteredTestProfilesFirst,
 } from "@/lib/finder-results-paging";
 
 describe("finder results paging helpers", () => {
@@ -46,5 +47,18 @@ describe("finder results paging helpers", () => {
       }),
       "/",
     );
+  });
+
+  it("pins registered test profiles first for integration first-page asserts", () => {
+    const rows = [
+      { kind: "manual" as const, row: {} },
+      { kind: "registered" as const, row: { isTestProfile: false } },
+      { kind: "registered" as const, row: { isTestProfile: true } },
+    ];
+    pinRegisteredTestProfilesFirst(rows, false);
+    assert.equal(rows[0]?.kind, "manual");
+    pinRegisteredTestProfilesFirst(rows, true);
+    assert.equal(rows[0]?.kind, "registered");
+    assert.equal(rows[0]?.row.isTestProfile, true);
   });
 });
