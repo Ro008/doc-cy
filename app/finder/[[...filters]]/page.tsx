@@ -71,6 +71,7 @@ import {
 } from "@/lib/finder-manual-vote-badge";
 import { getFinderManualPhotoUrl } from "@/lib/finder-manual-photos";
 import { resolveFinderDisplayPhotoUrl } from "@/lib/finder-default-avatars";
+import { finderCardImagePriority } from "@/lib/finder-card-image-priority";
 import { finderResultsPath, FOR_PROFESSIONALS_PATH } from "@/lib/finder-public-path";
 import { buildFinderResultsHeading, buildFinderResultsSnippet } from "@/lib/finder-results-heading";
 import {
@@ -1089,7 +1090,8 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
           <section className="mt-6">
             <FinderResultsAvailabilityShell dayHeaders={finderAvailabilityDayHeaders}>
               <div className="flex flex-col gap-4">
-                {visibleResults.map((item) => {
+                {visibleResults.map((item, index) => {
+                const imagePriority = finderCardImagePriority(index);
                 if (item.kind === "registered") {
                   const row = item.row;
                   const showRightColumn = Boolean(row.slug);
@@ -1115,7 +1117,7 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                                 src={row.avatarUrl}
                                 alt=""
                                 className="h-full w-full object-cover"
-                                loading="lazy"
+                                {...imagePriority}
                               />
                             ) : (
                               <div className="flex h-full w-full items-center justify-center text-sm font-semibold text-clinical-700">
@@ -1130,7 +1132,7 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                                 src={row.avatarUrl}
                                 alt={`${row.displayName} profile photo`}
                                 className="h-full w-full object-cover"
-                                loading="lazy"
+                                {...imagePriority}
                               />
                             ) : (
                               <div className="flex h-full w-full items-center justify-center text-sm font-semibold text-clinical-700">
@@ -1251,7 +1253,7 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                             src={row.photoUrl}
                             alt=""
                             className="h-full w-full object-cover"
-                            loading="lazy"
+                            {...imagePriority}
                           />
                         </PendingLink>
                       ) : (
@@ -1260,7 +1262,7 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                             src={row.photoUrl}
                             alt={`${row.displayName} profile photo`}
                             className="h-full w-full object-cover"
-                            loading="lazy"
+                            {...imagePriority}
                           />
                         </div>
                       )}

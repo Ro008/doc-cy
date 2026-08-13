@@ -25,6 +25,7 @@ import {
 } from "@/lib/finder-results-paging";
 import { CYPRUS_DISTRICTS, type CyprusDistrict, isCyprusDistrict } from "@/lib/cyprus-districts";
 import { FINDER_CLINIC_HERO_ILLUSTRATION, resolveClinicDisplayPhotoUrl } from "@/lib/finder-default-avatars";
+import { finderCardImagePriority } from "@/lib/finder-card-image-priority";
 import {
   computeFinderDistanceKm,
   formatDistanceAway,
@@ -543,7 +544,8 @@ async function ClinicsSearchPage({ params, searchParams }: ClinicsPageProps) {
               </div>
             ) : (
               <div className="flex flex-col gap-4">
-                {visibleClinics.map((clinic) => {
+                {visibleClinics.map((clinic, index) => {
+                  const imagePriority = finderCardImagePriority(index);
                   const href = clinicLandingPath(clinic.slug);
                   const mapsHref = clinic.address_maps_link;
                   const hasPhone = clinic.hasPhone;
@@ -572,7 +574,7 @@ async function ClinicsSearchPage({ params, searchParams }: ClinicsPageProps) {
                             src={clinic.photoUrl}
                             alt=""
                             className="h-full w-full object-cover"
-                            loading="lazy"
+                            {...imagePriority}
                           />
                         </PendingLink>
                         <div className="min-w-0 flex-1">

@@ -99,7 +99,9 @@ export function UserBar() {
   async function handleLogout() {
     try {
       setIsSigningOut(true);
-      await supabase.auth.signOut();
+      if (supabase) {
+        await supabase.auth.signOut();
+      }
       setSessionState(LOGGED_OUT_DOCTOR_SESSION);
       isMenuOpenRef.current = false;
       isMobileMoreOpenRef.current = false;

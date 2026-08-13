@@ -31,4 +31,14 @@ describe("root layout does not block public HTML", () => {
     const source = fs.readFileSync(path.join(repoRoot, "middleware.ts"), "utf8");
     assert.equal(source.includes("res.cookies.set"), false);
   });
+
+  it("does not statically import the browser Supabase client in DoctorSessionProvider", () => {
+    const source = fs.readFileSync(
+      path.join(repoRoot, "components/navigation/DoctorSessionProvider.tsx"),
+      "utf8",
+    );
+    assert.equal(/from ["']@supabase\/auth-helpers-nextjs["']/.test(source), false);
+    assert.equal(source.includes('import("@supabase/auth-helpers-nextjs")'), true);
+    assert.equal(source.includes("needsSupabaseSessionMiddleware"), true);
+  });
 });
