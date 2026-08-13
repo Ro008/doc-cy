@@ -5,6 +5,7 @@ import {
   DoctorSessionProvider,
   useDoctorSession,
 } from "@/components/navigation/DoctorSessionProvider";
+import { HtmlLang } from "@/components/navigation/HtmlLang";
 import { ResponsiveBottomInset } from "@/components/navigation/ResponsiveBottomInset";
 import { UserBar } from "@/components/navigation/UserBar";
 
@@ -13,6 +14,7 @@ function AppChromeInner({ children }: { children: React.ReactNode }) {
 
   return (
     <>
+      <HtmlLang />
       <UserBar />
       <ResponsiveBottomInset enabled={sessionState.isLoggedIn}>
         {children}

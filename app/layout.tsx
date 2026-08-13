@@ -1,15 +1,13 @@
 // app/layout.tsx
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
-import { NextIntlClientProvider } from "next-intl";
-import { getMessages } from "next-intl/server";
-import { headers } from "next/headers";
 import "./globals.css";
 import "sonner/dist/styles.css";
 import { FeedbackWidget } from "@/components/feedback/FeedbackWidget";
 import { InstallBanner } from "@/components/pwa/InstallBanner";
 import { NavigationProgressBar } from "@/components/navigation/NavigationProgressBar";
 import { AppChrome } from "@/components/navigation/AppChrome";
+import { trafficSessionPersistInlineScript } from "@/lib/traffic-log";
 import { Toaster } from "sonner";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
@@ -86,23 +84,21 @@ export const viewport: Viewport = {
   themeColor: "#12B8C0",
 };
 
-export default async function RootLayout({
+export default function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const messages = await getMessages();
-  const locale = headers().get("x-next-intl-locale") ?? "en";
-
   return (
-    <html lang={locale}>
+    <html lang="en">
       <body
         className={`${inter.variable} min-h-screen bg-slate-950 text-slate-900 antialiased`}
       >
+        <script
+          dangerouslySetInnerHTML={{ __html: trafficSessionPersistInlineScript() }}
+        />
         <NavigationProgressBar />
-        <NextIntlClientProvider messages={messages}>
-          <AppChrome>{children}</AppChrome>
-        </NextIntlClientProvider>
+        <AppChrome>{children}</AppChrome>
         <Toaster richColors position="top-center" closeButton />
         <InstallBanner />
         <FeedbackWidget />

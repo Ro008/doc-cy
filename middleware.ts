@@ -6,7 +6,10 @@ import {createMiddlewareClient} from "@supabase/auth-helpers-nextjs";
 import createMiddleware from "next-intl/middleware";
 import {routing} from "./i18n/routing";
 import {isLikelyBotUserAgent} from "./lib/bot-user-agent";
-import {shouldSuppressTrafficLog} from "./lib/traffic-log";
+import {
+  shouldSuppressTrafficLog,
+  trafficSessionIdFromCookieStore,
+} from "./lib/traffic-log";
 import {parseAuthTokenClaims} from "./lib/auth-token-claims";
 import {isSessionRevokedByPolicy} from "./lib/auth-session-revocation";
 import {
@@ -69,8 +72,6 @@ function isPublicPatientRoute(pathname: string): boolean {
 
   return false;
 }
-
-const TRAFFIC_SESSION_COOKIE = "doccy-traffic-session";
 
 function shouldTrackTraffic(pathname: string): boolean {
   if (pathname.startsWith("/internal")) return false;
@@ -233,20 +234,11 @@ export async function middleware(req: NextRequest, event: NextFetchEvent) {
     }
   }
 
+  // Log visits without Set-Cookie on the HTML response (that would bust CDN/cache).
+  // Returning visitors still send a session cookie; first-time IDs persist via a
+  // tiny inline script after HTML (`doccy-ts`), not on this response.
   if (req.method === "GET" && shouldTrackTraffic(pathname) && !shouldSuppressTrafficLog(req)) {
-    const existing = req.cookies.get(TRAFFIC_SESSION_COOKIE)?.value?.trim();
-    const sessionId = existing || crypto.randomUUID();
-    if (!existing) {
-      res.cookies.set({
-        name: TRAFFIC_SESSION_COOKIE,
-        value: sessionId,
-        httpOnly: true,
-        sameSite: "lax",
-        secure: true,
-        path: "/",
-        maxAge: 60 * 60 * 24 * 30,
-      });
-    }
+    const sessionId = trafficSessionIdFromCookieStore(req.cookies) || crypto.randomUUID();
     queueTrafficLog(req, sessionId, event);
   }
 
