@@ -19,6 +19,7 @@ import {
   isLegacyFinderFilterPath,
   legacyFinderFilterToPublicPath,
 } from "./lib/finder-public-path";
+import {needsSupabaseSessionMiddleware} from "./lib/needs-supabase-session-middleware";
 
 const handleI18nRouting = createMiddleware(routing);
 
@@ -151,61 +152,62 @@ export async function middleware(req: NextRequest, event: NextFetchEvent) {
     res = NextResponse.next();
   }
 
-  // Step 2: Refresh Supabase session on every request so server components
-  // (like /agenda) can see the authenticated user via cookies.
-  const supabase = createMiddlewareClient({req, res});
-  const {
-    data: {session},
-  } = await supabase.auth.getSession();
+  // Refresh JWT + gate /agenda only on doctor product routes. Public finder,
+  // clinics, and booking pages skip Auth so anonymous HTML is not blocked.
+  if (needsSupabaseSessionMiddleware(pathname)) {
+    const supabase = createMiddlewareClient({req, res});
+    const {
+      data: {session},
+    } = await supabase.auth.getSession();
 
-  // Protect /agenda and /agenda/*: require auth, redirect to login if no session
-  if (pathname === "/agenda" || pathname.startsWith("/agenda/")) {
-    if (!session) {
-      const loginUrl = new URL("/login", req.url);
-      loginUrl.searchParams.set("next", pathname);
-      return NextResponse.redirect(loginUrl);
-    }
-
-    const {data: doctorRow, error: doctorRowError} = await supabase
-      .from("doctors")
-      .select("status, auth_session_revoked_after, auth_keep_session_id")
-      .eq("auth_user_id", session.user.id)
-      .maybeSingle();
-
-    if (doctorRowError && (doctorRowError as {code?: string}).code !== "42703") {
-      console.error("[DocCy][auth] middleware_doctor_lookup_failed", doctorRowError);
-    }
-
-    if (
-      doctorRow &&
-      !isDoctorAccountReviewPath(pathname) &&
-      !isDoctorVerifiedForProduct(
-        (doctorRow as {status?: string | null}).status,
-      )
-    ) {
-      return NextResponse.redirect(new URL(DOCTOR_ACCOUNT_REVIEW_PATH, req.url));
-    }
-
-    const claims = parseAuthTokenClaims(session.access_token);
-    if (claims.sessionId && doctorRow) {
-      const revokedAfterRaw = (
-        doctorRow as {auth_session_revoked_after?: string | null}
-      ).auth_session_revoked_after;
-      const keepSessionId = (
-        doctorRow as {auth_keep_session_id?: string | null}
-      ).auth_keep_session_id;
-
-      const isRevoked = isSessionRevokedByPolicy({
-        revokedAfterIso: revokedAfterRaw,
-        keepSessionId,
-        tokenIat: claims.iat,
-        tokenSessionId: claims.sessionId,
-      });
-
-      if (isRevoked) {
+    if (pathname === "/agenda" || pathname.startsWith("/agenda/")) {
+      if (!session) {
         const loginUrl = new URL("/login", req.url);
         loginUrl.searchParams.set("next", pathname);
         return NextResponse.redirect(loginUrl);
+      }
+
+      const {data: doctorRow, error: doctorRowError} = await supabase
+        .from("doctors")
+        .select("status, auth_session_revoked_after, auth_keep_session_id")
+        .eq("auth_user_id", session.user.id)
+        .maybeSingle();
+
+      if (doctorRowError && (doctorRowError as {code?: string}).code !== "42703") {
+        console.error("[DocCy][auth] middleware_doctor_lookup_failed", doctorRowError);
+      }
+
+      if (
+        doctorRow &&
+        !isDoctorAccountReviewPath(pathname) &&
+        !isDoctorVerifiedForProduct(
+          (doctorRow as {status?: string | null}).status,
+        )
+      ) {
+        return NextResponse.redirect(new URL(DOCTOR_ACCOUNT_REVIEW_PATH, req.url));
+      }
+
+      const claims = parseAuthTokenClaims(session.access_token);
+      if (claims.sessionId && doctorRow) {
+        const revokedAfterRaw = (
+          doctorRow as {auth_session_revoked_after?: string | null}
+        ).auth_session_revoked_after;
+        const keepSessionId = (
+          doctorRow as {auth_keep_session_id?: string | null}
+        ).auth_keep_session_id;
+
+        const isRevoked = isSessionRevokedByPolicy({
+          revokedAfterIso: revokedAfterRaw,
+          keepSessionId,
+          tokenIat: claims.iat,
+          tokenSessionId: claims.sessionId,
+        });
+
+        if (isRevoked) {
+          const loginUrl = new URL("/login", req.url);
+          loginUrl.searchParams.set("next", pathname);
+          return NextResponse.redirect(loginUrl);
+        }
       }
     }
   }

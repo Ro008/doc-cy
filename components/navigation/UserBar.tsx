@@ -1,15 +1,17 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { UserMenuNavLink } from "@/components/navigation/UserMenuNavLink";
 import { UserBarMoreMenuItems } from "@/components/navigation/UserBarMoreMenuItems";
 import { MobileTabNavLink } from "@/components/navigation/MobileTabNavLink";
 import { PendingLink } from "@/components/navigation/PendingLink";
 import { DocCyWordmark } from "@/components/brand/DocCyWordmark";
+import {
+  LOGGED_OUT_DOCTOR_SESSION,
+  useDoctorSession,
+} from "@/components/navigation/DoctorSessionProvider";
 import {
   BarChart3,
   CalendarPlus,
@@ -24,18 +26,6 @@ import {
 } from "lucide-react";
 import { emitOpenFeedback } from "@/lib/doccy-feedback";
 
-type SessionState = {
-  isLoggedIn: boolean;
-  email: string | null;
-  doctorSlug: string | null;
-  doctorName: string | null;
-  avatarUrl: string | null;
-};
-
-type UserBarProps = {
-  initialSessionState?: SessionState;
-};
-
 function getInitials(name: string | null): string {
   if (!name) return "DC";
   const parts = name.trim().split(/\s+/);
@@ -43,20 +33,10 @@ function getInitials(name: string | null): string {
   return `${parts[0]?.[0] ?? ""}${parts[1]?.[0] ?? ""}`.toUpperCase();
 }
 
-export function UserBar({ initialSessionState }: UserBarProps) {
+export function UserBar() {
   const router = useRouter();
   const pathname = usePathname();
-  const supabase = useMemo(() => createClientComponentClient(), []);
-
-  const [sessionState, setSessionState] = useState<SessionState>(
-    initialSessionState ?? {
-      isLoggedIn: false,
-      email: null,
-      doctorSlug: null,
-      doctorName: null,
-      avatarUrl: null,
-    }
-  );
+  const { sessionState, setSessionState, supabase } = useDoctorSession();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isMobileMoreOpen, setIsMobileMoreOpen] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
@@ -74,81 +54,6 @@ export function UserBar({ initialSessionState }: UserBarProps) {
   useEffect(() => {
     isMobileMoreOpenRef.current = isMobileMoreOpen;
   }, [isMobileMoreOpen]);
-
-  useEffect(() => {
-    let isActive = true;
-
-    async function loadSessionState() {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (!isActive) return;
-
-      if (!user) {
-        setSessionState((current) => {
-          if (current.isLoggedIn) {
-            return current;
-          }
-          return {
-            isLoggedIn: false,
-            email: null,
-            doctorSlug: null,
-            doctorName: null,
-            avatarUrl: null,
-          };
-        });
-        return;
-      }
-
-      const { data: doctorRow } = await supabase
-        .from("doctors")
-        .select("slug, name, avatar_url")
-        .eq("auth_user_id", user.id)
-        .maybeSingle();
-
-      if (!isActive) return;
-
-      let avatarUrl: string | null = null;
-      const avatarPath = String(
-        (doctorRow as { avatar_url?: string | null } | null)?.avatar_url ?? "",
-      ).trim();
-      if (avatarPath) {
-        avatarUrl = supabase.storage.from("avatars").getPublicUrl(avatarPath).data.publicUrl;
-      }
-
-      setSessionState({
-        isLoggedIn: true,
-        email: user.email ?? null,
-        doctorSlug: typeof doctorRow?.slug === "string" ? doctorRow.slug : null,
-        doctorName: typeof doctorRow?.name === "string" ? doctorRow.name : null,
-        avatarUrl,
-      });
-    }
-
-    loadSessionState();
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "SIGNED_OUT") {
-        setSessionState({
-          isLoggedIn: false,
-          email: null,
-          doctorSlug: null,
-          doctorName: null,
-          avatarUrl: null,
-        });
-        return;
-      }
-      loadSessionState();
-    });
-
-    return () => {
-      isActive = false;
-      subscription.unsubscribe();
-    };
-  }, [supabase]);
 
   useEffect(() => {
     function onDocumentClick(event: MouseEvent) {
@@ -195,13 +100,7 @@ export function UserBar({ initialSessionState }: UserBarProps) {
     try {
       setIsSigningOut(true);
       await supabase.auth.signOut();
-      setSessionState({
-        isLoggedIn: false,
-        email: null,
-        doctorSlug: null,
-        doctorName: null,
-        avatarUrl: null,
-      });
+      setSessionState(LOGGED_OUT_DOCTOR_SESSION);
       isMenuOpenRef.current = false;
       isMobileMoreOpenRef.current = false;
       setIsMenuOpen(false);
