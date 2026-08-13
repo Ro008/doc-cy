@@ -90,14 +90,18 @@ export function buildFinderResultsPageHref(params: {
 }
 
 /** CI/QA only: keep freshly created test doctors on the first page of 12. */
-export function pinRegisteredTestProfilesFirst<T extends {
-  kind: "registered" | "manual";
-  row: { isTestProfile?: boolean };
-}>(results: T[], enabled: boolean): void {
+export function pinRegisteredTestProfilesFirst<T extends { kind: string; row: object }>(
+  results: T[],
+  enabled: boolean,
+): void {
   if (!enabled) return;
   results.sort((a, b) => {
-    const aTest = a.kind === "registered" && Boolean(a.row.isTestProfile);
-    const bTest = b.kind === "registered" && Boolean(b.row.isTestProfile);
+    const aTest =
+      a.kind === "registered" &&
+      Boolean((a.row as { isTestProfile?: boolean }).isTestProfile);
+    const bTest =
+      b.kind === "registered" &&
+      Boolean((b.row as { isTestProfile?: boolean }).isTestProfile);
     if (aTest === bTest) return 0;
     return aTest ? -1 : 1;
   });

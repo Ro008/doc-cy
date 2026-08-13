@@ -59,6 +59,6 @@ describe("finder results paging helpers", () => {
     assert.equal(rows[0]?.kind, "manual");
     pinRegisteredTestProfilesFirst(rows, true);
     assert.equal(rows[0]?.kind, "registered");
-    assert.equal(rows[0]?.row.isTestProfile, true);
+    assert.equal((rows[0]?.row as { isTestProfile?: boolean }).isTestProfile, true);
   });
 });
