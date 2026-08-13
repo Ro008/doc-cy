@@ -4,6 +4,7 @@ import { describe, it } from "node:test";
 import {
   needsPublicSearchHardNavigation,
   publicSearchPathname,
+  shouldShowFinderResultsSkeleton,
 } from "@/lib/public-search-navigation";
 
 describe("public search navigation", () => {
@@ -26,5 +27,27 @@ describe("public search navigation", () => {
     assert.equal(needsPublicSearchHardNavigation("/larnaca/dentistry"), false);
     assert.equal(needsPublicSearchHardNavigation("/all/gynecology"), false);
     assert.equal(needsPublicSearchHardNavigation("/andreas-nikos"), false);
+  });
+
+  it("shows result skeletons for filter and switcher taps, not profile opens", () => {
+    assert.equal(shouldShowFinderResultsSkeleton({ reason: "finder-results" }), true);
+    assert.equal(shouldShowFinderResultsSkeleton({ reason: "finder-near-me" }), true);
+    assert.equal(shouldShowFinderResultsSkeleton({ reason: "clinics-near-me" }), true);
+    assert.equal(
+      shouldShowFinderResultsSkeleton({ reason: "default", linkKey: "/clinics/paphos" }),
+      true,
+    );
+    assert.equal(
+      shouldShowFinderResultsSkeleton({ reason: "default", linkKey: "/larnaca/dentistry" }),
+      true,
+    );
+    assert.equal(
+      shouldShowFinderResultsSkeleton({ reason: "profile", linkKey: "/andreas-nikos" }),
+      false,
+    );
+    assert.equal(
+      shouldShowFinderResultsSkeleton({ reason: "default", linkKey: "/agenda" }),
+      false,
+    );
   });
 });

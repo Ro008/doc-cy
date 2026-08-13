@@ -159,6 +159,26 @@ describe("finder recently viewed", () => {
     );
   });
 
+  it("rewrites stored default PNG placeholders to WebP", () => {
+    const storage = memoryStorage();
+    storage.setItem(
+      FINDER_RECENTLY_VIEWED_STORAGE_KEY,
+      JSON.stringify([
+        {
+          kind: "professional",
+          href: "/finder/professional/anna",
+          name: "Anna",
+          subtitle: "Dentistry",
+          location: "Paphos",
+          photoUrl: "/finder/avatars/default-male.png",
+          viewedAt: 1,
+        },
+      ]),
+    );
+    const rows = readRecentlyViewed(storage);
+    assert.equal(rows[0]?.photoUrl, "/finder/avatars/default-male.webp");
+  });
+
   it("ignores corrupt storage", () => {
     const storage = memoryStorage();
     storage.setItem(FINDER_RECENTLY_VIEWED_STORAGE_KEY, "{not-json");

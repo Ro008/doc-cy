@@ -5,6 +5,11 @@ import {
   FINDER_LCP_CARD_IMAGE_PRIORITY,
   finderCardImagePriority,
 } from "@/lib/finder-card-image-priority";
+import {
+  FINDER_DEFAULT_AVATAR_FEMALE,
+  FINDER_DEFAULT_AVATAR_MALE,
+  rewriteLegacyFinderDefaultAvatarUrl,
+} from "@/lib/finder-default-avatars";
 
 describe("finderCardImagePriority", () => {
   it("eager-loads the first viewport cards and prioritizes the first two", () => {
@@ -28,5 +33,25 @@ describe("finderCardImagePriority", () => {
   it("marks a lone landing photo as LCP", () => {
     assert.equal(FINDER_LCP_CARD_IMAGE_PRIORITY.loading, "eager");
     assert.equal(FINDER_LCP_CARD_IMAGE_PRIORITY.fetchPriority, "high");
+  });
+});
+
+describe("default finder avatars", () => {
+  it("uses compressed WebP placeholders", () => {
+    assert.equal(FINDER_DEFAULT_AVATAR_MALE, "/finder/avatars/default-male.webp");
+    assert.equal(FINDER_DEFAULT_AVATAR_FEMALE, "/finder/avatars/default-female.webp");
+  });
+
+  it("rewrites legacy PNG placeholder URLs", () => {
+    assert.equal(
+      rewriteLegacyFinderDefaultAvatarUrl("/finder/avatars/default-female.png"),
+      FINDER_DEFAULT_AVATAR_FEMALE,
+    );
+    assert.equal(
+      rewriteLegacyFinderDefaultAvatarUrl("https://www.mydoccy.com/finder/avatars/default-male.png"),
+      FINDER_DEFAULT_AVATAR_MALE,
+    );
+    assert.equal(rewriteLegacyFinderDefaultAvatarUrl("/finder/manual-photos/x.png"), "/finder/manual-photos/x.png");
+    assert.equal(rewriteLegacyFinderDefaultAvatarUrl(null), null);
   });
 });

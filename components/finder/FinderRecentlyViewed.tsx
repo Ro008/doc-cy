@@ -7,6 +7,7 @@ import { finderRecentlyViewedCardClass } from "@/components/finder/finder-surfac
 import {
   FINDER_DEFAULT_AVATAR_CLINIC,
   FINDER_DEFAULT_AVATAR_UNKNOWN,
+  rewriteLegacyFinderDefaultAvatarUrl,
 } from "@/lib/finder-default-avatars";
 import {
   readRecentlyViewed,
@@ -21,7 +22,8 @@ type FinderRecentlyViewedProps = {
 };
 
 function photoFor(item: RecentlyViewedItem): string {
-  if (item.photoUrl) return item.photoUrl;
+  const photo = rewriteLegacyFinderDefaultAvatarUrl(item.photoUrl);
+  if (photo) return photo;
   return item.kind === "clinic" ? FINDER_DEFAULT_AVATAR_CLINIC : FINDER_DEFAULT_AVATAR_UNKNOWN;
 }
 
@@ -83,6 +85,15 @@ function RecentlyViewedList({ items }: { items: RecentlyViewedItem[] }) {
                       className="absolute inset-0 h-full w-full object-cover"
                       loading="lazy"
                       decoding="async"
+                      onError={(event) => {
+                        const fallback =
+                          item.kind === "clinic"
+                            ? FINDER_DEFAULT_AVATAR_CLINIC
+                            : FINDER_DEFAULT_AVATAR_UNKNOWN;
+                        const img = event.currentTarget;
+                        if (img.src.endsWith(fallback)) return;
+                        img.src = fallback;
+                      }}
                     />
                   </span>
                   <span className="min-w-0 flex-1 overflow-hidden">
