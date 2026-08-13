@@ -1320,6 +1320,7 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                             manualId={row.id}
                             doctorName={row.displayName}
                             addressMapsLink={row.address_maps_link}
+                            dayHeaders={finderAvailabilityDayHeaders}
                             hasPhone={row.hasPhone}
                             addressText={row.address}
                             anchorStickyWeekNav={row.id === stickyWeekAnchorDoctorId}

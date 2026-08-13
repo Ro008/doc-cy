@@ -1,5 +1,3 @@
-"use client";
-
 import { PendingLink } from "@/components/navigation/PendingLink";
 import { GesyProviderBadge } from "@/components/brand/GesyProviderBadge";
 import { FinderClinicLocationBlock } from "@/components/finder/FinderClinicLocationBlock";
@@ -90,6 +88,7 @@ export function ManualDirectoryLandingCard({
                   manualId={row.id}
                   doctorName={row.displayName}
                   addressMapsLink={row.address_maps_link}
+                  dayHeaders={dayHeaders}
                   hasPhone={phoneOnFile}
                   addressText={row.address}
                 />

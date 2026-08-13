@@ -1,38 +1,40 @@
 "use client";
 
 import * as React from "react";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ManualBookingRequestModal } from "@/components/finder/ManualBookingRequestModal";
 import {
   patientBookingRequestErrorMessage,
   submitPatientBookingRequest,
 } from "@/lib/finder-manual-patient-booking-request";
+import type { FinderManualSlotClick } from "@/lib/finder-manual-slot-click";
 
-type Options = {
-  manualId: string;
-  doctorName: string;
-  addressMapsLink: string;
-  hasPhone?: boolean;
-  addressText?: string | null;
-};
+const ManualBookingRequestModal = dynamic(
+  () =>
+    import("@/components/finder/ManualBookingRequestModal").then(
+      (mod) => mod.ManualBookingRequestModal,
+    ),
+  { ssr: false },
+);
 
-export function useManualBookingRequestFeedback({
-  manualId,
-  doctorName,
-  addressMapsLink,
-  hasPhone = false,
-  addressText = null,
-}: Options) {
+type ManualListing = Pick<
+  FinderManualSlotClick,
+  "manualId" | "doctorName" | "addressMapsLink" | "hasPhone" | "addressText"
+>;
+
+export function useManualBookingRequestFeedback() {
   const router = useRouter();
   const [pendingSlotKey, setPendingSlotKey] = React.useState<string | null>(null);
+  const [listing, setListing] = React.useState<ManualListing | null>(null);
   const [modalOpen, setModalOpen] = React.useState(false);
 
-  async function submit(slotKey: string) {
+  async function submit(nextListing: ManualListing, slotKey: string) {
     if (pendingSlotKey) return;
     setPendingSlotKey(slotKey);
+    setListing(nextListing);
     try {
-      const result = await submitPatientBookingRequest(manualId);
+      const result = await submitPatientBookingRequest(nextListing.manualId);
       if (result.ok === false) {
         toast.error(patientBookingRequestErrorMessage(result.reason, result.status));
         return;
@@ -44,17 +46,18 @@ export function useManualBookingRequestFeedback({
     }
   }
 
-  const modal = (
-    <ManualBookingRequestModal
-      open={modalOpen}
-      doctorName={doctorName}
-      manualId={manualId}
-      addressMapsLink={addressMapsLink}
-      hasPhone={hasPhone}
-      addressText={addressText}
-      onClose={() => setModalOpen(false)}
-    />
-  );
+  const modal =
+    modalOpen && listing ? (
+      <ManualBookingRequestModal
+        open
+        doctorName={listing.doctorName}
+        manualId={listing.manualId}
+        addressMapsLink={listing.addressMapsLink}
+        hasPhone={listing.hasPhone}
+        addressText={listing.addressText}
+        onClose={() => setModalOpen(false)}
+      />
+    ) : null;
 
   return { pendingSlotKey, submit, modal };
 }

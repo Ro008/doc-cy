@@ -13,3 +13,10 @@ export const finderRegisteredDetailsSectionClass =
 /** Landing pages are narrower; stack location + calendar until large breakpoints. */
 export const finderLandingCardDetailsGridClass =
   "grid gap-5 lg:grid-cols-[minmax(0,0.72fr)_minmax(300px,1.28fr)]";
+
+export const finderAvailabilitySlotClassName =
+  "inline-flex w-full items-center justify-center rounded-md bg-clinical-500 px-1 py-1 text-[10px] font-semibold leading-none text-white hover:bg-clinical-400";
+
+/** Sliding 14-day strip; `--finder-week-start` is set by FinderResultsAvailabilityShell. */
+export const finderAvailabilityWeekTrackClassName =
+  "finder-availability-week-track divide-x divide-ink-100";

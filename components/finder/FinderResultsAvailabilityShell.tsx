@@ -2,6 +2,12 @@
 
 import * as React from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useManualBookingRequestFeedback } from "@/components/finder/useManualBookingRequestFeedback";
+import {
+  FINDER_MANUAL_CALENDAR_ATTR,
+  FINDER_MANUAL_SLOT_ATTR,
+  parseFinderManualCalendarClick,
+} from "@/lib/finder-manual-slot-click";
 import {
   FINDER_AVAILABILITY_VISIBLE_DAY_COUNT,
   type FinderAvailabilityDayHeader,
@@ -100,12 +106,59 @@ type ShellProps = {
   children: React.ReactNode;
 };
 
+function FinderAvailabilityWeekSurface({ children }: { children: React.ReactNode }) {
+  const { windowStart, visibleDayCount, dayHeaders } = useFinderAvailabilityWeek();
+  const { submit, modal, pendingSlotKey } = useManualBookingRequestFeedback();
+  const isSubmitting = pendingSlotKey !== null;
+
+  function handleClick(event: React.MouseEvent<HTMLDivElement>) {
+    if (isSubmitting) return;
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+    const slotEl = target.closest(`[${FINDER_MANUAL_SLOT_ATTR}]`);
+    if (!(slotEl instanceof HTMLElement)) return;
+    const calendar = slotEl.closest(`[${FINDER_MANUAL_CALENDAR_ATTR}]`);
+    if (!(calendar instanceof HTMLElement)) return;
+    const parsed = parseFinderManualCalendarClick({
+      manualId: calendar.dataset.manualId ?? "",
+      doctorName: calendar.dataset.doctorName ?? "",
+      mapsLink: calendar.dataset.mapsLink ?? "",
+      hasPhone: calendar.dataset.hasPhone ?? "",
+      address: calendar.dataset.address ?? "",
+      slotKey: slotEl.dataset.slotKey ?? "",
+    });
+    if (!parsed) return;
+    event.preventDefault();
+    void submit(parsed, parsed.slotKey);
+  }
+
+  return (
+    <div
+      data-finder-manual-booking-surface
+      aria-busy={isSubmitting || undefined}
+      onClick={handleClick}
+      style={
+        {
+          "--finder-week-start": String(windowStart),
+          "--finder-day-count": String(dayHeaders.length),
+          "--finder-visible-days": String(visibleDayCount),
+        } as React.CSSProperties
+      }
+    >
+      {children}
+      {modal}
+    </div>
+  );
+}
+
 export function FinderResultsAvailabilityShell({ dayHeaders, children }: ShellProps) {
   if (dayHeaders.length === 0) {
     return <>{children}</>;
   }
 
   return (
-    <FinderAvailabilityWeekProvider dayHeaders={dayHeaders}>{children}</FinderAvailabilityWeekProvider>
+    <FinderAvailabilityWeekProvider dayHeaders={dayHeaders}>
+      <FinderAvailabilityWeekSurface>{children}</FinderAvailabilityWeekSurface>
+    </FinderAvailabilityWeekProvider>
   );
 }

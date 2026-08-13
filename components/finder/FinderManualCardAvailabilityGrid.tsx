@@ -1,20 +1,21 @@
-"use client";
-
-import * as React from "react";
-import { FinderAvailabilityDayHeaderRow } from "@/components/finder/FinderAvailabilityDayHeaderRow";
-import {
-  FinderAvailabilityDaySlotGrid,
-  finderAvailabilitySlotClassName,
-} from "@/components/finder/FinderAvailabilityDaySlotGrid";
+import { FinderAvailabilityDayHeaderCell } from "@/components/finder/FinderAvailabilityDayHeaderRow";
 import { FinderAvailabilityStickyWeekHeader } from "@/components/finder/FinderAvailabilityStickyWeekHeader";
-import { useFinderAvailabilityWeek } from "@/components/finder/FinderResultsAvailabilityShell";
-import { useManualBookingRequestFeedback } from "@/components/finder/useManualBookingRequestFeedback";
+import {
+  finderAvailabilitySlotClassName,
+  finderAvailabilityWeekTrackClassName,
+} from "@/components/finder/finder-availability-layout";
 import { buildManualPreviewCalendar } from "@/lib/finder-manual-preview-calendar";
+import {
+  FINDER_MANUAL_CALENDAR_ATTR,
+  FINDER_MANUAL_SLOT_ATTR,
+} from "@/lib/finder-manual-slot-click";
+import type { FinderAvailabilityDayHeader } from "@/lib/public/compute-public-booking-slots";
 
 type Props = {
   manualId: string;
   doctorName: string;
   addressMapsLink: string;
+  dayHeaders: readonly FinderAvailabilityDayHeader[];
   hasPhone?: boolean;
   addressText?: string | null;
   anchorStickyWeekNav?: boolean;
@@ -24,82 +25,61 @@ export function FinderManualCardAvailabilityGrid({
   manualId,
   doctorName,
   addressMapsLink,
+  dayHeaders,
   hasPhone = false,
   addressText = null,
   anchorStickyWeekNav = false,
 }: Props) {
-  const { dayHeaders, windowStart, visibleDayCount, visibleDays } = useFinderAvailabilityWeek();
-  const { pendingSlotKey, submit, modal } = useManualBookingRequestFeedback({
-    manualId,
-    doctorName,
-    addressMapsLink,
-    hasPhone,
-    addressText,
-  });
-
-  const previewCalendar = React.useMemo(
-    () => buildManualPreviewCalendar(dayHeaders, manualId),
-    [dayHeaders, manualId],
-  );
-
-  const visibleCalendarDays = previewCalendar.slice(windowStart, windowStart + visibleDayCount);
-  const headerDays = anchorStickyWeekNav ? visibleDays : visibleCalendarDays;
-  const isSubmitting = pendingSlotKey !== null;
-
+  const previewCalendar = buildManualPreviewCalendar([...dayHeaders], manualId);
   if (previewCalendar.length === 0) return null;
 
-  return (
-    <>
-      <div
-        data-testid="finder-card-calendar-preview"
-        aria-busy={isSubmitting}
-        aria-live="polite"
-      >
-        <div className="rounded-lg border border-ink-200 bg-white">
-          {anchorStickyWeekNav ? (
-            <FinderAvailabilityStickyWeekHeader days={headerDays} />
-          ) : (
-            <FinderAvailabilityDayHeaderRow days={headerDays} />
-          )}
-          <FinderAvailabilityDaySlotGrid
-            days={visibleCalendarDays}
-            resetKey={`${manualId}:${windowStart}`}
-            renderSlot={(slot, day) => {
-              const isActiveSlot = pendingSlotKey === slot.slotKey;
+  const address = String(addressText ?? "").trim();
 
-              return (
-                <button
-                  type="button"
-                  disabled={isSubmitting}
-                  aria-busy={isActiveSlot}
-                  onClick={() => submit(slot.slotKey)}
-                  className={`relative inline-flex w-full items-center justify-center rounded-md bg-clinical-500 px-1 py-1 text-[10px] font-semibold leading-none text-white hover:bg-clinical-400 disabled:cursor-wait disabled:hover:bg-clinical-500 ${
-                    isSubmitting && !isActiveSlot ? "opacity-45" : ""
-                  }`}
-                  title={`Request online booking for ${day.weekdayLabel} ${day.dateLabel} at ${slot.timeLabel}`}
-                >
-                  <span
-                    className={`whitespace-nowrap tabular-nums ${
-                      isActiveSlot ? "opacity-0" : "opacity-100"
-                    }`}
-                  >
-                    {slot.timeLabel}
-                  </span>
-                  {isActiveSlot ? (
-                    <span className="absolute inset-0 flex items-center justify-center">
-                      <span
-                        aria-hidden
-                        className="h-3 w-3 animate-spin rounded-full border border-white border-r-transparent"
-                      />
-                    </span>
-                  ) : null}
-                </button>
-              );
-            }}
-          />
+  return (
+    <div
+      data-testid="finder-card-calendar-preview"
+      {...{ [FINDER_MANUAL_CALENDAR_ATTR]: "" }}
+      data-manual-id={manualId}
+      data-doctor-name={doctorName}
+      data-maps-link={addressMapsLink}
+      data-has-phone={hasPhone ? "1" : "0"}
+      data-address={address}
+    >
+      <div className="rounded-lg border border-ink-200 bg-white">
+        {anchorStickyWeekNav ? (
+          <FinderAvailabilityStickyWeekHeader />
+        ) : (
+          <div className="overflow-hidden border-b border-ink-100 bg-ink-50">
+            <div className={finderAvailabilityWeekTrackClassName}>
+              {previewCalendar.map((day) => (
+                <FinderAvailabilityDayHeaderCell key={day.dateKey} day={day} />
+              ))}
+            </div>
+          </div>
+        )}
+        <div className="overflow-hidden">
+          <div className={`${finderAvailabilityWeekTrackClassName} items-stretch`}>
+            {previewCalendar.map((day) => (
+              <div key={day.dateKey} className="flex min-w-0 flex-col">
+                <div className="flex min-h-[5.5rem] flex-1 flex-col gap-1 p-1.5">
+                  {day.slots.map((slot) => (
+                    <button
+                      key={slot.slotKey}
+                      type="button"
+                      {...{ [FINDER_MANUAL_SLOT_ATTR]: "" }}
+                      data-slot-key={slot.slotKey}
+                      className={finderAvailabilitySlotClassName}
+                      title={`Request online booking for ${day.weekdayLabel} ${day.dateLabel} at ${slot.timeLabel}`}
+                    >
+                      <span className="whitespace-nowrap tabular-nums">{slot.timeLabel}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
-      {modal}
-    </>
+    </div>
   );
 }
