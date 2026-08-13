@@ -1,16 +1,26 @@
 // app/layout.tsx
 import type { Metadata, Viewport } from "next";
+import dynamic from "next/dynamic";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import "sonner/dist/styles.css";
-import { FeedbackWidget } from "@/components/feedback/FeedbackWidget";
-import { InstallBanner } from "@/components/pwa/InstallBanner";
 import { NavigationProgressBar } from "@/components/navigation/NavigationProgressBar";
 import { AppChrome } from "@/components/navigation/AppChrome";
 import { trafficSessionPersistInlineScript } from "@/lib/traffic-log";
 import { Toaster } from "sonner";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
+
+const InstallBanner = dynamic(
+  () => import("@/components/pwa/InstallBanner").then((mod) => mod.InstallBanner),
+  { ssr: false },
+);
+
+const FeedbackWidget = dynamic(
+  () =>
+    import("@/components/feedback/FeedbackWidget").then((mod) => mod.FeedbackWidget),
+  { ssr: false },
+);
 
 const inter = Inter({
   subsets: ["latin"],

@@ -22,9 +22,40 @@ export type DocCyOpenFeedbackDetail = {
   message?: string;
 };
 
+let pendingOpenFeedback: DocCyOpenFeedbackDetail | null = null;
+
 export function emitOpenFeedback(detail?: DocCyOpenFeedbackDetail): void {
+  const payload = detail ?? {};
+  pendingOpenFeedback = payload;
   if (typeof window === "undefined") return;
   window.dispatchEvent(
-    new CustomEvent(DOCCY_OPEN_FEEDBACK_EVENT, { detail: detail ?? {} })
+    new CustomEvent(DOCCY_OPEN_FEEDBACK_EVENT, { detail: payload })
   );
+}
+
+/** Replay a click that happened before the lazy FeedbackWidget chunk loaded. */
+export function consumePendingOpenFeedback(): DocCyOpenFeedbackDetail | null {
+  const next = pendingOpenFeedback;
+  pendingOpenFeedback = null;
+  return next;
+}
+
+export function subscribeOpenFeedback(
+  handler: (detail: DocCyOpenFeedbackDetail) => void,
+): () => void {
+  if (typeof window === "undefined") return () => undefined;
+
+  const onEvent = (event: Event) => {
+    const ce = event as CustomEvent<DocCyOpenFeedbackDetail>;
+    pendingOpenFeedback = null;
+    handler(ce.detail ?? {});
+  };
+
+  window.addEventListener(DOCCY_OPEN_FEEDBACK_EVENT, onEvent);
+  const pending = consumePendingOpenFeedback();
+  if (pending) handler(pending);
+
+  return () => {
+    window.removeEventListener(DOCCY_OPEN_FEEDBACK_EVENT, onEvent);
+  };
 }

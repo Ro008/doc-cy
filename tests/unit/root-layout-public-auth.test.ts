@@ -14,6 +14,8 @@ describe("root layout does not block public HTML", () => {
     assert.equal(source.includes("getMessages"), false);
     assert.equal(source.includes("NextIntlClientProvider"), false);
     assert.equal(source.includes("next/headers"), false);
+    assert.equal(source.includes('next/dynamic'), true);
+    assert.equal(source.includes("ssr: false"), true);
   });
 
   it("only refreshes Supabase session when needsSupabaseSessionMiddleware is true", () => {

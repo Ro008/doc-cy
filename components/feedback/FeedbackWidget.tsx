@@ -7,7 +7,7 @@ import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import {
   DOCCY_FEEDBACK_SUBJECT_DEMO_REQUEST,
   DOCCY_FEEDBACK_SUBJECT_WEBSITE_BOOKING,
-  DOCCY_OPEN_FEEDBACK_EVENT,
+  subscribeOpenFeedback,
   type DocCyOpenFeedbackDetail,
 } from "@/lib/doccy-feedback";
 const INSTALL_BANNER_VISIBILITY_EVENT = "doccy:install-banner-visibility";
@@ -90,9 +90,8 @@ export function FeedbackWidget() {
   }, [installBannerVisible]);
 
   React.useEffect(() => {
-    function onOpenFeedback(e: Event) {
-      const ce = e as CustomEvent<DocCyOpenFeedbackDetail>;
-      const next = ce.detail?.subject;
+    return subscribeOpenFeedback((detail: DocCyOpenFeedbackDetail) => {
+      const next = detail?.subject;
       if (next === "Founding Member Inquiry") {
         setSubject("Founding Member Inquiry");
       } else if (next === DOCCY_FEEDBACK_SUBJECT_WEBSITE_BOOKING) {
@@ -104,14 +103,12 @@ export function FeedbackWidget() {
       } else {
         setSubject("I have a suggestion");
       }
-      setMessage(ce.detail?.message ?? "");
+      setMessage(detail?.message ?? "");
       setError(null);
       setSent(false);
       setOpen(true);
       setHintStage("off");
-    }
-    window.addEventListener(DOCCY_OPEN_FEEDBACK_EVENT, onOpenFeedback);
-    return () => window.removeEventListener(DOCCY_OPEN_FEEDBACK_EVENT, onOpenFeedback);
+    });
   }, []);
 
   React.useEffect(() => {
