@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Building2, LocateFixed, MapPin, Search } from "lucide-react";
 import { clinicsResultsPath } from "@/lib/clinics-public-path";
 import {
@@ -26,6 +26,7 @@ export function ClinicsFilters({
   activeLongitude,
 }: ClinicsFiltersProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const [district, setDistrict] = React.useState(activeDistrict);
   const [name, setName] = React.useState(activeName);
@@ -101,7 +102,7 @@ export function ClinicsFilters({
     if (!options?.skipNavigationStart) {
       emitNavigationStart(undefined, options?.navigationReason ?? "finder-results");
     }
-    window.location.assign(target);
+    router.push(target);
   }
 
   function submitFilters() {
@@ -132,7 +133,7 @@ export function ClinicsFilters({
     if (pendingGuardRef.current) clearTimeout(pendingGuardRef.current);
     pendingGuardRef.current = setTimeout(() => setPendingAction(null), 1500);
     emitNavigationStart(undefined, "finder-results");
-    window.location.assign(clinicsResultsPath(null));
+    router.push(clinicsResultsPath(null));
   }
 
   React.useEffect(() => {

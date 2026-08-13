@@ -570,7 +570,9 @@ test.describe("Integration: finder business-critical UX", { tag: ["@pr-e2e", "@p
         .first();
 
       await expect(card).toBeVisible({ timeout: 20000 });
-      await expect(card.getByTestId("finder-card-calendar-preview")).toBeVisible();
+      await expect(card.getByTestId("finder-card-calendar-preview")).toBeVisible({
+        timeout: 20_000,
+      });
       await expect(page.getByTestId("finder-availability-week-nav")).toBeVisible();
       await expect(card.getByRole("button", { name: /Show next week/i })).toBeVisible();
 

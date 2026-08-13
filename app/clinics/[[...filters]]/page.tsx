@@ -38,6 +38,7 @@ import {
   fetchAllSupabaseRows,
   fetchAllSupabaseRowsForIdChunks,
 } from "@/lib/supabase-fetch-all";
+import { getCachedDirectoryPayload } from "@/lib/finder-directory-cache";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -204,86 +205,138 @@ async function ClinicsSearchPage({ params, searchParams }: ClinicsPageProps) {
     : FINDER_RESULTS_MAX_PAGE_UNFILTERED;
   const districtLabel = activeDistrict ? toTitleCaseWords(activeDistrict) : "";
 
+  const visibleLimit = resultsPage * FINDER_RESULTS_PAGE_SIZE;
+  /** Bounded by max page × page size (600) — under PostgREST max-rows. */
+  const pagedClinicCap = Math.min(
+    visibleLimit,
+    maxResultsPage * FINDER_RESULTS_PAGE_SIZE,
+  );
+
   let clinics: ClinicSearchRow[] = [];
+  let matchingClinicCount = 0;
   let dataWarning: string | null = null;
+
+  const mapClinicRows = (
+    rows: Array<{
+      id: string;
+      name: string;
+      slug: string;
+      district: CyprusDistrict;
+      address?: string | null;
+      phone?: string | null;
+      address_maps_link?: string | null;
+      latitude?: unknown;
+      longitude?: unknown;
+    }>,
+  ): ClinicSearchRow[] =>
+    rows
+      .map((row) => {
+        const coords = parseOptionalCoordinates(row.latitude, row.longitude);
+        const distanceKm = computeFinderDistanceKm(
+          userCoords,
+          row.latitude,
+          row.longitude,
+        );
+        return {
+          id: String(row.id),
+          name: String(row.name ?? "Clinic").trim() || "Clinic",
+          slug: String(row.slug ?? "").trim(),
+          district: row.district,
+          address: String(row.address ?? "").trim() || null,
+          hasPhone: Boolean(String(row.phone ?? "").trim()),
+          address_maps_link: String(row.address_maps_link ?? "").trim() || null,
+          latitude: coords?.latitude ?? null,
+          longitude: coords?.longitude ?? null,
+          photoUrl: resolveClinicDisplayPhotoUrl(null),
+          professionalCount: 0,
+          distanceKm,
+        };
+      })
+      .filter((row) => Boolean(row.slug));
+
+  const applyClinicListFilters = (query: any) => {
+    let next = query.eq("is_archived", false);
+    if (activeDistrict && isCyprusDistrict(activeDistrict)) {
+      next = next.eq("district", activeDistrict);
+    }
+    if (activeName) {
+      next = next.ilike("name", `%${escapeIlikePattern(activeName)}%`);
+    }
+    return next;
+  };
 
   if (!supabase) {
     dataWarning = "Clinic search is temporarily unavailable.";
-  } else {
-    const { data, error } = await fetchAllSupabaseRows(() => {
-      let query = supabase
-        .from("clinics")
-        .select("id, name, slug, district, address, phone, address_maps_link, latitude, longitude")
-        .eq("is_archived", false)
-        .order("name", { ascending: true });
-
-      if (activeDistrict && isCyprusDistrict(activeDistrict)) {
-        query = query.eq("district", activeDistrict);
-      }
-      if (activeName) {
-        query = query.ilike("name", `%${escapeIlikePattern(activeName)}%`);
-      }
-      return query;
-    });
-
-    if (error) {
-      dataWarning = "We could not load clinics right now. Please try again.";
-    } else {
-      const rows = (data ?? []) as Array<{
-        id: string;
-        name: string;
-        slug: string;
-        district: CyprusDistrict;
-        address?: string | null;
-        phone?: string | null;
-        address_maps_link?: string | null;
-        latitude?: unknown;
-        longitude?: unknown;
-      }>;
-
-      clinics = rows
-        .map((row) => {
-          const coords = parseOptionalCoordinates(row.latitude, row.longitude);
-          const distanceKm = computeFinderDistanceKm(
-            userCoords,
-            row.latitude,
-            row.longitude,
+  } else if (userCoords) {
+    try {
+      const data = await getCachedDirectoryPayload(
+        ["clinics-all", activeDistrict, activeName],
+        async () => {
+          const { data, error } = await fetchAllSupabaseRows(() =>
+            applyClinicListFilters(
+              supabase
+                .from("clinics")
+                .select("id, name, slug, district, address, phone, address_maps_link, latitude, longitude")
+                .order("name", { ascending: true }),
+            ),
           );
-          return {
-            id: String(row.id),
-            name: String(row.name ?? "Clinic").trim() || "Clinic",
-            slug: String(row.slug ?? "").trim(),
-            district: row.district,
-            address: String(row.address ?? "").trim() || null,
-            hasPhone: Boolean(String(row.phone ?? "").trim()),
-            address_maps_link: String(row.address_maps_link ?? "").trim() || null,
-            latitude: coords?.latitude ?? null,
-            longitude: coords?.longitude ?? null,
-            photoUrl: resolveClinicDisplayPhotoUrl(null),
-            professionalCount: 0,
-            distanceKm,
-          };
-        })
-        .filter((row) => Boolean(row.slug));
-
-      if (userCoords) {
-        clinics.sort((a, b) => {
-          if (a.distanceKm === null && b.distanceKm === null) {
-            return a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
-          }
-          if (a.distanceKm === null) return 1;
-          if (b.distanceKm === null) return -1;
-          if (a.distanceKm !== b.distanceKm) return a.distanceKm - b.distanceKm;
+          if (error) throw new Error(error.message ?? "clinics_load_failed");
+          return data ?? [];
+        },
+      );
+      clinics = mapClinicRows(data as Parameters<typeof mapClinicRows>[0]);
+      clinics.sort((a, b) => {
+        if (a.distanceKm === null && b.distanceKm === null) {
           return a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
-        });
-      }
+        }
+        if (a.distanceKm === null) return 1;
+        if (b.distanceKm === null) return -1;
+        if (a.distanceKm !== b.distanceKm) return a.distanceKm - b.distanceKm;
+        return a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
+      });
+      matchingClinicCount = clinics.length;
+    } catch {
+      dataWarning = "We could not load clinics right now. Please try again.";
+    }
+  } else {
+    const listSelect =
+      "id, name, slug, district, address, phone, address_maps_link, latitude, longitude";
+    try {
+      const cached = await getCachedDirectoryPayload(
+        ["clinics-page", activeDistrict, activeName, String(pagedClinicCap)],
+        async () => {
+          const [countRes, pageRes] = await Promise.all([
+            applyClinicListFilters(
+              supabase.from("clinics").select("id", { count: "exact", head: true }),
+            ),
+            applyClinicListFilters(
+              supabase
+                .from("clinics")
+                .select(listSelect)
+                .order("name", { ascending: true }),
+            ).range(0, pagedClinicCap - 1),
+          ]);
+          if (countRes.error || pageRes.error) {
+            throw new Error(
+              countRes.error?.message ?? pageRes.error?.message ?? "clinics_load_failed",
+            );
+          }
+          return {
+            count: countRes.count ?? (pageRes.data ?? []).length,
+            rows: pageRes.data ?? [],
+          };
+        },
+      );
+      clinics = mapClinicRows(cached.rows as Parameters<typeof mapClinicRows>[0]);
+      matchingClinicCount = cached.count;
+    } catch {
+      dataWarning = "We could not load clinics right now. Please try again.";
     }
   }
 
-  const visibleLimit = resultsPage * FINDER_RESULTS_PAGE_SIZE;
   const visibleClinics = clinics.slice(0, visibleLimit);
   const hasMoreResults =
-    clinics.length > visibleClinics.length && resultsPage < maxResultsPage;
+    matchingClinicCount > visibleClinics.length && resultsPage < maxResultsPage;
 
   if (supabase && visibleClinics.length > 0) {
     const visibleClinicIds = visibleClinics.map((clinic) => clinic.id);
@@ -299,16 +352,27 @@ async function ClinicsSearchPage({ params, searchParams }: ClinicsPageProps) {
       set.add(professionalId);
     };
 
-    // Prefer N:M links (same source as clinic landing roster).
-    const linksRes = await fetchAllSupabaseRowsForIdChunks<{
-      clinic_id: string;
-      directory_manual_id: string;
-    }>(visibleClinicIds, (chunk) =>
-      supabase
-        .from("directory_manual_clinics")
-        .select("clinic_id, directory_manual_id")
-        .in("clinic_id", chunk),
-    );
+    const [linksRes, legacyRes] = await Promise.all([
+      fetchAllSupabaseRowsForIdChunks<{
+        clinic_id: string;
+        directory_manual_id: string;
+      }>(visibleClinicIds, (chunk) =>
+        supabase
+          .from("directory_manual_clinics")
+          .select("clinic_id, directory_manual_id")
+          .in("clinic_id", chunk),
+      ),
+      fetchAllSupabaseRowsForIdChunks<{
+        id: string;
+        clinic_id: string | null;
+      }>(visibleClinicIds, (chunk) =>
+        supabase
+          .from("directory_manual")
+          .select("id, clinic_id")
+          .eq("is_archived", false)
+          .in("clinic_id", chunk),
+      ),
+    ]);
 
     if (!linksRes.error && linksRes.data?.length) {
       const linkedProfessionalIds = Array.from(
@@ -345,18 +409,6 @@ async function ClinicsSearchPage({ params, searchParams }: ClinicsPageProps) {
         addProfessional(clinicId, professionalId);
       }
     }
-
-    // Legacy primary FK (canaries / rows without junction links).
-    const legacyRes = await fetchAllSupabaseRowsForIdChunks<{
-      id: string;
-      clinic_id: string | null;
-    }>(visibleClinicIds, (chunk) =>
-      supabase
-        .from("directory_manual")
-        .select("id, clinic_id")
-        .eq("is_archived", false)
-        .in("clinic_id", chunk),
-    );
 
     if (!legacyRes.error && legacyRes.data?.length) {
       for (const row of legacyRes.data) {
@@ -432,7 +484,7 @@ async function ClinicsSearchPage({ params, searchParams }: ClinicsPageProps) {
           activeLatitude={userCoords?.latitude ?? null}
           activeLongitude={userCoords?.longitude ?? null}
         />
-        {clinics.length > 0 ? (
+        {matchingClinicCount > 0 ? (
           <p
             data-testid="clinics-results-count"
             className="mt-3 text-xs leading-relaxed text-white/75"
@@ -441,8 +493,8 @@ async function ClinicsSearchPage({ params, searchParams }: ClinicsPageProps) {
             {hasActiveFilters ? (
               <>
                 Showing{" "}
-                <span className="font-medium tabular-nums text-white">{clinics.length}</span>{" "}
-                {clinics.length === 1 ? "clinic" : "clinics"}
+                <span className="font-medium tabular-nums text-white">{matchingClinicCount}</span>{" "}
+                {matchingClinicCount === 1 ? "clinic" : "clinics"}
                 {districtLabel || activeName ? (
                   <span className="text-white/65">
                     {" "}
@@ -457,7 +509,7 @@ async function ClinicsSearchPage({ params, searchParams }: ClinicsPageProps) {
               </>
             ) : (
               <>
-                <span className="font-medium tabular-nums text-white">{clinics.length}</span>{" "}
+                <span className="font-medium tabular-nums text-white">{matchingClinicCount}</span>{" "}
                 clinics on DocCy across Cyprus
               </>
             )}
@@ -475,7 +527,7 @@ async function ClinicsSearchPage({ params, searchParams }: ClinicsPageProps) {
 
         <FinderResultsTransition>
           <section className="mt-6">
-            {clinics.length === 0 && !dataWarning ? (
+            {matchingClinicCount === 0 && !dataWarning ? (
               <div className="rounded-2xl border border-dashed border-clinical-200 bg-white px-5 py-10 text-center">
                 <p className="text-base font-semibold text-ink-800">No clinics matched these filters</p>
                 <p className="mt-2 text-sm text-ink-500">

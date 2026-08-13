@@ -54,7 +54,7 @@ describe("finder public paths", () => {
 
 
 
-  it("rewrites public finder URLs to internal /finder pages", () => {
+  it("does not rewrite public finder URLs (real App Router district pages)", () => {
 
     assert.equal(isPublicFinderResultsPath("/"), true);
 
@@ -64,7 +64,9 @@ describe("finder public paths", () => {
 
     assert.equal(needsMiddlewareFinderRewrite("/"), false);
 
-    assert.equal(needsMiddlewareFinderRewrite("/larnaca"), true);
+    assert.equal(needsMiddlewareFinderRewrite("/larnaca"), false);
+
+    assert.equal(needsMiddlewareFinderRewrite("/all/gynecology"), false);
 
     assert.equal(publicFinderPathToInternal("/"), "/finder");
 

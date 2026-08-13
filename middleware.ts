@@ -18,8 +18,6 @@ import {
   FINDER_DISTRICT_PATH_SLUGS,
   isLegacyFinderFilterPath,
   legacyFinderFilterToPublicPath,
-  needsMiddlewareFinderRewrite,
-  publicFinderPathToInternal,
 } from "./lib/finder-public-path";
 
 const handleI18nRouting = createMiddleware(routing);
@@ -35,6 +33,7 @@ const RESERVED_TOP_LEVEL = new Set([
   "login",
   "register",
   "terms",
+  ...FINDER_DISTRICT_PATH_SLUGS,
 ]);
 
 function isPublicPatientRoute(pathname: string): boolean {
@@ -141,19 +140,15 @@ export async function middleware(req: NextRequest, event: NextFetchEvent) {
     return NextResponse.redirect(dest, 308);
   }
 
-  // Public finder filter URLs → internal /finder implementation (URL bar stays patient-friendly).
-  // `/` is a real App Router page (`app/page.tsx`) so it is not rewritten.
+  // Public finder district URLs (`/larnaca`, `/all/dentistry`) are real App Router
+  // pages. Do not rewrite them — Next <Link> / router.push needs the real route.
   let res: NextResponse;
-  if (needsMiddlewareFinderRewrite(pathname)) {
-    const rewriteUrl = req.nextUrl.clone();
-    rewriteUrl.pathname = publicFinderPathToInternal(pathname);
-    res = NextResponse.rewrite(rewriteUrl);
-  } else {
+  if (isPublicPatientRoute(pathname)) {
     // Step 1: Apply next-intl routing only for public patient-facing booking pages.
     // Internal /agenda dashboard routes are intentionally left unprefixed.
-    res = isPublicPatientRoute(pathname)
-      ? handleI18nRouting(req)
-      : NextResponse.next();
+    res = handleI18nRouting(req);
+  } else {
+    res = NextResponse.next();
   }
 
   // Step 2: Refresh Supabase session on every request so server components

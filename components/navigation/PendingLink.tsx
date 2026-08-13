@@ -5,8 +5,6 @@ import * as React from "react";
 
 import { emitNavigationStart, type NavigationStartReason } from "@/lib/doccy-navigation";
 import { useLinkNavigationPending } from "@/hooks/useLinkNavigationPending";
-import { isClinicsSearchPath } from "@/lib/clinics-public-path";
-import { isPublicFinderResultsPath } from "@/lib/finder-public-path";
 
 type PendingLinkProps = {
   href: string;
@@ -20,17 +18,6 @@ type PendingLinkProps = {
   /** Opt out of hover prefetch (useful in dense card grids). */
   prefetch?: boolean;
 };
-
-function pathOnly(href: string): string {
-  try {
-    if (href.startsWith("http://") || href.startsWith("https://")) {
-      return new URL(href).pathname;
-    }
-  } catch {
-    // ignore
-  }
-  return href.split("?")[0]?.split("#")[0] || href;
-}
 
 function pendingClassName(base: string | undefined, pending: boolean, fill: boolean): string {
   return [
@@ -56,12 +43,6 @@ export function PendingLink({
   const { pending, beginNavigation } = useLinkNavigationPending(href, navigationReason);
   const clickLockRef = React.useRef(false);
   const isHashNavigation = href.includes("#");
-  // Public finder / clinics URLs are not reliable for App Router soft navigation
-  // (middleware rewrite). Use a native anchor so the browser always does a full
-  // document load — Next <Link> can still race soft-nav despite preventDefault.
-  const needsFinderHardNav =
-    !isHashNavigation &&
-    (isPublicFinderResultsPath(pathOnly(href)) || isClinicsSearchPath(pathOnly(href)));
 
   React.useEffect(() => {
     if (!pending) clickLockRef.current = false;
@@ -103,27 +84,6 @@ export function PendingLink({
       </span>
     </span>
   );
-
-  if (needsFinderHardNav) {
-    return (
-      <a
-        href={href}
-        aria-current={ariaCurrent}
-        aria-label={ariaLabel}
-        aria-disabled={pending}
-        aria-busy={pending}
-        tabIndex={pending ? -1 : undefined}
-        onClick={(event) => {
-          if (!guardClick(event)) return;
-          emitNavigationStart(href, navigationReason);
-          beginNavigation();
-        }}
-        className={pendingClassName(className, pending, fill)}
-      >
-        {content}
-      </a>
-    );
-  }
 
   return (
     <Link

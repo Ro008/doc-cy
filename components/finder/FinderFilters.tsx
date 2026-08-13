@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   slugToSpecialty,
   specialtyToSlug,
@@ -33,6 +33,7 @@ export function FinderFilters({
   specialtyOptions,
 }: FinderFiltersProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const [district, setDistrict] = React.useState(activeDistrict);
   const [specialtySlug, setSpecialtySlug] = React.useState(() =>
@@ -141,7 +142,7 @@ export function FinderFilters({
     if (!options?.skipNavigationStart) {
       emitNavigationStart(undefined, options?.navigationReason ?? "finder-results");
     }
-    window.location.assign(target);
+    router.push(target);
   }
 
   function submitFilters() {
@@ -174,7 +175,7 @@ export function FinderFilters({
     if (pendingGuardRef.current) clearTimeout(pendingGuardRef.current);
     pendingGuardRef.current = setTimeout(() => setPendingAction(null), 1500);
     emitNavigationStart(undefined, "finder-results");
-    window.location.assign("/");
+    router.push("/");
   }
 
   React.useEffect(() => {
