@@ -6,7 +6,10 @@ import {createMiddlewareClient} from "@supabase/auth-helpers-nextjs";
 import createMiddleware from "next-intl/middleware";
 import {routing} from "./i18n/routing";
 import {isLikelyBotUserAgent} from "./lib/bot-user-agent";
-import {shouldSuppressTrafficLog} from "./lib/traffic-log";
+import {
+  shouldSuppressTrafficLog,
+  trafficSessionIdFromCookieStore,
+} from "./lib/traffic-log";
 import {parseAuthTokenClaims} from "./lib/auth-token-claims";
 import {isSessionRevokedByPolicy} from "./lib/auth-session-revocation";
 import {
@@ -18,9 +21,8 @@ import {
   FINDER_DISTRICT_PATH_SLUGS,
   isLegacyFinderFilterPath,
   legacyFinderFilterToPublicPath,
-  needsMiddlewareFinderRewrite,
-  publicFinderPathToInternal,
 } from "./lib/finder-public-path";
+import {needsSupabaseSessionMiddleware} from "./lib/needs-supabase-session-middleware";
 
 const handleI18nRouting = createMiddleware(routing);
 
@@ -35,6 +37,7 @@ const RESERVED_TOP_LEVEL = new Set([
   "login",
   "register",
   "terms",
+  ...FINDER_DISTRICT_PATH_SLUGS,
 ]);
 
 function isPublicPatientRoute(pathname: string): boolean {
@@ -69,8 +72,6 @@ function isPublicPatientRoute(pathname: string): boolean {
 
   return false;
 }
-
-const TRAFFIC_SESSION_COOKIE = "doccy-traffic-session";
 
 function shouldTrackTraffic(pathname: string): boolean {
   if (pathname.startsWith("/internal")) return false;
@@ -141,76 +142,73 @@ export async function middleware(req: NextRequest, event: NextFetchEvent) {
     return NextResponse.redirect(dest, 308);
   }
 
-  // Public finder filter URLs → internal /finder implementation (URL bar stays patient-friendly).
-  // `/` is a real App Router page (`app/page.tsx`) so it is not rewritten.
+  // Public finder district URLs (`/larnaca`, `/all/dentistry`) are real App Router
+  // pages. Do not rewrite them — Next <Link> / router.push needs the real route.
   let res: NextResponse;
-  if (needsMiddlewareFinderRewrite(pathname)) {
-    const rewriteUrl = req.nextUrl.clone();
-    rewriteUrl.pathname = publicFinderPathToInternal(pathname);
-    res = NextResponse.rewrite(rewriteUrl);
-  } else {
+  if (isPublicPatientRoute(pathname)) {
     // Step 1: Apply next-intl routing only for public patient-facing booking pages.
     // Internal /agenda dashboard routes are intentionally left unprefixed.
-    res = isPublicPatientRoute(pathname)
-      ? handleI18nRouting(req)
-      : NextResponse.next();
+    res = handleI18nRouting(req);
+  } else {
+    res = NextResponse.next();
   }
 
-  // Step 2: Refresh Supabase session on every request so server components
-  // (like /agenda) can see the authenticated user via cookies.
-  const supabase = createMiddlewareClient({req, res});
-  const {
-    data: {session},
-  } = await supabase.auth.getSession();
+  // Refresh JWT + gate /agenda only on doctor product routes. Public finder,
+  // clinics, and booking pages skip Auth so anonymous HTML is not blocked.
+  if (needsSupabaseSessionMiddleware(pathname)) {
+    const supabase = createMiddlewareClient({req, res});
+    const {
+      data: {session},
+    } = await supabase.auth.getSession();
 
-  // Protect /agenda and /agenda/*: require auth, redirect to login if no session
-  if (pathname === "/agenda" || pathname.startsWith("/agenda/")) {
-    if (!session) {
-      const loginUrl = new URL("/login", req.url);
-      loginUrl.searchParams.set("next", pathname);
-      return NextResponse.redirect(loginUrl);
-    }
-
-    const {data: doctorRow, error: doctorRowError} = await supabase
-      .from("doctors")
-      .select("status, auth_session_revoked_after, auth_keep_session_id")
-      .eq("auth_user_id", session.user.id)
-      .maybeSingle();
-
-    if (doctorRowError && (doctorRowError as {code?: string}).code !== "42703") {
-      console.error("[DocCy][auth] middleware_doctor_lookup_failed", doctorRowError);
-    }
-
-    if (
-      doctorRow &&
-      !isDoctorAccountReviewPath(pathname) &&
-      !isDoctorVerifiedForProduct(
-        (doctorRow as {status?: string | null}).status,
-      )
-    ) {
-      return NextResponse.redirect(new URL(DOCTOR_ACCOUNT_REVIEW_PATH, req.url));
-    }
-
-    const claims = parseAuthTokenClaims(session.access_token);
-    if (claims.sessionId && doctorRow) {
-      const revokedAfterRaw = (
-        doctorRow as {auth_session_revoked_after?: string | null}
-      ).auth_session_revoked_after;
-      const keepSessionId = (
-        doctorRow as {auth_keep_session_id?: string | null}
-      ).auth_keep_session_id;
-
-      const isRevoked = isSessionRevokedByPolicy({
-        revokedAfterIso: revokedAfterRaw,
-        keepSessionId,
-        tokenIat: claims.iat,
-        tokenSessionId: claims.sessionId,
-      });
-
-      if (isRevoked) {
+    if (pathname === "/agenda" || pathname.startsWith("/agenda/")) {
+      if (!session) {
         const loginUrl = new URL("/login", req.url);
         loginUrl.searchParams.set("next", pathname);
         return NextResponse.redirect(loginUrl);
+      }
+
+      const {data: doctorRow, error: doctorRowError} = await supabase
+        .from("doctors")
+        .select("status, auth_session_revoked_after, auth_keep_session_id")
+        .eq("auth_user_id", session.user.id)
+        .maybeSingle();
+
+      if (doctorRowError && (doctorRowError as {code?: string}).code !== "42703") {
+        console.error("[DocCy][auth] middleware_doctor_lookup_failed", doctorRowError);
+      }
+
+      if (
+        doctorRow &&
+        !isDoctorAccountReviewPath(pathname) &&
+        !isDoctorVerifiedForProduct(
+          (doctorRow as {status?: string | null}).status,
+        )
+      ) {
+        return NextResponse.redirect(new URL(DOCTOR_ACCOUNT_REVIEW_PATH, req.url));
+      }
+
+      const claims = parseAuthTokenClaims(session.access_token);
+      if (claims.sessionId && doctorRow) {
+        const revokedAfterRaw = (
+          doctorRow as {auth_session_revoked_after?: string | null}
+        ).auth_session_revoked_after;
+        const keepSessionId = (
+          doctorRow as {auth_keep_session_id?: string | null}
+        ).auth_keep_session_id;
+
+        const isRevoked = isSessionRevokedByPolicy({
+          revokedAfterIso: revokedAfterRaw,
+          keepSessionId,
+          tokenIat: claims.iat,
+          tokenSessionId: claims.sessionId,
+        });
+
+        if (isRevoked) {
+          const loginUrl = new URL("/login", req.url);
+          loginUrl.searchParams.set("next", pathname);
+          return NextResponse.redirect(loginUrl);
+        }
       }
     }
   }
@@ -236,20 +234,11 @@ export async function middleware(req: NextRequest, event: NextFetchEvent) {
     }
   }
 
+  // Log visits without Set-Cookie on the HTML response (that would bust CDN/cache).
+  // Returning visitors still send a session cookie; first-time IDs persist via a
+  // tiny inline script after HTML (`doccy-ts`), not on this response.
   if (req.method === "GET" && shouldTrackTraffic(pathname) && !shouldSuppressTrafficLog(req)) {
-    const existing = req.cookies.get(TRAFFIC_SESSION_COOKIE)?.value?.trim();
-    const sessionId = existing || crypto.randomUUID();
-    if (!existing) {
-      res.cookies.set({
-        name: TRAFFIC_SESSION_COOKIE,
-        value: sessionId,
-        httpOnly: true,
-        sameSite: "lax",
-        secure: true,
-        path: "/",
-        maxAge: 60 * 60 * 24 * 30,
-      });
-    }
+    const sessionId = trafficSessionIdFromCookieStore(req.cookies) || crypto.randomUUID();
     queueTrafficLog(req, sessionId, event);
   }
 

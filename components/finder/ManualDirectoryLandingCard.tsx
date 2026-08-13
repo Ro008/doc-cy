@@ -1,5 +1,3 @@
-"use client";
-
 import { PendingLink } from "@/components/navigation/PendingLink";
 import { GesyProviderBadge } from "@/components/brand/GesyProviderBadge";
 import { FinderClinicLocationBlock } from "@/components/finder/FinderClinicLocationBlock";
@@ -11,6 +9,7 @@ import {
 } from "@/components/finder/ManualDirectoryPatientActions";
 import { FinderManualCardAvailabilityGrid } from "@/components/finder/FinderManualCardAvailabilityGrid";
 import { FinderResultsAvailabilityShell } from "@/components/finder/FinderResultsAvailabilityShell";
+import { FINDER_LCP_CARD_IMAGE_PRIORITY } from "@/lib/finder-card-image-priority";
 import { finderResultsPath } from "@/lib/finder-public-path";
 import {
   finderLandingCardDetailsGridClass,
@@ -48,7 +47,7 @@ export function ManualDirectoryLandingCard({
                 src={row.photoUrl}
                 alt={`${row.displayName} profile photo`}
                 className="h-full w-full object-cover"
-                loading="lazy"
+                {...FINDER_LCP_CARD_IMAGE_PRIORITY}
               />
             </div>
             <div className="min-w-0 flex-1 flex flex-col items-stretch gap-2 text-left">
@@ -89,6 +88,7 @@ export function ManualDirectoryLandingCard({
                   manualId={row.id}
                   doctorName={row.displayName}
                   addressMapsLink={row.address_maps_link}
+                  dayHeaders={dayHeaders}
                   hasPhone={phoneOnFile}
                   addressText={row.address}
                 />

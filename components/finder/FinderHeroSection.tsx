@@ -1,5 +1,6 @@
 import Image from "next/image";
 import { FINDER_HERO_COPY_TOP_CLASS } from "@/components/finder/FinderHeroBookingFlow";
+import { FINDER_PROFESSIONALS_HERO_SRC } from "@/lib/finder-hero-images";
 
 type FinderHeroSectionProps = {
   title: string;
@@ -17,7 +18,7 @@ export function FinderHeroSection({
   subtitle,
   subtitleClassName = "mt-3 max-w-2xl text-base leading-relaxed text-ink-600",
   showHeroImage = false,
-  heroImageSrc = "/finder/finder-hero.png",
+  heroImageSrc = FINDER_PROFESSIONALS_HERO_SRC,
   children,
 }: FinderHeroSectionProps) {
   if (!showHeroImage) {

@@ -73,11 +73,12 @@ export function isPublicFinderResultsPath(pathname: string): boolean {
 }
 
 /**
- * Paths that middleware must rewrite to the internal finder catch-all.
- * `/` is served by `app/page.tsx` (no rewrite) so client hard/soft loads stay consistent.
+ * Paths that middleware used to rewrite to `/finder/...`.
+ * District URLs are now real App Router pages (`app/larnaca`, `app/all`, …)
+ * so client navigation works. Kept as a predicate that always returns false.
  */
-export function needsMiddlewareFinderRewrite(pathname: string): boolean {
-  return pathname !== "/" && isPublicFinderResultsPath(pathname);
+export function needsMiddlewareFinderRewrite(_pathname: string): boolean {
+  return false;
 }
 
 export function publicFinderPathToInternal(pathname: string): string {

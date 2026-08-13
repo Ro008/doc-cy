@@ -8,17 +8,40 @@
 
 export type DirectoryGender = "male" | "female" | "unknown";
 
-export const FINDER_DEFAULT_AVATAR_MALE = "/finder/avatars/default-male.png";
-export const FINDER_DEFAULT_AVATAR_FEMALE = "/finder/avatars/default-female.png";
+export const FINDER_DEFAULT_AVATAR_MALE = "/finder/avatars/default-male.webp";
+export const FINDER_DEFAULT_AVATAR_FEMALE = "/finder/avatars/default-female.webp";
 /** Small-size clinic/place icon (readable in a circle). */
 export const FINDER_DEFAULT_AVATAR_CLINIC = "/finder/avatars/default-clinic.svg";
 /**
  * Larger 3D clinic illustration — for OG shares, banners, empty states.
  * Not for tiny circular avatars (detail is unreadable there).
  */
-export const FINDER_CLINIC_HERO_ILLUSTRATION = "/finder/avatars/clinic-hero.png";
+export const FINDER_CLINIC_HERO_ILLUSTRATION = "/finder/avatars/clinic-hero.webp";
 /** Neutral fallback when gender is missing. */
 export const FINDER_DEFAULT_AVATAR_UNKNOWN = FINDER_DEFAULT_AVATAR_MALE;
+
+const LEGACY_DEFAULT_AVATAR_PNG_TO_WEBP: Record<string, string> = {
+  "/finder/avatars/default-male.png": FINDER_DEFAULT_AVATAR_MALE,
+  "/finder/avatars/default-female.png": FINDER_DEFAULT_AVATAR_FEMALE,
+};
+
+/** Recently viewed stores the photo URL in localStorage; rewrite deleted PNG placeholders. */
+export function rewriteLegacyFinderDefaultAvatarUrl(photoUrl: string | null | undefined): string | null {
+  const raw = String(photoUrl ?? "").trim();
+  if (!raw) return null;
+  try {
+    if (raw.startsWith("http://") || raw.startsWith("https://")) {
+      const url = new URL(raw);
+      const mapped = LEGACY_DEFAULT_AVATAR_PNG_TO_WEBP[url.pathname];
+      if (mapped) return mapped;
+      return raw;
+    }
+  } catch {
+    // ignore
+  }
+  const path = raw.split("?")[0]?.split("#")[0] || raw;
+  return LEGACY_DEFAULT_AVATAR_PNG_TO_WEBP[path] ?? raw;
+}
 
 export function normalizeDirectoryGender(value: unknown): DirectoryGender {
   const raw = String(value ?? "")

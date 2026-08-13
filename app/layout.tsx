@@ -1,21 +1,27 @@
 // app/layout.tsx
 import type { Metadata, Viewport } from "next";
+import dynamic from "next/dynamic";
+import { Suspense } from "react";
 import { Inter } from "next/font/google";
-import { NextIntlClientProvider } from "next-intl";
-import { getMessages } from "next-intl/server";
-import { cookies, headers } from "next/headers";
-import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
 import "./globals.css";
 import "sonner/dist/styles.css";
-import { FeedbackWidget } from "@/components/feedback/FeedbackWidget";
-import { InstallBanner } from "@/components/pwa/InstallBanner";
 import { NavigationProgressBar } from "@/components/navigation/NavigationProgressBar";
-import { UserBar } from "@/components/navigation/UserBar";
-import { AuthAboutFooter } from "@/components/navigation/AuthAboutFooter";
-import { ResponsiveBottomInset } from "@/components/navigation/ResponsiveBottomInset";
+import { AppChrome } from "@/components/navigation/AppChrome";
+import { trafficSessionPersistInlineScript } from "@/lib/traffic-log";
 import { Toaster } from "sonner";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
+
+const InstallBanner = dynamic(
+  () => import("@/components/pwa/InstallBanner").then((mod) => mod.InstallBanner),
+  { ssr: false },
+);
+
+const FeedbackWidget = dynamic(
+  () =>
+    import("@/components/feedback/FeedbackWidget").then((mod) => mod.FeedbackWidget),
+  { ssr: false },
+);
 
 const inter = Inter({
   subsets: ["latin"],
@@ -89,62 +95,23 @@ export const viewport: Viewport = {
   themeColor: "#12B8C0",
 };
 
-export default async function RootLayout({
+export default function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const messages = await getMessages();
-  const locale = headers().get("x-next-intl-locale") ?? "en";
-  const supabase = createServerComponentClient({ cookies });
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  let initialUserBarState = {
-    isLoggedIn: false,
-    email: null as string | null,
-    doctorSlug: null as string | null,
-    doctorName: null as string | null,
-    avatarUrl: null as string | null,
-  };
-
-  if (user) {
-    const { data: doctorRow } = await supabase
-      .from("doctors")
-      .select("slug, name, avatar_url")
-      .eq("auth_user_id", user.id)
-      .maybeSingle();
-
-    const avatarPath = String(
-      (doctorRow as { avatar_url?: string | null } | null)?.avatar_url ?? ""
-    ).trim();
-    const avatarUrl = avatarPath
-      ? supabase.storage.from("avatars").getPublicUrl(avatarPath).data.publicUrl
-      : null;
-
-    initialUserBarState = {
-      isLoggedIn: true,
-      email: user.email ?? null,
-      doctorSlug: typeof doctorRow?.slug === "string" ? doctorRow.slug : null,
-      doctorName: typeof doctorRow?.name === "string" ? doctorRow.name : null,
-      avatarUrl,
-    };
-  }
-
   return (
-    <html lang={locale}>
+    <html lang="en">
       <body
         className={`${inter.variable} min-h-screen bg-slate-950 text-slate-900 antialiased`}
       >
-        <NavigationProgressBar />
-        <NextIntlClientProvider messages={messages}>
-          <UserBar initialSessionState={initialUserBarState} />
-          <ResponsiveBottomInset enabled={Boolean(user)}>
-            {children}
-            <AuthAboutFooter visible={Boolean(user)} />
-          </ResponsiveBottomInset>
-        </NextIntlClientProvider>
+        <script
+          dangerouslySetInnerHTML={{ __html: trafficSessionPersistInlineScript() }}
+        />
+        <Suspense fallback={null}>
+          <NavigationProgressBar />
+        </Suspense>
+        <AppChrome>{children}</AppChrome>
         <Toaster richColors position="top-center" closeButton />
         <InstallBanner />
         <FeedbackWidget />

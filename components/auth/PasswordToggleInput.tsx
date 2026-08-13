@@ -36,18 +36,25 @@ export function PasswordToggleInput({
       ? "absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-1 text-ink-400 transition hover:bg-ink-100 hover:text-ink-700 focus:outline-none focus:ring-2 focus:ring-clinical-400/60"
       : "absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-1 text-slate-400 transition hover:bg-slate-800 hover:text-slate-200 focus:outline-none focus:ring-2 focus:ring-clinical-400/60";
 
+  const isControlled = value !== undefined;
+
   return (
     <div className="relative mt-1">
       <input
         name={name}
         type={showPassword ? "text" : "password"}
-        value={value}
-        onChange={(e) => onChange?.(e.target.value)}
         placeholder={placeholder}
         required={required}
         minLength={minLength}
         className={`${inputClass} ${className ?? ""}`}
         autoComplete={name === "password" ? "current-password" : undefined}
+        {...(isControlled
+          ? {
+              value,
+              onChange: (event: React.ChangeEvent<HTMLInputElement>) =>
+                onChange?.(event.target.value),
+            }
+          : {})}
       />
 
       <button

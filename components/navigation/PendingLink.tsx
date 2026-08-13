@@ -2,11 +2,10 @@
 
 import Link from "next/link";
 import * as React from "react";
+import { Suspense } from "react";
 
 import { emitNavigationStart, type NavigationStartReason } from "@/lib/doccy-navigation";
 import { useLinkNavigationPending } from "@/hooks/useLinkNavigationPending";
-import { isClinicsSearchPath } from "@/lib/clinics-public-path";
-import { isPublicFinderResultsPath } from "@/lib/finder-public-path";
 
 type PendingLinkProps = {
   href: string;
@@ -21,17 +20,6 @@ type PendingLinkProps = {
   prefetch?: boolean;
 };
 
-function pathOnly(href: string): string {
-  try {
-    if (href.startsWith("http://") || href.startsWith("https://")) {
-      return new URL(href).pathname;
-    }
-  } catch {
-    // ignore
-  }
-  return href.split("?")[0]?.split("#")[0] || href;
-}
-
 function pendingClassName(base: string | undefined, pending: boolean, fill: boolean): string {
   return [
     fill ? "flex" : "",
@@ -43,7 +31,7 @@ function pendingClassName(base: string | undefined, pending: boolean, fill: bool
     .trim();
 }
 
-export function PendingLink({
+function PendingLinkView({
   href,
   children,
   className,
@@ -52,16 +40,14 @@ export function PendingLink({
   navigationReason = "default",
   fill = false,
   prefetch,
-}: PendingLinkProps) {
-  const { pending, beginNavigation } = useLinkNavigationPending(href, navigationReason);
+  pending,
+  beginNavigation,
+}: PendingLinkProps & {
+  pending: boolean;
+  beginNavigation: () => void;
+}) {
   const clickLockRef = React.useRef(false);
   const isHashNavigation = href.includes("#");
-  // Public finder / clinics URLs are not reliable for App Router soft navigation
-  // (middleware rewrite). Use a native anchor so the browser always does a full
-  // document load — Next <Link> can still race soft-nav despite preventDefault.
-  const needsFinderHardNav =
-    !isHashNavigation &&
-    (isPublicFinderResultsPath(pathOnly(href)) || isClinicsSearchPath(pathOnly(href)));
 
   React.useEffect(() => {
     if (!pending) clickLockRef.current = false;
@@ -104,27 +90,6 @@ export function PendingLink({
     </span>
   );
 
-  if (needsFinderHardNav) {
-    return (
-      <a
-        href={href}
-        aria-current={ariaCurrent}
-        aria-label={ariaLabel}
-        aria-disabled={pending}
-        aria-busy={pending}
-        tabIndex={pending ? -1 : undefined}
-        onClick={(event) => {
-          if (!guardClick(event)) return;
-          emitNavigationStart(href, navigationReason);
-          beginNavigation();
-        }}
-        className={pendingClassName(className, pending, fill)}
-      >
-        {content}
-      </a>
-    );
-  }
-
   return (
     <Link
       href={href}
@@ -159,5 +124,31 @@ export function PendingLink({
     >
       {content}
     </Link>
+  );
+}
+
+function PendingLinkWithSearchParams(props: PendingLinkProps) {
+  const { pending, beginNavigation } = useLinkNavigationPending(
+    props.href,
+    props.navigationReason,
+  );
+  return (
+    <PendingLinkView {...props} pending={pending} beginNavigation={beginNavigation} />
+  );
+}
+
+/**
+ * `useSearchParams()` must sit under Suspense or Next.js prerender of static
+ * pages (/blog, /terms, …) fails with missing-suspense-with-csr-bailout.
+ */
+export function PendingLink(props: PendingLinkProps) {
+  return (
+    <Suspense
+      fallback={
+        <PendingLinkView {...props} pending={false} beginNavigation={() => undefined} />
+      }
+    >
+      <PendingLinkWithSearchParams {...props} />
+    </Suspense>
   );
 }

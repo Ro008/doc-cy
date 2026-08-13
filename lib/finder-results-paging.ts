@@ -1,10 +1,11 @@
 import { harmonizeFinderSpecialtyLabel } from "@/lib/finder-specialty-harmonize";
 
 /**
- * How many finder cards to render per "page" (Show more multiplies this).
- * Kept modest so calendar client islands stay cheap to hydrate.
+ * How many finder/clinic cards to render per "page" (Show more multiplies this).
+ * 12 matches typical healthcare directory first pages (Zocdoc ~10) and fits
+ * a patient shortlist without dumping 30 tall calendar cards on first paint.
  */
-export const FINDER_RESULTS_PAGE_SIZE = 30;
+export const FINDER_RESULTS_PAGE_SIZE = 12;
 
 /** Max ?page= when browsing without district/specialty/name/near-me. */
 export const FINDER_RESULTS_MAX_PAGE_UNFILTERED = 2;
@@ -86,4 +87,22 @@ export function buildFinderResultsPageHref(params: {
   if (params.page > 1) qs.set("page", String(params.page));
   const query = qs.toString();
   return query ? `${params.finderPath}?${query}` : params.finderPath;
+}
+
+/** CI/QA only: keep freshly created test doctors on the first page of 12. */
+export function pinRegisteredTestProfilesFirst<T extends { kind: string; row: object }>(
+  results: T[],
+  enabled: boolean,
+): void {
+  if (!enabled) return;
+  results.sort((a, b) => {
+    const aTest =
+      a.kind === "registered" &&
+      Boolean((a.row as { isTestProfile?: boolean }).isTestProfile);
+    const bTest =
+      b.kind === "registered" &&
+      Boolean((b.row as { isTestProfile?: boolean }).isTestProfile);
+    if (aTest === bTest) return 0;
+    return aTest ? -1 : 1;
+  });
 }

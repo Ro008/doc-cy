@@ -4,6 +4,23 @@ type Props = {
   days: FinderAvailabilityDayHeader[];
 };
 
+export function FinderAvailabilityDayHeaderCell({
+  day,
+}: {
+  day: FinderAvailabilityDayHeader;
+}) {
+  return (
+    <div className="px-1 py-1.5 text-center">
+      <p className="truncate text-[9px] font-semibold uppercase tracking-[0.08em] text-ink-500">
+        {day.weekdayLabel}
+      </p>
+      <p className="truncate text-[10px] font-medium leading-tight text-ink-700">
+        {day.dateLabel}
+      </p>
+    </div>
+  );
+}
+
 export function FinderAvailabilityDayHeaderRow({ days }: Props) {
   if (days.length === 0) return null;
 
@@ -13,14 +30,7 @@ export function FinderAvailabilityDayHeaderRow({ days }: Props) {
       style={{ gridTemplateColumns: `repeat(${days.length}, minmax(0, 1fr))` }}
     >
       {days.map((day) => (
-        <div key={day.dateKey} className="px-1 py-1.5 text-center">
-          <p className="truncate text-[9px] font-semibold uppercase tracking-[0.08em] text-ink-500">
-            {day.weekdayLabel}
-          </p>
-          <p className="truncate text-[10px] font-medium leading-tight text-ink-700">
-            {day.dateLabel}
-          </p>
-        </div>
+        <FinderAvailabilityDayHeaderCell key={day.dateKey} day={day} />
       ))}
     </div>
   );

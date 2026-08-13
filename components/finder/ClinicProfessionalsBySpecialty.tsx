@@ -11,6 +11,10 @@ import {
   uniqueClinicRosterProfessionals,
 } from "@/lib/clinic-roster";
 import type { ClinicLandingProfessional } from "@/lib/load-clinic-by-slug";
+import {
+  finderCardImagePriority,
+  type FinderCardImagePriority,
+} from "@/lib/finder-card-image-priority";
 
 /** Unique specialty chips with how many distinct professionals have that specialty. */
 function buildSpecialtyChipCounts(
@@ -28,14 +32,20 @@ function buildSpecialtyChipCounts(
 }
 
 /** Interactive card: open profile / specialty finder. */
-function BookableProfessionalCard({ pro }: { pro: ClinicLandingProfessional }) {
+function BookableProfessionalCard({
+  pro,
+  imagePriority,
+}: {
+  pro: ClinicLandingProfessional;
+  imagePriority: FinderCardImagePriority;
+}) {
   const photo = (
     <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full border border-clinical-200 bg-ink-50">
       <img
         src={pro.photoUrl}
         alt=""
         className="h-full w-full object-cover"
-        loading="lazy"
+        {...imagePriority}
       />
     </div>
   );
@@ -54,7 +64,7 @@ function BookableProfessionalCard({ pro }: { pro: ClinicLandingProfessional }) {
             src={pro.photoUrl}
             alt=""
             className="h-full w-full object-cover"
-            loading="lazy"
+            {...imagePriority}
           />
         </PendingLink>
       ) : (
@@ -225,9 +235,12 @@ export function ClinicProfessionalsBySpecialty({
           </div>
 
           <ul className="grid gap-3 sm:grid-cols-2">
-            {visibleBookable.map((pro) => (
+            {visibleBookable.map((pro, index) => (
               <li key={pro.id}>
-                <BookableProfessionalCard pro={pro} />
+                <BookableProfessionalCard
+                  pro={pro}
+                  imagePriority={finderCardImagePriority(index)}
+                />
               </li>
             ))}
           </ul>

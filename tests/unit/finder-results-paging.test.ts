@@ -3,11 +3,17 @@ import { describe, it } from "node:test";
 import {
   buildFinderResultsPageHref,
   escapeIlikePattern,
+  FINDER_RESULTS_PAGE_SIZE,
   finderSpecialtyDbMatchValues,
   parseFinderResultsPage,
+  pinRegisteredTestProfilesFirst,
 } from "@/lib/finder-results-paging";
 
 describe("finder results paging helpers", () => {
+  it("renders a short first page so patients compare a handful of listings", () => {
+    assert.equal(FINDER_RESULTS_PAGE_SIZE, 12);
+  });
+
   it("escapes ilike wildcards", () => {
     assert.equal(escapeIlikePattern("100%_x\\y"), "100\\%\\_x\\\\y");
   });
@@ -41,5 +47,18 @@ describe("finder results paging helpers", () => {
       }),
       "/",
     );
+  });
+
+  it("pins registered test profiles first for integration first-page asserts", () => {
+    const rows = [
+      { kind: "manual" as const, row: {} },
+      { kind: "registered" as const, row: { isTestProfile: false } },
+      { kind: "registered" as const, row: { isTestProfile: true } },
+    ];
+    pinRegisteredTestProfilesFirst(rows, false);
+    assert.equal(rows[0]?.kind, "manual");
+    pinRegisteredTestProfilesFirst(rows, true);
+    assert.equal(rows[0]?.kind, "registered");
+    assert.equal((rows[0]?.row as { isTestProfile?: boolean }).isTestProfile, true);
   });
 });

@@ -6,6 +6,8 @@
  * a full row of recent items without the other kind crowding them out.
  */
 
+import { rewriteLegacyFinderDefaultAvatarUrl } from "@/lib/finder-default-avatars";
+
 export type RecentlyViewedKind = "professional" | "clinic";
 
 export type RecentlyViewedItemInput = {
@@ -67,7 +69,7 @@ function sanitizeItem(input: RecentlyViewedItemInput, viewedAt: number): Recentl
     name,
     subtitle,
     location,
-    photoUrl: photoRaw || null,
+    photoUrl: rewriteLegacyFinderDefaultAvatarUrl(photoRaw),
     viewedAt: Number.isFinite(viewedAt) ? viewedAt : Date.now(),
   };
 }

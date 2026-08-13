@@ -1,7 +1,8 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import path from "node:path";
 import { postDoctorVerification } from "../integration/helpers/internal-api";
+import { gotoPublicAndReady } from "./helpers/assertNoCloudflareChallenge";
 
 const TEST_EMAIL_DOMAIN = "@test-doccy.com.cy";
 
@@ -68,6 +69,46 @@ function isAuthUserNotFound(message: string | null | undefined): boolean {
   return normalized.includes("user not found");
 }
 
+async function collectRegisterDiagnostics(page: Page): Promise<string> {
+  return page.evaluate(() => {
+    const form = document.getElementById("register-form") as HTMLFormElement | null;
+    const invalidHints = Array.from(
+      document.querySelectorAll<HTMLElement>(
+        '#register-form [data-invalid="1"] .field-hint:not(.hidden)',
+      ),
+    )
+      .map((el) => el.textContent?.trim())
+      .filter(Boolean);
+    const invalidControls = form
+      ? Array.from(form.querySelectorAll("input,select,textarea"))
+          .filter((el): el is HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement =>
+            el instanceof HTMLInputElement ||
+            el instanceof HTMLSelectElement ||
+            el instanceof HTMLTextAreaElement,
+          )
+          .filter((el) => !el.disabled && !el.checkValidity())
+          .map((el) => ({
+            name: el.name || el.getAttribute("data-validity-proxy") || el.id,
+            message: el.validationMessage,
+          }))
+      : [];
+    const errorBanner = document.querySelector(".border-red-300.bg-red-50")?.textContent?.trim() ?? "";
+    const submitting = Boolean(
+      document.querySelector('[role="status"]')?.textContent?.includes("Submitting"),
+    );
+    return JSON.stringify({
+      url: location.href,
+      title: document.title,
+      formValid: form?.checkValidity() ?? null,
+      honeypot: (form?.querySelector('input[name="company"]') as HTMLInputElement | null)?.value ?? "",
+      invalidHints,
+      invalidControls,
+      errorBanner,
+      submitting,
+    });
+  });
+}
+
 async function waitForDoctorByEmail(
   admin: SupabaseClient,
   email: string,
@@ -117,25 +158,38 @@ test.describe("Prod smoke: doctor registration", { tag: "@nightly-prod" }, () =>
     const imageFixture = path.resolve(process.cwd(), "tests", "assets", "dummy-doc.jpg");
 
     try {
-      await page.goto("/register", { waitUntil: "domcontentloaded" });
+      await gotoPublicAndReady(page, "/register");
       await expect(
         page.getByRole("heading", { name: /List your practice on DocCy/i }),
       ).toBeVisible({
         timeout: 20_000,
       });
 
-      await page.getByLabel("Full name").fill(fullName);
-      await page.getByLabel("Email").fill(email);
-      await page.getByLabel("Password").fill(password);
-      await page.getByLabel(/^WhatsApp Number/i).fill(uniquePhone);
+      const form = page.locator("#register-form");
+      await expect(form).toBeVisible({ timeout: 20_000 });
+
+      await form.locator("input[name='fullName']").fill(fullName);
+      await form.locator("input[name='email']").fill(email);
+      await form.locator("input[name='password']").fill(password);
+      await form.locator("input[name='phone']").fill(uniquePhone);
 
       await page.locator("#register-specialty-trigger").click();
       await page.locator("ul[role='listbox'] li button").first().click();
+      await expect(form.locator("input[name='specialty']")).not.toHaveValue("", {
+        timeout: 5_000,
+      });
+
       await page.getByTestId("language-multiselect-trigger").click();
       await page.locator("#register-languages-listbox [role='option']").first().click();
       await page.keyboard.press("Escape");
+      await expect(form.locator("input[name='language']").first()).not.toHaveValue("", {
+        timeout: 5_000,
+      });
 
-      await page.getByLabel(/Clinic address/i).fill("Nicosia");
+      await expect(
+        page.getByText("Start typing and choose your clinic from Google suggestions."),
+      ).toBeVisible({ timeout: 20_000 });
+      await page.locator("#register-clinic-address").fill("Nicosia");
       await page.locator(".pac-container .pac-item").first().click({ timeout: 20_000 });
       await expect(page.getByText(/District:\s*Nicosia/i)).toBeVisible({ timeout: 15_000 });
 
@@ -145,14 +199,21 @@ test.describe("Prod smoke: doctor registration", { tag: "@nightly-prod" }, () =>
       await page.getByRole("button", { name: /Confirm crop/i }).click();
       await expect(page.getByText("Crop confirmed.")).toBeVisible({ timeout: 10_000 });
 
-      await page
-        .getByLabel(/Medical Registration|Professional registration or certification number/i)
-        .fill(licenseNumber);
+      await form.locator("input[name='licenseNumber']").fill(licenseNumber);
       await page
         .getByRole("checkbox", {
           name: /I confirm I am a (qualified health or wellness|licensed) professional/i,
         })
         .check();
+
+      // Chrome may autofill the hidden honeypot; a non-empty value silently discards the signup.
+      await form.locator("input[name='company']").fill("", { force: true });
+
+      const preSubmit = await collectRegisterDiagnostics(page);
+      const preSubmitState = JSON.parse(preSubmit) as { formValid: boolean | null };
+      if (preSubmitState.formValid === false) {
+        throw new Error(`Register form failed checkValidity() before submit. ${preSubmit}`);
+      }
 
       await page.getByRole("button", { name: /Submit My Application/i }).click();
 
@@ -160,18 +221,11 @@ test.describe("Prod smoke: doctor registration", { tag: "@nightly-prod" }, () =>
         name: /Thank you|under review|Pending Evaluation/i,
       });
       try {
-        await expect(successHeading).toBeVisible({ timeout: 45_000 });
+        await expect(successHeading).toBeVisible({ timeout: 60_000 });
       } catch {
-        const visibleErrors = (
-          await page
-            .locator("[role='alert'], [data-testid*='error'], .text-red-500, .text-red-600")
-            .allTextContents()
-        )
-          .map((t) => t.trim())
-          .filter(Boolean)
-          .join(" | ");
+        const diagnostics = await collectRegisterDiagnostics(page);
         throw new Error(
-          `Registration UI did not reach success state. URL=${page.url()} Errors=${visibleErrors || "none"}`
+          `Registration UI did not reach success state. ${diagnostics}`,
         );
       }
 

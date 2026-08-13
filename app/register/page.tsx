@@ -569,9 +569,14 @@ export default function RegisterPage({ searchParams }: PageProps) {
                 >
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="group sm:col-span-2" data-validate-field="1" data-invalid="0">
-                    <label className={registerLabelClass}>
+                    <label htmlFor="register-full-name" className={registerLabelClass}>
                       Full Name<span className="text-red-600">*</span>
-                      <input name="fullName" required className={registerInputClass} />
+                      <input
+                        id="register-full-name"
+                        name="fullName"
+                        required
+                        className={registerInputClass}
+                      />
                     </label>
                     <p className={registerFieldErrorClass}>Please enter your full name.</p>
                   </div>
@@ -680,7 +685,11 @@ export default function RegisterPage({ searchParams }: PageProps) {
                 <div className="hidden" aria-hidden="true">
                   <label>
                     Company
-                    <input name="company" autoComplete="off" />
+                    <input
+                      name="company"
+                      tabIndex={-1}
+                      autoComplete="new-password"
+                    />
                   </label>
                 </div>
 

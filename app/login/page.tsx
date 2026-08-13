@@ -4,6 +4,8 @@ import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
 import { LoginPageClient } from "@/components/auth/LoginPageClient";
 import { safeAuthNextPath } from "@/lib/auth-redirect";
 
+export const dynamic = "force-dynamic";
+
 type LoginPageProps = {
   searchParams?: { next?: string | string[] };
 };

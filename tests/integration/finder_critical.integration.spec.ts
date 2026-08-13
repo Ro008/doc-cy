@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
+import { FINDER_RESULTS_PAGE_SIZE } from "@/lib/finder-results-paging";
 import { fetchAllSupabaseRows } from "@/lib/supabase-fetch-all";
 
 type CreatedDoctor = {
@@ -346,7 +347,7 @@ test.describe("Integration: finder business-critical UX", { tag: ["@pr-e2e", "@p
     // First page only renders a page-size slice; do not expect every row in the DOM.
     const cardCount = await page.locator("section.mt-6 article").count();
     expect(cardCount).toBeGreaterThan(0);
-    expect(cardCount).toBeLessThanOrEqual(Math.min(expectedTotal, 30));
+    expect(cardCount).toBeLessThanOrEqual(Math.min(expectedTotal, FINDER_RESULTS_PAGE_SIZE));
   });
 
   test("registered card renders avatar, languages and profile links to booking page", async ({ page }) => {
@@ -570,7 +571,9 @@ test.describe("Integration: finder business-critical UX", { tag: ["@pr-e2e", "@p
         .first();
 
       await expect(card).toBeVisible({ timeout: 20000 });
-      await expect(card.getByTestId("finder-card-calendar-preview")).toBeVisible();
+      await expect(card.getByTestId("finder-card-calendar-preview")).toBeVisible({
+        timeout: 20_000,
+      });
       await expect(page.getByTestId("finder-availability-week-nav")).toBeVisible();
       await expect(card.getByRole("button", { name: /Show next week/i })).toBeVisible();
 

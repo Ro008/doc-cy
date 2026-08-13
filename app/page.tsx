@@ -11,8 +11,8 @@ type HomePageProps = {
 
 /**
  * Patient homepage = finder (unfiltered).
- * Exists as a real App Router page so client soft-navigation to `/` works;
- * district/specialty public URLs still rely on middleware rewrite + hard navigation.
+ * District/specialty URLs (`/larnaca`, `/all/dentistry`) are real App Router
+ * pages too, so filter changes use client navigation.
  */
 export async function generateMetadata(props: HomePageProps): Promise<Metadata> {
   return generateFinderMetadata({

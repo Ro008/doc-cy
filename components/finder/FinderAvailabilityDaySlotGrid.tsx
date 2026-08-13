@@ -3,9 +3,6 @@
 import * as React from "react";
 import { FINDER_AVAILABILITY_MAX_SLOTS_PER_DAY } from "@/lib/public/compute-public-booking-slots";
 
-export const finderAvailabilitySlotClassName =
-  "inline-flex w-full items-center justify-center rounded-md bg-clinical-500 px-1 py-1 text-[10px] font-semibold leading-none text-white hover:bg-clinical-400";
-
 export type FinderAvailabilityDaySlots = {
   dateKey: string;
   weekdayLabel: string;

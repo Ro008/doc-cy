@@ -11,6 +11,27 @@ html {
   scroll-behavior: smooth;
 }
 
+/* Finder manual calendars stay server HTML; week paging is a CSS transform on this track. */
+.finder-availability-week-track {
+  display: grid;
+  grid-template-columns: repeat(var(--finder-day-count, 14), minmax(0, 1fr));
+  width: calc(var(--finder-day-count, 14) / var(--finder-visible-days, 5) * 100%);
+  transform: translateX(
+    calc(var(--finder-week-start, 0) * -100% / var(--finder-day-count, 14))
+  );
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .finder-availability-week-track {
+    transition: transform 200ms ease-out;
+  }
+}
+
+[data-finder-manual-booking-surface][aria-busy="true"] [data-finder-manual-slot] {
+  pointer-events: none;
+  opacity: 0.45;
+}
+
 body {
   @apply bg-ink-50 text-ink-800 antialiased;
 }

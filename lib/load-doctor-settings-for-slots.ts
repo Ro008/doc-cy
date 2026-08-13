@@ -18,34 +18,15 @@ export type DoctorSettingsForSlots = {
   fallbackSlotDurationMinutes: number;
 };
 
-export async function loadDoctorSettingsForSlots(
-  supabase: SupabaseClient,
-  doctorId: string
-): Promise<DoctorSettingsForSlots | null> {
-  let res = await supabase
-    .from("doctor_settings")
-    .select(SETTINGS_SELECT_FULL)
-    .eq("doctor_id", doctorId)
-    .maybeSingle();
+function isWeeklyScheduleColumnError(error: { code?: string; message?: string } | null): boolean {
+  if (!error) return false;
+  return (
+    String(error.message ?? "").toLowerCase().includes("weekly_schedule") ||
+    error.code === "42703"
+  );
+}
 
-  const weeklyMissing =
-    res.error &&
-    (String(res.error.message ?? "").toLowerCase().includes("weekly_schedule") ||
-      (res.error as { code?: string }).code === "42703");
-
-  if (weeklyMissing) {
-    res = await supabase
-      .from("doctor_settings")
-      .select(SETTINGS_SELECT_FALLBACK)
-      .eq("doctor_id", doctorId)
-      .maybeSingle();
-  }
-
-  if (res.error || !res.data) {
-    return null;
-  }
-
-  const raw = res.data as DoctorSettingsRow;
+function toDoctorSettingsForSlots(raw: DoctorSettingsRow): DoctorSettingsForSlots {
   const settings: DoctorSettingsRow = {
     ...raw,
     weekly_schedule: raw.weekly_schedule ?? null,
@@ -58,4 +39,71 @@ export async function loadDoctorSettingsForSlots(
       : 30;
 
   return { settings, weeklySlots, fallbackSlotDurationMinutes };
+}
+
+export async function loadDoctorSettingsForSlots(
+  supabase: SupabaseClient,
+  doctorId: string
+): Promise<DoctorSettingsForSlots | null> {
+  let res = await supabase
+    .from("doctor_settings")
+    .select(SETTINGS_SELECT_FULL)
+    .eq("doctor_id", doctorId)
+    .maybeSingle();
+
+  if (isWeeklyScheduleColumnError(res.error)) {
+    res = await supabase
+      .from("doctor_settings")
+      .select(SETTINGS_SELECT_FALLBACK)
+      .eq("doctor_id", doctorId)
+      .maybeSingle();
+  }
+
+  if (res.error || !res.data) {
+    return null;
+  }
+
+  return toDoctorSettingsForSlots(res.data as DoctorSettingsRow);
+}
+
+/** One PostgREST round-trip for finder cards instead of N settings lookups. */
+export async function loadDoctorSettingsForSlotsByDoctorIds(
+  supabase: SupabaseClient,
+  doctorIds: readonly string[],
+): Promise<Map<string, DoctorSettingsForSlots>> {
+  const uniqueIds = Array.from(new Set(doctorIds.filter(Boolean)));
+  const byId = new Map<string, DoctorSettingsForSlots>();
+  if (uniqueIds.length === 0) return byId;
+
+  let rows: unknown[] | null = null;
+  let error: { code?: string; message?: string } | null = null;
+
+  const fullRes = await supabase
+    .from("doctor_settings")
+    .select(SETTINGS_SELECT_FULL)
+    .in("doctor_id", uniqueIds);
+  error = fullRes.error;
+  rows = fullRes.data as unknown[] | null;
+
+  if (isWeeklyScheduleColumnError(error)) {
+    const fallbackRes = await supabase
+      .from("doctor_settings")
+      .select(SETTINGS_SELECT_FALLBACK)
+      .in("doctor_id", uniqueIds);
+    error = fallbackRes.error;
+    rows = fallbackRes.data as unknown[] | null;
+  }
+
+  if (error) {
+    console.error("[DocCy] batch doctor_settings lookup failed:", error);
+    return byId;
+  }
+
+  for (const row of rows ?? []) {
+    const id = String((row as { doctor_id?: string }).doctor_id ?? "").trim();
+    if (!id) continue;
+    byId.set(id, toDoctorSettingsForSlots(row as DoctorSettingsRow));
+  }
+
+  return byId;
 }

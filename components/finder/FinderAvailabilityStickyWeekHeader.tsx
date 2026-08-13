@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { FinderAvailabilityDayHeaderRow } from "@/components/finder/FinderAvailabilityDayHeaderRow";
 import {
   FinderAvailabilityWeekControls,
+  useFinderAvailabilityWeek,
 } from "@/components/finder/FinderResultsAvailabilityShell";
 
 const STICKY_TOP_PX = 8;
@@ -15,9 +16,11 @@ const anchorHeaderClassName =
 const pinnedHeaderClassName =
   "overflow-hidden rounded-xl border border-clinical-200/80 bg-white/75 shadow-[0_4px_24px_rgba(26,43,60,0.12),0_8px_32px_rgba(18,184,192,0.14)] ring-1 ring-white/60 backdrop-blur-md backdrop-saturate-150";
 
-type DayHeader = Parameters<typeof FinderAvailabilityDayHeaderRow>[0]["days"];
-
-function FinderAvailabilityWeekHeader({ days }: { days: DayHeader }) {
+function FinderAvailabilityWeekHeader({
+  days,
+}: {
+  days: Parameters<typeof FinderAvailabilityDayHeaderRow>[0]["days"];
+}) {
   return (
     <>
       <FinderAvailabilityWeekControls />
@@ -26,7 +29,8 @@ function FinderAvailabilityWeekHeader({ days }: { days: DayHeader }) {
   );
 }
 
-export function FinderAvailabilityStickyWeekHeader({ days }: { days: DayHeader }) {
+export function FinderAvailabilityStickyWeekHeader() {
+  const { visibleDays: days } = useFinderAvailabilityWeek();
   const headerRef = React.useRef<HTMLDivElement>(null);
   const [isPinned, setIsPinned] = React.useState(false);
   const [pinnedStyle, setPinnedStyle] = React.useState<React.CSSProperties>({});

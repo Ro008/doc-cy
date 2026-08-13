@@ -3,11 +3,9 @@
 import * as React from "react";
 import { PendingLink } from "@/components/navigation/PendingLink";
 import { FinderAvailabilityDayHeaderRow } from "@/components/finder/FinderAvailabilityDayHeaderRow";
-import {
-  FinderAvailabilityDaySlotGrid,
-  finderAvailabilitySlotClassName,
-} from "@/components/finder/FinderAvailabilityDaySlotGrid";
+import { FinderAvailabilityDaySlotGrid } from "@/components/finder/FinderAvailabilityDaySlotGrid";
 import { FinderAvailabilityStickyWeekHeader } from "@/components/finder/FinderAvailabilityStickyWeekHeader";
+import { finderAvailabilitySlotClassName } from "@/components/finder/finder-availability-layout";
 import { useFinderAvailabilityWeek } from "@/components/finder/FinderResultsAvailabilityShell";
 import { buildDoctorBookingHref } from "@/lib/booking-slot-param";
 import type { PublicAvailabilityCalendar } from "@/lib/public/compute-public-booking-slots";
@@ -23,9 +21,8 @@ export function FinderCardAvailabilityGrid({
   profileSlug,
   anchorStickyWeekNav = false,
 }: Props) {
-  const { windowStart, visibleDayCount, visibleDays } = useFinderAvailabilityWeek();
+  const { windowStart, visibleDayCount } = useFinderAvailabilityWeek();
   const visibleCalendarDays = calendar.days.slice(windowStart, windowStart + visibleDayCount);
-  const headerDays = anchorStickyWeekNav ? visibleDays : visibleCalendarDays;
 
   if (calendar.days.length === 0) return null;
 
@@ -33,9 +30,9 @@ export function FinderCardAvailabilityGrid({
     <div data-testid="finder-card-calendar-preview">
       <div className="rounded-lg border border-ink-200 bg-white">
         {anchorStickyWeekNav ? (
-          <FinderAvailabilityStickyWeekHeader days={headerDays} />
+          <FinderAvailabilityStickyWeekHeader />
         ) : (
-          <FinderAvailabilityDayHeaderRow days={headerDays} />
+          <FinderAvailabilityDayHeaderRow days={visibleCalendarDays} />
         )}
         <FinderAvailabilityDaySlotGrid
           days={visibleCalendarDays}

@@ -8,8 +8,18 @@ export default async function LocaleLayout({
   children: React.ReactNode;
   params: {locale: string};
 }) {
-  setRequestLocale(params.locale);
+  const locale = params.locale === "el" ? "el" : "en";
+  setRequestLocale(locale);
   const messages = await getMessages();
-  return <NextIntlClientProvider messages={messages}>{children}</NextIntlClientProvider>;
+  return (
+    <NextIntlClientProvider locale={locale} messages={messages}>
+      <script
+        dangerouslySetInnerHTML={{
+          __html: `document.documentElement.lang=${JSON.stringify(locale)};`,
+        }}
+      />
+      {children}
+    </NextIntlClientProvider>
+  );
 }
 

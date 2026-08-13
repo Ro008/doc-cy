@@ -1,11 +1,13 @@
 import { test, expect } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
 import { pickFirstAvailableBookingDay } from "./helpers/pickBookingCalendarDay";
+import { assertNoCloudflareChallenge } from "./helpers/assertNoCloudflareChallenge";
 
 const TEST_BOOKING_DOMAIN = "@test-doccy.com.cy";
 
 test.describe("Prod smoke: appointment booking flow", { tag: "@nightly-prod" }, () => {
   test("guest can book and cleanup removes created data", async ({ page }) => {
+    test.setTimeout(180_000);
     const baseUrl = process.env.PLAYWRIGHT_BASE_URL ?? "";
     const doctorSlug = process.env.TEST_BOOKING_DOCTOR_SLUG ?? "";
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
@@ -27,6 +29,7 @@ test.describe("Prod smoke: appointment booking flow", { tag: "@nightly-prod" }, 
     try {
       // Locale-prefixed profile (next-intl localePrefix: "always").
       await page.goto(`/en/${doctorSlug}`);
+      await assertNoCloudflareChallenge(page);
       await expect(page.getByText("Select a date on the calendar")).toBeVisible({
         timeout: 20000,
       });
