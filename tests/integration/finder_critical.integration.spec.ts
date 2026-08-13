@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
+import { FINDER_RESULTS_PAGE_SIZE } from "@/lib/finder-results-paging";
 import { fetchAllSupabaseRows } from "@/lib/supabase-fetch-all";
 
 type CreatedDoctor = {
@@ -346,7 +347,7 @@ test.describe("Integration: finder business-critical UX", { tag: ["@pr-e2e", "@p
     // First page only renders a page-size slice; do not expect every row in the DOM.
     const cardCount = await page.locator("section.mt-6 article").count();
     expect(cardCount).toBeGreaterThan(0);
-    expect(cardCount).toBeLessThanOrEqual(Math.min(expectedTotal, 30));
+    expect(cardCount).toBeLessThanOrEqual(Math.min(expectedTotal, FINDER_RESULTS_PAGE_SIZE));
   });
 
   test("registered card renders avatar, languages and profile links to booking page", async ({ page }) => {

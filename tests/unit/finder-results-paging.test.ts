@@ -3,11 +3,16 @@ import { describe, it } from "node:test";
 import {
   buildFinderResultsPageHref,
   escapeIlikePattern,
+  FINDER_RESULTS_PAGE_SIZE,
   finderSpecialtyDbMatchValues,
   parseFinderResultsPage,
 } from "@/lib/finder-results-paging";
 
 describe("finder results paging helpers", () => {
+  it("renders a short first page so patients compare a handful of listings", () => {
+    assert.equal(FINDER_RESULTS_PAGE_SIZE, 12);
+  });
+
   it("escapes ilike wildcards", () => {
     assert.equal(escapeIlikePattern("100%_x\\y"), "100\\%\\_x\\\\y");
   });

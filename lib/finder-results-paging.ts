@@ -1,10 +1,11 @@
 import { harmonizeFinderSpecialtyLabel } from "@/lib/finder-specialty-harmonize";
 
 /**
- * How many finder cards to render per "page" (Show more multiplies this).
- * Kept modest so calendar client islands stay cheap to hydrate.
+ * How many finder/clinic cards to render per "page" (Show more multiplies this).
+ * 12 matches typical healthcare directory first pages (Zocdoc ~10) and fits
+ * a patient shortlist without dumping 30 tall calendar cards on first paint.
  */
-export const FINDER_RESULTS_PAGE_SIZE = 30;
+export const FINDER_RESULTS_PAGE_SIZE = 12;
 
 /** Max ?page= when browsing without district/specialty/name/near-me. */
 export const FINDER_RESULTS_MAX_PAGE_UNFILTERED = 2;
