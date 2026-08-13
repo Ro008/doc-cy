@@ -75,6 +75,26 @@ const nextConfig = {
         destination: "/:district/:specialty*",
         permanent: true,
       },
+      {
+        source: "/finder/finder-hero.png",
+        destination: "/finder/finder-hero.webp",
+        permanent: true,
+      },
+      {
+        source: "/finder/clinics-hero.png",
+        destination: "/finder/clinics-hero.webp",
+        permanent: true,
+      },
+      {
+        source: "/finder/avatars/clinic-hero.png",
+        destination: "/finder/avatars/clinic-hero.webp",
+        permanent: true,
+      },
+      {
+        source: "/landing/hero-doctor.png",
+        destination: "/landing/hero-doctor.webp",
+        permanent: true,
+      },
     ];
   },
 };

@@ -16,7 +16,7 @@ export const FINDER_DEFAULT_AVATAR_CLINIC = "/finder/avatars/default-clinic.svg"
  * Larger 3D clinic illustration — for OG shares, banners, empty states.
  * Not for tiny circular avatars (detail is unreadable there).
  */
-export const FINDER_CLINIC_HERO_ILLUSTRATION = "/finder/avatars/clinic-hero.png";
+export const FINDER_CLINIC_HERO_ILLUSTRATION = "/finder/avatars/clinic-hero.webp";
 /** Neutral fallback when gender is missing. */
 export const FINDER_DEFAULT_AVATAR_UNKNOWN = FINDER_DEFAULT_AVATAR_MALE;
 

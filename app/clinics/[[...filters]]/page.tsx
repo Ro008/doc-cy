@@ -25,6 +25,7 @@ import {
 } from "@/lib/finder-results-paging";
 import { CYPRUS_DISTRICTS, type CyprusDistrict, isCyprusDistrict } from "@/lib/cyprus-districts";
 import { FINDER_CLINIC_HERO_ILLUSTRATION, resolveClinicDisplayPhotoUrl } from "@/lib/finder-default-avatars";
+import { FINDER_CLINICS_HERO_SRC } from "@/lib/finder-hero-images";
 import { finderCardImagePriority } from "@/lib/finder-card-image-priority";
 import {
   computeFinderDistanceKm,
@@ -449,7 +450,7 @@ async function ClinicsSearchPage({ params, searchParams }: ClinicsPageProps) {
         <FinderHeroSection
           title={title}
           showHeroImage={showClinicsHero}
-          heroImageSrc="/finder/clinics-hero.png"
+          heroImageSrc={FINDER_CLINICS_HERO_SRC}
           subtitleClassName={
             showClinicsHero
               ? "mt-3 max-w-2xl text-lg leading-relaxed text-ink-600 sm:text-xl"
