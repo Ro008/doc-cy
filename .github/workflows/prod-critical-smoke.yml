@@ -207,6 +207,9 @@ jobs:
               ;;
           esac
 
+      # Playwright sends x-doccy-suppress-traffic-log (DOC_CY_SUPPRESS_TRAFFIC_LOG_SECRET).
+      # That only skips app traffic logs. Cloudflare Bot Fight Mode still challenges GitHub
+      # Actions IPs unless a WAF Skip rule matches that same header.
       - name: Run production critical smoke suite (blocking)
         env:
           PLAYWRIGHT_LIVE_REGISTRATION: "1"
