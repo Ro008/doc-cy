@@ -48,3 +48,18 @@ describe("root layout does not block public HTML", () => {
     assert.equal(source.includes("needsSupabaseSessionMiddleware"), true);
   });
 });
+
+describe("PendingLink does not bail out static prerender", () => {
+  it("wraps useSearchParams usage in Suspense", () => {
+    const source = fs.readFileSync(
+      path.join(repoRoot, "components/navigation/PendingLink.tsx"),
+      "utf8",
+    );
+    assert.equal(source.includes("Suspense"), true);
+    assert.equal(
+      /<Suspense[\s\S]*PendingLinkWithSearchParams/.test(source),
+      true,
+      "PendingLink must Suspense-wrap the useSearchParams hook or /blog and /terms fail prerender",
+    );
+  });
+});

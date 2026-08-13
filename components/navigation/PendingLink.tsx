@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import * as React from "react";
+import { Suspense } from "react";
 
 import { emitNavigationStart, type NavigationStartReason } from "@/lib/doccy-navigation";
 import { useLinkNavigationPending } from "@/hooks/useLinkNavigationPending";
@@ -30,7 +31,7 @@ function pendingClassName(base: string | undefined, pending: boolean, fill: bool
     .trim();
 }
 
-export function PendingLink({
+function PendingLinkView({
   href,
   children,
   className,
@@ -39,8 +40,12 @@ export function PendingLink({
   navigationReason = "default",
   fill = false,
   prefetch,
-}: PendingLinkProps) {
-  const { pending, beginNavigation } = useLinkNavigationPending(href, navigationReason);
+  pending,
+  beginNavigation,
+}: PendingLinkProps & {
+  pending: boolean;
+  beginNavigation: () => void;
+}) {
   const clickLockRef = React.useRef(false);
   const isHashNavigation = href.includes("#");
 
@@ -119,5 +124,31 @@ export function PendingLink({
     >
       {content}
     </Link>
+  );
+}
+
+function PendingLinkWithSearchParams(props: PendingLinkProps) {
+  const { pending, beginNavigation } = useLinkNavigationPending(
+    props.href,
+    props.navigationReason,
+  );
+  return (
+    <PendingLinkView {...props} pending={pending} beginNavigation={beginNavigation} />
+  );
+}
+
+/**
+ * `useSearchParams()` must sit under Suspense or Next.js prerender of static
+ * pages (/blog, /terms, …) fails with missing-suspense-with-csr-bailout.
+ */
+export function PendingLink(props: PendingLinkProps) {
+  return (
+    <Suspense
+      fallback={
+        <PendingLinkView {...props} pending={false} beginNavigation={() => undefined} />
+      }
+    >
+      <PendingLinkWithSearchParams {...props} />
+    </Suspense>
   );
 }
