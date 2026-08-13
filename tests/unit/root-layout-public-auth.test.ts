@@ -16,6 +16,12 @@ describe("root layout does not block public HTML", () => {
     assert.equal(source.includes("next/headers"), false);
     assert.equal(source.includes('next/dynamic'), true);
     assert.equal(source.includes("ssr: false"), true);
+    assert.equal(source.includes("Suspense"), true);
+    assert.equal(
+      /<Suspense[\s\S]*<NavigationProgressBar/.test(source),
+      true,
+      "useSearchParams in NavigationProgressBar must be under Suspense or static pages fail prerender",
+    );
   });
 
   it("only refreshes Supabase session when needsSupabaseSessionMiddleware is true", () => {

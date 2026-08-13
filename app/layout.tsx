@@ -1,6 +1,7 @@
 // app/layout.tsx
 import type { Metadata, Viewport } from "next";
 import dynamic from "next/dynamic";
+import { Suspense } from "react";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import "sonner/dist/styles.css";
@@ -107,7 +108,9 @@ export default function RootLayout({
         <script
           dangerouslySetInnerHTML={{ __html: trafficSessionPersistInlineScript() }}
         />
-        <NavigationProgressBar />
+        <Suspense fallback={null}>
+          <NavigationProgressBar />
+        </Suspense>
         <AppChrome>{children}</AppChrome>
         <Toaster richColors position="top-center" closeButton />
         <InstallBanner />
