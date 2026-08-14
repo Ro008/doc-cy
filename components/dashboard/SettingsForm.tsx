@@ -54,6 +54,7 @@ export type DoctorSettingsFormData = {
   showPhonePublic: boolean;
   district: string;
   clinicAddress: string;
+  clinicTown?: string | null;
   clinicLatitude?: number | null;
   clinicLongitude?: number | null;
   clinicPlaceId?: string | null;
@@ -204,6 +205,7 @@ export function SettingsForm({ initial }: SettingsFormProps) {
       longitude: initial.clinicLongitude,
       placeId: initial.clinicPlaceId,
       district: initial.district,
+      town: initial.clinicTown,
     }),
   );
 
@@ -330,6 +332,7 @@ export function SettingsForm({ initial }: SettingsFormProps) {
         longitude: initial.clinicLongitude,
         placeId: initial.clinicPlaceId,
         district: initial.district,
+        town: initial.clinicTown,
       }),
       weeklySchedule: initial.weeklySchedule,
       breakEnabled: initial.breakEnabled,
@@ -608,6 +611,7 @@ export function SettingsForm({ initial }: SettingsFormProps) {
         showPhonePublic,
         district: clinicLocation.district ?? district,
         clinicAddress: clinicLocation.address.trim() || null,
+        town: clinicLocation.town,
         specialty: specResult.specialty,
         specialtyFromMaster: specResult.is_specialty_approved,
         bio: bioTrimmed,

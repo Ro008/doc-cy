@@ -49,6 +49,7 @@ describe("resolveRegisterClinicLocation", () => {
     assert.equal(result.ok, true);
     if (!result.ok) return;
     assert.equal(result.value.district, "Limassol");
+    assert.equal(result.value.town, "Limassol");
     assert.equal(result.value.clinicPlaceId, "place-123");
   });
 
@@ -76,6 +77,7 @@ describe("resolveRegisterClinicLocation", () => {
     assert.equal(result.ok, true);
     if (!result.ok) return;
     assert.equal(result.value.district, "Nicosia");
+    assert.equal(result.value.town, "Nicosia");
     assert.equal(result.value.latitude, 35.1856);
     assert.equal(result.value.longitude, 33.3823);
   });

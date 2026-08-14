@@ -6,7 +6,9 @@ import {
   formatApproxDistanceAway,
   formatDistanceAway,
   getDistanceKm,
+  isApproximateNearMeAccuracy,
   isLikelyCyprusCoordinates,
+  parseFinderNearMeQuery,
   parseOptionalCoordinates,
 } from "../../lib/finder-distance";
 
@@ -44,6 +46,21 @@ describe("isLikelyCyprusCoordinates", () => {
       isLikelyCyprusCoordinates({ latitude: 40.4168, longitude: -3.7038 }),
       false,
     );
+  });
+});
+
+describe("parseFinderNearMeQuery", () => {
+  it("reads GPS coords and accuracy from the finder query", () => {
+    const parsed = parseFinderNearMeQuery({
+      lat: "34.8",
+      lon: "32.45",
+      acc: "2500",
+    });
+    assert.deepEqual(parsed?.coords, { latitude: 34.8, longitude: 32.45 });
+    assert.equal(parsed?.accuracyMeters, 2500);
+    assert.equal(isApproximateNearMeAccuracy(parsed?.accuracyMeters), true);
+    assert.equal(isApproximateNearMeAccuracy(80), false);
+    assert.equal(parseFinderNearMeQuery({ lat: "", lon: "" }), null);
   });
 });
 

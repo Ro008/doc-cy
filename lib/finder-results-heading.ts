@@ -5,12 +5,20 @@
 export function buildFinderResultsHeading(params: {
   specialtyLabel?: string | null;
   districtLabel?: string | null;
+  nearYou?: boolean;
   unfilteredFallback?: string;
 }): string {
   const specialty = params.specialtyLabel?.trim() || "";
   const district = params.districtLabel?.trim() || "";
   const fallback =
     params.unfilteredFallback ?? "Find your next health professional in Cyprus";
+
+  if (params.nearYou && !district) {
+    if (specialty) {
+      return `Book ${indefiniteArticle(specialty)} ${specialty} appointment near you`;
+    }
+    return "Find professionals near you";
+  }
 
   if (specialty && district) {
     return `Book ${indefiniteArticle(specialty)} ${specialty} appointment in ${district}`;
@@ -42,10 +50,12 @@ export function buildFinderResultsSnippet(params: {
 
 export function buildClinicsResultsHeading(params: {
   districtLabel?: string | null;
+  nearYou?: boolean;
   unfilteredFallback?: string;
 }): string {
   const district = params.districtLabel?.trim() || "";
   const fallback = params.unfilteredFallback ?? "Find clinics in Cyprus";
+  if (params.nearYou && !district) return "Find clinics near you";
   if (district) return `Find clinics in ${district}`;
   return fallback;
 }

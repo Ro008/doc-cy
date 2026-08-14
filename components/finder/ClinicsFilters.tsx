@@ -4,6 +4,14 @@ import * as React from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Building2, LocateFixed, MapPin, Search } from "lucide-react";
 import { clinicsResultsPath } from "@/lib/clinics-public-path";
+import { appendFinderNearMeParams, type FinderNearMeCoords } from "@/lib/finder-distance";
+import {
+  districtForTown,
+  resolveFinderTownSubmit,
+  townToSlug,
+  type CyprusTownOption,
+} from "@/lib/cyprus-towns";
+import { FinderTownCombobox } from "@/components/finder/FinderTownCombobox";
 import {
   emitNavigationStart,
   getNavigationStartMessage,
@@ -14,6 +22,7 @@ type ClinicsFiltersProps = {
   districts: readonly string[];
   activeDistrict: string;
   activeName: string;
+  activeTown: string;
   activeLatitude: number | null;
   activeLongitude: number | null;
 };
@@ -22,6 +31,7 @@ export function ClinicsFilters({
   districts,
   activeDistrict,
   activeName,
+  activeTown,
   activeLatitude,
   activeLongitude,
 }: ClinicsFiltersProps) {
@@ -30,10 +40,8 @@ export function ClinicsFilters({
   const searchParams = useSearchParams();
   const [district, setDistrict] = React.useState(activeDistrict);
   const [name, setName] = React.useState(activeName);
-  const [nearMeCoords, setNearMeCoords] = React.useState<{
-    latitude: number;
-    longitude: number;
-  } | null>(() =>
+  const [townQuery, setTownQuery] = React.useState(activeTown);
+  const [nearMeCoords, setNearMeCoords] = React.useState<FinderNearMeCoords | null>(() =>
     activeLatitude !== null && activeLongitude !== null
       ? { latitude: activeLatitude, longitude: activeLongitude }
       : null,
@@ -47,9 +55,17 @@ export function ClinicsFilters({
   React.useEffect(() => {
     setDistrict(activeDistrict);
     setName(activeName);
+    setTownQuery(activeTown);
     setNearMeCoords(
       activeLatitude !== null && activeLongitude !== null
-        ? { latitude: activeLatitude, longitude: activeLongitude }
+        ? {
+            latitude: activeLatitude,
+            longitude: activeLongitude,
+            accuracyMeters: (() => {
+              const acc = Number(searchParams?.get("acc") ?? "");
+              return Number.isFinite(acc) && acc > 0 ? acc : null;
+            })(),
+          }
         : null,
     );
     setGeolocationError(null);
@@ -57,7 +73,7 @@ export function ClinicsFilters({
     if (activeLatitude !== null && activeLongitude !== null) {
       setIsLocating(false);
     }
-  }, [activeDistrict, activeName, activeLatitude, activeLongitude]);
+  }, [activeDistrict, activeName, activeTown, activeLatitude, activeLongitude]);
 
   React.useEffect(() => {
     setPendingAction(null);
@@ -81,16 +97,18 @@ export function ClinicsFilters({
   function pushFilters(
     nextDistrict: string,
     nextName: string,
-    nextCoords: { latitude: number; longitude: number } | null,
+    nextCoords: FinderNearMeCoords | null,
+    nextTownQuery: string,
     options?: { skipNavigationStart?: boolean; navigationReason?: "finder-results" | "clinics-near-me" },
   ) {
+    const resolved = resolveFinderTownSubmit(nextDistrict, nextTownQuery);
     const params = new URLSearchParams();
     if (nextName) params.set("name", nextName);
+    if (resolved.town) params.set("town", townToSlug(resolved.town));
     if (nextCoords) {
-      params.set("lat", String(nextCoords.latitude));
-      params.set("lon", String(nextCoords.longitude));
+      appendFinderNearMeParams(params, nextCoords);
     }
-    const clinicsPath = clinicsResultsPath(nextDistrict || null);
+    const clinicsPath = clinicsResultsPath(resolved.district || null);
     const qs = params.toString();
     const target = qs ? `${clinicsPath}?${qs}` : clinicsPath;
     const currentHref = `${pathname}${searchParams?.toString() ? `?${searchParams.toString()}` : ""}`;
@@ -110,7 +128,8 @@ export function ClinicsFilters({
     setPendingAction("apply");
     if (pendingGuardRef.current) clearTimeout(pendingGuardRef.current);
     pendingGuardRef.current = setTimeout(() => setPendingAction(null), 1500);
-    pushFilters(district, name.trim(), nearMeCoords);
+    const placeIsSet = Boolean(district.trim() || townQuery.trim());
+    pushFilters(district, name.trim(), placeIsSet ? null : nearMeCoords, townQuery);
   }
 
   function resetFilters() {
@@ -118,6 +137,7 @@ export function ClinicsFilters({
     if (
       !activeDistrict &&
       !activeName.trim() &&
+      !activeTown &&
       activeLatitude === null &&
       activeLongitude === null
     ) {
@@ -126,6 +146,7 @@ export function ClinicsFilters({
     }
     setDistrict("");
     setName("");
+    setTownQuery("");
     setNearMeCoords(null);
     setIsLocating(false);
     setGeolocationError(null);
@@ -153,12 +174,15 @@ export function ClinicsFilters({
     emitNavigationStart(undefined, "clinics-near-me");
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        const coords = {
+        const coords: FinderNearMeCoords = {
           latitude: position.coords.latitude,
           longitude: position.coords.longitude,
+          accuracyMeters: position.coords.accuracy,
         };
         setNearMeCoords(coords);
-        pushFilters(district, name.trim(), coords, {
+        setDistrict("");
+        setTownQuery("");
+        pushFilters("", name.trim(), coords, "", {
           skipNavigationStart: true,
         });
       },
@@ -174,7 +198,7 @@ export function ClinicsFilters({
       {
         enableHighAccuracy: true,
         timeout: 10000,
-        maximumAge: 60000,
+        maximumAge: 0,
       },
     );
   }
@@ -185,9 +209,14 @@ export function ClinicsFilters({
   const nearMeBusyMessage = getNavigationStartMessage("clinics-near-me");
   const nearMeActive = activeLatitude !== null && activeLongitude !== null;
 
+  const townChip =
+    activeTown && activeDistrict && activeTown === activeDistrict
+      ? `${activeTown} (town)`
+      : activeTown || null;
   const activeFilterEntries = [
     activeName.trim() || null,
     activeDistrict || null,
+    townChip,
     nearMeActive ? "Near me" : null,
   ].filter((item): item is string => Boolean(item));
   const hasActiveFilters = activeFilterEntries.length > 0;
@@ -234,8 +263,8 @@ export function ClinicsFilters({
           aria-busy={isFilterFormBusy}
           className="flex flex-col gap-2 disabled:cursor-not-allowed lg:flex-row lg:items-stretch lg:gap-2"
         >
-          <div className="flex min-w-0 flex-1 flex-col overflow-hidden rounded-2xl bg-white shadow-sm divide-y divide-ink-100 sm:flex-row sm:divide-x sm:divide-y-0">
-            <label htmlFor="clinics-name-filter" className="relative min-w-0 flex-[1.2]">
+          <div className="flex min-w-0 flex-1 flex-col overflow-visible rounded-2xl bg-white shadow-sm divide-y divide-ink-100 sm:flex-row sm:divide-x sm:divide-y-0">
+            <label htmlFor="clinics-name-filter" className="relative min-w-0 flex-1 basis-[34%]">
               <span className="sr-only">Clinic name</span>
               <Building2 className={iconClass} strokeWidth={2} aria-hidden />
               <input
@@ -249,15 +278,22 @@ export function ClinicsFilters({
                 className={fieldClass}
               />
             </label>
-            <div className="relative min-w-0 flex-1">
+            <div className="relative min-w-0 flex-1 basis-[33%]">
               <label className="relative block">
                 <span className="sr-only">District</span>
                 <MapPin className={iconClass} strokeWidth={2} aria-hidden />
                 <select
                   name="district"
                   value={district}
-                  onChange={(e) => setDistrict(e.target.value)}
-                  className={`${fieldClass} pr-[7.25rem]`}
+                  onChange={(e) => {
+                    const nextDistrict = e.target.value;
+                    setDistrict(nextDistrict);
+                    const townDistrict = districtForTown(townQuery);
+                    if (nextDistrict && townDistrict && townDistrict !== nextDistrict) {
+                      setTownQuery("");
+                    }
+                  }}
+                  className={fieldClass}
                 >
                   <option value="">All districts</option>
                   {districts.map((item) => (
@@ -267,30 +303,49 @@ export function ClinicsFilters({
                   ))}
                 </select>
               </label>
-              <button
-                type="button"
-                onClick={locateNearMeAndApply}
-                disabled={isFilterFormBusy}
-                aria-busy={isNearMeBusy}
-                aria-label={isNearMeBusy ? nearMeBusyMessage : "Clinic near me"}
-                className={`absolute right-1.5 top-1/2 z-10 inline-flex h-8 -translate-y-1/2 items-center gap-1.5 rounded-full px-2.5 text-[11px] font-semibold tracking-tight transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-400 focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-70 ${
-                  nearMeActive || isNearMeBusy
-                    ? "bg-clinical-500 text-white shadow-sm shadow-clinical-500/25"
-                    : "bg-ink-50 text-clinical-700 ring-1 ring-ink-200/80 hover:bg-clinical-50 hover:text-clinical-800 hover:ring-clinical-200"
-                }`}
-              >
-                {isNearMeBusy ? (
-                  <span
-                    aria-hidden
-                    className="h-3 w-3 shrink-0 animate-spin rounded-full border-2 border-current border-r-transparent opacity-90"
-                  />
-                ) : (
-                  <LocateFixed className="h-3.5 w-3.5 shrink-0" strokeWidth={2.25} aria-hidden />
-                )}
-                <span>{isNearMeBusy ? "Locating…" : "Near me"}</span>
-              </button>
             </div>
+            <FinderTownCombobox
+              value={townQuery}
+              district={district}
+              disabled={isFilterFormBusy}
+              fieldClass={fieldClass}
+              iconClass={iconClass}
+              inputId="clinics-town-filter"
+              onChange={setTownQuery}
+              onSelectTown={(option: CyprusTownOption) => {
+                if (pendingAction || isNavigating || isLocating) return;
+                setTownQuery(option.name);
+                setDistrict(option.district);
+                setNearMeCoords(null);
+                setPendingAction("apply");
+                if (pendingGuardRef.current) clearTimeout(pendingGuardRef.current);
+                pendingGuardRef.current = setTimeout(() => setPendingAction(null), 1500);
+                pushFilters(option.district, name.trim(), null, option.name);
+              }}
+            />
           </div>
+          <button
+            type="button"
+            onClick={locateNearMeAndApply}
+            disabled={isFilterFormBusy}
+            aria-busy={isNearMeBusy}
+            aria-label={isNearMeBusy ? nearMeBusyMessage : "Clinic near me"}
+            className={`inline-flex h-11 w-full shrink-0 items-center justify-center gap-2 rounded-2xl px-4 text-sm font-semibold shadow-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-clinical-600 disabled:cursor-not-allowed disabled:opacity-70 lg:w-auto lg:min-w-[8.5rem] ${
+              nearMeActive || isNearMeBusy
+                ? "bg-clinical-500 text-white hover:bg-clinical-400"
+                : "bg-white text-clinical-700 hover:bg-clinical-50"
+            }`}
+          >
+            {isNearMeBusy ? (
+              <span
+                aria-hidden
+                className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-current border-r-transparent"
+              />
+            ) : (
+              <LocateFixed className="h-4 w-4 shrink-0" strokeWidth={2.25} aria-hidden />
+            )}
+            <span>{isNearMeBusy ? "Locating…" : "Near me"}</span>
+          </button>
           <button
             type="submit"
             disabled={isFilterFormBusy}

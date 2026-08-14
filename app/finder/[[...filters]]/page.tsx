@@ -63,6 +63,12 @@ import {
 } from "@/lib/finder-specialty-filter";
 import { professionalMatchesDistrictFilter } from "@/lib/manual-directory-clinics";
 import {
+  inferCyprusTownFromClinic,
+  reconcileFinderTownAndDistrict,
+  resolveFinderTownQuery,
+  townToSlug,
+} from "@/lib/cyprus-towns";
+import {
   getPublicSpecialtyDisplayLabel,
   matchesFinderSpecialtyFilter,
 } from "@/lib/doctor-specialty-public";
@@ -98,7 +104,10 @@ import { finderAvailabilityRequestKey } from "@/lib/public/finder-availability-r
 import { buildFinderAvailabilityDayHeaders } from "@/lib/public/compute-public-booking-slots";
 import {
   computeFinderDistanceKm,
+  formatApproxDistanceAway,
   formatDistanceAway,
+  isApproximateNearMeAccuracy,
+  parseFinderNearMeQuery,
   parseOptionalCoordinates,
   type Coordinates,
 } from "@/lib/finder-distance";
@@ -114,8 +123,10 @@ type FinderPageProps = {
     district?: string;
     specialty?: string;
     name?: string;
+    town?: string;
     lat?: string;
     lon?: string;
+    acc?: string;
     page?: string;
   };
 };
@@ -126,6 +137,7 @@ type RegisteredFinderRow = {
   displayName: string;
   specialty: string | null;
   district: string | null;
+  town?: string | null;
   slug: string | null;
   email: string | null;
   languages: string[];
@@ -148,6 +160,7 @@ type ManualFinderRow = {
   /** Individual GeSY specialties (for multi-specialty filter matching). */
   specialties: string[];
   district: CyprusDistrict;
+  town?: string | null;
   address_maps_link: string;
   /** Phone exists server-side; value is revealed via API after click (not in SSR props). */
   hasPhone: boolean;
@@ -235,12 +248,11 @@ function normalizeDistrictTerm(value: string): string {
 }
 
 function parseUserCoordinates(searchParams: FinderPageProps["searchParams"]): Coordinates | null {
-  const latRaw = String(searchParams?.lat ?? "").trim();
-  const lonRaw = String(searchParams?.lon ?? "").trim();
-  if (!latRaw || !lonRaw) return null;
-  const lat = Number(latRaw);
-  const lon = Number(lonRaw);
-  return parseOptionalCoordinates(lat, lon);
+  return parseFinderNearMeQuery(searchParams)?.coords ?? null;
+}
+
+function parseNearMeAccuracyMeters(searchParams: FinderPageProps["searchParams"]): number | null {
+  return parseFinderNearMeQuery(searchParams)?.accuracyMeters ?? null;
 }
 
 function decodeSegment(raw: string | undefined): string {
@@ -334,12 +346,20 @@ export async function generateMetadata({ params }: FinderPageProps): Promise<Met
 
 export default async function FinderPage({ params, searchParams }: FinderPageProps) {
   const supabase = createServiceRoleClient();
-  const activeDistrict = resolveDistrictValue(params.filters?.[0], searchParams?.district);
-  const activeSpecialty = resolveSpecialtyValue(params.filters?.[1], searchParams?.specialty);
   const activeName = normalizeSelectValue(searchParams?.name);
+  const requestedTown = resolveFinderTownQuery(searchParams?.town);
+  const reconciled = reconcileFinderTownAndDistrict({
+    town: requestedTown,
+    district: resolveDistrictValue(params.filters?.[0], searchParams?.district),
+  });
+  const activeDistrict = reconciled.district;
+  const activeTown = reconciled.town;
+  const activeSpecialty = resolveSpecialtyValue(params.filters?.[1], searchParams?.specialty);
   const userCoords = parseUserCoordinates(searchParams);
+  const nearMeAccuracyMeters = parseNearMeAccuracyMeters(searchParams);
+  const nearMeApproximate = isApproximateNearMeAccuracy(nearMeAccuracyMeters);
   const hasListFilter = Boolean(
-    activeDistrict || activeSpecialty || activeName || userCoords,
+    activeDistrict || activeSpecialty || activeName || activeTown || userCoords,
   );
   const resultsPage = parseFinderResultsPage(searchParams?.page, { hasListFilter });
   const visibleLimit = resultsPage * FINDER_RESULTS_PAGE_SIZE;
@@ -352,6 +372,7 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
     district: activeDistrict,
     name: activeName,
     specialty: activeSpecialty,
+    town: activeTown,
   };
 
   let registeredRows: RegisteredFinderRow[] = [];
@@ -366,19 +387,21 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
   if (supabase) {
     const extrasPromise = (async () => {
       // Clinic-linked extras require an unbounded merge; skip on paged list loads.
-      if (!(activeDistrict && unboundedManualFetch)) return;
-      const clinicsInDistrictRes = await getCachedDirectoryRows(
-        ["clinics-in-district", activeDistrict],
+      if (!unboundedManualFetch) return;
+      if (!(activeTown || activeDistrict)) return;
+      const clinicsRes = await getCachedDirectoryRows(
+        activeTown
+          ? ["clinics-in-town", activeTown, activeDistrict]
+          : ["clinics-in-district", activeDistrict],
         () =>
-          fetchAllSupabaseRows(() =>
-            supabase
-              .from("clinics")
-              .select("id")
-              .eq("is_archived", false)
-              .eq("district", activeDistrict),
-          ),
+          fetchAllSupabaseRows(() => {
+            let q = supabase.from("clinics").select("id").eq("is_archived", false);
+            if (activeTown) q = q.eq("town", activeTown);
+            else q = q.eq("district", activeDistrict);
+            return q;
+          }),
       );
-      const clinicIds = (clinicsInDistrictRes.data ?? [])
+      const clinicIds = (clinicsRes.data ?? [])
         .map((row) => String((row as { id?: string }).id ?? "").trim())
         .filter(Boolean);
       if (clinicIds.length === 0) return;
@@ -429,6 +452,7 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
     })();
 
     const registeredSelectAttempts = [
+      "id, name, specialty, district, town, slug, email, languages, avatar_url, is_test_profile, clinic_address, is_gesy, is_specialty_approved, latitude, longitude",
       "id, name, specialty, district, slug, email, languages, avatar_url, is_test_profile, clinic_address, is_gesy, is_specialty_approved, latitude, longitude",
       "id, name, specialty, district, slug, email, languages, avatar_url, is_test_profile, clinic_address, is_gesy, is_specialty_approved",
       "id, name, specialty, district, slug, email, languages, avatar_url, is_test_profile, clinic_address, latitude, longitude",
@@ -485,7 +509,9 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                 .select(selectClause)
                 .eq("status", "verified")
                 .not("slug", "is", null),
-              listFilters,
+              // Town is inferred from clinic_address when the column is still empty
+              // (doctors who registered before town existed). Filter in memory.
+              { ...listFilters, town: "" },
             ).order("name", { ascending: true }),
           ),
       );
@@ -514,6 +540,10 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
               is_specialty_approved: raw.is_specialty_approved as boolean | null,
             }),
             district: (raw.district as string | null) ?? null,
+            town: inferCyprusTownFromClinic({
+              town: (raw.town as string | null) ?? null,
+              address: (raw.clinic_address as string | null) ?? null,
+            }),
             slug: (raw.slug as string | null) ?? null,
             email: (raw.email as string | null) ?? null,
             languages: normalizeLanguages(raw.languages),
@@ -556,6 +586,7 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
       gender?: string | null;
     }> = [];
     const manualSelectAttempts = [
+      "id, slug, name, specialty, specialties, district, town, address_maps_link, phone, address, is_gesy, latitude, longitude, clinic_id, gender, finder_visible",
       "id, slug, name, specialty, specialties, district, address_maps_link, phone, address, is_gesy, latitude, longitude, clinic_id, gender, finder_visible",
       "id, slug, name, specialty, specialties, district, address_maps_link, phone, address, is_gesy, latitude, longitude, clinic_id, gender",
       "id, slug, name, specialty, district, address_maps_link, phone, address, is_gesy, latitude, longitude, clinic_id, gender",
@@ -579,6 +610,7 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
           listFilters.district,
           listFilters.name,
           listFilters.specialty,
+          listFilters.town,
           String(manualListLimit ?? "unbounded"),
           directoryIdSetCacheKey(extraIds),
         ],
@@ -632,6 +664,7 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
             listFilters.district,
             listFilters.name,
             listFilters.specialty,
+            listFilters.town,
             manualUsesSpecialtiesColumn ? "specialties" : "specialty",
           ],
           async () => {
@@ -675,6 +708,7 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
           specialty: specialtyParts[0] ?? "Specialty not set",
           specialties: specialtyParts,
           district: row.district as CyprusDistrict,
+          town: String((row as { town?: string | null }).town ?? "").trim() || null,
           address_maps_link: addressMapsLink,
           hasPhone: Boolean(String(row.phone ?? "").trim()),
           address: String(row.address ?? "").trim() || null,
@@ -719,6 +753,9 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
     ) {
       return false;
     }
+    if (activeTown && resolveFinderTownQuery(row.town) !== activeTown) {
+      return false;
+    }
     return true;
   });
 
@@ -749,6 +786,16 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
       !row.name.toLowerCase().includes(activeName.toLowerCase())
     ) {
       return false;
+    }
+    if (activeTown) {
+      const rowTown = resolveFinderTownQuery(row.town);
+      if (
+        rowTown &&
+        rowTown !== activeTown &&
+        !manualIdsWithClinicInActiveDistrict.has(row.id)
+      ) {
+        return false;
+      }
     }
     return true;
   });
@@ -974,17 +1021,23 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
       })?.row.id ?? null
     : null;
   const finderAvailabilityDayHeaders = buildFinderAvailabilityDayHeaders();
-  const hasActiveFilters = Boolean(activeDistrict || activeSpecialty || activeName);
+  const hasActiveFilters = Boolean(
+    activeDistrict || activeSpecialty || activeName || activeTown || userCoords,
+  );
   const specialtyLabel = activeSpecialty ? toTitleCaseWords(activeSpecialty) : "Health Professionals";
   const districtLabel = activeDistrict ? toTitleCaseWords(activeDistrict) : "Cyprus";
-  const hasSpecificFilters = Boolean(activeDistrict || activeSpecialty);
+  const hasSpecificFilters = Boolean(
+    activeDistrict || activeSpecialty || activeTown || userCoords,
+  );
+  const placeLabel = activeTown || (activeDistrict ? districtLabel : null);
   const finderH1 = buildFinderResultsHeading({
     specialtyLabel: activeSpecialty ? specialtyLabel : null,
-    districtLabel: activeDistrict ? districtLabel : null,
+    districtLabel: placeLabel,
+    nearYou: Boolean(userCoords),
   });
   const finderSnippet = buildFinderResultsSnippet({
     specialtyLabel: activeSpecialty ? specialtyLabel : null,
-    districtLabel: activeDistrict ? districtLabel : null,
+    districtLabel: placeLabel || (userCoords ? "your area" : null),
   });
   const finderPath = finderResultsPath(
     activeDistrict || null,
@@ -993,8 +1046,10 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
   const loadMoreHref = buildFinderResultsPageHref({
     finderPath,
     name: activeName || undefined,
+    town: activeTown ? townToSlug(activeTown) : undefined,
     lat: searchParams?.lat ?? null,
     lon: searchParams?.lon ?? null,
+    acc: searchParams?.acc ?? null,
     page: resultsPage + 1,
   });
   const schemaEntries = visibleResults.map((item) => {
@@ -1070,6 +1125,7 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
           activeDistrict={activeDistrict}
           activeSpecialty={activeSpecialty}
           activeName={activeName}
+          activeTown={activeTown}
           activeLatitude={userCoords?.latitude ?? null}
           activeLongitude={userCoords?.longitude ?? null}
           specialtyOptions={finderSpecialtyOptions}
@@ -1080,6 +1136,8 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
           districtLabel={activeDistrict ? districtLabel : undefined}
           specialtyLabel={activeSpecialty ? specialtyLabel : undefined}
           activeName={activeName || undefined}
+          townLabel={activeTown || undefined}
+          nearMe={Boolean(userCoords)}
           variant="bar"
         />
       </FinderSearchBar>
@@ -1174,7 +1232,9 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                           ) : null}
                           {item.distanceKm !== null ? (
                             <p className="text-xs font-semibold text-clinical-700">
-                              {formatDistanceAway(item.distanceKm)}
+                              {nearMeApproximate
+                                ? formatApproxDistanceAway(item.distanceKm)
+                                : formatDistanceAway(item.distanceKm)}
                             </p>
                           ) : null}
                         </div>
@@ -1300,7 +1360,9 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                         ) : null}
                         {item.distanceKm !== null ? (
                           <p className="mt-2 text-xs font-semibold text-clinical-700">
-                            {formatDistanceAway(item.distanceKm)}
+                            {nearMeApproximate
+                              ? formatApproxDistanceAway(item.distanceKm)
+                              : formatDistanceAway(item.distanceKm)}
                           </p>
                         ) : null}
                       </div>

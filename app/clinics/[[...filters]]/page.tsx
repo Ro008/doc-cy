@@ -24,12 +24,20 @@ import {
   parseFinderResultsPage,
 } from "@/lib/finder-results-paging";
 import { CYPRUS_DISTRICTS, type CyprusDistrict, isCyprusDistrict } from "@/lib/cyprus-districts";
+import {
+  reconcileFinderTownAndDistrict,
+  resolveFinderTownQuery,
+  townToSlug,
+} from "@/lib/cyprus-towns";
 import { FINDER_CLINIC_HERO_ILLUSTRATION, resolveClinicDisplayPhotoUrl } from "@/lib/finder-default-avatars";
 import { FINDER_CLINICS_HERO_SRC } from "@/lib/finder-hero-images";
 import { finderCardImagePriority } from "@/lib/finder-card-image-priority";
 import {
   computeFinderDistanceKm,
+  formatApproxDistanceAway,
   formatDistanceAway,
+  isApproximateNearMeAccuracy,
+  parseFinderNearMeQuery,
   parseOptionalCoordinates,
   type Coordinates,
 } from "@/lib/finder-distance";
@@ -51,8 +59,10 @@ type ClinicsPageProps = {
   };
   searchParams?: {
     name?: string;
+    town?: string;
     lat?: string;
     lon?: string;
+    acc?: string;
     page?: string;
   };
 };
@@ -104,10 +114,7 @@ function resolveDistrictValue(
 }
 
 function parseUserCoordinates(searchParams: ClinicsPageProps["searchParams"]): Coordinates | null {
-  const latRaw = String(searchParams?.lat ?? "").trim();
-  const lonRaw = String(searchParams?.lon ?? "").trim();
-  if (!latRaw || !lonRaw) return null;
-  return parseOptionalCoordinates(Number(latRaw), Number(lonRaw));
+  return parseFinderNearMeQuery(searchParams)?.coords ?? null;
 }
 
 function siteBaseUrl(): string {
@@ -195,17 +202,31 @@ export default async function ClinicsPage({ params, searchParams }: ClinicsPageP
 
 async function ClinicsSearchPage({ params, searchParams }: ClinicsPageProps) {
   const supabase = createServiceRoleClient();
-  const activeDistrict = resolveDistrictValue(params.filters?.[0]);
+  const requestedTown = resolveFinderTownQuery(searchParams?.town);
+  const reconciled = reconcileFinderTownAndDistrict({
+    town: requestedTown,
+    district: resolveDistrictValue(params.filters?.[0]),
+  });
+  const activeDistrict = reconciled.district;
+  const activeTown = reconciled.town;
   const activeName = normalizeSelectValue(searchParams?.name);
   const userCoords = parseUserCoordinates(searchParams);
+  const nearMeApproximate = isApproximateNearMeAccuracy(
+    parseFinderNearMeQuery(searchParams)?.accuracyMeters,
+  );
   const districts = CYPRUS_DISTRICTS;
-  const hasActiveFilters = Boolean(activeDistrict || activeName || userCoords);
+  const hasActiveFilters = Boolean(activeDistrict || activeName || activeTown || userCoords);
   const hasListFilter = hasActiveFilters;
   const resultsPage = parseFinderResultsPage(searchParams?.page, { hasListFilter });
   const maxResultsPage = hasListFilter
     ? FINDER_RESULTS_MAX_PAGE_FILTERED
     : FINDER_RESULTS_MAX_PAGE_UNFILTERED;
   const districtLabel = activeDistrict ? toTitleCaseWords(activeDistrict) : "";
+  const placeLabel = activeTown || districtLabel;
+  const townHint =
+    activeTown && activeDistrict && activeTown === activeDistrict
+      ? `${activeTown} (town)`
+      : activeTown || null;
 
   const visibleLimit = resultsPage * FINDER_RESULTS_PAGE_SIZE;
   /** Bounded by max page × page size (600) — under PostgREST max-rows. */
@@ -261,6 +282,9 @@ async function ClinicsSearchPage({ params, searchParams }: ClinicsPageProps) {
     if (activeDistrict && isCyprusDistrict(activeDistrict)) {
       next = next.eq("district", activeDistrict);
     }
+    if (activeTown) {
+      next = next.eq("town", activeTown);
+    }
     if (activeName) {
       next = next.ilike("name", `%${escapeIlikePattern(activeName)}%`);
     }
@@ -272,7 +296,7 @@ async function ClinicsSearchPage({ params, searchParams }: ClinicsPageProps) {
   } else if (userCoords) {
     try {
       const data = await getCachedDirectoryPayload(
-        ["clinics-all", activeDistrict, activeName],
+        ["clinics-all", activeDistrict, activeName, activeTown],
         async () => {
           const { data, error } = await fetchAllSupabaseRows(() =>
             applyClinicListFilters(
@@ -305,7 +329,7 @@ async function ClinicsSearchPage({ params, searchParams }: ClinicsPageProps) {
       "id, name, slug, district, address, phone, address_maps_link, latitude, longitude";
     try {
       const cached = await getCachedDirectoryPayload(
-        ["clinics-page", activeDistrict, activeName, String(pagedClinicCap)],
+        ["clinics-page", activeDistrict, activeName, activeTown, String(pagedClinicCap)],
         async () => {
           const [countRes, pageRes] = await Promise.all([
             applyClinicListFilters(
@@ -428,13 +452,16 @@ async function ClinicsSearchPage({ params, searchParams }: ClinicsPageProps) {
   const loadMoreHref = buildFinderResultsPageHref({
     finderPath: clinicsResultsPath(activeDistrict || null),
     name: activeName || undefined,
+    town: activeTown ? townToSlug(activeTown) : undefined,
     lat: searchParams?.lat ?? null,
     lon: searchParams?.lon ?? null,
+    acc: searchParams?.acc ?? null,
     page: resultsPage + 1,
   });
 
   const title = buildClinicsResultsHeading({
-    districtLabel: districtLabel || null,
+    districtLabel: placeLabel || null,
+    nearYou: Boolean(userCoords),
   });
   const showClinicsHero = !hasActiveFilters;
 
@@ -457,8 +484,8 @@ async function ClinicsSearchPage({ params, searchParams }: ClinicsPageProps) {
               : "mt-3 max-w-2xl text-base leading-relaxed text-ink-600 sm:text-lg"
           }
           subtitle={
-            districtLabel ? (
-              <>Browse healthcare clinics in {districtLabel} and open a clinic to see professionals.</>
+            placeLabel ? (
+              <>Browse healthcare clinics in {placeLabel} and open a clinic to see professionals.</>
             ) : (
               <>
                 Search by clinic name or district, or find a clinic near you.{" "}
@@ -483,6 +510,7 @@ async function ClinicsSearchPage({ params, searchParams }: ClinicsPageProps) {
           districts={districts}
           activeDistrict={activeDistrict}
           activeName={activeName}
+          activeTown={activeTown}
           activeLatitude={userCoords?.latitude ?? null}
           activeLongitude={userCoords?.longitude ?? null}
         />
@@ -497,12 +525,17 @@ async function ClinicsSearchPage({ params, searchParams }: ClinicsPageProps) {
                 Showing{" "}
                 <span className="font-medium tabular-nums text-white">{matchingClinicCount}</span>{" "}
                 {matchingClinicCount === 1 ? "clinic" : "clinics"}
-                {districtLabel || activeName ? (
+                {districtLabel || townHint || activeName || userCoords ? (
                   <span className="text-white/65">
                     {" "}
                     ·{" "}
                     <span className="text-white/85">
-                      {[districtLabel, activeName ? `“${activeName}”` : null]
+                      {[
+                        districtLabel || null,
+                        townHint,
+                        userCoords ? "Near me" : null,
+                        activeName ? `“${activeName}”` : null,
+                      ]
                         .filter(Boolean)
                         .join(" · ")}
                     </span>
@@ -533,7 +566,7 @@ async function ClinicsSearchPage({ params, searchParams }: ClinicsPageProps) {
               <div className="rounded-2xl border border-dashed border-clinical-200 bg-white px-5 py-10 text-center">
                 <p className="text-base font-semibold text-ink-800">No clinics matched these filters</p>
                 <p className="mt-2 text-sm text-ink-500">
-                  Try another district or name, or{" "}
+                  Try another district, town, or name, or{" "}
                   <PendingLink
                     href={CLINICS_SEARCH_BASE}
                     className="font-medium text-clinical-600 underline underline-offset-4"
@@ -551,7 +584,11 @@ async function ClinicsSearchPage({ params, searchParams }: ClinicsPageProps) {
                   const mapsHref = clinic.address_maps_link;
                   const hasPhone = clinic.hasPhone;
                   const distanceLabel =
-                    clinic.distanceKm !== null ? formatDistanceAway(clinic.distanceKm) : null;
+                    clinic.distanceKm !== null
+                      ? nearMeApproximate
+                        ? formatApproxDistanceAway(clinic.distanceKm)
+                        : formatDistanceAway(clinic.distanceKm)
+                      : null;
                   const professionalLabel =
                     clinic.professionalCount === 1
                       ? "1 professional works here"

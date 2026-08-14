@@ -149,6 +149,7 @@ When nightly fails:
 1. **Product regression** → fix code or prod smoke doctor config (`TEST_BOOKING_DOCTOR_SLUG`, schedule).
 2. **Env/secret** → verify `PROD_*`, `TEST_DOCTOR_*`, `PLAYWRIGHT_BASE_URL_PROD`.
 3. **Login form failure on PR** → check hydration/login UI; integration `TEST_USER_*` secrets.
+4. **Cloudflare** → a real interstitial has title `Just a moment...`. Proxied pages also include `/cdn-cgi/challenge-platform` scripts; that alone is not a block. Bot Fight Mode cannot be skipped with WAF rules.
 
 When PR fails: integration env / test data — not prod calendar.
 

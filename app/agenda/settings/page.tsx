@@ -59,6 +59,7 @@ export default async function AgendaSettingsPage() {
     latitude?: number | null;
     longitude?: number | null;
     clinic_place_id?: string | null;
+    town?: string | null;
     status?: string | null;
     is_specialty_approved?: boolean | null;
     specialty_requires_standard_at?: string | null;
@@ -74,10 +75,20 @@ export default async function AgendaSettingsPage() {
     let res = await supabase
       .from("doctors")
       .select(
-        "id, name, avatar_url, phone, slug, specialty, bio, languages, district, clinic_address, latitude, longitude, clinic_place_id, status, subscription_tier, is_gesy"
+        "id, name, avatar_url, phone, slug, specialty, bio, languages, district, town, clinic_address, latitude, longitude, clinic_place_id, status, subscription_tier, is_gesy"
       )
       .eq("auth_user_id", user.id)
       .single();
+
+    if (res.error && hasColError(res.error, "town")) {
+      res = await supabase
+        .from("doctors")
+        .select(
+          "id, name, avatar_url, phone, slug, specialty, bio, languages, district, clinic_address, latitude, longitude, clinic_place_id, status, subscription_tier, is_gesy"
+        )
+        .eq("auth_user_id", user.id)
+        .single();
+    }
 
     if (
       res.error &&
@@ -282,6 +293,7 @@ export default async function AgendaSettingsPage() {
     ),
     district: (doctor.district ?? "").trim(),
     clinicAddress: (doctor.clinic_address ?? "").trim(),
+    clinicTown: (doctor.town ?? "").trim() || null,
     clinicLatitude: doctor.latitude ?? null,
     clinicLongitude: doctor.longitude ?? null,
     clinicPlaceId: doctor.clinic_place_id ?? null,

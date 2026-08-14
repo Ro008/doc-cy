@@ -156,6 +156,7 @@ async function handleRegister(formData: FormData) {
     clinicLongitude: formData.get("clinicLongitude"),
     clinicPlaceId: formData.get("clinicPlaceId"),
     district: formData.get("district"),
+    town: formData.get("town"),
     allowE2eFallback: shouldAllowRegisterClinicE2eFallback(email),
   });
 
@@ -179,6 +180,7 @@ async function handleRegister(formData: FormData) {
   const {
     clinicAddress,
     district,
+    town,
     latitude: clinicLatitude,
     longitude: clinicLongitude,
     clinicPlaceId,
@@ -365,6 +367,7 @@ async function handleRegister(formData: FormData) {
         is_specialty_approved: isSpecialtyApproved,
         subscription_tier: fallbackTier,
         district,
+        town,
         clinic_address: clinicAddress,
         latitude: clinicLatitude,
         longitude: clinicLongitude,
@@ -404,6 +407,7 @@ async function handleRegister(formData: FormData) {
   const profileUpdateBase = {
     avatar_url: avatarFileUrl,
     district,
+    town,
     clinic_address: clinicAddress,
     latitude: clinicLatitude,
     longitude: clinicLongitude,
@@ -418,11 +422,25 @@ async function handleRegister(formData: FormData) {
     const missingAvatarColumn =
       avatarSaveError.code === "PGRST204" &&
       String(avatarSaveError.message ?? "").includes("avatar_url");
+    const missingTownColumn =
+      (avatarSaveError.code === "42703" || avatarSaveError.code === "PGRST204") &&
+      /town/i.test(String(avatarSaveError.message ?? ""));
     const missingClinicColumns =
       (avatarSaveError.code === "42703" || avatarSaveError.code === "PGRST204") &&
       /(latitude|longitude|clinic_place_id|clinic_address)/i.test(
         String(avatarSaveError.message ?? ""),
       );
+    if (missingTownColumn && !missingClinicColumns) {
+      const { town: _town, ...withoutTown } = profileUpdateBase;
+      const { error: withoutTownError } = await service
+        .from("doctors")
+        .update(withoutTown)
+        .eq("id", doctorId);
+      if (!withoutTownError) {
+        queueFounderSignupNotify();
+        redirect("/register?submitted=1");
+      }
+    }
     if (missingAvatarColumn) {
       // Backward compatibility: some environments may not have avatar_url migrated yet.
       // Keep registration successful and preserve uploaded avatar in storage.

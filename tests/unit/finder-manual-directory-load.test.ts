@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  applyFinderListFilters,
   extrasNotInPrimary,
   mustChunkExtraManualIds,
 } from "@/lib/finder-manual-directory-load";
@@ -24,5 +25,36 @@ describe("finder manual directory load (clinic-district extras)", () => {
     assert.equal(mustChunkExtraManualIds(SUPABASE_IN_FILTER_CHUNK + 1), true);
     // Limassol-scale extras (incident 2026-08) must always chunk.
     assert.equal(mustChunkExtraManualIds(1900), true);
+  });
+
+  it("filters primary rows by town and strips town for clinic-linked extras", () => {
+    const calls: string[] = [];
+    const query = {
+      eq(column: string, value: string) {
+        calls.push(`${column}=${value}`);
+        return this;
+      },
+      ilike() {
+        return this;
+      },
+      in() {
+        return this;
+      },
+      overlaps() {
+        return this;
+      },
+    };
+    applyFinderListFilters(query, {
+      district: "Paphos",
+      name: "",
+      specialty: "",
+      town: "Tala",
+    });
+    assert.deepEqual(calls, ["district=Paphos", "town=Tala"]);
+
+    calls.length = 0;
+    const extraFilters = { district: "", town: "", name: "", specialty: "" };
+    applyFinderListFilters(query, extraFilters);
+    assert.deepEqual(calls, []);
   });
 });

@@ -4,6 +4,10 @@ import {
   type CyprusDistrict,
 } from "@/lib/cyprus-districts";
 import {
+  inferCyprusTownFromClinic,
+  type AddressComponentLike,
+} from "@/lib/cyprus-towns";
+import {
   fallbackDistrictCoordinates,
   getDistanceKm,
   isLikelyCyprusCoordinates,
@@ -17,13 +21,10 @@ export type ClinicLocation = {
   longitude: number | null;
   placeId: string | null;
   district: CyprusDistrict | null;
+  town: string | null;
 };
 
-type AddressComponent = {
-  long_name?: string;
-  short_name?: string;
-  types?: string[];
-};
+type AddressComponent = AddressComponentLike;
 
 const DISTRICT_TEXT_ALIASES: Record<string, CyprusDistrict> = {
   nicosia: "Nicosia",
@@ -54,6 +55,7 @@ export function emptyClinicLocation(): ClinicLocation {
     longitude: null,
     placeId: null,
     district: null,
+    town: null,
   };
 }
 
@@ -111,12 +113,15 @@ export function clinicLocationFromParts(input: {
   longitude?: unknown;
   placeId?: string | null;
   district?: string | null;
+  town?: string | null;
+  addressComponents?: AddressComponent[] | null;
 }): ClinicLocation {
   const coords = parseOptionalCoordinates(input.latitude, input.longitude);
   const districtRaw = String(input.district ?? "").trim();
   const district = isCyprusDistrict(districtRaw) ? districtRaw : null;
+  const address = String(input.address ?? "").trim();
   return {
-    address: String(input.address ?? "").trim(),
+    address,
     latitude: coords?.latitude ?? null,
     longitude: coords?.longitude ?? null,
     placeId: input.placeId?.trim() || null,
@@ -129,6 +134,11 @@ export function clinicLocationFromParts(input: {
             longitude: coords.longitude,
           })
         : null),
+    town: inferCyprusTownFromClinic({
+      town: input.town,
+      address,
+      addressComponents: input.addressComponents,
+    }),
   };
 }
 

@@ -101,6 +101,7 @@ export async function POST(req: NextRequest) {
     clinicLatitude?: number | null;
     clinicLongitude?: number | null;
     clinicPlaceId?: string | null;
+    town?: string | null;
     specialty?: string;
     /** true when chosen from master list (JSON boolean) */
     specialtyFromMaster?: boolean | string | number;
@@ -202,6 +203,8 @@ export async function POST(req: NextRequest) {
     latitude: b.clinicLatitude,
     longitude: b.clinicLongitude,
     placeId: b.clinicPlaceId,
+    district: districtRaw,
+    town: typeof b.town === "string" ? b.town : null,
   });
   const coords = parseOptionalCoordinates(b.clinicLatitude, b.clinicLongitude);
   const hasLegacyAddressOnly =
@@ -361,6 +364,7 @@ export async function POST(req: NextRequest) {
     bio?: string | null;
     district: string;
     clinic_address: string | null;
+    town?: string | null;
     latitude?: number | null;
     longitude?: number | null;
     clinic_place_id?: string | null;
@@ -371,6 +375,7 @@ export async function POST(req: NextRequest) {
   } = {
     district: districtRaw,
     clinic_address: clinicAddress || null,
+    town: clinicAddress ? clinicLocation.town : null,
     latitude: clinicAddress ? clinicLocation.latitude : null,
     longitude: clinicAddress ? clinicLocation.longitude : null,
     clinic_place_id: clinicAddress ? clinicLocation.placeId : null,
@@ -396,11 +401,22 @@ export async function POST(req: NextRequest) {
       docErr.code === "PGRST204" ||
       String(docErr.message ?? "").toLowerCase().includes("column"))
   ) {
-    const { latitude: _lat, longitude: _lon, clinic_place_id: _placeId, ...legacyPhoneUpdate } =
-      phoneUpdateBase;
-    docErr = (
-      await supabase.from("doctors").update(legacyPhoneUpdate).eq("id", doctorId)
-    ).error;
+    if (/town/i.test(String(docErr.message ?? ""))) {
+      const { town: _town, ...withoutTown } = phoneUpdateBase;
+      docErr = (await supabase.from("doctors").update(withoutTown).eq("id", doctorId)).error;
+    }
+    if (
+      docErr &&
+      (docErr.code === "42703" ||
+        docErr.code === "PGRST204" ||
+        String(docErr.message ?? "").toLowerCase().includes("column"))
+    ) {
+      const { latitude: _lat, longitude: _lon, clinic_place_id: _placeId, town: _town, ...legacyPhoneUpdate } =
+        phoneUpdateBase;
+      docErr = (
+        await supabase.from("doctors").update(legacyPhoneUpdate).eq("id", doctorId)
+      ).error;
+    }
   }
 
   if (docErr) {

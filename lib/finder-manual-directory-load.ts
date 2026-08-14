@@ -9,6 +9,7 @@ export type FinderListFilters = {
   district: string;
   name: string;
   specialty: string;
+  town?: string;
 };
 
 /**
@@ -28,6 +29,9 @@ export function applyFinderListFilters(
   let next = query;
   if (filters.district) {
     next = next.eq("district", filters.district);
+  }
+  if (filters.town) {
+    next = next.eq("town", filters.town);
   }
   if (filters.name) {
     next = next.ilike("name", `%${escapeIlikePattern(filters.name)}%`);
@@ -162,8 +166,8 @@ export async function fetchManualDirectoryForFinder(input: {
     return { data: primaryRows, error: null };
   }
 
-  // Extras already matched via clinic district — do not re-filter by primary district.
-  const extraFilters = { ...filters, district: "" };
+  // Extras already matched via clinic district/town — do not re-filter by primary location.
+  const extraFilters = { ...filters, district: "", town: "" };
   const extraRes = await fetchAllSupabaseRowsForIdChunks(extrasOnly, (idChunk) =>
     applyFinderListFilters(baseQuery().in("id", idChunk), extraFilters, { specialtyColumn }),
   );

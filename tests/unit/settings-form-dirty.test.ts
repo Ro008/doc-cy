@@ -32,6 +32,7 @@ function baseSnapshotInput() {
       longitude: 33.3,
       placeId: "place-1",
       district: "Nicosia" as const,
+      town: "Nicosia",
     },
     weeklySchedule,
     breakEnabled: false,

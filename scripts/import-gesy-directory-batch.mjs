@@ -24,6 +24,28 @@ import { cleanGesyDirectoryDisplayName } from "./lib/gesy-directory-display-name
 
 const require = createRequire(import.meta.url);
 const xlsx = require("xlsx");
+const townsData = require("../lib/cyprus-towns-data.json");
+
+const TOWN_BY_KEY = new Map();
+for (const entry of townsData.entries ?? []) {
+  const name = String(entry.name ?? "").trim();
+  if (!name) continue;
+  TOWN_BY_KEY.set(name.toLowerCase().replace(/[-–—]/g, " ").replace(/\s+/g, " ").trim(), name);
+}
+for (const [alias, canonical] of Object.entries(townsData.aliases ?? {})) {
+  const resolved = TOWN_BY_KEY.get(String(canonical).toLowerCase()) ?? canonical;
+  TOWN_BY_KEY.set(String(alias).toLowerCase().replace(/[-–—]/g, " ").replace(/\s+/g, " ").trim(), resolved);
+}
+
+function canonicalizeTown(raw) {
+  const key = String(raw ?? "")
+    .toLowerCase()
+    .replace(/[-–—]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!key) return null;
+  return TOWN_BY_KEY.get(key) ?? null;
+}
 
 const VALID_DISTRICTS = new Set([
   "Nicosia",
@@ -208,6 +230,7 @@ function aggregatePeople(rows) {
     const phone = String(row.phone ?? "").trim() || null;
     const address = String(row.address ?? "").trim() || null;
     const maps = String(row.GoogleMaps ?? "").trim() || null;
+    const town = canonicalizeTown(row.town);
     const { latitude, longitude } = parseLatLonFromMaps(maps);
 
     if (phone) person.phones.add(phone);
@@ -226,12 +249,14 @@ function aggregatePeople(rows) {
           address_maps_link: maps,
           latitude,
           longitude,
+          town,
           segments: new Set([segment]),
         });
       } else {
         const c = person.clinics.get(clinicGhs);
         c.segments.add(segment);
         if (!c.address && address) c.address = address;
+        if (!c.town && town) c.town = town;
         if (!c.phone && phone) c.phone = phone;
         if (!c.address_maps_link && maps) {
           c.address_maps_link = maps;
@@ -312,6 +337,7 @@ async function upsertClinic(supabase, clinic, takenSlugs, dryRun) {
           address_maps_link: clinic.address_maps_link,
           latitude: clinic.latitude,
           longitude: clinic.longitude,
+          town: clinic.town ?? null,
         })
         .eq("id", existing.data.id);
     }
@@ -341,6 +367,7 @@ async function upsertClinic(supabase, clinic, takenSlugs, dryRun) {
         latitude: clinic.latitude,
         longitude: clinic.longitude,
         ghs_code: clinic.ghs_code,
+        town: clinic.town ?? null,
         is_archived: false,
       })
       .select("id, slug")
@@ -456,6 +483,7 @@ async function main() {
       specialty: specialties[0],
       specialties,
       district,
+      town: primaryClinic?.town ?? null,
       address_maps_link: maps,
       phone,
       address,

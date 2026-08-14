@@ -72,6 +72,15 @@ describe("clinicLocationFromParts", () => {
       longitude: 33.6232,
     });
     assert.equal(location.district, "Larnaca");
+    assert.equal(location.town, null);
+  });
+
+  it("fills town from clinic address text", () => {
+    const location = clinicLocationFromParts({
+      address: "1 Clinic Street, Tala, Paphos",
+      district: "Paphos",
+    });
+    assert.equal(location.town, "Tala");
   });
 });
 
@@ -84,6 +93,7 @@ describe("hasConfirmedClinicCoordinates", () => {
         longitude: 33.0226,
         placeId: null,
         district: "Limassol",
+        town: "Limassol",
       }),
       true,
     );
@@ -94,6 +104,7 @@ describe("hasConfirmedClinicCoordinates", () => {
         longitude: -3.7038,
         placeId: null,
         district: null,
+        town: null,
       }),
       false,
     );
