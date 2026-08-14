@@ -1,13 +1,12 @@
 import { type Page } from "@playwright/test";
 
-import { TRAFFIC_LOG_SUPPRESS_HEADER } from "@/lib/traffic-log";
 import { isCloudflareChallengePage } from "./cloudflareChallengePage";
 
 export { isCloudflareChallengePage };
 
 /**
- * Cloudflare Bot Fight Mode (enabled 2026-08-09) can challenge GitHub Actions IPs.
- * Fail with an actionable message instead of a generic "element not found".
+ * Fail with an actionable message when Cloudflare shows a real interstitial.
+ * Do not treat generic `/cdn-cgi/challenge-platform` beacons as a block.
  */
 export async function assertNoCloudflareChallenge(page: Page): Promise<void> {
   const title = await page.title().catch(() => "");
@@ -15,11 +14,9 @@ export async function assertNoCloudflareChallenge(page: Page): Promise<void> {
   if (!isCloudflareChallengePage(title, html)) return;
 
   throw new Error(
-    `Cloudflare bot challenge blocked ${page.url()}. ` +
-      `GitHub Actions IPs are treated as bots by Bot Fight Mode. ` +
-      `In Cloudflare: WAF custom rule with Skip (including Bot Fight Mode) when request header ` +
-      `\`${TRAFFIC_LOG_SUPPRESS_HEADER}\` matches the monitoring secret ` +
-      `(Playwright already sends it when DOC_CY_SUPPRESS_TRAFFIC_LOG_SECRET is set).`,
+    `Cloudflare bot challenge blocked ${page.url()} (title: "${title}"). ` +
+      `GitHub Actions IPs can be challenged by Bot Fight Mode. ` +
+      `WAF Skip rules do not bypass Bot Fight Mode; pause it for the nightly window or allow the runner.`,
   );
 }
 

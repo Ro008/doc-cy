@@ -27,4 +27,20 @@ describe("isCloudflareChallengePage", () => {
       false,
     );
   });
+
+  it("does not flag Cloudflare JS detection scripts on a real page", () => {
+    assert.equal(
+      isCloudflareChallengePage(
+        "Find a health professional in Cyprus | DocCy",
+        [
+          "<html><head>",
+          '<script src="/cdn-cgi/challenge-platform/scripts/jsd/main.js" defer></script>',
+          "</head><body>",
+          "<h1>Run a Smarter Practice.</h1>",
+          "</body></html>",
+        ].join(""),
+      ),
+      false,
+    );
+  });
 });
