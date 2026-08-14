@@ -44,6 +44,20 @@ describe("buildFinderResultsHeading", () => {
       "Find your next health professional in Cyprus",
     );
   });
+
+  it("uses near you copy when GPS is the only place filter", () => {
+    assert.equal(
+      buildFinderResultsHeading({ nearYou: true }),
+      "Find professionals near you",
+    );
+    assert.equal(
+      buildFinderResultsHeading({
+        nearYou: true,
+        specialtyLabel: "Dentistry",
+      }),
+      "Book a Dentistry appointment near you",
+    );
+  });
 });
 
 describe("buildFinderResultsSnippet", () => {
@@ -83,6 +97,10 @@ describe("buildClinicsResultsHeading", () => {
     assert.equal(
       buildClinicsResultsHeading({ districtLabel: "Geroskipou" }),
       "Find clinics in Geroskipou",
+    );
+    assert.equal(
+      buildClinicsResultsHeading({ nearYou: true }),
+      "Find clinics near you",
     );
   });
 });

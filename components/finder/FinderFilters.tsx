@@ -16,6 +16,7 @@ import {
   type CyprusTownOption,
 } from "@/lib/cyprus-towns";
 import { FinderTownCombobox } from "@/components/finder/FinderTownCombobox";
+import { appendFinderNearMeParams, type FinderNearMeCoords } from "@/lib/finder-distance";
 import { BriefcaseMedical, Info, LocateFixed, MapPin, Search, UserRound } from "lucide-react";
 import { PendingLink } from "@/components/navigation/PendingLink";
 import { emitNavigationStart, getNavigationStartMessage, NAVIGATION_START_EVENT } from "@/lib/doccy-navigation";
@@ -50,10 +51,7 @@ export function FinderFilters({
   );
   const [name, setName] = React.useState(activeName);
   const [townQuery, setTownQuery] = React.useState(activeTown);
-  const [nearMeCoords, setNearMeCoords] = React.useState<{
-    latitude: number;
-    longitude: number;
-  } | null>(() =>
+  const [nearMeCoords, setNearMeCoords] = React.useState<FinderNearMeCoords | null>(() =>
     activeLatitude !== null && activeLongitude !== null
       ? { latitude: activeLatitude, longitude: activeLongitude }
       : null,
@@ -89,7 +87,14 @@ export function FinderFilters({
     setTownQuery(activeTown);
     setNearMeCoords(
       activeLatitude !== null && activeLongitude !== null
-        ? { latitude: activeLatitude, longitude: activeLongitude }
+        ? {
+            latitude: activeLatitude,
+            longitude: activeLongitude,
+            accuracyMeters: (() => {
+              const acc = Number(searchParams?.get("acc") ?? "");
+              return Number.isFinite(acc) && acc > 0 ? acc : null;
+            })(),
+          }
         : null,
     );
     setGeolocationError(null);
@@ -129,7 +134,7 @@ export function FinderFilters({
     nextDistrict: string,
     nextSpecialty: string,
     nextName: string,
-    nextCoords: { latitude: number; longitude: number } | null,
+    nextCoords: FinderNearMeCoords | null,
     nextTownQuery: string,
     options?: { skipNavigationStart?: boolean; navigationReason?: "finder-results" | "finder-near-me" },
   ) {
@@ -138,8 +143,7 @@ export function FinderFilters({
     if (nextName) params.set("name", nextName);
     if (resolved.town) params.set("town", townToSlug(resolved.town));
     if (nextCoords) {
-      params.set("lat", String(nextCoords.latitude));
-      params.set("lon", String(nextCoords.longitude));
+      appendFinderNearMeParams(params, nextCoords);
     }
     const finderPath = finderResultsPath(
       resolved.district || null,
@@ -164,11 +168,12 @@ export function FinderFilters({
     setPendingAction("apply");
     if (pendingGuardRef.current) clearTimeout(pendingGuardRef.current);
     pendingGuardRef.current = setTimeout(() => setPendingAction(null), 1500);
+    const placeIsSet = Boolean(district.trim() || townQuery.trim());
     pushFilters(
       district,
       specialtyLabelFromSlug(specialtySlug),
       name.trim(),
-      nearMeCoords,
+      placeIsSet ? null : nearMeCoords,
       townQuery,
     );
   }
@@ -217,12 +222,15 @@ export function FinderFilters({
     emitNavigationStart(undefined, "finder-near-me");
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        const coords = {
+        const coords: FinderNearMeCoords = {
           latitude: position.coords.latitude,
           longitude: position.coords.longitude,
+          accuracyMeters: position.coords.accuracy,
         };
         setNearMeCoords(coords);
-        pushFilters(district, specialtyLabelFromSlug(specialtySlug), name.trim(), coords, townQuery, {
+        setDistrict("");
+        setTownQuery("");
+        pushFilters("", specialtyLabelFromSlug(specialtySlug), name.trim(), coords, "", {
           skipNavigationStart: true,
         });
       },
@@ -238,7 +246,7 @@ export function FinderFilters({
       {
         enableHighAccuracy: true,
         timeout: 10000,
-        maximumAge: 60000,
+        maximumAge: 0,
       },
     );
   }
@@ -337,7 +345,7 @@ export function FinderFilters({
                 ))}
               </select>
             </label>
-            <div className="relative min-w-0 flex-[1.05] basis-[30%]">
+            <div className="relative min-w-0 flex-1 basis-[22%]">
               <label className="relative block">
                 <span className="sr-only">District</span>
                 <MapPin className={iconClass} strokeWidth={2} aria-hidden />
@@ -352,7 +360,7 @@ export function FinderFilters({
                       setTownQuery("");
                     }
                   }}
-                  className={`${fieldClass} pr-[7.25rem]`}
+                  className={fieldClass}
                 >
                   <option value="">All districts</option>
                   {districts.map((item) => (
@@ -362,28 +370,6 @@ export function FinderFilters({
                   ))}
                 </select>
               </label>
-              <button
-                type="button"
-                onClick={locateNearMeAndApply}
-                disabled={isFilterFormBusy}
-                aria-busy={isNearMeBusy}
-                aria-label={isNearMeBusy ? nearMeBusyMessage : "Doctor near me"}
-                className={`absolute right-1.5 top-1/2 z-10 inline-flex h-8 -translate-y-1/2 items-center gap-1.5 rounded-full px-2.5 text-[11px] font-semibold tracking-tight transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-400 focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-70 ${
-                  nearMeActive || isNearMeBusy
-                    ? "bg-clinical-500 text-white shadow-sm shadow-clinical-500/25"
-                    : "bg-ink-50 text-clinical-700 ring-1 ring-ink-200/80 hover:bg-clinical-50 hover:text-clinical-800 hover:ring-clinical-200"
-                }`}
-              >
-                {isNearMeBusy ? (
-                  <span
-                    aria-hidden
-                    className="h-3 w-3 shrink-0 animate-spin rounded-full border-2 border-current border-r-transparent opacity-90"
-                  />
-                ) : (
-                  <LocateFixed className="h-3.5 w-3.5 shrink-0" strokeWidth={2.25} aria-hidden />
-                )}
-                <span>{isNearMeBusy ? "Locating…" : "Near me"}</span>
-              </button>
             </div>
             <FinderTownCombobox
               value={townQuery}
@@ -396,6 +382,7 @@ export function FinderFilters({
                 if (pendingAction || isNavigating || isLocating) return;
                 setTownQuery(option.name);
                 setDistrict(option.district);
+                setNearMeCoords(null);
                 setPendingAction("apply");
                 if (pendingGuardRef.current) clearTimeout(pendingGuardRef.current);
                 pendingGuardRef.current = setTimeout(() => setPendingAction(null), 1500);
@@ -403,12 +390,34 @@ export function FinderFilters({
                   option.district,
                   specialtyLabelFromSlug(specialtySlug),
                   name.trim(),
-                  nearMeCoords,
+                  null,
                   option.name,
                 );
               }}
             />
           </div>
+          <button
+            type="button"
+            onClick={locateNearMeAndApply}
+            disabled={isFilterFormBusy}
+            aria-busy={isNearMeBusy}
+            aria-label={isNearMeBusy ? nearMeBusyMessage : "Doctor near me"}
+            className={`inline-flex h-11 w-full shrink-0 items-center justify-center gap-2 rounded-2xl px-4 text-sm font-semibold shadow-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-clinical-600 disabled:cursor-not-allowed disabled:opacity-70 lg:w-auto lg:min-w-[8.5rem] ${
+              nearMeActive || isNearMeBusy
+                ? "bg-clinical-500 text-white hover:bg-clinical-400"
+                : "bg-white text-clinical-700 hover:bg-clinical-50"
+            }`}
+          >
+            {isNearMeBusy ? (
+              <span
+                aria-hidden
+                className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-current border-r-transparent"
+              />
+            ) : (
+              <LocateFixed className="h-4 w-4 shrink-0" strokeWidth={2.25} aria-hidden />
+            )}
+            <span>{isNearMeBusy ? "Locating…" : "Near me"}</span>
+          </button>
           <button
             type="submit"
             disabled={isFilterFormBusy}

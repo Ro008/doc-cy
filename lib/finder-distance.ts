@@ -81,6 +81,49 @@ export function formatDistanceAway(distanceKm: number): string {
   return `📍 ${distanceKm.toFixed(1)} km away`;
 }
 
+/** Browser GPS with a large accuracy radius should not look like a precise pin. */
+export const NEAR_ME_APPROX_ACCURACY_M = 1000;
+
+export function isApproximateNearMeAccuracy(accuracyMeters: number | null | undefined): boolean {
+  if (typeof accuracyMeters !== "number" || !Number.isFinite(accuracyMeters)) return false;
+  return accuracyMeters >= NEAR_ME_APPROX_ACCURACY_M;
+}
+
+export function parseFinderNearMeQuery(searchParams: {
+  lat?: string;
+  lon?: string;
+  acc?: string;
+} | null | undefined): { coords: Coordinates; accuracyMeters: number | null } | null {
+  const coords = parseOptionalCoordinates(
+    Number(String(searchParams?.lat ?? "").trim()),
+    Number(String(searchParams?.lon ?? "").trim()),
+  );
+  if (!coords) return null;
+  const accRaw = String(searchParams?.acc ?? "").trim();
+  const accuracyMeters = accRaw ? Number(accRaw) : null;
+  return {
+    coords,
+    accuracyMeters:
+      typeof accuracyMeters === "number" && Number.isFinite(accuracyMeters) && accuracyMeters > 0
+        ? accuracyMeters
+        : null,
+  };
+}
+
+export type FinderNearMeCoords = Coordinates & { accuracyMeters?: number | null };
+
+export function appendFinderNearMeParams(
+  params: URLSearchParams,
+  coords: FinderNearMeCoords,
+): void {
+  params.set("lat", String(coords.latitude));
+  params.set("lon", String(coords.longitude));
+  const acc = coords.accuracyMeters;
+  if (typeof acc === "number" && Number.isFinite(acc) && acc > 0) {
+    params.set("acc", String(Math.round(acc)));
+  }
+}
+
 export function formatApproxDistanceAway(distanceKm: number): string {
   if (!Number.isFinite(distanceKm)) return "";
   if (distanceKm < 1) {

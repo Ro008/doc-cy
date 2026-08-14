@@ -34,7 +34,10 @@ import { FINDER_CLINICS_HERO_SRC } from "@/lib/finder-hero-images";
 import { finderCardImagePriority } from "@/lib/finder-card-image-priority";
 import {
   computeFinderDistanceKm,
+  formatApproxDistanceAway,
   formatDistanceAway,
+  isApproximateNearMeAccuracy,
+  parseFinderNearMeQuery,
   parseOptionalCoordinates,
   type Coordinates,
 } from "@/lib/finder-distance";
@@ -59,6 +62,7 @@ type ClinicsPageProps = {
     town?: string;
     lat?: string;
     lon?: string;
+    acc?: string;
     page?: string;
   };
 };
@@ -110,10 +114,7 @@ function resolveDistrictValue(
 }
 
 function parseUserCoordinates(searchParams: ClinicsPageProps["searchParams"]): Coordinates | null {
-  const latRaw = String(searchParams?.lat ?? "").trim();
-  const lonRaw = String(searchParams?.lon ?? "").trim();
-  if (!latRaw || !lonRaw) return null;
-  return parseOptionalCoordinates(Number(latRaw), Number(lonRaw));
+  return parseFinderNearMeQuery(searchParams)?.coords ?? null;
 }
 
 function siteBaseUrl(): string {
@@ -210,6 +211,9 @@ async function ClinicsSearchPage({ params, searchParams }: ClinicsPageProps) {
   const activeTown = reconciled.town;
   const activeName = normalizeSelectValue(searchParams?.name);
   const userCoords = parseUserCoordinates(searchParams);
+  const nearMeApproximate = isApproximateNearMeAccuracy(
+    parseFinderNearMeQuery(searchParams)?.accuracyMeters,
+  );
   const districts = CYPRUS_DISTRICTS;
   const hasActiveFilters = Boolean(activeDistrict || activeName || activeTown || userCoords);
   const hasListFilter = hasActiveFilters;
@@ -451,11 +455,13 @@ async function ClinicsSearchPage({ params, searchParams }: ClinicsPageProps) {
     town: activeTown ? townToSlug(activeTown) : undefined,
     lat: searchParams?.lat ?? null,
     lon: searchParams?.lon ?? null,
+    acc: searchParams?.acc ?? null,
     page: resultsPage + 1,
   });
 
   const title = buildClinicsResultsHeading({
     districtLabel: placeLabel || null,
+    nearYou: Boolean(userCoords),
   });
   const showClinicsHero = !hasActiveFilters;
 
@@ -519,7 +525,7 @@ async function ClinicsSearchPage({ params, searchParams }: ClinicsPageProps) {
                 Showing{" "}
                 <span className="font-medium tabular-nums text-white">{matchingClinicCount}</span>{" "}
                 {matchingClinicCount === 1 ? "clinic" : "clinics"}
-                {districtLabel || townHint || activeName ? (
+                {districtLabel || townHint || activeName || userCoords ? (
                   <span className="text-white/65">
                     {" "}
                     ·{" "}
@@ -527,6 +533,7 @@ async function ClinicsSearchPage({ params, searchParams }: ClinicsPageProps) {
                       {[
                         districtLabel || null,
                         townHint,
+                        userCoords ? "Near me" : null,
                         activeName ? `“${activeName}”` : null,
                       ]
                         .filter(Boolean)
@@ -577,7 +584,11 @@ async function ClinicsSearchPage({ params, searchParams }: ClinicsPageProps) {
                   const mapsHref = clinic.address_maps_link;
                   const hasPhone = clinic.hasPhone;
                   const distanceLabel =
-                    clinic.distanceKm !== null ? formatDistanceAway(clinic.distanceKm) : null;
+                    clinic.distanceKm !== null
+                      ? nearMeApproximate
+                        ? formatApproxDistanceAway(clinic.distanceKm)
+                        : formatDistanceAway(clinic.distanceKm)
+                      : null;
                   const professionalLabel =
                     clinic.professionalCount === 1
                       ? "1 professional works here"

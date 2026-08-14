@@ -104,7 +104,10 @@ import { finderAvailabilityRequestKey } from "@/lib/public/finder-availability-r
 import { buildFinderAvailabilityDayHeaders } from "@/lib/public/compute-public-booking-slots";
 import {
   computeFinderDistanceKm,
+  formatApproxDistanceAway,
   formatDistanceAway,
+  isApproximateNearMeAccuracy,
+  parseFinderNearMeQuery,
   parseOptionalCoordinates,
   type Coordinates,
 } from "@/lib/finder-distance";
@@ -123,6 +126,7 @@ type FinderPageProps = {
     town?: string;
     lat?: string;
     lon?: string;
+    acc?: string;
     page?: string;
   };
 };
@@ -244,12 +248,11 @@ function normalizeDistrictTerm(value: string): string {
 }
 
 function parseUserCoordinates(searchParams: FinderPageProps["searchParams"]): Coordinates | null {
-  const latRaw = String(searchParams?.lat ?? "").trim();
-  const lonRaw = String(searchParams?.lon ?? "").trim();
-  if (!latRaw || !lonRaw) return null;
-  const lat = Number(latRaw);
-  const lon = Number(lonRaw);
-  return parseOptionalCoordinates(lat, lon);
+  return parseFinderNearMeQuery(searchParams)?.coords ?? null;
+}
+
+function parseNearMeAccuracyMeters(searchParams: FinderPageProps["searchParams"]): number | null {
+  return parseFinderNearMeQuery(searchParams)?.accuracyMeters ?? null;
 }
 
 function decodeSegment(raw: string | undefined): string {
@@ -353,6 +356,8 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
   const activeTown = reconciled.town;
   const activeSpecialty = resolveSpecialtyValue(params.filters?.[1], searchParams?.specialty);
   const userCoords = parseUserCoordinates(searchParams);
+  const nearMeAccuracyMeters = parseNearMeAccuracyMeters(searchParams);
+  const nearMeApproximate = isApproximateNearMeAccuracy(nearMeAccuracyMeters);
   const hasListFilter = Boolean(
     activeDistrict || activeSpecialty || activeName || activeTown || userCoords,
   );
@@ -1016,18 +1021,23 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
       })?.row.id ?? null
     : null;
   const finderAvailabilityDayHeaders = buildFinderAvailabilityDayHeaders();
-  const hasActiveFilters = Boolean(activeDistrict || activeSpecialty || activeName || activeTown);
+  const hasActiveFilters = Boolean(
+    activeDistrict || activeSpecialty || activeName || activeTown || userCoords,
+  );
   const specialtyLabel = activeSpecialty ? toTitleCaseWords(activeSpecialty) : "Health Professionals";
   const districtLabel = activeDistrict ? toTitleCaseWords(activeDistrict) : "Cyprus";
-  const hasSpecificFilters = Boolean(activeDistrict || activeSpecialty);
+  const hasSpecificFilters = Boolean(
+    activeDistrict || activeSpecialty || activeTown || userCoords,
+  );
   const placeLabel = activeTown || (activeDistrict ? districtLabel : null);
   const finderH1 = buildFinderResultsHeading({
     specialtyLabel: activeSpecialty ? specialtyLabel : null,
     districtLabel: placeLabel,
+    nearYou: Boolean(userCoords),
   });
   const finderSnippet = buildFinderResultsSnippet({
     specialtyLabel: activeSpecialty ? specialtyLabel : null,
-    districtLabel: placeLabel,
+    districtLabel: placeLabel || (userCoords ? "your area" : null),
   });
   const finderPath = finderResultsPath(
     activeDistrict || null,
@@ -1039,6 +1049,7 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
     town: activeTown ? townToSlug(activeTown) : undefined,
     lat: searchParams?.lat ?? null,
     lon: searchParams?.lon ?? null,
+    acc: searchParams?.acc ?? null,
     page: resultsPage + 1,
   });
   const schemaEntries = visibleResults.map((item) => {
@@ -1126,6 +1137,7 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
           specialtyLabel={activeSpecialty ? specialtyLabel : undefined}
           activeName={activeName || undefined}
           townLabel={activeTown || undefined}
+          nearMe={Boolean(userCoords)}
           variant="bar"
         />
       </FinderSearchBar>
@@ -1220,7 +1232,9 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                           ) : null}
                           {item.distanceKm !== null ? (
                             <p className="text-xs font-semibold text-clinical-700">
-                              {formatDistanceAway(item.distanceKm)}
+                              {nearMeApproximate
+                                ? formatApproxDistanceAway(item.distanceKm)
+                                : formatDistanceAway(item.distanceKm)}
                             </p>
                           ) : null}
                         </div>
@@ -1346,7 +1360,9 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                         ) : null}
                         {item.distanceKm !== null ? (
                           <p className="mt-2 text-xs font-semibold text-clinical-700">
-                            {formatDistanceAway(item.distanceKm)}
+                            {nearMeApproximate
+                              ? formatApproxDistanceAway(item.distanceKm)
+                              : formatDistanceAway(item.distanceKm)}
                           </p>
                         ) : null}
                       </div>

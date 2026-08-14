@@ -78,6 +78,7 @@ export function buildFinderResultsPageHref(params: {
   town?: string;
   lat?: string | null;
   lon?: string | null;
+  acc?: string | null;
   page: number;
 }): string {
   const qs = new URLSearchParams();
@@ -87,6 +88,7 @@ export function buildFinderResultsPageHref(params: {
   if (town) qs.set("town", town);
   if (params.lat) qs.set("lat", params.lat);
   if (params.lon) qs.set("lon", params.lon);
+  if (params.acc) qs.set("acc", params.acc);
   if (params.page > 1) qs.set("page", String(params.page));
   const query = qs.toString();
   return query ? `${params.finderPath}?${query}` : params.finderPath;
