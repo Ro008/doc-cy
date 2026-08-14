@@ -42,6 +42,22 @@ describe("finder results paging helpers", () => {
     );
     assert.equal(
       buildFinderResultsPageHref({
+        finderPath: "/paphos",
+        town: "tala",
+        page: 2,
+      }),
+      "/paphos?town=tala&page=2",
+    );
+    assert.equal(
+      buildFinderResultsPageHref({
+        finderPath: "/clinics/paphos",
+        town: "geroskipou",
+        page: 2,
+      }),
+      "/clinics/paphos?town=geroskipou&page=2",
+    );
+    assert.equal(
+      buildFinderResultsPageHref({
         finderPath: "/",
         page: 1,
       }),

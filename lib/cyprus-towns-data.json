@@ -1,151 +1,589 @@
 {
-  "towns": [
-    "Acheritou",
-    "Agia Marinouda",
-    "Agia Napa",
-    "Agia Varvara Lefkosias",
-    "Agioi Trimithias",
-    "Agios Amvrosios Lemesou",
-    "Agios Athanasios",
-    "Agios Dometios",
-    "Agios Ioannis Lefkosias",
-    "Agios Ioannis Lemesou",
-    "Agios Konstantinos",
-    "Agios Theodoros Lemesou",
-    "Agios Tychon",
-    "Aglantzia",
-    "Agros",
-    "Akaki",
-    "Akrotiri",
-    "Alampra",
-    "Alethriko",
-    "Anageia",
-    "Anarita",
-    "Anglisides",
-    "Apesia",
-    "Aradippou",
-    "Arediou",
-    "Astromeritis",
-    "Athienou",
-    "Avdimou",
-    "Avgorou",
-    "Chlorakas",
-    "Choirokoitia",
-    "Dali",
-    "Dasaki Achnas",
-    "Deryneia",
-    "Dromolaxia",
-    "Egkomi Lefkosias",
-    "Empa",
-    "Episkopeio",
-    "Episkopi Lemesou",
-    "Ergates",
-    "Erimi",
-    "Evrychou",
-    "Farmakas",
-    "Fasoula Lemesou",
-    "Frenaros",
-    "Galata",
-    "Geri",
-    "Germasogeia",
-    "Geroskipou",
-    "Kakopetria",
-    "Kalavasos",
-    "Kalo Chorio Larnakas",
-    "Kalo Chorio Oreinis",
-    "Kampia",
-    "Kato Deftera",
-    "Kato Platres",
-    "Kato Polemidia",
-    "Kato Pyrgos",
-    "Kissonerga",
-    "Kiti",
-    "Kivisili",
-    "Klirou",
-    "Kofinou",
-    "Kokkinotrimithia",
-    "Koloni",
-    "Kolossi",
-    "Konia",
-    "Kornos",
-    "Kotsiatis",
-    "Kouklia",
-    "Kyperounta",
-    "Lakatameia",
-    "Laneia",
-    "Larnaca",
-    "Latsia",
-    "Lempa",
-    "Limassol",
-    "Liopetri",
-    "Livadia Larnakas",
-    "Lympia",
-    "Lythrodontas",
-    "Malounta",
-    "Mandria Pafou",
-    "Meneou",
-    "Meniko",
-    "Mesa Chorio",
-    "Mesa Geitonia",
-    "Mesogi",
-    "Mitsero",
-    "Mosfiloti",
-    "Mouttagiaka",
-    "Nicosia",
-    "Nisou",
-    "Omodos",
-    "Ormideia",
-    "Orounta",
-    "Pachna",
-    "Palaichori Morfou",
-    "Palaichori Oreinis",
-    "Palaiometocho",
-    "Palodeia",
-    "Pano Deftera",
-    "Pano Lefkara",
-    "Pano Panagia",
-    "Pano Platres",
-    "Pano Polemidia",
-    "Paphos",
-    "Paralimni",
-    "Parekklisia",
-    "Pedoulas",
-    "Pegeia",
-    "Pera",
-    "Pera Chorio",
-    "Pera Pedi",
-    "Peristerona Lefkosias",
-    "Perivolia Larnakas",
-    "Pissouri",
-    "Polemi",
-    "Polis",
-    "Potamia",
-    "Prodromi",
-    "Psevdas",
-    "Psimolofou",
-    "Pyla",
-    "Pyrga Larnakas",
-    "Pyrgos",
-    "Saittas",
-    "Salamiou",
-    "Skarinou",
-    "Sotira Ammochostou",
-    "Souni",
-    "Statos - Agios Fotios",
-    "Strovolos",
-    "Tala",
-    "Tersefanou",
-    "Theletra",
-    "Timi",
-    "Trachoni Lemesou",
-    "Tremithousa",
-    "Trimiklini",
-    "Troulloi",
-    "Tseri",
-    "Voroklini",
-    "Xylofagou",
-    "Xylotymvou",
-    "Ypsonas"
+  "entries": [
+    {
+      "name": "Acheritou",
+      "district": "Famagusta"
+    },
+    {
+      "name": "Agia Marinouda",
+      "district": "Paphos"
+    },
+    {
+      "name": "Agia Napa",
+      "district": "Famagusta"
+    },
+    {
+      "name": "Agia Varvara Lefkosias",
+      "district": "Nicosia"
+    },
+    {
+      "name": "Agioi Trimithias",
+      "district": "Nicosia"
+    },
+    {
+      "name": "Agios Amvrosios Lemesou",
+      "district": "Limassol"
+    },
+    {
+      "name": "Agios Athanasios",
+      "district": "Limassol"
+    },
+    {
+      "name": "Agios Dometios",
+      "district": "Nicosia"
+    },
+    {
+      "name": "Agios Ioannis Lefkosias",
+      "district": "Nicosia"
+    },
+    {
+      "name": "Agios Ioannis Lemesou",
+      "district": "Limassol"
+    },
+    {
+      "name": "Agios Konstantinos",
+      "district": "Limassol"
+    },
+    {
+      "name": "Agios Theodoros Lemesou",
+      "district": "Limassol"
+    },
+    {
+      "name": "Agios Tychon",
+      "district": "Limassol"
+    },
+    {
+      "name": "Aglantzia",
+      "district": "Nicosia"
+    },
+    {
+      "name": "Agros",
+      "district": "Limassol"
+    },
+    {
+      "name": "Akaki",
+      "district": "Nicosia"
+    },
+    {
+      "name": "Akrotiri",
+      "district": "Limassol"
+    },
+    {
+      "name": "Alampra",
+      "district": "Nicosia"
+    },
+    {
+      "name": "Alethriko",
+      "district": "Larnaca"
+    },
+    {
+      "name": "Anageia",
+      "district": "Nicosia"
+    },
+    {
+      "name": "Anarita",
+      "district": "Paphos"
+    },
+    {
+      "name": "Anglisides",
+      "district": "Larnaca"
+    },
+    {
+      "name": "Apesia",
+      "district": "Limassol"
+    },
+    {
+      "name": "Aradippou",
+      "district": "Larnaca"
+    },
+    {
+      "name": "Arediou",
+      "district": "Nicosia"
+    },
+    {
+      "name": "Astromeritis",
+      "district": "Nicosia"
+    },
+    {
+      "name": "Athienou",
+      "district": "Larnaca"
+    },
+    {
+      "name": "Avdimou",
+      "district": "Limassol"
+    },
+    {
+      "name": "Avgorou",
+      "district": "Famagusta"
+    },
+    {
+      "name": "Chlorakas",
+      "district": "Paphos"
+    },
+    {
+      "name": "Choirokoitia",
+      "district": "Larnaca"
+    },
+    {
+      "name": "Dali",
+      "district": "Nicosia"
+    },
+    {
+      "name": "Dasaki Achnas",
+      "district": "Famagusta"
+    },
+    {
+      "name": "Deryneia",
+      "district": "Famagusta"
+    },
+    {
+      "name": "Dromolaxia",
+      "district": "Larnaca"
+    },
+    {
+      "name": "Egkomi Lefkosias",
+      "district": "Nicosia"
+    },
+    {
+      "name": "Empa",
+      "district": "Paphos"
+    },
+    {
+      "name": "Episkopeio",
+      "district": "Nicosia"
+    },
+    {
+      "name": "Episkopi Lemesou",
+      "district": "Limassol"
+    },
+    {
+      "name": "Ergates",
+      "district": "Nicosia"
+    },
+    {
+      "name": "Erimi",
+      "district": "Limassol"
+    },
+    {
+      "name": "Evrychou",
+      "district": "Nicosia"
+    },
+    {
+      "name": "Farmakas",
+      "district": "Nicosia"
+    },
+    {
+      "name": "Fasoula Lemesou",
+      "district": "Limassol"
+    },
+    {
+      "name": "Frenaros",
+      "district": "Famagusta"
+    },
+    {
+      "name": "Galata",
+      "district": "Nicosia"
+    },
+    {
+      "name": "Geri",
+      "district": "Nicosia"
+    },
+    {
+      "name": "Germasogeia",
+      "district": "Limassol"
+    },
+    {
+      "name": "Geroskipou",
+      "district": "Paphos"
+    },
+    {
+      "name": "Kakopetria",
+      "district": "Nicosia"
+    },
+    {
+      "name": "Kalavasos",
+      "district": "Larnaca"
+    },
+    {
+      "name": "Kalo Chorio Larnakas",
+      "district": "Larnaca"
+    },
+    {
+      "name": "Kalo Chorio Oreinis",
+      "district": "Nicosia"
+    },
+    {
+      "name": "Kampia",
+      "district": "Nicosia"
+    },
+    {
+      "name": "Kato Deftera",
+      "district": "Nicosia"
+    },
+    {
+      "name": "Kato Platres",
+      "district": "Limassol"
+    },
+    {
+      "name": "Kato Polemidia",
+      "district": "Limassol"
+    },
+    {
+      "name": "Kato Pyrgos",
+      "district": "Nicosia"
+    },
+    {
+      "name": "Kissonerga",
+      "district": "Paphos"
+    },
+    {
+      "name": "Kiti",
+      "district": "Larnaca"
+    },
+    {
+      "name": "Kivisili",
+      "district": "Larnaca"
+    },
+    {
+      "name": "Klirou",
+      "district": "Nicosia"
+    },
+    {
+      "name": "Kofinou",
+      "district": "Larnaca"
+    },
+    {
+      "name": "Kokkinotrimithia",
+      "district": "Nicosia"
+    },
+    {
+      "name": "Koloni",
+      "district": "Paphos"
+    },
+    {
+      "name": "Kolossi",
+      "district": "Limassol"
+    },
+    {
+      "name": "Konia",
+      "district": "Paphos"
+    },
+    {
+      "name": "Kornos",
+      "district": "Larnaca"
+    },
+    {
+      "name": "Kotsiatis",
+      "district": "Nicosia"
+    },
+    {
+      "name": "Kouklia",
+      "district": "Paphos"
+    },
+    {
+      "name": "Kyperounta",
+      "district": "Limassol"
+    },
+    {
+      "name": "Lakatameia",
+      "district": "Nicosia"
+    },
+    {
+      "name": "Laneia",
+      "district": "Limassol"
+    },
+    {
+      "name": "Larnaca",
+      "district": "Larnaca"
+    },
+    {
+      "name": "Latsia",
+      "district": "Nicosia"
+    },
+    {
+      "name": "Lempa",
+      "district": "Paphos"
+    },
+    {
+      "name": "Limassol",
+      "district": "Limassol"
+    },
+    {
+      "name": "Liopetri",
+      "district": "Famagusta"
+    },
+    {
+      "name": "Livadia Larnakas",
+      "district": "Larnaca"
+    },
+    {
+      "name": "Lympia",
+      "district": "Nicosia"
+    },
+    {
+      "name": "Lythrodontas",
+      "district": "Nicosia"
+    },
+    {
+      "name": "Malounta",
+      "district": "Nicosia"
+    },
+    {
+      "name": "Mandria Pafou",
+      "district": "Paphos"
+    },
+    {
+      "name": "Meneou",
+      "district": "Larnaca"
+    },
+    {
+      "name": "Meniko",
+      "district": "Nicosia"
+    },
+    {
+      "name": "Mesa Chorio",
+      "district": "Paphos"
+    },
+    {
+      "name": "Mesa Geitonia",
+      "district": "Limassol"
+    },
+    {
+      "name": "Mesogi",
+      "district": "Paphos"
+    },
+    {
+      "name": "Mitsero",
+      "district": "Nicosia"
+    },
+    {
+      "name": "Mosfiloti",
+      "district": "Larnaca"
+    },
+    {
+      "name": "Mouttagiaka",
+      "district": "Limassol"
+    },
+    {
+      "name": "Nicosia",
+      "district": "Nicosia"
+    },
+    {
+      "name": "Nisou",
+      "district": "Nicosia"
+    },
+    {
+      "name": "Omodos",
+      "district": "Limassol"
+    },
+    {
+      "name": "Ormideia",
+      "district": "Larnaca"
+    },
+    {
+      "name": "Orounta",
+      "district": "Nicosia"
+    },
+    {
+      "name": "Pachna",
+      "district": "Limassol"
+    },
+    {
+      "name": "Palaichori Morfou",
+      "district": "Nicosia"
+    },
+    {
+      "name": "Palaichori Oreinis",
+      "district": "Nicosia"
+    },
+    {
+      "name": "Palaiometocho",
+      "district": "Nicosia"
+    },
+    {
+      "name": "Palodeia",
+      "district": "Limassol"
+    },
+    {
+      "name": "Pano Deftera",
+      "district": "Nicosia"
+    },
+    {
+      "name": "Pano Lefkara",
+      "district": "Larnaca"
+    },
+    {
+      "name": "Pano Panagia",
+      "district": "Paphos"
+    },
+    {
+      "name": "Pano Platres",
+      "district": "Limassol"
+    },
+    {
+      "name": "Pano Polemidia",
+      "district": "Limassol"
+    },
+    {
+      "name": "Paphos",
+      "district": "Paphos"
+    },
+    {
+      "name": "Paralimni",
+      "district": "Famagusta"
+    },
+    {
+      "name": "Parekklisia",
+      "district": "Limassol"
+    },
+    {
+      "name": "Pedoulas",
+      "district": "Nicosia"
+    },
+    {
+      "name": "Pegeia",
+      "district": "Paphos"
+    },
+    {
+      "name": "Pera",
+      "district": "Nicosia"
+    },
+    {
+      "name": "Pera Chorio",
+      "district": "Nicosia"
+    },
+    {
+      "name": "Pera Pedi",
+      "district": "Limassol"
+    },
+    {
+      "name": "Peristerona Lefkosias",
+      "district": "Nicosia"
+    },
+    {
+      "name": "Perivolia Larnakas",
+      "district": "Larnaca"
+    },
+    {
+      "name": "Pissouri",
+      "district": "Limassol"
+    },
+    {
+      "name": "Polemi",
+      "district": "Paphos"
+    },
+    {
+      "name": "Polis",
+      "district": "Paphos"
+    },
+    {
+      "name": "Potamia",
+      "district": "Nicosia"
+    },
+    {
+      "name": "Prodromi",
+      "district": "Paphos"
+    },
+    {
+      "name": "Psevdas",
+      "district": "Larnaca"
+    },
+    {
+      "name": "Psimolofou",
+      "district": "Nicosia"
+    },
+    {
+      "name": "Pyla",
+      "district": "Larnaca"
+    },
+    {
+      "name": "Pyrga Larnakas",
+      "district": "Larnaca"
+    },
+    {
+      "name": "Pyrgos",
+      "district": "Limassol"
+    },
+    {
+      "name": "Saittas",
+      "district": "Limassol"
+    },
+    {
+      "name": "Salamiou",
+      "district": "Paphos"
+    },
+    {
+      "name": "Skarinou",
+      "district": "Larnaca"
+    },
+    {
+      "name": "Sotira Ammochostou",
+      "district": "Famagusta"
+    },
+    {
+      "name": "Souni",
+      "district": "Limassol"
+    },
+    {
+      "name": "Statos - Agios Fotios",
+      "district": "Paphos"
+    },
+    {
+      "name": "Strovolos",
+      "district": "Nicosia"
+    },
+    {
+      "name": "Tala",
+      "district": "Paphos"
+    },
+    {
+      "name": "Tersefanou",
+      "district": "Larnaca"
+    },
+    {
+      "name": "Theletra",
+      "district": "Paphos"
+    },
+    {
+      "name": "Timi",
+      "district": "Paphos"
+    },
+    {
+      "name": "Trachoni Lemesou",
+      "district": "Limassol"
+    },
+    {
+      "name": "Tremithousa",
+      "district": "Paphos"
+    },
+    {
+      "name": "Trimiklini",
+      "district": "Limassol"
+    },
+    {
+      "name": "Troulloi",
+      "district": "Larnaca"
+    },
+    {
+      "name": "Tseri",
+      "district": "Nicosia"
+    },
+    {
+      "name": "Voroklini",
+      "district": "Larnaca"
+    },
+    {
+      "name": "Xylofagou",
+      "district": "Larnaca"
+    },
+    {
+      "name": "Xylotymvou",
+      "district": "Larnaca"
+    },
+    {
+      "name": "Ypsonas",
+      "district": "Limassol"
+    }
   ],
   "aliases": {
     "pafos": "Paphos",

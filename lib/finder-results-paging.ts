@@ -75,6 +75,7 @@ export function parseFinderResultsPage(
 export function buildFinderResultsPageHref(params: {
   finderPath: string;
   name?: string;
+  town?: string;
   lat?: string | null;
   lon?: string | null;
   page: number;
@@ -82,6 +83,8 @@ export function buildFinderResultsPageHref(params: {
   const qs = new URLSearchParams();
   const name = params.name?.trim();
   if (name) qs.set("name", name);
+  const town = params.town?.trim();
+  if (town) qs.set("town", town);
   if (params.lat) qs.set("lat", params.lat);
   if (params.lon) qs.set("lon", params.lon);
   if (params.page > 1) qs.set("page", String(params.page));

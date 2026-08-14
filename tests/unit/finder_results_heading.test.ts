@@ -80,5 +80,9 @@ describe("buildClinicsResultsHeading", () => {
       buildClinicsResultsHeading({ districtLabel: "Paphos" }),
       "Find clinics in Paphos",
     );
+    assert.equal(
+      buildClinicsResultsHeading({ districtLabel: "Geroskipou" }),
+      "Find clinics in Geroskipou",
+    );
   });
 });

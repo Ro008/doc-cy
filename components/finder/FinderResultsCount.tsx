@@ -4,14 +4,16 @@ type FinderResultsCountProps = {
   districtLabel?: string;
   specialtyLabel?: string;
   activeName?: string;
+  townLabel?: string;
   className?: string;
   variant?: "default" | "footer" | "bar";
 };
 
 function buildFilterHint(props: FinderResultsCountProps): string | null {
-  const { districtLabel, specialtyLabel, activeName } = props;
+  const { districtLabel, specialtyLabel, activeName, townLabel } = props;
   const parts: string[] = [];
   if (districtLabel) parts.push(districtLabel);
+  if (townLabel?.trim()) parts.push(townLabel.trim());
   if (specialtyLabel) parts.push(specialtyLabel);
   if (activeName?.trim()) parts.push(`“${activeName.trim()}”`);
   return parts.length > 0 ? parts.join(" · ") : null;
