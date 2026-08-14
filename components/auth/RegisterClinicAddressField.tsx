@@ -110,6 +110,7 @@ export function RegisterClinicAddressField() {
         aria-hidden
       />
       <input type="hidden" name="district" value={location.district ?? ""} readOnly aria-hidden />
+      <input type="hidden" name="town" value={location.town ?? ""} readOnly aria-hidden />
 
       <p className={registerFieldErrorClass}>
         Please select your clinic from the Google Maps suggestions.

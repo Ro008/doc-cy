@@ -6,6 +6,7 @@ import {
   inferCyprusDistrictFromClinic,
   type ClinicLocation,
 } from "@/lib/clinic-location";
+import { inferCyprusTownFromClinic } from "@/lib/cyprus-towns";
 import { registerHelperClass, registerInputClass } from "@/lib/register-ui";
 
 type Tone = "dark" | "light";
@@ -109,6 +110,10 @@ export function ClinicAddressSearchInput({
             longitude,
             addressComponents: place.address_components,
           });
+          const town = inferCyprusTownFromClinic({
+            address: formattedAddress,
+            addressComponents: place.address_components,
+          });
 
           onChangeRef.current({
             address: formattedAddress,
@@ -116,6 +121,7 @@ export function ClinicAddressSearchInput({
             longitude,
             placeId: place.place_id?.trim() || null,
             district,
+            town,
           });
         });
 
@@ -157,6 +163,7 @@ export function ClinicAddressSearchInput({
             longitude: null,
             placeId: null,
             district: null,
+            town: null,
           });
         }}
         placeholder={placeholder}

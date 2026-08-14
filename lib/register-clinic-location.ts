@@ -15,6 +15,7 @@ import {
 export type ResolvedRegisterClinicLocation = {
   clinicAddress: string;
   district: CyprusDistrict;
+  town: string | null;
   latitude: number;
   longitude: number;
   clinicPlaceId: string | null;
@@ -38,6 +39,7 @@ export function resolveRegisterClinicLocation(input: {
   clinicLongitude: unknown;
   clinicPlaceId: unknown;
   district: unknown;
+  town?: unknown;
   allowE2eFallback: boolean;
 }):
   | { ok: true; value: ResolvedRegisterClinicLocation }
@@ -50,6 +52,7 @@ export function resolveRegisterClinicLocation(input: {
     longitude: input.clinicLongitude,
     placeId: String(input.clinicPlaceId ?? "").trim() || null,
     district: districtRaw,
+    town: String(input.town ?? "").trim() || null,
   });
 
   if (!clinicAddress) {
@@ -66,6 +69,7 @@ export function resolveRegisterClinicLocation(input: {
       value: {
         clinicAddress: location.address,
         district,
+        town: location.town,
         latitude: location.latitude as number,
         longitude: location.longitude as number,
         clinicPlaceId: location.placeId,
@@ -84,6 +88,7 @@ export function resolveRegisterClinicLocation(input: {
       value: {
         clinicAddress,
         district: districtRaw,
+        town: location.town,
         latitude: center.latitude,
         longitude: center.longitude,
         clinicPlaceId: null,
