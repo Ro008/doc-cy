@@ -2,6 +2,8 @@ export type VisitsRangeKey = "7d" | "30d" | "90d";
 
 export type ManualVotesRangeKey = "7d" | "30d" | "90d";
 
+export type CallToBookRangeKey = "7d" | "30d" | "90d";
+
 export type ManualVotesSortCol = "votes" | "name" | "district" | "specialty" | "last";
 
 export type SortDir = "asc" | "desc";
@@ -11,6 +13,7 @@ export type FounderDashboardQuery = {
   manualVotesRange: ManualVotesRangeKey;
   manualVotesCol: ManualVotesSortCol;
   manualVotesDir: SortDir;
+  callToBookRange: CallToBookRangeKey;
 };
 
 function first(param: string | string[] | undefined): string | undefined {
@@ -51,17 +54,37 @@ export function parseManualVotesDir(value: string | string[] | undefined): SortD
   return first(value) === "asc" ? "asc" : "desc";
 }
 
+export function parseCallToBookRange(value: string | string[] | undefined): CallToBookRangeKey {
+  const raw = first(value);
+  if (raw === "30d" || raw === "90d") return raw;
+  return "7d";
+}
+
+export function getCallToBookWindowDays(range: CallToBookRangeKey): number {
+  if (range === "30d") return 30;
+  if (range === "90d") return 90;
+  return 7;
+}
+
+export function getCallToBookRangeLabel(range: CallToBookRangeKey): string {
+  if (range === "30d") return "Last 30 days";
+  if (range === "90d") return "Last 90 days";
+  return "Last 7 days";
+}
+
 export function parseFounderDashboardQuery(searchParams?: {
   visitsRange?: string | string[];
   manualVotesRange?: string | string[];
   manualVotesCol?: string | string[];
   manualVotesDir?: string | string[];
+  callToBookRange?: string | string[];
 }): FounderDashboardQuery {
   return {
     visitsRange: parseVisitsRange(searchParams?.visitsRange),
     manualVotesRange: parseManualVotesRange(searchParams?.manualVotesRange),
     manualVotesCol: parseManualVotesCol(searchParams?.manualVotesCol),
     manualVotesDir: parseManualVotesDir(searchParams?.manualVotesDir),
+    callToBookRange: parseCallToBookRange(searchParams?.callToBookRange),
   };
 }
 
@@ -87,6 +110,7 @@ export function founderDirectoryHref(
   sp.set("manualVotesRange", merged.manualVotesRange);
   sp.set("manualVotesCol", merged.manualVotesCol);
   sp.set("manualVotesDir", merged.manualVotesDir);
+  sp.set("callToBookRange", merged.callToBookRange);
   return `/internal/directory?${sp.toString()}`;
 }
 

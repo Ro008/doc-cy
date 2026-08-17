@@ -25,16 +25,13 @@ import type { FinderAvailabilityDayHeader } from "@/lib/public/compute-public-bo
 type ManualDirectoryLandingCardProps = {
   row: ManualDirectoryLandingRow;
   dayHeaders: FinderAvailabilityDayHeader[];
-  /** Prefer explicit flag so phone values are never sent to the client. */
-  hasPhone?: boolean;
 };
 
 export function ManualDirectoryLandingCard({
   row,
   dayHeaders,
-  hasPhone,
 }: ManualDirectoryLandingCardProps) {
-  const phoneOnFile = hasPhone ?? Boolean(String(row.phone ?? "").trim());
+  const phoneOnFile = row.hasPhone;
   return (
     <FinderResultsAvailabilityShell dayHeaders={dayHeaders}>
       <article className={`flex flex-col gap-4 ${finderResultCardClass}`}>
@@ -78,6 +75,11 @@ export function ManualDirectoryLandingCard({
                   clinic={row.clinic}
                   clinics={row.clinics}
                   variant="full"
+                  callToBook={{
+                    manualId: row.id,
+                    listingHasPhone: row.hasPhone,
+                    source: "professional_profile_page",
+                  }}
                 />
               </div>
               <div className="flex min-w-0 flex-col gap-2">

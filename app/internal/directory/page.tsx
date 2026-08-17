@@ -2,9 +2,10 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { startOfMonth, startOfWeek, subMonths } from "date-fns";
 import { createServiceRoleClient } from "@/lib/supabase-service";
-import { fetchAllSupabaseRows } from "@/lib/supabase-fetch-all";
+import { fetchAllSupabaseRows, fetchAllSupabaseRowsForIdChunks } from "@/lib/supabase-fetch-all";
 import {
   founderDirectoryHref,
+  getCallToBookWindowDays,
   getManualVotesWindowDays,
   getVisitsRangeLabel,
   getVisitsWindowDays,
@@ -54,6 +55,11 @@ import {
   ManualPatientVotesSection,
   type ManualPatientVoteRow,
 } from "@/components/internal/ManualPatientVotesSection";
+import {
+  CallToBookClicksSection,
+  type CallToBookDashboardRow,
+} from "@/components/internal/CallToBookClicksSection";
+import { aggregateCallToBookClicks } from "@/lib/call-to-book";
 import {
   FinderInvitationRequestsSection,
   type FinderInvitationRequestRow,
@@ -111,6 +117,7 @@ export default async function FounderDashboardPage({
     manualVotesRange?: string | string[];
     manualVotesCol?: string | string[];
     manualVotesDir?: string | string[];
+    callToBookRange?: string | string[];
   };
 }) {
   const supabase = createServiceRoleClient();
@@ -618,6 +625,63 @@ export default async function FounderDashboardPage({
   }));
   const patientVotesPodiumMax = Math.max(podiumSorted[0]?.count ?? 0, 1);
 
+  let callToBookRows: CallToBookDashboardRow[] = [];
+  let callToBookTotal = 0;
+  let callToBookFinderCount = 0;
+  let callToBookProfessionalProfileCount = 0;
+  try {
+    const callToBookDays = getCallToBookWindowDays(dashboardQuery.callToBookRange);
+    const sinceIso = new Date(Date.now() - callToBookDays * 24 * 60 * 60 * 1000).toISOString();
+    const { data: clickRows, error: clickErr } = await fetchAllSupabaseRows(() =>
+      supabase
+        .from("directory_manual_call_to_book_clicks")
+        .select("manual_id, clinic_id, source, created_at")
+        .gte("created_at", sinceIso),
+    );
+    if (!clickErr && clickRows?.length) {
+      const aggregated = aggregateCallToBookClicks(
+        clickRows.map((r) => ({
+          manualId: String((r as { manual_id?: string }).manual_id ?? ""),
+          clinicId: String((r as { clinic_id?: string | null }).clinic_id ?? "").trim() || null,
+          source: String((r as { source?: string }).source ?? ""),
+          createdAt: String((r as { created_at?: string }).created_at ?? ""),
+        })),
+      );
+      callToBookTotal = aggregated.total;
+      callToBookFinderCount = aggregated.finderCount;
+      callToBookProfessionalProfileCount = aggregated.professionalProfileCount;
+      const ids = aggregated.byProfessional.map((p) => p.manualId);
+      const { data: namesRows } = await fetchAllSupabaseRowsForIdChunks(ids, (idChunk) =>
+        supabase.from("directory_manual").select("id, name, district, specialty").in("id", idChunk),
+      );
+      const nameMap = new Map(
+        (namesRows ?? []).map((n) => [
+          String((n as { id?: string }).id ?? ""),
+          {
+            name: String((n as { name?: string }).name ?? ""),
+            district: (n as { district?: string | null }).district ?? null,
+            specialty: (n as { specialty?: string | null }).specialty ?? null,
+          },
+        ]),
+      );
+      callToBookRows = aggregated.byProfessional.slice(0, 120).map((agg) => {
+        const meta = nameMap.get(agg.manualId);
+        return {
+          manualId: agg.manualId,
+          name: meta?.name?.trim() || agg.manualId.slice(0, 8),
+          district: meta?.district ?? null,
+          specialty: meta?.specialty ?? null,
+          count: agg.count,
+          finderCount: agg.finderCount,
+          professionalProfileCount: agg.professionalProfileCount,
+          lastAt: agg.lastAt,
+        };
+      });
+    }
+  } catch (callToBookErr) {
+    console.error("[DocCy] call to book click stats failed", callToBookErr);
+  }
+
   const doctorIds = Array.from(
     new Set(recentApptRowsRaw.map((a) => a.doctor_id as string))
   );
@@ -741,6 +805,13 @@ export default async function FounderDashboardPage({
           rows={manualVoteRowsSorted}
           podium={patientVotesPodium}
           maxVotes={patientVotesPodiumMax}
+        />
+        <CallToBookClicksSection
+          query={dashboardQuery}
+          total={callToBookTotal}
+          finderCount={callToBookFinderCount}
+          professionalProfileCount={callToBookProfessionalProfileCount}
+          rows={callToBookRows}
         />
         <FinderInvitationRequestsSection rows={finderInvitationRows} />
         <div className="rounded-2xl border border-slate-800/80 bg-slate-900/20 p-3 text-xs text-slate-400">

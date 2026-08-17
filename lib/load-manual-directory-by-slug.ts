@@ -12,12 +12,14 @@ import {
 import { fetchAllSupabaseRows } from "@/lib/supabase-fetch-all";
 
 export type ManualDirectoryLandingClinic = {
+  id: string | null;
   name: string;
   slug: string;
   isPrimary: boolean;
   address?: string | null;
   addressMapsLink?: string | null;
   district?: string | null;
+  hasPhone: boolean;
 };
 
 export type ManualDirectoryLandingRow = {
@@ -29,7 +31,8 @@ export type ManualDirectoryLandingRow = {
   specialties: string[];
   district: CyprusDistrict;
   address_maps_link: string;
-  phone: string | null;
+  /** Phone exists server-side; value is never sent to the client. */
+  hasPhone: boolean;
   address: string | null;
   photoUrl: string;
   monthlyRequestCount: number;
@@ -174,7 +177,7 @@ export async function loadManualDirectoryBySlug(
   const joinRes = await supabase
     .from("directory_manual_clinics")
     .select(
-      "clinic_id, is_primary, clinics ( name, slug, address, address_maps_link, district, is_archived )",
+      "clinic_id, is_primary, clinics ( id, name, slug, address, address_maps_link, district, is_archived, phone )",
     )
     .eq("directory_manual_id", manualId);
 
@@ -189,7 +192,7 @@ export async function loadManualDirectoryBySlug(
     if (clinicId) {
       const clinicRes = await supabase
         .from("clinics")
-        .select("name, slug, address, address_maps_link, district")
+        .select("id, name, slug, address, address_maps_link, district, phone")
         .eq("id", clinicId)
         .eq("is_archived", false)
         .maybeSingle();
@@ -200,12 +203,14 @@ export async function loadManualDirectoryBySlug(
               clinic_id: clinicId,
               is_primary: true,
               clinics: {
+                id: clinicId,
                 name: (clinicRes.data as { name?: string }).name,
                 slug: (clinicRes.data as { slug?: string }).slug,
                 address: (clinicRes.data as { address?: string | null }).address,
                 address_maps_link: (clinicRes.data as { address_maps_link?: string | null })
                   .address_maps_link,
                 district: (clinicRes.data as { district?: string | null }).district,
+                phone: (clinicRes.data as { phone?: string | null }).phone,
                 is_archived: false,
               },
             },
@@ -226,7 +231,7 @@ export async function loadManualDirectoryBySlug(
     specialties,
     district: row.district,
     address_maps_link: addressMapsLink,
-    phone: String(row.phone ?? "").trim() || null,
+    hasPhone: Boolean(String(row.phone ?? "").trim()),
     address: String(row.address ?? "").trim() || null,
     photoUrl: resolveFinderDisplayPhotoUrl({
       curatedOrCustomPhotoUrl: getFinderManualPhotoUrl(addressMapsLink),

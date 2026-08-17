@@ -164,8 +164,7 @@ export default async function ManualDirectoryProfessionalPage({ params }: PagePr
 
         <section className="mt-6" aria-label="Directory listing">
           <ManualDirectoryLandingCard
-            row={{ ...row, phone: null }}
-            hasPhone={Boolean(String(row.phone ?? "").trim())}
+            row={row}
             dayHeaders={dayHeaders}
           />
         </section>
