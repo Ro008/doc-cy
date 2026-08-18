@@ -6,6 +6,7 @@ import { Suspense } from "react";
 
 import { emitNavigationStart, type NavigationStartReason } from "@/lib/doccy-navigation";
 import { useLinkNavigationPending } from "@/hooks/useLinkNavigationPending";
+import { markFinderLoadMoreScroll } from "@/lib/finder-load-more-scroll";
 
 type PendingLinkProps = {
   href: string;
@@ -18,6 +19,8 @@ type PendingLinkProps = {
   fill?: boolean;
   /** Opt out of hover prefetch (useful in dense card grids). */
   prefetch?: boolean;
+  /** Next.js scroll-to-top. False keeps the viewport for append-in-place paging. */
+  scroll?: boolean;
 };
 
 function pendingClassName(base: string | undefined, pending: boolean, fill: boolean): string {
@@ -40,6 +43,7 @@ function PendingLinkView({
   navigationReason = "default",
   fill = false,
   prefetch,
+  scroll = true,
   pending,
   beginNavigation,
 }: PendingLinkProps & {
@@ -94,6 +98,7 @@ function PendingLinkView({
     <Link
       href={href}
       prefetch={prefetch}
+      scroll={scroll}
       aria-current={ariaCurrent}
       aria-label={ariaLabel}
       aria-disabled={pending}
@@ -101,6 +106,7 @@ function PendingLinkView({
       tabIndex={pending ? -1 : undefined}
       onClick={(event) => {
         if (!guardClick(event)) return;
+        if (!scroll) markFinderLoadMoreScroll();
         if (isHashNavigation) {
           event.preventDefault();
           emitNavigationStart(href, navigationReason);

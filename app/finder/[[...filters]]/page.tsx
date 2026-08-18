@@ -18,6 +18,7 @@ import { FinderHeroSection } from "@/components/finder/FinderHeroSection";
 import { FinderRecentlyViewed } from "@/components/finder/FinderRecentlyViewed";
 import { FinderResultsCount } from "@/components/finder/FinderResultsCount";
 import { FinderResultsTransition } from "@/components/finder/FinderResultsTransition";
+import FinderSearchRouteLoading from "@/components/finder/FinderSearchRouteLoading";
 import { FinderSearchBar } from "@/components/finder/FinderSearchBar";
 import { FinderStructuredData } from "@/components/finder/FinderStructuredData";
 import { FinderFaqSection } from "@/components/finder/FinderFaqSection";
@@ -349,7 +350,15 @@ export async function generateMetadata({ params }: FinderPageProps): Promise<Met
   };
 }
 
-export default async function FinderPage({ params, searchParams }: FinderPageProps) {
+export default function FinderPage(props: FinderPageProps) {
+  return (
+    <Suspense fallback={<FinderSearchRouteLoading />}>
+      <FinderPageContent {...props} />
+    </Suspense>
+  );
+}
+
+async function FinderPageContent({ params, searchParams }: FinderPageProps) {
   const supabase = createServiceRoleClient();
   const activeName = normalizeSelectValue(searchParams?.name);
   const requestedTown = resolveFinderTownQuery(searchParams?.town);
@@ -1440,6 +1449,8 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                 <div className="flex justify-center pt-2">
                   <PendingLink
                     href={loadMoreHref}
+                    scroll={false}
+                    navigationReason="finder-load-more"
                     className={finderSoftButtonClass}
                   >
                     Show more professionals

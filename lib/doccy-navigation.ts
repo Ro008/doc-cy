@@ -4,6 +4,7 @@ export const NAVIGATION_START_EVENT = "doccy:navigation-start";
 export type NavigationStartReason =
   | "default"
   | "finder-results"
+  | "finder-load-more"
   | "finder-near-me"
   | "clinics-near-me"
   | "profile";
@@ -16,6 +17,7 @@ export type NavigationStartDetail = {
 const NAVIGATION_START_MESSAGES: Record<NavigationStartReason, string> = {
   default: "Loading...",
   "finder-results": "Updating results...",
+  "finder-load-more": "Loading more...",
   "finder-near-me": "Finding doctors near you...",
   "clinics-near-me": "Finding clinics near you...",
   profile: "Opening booking page...",
