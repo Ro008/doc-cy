@@ -150,6 +150,7 @@ describe("Google Ads wiring", () => {
     );
     assert.equal(tagSource.includes("gtag/js?id="), true);
     assert.equal(tagSource.includes("gtag('config'"), true);
+    assert.equal(tagSource.includes("googleAdsConsentDefaultInlineScript"), true);
     assert.equal(tagSource.includes("gtag_report_conversion"), false);
   });
 

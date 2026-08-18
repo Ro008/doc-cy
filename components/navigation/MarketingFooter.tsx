@@ -83,6 +83,12 @@ export function MarketingFooter({
           </div>
 
           <div className={pillShell}>
+            <Link href="/privacy" className={pillLink}>
+              Privacy
+            </Link>
+          </div>
+
+          <div className={pillShell}>
             <button
               type="button"
               onClick={() => emitOpenFeedback()}

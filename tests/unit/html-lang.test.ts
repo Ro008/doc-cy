@@ -9,6 +9,7 @@ describe("htmlLangFromPathname", () => {
     assert.equal(htmlLangFromPathname("/larnaca/dentistry"), "en");
     assert.equal(htmlLangFromPathname("/en/andreas-nikos"), "en");
     assert.equal(htmlLangFromPathname("/for-professionals"), "en");
+    assert.equal(htmlLangFromPathname("/privacy"), "en");
   });
 
   it("uses Greek only for /el booking and marketing URLs", () => {
