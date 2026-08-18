@@ -1,7 +1,11 @@
 import { test, expect } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
 import { pickFirstAvailableBookingDay } from "./helpers/pickBookingCalendarDay";
-import { assertNoCloudflareChallenge } from "./helpers/assertNoCloudflareChallenge";
+import {
+  assertNoCloudflareChallenge,
+  waitForCloudflareChallengeToClear,
+} from "./helpers/assertNoCloudflareChallenge";
+import { preparePublicPage } from "./helpers/preparePublicPage";
 
 const TEST_BOOKING_DOMAIN = "@test-doccy.com.cy";
 
@@ -28,8 +32,9 @@ test.describe("Prod smoke: appointment booking flow", { tag: "@nightly-prod" }, 
 
     try {
       // Locale-prefixed profile (next-intl localePrefix: "always").
+      await preparePublicPage(page);
       await page.goto(`/en/${doctorSlug}`);
-      await assertNoCloudflareChallenge(page);
+      await waitForCloudflareChallengeToClear(page);
       await expect(page.getByText("Select a date on the calendar")).toBeVisible({
         timeout: 20000,
       });
@@ -54,12 +59,18 @@ test.describe("Prod smoke: appointment booking flow", { tag: "@nightly-prod" }, 
       await page.getByRole("button", { name: /Send booking request/i }).click();
 
       // Patient URLs use locale prefix (next-intl localePrefix: "always").
-      await page.waitForURL(
-        new RegExp(
-          `/(?:en|el)/${doctorSlug}/request-sent[?]appointmentId=`,
-        ),
-        { timeout: 30000 },
-      );
+      try {
+        await page.waitForURL(
+          new RegExp(
+            `/(?:en|el)/${doctorSlug}/request-sent[?]appointmentId=`,
+          ),
+          { timeout: 30000 },
+        );
+      } catch (error) {
+        await waitForCloudflareChallengeToClear(page, 8_000);
+        await assertNoCloudflareChallenge(page);
+        throw error;
+      }
       await expect(page.getByTestId("booking-request-sent-page")).toBeVisible({
         timeout: 15000,
       });

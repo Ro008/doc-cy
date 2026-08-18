@@ -7,6 +7,8 @@ This file defines the canonical secret naming and cleanup policy for CI workflow
 ### Production monitoring
 
 - `PLAYWRIGHT_BASE_URL_PROD`
+- `PLAYWRIGHT_BASE_URL_VERCEL_PROD` (production `*.vercel.app` URL; enables Cloudflare vs origin comparison)
+- `VERCEL_AUTOMATION_BYPASS_SECRET` (optional; Vercel Deployment Protection bypass for origin smokes)
 - `PROD_SITE_URL` (optional but recommended; fallback exists)
 - `PROD_NEXT_PUBLIC_SUPABASE_URL`
 - `PROD_NEXT_PUBLIC_SUPABASE_ANON_KEY`
@@ -71,7 +73,7 @@ At audit time, the following were referenced by workflows and not present as rep
 
 ### Nightly workflow secrets (2026-05)
 
-`Production Monitoring` uses **production only** (`PROD_*`, `PLAYWRIGHT_BASE_URL_PROD`, `TEST_*` for smoke doctors). It does **not** run an integration Supabase job anymore.
+`Production Monitoring` uses **production only** (`PROD_*`, `PLAYWRIGHT_BASE_URL_PROD`, optional `PLAYWRIGHT_BASE_URL_VERCEL_PROD`, `TEST_*` for smoke doctors). It does **not** run an integration Supabase job anymore.
 
 Optional cleanup after green nightly runs: `INTEGRATION_BASE_URL` and `PLAYWRIGHT_BASE_URL_INTEGRATION` if nothing else references them (PR uses `INTEGRATION_SUPABASE_URL`, not these aliases).
 

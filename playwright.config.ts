@@ -68,6 +68,16 @@ if (process.env.CI && shouldRunWebServer) {
 
 const isCi = Boolean(process.env.CI);
 
+const extraHTTPHeaders: Record<string, string> = {};
+if (trafficLogSuppressSecret && !isProductionSiteUrl(baseUrl)) {
+  extraHTTPHeaders[TRAFFIC_LOG_SUPPRESS_HEADER] = trafficLogSuppressSecret;
+}
+const vercelAutomationBypass = process.env.VERCEL_AUTOMATION_BYPASS_SECRET?.trim();
+if (vercelAutomationBypass) {
+  extraHTTPHeaders["x-vercel-protection-bypass"] = vercelAutomationBypass;
+  extraHTTPHeaders["x-vercel-set-bypass-cookie"] = "true";
+}
+
 export default defineConfig({
   testDir: "./tests",
   // Node unit tests under tests/unit use node:test + tsx, not Playwright.
@@ -86,10 +96,15 @@ export default defineConfig({
     ...(isCi ? { actionTimeout: 30_000, navigationTimeout: 90_000 } : {}),
     // Domain/SSL might not be fully propagated yet after switching providers.
     ignoreHTTPSErrors: true,
-    ...(trafficLogSuppressSecret
+    // Custom headers on every request to mydoccy.com are a Bot Fight Mode signal
+    // (nightly 2026-08-10+). Prod smokes attach the suppress header only on
+    // POST /api/traffic/log via tests/prod/helpers/preparePublicPage.ts.
+    // Vercel Deployment Protection bypass is safe on *.vercel.app origin smokes.
+    ...(Object.keys(extraHTTPHeaders).length > 0 ? { extraHTTPHeaders } : {}),
+    ...(isProductionSiteUrl(baseUrl)
       ? {
-          extraHTTPHeaders: {
-            [TRAFFIC_LOG_SUPPRESS_HEADER]: trafficLogSuppressSecret,
+          launchOptions: {
+            args: ["--disable-blink-features=AutomationControlled"],
           },
         }
       : {}),

@@ -1,7 +1,12 @@
 "use client";
 
 import * as React from "react";
-import { phoneToTelHref } from "@/lib/phone-link";
+import {
+  CALL_TO_BOOK_BUTTON_LABEL,
+  parseCallToBookSource,
+  type CallToBookSource,
+} from "@/lib/call-to-book";
+import { formatCyprusPhoneDisplay, phoneToTelHref } from "@/lib/phone-link";
 
 type ContactRevealKind = "manual" | "clinic";
 
@@ -12,15 +17,24 @@ type RevealState =
   | { status: "empty" }
   | { status: "error"; message: string };
 
-async function fetchContactPhone(
-  kind: ContactRevealKind,
-  id: string,
-): Promise<{ phone: string | null } | { error: string }> {
+async function fetchContactPhone(input: {
+  kind: ContactRevealKind;
+  id: string;
+  source?: CallToBookSource | null;
+  manualId?: string | null;
+  clinicId?: string | null;
+}): Promise<{ phone: string | null } | { error: string }> {
   try {
     const res = await fetch("/api/directory/contact-reveal", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ kind, id }),
+      body: JSON.stringify({
+        kind: input.kind,
+        id: input.id,
+        ...(input.source ? { source: input.source } : {}),
+        ...(input.manualId ? { manualId: input.manualId } : {}),
+        ...(input.clinicId ? { clinicId: input.clinicId } : {}),
+      }),
     });
     const data = (await res.json().catch(() => null)) as
       | { ok?: boolean; phone?: string | null; reason?: string }
@@ -44,7 +58,39 @@ type RevealPhoneButtonProps = {
   hasPhone: boolean;
   className?: string;
   revealedClassName?: string;
+  variant?: "show-phone" | "call-to-book";
+  /** Founder analytics — only sent for Call to Book CTAs. */
+  source?: CallToBookSource | null;
+  /** Professional id when revealing a clinic phone from a listing card. */
+  manualId?: string | null;
+  /** Clinic id when revealing a listing phone for a specific location. */
+  clinicId?: string | null;
 };
+
+function RevealedPhoneLink({
+  phone,
+  className,
+  variant,
+}: {
+  phone: string;
+  className?: string;
+  variant: "show-phone" | "call-to-book";
+}) {
+  const display = formatCyprusPhoneDisplay(phone);
+  const href = phoneToTelHref(display);
+  if (!href) return null;
+  return (
+    <a
+      href={href}
+      className={
+        className ??
+        "inline-flex items-center gap-1.5 text-lg font-bold tabular-nums text-clinical-700 underline decoration-clinical-300 underline-offset-2 transition hover:text-clinical-600"
+      }
+    >
+      {variant === "call-to-book" ? `Call ${display}` : `📞 ${display}`}
+    </a>
+  );
+}
 
 /** Button that loads a phone number only after an intentional click. */
 export function RevealPhoneButton({
@@ -53,26 +99,27 @@ export function RevealPhoneButton({
   hasPhone,
   className,
   revealedClassName,
+  variant = "show-phone",
+  source = null,
+  manualId = null,
+  clinicId = null,
 }: RevealPhoneButtonProps) {
   const [state, setState] = React.useState<RevealState>({ status: "idle" });
+  const analyticsSource = parseCallToBookSource(source);
 
   if (!hasPhone) return null;
 
   if (state.status === "ready") {
-    const href = phoneToTelHref(state.phone);
-    if (!href) return null;
     return (
-      <a
-        href={href}
-        className={
-          revealedClassName ??
-          "inline-flex items-center gap-1.5 text-lg font-bold tabular-nums text-clinical-700 underline decoration-clinical-300 underline-offset-2 transition hover:text-clinical-600"
-        }
-      >
-        📞 {state.phone}
-      </a>
+      <RevealedPhoneLink
+        phone={state.phone}
+        className={revealedClassName}
+        variant={variant}
+      />
     );
   }
+
+  const idleLabel = variant === "call-to-book" ? CALL_TO_BOOK_BUTTON_LABEL : "Show phone";
 
   return (
     <div className="space-y-1">
@@ -81,7 +128,13 @@ export function RevealPhoneButton({
         disabled={state.status === "loading"}
         onClick={async () => {
           setState({ status: "loading" });
-          const result = await fetchContactPhone(kind, id);
+          const result = await fetchContactPhone({
+            kind,
+            id,
+            source: variant === "call-to-book" ? analyticsSource : null,
+            manualId,
+            clinicId,
+          });
           if ("error" in result) {
             setState({ status: "error", message: result.error });
             return;
@@ -97,7 +150,7 @@ export function RevealPhoneButton({
           "inline-flex min-h-10 items-center justify-center rounded-lg border border-clinical-200 bg-white px-3 py-2 text-sm font-semibold text-clinical-700 transition hover:border-clinical-300 hover:bg-clinical-50 disabled:cursor-wait disabled:opacity-60"
         }
       >
-        {state.status === "loading" ? "Loading…" : "Show phone"}
+        {state.status === "loading" ? "Loading…" : idleLabel}
       </button>
       {state.status === "error" ? (
         <p className="text-xs text-amber-800">{state.message}</p>
@@ -126,7 +179,7 @@ export function useContactPhoneReveal(
     let cancelled = false;
     setState({ status: "loading" });
     void (async () => {
-      const result = await fetchContactPhone(kind, id);
+      const result = await fetchContactPhone({ kind, id });
       if (cancelled) return;
       if ("error" in result) {
         setState({ status: "error", message: result.error });

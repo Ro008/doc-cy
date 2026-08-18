@@ -25,12 +25,14 @@ describe("buildManualDirectoryClinicRefs", () => {
     ]);
     assert.equal(refs.length, 1);
     assert.deepEqual(refs[0], {
+      id: "c1",
       name: "Alpha Clinic",
       slug: "alpha-clinic",
       isPrimary: true,
       address: "Street 1",
       addressMapsLink: "https://maps.example/a",
       district: "Nicosia",
+      hasPhone: false,
     });
   });
 
@@ -120,6 +122,24 @@ describe("buildManualDirectoryClinicRefs", () => {
     assert.equal(refs.length, 2);
     assert.equal(refs[0]?.isPrimary, true);
     assert.equal(refs[1]?.isPrimary, false);
+  });
+
+  it("marks hasPhone from clinic phone without exposing the number", () => {
+    const refs = buildManualDirectoryClinicRefs([
+      {
+        clinic_id: "c1",
+        is_primary: true,
+        clinics: {
+          id: "c1",
+          name: "Alpha Clinic",
+          slug: "alpha-clinic",
+          phone: "+357 99 123456",
+        },
+      },
+    ]);
+    assert.equal(refs[0]?.id, "c1");
+    assert.equal(refs[0]?.hasPhone, true);
+    assert.equal("phone" in (refs[0] ?? {}), false);
   });
 });
 

@@ -3,12 +3,15 @@
  */
 
 export type ManualClinicJoinClinic = {
+  id?: string | null;
   name?: string | null;
   slug?: string | null;
   address?: string | null;
   address_maps_link?: string | null;
   district?: string | null;
   is_archived?: boolean | null;
+  /** Server-only; stripped to `hasPhone` before sending to the client. */
+  phone?: string | null;
 };
 
 export type ManualClinicJoinLink = {
@@ -18,12 +21,15 @@ export type ManualClinicJoinLink = {
 };
 
 export type ManualClinicRef = {
+  id: string | null;
   name: string;
   slug: string;
   isPrimary: boolean;
   address: string | null;
   addressMapsLink: string | null;
   district: string | null;
+  /** Phone exists server-side; value is never included on this ref. */
+  hasPhone: boolean;
 };
 
 /**
@@ -45,9 +51,9 @@ export function buildManualDirectoryClinicRefs(
   const seenSlugs = new Set<string>();
 
   for (const link of sorted) {
-    const clinicId = String(link.clinic_id ?? "").trim();
     const clinic = link.clinics;
     if (!clinic || clinic.is_archived) continue;
+    const clinicId = String(link.clinic_id ?? clinic.id ?? "").trim();
 
     const name = String(clinic.name ?? "").trim();
     const slug = String(clinic.slug ?? "").trim();
@@ -62,12 +68,14 @@ export function buildManualDirectoryClinicRefs(
     seenSlugs.add(slug.toLowerCase());
 
     out.push({
+      id: clinicId || null,
       name,
       slug,
       isPrimary: Boolean(link.is_primary),
       address: String(clinic.address ?? "").trim() || null,
       addressMapsLink: String(clinic.address_maps_link ?? "").trim() || null,
       district: String(clinic.district ?? "").trim() || null,
+      hasPhone: Boolean(String(clinic.phone ?? "").trim()),
     });
   }
 

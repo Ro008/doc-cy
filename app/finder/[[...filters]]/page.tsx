@@ -41,7 +41,10 @@ import {
   finderRegisteredDetailsSectionClass,
   finderRegisteredIdentityColumnClass,
 } from "@/components/finder/finder-availability-layout";
-import { finderCardManualFooterClass } from "@/components/finder/finder-card-cta";
+import {
+  finderCardManualFooterActionsClass,
+  finderCardManualFooterClass,
+} from "@/components/finder/finder-card-cta";
 import {
   finderBrowseRowClass,
   finderBrowseRowCompactClass,
@@ -173,11 +176,13 @@ type ManualFinderRow = {
   longitude: number | null;
   clinic: { name: string; slug: string } | null;
   clinics: Array<{
+    id?: string | null;
     name: string;
     slug: string;
     address?: string | null;
     addressMapsLink?: string | null;
     district?: string | null;
+    hasPhone?: boolean;
   }>;
 };
 
@@ -872,7 +877,7 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
           ? fetchAllSupabaseRowsForIdChunks(clinicIds, (idChunk) =>
               supabase
                 .from("clinics")
-                .select("id, name, slug, address, address_maps_link, district")
+                .select("id, name, slug, address, address_maps_link, district, phone")
                 .eq("is_archived", false)
                 .in("id", idChunk),
             )
@@ -881,7 +886,7 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
           supabase
             .from("directory_manual_clinics")
             .select(
-              "directory_manual_id, is_primary, clinics ( id, name, slug, address, address_maps_link, district, is_archived )",
+              "directory_manual_id, is_primary, clinics ( id, name, slug, address, address_maps_link, district, is_archived, phone )",
             )
             .in("directory_manual_id", idChunk),
         ),
@@ -911,11 +916,13 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
       const clinicById = new Map<
         string,
         {
+          id: string;
           name: string;
           slug: string;
           address?: string | null;
           addressMapsLink?: string | null;
           district?: string | null;
+          hasPhone: boolean;
         }
       >();
       if (!clinicsRes.error && clinicsRes.data?.length) {
@@ -925,6 +932,7 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
           const slug = String((c as { slug?: string }).slug ?? "").trim();
           if (id && name && slug) {
             clinicById.set(id, {
+              id,
               name,
               slug,
               address: String((c as { address?: string | null }).address ?? "").trim() || null,
@@ -933,6 +941,7 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                 null,
               district:
                 String((c as { district?: string | null }).district ?? "").trim() || null,
+              hasPhone: Boolean(String((c as { phone?: string | null }).phone ?? "").trim()),
             });
           }
         }
@@ -941,11 +950,13 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
       const clinicsByManualId = new Map<
         string,
         Array<{
+          id: string | null;
           name: string;
           slug: string;
           address?: string | null;
           addressMapsLink?: string | null;
           district?: string | null;
+          hasPhone: boolean;
         }>
       >();
       if (!linksRes.error && linksRes.data?.length) {
@@ -969,6 +980,7 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                 address_maps_link?: string | null;
                 district?: string | null;
                 is_archived?: boolean;
+                phone?: string | null;
               } | null;
             }
           ).clinics;
@@ -976,15 +988,18 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
           const name = String(clinic.name ?? "").trim();
           const slug = String(clinic.slug ?? "").trim();
           if (!name || !slug) continue;
+          const clinicId = String(clinic.id ?? "").trim() || null;
           const entry = {
+            id: clinicId,
             name,
             slug,
             address: String(clinic.address ?? "").trim() || null,
             addressMapsLink: String(clinic.address_maps_link ?? "").trim() || null,
             district: String(clinic.district ?? "").trim() || null,
+            hasPhone: Boolean(String(clinic.phone ?? "").trim()),
           };
           const list = clinicsByManualId.get(manualId) ?? [];
-          if (!list.some((c) => c.slug === entry.slug)) {
+          if (!list.some((c) => (clinicId && c.id === clinicId) || c.slug === entry.slug)) {
             list.push(entry);
             clinicsByManualId.set(manualId, list);
           }
@@ -1378,6 +1393,11 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                             clinic={row.clinic}
                             clinics={row.clinics}
                             variant="full"
+                            callToBook={{
+                              manualId: row.id,
+                              listingHasPhone: row.hasPhone,
+                              source: "finder_card",
+                            }}
                           />
                         </div>
                         <div className="min-w-0 flex flex-col gap-2">
@@ -1399,14 +1419,13 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                     </div>
 
                     <div
-                      className={`${finderCardManualFooterClass} flex flex-wrap items-end justify-between gap-x-4 gap-y-2`}
+                      className={`${finderCardManualFooterClass} ${finderCardManualFooterActionsClass}`}
                     >
                       <ManualDirectoryDoctorClaimFooter />
                       <ManualDirectoryReportIncorrectInfoLink
                         displayName={row.displayName}
                         specialty={row.specialty}
                         district={row.district}
-                        className="ml-auto shrink-0 text-right"
                       />
                     </div>
                   </article>

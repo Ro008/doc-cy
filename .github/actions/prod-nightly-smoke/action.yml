@@ -1,0 +1,150 @@
+name: Prod nightly smoke
+description: Run @nightly-prod Playwright against one production URL (Cloudflare edge or Vercel origin).
+
+inputs:
+  target:
+    description: "edge (mydoccy.com / Cloudflare) or origin (*.vercel.app)"
+    required: true
+  artifact_name:
+    description: Playwright report artifact name
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Setup Node
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20
+        cache: npm
+
+    - name: Install dependencies
+      shell: bash
+      run: npm ci
+
+    - name: Cache Playwright browsers
+      id: playwright-cache
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/ms-playwright
+        key: ${{ runner.os }}-playwright-${{ hashFiles('**/package-lock.json') }}
+        restore-keys: |
+          ${{ runner.os }}-playwright-
+
+    - name: Install Playwright browsers
+      shell: bash
+      run: npx playwright install --with-deps chromium
+
+    - name: Validate Supabase production secrets
+      shell: bash
+      run: |
+        set -euo pipefail
+        missing=0
+
+        if [ -z "${NEXT_PUBLIC_SUPABASE_URL:-}" ]; then
+          echo "::error::Missing GitHub secret PROD_NEXT_PUBLIC_SUPABASE_URL."
+          missing=1
+        fi
+        if [ -z "${NEXT_PUBLIC_SUPABASE_ANON_KEY:-}" ]; then
+          echo "::error::Missing GitHub secret PROD_NEXT_PUBLIC_SUPABASE_ANON_KEY."
+          missing=1
+        fi
+        if [ -z "${SUPABASE_SERVICE_ROLE_KEY:-}" ]; then
+          echo "::error::Missing GitHub secret PROD_SUPABASE_SERVICE_ROLE_KEY."
+          missing=1
+        fi
+
+        if [ "${missing}" -ne 0 ]; then
+          exit 1
+        fi
+
+        normalize_url() { echo "$1" | sed 's:/*$::'; }
+        prod_norm="$(normalize_url "${NEXT_PUBLIC_SUPABASE_URL}")"
+        expected_prod_norm="$(normalize_url "${PROD_NEXT_PUBLIC_SUPABASE_URL:-}")"
+        integration_norm="$(normalize_url "${INTEGRATION_SUPABASE_URL:-}")"
+
+        if [ -n "${expected_prod_norm}" ] && [ "${prod_norm}" != "${expected_prod_norm}" ]; then
+          echo "::error::NEXT_PUBLIC_SUPABASE_URL does not match PROD_NEXT_PUBLIC_SUPABASE_URL. Refusing to run prod monitoring against a non-prod Supabase project."
+          exit 1
+        fi
+
+        if [ -n "${integration_norm}" ] && [ "${prod_norm}" = "${integration_norm}" ]; then
+          echo "::error::NEXT_PUBLIC_SUPABASE_URL matches INTEGRATION_SUPABASE_URL. Refusing to run prod monitoring against integration/testing Supabase."
+          exit 1
+        fi
+
+    - name: Validate smoke URL target
+      shell: bash
+      env:
+        DOC_CY_SMOKE_TARGET: ${{ inputs.target }}
+      run: |
+        set -euo pipefail
+
+        normalize_url() { echo "$1" | sed 's:/*$::'; }
+        normalize_host() { echo "$1" | sed -E 's/^www\.//'; }
+
+        if [ -z "${PLAYWRIGHT_BASE_URL:-}" ]; then
+          echo "::error::Missing PLAYWRIGHT_BASE_URL for smoke target ${DOC_CY_SMOKE_TARGET}."
+          exit 1
+        fi
+
+        base_norm="$(normalize_url "${PLAYWRIGHT_BASE_URL}")"
+        base_host_raw="$(echo "${base_norm}" | sed -E 's#^https?://([^/:]+).*#\1#')"
+        base_host="$(normalize_host "${base_host_raw}")"
+
+        if [ "${DOC_CY_SMOKE_TARGET}" = "origin" ]; then
+          case "${base_host}" in
+            *vercel.app) echo "Origin smoke target: ${base_norm}" ;;
+            *)
+              echo "::error::Origin smoke must use a *.vercel.app URL (got ${base_host_raw}). Set PLAYWRIGHT_BASE_URL_VERCEL_PROD."
+              exit 1
+              ;;
+          esac
+          exit 0
+        fi
+
+        expected_site="${PROD_SITE_URL:-https://www.mydoccy.com}"
+        expected_norm="$(normalize_url "${expected_site}")"
+        expected_host_raw="$(echo "${expected_norm}" | sed -E 's#^https?://([^/:]+).*#\1#')"
+        expected_host="$(normalize_host "${expected_host_raw}")"
+
+        if [ "${base_host}" != "${expected_host}" ]; then
+          echo "::error::Edge smoke PLAYWRIGHT_BASE_URL host (${base_host_raw}) does not match production host (${expected_host_raw})."
+          exit 1
+        fi
+
+        case "${base_host}" in
+          *vercel.app)
+            echo "::error::Edge smoke must use the canonical production domain, not vercel.app."
+            exit 1
+            ;;
+        esac
+
+        echo "Edge smoke target: ${base_norm}"
+
+    - name: Run production critical smoke suite
+      shell: bash
+      env:
+        PLAYWRIGHT_LIVE_REGISTRATION: "1"
+        CI: "true"
+      run: |
+        echo "Smoke target=${{ inputs.target }} base=${PLAYWRIGHT_BASE_URL}"
+        npx playwright test --grep @nightly-prod \
+          --project="Desktop Large (Chromium)" \
+          --workers=1 \
+          --reporter=line
+
+    - name: Upload Playwright report
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ inputs.artifact_name }}
+        path: |
+          playwright-report
+          test-results
+        if-no-files-found: ignore
+
+    - name: Cleanup prod smoke registration artifacts
+      if: always()
+      shell: bash
+      run: node scripts/cleanup-prod-smoke-registrations.mjs

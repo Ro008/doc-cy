@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { X } from "lucide-react";
-import { phoneToTelHref } from "@/lib/phone-link";
+import { formatCyprusPhoneDisplay, phoneToTelHref } from "@/lib/phone-link";
 import { useContactPhoneReveal } from "@/components/finder/RevealPhoneButton";
 
 type Props = {
@@ -28,7 +28,7 @@ export function ManualBookingRequestModal({
   const closeButtonRef = React.useRef<HTMLButtonElement>(null);
   const phoneState = useContactPhoneReveal("manual", manualId, open, hasPhone);
   const phoneDisplay =
-    phoneState.status === "ready" ? phoneState.phone : "";
+    phoneState.status === "ready" ? formatCyprusPhoneDisplay(phoneState.phone) : "";
   const phoneHref = phoneToTelHref(phoneDisplay);
   const mapsHref = String(addressMapsLink ?? "").trim();
   const addressDisplay = String(addressText ?? "").trim();

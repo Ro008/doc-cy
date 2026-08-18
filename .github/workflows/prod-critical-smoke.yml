@@ -1,7 +1,12 @@
 # Nightly lane (production only). Policy: docs/ci-test-policy.md
 # PR lane (integration + full suite): .github/workflows/pr-integration.yml
 #
-# Blocking: prod URL + prod Supabase — public shell, guest booking, live registration, email guards.
+# Dual @nightly-prod: Cloudflare edge (PLAYWRIGHT_BASE_URL_PROD / mydoccy.com) then
+# Vercel origin (PLAYWRIGHT_BASE_URL_VERCEL_PROD / *.vercel.app), sequential to avoid
+# booking the same prod doctor slot. Email guards stay a single job (@pr-email).
+# Optional: VERCEL_AUTOMATION_BYPASS_SECRET for Deployment Protection on origin.
+#
+# Blocking: prod Supabase + public shell, guest booking, live registration, email guards.
 # Doctor login form UI: PR non-blocking (`doctor_password_login_form.spec.ts` @pr-login-monitor).
 # Integration E2E (finder, navigation, etc.) runs only on PR — not duplicated here.
 
@@ -81,11 +86,35 @@ jobs:
             echo "- **Local H:M** ${nico_h}:${nico_m} **UTC hour** ${utc_h}"
           } >> "${GITHUB_STEP_SUMMARY}"
 
-  prod-critical-smoke:
+  # Dual smoke: Cloudflare edge (mydoccy.com) vs Vercel origin (*.vercel.app).
+  # Sequential origin-after-edge so both do not book the same prod doctor slot.
+  # If PLAYWRIGHT_BASE_URL_VERCEL_PROD is set, edge is diagnostic (continue-on-error)
+  # and origin is blocking. If unset, edge stays blocking (legacy).
+  smoke-targets:
+    needs: [schedule-gate]
+    if: needs.schedule-gate.outputs.should_run == 'true'
+    runs-on: ubuntu-latest
+    outputs:
+      origin_enabled: ${{ steps.check.outputs.origin_enabled }}
+    steps:
+      - id: check
+        env:
+          ORIGIN_URL: ${{ secrets.PLAYWRIGHT_BASE_URL_VERCEL_PROD }}
+        run: |
+          set -euo pipefail
+          if [ -n "${ORIGIN_URL}" ]; then
+            echo "origin_enabled=true" >> "$GITHUB_OUTPUT"
+            echo "Origin Vercel smoke enabled (edge will be diagnostic)."
+          else
+            echo "origin_enabled=false" >> "$GITHUB_OUTPUT"
+            echo "Origin Vercel smoke skipped. Set PLAYWRIGHT_BASE_URL_VERCEL_PROD to compare Cloudflare vs origin."
+          fi
+
+  prod-email-guards:
     needs: [schedule-gate]
     if: needs.schedule-gate.outputs.should_run == 'true' && (github.event_name != 'workflow_dispatch' || github.event.inputs.notify_only != 'true')
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -113,50 +142,6 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 
-      - name: Validate Supabase production secrets
-        shell: bash
-        env:
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.PROD_NEXT_PUBLIC_SUPABASE_URL }}
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.PROD_NEXT_PUBLIC_SUPABASE_ANON_KEY }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.PROD_SUPABASE_SERVICE_ROLE_KEY }}
-          PROD_NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.PROD_NEXT_PUBLIC_SUPABASE_URL }}
-          INTEGRATION_SUPABASE_URL: ${{ secrets.INTEGRATION_SUPABASE_URL }}
-        run: |
-          set -euo pipefail
-          missing=0
-
-          if [ -z "${NEXT_PUBLIC_SUPABASE_URL}" ]; then
-            echo "::error::Missing GitHub secret PROD_NEXT_PUBLIC_SUPABASE_URL."
-            missing=1
-          fi
-          if [ -z "${NEXT_PUBLIC_SUPABASE_ANON_KEY}" ]; then
-            echo "::error::Missing GitHub secret PROD_NEXT_PUBLIC_SUPABASE_ANON_KEY."
-            missing=1
-          fi
-          if [ -z "${SUPABASE_SERVICE_ROLE_KEY}" ]; then
-            echo "::error::Missing GitHub secret PROD_SUPABASE_SERVICE_ROLE_KEY."
-            missing=1
-          fi
-
-          if [ "${missing}" -ne 0 ]; then
-            exit 1
-          fi
-
-          normalize_url() { echo "$1" | sed 's:/*$::'; }
-          prod_norm="$(normalize_url "${NEXT_PUBLIC_SUPABASE_URL}")"
-          expected_prod_norm="$(normalize_url "${PROD_NEXT_PUBLIC_SUPABASE_URL:-}")"
-          integration_norm="$(normalize_url "${INTEGRATION_SUPABASE_URL:-}")"
-
-          if [ -n "${expected_prod_norm}" ] && [ "${prod_norm}" != "${expected_prod_norm}" ]; then
-            echo "::error::NEXT_PUBLIC_SUPABASE_URL does not match PROD_NEXT_PUBLIC_SUPABASE_URL. Refusing to run prod monitoring against a non-prod Supabase project."
-            exit 1
-          fi
-
-          if [ -n "${integration_norm}" ] && [ "${prod_norm}" = "${integration_norm}" ]; then
-            echo "::error::NEXT_PUBLIC_SUPABASE_URL matches INTEGRATION_SUPABASE_URL. Refusing to run prod monitoring against integration/testing Supabase."
-            exit 1
-          fi
-
       - name: Run critical reschedule email guards
         env:
           CI: "true"
@@ -170,86 +155,104 @@ jobs:
             --workers=1 \
             --reporter=line
 
-      - name: Validate production base URL target
-        shell: bash
+  prod-smoke-edge:
+    needs: [schedule-gate, smoke-targets]
+    if: needs.schedule-gate.outputs.should_run == 'true' && (github.event_name != 'workflow_dispatch' || github.event.inputs.notify_only != 'true')
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    continue-on-error: ${{ needs.smoke-targets.outputs.origin_enabled == 'true' }}
+    env:
+      PLAYWRIGHT_BASE_URL: ${{ secrets.PLAYWRIGHT_BASE_URL_PROD }}
+      PROD_SITE_URL: ${{ secrets.PROD_SITE_URL || secrets.NEXT_PUBLIC_SITE_URL }}
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.PROD_NEXT_PUBLIC_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.PROD_NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.PROD_SUPABASE_SERVICE_ROLE_KEY }}
+      PROD_NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.PROD_NEXT_PUBLIC_SUPABASE_URL }}
+      INTEGRATION_SUPABASE_URL: ${{ secrets.INTEGRATION_SUPABASE_URL }}
+      DOC_CY_SUPPRESS_TRAFFIC_LOG_SECRET: ${{ secrets.DOC_CY_SUPPRESS_TRAFFIC_LOG_SECRET }}
+      TEST_DOCTOR_EMAIL: ${{ secrets.TEST_DOCTOR_EMAIL }}
+      TEST_DOCTOR_PASSWORD: ${{ secrets.TEST_DOCTOR_PASSWORD }}
+      TEST_USER_EMAIL: ${{ secrets.TEST_USER_EMAIL || secrets.TEST_DOCTOR_EMAIL }}
+      TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD || secrets.TEST_DOCTOR_PASSWORD }}
+      TEST_BOOKING_DOCTOR_SLUG: ${{ secrets.TEST_BOOKING_DOCTOR_SLUG }}
+      INTERNAL_DIRECTORY_SECRET: ${{ secrets.INTERNAL_DIRECTORY_SECRET }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Prod nightly smoke (Cloudflare edge)
+        uses: ./.github/actions/prod-nightly-smoke
+        with:
+          target: edge
+          artifact_name: playwright-prod-monitoring-report-edge
+
+  prod-smoke-origin:
+    needs: [schedule-gate, smoke-targets, prod-smoke-edge]
+    if: needs.schedule-gate.outputs.should_run == 'true' && needs.smoke-targets.outputs.origin_enabled == 'true' && (github.event_name != 'workflow_dispatch' || github.event.inputs.notify_only != 'true')
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      PLAYWRIGHT_BASE_URL: ${{ secrets.PLAYWRIGHT_BASE_URL_VERCEL_PROD }}
+      PROD_SITE_URL: ${{ secrets.PROD_SITE_URL || secrets.NEXT_PUBLIC_SITE_URL }}
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.PROD_NEXT_PUBLIC_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.PROD_NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.PROD_SUPABASE_SERVICE_ROLE_KEY }}
+      PROD_NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.PROD_NEXT_PUBLIC_SUPABASE_URL }}
+      INTEGRATION_SUPABASE_URL: ${{ secrets.INTEGRATION_SUPABASE_URL }}
+      DOC_CY_SUPPRESS_TRAFFIC_LOG_SECRET: ${{ secrets.DOC_CY_SUPPRESS_TRAFFIC_LOG_SECRET }}
+      VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+      TEST_DOCTOR_EMAIL: ${{ secrets.TEST_DOCTOR_EMAIL }}
+      TEST_DOCTOR_PASSWORD: ${{ secrets.TEST_DOCTOR_PASSWORD }}
+      TEST_USER_EMAIL: ${{ secrets.TEST_USER_EMAIL || secrets.TEST_DOCTOR_EMAIL }}
+      TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD || secrets.TEST_DOCTOR_PASSWORD }}
+      TEST_BOOKING_DOCTOR_SLUG: ${{ secrets.TEST_BOOKING_DOCTOR_SLUG }}
+      INTERNAL_DIRECTORY_SECRET: ${{ secrets.INTERNAL_DIRECTORY_SECRET }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Prod nightly smoke (Vercel origin)
+        uses: ./.github/actions/prod-nightly-smoke
+        with:
+          target: origin
+          artifact_name: playwright-prod-monitoring-report-origin
+
+  prod-nightly-gate:
+    needs: [schedule-gate, prod-email-guards, prod-smoke-edge, prod-smoke-origin]
+    if: always() && needs.schedule-gate.outputs.should_run == 'true' && (github.event_name != 'workflow_dispatch' || github.event.inputs.notify_only != 'true')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Interpret dual smoke
         env:
-          PLAYWRIGHT_BASE_URL: ${{ secrets.PLAYWRIGHT_BASE_URL_PROD }}
-          PROD_SITE_URL: ${{ secrets.PROD_SITE_URL || secrets.NEXT_PUBLIC_SITE_URL }}
+          EMAIL_RESULT: ${{ needs.prod-email-guards.result }}
+          EDGE_RESULT: ${{ needs.prod-smoke-edge.result }}
+          ORIGIN_RESULT: ${{ needs.prod-smoke-origin.result }}
         run: |
           set -euo pipefail
-
-          normalize_url() { echo "$1" | sed 's:/*$::'; }
-          normalize_host() { echo "$1" | sed -E 's/^www\.//'; }
-
-          if [ -z "${PLAYWRIGHT_BASE_URL:-}" ]; then
-            echo "::error::Missing GitHub secret PLAYWRIGHT_BASE_URL_PROD."
+          echo "email=${EMAIL_RESULT} edge=${EDGE_RESULT} origin=${ORIGIN_RESULT}"
+          if [ "${EMAIL_RESULT}" != "success" ]; then
+            echo "::error::Email guards failed (${EMAIL_RESULT})."
             exit 1
           fi
-
-          base_norm="$(normalize_url "${PLAYWRIGHT_BASE_URL}")"
-          expected_site="${PROD_SITE_URL:-https://www.mydoccy.com}"
-          expected_norm="$(normalize_url "${expected_site}")"
-
-          base_host_raw="$(echo "${base_norm}" | sed -E 's#^https?://([^/:]+).*#\1#')"
-          expected_host_raw="$(echo "${expected_norm}" | sed -E 's#^https?://([^/:]+).*#\1#')"
-          base_host="$(normalize_host "${base_host_raw}")"
-          expected_host="$(normalize_host "${expected_host_raw}")"
-
-          if [ "${base_host}" != "${expected_host}" ]; then
-            echo "::error::PLAYWRIGHT_BASE_URL_PROD host (${base_host_raw}) does not match production host (${expected_host_raw}) after normalization."
+          if [ "${ORIGIN_RESULT}" = "failure" ]; then
+            echo "::error::Vercel origin smoke failed."
             exit 1
           fi
-
-          case "${base_host}" in
-            *vercel.app)
-              echo "::error::PLAYWRIGHT_BASE_URL_PROD points to a vercel.app host (${base_host}). Use the canonical production domain instead."
-              exit 1
-              ;;
-          esac
-
-      # Playwright sends x-doccy-suppress-traffic-log (DOC_CY_SUPPRESS_TRAFFIC_LOG_SECRET)
-      # to skip app traffic logs. Cloudflare still injects /cdn-cgi/challenge-platform
-      # scripts on proxied pages; that is not a bot interstitial.
-      - name: Run production critical smoke suite (blocking)
-        env:
-          PLAYWRIGHT_LIVE_REGISTRATION: "1"
-          PLAYWRIGHT_BASE_URL: ${{ secrets.PLAYWRIGHT_BASE_URL_PROD }}
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.PROD_NEXT_PUBLIC_SUPABASE_URL }}
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.PROD_NEXT_PUBLIC_SUPABASE_ANON_KEY }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.PROD_SUPABASE_SERVICE_ROLE_KEY }}
-          DOC_CY_SUPPRESS_TRAFFIC_LOG_SECRET: ${{ secrets.DOC_CY_SUPPRESS_TRAFFIC_LOG_SECRET }}
-          TEST_DOCTOR_EMAIL: ${{ secrets.TEST_DOCTOR_EMAIL }}
-          TEST_DOCTOR_PASSWORD: ${{ secrets.TEST_DOCTOR_PASSWORD }}
-          TEST_USER_EMAIL: ${{ secrets.TEST_USER_EMAIL || secrets.TEST_DOCTOR_EMAIL }}
-          TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD || secrets.TEST_DOCTOR_PASSWORD }}
-          TEST_BOOKING_DOCTOR_SLUG: ${{ secrets.TEST_BOOKING_DOCTOR_SLUG }}
-          INTERNAL_DIRECTORY_SECRET: ${{ secrets.INTERNAL_DIRECTORY_SECRET }}
-        run: |
-          npx playwright test --grep @nightly-prod \
-            --project="Desktop Large (Chromium)" \
-            --workers=1 \
-            --reporter=line
-
-      - name: Upload Playwright report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: playwright-prod-monitoring-report
-          path: |
-            playwright-report
-            test-results
-          if-no-files-found: ignore
-
-      - name: Cleanup prod smoke registration artifacts
-        if: always()
-        env:
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.PROD_NEXT_PUBLIC_SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.PROD_SUPABASE_SERVICE_ROLE_KEY }}
-        run: node scripts/cleanup-prod-smoke-registrations.mjs
+          if [ "${ORIGIN_RESULT}" = "skipped" ] && [ "${EDGE_RESULT}" != "success" ]; then
+            echo "::error::Edge smoke failed and origin lane is not configured."
+            exit 1
+          fi
+          if [ "${ORIGIN_RESULT}" = "success" ] && [ "${EDGE_RESULT}" = "failure" ]; then
+            echo "::warning::Cloudflare edge failed while Vercel origin passed. Likely Bot Fight Mode."
+          fi
 
   notify-whatsapp:
     if: always() && needs.schedule-gate.outputs.should_run == 'true'
-    needs: [schedule-gate, prod-critical-smoke]
+    needs: [schedule-gate, prod-email-guards, prod-smoke-edge, prod-smoke-origin]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -264,7 +267,9 @@ jobs:
         continue-on-error: true
         env:
           WHATSAPP_WEBHOOK_URL: ${{ secrets.WHATSAPP_WEBHOOK_URL }}
-          PROD_RESULT: ${{ needs.prod-critical-smoke.result }}
+          EMAIL_RESULT: ${{ needs.prod-email-guards.result }}
+          EDGE_RESULT: ${{ needs.prod-smoke-edge.result }}
+          ORIGIN_RESULT: ${{ needs.prod-smoke-origin.result }}
           RUN_ID: ${{ github.run_id }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           NOTIFY_ONLY: ${{ github.event.inputs.notify_only || 'false' }}
@@ -275,7 +280,9 @@ jobs:
         if: steps.whatsapp.conclusion == 'failure'
         uses: actions/github-script@v7
         env:
-          PROD_RESULT: ${{ needs.prod-critical-smoke.result }}
+          EMAIL_RESULT: ${{ needs.prod-email-guards.result }}
+          EDGE_RESULT: ${{ needs.prod-smoke-edge.result }}
+          ORIGIN_RESULT: ${{ needs.prod-smoke-origin.result }}
           RUN_ID: ${{ github.run_id }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         with:
@@ -284,7 +291,9 @@ jobs:
             const body = [
               "WhatsApp delivery failed after retries.",
               "",
-              `Prod nightly result: **${process.env.PROD_RESULT}**`,
+              `Email guards: **${process.env.EMAIL_RESULT}**`,
+              `Edge (mydoccy.com): **${process.env.EDGE_RESULT}**`,
+              `Origin (Vercel): **${process.env.ORIGIN_RESULT}**`,
               `Run: ${process.env.RUN_URL}`,
               "",
               "Action required:",
