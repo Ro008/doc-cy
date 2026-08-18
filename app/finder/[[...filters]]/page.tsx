@@ -14,6 +14,7 @@ import { doctorDashboardDisplayName } from "@/lib/doctor-display-name";
 import { FinderAudienceToggle } from "@/components/finder/FinderAudienceToggle";
 import { FinderFilters } from "@/components/finder/FinderFilters";
 import { FinderMissingDoctorCard } from "@/components/finder/FinderMissingDoctorCard";
+import { FinderHeroBookOnlineLine } from "@/components/finder/FinderHeroBookOnlineLine";
 import { FinderHeroSection } from "@/components/finder/FinderHeroSection";
 import { FinderRecentlyViewed } from "@/components/finder/FinderRecentlyViewed";
 import { FinderResultsCount } from "@/components/finder/FinderResultsCount";
@@ -1061,7 +1062,8 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
   });
   const finderSnippet = buildFinderResultsSnippet({
     specialtyLabel: activeSpecialty ? specialtyLabel : null,
-    districtLabel: placeLabel || (userCoords ? "your area" : null),
+    districtLabel: placeLabel,
+    nearYou: Boolean(userCoords),
   });
   const finderPath = finderResultsPath(
     activeDistrict || null,
@@ -1118,20 +1120,14 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
         <FinderHeroSection
           title={finderH1}
           showHeroImage={!hasSpecificFilters}
-          subtitleClassName={
-            hasSpecificFilters
-              ? "mt-3 max-w-2xl text-base leading-relaxed text-ink-600"
-              : "mt-3 max-w-2xl text-lg leading-relaxed text-ink-600 sm:text-xl"
-          }
+          subtitleClassName="mt-3 max-w-2xl text-lg leading-relaxed text-ink-600 sm:text-xl"
           subtitle={
-            hasSpecificFilters ? (
-              finderSnippet
-            ) : (
-              <>
-                <span className="block">English-speaking specialists, ready to book online,</span>
-                <span className="mt-1 block font-medium text-clinical-600">in just a few clicks.</span>
-              </>
-            )
+            <>
+              <span className="block">
+                {finderSnippet ?? "Find any specialist, anywhere on the island"}
+              </span>
+              <FinderHeroBookOnlineLine size={hasSpecificFilters ? "compact" : "hero"} />
+            </>
           }
         />
       </div>

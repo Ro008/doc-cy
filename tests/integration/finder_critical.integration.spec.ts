@@ -338,7 +338,7 @@ test.describe("Integration: finder business-critical UX", { tag: ["@pr-e2e", "@p
     await expect(
       page.getByRole("heading", {
         level: 1,
-        name: /Find your next health professional in Cyprus|Health Professionals in Cyprus|Find a Professional/i,
+        name: /The most complete health directory in Cyprus|Cyprus['’]s most complete health directory|Find your next health professional(?: in Cyprus)?|Health Professionals in Cyprus|Find a Professional/i,
       })
     ).toBeVisible();
     const resultsCount = page.getByTestId("finder-results-count");
@@ -490,7 +490,7 @@ test.describe("Integration: finder business-critical UX", { tag: ["@pr-e2e", "@p
       await expect(
         page.getByRole("heading", {
           level: 1,
-          name: /Find your next health professional in Cyprus|Health Professionals in Cyprus|Find a Professional/i,
+          name: /The most complete health directory in Cyprus|Cyprus['’]s most complete health directory|Find your next health professional(?: in Cyprus)?|Health Professionals in Cyprus|Find a Professional/i,
         })
       ).toBeVisible({
         timeout: 60_000,
@@ -522,7 +522,7 @@ test.describe("Integration: finder business-critical UX", { tag: ["@pr-e2e", "@p
       await expect(
         page.getByRole("heading", {
           level: 1,
-          name: /Find your next health professional in Cyprus|Health Professionals in Cyprus|Find a Professional/i,
+          name: /The most complete health directory in Cyprus|Cyprus['’]s most complete health directory|Find your next health professional(?: in Cyprus)?|Health Professionals in Cyprus|Find a Professional/i,
         }),
       ).toBeVisible({ timeout: 60_000 });
       await expect(page.getByText(created[0].name, { exact: true })).toBeVisible({ timeout: 60_000 });

@@ -2,83 +2,88 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   buildClinicsResultsHeading,
+  buildClinicsResultsSnippet,
   buildFinderResultsHeading,
   buildFinderResultsSnippet,
 } from "@/lib/finder-results-heading";
 
 describe("buildFinderResultsHeading", () => {
-  it("builds action H1 for specialty + district", () => {
+  it("names specialty + district", () => {
     assert.equal(
       buildFinderResultsHeading({
         specialtyLabel: "Dermatology",
         districtLabel: "Paphos",
       }),
-      "Book a Dermatology appointment in Paphos",
-    );
-  });
-
-  it("uses an before vowel specialties", () => {
-    assert.equal(
-      buildFinderResultsHeading({
-        specialtyLabel: "Orthopedics",
-        districtLabel: "Nicosia",
-      }),
-      "Book an Orthopedics appointment in Nicosia",
+      "Dermatology in Paphos",
     );
   });
 
   it("handles district-only and specialty-only", () => {
     assert.equal(
       buildFinderResultsHeading({ districtLabel: "Limassol" }),
-      "Book an appointment in Limassol",
+      "Health professionals in Limassol",
     );
     assert.equal(
       buildFinderResultsHeading({ specialtyLabel: "Dentistry" }),
-      "Book a Dentistry appointment in Cyprus",
+      "Dentistry in Cyprus",
     );
   });
 
   it("falls back when unfiltered", () => {
     assert.equal(
       buildFinderResultsHeading({}),
-      "Find your next health professional in Cyprus",
+      "The most complete health directory in Cyprus",
     );
   });
 
   it("uses near you copy when GPS is the only place filter", () => {
     assert.equal(
       buildFinderResultsHeading({ nearYou: true }),
-      "Find professionals near you",
+      "Health professionals near you",
     );
     assert.equal(
       buildFinderResultsHeading({
         nearYou: true,
         specialtyLabel: "Dentistry",
       }),
-      "Book a Dentistry appointment near you",
+      "Dentistry near you",
     );
   });
 });
 
 describe("buildFinderResultsSnippet", () => {
-  it("uses professionals in specialty for all specialty combinations", () => {
+  it("uses island coverage for specialty-only", () => {
     assert.equal(
       buildFinderResultsSnippet({ specialtyLabel: "Gynecology" }),
-      "Find English-speaking professionals in Gynecology. Compare profiles and book online with confidence.",
+      "Find a specialist anywhere on the island",
     );
+  });
+
+  it("uses district coverage when a place is set", () => {
     assert.equal(
       buildFinderResultsSnippet({
         specialtyLabel: "Gynecology",
         districtLabel: "Paphos",
       }),
-      "Find English-speaking professionals in Gynecology. Compare profiles and book online with confidence.",
+      "Find a specialist in this district",
+    );
+    assert.equal(
+      buildFinderResultsSnippet({ districtLabel: "Limassol" }),
+      "Find any specialist in this district",
     );
   });
 
-  it("uses district when specialty is absent", () => {
+  it("uses area coverage for GPS-only", () => {
     assert.equal(
-      buildFinderResultsSnippet({ districtLabel: "Limassol" }),
-      "Find English-speaking professionals in Limassol. Compare profiles and book online with confidence.",
+      buildFinderResultsSnippet({ nearYou: true }),
+      "Find any specialist in your area",
+    );
+    assert.equal(
+      buildFinderResultsSnippet({
+        nearYou: true,
+        specialtyLabel: "Haematology",
+      }),
+      "Find a specialist in your area",
     );
   });
 
@@ -89,18 +94,35 @@ describe("buildFinderResultsSnippet", () => {
 
 describe("buildClinicsResultsHeading", () => {
   it("builds clinic search headings", () => {
-    assert.equal(buildClinicsResultsHeading({}), "Find clinics in Cyprus");
+    assert.equal(
+      buildClinicsResultsHeading({}),
+      "The largest directory of clinics in Cyprus",
+    );
     assert.equal(
       buildClinicsResultsHeading({ districtLabel: "Paphos" }),
-      "Find clinics in Paphos",
+      "Clinics in Paphos",
     );
     assert.equal(
       buildClinicsResultsHeading({ districtLabel: "Geroskipou" }),
-      "Find clinics in Geroskipou",
+      "Clinics in Geroskipou",
     );
     assert.equal(
       buildClinicsResultsHeading({ nearYou: true }),
-      "Find clinics near you",
+      "Clinics near you",
+    );
+  });
+});
+
+describe("buildClinicsResultsSnippet", () => {
+  it("uses coverage copy by place", () => {
+    assert.equal(buildClinicsResultsSnippet({}), null);
+    assert.equal(
+      buildClinicsResultsSnippet({ districtLabel: "Limassol" }),
+      "Find a clinic in this district",
+    );
+    assert.equal(
+      buildClinicsResultsSnippet({ nearYou: true }),
+      "Find a clinic in your area",
     );
   });
 });

@@ -9,7 +9,7 @@ test.describe("Navigation and routing", { tag: ["@pr-e2e", "@pr-e2e-finder"] }, 
     await expect(
       page.getByRole("heading", {
         level: 1,
-        name: /Find your next health professional in Cyprus|Health Professionals in Cyprus|Find a Professional/i,
+        name: /The most complete health directory in Cyprus|Cyprus['’]s most complete health directory|Find your next health professional(?: in Cyprus)?|Health Professionals in Cyprus|Find a Professional/i,
       }),
     ).toBeVisible({ timeout: 15_000 });
   });
@@ -23,7 +23,7 @@ test.describe("Navigation and routing", { tag: ["@pr-e2e", "@pr-e2e-finder"] }, 
 
     await expect(page).toHaveURL(/^https?:\/\/[^/?#]+\/?(?:\?.*)?$/, { timeout: 60_000 });
     await expect(
-      page.getByRole("heading", { level: 1, name: /Find your next health professional in Cyprus|Health Professionals in Cyprus|Find a Professional/i })
+      page.getByRole("heading", { level: 1, name: /The most complete health directory in Cyprus|Cyprus['’]s most complete health directory|Find your next health professional(?: in Cyprus)?|Health Professionals in Cyprus|Find a Professional/i })
     ).toBeVisible({ timeout: 30_000 });
     await expect(page.locator("article").first()).toBeVisible({ timeout: 30_000 });
     const resultsCount = page.getByTestId("finder-results-count");
@@ -40,7 +40,7 @@ test.describe("Navigation and routing", { tag: ["@pr-e2e", "@pr-e2e-finder"] }, 
 
     await expect(page).toHaveURL(/^https?:\/\/[^/?#]+\/?(?:\?.*)?$/, { timeout: 60_000 });
     await expect(
-      page.getByRole("heading", { level: 1, name: /Find your next health professional in Cyprus|Health Professionals in Cyprus|Find a Professional/i })
+      page.getByRole("heading", { level: 1, name: /The most complete health directory in Cyprus|Cyprus['’]s most complete health directory|Find your next health professional(?: in Cyprus)?|Health Professionals in Cyprus|Find a Professional/i })
     ).toBeVisible({ timeout: 30_000 });
 
     await expect(page.getByTestId("finder-missing-doctor-card")).toHaveCount(0);
@@ -114,7 +114,7 @@ test.describe("Navigation and routing", { tag: ["@pr-e2e", "@pr-e2e-finder"] }, 
     await expect(
       page.getByRole("heading", {
         level: 1,
-        name: /Book a Dentist appointment in Paphos/i,
+        name: /Dentist in Paphos/i,
       })
     ).toBeVisible();
   });
@@ -133,7 +133,7 @@ test.describe("Navigation and routing", { tag: ["@pr-e2e", "@pr-e2e-finder"] }, 
       page.waitForURL(/\/clinics(?:\?|$)/, { timeout: 30_000 }),
       toggle.getByRole("link", { name: /^Clinics$/i }).click(),
     ]);
-    await expect(page.getByRole("heading", { level: 1, name: /Find clinics in Cyprus/i })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: /The largest directory of clinics in Cyprus|The largest clinic directory in Cyprus|Find clinics in Cyprus/i })).toBeVisible();
     await expect(page.getByPlaceholder(/Search by clinic name/i)).toBeVisible();
     await expect(page.getByRole("button", { name: /Clinic near me/i })).toBeVisible();
 

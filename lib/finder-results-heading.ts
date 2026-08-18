@@ -1,6 +1,6 @@
 /**
- * Patient-facing results H1 (action-oriented booking copy).
- * Keep SEO <title> separate — this is visible page heading only.
+ * Patient-facing results H1 (visible page heading only).
+ * Keep SEO <title> separate.
  */
 export function buildFinderResultsHeading(params: {
   specialtyLabel?: string | null;
@@ -11,41 +11,41 @@ export function buildFinderResultsHeading(params: {
   const specialty = params.specialtyLabel?.trim() || "";
   const district = params.districtLabel?.trim() || "";
   const fallback =
-    params.unfilteredFallback ?? "Find your next health professional in Cyprus";
+    params.unfilteredFallback ?? "The most complete health directory in Cyprus";
 
   if (params.nearYou && !district) {
-    if (specialty) {
-      return `Book ${indefiniteArticle(specialty)} ${specialty} appointment near you`;
-    }
-    return "Find professionals near you";
+    if (specialty) return `${specialty} near you`;
+    return "Health professionals near you";
   }
 
-  if (specialty && district) {
-    return `Book ${indefiniteArticle(specialty)} ${specialty} appointment in ${district}`;
-  }
-  if (specialty) {
-    return `Book ${indefiniteArticle(specialty)} ${specialty} appointment in Cyprus`;
-  }
-  if (district) {
-    return `Book an appointment in ${district}`;
-  }
+  if (specialty && district) return `${specialty} in ${district}`;
+  if (specialty) return `${specialty} in Cyprus`;
+  if (district) return `Health professionals in ${district}`;
   return fallback;
 }
 
 /**
- * Supporting sentence under the results H1 when district and/or specialty filters are active.
- * Place lives in the H1 when both are set; the snippet always leads with “professionals in …”.
+ * Supporting line under the results H1. Place lives in the H1;
+ * this line only adds coverage. The handwritten “and book online.” is separate.
  */
 export function buildFinderResultsSnippet(params: {
   specialtyLabel?: string | null;
   districtLabel?: string | null;
+  nearYou?: boolean;
 }): string | null {
   const specialty = params.specialtyLabel?.trim() || "";
   const district = params.districtLabel?.trim() || "";
-  if (!specialty && !district) return null;
 
-  const focus = specialty || district;
-  return `Find English-speaking professionals in ${focus}. Compare profiles and book online with confidence.`;
+  if (params.nearYou && !district) {
+    return specialty
+      ? "Find a specialist in your area"
+      : "Find any specialist in your area";
+  }
+
+  if (specialty && district) return "Find a specialist in this district";
+  if (specialty) return "Find a specialist anywhere on the island";
+  if (district) return "Find any specialist in this district";
+  return null;
 }
 
 export function buildClinicsResultsHeading(params: {
@@ -54,12 +54,19 @@ export function buildClinicsResultsHeading(params: {
   unfilteredFallback?: string;
 }): string {
   const district = params.districtLabel?.trim() || "";
-  const fallback = params.unfilteredFallback ?? "Find clinics in Cyprus";
-  if (params.nearYou && !district) return "Find clinics near you";
-  if (district) return `Find clinics in ${district}`;
+  const fallback =
+    params.unfilteredFallback ?? "The largest directory of clinics in Cyprus";
+  if (params.nearYou && !district) return "Clinics near you";
+  if (district) return `Clinics in ${district}`;
   return fallback;
 }
 
-function indefiniteArticle(word: string): "a" | "an" {
-  return /^[aeiou]/i.test(word.trim()) ? "an" : "a";
+export function buildClinicsResultsSnippet(params: {
+  districtLabel?: string | null;
+  nearYou?: boolean;
+}): string | null {
+  const district = params.districtLabel?.trim() || "";
+  if (params.nearYou && !district) return "Find a clinic in your area";
+  if (district) return "Find a clinic in this district";
+  return null;
 }
