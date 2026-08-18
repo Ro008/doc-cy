@@ -34,7 +34,6 @@ export function ManualDirectoryLandingCard({
   row,
   dayHeaders,
 }: ManualDirectoryLandingCardProps) {
-  const phoneOnFile = row.hasPhone;
   return (
     <FinderResultsAvailabilityShell dayHeaders={dayHeaders}>
       <article className={`flex flex-col gap-4 ${finderResultCardClass}`}>
@@ -91,11 +90,7 @@ export function ManualDirectoryLandingCard({
                 />
                 <FinderManualCardAvailabilityGrid
                   manualId={row.id}
-                  doctorName={row.displayName}
-                  addressMapsLink={row.address_maps_link}
                   dayHeaders={dayHeaders}
-                  hasPhone={phoneOnFile}
-                  addressText={row.address}
                 />
               </div>
             </div>

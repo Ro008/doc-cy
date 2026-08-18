@@ -85,9 +85,9 @@ function futureTimesForDay(dateKey: string, now: Date): string[] {
 }
 
 /**
- * Stable fake availability for manual/GeSY cards (seeded per listing).
+ * Stable decorative availability for disabled manual calendars (seeded per listing).
  * Sparse overall (~6–10 slots across 14 days), but always seeds enough slots into
- * the first visible week so the strip does not render as an empty calendar.
+ * the first visible week so the overlay still sits on a recognizable calendar.
  */
 export function buildManualPreviewCalendar(
   dayHeaders: FinderAvailabilityDayHeader[],

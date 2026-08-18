@@ -2,9 +2,9 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
 
 /**
- * Clicks an available calendar slot on a manual finder card after a **random** district +
- * **random** specialty (from live dropdowns), so runs tend to hit different cards and you
- * see varied rows on the founder dashboard (testing DB only).
+ * Clicks the request-online-booking overlay on a manual finder card after a **random**
+ * district + **random** specialty (from live dropdowns), so runs tend to hit different
+ * cards and you see varied rows on the founder dashboard (testing DB only).
  *
  * Rows are **not** deleted after the test so `/internal/directory` keeps the signal; repeat
  * runs may get HTTP 200 (duplicate fingerprint) for the same listing + network.
@@ -56,7 +56,7 @@ async function applyFinderFilters(page: Page): Promise<void> {
   await page.getByRole("button", { name: /^Find$/i }).click();
 }
 
-async function findManualCardCalendarSlot(page: Page): Promise<Locator> {
+async function findManualCardRequestCta(page: Page): Promise<Locator> {
   const districtSelect = page.getByLabel("District");
   const specialtySelect = page.getByLabel("Specialty");
 
@@ -82,26 +82,23 @@ async function findManualCardCalendarSlot(page: Page): Promise<Locator> {
         .locator("article")
         .filter({ hasText: /Are you this professional\?/i })
         .first();
-      const slot = manualCard
-        .getByTestId("finder-card-calendar-preview")
-        .getByRole("button")
-        .first();
+      const requestCta = manualCard.getByTestId("finder-manual-request-online-booking");
       try {
-        await expect(slot).toBeVisible({ timeout: 10_000 });
-        return slot;
+        await expect(requestCta).toBeVisible({ timeout: 10_000 });
+        return requestCta;
       } catch {
-        /* no manual card with calendar slot for this combo */
+        /* no manual card with request overlay for this combo */
       }
     }
   }
 
   throw new Error(
-    "No manual finder card with an available calendar slot found for any random district/specialty combo.",
+    "No manual finder card with a request-online-booking overlay found for any random district/specialty combo.",
   );
 }
 
 test.describe("Integration: finder manual card vote", () => {
-  test("manual calendar slot vote succeeds against testing Supabase (not prod)", async ({
+  test("manual request overlay vote succeeds against testing Supabase (not prod)", async ({
     page,
   }) => {
     const baseUrl = (process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000").trim();
@@ -123,7 +120,7 @@ test.describe("Integration: finder manual card vote", () => {
       })
     ).toBeVisible({ timeout: 25_000 });
 
-    const calendarSlot = await findManualCardCalendarSlot(page);
+    const requestCta = await findManualCardRequestCta(page);
 
     const responsePromise = page.waitForResponse(
       (res) =>
@@ -137,7 +134,7 @@ test.describe("Integration: finder manual card vote", () => {
         req.method() === "POST",
     );
 
-    await calendarSlot.click();
+    await requestCta.click();
 
     const [req, res] = await Promise.all([requestPromise, responsePromise]);
     const body = req.postData();
@@ -153,11 +150,10 @@ test.describe("Integration: finder manual card vote", () => {
     }
 
     expect([200, 201]).toContain(res.status());
-    await expect(page.getByRole("dialog")).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByRole("heading", { name: /Profile not activated yet/i })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /Profile not activated yet/i })).toHaveCount(0);
     await expect(
-      page.getByText(/Contact details on inactive listings may be incomplete or out of date/i),
-    ).toBeVisible();
+      page.locator("[data-sonner-toast]").getByText(/Thank you! We will notify the doctor\./i),
+    ).toBeVisible({ timeout: 15_000 });
 
     if (res.status() === 201 && manualId) {
       const { data: rows, error } = await admin

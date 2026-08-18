@@ -1,63 +1,35 @@
 "use client";
 
 import * as React from "react";
-import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
   patientBookingRequestErrorMessage,
   submitPatientBookingRequest,
 } from "@/lib/finder-manual-patient-booking-request";
-import type { FinderManualSlotClick } from "@/lib/finder-manual-slot-click";
 
-const ManualBookingRequestModal = dynamic(
-  () =>
-    import("@/components/finder/ManualBookingRequestModal").then(
-      (mod) => mod.ManualBookingRequestModal,
-    ),
-  { ssr: false },
-);
-
-type ManualListing = Pick<
-  FinderManualSlotClick,
-  "manualId" | "doctorName" | "addressMapsLink" | "hasPhone" | "addressText"
->;
+export const PATIENT_BOOKING_REQUEST_THANKS_TOAST =
+  "Thank you! We will notify the doctor.";
 
 export function useManualBookingRequestFeedback() {
   const router = useRouter();
-  const [pendingSlotKey, setPendingSlotKey] = React.useState<string | null>(null);
-  const [listing, setListing] = React.useState<ManualListing | null>(null);
-  const [modalOpen, setModalOpen] = React.useState(false);
+  const [pendingManualId, setPendingManualId] = React.useState<string | null>(null);
 
-  async function submit(nextListing: ManualListing, slotKey: string) {
-    if (pendingSlotKey) return;
-    setPendingSlotKey(slotKey);
-    setListing(nextListing);
+  async function submit(manualId: string) {
+    if (pendingManualId) return;
+    setPendingManualId(manualId);
     try {
-      const result = await submitPatientBookingRequest(nextListing.manualId);
+      const result = await submitPatientBookingRequest(manualId);
       if (result.ok === false) {
         toast.error(patientBookingRequestErrorMessage(result.reason, result.status));
         return;
       }
-      setModalOpen(true);
+      toast.success(PATIENT_BOOKING_REQUEST_THANKS_TOAST);
       router.refresh();
     } finally {
-      setPendingSlotKey(null);
+      setPendingManualId(null);
     }
   }
 
-  const modal =
-    modalOpen && listing ? (
-      <ManualBookingRequestModal
-        open
-        doctorName={listing.doctorName}
-        manualId={listing.manualId}
-        addressMapsLink={listing.addressMapsLink}
-        hasPhone={listing.hasPhone}
-        addressText={listing.addressText}
-        onClose={() => setModalOpen(false)}
-      />
-    ) : null;
-
-  return { pendingSlotKey, submit, modal };
+  return { pendingManualId, submit };
 }
