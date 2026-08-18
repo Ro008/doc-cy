@@ -17,6 +17,7 @@ describe("needsSupabaseSessionMiddleware", () => {
       "/blog/some-post",
       "/for-professionals",
       "/terms",
+      "/privacy",
       "/andreas-nikos",
       "/en/andreas-nikos",
       "/internal",

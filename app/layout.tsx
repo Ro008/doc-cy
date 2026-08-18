@@ -11,9 +11,17 @@ import { trafficSessionPersistInlineScript } from "@/lib/traffic-log";
 import { Toaster } from "sonner";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
+import { GoogleAdsTag } from "@/components/analytics/GoogleAdsTag";
+import { googleAdsTagId } from "@/lib/google-ads";
 
 const InstallBanner = dynamic(
   () => import("@/components/pwa/InstallBanner").then((mod) => mod.InstallBanner),
+  { ssr: false },
+);
+
+const CookieConsentBar = dynamic(
+  () =>
+    import("@/components/analytics/CookieConsentBar").then((mod) => mod.CookieConsentBar),
   { ssr: false },
 );
 
@@ -105,6 +113,7 @@ export default function RootLayout({
       <body
         className={`${inter.variable} min-h-screen bg-slate-950 text-slate-900 antialiased`}
       >
+        <GoogleAdsTag />
         <script
           dangerouslySetInnerHTML={{ __html: trafficSessionPersistInlineScript() }}
         />
@@ -114,6 +123,7 @@ export default function RootLayout({
         <AppChrome>{children}</AppChrome>
         <Toaster richColors position="top-center" closeButton />
         <InstallBanner />
+        <CookieConsentBar adsTagEnabled={Boolean(googleAdsTagId())} />
         <FeedbackWidget />
         <Analytics />
         <SpeedInsights />

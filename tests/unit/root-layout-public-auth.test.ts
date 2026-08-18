@@ -22,6 +22,7 @@ describe("root layout does not block public HTML", () => {
       true,
       "useSearchParams in NavigationProgressBar must be under Suspense or static pages fail prerender",
     );
+    assert.equal(source.includes("GoogleAdsTag"), true);
   });
 
   it("only refreshes Supabase session when needsSupabaseSessionMiddleware is true", () => {

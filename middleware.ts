@@ -37,6 +37,7 @@ const RESERVED_TOP_LEVEL = new Set([
   "login",
   "register",
   "terms",
+  "privacy",
   ...FINDER_DISTRICT_PATH_SLUGS,
 ]);
 

@@ -247,6 +247,13 @@ export default function TermsOfUsePage() {
               >
                 About DocCy
               </PendingLink>
+              . How we use cookies:{" "}
+              <PendingLink
+                href="/privacy"
+                className="font-medium text-clinical-700 underline underline-offset-2"
+              >
+                Privacy
+              </PendingLink>
               .
             </p>
           </section>

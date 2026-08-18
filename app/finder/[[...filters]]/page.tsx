@@ -1532,6 +1532,12 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
                   >
                     Terms of Use
                   </PendingLink>
+                  <PendingLink
+                    href="/privacy"
+                    className="text-xs font-semibold text-ink-500 underline underline-offset-4 transition hover:text-clinical-600"
+                  >
+                    Privacy
+                  </PendingLink>
                   <a
                     href="https://www.instagram.com/doccy_cyprus?igsh=MW94Zjg1czZ6OXNzaw=="
                     target="_blank"

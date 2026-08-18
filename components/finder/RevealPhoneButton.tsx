@@ -6,6 +6,7 @@ import {
   parseCallToBookSource,
   type CallToBookSource,
 } from "@/lib/call-to-book";
+import { googleAdsCallToBookSendTo, reportGoogleAdsConversion } from "@/lib/google-ads";
 import { formatCyprusPhoneDisplay, phoneToTelHref } from "@/lib/phone-link";
 
 type ContactRevealKind = "manual" | "clinic";
@@ -79,9 +80,17 @@ function RevealedPhoneLink({
   const display = formatCyprusPhoneDisplay(phone);
   const href = phoneToTelHref(display);
   if (!href) return null;
+  const telHref = href;
+
+  function handleCallToBookClick(event: React.MouseEvent<HTMLAnchorElement>) {
+    event.preventDefault();
+    reportGoogleAdsConversion(googleAdsCallToBookSendTo(), telHref);
+  }
+
   return (
     <a
       href={href}
+      onClick={variant === "call-to-book" ? handleCallToBookClick : undefined}
       className={
         className ??
         "inline-flex items-center gap-1.5 text-lg font-bold tabular-nums text-clinical-700 underline decoration-clinical-300 underline-offset-2 transition hover:text-clinical-600"

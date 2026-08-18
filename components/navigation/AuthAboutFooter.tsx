@@ -19,6 +19,7 @@ const RESERVED_TOP_LEVEL_SEGMENTS = new Set([
   "internal",
   "api",
   "terms",
+  "privacy",
   "en",
   "el",
   ...FINDER_DISTRICT_PATH_SLUGS,

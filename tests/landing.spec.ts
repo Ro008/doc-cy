@@ -36,6 +36,7 @@ test.describe("Landing page", () => {
     await expect(footer.getByRole("link", { name: /^About DocCy$/i })).toBeVisible();
     await expect(footer.getByRole("link", { name: /^Blog$/i })).toBeVisible();
     await expect(footer.getByRole("link", { name: /^Terms$/i })).toBeVisible();
+    await expect(footer.getByRole("link", { name: /^Privacy$/i })).toBeVisible();
     await expect(footer.getByRole("button", { name: /^Support$/i })).toBeVisible();
     await expect(footer.getByRole("link", { name: /^Instagram$/i })).toBeVisible();
 
@@ -54,9 +55,11 @@ test.describe("Landing page", () => {
     expect(navLabels).toContain("About DocCy");
     expect(navLabels).toContain("Blog");
     expect(navLabels).toContain("Terms");
+    expect(navLabels).toContain("Privacy");
     expect(navLabels).toContain("Support");
     expect(navLabels).toContain("Instagram");
-    expect(navLabels.indexOf("Terms")).toBeLessThan(navLabels.indexOf("Support"));
+    expect(navLabels.indexOf("Terms")).toBeLessThan(navLabels.indexOf("Privacy"));
+    expect(navLabels.indexOf("Privacy")).toBeLessThan(navLabels.indexOf("Support"));
     expect(navLabels.indexOf("Support")).toBeLessThan(navLabels.indexOf("Instagram"));
 
     await footer.getByRole("button", { name: /^Support$/i }).click();
