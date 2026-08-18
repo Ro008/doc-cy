@@ -5,8 +5,8 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useManualBookingRequestFeedback } from "@/components/finder/useManualBookingRequestFeedback";
 import {
   FINDER_MANUAL_CALENDAR_ATTR,
-  FINDER_MANUAL_SLOT_ATTR,
-  parseFinderManualCalendarClick,
+  FINDER_MANUAL_REQUEST_ATTR,
+  parseFinderManualRequestClick,
 } from "@/lib/finder-manual-slot-click";
 import {
   FINDER_AVAILABILITY_VISIBLE_DAY_COUNT,
@@ -108,28 +108,23 @@ type ShellProps = {
 
 function FinderAvailabilityWeekSurface({ children }: { children: React.ReactNode }) {
   const { windowStart, visibleDayCount, dayHeaders } = useFinderAvailabilityWeek();
-  const { submit, modal, pendingSlotKey } = useManualBookingRequestFeedback();
-  const isSubmitting = pendingSlotKey !== null;
+  const { submit, pendingManualId } = useManualBookingRequestFeedback();
+  const isSubmitting = pendingManualId !== null;
 
   function handleClick(event: React.MouseEvent<HTMLDivElement>) {
     if (isSubmitting) return;
     const target = event.target;
     if (!(target instanceof Element)) return;
-    const slotEl = target.closest(`[${FINDER_MANUAL_SLOT_ATTR}]`);
-    if (!(slotEl instanceof HTMLElement)) return;
-    const calendar = slotEl.closest(`[${FINDER_MANUAL_CALENDAR_ATTR}]`);
+    const requestEl = target.closest(`[${FINDER_MANUAL_REQUEST_ATTR}]`);
+    if (!(requestEl instanceof HTMLElement)) return;
+    const calendar = requestEl.closest(`[${FINDER_MANUAL_CALENDAR_ATTR}]`);
     if (!(calendar instanceof HTMLElement)) return;
-    const parsed = parseFinderManualCalendarClick({
+    const parsed = parseFinderManualRequestClick({
       manualId: calendar.dataset.manualId ?? "",
-      doctorName: calendar.dataset.doctorName ?? "",
-      mapsLink: calendar.dataset.mapsLink ?? "",
-      hasPhone: calendar.dataset.hasPhone ?? "",
-      address: calendar.dataset.address ?? "",
-      slotKey: slotEl.dataset.slotKey ?? "",
     });
     if (!parsed) return;
     event.preventDefault();
-    void submit(parsed, parsed.slotKey);
+    void submit(parsed.manualId);
   }
 
   return (
@@ -146,7 +141,6 @@ function FinderAvailabilityWeekSurface({ children }: { children: React.ReactNode
       }
     >
       {children}
-      {modal}
     </div>
   );
 }

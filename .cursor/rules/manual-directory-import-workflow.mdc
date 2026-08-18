@@ -10,7 +10,7 @@ Use this when the user passes a new doctor list (Excel/CSV) for the **manual fin
 ## What the manual directory is
 
 - **Table:** `public.directory_manual`
-- **Shown in:** `/finder` (cards with fake calendar + “Profile not activated yet” modal)
+- **Shown in:** `/finder` (cards with a disabled calendar + request-online-booking overlay)
 - **Not shown:** registered verified doctors (different table)
 
 ### Required columns per row
@@ -21,7 +21,7 @@ Use this when the user passes a new doctor list (Excel/CSV) for the **manual fin
 | Specialty | `specialty` | Use canonical labels (e.g. `Dentistry`, `Dermatology`) — see `lib/cyprus-specialties.ts` / `lib/finder-specialty-harmonize.ts` |
 | District | `district` | One of: `Nicosia`, `Limassol`, `Paphos`, `Larnaca`, `Famagusta` |
 | Google Maps URL | `address_maps_link` | Used for Maps CTA and curated photo lookup |
-| Phone | `phone` | Optional; shown in manual booking modal (`ManualBookingRequestModal`) |
+| Phone | `phone` | Optional; shown via Call to Book on the finder card |
 | Latitude | `latitude` | For “doctor near me” distance sorting |
 | Longitude | `longitude` | For “doctor near me” distance sorting |
 
@@ -104,7 +104,7 @@ After generating, review for:
 
 - clinic names instead of person names
 - duplicate people with different name spelling (e.g. hyphen vs space)
-- missing phone (modal falls back to Maps only)
+- missing phone (Call to Book falls back to Maps only)
 - wrong district enum values
 
 ## Clinic-style names (exclude from manual directory)
@@ -147,8 +147,8 @@ When working on the next feature branch that touches directory data:
 | Area | File |
 |------|------|
 | Finder load + card data | `app/finder/[[...filters]]/page.tsx` |
-| Booking modal + phone | `components/finder/ManualBookingRequestModal.tsx` |
-| Card calendar + modal hook | `components/finder/FinderManualCardAvailabilityGrid.tsx`, `useManualBookingRequestFeedback.tsx` |
+| Disabled calendar + request overlay | `components/finder/FinderManualCardAvailabilityGrid.tsx`, `useManualBookingRequestFeedback.tsx` |
+| Call to Book phone | `components/finder/FinderClinicLocationBlock.tsx`, `RevealPhoneButton.tsx` |
 | Phone `tel:` links | `lib/phone-link.ts` |
 | Patient vote API | `app/api/directory-manual/patient-booking-request/route.ts` |
 | Sitemap pairs | `app/sitemap.ts` |
@@ -158,7 +158,7 @@ When working on the next feature branch that touches directory data:
 
 1. Create/edit migration(s) in `supabase/migrations/`.
 2. **Testing first:** `npm run db:testing:push` (project `fwinchqdgrkpxuuttech`).
-3. Verify `/finder/{district}/{specialty}`, modal phone, distance sort.
+3. Verify `/finder/{district}/{specialty}`, Call to Book phone, distance sort.
 4. **Production only when user explicitly asks:** `npm run db:prod:push` — never assume prior consent.
 5. Before prod directory changes, run test-profile preflight per `prod-directory-test-profile-safety.mdc`.
 

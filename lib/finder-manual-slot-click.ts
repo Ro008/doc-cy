@@ -1,39 +1,19 @@
 export const FINDER_MANUAL_CALENDAR_ATTR = "data-finder-manual-calendar";
-export const FINDER_MANUAL_SLOT_ATTR = "data-finder-manual-slot";
+export const FINDER_MANUAL_REQUEST_ATTR = "data-finder-manual-request";
 
-export type FinderManualSlotClick = {
+export type FinderManualRequestClick = {
   manualId: string;
-  doctorName: string;
-  addressMapsLink: string;
-  hasPhone: boolean;
-  addressText: string | null;
-  slotKey: string;
 };
 
-export type FinderManualSlotClickInput = {
+export type FinderManualRequestClickInput = {
   manualId: string;
-  doctorName: string;
-  mapsLink: string;
-  hasPhone: string;
-  address: string;
-  slotKey: string;
 };
 
-/** Parse data attributes from a static manual calendar slot click. */
-export function parseFinderManualCalendarClick(
-  input: FinderManualSlotClickInput,
-): FinderManualSlotClick | null {
+/** Parse data attributes from a static manual request-booking click. */
+export function parseFinderManualRequestClick(
+  input: FinderManualRequestClickInput,
+): FinderManualRequestClick | null {
   const manualId = String(input.manualId ?? "").trim();
-  const slotKey = String(input.slotKey ?? "").trim();
-  if (!manualId || !slotKey) return null;
-  const address = String(input.address ?? "").trim();
-  const hasPhoneRaw = String(input.hasPhone ?? "").trim().toLowerCase();
-  return {
-    manualId,
-    doctorName: String(input.doctorName ?? "").trim(),
-    addressMapsLink: String(input.mapsLink ?? "").trim(),
-    hasPhone: hasPhoneRaw === "1" || hasPhoneRaw === "true",
-    addressText: address ? address : null,
-    slotKey,
-  };
+  if (!manualId) return null;
+  return { manualId };
 }

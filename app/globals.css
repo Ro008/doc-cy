@@ -27,7 +27,7 @@ html {
   }
 }
 
-[data-finder-manual-booking-surface][aria-busy="true"] [data-finder-manual-slot] {
+[data-finder-manual-booking-surface][aria-busy="true"] [data-finder-manual-request] {
   pointer-events: none;
   opacity: 0.45;
 }
