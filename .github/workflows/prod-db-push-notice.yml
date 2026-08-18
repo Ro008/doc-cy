@@ -1,0 +1,115 @@
+# Informational: tells the merger whether this PR needs a production DB push.
+# Always green. Does not apply migrations.
+name: Production DB push
+
+on:
+  pull_request:
+    branches:
+      - "**"
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  notice:
+    name: Production DB push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect migration changes vs base
+        id: detect
+        shell: bash
+        run: |
+          set -euo pipefail
+          base_sha="${{ github.event.pull_request.base.sha }}"
+          head_sha="${{ github.event.pull_request.head.sha }}"
+          mapfile -t files < <(git diff --name-only "${base_sha}...${head_sha}" -- supabase/migrations/ | sed '/^$/d' | sort)
+          count="${#files[@]}"
+          {
+            echo "count=${count}"
+            echo "files<<EOF"
+            if [ "${count}" -gt 0 ]; then
+              printf '%s\n' "${files[@]}"
+            fi
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Build notice
+        env:
+          MIGRATION_COUNT: ${{ steps.detect.outputs.count }}
+          MIGRATION_FILES: ${{ steps.detect.outputs.files }}
+        shell: python
+        run: |
+          import os
+          import textwrap
+          from pathlib import Path
+
+          count = int(os.environ.get("MIGRATION_COUNT") or "0")
+          files = [
+              line.strip()
+              for line in os.environ.get("MIGRATION_FILES", "").splitlines()
+              if line.strip()
+          ]
+          marker = "<!-- doccy-prod-db-push-notice -->"
+
+          if count == 0:
+              body = textwrap.dedent(f"""\
+                  {marker}
+                  ## Production database
+
+                  **No `db:prod:push` needed.** This PR does not change `supabase/migrations/`.
+
+                  After merge, do **not** promote the production database.
+                  """)
+              notice = "No production database push needed. This PR does not change supabase/migrations/."
+              warning = False
+          else:
+              listed = "\n".join(f"- `{name}`" for name in files)
+              body = textwrap.dedent(f"""\
+                  {marker}
+                  ## Production database
+
+                  **Migrations in this PR ({count}).** After merge:
+
+                  1. Apply to **testing** first: `npm run db:testing:push`
+                  2. Apply to **production** only when explicitly asked: `DOC_CY_CONFIRM_PROD=YES npm run db:prod:push`
+                  3. See `docs/db-release-runbook.md`
+
+                  Files:
+
+                  {listed}
+                  """)
+              notice = (
+                  f"This PR includes {count} migration file(s). "
+                  "Testing first; prod only when explicitly asked."
+              )
+              warning = True
+
+          Path("prod-db-notice.md").write_text(body.strip() + "\n", encoding="utf-8")
+          Path(os.environ["GITHUB_STEP_SUMMARY"]).write_text(
+              body.replace(marker, "").strip() + "\n", encoding="utf-8"
+          )
+          print(f"::{'warning' if warning else 'notice'}::{notice}")
+
+      - name: Upsert sticky PR comment
+        if: github.event.pull_request.head.repo.full_name == github.repository
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          marker="<!-- doccy-prod-db-push-notice -->"
+          body="$(cat prod-db-notice.md)"
+          existing_id="$(gh api "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" --paginate \
+            --jq ".[] | select(.body | contains(\"${marker}\")) | .id" | head -n 1 || true)"
+          if [ -n "${existing_id}" ]; then
+            gh api --method PATCH "repos/${GITHUB_REPOSITORY}/issues/comments/${existing_id}" -f body="${body}"
+          else
+            gh api --method POST "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" -f body="${body}"
+          fi

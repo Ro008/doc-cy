@@ -49,6 +49,7 @@ Constants: `tests/helpers/ciTags.ts`. To tag new specs: `node scripts/apply-ci-p
 | `PR Playwright · finder` | `@pr-e2e-finder` (reuses build artifact) |
 | `PR Playwright (core business)` | Gate: both Playwright lanes + orphan-doctor cleanup must succeed (keeps the historical required-check name) |
 | `PR Preview site health (Vercel)` | `@pr-preview` against the Vercel Preview URL (same-repo PRs only) |
+| `Production DB push` | Informational (always green): sticky PR comment if `supabase/migrations/` changed vs base — **not** a required check |
 
 **Includes:**
 
