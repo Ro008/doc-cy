@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
 import { describe, it } from "node:test";
 
 import {
@@ -46,8 +48,31 @@ describe("public search navigation", () => {
       false,
     );
     assert.equal(
+      shouldShowFinderResultsSkeleton({
+        reason: "finder-load-more",
+        linkKey: "/larnaca/dentistry?page=2",
+      }),
+      false,
+    );
+    assert.equal(
       shouldShowFinderResultsSkeleton({ reason: "default", linkKey: "/agenda" }),
       false,
     );
+  });
+
+  it("Show more CTAs keep scroll and skip result skeletons", () => {
+    const repoRoot = process.cwd();
+    const finder = fs.readFileSync(
+      path.join(repoRoot, "app", "finder", "[[...filters]]", "page.tsx"),
+      "utf8",
+    );
+    const clinics = fs.readFileSync(
+      path.join(repoRoot, "app", "clinics", "[[...filters]]", "page.tsx"),
+      "utf8",
+    );
+    for (const source of [finder, clinics]) {
+      assert.match(source, /scroll=\{false\}/);
+      assert.match(source, /navigationReason="finder-load-more"/);
+    }
   });
 });

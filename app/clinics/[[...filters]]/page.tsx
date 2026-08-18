@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { DocCyWordmark } from "@/components/brand/DocCyWordmark";
 import { ClinicLandingView } from "@/components/finder/ClinicLandingView";
@@ -8,6 +9,7 @@ import { FinderHeroSection } from "@/components/finder/FinderHeroSection";
 import { FinderRecentlyViewed } from "@/components/finder/FinderRecentlyViewed";
 import { RevealPhoneButton } from "@/components/finder/RevealPhoneButton";
 import { FinderResultsTransition } from "@/components/finder/FinderResultsTransition";
+import FinderSearchRouteLoading from "@/components/finder/FinderSearchRouteLoading";
 import { FinderSearchBar } from "@/components/finder/FinderSearchBar";
 import { finderResultCardClass, finderSoftButtonClass } from "@/components/finder/finder-surface";
 import { MarketingFooter } from "@/components/navigation/MarketingFooter";
@@ -184,7 +186,15 @@ export async function generateMetadata({ params }: ClinicsPageProps): Promise<Me
   };
 }
 
-export default async function ClinicsPage({ params, searchParams }: ClinicsPageProps) {
+export default function ClinicsPage(props: ClinicsPageProps) {
+  return (
+    <Suspense fallback={<FinderSearchRouteLoading />}>
+      <ClinicsPageContent {...props} />
+    </Suspense>
+  );
+}
+
+async function ClinicsPageContent({ params, searchParams }: ClinicsPageProps) {
   const filters = params.filters ?? [];
   if (filters.length > 1) notFound();
 
@@ -683,7 +693,12 @@ async function ClinicsSearchPage({ params, searchParams }: ClinicsPageProps) {
                 })}
                 {hasMoreResults ? (
                   <div className="flex justify-center pt-2">
-                    <PendingLink href={loadMoreHref} className={finderSoftButtonClass}>
+                    <PendingLink
+                      href={loadMoreHref}
+                      scroll={false}
+                      navigationReason="finder-load-more"
+                      className={finderSoftButtonClass}
+                    >
                       Show more clinics
                     </PendingLink>
                   </div>

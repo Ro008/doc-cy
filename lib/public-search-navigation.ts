@@ -32,7 +32,7 @@ export function shouldShowFinderResultsSkeleton(
   detail?: NavigationStartDetail | null,
 ): boolean {
   const reason = detail?.reason;
-  if (reason === "profile") return false;
+  if (reason === "profile" || reason === "finder-load-more") return false;
   if (
     reason === "finder-results" ||
     reason === "finder-near-me" ||

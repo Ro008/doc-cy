@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useState, type ReactNode } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 
 import { FinderResultsListSkeleton } from "@/components/finder/FinderResultsListSkeleton";
@@ -8,6 +8,10 @@ import {
   NAVIGATION_START_EVENT,
   type NavigationStartDetail,
 } from "@/lib/doccy-navigation";
+import {
+  clearFinderLoadMoreScroll,
+  restoreFinderLoadMoreScroll,
+} from "@/lib/finder-load-more-scroll";
 import { shouldShowFinderResultsSkeleton } from "@/lib/public-search-navigation";
 
 type FinderResultsTransitionProps = {
@@ -27,6 +31,7 @@ export function FinderResultsTransition({ children }: FinderResultsTransitionPro
     function onStart(event: Event) {
       const detail = (event as CustomEvent<NavigationStartDetail>).detail;
       if (shouldShowFinderResultsSkeleton(detail)) {
+        clearFinderLoadMoreScroll();
         setShowSkeleton(true);
       }
     }
@@ -34,6 +39,10 @@ export function FinderResultsTransition({ children }: FinderResultsTransitionPro
     window.addEventListener(NAVIGATION_START_EVENT, onStart);
     return () => window.removeEventListener(NAVIGATION_START_EVENT, onStart);
   }, []);
+
+  useLayoutEffect(() => {
+    restoreFinderLoadMoreScroll();
+  }, [pathname, searchParams]);
 
   useEffect(() => {
     setShowSkeleton(false);
