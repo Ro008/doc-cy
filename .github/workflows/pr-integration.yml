@@ -156,7 +156,13 @@ jobs:
           path: .next
 
       - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium
+        run: |
+          # --with-deps can hang 40+ minutes when Azure Ubuntu apt mirrors stall.
+          # ubuntu-latest already has Chromium OS libraries; binaries-only is enough then.
+          if ! timeout 120 npx playwright install --with-deps chromium; then
+            echo "Playwright --with-deps timed out or failed; installing Chromium only."
+            npx playwright install chromium
+          fi
 
       - name: Run critical reschedule email guards
         env:
@@ -236,7 +242,13 @@ jobs:
           path: .next
 
       - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium
+        run: |
+          # --with-deps can hang 40+ minutes when Azure Ubuntu apt mirrors stall.
+          # ubuntu-latest already has Chromium OS libraries; binaries-only is enough then.
+          if ! timeout 120 npx playwright install --with-deps chromium; then
+            echo "Playwright --with-deps timed out or failed; installing Chromium only."
+            npx playwright install chromium
+          fi
 
       - name: Run finder Playwright suite
         env:
@@ -349,7 +361,13 @@ jobs:
 
       - name: Install Playwright browsers
         if: steps.fork.outputs.skip == 'false'
-        run: npx playwright install --with-deps chromium
+        run: |
+          # --with-deps can hang 40+ minutes when Azure Ubuntu apt mirrors stall.
+          # ubuntu-latest already has Chromium OS libraries; binaries-only is enough then.
+          if ! timeout 120 npx playwright install --with-deps chromium; then
+            echo "Playwright --with-deps timed out or failed; installing Chromium only."
+            npx playwright install chromium
+          fi
 
       - name: Run public shell tests against Preview URL
         if: steps.fork.outputs.skip == 'false'
