@@ -7,6 +7,10 @@ import {
   patientBookingRequestErrorMessage,
   submitPatientBookingRequest,
 } from "@/lib/finder-manual-patient-booking-request";
+import {
+  googleAdsRequestOnlineBookingSendTo,
+  reportGoogleAdsConversion,
+} from "@/lib/google-ads";
 
 export const PATIENT_BOOKING_REQUEST_THANKS_TOAST =
   "Thank you! We will notify the doctor.";
@@ -23,6 +27,9 @@ export function useManualBookingRequestFeedback() {
       if (result.ok === false) {
         toast.error(patientBookingRequestErrorMessage(result.reason, result.status));
         return;
+      }
+      if (!result.duplicate) {
+        reportGoogleAdsConversion(googleAdsRequestOnlineBookingSendTo());
       }
       toast.success(PATIENT_BOOKING_REQUEST_THANKS_TOAST);
       router.refresh();

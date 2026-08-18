@@ -53,5 +53,6 @@ describe("finder manual calendars stay static HTML", () => {
     assert.equal(source.includes("ManualBookingRequestModal"), false);
     assert.equal(source.includes("toast.success"), true);
     assert.equal(source.includes("Thank you! We will notify the doctor."), true);
+    assert.equal(source.includes("reportGoogleAdsConversion"), true);
   });
 });
