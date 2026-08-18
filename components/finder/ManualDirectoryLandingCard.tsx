@@ -17,7 +17,10 @@ import {
   finderRegisteredDetailsSectionClass,
   finderRegisteredIdentityColumnClass,
 } from "@/components/finder/finder-availability-layout";
-import { finderCardManualFooterClass } from "@/components/finder/finder-card-cta";
+import {
+  finderCardManualFooterActionsClass,
+  finderCardManualFooterClass,
+} from "@/components/finder/finder-card-cta";
 import { finderResultCardClass } from "@/components/finder/finder-surface";
 import type { ManualDirectoryLandingRow } from "@/lib/load-manual-directory-by-slug";
 import type { FinderAvailabilityDayHeader } from "@/lib/public/compute-public-booking-slots";
@@ -99,15 +102,12 @@ export function ManualDirectoryLandingCard({
           </div>
         </div>
 
-        <div
-          className={`${finderCardManualFooterClass} flex flex-wrap items-end justify-between gap-x-4 gap-y-2`}
-        >
+        <div className={`${finderCardManualFooterClass} ${finderCardManualFooterActionsClass}`}>
           <ManualDirectoryDoctorClaimFooter />
           <ManualDirectoryReportIncorrectInfoLink
             displayName={row.displayName}
             specialty={row.specialty}
             district={row.district}
-            className="ml-auto shrink-0 text-right"
           />
         </div>
       </article>

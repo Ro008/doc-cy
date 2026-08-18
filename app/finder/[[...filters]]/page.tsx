@@ -41,7 +41,10 @@ import {
   finderRegisteredDetailsSectionClass,
   finderRegisteredIdentityColumnClass,
 } from "@/components/finder/finder-availability-layout";
-import { finderCardManualFooterClass } from "@/components/finder/finder-card-cta";
+import {
+  finderCardManualFooterActionsClass,
+  finderCardManualFooterClass,
+} from "@/components/finder/finder-card-cta";
 import {
   finderBrowseRowClass,
   finderBrowseRowCompactClass,
@@ -1416,14 +1419,13 @@ export default async function FinderPage({ params, searchParams }: FinderPagePro
                     </div>
 
                     <div
-                      className={`${finderCardManualFooterClass} flex flex-wrap items-end justify-between gap-x-4 gap-y-2`}
+                      className={`${finderCardManualFooterClass} ${finderCardManualFooterActionsClass}`}
                     >
                       <ManualDirectoryDoctorClaimFooter />
                       <ManualDirectoryReportIncorrectInfoLink
                         displayName={row.displayName}
                         specialty={row.specialty}
                         district={row.district}
-                        className="ml-auto shrink-0 text-right"
                       />
                     </div>
                   </article>
