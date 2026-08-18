@@ -25,8 +25,8 @@ export function FinderFaqSection({
   const faqItems: FaqItem[] = hasSpecificFilters
     ? [
         {
-          question: `How can I find English-speaking ${specialtyLabel} in ${districtLabel}?`,
-          answer: `Use this page to browse English-speaking ${specialtyLabel} in ${districtLabel}, compare options, and book online with the professional that matches your needs.`,
+          question: `How can I find ${specialtyLabel} in ${districtLabel}?`,
+          answer: `Use this page to browse ${specialtyLabel} in ${districtLabel}, compare options, and book online with the professional that matches your needs.`,
         },
         {
           question: `Can I book online with a ${specialtyLabel} in ${districtLabel}?`,
@@ -40,9 +40,9 @@ export function FinderFaqSection({
       ]
     : [
         {
-          question: "How can I find English-speaking health professionals in Cyprus?",
+          question: "How can I find health professionals in Cyprus?",
           answer:
-            "Use the finder filters by district and specialty to discover English-speaking professionals across Cyprus and book online.",
+            "Use the finder filters by district and specialty to find any specialist, anywhere on the island, and book online.",
         },
         {
           question: "Can I book online through DocCy?",

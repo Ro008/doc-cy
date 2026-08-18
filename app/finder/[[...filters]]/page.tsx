@@ -322,26 +322,26 @@ export async function generateMetadata({ params }: FinderPageProps): Promise<Met
 
   const genericTitle = "Find the Best Healthcare Professionals in Cyprus | Book Online - DocCy";
   const genericDescription =
-    "Discover English-speaking healthcare professionals across Cyprus. Compare specialties, view locations, and book online with DocCy.";
+    "The most complete health directory in Cyprus. Find any specialist, anywhere on the island, and book online.";
 
   if (districtLabel && specialtyLabel) {
     return {
       title: `Best ${specialtyLabel} in ${districtLabel}, Cyprus | Book Online - DocCy`,
-      description: `Find English-speaking professionals specializing in ${specialtyLabel} in ${districtLabel}. View locations and book online.`,
+      description: `Find ${specialtyLabel} in ${districtLabel}, Cyprus. Compare profiles and book online.`,
     };
   }
 
   if (districtLabel) {
     return {
       title: `Best Healthcare Professionals in ${districtLabel}, Cyprus | Book Online - DocCy`,
-      description: `Find English-speaking healthcare professionals in ${districtLabel}, Cyprus. View specialties, locations, and book online.`,
+      description: `Find health professionals in ${districtLabel}, Cyprus. View specialties, locations, and book online.`,
     };
   }
 
   if (specialtyLabel) {
     return {
       title: `Best ${specialtyLabel} in Cyprus | Book Online - DocCy`,
-      description: `Find English-speaking professionals specializing in ${specialtyLabel} across Cyprus. View locations and book online.`,
+      description: `Find ${specialtyLabel} across Cyprus. View locations and book online.`,
     };
   }
 
