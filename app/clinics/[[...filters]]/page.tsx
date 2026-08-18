@@ -5,6 +5,7 @@ import { DocCyWordmark } from "@/components/brand/DocCyWordmark";
 import { ClinicLandingView } from "@/components/finder/ClinicLandingView";
 import { ClinicsFilters } from "@/components/finder/ClinicsFilters";
 import { FinderAudienceToggle } from "@/components/finder/FinderAudienceToggle";
+import { FinderHeroBookOnlineLine } from "@/components/finder/FinderHeroBookOnlineLine";
 import { FinderHeroSection } from "@/components/finder/FinderHeroSection";
 import { FinderRecentlyViewed } from "@/components/finder/FinderRecentlyViewed";
 import { RevealPhoneButton } from "@/components/finder/RevealPhoneButton";
@@ -16,7 +17,7 @@ import { MarketingFooter } from "@/components/navigation/MarketingFooter";
 import { PendingLink } from "@/components/navigation/PendingLink";
 import { clinicLandingPath } from "@/lib/clinic-landing-path";
 import { CLINICS_SEARCH_BASE, clinicsResultsPath } from "@/lib/clinics-public-path";
-import { buildClinicsResultsHeading } from "@/lib/finder-results-heading";
+import { buildClinicsResultsHeading, buildClinicsResultsSnippet } from "@/lib/finder-results-heading";
 import {
   FINDER_RESULTS_MAX_PAGE_FILTERED,
   FINDER_RESULTS_MAX_PAGE_UNFILTERED,
@@ -473,6 +474,10 @@ async function ClinicsSearchPage({ params, searchParams }: ClinicsPageProps) {
     districtLabel: placeLabel || null,
     nearYou: Boolean(userCoords),
   });
+  const clinicsSnippet = buildClinicsResultsSnippet({
+    districtLabel: placeLabel || null,
+    nearYou: Boolean(userCoords),
+  });
   const showClinicsHero = !hasActiveFilters;
 
   return (
@@ -488,22 +493,16 @@ async function ClinicsSearchPage({ params, searchParams }: ClinicsPageProps) {
           title={title}
           showHeroImage={showClinicsHero}
           heroImageSrc={FINDER_CLINICS_HERO_SRC}
-          subtitleClassName={
-            showClinicsHero
-              ? "mt-3 max-w-2xl text-lg leading-relaxed text-ink-600 sm:text-xl"
-              : "mt-3 max-w-2xl text-base leading-relaxed text-ink-600 sm:text-lg"
-          }
+          subtitleClassName="mt-3 max-w-2xl text-lg leading-relaxed text-ink-600 sm:text-xl"
           subtitle={
-            placeLabel ? (
-              <>Browse healthcare clinics in {placeLabel} and open a clinic to see professionals.</>
-            ) : (
-              <>
-                Search by clinic name or district, or find a clinic near you.{" "}
-                <span className="font-medium text-clinical-600">
-                  Looking for a specific professional? Switch to Professionals below.
-                </span>
-              </>
-            )
+            <>
+              <span className="block">
+                {clinicsSnippet ?? "Find a clinic anywhere on the island"}
+              </span>
+              <FinderHeroBookOnlineLine size={showClinicsHero ? "hero" : "compact"}>
+                and see who works there.
+              </FinderHeroBookOnlineLine>
+            </>
           }
         />
       </div>

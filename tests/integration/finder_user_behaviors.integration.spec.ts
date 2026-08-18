@@ -136,7 +136,7 @@ test.describe("Integration: finder user-like filter behavior matrix", { tag: ["@
 
       await page.goto("/");
       await expect(
-        page.getByRole("heading", { level: 1, name: /Find your next health professional in Cyprus/i })
+        page.getByRole("heading", { level: 1, name: /The most complete health directory in Cyprus|Cyprus['’]s most complete health directory|Find your next health professional/i })
       ).toBeVisible({ timeout: 60_000 });
 
       const districtSelect = page.getByLabel("District");
@@ -151,7 +151,7 @@ test.describe("Integration: finder user-like filter behavior matrix", { tag: ["@
       await expect(page).toHaveURL(/\/limassol(?:\?|$)/, { timeout: 60_000 });
       await expect(page.getByTestId("finder-active-filters")).toContainText("Limassol");
       await expect(
-        page.getByRole("heading", { level: 1, name: /Book an appointment in Limassol/i }),
+        page.getByRole("heading", { level: 1, name: /Health professionals in Limassol/i }),
       ).toBeVisible();
       await expect(page.getByText(created[0].name, { exact: true })).toBeVisible({ timeout: 60_000 });
       await expect(page.getByText(created[1].name, { exact: true })).toBeVisible({ timeout: 60_000 });
@@ -166,7 +166,7 @@ test.describe("Integration: finder user-like filter behavior matrix", { tag: ["@
       await showResults.click();
       await expect(page).toHaveURL(/\/limassol\/dentist(?:\?|$)/, { timeout: 60_000 });
       await expect(
-        page.getByRole("heading", { level: 1, name: /Book a Dentist appointment in Limassol/i }),
+        page.getByRole("heading", { level: 1, name: /Dentist in Limassol/i }),
       ).toBeVisible({
         timeout: 60_000,
       });
@@ -188,7 +188,7 @@ test.describe("Integration: finder user-like filter behavior matrix", { tag: ["@
       await expect(page).toHaveURL(/^https?:\/\/[^/?#]+\/?(?:\?.*)?$/, { timeout: 60_000 });
       await expect(page.getByTestId("finder-active-filters")).toHaveCount(0);
       await expect(
-        page.getByRole("heading", { level: 1, name: /Find your next health professional in Cyprus/i })
+        page.getByRole("heading", { level: 1, name: /The most complete health directory in Cyprus|Cyprus['’]s most complete health directory|Find your next health professional/i })
       ).toBeVisible({ timeout: 60_000 });
       await expect(page.getByText(created[0].name, { exact: true })).toBeVisible({ timeout: 60_000 });
       await expect(page.getByText(created[1].name, { exact: true })).toBeVisible({ timeout: 60_000 });
@@ -216,7 +216,7 @@ test.describe("Integration: finder user-like filter behavior matrix", { tag: ["@
 
     await page.goto("/");
     await expect(
-      page.getByRole("heading", { level: 1, name: /Find your next health professional in Cyprus/i }),
+      page.getByRole("heading", { level: 1, name: /The most complete health directory in Cyprus|Cyprus['’]s most complete health directory|Find your next health professional/i }),
     ).toBeVisible({ timeout: 20_000 });
 
     const specialtySelect = page.getByLabel("Specialty");

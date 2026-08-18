@@ -69,7 +69,7 @@ test.describe("Public shell health", { tag: ["@pr-preview", "@nightly-prod"] }, 
     await expect(
       page.getByRole("heading", {
         level: 1,
-        name: /Find your next health professional in Cyprus|Health Professionals in Cyprus|Find a Professional/i,
+        name: /The most complete health directory in Cyprus|Cyprus['’]s most complete health directory|Find your next health professional(?: in Cyprus)?|Health Professionals in Cyprus|Find a Professional/i,
       })
     ).toBeVisible({ timeout: 15000 });
     await expect(page.getByLabel("District")).toBeVisible();
