@@ -2,7 +2,11 @@ import { test, expect, type Page } from "@playwright/test";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import path from "node:path";
 import { postDoctorVerification } from "../integration/helpers/internal-api";
-import { gotoPublicAndReady } from "./helpers/assertNoCloudflareChallenge";
+import {
+  gotoPublicAndReady,
+  waitForCloudflareChallengeToClear,
+  assertNoCloudflareChallenge,
+} from "./helpers/assertNoCloudflareChallenge";
 
 const TEST_EMAIL_DOMAIN = "@test-doccy.com.cy";
 
@@ -223,6 +227,8 @@ test.describe("Prod smoke: doctor registration", { tag: "@nightly-prod" }, () =>
       try {
         await expect(successHeading).toBeVisible({ timeout: 60_000 });
       } catch {
+        await waitForCloudflareChallengeToClear(page, 8_000);
+        await assertNoCloudflareChallenge(page);
         const diagnostics = await collectRegisterDiagnostics(page);
         throw new Error(
           `Registration UI did not reach success state. ${diagnostics}`,

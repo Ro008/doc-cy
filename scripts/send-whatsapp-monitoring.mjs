@@ -4,38 +4,7 @@
  * Usage: node scripts/send-whatsapp-monitoring.mjs
  */
 import { sendWhatsAppWebhookMessage } from "../lib/whatsapp-webhook.mjs";
-
-function formatJobStatus(result, label) {
-  switch (result) {
-    case "success":
-      return `✅ ${label} OK`;
-    case "cancelled":
-      return `⚠️ ${label} CANCELLED`;
-    default:
-      return `❌ ${label} FAIL`;
-  }
-}
-
-function buildMessage() {
-  const prodResult = process.env.PROD_RESULT ?? "unknown";
-  const runId = process.env.RUN_ID ?? "local";
-  const notifyOnly = process.env.NOTIFY_ONLY === "true";
-  const extra = (process.env.EXTRA_MESSAGE ?? "").trim();
-
-  if (notifyOnly) {
-    let msg = `🧪 DocCy PROD manual WhatsApp test | run ${runId}`;
-    if (extra) msg += ` | ${extra}`;
-    return msg;
-  }
-
-  const prodBlockingOk = prodResult === "success";
-  const icon = prodBlockingOk ? "✅" : prodResult === "cancelled" ? "⚠️" : "❌";
-  const prodLine = formatJobStatus(prodResult, "Prod nightly");
-
-  let msg = `${icon} DocCy nightly | ${prodLine} | run ${runId}`;
-  if (extra) msg += ` | ${extra}`;
-  return msg;
-}
+import { buildNightlyWhatsAppMessage } from "../lib/whatsapp-monitoring-message.mjs";
 
 async function main() {
   const webhookUrl = (process.env.WHATSAPP_WEBHOOK_URL ?? "").trim();
@@ -44,7 +13,14 @@ async function main() {
     process.exit(1);
   }
 
-  const message = buildMessage();
+  const message = buildNightlyWhatsAppMessage({
+    notifyOnly: process.env.NOTIFY_ONLY === "true",
+    extra: (process.env.EXTRA_MESSAGE ?? "").trim(),
+    runId: process.env.RUN_ID ?? "local",
+    emailResult: process.env.EMAIL_RESULT ?? "unknown",
+    edgeResult: process.env.EDGE_RESULT ?? process.env.PROD_RESULT ?? "unknown",
+    originResult: process.env.ORIGIN_RESULT ?? "skipped",
+  });
   const runUrl = process.env.RUN_URL ?? "";
   let waHost = "";
   try {
@@ -61,8 +37,9 @@ async function main() {
   const summaryLines = [
     "## WhatsApp (notify-whatsapp)",
     runUrl ? `- **Run:** ${runUrl}` : null,
-    `- **Prod nightly:** ${process.env.PROD_RESULT ?? "?"}`,
-    `- **Doctor UI monitor:** ${process.env.PROD_DOCTOR_UI_MONITOR_OUTCOME ?? "?"}`,
+    `- **Email guards:** ${process.env.EMAIL_RESULT ?? "?"}`,
+    `- **Edge (mydoccy.com):** ${process.env.EDGE_RESULT ?? process.env.PROD_RESULT ?? "?"}`,
+    `- **Origin (Vercel):** ${process.env.ORIGIN_RESULT ?? "?"}`,
     `- **Webhook host:** \`${waHost}\``,
     result.ok
       ? `- **Delivery:** OK (${result.method})`

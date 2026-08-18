@@ -7,7 +7,7 @@ Goal: **one blocking suite on every PR** (integration) and **one small scheduled
 | Lane | Workflow | When | App target | Supabase |
 |------|----------|------|------------|----------|
 | **PR** | `.github/workflows/pr-integration.yml` | Every pull request | `build` + `start` on `127.0.0.1:3000` | `INTEGRATION_*` secrets |
-| **Nightly** | `.github/workflows/prod-critical-smoke.yml` | Cron + manual dispatch | `PLAYWRIGHT_BASE_URL_PROD` (mydoccy.com) | `PROD_*` secrets |
+| **Nightly** | `.github/workflows/prod-critical-smoke.yml` | Cron + manual dispatch | Edge: `PLAYWRIGHT_BASE_URL_PROD` (mydoccy.com). Origin: `PLAYWRIGHT_BASE_URL_VERCEL_PROD` (`*.vercel.app`) | `PROD_*` secrets |
 
 **Local** (`npm run test:e2e`, `test:prod:smoke:local`, etc.) is for development only — not a third CI lane.
 
@@ -74,12 +74,18 @@ Constants: `tests/helpers/ciTags.ts`. To tag new specs: `node scripts/apply-ci-p
 
 ## 2) Nightly blocking (production)
 
-**Job:** `prod-critical-smoke` in `prod-critical-smoke.yml`.
+**Jobs** in `prod-critical-smoke.yml`:
 
-**Blocking steps:**
+| Job | What it runs | Blocking? |
+|-----|----------------|-----------|
+| `prod-email-guards` | `--grep @pr-email` (prod Supabase env) | Yes |
+| `prod-smoke-edge` | `--grep @nightly-prod` against mydoccy.com (Cloudflare) | Yes if origin secret unset; diagnostic (`continue-on-error`) if origin secret is set |
+| `prod-smoke-origin` | Same `@nightly-prod` against `PLAYWRIGHT_BASE_URL_VERCEL_PROD` (`*.vercel.app`) | Yes, when the secret is set; skipped otherwise |
+| `prod-nightly-gate` | Interprets the three results | Yes (workflow red on email fail, origin fail, or edge fail with origin skipped) |
 
-1. `--grep @pr-email` (prod Supabase env)
-2. `--grep @nightly-prod` (site availability + guest booking + live registration + verify)
+Edge and origin share the same prod doctor slot, so origin **starts after** edge finishes. Do not run both live-write suites in parallel.
+
+Set `PLAYWRIGHT_BASE_URL_VERCEL_PROD` to the **production** `*.vercel.app` URL (not a preview). If Vercel Deployment Protection is on, also set `VERCEL_AUTOMATION_BYPASS_SECRET`.
 
 **Does not run on nightly (PR only):**
 
@@ -87,7 +93,7 @@ Constants: `tests/helpers/ciTags.ts`. To tag new specs: `node scripts/apply-ci-p
 
 ---
 
-**WhatsApp:** job `notify-whatsapp` — informational; delivery failure opens an issue but does not change test status.
+**WhatsApp:** job `notify-whatsapp` — informational; delivery failure opens an issue but does not change test status. Reports Email / Edge / Origin separately. Edge fail + origin OK → likely Cloudflare Bot Fight Mode.
 
 ---
 
@@ -147,9 +153,9 @@ Or workflow dispatch → *Send only WhatsApp notification*.
 When nightly fails:
 
 1. **Product regression** → fix code or prod smoke doctor config (`TEST_BOOKING_DOCTOR_SLUG`, schedule).
-2. **Env/secret** → verify `PROD_*`, `TEST_DOCTOR_*`, `PLAYWRIGHT_BASE_URL_PROD`.
+2. **Env/secret** → verify `PROD_*`, `TEST_DOCTOR_*`, `PLAYWRIGHT_BASE_URL_PROD`, and `PLAYWRIGHT_BASE_URL_VERCEL_PROD` if using the origin lane.
 3. **Login form failure on PR** → check hydration/login UI; integration `TEST_USER_*` secrets.
-4. **Cloudflare** → a real interstitial has title `Just a moment...`. Proxied pages also include `/cdn-cgi/challenge-platform` scripts; that alone is not a block. Bot Fight Mode cannot be skipped with WAF rules.
+4. **Cloudflare** → a real interstitial has title `Just a moment...`. Proxied pages also include `/cdn-cgi/challenge-platform` scripts; that alone is not a block. Bot Fight Mode cannot be skipped with WAF Skip rules. Nightly smokes wait briefly for the JS challenge to clear and must **not** send `x-doccy-suppress-traffic-log` on every request (only on `POST /api/traffic/log`). After merge, compare **edge vs origin**: edge fail + origin OK means pause Bot Fight Mode in the nightly window; origin fail means the app/origin, not only Cloudflare.
 
 When PR fails: integration env / test data — not prod calendar.
 

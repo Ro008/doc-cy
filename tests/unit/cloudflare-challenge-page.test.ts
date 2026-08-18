@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
 import { describe, it } from "node:test";
+import { fileURLToPath } from "node:url";
 
 import { isCloudflareChallengePage } from "../prod/helpers/cloudflareChallengePage";
 
@@ -42,5 +45,30 @@ describe("isCloudflareChallengePage", () => {
       ),
       false,
     );
+  });
+});
+
+describe("prod nightly Cloudflare harness", () => {
+  const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+
+  it("does not send the traffic-log suppress header on every mydoccy.com request", () => {
+    const src = fs.readFileSync(path.join(repoRoot, "playwright.config.ts"), "utf8");
+    assert.match(
+      src,
+      /trafficLogSuppressSecret && !isProductionSiteUrl\(baseUrl\)/,
+      "Global extraHTTPHeaders on production is a Bot Fight Mode signal.",
+    );
+  });
+
+  it("runs sequential edge then origin nightly jobs", () => {
+    const src = fs.readFileSync(
+      path.join(repoRoot, ".github/workflows/prod-critical-smoke.yml"),
+      "utf8",
+    );
+    assert.match(src, /prod-smoke-edge:/);
+    assert.match(src, /prod-smoke-origin:/);
+    assert.match(src, /needs: \[schedule-gate, smoke-targets, prod-smoke-edge\]/);
+    assert.match(src, /PLAYWRIGHT_BASE_URL_VERCEL_PROD/);
+    assert.doesNotMatch(src, /^\s+prod-critical-smoke:/m);
   });
 });

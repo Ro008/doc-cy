@@ -3,14 +3,14 @@
 Living document: update when workflows or specs change.
 
 - **PR lane:** `.github/workflows/pr-integration.yml` → `PR Playwright (core business)` gate (`PR Playwright · core` + `PR Playwright · finder`)
-- **Nightly lane:** `.github/workflows/prod-critical-smoke.yml` → `prod-critical-smoke` (production URL only; no integration E2E job)
+- **Nightly lane:** `.github/workflows/prod-critical-smoke.yml` → `prod-email-guards` + `prod-smoke-edge` (mydoccy.com) + optional `prod-smoke-origin` (`*.vercel.app`); no integration E2E job
 
 ## Legend
 
 | Status | Meaning |
 | --- | --- |
 | **Stable (PR)** | Run on every PR merge gate |
-| **Stable (nightly)** | Blocking in `Production Monitoring` (prod URL) |
+| **Stable (nightly)** | Blocking in `Production Monitoring` (prod URL; origin `*.vercel.app` when configured) |
 | **Nightly monitor** | Same workflow, non-blocking step |
 | **Local / optional** | Exists in repo; not in PR gate |
 | **Gap** | No automated coverage identified |
