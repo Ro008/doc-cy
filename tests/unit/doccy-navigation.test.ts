@@ -4,7 +4,7 @@ import { describe, it } from "node:test";
 import { hrefMatchesCurrentLocation, shouldStartLinkNavigationPending } from "@/lib/doccy-navigation";
 
 describe("hrefMatchesCurrentLocation", () => {
-  it("treats Show more to the same ?page= as already there", () => {
+  it("does not start pending when href is already the current location", () => {
     assert.equal(hrefMatchesCurrentLocation("/?page=3", "/", "page=3"), true);
     assert.equal(hrefMatchesCurrentLocation("/?page=3", "/", "page=2"), false);
     assert.equal(hrefMatchesCurrentLocation("/?page=3", "/", ""), false);

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useState, type ReactNode } from "react";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import { FinderResultsListSkeleton } from "@/components/finder/FinderResultsListSkeleton";
 import {
@@ -12,6 +12,13 @@ import {
   clearFinderLoadMoreScroll,
   restoreFinderLoadMoreScroll,
 } from "@/lib/finder-load-more-scroll";
+import { parseFinderResultsPage } from "@/lib/finder-results-paging";
+import {
+  clearFinderResultsPageCookie,
+  finderResultsListScope,
+  hrefWithoutPageQuery,
+  writeFinderResultsPageCookie,
+} from "@/lib/finder-results-page-state";
 import { shouldShowFinderResultsSkeleton } from "@/lib/public-search-navigation";
 
 type FinderResultsTransitionProps = {
@@ -24,6 +31,7 @@ type FinderResultsTransitionProps = {
  */
 export function FinderResultsTransition({ children }: FinderResultsTransitionProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const [showSkeleton, setShowSkeleton] = useState(false);
 
@@ -32,6 +40,7 @@ export function FinderResultsTransition({ children }: FinderResultsTransitionPro
       const detail = (event as CustomEvent<NavigationStartDetail>).detail;
       if (shouldShowFinderResultsSkeleton(detail)) {
         clearFinderLoadMoreScroll();
+        clearFinderResultsPageCookie();
         setShowSkeleton(true);
       }
     }
@@ -39,6 +48,26 @@ export function FinderResultsTransition({ children }: FinderResultsTransitionPro
     window.addEventListener(NAVIGATION_START_EVENT, onStart);
     return () => window.removeEventListener(NAVIGATION_START_EVENT, onStart);
   }, []);
+
+  useEffect(() => {
+    const next = hrefWithoutPageQuery(pathname, searchParams.toString());
+    if (!next) return;
+    const urlPage = searchParams.get("page");
+    if (urlPage) {
+      writeFinderResultsPageCookie(
+        parseFinderResultsPage(urlPage),
+        finderResultsListScope({
+          pathname,
+          name: searchParams.get("name") ?? undefined,
+          town: searchParams.get("town") ?? undefined,
+          lat: searchParams.get("lat"),
+          lon: searchParams.get("lon"),
+          acc: searchParams.get("acc"),
+        }),
+      );
+    }
+    router.replace(next, { scroll: false });
+  }, [pathname, router, searchParams]);
 
   useLayoutEffect(() => {
     restoreFinderLoadMoreScroll();

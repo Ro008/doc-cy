@@ -7,10 +7,10 @@ import { harmonizeFinderSpecialtyLabel } from "@/lib/finder-specialty-harmonize"
  */
 export const FINDER_RESULTS_PAGE_SIZE = 12;
 
-/** Max ?page= without district/specialty/name/near-me. Same as filtered: list queries already bound by visibleLimit. */
+/** Max Show more depth without district/specialty/name/near-me. Queries stay bounded by visibleLimit. */
 export const FINDER_RESULTS_MAX_PAGE_UNFILTERED = 20;
 
-/** Max ?page= when at least one list filter is active. */
+/** Max Show more depth when at least one list filter is active. */
 export const FINDER_RESULTS_MAX_PAGE_FILTERED = 20;
 
 /** Escape `%` / `_` / `\` for PostgREST `ilike` patterns. */
@@ -75,7 +75,7 @@ export function parseFinderResultsPage(
   return Math.min(Math.floor(n), finderResultsMaxPage(options?.hasListFilter));
 }
 
-/** True when more cards exist and the next ?page= would not be clamped. */
+/** True when more cards exist and the next Show more step would not be clamped. */
 export function hasMoreFinderResults(input: {
   totalCount: number;
   visibleCount: number;
@@ -88,6 +88,7 @@ export function hasMoreFinderResults(input: {
   );
 }
 
+/** Public search URL for the current filters. Show more depth is not a query param. */
 export function buildFinderResultsPageHref(params: {
   finderPath: string;
   name?: string;
@@ -95,7 +96,6 @@ export function buildFinderResultsPageHref(params: {
   lat?: string | null;
   lon?: string | null;
   acc?: string | null;
-  page: number;
 }): string {
   const qs = new URLSearchParams();
   const name = params.name?.trim();
@@ -105,7 +105,6 @@ export function buildFinderResultsPageHref(params: {
   if (params.lat) qs.set("lat", params.lat);
   if (params.lon) qs.set("lon", params.lon);
   if (params.acc) qs.set("acc", params.acc);
-  if (params.page > 1) qs.set("page", String(params.page));
   const query = qs.toString();
   return query ? `${params.finderPath}?${query}` : params.finderPath;
 }

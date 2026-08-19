@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
+import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 import { DocCyWordmark } from "@/components/brand/DocCyWordmark";
 import { ClinicLandingView } from "@/components/finder/ClinicLandingView";
@@ -8,6 +9,7 @@ import { FinderAudienceToggle } from "@/components/finder/FinderAudienceToggle";
 import { FinderHeroBookOnlineLine } from "@/components/finder/FinderHeroBookOnlineLine";
 import { FinderHeroSection } from "@/components/finder/FinderHeroSection";
 import { FinderRecentlyViewed } from "@/components/finder/FinderRecentlyViewed";
+import { FinderLoadMoreButton } from "@/components/finder/FinderLoadMoreButton";
 import { RevealPhoneButton } from "@/components/finder/RevealPhoneButton";
 import { FinderResultsTransition } from "@/components/finder/FinderResultsTransition";
 import FinderSearchRouteLoading from "@/components/finder/FinderSearchRouteLoading";
@@ -20,12 +22,15 @@ import { CLINICS_SEARCH_BASE, clinicsResultsPath } from "@/lib/clinics-public-pa
 import { buildClinicsResultsHeading, buildClinicsResultsSnippet } from "@/lib/finder-results-heading";
 import {
   FINDER_RESULTS_PAGE_SIZE,
-  buildFinderResultsPageHref,
   escapeIlikePattern,
   finderResultsMaxPage,
   hasMoreFinderResults,
-  parseFinderResultsPage,
 } from "@/lib/finder-results-paging";
+import {
+  FINDER_RESULTS_PAGE_COOKIE,
+  finderResultsListScope,
+  resolveFinderResultsPage,
+} from "@/lib/finder-results-page-state";
 import { CYPRUS_DISTRICTS, type CyprusDistrict, isCyprusDistrict } from "@/lib/cyprus-districts";
 import {
   reconcileFinderTownAndDistrict,
@@ -228,7 +233,20 @@ async function ClinicsSearchPage({ params, searchParams }: ClinicsPageProps) {
   const districts = CYPRUS_DISTRICTS;
   const hasActiveFilters = Boolean(activeDistrict || activeName || activeTown || userCoords);
   const hasListFilter = hasActiveFilters;
-  const resultsPage = parseFinderResultsPage(searchParams?.page, { hasListFilter });
+  const listScope = finderResultsListScope({
+    pathname: clinicsResultsPath(activeDistrict || null),
+    name: activeName || undefined,
+    town: activeTown ? townToSlug(activeTown) : undefined,
+    lat: searchParams?.lat ?? null,
+    lon: searchParams?.lon ?? null,
+    acc: searchParams?.acc ?? null,
+  });
+  const resultsPage = resolveFinderResultsPage({
+    cookieRaw: cookies().get(FINDER_RESULTS_PAGE_COOKIE)?.value,
+    scope: listScope,
+    urlPage: searchParams?.page,
+    hasListFilter,
+  });
   const maxResultsPage = finderResultsMaxPage(hasListFilter);
   const districtLabel = activeDistrict ? toTitleCaseWords(activeDistrict) : "";
   const placeLabel = activeTown || districtLabel;
@@ -462,16 +480,6 @@ async function ClinicsSearchPage({ params, searchParams }: ClinicsPageProps) {
     }
   }
 
-  const loadMoreHref = buildFinderResultsPageHref({
-    finderPath: clinicsResultsPath(activeDistrict || null),
-    name: activeName || undefined,
-    town: activeTown ? townToSlug(activeTown) : undefined,
-    lat: searchParams?.lat ?? null,
-    lon: searchParams?.lon ?? null,
-    acc: searchParams?.acc ?? null,
-    page: resultsPage + 1,
-  });
-
   const title = buildClinicsResultsHeading({
     districtLabel: placeLabel || null,
     nearYou: Boolean(userCoords),
@@ -694,14 +702,13 @@ async function ClinicsSearchPage({ params, searchParams }: ClinicsPageProps) {
                 })}
                 {hasMoreResults ? (
                   <div className="flex justify-center pt-2">
-                    <PendingLink
-                      href={loadMoreHref}
-                      scroll={false}
-                      navigationReason="finder-load-more"
+                    <FinderLoadMoreButton
+                      nextPage={resultsPage + 1}
+                      scope={listScope}
                       className={finderSoftButtonClass}
                     >
                       Show more clinics
-                    </PendingLink>
+                    </FinderLoadMoreButton>
                   </div>
                 ) : null}
               </div>

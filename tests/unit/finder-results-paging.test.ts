@@ -38,30 +38,26 @@ describe("finder results paging helpers", () => {
       buildFinderResultsPageHref({
         finderPath: "/limassol/dentistry",
         name: "Maria",
-        page: 2,
       }),
-      "/limassol/dentistry?name=Maria&page=2",
+      "/limassol/dentistry?name=Maria",
     );
     assert.equal(
       buildFinderResultsPageHref({
         finderPath: "/paphos",
         town: "tala",
-        page: 2,
       }),
-      "/paphos?town=tala&page=2",
+      "/paphos?town=tala",
     );
     assert.equal(
       buildFinderResultsPageHref({
         finderPath: "/clinics/paphos",
         town: "geroskipou",
-        page: 2,
       }),
-      "/clinics/paphos?town=geroskipou&page=2",
+      "/clinics/paphos?town=geroskipou",
     );
     assert.equal(
       buildFinderResultsPageHref({
         finderPath: "/",
-        page: 1,
       }),
       "/",
     );

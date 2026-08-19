@@ -3,87 +3,99 @@ import fs from "node:fs";
 import path from "node:path";
 import { describe, it } from "node:test";
 
-import { shouldStartLinkNavigationPending } from "@/lib/doccy-navigation";
 import {
-  buildFinderResultsPageHref,
   FINDER_RESULTS_PAGE_SIZE,
   hasMoreFinderResults,
   parseFinderResultsPage,
 } from "@/lib/finder-results-paging";
+import {
+  finderResultsListScope,
+  hrefWithoutPageQuery,
+  parseFinderResultsPageCookie,
+  resolveFinderResultsPage,
+  serializeFinderResultsPageCookie,
+} from "@/lib/finder-results-page-state";
 
-/**
- * Reproduce the unfiltered homepage Show more hang:
- * URL is /?page=3, no district/specialty/name/near-me, many more professionals exist.
- */
-function unfilteredHomepagePaging(requestedPage: string, totalProfessionals: number) {
-  const hasListFilter = false;
-  const resultsPage = parseFinderResultsPage(requestedPage, { hasListFilter });
-  const visibleCount = resultsPage * FINDER_RESULTS_PAGE_SIZE;
-  const currentHref = buildFinderResultsPageHref({
-    finderPath: "/",
-    page: Number(requestedPage),
-  });
-  const loadMoreHref = buildFinderResultsPageHref({
-    finderPath: "/",
-    page: resultsPage + 1,
-  });
-  const currentSearch = new URL(currentHref, "https://doccy.invalid").searchParams.toString();
-  return {
-    resultsPage,
-    visibleCount,
-    currentHref,
-    loadMoreHref,
-    showMore: hasMoreFinderResults({
-      totalCount: totalProfessionals,
-      visibleCount,
+describe("unfiltered homepage Show more without ?page= in the URL", () => {
+  it("still loads 36 professionals on depth 3 (cookie), not clamped to page 2", () => {
+    const scope = finderResultsListScope({ pathname: "/" });
+    const resultsPage = resolveFinderResultsPage({
+      cookieRaw: serializeFinderResultsPageCookie({ page: 3, scope }),
+      scope,
+      hasListFilter: false,
+    });
+    assert.equal(resultsPage, 3);
+    assert.equal(resultsPage * FINDER_RESULTS_PAGE_SIZE, 36);
+    assert.equal(hasMoreFinderResults({
+      totalCount: 500,
+      visibleCount: 36,
       resultsPage,
-      hasListFilter,
-    }),
-    loadMoreStartsPending: shouldStartLinkNavigationPending(loadMoreHref, "/", currentSearch),
-    sameUrlClickStartsPending: shouldStartLinkNavigationPending(currentHref, "/", currentSearch),
-  };
-}
-
-describe("unfiltered homepage Show more on page 3", () => {
-  it("loads 36 professionals instead of clamping ?page=3 back to page 2", () => {
-    const state = unfilteredHomepagePaging("3", 500);
-    assert.equal(state.resultsPage, 3);
-    assert.equal(state.visibleCount, 36);
-    assert.equal(state.currentHref, "/?page=3");
+      hasListFilter: false,
+    }), true);
   });
 
-  it("keeps Show more pointing at page 4 so the click is a real navigation", () => {
-    const state = unfilteredHomepagePaging("3", 500);
-    assert.equal(state.showMore, true);
-    assert.equal(state.loadMoreHref, "/?page=4");
-    assert.equal(state.loadMoreStartsPending, true);
-    assert.notEqual(state.loadMoreHref, state.currentHref);
+  it("ignores a leftover ?page=3 once a cookie for this list exists", () => {
+    const scope = finderResultsListScope({ pathname: "/" });
+    assert.equal(
+      resolveFinderResultsPage({
+        cookieRaw: serializeFinderResultsPageCookie({ page: 4, scope }),
+        scope,
+        urlPage: "3",
+        hasListFilter: false,
+      }),
+      4,
+    );
   });
 
-  it("does not start a PendingLink spinner when Show more href is already the current URL", () => {
-    // Old cap: parse(3) → 2, loadMoreHref stayed /?page=3, Next.js did not navigate,
-    // searchParams never changed, spinner never cleared.
-    const state = unfilteredHomepagePaging("3", 500);
-    assert.equal(state.sameUrlClickStartsPending, false);
-    assert.equal(shouldStartLinkNavigationPending("/?page=3", "/", "page=3"), false);
+  it("does not reuse Show more depth when filters/path change", () => {
+    const homeScope = finderResultsListScope({ pathname: "/" });
+    const limassolScope = finderResultsListScope({ pathname: "/limassol/dentistry" });
+    assert.equal(
+      resolveFinderResultsPage({
+        cookieRaw: serializeFinderResultsPageCookie({ page: 5, scope: homeScope }),
+        scope: limassolScope,
+        hasListFilter: true,
+      }),
+      1,
+    );
+    assert.equal(parseFinderResultsPageCookie(
+      serializeFinderResultsPageCookie({ page: 5, scope: homeScope }),
+      limassolScope,
+    ), null);
   });
 
-  it("still offers Show more on unfiltered page 2 so patients can reach page 3", () => {
-    const state = unfilteredHomepagePaging("2", 500);
-    assert.equal(state.showMore, true);
-    assert.equal(state.loadMoreHref, "/?page=3");
-    assert.equal(state.loadMoreStartsPending, true);
+  it("strips ?page= from public search URLs and keeps other filters", () => {
+    assert.equal(hrefWithoutPageQuery("/", "page=3"), "/");
+    assert.equal(hrefWithoutPageQuery("/", "name=Maria&page=2"), "/?name=Maria");
+    assert.equal(hrefWithoutPageQuery("/limassol/dentistry", "page=4"), "/limassol/dentistry");
+    assert.equal(hrefWithoutPageQuery("/clinics/paphos", "town=geroskipou"), null);
   });
 
-  it("finder and clinics wire Show more through hasMoreFinderResults", () => {
+  it("finder and clinics Show more use a refresh button, not ?page= links", () => {
     const repoRoot = process.cwd();
     for (const relative of [
       path.join("app", "finder", "[[...filters]]", "page.tsx"),
       path.join("app", "clinics", "[[...filters]]", "page.tsx"),
     ]) {
       const source = fs.readFileSync(path.join(repoRoot, relative), "utf8");
+      assert.match(source, /FinderLoadMoreButton/);
       assert.match(source, /hasMoreFinderResults\(/);
-      assert.match(source, /hasListFilter/);
+      assert.match(source, /resolveFinderResultsPage\(/);
+      assert.doesNotMatch(source, /navigationReason="finder-load-more"/);
+      assert.doesNotMatch(source, /\bpage=\{resultsPage \+ 1\}/);
     }
+  });
+
+  it("unfiltered page 2 still offers Show more so patients can reach depth 3", () => {
+    assert.equal(parseFinderResultsPage("3"), 3);
+    assert.equal(
+      hasMoreFinderResults({
+        totalCount: 500,
+        visibleCount: 24,
+        resultsPage: 2,
+        hasListFilter: false,
+      }),
+      true,
+    );
   });
 });

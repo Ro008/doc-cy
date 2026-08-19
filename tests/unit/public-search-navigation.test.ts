@@ -50,7 +50,7 @@ describe("public search navigation", () => {
     assert.equal(
       shouldShowFinderResultsSkeleton({
         reason: "finder-load-more",
-        linkKey: "/larnaca/dentistry?page=2",
+        linkKey: "/larnaca/dentistry",
       }),
       false,
     );
@@ -71,8 +71,7 @@ describe("public search navigation", () => {
       "utf8",
     );
     for (const source of [finder, clinics]) {
-      assert.match(source, /scroll=\{false\}/);
-      assert.match(source, /navigationReason="finder-load-more"/);
+      assert.match(source, /FinderLoadMoreButton/);
       assert.match(source, /hasMoreFinderResults\(/);
     }
   });
