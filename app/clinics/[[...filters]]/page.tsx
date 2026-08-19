@@ -19,11 +19,11 @@ import { clinicLandingPath } from "@/lib/clinic-landing-path";
 import { CLINICS_SEARCH_BASE, clinicsResultsPath } from "@/lib/clinics-public-path";
 import { buildClinicsResultsHeading, buildClinicsResultsSnippet } from "@/lib/finder-results-heading";
 import {
-  FINDER_RESULTS_MAX_PAGE_FILTERED,
-  FINDER_RESULTS_MAX_PAGE_UNFILTERED,
   FINDER_RESULTS_PAGE_SIZE,
   buildFinderResultsPageHref,
   escapeIlikePattern,
+  finderResultsMaxPage,
+  hasMoreFinderResults,
   parseFinderResultsPage,
 } from "@/lib/finder-results-paging";
 import { CYPRUS_DISTRICTS, type CyprusDistrict, isCyprusDistrict } from "@/lib/cyprus-districts";
@@ -229,9 +229,7 @@ async function ClinicsSearchPage({ params, searchParams }: ClinicsPageProps) {
   const hasActiveFilters = Boolean(activeDistrict || activeName || activeTown || userCoords);
   const hasListFilter = hasActiveFilters;
   const resultsPage = parseFinderResultsPage(searchParams?.page, { hasListFilter });
-  const maxResultsPage = hasListFilter
-    ? FINDER_RESULTS_MAX_PAGE_FILTERED
-    : FINDER_RESULTS_MAX_PAGE_UNFILTERED;
+  const maxResultsPage = finderResultsMaxPage(hasListFilter);
   const districtLabel = activeDistrict ? toTitleCaseWords(activeDistrict) : "";
   const placeLabel = activeTown || districtLabel;
   const townHint =
@@ -372,8 +370,12 @@ async function ClinicsSearchPage({ params, searchParams }: ClinicsPageProps) {
   }
 
   const visibleClinics = clinics.slice(0, visibleLimit);
-  const hasMoreResults =
-    matchingClinicCount > visibleClinics.length && resultsPage < maxResultsPage;
+  const hasMoreResults = hasMoreFinderResults({
+    totalCount: matchingClinicCount,
+    visibleCount: visibleClinics.length,
+    resultsPage,
+    hasListFilter,
+  });
 
   if (supabase && visibleClinics.length > 0) {
     const visibleClinicIds = visibleClinics.map((clinic) => clinic.id);

@@ -7,8 +7,8 @@ import { harmonizeFinderSpecialtyLabel } from "@/lib/finder-specialty-harmonize"
  */
 export const FINDER_RESULTS_PAGE_SIZE = 12;
 
-/** Max ?page= when browsing without district/specialty/name/near-me. */
-export const FINDER_RESULTS_MAX_PAGE_UNFILTERED = 2;
+/** Max ?page= without district/specialty/name/near-me. Same as filtered: list queries already bound by visibleLimit. */
+export const FINDER_RESULTS_MAX_PAGE_UNFILTERED = 20;
 
 /** Max ?page= when at least one list filter is active. */
 export const FINDER_RESULTS_MAX_PAGE_FILTERED = 20;
@@ -59,6 +59,12 @@ export function finderSpecialtyDbMatchValues(activeSpecialty: string): string[] 
   return Array.from(new Set([trimmed, canon, ...variants].map((v) => v.trim()).filter(Boolean)));
 }
 
+export function finderResultsMaxPage(hasListFilter?: boolean): number {
+  return hasListFilter
+    ? FINDER_RESULTS_MAX_PAGE_FILTERED
+    : FINDER_RESULTS_MAX_PAGE_UNFILTERED;
+}
+
 export function parseFinderResultsPage(
   raw: string | string[] | undefined,
   options?: { hasListFilter?: boolean },
@@ -66,10 +72,20 @@ export function parseFinderResultsPage(
   const value = Array.isArray(raw) ? raw[0] : raw;
   const n = Number(String(value ?? "1").trim());
   if (!Number.isFinite(n) || n < 1) return 1;
-  const maxPage = options?.hasListFilter
-    ? FINDER_RESULTS_MAX_PAGE_FILTERED
-    : FINDER_RESULTS_MAX_PAGE_UNFILTERED;
-  return Math.min(Math.floor(n), maxPage);
+  return Math.min(Math.floor(n), finderResultsMaxPage(options?.hasListFilter));
+}
+
+/** True when more cards exist and the next ?page= would not be clamped. */
+export function hasMoreFinderResults(input: {
+  totalCount: number;
+  visibleCount: number;
+  resultsPage: number;
+  hasListFilter?: boolean;
+}): boolean {
+  return (
+    input.totalCount > input.visibleCount &&
+    input.resultsPage < finderResultsMaxPage(input.hasListFilter)
+  );
 }
 
 export function buildFinderResultsPageHref(params: {

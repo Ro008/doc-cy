@@ -88,6 +88,7 @@ import { buildFinderResultsHeading, buildFinderResultsSnippet } from "@/lib/find
 import {
   buildFinderResultsPageHref,
   FINDER_RESULTS_PAGE_SIZE,
+  hasMoreFinderResults,
   parseFinderResultsPage,
   pinRegisteredTestProfilesFirst,
 } from "@/lib/finder-results-paging";
@@ -853,7 +854,12 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
   const visibleResults = unifiedResults.slice(0, visibleLimit);
   const totalResultsCount =
     (manualDirectoryTotalCount ?? filteredManual.length) + filteredRegistered.length;
-  const hasMoreResults = totalResultsCount > visibleResults.length;
+  const hasMoreResults = hasMoreFinderResults({
+    totalCount: totalResultsCount,
+    visibleCount: visibleResults.length,
+    resultsPage,
+    hasListFilter,
+  });
   const visibleRegistered = visibleResults.filter(
     (item): item is Extract<UnifiedFinderResult, { kind: "registered" }> => item.kind === "registered",
   );

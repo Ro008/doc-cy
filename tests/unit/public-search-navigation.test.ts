@@ -73,6 +73,7 @@ describe("public search navigation", () => {
     for (const source of [finder, clinics]) {
       assert.match(source, /scroll=\{false\}/);
       assert.match(source, /navigationReason="finder-load-more"/);
+      assert.match(source, /hasMoreFinderResults\(/);
     }
   });
 });
