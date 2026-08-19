@@ -320,27 +320,27 @@ export async function generateMetadata({ params }: FinderPageProps): Promise<Met
   const districtLabel = cleanDistrict ? toTitleCaseWords(cleanDistrict) : "";
   const specialtyLabel = cleanSpecialty ? toTitleCaseWords(cleanSpecialty) : "";
 
-  const genericTitle = "Find the Best Healthcare Professionals in Cyprus | Book Online - DocCy";
+  const genericTitle = "The most complete health directory in Cyprus | Book Online - DocCy";
   const genericDescription =
     "The most complete health directory in Cyprus. Find any specialist, anywhere on the island, and book online.";
 
   if (districtLabel && specialtyLabel) {
     return {
-      title: `Best ${specialtyLabel} in ${districtLabel}, Cyprus | Book Online - DocCy`,
+      title: `${specialtyLabel} in ${districtLabel}, Cyprus | Book Online - DocCy`,
       description: `Find ${specialtyLabel} in ${districtLabel}, Cyprus. Compare profiles and book online.`,
     };
   }
 
   if (districtLabel) {
     return {
-      title: `Best Healthcare Professionals in ${districtLabel}, Cyprus | Book Online - DocCy`,
+      title: `Health professionals in ${districtLabel}, Cyprus | Book Online - DocCy`,
       description: `Find health professionals in ${districtLabel}, Cyprus. View specialties, locations, and book online.`,
     };
   }
 
   if (specialtyLabel) {
     return {
-      title: `Best ${specialtyLabel} in Cyprus | Book Online - DocCy`,
+      title: `${specialtyLabel} in Cyprus | Book Online - DocCy`,
       description: `Find ${specialtyLabel} across Cyprus. View locations and book online.`,
     };
   }
