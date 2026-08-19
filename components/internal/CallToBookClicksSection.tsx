@@ -54,11 +54,11 @@ export function CallToBookClicksSection({
     <section className="rounded-2xl border border-clinical-500/25 bg-clinical-500/5 p-4 sm:p-5">
       <div className="flex flex-col gap-4 border-b border-clinical-500/20 pb-4 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
         <div className="min-w-0">
-          <h2 className="text-sm font-semibold text-clinical-100">Call to Book clicks</h2>
+          <h2 className="text-sm font-semibold text-clinical-100">Show phone number clicks</h2>
           <p className="mt-1 max-w-3xl text-xs leading-relaxed text-clinical-100/80">
             Each row in{" "}
             <code className="rounded bg-black/30 px-1">directory_manual_call_to_book_clicks</code> is
-            a patient tap on Call to Book (phone revealed for that location). Finder cards and
+            a patient tap on Show phone number (phone revealed for that location). Finder cards and
             professional profile pages are counted separately.
           </p>
         </div>
@@ -152,8 +152,8 @@ export function CallToBookClicksSection({
         </div>
       ) : (
         <p className="mt-6 text-xs text-slate-400">
-          No Call to Book clicks in {rangeLabel.toLowerCase()} yet. They appear here after patients
-          tap the button on finder cards or professional profile pages.
+          No Show phone number clicks in {rangeLabel.toLowerCase()} yet. They appear here after
+          patients tap the button on finder cards or professional profile pages.
         </p>
       )}
     </section>

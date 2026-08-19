@@ -154,14 +154,16 @@ describe("Google Ads wiring", () => {
     assert.equal(tagSource.includes("gtag_report_conversion"), false);
   });
 
-  it("fires Call to Book on the revealed tel: link, not Show phone", () => {
+  it("fires Call to Book on the first reveal click, not the later tel: link", () => {
     const source = fs.readFileSync(
       path.join(repoRoot, "components/finder/RevealPhoneButton.tsx"),
       "utf8",
     );
     assert.equal(source.includes("reportGoogleAdsConversion"), true);
     assert.equal(source.includes("googleAdsCallToBookSendTo"), true);
-    assert.equal(source.includes('variant === "call-to-book" ? handleCallToBookClick'), true);
+    assert.equal(source.includes('if (variant === "call-to-book")'), true);
+    assert.equal(source.includes("handleCallToBookClick"), false);
+    assert.equal(source.includes("reportGoogleAdsConversion(googleAdsCallToBookSendTo(), telHref)"), false);
   });
 
   it("fires Request Online Booking after a new vote on finder and professional profile", () => {

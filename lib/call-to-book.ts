@@ -2,7 +2,7 @@ export const CALL_TO_BOOK_SOURCES = ["finder_card", "professional_profile_page"]
 
 export type CallToBookSource = (typeof CALL_TO_BOOK_SOURCES)[number];
 
-export const CALL_TO_BOOK_BUTTON_LABEL = "Call to Book";
+export const CALL_TO_BOOK_BUTTON_LABEL = "Show phone number";
 
 /** Older source labels for `/finder/professional/{slug}`. */
 const LEGACY_PROFESSIONAL_PROFILE_SOURCES = new Set(["professional_landing", "profile_page"]);

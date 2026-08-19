@@ -74,7 +74,8 @@ export default function PrivacyPage() {
             <h2 className="text-base font-semibold text-ink-900">5. Google Ads</h2>
             <p>
               If you accept ads cookies, we load Google&apos;s tag so we can measure whether our
-              Google Ads campaigns lead to actions such as Call to Book or Request Online Booking.
+              Google Ads campaigns lead to actions such as showing a phone number or requesting
+              online booking.
               Google may set cookies and process data as described in{" "}
               <a
                 href="https://policies.google.com/privacy"
