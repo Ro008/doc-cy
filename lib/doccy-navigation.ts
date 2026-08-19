@@ -62,6 +62,35 @@ export function clearNavigationPending() {
   setPendingLinkKey(null);
 }
 
+/** Compare a Next.js <Link> href to the current App Router location. */
+export function hrefMatchesCurrentLocation(
+  href: string,
+  pathname: string,
+  search: string | { toString(): string },
+): boolean {
+  try {
+    const target = new URL(href, "https://doccy.invalid");
+    if (target.pathname !== pathname) return false;
+    const currentSearch =
+      typeof search === "string" ? search.replace(/^\?/, "") : search.toString();
+    return target.searchParams.toString() === currentSearch;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Same-URL <Link> clicks do not change searchParams, so pending would never clear.
+ * Skip the spinner in that case (unfiltered Show more used to hang on /?page=3).
+ */
+export function shouldStartLinkNavigationPending(
+  href: string,
+  pathname: string,
+  search: string | { toString(): string },
+): boolean {
+  return !hrefMatchesCurrentLocation(href, pathname, search);
+}
+
 export function emitNavigationStart(
   linkKey?: string,
   reason: NavigationStartReason = "default",

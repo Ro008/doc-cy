@@ -5,6 +5,8 @@ import { useCallback, useEffect, useState } from "react";
 import {
   clearNavigationPending,
   emitNavigationStart,
+  hrefMatchesCurrentLocation,
+  shouldStartLinkNavigationPending,
   subscribeNavigationPending,
   type NavigationStartReason,
 } from "@/lib/doccy-navigation";
@@ -24,11 +26,19 @@ export function useLinkNavigationPending(
     clearNavigationPending();
   }, [pathname, searchParams]);
 
+  useEffect(() => {
+    if (activeKey !== linkKey) return;
+    if (hrefMatchesCurrentLocation(linkKey, pathname, searchParams)) {
+      clearNavigationPending();
+    }
+  }, [activeKey, linkKey, pathname, searchParams]);
+
   const pending = activeKey === linkKey;
 
   const beginNavigation = useCallback(() => {
+    if (!shouldStartLinkNavigationPending(linkKey, pathname, searchParams)) return;
     emitNavigationStart(linkKey, navigationReason);
-  }, [linkKey, navigationReason]);
+  }, [linkKey, navigationReason, pathname, searchParams]);
 
   return { pending, beginNavigation };
 }

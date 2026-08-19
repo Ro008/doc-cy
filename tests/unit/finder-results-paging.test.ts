@@ -5,6 +5,7 @@ import {
   escapeIlikePattern,
   FINDER_RESULTS_PAGE_SIZE,
   finderSpecialtyDbMatchValues,
+  hasMoreFinderResults,
   parseFinderResultsPage,
   pinRegisteredTestProfilesFirst,
 } from "@/lib/finder-results-paging";
@@ -28,38 +29,35 @@ describe("finder results paging helpers", () => {
   });
 
   it("parses page and builds href", () => {
-    assert.equal(parseFinderResultsPage("3"), 2); // unfiltered cap
+    assert.equal(parseFinderResultsPage("3"), 3);
     assert.equal(parseFinderResultsPage("3", { hasListFilter: true }), 3);
     assert.equal(parseFinderResultsPage("99", { hasListFilter: true }), 20);
+    assert.equal(parseFinderResultsPage("99"), 20);
     assert.equal(parseFinderResultsPage("0"), 1);
     assert.equal(
       buildFinderResultsPageHref({
         finderPath: "/limassol/dentistry",
         name: "Maria",
-        page: 2,
       }),
-      "/limassol/dentistry?name=Maria&page=2",
+      "/limassol/dentistry?name=Maria",
     );
     assert.equal(
       buildFinderResultsPageHref({
         finderPath: "/paphos",
         town: "tala",
-        page: 2,
       }),
-      "/paphos?town=tala&page=2",
+      "/paphos?town=tala",
     );
     assert.equal(
       buildFinderResultsPageHref({
         finderPath: "/clinics/paphos",
         town: "geroskipou",
-        page: 2,
       }),
-      "/clinics/paphos?town=geroskipou&page=2",
+      "/clinics/paphos?town=geroskipou",
     );
     assert.equal(
       buildFinderResultsPageHref({
         finderPath: "/",
-        page: 1,
       }),
       "/",
     );
@@ -76,5 +74,32 @@ describe("finder results paging helpers", () => {
     pinRegisteredTestProfilesFirst(rows, true);
     assert.equal(rows[0]?.kind, "registered");
     assert.equal((rows[0]?.row as { isTestProfile?: boolean }).isTestProfile, true);
+  });
+
+  it("hides Show more when the next page would be clamped", () => {
+    assert.equal(
+      hasMoreFinderResults({
+        totalCount: 500,
+        visibleCount: 24,
+        resultsPage: 2,
+      }),
+      true,
+    );
+    assert.equal(
+      hasMoreFinderResults({
+        totalCount: 500,
+        visibleCount: 240,
+        resultsPage: 20,
+      }),
+      false,
+    );
+    assert.equal(
+      hasMoreFinderResults({
+        totalCount: 12,
+        visibleCount: 12,
+        resultsPage: 1,
+      }),
+      false,
+    );
   });
 });

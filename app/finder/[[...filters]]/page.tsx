@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
+import { cookies } from "next/headers";
 import { Instagram } from "lucide-react";
 import { DocCyWordmark } from "@/components/brand/DocCyWordmark";
 import { PendingLink } from "@/components/navigation/PendingLink";
@@ -25,6 +26,7 @@ import { FinderStructuredData } from "@/components/finder/FinderStructuredData";
 import { FinderFaqSection } from "@/components/finder/FinderFaqSection";
 import { GesyProviderBadge } from "@/components/brand/GesyProviderBadge";
 import { FinderClinicLocationBlock } from "@/components/finder/FinderClinicLocationBlock";
+import { FinderLoadMoreButton } from "@/components/finder/FinderLoadMoreButton";
 import { FinderSpecialtyPills } from "@/components/finder/FinderSpecialtyPills";
 import {
   ManualDirectoryDoctorClaimFooter,
@@ -86,11 +88,15 @@ import { finderCardImagePriority } from "@/lib/finder-card-image-priority";
 import { finderResultsPath, FOR_PROFESSIONALS_PATH } from "@/lib/finder-public-path";
 import { buildFinderResultsHeading, buildFinderResultsSnippet } from "@/lib/finder-results-heading";
 import {
-  buildFinderResultsPageHref,
   FINDER_RESULTS_PAGE_SIZE,
-  parseFinderResultsPage,
+  hasMoreFinderResults,
   pinRegisteredTestProfilesFirst,
 } from "@/lib/finder-results-paging";
+import {
+  FINDER_RESULTS_PAGE_COOKIE,
+  finderResultsListScope,
+  resolveFinderResultsPage,
+} from "@/lib/finder-results-page-state";
 import {
   applyFinderListFilters,
   countManualDirectoryForFinder,
@@ -376,7 +382,24 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
   const hasListFilter = Boolean(
     activeDistrict || activeSpecialty || activeName || activeTown || userCoords,
   );
-  const resultsPage = parseFinderResultsPage(searchParams?.page, { hasListFilter });
+  const finderPath = finderResultsPath(
+    activeDistrict || null,
+    activeSpecialty || null,
+  );
+  const listScope = finderResultsListScope({
+    pathname: finderPath,
+    name: activeName || undefined,
+    town: activeTown ? townToSlug(activeTown) : undefined,
+    lat: searchParams?.lat ?? null,
+    lon: searchParams?.lon ?? null,
+    acc: searchParams?.acc ?? null,
+  });
+  const resultsPage = resolveFinderResultsPage({
+    cookieRaw: cookies().get(FINDER_RESULTS_PAGE_COOKIE)?.value,
+    scope: listScope,
+    urlPage: searchParams?.page,
+    hasListFilter,
+  });
   const visibleLimit = resultsPage * FINDER_RESULTS_PAGE_SIZE;
   /** Near-me needs the full matching set to sort by distance; otherwise page the query. */
   const unboundedManualFetch = Boolean(userCoords);
@@ -853,7 +876,12 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
   const visibleResults = unifiedResults.slice(0, visibleLimit);
   const totalResultsCount =
     (manualDirectoryTotalCount ?? filteredManual.length) + filteredRegistered.length;
-  const hasMoreResults = totalResultsCount > visibleResults.length;
+  const hasMoreResults = hasMoreFinderResults({
+    totalCount: totalResultsCount,
+    visibleCount: visibleResults.length,
+    resultsPage,
+    hasListFilter,
+  });
   const visibleRegistered = visibleResults.filter(
     (item): item is Extract<UnifiedFinderResult, { kind: "registered" }> => item.kind === "registered",
   );
@@ -1064,19 +1092,6 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
     specialtyLabel: activeSpecialty ? specialtyLabel : null,
     districtLabel: placeLabel,
     nearYou: Boolean(userCoords),
-  });
-  const finderPath = finderResultsPath(
-    activeDistrict || null,
-    activeSpecialty || null,
-  );
-  const loadMoreHref = buildFinderResultsPageHref({
-    finderPath,
-    name: activeName || undefined,
-    town: activeTown ? townToSlug(activeTown) : undefined,
-    lat: searchParams?.lat ?? null,
-    lon: searchParams?.lon ?? null,
-    acc: searchParams?.acc ?? null,
-    page: resultsPage + 1,
   });
   const schemaEntries = visibleResults.map((item) => {
     if (item.kind === "registered") {
@@ -1443,14 +1458,13 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
               ) : null}
               {hasMoreResults ? (
                 <div className="flex justify-center pt-2">
-                  <PendingLink
-                    href={loadMoreHref}
-                    scroll={false}
-                    navigationReason="finder-load-more"
+                  <FinderLoadMoreButton
+                    nextPage={resultsPage + 1}
+                    scope={listScope}
                     className={finderSoftButtonClass}
                   >
                     Show more professionals
-                  </PendingLink>
+                  </FinderLoadMoreButton>
                 </div>
               ) : null}
               </div>
