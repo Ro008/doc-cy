@@ -1,9 +1,16 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  CALL_TO_BOOK_BUTTON_LABEL,
   aggregateCallToBookClicks,
   parseCallToBookSource,
 } from "../../lib/call-to-book";
+
+describe("CALL_TO_BOOK_BUTTON_LABEL", () => {
+  it("uses Show phone number for the public CTA", () => {
+    assert.equal(CALL_TO_BOOK_BUTTON_LABEL, "Show phone number");
+  });
+});
 
 describe("parseCallToBookSource", () => {
   it("accepts finder and professional profile-page sources", () => {

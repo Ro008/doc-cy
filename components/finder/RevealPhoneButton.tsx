@@ -88,7 +88,7 @@ function RevealedPhoneLink({
         "inline-flex items-center gap-1.5 text-lg font-bold tabular-nums text-clinical-700 underline decoration-clinical-300 underline-offset-2 transition hover:text-clinical-600"
       }
     >
-      {variant === "call-to-book" ? `Call ${display}` : `📞 ${display}`}
+      {variant === "call-to-book" ? display : `📞 ${display}`}
     </a>
   );
 }
