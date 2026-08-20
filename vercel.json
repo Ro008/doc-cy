@@ -7,6 +7,10 @@
     {
       "path": "/api/cron/finder-traffic-alert",
       "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/cron/directory-manual-outreach",
+      "schedule": "0 4 * * 1"
     }
   ]
 }

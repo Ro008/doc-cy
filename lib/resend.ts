@@ -34,11 +34,18 @@ export type ResendEmailPayload = {
   subject: string;
   text: string;
   html?: string;
+  /** Override From for this send (default: getResendFrom()). */
+  from?: string;
+  /**
+   * Optional Reply-To. Booking/digest mail omits this (no-reply).
+   * Outreach mail sets it so the professional can answer.
+   */
+  replyTo?: string | string[];
+  headers?: Record<string, string>;
 };
 
 /**
  * Sends email via the official Resend Node SDK.
- * No reply_to — discourages replies to automated mail.
  * Booking flows should not depend on this succeeding (caller try/catch).
  */
 export async function sendResendEmail(email: ResendEmailPayload) {
@@ -54,11 +61,13 @@ export async function sendResendEmail(email: ResendEmailPayload) {
   const resend = new Resend(apiKey);
 
   const { data, error } = await resend.emails.send({
-    from: getResendFrom(),
+    from: email.from?.trim() || getResendFrom(),
     to: email.to,
     subject: email.subject,
     text: email.text,
     html: email.html,
+    ...(email.replyTo ? { replyTo: email.replyTo } : {}),
+    ...(email.headers ? { headers: email.headers } : {}),
   });
 
   if (error) {

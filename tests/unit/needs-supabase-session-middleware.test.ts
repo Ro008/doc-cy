@@ -22,6 +22,7 @@ describe("needsSupabaseSessionMiddleware", () => {
       "/en/andreas-nikos",
       "/internal",
       "/internal/directory",
+      "/unsubscribe",
     ]) {
       assert.equal(needsSupabaseSessionMiddleware(path), false, path);
     }
