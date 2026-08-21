@@ -80,11 +80,11 @@ Constants: `tests/helpers/ciTags.ts`. To tag new specs: `node scripts/apply-ci-p
 | Job | What it runs | Blocking? |
 |-----|----------------|-----------|
 | `prod-email-guards` | `--grep @pr-email` (prod Supabase env) | Yes |
-| `prod-smoke-edge` | `--grep @nightly-prod` against mydoccy.com (Cloudflare) | Yes if origin secret unset; diagnostic (`continue-on-error`) if origin secret is set |
-| `prod-smoke-origin` | Same `@nightly-prod` against `PLAYWRIGHT_BASE_URL_VERCEL_PROD` (`*.vercel.app`) | Yes, when the secret is set; skipped otherwise |
-| `prod-nightly-gate` | Interprets the three results | Yes (workflow red on email fail, origin fail, or edge fail with origin skipped) |
+| `prod-smoke-edge` | Matrix `site` / `booking` / `registration` against mydoccy.com (Cloudflare) | Yes if origin secret unset; diagnostic (`continue-on-error`) if origin secret is set |
+| `prod-smoke-origin` | Same matrix against `PLAYWRIGHT_BASE_URL_VERCEL_PROD` (`*.vercel.app`) | Yes, when the secret is set; skipped otherwise |
+| `prod-nightly-gate` | Interprets email + edge + origin results | Yes (workflow red on email fail, origin fail, or edge fail with origin skipped) |
 
-Edge and origin share the same prod doctor slot, so origin **starts after** edge finishes. Do not run both live-write suites in parallel.
+Edge and origin share the same prod doctor slot, so origin **starts after all edge matrix legs finish**. Do not run both live-write suites in parallel. `fail-fast: false` so a registration flake still records site and booking results.
 
 Set `PLAYWRIGHT_BASE_URL_VERCEL_PROD` to the **production** `*.vercel.app` URL (not a preview). If Vercel Deployment Protection is on, also set `VERCEL_AUTOMATION_BYPASS_SECRET`.
 
@@ -92,9 +92,7 @@ Set `PLAYWRIGHT_BASE_URL_VERCEL_PROD` to the **production** `*.vercel.app` URL (
 
 - `finder_critical`, `navigation`, `settings_clinic_address_notice`, `directory_duplicates_actions`, and the rest of the PR Playwright list
 
----
-
-**WhatsApp:** job `notify-whatsapp` — informational; delivery failure opens an issue but does not change test status. Reports Email / Edge / Origin separately. Edge fail + origin OK → likely Cloudflare Bot Fight Mode.
+GitHub emails on failed workflow runs if you watch the repository. There is no WhatsApp nightly ping.
 
 ---
 
@@ -133,22 +131,6 @@ Current example: `tests/manual_booking_flow.spec.ts`.
 
 ---
 
-## Nightly WhatsApp notification
-
-Workflow: `prod-critical-smoke.yml` → `notify-whatsapp` → `scripts/send-whatsapp-monitoring.mjs`. Secret: `WHATSAPP_WEBHOOK_URL`.
-
-Schedule: cron `30 3 * * *` UTC + `schedule-gate` (Nicosia 05:00–13:59).
-
-### Local / manual test
-
-```bash
-WHATSAPP_WEBHOOK_URL="https://…" npm run whatsapp:test -- "Hello from DocCy"
-```
-
-Or workflow dispatch → *Send only WhatsApp notification*.
-
----
-
 ## Incident triage (quick)
 
 When nightly fails:
@@ -156,7 +138,7 @@ When nightly fails:
 1. **Product regression** → fix code or prod smoke doctor config (`TEST_BOOKING_DOCTOR_SLUG`, schedule).
 2. **Env/secret** → verify `PROD_*`, `TEST_DOCTOR_*`, `PLAYWRIGHT_BASE_URL_PROD`, and `PLAYWRIGHT_BASE_URL_VERCEL_PROD` if using the origin lane.
 3. **Login form failure on PR** → check hydration/login UI; integration `TEST_USER_*` secrets.
-4. **Cloudflare** → a real interstitial has title `Just a moment...`. Proxied pages also include `/cdn-cgi/challenge-platform` scripts; that alone is not a block. Bot Fight Mode cannot be skipped with WAF Skip rules. Nightly smokes wait briefly for the JS challenge to clear and must **not** send `x-doccy-suppress-traffic-log` on every request (only on `POST /api/traffic/log`). After merge, compare **edge vs origin**: edge fail + origin OK means pause Bot Fight Mode in the nightly window; origin fail means the app/origin, not only Cloudflare.
+4. **Cloudflare** → a real interstitial has title `Just a moment...`. Proxied pages also include `/cdn-cgi/challenge-platform` scripts; that alone is not a block. Bot Fight Mode cannot be skipped with WAF Skip rules. Nightly smokes wait briefly for the JS challenge to clear and must **not** send `x-doccy-suppress-traffic-log` on every request (only on `POST /api/traffic/log`). After merge, compare **edge vs origin**: edge fail + origin OK means pause Bot Fight Mode in the nightly window; origin fail means the app/origin, not only Cloudflare. Re-run a single matrix leg (`site`, `booking`, or `registration`) when only one suite failed.
 
 When PR fails: integration env / test data — not prod calendar.
 

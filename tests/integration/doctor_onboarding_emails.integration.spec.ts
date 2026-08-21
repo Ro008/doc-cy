@@ -20,7 +20,6 @@ test.describe("Doctor onboarding email content", { tag: "@pr-email" }, () => {
     expect(standard.textBody).toContain("doc-1");
     expect(standard.textBody).toContain("maria@example.com");
     expect(standard.reviewUrl).toBe("https://mydoccy.com/internal/directory");
-    expect(standard.shortWa).toContain("Maria Papadopoulos");
 
     const custom = buildFounderNewRegistrationNotifyContent(
       {
