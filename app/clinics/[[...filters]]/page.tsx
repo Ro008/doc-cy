@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
-import { DocCyWordmark } from "@/components/brand/DocCyWordmark";
+import { FinderPublicHeader } from "@/components/finder/FinderPublicHeader";
 import { ClinicLandingView } from "@/components/finder/ClinicLandingView";
 import { ClinicsFilters } from "@/components/finder/ClinicsFilters";
 import { FinderAudienceToggle } from "@/components/finder/FinderAudienceToggle";
@@ -19,6 +19,7 @@ import { MarketingFooter } from "@/components/navigation/MarketingFooter";
 import { PendingLink } from "@/components/navigation/PendingLink";
 import { clinicLandingPath } from "@/lib/clinic-landing-path";
 import { CLINICS_SEARCH_BASE, clinicsResultsPath } from "@/lib/clinics-public-path";
+import { isProSessionHintValue, PRO_SESSION_HINT_COOKIE } from "@/lib/pro-session-hint";
 import { buildClinicsResultsHeading, buildClinicsResultsSnippet } from "@/lib/finder-results-heading";
 import {
   FINDER_RESULTS_PAGE_SIZE,
@@ -492,11 +493,11 @@ async function ClinicsSearchPage({ params, searchParams }: ClinicsPageProps) {
 
   return (
     <main className="min-h-screen bg-ink-50 text-ink-800">
-      <header className="px-4 pt-8 pb-8 sm:px-6 sm:pb-0 lg:px-8">
-        <PendingLink href="/" className="inline-flex transition hover:opacity-90">
-          <DocCyWordmark variant="light" size="xl" />
-        </PendingLink>
-      </header>
+      <FinderPublicHeader
+        proSessionHint={isProSessionHintValue(
+          cookies().get(PRO_SESSION_HINT_COOKIE)?.value,
+        )}
+      />
 
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <FinderHeroSection

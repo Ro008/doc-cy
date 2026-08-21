@@ -7,7 +7,9 @@ import "./globals.css";
 import "sonner/dist/styles.css";
 import { NavigationProgressBar } from "@/components/navigation/NavigationProgressBar";
 import { AppChrome } from "@/components/navigation/AppChrome";
+import { ProChromeBoot } from "@/components/navigation/ProChromeBoot";
 import { trafficSessionPersistInlineScript } from "@/lib/traffic-log";
+import { proChromeBootInlineScript } from "@/lib/pro-session-hint";
 import { Toaster } from "sonner";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
@@ -113,6 +115,10 @@ export default function RootLayout({
       <body
         className={`${inter.variable} min-h-screen bg-slate-950 text-slate-900 antialiased`}
       >
+        <script
+          dangerouslySetInnerHTML={{ __html: proChromeBootInlineScript() }}
+        />
+        <ProChromeBoot />
         <GoogleAdsTag />
         <script
           dangerouslySetInnerHTML={{ __html: trafficSessionPersistInlineScript() }}

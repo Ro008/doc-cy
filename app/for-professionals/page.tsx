@@ -17,7 +17,9 @@ import { PendingLink } from "@/components/navigation/PendingLink";
 import { ProfessionalAccessButton } from "@/components/landing/ProfessionalAccessButton";
 import { MarketingFooter } from "@/components/navigation/MarketingFooter";
 import { SupportInquiryLink } from "@/components/landing/SupportInquiryLink";
-import { DocCyWordmark } from "@/components/brand/DocCyWordmark";
+import { FinderPublicHeader } from "@/components/finder/FinderPublicHeader";
+import { cookies } from "next/headers";
+import { isProSessionHintValue, PRO_SESSION_HINT_COOKIE } from "@/lib/pro-session-hint";
 
 const benefitCardShell =
   "rounded-2xl border border-clinical-200 bg-white p-4 shadow-[0_1px_3px_rgba(26,43,60,0.06),0_4px_16px_rgba(18,184,192,0.05)] transition hover:border-clinical-300 hover:shadow-[0_4px_20px_rgba(18,184,192,0.1)] sm:p-5";
@@ -32,6 +34,9 @@ export default async function HomePage() {
   const t = await getTranslations("LandingPage");
   const locale = await getLocale();
   const isGreek = locale === "el";
+  const proSessionHint = isProSessionHintValue(
+    cookies().get(PRO_SESSION_HINT_COOKIE)?.value,
+  );
 
   const heroMetrics = [
     { label: t("Hero.metrics.freeTrial.label"), detail: t("Hero.metrics.freeTrial.detail") },
@@ -138,11 +143,7 @@ export default async function HomePage() {
       </div>
 
       <div className="relative z-10 flex flex-1 flex-col px-4 py-3 sm:px-6 lg:px-8 lg:py-4">
-        <header className="flex shrink-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
-          <div className="flex min-w-0 items-center gap-2 sm:gap-3">
-            <DocCyWordmark variant="light" size="xl" />
-          </div>
-        </header>
+        <FinderPublicHeader variant="sales" embedded proSessionHint={proSessionHint} />
 
         {/* Block 1: Hero */}
         <div className="flex min-h-0 flex-1 flex-col justify-center py-8 lg:py-12">
@@ -170,7 +171,7 @@ export default async function HomePage() {
                 <PendingLink href="#founders-pricing-card" className={landingCtaClass}>
                   {t("Hero.ctaClaim")}
                 </PendingLink>
-                <ProfessionalAccessButton />
+                <ProfessionalAccessButton proSessionHint={proSessionHint} />
               </div>
 
               <ul className="mt-8 grid gap-3 sm:grid-cols-2">

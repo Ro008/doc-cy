@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { UserMenuNavLink } from "@/components/navigation/UserMenuNavLink";
@@ -8,10 +8,9 @@ import { UserBarMoreMenuItems } from "@/components/navigation/UserBarMoreMenuIte
 import { MobileTabNavLink } from "@/components/navigation/MobileTabNavLink";
 import { PendingLink } from "@/components/navigation/PendingLink";
 import { DocCyWordmark } from "@/components/brand/DocCyWordmark";
-import {
-  LOGGED_OUT_DOCTOR_SESSION,
-  useDoctorSession,
-} from "@/components/navigation/DoctorSessionProvider";
+import { useDoctorSession } from "@/components/navigation/DoctorSessionProvider";
+import { emitOpenFeedback } from "@/lib/doccy-feedback";
+import { PRO_CHROME_HYDRATED_ATTR } from "@/lib/pro-session-hint";
 import {
   BarChart3,
   CalendarPlus,
@@ -24,7 +23,6 @@ import {
   UserCircle,
   UserRound,
 } from "lucide-react";
-import { emitOpenFeedback } from "@/lib/doccy-feedback";
 
 function getInitials(name: string | null): string {
   if (!name) return "DC";
@@ -36,7 +34,7 @@ function getInitials(name: string | null): string {
 export function UserBar() {
   const router = useRouter();
   const pathname = usePathname();
-  const { sessionState, setSessionState, supabase } = useDoctorSession();
+  const { sessionState, supabase, showProChrome, clearLocalDoctorSession } = useDoctorSession();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isMobileMoreOpen, setIsMobileMoreOpen] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
@@ -102,7 +100,7 @@ export function UserBar() {
       if (supabase) {
         await supabase.auth.signOut();
       }
-      setSessionState(LOGGED_OUT_DOCTOR_SESSION);
+      clearLocalDoctorSession();
       isMenuOpenRef.current = false;
       isMobileMoreOpenRef.current = false;
       setIsMenuOpen(false);
@@ -139,13 +137,18 @@ export function UserBar() {
 
   const isDistractionFreeDoctorFlow = pathname.startsWith("/dashboard/appointments/");
   const isAccountReviewGate = pathname.startsWith("/agenda/account-review");
-
-  if (
-    !sessionState.isLoggedIn ||
+  const hideChrome =
+    !showProChrome ||
     pathname === "/login" ||
     isDistractionFreeDoctorFlow ||
-    isAccountReviewGate
-  ) {
+    isAccountReviewGate;
+
+  useLayoutEffect(() => {
+    if (hideChrome) return;
+    document.documentElement.setAttribute(PRO_CHROME_HYDRATED_ATTR, "1");
+  }, [hideChrome]);
+
+  if (hideChrome) {
     return null;
   }
 

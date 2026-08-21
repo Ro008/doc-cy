@@ -10,13 +10,13 @@ import { ResponsiveBottomInset } from "@/components/navigation/ResponsiveBottomI
 import { UserBar } from "@/components/navigation/UserBar";
 
 function AppChromeInner({ children }: { children: React.ReactNode }) {
-  const { sessionState } = useDoctorSession();
+  const { sessionState, showProChrome } = useDoctorSession();
 
   return (
     <>
       <HtmlLang />
       <UserBar />
-      <ResponsiveBottomInset enabled={sessionState.isLoggedIn}>
+      <ResponsiveBottomInset enabled={showProChrome}>
         {children}
         <AuthAboutFooter visible={sessionState.isLoggedIn} />
       </ResponsiveBottomInset>

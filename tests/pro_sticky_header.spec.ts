@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { signInDoctorOrSkipOnInfraError } from "./helpers/signInDoctorWithInfraSkip";
+import { exposeSupabaseAuthCookiesToClient } from "./helpers/doctorAuth";
 
 function normalizeSecret(raw: string): string {
   return raw
@@ -16,6 +17,7 @@ async function signInAndOpenAgenda(page: import("@playwright/test").Page) {
   test.skip(!email || !password, "Missing test doctor credentials.");
 
   await signInDoctorOrSkipOnInfraError(page, undefined, { email, password });
+  await exposeSupabaseAuthCookiesToClient(page);
   await page.goto("/agenda", { waitUntil: "domcontentloaded" });
   await expect(page).toHaveURL(/\/agenda(?:[/?#]|$)/, { timeout: 20_000 });
 }
@@ -77,5 +79,42 @@ test.describe("Professional sticky header", { tag: "@pr-e2e" }, () => {
     await expect(page.getByTestId("pro-sticky-header")).toHaveCount(0);
     await expect(page.getByTestId("userbar-toggle")).toHaveCount(0);
     await expect(page.getByTestId("userbar-mobile-tabs")).toHaveCount(0);
+  });
+
+  test("signed-in for-professionals shows the user menu", async ({ page }) => {
+    test.setTimeout(120_000);
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await signInAndOpenAgenda(page);
+
+    await page.goto("/for-professionals", { waitUntil: "domcontentloaded" });
+    await expect(page.getByTestId("userbar-toggle")).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("link", { name: /^My Agenda$/i })).toBeVisible();
+    await expect(page.getByTestId("pro-sticky-header")).toHaveCount(0);
+  });
+
+  test("signed-in finder shows the desktop user menu, not guest header CTAs", async ({
+    page,
+  }) => {
+    test.setTimeout(120_000);
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await signInAndOpenAgenda(page);
+
+    await page.goto("/", { waitUntil: "domcontentloaded" });
+    const header = page.getByTestId("finder-public-header");
+    await expect(header.getByRole("link", { name: /professional login/i })).toHaveCount(0);
+    await expect(page.getByTestId("userbar-toggle")).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByTestId("pro-sticky-header")).toHaveCount(0);
+    await expect(page.getByTestId("userbar-mobile-tabs")).toBeHidden();
+  });
+
+  test("signed-in finder shows mobile professional tabs", async ({ page }) => {
+    test.setTimeout(120_000);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await signInAndOpenAgenda(page);
+
+    await page.goto("/", { waitUntil: "domcontentloaded" });
+    await expect(page.getByTestId("finder-public-header")).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByTestId("userbar-mobile-tabs")).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByTestId("userbar-toggle")).toBeHidden();
   });
 });

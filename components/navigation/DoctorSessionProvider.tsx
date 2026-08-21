@@ -2,8 +2,10 @@
 
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useState,
   type Dispatch,
@@ -12,7 +14,13 @@ import {
 } from "react";
 import { usePathname } from "next/navigation";
 
+import { hasBrowserAuthHint } from "@/lib/browser-auth-hint";
+import { isProfessionalMarketingPath } from "@/lib/finder-public-path";
 import { needsSupabaseSessionMiddleware } from "@/lib/needs-supabase-session-middleware";
+import {
+  clearProSessionHintCookie,
+  writeProSessionHintCookie,
+} from "@/lib/pro-session-hint";
 
 type DoctorBrowserClient = ReturnType<
   typeof import("@supabase/auth-helpers-nextjs").createClientComponentClient
@@ -38,20 +46,43 @@ type DoctorSessionContextValue = {
   sessionState: DoctorSessionState;
   setSessionState: Dispatch<SetStateAction<DoctorSessionState>>;
   supabase: DoctorBrowserClient | null;
+  /** True once a session hint or confirmed login should show professional chrome. */
+  showProChrome: boolean;
+  clearLocalDoctorSession: () => void;
 };
 
 const DoctorSessionContext = createContext<DoctorSessionContextValue | null>(null);
 
 export function DoctorSessionProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const needsSession = needsSupabaseSessionMiddleware(pathname ?? "/");
+  const routeKey = pathname ?? "/";
   const [supabase, setSupabase] = useState<DoctorBrowserClient | null>(null);
+  const [hintChrome, setHintChrome] = useState(false);
   const [sessionState, setSessionState] = useState<DoctorSessionState>(
     LOGGED_OUT_DOCTOR_SESSION,
   );
 
+  const clearLocalDoctorSession = useCallback(() => {
+    clearProSessionHintCookie();
+    setHintChrome(false);
+    setSessionState(LOGGED_OUT_DOCTOR_SESSION);
+    if (typeof document !== "undefined") {
+      document.documentElement.removeAttribute("data-doccy-pro-chrome");
+      document.documentElement.removeAttribute("data-doccy-pro-chrome-agenda");
+      document.documentElement.removeAttribute("data-doccy-pro-chrome-hydrated");
+    }
+  }, []);
+
+  useLayoutEffect(() => {
+    if (hasBrowserAuthHint()) setHintChrome(true);
+  }, []);
+
   useEffect(() => {
-    if (!needsSession) return;
+    const shouldLoadSession =
+      needsSupabaseSessionMiddleware(routeKey) ||
+      isProfessionalMarketingPath(routeKey) ||
+      hasBrowserAuthHint();
+    if (!shouldLoadSession) return;
 
     let isActive = true;
     let unsubscribe: (() => void) | undefined;
@@ -69,9 +100,12 @@ export function DoctorSessionProvider({ children }: { children: ReactNode }) {
         if (!isActive) return;
 
         if (!user) {
-          setSessionState(LOGGED_OUT_DOCTOR_SESSION);
+          clearLocalDoctorSession();
           return;
         }
+
+        writeProSessionHintCookie();
+        setHintChrome(true);
 
         const { data: doctorRow } = await client
           .from("doctors")
@@ -103,7 +137,7 @@ export function DoctorSessionProvider({ children }: { children: ReactNode }) {
         data: { subscription },
       } = client.auth.onAuthStateChange((event) => {
         if (event === "SIGNED_OUT") {
-          setSessionState(LOGGED_OUT_DOCTOR_SESSION);
+          clearLocalDoctorSession();
           return;
         }
         void loadSessionState();
@@ -116,11 +150,19 @@ export function DoctorSessionProvider({ children }: { children: ReactNode }) {
       isActive = false;
       unsubscribe?.();
     };
-  }, [needsSession]);
+  }, [clearLocalDoctorSession, routeKey]);
+
+  const showProChrome = sessionState.isLoggedIn || hintChrome;
 
   const value = useMemo(
-    () => ({ sessionState, setSessionState, supabase }),
-    [sessionState, supabase],
+    () => ({
+      sessionState,
+      setSessionState,
+      supabase,
+      showProChrome,
+      clearLocalDoctorSession,
+    }),
+    [clearLocalDoctorSession, sessionState, showProChrome, supabase],
   );
 
   return (

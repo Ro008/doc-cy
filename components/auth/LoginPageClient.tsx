@@ -6,6 +6,7 @@ import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { PasswordToggleInput } from "@/components/auth/PasswordToggleInput";
 import { PendingLink } from "@/components/navigation/PendingLink";
 import { DocCyWordmark } from "@/components/brand/DocCyWordmark";
+import { writeProSessionHintCookie } from "@/lib/pro-session-hint";
 
 export function LoginPageClient({ nextPath }: { nextPath?: string | null }) {
   const router = useRouter();
@@ -44,6 +45,7 @@ export function LoginPageClient({ nextPath }: { nextPath?: string | null }) {
       console.warn("[DocCy] Session audit failed", auditError);
     }
 
+    writeProSessionHintCookie();
     router.push(destination);
     router.refresh();
   }

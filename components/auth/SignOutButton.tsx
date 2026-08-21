@@ -4,6 +4,7 @@ import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { LogOut } from "lucide-react";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import { clearProSessionHintCookie } from "@/lib/pro-session-hint";
 
 export function SignOutButton({
   className,
@@ -21,6 +22,7 @@ export function SignOutButton({
   async function handleSignOut() {
     startTransition(async () => {
       await supabase.auth.signOut();
+      clearProSessionHintCookie();
       router.push("/");
       router.refresh();
     });

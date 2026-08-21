@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { cookies } from "next/headers";
 import { Instagram } from "lucide-react";
-import { DocCyWordmark } from "@/components/brand/DocCyWordmark";
+import { FinderPublicHeader } from "@/components/finder/FinderPublicHeader";
 import { PendingLink } from "@/components/navigation/PendingLink";
 import { CYPRUS_DISTRICTS, type CyprusDistrict, isCyprusDistrict } from "@/lib/cyprus-districts";
 import { languageThemeForLabel } from "@/lib/cyprus-languages";
@@ -86,6 +86,7 @@ import { getFinderManualPhotoUrl } from "@/lib/finder-manual-photos";
 import { resolveFinderDisplayPhotoUrl } from "@/lib/finder-default-avatars";
 import { finderCardImagePriority } from "@/lib/finder-card-image-priority";
 import { finderResultsPath, FOR_PROFESSIONALS_PATH } from "@/lib/finder-public-path";
+import { isProSessionHintValue, PRO_SESSION_HINT_COOKIE } from "@/lib/pro-session-hint";
 import { buildFinderResultsHeading, buildFinderResultsSnippet } from "@/lib/finder-results-heading";
 import {
   FINDER_RESULTS_PAGE_SIZE,
@@ -1130,11 +1131,11 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
         activeDistrict={activeDistrict}
         activeSpecialty={activeSpecialty}
       />
-      <header className="px-4 pt-8 pb-8 sm:px-6 sm:pb-0 lg:px-8">
-        <PendingLink href="/" className="inline-flex transition hover:opacity-90">
-          <DocCyWordmark variant="light" size="xl" />
-        </PendingLink>
-      </header>
+      <FinderPublicHeader
+        proSessionHint={isProSessionHintValue(
+          cookies().get(PRO_SESSION_HINT_COOKIE)?.value,
+        )}
+      />
 
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <FinderHeroSection
