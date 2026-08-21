@@ -25,7 +25,6 @@ export const GESY_MANUAL_SPECIALTIES = [
   "General Nurse",
   "General Surgery",
   "Geriatrics",
-  "Haematology",
   "Hematology",
   "Immunology",
   "Infectious Diseases",
@@ -82,8 +81,18 @@ function fixSpecialtyTypos(label: string): string {
   return label.replace(/^\u039Fral\b/, "Oral").replace(/^Οral\b/, "Oral");
 }
 
+/**
+ * Collapse GeSY spelling duplicates before storing or matching.
+ * HEM/AEHEM/ISHEM used "Haematology"; LABH used "Hematology".
+ */
+export function canonicalizeGesySpecialtyLabel(label: string): string {
+  const fixed = fixSpecialtyTypos(label.trim());
+  if (/^h(?:ae|e)matology$/i.test(fixed)) return "Hematology";
+  return fixed;
+}
+
 export function isGesyManualSpecialty(value: string): boolean {
-  return GESY_SET.has(fixSpecialtyTypos(value.trim()));
+  return GESY_SET.has(canonicalizeGesySpecialtyLabel(value));
 }
 
 /**
@@ -93,7 +102,7 @@ export function isGesyManualSpecialty(value: string): boolean {
 export function parseGesySpecialtyCell(raw: string): string[] {
   const parts = String(raw ?? "")
     .split(";")
-    .map((part) => fixSpecialtyTypos(part.trim()))
+    .map((part) => canonicalizeGesySpecialtyLabel(part))
     .filter(Boolean);
   const seen = new Set<string>();
   const out: string[] = [];
@@ -106,7 +115,14 @@ export function parseGesySpecialtyCell(raw: string): string[] {
 }
 
 export function formatGesySpecialtiesForDisplay(specialties: readonly string[]): string {
-  const cleaned = specialties.map((s) => s.trim()).filter(Boolean);
+  const seen = new Set<string>();
+  const cleaned: string[] = [];
+  for (const raw of specialties) {
+    const label = canonicalizeGesySpecialtyLabel(String(raw ?? "").trim());
+    if (!label || seen.has(label)) continue;
+    seen.add(label);
+    cleaned.push(label);
+  }
   if (cleaned.length === 0) return "Specialty not set";
   return cleaned.join(" · ");
 }

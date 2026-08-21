@@ -2,36 +2,26 @@
 # PR lane (integration + full suite): .github/workflows/pr-integration.yml
 #
 # Dual @nightly-prod: Cloudflare edge (PLAYWRIGHT_BASE_URL_PROD / mydoccy.com) then
-# Vercel origin (PLAYWRIGHT_BASE_URL_VERCEL_PROD / *.vercel.app), sequential to avoid
-# booking the same prod doctor slot. Email guards stay a single job (@pr-email).
+# Vercel origin (PLAYWRIGHT_BASE_URL_VERCEL_PROD / *.vercel.app). Each target runs
+# site / booking / registration as a matrix (fail-fast: false) so one flake does not
+# hide the others. Origin starts after all edge legs so we do not double-book the
+# same prod doctor slot. Email guards stay a single job (@pr-email).
 # Optional: VERCEL_AUTOMATION_BYPASS_SECRET for Deployment Protection on origin.
 #
 # Blocking: prod Supabase + public shell, guest booking, live registration, email guards.
 # Doctor login form UI: PR non-blocking (`doctor_password_login_form.spec.ts` @pr-login-monitor).
-# Integration E2E (finder, navigation, etc.) runs only on PR — not duplicated here.
+# Integration E2E (finder, navigation, etc.) runs only on PR - not duplicated here.
 
 name: Production Monitoring
 
 on:
   workflow_dispatch:
-    inputs:
-      notify_only:
-        description: "Send only WhatsApp notification (skip smoke tests)"
-        required: false
-        default: false
-        type: boolean
-      notification_message:
-        description: "Optional extra text appended to WhatsApp message"
-        required: false
-        default: ""
-        type: string
   schedule:
     # GitHub Actions cron is UTC. Scheduled runs are often delayed by hours (see schedule-gate).
-    - cron: "30 3 * * *" # ~06:30 Nicosia (EEST/EET); gate allows 05:00–13:59 local if delayed
+    - cron: "30 3 * * *" # ~06:30 Nicosia (EEST/EET); gate allows 05:00-13:59 local if delayed
 
 permissions:
   contents: read
-  issues: write
 
 # Avoid overlapping nightly runs when GitHub queues multiple schedule triggers.
 concurrency:
@@ -64,8 +54,8 @@ jobs:
           echo "Nicosia local time: ${stamp} (local H=${nico_h} M=${nico_m}, UTC hour=${utc_h})"
 
           # Scheduled workflows are often delayed (e.g. 03:30 UTC cron starting at 07:37 UTC).
-          # A narrow 06:00–07:45 window caused weeks of skipped smoke + WhatsApp (should_run=false).
-          # Allow morning local hours 05–13 so delayed runs still execute once per day.
+          # A narrow 06:00-07:45 window caused weeks of skipped smoke (should_run=false).
+          # Allow morning local hours 05-13 so delayed runs still execute once per day.
           nico_h_num=$((10#${nico_h}))
           should_run="false"
           if [ "${nico_h_num}" -ge 5 ] && [ "${nico_h_num}" -le 13 ]; then
@@ -112,7 +102,7 @@ jobs:
 
   prod-email-guards:
     needs: [schedule-gate]
-    if: needs.schedule-gate.outputs.should_run == 'true' && (github.event_name != 'workflow_dispatch' || github.event.inputs.notify_only != 'true')
+    if: needs.schedule-gate.outputs.should_run == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -157,7 +147,11 @@ jobs:
 
   prod-smoke-edge:
     needs: [schedule-gate, smoke-targets]
-    if: needs.schedule-gate.outputs.should_run == 'true' && (github.event_name != 'workflow_dispatch' || github.event.inputs.notify_only != 'true')
+    if: needs.schedule-gate.outputs.should_run == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [site, booking, registration]
     runs-on: ubuntu-latest
     timeout-minutes: 45
     continue-on-error: ${{ needs.smoke-targets.outputs.origin_enabled == 'true' }}
@@ -182,15 +176,20 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Prod nightly smoke (Cloudflare edge)
+      - name: Prod nightly smoke (Cloudflare edge - ${{ matrix.suite }})
         uses: ./.github/actions/prod-nightly-smoke
         with:
           target: edge
-          artifact_name: playwright-prod-monitoring-report-edge
+          suite: ${{ matrix.suite }}
+          artifact_name: playwright-prod-monitoring-report-edge-${{ matrix.suite }}
 
   prod-smoke-origin:
     needs: [schedule-gate, smoke-targets, prod-smoke-edge]
-    if: needs.schedule-gate.outputs.should_run == 'true' && needs.smoke-targets.outputs.origin_enabled == 'true' && (github.event_name != 'workflow_dispatch' || github.event.inputs.notify_only != 'true')
+    if: needs.schedule-gate.outputs.should_run == 'true' && needs.smoke-targets.outputs.origin_enabled == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [site, booking, registration]
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
@@ -215,15 +214,16 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Prod nightly smoke (Vercel origin)
+      - name: Prod nightly smoke (Vercel origin - ${{ matrix.suite }})
         uses: ./.github/actions/prod-nightly-smoke
         with:
           target: origin
-          artifact_name: playwright-prod-monitoring-report-origin
+          suite: ${{ matrix.suite }}
+          artifact_name: playwright-prod-monitoring-report-origin-${{ matrix.suite }}
 
   prod-nightly-gate:
     needs: [schedule-gate, prod-email-guards, prod-smoke-edge, prod-smoke-origin]
-    if: always() && needs.schedule-gate.outputs.should_run == 'true' && (github.event_name != 'workflow_dispatch' || github.event.inputs.notify_only != 'true')
+    if: always() && needs.schedule-gate.outputs.should_run == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Interpret dual smoke
@@ -239,7 +239,7 @@ jobs:
             exit 1
           fi
           if [ "${ORIGIN_RESULT}" = "failure" ]; then
-            echo "::error::Vercel origin smoke failed."
+            echo "::error::Vercel origin smoke failed. Check the site / booking / registration matrix legs."
             exit 1
           fi
           if [ "${ORIGIN_RESULT}" = "skipped" ] && [ "${EDGE_RESULT}" != "success" ]; then
@@ -249,67 +249,3 @@ jobs:
           if [ "${ORIGIN_RESULT}" = "success" ] && [ "${EDGE_RESULT}" = "failure" ]; then
             echo "::warning::Cloudflare edge failed while Vercel origin passed. Likely Bot Fight Mode."
           fi
-
-  notify-whatsapp:
-    if: always() && needs.schedule-gate.outputs.should_run == 'true'
-    needs: [schedule-gate, prod-email-guards, prod-smoke-edge, prod-smoke-origin]
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-
-      - name: Send WhatsApp monitoring status
-        id: whatsapp
-        continue-on-error: true
-        env:
-          WHATSAPP_WEBHOOK_URL: ${{ secrets.WHATSAPP_WEBHOOK_URL }}
-          EMAIL_RESULT: ${{ needs.prod-email-guards.result }}
-          EDGE_RESULT: ${{ needs.prod-smoke-edge.result }}
-          ORIGIN_RESULT: ${{ needs.prod-smoke-origin.result }}
-          RUN_ID: ${{ github.run_id }}
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          NOTIFY_ONLY: ${{ github.event.inputs.notify_only || 'false' }}
-          EXTRA_MESSAGE: ${{ github.event.inputs.notification_message || '' }}
-        run: node scripts/send-whatsapp-monitoring.mjs
-
-      - name: Open issue if WhatsApp notification failed
-        if: steps.whatsapp.conclusion == 'failure'
-        uses: actions/github-script@v7
-        env:
-          EMAIL_RESULT: ${{ needs.prod-email-guards.result }}
-          EDGE_RESULT: ${{ needs.prod-smoke-edge.result }}
-          ORIGIN_RESULT: ${{ needs.prod-smoke-origin.result }}
-          RUN_ID: ${{ github.run_id }}
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-        with:
-          script: |
-            const title = `[prod-monitoring] WhatsApp notification failed (run ${process.env.RUN_ID})`;
-            const body = [
-              "WhatsApp delivery failed after retries.",
-              "",
-              `Email guards: **${process.env.EMAIL_RESULT}**`,
-              `Edge (mydoccy.com): **${process.env.EDGE_RESULT}**`,
-              `Origin (Vercel): **${process.env.ORIGIN_RESULT}**`,
-              `Run: ${process.env.RUN_URL}`,
-              "",
-              "Action required:",
-              "- Verify `WHATSAPP_WEBHOOK_URL` repository secret.",
-              "- Validate webhook provider health and recipient setup."
-            ].join("\n");
-            await github.rest.issues.create({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              title,
-              body,
-              labels: ["ci", "monitoring"]
-            });
-
-      - name: Notification failure note (non-blocking)
-        if: steps.whatsapp.conclusion == 'failure'
-        shell: bash
-        run: |
-          echo "::warning::WhatsApp notification failed. Issue created. This does not change critical test status."

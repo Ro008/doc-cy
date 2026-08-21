@@ -81,7 +81,7 @@ describe("buildFinderResultsSnippet", () => {
     assert.equal(
       buildFinderResultsSnippet({
         nearYou: true,
-        specialtyLabel: "Haematology",
+        specialtyLabel: "Hematology",
       }),
       "Find a specialist in your area",
     );

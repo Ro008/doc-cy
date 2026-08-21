@@ -111,7 +111,11 @@ function fixSpecialtyTypos(label) {
 function parseSpecialtyCell(raw) {
   const parts = String(raw ?? "")
     .split(";")
-    .map((p) => fixSpecialtyTypos(p))
+    .map((p) => {
+      const fixed = fixSpecialtyTypos(p);
+      if (/^h(?:ae|e)matology$/i.test(fixed)) return "Hematology";
+      return fixed;
+    })
     .filter(Boolean);
   const seen = new Set();
   const out = [];

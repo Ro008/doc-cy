@@ -1,9 +1,12 @@
 name: Prod nightly smoke
-description: Run @nightly-prod Playwright against one production URL (Cloudflare edge or Vercel origin).
+description: Run one @nightly-prod Playwright suite against Cloudflare edge or Vercel origin.
 
 inputs:
   target:
     description: "edge (mydoccy.com / Cloudflare) or origin (*.vercel.app)"
+    required: true
+  suite:
+    description: "site | booking | registration"
     required: true
   artifact_name:
     description: Playwright report artifact name
@@ -127,9 +130,20 @@ runs:
       env:
         PLAYWRIGHT_LIVE_REGISTRATION: "1"
         CI: "true"
+        DOC_CY_SMOKE_SUITE: ${{ inputs.suite }}
       run: |
-        echo "Smoke target=${{ inputs.target }} base=${PLAYWRIGHT_BASE_URL}"
-        npx playwright test --grep @nightly-prod \
+        set -euo pipefail
+        case "${DOC_CY_SMOKE_SUITE}" in
+          site) spec="tests/prod/prod_site_availability.spec.ts" ;;
+          booking) spec="tests/prod/prod_appointment_booking_flow.spec.ts" ;;
+          registration) spec="tests/prod/prod_registration_smoke.spec.ts" ;;
+          *)
+            echo "::error::Unknown smoke suite '${DOC_CY_SMOKE_SUITE}'. Use site, booking, or registration."
+            exit 1
+            ;;
+        esac
+        echo "Smoke target=${{ inputs.target }} suite=${DOC_CY_SMOKE_SUITE} spec=${spec} base=${PLAYWRIGHT_BASE_URL}"
+        npx playwright test "${spec}" --grep @nightly-prod \
           --project="Desktop Large (Chromium)" \
           --workers=1 \
           --reporter=line

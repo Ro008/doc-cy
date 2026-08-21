@@ -4,11 +4,14 @@ import * as React from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   slugToSpecialty,
-  specialtyToSlug,
   toTitleCaseWords,
 } from "@/lib/finder-seo";
 import { finderResultsPath } from "@/lib/finder-public-path";
-import type { FinderSpecialtyOption } from "@/lib/finder-specialty-options";
+import { harmonizeFinderSpecialtyLabel } from "@/lib/finder-specialty-harmonize";
+import {
+  resolveFinderSpecialtyDropdown,
+  type FinderSpecialtyOption,
+} from "@/lib/finder-specialty-options";
 import {
   districtForTown,
   resolveFinderTownSubmit,
@@ -46,9 +49,11 @@ export function FinderFilters({
   const router = useRouter();
   const searchParams = useSearchParams();
   const [district, setDistrict] = React.useState(activeDistrict);
-  const [specialtySlug, setSpecialtySlug] = React.useState(() =>
-    activeSpecialty ? specialtyToSlug(activeSpecialty) : ""
+  const dropdown = React.useMemo(
+    () => resolveFinderSpecialtyDropdown(specialtyOptions, activeSpecialty),
+    [specialtyOptions, activeSpecialty],
   );
+  const [specialtySlug, setSpecialtySlug] = React.useState(() => dropdown.selectedSlug);
   const [name, setName] = React.useState(activeName);
   const [townQuery, setTownQuery] = React.useState(activeTown);
   const [nearMeCoords, setNearMeCoords] = React.useState<FinderNearMeCoords | null>(() =>
@@ -62,27 +67,9 @@ export function FinderFilters({
   const [isNavigating, setIsNavigating] = React.useState(false);
   const pendingGuardRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const mergedSpecialtyOptions = React.useMemo(() => {
-    const slug = activeSpecialty ? specialtyToSlug(activeSpecialty) : "";
-    if (!slug) return [...specialtyOptions];
-    if (specialtyOptions.some((o) => o.slug === slug)) return [...specialtyOptions];
-    // Do not invent combined ghost options like "Personal Doctor Paediatrics"
-    // from joined card labels / bad URLs (contain · ; or multiple specialty words
-    // that are not a single known option).
-    const raw = String(activeSpecialty ?? "").trim();
-    if (/[·;|]/.test(raw)) return [...specialtyOptions];
-    const label = toTitleCaseWords(slugToSpecialty(activeSpecialty));
-    // Only inject when it looks like a single specialty label (few words).
-    if (label.split(/\s+/).length > 4) return [...specialtyOptions];
-    return [
-      ...specialtyOptions,
-      { slug, label },
-    ].sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: "base" }));
-  }, [specialtyOptions, activeSpecialty]);
-
   React.useEffect(() => {
     setDistrict(activeDistrict);
-    setSpecialtySlug(activeSpecialty ? specialtyToSlug(activeSpecialty) : "");
+    setSpecialtySlug(dropdown.selectedSlug);
     setName(activeName);
     setTownQuery(activeTown);
     setNearMeCoords(
@@ -102,7 +89,7 @@ export function FinderFilters({
     if (activeLatitude !== null && activeLongitude !== null) {
       setIsLocating(false);
     }
-  }, [activeDistrict, activeSpecialty, activeName, activeTown, activeLatitude, activeLongitude]);
+  }, [activeDistrict, activeSpecialty, activeName, activeTown, activeLatitude, activeLongitude, dropdown.selectedSlug]);
 
   React.useEffect(() => {
     setPendingAction(null);
@@ -126,7 +113,7 @@ export function FinderFilters({
   function specialtyLabelFromSlug(slug: string): string {
     if (!slug) return "";
     return (
-      mergedSpecialtyOptions.find((o) => o.slug === slug)?.label ?? slugToSpecialty(slug)
+      dropdown.options.find((o) => o.slug === slug)?.label ?? slugToSpecialty(slug)
     );
   }
 
@@ -263,7 +250,7 @@ export function FinderFilters({
       : activeTown || null;
   const activeFilterEntries = [
     activeName.trim() || null,
-    activeSpecialty ? toTitleCaseWords(activeSpecialty) : null,
+    activeSpecialty ? harmonizeFinderSpecialtyLabel(activeSpecialty) || toTitleCaseWords(activeSpecialty) : null,
     activeDistrict || null,
     townChip,
     nearMeActive ? "Near me" : null,
@@ -338,7 +325,7 @@ export function FinderFilters({
                 className={fieldClass}
               >
                 <option value="">All specialties</option>
-                {mergedSpecialtyOptions.map((opt) => (
+                {dropdown.options.map((opt) => (
                   <option key={opt.slug} value={opt.slug}>
                     {opt.label}
                   </option>

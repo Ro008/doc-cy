@@ -2,6 +2,7 @@ import type { MetadataRoute } from "next";
 import { CYPRUS_DISTRICTS, isCyprusDistrict, type CyprusDistrict } from "@/lib/cyprus-districts";
 import { createServiceRoleClient } from "@/lib/supabase-service";
 import { districtToSlug, specialtyToSlug, slugToDistrict } from "@/lib/finder-seo";
+import { harmonizeFinderSpecialtyLabel } from "@/lib/finder-specialty-harmonize";
 import { getAllBlogPostMeta } from "@/lib/blog";
 import { manualDirectoryLandingPath } from "@/lib/manual-directory-landing-path";
 import { isDirectoryCanarySlug } from "@/lib/directory-canaries";
@@ -18,7 +19,7 @@ function normalizeDistrictSlug(value: unknown): string {
 function normalizeSpecialtySlug(value: unknown): string {
   const raw = String(value ?? "").trim();
   if (!raw) return "";
-  return specialtyToSlug(raw);
+  return specialtyToSlug(harmonizeFinderSpecialtyLabel(raw) || raw);
 }
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {

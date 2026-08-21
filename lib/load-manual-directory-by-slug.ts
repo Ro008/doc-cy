@@ -10,6 +10,7 @@ import {
   type ManualClinicJoinLink,
 } from "@/lib/manual-directory-clinics";
 import { fetchAllSupabaseRows } from "@/lib/supabase-fetch-all";
+import { harmonizeFinderSpecialtyList } from "@/lib/finder-specialty-harmonize";
 
 export type ManualDirectoryLandingClinic = {
   id: string | null;
@@ -52,9 +53,11 @@ function normalizeSpecialties(row: {
   const fromArray = Array.isArray(row.specialties)
     ? row.specialties.map((s) => String(s ?? "").trim()).filter(Boolean)
     : [];
-  if (fromArray.length > 0) return fromArray;
-  const primary = String(row.specialty ?? "").trim();
-  return primary ? [primary] : [];
+  const raw =
+    fromArray.length > 0
+      ? fromArray
+      : [String(row.specialty ?? "").trim()].filter(Boolean);
+  return harmonizeFinderSpecialtyList(raw);
 }
 
 export async function loadManualDirectoryBySlug(

@@ -119,6 +119,8 @@ const SPECIALTY_ALIASES = {
   endocrinologist: "Endocrinology",
   psychiatrist: "Psychiatry",
   psychiatry: "Psychiatry",
+  haematology: "Hematology",
+  hematology: "Hematology",
   midwifery: "Gynecology",
   midwife: "Gynecology",
   "plastic surgery": "Plastic Surgery",

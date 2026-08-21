@@ -193,8 +193,18 @@ test.describe("Prod smoke: doctor registration", { tag: "@nightly-prod" }, () =>
       await expect(
         page.getByText("Start typing and choose your clinic from Google suggestions."),
       ).toBeVisible({ timeout: 20_000 });
-      await page.locator("#register-clinic-address").fill("Nicosia");
-      await page.locator(".pac-container .pac-item").first().click({ timeout: 20_000 });
+      const clinicAddress = page.locator("#register-clinic-address");
+      await clinicAddress.click();
+      await clinicAddress.fill("");
+      await clinicAddress.pressSequentially("Nicosia", { delay: 60 });
+      const pacItem = page.locator(".pac-container .pac-item").first();
+      await expect(pacItem).toBeVisible({ timeout: 20_000 });
+      try {
+        await pacItem.click({ timeout: 8_000 });
+      } catch {
+        await clinicAddress.press("ArrowDown");
+        await clinicAddress.press("Enter");
+      }
       await expect(page.getByText(/District:\s*Nicosia/i)).toBeVisible({ timeout: 15_000 });
 
       const avatarInput = page.locator("label:has-text('Upload photo') input[type='file']");

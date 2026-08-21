@@ -1,4 +1,5 @@
 import { FinderSpecialtyLink } from "@/components/finder/FinderSpecialtyLink";
+import { harmonizeFinderSpecialtyList } from "@/lib/finder-specialty-harmonize";
 
 const PILL_CLASS =
   "inline-flex max-w-full items-center rounded-full border border-ink-200 bg-ink-50 px-2.5 py-1 text-left text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-600 transition-none hover:border-clinical-300 hover:bg-clinical-50 hover:text-clinical-800";
@@ -20,13 +21,11 @@ export function FinderSpecialtyPills({
   district = null,
   className,
 }: FinderSpecialtyPillsProps) {
-  const parts = (
+  const parts = harmonizeFinderSpecialtyList(
     specialties.length > 0
       ? specialties
-      : [String(specialty ?? "").trim()].filter(Boolean)
-  )
-    .map((s) => s.trim())
-    .filter(Boolean);
+      : [String(specialty ?? "").trim()].filter(Boolean),
+  );
 
   if (parts.length === 0) {
     return (

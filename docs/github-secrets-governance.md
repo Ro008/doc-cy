@@ -19,8 +19,6 @@ This file defines the canonical secret naming and cleanup policy for CI workflow
 - `TEST_USER_PASSWORD` (optional; falls back to doctor credentials)
 - `TEST_BOOKING_DOCTOR_SLUG`
 - `DOC_CY_SUPPRESS_TRAFFIC_LOG_SECRET`
-- `WHATSAPP_WEBHOOK_URL`  
-  - Nightly delivery and failure triage: [`docs/ci-test-policy.md`](ci-test-policy.md) (section **Nightly WhatsApp notification**).
 
 ### Integration CI
 

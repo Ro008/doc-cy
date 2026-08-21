@@ -49,6 +49,7 @@ const SPECIALTY_DB_VARIANTS: Record<string, readonly string[]> = {
   "Clinical Dietitian": ["Clinical Dietitian", "Nutrition & Dietetics"],
   "Personal Doctor": ["Personal Doctor", "General Practice", "Wellness"],
   "Medical Oncology": ["Medical Oncology", "Oncology"],
+  Hematology: ["Hematology", "Haematology"],
 };
 
 export function finderSpecialtyDbMatchValues(activeSpecialty: string): string[] {

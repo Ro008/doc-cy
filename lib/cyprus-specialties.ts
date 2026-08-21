@@ -15,8 +15,11 @@ import { GESY_MANUAL_SPECIALTIES } from "@/lib/gesy-specialties";
 /** Excluded from registration even though present in the GeSY Excel vocabulary. */
 const REGISTRATION_EXCLUDED_GESY = new Set(["Pharmacy", "Laboratory"]);
 
-/** Prefer Cyprus spelling when GeSY list has near-duplicates. */
-const GESY_REGISTRATION_DEDUPE_DROP = new Set(["Hematology"]); // keep Haematology
+/** Prefer American spelling when GeSY list has near-duplicates. */
+const GESY_REGISTRATION_DEDUPE_DROP = new Set(["Haematology"]); // keep Hematology
+
+/** Saved British spelling — still valid for existing doctor rows. */
+const REGISTRATION_SPELLING_ALIASES = new Set(["Haematology"]);
 
 /**
  * DocCy-only addition alongside GeSY (Stephan Meyer / non-clinical psychology).
@@ -77,7 +80,11 @@ const LEGACY_SET = new Set<string>(LEGACY_CYPRUS_REGISTRATION_SPECIALTIES as unk
 /** True for current master picks and grandfathered legacy labels. */
 export function isMasterSpecialty(value: string): boolean {
   const trimmed = value.trim();
-  return MASTER_SET.has(trimmed) || LEGACY_SET.has(trimmed);
+  return (
+    MASTER_SET.has(trimmed) ||
+    LEGACY_SET.has(trimmed) ||
+    REGISTRATION_SPELLING_ALIASES.has(trimmed)
+  );
 }
 
 /** True only for labels offered in the combobox today (not legacy-only). */
