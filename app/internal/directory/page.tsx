@@ -34,7 +34,7 @@ import {
   aggregateSpecialties,
 } from "@/lib/founder-metrics";
 import { buildLastSixMonthsAppointmentCounts } from "@/lib/founder-appointments-by-month";
-import { cyprusMonthStartUtcIso } from "@/lib/cyprus-calendar";
+import { cyprusCalendarMonthRangeUtc, cyprusMonthStartUtcIso } from "@/lib/cyprus-calendar";
 import { TrialConversionTable } from "@/components/internal/TrialConversionTable";
 import { getTrialPeriodDays } from "@/lib/trial-period";
 import {
@@ -59,6 +59,10 @@ import {
   CallToBookClicksSection,
   type CallToBookDashboardRow,
 } from "@/components/internal/CallToBookClicksSection";
+import {
+  OutreachSentSection,
+  type OutreachSentDashboardRow,
+} from "@/components/internal/OutreachSentSection";
 import { aggregateCallToBookClicks } from "@/lib/call-to-book";
 import {
   FinderInvitationRequestsSection,
@@ -102,6 +106,17 @@ function sortManualPatientVoteRows(
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
+function isMissingRelationError(error: { code?: string; message?: string } | null | undefined): boolean {
+  if (!error) return false;
+  const code = String(error.code ?? "");
+  const msg = String(error.message ?? "");
+  return code === "42P01" || /does not exist|could not find the table/i.test(msg);
+}
+
+function isProductionSupabaseUrl(): boolean {
+  return (process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").includes("oiwlztcduxojadbcxkil");
+}
+
 function getRuntimeEnvironmentLabel(): "production" | "preview" | "local" {
   const vercelEnv = (process.env.VERCEL_ENV ?? "").trim().toLowerCase();
   if (vercelEnv === "production") return "production";
@@ -118,6 +133,7 @@ export default async function FounderDashboardPage({
     manualVotesCol?: string | string[];
     manualVotesDir?: string | string[];
     callToBookRange?: string | string[];
+    outreachMonth?: string | string[];
   };
 }) {
   const supabase = createServiceRoleClient();
@@ -682,6 +698,71 @@ export default async function FounderDashboardPage({
     console.error("[DocCy] call to book click stats failed", callToBookErr);
   }
 
+  let outreachRows: OutreachSentDashboardRow[] = [];
+  let outreachEmailCount = 0;
+  let outreachTableMissing = false;
+  const outreachMonthRange = cyprusCalendarMonthRangeUtc(
+    dashboardQuery.outreachMonth === "previous" ? -1 : 0,
+  );
+  try {
+    const { data: sentRows, error: sentErr } = await fetchAllSupabaseRows(() =>
+      supabase
+        .from("directory_manual_outreach_sent")
+        .select("id, manual_id, booking_count, phone_click_count, sent_at")
+        .gte("sent_at", outreachMonthRange.startIso)
+        .lt("sent_at", outreachMonthRange.endIso)
+        .order("sent_at", { ascending: false }),
+    );
+    if (sentErr) {
+      if (isMissingRelationError(sentErr)) {
+        outreachTableMissing = true;
+      } else {
+        console.error("[DocCy] outreach sent stats failed", sentErr.message);
+      }
+    } else if (sentRows?.length) {
+      outreachEmailCount = sentRows.length;
+      const ids = Array.from(
+        new Set(
+          sentRows
+            .map((r) => String((r as { manual_id?: string }).manual_id ?? "").trim())
+            .filter(Boolean),
+        ),
+      );
+      const { data: listingRows, error: listingErr } = await fetchAllSupabaseRowsForIdChunks(
+        ids,
+        (idChunk) =>
+          supabase.from("directory_manual").select("id, name, slug").in("id", idChunk),
+      );
+      if (listingErr) {
+        console.error("[DocCy] outreach listing lookup failed", listingErr.message);
+      }
+      const listingMap = new Map(
+        (listingRows ?? []).map((n) => [
+          String((n as { id?: string }).id ?? ""),
+          {
+            name: String((n as { name?: string }).name ?? "").trim(),
+            slug: String((n as { slug?: string | null }).slug ?? "").trim() || null,
+          },
+        ]),
+      );
+      outreachRows = sentRows.map((r) => {
+        const id = String((r as { id?: string }).id ?? "");
+        const manualId = String((r as { manual_id?: string }).manual_id ?? "");
+        const meta = listingMap.get(manualId);
+        return {
+          id,
+          name: meta?.name || manualId.slice(0, 8),
+          slug: meta?.slug ?? null,
+          bookingCount: Number((r as { booking_count?: number }).booking_count ?? 0),
+          phoneClickCount: Number((r as { phone_click_count?: number }).phone_click_count ?? 0),
+          sentAt: String((r as { sent_at?: string }).sent_at ?? ""),
+        };
+      });
+    }
+  } catch (outreachErr) {
+    console.error("[DocCy] outreach sent stats failed", outreachErr);
+  }
+
   const doctorIds = Array.from(
     new Set(recentApptRowsRaw.map((a) => a.doctor_id as string))
   );
@@ -812,6 +893,14 @@ export default async function FounderDashboardPage({
           finderCount={callToBookFinderCount}
           professionalProfileCount={callToBookProfessionalProfileCount}
           rows={callToBookRows}
+        />
+        <OutreachSentSection
+          query={dashboardQuery}
+          fromProductionDatabase={isProductionSupabaseUrl()}
+          monthLabel={outreachMonthRange.label}
+          emailCount={outreachEmailCount}
+          rows={outreachRows}
+          tableMissing={outreachTableMissing}
         />
         <FinderInvitationRequestsSection rows={finderInvitationRows} />
         <div className="rounded-2xl border border-slate-800/80 bg-slate-900/20 p-3 text-xs text-slate-400">

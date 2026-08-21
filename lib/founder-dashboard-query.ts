@@ -4,6 +4,8 @@ export type ManualVotesRangeKey = "7d" | "30d" | "90d";
 
 export type CallToBookRangeKey = "7d" | "30d" | "90d";
 
+export type OutreachMonthKey = "current" | "previous";
+
 export type ManualVotesSortCol = "votes" | "name" | "district" | "specialty" | "last";
 
 export type SortDir = "asc" | "desc";
@@ -14,6 +16,7 @@ export type FounderDashboardQuery = {
   manualVotesCol: ManualVotesSortCol;
   manualVotesDir: SortDir;
   callToBookRange: CallToBookRangeKey;
+  outreachMonth: OutreachMonthKey;
 };
 
 function first(param: string | string[] | undefined): string | undefined {
@@ -60,6 +63,10 @@ export function parseCallToBookRange(value: string | string[] | undefined): Call
   return "7d";
 }
 
+export function parseOutreachMonth(value: string | string[] | undefined): OutreachMonthKey {
+  return first(value) === "previous" ? "previous" : "current";
+}
+
 export function getCallToBookWindowDays(range: CallToBookRangeKey): number {
   if (range === "30d") return 30;
   if (range === "90d") return 90;
@@ -78,6 +85,7 @@ export function parseFounderDashboardQuery(searchParams?: {
   manualVotesCol?: string | string[];
   manualVotesDir?: string | string[];
   callToBookRange?: string | string[];
+  outreachMonth?: string | string[];
 }): FounderDashboardQuery {
   return {
     visitsRange: parseVisitsRange(searchParams?.visitsRange),
@@ -85,6 +93,7 @@ export function parseFounderDashboardQuery(searchParams?: {
     manualVotesCol: parseManualVotesCol(searchParams?.manualVotesCol),
     manualVotesDir: parseManualVotesDir(searchParams?.manualVotesDir),
     callToBookRange: parseCallToBookRange(searchParams?.callToBookRange),
+    outreachMonth: parseOutreachMonth(searchParams?.outreachMonth),
   };
 }
 
@@ -111,6 +120,7 @@ export function founderDirectoryHref(
   sp.set("manualVotesCol", merged.manualVotesCol);
   sp.set("manualVotesDir", merged.manualVotesDir);
   sp.set("callToBookRange", merged.callToBookRange);
+  sp.set("outreachMonth", merged.outreachMonth);
   return `/internal/directory?${sp.toString()}`;
 }
 
