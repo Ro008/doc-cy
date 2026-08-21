@@ -23,6 +23,8 @@ describe("root layout does not block public HTML", () => {
       "useSearchParams in NavigationProgressBar must be under Suspense or static pages fail prerender",
     );
     assert.equal(source.includes("GoogleAdsTag"), true);
+    assert.equal(source.includes("proChromeBootInlineScript"), true);
+    assert.equal(source.includes("ProChromeBoot"), true);
   });
 
   it("only refreshes Supabase session when needsSupabaseSessionMiddleware is true", () => {
@@ -47,6 +49,9 @@ describe("root layout does not block public HTML", () => {
     assert.equal(/from ["']@supabase\/auth-helpers-nextjs["']/.test(source), false);
     assert.equal(source.includes('import("@supabase/auth-helpers-nextjs")'), true);
     assert.equal(source.includes("needsSupabaseSessionMiddleware"), true);
+    assert.equal(source.includes("hasBrowserAuthHint"), true);
+    assert.equal(source.includes("isProfessionalMarketingPath"), true);
+    assert.equal(source.includes("useLayoutEffect"), true);
   });
 });
 

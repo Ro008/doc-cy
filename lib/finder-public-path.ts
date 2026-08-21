@@ -7,6 +7,28 @@ export const FINDER_INTERNAL_BASE = "/finder";
 /** Healthcare-professional sales / join marketing page (former homepage). */
 export const FOR_PROFESSIONALS_PATH = "/for-professionals";
 
+function normalizePathname(pathname: string): string {
+  const path = pathname.split("?")[0]?.split("#")[0] || pathname;
+  return path.replace(/\/$/, "") || "/";
+}
+
+/** EN/GR aliases of the professional sales page. */
+export function isProfessionalMarketingPath(pathname: string): boolean {
+  const path = normalizePathname(pathname);
+  return path === FOR_PROFESSIONALS_PATH || path === "/en" || path === "/el";
+}
+
+/**
+ * Patient directory surfaces that keep patient chrome.
+ * Full doctor chrome (sticky header / bottom tabs) would overlap the search UI.
+ */
+export function isPatientDirectoryChromePath(pathname: string): boolean {
+  const path = normalizePathname(pathname);
+  if (isPublicFinderResultsPath(path) || isPublicFinderResultsPath(pathname)) return true;
+  if (path === "/clinics" || path.startsWith("/clinics/")) return true;
+  return false;
+}
+
 /** First path segments that are finder district filters (public URLs). */
 export const FINDER_DISTRICT_PATH_SLUGS = new Set([
   "nicosia",

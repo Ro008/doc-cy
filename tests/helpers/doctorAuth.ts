@@ -1,5 +1,6 @@
 import type { Page } from "@playwright/test";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { PRO_SESSION_HINT_COOKIE, PRO_SESSION_HINT_VALUE } from "@/lib/pro-session-hint";
 
 function normalizeSecret(raw: string): string {
   return raw
@@ -221,5 +222,58 @@ export async function signInDoctorAndSetCookies(
   });
 
   return { authUserId, sessionAccessToken: session.access_token };
+}
+
+/**
+ * Auth-helpers cookies are httpOnly when injected in Playwright. The browser
+ * client reads `document.cookie`, so tests that load public pages (finder,
+ * for-professionals) need a readable copy.
+ */
+export async function exposeSupabaseAuthCookiesToClient(page: Page): Promise<void> {
+  const supabaseUrl = (
+    process.env.PLAYWRIGHT_SUPABASE_URL ??
+    process.env.NEXT_PUBLIC_SUPABASE_URL ??
+    ""
+  ).trim();
+  if (!supabaseUrl) {
+    throw new Error("Missing NEXT_PUBLIC_SUPABASE_URL / PLAYWRIGHT_SUPABASE_URL");
+  }
+
+  const storageKey = `sb-${new URL(supabaseUrl).hostname.split(".")[0]}-auth-token`;
+  const baseUrl = (process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000").trim();
+  const cookieDomain = new URL(baseUrl).hostname;
+  const secure = baseUrl.startsWith("https://");
+
+  const cookies = await page.context().cookies();
+  const authCookies = cookies.filter(
+    (cookie) => cookie.name === storageKey || cookie.name.startsWith(`${storageKey}.`),
+  );
+  if (authCookies.length === 0) {
+    throw new Error("Supabase auth cookies were not set in browser context.");
+  }
+
+  await page.context().addCookies(
+    authCookies.map((cookie) => ({
+      name: cookie.name,
+      value: cookie.value,
+      domain: cookieDomain,
+      path: "/",
+      httpOnly: false,
+      secure,
+      sameSite: "Lax",
+    })),
+  );
+
+  await page.context().addCookies([
+    {
+      name: PRO_SESSION_HINT_COOKIE,
+      value: PRO_SESSION_HINT_VALUE,
+      domain: cookieDomain,
+      path: "/",
+      httpOnly: false,
+      secure,
+      sameSite: "Lax",
+    },
+  ]);
 }
 

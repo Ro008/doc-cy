@@ -18,7 +18,7 @@ test.describe("Landing page", () => {
 
     const professionalLogin = page.getByRole("link", {
       name: /Professional Login/i,
-    });
+    }).first();
     await expect(professionalLogin).toBeVisible();
     await expect(professionalLogin).toHaveAttribute("href", "/login");
   });
