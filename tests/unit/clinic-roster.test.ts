@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  clinicRosterSpecialtyKeys,
   filterClinicRosterBySpecialty,
   splitClinicRosterByFinderVisibility,
   uniqueClinicRosterProfessionals,
@@ -41,6 +42,23 @@ describe("clinic roster (unique + specialty filter)", () => {
     assert.deepEqual(
       dentists.map((p) => p.id),
       ["d1", "d2"],
+    );
+  });
+
+  it("collapses Haematology and Hematology into one roster chip", () => {
+    const niki = {
+      id: "n1",
+      displayName: "Niki Vyridou",
+      specialty: "Haematology",
+      specialties: ["Haematology", "Microbiology", "Hematology"],
+    };
+    assert.deepEqual(clinicRosterSpecialtyKeys(niki), [
+      "Hematology",
+      "Microbiology",
+    ]);
+    assert.deepEqual(
+      filterClinicRosterBySpecialty([niki], "Haematology").map((p) => p.id),
+      ["n1"],
     );
   });
 

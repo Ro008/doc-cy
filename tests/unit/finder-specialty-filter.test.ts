@@ -28,6 +28,14 @@ describe("matchesSpecialtyFilter", () => {
     assert.equal(matchesSpecialtyFilter("Paediatrics", "paediatrics"), true);
   });
 
+  it("matches Haematology cards when the category is Hematology", () => {
+    assert.equal(matchesSpecialtyFilter("Haematology", "Hematology"), true);
+    assert.equal(
+      matchesAnySpecialtyFilter(["Haematology", "Microbiology"], "Hematology"),
+      true,
+    );
+  });
+
   it("matches multi-specialty cards on either specialty", () => {
     assert.equal(
       matchesAnySpecialtyFilter(["Personal Doctor", "Paediatrics"], "Paediatrics"),

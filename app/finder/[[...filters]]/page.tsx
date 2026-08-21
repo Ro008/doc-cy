@@ -109,6 +109,10 @@ import {
 } from "@/lib/finder-directory-cache";
 import { DOCCY_EXTRA_REGISTRATION_SPECIALTIES } from "@/lib/cyprus-specialties";
 import { GESY_MANUAL_SPECIALTIES } from "@/lib/gesy-specialties";
+import {
+  harmonizeFinderSpecialtyLabel,
+  harmonizeFinderSpecialtyList,
+} from "@/lib/finder-specialty-harmonize";
 import { manualDirectoryLandingPath } from "@/lib/manual-directory-landing-path";
 import { finderIncludesRegisteredTestProfiles, isRegisteredDoctorHiddenFromFinder } from "@/lib/doctor-test-profile";
 import { finderAvailabilityRequestKey } from "@/lib/public/finder-availability-request-key";
@@ -303,11 +307,11 @@ function resolveSpecialtyValue(
   const segment = normalizeSelectValue(decodeSegment(specialtySegment));
   if (segment) {
     if (isAllSlug(segment)) return "";
-    return slugToSpecialty(segment);
+    return harmonizeFinderSpecialtyLabel(slugToSpecialty(segment));
   }
   const queryValue = normalizeSelectValue(specialtyQueryParam);
   if (!queryValue || isAllSlug(queryValue)) return "";
-  return queryValue;
+  return harmonizeFinderSpecialtyLabel(queryValue);
 }
 
 function resolveMetadataFilters(params: FinderPageProps["params"]): {
@@ -734,10 +738,11 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
         const specialties = Array.isArray(row.specialties)
           ? row.specialties.map((s) => String(s ?? "").trim()).filter(Boolean)
           : [];
-        const specialtyParts =
+        const specialtyParts = harmonizeFinderSpecialtyList(
           specialties.length > 0
             ? specialties
-            : [String(row.specialty ?? "").trim()].filter(Boolean);
+            : [String(row.specialty ?? "").trim()].filter(Boolean),
+        );
         return {
           id: manualId,
           slug: String(row.slug ?? "").trim() || null,

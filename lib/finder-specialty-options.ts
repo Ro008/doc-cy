@@ -12,6 +12,29 @@ export type FinderSpecialtyOptionSource = {
   specialties?: readonly string[] | null | undefined;
 };
 
+function canonicalSpecialtyOption(raw: string): FinderSpecialtyOption | null {
+  const label = harmonizeFinderSpecialtyLabel(String(raw ?? "").trim());
+  if (!label) return null;
+  const slug = specialtyToSlug(label);
+  if (!slug || slug === "all") return null;
+  if (EXCLUDED_FINDER_SPECIALTY_SLUGS.has(slug)) return null;
+  return { slug, label };
+}
+
+function collapseSpecialtyOptions(
+  options: readonly FinderSpecialtyOption[],
+): FinderSpecialtyOption[] {
+  const slugToLabel = new Map<string, string>();
+  for (const option of options) {
+    const canonical = canonicalSpecialtyOption(option.label) ?? canonicalSpecialtyOption(option.slug);
+    if (!canonical) continue;
+    if (!slugToLabel.has(canonical.slug)) slugToLabel.set(canonical.slug, canonical.label);
+  }
+  return Array.from(slugToLabel.entries())
+    .map(([slug, label]) => ({ slug, label }))
+    .sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: "base" }));
+}
+
 /**
  * Builds finder specialty dropdown options from directory rows only (no registration master list).
  * Manual rows are absorbed first; labels are harmonized before grouping by slug.
@@ -30,12 +53,9 @@ export function buildFinderSpecialtyOptions(
       ? trimmed.split(/[·;|]/).map((p) => p.trim()).filter(Boolean)
       : [trimmed];
     for (const part of parts) {
-      const label = harmonizeFinderSpecialtyLabel(part);
-      if (!label) continue;
-      const slug = specialtyToSlug(label);
-      if (slug === "all") continue;
-      if (EXCLUDED_FINDER_SPECIALTY_SLUGS.has(slug)) continue;
-      if (!slugToLabel.has(slug)) slugToLabel.set(slug, label);
+      const canonical = canonicalSpecialtyOption(part);
+      if (!canonical) continue;
+      if (!slugToLabel.has(canonical.slug)) slugToLabel.set(canonical.slug, canonical.label);
     }
   }
 
@@ -59,4 +79,25 @@ export function buildFinderSpecialtyOptions(
   return Array.from(slugToLabel.entries())
     .map(([slug, label]) => ({ slug, label }))
     .sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: "base" }));
+}
+
+/**
+ * Dropdown options + selected slug for the finder specialty <select>.
+ *
+ * Never invents a new option from the current URL / active filter. Spelling
+ * variants (Haematology vs Hematology) collapse onto the canonical label.
+ */
+export function resolveFinderSpecialtyDropdown(
+  options: readonly FinderSpecialtyOption[],
+  activeSpecialty: string,
+): { options: FinderSpecialtyOption[]; selectedSlug: string } {
+  const list = collapseSpecialtyOptions(options);
+  const trimmed = String(activeSpecialty ?? "").trim();
+  if (!trimmed || /[·;|]/.test(trimmed)) {
+    return { options: list, selectedSlug: "" };
+  }
+  const canonical = canonicalSpecialtyOption(trimmed);
+  if (!canonical) return { options: list, selectedSlug: "" };
+  const match = list.find((option) => option.slug === canonical.slug);
+  return { options: list, selectedSlug: match?.slug ?? "" };
 }

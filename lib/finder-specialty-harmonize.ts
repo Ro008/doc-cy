@@ -47,7 +47,7 @@ const LEGACY_TO_GESY: Record<string, string> = {
   "laser & medical aesthetics": "Plastic Surgery",
   wellness: "Personal Doctor",
   oncology: "Medical Oncology",
-  hematology: "Haematology",
+  haematology: "Hematology",
 };
 
 const GESY_BY_SLUG = new Map<string, string>(
@@ -55,6 +55,8 @@ const GESY_BY_SLUG = new Map<string, string>(
 );
 // DocCy exception also resolves by slug for finder URLs.
 GESY_BY_SLUG.set(specialtyToSlug("Psychology"), "Psychology");
+// British GeSY spelling (HEM/AEHEM/ISHEM) shares the Hematology category.
+GESY_BY_SLUG.set(specialtyToSlug("Haematology"), "Hematology");
 
 /** Resolve slug-decoded / casing variants to the canonical GeSY (or DocCy) label. */
 function resolveGesyLabelBySlug(raw: string): string | null {
@@ -72,4 +74,19 @@ export function harmonizeFinderSpecialtyLabel(raw: string): string {
   const bySlug = resolveGesyLabelBySlug(trimmed);
   if (bySlug) return bySlug;
   return trimmed;
+}
+
+/** Harmonize then drop duplicate pills (e.g. Haematology + Hematology). */
+export function harmonizeFinderSpecialtyList(raw: readonly string[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const value of raw) {
+    const label = harmonizeFinderSpecialtyLabel(String(value ?? "").trim());
+    if (!label) continue;
+    const slug = specialtyToSlug(label);
+    if (!slug || slug === "all" || seen.has(slug)) continue;
+    seen.add(slug);
+    out.push(label);
+  }
+  return out;
 }

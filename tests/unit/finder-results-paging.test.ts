@@ -19,6 +19,12 @@ describe("finder results paging helpers", () => {
     assert.equal(escapeIlikePattern("100%_x\\y"), "100\\%\\_x\\\\y");
   });
 
+  it("expands Hematology specialty variants for SQL (British spelling)", () => {
+    const values = finderSpecialtyDbMatchValues("Haematology");
+    assert.ok(values.includes("Hematology"));
+    assert.ok(values.includes("Haematology"));
+  });
+
   it("expands dentistry specialty variants for SQL (GeSY Dentist + legacy)", () => {
     const values = finderSpecialtyDbMatchValues("Dentistry");
     assert.ok(values.includes("Dentist"));
