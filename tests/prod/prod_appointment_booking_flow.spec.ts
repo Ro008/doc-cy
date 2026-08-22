@@ -6,6 +6,7 @@ import {
   waitForCloudflareChallengeToClear,
 } from "./helpers/assertNoCloudflareChallenge";
 import { preparePublicPage } from "./helpers/preparePublicPage";
+import { dismissCookieConsentIfPresent } from "./helpers/dismissCookieConsent";
 
 const TEST_BOOKING_DOMAIN = "@test-doccy.com.cy";
 
@@ -35,6 +36,7 @@ test.describe("Prod smoke: appointment booking flow", { tag: "@nightly-prod" }, 
       await preparePublicPage(page);
       await page.goto(`/en/${doctorSlug}`);
       await waitForCloudflareChallengeToClear(page);
+      await dismissCookieConsentIfPresent(page);
       await expect(page.getByText("Select a date on the calendar")).toBeVisible({
         timeout: 20000,
       });

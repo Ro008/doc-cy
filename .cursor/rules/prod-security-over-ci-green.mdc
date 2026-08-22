@@ -1,0 +1,25 @@
+---
+description: Anti-scraping and Bot Fight Mode outrank making CI green
+alwaysApply: true
+---
+
+# Security vs green CI
+
+Anti-scraping is a **higher priority** than a green nightly. Do not suggest weakening it to stop false alarms.
+
+## Never suggest
+
+- Turning **Cloudflare Bot Fight Mode** (or JS Detections) off, pausing it for the nightly window, or allowing GitHub runner IPs, just so `prod-smoke-edge` passes
+- Removing orange-cloud proxy, honeytokens, contact-reveal, or RLS on public directory views for the same reason
+
+Bot Fight Mode was turned **on 2026-08-09** as P1 HTML-scrape friction after PostgREST dumps were closed. GitHub Actions IPs often get *Just a moment…*. That is expected.
+
+## How to read Production Monitoring
+
+| Edge (mydoccy.com) | Origin (`*.vercel.app`) | Meaning |
+|---|---|---|
+| Fail (*Just a moment…*) | Pass | Runners vs Bot Fight. **Do nothing.** Keep Bot Fight on. |
+| Fail | Fail | Look at the **product** (origin). |
+| Pass | Pass | All good. |
+
+Fix **tests** (cookie bar, force-click, waits). Treat edge as diagnostic when origin is configured. Do not disable Cloudflare.

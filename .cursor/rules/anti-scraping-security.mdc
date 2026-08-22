@@ -55,6 +55,8 @@ Honeytoken profiles exist so an unauthorized bulk copy of the directory can late
 
 Cloudflare Free does **not** replace P0; it slows HTML scrapers once PostgREST dumps are closed.
 
+**Keep Bot Fight Mode ON.** It was turned on 2026-08-09 as P1 scrape friction (JS detections included). GitHub Actions IPs often get the *Just a moment…* interstitial; that is expected. Nightly **Vercel origin** (`*.vercel.app`) is the product-health signal. Do not disable Bot Fight Mode to make edge smoke green.
+
 ## What we implemented
 
 ### 1. RLS hardening on base tables (migration `20260728180000`)
