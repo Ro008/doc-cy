@@ -50,8 +50,8 @@ export function FinderAvailabilityDaySlotGrid({ days, resetKey, renderSlot }: Pr
         const hasMore = extraSlots.length > 0;
 
         return (
-          <div key={day.dateKey} className="flex min-w-0 flex-col">
-            <div className="flex min-h-[5.5rem] flex-1 flex-col gap-1 p-1.5">
+          <div key={day.dateKey} className="flex min-h-[5.5rem] min-w-0 flex-col">
+            <div className="flex flex-col gap-1 p-1.5">
               {previewSlots.map((slot) => (
                 <React.Fragment key={slot.slotKey}>{renderSlot(slot, day)}</React.Fragment>
               ))}
@@ -64,7 +64,7 @@ export function FinderAvailabilityDaySlotGrid({ days, resetKey, renderSlot }: Pr
                   >
                     <div className="min-h-0 overflow-hidden">
                       <div
-                        className={`flex flex-col gap-1 transition-opacity duration-300 ease-in-out motion-reduce:transition-none ${
+                        className={`flex flex-col gap-1 pt-1 transition-opacity duration-300 ease-in-out motion-reduce:transition-none ${
                           isExpanded ? "opacity-100" : "pointer-events-none opacity-0"
                         }`}
                       >

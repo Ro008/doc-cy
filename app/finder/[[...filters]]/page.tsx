@@ -25,22 +25,20 @@ import { FinderSearchBar } from "@/components/finder/FinderSearchBar";
 import { FinderStructuredData } from "@/components/finder/FinderStructuredData";
 import { FinderFaqSection } from "@/components/finder/FinderFaqSection";
 import { GesyProviderBadge } from "@/components/brand/GesyProviderBadge";
-import { FinderClinicLocationBlock } from "@/components/finder/FinderClinicLocationBlock";
 import { FinderLoadMoreButton } from "@/components/finder/FinderLoadMoreButton";
 import { FinderSpecialtyPills } from "@/components/finder/FinderSpecialtyPills";
 import {
   ManualDirectoryDoctorClaimFooter,
-  ManualDirectoryMonthlyRequestBadge,
   ManualDirectoryReportIncorrectInfoLink,
 } from "@/components/finder/ManualDirectoryPatientActions";
 import {
   FinderCardAvailabilitySkeleton,
   FinderRegisteredCardAvailability,
 } from "@/components/finder/FinderRegisteredCardAvailability";
-import { FinderManualCardAvailabilityGrid } from "@/components/finder/FinderManualCardAvailabilityGrid";
+import { FinderManualLocationCalendars } from "@/components/finder/FinderManualLocationCalendars";
+import { FinderMultiLocationAvailability } from "@/components/finder/FinderMultiLocationAvailability";
 import { FinderResultsAvailabilityShell } from "@/components/finder/FinderResultsAvailabilityShell";
 import {
-  finderRegisteredCardDetailsGridClass,
   finderRegisteredCardRowClass,
   finderRegisteredDetailsSectionClass,
   finderRegisteredIdentityColumnClass,
@@ -1281,11 +1279,59 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
                         </div>
                       </div>
                       <div className={finderRegisteredDetailsSectionClass}>
-                        <div
-                          className={
-                            showRightColumn ? finderRegisteredCardDetailsGridClass : ""
-                          }
-                        >
+                        {showRightColumn ? (
+                          <FinderMultiLocationAvailability
+                            rows={[
+                              {
+                                key: row.id,
+                                location: (
+                                  <div className="space-y-4">
+                                    <div>
+                                      <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-ink-400">
+                                        Speaks
+                                      </p>
+                                      {row.languages.length > 0 ? (
+                                        <div className="flex flex-wrap gap-1.5">
+                                          {row.languages.slice(0, 4).map((language, index) => {
+                                            const theme = languageThemeForLabel(language);
+                                            return (
+                                              <span
+                                                key={`${theme.label}-${index}`}
+                                                className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold leading-snug ${theme.pillClass}`}
+                                                title={theme.label}
+                                              >
+                                                <span>{theme.label}</span>
+                                              </span>
+                                            );
+                                          })}
+                                        </div>
+                                      ) : (
+                                        <p className="text-xs text-ink-400">Not specified</p>
+                                      )}
+                                    </div>
+                                    <div>
+                                      <p className="text-xs leading-relaxed text-ink-600 whitespace-pre-wrap break-words">
+                                        {row.clinic_address?.trim()
+                                          ? row.clinic_address.trim()
+                                          : "Not provided yet"}
+                                      </p>
+                                    </div>
+                                  </div>
+                                ),
+                                calendar: (
+                                  <Suspense fallback={<FinderCardAvailabilitySkeleton />}>
+                                    <FinderRegisteredCardAvailability
+                                      doctorId={row.id}
+                                      profileSlug={row.slug ?? ""}
+                                      doctorIdsKey={registeredAvailabilityKey}
+                                      anchorStickyWeekNav={row.id === stickyWeekAnchorDoctorId}
+                                    />
+                                  </Suspense>
+                                ),
+                              },
+                            ]}
+                          />
+                        ) : (
                           <div className="space-y-4">
                             <div>
                               <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-ink-400">
@@ -1318,17 +1364,7 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
                               </p>
                             </div>
                           </div>
-                          {row.slug ? (
-                            <Suspense fallback={<FinderCardAvailabilitySkeleton />}>
-                              <FinderRegisteredCardAvailability
-                                doctorId={row.id}
-                                profileSlug={row.slug}
-                                doctorIdsKey={registeredAvailabilityKey}
-                                anchorStickyWeekNav={row.id === stickyWeekAnchorDoctorId}
-                              />
-                            </Suspense>
-                          ) : null}
-                        </div>
+                        )}
                       </div>
                     </article>
                   );
@@ -1410,33 +1446,12 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
                     </div>
 
                     <div className={finderRegisteredDetailsSectionClass}>
-                      <div className={finderRegisteredCardDetailsGridClass}>
-                        <div className="space-y-4">
-                          <FinderClinicLocationBlock
-                            district={row.district}
-                            address={row.address}
-                            addressMapsLink={row.address_maps_link}
-                            clinic={row.clinic}
-                            clinics={row.clinics}
-                            variant="full"
-                            callToBook={{
-                              manualId: row.id,
-                              listingHasPhone: row.hasPhone,
-                              source: "finder_card",
-                            }}
-                          />
-                        </div>
-                        <div className="min-w-0 flex flex-col gap-2">
-                          <ManualDirectoryMonthlyRequestBadge
-                            monthlyRequestCount={row.monthlyRequestCount}
-                          />
-                          <FinderManualCardAvailabilityGrid
-                            manualId={row.id}
-                            dayHeaders={finderAvailabilityDayHeaders}
-                            anchorStickyWeekNav={row.id === stickyWeekAnchorDoctorId}
-                          />
-                        </div>
-                      </div>
+                      <FinderManualLocationCalendars
+                        listing={row}
+                        dayHeaders={finderAvailabilityDayHeaders}
+                        callToBookSource="finder_card"
+                        anchorStickyWeekNav={row.id === stickyWeekAnchorDoctorId}
+                      />
                     </div>
                     </div>
 

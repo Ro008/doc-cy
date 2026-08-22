@@ -1,6 +1,7 @@
 import { type Page } from "@playwright/test";
 
 import { isCloudflareChallengePage } from "./cloudflareChallengePage";
+import { dismissCookieConsentIfPresent } from "./dismissCookieConsent";
 import { preparePublicPage } from "./preparePublicPage";
 
 export { isCloudflareChallengePage };
@@ -17,7 +18,7 @@ export async function assertNoCloudflareChallenge(page: Page): Promise<void> {
   throw new Error(
     `Cloudflare bot challenge blocked ${page.url()} (title: "${title}"). ` +
       `GitHub Actions IPs can be challenged by Bot Fight Mode. ` +
-      `WAF Skip rules do not bypass Bot Fight Mode; pause it for the nightly window or allow the runner.`,
+      `Keep Bot Fight Mode on (anti-scraping). Dual-lane nightly treats edge as diagnostic when Vercel origin is configured.`,
   );
 }
 
@@ -41,4 +42,5 @@ export async function gotoPublicAndReady(page: Page, path: string): Promise<void
   await page.goto(path, { waitUntil: "domcontentloaded" });
   await page.waitForLoadState("load", { timeout: 15_000 }).catch(() => undefined);
   await waitForCloudflareChallengeToClear(page);
+  await dismissCookieConsentIfPresent(page);
 }

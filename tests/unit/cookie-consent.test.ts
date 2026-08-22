@@ -112,4 +112,17 @@ describe("cookie consent wiring", () => {
     assert.equal(layout.includes("CookieConsentBar"), true);
     assert.equal(layout.includes("adsTagEnabled"), true);
   });
+
+  it("prod nightly dismisses the cookie bar before clicking page controls", () => {
+    const helper = fs.readFileSync(
+      path.join(repoRoot, "tests/prod/helpers/dismissCookieConsent.ts"),
+      "utf8",
+    );
+    const harness = fs.readFileSync(
+      path.join(repoRoot, "tests/prod/helpers/assertNoCloudflareChallenge.ts"),
+      "utf8",
+    );
+    assert.equal(helper.includes("cookie-consent-reject"), true);
+    assert.equal(harness.includes("dismissCookieConsentIfPresent"), true);
+  });
 });

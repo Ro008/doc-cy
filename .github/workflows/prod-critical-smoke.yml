@@ -234,6 +234,37 @@ jobs:
         run: |
           set -euo pipefail
           echo "email=${EMAIL_RESULT} edge=${EDGE_RESULT} origin=${ORIGIN_RESULT}"
+
+          verdict="All good."
+          if [ "${EMAIL_RESULT}" != "success" ]; then
+            verdict="Email guards failed — look at Resend / @pr-email, not Cloudflare."
+          elif [ "${ORIGIN_RESULT}" = "failure" ]; then
+            verdict="Look at the product (Vercel origin). Edge red on its own is not enough."
+          elif [ "${ORIGIN_RESULT}" = "skipped" ] && [ "${EDGE_RESULT}" != "success" ]; then
+            verdict="Edge failed and origin is not configured — blocking until origin URL is set."
+          elif [ "${ORIGIN_RESULT}" = "success" ] && [ "${EDGE_RESULT}" = "failure" ]; then
+            verdict="Nothing to do. GitHub runners vs Bot Fight Mode. Keep Bot Fight on."
+          elif [ "${ORIGIN_RESULT}" = "success" ] && [ "${EDGE_RESULT}" = "success" ]; then
+            verdict="All good."
+          fi
+
+          {
+            echo "## How to read this nightly"
+            echo ""
+            echo "| Edge (mydoccy.com / Cloudflare) | Origin (\`*.vercel.app\`) | What to do |"
+            echo "| --- | --- | --- |"
+            echo "| Failed (*Just a moment…*) | Success | Nothing. GitHub runners vs Bot Fight Mode. **Keep Bot Fight on.** |"
+            echo "| Failed | Failed | Look at the **product** (origin), not Cloudflare. |"
+            echo "| Success | Success | All good. |"
+            echo "| Failed | Skipped | Origin not configured; edge is blocking. |"
+            echo ""
+            echo "**This run:** email=\`${EMAIL_RESULT}\` · edge=\`${EDGE_RESULT}\` · origin=\`${ORIGIN_RESULT}\`"
+            echo ""
+            echo "**Verdict:** ${verdict}"
+            echo ""
+            echo "Bot Fight Mode stays on (anti-scraping). Do not disable it to green the edge lane."
+          } >> "${GITHUB_STEP_SUMMARY}"
+
           if [ "${EMAIL_RESULT}" != "success" ]; then
             echo "::error::Email guards failed (${EMAIL_RESULT})."
             exit 1
@@ -247,5 +278,5 @@ jobs:
             exit 1
           fi
           if [ "${ORIGIN_RESULT}" = "success" ] && [ "${EDGE_RESULT}" = "failure" ]; then
-            echo "::warning::Cloudflare edge failed while Vercel origin passed. Likely Bot Fight Mode."
+            echo "::warning::Cloudflare edge failed while Vercel origin passed. GitHub runners vs Bot Fight Mode — keep Bot Fight on."
           fi

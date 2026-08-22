@@ -180,6 +180,9 @@ describe("Google Ads wiring", () => {
       "utf8",
     );
     assert.equal(landing.includes("FinderResultsAvailabilityShell"), true);
-    assert.equal(landing.includes('source: "professional_profile_page"'), true);
+    assert.equal(
+      landing.includes('callToBookSource="professional_profile_page"'),
+      true,
+    );
   });
 });

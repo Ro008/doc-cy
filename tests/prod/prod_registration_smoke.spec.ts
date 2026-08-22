@@ -194,13 +194,16 @@ test.describe("Prod smoke: doctor registration", { tag: "@nightly-prod" }, () =>
         page.getByText("Start typing and choose your clinic from Google suggestions."),
       ).toBeVisible({ timeout: 20_000 });
       const clinicAddress = page.locator("#register-clinic-address");
-      await clinicAddress.click();
-      await clinicAddress.fill("");
-      await clinicAddress.pressSequentially("Nicosia", { delay: 60 });
+      await clinicAddress.waitFor({ state: "attached", timeout: 20_000 });
+      await clinicAddress.scrollIntoViewIfNeeded();
+      // Cookie bars / Places DOM churn make a normal click wait on "stable" forever.
+      await clinicAddress.click({ force: true, timeout: 10_000 });
+      await clinicAddress.fill("", { force: true });
+      await clinicAddress.pressSequentially("Nicosia", { delay: 80 });
       const pacItem = page.locator(".pac-container .pac-item").first();
       await expect(pacItem).toBeVisible({ timeout: 20_000 });
       try {
-        await pacItem.click({ timeout: 8_000 });
+        await pacItem.click({ force: true, timeout: 8_000 });
       } catch {
         await clinicAddress.press("ArrowDown");
         await clinicAddress.press("Enter");

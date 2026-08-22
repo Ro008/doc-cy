@@ -69,6 +69,23 @@ describe("prod nightly Cloudflare harness", () => {
     assert.match(src, /prod-smoke-origin:/);
     assert.match(src, /needs: \[schedule-gate, smoke-targets, prod-smoke-edge\]/);
     assert.match(src, /PLAYWRIGHT_BASE_URL_VERCEL_PROD/);
+    assert.match(src, /continue-on-error: \$\{\{ needs.smoke-targets.outputs.origin_enabled == 'true' \}\}/);
+    assert.match(src, /How to read this nightly/);
+    assert.match(src, /Keep Bot Fight on/);
     assert.doesNotMatch(src, /^\s+prod-critical-smoke:/m);
+  });
+
+  it("dismisses the cookie bar and force-clicks clinic address in prod registration smoke", () => {
+    const harness = fs.readFileSync(
+      path.join(repoRoot, "tests/prod/helpers/assertNoCloudflareChallenge.ts"),
+      "utf8",
+    );
+    const registration = fs.readFileSync(
+      path.join(repoRoot, "tests/prod/prod_registration_smoke.spec.ts"),
+      "utf8",
+    );
+    assert.match(harness, /dismissCookieConsentIfPresent/);
+    assert.match(registration, /scrollIntoViewIfNeeded/);
+    assert.match(registration, /click\(\{ force: true/);
   });
 });
