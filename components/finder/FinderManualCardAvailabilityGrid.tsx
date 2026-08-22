@@ -15,14 +15,20 @@ type Props = {
   manualId: string;
   dayHeaders: readonly FinderAvailabilityDayHeader[];
   anchorStickyWeekNav?: boolean;
+  /** Defaults to `manualId`. Distinct per practice location so multi-clinic previews differ. */
+  seedKey?: string;
 };
 
 export function FinderManualCardAvailabilityGrid({
   manualId,
   dayHeaders,
   anchorStickyWeekNav = false,
+  seedKey,
 }: Props) {
-  const previewCalendar = buildManualPreviewCalendar([...dayHeaders], manualId);
+  const previewCalendar = buildManualPreviewCalendar(
+    [...dayHeaders],
+    String(seedKey ?? "").trim() || manualId,
+  );
   if (previewCalendar.length === 0) return null;
 
   return (
@@ -31,7 +37,7 @@ export function FinderManualCardAvailabilityGrid({
       {...{ [FINDER_MANUAL_CALENDAR_ATTR]: "" }}
       data-manual-id={manualId}
     >
-      <div className="rounded-lg border border-ink-200 bg-ink-50/50">
+      <div className="overflow-hidden rounded-lg border border-ink-200 bg-ink-50/50">
         {anchorStickyWeekNav ? (
           <FinderAvailabilityStickyWeekHeader />
         ) : (

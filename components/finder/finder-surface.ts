@@ -8,7 +8,7 @@
  * Matches clinic-roster professional cards: border + shadow deepen, no lift/bg wash.
  */
 export const finderResultCardClass =
-  "rounded-2xl border border-clinical-200 bg-white p-4 shadow-sm sm:p-5 transition-none hover:border-clinical-300 hover:shadow-md";
+  "h-auto overflow-visible rounded-2xl border border-clinical-200 bg-white p-4 shadow-sm sm:p-5 transition-none hover:border-clinical-300 hover:shadow-md";
 
 /** Clickable browse / SEO rows (district × specialty links). */
 export const finderBrowseRowClass =

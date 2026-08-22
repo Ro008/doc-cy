@@ -1,18 +1,15 @@
 import { PendingLink } from "@/components/navigation/PendingLink";
 import { GesyProviderBadge } from "@/components/brand/GesyProviderBadge";
-import { FinderClinicLocationBlock } from "@/components/finder/FinderClinicLocationBlock";
 import { FinderSpecialtyPills } from "@/components/finder/FinderSpecialtyPills";
 import {
   ManualDirectoryDoctorClaimFooter,
-  ManualDirectoryMonthlyRequestBadge,
   ManualDirectoryReportIncorrectInfoLink,
 } from "@/components/finder/ManualDirectoryPatientActions";
-import { FinderManualCardAvailabilityGrid } from "@/components/finder/FinderManualCardAvailabilityGrid";
+import { FinderManualLocationCalendars } from "@/components/finder/FinderManualLocationCalendars";
 import { FinderResultsAvailabilityShell } from "@/components/finder/FinderResultsAvailabilityShell";
 import { FINDER_LCP_CARD_IMAGE_PRIORITY } from "@/lib/finder-card-image-priority";
 import { finderResultsPath } from "@/lib/finder-public-path";
 import {
-  finderLandingCardDetailsGridClass,
   finderRegisteredCardRowClass,
   finderRegisteredDetailsSectionClass,
   finderRegisteredIdentityColumnClass,
@@ -68,32 +65,12 @@ export function ManualDirectoryLandingCard({
           </div>
 
           <div className={finderRegisteredDetailsSectionClass}>
-            <div className={finderLandingCardDetailsGridClass}>
-              <div className="min-w-0 space-y-4">
-                <FinderClinicLocationBlock
-                  district={row.district}
-                  address={row.address}
-                  addressMapsLink={row.address_maps_link}
-                  clinic={row.clinic}
-                  clinics={row.clinics}
-                  variant="full"
-                  callToBook={{
-                    manualId: row.id,
-                    listingHasPhone: row.hasPhone,
-                    source: "professional_profile_page",
-                  }}
-                />
-              </div>
-              <div className="flex min-w-0 flex-col gap-2">
-                <ManualDirectoryMonthlyRequestBadge
-                  monthlyRequestCount={row.monthlyRequestCount}
-                />
-                <FinderManualCardAvailabilityGrid
-                  manualId={row.id}
-                  dayHeaders={dayHeaders}
-                />
-              </div>
-            </div>
+            <FinderManualLocationCalendars
+              listing={row}
+              dayHeaders={dayHeaders}
+              callToBookSource="professional_profile_page"
+              layoutVariant="landing"
+            />
           </div>
         </div>
 

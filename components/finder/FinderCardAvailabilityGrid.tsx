@@ -28,7 +28,7 @@ export function FinderCardAvailabilityGrid({
 
   return (
     <div data-testid="finder-card-calendar-preview">
-      <div className="rounded-lg border border-ink-200 bg-white">
+      <div className="overflow-hidden rounded-lg border border-ink-200 bg-white">
         {anchorStickyWeekNav ? (
           <FinderAvailabilityStickyWeekHeader />
         ) : (

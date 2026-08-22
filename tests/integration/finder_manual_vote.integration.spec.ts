@@ -82,7 +82,9 @@ async function findManualCardRequestCta(page: Page): Promise<Locator> {
         .locator("article")
         .filter({ hasText: /Are you this professional\?/i })
         .first();
-      const requestCta = manualCard.getByTestId("finder-manual-request-online-booking");
+      const requestCta = manualCard
+        .getByTestId("finder-manual-request-online-booking")
+        .first();
       try {
         await expect(requestCta).toBeVisible({ timeout: 10_000 });
         return requestCta;

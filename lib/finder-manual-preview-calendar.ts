@@ -11,6 +11,11 @@ export const MANUAL_PREVIEW_SLOTS_PER_DAY = 4;
 /** At least this many fake slots land in the first visible week strip. */
 export const MANUAL_PREVIEW_MIN_FIRST_WINDOW_SLOTS = 2;
 
+export function manualPreviewSeedKey(manualId: string, locationKey: string | null): string {
+  const extra = String(locationKey ?? "").trim();
+  return extra ? `${manualId}:${extra}` : manualId;
+}
+
 export type ManualPreviewDay = FinderAvailabilityDayHeader & {
   slots: PublicAvailabilitySlot[];
 };
