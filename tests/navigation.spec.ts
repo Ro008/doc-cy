@@ -46,7 +46,7 @@ test.describe("Navigation and routing", { tag: ["@pr-e2e", "@pr-e2e-finder"] }, 
     await expect(page.getByTestId("finder-missing-doctor-card")).toHaveCount(0);
   });
 
-  test("finder header links to professional sales page and professional login", async ({ page }) => {
+  test("finder header links to professional sales page and practitioner login", async ({ page }) => {
     await page.goto("/");
 
     const header = page.getByTestId("finder-public-header");
@@ -55,7 +55,7 @@ test.describe("Navigation and routing", { tag: ["@pr-e2e", "@pr-e2e-finder"] }, 
     const salesLink = header.getByRole("link", {
       name: /are you a healthcare professional/i,
     });
-    const loginLink = header.getByRole("link", { name: /professional login/i });
+    const loginLink = header.getByRole("link", { name: /practitioner login/i });
     await expect(salesLink).toHaveAttribute("href", "/for-professionals");
     await expect(loginLink).toHaveAttribute("href", "/login");
 
@@ -71,7 +71,7 @@ test.describe("Navigation and routing", { tag: ["@pr-e2e", "@pr-e2e-finder"] }, 
     await expect(header).toBeVisible({ timeout: 30_000 });
     await Promise.all([
       page.waitForURL(/\/login\/?$/, { timeout: 30_000 }),
-      header.getByRole("link", { name: /professional login/i }).click(),
+      header.getByRole("link", { name: /practitioner login/i }).click(),
     ]);
     await expect(
       page.getByRole("heading", { level: 1, name: /Welcome back/i }),
@@ -91,7 +91,7 @@ test.describe("Navigation and routing", { tag: ["@pr-e2e", "@pr-e2e-finder"] }, 
 
     await toggle.click();
     await expect(blind).toHaveAttribute("data-open", "true");
-    await expect(menu.getByRole("link", { name: /professional login/i })).toHaveAttribute(
+    await expect(menu.getByRole("link", { name: /practitioner login/i })).toHaveAttribute(
       "href",
       "/login",
     );
@@ -107,10 +107,10 @@ test.describe("Navigation and routing", { tag: ["@pr-e2e", "@pr-e2e-finder"] }, 
     const header = page.getByTestId("sales-public-header");
     await expect(header).toBeVisible({ timeout: 30_000 });
     await expect(header.getByTestId("public-header-menu-toggle")).toHaveCount(0);
-    await expect(header.getByRole("link", { name: /professional login/i })).toHaveCount(0);
+    await expect(header.getByRole("link", { name: /practitioner login/i })).toHaveCount(0);
 
     await expect(page.getByRole("link", { name: /list my practice/i }).first()).toBeVisible();
-    await expect(page.getByRole("link", { name: /professional login/i }).first()).toBeVisible();
+    await expect(page.getByRole("link", { name: /practitioner login/i }).first()).toBeVisible();
   });
 
   test("finder pricing CTA jumps to for-professionals founders pricing section", async ({ page }) => {

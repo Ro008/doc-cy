@@ -88,6 +88,8 @@ Edge and origin share the same prod doctor slot, so origin **starts after all ed
 
 Set `PLAYWRIGHT_BASE_URL_VERCEL_PROD` to the **production** `*.vercel.app` URL (not a preview). If Vercel Deployment Protection is on, also set `VERCEL_AUTOMATION_BYPASS_SECRET`.
 
+**Origin registration and Google Places:** the Maps JS key HTTP referrer is the canonical domain (`mydoccy.com`), so Places suggestions often fail on `*.vercel.app` even when `/register` is healthy. Origin smoke still fills the form and probes Places. If the miss is that known referrer split (`REQUEST_DENIED`, Maps not loaded, or empty predictions), it asserts clinic-required validation and **does not** fail. Quota errors, Places `OK` with predictions but no dropdown, and the same miss on `mydoccy.com` still fail. Do not add `*.vercel.app` to the Maps key, and do not skip the registration spec, just to green origin.
+
 **Does not run on nightly (PR only):**
 
 - `finder_critical`, `navigation`, `settings_clinic_address_notice`, `directory_duplicates_actions`, and the rest of the PR Playwright list

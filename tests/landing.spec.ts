@@ -17,7 +17,7 @@ test.describe("Landing page", () => {
     await expect(primaryCta).toHaveAttribute("href", "#founders-pricing-card");
 
     const professionalLogin = page.getByRole("link", {
-      name: /Professional Login/i,
+      name: /Practitioner login/i,
     }).first();
     await expect(professionalLogin).toBeVisible();
     await expect(professionalLogin).toHaveAttribute("href", "/login");

@@ -8,6 +8,26 @@ declare namespace google.maps.places {
     getPlace(): PlaceResult;
   }
 
+  class AutocompleteService {
+    getPlacePredictions(
+      request: AutocompletionRequest,
+      callback: (
+        predictions: AutocompletePrediction[] | null,
+        status: string,
+      ) => void,
+    ): void;
+  }
+
+  interface AutocompletionRequest {
+    input: string;
+    componentRestrictions?: ComponentRestrictions;
+  }
+
+  interface AutocompletePrediction {
+    description?: string;
+    place_id?: string;
+  }
+
   interface AutocompleteOptions {
     bounds?: google.maps.LatLngBounds | google.maps.LatLngBoundsLiteral;
     componentRestrictions?: ComponentRestrictions;

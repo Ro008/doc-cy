@@ -7,6 +7,14 @@ import {
   waitForCloudflareChallengeToClear,
   assertNoCloudflareChallenge,
 } from "./helpers/assertNoCloudflareChallenge";
+import {
+  probePlacesPredictions,
+  trySelectFirstPlacesSuggestion,
+} from "./helpers/places-autocomplete-smoke";
+import {
+  isExpectedVercelPlacesReferrerGap,
+  isVercelAppHost,
+} from "./helpers/places-origin-gap";
 
 const TEST_EMAIL_DOMAIN = "@test-doccy.com.cy";
 
@@ -200,14 +208,36 @@ test.describe("Prod smoke: doctor registration", { tag: "@nightly-prod" }, () =>
       await clinicAddress.click({ force: true, timeout: 10_000 });
       await clinicAddress.fill("", { force: true });
       await clinicAddress.pressSequentially("Nicosia", { delay: 80 });
-      const pacItem = page.locator(".pac-container .pac-item").first();
-      await expect(pacItem).toBeVisible({ timeout: 20_000 });
-      try {
-        await pacItem.click({ force: true, timeout: 8_000 });
-      } catch {
-        await clinicAddress.press("ArrowDown");
-        await clinicAddress.press("Enter");
+
+      const selectedPlace = await trySelectFirstPlacesSuggestion(page, clinicAddress);
+      if (!selectedPlace) {
+        const probe = await probePlacesPredictions(page, "Nicosia");
+        const vercelOrigin =
+          isVercelAppHost(baseUrl) || isVercelAppHost(page.url());
+        if (isExpectedVercelPlacesReferrerGap(vercelOrigin, probe, false)) {
+          test.info().annotations.push({
+            type: "places-origin-gap",
+            description:
+              `Places predictions unavailable on *.vercel.app (status=${probe.status}). ` +
+              "Maps key HTTP referrer is the canonical domain; register UI and clinic-required validation still ran.",
+          });
+          await page.getByRole("button", { name: /Submit My Application/i }).click();
+          await expect(
+            page.getByText("Please select your clinic from the Google Maps suggestions."),
+          ).toBeVisible({ timeout: 8_000 });
+          await expect(page).toHaveURL(/\/register(?:[?#].*)?$/);
+          await expect(
+            page.getByRole("heading", {
+              name: /Thank you|under review|Pending Evaluation/i,
+            }),
+          ).toHaveCount(0);
+          return;
+        }
+        throw new Error(
+          `Places Autocomplete produced no dropdown. mapsLoaded=${probe.mapsLoaded} status=${probe.status} count=${probe.count}`,
+        );
       }
+
       await expect(page.getByText(/District:\s*Nicosia/i)).toBeVisible({ timeout: 15_000 });
 
       const avatarInput = page.locator("label:has-text('Upload photo') input[type='file']");

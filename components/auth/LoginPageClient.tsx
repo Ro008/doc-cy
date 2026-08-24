@@ -63,7 +63,7 @@ export function LoginPageClient({ nextPath }: { nextPath?: string | null }) {
           <div className="mb-6 text-left">
             <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-semibold tracking-[0.2em] text-clinical-200/80">
               <DocCyWordmark variant="dark" size="sm" />
-              <span>· Professional login</span>
+              <span>· Practitioner login</span>
             </p>
             <h1 className="mt-3 text-2xl font-semibold tracking-tight text-slate-50 sm:text-3xl">
               Welcome back
