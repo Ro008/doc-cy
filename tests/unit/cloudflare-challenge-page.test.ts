@@ -87,5 +87,12 @@ describe("prod nightly Cloudflare harness", () => {
     assert.match(harness, /dismissCookieConsentIfPresent/);
     assert.match(registration, /scrollIntoViewIfNeeded/);
     assert.match(registration, /click\(\{ force: true/);
+    assert.match(registration, /isExpectedVercelPlacesReferrerGap/);
+    assert.match(registration, /probePlacesPredictions/);
+    assert.doesNotMatch(
+      registration,
+      /await expect\(pacItem\)\.toBeVisible/,
+      "Origin nightly must classify the Maps referrer split instead of requiring .pac-item on *.vercel.app.",
+    );
   });
 });
