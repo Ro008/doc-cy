@@ -101,7 +101,7 @@ test.describe("Professional sticky header", { tag: "@pr-e2e" }, () => {
 
     await page.goto("/", { waitUntil: "domcontentloaded" });
     const header = page.getByTestId("finder-public-header");
-    await expect(header.getByRole("link", { name: /professional login/i })).toHaveCount(0);
+    await expect(header.getByRole("link", { name: /practitioner login/i })).toHaveCount(0);
     await expect(page.getByTestId("userbar-toggle")).toBeVisible({ timeout: 15_000 });
     await expect(page.getByTestId("pro-sticky-header")).toHaveCount(0);
     await expect(page.getByTestId("userbar-mobile-tabs")).toBeHidden();
