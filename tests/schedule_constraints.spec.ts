@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { format, addDays } from "date-fns";
 import { utcToZonedTime, zonedTimeToUtc } from "date-fns-tz";
 import { CY_TZ } from "@/lib/appointments";
@@ -21,6 +21,75 @@ function nextWeekdayCyprusKey(minDaysAhead = 1): string {
     d = addDays(d, 1);
   }
   return format(d, "yyyy-MM-dd");
+}
+
+type DayHours = { enabled: boolean; start_time: string; end_time: string };
+
+type WeeklySchedulePayload = {
+  monday: DayHours;
+  tuesday: DayHours;
+  wednesday: DayHours;
+  thursday: DayHours;
+  friday: DayHours;
+  saturday: DayHours;
+  sunday: DayHours;
+};
+
+/**
+ * Booking availability is resolved from doctor_locations (primary), not doctor_settings alone.
+ * Updating the primary location also syncs schedule columns back to doctor_settings via trigger.
+ */
+async function syncPrimaryLocationSchedule(
+  supabase: SupabaseClient,
+  doctorId: string,
+  input: {
+    weekly_schedule: WeeklySchedulePayload;
+    start_time: string;
+    end_time: string;
+    slot_duration_minutes?: number;
+    break_start?: string | null;
+    break_end?: string | null;
+  },
+): Promise<{ locationId: string | null; error: string | null }> {
+  const schedule = input.weekly_schedule;
+  const { data: primary, error: primaryErr } = await supabase
+    .from("doctor_locations")
+    .select("id")
+    .eq("doctor_id", doctorId)
+    .eq("is_primary", true)
+    .maybeSingle();
+
+  if (primaryErr || !primary?.id) {
+    return {
+      locationId: null,
+      error: primaryErr?.message ?? "Primary doctor_locations row missing.",
+    };
+  }
+
+  const { error: updateErr } = await supabase
+    .from("doctor_locations")
+    .update({
+      monday: schedule.monday.enabled,
+      tuesday: schedule.tuesday.enabled,
+      wednesday: schedule.wednesday.enabled,
+      thursday: schedule.thursday.enabled,
+      friday: schedule.friday.enabled,
+      saturday: schedule.saturday.enabled,
+      sunday: schedule.sunday.enabled,
+      start_time: input.start_time,
+      end_time: input.end_time,
+      weekly_schedule: schedule,
+      break_start: input.break_start ?? null,
+      break_end: input.break_end ?? null,
+      slot_duration_minutes: input.slot_duration_minutes ?? 30,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", primary.id);
+
+  return {
+    locationId: primary.id as string,
+    error: updateErr?.message ?? null,
+  };
 }
 
 test.describe("Schedule constraints @booking-creates", { tag: "@pr-e2e" }, () => {
@@ -45,36 +114,35 @@ test.describe("Schedule constraints @booking-creates", { tag: "@pr-e2e" }, () =>
     );
 
     const commonDay = { enabled: true, start_time: "09:00:00", end_time: "17:00:00" };
+    const weekly_schedule: WeeklySchedulePayload = {
+      monday: commonDay,
+      tuesday: commonDay,
+      wednesday: commonDay,
+      thursday: commonDay,
+      friday: { enabled: true, start_time: "09:00:00", end_time: "15:00:00" },
+      saturday: { enabled: false, start_time: "09:00:00", end_time: "17:00:00" },
+      sunday: { enabled: false, start_time: "09:00:00", end_time: "17:00:00" },
+    };
+
+    const synced = await syncPrimaryLocationSchedule(supabase, doctor.id, {
+      weekly_schedule,
+      start_time: "09:00:00",
+      end_time: "17:00:00",
+      slot_duration_minutes: 30,
+      break_start: null,
+      break_end: null,
+    });
+    test.skip(Boolean(synced.error), synced.error ?? "Could not sync primary location schedule.");
+
     const { error: upsertErr } = await supabase.from("doctor_settings").upsert(
       {
         doctor_id: doctor.id,
-        monday: true,
-        tuesday: true,
-        wednesday: true,
-        thursday: true,
-        friday: true,
-        saturday: false,
-        sunday: false,
-        start_time: "09:00:00",
-        end_time: "17:00:00",
-        weekly_schedule: {
-          monday: commonDay,
-          tuesday: commonDay,
-          wednesday: commonDay,
-          thursday: commonDay,
-          friday: { enabled: true, start_time: "09:00:00", end_time: "15:00:00" },
-          saturday: { enabled: false, start_time: "09:00:00", end_time: "17:00:00" },
-          sunday: { enabled: false, start_time: "09:00:00", end_time: "17:00:00" },
-        },
         holiday_mode_enabled: false,
         holiday_start_date: null,
         holiday_end_date: null,
-        break_start: null,
-        break_end: null,
-        slot_duration_minutes: 30,
         updated_at: new Date().toISOString(),
       },
-      { onConflict: "doctor_id" }
+      { onConflict: "doctor_id" },
     );
     test.skip(Boolean(upsertErr), "Missing migrated doctor_settings columns.");
 
@@ -129,36 +197,35 @@ test.describe("Schedule constraints @booking-creates", { tag: "@pr-e2e" }, () =>
     const start = cyprusDateKey(1);
     const end = cyprusDateKey(3);
     const commonDay = { enabled: true, start_time: "09:00:00", end_time: "17:00:00" };
+    const weekly_schedule: WeeklySchedulePayload = {
+      monday: commonDay,
+      tuesday: commonDay,
+      wednesday: commonDay,
+      thursday: commonDay,
+      friday: commonDay,
+      saturday: commonDay,
+      sunday: commonDay,
+    };
+
+    const synced = await syncPrimaryLocationSchedule(supabase, doctor.id, {
+      weekly_schedule,
+      start_time: "09:00:00",
+      end_time: "17:00:00",
+      slot_duration_minutes: 30,
+      break_start: null,
+      break_end: null,
+    });
+    test.skip(Boolean(synced.error), synced.error ?? "Could not sync primary location schedule.");
+
     const { error: upsertErr } = await supabase.from("doctor_settings").upsert(
       {
         doctor_id: doctor.id,
-        monday: true,
-        tuesday: true,
-        wednesday: true,
-        thursday: true,
-        friday: true,
-        saturday: true,
-        sunday: true,
-        start_time: "09:00:00",
-        end_time: "17:00:00",
-        weekly_schedule: {
-          monday: commonDay,
-          tuesday: commonDay,
-          wednesday: commonDay,
-          thursday: commonDay,
-          friday: commonDay,
-          saturday: commonDay,
-          sunday: commonDay,
-        },
         holiday_mode_enabled: true,
         holiday_start_date: start,
         holiday_end_date: end,
-        break_start: null,
-        break_end: null,
-        slot_duration_minutes: 30,
         updated_at: new Date().toISOString(),
       },
-      { onConflict: "doctor_id" }
+      { onConflict: "doctor_id" },
     );
     test.skip(Boolean(upsertErr), "Missing migrated doctor_settings columns.");
 
@@ -197,36 +264,36 @@ test.describe("Schedule constraints @booking-creates", { tag: "@pr-e2e" }, () =>
     test.skip(!doctor?.id || doctor.status !== "verified", "Verified doctor not found.");
 
     const commonDay = { enabled: true, start_time: "09:00:00", end_time: "18:00:00" };
+    const weekly_schedule: WeeklySchedulePayload = {
+      monday: commonDay,
+      tuesday: commonDay,
+      wednesday: commonDay,
+      thursday: commonDay,
+      friday: commonDay,
+      saturday: { enabled: false, start_time: "09:00:00", end_time: "18:00:00" },
+      sunday: { enabled: false, start_time: "09:00:00", end_time: "18:00:00" },
+    };
+
+    const synced = await syncPrimaryLocationSchedule(supabase, doctor.id, {
+      weekly_schedule,
+      start_time: "09:00:00",
+      end_time: "18:00:00",
+      slot_duration_minutes: 30,
+      break_start: null,
+      break_end: null,
+    });
+    test.skip(Boolean(synced.error), synced.error ?? "Could not sync primary location schedule.");
+    const primaryLocationId = synced.locationId;
+
     const { error: upsertErr } = await supabase.from("doctor_settings").upsert(
       {
         doctor_id: doctor.id,
-        monday: true,
-        tuesday: true,
-        wednesday: true,
-        thursday: true,
-        friday: true,
-        saturday: false,
-        sunday: false,
-        start_time: "09:00:00",
-        end_time: "18:00:00",
-        weekly_schedule: {
-          monday: commonDay,
-          tuesday: commonDay,
-          wednesday: commonDay,
-          thursday: commonDay,
-          friday: commonDay,
-          saturday: { enabled: false, start_time: "09:00:00", end_time: "18:00:00" },
-          sunday: { enabled: false, start_time: "09:00:00", end_time: "18:00:00" },
-        },
         holiday_mode_enabled: false,
         holiday_start_date: null,
         holiday_end_date: null,
-        break_start: null,
-        break_end: null,
-        slot_duration_minutes: 30,
         updated_at: new Date().toISOString(),
       },
-      { onConflict: "doctor_id" }
+      { onConflict: "doctor_id" },
     );
     test.skip(Boolean(upsertErr), "Missing migrated doctor_settings columns.");
 
@@ -247,11 +314,12 @@ test.describe("Schedule constraints @booking-creates", { tag: "@pr-e2e" }, () =>
     expect(misalignedRes.status()).toBe(400);
     const misalignedJson = await misalignedRes.json();
     expect(String(misalignedJson?.message ?? "")).toContain(
-      "not aligned with the professional's slot duration"
+      "not aligned with the professional's slot duration",
     );
 
     // 2) Defensive overlap guard: even if an invalid 16:45 row exists (manual/admin insert),
     // API must block a 17:00 booking because ranges intersect.
+    // Seed must use the same location_id the public booking API will resolve.
     const invalidStartUtc = zonedTimeToUtc(`${targetDate}T16:45`, CY_TZ as string);
     const seeded = await supabase
       .from("appointments")
@@ -265,6 +333,7 @@ test.describe("Schedule constraints @booking-creates", { tag: "@pr-e2e" }, () =>
         reason: "Seeded overlap fixture",
         visit_type: null,
         visit_notes: null,
+        location_id: primaryLocationId,
       })
       .select("id")
       .single();
@@ -281,7 +350,7 @@ test.describe("Schedule constraints @booking-creates", { tag: "@pr-e2e" }, () =>
           patientPhone: "99123456",
           appointmentLocal: `${targetDate}T17:00`,
           isNewPatient: true,
-        reason: "Schedule constraint test — visit reason.",
+          reason: "Schedule constraint test — visit reason.",
         },
       });
 
@@ -302,7 +371,7 @@ test.describe("Schedule constraints @booking-creates", { tag: "@pr-e2e" }, () =>
             patientPhone: "99123456",
             appointmentLocal: `${targetDate}T17:00`,
             isNewPatient: true,
-        reason: "Schedule constraint test — visit reason.",
+            reason: "Schedule constraint test — visit reason.",
           },
         });
       }
@@ -317,4 +386,3 @@ test.describe("Schedule constraints @booking-creates", { tag: "@pr-e2e" }, () =>
     }
   });
 });
-
