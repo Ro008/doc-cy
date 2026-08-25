@@ -14,6 +14,11 @@ import {
   type WeeklySchedule,
 } from "@/lib/doctor-settings";
 import { fetchAllSupabaseRows } from "@/lib/supabase-fetch-all";
+import { loadDoctorLocations } from "@/lib/load-doctor-locations";
+import {
+  AGENDA_APPOINTMENT_SELECT,
+  locationsToAgendaClinics,
+} from "@/lib/agenda-clinics";
 
 type AgendaWorkingHours = {
   weeklySchedule: WeeklySchedule;
@@ -86,9 +91,7 @@ export default async function AgendaPage({ searchParams }: AgendaPageProps) {
   const { data: appointments, error } = await fetchAllSupabaseRows(() =>
     supabase
       .from("appointments")
-      .select(
-        "id, doctor_id, patient_name, patient_phone, reason, appointment_datetime, status, duration_minutes, proposed_slots, proposal_expires_at, attendance",
-      )
+      .select(AGENDA_APPOINTMENT_SELECT)
       .eq("doctor_id", doctor.id)
       .order("appointment_datetime", { ascending: true }),
   );
@@ -143,6 +146,9 @@ export default async function AgendaPage({ searchParams }: AgendaPageProps) {
     }
   }
 
+  const locationRows = await loadDoctorLocations(supabase, doctor.id);
+  const clinics = locationsToAgendaClinics(locationRows);
+
   const displayName = doctorDashboardDisplayName(doctor.name);
 
   const isFoundingMember = isFounderSubscriptionTier(
@@ -166,6 +172,7 @@ export default async function AgendaPage({ searchParams }: AgendaPageProps) {
           doctorSlug={(doctor as { slug?: string | null }).slug ?? null}
           initialAppointments={(appointments as any[]) ?? []}
           workingHours={workingHours}
+          clinics={clinics}
           initialDateKey={searchParams?.date ?? null}
           openManualBooking={searchParams?.manual === "1"}
         />

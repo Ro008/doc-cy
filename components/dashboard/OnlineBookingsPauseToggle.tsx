@@ -8,9 +8,13 @@ type Layout = "card" | "header";
 export function OnlineBookingsPauseToggle({
   initialPaused,
   layout = "card",
+  locationId,
+  onPausedChange,
 }: {
   initialPaused: boolean;
   layout?: Layout;
+  locationId?: string | null;
+  onPausedChange?: (paused: boolean) => void;
 }) {
   const [paused, setPaused] = React.useState(initialPaused);
   const [saving, setSaving] = React.useState(false);
@@ -27,7 +31,10 @@ export function OnlineBookingsPauseToggle({
       const res = await fetch("/api/doctor-online-bookings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pauseOnlineBookings: next }),
+        body: JSON.stringify({
+          pauseOnlineBookings: next,
+          ...(locationId ? { locationId } : {}),
+        }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -38,6 +45,7 @@ export function OnlineBookingsPauseToggle({
         return;
       }
       setPaused(next);
+      onPausedChange?.(next);
       toast.success(
         next ? "Online bookings paused." : "Online bookings resumed.",
       );

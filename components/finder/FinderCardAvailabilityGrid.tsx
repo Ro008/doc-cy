@@ -13,12 +13,14 @@ import type { PublicAvailabilityCalendar } from "@/lib/public/compute-public-boo
 type Props = {
   calendar: PublicAvailabilityCalendar;
   profileSlug: string;
+  locationId?: string | null;
   anchorStickyWeekNav?: boolean;
 };
 
 export function FinderCardAvailabilityGrid({
   calendar,
   profileSlug,
+  locationId = null,
   anchorStickyWeekNav = false,
 }: Props) {
   const { windowStart, visibleDayCount } = useFinderAvailabilityWeek();
@@ -36,10 +38,10 @@ export function FinderCardAvailabilityGrid({
         )}
         <FinderAvailabilityDaySlotGrid
           days={visibleCalendarDays}
-          resetKey={`${profileSlug}:${windowStart}`}
+          resetKey={`${profileSlug}:${locationId ?? "primary"}:${windowStart}`}
           renderSlot={(slot, day) => (
             <PendingLink
-              href={buildDoctorBookingHref(profileSlug, slot.slotKey)}
+              href={buildDoctorBookingHref(profileSlug, slot.slotKey, locationId)}
               navigationReason="profile"
               className={finderAvailabilitySlotClassName}
               aria-label={`Book ${day.weekdayLabel} ${day.dateLabel} at ${slot.timeLabel}`}

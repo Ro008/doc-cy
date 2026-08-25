@@ -14,7 +14,7 @@ export default async function LocaleSlugPage({
   searchParams,
 }: {
   params: {locale: string; slug: string};
-  searchParams?: {slot?: string | string[]};
+  searchParams?: {slot?: string | string[]; location?: string | string[]};
 }) {
   setRequestLocale(params.locale);
 

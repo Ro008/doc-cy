@@ -1,6 +1,7 @@
 /** Query param + helpers for deep-linking a Cyprus wall-clock slot into BookingSection. */
 
 export const BOOKING_SLOT_QUERY = "slot";
+export const BOOKING_LOCATION_QUERY = "location";
 
 const SLOT_KEY_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/;
 
@@ -17,12 +18,25 @@ export function parseBookingSlotParam(
 export function buildDoctorBookingHref(
   profileSlug: string,
   slotKey?: string | null,
+  locationId?: string | null,
 ): string {
   const slug = profileSlug.replace(/^\/+/, "");
   const base = `/${slug}`;
+  const params = new URLSearchParams();
   const slot = parseBookingSlotParam(slotKey ?? null);
-  if (!slot) return base;
-  return `${base}?${BOOKING_SLOT_QUERY}=${encodeURIComponent(slot)}`;
+  if (slot) params.set(BOOKING_SLOT_QUERY, slot);
+  const location = String(locationId ?? "").trim();
+  if (location) params.set(BOOKING_LOCATION_QUERY, location);
+  const query = params.toString();
+  return query ? `${base}?${query}` : base;
+}
+
+export function parseBookingLocationParam(
+  value: string | null | undefined,
+): string | null {
+  const raw = typeof value === "string" ? value.trim() : "";
+  if (!raw) return null;
+  return raw;
 }
 
 export function bookingSlotDateFromKey(slotKey: string): Date | null {
@@ -32,4 +46,26 @@ export function bookingSlotDateFromKey(slotKey: string): Date | null {
   const [y, m, d] = datePart.split("-").map(Number);
   if (!y || !m || !d) return null;
   return new Date(y, m - 1, d);
+}
+
+/**
+ * Drop only `slot` from the current URL search. Keep `location` (and any other
+ * params) so multi-clinic deep-links from the finder do not fall back to Clinic 1.
+ */
+export function hrefWithoutBookingSlotQuery(
+  pathname: string,
+  search: string | { toString(): string } | null | undefined,
+): string | null {
+  const raw =
+    typeof search === "string"
+      ? search.replace(/^\?/, "")
+      : search
+        ? search.toString()
+        : "";
+  if (!raw.includes(`${BOOKING_SLOT_QUERY}=`)) return null;
+  const params = new URLSearchParams(raw);
+  if (!params.has(BOOKING_SLOT_QUERY)) return null;
+  params.delete(BOOKING_SLOT_QUERY);
+  const query = params.toString();
+  return query ? `${pathname}?${query}` : pathname;
 }

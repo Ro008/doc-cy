@@ -22,6 +22,9 @@ import { sendPatientAppointmentConfirmedEmail } from "@/lib/send-patient-appoint
 import { sendDoctorAppointmentConfirmedEmail } from "@/lib/send-doctor-appointment-confirmed-email";
 import { getDoctorCalendarEventDetails } from "@/lib/doctor-calendar-event";
 import { buildGoogleCalendarUrl } from "@/lib/patient-calendar-event";
+import { appointmentClinicCopy } from "@/lib/appointment-clinic-copy";
+import { loadDoctorLocations, primaryDoctorLocation } from "@/lib/load-doctor-locations";
+import { locationToSettingsRow } from "@/lib/doctor-locations";
 
 export async function POST(req: NextRequest) {
   const authSupabase = createRouteHandlerClient({ cookies });
@@ -50,12 +53,14 @@ export async function POST(req: NextRequest) {
     patientPhone: rawPatientPhone,
     appointmentLocal,
     reason: rawReason,
+    locationId: rawLocationId,
   } = body as {
     patientName?: string;
     patientEmail?: string;
     patientPhone?: string;
     appointmentLocal?: string;
     reason?: string;
+    locationId?: string;
   };
 
   const patientName = String(rawPatientName ?? "").trim();
@@ -110,7 +115,29 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const settingsRow = settings as DoctorSettingsRow;
+  const settingsRowBase = settings as DoctorSettingsRow;
+  const locations = await loadDoctorLocations(supabase, doctor.id);
+  const requestedLocationId = String(rawLocationId ?? "").trim();
+  let bookingLocation = requestedLocationId
+    ? locations.find((row) => row.id === requestedLocationId) ?? null
+    : primaryDoctorLocation(locations);
+  if (locations.length > 1) {
+    if (!requestedLocationId) {
+      return NextResponse.json(
+        { message: "Please choose a clinic for this appointment." },
+        { status: 400 },
+      );
+    }
+    bookingLocation =
+      locations.find((row) => row.id === requestedLocationId) ?? null;
+    if (!bookingLocation) {
+      return NextResponse.json({ message: "Clinic not found." }, { status: 400 });
+    }
+  }
+
+  const settingsRow = bookingLocation
+    ? locationToSettingsRow(bookingLocation, settingsRowBase)
+    : settingsRowBase;
   const cyLocal = utcToZonedTime(appointmentUtc, CY_TZ);
   const dayOfWeek = cyLocal.getDay();
   const hours = cyLocal.getHours();
@@ -181,6 +208,7 @@ export async function POST(req: NextRequest) {
   const { data: blockingRaw, error: existingError } = await fetchBlockingAppointments(
     supabase,
     doctor.id,
+    bookingLocation?.id ?? null,
   );
   if (existingError) {
     return NextResponse.json(
@@ -211,6 +239,7 @@ export async function POST(req: NextRequest) {
       status: "CONFIRMED",
       reason,
       duration_minutes: slotDuration,
+      location_id: bookingLocation?.id ?? null,
       created_at: new Date().toISOString(),
     })
     .select("id, appointment_datetime, status, duration_minutes")
@@ -235,6 +264,13 @@ export async function POST(req: NextRequest) {
       ? process.env.RESEND_TO_OVERRIDE?.trim() || null
       : null;
 
+  const clinic = appointmentClinicCopy({
+    locations,
+    locationId: bookingLocation?.id ?? null,
+    doctorClinicAddressFallback: (doctor as { clinic_address?: string | null })
+      .clinic_address,
+  });
+
   try {
     if (patientEmail) {
       await sendPatientAppointmentConfirmedEmail({
@@ -249,8 +285,9 @@ export async function POST(req: NextRequest) {
           name: doctor.name,
           specialty: (doctor as { specialty?: string | null }).specialty,
           phone: (doctor as { phone?: string | null }).phone,
-          clinic_address: (doctor as { clinic_address?: string | null }).clinic_address,
+          clinic_address: clinic.address,
         },
+        clinic,
         resendToOverride,
       });
     }
@@ -269,6 +306,9 @@ export async function POST(req: NextRequest) {
       patientName,
       patientPhone: patientPhoneStored,
       reason,
+      clinic,
+      clinicAddressFallback: (doctor as { clinic_address?: string | null })
+        .clinic_address,
       resendToOverride,
       manualCreated: true,
     });
@@ -280,7 +320,7 @@ export async function POST(req: NextRequest) {
   const endUtc = addMinutes(startUtc, slotDuration);
   const calendarDetails = getDoctorCalendarEventDetails(
     { patient_name: patientName, patient_phone: patientPhone || null },
-    { name: doctor.name },
+    { name: doctor.name, clinic_address: clinic.address },
     { reason },
   );
   const googleCalendarUrl = buildGoogleCalendarUrl({

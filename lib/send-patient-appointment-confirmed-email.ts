@@ -2,6 +2,12 @@ import { addMinutes, format } from "date-fns";
 import { enUS } from "date-fns/locale";
 import { appointmentToCyprusDate } from "@/lib/appointments";
 import {
+  appointmentClinicCopyFromAddress,
+  formatAppointmentClinicEmailHtml,
+  formatAppointmentClinicEmailText,
+  type AppointmentClinicCopy,
+} from "@/lib/appointment-clinic-copy";
+import {
   sendResendEmail,
   AUTOMATED_EMAIL_FOOTER_TEXT,
   automatedEmailFooterHtml,
@@ -48,6 +54,7 @@ export async function sendPatientAppointmentConfirmedEmail(opts: {
   durationMinutes: number;
   reason?: string | null;
   doctor: DoctorPayload;
+  clinic?: AppointmentClinicCopy | null;
   isAfterReschedule?: boolean;
   resendToOverride?: string | null;
 }): Promise<void> {
@@ -76,6 +83,7 @@ export function buildPatientAppointmentConfirmedEmailContent(opts: {
   durationMinutes: number;
   reason?: string | null;
   doctor: DoctorPayload;
+  clinic?: AppointmentClinicCopy | null;
   isAfterReschedule?: boolean;
   resendToOverride?: string | null;
 }): { subject: string; text: string; html: string } {
@@ -92,6 +100,11 @@ export function buildPatientAppointmentConfirmedEmailContent(opts: {
 
   const doctorName = String(doctor.name ?? "your professional").trim();
   const doctorWaMe = phoneToWaMeLink(doctor.phone);
+  const clinic =
+    opts.clinic ??
+    appointmentClinicCopyFromAddress({
+      address: doctor.clinic_address,
+    });
 
   const startUtc = new Date(appointmentDatetimeIso);
   const endUtc = addMinutes(startUtc, durationMinutes);
@@ -104,7 +117,7 @@ export function buildPatientAppointmentConfirmedEmailContent(opts: {
       name: doctor.name,
       specialty: doctor.specialty,
       phone: doctor.phone,
-      clinic_address: doctor.clinic_address,
+      clinic_address: clinic.address,
     },
     { reason: reason ?? null, visitType: null, visitNotes: null },
     { includeWhatsAppContact: true }
@@ -126,6 +139,7 @@ export function buildPatientAppointmentConfirmedEmailContent(opts: {
   let text =
     `Hi ${patientName},\n\n` +
     `Your appointment with ${doctorName} is confirmed for ${whenLabel} (Cyprus time).\n\n` +
+    `${formatAppointmentClinicEmailText(clinic)}\n` +
     `You can add it to your calendar:\n\n` +
     `Google Calendar: ${patientGoogleUrl}\n` +
     `Apple / Outlook (.ics): ${patientIcsUrl}\n\n`;
@@ -151,6 +165,7 @@ ${EMAIL_SHELL_OPEN}
       Your appointment with <strong>${escapeHtml(doctorName)}</strong> is confirmed for
       <strong>${escapeHtml(whenLabel)}</strong> (Cyprus time). You can add it to your calendar below.
     </p>
+    ${formatAppointmentClinicEmailHtml(clinic)}
     ${
       isAfterReschedule
         ? `<div style="margin:0 0 14px;padding:12px 13px;border:2px solid #f59e0b;background:rgba(245,158,11,.16);border-radius:12px;">

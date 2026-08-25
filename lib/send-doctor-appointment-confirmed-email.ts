@@ -2,6 +2,12 @@ import { addMinutes, format } from "date-fns";
 import { enUS } from "date-fns/locale";
 import { appointmentToCyprusDate } from "@/lib/appointments";
 import {
+  appointmentClinicCopyFromAddress,
+  formatAppointmentClinicEmailHtml,
+  formatAppointmentClinicEmailText,
+  type AppointmentClinicCopy,
+} from "@/lib/appointment-clinic-copy";
+import {
   sendResendEmail,
   AUTOMATED_EMAIL_FOOTER_TEXT,
   automatedEmailFooterHtml,
@@ -33,18 +39,52 @@ export async function sendDoctorAppointmentConfirmedEmail(opts: {
   patientName: string;
   patientPhone?: string | null;
   reason?: string | null;
+  clinic?: AppointmentClinicCopy | null;
+  clinicAddressFallback?: string | null;
   resendToOverride?: string | null;
   manualCreated?: boolean;
 }): Promise<void> {
+  const content = buildDoctorAppointmentConfirmedEmailContent(opts);
   const doctorEmail = String(opts.doctorEmail).trim();
   if (!doctorEmail) return;
 
+  const recipient = opts.resendToOverride || doctorEmail;
+
+  await sendResendEmail({
+    to: recipient,
+    subject: content.subject,
+    text: content.text,
+    html: content.html,
+  });
+}
+
+export function buildDoctorAppointmentConfirmedEmailContent(opts: {
+  siteUrl: string;
+  doctorEmail: string;
+  doctorName: string;
+  appointmentId: string;
+  appointmentDatetimeIso: string;
+  durationMinutes: number;
+  patientName: string;
+  patientPhone?: string | null;
+  reason?: string | null;
+  clinic?: AppointmentClinicCopy | null;
+  clinicAddressFallback?: string | null;
+  resendToOverride?: string | null;
+  manualCreated?: boolean;
+}): { subject: string; text: string; html: string } {
   const startUtc = new Date(opts.appointmentDatetimeIso);
   const endUtc = addMinutes(startUtc, opts.durationMinutes);
   const cyDate = appointmentToCyprusDate(opts.appointmentDatetimeIso);
   const whenLabel = format(cyDate, "EEEE, d MMMM yyyy 'at' HH:mm", {
     locale: enUS,
   });
+
+  const clinic =
+    opts.clinic ??
+    appointmentClinicCopyFromAddress({
+      address: opts.clinicAddressFallback,
+    });
 
   const cal = getDoctorCalendarEventDetails(
     {
@@ -53,6 +93,7 @@ export async function sendDoctorAppointmentConfirmedEmail(opts: {
     },
     {
       name: opts.doctorName,
+      clinic_address: clinic.address,
     },
     {
       reason: opts.reason ?? null,
@@ -73,7 +114,6 @@ export async function sendDoctorAppointmentConfirmedEmail(opts: {
   ).toString();
   const agendaUrl = new URL("/agenda", opts.siteUrl).toString();
 
-  const recipient = opts.resendToOverride || doctorEmail;
   const heading = opts.manualCreated
     ? "Manual booking created"
     : "Appointment confirmed";
@@ -89,6 +129,7 @@ export async function sendDoctorAppointmentConfirmedEmail(opts: {
     (opts.manualCreated
       ? `You manually created and confirmed ${opts.patientName}'s appointment for ${whenLabel} (Cyprus time).\n\n`
       : `You confirmed ${opts.patientName}'s appointment for ${whenLabel} (Cyprus time).\n\n`) +
+    `${formatAppointmentClinicEmailText(clinic)}\n` +
     `Manage any changes from your DocCy agenda: ${agendaUrl}\n` +
     `Google Calendar is optional and does not sync edits back to DocCy.\n\n` +
     `Add to calendar:\n` +
@@ -102,6 +143,7 @@ ${EMAIL_SHELL_OPEN}
     <p style="margin:0 0 10px;font-size:15px;line-height:1.6;color:${EMAIL_TEXT};">
       ${opening}
     </p>
+    ${formatAppointmentClinicEmailHtml(clinic)}
     <p style="margin:0 0 14px;font-size:14px;line-height:1.6;color:#D8E3EC;">
       Manage all updates directly from your <a href="${agendaUrl}" style="${EMAIL_LINK_ACCENT}">DocCy agenda</a>. Google Calendar is optional and does not sync edits back to DocCy.
     </p>
@@ -110,12 +152,11 @@ ${EMAIL_SHELL_OPEN}
     ${automatedEmailFooterHtml()}
 ${EMAIL_SHELL_CLOSE}`;
 
-  await sendResendEmail({
-    to: recipient,
+  return {
     subject: opts.manualCreated
       ? `Manual booking created: ${opts.patientName} · ${whenLabel}`
       : `Confirmed visit with ${opts.patientName} · ${whenLabel}`,
     text,
     html,
-  });
+  };
 }

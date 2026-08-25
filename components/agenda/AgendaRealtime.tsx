@@ -34,8 +34,17 @@ import {
   isVisitSlotEnded,
 } from "@/lib/appointments";
 import { patientVisitReasonFromAppointmentRow } from "@/lib/agenda-visit-reason";
-import type { WeeklySchedule } from "@/lib/doctor-settings";
 import { ManualBookingFlow } from "@/components/agenda/ManualBookingFlow";
+import { AgendaClinicCalendars } from "@/components/agenda/AgendaClinicCalendars";
+import {
+  AGENDA_APPOINTMENT_SELECT,
+  clinicIdForAppointment,
+  unionAgendaWorkingWindows,
+  workingWindowForHours,
+  type AgendaClinic,
+  type AgendaWorkingHours,
+} from "@/lib/agenda-clinics";
+import { agendaClinicEventColor } from "@/lib/doctor-locations";
 import {
   agendaAppointmentBadgeClass,
   agendaAppointmentConfirmedClass,
@@ -80,6 +89,7 @@ type AgendaAppointmentRow = {
   proposed_slots?: unknown;
   proposal_expires_at?: string | null;
   attendance?: string | null;
+  location_id?: string | null;
 };
 
 function parseProposedSlotIsoList(raw: unknown): string[] {
@@ -173,6 +183,10 @@ function agendaRowFromSupabasePayload(
       raw.attendance == null || raw.attendance === ""
         ? null
         : String(raw.attendance),
+    location_id:
+      raw.location_id == null || raw.location_id === ""
+        ? null
+        : String(raw.location_id),
   };
 }
 
@@ -212,12 +226,6 @@ function renderAgendaHourZebraBands(isTodayColumn: boolean) {
   }
   return bands;
 }
-type AgendaWorkingHours = {
-  weeklySchedule: WeeklySchedule;
-  breakStart: string | null;
-  breakEnd: string | null;
-  slotDurationMinutes: number;
-};
 
 function AgendaAppointmentCardInner({
   timeLabel,
@@ -334,6 +342,7 @@ export function AgendaRealtime({
   doctorSlug,
   initialAppointments,
   workingHours,
+  clinics = [],
   initialDateKey,
   openManualBooking,
 }: {
@@ -341,6 +350,7 @@ export function AgendaRealtime({
   doctorSlug?: string | null;
   initialAppointments: AgendaAppointmentRow[];
   workingHours: AgendaWorkingHours | null;
+  clinics?: AgendaClinic[];
   initialDateKey?: string | null;
   openManualBooking?: boolean;
 }) {
@@ -402,6 +412,10 @@ export function AgendaRealtime({
   const [weekOffset, setWeekOffset] = React.useState(0);
   const [mobileDayOffset, setMobileDayOffset] = React.useState(0);
   const [manualBookingOpen, setManualBookingOpen] = React.useState(false);
+  const [hiddenClinicIds, setHiddenClinicIds] = React.useState<Set<string>>(
+    () => new Set(),
+  );
+  const isMultiClinic = clinics.length > 1;
 
   React.useEffect(() => {
     if (!openManualBooking) return;
@@ -416,9 +430,7 @@ export function AgendaRealtime({
     if (!doctorId) return;
     const { data, error } = await supabase
       .from("appointments")
-      .select(
-        "id, doctor_id, patient_name, patient_phone, reason, appointment_datetime, status, duration_minutes, proposed_slots, proposal_expires_at, attendance",
-      )
+      .select(AGENDA_APPOINTMENT_SELECT)
       .eq("doctor_id", doctorId)
       .order("appointment_datetime", { ascending: true });
 
@@ -539,6 +551,21 @@ export function AgendaRealtime({
     return () => window.clearInterval(id);
   }, [doctorId, refreshAppointmentsFromServer]);
 
+  const visibleClinicIds = React.useMemo(() => {
+    const ids = new Set(
+      clinics.map((clinic) => clinic.id).filter((id) => !hiddenClinicIds.has(id)),
+    );
+    return ids;
+  }, [clinics, hiddenClinicIds]);
+
+  const visibleAppointments = React.useMemo(() => {
+    if (!isMultiClinic) return appointments;
+    return appointments.filter((row) => {
+      const clinicId = clinicIdForAppointment(row.location_id, clinics);
+      return clinicId != null && visibleClinicIds.has(clinicId);
+    });
+  }, [appointments, clinics, isMultiClinic, visibleClinicIds]);
+
   const nowUtc = new Date();
   const nowCyprus = utcToZonedTime(nowUtc, CY_TZ);
   const todayDate = startOfDay(nowCyprus);
@@ -568,7 +595,7 @@ export function AgendaRealtime({
   const selectedNoShow = selected
     ? isNoShowAttendance(selected.attendance)
     : false;
-  const expanded = expandAgendaAppointmentsForGrid(appointments, nowMs);
+  const expanded = expandAgendaAppointmentsForGrid(visibleAppointments, nowMs);
   const rows = expanded.map((a) => {
     const utc = a.gridStartIso;
     const dateKey = appointmentDateKeyCyprus(utc);
@@ -649,30 +676,6 @@ export function AgendaRealtime({
   ).length;
   const mobileShowsToday = selectedMobileKey === todayKey;
 
-  function toMinutesFromMidnight(
-    time: string | null | undefined,
-  ): number | null {
-    if (!time) return null;
-    const [hRaw, mRaw] = time.split(":");
-    const h = Number.parseInt(hRaw ?? "", 10);
-    const m = Number.parseInt(mRaw ?? "", 10);
-    if (Number.isNaN(h) || Number.isNaN(m)) return null;
-    return h * 60 + m;
-  }
-
-  function dayKeyForDate(d: Date): keyof WeeklySchedule {
-    const map: Array<keyof WeeklySchedule> = [
-      "sunday",
-      "monday",
-      "tuesday",
-      "wednesday",
-      "thursday",
-      "friday",
-      "saturday",
-    ];
-    return map[d.getDay()];
-  }
-
   function workingWindowsForDate(d: Date): {
     enabled: boolean;
     start: number;
@@ -680,27 +683,56 @@ export function AgendaRealtime({
     breakStart: number | null;
     breakEnd: number | null;
   } {
-    if (!workingHours) {
+    const visibleClinics = clinics.filter((clinic) => visibleClinicIds.has(clinic.id));
+    if (visibleClinics.length > 0) {
+      return unionAgendaWorkingWindows(
+        visibleClinics.map((clinic) =>
+          workingWindowForHours(clinic.hours, d, START_HOUR, END_HOUR),
+        ),
+      );
+    }
+    if (isMultiClinic) {
       return {
-        enabled: true,
+        enabled: false,
         start: START_HOUR * 60,
         end: END_HOUR * 60,
         breakStart: null,
         breakEnd: null,
       };
     }
-    const dayCfg = workingHours.weeklySchedule[dayKeyForDate(d)];
-    const start = toMinutesFromMidnight(dayCfg?.start_time) ?? START_HOUR * 60;
-    const end = toMinutesFromMidnight(dayCfg?.end_time) ?? END_HOUR * 60;
-    const breakStart = toMinutesFromMidnight(workingHours.breakStart);
-    const breakEnd = toMinutesFromMidnight(workingHours.breakEnd);
-    return {
-      enabled: Boolean(dayCfg?.enabled),
-      start,
-      end,
-      breakStart,
-      breakEnd,
-    };
+    return workingWindowForHours(workingHours, d, START_HOUR, END_HOUR);
+  }
+
+  function clinicIndexForRow(locationId: string | null | undefined): number {
+    const clinicId = clinicIdForAppointment(locationId, clinics);
+    const index = clinics.findIndex((clinic) => clinic.id === clinicId);
+    return index >= 0 ? index : 0;
+  }
+
+  function clinicNameForRow(locationId: string | null | undefined): string | null {
+    if (!isMultiClinic) return null;
+    const clinicId = clinicIdForAppointment(locationId, clinics);
+    return clinics.find((clinic) => clinic.id === clinicId)?.name ?? null;
+  }
+
+  function appointmentChipClass(isPendingRequest: boolean): string {
+    return isPendingRequest
+      ? agendaAppointmentPendingClass
+      : agendaAppointmentConfirmedClass;
+  }
+
+  function clinicSwatchClass(locationId: string | null | undefined): string | null {
+    if (!isMultiClinic) return null;
+    return agendaClinicEventColor(clinicIndexForRow(locationId)).swatch;
+  }
+
+  function toggleClinicCalendar(clinicId: string) {
+    setHiddenClinicIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(clinicId)) next.delete(clinicId);
+      else next.add(clinicId);
+      return next;
+    });
   }
 
   async function handleCancelAppointment() {
@@ -1116,6 +1148,11 @@ export function AgendaRealtime({
               </button>
             </div>
           </div>
+          <AgendaClinicCalendars
+            clinics={clinics}
+            hiddenIds={hiddenClinicIds}
+            onToggle={toggleClinicCalendar}
+          />
           <div className="mt-2 flex items-center justify-between gap-2 md:hidden">
             <button
               type="button"
@@ -1155,7 +1192,9 @@ export function AgendaRealtime({
           <div className="md:hidden">
             {mobileRows.length === 0 && !mobileShowsToday ? (
               <p className="mb-2 text-center text-xs text-slate-400">
-                No appointments this day
+                {isMultiClinic && visibleClinicIds.size === 0
+                  ? "No calendars selected."
+                  : "No appointments this day"}
               </p>
             ) : null}
             <div className="grid grid-cols-[50px_1fr] gap-3">
@@ -1260,17 +1299,13 @@ export function AgendaRealtime({
                     <button
                       key={row.rowKey}
                       type="button"
-                      aria-label={`Appointment ${row.patient_name} at ${row.timeLabel}`}
+                      aria-label={`Appointment ${row.patient_name} at ${row.timeLabel}${clinicNameForRow(row.location_id) ? ` · ${clinicNameForRow(row.location_id)}` : ""}`}
                       onClick={() => openAppointment(row)}
-                      className={`group absolute left-1 right-1 overflow-hidden rounded-xl border text-left shadow-lg transition focus:outline-none ${
+                      className={`group absolute overflow-hidden rounded-xl border text-left shadow-lg transition focus:outline-none ${
                         row.isCounterOfferHold
-                          ? "flex flex-col items-stretch justify-start px-2 py-1.5"
-                          : "px-2 py-1"
-                      } ${
-                        row.isPendingRequest
-                          ? agendaAppointmentPendingClass
-                          : agendaAppointmentConfirmedClass
-                      }`}
+                          ? `flex flex-col items-stretch justify-start py-1.5 pr-2 ${isMultiClinic ? "pl-2.5" : "pl-2"}`
+                          : `py-1 pr-2 ${isMultiClinic ? "pl-2.5" : "pl-2"}`
+                      } ${appointmentChipClass(row.isPendingRequest)}`}
                       style={{
                         top: topForRow(row),
                         height: blockHeightFor(row),
@@ -1278,6 +1313,12 @@ export function AgendaRealtime({
                         width: `${99.5 / row.columns - 0.5}%`,
                       }}
                     >
+                      {clinicSwatchClass(row.location_id) ? (
+                        <span
+                          className={`absolute inset-y-0 left-0 w-1 ${clinicSwatchClass(row.location_id)}`}
+                          aria-hidden
+                        />
+                      ) : null}
                       <AgendaAppointmentCardInner
                         timeLabel={row.timeLabel}
                         patientName={row.patient_name}
@@ -1415,17 +1456,13 @@ export function AgendaRealtime({
                       <button
                         key={row.rowKey}
                         type="button"
-                        aria-label={`Appointment ${row.patient_name} at ${row.timeLabel}`}
+                        aria-label={`Appointment ${row.patient_name} at ${row.timeLabel}${clinicNameForRow(row.location_id) ? ` · ${clinicNameForRow(row.location_id)}` : ""}`}
                         onClick={() => openAppointment(row)}
-                        className={`group absolute left-1 right-1 overflow-hidden rounded-xl border text-left shadow-lg transition focus:outline-none ${
+                        className={`group absolute overflow-hidden rounded-xl border text-left shadow-lg transition focus:outline-none ${
                           row.isCounterOfferHold
-                            ? "flex flex-col items-stretch justify-start px-2 py-1.5"
-                            : "px-2 py-1"
-                        } ${
-                          row.isPendingRequest
-                            ? agendaAppointmentPendingClass
-                            : agendaAppointmentConfirmedClass
-                        }`}
+                            ? `flex flex-col items-stretch justify-start py-1.5 pr-2 ${isMultiClinic ? "pl-2.5" : "pl-2"}`
+                            : `py-1 pr-2 ${isMultiClinic ? "pl-2.5" : "pl-2"}`
+                        } ${appointmentChipClass(row.isPendingRequest)}`}
                         style={{
                           top: topForRow(row),
                           height: blockHeightFor(row),
@@ -1433,6 +1470,12 @@ export function AgendaRealtime({
                           width: `${99.5 / row.columns - 0.5}%`,
                         }}
                       >
+                        {clinicSwatchClass(row.location_id) ? (
+                          <span
+                            className={`absolute inset-y-0 left-0 w-1 ${clinicSwatchClass(row.location_id)}`}
+                            aria-hidden
+                          />
+                        ) : null}
                         <AgendaAppointmentCardInner
                           timeLabel={row.timeLabel}
                           patientName={row.patient_name}
@@ -1456,6 +1499,8 @@ export function AgendaRealtime({
         doctorSlug={doctorSlug}
         appointments={appointments}
         workingHours={workingHours}
+        clinics={clinics}
+        preferredClinicId={[...visibleClinicIds][0] ?? clinics[0]?.id ?? null}
         onClose={() => setManualBookingOpen(false)}
         onBooked={() => {
           void refreshAppointmentsFromServer();
@@ -1512,8 +1557,19 @@ export function AgendaRealtime({
             <h3 className="pr-8 text-lg font-semibold text-slate-50">
               {selected.patient_name}
             </h3>
-            <p className="mt-1 text-sm text-slate-400">
-              {selected.dateLabel} · {selected.timeLabel}
+            <p className="mt-1 flex flex-wrap items-center gap-x-1.5 text-sm text-slate-400">
+              <span>
+                {selected.dateLabel} · {selected.timeLabel}
+              </span>
+              {clinicNameForRow(selected.location_id) ? (
+                <span className="inline-flex items-center gap-1.5">
+                  <span
+                    className={`h-2 w-2 rounded-[2px] ${clinicSwatchClass(selected.location_id) ?? ""}`}
+                    aria-hidden
+                  />
+                  {clinicNameForRow(selected.location_id)}
+                </span>
+              ) : null}
             </p>
             <div className="mt-2 flex flex-wrap items-center gap-2">
               {selectedPast ? (

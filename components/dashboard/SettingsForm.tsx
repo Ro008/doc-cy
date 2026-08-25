@@ -23,8 +23,16 @@ import {
   formatISOToDDMMYYYYOrEmpty,
   parseDDMMYYYYToISO,
 } from "@/lib/date-format";
-import { CYPRUS_DISTRICTS, isCyprusDistrict } from "@/lib/cyprus-districts";
+import { isCyprusDistrict } from "@/lib/cyprus-districts";
 import { ClinicAddressAutocomplete } from "@/components/dashboard/ClinicAddressAutocomplete";
+import { OnlineBookingsPauseToggle } from "@/components/dashboard/OnlineBookingsPauseToggle";
+import {
+  MAX_CLINIC_NAME_LENGTH,
+  MAX_DOCTOR_LOCATIONS,
+  clinicDefaultName,
+  clinicDisplayName,
+  workplaceAccent,
+} from "@/lib/doctor-locations";
 import {
   clinicLocationFromParts,
   clinicLocationRequiresSelection,
@@ -76,6 +84,25 @@ export type DoctorSettingsFormData = {
   holidayStartDate: string | null; // "YYYY-MM-DD"
   holidayEndDate: string | null; // "YYYY-MM-DD"
   services: DoctorServiceItem[];
+  locations?: DoctorWorkplaceFormData[];
+};
+
+export type DoctorWorkplaceFormData = {
+  id: string;
+  isPrimary: boolean;
+  label?: string | null;
+  district: string;
+  clinicAddress: string;
+  clinicTown?: string | null;
+  clinicLatitude?: number | null;
+  clinicLongitude?: number | null;
+  clinicPlaceId?: string | null;
+  weeklySchedule: WeeklySchedule;
+  breakEnabled: boolean;
+  breakStart: string;
+  breakEnd: string;
+  slotDurationMinutes: number;
+  pauseOnlineBookings: boolean;
 };
 
 export type DoctorServiceItem = {
@@ -166,6 +193,34 @@ const DAY_LABELS: Record<DayKey, string> = {
   sunday: "Sunday",
 };
 
+const TIME_INPUT_CLASS =
+  "mt-2 w-full rounded-xl border border-slate-800/80 bg-ink-900/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-clinical-400/60 [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-100 [&::-webkit-calendar-picker-indicator]:invert [&::-webkit-calendar-picker-indicator]:brightness-200 [&::-webkit-calendar-picker-indicator]:contrast-125";
+
+function initialWorkplacesFromForm(initial: DoctorSettingsFormData): DoctorWorkplaceFormData[] {
+  if (initial.locations && initial.locations.length > 0) {
+    return initial.locations;
+  }
+  return [
+    {
+      id: "primary",
+      isPrimary: true,
+      label: "",
+      district: initial.district,
+      clinicAddress: initial.clinicAddress,
+      clinicTown: initial.clinicTown,
+      clinicLatitude: initial.clinicLatitude,
+      clinicLongitude: initial.clinicLongitude,
+      clinicPlaceId: initial.clinicPlaceId,
+      weeklySchedule: initial.weeklySchedule,
+      breakEnabled: initial.breakEnabled,
+      breakStart: initial.breakStart,
+      breakEnd: initial.breakEnd,
+      slotDurationMinutes: initial.slotDurationMinutes,
+      pauseOnlineBookings: false,
+    },
+  ];
+}
+
 export function SettingsForm({ initial }: SettingsFormProps) {
   const [isClient, setIsClient] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
@@ -231,6 +286,14 @@ export function SettingsForm({ initial }: SettingsFormProps) {
   const [slotDurationMinutes, setSlotDurationMinutes] = React.useState(
     initial.slotDurationMinutes
   );
+  const [workplaces, setWorkplaces] = React.useState<DoctorWorkplaceFormData[]>(
+    () => initialWorkplacesFromForm(initial),
+  );
+  const [activeWorkplaceId, setActiveWorkplaceId] = React.useState(
+    () => initialWorkplacesFromForm(initial)[0]?.id ?? "primary",
+  );
+  const [workplaceBusy, setWorkplaceBusy] = React.useState(false);
+  const workplaceTabScrollYRef = React.useRef<number | null>(null);
   const [bookingHorizonDays, setBookingHorizonDays] = React.useState(
     initial.bookingHorizonDays
   );
@@ -271,6 +334,162 @@ export function SettingsForm({ initial }: SettingsFormProps) {
   const [avatarCropOpen, setAvatarCropOpen] = React.useState(false);
   const avatarFileInputRef = React.useRef<HTMLInputElement | null>(null);
 
+  const captureActiveWorkplace = React.useCallback((): DoctorWorkplaceFormData => {
+    const current = workplaces.find((row) => row.id === activeWorkplaceId);
+    return {
+      id: activeWorkplaceId,
+      isPrimary: current?.isPrimary ?? workplaces.length <= 1,
+      label: String(current?.label ?? "").trim(),
+      district: clinicLocation.district ?? district,
+      clinicAddress: clinicLocation.address,
+      clinicTown: clinicLocation.town,
+      clinicLatitude: clinicLocation.latitude,
+      clinicLongitude: clinicLocation.longitude,
+      clinicPlaceId: clinicLocation.placeId,
+      weeklySchedule,
+      breakEnabled,
+      breakStart,
+      breakEnd,
+      slotDurationMinutes,
+      pauseOnlineBookings: Boolean(current?.pauseOnlineBookings),
+    };
+  }, [
+    activeWorkplaceId,
+    breakEnabled,
+    breakEnd,
+    breakStart,
+    clinicLocation,
+    district,
+    slotDurationMinutes,
+    weeklySchedule,
+    workplaces,
+  ]);
+
+  const applyWorkplaceToForm = React.useCallback((row: DoctorWorkplaceFormData) => {
+    setActiveWorkplaceId(row.id);
+    setDistrict(row.district);
+    setClinicLocation(
+      clinicLocationFromParts({
+        address: row.clinicAddress,
+        latitude: row.clinicLatitude,
+        longitude: row.clinicLongitude,
+        placeId: row.clinicPlaceId,
+        district: row.district,
+        town: row.clinicTown,
+      }),
+    );
+    initialClinicAddressRef.current = row.clinicAddress ?? "";
+    setWeeklySchedule(row.weeklySchedule);
+    setBreakEnabled(row.breakEnabled);
+    setBreakStart(timeToInputValue(row.breakStart));
+    setBreakEnd(timeToInputValue(row.breakEnd));
+    setSlotDurationMinutes(row.slotDurationMinutes);
+  }, []);
+
+  const workplacesForSave = React.useCallback(() => {
+    const captured = captureActiveWorkplace();
+    return workplaces.map((row) => (row.id === captured.id ? captured : row));
+  }, [captureActiveWorkplace, workplaces]);
+
+  function handleSelectWorkplace(id: string) {
+    if (id === activeWorkplaceId) return;
+    workplaceTabScrollYRef.current = window.scrollY;
+    const captured = captureActiveWorkplace();
+    const nextList = workplaces.map((row) => (row.id === captured.id ? captured : row));
+    setWorkplaces(nextList);
+    const next = nextList.find((row) => row.id === id);
+    if (next) applyWorkplaceToForm(next);
+  }
+
+  React.useLayoutEffect(() => {
+    const y = workplaceTabScrollYRef.current;
+    if (y == null) return;
+    window.scrollTo({ top: y, left: 0, behavior: "auto" });
+    workplaceTabScrollYRef.current = null;
+  }, [activeWorkplaceId]);
+
+  async function handleAddWorkplace() {
+    if (workplaces.length >= MAX_DOCTOR_LOCATIONS) {
+      toast.error(`You can add up to ${MAX_DOCTOR_LOCATIONS} clinics.`);
+      return;
+    }
+    if (hasUnsavedChanges) {
+      toast.error("Save your current settings before adding another clinic.");
+      return;
+    }
+    setWorkplaceBusy(true);
+    try {
+      const res = await fetch("/api/doctor-locations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ doctorId: initial.doctorId }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error((data.message as string) || "Could not add clinic.");
+        return;
+      }
+      const created = data.location as {
+        id: string;
+        pause_online_bookings?: boolean;
+      };
+      const captured = captureActiveWorkplace();
+      const copy: DoctorWorkplaceFormData = {
+        ...captured,
+        id: created.id,
+        isPrimary: false,
+        label: "",
+        district: "",
+        clinicAddress: "",
+        clinicTown: null,
+        clinicLatitude: null,
+        clinicLongitude: null,
+        clinicPlaceId: null,
+        pauseOnlineBookings: Boolean(created.pause_online_bookings),
+      };
+      const nextList = [
+        ...workplaces.map((row) => (row.id === captured.id ? captured : row)),
+        copy,
+      ];
+      setWorkplaces(nextList);
+      applyWorkplaceToForm(copy);
+      toast.success("Clinic added. Add its address and save.");
+    } catch (err) {
+      console.error(err);
+      toast.error("Could not add clinic.");
+    } finally {
+      setWorkplaceBusy(false);
+    }
+  }
+
+  async function handleRemoveWorkplace(id: string) {
+    const target = workplaces.find((row) => row.id === id);
+    if (!target || target.isPrimary || workplaces.length <= 1) return;
+    setWorkplaceBusy(true);
+    try {
+      const res = await fetch(
+        `/api/doctor-locations?doctorId=${encodeURIComponent(initial.doctorId)}&locationId=${encodeURIComponent(id)}`,
+        { method: "DELETE" },
+      );
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error((data.message as string) || "Could not remove clinic.");
+        return;
+      }
+      const remaining = workplaces.filter((row) => row.id !== id);
+      setWorkplaces(remaining);
+      if (activeWorkplaceId === id && remaining[0]) {
+        applyWorkplaceToForm(remaining[0]);
+      }
+      toast.success("Clinic removed.");
+    } catch (err) {
+      console.error(err);
+      toast.error("Could not remove clinic.");
+    } finally {
+      setWorkplaceBusy(false);
+    }
+  }
+
   const buildCurrentDirtySnapshot = React.useCallback(
     (): SettingsDirtySnapshot =>
       buildSettingsDirtySnapshot({
@@ -292,6 +511,21 @@ export function SettingsForm({ initial }: SettingsFormProps) {
         holidayModeEnabled,
         holidayStartInput,
         holidayEndInput,
+        workplaces: workplacesForSave().map((row) => ({
+          id: row.id,
+          label: String(row.label ?? "").trim(),
+          district: row.district,
+          clinicAddress: row.clinicAddress,
+          clinicLatitude: row.clinicLatitude ?? null,
+          clinicLongitude: row.clinicLongitude ?? null,
+          clinicPlaceId: row.clinicPlaceId ?? null,
+          weeklySchedule: row.weeklySchedule,
+          breakEnabled: row.breakEnabled,
+          breakStart: row.breakStart,
+          breakEnd: row.breakEnd,
+          slotDurationMinutes: row.slotDurationMinutes,
+          pauseOnlineBookings: row.pauseOnlineBookings,
+        })),
       }),
     [
       spec.specialty,
@@ -312,6 +546,7 @@ export function SettingsForm({ initial }: SettingsFormProps) {
       holidayModeEnabled,
       holidayStartInput,
       holidayEndInput,
+      workplacesForSave,
     ],
   );
 
@@ -344,6 +579,21 @@ export function SettingsForm({ initial }: SettingsFormProps) {
       holidayModeEnabled: initial.holidayModeEnabled,
       holidayStartInput: formatISOToDDMMYYYYOrEmpty(initial.holidayStartDate),
       holidayEndInput: formatISOToDDMMYYYYOrEmpty(initial.holidayEndDate),
+      workplaces: initialWorkplacesFromForm(initial).map((row) => ({
+        id: row.id,
+        label: String(row.label ?? "").trim(),
+        district: row.district,
+        clinicAddress: row.clinicAddress,
+        clinicLatitude: row.clinicLatitude ?? null,
+        clinicLongitude: row.clinicLongitude ?? null,
+        clinicPlaceId: row.clinicPlaceId ?? null,
+        weeklySchedule: row.weeklySchedule,
+        breakEnabled: row.breakEnabled,
+        breakStart: row.breakStart,
+        breakEnd: row.breakEnd,
+        slotDurationMinutes: row.slotDurationMinutes,
+        pauseOnlineBookings: row.pauseOnlineBookings,
+      })),
     });
   });
 
@@ -557,11 +807,9 @@ export function SettingsForm({ initial }: SettingsFormProps) {
       return;
     }
     if (!isCyprusDistrict(district)) {
-      const text = hasConfirmedClinicCoordinates(clinicLocation)
+      const text = clinicLocation.address.trim()
         ? "We could not detect your clinic district. Please re-select your clinic from Google suggestions."
-        : clinicLocation.address.trim()
-          ? "Select your district so patients can find you in Health Finder."
-          : "Add your clinic address so patients can find you in Health Finder.";
+        : "Add your clinic address so patients can find you in Health Finder.";
       setMessage({ type: "error", text });
       toast.error(text);
       return;
@@ -633,6 +881,29 @@ export function SettingsForm({ initial }: SettingsFormProps) {
         holidayModeEnabled,
         holidayStartDate: parsedHolidayStart,
         holidayEndDate: parsedHolidayEnd,
+        locations: workplacesForSave().map((row) => ({
+          id: row.id.startsWith("primary") && row.id === "primary" ? undefined : row.id,
+          label: String(row.label ?? "").trim(),
+          district: row.district,
+          clinicAddress: row.clinicAddress,
+          clinicLatitude: row.clinicLatitude,
+          clinicLongitude: row.clinicLongitude,
+          clinicPlaceId: row.clinicPlaceId,
+          town: row.clinicTown,
+          weeklySchedule: row.weeklySchedule,
+          monday: row.weeklySchedule.monday.enabled,
+          tuesday: row.weeklySchedule.tuesday.enabled,
+          wednesday: row.weeklySchedule.wednesday.enabled,
+          thursday: row.weeklySchedule.thursday.enabled,
+          friday: row.weeklySchedule.friday.enabled,
+          saturday: row.weeklySchedule.saturday.enabled,
+          sunday: row.weeklySchedule.sunday.enabled,
+          breakEnabled: row.breakEnabled,
+          breakStart: row.breakStart,
+          breakEnd: row.breakEnd,
+          slotDurationMinutes: row.slotDurationMinutes,
+          pauseOnlineBookings: row.pauseOnlineBookings,
+        })),
       };
 
       if (clinicLocation.latitude != null && clinicLocation.longitude != null) {
@@ -683,6 +954,16 @@ export function SettingsForm({ initial }: SettingsFormProps) {
     label: DAY_LABELS[key],
     value: weeklySchedule[key].enabled,
   }));
+  const activeWorkplaceIndex = Math.max(
+    0,
+    workplaces.findIndex((row) => row.id === activeWorkplaceId),
+  );
+  const accent = workplaceAccent(activeWorkplaceIndex);
+  const activeWorkplaceLabel = clinicDisplayName(
+    workplaces[activeWorkplaceIndex]?.label,
+    activeWorkplaceIndex,
+    workplaces.length,
+  );
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -758,67 +1039,361 @@ export function SettingsForm({ initial }: SettingsFormProps) {
         </div>
       </div>
 
-      <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-5">
-        <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-          Finder location
-        </p>
-        <p className="mt-1 text-sm text-slate-400">
-          Search your clinic on Google Maps. We use the pinned location for Health Finder distance
-          and set your district automatically.
-        </p>
-        {!clinicLocation.address.trim() ? (
-          <div
-            className="mt-3 rounded-xl border border-amber-500/35 bg-amber-500/10 px-4 py-3 text-sm text-amber-50"
-            role="status"
-          >
-            <p className="font-medium text-amber-100">Add your clinic address</p>
-            <p className="mt-1 text-xs leading-relaxed text-amber-100/90">
-              Search your clinic on Google Maps and pick it from the suggestions. Patients see this
-              address on your public profile, and we use the pinned location for accurate distance
-              in Health Finder.
-            </p>
+      <div>
+        {workplaces.length > 1 ? (
+          <div className="flex flex-wrap items-end justify-between gap-2">
+            <div
+              className="flex min-w-0 flex-1 flex-wrap items-end gap-1 px-1"
+              role="tablist"
+              aria-label="Clinics"
+            >
+              {workplaces.map((row, index) => {
+                const selected = row.id === activeWorkplaceId;
+                const tabAccent = workplaceAccent(index);
+                const tabLabel = clinicDisplayName(row.label, index, workplaces.length);
+                return (
+                  <button
+                    key={row.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={selected}
+                    title={tabLabel}
+                    onClick={() => handleSelectWorkplace(row.id)}
+                    className={`max-w-[11rem] truncate shrink-0 transition ${
+                      selected ? tabAccent.tabSelected : tabAccent.tabIdle
+                    }`}
+                  >
+                    {tabLabel}
+                  </button>
+                );
+              })}
+            </div>
+            <button
+              type="button"
+              onClick={handleAddWorkplace}
+              disabled={workplaceBusy || workplaces.length >= MAX_DOCTOR_LOCATIONS}
+              className="mb-1.5 inline-flex shrink-0 items-center justify-center rounded-lg border border-slate-600 bg-slate-950/50 px-3 py-1.5 text-xs font-medium text-slate-200 transition hover:border-slate-400 hover:text-white disabled:cursor-not-allowed disabled:opacity-70"
+            >
+              Add clinic
+            </button>
           </div>
         ) : null}
-        <div className="mt-4 space-y-4">
+        <div
+          data-testid="workplace-settings-frame"
+          className={`rounded-2xl border-2 p-5 transition-colors [overflow-anchor:none] ${accent.frame} ${
+            workplaces.length > 1 ? "rounded-tl-lg" : ""
+          }`}
+        >
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <label
-              htmlFor="clinicAddress"
-              className="text-[11px] font-semibold uppercase tracking-wide text-slate-400"
-            >
-              Clinic address
-            </label>
-            <ClinicAddressAutocomplete
-              id="clinicAddress"
-              value={clinicLocation}
-              onChange={handleClinicLocationChange}
-            />
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+              Clinics
+            </p>
+            <p className="mt-1 text-sm text-slate-300">
+              {workplaces.length > 1
+                ? "Each tab is a different clinic. Address, hours, and online booking belong only to the selected one."
+                : "Add another clinic if you practice at more than one place. Each one has its own hours and online booking switch."}
+            </p>
           </div>
-          {!hasConfirmedClinicCoordinates(clinicLocation) && clinicLocation.address.trim() ? (
-            <div>
-              <label
-                htmlFor="district"
-                className="text-[11px] font-semibold uppercase tracking-wide text-slate-400"
+          {workplaces.length <= 1 ? (
+            <button
+              type="button"
+              onClick={handleAddWorkplace}
+              disabled={workplaceBusy || workplaces.length >= MAX_DOCTOR_LOCATIONS}
+              className="inline-flex items-center justify-center rounded-xl border border-white/20 bg-slate-950/40 px-3 py-2 text-xs font-medium text-slate-100 transition hover:bg-slate-950/70 disabled:cursor-not-allowed disabled:opacity-70"
+            >
+              Add clinic
+            </button>
+          ) : null}
+        </div>
+
+        <div className="mt-4 flex items-center gap-2">
+          <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${accent.tint}`} aria-hidden />
+          <p className={`text-sm font-semibold ${accent.title}`}>
+            {activeWorkplaceLabel} settings
+          </p>
+        </div>
+
+        <div className="mt-4">
+          <label
+            htmlFor="clinicName"
+            className="text-[11px] font-semibold uppercase tracking-wide text-slate-400"
+          >
+            Clinic name
+          </label>
+          <input
+            id="clinicName"
+            type="text"
+            maxLength={MAX_CLINIC_NAME_LENGTH}
+            value={workplaces.find((row) => row.id === activeWorkplaceId)?.label ?? ""}
+            onChange={(e) => {
+              const next = e.target.value.slice(0, MAX_CLINIC_NAME_LENGTH);
+              setWorkplaces((prev) =>
+                prev.map((row) =>
+                  row.id === activeWorkplaceId ? { ...row, label: next } : row,
+                ),
+              );
+            }}
+            placeholder={clinicDefaultName(activeWorkplaceIndex, workplaces.length)}
+            className="mt-2 w-full rounded-xl border border-slate-800/80 bg-ink-900/40 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-clinical-400/60"
+          />
+          <p className="mt-2 text-xs text-slate-400">
+            Patients see this name when they book. Leave blank to use Clinic 1, Clinic 2, and so on.
+          </p>
+        </div>
+
+        {workplaces.length > 1 ? (
+          <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <OnlineBookingsPauseToggle
+              key={activeWorkplaceId}
+              initialPaused={Boolean(
+                workplaces.find((row) => row.id === activeWorkplaceId)?.pauseOnlineBookings,
+              )}
+              locationId={activeWorkplaceId === "primary" ? null : activeWorkplaceId}
+              layout="card"
+              onPausedChange={(paused) => {
+                setWorkplaces((prev) =>
+                  prev.map((row) =>
+                    row.id === activeWorkplaceId
+                      ? { ...row, pauseOnlineBookings: paused }
+                      : row,
+                  ),
+                );
+              }}
+            />
+            {!(workplaces.find((row) => row.id === activeWorkplaceId)?.isPrimary) ? (
+              <button
+                type="button"
+                onClick={() => handleRemoveWorkplace(activeWorkplaceId)}
+                disabled={workplaceBusy}
+                className="inline-flex items-center justify-center rounded-xl border border-red-400/40 px-3 py-2 text-xs font-medium text-red-200 hover:border-red-300 disabled:opacity-60"
               >
-                District <span className="text-red-300">*</span>
-              </label>
-              <p className="mt-1 text-xs text-amber-100/90">
-                Re-select your clinic from Google suggestions to set district automatically.
+                Remove this clinic
+              </button>
+            ) : null}
+          </div>
+        ) : null}
+
+        <div className="mt-5 rounded-xl border border-slate-800/70 bg-ink-900/35 p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+            Clinic address
+          </p>
+          <p className="mt-1 text-sm text-slate-400">
+            Type the clinic name or address and choose it from the Google suggestions.
+            Patients see this on your profile, and we use the map pin so nearby people can find you.
+          </p>
+          {!clinicLocation.address.trim() ? (
+            <div
+              className="mt-3 rounded-xl border border-amber-500/35 bg-amber-500/10 px-4 py-3 text-sm text-amber-50"
+              role="status"
+            >
+              <p className="font-medium text-amber-100">Add your clinic address</p>
+              <p className="mt-1 text-xs leading-relaxed text-amber-100/90">
+                Search your clinic on Google Maps and pick it from the suggestions. Patients see this
+                address on your public profile, and we use the pinned location for accurate distance
+                in Health Finder.
               </p>
-              <select
-                id="district"
-                value={district}
-                onChange={(e) => setDistrict(e.target.value)}
-                className="mt-2 w-full rounded-xl border border-slate-800/80 bg-ink-900/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-clinical-400/60"
-              >
-                <option value="">Select district</option>
-                {CYPRUS_DISTRICTS.map((item) => (
-                  <option key={item} value={item}>
-                    {item}
-                  </option>
-                ))}
-              </select>
             </div>
           ) : null}
+          <div className="mt-4 space-y-4">
+            <div>
+              <label
+                htmlFor="clinicAddress"
+                className="text-[11px] font-semibold uppercase tracking-wide text-slate-400"
+              >
+                Clinic address
+              </label>
+              <ClinicAddressAutocomplete
+                key={activeWorkplaceId}
+                id="clinicAddress"
+                value={clinicLocation}
+                onChange={handleClinicLocationChange}
+              />
+            </div>
+            {clinicLocation.address.trim() &&
+            !isCyprusDistrict(clinicLocation.district ?? district) ? (
+              <div
+                className="rounded-xl border border-amber-500/35 bg-amber-500/10 px-4 py-3 text-sm text-amber-50"
+                role="status"
+              >
+                <p className="font-medium text-amber-100">District not detected</p>
+                <p className="mt-1 text-xs leading-relaxed text-amber-100/90">
+                  Re-select this clinic from Google suggestions so we can place you correctly in
+                  Health Finder.
+                </p>
+              </div>
+            ) : null}
+          </div>
+        </div>
+
+        <div className="mt-4 rounded-xl border border-slate-800/70 bg-ink-900/35 p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+            Working days
+          </p>
+          <p className="mt-1 text-sm text-slate-300">
+            {workplaces.length > 1
+              ? `Hours for ${activeWorkplaceLabel}. Other clinics keep their own schedule.`
+              : "Select the days you see patients."}
+          </p>
+          <div className="mt-4 space-y-3">
+            {days.map(({ key, label, value }) => (
+              <div
+                key={key}
+                className="rounded-xl border border-slate-800/70 bg-ink-900/30 p-3"
+              >
+                <label className="flex cursor-pointer items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={value}
+                    onChange={(e) =>
+                      setWeeklySchedule((prev) => ({
+                        ...prev,
+                        [key]: { ...prev[key], enabled: e.target.checked },
+                      }))
+                    }
+                    className="h-4 w-4 rounded border-slate-600 bg-slate-900 text-clinical-500 focus:ring-clinical-400/60"
+                  />
+                  <span className="text-sm text-slate-200">{label}</span>
+                </label>
+
+                {value && (
+                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                    <div>
+                      <label
+                        htmlFor={`${key}-start`}
+                        className="text-[11px] font-semibold uppercase tracking-wide text-slate-400"
+                      >
+                        Start time
+                      </label>
+                      <input
+                        id={`${key}-start`}
+                        type="time"
+                        value={timeToInputValue(weeklySchedule[key].start_time)}
+                        onChange={(e) =>
+                          setWeeklySchedule((prev) => ({
+                            ...prev,
+                            [key]: {
+                              ...prev[key],
+                              start_time: `${e.target.value}:00`,
+                            },
+                          }))
+                        }
+                        className={TIME_INPUT_CLASS}
+                      />
+                    </div>
+                    <div>
+                      <label
+                        htmlFor={`${key}-end`}
+                        className="text-[11px] font-semibold uppercase tracking-wide text-slate-400"
+                      >
+                        End time
+                      </label>
+                      <input
+                        id={`${key}-end`}
+                        type="time"
+                        value={timeToInputValue(weeklySchedule[key].end_time)}
+                        onChange={(e) =>
+                          setWeeklySchedule((prev) => ({
+                            ...prev,
+                            [key]: {
+                              ...prev[key],
+                              end_time: `${e.target.value}:00`,
+                            },
+                          }))
+                        }
+                        className={TIME_INPUT_CLASS}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="mt-4 rounded-xl border border-slate-800/70 bg-ink-900/35 p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                Daily break (optional)
+              </p>
+              <p className="mt-1 text-xs text-slate-400">
+                Patients will not be able to book this clinic during this time.
+              </p>
+            </div>
+            <label className="inline-flex cursor-pointer items-center gap-2 text-xs text-slate-300">
+              <input
+                type="checkbox"
+                checked={breakEnabled}
+                onChange={(e) => setBreakEnabled(e.target.checked)}
+                className="h-4 w-4 rounded border-slate-600 bg-slate-900 text-clinical-500 focus:ring-clinical-400/60"
+              />
+              <span>Add a daily break</span>
+            </label>
+          </div>
+          {breakEnabled && (
+            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+              <div>
+                <label
+                  htmlFor="breakStart"
+                  className="text-[11px] font-semibold uppercase tracking-wide text-slate-400"
+                >
+                  Break start
+                </label>
+                <input
+                  id="breakStart"
+                  type="time"
+                  value={breakStart}
+                  onChange={(e) => setBreakStart(e.target.value)}
+                  className={TIME_INPUT_CLASS}
+                />
+              </div>
+              <div>
+                <label
+                  htmlFor="breakEnd"
+                  className="text-[11px] font-semibold uppercase tracking-wide text-slate-400"
+                >
+                  Break end
+                </label>
+                <input
+                  id="breakEnd"
+                  type="time"
+                  value={breakEnd}
+                  onChange={(e) => setBreakEnd(e.target.value)}
+                  className={TIME_INPUT_CLASS}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="mt-4 rounded-xl border border-slate-800/70 bg-ink-900/35 p-4">
+          <label
+            htmlFor="slotDuration"
+            className="text-xs font-semibold uppercase tracking-wide text-slate-400"
+          >
+            Appointment slot duration (minutes)
+          </label>
+          <p className="mt-1 text-sm text-slate-300">
+            {workplaces.length > 1
+              ? `Slot length for ${activeWorkplaceLabel}.`
+              : "e.g. 30 for 30-minute slots."}
+          </p>
+          <select
+            id="slotDuration"
+            value={slotDurationMinutes}
+            onChange={(e) =>
+              setSlotDurationMinutes(Number(e.target.value))
+            }
+            className="mt-3 w-full max-w-xs rounded-xl border border-slate-800/80 bg-ink-900/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-clinical-400/60"
+          >
+            {[15, 20, 30, 45, 60].map((n) => (
+              <option key={n} value={n}>
+                {n} min
+              </option>
+            ))}
+          </select>
+        </div>
         </div>
       </div>
 
@@ -1031,90 +1606,10 @@ export function SettingsForm({ initial }: SettingsFormProps) {
 
       <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-5">
         <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-          Working days
-        </p>
-        <p className="mt-1 text-sm text-slate-300">
-          Select the days you see patients.
-        </p>
-        <div className="mt-4 space-y-3">
-          {days.map(({ key, label, value }) => (
-            <div
-              key={key}
-              className="rounded-xl border border-slate-800/70 bg-ink-900/30 p-3"
-            >
-              <label className="flex cursor-pointer items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={value}
-                  onChange={(e) =>
-                    setWeeklySchedule((prev) => ({
-                      ...prev,
-                      [key]: { ...prev[key], enabled: e.target.checked },
-                    }))
-                  }
-                  className="h-4 w-4 rounded border-slate-600 bg-slate-900 text-clinical-500 focus:ring-clinical-400/60"
-                />
-                <span className="text-sm text-slate-200">{label}</span>
-              </label>
-
-              {value && (
-                <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                  <div>
-                    <label
-                      htmlFor={`${key}-start`}
-                      className="text-[11px] font-semibold uppercase tracking-wide text-slate-400"
-                    >
-                      Start time
-                    </label>
-                    <input
-                      id={`${key}-start`}
-                      type="time"
-                      value={timeToInputValue(weeklySchedule[key].start_time)}
-                      onChange={(e) =>
-                        setWeeklySchedule((prev) => ({
-                          ...prev,
-                          [key]: {
-                            ...prev[key],
-                            start_time: `${e.target.value}:00`,
-                          },
-                        }))
-                      }
-                      className="mt-2 w-full rounded-xl border border-slate-800/80 bg-ink-900/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-clinical-400/60"
-                    />
-                  </div>
-                  <div>
-                    <label
-                      htmlFor={`${key}-end`}
-                      className="text-[11px] font-semibold uppercase tracking-wide text-slate-400"
-                    >
-                      End time
-                    </label>
-                    <input
-                      id={`${key}-end`}
-                      type="time"
-                      value={timeToInputValue(weeklySchedule[key].end_time)}
-                      onChange={(e) =>
-                        setWeeklySchedule((prev) => ({
-                          ...prev,
-                          [key]: {
-                            ...prev[key],
-                            end_time: `${e.target.value}:00`,
-                          },
-                        }))
-                      }
-                      className="mt-2 w-full rounded-xl border border-slate-800/80 bg-ink-900/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-clinical-400/60"
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-5">
-        <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
           Scheduling Boundaries
+        </p>
+        <p className="mt-1 text-sm text-slate-400">
+          These apply to every clinic.
         </p>
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <div>
@@ -1193,7 +1688,7 @@ export function SettingsForm({ initial }: SettingsFormProps) {
               Holiday Mode
             </p>
             <p className="mt-1 text-xs text-slate-400">
-              Completely block bookings during a date range.
+              Completely block bookings during a date range, at every clinic.
             </p>
           </div>
           <label className="inline-flex cursor-pointer items-center gap-2 text-xs text-slate-300">
@@ -1262,88 +1757,6 @@ export function SettingsForm({ initial }: SettingsFormProps) {
             </div>
           </div>
         )}
-      </div>
-
-      <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-5">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-              Daily break (optional)
-            </p>
-            <p className="mt-1 text-xs text-slate-400">
-              Patients will not be able to book during this time.
-            </p>
-          </div>
-          <label className="inline-flex cursor-pointer items-center gap-2 text-xs text-slate-300">
-            <input
-              type="checkbox"
-              checked={breakEnabled}
-              onChange={(e) => setBreakEnabled(e.target.checked)}
-              className="h-4 w-4 rounded border-slate-600 bg-slate-900 text-clinical-500 focus:ring-clinical-400/60"
-            />
-            <span>Add a daily break</span>
-          </label>
-        </div>
-        {breakEnabled && (
-          <div className="mt-4 grid gap-4 sm:grid-cols-2">
-            <div>
-              <label
-                htmlFor="breakStart"
-                className="text-[11px] font-semibold uppercase tracking-wide text-slate-400"
-              >
-                Break start
-              </label>
-              <input
-                id="breakStart"
-                type="time"
-                value={breakStart}
-                onChange={(e) => setBreakStart(e.target.value)}
-                className="mt-2 w-full rounded-xl border border-slate-800/80 bg-ink-900/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-clinical-400/60"
-              />
-            </div>
-            <div>
-              <label
-                htmlFor="breakEnd"
-                className="text-[11px] font-semibold uppercase tracking-wide text-slate-400"
-              >
-                Break end
-              </label>
-              <input
-                id="breakEnd"
-                type="time"
-                value={breakEnd}
-                onChange={(e) => setBreakEnd(e.target.value)}
-                className="mt-2 w-full rounded-xl border border-slate-800/80 bg-ink-900/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-clinical-400/60"
-              />
-            </div>
-          </div>
-        )}
-      </div>
-
-      <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-5">
-        <label
-          htmlFor="slotDuration"
-          className="text-xs font-semibold uppercase tracking-wide text-slate-400"
-        >
-          Appointment slot duration (minutes)
-        </label>
-        <p className="mt-1 text-sm text-slate-300">
-          e.g. 30 for 30-minute slots.
-        </p>
-        <select
-          id="slotDuration"
-          value={slotDurationMinutes}
-          onChange={(e) =>
-            setSlotDurationMinutes(Number(e.target.value))
-          }
-          className="mt-3 w-full max-w-xs rounded-xl border border-slate-800/80 bg-ink-900/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-clinical-400/60"
-        >
-          {[15, 20, 30, 45, 60].map((n) => (
-            <option key={n} value={n}>
-              {n} min
-            </option>
-          ))}
-        </select>
       </div>
 
       {message && (

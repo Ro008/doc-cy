@@ -10,6 +10,8 @@ import {
   buildGoogleCalendarUrl,
   getCalendarEventDetails,
 } from "@/lib/patient-calendar-event";
+import { appointmentClinicCopy } from "@/lib/appointment-clinic-copy";
+import { loadDoctorLocations } from "@/lib/load-doctor-locations";
 import { getTranslations } from "next-intl/server";
 import { isConfirmedForCalendar } from "@/lib/appointment-status";
 
@@ -38,7 +40,7 @@ export default async function BookingSuccessPage({
   const { data: appointment, error: apptError } = await supabase
     .from("appointments")
     .select(
-      "id, doctor_id, patient_name, appointment_datetime, status, visit_type, visit_notes, reason",
+      "id, doctor_id, patient_name, appointment_datetime, status, visit_type, visit_notes, reason, location_id",
     )
     .eq("id", appointmentId)
     .single();
@@ -91,6 +93,17 @@ export default async function BookingSuccessPage({
 
   const confirmed = isConfirmedForCalendar(appointment.status as string);
 
+  const locations = await loadDoctorLocations(
+    supabase,
+    appointment.doctor_id as string,
+  );
+  const clinic = appointmentClinicCopy({
+    locations,
+    locationId: (appointment as { location_id?: string | null }).location_id,
+    doctorClinicAddressFallback: (doctor as { clinic_address?: string | null })
+      .clinic_address,
+  });
+
   const cal = getCalendarEventDetails(
     {
       id: appointment.id as string,
@@ -100,7 +113,7 @@ export default async function BookingSuccessPage({
       name: doctor.name,
       specialty: (doctor as { specialty?: string | null }).specialty,
       phone: doctor.phone,
-      clinic_address: (doctor as { clinic_address?: string | null }).clinic_address,
+      clinic_address: clinic.address,
     },
     {
       reason: apptRow.reason,

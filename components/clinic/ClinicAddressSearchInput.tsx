@@ -127,7 +127,6 @@ export function ClinicAddressSearchInput({
 
         setIsReady(true);
         setLoadError(null);
-        inputRef.current.focus();
       })
       .catch((error: unknown) => {
         if (cancelled) return;

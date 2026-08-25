@@ -10,6 +10,8 @@ import {
   isAllowedProfessionalDuration,
   PROFESSIONAL_DURATION_OPTIONS,
 } from "@/lib/professional-appointment-durations";
+import { appointmentClinicCopy } from "@/lib/appointment-clinic-copy";
+import { loadDoctorLocations } from "@/lib/load-doctor-locations";
 import { sendPatientAppointmentConfirmedEmail } from "@/lib/send-patient-appointment-confirmed-email";
 import { sendDoctorAppointmentConfirmedEmail } from "@/lib/send-doctor-appointment-confirmed-email";
 
@@ -60,7 +62,7 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
   const { data: appt, error: apptErr } = await supabase
     .from("appointments")
     .select(
-      "id, doctor_id, patient_name, patient_email, patient_phone, appointment_datetime, status, reason, duration_minutes"
+      "id, doctor_id, patient_name, patient_email, patient_phone, appointment_datetime, status, reason, duration_minutes, location_id"
     )
     .eq("id", id)
     .maybeSingle();
@@ -143,6 +145,14 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
       ? process.env.RESEND_TO_OVERRIDE?.trim() || null
       : null;
 
+  const locations = await loadDoctorLocations(supabase, doctor.id);
+  const clinic = appointmentClinicCopy({
+    locations,
+    locationId: (appt as { location_id?: string | null }).location_id,
+    doctorClinicAddressFallback: (doctor as { clinic_address?: string | null })
+      .clinic_address,
+  });
+
   try {
     await sendPatientAppointmentConfirmedEmail({
       siteUrl,
@@ -156,8 +166,9 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
         name: doctor.name,
         specialty: (doctor as { specialty?: string | null }).specialty,
         phone: (doctor as { phone?: string | null }).phone,
-        clinic_address: (doctor as { clinic_address?: string | null }).clinic_address,
+        clinic_address: clinic.address,
       },
+      clinic,
       resendToOverride,
     });
   } catch (e) {
@@ -175,6 +186,9 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
       patientName: String(appt.patient_name),
       patientPhone: (appt as { patient_phone?: string | null }).patient_phone ?? null,
       reason: (appt as { reason?: string | null }).reason ?? null,
+      clinic,
+      clinicAddressFallback: (doctor as { clinic_address?: string | null })
+        .clinic_address,
       resendToOverride,
     });
   } catch (e) {
