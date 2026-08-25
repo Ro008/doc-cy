@@ -9,6 +9,12 @@ import { DayPicker } from "react-day-picker";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { CY_TZ } from "@/lib/appointments";
 import type { WeeklySchedule } from "@/lib/doctor-settings";
+import {
+  clinicIdForAppointment,
+  type AgendaClinic,
+  type AgendaWorkingHours,
+} from "@/lib/agenda-clinics";
+import { agendaClinicEventColor } from "@/lib/doctor-locations";
 import { APPOINTMENT_REASON_MAX_LENGTH } from "@/lib/visit-types";
 import { WhatsAppLogoIcon } from "@/components/icons/WhatsAppLogoIcon";
 import { buildWhatsAppMessageLink } from "@/lib/whatsapp";
@@ -18,13 +24,19 @@ type AgendaAppointmentRow = {
   id: string;
   appointment_datetime: string;
   status?: string | null;
+  location_id?: string | null;
 };
 
-type AgendaWorkingHours = {
-  weeklySchedule: WeeklySchedule;
-  breakStart: string | null;
-  breakEnd: string | null;
-  slotDurationMinutes: number;
+type ManualBookingFlowProps = {
+  open: boolean;
+  doctorId: string | null;
+  doctorSlug?: string | null;
+  appointments: AgendaAppointmentRow[];
+  workingHours: AgendaWorkingHours | null;
+  clinics?: AgendaClinic[];
+  preferredClinicId?: string | null;
+  onClose: () => void;
+  onBooked: () => void;
 };
 
 type SlotOption = {
@@ -34,16 +46,6 @@ type SlotOption = {
   labelTime: string;
   labelFull: string;
   slotKey: string;
-};
-
-type ManualBookingFlowProps = {
-  open: boolean;
-  doctorId: string | null;
-  doctorSlug?: string | null;
-  appointments: AgendaAppointmentRow[];
-  workingHours: AgendaWorkingHours | null;
-  onClose: () => void;
-  onBooked: () => void;
 };
 
 type SuccessState = {
@@ -86,9 +88,15 @@ export function ManualBookingFlow({
   doctorSlug,
   appointments,
   workingHours,
+  clinics = [],
+  preferredClinicId = null,
   onClose,
   onBooked,
 }: ManualBookingFlowProps) {
+  const isMultiClinic = clinics.length > 1;
+  const [selectedClinicId, setSelectedClinicId] = React.useState<string | null>(
+    preferredClinicId ?? clinics[0]?.id ?? null,
+  );
   const [selectedDate, setSelectedDate] = React.useState<Date | null>(null);
   const [selectedSlot, setSelectedSlot] = React.useState<SlotOption | null>(null);
   const [patientName, setPatientName] = React.useState("");
@@ -110,26 +118,37 @@ export function ManualBookingFlow({
     setError(null);
     setSuccess(null);
     setSubmitting(false);
+    setSelectedClinicId(preferredClinicId ?? clinics[0]?.id ?? null);
   }, [open]);
 
+  const selectedClinic =
+    clinics.find((clinic) => clinic.id === selectedClinicId) ?? clinics[0] ?? null;
+  const activeHours = selectedClinic?.hours ?? workingHours;
+
   const slotDuration =
-    workingHours?.slotDurationMinutes && workingHours.slotDurationMinutes > 0
-      ? workingHours.slotDurationMinutes
+    activeHours?.slotDurationMinutes && activeHours.slotDurationMinutes > 0
+      ? activeHours.slotDurationMinutes
       : 30;
 
   const takenSet = React.useMemo(() => {
     const set = new Set<string>();
     appointments.forEach((a) => {
       if (!isBlockingStatus(a.status)) return;
+      if (
+        selectedClinic &&
+        clinicIdForAppointment(a.location_id, clinics) !== selectedClinic.id
+      ) {
+        return;
+      }
       const cy = utcToZonedTime(new Date(a.appointment_datetime), CY_TZ);
       const key = format(cy, "yyyy-MM-dd'T'HH:mm");
       set.add(key);
     });
     return set;
-  }, [appointments]);
+  }, [appointments, clinics, selectedClinic]);
 
   const upcomingSlots = React.useMemo(() => {
-    if (!workingHours) return [] as SlotOption[];
+    if (!activeHours) return [] as SlotOption[];
     const out: SlotOption[] = [];
     const nowUtc = new Date();
     const nowCy = utcToZonedTime(nowUtc, CY_TZ);
@@ -140,7 +159,7 @@ export function ManualBookingFlow({
     for (let offset = 0; offset <= HORIZON_DAYS; offset += 1) {
       const day = addDays(nowCy, offset);
       const dayKey = format(day, "yyyy-MM-dd");
-      const dayCfg = workingHours.weeklySchedule[dayKeyForDate(day)];
+      const dayCfg = activeHours.weeklySchedule[dayKeyForDate(day)];
       if (!dayCfg?.enabled) continue;
 
       const [startHour, startMinute] = String(dayCfg.start_time ?? "09:00")
@@ -165,10 +184,10 @@ export function ManualBookingFlow({
         }
 
         if (
-          workingHours.breakStart &&
-          workingHours.breakEnd &&
-          hhmm >= workingHours.breakStart &&
-          hhmm < workingHours.breakEnd
+          activeHours.breakStart &&
+          activeHours.breakEnd &&
+          hhmm >= activeHours.breakStart &&
+          hhmm < activeHours.breakEnd
         ) {
           cursorMinutes += slotDuration;
           continue;
@@ -194,7 +213,7 @@ export function ManualBookingFlow({
     }
 
     return out;
-  }, [workingHours, slotDuration]);
+  }, [activeHours, slotDuration]);
 
   const availableDates = React.useMemo(() => {
     const set = new Set<string>();
@@ -235,6 +254,10 @@ export function ManualBookingFlow({
       setError("Please select a time slot.");
       return;
     }
+    if (isMultiClinic && !selectedClinic) {
+      setError("Please choose a clinic.");
+      return;
+    }
     if (!patientName.trim()) {
       setError("Patient name is required.");
       return;
@@ -256,6 +279,7 @@ export function ManualBookingFlow({
           patientEmail: patientEmail.trim(),
           appointmentLocal: selectedSlot.slotKey,
           reason: reasonTrimmed,
+          locationId: selectedClinic?.id ?? null,
         }),
       });
       const data = await res.json().catch(() => null);
@@ -334,7 +358,8 @@ export function ManualBookingFlow({
             </h3>
             <p className="mt-2 text-sm text-slate-300">
               {success.patientName} is now booked for {success.dateLabel} at{" "}
-              {success.timeLabel} (Cyprus time).
+              {success.timeLabel} (Cyprus time)
+              {selectedClinic ? ` at ${selectedClinic.name}` : ""}.
             </p>
 
             <div
@@ -390,6 +415,39 @@ export function ManualBookingFlow({
                 save time.
               </p>
             </div>
+
+            {isMultiClinic ? (
+              <div className="mb-5" data-testid="manual-booking-clinic-picker">
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                  Clinic
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {clinics.map((clinic, index) => {
+                    const selected = clinic.id === selectedClinic?.id;
+                    const color = agendaClinicEventColor(index);
+                    return (
+                      <button
+                        key={clinic.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedClinicId(clinic.id);
+                          setSelectedDate(null);
+                          setSelectedSlot(null);
+                        }}
+                        className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition ${
+                          selected
+                            ? "border-slate-400 bg-slate-800 text-white"
+                            : "border-slate-700 bg-transparent text-slate-400 hover:text-slate-200"
+                        }`}
+                      >
+                        <span className={`h-3.5 w-3.5 rounded-[3px] ${color.swatch}`} aria-hidden />
+                        {clinic.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : null}
 
             <div className="grid gap-5 md:grid-cols-2">
               <div className="rounded-2xl border border-slate-800/60 bg-ink-900/30 p-4">

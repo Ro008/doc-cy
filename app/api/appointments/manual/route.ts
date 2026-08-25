@@ -22,6 +22,8 @@ import { sendPatientAppointmentConfirmedEmail } from "@/lib/send-patient-appoint
 import { sendDoctorAppointmentConfirmedEmail } from "@/lib/send-doctor-appointment-confirmed-email";
 import { getDoctorCalendarEventDetails } from "@/lib/doctor-calendar-event";
 import { buildGoogleCalendarUrl } from "@/lib/patient-calendar-event";
+import { loadDoctorLocations, primaryDoctorLocation } from "@/lib/load-doctor-locations";
+import { locationToSettingsRow } from "@/lib/doctor-locations";
 
 export async function POST(req: NextRequest) {
   const authSupabase = createRouteHandlerClient({ cookies });
@@ -50,12 +52,14 @@ export async function POST(req: NextRequest) {
     patientPhone: rawPatientPhone,
     appointmentLocal,
     reason: rawReason,
+    locationId: rawLocationId,
   } = body as {
     patientName?: string;
     patientEmail?: string;
     patientPhone?: string;
     appointmentLocal?: string;
     reason?: string;
+    locationId?: string;
   };
 
   const patientName = String(rawPatientName ?? "").trim();
@@ -110,7 +114,29 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const settingsRow = settings as DoctorSettingsRow;
+  const settingsRowBase = settings as DoctorSettingsRow;
+  const locations = await loadDoctorLocations(supabase, doctor.id);
+  const requestedLocationId = String(rawLocationId ?? "").trim();
+  let bookingLocation = requestedLocationId
+    ? locations.find((row) => row.id === requestedLocationId) ?? null
+    : primaryDoctorLocation(locations);
+  if (locations.length > 1) {
+    if (!requestedLocationId) {
+      return NextResponse.json(
+        { message: "Please choose a clinic for this appointment." },
+        { status: 400 },
+      );
+    }
+    bookingLocation =
+      locations.find((row) => row.id === requestedLocationId) ?? null;
+    if (!bookingLocation) {
+      return NextResponse.json({ message: "Clinic not found." }, { status: 400 });
+    }
+  }
+
+  const settingsRow = bookingLocation
+    ? locationToSettingsRow(bookingLocation, settingsRowBase)
+    : settingsRowBase;
   const cyLocal = utcToZonedTime(appointmentUtc, CY_TZ);
   const dayOfWeek = cyLocal.getDay();
   const hours = cyLocal.getHours();
@@ -181,6 +207,7 @@ export async function POST(req: NextRequest) {
   const { data: blockingRaw, error: existingError } = await fetchBlockingAppointments(
     supabase,
     doctor.id,
+    bookingLocation?.id ?? null,
   );
   if (existingError) {
     return NextResponse.json(
@@ -211,6 +238,7 @@ export async function POST(req: NextRequest) {
       status: "CONFIRMED",
       reason,
       duration_minutes: slotDuration,
+      location_id: bookingLocation?.id ?? null,
       created_at: new Date().toISOString(),
     })
     .select("id, appointment_datetime, status, duration_minutes")

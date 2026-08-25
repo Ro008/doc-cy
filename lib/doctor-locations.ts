@@ -189,6 +189,35 @@ export function profileClinicAccent(index: number): (typeof PROFILE_CLINIC_ACCEN
   return PROFILE_CLINIC_ACCENTS[safeIndex % PROFILE_CLINIC_ACCENTS.length]!;
 }
 
+/** Agenda calendar checkbox colors — same clinic order as settings tabs. Chip fill stays status-colored. */
+export const AGENDA_CLINIC_EVENT_COLORS = [
+  {
+    swatch: "bg-clinical-400",
+    empty: "border-clinical-400",
+  },
+  {
+    swatch: "bg-violet-400",
+    empty: "border-violet-400",
+  },
+  {
+    swatch: "bg-amber-400",
+    empty: "border-amber-400",
+  },
+  {
+    swatch: "bg-sky-400",
+    empty: "border-sky-400",
+  },
+  {
+    swatch: "bg-rose-400",
+    empty: "border-rose-400",
+  },
+] as const;
+
+export function agendaClinicEventColor(index: number): (typeof AGENDA_CLINIC_EVENT_COLORS)[number] {
+  const safeIndex = Number.isInteger(index) && index >= 0 ? index : 0;
+  return AGENDA_CLINIC_EVENT_COLORS[safeIndex % AGENDA_CLINIC_EVENT_COLORS.length]!;
+}
+
 export function clinicAddressFirstLine(address: string | null | undefined): string {
   const line = String(address ?? "").trim().split("\n")[0]?.trim() ?? "";
   if (!line) return "";
