@@ -4,6 +4,8 @@ import { createServiceRoleClient } from "@/lib/supabase-service";
 import { getDoctorCalendarEventDetails } from "@/lib/doctor-calendar-event";
 import { getCalendarEventDetails } from "@/lib/patient-calendar-event";
 import { isConfirmedForCalendar } from "@/lib/appointment-status";
+import { appointmentClinicCopy } from "@/lib/appointment-clinic-copy";
+import { loadDoctorLocations } from "@/lib/load-doctor-locations";
 
 type RouteContext = {
   params: { id: string };
@@ -45,7 +47,7 @@ export async function GET(req: NextRequest, { params }: RouteContext) {
   const { data: appointment, error: apptError } = await supabase
     .from("appointments")
     .select(
-      "id, doctor_id, appointment_datetime, patient_name, patient_phone, status, created_at, visit_type, visit_notes, reason, duration_minutes"
+      "id, doctor_id, appointment_datetime, patient_name, patient_phone, status, created_at, visit_type, visit_notes, reason, duration_minutes, location_id"
     )
     .eq("id", appointmentId)
     .single();
@@ -89,11 +91,22 @@ export async function GET(req: NextRequest, { params }: RouteContext) {
   const endUtc = addMinutes(startUtc, durationMinutes);
   const createdUtc = new Date((appointment.created_at as string) ?? new Date().toISOString());
 
+  const locations = await loadDoctorLocations(
+    supabase,
+    appointment.doctor_id as string,
+  );
+  const clinic = appointmentClinicCopy({
+    locations,
+    locationId: (appointment as { location_id?: string | null }).location_id,
+    doctorClinicAddressFallback: (doctor as { clinic_address?: string | null } | null)
+      ?.clinic_address,
+  });
+
   const doctorPayload = {
     name: doctor?.name,
     specialty: (doctor as { specialty?: string | null } | null)?.specialty,
     phone: doctor?.phone,
-    clinic_address: (doctor as { clinic_address?: string | null } | null)?.clinic_address,
+    clinic_address: clinic.address,
   };
 
   const apptRow = appointment as {

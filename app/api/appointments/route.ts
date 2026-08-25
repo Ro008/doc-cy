@@ -42,6 +42,11 @@ import {
   EMAIL_TEXT,
   EMAIL_TEXT_MUTED,
 } from "@/lib/email-brand";
+import {
+  appointmentClinicCopy,
+  formatAppointmentClinicEmailHtml,
+  formatAppointmentClinicEmailText,
+} from "@/lib/appointment-clinic-copy";
 import { enforcePublicApiRateLimit } from "@/lib/public-api-rate-limit";
 import { locationToSettingsRow } from "@/lib/doctor-locations";
 import { loadDoctorLocations, primaryDoctorLocation } from "@/lib/load-doctor-locations";
@@ -432,6 +437,11 @@ export async function POST(req: NextRequest) {
       `/dashboard/appointments/${encodeURIComponent(String(inserted.id))}`,
       siteUrl
     ).toString();
+    const clinic = appointmentClinicCopy({
+      locations,
+      locationId: bookingLocation?.id ?? null,
+      doctorClinicAddressFallback: doctorRow?.clinic_address,
+    });
 
     if (doctorName) {
       const proFirst = professionalFirstName(doctorName);
@@ -439,6 +449,7 @@ export async function POST(req: NextRequest) {
       const doctorText =
         `Hi ${proFirst},\n\n` +
         `You have a new appointment request from ${patientName} for ${dateLabel} at ${timeLabel} (Cyprus time).\n\n` +
+        `${formatAppointmentClinicEmailText(clinic)}\n` +
         `Reason: ${reason}\n\n` +
         `Please sign in to DocCy to review, adjust the duration, and confirm.\n\n` +
         `${manageUrl}\n\n` +
@@ -452,6 +463,7 @@ ${EMAIL_SHELL_OPEN}
       You have a new request from <strong>${escapeHtml(patientName)}</strong> for
       <strong>${escapeHtml(dateLabel)}</strong> at <strong>${escapeHtml(timeLabel)}</strong> (Cyprus time).
     </p>
+    ${formatAppointmentClinicEmailHtml(clinic)}
     <p style="margin:0 0 10px;font-size:15px;line-height:1.6;color:${EMAIL_TEXT};"><strong>Reason:</strong> ${escapeHtml(reason)}</p>
     <p style="margin:0 0 10px;font-size:15px;line-height:1.6;color:${EMAIL_TEXT};">
       Please sign in to DocCy to review, adjust the duration, and confirm.
@@ -480,6 +492,7 @@ ${EMAIL_SHELL_CLOSE}`;
       const patientText =
         `Hi ${patientName},\n\n` +
         `We've sent your appointment request to ${doctorName}. They will review the reason for your visit to assign the time you need.\n\n` +
+        `${formatAppointmentClinicEmailText(clinic)}\n` +
         `We'll let you know as soon as it is confirmed. Please do not add this visit to your external calendar yet.\n\n` +
         `Please manage this request through DocCy — wait for our email rather than contacting the clinic directly to schedule.\n\n` +
         `---\n${AUTOMATED_EMAIL_FOOTER_TEXT}`;
@@ -491,6 +504,7 @@ ${EMAIL_SHELL_OPEN}
     <p style="margin:0 0 10px;font-size:15px;line-height:1.6;color:${EMAIL_TEXT};">
       We've sent your request to <strong>${escapeHtml(doctorName)}</strong>. They will review the reason for your visit to assign the time you need.
     </p>
+    ${formatAppointmentClinicEmailHtml(clinic)}
     <p style="margin:0 0 10px;font-size:15px;line-height:1.6;color:${EMAIL_TEXT};">
       We'll let you know as soon as it is confirmed. Please <strong>do not</strong> add this visit to your external calendar yet.
     </p>

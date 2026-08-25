@@ -71,6 +71,11 @@ test.describe("Critical reschedule email content", { tag: "@pr-email" }, () => {
         phone: "+35799123456",
         clinic_address: "Nicosia",
       },
+      clinic: {
+        clinicName: "Clinic 2",
+        address: "10 Harbour Road, Limassol",
+        mapsUrl: "https://maps.google.com/?q=10%20Harbour%20Road%2C%20Limassol",
+      },
       isAfterReschedule: true,
     });
 
@@ -78,8 +83,12 @@ test.describe("Critical reschedule email content", { tag: "@pr-email" }, () => {
     expect(content.subject).toContain("remove previous calendar event");
     expect(content.text).toContain("IMPORTANT - RESCHEDULED VISIT");
     expect(content.text).toContain("DocCy cannot remove old events");
+    expect(content.text).toContain("Clinic: Clinic 2");
+    expect(content.text).toContain("10 Harbour Road, Limassol");
     expect(content.html).toContain("Appointment re-confirmed (rescheduled)");
     expect(content.html).toContain("Important: this visit was rescheduled");
+    expect(content.html).toContain("Clinic 2");
+    expect(content.html).toContain("maps.google.com");
   });
 
   test("confirmation email keeps normal subject when not after reschedule", () => {
@@ -97,12 +106,19 @@ test.describe("Critical reschedule email content", { tag: "@pr-email" }, () => {
         phone: "+35799123456",
         clinic_address: "Nicosia",
       },
+      clinic: {
+        clinicName: "Clinic 1",
+        address: "1 Ledra Street, Nicosia",
+        mapsUrl: "https://maps.google.com/?q=1%20Ledra%20Street%2C%20Nicosia",
+      },
       isAfterReschedule: false,
     });
 
     expect(content.subject).toContain("Confirmed — Andreas Nikos");
     expect(content.subject).not.toContain("Rescheduled confirmed");
     expect(content.text).not.toContain("IMPORTANT - RESCHEDULED VISIT");
+    expect(content.text).toContain("Clinic: Clinic 1");
     expect(content.html).not.toContain("Appointment re-confirmed (rescheduled)");
+    expect(content.html).toContain("Clinic 1");
   });
 });

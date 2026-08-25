@@ -6,6 +6,8 @@ import {
   toBlockingRows,
 } from "@/lib/appointment-blocking-query";
 import { sendPatientAppointmentConfirmedEmail } from "@/lib/send-patient-appointment-confirmed-email";
+import { appointmentClinicCopy } from "@/lib/appointment-clinic-copy";
+import { loadDoctorLocations } from "@/lib/load-doctor-locations";
 
 type RouteContext = { params: { id: string } };
 
@@ -67,7 +69,7 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
   const { data: appt, error: apptErr } = await supabase
     .from("appointments")
     .select(
-      "id, doctor_id, patient_name, patient_email, appointment_datetime, status, duration_minutes, reason, proposed_slots, proposal_expires_at, reschedule_access_token"
+      "id, doctor_id, patient_name, patient_email, appointment_datetime, status, duration_minutes, reason, proposed_slots, proposal_expires_at, reschedule_access_token, location_id"
     )
     .eq("id", id)
     .maybeSingle();
@@ -180,6 +182,14 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
       ? process.env.RESEND_TO_OVERRIDE?.trim() || null
       : null;
 
+  const locations = await loadDoctorLocations(supabase, doctorId);
+  const clinic = appointmentClinicCopy({
+    locations,
+    locationId: (appt as { location_id?: string | null }).location_id,
+    doctorClinicAddressFallback: (doctor as { clinic_address?: string | null } | null)
+      ?.clinic_address,
+  });
+
   try {
     await sendPatientAppointmentConfirmedEmail({
       siteUrl,
@@ -193,9 +203,9 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
         name: doctor?.name,
         specialty: (doctor as { specialty?: string | null } | null)?.specialty,
         phone: (doctor as { phone?: string | null } | null)?.phone,
-        clinic_address: (doctor as { clinic_address?: string | null } | null)
-          ?.clinic_address,
+        clinic_address: clinic.address,
       },
+      clinic,
       isAfterReschedule: true,
       resendToOverride,
     });

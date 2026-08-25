@@ -22,6 +22,7 @@ import { sendPatientAppointmentConfirmedEmail } from "@/lib/send-patient-appoint
 import { sendDoctorAppointmentConfirmedEmail } from "@/lib/send-doctor-appointment-confirmed-email";
 import { getDoctorCalendarEventDetails } from "@/lib/doctor-calendar-event";
 import { buildGoogleCalendarUrl } from "@/lib/patient-calendar-event";
+import { appointmentClinicCopy } from "@/lib/appointment-clinic-copy";
 import { loadDoctorLocations, primaryDoctorLocation } from "@/lib/load-doctor-locations";
 import { locationToSettingsRow } from "@/lib/doctor-locations";
 
@@ -263,6 +264,13 @@ export async function POST(req: NextRequest) {
       ? process.env.RESEND_TO_OVERRIDE?.trim() || null
       : null;
 
+  const clinic = appointmentClinicCopy({
+    locations,
+    locationId: bookingLocation?.id ?? null,
+    doctorClinicAddressFallback: (doctor as { clinic_address?: string | null })
+      .clinic_address,
+  });
+
   try {
     if (patientEmail) {
       await sendPatientAppointmentConfirmedEmail({
@@ -277,8 +285,9 @@ export async function POST(req: NextRequest) {
           name: doctor.name,
           specialty: (doctor as { specialty?: string | null }).specialty,
           phone: (doctor as { phone?: string | null }).phone,
-          clinic_address: (doctor as { clinic_address?: string | null }).clinic_address,
+          clinic_address: clinic.address,
         },
+        clinic,
         resendToOverride,
       });
     }
@@ -297,6 +306,9 @@ export async function POST(req: NextRequest) {
       patientName,
       patientPhone: patientPhoneStored,
       reason,
+      clinic,
+      clinicAddressFallback: (doctor as { clinic_address?: string | null })
+        .clinic_address,
       resendToOverride,
       manualCreated: true,
     });
@@ -308,7 +320,7 @@ export async function POST(req: NextRequest) {
   const endUtc = addMinutes(startUtc, slotDuration);
   const calendarDetails = getDoctorCalendarEventDetails(
     { patient_name: patientName, patient_phone: patientPhone || null },
-    { name: doctor.name },
+    { name: doctor.name, clinic_address: clinic.address },
     { reason },
   );
   const googleCalendarUrl = buildGoogleCalendarUrl({
