@@ -4,8 +4,6 @@ import { FinderMultiLocationAvailability } from "@/components/finder/FinderMulti
 import { loadFinderAvailabilityForRequest } from "@/lib/public/load-finder-availability-request";
 import { doctorLocationDisplayName } from "@/lib/doctor-locations";
 import { formatClinicCountLabel } from "@/lib/manual-directory-clinics";
-import type { ReactNode } from "react";
-
 export function FinderCardAvailabilitySkeleton() {
   return (
     <div
@@ -24,7 +22,6 @@ type FinderRegisteredCardAvailabilityProps = {
   doctorIdsKey: string;
   /** Fallback address when locations have not been loaded yet. */
   clinicAddress?: string | null;
-  languages?: ReactNode;
   anchorStickyWeekNav?: boolean;
 };
 
@@ -33,7 +30,6 @@ export async function FinderRegisteredCardAvailability({
   profileSlug,
   doctorIdsKey,
   clinicAddress = null,
-  languages = null,
   anchorStickyWeekNav = false,
 }: FinderRegisteredCardAvailabilityProps) {
   const batch = await loadFinderAvailabilityForRequest(doctorIdsKey);
@@ -49,7 +45,6 @@ export async function FinderRegisteredCardAvailability({
               key: doctorId,
               location: (
                 <RegisteredLocationCopy
-                  languages={languages}
                   address={clinicAddress}
                 />
               ),
@@ -68,7 +63,6 @@ export async function FinderRegisteredCardAvailability({
               key: doctorId,
               location: (
                 <RegisteredLocationCopy
-                  languages={languages}
                   address={clinicAddress}
                 />
               ),
@@ -85,7 +79,6 @@ export async function FinderRegisteredCardAvailability({
             key: doctorId,
             location: (
               <RegisteredLocationCopy
-                languages={languages}
                 address={clinicAddress}
               />
             ),
@@ -130,7 +123,6 @@ export async function FinderRegisteredCardAvailability({
       key: location.id,
       location: (
         <RegisteredLocationCopy
-          languages={index === 0 ? languages : null}
           address={address}
           title={
             isMulti
@@ -152,17 +144,14 @@ export async function FinderRegisteredCardAvailability({
 }
 
 function RegisteredLocationCopy({
-  languages,
   address,
   title,
 }: {
-  languages?: ReactNode;
   address?: string | null;
   title?: string | null;
 }) {
   return (
     <div className="space-y-4">
-      {languages}
       {title ? (
         <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-ink-400">
           {title}
