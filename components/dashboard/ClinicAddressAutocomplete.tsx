@@ -2,10 +2,7 @@
 
 import * as React from "react";
 import { ClinicAddressSearchInput } from "@/components/clinic/ClinicAddressSearchInput";
-import {
-  hasConfirmedClinicCoordinates,
-  type ClinicLocation,
-} from "@/lib/clinic-location";
+import type { ClinicLocation } from "@/lib/clinic-location";
 
 type Props = {
   id: string;
@@ -29,8 +26,6 @@ export function ClinicAddressAutocomplete({ id, value, onChange, disabled = fals
   }, [value, isEditing]);
 
   const hasSavedAddress = value.address.trim().length > 0;
-  const showDerivedDistrict =
-    hasSavedAddress && !isEditing && hasConfirmedClinicCoordinates(value) && value.district;
 
   if (hasSavedAddress && !isEditing) {
     return (
@@ -38,12 +33,6 @@ export function ClinicAddressAutocomplete({ id, value, onChange, disabled = fals
         <p className="mt-2 rounded-xl border border-slate-800/80 bg-ink-900/40 px-3 py-2 text-sm leading-relaxed text-slate-100">
           {value.address}
         </p>
-        {showDerivedDistrict ? (
-          <p className="mt-2 text-xs text-slate-400">
-            District:{" "}
-            <span className="font-semibold text-slate-200">{value.district}</span>
-          </p>
-        ) : null}
         <button
           type="button"
           disabled={disabled}

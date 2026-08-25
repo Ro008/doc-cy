@@ -213,7 +213,10 @@ export async function POST(req: NextRequest) {
   ).trim();
   if (!isCyprusDistrict(districtRaw)) {
     return NextResponse.json(
-      { message: "Select a valid district." },
+      {
+        message:
+          "We could not detect a valid clinic district. Re-select the clinic from Google suggestions.",
+      },
       { status: 400 }
     );
   }
@@ -513,7 +516,10 @@ export async function POST(req: NextRequest) {
     });
     if (locAddress && locDistrict && !isCyprusDistrict(locDistrict) && !locClinic.district) {
       return NextResponse.json(
-        { message: "Select a valid district for each clinic." },
+        {
+          message:
+            "We could not detect a valid district for each clinic. Re-select each clinic from Google suggestions.",
+        },
         { status: 400 },
       );
     }

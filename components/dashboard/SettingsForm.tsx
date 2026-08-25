@@ -23,7 +23,7 @@ import {
   formatISOToDDMMYYYYOrEmpty,
   parseDDMMYYYYToISO,
 } from "@/lib/date-format";
-import { CYPRUS_DISTRICTS, isCyprusDistrict } from "@/lib/cyprus-districts";
+import { isCyprusDistrict } from "@/lib/cyprus-districts";
 import { ClinicAddressAutocomplete } from "@/components/dashboard/ClinicAddressAutocomplete";
 import { OnlineBookingsPauseToggle } from "@/components/dashboard/OnlineBookingsPauseToggle";
 import {
@@ -807,11 +807,9 @@ export function SettingsForm({ initial }: SettingsFormProps) {
       return;
     }
     if (!isCyprusDistrict(district)) {
-      const text = hasConfirmedClinicCoordinates(clinicLocation)
+      const text = clinicLocation.address.trim()
         ? "We could not detect your clinic district. Please re-select your clinic from Google suggestions."
-        : clinicLocation.address.trim()
-          ? "Select your district so patients can find you in Health Finder."
-          : "Add your clinic address so patients can find you in Health Finder.";
+        : "Add your clinic address so patients can find you in Health Finder.";
       setMessage({ type: "error", text });
       toast.error(text);
       return;
@@ -1181,8 +1179,8 @@ export function SettingsForm({ initial }: SettingsFormProps) {
             Clinic address
           </p>
           <p className="mt-1 text-sm text-slate-400">
-            Search this clinic on Google Maps. We use the pin for Health Finder distance
-            and set the district automatically.
+            Type the clinic name or address and choose it from the Google suggestions.
+            Patients see this on your profile, and we use the map pin so nearby people can find you.
           </p>
           {!clinicLocation.address.trim() ? (
             <div
@@ -1212,30 +1210,17 @@ export function SettingsForm({ initial }: SettingsFormProps) {
                 onChange={handleClinicLocationChange}
               />
             </div>
-            {!hasConfirmedClinicCoordinates(clinicLocation) && clinicLocation.address.trim() ? (
-              <div>
-                <label
-                  htmlFor="district"
-                  className="text-[11px] font-semibold uppercase tracking-wide text-slate-400"
-                >
-                  District <span className="text-red-300">*</span>
-                </label>
-                <p className="mt-1 text-xs text-amber-100/90">
-                  Re-select your clinic from Google suggestions to set district automatically.
+            {clinicLocation.address.trim() &&
+            !isCyprusDistrict(clinicLocation.district ?? district) ? (
+              <div
+                className="rounded-xl border border-amber-500/35 bg-amber-500/10 px-4 py-3 text-sm text-amber-50"
+                role="status"
+              >
+                <p className="font-medium text-amber-100">District not detected</p>
+                <p className="mt-1 text-xs leading-relaxed text-amber-100/90">
+                  Re-select this clinic from Google suggestions so we can place you correctly in
+                  Health Finder.
                 </p>
-                <select
-                  id="district"
-                  value={district}
-                  onChange={(e) => setDistrict(e.target.value)}
-                  className="mt-2 w-full rounded-xl border border-slate-800/80 bg-ink-900/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-clinical-400/60"
-                >
-                  <option value="">Select district</option>
-                  {CYPRUS_DISTRICTS.map((item) => (
-                    <option key={item} value={item}>
-                      {item}
-                    </option>
-                  ))}
-                </select>
               </div>
             ) : null}
           </div>

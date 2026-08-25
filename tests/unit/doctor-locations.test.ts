@@ -97,6 +97,10 @@ describe("doctor locations", () => {
     assert.equal(settingsForm.includes("Add clinic"), true);
     assert.equal(settingsForm.includes("Add workplace"), false);
     assert.equal(settingsForm.includes('aria-label="Clinics"'), true);
+    assert.equal(settingsForm.includes('id="district"'), false);
+    assert.equal(settingsForm.includes("Select district"), false);
+    assert.equal(settingsForm.includes("settings-clinic-district"), false);
+    assert.equal(settingsForm.includes("District not detected"), true);
     assert.equal(workplaceAccent(0).tabSelected.includes("rounded-t-xl"), true);
     assert.equal(
       settingsForm.indexOf('role="tablist"') <
