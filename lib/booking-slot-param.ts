@@ -47,3 +47,25 @@ export function bookingSlotDateFromKey(slotKey: string): Date | null {
   if (!y || !m || !d) return null;
   return new Date(y, m - 1, d);
 }
+
+/**
+ * Drop only `slot` from the current URL search. Keep `location` (and any other
+ * params) so multi-clinic deep-links from the finder do not fall back to Clinic 1.
+ */
+export function hrefWithoutBookingSlotQuery(
+  pathname: string,
+  search: string | { toString(): string } | null | undefined,
+): string | null {
+  const raw =
+    typeof search === "string"
+      ? search.replace(/^\?/, "")
+      : search
+        ? search.toString()
+        : "";
+  if (!raw.includes(`${BOOKING_SLOT_QUERY}=`)) return null;
+  const params = new URLSearchParams(raw);
+  if (!params.has(BOOKING_SLOT_QUERY)) return null;
+  params.delete(BOOKING_SLOT_QUERY);
+  const query = params.toString();
+  return query ? `${pathname}?${query}` : pathname;
+}

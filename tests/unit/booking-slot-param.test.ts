@@ -6,6 +6,7 @@ import {
   BOOKING_SLOT_QUERY,
   bookingSlotDateFromKey,
   buildDoctorBookingHref,
+  hrefWithoutBookingSlotQuery,
   parseBookingSlotParam,
 } from "../../lib/booking-slot-param";
 
@@ -42,5 +43,30 @@ describe("booking-slot-param", () => {
     assert.equal(d.getFullYear(), 2026);
     assert.equal(d.getMonth(), 7);
     assert.equal(d.getDate(), 14);
+  });
+
+  it("strips slot from href while keeping location", () => {
+    assert.equal(hrefWithoutBookingSlotQuery("/en/andreas-nikos", ""), null);
+    assert.equal(
+      hrefWithoutBookingSlotQuery(
+        "/en/andreas-nikos",
+        `${BOOKING_SLOT_QUERY}=2026-08-14T10%3A00`,
+      ),
+      "/en/andreas-nikos",
+    );
+    assert.equal(
+      hrefWithoutBookingSlotQuery(
+        "/en/andreas-nikos",
+        `${BOOKING_SLOT_QUERY}=2026-08-14T10%3A00&${BOOKING_LOCATION_QUERY}=loc-2`,
+      ),
+      `/en/andreas-nikos?${BOOKING_LOCATION_QUERY}=loc-2`,
+    );
+    assert.equal(
+      hrefWithoutBookingSlotQuery(
+        "/en/andreas-nikos",
+        `?${BOOKING_LOCATION_QUERY}=loc-2&${BOOKING_SLOT_QUERY}=2026-08-14T10:00`,
+      ),
+      `/en/andreas-nikos?${BOOKING_LOCATION_QUERY}=loc-2`,
+    );
   });
 });

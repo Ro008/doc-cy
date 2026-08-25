@@ -16,6 +16,7 @@ import { PhoneInput } from "@/components/ui/PhoneInput";
 import { CY_TZ } from "@/lib/appointments";
 import {
   bookingSlotDateFromKey,
+  hrefWithoutBookingSlotQuery,
   parseBookingSlotParam,
 } from "@/lib/booking-slot-param";
 import { normalizeMinimumNoticeHours } from "@/lib/doctor-settings";
@@ -232,8 +233,9 @@ export function BookingSection({
 
     const clearSlotQuery = () => {
       if (typeof window === "undefined") return;
-      if (!window.location.search.includes("slot=")) return;
-      router.replace(pathname, { scroll: false });
+      const next = hrefWithoutBookingSlotQuery(pathname, window.location.search);
+      if (!next) return;
+      router.replace(next, { scroll: false });
     };
 
     const match = upcomingSlots.find((slot) => slot.slotKey === slotKey);
