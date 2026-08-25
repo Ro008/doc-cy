@@ -11,6 +11,7 @@ import {
   fetchAllSupabaseRows,
   fetchAllSupabaseRowsForIdChunks,
 } from "@/lib/supabase-fetch-all";
+import { loadDoctorLocationsByDoctorIds } from "@/lib/load-doctor-locations";
 import { doctorDashboardDisplayName } from "@/lib/doctor-display-name";
 import { FinderAudienceToggle } from "@/components/finder/FinderAudienceToggle";
 import { FinderFilters } from "@/components/finder/FinderFilters";
@@ -36,7 +37,6 @@ import {
   FinderRegisteredCardAvailability,
 } from "@/components/finder/FinderRegisteredCardAvailability";
 import { FinderManualLocationCalendars } from "@/components/finder/FinderManualLocationCalendars";
-import { FinderMultiLocationAvailability } from "@/components/finder/FinderMultiLocationAvailability";
 import { FinderResultsAvailabilityShell } from "@/components/finder/FinderResultsAvailabilityShell";
 import {
   finderRegisteredCardRowClass,
@@ -163,6 +163,14 @@ type RegisteredFinderRow = {
   isSpecialtyApproved: boolean;
   latitude: number | null;
   longitude: number | null;
+  locations: Array<{
+    id: string;
+    district: string | null;
+    clinic_address: string | null;
+    town: string | null;
+    latitude: number | null;
+    longitude: number | null;
+  }>;
 };
 
 type ManualFinderRow = {
@@ -552,7 +560,7 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
                 .not("slug", "is", null),
               // Town is inferred from clinic_address when the column is still empty
               // (doctors who registered before town existed). Filter in memory.
-              { ...listFilters, town: "" },
+              { ...listFilters, district: "", town: "" },
             ).order("name", { ascending: true }),
           ),
       );
@@ -594,6 +602,7 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
             isGesy: Boolean(raw.is_gesy ?? false),
             latitude: parseOptionalCoordinates(raw.latitude, raw.longitude)?.latitude ?? null,
             longitude: parseOptionalCoordinates(raw.latitude, raw.longitude)?.longitude ?? null,
+            locations: [],
           };
         })
         .filter(
@@ -607,6 +616,38 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
         );
       break;
     }
+
+    const locationsByDoctor = await loadDoctorLocationsByDoctorIds(
+      supabase,
+      registeredRows.map((row) => row.id),
+    );
+    registeredRows = registeredRows.map((row) => {
+      const locs = (locationsByDoctor.get(row.id) ?? []).map((loc) => ({
+        id: loc.id,
+        district: loc.district,
+        clinic_address: loc.clinic_address,
+        town: loc.town,
+        latitude: parseOptionalCoordinates(loc.latitude, loc.longitude)?.latitude ?? null,
+        longitude: parseOptionalCoordinates(loc.latitude, loc.longitude)?.longitude ?? null,
+      }));
+      const coordCandidates = [
+        ...locs.map((loc) =>
+          loc.latitude != null && loc.longitude != null
+            ? { latitude: loc.latitude, longitude: loc.longitude }
+            : null,
+        ),
+        row.latitude != null && row.longitude != null
+          ? { latitude: row.latitude, longitude: row.longitude }
+          : null,
+      ].filter(Boolean) as Array<{ latitude: number; longitude: number }>;
+      const nearest = coordCandidates[0] ?? null;
+      return {
+        ...row,
+        locations: locs,
+        latitude: nearest?.latitude ?? row.latitude,
+        longitude: nearest?.longitude ?? row.longitude,
+      };
+    });
 
     await extrasPromise;
 
@@ -774,7 +815,11 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
   const filteredRegistered = registeredRows.filter((row) => {
     if (
       activeDistrict &&
-      normalizeDistrictTerm(row.district ?? "") !== normalizeDistrictTerm(activeDistrict)
+      !professionalMatchesDistrictFilter({
+        district: row.district,
+        clinicDistricts: row.locations.map((loc) => loc.district),
+        activeDistrict,
+      })
     ) {
       return false;
     }
@@ -795,8 +840,12 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
     ) {
       return false;
     }
-    if (activeTown && resolveFinderTownQuery(row.town) !== activeTown) {
-      return false;
+    if (activeTown) {
+      const rowTown = resolveFinderTownQuery(row.town);
+      const locationTowns = row.locations.map((loc) => resolveFinderTownQuery(loc.town));
+      if (rowTown !== activeTown && !locationTowns.includes(activeTown)) {
+        return false;
+      }
     }
     return true;
   });
@@ -1280,57 +1329,40 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
                       </div>
                       <div className={finderRegisteredDetailsSectionClass}>
                         {showRightColumn ? (
-                          <FinderMultiLocationAvailability
-                            rows={[
-                              {
-                                key: row.id,
-                                location: (
-                                  <div className="space-y-4">
-                                    <div>
-                                      <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-ink-400">
-                                        Speaks
-                                      </p>
-                                      {row.languages.length > 0 ? (
-                                        <div className="flex flex-wrap gap-1.5">
-                                          {row.languages.slice(0, 4).map((language, index) => {
-                                            const theme = languageThemeForLabel(language);
-                                            return (
-                                              <span
-                                                key={`${theme.label}-${index}`}
-                                                className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold leading-snug ${theme.pillClass}`}
-                                                title={theme.label}
-                                              >
-                                                <span>{theme.label}</span>
-                                              </span>
-                                            );
-                                          })}
-                                        </div>
-                                      ) : (
-                                        <p className="text-xs text-ink-400">Not specified</p>
-                                      )}
+                          <Suspense fallback={<FinderCardAvailabilitySkeleton />}>
+                            <FinderRegisteredCardAvailability
+                              doctorId={row.id}
+                              profileSlug={row.slug ?? ""}
+                              doctorIdsKey={registeredAvailabilityKey}
+                              clinicAddress={row.clinic_address}
+                              anchorStickyWeekNav={row.id === stickyWeekAnchorDoctorId}
+                              languages={
+                                <div>
+                                  <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-ink-400">
+                                    Speaks
+                                  </p>
+                                  {row.languages.length > 0 ? (
+                                    <div className="flex flex-wrap gap-1.5">
+                                      {row.languages.slice(0, 4).map((language, index) => {
+                                        const theme = languageThemeForLabel(language);
+                                        return (
+                                          <span
+                                            key={`${theme.label}-${index}`}
+                                            className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold leading-snug ${theme.pillClass}`}
+                                            title={theme.label}
+                                          >
+                                            <span>{theme.label}</span>
+                                          </span>
+                                        );
+                                      })}
                                     </div>
-                                    <div>
-                                      <p className="text-xs leading-relaxed text-ink-600 whitespace-pre-wrap break-words">
-                                        {row.clinic_address?.trim()
-                                          ? row.clinic_address.trim()
-                                          : "Not provided yet"}
-                                      </p>
-                                    </div>
-                                  </div>
-                                ),
-                                calendar: (
-                                  <Suspense fallback={<FinderCardAvailabilitySkeleton />}>
-                                    <FinderRegisteredCardAvailability
-                                      doctorId={row.id}
-                                      profileSlug={row.slug ?? ""}
-                                      doctorIdsKey={registeredAvailabilityKey}
-                                      anchorStickyWeekNav={row.id === stickyWeekAnchorDoctorId}
-                                    />
-                                  </Suspense>
-                                ),
-                              },
-                            ]}
-                          />
+                                  ) : (
+                                    <p className="text-xs text-ink-400">Not specified</p>
+                                  )}
+                                </div>
+                              }
+                            />
+                          </Suspense>
                         ) : (
                           <div className="space-y-4">
                             <div>

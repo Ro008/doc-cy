@@ -15,12 +15,18 @@ import {
 import { WhatToExpectCard } from "@/components/doctor/WhatToExpectCard";
 import { ServiceMenuSection } from "@/components/doctor/ServiceMenuSection";
 import { DoctorLocationSection } from "@/components/doctor/DoctorLocationSection";
+import { DoctorProfileClinicPicker } from "@/components/doctor/DoctorProfileClinicPicker";
+import { loadDoctorLocations, primaryDoctorLocation } from "@/lib/load-doctor-locations";
+import {
+  clinicTitleOrFallback,
+  locationToSettingsRow,
+} from "@/lib/doctor-locations";
+import { parseBookingLocationParam, parseBookingSlotParam } from "@/lib/booking-slot-param";
 import {
   settingsToWeeklySlots,
   type DoctorSettingsRow,
 } from "@/lib/doctor-settings";
 import { appointmentToCyprusDate, CY_TZ } from "@/lib/appointments";
-import { parseBookingSlotParam } from "@/lib/booking-slot-param";
 import { addDays, format } from "date-fns";
 import { utcToZonedTime, zonedTimeToUtc } from "date-fns-tz";
 import { CLINIC_ADDRESS, buildMapsUrlFromAddress } from "@/lib/clinic-info";
@@ -74,7 +80,7 @@ type DoctorProfileRow = {
 
 export type PageProps = {
   params: { slug: string };
-  searchParams?: { slot?: string | string[] };
+  searchParams?: { slot?: string | string[]; location?: string | string[] };
 };
 
 function isOptionalProfileColumnError(msg: string): boolean {
@@ -493,6 +499,7 @@ export async function generateMetadata({
 export default async function DoctorPage({ params, searchParams }: PageProps) {
   const result = await fetchPublicDoctorBySlug(params.slug);
   const t = await getTranslations("DoctorProfilePage");
+  const bookingT = await getTranslations("BookingPage");
   const authSupabase = createServerComponentClient({ cookies });
 
   if (result.kind === "not_found") {
@@ -610,15 +617,33 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
       } as DoctorSettingsRow)
     : null;
 
-  const weeklySlots = normalizedSettings
-    ? settingsToWeeklySlots(normalizedSettings)
+  const practiceLocations = await loadDoctorLocations(supabase, profile.id);
+  const requestedLocationId = parseBookingLocationParam(
+    Array.isArray(searchParams?.location)
+      ? searchParams?.location[0]
+      : searchParams?.location,
+  );
+  const selectedLocation =
+    (requestedLocationId
+      ? practiceLocations.find((row) => row.id === requestedLocationId)
+      : null) ??
+    (practiceLocations.length === 1 ? practiceLocations[0] : null) ??
+    primaryDoctorLocation(practiceLocations);
+
+  const locationSettings =
+    selectedLocation && normalizedSettings
+      ? locationToSettingsRow(selectedLocation, normalizedSettings)
+      : normalizedSettings;
+
+  const weeklySlots = locationSettings
+    ? settingsToWeeklySlots(locationSettings)
     : [];
 
   const breakStart =
-    (normalizedSettings as { break_start?: string | null } | null)
+    (locationSettings as { break_start?: string | null } | null)
       ?.break_start ?? null;
   const breakEnd =
-    (normalizedSettings as { break_end?: string | null } | null)?.break_end ??
+    (locationSettings as { break_end?: string | null } | null)?.break_end ??
     null;
 
   // Busy instants only (RLS blocks direct reads on appointments for anon).
@@ -645,6 +670,7 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
       p_doctor_id: profile.id,
       p_from: fromIso,
       p_to: toIso,
+      ...(selectedLocation?.id ? { p_location_id: selectedLocation.id } : {}),
     },
   );
 
@@ -782,6 +808,11 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
                     {profileHeadingCity}
                   </span>
                 )}
+                {practiceLocations.length > 1 ? (
+                  <p className="mt-2 text-sm font-medium text-ink-700">
+                    {bookingT("seesPatientsAtClinics", { count: practiceLocations.length })}
+                  </p>
+                ) : null}
               </h1>
               {Array.isArray(profile.languages) &&
               profile.languages.length > 0 ? (
@@ -798,12 +829,42 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
         <div className="flex flex-col gap-6 lg:grid lg:grid-cols-[minmax(280px,360px)_1fr] lg:gap-8">
           {/* Booking first on mobile, right column on desktop */}
           <section className="order-1 lg:order-2 lg:min-w-0">
+            {practiceLocations.length > 1 ? (
+              <DoctorProfileClinicPicker
+                slug={params.slug}
+                selectedId={selectedLocation?.id ?? null}
+                clinics={practiceLocations.map((row) => ({
+                  id: row.id,
+                  label: row.label,
+                  district: row.district,
+                  clinic_address: row.clinic_address,
+                  town: row.town,
+                  pause_online_bookings: Boolean(row.pause_online_bookings),
+                }))}
+              />
+            ) : null}
             <BookingSection
               doctorId={profile.id}
               doctorName={profile.name}
               weeklySlots={weeklySlots}
               takenSlotTimes={takenSlotTimes}
               profileSlug={params.slug}
+              locationId={selectedLocation?.id ?? null}
+              locationLabel={
+                practiceLocations.length > 1 && selectedLocation
+                  ? clinicTitleOrFallback(
+                      selectedLocation.label,
+                      bookingT("clinicNumber", {
+                        number:
+                          Math.max(
+                            0,
+                            practiceLocations.findIndex((row) => row.id === selectedLocation.id),
+                          ) + 1,
+                      }),
+                    )
+                  : null
+              }
+              locationScopedPause={practiceLocations.length > 1}
               initialSlotKey={
                 parseBookingSlotParam(
                   Array.isArray(searchParams?.slot)
@@ -815,7 +876,7 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
               breakEnd={breakEnd ? breakEnd.slice(0, 5) : undefined}
               onlineBookingsPaused={Boolean(
                 (
-                  normalizedSettings as {
+                  locationSettings as {
                     pause_online_bookings?: boolean | null;
                   } | null
                 )?.pause_online_bookings,
@@ -891,7 +952,33 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
                 </div>
               </section>
             ) : null}
-            <DoctorLocationSection clinicAddress={clinicAddress} mapsUrl={mapsUrl} />
+            <DoctorLocationSection
+              clinicAddress={
+                selectedLocation?.clinic_address?.trim() || clinicAddress
+              }
+              mapsUrl={buildMapsUrlFromAddress(
+                selectedLocation?.clinic_address?.trim() || clinicAddress,
+              )}
+              clinics={
+                practiceLocations.length > 1
+                  ? practiceLocations.map((row, index) => ({
+                      title: clinicTitleOrFallback(
+                        row.label,
+                        bookingT("clinicNumber", { number: index + 1 }),
+                      ),
+                      address:
+                        String(row.clinic_address ?? "").trim() ||
+                        String(row.town ?? "").trim() ||
+                        String(row.district ?? "").trim() ||
+                        bookingT("clinicAddressMissing"),
+                      mapsUrl: buildMapsUrlFromAddress(
+                        String(row.clinic_address ?? "").trim() || clinicAddress,
+                      ),
+                      isBookingHere: row.id === selectedLocation?.id,
+                    }))
+                  : []
+              }
+            />
             <ServiceMenuSection services={services} />
           </div>
         </div>

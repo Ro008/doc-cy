@@ -1,6 +1,7 @@
 /** Query param + helpers for deep-linking a Cyprus wall-clock slot into BookingSection. */
 
 export const BOOKING_SLOT_QUERY = "slot";
+export const BOOKING_LOCATION_QUERY = "location";
 
 const SLOT_KEY_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/;
 
@@ -17,12 +18,25 @@ export function parseBookingSlotParam(
 export function buildDoctorBookingHref(
   profileSlug: string,
   slotKey?: string | null,
+  locationId?: string | null,
 ): string {
   const slug = profileSlug.replace(/^\/+/, "");
   const base = `/${slug}`;
+  const params = new URLSearchParams();
   const slot = parseBookingSlotParam(slotKey ?? null);
-  if (!slot) return base;
-  return `${base}?${BOOKING_SLOT_QUERY}=${encodeURIComponent(slot)}`;
+  if (slot) params.set(BOOKING_SLOT_QUERY, slot);
+  const location = String(locationId ?? "").trim();
+  if (location) params.set(BOOKING_LOCATION_QUERY, location);
+  const query = params.toString();
+  return query ? `${base}?${query}` : base;
+}
+
+export function parseBookingLocationParam(
+  value: string | null | undefined,
+): string | null {
+  const raw = typeof value === "string" ? value.trim() : "";
+  if (!raw) return null;
+  return raw;
 }
 
 export function bookingSlotDateFromKey(slotKey: string): Date | null {

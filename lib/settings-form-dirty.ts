@@ -23,6 +23,21 @@ export type SettingsDirtySnapshot = {
   holidayModeEnabled: boolean;
   holidayStartInput: string;
   holidayEndInput: string;
+  workplaces: Array<{
+    id: string;
+    label: string;
+    district: string;
+    clinicAddress: string;
+    clinicLatitude: number | null;
+    clinicLongitude: number | null;
+    clinicPlaceId: string | null;
+    weeklySchedule: WeeklySchedule;
+    breakEnabled: boolean;
+    breakStart: string;
+    breakEnd: string;
+    slotDurationMinutes: number;
+    pauseOnlineBookings: boolean;
+  }>;
 };
 
 export function buildSettingsDirtySnapshot(input: {
@@ -44,6 +59,7 @@ export function buildSettingsDirtySnapshot(input: {
   holidayModeEnabled: boolean;
   holidayStartInput: string;
   holidayEndInput: string;
+  workplaces?: SettingsDirtySnapshot["workplaces"];
 }): SettingsDirtySnapshot {
   return {
     specialty: input.specialty.trim(),
@@ -67,6 +83,7 @@ export function buildSettingsDirtySnapshot(input: {
     holidayModeEnabled: input.holidayModeEnabled,
     holidayStartInput: input.holidayStartInput.trim(),
     holidayEndInput: input.holidayEndInput.trim(),
+    workplaces: input.workplaces ?? [],
   };
 }
 

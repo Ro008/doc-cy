@@ -49,6 +49,9 @@ type BookingSectionProps = {
   holidayEndDate?: string | null;
   bookingHorizonDays?: number;
   minimumNoticeHours?: number;
+  locationId?: string | null;
+  locationLabel?: string | null;
+  locationScopedPause?: boolean;
 };
 
 type SlotOption = {
@@ -75,6 +78,9 @@ export function BookingSection({
   holidayEndDate = null,
   bookingHorizonDays = 90,
   minimumNoticeHours = 2,
+  locationId = null,
+  locationLabel = null,
+  locationScopedPause = false,
 }: BookingSectionProps) {
   const normalizedBookingHorizonDays = [14, 30, 90, 180].includes(
     bookingHorizonDays
@@ -321,6 +327,7 @@ export function BookingSection({
             appointmentLocal: selectedSlot.slotKey,
             reason: reasonTrim,
             isNewPatient,
+            ...(locationId ? { locationId } : {}),
           }),
         });
         const data = await res.json().catch(() => null);
@@ -380,6 +387,7 @@ export function BookingSection({
       visitReason,
       doctorId,
       profileSlug,
+      locationId,
       router,
       t,
     ]
@@ -392,7 +400,9 @@ export function BookingSection({
           {t("bookingsTemporarilyUnavailable")}
         </h2>
         <p className="mt-2 text-sm text-ink-600">
-          {t("appointmentsPaused")}
+          {locationScopedPause
+            ? t("appointmentsPausedAtLocation")
+            : t("appointmentsPaused")}
         </p>
       </div>
     );
@@ -483,6 +493,7 @@ export function BookingSection({
             </h2>
             <p className="mt-1 text-xs text-ink-500">
               {selectedSlot.labelFull} · {t("cyprusTime")}
+              {locationLabel ? ` · ${locationLabel}` : ""}
             </p>
           </div>
           <button
@@ -651,6 +662,16 @@ export function BookingSection({
             <h2 className="text-lg font-semibold text-ink-900">
                 {t("title")}
             </h2>
+            {locationLabel ? (
+              <>
+                <p className="mt-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-clinical-700">
+                  {t("pickTimeStep")}
+                </p>
+                <p className="mt-1 text-sm font-semibold text-ink-800">
+                  {t("timesOnlyForClinic", { clinic: locationLabel })}
+                </p>
+              </>
+            ) : null}
             <p className="mt-1 text-xs text-ink-500">
               {t("allTimesInCyprusHint")}
             </p>

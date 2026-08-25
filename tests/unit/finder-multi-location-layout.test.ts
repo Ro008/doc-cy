@@ -45,7 +45,7 @@ describe("finder multi-location layout", () => {
       "utf8",
     );
 
-    assert.equal(page.includes("FinderMultiLocationAvailability"), true);
+    assert.equal(page.includes("FinderRegisteredCardAvailability"), true);
     assert.equal(page.includes("FinderManualLocationCalendars"), true);
     assert.equal(landing.includes("FinderManualLocationCalendars"), true);
     assert.equal(landing.includes('layoutVariant="landing"'), true);

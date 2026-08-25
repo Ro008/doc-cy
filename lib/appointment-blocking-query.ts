@@ -35,13 +35,21 @@ export function toBlockingRows(
 
 export async function fetchBlockingAppointments(
   supabase: SupabaseClient,
-  doctorId: string
+  doctorId: string,
+  locationId?: string | null,
 ): Promise<{ data: BlockingAppointmentRow[] | null; error: Error | null }> {
-  const { data, error } = await supabase
+  let query = supabase
     .from("appointments")
     .select(BLOCKING_APPOINTMENTS_SELECT)
     .eq("doctor_id", doctorId)
     .in("status", [...BLOCKING_APPOINTMENT_STATUSES]);
+
+  const location = String(locationId ?? "").trim();
+  if (location) {
+    query = query.eq("location_id", location);
+  }
+
+  const { data, error } = await query;
 
   return {
     data: data as BlockingAppointmentRow[] | null,

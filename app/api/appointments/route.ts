@@ -43,6 +43,8 @@ import {
   EMAIL_TEXT_MUTED,
 } from "@/lib/email-brand";
 import { enforcePublicApiRateLimit } from "@/lib/public-api-rate-limit";
+import { locationToSettingsRow } from "@/lib/doctor-locations";
+import { loadDoctorLocations, primaryDoctorLocation } from "@/lib/load-doctor-locations";
 
 const PRIMARY_ACTIONS_LABEL = EMAIL_SECTION_LABEL;
 const DASHBOARD_LINK_STYLE = EMAIL_CAL_GOOGLE_BTN;
@@ -89,6 +91,7 @@ export async function POST(req: NextRequest) {
     appointmentLocal,
     reason: rawReason,
     isNewPatient: rawIsNewPatient,
+    locationId: rawLocationId,
   } = body as {
     doctorId?: string;
     doctorSlug?: string;
@@ -98,6 +101,7 @@ export async function POST(req: NextRequest) {
     appointmentLocal?: string; // "YYYY-MM-DDTHH:mm" in Europe/Nicosia
     reason?: string;
     isNewPatient?: unknown;
+    locationId?: string;
   };
 
   let doctorId = rawDoctorId;
@@ -211,9 +215,27 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const pauseOnlineBookings = Boolean(
-    (settings as DoctorSettingsRow).pause_online_bookings
-  );
+  const locations = await loadDoctorLocations(supabase, doctorId);
+  const requestedLocationId = String(rawLocationId ?? "").trim();
+  const bookingLocation =
+    (requestedLocationId
+      ? locations.find((row) => row.id === requestedLocationId)
+      : null) ??
+    (locations.length === 1 ? locations[0] : null) ??
+    primaryDoctorLocation(locations);
+
+  if (locations.length > 1 && !bookingLocation) {
+    return NextResponse.json(
+      { message: "Please choose a clinic for this appointment." },
+      { status: 400 },
+    );
+  }
+
+  const locationSettings = bookingLocation
+    ? locationToSettingsRow(bookingLocation, settings as DoctorSettingsRow)
+    : (settings as DoctorSettingsRow);
+
+  const pauseOnlineBookings = Boolean(locationSettings.pause_online_bookings);
   if (pauseOnlineBookings) {
     return NextResponse.json(
       { message: "Bookings temporarily unavailable" },
@@ -222,16 +244,14 @@ export async function POST(req: NextRequest) {
   }
 
   const appointmentDateKey = format(cyLocal, "yyyy-MM-dd");
-  if (isDateInHolidayRange(settings as DoctorSettingsRow, appointmentDateKey)) {
+  if (isDateInHolidayRange(locationSettings, appointmentDateKey)) {
     return NextResponse.json(
       { message: "Bookings temporarily unavailable" },
       { status: 403 }
     );
   }
 
-  const horizonDays = Number(
-    (settings as DoctorSettingsRow).booking_horizon_days ?? 90
-  );
+  const horizonDays = Number(locationSettings.booking_horizon_days ?? 90);
   const maxHorizonDays = [14, 30, 90, 180].includes(horizonDays)
     ? horizonDays
     : 90;
@@ -245,7 +265,7 @@ export async function POST(req: NextRequest) {
   }
 
   const minimumNoticeHours = normalizeMinimumNoticeHours(
-    (settings as DoctorSettingsRow).minimum_notice_hours,
+    locationSettings.minimum_notice_hours,
   );
   const minimumNoticeCutoffUtc = addHours(new Date(), minimumNoticeHours);
   if (appointmentUtc.getTime() < minimumNoticeCutoffUtc.getTime()) {
@@ -256,7 +276,7 @@ export async function POST(req: NextRequest) {
   }
 
   const withinSlot = isTimeWithinSettings(
-    settings as DoctorSettingsRow,
+    locationSettings,
     dayOfWeek,
     hhmmss
   );
@@ -268,7 +288,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const settingsRow = settings as DoctorSettingsRow;
+  const settingsRow = locationSettings;
   const slotDurationMinutes = Number(settingsRow.slot_duration_minutes ?? 30);
   const slotDuration =
     Number.isFinite(slotDurationMinutes) && slotDurationMinutes > 0
@@ -304,7 +324,8 @@ export async function POST(req: NextRequest) {
   const requestedStartIso = appointmentUtc.toISOString();
   const { data: blockingRaw, error: existingError } = await fetchBlockingAppointments(
     supabase,
-    doctorId
+    doctorId,
+    bookingLocation?.id ?? null,
   );
 
   if (existingError) {
@@ -351,6 +372,7 @@ export async function POST(req: NextRequest) {
     .from("appointments")
     .insert({
       doctor_id: doctorId,
+      location_id: bookingLocation?.id ?? null,
       patient_name: patientName,
       patient_email: patientEmail,
       patient_phone: patientPhone,

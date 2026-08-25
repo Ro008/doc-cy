@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
+  BOOKING_LOCATION_QUERY,
   BOOKING_SLOT_QUERY,
   bookingSlotDateFromKey,
   buildDoctorBookingHref,
@@ -27,6 +28,10 @@ describe("booking-slot-param", () => {
     assert.equal(
       buildDoctorBookingHref("andreas-nikos", "2026-08-14T10:00"),
       `/andreas-nikos?${BOOKING_SLOT_QUERY}=2026-08-14T10%3A00`,
+    );
+    assert.equal(
+      buildDoctorBookingHref("andreas-nikos", "2026-08-14T10:00", "loc-1"),
+      `/andreas-nikos?${BOOKING_SLOT_QUERY}=2026-08-14T10%3A00&${BOOKING_LOCATION_QUERY}=loc-1`,
     );
     assert.equal(buildDoctorBookingHref("andreas-nikos", "nope"), "/andreas-nikos");
   });

@@ -10,6 +10,7 @@ import { SignOutButton } from "@/components/auth/SignOutButton";
 import type {
   DoctorServiceItem,
   DoctorSettingsFormData,
+  DoctorWorkplaceFormData,
 } from "@/components/dashboard/SettingsForm";
 import { PromotePracticeSection } from "@/components/dashboard/PromotePracticeSection";
 import { FoundingMemberBadge } from "@/components/dashboard/FoundingMemberBadge";
@@ -28,6 +29,8 @@ import {
   type DoctorSettingsRow,
 } from "@/lib/doctor-settings";
 import { isFounderSubscriptionTier } from "@/lib/subscription-tier";
+import { loadDoctorLocations } from "@/lib/load-doctor-locations";
+import { locationWeeklySchedule } from "@/lib/doctor-locations";
 
 export default async function AgendaSettingsPage() {
   const supabase = createServerComponentClient({ cookies });
@@ -274,6 +277,29 @@ export default async function AgendaSettingsPage() {
     (settings as { pause_online_bookings?: boolean } | null)?.pause_online_bookings
   );
 
+  const locationRows = await loadDoctorLocations(supabase, doctor.id);
+  const workplaceLocations: DoctorWorkplaceFormData[] = locationRows.map((row) => ({
+    id: row.id,
+    isPrimary: Boolean(row.is_primary),
+    label: String(row.label ?? "").trim(),
+    district: String(row.district ?? "").trim(),
+    clinicAddress: String(row.clinic_address ?? "").trim(),
+    clinicTown: String(row.town ?? "").trim() || null,
+    clinicLatitude: row.latitude ?? null,
+    clinicLongitude: row.longitude ?? null,
+    clinicPlaceId: row.clinic_place_id ?? null,
+    weeklySchedule: locationWeeklySchedule(row),
+    breakEnabled: Boolean(row.break_start) && Boolean(row.break_end),
+    breakStart: String(row.break_start ?? "13:00:00").slice(0, 5),
+    breakEnd: String(row.break_end ?? "14:00:00").slice(0, 5),
+    slotDurationMinutes: Number(row.slot_duration_minutes) > 0 ? Number(row.slot_duration_minutes) : 30,
+    pauseOnlineBookings: Boolean(row.pause_online_bookings),
+  }));
+  const primaryWorkplace = workplaceLocations[0];
+  const headerPaused = Boolean(
+    primaryWorkplace?.pauseOnlineBookings ?? pauseOnlineBookings,
+  );
+
   const displayName = doctorDashboardDisplayName(doctor.name);
 
   const initial: DoctorSettingsFormData = {
@@ -380,6 +406,7 @@ export default async function AgendaSettingsPage() {
       (settings as { holiday_end_date?: string | null } | null)
         ?.holiday_end_date ?? null,
     services,
+    locations: workplaceLocations,
   };
 
   return (
@@ -405,10 +432,13 @@ export default async function AgendaSettingsPage() {
           </div>
 
           <div className="flex w-full flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-center lg:w-auto lg:max-w-md lg:flex-nowrap lg:justify-end">
-            <OnlineBookingsPauseToggle
-              initialPaused={pauseOnlineBookings}
-              layout="header"
-            />
+            {workplaceLocations.length <= 1 ? (
+              <OnlineBookingsPauseToggle
+                initialPaused={headerPaused}
+                locationId={primaryWorkplace?.id ?? null}
+                layout="header"
+              />
+            ) : null}
           </div>
         </header>
 
