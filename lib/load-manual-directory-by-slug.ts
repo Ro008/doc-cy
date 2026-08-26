@@ -11,6 +11,7 @@ import {
 } from "@/lib/manual-directory-clinics";
 import { fetchAllSupabaseRows } from "@/lib/supabase-fetch-all";
 import { harmonizeFinderSpecialtyList } from "@/lib/finder-specialty-harmonize";
+import { pickUniqueLegacyNameSlugAlias } from "@/lib/manual-directory-slug";
 
 export type ManualDirectoryLandingClinic = {
   id: string | null;
@@ -58,6 +59,77 @@ function normalizeSpecialties(row: {
       ? fromArray
       : [String(row.specialty ?? "").trim()].filter(Boolean);
   return harmonizeFinderSpecialtyList(raw);
+}
+
+function slugLookupHasMissingColumn(
+  error: { message?: string; code?: string } | null,
+  column: string,
+): boolean {
+  if (!error) return false;
+  if (String(error.message ?? "").toLowerCase().includes(column)) return true;
+  return error.code === "42703";
+}
+
+/**
+ * Canonical slug for a professional landing URL.
+ * Exact slugs win (duplicate-proof). A retired name-only slug redirects only
+ * when it uniquely identifies one visible professional.
+ */
+export async function resolveCanonicalManualDirectorySlug(
+  supabase: SupabaseClient,
+  slug: string,
+): Promise<string | null> {
+  const normalizedSlug = String(slug ?? "").trim().toLowerCase();
+  if (!normalizedSlug) return null;
+  // PostgREST LIKE treats `_` / `%` as wildcards; public slugs never include them.
+  if (/[%_]/.test(normalizedSlug)) return null;
+
+  const exact = await supabase
+    .from("directory_manual")
+    .select("slug")
+    .eq("is_archived", false)
+    .eq("slug", normalizedSlug)
+    .maybeSingle();
+
+  if (!exact.error && exact.data) {
+    const current = String((exact.data as { slug?: string | null }).slug ?? "").trim();
+    return current || normalizedSlug;
+  }
+
+  let aliasRes: {
+    data: {
+      slug?: string | null;
+      name?: string | null;
+      finder_visible?: boolean | null;
+    }[] | null;
+    error: { code?: string; message?: string } | null;
+  } = await fetchAllSupabaseRows(() =>
+    supabase
+      .from("directory_manual")
+      .select("slug, name, finder_visible")
+      .eq("is_archived", false)
+      .like("slug", `${normalizedSlug}-%`),
+  );
+
+  if (slugLookupHasMissingColumn(aliasRes.error, "finder_visible")) {
+    const fallback = await fetchAllSupabaseRows(() =>
+      supabase
+        .from("directory_manual")
+        .select("slug, name")
+        .eq("is_archived", false)
+        .like("slug", `${normalizedSlug}-%`),
+    );
+    aliasRes = {
+      data: (fallback.data ?? []).map((row) => ({
+        slug: (row as { slug?: string | null }).slug,
+        name: (row as { name?: string | null }).name,
+      })),
+      error: fallback.error,
+    };
+  }
+
+  if (aliasRes.error || !aliasRes.data?.length) return null;
+  return pickUniqueLegacyNameSlugAlias(normalizedSlug, aliasRes.data);
 }
 
 export async function loadManualDirectoryBySlug(
