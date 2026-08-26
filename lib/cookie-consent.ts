@@ -13,7 +13,7 @@ export type GoogleAdsConsentState = {
   ad_storage: AdsConsentChoice;
   ad_user_data: AdsConsentChoice;
   ad_personalization: AdsConsentChoice;
-  analytics_storage: "denied";
+  analytics_storage: AdsConsentChoice;
 };
 
 export function parseAdsConsentCookie(cookieSource: string): AdsConsentChoice | null {
@@ -42,7 +42,7 @@ export function googleAdsConsentState(choice: AdsConsentChoice): GoogleAdsConsen
     ad_storage: ads,
     ad_user_data: ads,
     ad_personalization: ads,
-    analytics_storage: "denied",
+    analytics_storage: ads,
   };
 }
 
@@ -70,7 +70,7 @@ export function applyGoogleAdsConsent(choice: AdsConsentChoice): void {
 
 /**
  * Runs before gtag.js so Consent Mode defaults to denied unless the visitor
- * already accepted ads cookies.
+ * already accepted Google cookies.
  */
 export function googleAdsConsentDefaultInlineScript(): string {
   const cookieName = JSON.stringify(ADS_CONSENT_COOKIE);

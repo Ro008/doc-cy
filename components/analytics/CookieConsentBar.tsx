@@ -11,19 +11,19 @@ import {
 } from "@/lib/cookie-consent";
 
 type CookieConsentBarProps = {
-  /** Auto-open only when the Google Ads tag is actually loaded (production). */
-  adsTagEnabled: boolean;
+  /** Auto-open only when the Google tag is actually loaded (production). */
+  googleTagEnabled: boolean;
 };
 
-export function CookieConsentBar({ adsTagEnabled }: CookieConsentBarProps) {
+export function CookieConsentBar({ googleTagEnabled }: CookieConsentBarProps) {
   const [open, setOpen] = React.useState(false);
 
   React.useEffect(() => {
-    if (adsTagEnabled && !readAdsConsentFromDocumentCookie()) {
+    if (googleTagEnabled && !readAdsConsentFromDocumentCookie()) {
       setOpen(true);
     }
     return subscribeOpenCookiePreferences(() => setOpen(true));
-  }, [adsTagEnabled]);
+  }, [googleTagEnabled]);
 
   function choose(choice: AdsConsentChoice) {
     writeAdsConsentCookie(choice);
@@ -42,7 +42,8 @@ export function CookieConsentBar({ adsTagEnabled }: CookieConsentBarProps) {
     >
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="max-w-2xl text-sm leading-snug text-ink-700">
-          We use Google cookies to measure ads. You can reject them and still use DocCy.{" "}
+          We use Google cookies to measure ads and site usage. You can reject them and still use
+          DocCy.{" "}
           <Link
             href="/privacy"
             className="font-semibold text-clinical-700 underline underline-offset-2 hover:text-clinical-600"
