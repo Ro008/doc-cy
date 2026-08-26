@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { resolveCanonicalManualDirectorySlug } from "../../lib/load-manual-directory-by-slug";
 import {
   buildManualDirectorySlugCandidates,
   allocateManualDirectorySlug,
@@ -11,6 +13,46 @@ import {
   buildManualDirectorySeoTitle,
   getManualDirectorySpecialtySeoLabel,
 } from "../../lib/manual-directory-seo";
+
+type AliasRow = {
+  slug: string;
+  name: string;
+  finder_visible?: boolean;
+};
+
+function mockManualDirectorySlugClient(opts: {
+  exactSlug?: string | null;
+  aliasRows?: AliasRow[];
+}): SupabaseClient {
+  const exactSlug = opts.exactSlug ?? null;
+  const aliasRows = opts.aliasRows ?? [];
+
+  const client = {
+    from(_table: string) {
+      return {
+        select(_cols: string) {
+          return {
+            eq(_col: string, _val: unknown) {
+              return this;
+            },
+            like(_col: string, _pattern: string) {
+              return this;
+            },
+            async maybeSingle() {
+              if (!exactSlug) return { data: null, error: null };
+              return { data: { slug: exactSlug }, error: null };
+            },
+            async range(_from: number, _to: number) {
+              return { data: aliasRows, error: null };
+            },
+          };
+        },
+      };
+    },
+  };
+
+  return client as unknown as SupabaseClient;
+}
 
 describe("manual-directory-slug", () => {
   it("builds district suffix before numeric suffixes", () => {
@@ -83,6 +125,63 @@ describe("manual-directory-slug", () => {
       ]),
       null,
     );
+  });
+});
+
+describe("resolveCanonicalManualDirectorySlug", () => {
+  it("returns the exact slug when it still exists", async () => {
+    const supabase = mockManualDirectorySlugClient({
+      exactSlug: "vera-politou-paphos",
+      aliasRows: [],
+    });
+    assert.equal(
+      await resolveCanonicalManualDirectorySlug(supabase, "vera-politou-paphos"),
+      "vera-politou-paphos",
+    );
+  });
+
+  it("maps a unique retired name-only slug to the current district slug", async () => {
+    const supabase = mockManualDirectorySlugClient({
+      exactSlug: null,
+      aliasRows: [
+        {
+          slug: "vera-politou-paphos",
+          name: "Vera Politou",
+          finder_visible: true,
+        },
+      ],
+    });
+    assert.equal(
+      await resolveCanonicalManualDirectorySlug(supabase, "vera-politou"),
+      "vera-politou-paphos",
+    );
+  });
+
+  it("does not invent a redirect when two people share the same name", async () => {
+    const supabase = mockManualDirectorySlugClient({
+      exactSlug: null,
+      aliasRows: [
+        { slug: "vera-politou-paphos", name: "Vera Politou", finder_visible: true },
+        { slug: "vera-politou-nicosia", name: "Vera Politou", finder_visible: true },
+      ],
+    });
+    assert.equal(await resolveCanonicalManualDirectorySlug(supabase, "vera-politou"), null);
+  });
+
+  it("rejects PostgREST LIKE wildcards in the requested slug", async () => {
+    const supabase = mockManualDirectorySlugClient({
+      exactSlug: null,
+      aliasRows: [
+        { slug: "vera-politou-paphos", name: "Vera Politou", finder_visible: true },
+      ],
+    });
+    assert.equal(await resolveCanonicalManualDirectorySlug(supabase, "vera_politou"), null);
+    assert.equal(await resolveCanonicalManualDirectorySlug(supabase, "vera%politou"), null);
+  });
+
+  it("returns null for an empty slug", async () => {
+    const supabase = mockManualDirectorySlugClient({ exactSlug: null, aliasRows: [] });
+    assert.equal(await resolveCanonicalManualDirectorySlug(supabase, "   "), null);
   });
 });
 
