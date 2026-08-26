@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import { DocCyWordmark } from "@/components/brand/DocCyWordmark";
 import { ManualDirectoryLandingBrowseLink, ManualDirectoryLandingCard } from "@/components/finder/ManualDirectoryLandingCard";
 import { ManualDirectoryStructuredData } from "@/components/finder/ManualDirectoryStructuredData";
@@ -9,7 +9,10 @@ import { clinicLandingPath } from "@/lib/clinic-landing-path";
 import { formatClinicCountLabel } from "@/lib/manual-directory-clinics";
 import { districtToSlug, specialtyToSlug } from "@/lib/finder-seo";
 import { finderResultsPath } from "@/lib/finder-public-path";
-import { loadManualDirectoryBySlug } from "@/lib/load-manual-directory-by-slug";
+import {
+  loadManualDirectoryBySlug,
+  resolveCanonicalManualDirectorySlug,
+} from "@/lib/load-manual-directory-by-slug";
 import { manualDirectoryLandingPath } from "@/lib/manual-directory-landing-path";
 import {
   buildManualDirectorySeoDescription,
@@ -33,13 +36,28 @@ function siteBaseUrl(): string {
   );
 }
 
-export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+function requestedSlug(params: PageProps["params"]): string {
+  return String(params.slug ?? "").trim();
+}
+
+async function loadLandingRowOrRedirect(slug: string) {
   const supabase = createServiceRoleClient();
-  if (!supabase) {
+  if (!supabase) return null;
+
+  const canonical = await resolveCanonicalManualDirectorySlug(supabase, slug);
+  if (canonical && canonical.toLowerCase() !== slug.toLowerCase()) {
+    permanentRedirect(manualDirectoryLandingPath(canonical));
+  }
+
+  return loadManualDirectoryBySlug(supabase, canonical ?? slug);
+}
+
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  if (!createServiceRoleClient()) {
     return { title: "Healthcare Professional | DocCy" };
   }
 
-  const row = await loadManualDirectoryBySlug(supabase, params.slug);
+  const row = await loadLandingRowOrRedirect(requestedSlug(params));
   if (!row) {
     return { title: "Professional not found | DocCy", robots: { index: false, follow: false } };
   }
@@ -77,10 +95,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 export default async function ManualDirectoryProfessionalPage({ params }: PageProps) {
-  const supabase = createServiceRoleClient();
-  if (!supabase) notFound();
-
-  const row = await loadManualDirectoryBySlug(supabase, params.slug);
+  const row = await loadLandingRowOrRedirect(requestedSlug(params));
   if (!row) notFound();
 
   const siteUrl = siteBaseUrl();

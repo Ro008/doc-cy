@@ -92,6 +92,43 @@ export function allocateManualDirectorySlug(
   return pickFirstAvailableDoctorSlug(takenLowercase, candidates);
 }
 
+export type ManualDirectorySlugAliasRow = {
+  slug?: string | null;
+  name?: string | null;
+  finder_visible?: boolean | null;
+};
+
+/**
+ * Map a retired name-only slug (e.g. Google still showing `/vera-politou`)
+ * to the current unique slug (`vera-politou-paphos`).
+ *
+ * Returns a target only when exactly one visible professional's name slugifies
+ * to the requested slug. Two people named Vera Politou keep distinct URLs and
+ * must not share a redirect.
+ */
+export function pickUniqueLegacyNameSlugAlias(
+  requestedSlug: string,
+  rows: readonly ManualDirectorySlugAliasRow[],
+): string | null {
+  const requested = String(requestedSlug ?? "").trim().toLowerCase();
+  if (!requested) return null;
+
+  const matches = new Set<string>();
+  const visible = new Set<string>();
+  for (const row of rows) {
+    const current = String(row.slug ?? "").trim().toLowerCase();
+    if (!current || current === requested) continue;
+    if (slugifyDoctorPublicName(String(row.name ?? "")) !== requested) continue;
+    matches.add(current);
+    if (row.finder_visible !== false) visible.add(current);
+  }
+
+  if (matches.size !== 1) return null;
+  const canonical = Array.from(matches)[0] ?? null;
+  if (!canonical || !visible.has(canonical)) return null;
+  return canonical;
+}
+
 export async function allocateUniqueManualDirectorySlug(
   supabase: SupabaseClient,
   input: { name: string; district?: string | null; manualId?: string },

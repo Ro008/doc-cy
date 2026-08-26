@@ -149,13 +149,28 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   }));
 
   let manualDoctorEntries: MetadataRoute.Sitemap = [];
-  const manualSlugRes = await fetchAllSupabaseRows(() =>
+  let manualSlugRes = await fetchAllSupabaseRows(() =>
     supabase
       .from("directory_manual")
-      .select("slug")
+      .select("slug, finder_visible")
       .eq("is_archived", false)
+      .eq("finder_visible", true)
       .not("slug", "is", null),
   );
+
+  if (
+    manualSlugRes.error &&
+    (String(manualSlugRes.error.message ?? "").toLowerCase().includes("finder_visible") ||
+      (manualSlugRes.error as { code?: string }).code === "42703")
+  ) {
+    manualSlugRes = await fetchAllSupabaseRows(() =>
+      supabase
+        .from("directory_manual")
+        .select("slug")
+        .eq("is_archived", false)
+        .not("slug", "is", null),
+    );
+  }
 
   const slugColumnMissing =
     manualSlugRes.error &&
@@ -169,6 +184,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       .map((row) => {
         const slug = String((row as { slug?: string | null }).slug ?? "").trim();
         if (!slug || isDirectoryCanarySlug(slug)) return null;
+        if ((row as { finder_visible?: boolean | null }).finder_visible === false) return null;
         return {
           url: `${siteBase}${manualDirectoryLandingPath(slug)}`,
           lastModified: now,
