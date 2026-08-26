@@ -1,6 +1,11 @@
 import { formatInTimeZone, zonedTimeToUtc } from "date-fns-tz";
 import { CY_TZ } from "@/lib/appointments";
 
+/** Calendar day in Europe/Nicosia as `yyyy-MM-dd`. */
+export function cyprusDateKey(ref: Date = new Date()): string {
+  return formatInTimeZone(ref, CY_TZ, "yyyy-MM-dd");
+}
+
 /**
  * First instant of the current calendar month in Cyprus (Europe/Nicosia), as UTC ISO string.
  * Use for Supabase `.gte('created_at', ...)` so "this month" matches Cyprus, not the server's TZ.

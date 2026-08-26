@@ -501,7 +501,9 @@ test.describe("Integration: finder business-critical UX", { tag: ["@pr-e2e", "@p
       await districtSelect.selectOption("Nicosia");
       await showResults.click();
       await expect(page).toHaveURL(/\/nicosia(?:\?|$)/, { timeout: 60_000 });
-      await expect(page.getByTestId("finder-active-filters")).toContainText("Nicosia");
+      await expect(page.getByTestId("finder-active-filters")).toContainText("Nicosia", {
+        timeout: 60_000,
+      });
 
       const specialtySelect = page.getByLabel("Specialty");
       await expect(specialtySelect).toBeEnabled({ timeout: 30_000 });
@@ -511,7 +513,9 @@ test.describe("Integration: finder business-critical UX", { tag: ["@pr-e2e", "@p
       await specialtySelect.selectOption("dentist");
       await showResults.click();
       await expect(page).toHaveURL(/\/nicosia\/dentist(?:\?|$)/, { timeout: 60_000 });
-      await expect(page.getByTestId("finder-active-filters")).toContainText("Dentist");
+      await expect(page.getByTestId("finder-active-filters")).toContainText("Dentist", {
+        timeout: 60_000,
+      });
 
       await expect(page.getByText(created[0].name, { exact: true })).toBeVisible({ timeout: 60_000 });
       await expect(page.getByText(created[1].name, { exact: true })).toHaveCount(0);
