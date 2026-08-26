@@ -333,7 +333,7 @@ export default async function FounderDashboardPage({
     const changeReqRes = await supabase
       .from("doctor_specialty_change_requests")
       .select(
-        "id, doctor_id, from_specialty, to_specialty, to_specialty_from_master, license_number, created_at, doctors(name, email)",
+        "id, doctor_id, request_kind, from_specialty, to_specialty, to_specialty_from_master, license_number, created_at, doctors(name, email)",
       )
       .eq("status", "pending")
       .order("created_at", { ascending: false });
@@ -355,14 +355,23 @@ export default async function FounderDashboardPage({
           }
         ).doctors;
         const doc = Array.isArray(nested) ? nested[0] : nested;
+        const fromSpecialty = String(
+          (r as { from_specialty?: string | null }).from_specialty ?? "",
+        ).trim();
+        const kindRaw = String(
+          (r as { request_kind?: string | null }).request_kind ?? "",
+        ).trim();
+        const requestKind: "add" | "replace" =
+          kindRaw === "replace" || (!kindRaw && fromSpecialty.length > 0)
+            ? "replace"
+            : "add";
         return {
           id: r.id as string,
           doctorId: r.doctor_id as string,
           doctorName: (doc?.name ?? "").trim() || "—",
           doctorEmail: doc?.email ?? null,
-          fromSpecialty: String(
-            (r as { from_specialty?: string }).from_specialty ?? "",
-          ).trim(),
+          requestKind,
+          fromSpecialty,
           toSpecialty: String((r as { to_specialty?: string }).to_specialty ?? "").trim(),
           toSpecialtyFromMaster: Boolean(
             (r as { to_specialty_from_master?: boolean }).to_specialty_from_master,

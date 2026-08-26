@@ -14,6 +14,7 @@ export type SpecialtyChangeRequestRow = {
   doctorId: string;
   doctorName: string;
   doctorEmail: string | null;
+  requestKind: "add" | "replace";
   fromSpecialty: string;
   toSpecialty: string;
   toSpecialtyFromMaster: boolean;
@@ -114,8 +115,12 @@ export function SpecialtyChangeRequestsPanel({
   }
 
   async function reject(row: SpecialtyChangeRequestRow) {
+    const label =
+      row.requestKind === "replace" && row.fromSpecialty
+        ? `${row.fromSpecialty} → ${row.toSpecialty}`
+        : `add ${row.toSpecialty}`;
     const ok = window.confirm(
-      `Reject specialty change for ${row.doctorName}?\n\n${row.fromSpecialty} → ${row.toSpecialty}\n\nTheir live specialty will stay unchanged.`,
+      `Reject specialty request for ${row.doctorName}?\n\n${label}\n\nTheir live specialties will stay unchanged.`,
     );
     if (!ok) return;
 
@@ -149,9 +154,9 @@ export function SpecialtyChangeRequestsPanel({
             Specialty change requests ({items.length})
           </h2>
           <p className="mt-1 text-xs text-sky-100/80">
-            Doctors requested a specialty update from settings. Approve to apply
-            the new specialty and license on their profile, or reject to leave
-            the live specialty unchanged.
+            Doctors requested to add or change a specialty from settings. Approve
+            to update their profile (with license), or reject to leave it
+            unchanged.
           </p>
         </div>
       </div>
@@ -178,10 +183,20 @@ export function SpecialtyChangeRequestsPanel({
                     <p className="mt-0.5 text-xs text-slate-500">{row.doctorEmail}</p>
                   ) : null}
                   <p className="mt-2 text-sm text-slate-300">
-                    <span className="text-slate-500">Change:</span>{" "}
-                    <span className="font-medium text-slate-200">{row.fromSpecialty}</span>
-                    <span className="mx-1.5 text-slate-600">→</span>
-                    <span className="font-medium text-sky-100">{row.toSpecialty}</span>
+                    <span className="mr-2 rounded-md bg-sky-500/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-100">
+                      {row.requestKind === "replace" ? "Change" : "Add"}
+                    </span>
+                    {row.requestKind === "replace" && row.fromSpecialty ? (
+                      <>
+                        <span className="font-medium text-slate-200">
+                          {row.fromSpecialty}
+                        </span>
+                        <span className="mx-1.5 text-slate-600">→</span>
+                        <span className="font-medium text-sky-100">{row.toSpecialty}</span>
+                      </>
+                    ) : (
+                      <span className="font-medium text-sky-100">{row.toSpecialty}</span>
+                    )}
                     {!row.toSpecialtyFromMaster ? (
                       <span className="ml-2 rounded-md bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-100">
                         Custom

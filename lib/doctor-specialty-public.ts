@@ -37,11 +37,18 @@ export function getPublicSpecialtyDisplayLabel(input: {
 /** Exclude unapproved custom specialties from specialty-based finder filters. */
 export function matchesFinderSpecialtyFilter(input: {
   specialty?: string | null;
+  specialties?: readonly string[] | null;
   is_specialty_approved?: boolean | null;
   activeSpecialty: string;
   matchesSpecialty: (rowSpecialty: string, filter: string) => boolean;
 }): boolean {
   if (!input.activeSpecialty.trim()) return true;
   if (input.is_specialty_approved === false) return false;
-  return input.matchesSpecialty(input.specialty ?? "", input.activeSpecialty);
+  const labels =
+    input.specialties && input.specialties.length > 0
+      ? input.specialties
+      : [input.specialty ?? ""];
+  return labels.some((rowSpecialty) =>
+    input.matchesSpecialty(rowSpecialty, input.activeSpecialty),
+  );
 }

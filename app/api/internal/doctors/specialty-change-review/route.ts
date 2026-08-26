@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
   const { data: row, error: fetchErr } = await supabase
     .from("doctor_specialty_change_requests")
     .select(
-      "id, doctor_id, from_specialty, to_specialty, to_specialty_from_master, license_number, status",
+      "id, doctor_id, from_specialty, to_specialty, to_specialty_from_master, license_number, status, request_kind",
     )
     .eq("id", requestId)
     .maybeSingle();
@@ -131,23 +131,67 @@ export async function POST(req: NextRequest) {
     : validated.isSpecialtyApproved;
 
   const doctorId = (row as { doctor_id: string }).doctor_id;
+  const requestKindRaw = String(
+    (row as { request_kind?: string | null }).request_kind ?? "",
+  ).trim();
+  const fromSpecialty = String(
+    (row as { from_specialty?: string | null }).from_specialty ?? "",
+  ).trim();
+  const isReplace =
+    requestKindRaw === "replace" ||
+    (!requestKindRaw && fromSpecialty.length > 0);
 
-  const { error: doctorErr } = await supabase
-    .from("doctors")
-    .update({
+  if (isReplace && fromSpecialty) {
+    const { error: deleteErr } = await supabase
+      .from("doctor_specialties")
+      .delete()
+      .eq("doctor_id", doctorId)
+      .ilike("specialty", fromSpecialty);
+    if (deleteErr && !isSupabaseMissingTableError(deleteErr)) {
+      console.error("[specialty-change-review] replace delete failed", deleteErr);
+      return NextResponse.json(
+        { message: "Could not replace the previous specialty." },
+        { status: 500 },
+      );
+    }
+  }
+
+  const { error: specialtyRowErr } = await supabase.from("doctor_specialties").upsert(
+    {
+      doctor_id: doctorId,
       specialty: finalSpecialty,
       license_number: validated.licenseNumber,
-      is_specialty_approved: isApproved,
-      specialty_requires_standard_at: null,
-    })
-    .eq("id", doctorId);
+      is_approved: isApproved,
+    },
+    { onConflict: "doctor_id,specialty" },
+  );
 
-  if (doctorErr) {
-    console.error("[specialty-change-review] doctor update failed", doctorErr);
-    return NextResponse.json(
-      { message: "Could not update professional specialty." },
-      { status: 500 },
-    );
+  if (specialtyRowErr) {
+    // Fallback for environments without doctor_specialties yet.
+    if (!isSupabaseMissingTableError(specialtyRowErr)) {
+      console.error("[specialty-change-review] doctor_specialties upsert failed", specialtyRowErr);
+      return NextResponse.json(
+        { message: "Could not update professional specialty." },
+        { status: 500 },
+      );
+    }
+    const { error: doctorErr } = await supabase
+      .from("doctors")
+      .update({
+        specialty: finalSpecialty,
+        license_number: validated.licenseNumber,
+        is_specialty_approved: isApproved,
+        specialty_requires_standard_at: null,
+      })
+      .eq("id", doctorId);
+
+    if (doctorErr) {
+      console.error("[specialty-change-review] doctor update failed", doctorErr);
+      return NextResponse.json(
+        { message: "Could not update professional specialty." },
+        { status: 500 },
+      );
+    }
   }
 
   const { error: approveErr } = await supabase
