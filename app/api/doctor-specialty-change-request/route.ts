@@ -18,7 +18,7 @@ type Body = {
   licenseNumber?: string;
 };
 
-/** POST — authenticated doctor submits add or replace specialty request. */
+/** POST — authenticated doctor submits add / replace / remove specialty request. */
 export async function POST(req: NextRequest) {
   const supabaseAuth = createRouteHandlerClient({ cookies });
   const {
@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
   const requestKind = parseSpecialtyChangeRequestKind(body.requestKind);
   if (!requestKind) {
     return NextResponse.json(
-      { message: "Choose whether to add or change a specialty." },
+      { message: "Choose whether to add, change, or remove a specialty." },
       { status: 400 },
     );
   }
@@ -55,13 +55,24 @@ export async function POST(req: NextRequest) {
     body.toSpecialtyFromMaster === 1 ||
     body.toSpecialtyFromMaster === "1";
 
-  const validated = validateSpecialtyChangeRequestInput({
-    toSpecialty: typeof body.toSpecialty === "string" ? body.toSpecialty : "",
-    toSpecialtyFromMaster: fromMaster,
-    licenseNumber: typeof body.licenseNumber === "string" ? body.licenseNumber : "",
-  });
-  if (validated.ok === false) {
-    return NextResponse.json({ message: validated.message }, { status: 400 });
+  let toSpecialty = "";
+  let toSpecialtyFromMaster = true;
+  let isSpecialtyApproved = true;
+  let licenseNumber: string | null = null;
+
+  if (requestKind !== "remove") {
+    const validated = validateSpecialtyChangeRequestInput({
+      toSpecialty: typeof body.toSpecialty === "string" ? body.toSpecialty : "",
+      toSpecialtyFromMaster: fromMaster,
+      licenseNumber: typeof body.licenseNumber === "string" ? body.licenseNumber : "",
+    });
+    if (validated.ok === false) {
+      return NextResponse.json({ message: validated.message }, { status: 400 });
+    }
+    toSpecialty = validated.toSpecialty;
+    toSpecialtyFromMaster = validated.toSpecialtyFromMaster;
+    isSpecialtyApproved = validated.isSpecialtyApproved;
+    licenseNumber = validated.licenseNumber;
   }
 
   const { data: doctor, error: doctorErr } = await admin
@@ -80,7 +91,6 @@ export async function POST(req: NextRequest) {
     specialty: (doctor as { specialty?: string | null }).specialty,
     is_specialty_approved: true,
   });
-  // Always include raw specialty labels for replace matching even if under review.
   const rawLabels = Array.isArray((doctor as { specialties?: string[] | null }).specialties)
     ? ((doctor as { specialties?: string[] }).specialties ?? [])
         .map((s) => String(s ?? "").trim())
@@ -92,10 +102,11 @@ export async function POST(req: NextRequest) {
       : [String((doctor as { specialty?: string | null }).specialty ?? "").trim()].filter(
           Boolean,
         );
+
   const profileCheck = validateSpecialtyChangeAgainstProfile({
     kind: requestKind,
     fromSpecialty: typeof body.fromSpecialty === "string" ? body.fromSpecialty : "",
-    toSpecialty: validated.toSpecialty,
+    toSpecialty: requestKind === "remove" ? "" : toSpecialty,
     existingLabels: labelsForMatch.length > 0 ? labelsForMatch : existingLabels,
   });
   if (profileCheck.ok === false) {
@@ -135,12 +146,15 @@ export async function POST(req: NextRequest) {
   const insertPayload: Record<string, unknown> = {
     doctor_id: doctorId,
     from_specialty: profileCheck.fromSpecialty,
-    to_specialty: validated.toSpecialty,
-    to_specialty_from_master: validated.toSpecialtyFromMaster,
-    license_number: validated.licenseNumber,
+    to_specialty: requestKind === "remove" ? null : toSpecialty,
+    to_specialty_from_master:
+      requestKind === "remove" ? true : toSpecialtyFromMaster,
+    license_number: requestKind === "remove" ? null : licenseNumber,
     status: "pending",
     request_kind: requestKind,
   };
+  // Silence unused — kept for future founder display of custom approval flag.
+  void isSpecialtyApproved;
 
   const { data: inserted, error: insertErr } = await admin
     .from("doctor_specialty_change_requests")
@@ -157,30 +171,6 @@ export async function POST(req: NextRequest) {
         },
         { status: 503 },
       );
-    }
-    if (/request_kind|column/i.test(String(insertErr.message ?? ""))) {
-      const { request_kind: _rk, ...legacyPayload } = insertPayload;
-      const fallbackFrom = String(
-        (doctor as { specialty?: string | null }).specialty ?? "",
-      ).trim();
-      const legacyFrom =
-        profileCheck.fromSpecialty || fallbackFrom || validated.toSpecialty;
-      const legacy = await admin
-        .from("doctor_specialty_change_requests")
-        .insert({
-          ...legacyPayload,
-          from_specialty: legacyFrom,
-        })
-        .select("id, created_at")
-        .single();
-      if (!legacy.error && legacy.data) {
-        return NextResponse.json({
-          ok: true,
-          requestId: legacy.data.id,
-          createdAt: legacy.data.created_at,
-          requestKind,
-        });
-      }
     }
     if (insertErr.code === "23505") {
       return NextResponse.json(

@@ -6,15 +6,15 @@ import { Stethoscope } from "lucide-react";
 import { toast } from "sonner";
 import {
   CYPRUS_MASTER_SPECIALTIES,
-  isMasterSpecialty,
 } from "@/lib/cyprus-specialties";
+import { buildSpecialtyChangeApproveReviewBody } from "@/lib/doctor-specialty-change-request";
 
 export type SpecialtyChangeRequestRow = {
   id: string;
   doctorId: string;
   doctorName: string;
   doctorEmail: string | null;
-  requestKind: "add" | "replace";
+  requestKind: "add" | "replace" | "remove";
   fromSpecialty: string;
   toSpecialty: string;
   toSpecialtyFromMaster: boolean;
@@ -75,35 +75,39 @@ export function SpecialtyChangeRequestsPanel({
   }
 
   async function approve(row: SpecialtyChangeRequestRow) {
-    const specialty =
-      editForId === row.id ? editSpecialty.trim() : row.toSpecialty.trim();
-    const license =
-      editForId === row.id ? editLicense.trim() : row.licenseNumber.trim();
-    if (!specialty) {
-      const message = "Specialty is required.";
-      setError(message);
-      toast.error(message);
+    const editing = editForId === row.id;
+    const built = buildSpecialtyChangeApproveReviewBody({
+      requestId: row.id,
+      requestKind: row.requestKind,
+      fromSpecialty: row.fromSpecialty,
+      toSpecialty: row.toSpecialty,
+      licenseNumber: row.licenseNumber,
+      editedSpecialty: editing ? editSpecialty : null,
+      editedLicense: editing ? editLicense : null,
+    });
+    if (built.ok === false) {
+      setError(built.message);
+      toast.error(built.message);
       return;
     }
-    if (!license) {
-      const message = "License number is required.";
-      setError(message);
-      toast.error(message);
-      return;
+
+    if (row.requestKind === "remove") {
+      const ok = window.confirm(
+        `Approve removing “${row.fromSpecialty}” from ${row.doctorName}?\n\nTheir other specialties stay on the profile.`,
+      );
+      if (!ok) return;
     }
 
     setError(null);
     setBusyId(row.id);
     try {
-      await postReview({
-        requestId: row.id,
-        action: "approve",
-        toSpecialty: specialty,
-        toSpecialtyFromMaster: isMasterSpecialty(specialty),
-        licenseNumber: license,
-      });
+      await postReview(built.body);
       setEditForId(null);
-      toast.success("Specialty updated on the professional profile.");
+      toast.success(
+        row.requestKind === "remove"
+          ? "Specialty removed from the professional profile."
+          : "Specialty updated on the professional profile.",
+      );
       router.refresh();
     } catch (e) {
       const message = e instanceof Error ? e.message : "Request failed.";
@@ -118,7 +122,9 @@ export function SpecialtyChangeRequestsPanel({
     const label =
       row.requestKind === "replace" && row.fromSpecialty
         ? `${row.fromSpecialty} → ${row.toSpecialty}`
-        : `add ${row.toSpecialty}`;
+        : row.requestKind === "remove"
+          ? `remove ${row.fromSpecialty}`
+          : `add ${row.toSpecialty}`;
     const ok = window.confirm(
       `Reject specialty request for ${row.doctorName}?\n\n${label}\n\nTheir live specialties will stay unchanged.`,
     );
@@ -154,8 +160,8 @@ export function SpecialtyChangeRequestsPanel({
             Specialty change requests ({items.length})
           </h2>
           <p className="mt-1 text-xs text-sky-100/80">
-            Doctors requested to add or change a specialty from settings. Approve
-            to update their profile (with license), or reject to leave it
+            Doctors requested to add, change, or remove a specialty from
+            settings. Approve to update their profile, or reject to leave it
             unchanged.
           </p>
         </div>
@@ -184,7 +190,11 @@ export function SpecialtyChangeRequestsPanel({
                   ) : null}
                   <p className="mt-2 text-sm text-slate-300">
                     <span className="mr-2 rounded-md bg-sky-500/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-100">
-                      {row.requestKind === "replace" ? "Change" : "Add"}
+                      {row.requestKind === "replace"
+                        ? "Change"
+                        : row.requestKind === "remove"
+                          ? "Remove"
+                          : "Add"}
                     </span>
                     {row.requestKind === "replace" && row.fromSpecialty ? (
                       <>
@@ -194,37 +204,43 @@ export function SpecialtyChangeRequestsPanel({
                         <span className="mx-1.5 text-slate-600">→</span>
                         <span className="font-medium text-sky-100">{row.toSpecialty}</span>
                       </>
+                    ) : row.requestKind === "remove" ? (
+                      <span className="font-medium text-sky-100">{row.fromSpecialty}</span>
                     ) : (
                       <span className="font-medium text-sky-100">{row.toSpecialty}</span>
                     )}
-                    {!row.toSpecialtyFromMaster ? (
+                    {!row.toSpecialtyFromMaster && row.requestKind !== "remove" ? (
                       <span className="ml-2 rounded-md bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-100">
                         Custom
                       </span>
                     ) : null}
                   </p>
-                  <p className="mt-1 text-xs text-slate-400">
-                    License:{" "}
-                    <span className="font-mono text-slate-300">{row.licenseNumber}</span>
-                  </p>
+                  {row.licenseNumber ? (
+                    <p className="mt-1 text-xs text-slate-400">
+                      License:{" "}
+                      <span className="font-mono text-slate-300">{row.licenseNumber}</span>
+                    </p>
+                  ) : null}
                   <p className="mt-1 text-[11px] text-slate-500">
                     Requested {formatRequestedAt(row.createdAt)}
                   </p>
                 </div>
                 <div className="flex flex-shrink-0 flex-wrap gap-2 sm:justify-end">
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={() => {
-                      setEditForId(row.id);
-                      setEditSpecialty(row.toSpecialty);
-                      setEditLicense(row.licenseNumber);
-                      setError(null);
-                    }}
-                    className="inline-flex items-center rounded-lg border border-slate-600 bg-slate-900/60 px-3 py-1.5 text-xs font-medium text-slate-200 hover:border-slate-500 disabled:opacity-50"
-                  >
-                    Edit then approve
-                  </button>
+                  {row.requestKind !== "remove" ? (
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => {
+                        setEditForId(row.id);
+                        setEditSpecialty(row.toSpecialty);
+                        setEditLicense(row.licenseNumber);
+                        setError(null);
+                      }}
+                      className="inline-flex items-center rounded-lg border border-slate-600 bg-slate-900/60 px-3 py-1.5 text-xs font-medium text-slate-200 hover:border-slate-500 disabled:opacity-50"
+                    >
+                      Edit then approve
+                    </button>
+                  ) : null}
                   <button
                     type="button"
                     disabled={busy}

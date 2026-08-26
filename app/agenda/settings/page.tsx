@@ -356,16 +356,24 @@ export default async function AgendaSettingsPage() {
         (pendingChangeRes.data as { from_specialty?: string | null }).from_specialty ??
           "",
       ).trim();
+      const to = String(
+        (pendingChangeRes.data as { to_specialty?: string | null }).to_specialty ?? "",
+      ).trim();
+      const license = String(
+        (pendingChangeRes.data as { license_number?: string | null }).license_number ??
+          "",
+      ).trim();
+      const requestKind =
+        kindRaw === "replace" || kindRaw === "remove"
+          ? kindRaw
+          : from && !to
+            ? "remove"
+            : "add";
       pendingSpecialtyChange = {
-        requestKind: kindRaw === "replace" ? "replace" : "add",
+        requestKind,
         fromSpecialty: from || null,
-        toSpecialty: String(
-          (pendingChangeRes.data as { to_specialty?: string }).to_specialty ?? "",
-        ).trim(),
-        licenseNumber: String(
-          (pendingChangeRes.data as { license_number?: string }).license_number ??
-            "",
-        ).trim(),
+        toSpecialty: to || null,
+        licenseNumber: license || null,
         createdAt: String(
           (pendingChangeRes.data as { created_at?: string }).created_at ?? "",
         ),

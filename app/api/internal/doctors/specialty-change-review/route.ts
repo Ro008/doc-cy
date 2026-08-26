@@ -4,6 +4,7 @@ import { isInternalDirectoryAuthenticated } from "@/lib/internal-directory-auth"
 import { isSupabaseMissingTableError } from "@/lib/supabase-db-errors";
 import {
   normalizeFounderNote,
+  parseSpecialtyChangeRequestKind,
   validateSpecialtyChangeRequestInput,
 } from "@/lib/doctor-specialty-change-request";
 import { isMasterSpecialty } from "@/lib/cyprus-specialties";
@@ -96,6 +97,84 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, status: "rejected" });
   }
 
+  const doctorId = (row as { doctor_id: string }).doctor_id;
+  const fromSpecialty = String(
+    (row as { from_specialty?: string | null }).from_specialty ?? "",
+  ).trim();
+  const rowToSpecialty = String(
+    (row as { to_specialty?: string | null }).to_specialty ?? "",
+  ).trim();
+  const requestKind =
+    parseSpecialtyChangeRequestKind(
+      (row as { request_kind?: string | null }).request_kind,
+    ) ??
+    (fromSpecialty && !rowToSpecialty
+      ? "remove"
+      : fromSpecialty
+        ? "replace"
+        : "add");
+
+  if (requestKind === "remove") {
+    if (!fromSpecialty) {
+      return NextResponse.json(
+        { message: "Remove request is missing the specialty to delete." },
+        { status: 400 },
+      );
+    }
+    const { count, error: countErr } = await supabase
+      .from("doctor_specialties")
+      .select("id", { head: true, count: "exact" })
+      .eq("doctor_id", doctorId);
+    if (countErr && !isSupabaseMissingTableError(countErr)) {
+      console.error("[specialty-change-review] count failed", countErr);
+      return NextResponse.json({ message: "Could not remove specialty." }, { status: 500 });
+    }
+    if ((count ?? 0) < 2) {
+      return NextResponse.json(
+        {
+          message:
+            "Cannot remove the only remaining specialty. Reject this request or ask the doctor to change it instead.",
+        },
+        { status: 400 },
+      );
+    }
+
+    const { error: deleteErr } = await supabase
+      .from("doctor_specialties")
+      .delete()
+      .eq("doctor_id", doctorId)
+      .ilike("specialty", fromSpecialty);
+    if (deleteErr && !isSupabaseMissingTableError(deleteErr)) {
+      console.error("[specialty-change-review] remove delete failed", deleteErr);
+      return NextResponse.json({ message: "Could not remove specialty." }, { status: 500 });
+    }
+
+    const { error: approveErr } = await supabase
+      .from("doctor_specialty_change_requests")
+      .update({
+        status: "approved",
+        resolved_at: nowIso,
+        founder_note: founderNote,
+      })
+      .eq("id", requestId)
+      .eq("status", "pending");
+
+    if (approveErr) {
+      console.error("[specialty-change-review] remove approve mark failed", approveErr);
+      return NextResponse.json(
+        { message: "Specialty was removed but the request status could not be saved." },
+        { status: 500 },
+      );
+    }
+
+    return NextResponse.json({
+      ok: true,
+      status: "approved",
+      requestKind: "remove",
+      removedSpecialty: fromSpecialty,
+    });
+  }
+
   const fromMasterFlag =
     body.toSpecialtyFromMaster === undefined || body.toSpecialtyFromMaster === null
       ? Boolean((row as { to_specialty_from_master?: boolean }).to_specialty_from_master)
@@ -122,26 +201,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ message: validated.message }, { status: 400 });
   }
 
-  // Prefer canonical master labels when the submitted text matches one.
-  const finalSpecialty = isMasterSpecialty(validated.toSpecialty)
-    ? validated.toSpecialty
-    : validated.toSpecialty;
+  const finalSpecialty = validated.toSpecialty;
   const isApproved = isMasterSpecialty(finalSpecialty)
     ? true
     : validated.isSpecialtyApproved;
 
-  const doctorId = (row as { doctor_id: string }).doctor_id;
-  const requestKindRaw = String(
-    (row as { request_kind?: string | null }).request_kind ?? "",
-  ).trim();
-  const fromSpecialty = String(
-    (row as { from_specialty?: string | null }).from_specialty ?? "",
-  ).trim();
-  const isReplace =
-    requestKindRaw === "replace" ||
-    (!requestKindRaw && fromSpecialty.length > 0);
-
-  if (isReplace && fromSpecialty) {
+  if (requestKind === "replace" && fromSpecialty) {
     const { error: deleteErr } = await supabase
       .from("doctor_specialties")
       .delete()
@@ -167,7 +232,6 @@ export async function POST(req: NextRequest) {
   );
 
   if (specialtyRowErr) {
-    // Fallback for environments without doctor_specialties yet.
     if (!isSupabaseMissingTableError(specialtyRowErr)) {
       console.error("[specialty-change-review] doctor_specialties upsert failed", specialtyRowErr);
       return NextResponse.json(
@@ -218,6 +282,7 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({
     ok: true,
     status: "approved",
+    requestKind,
     specialty: finalSpecialty,
     is_specialty_approved: isApproved,
   });

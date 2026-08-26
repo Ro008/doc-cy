@@ -358,13 +358,20 @@ export default async function FounderDashboardPage({
         const fromSpecialty = String(
           (r as { from_specialty?: string | null }).from_specialty ?? "",
         ).trim();
+        const toSpecialty = String(
+          (r as { to_specialty?: string | null }).to_specialty ?? "",
+        ).trim();
         const kindRaw = String(
           (r as { request_kind?: string | null }).request_kind ?? "",
         ).trim();
-        const requestKind: "add" | "replace" =
-          kindRaw === "replace" || (!kindRaw && fromSpecialty.length > 0)
-            ? "replace"
-            : "add";
+        const requestKind: "add" | "replace" | "remove" =
+          kindRaw === "add" || kindRaw === "replace" || kindRaw === "remove"
+            ? kindRaw
+            : fromSpecialty && !toSpecialty
+              ? "remove"
+              : fromSpecialty
+                ? "replace"
+                : "add";
         return {
           id: r.id as string,
           doctorId: r.doctor_id as string,
@@ -372,12 +379,12 @@ export default async function FounderDashboardPage({
           doctorEmail: doc?.email ?? null,
           requestKind,
           fromSpecialty,
-          toSpecialty: String((r as { to_specialty?: string }).to_specialty ?? "").trim(),
+          toSpecialty,
           toSpecialtyFromMaster: Boolean(
             (r as { to_specialty_from_master?: boolean }).to_specialty_from_master,
           ),
           licenseNumber: String(
-            (r as { license_number?: string }).license_number ?? "",
+            (r as { license_number?: string | null }).license_number ?? "",
           ).trim(),
           createdAt: String((r as { created_at?: string }).created_at ?? ""),
         };
