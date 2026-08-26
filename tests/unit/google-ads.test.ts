@@ -13,6 +13,10 @@ import {
   googleAdsTagId,
   reportGoogleAdsConversion,
 } from "../../lib/google-ads";
+import {
+  GOOGLE_ANALYTICS_MEASUREMENT_ID,
+  googleAnalyticsMeasurementId,
+} from "../../lib/google-analytics";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 
@@ -26,6 +30,7 @@ type FakeWindow = {
 
 const originalWindow = (globalThis as { window?: unknown }).window;
 const originalAdsId = process.env.NEXT_PUBLIC_GOOGLE_ADS_ID;
+const originalAnalyticsId = process.env.NEXT_PUBLIC_GOOGLE_ANALYTICS_ID;
 const originalVercelEnv = process.env.VERCEL_ENV;
 const originalCallToBook = process.env.NEXT_PUBLIC_GOOGLE_ADS_CONVERSION_CALL_TO_BOOK;
 const originalRequest = process.env.NEXT_PUBLIC_GOOGLE_ADS_CONVERSION_REQUEST_ONLINE_BOOKING;
@@ -33,6 +38,8 @@ const originalRequest = process.env.NEXT_PUBLIC_GOOGLE_ADS_CONVERSION_REQUEST_ON
 function restoreEnv() {
   if (originalAdsId === undefined) delete process.env.NEXT_PUBLIC_GOOGLE_ADS_ID;
   else process.env.NEXT_PUBLIC_GOOGLE_ADS_ID = originalAdsId;
+  if (originalAnalyticsId === undefined) delete process.env.NEXT_PUBLIC_GOOGLE_ANALYTICS_ID;
+  else process.env.NEXT_PUBLIC_GOOGLE_ANALYTICS_ID = originalAnalyticsId;
   if (originalVercelEnv === undefined) delete process.env.VERCEL_ENV;
   else process.env.VERCEL_ENV = originalVercelEnv;
   if (originalCallToBook === undefined) delete process.env.NEXT_PUBLIC_GOOGLE_ADS_CONVERSION_CALL_TO_BOOK;
@@ -86,6 +93,27 @@ describe("googleAdsTagId", () => {
     delete process.env.VERCEL_ENV;
     process.env.NEXT_PUBLIC_GOOGLE_ADS_ID = "AW-999";
     assert.equal(googleAdsTagId(), "AW-999");
+  });
+});
+
+describe("googleAnalyticsMeasurementId", () => {
+  it("loads the default GA4 ID on Vercel production", () => {
+    delete process.env.NEXT_PUBLIC_GOOGLE_ANALYTICS_ID;
+    process.env.VERCEL_ENV = "production";
+    assert.equal(GOOGLE_ANALYTICS_MEASUREMENT_ID, "G-FE3FCHCR1K");
+    assert.equal(googleAnalyticsMeasurementId(), GOOGLE_ANALYTICS_MEASUREMENT_ID);
+  });
+
+  it("does not load GA4 outside production unless overridden", () => {
+    delete process.env.NEXT_PUBLIC_GOOGLE_ANALYTICS_ID;
+    delete process.env.VERCEL_ENV;
+    assert.equal(googleAnalyticsMeasurementId(), null);
+  });
+
+  it("can disable the production GA4 tag with NEXT_PUBLIC_GOOGLE_ANALYTICS_ID=off", () => {
+    process.env.VERCEL_ENV = "production";
+    process.env.NEXT_PUBLIC_GOOGLE_ANALYTICS_ID = "off";
+    assert.equal(googleAnalyticsMeasurementId(), null);
   });
 });
 
@@ -150,8 +178,12 @@ describe("Google Ads wiring", () => {
     );
     assert.equal(tagSource.includes("gtag/js?id="), true);
     assert.equal(tagSource.includes("gtag('config'"), true);
+    assert.equal(tagSource.includes("googleAnalyticsMeasurementId"), true);
+    assert.equal(tagSource.includes("GoogleAnalyticsRouteTracker"), true);
+    assert.equal(tagSource.includes("send_page_view: false"), true);
     assert.equal(tagSource.includes("googleAdsConsentDefaultInlineScript"), true);
     assert.equal(tagSource.includes("gtag_report_conversion"), false);
+    assert.equal((tagSource.match(/gtag\/js\?id=/g) ?? []).length, 1);
   });
 
   it("fires Call to Book on the first reveal click, not the later tel: link", () => {

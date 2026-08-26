@@ -14,7 +14,7 @@ export function CookiePreferencesButton({ className }: CookiePreferencesButtonPr
       onClick={() => emitOpenCookiePreferences()}
       className={className}
     >
-      Change ads cookie choice
+      Change cookie choice
     </button>
   );
 }

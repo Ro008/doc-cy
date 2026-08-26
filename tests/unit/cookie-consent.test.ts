@@ -32,6 +32,13 @@ describe("parseAdsConsentCookie", () => {
   });
 });
 
+describe("googleAdsConsentState", () => {
+  it("grants analytics_storage together with ads when the visitor accepts", () => {
+    assert.equal(googleAdsConsentState("granted").analytics_storage, "granted");
+    assert.equal(googleAdsConsentState("denied").analytics_storage, "denied");
+  });
+});
+
 describe("googleAdsConsentDefaultInlineScript", () => {
   it("defaults Google Ads storage to denied", () => {
     const script = googleAdsConsentDefaultInlineScript();
@@ -60,11 +67,19 @@ describe("googleAdsConsentDefaultInlineScript", () => {
     assert.equal(commands[0]?.[0], "consent");
     assert.equal(commands[0]?.[1], "default");
     assert.equal((commands[0]?.[2] as { ad_storage?: string }).ad_storage, "denied");
+    assert.equal(
+      (commands[0]?.[2] as { analytics_storage?: string }).analytics_storage,
+      "denied",
+    );
     assert.equal(commands[1]?.[0], "consent");
     assert.equal(commands[1]?.[1], "update");
     assert.equal(
       JSON.stringify(commands[1]?.[2]),
       JSON.stringify(googleAdsConsentState("granted")),
+    );
+    assert.equal(
+      (commands[1]?.[2] as { analytics_storage?: string }).analytics_storage,
+      "granted",
     );
   });
 
@@ -110,7 +125,7 @@ describe("cookie consent wiring", () => {
   it("mounts the cookie bar from the root layout", () => {
     const layout = fs.readFileSync(path.join(repoRoot, "app/layout.tsx"), "utf8");
     assert.equal(layout.includes("CookieConsentBar"), true);
-    assert.equal(layout.includes("adsTagEnabled"), true);
+    assert.equal(layout.includes("googleTagEnabled"), true);
   });
 
   it("prod nightly dismisses the cookie bar before clicking page controls", () => {

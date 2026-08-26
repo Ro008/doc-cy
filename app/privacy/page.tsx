@@ -12,12 +12,12 @@ const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL?.trim() || "https://www.mydocc
 export const metadata: Metadata = {
   title: "Privacy | DocCy",
   description:
-    "How DocCy uses cookies and similar technologies, including Google Ads measurement and essential product cookies.",
+    "How DocCy uses cookies and similar technologies, including Google Ads, Google Analytics, and essential product cookies.",
   alternates: { canonical: `${siteUrl}/privacy` },
   robots: { index: true, follow: true },
 };
 
-const LAST_UPDATED = "18 August 2026";
+const LAST_UPDATED = "26 August 2026";
 
 export default function PrivacyPage() {
   return (
@@ -71,11 +71,11 @@ export default function PrivacyPage() {
           </section>
 
           <section className="space-y-3">
-            <h2 className="text-base font-semibold text-ink-900">5. Google Ads</h2>
+            <h2 className="text-base font-semibold text-ink-900">5. Google Ads and Analytics</h2>
             <p>
-              If you accept ads cookies, we load Google&apos;s tag so we can measure whether our
-              Google Ads campaigns lead to actions such as showing a phone number or requesting
-              online booking.
+              If you accept Google cookies, we load Google&apos;s tag so we can measure ads (for
+              example whether a campaign leads to showing a phone number or requesting online
+              booking) and understand how people use the site (Google Analytics).
               Google may set cookies and process data as described in{" "}
               <a
                 href="https://policies.google.com/privacy"
@@ -88,17 +88,17 @@ export default function PrivacyPage() {
               .
             </p>
             <p>
-              If you reject ads cookies, you can still use DocCy. We tell Google that ads storage
-              is denied (Consent Mode). Google may still receive limited, cookieless pings for
-              modelled conversion measurement.
+              If you reject Google cookies, you can still use DocCy. We tell Google that ads and
+              analytics storage are denied (Consent Mode). Google may still receive limited,
+              cookieless pings for modelled measurement.
             </p>
           </section>
 
           <section className="space-y-3">
             <h2 className="text-base font-semibold text-ink-900">6. Your choice</h2>
             <p>
-              You can accept or reject ads cookies in the banner, or change your mind later on this
-              page (kept for 12 months). Rejecting ads cookies does not block Finder, booking, or
+              You can accept or reject Google cookies in the banner, or change your mind later on
+              this page (kept for 12 months). Rejecting them does not block Finder, booking, or
               professional accounts.
             </p>
             <p>
