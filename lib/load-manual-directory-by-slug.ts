@@ -96,7 +96,14 @@ export async function resolveCanonicalManualDirectorySlug(
     return current || normalizedSlug;
   }
 
-  let aliasRes = await fetchAllSupabaseRows(() =>
+  let aliasRes: {
+    data: {
+      slug?: string | null;
+      name?: string | null;
+      finder_visible?: boolean | null;
+    }[] | null;
+    error: { code?: string; message?: string } | null;
+  } = await fetchAllSupabaseRows(() =>
     supabase
       .from("directory_manual")
       .select("slug, name, finder_visible")
@@ -105,13 +112,20 @@ export async function resolveCanonicalManualDirectorySlug(
   );
 
   if (slugLookupHasMissingColumn(aliasRes.error, "finder_visible")) {
-    aliasRes = await fetchAllSupabaseRows(() =>
+    const fallback = await fetchAllSupabaseRows(() =>
       supabase
         .from("directory_manual")
         .select("slug, name")
         .eq("is_archived", false)
         .like("slug", `${normalizedSlug}-%`),
     );
+    aliasRes = {
+      data: (fallback.data ?? []).map((row) => ({
+        slug: (row as { slug?: string | null }).slug,
+        name: (row as { name?: string | null }).name,
+      })),
+      error: fallback.error,
+    };
   }
 
   if (aliasRes.error || !aliasRes.data?.length) return null;
