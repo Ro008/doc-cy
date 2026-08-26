@@ -414,13 +414,14 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
   });
   const visibleLimit = resultsPage * FINDER_RESULTS_PAGE_SIZE;
   /**
-   * Always load the full matching manual set so we can:
-   * - shuffle fairly (not only the first page from the DB),
-   * - merge clinic-district extras,
-   * - near-me distance-sort within groups.
+   * Load the full matching manual set when any list filter is active so we can
+   * shuffle fairly (not only the first page from the DB) and near-me distance-sort.
+   * Unfiltered home stays paged for first-paint cost.
    */
-  const unboundedManualFetch = true;
-  const manualListLimit = undefined;
+  const unboundedManualFetch = hasListFilter;
+  const manualListLimit = unboundedManualFetch ? undefined : visibleLimit;
+  /** Clinic-district extras: same merge cost as before — only with near-me. */
+  const loadClinicDistrictExtras = Boolean(userCoords);
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim() || "https://www.mydoccy.com";
   const districts = CYPRUS_DISTRICTS;
   const listFilters = {
@@ -441,8 +442,8 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
 
   if (supabase) {
     const extrasPromise = (async () => {
-      // Clinic-linked extras require an unbounded merge; skip on paged list loads.
-      if (!unboundedManualFetch) return;
+      // Clinic-linked extras require an unbounded merge; only with near-me (costly).
+      if (!loadClinicDistrictExtras) return;
       if (!(activeTown || activeDistrict)) return;
       const clinicsRes = await getCachedDirectoryRows(
         activeTown

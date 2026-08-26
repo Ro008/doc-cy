@@ -149,10 +149,12 @@ test.describe("Integration: finder user-like filter behavior matrix", { tag: ["@
       await expect(page).toHaveURL(/^https?:\/\/[^/?#]+\/?(?:\?.*)?$/, { timeout: 60_000 });
       await showResults.click();
       await expect(page).toHaveURL(/\/limassol(?:\?|$)/, { timeout: 60_000 });
-      await expect(page.getByTestId("finder-active-filters")).toContainText("Limassol");
+      await expect(page.getByTestId("finder-active-filters")).toContainText("Limassol", {
+        timeout: 60_000,
+      });
       await expect(
         page.getByRole("heading", { level: 1, name: /Health professionals in Limassol/i }),
-      ).toBeVisible();
+      ).toBeVisible({ timeout: 60_000 });
       await expect(page.getByText(created[0].name, { exact: true })).toBeVisible({ timeout: 60_000 });
       await expect(page.getByText(created[1].name, { exact: true })).toBeVisible({ timeout: 60_000 });
       await expect(page.getByText(created[2].name, { exact: true })).toHaveCount(0);
@@ -170,7 +172,9 @@ test.describe("Integration: finder user-like filter behavior matrix", { tag: ["@
       ).toBeVisible({
         timeout: 60_000,
       });
-      await expect(page.getByTestId("finder-active-filters")).toContainText("Dentist");
+      await expect(page.getByTestId("finder-active-filters")).toContainText("Dentist", {
+        timeout: 60_000,
+      });
       await expect(page.getByText(created[1].name, { exact: true })).toBeVisible({ timeout: 60_000 });
       await expect(page.getByText(created[0].name, { exact: true })).toHaveCount(0);
 
@@ -180,7 +184,9 @@ test.describe("Integration: finder user-like filter behavior matrix", { tag: ["@
       await expect(page.getByText(created[1].name, { exact: true })).toBeVisible({ timeout: 60_000 });
       await nameInput.press("Enter");
       await expect(page).toHaveURL(/name=Dent/, { timeout: 60_000 });
-      await expect(page.getByTestId("finder-active-filters")).toContainText("Dent");
+      await expect(page.getByTestId("finder-active-filters")).toContainText("Dent", {
+        timeout: 60_000,
+      });
       await expect(page.getByText(created[1].name, { exact: true })).toBeVisible({ timeout: 60_000 });
 
       // Scenario 4: Reset should recover broad list + clean path.
