@@ -87,9 +87,10 @@ import { finderResultsPath, FOR_PROFESSIONALS_PATH } from "@/lib/finder-public-p
 import { isProSessionHintValue, PRO_SESSION_HINT_COOKIE } from "@/lib/pro-session-hint";
 import { buildFinderResultsHeading, buildFinderResultsSnippet } from "@/lib/finder-results-heading";
 import {
+  buildFinderManualShuffleSeed,
   FINDER_RESULTS_PAGE_SIZE,
   hasMoreFinderResults,
-  pinRegisteredTestProfilesFirst,
+  orderUnifiedFinderResultsPhase1,
 } from "@/lib/finder-results-paging";
 import {
   FINDER_RESULTS_PAGE_COOKIE,
@@ -412,9 +413,14 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
     hasListFilter,
   });
   const visibleLimit = resultsPage * FINDER_RESULTS_PAGE_SIZE;
-  /** Near-me needs the full matching set to sort by distance; otherwise page the query. */
-  const unboundedManualFetch = Boolean(userCoords);
-  const manualListLimit = unboundedManualFetch ? undefined : visibleLimit;
+  /**
+   * Always load the full matching manual set so we can:
+   * - shuffle fairly (not only the first page from the DB),
+   * - merge clinic-district extras,
+   * - near-me distance-sort within groups.
+   */
+  const unboundedManualFetch = true;
+  const manualListLimit = undefined;
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim() || "https://www.mydoccy.com";
   const districts = CYPRUS_DISTRICTS;
   const listFilters = {
@@ -704,7 +710,7 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
             specialtyColumn: useSpecialtiesFilter ? "specialties" : "specialty",
             extraDistrictManualIds: extraIds,
             requireFinderVisible: selectClause.includes("finder_visible"),
-            orderByName: true,
+            orderByName: false,
             limit: manualListLimit,
           }),
       );
@@ -902,29 +908,23 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
     };
   }
 
-  const unifiedResults: UnifiedFinderResult[] = [
-    ...filteredRegistered.map((row) => {
-      const distanceInfo = computeDistanceInfo(row.district, row.latitude, row.longitude);
-      return { kind: "registered" as const, row, ...distanceInfo };
-    }),
-    ...filteredManual.map((row) => {
-      const distanceInfo = computeDistanceInfo(row.district, row.latitude, row.longitude);
-      return { kind: "manual" as const, row, ...distanceInfo };
-    }),
-  ];
-  if (userCoords) {
-    unifiedResults.sort((a, b) => {
-      if (a.distanceKm === null && b.distanceKm === null) return 0;
-      if (a.distanceKm === null) return 1;
-      if (b.distanceKm === null) return -1;
-      return a.distanceKm - b.distanceKm;
-    });
-  } else {
-    pinRegisteredTestProfilesFirst(
-      unifiedResults,
-      finderIncludesRegisteredTestProfiles(),
-    );
-  }
+  const unifiedResults = orderUnifiedFinderResultsPhase1(
+    [
+      ...filteredRegistered.map((row) => {
+        const distanceInfo = computeDistanceInfo(row.district, row.latitude, row.longitude);
+        return { kind: "registered" as const, row, ...distanceInfo };
+      }),
+      ...filteredManual.map((row) => {
+        const distanceInfo = computeDistanceInfo(row.district, row.latitude, row.longitude);
+        return { kind: "manual" as const, row, ...distanceInfo };
+      }),
+    ],
+    {
+      nearMe: Boolean(userCoords),
+      shuffleSeed: buildFinderManualShuffleSeed(listScope),
+      pinTestProfiles: finderIncludesRegisteredTestProfiles(),
+    },
+  );
 
   const visibleResults = unifiedResults.slice(0, visibleLimit);
   const totalResultsCount =
