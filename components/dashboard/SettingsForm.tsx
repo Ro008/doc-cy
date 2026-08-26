@@ -42,13 +42,10 @@ import {
   type SettingsDirtySnapshot,
 } from "@/lib/settings-form-dirty";
 import { useSettingsUnsavedChangesWarning } from "@/components/dashboard/useSettingsUnsavedChangesWarning";
-import {
-  buildSpecialtyChangeFeedbackMessage,
-  DOCCY_FEEDBACK_SUBJECT_SPECIALTY_CHANGE,
-  emitOpenFeedback,
-} from "@/lib/doccy-feedback";
+import { SpecialtyCombobox } from "@/components/specialties/SpecialtyCombobox";
 import { isMasterSpecialty } from "@/lib/cyprus-specialties";
 import { PUBLIC_SPECIALTY_UNDER_REVIEW_LABEL } from "@/lib/doctor-specialty-public";
+import { validateSpecialtyChangeRequestInput } from "@/lib/doctor-specialty-change-request";
 
 export type DoctorSettingsFormData = {
   doctorId: string;
@@ -58,6 +55,12 @@ export type DoctorSettingsFormData = {
   specialty: string;
   /** false = custom “Other” text pending founder approval */
   isSpecialtyApproved?: boolean;
+  /** Pending specialty change request (settings lock queue). */
+  pendingSpecialtyChange?: {
+    toSpecialty: string;
+    licenseNumber: string;
+    createdAt: string;
+  } | null;
   /** Public profile “About” section */
   bio: string;
   /** Canonical labels, saved as string[] on doctors */
@@ -238,6 +241,22 @@ export function SettingsForm({ initial }: SettingsFormProps) {
     (initial.isSpecialtyApproved ?? true) !== false &&
     isMasterSpecialty(lockedSpecialty);
   const specialtyUnderReview = (initial.isSpecialtyApproved ?? true) === false;
+  const [pendingSpecialtyChange, setPendingSpecialtyChange] = React.useState(
+    () => initial.pendingSpecialtyChange ?? null,
+  );
+  const [specialtyChangeOpen, setSpecialtyChangeOpen] = React.useState(false);
+  const [specialtyChangeSpec, setSpecialtyChangeSpec] = React.useState({
+    specialty: "",
+    fromMaster: true,
+  });
+  const [specialtyChangeLicense, setSpecialtyChangeLicense] = React.useState("");
+  const [specialtyChangeBusy, setSpecialtyChangeBusy] = React.useState(false);
+  const onSpecialtyChangeSpec = React.useCallback(
+    (p: { specialty: string; fromMaster: boolean }) => {
+      setSpecialtyChangeSpec(p);
+    },
+    [],
+  );
 
   const [languages, setLanguages] = React.useState<string[]>(() =>
     Array.isArray(initial.languages) ? [...initial.languages] : []
@@ -990,22 +1009,146 @@ export function SettingsForm({ initial }: SettingsFormProps) {
             </div>
             <p className="mt-2 text-xs leading-relaxed text-slate-500">
               Specialty is verified with your registration and cannot be changed
-              here. To add or update a specialty, contact Support — we&apos;ll
-              review your license and update your profile.
+              here. Request a change below — DocCy will review your license and
+              update your profile.
             </p>
-            <button
-              type="button"
-              data-testid="settings-specialty-change-request"
-              onClick={() =>
-                emitOpenFeedback({
-                  subject: DOCCY_FEEDBACK_SUBJECT_SPECIALTY_CHANGE,
-                  message: buildSpecialtyChangeFeedbackMessage(lockedSpecialty),
-                })
-              }
-              className="mt-2 text-sm font-semibold text-clinical-400 underline decoration-clinical-400/40 underline-offset-2 transition hover:text-clinical-300"
-            >
-              Request a specialty change
-            </button>
+            {pendingSpecialtyChange ? (
+              <div
+                data-testid="settings-specialty-change-pending"
+                className="mt-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-xs text-amber-100/95"
+              >
+                <p className="font-semibold text-amber-100">
+                  Change request pending review
+                </p>
+                <p className="mt-1">
+                  Requested:{" "}
+                  <span className="font-medium">{pendingSpecialtyChange.toSpecialty}</span>
+                </p>
+                <p className="mt-0.5 text-amber-100/80">
+                  License: {pendingSpecialtyChange.licenseNumber}
+                </p>
+              </div>
+            ) : specialtyChangeOpen ? (
+              <div
+                data-testid="settings-specialty-change-form"
+                className="mt-3 space-y-3 rounded-xl border border-slate-700 bg-slate-950/40 p-3"
+              >
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                    New specialty <span className="text-red-300">*</span>
+                  </p>
+                  <SpecialtyCombobox
+                    id="settings-specialty-change"
+                    initialSpecialty=""
+                    initialIsApproved
+                    variant="settings"
+                    onSelectionChange={onSpecialtyChangeSpec}
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor="settings-specialty-change-license"
+                    className="text-xs font-semibold uppercase tracking-wide text-slate-400"
+                  >
+                    License / certification number{" "}
+                    <span className="text-red-300">*</span>
+                  </label>
+                  <input
+                    id="settings-specialty-change-license"
+                    type="text"
+                    value={specialtyChangeLicense}
+                    onChange={(e) => setSpecialtyChangeLicense(e.target.value)}
+                    placeholder="e.g. registration or certification number"
+                    className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2.5 text-sm text-slate-100 placeholder:text-slate-500 outline-none transition focus:border-clinical-400/60 focus:ring-2 focus:ring-clinical-400/30"
+                  />
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    data-testid="settings-specialty-change-submit"
+                    disabled={specialtyChangeBusy}
+                    onClick={async () => {
+                      const validated = validateSpecialtyChangeRequestInput({
+                        toSpecialty: specialtyChangeSpec.specialty,
+                        toSpecialtyFromMaster: specialtyChangeSpec.fromMaster,
+                        licenseNumber: specialtyChangeLicense,
+                      });
+                      if (validated.ok === false) {
+                        toast.error(validated.message);
+                        return;
+                      }
+                      if (validated.toSpecialty === lockedSpecialty) {
+                        toast.error(
+                          "Requested specialty is the same as your current specialty.",
+                        );
+                        return;
+                      }
+                      setSpecialtyChangeBusy(true);
+                      try {
+                        const res = await fetch(
+                          "/api/doctor-specialty-change-request",
+                          {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                              toSpecialty: validated.toSpecialty,
+                              toSpecialtyFromMaster: validated.toSpecialtyFromMaster,
+                              licenseNumber: validated.licenseNumber,
+                            }),
+                          },
+                        );
+                        const data = await res.json().catch(() => ({}));
+                        if (!res.ok) {
+                          toast.error(
+                            (data.message as string) ||
+                              "Could not submit specialty change request.",
+                          );
+                          return;
+                        }
+                        setPendingSpecialtyChange({
+                          toSpecialty: validated.toSpecialty,
+                          licenseNumber: validated.licenseNumber,
+                          createdAt: new Date().toISOString(),
+                        });
+                        setSpecialtyChangeOpen(false);
+                        setSpecialtyChangeLicense("");
+                        toast.success(
+                          "Request sent. We’ll review it and update your profile.",
+                        );
+                      } catch (err) {
+                        console.error(err);
+                        toast.error("Could not submit specialty change request.");
+                      } finally {
+                        setSpecialtyChangeBusy(false);
+                      }
+                    }}
+                    className="inline-flex items-center justify-center rounded-xl bg-clinical-500 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-clinical-400 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {specialtyChangeBusy ? "Sending…" : "Submit request"}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={specialtyChangeBusy}
+                    onClick={() => {
+                      setSpecialtyChangeOpen(false);
+                      setSpecialtyChangeLicense("");
+                    }}
+                    className="inline-flex items-center justify-center rounded-xl border border-slate-600 px-4 py-2 text-sm font-medium text-slate-300 transition hover:border-slate-500 disabled:opacity-60"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                data-testid="settings-specialty-change-request"
+                onClick={() => setSpecialtyChangeOpen(true)}
+                className="mt-2 text-sm font-semibold text-clinical-400 underline decoration-clinical-400/40 underline-offset-2 transition hover:text-clinical-300"
+              >
+                Request a specialty change
+              </button>
+            )}
           </div>
           <div>
             <label

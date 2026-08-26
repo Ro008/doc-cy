@@ -302,6 +302,30 @@ export default async function AgendaSettingsPage() {
 
   const displayName = doctorDashboardDisplayName(doctor.name);
 
+  let pendingSpecialtyChange: DoctorSettingsFormData["pendingSpecialtyChange"] = null;
+  {
+    const pendingChangeRes = await supabase
+      .from("doctor_specialty_change_requests")
+      .select("to_specialty, license_number, created_at")
+      .eq("doctor_id", doctor.id)
+      .eq("status", "pending")
+      .maybeSingle();
+    if (!pendingChangeRes.error && pendingChangeRes.data) {
+      pendingSpecialtyChange = {
+        toSpecialty: String(
+          (pendingChangeRes.data as { to_specialty?: string }).to_specialty ?? "",
+        ).trim(),
+        licenseNumber: String(
+          (pendingChangeRes.data as { license_number?: string }).license_number ??
+            "",
+        ).trim(),
+        createdAt: String(
+          (pendingChangeRes.data as { created_at?: string }).created_at ?? "",
+        ),
+      };
+    }
+  }
+
   const initial: DoctorSettingsFormData = {
     doctorId: doctor.id,
     doctorName: doctor.name,
@@ -311,6 +335,7 @@ export default async function AgendaSettingsPage() {
         : null,
     specialty: (doctor.specialty ?? "").trim(),
     isSpecialtyApproved: doctor.is_specialty_approved ?? true,
+    pendingSpecialtyChange,
     bio: (doctor.bio ?? "").trim(),
     languages: langArr,
     whatsappNumber: doctor.phone ?? undefined,
