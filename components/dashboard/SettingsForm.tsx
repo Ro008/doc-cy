@@ -6,10 +6,7 @@ import { createPortal } from "react-dom";
 import { Save, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import Cropper from "react-easy-crop";
-import { SpecialtyCombobox } from "@/components/specialties/SpecialtyCombobox";
 import { LanguageMultiSelect } from "@/components/languages/LanguageMultiSelect";
-import { isMasterSpecialty } from "@/lib/cyprus-specialties";
-import { validateSpecialtySubmission } from "@/lib/specialty-submission";
 import {
   BOOKING_HORIZON_OPTIONS_DAYS,
   DEFAULT_BOOKING_HORIZON_DAYS,
@@ -45,6 +42,13 @@ import {
   type SettingsDirtySnapshot,
 } from "@/lib/settings-form-dirty";
 import { useSettingsUnsavedChangesWarning } from "@/components/dashboard/useSettingsUnsavedChangesWarning";
+import {
+  buildSpecialtyChangeFeedbackMessage,
+  DOCCY_FEEDBACK_SUBJECT_SPECIALTY_CHANGE,
+  emitOpenFeedback,
+} from "@/lib/doccy-feedback";
+import { isMasterSpecialty } from "@/lib/cyprus-specialties";
+import { PUBLIC_SPECIALTY_UNDER_REVIEW_LABEL } from "@/lib/doctor-specialty-public";
 
 export type DoctorSettingsFormData = {
   doctorId: string;
@@ -229,18 +233,11 @@ export function SettingsForm({ initial }: SettingsFormProps) {
     text: string;
   } | null>(null);
 
-  const [spec, setSpec] = React.useState(() => {
-    const s = (initial.specialty ?? "").trim();
-    const fromMaster =
-      (initial.isSpecialtyApproved ?? true) !== false && isMasterSpecialty(s);
-    return { specialty: s, fromMaster };
-  });
-  const onSpecChange = React.useCallback(
-    (p: { specialty: string; fromMaster: boolean }) => {
-      setSpec(p);
-    },
-    []
-  );
+  const lockedSpecialty = (initial.specialty ?? "").trim();
+  const specialtyFromMaster =
+    (initial.isSpecialtyApproved ?? true) !== false &&
+    isMasterSpecialty(lockedSpecialty);
+  const specialtyUnderReview = (initial.isSpecialtyApproved ?? true) === false;
 
   const [languages, setLanguages] = React.useState<string[]>(() =>
     Array.isArray(initial.languages) ? [...initial.languages] : []
@@ -493,8 +490,8 @@ export function SettingsForm({ initial }: SettingsFormProps) {
   const buildCurrentDirtySnapshot = React.useCallback(
     (): SettingsDirtySnapshot =>
       buildSettingsDirtySnapshot({
-        specialty: spec.specialty,
-        specialtyFromMaster: spec.fromMaster,
+        specialty: lockedSpecialty,
+        specialtyFromMaster,
         bio,
         languages,
         whatsappNumber,
@@ -528,8 +525,8 @@ export function SettingsForm({ initial }: SettingsFormProps) {
         })),
       }),
     [
-      spec.specialty,
-      spec.fromMaster,
+      lockedSpecialty,
+      specialtyFromMaster,
       bio,
       languages,
       whatsappNumber,
@@ -783,16 +780,6 @@ export function SettingsForm({ initial }: SettingsFormProps) {
     setMessage(null);
 
     const langList = languages.filter((s) => s.trim().length > 0);
-    const specResult = validateSpecialtySubmission(
-      spec.specialty,
-      spec.fromMaster
-    );
-    if (specResult.ok === false) {
-      const text = specResult.message;
-      setMessage({ type: "error", text });
-      toast.error(text);
-      return;
-    }
     if (langList.length === 0) {
       const text = "Add at least one language (e.g. English, Greek).";
       setMessage({ type: "error", text });
@@ -860,8 +847,6 @@ export function SettingsForm({ initial }: SettingsFormProps) {
         district: clinicLocation.district ?? district,
         clinicAddress: clinicLocation.address.trim() || null,
         town: clinicLocation.town,
-        specialty: specResult.specialty,
-        specialtyFromMaster: specResult.is_specialty_approved,
         bio: bioTrimmed,
         languages: langList,
         monday: weeklySchedule.monday.enabled,
@@ -981,24 +966,46 @@ export function SettingsForm({ initial }: SettingsFormProps) {
           Directory &amp; profile
         </p>
         <p className="mt-1 text-sm text-slate-400">
-          Specialty and languages help patients find you. Your bio helps DocCy
-          match you with the right ones.
+          Languages help patients find you. Your bio helps DocCy match you with
+          the right ones.
         </p>
         <div className="mt-4 space-y-4">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-              Specialty <span className="text-red-300">*</span>
+              Specialty
             </p>
-            <p className="mt-1 text-xs text-slate-500">
-              Search the list or choose Other if needed — custom entries are reviewed.
+            <div
+              data-testid="settings-specialty-locked"
+              className="mt-2 rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2.5"
+            >
+              <p className="text-sm font-medium text-slate-100">
+                {lockedSpecialty || "Not set"}
+              </p>
+              {specialtyUnderReview ? (
+                <p className="mt-1 text-xs text-amber-200/90">
+                  {PUBLIC_SPECIALTY_UNDER_REVIEW_LABEL} — visible on your public
+                  profile until approved.
+                </p>
+              ) : null}
+            </div>
+            <p className="mt-2 text-xs leading-relaxed text-slate-500">
+              Specialty is verified with your registration and cannot be changed
+              here. To add or update a specialty, contact Support — we&apos;ll
+              review your license and update your profile.
             </p>
-            <SpecialtyCombobox
-              id="settings-specialty"
-              initialSpecialty={initial.specialty ?? ""}
-              initialIsApproved={initial.isSpecialtyApproved ?? true}
-              variant="settings"
-              onSelectionChange={onSpecChange}
-            />
+            <button
+              type="button"
+              data-testid="settings-specialty-change-request"
+              onClick={() =>
+                emitOpenFeedback({
+                  subject: DOCCY_FEEDBACK_SUBJECT_SPECIALTY_CHANGE,
+                  message: buildSpecialtyChangeFeedbackMessage(lockedSpecialty),
+                })
+              }
+              className="mt-2 text-sm font-semibold text-clinical-400 underline decoration-clinical-400/40 underline-offset-2 transition hover:text-clinical-300"
+            >
+              Request a specialty change
+            </button>
           </div>
           <div>
             <label
