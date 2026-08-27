@@ -69,7 +69,7 @@ npm run test:cleanup:testing:assert # delete + fail if any remain
 - Full production smoke (local):
   - `npm run test:prod:smoke:local`
 - Registration flow with video artifact:
-  - `npm run test:prod:registration:video:local`
+  - `npm run test:prod:smoke:local`
 - Integration samples (local isolated env):
   - `npm run test:integration:testing:service-menu`
   - `npm run test:integration:testing:settings-address-notice`

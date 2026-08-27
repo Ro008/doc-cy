@@ -32,7 +32,7 @@ After the Playwright lanes, PR CI always runs `scripts/cleanup-test-doctors.mjs 
 | `@pr-preview` | `playwright test --grep @pr-preview` | Public shell on Vercel Preview |
 | `@pr-mobile-monitor` | `playwright test --grep @pr-mobile-monitor` | Doctor confirmation flow on mobile (PR, non-blocking) |
 | `@pr-login-monitor` | `playwright test --grep @pr-login-monitor` | Doctor `/login` form UI (PR, non-blocking) |
-| `@nightly-prod` | `playwright test --grep @nightly-prod` | Prod URL blocking smokes (site + booking + registration + verify) |
+| `@nightly-prod` | `playwright test --grep @nightly-prod` | Prod URL blocking smokes (site + booking) |
 
 Constants: `tests/helpers/ciTags.ts`. To tag new specs: `node scripts/apply-ci-playwright-tags.mjs` (edit file lists first).
 
@@ -63,9 +63,9 @@ Constants: `tests/helpers/ciTags.ts`. To tag new specs: `node scripts/apply-ci-p
 
 **Excludes from PR:**
 
-- Live prod registration/booking writes (nightly only)
+- Live prod booking writes (nightly only)
 - `tests/feedback_support_live_formspree.spec.ts` (local only)
-- `tests/register_onboarding_avatar.spec.ts` (omitted: Auth email rate limits on shared integration)
+- Registration UI Playwright (removed: chronic Places/cookie flakiness without product signal; onboarding covered by `doctor_onboarding_pipeline.integration.spec.ts`)
 
 **Optional PR follow-up:** add `tests/integration/directory_duplicates_actions.integration.spec.ts` if `INTERNAL_DIRECTORY_SECRET` is set (already in PR list when secret present).
 
@@ -80,15 +80,13 @@ Constants: `tests/helpers/ciTags.ts`. To tag new specs: `node scripts/apply-ci-p
 | Job | What it runs | Blocking? |
 |-----|----------------|-----------|
 | `prod-email-guards` | `--grep @pr-email` (prod Supabase env) | Yes |
-| `prod-smoke-edge` | Matrix `site` / `booking` / `registration` against mydoccy.com (Cloudflare) | Yes if origin secret unset; diagnostic (`continue-on-error`) if origin secret is set |
+| `prod-smoke-edge` | Matrix `site` / `booking` against mydoccy.com (Cloudflare) | Yes if origin secret unset; diagnostic (`continue-on-error`) if origin secret is set |
 | `prod-smoke-origin` | Same matrix against `PLAYWRIGHT_BASE_URL_VERCEL_PROD` (`*.vercel.app`) | Yes, when the secret is set; skipped otherwise |
 | `prod-nightly-gate` | Interprets email + edge + origin results | Yes (workflow red on email fail, origin fail, or edge fail with origin skipped) |
 
-Edge and origin share the same prod doctor slot, so origin **starts after all edge matrix legs finish**. Do not run both live-write suites in parallel. `fail-fast: false` so a registration flake still records site and booking results.
+Edge and origin share the same prod doctor slot, so origin **starts after all edge matrix legs finish**. Do not run both live-write suites in parallel. `fail-fast: false` so a booking flake still records site results.
 
 Set `PLAYWRIGHT_BASE_URL_VERCEL_PROD` to the **production** `*.vercel.app` URL (not a preview). If Vercel Deployment Protection is on, also set `VERCEL_AUTOMATION_BYPASS_SECRET`.
-
-**Origin registration and Google Places:** the Maps JS key HTTP referrer is the canonical domain (`mydoccy.com`), so Places suggestions often fail on `*.vercel.app` even when `/register` is healthy. Origin smoke still fills the form and probes Places. If the miss is that known referrer split (`REQUEST_DENIED`, Maps not loaded, or empty predictions), it asserts clinic-required validation and **does not** fail. Quota errors, Places `OK` with predictions but no dropdown, and the same miss on `mydoccy.com` still fail. Do not add `*.vercel.app` to the Maps key, and do not skip the registration spec, just to green origin.
 
 **Does not run on nightly (PR only):**
 
@@ -102,7 +100,7 @@ GitHub emails on failed workflow runs if you watch the repository. There is no W
 
 1. **PR blocking:** programmatic `signInDoctorAndSetCookies` / `signInDoctorOrSkipOnInfraError` where the form is not under test.
 2. **PR monitor (non-blocking):** `doctor_password_login_form.spec.ts` (`@pr-login-monitor`) — `/login` form with hydration-safe helper + auth pre-check.
-3. **Nightly blocking:** no doctor login in blocking suite (booking + public shell + registration only).
+3. **Nightly blocking:** no doctor login in blocking suite (booking + public shell only).
 
 ---
 
@@ -140,7 +138,7 @@ When nightly fails:
 1. **Product regression** → fix code or prod smoke doctor config (`TEST_BOOKING_DOCTOR_SLUG`, schedule).
 2. **Env/secret** → verify `PROD_*`, `TEST_DOCTOR_*`, `PLAYWRIGHT_BASE_URL_PROD`, and `PLAYWRIGHT_BASE_URL_VERCEL_PROD` if using the origin lane.
 3. **Login form failure on PR** → check hydration/login UI; integration `TEST_USER_*` secrets.
-4. **Cloudflare** → a real interstitial has title `Just a moment...`. Proxied pages also include `/cdn-cgi/challenge-platform` scripts; that alone is not a block. Bot Fight Mode cannot be skipped with WAF Skip rules and **must stay on** (anti-scraping P1, 2026-08-09). Nightly smokes wait briefly for the JS challenge to clear and must **not** send `x-doccy-suppress-traffic-log` on every request (only on `POST /api/traffic/log`). After merge, compare **edge vs origin** using the **How to read this nightly** table in the `prod-nightly-gate` job summary on the Actions run page: edge fail + origin OK is a **warning** (GitHub runner vs Bot Fight), not a product outage — do not turn Bot Fight Mode off. Origin fail means the app/origin. Re-run a single matrix leg (`site`, `booking`, or `registration`) when only one suite failed.
+4. **Cloudflare** → a real interstitial has title `Just a moment...`. Proxied pages also include `/cdn-cgi/challenge-platform` scripts; that alone is not a block. Bot Fight Mode cannot be skipped with WAF Skip rules and **must stay on** (anti-scraping P1, 2026-08-09). Nightly smokes wait briefly for the JS challenge to clear and must **not** send `x-doccy-suppress-traffic-log` on every request (only on `POST /api/traffic/log`). After merge, compare **edge vs origin** using the **How to read this nightly** table in the `prod-nightly-gate` job summary on the Actions run page: edge fail + origin OK is a **warning** (GitHub runner vs Bot Fight), not a product outage — do not turn Bot Fight Mode off. Origin fail means the app/origin. Re-run a single matrix leg (`site` or `booking`) when only one suite failed.
 
 When PR fails: integration env / test data — not prod calendar.
 

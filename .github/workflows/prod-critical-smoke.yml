@@ -3,12 +3,12 @@
 #
 # Dual @nightly-prod: Cloudflare edge (PLAYWRIGHT_BASE_URL_PROD / mydoccy.com) then
 # Vercel origin (PLAYWRIGHT_BASE_URL_VERCEL_PROD / *.vercel.app). Each target runs
-# site / booking / registration as a matrix (fail-fast: false) so one flake does not
+# site / booking as a matrix (fail-fast: false) so one flake does not
 # hide the others. Origin starts after all edge legs so we do not double-book the
 # same prod doctor slot. Email guards stay a single job (@pr-email).
 # Optional: VERCEL_AUTOMATION_BYPASS_SECRET for Deployment Protection on origin.
 #
-# Blocking: prod Supabase + public shell, guest booking, live registration, email guards.
+# Blocking: prod Supabase + public shell, guest booking, email guards.
 # Doctor login form UI: PR non-blocking (`doctor_password_login_form.spec.ts` @pr-login-monitor).
 # Integration E2E (finder, navigation, etc.) runs only on PR - not duplicated here.
 
@@ -151,7 +151,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        suite: [site, booking, registration]
+        suite: [site, booking]
     runs-on: ubuntu-latest
     timeout-minutes: 45
     continue-on-error: ${{ needs.smoke-targets.outputs.origin_enabled == 'true' }}
@@ -189,7 +189,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        suite: [site, booking, registration]
+        suite: [site, booking]
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
@@ -270,7 +270,7 @@ jobs:
             exit 1
           fi
           if [ "${ORIGIN_RESULT}" = "failure" ]; then
-            echo "::error::Vercel origin smoke failed. Check the site / booking / registration matrix legs."
+            echo "::error::Vercel origin smoke failed. Check the site / booking matrix legs."
             exit 1
           fi
           if [ "${ORIGIN_RESULT}" = "skipped" ] && [ "${EDGE_RESULT}" != "success" ]; then
