@@ -40,6 +40,8 @@ export function RegisterFormValidation({ formId }: Props) {
     const form = document.getElementById(formId) as HTMLFormElement | null;
     if (!form) return;
 
+    let attempted = false;
+
     const syncAll = () => {
       const fields = Array.from(
         form.querySelectorAll<HTMLElement>("[data-validate-field='1']"),
