@@ -6,7 +6,6 @@ import { usePathname } from "next/navigation";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import {
   DOCCY_FEEDBACK_SUBJECT_DEMO_REQUEST,
-  DOCCY_FEEDBACK_SUBJECT_SPECIALTY_CHANGE,
   DOCCY_FEEDBACK_SUBJECT_WEBSITE_BOOKING,
   subscribeOpenFeedback,
   type DocCyOpenFeedbackDetail,
@@ -25,14 +24,12 @@ type Subject =
   | "General Question"
   | "Founding Member Inquiry"
   | typeof DOCCY_FEEDBACK_SUBJECT_WEBSITE_BOOKING
-  | typeof DOCCY_FEEDBACK_SUBJECT_DEMO_REQUEST
-  | typeof DOCCY_FEEDBACK_SUBJECT_SPECIALTY_CHANGE;
+  | typeof DOCCY_FEEDBACK_SUBJECT_DEMO_REQUEST;
 
 const LOCKED_FEEDBACK_SUBJECTS: readonly Subject[] = [
   "Founding Member Inquiry",
   DOCCY_FEEDBACK_SUBJECT_WEBSITE_BOOKING,
   DOCCY_FEEDBACK_SUBJECT_DEMO_REQUEST,
-  DOCCY_FEEDBACK_SUBJECT_SPECIALTY_CHANGE,
 ];
 
 function isLockedFeedbackSubject(value: string): value is Subject {
@@ -101,8 +98,6 @@ export function FeedbackWidget() {
         setSubject(DOCCY_FEEDBACK_SUBJECT_WEBSITE_BOOKING);
       } else if (next === DOCCY_FEEDBACK_SUBJECT_DEMO_REQUEST) {
         setSubject(DOCCY_FEEDBACK_SUBJECT_DEMO_REQUEST);
-      } else if (next === DOCCY_FEEDBACK_SUBJECT_SPECIALTY_CHANGE) {
-        setSubject(DOCCY_FEEDBACK_SUBJECT_SPECIALTY_CHANGE);
       } else if (next === "General Question") {
         setSubject("General Question");
       } else {
