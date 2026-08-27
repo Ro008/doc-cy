@@ -20,6 +20,10 @@ import {
   PendingSpecialtiesPanel,
   type PendingSpecialtyRow,
 } from "@/components/internal/PendingSpecialtiesPanel";
+import {
+  SpecialtyChangeRequestsPanel,
+  type SpecialtyChangeRequestRow,
+} from "@/components/internal/SpecialtyChangeRequestsPanel";
 import { InternalSignOutButton } from "@/components/internal/InternalSignOutButton";
 import { FounderKpiCards } from "@/components/internal/FounderKpiCards";
 import { SpecialtyBreakdown } from "@/components/internal/SpecialtyBreakdown";
@@ -323,6 +327,70 @@ export default async function FounderDashboardPage({
           specialty: (r as { specialty?: string | null }).specialty ?? null,
           email: (r as { email?: string | null }).email ?? null,
         }));
+
+  let specialtyChangeRequestItems: SpecialtyChangeRequestRow[] = [];
+  {
+    const changeReqRes = await supabase
+      .from("doctor_specialty_change_requests")
+      .select(
+        "id, doctor_id, request_kind, from_specialty, to_specialty, to_specialty_from_master, license_number, created_at, doctors(name, email)",
+      )
+      .eq("status", "pending")
+      .order("created_at", { ascending: false });
+
+    if (changeReqRes.error) {
+      // Table may not exist until migration is applied on this environment.
+      console.warn(
+        "[founder] specialty change requests load skipped:",
+        changeReqRes.error.message,
+      );
+    } else if (changeReqRes.data) {
+      specialtyChangeRequestItems = changeReqRes.data.map((r) => {
+        const nested = (
+          r as {
+            doctors?:
+              | { name?: string | null; email?: string | null }
+              | { name?: string | null; email?: string | null }[]
+              | null;
+          }
+        ).doctors;
+        const doc = Array.isArray(nested) ? nested[0] : nested;
+        const fromSpecialty = String(
+          (r as { from_specialty?: string | null }).from_specialty ?? "",
+        ).trim();
+        const toSpecialty = String(
+          (r as { to_specialty?: string | null }).to_specialty ?? "",
+        ).trim();
+        const kindRaw = String(
+          (r as { request_kind?: string | null }).request_kind ?? "",
+        ).trim();
+        const requestKind: "add" | "replace" | "remove" =
+          kindRaw === "add" || kindRaw === "replace" || kindRaw === "remove"
+            ? kindRaw
+            : fromSpecialty && !toSpecialty
+              ? "remove"
+              : fromSpecialty
+                ? "replace"
+                : "add";
+        return {
+          id: r.id as string,
+          doctorId: r.doctor_id as string,
+          doctorName: (doc?.name ?? "").trim() || "—",
+          doctorEmail: doc?.email ?? null,
+          requestKind,
+          fromSpecialty,
+          toSpecialty,
+          toSpecialtyFromMaster: Boolean(
+            (r as { to_specialty_from_master?: boolean }).to_specialty_from_master,
+          ),
+          licenseNumber: String(
+            (r as { license_number?: string | null }).license_number ?? "",
+          ).trim(),
+          createdAt: String((r as { created_at?: string }).created_at ?? ""),
+        };
+      });
+    }
+  }
 
   const verifiedRows = rows.filter(
     (r) => (r.status ?? "").trim().toLowerCase() === "verified"
@@ -765,7 +833,7 @@ export default async function FounderDashboardPage({
       >
         <InternalDirectoryShell>
           <div className="mx-auto max-w-7xl space-y-8 px-4 py-8 lg:px-8">
-        {pendingDoctorsCount > 0 ? (
+        {pendingDoctorsCount > 0 || specialtyChangeRequestItems.length > 0 ? (
           <section className="rounded-2xl border border-amber-500/45 bg-amber-500/10 p-5 shadow-lg shadow-black/20">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
@@ -773,18 +841,32 @@ export default async function FounderDashboardPage({
                   Action required
                 </p>
                 <h2 className="mt-1 text-lg font-semibold text-amber-100">
-                  {pendingDoctorsCount} pending professional
-                  {pendingDoctorsCount === 1 ? "" : "s"} waiting for your review
+                  {[
+                    pendingDoctorsCount > 0
+                      ? `${pendingDoctorsCount} pending professional${pendingDoctorsCount === 1 ? "" : "s"}`
+                      : null,
+                    specialtyChangeRequestItems.length > 0
+                      ? `${specialtyChangeRequestItems.length} specialty change request${specialtyChangeRequestItems.length === 1 ? "" : "s"}`
+                      : null,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
                 </h2>
                 <p className="mt-1 text-sm text-amber-100/85">
-                  Open the professional directory to verify, reject, or map specialties.
+                  Review license verifications and specialty change requests below.
                 </p>
               </div>
               <Link
-                href="#professional-directory"
+                href={
+                  specialtyChangeRequestItems.length > 0
+                    ? "#specialty-change-requests"
+                    : "#professional-directory"
+                }
                 className="inline-flex items-center justify-center rounded-xl bg-amber-300 px-4 py-2 text-sm font-semibold text-slate-950 shadow-md shadow-amber-900/30 transition hover:bg-amber-200"
               >
-                Go to Professional Directory
+                {specialtyChangeRequestItems.length > 0
+                  ? "Review specialty changes"
+                  : "Go to Professional Directory"}
               </Link>
             </div>
           </section>
@@ -798,6 +880,7 @@ export default async function FounderDashboardPage({
           newDoctorsThisWeek={newDoctorsThisWeek}
         />
 
+        <SpecialtyChangeRequestsPanel items={specialtyChangeRequestItems} />
         <PendingSpecialtiesPanel items={pendingSpecialtyItems} />
         <DuplicateNotificationsPanel items={duplicateNotificationItems} />
         <ManualPatientVotesSection

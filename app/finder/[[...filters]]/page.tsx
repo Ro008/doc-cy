@@ -77,6 +77,7 @@ import {
   getPublicSpecialtyDisplayLabel,
   matchesFinderSpecialtyFilter,
 } from "@/lib/doctor-specialty-public";
+import { publicSpecialtyLabels } from "@/lib/doctor-specialties";
 import {
   finderManualVoteBadgeSinceIso,
 } from "@/lib/finder-manual-vote-badge";
@@ -151,6 +152,8 @@ type RegisteredFinderRow = {
   name: string;
   displayName: string;
   specialty: string | null;
+  /** Approved specialties for pills + filter matching (flat, no primary). */
+  specialties: string[];
   district: string | null;
   town?: string | null;
   slug: string | null;
@@ -508,6 +511,8 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
     })();
 
     const registeredSelectAttempts = [
+      "id, name, specialty, specialties, district, town, slug, email, languages, avatar_url, is_test_profile, clinic_address, is_gesy, is_specialty_approved, latitude, longitude",
+      "id, name, specialty, specialties, district, slug, email, languages, avatar_url, is_test_profile, clinic_address, is_gesy, is_specialty_approved, latitude, longitude",
       "id, name, specialty, district, town, slug, email, languages, avatar_url, is_test_profile, clinic_address, is_gesy, is_specialty_approved, latitude, longitude",
       "id, name, specialty, district, slug, email, languages, avatar_url, is_test_profile, clinic_address, is_gesy, is_specialty_approved, latitude, longitude",
       "id, name, specialty, district, slug, email, languages, avatar_url, is_test_profile, clinic_address, is_gesy, is_specialty_approved",
@@ -568,6 +573,11 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
               // Town is inferred from clinic_address when the column is still empty
               // (doctors who registered before town existed). Filter in memory.
               { ...listFilters, district: "", town: "" },
+              {
+                specialtyColumn: selectClause.includes("specialties")
+                  ? "specialties"
+                  : "specialty",
+              },
             ).order("name", { ascending: true }),
           ),
       );
@@ -592,6 +602,11 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
             isSpecialtyApproved:
               (raw.is_specialty_approved as boolean | null | undefined) !== false,
             specialty: getPublicSpecialtyDisplayLabel({
+              specialty: (raw.specialty as string | null) ?? null,
+              is_specialty_approved: raw.is_specialty_approved as boolean | null,
+            }),
+            specialties: publicSpecialtyLabels({
+              specialties: raw.specialties as string[] | null,
               specialty: (raw.specialty as string | null) ?? null,
               is_specialty_approved: raw.is_specialty_approved as boolean | null,
             }),
@@ -833,6 +848,7 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
     if (
       !matchesFinderSpecialtyFilter({
         specialty: row.specialty,
+        specialties: row.specialties,
         is_specialty_approved: row.isSpecialtyApproved,
         activeSpecialty,
         matchesSpecialty: matchesSpecialtyFilter,
@@ -1311,7 +1327,7 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
                             </p>
                           )}
                           <FinderSpecialtyPills
-                            specialties={[]}
+                            specialties={row.specialties}
                             specialty={row.specialty ?? "Specialty not set"}
                             className="-ml-2"
                           />

@@ -80,6 +80,7 @@ async function createVerifiedDoctor(
       auth_user_id: authUserId,
       name: input.name,
       specialty: input.specialty,
+      specialties: [input.specialty],
       district: input.district,
       email,
       phone: "+35799123456",
@@ -103,8 +104,26 @@ async function createVerifiedDoctor(
     throw new Error(`Failed creating doctor row: ${doctorInsert.error?.message}`);
   }
 
+  const doctorId = String(doctorInsert.data.id);
+  const specialtyUpsert = await admin.from("doctor_specialties").upsert(
+    {
+      doctor_id: doctorId,
+      specialty: input.specialty,
+      license_number: `LIC-FINDER-${nonce}-${input.slugPrefix}`,
+      is_approved: true,
+    },
+    { onConflict: "doctor_id,specialty" },
+  );
+  if (specialtyUpsert.error) {
+    await admin.from("doctors").delete().eq("id", doctorId);
+    await admin.auth.admin.deleteUser(authUserId);
+    throw new Error(
+      `Failed creating doctor_specialties: ${specialtyUpsert.error.message}`,
+    );
+  }
+
   return {
-    doctorId: String(doctorInsert.data.id),
+    doctorId,
     authUserId,
     slug,
     name: input.name,

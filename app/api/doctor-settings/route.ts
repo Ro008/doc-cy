@@ -2,8 +2,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
-import { validateSpecialtySubmission } from "@/lib/specialty-submission";
-import { isMasterSpecialty } from "@/lib/cyprus-specialties";
 import { validateLanguageSelection } from "@/lib/cyprus-languages";
 import { isCyprusDistrict } from "@/lib/cyprus-districts";
 import {
@@ -22,6 +20,10 @@ import {
 } from "@/lib/doctor-settings";
 import { locationScheduleColumns, sanitizeClinicLabel } from "@/lib/doctor-locations";
 import { loadDoctorLocations, primaryDoctorLocation } from "@/lib/load-doctor-locations";
+import {
+  isSpecialtyChangeAttempt,
+  SPECIALTY_CHANGE_REQUIRES_SUPPORT_MESSAGE,
+} from "@/lib/doctor-specialty-settings-lock";
 
 /** GET ?doctorId=xxx - returns current settings for the doctor (authenticated owner only) */
 export async function GET(req: NextRequest) {
@@ -74,7 +76,8 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ settings: data });
 }
 
-/** POST - upsert doctor_settings + update doctors.phone, specialty, languages (owner only) */
+/** POST - upsert doctor_settings + update doctors.phone, languages (owner only).
+ * Specialty is locked after registration — changes go through Support. */
 export async function POST(req: NextRequest) {
   const supabase = createRouteHandlerClient({ cookies });
   const {
@@ -166,7 +169,7 @@ export async function POST(req: NextRequest) {
 
   const { data: owned, error: ownErr } = await supabase
     .from("doctors")
-    .select("id")
+    .select("id, specialty")
     .eq("id", doctorId)
     .eq("auth_user_id", user.id)
     .maybeSingle();
@@ -176,20 +179,17 @@ export async function POST(req: NextRequest) {
   }
 
   const specialtyRaw =
-    typeof b.specialty === "string" ? b.specialty.trim() : "";
-  let fromMasterFlag =
-    b.specialtyFromMaster === true ||
-    b.specialtyFromMaster === "true" ||
-    b.specialtyFromMaster === 1;
-  if (b.specialtyFromMaster === undefined || b.specialtyFromMaster === null) {
-    fromMasterFlag = isMasterSpecialty(specialtyRaw);
-  }
-  const specResult = validateSpecialtySubmission(
-    specialtyRaw,
-    fromMasterFlag
-  );
-  if (specResult.ok === false) {
-    return NextResponse.json({ message: specResult.message }, { status: 400 });
+    typeof b.specialty === "string" ? b.specialty.trim() : undefined;
+  if (
+    isSpecialtyChangeAttempt(
+      (owned as { specialty?: string | null }).specialty,
+      specialtyRaw,
+    )
+  ) {
+    return NextResponse.json(
+      { message: SPECIALTY_CHANGE_REQUIRES_SUPPORT_MESSAGE },
+      { status: 400 },
+    );
   }
 
   const BIO_MAX_CHARS = 1000;
@@ -409,10 +409,7 @@ export async function POST(req: NextRequest) {
     latitude?: number | null;
     longitude?: number | null;
     clinic_place_id?: string | null;
-    specialty: string;
     languages: string[];
-    is_specialty_approved: boolean;
-    specialty_requires_standard_at: null;
   } = {
     district: districtRaw,
     clinic_address: clinicAddress || null,
@@ -420,10 +417,7 @@ export async function POST(req: NextRequest) {
     latitude: clinicAddress ? clinicLocation.latitude : null,
     longitude: clinicAddress ? clinicLocation.longitude : null,
     clinic_place_id: clinicAddress ? clinicLocation.placeId : null,
-    specialty: specResult.specialty,
     languages,
-    is_specialty_approved: specResult.is_specialty_approved,
-    specialty_requires_standard_at: null,
   };
   if (b.doctorPhone !== undefined) {
     phoneUpdateBase.phone = doctorPhoneTrimmed ? doctorPhoneTrimmed : null;

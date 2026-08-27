@@ -78,10 +78,20 @@ export default async function AgendaSettingsPage() {
     let res = await supabase
       .from("doctors")
       .select(
-        "id, name, avatar_url, phone, slug, specialty, bio, languages, district, town, clinic_address, latitude, longitude, clinic_place_id, status, subscription_tier, is_gesy"
+        "id, name, avatar_url, phone, slug, specialty, specialties, bio, languages, district, town, clinic_address, latitude, longitude, clinic_place_id, status, subscription_tier, is_gesy"
       )
       .eq("auth_user_id", user.id)
       .single();
+
+    if (res.error && hasColError(res.error, "specialties")) {
+      res = await supabase
+        .from("doctors")
+        .select(
+          "id, name, avatar_url, phone, slug, specialty, bio, languages, district, town, clinic_address, latitude, longitude, clinic_place_id, status, subscription_tier, is_gesy"
+        )
+        .eq("auth_user_id", user.id)
+        .single();
+    }
 
     if (res.error && hasColError(res.error, "town")) {
       res = await supabase
@@ -302,6 +312,75 @@ export default async function AgendaSettingsPage() {
 
   const displayName = doctorDashboardDisplayName(doctor.name);
 
+  let pendingSpecialtyChange: DoctorSettingsFormData["pendingSpecialtyChange"] = null;
+  {
+    const pendingChangeRes = await supabase
+      .from("doctor_specialty_change_requests")
+      .select("request_kind, from_specialty, to_specialty, license_number, created_at")
+      .eq("doctor_id", doctor.id)
+      .eq("status", "pending")
+      .maybeSingle();
+    if (
+      pendingChangeRes.error &&
+      /request_kind/i.test(String(pendingChangeRes.error.message ?? ""))
+    ) {
+      const legacy = await supabase
+        .from("doctor_specialty_change_requests")
+        .select("from_specialty, to_specialty, license_number, created_at")
+        .eq("doctor_id", doctor.id)
+        .eq("status", "pending")
+        .maybeSingle();
+      if (!legacy.error && legacy.data) {
+        const from = String(
+          (legacy.data as { from_specialty?: string | null }).from_specialty ?? "",
+        ).trim();
+        pendingSpecialtyChange = {
+          requestKind: from ? "replace" : "add",
+          fromSpecialty: from || null,
+          toSpecialty: String(
+            (legacy.data as { to_specialty?: string }).to_specialty ?? "",
+          ).trim(),
+          licenseNumber: String(
+            (legacy.data as { license_number?: string }).license_number ?? "",
+          ).trim(),
+          createdAt: String(
+            (legacy.data as { created_at?: string }).created_at ?? "",
+          ),
+        };
+      }
+    } else if (!pendingChangeRes.error && pendingChangeRes.data) {
+      const kindRaw = String(
+        (pendingChangeRes.data as { request_kind?: string }).request_kind ?? "add",
+      ).trim();
+      const from = String(
+        (pendingChangeRes.data as { from_specialty?: string | null }).from_specialty ??
+          "",
+      ).trim();
+      const to = String(
+        (pendingChangeRes.data as { to_specialty?: string | null }).to_specialty ?? "",
+      ).trim();
+      const license = String(
+        (pendingChangeRes.data as { license_number?: string | null }).license_number ??
+          "",
+      ).trim();
+      const requestKind =
+        kindRaw === "replace" || kindRaw === "remove"
+          ? kindRaw
+          : from && !to
+            ? "remove"
+            : "add";
+      pendingSpecialtyChange = {
+        requestKind,
+        fromSpecialty: from || null,
+        toSpecialty: to || null,
+        licenseNumber: license || null,
+        createdAt: String(
+          (pendingChangeRes.data as { created_at?: string }).created_at ?? "",
+        ),
+      };
+    }
+  }
+
   const initial: DoctorSettingsFormData = {
     doctorId: doctor.id,
     doctorName: doctor.name,
@@ -310,7 +389,13 @@ export default async function AgendaSettingsPage() {
         ? supabase.storage.from("avatars").getPublicUrl(String(doctor.avatar_url)).data.publicUrl
         : null,
     specialty: (doctor.specialty ?? "").trim(),
+    specialties: Array.isArray((doctor as { specialties?: string[] | null }).specialties)
+      ? ((doctor as { specialties?: string[] }).specialties ?? [])
+          .map((s) => String(s ?? "").trim())
+          .filter(Boolean)
+      : undefined,
     isSpecialtyApproved: doctor.is_specialty_approved ?? true,
+    pendingSpecialtyChange,
     bio: (doctor.bio ?? "").trim(),
     languages: langArr,
     whatsappNumber: doctor.phone ?? undefined,

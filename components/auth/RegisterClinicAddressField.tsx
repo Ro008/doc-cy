@@ -30,8 +30,10 @@ export function RegisterClinicAddressField() {
         Clinic address<span className="text-red-600">*</span>
       </span>
       <p className={registerHelperClass}>
-        Search your clinic on Google Maps. We use the pinned location for Health Finder distance
-        and your public profile.
+        Pick your main clinic from the Google Maps suggestions so patients can find you nearby.
+      </p>
+      <p className={registerHelperClass}>
+        If you work at more than one clinic, you can add the others later in Settings.
       </p>
 
       {isComplete && !isEditing ? (
@@ -58,6 +60,7 @@ export function RegisterClinicAddressField() {
           key={searchSession}
           id="register-clinic-address"
           tone="light"
+          showReadyHint={false}
           onChange={(nextValue) => {
             setLocation(nextValue);
             if (hasConfirmedClinicCoordinates(nextValue)) {

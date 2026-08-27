@@ -17,6 +17,8 @@ type Props = {
   onChange: (value: ClinicLocation) => void;
   onCancel?: () => void;
   placeholder?: string;
+  /** When false, hide the ready-state tip (parent already explains how to search). */
+  showReadyHint?: boolean;
 };
 
 const darkInputClass =
@@ -53,6 +55,7 @@ export function ClinicAddressSearchInput({
   onChange,
   onCancel,
   placeholder = "Search your clinic on Google Maps",
+  showReadyHint = true,
 }: Props) {
   const inputRef = React.useRef<HTMLInputElement | null>(null);
   const onChangeRef = React.useRef(onChange);
@@ -174,13 +177,13 @@ export function ClinicAddressSearchInput({
         <p className={styles.error} role="alert">
           {loadError}
         </p>
-      ) : isReady ? (
+      ) : !isReady ? (
+        <p className={styles.helper}>Loading clinic search…</p>
+      ) : showReadyHint ? (
         <p className={styles.helper}>
           Start typing and choose your clinic from Google suggestions.
         </p>
-      ) : (
-        <p className={styles.helper}>Loading clinic search…</p>
-      )}
+      ) : null}
       {onCancel ? (
         <button type="button" onClick={onCancel} className={styles.cancel}>
           Cancel

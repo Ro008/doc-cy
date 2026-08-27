@@ -28,9 +28,9 @@ import {
 } from "@/lib/register-ui";
 import { validateLanguageSelection } from "@/lib/cyprus-languages";
 import {
-  parseSpecialtyFromMasterField,
-  validateSpecialtySubmission,
-} from "@/lib/specialty-submission";
+  validateDoctorSpecialtyEntries,
+  type DoctorSpecialtyEntryInput,
+} from "@/lib/doctor-specialties";
 import { notifyFounderNewRegistration } from "@/lib/notify-founder-new-registration";
 import { matchesAutomatedDoctorRegistrationTestEmailForAdminBypass } from "@/lib/e2e-doctor-registration-test";
 import { isTestDoctorRegistrationEmail } from "@/lib/doctor-test-profile";
@@ -145,9 +145,6 @@ async function handleRegister(formData: FormData) {
   const email = (formData.get("email") as string | null)?.trim() || "";
   const password = (formData.get("password") as string | null) || "";
   const phone = (formData.get("phone") as string | null)?.trim() || "";
-  const specialtyRaw = (formData.get("specialty") as string | null) ?? "";
-  const licenseNumber =
-    (formData.get("licenseNumber") as string | null)?.trim() || "";
   const avatarFile = formData.get("avatarFile") as File | null;
   const professionalDisclaimer = formData.get("professionalDisclaimer");
   const clinicResolved = resolveRegisterClinicLocation({
@@ -160,13 +157,49 @@ async function handleRegister(formData: FormData) {
     allowE2eFallback: shouldAllowRegisterClinicE2eFallback(email),
   });
 
+  let specialtyInputs: DoctorSpecialtyEntryInput[] = [];
+  const specialtiesJsonRaw = formData.get("specialtiesJson");
+  if (typeof specialtiesJsonRaw === "string" && specialtiesJsonRaw.trim()) {
+    try {
+      const parsed = JSON.parse(specialtiesJsonRaw) as unknown;
+      if (Array.isArray(parsed)) {
+        specialtyInputs = parsed.map((row) => ({
+          specialty: String((row as { specialty?: unknown })?.specialty ?? ""),
+          fromMaster: Boolean((row as { fromMaster?: unknown })?.fromMaster),
+          licenseNumber: String(
+            (row as { licenseNumber?: unknown })?.licenseNumber ?? "",
+          ),
+        }));
+      }
+    } catch {
+      specialtyInputs = [];
+    }
+  }
+  if (specialtyInputs.length === 0) {
+    // Legacy single-field fallback (older clients / smoke tests).
+    specialtyInputs = [
+      {
+        specialty: String(formData.get("specialty") ?? ""),
+        fromMaster: String(formData.get("specialtyFromMaster") ?? "") === "1",
+        licenseNumber: String(formData.get("licenseNumber") ?? ""),
+      },
+    ];
+  }
+
+  const specialtiesParsed = validateDoctorSpecialtyEntries(specialtyInputs);
+  if (!specialtiesParsed.ok) {
+    redirectWithError("specialty");
+  }
+  const specialtyEntries = specialtiesParsed.entries;
+  const specialty = specialtyEntries[0]!.specialty;
+  const licenseNumber = specialtyEntries[0]!.licenseNumber;
+  const isSpecialtyApproved = specialtyEntries.every((e) => e.isApproved);
+
   if (
     !fullName ||
     !email ||
     !password ||
     !phone ||
-    !specialtyRaw.trim() ||
-    !licenseNumber ||
     !avatarFile ||
     professionalDisclaimer !== "on"
   ) {
@@ -189,19 +222,6 @@ async function handleRegister(formData: FormData) {
   if (!emailRegex.test(email)) {
     redirectWithError("invalid_email_format");
   }
-
-  const specialtyFromMaster = parseSpecialtyFromMasterField(
-    formData.get("specialtyFromMaster")
-  );
-  const specParsed = validateSpecialtySubmission(
-    specialtyRaw.trim(),
-    specialtyFromMaster
-  );
-  if (!specParsed.ok) {
-    redirectWithError("specialty");
-  }
-  const specialty = specParsed.specialty;
-  const isSpecialtyApproved = specParsed.is_specialty_approved;
 
   const languagesRaw = formData.getAll("language").map((x) => String(x).trim());
   const languagesParsed = validateLanguageSelection(languagesRaw);
@@ -389,6 +409,25 @@ async function handleRegister(formData: FormData) {
     }
 
     doctorId = fallbackInsert.data.id as string;
+  }
+
+  {
+    const specialtyRows = specialtyEntries.map((entry) => ({
+      doctor_id: doctorId,
+      specialty: entry.specialty,
+      license_number: entry.licenseNumber,
+      is_approved: entry.isApproved,
+    }));
+    const { error: specialtyInsertError } = await service
+      .from("doctor_specialties")
+      .upsert(specialtyRows, { onConflict: "doctor_id,specialty" });
+    if (specialtyInsertError) {
+      // Table may not exist yet on older environments — keep registration alive.
+      console.error(
+        "[DocCy] doctor_specialties insert failed (registration continues)",
+        specialtyInsertError,
+      );
+    }
   }
 
   const queueFounderSignupNotify = () => {
@@ -658,25 +697,6 @@ export default function RegisterPage({ searchParams }: PageProps) {
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="sm:col-span-2">
                     <RegisterAvatarUpload tone="light" />
-                  </div>
-                  <div className="group sm:col-span-2" data-validate-field="1" data-invalid="0">
-                    <label className={registerLabelClass}>
-                      Medical Registration / Professional Certification Number
-                      <span className="text-red-600">*</span>
-                      <input
-                        name="licenseNumber"
-                        required
-                        autoComplete="off"
-                        className={registerInputClass}
-                      />
-                    </label>
-                    <p className={registerHelperClass}>
-                      We use this secure number solely to verify your qualified health status in
-                      Cyprus before activating your public profile.
-                    </p>
-                    <p className={registerFieldErrorClass}>
-                      Please enter your professional registration or certification number.
-                    </p>
                   </div>
                 </div>
 

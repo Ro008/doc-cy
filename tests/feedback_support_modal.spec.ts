@@ -55,11 +55,10 @@ test.describe("Support feedback modal (Formspree)", { tag: "@pr-e2e" }, () => {
       "Stabilized for desktop Chromium.",
     );
 
-    await page.goto("/register", { waitUntil: "domcontentloaded" });
+    await page.goto("/register", { waitUntil: "load" });
 
-    const demoButton = page.getByRole("button", { name: /Book my In-Person Demo/i });
-    await demoButton.scrollIntoViewIfNeeded();
-    await expect(demoButton).toBeVisible({ timeout: 10_000 });
+    const demoButton = page.getByTestId("register-demo-booking");
+    await expect(demoButton).toBeVisible({ timeout: 15_000 });
     await demoButton.click();
 
     const dialog = page.getByRole("dialog", { name: /How can we help you/i });

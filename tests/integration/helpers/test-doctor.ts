@@ -46,6 +46,7 @@ export async function createTestDoctor(
       auth_user_id: authUserId,
       name: input.name,
       specialty: input.specialty,
+      specialties: [input.specialty],
       email,
       phone: "+35799123456",
       languages: ["English"],
@@ -64,10 +65,28 @@ export async function createTestDoctor(
     throw new Error(`Failed creating doctor: ${doctorInsert.error?.message}`);
   }
 
+  const doctorId = String(doctorInsert.data.id);
+  const specialtyUpsert = await input.admin.from("doctor_specialties").upsert(
+    {
+      doctor_id: doctorId,
+      specialty: input.specialty,
+      license_number: `LIC-${input.nonce}`,
+      is_approved: input.is_specialty_approved,
+    },
+    { onConflict: "doctor_id,specialty" },
+  );
+  if (specialtyUpsert.error) {
+    await input.admin.from("doctors").delete().eq("id", doctorId);
+    await input.admin.auth.admin.deleteUser(authUserId);
+    throw new Error(
+      `Failed creating doctor_specialties: ${specialtyUpsert.error.message}`,
+    );
+  }
+
   return {
     admin: input.admin,
     authUserId,
-    doctorId: String(doctorInsert.data.id),
+    doctorId,
     email,
     password,
     slug,
@@ -77,6 +96,7 @@ export async function createTestDoctor(
 export async function deleteTestDoctor(fixture: TestDoctorFixture): Promise<void> {
   const { admin, doctorId, authUserId } = fixture;
   if (doctorId) {
+    await admin.from("doctor_specialties").delete().eq("doctor_id", doctorId);
     await admin.from("doctor_services").delete().eq("doctor_id", doctorId);
     await admin.from("doctor_settings").delete().eq("doctor_id", doctorId);
     await admin.from("doctors").delete().eq("id", doctorId);

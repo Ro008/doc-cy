@@ -45,8 +45,8 @@ import { DocCyWordmark } from "@/components/brand/DocCyWordmark";
 import { RecordRecentlyViewed } from "@/components/finder/RecordRecentlyViewed";
 import {
   FinderDistrictLink,
-  FinderSpecialtyLink,
 } from "@/components/finder/FinderSpecialtyLink";
+import { DoctorProfileSpecialties } from "@/components/doctor/DoctorProfileSpecialties";
 import { getTranslations } from "next-intl/server";
 import { Phone } from "lucide-react";
 import {
@@ -54,6 +54,10 @@ import {
   withDoctorTitleHonorific,
 } from "@/lib/doctor-seo-formatting";
 import { getPublicSpecialtyDisplayLabel } from "@/lib/doctor-specialty-public";
+import {
+  formatSpecialtiesForSeo,
+  publicSpecialtyLabels,
+} from "@/lib/doctor-specialties";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 const DOCTOR_AVATAR_URL =
@@ -68,6 +72,7 @@ type DoctorProfileRow = {
   id: string;
   name: string;
   specialty: string;
+  specialties?: string[] | null;
   bio: string | null;
   clinic_address: string | null;
   district?: string | null;
@@ -85,7 +90,7 @@ export type PageProps = {
 
 function isOptionalProfileColumnError(msg: string): boolean {
   return (
-    /(languages|district|is_gesy|is_specialty_approved)/i.test(msg) &&
+    /(languages|district|is_gesy|is_specialty_approved|specialties)/i.test(msg) &&
     (/schema cache|does not exist|column|Could not find|42703/i.test(msg) ||
       msg.includes("Could not find"))
   );
@@ -423,6 +428,12 @@ export async function generateMetadata({
 
   const st = (doctor.status ?? "").trim().toLowerCase();
   const doctorName = (doctor.name ?? "").trim();
+  const specialtyLabels = publicSpecialtyLabels({
+    specialties: (doctor as { specialties?: string[] | null }).specialties,
+    specialty: doctor.specialty,
+    is_specialty_approved: (doctor as { is_specialty_approved?: boolean | null })
+      .is_specialty_approved,
+  });
   const specialty = getPublicSpecialtyDisplayLabel({
     specialty: doctor.specialty,
     is_specialty_approved: (doctor as { is_specialty_approved?: boolean | null })
@@ -432,7 +443,7 @@ export async function generateMetadata({
   const specialtyForSeo =
     (doctor as { is_specialty_approved?: boolean | null }).is_specialty_approved === false
       ? ""
-      : (doctor.specialty ?? "").trim();
+      : formatSpecialtiesForSeo(specialtyLabels) || (doctor.specialty ?? "").trim();
   const districtLabel = normalizeDistrictForSeoTitle(doctor.district);
   const cityLabel = districtLabel ?? "Cyprus";
   const metaTitleCore =
@@ -708,12 +719,20 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
   const profileDistrictLabel = normalizeDistrictForSeoTitle(profile.district);
   const profileHeadingCity =
     profileDistrictLabel ?? t("profileHeadingCityFallback");
+  const profileSpecialtyLabels = publicSpecialtyLabels({
+    specialties: profile.specialties,
+    specialty: profile.specialty,
+    is_specialty_approved: profile.is_specialty_approved,
+  });
+  const profileSpecialtySeo = formatSpecialtiesForSeo(profileSpecialtyLabels);
   const publicContactPhone = publicPhone;
   const whatsappHref = publicContactPhone ? toWhatsAppHref(publicContactPhone) : null;
   const structuredData = buildPhysicianStructuredData({
     name: profile.name,
     specialty:
-      profile.is_specialty_approved === false ? null : profile.specialty,
+      profile.is_specialty_approved === false
+        ? null
+        : profileSpecialtySeo || profile.specialty,
     bio: profile.bio,
     clinicAddress: clinicAddress,
     district: profile.district ?? null,
@@ -732,7 +751,7 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
             kind: "professional",
             href: `/${params.slug}`,
             name: profile.name,
-            subtitle: profile.specialty,
+            subtitle: profileSpecialtySeo || profile.specialty,
             location: profileHeadingCity,
             photoUrl: hasCustomAvatar ? avatarUrl : null,
           }}
@@ -793,10 +812,11 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
                     <GesyProviderBadge size="xs" language="el" className="shrink-0" />
                   ) : null}
                 </span>
-                <FinderSpecialtyLink
+                <DoctorProfileSpecialties
+                  specialties={profileSpecialtyLabels}
                   specialty={profile.specialty}
                   district={profileDistrictLabel}
-                  className="mt-1.5 block text-base font-medium capitalize tracking-wide text-clinical-700 underline-offset-2 transition hover:text-clinical-600 hover:underline sm:text-lg"
+                  underReview={profile.is_specialty_approved === false}
                 />
                 {profileDistrictLabel ? (
                   <FinderDistrictLink
