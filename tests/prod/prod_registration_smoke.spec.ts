@@ -199,8 +199,13 @@ test.describe("Prod smoke: doctor registration", { tag: "@nightly-prod" }, () =>
       });
 
       await expect(
-        page.getByText("Start typing and choose your clinic from Google suggestions."),
+        page.getByText(
+          "Pick your main clinic from the Google Maps suggestions so patients can find you nearby.",
+        ),
       ).toBeVisible({ timeout: 20_000 });
+      await expect(page.getByText("Loading clinic search…")).toHaveCount(0, {
+        timeout: 20_000,
+      });
       const clinicAddress = page.locator("#register-clinic-address");
       await clinicAddress.waitFor({ state: "attached", timeout: 20_000 });
       await clinicAddress.scrollIntoViewIfNeeded();
