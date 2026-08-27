@@ -10,6 +10,7 @@ export function RegisterDemoBookingButton() {
   return (
     <button
       type="button"
+      data-testid="register-demo-booking"
       onClick={() =>
         emitOpenFeedback({
           subject: DOCCY_FEEDBACK_SUBJECT_DEMO_REQUEST,
