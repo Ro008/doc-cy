@@ -6,6 +6,7 @@ import { Stethoscope } from "lucide-react";
 import { toast } from "sonner";
 import {
   CYPRUS_MASTER_SPECIALTIES,
+  isMasterSpecialty,
 } from "@/lib/cyprus-specialties";
 import { buildSpecialtyChangeApproveReviewBody } from "@/lib/doctor-specialty-change-request";
 
