@@ -32,13 +32,14 @@ describe("validateDoctorSpecialtyEntries", () => {
   });
 
   it("rejects duplicates", () => {
-    assert.equal(
-      validateDoctorSpecialtyEntries([
-        { specialty: "Dentistry", fromMaster: true, licenseNumber: "1" },
-        { specialty: "Dentistry", fromMaster: true, licenseNumber: "2" },
-      ]).ok,
-      false,
-    );
+    const result = validateDoctorSpecialtyEntries([
+      { specialty: "Dentistry", fromMaster: true, licenseNumber: "1" },
+      { specialty: "Dentistry", fromMaster: true, licenseNumber: "2" },
+    ]);
+    assert.equal(result.ok, false);
+    if (result.ok === false) {
+      assert.match(result.message, /duplicate specialty/i);
+    }
   });
 });
 

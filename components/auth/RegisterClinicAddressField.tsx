@@ -78,13 +78,15 @@ export function RegisterClinicAddressField() {
       )}
 
       <input
-        type="hidden"
+        type="text"
         name="clinicConfirmed"
         value={isComplete ? "1" : ""}
         required
         data-validity-proxy="true"
         readOnly
         aria-hidden
+        tabIndex={-1}
+        className="pointer-events-none absolute h-0 w-0 opacity-0"
       />
       <input type="hidden" name="clinicAddress" value={location.address} readOnly aria-hidden />
       <input

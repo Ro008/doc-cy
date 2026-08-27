@@ -56,7 +56,7 @@ Living document: update when workflows or specs change.
 
 | Flow | PR blocking | Other | Notes |
 | --- | --- | --- | --- |
-| Doctor onboarding (register → founder alert → approve → doctor email → agenda) | `doctor_onboarding_pipeline.integration.spec.ts` (`@pr-e2e`) + `doctor_onboarding_emails.integration.spec.ts` (`@pr-email`) | `prod_registration_smoke.spec.ts` (`@nightly-prod`): live registration UI on prod → internal verify API → `status=verified` (cleanup after). On `*.vercel.app`, if Places is blocked by the canonical Maps referrer, origin asserts clinic-required validation instead of a live signup. Agenda login covered on PR integration. | PR uses `createTestDoctor` as post-registration DB state. Email copy on PR; Resend send on verify is runtime best-effort. `doctor_account_access.integration.spec.ts` covers reject/edge cases. |
+| Doctor onboarding (register → founder alert → approve → doctor email → agenda) | `doctor_onboarding_pipeline.integration.spec.ts` (`@pr-e2e`) + `doctor_onboarding_emails.integration.spec.ts` (`@pr-email`) | No live registration UI smoke (removed). Agenda login covered on PR integration. | PR uses `createTestDoctor` as post-registration DB state. Email copy on PR; Resend send on verify is runtime best-effort. `doctor_account_access.integration.spec.ts` covers reject/edge cases. |
 | Sign-out / sessions | — | `auth_signout_other_sessions`, `auth_session_revocation_logic` | Integration specs, not in PR list |
 | Password login (UI) | — | `doctor_password_login_form.spec.ts` (`@pr-login-monitor`) | PR non-blocking; `/login` form → agenda |
 

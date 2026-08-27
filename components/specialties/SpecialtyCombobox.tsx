@@ -8,6 +8,7 @@ import {
   isCurrentRegistrationSpecialty,
   isMasterSpecialty,
 } from "@/lib/cyprus-specialties";
+import { filterAvailableMasterSpecialties } from "@/lib/specialty-options";
 
 type Props = {
   /** For label association */
@@ -20,6 +21,12 @@ type Props = {
   initialIsApproved?: boolean;
   /** Visual variant */
   variant?: "settings" | "register";
+  /**
+   * Master specialties already used elsewhere (case-insensitive).
+   * Hidden from the list so the same specialty cannot be picked twice.
+   * The current selection remains visible even if present in this list.
+   */
+  excludeSpecialties?: readonly string[];
   /** Settings form: keep parent in sync for JSON save (registration omits this). */
   onSelectionChange?: (payload: {
     specialty: string;
@@ -34,6 +41,7 @@ export function SpecialtyCombobox({
   initialSpecialty,
   initialIsApproved = true,
   variant = "settings",
+  excludeSpecialties,
   onSelectionChange,
 }: Props) {
   const initialTrim = initialSpecialty.trim();
@@ -82,8 +90,13 @@ export function SpecialtyCombobox({
     !isCurrentRegistrationSpecialty(masterValue)
       ? [masterValue, ...CYPRUS_MASTER_SPECIALTIES]
       : CYPRUS_MASTER_SPECIALTIES;
-  const filteredMasters = masterOptions.filter((s) =>
-    q ? s.toLowerCase().includes(q) : true
+  const availableMasters = filterAvailableMasterSpecialties(
+    masterOptions,
+    excludeSpecialties ?? [],
+    masterValue,
+  );
+  const filteredMasters = availableMasters.filter((s) =>
+    q ? s.toLowerCase().includes(q) : true,
   );
   const showOther =
     !q ||

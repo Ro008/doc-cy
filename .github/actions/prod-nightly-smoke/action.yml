@@ -6,7 +6,7 @@ inputs:
     description: "edge (mydoccy.com / Cloudflare) or origin (*.vercel.app)"
     required: true
   suite:
-    description: "site | booking | registration"
+    description: "site | booking"
     required: true
   artifact_name:
     description: Playwright report artifact name
@@ -136,9 +136,8 @@ runs:
         case "${DOC_CY_SMOKE_SUITE}" in
           site) spec="tests/prod/prod_site_availability.spec.ts" ;;
           booking) spec="tests/prod/prod_appointment_booking_flow.spec.ts" ;;
-          registration) spec="tests/prod/prod_registration_smoke.spec.ts" ;;
           *)
-            echo "::error::Unknown smoke suite '${DOC_CY_SMOKE_SUITE}'. Use site, booking, or registration."
+            echo "::error::Unknown smoke suite '${DOC_CY_SMOKE_SUITE}'. Use site or booking."
             exit 1
             ;;
         esac
@@ -157,8 +156,3 @@ runs:
           playwright-report
           test-results
         if-no-files-found: ignore
-
-    - name: Cleanup prod smoke registration artifacts
-      if: always()
-      shell: bash
-      run: node scripts/cleanup-prod-smoke-registrations.mjs

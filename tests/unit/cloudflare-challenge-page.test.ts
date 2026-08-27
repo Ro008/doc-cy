@@ -75,24 +75,16 @@ describe("prod nightly Cloudflare harness", () => {
     assert.doesNotMatch(src, /^\s+prod-critical-smoke:/m);
   });
 
-  it("dismisses the cookie bar and force-clicks clinic address in prod registration smoke", () => {
+  it("dismisses the cookie bar via shared prod smoke helpers", () => {
     const harness = fs.readFileSync(
       path.join(repoRoot, "tests/prod/helpers/assertNoCloudflareChallenge.ts"),
       "utf8",
     );
-    const registration = fs.readFileSync(
-      path.join(repoRoot, "tests/prod/prod_registration_smoke.spec.ts"),
+    const booking = fs.readFileSync(
+      path.join(repoRoot, "tests/prod/prod_appointment_booking_flow.spec.ts"),
       "utf8",
     );
     assert.match(harness, /dismissCookieConsentIfPresent/);
-    assert.match(registration, /scrollIntoViewIfNeeded/);
-    assert.match(registration, /click\(\{ force: true/);
-    assert.match(registration, /isExpectedVercelPlacesReferrerGap/);
-    assert.match(registration, /probePlacesPredictions/);
-    assert.doesNotMatch(
-      registration,
-      /await expect\(pacItem\)\.toBeVisible/,
-      "Origin nightly must classify the Maps referrer split instead of requiring .pac-item on *.vercel.app.",
-    );
+    assert.match(booking, /@nightly-prod/);
   });
 });

@@ -1167,6 +1167,15 @@ export function SettingsForm({ initial }: SettingsFormProps) {
                         initialSpecialty=""
                         initialIsApproved
                         variant="settings"
+                        excludeSpecialties={
+                          specialtyRequestKind === "replace"
+                            ? lockedSpecialties.filter(
+                                (label) =>
+                                  label.toLowerCase() !==
+                                  specialtyReplaceFrom.trim().toLowerCase(),
+                              )
+                            : lockedSpecialties
+                        }
                         onSelectionChange={onSpecialtyChangeSpec}
                       />
                     </div>

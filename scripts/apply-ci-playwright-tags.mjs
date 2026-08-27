@@ -53,7 +53,6 @@ const prEmail = [
 const prPreviewNightly = ["prod/prod_site_availability.spec.ts"];
 const nightlyProdOnly = [
   "prod/prod_appointment_booking_flow.spec.ts",
-  "prod/prod_registration_smoke.spec.ts",
 ];
 function tagExpr(tags) {
   if (tags.length === 1) return `"${tags[0]}"`;

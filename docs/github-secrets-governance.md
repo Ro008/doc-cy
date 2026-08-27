@@ -28,7 +28,7 @@ This file defines the canonical secret naming and cleanup policy for CI workflow
 - `INTEGRATION_SUPABASE_SERVICE_ROLE_KEY`
 - `INTEGRATION_TEST_USER_EMAIL`
 - `INTEGRATION_TEST_USER_PASSWORD`
-- `INTERNAL_DIRECTORY_SECRET` (required for nightly `prod_registration_smoke` verify step; PR integration tests skip without it)
+- `INTERNAL_DIRECTORY_SECRET` (required for PR directory-duplicate actions when enabled; founder specialty-change review uses the same internal cookie)
 
 ## 2) Temporary compatibility aliases (remove after migration)
 
