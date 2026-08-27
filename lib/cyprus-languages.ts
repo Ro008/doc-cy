@@ -66,8 +66,8 @@ export const CYPRUS_SPOKEN_LANGUAGE_THEMES: readonly CyprusLanguageTheme[] = [
   {
     label: "Italian",
     pillClass:
-      "bg-clinical-600 text-white ring-1 ring-white/25 shadow-md shadow-ink-900/40",
-    barClass: "bg-clinical-500",
+      "bg-emerald-600 text-white ring-1 ring-white/25 shadow-md shadow-emerald-950/40",
+    barClass: "bg-emerald-500",
   },
   {
     label: "Arabic",
@@ -84,10 +84,27 @@ export const CYPRUS_SPOKEN_LANGUAGE_THEMES: readonly CyprusLanguageTheme[] = [
   {
     label: "Bulgarian",
     pillClass:
-      "bg-yellow-400 text-slate-900 ring-1 ring-yellow-200/50 shadow-md shadow-yellow-900/20",
-    barClass: "bg-yellow-400",
+      "bg-violet-600 text-white ring-1 ring-white/25 shadow-md shadow-violet-950/40",
+    barClass: "bg-violet-500",
   },
-  OTHER_THEME,
+  {
+    label: "Chinese",
+    pillClass:
+      "bg-rose-600 text-white ring-1 ring-white/25 shadow-md shadow-rose-950/40",
+    barClass: "bg-rose-500",
+  },
+  {
+    label: "Hebrew",
+    pillClass:
+      "bg-sky-700 text-white ring-1 ring-white/25 shadow-md shadow-sky-950/40",
+    barClass: "bg-sky-600",
+  },
+  {
+    label: "Ukrainian",
+    pillClass:
+      "bg-cyan-600 text-white ring-1 ring-white/25 shadow-md shadow-cyan-950/40",
+    barClass: "bg-cyan-500",
+  },
 ] as const;
 
 export const CYPRUS_SPOKEN_LANGUAGE_LABELS = CYPRUS_SPOKEN_LANGUAGE_THEMES.map(
@@ -133,7 +150,13 @@ const ALIAS_TO_LABEL: Record<string, string> = {
   romanian: "Romanian",
   romana: "Romanian",
   bulgarian: "Bulgarian",
-  other: "Other",
+  chinese: "Chinese",
+  mandarin: "Chinese",
+  cantonese: "Chinese",
+  hebrew: "Hebrew",
+  ivrit: "Hebrew",
+  ukrainian: "Ukrainian",
+  ukrainski: "Ukrainian",
 };
 
 function titleCaseWords(s: string): string {
@@ -147,7 +170,8 @@ function titleCaseWords(s: string): string {
 
 /**
  * Map free-text or legacy DB values to a display/canonical label when possible.
- * Unknown strings are title-cased and styled as "Other" in the UI.
+ * Unknown strings are title-cased and use the fallback “Other” theme in the UI
+ * (Other is not a selectable option).
  */
 export function canonicalLanguageLabel(raw: string): string {
   const trimmed = raw.trim();
