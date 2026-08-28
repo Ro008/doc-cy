@@ -47,7 +47,7 @@ test.describe("Support feedback modal (Formspree)", { tag: "@pr-e2e" }, () => {
     });
   });
 
-  test("register demo CTA opens feedback with locked Demo Request topic and prefill", async ({
+  test("register onboarding CTA opens feedback with locked Onboarding Request topic and prefill", async ({
     page,
   }, testInfo) => {
     testInfo.skip(
