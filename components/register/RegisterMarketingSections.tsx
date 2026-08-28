@@ -53,7 +53,7 @@ const faqItems = [
   {
     question: "I am already using a paper diary or another tool. Is it hard to switch?",
     answer:
-      "Less than 5 minutes. DocCy is built to be intuitive and plug-and-play. Furthermore, if you prefer a completely hands-off experience and your clinic is based in the Paphos area, you can request a Free In-Person Demo. Someone from our team will visit your practice, walk you through the dashboard, and handle the entire calendar transition for you. Simply contact us or mention it in our contact form.",
+      "Less than 5 minutes. DocCy is built to be intuitive and plug-and-play. Prefer a hands-off start? Contact us and we'll set you up on a call: we activate your account, walk you through the site, and handle the calendar transition for you.",
   },
   {
     question: "How does the 1-click approval protect my agenda?",
@@ -115,12 +115,12 @@ export function RegisterIntroSection() {
         <span className="mr-1" aria-hidden>
           💡
         </span>
-        Prefer a hands-on walkthrough?{" "}
+        Prefer a hands-off start?{" "}
         <a
-          href="#register-in-person-demo"
+          href="#register-onboarding-call"
           className="font-semibold text-clinical-600 underline decoration-clinical-300 underline-offset-2 hover:text-clinical-500"
         >
-          Scroll down to book a Free In-Person Demo (Paphos Area)
+          Scroll down to request a free onboarding call
         </a>
         .
       </p>
@@ -131,7 +131,7 @@ export function RegisterIntroSection() {
 export function RegisterDemoAside() {
   return (
     <aside
-      id="register-in-person-demo"
+      id="register-onboarding-call"
       className="scroll-mt-8 rounded-3xl border border-clinical-300/60 bg-gradient-to-b from-clinical-50/90 to-white p-5 shadow-[0_8px_28px_rgba(18,184,192,0.12)] sm:p-6 lg:sticky lg:top-8"
     >
       <p className="text-lg font-semibold leading-snug text-ink-900">
@@ -141,11 +141,11 @@ export function RegisterDemoAside() {
         Not a fan of online forms? Let us do the setup for you.
       </p>
       <h2 className="mt-2 text-xl font-semibold tracking-tight text-clinical-800">
-        Book a Free In-Person Demo &amp; Onboarding
+        We&apos;ll set you up on a call
       </h2>
       <p className="mt-3 text-sm leading-relaxed text-ink-600">
-        Are you short on time or prefer a personal walkthrough? If your practice or clinic is
-        located in the Paphos area or surroundings, we&apos;ll come directly to your office.
+        Want us to activate your account for you? Get in touch — on a short call we&apos;ll
+        register you and walk you through the site.
       </p>
       <ul className="mt-4 space-y-3 text-sm leading-relaxed text-ink-700">
         <li>
@@ -153,8 +153,8 @@ export function RegisterDemoAside() {
           you exactly how DocCy shields your practice from phone chaos.
         </li>
         <li>
-          <span className="font-semibold text-ink-900">Done-For-You Setup:</span> We will sync your
-          current calendar and configure your availability on the spot.
+          <span className="font-semibold text-ink-900">Done-For-You Setup:</span> We&apos;ll sync
+          your current calendar and configure your availability during the call.
         </li>
         <li>
           <span className="font-semibold text-ink-900">Takes only 15 minutes:</span> Zero tech
