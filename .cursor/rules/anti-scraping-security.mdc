@@ -8,6 +8,8 @@ alwaysApply: false
 Implemented: 2026-07-28/29 (PR #116 `security/public-api-hardening`)
 
 > **Pending (step 2):** This file previously listed honeytoken identifiers (phones, Maps `cid`, etc.). Those details were removed from the working tree, but **older git commits on the public GitHub history may still contain them**. A history rewrite + coordinated force-push is still outstanding when you choose to do it.
+>
+> **Deferred (budget):** Make `Ro008/doc-cy` a private GitHub repository when the org/plan cost is acceptable. That is the low-risk way to stop casual access to the canary registry and old commits, without a history rewrite or a production deploy. Do not do this until the user explicitly has budget and asks.
 
 ## Why we did this
 
