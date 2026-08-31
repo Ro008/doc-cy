@@ -33,6 +33,13 @@ describe("finder manual calendars stay static HTML", () => {
     assert.equal(source.includes("FINDER_MANUAL_CALENDAR_ATTR"), true);
     assert.equal(source.includes("FINDER_MANUAL_REQUEST_ATTR"), true);
     assert.equal(source.includes("FINDER_MANUAL_SLOT_ATTR"), false);
+    assert.equal(source.includes("Want to book an appointment online?"), true);
+    assert.equal(source.includes("hasn't activated online booking yet."), false);
+    assert.equal(source.includes("hasn&apos;t activated online booking yet."), true);
+    assert.equal(source.includes("Request online booking"), true);
+    assert.equal(source.includes("Takes 1 second. No account needed."), true);
+    assert.equal(source.includes("Want to book online with"), false);
+    assert.equal(source.includes("Click here to request it"), false);
   });
 
   it("delegates request clicks from the shared availability shell", () => {
@@ -54,5 +61,15 @@ describe("finder manual calendars stay static HTML", () => {
     assert.equal(source.includes("toast.success"), true);
     assert.equal(source.includes("Thank you! We will notify the doctor."), true);
     assert.equal(source.includes("reportGoogleAdsConversion"), true);
+  });
+
+  it("asserts the thanks toast is on-screen on phone viewports", () => {
+    const source = fs.readFileSync(
+      path.join(repoRoot, "tests/integration/finder_manual_vote.integration.spec.ts"),
+      "utf8",
+    );
+    assert.equal(source.includes("toBeInViewport"), true);
+    assert.equal(source.includes('project.name.includes("Mobile")'), true);
+    assert.equal(source.includes("expectThanksToastOnScreen"), true);
   });
 });
