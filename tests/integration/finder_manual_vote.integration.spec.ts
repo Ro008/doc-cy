@@ -1,5 +1,8 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
+import { dismissCookieConsentIfPresent } from "../prod/helpers/dismissCookieConsent";
+
+const THANKS_TOAST_RE = /Thank you! We will notify the doctor\./i;
 
 /**
  * Clicks the request-online-booking overlay on a manual finder card after a **random**
@@ -99,6 +102,27 @@ async function findManualCardRequestCta(page: Page): Promise<Locator> {
   );
 }
 
+async function expectThanksToastOnScreen(page: Page) {
+  const toast = page.locator("[data-sonner-toast]").getByText(THANKS_TOAST_RE);
+  await expect(toast).toBeVisible({ timeout: 15_000 });
+  await expect(toast).toBeInViewport();
+}
+
+async function clickRequestAndWaitForVote(page: Page, requestCta: Locator) {
+  const responsePromise = page.waitForResponse(
+    (res) =>
+      res.url().includes("/api/directory-manual/patient-booking-request") &&
+      res.request().method() === "POST",
+  );
+  const requestPromise = page.waitForRequest(
+    (req) =>
+      req.url().includes("/api/directory-manual/patient-booking-request") &&
+      req.method() === "POST",
+  );
+  await requestCta.click();
+  return Promise.all([requestPromise, responsePromise]);
+}
+
 test.describe("Integration: finder manual card vote", () => {
   test("manual request overlay vote succeeds against testing Supabase (not prod)", async ({
     page,
@@ -121,24 +145,10 @@ test.describe("Integration: finder manual card vote", () => {
         name: /The most complete health directory in Cyprus|Cyprus['’]s most complete health directory|Find your next health professional(?: in Cyprus)?|Health Professionals in Cyprus|Find a Professional/i,
       })
     ).toBeVisible({ timeout: 25_000 });
+    await dismissCookieConsentIfPresent(page);
 
     const requestCta = await findManualCardRequestCta(page);
-
-    const responsePromise = page.waitForResponse(
-      (res) =>
-        res.url().includes("/api/directory-manual/patient-booking-request") &&
-        res.request().method() === "POST",
-    );
-
-    const requestPromise = page.waitForRequest(
-      (req) =>
-        req.url().includes("/api/directory-manual/patient-booking-request") &&
-        req.method() === "POST",
-    );
-
-    await requestCta.click();
-
-    const [req, res] = await Promise.all([requestPromise, responsePromise]);
+    const [req, res] = await clickRequestAndWaitForVote(page, requestCta);
     const body = req.postData();
     if (body) {
       try {
@@ -153,9 +163,7 @@ test.describe("Integration: finder manual card vote", () => {
 
     expect([200, 201]).toContain(res.status());
     await expect(page.getByRole("heading", { name: /Profile not activated yet/i })).toHaveCount(0);
-    await expect(
-      page.locator("[data-sonner-toast]").getByText(/Thank you! We will notify the doctor\./i),
-    ).toBeVisible({ timeout: 15_000 });
+    await expectThanksToastOnScreen(page);
 
     if (res.status() === 201 && manualId) {
       const { data: rows, error } = await admin
@@ -169,5 +177,33 @@ test.describe("Integration: finder manual card vote", () => {
     }
 
     // Keep rows in testing Supabase for founder dashboard visuals.
+  });
+
+  test("mobile: confirmation toast stays inside the phone viewport after request", async ({
+    page,
+  }, testInfo) => {
+    test.skip(
+      !testInfo.project.name.includes("Mobile"),
+      "Phone viewport coverage only (Pixel / iPhone projects).",
+    );
+
+    const baseUrl = (process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000").trim();
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+    const serviceRole = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
+
+    const unsafeReason = assertSafeIntegrationTarget(baseUrl, supabaseUrl);
+    test.skip(Boolean(unsafeReason), unsafeReason ?? undefined);
+    test.skip(!supabaseUrl || !serviceRole, "Missing integration env vars.");
+
+    await page.goto("/nicosia/dentistry");
+    await dismissCookieConsentIfPresent(page);
+
+    const requestCta = page.getByTestId("finder-manual-request-online-booking").first();
+    await expect(requestCta).toBeVisible({ timeout: 25_000 });
+    await requestCta.scrollIntoViewIfNeeded();
+
+    const [, res] = await clickRequestAndWaitForVote(page, requestCta);
+    expect([200, 201]).toContain(res.status());
+    await expectThanksToastOnScreen(page);
   });
 });
