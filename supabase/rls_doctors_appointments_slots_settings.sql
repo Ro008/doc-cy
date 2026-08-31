@@ -200,6 +200,8 @@ CREATE POLICY doctors_select_own
   TO authenticated
   USING (auth.uid() = auth_user_id);
 
+REVOKE ALL ON TABLE public.doctors FROM anon;
+
 DROP POLICY IF EXISTS doctors_insert_own_profile ON public.doctors;
 CREATE POLICY doctors_insert_own_profile
   ON public.doctors
