@@ -161,6 +161,7 @@ type RegisteredFinderRow = {
   languages: string[];
   avatarUrl: string | null;
   isTestProfile: boolean;
+  hasOnlineBooking: boolean;
   /** Address as entered at registration. */
   clinic_address: string | null;
   isGesy: boolean;
@@ -212,11 +213,15 @@ type ManualFinderRow = {
 type UnifiedFinderResult = {
   kind: "registered";
   row: RegisteredFinderRow;
+  hasOnlineBooking: boolean;
+  isRegistered: true;
   distanceKm: number | null;
   usedDistrictFallbackForDistance: boolean;
 } | {
   kind: "manual";
   row: ManualFinderRow;
+  hasOnlineBooking: false;
+  isRegistered: false;
   distanceKm: number | null;
   usedDistrictFallbackForDistance: boolean;
 };
@@ -490,8 +495,10 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
           fetchAllSupabaseRows(() =>
             applyFinderListFilters(
               supabase
-                .from("doctors")
+                .from("professionals")
                 .select("specialty")
+                .eq("is_registered", true)
+                .eq("is_archived", false)
                 .eq("status", "verified")
                 .not("slug", "is", null),
               specialtyOptionFilters,
@@ -511,6 +518,7 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
     })();
 
     const registeredSelectAttempts = [
+      "id, name, specialty, specialties, district, town, slug, email, languages, avatar_url, is_test_profile, clinic_address, is_gesy, is_specialty_approved, latitude, longitude, has_online_booking, is_registered",
       "id, name, specialty, specialties, district, town, slug, email, languages, avatar_url, is_test_profile, clinic_address, is_gesy, is_specialty_approved, latitude, longitude",
       "id, name, specialty, specialties, district, slug, email, languages, avatar_url, is_test_profile, clinic_address, is_gesy, is_specialty_approved, latitude, longitude",
       "id, name, specialty, district, town, slug, email, languages, avatar_url, is_test_profile, clinic_address, is_gesy, is_specialty_approved, latitude, longitude",
@@ -556,7 +564,7 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
     for (const selectClause of registeredSelectAttempts) {
       const result = await getCachedDirectoryRows(
         [
-          "registered",
+          "registered-professionals",
           selectClause,
           listFilters.district,
           listFilters.name,
@@ -566,8 +574,10 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
           fetchAllSupabaseRows(() =>
             applyFinderListFilters(
               supabase
-                .from("doctors")
+                .from("professionals")
                 .select(selectClause)
+                .eq("is_registered", true)
+                .eq("is_archived", false)
                 .eq("status", "verified")
                 .not("slug", "is", null),
               // Town is inferred from clinic_address when the column is still empty
@@ -620,6 +630,7 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
             languages: normalizeLanguages(raw.languages),
             avatarUrl: toPublicAvatarUrl(raw.avatar_url),
             isTestProfile: Boolean(raw.is_test_profile ?? false),
+            hasOnlineBooking: Boolean(raw.has_online_booking ?? true),
             clinic_address: (raw.clinic_address as string | null) ?? null,
             isGesy: Boolean(raw.is_gesy ?? false),
             latitude: parseOptionalCoordinates(raw.latitude, raw.longitude)?.latitude ?? null,
@@ -709,7 +720,7 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
       const extraIds = Array.from(manualIdsWithClinicInActiveDistrict);
       const manualRes = await getCachedDirectoryRows(
         [
-          "manual",
+          "manual-professionals",
           selectClause,
           listFilters.district,
           listFilters.name,
@@ -728,6 +739,7 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
             requireFinderVisible: selectClause.includes("finder_visible"),
             orderByName: false,
             limit: manualListLimit,
+            source: "professionals",
           }),
       );
       if (manualRes.error) {
@@ -764,7 +776,7 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
       try {
         manualDirectoryTotalCount = await getCachedDirectoryPayload(
           [
-            "manual-count",
+            "manual-count-professionals",
             listFilters.district,
             listFilters.name,
             listFilters.specialty,
@@ -777,6 +789,7 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
               filters: listFilters,
               specialtyColumn: manualUsesSpecialtiesColumn ? "specialties" : "specialty",
               requireFinderVisible: manualUsesSpecialtiesColumn,
+              source: "professionals",
             });
             if (manualCountRes.error) {
               throw new Error(manualCountRes.error.message ?? "manual_count_failed");
@@ -929,11 +942,23 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
     [
       ...filteredRegistered.map((row) => {
         const distanceInfo = computeDistanceInfo(row.district, row.latitude, row.longitude);
-        return { kind: "registered" as const, row, ...distanceInfo };
+        return {
+          kind: "registered" as const,
+          row,
+          hasOnlineBooking: row.hasOnlineBooking,
+          isRegistered: true as const,
+          ...distanceInfo,
+        };
       }),
       ...filteredManual.map((row) => {
         const distanceInfo = computeDistanceInfo(row.district, row.latitude, row.longitude);
-        return { kind: "manual" as const, row, ...distanceInfo };
+        return {
+          kind: "manual" as const,
+          row,
+          hasOnlineBooking: false as const,
+          isRegistered: false as const,
+          ...distanceInfo,
+        };
       }),
     ],
     {

@@ -112,12 +112,12 @@ describe("finder results paging helpers", () => {
     );
   });
 
-  it("phase 1: registered before manual; manuals shuffle stably by seed", () => {
+  it("phase 1: booking/registered blocks before unregistered; shuffle is stable by seed", () => {
     const input = [
       { kind: "manual" as const, row: { id: "m1" }, distanceKm: null },
-      { kind: "registered" as const, row: { id: "r1" }, distanceKm: null },
+      { kind: "registered" as const, row: { id: "r1" }, hasOnlineBooking: true, distanceKm: null },
       { kind: "manual" as const, row: { id: "m2" }, distanceKm: null },
-      { kind: "registered" as const, row: { id: "r2" }, distanceKm: null },
+      { kind: "registered" as const, row: { id: "r2" }, hasOnlineBooking: true, distanceKm: null },
       { kind: "manual" as const, row: { id: "m3" }, distanceKm: null },
     ];
     const a = orderUnifiedFinderResultsPhase1(input, {
@@ -136,10 +136,11 @@ describe("finder results paging helpers", () => {
       a.map((row) => (row.row as { id: string }).id),
       b.map((row) => (row.row as { id: string }).id),
     );
-    assert.deepEqual(
-      a.filter((row) => row.kind === "registered").map((row) => (row.row as { id: string }).id),
-      ["r1", "r2"],
-    );
+    const registeredIds = a
+      .filter((row) => row.kind === "registered")
+      .map((row) => (row.row as { id: string }).id)
+      .sort();
+    assert.deepEqual(registeredIds, ["r1", "r2"]);
     const otherSeed = orderUnifiedFinderResultsPhase1(input, {
       nearMe: false,
       shuffleSeed: "/nicosia/dentistry",
@@ -154,13 +155,55 @@ describe("finder results paging helpers", () => {
     assert.notDeepEqual(manualA, manualOther);
   });
 
-  it("phase 1 near-me: registered block first, distance within each group", () => {
+  it("three tiers: booking, then registered without booking, then unregistered", () => {
+    const ordered = orderUnifiedFinderResultsPhase1(
+      [
+        { kind: "manual" as const, row: { id: "u1" }, distanceKm: null },
+        {
+          kind: "registered" as const,
+          row: { id: "reg-only" },
+          hasOnlineBooking: false,
+          distanceKm: null,
+        },
+        {
+          kind: "registered" as const,
+          row: { id: "booking" },
+          hasOnlineBooking: true,
+          distanceKm: null,
+        },
+        { kind: "manual" as const, row: { id: "u2" }, distanceKm: null },
+      ],
+      { nearMe: false, shuffleSeed: "/finder" },
+    );
+    assert.deepEqual(
+      ordered.map((row) => (row.row as { id: string }).id),
+      ["booking", "reg-only", ...ordered.slice(2).map((row) => (row.row as { id: string }).id)],
+    );
+    assert.equal((ordered[0]?.row as { id: string }).id, "booking");
+    assert.equal((ordered[1]?.row as { id: string }).id, "reg-only");
+    assert.deepEqual(
+      ordered.slice(2).map((row) => row.kind),
+      ["manual", "manual"],
+    );
+  });
+
+  it("phase 1 near-me: sort tiers first, distance within each group", () => {
     const ordered = orderUnifiedFinderResultsPhase1(
       [
         { kind: "manual" as const, row: { id: "m-far" }, distanceKm: 1 },
-        { kind: "registered" as const, row: { id: "r-far" }, distanceKm: 8 },
+        {
+          kind: "registered" as const,
+          row: { id: "r-far" },
+          hasOnlineBooking: true,
+          distanceKm: 8,
+        },
         { kind: "manual" as const, row: { id: "m-near" }, distanceKm: 0.5 },
-        { kind: "registered" as const, row: { id: "r-near" }, distanceKm: 2 },
+        {
+          kind: "registered" as const,
+          row: { id: "r-near" },
+          hasOnlineBooking: true,
+          distanceKm: 2,
+        },
       ],
       { nearMe: true, shuffleSeed: "unused" },
     );

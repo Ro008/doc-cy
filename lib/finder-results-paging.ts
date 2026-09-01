@@ -183,14 +183,50 @@ function compareDistanceKmAsc(
   return a.distanceKm - b.distanceKm;
 }
 
+function finderResultHasOnlineBooking<T extends { hasOnlineBooking?: boolean; row?: object }>(
+  item: T,
+): boolean {
+  if (typeof item.hasOnlineBooking === "boolean") return item.hasOnlineBooking;
+  return Boolean((item.row as { hasOnlineBooking?: boolean } | undefined)?.hasOnlineBooking);
+}
+
+function finderResultIsRegistered<T extends { kind: string; isRegistered?: boolean; row?: object }>(
+  item: T,
+): boolean {
+  if (typeof item.isRegistered === "boolean") return item.isRegistered;
+  if (item.kind === "registered") return true;
+  return Boolean((item.row as { isRegistered?: boolean } | undefined)?.isRegistered);
+}
+
+/** 0 = booking entitlement, 1 = registered without booking, 2 = unregistered directory. */
+export function finderResultSortTier<
+  T extends {
+    kind: string;
+    hasOnlineBooking?: boolean;
+    isRegistered?: boolean;
+    row?: object;
+  },
+>(item: T): 0 | 1 | 2 {
+  if (finderResultHasOnlineBooking(item)) return 0;
+  if (finderResultIsRegistered(item)) return 1;
+  return 2;
+}
+
 /**
- * Phase 1 finder ordering:
- * - Registered professionals always before manual/unregistered listings.
- * - Manual listings: seeded random (not A–Z). Near-me: distance within each group.
- * - Registered relative order left as provided (phase 2 will refine this).
+ * Finder ordering:
+ * 1. has_online_booking (product entitlement)
+ * 2. registered without booking
+ * 3. unregistered directory
+ * Each block is seeded-random (not A–Z). Near-me: distance within each block.
  */
 export function orderUnifiedFinderResultsPhase1<
-  T extends { kind: string; distanceKm?: number | null; row?: object },
+  T extends {
+    kind: string;
+    distanceKm?: number | null;
+    hasOnlineBooking?: boolean;
+    isRegistered?: boolean;
+    row?: object;
+  },
 >(
   results: readonly T[],
   options: {
@@ -200,22 +236,23 @@ export function orderUnifiedFinderResultsPhase1<
     pinTestProfiles?: boolean;
   },
 ): T[] {
-  const registered = results.filter((row) => row.kind === "registered");
-  const manual = results.filter((row) => row.kind === "manual");
-  const other = results.filter(
-    (row) => row.kind !== "registered" && row.kind !== "manual",
-  );
-
-  let orderedRegistered = registered;
-  let orderedManual: T[];
-  if (options.nearMe) {
-    orderedRegistered = [...registered].sort(compareDistanceKmAsc);
-    orderedManual = [...manual].sort(compareDistanceKmAsc);
-  } else {
-    orderedManual = shuffleWithSeed(manual, options.shuffleSeed);
+  const tiers: [T[], T[], T[]] = [[], [], []];
+  const other: T[] = [];
+  for (const row of results) {
+    if (row.kind !== "registered" && row.kind !== "manual") {
+      other.push(row);
+      continue;
+    }
+    tiers[finderResultSortTier(row)].push(row);
   }
 
-  const ordered = [...orderedRegistered, ...orderedManual, ...other];
+  const orderedTiers = tiers.map((tier, index) => {
+    if (tier.length <= 1) return tier;
+    if (options.nearMe) return [...tier].sort(compareDistanceKmAsc);
+    return shuffleWithSeed(tier, `${options.shuffleSeed}|tier-${index}`);
+  });
+
+  const ordered = [...orderedTiers[0]!, ...orderedTiers[1]!, ...orderedTiers[2]!, ...other];
   pinRegisteredTestProfilesFirst(
     ordered as Array<T & { kind: string; row: object }>,
     Boolean(options.pinTestProfiles),
