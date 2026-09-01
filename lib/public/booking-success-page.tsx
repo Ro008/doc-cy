@@ -15,10 +15,16 @@ import { loadDoctorLocations } from "@/lib/load-doctor-locations";
 import { getTranslations } from "next-intl/server";
 import { isConfirmedForCalendar } from "@/lib/appointment-status";
 
+import { publicProfessionalProfilePath } from "@/lib/manual-directory-landing-path";
+
 type PageProps = {
-  params: { slug: string };
+  params: { slug: string; locale?: string };
   searchParams?: { appointmentId?: string };
 };
+
+function bookingProfilePath(params: PageProps["params"]): string {
+  return publicProfessionalProfilePath(params.slug, params.locale);
+}
 
 export const revalidate = 0;
 
@@ -29,12 +35,12 @@ export default async function BookingSuccessPage({
   const t = await getTranslations("BookingPage");
   const appointmentId = (searchParams?.appointmentId ?? "").trim();
   if (!appointmentId) {
-    redirect(`/${params.slug}`);
+    redirect(bookingProfilePath(params));
   }
 
   const supabase = createServiceRoleClient();
   if (!supabase) {
-    redirect(`/${params.slug}`);
+    redirect(bookingProfilePath(params));
   }
 
   const { data: appointment, error: apptError } = await supabase
@@ -46,7 +52,7 @@ export default async function BookingSuccessPage({
     .single();
 
   if (apptError || !appointment) {
-    redirect(`/${params.slug}`);
+    redirect(bookingProfilePath(params));
   }
 
   const [doctorResult, settingsResult] = await Promise.all([
@@ -63,14 +69,14 @@ export default async function BookingSuccessPage({
   ]);
 
   if (doctorResult.error || !doctorResult.data) {
-    redirect(`/${params.slug}`);
+    redirect(bookingProfilePath(params));
   }
 
   const doctor = doctorResult.data;
 
   if (doctor.slug !== params.slug) {
     redirect(
-      `/${doctor.slug}/request-sent?appointmentId=${encodeURIComponent(appointmentId)}`,
+      `${publicProfessionalProfilePath(String(doctor.slug), params.locale)}/request-sent?appointmentId=${encodeURIComponent(appointmentId)}`,
     );
   }
 
@@ -277,7 +283,7 @@ export default async function BookingSuccessPage({
 
             <div className="mt-8 w-full max-w-md">
               <Link
-                href={`/${params.slug}`}
+                href={bookingProfilePath(params)}
                 className="flex w-full items-center justify-center rounded-2xl border border-ink-200 bg-white px-4 py-2.5 text-sm font-semibold text-ink-700 transition hover:border-clinical-300 hover:bg-clinical-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-400/40 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-50"
               >
                 {t("backToProfileLabel")}

@@ -18,6 +18,6 @@ export default async function LocaleSlugPage({
 }) {
   setRequestLocale(params.locale);
 
-  const doctorParams: PageProps["params"] = {slug: params.slug};
+  const doctorParams: PageProps["params"] = { slug: params.slug, locale: params.locale };
   return <DoctorPage params={doctorParams} searchParams={searchParams} />;
 }

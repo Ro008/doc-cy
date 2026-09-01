@@ -46,9 +46,10 @@ export async function POST(req: NextRequest) {
   }
 
   const { error: archiveErr } = await supabase
-    .from("directory_manual")
+    .from("professionals")
     .update({ is_archived: true, updated_at: new Date().toISOString() })
-    .eq("id", manualId);
+    .eq("id", manualId)
+    .eq("is_registered", false);
   if (archiveErr) {
     console.error("[directory-duplicates/merge] archive manual failed", archiveErr);
     return NextResponse.json({ message: "Could not archive manual entry." }, { status: 500 });

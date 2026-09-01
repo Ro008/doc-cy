@@ -27,7 +27,7 @@ async function listingPhone(
   manualId: string,
 ): Promise<{ phone: string | null; found: boolean; error: boolean }> {
   const { data, error } = await supabase
-    .from("directory_manual")
+    .from("professionals")
     .select("phone")
     .eq("id", manualId)
     .eq("is_archived", false)
@@ -84,7 +84,7 @@ async function professionalLinkedToClinic(
   if (link) return true;
 
   const { data: row, error: rowErr } = await supabase
-    .from("directory_manual")
+    .from("professionals")
     .select("clinic_id")
     .eq("id", manualId)
     .eq("is_archived", false)

@@ -425,7 +425,7 @@ async function ClinicsSearchPage({ params, searchParams }: ClinicsPageProps) {
         clinic_id: string | null;
       }>(visibleClinicIds, (chunk) =>
         supabase
-          .from("directory_manual")
+          .from("professionals")
           .select("id, clinic_id")
           .eq("is_archived", false)
           .in("clinic_id", chunk),
@@ -447,7 +447,7 @@ async function ClinicsSearchPage({ params, searchParams }: ClinicsPageProps) {
           linkedProfessionalIds,
           (chunk) =>
             supabase
-              .from("directory_manual")
+              .from("professionals")
               .select("id")
               .eq("is_archived", false)
               .in("id", chunk),

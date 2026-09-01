@@ -35,10 +35,11 @@ export async function POST(req: Request) {
   }
 
   const { data: row, error: lookupErr } = await supabase
-    .from("directory_manual")
+    .from("professionals")
     .select("id")
     .eq("id", manualId)
     .eq("is_archived", false)
+    .eq("is_registered", false)
     .maybeSingle();
 
   if (lookupErr) {

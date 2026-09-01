@@ -117,21 +117,27 @@ test.describe("Integration: internal directory duplicate actions", { tag: "@pr-e
       doctorB = String(insertDoctors.data[1].id);
 
       const insertManual = await admin
-        .from("directory_manual")
+        .from("professionals")
         .insert([
           {
             name: `Manual Match ${nonce}`,
             specialty: "Dentistry",
             district: "Paphos",
             address_maps_link: "https://maps.google.com/?q=Paphos",
+            slug: `manual-match-${nonce}`,
             is_archived: false,
+            is_registered: false,
+            has_online_booking: false,
           },
           {
             name: `Manual Dismiss ${nonce}`,
             specialty: "Dentistry",
             district: "Paphos",
             address_maps_link: "https://maps.google.com/?q=Paphos",
+            slug: `manual-dismiss-${nonce}`,
             is_archived: false,
+            is_registered: false,
+            has_online_booking: false,
           },
         ])
         .select("id, name");
@@ -182,7 +188,7 @@ test.describe("Integration: internal directory duplicate actions", { tag: "@pr-e
       expect(mergeRes.status()).toBe(200);
 
       const manualAState = await admin
-        .from("directory_manual")
+        .from("professionals")
         .select("is_archived")
         .eq("id", manualA)
         .single();
@@ -220,8 +226,8 @@ test.describe("Integration: internal directory duplicate actions", { tag: "@pr-e
       expect(dismissedState.data?.status).toBe("dismissed");
       expect(Boolean(dismissedState.data?.resolved_at)).toBe(true);
     } finally {
-      if (manualA) await admin.from("directory_manual").delete().eq("id", manualA);
-      if (manualB) await admin.from("directory_manual").delete().eq("id", manualB);
+      if (manualA) await admin.from("professionals").delete().eq("id", manualA);
+      if (manualB) await admin.from("professionals").delete().eq("id", manualB);
       if (doctorA) await admin.from("professionals").delete().eq("id", doctorA);
       if (doctorB) await admin.from("professionals").delete().eq("id", doctorB);
       if (authUserA) await admin.auth.admin.deleteUser(authUserA);

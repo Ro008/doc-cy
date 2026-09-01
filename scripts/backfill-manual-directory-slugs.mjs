@@ -134,16 +134,17 @@ async function main() {
   const [manualRes, doctorsRes] = await Promise.all([
     fetchAll(() =>
       admin
-        .from("directory_manual")
+        .from("professionals")
         .select("id, name, district, slug")
         .eq("is_archived", false)
+        .eq("is_registered", false)
         .order("name", { ascending: true }),
     ),
     fetchAll(() => admin.from("professionals").select("slug").not("slug", "is", null)),
   ]);
 
   if (manualRes.error) {
-    throw new Error(`Failed loading directory_manual: ${manualRes.error.message}`);
+    throw new Error(`Failed loading unregistered professionals: ${manualRes.error.message}`);
   }
   if (doctorsRes.error) {
     throw new Error(`Failed loading doctors slugs: ${doctorsRes.error.message}`);
@@ -189,7 +190,7 @@ async function main() {
 
   const updateLines = assignments.map(
     (a) =>
-      `update public.directory_manual set slug = ${sqlLiteral(a.slug)} where id = ${sqlLiteral(a.id)}::uuid;`,
+      `update public.professionals set slug = ${sqlLiteral(a.slug)} where id = ${sqlLiteral(a.id)}::uuid;`,
   );
 
   const migrationSql = `-- Backfill directory_manual.slug for public landing pages (/finder/doctor/[slug]).
@@ -212,7 +213,7 @@ ${updateLines.join("\n")}
 
   for (const a of assignments) {
     const { error } = await admin
-      .from("directory_manual")
+      .from("professionals")
       .update({ slug: a.slug })
       .eq("id", a.id);
     if (error) {

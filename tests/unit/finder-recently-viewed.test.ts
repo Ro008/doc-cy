@@ -39,7 +39,7 @@ describe("finder recently viewed", () => {
     recordRecentlyViewed(
       {
         kind: "professional",
-        href: "/finder/professional/anna",
+        href: "/en/anna",
         name: "Anna",
         subtitle: "Dentistry",
         location: "Paphos",
@@ -63,7 +63,7 @@ describe("finder recently viewed", () => {
     recordRecentlyViewed(
       {
         kind: "professional",
-        href: "/finder/professional/anna",
+        href: "/en/anna",
         name: "Anna Updated",
         subtitle: "Dentistry",
         location: "Paphos",
@@ -75,7 +75,7 @@ describe("finder recently viewed", () => {
 
     const rows = readRecentlyViewed(storage);
     assert.equal(rows.length, 2);
-    assert.equal(rows[0]?.href, "/finder/professional/anna");
+    assert.equal(rows[0]?.href, "/en/anna");
     assert.equal(rows[0]?.name, "Anna Updated");
     assert.equal(rows[0]?.viewedAt, 300);
     assert.equal(rows[1]?.href, "/clinics/sunrise");
@@ -166,7 +166,7 @@ describe("finder recently viewed", () => {
       JSON.stringify([
         {
           kind: "professional",
-          href: "/finder/professional/anna",
+          href: "/en/anna",
           name: "Anna",
           subtitle: "Dentistry",
           location: "Paphos",

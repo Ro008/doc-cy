@@ -277,9 +277,10 @@ test.describe("Integration: finder business-critical UX", { tag: ["@pr-e2e", "@p
 
     const admin = createClient(supabaseUrl, serviceRole);
     const { data: sample, error } = await admin
-      .from("directory_manual")
+      .from("professionals")
       .select("slug, name")
       .eq("is_archived", false)
+      .eq("is_registered", false)
       .eq("finder_visible", true)
       .not("slug", "is", null)
       .order("name", { ascending: true })
@@ -296,6 +297,7 @@ test.describe("Integration: finder business-critical UX", { tag: ["@pr-e2e", "@p
     const namePattern = new RegExp(name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
 
     await page.goto(`/finder/professional/${slug}`);
+    await expect(page).toHaveURL(new RegExp(`/en/${slug.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?:\\?.*)?$`));
     await expect(page).toHaveTitle(namePattern);
     await expect(page.getByRole("heading", { level: 1, name: namePattern })).toBeVisible();
     await expect(
@@ -329,13 +331,14 @@ test.describe("Integration: finder business-critical UX", { tag: ["@pr-e2e", "@p
     }
 
     const { count: manualCount, error: manualCountError } = await admin
-      .from("directory_manual")
+      .from("professionals")
       .select("id", { count: "exact", head: true })
       .eq("is_archived", false)
+      .eq("is_registered", false)
       .eq("finder_visible", true);
 
     if (manualCountError) {
-      throw new Error(`Failed reading directory_manual for finder count: ${manualCountError.message}`);
+      throw new Error(`Failed reading unregistered professionals for finder count: ${manualCountError.message}`);
     }
 
     const expectedRegistered = (doctorsRes.data ?? []).filter((row) => {

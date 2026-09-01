@@ -430,9 +430,10 @@ export default async function FounderDashboardPage({
   let duplicateNotificationItems: DuplicateNotificationItem[] = [];
   try {
     const manualRes = await supabase
-      .from("directory_manual")
+      .from("professionals")
       .select("id, name, specialty, district")
       .eq("is_archived", false)
+      .eq("is_registered", false)
       .limit(400);
 
     let doctorsForDupes:
@@ -591,7 +592,7 @@ export default async function FounderDashboardPage({
       }
       const ids = Array.from(byManual.keys());
       const { data: namesRows } = await supabase
-        .from("directory_manual")
+        .from("professionals")
         .select("id, name, district, specialty")
         .in("id", ids.length > 500 ? ids.slice(0, 500) : ids);
       const nameMap = new Map(
@@ -724,7 +725,7 @@ export default async function FounderDashboardPage({
       callToBookProfessionalProfileCount = aggregated.professionalProfileCount;
       const ids = aggregated.byProfessional.map((p) => p.manualId);
       const { data: namesRows } = await fetchAllSupabaseRowsForIdChunks(ids, (idChunk) =>
-        supabase.from("directory_manual").select("id, name, district, specialty").in("id", idChunk),
+        supabase.from("professionals").select("id, name, district, specialty").in("id", idChunk),
       );
       const nameMap = new Map(
         (namesRows ?? []).map((n) => [

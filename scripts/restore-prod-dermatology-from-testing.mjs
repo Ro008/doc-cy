@@ -26,7 +26,7 @@ async function fetchAllDermatology(sb) {
   let from = 0;
   while (true) {
     const { data, error } = await sb
-      .from("directory_manual")
+      .from("professionals")
       .select(
         "name, specialty, district, address_maps_link, phone, latitude, longitude, slug, ghs_code, email, gender, address, is_gesy, is_archived",
       )
@@ -123,10 +123,12 @@ async function main() {
       address: row.address,
       is_gesy: true,
       is_archived: false,
+      is_registered: false,
+      has_online_booking: false,
     };
 
     const { data: existing, error: findErr } = await prod
-      .from("directory_manual")
+      .from("professionals")
       .select("id")
       .eq("ghs_code", ghs)
       .eq("is_archived", false)
@@ -135,7 +137,7 @@ async function main() {
 
     if (existing?.id) {
       const { error } = await prod
-        .from("directory_manual")
+        .from("professionals")
         .update({
           name: payload.name,
           district: payload.district,
@@ -153,25 +155,25 @@ async function main() {
       if (error) throw error;
       updated += 1;
     } else {
-      const { error } = await prod.from("directory_manual").insert(payload);
+      const { error } = await prod.from("professionals").insert(payload);
       if (error) throw error;
       inserted += 1;
     }
   }
 
   const { count: derm } = await prod
-    .from("directory_manual")
+    .from("professionals")
     .select("id", { count: "exact", head: true })
     .eq("specialty", "Dermatology")
     .eq("is_archived", false);
   const { count: maps } = await prod
-    .from("directory_manual")
+    .from("professionals")
     .select("id", { count: "exact", head: true })
     .eq("specialty", "Dermatology")
     .eq("is_archived", false)
     .not("address_maps_link", "is", null);
   const { count: gesy } = await prod
-    .from("directory_manual")
+    .from("professionals")
     .select("id", { count: "exact", head: true })
     .eq("specialty", "Dermatology")
     .eq("is_archived", false)

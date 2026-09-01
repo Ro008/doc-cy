@@ -44,8 +44,9 @@ test.describe("Integration: public directory RLS hardening", () => {
     expect(isDeniedOrEmpty(doctorsDump)).toBe(true);
 
     const manualDump = await anon
-      .from("directory_manual")
+      .from("professionals")
       .select("email, ghs_code, gender, name, phone")
+      .eq("is_registered", false)
       .limit(1);
     expect(isDeniedOrEmpty(manualDump)).toBe(true);
 

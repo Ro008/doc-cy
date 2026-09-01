@@ -114,7 +114,7 @@ import {
   harmonizeFinderSpecialtyLabel,
   harmonizeFinderSpecialtyList,
 } from "@/lib/finder-specialty-harmonize";
-import { manualDirectoryLandingPath } from "@/lib/manual-directory-landing-path";
+import { publicProfessionalProfilePath } from "@/lib/manual-directory-landing-path";
 import { finderIncludesRegisteredTestProfiles, isRegisteredDoctorHiddenFromFinder } from "@/lib/doctor-test-profile";
 import { finderAvailabilityRequestKey } from "@/lib/public/finder-availability-request-key";
 import { buildFinderAvailabilityDayHeaders } from "@/lib/public/compute-public-booking-slots";
@@ -1300,7 +1300,7 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
                         <div className="flex min-w-0 items-start gap-3">
                           {row.slug ? (
                           <PendingLink
-                            href={`/${row.slug}`}
+                            href={publicProfessionalProfilePath(row.slug)}
                             navigationReason="profile"
                             fill
                             prefetch={false}
@@ -1339,7 +1339,7 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
                         <div className="min-w-0 flex-1 flex flex-col items-stretch gap-2 text-left">
                           {row.slug ? (
                             <PendingLink
-                              href={`/${row.slug}`}
+                              href={publicProfessionalProfilePath(row.slug)}
                               navigationReason="profile"
                               prefetch={false}
                               className="text-left text-[17px] font-bold leading-[1.2] tracking-tight text-ink-900 transition-none hover:text-clinical-600"
@@ -1399,7 +1399,7 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
 
                 const row = item.row;
                 const manualLandingHref = row.slug
-                  ? manualDirectoryLandingPath(row.slug)
+                  ? publicProfessionalProfilePath(row.slug)
                   : null;
                 return (
                   <article
