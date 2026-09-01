@@ -2,7 +2,7 @@
  * Import GeSY professionals from ALL.xlsx into directory_manual + clinics (batch mode).
  *
  * Safety:
- * - Does NOT touch public.doctors (registered signup / is_gesy toggle stay intact).
+ * - Does NOT touch registered professionals (signup / is_gesy toggle stay intact).
  * - Manual rows from GeSY are always is_gesy=true.
  * - Skips Pharmacy + Laboratory segments (later product surfaces).
  * - Inpatient Services–only people get finder_visible=false (clinic profiles only).

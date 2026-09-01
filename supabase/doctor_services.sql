@@ -3,7 +3,7 @@
 
 create table if not exists public.doctor_services (
   id uuid primary key default gen_random_uuid(),
-  doctor_id uuid not null references public.doctors(id) on delete cascade,
+  doctor_id uuid not null references public.professionals(id) on delete cascade,
   name text not null,
   price text,
   created_at timestamptz not null default now()
@@ -29,9 +29,10 @@ create policy "doctor_services_owner_insert"
   with check (
     exists (
       select 1
-      from public.doctors d
-      where d.id = doctor_services.doctor_id
-        and d.auth_user_id = auth.uid()
+      from public.professionals p
+      where p.id = doctor_services.doctor_id
+        and p.is_registered = true
+        and p.auth_user_id = auth.uid()
     )
   );
 
@@ -43,17 +44,19 @@ create policy "doctor_services_owner_update"
   using (
     exists (
       select 1
-      from public.doctors d
-      where d.id = doctor_services.doctor_id
-        and d.auth_user_id = auth.uid()
+      from public.professionals p
+      where p.id = doctor_services.doctor_id
+        and p.is_registered = true
+        and p.auth_user_id = auth.uid()
     )
   )
   with check (
     exists (
       select 1
-      from public.doctors d
-      where d.id = doctor_services.doctor_id
-        and d.auth_user_id = auth.uid()
+      from public.professionals p
+      where p.id = doctor_services.doctor_id
+        and p.is_registered = true
+        and p.auth_user_id = auth.uid()
     )
   );
 
@@ -65,8 +68,9 @@ create policy "doctor_services_owner_delete"
   using (
     exists (
       select 1
-      from public.doctors d
-      where d.id = doctor_services.doctor_id
-        and d.auth_user_id = auth.uid()
+      from public.professionals p
+      where p.id = doctor_services.doctor_id
+        and p.is_registered = true
+        and p.auth_user_id = auth.uid()
     )
   );
