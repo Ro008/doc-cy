@@ -69,7 +69,7 @@ function main() {
     let userId = null;
 
     const { data: doctorRow, error: doctorErr } = await admin
-      .from("doctors")
+      .from("professionals")
       .select("auth_user_id")
       .ilike("email", email)
       .maybeSingle();

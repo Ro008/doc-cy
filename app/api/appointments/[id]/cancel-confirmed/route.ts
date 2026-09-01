@@ -44,7 +44,7 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
   }
 
   const { data: doctor, error: doctorErr } = await supabase
-    .from("doctors")
+    .from("professionals")
     .select("id, name, slug")
     .eq("auth_user_id", user.id)
     .maybeSingle();

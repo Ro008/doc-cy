@@ -542,7 +542,7 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
   let isOwnerView = false;
   if (user?.id) {
     const { data: ownerDoctor } = await authSupabase
-      .from("doctors")
+      .from("professionals")
       .select("auth_user_id")
       .eq("id", profile.id)
       .maybeSingle();

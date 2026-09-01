@@ -65,7 +65,7 @@ test.describe("Integration: internal directory duplicate actions", { tag: "@pr-e
       authUserB = createUserB.data.user.id;
 
       const insertDoctors = await admin
-        .from("doctors")
+        .from("professionals")
         .insert([
           {
             auth_user_id: authUserA,
@@ -80,7 +80,12 @@ test.describe("Integration: internal directory duplicate actions", { tag: "@pr-e
             status: "verified",
             slug: `dup-doctor-a-${nonce}`,
             is_specialty_approved: true,
-            subscription_tier: "standard",
+                  is_registered: true,
+      has_online_booking: true,
+      finder_visible: true,
+      is_archived: false,
+      subscription_tier: "standard",
+
           },
           {
             auth_user_id: authUserB,
@@ -95,7 +100,12 @@ test.describe("Integration: internal directory duplicate actions", { tag: "@pr-e
             status: "verified",
             slug: `dup-doctor-b-${nonce}`,
             is_specialty_approved: true,
-            subscription_tier: "standard",
+                  is_registered: true,
+      has_online_booking: true,
+      finder_visible: true,
+      is_archived: false,
+      subscription_tier: "standard",
+
           },
         ])
         .select("id, slug");
@@ -212,8 +222,8 @@ test.describe("Integration: internal directory duplicate actions", { tag: "@pr-e
     } finally {
       if (manualA) await admin.from("directory_manual").delete().eq("id", manualA);
       if (manualB) await admin.from("directory_manual").delete().eq("id", manualB);
-      if (doctorA) await admin.from("doctors").delete().eq("id", doctorA);
-      if (doctorB) await admin.from("doctors").delete().eq("id", doctorB);
+      if (doctorA) await admin.from("professionals").delete().eq("id", doctorA);
+      if (doctorB) await admin.from("professionals").delete().eq("id", doctorB);
       if (authUserA) await admin.auth.admin.deleteUser(authUserA);
       if (authUserB) await admin.auth.admin.deleteUser(authUserB);
     }

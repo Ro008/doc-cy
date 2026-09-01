@@ -119,7 +119,7 @@ async function main() {
   });
 
   const doctorRes = await admin
-    .from("doctors")
+    .from("professionals")
     .select("id, email, auth_user_id")
     .eq("slug", args.slug)
     .maybeSingle();
@@ -144,7 +144,7 @@ async function main() {
   console.log(`Email: ${email}`);
 
   await admin
-    .from("doctors")
+    .from("professionals")
     .update({ auth_user_id: null })
     .eq("id", doctorRes.data.id);
 
@@ -176,7 +176,7 @@ async function main() {
 
   const uid = created.data.user.id;
   const link = await admin
-    .from("doctors")
+    .from("professionals")
     .update({ auth_user_id: uid })
     .eq("id", doctorRes.data.id);
   if (link.error) {

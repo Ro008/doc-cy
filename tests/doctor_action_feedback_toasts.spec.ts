@@ -23,7 +23,7 @@ test.describe("Doctor action feedback toasts", () => {
 
     const { authUserId } = await signInDoctorAndSetCookies(page, anon);
     const { data: doctorRow } = await anon
-      .from("doctors")
+      .from("professionals")
       .select("id")
       .eq("auth_user_id", authUserId)
       .eq("status", "verified")

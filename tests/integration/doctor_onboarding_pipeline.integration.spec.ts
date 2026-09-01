@@ -66,7 +66,7 @@ test.describe("Integration: doctor onboarding pipeline", { tag: "@pr-e2e" }, () 
       expect(verifyRes.status()).toBe(200);
       expect(await verifyRes.json()).toMatchObject({ ok: true, status: "verified" });
 
-      const row = await admin.from("doctors").select("status").eq("id", fixture.doctorId).single();
+      const row = await admin.from("professionals").select("status").eq("id", fixture.doctorId).single();
       expect(row.data?.status).toBe("verified");
 
       const doctorEmail = buildDoctorAccountVerifiedEmailContent({
@@ -149,7 +149,7 @@ test.describe("Integration: doctor onboarding pipeline", { tag: "@pr-e2e" }, () 
         ).status(),
       ).toBe(200);
 
-      const row = await admin.from("doctors").select("status").eq("id", fixture.doctorId).single();
+      const row = await admin.from("professionals").select("status").eq("id", fixture.doctorId).single();
       expect(row.data?.status).toBe("verified");
 
       await loginDoctorUi(page, fixture.email, fixture.password);

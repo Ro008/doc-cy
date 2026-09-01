@@ -27,10 +27,11 @@ export async function getFoundersAvailability(): Promise<FoundersAvailability> {
   }
 
   const countRes = await supabase
-    .from("doctors")
+    .from("professionals")
     .select("id", { count: "exact", head: true })
     .eq("subscription_tier", "founder")
-    .eq("status", "verified");
+    .eq("status", "verified")
+    .eq("is_registered", true);
 
   if (countRes.error) {
     // Safe fallback: default to standard pricing on data errors.
@@ -47,7 +48,7 @@ export async function getFoundersAvailability(): Promise<FoundersAvailability> {
   // Marketing override: explicitly count selected seeded profiles even if
   // they are no longer founder+verified after test/ops adjustments.
   const marketingRes = await supabase
-    .from("doctors")
+    .from("professionals")
     .select("id, slug, subscription_tier, status")
     .in("slug", [...MARKETING_INCLUDED_DOCTOR_SLUGS]);
 

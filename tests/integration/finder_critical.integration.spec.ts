@@ -75,7 +75,7 @@ async function createVerifiedDoctor(
   const authUserId = userRes.data.user.id;
 
   const doctorInsert = await admin
-    .from("doctors")
+    .from("professionals")
     .insert({
       auth_user_id: authUserId,
       name: input.name,
@@ -94,7 +94,12 @@ async function createVerifiedDoctor(
       // Mark as test so cleanup + prod finder hide are reliable; still visible when
       // NEXT_PUBLIC_DOC_CY_FINDER_INCLUDE_TEST_PROFILES=1 (integration).
       is_test_profile: true,
+      is_registered: true,
+      has_online_booking: true,
+      finder_visible: true,
+      is_archived: false,
       subscription_tier: "standard",
+
     })
     .select("id")
     .single();
@@ -115,7 +120,7 @@ async function createVerifiedDoctor(
     { onConflict: "doctor_id,specialty" },
   );
   if (specialtyUpsert.error) {
-    await admin.from("doctors").delete().eq("id", doctorId);
+    await admin.from("professionals").delete().eq("id", doctorId);
     await admin.auth.admin.deleteUser(authUserId);
     throw new Error(
       `Failed creating doctor_specialties: ${specialtyUpsert.error.message}`,
@@ -312,7 +317,7 @@ test.describe("Integration: finder business-critical UX", { tag: ["@pr-e2e", "@p
 
     const doctorsRes = await fetchAllSupabaseRows(() =>
       admin
-        .from("doctors")
+        .from("professionals")
         .select("id, name, slug, status, is_test_profile, email")
         .eq("status", "verified")
         .not("slug", "is", null)
@@ -414,7 +419,7 @@ test.describe("Integration: finder business-critical UX", { tag: ["@pr-e2e", "@p
       await expect(avatar).toHaveAttribute("src", new RegExp(`profiles/qa-card-${nonce}/avatar.jpg`));
     } finally {
       if (created) {
-        await admin.from("doctors").delete().eq("id", created.doctorId);
+        await admin.from("professionals").delete().eq("id", created.doctorId);
         await admin.auth.admin.deleteUser(created.authUserId);
       }
     }
@@ -464,7 +469,7 @@ test.describe("Integration: finder business-critical UX", { tag: ["@pr-e2e", "@p
       }
     } finally {
       for (const doctor of created) {
-        await admin.from("doctors").delete().eq("id", doctor.doctorId);
+        await admin.from("professionals").delete().eq("id", doctor.doctorId);
         await admin.auth.admin.deleteUser(doctor.authUserId);
       }
     }
@@ -552,7 +557,7 @@ test.describe("Integration: finder business-critical UX", { tag: ["@pr-e2e", "@p
       await expect(page.getByText(created[1].name, { exact: true })).toBeVisible({ timeout: 60_000 });
     } finally {
       for (const doctor of created) {
-        await admin.from("doctors").delete().eq("id", doctor.doctorId);
+        await admin.from("professionals").delete().eq("id", doctor.doctorId);
         await admin.auth.admin.deleteUser(doctor.authUserId);
       }
     }
@@ -620,7 +625,7 @@ test.describe("Integration: finder business-critical UX", { tag: ["@pr-e2e", "@p
     } finally {
       if (created) {
         await admin.from("doctor_settings").delete().eq("doctor_id", created.doctorId);
-        await admin.from("doctors").delete().eq("id", created.doctorId);
+        await admin.from("professionals").delete().eq("id", created.doctorId);
         await admin.auth.admin.deleteUser(created.authUserId);
       }
     }

@@ -34,7 +34,7 @@ async function main() {
   });
 
   const { data: doctors, error } = await admin
-    .from("doctors")
+    .from("professionals")
     .select("id, slug, email, status, is_test_profile, auth_user_id")
     .or("is_test_profile.eq.true,email.ilike.%@test-doccy.com.cy%,email.ilike.%rociosirvent%")
     .order("slug");

@@ -76,7 +76,7 @@ export default async function AgendaSettingsPage() {
       .includes(col.toLowerCase());
   try {
     let res = await supabase
-      .from("doctors")
+      .from("professionals")
       .select(
         "id, name, avatar_url, phone, slug, specialty, specialties, bio, languages, district, town, clinic_address, latitude, longitude, clinic_place_id, status, subscription_tier, is_gesy"
       )
@@ -85,7 +85,7 @@ export default async function AgendaSettingsPage() {
 
     if (res.error && hasColError(res.error, "specialties")) {
       res = await supabase
-        .from("doctors")
+        .from("professionals")
         .select(
           "id, name, avatar_url, phone, slug, specialty, bio, languages, district, town, clinic_address, latitude, longitude, clinic_place_id, status, subscription_tier, is_gesy"
         )
@@ -95,7 +95,7 @@ export default async function AgendaSettingsPage() {
 
     if (res.error && hasColError(res.error, "town")) {
       res = await supabase
-        .from("doctors")
+        .from("professionals")
         .select(
           "id, name, avatar_url, phone, slug, specialty, bio, languages, district, clinic_address, latitude, longitude, clinic_place_id, status, subscription_tier, is_gesy"
         )
@@ -110,7 +110,7 @@ export default async function AgendaSettingsPage() {
         hasColError(res.error, "clinic_place_id"))
     ) {
       res = await supabase
-        .from("doctors")
+        .from("professionals")
         .select(
           "id, name, avatar_url, phone, slug, specialty, languages, district, clinic_address, status, subscription_tier, is_gesy"
         )
@@ -120,7 +120,7 @@ export default async function AgendaSettingsPage() {
 
     if (res.error && hasColError(res.error, "is_gesy")) {
       res = await supabase
-        .from("doctors")
+        .from("professionals")
         .select(
           "id, name, avatar_url, phone, slug, specialty, languages, district, clinic_address, status, subscription_tier"
         )
@@ -129,7 +129,7 @@ export default async function AgendaSettingsPage() {
     }
     if (res.error && hasColError(res.error, "avatar_url")) {
       res = await supabase
-        .from("doctors")
+        .from("professionals")
         .select(
           "id, name, phone, slug, specialty, languages, district, clinic_address, status, subscription_tier"
         )
@@ -138,7 +138,7 @@ export default async function AgendaSettingsPage() {
     }
     if (res.error && hasColError(res.error, "subscription_tier")) {
       res = await supabase
-        .from("doctors")
+        .from("professionals")
         .select(
           "id, name, avatar_url, phone, slug, specialty, languages, district, clinic_address, status"
         )
@@ -147,7 +147,7 @@ export default async function AgendaSettingsPage() {
     }
     if (res.error && (res.error as { code?: string }).code === "42703") {
       res = await supabase
-        .from("doctors")
+        .from("professionals")
         .select("id, name, phone, slug, specialty, languages, district, clinic_address, status")
         .eq("auth_user_id", user.id)
         .single();
@@ -161,7 +161,7 @@ export default async function AgendaSettingsPage() {
 
   if (!doctor) {
     let fallback = await supabase
-      .from("doctors")
+      .from("professionals")
       .select(
         "id, name, avatar_url, slug, specialty, languages, district, clinic_address, status, is_specialty_approved, specialty_requires_standard_at, subscription_tier"
       )
@@ -170,7 +170,7 @@ export default async function AgendaSettingsPage() {
 
     if (fallback.error && hasColError(fallback.error, "specialty_requires_standard_at")) {
       fallback = await supabase
-        .from("doctors")
+        .from("professionals")
         .select(
           "id, name, avatar_url, slug, specialty, languages, district, clinic_address, status, is_specialty_approved, subscription_tier"
         )
@@ -180,7 +180,7 @@ export default async function AgendaSettingsPage() {
 
     if (fallback.error && hasColError(fallback.error, "avatar_url")) {
       fallback = await supabase
-        .from("doctors")
+        .from("professionals")
         .select(
           "id, name, slug, specialty, languages, district, clinic_address, status, is_specialty_approved, subscription_tier"
         )
@@ -189,7 +189,7 @@ export default async function AgendaSettingsPage() {
     }
     if (fallback.error && hasColError(fallback.error, "subscription_tier")) {
       fallback = await supabase
-        .from("doctors")
+        .from("professionals")
         .select(
           "id, name, avatar_url, slug, specialty, languages, district, clinic_address, status, is_specialty_approved"
         )
@@ -198,7 +198,7 @@ export default async function AgendaSettingsPage() {
     }
     if (fallback.error && (fallback.error as { code?: string }).code === "42703") {
       fallback = await supabase
-        .from("doctors")
+        .from("professionals")
         .select("id, name, slug, specialty, languages, district, clinic_address, status, is_specialty_approved")
         .eq("auth_user_id", user.id)
         .single();
@@ -212,7 +212,7 @@ export default async function AgendaSettingsPage() {
     // Always hydrate specialty review flags so banner/UI state remains correct
     // even when primary selects use compatibility fallbacks.
     const { data: specialtyFlags } = await supabase
-      .from("doctors")
+      .from("professionals")
       .select("is_specialty_approved, specialty_requires_standard_at")
       .eq("id", doctor.id)
       .maybeSingle();

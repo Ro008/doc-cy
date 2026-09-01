@@ -82,7 +82,7 @@ async function selectDoctors(admin) {
   const byEmail = [];
   for (const suffix of TEST_EMAIL_SUFFIXES) {
     const { data, error } = await admin
-      .from("doctors")
+      .from("professionals")
       .select("id,auth_user_id,email,name,slug,is_test_profile")
       .ilike("email", `%${suffix}`);
     if (error) throw new Error(`Failed loading doctors by email suffix ${suffix}: ${error.message}`);
@@ -92,7 +92,7 @@ async function selectDoctors(admin) {
   const byName = [];
   for (const prefix of TEST_NAME_PREFIXES) {
     const { data, error } = await admin
-      .from("doctors")
+      .from("professionals")
       .select("id,auth_user_id,email,name,slug,is_test_profile")
       .ilike("name", `${prefix}%`);
     if (error) throw new Error(`Failed loading doctors by name prefix ${prefix}: ${error.message}`);
@@ -102,7 +102,7 @@ async function selectDoctors(admin) {
   const bySlug = [];
   for (const prefix of TEST_SLUG_PREFIXES) {
     const { data, error } = await admin
-      .from("doctors")
+      .from("professionals")
       .select("id,auth_user_id,email,name,slug,is_test_profile")
       .ilike("slug", `${prefix}%`);
     if (error) throw new Error(`Failed loading doctors by slug prefix ${prefix}: ${error.message}`);
@@ -180,7 +180,7 @@ async function main() {
   }
 
   if (doctorIds.length > 0) {
-    const { error } = await admin.from("doctors").delete().in("id", doctorIds);
+    const { error } = await admin.from("professionals").delete().in("id", doctorIds);
     if (error) throw new Error(`Failed deleting doctors: ${error.message}`);
   }
 

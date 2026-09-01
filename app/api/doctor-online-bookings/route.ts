@@ -14,7 +14,7 @@ export async function GET() {
   }
 
   const { data: doctor, error: doctorErr } = await supabase
-    .from("doctors")
+    .from("professionals")
     .select("id")
     .eq("auth_user_id", user.id)
     .maybeSingle();
@@ -91,7 +91,7 @@ export async function POST(req: NextRequest) {
   }
 
   const { data: doctor, error: doctorErr } = await supabase
-    .from("doctors")
+    .from("professionals")
     .select("id")
     .eq("auth_user_id", user.id)
     .maybeSingle();

@@ -114,9 +114,10 @@ export async function POST(req: NextRequest) {
   // Allow tests/clients to pass doctorSlug instead of doctorId (MVP convenience)
   if (!doctorId && doctorSlug) {
     const { data: doctor, error: doctorError } = await supabase
-      .from("doctors")
+      .from("professionals")
       .select("id")
       .eq("slug", doctorSlug)
+      .eq("is_registered", true)
       .single();
 
     if (doctorError || !doctor) {
@@ -158,7 +159,7 @@ export async function POST(req: NextRequest) {
   }
 
   const { data: doctorGate, error: doctorGateError } = await supabase
-    .from("doctors")
+    .from("professionals")
     .select("id, status")
     .eq("id", doctorId)
     .single();
@@ -416,7 +417,7 @@ export async function POST(req: NextRequest) {
   // No reply_to. Do not block booking success if notifications fail.
   try {
     const { data: doctor } = await supabase
-      .from("doctors")
+      .from("professionals")
       .select("name, email, phone, specialty, clinic_address")
       .eq("id", doctorId)
       .single();

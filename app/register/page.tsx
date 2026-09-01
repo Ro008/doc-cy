@@ -355,10 +355,11 @@ async function handleRegister(formData: FormData) {
     // Fallback path when SQL RPC is unavailable/broken in the target environment.
     // Match register_doctor_with_founder_lock: only non-test founders consume the real founder slots.
     const { count: founderCount, error: founderCountError } = await service
-      .from("doctors")
+      .from("professionals")
       .select("id", { head: true, count: "exact" })
       .eq("subscription_tier", "founder")
-      .eq("is_test_profile", false);
+      .eq("is_test_profile", false)
+      .eq("is_registered", true);
     if (founderCountError) {
       console.error("[DocCy] Founder count fallback failed", founderCountError);
       try {
@@ -372,7 +373,7 @@ async function handleRegister(formData: FormData) {
 
     const fallbackTier = (founderCount ?? 0) < MAX_FOUNDERS ? "founder" : "standard";
     const fallbackInsert = await service
-      .from("doctors")
+      .from("professionals")
       .insert({
         auth_user_id: authUserId,
         name: fullName,
@@ -393,6 +394,10 @@ async function handleRegister(formData: FormData) {
         longitude: clinicLongitude,
         clinic_place_id: clinicPlaceId,
         is_test_profile: isTestDoctorRegistrationEmail(email),
+        is_registered: true,
+        has_online_booking: true,
+        finder_visible: true,
+        is_archived: false,
       })
       .select("id")
       .single();
@@ -454,7 +459,7 @@ async function handleRegister(formData: FormData) {
   };
 
   const { error: avatarSaveError } = await service
-    .from("doctors")
+    .from("professionals")
     .update(profileUpdateBase)
     .eq("id", doctorId);
   if (avatarSaveError) {
@@ -472,7 +477,7 @@ async function handleRegister(formData: FormData) {
     if (missingTownColumn && !missingClinicColumns) {
       const { town: _town, ...withoutTown } = profileUpdateBase;
       const { error: withoutTownError } = await service
-        .from("doctors")
+        .from("professionals")
         .update(withoutTown)
         .eq("id", doctorId);
       if (!withoutTownError) {
@@ -491,7 +496,7 @@ async function handleRegister(formData: FormData) {
     }
     if (missingClinicColumns) {
       const { error: legacyProfileError } = await service
-        .from("doctors")
+        .from("professionals")
         .update({
           avatar_url: avatarFileUrl,
           district,
@@ -508,7 +513,7 @@ async function handleRegister(formData: FormData) {
     console.error("[DocCy] Failed to save avatar_url on doctor", avatarSaveError);
     try {
       await service.storage.from("avatars").remove([avatarFileUrl]);
-      await service.from("doctors").delete().eq("id", doctorId);
+      await service.from("professionals").delete().eq("id", doctorId);
       await service.auth.admin.deleteUser(authUserId);
     } catch (cleanupError) {
       console.error("[DocCy] Failed cleanup after avatar save error", cleanupError);

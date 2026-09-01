@@ -57,26 +57,12 @@ export async function loadTakenPublicSlugs(
 ): Promise<Set<string>> {
   const taken = new Set<string>();
 
-  // Prefer base tables (service_role). Public views are revoked from anon.
-  const [doctorsRes, manualRes] = await Promise.all([
-    fetchAllSupabaseRows(() =>
-      supabase.from("doctors").select("slug").not("slug", "is", null),
-    ),
-    fetchAllSupabaseRows(() =>
-      supabase
-        .from("directory_manual")
-        .select("slug")
-        .eq("is_archived", false)
-        .not("slug", "is", null),
-    ),
-  ]);
+  // Unified slug namespace on professionals.
+  const professionalsRes = await fetchAllSupabaseRows(() =>
+    supabase.from("professionals").select("slug").not("slug", "is", null),
+  );
 
-  for (const row of doctorsRes.data ?? []) {
-    const slug = String((row as { slug?: string | null }).slug ?? "").trim();
-    if (slug) taken.add(slug.toLowerCase());
-  }
-
-  for (const row of manualRes.data ?? []) {
+  for (const row of professionalsRes.data ?? []) {
     const slug = String((row as { slug?: string | null }).slug ?? "").trim();
     if (slug) taken.add(slug.toLowerCase());
   }

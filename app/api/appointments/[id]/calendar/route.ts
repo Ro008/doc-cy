@@ -67,7 +67,7 @@ export async function GET(req: NextRequest, { params }: RouteContext) {
   }
 
   const { data: doctor } = await supabase
-    .from("doctors")
+    .from("professionals")
     .select("id, name, phone, slug, clinic_address, specialty")
     .eq("id", appointment.doctor_id)
     .single();

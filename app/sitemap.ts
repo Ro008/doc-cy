@@ -62,9 +62,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const [doctorsRes, profilesRes, manualRes] = await Promise.all([
     fetchAllSupabaseRows(() =>
       supabase
-        .from("doctors")
+        .from("professionals")
         .select("district, specialty, is_test_profile, name")
         .eq("status", "verified")
+        .eq("is_registered", true)
         .not("slug", "is", null),
     ),
     fetchAllSupabaseRows(() =>

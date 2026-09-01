@@ -79,7 +79,7 @@ test.describe("Integration: propose reschedule (confirmed visit)", { tag: "@pr-e
 
     const admin = createClient(supabaseUrl, serviceRoleKey);
     const { data: doctor, error: doctorErr } = await admin
-      .from("doctors")
+      .from("professionals")
       .select("id")
       .eq("email", doctorEmail)
       .maybeSingle();

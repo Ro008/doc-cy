@@ -9,7 +9,7 @@ async function getDoctorId(
   authUserId: string,
 ): Promise<string> {
   const { data } = await anon
-    .from("doctors")
+    .from("professionals")
     .select("id")
     .eq("auth_user_id", authUserId)
     .eq("status", "verified")

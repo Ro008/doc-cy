@@ -13,7 +13,7 @@ test.describe("Public profile states", () => {
   async function getFirstSlugByStatus(status: string): Promise<string | null> {
     const supabase = createTestDataClient();
     const { data } = await supabase
-      .from("doctors")
+      .from("professionals")
       .select("slug")
       .eq("status", status)
       .not("slug", "is", null)
@@ -100,7 +100,7 @@ test.describe("Public profile states", () => {
   }) => {
     const supabase = createTestDataClient();
     const { data } = await supabase
-      .from("doctors")
+      .from("professionals")
       .select("slug")
       .eq("status", "verified")
       .not("slug", "is", null)

@@ -42,7 +42,7 @@ test.describe("Integration: public Service Menu section", () => {
       authUserId = createUserRes.data.user.id;
 
       const doctorInsert = await admin
-        .from("doctors")
+        .from("professionals")
         .insert({
           auth_user_id: authUserId,
           name: `Service Menu Doctor ${nonce}`,
@@ -55,7 +55,12 @@ test.describe("Integration: public Service Menu section", () => {
           status: "verified",
           slug: doctorSlug,
           is_specialty_approved: true,
-          subscription_tier: "standard",
+                is_registered: true,
+      has_online_booking: true,
+      finder_visible: true,
+      is_archived: false,
+      subscription_tier: "standard",
+
         })
         .select("id")
         .single();
@@ -110,7 +115,7 @@ test.describe("Integration: public Service Menu section", () => {
       if (doctorId) {
         await admin.from("doctor_services").delete().eq("doctor_id", doctorId);
         await admin.from("doctor_settings").delete().eq("doctor_id", doctorId);
-        await admin.from("doctors").delete().eq("id", doctorId);
+        await admin.from("professionals").delete().eq("id", doctorId);
       }
       if (authUserId) {
         await admin.auth.admin.deleteUser(authUserId);

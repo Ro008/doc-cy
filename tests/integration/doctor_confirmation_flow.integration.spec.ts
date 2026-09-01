@@ -89,7 +89,7 @@ test.describe("Integration: doctor confirmation flow", { tag: ["@pr-e2e", "@pr-m
 
     const admin = createClient(supabaseUrl, serviceRoleKey);
     const { data: doctor, error: doctorErr } = await admin
-      .from("doctors")
+      .from("professionals")
       .select("id")
       .eq("email", doctorEmail)
       .maybeSingle();

@@ -139,7 +139,7 @@ async function main() {
         .eq("is_archived", false)
         .order("name", { ascending: true }),
     ),
-    fetchAll(() => admin.from("doctors").select("slug").not("slug", "is", null)),
+    fetchAll(() => admin.from("professionals").select("slug").not("slug", "is", null)),
   ]);
 
   if (manualRes.error) {

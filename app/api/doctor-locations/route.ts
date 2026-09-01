@@ -25,7 +25,7 @@ async function requireOwnedDoctor(
   } = await supabase.auth.getUser();
   if (!user) return { error: NextResponse.json({ message: "Unauthorized." }, { status: 401 }) };
   const { data: owned, error } = await supabase
-    .from("doctors")
+    .from("professionals")
     .select("id")
     .eq("id", doctorId)
     .eq("auth_user_id", user.id)

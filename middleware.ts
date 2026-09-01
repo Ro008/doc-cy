@@ -170,7 +170,7 @@ export async function middleware(req: NextRequest, event: NextFetchEvent) {
       }
 
       const {data: doctorRow, error: doctorRowError} = await supabase
-        .from("doctors")
+        .from("professionals")
         .select("status, auth_session_revoked_after, auth_keep_session_id")
         .eq("auth_user_id", session.user.id)
         .maybeSingle();

@@ -38,7 +38,7 @@ test.describe("Doctor lunch/break time", () => {
     const { authUserId } = await signInDoctorAndSetCookies(page, supabase);
 
     const { data: doctorRow } = await supabase
-      .from("doctors")
+      .from("professionals")
       .select("id, slug")
       .eq("auth_user_id", authUserId)
       .eq("status", "verified")

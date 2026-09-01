@@ -51,7 +51,7 @@ export default async function BookingSuccessPage({
 
   const [doctorResult, settingsResult] = await Promise.all([
     supabase
-      .from("doctors")
+      .from("professionals")
       .select("id, name, slug, phone, clinic_address, specialty")
       .eq("id", appointment.doctor_id)
       .single(),

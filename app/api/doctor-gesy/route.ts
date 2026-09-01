@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
   }
 
   const { data: doctor, error: doctorErr } = await supabase
-    .from("doctors")
+    .from("professionals")
     .select("id")
     .eq("auth_user_id", user.id)
     .maybeSingle();
@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
   }
 
   const { error: updateErr } = await supabase
-    .from("doctors")
+    .from("professionals")
     .update({ is_gesy: nextValue })
     .eq("id", doctor.id);
 

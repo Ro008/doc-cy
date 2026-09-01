@@ -24,7 +24,7 @@ test.describe("Scheduling boundaries UI (read-only)", () => {
     const supabase = createTestDataClient();
 
     const { data: doctor } = await supabase
-      .from("doctors")
+      .from("professionals")
       .select("id,slug,status")
       .eq("slug", targetSlug)
       .single();

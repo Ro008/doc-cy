@@ -176,10 +176,11 @@ export default async function FounderDashboardPage({
   ] = await Promise.all([
     fetchAllSupabaseRows(() =>
       supabase
-        .from("doctors")
+        .from("professionals")
         .select(
           "id, name, email, phone, slug, specialty, languages, status, created_at, license_number, license_file_url, is_specialty_approved, specialty_requires_standard_at, auth_user_id"
         )
+        .eq("is_registered", true)
         .order("created_at", { ascending: false }),
     ),
     supabase.from("appointments").select("id", { count: "exact", head: true }),
@@ -312,10 +313,11 @@ export default async function FounderDashboardPage({
   }
 
   const pendingRes = await supabase
-    .from("doctors")
+    .from("professionals")
     .select("id, name, specialty, email")
     .eq("is_specialty_approved", false)
     .eq("status", "pending")
+    .eq("is_registered", true)
     .order("created_at", { ascending: false });
 
   const pendingSpecialtyItems: PendingSpecialtyRow[] =
@@ -333,7 +335,7 @@ export default async function FounderDashboardPage({
     const changeReqRes = await supabase
       .from("doctor_specialty_change_requests")
       .select(
-        "id, doctor_id, request_kind, from_specialty, to_specialty, to_specialty_from_master, license_number, created_at, doctors(name, email)",
+        "id, doctor_id, request_kind, from_specialty, to_specialty, to_specialty_from_master, license_number, created_at, professionals(name, email)",
       )
       .eq("status", "pending")
       .order("created_at", { ascending: false });
@@ -348,12 +350,12 @@ export default async function FounderDashboardPage({
       specialtyChangeRequestItems = changeReqRes.data.map((r) => {
         const nested = (
           r as {
-            doctors?:
+            professionals?:
               | { name?: string | null; email?: string | null }
               | { name?: string | null; email?: string | null }[]
               | null;
           }
-        ).doctors;
+        ).professionals;
         const doc = Array.isArray(nested) ? nested[0] : nested;
         const fromSpecialty = String(
           (r as { from_specialty?: string | null }).from_specialty ?? "",
@@ -438,9 +440,10 @@ export default async function FounderDashboardPage({
       | null = null;
 
     const doctorsWithDistrictRes = await supabase
-      .from("doctors")
+      .from("professionals")
       .select("id, name, specialty, district, status")
       .eq("status", "verified")
+      .eq("is_registered", true)
       .limit(600);
 
     if (!doctorsWithDistrictRes.error) {
@@ -452,9 +455,10 @@ export default async function FounderDashboardPage({
       }));
     } else if (doctorsWithDistrictRes.error.code === "42703") {
       const doctorsFallbackRes = await supabase
-        .from("doctors")
+        .from("professionals")
         .select("id, name, specialty, status")
         .eq("status", "verified")
+        .eq("is_registered", true)
         .limit(600);
       if (!doctorsFallbackRes.error) {
         doctorsForDupes = (doctorsFallbackRes.data ?? []).map((d) => ({
@@ -756,7 +760,7 @@ export default async function FounderDashboardPage({
   const nameById: Record<string, string> = {};
   if (doctorIds.length > 0) {
     const { data: docRows } = await supabase
-      .from("doctors")
+      .from("professionals")
       .select("id, name")
       .in("id", doctorIds);
     for (const d of docRows ?? []) {

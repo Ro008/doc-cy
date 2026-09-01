@@ -104,7 +104,7 @@ export default async function ReschedulePage({ params, searchParams }: PageProps
   }
 
   const { data: doctor } = await supabase
-    .from("doctors")
+    .from("professionals")
     .select("name")
     .eq("id", (appt as { doctor_id: string }).doctor_id)
     .maybeSingle();

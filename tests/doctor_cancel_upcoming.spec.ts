@@ -49,7 +49,7 @@ test.describe("Future appointments cancellation @booking-creates", () => {
     const { authUserId } = await signInDoctorAndSetCookies(page, supabase);
 
     const { data: doctorRow } = await supabase
-      .from("doctors")
+      .from("professionals")
       .select("slug,id")
       .eq("auth_user_id", authUserId)
       .eq("status", "verified")
