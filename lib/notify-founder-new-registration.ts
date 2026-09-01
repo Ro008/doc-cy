@@ -9,6 +9,7 @@ export type NewRegistrationNotifyPayload = {
   specialty: string;
   /** Custom "Other" specialty pending founder approval */
   needsSpecialtyReview: boolean;
+  claimedDirectory?: boolean;
 };
 
 /**
@@ -30,6 +31,9 @@ export function buildFounderNewRegistrationNotifyContent(
     `Phone: ${payload.phone}`,
     `Specialty: ${payload.specialty}`,
     payload.needsSpecialtyReview ? `Note: custom specialty pending your approval` : null,
+    payload.claimedDirectory
+      ? `Claimed existing directory listing (same professional id).`
+      : null,
     `Doctor id: ${payload.doctorId}`,
     `Review: ${reviewUrl}`,
   ].filter(Boolean) as string[];
