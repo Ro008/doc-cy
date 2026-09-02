@@ -75,7 +75,7 @@ export function ManualDirectoryLandingCard({
         </div>
 
         <div className={`${finderCardManualFooterClass} ${finderCardManualFooterActionsClass}`}>
-          <ManualDirectoryDoctorClaimFooter />
+          <ManualDirectoryDoctorClaimFooter professionalId={row.id} />
           <ManualDirectoryReportIncorrectInfoLink
             displayName={row.displayName}
             specialty={row.specialty}

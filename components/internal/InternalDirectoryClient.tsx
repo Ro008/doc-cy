@@ -29,6 +29,8 @@ export type DirectoryDoctorRow = {
   email?: string | null;
   /** Local founder dashboard only — from auth user metadata */
   loginPassword?: string | null;
+  /** Registered account that originated as a finder / GeSY listing. */
+  fromDirectoryListing?: boolean;
 };
 
 async function postVerification(doctorId: string, action: "verify" | "reject") {
@@ -293,6 +295,11 @@ export function InternalDirectoryClient({
                     <div className="mt-1">
                       <LanguageBadgeList languages={d.languages} compact />
                     </div>
+                    {d.fromDirectoryListing ? (
+                      <span className="mt-1 block w-fit rounded-full bg-clinical-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-clinical-200">
+                        Finder listing claimed
+                      </span>
+                    ) : null}
                     {d.slug ? (
                       <Link
                         href={publicProfessionalProfilePath(d.slug)}

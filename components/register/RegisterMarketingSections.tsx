@@ -76,17 +76,29 @@ export function RegisterPromoBanner() {
   );
 }
 
-export function RegisterIntroSection() {
+export function RegisterIntroSection({
+  claim,
+}: {
+  claim?: { firstName: string | null } | null;
+} = {}) {
+  const greeting = claim?.firstName
+    ? `We were waiting for you, ${claim.firstName}.`
+    : claim
+      ? "We were waiting for you."
+      : null;
+
   return (
     <header className="space-y-5">
       <div className="space-y-3">
         <h1 className="text-balance text-3xl font-semibold tracking-tight text-ink-900 sm:text-4xl">
-          List your practice on DocCy.
+          {greeting ?? "List your practice on DocCy."}
         </h1>
-        <p className="max-w-3xl text-base leading-relaxed text-ink-600 sm:text-lg">
-          Join Cyprus&apos;s modern healthcare network and eliminate phone chaos with smart,
-          1-click scheduling.
-        </p>
+        {claim ? null : (
+          <p className="max-w-3xl text-base leading-relaxed text-ink-600 sm:text-lg">
+            Join Cyprus&apos;s modern healthcare network and eliminate phone chaos with smart,
+            1-click scheduling.
+          </p>
+        )}
       </div>
 
       <ol className="flex flex-col gap-3 sm:flex-row sm:items-stretch">
@@ -220,7 +232,7 @@ export function RegisterFaqSection() {
   );
 }
 
-export function RegisterSubmittedPanel() {
+export function RegisterSubmittedPanel({ claimed = false }: { claimed?: boolean }) {
   return (
     <div className={`${registerSectionShell} space-y-4 text-sm text-ink-700`}>
       <div className="inline-flex items-center gap-2 rounded-full border border-clinical-300 bg-clinical-50 px-3 py-1 text-[11px] font-medium tracking-[0.25em] text-clinical-700">
@@ -228,11 +240,23 @@ export function RegisterSubmittedPanel() {
         APPLICATION RECEIVED
       </div>
       <h2 className="text-lg font-semibold text-ink-900 sm:text-xl">
-        Thank you — your profile is under review
+        {claimed
+          ? "Thank you — your listing is under review"
+          : "Thank you — your profile is under review"}
       </h2>
       <p>
-        Our team will verify your professional credentials and activate your DocCy profile within{" "}
-        <span className="font-medium text-clinical-700">24 hours</span>.
+        {claimed ? (
+          <>
+            This is the same profile patients already find on DocCy. Our team will verify your
+            credentials and then turn on online booking, usually within{" "}
+            <span className="font-medium text-clinical-700">24 hours</span>.
+          </>
+        ) : (
+          <>
+            Our team will verify your professional credentials and activate your DocCy profile within{" "}
+            <span className="font-medium text-clinical-700">24 hours</span>.
+          </>
+        )}
       </p>
       <p>
         Once approved, we&apos;ll email you a link to sign in and open your dashboard, where you can
