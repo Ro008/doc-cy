@@ -78,9 +78,11 @@ import {
   matchesFinderSpecialtyFilter,
 } from "@/lib/doctor-specialty-public";
 import { publicSpecialtyLabels } from "@/lib/doctor-specialties";
+import { FinderShuffleSeedCookie } from "@/components/finder/FinderShuffleSeedCookie";
 import {
-  finderManualVoteBadgeSinceIso,
-} from "@/lib/finder-manual-vote-badge";
+  aggregateBookingRequestStats,
+  finderBookingRequestWindowSinceIso,
+} from "@/lib/finder-booking-request-stats";
 import { getFinderManualPhotoUrl } from "@/lib/finder-manual-photos";
 import { resolveFinderDisplayPhotoUrl } from "@/lib/finder-default-avatars";
 import { finderCardImagePriority } from "@/lib/finder-card-image-priority";
@@ -98,6 +100,10 @@ import {
   finderResultsListScope,
   resolveFinderResultsPage,
 } from "@/lib/finder-results-page-state";
+import {
+  FINDER_SHUFFLE_SEED_COOKIE,
+  resolveFinderShuffleSeed,
+} from "@/lib/finder-shuffle-seed";
 import {
   applyFinderListFilters,
   countManualDirectoryForFinder,
@@ -193,12 +199,12 @@ type ManualFinderRow = {
   hasPhone: boolean;
   address: string | null;
   photoUrl: string;
-  /** Unique patient requests in the badge rolling window (see finder-manual-vote-badge). */
+  /** Unique patients who requested online booking in the last 30 days. */
   monthlyRequestCount: number;
   isGesy: boolean;
   latitude: number | null;
   longitude: number | null;
-  clinic: { name: string; slug: string } | null;
+  clinic: { id?: string | null; name: string; slug: string } | null;
   clinics: Array<{
     id?: string | null;
     name: string;
@@ -222,6 +228,7 @@ type UnifiedFinderResult = {
   row: ManualFinderRow;
   hasOnlineBooking: false;
   isRegistered: false;
+  requests30d: number;
   distanceKm: number | null;
   usedDistrictFallbackForDistance: boolean;
 };
@@ -420,6 +427,9 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
     urlPage: searchParams?.page,
     hasListFilter,
   });
+  const shuffleSession = resolveFinderShuffleSeed(
+    cookies().get(FINDER_SHUFFLE_SEED_COOKIE)?.value,
+  );
   const visibleLimit = resultsPage * FINDER_RESULTS_PAGE_SIZE;
   /**
    * Load the full matching manual set when any list filter is active so we can
@@ -927,6 +937,39 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
     return true;
   });
 
+  const bookingStatsById = new Map<
+    string,
+    { requests30d: number; uniquePatients30d: number }
+  >();
+  if (supabase && filteredManual.length > 0) {
+    const { data: requestRows, error: requestErr } = await fetchAllSupabaseRowsForIdChunks(
+      filteredManual.map((row) => row.id),
+      (idChunk) =>
+        supabase
+          .from("professional_patient_booking_requests")
+          .select("id, professional_id, voter_key")
+          .in("professional_id", idChunk)
+          .gte("created_at", finderBookingRequestWindowSinceIso()),
+    );
+    if (requestErr) {
+      console.error("[DocCy] booking request stats failed", requestErr.message);
+    } else if (requestRows?.length) {
+      const stats = aggregateBookingRequestStats(
+        requestRows.map((r) => ({
+          professionalId: String((r as { professional_id?: string }).professional_id ?? ""),
+          id: String((r as { id?: string }).id ?? ""),
+          voterKey: (r as { voter_key?: string | null }).voter_key ?? null,
+        })),
+      );
+      for (const [id, value] of stats.entries()) {
+        bookingStatsById.set(id, value);
+      }
+    }
+  }
+  for (const row of filteredManual) {
+    row.monthlyRequestCount = bookingStatsById.get(row.id)?.uniquePatients30d ?? 0;
+  }
+
   function computeDistanceInfo(
     _district: string | null | undefined,
     latitude: number | null,
@@ -957,14 +1000,17 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
           row,
           hasOnlineBooking: false as const,
           isRegistered: false as const,
+          requests30d: bookingStatsById.get(row.id)?.requests30d ?? 0,
           ...distanceInfo,
         };
       }),
     ],
     {
       nearMe: Boolean(userCoords),
-      shuffleSeed: buildFinderManualShuffleSeed(listScope),
+      shuffleSeed: buildFinderManualShuffleSeed(listScope, shuffleSession.seed),
       pinTestProfiles: finderIncludesRegisteredTestProfiles(),
+      getUnregisteredRequestCount: (item) =>
+        item.kind === "manual" ? item.requests30d : 0,
     },
   );
 
@@ -989,7 +1035,6 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
 
     const loadManualCardExtras = async () => {
       if (visibleManualIds.length === 0) return;
-      const monthlySinceIso = finderManualVoteBadgeSinceIso();
       const clinicIds = Array.from(
         new Set(
           visibleManualIds
@@ -998,14 +1043,7 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
         ),
       );
 
-      const [monthlyRequestRes, clinicsRes, linksRes] = await Promise.all([
-        fetchAllSupabaseRowsForIdChunks(visibleManualIds, (idChunk) =>
-          supabase
-            .from("professional_patient_booking_requests")
-            .select("id, professional_id, voter_key")
-            .in("professional_id", idChunk)
-            .gte("created_at", monthlySinceIso),
-        ),
+      const [clinicsRes, linksRes] = await Promise.all([
         clinicIds.length > 0
           ? fetchAllSupabaseRowsForIdChunks(clinicIds, (idChunk) =>
               supabase
@@ -1024,27 +1062,6 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
             .in("professional_id", idChunk),
         ),
       ]);
-
-      const monthlyRequestCountByManualId = new Map<string, number>();
-      if (!monthlyRequestRes.error && monthlyRequestRes.data?.length) {
-        const votersByManual = new Map<string, Set<string>>();
-        for (const r of monthlyRequestRes.data) {
-          const mid = String((r as { professional_id?: string }).professional_id ?? "");
-          const id = String((r as { id?: string }).id ?? "");
-          const vk = (r as { voter_key?: string | null }).voter_key?.trim();
-          const dedupeId = vk || `legacy:${id}`;
-          if (!mid) continue;
-          const cur = votersByManual.get(mid);
-          if (!cur) {
-            votersByManual.set(mid, new Set([dedupeId]));
-          } else {
-            cur.add(dedupeId);
-          }
-        }
-        for (const [mid, voters] of Array.from(votersByManual.entries())) {
-          monthlyRequestCountByManualId.set(mid, voters.size);
-        }
-      }
 
       const clinicById = new Map<
         string,
@@ -1140,7 +1157,6 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
       }
 
       for (const item of visibleManual) {
-        item.row.monthlyRequestCount = monthlyRequestCountByManualId.get(item.row.id) ?? 0;
         const clinics = clinicsByManualId.get(item.row.id) ?? [];
         if (clinics.length > 0) {
           item.row.clinics = clinics;
@@ -1213,6 +1229,7 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
 
   return (
     <main className="min-h-screen bg-ink-50 text-ink-800">
+      <FinderShuffleSeedCookie seed={shuffleSession.seed} persist={shuffleSession.persist} />
       <FinderStructuredData
         siteUrl={siteUrl}
         finderPath={finderPath}

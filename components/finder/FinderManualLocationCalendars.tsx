@@ -77,6 +77,8 @@ export function FinderManualLocationCalendars({
                   seedKey={
                     isMulti ? manualPreviewSeedKey(listing.id, locationKey) : listing.id
                   }
+                  clinicId={clinic.id}
+                  requestSource={callToBookSource}
                   dayHeaders={[...dayHeaders]}
                   anchorStickyWeekNav={anchorStickyWeekNav && index === 0}
                 />
@@ -109,6 +111,8 @@ export function FinderManualLocationCalendars({
                 />
                 <FinderManualCardAvailabilityGrid
                   manualId={listing.id}
+                  clinicId={listing.clinic?.id}
+                  requestSource={callToBookSource}
                   dayHeaders={[...dayHeaders]}
                   anchorStickyWeekNav={anchorStickyWeekNav}
                 />

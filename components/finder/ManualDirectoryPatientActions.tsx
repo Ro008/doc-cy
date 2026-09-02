@@ -3,9 +3,9 @@
 import * as React from "react";
 import { PendingLink } from "@/components/navigation/PendingLink";
 import { emitOpenFeedback } from "@/lib/doccy-feedback";
+import { formatFinderRequestBadgeLabel } from "@/lib/finder-booking-request-stats";
 import { registerClaimPath } from "@/lib/claim-directory-professional";
 
-/** Scarcity signal when patients have requested online booking recently. */
 export function ManualDirectoryMonthlyRequestBadge({
   monthlyRequestCount,
   className = "",
@@ -13,16 +13,15 @@ export function ManualDirectoryMonthlyRequestBadge({
   monthlyRequestCount: number;
   className?: string;
 }) {
-  if (monthlyRequestCount <= 0) return null;
-
-  const patientLabel = monthlyRequestCount === 1 ? "patient" : "patients";
+  const label = formatFinderRequestBadgeLabel(monthlyRequestCount);
+  if (!label) return null;
 
   return (
     <p
       className={`rounded-lg border border-amber-300/80 bg-gradient-to-r from-amber-50 via-orange-50 to-amber-50 px-3 py-2 text-center text-xs font-bold leading-snug text-amber-950 shadow-[0_2px_8px_rgba(245,158,11,0.18)] ring-1 ring-amber-200/70 ${className}`}
       role="status"
     >
-      🔥 {monthlyRequestCount} {patientLabel} requested online booking recently
+      {label}
     </p>
   );
 }

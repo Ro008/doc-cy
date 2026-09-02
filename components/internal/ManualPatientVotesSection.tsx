@@ -78,12 +78,15 @@ export function ManualPatientVotesSection({ query, rows, podium, maxVotes }: Pro
             Manual directory: patient votes for online booking
           </h2>
           <p className="mt-1 max-w-3xl text-xs leading-relaxed text-clinical-100/80">
-            Finder manual cards — rows in{" "}
-            <code className="rounded bg-black/30 px-1">professional_patient_booking_requests</code>.
-            With <code className="rounded bg-black/30 px-1">DOC_CY_VOTE_FINGERPRINT_SECRET</code>,{" "}
-            <code className="rounded bg-black/30 px-1">voter_key</code> approximates unique voters per
-            listing (API also dedupes repeat taps within 90 days). Use filters and column headers to
-            compare specialties or pitch a dermatologist their rank.
+            Every Request online booking tap is stored as a new row in Supabase table{" "}
+            <code className="rounded bg-black/30 px-1">public.professional_patient_booking_requests</code>{" "}
+            (<code className="rounded bg-black/30 px-1">professional_id</code>,{" "}
+            <code className="rounded bg-black/30 px-1">created_at</code>,{" "}
+            <code className="rounded bg-black/30 px-1">source</code>,{" "}
+            <code className="rounded bg-black/30 px-1">clinic_id</code>,{" "}
+            <code className="rounded bg-black/30 px-1">voter_key</code>). Numbers below are those
+            rows in the selected window. The public finder badge still shows unique patients (via{" "}
+            <code className="rounded bg-black/30 px-1">voter_key</code>), not tap count.
           </p>
         </div>
         <div className="w-full shrink-0 sm:w-auto sm:max-w-[220px]">

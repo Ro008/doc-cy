@@ -42,7 +42,7 @@ export type ManualDirectoryLandingRow = {
   latitude: number | null;
   longitude: number | null;
   /** Primary clinic (card CTA); prefer clinics[0] when multi. */
-  clinic: { name: string; slug: string } | null;
+  clinic: { id?: string | null; name: string; slug: string } | null;
   /** All clinics this professional practices at (interlinking). */
   clinics: ManualDirectoryLandingClinic[];
 };
@@ -360,7 +360,7 @@ export async function loadManualDirectoryBySlug(
     isGesy: Boolean(row.is_gesy ?? false),
     latitude: coords?.latitude ?? null,
     longitude: coords?.longitude ?? null,
-    clinic: primary ? { name: primary.name, slug: primary.slug } : null,
+    clinic: primary ? { id: primary.id, name: primary.name, slug: primary.slug } : null,
     clinics,
   };
 }

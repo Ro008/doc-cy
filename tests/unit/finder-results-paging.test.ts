@@ -219,35 +219,99 @@ describe("finder results paging helpers", () => {
     assert.notDeepEqual(shuffleWithSeed(items, "scope-a"), shuffleWithSeed(items, "scope-b"));
   });
 
-  it("manual shuffle seed is stable within a Cyprus day and rotates the next day", () => {
+  it("manual shuffle seed is stable for a session on the same list, and rotates per session", () => {
     const scope = "/limassol/dentistry";
-    // Noon UTC is always the same calendar day in Europe/Nicosia (UTC+2/+3).
-    const dayA = new Date("2026-08-26T12:00:00.000Z");
-    const dayALater = new Date("2026-08-26T20:00:00.000Z");
-    const dayB = new Date("2026-08-27T12:00:00.000Z");
+    const sessionA = "11111111-1111-4111-8111-111111111111";
+    const sessionB = "22222222-2222-4222-8222-222222222222";
     assert.equal(
-      buildFinderManualShuffleSeed(scope, dayA),
-      buildFinderManualShuffleSeed(scope, dayALater),
+      buildFinderManualShuffleSeed(scope, sessionA),
+      `${sessionA}|${scope}`,
     );
-    assert.equal(buildFinderManualShuffleSeed(scope, dayA), `${scope}|2026-08-26`);
     assert.notEqual(
-      buildFinderManualShuffleSeed(scope, dayA),
-      buildFinderManualShuffleSeed(scope, dayB),
+      buildFinderManualShuffleSeed(scope, sessionA),
+      buildFinderManualShuffleSeed(scope, sessionB),
     );
 
     const manuals = [
-      { kind: "manual" as const, row: { id: "m1" }, distanceKm: null },
-      { kind: "manual" as const, row: { id: "m2" }, distanceKm: null },
-      { kind: "manual" as const, row: { id: "m3" }, distanceKm: null },
+      { kind: "manual" as const, row: { id: "m1" }, distanceKm: null, requests30d: 0 },
+      { kind: "manual" as const, row: { id: "m2" }, distanceKm: null, requests30d: 0 },
+      { kind: "manual" as const, row: { id: "m3" }, distanceKm: null, requests30d: 0 },
     ];
     const orderA = orderUnifiedFinderResultsPhase1(manuals, {
       nearMe: false,
-      shuffleSeed: buildFinderManualShuffleSeed(scope, dayA),
+      shuffleSeed: buildFinderManualShuffleSeed(scope, sessionA),
+    }).map((row) => (row.row as { id: string }).id);
+    const orderAAgain = orderUnifiedFinderResultsPhase1(manuals, {
+      nearMe: false,
+      shuffleSeed: buildFinderManualShuffleSeed(scope, sessionA),
     }).map((row) => (row.row as { id: string }).id);
     const orderB = orderUnifiedFinderResultsPhase1(manuals, {
       nearMe: false,
-      shuffleSeed: buildFinderManualShuffleSeed(scope, dayB),
+      shuffleSeed: buildFinderManualShuffleSeed(scope, sessionB),
     }).map((row) => (row.row as { id: string }).id);
+    assert.deepEqual(orderA, orderAAgain);
     assert.notDeepEqual(orderA, orderB);
+  });
+
+  it("unregistered buckets: higher 30-day request counts first; ties shuffle by seed", () => {
+    const input = [
+      { kind: "manual" as const, row: { id: "zero-a" }, distanceKm: null, requests30d: 0 },
+      { kind: "manual" as const, row: { id: "high" }, distanceKm: null, requests30d: 9 },
+      { kind: "manual" as const, row: { id: "mid-a" }, distanceKm: null, requests30d: 3 },
+      { kind: "manual" as const, row: { id: "zero-b" }, distanceKm: null, requests30d: 0 },
+      { kind: "manual" as const, row: { id: "mid-b" }, distanceKm: null, requests30d: 3 },
+      { kind: "manual" as const, row: { id: "mid-c" }, distanceKm: null, requests30d: 3 },
+      {
+        kind: "registered" as const,
+        row: { id: "booking" },
+        hasOnlineBooking: true,
+        distanceKm: null,
+      },
+    ];
+    const ordered = orderUnifiedFinderResultsPhase1(input, {
+      nearMe: false,
+      shuffleSeed: "session-a",
+      getUnregisteredRequestCount: (item) =>
+        "requests30d" in item ? Number(item.requests30d ?? 0) : 0,
+    });
+    const ids = ordered.map((row) => (row.row as { id: string }).id);
+    assert.equal(ids[0], "booking");
+    assert.equal(ids[1], "high");
+    assert.deepEqual(ids.slice(2, 5).sort(), ["mid-a", "mid-b", "mid-c"]);
+    assert.deepEqual(ids.slice(5).sort(), ["zero-a", "zero-b"]);
+
+    const otherSeed = orderUnifiedFinderResultsPhase1(input, {
+      nearMe: false,
+      shuffleSeed: "session-b",
+      getUnregisteredRequestCount: (item) =>
+        "requests30d" in item ? Number(item.requests30d ?? 0) : 0,
+    }).map((row) => (row.row as { id: string }).id);
+    assert.equal(otherSeed[1], "high");
+    assert.notDeepEqual(ids.slice(2, 5), otherSeed.slice(2, 5));
+  });
+
+  it("near-me ignores request buckets and sorts unregistered by distance", () => {
+    const ordered = orderUnifiedFinderResultsPhase1(
+      [
+        { kind: "manual" as const, row: { id: "far-hot" }, distanceKm: 8, requests30d: 20 },
+        { kind: "manual" as const, row: { id: "near-cold" }, distanceKm: 0.4, requests30d: 0 },
+        {
+          kind: "registered" as const,
+          row: { id: "r-near" },
+          hasOnlineBooking: true,
+          distanceKm: 1,
+        },
+      ],
+      {
+        nearMe: true,
+        shuffleSeed: "unused",
+        getUnregisteredRequestCount: (item) =>
+          "requests30d" in item ? Number(item.requests30d ?? 0) : 0,
+      },
+    );
+    assert.deepEqual(
+      ordered.map((row) => (row.row as { id: string }).id),
+      ["r-near", "near-cold", "far-hot"],
+    );
   });
 });

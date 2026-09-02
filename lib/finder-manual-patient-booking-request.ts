@@ -1,6 +1,20 @@
+import type { CallToBookSource } from "@/lib/call-to-book";
+
 export type PatientBookingRequestResult =
   | { ok: true; duplicate?: boolean }
   | { ok: false; reason?: string; status: number };
+
+export type PatientBookingRequestInput = {
+  manualId: string;
+  clinicId?: string | null;
+  source?: CallToBookSource | string | null;
+};
+
+export function parseBookingRequestSource(
+  value: string | null | undefined,
+): CallToBookSource {
+  return value === "professional_profile_page" ? "professional_profile_page" : "finder_card";
+}
 
 export function patientBookingRequestErrorMessage(
   reason: string | undefined,
@@ -28,13 +42,17 @@ export function patientBookingRequestErrorMessage(
 }
 
 export async function submitPatientBookingRequest(
-  manualId: string,
+  input: PatientBookingRequestInput,
 ): Promise<PatientBookingRequestResult> {
   try {
     const res = await fetch("/api/directory-manual/patient-booking-request", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ manualId }),
+      body: JSON.stringify({
+        manualId: input.manualId,
+        clinicId: input.clinicId ?? null,
+        source: parseBookingRequestSource(input.source),
+      }),
     });
     const data = (await res.json().catch(() => ({}))) as {
       ok?: boolean;

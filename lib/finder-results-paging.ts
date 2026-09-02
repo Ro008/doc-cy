@@ -110,18 +110,7 @@ export function buildFinderResultsPageHref(params: {
   return query ? `${params.finderPath}?${query}` : params.finderPath;
 }
 
-import { cyprusDateKey } from "@/lib/cyprus-calendar";
-
-/**
- * Manual-list shuffle seed: same URL filters stay stable within a Cyprus calendar day,
- * then rotate so unregistered listings share top slots over time.
- */
-export function buildFinderManualShuffleSeed(
-  listScope: string,
-  now: Date = new Date(),
-): string {
-  return `${listScope}|${cyprusDateKey(now)}`;
-}
+export { buildFinderManualShuffleSeed } from "@/lib/finder-shuffle-seed";
 
 /** CI/QA only: keep freshly created test doctors on the first page of 12. */
 export function pinRegisteredTestProfilesFirst<T extends { kind: string; row: object }>(
@@ -212,12 +201,39 @@ export function finderResultSortTier<
   return 2;
 }
 
+function orderUnregisteredByRequestBuckets<T>(
+  items: readonly T[],
+  shuffleSeed: string,
+  getRequestCount: (item: T) => number,
+): T[] {
+  if (items.length <= 1) return [...items];
+  const buckets = new Map<number, T[]>();
+  for (const item of items) {
+    const count = Math.max(0, Math.floor(getRequestCount(item)));
+    const bucket = buckets.get(count);
+    if (bucket) bucket.push(item);
+    else buckets.set(count, [item]);
+  }
+  const orderedCounts = Array.from(buckets.keys()).sort((a, b) => b - a);
+  const ordered: T[] = [];
+  for (const count of orderedCounts) {
+    const bucket = buckets.get(count) ?? [];
+    ordered.push(
+      ...(bucket.length <= 1
+        ? bucket
+        : shuffleWithSeed(bucket, `${shuffleSeed}|req-${count}`)),
+    );
+  }
+  return ordered;
+}
+
 /**
  * Finder ordering:
  * 1. has_online_booking (product entitlement)
  * 2. registered without booking
- * 3. unregistered directory
- * Each block is seeded-random (not A–Z). Near-me: distance within each block.
+ * 3. unregistered directory, bucketed by 30-day Request online booking taps
+ *    (highest first; session-seeded shuffle inside a tied count)
+ * Near-me: distance within each product tier (overrides request buckets).
  */
 export function orderUnifiedFinderResultsPhase1<
   T extends {
@@ -231,9 +247,10 @@ export function orderUnifiedFinderResultsPhase1<
   results: readonly T[],
   options: {
     nearMe: boolean;
-    /** Prefer `buildFinderManualShuffleSeed` (list scope + Cyprus day). */
+    /** Prefer `buildFinderManualShuffleSeed` (session seed + list scope). */
     shuffleSeed: string;
     pinTestProfiles?: boolean;
+    getUnregisteredRequestCount?: (item: T) => number;
   },
 ): T[] {
   const tiers: [T[], T[], T[]] = [[], [], []];
@@ -246,9 +263,13 @@ export function orderUnifiedFinderResultsPhase1<
     tiers[finderResultSortTier(row)].push(row);
   }
 
+  const requestCount = options.getUnregisteredRequestCount ?? (() => 0);
   const orderedTiers = tiers.map((tier, index) => {
     if (tier.length <= 1) return tier;
     if (options.nearMe) return [...tier].sort(compareDistanceKmAsc);
+    if (index === 2) {
+      return orderUnregisteredByRequestBuckets(tier, options.shuffleSeed, requestCount);
+    }
     return shuffleWithSeed(tier, `${options.shuffleSeed}|tier-${index}`);
   });
 

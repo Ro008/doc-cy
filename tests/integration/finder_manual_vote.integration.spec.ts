@@ -9,8 +9,9 @@ const THANKS_TOAST_RE = /Thank you! We will notify the doctor\./i;
  * district + **random** specialty (from live dropdowns), so runs tend to hit different
  * cards and you see varied rows on the founder dashboard (testing DB only).
  *
- * Rows are **not** deleted after the test so `/internal/directory` keeps the signal; repeat
- * runs may get HTTP 200 (duplicate fingerprint) for the same listing + network.
+ * Rows are **not** deleted after the test so `/internal/directory` keeps the signal. Repeat
+ * taps still insert a new row; the API may still flag `duplicate: true` for the same
+ * voter fingerprint (UI/Google Ads), without dropping the click.
  *
  * Data target (IMPORTANT):
  * - Same safety gate as other integration finder tests (`assertSafeIntegrationTarget`).

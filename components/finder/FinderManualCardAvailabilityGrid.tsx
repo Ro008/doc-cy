@@ -19,6 +19,8 @@ type Props = {
   anchorStickyWeekNav?: boolean;
   /** Defaults to `manualId`. Distinct per practice location so multi-clinic previews differ. */
   seedKey?: string;
+  clinicId?: string | null;
+  requestSource?: string | null;
 };
 
 function CalendarPlusIcon() {
@@ -49,6 +51,8 @@ export function FinderManualCardAvailabilityGrid({
   dayHeaders,
   anchorStickyWeekNav = false,
   seedKey,
+  clinicId,
+  requestSource,
 }: Props) {
   const previewCalendar = buildManualPreviewCalendar(
     [...dayHeaders],
@@ -61,6 +65,8 @@ export function FinderManualCardAvailabilityGrid({
       data-testid="finder-card-calendar-preview"
       {...{ [FINDER_MANUAL_CALENDAR_ATTR]: "" }}
       data-manual-id={manualId}
+      data-clinic-id={String(clinicId ?? "").trim() || undefined}
+      data-request-source={String(requestSource ?? "").trim() || undefined}
     >
       <div className="overflow-hidden rounded-lg border border-ink-200 bg-ink-50/50">
         {anchorStickyWeekNav ? (
