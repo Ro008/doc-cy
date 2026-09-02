@@ -412,11 +412,11 @@ test.describe("Integration: finder business-critical UX", { tag: ["@pr-e2e", "@p
       await expect(card.getByText("English", { exact: true })).toBeVisible();
       await expect(card.getByRole("link", { name: created.name, exact: true })).toHaveAttribute(
         "href",
-        `/${created.slug}`,
+        `/en/${created.slug}`,
       );
       await expect(
         card.getByRole("link", { name: `View ${created.name} booking page` }),
-      ).toHaveAttribute("href", `/${created.slug}`);
+      ).toHaveAttribute("href", `/en/${created.slug}`);
 
       const avatar = card.locator("img").first();
       await expect(avatar).toHaveAttribute("src", new RegExp(`profiles/qa-card-${nonce}/avatar.jpg`));

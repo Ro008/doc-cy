@@ -73,6 +73,6 @@ test.describe("Public shell health", { tag: ["@pr-preview", "@nightly-prod"] }, 
       })
     ).toBeVisible({ timeout: 15000 });
     await expect(page.getByLabel("District")).toBeVisible();
-    await expect(page.getByLabel("Specialty")).toBeVisible();
+    await expect(page.locator('select[name="specialty"]')).toBeVisible();
   });
 });

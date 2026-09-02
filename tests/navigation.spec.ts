@@ -2,16 +2,12 @@
 import { test, expect } from "@playwright/test";
 
 test.describe("Navigation and routing", { tag: ["@pr-e2e", "@pr-e2e-finder"] }, () => {
-  test("invalid doctor slug redirects to patient home (finder)", async ({ page }) => {
-    await page.goto("/invalid-doctor-slug-xyz");
+  test("invalid doctor slug shows a 404 instead of the finder home", async ({ page }) => {
+    const response = await page.goto("/invalid-doctor-slug-xyz");
 
-    await expect(page).toHaveURL("/");
-    await expect(
-      page.getByRole("heading", {
-        level: 1,
-        name: /The most complete health directory in Cyprus|Cyprus['’]s most complete health directory|Find your next health professional(?: in Cyprus)?|Health Professionals in Cyprus|Find a Professional/i,
-      }),
-    ).toBeVisible({ timeout: 15_000 });
+    expect(response?.status()).toBe(404);
+    await expect(page).toHaveURL(/\/en\/invalid-doctor-slug-xyz\/?$/);
+    await expect(page.getByText(/this page could not be found/i)).toBeVisible();
   });
 
   test("for-professionals Find a Professional opens patient home", async ({ page }) => {
