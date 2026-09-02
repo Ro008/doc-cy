@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
   }
 
   const { data: row, error: fetchErr } = await supabase
-    .from("doctors")
+    .from("professionals")
     .select(
       "id, name, email, status, is_specialty_approved, specialty_requires_standard_at",
     )
@@ -95,7 +95,7 @@ export async function POST(req: NextRequest) {
   const status = action === "verify" ? "verified" : "rejected";
 
   const { data: updated, error } = await supabase
-    .from("doctors")
+    .from("professionals")
     .update({ status })
     .eq("id", doctorId)
     .select("id")

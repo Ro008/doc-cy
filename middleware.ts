@@ -136,7 +136,7 @@ function queueTrafficLog(req: NextRequest, sessionId: string, event: NextFetchEv
 export async function middleware(req: NextRequest, event: NextFetchEvent) {
   const pathname = req.nextUrl.pathname;
 
-  // Legacy /finder filter URLs → public unprefixed paths (keep /finder/professional|clinic).
+  // Legacy /finder filter URLs → public unprefixed paths (keep /finder/professional|clinic for their own 301s).
   if (isLegacyFinderFilterPath(pathname)) {
     const dest = new URL(legacyFinderFilterToPublicPath(pathname), req.url);
     dest.search = req.nextUrl.search;
@@ -170,7 +170,7 @@ export async function middleware(req: NextRequest, event: NextFetchEvent) {
       }
 
       const {data: doctorRow, error: doctorRowError} = await supabase
-        .from("doctors")
+        .from("professionals")
         .select("status, auth_session_revoked_after, auth_keep_session_id")
         .eq("auth_user_id", session.user.id)
         .maybeSingle();

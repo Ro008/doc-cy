@@ -40,20 +40,21 @@ test.describe("Integration: public directory RLS hardening", () => {
 
     const anon = createClient(supabaseUrl, anonKey);
 
-    const doctorsDump = await anon.from("doctors").select("email, phone").limit(1);
+    const doctorsDump = await anon.from("professionals").select("email, phone").limit(1);
     expect(isDeniedOrEmpty(doctorsDump)).toBe(true);
 
     const manualDump = await anon
-      .from("directory_manual")
+      .from("professionals")
       .select("email, ghs_code, gender, name, phone")
+      .eq("is_registered", false)
       .limit(1);
     expect(isDeniedOrEmpty(manualDump)).toBe(true);
 
-    const manualPublicDump = await anon
-      .from("directory_manual_public")
+    const professionalsPublicDump = await anon
+      .from("professionals_public")
       .select("id, name, specialty, phone, slug")
       .limit(5);
-    expect(isDeniedOrEmpty(manualPublicDump)).toBe(true);
+    expect(isDeniedOrEmpty(professionalsPublicDump)).toBe(true);
 
     const clinicsPublicDump = await anon
       .from("clinics_public")
@@ -72,10 +73,10 @@ test.describe("Integration: public directory RLS hardening", () => {
     const admin = createClient(supabaseUrl, serviceKey, {
       auth: { persistSession: false, autoRefreshToken: false },
     });
-    const serviceManual = await admin
-      .from("directory_manual_public")
+    const serviceProfessionals = await admin
+      .from("professionals_public")
       .select("id, name")
       .limit(1);
-    expect(serviceManual.error).toBeNull();
+    expect(serviceProfessionals.error).toBeNull();
   });
 });

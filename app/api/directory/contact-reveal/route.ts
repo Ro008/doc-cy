@@ -27,7 +27,7 @@ async function listingPhone(
   manualId: string,
 ): Promise<{ phone: string | null; found: boolean; error: boolean }> {
   const { data, error } = await supabase
-    .from("directory_manual")
+    .from("professionals")
     .select("phone")
     .eq("id", manualId)
     .eq("is_archived", false)
@@ -72,9 +72,9 @@ async function professionalLinkedToClinic(
   clinicId: string,
 ): Promise<boolean> {
   const { data: link, error: linkErr } = await supabase
-    .from("directory_manual_clinics")
+    .from("professional_clinics")
     .select("clinic_id")
-    .eq("directory_manual_id", manualId)
+    .eq("professional_id", manualId)
     .eq("clinic_id", clinicId)
     .maybeSingle();
   if (linkErr) {
@@ -84,7 +84,7 @@ async function professionalLinkedToClinic(
   if (link) return true;
 
   const { data: row, error: rowErr } = await supabase
-    .from("directory_manual")
+    .from("professionals")
     .select("clinic_id")
     .eq("id", manualId)
     .eq("is_archived", false)
@@ -102,8 +102,8 @@ async function logCallToBookClick(input: {
   clinicId: string | null;
   source: "finder_card" | "professional_profile_page";
 }): Promise<void> {
-  const { error } = await input.supabase.from("directory_manual_call_to_book_clicks").insert({
-    manual_id: input.manualId,
+  const { error } = await input.supabase.from("professional_call_to_book_clicks").insert({
+    professional_id: input.manualId,
     clinic_id: input.clinicId,
     source: input.source,
   });

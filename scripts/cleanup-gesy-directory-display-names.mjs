@@ -24,9 +24,10 @@ async function fetchAllNames(supabase) {
   const all = [];
   for (let from = 0; ; from += page) {
     const { data, error } = await supabase
-      .from("directory_manual")
+      .from("professionals")
       .select("id, name")
       .eq("is_archived", false)
+      .eq("is_registered", false)
       .order("id")
       .range(from, from + page - 1);
     if (error) throw error;
@@ -76,7 +77,7 @@ async function main() {
   let ok = 0;
   for (const u of updates) {
     const { error } = await supabase
-      .from("directory_manual")
+      .from("professionals")
       .update({ name: u.after })
       .eq("id", u.id);
     if (error) {

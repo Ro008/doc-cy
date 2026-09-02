@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
 
   const { data: suggestion, error: suggestionErr } = await supabase
     .from("directory_duplicate_suggestions")
-    .select("id, manual_id, status")
+    .select("id, manual_id, doctor_id, status")
     .eq("id", suggestionId)
     .maybeSingle();
 
@@ -40,18 +40,23 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ message: "Suggestion not found." }, { status: 404 });
   }
 
-  const manualId = (suggestion as { manual_id?: string | null }).manual_id;
-  if (!manualId) {
-    return NextResponse.json({ message: "Manual entry missing in suggestion." }, { status: 400 });
+  const unregisteredId = String(
+    (suggestion as { manual_id?: string | null }).manual_id ?? "",
+  ).trim();
+  const registeredId = String(
+    (suggestion as { doctor_id?: string | null }).doctor_id ?? "",
+  ).trim();
+  if (!unregisteredId || !registeredId) {
+    return NextResponse.json({ message: "Suggestion is missing professional ids." }, { status: 400 });
   }
 
-  const { error: archiveErr } = await supabase
-    .from("directory_manual")
-    .update({ is_archived: true, updated_at: new Date().toISOString() })
-    .eq("id", manualId);
-  if (archiveErr) {
-    console.error("[directory-duplicates/merge] archive manual failed", archiveErr);
-    return NextResponse.json({ message: "Could not archive manual entry." }, { status: 500 });
+  const { error: absorbErr } = await supabase.rpc("absorb_unregistered_into_registered", {
+    p_registered_id: registeredId,
+    p_unregistered_id: unregisteredId,
+  });
+  if (absorbErr) {
+    console.error("[directory-duplicates/merge] absorb failed", absorbErr);
+    return NextResponse.json({ message: "Could not merge directory listing." }, { status: 500 });
   }
 
   const now = new Date().toISOString();
@@ -68,7 +73,7 @@ export async function POST(req: NextRequest) {
   await supabase
     .from("directory_duplicate_suggestions")
     .update({ status: "dismissed", resolved_at: now, updated_at: now })
-    .eq("manual_id", manualId)
+    .eq("manual_id", unregisteredId)
     .eq("status", "pending");
 
   return NextResponse.json({ ok: true });

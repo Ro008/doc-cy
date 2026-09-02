@@ -205,7 +205,7 @@ async function main() {
     exitCode = 1;
   } else {
     const doctorRes = await admin
-      .from("doctors")
+      .from("professionals")
       .select("id, slug, email, status, auth_user_id, is_test_profile")
       .eq("slug", bookingSlug)
       .maybeSingle();
@@ -222,7 +222,7 @@ async function main() {
           `[booking] doctors.email has stray whitespace/newlines (len ${rawEmail.length} → ${cleanEmail.length}).`,
         );
         if (args.apply) {
-          await admin.from("doctors").update({ email: cleanEmail }).eq("id", d.id);
+          await admin.from("professionals").update({ email: cleanEmail }).eq("id", d.id);
           console.log("[booking] Trimmed doctors.email.");
         } else {
           exitCode = 1;
@@ -281,7 +281,7 @@ async function main() {
       console.error(`[auth] signInWithPassword failed: ${signIn.error.message}`);
       if (args.apply && args.repairAuth) {
         const doctorByEmail = await admin
-          .from("doctors")
+          .from("professionals")
           .select("id, slug, auth_user_id")
           .ilike("email", doctorEmail)
           .maybeSingle();
@@ -292,7 +292,7 @@ async function main() {
         } else {
           console.log(`[auth] Repairing via slug ${slugForRepair} (delegates to repair-doctor-auth logic)...`);
           const doctorRow = await admin
-            .from("doctors")
+            .from("professionals")
             .select("id")
             .eq("slug", slugForRepair)
             .maybeSingle();
@@ -300,7 +300,7 @@ async function main() {
             console.error("[auth] Doctor row missing for repair.");
             exitCode = 1;
           } else {
-            await admin.from("doctors").update({ auth_user_id: null }).eq("id", doctorRow.data.id);
+            await admin.from("professionals").update({ auth_user_id: null }).eq("id", doctorRow.data.id);
             const cleanup = await deleteAuthByEmail(admin, doctorEmail);
             if (cleanup.error) {
               console.error("[auth] deleteUser failed:", cleanup.error);
@@ -317,7 +317,7 @@ async function main() {
                 exitCode = 1;
               } else {
                 const uid = created.data.user.id;
-                await admin.from("doctors").update({ auth_user_id: uid }).eq("id", doctorRow.data.id);
+                await admin.from("professionals").update({ auth_user_id: uid }).eq("id", doctorRow.data.id);
                 const verify = await pub.auth.signInWithPassword({
                   email: doctorEmail,
                   password: doctorPassword,
@@ -344,7 +344,7 @@ async function main() {
       await pub.auth.signOut().catch(() => {});
 
       const doctorLink = await admin
-        .from("doctors")
+        .from("professionals")
         .select("id, slug, auth_user_id")
         .ilike("email", doctorEmail)
         .maybeSingle();
@@ -365,7 +365,7 @@ async function main() {
           console.warn("[auth] doctors.auth_user_id is null — linking...");
           if (args.apply) {
             await admin
-              .from("doctors")
+              .from("professionals")
               .update({ auth_user_id: authUserId })
               .eq("id", doctorLink.data.id);
             console.log("[auth] Linked auth_user_id on doctors row.");
@@ -378,7 +378,7 @@ async function main() {
           );
           if (args.apply) {
             await admin
-              .from("doctors")
+              .from("professionals")
               .update({ auth_user_id: authUserId })
               .eq("id", doctorLink.data.id);
             console.log("[auth] Fixed auth_user_id mismatch.");

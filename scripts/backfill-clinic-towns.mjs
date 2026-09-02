@@ -111,7 +111,7 @@ async function main() {
     clinicIdsByTown.get(town).push(clinic.id);
   }
 
-  const manuals = await fetchAll(supabase, "directory_manual", "id, clinic_id, town");
+  const manuals = await fetchAll(supabase, "professionals", "id, clinic_id, town");
   const townByClinicId = new Map();
   for (const clinic of clinics) {
     const ghs = String(clinic.ghs_code ?? "").trim();
@@ -140,7 +140,7 @@ async function main() {
   }
 
   await applyTownUpdates("clinics", clinicIdsByTown);
-  await applyTownUpdates("directory_manual", manualIdsByTown);
+  await applyTownUpdates("professionals", manualIdsByTown);
 
   console.log(
     JSON.stringify(

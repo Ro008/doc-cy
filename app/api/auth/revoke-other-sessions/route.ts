@@ -25,7 +25,7 @@ export async function POST() {
 
   const nowIso = new Date().toISOString();
   const { error } = await supabase
-    .from("doctors")
+    .from("professionals")
     .update({
       auth_session_revoked_after: nowIso,
       auth_keep_session_id: claims.sessionId,

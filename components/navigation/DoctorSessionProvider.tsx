@@ -108,7 +108,7 @@ export function DoctorSessionProvider({ children }: { children: ReactNode }) {
         setHintChrome(true);
 
         const { data: doctorRow } = await client
-          .from("doctors")
+          .from("professionals")
           .select("slug, name, avatar_url")
           .eq("auth_user_id", user.id)
           .maybeSingle();

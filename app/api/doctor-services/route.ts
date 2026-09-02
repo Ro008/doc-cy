@@ -15,7 +15,7 @@ type DeleteBody = {
 
 async function isDoctorOwner(supabase: ReturnType<typeof createRouteHandlerClient>, doctorId: string, userId: string) {
   const { data: owned, error } = await supabase
-    .from("doctors")
+    .from("professionals")
     .select("id")
     .eq("id", doctorId)
     .eq("auth_user_id", userId)

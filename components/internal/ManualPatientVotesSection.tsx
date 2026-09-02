@@ -79,7 +79,7 @@ export function ManualPatientVotesSection({ query, rows, podium, maxVotes }: Pro
           </h2>
           <p className="mt-1 max-w-3xl text-xs leading-relaxed text-clinical-100/80">
             Finder manual cards — rows in{" "}
-            <code className="rounded bg-black/30 px-1">directory_manual_patient_booking_requests</code>.
+            <code className="rounded bg-black/30 px-1">professional_patient_booking_requests</code>.
             With <code className="rounded bg-black/30 px-1">DOC_CY_VOTE_FINGERPRINT_SECRET</code>,{" "}
             <code className="rounded bg-black/30 px-1">voter_key</code> approximates unique voters per
             listing (API also dedupes repeat taps within 90 days). Use filters and column headers to

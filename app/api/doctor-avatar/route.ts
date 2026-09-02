@@ -58,7 +58,7 @@ export async function POST(req: NextRequest) {
   }
 
   const { data: owned, error: ownErr } = await service
-    .from("doctors")
+    .from("professionals")
     .select("id")
     .eq("id", doctorId)
     .eq("auth_user_id", user.id)
@@ -91,7 +91,7 @@ export async function POST(req: NextRequest) {
   }
 
   const { error: updateErr } = await service
-    .from("doctors")
+    .from("professionals")
     .update({ avatar_url: uploadData.path })
     .eq("id", doctorId);
 

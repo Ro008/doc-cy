@@ -41,7 +41,7 @@ export async function createTestDoctor(
   const authUserId = createUserRes.data.user.id;
 
   const doctorInsert = await input.admin
-    .from("doctors")
+    .from("professionals")
     .insert({
       auth_user_id: authUserId,
       name: input.name,
@@ -56,6 +56,11 @@ export async function createTestDoctor(
       slug,
       is_specialty_approved: input.is_specialty_approved,
       subscription_tier: "standard",
+      is_registered: true,
+      has_online_booking: true,
+      finder_visible: true,
+      is_archived: false,
+      is_test_profile: true,
     })
     .select("id")
     .single();
@@ -76,7 +81,7 @@ export async function createTestDoctor(
     { onConflict: "doctor_id,specialty" },
   );
   if (specialtyUpsert.error) {
-    await input.admin.from("doctors").delete().eq("id", doctorId);
+    await input.admin.from("professionals").delete().eq("id", doctorId);
     await input.admin.auth.admin.deleteUser(authUserId);
     throw new Error(
       `Failed creating doctor_specialties: ${specialtyUpsert.error.message}`,
@@ -99,7 +104,7 @@ export async function deleteTestDoctor(fixture: TestDoctorFixture): Promise<void
     await admin.from("doctor_specialties").delete().eq("doctor_id", doctorId);
     await admin.from("doctor_services").delete().eq("doctor_id", doctorId);
     await admin.from("doctor_settings").delete().eq("doctor_id", doctorId);
-    await admin.from("doctors").delete().eq("id", doctorId);
+    await admin.from("professionals").delete().eq("id", doctorId);
   }
   if (authUserId) {
     await admin.auth.admin.deleteUser(authUserId);

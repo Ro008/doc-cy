@@ -4,7 +4,7 @@ import { createServiceRoleClient } from "@/lib/supabase-service";
 import { districtToSlug, specialtyToSlug, slugToDistrict } from "@/lib/finder-seo";
 import { harmonizeFinderSpecialtyLabel } from "@/lib/finder-specialty-harmonize";
 import { getAllBlogPostMeta } from "@/lib/blog";
-import { manualDirectoryLandingPath } from "@/lib/manual-directory-landing-path";
+import { publicProfessionalProfilePath } from "@/lib/manual-directory-landing-path";
 import { isDirectoryCanarySlug } from "@/lib/directory-canaries";
 import { fetchAllSupabaseRows } from "@/lib/supabase-fetch-all";
 
@@ -57,14 +57,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const supabase = createServiceRoleClient();
   if (!supabase) return staticEntries;
 
-  // Registered professionals live in `doctors` (verified + public slug).
-  // We also attempt `profiles` for backward compatibility with older naming.
+  // All listed professionals (registered + directory) live in `professionals`.
   const [doctorsRes, profilesRes, manualRes] = await Promise.all([
     fetchAllSupabaseRows(() =>
       supabase
-        .from("doctors")
+        .from("professionals")
         .select("district, specialty, is_test_profile, name")
         .eq("status", "verified")
+        .eq("is_registered", true)
         .not("slug", "is", null),
     ),
     fetchAllSupabaseRows(() =>
@@ -72,9 +72,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ),
     fetchAllSupabaseRows(() =>
       supabase
-        .from("directory_manual")
+        .from("professionals")
         .select("district, specialty")
-        .eq("is_archived", false),
+        .eq("is_archived", false)
+        .eq("is_registered", false),
     ),
   ]);
 
@@ -152,14 +153,18 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   type ManualSitemapSlugRow = {
     slug?: string | null;
     finder_visible?: boolean | null;
+    is_test_profile?: boolean | null;
+    is_registered?: boolean | null;
+    status?: string | null;
+    name?: string | null;
   };
   let manualSlugRes: {
     data: ManualSitemapSlugRow[] | null;
     error: { code?: string; message?: string } | null;
   } = await fetchAllSupabaseRows(() =>
     supabase
-      .from("directory_manual")
-      .select("slug, finder_visible")
+      .from("professionals")
+      .select("slug, finder_visible, is_test_profile, is_registered, status, name")
       .eq("is_archived", false)
       .eq("finder_visible", true)
       .not("slug", "is", null),
@@ -172,9 +177,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   ) {
     const fallback = await fetchAllSupabaseRows(() =>
       supabase
-        .from("directory_manual")
+        .from("professionals")
         .select("slug")
         .eq("is_archived", false)
+        .eq("is_registered", false)
         .not("slug", "is", null),
     );
     manualSlugRes = {
@@ -198,8 +204,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         const slug = String(row.slug ?? "").trim();
         if (!slug || isDirectoryCanarySlug(slug)) return null;
         if (row.finder_visible === false) return null;
+        if (row.is_test_profile) return null;
+        if (/\btest\b/i.test(String(row.name ?? ""))) return null;
+        if (row.is_registered && String(row.status ?? "").trim().toLowerCase() !== "verified") {
+          return null;
+        }
         return {
-          url: `${siteBase}${manualDirectoryLandingPath(slug)}`,
+          url: `${siteBase}${publicProfessionalProfilePath(slug)}`,
           lastModified: now,
           changeFrequency: "monthly" as const,
           priority: 0.6,

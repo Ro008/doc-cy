@@ -21,7 +21,7 @@ export async function GET(
   }
 
   const { data: doc, error } = await supabase
-    .from("doctors")
+    .from("professionals")
     .select("license_file_url")
     .eq("id", id)
     .maybeSingle();

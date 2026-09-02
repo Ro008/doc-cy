@@ -7,7 +7,8 @@ import {
   resolveFinderDisplayPhotoUrl,
 } from "@/lib/finder-default-avatars";
 import { parseOptionalCoordinates } from "@/lib/finder-distance";
-import { manualDirectoryLandingPath } from "@/lib/manual-directory-landing-path";
+import { publicProfessionalProfilePath } from "@/lib/manual-directory-landing-path";
+import { fetchAllSupabaseRowsForIdChunks } from "@/lib/supabase-fetch-all";
 import { harmonizeFinderSpecialtyList } from "@/lib/finder-specialty-harmonize";
 
 export type ClinicLandingProfessional = {
@@ -90,19 +91,19 @@ export async function loadClinicBySlug(
   const memberIds = new Set<string>();
 
   const joinRes = await supabase
-    .from("directory_manual_clinics")
-    .select("directory_manual_id")
+    .from("professional_clinics")
+    .select("professional_id")
     .eq("clinic_id", clinic.id);
   if (!joinRes.error && joinRes.data?.length) {
     for (const row of joinRes.data) {
-      const id = String((row as { directory_manual_id?: string }).directory_manual_id ?? "");
+      const id = String((row as { professional_id?: string }).professional_id ?? "");
       if (id) memberIds.add(id);
     }
   }
 
   // Legacy single FK (still populated as primary clinic by GeSY import).
   const legacyRes = await supabase
-    .from("directory_manual")
+    .from("professionals")
     .select("id")
     .eq("is_archived", false)
     .eq("clinic_id", clinic.id);
@@ -115,15 +116,19 @@ export async function loadClinicBySlug(
 
   let professionals: ClinicLandingProfessional[] = [];
   if (memberIds.size > 0) {
-    const docsRes = await supabase
-      .from("directory_manual")
-      .select(
-        "id, slug, name, specialty, specialties, district, address_maps_link, is_gesy, gender, finder_visible",
-      )
-      .eq("is_archived", false)
-      .in("id", Array.from(memberIds))
-      .order("specialty", { ascending: true })
-      .order("name", { ascending: true });
+    const docsRes = await fetchAllSupabaseRowsForIdChunks(
+      Array.from(memberIds),
+      (idChunk) =>
+        supabase
+          .from("professionals")
+          .select(
+            "id, slug, name, specialty, specialties, district, address_maps_link, is_gesy, gender, finder_visible",
+          )
+          .eq("is_archived", false)
+          .in("id", idChunk)
+          .order("specialty", { ascending: true })
+          .order("name", { ascending: true }),
+    );
 
     if (!docsRes.error && docsRes.data?.length) {
       professionals = docsRes.data.map((raw) => {
@@ -158,7 +163,7 @@ export async function loadClinicBySlug(
           // Inpatient-only: listed on the clinic, but no public professional landing.
           profileHref:
             slugValue && row.finder_visible !== false
-              ? manualDirectoryLandingPath(slugValue)
+              ? publicProfessionalProfilePath(slugValue)
               : null,
           finderVisible: row.finder_visible !== false,
         };

@@ -46,7 +46,7 @@ export async function GET(req: NextRequest) {
   }
 
   const { data: owned, error: ownErr } = await supabase
-    .from("doctors")
+    .from("professionals")
     .select("id")
     .eq("id", doctorId)
     .eq("auth_user_id", user.id)
@@ -168,7 +168,7 @@ export async function POST(req: NextRequest) {
   const doctorId = b.doctorId;
 
   const { data: owned, error: ownErr } = await supabase
-    .from("doctors")
+    .from("professionals")
     .select("id, specialty")
     .eq("id", doctorId)
     .eq("auth_user_id", user.id)
@@ -427,7 +427,7 @@ export async function POST(req: NextRequest) {
   }
 
   let docErr = (
-    await supabase.from("doctors").update(phoneUpdateBase).eq("id", doctorId)
+    await supabase.from("professionals").update(phoneUpdateBase).eq("id", doctorId)
   ).error;
 
   if (
@@ -438,7 +438,7 @@ export async function POST(req: NextRequest) {
   ) {
     if (/town/i.test(String(docErr.message ?? ""))) {
       const { town: _town, ...withoutTown } = phoneUpdateBase;
-      docErr = (await supabase.from("doctors").update(withoutTown).eq("id", doctorId)).error;
+      docErr = (await supabase.from("professionals").update(withoutTown).eq("id", doctorId)).error;
     }
     if (
       docErr &&
@@ -449,7 +449,7 @@ export async function POST(req: NextRequest) {
       const { latitude: _lat, longitude: _lon, clinic_place_id: _placeId, town: _town, ...legacyPhoneUpdate } =
         phoneUpdateBase;
       docErr = (
-        await supabase.from("doctors").update(legacyPhoneUpdate).eq("id", doctorId)
+        await supabase.from("professionals").update(legacyPhoneUpdate).eq("id", doctorId)
       ).error;
     }
   }

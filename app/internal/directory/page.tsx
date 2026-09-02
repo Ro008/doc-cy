@@ -176,10 +176,11 @@ export default async function FounderDashboardPage({
   ] = await Promise.all([
     fetchAllSupabaseRows(() =>
       supabase
-        .from("doctors")
+        .from("professionals")
         .select(
           "id, name, email, phone, slug, specialty, languages, status, created_at, license_number, license_file_url, is_specialty_approved, specialty_requires_standard_at, auth_user_id"
         )
+        .eq("is_registered", true)
         .order("created_at", { ascending: false }),
     ),
     supabase.from("appointments").select("id", { count: "exact", head: true }),
@@ -312,10 +313,11 @@ export default async function FounderDashboardPage({
   }
 
   const pendingRes = await supabase
-    .from("doctors")
+    .from("professionals")
     .select("id, name, specialty, email")
     .eq("is_specialty_approved", false)
     .eq("status", "pending")
+    .eq("is_registered", true)
     .order("created_at", { ascending: false });
 
   const pendingSpecialtyItems: PendingSpecialtyRow[] =
@@ -333,7 +335,7 @@ export default async function FounderDashboardPage({
     const changeReqRes = await supabase
       .from("doctor_specialty_change_requests")
       .select(
-        "id, doctor_id, request_kind, from_specialty, to_specialty, to_specialty_from_master, license_number, created_at, doctors(name, email)",
+        "id, doctor_id, request_kind, from_specialty, to_specialty, to_specialty_from_master, license_number, created_at, professionals(name, email)",
       )
       .eq("status", "pending")
       .order("created_at", { ascending: false });
@@ -348,12 +350,12 @@ export default async function FounderDashboardPage({
       specialtyChangeRequestItems = changeReqRes.data.map((r) => {
         const nested = (
           r as {
-            doctors?:
+            professionals?:
               | { name?: string | null; email?: string | null }
               | { name?: string | null; email?: string | null }[]
               | null;
           }
-        ).doctors;
+        ).professionals;
         const doc = Array.isArray(nested) ? nested[0] : nested;
         const fromSpecialty = String(
           (r as { from_specialty?: string | null }).from_specialty ?? "",
@@ -428,9 +430,10 @@ export default async function FounderDashboardPage({
   let duplicateNotificationItems: DuplicateNotificationItem[] = [];
   try {
     const manualRes = await supabase
-      .from("directory_manual")
+      .from("professionals")
       .select("id, name, specialty, district")
       .eq("is_archived", false)
+      .eq("is_registered", false)
       .limit(400);
 
     let doctorsForDupes:
@@ -438,9 +441,10 @@ export default async function FounderDashboardPage({
       | null = null;
 
     const doctorsWithDistrictRes = await supabase
-      .from("doctors")
+      .from("professionals")
       .select("id, name, specialty, district, status")
       .eq("status", "verified")
+      .eq("is_registered", true)
       .limit(600);
 
     if (!doctorsWithDistrictRes.error) {
@@ -452,9 +456,10 @@ export default async function FounderDashboardPage({
       }));
     } else if (doctorsWithDistrictRes.error.code === "42703") {
       const doctorsFallbackRes = await supabase
-        .from("doctors")
+        .from("professionals")
         .select("id, name, specialty, status")
         .eq("status", "verified")
+        .eq("is_registered", true)
         .limit(600);
       if (!doctorsFallbackRes.error) {
         doctorsForDupes = (doctorsFallbackRes.data ?? []).map((d) => ({
@@ -564,14 +569,14 @@ export default async function FounderDashboardPage({
     const sinceIso = new Date(Date.now() - manualVotesDays * 24 * 60 * 60 * 1000).toISOString();
     const { data: reqRows, error: reqErr } = await fetchAllSupabaseRows(() =>
       supabase
-        .from("directory_manual_patient_booking_requests")
-        .select("id, manual_id, created_at, voter_key")
+        .from("professional_patient_booking_requests")
+        .select("id, professional_id, created_at, voter_key")
         .gte("created_at", sinceIso),
     );
     if (!reqErr && reqRows?.length) {
       const byManual = new Map<string, { voters: Set<string>; lastAt: string }>();
       for (const r of reqRows) {
-        const mid = String((r as { manual_id?: string }).manual_id ?? "");
+        const mid = String((r as { professional_id?: string }).professional_id ?? "");
         const ca = String((r as { created_at?: string }).created_at ?? "");
         const id = String((r as { id?: string }).id ?? "");
         const vk = (r as { voter_key?: string | null }).voter_key?.trim();
@@ -587,7 +592,7 @@ export default async function FounderDashboardPage({
       }
       const ids = Array.from(byManual.keys());
       const { data: namesRows } = await supabase
-        .from("directory_manual")
+        .from("professionals")
         .select("id, name, district, specialty")
         .in("id", ids.length > 500 ? ids.slice(0, 500) : ids);
       const nameMap = new Map(
@@ -702,14 +707,14 @@ export default async function FounderDashboardPage({
     const sinceIso = new Date(Date.now() - callToBookDays * 24 * 60 * 60 * 1000).toISOString();
     const { data: clickRows, error: clickErr } = await fetchAllSupabaseRows(() =>
       supabase
-        .from("directory_manual_call_to_book_clicks")
-        .select("manual_id, clinic_id, source, created_at")
+        .from("professional_call_to_book_clicks")
+        .select("professional_id, clinic_id, source, created_at")
         .gte("created_at", sinceIso),
     );
     if (!clickErr && clickRows?.length) {
       const aggregated = aggregateCallToBookClicks(
         clickRows.map((r) => ({
-          manualId: String((r as { manual_id?: string }).manual_id ?? ""),
+          manualId: String((r as { professional_id?: string }).professional_id ?? ""),
           clinicId: String((r as { clinic_id?: string | null }).clinic_id ?? "").trim() || null,
           source: String((r as { source?: string }).source ?? ""),
           createdAt: String((r as { created_at?: string }).created_at ?? ""),
@@ -720,7 +725,7 @@ export default async function FounderDashboardPage({
       callToBookProfessionalProfileCount = aggregated.professionalProfileCount;
       const ids = aggregated.byProfessional.map((p) => p.manualId);
       const { data: namesRows } = await fetchAllSupabaseRowsForIdChunks(ids, (idChunk) =>
-        supabase.from("directory_manual").select("id, name, district, specialty").in("id", idChunk),
+        supabase.from("professionals").select("id, name, district, specialty").in("id", idChunk),
       );
       const nameMap = new Map(
         (namesRows ?? []).map((n) => [
@@ -756,7 +761,7 @@ export default async function FounderDashboardPage({
   const nameById: Record<string, string> = {};
   if (doctorIds.length > 0) {
     const { data: docRows } = await supabase
-      .from("doctors")
+      .from("professionals")
       .select("id, name")
       .in("id", doctorIds);
     for (const d of docRows ?? []) {

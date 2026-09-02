@@ -30,7 +30,7 @@ test.describe("Brand consistency", () => {
   }) => {
     const supabase = createTestDataClient();
     const { data: activeDoctors } = await supabase
-      .from("doctors")
+      .from("professionals")
       .select("slug")
       .eq("status", "verified")
       .not("slug", "is", null)

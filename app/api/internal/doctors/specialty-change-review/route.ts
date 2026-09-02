@@ -240,7 +240,7 @@ export async function POST(req: NextRequest) {
       );
     }
     const { error: doctorErr } = await supabase
-      .from("doctors")
+      .from("professionals")
       .update({
         specialty: finalSpecialty,
         license_number: validated.licenseNumber,

@@ -66,6 +66,11 @@ const nextConfig = {
         permanent: true,
       },
       {
+        source: "/finder/professional/:slug",
+        destination: "/en/:slug",
+        permanent: true,
+      },
+      {
         source: "/finder/:district(nicosia|limassol|paphos|larnaca|famagusta|all)",
         destination: "/:district",
         permanent: true,

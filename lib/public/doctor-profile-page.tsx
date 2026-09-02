@@ -1,5 +1,5 @@
 import Image from "next/image";
-import { redirect } from "next/navigation";
+import { notFound, permanentRedirect, redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
@@ -43,6 +43,7 @@ import { WhatsAppLogoIcon } from "@/components/icons/WhatsAppLogoIcon";
 import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher";
 import { DocCyWordmark } from "@/components/brand/DocCyWordmark";
 import { RecordRecentlyViewed } from "@/components/finder/RecordRecentlyViewed";
+import { ManualDirectoryProfessionalLanding } from "@/components/finder/ManualDirectoryProfessionalLanding";
 import {
   FinderDistrictLink,
 } from "@/components/finder/FinderSpecialtyLink";
@@ -59,6 +60,16 @@ import {
   publicSpecialtyLabels,
 } from "@/lib/doctor-specialties";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import {
+  loadManualDirectoryBySlug,
+  resolveAbsorbedProfessionalSlugRedirect,
+  resolveCanonicalManualDirectorySlug,
+} from "@/lib/load-manual-directory-by-slug";
+import { publicProfessionalProfilePath } from "@/lib/manual-directory-landing-path";
+import {
+  buildManualDirectorySeoDescription,
+  buildManualDirectorySeoTitle,
+} from "@/lib/manual-directory-seo";
 
 const DOCTOR_AVATAR_URL =
   "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=400&h=400&fit=crop";
@@ -84,9 +95,37 @@ type DoctorProfileRow = {
 };
 
 export type PageProps = {
-  params: { slug: string };
+  params: { slug: string; locale?: string };
   searchParams?: { slot?: string | string[]; location?: string | string[] };
 };
+
+function profileLocale(params: PageProps["params"]): string {
+  return String(params.locale ?? "").trim() || "en";
+}
+
+function siteBaseUrl(): string {
+  return (process.env.NEXT_PUBLIC_SITE_URL?.trim() || "https://www.mydoccy.com").replace(
+    /\/+$/,
+    "",
+  );
+}
+
+async function loadUnregisteredLandingOrRedirect(slug: string, locale: string) {
+  const supabase = getPublicDirectoryDb();
+  if (!supabase) return null;
+
+  const absorbed = await resolveAbsorbedProfessionalSlugRedirect(supabase, slug);
+  if (absorbed) {
+    permanentRedirect(publicProfessionalProfilePath(absorbed, locale));
+  }
+
+  const canonical = await resolveCanonicalManualDirectorySlug(supabase, slug);
+  if (canonical && canonical.toLowerCase() !== slug.toLowerCase()) {
+    permanentRedirect(publicProfessionalProfilePath(canonical, locale));
+  }
+
+  return loadManualDirectoryBySlug(supabase, canonical ?? slug);
+}
 
 function isOptionalProfileColumnError(msg: string): boolean {
   return (
@@ -366,9 +405,15 @@ function buildNonLiveDoctorMetaTitle(input: {
 export async function generateMetadata({
   params,
 }: PageProps): Promise<Metadata> {
-  const siteUrl =
-    process.env.NEXT_PUBLIC_SITE_URL?.trim() || "https://www.mydoccy.com";
-  const profileUrl = `${siteUrl}/${params.slug}`;
+  const locale = profileLocale(params);
+  const supabase = getPublicDirectoryDb();
+  if (supabase) {
+    const absorbed = await resolveAbsorbedProfessionalSlugRedirect(supabase, params.slug);
+    if (absorbed) {
+      permanentRedirect(publicProfessionalProfilePath(absorbed, locale));
+    }
+  }
+  const profileUrl = `${siteBaseUrl()}${publicProfessionalProfilePath(params.slug, locale)}`;
   const fallbackTitle = "Healthcare Professional | DocCy";
 
   const loadMeta = async (fields: typeof DOCTOR_FIELD_LIST_METADATA | typeof DOCTOR_FIELD_LIST_METADATA_NO_DISTRICT) => {
@@ -407,9 +452,43 @@ export async function generateMetadata({
   } | null;
 
   if (meta.error || !doctor) {
+    const unregistered = await loadUnregisteredLandingOrRedirect(params.slug, locale);
+    if (unregistered) {
+      const pageUrl = `${siteBaseUrl()}${publicProfessionalProfilePath(unregistered.slug, locale)}`;
+      const title = buildManualDirectorySeoTitle({
+        name: unregistered.displayName,
+        specialty: unregistered.specialty,
+        district: unregistered.district,
+      });
+      const description = buildManualDirectorySeoDescription({
+        name: unregistered.displayName,
+        specialty: unregistered.specialty,
+        district: unregistered.district,
+      });
+      return {
+        title,
+        description,
+        alternates: { canonical: pageUrl },
+        openGraph: {
+          title,
+          description,
+          type: "website",
+          url: pageUrl,
+          ...(unregistered.photoUrl ? { images: [{ url: unregistered.photoUrl }] } : {}),
+        },
+        twitter: {
+          card: unregistered.photoUrl ? "summary_large_image" : "summary",
+          title,
+          description,
+          ...(unregistered.photoUrl ? { images: [unregistered.photoUrl] } : {}),
+        },
+      };
+    }
+
     return {
       title: fallbackTitle,
       description: "Book healthcare appointments in Cyprus via DocCy.",
+      robots: { index: false, follow: false },
       openGraph: {
         title: fallbackTitle,
         description: "Book healthcare appointments in Cyprus via DocCy.",
@@ -514,10 +593,12 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
   const authSupabase = createServerComponentClient({ cookies });
 
   if (result.kind === "not_found") {
-    console.error(
-      `[DocCy] No doctor row for slug: "${params.slug}". Redirecting to home.`,
-    );
-    redirect("/");
+    const locale = profileLocale(params);
+    const unregistered = await loadUnregisteredLandingOrRedirect(params.slug, locale);
+    if (unregistered) {
+      return <ManualDirectoryProfessionalLanding row={unregistered} locale={locale} />;
+    }
+    notFound();
   }
 
   if (result.kind === "not_verified") {
@@ -542,7 +623,7 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
   let isOwnerView = false;
   if (user?.id) {
     const { data: ownerDoctor } = await authSupabase
-      .from("doctors")
+      .from("professionals")
       .select("auth_user_id")
       .eq("id", profile.id)
       .maybeSingle();
@@ -573,10 +654,7 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
     console.error("[DocCy] doctors_public contact lookup failed:", contactLookup.error);
   }
 
-  const siteBase = (process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.mydoccy.com")
-    .trim()
-    .replace(/\/+$/, "");
-  const profileCanonicalUrl = `${siteBase}/${params.slug}`;
+  const profileCanonicalUrl = `${siteBaseUrl()}${publicProfessionalProfilePath(params.slug, profileLocale(params))}`;
 
   const settingsSelectFull =
     "doctor_id, monday, tuesday, wednesday, thursday, friday, saturday, sunday, start_time, end_time, weekly_schedule, break_start, break_end, slot_duration_minutes, pause_online_bookings, show_phone_public, holiday_mode_enabled, holiday_start_date, holiday_end_date, booking_horizon_days, minimum_notice_hours";
@@ -749,7 +827,7 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
         <RecordRecentlyViewed
           item={{
             kind: "professional",
-            href: `/${params.slug}`,
+            href: publicProfessionalProfilePath(params.slug, profileLocale(params)),
             name: profile.name,
             subtitle: profileSpecialtySeo || profile.specialty,
             location: profileHeadingCity,

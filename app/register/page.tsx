@@ -46,6 +46,7 @@ import {
 } from "@/lib/register-clinic-location";
 import { RegisterClinicAddressField } from "@/components/auth/RegisterClinicAddressField";
 import { allocateUniqueDoctorSlug } from "@/lib/doctor-slug";
+import { findDirectoryProfessionalToClaim } from "@/lib/claim-directory-professional";
 
 type PageProps = {
   searchParams?: { submitted?: string; error?: string; debug?: string };
@@ -299,18 +300,35 @@ async function handleRegister(formData: FormData) {
       redirectWithError(mapAuthErrorToCode(signUpError as any), signUpError);
     }
 
-    authUserId = signUpData.user.id;
+  authUserId = signUpData.user.id;
     await persistLocalTestLoginPassword(service, authUserId, password, {
       full_name: fullName,
       role: "doctor",
     });
   }
 
-  const slug = await allocateUniqueDoctorSlug(service, {
-    name: fullName,
-    district,
-    authUserId,
-  });
+  const claim = isTestDoctorRegistrationEmail(email)
+    ? null
+    : await findDirectoryProfessionalToClaim(service, {
+        name: fullName,
+        email,
+        district,
+        specialties: specialtyEntries.map((entry) => entry.specialty),
+      });
+  if (claim) {
+    console.info("[DocCy] claiming directory professional on signup", {
+      professionalId: claim.id,
+      reason: claim.reason,
+    });
+  }
+
+  const slug =
+    claim?.slug ||
+    (await allocateUniqueDoctorSlug(service, {
+      name: fullName,
+      district,
+      authUserId,
+    }));
 
   const avatarPath = `profiles/${authUserId}/avatar-${Date.now()}-${Math.random()
     .toString(36)
@@ -344,6 +362,7 @@ async function handleRegister(formData: FormData) {
       p_license_file_url: licenseFileUrl,
       p_slug: slug,
       p_is_specialty_approved: isSpecialtyApproved,
+      ...(claim?.id ? { p_claim_professional_id: claim.id } : {}),
     }
   );
 
@@ -355,10 +374,11 @@ async function handleRegister(formData: FormData) {
     // Fallback path when SQL RPC is unavailable/broken in the target environment.
     // Match register_doctor_with_founder_lock: only non-test founders consume the real founder slots.
     const { count: founderCount, error: founderCountError } = await service
-      .from("doctors")
+      .from("professionals")
       .select("id", { head: true, count: "exact" })
       .eq("subscription_tier", "founder")
-      .eq("is_test_profile", false);
+      .eq("is_test_profile", false)
+      .eq("is_registered", true);
     if (founderCountError) {
       console.error("[DocCy] Founder count fallback failed", founderCountError);
       try {
@@ -371,44 +391,66 @@ async function handleRegister(formData: FormData) {
     }
 
     const fallbackTier = (founderCount ?? 0) < MAX_FOUNDERS ? "founder" : "standard";
-    const fallbackInsert = await service
-      .from("doctors")
-      .insert({
-        auth_user_id: authUserId,
-        name: fullName,
-        specialty,
-        email,
-        phone,
-        languages,
-        license_number: licenseNumber,
-        license_file_url: licenseFileUrl,
-        status: "pending",
-        slug,
-        is_specialty_approved: isSpecialtyApproved,
-        subscription_tier: fallbackTier,
-        district,
-        town,
-        clinic_address: clinicAddress,
-        latitude: clinicLatitude,
-        longitude: clinicLongitude,
-        clinic_place_id: clinicPlaceId,
-        is_test_profile: isTestDoctorRegistrationEmail(email),
-      })
-      .select("id")
-      .single();
+    const fallbackPayload = {
+      auth_user_id: authUserId,
+      name: fullName,
+      specialty,
+      email,
+      phone,
+      languages,
+      license_number: licenseNumber,
+      license_file_url: licenseFileUrl,
+      status: "pending" as const,
+      slug,
+      is_specialty_approved: isSpecialtyApproved,
+      subscription_tier: fallbackTier,
+      district,
+      town,
+      clinic_address: clinicAddress,
+      latitude: clinicLatitude,
+      longitude: clinicLongitude,
+      clinic_place_id: clinicPlaceId,
+      is_test_profile: isTestDoctorRegistrationEmail(email),
+      is_registered: true,
+      has_online_booking: true,
+      finder_visible: true,
+      is_archived: false,
+    };
 
-    if (fallbackInsert.error || !fallbackInsert.data?.id) {
-      console.error("[DocCy] Failed fallback doctor insert", fallbackInsert.error);
-      try {
-        await service.storage.from("avatars").remove([avatarFileUrl]);
-        await service.auth.admin.deleteUser(authUserId);
-      } catch (cleanupError) {
-        console.error("[DocCy] Failed cleanup after fallback doctor insert error", cleanupError);
+    if (claim?.id) {
+      const fallbackClaim = await service
+        .from("professionals")
+        .update(fallbackPayload)
+        .eq("id", claim.id)
+        .eq("is_registered", false)
+        .eq("is_archived", false)
+        .select("id")
+        .maybeSingle();
+      if (!fallbackClaim.error && fallbackClaim.data?.id) {
+        doctorId = fallbackClaim.data.id as string;
       }
-      redirectWithError("db", fallbackInsert.error);
     }
 
-    doctorId = fallbackInsert.data.id as string;
+    if (!doctorId) {
+      const fallbackInsert = await service
+        .from("professionals")
+        .insert(fallbackPayload)
+        .select("id")
+        .single();
+
+      if (fallbackInsert.error || !fallbackInsert.data?.id) {
+        console.error("[DocCy] Failed fallback doctor insert", fallbackInsert.error);
+        try {
+          await service.storage.from("avatars").remove([avatarFileUrl]);
+          await service.auth.admin.deleteUser(authUserId);
+        } catch (cleanupError) {
+          console.error("[DocCy] Failed cleanup after fallback doctor insert error", cleanupError);
+        }
+        redirectWithError("db", fallbackInsert.error);
+      }
+
+      doctorId = fallbackInsert.data.id as string;
+    }
   }
 
   {
@@ -438,6 +480,7 @@ async function handleRegister(formData: FormData) {
       phone,
       specialty,
       needsSpecialtyReview: !isSpecialtyApproved,
+      claimedDirectory: Boolean(claim?.id && doctorId === claim.id),
     }).catch((err) =>
       console.error("[DocCy] Founder registration notify failed", err)
     );
@@ -454,9 +497,36 @@ async function handleRegister(formData: FormData) {
   };
 
   const { error: avatarSaveError } = await service
-    .from("doctors")
+    .from("professionals")
     .update(profileUpdateBase)
     .eq("id", doctorId);
+
+  const syncPrimaryBookingLocation = async () => {
+    const locationFields = {
+      district,
+      town,
+      clinic_address: clinicAddress,
+      latitude: clinicLatitude,
+      longitude: clinicLongitude,
+      clinic_place_id: clinicPlaceId,
+    };
+    const existing = await service
+      .from("doctor_locations")
+      .select("id")
+      .eq("doctor_id", doctorId)
+      .eq("is_primary", true)
+      .maybeSingle();
+    if (existing.data?.id) {
+      await service.from("doctor_locations").update(locationFields).eq("id", existing.data.id);
+      return;
+    }
+    await service.from("doctor_locations").insert({
+      doctor_id: doctorId,
+      is_primary: true,
+      sort_order: 0,
+      ...locationFields,
+    });
+  };
   if (avatarSaveError) {
     const missingAvatarColumn =
       avatarSaveError.code === "PGRST204" &&
@@ -472,10 +542,11 @@ async function handleRegister(formData: FormData) {
     if (missingTownColumn && !missingClinicColumns) {
       const { town: _town, ...withoutTown } = profileUpdateBase;
       const { error: withoutTownError } = await service
-        .from("doctors")
+        .from("professionals")
         .update(withoutTown)
         .eq("id", doctorId);
       if (!withoutTownError) {
+        await syncPrimaryBookingLocation();
         queueFounderSignupNotify();
         redirect("/register?submitted=1");
       }
@@ -486,12 +557,13 @@ async function handleRegister(formData: FormData) {
       console.warn(
         "[DocCy] avatar_url column missing on doctors. Apply SQL migration to persist avatar path."
       );
+      await syncPrimaryBookingLocation();
       queueFounderSignupNotify();
       redirect("/register?submitted=1");
     }
     if (missingClinicColumns) {
       const { error: legacyProfileError } = await service
-        .from("doctors")
+        .from("professionals")
         .update({
           avatar_url: avatarFileUrl,
           district,
@@ -501,6 +573,7 @@ async function handleRegister(formData: FormData) {
       if (legacyProfileError) {
         console.error("[DocCy] Failed legacy profile save on doctor", legacyProfileError);
       } else {
+        await syncPrimaryBookingLocation();
         queueFounderSignupNotify();
         redirect("/register?submitted=1");
       }
@@ -508,14 +581,18 @@ async function handleRegister(formData: FormData) {
     console.error("[DocCy] Failed to save avatar_url on doctor", avatarSaveError);
     try {
       await service.storage.from("avatars").remove([avatarFileUrl]);
-      await service.from("doctors").delete().eq("id", doctorId);
-      await service.auth.admin.deleteUser(authUserId);
+      const claimedThisRow = Boolean(claim?.id && doctorId === claim.id);
+      if (!claimedThisRow) {
+        await service.from("professionals").delete().eq("id", doctorId);
+        await service.auth.admin.deleteUser(authUserId);
+      }
     } catch (cleanupError) {
       console.error("[DocCy] Failed cleanup after avatar save error", cleanupError);
     }
     redirectWithError("avatar_save", avatarSaveError);
   }
 
+  await syncPrimaryBookingLocation();
   queueFounderSignupNotify();
   redirect("/register?submitted=1");
 }

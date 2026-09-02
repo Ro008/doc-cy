@@ -85,8 +85,9 @@ export async function resolveCanonicalManualDirectorySlug(
   if (/[%_]/.test(normalizedSlug)) return null;
 
   const exact = await supabase
-    .from("directory_manual")
+    .from("professionals")
     .select("slug")
+    .eq("is_registered", false)
     .eq("is_archived", false)
     .eq("slug", normalizedSlug)
     .maybeSingle();
@@ -105,8 +106,9 @@ export async function resolveCanonicalManualDirectorySlug(
     error: { code?: string; message?: string } | null;
   } = await fetchAllSupabaseRows(() =>
     supabase
-      .from("directory_manual")
+      .from("professionals")
       .select("slug, name, finder_visible")
+      .eq("is_registered", false)
       .eq("is_archived", false)
       .like("slug", `${normalizedSlug}-%`),
   );
@@ -114,8 +116,9 @@ export async function resolveCanonicalManualDirectorySlug(
   if (slugLookupHasMissingColumn(aliasRes.error, "finder_visible")) {
     const fallback = await fetchAllSupabaseRows(() =>
       supabase
-        .from("directory_manual")
+        .from("professionals")
         .select("slug, name")
+        .eq("is_registered", false)
         .eq("is_archived", false)
         .like("slug", `${normalizedSlug}-%`),
     );
@@ -132,6 +135,43 @@ export async function resolveCanonicalManualDirectorySlug(
   return pickUniqueLegacyNameSlugAlias(normalizedSlug, aliasRes.data);
 }
 
+/**
+ * After a directory row is absorbed into a registered account, the old slug
+ * 308s to the surviving professional.
+ */
+export async function resolveAbsorbedProfessionalSlugRedirect(
+  supabase: SupabaseClient,
+  slug: string,
+): Promise<string | null> {
+  const normalizedSlug = String(slug ?? "").trim().toLowerCase();
+  if (!normalizedSlug) return null;
+  if (/[%_]/.test(normalizedSlug)) return null;
+
+  const redirectRes = await supabase
+    .from("professional_slug_redirects")
+    .select("professional_id")
+    .eq("slug", normalizedSlug)
+    .maybeSingle();
+  if (redirectRes.error || !redirectRes.data) return null;
+
+  const professionalId = String(
+    (redirectRes.data as { professional_id?: string }).professional_id ?? "",
+  ).trim();
+  if (!professionalId) return null;
+
+  const targetRes = await supabase
+    .from("professionals")
+    .select("slug")
+    .eq("id", professionalId)
+    .eq("is_archived", false)
+    .maybeSingle();
+  if (targetRes.error || !targetRes.data) return null;
+
+  const target = String((targetRes.data as { slug?: string | null }).slug ?? "").trim();
+  if (!target || target.toLowerCase() === normalizedSlug) return null;
+  return target;
+}
+
 export async function loadManualDirectoryBySlug(
   supabase: SupabaseClient,
   slug: string,
@@ -140,10 +180,11 @@ export async function loadManualDirectoryBySlug(
   if (!normalizedSlug) return null;
 
   let res = await supabase
-    .from("directory_manual")
+    .from("professionals")
     .select(
       "id, slug, name, specialty, specialties, district, address_maps_link, phone, address, is_gesy, latitude, longitude, clinic_id, gender, finder_visible",
     )
+    .eq("is_registered", false)
     .eq("is_archived", false)
     .eq("slug", normalizedSlug.toLowerCase())
     .maybeSingle();
@@ -155,10 +196,11 @@ export async function loadManualDirectoryBySlug(
       (res.error as { code?: string }).code === "42703")
   ) {
     res = await supabase
-      .from("directory_manual")
+      .from("professionals")
       .select(
         "id, slug, name, specialty, district, address_maps_link, phone, address, is_gesy, latitude, longitude, clinic_id, gender",
       )
+      .eq("is_registered", false)
       .eq("is_archived", false)
       .eq("slug", normalizedSlug.toLowerCase())
       .maybeSingle();
@@ -170,10 +212,11 @@ export async function loadManualDirectoryBySlug(
       (res.error as { code?: string }).code === "42703")
   ) {
     res = await supabase
-      .from("directory_manual")
+      .from("professionals")
       .select(
         "id, slug, name, specialty, district, address_maps_link, phone, address, is_gesy, latitude, longitude, clinic_id",
       )
+      .eq("is_registered", false)
       .eq("is_archived", false)
       .eq("slug", normalizedSlug.toLowerCase())
       .maybeSingle();
@@ -185,10 +228,11 @@ export async function loadManualDirectoryBySlug(
       (res.error as { code?: string }).code === "42703")
   ) {
     res = await supabase
-      .from("directory_manual")
+      .from("professionals")
       .select(
         "id, slug, name, specialty, district, address_maps_link, phone, address, is_gesy, latitude, longitude",
       )
+      .eq("is_registered", false)
       .eq("is_archived", false)
       .eq("slug", normalizedSlug.toLowerCase())
       .maybeSingle();
@@ -216,7 +260,7 @@ export async function loadManualDirectoryBySlug(
     finder_visible?: boolean | null;
   };
 
-  // Inpatient-only professionals are clinic-profile only (no public /finder/professional landing).
+  // Inpatient-only professionals are clinic-profile only (no public profile landing).
   if (row.finder_visible === false) {
     return null;
   }
@@ -227,9 +271,9 @@ export async function loadManualDirectoryBySlug(
 
   const { data: monthlyRequestRows } = await fetchAllSupabaseRows(() =>
     supabase
-      .from("directory_manual_patient_booking_requests")
+      .from("professional_patient_booking_requests")
       .select("id, voter_key")
-      .eq("manual_id", manualId)
+      .eq("professional_id", manualId)
       .gte("created_at", monthlySinceIso),
   );
 
@@ -250,11 +294,11 @@ export async function loadManualDirectoryBySlug(
   const clinics: ManualDirectoryLandingClinic[] = [];
 
   const joinRes = await supabase
-    .from("directory_manual_clinics")
+    .from("professional_clinics")
     .select(
       "clinic_id, is_primary, clinics ( id, name, slug, address, address_maps_link, district, is_archived, phone )",
     )
-    .eq("directory_manual_id", manualId);
+    .eq("professional_id", manualId);
 
   if (!joinRes.error && joinRes.data?.length) {
     clinics.push(

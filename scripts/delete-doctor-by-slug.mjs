@@ -59,7 +59,7 @@ async function main() {
 
   const admin = createClient(url, serviceRole);
   const { data: doctor, error } = await admin
-    .from("doctors")
+    .from("professionals")
     .select("id, auth_user_id, email, name")
     .eq("slug", args.slug)
     .maybeSingle();
@@ -80,7 +80,7 @@ async function main() {
   await admin.from("doctor_settings").delete().eq("doctor_id", doctorId);
   await admin.from("appointments").delete().eq("doctor_id", doctorId);
 
-  const delDoctor = await admin.from("doctors").delete().eq("id", doctorId);
+  const delDoctor = await admin.from("professionals").delete().eq("id", doctorId);
   if (delDoctor.error) {
     console.error("Failed deleting doctor:", delDoctor.error.message);
     process.exit(1);

@@ -25,7 +25,7 @@ export default async function DoctorAccountReviewPage() {
   }
 
   const { data: doctor, error: doctorError } = await supabase
-    .from("doctors")
+    .from("professionals")
     .select("id, name, status, is_specialty_approved")
     .eq("auth_user_id", user.id)
     .maybeSingle();

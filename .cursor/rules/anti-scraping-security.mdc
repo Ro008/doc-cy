@@ -29,7 +29,7 @@ All `/api/*` responses set `X-Robots-Tag: noindex, nofollow, noscrape` via `next
 
 Migration `20260809120000_revoke_anon_directory_view_grants.sql`:
 
-- `REVOKE SELECT` on `directory_manual_public`, `clinics_public`, and `doctors_public` from `anon` and `authenticated`
+- `REVOKE SELECT` on `professionals_public`, `clinics_public`, and `doctors_public` from `anon` and `authenticated`
 - `GRANT SELECT` on those views to `service_role` only (SSR / trusted servers)
 
 Browser bundles still contain the anon key, but PostgREST list dumps of the curated directory via those views must return empty/denied. Finder, clinics, and registered public profiles load data with `createServiceRoleClient()` on the server.
@@ -73,7 +73,7 @@ Cloudflare Free does **not** replace P0; it slows HTML scrapers once PostgREST d
 
 **`public.doctors_public`** (`security_invoker = false`) — exposes only: `id, name, specialty, bio, clinic_address, slug, status, languages, created_at, is_specialty_approved, is_gesy, district, avatar_url, latitude, longitude, phone` (phone only when `doctor_settings.show_phone_public = true`). No `email`, `internal_email`, `ghs_code`, `license_*`.
 
-**`public.directory_manual_public`** (`security_invoker = false`) — exposes only non-PII finder fields. No `email`, `ghs_code`, `gender`.
+**`public.professionals_public`** (`security_invoker = false`) — unified directory fields for SSR. No `email`, `ghs_code`, `gender`. (`directory_manual_public` was dropped after identity unification.)
 
 All app code queries these views, never the base tables, for public-facing reads.
 
@@ -97,7 +97,7 @@ Daily cron at 03:00 UTC (`/api/cron/finder-traffic-alert`). Compares last-hour h
 
 ## Rules for future changes
 
-- **Never add `email`, `internal_email`, `ghs_code`, `license_*`, or `gender`** to `doctors_public` or `directory_manual_public`.
+- **Never add `email`, `internal_email`, `ghs_code`, `license_*`, or `gender`** to `doctors_public` or `professionals_public`.
 - `directory_manual.gender` is internal-only; server code may use it to pick a default avatar, but must not send `gender` to the client.
 - **App public reads must use the views**, not the base tables. The only exception is service-role server code (migrations, admin scripts).
 - If adding a new public write API, wire `enforcePublicApiRateLimit` from `lib/public-api-rate-limit.ts` at the top of the handler.

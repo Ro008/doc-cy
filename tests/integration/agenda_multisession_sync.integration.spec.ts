@@ -68,7 +68,7 @@ test.describe("Agenda multi-session sync", { tag: "@pr-email" }, () => {
       await signInDoctorAndSetCookies(mobile, anonClient);
 
       const { data: doctor, error: docErr } = await admin
-        .from("doctors")
+        .from("professionals")
         .select("id,slug")
         .eq("auth_user_id", authUserId)
         .maybeSingle();

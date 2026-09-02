@@ -1,8 +1,8 @@
 /**
- * Import GeSY professionals from ALL.xlsx into directory_manual + clinics (batch mode).
+ * Import GeSY professionals from ALL.xlsx into professionals + clinics (batch mode).
  *
  * Safety:
- * - Does NOT touch public.doctors (registered signup / is_gesy toggle stay intact).
+ * - Does NOT touch registered professionals (signup / is_gesy toggle stay intact).
  * - Manual rows from GeSY are always is_gesy=true.
  * - Skips Pharmacy + Laboratory segments (later product surfaces).
  * - Inpatient Services–only people get finder_visible=false (clinic profiles only).
@@ -309,12 +309,11 @@ async function loadAllSlugsFromTable(supabase, table) {
 
 async function loadTakenSlugs(supabase) {
   const taken = new Set();
-  const [doctorsRows, manualRows, clinicsRows] = await Promise.all([
-    loadAllSlugsFromTable(supabase, "doctors"),
-    loadAllSlugsFromTable(supabase, "directory_manual"),
+  const [doctorsRows, clinicsRows] = await Promise.all([
+    loadAllSlugsFromTable(supabase, "professionals"),
     loadAllSlugsFromTable(supabase, "clinics"),
   ]);
-  for (const row of [...doctorsRows, ...manualRows, ...clinicsRows]) {
+  for (const row of [...doctorsRows, ...clinicsRows]) {
     const s = String(row.slug ?? "").trim().toLowerCase();
     if (s) taken.add(s);
   }
@@ -473,7 +472,7 @@ async function main() {
     const segment = primarySegment(person, args.batch);
 
     const existing = await supabase
-      .from("directory_manual")
+      .from("professionals")
       .select("id, slug")
       .eq("ghs_code", person.ghs_code)
       .eq("is_archived", false)
@@ -501,13 +500,15 @@ async function main() {
       segment,
       clinic_id: primaryClinicId,
       is_archived: false,
+      is_registered: false,
+      has_online_booking: false,
     };
 
     if (!manualId) {
       slug = pickSlug(person.name, district, takenSlugs);
       if (!args.dryRun) {
         const insert = await supabase
-          .from("directory_manual")
+          .from("professionals")
           .insert({ ...payload, slug })
           .select("id, slug")
           .single();
@@ -521,7 +522,7 @@ async function main() {
         manualId = `dry-${person.ghs_code}`;
       }
     } else if (!args.dryRun) {
-      const update = await supabase.from("directory_manual").update(payload).eq("id", manualId);
+      const update = await supabase.from("professionals").update(payload).eq("id", manualId);
       if (update.error) {
         console.error("Update failed", person.ghs_code, update.error.message);
         continue;
@@ -529,9 +530,9 @@ async function main() {
     }
 
     if (!args.dryRun && manualId) {
-      await supabase.from("directory_manual_clinics").delete().eq("directory_manual_id", manualId);
+      await supabase.from("professional_clinics").delete().eq("professional_id", manualId);
       const links = [...clinicIdByGhs.entries()].map(([ghs, clinicId], index) => ({
-        directory_manual_id: manualId,
+        professional_id: manualId,
         clinic_id: clinicId,
         is_primary: index === 0 || clinicId === primaryClinicId,
       }));
@@ -546,7 +547,7 @@ async function main() {
       }
       if (links.length && !sawPrimary) links[0].is_primary = true;
       if (links.length) {
-        const linkRes = await supabase.from("directory_manual_clinics").insert(links);
+        const linkRes = await supabase.from("professional_clinics").insert(links);
         if (linkRes.error) {
           console.error("Link clinics failed", person.ghs_code, linkRes.error.message);
         }

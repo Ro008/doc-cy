@@ -383,23 +383,15 @@ function buildReplaceMigration(entries, sourceLabel) {
     const latSql = entry.latitude === null ? "null" : String(entry.latitude);
     const lonSql = entry.longitude === null ? "null" : String(entry.longitude);
 
-    return `  (${sqlLiteral(entry.name)}, ${sqlLiteral(entry.specialty)}, ${sqlLiteral(entry.district)}::public.cyprus_district, ${sqlLiteral(entry.address_maps_link)}, ${phoneSql}, ${latSql}, ${lonSql}, ${sqlLiteral(entry.slug)})`;
+    return `  (${sqlLiteral(entry.name)}, ${sqlLiteral(entry.specialty)}, ${sqlLiteral(entry.district)}::public.cyprus_district, ${sqlLiteral(entry.address_maps_link)}, ${phoneSql}, ${latSql}, ${lonSql}, ${sqlLiteral(entry.slug)}, false, false)`;
   });
 
-  return `-- Reset manual directory from spreadsheet (${sourceLabel}).
+  return `-- Reset unregistered directory listings from spreadsheet (${sourceLabel}).
 
-alter table public.directory_manual
-  add column if not exists phone text;
+delete from public.professionals
+where is_registered = false;
 
-alter table public.directory_manual
-  add column if not exists slug text;
-
-comment on column public.directory_manual.phone is
-  'Optional clinic phone shown to patients when online booking is not activated yet.';
-
-delete from public.directory_manual;
-
-insert into public.directory_manual (
+insert into public.professionals (
   name,
   specialty,
   district,
@@ -407,7 +399,9 @@ insert into public.directory_manual (
   phone,
   latitude,
   longitude,
-  slug
+  slug,
+  is_registered,
+  has_online_booking
 )
 values
 ${valueLines.join(",\n")};
@@ -451,15 +445,9 @@ function buildAppendMigration(entries, sourceLabel, dedupeMapsUrl) {
     return `    (${sqlLiteral(entry.name)}, ${sqlLiteral(entry.specialty)}, ${sqlLiteral(entry.district)}, ${sqlLiteral(entry.address_maps_link)}, ${phoneSql}, ${latSql}, ${lonSql}, ${sqlLiteral(entry.slug)})`;
   });
 
-  return `-- Append manual directory rows from spreadsheet (${sourceLabel}).
+  return `-- Append unregistered directory listings from spreadsheet (${sourceLabel}).
 
-alter table public.directory_manual
-  add column if not exists phone text;
-
-alter table public.directory_manual
-  add column if not exists slug text;
-
-insert into public.directory_manual (
+insert into public.professionals (
   name,
   specialty,
   district,
@@ -467,7 +455,9 @@ insert into public.directory_manual (
   phone,
   latitude,
   longitude,
-  slug
+  slug,
+  is_registered,
+  has_online_booking
 )
 select
   v.name,
@@ -477,15 +467,18 @@ select
   v.phone,
   v.latitude,
   v.longitude,
-  v.slug
+  v.slug,
+  false,
+  false
 from (
   values
 ${valueLines.join(",\n")}
 ) as v(name, specialty, district, address_maps_link, phone, latitude, longitude, slug)
 where not exists (
   select 1
-  from public.directory_manual d
+  from public.professionals d
   where d.is_archived = false
+    and d.is_registered = false
     and ${buildAppendExistsClause(dedupeMapsUrl)}
 );
 `;

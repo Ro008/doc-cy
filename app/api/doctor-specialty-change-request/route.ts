@@ -76,7 +76,7 @@ export async function POST(req: NextRequest) {
   }
 
   const { data: doctor, error: doctorErr } = await admin
-    .from("doctors")
+    .from("professionals")
     .select("id, specialty, specialties, is_specialty_approved")
     .eq("auth_user_id", user.id)
     .maybeSingle();

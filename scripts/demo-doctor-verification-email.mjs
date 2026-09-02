@@ -64,13 +64,13 @@ async function findAuthUserIdByEmail(admin, email) {
 }
 
 async function cleanupByEmail(admin, email) {
-  const { data: doctors } = await admin.from("doctors").select("id, auth_user_id").eq("email", email);
+  const { data: doctors } = await admin.from("professionals").select("id, auth_user_id").eq("email", email);
   const authIds = new Set();
   for (const row of doctors ?? []) {
     if (row.id) {
       await admin.from("doctor_services").delete().eq("doctor_id", row.id);
       await admin.from("doctor_settings").delete().eq("doctor_id", row.id);
-      await admin.from("doctors").delete().eq("id", row.id);
+      await admin.from("professionals").delete().eq("id", row.id);
     }
     if (row.auth_user_id) authIds.add(row.auth_user_id);
   }
@@ -165,7 +165,7 @@ async function main() {
   const authUserId = createUserRes.data.user.id;
 
   const doctorInsert = await admin
-    .from("doctors")
+    .from("professionals")
     .insert({
       auth_user_id: authUserId,
       name: DEMO_NAME,
@@ -179,7 +179,12 @@ async function main() {
       slug,
       is_specialty_approved: true,
       is_test_profile: true,
+      is_registered: true,
+      has_online_booking: true,
+      finder_visible: true,
+      is_archived: false,
       subscription_tier: "standard",
+
       district: "Nicosia",
     })
     .select("id")

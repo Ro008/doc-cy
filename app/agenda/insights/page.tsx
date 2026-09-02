@@ -30,7 +30,7 @@ export default async function PracticeInsightsPage() {
   }
 
   const doctorRes = await supabase
-    .from("doctors")
+    .from("professionals")
     .select("id, name, subscription_tier")
     .eq("auth_user_id", user.id)
     .single();

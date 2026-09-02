@@ -47,7 +47,7 @@ export default async function AgendaPage({ searchParams }: AgendaPageProps) {
   }
 
   let doctorRes = await supabase
-    .from("doctors")
+    .from("professionals")
     .select("id, name, status, auth_user_id, slug, subscription_tier")
     .eq("auth_user_id", user.id)
     .single();
@@ -61,7 +61,7 @@ export default async function AgendaPage({ searchParams }: AgendaPageProps) {
 
   if (tierMissingAgenda) {
     doctorRes = await supabase
-      .from("doctors")
+      .from("professionals")
       .select("id, name, status, auth_user_id, slug")
       .eq("auth_user_id", user.id)
       .single();

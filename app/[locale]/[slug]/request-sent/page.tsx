@@ -19,7 +19,7 @@ export default async function LocaleBookingRequestSentPage({
 
   return (
     <BookingSuccessPage
-      params={{slug: params.slug}}
+      params={{ slug: params.slug, locale: params.locale }}
       searchParams={searchParams}
     />
   );

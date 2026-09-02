@@ -12,6 +12,7 @@ import {
   isSpecialtyResolvedForVerification,
   verificationBlockedReason,
 } from "@/lib/doctor-specialty-public";
+import { publicProfessionalProfilePath } from "@/lib/manual-directory-landing-path";
 
 export type DirectoryDoctorRow = {
   id: string;
@@ -294,7 +295,7 @@ export function InternalDirectoryClient({
                     </div>
                     {d.slug ? (
                       <Link
-                        href={`/${d.slug}`}
+                        href={publicProfessionalProfilePath(d.slug)}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="mt-2 inline-block text-xs text-clinical-400/90 hover:text-clinical-300"

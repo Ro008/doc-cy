@@ -104,7 +104,7 @@ test.describe("Schedule constraints @booking-creates", { tag: "@pr-e2e" }, () =>
 
     const supabase = createClient(supabaseUrl, serviceRole);
     const { data: doctor } = await supabase
-      .from("doctors")
+      .from("professionals")
       .select("id,slug")
       .eq("slug", SCHEDULE_TEST_SLUG)
       .single();
@@ -188,7 +188,7 @@ test.describe("Schedule constraints @booking-creates", { tag: "@pr-e2e" }, () =>
 
     const supabase = createClient(supabaseUrl, serviceRole);
     const { data: doctor } = await supabase
-      .from("doctors")
+      .from("professionals")
       .select("id,slug,status")
       .eq("slug", SCHEDULE_TEST_SLUG)
       .single();
@@ -257,7 +257,7 @@ test.describe("Schedule constraints @booking-creates", { tag: "@pr-e2e" }, () =>
 
     const supabase = createClient(supabaseUrl, serviceRole);
     const { data: doctor } = await supabase
-      .from("doctors")
+      .from("professionals")
       .select("id,slug,status")
       .eq("slug", SCHEDULE_TEST_SLUG)
       .single();

@@ -114,7 +114,7 @@ import {
   harmonizeFinderSpecialtyLabel,
   harmonizeFinderSpecialtyList,
 } from "@/lib/finder-specialty-harmonize";
-import { manualDirectoryLandingPath } from "@/lib/manual-directory-landing-path";
+import { publicProfessionalProfilePath } from "@/lib/manual-directory-landing-path";
 import { finderIncludesRegisteredTestProfiles, isRegisteredDoctorHiddenFromFinder } from "@/lib/doctor-test-profile";
 import { finderAvailabilityRequestKey } from "@/lib/public/finder-availability-request-key";
 import { buildFinderAvailabilityDayHeaders } from "@/lib/public/compute-public-booking-slots";
@@ -161,6 +161,7 @@ type RegisteredFinderRow = {
   languages: string[];
   avatarUrl: string | null;
   isTestProfile: boolean;
+  hasOnlineBooking: boolean;
   /** Address as entered at registration. */
   clinic_address: string | null;
   isGesy: boolean;
@@ -212,11 +213,15 @@ type ManualFinderRow = {
 type UnifiedFinderResult = {
   kind: "registered";
   row: RegisteredFinderRow;
+  hasOnlineBooking: boolean;
+  isRegistered: true;
   distanceKm: number | null;
   usedDistrictFallbackForDistance: boolean;
 } | {
   kind: "manual";
   row: ManualFinderRow;
+  hasOnlineBooking: false;
+  isRegistered: false;
   distanceKm: number | null;
   usedDistrictFallbackForDistance: boolean;
 };
@@ -466,13 +471,13 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
       if (clinicIds.length === 0) return;
       const linksRes = await fetchAllSupabaseRowsForIdChunks(clinicIds, (clinicIdChunk) =>
         supabase
-          .from("directory_manual_clinics")
-          .select("directory_manual_id")
+          .from("professional_clinics")
+          .select("professional_id")
           .in("clinic_id", clinicIdChunk),
       );
       for (const link of linksRes.data ?? []) {
         const id = String(
-          (link as { directory_manual_id?: string }).directory_manual_id ?? "",
+          (link as { professional_id?: string }).professional_id ?? "",
         ).trim();
         if (id) manualIdsWithClinicInActiveDistrict.add(id);
       }
@@ -490,8 +495,10 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
           fetchAllSupabaseRows(() =>
             applyFinderListFilters(
               supabase
-                .from("doctors")
+                .from("professionals")
                 .select("specialty")
+                .eq("is_registered", true)
+                .eq("is_archived", false)
                 .eq("status", "verified")
                 .not("slug", "is", null),
               specialtyOptionFilters,
@@ -511,6 +518,7 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
     })();
 
     const registeredSelectAttempts = [
+      "id, name, specialty, specialties, district, town, slug, email, languages, avatar_url, is_test_profile, clinic_address, is_gesy, is_specialty_approved, latitude, longitude, has_online_booking, is_registered",
       "id, name, specialty, specialties, district, town, slug, email, languages, avatar_url, is_test_profile, clinic_address, is_gesy, is_specialty_approved, latitude, longitude",
       "id, name, specialty, specialties, district, slug, email, languages, avatar_url, is_test_profile, clinic_address, is_gesy, is_specialty_approved, latitude, longitude",
       "id, name, specialty, district, town, slug, email, languages, avatar_url, is_test_profile, clinic_address, is_gesy, is_specialty_approved, latitude, longitude",
@@ -556,7 +564,7 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
     for (const selectClause of registeredSelectAttempts) {
       const result = await getCachedDirectoryRows(
         [
-          "registered",
+          "registered-professionals",
           selectClause,
           listFilters.district,
           listFilters.name,
@@ -566,8 +574,10 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
           fetchAllSupabaseRows(() =>
             applyFinderListFilters(
               supabase
-                .from("doctors")
+                .from("professionals")
                 .select(selectClause)
+                .eq("is_registered", true)
+                .eq("is_archived", false)
                 .eq("status", "verified")
                 .not("slug", "is", null),
               // Town is inferred from clinic_address when the column is still empty
@@ -620,6 +630,7 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
             languages: normalizeLanguages(raw.languages),
             avatarUrl: toPublicAvatarUrl(raw.avatar_url),
             isTestProfile: Boolean(raw.is_test_profile ?? false),
+            hasOnlineBooking: Boolean(raw.has_online_booking ?? true),
             clinic_address: (raw.clinic_address as string | null) ?? null,
             isGesy: Boolean(raw.is_gesy ?? false),
             latitude: parseOptionalCoordinates(raw.latitude, raw.longitude)?.latitude ?? null,
@@ -709,7 +720,7 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
       const extraIds = Array.from(manualIdsWithClinicInActiveDistrict);
       const manualRes = await getCachedDirectoryRows(
         [
-          "manual",
+          "manual-professionals",
           selectClause,
           listFilters.district,
           listFilters.name,
@@ -728,6 +739,7 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
             requireFinderVisible: selectClause.includes("finder_visible"),
             orderByName: false,
             limit: manualListLimit,
+            source: "professionals",
           }),
       );
       if (manualRes.error) {
@@ -764,7 +776,7 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
       try {
         manualDirectoryTotalCount = await getCachedDirectoryPayload(
           [
-            "manual-count",
+            "manual-count-professionals",
             listFilters.district,
             listFilters.name,
             listFilters.specialty,
@@ -777,6 +789,7 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
               filters: listFilters,
               specialtyColumn: manualUsesSpecialtiesColumn ? "specialties" : "specialty",
               requireFinderVisible: manualUsesSpecialtiesColumn,
+              source: "professionals",
             });
             if (manualCountRes.error) {
               throw new Error(manualCountRes.error.message ?? "manual_count_failed");
@@ -929,11 +942,23 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
     [
       ...filteredRegistered.map((row) => {
         const distanceInfo = computeDistanceInfo(row.district, row.latitude, row.longitude);
-        return { kind: "registered" as const, row, ...distanceInfo };
+        return {
+          kind: "registered" as const,
+          row,
+          hasOnlineBooking: row.hasOnlineBooking,
+          isRegistered: true as const,
+          ...distanceInfo,
+        };
       }),
       ...filteredManual.map((row) => {
         const distanceInfo = computeDistanceInfo(row.district, row.latitude, row.longitude);
-        return { kind: "manual" as const, row, ...distanceInfo };
+        return {
+          kind: "manual" as const,
+          row,
+          hasOnlineBooking: false as const,
+          isRegistered: false as const,
+          ...distanceInfo,
+        };
       }),
     ],
     {
@@ -976,9 +1001,9 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
       const [monthlyRequestRes, clinicsRes, linksRes] = await Promise.all([
         fetchAllSupabaseRowsForIdChunks(visibleManualIds, (idChunk) =>
           supabase
-            .from("directory_manual_patient_booking_requests")
-            .select("id, manual_id, voter_key")
-            .in("manual_id", idChunk)
+            .from("professional_patient_booking_requests")
+            .select("id, professional_id, voter_key")
+            .in("professional_id", idChunk)
             .gte("created_at", monthlySinceIso),
         ),
         clinicIds.length > 0
@@ -992,11 +1017,11 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
           : Promise.resolve({ data: [] as unknown[], error: null }),
         fetchAllSupabaseRowsForIdChunks(visibleManualIds, (idChunk) =>
           supabase
-            .from("directory_manual_clinics")
+            .from("professional_clinics")
             .select(
-              "directory_manual_id, is_primary, clinics ( id, name, slug, address, address_maps_link, district, is_archived, phone )",
+              "professional_id, is_primary, clinics ( id, name, slug, address, address_maps_link, district, is_archived, phone )",
             )
-            .in("directory_manual_id", idChunk),
+            .in("professional_id", idChunk),
         ),
       ]);
 
@@ -1004,7 +1029,7 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
       if (!monthlyRequestRes.error && monthlyRequestRes.data?.length) {
         const votersByManual = new Map<string, Set<string>>();
         for (const r of monthlyRequestRes.data) {
-          const mid = String((r as { manual_id?: string }).manual_id ?? "");
+          const mid = String((r as { professional_id?: string }).professional_id ?? "");
           const id = String((r as { id?: string }).id ?? "");
           const vk = (r as { voter_key?: string | null }).voter_key?.trim();
           const dedupeId = vk || `legacy:${id}`;
@@ -1076,7 +1101,7 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
         });
         for (const link of sorted) {
           const manualId = String(
-            (link as { directory_manual_id?: string }).directory_manual_id ?? "",
+            (link as { professional_id?: string }).professional_id ?? "",
           );
           const clinic = (
             link as {
@@ -1275,7 +1300,7 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
                         <div className="flex min-w-0 items-start gap-3">
                           {row.slug ? (
                           <PendingLink
-                            href={`/${row.slug}`}
+                            href={publicProfessionalProfilePath(row.slug)}
                             navigationReason="profile"
                             fill
                             prefetch={false}
@@ -1314,7 +1339,7 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
                         <div className="min-w-0 flex-1 flex flex-col items-stretch gap-2 text-left">
                           {row.slug ? (
                             <PendingLink
-                              href={`/${row.slug}`}
+                              href={publicProfessionalProfilePath(row.slug)}
                               navigationReason="profile"
                               prefetch={false}
                               className="text-left text-[17px] font-bold leading-[1.2] tracking-tight text-ink-900 transition-none hover:text-clinical-600"
@@ -1374,7 +1399,7 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
 
                 const row = item.row;
                 const manualLandingHref = row.slug
-                  ? manualDirectoryLandingPath(row.slug)
+                  ? publicProfessionalProfilePath(row.slug)
                   : null;
                 return (
                   <article

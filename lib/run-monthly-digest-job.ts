@@ -106,9 +106,10 @@ export async function runMonthlyDigestJob(opts?: {
 
   const { data: doctors, error: doctorsError } = await fetchAllSupabaseRows(() =>
     supabase
-      .from("doctors")
+      .from("professionals")
       .select("id, name, email")
       .eq("is_test_profile", false)
+      .eq("is_registered", true)
       .not("email", "is", null),
   );
 

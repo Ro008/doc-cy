@@ -64,7 +64,7 @@ async function main() {
   const admin = createClient(supabaseUrl, serviceRole);
 
   const { data: byDomain, error: domainErr } = await admin
-    .from("doctors")
+    .from("professionals")
     .select("id,auth_user_id,email,license_file_url,name")
     .ilike("email", `%${TEST_EMAIL_DOMAIN}`);
   if (domainErr) {
@@ -72,7 +72,7 @@ async function main() {
   }
 
   const { data: byName, error: nameErr } = await admin
-    .from("doctors")
+    .from("professionals")
     .select("id,auth_user_id,email,license_file_url,name")
     .ilike("name", `${TEST_NAME_PREFIX}%`);
   if (nameErr) {
@@ -87,7 +87,7 @@ async function main() {
   const doctorIds = doctors.map((d) => String(d.id));
 
   if (doctorIds.length > 0) {
-    const { error: delDoctorsErr } = await admin.from("doctors").delete().in("id", doctorIds);
+    const { error: delDoctorsErr } = await admin.from("professionals").delete().in("id", doctorIds);
     if (delDoctorsErr) {
       throw new Error(`Failed deleting doctor rows: ${delDoctorsErr.message}`);
     }

@@ -35,10 +35,11 @@ export async function POST(req: Request) {
   }
 
   const { data: row, error: lookupErr } = await supabase
-    .from("directory_manual")
+    .from("professionals")
     .select("id")
     .eq("id", manualId)
     .eq("is_archived", false)
+    .eq("is_registered", false)
     .maybeSingle();
 
   if (lookupErr) {
@@ -55,9 +56,9 @@ export async function POST(req: Request) {
 
   if (voterKey) {
     const { data: existing, error: dupErr } = await supabase
-      .from("directory_manual_patient_booking_requests")
+      .from("professional_patient_booking_requests")
       .select("id")
-      .eq("manual_id", manualId)
+      .eq("professional_id", manualId)
       .eq("voter_key", voterKey)
       .gte("created_at", sinceIso)
       .maybeSingle();
@@ -72,9 +73,9 @@ export async function POST(req: Request) {
   }
 
   const { error: insertErr } = await supabase
-    .from("directory_manual_patient_booking_requests")
+    .from("professional_patient_booking_requests")
     .insert({
-      manual_id: manualId,
+      professional_id: manualId,
       source: "finder_card",
       ...(voterKey ? { voter_key: voterKey } : {}),
     });

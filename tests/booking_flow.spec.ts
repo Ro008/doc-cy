@@ -17,7 +17,7 @@ test.describe("Booking flow @booking-creates", { tag: "@pr-e2e" }, () => {
     const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
     const admin = serviceKey ? createClient(supabaseUrl, serviceKey) : null;
     const { data: activeDoctors } = await supabase
-      .from("doctors")
+      .from("professionals")
       .select("slug,name,id")
       .eq("status", "verified")
       .not("slug", "is", null)

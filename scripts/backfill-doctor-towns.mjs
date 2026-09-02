@@ -78,7 +78,7 @@ async function fetchDoctors(supabase) {
   const pageSize = 1000;
   for (let from = 0; ; from += pageSize) {
     const { data, error } = await supabase
-      .from("doctors")
+      .from("professionals")
       .select("id, name, town, clinic_address, district, status")
       .range(from, from + pageSize - 1);
     if (error) throw new Error(`doctors: ${error.message}`);
@@ -137,7 +137,7 @@ async function main() {
     for (const [town, ids] of idsByTown) {
       for (let i = 0; i < ids.length; i += 200) {
         const chunk = ids.slice(i, i + 200);
-        const { error } = await supabase.from("doctors").update({ town }).in("id", chunk);
+        const { error } = await supabase.from("professionals").update({ town }).in("id", chunk);
         if (error) throw new Error(`doctors ${town}: ${error.message}`);
       }
     }

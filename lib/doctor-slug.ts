@@ -76,7 +76,7 @@ export async function allocateUniqueDoctorSlug(
 ): Promise<string> {
   const candidates = buildDoctorSlugCandidates(input);
   const { data, error } = await supabase
-    .from("doctors")
+    .from("professionals")
     .select("slug")
     .in("slug", candidates);
 

@@ -12,6 +12,9 @@ export type FinderListFilters = {
   town?: string;
 };
 
+/** Finder list source. `professionals` is the unified identity table. */
+export type FinderDirectorySource = "directory_manual" | "professionals";
+
 /**
  * Apply district / name / specialty filters to a PostgREST query builder.
  *
@@ -81,12 +84,22 @@ export async function countManualDirectoryForFinder(input: {
   filters: FinderListFilters;
   specialtyColumn?: "specialty" | "specialties";
   requireFinderVisible?: boolean;
+  source?: FinderDirectorySource;
 }): Promise<{ count: number; error: { code?: string; message?: string } | null }> {
-  const { supabase, filters, specialtyColumn, requireFinderVisible = false } = input;
+  const {
+    supabase,
+    filters,
+    specialtyColumn,
+    requireFinderVisible = false,
+    source = "professionals",
+  } = input;
   let q = supabase
-    .from("directory_manual")
+    .from(source)
     .select("id", { count: "exact", head: true })
     .eq("is_archived", false);
+  if (source === "professionals") {
+    q = q.eq("is_registered", false);
+  }
   if (requireFinderVisible) {
     q = q.eq("finder_visible", true);
   }
@@ -115,6 +128,7 @@ export async function fetchManualDirectoryForFinder(input: {
   orderByName?: boolean;
   /** Max rows to return (PostgREST range). Omit for unbounded near-me sorts. */
   limit?: number;
+  source?: FinderDirectorySource;
 }): Promise<{ data: unknown[] | null; error: { code?: string; message?: string } | null }> {
   const {
     supabase,
@@ -125,10 +139,14 @@ export async function fetchManualDirectoryForFinder(input: {
     requireFinderVisible = false,
     orderByName = false,
     limit,
+    source = "professionals",
   } = input;
 
   const baseQuery = (): any => {
-    let q = supabase.from("directory_manual").select(selectClause).eq("is_archived", false);
+    let q = supabase.from(source).select(selectClause).eq("is_archived", false);
+    if (source === "professionals") {
+      q = q.eq("is_registered", false);
+    }
     if (requireFinderVisible && selectClause.includes("finder_visible")) {
       q = q.eq("finder_visible", true);
     }

@@ -19,7 +19,7 @@ export function patientBookingRequestErrorMessage(
     return "We could not record your vote. Please try again.";
   }
   if (reason === "table_missing") {
-    return "This feature is not active yet: the database needs the latest DocCy migration (table directory_manual_patient_booking_requests).";
+    return "This feature is not active yet: the database needs the latest DocCy migration (table professional_patient_booking_requests).";
   }
   if (reason === "insert_failed" || reason === "permission_denied") {
     return "We could not save your vote. If you run DocCy, apply pending Supabase migrations and try again.";

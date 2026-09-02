@@ -57,7 +57,7 @@ test.describe("Integration: doctor slug allocation", () => {
         allocatedSlugs.push(slug);
 
         const doctorInsert = await admin
-          .from("doctors")
+          .from("professionals")
           .insert({
             auth_user_id: authUserId,
             name: sharedName,
@@ -72,7 +72,12 @@ test.describe("Integration: doctor slug allocation", () => {
             status: "verified",
             slug,
             is_specialty_approved: true,
-            subscription_tier: "standard",
+                  is_registered: true,
+      has_online_booking: true,
+      finder_visible: true,
+      is_archived: false,
+      subscription_tier: "standard",
+
           })
           .select("id, slug")
           .single();
@@ -89,7 +94,7 @@ test.describe("Integration: doctor slug allocation", () => {
       expect(new Set(allocatedSlugs).size).toBe(2);
 
       const { data: rows, error } = await admin
-        .from("doctors")
+        .from("professionals")
         .select("slug")
         .in("id", createdDoctorIds);
       if (error) {
@@ -101,7 +106,7 @@ test.describe("Integration: doctor slug allocation", () => {
     } finally {
       for (const doctorId of createdDoctorIds) {
         await admin.from("doctor_settings").delete().eq("doctor_id", doctorId);
-        await admin.from("doctors").delete().eq("id", doctorId);
+        await admin.from("professionals").delete().eq("id", doctorId);
       }
       for (const authUserId of createdAuthUserIds) {
         await admin.auth.admin.deleteUser(authUserId);

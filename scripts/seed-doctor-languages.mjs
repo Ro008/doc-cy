@@ -35,7 +35,7 @@ const LANGUAGES = ["English", "Greek"];
 async function patchMatching(substr) {
   const s = substr.toLowerCase();
   const { data: rows, error: qErr } = await supabase
-    .from("doctors")
+    .from("professionals")
     .select("id, name, slug, languages")
     .or(`slug.ilike.%${s}%,name.ilike.%${s}%`);
 
@@ -49,7 +49,7 @@ async function patchMatching(substr) {
   }
   for (const row of rows) {
     const { error: uErr } = await supabase
-      .from("doctors")
+      .from("professionals")
       .update({ languages: LANGUAGES })
       .eq("id", row.id);
     if (uErr) {

@@ -8,6 +8,7 @@ import { UserBarMoreMenuItems } from "@/components/navigation/UserBarMoreMenuIte
 import { MobileTabNavLink } from "@/components/navigation/MobileTabNavLink";
 import { PendingLink } from "@/components/navigation/PendingLink";
 import { DocCyWordmark } from "@/components/brand/DocCyWordmark";
+import { publicProfessionalProfilePath } from "@/lib/manual-directory-landing-path";
 import { useDoctorSession } from "@/components/navigation/DoctorSessionProvider";
 import { emitOpenFeedback } from "@/lib/doccy-feedback";
 import { PRO_CHROME_HYDRATED_ATTR } from "@/lib/pro-session-hint";
@@ -154,7 +155,7 @@ export function UserBar() {
 
   const initials = getInitials(sessionState.doctorName);
   const slug = sessionState.doctorSlug?.trim() || null;
-  const publicProfilePath = slug ? `/${slug}` : null;
+  const publicProfilePath = slug ? publicProfessionalProfilePath(slug) : null;
 
   const pathNorm = pathname.replace(/\/$/, "") || "/";
 

@@ -233,7 +233,7 @@ test.describe("Integration: doctor account access", { tag: "@pr-e2e" }, () => {
         ).status(),
       ).toBe(200);
 
-      const row = await admin.from("doctors").select("status").eq("id", standard.doctorId).single();
+      const row = await admin.from("professionals").select("status").eq("id", standard.doctorId).single();
       expect(row.data?.status).toBe("verified");
     } finally {
       if (custom) await deleteTestDoctor(custom);
@@ -264,7 +264,7 @@ test.describe("Integration: doctor account access", { tag: "@pr-e2e" }, () => {
           .status(),
       ).toBe(200);
       let row = await admin
-        .from("doctors")
+        .from("professionals")
         .select("specialty, is_specialty_approved, status")
         .eq("id", doctorId)
         .single();
@@ -273,7 +273,7 @@ test.describe("Integration: doctor account access", { tag: "@pr-e2e" }, () => {
       expect(row.data?.status).toBe("pending");
 
       await admin
-        .from("doctors")
+        .from("professionals")
         .update({ specialty: "medittation", is_specialty_approved: false, status: "pending" })
         .eq("id", doctorId);
 
@@ -286,23 +286,23 @@ test.describe("Integration: doctor account access", { tag: "@pr-e2e" }, () => {
           })
         ).status(),
       ).toBe(200);
-      row = await admin.from("doctors").select("specialty, is_specialty_approved").eq("id", doctorId).single();
+      row = await admin.from("professionals").select("specialty, is_specialty_approved").eq("id", doctorId).single();
       expect(row.data?.specialty).toBe("Meditation");
       expect(row.data?.is_specialty_approved).toBe(true);
 
       await admin
-        .from("doctors")
+        .from("professionals")
         .update({ specialty: "oddity", is_specialty_approved: false, status: "pending" })
         .eq("id", doctorId);
       expect(
         (await postSpecialtyReview(request, secret, { doctorId, action: "reject_specialty" })).status(),
       ).toBe(200);
-      row = await admin.from("doctors").select("status, is_specialty_approved").eq("id", doctorId).single();
+      row = await admin.from("professionals").select("status, is_specialty_approved").eq("id", doctorId).single();
       expect(row.data?.status).toBe("rejected");
       expect(row.data?.is_specialty_approved).toBe(false);
 
       await admin
-        .from("doctors")
+        .from("professionals")
         .update({ specialty: "acupuncture", is_specialty_approved: false, status: "pending" })
         .eq("id", doctorId);
       expect(
