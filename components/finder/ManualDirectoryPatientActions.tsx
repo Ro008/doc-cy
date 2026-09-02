@@ -3,6 +3,7 @@
 import * as React from "react";
 import { PendingLink } from "@/components/navigation/PendingLink";
 import { emitOpenFeedback } from "@/lib/doccy-feedback";
+import { registerClaimPath } from "@/lib/claim-directory-professional";
 
 /** Scarcity signal when patients have requested online booking recently. */
 export function ManualDirectoryMonthlyRequestBadge({
@@ -73,13 +74,19 @@ export function ManualDirectoryReportIncorrectInfoLink({
 }
 
 /** Low-emphasis path for the listed professional (finder is patient-first). */
-export function ManualDirectoryDoctorClaimFooter({ className = "" }: { className?: string }) {
+export function ManualDirectoryDoctorClaimFooter({
+  professionalId,
+  className = "",
+}: {
+  professionalId: string;
+  className?: string;
+}) {
   return (
     <div className={`text-left ${className}`}>
       <p className="text-[11px] leading-snug text-ink-500">
         Are you this professional?{" "}
         <PendingLink
-          href="/for-professionals#founders-pricing"
+          href={registerClaimPath(professionalId)}
           className="font-medium text-clinical-700 underline decoration-clinical-300 underline-offset-2 transition hover:text-clinical-600"
         >
           Activate online booking

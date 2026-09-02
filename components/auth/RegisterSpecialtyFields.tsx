@@ -35,8 +35,21 @@ function specialtyKey(value: string): string {
 /**
  * Flat multi-specialty registration: each row is specialty + license (equal weight).
  */
-export function RegisterSpecialtyFields() {
-  const [rows, setRows] = React.useState<RowState[]>(() => [newRow()]);
+export function RegisterSpecialtyFields({
+  initialSpecialties,
+}: {
+  initialSpecialties?: readonly { specialty: string; fromMaster: boolean }[];
+} = {}) {
+  const [rows, setRows] = React.useState<RowState[]>(() => {
+    if (initialSpecialties && initialSpecialties.length > 0) {
+      return initialSpecialties.slice(0, MAX_DOCTOR_SPECIALTIES).map((entry) => ({
+        ...newRow(),
+        specialty: entry.specialty,
+        fromMaster: entry.fromMaster,
+      }));
+    }
+    return [newRow()];
+  });
 
   const payload = rows.map((r) => ({
     specialty: r.specialty,
@@ -62,6 +75,9 @@ export function RegisterSpecialtyFields() {
           Add every specialty you practise. Each one needs its own license or
           certification number. Choose from the list, or select &quot;Other&quot; if
           yours isn&apos;t listed (our team will review it).
+          {initialSpecialties && initialSpecialties.length > 0
+            ? " We filled this from your listing — confirm or adjust it."
+            : null}
         </p>
       </div>
 
@@ -141,8 +157,8 @@ export function RegisterSpecialtyFields() {
               }
               specialtyName={`_unused_specialty_${row.key}`}
               fromMasterName={`_unused_from_master_${row.key}`}
-              initialSpecialty=""
-              initialIsApproved
+              initialSpecialty={row.specialty}
+              initialIsApproved={row.fromMaster}
               variant="register"
               excludeSpecialties={excluded}
               onSelectionChange={(p) => {

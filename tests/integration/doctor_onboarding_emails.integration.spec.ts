@@ -33,6 +33,22 @@ test.describe("Doctor onboarding email content", { tag: "@pr-email" }, () => {
       "https://mydoccy.com",
     );
     expect(custom.textBody).toContain("custom specialty pending your approval");
+
+    const claimed = buildFounderNewRegistrationNotifyContent(
+      {
+        doctorId: "listing-1",
+        fullName: "Ioanna Severi",
+        email: "ioanna@example.com",
+        phone: "+35799333444",
+        specialty: "Dentist",
+        needsSpecialtyReview: false,
+        claimedDirectory: true,
+      },
+      "https://mydoccy.com",
+    );
+    expect(claimed.subject).toBe("[DocCy] Finder listing claimed — Ioanna Severi");
+    expect(claimed.textBody).toContain("claimed their existing finder listing");
+    expect(claimed.textBody).toContain("listing-1");
   });
 
   test("doctor account verified email includes login link to agenda and setup guidance", () => {

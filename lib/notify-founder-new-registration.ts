@@ -32,14 +32,16 @@ export function buildFounderNewRegistrationNotifyContent(
     `Specialty: ${payload.specialty}`,
     payload.needsSpecialtyReview ? `Note: custom specialty pending your approval` : null,
     payload.claimedDirectory
-      ? `Claimed existing directory listing (same professional id).`
+      ? `This person claimed their existing finder listing (same professional id). Pending verification — patients keep the same public profile.`
       : null,
-    `Doctor id: ${payload.doctorId}`,
+    `Professional id: ${payload.doctorId}`,
     `Review: ${reviewUrl}`,
   ].filter(Boolean) as string[];
 
   return {
-    subject: `[DocCy] New registration — ${payload.fullName}`,
+    subject: payload.claimedDirectory
+      ? `[DocCy] Finder listing claimed — ${payload.fullName}`
+      : `[DocCy] New registration — ${payload.fullName}`,
     textBody: lines.join("\n"),
     reviewUrl,
   };

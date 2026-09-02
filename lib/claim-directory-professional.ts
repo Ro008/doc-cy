@@ -1,7 +1,23 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { isCurrentRegistrationSpecialty } from "@/lib/cyprus-specialties";
+import { firstNameFromProfessionalName } from "@/lib/doctor-display-name";
+import { MAX_DOCTOR_SPECIALTIES } from "@/lib/doctor-specialties";
 import { isTestDoctorRegistrationEmail } from "@/lib/doctor-test-profile";
 import { escapeIlikePattern } from "@/lib/finder-results-paging";
 import { harmonizeFinderSpecialtyLabel } from "@/lib/finder-specialty-harmonize";
+
+export const REGISTER_CLAIM_QUERY = "claim";
+
+const PROFESSIONAL_UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export function isProfessionalUuid(value: string | null | undefined): boolean {
+  return PROFESSIONAL_UUID_RE.test(String(value ?? "").trim());
+}
+
+export function registerClaimPath(professionalId: string): string {
+  return `/register?${REGISTER_CLAIM_QUERY}=${encodeURIComponent(professionalId.trim())}`;
+}
 
 export type DirectoryClaimListing = {
   id: string;
@@ -21,10 +37,28 @@ export type DirectoryClaimInput = {
   isTestSignup?: boolean;
 };
 
-export type DirectoryClaimMatch = {
+export type FuzzyDirectoryClaimMatch = {
   id: string;
   slug: string | null;
   reason: "email" | "name_specialty_district";
+};
+
+export type DirectoryClaimMatch = FuzzyDirectoryClaimMatch | {
+  id: string;
+  slug: string | null;
+  reason: "card_link";
+};
+
+export type RegisterClaimPrefill = {
+  id: string;
+  slug: string | null;
+  name: string;
+  firstName: string | null;
+  specialty: string;
+  specialties: Array<{ specialty: string; fromMaster: boolean }>;
+  district: string | null;
+  phone: string | null;
+  addressHint: string | null;
 };
 
 /** Same conservative name key as duplicate review (exact, not fuzzy). */
@@ -83,7 +117,7 @@ function specialtiesOverlap(signup: readonly string[], listing: DirectoryClaimLi
 export function pickUniqueDirectoryClaim(
   input: DirectoryClaimInput,
   listings: readonly DirectoryClaimListing[],
-): DirectoryClaimMatch | null {
+): FuzzyDirectoryClaimMatch | null {
   if (input.isTestSignup) return null;
 
   const email = normalizeEmail(input.email);
@@ -116,6 +150,71 @@ export function pickUniqueDirectoryClaim(
     id: String(hit.id),
     slug: String(hit.slug ?? "").trim() || null,
     reason: uniqueEmail ? "email" : "name_specialty_district",
+  };
+}
+
+export function pickExplicitDirectoryClaim(
+  listing: { id: string; slug?: string | null } | null | undefined,
+  options?: { isTestSignup?: boolean },
+): DirectoryClaimMatch | null {
+  if (options?.isTestSignup) return null;
+  const id = String(listing?.id ?? "").trim();
+  if (!id) return null;
+  return {
+    id,
+    slug: String(listing?.slug ?? "").trim() || null,
+    reason: "card_link",
+  };
+}
+
+function listingSpecialtyLabels(row: {
+  specialty?: string | null;
+  specialties?: string[] | null;
+}): string[] {
+  const raw = [
+    String(row.specialty ?? "").trim(),
+    ...(Array.isArray(row.specialties) ? row.specialties : []),
+  ];
+  const seen = new Set<string>();
+  const labels: string[] = [];
+  for (const item of raw) {
+    const label = String(item ?? "").trim();
+    if (!label) continue;
+    const key = label.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    labels.push(label);
+  }
+  return labels.slice(0, MAX_DOCTOR_SPECIALTIES);
+}
+
+export function toRegisterClaimPrefill(row: {
+  id: string;
+  slug?: string | null;
+  name?: string | null;
+  specialty?: string | null;
+  specialties?: string[] | null;
+  district?: string | null;
+  phone?: string | null;
+  address?: string | null;
+  clinic_address?: string | null;
+}): RegisterClaimPrefill {
+  const name = String(row.name ?? "").trim();
+  const labels = listingSpecialtyLabels(row);
+  return {
+    id: String(row.id),
+    slug: String(row.slug ?? "").trim() || null,
+    name,
+    firstName: firstNameFromProfessionalName(name),
+    specialty: labels[0] ?? "",
+    specialties: labels.map((specialty) => ({
+      specialty,
+      fromMaster: isCurrentRegistrationSpecialty(specialty),
+    })),
+    district: String(row.district ?? "").trim() || null,
+    phone: String(row.phone ?? "").trim() || null,
+    addressHint:
+      String(row.address ?? "").trim() || String(row.clinic_address ?? "").trim() || null,
   };
 }
 
@@ -208,7 +307,7 @@ export async function findDirectoryProfessionalToClaim(
     district: string | null;
     specialties: readonly string[];
   },
-): Promise<DirectoryClaimMatch | null> {
+): Promise<FuzzyDirectoryClaimMatch | null> {
   const email = normalizeEmail(input.email);
   if (isTestDoctorRegistrationEmail(email)) return null;
 
@@ -271,4 +370,62 @@ export async function findDirectoryProfessionalToClaim(
     },
     listings,
   );
+}
+
+/**
+ * Load an unregistered listing for the card → register CTA.
+ * Returns null when the id is invalid, already registered, or archived.
+ */
+export async function loadUnregisteredProfessionalForRegisterClaim(
+  supabase: SupabaseClient,
+  professionalId: string,
+): Promise<RegisterClaimPrefill | null> {
+  const id = String(professionalId ?? "").trim();
+  if (!isProfessionalUuid(id)) return null;
+
+  const { data, error } = await supabase
+    .from("professionals")
+    .select("id, slug, name, specialty, specialties, district, phone, address, clinic_address")
+    .eq("id", id)
+    .eq("is_registered", false)
+    .eq("is_archived", false)
+    .maybeSingle();
+
+  if (error) {
+    console.error("[DocCy] register claim listing lookup failed", error);
+    return null;
+  }
+  if (!data?.id) return null;
+  return toRegisterClaimPrefill(data);
+}
+
+/**
+ * Prefer the listing UUID from the card CTA. Fall back to unique email / identity match.
+ * Test signup emails never claim a real listing, even with an explicit id.
+ */
+export async function resolveSignupDirectoryClaim(
+  supabase: SupabaseClient,
+  input: {
+    explicitClaimId?: string | null;
+    name: string;
+    email: string;
+    district: string | null;
+    specialties: readonly string[];
+  },
+): Promise<DirectoryClaimMatch | null> {
+  if (isTestDoctorRegistrationEmail(input.email)) return null;
+
+  const explicitId = String(input.explicitClaimId ?? "").trim();
+  if (isProfessionalUuid(explicitId)) {
+    const listing = await loadUnregisteredProfessionalForRegisterClaim(supabase, explicitId);
+    const explicit = pickExplicitDirectoryClaim(listing);
+    if (explicit) return explicit;
+  }
+
+  return findDirectoryProfessionalToClaim(supabase, {
+    name: input.name,
+    email: input.email,
+    district: input.district,
+    specialties: input.specialties,
+  });
 }

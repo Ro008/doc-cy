@@ -17,12 +17,17 @@ import {
   registerLabelClass,
 } from "@/lib/register-ui";
 
-export function RegisterClinicAddressField() {
+export function RegisterClinicAddressField({
+  listingAddressHint,
+}: {
+  listingAddressHint?: string | null;
+} = {}) {
   const [location, setLocation] = React.useState<ClinicLocation>(emptyClinicLocation());
   const [isEditing, setIsEditing] = React.useState(true);
   const [searchSession, setSearchSession] = React.useState(0);
 
   const isComplete = registerClinicLocationIsComplete(location);
+  const hint = String(listingAddressHint ?? "").trim();
 
   return (
     <div className="group sm:col-span-2" data-validate-field="1" data-invalid="0">
@@ -32,6 +37,12 @@ export function RegisterClinicAddressField() {
       <p className={registerHelperClass}>
         Pick your main clinic from the Google Maps suggestions so patients can find you nearby.
       </p>
+      {hint ? (
+        <p className={registerHelperClass}>
+          Your listing already shows: <span className="font-medium text-ink-700">{hint}</span>.
+          Search and confirm the same clinic below.
+        </p>
+      ) : null}
       <p className={registerHelperClass}>
         If you work at more than one clinic, you can add the others later in Settings.
       </p>

@@ -17,3 +17,11 @@ export function doctorDashboardDisplayName(fullName: string | null | undefined):
 
   return withoutPrefix || "Professional";
 }
+
+/** First token of a professional name, for greetings. Null when the name is missing. */
+export function firstNameFromProfessionalName(fullName: string | null | undefined): string | null {
+  const cleaned = doctorDashboardDisplayName(fullName);
+  if (!cleaned || cleaned === "Professional") return null;
+  const first = cleaned.split(/\s+/).find(Boolean) ?? "";
+  return first || null;
+}

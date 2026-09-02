@@ -46,33 +46,49 @@ import {
 } from "@/lib/register-clinic-location";
 import { RegisterClinicAddressField } from "@/components/auth/RegisterClinicAddressField";
 import { allocateUniqueDoctorSlug } from "@/lib/doctor-slug";
-import { findDirectoryProfessionalToClaim } from "@/lib/claim-directory-professional";
+import {
+  isProfessionalUuid,
+  loadUnregisteredProfessionalForRegisterClaim,
+  REGISTER_CLAIM_QUERY,
+  resolveSignupDirectoryClaim,
+  type RegisterClaimPrefill,
+} from "@/lib/claim-directory-professional";
 
 type PageProps = {
-  searchParams?: { submitted?: string; error?: string; debug?: string };
+  searchParams?: {
+    submitted?: string;
+    error?: string;
+    debug?: string;
+    claim?: string;
+    claimed?: string;
+  };
 };
 
 const emailRegex = /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i;
 
-function redirectWithError(errorCode: string, detail?: unknown): never {
-  if (process.env.NODE_ENV !== "development" || !detail) {
-    redirect(`/register?error=${encodeURIComponent(errorCode)}`);
+function redirectWithError(
+  errorCode: string,
+  detail?: unknown,
+  claimId?: string | null,
+): never {
+  const params = new URLSearchParams();
+  params.set("error", errorCode);
+  const claim = String(claimId ?? "").trim();
+  if (isProfessionalUuid(claim)) params.set(REGISTER_CLAIM_QUERY, claim);
+  if (process.env.NODE_ENV === "development" && detail) {
+    const detailText =
+      typeof detail === "string"
+        ? detail
+        : (() => {
+            try {
+              return JSON.stringify(detail);
+            } catch {
+              return String(detail);
+            }
+          })();
+    params.set("debug", detailText.slice(0, 1400));
   }
-  const detailText =
-    typeof detail === "string"
-      ? detail
-      : (() => {
-          try {
-            return JSON.stringify(detail);
-          } catch {
-            return String(detail);
-          }
-        })();
-  redirect(
-    `/register?error=${encodeURIComponent(errorCode)}&debug=${encodeURIComponent(
-      detailText.slice(0, 1400)
-    )}`
-  );
+  redirect(`/register?${params.toString()}`);
 }
 
 function mapAuthErrorToCode(error: {
@@ -142,6 +158,13 @@ async function handleRegister(formData: FormData) {
     redirect("/register");
   }
 
+  const claimFromForm = String(formData.get("claimProfessionalId") ?? "").trim();
+  // Nested function (not a const arrow) so TypeScript treats `fail()` as never-returning
+  // and narrows later reads such as `specialtiesParsed.entries`.
+  function fail(errorCode: string, detail?: unknown): never {
+    redirectWithError(errorCode, detail, claimFromForm);
+  }
+
   const fullName = (formData.get("fullName") as string | null)?.trim() || "";
   const email = (formData.get("email") as string | null)?.trim() || "";
   const password = (formData.get("password") as string | null) || "";
@@ -189,7 +212,7 @@ async function handleRegister(formData: FormData) {
 
   const specialtiesParsed = validateDoctorSpecialtyEntries(specialtyInputs);
   if (!specialtiesParsed.ok) {
-    redirectWithError("specialty");
+    fail("specialty");
   }
   const specialtyEntries = specialtiesParsed.entries;
   const specialty = specialtyEntries[0]!.specialty;
@@ -204,11 +227,11 @@ async function handleRegister(formData: FormData) {
     !avatarFile ||
     professionalDisclaimer !== "on"
   ) {
-    redirectWithError("validation");
+    fail("validation");
   }
 
   if (clinicResolved.ok === false) {
-    redirectWithError(clinicResolved.code);
+    fail(clinicResolved.code);
   }
 
   const {
@@ -221,35 +244,35 @@ async function handleRegister(formData: FormData) {
   } = clinicResolved.value;
 
   if (!emailRegex.test(email)) {
-    redirectWithError("invalid_email_format");
+    fail("invalid_email_format");
   }
 
   const languagesRaw = formData.getAll("language").map((x) => String(x).trim());
   const languagesParsed = validateLanguageSelection(languagesRaw);
   if (!languagesParsed.ok) {
-    redirectWithError("languages");
+    fail("languages");
   }
   const languages = languagesParsed.value;
 
   if (avatarFile.size <= 0 || avatarFile.size > 10 * 1024 * 1024) {
-    redirectWithError("avatar_file");
+    fail("avatar_file");
   }
   // Tiny server-side guard after client crop/compression.
   // Reject anomalous payloads so avatar uploads stay lightweight and predictable.
   const croppedAvatarMaxBytes = 1024 * 1024; // 1 MB
   if (avatarFile.size > croppedAvatarMaxBytes) {
-    redirectWithError("avatar_too_large");
+    fail("avatar_too_large");
   }
 
   const avatarType = avatarFile.type?.toLowerCase() ?? "";
   if (!avatarType.startsWith("image/")) {
-    redirectWithError("avatar_file");
+    fail("avatar_file");
   }
 
   const service = createServiceRoleClient();
   if (!service) {
     console.error("[DocCy] SUPABASE_SERVICE_ROLE_KEY missing — cannot complete registration safely");
-    redirectWithError("db", "SUPABASE_SERVICE_ROLE_KEY missing");
+    fail("db", "SUPABASE_SERVICE_ROLE_KEY missing");
   }
 
   const licenseFileUrl = null;
@@ -274,9 +297,9 @@ async function handleRegister(formData: FormData) {
     if (adminError || !adminData.user) {
       console.error("[DocCy] Auth admin create (E2E registration) failed", adminError);
       if ((adminError as { status?: number })?.status === 429) {
-        redirectWithError("rate_limit", adminError);
+        fail("rate_limit", adminError);
       }
-      redirectWithError(mapAuthErrorToCode(adminError as { message?: string | null; status?: number }), adminError);
+      fail(mapAuthErrorToCode(adminError as { message?: string | null; status?: number }), adminError);
     }
     authUserId = adminData.user.id;
   } else {
@@ -294,10 +317,10 @@ async function handleRegister(formData: FormData) {
     if (signUpError || !signUpData.user) {
       console.error("[DocCy] Auth sign-up failed", signUpError);
       if ((signUpError as any)?.status === 429) {
-        redirectWithError("rate_limit", signUpError);
+        fail("rate_limit", signUpError);
       }
 
-      redirectWithError(mapAuthErrorToCode(signUpError as any), signUpError);
+      fail(mapAuthErrorToCode(signUpError as any), signUpError);
     }
 
   authUserId = signUpData.user.id;
@@ -307,14 +330,13 @@ async function handleRegister(formData: FormData) {
     });
   }
 
-  const claim = isTestDoctorRegistrationEmail(email)
-    ? null
-    : await findDirectoryProfessionalToClaim(service, {
-        name: fullName,
-        email,
-        district,
-        specialties: specialtyEntries.map((entry) => entry.specialty),
-      });
+  const claim = await resolveSignupDirectoryClaim(service, {
+    explicitClaimId: claimFromForm,
+    name: fullName,
+    email,
+    district,
+    specialties: specialtyEntries.map((entry) => entry.specialty),
+  });
   if (claim) {
     console.info("[DocCy] claiming directory professional on signup", {
       professionalId: claim.id,
@@ -345,7 +367,7 @@ async function handleRegister(formData: FormData) {
     } catch (cleanupError) {
       console.error("[DocCy] Failed to cleanup files/user after avatar upload", cleanupError);
     }
-    redirectWithError("avatar_upload", avatarUploadError);
+    fail("avatar_upload", avatarUploadError);
   }
   const avatarFileUrl = avatarUploadData.path;
 
@@ -387,7 +409,7 @@ async function handleRegister(formData: FormData) {
       } catch (cleanupError) {
         console.error("[DocCy] Failed cleanup after founder-count fallback error", cleanupError);
       }
-      redirectWithError("db", founderCountError);
+      fail("db", founderCountError);
     }
 
     const fallbackTier = (founderCount ?? 0) < MAX_FOUNDERS ? "founder" : "standard";
@@ -446,7 +468,7 @@ async function handleRegister(formData: FormData) {
         } catch (cleanupError) {
           console.error("[DocCy] Failed cleanup after fallback doctor insert error", cleanupError);
         }
-        redirectWithError("db", fallbackInsert.error);
+        fail("db", fallbackInsert.error);
       }
 
       doctorId = fallbackInsert.data.id as string;
@@ -589,18 +611,29 @@ async function handleRegister(formData: FormData) {
     } catch (cleanupError) {
       console.error("[DocCy] Failed cleanup after avatar save error", cleanupError);
     }
-    redirectWithError("avatar_save", avatarSaveError);
+    fail("avatar_save", avatarSaveError);
   }
 
   await syncPrimaryBookingLocation();
   queueFounderSignupNotify();
-  redirect("/register?submitted=1");
+  const claimedThisListing = Boolean(claim?.id && doctorId === claim.id);
+  redirect(claimedThisListing ? "/register?submitted=1&claimed=1" : "/register?submitted=1");
 }
 
-export default function RegisterPage({ searchParams }: PageProps) {
+export default async function RegisterPage({ searchParams }: PageProps) {
   const submitted = searchParams?.submitted === "1";
+  const claimedSubmit = searchParams?.claimed === "1";
   const errorCode = searchParams?.error;
   const debugDetail = searchParams?.debug ?? null;
+  const claimId = String(searchParams?.claim ?? "").trim();
+
+  let claimPrefill: RegisterClaimPrefill | null = null;
+  if (!submitted && isProfessionalUuid(claimId)) {
+    const service = createServiceRoleClient();
+    if (service) {
+      claimPrefill = await loadUnregisteredProfessionalForRegisterClaim(service, claimId);
+    }
+  }
 
   let errorMessage: string | null = null;
   if (errorCode === "rate_limit") {
@@ -667,15 +700,19 @@ export default function RegisterPage({ searchParams }: PageProps) {
 
       <div className="mx-auto flex min-h-screen max-w-6xl flex-col gap-8 px-4 py-8 sm:px-6 lg:gap-10 lg:py-12 lg:px-8">
         <RegisterPromoBanner />
-        <RegisterIntroSection />
+        <RegisterIntroSection
+          claim={claimPrefill ? { firstName: claimPrefill.firstName } : null}
+        />
 
         {submitted ? (
-          <RegisterSubmittedPanel />
+          <RegisterSubmittedPanel claimed={claimedSubmit} />
         ) : (
           <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(300px,360px)]">
             <section className={registerSectionShell}>
               <h2 className="text-xl font-semibold tracking-tight text-ink-900 sm:text-2xl">
-                Complete your professional application
+                {claimPrefill
+                  ? "Confirm your details to activate this listing"
+                  : "Complete your professional application"}
               </h2>
 
               <form
@@ -701,6 +738,9 @@ export default function RegisterPage({ searchParams }: PageProps) {
                   formId="register-form"
                   clearSubmitting={Boolean(errorCode)}
                 >
+                {claimPrefill ? (
+                  <input type="hidden" name="claimProfessionalId" value={claimPrefill.id} />
+                ) : null}
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="group sm:col-span-2" data-validate-field="1" data-invalid="0">
                     <label htmlFor="register-full-name" className={registerLabelClass}>
@@ -709,16 +749,20 @@ export default function RegisterPage({ searchParams }: PageProps) {
                         id="register-full-name"
                         name="fullName"
                         required
+                        defaultValue={claimPrefill?.name ?? ""}
                         className={registerInputClass}
                       />
                     </label>
                     <p className={registerFieldErrorClass}>Please enter your full name.</p>
                   </div>
 
-                  <RegisterSpecialtyFields />
+                  <RegisterSpecialtyFields
+                    key={claimPrefill?.id ?? "new"}
+                    initialSpecialties={claimPrefill?.specialties}
+                  />
                   <RegisterLanguageFields />
 
-                  <RegisterClinicAddressField />
+                  <RegisterClinicAddressField listingAddressHint={claimPrefill?.addressHint} />
 
                   <div className="group" data-validate-field="1" data-invalid="0">
                     <label className={registerLabelClass}>
@@ -758,6 +802,7 @@ export default function RegisterPage({ searchParams }: PageProps) {
                         type="tel"
                         name="phone"
                         required
+                        defaultValue={claimPrefill?.phone ?? ""}
                         placeholder="e.g., +357 99XXXXXX"
                         className={registerInputClass}
                       />
@@ -810,7 +855,9 @@ export default function RegisterPage({ searchParams }: PageProps) {
 
                 <div className="flex flex-col gap-3 border-t border-ink-200/80 pt-5 sm:flex-row sm:items-center sm:justify-end">
                   <RegisterSubmitButton>
-                    Submit My Application &amp; Claim 6 Months Free
+                    {claimPrefill
+                      ? "Activate this listing & Claim 6 Months Free"
+                      : "Submit My Application & Claim 6 Months Free"}
                   </RegisterSubmitButton>
                 </div>
                 </RegisterFormSubmitFeedback>

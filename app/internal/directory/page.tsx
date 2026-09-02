@@ -178,7 +178,7 @@ export default async function FounderDashboardPage({
       supabase
         .from("professionals")
         .select(
-          "id, name, email, phone, slug, specialty, languages, status, created_at, license_number, license_file_url, is_specialty_approved, specialty_requires_standard_at, auth_user_id"
+          "id, name, email, phone, slug, specialty, languages, status, created_at, license_number, license_file_url, is_specialty_approved, specialty_requires_standard_at, auth_user_id, ghs_code, address_maps_link"
         )
         .eq("is_registered", true)
         .order("created_at", { ascending: false }),
@@ -272,6 +272,9 @@ export default async function FounderDashboardPage({
       (d as { specialty_requires_standard_at?: string | null })
         .specialty_requires_standard_at ?? null,
     auth_user_id: (d as { auth_user_id?: string | null }).auth_user_id ?? null,
+    fromDirectoryListing:
+      Boolean(String((d as { ghs_code?: string | null }).ghs_code ?? "").trim()) ||
+      Boolean(String((d as { address_maps_link?: string | null }).address_maps_link ?? "").trim()),
   }));
 
   const showLocalTestCredentials = runtimeLabel === "local";
@@ -286,6 +289,7 @@ export default async function FounderDashboardPage({
     license_file_url: r.license_file_url,
     is_specialty_approved: r.is_specialty_approved,
     specialty_requires_standard_at: r.specialty_requires_standard_at,
+    fromDirectoryListing: r.fromDirectoryListing,
   }));
 
   if (showLocalTestCredentials) {
@@ -305,6 +309,7 @@ export default async function FounderDashboardPage({
       license_file_url: r.license_file_url,
       is_specialty_approved: r.is_specialty_approved,
       specialty_requires_standard_at: r.specialty_requires_standard_at,
+      fromDirectoryListing: r.fromDirectoryListing,
       email: r.email,
       loginPassword: r.auth_user_id
         ? loginPasswordsByAuthUserId.get(r.auth_user_id) ?? null
