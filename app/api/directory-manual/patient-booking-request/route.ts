@@ -2,15 +2,18 @@ import { NextResponse } from "next/server";
 import { createServiceRoleClient } from "@/lib/supabase-service";
 import { enforcePublicApiRateLimit } from "@/lib/public-api-rate-limit";
 import { getClientIp, voterFingerprint } from "@/lib/vote-fingerprint";
+import { parseBookingRequestSource } from "@/lib/finder-manual-patient-booking-request";
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-/** Same window as internal /directory stats (approx. unique voters). */
-const DEDUPE_WINDOW_MS = 90 * 24 * 60 * 60 * 1000;
+/** UI still treats a repeat voter as one patient; every tap still inserts a row. */
+const DUPLICATE_UI_WINDOW_MS = 90 * 24 * 60 * 60 * 1000;
 
 type Body = {
   manualId?: string;
+  clinicId?: string | null;
+  source?: string | null;
 };
 
 export async function POST(req: Request) {
@@ -34,6 +37,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, reason: "invalid_manual_id" }, { status: 400 });
   }
 
+  const clinicIdRaw = String(body.clinicId ?? "").trim();
+  const clinicId = UUID_RE.test(clinicIdRaw) ? clinicIdRaw : null;
+  const source = parseBookingRequestSource(body.source);
+
   const { data: row, error: lookupErr } = await supabase
     .from("professionals")
     .select("id")
@@ -52,7 +59,8 @@ export async function POST(req: Request) {
 
   const ip = getClientIp(req);
   const voterKey = voterFingerprint(manualId, ip);
-  const sinceIso = new Date(Date.now() - DEDUPE_WINDOW_MS).toISOString();
+  const sinceIso = new Date(Date.now() - DUPLICATE_UI_WINDOW_MS).toISOString();
+  let duplicate = false;
 
   if (voterKey) {
     const { data: existing, error: dupErr } = await supabase
@@ -61,24 +69,37 @@ export async function POST(req: Request) {
       .eq("professional_id", manualId)
       .eq("voter_key", voterKey)
       .gte("created_at", sinceIso)
-      .maybeSingle();
+      .limit(1);
 
     if (dupErr) {
       console.error("[DocCy][manual-booking-request] dedupe_lookup_failed", dupErr.message);
       return NextResponse.json({ ok: false, reason: "dedupe_lookup_failed" }, { status: 500 });
     }
-    if (existing?.id) {
-      return NextResponse.json({ ok: true, duplicate: true }, { status: 200 });
-    }
+    duplicate = Boolean((existing ?? [])[0]?.id);
   }
 
-  const { error: insertErr } = await supabase
+  const insertPayload: Record<string, unknown> = {
+    professional_id: manualId,
+    source,
+    ...(voterKey ? { voter_key: voterKey } : {}),
+    ...(clinicId ? { clinic_id: clinicId } : {}),
+  };
+
+  let { error: insertErr } = await supabase
     .from("professional_patient_booking_requests")
-    .insert({
-      professional_id: manualId,
-      source: "finder_card",
-      ...(voterKey ? { voter_key: voterKey } : {}),
-    });
+    .insert(insertPayload);
+
+  if (insertErr && clinicId) {
+    const code = String((insertErr as { code?: string }).code ?? "");
+    const msg = String(insertErr.message ?? "");
+    if (code === "42703" || /clinic_id/i.test(msg)) {
+      delete insertPayload.clinic_id;
+      const retry = await supabase
+        .from("professional_patient_booking_requests")
+        .insert(insertPayload);
+      insertErr = retry.error;
+    }
+  }
 
   if (insertErr) {
     const code = String((insertErr as { code?: string }).code ?? "");
@@ -93,5 +114,5 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, reason }, { status: 500 });
   }
 
-  return NextResponse.json({ ok: true }, { status: 201 });
+  return NextResponse.json({ ok: true, duplicate }, { status: duplicate ? 200 : 201 });
 }

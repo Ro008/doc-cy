@@ -19,11 +19,18 @@ export function useManualBookingRequestFeedback() {
   const router = useRouter();
   const [pendingManualId, setPendingManualId] = React.useState<string | null>(null);
 
-  async function submit(manualId: string) {
+  async function submit(
+    manualId: string,
+    extras?: { clinicId?: string | null; source?: string | null },
+  ) {
     if (pendingManualId) return;
     setPendingManualId(manualId);
     try {
-      const result = await submitPatientBookingRequest(manualId);
+      const result = await submitPatientBookingRequest({
+        manualId,
+        clinicId: extras?.clinicId,
+        source: extras?.source,
+      });
       if (result.ok === false) {
         toast.error(patientBookingRequestErrorMessage(result.reason, result.status));
         return;

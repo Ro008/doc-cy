@@ -121,10 +121,15 @@ function FinderAvailabilityWeekSurface({ children }: { children: React.ReactNode
     if (!(calendar instanceof HTMLElement)) return;
     const parsed = parseFinderManualRequestClick({
       manualId: calendar.dataset.manualId ?? "",
+      clinicId: calendar.dataset.clinicId ?? "",
+      source: calendar.dataset.requestSource ?? "",
     });
     if (!parsed) return;
     event.preventDefault();
-    void submit(parsed.manualId);
+    void submit(parsed.manualId, {
+      clinicId: parsed.clinicId,
+      source: parsed.source,
+    });
   }
 
   return (

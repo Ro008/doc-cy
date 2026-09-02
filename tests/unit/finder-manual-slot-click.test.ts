@@ -12,7 +12,24 @@ describe("parseFinderManualRequestClick", () => {
   it("reads the listing id from static calendar data attributes", () => {
     assert.deepEqual(parseFinderManualRequestClick({ manualId: "abc-123" }), {
       manualId: "abc-123",
+      clinicId: null,
+      source: null,
     });
+  });
+
+  it("keeps clinic and source when present", () => {
+    assert.deepEqual(
+      parseFinderManualRequestClick({
+        manualId: "abc-123",
+        clinicId: "clinic-1",
+        source: "finder_card",
+      }),
+      {
+        manualId: "abc-123",
+        clinicId: "clinic-1",
+        source: "finder_card",
+      },
+    );
   });
 
   it("rejects clicks without a listing id", () => {
@@ -32,6 +49,8 @@ describe("finder manual calendars stay static HTML", () => {
     assert.equal(source.includes("buildManualPreviewCalendar"), true);
     assert.equal(source.includes("FINDER_MANUAL_CALENDAR_ATTR"), true);
     assert.equal(source.includes("FINDER_MANUAL_REQUEST_ATTR"), true);
+    assert.equal(source.includes("data-clinic-id"), true);
+    assert.equal(source.includes("data-request-source"), true);
     assert.equal(source.includes("FINDER_MANUAL_SLOT_ATTR"), false);
     assert.equal(source.includes("Want to book an appointment online?"), true);
     assert.equal(source.includes("hasn't activated online booking yet."), false);
