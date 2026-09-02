@@ -91,12 +91,12 @@ export async function loadClinicBySlug(
   const memberIds = new Set<string>();
 
   const joinRes = await supabase
-    .from("directory_manual_clinics")
-    .select("directory_manual_id")
+    .from("professional_clinics")
+    .select("professional_id")
     .eq("clinic_id", clinic.id);
   if (!joinRes.error && joinRes.data?.length) {
     for (const row of joinRes.data) {
-      const id = String((row as { directory_manual_id?: string }).directory_manual_id ?? "");
+      const id = String((row as { professional_id?: string }).professional_id ?? "");
       if (id) memberIds.add(id);
     }
   }

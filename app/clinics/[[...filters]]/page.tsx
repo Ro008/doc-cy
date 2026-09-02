@@ -413,11 +413,11 @@ async function ClinicsSearchPage({ params, searchParams }: ClinicsPageProps) {
     const [linksRes, legacyRes] = await Promise.all([
       fetchAllSupabaseRowsForIdChunks<{
         clinic_id: string;
-        directory_manual_id: string;
+        professional_id: string;
       }>(visibleClinicIds, (chunk) =>
         supabase
-          .from("directory_manual_clinics")
-          .select("clinic_id, directory_manual_id")
+          .from("professional_clinics")
+          .select("clinic_id, professional_id")
           .in("clinic_id", chunk),
       ),
       fetchAllSupabaseRowsForIdChunks<{
@@ -436,7 +436,7 @@ async function ClinicsSearchPage({ params, searchParams }: ClinicsPageProps) {
       const linkedProfessionalIds = Array.from(
         new Set(
           linksRes.data
-            .map((row) => String(row.directory_manual_id ?? "").trim())
+            .map((row) => String(row.professional_id ?? "").trim())
             .filter(Boolean),
         ),
       );
@@ -462,7 +462,7 @@ async function ClinicsSearchPage({ params, searchParams }: ClinicsPageProps) {
 
       for (const row of linksRes.data) {
         const clinicId = String(row.clinic_id ?? "").trim();
-        const professionalId = String(row.directory_manual_id ?? "").trim();
+        const professionalId = String(row.professional_id ?? "").trim();
         if (!activeProfessionalIds.has(professionalId)) continue;
         addProfessional(clinicId, professionalId);
       }

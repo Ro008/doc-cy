@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { pickUniqueDirectoryClaim } from "@/lib/claim-directory-professional";
+import { pickUniqueDirectoryClaim, pickUniqueHistoricalAbsorbPairs } from "@/lib/claim-directory-professional";
 
 const maria = {
   id: "11111111-1111-1111-1111-111111111111",
@@ -102,5 +102,69 @@ describe("pickUniqueDirectoryClaim", () => {
       ],
     );
     assert.equal(match, null);
+  });
+});
+
+describe("pickUniqueHistoricalAbsorbPairs", () => {
+  it("absorbs a unique email twin", () => {
+    const pairs = pickUniqueHistoricalAbsorbPairs(
+      [
+        {
+          id: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+          name: "Maria Papadopoulou",
+          email: "maria@example.com",
+          district: "Nicosia",
+          specialties: ["Dentistry"],
+        },
+      ],
+      [maria],
+    );
+    assert.deepEqual(pairs, [
+      {
+        registeredId: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+        unregisteredId: maria.id,
+        reason: "email",
+      },
+    ]);
+  });
+
+  it("skips test registered profiles", () => {
+    const pairs = pickUniqueHistoricalAbsorbPairs(
+      [
+        {
+          id: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+          name: "Maria Papadopoulou",
+          email: "maria@example.com",
+          district: "Nicosia",
+          specialties: ["Dentistry"],
+          isTestProfile: true,
+        },
+      ],
+      [maria],
+    );
+    assert.deepEqual(pairs, []);
+  });
+
+  it("drops pairs when two registered accounts match the same listing", () => {
+    const pairs = pickUniqueHistoricalAbsorbPairs(
+      [
+        {
+          id: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+          name: "Maria Papadopoulou",
+          email: "maria@example.com",
+          district: "Nicosia",
+          specialties: ["Dentist"],
+        },
+        {
+          id: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+          name: "Maria Papadopoulou",
+          email: "other@example.com",
+          district: "Nicosia",
+          specialties: ["Dentist"],
+        },
+      ],
+      [{ ...maria, email: null }],
+    );
+    assert.deepEqual(pairs, []);
   });
 });

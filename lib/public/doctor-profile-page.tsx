@@ -62,6 +62,7 @@ import {
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   loadManualDirectoryBySlug,
+  resolveAbsorbedProfessionalSlugRedirect,
   resolveCanonicalManualDirectorySlug,
 } from "@/lib/load-manual-directory-by-slug";
 import { publicProfessionalProfilePath } from "@/lib/manual-directory-landing-path";
@@ -112,6 +113,11 @@ function siteBaseUrl(): string {
 async function loadUnregisteredLandingOrRedirect(slug: string, locale: string) {
   const supabase = getPublicDirectoryDb();
   if (!supabase) return null;
+
+  const absorbed = await resolveAbsorbedProfessionalSlugRedirect(supabase, slug);
+  if (absorbed) {
+    permanentRedirect(publicProfessionalProfilePath(absorbed, locale));
+  }
 
   const canonical = await resolveCanonicalManualDirectorySlug(supabase, slug);
   if (canonical && canonical.toLowerCase() !== slug.toLowerCase()) {
@@ -400,6 +406,13 @@ export async function generateMetadata({
   params,
 }: PageProps): Promise<Metadata> {
   const locale = profileLocale(params);
+  const supabase = getPublicDirectoryDb();
+  if (supabase) {
+    const absorbed = await resolveAbsorbedProfessionalSlugRedirect(supabase, params.slug);
+    if (absorbed) {
+      permanentRedirect(publicProfessionalProfilePath(absorbed, locale));
+    }
+  }
   const profileUrl = `${siteBaseUrl()}${publicProfessionalProfilePath(params.slug, locale)}`;
   const fallbackTitle = "Healthcare Professional | DocCy";
 

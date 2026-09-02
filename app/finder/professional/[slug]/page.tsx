@@ -1,6 +1,7 @@
 import { notFound, permanentRedirect } from "next/navigation";
 import {
   loadManualDirectoryBySlug,
+  resolveAbsorbedProfessionalSlugRedirect,
   resolveCanonicalManualDirectorySlug,
 } from "@/lib/load-manual-directory-by-slug";
 import { publicProfessionalProfilePath } from "@/lib/manual-directory-landing-path";
@@ -23,6 +24,10 @@ export default async function LegacyManualDirectoryProfessionalPage({ params }: 
 
   const supabase = createServiceRoleClient();
   if (supabase) {
+    const absorbed = await resolveAbsorbedProfessionalSlugRedirect(supabase, slug);
+    if (absorbed) {
+      permanentRedirect(publicProfessionalProfilePath(absorbed));
+    }
     const canonical = await resolveCanonicalManualDirectorySlug(supabase, slug);
     if (canonical) {
       permanentRedirect(publicProfessionalProfilePath(canonical));

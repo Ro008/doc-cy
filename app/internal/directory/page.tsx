@@ -569,14 +569,14 @@ export default async function FounderDashboardPage({
     const sinceIso = new Date(Date.now() - manualVotesDays * 24 * 60 * 60 * 1000).toISOString();
     const { data: reqRows, error: reqErr } = await fetchAllSupabaseRows(() =>
       supabase
-        .from("directory_manual_patient_booking_requests")
-        .select("id, manual_id, created_at, voter_key")
+        .from("professional_patient_booking_requests")
+        .select("id, professional_id, created_at, voter_key")
         .gte("created_at", sinceIso),
     );
     if (!reqErr && reqRows?.length) {
       const byManual = new Map<string, { voters: Set<string>; lastAt: string }>();
       for (const r of reqRows) {
-        const mid = String((r as { manual_id?: string }).manual_id ?? "");
+        const mid = String((r as { professional_id?: string }).professional_id ?? "");
         const ca = String((r as { created_at?: string }).created_at ?? "");
         const id = String((r as { id?: string }).id ?? "");
         const vk = (r as { voter_key?: string | null }).voter_key?.trim();
@@ -707,14 +707,14 @@ export default async function FounderDashboardPage({
     const sinceIso = new Date(Date.now() - callToBookDays * 24 * 60 * 60 * 1000).toISOString();
     const { data: clickRows, error: clickErr } = await fetchAllSupabaseRows(() =>
       supabase
-        .from("directory_manual_call_to_book_clicks")
-        .select("manual_id, clinic_id, source, created_at")
+        .from("professional_call_to_book_clicks")
+        .select("professional_id, clinic_id, source, created_at")
         .gte("created_at", sinceIso),
     );
     if (!clickErr && clickRows?.length) {
       const aggregated = aggregateCallToBookClicks(
         clickRows.map((r) => ({
-          manualId: String((r as { manual_id?: string }).manual_id ?? ""),
+          manualId: String((r as { professional_id?: string }).professional_id ?? ""),
           clinicId: String((r as { clinic_id?: string | null }).clinic_id ?? "").trim() || null,
           source: String((r as { source?: string }).source ?? ""),
           createdAt: String((r as { created_at?: string }).created_at ?? ""),

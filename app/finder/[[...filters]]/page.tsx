@@ -471,13 +471,13 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
       if (clinicIds.length === 0) return;
       const linksRes = await fetchAllSupabaseRowsForIdChunks(clinicIds, (clinicIdChunk) =>
         supabase
-          .from("directory_manual_clinics")
-          .select("directory_manual_id")
+          .from("professional_clinics")
+          .select("professional_id")
           .in("clinic_id", clinicIdChunk),
       );
       for (const link of linksRes.data ?? []) {
         const id = String(
-          (link as { directory_manual_id?: string }).directory_manual_id ?? "",
+          (link as { professional_id?: string }).professional_id ?? "",
         ).trim();
         if (id) manualIdsWithClinicInActiveDistrict.add(id);
       }
@@ -1001,9 +1001,9 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
       const [monthlyRequestRes, clinicsRes, linksRes] = await Promise.all([
         fetchAllSupabaseRowsForIdChunks(visibleManualIds, (idChunk) =>
           supabase
-            .from("directory_manual_patient_booking_requests")
-            .select("id, manual_id, voter_key")
-            .in("manual_id", idChunk)
+            .from("professional_patient_booking_requests")
+            .select("id, professional_id, voter_key")
+            .in("professional_id", idChunk)
             .gte("created_at", monthlySinceIso),
         ),
         clinicIds.length > 0
@@ -1017,11 +1017,11 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
           : Promise.resolve({ data: [] as unknown[], error: null }),
         fetchAllSupabaseRowsForIdChunks(visibleManualIds, (idChunk) =>
           supabase
-            .from("directory_manual_clinics")
+            .from("professional_clinics")
             .select(
-              "directory_manual_id, is_primary, clinics ( id, name, slug, address, address_maps_link, district, is_archived, phone )",
+              "professional_id, is_primary, clinics ( id, name, slug, address, address_maps_link, district, is_archived, phone )",
             )
-            .in("directory_manual_id", idChunk),
+            .in("professional_id", idChunk),
         ),
       ]);
 
@@ -1029,7 +1029,7 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
       if (!monthlyRequestRes.error && monthlyRequestRes.data?.length) {
         const votersByManual = new Map<string, Set<string>>();
         for (const r of monthlyRequestRes.data) {
-          const mid = String((r as { manual_id?: string }).manual_id ?? "");
+          const mid = String((r as { professional_id?: string }).professional_id ?? "");
           const id = String((r as { id?: string }).id ?? "");
           const vk = (r as { voter_key?: string | null }).voter_key?.trim();
           const dedupeId = vk || `legacy:${id}`;
@@ -1101,7 +1101,7 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
         });
         for (const link of sorted) {
           const manualId = String(
-            (link as { directory_manual_id?: string }).directory_manual_id ?? "",
+            (link as { professional_id?: string }).professional_id ?? "",
           );
           const clinic = (
             link as {

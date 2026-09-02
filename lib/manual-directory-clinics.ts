@@ -33,7 +33,7 @@ export type ManualClinicRef = {
 };
 
 /**
- * Build ordered clinic refs from `directory_manual_clinics` join rows.
+ * Build ordered clinic refs from `professional_clinics` join rows.
  * Primary first; skips archived / incomplete; dedupes by clinic id then slug.
  */
 export function buildManualDirectoryClinicRefs(

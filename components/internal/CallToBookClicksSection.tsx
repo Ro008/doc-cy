@@ -57,7 +57,7 @@ export function CallToBookClicksSection({
           <h2 className="text-sm font-semibold text-clinical-100">Show phone number clicks</h2>
           <p className="mt-1 max-w-3xl text-xs leading-relaxed text-clinical-100/80">
             Each row in{" "}
-            <code className="rounded bg-black/30 px-1">directory_manual_call_to_book_clicks</code> is
+            <code className="rounded bg-black/30 px-1">professional_call_to_book_clicks</code> is
             a patient tap on Show phone number (phone revealed for that location). Finder cards and
             professional profile pages are counted separately.
           </p>

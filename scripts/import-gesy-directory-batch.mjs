@@ -530,9 +530,9 @@ async function main() {
     }
 
     if (!args.dryRun && manualId) {
-      await supabase.from("directory_manual_clinics").delete().eq("directory_manual_id", manualId);
+      await supabase.from("professional_clinics").delete().eq("professional_id", manualId);
       const links = [...clinicIdByGhs.entries()].map(([ghs, clinicId], index) => ({
-        directory_manual_id: manualId,
+        professional_id: manualId,
         clinic_id: clinicId,
         is_primary: index === 0 || clinicId === primaryClinicId,
       }));
@@ -547,7 +547,7 @@ async function main() {
       }
       if (links.length && !sawPrimary) links[0].is_primary = true;
       if (links.length) {
-        const linkRes = await supabase.from("directory_manual_clinics").insert(links);
+        const linkRes = await supabase.from("professional_clinics").insert(links);
         if (linkRes.error) {
           console.error("Link clinics failed", person.ghs_code, linkRes.error.message);
         }

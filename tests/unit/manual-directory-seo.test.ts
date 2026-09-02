@@ -2,7 +2,10 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { resolveCanonicalManualDirectorySlug } from "../../lib/load-manual-directory-by-slug";
+import {
+  resolveAbsorbedProfessionalSlugRedirect,
+  resolveCanonicalManualDirectorySlug,
+} from "../../lib/load-manual-directory-by-slug";
 import {
   buildManualDirectorySlugCandidates,
   allocateManualDirectorySlug,
@@ -211,5 +214,76 @@ describe("manual-directory-seo", () => {
     assert.doesNotMatch(description, /book online instantly/i);
     assert.doesNotMatch(description, /99 999840/);
     assert.doesNotMatch(description, /view contact details/i);
+  });
+});
+
+describe("resolveAbsorbedProfessionalSlugRedirect", () => {
+  it("returns the surviving registered slug", async () => {
+    const supabase = {
+      from(table: string) {
+        if (table === "professional_slug_redirects") {
+          return {
+            select() {
+              return {
+                eq() {
+                  return {
+                    async maybeSingle() {
+                      return {
+                        data: { professional_id: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa" },
+                        error: null,
+                      };
+                    },
+                  };
+                },
+              };
+            },
+          };
+        }
+        return {
+          select() {
+            return {
+              eq() {
+                return {
+                  eq() {
+                    return {
+                      async maybeSingle() {
+                        return { data: { slug: "maria-pap-registered" }, error: null };
+                      },
+                    };
+                  },
+                };
+              },
+            };
+          },
+        };
+      },
+    } as unknown as SupabaseClient;
+
+    assert.equal(
+      await resolveAbsorbedProfessionalSlugRedirect(supabase, "maria-pap-nicosia"),
+      "maria-pap-registered",
+    );
+  });
+
+  it("returns null when the slug is not an absorbed alias", async () => {
+    const supabase = {
+      from() {
+        return {
+          select() {
+            return {
+              eq() {
+                return {
+                  async maybeSingle() {
+                    return { data: null, error: null };
+                  },
+                };
+              },
+            };
+          },
+        };
+      },
+    } as unknown as SupabaseClient;
+
+    assert.equal(await resolveAbsorbedProfessionalSlugRedirect(supabase, "unknown-slug"), null);
   });
 });

@@ -39,7 +39,7 @@ Prefer `lib/supabase-fetch-all.ts`:
 import { fetchAllSupabaseRows, fetchAllSupabaseRowsForIdChunks } from "@/lib/supabase-fetch-all";
 
 const { data, error } = await fetchAllSupabaseRows(() =>
-  supabase.from("directory_manual").select("id, slug").eq("is_archived", false),
+  supabase.from("professionals").select("id, slug").eq("is_archived", false),
 );
 ```
 
@@ -47,7 +47,7 @@ const { data, error } = await fetchAllSupabaseRows(() =>
 
 Use `fetchAll*` (or DB-side aggregation) whenever the set **can grow past ~1000**, including:
 
-- `directory_manual`, `clinics`, `directory_manual_clinics`
+- `professionals`, `clinics`, `professional_clinics`
 - Finder/clinics list enrichment (votes, clinic links, district→clinic membership)
 - `app/sitemap.ts` URL generation
 - Internal founder analytics (`website_visits`, appointment chart series)
@@ -64,7 +64,7 @@ Use `fetchAll*` (or DB-side aggregation) whenever the set **can grow past ~1000*
 
 ### Clinic cards showed “0 professionals”
 
-1. Counts used only legacy `directory_manual.clinic_id`, missing N:M `directory_manual_clinics`.
+1. Counts used only legacy `professionals.clinic_id`, missing N:M `professional_clinics`.
 2. The count query returned at most ~1000 rows across all clinics, so many clinics got **0**.
 
 Fix pattern: source of truth = same join/roster as the detail page + `fetchAllSupabaseRows`.

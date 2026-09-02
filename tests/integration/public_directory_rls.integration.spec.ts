@@ -50,11 +50,11 @@ test.describe("Integration: public directory RLS hardening", () => {
       .limit(1);
     expect(isDeniedOrEmpty(manualDump)).toBe(true);
 
-    const manualPublicDump = await anon
-      .from("directory_manual_public")
+    const professionalsPublicDump = await anon
+      .from("professionals_public")
       .select("id, name, specialty, phone, slug")
       .limit(5);
-    expect(isDeniedOrEmpty(manualPublicDump)).toBe(true);
+    expect(isDeniedOrEmpty(professionalsPublicDump)).toBe(true);
 
     const clinicsPublicDump = await anon
       .from("clinics_public")
@@ -73,10 +73,10 @@ test.describe("Integration: public directory RLS hardening", () => {
     const admin = createClient(supabaseUrl, serviceKey, {
       auth: { persistSession: false, autoRefreshToken: false },
     });
-    const serviceManual = await admin
-      .from("directory_manual_public")
+    const serviceProfessionals = await admin
+      .from("professionals_public")
       .select("id, name")
       .limit(1);
-    expect(serviceManual.error).toBeNull();
+    expect(serviceProfessionals.error).toBeNull();
   });
 });

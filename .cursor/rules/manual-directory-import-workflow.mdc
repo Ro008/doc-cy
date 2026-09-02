@@ -5,13 +5,14 @@ alwaysApply: true
 
 # Manual Directory Import Workflow
 
-Use this when the user passes a new doctor list (Excel/CSV) for the **manual finder** (`directory_manual`). This is separate from registered DocCy doctors (`doctors`).
+Use this when the user passes a new doctor list (Excel/CSV) for the **manual finder** (`professionals` rows with `is_registered = false`). This is separate from registered DocCy accounts (`is_registered = true`).
 
 ## What the manual directory is
 
-- **Table:** `public.directory_manual`
+- **Table:** `public.professionals` (`is_registered = false`)
+- **Clinic join:** `public.professional_clinics`
 - **Shown in:** `/finder` (cards with a disabled calendar + request-online-booking overlay)
-- **Not shown:** registered verified doctors (different table)
+- **Not shown as directory-only:** registered verified professionals (same table, `is_registered = true`)
 
 ### Required columns per row
 
@@ -93,7 +94,7 @@ Script behavior:
 **Full replace (user says “empezar de cero”, new clean list):**
 
 1. Generate with `--replace` (default): `DELETE FROM public.directory_manual;` then bulk `INSERT`.
-2. Cascades delete: `directory_manual_patient_booking_requests`, `directory_duplicate_suggestions`.
+2. Cascades delete: `professional_patient_booking_requests`, `directory_duplicate_suggestions`.
 3. Do **not** delete curated photo assets — see `manual-directory-preserved-photos.mdc`.
 
 **Incremental add (small batch):**

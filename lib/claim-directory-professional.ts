@@ -119,6 +119,67 @@ export function pickUniqueDirectoryClaim(
   };
 }
 
+export type HistoricalAbsorbPair = {
+  registeredId: string;
+  unregisteredId: string;
+  reason: "email" | "name_specialty_district";
+};
+
+/**
+ * Unique registered↔unregistered twins only. Same rules as signup claim.
+ * Ambiguous or conflicting matches stay in the internal review queue.
+ */
+export function pickUniqueHistoricalAbsorbPairs(
+  registered: readonly {
+    id: string;
+    name: string;
+    email?: string | null;
+    district: string | null;
+    specialties: readonly string[];
+    isTestProfile?: boolean;
+  }[],
+  listings: readonly DirectoryClaimListing[],
+): HistoricalAbsorbPair[] {
+  const byUnregistered = new Map<string, HistoricalAbsorbPair>();
+  const conflictedUnregistered = new Set<string>();
+  const conflictedRegistered = new Set<string>();
+
+  for (const row of registered) {
+    if (row.isTestProfile) continue;
+    const match = pickUniqueDirectoryClaim(
+      {
+        name: row.name,
+        email: row.email ?? "",
+        district: row.district,
+        specialties: row.specialties,
+        isTestSignup: false,
+      },
+      listings,
+    );
+    if (!match) continue;
+
+    const existing = byUnregistered.get(match.id);
+    if (existing && existing.registeredId !== row.id) {
+      conflictedUnregistered.add(match.id);
+      conflictedRegistered.add(existing.registeredId);
+      conflictedRegistered.add(row.id);
+      continue;
+    }
+
+    byUnregistered.set(match.id, {
+      registeredId: row.id,
+      unregisteredId: match.id,
+      reason: match.reason,
+    });
+  }
+
+  return [...byUnregistered.values()].filter(
+    (pair) =>
+      !conflictedUnregistered.has(pair.unregisteredId) &&
+      !conflictedRegistered.has(pair.registeredId),
+  );
+}
+
 function claimSelect() {
   return "id, slug, name, specialty, specialties, district, email";
 }
