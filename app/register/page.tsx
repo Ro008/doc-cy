@@ -159,8 +159,11 @@ async function handleRegister(formData: FormData) {
   }
 
   const claimFromForm = String(formData.get("claimProfessionalId") ?? "").trim();
-  const fail = (errorCode: string, detail?: unknown): never =>
+  // Nested function (not a const arrow) so TypeScript treats `fail()` as never-returning
+  // and narrows later reads such as `specialtiesParsed.entries`.
+  function fail(errorCode: string, detail?: unknown): never {
     redirectWithError(errorCode, detail, claimFromForm);
+  }
 
   const fullName = (formData.get("fullName") as string | null)?.trim() || "";
   const email = (formData.get("email") as string | null)?.trim() || "";
