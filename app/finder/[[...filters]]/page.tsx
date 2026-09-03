@@ -850,7 +850,7 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
           );
         } else if (requestedRes.data?.length) {
           manualRowsRaw = mergeManualDirectoryRowsById([
-            requestedRes.data as typeof manualRowsRaw,
+            ((requestedRes.data ?? []) as unknown) as typeof manualRowsRaw,
             manualRowsRaw,
           ]);
         }
