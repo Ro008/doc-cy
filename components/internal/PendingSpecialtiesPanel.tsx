@@ -4,6 +4,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, Pencil } from "lucide-react";
 import { toast } from "sonner";
+import { useDirectoryNav } from "@/components/internal/DirectoryNavContext";
 import {
   CYPRUS_MASTER_SPECIALTIES,
   isMasterSpecialty,
@@ -36,6 +37,7 @@ async function postReview(body: {
 
 export function PendingSpecialtiesPanel({ items }: { items: PendingSpecialtyRow[] }) {
   const router = useRouter();
+  const { canMutate } = useDirectoryNav();
   const [busyId, setBusyId] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [mapForId, setMapForId] = React.useState<string | null>(null);
@@ -152,9 +154,9 @@ export function PendingSpecialtiesPanel({ items }: { items: PendingSpecialtyRow[
         <div className="min-w-0 flex-1">
           <h2 className="text-sm font-semibold text-amber-100">Pending specialties</h2>
           <p className="mt-1 text-xs text-amber-100/80">
-            Custom specialties must be resolved here before you can verify their license.
-            Approve as submitted, fix a typo, merge with an existing category, or reject the
-            specialty (closes the application).
+            {canMutate
+              ? "Custom specialties must be resolved here before you can verify their license. Approve as submitted, fix a typo, merge with an existing category, or reject the specialty (closes the application)."
+              : "Custom specialties waiting for founder review. This view is read-only."}
           </p>
         </div>
       </div>
@@ -187,6 +189,7 @@ export function PendingSpecialtiesPanel({ items }: { items: PendingSpecialtyRow[
                     <span className="font-medium text-amber-100/95">{spec}</span>
                   </p>
                 </div>
+                {canMutate ? (
                 <div className="flex flex-shrink-0 flex-col gap-2 sm:items-end">
                   <div className="flex flex-wrap gap-2">
                     <button
@@ -235,9 +238,10 @@ export function PendingSpecialtiesPanel({ items }: { items: PendingSpecialtyRow[
                     </button>
                   </div>
                 </div>
+                ) : null}
               </div>
 
-              {mapping ? (
+              {canMutate && mapping ? (
                 <div className="mt-4 flex flex-col gap-3 border-t border-slate-800/80 pt-4 sm:flex-row sm:items-end">
                   <div className="flex-1">
                     <label className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
@@ -267,7 +271,7 @@ export function PendingSpecialtiesPanel({ items }: { items: PendingSpecialtyRow[
                 </div>
               ) : null}
 
-              {editing ? (
+              {canMutate && editing ? (
                 <div className="mt-4 flex flex-col gap-3 border-t border-slate-800/80 pt-4 sm:flex-row sm:items-end">
                   <div className="flex-1">
                     <label className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">

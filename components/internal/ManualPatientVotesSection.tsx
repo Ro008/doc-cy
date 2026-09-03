@@ -7,10 +7,12 @@ import type {
   ManualVotesSortCol,
 } from "@/lib/founder-dashboard-query";
 import {
+  founderDirectoryClicksCsvHref,
   founderDirectoryHref,
   getManualVotesRangeLabel,
   nextManualVotesSort,
 } from "@/lib/founder-dashboard-query";
+import { InternalCsvDownloadLink } from "@/components/internal/InternalCsvDownloadLink";
 
 export type ManualPatientVoteRow = {
   manualId: string;
@@ -112,6 +114,9 @@ export function ManualPatientVotesSection({ query, rows, podium, maxVotes }: Pro
               );
             })}
           </div>
+          <InternalCsvDownloadLink
+            href={founderDirectoryClicksCsvHref(query, "request_online_appointment")}
+          />
         </div>
       </div>
 

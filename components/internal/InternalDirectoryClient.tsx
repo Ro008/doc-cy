@@ -13,6 +13,7 @@ import {
   verificationBlockedReason,
 } from "@/lib/doctor-specialty-public";
 import { publicProfessionalProfilePath } from "@/lib/manual-directory-landing-path";
+import { useDirectoryNav } from "@/components/internal/DirectoryNavContext";
 
 export type DirectoryDoctorRow = {
   id: string;
@@ -54,6 +55,7 @@ export function InternalDirectoryClient({
   showLocalTestCredentials?: boolean;
 }) {
   const router = useRouter();
+  const { canMutate } = useDirectoryNav();
   const [nameQ, setNameQ] = React.useState("");
   const [specialtyFilter, setSpecialtyFilter] = React.useState("");
   const [languageFilter, setLanguageFilter] = React.useState("");
@@ -357,7 +359,7 @@ export function InternalDirectoryClient({
                   </td>
                   <td className="px-4 py-3 align-top">
                     <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-                      {isPending ? (
+                      {canMutate && isPending ? (
                         <>
                           <button
                             type="button"
@@ -379,7 +381,7 @@ export function InternalDirectoryClient({
                           </button>
                         </>
                       ) : null}
-                      {verifyBlockReason && (isRejected || isVerified || (isPending && !canVerifyLicense)) ? (
+                      {canMutate && verifyBlockReason && (isRejected || isVerified || (isPending && !canVerifyLicense)) ? (
                         <p
                           className={`text-[11px] leading-snug ${
                             isRejected ? "text-red-200/80" : "text-amber-200/90"

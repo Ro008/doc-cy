@@ -1,13 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
-
-const COOKIE = "doccy-internal-directory";
+import {
+  INTERNAL_DIRECTORY_COOKIE,
+  readInternalDirectorySecrets,
+  roleFromCookieValue,
+} from "@/lib/internal-directory-auth-core";
 
 export async function POST(req: NextRequest) {
-  const secret = process.env.INTERNAL_DIRECTORY_SECRET?.trim();
-  if (!secret) {
+  const secrets = readInternalDirectorySecrets();
+  if (!secrets.founder) {
     return NextResponse.json(
       { message: "Internal directory is not configured." },
-      { status: 503 }
+      { status: 503 },
     );
   }
 
@@ -18,12 +21,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ message: "Invalid JSON." }, { status: 400 });
   }
 
-  if (body.password !== secret) {
+  const password = String(body.password ?? "");
+  const role = roleFromCookieValue(password, secrets);
+  if (!role) {
     return NextResponse.json({ message: "Invalid access code." }, { status: 401 });
   }
 
-  const res = NextResponse.json({ ok: true });
-  res.cookies.set(COOKIE, secret, {
+  const cookieValue = role === "founder" ? secrets.founder : secrets.partner;
+  const res = NextResponse.json({ ok: true, role });
+  res.cookies.set(INTERNAL_DIRECTORY_COOKIE, cookieValue, {
     httpOnly: true,
     sameSite: "lax",
     path: "/",

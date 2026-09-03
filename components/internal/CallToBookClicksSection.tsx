@@ -3,9 +3,11 @@
 import { useDirectoryNav } from "@/components/internal/DirectoryNavContext";
 import type { CallToBookRangeKey, FounderDashboardQuery } from "@/lib/founder-dashboard-query";
 import {
+  founderDirectoryClicksCsvHref,
   founderDirectoryHref,
   getCallToBookRangeLabel,
 } from "@/lib/founder-dashboard-query";
+import { InternalCsvDownloadLink } from "@/components/internal/InternalCsvDownloadLink";
 
 export type CallToBookDashboardRow = {
   manualId: string;
@@ -85,6 +87,9 @@ export function CallToBookClicksSection({
               );
             })}
           </div>
+          <InternalCsvDownloadLink
+            href={founderDirectoryClicksCsvHref(query, "show_phone_number")}
+          />
         </div>
       </div>
 
