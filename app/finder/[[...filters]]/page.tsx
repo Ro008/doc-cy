@@ -82,6 +82,8 @@ import { FinderShuffleSeedCookie } from "@/components/finder/FinderShuffleSeedCo
 import {
   aggregateBookingRequestStats,
   finderBookingRequestWindowSinceIso,
+  mergeManualDirectoryRowsById,
+  professionalIdsWithUniqueRequests,
 } from "@/lib/finder-booking-request-stats";
 import { getFinderManualPhotoUrl } from "@/lib/finder-manual-photos";
 import { resolveFinderDisplayPhotoUrl } from "@/lib/finder-default-avatars";
@@ -228,7 +230,6 @@ type UnifiedFinderResult = {
   row: ManualFinderRow;
   hasOnlineBooking: false;
   isRegistered: false;
-  requests30d: number;
   distanceKm: number | null;
   usedDistrictFallbackForDistance: boolean;
 };
@@ -432,9 +433,10 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
   );
   const visibleLimit = resultsPage * FINDER_RESULTS_PAGE_SIZE;
   /**
-   * Load the full matching manual set when any list filter is active so we can
-   * shuffle fairly (not only the first page from the DB) and near-me distance-sort.
-   * Unfiltered home stays paged for first-paint cost.
+   * Specialty / district / name / near-me: load the full matching unregistered set
+   * so request-count sort is not limited to the first DB page.
+   * Unfiltered home stays paged for first paint, then hydrates listings that have
+   * 30-day unique booking requests so they can rank above the arbitrary first page.
    */
   const unboundedManualFetch = hasListFilter;
   const manualListLimit = unboundedManualFetch ? undefined : visibleLimit;
@@ -457,6 +459,10 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
   const manualIdsWithClinicInActiveDistrict = new Set<string>();
   let finderSpecialtyOptions: ReturnType<typeof buildFinderSpecialtyOptions> = [];
   let dataWarning: string | null = null;
+  let bookingStatsById = new Map<
+    string,
+    { requests30d: number; uniquePatients30d: number }
+  >();
 
   if (supabase) {
     const extrasPromise = (async () => {
@@ -492,6 +498,17 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
         if (id) manualIdsWithClinicInActiveDistrict.add(id);
       }
     })();
+
+    const bookingRequestRowsPromise = getCachedDirectoryRows(
+      ["booking-requests-30d"],
+      () =>
+        fetchAllSupabaseRows(() =>
+          supabase
+            .from("professional_patient_booking_requests")
+            .select("id, professional_id, voter_key")
+            .gte("created_at", finderBookingRequestWindowSinceIso()),
+        ),
+    );
 
     const specialtyOptionsPromise = (async () => {
       const specialtyOptionFilters = {
@@ -693,6 +710,17 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
     });
 
     await extrasPromise;
+    const bookingRequestRowsRes = await bookingRequestRowsPromise;
+    bookingStatsById = aggregateBookingRequestStats(
+      (bookingRequestRowsRes.data ?? []).map((r) => ({
+        professionalId: String((r as { professional_id?: string }).professional_id ?? ""),
+        id: String((r as { id?: string }).id ?? ""),
+        voterKey: (r as { voter_key?: string | null }).voter_key ?? null,
+      })),
+    );
+    if (bookingRequestRowsRes.error) {
+      console.error("[DocCy] booking request stats failed", bookingRequestRowsRes.error.message);
+    }
 
     let manualRowsRaw: Array<{
       id: string;
@@ -709,7 +737,12 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
       longitude?: unknown;
       clinic_id?: string | null;
       gender?: string | null;
+      finder_visible?: boolean | null;
+      town?: string | null;
     }> = [];
+    let manualLoadError: { code?: string; message?: string } | null = null;
+    let manualUsesSpecialtiesColumn = false;
+    let manualSelectClause = "";
     const manualSelectAttempts = [
       "id, slug, name, specialty, specialties, district, town, address_maps_link, phone, address, is_gesy, latitude, longitude, clinic_id, gender, finder_visible",
       "id, slug, name, specialty, specialties, district, address_maps_link, phone, address, is_gesy, latitude, longitude, clinic_id, gender, finder_visible",
@@ -723,8 +756,6 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
       "id, name, specialty, district, address_maps_link, latitude, longitude",
       "id, name, specialty, district, address_maps_link",
     ];
-    let manualLoadError: { code?: string; message?: string } | null = null;
-    let manualUsesSpecialtiesColumn = false;
     for (const selectClause of manualSelectAttempts) {
       const useSpecialtiesFilter = selectClause.includes("specialties");
       const extraIds = Array.from(manualIdsWithClinicInActiveDistrict);
@@ -777,7 +808,53 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
       }>;
       manualLoadError = null;
       manualUsesSpecialtiesColumn = useSpecialtiesFilter;
+      manualSelectClause = selectClause;
       break;
+    }
+
+    if (
+      !unboundedManualFetch &&
+      !manualLoadError &&
+      manualSelectClause &&
+      bookingStatsById.size > 0
+    ) {
+      const loadedIds = new Set(manualRowsRaw.map((row) => String(row.id ?? "").trim()));
+      const missingRequestedIds = professionalIdsWithUniqueRequests(bookingStatsById).filter(
+        (id) => !loadedIds.has(id),
+      );
+      if (missingRequestedIds.length > 0) {
+        const requestedRes = await getCachedDirectoryRows(
+          [
+            "manual-requested-professionals",
+            manualSelectClause,
+            directoryIdSetCacheKey(missingRequestedIds),
+          ],
+          () =>
+            fetchAllSupabaseRowsForIdChunks(missingRequestedIds, (idChunk) => {
+              let q = supabase
+                .from("professionals")
+                .select(manualSelectClause)
+                .eq("is_archived", false)
+                .eq("is_registered", false)
+                .in("id", idChunk);
+              if (manualSelectClause.includes("finder_visible")) {
+                q = q.eq("finder_visible", true);
+              }
+              return q;
+            }),
+        );
+        if (requestedRes.error) {
+          console.error(
+            "[DocCy] requested listing hydrate failed",
+            requestedRes.error.message,
+          );
+        } else if (requestedRes.data?.length) {
+          manualRowsRaw = mergeManualDirectoryRowsById([
+            requestedRes.data as typeof manualRowsRaw,
+            manualRowsRaw,
+          ]);
+        }
+      }
     }
 
     finderSpecialtyOptions = await specialtyOptionsPromise;
@@ -937,35 +1014,6 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
     return true;
   });
 
-  const bookingStatsById = new Map<
-    string,
-    { requests30d: number; uniquePatients30d: number }
-  >();
-  if (supabase && filteredManual.length > 0) {
-    const { data: requestRows, error: requestErr } = await fetchAllSupabaseRowsForIdChunks(
-      filteredManual.map((row) => row.id),
-      (idChunk) =>
-        supabase
-          .from("professional_patient_booking_requests")
-          .select("id, professional_id, voter_key")
-          .in("professional_id", idChunk)
-          .gte("created_at", finderBookingRequestWindowSinceIso()),
-    );
-    if (requestErr) {
-      console.error("[DocCy] booking request stats failed", requestErr.message);
-    } else if (requestRows?.length) {
-      const stats = aggregateBookingRequestStats(
-        requestRows.map((r) => ({
-          professionalId: String((r as { professional_id?: string }).professional_id ?? ""),
-          id: String((r as { id?: string }).id ?? ""),
-          voterKey: (r as { voter_key?: string | null }).voter_key ?? null,
-        })),
-      );
-      for (const [id, value] of stats.entries()) {
-        bookingStatsById.set(id, value);
-      }
-    }
-  }
   for (const row of filteredManual) {
     row.monthlyRequestCount = bookingStatsById.get(row.id)?.uniquePatients30d ?? 0;
   }
@@ -1000,7 +1048,6 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
           row,
           hasOnlineBooking: false as const,
           isRegistered: false as const,
-          requests30d: bookingStatsById.get(row.id)?.requests30d ?? 0,
           ...distanceInfo,
         };
       }),
@@ -1010,7 +1057,7 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
       shuffleSeed: buildFinderManualShuffleSeed(listScope, shuffleSession.seed),
       pinTestProfiles: finderIncludesRegisteredTestProfiles(),
       getUnregisteredRequestCount: (item) =>
-        item.kind === "manual" ? item.requests30d : 0,
+        item.kind === "manual" ? item.row.monthlyRequestCount : 0,
     },
   );
 
