@@ -290,6 +290,33 @@ describe("finder results paging helpers", () => {
     assert.notDeepEqual(ids.slice(2, 5), otherSeed.slice(2, 5));
   });
 
+  it("ranks unregistered by unique patients so a 2-patient listing beats a 1-patient listing", () => {
+    const ordered = orderUnifiedFinderResultsPhase1(
+      [
+        {
+          kind: "manual" as const,
+          row: { id: "one-unique", monthlyRequestCount: 1 },
+          distanceKm: null,
+        },
+        {
+          kind: "manual" as const,
+          row: { id: "two-unique", monthlyRequestCount: 2 },
+          distanceKm: null,
+        },
+      ],
+      {
+        nearMe: false,
+        shuffleSeed: "unused",
+        getUnregisteredRequestCount: (item) =>
+          Number((item.row as { monthlyRequestCount?: number }).monthlyRequestCount ?? 0),
+      },
+    );
+    assert.deepEqual(
+      ordered.map((row) => (row.row as { id: string }).id),
+      ["two-unique", "one-unique"],
+    );
+  });
+
   it("near-me ignores request buckets and sorts unregistered by distance", () => {
     const ordered = orderUnifiedFinderResultsPhase1(
       [

@@ -5,6 +5,8 @@ import {
   FINDER_BOOKING_REQUEST_WINDOW_DAYS,
   finderBookingRequestWindowSinceIso,
   formatFinderRequestBadgeLabel,
+  mergeManualDirectoryRowsById,
+  professionalIdsWithUniqueRequests,
 } from "@/lib/finder-booking-request-stats";
 
 describe("finder booking request stats", () => {
@@ -17,7 +19,7 @@ describe("finder booking request stats", () => {
     );
   });
 
-  it("counts every tap for ranking and unique patients for the badge", () => {
+  it("counts every tap internally and unique patients for the badge/ranking", () => {
     const stats = aggregateBookingRequestStats([
       { professionalId: "a", id: "1", voterKey: "voter-1" },
       { professionalId: "a", id: "2", voterKey: "voter-1" },
@@ -37,6 +39,32 @@ describe("finder booking request stats", () => {
     assert.equal(
       formatFinderRequestBadgeLabel(4),
       "🔥 4 patients requested online booking this month",
+    );
+  });
+
+  it("lists listing ids that have unique patients", () => {
+    const stats = aggregateBookingRequestStats([
+      { professionalId: "hot", id: "1", voterKey: "v1" },
+      { professionalId: "hot", id: "2", voterKey: "v2" },
+      { professionalId: "one", id: "3", voterKey: "v3" },
+    ]);
+    assert.deepEqual(
+      professionalIdsWithUniqueRequests(stats).sort(),
+      ["hot", "one"],
+    );
+    assert.deepEqual(professionalIdsWithUniqueRequests(stats, 2), ["hot"]);
+  });
+
+  it("merges listing batches without duplicating ids", () => {
+    assert.deepEqual(
+      mergeManualDirectoryRowsById([
+        [{ id: "requested", name: "A" }],
+        [{ id: "page", name: "B" }, { id: "requested", name: "A-dup" }],
+      ]),
+      [
+        { id: "requested", name: "A" },
+        { id: "page", name: "B" },
+      ],
     );
   });
 });

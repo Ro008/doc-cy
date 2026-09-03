@@ -1,10 +1,9 @@
 import { NextResponse } from "next/server";
-
-const COOKIE = "doccy-internal-directory";
+import { INTERNAL_DIRECTORY_COOKIE } from "@/lib/internal-directory-auth-core";
 
 export async function POST() {
   const res = NextResponse.json({ ok: true });
-  res.cookies.set(COOKIE, "", {
+  res.cookies.set(INTERNAL_DIRECTORY_COOKIE, "", {
     httpOnly: true,
     sameSite: "lax",
     path: "/",

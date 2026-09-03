@@ -8,9 +8,9 @@ export type BookingRequestEventRow = {
 };
 
 export type BookingRequestStats = {
-  /** Every stored tap in the window — used for unregistered ranking buckets. */
+  /** Every stored tap in the window (analytics / founder dashboard). */
   requests30d: number;
-  /** Distinct patients in the window — used for the public badge. */
+  /** Distinct patients in the window — public badge and unregistered ranking. */
   uniquePatients30d: number;
 };
 
@@ -45,6 +45,35 @@ export function aggregateBookingRequestStats(
       requests30d: current.requests30d,
       uniquePatients30d: current.voters.size,
     });
+  }
+  return out;
+}
+
+/** Listing ids with at least `minUnique` distinct patients in the 30-day window. */
+export function professionalIdsWithUniqueRequests(
+  stats: Map<string, BookingRequestStats>,
+  minUnique = 1,
+): string[] {
+  const ids: string[] = [];
+  for (const [id, value] of stats.entries()) {
+    if (value.uniquePatients30d >= minUnique) ids.push(id);
+  }
+  return ids;
+}
+
+/** Dedupe listing rows by id, keeping the first occurrence. */
+export function mergeManualDirectoryRowsById<T extends { id?: string }>(
+  batches: ReadonlyArray<readonly T[]>,
+): T[] {
+  const seen = new Set<string>();
+  const out: T[] = [];
+  for (const batch of batches) {
+    for (const row of batch) {
+      const id = String(row.id ?? "").trim();
+      if (!id || seen.has(id)) continue;
+      seen.add(id);
+      out.push(row);
+    }
   }
   return out;
 }

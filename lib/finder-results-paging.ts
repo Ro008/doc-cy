@@ -231,7 +231,7 @@ function orderUnregisteredByRequestBuckets<T>(
  * Finder ordering:
  * 1. has_online_booking (product entitlement)
  * 2. registered without booking
- * 3. unregistered directory, bucketed by 30-day Request online booking taps
+ * 3. unregistered directory, bucketed by 30-day unique patients (same number as the 🔥 badge)
  *    (highest first; session-seeded shuffle inside a tied count)
  * Near-me: distance within each product tier (overrides request buckets).
  */

@@ -8,6 +8,7 @@ import {
   CYPRUS_MASTER_SPECIALTIES,
   isMasterSpecialty,
 } from "@/lib/cyprus-specialties";
+import { useDirectoryNav } from "@/components/internal/DirectoryNavContext";
 import { buildSpecialtyChangeApproveReviewBody } from "@/lib/doctor-specialty-change-request";
 
 export type SpecialtyChangeRequestRow = {
@@ -61,6 +62,7 @@ export function SpecialtyChangeRequestsPanel({
   items: SpecialtyChangeRequestRow[];
 }) {
   const router = useRouter();
+  const { canMutate } = useDirectoryNav();
   const [busyId, setBusyId] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [editForId, setEditForId] = React.useState<string | null>(null);
@@ -161,9 +163,9 @@ export function SpecialtyChangeRequestsPanel({
             Specialty change requests ({items.length})
           </h2>
           <p className="mt-1 text-xs text-sky-100/80">
-            Doctors requested to add, change, or remove a specialty from
-            settings. Approve to update their profile, or reject to leave it
-            unchanged.
+            {canMutate
+              ? "Doctors requested to add, change, or remove a specialty from settings. Approve to update their profile, or reject to leave it unchanged."
+              : "Doctors requested to add, change, or remove a specialty. This view is read-only."}
           </p>
         </div>
       </div>
@@ -226,6 +228,7 @@ export function SpecialtyChangeRequestsPanel({
                     Requested {formatRequestedAt(row.createdAt)}
                   </p>
                 </div>
+                {canMutate ? (
                 <div className="flex flex-shrink-0 flex-wrap gap-2 sm:justify-end">
                   {row.requestKind !== "remove" ? (
                     <button
@@ -259,9 +262,10 @@ export function SpecialtyChangeRequestsPanel({
                     Reject
                   </button>
                 </div>
+                ) : null}
               </div>
 
-              {editing ? (
+              {canMutate && editing ? (
                 <div className="mt-4 space-y-3 border-t border-slate-800/80 pt-4">
                   <div>
                     <label className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">

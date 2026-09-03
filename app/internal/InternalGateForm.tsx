@@ -43,7 +43,7 @@ export function InternalGateForm() {
       <div className="w-full max-w-md rounded-3xl border border-slate-800 bg-slate-900/80 p-8 shadow-xl">
         <h1 className="text-xl font-semibold text-slate-50">Internal access</h1>
         <p className="mt-2 text-sm text-slate-400">
-          Enter your directory access code to continue.
+          Enter your founder or partner access code to continue.
         </p>
 
         {configure ? (
@@ -55,7 +55,9 @@ export function InternalGateForm() {
               to <code className="rounded bg-black/30 px-1 text-xs">.env.local</code>, pick any
               strong passphrase, then <strong>restart</strong>{" "}
               <code className="rounded bg-black/30 px-1 text-xs">npm run dev</code>. Use that same
-              value below as the access code.
+              value below as the access code. Optional:{" "}
+              <code className="rounded bg-black/30 px-1 text-xs">INTERNAL_DIRECTORY_PARTNER_SECRET</code>{" "}
+              for a distinct read-only partner password.
             </p>
           </div>
         ) : null}

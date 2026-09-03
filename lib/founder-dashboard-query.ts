@@ -114,6 +114,28 @@ export function founderDirectoryHref(
   return `/internal/directory?${sp.toString()}`;
 }
 
+export type DirectoryClicksCsvActionFilter =
+  | "show_phone_number"
+  | "request_online_appointment";
+
+export function parseDirectoryClicksCsvAction(
+  value: string | null | undefined,
+): DirectoryClicksCsvActionFilter | null {
+  if (value === "show_phone_number" || value === "request_online_appointment") return value;
+  return null;
+}
+
+export function founderDirectoryClicksCsvHref(
+  q: FounderDashboardQuery,
+  action: DirectoryClicksCsvActionFilter,
+): string {
+  const sp = new URLSearchParams();
+  sp.set("action", action);
+  if (action === "show_phone_number") sp.set("callToBookRange", q.callToBookRange);
+  else sp.set("manualVotesRange", q.manualVotesRange);
+  return `/api/internal/directory-clicks.csv?${sp.toString()}`;
+}
+
 /** First sort on a column uses this direction; same column again toggles in the table header. */
 export function defaultSortDirForColumn(col: ManualVotesSortCol): SortDir {
   if (col === "name" || col === "district" || col === "specialty") return "asc";

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceRoleClient } from "@/lib/supabase-service";
-import { isInternalDirectoryAuthenticated } from "@/lib/internal-directory-auth";
+import { denyUnlessInternalFounder } from "@/lib/internal-directory-auth";
 import { isMasterSpecialty } from "@/lib/cyprus-specialties";
 import { normalizeApprovedCustomSpecialty } from "@/lib/specialty-submission";
 
@@ -18,9 +18,8 @@ function clearRequiresStandard() {
 }
 
 export async function POST(req: NextRequest) {
-  if (!isInternalDirectoryAuthenticated()) {
-    return NextResponse.json({ message: "Unauthorized." }, { status: 401 });
-  }
+  const denied = denyUnlessInternalFounder();
+  if (denied) return denied;
 
   const supabase = createServiceRoleClient();
   if (!supabase) {

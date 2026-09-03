@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useDirectoryNav } from "@/components/internal/DirectoryNavContext";
 
 export type DuplicateNotificationItem = {
   suggestionId: string;
@@ -41,6 +42,7 @@ export function DuplicateNotificationsPanel({
 }: {
   items: DuplicateNotificationItem[];
 }) {
+  const { canMutate } = useDirectoryNav();
   const [busyId, setBusyId] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
 
@@ -93,6 +95,7 @@ export function DuplicateNotificationsPanel({
                 <p className="mt-1 text-xs text-violet-200/90">
                   Match score {(item.score * 100).toFixed(1)}% · {item.reason}
                 </p>
+                {canMutate ? (
                 <div className="mt-3 flex flex-wrap gap-2">
                   <button
                     type="button"
@@ -111,6 +114,7 @@ export function DuplicateNotificationsPanel({
                     Dismiss
                   </button>
                 </div>
+                ) : null}
               </article>
             );
           })}

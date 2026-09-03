@@ -6,6 +6,8 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 type Ctx = {
   /** Client-side query updates without scrolling to top of the page. */
   navigate: (href: string) => void;
+  /** Founder can approve/reject; partner is read-only. */
+  canMutate: boolean;
 };
 
 const DirectoryNavContext = React.createContext<Ctx | null>(null);
@@ -30,7 +32,13 @@ function canonicalPathWithQuery(pathname: string, sp: URLSearchParams): string {
   return q ? `${pathname}?${q}` : pathname;
 }
 
-export function InternalDirectoryShell({ children }: { children: React.ReactNode }) {
+export function InternalDirectoryShell({
+  children,
+  canMutate = false,
+}: {
+  children: React.ReactNode;
+  canMutate?: boolean;
+}) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -69,7 +77,7 @@ export function InternalDirectoryShell({ children }: { children: React.ReactNode
     [router, pathname, searchParams],
   );
 
-  const ctx = React.useMemo(() => ({ navigate }), [navigate]);
+  const ctx = React.useMemo(() => ({ navigate, canMutate }), [navigate, canMutate]);
 
   const isNavigating = isPending || navigating;
 

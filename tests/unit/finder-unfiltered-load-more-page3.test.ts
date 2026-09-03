@@ -83,6 +83,10 @@ describe("unfiltered homepage Show more without ?page= in the URL", () => {
       assert.match(source, /resolveFinderResultsPage\(/);
       assert.doesNotMatch(source, /navigationReason="finder-load-more"/);
       assert.doesNotMatch(source, /\bpage=\{resultsPage \+ 1\}/);
+      if (relative.includes("finder")) {
+        assert.match(source, /manual-requested-professionals/);
+        assert.match(source, /monthlyRequestCount/);
+      }
     }
   });
 

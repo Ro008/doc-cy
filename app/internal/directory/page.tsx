@@ -69,6 +69,7 @@ import {
   type FinderInvitationRequestRow,
 } from "@/components/internal/FinderInvitationRequestsSection";
 import { loadLocalTestLoginPasswordsByAuthUserId } from "@/lib/local-test-login-credentials";
+import { getInternalDirectoryRole } from "@/lib/internal-directory-auth";
 
 function sortManualPatientVoteRows(
   rows: ManualPatientVoteRow[],
@@ -126,6 +127,8 @@ export default async function FounderDashboardPage({
 }) {
   const supabase = createServiceRoleClient();
   const runtimeLabel = getRuntimeEnvironmentLabel();
+  const accessRole = getInternalDirectoryRole() ?? "partner";
+  const canMutate = accessRole === "founder";
   const runtimeBadgeClass =
     runtimeLabel === "production"
       ? "border-clinical-400/35 bg-clinical-500/10 text-clinical-200"
@@ -812,13 +815,15 @@ export default async function FounderDashboardPage({
         <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-6 sm:flex-row sm:items-center sm:justify-between lg:px-8">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-clinical-500/90">
-              Founder
+              {canMutate ? "Founder" : "Partner"}
             </p>
             <h1 className="mt-1 text-2xl font-semibold tracking-tight text-white lg:text-3xl">
               Dashboard
             </h1>
             <p className="mt-1 text-sm text-slate-500">
-              Platform health · professionals · bookings · live data
+              {canMutate
+                ? "Platform health · professionals · bookings · live data"
+                : "Read-only · range filters · CSV reports"}
             </p>
             <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px]">
               <span
@@ -826,6 +831,11 @@ export default async function FounderDashboardPage({
               >
                 Environment: {runtimeLabel}
               </span>
+              {canMutate ? null : (
+                <span className="inline-flex items-center rounded-full border border-slate-600/60 bg-slate-800/70 px-2 py-1 font-semibold uppercase tracking-[0.12em] text-slate-200">
+                  Read-only
+                </span>
+              )}
             </div>
           </div>
           <InternalSignOutButton />
@@ -841,7 +851,7 @@ export default async function FounderDashboardPage({
           </div>
         }
       >
-        <InternalDirectoryShell>
+        <InternalDirectoryShell canMutate={canMutate}>
           <div className="mx-auto max-w-7xl space-y-8 px-4 py-8 lg:px-8">
         {pendingDoctorsCount > 0 || specialtyChangeRequestItems.length > 0 ? (
           <section className="rounded-2xl border border-amber-500/45 bg-amber-500/10 p-5 shadow-lg shadow-black/20">
@@ -863,7 +873,9 @@ export default async function FounderDashboardPage({
                     .join(" · ")}
                 </h2>
                 <p className="mt-1 text-sm text-amber-100/85">
-                  Review license verifications and specialty change requests below.
+                  {canMutate
+                    ? "Review license verifications and specialty change requests below."
+                    : "Pending items are listed below. This access is read-only."}
                 </p>
               </div>
               <Link
@@ -963,7 +975,7 @@ export default async function FounderDashboardPage({
           </div>
           <InternalDirectoryClient
             doctors={directoryDoctorRows}
-            showLocalTestCredentials={showLocalTestCredentials}
+            showLocalTestCredentials={showLocalTestCredentials && canMutate}
           />
         </section>
           </div>
