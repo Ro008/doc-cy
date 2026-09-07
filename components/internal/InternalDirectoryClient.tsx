@@ -238,8 +238,8 @@ export function InternalDirectoryClient({
 
       {showLocalTestCredentials ? (
         <p className="text-xs text-slate-500">
-          Local dev: email and password columns help track test doctors. Passwords are saved on new
-          registrations only (not recoverable from Supabase for older accounts).
+          Local dev: email and password columns help track test doctors. Passwords update when they
+          register or reset a password here (not recoverable from Supabase for older accounts).
         </p>
       ) : null}
 

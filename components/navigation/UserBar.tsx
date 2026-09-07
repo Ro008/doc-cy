@@ -141,6 +141,10 @@ export function UserBar() {
   const hideChrome =
     !showProChrome ||
     pathname === "/login" ||
+    pathname === "/forgot-password" ||
+    pathname.startsWith("/forgot-password/") ||
+    pathname === "/reset-password" ||
+    pathname.startsWith("/reset-password/") ||
     isDistractionFreeDoctorFlow ||
     isAccountReviewGate;
 

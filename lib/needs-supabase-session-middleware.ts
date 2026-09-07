@@ -1,3 +1,5 @@
+import { isForgotPasswordPath, isResetPasswordPath } from "@/lib/password-reset";
+
 /**
  * Middleware should call supabase.auth.getSession() only on routes that
  * need a refreshed JWT (auth gates, login redirect, doctor dashboard).
@@ -11,5 +13,8 @@ export function needsSupabaseSessionMiddleware(pathname: string): boolean {
   if (path === "/dashboard" || path.startsWith("/dashboard/")) return true;
   if (path === "/login" || path.startsWith("/login/")) return true;
   if (path === "/register" || path.startsWith("/register/")) return true;
+  // Recovery session cookies on the choose-password page. Do not include
+  // `/auth/callback` — exchanging the PKCE code belongs in the route handler.
+  if (isForgotPasswordPath(path) || isResetPasswordPath(path)) return true;
   return false;
 }

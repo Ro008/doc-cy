@@ -34,6 +34,8 @@ describe("pro session hint cookie", () => {
     assert.equal(script.includes(PRO_CHROME_BOOT_ATTR), true);
     assert.equal(script.includes(PRO_CHROME_AGENDA_ATTR), true);
     assert.equal(script.includes("/login"), true);
+    assert.equal(script.includes("/forgot-password"), true);
+    assert.equal(script.includes("/reset-password"), true);
     assert.equal(script.includes("Set-Cookie"), false);
     assert.equal(script.includes("document.cookie"), true);
   });

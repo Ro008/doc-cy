@@ -6,7 +6,8 @@ export type PublicApiRateLimitBucket =
   | "doctorInvitation"
   | "appointments"
   | "trafficLog"
-  | "contactReveal";
+  | "contactReveal"
+  | "passwordReset";
 
 type RateLimitConfig = {
   limit: number;
@@ -21,6 +22,8 @@ export const PUBLIC_API_RATE_LIMITS: Record<PublicApiRateLimitBucket, RateLimitC
   trafficLog: { limit: 60, windowMs: 60 * 1000 },
   /** Phone reveal clicks — blunt bulk extraction of directory phones. */
   contactReveal: { limit: 40, windowMs: 60 * 60 * 1000 },
+  /** Practitioner forgot-password emails (IP). Per-address cap is separate. */
+  passwordReset: { limit: 5, windowMs: 60 * 60 * 1000 },
 };
 
 type BucketState = {

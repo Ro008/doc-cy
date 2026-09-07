@@ -25,6 +25,7 @@ describe("needsSupabaseSessionMiddleware", () => {
     ]) {
       assert.equal(needsSupabaseSessionMiddleware(path), false, path);
     }
+    assert.equal(needsSupabaseSessionMiddleware("/auth/callback"), false);
   });
 
   it("refreshes Auth on doctor product routes", () => {
@@ -37,6 +38,10 @@ describe("needsSupabaseSessionMiddleware", () => {
       "/login",
       "/login/",
       "/register",
+      "/forgot-password",
+      "/forgot-password/",
+      "/reset-password",
+      "/reset-password/",
     ]) {
       assert.equal(needsSupabaseSessionMiddleware(path), true, path);
     }

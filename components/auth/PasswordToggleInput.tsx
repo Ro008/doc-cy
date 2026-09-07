@@ -12,6 +12,7 @@ type PasswordToggleInputProps = {
   value?: string;
   onChange?: (value: string) => void;
   tone?: "dark" | "light";
+  autoComplete?: string;
 };
 
 export function PasswordToggleInput({
@@ -23,6 +24,7 @@ export function PasswordToggleInput({
   value,
   onChange,
   tone = "dark",
+  autoComplete,
 }: PasswordToggleInputProps) {
   const [showPassword, setShowPassword] = React.useState(false);
 
@@ -47,7 +49,9 @@ export function PasswordToggleInput({
         required={required}
         minLength={minLength}
         className={`${inputClass} ${className ?? ""}`}
-        autoComplete={name === "password" ? "current-password" : undefined}
+        autoComplete={
+          autoComplete ?? (name === "password" ? "current-password" : undefined)
+        }
         {...(isControlled
           ? {
               value,

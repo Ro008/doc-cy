@@ -641,7 +641,7 @@ export default async function RegisterPage({ searchParams }: PageProps) {
       "Too many signup attempts. Please wait a minute before trying again.";
   } else if (errorCode === "auth_user_exists") {
     errorMessage =
-      "An account with this email already exists. Try logging in or use another email alias.";
+      "An account with this email already exists. Try logging in or reset your password.";
   } else if (errorCode === "auth_invalid_email" || errorCode === "invalid_email_format") {
     errorMessage =
       "Please enter a valid email address. Gmail aliases with '+' are allowed (e.g. rociosirvent+test@gmail.com).";

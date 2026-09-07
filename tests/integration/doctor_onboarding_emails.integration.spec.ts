@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 
 import { buildFounderNewRegistrationNotifyContent } from "@/lib/notify-founder-new-registration";
 import { buildDoctorAccountVerifiedEmailContent } from "@/lib/send-doctor-account-verified-email";
+import { buildPasswordResetEmailContent } from "@/lib/send-password-reset-email";
 
 test.describe("Doctor onboarding email content", { tag: "@pr-email" }, () => {
   test("founder new registration alert includes review link and custom specialty note", () => {
@@ -65,5 +66,15 @@ test.describe("Doctor onboarding email content", { tag: "@pr-email" }, () => {
     expect(content.text).toContain("working hours, appointment types");
     expect(content.html).toContain("Open your dashboard");
     expect(content.html).toContain(encodeURIComponent("/agenda"));
+  });
+
+  test("password reset email is branded as DocCy", () => {
+    const content = buildPasswordResetEmailContent({
+      resetUrl: "https://www.mydoccy.com/auth/callback?token_hash=tok&type=recovery",
+    });
+    expect(content.subject).toBe("[DocCy] Reset your password");
+    expect(content.text).toContain("DocCy practitioner account");
+    expect(content.html).toContain("Choose a new password");
+    expect(content.html.toLowerCase()).not.toContain("supabase");
   });
 });

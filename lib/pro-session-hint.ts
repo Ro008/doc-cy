@@ -53,5 +53,5 @@ export function proChromeBootInlineScript(): string {
   const cookieEq = JSON.stringify(`${PRO_SESSION_HINT_COOKIE}=${PRO_SESSION_HINT_VALUE}`);
   const attr = JSON.stringify(PRO_CHROME_BOOT_ATTR);
   const agendaAttr = JSON.stringify(PRO_CHROME_AGENDA_ATTR);
-  return `(function(){try{var p=location.pathname;if(p==="/login"||p.indexOf("/agenda/account-review")===0||p.indexOf("/dashboard/appointments/")===0)return;if(document.cookie.indexOf(${cookieEq})===-1)return;document.documentElement.setAttribute(${attr},"1");if(p.indexOf("/agenda")===0)document.documentElement.setAttribute(${agendaAttr},"1");}catch(e){}})();`;
+  return `(function(){try{var p=location.pathname;if(p==="/login"||p==="/forgot-password"||p==="/reset-password"||p.indexOf("/agenda/account-review")===0||p.indexOf("/dashboard/appointments/")===0)return;if(document.cookie.indexOf(${cookieEq})===-1)return;document.documentElement.setAttribute(${attr},"1");if(p.indexOf("/agenda")===0)document.documentElement.setAttribute(${agendaAttr},"1");}catch(e){}})();`;
 }
