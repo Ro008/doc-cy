@@ -14,4 +14,14 @@ describe("withTimeout", () => {
       /hanging call timed out after 20ms/,
     );
   });
+
+  it("preserves object results so callers can destructure data/error", async () => {
+    const result = await withTimeout(
+      Promise.resolve({ data: [{ doctor_id: "x" }], error: null as string | null }),
+      100,
+      "rpc",
+    );
+    assert.equal(result.data?.[0]?.doctor_id, "x");
+    assert.equal(result.error, null);
+  });
 });
