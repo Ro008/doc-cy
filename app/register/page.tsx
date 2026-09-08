@@ -5,6 +5,7 @@ import { RegisterSpecialtyFields } from "@/components/auth/RegisterSpecialtyFiel
 import { RegisterLanguageFields } from "@/components/auth/RegisterLanguageFields";
 import { RegisterAvatarUpload } from "@/components/auth/RegisterAvatarUpload";
 import { RegisterDevErrorConsole } from "@/components/auth/RegisterDevErrorConsole";
+import { RegisterFormProgress } from "@/components/auth/RegisterFormProgress";
 import { RegisterFormValidation } from "@/components/auth/RegisterFormValidation";
 import {
   RegisterFormSubmitFeedback,
@@ -774,7 +775,7 @@ export default async function RegisterPage({ searchParams }: PageProps) {
                 id="register-form"
                 action={handleRegister}
                 noValidate
-                className="mt-6 space-y-6"
+                className="mt-6 max-w-xl space-y-6"
               >
                 <RegisterFormValidation formId="register-form" />
                 {process.env.NODE_ENV === "development" && errorCode && debugDetail ? (
@@ -796,14 +797,21 @@ export default async function RegisterPage({ searchParams }: PageProps) {
                 {claimPrefill ? (
                   <input type="hidden" name="claimProfessionalId" value={claimPrefill.id} />
                 ) : null}
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="group sm:col-span-2" data-validate-field="1" data-invalid="0">
+                <div className="space-y-6">
+                  <div
+                    className="group"
+                    data-validate-field="1"
+                    data-invalid="0"
+                    data-field-key="fullName"
+                    data-field-label="Full name"
+                  >
                     <label htmlFor="register-full-name" className={registerLabelClass}>
                       Full Name<span className="text-red-600">*</span>
                       <input
                         id="register-full-name"
                         name="fullName"
                         required
+                        autoComplete="name"
                         defaultValue={claimPrefill?.name ?? ""}
                         className={registerInputClass}
                       />
@@ -819,13 +827,20 @@ export default async function RegisterPage({ searchParams }: PageProps) {
 
                   <RegisterClinicAddressField listingAddressHint={claimPrefill?.addressHint} />
 
-                  <div className="group" data-validate-field="1" data-invalid="0">
+                  <div
+                    className="group"
+                    data-validate-field="1"
+                    data-invalid="0"
+                    data-field-key="email"
+                    data-field-label="Email address"
+                  >
                     <label className={registerLabelClass}>
                       Email Address<span className="text-red-600">*</span>
                       <input
                         type="email"
                         name="email"
                         required
+                        autoComplete="email"
                         pattern="[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}"
                         title="Use a valid email. '+' aliases are supported (e.g. rociosirvent+test@gmail.com)."
                         className={registerInputClass}
@@ -834,13 +849,20 @@ export default async function RegisterPage({ searchParams }: PageProps) {
                     <p className={registerFieldErrorClass}>Please enter a valid email address.</p>
                   </div>
 
-                  <div className="group" data-validate-field="1" data-invalid="0">
+                  <div
+                    className="group"
+                    data-validate-field="1"
+                    data-invalid="0"
+                    data-field-key="password"
+                    data-field-label="Password"
+                  >
                     <label className={registerLabelClass}>
                       Create Password<span className="text-red-600">*</span>
                       <PasswordToggleInput
                         name="password"
                         required
                         minLength={8}
+                        autoComplete="new-password"
                         tone="light"
                         className="w-full"
                       />
@@ -850,7 +872,13 @@ export default async function RegisterPage({ searchParams }: PageProps) {
                     </p>
                   </div>
 
-                  <div className="group" data-validate-field="1" data-invalid="0">
+                  <div
+                    className="group"
+                    data-validate-field="1"
+                    data-invalid="0"
+                    data-field-key="phone"
+                    data-field-label="WhatsApp number"
+                  >
                     <label className={registerLabelClass}>
                       WhatsApp Number<span className="text-red-600">*</span>
                       <input
@@ -869,15 +897,18 @@ export default async function RegisterPage({ searchParams }: PageProps) {
                       Please enter your WhatsApp number with country code.
                     </p>
                   </div>
+
+                  <RegisterAvatarUpload tone="light" />
                 </div>
 
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="sm:col-span-2">
-                    <RegisterAvatarUpload tone="light" />
-                  </div>
-                </div>
-
-                <div className="group" data-validate-field="1" data-invalid="0">
+                <div
+                  className="group"
+                  data-validate-field="1"
+                  data-invalid="0"
+                  data-field-key="disclaimer"
+                  data-field-label="Professional disclaimer"
+                  data-field-boxed="1"
+                >
                   <label className="flex cursor-pointer gap-3 rounded-xl border border-ink-200 bg-ink-50/80 p-4 text-left transition hover:border-clinical-300">
                     <input
                       type="checkbox"
@@ -907,6 +938,8 @@ export default async function RegisterPage({ searchParams }: PageProps) {
                     />
                   </label>
                 </div>
+
+                <RegisterFormProgress formId="register-form" />
 
                 <div className="flex flex-col gap-3 border-t border-ink-200/80 pt-5 sm:flex-row sm:items-center sm:justify-end">
                   <RegisterSubmitButton>

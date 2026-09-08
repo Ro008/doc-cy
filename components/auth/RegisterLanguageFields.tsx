@@ -8,7 +8,13 @@ export function RegisterLanguageFields() {
   const [langs, setLangs] = React.useState<string[]>([]);
 
   return (
-    <div className="group sm:col-span-2" data-validate-field="1" data-invalid="0">
+    <div
+      className="group"
+      data-validate-field="1"
+      data-invalid="0"
+      data-field-key="languages"
+      data-field-label="Languages you speak"
+    >
       <label className={registerLabelClass}>
         Languages Spoken in Consultation<span className="text-red-600">*</span>
       </label>

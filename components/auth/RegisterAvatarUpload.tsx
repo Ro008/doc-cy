@@ -177,6 +177,9 @@ export function RegisterAvatarUpload({
       }`}
       data-validate-field="1"
       data-invalid="0"
+      data-field-key="photo"
+      data-field-label="Profile photo"
+      data-field-boxed="1"
     >
       <p
         className={`text-xs font-semibold uppercase tracking-wide ${
@@ -225,7 +228,9 @@ export function RegisterAvatarUpload({
         data-validity-proxy="true"
         required
         value={isReady ? "ready" : ""}
-        readOnly
+        // A readonly input is barred from constraint validation, which would make
+        // this required field silently always valid. The no-op keeps React quiet.
+        onChange={() => {}}
         aria-hidden
         tabIndex={-1}
         className="pointer-events-none absolute h-0 w-0 opacity-0"

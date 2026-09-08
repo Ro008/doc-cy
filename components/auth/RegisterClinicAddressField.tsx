@@ -57,7 +57,13 @@ export function RegisterClinicAddressField({
   const hint = String(listingAddressHint ?? "").trim();
 
   return (
-    <div className="group sm:col-span-2" data-validate-field="1" data-invalid="0">
+    <div
+      className="group"
+      data-validate-field="1"
+      data-invalid="0"
+      data-field-key="clinic"
+      data-field-label="Clinic address"
+    >
       <span className={registerLabelClass}>
         Clinic address<span className="text-red-600">*</span>
       </span>
@@ -121,7 +127,9 @@ export function RegisterClinicAddressField({
         value={isComplete ? "1" : ""}
         required
         data-validity-proxy="true"
-        readOnly
+        // A readonly input is barred from constraint validation, which would make
+        // this required field silently always valid. The no-op keeps React quiet.
+        onChange={() => {}}
         aria-hidden
         tabIndex={-1}
         className="pointer-events-none absolute h-0 w-0 opacity-0"
