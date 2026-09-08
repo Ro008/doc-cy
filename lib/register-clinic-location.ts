@@ -99,8 +99,17 @@ export function resolveRegisterClinicLocation(input: {
   return { ok: false, code: "clinic_address" };
 }
 
+/**
+ * Mirrors what `resolveRegisterClinicLocation` accepts on the server: coordinates
+ * alone are not enough, since a submit without an address or district is rejected
+ * there and the doctor would only see a generic error.
+ */
 export function registerClinicLocationIsComplete(location: ClinicLocation): boolean {
-  return hasConfirmedClinicCoordinates(location);
+  return (
+    location.address.trim().length > 0 &&
+    Boolean(location.district) &&
+    hasConfirmedClinicCoordinates(location)
+  );
 }
 
 export function readClinicLocationLatitude(location: ClinicLocation): string {

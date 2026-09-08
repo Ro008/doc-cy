@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  clinicAddressDistrictConflicts,
   clinicLocationFromParts,
+  clinicLocationWithAddressAlignedDistrict,
   hasConfirmedClinicCoordinates,
   inferCyprusDistrictFromClinic,
 } from "../../lib/clinic-location";
@@ -50,6 +52,19 @@ describe("inferCyprusDistrictFromClinic", () => {
       null,
     );
   });
+
+  it("prefers the city named in the address over pin coordinates", () => {
+    // The pin can sit in Paphos while the address text still says Nicosia —
+    // that is exactly the contradictory state we must never store.
+    assert.equal(
+      inferCyprusDistrictFromClinic({
+        address: "Copenhagen, Nicosia 2306",
+        latitude: 34.7754,
+        longitude: 32.4245,
+      }),
+      "Nicosia",
+    );
+  });
 });
 
 describe("clinicLocationFromParts", () => {
@@ -81,6 +96,62 @@ describe("clinicLocationFromParts", () => {
       district: "Paphos",
     });
     assert.equal(location.town, "Tala");
+  });
+
+  it("uses address components before falling back to the pin", () => {
+    const location = clinicLocationFromParts({
+      address: "Some street",
+      latitude: 34.7754,
+      longitude: 32.4245,
+      addressComponents: [
+        { long_name: "Nicosia", short_name: "Nicosia", types: ["locality"] },
+      ],
+    });
+    assert.equal(location.district, "Nicosia");
+  });
+});
+
+describe("clinicAddressDistrictConflicts", () => {
+  it("flags a Nicosia address filed under Paphos", () => {
+    assert.equal(
+      clinicAddressDistrictConflicts({
+        address: "Copenhagen, Nicosia 2306",
+        latitude: 35.1856,
+        longitude: 33.3823,
+        placeId: null,
+        district: "Paphos",
+        town: null,
+      }),
+      true,
+    );
+  });
+
+  it("is quiet when they agree", () => {
+    assert.equal(
+      clinicAddressDistrictConflicts({
+        address: "Tombs of the Kings Ave 63, Chlorakas, Pafos 8015, Cyprus",
+        latitude: 34.8,
+        longitude: 32.4,
+        placeId: "x",
+        district: "Paphos",
+        town: "Chlorakas",
+      }),
+      false,
+    );
+  });
+});
+
+describe("clinicLocationWithAddressAlignedDistrict", () => {
+  it("rewrites Paphos to Nicosia when the address names Nicosia", () => {
+    const fixed = clinicLocationWithAddressAlignedDistrict({
+      address: "Copenhagen, Nicosia 2306",
+      latitude: 34.7754,
+      longitude: 32.4245,
+      placeId: null,
+      district: "Paphos",
+      town: null,
+    });
+    assert.equal(fixed.district, "Nicosia");
   });
 });
 
