@@ -183,17 +183,17 @@ describe("register claim from finder card", () => {
     assert.equal(registerClaimPath(maria.id), `/register?claim=${maria.id}`);
   });
 
-  it("prefills name, first name, phone, and GeSY specialty as a master choice", () => {
+  it("prefills name, first name, address, and GeSY specialty, but never the WhatsApp number", () => {
     const prefill = toRegisterClaimPrefill({
       ...maria,
       phone: "+35799111222",
       address: "12 Ledras Street, Nicosia",
     });
     assert.equal(prefill.firstName, "Maria");
-    assert.equal(prefill.phone, "+35799111222");
     assert.equal(prefill.addressHint, "12 Ledras Street, Nicosia");
     assert.equal(prefill.specialties[0]?.specialty, "Dentist");
     assert.equal(prefill.specialties[0]?.fromMaster, true);
+    assert.equal("phone" in prefill, false);
   });
 
   it("binds the explicit card listing even when the typed name would not fuzzy-match", () => {

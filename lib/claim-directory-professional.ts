@@ -57,7 +57,6 @@ export type RegisterClaimPrefill = {
   specialty: string;
   specialties: Array<{ specialty: string; fromMaster: boolean }>;
   district: string | null;
-  phone: string | null;
   addressHint: string | null;
 };
 
@@ -195,6 +194,7 @@ export function toRegisterClaimPrefill(row: {
   specialty?: string | null;
   specialties?: string[] | null;
   district?: string | null;
+  /** Present on listing rows; never copied — WhatsApp must be entered by the professional. */
   phone?: string | null;
   address?: string | null;
   clinic_address?: string | null;
@@ -212,7 +212,6 @@ export function toRegisterClaimPrefill(row: {
       fromMaster: isCurrentRegistrationSpecialty(specialty),
     })),
     district: String(row.district ?? "").trim() || null,
-    phone: String(row.phone ?? "").trim() || null,
     addressHint:
       String(row.address ?? "").trim() || String(row.clinic_address ?? "").trim() || null,
   };
@@ -385,7 +384,7 @@ export async function loadUnregisteredProfessionalForRegisterClaim(
 
   const { data, error } = await supabase
     .from("professionals")
-    .select("id, slug, name, specialty, specialties, district, phone, address, clinic_address")
+    .select("id, slug, name, specialty, specialties, district, address, clinic_address")
     .eq("id", id)
     .eq("is_registered", false)
     .eq("is_archived", false)
