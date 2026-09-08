@@ -9,6 +9,7 @@ export function postSpecialtyReview(
   secret: string,
   body: {
     doctorId: string;
+    specialtyId?: string | null;
     action: "map" | "approve_new" | "approve_edited" | "reject_specialty";
     mapTo?: string;
     editedSpecialty?: string;

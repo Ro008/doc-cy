@@ -24,6 +24,10 @@ import {
   SpecialtyChangeRequestsPanel,
   type SpecialtyChangeRequestRow,
 } from "@/components/internal/SpecialtyChangeRequestsPanel";
+import {
+  buildPendingSpecialtyItems,
+  type PendingSpecialtyJunctionRow,
+} from "@/lib/pending-specialty-review";
 import { InternalSignOutButton } from "@/components/internal/InternalSignOutButton";
 import { FounderKpiCards } from "@/components/internal/FounderKpiCards";
 import { SpecialtyBreakdown } from "@/components/internal/SpecialtyBreakdown";
@@ -328,15 +332,35 @@ export default async function FounderDashboardPage({
     .eq("is_registered", true)
     .order("created_at", { ascending: false });
 
-  const pendingSpecialtyItems: PendingSpecialtyRow[] =
+  const pendingProfessionals =
     pendingRes.error || !pendingRes.data
       ? []
       : pendingRes.data.map((r) => ({
           id: r.id as string,
-          name: (r.name as string) ?? "—",
+          name: (r.name as string) ?? null,
           specialty: (r as { specialty?: string | null }).specialty ?? null,
           email: (r as { email?: string | null }).email ?? null,
         }));
+
+  let pendingSpecialtyItems: PendingSpecialtyRow[] = [];
+  if (pendingProfessionals.length > 0) {
+    const { data: specialtyRows, error: specialtyRowsError } =
+      await fetchAllSupabaseRowsForIdChunks(
+        pendingProfessionals.map((r) => r.id),
+        (chunk) =>
+          supabase
+            .from("doctor_specialties")
+            .select("id, doctor_id, specialty, license_number, is_approved")
+            .in("doctor_id", chunk),
+      );
+    if (specialtyRowsError) {
+      console.error("[internal/directory] pending specialties load failed", specialtyRowsError);
+    }
+    pendingSpecialtyItems = buildPendingSpecialtyItems(
+      pendingProfessionals,
+      (specialtyRows ?? []) as PendingSpecialtyJunctionRow[],
+    );
+  }
 
   let specialtyChangeRequestItems: SpecialtyChangeRequestRow[] = [];
   {

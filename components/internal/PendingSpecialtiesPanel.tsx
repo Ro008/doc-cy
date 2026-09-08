@@ -9,16 +9,13 @@ import {
   CYPRUS_MASTER_SPECIALTIES,
   isMasterSpecialty,
 } from "@/lib/cyprus-specialties";
+import type { PendingSpecialtyItem } from "@/lib/pending-specialty-review";
 
-export type PendingSpecialtyRow = {
-  id: string;
-  name: string;
-  specialty: string | null;
-  email?: string | null;
-};
+export type PendingSpecialtyRow = PendingSpecialtyItem;
 
 async function postReview(body: {
   doctorId: string;
+  specialtyId?: string | null;
   action: "map" | "approve_new" | "approve_edited" | "reject_specialty";
   mapTo?: string;
   editedSpecialty?: string;
@@ -35,14 +32,19 @@ async function postReview(body: {
   }
 }
 
+/** One professional can have several pending specialties, so key on the specialty row. */
+function itemKey(row: PendingSpecialtyRow): string {
+  return row.specialtyId ?? row.id;
+}
+
 export function PendingSpecialtiesPanel({ items }: { items: PendingSpecialtyRow[] }) {
   const router = useRouter();
   const { canMutate } = useDirectoryNav();
-  const [busyId, setBusyId] = React.useState<string | null>(null);
+  const [busyKey, setBusyKey] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
-  const [mapForId, setMapForId] = React.useState<string | null>(null);
+  const [mapForKey, setMapForKey] = React.useState<string | null>(null);
   const [mapTarget, setMapTarget] = React.useState<string>("");
-  const [editForId, setEditForId] = React.useState<string | null>(null);
+  const [editForKey, setEditForKey] = React.useState<string | null>(null);
   const [editValue, setEditValue] = React.useState<string>("");
   const sortedSpecialties = React.useMemo(
     () => [...CYPRUS_MASTER_SPECIALTIES].sort((a, b) => a.localeCompare(b)),
@@ -53,72 +55,54 @@ export function PendingSpecialtiesPanel({ items }: { items: PendingSpecialtyRow[
     return null;
   }
 
-  async function mapSubmit(id: string) {
+  async function run(
+    row: PendingSpecialtyRow,
+    body: Omit<Parameters<typeof postReview>[0], "doctorId" | "specialtyId">,
+    successMessage: string,
+  ) {
+    const key = itemKey(row);
+    setError(null);
+    setBusyKey(key);
+    try {
+      await postReview({ doctorId: row.id, specialtyId: row.specialtyId, ...body });
+      setMapForKey(null);
+      setMapTarget("");
+      setEditForKey(null);
+      setEditValue("");
+      toast.success(successMessage);
+      router.refresh();
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "Request failed.";
+      setError(message);
+      toast.error(message);
+    } finally {
+      setBusyKey(null);
+    }
+  }
+
+  async function mapSubmit(row: PendingSpecialtyRow) {
     if (!mapTarget || !isMasterSpecialty(mapTarget)) {
       const message = "Choose a standard specialty to merge with.";
       setError(message);
       toast.error(message);
       return;
     }
-    setError(null);
-    setBusyId(id);
-    try {
-      await postReview({ doctorId: id, action: "map", mapTo: mapTarget });
-      setMapForId(null);
-      setMapTarget("");
-      toast.success("Specialty merged with existing category.");
-      router.refresh();
-    } catch (e) {
-      const message = e instanceof Error ? e.message : "Request failed.";
-      setError(message);
-      toast.error(message);
-    } finally {
-      setBusyId(null);
-    }
-  }
-
-  async function approveAsSubmitted(id: string) {
-    setError(null);
-    setBusyId(id);
-    try {
-      await postReview({ doctorId: id, action: "approve_new" });
-      setMapForId(null);
-      setMapTarget("");
-      toast.success("Specialty approved as submitted. You can verify their license next.");
-      router.refresh();
-    } catch (e) {
-      const message = e instanceof Error ? e.message : "Request failed.";
-      setError(message);
-      toast.error(message);
-    } finally {
-      setBusyId(null);
-    }
-  }
-
-  async function rejectSpecialty(id: string, submittedLabel: string) {
-    const ok = window.confirm(
-      `Reject "${submittedLabel}" for DocCy?\n\nThe professional's application will be closed (status: rejected). License review is skipped.`,
+    await run(
+      row,
+      { action: "map", mapTo: mapTarget },
+      "Specialty merged with existing category.",
     );
-    if (!ok) return;
-
-    setError(null);
-    setBusyId(id);
-    try {
-      await postReview({ doctorId: id, action: "reject_specialty" });
-      setMapForId(null);
-      setEditForId(null);
-      toast.success("Specialty rejected. Application closed.");
-      router.refresh();
-    } catch (e) {
-      const message = e instanceof Error ? e.message : "Request failed.";
-      setError(message);
-      toast.error(message);
-    } finally {
-      setBusyId(null);
-    }
   }
 
-  async function approveEdited(id: string) {
+  async function approveAsSubmitted(row: PendingSpecialtyRow) {
+    await run(
+      row,
+      { action: "approve_new" },
+      "Specialty approved as submitted. You can verify their license next.",
+    );
+  }
+
+  async function approveEdited(row: PendingSpecialtyRow) {
     const edited = editValue.trim();
     if (!edited) {
       const message = "Specialty name is required.";
@@ -126,23 +110,27 @@ export function PendingSpecialtiesPanel({ items }: { items: PendingSpecialtyRow[
       toast.error(message);
       return;
     }
-    setError(null);
-    setBusyId(id);
-    try {
-      await postReview({ doctorId: id, action: "approve_edited", editedSpecialty: edited });
-      setMapForId(null);
-      setMapTarget("");
-      setEditForId(null);
-      setEditValue("");
-      toast.success("Specialty approved after edit. You can verify their license next.");
-      router.refresh();
-    } catch (e) {
-      const message = e instanceof Error ? e.message : "Request failed.";
-      setError(message);
-      toast.error(message);
-    } finally {
-      setBusyId(null);
-    }
+    await run(
+      row,
+      { action: "approve_edited", editedSpecialty: edited },
+      "Specialty approved after edit. You can verify their license next.",
+    );
+  }
+
+  async function rejectSpecialty(row: PendingSpecialtyRow, submittedLabel: string) {
+    const ok = window.confirm(
+      row.hasOtherSpecialties
+        ? `Remove "${submittedLabel}" from ${row.name}?\n\nTheir other specialties stay and the application continues to license review.`
+        : `Reject "${submittedLabel}" for DocCy?\n\nThe professional's application will be closed (status: rejected). License review is skipped.`,
+    );
+    if (!ok) return;
+    await run(
+      row,
+      { action: "reject_specialty" },
+      row.hasOtherSpecialties
+        ? "Specialty removed. The rest of the application continues."
+        : "Specialty rejected. Application closed.",
+    );
   }
 
   return (
@@ -155,7 +143,7 @@ export function PendingSpecialtiesPanel({ items }: { items: PendingSpecialtyRow[
           <h2 className="text-sm font-semibold text-amber-100">Pending specialties</h2>
           <p className="mt-1 text-xs text-amber-100/80">
             {canMutate
-              ? "Custom specialties must be resolved here before you can verify their license. Approve as submitted, fix a typo, merge with an existing category, or reject the specialty (closes the application)."
+              ? "Only the custom specialty shown below needs a decision — any standard specialty the professional picked is already approved. Approve as submitted, fix a typo, merge with an existing category, or remove it."
               : "Custom specialties waiting for founder review. This view is read-only."}
           </p>
         </div>
@@ -169,13 +157,14 @@ export function PendingSpecialtiesPanel({ items }: { items: PendingSpecialtyRow[
 
       <ul className="mt-4 space-y-4">
         {items.map((row) => {
-          const busy = busyId === row.id;
-          const mapping = mapForId === row.id;
-          const editing = editForId === row.id;
+          const key = itemKey(row);
+          const busy = busyKey === key;
+          const mapping = mapForKey === key;
+          const editing = editForKey === key;
           const spec = (row.specialty ?? "").trim() || "—";
           return (
             <li
-              key={row.id}
+              key={key}
               className="rounded-xl border border-slate-800/80 bg-slate-950/50 p-4"
             >
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -185,9 +174,21 @@ export function PendingSpecialtiesPanel({ items }: { items: PendingSpecialtyRow[
                     <p className="mt-0.5 text-xs text-slate-500">{row.email}</p>
                   ) : null}
                   <p className="mt-2 text-sm text-slate-300">
-                    <span className="text-slate-500">Submitted:</span>{" "}
+                    <span className="text-slate-500">Needs review:</span>{" "}
                     <span className="font-medium text-amber-100/95">{spec}</span>
                   </p>
+                  {row.licenseNumber ? (
+                    <p className="mt-1 text-xs text-slate-400">
+                      <span className="text-slate-500">License / certification:</span>{" "}
+                      {row.licenseNumber}
+                    </p>
+                  ) : null}
+                  {row.approvedSpecialties.length > 0 ? (
+                    <p className="mt-1 text-xs text-slate-400">
+                      <span className="text-slate-500">Already approved:</span>{" "}
+                      {row.approvedSpecialties.join(" · ")}
+                    </p>
+                  ) : null}
                 </div>
                 {canMutate ? (
                 <div className="flex flex-shrink-0 flex-col gap-2 sm:items-end">
@@ -196,9 +197,9 @@ export function PendingSpecialtiesPanel({ items }: { items: PendingSpecialtyRow[
                       type="button"
                       disabled={busy}
                       onClick={() => {
-                        setMapForId(row.id);
+                        setMapForKey(key);
                         setMapTarget("");
-                        setEditForId(null);
+                        setEditForKey(null);
                         setError(null);
                       }}
                       className="inline-flex items-center gap-1.5 rounded-lg border border-slate-600 bg-slate-900/60 px-3 py-1.5 text-xs font-medium text-slate-200 hover:border-slate-500 disabled:opacity-50"
@@ -209,7 +210,7 @@ export function PendingSpecialtiesPanel({ items }: { items: PendingSpecialtyRow[
                     <button
                       type="button"
                       disabled={busy}
-                      onClick={() => approveAsSubmitted(row.id)}
+                      onClick={() => approveAsSubmitted(row)}
                       className="inline-flex items-center gap-1.5 rounded-lg bg-clinical-500/20 px-3 py-1.5 text-xs font-semibold text-clinical-100 ring-1 ring-clinical-500/40 hover:bg-clinical-500/30 disabled:opacity-50"
                     >
                       Approve as submitted
@@ -218,9 +219,9 @@ export function PendingSpecialtiesPanel({ items }: { items: PendingSpecialtyRow[
                       type="button"
                       disabled={busy}
                       onClick={() => {
-                        setEditForId(row.id);
+                        setEditForKey(key);
                         setEditValue(spec === "—" ? "" : spec);
-                        setMapForId(null);
+                        setMapForKey(null);
                         setMapTarget("");
                         setError(null);
                       }}
@@ -231,10 +232,10 @@ export function PendingSpecialtiesPanel({ items }: { items: PendingSpecialtyRow[
                     <button
                       type="button"
                       disabled={busy}
-                      onClick={() => rejectSpecialty(row.id, spec)}
+                      onClick={() => rejectSpecialty(row, spec)}
                       className="inline-flex items-center gap-1.5 rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-1.5 text-xs font-semibold text-red-100 hover:bg-red-500/20 disabled:opacity-50"
                     >
-                      Reject specialty
+                      {row.hasOtherSpecialties ? "Remove specialty" : "Reject specialty"}
                     </button>
                   </div>
                 </div>
@@ -263,7 +264,7 @@ export function PendingSpecialtiesPanel({ items }: { items: PendingSpecialtyRow[
                   <button
                     type="button"
                     disabled={busy || !mapTarget}
-                    onClick={() => mapSubmit(row.id)}
+                    onClick={() => mapSubmit(row)}
                     className="rounded-lg bg-clinical-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-clinical-400 disabled:opacity-50"
                   >
                     Save merge
@@ -287,7 +288,7 @@ export function PendingSpecialtiesPanel({ items }: { items: PendingSpecialtyRow[
                   <button
                     type="button"
                     disabled={busy || !editValue.trim()}
-                    onClick={() => approveEdited(row.id)}
+                    onClick={() => approveEdited(row)}
                     className="rounded-lg bg-clinical-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-clinical-400 disabled:opacity-50"
                   >
                     Save and approve
