@@ -18,3 +18,14 @@ export function needsSupabaseSessionMiddleware(pathname: string): boolean {
   if (isForgotPasswordPath(path) || isResetPasswordPath(path)) return true;
   return false;
 }
+
+/**
+ * Server-action POSTs to `/register` have no session yet. Refreshing Auth in
+ * middleware on that request can stall the action so the submitting overlay
+ * never clears.
+ */
+export function shouldSkipSupabaseSessionRefresh(pathname: string, method: string): boolean {
+  if (method.toUpperCase() === "GET" || method.toUpperCase() === "HEAD") return false;
+  const path = pathname.split("?")[0]?.split("#")[0] || pathname;
+  return path === "/register" || path.startsWith("/register/");
+}

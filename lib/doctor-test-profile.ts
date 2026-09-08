@@ -44,6 +44,7 @@ export const INTEGRATION_TEST_NAME_PREFIXES = [
   "Finder UX ",
   "Finder Filter ",
   "Prefix Cleanup ",
+  "Register E2E ",
 ] as const;
 
 /**
@@ -60,6 +61,7 @@ export const INTEGRATION_TEST_SLUG_PREFIXES = [
   "qa-card-",
   "qa-prefix-",
   "finder-prefix-",
+  "register-e2e-",
 ] as const;
 
 export function isTestProfileLike(row: {

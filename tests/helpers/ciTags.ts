@@ -10,3 +10,5 @@ export const TAG_PR_MOBILE = "@pr-mobile-monitor";
 /** Login form UI vs integration Auth — PR signal only (non-blocking). */
 export const TAG_PR_LOGIN_MONITOR = "@pr-login-monitor";
 export const TAG_NIGHTLY_PROD = "@nightly-prod";
+/** Live `/register` UI + Resend. Local pre-PR gate only — never `@pr-e2e` / nightly. */
+export const TAG_LOCAL_REGISTER = "@local-register";

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { needsSupabaseSessionMiddleware } from "@/lib/needs-supabase-session-middleware";
+import { needsSupabaseSessionMiddleware, shouldSkipSupabaseSessionRefresh } from "@/lib/needs-supabase-session-middleware";
 
 describe("needsSupabaseSessionMiddleware", () => {
   it("skips Auth on public patient pages", () => {
@@ -45,5 +45,12 @@ describe("needsSupabaseSessionMiddleware", () => {
     ]) {
       assert.equal(needsSupabaseSessionMiddleware(path), true, path);
     }
+  });
+
+  it("skips Auth refresh on register POST (server action) but not GET", () => {
+    assert.equal(shouldSkipSupabaseSessionRefresh("/register", "POST"), true);
+    assert.equal(shouldSkipSupabaseSessionRefresh("/register", "GET"), false);
+    assert.equal(shouldSkipSupabaseSessionRefresh("/register?error=auth", "POST"), true);
+    assert.equal(shouldSkipSupabaseSessionRefresh("/agenda", "POST"), false);
   });
 });

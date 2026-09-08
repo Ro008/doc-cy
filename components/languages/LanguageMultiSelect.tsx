@@ -81,6 +81,7 @@ export function LanguageMultiSelect({
         data-validity-proxy="true"
         required
         value={selected.length > 0 ? "ok" : ""}
+        readOnly
         aria-hidden
         tabIndex={-1}
         className="pointer-events-none absolute h-0 w-0 opacity-0"

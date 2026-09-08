@@ -203,6 +203,7 @@ export function RegisterAvatarUpload({
             type="file"
             accept="image/jpeg,image/png,image/webp,image/gif"
             className="sr-only"
+            data-testid="register-avatar-file-input"
             onChange={onPickFile}
           />
         </label>
@@ -224,6 +225,7 @@ export function RegisterAvatarUpload({
         data-validity-proxy="true"
         required
         value={isReady ? "ready" : ""}
+        readOnly
         aria-hidden
         tabIndex={-1}
         className="pointer-events-none absolute h-0 w-0 opacity-0"

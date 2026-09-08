@@ -34,6 +34,7 @@ export type ResendEmailPayload = {
   subject: string;
   text: string;
   html?: string;
+  tags?: Array<{ name: string; value: string }>;
 };
 
 /**
@@ -59,6 +60,7 @@ export async function sendResendEmail(email: ResendEmailPayload) {
     subject: email.subject,
     text: email.text,
     html: email.html,
+    ...(email.tags && email.tags.length > 0 ? { tags: email.tags } : {}),
   });
 
   if (error) {

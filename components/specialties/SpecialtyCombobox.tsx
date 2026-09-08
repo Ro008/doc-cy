@@ -73,7 +73,9 @@ export function SpecialtyCombobox({
       specialty: resolvedSpecialty,
       fromMaster,
     });
-  }, [resolvedSpecialty, fromMaster, onSelectionChange]);
+    // Parent often passes an inline callback; depend only on the selection payload.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resolvedSpecialty, fromMaster]);
 
   React.useEffect(() => {
     function onDocClick(e: MouseEvent) {
@@ -134,6 +136,7 @@ export function SpecialtyCombobox({
         data-validity-proxy="true"
         required
         value={resolvedSpecialty ? "ok" : ""}
+        readOnly
         aria-hidden
         tabIndex={-1}
         className="pointer-events-none absolute h-0 w-0 opacity-0"
@@ -145,6 +148,7 @@ export function SpecialtyCombobox({
       <button
         id={`${id}-trigger`}
         type="button"
+        data-testid={`${id}-trigger`}
         aria-haspopup="listbox"
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}

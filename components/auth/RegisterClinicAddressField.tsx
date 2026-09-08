@@ -8,6 +8,10 @@ import {
   type ClinicLocation,
 } from "@/lib/clinic-location";
 import {
+  e2eRegisterHooksEnabled,
+  E2E_REGISTER_CLINIC_EVENT,
+} from "@/lib/e2e-doctor-registration-test";
+import {
   readClinicLocationLatitude,
   registerClinicLocationIsComplete,
 } from "@/lib/register-clinic-location";
@@ -25,6 +29,29 @@ export function RegisterClinicAddressField({
   const [location, setLocation] = React.useState<ClinicLocation>(emptyClinicLocation());
   const [isEditing, setIsEditing] = React.useState(true);
   const [searchSession, setSearchSession] = React.useState(0);
+
+  React.useEffect(() => {
+    if (!e2eRegisterHooksEnabled()) return;
+
+    const onFill = (event: Event) => {
+      const detail = (event as CustomEvent<Partial<ClinicLocation>>).detail;
+      if (!detail || typeof detail !== "object") return;
+      const next: ClinicLocation = {
+        address: String(detail.address ?? "").trim(),
+        latitude: typeof detail.latitude === "number" ? detail.latitude : null,
+        longitude: typeof detail.longitude === "number" ? detail.longitude : null,
+        placeId: String(detail.placeId ?? "").trim() || null,
+        district: detail.district ?? null,
+        town: String(detail.town ?? "").trim() || null,
+      };
+      if (!hasConfirmedClinicCoordinates(next) || !next.address || !next.district) return;
+      setLocation(next);
+      setIsEditing(false);
+    };
+
+    window.addEventListener(E2E_REGISTER_CLINIC_EVENT, onFill);
+    return () => window.removeEventListener(E2E_REGISTER_CLINIC_EVENT, onFill);
+  }, []);
 
   const isComplete = registerClinicLocationIsComplete(location);
   const hint = String(listingAddressHint ?? "").trim();

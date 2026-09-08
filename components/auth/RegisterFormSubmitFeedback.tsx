@@ -1,9 +1,13 @@
 "use client";
 
 import * as React from "react";
+import { useFormStatus } from "react-dom";
 import { registerSubmitClass } from "@/lib/register-ui";
 
 const RegisterSubmitContext = React.createContext(false);
+
+/** Backup if the Server Action never returns (network stall). */
+const SUBMIT_WATCHDOG_MS = 90_000;
 
 type RegisterFormSubmitFeedbackProps = {
   formId: string;
@@ -13,48 +17,28 @@ type RegisterFormSubmitFeedbackProps = {
 };
 
 export function RegisterFormSubmitFeedback({
-  formId,
   children,
   clearSubmitting = false,
 }: RegisterFormSubmitFeedbackProps) {
-  const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const { pending } = useFormStatus();
+  const [timedOut, setTimedOut] = React.useState(false);
+  const [dismissed, setDismissed] = React.useState(false);
 
   React.useEffect(() => {
-    if (clearSubmitting) {
-      setIsSubmitting(false);
+    if (clearSubmitting || !pending) {
+      setTimedOut(false);
+      setDismissed(false);
+      return;
     }
-  }, [clearSubmitting]);
+    const timer = window.setTimeout(() => setTimedOut(true), SUBMIT_WATCHDOG_MS);
+    return () => window.clearTimeout(timer);
+  }, [pending, clearSubmitting]);
 
-  React.useEffect(() => {
-    const form = document.getElementById(formId) as HTMLFormElement | null;
-    if (!form) return;
-
-    const onSubmit = () => {
-      if (form.checkValidity()) {
-        setIsSubmitting(true);
-      }
-    };
-
-    const onInvalid = () => {
-      setIsSubmitting(false);
-    };
-
-    const onPageShow = () => {
-      setIsSubmitting(false);
-    };
-
-    form.addEventListener("submit", onSubmit);
-    form.addEventListener("invalid", onInvalid, true);
-    window.addEventListener("pageshow", onPageShow);
-    return () => {
-      form.removeEventListener("submit", onSubmit);
-      form.removeEventListener("invalid", onInvalid, true);
-      window.removeEventListener("pageshow", onPageShow);
-    };
-  }, [formId]);
+  const isSubmitting = pending && !dismissed;
+  const showTimeout = isSubmitting && timedOut;
 
   return (
-    <RegisterSubmitContext.Provider value={isSubmitting}>
+    <RegisterSubmitContext.Provider value={isSubmitting && !showTimeout}>
       <div className="relative">
         <fieldset
           aria-busy={isSubmitting}
@@ -64,29 +48,50 @@ export function RegisterFormSubmitFeedback({
         >
           {children}
         </fieldset>
+        {isSubmitting ? (
         <div
-          aria-hidden={!isSubmitting}
-          className={`fixed inset-0 z-50 flex items-center justify-center bg-white/55 backdrop-blur-[3px] transition-opacity duration-200 ${
-            isSubmitting ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"
-          }`}
+          aria-hidden={false}
+          data-testid="register-submit-overlay"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-white/55 backdrop-blur-[3px] pointer-events-auto opacity-100"
         >
           <div
             role="status"
             aria-live="polite"
             className="mx-4 flex max-w-md items-center gap-3 rounded-2xl border border-clinical-200 bg-white px-5 py-4 shadow-[0_12px_40px_rgba(26,43,60,0.12)]"
           >
-            <span
-              aria-hidden
-              className="h-5 w-5 shrink-0 animate-spin rounded-full border-2 border-clinical-400 border-r-transparent"
-            />
-            <div>
-              <p className="text-sm font-semibold text-ink-900">Submitting your application…</p>
-              <p className="mt-0.5 text-xs text-ink-600">
-                Please keep this tab open while we upload your details.
-              </p>
-            </div>
+            {showTimeout ? (
+              <div>
+                <p className="text-sm font-semibold text-ink-900">
+                  This is taking longer than expected
+                </p>
+                <p className="mt-0.5 text-xs text-ink-600">
+                  Keep this tab open, or refresh and try again if nothing happens.
+                </p>
+                <button
+                  type="button"
+                  className="mt-3 text-xs font-semibold text-clinical-700 underline underline-offset-2"
+                  onClick={() => setDismissed(true)}
+                >
+                  Hide this message
+                </button>
+              </div>
+            ) : (
+              <>
+                <span
+                  aria-hidden
+                  className="h-5 w-5 shrink-0 animate-spin rounded-full border-2 border-clinical-400 border-r-transparent"
+                />
+                <div>
+                  <p className="text-sm font-semibold text-ink-900">Submitting your application…</p>
+                  <p className="mt-0.5 text-xs text-ink-600">
+                    Please keep this tab open while we upload your details.
+                  </p>
+                </div>
+              </>
+            )}
           </div>
         </div>
+        ) : null}
       </div>
     </RegisterSubmitContext.Provider>
   );
@@ -102,9 +107,8 @@ export function RegisterSubmitButton({ children }: RegisterSubmitButtonProps) {
   return (
     <button
       type="submit"
-      disabled={isSubmitting}
       aria-busy={isSubmitting}
-      className={`${registerSubmitClass} gap-2 disabled:cursor-wait disabled:opacity-80`}
+      className={`${registerSubmitClass} gap-2 ${isSubmitting ? "cursor-wait opacity-80" : ""}`}
     >
       {isSubmitting ? (
         <>

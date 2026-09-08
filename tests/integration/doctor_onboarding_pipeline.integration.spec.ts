@@ -19,7 +19,7 @@ import {
  * Core business pipeline (PR-blocking):
  * registration outcome → founder alert payload → internal approval → doctor ready email copy → agenda access.
  *
- * Registration UI e2e was removed (chronic Places/cookie flakiness without signal).
+ * Live `/register` UI e2e is a local pre-PR gate (`npm run test:e2e:register`), not CI.
  * Here we use createTestDoctor as post-registration DB state.
  * as the post-registration DB state equivalent (avoids Supabase Auth signUp rate limits on PR).
  */
