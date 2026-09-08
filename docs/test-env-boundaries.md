@@ -68,8 +68,10 @@ npm run test:cleanup:testing:assert # delete + fail if any remain
 
 - Full production smoke (local):
   - `npm run test:prod:smoke:local`
-- Registration flow with video artifact:
-  - `npm run test:prod:smoke:local`
+- Live registration UI (testing DB, before opening a PR — not CI, not every commit):
+  - `npm run test:e2e:register`
+  - Requires `RESEND_API_KEY` in `.env.testing.local`. `FOUNDER_NOTIFY_EMAIL` is used if set; otherwise the script sends the founder alert to the testing alias `rociosirvent+doccy-register-e2e@gmail.com` so Resend can still be asserted.
+  - See `docs/ci-test-policy.md` (`@local-register`)
 - Integration samples (local isolated env):
   - `npm run test:integration:testing:service-menu`
   - `npm run test:integration:testing:settings-address-notice`

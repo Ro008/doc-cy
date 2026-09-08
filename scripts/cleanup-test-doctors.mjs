@@ -12,6 +12,7 @@ const TEST_NAME_PREFIXES = [
   "Finder UX ",
   "Finder Filter ",
   "Prefix Cleanup ",
+  "Register E2E ",
 ];
 /** Keep in sync with lib/doctor-test-profile.ts INTEGRATION_TEST_SLUG_PREFIXES. */
 const TEST_SLUG_PREFIXES = [
@@ -24,6 +25,7 @@ const TEST_SLUG_PREFIXES = [
   "qa-card-",
   "qa-prefix-",
   "finder-prefix-",
+  "register-e2e-",
 ];
 const DEFAULT_PRESERVED_SLUGS = [
   "andreas-nikos",

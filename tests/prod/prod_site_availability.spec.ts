@@ -50,6 +50,7 @@ test.describe("Public shell health", { tag: ["@pr-preview", "@nightly-prod"] }, 
     await gotoPublicAndReady(page, "/login");
     await expect(page.getByLabel("Email")).toBeVisible({ timeout: 15000 });
     await expect(page.getByRole("button", { name: /Sign in/i })).toBeVisible();
+    await expect(page.getByRole("link", { name: /Forgot your password\?/i })).toBeVisible();
 
     await gotoPublicAndReady(page, "/register");
     await expect(

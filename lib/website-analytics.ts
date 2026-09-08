@@ -146,7 +146,9 @@ export type HighInterestSession = {
 export function mapPathToSection(path: string): string {
   if (path === "/") return "Product Tour";
   if (path.startsWith("/register")) return "Signup";
-  if (path.startsWith("/login")) return "Login";
+  if (path.startsWith("/login") || path.startsWith("/forgot-password") || path.startsWith("/reset-password")) {
+    return "Login";
+  }
   if (path.startsWith("/reschedule")) return "Reschedule";
   if (path.startsWith("/internal")) return "Internal";
   if (path.startsWith("/agenda")) return "Agenda";

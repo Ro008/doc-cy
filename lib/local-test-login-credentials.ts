@@ -9,6 +9,16 @@ export function shouldPersistLocalTestLoginPassword(): boolean {
   );
 }
 
+export function withLocalTestLoginPassword(
+  metadata: Record<string, unknown>,
+  password: string,
+): Record<string, unknown> {
+  return {
+    ...metadata,
+    [TEST_LOGIN_PASSWORD_METADATA_KEY]: password,
+  };
+}
+
 export async function persistLocalTestLoginPassword(
   admin: SupabaseClient,
   authUserId: string,
@@ -17,11 +27,14 @@ export async function persistLocalTestLoginPassword(
 ): Promise<void> {
   if (!shouldPersistLocalTestLoginPassword()) return;
 
+  const { data } = await admin.auth.admin.getUserById(authUserId);
+  const existing =
+    data?.user?.user_metadata && typeof data.user.user_metadata === "object"
+      ? (data.user.user_metadata as Record<string, unknown>)
+      : {};
+
   await admin.auth.admin.updateUserById(authUserId, {
-    user_metadata: {
-      ...baseMetadata,
-      [TEST_LOGIN_PASSWORD_METADATA_KEY]: password,
-    },
+    user_metadata: withLocalTestLoginPassword({ ...existing, ...baseMetadata }, password),
   });
 }
 

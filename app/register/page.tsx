@@ -1,5 +1,4 @@
 import { redirect } from "next/navigation";
-import { supabase } from "@/lib/supabase";
 import { createServiceRoleClient } from "@/lib/supabase-service";
 import { PasswordToggleInput } from "@/components/auth/PasswordToggleInput";
 import { RegisterSpecialtyFields } from "@/components/auth/RegisterSpecialtyFields";
@@ -53,6 +52,9 @@ import {
   resolveSignupDirectoryClaim,
   type RegisterClaimPrefill,
 } from "@/lib/claim-directory-professional";
+import { isNextRedirectError } from "@/lib/next-redirect-error";
+import { withTimeout } from "@/lib/promise-timeout";
+import { createClient } from "@supabase/supabase-js";
 
 type PageProps = {
   searchParams?: {
@@ -65,6 +67,20 @@ type PageProps = {
 };
 
 const emailRegex = /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i;
+
+const REGISTER_AUTH_TIMEOUT_MS = 20_000;
+const REGISTER_UPLOAD_TIMEOUT_MS = 20_000;
+const REGISTER_DB_TIMEOUT_MS = 20_000;
+const REGISTER_NOTIFY_TIMEOUT_MS = 12_000;
+
+function createRegisterAuthClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
+  if (!url || !key) return null;
+  return createClient(url, key, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+}
 
 function redirectWithError(
   errorCode: string,
@@ -152,6 +168,23 @@ function shouldUseAdminAuthForAutomatedRegistration(email: string): boolean {
 async function handleRegister(formData: FormData) {
   "use server";
 
+  try {
+    await runRegister(formData);
+  } catch (error) {
+    if (isNextRedirectError(error)) throw error;
+    console.error("[DocCy] Registration failed unexpectedly", error);
+    const message = error instanceof Error ? error.message : String(error);
+    if (/timed out/i.test(message) && /sign-up|Auth/i.test(message)) {
+      redirectWithError("auth_network", error);
+    }
+    if (/timed out/i.test(message) && /Avatar/i.test(message)) {
+      redirectWithError("avatar_upload", error);
+    }
+    redirectWithError("db", error);
+  }
+}
+
+async function runRegister(formData: FormData) {
   const company = formData.get("company");
   if (typeof company === "string" && company.trim() !== "") {
     // Honeypot filled → likely bot; fail silently without creating anything
@@ -288,12 +321,16 @@ async function handleRegister(formData: FormData) {
   };
 
   if (shouldUseAdminAuthForAutomatedRegistration(email)) {
-    const { data: adminData, error: adminError } = await service.auth.admin.createUser({
-      email,
-      password,
-      email_confirm: true,
-      user_metadata: doctorAuthMetadata,
-    });
+    const { data: adminData, error: adminError } = await withTimeout(
+      service.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true,
+        user_metadata: doctorAuthMetadata,
+      }),
+      REGISTER_AUTH_TIMEOUT_MS,
+      "Auth admin create",
+    );
     if (adminError || !adminData.user) {
       console.error("[DocCy] Auth admin create (E2E registration) failed", adminError);
       if ((adminError as { status?: number })?.status === 429) {
@@ -303,16 +340,24 @@ async function handleRegister(formData: FormData) {
     }
     authUserId = adminData.user.id;
   } else {
-    const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          full_name: fullName,
-          role: "doctor",
+    const authClient = createRegisterAuthClient();
+    if (!authClient) {
+      fail("auth_network", "Supabase auth client missing");
+    }
+    const { data: signUpData, error: signUpError } = await withTimeout(
+      authClient.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: fullName,
+            role: "doctor",
+          },
         },
-      },
-    });
+      }),
+      REGISTER_AUTH_TIMEOUT_MS,
+      "Auth sign-up",
+    );
 
     if (signUpError || !signUpData.user) {
       console.error("[DocCy] Auth sign-up failed", signUpError);
@@ -323,7 +368,7 @@ async function handleRegister(formData: FormData) {
       fail(mapAuthErrorToCode(signUpError as any), signUpError);
     }
 
-  authUserId = signUpData.user.id;
+    authUserId = signUpData.user.id;
     await persistLocalTestLoginPassword(service, authUserId, password, {
       full_name: fullName,
       role: "doctor",
@@ -355,11 +400,14 @@ async function handleRegister(formData: FormData) {
   const avatarPath = `profiles/${authUserId}/avatar-${Date.now()}-${Math.random()
     .toString(36)
     .slice(2)}.jpg`;
-  const { data: avatarUploadData, error: avatarUploadError } =
-    await service.storage.from("avatars").upload(avatarPath, avatarFile, {
+  const { data: avatarUploadData, error: avatarUploadError } = await withTimeout(
+    service.storage.from("avatars").upload(avatarPath, avatarFile, {
       contentType: avatarFile.type || "image/jpeg",
       upsert: false,
-    });
+    }),
+    REGISTER_UPLOAD_TIMEOUT_MS,
+    "Avatar upload",
+  );
   if (avatarUploadError || !avatarUploadData?.path) {
     console.error("[DocCy] Avatar upload failed", avatarUploadError);
     try {
@@ -371,9 +419,8 @@ async function handleRegister(formData: FormData) {
   }
   const avatarFileUrl = avatarUploadData.path;
 
-  const { data: regRows, error: insertError } = await service.rpc(
-    "register_doctor_with_founder_lock",
-    {
+  const { data: regRows, error: insertError } = await withTimeout(
+    service.rpc("register_doctor_with_founder_lock", {
       p_auth_user_id: authUserId,
       p_name: fullName,
       p_specialty: specialty,
@@ -385,7 +432,9 @@ async function handleRegister(formData: FormData) {
       p_slug: slug,
       p_is_specialty_approved: isSpecialtyApproved,
       ...(claim?.id ? { p_claim_professional_id: claim.id } : {}),
-    }
+    }),
+    REGISTER_DB_TIMEOUT_MS,
+    "Register doctor RPC",
   );
 
   let doctorId = regRows?.[0]?.doctor_id as string | undefined;
@@ -494,18 +543,24 @@ async function handleRegister(formData: FormData) {
     }
   }
 
-  const queueFounderSignupNotify = () => {
-    void notifyFounderNewRegistration({
-      doctorId,
-      fullName,
-      email,
-      phone,
-      specialty,
-      needsSpecialtyReview: !isSpecialtyApproved,
-      claimedDirectory: Boolean(claim?.id && doctorId === claim.id),
-    }).catch((err) =>
-      console.error("[DocCy] Founder registration notify failed", err)
-    );
+  const sendFounderSignupNotify = async () => {
+    try {
+      await withTimeout(
+        notifyFounderNewRegistration({
+          doctorId,
+          fullName,
+          email,
+          phone,
+          specialty,
+          needsSpecialtyReview: !isSpecialtyApproved,
+          claimedDirectory: Boolean(claim?.id && doctorId === claim.id),
+        }),
+        REGISTER_NOTIFY_TIMEOUT_MS,
+        "Founder registration notify",
+      );
+    } catch (err) {
+      console.error("[DocCy] Founder registration notify failed or timed out", err);
+    }
   };
 
   const profileUpdateBase = {
@@ -569,7 +624,7 @@ async function handleRegister(formData: FormData) {
         .eq("id", doctorId);
       if (!withoutTownError) {
         await syncPrimaryBookingLocation();
-        queueFounderSignupNotify();
+        await sendFounderSignupNotify();
         redirect("/register?submitted=1");
       }
     }
@@ -580,7 +635,7 @@ async function handleRegister(formData: FormData) {
         "[DocCy] avatar_url column missing on doctors. Apply SQL migration to persist avatar path."
       );
       await syncPrimaryBookingLocation();
-      queueFounderSignupNotify();
+      await sendFounderSignupNotify();
       redirect("/register?submitted=1");
     }
     if (missingClinicColumns) {
@@ -596,7 +651,7 @@ async function handleRegister(formData: FormData) {
         console.error("[DocCy] Failed legacy profile save on doctor", legacyProfileError);
       } else {
         await syncPrimaryBookingLocation();
-        queueFounderSignupNotify();
+        await sendFounderSignupNotify();
         redirect("/register?submitted=1");
       }
     }
@@ -615,7 +670,7 @@ async function handleRegister(formData: FormData) {
   }
 
   await syncPrimaryBookingLocation();
-  queueFounderSignupNotify();
+  await sendFounderSignupNotify();
   const claimedThisListing = Boolean(claim?.id && doctorId === claim.id);
   redirect(claimedThisListing ? "/register?submitted=1&claimed=1" : "/register?submitted=1");
 }
@@ -641,7 +696,7 @@ export default async function RegisterPage({ searchParams }: PageProps) {
       "Too many signup attempts. Please wait a minute before trying again.";
   } else if (errorCode === "auth_user_exists") {
     errorMessage =
-      "An account with this email already exists. Try logging in or use another email alias.";
+      "An account with this email already exists. Try logging in or reset your password.";
   } else if (errorCode === "auth_invalid_email" || errorCode === "invalid_email_format") {
     errorMessage =
       "Please enter a valid email address. Gmail aliases with '+' are allowed (e.g. rociosirvent+test@gmail.com).";

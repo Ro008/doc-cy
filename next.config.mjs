@@ -28,6 +28,10 @@ const nextConfig = {
   distDir: process.platform === "win32" ? ".next-local" : ".next",
   experimental: {
     optimizePackageImports: ["lucide-react"],
+    // Registration posts a cropped avatar through a Server Action.
+    serverActions: {
+      bodySizeLimit: "2mb",
+    },
   },
   images: {
     remotePatterns,

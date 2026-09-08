@@ -22,7 +22,10 @@ import {
   isLegacyFinderFilterPath,
   legacyFinderFilterToPublicPath,
 } from "./lib/finder-public-path";
-import {needsSupabaseSessionMiddleware} from "./lib/needs-supabase-session-middleware";
+import {
+  needsSupabaseSessionMiddleware,
+  shouldSkipSupabaseSessionRefresh,
+} from "./lib/needs-supabase-session-middleware";
 import {isInternalDirectoryCookieAuthorized} from "./lib/internal-directory-auth-core";
 
 const handleI18nRouting = createMiddleware(routing);
@@ -37,6 +40,9 @@ const RESERVED_TOP_LEVEL = new Set([
   "internal",
   "login",
   "register",
+  "forgot-password",
+  "reset-password",
+  "auth",
   "terms",
   "privacy",
   ...FINDER_DISTRICT_PATH_SLUGS,
@@ -157,7 +163,10 @@ export async function middleware(req: NextRequest, event: NextFetchEvent) {
 
   // Refresh JWT + gate /agenda only on doctor product routes. Public finder,
   // clinics, and booking pages skip Auth so anonymous HTML is not blocked.
-  if (needsSupabaseSessionMiddleware(pathname)) {
+  if (
+    needsSupabaseSessionMiddleware(pathname) &&
+    !shouldSkipSupabaseSessionRefresh(pathname, req.method)
+  ) {
     const supabase = createMiddlewareClient({req, res});
     const {
       data: {session},

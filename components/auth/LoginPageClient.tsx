@@ -7,6 +7,7 @@ import { PasswordToggleInput } from "@/components/auth/PasswordToggleInput";
 import { PendingLink } from "@/components/navigation/PendingLink";
 import { DocCyWordmark } from "@/components/brand/DocCyWordmark";
 import { writeProSessionHintCookie } from "@/lib/pro-session-hint";
+import { forgotPasswordPathWithEmail } from "@/lib/password-reset";
 
 export function LoginPageClient({ nextPath }: { nextPath?: string | null }) {
   const router = useRouter();
@@ -120,6 +121,14 @@ export function LoginPageClient({ nextPath }: { nextPath?: string | null }) {
           </form>
 
           <p className="mt-4 text-center text-xs text-slate-400">
+            <PendingLink
+              href={forgotPasswordPathWithEmail(email)}
+              className="font-medium text-clinical-300 hover:text-clinical-200"
+            >
+              Forgot your password?
+            </PendingLink>
+          </p>
+          <p className="mt-3 text-center text-xs text-slate-400">
             Don&apos;t have an account?{" "}
             <PendingLink
               href="/register"

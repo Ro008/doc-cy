@@ -70,6 +70,10 @@ export async function notifyFounderNewRegistration(
       to: recipients.length === 1 ? recipients[0]! : recipients,
       subject,
       text: textBody,
+      tags: [
+        { name: "category", value: "founder-new-registration" },
+        { name: "doctor_id", value: payload.doctorId.slice(0, 40) },
+      ],
     });
   } catch (reason) {
     console.error("[DocCy] Founder registration notify email failed", reason);

@@ -19,9 +19,9 @@ type RowState = {
   licenseNumber: string;
 };
 
-function newRow(): RowState {
+function newRow(index = 0): RowState {
   return {
-    key: `spec-${Math.random().toString(36).slice(2, 10)}`,
+    key: `spec-${index}`,
     specialty: "",
     fromMaster: true,
     licenseNumber: "",
@@ -42,13 +42,13 @@ export function RegisterSpecialtyFields({
 } = {}) {
   const [rows, setRows] = React.useState<RowState[]>(() => {
     if (initialSpecialties && initialSpecialties.length > 0) {
-      return initialSpecialties.slice(0, MAX_DOCTOR_SPECIALTIES).map((entry) => ({
-        ...newRow(),
+      return initialSpecialties.slice(0, MAX_DOCTOR_SPECIALTIES).map((entry, index) => ({
+        ...newRow(index),
         specialty: entry.specialty,
         fromMaster: entry.fromMaster,
       }));
     }
-    return [newRow()];
+    return [newRow(0)];
   });
 
   const payload = rows.map((r) => ({
@@ -107,6 +107,7 @@ export function RegisterSpecialtyFields({
         data-validity-proxy="true"
         required
         value={formValid ? "ok" : ""}
+        readOnly
         aria-hidden
         tabIndex={-1}
         className="pointer-events-none absolute h-0 w-0 opacity-0"
@@ -162,13 +163,18 @@ export function RegisterSpecialtyFields({
               variant="register"
               excludeSpecialties={excluded}
               onSelectionChange={(p) => {
-                setRows((prev) =>
-                  prev.map((r) =>
-                    r.key === row.key
-                      ? { ...r, specialty: p.specialty, fromMaster: p.fromMaster }
-                      : r,
-                  ),
-                );
+                setRows((prev) => {
+                  let changed = false;
+                  const next = prev.map((r) => {
+                    if (r.key !== row.key) return r;
+                    if (r.specialty === p.specialty && r.fromMaster === p.fromMaster) {
+                      return r;
+                    }
+                    changed = true;
+                    return { ...r, specialty: p.specialty, fromMaster: p.fromMaster };
+                  });
+                  return changed ? next : prev;
+                });
               }}
             />
               {isDuplicate ? (
@@ -191,6 +197,7 @@ export function RegisterSpecialtyFields({
                     );
                   }}
                   autoComplete="off"
+                  data-testid={`register-license-${index}`}
                   className={registerInputClass}
                   placeholder="Registration or certification number"
                 />
@@ -203,7 +210,15 @@ export function RegisterSpecialtyFields({
       {rows.length < MAX_DOCTOR_SPECIALTIES ? (
         <button
           type="button"
-          onClick={() => setRows((prev) => [...prev, newRow()])}
+          onClick={() =>
+            setRows((prev) => {
+              const maxIndex = prev.reduce((n, r) => {
+                const match = /^spec-(\d+)$/.exec(r.key);
+                return match ? Math.max(n, Number(match[1])) : n;
+              }, -1);
+              return [...prev, newRow(maxIndex + 1)];
+            })
+          }
           className="inline-flex items-center gap-1.5 rounded-xl border border-dashed border-ink-300 bg-ink-50/80 px-3 py-2 text-sm font-semibold text-ink-700 transition hover:border-clinical-400 hover:bg-clinical-50 hover:text-clinical-800"
         >
           <Plus className="h-4 w-4" aria-hidden />

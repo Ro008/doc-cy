@@ -9,7 +9,9 @@ Goal: **one blocking suite on every PR** (integration) and **one small scheduled
 | **PR** | `.github/workflows/pr-integration.yml` | Every pull request | `build` + `start` on `127.0.0.1:3000` | `INTEGRATION_*` secrets |
 | **Nightly** | `.github/workflows/prod-critical-smoke.yml` | Cron + manual dispatch | Edge: `PLAYWRIGHT_BASE_URL_PROD` (mydoccy.com). Origin: `PLAYWRIGHT_BASE_URL_VERCEL_PROD` (`*.vercel.app`) | `PROD_*` secrets |
 
-**Local** (`npm run test:e2e`, `test:prod:smoke:local`, etc.) is for development only — not a third CI lane.
+**Local** (`npm run test:e2e`, `test:e2e:register`, `test:prod:smoke:local`, etc.) is for development only — not a third CI lane.
+
+**Pre-PR local gate:** `npm run test:e2e:register` (live `/register` + Resend on testing). Run it as the last step before opening a pull request. Do not run it on every commit (Auth rate limits + 1–3 min). Reminder: `.github/pull_request_template.md`.
 
 ### Folder conventions (same Playwright runner)
 
@@ -33,6 +35,7 @@ After the Playwright lanes, PR CI always runs `scripts/cleanup-test-doctors.mjs 
 | `@pr-mobile-monitor` | `playwright test --grep @pr-mobile-monitor` | Doctor confirmation flow on mobile (PR, non-blocking) |
 | `@pr-login-monitor` | `playwright test --grep @pr-login-monitor` | Doctor `/login` form UI (PR, non-blocking) |
 | `@nightly-prod` | `playwright test --grep @nightly-prod` | Prod URL blocking smokes (site + booking) |
+| `@local-register` | `npm run test:e2e:register` | Live `/register` UI + Resend on **testing** DB. **Local pre-PR gate only** — not CI |
 
 Constants: `tests/helpers/ciTags.ts`. To tag new specs: `node scripts/apply-ci-playwright-tags.mjs` (edit file lists first).
 
@@ -65,7 +68,7 @@ Constants: `tests/helpers/ciTags.ts`. To tag new specs: `node scripts/apply-ci-p
 
 - Live prod booking writes (nightly only)
 - `tests/feedback_support_live_formspree.spec.ts` (local only)
-- Registration UI Playwright (removed: chronic Places/cookie flakiness without product signal; onboarding covered by `doctor_onboarding_pipeline.integration.spec.ts`)
+- Live registration UI (`tests/integration/doctor_register_flow.integration.spec.ts`, tag `@local-register`). Not a PR check: Google Places, Auth `signUp`, and Resend are too heavy/flaky for GitHub. Run **once locally before opening a PR** with `npm run test:e2e:register` (testing DB, founder email asserted, doctor always deleted). The PR template has the checkbox. Do **not** put this on a git commit hook. Onboarding DB state on PR remains `doctor_onboarding_pipeline.integration.spec.ts`.
 
 **Optional PR follow-up:** add `tests/integration/directory_duplicates_actions.integration.spec.ts` if `INTERNAL_DIRECTORY_SECRET` is set (already in PR list when secret present).
 
