@@ -857,7 +857,7 @@ export default async function RegisterPage({ searchParams }: PageProps) {
                         type="tel"
                         name="phone"
                         required
-                        defaultValue={claimPrefill?.phone ?? ""}
+                        autoComplete="off"
                         placeholder="e.g., +357 99XXXXXX"
                         className={registerInputClass}
                       />
