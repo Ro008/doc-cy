@@ -8,6 +8,7 @@ test-results
 playwright-report
 playwright/.cache
 tmp
+tmp-shots/
 *.tsbuildinfo
 supabase/.temp/
 .vercel
