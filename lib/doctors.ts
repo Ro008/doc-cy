@@ -17,6 +17,8 @@ export type DoctorRow = {
   is_specialty_approved?: boolean | null;
   /** `founder` = first 50 locked pricing; `standard` otherwise */
   subscription_tier?: "founder" | "standard" | null;
+  /** Set when the verified professional dismisses the first-login trial notice. */
+  trial_notice_seen_at?: string | null;
   /** When true, show GESY provider badge on finder and public profile */
   is_gesy?: boolean | null;
 };

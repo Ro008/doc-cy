@@ -87,6 +87,7 @@ test.describe("Integration UI: settings clinic address notice (local only)", { t
       finder_visible: true,
       is_archived: false,
       subscription_tier: "standard",
+          trial_notice_seen_at: new Date().toISOString(),
 
         })
         .select("id")
