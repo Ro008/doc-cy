@@ -7,12 +7,18 @@ import {
   revealRegisterField,
   useRegisterFieldStates,
 } from "@/components/auth/useRegisterFieldStates";
+import {
+  REGISTER_NEXT_EVENT,
+  missingFieldsInRegisterStep,
+} from "@/components/auth/RegisterWizard";
+import { useRegisterWizard } from "@/components/auth/register-wizard-context";
 
 type Props = {
   formId: string;
 };
 
 export function RegisterFormValidation({ formId }: Props) {
+  const wizard = useRegisterWizard();
   const fields = useRegisterFieldStates(formId);
   const [attempted, setAttempted] = React.useState(false);
   const [touched, setTouched] = React.useState<ReadonlySet<string>>(new Set());
@@ -22,6 +28,15 @@ export function RegisterFormValidation({ formId }: Props) {
    */
   const [reportedKeys, setReportedKeys] = React.useState<string[]>([]);
   const summaryRef = React.useRef<HTMLDivElement>(null);
+  const stepRef = React.useRef(wizard?.step ?? 1);
+  const stepCountRef = React.useRef(wizard?.stepCount ?? 3);
+  stepRef.current = wizard?.step ?? 1;
+  stepCountRef.current = wizard?.stepCount ?? 3;
+
+  React.useEffect(() => {
+    setAttempted(false);
+    setReportedKeys([]);
+  }, [wizard?.step]);
 
   React.useEffect(() => {
     const form = document.getElementById(formId) as HTMLFormElement | null;
@@ -37,7 +52,33 @@ export function RegisterFormValidation({ formId }: Props) {
       setTouched((current) => (current.has(key) ? current : new Set(current).add(key)));
     };
 
+    const reportMissing = (missingFields: HTMLElement[]) => {
+      setAttempted(true);
+      form.dataset.attempted = "1";
+      setReportedKeys(
+        missingFields.map((field) => field.dataset.fieldKey ?? "").filter(Boolean),
+      );
+      const key = missingFields[0]?.dataset.fieldKey;
+      if (key) revealRegisterField(form, key);
+    };
+
+    const onNext = (event: Event) => {
+      const step = Number(
+        (event as CustomEvent<{ step?: number }>).detail?.step ??
+          form.dataset.wizardStep ??
+          "1",
+      );
+      const missingFields = missingFieldsInRegisterStep(form, step);
+      if (missingFields.length === 0) return;
+      event.preventDefault();
+      reportMissing(missingFields);
+    };
+
     const onSubmit = (event: Event) => {
+      if (stepRef.current < stepCountRef.current) {
+        event.preventDefault();
+        return;
+      }
       form.dataset.attempted = "1";
       setAttempted(true);
       if (form.checkValidity()) return;
@@ -46,23 +87,21 @@ export function RegisterFormValidation({ formId }: Props) {
       const missingFields = Array.from(
         form.querySelectorAll<HTMLElement>("[data-validate-field='1']"),
       ).filter((field) => !isRegisterFieldComplete(field));
-      setReportedKeys(
-        missingFields.map((field) => field.dataset.fieldKey ?? "").filter(Boolean),
-      );
-      const key = missingFields[0]?.dataset.fieldKey;
-      if (key) revealRegisterField(form, key);
+      reportMissing(missingFields);
     };
 
     form.addEventListener("focusout", markTouched, true);
     form.addEventListener("input", markTouched, true);
     form.addEventListener("change", markTouched, true);
     form.addEventListener("submit", onSubmit, true);
+    form.addEventListener(REGISTER_NEXT_EVENT, onNext);
 
     return () => {
       form.removeEventListener("focusout", markTouched, true);
       form.removeEventListener("input", markTouched, true);
       form.removeEventListener("change", markTouched, true);
       form.removeEventListener("submit", onSubmit, true);
+      form.removeEventListener(REGISTER_NEXT_EVENT, onNext);
     };
   }, [formId]);
 
@@ -113,8 +152,8 @@ export function RegisterFormValidation({ formId }: Props) {
         <div className="min-w-0">
           <p className="text-sm font-semibold text-amber-900">
             {remaining.length === 1
-              ? "One more thing before you can submit"
-              : `${remaining.length} things left before you can submit`}
+              ? "One more thing before you can continue"
+              : `${remaining.length} things left before you can continue`}
           </p>
           <p className="mt-1 text-xs text-amber-800">Select one to jump straight to it.</p>
           <ul className="mt-3 space-y-1.5">

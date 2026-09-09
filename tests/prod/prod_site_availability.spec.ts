@@ -56,13 +56,15 @@ test.describe("Public shell health", { tag: ["@pr-preview", "@nightly-prod"] }, 
     await expect(
       page.getByRole("heading", { name: /List your practice on DocCy/i }),
     ).toBeVisible({ timeout: 20_000 });
-    // Name attribute — do not rely on getByLabel("Full name"); wrapping labels + "*"
+    // Name attribute — do not rely on getByLabel; wrapping labels + "*"
     // spans have failed this locator against production HTML.
-    const fullName = page.locator("#register-form input[name='fullName']");
-    await expect(fullName).toBeVisible({ timeout: 20_000 });
+    const firstName = page.locator("#register-form input[name='firstName']");
+    await expect(firstName).toBeVisible({ timeout: 20_000 });
+    await expect(page.locator("#register-form input[name='lastName']")).toBeVisible();
+    await expect(page.getByTestId("register-wizard-continue")).toBeVisible();
     await expect(
       page.getByRole("button", { name: /Submit My Application/i }),
-    ).toBeVisible();
+    ).toHaveCount(0);
   });
 
   test("finder route renders district/specialty filters", async ({ page }) => {

@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { isCurrentRegistrationSpecialty } from "@/lib/cyprus-specialties";
 import { firstNameFromProfessionalName } from "@/lib/doctor-display-name";
+import { MAX_DOCTOR_LOCATIONS } from "@/lib/doctor-locations";
 import { MAX_DOCTOR_SPECIALTIES } from "@/lib/doctor-specialties";
 import { isTestDoctorRegistrationEmail } from "@/lib/doctor-test-profile";
 import { escapeIlikePattern } from "@/lib/finder-results-paging";
@@ -49,6 +50,16 @@ export type DirectoryClaimMatch = FuzzyDirectoryClaimMatch | {
   reason: "card_link";
 };
 
+export type RegisterClaimClinic = {
+  name: string;
+  address: string;
+  district: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  town: string | null;
+  placeId: string | null;
+};
+
 export type RegisterClaimPrefill = {
   id: string;
   slug: string | null;
@@ -58,7 +69,59 @@ export type RegisterClaimPrefill = {
   specialties: Array<{ specialty: string; fromMaster: boolean }>;
   district: string | null;
   addressHint: string | null;
+  clinics: RegisterClaimClinic[];
 };
+
+type ClaimClinicNested = {
+  name?: string | null;
+  address?: string | null;
+  district?: string | null;
+  town?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  is_archived?: boolean | null;
+};
+
+type ClaimClinicJoinRow = {
+  is_primary?: boolean | null;
+  clinics?: ClaimClinicNested | ClaimClinicNested[] | null;
+};
+
+function unwrapClaimClinic(
+  value: ClaimClinicJoinRow["clinics"],
+): ClaimClinicNested | null {
+  if (!value) return null;
+  if (Array.isArray(value)) return value[0] ?? null;
+  return value;
+}
+
+/** Linked workplaces for a claim, primary first. Never copies clinic phones. */
+export function registerClaimClinicsFromJoin(
+  links: readonly ClaimClinicJoinRow[],
+  cap = MAX_DOCTOR_LOCATIONS,
+): RegisterClaimClinic[] {
+  const sorted = [...links].sort(
+    (a, b) => Number(Boolean(b.is_primary)) - Number(Boolean(a.is_primary)),
+  );
+  const out: RegisterClaimClinic[] = [];
+  for (const link of sorted) {
+    const clinic = unwrapClaimClinic(link.clinics);
+    if (!clinic || clinic.is_archived) continue;
+    const address = String(clinic.address ?? "").trim();
+    if (!address) continue;
+    out.push({
+      name: String(clinic.name ?? "").trim(),
+      address,
+      district: String(clinic.district ?? "").trim() || null,
+      latitude: typeof clinic.latitude === "number" ? clinic.latitude : null,
+      longitude: typeof clinic.longitude === "number" ? clinic.longitude : null,
+      town: String(clinic.town ?? "").trim() || null,
+      placeId: null,
+    });
+    if (out.length >= cap) break;
+  }
+  return out;
+}
 
 /** Same conservative name key as duplicate review (exact, not fuzzy). */
 export function normalizeClaimPersonName(value: string | null | undefined): string {
@@ -214,6 +277,7 @@ export function toRegisterClaimPrefill(row: {
     district: String(row.district ?? "").trim() || null,
     addressHint:
       String(row.address ?? "").trim() || String(row.clinic_address ?? "").trim() || null,
+    clinics: [],
   };
 }
 
@@ -395,7 +459,23 @@ export async function loadUnregisteredProfessionalForRegisterClaim(
     return null;
   }
   if (!data?.id) return null;
-  return toRegisterClaimPrefill(data);
+
+  const prefill = toRegisterClaimPrefill(data);
+  const { data: linkRows, error: linkError } = await supabase
+    .from("professional_clinics")
+    .select(
+      "is_primary, clinics ( name, address, district, town, latitude, longitude, is_archived )",
+    )
+    .eq("professional_id", id)
+    .limit(MAX_DOCTOR_LOCATIONS);
+
+  if (linkError) {
+    console.error("[DocCy] register claim clinics lookup failed", linkError);
+    return prefill;
+  }
+
+  prefill.clinics = registerClaimClinicsFromJoin((linkRows ?? []) as ClaimClinicJoinRow[]);
+  return prefill;
 }
 
 /**

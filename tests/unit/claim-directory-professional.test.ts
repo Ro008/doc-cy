@@ -6,6 +6,7 @@ import {
   pickExplicitDirectoryClaim,
   pickUniqueDirectoryClaim,
   pickUniqueHistoricalAbsorbPairs,
+  registerClaimClinicsFromJoin,
   registerClaimPath,
   toRegisterClaimPrefill,
 } from "@/lib/claim-directory-professional";
@@ -194,6 +195,38 @@ describe("register claim from finder card", () => {
     assert.equal(prefill.specialties[0]?.specialty, "Dentist");
     assert.equal(prefill.specialties[0]?.fromMaster, true);
     assert.equal("phone" in prefill, false);
+    assert.deepEqual(prefill.clinics, []);
+  });
+
+  it("maps linked clinics for claim without copying a clinic phone", () => {
+    const clinics = registerClaimClinicsFromJoin([
+      {
+        is_primary: false,
+        clinics: {
+          name: "Paphos Rooms",
+          address: "1 Kennedy, Paphos",
+          district: "Paphos",
+          town: "Paphos",
+          latitude: 34.775,
+          longitude: 32.425,
+        },
+      },
+      {
+        is_primary: true,
+        clinics: {
+          name: "Nicosia Rooms",
+          address: "12 Ledras Street, Nicosia",
+          district: "Nicosia",
+          town: "Nicosia",
+          latitude: 35.17,
+          longitude: 33.36,
+        },
+      },
+    ]);
+    assert.equal(clinics[0]?.name, "Nicosia Rooms");
+    assert.equal(clinics[1]?.name, "Paphos Rooms");
+    assert.equal(clinics[0]?.placeId, null);
+    assert.equal(clinics.every((clinic) => !("phone" in clinic)), true);
   });
 
   it("binds the explicit card listing even when the typed name would not fuzzy-match", () => {

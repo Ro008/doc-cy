@@ -25,3 +25,20 @@ export function firstNameFromProfessionalName(fullName: string | null | undefine
   const first = cleaned.split(/\s+/).find(Boolean) ?? "";
   return first || null;
 }
+
+/** Split a listing/profile name into the register first + last fields. */
+export function splitProfessionalFullName(fullName: string | null | undefined): {
+  firstName: string;
+  lastName: string;
+} {
+  const cleaned = doctorDashboardDisplayName(fullName);
+  if (!cleaned || cleaned === "Professional") return { firstName: "", lastName: "" };
+  const parts = cleaned.split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return { firstName: "", lastName: "" };
+  if (parts.length === 1) return { firstName: parts[0] ?? "", lastName: "" };
+  return { firstName: parts[0] ?? "", lastName: parts.slice(1).join(" ") };
+}
+
+export function joinProfessionalFullName(firstName: string, lastName: string): string {
+  return [firstName.trim(), lastName.trim()].filter(Boolean).join(" ");
+}

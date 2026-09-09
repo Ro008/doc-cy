@@ -1,69 +1,65 @@
 "use client";
 
-import { CheckCircle2 } from "lucide-react";
-import {
-  revealRegisterField,
-  useRegisterFieldStates,
-} from "@/components/auth/useRegisterFieldStates";
+import { useRegisterWizard } from "@/components/auth/register-wizard-context";
 
-export function RegisterFormProgress({ formId }: { formId: string }) {
-  const fields = useRegisterFieldStates(formId);
-  if (fields.length === 0) return null;
+const STEP_LABELS = ["Account", "Profile", "Practice"] as const;
 
-  const done = fields.filter((field) => field.complete).length;
-  const total = fields.length;
-  const nextUp = fields.find((field) => !field.complete);
-  const percent = Math.round((done / total) * 100);
+export function RegisterFormProgress({ formId: _formId }: { formId: string }) {
+  const wizard = useRegisterWizard();
+  const step = wizard?.step ?? 1;
+  const stepCount = wizard?.stepCount ?? 3;
 
   return (
     <div data-testid="register-progress" className="rounded-2xl border border-ink-200 bg-ink-50/70 p-4">
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-sm font-medium text-ink-800">
-          {nextUp ? (
-            <>
-              {done} of {total} completed
-            </>
-          ) : (
-            <span className="inline-flex items-center gap-1.5 text-wellness-700">
-              <CheckCircle2 className="h-4 w-4" aria-hidden />
-              Everything is filled in
-            </span>
-          )}
-        </p>
-        <p className="text-xs font-semibold tabular-nums text-ink-500">{percent}%</p>
-      </div>
+      <ol className="flex items-center gap-2 text-xs font-semibold">
+        {STEP_LABELS.slice(0, stepCount).map((label, index) => {
+          const n = index + 1;
+          const current = n === step;
+          const doneStep = n < step;
+          return (
+            <li
+              key={label}
+              className={`flex min-w-0 items-center gap-1.5 ${
+                current ? "text-clinical-700" : doneStep ? "text-wellness-700" : "text-ink-400"
+              }`}
+            >
+              <span
+                className={`inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] ${
+                  current
+                    ? "bg-clinical-500 text-white"
+                    : doneStep
+                      ? "bg-wellness-500 text-white"
+                      : "bg-ink-200 text-ink-600"
+                }`}
+              >
+                {n}
+              </span>
+              <span className="hidden sm:inline">{label}</span>
+              {index < stepCount - 1 ? (
+                <span className="mx-1 hidden h-px w-6 bg-ink-200 sm:block" aria-hidden />
+              ) : null}
+            </li>
+          );
+        })}
+      </ol>
+
+      <p className="mt-3 text-sm font-medium text-ink-800">
+        Step {step} of {stepCount}
+      </p>
 
       <div
         className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-ink-200"
         role="progressbar"
         aria-valuemin={0}
-        aria-valuemax={total}
-        aria-valuenow={done}
-        aria-label="Application progress"
+        aria-valuemax={stepCount}
+        aria-valuenow={step}
+        aria-label="Application steps"
       >
         <div
-          className={`h-full rounded-full transition-all duration-300 ${
-            nextUp ? "bg-clinical-500" : "bg-wellness-500"
-          }`}
-          style={{ width: `${percent}%` }}
+          className="h-full rounded-full bg-clinical-500 transition-all duration-300"
+          style={{ width: `${(step / stepCount) * 100}%` }}
         />
       </div>
-
-      {nextUp ? (
-        <p className="mt-2 text-xs text-ink-600">
-          Next:{" "}
-          <button
-            type="button"
-            onClick={() => {
-              const form = document.getElementById(formId) as HTMLFormElement | null;
-              if (form) revealRegisterField(form, nextUp.key);
-            }}
-            className="font-semibold text-clinical-700 underline underline-offset-2 transition hover:text-clinical-600"
-          >
-            {nextUp.label}
-          </button>
-        </p>
-      ) : null}
     </div>
   );
 }

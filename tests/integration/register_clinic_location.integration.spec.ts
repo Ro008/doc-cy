@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { gotoRegisterPracticeStep } from "./helpers/goto-register-practice-step";
 
 /**
  * The clinic field used to accept nothing but a Google Places pick, so a doctor
@@ -21,13 +22,12 @@ async function typeAddress(page: Page, text: string): Promise<void> {
 }
 
 test.describe("Integration UI: register clinic location", { tag: "@pr-e2e" }, () => {
+  test.describe.configure({ timeout: 90_000 });
   const clinicField = "[data-field-key='clinic']";
 
   test.beforeEach(async ({ page }) => {
     await page.goto("/register");
-    await expect(page.getByTestId("register-specialty-trigger")).toBeVisible({
-      timeout: 20_000,
-    });
+    await gotoRegisterPracticeStep(page);
   });
 
   test("lets a doctor place the clinic without a Google match", async ({ page }) => {

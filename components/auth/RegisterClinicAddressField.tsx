@@ -34,6 +34,7 @@ import {
 import { fallbackDistrictCoordinates, type Coordinates } from "@/lib/finder-distance";
 import {
   readClinicLocationLatitude,
+  registerClinicInputNames,
   registerClinicLocationIsComplete,
 } from "@/lib/register-clinic-location";
 import {
@@ -56,11 +57,28 @@ const primaryButtonClass =
 
 export function RegisterClinicAddressField({
   listingAddressHint,
+  initialLocation = null,
+  index = 0,
+  showAddLaterHint = true,
+  heading = null,
 }: {
   listingAddressHint?: string | null;
+  initialLocation?: ClinicLocation | null;
+  index?: number;
+  showAddLaterHint?: boolean;
+  heading?: string | null;
 } = {}) {
-  const [location, setLocation] = React.useState<ClinicLocation>(emptyClinicLocation());
-  const [mode, setMode] = React.useState<Mode>("search");
+  const names = registerClinicInputNames(index);
+  const fieldKey = index === 0 ? "clinic" : `clinic${index}`;
+  const fieldLabel =
+    heading ?? (index === 0 ? "Clinic address" : `Clinic ${index + 1} address`);
+  const starting = initialLocation && registerClinicLocationIsComplete(initialLocation)
+    ? initialLocation
+    : emptyClinicLocation();
+  const [location, setLocation] = React.useState<ClinicLocation>(starting);
+  const [mode, setMode] = React.useState<Mode>(
+    registerClinicLocationIsComplete(starting) ? "confirmed" : "search",
+  );
   const [searchSession, setSearchSession] = React.useState(0);
   /** Coordinates before the doctor moved the pin, so Undo can snap back. */
   const [origin, setOrigin] = React.useState<Coordinates | null>(null);
@@ -75,6 +93,7 @@ export function RegisterClinicAddressField({
   const [manualAddressDraft, setManualAddressDraft] = React.useState("");
 
   React.useEffect(() => {
+    if (index !== 0) return;
     if (!e2eRegisterHooksEnabled()) return;
 
     const onFill = (event: Event) => {
@@ -96,7 +115,7 @@ export function RegisterClinicAddressField({
 
     window.addEventListener(E2E_REGISTER_CLINIC_EVENT, onFill);
     return () => window.removeEventListener(E2E_REGISTER_CLINIC_EVENT, onFill);
-  }, []);
+  }, [index]);
 
   const isComplete = registerClinicLocationIsComplete(location);
   const hint = String(listingAddressHint ?? "").trim();
@@ -300,14 +319,14 @@ export function RegisterClinicAddressField({
       className="group"
       data-validate-field="1"
       data-invalid="0"
-      data-field-key="clinic"
-      data-field-label="Clinic address"
+      data-field-key={fieldKey}
+      data-field-label={fieldLabel}
     >
       <span className={registerLabelClass}>
-        Clinic address<span className="text-red-600">*</span>
+        {fieldLabel}<span className="text-red-600">*</span>
       </span>
       <p className={registerHelperClass}>
-        Pick your main clinic from the Google Maps suggestions, then check the pin sits on your
+        Pick this clinic from the Google Maps suggestions, then check the pin sits on your
         entrance so patients nearby can find you.
       </p>
       {hint ? (
@@ -316,9 +335,11 @@ export function RegisterClinicAddressField({
           Search and confirm the same clinic below.
         </p>
       ) : null}
-      <p className={registerHelperClass}>
-        If you work at more than one clinic, you can add the others later in Settings.
-      </p>
+      {showAddLaterHint ? (
+        <p className={registerHelperClass}>
+          If you work at more than one clinic, you can add the others later in Settings.
+        </p>
+      ) : null}
 
       {mode === "confirmed" && isComplete ? (
         addressDistrictConflict ? (
@@ -382,7 +403,7 @@ export function RegisterClinicAddressField({
         <>
           <ClinicAddressSearchInput
             key={searchSession}
-            id="register-clinic-address"
+            id={index === 0 ? "register-clinic-address" : `register-clinic-address-${index}`}
             tone="light"
             showReadyHint={false}
             onChange={(nextValue) => {
@@ -575,7 +596,7 @@ export function RegisterClinicAddressField({
 
       <input
         type="text"
-        name="clinicConfirmed"
+        name={names.confirmed}
         value={isComplete && !addressDistrictConflict ? "1" : ""}
         required
         data-validity-proxy="true"
@@ -586,17 +607,17 @@ export function RegisterClinicAddressField({
         tabIndex={-1}
         className="pointer-events-none absolute h-0 w-0 opacity-0"
       />
-      <input type="hidden" name="clinicAddress" value={location.address} readOnly aria-hidden />
+      <input type="hidden" name={names.address} value={location.address} readOnly aria-hidden />
       <input
         type="hidden"
-        name="clinicLatitude"
+        name={names.latitude}
         value={readClinicLocationLatitude(location)}
         readOnly
         aria-hidden
       />
       <input
         type="hidden"
-        name="clinicLongitude"
+        name={names.longitude}
         value={
           location.longitude != null && location.latitude != null
             ? String(location.longitude)
@@ -607,13 +628,13 @@ export function RegisterClinicAddressField({
       />
       <input
         type="hidden"
-        name="clinicPlaceId"
+        name={names.placeId}
         value={location.placeId ?? ""}
         readOnly
         aria-hidden
       />
-      <input type="hidden" name="district" value={location.district ?? ""} readOnly aria-hidden />
-      <input type="hidden" name="town" value={location.town ?? ""} readOnly aria-hidden />
+      <input type="hidden" name={names.district} value={location.district ?? ""} readOnly aria-hidden />
+      <input type="hidden" name={names.town} value={location.town ?? ""} readOnly aria-hidden />
 
       <p className={registerFieldErrorClass}>
         Search for your clinic, or place it on the map yourself.

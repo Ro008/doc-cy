@@ -112,6 +112,72 @@ export function registerClinicLocationIsComplete(location: ClinicLocation): bool
   );
 }
 
+export function registerClinicInputNames(index: number): {
+  address: string;
+  latitude: string;
+  longitude: string;
+  placeId: string;
+  district: string;
+  town: string;
+  confirmed: string;
+} {
+  if (index <= 0) {
+    return {
+      address: "clinicAddress",
+      latitude: "clinicLatitude",
+      longitude: "clinicLongitude",
+      placeId: "clinicPlaceId",
+      district: "district",
+      town: "town",
+      confirmed: "clinicConfirmed",
+    };
+  }
+  return {
+    address: `clinic${index}Address`,
+    latitude: `clinic${index}Latitude`,
+    longitude: `clinic${index}Longitude`,
+    placeId: `clinic${index}PlaceId`,
+    district: `clinic${index}District`,
+    town: `clinic${index}Town`,
+    confirmed: `clinic${index}Confirmed`,
+  };
+}
+
+export function readRegisterClinicsFromFormData(
+  formData: FormData,
+  allowE2eFallback: boolean,
+  maxClinics: number,
+):
+  | { ok: true; value: ResolvedRegisterClinicLocation[] }
+  | { ok: false; code: "clinic_address" | "district" } {
+  const clinics: ResolvedRegisterClinicLocation[] = [];
+  const limit = Math.max(1, maxClinics);
+  for (let index = 0; index < limit; index += 1) {
+    const names = registerClinicInputNames(index);
+    const address = String(formData.get(names.address) ?? "").trim();
+    if (!address) {
+      if (index === 0) return { ok: false, code: "clinic_address" };
+      break;
+    }
+    const resolved = resolveRegisterClinicLocation({
+      clinicAddress: formData.get(names.address),
+      clinicLatitude: formData.get(names.latitude),
+      clinicLongitude: formData.get(names.longitude),
+      clinicPlaceId: formData.get(names.placeId),
+      district: formData.get(names.district),
+      town: formData.get(names.town),
+      allowE2eFallback,
+    });
+    if (!resolved.ok) {
+      if (index === 0) return resolved;
+      break;
+    }
+    clinics.push(resolved.value);
+  }
+  if (clinics.length === 0) return { ok: false, code: "clinic_address" };
+  return { ok: true, value: clinics };
+}
+
 export function readClinicLocationLatitude(location: ClinicLocation): string {
   const coords = parseOptionalCoordinates(location.latitude, location.longitude);
   return coords ? String(coords.latitude) : "";

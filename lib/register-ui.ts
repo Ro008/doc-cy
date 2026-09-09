@@ -13,3 +13,6 @@ export const registerFieldErrorClass =
 
 export const registerSubmitClass =
   "inline-flex w-full items-center justify-center rounded-xl bg-clinical-500 px-6 py-3 text-sm font-semibold text-white shadow-[0_1px_2px_rgba(18,184,192,0.2),0_4px_14px_rgba(18,184,192,0.22)] transition hover:bg-clinical-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-500 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-50 sm:w-auto";
+
+export const registerSecondaryButtonClass =
+  "inline-flex w-full items-center justify-center rounded-xl border border-ink-200 bg-white px-6 py-3 text-sm font-semibold text-ink-800 transition hover:border-clinical-300 hover:text-clinical-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-500 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-50 sm:w-auto";
