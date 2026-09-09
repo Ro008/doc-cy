@@ -1,41 +1,66 @@
-import { ArrowRight, ChevronDown } from "lucide-react";
+import { CalendarCheck, ChevronDown, Globe } from "lucide-react";
 import { RegisterDemoBookingButton } from "@/components/register/RegisterDemoBookingButton";
 import { registerSectionShell } from "@/lib/register-ui";
 
-const roadmapSteps = [
-  {
-    step: "STEP 1",
-    title: "Fill the form",
-    detail: "Takes 2 minutes",
-  },
-  {
-    step: "STEP 2",
-    title: "Quick Verification",
-    detail: "100% secure check",
-  },
-  {
-    step: "STEP 3",
-    title: "Go Live & Sync",
-    detail: "6 Months Free",
-  },
-] as const;
+function RegisterValueOffer() {
+  return (
+    <ul className="grid gap-2.5 sm:grid-cols-2">
+      <li className="relative overflow-hidden rounded-2xl border border-clinical-200/90 bg-gradient-to-br from-clinical-50 via-white to-white px-4 py-3.5 shadow-[0_1px_3px_rgba(26,43,60,0.05)]">
+        <div className="flex items-start gap-3">
+          <span className="mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-clinical-500 text-white shadow-[0_4px_12px_rgba(18,184,192,0.35)]">
+            <Globe className="h-4 w-4" aria-hidden />
+          </span>
+          <div className="min-w-0">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-clinical-700">
+              Public profile
+            </p>
+            <p className="mt-0.5 text-base font-semibold tracking-tight text-ink-900">
+              Free, forever
+            </p>
+            <p className="mt-1 text-sm leading-snug text-ink-600">
+              Your listing stays visible to patients on DocCy. No listing fee, ever.
+            </p>
+          </div>
+        </div>
+      </li>
+      <li className="relative overflow-hidden rounded-2xl border border-wellness-200/90 bg-gradient-to-br from-wellness-50 via-white to-white px-4 py-3.5 shadow-[0_1px_3px_rgba(26,43,60,0.05)]">
+        <div className="flex items-start gap-3">
+          <span className="mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-wellness-600 text-white shadow-[0_4px_12px_rgba(16,185,129,0.28)]">
+            <CalendarCheck className="h-4 w-4" aria-hidden />
+          </span>
+          <div className="min-w-0">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-wellness-800">
+              Online booking
+            </p>
+            <p className="mt-0.5 text-base font-semibold tracking-tight text-ink-900">
+              Free for 6 months
+            </p>
+            <p className="mt-1 text-sm leading-snug text-ink-600">
+              Then Founding Members lock €19/month.
+            </p>
+          </div>
+        </div>
+      </li>
+    </ul>
+  );
+}
 
-const trustBadges = [
+const trialPoints = [
   {
-    title: "6 Months Free",
-    detail: "100% risk-free testing to prove performance.",
+    title: "Profile listed for free",
+    detail: "Patients can find you on DocCy forever. No listing fee, ever.",
   },
   {
-    title: "€19/Month Lock",
-    detail: "Locked for life for the first 50 practices.",
+    title: "6 months of online booking",
+    detail: "Agenda, requests, and 1-click approval — free for the first 6 months.",
   },
   {
-    title: "Zero Setup Fees",
-    detail: "No credit card required to sign up.",
+    title: "€19/month lock",
+    detail: "After that, Founding Members keep online booking at €19/month for life.",
   },
   {
-    title: "Cancel Anytime",
-    detail: "No strings attached, no hidden contracts.",
+    title: "Zero setup fees",
+    detail: "No credit card to sign up, and you can cancel anytime.",
   },
 ] as const;
 
@@ -43,7 +68,7 @@ const faqItems = [
   {
     question: "Is the 6-month trial really free?",
     answer:
-      "Yes, completely. No credit card is required to sign up, and there are no hidden setup fees. You get 6 full months of unrestricted access to experience the platform, capture real patients, and see the reduction in phone chaos before you ever spend a single cent.",
+      "Your public profile is free forever — patients can find you with no listing fee. Online booking (agenda and 1-click approval) is free for 6 full months, with no credit card to sign up. After that, Founding Members keep booking at €19/month.",
   },
   {
     question: "What happens after my application is submitted?",
@@ -62,17 +87,18 @@ const faqItems = [
   },
 ] as const;
 
-export function RegisterPromoBanner() {
+const summaryClass =
+  "flex cursor-pointer list-none items-start justify-between gap-3 text-left [&::-webkit-details-marker]:hidden [&::marker]:content-none";
+
+const disclosureClass =
+  "group rounded-2xl border border-ink-200/90 bg-white px-4 py-3 shadow-[0_1px_2px_rgba(26,43,60,0.04)]";
+
+function DisclosureChevron() {
   return (
-    <div className="rounded-2xl border border-wellness-200 bg-gradient-to-r from-wellness-50 via-white to-clinical-50 px-4 py-3.5 shadow-[0_1px_3px_rgba(26,43,60,0.05)] sm:px-5">
-      <p className="text-sm font-medium leading-relaxed text-ink-800 sm:text-base">
-        <span className="mr-1.5" aria-hidden>
-          ⚡
-        </span>
-        <span className="font-semibold text-ink-900">Launch Promo:</span> Get your first 6 months
-        completely FREE. Secure your lifetime Founding Member rate (€19/mo).
-      </p>
-    </div>
+    <ChevronDown
+      className="mt-0.5 h-4 w-4 shrink-0 text-ink-400 transition group-open:rotate-180"
+      aria-hidden
+    />
   );
 }
 
@@ -88,147 +114,95 @@ export function RegisterIntroSection({
       : null;
 
   return (
-    <header className="space-y-5">
-      <div className="space-y-3">
-        <h1 className="text-balance text-3xl font-semibold tracking-tight text-ink-900 sm:text-4xl">
+    <header className="space-y-4">
+      <div className="space-y-2">
+        <h1 className="text-balance text-3xl font-semibold tracking-tight text-ink-900 sm:text-[2rem]">
           {greeting ?? "List your practice on DocCy."}
         </h1>
-        {claim ? null : (
-          <p className="max-w-3xl text-base leading-relaxed text-ink-600 sm:text-lg">
-            Join Cyprus&apos;s modern healthcare network and eliminate phone chaos with smart,
-            1-click scheduling.
-          </p>
-        )}
+        <div
+          className="h-1 w-14 rounded-full bg-gradient-to-r from-clinical-500 to-wellness-500"
+          aria-hidden
+        />
       </div>
-
-      <ol className="flex flex-col gap-3 sm:flex-row sm:items-stretch">
-        {roadmapSteps.map((item, index) => (
-          <li key={item.step} className="contents">
-            <div className="flex-1 rounded-2xl border border-clinical-200 bg-white px-4 py-3.5 shadow-[0_1px_3px_rgba(26,43,60,0.05)]">
-              <p className="text-[10px] font-bold tracking-[0.18em] text-clinical-600">
-                {item.step}
-              </p>
-              <p className="mt-1 text-sm font-semibold text-ink-900">{item.title}</p>
-              <p className="mt-0.5 text-xs text-ink-500">{item.detail}</p>
-            </div>
-            {index < roadmapSteps.length - 1 ? (
-              <div
-                className="flex shrink-0 items-center justify-center py-0.5 sm:px-1 sm:py-0"
-                aria-hidden
-              >
-                <ArrowRight className="h-4 w-4 rotate-90 text-clinical-400 sm:rotate-0" />
-              </div>
-            ) : null}
-          </li>
-        ))}
-      </ol>
-
-      <p className="rounded-xl border border-ink-200/80 bg-ink-50/90 px-3.5 py-2.5 text-sm text-ink-600">
-        <span className="mr-1" aria-hidden>
-          💡
-        </span>
-        Prefer a hands-off start?{" "}
-        <a
-          href="#register-onboarding-call"
-          className="font-semibold text-clinical-600 underline decoration-clinical-300 underline-offset-2 hover:text-clinical-500"
-        >
-          Scroll down to request a free onboarding call
-        </a>
-        .
+      <RegisterValueOffer />
+      <p className="text-sm text-ink-500">
+        Apply now · We verify within 24 hours · Go live
       </p>
     </header>
   );
 }
 
-export function RegisterDemoAside() {
+export function RegisterOnboardingCallDetails() {
   return (
-    <aside
-      id="register-onboarding-call"
-      className="scroll-mt-8 rounded-3xl border border-clinical-300/60 bg-gradient-to-b from-clinical-50/90 to-white p-5 shadow-[0_8px_28px_rgba(18,184,192,0.12)] sm:p-6 lg:sticky lg:top-8"
-    >
-      <p className="text-lg font-semibold leading-snug text-ink-900">
-        <span className="mr-1" aria-hidden>
-          🏥
+    <details id="register-onboarding-call" className={disclosureClass}>
+      <summary
+        data-testid="register-onboarding-call-toggle"
+        className={summaryClass}
+      >
+        <span className="text-sm font-semibold text-ink-800">
+          Prefer we set you up on a call?
         </span>
-        Not a fan of online forms? Let us do the setup for you.
-      </p>
-      <h2 className="mt-2 text-xl font-semibold tracking-tight text-clinical-800">
-        We&apos;ll set you up on a call
-      </h2>
-      <p className="mt-3 text-sm leading-relaxed text-ink-600">
-        Want us to activate your account for you? Get in touch — on a short call we&apos;ll
-        register you and walk you through the site.
-      </p>
-      <ul className="mt-4 space-y-3 text-sm leading-relaxed text-ink-700">
-        <li>
-          <span className="font-semibold text-ink-900">100% Free &amp; No Commitment:</span> We show
-          you exactly how DocCy shields your practice from phone chaos.
-        </li>
-        <li>
-          <span className="font-semibold text-ink-900">Done-For-You Setup:</span> We&apos;ll sync
-          your current calendar and configure your availability during the call.
-        </li>
-        <li>
-          <span className="font-semibold text-ink-900">Takes only 15 minutes:</span> Zero tech
-          skills required on your end.
-        </li>
-      </ul>
-      <div className="mt-5">
+        <DisclosureChevron />
+      </summary>
+      <div className="mt-3 space-y-3 border-t border-ink-100 pt-3 text-sm leading-relaxed text-ink-600">
+        <p>
+          On a short call we register you, walk through the site, and sync your calendar. Free, no
+          commitment, about 15 minutes.
+        </p>
         <RegisterDemoBookingButton />
       </div>
-      <p className="mt-3 text-xs leading-relaxed text-ink-500">
-        Add your phone number in the message if you prefer a call to schedule, or leave your email
-        for a written reply.
-      </p>
-    </aside>
+    </details>
   );
 }
 
-export function RegisterTrustBadges() {
+export function RegisterTrialDetails() {
   return (
-    <section className={registerSectionShell}>
-      <h2 className="text-xl font-semibold tracking-tight text-ink-900 sm:text-2xl">
-        Why medical professionals in Cyprus choose DocCy
-      </h2>
-      <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {trustBadges.map((badge) => (
-          <div
-            key={badge.title}
-            className="rounded-2xl border border-ink-200 bg-ink-50/80 px-4 py-3.5"
-          >
-            <p className="text-sm font-semibold text-clinical-700">{badge.title}</p>
-            <p className="mt-1 text-xs leading-relaxed text-ink-600">{badge.detail}</p>
-          </div>
+    <details className={disclosureClass}>
+      <summary className={summaryClass}>
+        <span className="text-sm font-semibold text-ink-800">Trial, pricing, and guarantees</span>
+        <DisclosureChevron />
+      </summary>
+      <ul className="mt-3 space-y-2.5 border-t border-ink-100 pt-3">
+        {trialPoints.map((item) => (
+          <li key={item.title} className="text-sm leading-relaxed text-ink-600">
+            <span className="font-semibold text-ink-800">{item.title}.</span> {item.detail}
+          </li>
         ))}
-      </div>
-    </section>
+      </ul>
+    </details>
   );
 }
 
 export function RegisterFaqSection() {
   return (
-    <section className={registerSectionShell}>
-      <h2 className="text-2xl font-semibold tracking-tight text-ink-900">Registration FAQ</h2>
-      <div className="mt-5 space-y-3">
+    <section>
+      <h2 className="text-sm font-semibold tracking-tight text-ink-800">Questions</h2>
+      <div className="mt-2 space-y-2">
         {faqItems.map((item) => (
-          <details
-            key={item.question}
-            className="group rounded-2xl border border-ink-200 bg-ink-50 p-4 transition hover:border-clinical-300"
-          >
-            <summary className="flex cursor-pointer list-none items-start justify-between gap-3 text-left">
-              <span className="text-sm font-semibold leading-snug text-ink-800 sm:text-base">
-                {item.question}
-              </span>
-              <ChevronDown
-                className="mt-0.5 h-4 w-4 shrink-0 text-clinical-500 transition group-open:rotate-180"
-                aria-hidden
-              />
+          <details key={item.question} className={disclosureClass}>
+            <summary className={summaryClass}>
+              <span className="text-sm font-medium leading-snug text-ink-800">{item.question}</span>
+              <DisclosureChevron />
             </summary>
-            <p className="mt-3 text-sm leading-relaxed text-ink-600">{item.answer}</p>
+            <p className="mt-3 border-t border-ink-100 pt-3 text-sm leading-relaxed text-ink-600">
+              {item.answer}
+            </p>
           </details>
         ))}
       </div>
     </section>
+  );
+}
+
+export function RegisterSecondarySections() {
+  return (
+    <div className="space-y-2">
+      <RegisterOnboardingCallDetails />
+      <RegisterTrialDetails />
+      <div className="pt-4">
+        <RegisterFaqSection />
+      </div>
+    </div>
   );
 }
 

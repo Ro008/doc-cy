@@ -47,7 +47,7 @@ test.describe("Integration: doctor registration flow", { tag: "@local-register" 
       await page.goto("/register", { waitUntil: "domcontentloaded" });
       await dismissCookieConsentIfPresent(page);
       await expect(
-        page.getByRole("heading", { name: /Complete your professional application/i }),
+        page.getByRole("heading", { name: /List your practice on DocCy/i }),
       ).toBeVisible({ timeout: 20_000 });
       // Wait for the client form wrapper to hydrate before filling uncontrolled inputs.
       await expect(page.getByTestId("register-wizard-continue")).toBeVisible({ timeout: 20_000 });

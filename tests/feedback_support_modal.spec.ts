@@ -57,6 +57,7 @@ test.describe("Support feedback modal (Formspree)", { tag: "@pr-e2e" }, () => {
 
     await page.goto("/register", { waitUntil: "load" });
 
+    await page.getByTestId("register-onboarding-call-toggle").click();
     const demoButton = page.getByTestId("register-demo-booking");
     await expect(demoButton).toBeVisible({ timeout: 15_000 });
     await demoButton.click();

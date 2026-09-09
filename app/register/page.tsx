@@ -9,12 +9,9 @@ import { RegisterFormValidation } from "@/components/auth/RegisterFormValidation
 import { RegisterFormSubmitFeedback } from "@/components/auth/RegisterFormSubmitFeedback";
 import { RegisterWizard, RegisterWizardStep } from "@/components/auth/RegisterWizard";
 import {
-  RegisterDemoAside,
-  RegisterFaqSection,
   RegisterIntroSection,
-  RegisterPromoBanner,
+  RegisterSecondarySections,
   RegisterSubmittedPanel,
-  RegisterTrustBadges,
 } from "@/components/register/RegisterMarketingSections";
 import {
   registerFieldErrorClass,
@@ -831,8 +828,7 @@ export default async function RegisterPage({ searchParams }: PageProps) {
         <div className="absolute bottom-0 left-[-5%] h-72 w-72 rounded-full bg-clinical-200/25 blur-3xl" />
       </div>
 
-      <div className="mx-auto flex min-h-screen max-w-6xl flex-col gap-8 px-4 py-8 sm:px-6 lg:gap-10 lg:py-12 lg:px-8">
-        <RegisterPromoBanner />
+      <div className="mx-auto flex min-h-screen max-w-2xl flex-col gap-6 px-4 py-8 sm:px-6 lg:py-10">
         <RegisterIntroSection
           claim={claimPrefill ? { firstName: claimPrefill.firstName } : null}
         />
@@ -844,19 +840,19 @@ export default async function RegisterPage({ searchParams }: PageProps) {
             confirmError={errorCode === "email_confirm"}
           />
         ) : (
-          <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(300px,360px)]">
+          <>
             <section className={registerSectionShell}>
-              <h2 className="text-xl font-semibold tracking-tight text-ink-900 sm:text-2xl">
-                {claimPrefill
-                  ? "Confirm your details to activate this listing"
-                  : "Complete your professional application"}
-              </h2>
+              {claimPrefill ? (
+                <h2 className="text-base font-semibold tracking-tight text-ink-900">
+                  Confirm your details to activate this listing
+                </h2>
+              ) : null}
 
               <form
                 id="register-form"
                 action={handleRegister}
                 noValidate
-                className="mt-6 max-w-xl space-y-6"
+                className={`${claimPrefill ? "mt-5" : ""} space-y-6`}
               >
                 {process.env.NODE_ENV === "development" && errorCode && debugDetail ? (
                   <RegisterDevErrorConsole
@@ -1100,17 +1096,9 @@ export default async function RegisterPage({ searchParams }: PageProps) {
                 </RegisterFormSubmitFeedback>
               </form>
             </section>
-
-            <RegisterDemoAside />
-          </div>
-        )}
-
-        {!submitted ? (
-          <>
-            <RegisterTrustBadges />
-            <RegisterFaqSection />
+            <RegisterSecondarySections />
           </>
-        ) : null}
+        )}
       </div>
     </main>
   );

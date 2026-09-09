@@ -13,5 +13,10 @@ describe("register wizard wiring", () => {
     assert.match(source, /name="firstName"/);
     assert.match(source, /name="lastName"/);
     assert.doesNotMatch(source, /name="fullName"/);
+    assert.match(source, /RegisterSecondarySections/);
+    assert.match(source, /max-w-2xl/);
+    assert.doesNotMatch(source, /lg:grid-cols/);
+    assert.doesNotMatch(source, /RegisterPromoBanner/);
+    assert.doesNotMatch(source, /RegisterDemoAside/);
   });
 });

@@ -10,45 +10,46 @@ export function RegisterFormProgress({ formId: _formId }: { formId: string }) {
   const stepCount = wizard?.stepCount ?? 3;
 
   return (
-    <div data-testid="register-progress" className="rounded-2xl border border-ink-200 bg-ink-50/70 p-4">
-      <ol className="flex items-center gap-2 text-xs font-semibold">
-        {STEP_LABELS.slice(0, stepCount).map((label, index) => {
-          const n = index + 1;
-          const current = n === step;
-          const doneStep = n < step;
-          return (
-            <li
-              key={label}
-              className={`flex min-w-0 items-center gap-1.5 ${
-                current ? "text-clinical-700" : doneStep ? "text-wellness-700" : "text-ink-400"
-              }`}
-            >
-              <span
-                className={`inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] ${
-                  current
-                    ? "bg-clinical-500 text-white"
-                    : doneStep
-                      ? "bg-wellness-500 text-white"
-                      : "bg-ink-200 text-ink-600"
+    <div data-testid="register-progress" className="space-y-2">
+      <div className="flex items-center justify-between gap-3">
+        <ol className="flex min-w-0 items-center gap-2 text-xs font-semibold">
+          {STEP_LABELS.slice(0, stepCount).map((label, index) => {
+            const n = index + 1;
+            const current = n === step;
+            const doneStep = n < step;
+            return (
+              <li
+                key={label}
+                className={`flex min-w-0 items-center gap-1.5 ${
+                  current ? "text-clinical-700" : doneStep ? "text-wellness-700" : "text-ink-400"
                 }`}
               >
-                {n}
-              </span>
-              <span className="hidden sm:inline">{label}</span>
-              {index < stepCount - 1 ? (
-                <span className="mx-1 hidden h-px w-6 bg-ink-200 sm:block" aria-hidden />
-              ) : null}
-            </li>
-          );
-        })}
-      </ol>
-
-      <p className="mt-3 text-sm font-medium text-ink-800">
-        Step {step} of {stepCount}
-      </p>
+                <span
+                  className={`inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] ${
+                    current
+                      ? "bg-clinical-500 text-white"
+                      : doneStep
+                        ? "bg-wellness-500 text-white"
+                        : "bg-ink-200 text-ink-600"
+                  }`}
+                >
+                  {n}
+                </span>
+                <span className="hidden sm:inline">{label}</span>
+                {index < stepCount - 1 ? (
+                  <span className="mx-1 hidden h-px w-8 bg-ink-200 sm:block" aria-hidden />
+                ) : null}
+              </li>
+            );
+          })}
+        </ol>
+        <p className="shrink-0 text-xs font-medium text-ink-500">
+          Step {step} of {stepCount}
+        </p>
+      </div>
 
       <div
-        className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-ink-200"
+        className="h-1 w-full overflow-hidden rounded-full bg-ink-200"
         role="progressbar"
         aria-valuemin={0}
         aria-valuemax={stepCount}
