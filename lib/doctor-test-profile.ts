@@ -15,6 +15,14 @@ const TEST_EMAIL_DOMAIN_PATTERN = /@.+\.testing$/i;
 
 const DEFAULT_OWNER_TEST_EMAIL_MARKERS = ["rociosirvent"] as const;
 
+/** Manual prod QA: local-part+tag @gmail.com. Keep in sync with SQL is_test_doctor_registration_email. */
+const GMAIL_PLUS_TEST_LOCAL_PARTS = ["doccyteam", "rociosirvent", "liviolanzo"] as const;
+
+const GMAIL_PLUS_TEST_EMAIL_PATTERN = new RegExp(
+  `^(${GMAIL_PLUS_TEST_LOCAL_PARTS.join("|")})\\+.+@gmail\\.com$`,
+  "i",
+);
+
 function getOwnerTestEmailMarkers(): string[] {
   const fromEnv = String(process.env.DOC_CY_TEST_DOCTOR_EMAIL_MARKERS ?? "")
     .split(",")
@@ -27,6 +35,7 @@ export function isTestDoctorRegistrationEmail(email: string | null | undefined):
   const normalized = String(email ?? "").trim().toLowerCase();
   if (!normalized.includes("@")) return false;
 
+  if (GMAIL_PLUS_TEST_EMAIL_PATTERN.test(normalized)) return true;
   if (getOwnerTestEmailMarkers().some((marker) => normalized.includes(marker))) {
     return true;
   }

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   isRegisteredDoctorHiddenFromFinder,
+  isTestDoctorRegistrationEmail,
   isTestProfileLike,
 } from "@/lib/doctor-test-profile";
 
@@ -52,6 +53,19 @@ describe("isTestProfileLike", () => {
       }),
       false,
     );
+  });
+});
+
+describe("isTestDoctorRegistrationEmail", () => {
+  it("flags owner Gmail plus-aliases used for manual prod registration QA", () => {
+    assert.equal(isTestDoctorRegistrationEmail("doccyteam+flow1@gmail.com"), true);
+    assert.equal(isTestDoctorRegistrationEmail("rociosirvent+anastasia@gmail.com"), true);
+    assert.equal(isTestDoctorRegistrationEmail("liviolanzo+cyprus@gmail.com"), true);
+  });
+
+  it("does not flag the same local-part without a plus tag", () => {
+    assert.equal(isTestDoctorRegistrationEmail("doccyteam@gmail.com"), false);
+    assert.equal(isTestDoctorRegistrationEmail("liviolanzo@gmail.com"), false);
   });
 });
 
