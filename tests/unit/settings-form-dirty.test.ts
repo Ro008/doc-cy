@@ -23,7 +23,7 @@ function baseSnapshotInput() {
     specialtyFromMaster: true,
     bio: "Helping patients across Cyprus.",
     languages: ["English", "Greek"],
-    whatsappNumber: "+35799111222",
+    mobileNumber: "+35799111222",
     showPhonePublic: false,
     district: "Nicosia",
     clinicLocation: {

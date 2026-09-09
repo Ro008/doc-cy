@@ -141,7 +141,7 @@ test.describe("Manual booking flow @booking-creates", { tag: "@pr-e2e" }, () => 
     }
   });
 
-  test("manual booking success shows WhatsApp when patient phone provided", async ({
+  test("manual booking success does not offer WhatsApp even when a patient phone is provided", async ({
     page,
   }) => {
     test.setTimeout(120_000);
@@ -169,11 +169,11 @@ test.describe("Manual booking flow @booking-creates", { tag: "@pr-e2e" }, () => 
       const nonce = Date.now().toString().slice(-6);
       const patientPhone = "+35799123456";
 
-      await page.getByPlaceholder("Patient full name").fill(`Manual WA ${nonce}`);
+      await page.getByPlaceholder("Patient full name").fill(`Manual phone ${nonce}`);
       await page.getByPlaceholder("+357...").fill(patientPhone);
       await page
         .getByPlaceholder("Brief reason for this visit")
-        .fill("Manual booking with phone for WhatsApp share.");
+        .fill("Manual booking with a patient phone.");
 
       await page.getByRole("button", { name: /Confirm Booking/i }).click();
 
@@ -181,15 +181,11 @@ test.describe("Manual booking flow @booking-creates", { tag: "@pr-e2e" }, () => 
         page.getByRole("heading", { name: /Appointment Blocked!/i }),
       ).toBeVisible({ timeout: 15_000 });
 
-      const whatsappLink = page.getByRole("link", {
-        name: /Share Link via WhatsApp/i,
-      });
-      await expect(whatsappLink).toBeVisible();
-      await expect(whatsappLink).toHaveAttribute("href", /wa\.me\/35799123456/);
-      await expect(whatsappLink).toHaveAttribute(
-        "href",
-        /For%20future%20bookings/i,
-      );
+      await expect(page.getByRole("link", { name: /Add to Google/i })).toBeVisible();
+      await expect(page.getByRole("link", { name: /Add to iCal/i })).toBeVisible();
+      await expect(
+        page.getByRole("link", { name: /Share Link via WhatsApp/i }),
+      ).toHaveCount(0);
 
       const iCalHref = await page
         .getByRole("link", { name: /Add to iCal/i })

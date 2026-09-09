@@ -74,7 +74,7 @@ test.describe("Integration UI: register form guidance", { tag: "@pr-e2e" }, () =
     await expect(summary).toContainText("8 things left before you can submit");
     // The row stays put, struck through, so the list never shifts under the user.
     await expect(summary.locator("li")).toHaveCount(9);
-    await expect(summary.locator("li", { hasText: "WhatsApp number" }).locator("s, .line-through"))
+    await expect(summary.locator("li", { hasText: "Mobile number" }).locator("s, .line-through"))
       .toHaveCount(1);
   });
 

@@ -6,6 +6,7 @@ import { isMasterSpecialty } from "@/lib/cyprus-specialties";
 import { normalizeApprovedCustomSpecialty } from "@/lib/specialty-submission";
 import { sendDoctorAccountRejectedEmail } from "@/lib/send-doctor-account-rejected-email";
 import { getPublicBookingBaseUrl } from "@/lib/site-url";
+import { professionalAccountEmail } from "@/lib/professional-account-contact";
 
 type ReviewAction = "map" | "approve_new" | "approve_edited" | "reject_specialty";
 
@@ -42,11 +43,12 @@ function badRequest(message: string) {
 async function notifySpecialtyRejection(professional: {
   name?: string | null;
   email?: string | null;
+  registration_email?: string | null;
 }): Promise<void> {
   try {
     await sendDoctorAccountRejectedEmail({
       siteUrl: getPublicBookingBaseUrl(),
-      doctorEmail: String(professional.email ?? ""),
+      doctorEmail: professionalAccountEmail(professional),
       doctorName: String(professional.name ?? "Doctor"),
       reason: "specialty",
       resendToOverride: process.env.RESEND_TO_OVERRIDE?.trim() || null,
@@ -185,7 +187,7 @@ export async function POST(req: NextRequest) {
 
   const { data: professional, error: fetchErr } = await supabase
     .from("professionals")
-    .select("id, name, email, specialty, is_specialty_approved, status")
+    .select("id, name, email, registration_email, specialty, is_specialty_approved, status")
     .eq("id", doctorId)
     .maybeSingle();
 

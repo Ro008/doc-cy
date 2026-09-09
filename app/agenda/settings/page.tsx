@@ -53,6 +53,7 @@ export default async function AgendaSettingsPage() {
     name: string;
     avatar_url?: string | null;
     phone?: string | null;
+    mobile_number?: string | null;
     slug?: string | null;
     specialty?: string | null;
     bio?: string | null;
@@ -78,10 +79,20 @@ export default async function AgendaSettingsPage() {
     let res = await supabase
       .from("professionals")
       .select(
-        "id, name, avatar_url, phone, slug, specialty, specialties, bio, languages, district, town, clinic_address, latitude, longitude, clinic_place_id, status, subscription_tier, is_gesy"
+        "id, name, avatar_url, phone, mobile_number, slug, specialty, specialties, bio, languages, district, town, clinic_address, latitude, longitude, clinic_place_id, status, subscription_tier, is_gesy"
       )
       .eq("auth_user_id", user.id)
       .single();
+
+    if (res.error && hasColError(res.error, "mobile_number")) {
+      res = await supabase
+        .from("professionals")
+        .select(
+          "id, name, avatar_url, phone, slug, specialty, specialties, bio, languages, district, town, clinic_address, latitude, longitude, clinic_place_id, status, subscription_tier, is_gesy"
+        )
+        .eq("auth_user_id", user.id)
+        .single();
+    }
 
     if (res.error && hasColError(res.error, "specialties")) {
       res = await supabase
@@ -398,7 +409,8 @@ export default async function AgendaSettingsPage() {
     pendingSpecialtyChange,
     bio: (doctor.bio ?? "").trim(),
     languages: langArr,
-    whatsappNumber: doctor.phone ?? undefined,
+    mobileNumber: (doctor.mobile_number ?? doctor.phone ?? "").trim() || undefined,
+    directoryPhone: (doctor.phone ?? "").trim() || undefined,
     showPhonePublic: Boolean(
       (settings as { show_phone_public?: boolean | null } | null)?.show_phone_public
     ),

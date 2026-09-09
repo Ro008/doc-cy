@@ -73,7 +73,8 @@ export type DoctorSettingsFormData = {
   bio: string;
   /** Canonical labels, saved as string[] on doctors */
   languages: string[];
-  whatsappNumber?: string;
+  mobileNumber?: string;
+  directoryPhone?: string;
   showPhonePublic: boolean;
   district: string;
   clinicAddress: string;
@@ -286,10 +287,13 @@ export function SettingsForm({ initial }: SettingsFormProps) {
   );
   const [bio, setBio] = React.useState(() => (initial.bio ?? "").trim());
 
-  const [whatsappNumber, setWhatsappNumber] = React.useState(
-    initial.whatsappNumber ?? ""
+  const [mobileNumber, setMobileNumber] = React.useState(
+    initial.mobileNumber ?? ""
   );
-  const [showPhonePublic, setShowPhonePublic] = React.useState(Boolean(initial.showPhonePublic));
+  const directoryPhone = (initial.directoryPhone ?? "").trim();
+  const [showPhonePublic, setShowPhonePublic] = React.useState(
+    Boolean(initial.showPhonePublic) && directoryPhone.length > 0
+  );
   const [district, setDistrict] = React.useState(initial.district ?? "");
   const initialClinicAddressRef = React.useRef(initial.clinicAddress ?? "");
   const [clinicLocation, setClinicLocation] = React.useState<ClinicLocation>(() =>
@@ -536,7 +540,7 @@ export function SettingsForm({ initial }: SettingsFormProps) {
         specialtyFromMaster,
         bio,
         languages,
-        whatsappNumber,
+        mobileNumber,
         showPhonePublic,
         district,
         clinicLocation,
@@ -571,7 +575,7 @@ export function SettingsForm({ initial }: SettingsFormProps) {
       specialtyFromMaster,
       bio,
       languages,
-      whatsappNumber,
+      mobileNumber,
       showPhonePublic,
       district,
       clinicLocation,
@@ -597,7 +601,7 @@ export function SettingsForm({ initial }: SettingsFormProps) {
         (initial.isSpecialtyApproved ?? true) !== false && isMasterSpecialty(specialty),
       bio: (initial.bio ?? "").trim(),
       languages: Array.isArray(initial.languages) ? [...initial.languages] : [],
-      whatsappNumber: initial.whatsappNumber ?? "",
+      mobileNumber: initial.mobileNumber ?? "",
       showPhonePublic: Boolean(initial.showPhonePublic),
       district: initial.district ?? "",
       clinicLocation: clinicLocationFromParts({
@@ -843,8 +847,8 @@ export function SettingsForm({ initial }: SettingsFormProps) {
       toast.error(text);
       return;
     }
-    if (showPhonePublic && whatsappNumber.trim().length === 0) {
-      const text = "Add a WhatsApp number before enabling public phone display.";
+    if (showPhonePublic && directoryPhone.length === 0) {
+      const text = "Your directory profile has no phone number to show on the public page.";
       setMessage({ type: "error", text });
       toast.error(text);
       return;
@@ -884,7 +888,7 @@ export function SettingsForm({ initial }: SettingsFormProps) {
     try {
       const savePayload: Record<string, unknown> = {
         doctorId: initial.doctorId,
-        doctorPhone: whatsappNumber || null,
+        doctorPhone: mobileNumber || null,
         showPhonePublic,
         district: clinicLocation.district ?? district,
         clinicAddress: clinicLocation.address.trim() || null,
@@ -1822,37 +1826,50 @@ export function SettingsForm({ initial }: SettingsFormProps) {
 
       <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-5">
         <label
-          htmlFor="whatsappNumber"
+          htmlFor="mobileNumber"
           className="text-xs font-semibold uppercase tracking-wide text-slate-400"
         >
-          WhatsApp Number (with country code, e.g., +357...)
+          Mobile number (with country code, e.g., +357...)
         </label>
         <input
-          id="whatsappNumber"
+          id="mobileNumber"
           type="text"
-          value={whatsappNumber}
-          onChange={(e) => setWhatsappNumber(e.target.value)}
+          value={mobileNumber}
+          onChange={(e) => setMobileNumber(e.target.value)}
           placeholder="+357..."
           className="mt-2 w-full rounded-xl border border-slate-800/80 bg-ink-900/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-clinical-400/60"
         />
         <p className="mt-2 text-xs text-slate-400">
-          Used in appointment confirmation emails to enable{" "}
-          <span className="font-medium text-slate-300">Chat on WhatsApp</span>.
+          Your DocCy account mobile. Not shown to patients.
         </p>
+        {directoryPhone ? (
+          <p className="mt-2 text-xs text-slate-500">
+            Directory phone (Call to Book):{" "}
+            <span className="font-medium text-slate-300">{directoryPhone}</span>
+          </p>
+        ) : (
+          <p className="mt-2 text-xs text-slate-500">
+            No directory phone on file, so Call to Book stays hidden on your public
+            profile.
+          </p>
+        )}
         <div className="mt-4 rounded-xl border border-slate-700/80 bg-ink-900/35 p-3">
           <label className="inline-flex cursor-pointer items-start gap-2 text-sm text-slate-200">
             <input
               type="checkbox"
               checked={showPhonePublic}
+              disabled={directoryPhone.length === 0}
               onChange={(e) => setShowPhonePublic(e.target.checked)}
-              className="mt-0.5 h-4 w-4 rounded border-slate-600 bg-slate-900 text-clinical-500 focus:ring-clinical-400/60"
+              className="mt-0.5 h-4 w-4 rounded border-slate-600 bg-slate-900 text-clinical-500 focus:ring-clinical-400/60 disabled:cursor-not-allowed disabled:opacity-50"
             />
             <span>
-              Show my phone number on my public profile
+              Show my directory phone on my public profile
               <span className="mt-1 block text-xs text-slate-400">
-                {showPhonePublic
-                  ? "Patients can contact you directly from your profile."
-                  : "Keep this off to encourage online bookings and reduce direct calls."}
+                {directoryPhone.length === 0
+                  ? "Add a directory phone before patients can see a Call button."
+                  : showPhonePublic
+                    ? "Patients can call you from your profile."
+                    : "Keep this off to encourage online bookings and reduce direct calls."}
               </span>
             </span>
           </label>

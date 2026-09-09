@@ -39,7 +39,6 @@ import {
   DOCTOR_FIELD_LIST_PUBLIC_PROFILE_NO_LANG,
 } from "@/lib/doctor-fieldsets";
 import { GesyProviderBadge } from "@/components/brand/GesyProviderBadge";
-import { WhatsAppLogoIcon } from "@/components/icons/WhatsAppLogoIcon";
 import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher";
 import { DocCyWordmark } from "@/components/brand/DocCyWordmark";
 import { RecordRecentlyViewed } from "@/components/finder/RecordRecentlyViewed";
@@ -50,6 +49,7 @@ import {
 import { DoctorProfileSpecialties } from "@/components/doctor/DoctorProfileSpecialties";
 import { getTranslations } from "next-intl/server";
 import { Phone } from "lucide-react";
+import { phoneToTelHref } from "@/lib/phone-link";
 import {
   buildNonLiveDoctorMetaTitle,
   buildRegisteredProfileMetaDescription,
@@ -364,11 +364,6 @@ function buildPhysicianStructuredData(input: {
     areaServed: "Cyprus",
     ...(description ? { description } : {}),
   };
-}
-
-function toWhatsAppHref(phone: string): string {
-  const digits = phone.replace(/[^\d]/g, "");
-  return `https://wa.me/${digits}`;
 }
 
 function resolvePublicAvatarUrl(
@@ -795,7 +790,7 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
   });
   const profileSpecialtySeo = formatSpecialtiesForSeo(profileSpecialtyLabels);
   const publicContactPhone = publicPhone;
-  const whatsappHref = publicContactPhone ? toWhatsAppHref(publicContactPhone) : null;
+  const publicTelHref = publicContactPhone ? phoneToTelHref(publicContactPhone) : null;
   const structuredData = buildPhysicianStructuredData({
     name: profile.name,
     specialty:
@@ -1031,21 +1026,20 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
                     Contact
                   </h2>
                   <div className="mt-3 flex flex-col gap-3">
-                    {whatsappHref ? (
+                    {publicTelHref ? (
                       <a
-                        href={whatsappHref}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100"
+                        href={publicTelHref}
+                        className="inline-flex items-center gap-3 rounded-xl border border-clinical-200 bg-clinical-50 px-3 py-2 text-sm font-semibold text-clinical-800 transition hover:bg-clinical-100"
                       >
-                        <WhatsAppLogoIcon className="h-4 w-4" />
-                        Chat on WhatsApp
+                        <Phone className="h-4 w-4" />
+                        Call
                       </a>
-                    ) : null}
-                    <p className="flex items-center gap-2 text-sm text-ink-700">
-                      <Phone className="h-4 w-4 text-clinical-600" />
-                      <span>{publicContactPhone}</span>
-                    </p>
+                    ) : (
+                      <p className="flex items-center gap-2 text-sm text-ink-700">
+                        <Phone className="h-4 w-4 text-clinical-600" />
+                        <span>{publicContactPhone}</span>
+                      </p>
+                    )}
                   </div>
                 </div>
               </section>

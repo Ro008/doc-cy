@@ -1,6 +1,5 @@
 import { CLINIC_ADDRESS } from "@/lib/clinic-info";
 import { isMasterSpecialty } from "@/lib/cyprus-specialties";
-import { phoneToWaMeLink } from "@/lib/whatsapp";
 
 /** Minimal appointment shape for shared calendar copy (datetime reserved for future use). */
 export type PatientCalendarAppointment = {
@@ -35,10 +34,10 @@ export type PatientCalendarVisitReason = {
 
 export type PatientCalendarEventOptions = {
   /**
-   * When true, description may include the doctor WhatsApp link (post-confirmation only).
-   * Keep false for pending / counter-offer flows to discourage off-app scheduling.
+   * When true, description tells the patient they can contact the clinic directly
+   * (post-confirmation). Keep false for pending / counter-offer flows.
    */
-  includeWhatsAppContact?: boolean;
+  includeDirectClinicContact?: boolean;
 };
 
 /**
@@ -76,12 +75,9 @@ export function getCalendarEventDetails(
   const doctorLabel = doctorDisplayNameForCalendar(doctor.name);
   const title = `🩺 ${specialty}: ${doctorLabel}`;
 
-  const includeWa = Boolean(options?.includeWhatsAppContact);
-  const wa = includeWa ? phoneToWaMeLink(doctor.phone) : null;
-  const waLine = includeWa
-    ? wa
-      ? `To change or cancel your visit, please contact the clinic directly via WhatsApp: ${wa}`
-      : "To change or cancel your visit, please contact the clinic directly."
+  const includeDirect = Boolean(options?.includeDirectClinicContact);
+  const contactLine = includeDirect
+    ? "To change or cancel your visit, please contact the clinic directly."
     : "Manage this visit through DocCy. You will receive email updates; please do not arrange changes outside the app until your visit is confirmed.";
 
   const reason = String(visit?.reason ?? "").trim();
@@ -102,9 +98,9 @@ export function getCalendarEventDetails(
 
   const description = [
     ...visitLines,
-    includeWa ? "Confirmed via DocCy." : "Request managed via DocCy.",
+    includeDirect ? "Confirmed via DocCy." : "Request managed via DocCy.",
     "",
-    waLine,
+    contactLine,
   ].join("\n");
 
   const location =

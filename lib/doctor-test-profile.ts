@@ -68,6 +68,7 @@ export function isTestProfileLike(row: {
   name?: string | null;
   slug?: string | null;
   email?: string | null;
+  registration_email?: string | null;
   isTestProfile?: boolean | null;
 }): boolean {
   if (row.isTestProfile === true) return true;
@@ -78,6 +79,7 @@ export function isTestProfileLike(row: {
   if (/^Finder Filter [AB] /i.test(name)) return true;
   const slug = String(row.slug ?? "").toLowerCase();
   if (INTEGRATION_TEST_SLUG_PREFIXES.some((prefix) => slug.startsWith(prefix))) return true;
+  if (isTestDoctorRegistrationEmail(row.registration_email)) return true;
   if (isTestDoctorRegistrationEmail(row.email)) return true;
   return false;
 }

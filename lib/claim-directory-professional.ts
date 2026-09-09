@@ -194,7 +194,7 @@ export function toRegisterClaimPrefill(row: {
   specialty?: string | null;
   specialties?: string[] | null;
   district?: string | null;
-  /** Present on listing rows; never copied — WhatsApp must be entered by the professional. */
+  /** Present on listing rows; never copied — account mobile must be entered by the professional. */
   phone?: string | null;
   address?: string | null;
   clinic_address?: string | null;

@@ -183,7 +183,7 @@ describe("register claim from finder card", () => {
     assert.equal(registerClaimPath(maria.id), `/register?claim=${maria.id}`);
   });
 
-  it("prefills name, first name, address, and GeSY specialty, but never the WhatsApp number", () => {
+  it("prefills name, first name, address, and GeSY specialty, but never the mobile number", () => {
     const prefill = toRegisterClaimPrefill({
       ...maria,
       phone: "+35799111222",

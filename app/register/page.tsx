@@ -481,8 +481,8 @@ async function runRegister(formData: FormData) {
       auth_user_id: authUserId,
       name: fullName,
       specialty,
-      email,
-      phone,
+      registration_email: email,
+      mobile_number: phone,
       languages,
       license_number: licenseNumber,
       license_file_url: licenseFileUrl,
@@ -905,24 +905,24 @@ export default async function RegisterPage({ searchParams }: PageProps) {
                     data-validate-field="1"
                     data-invalid="0"
                     data-field-key="phone"
-                    data-field-label="WhatsApp number"
+                    data-field-label="Mobile number"
                   >
                     <label className={registerLabelClass}>
-                      WhatsApp Number<span className="text-red-600">*</span>
+                      Mobile Number<span className="text-red-600">*</span>
                       <input
                         type="tel"
                         name="phone"
                         required
-                        autoComplete="off"
+                        autoComplete="tel"
                         placeholder="e.g., +357 99XXXXXX"
                         className={registerInputClass}
                       />
                     </label>
                     <p className={registerHelperClass}>
-                      Used in appointment confirmation emails to enable Chat on WhatsApp.
+                      Your DocCy account mobile, with country code. Not shown to patients.
                     </p>
                     <p className={registerFieldErrorClass}>
-                      Please enter your WhatsApp number with country code.
+                      Please enter your mobile number with country code.
                     </p>
                   </div>
 

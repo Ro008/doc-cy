@@ -20,6 +20,7 @@ import { candidateOverlapsAnyBlockingInterval } from "@/lib/appointment-overlap"
 import { normalizeAppointmentReason } from "@/lib/visit-types";
 import { sendPatientAppointmentConfirmedEmail } from "@/lib/send-patient-appointment-confirmed-email";
 import { sendDoctorAppointmentConfirmedEmail } from "@/lib/send-doctor-appointment-confirmed-email";
+import { professionalAccountEmail } from "@/lib/professional-account-contact";
 import { getDoctorCalendarEventDetails } from "@/lib/doctor-calendar-event";
 import { buildGoogleCalendarUrl } from "@/lib/patient-calendar-event";
 import { appointmentClinicCopy } from "@/lib/appointment-clinic-copy";
@@ -84,7 +85,7 @@ export async function POST(req: NextRequest) {
 
   const { data: doctor, error: doctorErr } = await supabase
     .from("professionals")
-    .select("id, name, email, phone, slug, specialty, clinic_address")
+    .select("id, name, email, registration_email, phone, slug, specialty, clinic_address")
     .eq("auth_user_id", user.id)
     .maybeSingle();
 
@@ -298,7 +299,9 @@ export async function POST(req: NextRequest) {
   try {
     await sendDoctorAppointmentConfirmedEmail({
       siteUrl,
-      doctorEmail: String((doctor as { email?: string | null }).email ?? ""),
+      doctorEmail: professionalAccountEmail(
+        doctor as { email?: string | null; registration_email?: string | null },
+      ),
       doctorName: String(doctor.name ?? "Doctor"),
       appointmentId: String(inserted.id),
       appointmentDatetimeIso: String(inserted.appointment_datetime),

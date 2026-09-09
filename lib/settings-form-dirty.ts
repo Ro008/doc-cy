@@ -6,7 +6,7 @@ export type SettingsDirtySnapshot = {
   specialtyFromMaster: boolean;
   bio: string;
   languages: string[];
-  whatsappNumber: string;
+  mobileNumber: string;
   showPhonePublic: boolean;
   district: string;
   clinicAddress: string;
@@ -45,7 +45,7 @@ export function buildSettingsDirtySnapshot(input: {
   specialtyFromMaster: boolean;
   bio: string;
   languages: string[];
-  whatsappNumber: string;
+  mobileNumber: string;
   showPhonePublic: boolean;
   district: string;
   clinicLocation: ClinicLocation;
@@ -66,7 +66,7 @@ export function buildSettingsDirtySnapshot(input: {
     specialtyFromMaster: input.specialtyFromMaster,
     bio: input.bio.trim(),
     languages: [...input.languages].map((l) => l.trim()).filter(Boolean).sort(),
-    whatsappNumber: input.whatsappNumber.trim(),
+    mobileNumber: input.mobileNumber.trim(),
     showPhonePublic: input.showPhonePublic,
     district: input.district.trim(),
     clinicAddress: input.clinicLocation.address.trim(),

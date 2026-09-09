@@ -17,7 +17,6 @@ import {
   buildGoogleCalendarUrl,
   getCalendarEventDetails,
 } from "@/lib/patient-calendar-event";
-import { phoneToWaMeLink } from "@/lib/whatsapp";
 import {
   EMAIL_CAL_GOOGLE_BTN,
   EMAIL_CAL_ICS_BTN,
@@ -30,8 +29,6 @@ import {
 
 const CAL_GOOGLE_STYLE = EMAIL_CAL_GOOGLE_BTN;
 const CAL_ICS_STYLE = EMAIL_CAL_ICS_BTN;
-const WHATSAPP_CTA_STYLE =
-  "display:block;text-align:center;background:#25D366;color:#ffffff;text-decoration:none;font-weight:700;padding:14px 16px;border-radius:12px;margin:0 0 12px;font-size:15px;";
 const PRIMARY_ACTIONS_LABEL = EMAIL_SECTION_LABEL;
 
 type DoctorPayload = {
@@ -99,7 +96,6 @@ export function buildPatientAppointmentConfirmedEmailContent(opts: {
   } = opts;
 
   const doctorName = String(doctor.name ?? "your professional").trim();
-  const doctorWaMe = phoneToWaMeLink(doctor.phone);
   const clinic =
     opts.clinic ??
     appointmentClinicCopyFromAddress({
@@ -120,7 +116,7 @@ export function buildPatientAppointmentConfirmedEmailContent(opts: {
       clinic_address: clinic.address,
     },
     { reason: reason ?? null, visitType: null, visitNotes: null },
-    { includeWhatsAppContact: true }
+    { includeDirectClinicContact: true }
   );
 
   const patientGoogleUrl = buildGoogleCalendarUrl({
@@ -148,10 +144,6 @@ export function buildPatientAppointmentConfirmedEmailContent(opts: {
       `IMPORTANT - RESCHEDULED VISIT:\n` +
       `If you already added your previous confirmed visit to calendar, delete that old entry now.\n` +
       `DocCy cannot remove old events from your personal calendar.\n\n`;
-  }
-
-  if (doctorWaMe) {
-    text += `WhatsApp: ${doctorWaMe}\n\n`;
   }
   text += `---\n${AUTOMATED_EMAIL_FOOTER_TEXT}`;
 
@@ -184,12 +176,6 @@ ${EMAIL_SHELL_OPEN}
     <p style="${PRIMARY_ACTIONS_LABEL}">Calendar</p>
     <a href="${patientGoogleUrl}" style="${CAL_GOOGLE_STYLE}">Add to Google Calendar</a>
     <a href="${patientIcsUrl}" style="${CAL_ICS_STYLE}">Add to Apple / Outlook (.ics)</a>
-
-    ${
-      doctorWaMe
-        ? `<p style="${PRIMARY_ACTIONS_LABEL}">Contact</p><a href="${doctorWaMe}" style="${WHATSAPP_CTA_STYLE}">💬 Message ${escapeHtml(doctorName)} on WhatsApp</a>`
-        : ""
-    }
 
     ${automatedEmailFooterHtml()}
 ${EMAIL_SHELL_CLOSE}`;

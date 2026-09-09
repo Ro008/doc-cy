@@ -126,7 +126,7 @@ export default async function BookingSuccessPage({
       visitType: apptRow.visit_type,
       visitNotes: apptRow.visit_notes,
     },
-    { includeWhatsAppContact: confirmed }
+    { includeDirectClinicContact: confirmed }
   );
 
   const googleUrl = confirmed

@@ -45,7 +45,7 @@ Living document: update when workflows or specs change.
 | --- | --- | --- | --- |
 | Patient booking (happy path) | `booking_flow.spec.ts` | `prod_appointment_booking_flow.spec.ts` (nightly blocking) | Requires first-visit choice (`is_new_patient`) |
 | Practice insights — new patients / no-shows KPIs | `practice_insights_metrics.spec.ts` | `practice_insights.spec.ts` | `is_new_patient`, `attendance=no_show` on ended visits |
-| Manual booking (doctor) | `manual_booking_flow.spec.ts`, `manual_booking_modal_ux.spec.ts` | — | Empty email/phone case + WhatsApp only when phone set; see **Optional UI fields** in `ci-test-policy.md` |
+| Manual booking (doctor) | `manual_booking_flow.spec.ts`, `manual_booking_modal_ux.spec.ts` | — | Empty email/phone case; no WhatsApp share CTA; see **Optional UI fields** in `ci-test-policy.md` |
 | Race / concurrency | `appointments_race_condition.integration.spec.ts` | — | |
 | Reschedule slot free | `needs_reschedule_slot_free.integration.spec.ts` | — | |
 | Doctor proposes reschedule (CONFIRMED → NEEDS_RESCHEDULE) | `propose_reschedule_confirmed.integration.spec.ts` | — | API: alternative-slots + propose-reschedule |

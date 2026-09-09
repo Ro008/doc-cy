@@ -169,7 +169,7 @@ export async function POST(req: NextRequest) {
 
   const { data: owned, error: ownErr } = await supabase
     .from("professionals")
-    .select("id, specialty")
+    .select("id, specialty, phone")
     .eq("id", doctorId)
     .eq("auth_user_id", user.id)
     .maybeSingle();
@@ -223,11 +223,12 @@ export async function POST(req: NextRequest) {
   const clinicAddress = String(
     primaryLocationInput?.clinicAddress ?? b.clinicAddress ?? "",
   ).trim();
+  const listingPhone = String((owned as { phone?: string | null }).phone ?? "").trim();
   const doctorPhoneTrimmed =
     typeof b.doctorPhone === "string" ? b.doctorPhone.trim() : "";
-  if (Boolean(b.showPhonePublic) && doctorPhoneTrimmed.length === 0) {
+  if (Boolean(b.showPhonePublic) && listingPhone.length === 0) {
     return NextResponse.json(
-      { message: "Add a phone number before enabling public phone display." },
+      { message: "Your directory profile has no phone number to show on the public page." },
       { status: 400 },
     );
   }
@@ -401,7 +402,7 @@ export async function POST(req: NextRequest) {
   }
 
   const phoneUpdateBase: {
-    phone?: string | null;
+    mobile_number?: string | null;
     bio?: string | null;
     district: string;
     clinic_address: string | null;
@@ -420,7 +421,7 @@ export async function POST(req: NextRequest) {
     languages,
   };
   if (b.doctorPhone !== undefined) {
-    phoneUpdateBase.phone = doctorPhoneTrimmed ? doctorPhoneTrimmed : null;
+    phoneUpdateBase.mobile_number = doctorPhoneTrimmed ? doctorPhoneTrimmed : null;
   }
   if (b.bio !== undefined) {
     phoneUpdateBase.bio = bioRaw.length > 0 ? bioRaw : null;
@@ -439,6 +440,12 @@ export async function POST(req: NextRequest) {
     if (/town/i.test(String(docErr.message ?? ""))) {
       const { town: _town, ...withoutTown } = phoneUpdateBase;
       docErr = (await supabase.from("professionals").update(withoutTown).eq("id", doctorId)).error;
+    }
+    if (docErr && /mobile_number/i.test(String(docErr.message ?? ""))) {
+      const { mobile_number: _mobile, ...withoutMobile } = phoneUpdateBase;
+      docErr = (
+        await supabase.from("professionals").update(withoutMobile).eq("id", doctorId)
+      ).error;
     }
     if (
       docErr &&

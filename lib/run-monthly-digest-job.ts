@@ -11,6 +11,7 @@ import {
 } from "@/lib/monthly-digest-metrics";
 import type { InsightsAppointmentRow } from "@/lib/practice-insights";
 import { sendDoctorMonthlyDigestEmail } from "@/lib/send-doctor-monthly-digest-email";
+import { professionalAccountEmail } from "@/lib/professional-account-contact";
 import { getPublicBookingBaseUrl } from "@/lib/site-url";
 import { createServiceRoleClient } from "@/lib/supabase-service";
 import { fetchAllSupabaseRows } from "@/lib/supabase-fetch-all";
@@ -31,6 +32,7 @@ type DoctorRow = {
   id: string;
   name: string | null;
   email: string | null;
+  registration_email?: string | null;
 };
 
 const EMAIL_DELAY_MS = 250;
@@ -107,10 +109,9 @@ export async function runMonthlyDigestJob(opts?: {
   const { data: doctors, error: doctorsError } = await fetchAllSupabaseRows(() =>
     supabase
       .from("professionals")
-      .select("id, name, email")
+      .select("id, name, email, registration_email")
       .eq("is_test_profile", false)
-      .eq("is_registered", true)
-      .not("email", "is", null),
+      .eq("is_registered", true),
   );
 
   if (doctorsError) {
@@ -119,7 +120,7 @@ export async function runMonthlyDigestJob(opts?: {
 
   for (const doctor of (doctors ?? []) as DoctorRow[]) {
     result.doctorsChecked += 1;
-    const email = String(doctor.email ?? "").trim();
+    const email = professionalAccountEmail(doctor);
     if (!email) {
       result.skippedNoEmail += 1;
       continue;
