@@ -30,10 +30,9 @@ describe("finder registered public Call", () => {
     );
 
     assert.equal(loader.includes("fetchAllSupabaseRowsForIdChunks"), true);
-    assert.equal(loader.includes('.select("id")'), true);
+    assert.equal(loader.includes('.select("id, phone, mobile_number, doctor_settings'), true);
     assert.equal(loader.includes('.select("id, phone")'), false);
-    assert.equal(loader.includes("doctors_public"), true);
-    assert.equal(loader.includes('.not("phone", "is", null)'), true);
+    assert.equal(loader.includes("doctors_public"), false);
     assert.equal(loader.includes("ids.join("), false);
 
     assert.equal(registered.includes('kind="registered"'), true);

@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
+import { finderIncludesRegisteredTestProfiles } from "@/lib/doctor-test-profile";
 
 type CreatedDoctor = {
   doctorId: string;
@@ -124,6 +125,10 @@ test.describe("Integration: finder user-like filter behavior matrix", { tag: ["@
     const unsafeReason = assertSafeIntegrationTarget(baseUrl, supabaseUrl);
     test.skip(Boolean(unsafeReason), unsafeReason ?? undefined);
     test.skip(!baseUrl || !supabaseUrl || !serviceRole, "Missing integration env vars.");
+    test.skip(
+      !finderIncludesRegisteredTestProfiles(),
+      "NEXT_PUBLIC_DOC_CY_FINDER_INCLUDE_TEST_PROFILES is not enabled.",
+    );
 
     const admin = createClient(supabaseUrl, serviceRole);
     const nonce = `${Date.now()}-${Math.floor(Math.random() * 100000)}`;
@@ -199,6 +204,7 @@ test.describe("Integration: finder user-like filter behavior matrix", { tag: ["@
       await expect(page.getByTestId("finder-active-filters")).toContainText("Dentist", {
         timeout: 60_000,
       });
+      await page.goto(`/limassol/dentist?name=${encodeURIComponent(created[1].name)}`);
       await expect(page.getByText(created[1].name, { exact: true })).toBeVisible({ timeout: 60_000 });
       await expect(page.getByText(created[0].name, { exact: true })).toHaveCount(0);
 
