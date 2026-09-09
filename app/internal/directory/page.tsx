@@ -74,6 +74,7 @@ import {
 } from "@/components/internal/FinderInvitationRequestsSection";
 import { loadLocalTestLoginPasswordsByAuthUserId } from "@/lib/local-test-login-credentials";
 import { getInternalDirectoryRole } from "@/lib/internal-directory-auth";
+import { professionalAccountEmail } from "@/lib/professional-account-contact";
 
 function sortManualPatientVoteRows(
   rows: ManualPatientVoteRow[],
@@ -172,8 +173,32 @@ export default async function FounderDashboardPage({
   const monthStartIso = cyprusMonthStartUtcIso();
   const chartRangeStart = startOfMonth(subMonths(new Date(), 5));
 
+  const doctorSelectWithAccountEmail =
+    "id, name, email, registration_email, phone, slug, specialty, languages, status, created_at, license_number, license_file_url, is_specialty_approved, specialty_requires_standard_at, auth_user_id, ghs_code, address_maps_link";
+  const doctorSelectLegacy =
+    "id, name, email, phone, slug, specialty, languages, status, created_at, license_number, license_file_url, is_specialty_approved, specialty_requires_standard_at, auth_user_id, ghs_code, address_maps_link";
+
+  let doctorsRes = await fetchAllSupabaseRows(() =>
+    supabase
+      .from("professionals")
+      .select(doctorSelectWithAccountEmail)
+      .eq("is_registered", true)
+      .order("created_at", { ascending: false }),
+  );
+  if (
+    doctorsRes.error &&
+    /registration_email/i.test(String(doctorsRes.error.message ?? ""))
+  ) {
+    doctorsRes = await fetchAllSupabaseRows(() =>
+      supabase
+        .from("professionals")
+        .select(doctorSelectLegacy)
+        .eq("is_registered", true)
+        .order("created_at", { ascending: false }),
+    );
+  }
+
   const [
-    doctorsRes,
     apptCountRes,
     apptsMonthCountRes,
     appts7dRes,
@@ -181,15 +206,6 @@ export default async function FounderDashboardPage({
     apptsForChartRes,
     websiteVisitsLast7dRes,
   ] = await Promise.all([
-    fetchAllSupabaseRows(() =>
-      supabase
-        .from("professionals")
-        .select(
-          "id, name, email, phone, slug, specialty, languages, status, created_at, license_number, license_file_url, is_specialty_approved, specialty_requires_standard_at, auth_user_id, ghs_code, address_maps_link"
-        )
-        .eq("is_registered", true)
-        .order("created_at", { ascending: false }),
-    ),
     supabase.from("appointments").select("id", { count: "exact", head: true }),
     supabase
       .from("appointments")
@@ -260,7 +276,11 @@ export default async function FounderDashboardPage({
   const rows = rawDoctors.map((d) => ({
     id: d.id as string,
     name: d.name as string,
-    email: (d as { email?: string | null }).email ?? null,
+    email:
+      professionalAccountEmail({
+        registration_email: (d as { registration_email?: string | null }).registration_email,
+        email: (d as { email?: string | null }).email,
+      }) || null,
     phone: (d as { phone?: string | null }).phone ?? null,
     slug: (d.slug as string | null) ?? null,
     specialty: (d.specialty as string | null) ?? null,
@@ -324,13 +344,25 @@ export default async function FounderDashboardPage({
     }));
   }
 
-  const pendingRes = await supabase
+  let pendingRes = await supabase
     .from("professionals")
-    .select("id, name, specialty, email")
+    .select("id, name, specialty, email, registration_email")
     .eq("is_specialty_approved", false)
     .eq("status", "pending")
     .eq("is_registered", true)
     .order("created_at", { ascending: false });
+  if (
+    pendingRes.error &&
+    /registration_email/i.test(String(pendingRes.error.message ?? ""))
+  ) {
+    pendingRes = await supabase
+      .from("professionals")
+      .select("id, name, specialty, email")
+      .eq("is_specialty_approved", false)
+      .eq("status", "pending")
+      .eq("is_registered", true)
+      .order("created_at", { ascending: false });
+  }
 
   const pendingProfessionals =
     pendingRes.error || !pendingRes.data
@@ -339,7 +371,12 @@ export default async function FounderDashboardPage({
           id: r.id as string,
           name: (r.name as string) ?? null,
           specialty: (r as { specialty?: string | null }).specialty ?? null,
-          email: (r as { email?: string | null }).email ?? null,
+          email:
+            professionalAccountEmail({
+              registration_email: (r as { registration_email?: string | null })
+                .registration_email,
+              email: (r as { email?: string | null }).email,
+            }) || null,
         }));
 
   let pendingSpecialtyItems: PendingSpecialtyRow[] = [];
@@ -364,13 +401,25 @@ export default async function FounderDashboardPage({
 
   let specialtyChangeRequestItems: SpecialtyChangeRequestRow[] = [];
   {
-    const changeReqRes = await supabase
+    let changeReqRes = await supabase
       .from("doctor_specialty_change_requests")
       .select(
-        "id, doctor_id, request_kind, from_specialty, to_specialty, to_specialty_from_master, license_number, created_at, professionals(name, email)",
+        "id, doctor_id, request_kind, from_specialty, to_specialty, to_specialty_from_master, license_number, created_at, professionals(name, email, registration_email)",
       )
       .eq("status", "pending")
       .order("created_at", { ascending: false });
+    if (
+      changeReqRes.error &&
+      /registration_email/i.test(String(changeReqRes.error.message ?? ""))
+    ) {
+      changeReqRes = await supabase
+        .from("doctor_specialty_change_requests")
+        .select(
+          "id, doctor_id, request_kind, from_specialty, to_specialty, to_specialty_from_master, license_number, created_at, professionals(name, email)",
+        )
+        .eq("status", "pending")
+        .order("created_at", { ascending: false });
+    }
 
     if (changeReqRes.error) {
       // Table may not exist until migration is applied on this environment.
@@ -383,8 +432,16 @@ export default async function FounderDashboardPage({
         const nested = (
           r as {
             professionals?:
-              | { name?: string | null; email?: string | null }
-              | { name?: string | null; email?: string | null }[]
+              | {
+                  name?: string | null;
+                  email?: string | null;
+                  registration_email?: string | null;
+                }
+              | {
+                  name?: string | null;
+                  email?: string | null;
+                  registration_email?: string | null;
+                }[]
               | null;
           }
         ).professionals;
@@ -410,7 +467,11 @@ export default async function FounderDashboardPage({
           id: r.id as string,
           doctorId: r.doctor_id as string,
           doctorName: (doc?.name ?? "").trim() || "—",
-          doctorEmail: doc?.email ?? null,
+          doctorEmail:
+            professionalAccountEmail({
+              registration_email: doc?.registration_email,
+              email: doc?.email,
+            }) || null,
           requestKind,
           fromSpecialty,
           toSpecialty,
