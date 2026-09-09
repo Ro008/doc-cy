@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { useFormStatus } from "react-dom";
+import { RegisterSubmitWait } from "@/components/auth/RegisterSubmitWait";
 import { registerSubmitClass } from "@/lib/register-ui";
 
 const RegisterSubmitContext = React.createContext(false);
@@ -52,43 +53,23 @@ export function RegisterFormSubmitFeedback({
         <div
           aria-hidden={false}
           data-testid="register-submit-overlay"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-white/55 backdrop-blur-[3px] pointer-events-auto opacity-100"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-ink-50/80 backdrop-blur-md pointer-events-auto"
         >
           <div
             role="status"
             aria-live="polite"
-            className="mx-4 flex max-w-md items-center gap-3 rounded-2xl border border-clinical-200 bg-white px-5 py-4 shadow-[0_12px_40px_rgba(26,43,60,0.12)]"
+            className="mx-4 rounded-3xl border border-clinical-200/90 bg-white px-6 py-7 shadow-[0_18px_50px_-18px_rgba(18,184,192,0.35),0_12px_40px_rgba(26,43,60,0.1)]"
           >
+            <RegisterSubmitWait timedOut={showTimeout} />
             {showTimeout ? (
-              <div>
-                <p className="text-sm font-semibold text-ink-900">
-                  This is taking longer than expected
-                </p>
-                <p className="mt-0.5 text-xs text-ink-600">
-                  Keep this tab open, or refresh and try again if nothing happens.
-                </p>
-                <button
-                  type="button"
-                  className="mt-3 text-xs font-semibold text-clinical-700 underline underline-offset-2"
-                  onClick={() => setDismissed(true)}
-                >
-                  Hide this message
-                </button>
-              </div>
-            ) : (
-              <>
-                <span
-                  aria-hidden
-                  className="h-5 w-5 shrink-0 animate-spin rounded-full border-2 border-clinical-400 border-r-transparent"
-                />
-                <div>
-                  <p className="text-sm font-semibold text-ink-900">Submitting your application…</p>
-                  <p className="mt-0.5 text-xs text-ink-600">
-                    Please keep this tab open while we upload your details.
-                  </p>
-                </div>
-              </>
-            )}
+              <button
+                type="button"
+                className="mt-4 text-xs font-semibold text-clinical-700 underline underline-offset-2"
+                onClick={() => setDismissed(true)}
+              >
+                Hide this message
+              </button>
+            ) : null}
           </div>
         </div>
         ) : null}

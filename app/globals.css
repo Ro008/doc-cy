@@ -547,6 +547,22 @@ button {
   animation: register-step-in 380ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+@keyframes register-wait-slot {
+  0%,
+  100% {
+    background-color: #e6f8f9;
+    transform: scale(1);
+  }
+  40% {
+    background-color: #12b8c0;
+    transform: scale(1.08);
+  }
+}
+
+.register-wait-slot {
+  animation: register-wait-slot 2.2s ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   [data-validate-field="1"][data-flash="1"] {
     animation: none;
@@ -555,5 +571,10 @@ button {
 
   [data-register-step].register-step-in {
     animation: none;
+  }
+
+  .register-wait-slot {
+    animation: none;
+    background-color: #12b8c0;
   }
 }

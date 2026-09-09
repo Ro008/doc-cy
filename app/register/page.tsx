@@ -565,8 +565,13 @@ async function runRegister(formData: FormData) {
   }
 
   const sendRegistrationEmails = async () => {
-    try {
-      await withTimeout(
+    const confirmUrlPromise = generateRegisterEmailConfirmUrl(service, email).catch((err) => {
+      console.error("[DocCy] Confirm URL generate failed", err);
+      return null as string | null;
+    });
+
+    await Promise.all([
+      withTimeout(
         notifyFounderNewRegistration({
           doctorId,
           fullName,
@@ -578,24 +583,26 @@ async function runRegister(formData: FormData) {
         }),
         REGISTER_NOTIFY_TIMEOUT_MS,
         "Founder registration notify",
-      );
-    } catch (err) {
-      console.error("[DocCy] Founder registration notify failed or timed out", err);
-    }
-
-    try {
-      await withTimeout(
-        sendDoctorRegistrationReceivedEmail({
-          doctorEmail: email,
-          doctorName: fullName,
-          confirmUrl: await generateRegisterEmailConfirmUrl(service, email),
-        }),
-        REGISTER_NOTIFY_TIMEOUT_MS,
-        "Doctor registration received email",
-      );
-    } catch (err) {
-      console.error("[DocCy] Doctor registration received email failed or timed out", err);
-    }
+      ).catch((err) => {
+        console.error("[DocCy] Founder registration notify failed or timed out", err);
+      }),
+      (async () => {
+        try {
+          const confirmUrl = await confirmUrlPromise;
+          await withTimeout(
+            sendDoctorRegistrationReceivedEmail({
+              doctorEmail: email,
+              doctorName: fullName,
+              confirmUrl,
+            }),
+            REGISTER_NOTIFY_TIMEOUT_MS,
+            "Doctor registration received email",
+          );
+        } catch (err) {
+          console.error("[DocCy] Doctor registration received email failed or timed out", err);
+        }
+      })(),
+    ]);
   };
 
   const profileUpdateBase = {
