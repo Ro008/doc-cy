@@ -1,4 +1,5 @@
 import { isTestProfileLike } from "@/lib/doctor-test-profile";
+import { harmonizeFinderSpecialtyLabel } from "@/lib/finder-specialty-harmonize";
 
 /**
  * How many finder/clinic cards to render per "page" (Show more multiplies this).
