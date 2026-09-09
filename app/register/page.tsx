@@ -905,7 +905,7 @@ export default async function RegisterPage({ searchParams }: PageProps) {
                       />
                     </label>
                     <p className={registerHelperClass}>
-                      Used for instant booking notifications and direct patient updates.
+                      Used in appointment confirmation emails to enable Chat on WhatsApp.
                     </p>
                     <p className={registerFieldErrorClass}>
                       Please enter your WhatsApp number with country code.
