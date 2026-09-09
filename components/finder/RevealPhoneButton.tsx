@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { Phone } from "lucide-react";
 import {
   CALL_TO_BOOK_BUTTON_LABEL,
   parseCallToBookSource,
@@ -9,7 +10,7 @@ import {
 import { googleAdsCallToBookSendTo, reportGoogleAdsConversion } from "@/lib/google-ads";
 import { formatCyprusPhoneDisplay, phoneToTelHref } from "@/lib/phone-link";
 
-type ContactRevealKind = "manual" | "clinic";
+type ContactRevealKind = "manual" | "clinic" | "registered";
 
 type RevealState =
   | { status: "idle" }
@@ -59,7 +60,12 @@ type RevealPhoneButtonProps = {
   hasPhone: boolean;
   className?: string;
   revealedClassName?: string;
-  variant?: "show-phone" | "call-to-book";
+  /**
+   * `call-to-book` — unregistered finder/landing (Ads + founder clicks).
+   * `show-phone-number` — same public label, no Ads (registered finder cards).
+   * `profile-call` — registered public profile Contact card.
+   */
+  variant?: "show-phone" | "show-phone-number" | "call-to-book" | "profile-call";
   /** Founder analytics — only sent for Call to Book CTAs. */
   source?: CallToBookSource | null;
   /** Professional id when revealing a clinic phone from a listing card. */
@@ -75,7 +81,7 @@ function RevealedPhoneLink({
 }: {
   phone: string;
   className?: string;
-  variant: "show-phone" | "call-to-book";
+  variant: "show-phone" | "show-phone-number" | "call-to-book" | "profile-call";
 }) {
   const display = formatCyprusPhoneDisplay(phone);
   const href = phoneToTelHref(display);
@@ -88,7 +94,7 @@ function RevealedPhoneLink({
         "inline-flex items-center gap-1.5 text-lg font-bold tabular-nums text-clinical-700 underline decoration-clinical-300 underline-offset-2 transition hover:text-clinical-600"
       }
     >
-      {variant === "call-to-book" ? display : `📞 ${display}`}
+      {variant === "show-phone" ? `📞 ${display}` : display}
     </a>
   );
 }
@@ -120,7 +126,12 @@ export function RevealPhoneButton({
     );
   }
 
-  const idleLabel = variant === "call-to-book" ? CALL_TO_BOOK_BUTTON_LABEL : "Show phone";
+  const idleLabel =
+    variant === "profile-call"
+      ? "Call"
+      : variant === "show-phone"
+        ? "Show phone"
+        : CALL_TO_BOOK_BUTTON_LABEL;
 
   return (
     <div className="space-y-1">
@@ -154,13 +165,26 @@ export function RevealPhoneButton({
           "inline-flex min-h-10 items-center justify-center rounded-lg border border-clinical-200 bg-white px-3 py-2 text-sm font-semibold text-clinical-700 transition hover:border-clinical-300 hover:bg-clinical-50 disabled:cursor-wait disabled:opacity-60"
         }
       >
-        {state.status === "loading" ? "Loading…" : idleLabel}
+        {state.status === "loading" ? (
+          "Loading…"
+        ) : variant === "profile-call" ? (
+          <span className="inline-flex items-center gap-3">
+            <Phone className="h-4 w-4" aria-hidden />
+            {idleLabel}
+          </span>
+        ) : (
+          idleLabel
+        )}
       </button>
       {state.status === "error" ? (
         <p className="text-xs text-amber-800">{state.message}</p>
       ) : null}
       {state.status === "empty" ? (
-        <p className="text-xs text-ink-500">No phone number is available for this listing.</p>
+        <p className="text-xs text-ink-500">
+          {variant === "profile-call"
+            ? "No phone number is available."
+            : "No phone number is available for this listing."}
+        </p>
       ) : null}
     </div>
   );

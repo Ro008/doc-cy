@@ -24,6 +24,11 @@ import {
   isSpecialtyChangeAttempt,
   SPECIALTY_CHANGE_REQUIRES_SUPPORT_MESSAGE,
 } from "@/lib/doctor-specialty-settings-lock";
+import {
+  callNumberForSource,
+  parsePublicPhoneSource,
+  publicPhoneSourceForSave,
+} from "@/lib/public-call-phone";
 
 /** GET ?doctorId=xxx - returns current settings for the doctor (authenticated owner only) */
 export async function GET(req: NextRequest) {
@@ -133,6 +138,8 @@ export async function POST(req: NextRequest) {
     holidayStartDate?: string | null;
     holidayEndDate?: string | null;
     showPhonePublic?: boolean;
+    directoryPhone?: string | null;
+    publicPhoneSource?: string;
     locations?: Array<{
       id?: string;
       district?: string | null;
@@ -226,9 +233,29 @@ export async function POST(req: NextRequest) {
   const listingPhone = String((owned as { phone?: string | null }).phone ?? "").trim();
   const doctorPhoneTrimmed =
     typeof b.doctorPhone === "string" ? b.doctorPhone.trim() : "";
-  if (Boolean(b.showPhonePublic) && listingPhone.length === 0) {
+  const directoryPhoneTrimmed =
+    b.directoryPhone === undefined
+      ? listingPhone
+      : typeof b.directoryPhone === "string"
+        ? b.directoryPhone.trim()
+        : "";
+  const directoryPhoneToSave = directoryPhoneTrimmed || null;
+  const phoneSourceToSave = publicPhoneSourceForSave({
+    showPhonePublic: Boolean(b.showPhonePublic),
+    selected: parsePublicPhoneSource(b.publicPhoneSource),
+    mobileNumber: doctorPhoneTrimmed,
+    directoryPhone: directoryPhoneToSave,
+  });
+  if (
+    Boolean(b.showPhonePublic) &&
+    callNumberForSource({
+      source: phoneSourceToSave,
+      mobileNumber: doctorPhoneTrimmed,
+      directoryPhone: directoryPhoneToSave,
+    }).length === 0
+  ) {
     return NextResponse.json(
-      { message: "Your directory profile has no phone number to show on the public page." },
+      { message: "Add a phone number before showing a Call button on your profile." },
       { status: 400 },
     );
   }
@@ -329,6 +356,7 @@ export async function POST(req: NextRequest) {
       ? (b.holidayEndDate ?? null)
       : null,
     show_phone_public: Boolean(b.showPhonePublic),
+    public_phone_source: phoneSourceToSave,
     updated_at: new Date().toISOString(),
   };
 
@@ -364,8 +392,19 @@ export async function POST(req: NextRequest) {
       /(saturday|sunday|weekly_schedule|pause_online_bookings|show_phone_public|holiday_mode_enabled|holiday_start_date|holiday_end_date|booking_horizon_days|minimum_notice_hours)/i.test(
         errMsg
       );
+    const missingPhoneSource = /public_phone_source/i.test(errMsg);
 
-    if ((errorFull as { code?: string }).code === "42703" || missingNewCols) {
+    if (missingPhoneSource && !missingNewCols) {
+      const { public_phone_source: _source, ...withoutSource } = payload;
+      const retry = await supabase
+        .from("doctor_settings")
+        .upsert(withoutSource, { onConflict: "doctor_id" })
+        .select()
+        .single();
+      if (!retry.error && retry.data) {
+        data = retry.data;
+      }
+    } else if ((errorFull as { code?: string }).code === "42703" || missingNewCols) {
       return NextResponse.json(
         {
           message:
@@ -375,7 +414,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if ((errorFull as { code?: string }).code === "PGRST204") {
+    if (!data && (errorFull as { code?: string }).code === "PGRST204") {
       const {
         data: dataLegacy,
         error: errorLegacy,
@@ -403,6 +442,7 @@ export async function POST(req: NextRequest) {
 
   const phoneUpdateBase: {
     mobile_number?: string | null;
+    phone?: string | null;
     bio?: string | null;
     district: string;
     clinic_address: string | null;
@@ -422,6 +462,9 @@ export async function POST(req: NextRequest) {
   };
   if (b.doctorPhone !== undefined) {
     phoneUpdateBase.mobile_number = doctorPhoneTrimmed ? doctorPhoneTrimmed : null;
+  }
+  if (b.directoryPhone !== undefined) {
+    phoneUpdateBase.phone = directoryPhoneToSave;
   }
   if (b.bio !== undefined) {
     phoneUpdateBase.bio = bioRaw.length > 0 ? bioRaw : null;

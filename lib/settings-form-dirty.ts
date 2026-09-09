@@ -1,5 +1,6 @@
 import type { WeeklySchedule } from "@/lib/doctor-settings";
 import type { ClinicLocation } from "@/lib/clinic-location";
+import type { PublicPhoneSource } from "@/lib/public-call-phone";
 
 export type SettingsDirtySnapshot = {
   specialty: string;
@@ -7,7 +8,9 @@ export type SettingsDirtySnapshot = {
   bio: string;
   languages: string[];
   mobileNumber: string;
+  directoryPhone: string;
   showPhonePublic: boolean;
+  publicPhoneSource: PublicPhoneSource;
   district: string;
   clinicAddress: string;
   clinicLatitude: number | null;
@@ -46,7 +49,9 @@ export function buildSettingsDirtySnapshot(input: {
   bio: string;
   languages: string[];
   mobileNumber: string;
+  directoryPhone: string;
   showPhonePublic: boolean;
+  publicPhoneSource: PublicPhoneSource;
   district: string;
   clinicLocation: ClinicLocation;
   weeklySchedule: WeeklySchedule;
@@ -67,7 +72,9 @@ export function buildSettingsDirtySnapshot(input: {
     bio: input.bio.trim(),
     languages: [...input.languages].map((l) => l.trim()).filter(Boolean).sort(),
     mobileNumber: input.mobileNumber.trim(),
+    directoryPhone: input.directoryPhone.trim(),
     showPhonePublic: input.showPhonePublic,
+    publicPhoneSource: input.publicPhoneSource,
     district: input.district.trim(),
     clinicAddress: input.clinicLocation.address.trim(),
     clinicLatitude: input.clinicLocation.latitude ?? null,

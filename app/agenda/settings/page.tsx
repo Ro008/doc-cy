@@ -31,6 +31,7 @@ import {
 import { isFounderSubscriptionTier } from "@/lib/subscription-tier";
 import { loadDoctorLocations } from "@/lib/load-doctor-locations";
 import { locationWeeklySchedule } from "@/lib/doctor-locations";
+import { inferPublicPhoneSource } from "@/lib/public-call-phone";
 
 export default async function AgendaSettingsPage() {
   const supabase = createServerComponentClient({ cookies });
@@ -414,6 +415,12 @@ export default async function AgendaSettingsPage() {
     showPhonePublic: Boolean(
       (settings as { show_phone_public?: boolean | null } | null)?.show_phone_public
     ),
+    publicPhoneSource: inferPublicPhoneSource({
+      saved: (settings as { public_phone_source?: string | null } | null)
+        ?.public_phone_source,
+      mobileNumber: (doctor.mobile_number ?? doctor.phone ?? "").trim(),
+      directoryPhone: (doctor.phone ?? "").trim(),
+    }),
     district: (doctor.district ?? "").trim(),
     clinicAddress: (doctor.clinic_address ?? "").trim(),
     clinicTown: (doctor.town ?? "").trim() || null,

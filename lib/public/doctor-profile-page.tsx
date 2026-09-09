@@ -47,9 +47,8 @@ import {
   FinderDistrictLink,
 } from "@/components/finder/FinderSpecialtyLink";
 import { DoctorProfileSpecialties } from "@/components/doctor/DoctorProfileSpecialties";
+import { RevealPhoneButton } from "@/components/finder/RevealPhoneButton";
 import { getTranslations } from "next-intl/server";
-import { Phone } from "lucide-react";
-import { phoneToTelHref } from "@/lib/phone-link";
 import {
   buildNonLiveDoctorMetaTitle,
   buildRegisteredProfileMetaDescription,
@@ -789,8 +788,7 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
     is_specialty_approved: profile.is_specialty_approved,
   });
   const profileSpecialtySeo = formatSpecialtiesForSeo(profileSpecialtyLabels);
-  const publicContactPhone = publicPhone;
-  const publicTelHref = publicContactPhone ? phoneToTelHref(publicContactPhone) : null;
+  const hasPublicPhone = Boolean(publicPhone);
   const structuredData = buildPhysicianStructuredData({
     name: profile.name,
     specialty:
@@ -800,7 +798,7 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
     bio: profile.bio,
     clinicAddress: clinicAddress,
     district: profile.district ?? null,
-    phone: publicContactPhone,
+    phone: null,
     languages: profile.languages ?? null,
     imageUrl: avatarUrl,
     profileUrl: profileCanonicalUrl,
@@ -1019,27 +1017,21 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
               name={profile.name}
               bio={profile.bio}
             />
-            {publicContactPhone ? (
+            {hasPublicPhone ? (
               <section className="lg:min-w-0">
                 <div className="rounded-3xl border border-clinical-200 bg-white p-5 shadow-[0_1px_3px_rgba(26,43,60,0.06),0_8px_24px_rgba(18,184,192,0.06)] backdrop-blur-xl sm:p-6">
                   <h2 className="text-sm font-semibold tracking-wide text-ink-900">
                     Contact
                   </h2>
                   <div className="mt-3 flex flex-col gap-3">
-                    {publicTelHref ? (
-                      <a
-                        href={publicTelHref}
-                        className="inline-flex items-center gap-3 rounded-xl border border-clinical-200 bg-clinical-50 px-3 py-2 text-sm font-semibold text-clinical-800 transition hover:bg-clinical-100"
-                      >
-                        <Phone className="h-4 w-4" />
-                        Call
-                      </a>
-                    ) : (
-                      <p className="flex items-center gap-2 text-sm text-ink-700">
-                        <Phone className="h-4 w-4 text-clinical-600" />
-                        <span>{publicContactPhone}</span>
-                      </p>
-                    )}
+                    <RevealPhoneButton
+                      kind="registered"
+                      id={profile.id}
+                      hasPhone
+                      variant="profile-call"
+                      className="inline-flex items-center gap-3 rounded-xl border border-clinical-200 bg-clinical-50 px-3 py-2 text-sm font-semibold text-clinical-800 transition hover:bg-clinical-100 disabled:cursor-wait disabled:opacity-60"
+                      revealedClassName="inline-flex items-center gap-3 rounded-xl border border-clinical-200 bg-clinical-50 px-3 py-2 text-sm font-semibold tabular-nums text-clinical-800 transition hover:bg-clinical-100"
+                    />
                   </div>
                 </div>
               </section>
