@@ -54,18 +54,21 @@ test.describe("Doctor onboarding email content", { tag: "@pr-email" }, () => {
     expect(claimed.textBody).toContain("listing-1");
   });
 
-  test("doctor registration received email confirms review is pending", () => {
+  test("doctor registration received email asks them to confirm with a magic link", () => {
     const content = buildDoctorRegistrationReceivedEmailContent({
       doctorName: "Maria Papadopoulos",
+      confirmUrl: "https://www.mydoccy.com/auth/confirm-email?token_hash=tok&type=magiclink",
     });
 
     expect(content.subject).toBe("[DocCy] We received your application");
     expect(content.text).toContain("Hi Maria");
     expect(content.text).toContain("received your application");
+    expect(content.text).toContain("not a code");
+    expect(content.text).toContain("/auth/confirm-email");
     expect(content.text).toContain("another email when your account is ready to sign in");
-    expect(content.html).toContain("We received your application");
+    expect(content.html).toContain("Confirm your email");
     expect(content.html.toLowerCase()).not.toContain("/agenda");
-    expect(content.html.toLowerCase()).not.toContain("/login");
+    expect(content.html.toLowerCase()).not.toContain("otp");
   });
 
   test("doctor account verified email points at sign-in, then agenda", () => {

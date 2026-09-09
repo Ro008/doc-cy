@@ -30,6 +30,7 @@ import {
 } from "@/lib/doctor-specialties";
 import { notifyFounderNewRegistration } from "@/lib/notify-founder-new-registration";
 import { sendDoctorRegistrationReceivedEmail } from "@/lib/send-doctor-registration-received-email";
+import { generateRegisterEmailConfirmUrl } from "@/lib/register-email-confirm";
 import { matchesAutomatedDoctorRegistrationTestEmailForAdminBypass } from "@/lib/e2e-doctor-registration-test";
 import { isTestDoctorRegistrationEmail } from "@/lib/doctor-test-profile";
 import {
@@ -77,6 +78,7 @@ type PageProps = {
     debug?: string;
     claim?: string;
     claimed?: string;
+    email?: string;
   };
 };
 
@@ -589,6 +591,7 @@ async function runRegister(formData: FormData) {
         sendDoctorRegistrationReceivedEmail({
           doctorEmail: email,
           doctorName: fullName,
+          confirmUrl: await generateRegisterEmailConfirmUrl(service, email),
         }),
         REGISTER_NOTIFY_TIMEOUT_MS,
         "Doctor registration received email",
@@ -811,8 +814,10 @@ export default async function RegisterPage({ searchParams }: PageProps) {
     errorMessage = "Please search for your clinic and pick it from the Google Maps suggestions.";
   } else if (errorCode === "district") {
     errorMessage = "We could not determine your clinic district. Try another Google Maps result.";
+  } else if (errorCode === "email_confirm") {
+    errorMessage =
+      "That confirmation link is invalid or has expired. Check your inbox for a newer email, or register again if you never received one.";
   }
-
   const claimName = splitProfessionalFullName(claimPrefill?.name);
   const claimClinics = claimPrefill?.clinics ?? [];
   const clinicSlots =
@@ -833,7 +838,11 @@ export default async function RegisterPage({ searchParams }: PageProps) {
         />
 
         {submitted ? (
-          <RegisterSubmittedPanel claimed={claimedSubmit} />
+          <RegisterSubmittedPanel
+            claimed={claimedSubmit}
+            emailConfirmed={searchParams?.email === "confirmed"}
+            confirmError={errorCode === "email_confirm"}
+          />
         ) : (
           <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(300px,360px)]">
             <section className={registerSectionShell}>

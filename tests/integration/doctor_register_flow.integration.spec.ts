@@ -108,7 +108,7 @@ test.describe("Integration: doctor registration flow", { tag: "@local-register" 
         throw new Error(`Registration did not succeed. URL: ${page.url()}`);
       }
       await expect(
-        page.getByRole("heading", { name: /your profile is under review/i }),
+        page.getByRole("heading", { name: /confirm your email to continue/i }),
       ).toBeVisible({ timeout: 15_000 });
       await expect(overlay).toBeHidden();
 

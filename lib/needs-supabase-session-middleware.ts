@@ -13,8 +13,8 @@ export function needsSupabaseSessionMiddleware(pathname: string): boolean {
   if (path === "/dashboard" || path.startsWith("/dashboard/")) return true;
   if (path === "/login" || path.startsWith("/login/")) return true;
   if (path === "/register" || path.startsWith("/register/")) return true;
-  // Recovery session cookies on the choose-password page. Do not include
-  // `/auth/callback` — exchanging the PKCE code belongs in the route handler.
+  // `/auth/callback` and `/auth/confirm-email` — exchanging the token belongs
+  // in the route handler, not middleware.
   if (isForgotPasswordPath(path) || isResetPasswordPath(path)) return true;
   return false;
 }

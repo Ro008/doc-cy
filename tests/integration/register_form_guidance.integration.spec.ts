@@ -85,4 +85,19 @@ test.describe("Integration UI: register form guidance", { tag: "@pr-e2e" }, () =
     ).toHaveCount(1);
     await expect(page).toHaveURL(/\/register\/?$/);
   });
+
+  test("submitted screen asks them to confirm email with a link, not a code", async ({ page }) => {
+    await page.goto("/register?submitted=1");
+    await expect(
+      page.getByRole("heading", { name: /confirm your email to continue/i }),
+    ).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText(/one click,\s+not a code/i)).toBeVisible();
+    await expect(page.getByText(/6-digit|verification code/i)).toHaveCount(0);
+
+    await page.goto("/register?submitted=1&email=confirmed");
+    await expect(
+      page.getByRole("heading", { name: /your profile is under review/i }),
+    ).toBeVisible();
+    await expect(page.getByText(/EMAIL CONFIRMED/i)).toBeVisible();
+  });
 });

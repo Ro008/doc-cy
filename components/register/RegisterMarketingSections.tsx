@@ -48,7 +48,7 @@ const faqItems = [
   {
     question: "What happens after my application is submitted?",
     answer:
-      "Our team securely reviews your professional certification or registration number to maintain the high standards of our platform. Once verified (usually within 24 hours), your profile becomes live, and you will receive access to your Digital Command Center.",
+      "Our team securely reviews your professional certification or registration number to maintain the high standards of our platform. First, confirm your email with the one-click link we send after you apply. Once your credentials are verified (usually within 24 hours), your profile becomes live, and you will receive access to your Digital Command Center.",
   },
   {
     question: "I am already using a paper diary or another tool. Is it hard to switch?",
@@ -232,36 +232,68 @@ export function RegisterFaqSection() {
   );
 }
 
-export function RegisterSubmittedPanel({ claimed = false }: { claimed?: boolean }) {
+export function RegisterSubmittedPanel({
+  claimed = false,
+  emailConfirmed = false,
+  confirmError = false,
+}: {
+  claimed?: boolean;
+  emailConfirmed?: boolean;
+  confirmError?: boolean;
+}) {
   return (
     <div className={`${registerSectionShell} space-y-4 text-sm text-ink-700`}>
       <div className="inline-flex items-center gap-2 rounded-full border border-clinical-300 bg-clinical-50 px-3 py-1 text-[11px] font-medium tracking-[0.25em] text-clinical-700">
         <span className="inline-block h-1.5 w-1.5 rounded-full bg-clinical-500" />
-        APPLICATION RECEIVED
+        {emailConfirmed ? "EMAIL CONFIRMED" : "APPLICATION RECEIVED"}
       </div>
       <h2 className="text-lg font-semibold text-ink-900 sm:text-xl">
-        {claimed
-          ? "Thank you — your listing is under review"
-          : "Thank you — your profile is under review"}
+        {emailConfirmed
+          ? claimed
+            ? "Thank you — your listing is under review"
+            : "Thank you — your profile is under review"
+          : "Thank you — confirm your email to continue"}
       </h2>
-      <p>
-        {claimed ? (
-          <>
-            This is the same profile patients already find on DocCy. Our team will verify your
-            credentials and then turn on online booking, usually within{" "}
-            <span className="font-medium text-clinical-700">24 hours</span>.
-          </>
-        ) : (
-          <>
-            Our team will verify your professional credentials and activate your DocCy profile within{" "}
-            <span className="font-medium text-clinical-700">24 hours</span>.
-          </>
-        )}
-      </p>
-      <p>
-        Once approved, we&apos;ll email you a link to sign in and open your dashboard, where you can
-        configure working hours, appointment types, and your public profile.
-      </p>
+      {confirmError ? (
+        <p className="rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700">
+          That confirmation link is invalid or has expired. Open the newest email we sent, or
+          register again if you never received one.
+        </p>
+      ) : null}
+      {emailConfirmed ? (
+        <>
+          <p>
+            {claimed ? (
+              <>
+                This is the same profile patients already find on DocCy. Our team will verify your
+                credentials and then turn on online booking, usually within{" "}
+                <span className="font-medium text-clinical-700">24 hours</span>.
+              </>
+            ) : (
+              <>
+                Our team will verify your professional credentials and activate your DocCy profile
+                within <span className="font-medium text-clinical-700">24 hours</span>.
+              </>
+            )}
+          </p>
+          <p>
+            Once approved, we&apos;ll email you a link to sign in and open your dashboard, where you
+            can configure working hours, appointment types, and your public profile.
+          </p>
+        </>
+      ) : (
+        <>
+          <p>
+            We sent a confirmation link to your email. Open it to confirm this address — one click,
+            not a code.
+          </p>
+          <p>
+            After that, our team reviews your credentials, usually within{" "}
+            <span className="font-medium text-clinical-700">24 hours</span>. You will get another
+            email when you can sign in.
+          </p>
+        </>
+      )}
     </div>
   );
 }

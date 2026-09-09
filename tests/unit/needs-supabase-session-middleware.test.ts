@@ -26,6 +26,7 @@ describe("needsSupabaseSessionMiddleware", () => {
       assert.equal(needsSupabaseSessionMiddleware(path), false, path);
     }
     assert.equal(needsSupabaseSessionMiddleware("/auth/callback"), false);
+    assert.equal(needsSupabaseSessionMiddleware("/auth/confirm-email"), false);
   });
 
   it("refreshes Auth on doctor product routes", () => {
