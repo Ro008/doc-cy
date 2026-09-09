@@ -15,3 +15,17 @@ export function getDoctorLoginUrl(nextPath = "/agenda", baseUrl?: string): strin
   url.searchParams.set("next", nextPath);
   return url.toString();
 }
+
+/**
+ * Public page that opens the in-app support form.
+ * `topic` is the `?support=` value FeedbackWidget reads on load.
+ */
+export function getSupportFormUrl(
+  topic: "application-review" = "application-review",
+  baseUrl?: string,
+): string {
+  const base = (baseUrl?.trim() || getPublicBookingBaseUrl()).replace(/\/$/, "");
+  const url = new URL("/", base);
+  url.searchParams.set("support", topic);
+  return url.toString();
+}

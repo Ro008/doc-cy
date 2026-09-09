@@ -7,6 +7,12 @@ export const DOCCY_FEEDBACK_SUBJECT_WEBSITE_BOOKING =
 /** Locked feedback topic when requesting done-for-you onboarding on a call (register page). */
 export const DOCCY_FEEDBACK_SUBJECT_DEMO_REQUEST = "Onboarding Request";
 
+/** Locked topic when a professional asks about a rejected application. */
+export const DOCCY_FEEDBACK_SUBJECT_APPLICATION_REVIEW = "Application review inquiry";
+
+/** Query value for emails/links that should open the support form on this topic. */
+export const DOCCY_SUPPORT_QUERY_APPLICATION_REVIEW = "application-review";
+
 /** @deprecated Use DOCCY_FEEDBACK_SUBJECT_DEMO_REQUEST */
 export const DOCCY_FEEDBACK_SUBJECT_IN_PERSON_DEMO = DOCCY_FEEDBACK_SUBJECT_DEMO_REQUEST;
 

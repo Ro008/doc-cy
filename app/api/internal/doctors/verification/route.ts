@@ -3,6 +3,7 @@ import { createServiceRoleClient } from "@/lib/supabase-service";
 import { denyUnlessInternalFounder } from "@/lib/internal-directory-auth";
 import { verificationBlockedReason } from "@/lib/doctor-specialty-public";
 import { sendDoctorAccountVerifiedEmail } from "@/lib/send-doctor-account-verified-email";
+import { sendDoctorAccountRejectedEmail } from "@/lib/send-doctor-account-rejected-email";
 import { getPublicBookingBaseUrl } from "@/lib/site-url";
 
 type Body = {
@@ -122,6 +123,18 @@ export async function POST(req: NextRequest) {
       });
     } catch (err) {
       console.error("[internal/doctors/verification] account verified email failed", err);
+    }
+  } else {
+    try {
+      await sendDoctorAccountRejectedEmail({
+        siteUrl: getPublicBookingBaseUrl(),
+        doctorEmail: String((row as { email?: string | null }).email ?? ""),
+        doctorName: String((row as { name?: string | null }).name ?? "Doctor"),
+        reason: "license",
+        resendToOverride: process.env.RESEND_TO_OVERRIDE?.trim() || null,
+      });
+    } catch (err) {
+      console.error("[internal/doctors/verification] account rejected email failed", err);
     }
   }
 

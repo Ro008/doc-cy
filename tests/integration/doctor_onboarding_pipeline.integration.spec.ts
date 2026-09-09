@@ -73,7 +73,7 @@ test.describe("Integration: doctor onboarding pipeline", { tag: "@pr-e2e" }, () 
         siteUrl: getPublicBookingBaseUrl(),
         doctorName: `Onboard Std ${nonce}`,
       });
-      expect(doctorEmail.subject).toBe("[DocCy] Your account is ready");
+      expect(doctorEmail.subject).toBe("[DocCy] Your account is ready — sign in");
       expect(doctorEmail.loginUrl).toContain("/login");
 
       await loginDoctorUi(page, fixture.email, fixture.password);

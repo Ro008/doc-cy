@@ -32,6 +32,7 @@ import {
   type DoctorSpecialtyEntryInput,
 } from "@/lib/doctor-specialties";
 import { notifyFounderNewRegistration } from "@/lib/notify-founder-new-registration";
+import { sendDoctorRegistrationReceivedEmail } from "@/lib/send-doctor-registration-received-email";
 import { matchesAutomatedDoctorRegistrationTestEmailForAdminBypass } from "@/lib/e2e-doctor-registration-test";
 import { isTestDoctorRegistrationEmail } from "@/lib/doctor-test-profile";
 import {
@@ -544,7 +545,7 @@ async function runRegister(formData: FormData) {
     }
   }
 
-  const sendFounderSignupNotify = async () => {
+  const sendRegistrationEmails = async () => {
     try {
       await withTimeout(
         notifyFounderNewRegistration({
@@ -561,6 +562,19 @@ async function runRegister(formData: FormData) {
       );
     } catch (err) {
       console.error("[DocCy] Founder registration notify failed or timed out", err);
+    }
+
+    try {
+      await withTimeout(
+        sendDoctorRegistrationReceivedEmail({
+          doctorEmail: email,
+          doctorName: fullName,
+        }),
+        REGISTER_NOTIFY_TIMEOUT_MS,
+        "Doctor registration received email",
+      );
+    } catch (err) {
+      console.error("[DocCy] Doctor registration received email failed or timed out", err);
     }
   };
 
@@ -625,7 +639,7 @@ async function runRegister(formData: FormData) {
         .eq("id", doctorId);
       if (!withoutTownError) {
         await syncPrimaryBookingLocation();
-        await sendFounderSignupNotify();
+        await sendRegistrationEmails();
         redirect("/register?submitted=1");
       }
     }
@@ -636,7 +650,7 @@ async function runRegister(formData: FormData) {
         "[DocCy] avatar_url column missing on doctors. Apply SQL migration to persist avatar path."
       );
       await syncPrimaryBookingLocation();
-      await sendFounderSignupNotify();
+      await sendRegistrationEmails();
       redirect("/register?submitted=1");
     }
     if (missingClinicColumns) {
@@ -652,7 +666,7 @@ async function runRegister(formData: FormData) {
         console.error("[DocCy] Failed legacy profile save on doctor", legacyProfileError);
       } else {
         await syncPrimaryBookingLocation();
-        await sendFounderSignupNotify();
+        await sendRegistrationEmails();
         redirect("/register?submitted=1");
       }
     }
@@ -671,7 +685,7 @@ async function runRegister(formData: FormData) {
   }
 
   await syncPrimaryBookingLocation();
-  await sendFounderSignupNotify();
+  await sendRegistrationEmails();
   const claimedThisListing = Boolean(claim?.id && doctorId === claim.id);
   redirect(claimedThisListing ? "/register?submitted=1&claimed=1" : "/register?submitted=1");
 }

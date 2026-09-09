@@ -4,6 +4,8 @@ import { createServiceRoleClient } from "@/lib/supabase-service";
 import { denyUnlessInternalFounder } from "@/lib/internal-directory-auth";
 import { isMasterSpecialty } from "@/lib/cyprus-specialties";
 import { normalizeApprovedCustomSpecialty } from "@/lib/specialty-submission";
+import { sendDoctorAccountRejectedEmail } from "@/lib/send-doctor-account-rejected-email";
+import { getPublicBookingBaseUrl } from "@/lib/site-url";
 
 type ReviewAction = "map" | "approve_new" | "approve_edited" | "reject_specialty";
 
@@ -35,6 +37,23 @@ function clearRequiresStandard() {
 
 function badRequest(message: string) {
   return NextResponse.json({ message }, { status: 400 });
+}
+
+async function notifySpecialtyRejection(professional: {
+  name?: string | null;
+  email?: string | null;
+}): Promise<void> {
+  try {
+    await sendDoctorAccountRejectedEmail({
+      siteUrl: getPublicBookingBaseUrl(),
+      doctorEmail: String(professional.email ?? ""),
+      doctorName: String(professional.name ?? "Doctor"),
+      reason: "specialty",
+      resendToOverride: process.env.RESEND_TO_OVERRIDE?.trim() || null,
+    });
+  } catch (err) {
+    console.error("[specialty-review] application rejected email failed", err);
+  }
 }
 
 function sameLabel(a: string, b: string): boolean {
@@ -166,7 +185,7 @@ export async function POST(req: NextRequest) {
 
   const { data: professional, error: fetchErr } = await supabase
     .from("professionals")
-    .select("id, specialty, is_specialty_approved, status")
+    .select("id, name, email, specialty, is_specialty_approved, status")
     .eq("id", doctorId)
     .maybeSingle();
 
@@ -244,6 +263,7 @@ export async function POST(req: NextRequest) {
           console.error("[specialty-review] reject_specialty failed", error);
           return NextResponse.json({ message: "Update failed." }, { status: 500 });
         }
+        await notifySpecialtyRejection(professional as { name?: string | null; email?: string | null });
         return NextResponse.json({
           ok: true,
           status: "rejected",
@@ -307,6 +327,7 @@ export async function POST(req: NextRequest) {
       console.error("[specialty-review] reject_specialty failed", error);
       return NextResponse.json({ message: "Update failed." }, { status: 500 });
     }
+    await notifySpecialtyRejection(professional as { name?: string | null; email?: string | null });
     return NextResponse.json({ ok: true, status: "rejected", is_specialty_approved: false });
   }
 
