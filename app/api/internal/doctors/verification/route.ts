@@ -5,6 +5,7 @@ import { verificationBlockedReason } from "@/lib/doctor-specialty-public";
 import { sendDoctorAccountVerifiedEmail } from "@/lib/send-doctor-account-verified-email";
 import { sendDoctorAccountRejectedEmail } from "@/lib/send-doctor-account-rejected-email";
 import { professionalAccountEmail } from "@/lib/professional-account-contact";
+import { getPublicBookingBaseUrl } from "@/lib/site-url";
 
 type Body = {
   doctorId?: string;

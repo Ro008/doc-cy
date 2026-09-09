@@ -189,13 +189,13 @@ export default async function FounderDashboardPage({
     doctorsRes.error &&
     /registration_email/i.test(String(doctorsRes.error.message ?? ""))
   ) {
-    doctorsRes = await fetchAllSupabaseRows(() =>
+    doctorsRes = (await fetchAllSupabaseRows(() =>
       supabase
         .from("professionals")
         .select(doctorSelectLegacy)
         .eq("is_registered", true)
         .order("created_at", { ascending: false }),
-    );
+    )) as typeof doctorsRes;
   }
 
   const [
@@ -355,13 +355,13 @@ export default async function FounderDashboardPage({
     pendingRes.error &&
     /registration_email/i.test(String(pendingRes.error.message ?? ""))
   ) {
-    pendingRes = await supabase
+    pendingRes = (await supabase
       .from("professionals")
       .select("id, name, specialty, email")
       .eq("is_specialty_approved", false)
       .eq("status", "pending")
       .eq("is_registered", true)
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: false })) as typeof pendingRes;
   }
 
   const pendingProfessionals =
@@ -412,13 +412,13 @@ export default async function FounderDashboardPage({
       changeReqRes.error &&
       /registration_email/i.test(String(changeReqRes.error.message ?? ""))
     ) {
-      changeReqRes = await supabase
+      changeReqRes = (await supabase
         .from("doctor_specialty_change_requests")
         .select(
           "id, doctor_id, request_kind, from_specialty, to_specialty, to_specialty_from_master, license_number, created_at, professionals(name, email)",
         )
         .eq("status", "pending")
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false })) as typeof changeReqRes;
     }
 
     if (changeReqRes.error) {

@@ -168,8 +168,8 @@ export function readRegisterClinicsFromFormData(
       town: formData.get(names.town),
       allowE2eFallback,
     });
-    if (!resolved.ok) {
-      if (index === 0) return resolved;
+    if (resolved.ok === false) {
+      if (index === 0) return { ok: false, code: resolved.code };
       break;
     }
     clinics.push(resolved.value);
