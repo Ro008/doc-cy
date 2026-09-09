@@ -208,7 +208,6 @@ test.describe("Integration: finder user-like filter behavior matrix", { tag: ["@
       await expect(page.getByTestId("finder-active-filters")).toContainText("Dentist", {
         timeout: 60_000,
       });
-      await page.goto(`/limassol/dentist?name=${encodeURIComponent(nonce)}`);
       await expect(registeredDoctorLink(page, created[1].name)).toBeVisible({ timeout: 60_000 });
       await expect(page.getByText(created[0].name, { exact: true })).toHaveCount(0);
 
