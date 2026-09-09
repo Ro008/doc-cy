@@ -17,6 +17,19 @@ export const REGISTER_WIZARD_STEP_COUNT = 3;
 
 export const REGISTER_NEXT_EVENT = "doccy-register-next";
 
+function prefersReducedMotion(): boolean {
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+function scrollRegisterWizardToTop(): void {
+  const top = document.querySelector<HTMLElement>("[data-testid='register-progress']");
+  if (!top) return;
+  top.scrollIntoView({
+    behavior: prefersReducedMotion() ? "auto" : "smooth",
+    block: "start",
+  });
+}
+
 export function RegisterWizard({
   formId,
   submitLabel,
@@ -37,6 +50,21 @@ export function RegisterWizard({
       form.dataset.wizardStep = String(step);
     }
   }, [formId, step]);
+
+  const isFirstStepPaint = React.useRef(true);
+  React.useEffect(() => {
+    if (isFirstStepPaint.current) {
+      isFirstStepPaint.current = false;
+      return;
+    }
+    scrollRegisterWizardToTop();
+    const heading = document.querySelector<HTMLElement>(
+      `[data-register-step="${step}"]:not([hidden]) h3`,
+    );
+    if (!heading) return;
+    heading.tabIndex = -1;
+    heading.focus({ preventScroll: true });
+  }, [step]);
 
   const goNext = React.useCallback(() => {
     const form = document.getElementById(formId) as HTMLFormElement | null;
@@ -113,7 +141,7 @@ export function RegisterWizardStep({
       data-register-step={step}
       data-testid={`register-step-${step}`}
       hidden={!active}
-      className="space-y-6"
+      className={`space-y-6${active ? " register-step-in" : ""}`}
     >
       <div>
         <h3 className="text-lg font-semibold tracking-tight text-ink-900">{title}</h3>

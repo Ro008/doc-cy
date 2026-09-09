@@ -10,7 +10,7 @@ export function RegisterFormProgress({ formId: _formId }: { formId: string }) {
   const stepCount = wizard?.stepCount ?? 3;
 
   return (
-    <div data-testid="register-progress" className="space-y-2">
+    <div data-testid="register-progress" className="scroll-mt-6 space-y-2">
       <div className="flex items-center justify-between gap-3">
         <ol className="flex min-w-0 items-center gap-2 text-xs font-semibold">
           {STEP_LABELS.slice(0, stepCount).map((label, index) => {

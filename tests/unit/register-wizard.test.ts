@@ -19,4 +19,13 @@ describe("register wizard wiring", () => {
     assert.doesNotMatch(source, /RegisterPromoBanner/);
     assert.doesNotMatch(source, /RegisterDemoAside/);
   });
+
+  it("scrolls the wizard to the top and animates incoming steps", () => {
+    const wizard = fs.readFileSync(
+      path.join(repoRoot, "components/auth/RegisterWizard.tsx"),
+      "utf8",
+    );
+    assert.match(wizard, /scrollRegisterWizardToTop/);
+    assert.match(wizard, /register-step-in/);
+  });
 });
