@@ -66,7 +66,13 @@ export function RegisterSpecialtyFields({
   const formValid = allFilled && !hasDuplicates;
 
   return (
-    <div className="group sm:col-span-2 space-y-4" data-validate-field="1" data-invalid="0">
+    <div
+      className="group space-y-4"
+      data-validate-field="1"
+      data-invalid="0"
+      data-field-key="specialties"
+      data-field-label="Specialties and license numbers"
+    >
       <div>
         <p className={registerLabelClass}>
           Specialties<span className="text-red-600">*</span>
@@ -107,7 +113,9 @@ export function RegisterSpecialtyFields({
         data-validity-proxy="true"
         required
         value={formValid ? "ok" : ""}
-        readOnly
+        // A readonly input is barred from constraint validation, which would make
+        // this required field silently always valid. The no-op keeps React quiet.
+        onChange={() => {}}
         aria-hidden
         tabIndex={-1}
         className="pointer-events-none absolute h-0 w-0 opacity-0"

@@ -1,6 +1,7 @@
 import { Clock, ShieldCheck } from "lucide-react";
 import { SignOutButton } from "@/components/auth/SignOutButton";
 import { SupportInquiryLink } from "@/components/landing/SupportInquiryLink";
+import { DOCCY_FEEDBACK_SUBJECT_APPLICATION_REVIEW } from "@/lib/doccy-feedback";
 import type { DoctorRejectionKind, DoctorVerificationStatus } from "@/lib/doctor-account-access";
 
 type Props = {
@@ -9,7 +10,7 @@ type Props = {
   rejectionKind?: DoctorRejectionKind | null;
 };
 
-const SUPPORT_FEEDBACK = { subject: "Application review inquiry" } as const;
+const SUPPORT_FEEDBACK = { subject: DOCCY_FEEDBACK_SUBJECT_APPLICATION_REVIEW } as const;
 
 /**
  * Logged-in doctor view while license verification is not complete.

@@ -478,3 +478,103 @@ button {
   color: inherit !important;
 }
 
+
+/* ---------------------------------------------------------------------------
+   Register form guidance (see components/auth/useRegisterFieldStates.ts).
+   Beta testers were skipping fields, so every field wrapper reports its state
+   visually: a check once it is filled, and a flash when we jump the user to it.
+   --------------------------------------------------------------------------- */
+
+[data-validate-field="1"] {
+  position: relative;
+  scroll-margin-top: 6rem;
+  border-radius: 0.75rem;
+}
+
+[data-validate-field="1"][data-complete="1"]::after {
+  content: "\2713";
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: flex;
+  height: 1.15rem;
+  width: 1.15rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  background-color: rgba(42, 157, 143, 0.14);
+  color: #1a675e;
+  font-size: 0.65rem;
+  font-weight: 700;
+  line-height: 1;
+  pointer-events: none;
+}
+
+/* Fields drawn as a card already have padding, so inset the badge. */
+[data-validate-field="1"][data-field-boxed="1"][data-complete="1"]::after {
+  top: 0.7rem;
+  right: 0.7rem;
+}
+
+@keyframes register-field-flash {
+  0% {
+    box-shadow: 0 0 0 0 rgba(18, 184, 192, 0);
+  }
+  25% {
+    box-shadow: 0 0 0 4px rgba(18, 184, 192, 0.28);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(18, 184, 192, 0);
+  }
+}
+
+[data-validate-field="1"][data-flash="1"] {
+  animation: register-field-flash 1.5s ease-out;
+}
+
+@keyframes register-step-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+[data-register-step].register-step-in {
+  animation: register-step-in 380ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes register-wait-slot {
+  0%,
+  100% {
+    background-color: #e6f8f9;
+    transform: scale(1);
+  }
+  40% {
+    background-color: #12b8c0;
+    transform: scale(1.08);
+  }
+}
+
+.register-wait-slot {
+  animation: register-wait-slot 2.2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-validate-field="1"][data-flash="1"] {
+    animation: none;
+    box-shadow: 0 0 0 4px rgba(18, 184, 192, 0.28);
+  }
+
+  [data-register-step].register-step-in {
+    animation: none;
+  }
+
+  .register-wait-slot {
+    animation: none;
+    background-color: #12b8c0;
+  }
+}

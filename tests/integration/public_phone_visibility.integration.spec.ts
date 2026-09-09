@@ -131,8 +131,14 @@ test.describe("Integration: public phone visibility toggle", () => {
 
       await page.goto(`/en/${doctorSlug}`);
       await expect(page.getByRole("heading", { name: /^Contact$/i })).toBeVisible({ timeout: 10000 });
-      await expect(page.getByRole("link", { name: /Chat on WhatsApp/i })).toBeVisible({ timeout: 10000 });
-      await expect(page.getByText(publicPhone)).toBeVisible({ timeout: 10000 });
+      const callButton = page.getByRole("button", { name: /^Call$/i });
+      await expect(callButton).toBeVisible({ timeout: 10000 });
+      await expect(page.getByRole("link", { name: /Chat on WhatsApp/i })).toHaveCount(0);
+      await expect(page.locator(`a[href^="tel:"]`)).toHaveCount(0);
+      await callButton.click();
+      const revealed = page.getByRole("link", { name: /\+357/ });
+      await expect(revealed).toBeVisible({ timeout: 10000 });
+      await expect(revealed).toHaveAttribute("href", /tel:\+35799123456/);
     } finally {
       if (doctorId) {
         await admin.from("doctor_services").delete().eq("doctor_id", doctorId);

@@ -6,17 +6,12 @@ import { RegisterLanguageFields } from "@/components/auth/RegisterLanguageFields
 import { RegisterAvatarUpload } from "@/components/auth/RegisterAvatarUpload";
 import { RegisterDevErrorConsole } from "@/components/auth/RegisterDevErrorConsole";
 import { RegisterFormValidation } from "@/components/auth/RegisterFormValidation";
+import { RegisterFormSubmitFeedback } from "@/components/auth/RegisterFormSubmitFeedback";
+import { RegisterWizard, RegisterWizardStep } from "@/components/auth/RegisterWizard";
 import {
-  RegisterFormSubmitFeedback,
-  RegisterSubmitButton,
-} from "@/components/auth/RegisterFormSubmitFeedback";
-import {
-  RegisterDemoAside,
-  RegisterFaqSection,
   RegisterIntroSection,
-  RegisterPromoBanner,
+  RegisterSecondarySections,
   RegisterSubmittedPanel,
-  RegisterTrustBadges,
 } from "@/components/register/RegisterMarketingSections";
 import {
   registerFieldErrorClass,
@@ -31,6 +26,8 @@ import {
   type DoctorSpecialtyEntryInput,
 } from "@/lib/doctor-specialties";
 import { notifyFounderNewRegistration } from "@/lib/notify-founder-new-registration";
+import { sendDoctorRegistrationReceivedEmail } from "@/lib/send-doctor-registration-received-email";
+import { generateRegisterEmailConfirmUrl } from "@/lib/register-email-confirm";
 import { matchesAutomatedDoctorRegistrationTestEmailForAdminBypass } from "@/lib/e2e-doctor-registration-test";
 import { isTestDoctorRegistrationEmail } from "@/lib/doctor-test-profile";
 import {
@@ -40,11 +37,26 @@ import {
 } from "@/lib/local-test-login-credentials";
 import { MAX_FOUNDERS } from "@/lib/founders-club";
 import {
-  resolveRegisterClinicLocation,
+  readRegisterClinicsFromFormData,
   shouldAllowRegisterClinicE2eFallback,
 } from "@/lib/register-clinic-location";
 import { RegisterClinicAddressField } from "@/components/auth/RegisterClinicAddressField";
 import { allocateUniqueDoctorSlug } from "@/lib/doctor-slug";
+import {
+  joinProfessionalFullName,
+  splitProfessionalFullName,
+} from "@/lib/doctor-display-name";
+import { MAX_DOCTOR_LOCATIONS } from "@/lib/doctor-locations";
+import { clinicLocationFromParts } from "@/lib/clinic-location";
+import {
+  PASSWORD_MAX_LENGTH,
+  PASSWORD_MIN_LENGTH,
+  PASSWORD_POLICY_ERROR,
+  PASSWORD_POLICY_HELPER,
+  PASSWORD_POLICY_HTML_PATTERN,
+  PASSWORD_POLICY_TITLE,
+  isStrongPassword,
+} from "@/lib/password-policy";
 import {
   isProfessionalUuid,
   loadUnregisteredProfessionalForRegisterClaim,
@@ -63,6 +75,7 @@ type PageProps = {
     debug?: string;
     claim?: string;
     claimed?: string;
+    email?: string;
   };
 };
 
@@ -198,21 +211,22 @@ async function runRegister(formData: FormData) {
     redirectWithError(errorCode, detail, claimFromForm);
   }
 
-  const fullName = (formData.get("fullName") as string | null)?.trim() || "";
+  const firstName = (formData.get("firstName") as string | null)?.trim() || "";
+  const lastName = (formData.get("lastName") as string | null)?.trim() || "";
+  const fullName =
+    joinProfessionalFullName(firstName, lastName) ||
+    (formData.get("fullName") as string | null)?.trim() ||
+    "";
   const email = (formData.get("email") as string | null)?.trim() || "";
   const password = (formData.get("password") as string | null) || "";
   const phone = (formData.get("phone") as string | null)?.trim() || "";
   const avatarFile = formData.get("avatarFile") as File | null;
   const professionalDisclaimer = formData.get("professionalDisclaimer");
-  const clinicResolved = resolveRegisterClinicLocation({
-    clinicAddress: formData.get("clinicAddress"),
-    clinicLatitude: formData.get("clinicLatitude"),
-    clinicLongitude: formData.get("clinicLongitude"),
-    clinicPlaceId: formData.get("clinicPlaceId"),
-    district: formData.get("district"),
-    town: formData.get("town"),
-    allowE2eFallback: shouldAllowRegisterClinicE2eFallback(email),
-  });
+  const clinicsResolved = readRegisterClinicsFromFormData(
+    formData,
+    shouldAllowRegisterClinicE2eFallback(email),
+    MAX_DOCTOR_LOCATIONS,
+  );
 
   let specialtyInputs: DoctorSpecialtyEntryInput[] = [];
   const specialtiesJsonRaw = formData.get("specialtiesJson");
@@ -253,6 +267,8 @@ async function runRegister(formData: FormData) {
   const isSpecialtyApproved = specialtyEntries.every((e) => e.isApproved);
 
   if (
+    !firstName ||
+    !lastName ||
     !fullName ||
     !email ||
     !password ||
@@ -263,8 +279,12 @@ async function runRegister(formData: FormData) {
     fail("validation");
   }
 
-  if (clinicResolved.ok === false) {
-    fail(clinicResolved.code);
+  if (!isStrongPassword(password)) {
+    fail("password_policy");
+  }
+
+  if (clinicsResolved.ok === false) {
+    fail(clinicsResolved.code);
   }
 
   const {
@@ -274,7 +294,8 @@ async function runRegister(formData: FormData) {
     latitude: clinicLatitude,
     longitude: clinicLongitude,
     clinicPlaceId,
-  } = clinicResolved.value;
+  } = clinicsResolved.value[0]!;
+  const extraClinics = clinicsResolved.value.slice(1);
 
   if (!emailRegex.test(email)) {
     fail("invalid_email_format");
@@ -466,8 +487,8 @@ async function runRegister(formData: FormData) {
       auth_user_id: authUserId,
       name: fullName,
       specialty,
-      email,
-      phone,
+      registration_email: email,
+      mobile_number: phone,
       languages,
       license_number: licenseNumber,
       license_file_url: licenseFileUrl,
@@ -543,9 +564,14 @@ async function runRegister(formData: FormData) {
     }
   }
 
-  const sendFounderSignupNotify = async () => {
-    try {
-      await withTimeout(
+  const sendRegistrationEmails = async () => {
+    const confirmUrlPromise = generateRegisterEmailConfirmUrl(service, email).catch((err) => {
+      console.error("[DocCy] Confirm URL generate failed", err);
+      return null as string | null;
+    });
+
+    await Promise.all([
+      withTimeout(
         notifyFounderNewRegistration({
           doctorId,
           fullName,
@@ -557,10 +583,26 @@ async function runRegister(formData: FormData) {
         }),
         REGISTER_NOTIFY_TIMEOUT_MS,
         "Founder registration notify",
-      );
-    } catch (err) {
-      console.error("[DocCy] Founder registration notify failed or timed out", err);
-    }
+      ).catch((err) => {
+        console.error("[DocCy] Founder registration notify failed or timed out", err);
+      }),
+      (async () => {
+        try {
+          const confirmUrl = await confirmUrlPromise;
+          await withTimeout(
+            sendDoctorRegistrationReceivedEmail({
+              doctorEmail: email,
+              doctorName: fullName,
+              confirmUrl,
+            }),
+            REGISTER_NOTIFY_TIMEOUT_MS,
+            "Doctor registration received email",
+          );
+        } catch (err) {
+          console.error("[DocCy] Doctor registration received email failed or timed out", err);
+        }
+      })(),
+    ]);
   };
 
   const profileUpdateBase = {
@@ -604,6 +646,40 @@ async function runRegister(formData: FormData) {
       ...locationFields,
     });
   };
+  const persistBookingLocations = async () => {
+    await syncPrimaryBookingLocation();
+    if (extraClinics.length === 0) return;
+
+    const existing = await service
+      .from("doctor_locations")
+      .select("id, clinic_address")
+      .eq("doctor_id", doctorId);
+    const seen = new Set(
+      (existing.data ?? []).map((row) =>
+        String((row as { clinic_address?: string | null }).clinic_address ?? "")
+          .trim()
+          .toLowerCase(),
+      ),
+    );
+    let sortOrder = 1;
+    for (const clinic of extraClinics) {
+      const key = clinic.clinicAddress.trim().toLowerCase();
+      if (seen.has(key)) continue;
+      await service.from("doctor_locations").insert({
+        doctor_id: doctorId,
+        is_primary: false,
+        sort_order: sortOrder,
+        district: clinic.district,
+        town: clinic.town,
+        clinic_address: clinic.clinicAddress,
+        latitude: clinic.latitude,
+        longitude: clinic.longitude,
+        clinic_place_id: clinic.clinicPlaceId,
+      });
+      seen.add(key);
+      sortOrder += 1;
+    }
+  };
   if (avatarSaveError) {
     const missingAvatarColumn =
       avatarSaveError.code === "PGRST204" &&
@@ -623,8 +699,8 @@ async function runRegister(formData: FormData) {
         .update(withoutTown)
         .eq("id", doctorId);
       if (!withoutTownError) {
-        await syncPrimaryBookingLocation();
-        await sendFounderSignupNotify();
+        await persistBookingLocations();
+        await sendRegistrationEmails();
         redirect("/register?submitted=1");
       }
     }
@@ -634,8 +710,8 @@ async function runRegister(formData: FormData) {
       console.warn(
         "[DocCy] avatar_url column missing on doctors. Apply SQL migration to persist avatar path."
       );
-      await syncPrimaryBookingLocation();
-      await sendFounderSignupNotify();
+      await persistBookingLocations();
+      await sendRegistrationEmails();
       redirect("/register?submitted=1");
     }
     if (missingClinicColumns) {
@@ -650,8 +726,8 @@ async function runRegister(formData: FormData) {
       if (legacyProfileError) {
         console.error("[DocCy] Failed legacy profile save on doctor", legacyProfileError);
       } else {
-        await syncPrimaryBookingLocation();
-        await sendFounderSignupNotify();
+        await persistBookingLocations();
+        await sendRegistrationEmails();
         redirect("/register?submitted=1");
       }
     }
@@ -669,8 +745,8 @@ async function runRegister(formData: FormData) {
     fail("avatar_save", avatarSaveError);
   }
 
-  await syncPrimaryBookingLocation();
-  await sendFounderSignupNotify();
+  await persistBookingLocations();
+  await sendRegistrationEmails();
   const claimedThisListing = Boolean(claim?.id && doctorId === claim.id);
   redirect(claimedThisListing ? "/register?submitted=1&claimed=1" : "/register?submitted=1");
 }
@@ -703,9 +779,8 @@ export default async function RegisterPage({ searchParams }: PageProps) {
   } else if (errorCode === "auth_network") {
     errorMessage =
       "Network issue while creating your account. Please check your connection and try again.";
-  } else if (errorCode === "auth_weak_password") {
-    errorMessage =
-      "Your password is too weak. Use at least 8 characters with a stronger combination.";
+  } else if (errorCode === "auth_weak_password" || errorCode === "password_policy") {
+    errorMessage = PASSWORD_POLICY_ERROR;
   } else if (errorCode === "auth") {
     errorMessage =
       "We couldn’t create your account. Please double‑check your email and try again.";
@@ -743,7 +818,14 @@ export default async function RegisterPage({ searchParams }: PageProps) {
     errorMessage = "Please search for your clinic and pick it from the Google Maps suggestions.";
   } else if (errorCode === "district") {
     errorMessage = "We could not determine your clinic district. Try another Google Maps result.";
+  } else if (errorCode === "email_confirm") {
+    errorMessage =
+      "That confirmation link is invalid or has expired. Check your inbox for a newer email, or register again if you never received one.";
   }
+  const claimName = splitProfessionalFullName(claimPrefill?.name);
+  const claimClinics = claimPrefill?.clinics ?? [];
+  const clinicSlots =
+    claimClinics.length > 0 ? claimClinics.slice(0, MAX_DOCTOR_LOCATIONS) : [null];
 
   return (
     <main className="min-h-screen bg-ink-50 text-ink-900">
@@ -753,30 +835,32 @@ export default async function RegisterPage({ searchParams }: PageProps) {
         <div className="absolute bottom-0 left-[-5%] h-72 w-72 rounded-full bg-clinical-200/25 blur-3xl" />
       </div>
 
-      <div className="mx-auto flex min-h-screen max-w-6xl flex-col gap-8 px-4 py-8 sm:px-6 lg:gap-10 lg:py-12 lg:px-8">
-        <RegisterPromoBanner />
+      <div className="mx-auto flex min-h-screen max-w-2xl flex-col gap-6 px-4 py-8 sm:px-6 lg:py-10">
         <RegisterIntroSection
           claim={claimPrefill ? { firstName: claimPrefill.firstName } : null}
         />
 
         {submitted ? (
-          <RegisterSubmittedPanel claimed={claimedSubmit} />
+          <RegisterSubmittedPanel
+            claimed={claimedSubmit}
+            emailConfirmed={searchParams?.email === "confirmed"}
+            confirmError={errorCode === "email_confirm"}
+          />
         ) : (
-          <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(300px,360px)]">
+          <>
             <section className={registerSectionShell}>
-              <h2 className="text-xl font-semibold tracking-tight text-ink-900 sm:text-2xl">
-                {claimPrefill
-                  ? "Confirm your details to activate this listing"
-                  : "Complete your professional application"}
-              </h2>
+              {claimPrefill ? (
+                <h2 className="text-base font-semibold tracking-tight text-ink-900">
+                  Confirm your details to activate this listing
+                </h2>
+              ) : null}
 
               <form
                 id="register-form"
                 action={handleRegister}
                 noValidate
-                className="mt-6 space-y-6"
+                className={`${claimPrefill ? "mt-5" : ""} space-y-6`}
               >
-                <RegisterFormValidation formId="register-form" />
                 {process.env.NODE_ENV === "development" && errorCode && debugDetail ? (
                   <RegisterDevErrorConsole
                     errorCode={errorCode}
@@ -796,107 +880,6 @@ export default async function RegisterPage({ searchParams }: PageProps) {
                 {claimPrefill ? (
                   <input type="hidden" name="claimProfessionalId" value={claimPrefill.id} />
                 ) : null}
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="group sm:col-span-2" data-validate-field="1" data-invalid="0">
-                    <label htmlFor="register-full-name" className={registerLabelClass}>
-                      Full Name<span className="text-red-600">*</span>
-                      <input
-                        id="register-full-name"
-                        name="fullName"
-                        required
-                        defaultValue={claimPrefill?.name ?? ""}
-                        className={registerInputClass}
-                      />
-                    </label>
-                    <p className={registerFieldErrorClass}>Please enter your full name.</p>
-                  </div>
-
-                  <RegisterSpecialtyFields
-                    key={claimPrefill?.id ?? "new"}
-                    initialSpecialties={claimPrefill?.specialties}
-                  />
-                  <RegisterLanguageFields />
-
-                  <RegisterClinicAddressField listingAddressHint={claimPrefill?.addressHint} />
-
-                  <div className="group" data-validate-field="1" data-invalid="0">
-                    <label className={registerLabelClass}>
-                      Email Address<span className="text-red-600">*</span>
-                      <input
-                        type="email"
-                        name="email"
-                        required
-                        pattern="[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}"
-                        title="Use a valid email. '+' aliases are supported (e.g. rociosirvent+test@gmail.com)."
-                        className={registerInputClass}
-                      />
-                    </label>
-                    <p className={registerFieldErrorClass}>Please enter a valid email address.</p>
-                  </div>
-
-                  <div className="group" data-validate-field="1" data-invalid="0">
-                    <label className={registerLabelClass}>
-                      Create Password<span className="text-red-600">*</span>
-                      <PasswordToggleInput
-                        name="password"
-                        required
-                        minLength={8}
-                        tone="light"
-                        className="w-full"
-                      />
-                    </label>
-                    <p className={registerFieldErrorClass}>
-                      Please enter a password with at least 8 characters.
-                    </p>
-                  </div>
-
-                  <div className="group" data-validate-field="1" data-invalid="0">
-                    <label className={registerLabelClass}>
-                      WhatsApp Number<span className="text-red-600">*</span>
-                      <input
-                        type="tel"
-                        name="phone"
-                        required
-                        autoComplete="off"
-                        placeholder="e.g., +357 99XXXXXX"
-                        className={registerInputClass}
-                      />
-                    </label>
-                    <p className={registerHelperClass}>
-                      Used for instant booking notifications and direct patient updates.
-                    </p>
-                    <p className={registerFieldErrorClass}>
-                      Please enter your WhatsApp number with country code.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="sm:col-span-2">
-                    <RegisterAvatarUpload tone="light" />
-                  </div>
-                </div>
-
-                <div className="group" data-validate-field="1" data-invalid="0">
-                  <label className="flex cursor-pointer gap-3 rounded-xl border border-ink-200 bg-ink-50/80 p-4 text-left transition hover:border-clinical-300">
-                    <input
-                      type="checkbox"
-                      name="professionalDisclaimer"
-                      value="on"
-                      required
-                      className="mt-1 h-4 w-4 shrink-0 rounded border-ink-300 bg-white text-clinical-500 focus:ring-clinical-400/50"
-                    />
-                    <span className="text-xs leading-relaxed text-ink-600">
-                      I confirm I am a qualified health or wellness professional. I accept that
-                      DocCy is a technology provider and assumes no liability for the authenticity
-                      of professional credentials.
-                    </span>
-                  </label>
-                  <p className={registerFieldErrorClass}>
-                    Please confirm the professional disclaimer to continue.
-                  </p>
-                </div>
-
                 <div className="hidden" aria-hidden="true">
                   <label>
                     Company
@@ -908,27 +891,221 @@ export default async function RegisterPage({ searchParams }: PageProps) {
                   </label>
                 </div>
 
-                <div className="flex flex-col gap-3 border-t border-ink-200/80 pt-5 sm:flex-row sm:items-center sm:justify-end">
-                  <RegisterSubmitButton>
-                    {claimPrefill
+                <RegisterWizard
+                  formId="register-form"
+                  submitLabel={
+                    claimPrefill
                       ? "Activate this listing & Claim 6 Months Free"
-                      : "Submit My Application & Claim 6 Months Free"}
-                  </RegisterSubmitButton>
-                </div>
+                      : "Submit My Application & Claim 6 Months Free"
+                  }
+                >
+                  <RegisterFormValidation formId="register-form" />
+
+                  <RegisterWizardStep
+                    step={1}
+                    title="Account"
+                    description="Your DocCy login and how we contact you. Patients never see this email or mobile."
+                  >
+                    <div
+                      className="group"
+                      data-validate-field="1"
+                      data-invalid="0"
+                      data-field-key="firstName"
+                      data-field-label="First name"
+                    >
+                      <label htmlFor="register-first-name" className={registerLabelClass}>
+                        First name<span className="text-red-600">*</span>
+                        <input
+                          id="register-first-name"
+                          name="firstName"
+                          required
+                          autoComplete="given-name"
+                          defaultValue={claimName.firstName}
+                          className={registerInputClass}
+                        />
+                      </label>
+                      <p className={registerFieldErrorClass}>Please enter your first name.</p>
+                    </div>
+
+                    <div
+                      className="group"
+                      data-validate-field="1"
+                      data-invalid="0"
+                      data-field-key="lastName"
+                      data-field-label="Last name"
+                    >
+                      <label htmlFor="register-last-name" className={registerLabelClass}>
+                        Last name<span className="text-red-600">*</span>
+                        <input
+                          id="register-last-name"
+                          name="lastName"
+                          required
+                          autoComplete="family-name"
+                          defaultValue={claimName.lastName}
+                          className={registerInputClass}
+                        />
+                      </label>
+                      <p className={registerFieldErrorClass}>Please enter your last name.</p>
+                    </div>
+
+                    <div
+                      className="group"
+                      data-validate-field="1"
+                      data-invalid="0"
+                      data-field-key="email"
+                      data-field-label="Email address"
+                    >
+                      <label className={registerLabelClass}>
+                        Email Address<span className="text-red-600">*</span>
+                        <input
+                          type="email"
+                          name="email"
+                          required
+                          autoComplete="email"
+                          pattern="[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}"
+                          title="Use a valid email. '+' aliases are supported (e.g. rociosirvent+test@gmail.com)."
+                          className={registerInputClass}
+                        />
+                      </label>
+                      <p className={registerFieldErrorClass}>Please enter a valid email address.</p>
+                    </div>
+
+                    <div
+                      className="group"
+                      data-validate-field="1"
+                      data-invalid="0"
+                      data-field-key="password"
+                      data-field-label="Password"
+                    >
+                      <label className={registerLabelClass}>
+                        Create Password<span className="text-red-600">*</span>
+                        <PasswordToggleInput
+                          name="password"
+                          required
+                          minLength={PASSWORD_MIN_LENGTH}
+                          maxLength={PASSWORD_MAX_LENGTH}
+                          pattern={PASSWORD_POLICY_HTML_PATTERN}
+                          title={PASSWORD_POLICY_TITLE}
+                          autoComplete="new-password"
+                          tone="light"
+                          className="w-full"
+                        />
+                      </label>
+                      <p className={registerHelperClass}>{PASSWORD_POLICY_HELPER}</p>
+                      <p className={registerFieldErrorClass}>{PASSWORD_POLICY_ERROR}</p>
+                    </div>
+
+                    <div
+                      className="group"
+                      data-validate-field="1"
+                      data-invalid="0"
+                      data-field-key="phone"
+                      data-field-label="Mobile number"
+                    >
+                      <label className={registerLabelClass}>
+                        Mobile Number<span className="text-red-600">*</span>
+                        <input
+                          type="tel"
+                          name="phone"
+                          required
+                          autoComplete="tel"
+                          placeholder="e.g., +357 99XXXXXX"
+                          className={registerInputClass}
+                        />
+                      </label>
+                      <p className={registerFieldErrorClass}>
+                        Please enter your mobile number with country code.
+                      </p>
+                    </div>
+                  </RegisterWizardStep>
+
+                  <RegisterWizardStep
+                    step={2}
+                    title="Profile"
+                    description="A photo and the languages you consult in."
+                  >
+                    <RegisterAvatarUpload tone="light" />
+                    <RegisterLanguageFields />
+                  </RegisterWizardStep>
+
+                  <RegisterWizardStep
+                    step={3}
+                    title="Practice"
+                    description={
+                      clinicSlots.length > 1
+                        ? "Confirm each clinic already linked to this listing. You can still add more later in Settings."
+                        : "Your specialty, license, and the clinic patients will visit. Extra clinics can be added later in Settings."
+                    }
+                  >
+                    <RegisterSpecialtyFields
+                      key={claimPrefill?.id ?? "new"}
+                      initialSpecialties={claimPrefill?.specialties}
+                    />
+                    {clinicSlots.map((clinic, index) => {
+                      const initialLocation = clinic
+                        ? clinicLocationFromParts({
+                            address: clinic.address,
+                            latitude: clinic.latitude,
+                            longitude: clinic.longitude,
+                            placeId: clinic.placeId,
+                            district: clinic.district,
+                            town: clinic.town,
+                          })
+                        : null;
+                      return (
+                        <RegisterClinicAddressField
+                          key={`${claimPrefill?.id ?? "new"}-${index}`}
+                          index={index}
+                          initialLocation={initialLocation}
+                          listingAddressHint={
+                            clinic?.address ??
+                            (index === 0 ? claimPrefill?.addressHint : null)
+                          }
+                          showAddLaterHint={clinicSlots.length === 1}
+                          heading={
+                            clinicSlots.length > 1
+                              ? clinic?.name
+                                ? `Clinic ${index + 1}: ${clinic.name}`
+                                : `Clinic ${index + 1} address`
+                              : undefined
+                          }
+                        />
+                      );
+                    })}
+                    <div
+                      className="group"
+                      data-validate-field="1"
+                      data-invalid="0"
+                      data-field-key="disclaimer"
+                      data-field-label="Professional disclaimer"
+                      data-field-boxed="1"
+                    >
+                      <label className="flex cursor-pointer gap-3 rounded-xl border border-ink-200 bg-ink-50/80 p-4 text-left transition hover:border-clinical-300">
+                        <input
+                          type="checkbox"
+                          name="professionalDisclaimer"
+                          value="on"
+                          required
+                          className="mt-1 h-4 w-4 shrink-0 rounded border-ink-300 bg-white text-clinical-500 focus:ring-clinical-400/50"
+                        />
+                        <span className="text-xs leading-relaxed text-ink-600">
+                          I confirm I am a qualified health or wellness professional. I accept that
+                          DocCy is a technology provider and assumes no liability for the authenticity
+                          of professional credentials.
+                        </span>
+                      </label>
+                      <p className={registerFieldErrorClass}>
+                        Please confirm the professional disclaimer to continue.
+                      </p>
+                    </div>
+                  </RegisterWizardStep>
+                </RegisterWizard>
                 </RegisterFormSubmitFeedback>
               </form>
             </section>
-
-            <RegisterDemoAside />
-          </div>
-        )}
-
-        {!submitted ? (
-          <>
-            <RegisterTrustBadges />
-            <RegisterFaqSection />
+            <RegisterSecondarySections />
           </>
-        ) : null}
+        )}
       </div>
     </main>
   );

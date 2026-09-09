@@ -12,21 +12,24 @@ import {
   createTestDoctor,
   deleteTestDoctor,
   loginDoctorUi,
+  signInDoctorViaEmailLoginUrl,
   type TestDoctorFixture,
 } from "./helpers/test-doctor";
 
 /**
  * Core business pipeline (PR-blocking):
- * registration outcome → founder alert payload → internal approval → doctor ready email copy → agenda access.
+ * registration outcome → founder alert payload → internal approval →
+ * verified-email login URL → doctor reaches agenda.
  *
  * Live `/register` UI e2e is a local pre-PR gate (`npm run test:e2e:register`), not CI.
  * Here we use createTestDoctor as post-registration DB state.
  * as the post-registration DB state equivalent (avoids Supabase Auth signUp rate limits on PR).
  */
 test.describe("Integration: doctor onboarding pipeline", { tag: "@pr-e2e" }, () => {
-  test("standard specialty: founder alert → verify license → doctor opens agenda", async ({
+  test("standard specialty: founder alert → verify license → email login link opens agenda", async ({
     page,
     request,
+    baseURL,
   }) => {
     const env = requireSafeIntegration({ needsInternalSecret: true });
     const admin = createIntegrationAdmin(env);
@@ -70,20 +73,25 @@ test.describe("Integration: doctor onboarding pipeline", { tag: "@pr-e2e" }, () 
       expect(row.data?.status).toBe("verified");
 
       const doctorEmail = buildDoctorAccountVerifiedEmailContent({
-        siteUrl: getPublicBookingBaseUrl(),
+        siteUrl: (baseURL ?? getPublicBookingBaseUrl()).replace(/\/$/, ""),
         doctorName: `Onboard Std ${nonce}`,
       });
-      expect(doctorEmail.subject).toBe("[DocCy] Your account is ready");
+      expect(doctorEmail.subject).toBe("[DocCy] Your account is ready — sign in");
       expect(doctorEmail.loginUrl).toContain("/login");
+      expect(doctorEmail.loginUrl).toContain("next=%2Fagenda");
 
-      await loginDoctorUi(page, fixture.email, fixture.password);
-      await page.goto("/agenda");
+      await signInDoctorViaEmailLoginUrl(
+        page,
+        doctorEmail.loginUrl,
+        fixture.email,
+        fixture.password,
+      );
       await expect(page).toHaveURL(
         (url) => new URL(url).pathname.replace(/\/$/, "") === "/agenda",
-        { timeout: 20000 },
+        { timeout: 20_000 },
       );
       await expect(page.getByRole("button", { name: /^Today$/i })).toBeVisible({
-        timeout: 15000,
+        timeout: 15_000,
       });
     } finally {
       if (fixture) await deleteTestDoctor(fixture);

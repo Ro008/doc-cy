@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 import { persistLocalTestLoginPassword, shouldPersistLocalTestLoginPassword } from "@/lib/local-test-login-credentials";
-import { PASSWORD_RESET_MIN_LENGTH } from "@/lib/password-reset";
+import { isStrongPassword } from "@/lib/password-policy";
 import { createServiceRoleClient } from "@/lib/supabase-service";
 
 /**
@@ -31,7 +31,7 @@ export async function POST(req: Request) {
   }
 
   const password = String(body.password ?? "");
-  if (password.length < PASSWORD_RESET_MIN_LENGTH || password.length > 200) {
+  if (!isStrongPassword(password)) {
     return NextResponse.json({ ok: false, reason: "invalid_password" }, { status: 400 });
   }
 

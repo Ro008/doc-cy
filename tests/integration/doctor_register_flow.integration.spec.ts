@@ -4,7 +4,6 @@ import { expect, test } from "@playwright/test";
 import {
   E2E_REGISTER_CLINIC_EVENT,
   E2E_REGISTER_CLINIC_LOCATION,
-  E2E_REGISTER_NAME_PREFIX,
 } from "@/lib/e2e-doctor-registration-test";
 import { waitForResendEmailWithSubject } from "../helpers/resend-sent-emails";
 import { dismissCookieConsentIfPresent } from "../prod/helpers/dismissCookieConsent";
@@ -13,6 +12,7 @@ import {
   createIntegrationAdmin,
   requireSafeIntegration,
 } from "./helpers/safe-integration";
+import { selectRegisterEnglishLanguage } from "./helpers/goto-register-practice-step";
 import { INTEGRATION_DOCTOR_PASSWORD } from "./helpers/test-doctor";
 
 /**
@@ -29,7 +29,9 @@ test.describe("Integration: doctor registration flow", { tag: "@local-register" 
     const env = requireSafeIntegration();
     const admin = createIntegrationAdmin(env);
     const nonce = `${Date.now()}`;
-    const fullName = `${E2E_REGISTER_NAME_PREFIX}${nonce}`;
+    const firstName = "Register";
+    const lastName = `E2E ${nonce}`;
+    const fullName = `${firstName} ${lastName}`;
     const email = `rociosirvent+rege2e${nonce}@gmail.com`;
     const resendKey = process.env.RESEND_API_KEY?.trim() ?? "";
     const founderNotify = process.env.FOUNDER_NOTIFY_EMAIL?.trim() ?? "";
@@ -45,25 +47,34 @@ test.describe("Integration: doctor registration flow", { tag: "@local-register" 
       await page.goto("/register", { waitUntil: "domcontentloaded" });
       await dismissCookieConsentIfPresent(page);
       await expect(
-        page.getByRole("heading", { name: /Complete your professional application/i }),
+        page.getByRole("heading", { name: /List your practice on DocCy/i }),
       ).toBeVisible({ timeout: 20_000 });
       // Wait for the client form wrapper to hydrate before filling uncontrolled inputs.
-      await expect(page.getByTestId("register-specialty-trigger")).toBeVisible({ timeout: 20_000 });
+      await expect(page.getByTestId("register-wizard-continue")).toBeVisible({ timeout: 20_000 });
 
-      await page.locator("#register-form input[name='fullName']").fill(fullName);
+      await page.locator("#register-form input[name='firstName']").fill(firstName);
+      await page.locator("#register-form input[name='lastName']").fill(lastName);
+      await page.locator("#register-form input[name='email']").fill(email);
+      await page.locator("#register-form input[name='password']").fill(INTEGRATION_DOCTOR_PASSWORD);
+      await page.locator("#register-form input[name='phone']").fill("+35799123456");
+      await page.getByTestId("register-wizard-continue").click();
 
+      await expect(page.getByTestId("register-step-2")).toBeVisible();
+      const avatarPath = path.join(process.cwd(), "tests", "fixtures", "e2e-person-avatar.jpg");
+      await page.getByTestId("register-avatar-file-input").setInputFiles(avatarPath);
+      const confirmCrop = page.getByRole("button", { name: /Confirm crop/i });
+      await expect(confirmCrop).toBeVisible({ timeout: 10_000 });
+      await confirmCrop.click();
+      await expect(page.getByText(/Ready for submission/i)).toBeVisible({ timeout: 15_000 });
+
+      await selectRegisterEnglishLanguage(page);
+      await page.getByTestId("register-wizard-continue").click();
+
+      await expect(page.getByTestId("register-step-3")).toBeVisible();
+      await expect(page.getByTestId("register-specialty-trigger")).toBeVisible();
       await page.getByTestId("register-specialty-trigger").click();
       await page.getByRole("button", { name: "Cardiology", exact: true }).click();
       await page.getByTestId("register-license-0").fill(`E2E-LIC-${nonce}`);
-
-      // Native click avoids Playwright's retry on toggle buttons (opens then immediately closes).
-      await page.getByTestId("language-multiselect-trigger").evaluate((el) => {
-        (el as HTMLButtonElement).click();
-      });
-      await expect(page.getByTestId("language-option-English")).toBeVisible({ timeout: 5_000 });
-      await page.getByTestId("language-option-English").click({ force: true });
-      await page.keyboard.press("Escape");
-      await expect(page.getByText(/1 language selected/i)).toBeVisible();
 
       const fillClinic = () =>
         page.evaluate(
@@ -80,20 +91,10 @@ test.describe("Integration: doctor registration flow", { tag: "@local-register" 
         await expect(page.getByText(/District:\s*Nicosia/i)).toBeVisible({ timeout: 10_000 });
       }
 
-      await page.locator("#register-form input[name='email']").fill(email);
-      await page.locator("#register-form input[name='password']").fill(INTEGRATION_DOCTOR_PASSWORD);
-      await page.locator("#register-form input[name='phone']").fill("+35799123456");
-
-      const avatarPath = path.join(process.cwd(), "tests", "fixtures", "e2e-person-avatar.jpg");
-      await page.getByTestId("register-avatar-file-input").setInputFiles(avatarPath);
-      const confirmCrop = page.getByRole("button", { name: /Confirm crop/i });
-      await expect(confirmCrop).toBeVisible({ timeout: 10_000 });
-      await confirmCrop.click();
-      await expect(page.getByText(/Ready for submission/i)).toBeVisible({ timeout: 15_000 });
-
       await page.locator("#register-form input[name='professionalDisclaimer']").check();
 
-      await expect(page.locator("#register-form input[name='fullName']")).toHaveValue(fullName);
+      await expect(page.locator("#register-form input[name='firstName']")).toHaveValue(firstName);
+      await expect(page.locator("#register-form input[name='lastName']")).toHaveValue(lastName);
       await expect(page.locator("#register-form input[name='company']")).toHaveValue("");
 
       const overlay = page.getByTestId("register-submit-overlay");
@@ -107,7 +108,7 @@ test.describe("Integration: doctor registration flow", { tag: "@local-register" 
         throw new Error(`Registration did not succeed. URL: ${page.url()}`);
       }
       await expect(
-        page.getByRole("heading", { name: /your profile is under review/i }),
+        page.getByRole("heading", { name: /confirm your email to continue/i }),
       ).toBeVisible({ timeout: 15_000 });
       await expect(overlay).toBeHidden();
 
@@ -121,12 +122,20 @@ test.describe("Integration: doctor registration flow", { tag: "@local-register" 
       expect(doctor?.is_test_profile).toBe(true);
 
       if (canAssertResend) {
-        const sent = await waitForResendEmailWithSubject({
+        const founderMail = await waitForResendEmailWithSubject({
           apiKey: resendKey,
           subjectIncludes: fullName,
           timeoutMs: 30_000,
         });
-        expect(sent.subject).toMatch(/New registration/i);
+        expect(founderMail.subject).toMatch(/New registration/i);
+
+        const receivedMail = await waitForResendEmailWithSubject({
+          apiKey: resendKey,
+          subjectIncludes: "We received your application",
+          toIncludes: email,
+          timeoutMs: 30_000,
+        });
+        expect(receivedMail.subject).toMatch(/We received your application/i);
       }
     } finally {
       await deleteRegistrationE2eDoctor(admin, email);

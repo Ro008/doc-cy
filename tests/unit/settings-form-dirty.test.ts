@@ -23,8 +23,10 @@ function baseSnapshotInput() {
     specialtyFromMaster: true,
     bio: "Helping patients across Cyprus.",
     languages: ["English", "Greek"],
-    whatsappNumber: "+35799111222",
+    mobileNumber: "+35799111222",
+    directoryPhone: "",
     showPhonePublic: false,
+    publicPhoneSource: "mobile" as const,
     district: "Nicosia",
     clinicLocation: {
       address: "1 Clinic St, Nicosia",
@@ -73,6 +75,15 @@ describe("settings-form-dirty", () => {
       },
     });
     assert.equal(settingsFormHasUnsavedChanges(changedClinic, saved), true);
+  });
+
+  it("detects phone visibility edits", () => {
+    const saved = buildSettingsDirtySnapshot(baseSnapshotInput());
+    const changed = buildSettingsDirtySnapshot({
+      ...baseSnapshotInput(),
+      showPhonePublic: true,
+    });
+    assert.equal(settingsFormHasUnsavedChanges(changed, saved), true);
   });
 
   it("detects bio edits", () => {

@@ -2,6 +2,8 @@ import { expect, test } from "@playwright/test";
 
 import { buildFounderNewRegistrationNotifyContent } from "@/lib/notify-founder-new-registration";
 import { buildDoctorAccountVerifiedEmailContent } from "@/lib/send-doctor-account-verified-email";
+import { buildDoctorRegistrationReceivedEmailContent } from "@/lib/send-doctor-registration-received-email";
+import { buildDoctorAccountRejectedEmailContent } from "@/lib/send-doctor-account-rejected-email";
 import { buildPasswordResetEmailContent } from "@/lib/send-password-reset-email";
 
 test.describe("Doctor onboarding email content", { tag: "@pr-email" }, () => {
@@ -52,20 +54,62 @@ test.describe("Doctor onboarding email content", { tag: "@pr-email" }, () => {
     expect(claimed.textBody).toContain("listing-1");
   });
 
-  test("doctor account verified email includes login link to agenda and setup guidance", () => {
+  test("doctor registration received email asks them to confirm with a magic link", () => {
+    const content = buildDoctorRegistrationReceivedEmailContent({
+      doctorName: "Maria Papadopoulos",
+      confirmUrl: "https://www.mydoccy.com/auth/confirm-email?token_hash=tok&type=magiclink",
+    });
+
+    expect(content.subject).toBe("[DocCy] We received your application");
+    expect(content.text).toContain("Hi Maria");
+    expect(content.text).toContain("received your application");
+    expect(content.text).toContain("not a code");
+    expect(content.text).toContain("/auth/confirm-email");
+    expect(content.text).toContain("another email when your account is ready to sign in");
+    expect(content.html).toContain("Confirm your email");
+    expect(content.html.toLowerCase()).not.toContain("/agenda");
+    expect(content.html.toLowerCase()).not.toContain("otp");
+  });
+
+  test("doctor account verified email points at sign-in, then agenda", () => {
     const content = buildDoctorAccountVerifiedEmailContent({
       siteUrl: "https://mydoccy.com",
       doctorName: "Maria Papadopoulos",
     });
 
-    expect(content.subject).toBe("[DocCy] Your account is ready");
+    expect(content.subject).toBe("[DocCy] Your account is ready — sign in");
     expect(content.loginUrl).toContain("/login");
     expect(content.loginUrl).toContain("next=%2Fagenda");
     expect(content.text).toContain("Hi Maria");
+    expect(content.text).toContain("Sign in:");
     expect(content.text).toContain("email and password you used when registering");
-    expect(content.text).toContain("working hours, appointment types");
-    expect(content.html).toContain("Open your dashboard");
+    expect(content.text.toLowerCase()).not.toContain("open your dashboard");
+    expect(content.html).toContain("Sign in to DocCy");
+    expect(content.html).not.toContain("Open your dashboard");
     expect(content.html).toContain(encodeURIComponent("/agenda"));
+  });
+
+  test("doctor application rejected email points at the support form", () => {
+    const license = buildDoctorAccountRejectedEmailContent({
+      doctorName: "Maria Papadopoulos",
+      reason: "license",
+      siteUrl: "https://mydoccy.com",
+    });
+    expect(license.subject).toBe("[DocCy] Your application was not approved");
+    expect(license.text).toContain("Hi Maria");
+    expect(license.text).toContain("could not verify your professional license");
+    expect(license.text).toContain("If you believe this is a mistake");
+    expect(license.supportUrl).toBe("https://mydoccy.com/?support=application-review");
+    expect(license.html).toContain("Open the support form");
+    expect(license.html).toContain("support=application-review");
+
+    const specialty = buildDoctorAccountRejectedEmailContent({
+      doctorName: "Alex Other",
+      reason: "specialty",
+      siteUrl: "https://mydoccy.com",
+    });
+    expect(specialty.text).toContain("cannot include it on DocCy");
+    expect(specialty.text).toContain("If you think we misunderstood your practice");
   });
 
   test("password reset email is branded as DocCy", () => {

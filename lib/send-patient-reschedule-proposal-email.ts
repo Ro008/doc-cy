@@ -20,7 +20,7 @@ const PRIMARY_BTN = EMAIL_PRIMARY_BTN;
 
 /**
  * Email to patient with link to pick one of the proposed slots before `proposalExpiresAtIso`.
- * Intentionally no WhatsApp — keep rescheduling inside DocCy until confirmed.
+ * Keep rescheduling inside DocCy until confirmed.
  */
 export async function sendPatientRescheduleProposalEmail(opts: {
   siteUrl: string;

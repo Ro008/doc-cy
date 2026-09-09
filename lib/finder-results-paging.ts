@@ -1,3 +1,4 @@
+import { isTestProfileLike } from "@/lib/doctor-test-profile";
 import { harmonizeFinderSpecialtyLabel } from "@/lib/finder-specialty-harmonize";
 
 /**
@@ -121,10 +122,10 @@ export function pinRegisteredTestProfilesFirst<T extends { kind: string; row: ob
   results.sort((a, b) => {
     const aTest =
       a.kind === "registered" &&
-      Boolean((a.row as { isTestProfile?: boolean }).isTestProfile);
+      isTestProfileLike(a.row as { name?: string | null; slug?: string | null; email?: string | null; isTestProfile?: boolean | null });
     const bTest =
       b.kind === "registered" &&
-      Boolean((b.row as { isTestProfile?: boolean }).isTestProfile);
+      isTestProfileLike(b.row as { name?: string | null; slug?: string | null; email?: string | null; isTestProfile?: boolean | null });
     if (aTest === bTest) return 0;
     return aTest ? -1 : 1;
   });

@@ -50,6 +50,7 @@ import {
 import { enforcePublicApiRateLimit } from "@/lib/public-api-rate-limit";
 import { locationToSettingsRow } from "@/lib/doctor-locations";
 import { loadDoctorLocations, primaryDoctorLocation } from "@/lib/load-doctor-locations";
+import { professionalAccountEmail } from "@/lib/professional-account-contact";
 
 const PRIMARY_ACTIONS_LABEL = EMAIL_SECTION_LABEL;
 const DASHBOARD_LINK_STYLE = EMAIL_CAL_GOOGLE_BTN;
@@ -418,13 +419,13 @@ export async function POST(req: NextRequest) {
   try {
     const { data: doctor } = await supabase
       .from("professionals")
-      .select("name, email, phone, specialty, clinic_address")
+      .select("name, email, registration_email, phone, specialty, clinic_address")
       .eq("id", doctorId)
       .single();
 
-    const doctorRow = doctor as DoctorRow | null;
+    const doctorRow = doctor as (DoctorRow & { registration_email?: string | null }) | null;
     const doctorName = doctorRow?.name ?? undefined;
-    const doctorEmail = (doctorRow?.email ?? "").trim();
+    const doctorEmail = professionalAccountEmail(doctorRow ?? {});
     const patientEmailTo = String(patientEmail).trim();
     const resendToOverride = process.env.RESEND_TO_OVERRIDE?.trim();
     const allowRecipientOverride = process.env.NODE_ENV !== "production";

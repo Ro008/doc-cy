@@ -136,7 +136,9 @@ export function SpecialtyCombobox({
         data-validity-proxy="true"
         required
         value={resolvedSpecialty ? "ok" : ""}
-        readOnly
+        // A readonly input is barred from constraint validation, which would make
+        // this required field silently always valid. The no-op keeps React quiet.
+        onChange={() => {}}
         aria-hidden
         tabIndex={-1}
         className="pointer-events-none absolute h-0 w-0 opacity-0"
@@ -149,6 +151,7 @@ export function SpecialtyCombobox({
         id={`${id}-trigger`}
         type="button"
         data-testid={`${id}-trigger`}
+        data-focus-target="true"
         aria-haspopup="listbox"
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}

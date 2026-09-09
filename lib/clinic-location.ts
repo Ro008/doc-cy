@@ -125,15 +125,17 @@ export function clinicLocationFromParts(input: {
     latitude: coords?.latitude ?? null,
     longitude: coords?.longitude ?? null,
     placeId: input.placeId?.trim() || null,
+    // Prefer components and address text over coordinates. A moved pin can sit
+    // in the wrong district while the address still names the right one, and
+    // nearest-centroid inference would then silently overwrite it.
     district:
       district ??
-      (coords
-        ? inferCyprusDistrictFromClinic({
-            address: input.address,
-            latitude: coords.latitude,
-            longitude: coords.longitude,
-          })
-        : null),
+      inferCyprusDistrictFromClinic({
+        address: input.address,
+        latitude: coords?.latitude,
+        longitude: coords?.longitude,
+        addressComponents: input.addressComponents ?? undefined,
+      }),
     town: inferCyprusTownFromClinic({
       town: input.town,
       address,
@@ -145,6 +147,30 @@ export function clinicLocationFromParts(input: {
 export function hasConfirmedClinicCoordinates(location: ClinicLocation): boolean {
   const coords = parseOptionalCoordinates(location.latitude, location.longitude);
   return Boolean(coords && isLikelyCyprusCoordinates(coords));
+}
+
+/**
+ * True when the address text clearly names a Cyprus district that is not the
+ * one stored on the location. Patients filter by district, so a Nicosia address
+ * filed under Paphos must never reach the confirmed state.
+ */
+export function clinicAddressDistrictConflicts(location: ClinicLocation): boolean {
+  if (!location.district) return false;
+  const fromAddress = inferCyprusDistrictFromClinic({ address: location.address });
+  if (!fromAddress) return false;
+  return fromAddress !== location.district;
+}
+
+/**
+ * Aligns district with what the address text says, when the text is clear.
+ * Leaves the stored district alone when the address does not name one.
+ */
+export function clinicLocationWithAddressAlignedDistrict(
+  location: ClinicLocation,
+): ClinicLocation {
+  const fromAddress = inferCyprusDistrictFromClinic({ address: location.address });
+  if (!fromAddress || fromAddress === location.district) return location;
+  return { ...location, district: fromAddress };
 }
 
 export function clinicLocationRequiresSelection(

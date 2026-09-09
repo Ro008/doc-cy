@@ -6,6 +6,7 @@ import { cookies } from "next/headers";
 import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
 import { AgendaRealtime } from "@/components/agenda/AgendaRealtime";
 import { FoundingMemberBadge } from "@/components/dashboard/FoundingMemberBadge";
+import { FirstLoginTrialNoticeGate } from "@/components/dashboard/FirstLoginTrialNoticeGate";
 import { isFounderSubscriptionTier } from "@/lib/subscription-tier";
 import { doctorDashboardDisplayName } from "@/lib/doctor-display-name";
 import {
@@ -166,6 +167,8 @@ export default async function AgendaPage({ searchParams }: AgendaPageProps) {
           </h1>
           {isFoundingMember ? <FoundingMemberBadge compact /> : null}
         </header>
+
+        <FirstLoginTrialNoticeGate />
 
         <AgendaRealtime
           doctorId={doctor.id}

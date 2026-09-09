@@ -3,6 +3,8 @@ import { createServiceRoleClient } from "@/lib/supabase-service";
 import { denyUnlessInternalFounder } from "@/lib/internal-directory-auth";
 import { verificationBlockedReason } from "@/lib/doctor-specialty-public";
 import { sendDoctorAccountVerifiedEmail } from "@/lib/send-doctor-account-verified-email";
+import { sendDoctorAccountRejectedEmail } from "@/lib/send-doctor-account-rejected-email";
+import { professionalAccountEmail } from "@/lib/professional-account-contact";
 import { getPublicBookingBaseUrl } from "@/lib/site-url";
 
 type Body = {
@@ -42,7 +44,7 @@ export async function POST(req: NextRequest) {
   const { data: row, error: fetchErr } = await supabase
     .from("professionals")
     .select(
-      "id, name, email, status, is_specialty_approved, specialty_requires_standard_at",
+      "id, name, email, registration_email, status, is_specialty_approved, specialty_requires_standard_at",
     )
     .eq("id", doctorId)
     .maybeSingle();
@@ -116,12 +118,28 @@ export async function POST(req: NextRequest) {
     try {
       await sendDoctorAccountVerifiedEmail({
         siteUrl: getPublicBookingBaseUrl(),
-        doctorEmail: String((row as { email?: string | null }).email ?? ""),
+        doctorEmail: professionalAccountEmail(
+          row as { email?: string | null; registration_email?: string | null },
+        ),
         doctorName: String((row as { name?: string | null }).name ?? "Doctor"),
         resendToOverride: process.env.RESEND_TO_OVERRIDE?.trim() || null,
       });
     } catch (err) {
       console.error("[internal/doctors/verification] account verified email failed", err);
+    }
+  } else {
+    try {
+      await sendDoctorAccountRejectedEmail({
+        siteUrl: getPublicBookingBaseUrl(),
+        doctorEmail: professionalAccountEmail(
+          row as { email?: string | null; registration_email?: string | null },
+        ),
+        doctorName: String((row as { name?: string | null }).name ?? "Doctor"),
+        reason: "license",
+        resendToOverride: process.env.RESEND_TO_OVERRIDE?.trim() || null,
+      });
+    } catch (err) {
+      console.error("[internal/doctors/verification] account rejected email failed", err);
     }
   }
 

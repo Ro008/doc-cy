@@ -196,6 +196,25 @@ describe("Google Ads wiring", () => {
     assert.equal(source.includes('if (variant === "call-to-book")'), true);
     assert.equal(source.includes("handleCallToBookClick"), false);
     assert.equal(source.includes("reportGoogleAdsConversion(googleAdsCallToBookSendTo(), telHref)"), false);
+    assert.equal(source.includes('variant === "profile-call"'), true);
+    assert.equal(source.includes('"registered"'), true);
+
+    const profilePage = fs.readFileSync(
+      path.join(repoRoot, "lib/public/doctor-profile-page.tsx"),
+      "utf8",
+    );
+    assert.equal(profilePage.includes('kind="registered"'), true);
+    assert.equal(profilePage.includes("publicTelHref"), false);
+
+    const registeredFinder = fs.readFileSync(
+      path.join(repoRoot, "components/finder/FinderRegisteredCardAvailability.tsx"),
+      "utf8",
+    );
+    assert.equal(registeredFinder.includes('kind="registered"'), true);
+    assert.equal(registeredFinder.includes('variant="show-phone-number"'), true);
+    assert.equal(registeredFinder.includes('variant="profile-call"'), false);
+    assert.equal(registeredFinder.includes('variant="call-to-book"'), false);
+    assert.equal(profilePage.includes('variant="profile-call"'), true);
   });
 
   it("fires Request Online Booking after a new vote on finder and professional profile", () => {

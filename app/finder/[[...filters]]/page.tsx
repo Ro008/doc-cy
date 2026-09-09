@@ -34,6 +34,7 @@ import {
 import {
   FinderCardAvailabilitySkeleton,
   FinderRegisteredCardAvailability,
+  FinderRegisteredPublicCall,
 } from "@/components/finder/FinderRegisteredCardAvailability";
 import { FinderCardLanguages } from "@/components/finder/FinderCardLanguages";
 import { FinderManualLocationCalendars } from "@/components/finder/FinderManualLocationCalendars";
@@ -1454,6 +1455,10 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
                                 ? row.clinic_address.trim()
                                 : "Not provided yet"}
                             </p>
+                            <FinderRegisteredPublicCall
+                              doctorId={row.id}
+                              doctorIdsKey={registeredAvailabilityKey}
+                            />
                           </div>
                         )}
                       </div>

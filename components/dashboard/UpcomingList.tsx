@@ -3,7 +3,6 @@
 import * as React from "react";
 import { Trash2, X } from "lucide-react";
 import { toast } from "sonner";
-import { WhatsAppLogoIcon } from "@/components/icons/WhatsAppLogoIcon";
 
 export type UpcomingAppointmentItem = {
   id: string;
@@ -11,7 +10,6 @@ export type UpcomingAppointmentItem = {
   patient_phone?: string;
   dateLabel: string;
   timeLabel: string;
-  whatsappUrl: string | null;
 };
 
 type UpcomingListProps = {
@@ -71,22 +69,8 @@ export function UpcomingList({ items }: UpcomingListProps) {
               </p>
             </div>
 
-            {/* Actions (WhatsApp + Cancel). Low opacity on desktop, always visible on mobile. */}
+            {/* Actions */}
             <div className="flex shrink-0 items-center gap-2 opacity-100 md:opacity-20 md:group-hover:opacity-100 transition-opacity">
-              <a
-                href={r.whatsappUrl ?? "#"}
-                target="_blank"
-                rel="noopener noreferrer"
-                title="Chat on WhatsApp"
-                aria-label="Chat on WhatsApp"
-                onClick={(e) => {
-                  if (!r.whatsappUrl) e.preventDefault();
-                }}
-                className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-clinical-400/20 bg-clinical-400/10 text-clinical-300 transition hover:bg-clinical-400/20 hover:border-clinical-400/40 md:h-8 md:w-8"
-              >
-                <WhatsAppLogoIcon className="h-4 w-4 md:h-4 md:w-4" />
-              </a>
-
               <button
                 type="button"
                 onClick={() => setToCancel(r)}

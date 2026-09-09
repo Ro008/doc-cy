@@ -136,7 +136,7 @@ export async function GET(req: NextRequest, { params }: RouteContext) {
         },
         doctorPayload,
         apptVisit,
-        { includeWhatsAppContact: true }
+        { includeDirectClinicContact: true }
       );
 
   const summary = cal.title;

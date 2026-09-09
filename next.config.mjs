@@ -1,13 +1,7 @@
 /** @type {import('next').NextConfig} */
 import createNextIntlPlugin from "next-intl/plugin";
 
-const remotePatterns = [
-  {
-    protocol: "https",
-    hostname: "images.unsplash.com",
-    pathname: "/**",
-  },
-];
+const remotePatterns = [];
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
 if (supabaseUrl) {

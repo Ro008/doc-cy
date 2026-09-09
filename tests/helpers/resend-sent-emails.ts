@@ -16,11 +16,14 @@ function asStringArray(value: unknown): string[] {
 export async function waitForResendEmailWithSubject(input: {
   apiKey: string;
   subjectIncludes: string;
+  /** When set, the listed recipient must include this address (avoids matching an older identical subject). */
+  toIncludes?: string;
   timeoutMs?: number;
 }): Promise<ListedResendEmail> {
   const timeoutMs = input.timeoutMs ?? 30_000;
   const started = Date.now();
   const needle = input.subjectIncludes.toLowerCase();
+  const toNeedle = input.toIncludes?.trim().toLowerCase() ?? "";
   let lastError = "No emails returned";
 
   while (Date.now() - started < timeoutMs) {
@@ -33,9 +36,12 @@ export async function waitForResendEmailWithSubject(input: {
       const payload = (await response.json()) as {
         data?: Array<{ id?: string; subject?: string; to?: unknown }>;
       };
-      const match = (payload.data ?? []).find((row) =>
-        String(row.subject ?? "").toLowerCase().includes(needle),
-      );
+      const match = (payload.data ?? []).find((row) => {
+        const subjectOk = String(row.subject ?? "").toLowerCase().includes(needle);
+        if (!subjectOk) return false;
+        if (!toNeedle) return true;
+        return asStringArray(row.to).join(" ").toLowerCase().includes(toNeedle);
+      });
       if (match?.id) {
         return {
           id: String(match.id),
@@ -43,7 +49,9 @@ export async function waitForResendEmailWithSubject(input: {
           to: asStringArray(match.to),
         };
       }
-      lastError = `No sent email yet with subject including "${input.subjectIncludes}"`;
+      lastError = toNeedle
+        ? `No sent email yet with subject including "${input.subjectIncludes}" to ${input.toIncludes}`
+        : `No sent email yet with subject including "${input.subjectIncludes}"`;
     }
     await new Promise((resolve) => setTimeout(resolve, 1500));
   }

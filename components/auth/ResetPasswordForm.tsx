@@ -7,7 +7,16 @@ import { PasswordToggleInput } from "@/components/auth/PasswordToggleInput";
 import { PendingLink } from "@/components/navigation/PendingLink";
 import { DocCyWordmark } from "@/components/brand/DocCyWordmark";
 import { writeProSessionHintCookie } from "@/lib/pro-session-hint";
-import { FORGOT_PASSWORD_PATH, PASSWORD_RESET_MIN_LENGTH } from "@/lib/password-reset";
+import { FORGOT_PASSWORD_PATH } from "@/lib/password-reset";
+import {
+  PASSWORD_MAX_LENGTH,
+  PASSWORD_MIN_LENGTH,
+  PASSWORD_POLICY_ERROR,
+  PASSWORD_POLICY_HELPER,
+  PASSWORD_POLICY_HTML_PATTERN,
+  PASSWORD_POLICY_TITLE,
+  isStrongPassword,
+} from "@/lib/password-policy";
 
 export function ResetPasswordForm() {
   const router = useRouter();
@@ -53,8 +62,8 @@ export function ResetPasswordForm() {
     if (loading) return;
     setError(null);
 
-    if (password.length < PASSWORD_RESET_MIN_LENGTH) {
-      setError(`Use at least ${PASSWORD_RESET_MIN_LENGTH} characters.`);
+    if (!isStrongPassword(password)) {
+      setError(PASSWORD_POLICY_ERROR);
       return;
     }
     if (password !== confirm) {
@@ -74,7 +83,7 @@ export function ResetPasswordForm() {
         return;
       }
       if (msg.includes("password") && (msg.includes("weak") || msg.includes("least"))) {
-        setError("Your password is too weak. Use at least 8 characters with a stronger mix.");
+        setError(PASSWORD_POLICY_ERROR);
         return;
       }
       setError("We couldn't update your password. Please try again.");
@@ -158,9 +167,15 @@ export function ResetPasswordForm() {
                     value={password}
                     onChange={setPassword}
                     required
-                    minLength={PASSWORD_RESET_MIN_LENGTH}
+                    minLength={PASSWORD_MIN_LENGTH}
+                    maxLength={PASSWORD_MAX_LENGTH}
+                    pattern={PASSWORD_POLICY_HTML_PATTERN}
+                    title={PASSWORD_POLICY_TITLE}
                     autoComplete="new-password"
                   />
+                  <span className="mt-1 block text-xs font-normal text-slate-400">
+                    {PASSWORD_POLICY_HELPER}
+                  </span>
                 </label>
 
                 <label className="block text-sm font-medium text-slate-200">
@@ -170,7 +185,10 @@ export function ResetPasswordForm() {
                     value={confirm}
                     onChange={setConfirm}
                     required
-                    minLength={PASSWORD_RESET_MIN_LENGTH}
+                    minLength={PASSWORD_MIN_LENGTH}
+                    maxLength={PASSWORD_MAX_LENGTH}
+                    pattern={PASSWORD_POLICY_HTML_PATTERN}
+                    title={PASSWORD_POLICY_TITLE}
                     autoComplete="new-password"
                   />
                 </label>

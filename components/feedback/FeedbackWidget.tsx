@@ -5,8 +5,11 @@ import { HelpCircle, X, Send } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import {
+  DOCCY_FEEDBACK_SUBJECT_APPLICATION_REVIEW,
   DOCCY_FEEDBACK_SUBJECT_DEMO_REQUEST,
   DOCCY_FEEDBACK_SUBJECT_WEBSITE_BOOKING,
+  DOCCY_SUPPORT_QUERY_APPLICATION_REVIEW,
+  emitOpenFeedback,
   subscribeOpenFeedback,
   type DocCyOpenFeedbackDetail,
 } from "@/lib/doccy-feedback";
@@ -24,12 +27,14 @@ type Subject =
   | "General Question"
   | "Founding Member Inquiry"
   | typeof DOCCY_FEEDBACK_SUBJECT_WEBSITE_BOOKING
-  | typeof DOCCY_FEEDBACK_SUBJECT_DEMO_REQUEST;
+  | typeof DOCCY_FEEDBACK_SUBJECT_DEMO_REQUEST
+  | typeof DOCCY_FEEDBACK_SUBJECT_APPLICATION_REVIEW;
 
 const LOCKED_FEEDBACK_SUBJECTS: readonly Subject[] = [
   "Founding Member Inquiry",
   DOCCY_FEEDBACK_SUBJECT_WEBSITE_BOOKING,
   DOCCY_FEEDBACK_SUBJECT_DEMO_REQUEST,
+  DOCCY_FEEDBACK_SUBJECT_APPLICATION_REVIEW,
 ];
 
 function isLockedFeedbackSubject(value: string): value is Subject {
@@ -98,6 +103,8 @@ export function FeedbackWidget() {
         setSubject(DOCCY_FEEDBACK_SUBJECT_WEBSITE_BOOKING);
       } else if (next === DOCCY_FEEDBACK_SUBJECT_DEMO_REQUEST) {
         setSubject(DOCCY_FEEDBACK_SUBJECT_DEMO_REQUEST);
+      } else if (next === DOCCY_FEEDBACK_SUBJECT_APPLICATION_REVIEW) {
+        setSubject(DOCCY_FEEDBACK_SUBJECT_APPLICATION_REVIEW);
       } else if (next === "General Question") {
         setSubject("General Question");
       } else {
@@ -109,6 +116,17 @@ export function FeedbackWidget() {
       setOpen(true);
       setHintStage("off");
     });
+  }, []);
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("support") !== DOCCY_SUPPORT_QUERY_APPLICATION_REVIEW) return;
+    emitOpenFeedback({ subject: DOCCY_FEEDBACK_SUBJECT_APPLICATION_REVIEW });
+    params.delete("support");
+    const query = params.toString();
+    const next = `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash}`;
+    window.history.replaceState({}, "", next);
   }, []);
 
   React.useEffect(() => {

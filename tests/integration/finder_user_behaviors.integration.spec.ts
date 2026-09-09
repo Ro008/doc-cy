@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
+import { finderIncludesRegisteredTestProfiles } from "@/lib/doctor-test-profile";
 
 type CreatedDoctor = {
   doctorId: string;
@@ -24,6 +25,10 @@ function assertSafeIntegrationTarget(baseUrl: string, supabaseUrl: string): stri
     return "Unsafe target or missing INTEGRATION_SAFE_ENV.";
   }
   return null;
+}
+
+function registeredDoctorLink(page: import("@playwright/test").Page, name: string) {
+  return page.getByRole("link", { name, exact: true });
 }
 
 async function createVerifiedDoctor(
@@ -124,6 +129,10 @@ test.describe("Integration: finder user-like filter behavior matrix", { tag: ["@
     const unsafeReason = assertSafeIntegrationTarget(baseUrl, supabaseUrl);
     test.skip(Boolean(unsafeReason), unsafeReason ?? undefined);
     test.skip(!baseUrl || !supabaseUrl || !serviceRole, "Missing integration env vars.");
+    test.skip(
+      !finderIncludesRegisteredTestProfiles(),
+      "NEXT_PUBLIC_DOC_CY_FINDER_INCLUDE_TEST_PROFILES is not enabled.",
+    );
 
     const admin = createClient(supabaseUrl, serviceRole);
     const nonce = `${Date.now()}-${Math.floor(Math.random() * 100000)}`;
@@ -179,8 +188,8 @@ test.describe("Integration: finder user-like filter behavior matrix", { tag: ["@
       await expect(
         page.getByRole("heading", { level: 1, name: /Health professionals in Limassol/i }),
       ).toBeVisible({ timeout: 60_000 });
-      await expect(page.getByText(created[0].name, { exact: true })).toBeVisible({ timeout: 60_000 });
-      await expect(page.getByText(created[1].name, { exact: true })).toBeVisible({ timeout: 60_000 });
+      await expect(registeredDoctorLink(page, created[0].name)).toBeVisible({ timeout: 60_000 });
+      await expect(registeredDoctorLink(page, created[1].name)).toBeVisible({ timeout: 60_000 });
       await expect(page.getByText(created[2].name, { exact: true })).toHaveCount(0);
 
       // Scenario 2: District + specialty narrowing.
@@ -199,19 +208,19 @@ test.describe("Integration: finder user-like filter behavior matrix", { tag: ["@
       await expect(page.getByTestId("finder-active-filters")).toContainText("Dentist", {
         timeout: 60_000,
       });
-      await expect(page.getByText(created[1].name, { exact: true })).toBeVisible({ timeout: 60_000 });
+      await expect(registeredDoctorLink(page, created[1].name)).toBeVisible({ timeout: 60_000 });
       await expect(page.getByText(created[0].name, { exact: true })).toHaveCount(0);
 
       // Scenario 3: Name filter applies on Enter or Find (not while typing).
       await nameInput.fill("Dent");
       await expect(page).not.toHaveURL(/name=/, { timeout: 5_000 });
-      await expect(page.getByText(created[1].name, { exact: true })).toBeVisible({ timeout: 60_000 });
+      await expect(registeredDoctorLink(page, created[1].name)).toBeVisible({ timeout: 60_000 });
       await nameInput.press("Enter");
       await expect(page).toHaveURL(/name=Dent/, { timeout: 60_000 });
       await expect(page.getByTestId("finder-active-filters")).toContainText("Dent", {
         timeout: 60_000,
       });
-      await expect(page.getByText(created[1].name, { exact: true })).toBeVisible({ timeout: 60_000 });
+      await expect(registeredDoctorLink(page, created[1].name)).toBeVisible({ timeout: 60_000 });
 
       // Scenario 4: Reset should recover broad list + clean path.
       await page.getByRole("button", { name: /^Clear$/i }).click();
@@ -220,9 +229,9 @@ test.describe("Integration: finder user-like filter behavior matrix", { tag: ["@
       await expect(
         page.getByRole("heading", { level: 1, name: /The most complete health directory in Cyprus|Cyprus['’]s most complete health directory|Find your next health professional/i })
       ).toBeVisible({ timeout: 60_000 });
-      await expect(page.getByText(created[0].name, { exact: true })).toBeVisible({ timeout: 60_000 });
-      await expect(page.getByText(created[1].name, { exact: true })).toBeVisible({ timeout: 60_000 });
-      await expect(page.getByText(created[2].name, { exact: true })).toBeVisible({ timeout: 60_000 });
+      await expect(registeredDoctorLink(page, created[0].name)).toBeVisible({ timeout: 60_000 });
+      await expect(registeredDoctorLink(page, created[1].name)).toBeVisible({ timeout: 60_000 });
+      await expect(registeredDoctorLink(page, created[2].name)).toBeVisible({ timeout: 60_000 });
     } finally {
       for (const doctor of created) {
         await admin.from("professionals").delete().eq("id", doctor.doctorId);

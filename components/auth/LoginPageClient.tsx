@@ -35,7 +35,14 @@ export function LoginPageClient({ nextPath }: { nextPath?: string | null }) {
 
     if (signInError) {
       console.error("[DocCy] Login failed", signInError);
-      setError("Invalid email or password. Please try again.");
+      const unconfirmed =
+        signInError.code === "email_not_confirmed" ||
+        /email not confirmed/i.test(signInError.message ?? "");
+      setError(
+        unconfirmed
+          ? "Confirm your email first. Open the one-click link we sent when you registered."
+          : "Invalid email or password. Please try again.",
+      );
       setLoading(false);
       return;
     }

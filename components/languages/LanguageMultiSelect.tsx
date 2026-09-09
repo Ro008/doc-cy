@@ -81,7 +81,9 @@ export function LanguageMultiSelect({
         data-validity-proxy="true"
         required
         value={selected.length > 0 ? "ok" : ""}
-        readOnly
+        // A readonly input is barred from constraint validation, which would make
+        // this required field silently always valid. The no-op keeps React quiet.
+        onChange={() => {}}
         aria-hidden
         tabIndex={-1}
         className="pointer-events-none absolute h-0 w-0 opacity-0"
@@ -94,6 +96,7 @@ export function LanguageMultiSelect({
         id={`${id}-trigger`}
         type="button"
         data-testid="language-multiselect-trigger"
+        data-focus-target="true"
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-controls={`${id}-listbox`}

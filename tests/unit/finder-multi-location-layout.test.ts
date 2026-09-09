@@ -44,10 +44,20 @@ describe("finder multi-location layout", () => {
       path.join(repoRoot, "components/finder/FinderManualLocationCalendars.tsx"),
       "utf8",
     );
+    const registered = fs.readFileSync(
+      path.join(repoRoot, "components/finder/FinderRegisteredCardAvailability.tsx"),
+      "utf8",
+    );
 
     assert.equal(page.includes("FinderCardLanguages"), true);
     assert.equal(page.includes("FinderRegisteredCardAvailability"), true);
+    assert.equal(page.includes("FinderRegisteredPublicCall"), true);
     assert.equal(page.includes("FinderManualLocationCalendars"), true);
+    assert.equal(registered.includes('kind="registered"'), true);
+    assert.equal(registered.includes('variant="show-phone-number"'), true);
+    assert.equal(registered.includes('variant="profile-call"'), false);
+    assert.equal(registered.includes("tel:"), false);
+    assert.equal(registered.includes("call-to-book"), false);
     assert.equal(landing.includes("FinderManualLocationCalendars"), true);
     assert.equal(landing.includes('layoutVariant="landing"'), true);
     assert.equal(layout.includes("FINDER_LOCATION_CALENDAR_DIVIDER_TEST_ID"), true);

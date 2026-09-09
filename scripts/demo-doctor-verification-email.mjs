@@ -239,7 +239,7 @@ async function main() {
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim() || "https://www.mydoccy.com";
   console.log(`\n--- Step 3: check your inbox ---`);
-  console.log(`Look for: [DocCy] Your account is ready`);
+  console.log(`Look for: [DocCy] Your account is ready — sign in`);
   console.log(`To: ${args.email} (delivers to rociosirvent@gmail.com)`);
   console.log(`Login link in email uses NEXT_PUBLIC_SITE_URL → ${siteUrl.replace(/\/$/, "")}/login?next=%2Fagenda`);
 

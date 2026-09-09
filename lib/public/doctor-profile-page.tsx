@@ -39,7 +39,6 @@ import {
   DOCTOR_FIELD_LIST_PUBLIC_PROFILE_NO_LANG,
 } from "@/lib/doctor-fieldsets";
 import { GesyProviderBadge } from "@/components/brand/GesyProviderBadge";
-import { WhatsAppLogoIcon } from "@/components/icons/WhatsAppLogoIcon";
 import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher";
 import { DocCyWordmark } from "@/components/brand/DocCyWordmark";
 import { RecordRecentlyViewed } from "@/components/finder/RecordRecentlyViewed";
@@ -48,11 +47,16 @@ import {
   FinderDistrictLink,
 } from "@/components/finder/FinderSpecialtyLink";
 import { DoctorProfileSpecialties } from "@/components/doctor/DoctorProfileSpecialties";
+import { RevealPhoneButton } from "@/components/finder/RevealPhoneButton";
 import { getTranslations } from "next-intl/server";
-import { Phone } from "lucide-react";
 import {
+  buildNonLiveDoctorMetaTitle,
+  buildRegisteredProfileMetaDescription,
+  buildShareImageMetadata,
+  buildVerifiedRegisteredMetaTitle,
+  formatProfessionalSeoDisplayName,
   normalizeDistrictForSeoTitle,
-  withDoctorTitleHonorific,
+  resolveShareAvatarUrl,
 } from "@/lib/doctor-seo-formatting";
 import { getPublicSpecialtyDisplayLabel } from "@/lib/doctor-specialty-public";
 import {
@@ -70,9 +74,6 @@ import {
   buildManualDirectorySeoDescription,
   buildManualDirectorySeoTitle,
 } from "@/lib/manual-directory-seo";
-
-const DOCTOR_AVATAR_URL =
-  "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=400&h=400&fit=crop";
 
 /** Public profile SSR reads — service_role only (doctors_public is not granted to anon). */
 function getPublicDirectoryDb(): SupabaseClient | null {
@@ -364,42 +365,20 @@ function buildPhysicianStructuredData(input: {
   };
 }
 
-function toWhatsAppHref(phone: string): string {
-  const digits = phone.replace(/[^\d]/g, "");
-  return `https://wa.me/${digits}`;
+function resolvePublicAvatarUrl(
+  supabase: SupabaseClient,
+  avatarPathOrUrl: string | null | undefined,
+): string | null {
+  return resolveShareAvatarUrl(avatarPathOrUrl, (path) =>
+    supabase.storage.from("avatars").getPublicUrl(path).data.publicUrl,
+  );
 }
 
-function buildVerifiedRegisteredMetaTitle(input: {
-  doctorName: string;
-  specialty: string;
-  districtLabel: string | null;
-}): string | null {
-  const name = input.doctorName.trim();
-  if (!name) return null;
-  const titled = withDoctorTitleHonorific(name);
-  const spec = input.specialty.trim();
-  const city = input.districtLabel?.trim() || "Cyprus";
-  if (spec.length > 0) {
-    return `Book Online with ${titled} | ${spec} in ${city} | DocCy`;
-  }
-  return `Book Online with ${titled} in ${city} | DocCy`;
-}
-
-/** Pending / rejected slug pages: informative, no instant-booking promise. */
-function buildNonLiveDoctorMetaTitle(input: {
-  doctorName: string;
-  specialty: string;
-  districtLabel: string | null;
-}): string | null {
-  const name = input.doctorName.trim();
-  if (!name) return null;
-  const titled = withDoctorTitleHonorific(name);
-  const spec = input.specialty.trim();
-  const city = input.districtLabel?.trim() || "Cyprus";
-  if (spec.length > 0) {
-    return `${titled} | ${spec} in ${city} | Profile & Contact | DocCy`;
-  }
-  return `${titled} in ${city} | Profile & Contact | DocCy`;
+function getInitials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return `${parts[0][0] ?? ""}${parts[parts.length - 1][0] ?? ""}`.toUpperCase();
 }
 
 export async function generateMetadata({
@@ -449,6 +428,7 @@ export async function generateMetadata({
     specialty?: string;
     status?: string;
     district?: string | null;
+    avatar_url?: string | null;
   } | null;
 
   if (meta.error || !doctor) {
@@ -494,19 +474,17 @@ export async function generateMetadata({
         description: "Book healthcare appointments in Cyprus via DocCy.",
         type: "website",
         url: profileUrl,
-        images: [{ url: DOCTOR_AVATAR_URL }],
       },
       twitter: {
-        card: "summary_large_image",
+        card: "summary",
         title: fallbackTitle,
         description: "Book healthcare appointments in Cyprus via DocCy.",
-        images: [DOCTOR_AVATAR_URL],
       },
     };
   }
 
   const st = (doctor.status ?? "").trim().toLowerCase();
-  const doctorName = (doctor.name ?? "").trim();
+  const doctorName = formatProfessionalSeoDisplayName(doctor.name ?? "");
   const specialtyLabels = publicSpecialtyLabels({
     specialties: (doctor as { specialties?: string[] | null }).specialties,
     specialty: doctor.specialty,
@@ -538,14 +516,17 @@ export async function generateMetadata({
           districtLabel,
         });
   const dynamicTitle = metaTitleCore ?? fallbackTitle;
-  const dynamicDescription =
-    st === "verified" && specialtyForSeo.length > 0
-      ? `Book your next ${specialtyForSeo} appointment online with ${withDoctorTitleHonorific(doctorName)} in ${cityLabel}. Secure scheduling via DocCy.`
-      : st === "verified"
-        ? `Book online with ${withDoctorTitleHonorific(doctorName)} in ${cityLabel} via DocCy.`
-        : specialtyForSeo.length > 0
-          ? `View profile and contact details for ${withDoctorTitleHonorific(doctorName)} (${specialtyForSeo} in ${cityLabel}) on DocCy.`
-          : `View profile and contact details for ${withDoctorTitleHonorific(doctorName)} in ${cityLabel} on DocCy.`;
+  const dynamicDescription = buildRegisteredProfileMetaDescription({
+    status: st,
+    doctorName,
+    specialtyForSeo,
+    cityLabel,
+  });
+
+  const shareImageUrl = supabase
+    ? resolvePublicAvatarUrl(supabase, doctor.avatar_url)
+    : null;
+  const shareImages = buildShareImageMetadata(shareImageUrl);
 
   if (st !== "verified") {
     return {
@@ -556,13 +537,17 @@ export async function generateMetadata({
         description: dynamicDescription,
         type: "website",
         url: profileUrl,
-        images: [{ url: DOCTOR_AVATAR_URL }],
+        ...(shareImages.openGraphImages
+          ? { images: shareImages.openGraphImages }
+          : {}),
       },
       twitter: {
-        card: "summary_large_image",
+        card: shareImages.twitterCard,
         title: dynamicTitle,
         description: dynamicDescription,
-        images: [DOCTOR_AVATAR_URL],
+        ...(shareImages.twitterImages
+          ? { images: shareImages.twitterImages }
+          : {}),
       },
     };
   }
@@ -575,13 +560,15 @@ export async function generateMetadata({
       description: dynamicDescription,
       type: "website",
       url: profileUrl,
-      images: [{ url: DOCTOR_AVATAR_URL }],
+      ...(shareImages.openGraphImages
+        ? { images: shareImages.openGraphImages }
+        : {}),
     },
     twitter: {
-      card: "summary_large_image",
+      card: shareImages.twitterCard,
       title: dynamicTitle,
       description: dynamicDescription,
-      images: [DOCTOR_AVATAR_URL],
+      ...(shareImages.twitterImages ? { images: shareImages.twitterImages } : {}),
     },
   };
 }
@@ -631,8 +618,7 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
   }
   const clinicAddress = (profile.clinic_address ?? "").trim() || CLINIC_ADDRESS;
   const mapsUrl = buildMapsUrlFromAddress(clinicAddress);
-  let avatarUrl = DOCTOR_AVATAR_URL;
-  let hasCustomAvatar = false;
+  let avatarUrl: string | null = null;
   let publicPhone: string | null = null;
   const contactLookup = await supabase
     .from("doctors_public")
@@ -647,8 +633,7 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
       String((contactLookup.data as { phone?: string | null }).phone ?? "").trim() ||
       null;
     if (avatarPath) {
-      avatarUrl = supabase.storage.from("avatars").getPublicUrl(avatarPath).data.publicUrl;
-      hasCustomAvatar = true;
+      avatarUrl = resolvePublicAvatarUrl(supabase, avatarPath);
     }
   } else if (contactLookup.error) {
     console.error("[DocCy] doctors_public contact lookup failed:", contactLookup.error);
@@ -803,8 +788,7 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
     is_specialty_approved: profile.is_specialty_approved,
   });
   const profileSpecialtySeo = formatSpecialtiesForSeo(profileSpecialtyLabels);
-  const publicContactPhone = publicPhone;
-  const whatsappHref = publicContactPhone ? toWhatsAppHref(publicContactPhone) : null;
+  const hasPublicPhone = Boolean(publicPhone);
   const structuredData = buildPhysicianStructuredData({
     name: profile.name,
     specialty:
@@ -814,9 +798,9 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
     bio: profile.bio,
     clinicAddress: clinicAddress,
     district: profile.district ?? null,
-    phone: publicContactPhone,
+    phone: null,
     languages: profile.languages ?? null,
-    imageUrl: hasCustomAvatar ? avatarUrl : null,
+    imageUrl: avatarUrl,
     profileUrl: profileCanonicalUrl,
     sameAs: mapsUrl || null,
   });
@@ -831,7 +815,7 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
             name: profile.name,
             subtitle: profileSpecialtySeo || profile.specialty,
             location: profileHeadingCity,
-            photoUrl: hasCustomAvatar ? avatarUrl : null,
+            photoUrl: avatarUrl,
           }}
         />
       ) : null}
@@ -870,15 +854,24 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
             <LanguageSwitcher compact variant="light" />
           </div>
           <div className="flex items-start gap-5">
-            <div className="relative h-36 w-36 shrink-0 overflow-hidden rounded-2xl border-2 border-clinical-200 shadow-lg shadow-ink-900/10 sm:h-44 sm:w-44">
-              <Image
-                src={avatarUrl}
-                alt=""
-                fill
-                className="object-cover"
-                sizes="(max-width: 640px) 144px, 176px"
-                priority
-              />
+            <div className="relative h-36 w-36 shrink-0 overflow-hidden rounded-2xl border-2 border-clinical-200 bg-clinical-50 shadow-lg shadow-ink-900/10 sm:h-44 sm:w-44">
+              {avatarUrl ? (
+                <Image
+                  src={avatarUrl}
+                  alt=""
+                  fill
+                  className="object-cover"
+                  sizes="(max-width: 640px) 144px, 176px"
+                  priority
+                />
+              ) : (
+                <div
+                  className="flex h-full w-full items-center justify-center text-3xl font-semibold text-clinical-700 sm:text-4xl"
+                  aria-hidden
+                >
+                  {getInitials(profile.name)}
+                </div>
+              )}
             </div>
             <div className="min-w-0 flex-1">
               <h1 className="text-balance leading-tight">
@@ -1024,28 +1017,21 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
               name={profile.name}
               bio={profile.bio}
             />
-            {publicContactPhone ? (
+            {hasPublicPhone ? (
               <section className="lg:min-w-0">
                 <div className="rounded-3xl border border-clinical-200 bg-white p-5 shadow-[0_1px_3px_rgba(26,43,60,0.06),0_8px_24px_rgba(18,184,192,0.06)] backdrop-blur-xl sm:p-6">
                   <h2 className="text-sm font-semibold tracking-wide text-ink-900">
                     Contact
                   </h2>
                   <div className="mt-3 flex flex-col gap-3">
-                    {whatsappHref ? (
-                      <a
-                        href={whatsappHref}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100"
-                      >
-                        <WhatsAppLogoIcon className="h-4 w-4" />
-                        Chat on WhatsApp
-                      </a>
-                    ) : null}
-                    <p className="flex items-center gap-2 text-sm text-ink-700">
-                      <Phone className="h-4 w-4 text-clinical-600" />
-                      <span>{publicContactPhone}</span>
-                    </p>
+                    <RevealPhoneButton
+                      kind="registered"
+                      id={profile.id}
+                      hasPhone
+                      variant="profile-call"
+                      className="inline-flex items-center gap-3 rounded-xl border border-clinical-200 bg-clinical-50 px-3 py-2 text-sm font-semibold text-clinical-800 transition hover:bg-clinical-100 disabled:cursor-wait disabled:opacity-60"
+                      revealedClassName="inline-flex items-center gap-3 rounded-xl border border-clinical-200 bg-clinical-50 px-3 py-2 text-sm font-semibold tabular-nums text-clinical-800 transition hover:bg-clinical-100"
+                    />
                   </div>
                 </div>
               </section>

@@ -1,5 +1,4 @@
 import { CLINIC_ADDRESS } from "@/lib/clinic-info";
-import { phoneToWaMeLink } from "@/lib/whatsapp";
 import type {
   PatientCalendarDoctor,
   PatientCalendarEventDetails,
@@ -45,11 +44,6 @@ export function getDoctorCalendarEventDetails(
   const phone = String(appointment.patient_phone ?? "").trim();
   if (phone) {
     lines.push(`Phone: ${phone}`);
-  }
-
-  const patientWa = phoneToWaMeLink(phone);
-  if (patientWa) {
-    lines.push(`WhatsApp patient: ${patientWa}`);
   }
 
   lines.push(

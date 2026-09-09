@@ -113,7 +113,7 @@ async function logCallToBookClick(input: {
 }
 
 /**
- * Reveal phone for a manual listing or clinic after an intentional click.
+ * Reveal phone for a manual listing, clinic, or registered public profile after an intentional click.
  * Keeps phone out of SSR HTML / RSC props (anti-scraping P1).
  * Call to Book CTAs pass `source` so the click is stored for the founder dashboard.
  */
@@ -200,6 +200,25 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json({ ok: true, phone });
+  }
+
+  if (kind === "registered") {
+    const { data, error } = await supabase
+      .from("doctors_public")
+      .select("id, phone")
+      .eq("id", id)
+      .maybeSingle();
+    if (error) {
+      console.error("[DocCy][contact-reveal] registered_lookup_failed", error.message);
+      return NextResponse.json({ ok: false, reason: "lookup_failed" }, { status: 500 });
+    }
+    if (!data) {
+      return NextResponse.json({ ok: false, reason: "not_found" }, { status: 404 });
+    }
+    return NextResponse.json({
+      ok: true,
+      phone: normalizePhone((data as { phone?: string | null }).phone),
+    });
   }
 
   return NextResponse.json({ ok: false, reason: "invalid_kind" }, { status: 400 });
