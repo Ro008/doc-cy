@@ -13,6 +13,23 @@ test.describe("Integration UI: register form guidance", { tag: "@pr-e2e" }, () =
     });
   });
 
+  test("requires a strong password before counting the field as done", async ({ page }) => {
+    const progress = page.getByTestId("register-progress");
+    await expect(
+      page.getByText(
+        "Use at least 8 characters, including uppercase, lowercase, a number, and a special character.",
+      ),
+    ).toBeVisible();
+
+    const passwordField = page.locator("[data-field-key='password']");
+    await page.locator("#register-form input[name='password']").fill("password");
+    await expect(passwordField).toHaveAttribute("data-complete", "0");
+
+    await page.locator("#register-form input[name='password']").fill("StrongPass123!");
+    await expect(passwordField).toHaveAttribute("data-complete", "1");
+    await expect(progress).toContainText("1 of 9 completed");
+  });
+
   test("shows progress and counts a field as done once filled", async ({ page }) => {
     const progress = page.getByTestId("register-progress");
     await expect(progress).toBeVisible();

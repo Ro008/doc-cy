@@ -7,6 +7,9 @@ type PasswordToggleInputProps = {
   name: string;
   required?: boolean;
   minLength?: number;
+  maxLength?: number;
+  pattern?: string;
+  title?: string;
   placeholder?: string;
   className?: string;
   value?: string;
@@ -19,6 +22,9 @@ export function PasswordToggleInput({
   name,
   required,
   minLength,
+  maxLength,
+  pattern,
+  title,
   placeholder,
   className,
   value,
@@ -48,6 +54,9 @@ export function PasswordToggleInput({
         placeholder={placeholder}
         required={required}
         minLength={minLength}
+        maxLength={maxLength}
+        pattern={pattern}
+        title={title}
         className={`${inputClass} ${className ?? ""}`}
         autoComplete={
           autoComplete ?? (name === "password" ? "current-password" : undefined)

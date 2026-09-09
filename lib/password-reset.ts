@@ -4,7 +4,7 @@ export const FORGOT_PASSWORD_PATH = "/forgot-password";
 export const RESET_PASSWORD_PATH = "/reset-password";
 export const AUTH_CALLBACK_PATH = "/auth/callback";
 
-export const PASSWORD_RESET_MIN_LENGTH = 8;
+export { PASSWORD_MIN_LENGTH as PASSWORD_RESET_MIN_LENGTH } from "@/lib/password-policy";
 
 function pathOnly(pathname: string): string {
   const path = pathname.split("?")[0]?.split("#")[0] || pathname;

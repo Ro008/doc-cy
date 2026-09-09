@@ -48,6 +48,15 @@ import {
 import { RegisterClinicAddressField } from "@/components/auth/RegisterClinicAddressField";
 import { allocateUniqueDoctorSlug } from "@/lib/doctor-slug";
 import {
+  PASSWORD_MAX_LENGTH,
+  PASSWORD_MIN_LENGTH,
+  PASSWORD_POLICY_ERROR,
+  PASSWORD_POLICY_HELPER,
+  PASSWORD_POLICY_HTML_PATTERN,
+  PASSWORD_POLICY_TITLE,
+  isStrongPassword,
+} from "@/lib/password-policy";
+import {
   isProfessionalUuid,
   loadUnregisteredProfessionalForRegisterClaim,
   REGISTER_CLAIM_QUERY,
@@ -263,6 +272,10 @@ async function runRegister(formData: FormData) {
     professionalDisclaimer !== "on"
   ) {
     fail("validation");
+  }
+
+  if (!isStrongPassword(password)) {
+    fail("password_policy");
   }
 
   if (clinicResolved.ok === false) {
@@ -718,9 +731,8 @@ export default async function RegisterPage({ searchParams }: PageProps) {
   } else if (errorCode === "auth_network") {
     errorMessage =
       "Network issue while creating your account. Please check your connection and try again.";
-  } else if (errorCode === "auth_weak_password") {
-    errorMessage =
-      "Your password is too weak. Use at least 8 characters with a stronger combination.";
+  } else if (errorCode === "auth_weak_password" || errorCode === "password_policy") {
+    errorMessage = PASSWORD_POLICY_ERROR;
   } else if (errorCode === "auth") {
     errorMessage =
       "We couldn’t create your account. Please double‑check your email and try again.";
@@ -875,15 +887,17 @@ export default async function RegisterPage({ searchParams }: PageProps) {
                       <PasswordToggleInput
                         name="password"
                         required
-                        minLength={8}
+                        minLength={PASSWORD_MIN_LENGTH}
+                        maxLength={PASSWORD_MAX_LENGTH}
+                        pattern={PASSWORD_POLICY_HTML_PATTERN}
+                        title={PASSWORD_POLICY_TITLE}
                         autoComplete="new-password"
                         tone="light"
                         className="w-full"
                       />
                     </label>
-                    <p className={registerFieldErrorClass}>
-                      Please enter a password with at least 8 characters.
-                    </p>
+                    <p className={registerHelperClass}>{PASSWORD_POLICY_HELPER}</p>
+                    <p className={registerFieldErrorClass}>{PASSWORD_POLICY_ERROR}</p>
                   </div>
 
                   <div
