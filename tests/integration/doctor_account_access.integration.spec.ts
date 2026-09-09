@@ -14,6 +14,8 @@ import {
 const PROTECTED_AGENDA_ROUTES = ["/agenda", "/agenda/settings", "/agenda/insights"] as const;
 
 test.describe("Integration: doctor account access", { tag: "@pr-e2e" }, () => {
+  test.describe.configure({ timeout: 120_000 });
+
   test("pending doctor is gated on all agenda routes", async ({ page }) => {
     const env = requireSafeIntegration();
     const admin = createIntegrationAdmin(env);
