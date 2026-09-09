@@ -27,6 +27,10 @@ function assertSafeIntegrationTarget(baseUrl: string, supabaseUrl: string): stri
   return null;
 }
 
+function registeredDoctorLink(page: import("@playwright/test").Page, name: string) {
+  return page.getByRole("link", { name, exact: true });
+}
+
 async function createVerifiedDoctor(
   admin: ReturnType<typeof createClient>,
   nonce: string,
@@ -184,8 +188,8 @@ test.describe("Integration: finder user-like filter behavior matrix", { tag: ["@
       await expect(
         page.getByRole("heading", { level: 1, name: /Health professionals in Limassol/i }),
       ).toBeVisible({ timeout: 60_000 });
-      await expect(page.getByText(created[0].name, { exact: true })).toBeVisible({ timeout: 60_000 });
-      await expect(page.getByText(created[1].name, { exact: true })).toBeVisible({ timeout: 60_000 });
+      await expect(registeredDoctorLink(page, created[0].name)).toBeVisible({ timeout: 60_000 });
+      await expect(registeredDoctorLink(page, created[1].name)).toBeVisible({ timeout: 60_000 });
       await expect(page.getByText(created[2].name, { exact: true })).toHaveCount(0);
 
       // Scenario 2: District + specialty narrowing.
@@ -204,20 +208,20 @@ test.describe("Integration: finder user-like filter behavior matrix", { tag: ["@
       await expect(page.getByTestId("finder-active-filters")).toContainText("Dentist", {
         timeout: 60_000,
       });
-      await page.goto(`/limassol/dentist?name=${encodeURIComponent(created[1].name)}`);
-      await expect(page.getByText(created[1].name, { exact: true })).toBeVisible({ timeout: 60_000 });
+      await page.goto(`/limassol/dentist?name=${encodeURIComponent(nonce)}`);
+      await expect(registeredDoctorLink(page, created[1].name)).toBeVisible({ timeout: 60_000 });
       await expect(page.getByText(created[0].name, { exact: true })).toHaveCount(0);
 
       // Scenario 3: Name filter applies on Enter or Find (not while typing).
       await nameInput.fill("Dent");
       await expect(page).not.toHaveURL(/name=/, { timeout: 5_000 });
-      await expect(page.getByText(created[1].name, { exact: true })).toBeVisible({ timeout: 60_000 });
+      await expect(registeredDoctorLink(page, created[1].name)).toBeVisible({ timeout: 60_000 });
       await nameInput.press("Enter");
       await expect(page).toHaveURL(/name=Dent/, { timeout: 60_000 });
       await expect(page.getByTestId("finder-active-filters")).toContainText("Dent", {
         timeout: 60_000,
       });
-      await expect(page.getByText(created[1].name, { exact: true })).toBeVisible({ timeout: 60_000 });
+      await expect(registeredDoctorLink(page, created[1].name)).toBeVisible({ timeout: 60_000 });
 
       // Scenario 4: Reset should recover broad list + clean path.
       await page.getByRole("button", { name: /^Clear$/i }).click();
@@ -226,9 +230,9 @@ test.describe("Integration: finder user-like filter behavior matrix", { tag: ["@
       await expect(
         page.getByRole("heading", { level: 1, name: /The most complete health directory in Cyprus|Cyprus['’]s most complete health directory|Find your next health professional/i })
       ).toBeVisible({ timeout: 60_000 });
-      await expect(page.getByText(created[0].name, { exact: true })).toBeVisible({ timeout: 60_000 });
-      await expect(page.getByText(created[1].name, { exact: true })).toBeVisible({ timeout: 60_000 });
-      await expect(page.getByText(created[2].name, { exact: true })).toBeVisible({ timeout: 60_000 });
+      await expect(registeredDoctorLink(page, created[0].name)).toBeVisible({ timeout: 60_000 });
+      await expect(registeredDoctorLink(page, created[1].name)).toBeVisible({ timeout: 60_000 });
+      await expect(registeredDoctorLink(page, created[2].name)).toBeVisible({ timeout: 60_000 });
     } finally {
       for (const doctor of created) {
         await admin.from("professionals").delete().eq("id", doctor.doctorId);
