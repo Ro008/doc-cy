@@ -121,12 +121,20 @@ test.describe("Integration: doctor registration flow", { tag: "@local-register" 
       expect(doctor?.is_test_profile).toBe(true);
 
       if (canAssertResend) {
-        const sent = await waitForResendEmailWithSubject({
+        const founderMail = await waitForResendEmailWithSubject({
           apiKey: resendKey,
           subjectIncludes: fullName,
           timeoutMs: 30_000,
         });
-        expect(sent.subject).toMatch(/New registration/i);
+        expect(founderMail.subject).toMatch(/New registration/i);
+
+        const receivedMail = await waitForResendEmailWithSubject({
+          apiKey: resendKey,
+          subjectIncludes: "We received your application",
+          toIncludes: email,
+          timeoutMs: 30_000,
+        });
+        expect(receivedMail.subject).toMatch(/We received your application/i);
       }
     } finally {
       await deleteRegistrationE2eDoctor(admin, email);

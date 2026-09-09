@@ -1,4 +1,5 @@
 import type { Page } from "@playwright/test";
+import { expect } from "@playwright/test";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { signInDoctorAndSetCookies } from "../../helpers/doctorAuth";
 
@@ -120,4 +121,24 @@ export async function loginDoctorUi(
 ): Promise<void> {
   await signInDoctorAndSetCookies(page, undefined, { email, password });
   await page.goto("/");
+}
+
+/**
+ * Sign in the way a doctor does from the verified-account email: open the
+ * login URL from the message, fill the form, land on `next` (usually /agenda).
+ */
+export async function signInDoctorViaEmailLoginUrl(
+  page: Page,
+  loginUrl: string,
+  email: string,
+  password: string,
+): Promise<void> {
+  await page.goto(loginUrl);
+  await expect(page).toHaveURL(/\/login/);
+  await expect(page).toHaveURL(/next=/);
+  const submit = page.getByRole("button", { name: /^Sign in$/i });
+  await expect(submit).toBeEnabled({ timeout: 15_000 });
+  await page.locator('input[name="email"]').fill(email);
+  await page.locator('input[name="password"]').fill(password);
+  await submit.click();
 }
