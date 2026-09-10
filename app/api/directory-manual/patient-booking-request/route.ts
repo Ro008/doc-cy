@@ -7,9 +7,6 @@ import { parseBookingRequestSource } from "@/lib/finder-manual-patient-booking-r
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-/** UI still treats a repeat voter as one patient; every tap still inserts a row. */
-const DUPLICATE_UI_WINDOW_MS = 90 * 24 * 60 * 60 * 1000;
-
 type Body = {
   manualId?: string;
   clinicId?: string | null;
@@ -59,23 +56,23 @@ export async function POST(req: Request) {
 
   const ip = getClientIp(req);
   const voterKey = voterFingerprint(manualId, ip);
-  const sinceIso = new Date(Date.now() - DUPLICATE_UI_WINDOW_MS).toISOString();
-  let duplicate = false;
 
+  // Same IP+professional fingerprint: keep one row lifetime (toast still OK; Ads skips).
   if (voterKey) {
     const { data: existing, error: dupErr } = await supabase
       .from("professional_patient_booking_requests")
       .select("id")
       .eq("professional_id", manualId)
       .eq("voter_key", voterKey)
-      .gte("created_at", sinceIso)
       .limit(1);
 
     if (dupErr) {
       console.error("[DocCy][manual-booking-request] dedupe_lookup_failed", dupErr.message);
       return NextResponse.json({ ok: false, reason: "dedupe_lookup_failed" }, { status: 500 });
     }
-    duplicate = Boolean((existing ?? [])[0]?.id);
+    if ((existing ?? [])[0]?.id) {
+      return NextResponse.json({ ok: true, duplicate: true }, { status: 200 });
+    }
   }
 
   const insertPayload: Record<string, unknown> = {
@@ -114,5 +111,5 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, reason }, { status: 500 });
   }
 
-  return NextResponse.json({ ok: true, duplicate }, { status: duplicate ? 200 : 201 });
+  return NextResponse.json({ ok: true, duplicate: false }, { status: 201 });
 }

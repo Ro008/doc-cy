@@ -1,6 +1,6 @@
 export type VisitsRangeKey = "7d" | "30d" | "90d";
 
-export type ManualVotesRangeKey = "7d" | "30d" | "90d";
+export type ManualVotesRangeKey = "7d" | "30d" | "90d" | "all";
 
 export type CallToBookRangeKey = "7d" | "30d" | "90d";
 
@@ -40,8 +40,8 @@ export function getVisitsRangeLabel(range: VisitsRangeKey): string {
 
 export function parseManualVotesRange(value: string | string[] | undefined): ManualVotesRangeKey {
   const raw = first(value);
-  if (raw === "7d" || raw === "30d") return raw;
-  return "90d";
+  if (raw === "7d" || raw === "30d" || raw === "90d") return raw;
+  return "all";
 }
 
 export function parseManualVotesCol(value: string | string[] | undefined): ManualVotesSortCol {
@@ -88,7 +88,9 @@ export function parseFounderDashboardQuery(searchParams?: {
   };
 }
 
-export function getManualVotesWindowDays(range: ManualVotesRangeKey): number {
+/** `null` = all time (no created_at lower bound). */
+export function getManualVotesWindowDays(range: ManualVotesRangeKey): number | null {
+  if (range === "all") return null;
   if (range === "7d") return 7;
   if (range === "30d") return 30;
   return 90;
@@ -97,7 +99,8 @@ export function getManualVotesWindowDays(range: ManualVotesRangeKey): number {
 export function getManualVotesRangeLabel(range: ManualVotesRangeKey): string {
   if (range === "7d") return "Last 7 days";
   if (range === "30d") return "Last 30 days";
-  return "Last 90 days";
+  if (range === "90d") return "Last 90 days";
+  return "All time";
 }
 
 export function founderDirectoryHref(

@@ -1,5 +1,4 @@
-/** Rolling 30-day window for unregistered ranking and the scarcity badge. */
-export const FINDER_BOOKING_REQUEST_WINDOW_DAYS = 30;
+/** Lifetime unique-patient signal for unregistered ranking and the scarcity badge. */
 
 export type BookingRequestEventRow = {
   professionalId: string;
@@ -8,22 +7,16 @@ export type BookingRequestEventRow = {
 };
 
 export type BookingRequestStats = {
-  /** Every stored tap in the window (analytics / founder dashboard). */
-  requests30d: number;
-  /** Distinct patients in the window — public badge and unregistered ranking. */
-  uniquePatients30d: number;
+  /** Every stored tap in the loaded set (diagnostics; badge uses uniquePatients). */
+  requestTaps: number;
+  /** Distinct patients (voter_key) — public badge and unregistered ranking. */
+  uniquePatients: number;
 };
-
-export function finderBookingRequestWindowSinceIso(now = Date.now()): string {
-  return new Date(
-    now - FINDER_BOOKING_REQUEST_WINDOW_DAYS * 24 * 60 * 60 * 1000,
-  ).toISOString();
-}
 
 export function aggregateBookingRequestStats(
   rows: readonly BookingRequestEventRow[],
 ): Map<string, BookingRequestStats> {
-  const byProfessional = new Map<string, { requests30d: number; voters: Set<string> }>();
+  const byProfessional = new Map<string, { requestTaps: number; voters: Set<string> }>();
   for (const row of rows) {
     const professionalId = String(row.professionalId ?? "").trim();
     if (!professionalId) continue;
@@ -31,10 +24,10 @@ export function aggregateBookingRequestStats(
     const voterKey = String(row.voterKey ?? "").trim();
     const voterId = voterKey || (tapId ? `legacy:${tapId}` : "");
     const current = byProfessional.get(professionalId) ?? {
-      requests30d: 0,
+      requestTaps: 0,
       voters: new Set<string>(),
     };
-    current.requests30d += 1;
+    current.requestTaps += 1;
     if (voterId) current.voters.add(voterId);
     byProfessional.set(professionalId, current);
   }
@@ -42,21 +35,21 @@ export function aggregateBookingRequestStats(
   const out = new Map<string, BookingRequestStats>();
   for (const [professionalId, current] of byProfessional.entries()) {
     out.set(professionalId, {
-      requests30d: current.requests30d,
-      uniquePatients30d: current.voters.size,
+      requestTaps: current.requestTaps,
+      uniquePatients: current.voters.size,
     });
   }
   return out;
 }
 
-/** Listing ids with at least `minUnique` distinct patients in the 30-day window. */
+/** Listing ids with at least `minUnique` distinct patients (lifetime). */
 export function professionalIdsWithUniqueRequests(
   stats: Map<string, BookingRequestStats>,
   minUnique = 1,
 ): string[] {
   const ids: string[] = [];
   for (const [id, value] of stats.entries()) {
-    if (value.uniquePatients30d >= minUnique) ids.push(id);
+    if (value.uniquePatients >= minUnique) ids.push(id);
   }
   return ids;
 }
@@ -78,8 +71,8 @@ export function mergeManualDirectoryRowsById<T extends { id?: string }>(
   return out;
 }
 
-export function formatFinderRequestBadgeLabel(uniquePatients30d: number): string | null {
-  if (uniquePatients30d < 1) return null;
-  const patientLabel = uniquePatients30d === 1 ? "patient" : "patients";
-  return `🔥 ${uniquePatients30d} ${patientLabel} requested online booking this month`;
+export function formatFinderRequestBadgeLabel(uniquePatients: number): string | null {
+  if (uniquePatients < 1) return null;
+  const patientLabel = uniquePatients === 1 ? "patient" : "patients";
+  return `🔥 ${uniquePatients} ${patientLabel} requested online booking`;
 }

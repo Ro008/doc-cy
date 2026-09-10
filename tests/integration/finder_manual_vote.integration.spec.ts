@@ -10,8 +10,7 @@ const THANKS_TOAST_RE = /Thank you! We will notify the doctor\./i;
  * cards and you see varied rows on the founder dashboard (testing DB only).
  *
  * Rows are **not** deleted after the test so `/internal/directory` keeps the signal. Repeat
- * taps still insert a new row; the API may still flag `duplicate: true` for the same
- * voter fingerprint (UI/Google Ads), without dropping the click.
+ * taps from the same voter fingerprint return `duplicate: true` without inserting another row.
  *
  * Data target (IMPORTANT):
  * - Same safety gate as other integration finder tests (`assertSafeIntegrationTarget`).

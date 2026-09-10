@@ -659,13 +659,18 @@ export default async function FounderDashboardPage({
   let manualVoteRowsUnsorted: ManualPatientVoteRow[] = [];
   try {
     const manualVotesDays = getManualVotesWindowDays(dashboardQuery.manualVotesRange);
-    const sinceIso = new Date(Date.now() - manualVotesDays * 24 * 60 * 60 * 1000).toISOString();
-    const { data: reqRows, error: reqErr } = await fetchAllSupabaseRows(() =>
-      supabase
+    const { data: reqRows, error: reqErr } = await fetchAllSupabaseRows(() => {
+      let q = supabase
         .from("professional_patient_booking_requests")
-        .select("id, professional_id, created_at, voter_key")
-        .gte("created_at", sinceIso),
-    );
+        .select("id, professional_id, created_at, voter_key");
+      if (manualVotesDays != null) {
+        const sinceIso = new Date(
+          Date.now() - manualVotesDays * 24 * 60 * 60 * 1000,
+        ).toISOString();
+        q = q.gte("created_at", sinceIso);
+      }
+      return q;
+    });
     if (!reqErr && reqRows?.length) {
       const byManual = new Map<string, { voters: Set<string>; lastAt: string }>();
       for (const r of reqRows) {

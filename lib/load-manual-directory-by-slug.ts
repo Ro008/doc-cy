@@ -3,7 +3,6 @@ import type { CyprusDistrict } from "@/lib/cyprus-districts";
 import { doctorDashboardDisplayName } from "@/lib/doctor-display-name";
 import { getFinderManualPhotoUrl } from "@/lib/finder-manual-photos";
 import { resolveFinderDisplayPhotoUrl } from "@/lib/finder-default-avatars";
-import { finderManualVoteBadgeSinceIso } from "@/lib/finder-manual-vote-badge";
 import { parseOptionalCoordinates } from "@/lib/finder-distance";
 import {
   buildManualDirectoryClinicRefs,
@@ -266,20 +265,18 @@ export async function loadManualDirectoryBySlug(
   }
 
   const manualId = String(row.id);
-  const monthlySinceIso = finderManualVoteBadgeSinceIso();
   let monthlyRequestCount = 0;
 
-  const { data: monthlyRequestRows } = await fetchAllSupabaseRows(() =>
+  const { data: requestRows } = await fetchAllSupabaseRows(() =>
     supabase
       .from("professional_patient_booking_requests")
       .select("id, voter_key")
-      .eq("professional_id", manualId)
-      .gte("created_at", monthlySinceIso),
+      .eq("professional_id", manualId),
   );
 
-  if (monthlyRequestRows?.length) {
+  if (requestRows?.length) {
     const voters = new Set<string>();
-    for (const r of monthlyRequestRows) {
+    for (const r of requestRows) {
       const id = String((r as { id?: string }).id ?? "");
       const vk = (r as { voter_key?: string | null }).voter_key?.trim();
       voters.add(vk || `legacy:${id}`);

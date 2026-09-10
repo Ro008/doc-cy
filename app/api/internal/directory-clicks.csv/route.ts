@@ -47,9 +47,11 @@ export async function GET(req: NextRequest) {
   const phoneSince = new Date(
     Date.now() - getCallToBookWindowDays(callToBookRange) * 24 * 60 * 60 * 1000,
   ).toISOString();
-  const bookingSince = new Date(
-    Date.now() - getManualVotesWindowDays(manualVotesRange) * 24 * 60 * 60 * 1000,
-  ).toISOString();
+  const bookingWindowDays = getManualVotesWindowDays(manualVotesRange);
+  const bookingSince =
+    bookingWindowDays == null
+      ? null
+      : new Date(Date.now() - bookingWindowDays * 24 * 60 * 60 * 1000).toISOString();
 
   const [phoneRes, bookingRes] = await Promise.all([
     includePhone
@@ -62,13 +64,14 @@ export async function GET(req: NextRequest) {
         )
       : Promise.resolve({ data: [] as Record<string, unknown>[], error: null }),
     includeBooking
-      ? fetchAllSupabaseRows(() =>
-          supabase
+      ? fetchAllSupabaseRows(() => {
+          let q = supabase
             .from("professional_patient_booking_requests")
             .select("professional_id, source, created_at")
-            .gte("created_at", bookingSince)
-            .order("created_at", { ascending: false }),
-        )
+            .order("created_at", { ascending: false });
+          if (bookingSince) q = q.gte("created_at", bookingSince);
+          return q;
+        })
       : Promise.resolve({ data: [] as Record<string, unknown>[], error: null }),
   ]);
 

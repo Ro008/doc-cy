@@ -82,7 +82,6 @@ import { publicSpecialtyLabels } from "@/lib/doctor-specialties";
 import { FinderShuffleSeedCookie } from "@/components/finder/FinderShuffleSeedCookie";
 import {
   aggregateBookingRequestStats,
-  finderBookingRequestWindowSinceIso,
   mergeManualDirectoryRowsById,
   professionalIdsWithUniqueRequests,
 } from "@/lib/finder-booking-request-stats";
@@ -202,7 +201,7 @@ type ManualFinderRow = {
   hasPhone: boolean;
   address: string | null;
   photoUrl: string;
-  /** Unique patients who requested online booking in the last 30 days. */
+  /** Unique patients who requested online booking (lifetime). */
   monthlyRequestCount: number;
   isGesy: boolean;
   latitude: number | null;
@@ -462,7 +461,7 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
   let dataWarning: string | null = null;
   let bookingStatsById = new Map<
     string,
-    { requests30d: number; uniquePatients30d: number }
+    { requestTaps: number; uniquePatients: number }
   >();
 
   if (supabase) {
@@ -501,13 +500,12 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
     })();
 
     const bookingRequestRowsPromise = getCachedDirectoryRows(
-      ["booking-requests-30d"],
+      ["booking-requests-all-time"],
       () =>
         fetchAllSupabaseRows(() =>
           supabase
             .from("professional_patient_booking_requests")
-            .select("id, professional_id, voter_key")
-            .gte("created_at", finderBookingRequestWindowSinceIso()),
+            .select("id, professional_id, voter_key"),
         ),
     );
 
@@ -1016,7 +1014,7 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
   });
 
   for (const row of filteredManual) {
-    row.monthlyRequestCount = bookingStatsById.get(row.id)?.uniquePatients30d ?? 0;
+    row.monthlyRequestCount = bookingStatsById.get(row.id)?.uniquePatients ?? 0;
   }
 
   function computeDistanceInfo(
