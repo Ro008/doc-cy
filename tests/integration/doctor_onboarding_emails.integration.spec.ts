@@ -23,7 +23,13 @@ test.describe("Doctor onboarding email content", { tag: "@pr-email" }, () => {
     expect(standard.textBody).toContain("email confirmed — pending verification");
     expect(standard.textBody).toContain("doc-1");
     expect(standard.textBody).toContain("maria@example.com");
-    expect(standard.reviewUrl).toBe("https://mydoccy.com/internal/directory");
+    expect(standard.reviewUrl).toBe(
+      "https://mydoccy.com/internal/directory#pending-registration-review",
+    );
+    expect(standard.textBody).toContain("Languages:");
+    expect(standard.textBody).toContain("Specialties:");
+    expect(standard.textBody).toContain("Clinic locations:");
+    expect(standard.textBody).toContain("Photo uploaded:");
 
     const custom = buildFounderNewRegistrationNotifyContent(
       {
