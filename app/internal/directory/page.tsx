@@ -971,13 +971,7 @@ export default async function FounderDashboardPage({
                 <h1 className="mt-1 text-2xl font-semibold tracking-tight text-white lg:text-3xl">
                   Hi Livio
                 </h1>
-                <p className="mt-1 max-w-xl text-sm text-slate-300">
-                  Welcome to your DocCy view — metrics, professionals, and
-                  bookings, all in one place.
-                </p>
-                <p className="mt-1 text-sm text-slate-500">
-                  Read-only · range filters · CSV reports
-                </p>
+                <p className="mt-1 text-sm text-slate-400">Your DocCy overview.</p>
               </>
             )}
             <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px]">
@@ -987,8 +981,8 @@ export default async function FounderDashboardPage({
                 Environment: {runtimeLabel}
               </span>
               {canMutate ? null : (
-                <span className="inline-flex items-center rounded-full border border-violet-500/40 bg-violet-500/15 px-2 py-1 font-semibold uppercase tracking-[0.12em] text-violet-100">
-                  Business Partner · Read-only
+                <span className="inline-flex items-center rounded-full border border-slate-600/60 bg-slate-800/70 px-2 py-1 font-semibold uppercase tracking-[0.12em] text-slate-200">
+                  Access: Read-only
                 </span>
               )}
             </div>
