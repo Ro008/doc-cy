@@ -2,6 +2,8 @@ import { FinderCardAvailabilityGrid } from "@/components/finder/FinderCardAvaila
 import { FinderCardOnlineBookingPaused } from "@/components/finder/FinderCardOnlineBookingPaused";
 import { FinderMultiLocationAvailability } from "@/components/finder/FinderMultiLocationAvailability";
 import { RevealPhoneButton } from "@/components/finder/RevealPhoneButton";
+import { buildMapsUrlFromClinicLocation } from "@/lib/clinic-info";
+import { stripPlusCodePrefix } from "@/lib/clinic-location-pin";
 import { loadFinderAvailabilityForRequest } from "@/lib/public/load-finder-availability-request";
 import { loadFinderRegisteredPublicCallIds } from "@/lib/public/load-finder-registered-public-call";
 import { doctorLocationDisplayName } from "@/lib/doctor-locations";
@@ -140,6 +142,9 @@ export async function FinderRegisteredCardAvailability({
       location: (
         <RegisteredLocationCopy
           address={address}
+          latitude={location.latitude}
+          longitude={location.longitude}
+          placeId={location.clinic_place_id}
           title={
             isMulti
               ? doctorLocationDisplayName(location, index, locations.length)
@@ -194,11 +199,25 @@ function RegisteredLocationCopy({
   address,
   title,
   callDoctorId = null,
+  latitude = null,
+  longitude = null,
+  placeId = null,
 }: {
   address?: string | null;
   title?: string | null;
   callDoctorId?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  placeId?: string | null;
 }) {
+  const displayAddress = stripPlusCodePrefix(String(address ?? "").trim());
+  const mapsHref = buildMapsUrlFromClinicLocation({
+    address: displayAddress,
+    latitude,
+    longitude,
+    placeId,
+  });
+
   return (
     <div className="space-y-4">
       {title ? (
@@ -208,13 +227,21 @@ function RegisteredLocationCopy({
       ) : null}
       <div>
         <p className="text-xs leading-relaxed text-ink-600 whitespace-pre-wrap break-words">
-          {String(address ?? "").trim() || "Not provided yet"}
+          {displayAddress || "Not provided yet"}
         </p>
-        {callDoctorId ? (
-          <div className="mt-1.5">
-            <RegisteredPublicCallButton doctorId={callDoctorId} />
-          </div>
-        ) : null}
+        <div className="mt-1.5 flex flex-wrap items-center gap-2">
+          {mapsHref ? (
+            <a
+              href={mapsHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex text-xs font-semibold text-clinical-700 transition-none underline-offset-2 hover:text-clinical-600 hover:underline"
+            >
+              Open in Maps ↗
+            </a>
+          ) : null}
+          {callDoctorId ? <RegisteredPublicCallButton doctorId={callDoctorId} /> : null}
+        </div>
       </div>
     </div>
   );

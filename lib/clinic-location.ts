@@ -14,6 +14,7 @@ import {
   parseOptionalCoordinates,
   type Coordinates,
 } from "@/lib/finder-distance";
+import { stripPlusCodePrefix } from "@/lib/clinic-location-pin";
 
 export type ClinicLocation = {
   address: string;
@@ -119,7 +120,7 @@ export function clinicLocationFromParts(input: {
   const coords = parseOptionalCoordinates(input.latitude, input.longitude);
   const districtRaw = String(input.district ?? "").trim();
   const district = isCyprusDistrict(districtRaw) ? districtRaw : null;
-  const address = String(input.address ?? "").trim();
+  const address = stripPlusCodePrefix(String(input.address ?? ""));
   return {
     address,
     latitude: coords?.latitude ?? null,
@@ -131,7 +132,7 @@ export function clinicLocationFromParts(input: {
     district:
       district ??
       inferCyprusDistrictFromClinic({
-        address: input.address,
+        address,
         latitude: coords?.latitude,
         longitude: coords?.longitude,
         addressComponents: input.addressComponents ?? undefined,

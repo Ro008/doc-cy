@@ -10,6 +10,7 @@ import {
   clinicLocationFromParts,
   type ClinicLocation,
 } from "@/lib/clinic-location";
+import { stripPlusCodePrefix } from "@/lib/clinic-location-pin";
 import { isCyprusDistrict } from "@/lib/cyprus-districts";
 
 export const MAX_DOCTOR_LOCATIONS = 5;
@@ -219,7 +220,7 @@ export function agendaClinicEventColor(index: number): (typeof AGENDA_CLINIC_EVE
 }
 
 export function clinicAddressFirstLine(address: string | null | undefined): string {
-  const line = String(address ?? "").trim().split("\n")[0]?.trim() ?? "";
+  const line = stripPlusCodePrefix(String(address ?? "")).split("\n")[0]?.trim() ?? "";
   if (!line) return "";
   if (line.length <= 56) return line;
   return `${line.slice(0, 54).trim()}…`;

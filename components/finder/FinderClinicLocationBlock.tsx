@@ -2,6 +2,7 @@ import { PendingLink } from "@/components/navigation/PendingLink";
 import { RevealPhoneButton } from "@/components/finder/RevealPhoneButton";
 import { clinicLandingPath } from "@/lib/clinic-landing-path";
 import type { CallToBookSource } from "@/lib/call-to-book";
+import { stripPlusCodePrefix } from "@/lib/clinic-location-pin";
 import {
   formatClinicCountLabel,
   formatMoreClinicsLabel,
@@ -105,8 +106,9 @@ function ClinicEntry({
   callToBook?: FinderCallToBookContext | null;
 }) {
   const clinicHref = item.slug ? clinicLandingPath(item.slug) : null;
-  const addressText =
-    String(item.address ?? "").trim() || (useFallback ? fallbackAddress : "");
+  const addressText = stripPlusCodePrefix(
+    String(item.address ?? "").trim() || (useFallback ? fallbackAddress : ""),
+  );
   const locationLine = addressText || String(item.district ?? "").trim() || district;
   const mapsHref =
     String(item.addressMapsLink ?? "").trim() || (useFallback ? fallbackMaps : null);
