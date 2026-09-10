@@ -12,15 +12,29 @@ export async function deleteRegistrationE2eDoctor(
   const normalized = email.trim().toLowerCase();
   if (!normalized) return;
 
-  const { data: rows } = await admin
+  const { data: byRegistration } = await admin
+    .from("professionals")
+    .select("id, auth_user_id")
+    .ilike("registration_email", normalized);
+  const { data: byDirectoryEmail } = await admin
     .from("professionals")
     .select("id, auth_user_id")
     .ilike("email", normalized);
 
-  const seenAuth = new Set<string>();
-  for (const row of rows ?? []) {
+  const rowsById = new Map<string, { id: string; auth_user_id: string }>();
+  for (const row of [...(byRegistration ?? []), ...(byDirectoryEmail ?? [])]) {
     const doctorId = String((row as { id?: string }).id ?? "");
-    const authUserId = String((row as { auth_user_id?: string }).auth_user_id ?? "");
+    if (!doctorId) continue;
+    rowsById.set(doctorId, {
+      id: doctorId,
+      auth_user_id: String((row as { auth_user_id?: string }).auth_user_id ?? ""),
+    });
+  }
+
+  const seenAuth = new Set<string>();
+  for (const row of rowsById.values()) {
+    const doctorId = row.id;
+    const authUserId = row.auth_user_id;
     if (authUserId) seenAuth.add(authUserId);
     if (doctorId) {
       await deleteTestDoctor({

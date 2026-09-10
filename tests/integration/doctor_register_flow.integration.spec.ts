@@ -112,12 +112,22 @@ test.describe("Integration: doctor registration flow", { tag: "@local-register" 
       ).toBeVisible({ timeout: 15_000 });
       await expect(overlay).toBeHidden();
 
-      const { data: doctor, error } = await admin
+      const { data: byRegistration, error: regErr } = await admin
         .from("professionals")
-        .select("id, email, is_test_profile, status")
-        .eq("email", email)
+        .select("id, email, registration_email, is_test_profile, status")
+        .eq("registration_email", email)
         .maybeSingle();
-      if (error) throw new Error(`Failed reading registered doctor: ${error.message}`);
+      if (regErr) throw new Error(`Failed reading registered doctor: ${regErr.message}`);
+      let doctor = byRegistration;
+      if (!doctor?.id) {
+        const { data: byEmail, error: emailErr } = await admin
+          .from("professionals")
+          .select("id, email, registration_email, is_test_profile, status")
+          .eq("email", email)
+          .maybeSingle();
+        if (emailErr) throw new Error(`Failed reading registered doctor: ${emailErr.message}`);
+        doctor = byEmail;
+      }
       expect(doctor?.id).toBeTruthy();
       expect(doctor?.is_test_profile).toBe(true);
 
