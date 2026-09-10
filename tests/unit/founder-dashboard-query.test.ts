@@ -3,6 +3,8 @@ import { describe, it } from "node:test";
 import {
   founderDirectoryClicksCsvHref,
   founderDirectoryHref,
+  getCallToBookRangeLabel,
+  getCallToBookWindowDays,
   getManualVotesRangeLabel,
   getManualVotesWindowDays,
   nextCallToBookSort,
@@ -10,9 +12,11 @@ import {
 } from "../../lib/founder-dashboard-query";
 
 describe("parseFounderDashboardQuery", () => {
-  it("defaults call-to-book range to 7 days", () => {
+  it("defaults call-to-book range to all time", () => {
     const q = parseFounderDashboardQuery({});
-    assert.equal(q.callToBookRange, "7d");
+    assert.equal(q.callToBookRange, "all");
+    assert.equal(getCallToBookWindowDays("all"), null);
+    assert.equal(getCallToBookRangeLabel("all"), "All time");
   });
 
   it("defaults manual votes range to all time", () => {

@@ -33,7 +33,7 @@ type Props = {
   rows: CallToBookDashboardRow[];
 };
 
-const RANGE_KEYS: CallToBookRangeKey[] = ["7d", "30d", "90d"];
+const RANGE_KEYS: CallToBookRangeKey[] = ["7d", "30d", "90d", "all"];
 
 function sortGlyph(activeCol: CallToBookSortCol, activeDir: "asc" | "desc", col: CallToBookSortCol) {
   if (activeCol !== col) return "";
@@ -71,17 +71,18 @@ export function CallToBookClicksSection({
         <div className="min-w-0">
           <h2 className="text-sm font-semibold text-clinical-100">Show phone number clicks</h2>
           <p className="mt-1 max-w-3xl text-xs leading-relaxed text-clinical-100/80">
-            Each row in{" "}
-            <code className="rounded bg-black/30 px-1">professional_call_to_book_clicks</code> is
-            a patient tap on Show phone number (phone revealed for that location). Finder cards and
-            professional profile pages are counted separately.
+            Each Show phone number tap on an unregistered listing (finder card or professional
+            profile) inserts a row in{" "}
+            <code className="rounded bg-black/30 px-1">professional_call_to_book_clicks</code>.
+            Totals below are tap counts in the selected window — not unique patients. Finder and
+            professional profile sources are broken out separately.
           </p>
         </div>
-        <div className="w-full shrink-0 sm:w-auto sm:max-w-[220px]">
+        <div className="w-full shrink-0 sm:w-auto sm:max-w-[280px]">
           <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-clinical-300/80">
             Date range
           </p>
-          <div className="mt-2 grid grid-cols-3 gap-1 rounded-lg border border-clinical-500/30 bg-slate-950/50 p-1 sm:flex sm:gap-0">
+          <div className="mt-2 grid grid-cols-2 gap-1 rounded-lg border border-clinical-500/30 bg-slate-950/50 p-1 sm:flex sm:gap-0 sm:grid-cols-none">
             {RANGE_KEYS.map((key) => {
               const active = query.callToBookRange === key;
               return (
@@ -95,7 +96,13 @@ export function CallToBookClicksSection({
                       : "text-slate-400 hover:bg-slate-800/50 hover:text-slate-200 active:bg-slate-800/70"
                   }`}
                 >
-                  {key === "7d" ? "Week" : key === "30d" ? "Month" : "Quarter"}
+                  {key === "7d"
+                    ? "Week"
+                    : key === "30d"
+                      ? "Month"
+                      : key === "90d"
+                        ? "Quarter"
+                        : "All time"}
                 </button>
               );
             })}
@@ -247,8 +254,9 @@ export function CallToBookClicksSection({
         </div>
       ) : (
         <p className="mt-6 text-xs text-slate-400">
-          No Show phone number clicks in {rangeLabel.toLowerCase()} yet. They appear here after
-          patients tap the button on finder cards or professional profile pages.
+          {query.callToBookRange === "all"
+            ? "No Show phone number clicks yet. They appear here after patients tap the button on finder cards or professional profile pages."
+            : `No Show phone number clicks in ${rangeLabel.toLowerCase()} yet. They appear here after patients tap the button on finder cards or professional profile pages.`}
         </p>
       )}
     </section>

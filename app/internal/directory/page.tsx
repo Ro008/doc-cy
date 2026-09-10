@@ -843,13 +843,18 @@ export default async function FounderDashboardPage({
   let callToBookProfessionalProfileCount = 0;
   try {
     const callToBookDays = getCallToBookWindowDays(dashboardQuery.callToBookRange);
-    const sinceIso = new Date(Date.now() - callToBookDays * 24 * 60 * 60 * 1000).toISOString();
-    const { data: clickRows, error: clickErr } = await fetchAllSupabaseRows(() =>
-      supabase
+    const { data: clickRows, error: clickErr } = await fetchAllSupabaseRows(() => {
+      let q = supabase
         .from("professional_call_to_book_clicks")
-        .select("professional_id, clinic_id, source, created_at")
-        .gte("created_at", sinceIso),
-    );
+        .select("professional_id, clinic_id, source, created_at");
+      if (callToBookDays != null) {
+        const sinceIso = new Date(
+          Date.now() - callToBookDays * 24 * 60 * 60 * 1000,
+        ).toISOString();
+        q = q.gte("created_at", sinceIso);
+      }
+      return q;
+    });
     if (!clickErr && clickRows?.length) {
       const aggregated = aggregateCallToBookClicks(
         clickRows.map((r) => ({

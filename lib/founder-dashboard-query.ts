@@ -2,7 +2,7 @@ export type VisitsRangeKey = "7d" | "30d" | "90d";
 
 export type ManualVotesRangeKey = "7d" | "30d" | "90d" | "all";
 
-export type CallToBookRangeKey = "7d" | "30d" | "90d";
+export type CallToBookRangeKey = "7d" | "30d" | "90d" | "all";
 
 export type ManualVotesSortCol = "votes" | "name" | "district" | "specialty" | "last";
 
@@ -67,8 +67,8 @@ export function parseManualVotesDir(value: string | string[] | undefined): SortD
 
 export function parseCallToBookRange(value: string | string[] | undefined): CallToBookRangeKey {
   const raw = first(value);
-  if (raw === "30d" || raw === "90d") return raw;
-  return "7d";
+  if (raw === "7d" || raw === "30d" || raw === "90d") return raw;
+  return "all";
 }
 
 export function parseCallToBookCol(value: string | string[] | undefined): CallToBookSortCol {
@@ -90,16 +90,19 @@ export function parseCallToBookDir(value: string | string[] | undefined): SortDi
   return first(value) === "asc" ? "asc" : "desc";
 }
 
-export function getCallToBookWindowDays(range: CallToBookRangeKey): number {
+/** `null` = all time (no created_at lower bound). */
+export function getCallToBookWindowDays(range: CallToBookRangeKey): number | null {
+  if (range === "all") return null;
   if (range === "30d") return 30;
   if (range === "90d") return 90;
   return 7;
 }
 
 export function getCallToBookRangeLabel(range: CallToBookRangeKey): string {
+  if (range === "7d") return "Last 7 days";
   if (range === "30d") return "Last 30 days";
   if (range === "90d") return "Last 90 days";
-  return "Last 7 days";
+  return "All time";
 }
 
 export function parseFounderDashboardQuery(searchParams?: {
