@@ -10,6 +10,7 @@ import {
   getVisitsRangeLabel,
   getVisitsWindowDays,
   parseFounderDashboardQuery,
+  type CallToBookSortCol,
   type FounderDashboardQuery,
   type ManualVotesSortCol,
   type SortDir,
@@ -108,6 +109,44 @@ function sortManualPatientVoteRows(
   });
 }
 
+function sortCallToBookRows(
+  rows: CallToBookDashboardRow[],
+  col: CallToBookSortCol,
+  dir: SortDir,
+): CallToBookDashboardRow[] {
+  const mul = dir === "asc" ? 1 : -1;
+  return [...rows].sort((a, b) => {
+    let c = 0;
+    switch (col) {
+      case "clicks":
+        c = a.count - b.count;
+        break;
+      case "finder":
+        c = a.finderCount - b.finderCount;
+        break;
+      case "profile":
+        c = a.professionalProfileCount - b.professionalProfileCount;
+        break;
+      case "last":
+        c = new Date(a.lastAt).getTime() - new Date(b.lastAt).getTime();
+        break;
+      case "name":
+        c = a.name.localeCompare(b.name, "en", { sensitivity: "base" });
+        break;
+      case "district":
+        c = (a.district ?? "").localeCompare(b.district ?? "", "en", { sensitivity: "base" });
+        break;
+      case "specialty":
+        c = (a.specialty ?? "").localeCompare(b.specialty ?? "", "en", { sensitivity: "base" });
+        break;
+      default:
+        c = 0;
+    }
+    if (c !== 0) return mul * c;
+    return a.name.localeCompare(b.name, "en", { sensitivity: "base" });
+  });
+}
+
 /** Always run on the server per request — no static cache of dashboard numbers */
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -128,6 +167,8 @@ export default async function FounderDashboardPage({
     manualVotesCol?: string | string[];
     manualVotesDir?: string | string[];
     callToBookRange?: string | string[];
+    callToBookCol?: string | string[];
+    callToBookDir?: string | string[];
   };
 }) {
   const supabase = createServiceRoleClient();
@@ -835,19 +876,23 @@ export default async function FounderDashboardPage({
           },
         ]),
       );
-      callToBookRows = aggregated.byProfessional.slice(0, 120).map((agg) => {
-        const meta = nameMap.get(agg.manualId);
-        return {
-          manualId: agg.manualId,
-          name: meta?.name?.trim() || agg.manualId.slice(0, 8),
-          district: meta?.district ?? null,
-          specialty: meta?.specialty ?? null,
-          count: agg.count,
-          finderCount: agg.finderCount,
-          professionalProfileCount: agg.professionalProfileCount,
-          lastAt: agg.lastAt,
-        };
-      });
+      callToBookRows = sortCallToBookRows(
+        aggregated.byProfessional.map((agg) => {
+          const meta = nameMap.get(agg.manualId);
+          return {
+            manualId: agg.manualId,
+            name: meta?.name?.trim() || agg.manualId.slice(0, 8),
+            district: meta?.district ?? null,
+            specialty: meta?.specialty ?? null,
+            count: agg.count,
+            finderCount: agg.finderCount,
+            professionalProfileCount: agg.professionalProfileCount,
+            lastAt: agg.lastAt,
+          };
+        }),
+        dashboardQuery.callToBookCol,
+        dashboardQuery.callToBookDir,
+      ).slice(0, 120);
     }
   } catch (callToBookErr) {
     console.error("[DocCy] call to book click stats failed", callToBookErr);

@@ -1,11 +1,16 @@
 "use client";
 
 import { useDirectoryNav } from "@/components/internal/DirectoryNavContext";
-import type { CallToBookRangeKey, FounderDashboardQuery } from "@/lib/founder-dashboard-query";
+import type {
+  CallToBookRangeKey,
+  CallToBookSortCol,
+  FounderDashboardQuery,
+} from "@/lib/founder-dashboard-query";
 import {
   founderDirectoryClicksCsvHref,
   founderDirectoryHref,
   getCallToBookRangeLabel,
+  nextCallToBookSort,
 } from "@/lib/founder-dashboard-query";
 import { InternalCsvDownloadLink } from "@/components/internal/InternalCsvDownloadLink";
 
@@ -30,6 +35,11 @@ type Props = {
 
 const RANGE_KEYS: CallToBookRangeKey[] = ["7d", "30d", "90d"];
 
+function sortGlyph(activeCol: CallToBookSortCol, activeDir: "asc" | "desc", col: CallToBookSortCol) {
+  if (activeCol !== col) return "";
+  return activeDir === "desc" ? " ↓" : " ↑";
+}
+
 function formatShortDate(iso: string) {
   try {
     return new Date(iso).toLocaleDateString("en-GB", {
@@ -41,6 +51,9 @@ function formatShortDate(iso: string) {
     return "—";
   }
 }
+
+const headerBtn =
+  "touch-manipulation text-left text-slate-400 transition hover:text-clinical-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-clinical-500/60";
 
 export function CallToBookClicksSection({
   query,
@@ -123,13 +136,90 @@ export function CallToBookClicksSection({
           <table className="w-full min-w-[640px] text-left text-xs">
             <thead>
               <tr className="border-b border-slate-700/80 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
-                <th className="py-2 pr-3">Professional</th>
-                <th className="py-2 pr-3">Specialty</th>
-                <th className="py-2 pr-3">District</th>
-                <th className="py-2 pr-3 text-right">Clicks</th>
-                <th className="py-2 pr-3 text-right">Finder</th>
-                <th className="py-2 pr-3 text-right">Prof. profile</th>
-                <th className="py-2 text-right">Last click</th>
+                <th className="py-2 pr-3">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      navigate(founderDirectoryHref(query, nextCallToBookSort(query, "name")))
+                    }
+                    className={`${headerBtn} inline-flex w-full items-center gap-0.5`}
+                  >
+                    Professional
+                    {sortGlyph(query.callToBookCol, query.callToBookDir, "name")}
+                  </button>
+                </th>
+                <th className="py-2 pr-3">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      navigate(founderDirectoryHref(query, nextCallToBookSort(query, "specialty")))
+                    }
+                    className={`${headerBtn} inline-flex w-full items-center gap-0.5`}
+                  >
+                    Specialty
+                    {sortGlyph(query.callToBookCol, query.callToBookDir, "specialty")}
+                  </button>
+                </th>
+                <th className="py-2 pr-3">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      navigate(founderDirectoryHref(query, nextCallToBookSort(query, "district")))
+                    }
+                    className={`${headerBtn} inline-flex w-full items-center gap-0.5`}
+                  >
+                    District
+                    {sortGlyph(query.callToBookCol, query.callToBookDir, "district")}
+                  </button>
+                </th>
+                <th className="py-2 pr-3 text-right">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      navigate(founderDirectoryHref(query, nextCallToBookSort(query, "clicks")))
+                    }
+                    className={`${headerBtn} inline-flex w-full items-center justify-end gap-0.5`}
+                  >
+                    Clicks
+                    {sortGlyph(query.callToBookCol, query.callToBookDir, "clicks")}
+                  </button>
+                </th>
+                <th className="py-2 pr-3 text-right">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      navigate(founderDirectoryHref(query, nextCallToBookSort(query, "finder")))
+                    }
+                    className={`${headerBtn} inline-flex w-full items-center justify-end gap-0.5`}
+                  >
+                    Finder
+                    {sortGlyph(query.callToBookCol, query.callToBookDir, "finder")}
+                  </button>
+                </th>
+                <th className="py-2 pr-3 text-right">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      navigate(founderDirectoryHref(query, nextCallToBookSort(query, "profile")))
+                    }
+                    className={`${headerBtn} inline-flex w-full items-center justify-end gap-0.5`}
+                  >
+                    Prof. profile
+                    {sortGlyph(query.callToBookCol, query.callToBookDir, "profile")}
+                  </button>
+                </th>
+                <th className="py-2 text-right">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      navigate(founderDirectoryHref(query, nextCallToBookSort(query, "last")))
+                    }
+                    className={`${headerBtn} inline-flex w-full items-center justify-end gap-0.5`}
+                  >
+                    Last click
+                    {sortGlyph(query.callToBookCol, query.callToBookDir, "last")}
+                  </button>
+                </th>
               </tr>
             </thead>
             <tbody>

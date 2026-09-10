@@ -5,6 +5,7 @@ import {
   founderDirectoryHref,
   getManualVotesRangeLabel,
   getManualVotesWindowDays,
+  nextCallToBookSort,
   parseFounderDashboardQuery,
 } from "../../lib/founder-dashboard-query";
 
@@ -19,6 +20,29 @@ describe("parseFounderDashboardQuery", () => {
     assert.equal(q.manualVotesRange, "all");
     assert.equal(getManualVotesWindowDays("all"), null);
     assert.equal(getManualVotesRangeLabel("all"), "All time");
+  });
+
+  it("defaults call-to-book sort to clicks descending", () => {
+    const q = parseFounderDashboardQuery({});
+    assert.equal(q.callToBookCol, "clicks");
+    assert.equal(q.callToBookDir, "desc");
+  });
+
+  it("keeps call-to-book sort in dashboard hrefs and toggles", () => {
+    const q = parseFounderDashboardQuery({
+      callToBookCol: "name",
+      callToBookDir: "asc",
+    });
+    assert.match(founderDirectoryHref(q), /callToBookCol=name/);
+    assert.match(founderDirectoryHref(q), /callToBookDir=asc/);
+    assert.deepEqual(nextCallToBookSort(q, "name"), {
+      callToBookCol: "name",
+      callToBookDir: "desc",
+    });
+    assert.deepEqual(nextCallToBookSort(q, "clicks"), {
+      callToBookCol: "clicks",
+      callToBookDir: "desc",
+    });
   });
 
   it("keeps call-to-book range in dashboard hrefs", () => {
