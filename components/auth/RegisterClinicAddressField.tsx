@@ -91,7 +91,11 @@ export function RegisterClinicAddressField({
    * it was typed and the doctor could never get past the first word.
    */
   const [manualAddressDraft, setManualAddressDraft] = React.useState("");
-
+  const streetInputRef = React.useRef<HTMLInputElement | null>(null);
+  const [streetError, setStreetError] = React.useState(false);
+  /** Once the doctor types, reverse-geocode may suggest but must not overwrite. */
+  const [streetTouched, setStreetTouched] = React.useState(false);
+  const autoPrefillCoordsKeyRef = React.useRef<string | null>(null);
   React.useEffect(() => {
     if (index !== 0) return;
     if (!e2eRegisterHooksEnabled()) return;
@@ -125,9 +129,9 @@ export function RegisterClinicAddressField({
   const pinLongitude = coords?.longitude ?? null;
 
   /**
-   * What Google thinks is under a moved pin. Only relevant on the search path:
-   * in manual mode the doctor wrote the address themselves and the pin is
-   * theirs, so there is nothing to reconcile.
+   * What Google thinks is under a moved pin.
+   * - Adjust (Places): offer a street change when it conflicts with the search.
+   * - Manual: prefill an empty street, or offer a replacement if they typed one.
    */
   const [pinSuggestion, setPinSuggestion] = React.useState<ReverseGeocodedPin | null>(null);
   const [pinLookupFailed, setPinLookupFailed] = React.useState(false);
@@ -148,7 +152,12 @@ export function RegisterClinicAddressField({
       (pinLookupFailed && clinicPinFarFromAddress(origin, coords)));
 
   React.useEffect(() => {
-    if (mode !== "adjust" || !pinMoved || pinLatitude == null || pinLongitude == null) {
+    const shouldLookup =
+      pinMoved &&
+      pinLatitude != null &&
+      pinLongitude != null &&
+      (mode === "adjust" || mode === "manual");
+    if (!shouldLookup) {
       setPinSuggestion(null);
       setPinLookupFailed(false);
       return;
@@ -161,6 +170,23 @@ export function RegisterClinicAddressField({
           if (cancelled) return;
           setPinSuggestion(result);
           setPinLookupFailed(result === null);
+
+          if (mode !== "manual" || !result || streetTouched) return;
+          const coordsKey = `${pinLatitude.toFixed(5)},${pinLongitude.toFixed(5)}`;
+          if (autoPrefillCoordsKeyRef.current === coordsKey) return;
+
+          const address = stripPlusCodePrefix(result.address);
+          setManualAddressDraft((current) => (current.trim() ? current : address));
+          setLocation((current) => {
+            if (current.address.trim()) return current;
+            autoPrefillCoordsKeyRef.current = coordsKey;
+            return manualClinicLocation({
+              address,
+              district: current.district,
+              coords: { latitude: pinLatitude, longitude: pinLongitude },
+            });
+          });
+          setStreetError(false);
         },
       );
     }, 400);
@@ -169,7 +195,7 @@ export function RegisterClinicAddressField({
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [mode, pinMoved, pinLatitude, pinLongitude]);
+  }, [mode, pinMoved, pinLatitude, pinLongitude, streetTouched]);
 
   /**
    * Keeps the current location so a doctor who opens the search by mistake can
@@ -184,6 +210,10 @@ export function RegisterClinicAddressField({
     setLocation(emptyClinicLocation());
     setOrigin(null);
     setManualAddressDraft("");
+    setStreetTouched(false);
+    setStreetError(false);
+    autoPrefillCoordsKeyRef.current = null;
+    setPinSuggestion(null);
     setMode("manual");
   };
 
@@ -207,6 +237,7 @@ export function RegisterClinicAddressField({
     const district = isCyprusDistrict(value) ? value : null;
     const center = district ? fallbackDistrictCoordinates(district) : null;
     setOrigin(center);
+    autoPrefillCoordsKeyRef.current = null;
     setLocation((current) =>
       center
         ? manualClinicLocation({ address: current.address, district, coords: center })
@@ -214,7 +245,7 @@ export function RegisterClinicAddressField({
     );
   };
 
-  /** Adopts the address under the pin, which is no longer the place they searched. */
+  /** Adopts the address under the pin (search path — may realign district). */
   const acceptPinSuggestion = () => {
     if (!pinSuggestion || !coords) return;
     const address = stripPlusCodePrefix(pinSuggestion.address);
@@ -236,6 +267,24 @@ export function RegisterClinicAddressField({
     setPinSuggestion(null);
   };
 
+  /** Manual path: keep the doctor's district; only rewrite the street text. */
+  const acceptManualPinSuggestion = () => {
+    if (!pinSuggestion || !coords) return;
+    const address = stripPlusCodePrefix(pinSuggestion.address);
+    setManualAddressDraft(address);
+    setStreetTouched(true);
+    setStreetError(false);
+    setLocation((current) =>
+      manualClinicLocation({
+        address,
+        district: current.district,
+        coords,
+      }),
+    );
+    setOrigin(coords);
+    setPinSuggestion(null);
+  };
+
   const addressDistrictConflict = clinicAddressDistrictConflicts(location);
   /** Street conflict or district/address contradiction — do not let them confirm. */
   const cannotConfirm =
@@ -246,8 +295,21 @@ export function RegisterClinicAddressField({
     setMode("confirmed");
   };
 
-  const previewZoom = mode === "manual" ? 14 : 17;
+  const trySaveManualLocation = () => {
+    if (isComplete) {
+      setStreetError(false);
+      setMode("confirmed");
+      return;
+    }
+    if (!location.district || !coords) return;
+    if (!location.address.trim()) {
+      setStreetError(true);
+      streetInputRef.current?.focus();
+      streetInputRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
+    }
+  };
 
+  const previewZoom = mode === "manual" ? 14 : 17;
   const openSheet = () => {
     sheetEntryRef.current = coords;
     setSheetOpen(true);
@@ -326,8 +388,9 @@ export function RegisterClinicAddressField({
         {fieldLabel}<span className="text-red-600">*</span>
       </span>
       <p className={registerHelperClass}>
-        Pick this clinic from the Google Maps suggestions, then check the pin sits on your
-        entrance so patients nearby can find you.
+        Search for your clinic on Google — that gives us the address patients read and the map
+        pin for &ldquo;near me&rdquo;. If Google does not list it, drop a pin and type what patients
+        should see.
       </p>
       {hint ? (
         <p className={registerHelperClass}>
@@ -367,11 +430,37 @@ export function RegisterClinicAddressField({
             </div>
           </div>
         ) : (
-        <div className="mt-2 rounded-xl border border-ink-200 bg-ink-50/80 px-3 py-2.5">
-          <p className="text-sm leading-relaxed text-ink-900">{location.address}</p>
+        <div
+          className="mt-2 rounded-xl border border-ink-200 bg-ink-50/80 px-3 py-2.5"
+          data-testid="clinic-location-saved-summary"
+        >
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-500">
+              Patients will see
+            </p>
+            <span
+              className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
+                location.placeId
+                  ? "bg-clinical-500/15 text-clinical-800"
+                  : "bg-amber-500/15 text-amber-900"
+              }`}
+            >
+              {location.placeId ? "From Google" : "Pin + typed address"}
+            </span>
+          </div>
+          <p className="mt-1.5 text-sm leading-relaxed text-ink-900">{location.address}</p>
           {location.district ? (
             <p className="mt-1 text-xs text-ink-600">
               District: <span className="font-semibold text-ink-800">{location.district}</span>
+              {coords ? (
+                <span className="text-ink-500"> · map pin set for nearby search</span>
+              ) : null}
+            </p>
+          ) : null}
+          {!location.placeId ? (
+            <p className="mt-2 text-xs leading-relaxed text-ink-500">
+              Maps opens a search for this text. Prefer a Google result when you can, so the pin
+              and address match a real place.
             </p>
           ) : null}
           <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
@@ -419,9 +508,9 @@ export function RegisterClinicAddressField({
             onCancel={isComplete ? () => setMode("confirmed") : undefined}
           />
           <p className={registerHelperClass}>
-            Can&rsquo;t find your clinic?{" "}
+            Can&rsquo;t find it on Google?{" "}
             <button type="button" onClick={startManual} className={linkClass}>
-              Place it on the map yourself
+              Drop a pin instead
             </button>
           </p>
         </>
@@ -429,7 +518,10 @@ export function RegisterClinicAddressField({
 
       {mode === "adjust" && coords ? (
         <div className="mt-2 rounded-xl border border-ink-200 bg-white p-3">
-          <p className="flex items-start gap-1.5 text-sm leading-relaxed text-ink-900">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-500">
+            Patients will see
+          </p>
+          <p className="mt-1 flex items-start gap-1.5 text-sm leading-relaxed text-ink-900">
             <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-clinical-600" aria-hidden />
             {location.address}
           </p>
@@ -470,11 +562,8 @@ export function RegisterClinicAddressField({
           ) : null}
 
           {pinMoved && !suggestionAddress && !showPinMismatch ? (
-            // Without this, a doctor who moves the pin and still reads the old
-            // street assumes the move was ignored.
             <p className="mt-2 text-xs leading-relaxed text-ink-500">
-              The address text stays as you picked it — that is what patients read. The pin only
-              sets where you appear in &ldquo;near me&rdquo; searches.
+              Patients still read the address above. The pin only sets where you appear nearby.
             </p>
           ) : null}
 
@@ -499,7 +588,7 @@ export function RegisterClinicAddressField({
                     "a different city"}
                 </span>
                 , but the district is set to {location.district}. Search again for the right
-                clinic, or place it on the map yourself.
+                clinic, or drop a pin yourself.
               </p>
             </div>
           ) : null}
@@ -516,7 +605,7 @@ export function RegisterClinicAddressField({
             </button>
             <button type="button" onClick={startSearch} className={secondaryButtonClass}>
               <Search className="h-3.5 w-3.5" aria-hidden />
-              Search a different clinic
+              Search again
             </button>
           </div>
         </div>
@@ -525,7 +614,11 @@ export function RegisterClinicAddressField({
       {mode === "manual" ? (
         <div className="mt-2 rounded-xl border border-ink-200 bg-white p-3">
           <p className="text-xs leading-relaxed text-ink-600">
-            Choose your district, then move the map so the pin sits on your clinic.
+            <span className="font-semibold text-ink-800">1.</span> District{" "}
+            <span className="text-ink-400">·</span>{" "}
+            <span className="font-semibold text-ink-800">2.</span> Pin on your clinic{" "}
+            <span className="text-ink-400">·</span>{" "}
+            <span className="font-semibold text-ink-800">3.</span> Address patients will see
           </p>
 
           {districtSelect}
@@ -534,13 +627,45 @@ export function RegisterClinicAddressField({
             <>
               {mapPreview}
 
-              <label className="mt-3 block">
-                <span className="text-xs font-medium text-ink-700">Street address</span>
+              {suggestionAddress ? (
+                <div
+                  className="mt-2 rounded-lg border border-clinical-200 bg-clinical-50/60 px-3 py-2"
+                  data-testid="clinic-manual-pin-suggestion"
+                >
+                  <p className="text-xs leading-relaxed text-ink-700">
+                    Suggested from the pin:{" "}
+                    <span className="font-semibold text-ink-900">{suggestionAddress}</span>
+                  </p>
+                  <button
+                    type="button"
+                    onClick={acceptManualPinSuggestion}
+                    className={`mt-2 ${secondaryButtonClass}`}
+                  >
+                    <Check className="h-3.5 w-3.5" aria-hidden />
+                    Use this address
+                  </button>
+                </div>
+              ) : null}
+
+              <label className="mt-3 block" htmlFor={`register-manual-street-${index}`}>
+                <span className="text-xs font-medium text-ink-700">
+                  Address patients will see
+                </span>
                 <input
+                  ref={streetInputRef}
+                  id={`register-manual-street-${index}`}
                   type="text"
                   value={manualAddressDraft}
+                  aria-invalid={streetError || undefined}
+                  aria-describedby={
+                    streetError
+                      ? `register-manual-street-error-${index}`
+                      : `register-manual-street-hint-${index}`
+                  }
                   onChange={(event) => {
                     const raw = event.target.value;
+                    setStreetTouched(true);
+                    setStreetError(false);
                     setManualAddressDraft(raw);
                     setLocation((current) =>
                       manualClinicLocation({
@@ -550,13 +675,29 @@ export function RegisterClinicAddressField({
                       }),
                     );
                   }}
-                  placeholder="Street and number, building, floor"
+                  placeholder="e.g. 12 Makariou Avenue, 2nd floor"
                   autoComplete="street-address"
-                  className={registerInputClass}
+                  className={`${registerInputClass}${
+                    streetError ? " border-red-400 focus:border-red-400 focus:ring-red-400/25" : ""
+                  }`}
                 />
-                <span className={registerHelperClass}>
-                  This is what patients see on your profile.
-                </span>
+                {streetError ? (
+                  <span
+                    id={`register-manual-street-error-${index}`}
+                    className="mt-1 block text-xs text-red-600"
+                    data-testid="clinic-manual-street-error"
+                  >
+                    Add the address patients will see, then save.
+                  </span>
+                ) : (
+                  <span
+                    id={`register-manual-street-hint-${index}`}
+                    className={registerHelperClass}
+                  >
+                    This text appears on your profile and in Maps search — use a real street
+                    address.
+                  </span>
+                )}
               </label>
             </>
           ) : null}
@@ -564,8 +705,8 @@ export function RegisterClinicAddressField({
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <button
               type="button"
-              onClick={() => setMode("confirmed")}
-              disabled={!isComplete}
+              onClick={trySaveManualLocation}
+              disabled={!coords || !location.district}
               className={primaryButtonClass}
             >
               <Check className="h-3.5 w-3.5" aria-hidden />
@@ -573,7 +714,7 @@ export function RegisterClinicAddressField({
             </button>
             <button type="button" onClick={startSearch} className={secondaryButtonClass}>
               <Search className="h-3.5 w-3.5" aria-hidden />
-              Back to search
+              Back to Google search
             </button>
           </div>
         </div>
@@ -637,7 +778,7 @@ export function RegisterClinicAddressField({
       <input type="hidden" name={names.town} value={location.town ?? ""} readOnly aria-hidden />
 
       <p className={registerFieldErrorClass}>
-        Search for your clinic, or place it on the map yourself.
+        Search for your clinic on Google, or drop a pin and type the address patients will see.
       </p>
     </div>
   );

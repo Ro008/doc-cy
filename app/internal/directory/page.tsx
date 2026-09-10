@@ -21,6 +21,10 @@ import {
   PendingSpecialtiesPanel,
   type PendingSpecialtyRow,
 } from "@/components/internal/PendingSpecialtiesPanel";
+import { PendingRegistrationReviewPanel } from "@/components/internal/PendingRegistrationReviewPanel";
+import type { PendingRegistrationReviewItem } from "@/lib/pending-registration-review";
+import { resolveShareAvatarUrl } from "@/lib/doctor-seo-formatting";
+import { stripPlusCodePrefix } from "@/lib/clinic-location-pin";
 import {
   SpecialtyChangeRequestsPanel,
   type SpecialtyChangeRequestRow,
@@ -528,6 +532,233 @@ export default async function FounderDashboardPage({
     }
   }
 
+  const pendingRegistrationIds = rows
+    .filter((r) => (r.status ?? "").trim().toLowerCase() === "pending")
+    .map((r) => r.id);
+
+  let pendingRegistrationItems: PendingRegistrationReviewItem[] = [];
+  if (pendingRegistrationIds.length > 0) {
+    const pendingSelectFull =
+      "id, name, slug, email, registration_email, phone, mobile_number, avatar_url, languages, specialty, license_number, license_file_url, district, town, clinic_address, latitude, longitude, clinic_place_id, created_at, is_specialty_approved, specialty_requires_standard_at, ghs_code, address_maps_link, status";
+    const pendingSelectNoMobile =
+      "id, name, slug, email, registration_email, phone, avatar_url, languages, specialty, license_number, license_file_url, district, town, clinic_address, latitude, longitude, clinic_place_id, created_at, is_specialty_approved, specialty_requires_standard_at, ghs_code, address_maps_link, status";
+    const pendingSelectLegacy =
+      "id, name, slug, email, phone, avatar_url, languages, specialty, license_number, license_file_url, district, clinic_address, latitude, longitude, clinic_place_id, created_at, is_specialty_approved, specialty_requires_standard_at, ghs_code, address_maps_link, status";
+
+    let pendingFullRes = await fetchAllSupabaseRowsForIdChunks(
+      pendingRegistrationIds,
+      (chunk) =>
+        supabase.from("professionals").select(pendingSelectFull).in("id", chunk),
+    );
+    if (
+      pendingFullRes.error &&
+      /mobile_number/i.test(String(pendingFullRes.error.message ?? ""))
+    ) {
+      pendingFullRes = (await fetchAllSupabaseRowsForIdChunks(
+        pendingRegistrationIds,
+        (chunk) =>
+          supabase.from("professionals").select(pendingSelectNoMobile).in("id", chunk),
+      )) as typeof pendingFullRes;
+    }
+    if (
+      pendingFullRes.error &&
+      /registration_email|town|avatar_url/i.test(
+        String(pendingFullRes.error.message ?? ""),
+      )
+    ) {
+      pendingFullRes = (await fetchAllSupabaseRowsForIdChunks(
+        pendingRegistrationIds,
+        (chunk) =>
+          supabase.from("professionals").select(pendingSelectLegacy).in("id", chunk),
+      )) as typeof pendingFullRes;
+    }
+
+    const [{ data: specialtyRowsForPending }, { data: locationRowsForPending }] =
+      await Promise.all([
+        fetchAllSupabaseRowsForIdChunks(pendingRegistrationIds, (chunk) =>
+          supabase
+            .from("doctor_specialties")
+            .select("id, doctor_id, specialty, license_number, is_approved")
+            .in("doctor_id", chunk),
+        ),
+        fetchAllSupabaseRowsForIdChunks(pendingRegistrationIds, (chunk) =>
+          supabase
+            .from("doctor_locations")
+            .select(
+              "id, doctor_id, is_primary, sort_order, district, town, clinic_address, latitude, longitude, clinic_place_id",
+            )
+            .in("doctor_id", chunk),
+        ),
+      ]);
+
+    const specialtiesByDoctor = new Map<
+      string,
+      {
+        id: string | null;
+        specialty: string;
+        licenseNumber: string | null;
+        isApproved: boolean;
+      }[]
+    >();
+    for (const row of specialtyRowsForPending ?? []) {
+      const doctorId = String((row as { doctor_id?: string }).doctor_id ?? "");
+      if (!doctorId) continue;
+      const list = specialtiesByDoctor.get(doctorId) ?? [];
+      list.push({
+        id: String((row as { id?: string }).id ?? "") || null,
+        specialty: String((row as { specialty?: string }).specialty ?? "").trim(),
+        licenseNumber:
+          String((row as { license_number?: string | null }).license_number ?? "").trim() ||
+          null,
+        isApproved: Boolean((row as { is_approved?: boolean | null }).is_approved),
+      });
+      specialtiesByDoctor.set(doctorId, list);
+    }
+
+    const locationsByDoctor = new Map<
+      string,
+      {
+        id: string | null;
+        district: string | null;
+        town: string | null;
+        address: string | null;
+        latitude: number | null;
+        longitude: number | null;
+        placeId: string | null;
+        isPrimary: boolean;
+        sortOrder: number;
+      }[]
+    >();
+    for (const row of locationRowsForPending ?? []) {
+      const doctorId = String((row as { doctor_id?: string }).doctor_id ?? "");
+      if (!doctorId) continue;
+      const list = locationsByDoctor.get(doctorId) ?? [];
+      list.push({
+        id: String((row as { id?: string }).id ?? "") || null,
+        district:
+          String((row as { district?: string | null }).district ?? "").trim() || null,
+        town: String((row as { town?: string | null }).town ?? "").trim() || null,
+        address:
+          stripPlusCodePrefix(
+            String((row as { clinic_address?: string | null }).clinic_address ?? ""),
+          ) || null,
+        latitude:
+          typeof (row as { latitude?: number | null }).latitude === "number"
+            ? (row as { latitude: number }).latitude
+            : null,
+        longitude:
+          typeof (row as { longitude?: number | null }).longitude === "number"
+            ? (row as { longitude: number }).longitude
+            : null,
+        placeId:
+          String(
+            (row as { clinic_place_id?: string | null }).clinic_place_id ?? "",
+          ).trim() || null,
+        isPrimary: Boolean((row as { is_primary?: boolean | null }).is_primary),
+        sortOrder: Number((row as { sort_order?: number | null }).sort_order ?? 0),
+      });
+      locationsByDoctor.set(doctorId, list);
+    }
+
+    const pendingById = new Map(
+      (pendingFullRes.data ?? []).map((row) => [String((row as { id: string }).id), row]),
+    );
+
+    pendingRegistrationItems = pendingRegistrationIds
+      .map((id) => {
+        const raw = pendingById.get(id) as Record<string, unknown> | undefined;
+        if (!raw) return null;
+        const languagesRaw = raw.languages;
+        const languages = Array.isArray(languagesRaw)
+          ? languagesRaw.map((l) => String(l).trim()).filter(Boolean)
+          : languagesRaw
+            ? [String(languagesRaw).trim()].filter(Boolean)
+            : [];
+        const avatarPath = String(raw.avatar_url ?? "").trim();
+        const avatarUrl = resolveShareAvatarUrl(avatarPath, (path) =>
+          supabase.storage.from("avatars").getPublicUrl(path).data.publicUrl,
+        );
+        let locations = [...(locationsByDoctor.get(id) ?? [])].sort((a, b) => {
+          if (a.isPrimary !== b.isPrimary) return a.isPrimary ? -1 : 1;
+          return a.sortOrder - b.sortOrder;
+        });
+        if (locations.length === 0) {
+          const fallbackAddress =
+            stripPlusCodePrefix(String(raw.clinic_address ?? "")) || null;
+          const fallbackDistrict =
+            String(raw.district ?? "").trim() || null;
+          const fallbackTown = String(raw.town ?? "").trim() || null;
+          if (fallbackAddress || fallbackDistrict || fallbackTown) {
+            locations = [
+              {
+                id: null,
+                district: fallbackDistrict,
+                town: fallbackTown,
+                address: fallbackAddress,
+                latitude:
+                  typeof raw.latitude === "number" ? raw.latitude : null,
+                longitude:
+                  typeof raw.longitude === "number" ? raw.longitude : null,
+                placeId: String(raw.clinic_place_id ?? "").trim() || null,
+                isPrimary: true,
+                sortOrder: 0,
+              },
+            ];
+          }
+        }
+        const specialties = (specialtiesByDoctor.get(id) ?? []).filter((s) =>
+          Boolean(s.specialty),
+        );
+        return {
+          id,
+          name: String(raw.name ?? "").trim() || "Professional",
+          email:
+            professionalAccountEmail({
+              registration_email: raw.registration_email as string | null | undefined,
+              email: raw.email as string | null | undefined,
+            }) || null,
+          phone:
+            String(raw.mobile_number ?? "").trim() ||
+            String(raw.phone ?? "").trim() ||
+            null,
+          slug: String(raw.slug ?? "").trim() || null,
+          avatarUrl,
+          languages,
+          specialties: specialties.map(({ id: sid, specialty, licenseNumber, isApproved }) => ({
+            id: sid,
+            specialty,
+            licenseNumber,
+            isApproved,
+          })),
+          primarySpecialty: String(raw.specialty ?? "").trim() || null,
+          primaryLicenseNumber: String(raw.license_number ?? "").trim() || null,
+          locations: locations.map(
+            ({ id: lid, district, town, address, latitude, longitude, placeId, isPrimary }) => ({
+              id: lid,
+              district,
+              town,
+              address,
+              latitude,
+              longitude,
+              placeId,
+              isPrimary,
+            }),
+          ),
+          licenseFileUrl: String(raw.license_file_url ?? "").trim() || null,
+          createdAt: String(raw.created_at ?? "").trim() || null,
+          isSpecialtyApproved:
+            (raw.is_specialty_approved as boolean | null | undefined) ?? true,
+          specialtyRequiresStandardAt:
+            String(raw.specialty_requires_standard_at ?? "").trim() || null,
+          fromDirectoryListing:
+            Boolean(String(raw.ghs_code ?? "").trim()) ||
+            Boolean(String(raw.address_maps_link ?? "").trim()),
+          status: String(raw.status ?? "pending").trim() || "pending",
+        } satisfies PendingRegistrationReviewItem;
+      })
+      .filter((item): item is PendingRegistrationReviewItem => item != null);
+  }
+
   const verifiedRows = rows.filter(
     (r) => (r.status ?? "").trim().toLowerCase() === "verified"
   );
@@ -1023,21 +1254,25 @@ export default async function FounderDashboardPage({
                 </h2>
                 <p className="mt-1 text-sm text-amber-100/85">
                   {canMutate
-                    ? "Review license verifications and specialty change requests below."
+                    ? "Open each application below to review photo, specialties, licenses, and clinic details before verifying."
                     : "Pending items are listed below for awareness. Your access is read-only."}
                 </p>
               </div>
               <Link
                 href={
-                  specialtyChangeRequestItems.length > 0
-                    ? "#specialty-change-requests"
-                    : "#professional-directory"
+                  pendingRegistrationItems.length > 0
+                    ? "#pending-registration-review"
+                    : specialtyChangeRequestItems.length > 0
+                      ? "#specialty-change-requests"
+                      : "#professional-directory"
                 }
                 className="inline-flex items-center justify-center rounded-xl bg-amber-300 px-4 py-2 text-sm font-semibold text-slate-950 shadow-md shadow-amber-900/30 transition hover:bg-amber-200"
               >
-                {specialtyChangeRequestItems.length > 0
-                  ? "Review specialty changes"
-                  : "Go to Professional Directory"}
+                {pendingRegistrationItems.length > 0
+                  ? "Review applications"
+                  : specialtyChangeRequestItems.length > 0
+                    ? "Review specialty changes"
+                    : "Go to Professional Directory"}
               </Link>
             </div>
           </section>
@@ -1052,6 +1287,7 @@ export default async function FounderDashboardPage({
         />
 
         <SpecialtyChangeRequestsPanel items={specialtyChangeRequestItems} />
+        <PendingRegistrationReviewPanel items={pendingRegistrationItems} />
         <PendingSpecialtiesPanel items={pendingSpecialtyItems} />
         <DuplicateNotificationsPanel items={duplicateNotificationItems} />
         <ManualPatientVotesSection

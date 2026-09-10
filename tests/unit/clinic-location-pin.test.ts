@@ -11,6 +11,7 @@ import {
   clinicPinStartCoordinates,
   coordinatesNearlyEqual,
   manualClinicLocation,
+  stripPlusCodePrefix,
 } from "../../lib/clinic-location-pin";
 import { emptyClinicLocation, type ClinicLocation } from "../../lib/clinic-location";
 import { registerClinicLocationIsComplete } from "../../lib/register-clinic-location";
@@ -117,6 +118,28 @@ describe("clinicPinAddressConflicts", () => {
     assert.equal(clinicPinAddressConflicts("Dikomou 8, Nicosia", ""), false);
     assert.equal(clinicPinAddressConflicts("", "Anania 4, Pafos"), false);
     assert.equal(clinicPinAddressConflicts("8025, Cyprus", "Anania 4, Pafos"), false);
+  });
+});
+
+describe("stripPlusCodePrefix", () => {
+  it("removes Google Open Location Code prefixes patients should never see", () => {
+    assert.equal(
+      stripPlusCodePrefix(
+        "RC87+CQ9, Georgiou Christoforou 25, Emba, Pafos 8250, Cyprus",
+      ),
+      "Georgiou Christoforou 25, Emba, Pafos 8250, Cyprus",
+    );
+    assert.equal(
+      stripPlusCodePrefix("QCJ3+VQV, Pindou, Chlorakas, Pafos 8015, Cyprus"),
+      "Pindou, Chlorakas, Pafos 8015, Cyprus",
+    );
+  });
+
+  it("leaves normal street addresses unchanged", () => {
+    assert.equal(
+      stripPlusCodePrefix("12 Makariou Avenue, Nicosia"),
+      "12 Makariou Avenue, Nicosia",
+    );
   });
 });
 

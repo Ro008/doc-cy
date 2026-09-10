@@ -978,9 +978,13 @@ export default async function RegisterPage({ searchParams }: PageProps) {
                           autoComplete="new-password"
                           tone="light"
                           className="w-full"
+                          allowCopy
                         />
                       </label>
-                      <p className={registerHelperClass}>{PASSWORD_POLICY_HELPER}</p>
+                      <p className={registerHelperClass}>
+                        {PASSWORD_POLICY_HELPER} Save it somewhere safe (or tap copy) — you&apos;ll
+                        need it to sign in.
+                      </p>
                       <p className={registerFieldErrorClass}>{PASSWORD_POLICY_ERROR}</p>
                     </div>
 

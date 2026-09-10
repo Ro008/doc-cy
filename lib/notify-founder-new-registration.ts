@@ -1,5 +1,6 @@
 import { sendResendEmail } from "@/lib/resend";
 import { getPublicBookingBaseUrl } from "@/lib/site-url";
+import { formatPendingRegistrationNotifyLines } from "@/lib/pending-registration-review";
 
 export type NewRegistrationNotifyPayload = {
   doctorId: string;
@@ -10,6 +11,23 @@ export type NewRegistrationNotifyPayload = {
   /** Custom "Other" specialty pending founder approval */
   needsSpecialtyReview: boolean;
   claimedDirectory?: boolean;
+  languages?: string[];
+  specialties?: {
+    specialty: string;
+    licenseNumber: string | null;
+    isApproved: boolean;
+  }[];
+  primaryLicenseNumber?: string | null;
+  locations?: {
+    district: string | null;
+    town: string | null;
+    address: string | null;
+    latitude: number | null;
+    longitude: number | null;
+    placeId: string | null;
+    isPrimary: boolean;
+  }[];
+  hasAvatar?: boolean;
 };
 
 /**
@@ -22,14 +40,38 @@ export function buildFounderNewRegistrationNotifyContent(
   siteUrl?: string,
 ): { subject: string; textBody: string; reviewUrl: string } {
   const base = (siteUrl?.trim() || getPublicBookingBaseUrl()).replace(/\/$/, "");
-  const reviewUrl = `${base}/internal/directory`;
+  const reviewUrl = `${base}/internal/directory#pending-registration-review`;
+
+  const detailLines = formatPendingRegistrationNotifyLines({
+    name: payload.fullName,
+    email: payload.email,
+    phone: payload.phone,
+    languages: payload.languages ?? [],
+    specialties: (payload.specialties ?? []).map((s) => ({
+      id: null,
+      specialty: s.specialty,
+      licenseNumber: s.licenseNumber,
+      isApproved: s.isApproved,
+    })),
+    primarySpecialty: payload.specialty,
+    primaryLicenseNumber: payload.primaryLicenseNumber ?? null,
+    locations: (payload.locations ?? []).map((loc) => ({
+      id: null,
+      district: loc.district,
+      town: loc.town,
+      address: loc.address,
+      latitude: loc.latitude,
+      longitude: loc.longitude,
+      placeId: loc.placeId,
+      isPrimary: loc.isPrimary,
+    })),
+    fromDirectoryListing: Boolean(payload.claimedDirectory),
+    avatarUrl: payload.hasAvatar ? "yes" : null,
+  });
 
   const lines = [
     `New professional registration (email confirmed — pending verification)`,
-    `Name: ${payload.fullName}`,
-    `Email: ${payload.email}`,
-    `Phone: ${payload.phone}`,
-    `Specialty: ${payload.specialty}`,
+    ...detailLines,
     payload.needsSpecialtyReview ? `Note: custom specialty pending your approval` : null,
     payload.claimedDirectory
       ? `This person claimed their existing finder listing (same professional id). Pending verification — patients keep the same public profile.`

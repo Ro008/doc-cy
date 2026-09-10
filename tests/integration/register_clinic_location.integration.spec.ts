@@ -16,7 +16,7 @@ import { gotoRegisterPracticeStep } from "./helpers/goto-register-practice-step"
  * the trimmed address, so the doctor could never get past the first word.
  */
 async function typeAddress(page: Page, text: string): Promise<void> {
-  const input = page.getByLabel("Street address");
+  const input = page.getByLabel("Address patients will see");
   await input.click();
   await input.pressSequentially(text, { delay: 10 });
 }
@@ -33,13 +33,13 @@ test.describe("Integration UI: register clinic location", { tag: "@pr-e2e" }, ()
   test("lets a doctor place the clinic without a Google match", async ({ page }) => {
     await expect(page.locator(`${clinicField}[data-complete='1']`)).toHaveCount(0);
 
-    await page.getByRole("button", { name: "Place it on the map yourself" }).click();
+    await page.getByRole("button", { name: "Drop a pin instead" }).click();
 
     // The street address only appears once a district anchors the map.
-    await expect(page.getByLabel("Street address")).toBeHidden();
+    await expect(page.getByLabel("Address patients will see")).toBeHidden();
 
     await page.getByLabel("District").selectOption("Nicosia");
-    await expect(page.getByLabel("Street address")).toBeVisible();
+    await expect(page.getByLabel("Address patients will see")).toBeVisible();
 
     await typeAddress(page, "12 Makariou Avenue, 2nd floor");
 
@@ -55,17 +55,17 @@ test.describe("Integration UI: register clinic location", { tag: "@pr-e2e" }, ()
   });
 
   test("keeps the spaces the doctor types in the address", async ({ page }) => {
-    await page.getByRole("button", { name: "Place it on the map yourself" }).click();
+    await page.getByRole("button", { name: "Drop a pin instead" }).click();
     await page.getByLabel("District").selectOption("Nicosia");
 
     await typeAddress(page, "Dikomou 8, Floor 2");
 
-    await expect(page.getByLabel("Street address")).toHaveValue("Dikomou 8, Floor 2");
+    await expect(page.getByLabel("Address patients will see")).toHaveValue("Dikomou 8, Floor 2");
     await expect(page.locator("input[name='clinicAddress']")).toHaveValue("Dikomou 8, Floor 2");
   });
 
   test("collapses to a summary once the location is saved", async ({ page }) => {
-    await page.getByRole("button", { name: "Place it on the map yourself" }).click();
+    await page.getByRole("button", { name: "Drop a pin instead" }).click();
     await page.getByLabel("District").selectOption("Limassol");
     await typeAddress(page, "5 Anexartisias Street");
 
@@ -73,7 +73,7 @@ test.describe("Integration UI: register clinic location", { tag: "@pr-e2e" }, ()
 
     await expect(page.getByText("5 Anexartisias Street")).toBeVisible();
     await expect(page.getByText(/District:\s*Limassol/i)).toBeVisible();
-    await expect(page.getByLabel("Street address")).toBeHidden();
+    await expect(page.getByLabel("Address patients will see")).toBeHidden();
 
     // Still editable afterwards, both ways.
     await expect(page.getByRole("button", { name: "Adjust pin on map" })).toBeVisible();
@@ -87,7 +87,7 @@ test.describe("Integration UI: register clinic location", { tag: "@pr-e2e" }, ()
   });
 
   test("adjusts the pin in a full-screen sheet", async ({ page }) => {
-    await page.getByRole("button", { name: "Place it on the map yourself" }).click();
+    await page.getByRole("button", { name: "Drop a pin instead" }).click();
     await page.getByLabel("District").selectOption("Larnaca");
 
     const sheet = page.getByTestId("clinic-pin-sheet");
@@ -116,12 +116,12 @@ test.describe("Integration UI: register clinic location", { tag: "@pr-e2e" }, ()
     // the manual path, where nothing else can tell us the district.
     await expect(page.getByLabel("District")).toHaveCount(0);
 
-    await page.getByRole("button", { name: "Place it on the map yourself" }).click();
+    await page.getByRole("button", { name: "Drop a pin instead" }).click();
     await expect(page.getByLabel("District")).toHaveCount(1);
   });
 
   test("moving the district re-anchors the pin", async ({ page }) => {
-    await page.getByRole("button", { name: "Place it on the map yourself" }).click();
+    await page.getByRole("button", { name: "Drop a pin instead" }).click();
     await page.getByLabel("District").selectOption("Nicosia");
     await expect(page.locator("input[name='clinicLatitude']")).toHaveValue("35.1856");
 

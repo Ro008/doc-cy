@@ -29,7 +29,8 @@ import {
 import { appointmentToCyprusDate, CY_TZ } from "@/lib/appointments";
 import { addDays, format } from "date-fns";
 import { utcToZonedTime, zonedTimeToUtc } from "date-fns-tz";
-import { CLINIC_ADDRESS, buildMapsUrlFromAddress } from "@/lib/clinic-info";
+import { CLINIC_ADDRESS, buildMapsUrlFromAddress, buildMapsUrlFromClinicLocation } from "@/lib/clinic-info";
+import { stripPlusCodePrefix } from "@/lib/clinic-location-pin";
 import {
   DOCTOR_FIELD_LIST_PUBLIC_PROFILE_BASE,
   DOCTOR_FIELD_LIST_METADATA,
@@ -325,7 +326,7 @@ function buildPhysicianStructuredData(input: {
   const languages = Array.isArray(input.languages)
     ? input.languages.map((l) => String(l).trim()).filter(Boolean)
     : [];
-  const addressRaw = (input.clinicAddress ?? "").trim();
+  const addressRaw = stripPlusCodePrefix((input.clinicAddress ?? "").trim());
   const addressParts = parseAddressParts(addressRaw);
 
   const address: PhysicianStructuredData["address"] = {
@@ -616,7 +617,8 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
       .maybeSingle();
     isOwnerView = ownerDoctor?.auth_user_id === user.id;
   }
-  const clinicAddress = (profile.clinic_address ?? "").trim() || CLINIC_ADDRESS;
+  const clinicAddress =
+    stripPlusCodePrefix((profile.clinic_address ?? "").trim()) || CLINIC_ADDRESS;
   const mapsUrl = buildMapsUrlFromAddress(clinicAddress);
   let avatarUrl: string | null = null;
   let publicPhone: string | null = null;
@@ -1038,11 +1040,18 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
             ) : null}
             <DoctorLocationSection
               clinicAddress={
-                selectedLocation?.clinic_address?.trim() || clinicAddress
+                stripPlusCodePrefix(
+                  selectedLocation?.clinic_address?.trim() || clinicAddress,
+                ) || clinicAddress
               }
-              mapsUrl={buildMapsUrlFromAddress(
-                selectedLocation?.clinic_address?.trim() || clinicAddress,
-              )}
+              mapsUrl={
+                buildMapsUrlFromClinicLocation({
+                  address: selectedLocation?.clinic_address ?? clinicAddress,
+                  latitude: selectedLocation?.latitude,
+                  longitude: selectedLocation?.longitude,
+                  placeId: selectedLocation?.clinic_place_id,
+                }) || buildMapsUrlFromAddress(clinicAddress)
+              }
               clinics={
                 practiceLocations.length > 1
                   ? practiceLocations.map((row, index) => ({
@@ -1051,13 +1060,20 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
                         bookingT("clinicNumber", { number: index + 1 }),
                       ),
                       address:
-                        String(row.clinic_address ?? "").trim() ||
+                        stripPlusCodePrefix(String(row.clinic_address ?? "")) ||
                         String(row.town ?? "").trim() ||
                         String(row.district ?? "").trim() ||
                         bookingT("clinicAddressMissing"),
-                      mapsUrl: buildMapsUrlFromAddress(
-                        String(row.clinic_address ?? "").trim() || clinicAddress,
-                      ),
+                      mapsUrl:
+                        buildMapsUrlFromClinicLocation({
+                          address: row.clinic_address,
+                          latitude: row.latitude,
+                          longitude: row.longitude,
+                          placeId: row.clinic_place_id,
+                        }) ||
+                        buildMapsUrlFromAddress(
+                          String(row.clinic_address ?? "").trim() || clinicAddress,
+                        ),
                       isBookingHere: row.id === selectedLocation?.id,
                     }))
                   : []

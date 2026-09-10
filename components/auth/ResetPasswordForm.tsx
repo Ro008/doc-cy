@@ -172,6 +172,7 @@ export function ResetPasswordForm() {
                     pattern={PASSWORD_POLICY_HTML_PATTERN}
                     title={PASSWORD_POLICY_TITLE}
                     autoComplete="new-password"
+                    allowCopy
                   />
                   <span className="mt-1 block text-xs font-normal text-slate-400">
                     {PASSWORD_POLICY_HELPER}
