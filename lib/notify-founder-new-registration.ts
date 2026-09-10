@@ -55,7 +55,16 @@ export function buildFounderNewRegistrationNotifyContent(
     })),
     primarySpecialty: payload.specialty,
     primaryLicenseNumber: payload.primaryLicenseNumber ?? null,
-    locations: payload.locations ?? [],
+    locations: (payload.locations ?? []).map((loc) => ({
+      id: null,
+      district: loc.district,
+      town: loc.town,
+      address: loc.address,
+      latitude: loc.latitude,
+      longitude: loc.longitude,
+      placeId: loc.placeId,
+      isPrimary: loc.isPrimary,
+    })),
     fromDirectoryListing: Boolean(payload.claimedDirectory),
     avatarUrl: payload.hasAvatar ? "yes" : null,
   });
