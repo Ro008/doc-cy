@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import { createServiceRoleClient } from "@/lib/supabase-service";
 import { PasswordToggleInput } from "@/components/auth/PasswordToggleInput";
 import { RegisterSpecialtyFields } from "@/components/auth/RegisterSpecialtyFields";
@@ -566,7 +567,19 @@ async function runRegister(formData: FormData) {
   const sendRegistrationEmails = async () => {
     // Founder notify waits until the professional confirms email (`/auth/confirm-email`).
     try {
-      const confirmUrl = await generateRegisterEmailConfirmUrl(service, email);
+      const h = headers();
+      const requestOrigin =
+        h.get("origin")?.trim() ||
+        (() => {
+          const host = h.get("x-forwarded-host")?.trim() || h.get("host")?.trim() || "";
+          const proto = h.get("x-forwarded-proto")?.trim() || "http";
+          return host ? `${proto}://${host}` : "";
+        })();
+      const confirmUrl = await generateRegisterEmailConfirmUrl(
+        service,
+        email,
+        requestOrigin || null,
+      );
       await withTimeout(
         sendDoctorRegistrationReceivedEmail({
           doctorEmail: email,
