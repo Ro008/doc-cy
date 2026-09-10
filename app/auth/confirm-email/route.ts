@@ -5,10 +5,12 @@ import {
   registerSubmittedEmailConfirmErrorPath,
   registerSubmittedEmailConfirmedPath,
 } from "@/lib/register-email-confirm";
+import { notifyFounderAfterRegisterEmailConfirm } from "@/lib/notify-founder-after-email-confirm";
 
 /**
  * Completes the signup email magic link (`token_hash` from the DocCy Resend email).
- * Confirms the address, then signs out — they still wait for credential review.
+ * Confirms the address, notifies the founder for review, then signs out —
+ * they still wait for credential verification.
  */
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
@@ -31,13 +33,25 @@ export async function GET(request: Request) {
     type === "signup" || type === "email" || type === "magiclink" ? type : "magiclink";
 
   const supabase = createRouteHandlerClient({ cookies });
-  const { error } = await supabase.auth.verifyOtp({
+  const { data: verifyData, error } = await supabase.auth.verifyOtp({
     type: otpType,
     token_hash: tokenHash,
   });
   if (error) {
     console.error("[DocCy] register email confirm failed", error.message);
     return fail();
+  }
+
+  const authUserId =
+    verifyData.user?.id ||
+    (await supabase.auth.getUser()).data.user?.id ||
+    "";
+  if (authUserId) {
+    try {
+      await notifyFounderAfterRegisterEmailConfirm(authUserId);
+    } catch (notifyError) {
+      console.error("[DocCy] Founder notify after email confirm failed", notifyError);
+    }
   }
 
   try {

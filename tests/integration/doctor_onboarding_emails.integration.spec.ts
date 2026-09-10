@@ -20,6 +20,7 @@ test.describe("Doctor onboarding email content", { tag: "@pr-email" }, () => {
       "https://mydoccy.com",
     );
     expect(standard.subject).toBe("[DocCy] New registration — Maria Papadopoulos");
+    expect(standard.textBody).toContain("email confirmed — pending verification");
     expect(standard.textBody).toContain("doc-1");
     expect(standard.textBody).toContain("maria@example.com");
     expect(standard.reviewUrl).toBe("https://mydoccy.com/internal/directory");

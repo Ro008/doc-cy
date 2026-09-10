@@ -5,7 +5,7 @@ import {
   E2E_REGISTER_CLINIC_EVENT,
   E2E_REGISTER_CLINIC_LOCATION,
 } from "@/lib/e2e-doctor-registration-test";
-import { waitForResendEmailWithSubject } from "../helpers/resend-sent-emails";
+import { waitForResendEmailWithSubject, fetchResendConfirmEmailUrl } from "../helpers/resend-sent-emails";
 import { dismissCookieConsentIfPresent } from "../prod/helpers/dismissCookieConsent";
 import { deleteRegistrationE2eDoctor } from "./helpers/delete-registration-e2e-doctor";
 import {
@@ -22,7 +22,7 @@ import { INTEGRATION_DOCTOR_PASSWORD } from "./helpers/test-doctor";
  */
 test.describe("Integration: doctor registration flow", { tag: "@local-register" }, () => {
   test.describe.configure({ retries: 0 });
-  test("submits the register form, fires the founder Resend email, then deletes the doctor", async ({
+  test("submits the register form, fires doctor confirm email first, then founder after confirm", async ({
     page,
   }) => {
     test.setTimeout(180_000);
@@ -132,13 +132,6 @@ test.describe("Integration: doctor registration flow", { tag: "@local-register" 
       expect(doctor?.is_test_profile).toBe(true);
 
       if (canAssertResend) {
-        const founderMail = await waitForResendEmailWithSubject({
-          apiKey: resendKey,
-          subjectIncludes: fullName,
-          timeoutMs: 30_000,
-        });
-        expect(founderMail.subject).toMatch(/New registration/i);
-
         const receivedMail = await waitForResendEmailWithSubject({
           apiKey: resendKey,
           subjectIncludes: "We received your application",
@@ -146,6 +139,21 @@ test.describe("Integration: doctor registration flow", { tag: "@local-register" 
           timeoutMs: 30_000,
         });
         expect(receivedMail.subject).toMatch(/We received your application/i);
+
+        const confirmUrl = await fetchResendConfirmEmailUrl({
+          apiKey: resendKey,
+          emailId: receivedMail.id,
+        });
+        expect(confirmUrl).toBeTruthy();
+        await page.goto(confirmUrl!, { waitUntil: "domcontentloaded" });
+        await expect(page).toHaveURL(/email=confirmed/, { timeout: 30_000 });
+
+        const founderMail = await waitForResendEmailWithSubject({
+          apiKey: resendKey,
+          subjectIncludes: fullName,
+          timeoutMs: 30_000,
+        });
+        expect(founderMail.subject).toMatch(/New registration/i);
       }
     } finally {
       await deleteRegistrationE2eDoctor(admin, email);

@@ -58,15 +58,21 @@ export function registerEmailConfirmLinkFromGenerateLink(
 
 /** Host for the confirm link in the Resend email (must be allowlisted in Supabase Auth). */
 export function resolveRegisterEmailConfirmOrigin(): string | null {
-  const candidates = [
-    process.env.NEXT_PUBLIC_SITE_URL?.trim().replace(/\/$/, "") ?? "",
-    process.env.VERCEL_URL?.trim()
-      ? `https://${process.env.VERCEL_URL.trim().replace(/^https?:\/\//, "")}`
-      : "",
-  ].filter(Boolean);
-  for (const candidate of candidates) {
-    if (isAllowedPasswordResetOrigin(candidate)) return candidate;
+  const site = process.env.NEXT_PUBLIC_SITE_URL?.trim().replace(/\/$/, "") ?? "";
+  if (site && isAllowedPasswordResetOrigin(site)) return site;
+
+  // Production custom domain — never fall through to ephemeral *.vercel.app deployment hosts.
+  const vercelEnv = (process.env.VERCEL_ENV ?? "").trim().toLowerCase();
+  if (vercelEnv === "production") {
+    const prod = "https://www.mydoccy.com";
+    if (isAllowedPasswordResetOrigin(prod)) return prod;
   }
+
+  const vercelUrl = process.env.VERCEL_URL?.trim()
+    ? `https://${process.env.VERCEL_URL.trim().replace(/^https?:\/\//, "")}`
+    : "";
+  if (vercelUrl && isAllowedPasswordResetOrigin(vercelUrl)) return vercelUrl;
+
   if (process.env.NODE_ENV !== "production" && process.env.VERCEL_ENV !== "production") {
     return "http://localhost:3000";
   }
