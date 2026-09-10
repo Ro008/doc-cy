@@ -25,7 +25,7 @@ export function buildFounderNewRegistrationNotifyContent(
   const reviewUrl = `${base}/internal/directory`;
 
   const lines = [
-    `New professional registration (pending verification)`,
+    `New professional registration (email confirmed — pending verification)`,
     `Name: ${payload.fullName}`,
     `Email: ${payload.email}`,
     `Phone: ${payload.phone}`,

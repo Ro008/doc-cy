@@ -6,7 +6,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 type Ctx = {
   /** Client-side query updates without scrolling to top of the page. */
   navigate: (href: string) => void;
-  /** Founder can approve/reject; partner is read-only. */
+  /** Founder can approve/reject/delete; business partner is read-only. */
   canMutate: boolean;
 };
 

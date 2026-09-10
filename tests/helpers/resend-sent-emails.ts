@@ -58,3 +58,20 @@ export async function waitForResendEmailWithSubject(input: {
 
   throw new Error(lastError);
 }
+
+/** Fetch a sent email body and extract the first `/auth/confirm-email` URL. */
+export async function fetchResendConfirmEmailUrl(input: {
+  apiKey: string;
+  emailId: string;
+}): Promise<string | null> {
+  const response = await fetch(`https://api.resend.com/emails/${input.emailId}`, {
+    headers: { Authorization: `Bearer ${input.apiKey}` },
+  });
+  if (!response.ok) {
+    throw new Error(`Resend get email failed (${response.status}): ${await response.text()}`);
+  }
+  const payload = (await response.json()) as { html?: string | null; text?: string | null };
+  const blob = `${payload.html ?? ""}\n${payload.text ?? ""}`;
+  const match = blob.match(/https?:\/\/[^\s"'<>]+\/auth\/confirm-email\?[^\s"'<>]+/i);
+  return match?.[0]?.replace(/&amp;/g, "&") ?? null;
+}

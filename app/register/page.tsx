@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import { createServiceRoleClient } from "@/lib/supabase-service";
 import { PasswordToggleInput } from "@/components/auth/PasswordToggleInput";
 import { RegisterSpecialtyFields } from "@/components/auth/RegisterSpecialtyFields";
@@ -25,7 +26,6 @@ import {
   validateDoctorSpecialtyEntries,
   type DoctorSpecialtyEntryInput,
 } from "@/lib/doctor-specialties";
-import { notifyFounderNewRegistration } from "@/lib/notify-founder-new-registration";
 import { sendDoctorRegistrationReceivedEmail } from "@/lib/send-doctor-registration-received-email";
 import { generateRegisterEmailConfirmUrl } from "@/lib/register-email-confirm";
 import { matchesAutomatedDoctorRegistrationTestEmailForAdminBypass } from "@/lib/e2e-doctor-registration-test";
@@ -565,44 +565,33 @@ async function runRegister(formData: FormData) {
   }
 
   const sendRegistrationEmails = async () => {
-    const confirmUrlPromise = generateRegisterEmailConfirmUrl(service, email).catch((err) => {
-      console.error("[DocCy] Confirm URL generate failed", err);
-      return null as string | null;
-    });
-
-    await Promise.all([
-      withTimeout(
-        notifyFounderNewRegistration({
-          doctorId,
-          fullName,
-          email,
-          phone,
-          specialty,
-          needsSpecialtyReview: !isSpecialtyApproved,
-          claimedDirectory: Boolean(claim?.id && doctorId === claim.id),
+    // Founder notify waits until the professional confirms email (`/auth/confirm-email`).
+    try {
+      const h = headers();
+      const requestOrigin =
+        h.get("origin")?.trim() ||
+        (() => {
+          const host = h.get("x-forwarded-host")?.trim() || h.get("host")?.trim() || "";
+          const proto = h.get("x-forwarded-proto")?.trim() || "http";
+          return host ? `${proto}://${host}` : "";
+        })();
+      const confirmUrl = await generateRegisterEmailConfirmUrl(
+        service,
+        email,
+        requestOrigin || null,
+      );
+      await withTimeout(
+        sendDoctorRegistrationReceivedEmail({
+          doctorEmail: email,
+          doctorName: fullName,
+          confirmUrl,
         }),
         REGISTER_NOTIFY_TIMEOUT_MS,
-        "Founder registration notify",
-      ).catch((err) => {
-        console.error("[DocCy] Founder registration notify failed or timed out", err);
-      }),
-      (async () => {
-        try {
-          const confirmUrl = await confirmUrlPromise;
-          await withTimeout(
-            sendDoctorRegistrationReceivedEmail({
-              doctorEmail: email,
-              doctorName: fullName,
-              confirmUrl,
-            }),
-            REGISTER_NOTIFY_TIMEOUT_MS,
-            "Doctor registration received email",
-          );
-        } catch (err) {
-          console.error("[DocCy] Doctor registration received email failed or timed out", err);
-        }
-      })(),
-    ]);
+        "Doctor registration received email",
+      );
+    } catch (err) {
+      console.error("[DocCy] Doctor registration received email failed or timed out", err);
+    }
   };
 
   const profileUpdateBase = {

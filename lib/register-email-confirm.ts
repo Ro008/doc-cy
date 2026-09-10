@@ -57,19 +57,35 @@ export function registerEmailConfirmLinkFromGenerateLink(
 }
 
 /** Host for the confirm link in the Resend email (must be allowlisted in Supabase Auth). */
-export function resolveRegisterEmailConfirmOrigin(): string | null {
-  const candidates = [
-    process.env.NEXT_PUBLIC_SITE_URL?.trim().replace(/\/$/, "") ?? "",
-    process.env.VERCEL_URL?.trim()
-      ? `https://${process.env.VERCEL_URL.trim().replace(/^https?:\/\//, "")}`
-      : "",
-  ].filter(Boolean);
-  for (const candidate of candidates) {
-    if (isAllowedPasswordResetOrigin(candidate)) return candidate;
+export function resolveRegisterEmailConfirmOrigin(
+  preferredOrigin?: string | null,
+): string | null {
+  const preferred = preferredOrigin?.trim().replace(/\/$/, "") ?? "";
+  if (preferred && isAllowedPasswordResetOrigin(preferred)) return preferred;
+
+  const vercelEnv = (process.env.VERCEL_ENV ?? "").trim().toLowerCase();
+
+  // Production custom domain — never fall through to ephemeral *.vercel.app hosts.
+  if (vercelEnv === "production") {
+    const site = process.env.NEXT_PUBLIC_SITE_URL?.trim().replace(/\/$/, "") ?? "";
+    if (site && isAllowedPasswordResetOrigin(site)) return site;
+    const prod = "https://www.mydoccy.com";
+    if (isAllowedPasswordResetOrigin(prod)) return prod;
   }
-  if (process.env.NODE_ENV !== "production" && process.env.VERCEL_ENV !== "production") {
+
+  const vercelUrl = process.env.VERCEL_URL?.trim()
+    ? `https://${process.env.VERCEL_URL.trim().replace(/^https?:\/\//, "")}`
+    : "";
+  if (vercelUrl && isAllowedPasswordResetOrigin(vercelUrl)) return vercelUrl;
+
+  // Local / non-Vercel: do not use NEXT_PUBLIC_SITE_URL (often mydoccy.com even in .env.testing.local).
+  if (vercelEnv !== "production" && process.env.NODE_ENV !== "production") {
     return "http://localhost:3000";
   }
+
+  const site = process.env.NEXT_PUBLIC_SITE_URL?.trim().replace(/\/$/, "") ?? "";
+  if (site && isAllowedPasswordResetOrigin(site)) return site;
+
   return null;
 }
 
@@ -77,8 +93,9 @@ export function resolveRegisterEmailConfirmOrigin(): string | null {
 export async function generateRegisterEmailConfirmUrl(
   supabase: SupabaseClient,
   email: string,
+  preferredOrigin?: string | null,
 ): Promise<string | null> {
-  const origin = resolveRegisterEmailConfirmOrigin();
+  const origin = resolveRegisterEmailConfirmOrigin(preferredOrigin);
   if (!origin) {
     console.error("[DocCy] register email confirm skipped: no allowed origin");
     return null;
