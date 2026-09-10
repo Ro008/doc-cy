@@ -1,11 +1,16 @@
 "use client";
 
 import { useDirectoryNav } from "@/components/internal/DirectoryNavContext";
-import type { CallToBookRangeKey, FounderDashboardQuery } from "@/lib/founder-dashboard-query";
+import type {
+  CallToBookRangeKey,
+  CallToBookSortCol,
+  FounderDashboardQuery,
+} from "@/lib/founder-dashboard-query";
 import {
   founderDirectoryClicksCsvHref,
   founderDirectoryHref,
   getCallToBookRangeLabel,
+  nextCallToBookSort,
 } from "@/lib/founder-dashboard-query";
 import { InternalCsvDownloadLink } from "@/components/internal/InternalCsvDownloadLink";
 
@@ -28,7 +33,12 @@ type Props = {
   rows: CallToBookDashboardRow[];
 };
 
-const RANGE_KEYS: CallToBookRangeKey[] = ["7d", "30d", "90d"];
+const RANGE_KEYS: CallToBookRangeKey[] = ["7d", "30d", "90d", "all"];
+
+function sortGlyph(activeCol: CallToBookSortCol, activeDir: "asc" | "desc", col: CallToBookSortCol) {
+  if (activeCol !== col) return "";
+  return activeDir === "desc" ? " ↓" : " ↑";
+}
 
 function formatShortDate(iso: string) {
   try {
@@ -41,6 +51,9 @@ function formatShortDate(iso: string) {
     return "—";
   }
 }
+
+const headerBtn =
+  "touch-manipulation text-left text-slate-400 transition hover:text-clinical-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-clinical-500/60";
 
 export function CallToBookClicksSection({
   query,
@@ -58,17 +71,18 @@ export function CallToBookClicksSection({
         <div className="min-w-0">
           <h2 className="text-sm font-semibold text-clinical-100">Show phone number clicks</h2>
           <p className="mt-1 max-w-3xl text-xs leading-relaxed text-clinical-100/80">
-            Each row in{" "}
-            <code className="rounded bg-black/30 px-1">professional_call_to_book_clicks</code> is
-            a patient tap on Show phone number (phone revealed for that location). Finder cards and
-            professional profile pages are counted separately.
+            Each Show phone number tap on an unregistered listing (finder card or professional
+            profile) inserts a row in{" "}
+            <code className="rounded bg-black/30 px-1">professional_call_to_book_clicks</code>.
+            Totals below are tap counts in the selected window — not unique patients. Finder and
+            professional profile sources are broken out separately.
           </p>
         </div>
-        <div className="w-full shrink-0 sm:w-auto sm:max-w-[220px]">
+        <div className="w-full shrink-0 sm:w-auto sm:max-w-[280px]">
           <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-clinical-300/80">
             Date range
           </p>
-          <div className="mt-2 grid grid-cols-3 gap-1 rounded-lg border border-clinical-500/30 bg-slate-950/50 p-1 sm:flex sm:gap-0">
+          <div className="mt-2 grid grid-cols-2 gap-1 rounded-lg border border-clinical-500/30 bg-slate-950/50 p-1 sm:flex sm:gap-0 sm:grid-cols-none">
             {RANGE_KEYS.map((key) => {
               const active = query.callToBookRange === key;
               return (
@@ -82,7 +96,13 @@ export function CallToBookClicksSection({
                       : "text-slate-400 hover:bg-slate-800/50 hover:text-slate-200 active:bg-slate-800/70"
                   }`}
                 >
-                  {key === "7d" ? "Week" : key === "30d" ? "Month" : "Quarter"}
+                  {key === "7d"
+                    ? "Week"
+                    : key === "30d"
+                      ? "Month"
+                      : key === "90d"
+                        ? "Quarter"
+                        : "All time"}
                 </button>
               );
             })}
@@ -123,13 +143,90 @@ export function CallToBookClicksSection({
           <table className="w-full min-w-[640px] text-left text-xs">
             <thead>
               <tr className="border-b border-slate-700/80 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
-                <th className="py-2 pr-3">Professional</th>
-                <th className="py-2 pr-3">Specialty</th>
-                <th className="py-2 pr-3">District</th>
-                <th className="py-2 pr-3 text-right">Clicks</th>
-                <th className="py-2 pr-3 text-right">Finder</th>
-                <th className="py-2 pr-3 text-right">Prof. profile</th>
-                <th className="py-2 text-right">Last click</th>
+                <th className="py-2 pr-3">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      navigate(founderDirectoryHref(query, nextCallToBookSort(query, "name")))
+                    }
+                    className={`${headerBtn} inline-flex w-full items-center gap-0.5`}
+                  >
+                    Professional
+                    {sortGlyph(query.callToBookCol, query.callToBookDir, "name")}
+                  </button>
+                </th>
+                <th className="py-2 pr-3">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      navigate(founderDirectoryHref(query, nextCallToBookSort(query, "specialty")))
+                    }
+                    className={`${headerBtn} inline-flex w-full items-center gap-0.5`}
+                  >
+                    Specialty
+                    {sortGlyph(query.callToBookCol, query.callToBookDir, "specialty")}
+                  </button>
+                </th>
+                <th className="py-2 pr-3">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      navigate(founderDirectoryHref(query, nextCallToBookSort(query, "district")))
+                    }
+                    className={`${headerBtn} inline-flex w-full items-center gap-0.5`}
+                  >
+                    District
+                    {sortGlyph(query.callToBookCol, query.callToBookDir, "district")}
+                  </button>
+                </th>
+                <th className="py-2 pr-3 text-right">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      navigate(founderDirectoryHref(query, nextCallToBookSort(query, "clicks")))
+                    }
+                    className={`${headerBtn} inline-flex w-full items-center justify-end gap-0.5`}
+                  >
+                    Clicks
+                    {sortGlyph(query.callToBookCol, query.callToBookDir, "clicks")}
+                  </button>
+                </th>
+                <th className="py-2 pr-3 text-right">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      navigate(founderDirectoryHref(query, nextCallToBookSort(query, "finder")))
+                    }
+                    className={`${headerBtn} inline-flex w-full items-center justify-end gap-0.5`}
+                  >
+                    Finder
+                    {sortGlyph(query.callToBookCol, query.callToBookDir, "finder")}
+                  </button>
+                </th>
+                <th className="py-2 pr-3 text-right">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      navigate(founderDirectoryHref(query, nextCallToBookSort(query, "profile")))
+                    }
+                    className={`${headerBtn} inline-flex w-full items-center justify-end gap-0.5`}
+                  >
+                    Prof. profile
+                    {sortGlyph(query.callToBookCol, query.callToBookDir, "profile")}
+                  </button>
+                </th>
+                <th className="py-2 text-right">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      navigate(founderDirectoryHref(query, nextCallToBookSort(query, "last")))
+                    }
+                    className={`${headerBtn} inline-flex w-full items-center justify-end gap-0.5`}
+                  >
+                    Last click
+                    {sortGlyph(query.callToBookCol, query.callToBookDir, "last")}
+                  </button>
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -157,8 +254,9 @@ export function CallToBookClicksSection({
         </div>
       ) : (
         <p className="mt-6 text-xs text-slate-400">
-          No Show phone number clicks in {rangeLabel.toLowerCase()} yet. They appear here after
-          patients tap the button on finder cards or professional profile pages.
+          {query.callToBookRange === "all"
+            ? "No Show phone number clicks yet. They appear here after patients tap the button on finder cards or professional profile pages."
+            : `No Show phone number clicks in ${rangeLabel.toLowerCase()} yet. They appear here after patients tap the button on finder cards or professional profile pages.`}
         </p>
       )}
     </section>

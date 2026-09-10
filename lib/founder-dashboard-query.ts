@@ -1,10 +1,19 @@
 export type VisitsRangeKey = "7d" | "30d" | "90d";
 
-export type ManualVotesRangeKey = "7d" | "30d" | "90d";
+export type ManualVotesRangeKey = "7d" | "30d" | "90d" | "all";
 
-export type CallToBookRangeKey = "7d" | "30d" | "90d";
+export type CallToBookRangeKey = "7d" | "30d" | "90d" | "all";
 
 export type ManualVotesSortCol = "votes" | "name" | "district" | "specialty" | "last";
+
+export type CallToBookSortCol =
+  | "clicks"
+  | "finder"
+  | "profile"
+  | "name"
+  | "district"
+  | "specialty"
+  | "last";
 
 export type SortDir = "asc" | "desc";
 
@@ -14,6 +23,8 @@ export type FounderDashboardQuery = {
   manualVotesCol: ManualVotesSortCol;
   manualVotesDir: SortDir;
   callToBookRange: CallToBookRangeKey;
+  callToBookCol: CallToBookSortCol;
+  callToBookDir: SortDir;
 };
 
 function first(param: string | string[] | undefined): string | undefined {
@@ -40,8 +51,8 @@ export function getVisitsRangeLabel(range: VisitsRangeKey): string {
 
 export function parseManualVotesRange(value: string | string[] | undefined): ManualVotesRangeKey {
   const raw = first(value);
-  if (raw === "7d" || raw === "30d") return raw;
-  return "90d";
+  if (raw === "7d" || raw === "30d" || raw === "90d") return raw;
+  return "all";
 }
 
 export function parseManualVotesCol(value: string | string[] | undefined): ManualVotesSortCol {
@@ -56,20 +67,42 @@ export function parseManualVotesDir(value: string | string[] | undefined): SortD
 
 export function parseCallToBookRange(value: string | string[] | undefined): CallToBookRangeKey {
   const raw = first(value);
-  if (raw === "30d" || raw === "90d") return raw;
-  return "7d";
+  if (raw === "7d" || raw === "30d" || raw === "90d") return raw;
+  return "all";
 }
 
-export function getCallToBookWindowDays(range: CallToBookRangeKey): number {
+export function parseCallToBookCol(value: string | string[] | undefined): CallToBookSortCol {
+  const raw = first(value);
+  if (
+    raw === "name" ||
+    raw === "district" ||
+    raw === "specialty" ||
+    raw === "last" ||
+    raw === "finder" ||
+    raw === "profile"
+  ) {
+    return raw;
+  }
+  return "clicks";
+}
+
+export function parseCallToBookDir(value: string | string[] | undefined): SortDir {
+  return first(value) === "asc" ? "asc" : "desc";
+}
+
+/** `null` = all time (no created_at lower bound). */
+export function getCallToBookWindowDays(range: CallToBookRangeKey): number | null {
+  if (range === "all") return null;
   if (range === "30d") return 30;
   if (range === "90d") return 90;
   return 7;
 }
 
 export function getCallToBookRangeLabel(range: CallToBookRangeKey): string {
+  if (range === "7d") return "Last 7 days";
   if (range === "30d") return "Last 30 days";
   if (range === "90d") return "Last 90 days";
-  return "Last 7 days";
+  return "All time";
 }
 
 export function parseFounderDashboardQuery(searchParams?: {
@@ -78,6 +111,8 @@ export function parseFounderDashboardQuery(searchParams?: {
   manualVotesCol?: string | string[];
   manualVotesDir?: string | string[];
   callToBookRange?: string | string[];
+  callToBookCol?: string | string[];
+  callToBookDir?: string | string[];
 }): FounderDashboardQuery {
   return {
     visitsRange: parseVisitsRange(searchParams?.visitsRange),
@@ -85,10 +120,14 @@ export function parseFounderDashboardQuery(searchParams?: {
     manualVotesCol: parseManualVotesCol(searchParams?.manualVotesCol),
     manualVotesDir: parseManualVotesDir(searchParams?.manualVotesDir),
     callToBookRange: parseCallToBookRange(searchParams?.callToBookRange),
+    callToBookCol: parseCallToBookCol(searchParams?.callToBookCol),
+    callToBookDir: parseCallToBookDir(searchParams?.callToBookDir),
   };
 }
 
-export function getManualVotesWindowDays(range: ManualVotesRangeKey): number {
+/** `null` = all time (no created_at lower bound). */
+export function getManualVotesWindowDays(range: ManualVotesRangeKey): number | null {
+  if (range === "all") return null;
   if (range === "7d") return 7;
   if (range === "30d") return 30;
   return 90;
@@ -97,7 +136,8 @@ export function getManualVotesWindowDays(range: ManualVotesRangeKey): number {
 export function getManualVotesRangeLabel(range: ManualVotesRangeKey): string {
   if (range === "7d") return "Last 7 days";
   if (range === "30d") return "Last 30 days";
-  return "Last 90 days";
+  if (range === "90d") return "Last 90 days";
+  return "All time";
 }
 
 export function founderDirectoryHref(
@@ -111,6 +151,8 @@ export function founderDirectoryHref(
   sp.set("manualVotesCol", merged.manualVotesCol);
   sp.set("manualVotesDir", merged.manualVotesDir);
   sp.set("callToBookRange", merged.callToBookRange);
+  sp.set("callToBookCol", merged.callToBookCol);
+  sp.set("callToBookDir", merged.callToBookDir);
   return `/internal/directory?${sp.toString()}`;
 }
 
@@ -137,7 +179,7 @@ export function founderDirectoryClicksCsvHref(
 }
 
 /** First sort on a column uses this direction; same column again toggles in the table header. */
-export function defaultSortDirForColumn(col: ManualVotesSortCol): SortDir {
+export function defaultSortDirForColumn(col: ManualVotesSortCol | CallToBookSortCol): SortDir {
   if (col === "name" || col === "district" || col === "specialty") return "asc";
   return "desc";
 }
@@ -152,5 +194,18 @@ export function nextManualVotesSort(
   return {
     manualVotesCol: col,
     manualVotesDir: current.manualVotesDir === "asc" ? "desc" : "asc",
+  };
+}
+
+export function nextCallToBookSort(
+  current: FounderDashboardQuery,
+  col: CallToBookSortCol,
+): Pick<FounderDashboardQuery, "callToBookCol" | "callToBookDir"> {
+  if (current.callToBookCol !== col) {
+    return { callToBookCol: col, callToBookDir: defaultSortDirForColumn(col) };
+  }
+  return {
+    callToBookCol: col,
+    callToBookDir: current.callToBookDir === "asc" ? "desc" : "asc",
   };
 }

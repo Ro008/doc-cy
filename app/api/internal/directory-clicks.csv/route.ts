@@ -44,31 +44,37 @@ export async function GET(req: NextRequest) {
   const manualVotesRange = parseManualVotesRange(
     url.searchParams.get("manualVotesRange") ?? undefined,
   );
-  const phoneSince = new Date(
-    Date.now() - getCallToBookWindowDays(callToBookRange) * 24 * 60 * 60 * 1000,
-  ).toISOString();
-  const bookingSince = new Date(
-    Date.now() - getManualVotesWindowDays(manualVotesRange) * 24 * 60 * 60 * 1000,
-  ).toISOString();
+  const callToBookWindowDays = getCallToBookWindowDays(callToBookRange);
+  const phoneSince =
+    callToBookWindowDays == null
+      ? null
+      : new Date(Date.now() - callToBookWindowDays * 24 * 60 * 60 * 1000).toISOString();
+  const bookingWindowDays = getManualVotesWindowDays(manualVotesRange);
+  const bookingSince =
+    bookingWindowDays == null
+      ? null
+      : new Date(Date.now() - bookingWindowDays * 24 * 60 * 60 * 1000).toISOString();
 
   const [phoneRes, bookingRes] = await Promise.all([
     includePhone
-      ? fetchAllSupabaseRows(() =>
-          supabase
+      ? fetchAllSupabaseRows(() => {
+          let q = supabase
             .from("professional_call_to_book_clicks")
             .select("professional_id, source, created_at")
-            .gte("created_at", phoneSince)
-            .order("created_at", { ascending: false }),
-        )
+            .order("created_at", { ascending: false });
+          if (phoneSince) q = q.gte("created_at", phoneSince);
+          return q;
+        })
       : Promise.resolve({ data: [] as Record<string, unknown>[], error: null }),
     includeBooking
-      ? fetchAllSupabaseRows(() =>
-          supabase
+      ? fetchAllSupabaseRows(() => {
+          let q = supabase
             .from("professional_patient_booking_requests")
             .select("professional_id, source, created_at")
-            .gte("created_at", bookingSince)
-            .order("created_at", { ascending: false }),
-        )
+            .order("created_at", { ascending: false });
+          if (bookingSince) q = q.gte("created_at", bookingSince);
+          return q;
+        })
       : Promise.resolve({ data: [] as Record<string, unknown>[], error: null }),
   ]);
 

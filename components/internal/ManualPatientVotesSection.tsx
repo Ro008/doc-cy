@@ -37,7 +37,7 @@ type Props = {
   maxVotes: number;
 };
 
-const RANGE_KEYS: ManualVotesRangeKey[] = ["7d", "30d", "90d"];
+const RANGE_KEYS: ManualVotesRangeKey[] = ["7d", "30d", "90d", "all"];
 
 function sortGlyph(activeCol: ManualVotesSortCol, activeDir: "asc" | "desc", col: ManualVotesSortCol) {
   if (activeCol !== col) return "";
@@ -80,22 +80,23 @@ export function ManualPatientVotesSection({ query, rows, podium, maxVotes }: Pro
             Manual directory: patient votes for online booking
           </h2>
           <p className="mt-1 max-w-3xl text-xs leading-relaxed text-clinical-100/80">
-            Every Request online booking tap is stored as a new row in Supabase table{" "}
+            First Request online booking tap per patient fingerprint is stored in{" "}
             <code className="rounded bg-black/30 px-1">public.professional_patient_booking_requests</code>{" "}
             (<code className="rounded bg-black/30 px-1">professional_id</code>,{" "}
             <code className="rounded bg-black/30 px-1">created_at</code>,{" "}
             <code className="rounded bg-black/30 px-1">source</code>,{" "}
             <code className="rounded bg-black/30 px-1">clinic_id</code>,{" "}
-            <code className="rounded bg-black/30 px-1">voter_key</code>). Numbers below are those
-            rows in the selected window. The public finder badge still shows unique patients (via{" "}
-            <code className="rounded bg-black/30 px-1">voter_key</code>), not tap count.
+            <code className="rounded bg-black/30 px-1">voter_key</code>). Numbers below are unique
+            patients in the selected window — the same lifetime signal the public finder badge uses
+            when the range is All time. A repeat tap from the same fingerprint shows the thank-you
+            toast but does not insert another row.
           </p>
         </div>
-        <div className="w-full shrink-0 sm:w-auto sm:max-w-[220px]">
+        <div className="w-full shrink-0 sm:w-auto sm:max-w-[280px]">
           <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-clinical-300/80">
             Date range
           </p>
-          <div className="mt-2 grid grid-cols-3 gap-1 rounded-lg border border-clinical-500/30 bg-slate-950/50 p-1 sm:flex sm:gap-0">
+          <div className="mt-2 grid grid-cols-2 gap-1 rounded-lg border border-clinical-500/30 bg-slate-950/50 p-1 sm:flex sm:gap-0 sm:grid-cols-none">
             {RANGE_KEYS.map((key) => {
               const active = query.manualVotesRange === key;
               return (
@@ -109,7 +110,13 @@ export function ManualPatientVotesSection({ query, rows, podium, maxVotes }: Pro
                       : "text-slate-400 hover:bg-slate-800/50 hover:text-slate-200 active:bg-slate-800/70"
                   }`}
                 >
-                  {key === "7d" ? "Week" : key === "30d" ? "Month" : "Quarter"}
+                  {key === "7d"
+                    ? "Week"
+                    : key === "30d"
+                      ? "Month"
+                      : key === "90d"
+                        ? "Quarter"
+                        : "All time"}
                 </button>
               );
             })}
@@ -283,7 +290,9 @@ export function ManualPatientVotesSection({ query, rows, podium, maxVotes }: Pro
         </div>
       ) : (
         <p className="mt-6 text-xs text-slate-400">
-          No votes in {rangeLabel.toLowerCase()} yet. When the finder gets traffic, rows appear here.
+          {query.manualVotesRange === "all"
+            ? "No votes yet. When the finder gets traffic, rows appear here."
+            : `No votes in ${rangeLabel.toLowerCase()} yet. When the finder gets traffic, rows appear here.`}
         </p>
       )}
     </section>
