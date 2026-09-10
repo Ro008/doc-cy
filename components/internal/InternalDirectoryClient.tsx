@@ -47,6 +47,19 @@ async function postVerification(doctorId: string, action: "verify" | "reject") {
   }
 }
 
+async function postPurge(doctorId: string, confirmName: string) {
+  const res = await fetch("/api/internal/doctors/purge", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "same-origin",
+    body: JSON.stringify({ doctorId, confirmName }),
+  });
+  if (!res.ok) {
+    const j = await res.json().catch(() => ({}));
+    throw new Error((j as { message?: string }).message ?? res.statusText);
+  }
+}
+
 export function InternalDirectoryClient({
   doctors,
   showLocalTestCredentials = false,
@@ -62,6 +75,10 @@ export function InternalDirectoryClient({
   const [statusFilter, setStatusFilter] = React.useState("");
   const [busyId, setBusyId] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
+  const [purgeTarget, setPurgeTarget] = React.useState<DirectoryDoctorRow | null>(
+    null,
+  );
+  const [purgeConfirmName, setPurgeConfirmName] = React.useState("");
 
   const specialtyOptions = React.useMemo(() => {
     const set = new Set<string>();
@@ -137,6 +154,36 @@ export function InternalDirectoryClient({
       router.refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Action failed.");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  function openPurgeDialog(doctor: DirectoryDoctorRow) {
+    setError(null);
+    setPurgeConfirmName("");
+    setPurgeTarget(doctor);
+  }
+
+  function closePurgeDialog() {
+    if (busyId) return;
+    setPurgeTarget(null);
+    setPurgeConfirmName("");
+  }
+
+  async function runPurge() {
+    if (!purgeTarget) return;
+    const doctorId = purgeTarget.id;
+    const confirmName = purgeConfirmName.trim();
+    setError(null);
+    setBusyId(doctorId);
+    try {
+      await postPurge(doctorId, confirmName);
+      setPurgeTarget(null);
+      setPurgeConfirmName("");
+      router.refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not delete professional.");
     } finally {
       setBusyId(null);
     }
@@ -402,6 +449,16 @@ export function InternalDirectoryClient({
                       ) : (
                         <span className="text-xs text-slate-600">No file</span>
                       )}
+                      {canMutate ? (
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() => openPurgeDialog(d)}
+                          className="rounded-lg border border-red-500/40 bg-red-950/40 px-3 py-1.5 text-xs font-semibold text-red-100 transition hover:bg-red-900/50 disabled:opacity-50"
+                        >
+                          Delete permanently
+                        </button>
+                      ) : null}
                     </div>
                   </td>
                 </tr>
@@ -415,6 +472,63 @@ export function InternalDirectoryClient({
         <p className="py-8 text-center text-sm text-slate-500">
           No professionals match your filters.
         </p>
+      ) : null}
+
+      {purgeTarget ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="purge-professional-title"
+        >
+          <div className="w-full max-w-md rounded-2xl border border-red-500/40 bg-slate-950 p-5 shadow-xl">
+            <h2
+              id="purge-professional-title"
+              className="text-lg font-semibold text-red-100"
+            >
+              Delete permanently?
+            </h2>
+            <p className="mt-2 text-sm text-slate-300">
+              This permanently removes{" "}
+              <span className="font-semibold text-slate-100">{purgeTarget.name}</span>{" "}
+              from DocCy: profile, appointments, Auth login, license file, and
+              avatar. This cannot be undone.
+            </p>
+            <label className="mt-4 block text-xs font-semibold uppercase tracking-wide text-slate-400">
+              Type their name to confirm
+            </label>
+            <input
+              type="text"
+              value={purgeConfirmName}
+              onChange={(e) => setPurgeConfirmName(e.target.value)}
+              placeholder={purgeTarget.name}
+              autoComplete="off"
+              className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-red-500/40"
+            />
+            <div className="mt-5 flex flex-wrap justify-end gap-2">
+              <button
+                type="button"
+                disabled={busyId === purgeTarget.id}
+                onClick={closePurgeDialog}
+                className="rounded-lg border border-slate-600 bg-slate-800/40 px-3 py-1.5 text-xs font-medium text-slate-200 hover:border-slate-500 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={
+                  busyId === purgeTarget.id ||
+                  purgeConfirmName.trim().toLowerCase() !==
+                    purgeTarget.name.trim().toLowerCase()
+                }
+                onClick={() => void runPurge()}
+                className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {busyId === purgeTarget.id ? "Deleting…" : "Delete forever"}
+              </button>
+            </div>
+          </div>
+        </div>
       ) : null}
     </div>
   );

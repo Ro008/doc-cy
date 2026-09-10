@@ -955,16 +955,31 @@ export default async function FounderDashboardPage({
         <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-6 sm:flex-row sm:items-center sm:justify-between lg:px-8">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-clinical-500/90">
-              {canMutate ? "Founder" : "Partner"}
+              {canMutate ? "Founder" : "Business Partner"}
             </p>
-            <h1 className="mt-1 text-2xl font-semibold tracking-tight text-white lg:text-3xl">
-              Dashboard
-            </h1>
-            <p className="mt-1 text-sm text-slate-500">
-              {canMutate
-                ? "Platform health · professionals · bookings · live data"
-                : "Read-only · range filters · CSV reports"}
-            </p>
+            {canMutate ? (
+              <>
+                <h1 className="mt-1 text-2xl font-semibold tracking-tight text-white lg:text-3xl">
+                  Dashboard
+                </h1>
+                <p className="mt-1 text-sm text-slate-500">
+                  Platform health · professionals · bookings · live data
+                </p>
+              </>
+            ) : (
+              <>
+                <h1 className="mt-1 text-2xl font-semibold tracking-tight text-white lg:text-3xl">
+                  Hi Livio
+                </h1>
+                <p className="mt-1 max-w-xl text-sm text-slate-300">
+                  Welcome to your DocCy view — metrics, professionals, and
+                  bookings, all in one place.
+                </p>
+                <p className="mt-1 text-sm text-slate-500">
+                  Read-only · range filters · CSV reports
+                </p>
+              </>
+            )}
             <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px]">
               <span
                 className={`inline-flex items-center rounded-full border px-2 py-1 font-semibold uppercase tracking-[0.12em] ${runtimeBadgeClass}`}
@@ -972,8 +987,8 @@ export default async function FounderDashboardPage({
                 Environment: {runtimeLabel}
               </span>
               {canMutate ? null : (
-                <span className="inline-flex items-center rounded-full border border-slate-600/60 bg-slate-800/70 px-2 py-1 font-semibold uppercase tracking-[0.12em] text-slate-200">
-                  Read-only
+                <span className="inline-flex items-center rounded-full border border-violet-500/40 bg-violet-500/15 px-2 py-1 font-semibold uppercase tracking-[0.12em] text-violet-100">
+                  Business Partner · Read-only
                 </span>
               )}
             </div>
@@ -1015,7 +1030,7 @@ export default async function FounderDashboardPage({
                 <p className="mt-1 text-sm text-amber-100/85">
                   {canMutate
                     ? "Review license verifications and specialty change requests below."
-                    : "Pending items are listed below. This access is read-only."}
+                    : "Pending items are listed below for awareness. Your access is read-only."}
                 </p>
               </div>
               <Link

@@ -1,0 +1,27 @@
+---
+description: Never create git branches without explicit user permission
+alwaysApply: true
+---
+
+# Git branches — ask first
+
+## Hard rule
+
+**Never create a new git branch unless the user explicitly asks for it in the current task.**
+
+This includes:
+
+- `git checkout -b …`
+- `git switch -c …`
+- `gh pr create` flows that invent a branch name without being asked
+- “helpful” side branches for a second feature while already on a working branch
+
+## What to do instead
+
+- Stay on the **current branch** the user is already using.
+- If a new branch seems useful, **ask first** and wait for a yes.
+- Prior consent for one branch does **not** authorize later branches.
+
+## Example
+
+- User is on `confirmation-emails-flow` and asks for a new feature → implement on that branch (or ask), do **not** silently open `feature-xyz` from `master`.

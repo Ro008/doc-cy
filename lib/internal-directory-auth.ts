@@ -38,7 +38,10 @@ export function unauthorizedInternalDirectoryResponse(): NextResponse {
 
 export function forbiddenInternalDirectoryWriteResponse(): NextResponse {
   return NextResponse.json(
-    { message: "Read-only access. Ask a founder to approve or reject." },
+    {
+      message:
+        "Business partner access is read-only. Ask a founder to approve, reject, or delete.",
+    },
     { status: 403 },
   );
 }
