@@ -47,6 +47,10 @@ export function isTestDoctorRegistrationEmail(email: string | null | undefined):
  * Integration Playwright doctors use these name prefixes (see finder_*.integration.spec.ts).
  * Keep in sync with scripts/cleanup-test-doctors.mjs TEST_NAME_PREFIXES.
  */
+/** Ephemeral claim clones. Keep in sync with SQL is_qa_claim_directory_listing. */
+export const QA_CLAIM_DIRECTORY_NAME_PREFIX = "QA Claim ";
+export const QA_CLAIM_DIRECTORY_SLUG_PREFIX = "qa-claim-";
+
 export const INTEGRATION_TEST_NAME_PREFIXES = [
   "Booking Flow Doctor ",
   "Finder Card ",
@@ -54,6 +58,7 @@ export const INTEGRATION_TEST_NAME_PREFIXES = [
   "Finder Filter ",
   "Prefix Cleanup ",
   "Register E2E ",
+  QA_CLAIM_DIRECTORY_NAME_PREFIX,
 ] as const;
 
 /**
@@ -71,7 +76,22 @@ export const INTEGRATION_TEST_SLUG_PREFIXES = [
   "qa-prefix-",
   "finder-prefix-",
   "register-e2e-",
+  QA_CLAIM_DIRECTORY_SLUG_PREFIX,
 ] as const;
+
+/** Unregistered listing a test signup is allowed to absorb (never a real directory person). */
+export function isQaClaimDirectoryListing(row: {
+  name?: string | null;
+  slug?: string | null;
+} | null | undefined): boolean {
+  if (!row) return false;
+  const name = String(row.name ?? "");
+  const slug = String(row.slug ?? "").toLowerCase();
+  return (
+    name.startsWith(QA_CLAIM_DIRECTORY_NAME_PREFIX) ||
+    slug.startsWith(QA_CLAIM_DIRECTORY_SLUG_PREFIX)
+  );
+}
 
 export function isTestProfileLike(row: {
   name?: string | null;
