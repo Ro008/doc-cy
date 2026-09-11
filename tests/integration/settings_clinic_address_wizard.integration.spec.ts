@@ -297,8 +297,9 @@ test.describe("Integration UI: settings clinic address wizard (Pareto)", { tag: 
       const sheet = page.getByTestId("clinic-pin-sheet");
       await sheet.getByRole("button", { name: "Cancel" }).click();
       await expect(sheet).toBeHidden();
-      // Back on settings — wizard still usable, not stuck behind a locked body scroll.
-      await expect(wizard.getByText(legacyAddress)).toBeVisible();
+      // Cancel only closes the full-screen map; we stay in manual pin mode with
+      // the street in the input (not back on the confirmed summary text).
+      await expect(wizard.getByLabel(/Address patients will see/i)).toHaveValue(legacyAddress);
       await expect(page.getByRole("button", { name: /^Save settings$/i })).toBeVisible();
     } finally {
       if (doctorId) {
