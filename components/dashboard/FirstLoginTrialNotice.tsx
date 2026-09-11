@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import {
   FIRST_LOGIN_TRIAL_NOTICE_TEST_ID,
   TRIAL_NOTICE_DISMISS_PATH,
@@ -8,6 +9,7 @@ import {
 } from "@/lib/first-login-trial-notice";
 
 export function FirstLoginTrialNotice({ isFounder }: { isFounder: boolean }) {
+  const router = useRouter();
   const copy = firstLoginTrialNoticeCopy(isFounder);
   const [open, setOpen] = React.useState(true);
   const [saving, setSaving] = React.useState(false);
@@ -21,6 +23,7 @@ export function FirstLoginTrialNotice({ isFounder }: { isFounder: boolean }) {
       const res = await fetch(TRIAL_NOTICE_DISMISS_PATH, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
         body: "{}",
       });
       if (!res.ok) {
@@ -30,11 +33,12 @@ export function FirstLoginTrialNotice({ isFounder }: { isFounder: boolean }) {
         return;
       }
       setOpen(false);
+      router.refresh();
     } catch {
       setError("Could not save. Try again.");
       setSaving(false);
     }
-  }, [saving]);
+  }, [router, saving]);
 
   React.useEffect(() => {
     if (!open) return;
