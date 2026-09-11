@@ -45,6 +45,13 @@ function buildIncorrectInfoMessage(ctx: ManualListingContext): string {
   ].join("\n");
 }
 
+/**
+ * `before:` expands the tap target past the 11px text to clear WCAG 2.5.8 (24px)
+ * without changing the rendered size or shifting the footer.
+ */
+const REPORT_LINK_CLASS =
+  "relative text-[11px] font-medium text-ink-500 underline decoration-ink-300 underline-offset-2 transition before:absolute before:-inset-x-2 before:-inset-y-2 before:content-[''] hover:text-clinical-700 hover:decoration-clinical-300";
+
 /** Opens the global contact / feedback form with listing context pre-filled. */
 export function ManualDirectoryReportIncorrectInfoLink({
   displayName,
@@ -65,14 +72,14 @@ export function ManualDirectoryReportIncorrectInfoLink({
           }),
         })
       }
-      className={`text-[11px] font-medium text-ink-500 underline decoration-ink-300 underline-offset-2 transition hover:text-clinical-700 hover:decoration-clinical-300 ${className}`}
+      className={`${REPORT_LINK_CLASS} ${className}`}
     >
       Report incorrect info
     </button>
   );
 }
 
-/** Low-emphasis path for the listed professional (finder is patient-first). */
+/** High-visibility claim prompt for the listed professional, so an unclaimed profile is unmistakable. */
 export function ManualDirectoryDoctorClaimFooter({
   professionalId,
   className = "",
@@ -82,15 +89,13 @@ export function ManualDirectoryDoctorClaimFooter({
 }) {
   return (
     <div className={`text-left ${className}`}>
-      <p className="text-[11px] leading-snug text-ink-500">
-        Are you this professional?{" "}
-        <PendingLink
-          href={registerClaimPath(professionalId)}
-          className="font-medium text-clinical-700 underline decoration-clinical-300 underline-offset-2 transition hover:text-clinical-600"
-        >
-          Activate online booking
-        </PendingLink>
-      </p>
+      <PendingLink
+        href={registerClaimPath(professionalId)}
+        className="inline-block rounded-lg border border-clinical-300 bg-clinical-50 px-3 py-1.5 text-[11px] leading-snug transition hover:border-clinical-400 hover:bg-clinical-100"
+      >
+        <span className="font-medium text-ink-600">Are you this professional?</span>{" "}
+        <span className="font-bold text-clinical-800">Claim this Profile</span>
+      </PendingLink>
     </div>
   );
 }
