@@ -45,15 +45,113 @@ import {
 } from "@/lib/register-ui";
 
 type Mode = "search" | "adjust" | "manual" | "confirmed";
-
-const linkClass =
-  "text-xs font-semibold text-clinical-700 underline underline-offset-2 transition hover:text-clinical-600";
-
-const secondaryButtonClass =
-  "inline-flex items-center gap-1.5 rounded-lg border border-ink-200 bg-white px-3 py-1.5 text-xs font-semibold text-ink-700 transition hover:border-clinical-300 hover:text-clinical-700";
+type Tone = "light" | "dark";
 
 const primaryButtonClass =
   "inline-flex items-center gap-1.5 rounded-lg bg-clinical-500 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-clinical-400 disabled:cursor-not-allowed disabled:opacity-50";
+
+const darkInputClass =
+  "mt-2 w-full rounded-xl border border-slate-800/80 bg-ink-900/40 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-clinical-400/60";
+
+const toneStyles: Record<
+  Tone,
+  {
+    link: string;
+    secondaryButton: string;
+    panel: string;
+    summaryPanel: string;
+    eyebrow: string;
+    body: string;
+    muted: string;
+    soft: string;
+    label: string;
+    helper: string;
+    input: string;
+    pinIcon: string;
+    adjusted: string;
+    stepStrong: string;
+    stepDot: string;
+    stepMuted: string;
+    emphasis: string;
+    quiet: string;
+    listingHint: string;
+    badgeGoogle: string;
+    badgePin: string;
+    badgeSaved: string;
+    clinicalNotice: string;
+    clinicalNoticeText: string;
+    clinicalNoticeStrong: string;
+    amberNotice: string;
+    amberNoticeText: string;
+    amberHint: string;
+    streetError: string;
+  }
+> = {
+  light: {
+    link: "text-xs font-semibold text-clinical-700 underline underline-offset-2 transition hover:text-clinical-600",
+    secondaryButton:
+      "inline-flex items-center gap-1.5 rounded-lg border border-ink-200 bg-white px-3 py-1.5 text-xs font-semibold text-ink-700 transition hover:border-clinical-300 hover:text-clinical-700",
+    panel: "mt-2 rounded-xl border border-ink-200 bg-white p-3",
+    summaryPanel: "mt-2 rounded-xl border border-ink-200 bg-ink-50/80 px-3 py-2.5",
+    eyebrow: "text-[11px] font-semibold uppercase tracking-wide text-ink-500",
+    body: "text-sm leading-relaxed text-ink-900",
+    muted: "text-xs text-ink-600",
+    soft: "text-xs leading-relaxed text-ink-500",
+    label: "text-xs font-medium text-ink-700",
+    helper: registerHelperClass,
+    input: registerInputClass,
+    pinIcon: "mt-0.5 h-4 w-4 shrink-0 text-clinical-600",
+    adjusted: "inline-flex items-center gap-2 text-xs text-ink-600",
+    stepStrong: "font-semibold text-ink-800",
+    stepDot: "text-ink-400",
+    stepMuted: "text-xs leading-relaxed text-ink-600",
+    emphasis: "font-semibold text-ink-800",
+    quiet: "text-ink-500",
+    listingHint: "font-medium text-ink-700",
+    badgeGoogle: "bg-clinical-500/15 text-clinical-800",
+    badgePin: "bg-amber-500/15 text-amber-900",
+    badgeSaved: "bg-ink-500/10 text-ink-700",
+    clinicalNotice: "mt-2 rounded-lg border border-clinical-200 bg-clinical-50/60 px-3 py-2",
+    clinicalNoticeText: "text-xs leading-relaxed text-ink-700",
+    clinicalNoticeStrong: "font-semibold text-ink-900",
+    amberNotice: "mt-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2",
+    amberNoticeText: "text-xs leading-relaxed text-amber-900",
+    amberHint: "mt-2 text-xs leading-relaxed text-amber-900",
+    streetError: "mt-1 block text-xs text-red-600",
+  },
+  dark: {
+    link: "text-xs font-semibold text-clinical-300 underline underline-offset-2 transition hover:text-clinical-200",
+    secondaryButton:
+      "inline-flex items-center gap-1.5 rounded-lg border border-slate-600 bg-slate-950/50 px-3 py-1.5 text-xs font-semibold text-slate-200 transition hover:border-slate-400 hover:text-white",
+    panel: "mt-2 rounded-xl border border-slate-700/80 bg-ink-900/40 p-3",
+    summaryPanel: "mt-2 rounded-xl border border-slate-700/80 bg-slate-950/50 px-3 py-2.5",
+    eyebrow: "text-[11px] font-semibold uppercase tracking-wide text-slate-400",
+    body: "text-sm leading-relaxed text-slate-100",
+    muted: "text-xs text-slate-400",
+    soft: "text-xs leading-relaxed text-slate-400",
+    label: "text-xs font-medium text-slate-300",
+    helper: "mt-1 block text-xs text-slate-400",
+    input: darkInputClass,
+    pinIcon: "mt-0.5 h-4 w-4 shrink-0 text-clinical-300",
+    adjusted: "inline-flex items-center gap-2 text-xs text-slate-400",
+    stepStrong: "font-semibold text-slate-100",
+    stepDot: "text-slate-500",
+    stepMuted: "text-xs leading-relaxed text-slate-400",
+    emphasis: "font-semibold text-slate-200",
+    quiet: "text-slate-500",
+    listingHint: "font-medium text-slate-200",
+    badgeGoogle: "bg-clinical-500/20 text-clinical-200",
+    badgePin: "bg-amber-500/20 text-amber-100",
+    badgeSaved: "bg-slate-500/20 text-slate-300",
+    clinicalNotice: "mt-2 rounded-lg border border-clinical-500/35 bg-clinical-500/10 px-3 py-2",
+    clinicalNoticeText: "text-xs leading-relaxed text-slate-300",
+    clinicalNoticeStrong: "font-semibold text-slate-100",
+    amberNotice: "mt-2 rounded-lg border border-amber-500/35 bg-amber-500/10 px-3 py-2",
+    amberNoticeText: "text-xs leading-relaxed text-amber-100",
+    amberHint: "mt-2 text-xs leading-relaxed text-amber-100",
+    streetError: "mt-1 block text-xs text-red-400",
+  },
+};
 
 export function RegisterClinicAddressField({
   listingAddressHint,
@@ -65,6 +163,7 @@ export function RegisterClinicAddressField({
   includeHiddenInputs = true,
   hideIntro = false,
   inputId,
+  tone = "light",
 }: {
   listingAddressHint?: string | null;
   initialLocation?: ClinicLocation | null;
@@ -78,7 +177,12 @@ export function RegisterClinicAddressField({
   /** Settings already shows section copy — skip wizard label/helpers. */
   hideIntro?: boolean;
   inputId?: string;
+  /** Settings uses dark chrome; registration keeps the light wizard. */
+  tone?: Tone;
 } = {}) {
+  const styles = toneStyles[tone];
+  const linkClass = styles.link;
+  const secondaryButtonClass = styles.secondaryButton;
   const names = registerClinicInputNames(index);
   const fieldKey = index === 0 ? "clinic" : `clinic${index}`;
   const fieldLabel =
@@ -367,7 +471,7 @@ export function RegisterClinicAddressField({
           Adjust on map
         </button>
         {pinMoved ? (
-          <span className="inline-flex items-center gap-2 text-xs text-ink-600">
+          <span className={styles.adjusted}>
             Location adjusted
             {origin ? (
               <button
@@ -387,11 +491,11 @@ export function RegisterClinicAddressField({
 
   const districtSelect = (
     <label className="mt-3 block">
-      <span className="text-xs font-medium text-ink-700">District</span>
+      <span className={styles.label}>District</span>
       <select
         value={location.district ?? ""}
         onChange={(event) => handleDistrictChange(event.target.value)}
-        className={registerInputClass}
+        className={styles.input}
         aria-label="District"
       >
         <option value="">Select a district</option>
@@ -401,7 +505,7 @@ export function RegisterClinicAddressField({
           </option>
         ))}
       </select>
-      <span className={registerHelperClass}>
+      <span className={styles.helper}>
         Patients filter by district, so check this matches your clinic.
       </span>
     </label>
@@ -421,19 +525,20 @@ export function RegisterClinicAddressField({
             {fieldLabel}
             <span className="text-red-600">*</span>
           </span>
-          <p className={registerHelperClass}>
+          <p className={styles.helper}>
             Search for your clinic on Google — that gives us the address patients read and the map
             pin for &ldquo;near me&rdquo;. If Google does not list it, drop a pin and type what patients
             should see.
           </p>
           {hint ? (
-            <p className={registerHelperClass}>
-              Your listing already shows: <span className="font-medium text-ink-700">{hint}</span>.
-              Search and confirm the same clinic below.
+            <p className={styles.helper}>
+              Your listing already shows:{" "}
+              <span className={styles.listingHint}>{hint}</span>
+              . Search and confirm the same clinic below.
             </p>
           ) : null}
           {showAddLaterHint ? (
-            <p className={registerHelperClass}>
+            <p className={styles.helper}>
               If you work at more than one clinic, you can add the others later in Settings.
             </p>
           ) : null}
@@ -443,11 +548,11 @@ export function RegisterClinicAddressField({
       {mode === "confirmed" && location.address.trim() ? (
         addressDistrictConflict ? (
           <div
-            className="mt-2 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2.5"
+            className={styles.amberNotice}
             data-testid="clinic-district-mismatch"
           >
-            <p className="text-sm leading-relaxed text-ink-900">{location.address}</p>
-            <p className="mt-1 text-xs leading-relaxed text-amber-900">
+            <p className={styles.body}>{location.address}</p>
+            <p className={`mt-1 ${styles.amberNoticeText}`}>
               This address does not match district {location.district}. Fix it before continuing.
             </p>
             <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
@@ -467,20 +572,20 @@ export function RegisterClinicAddressField({
           </div>
         ) : (
         <div
-          className="mt-2 rounded-xl border border-ink-200 bg-ink-50/80 px-3 py-2.5"
+          className={styles.summaryPanel}
           data-testid="clinic-location-saved-summary"
         >
           <div className="flex flex-wrap items-center gap-2">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-500">
+            <p className={styles.eyebrow}>
               Patients will see
             </p>
             <span
               className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
                 location.placeId
-                  ? "bg-clinical-500/15 text-clinical-800"
+                  ? styles.badgeGoogle
                   : coords
-                    ? "bg-amber-500/15 text-amber-900"
-                    : "bg-ink-500/10 text-ink-700"
+                    ? styles.badgePin
+                    : styles.badgeSaved
               }`}
             >
               {location.placeId
@@ -490,21 +595,27 @@ export function RegisterClinicAddressField({
                   : "Saved address"}
             </span>
           </div>
-          <p className="mt-1.5 text-sm leading-relaxed text-ink-900">{location.address}</p>
+          <p className={`mt-1.5 ${styles.body}`}>{location.address}</p>
           {location.district ? (
-            <p className="mt-1 text-xs text-ink-600">
-              District: <span className="font-semibold text-ink-800">{location.district}</span>
+            <p className={`mt-1 ${styles.muted}`}>
+              District:{" "}
+              <span className={styles.emphasis}>
+                {location.district}
+              </span>
               {coords ? (
-                <span className="text-ink-500"> · map pin set for nearby search</span>
+                <span className={styles.quiet}>
+                  {" "}
+                  · map pin set for nearby search
+                </span>
               ) : null}
             </p>
           ) : null}
           {!coords ? (
-            <p className="mt-2 text-xs leading-relaxed text-amber-900">
+            <p className={styles.amberHint}>
               Add a map pin so nearby patients can find you accurately in Health Finder.
             </p>
           ) : !location.placeId ? (
-            <p className="mt-2 text-xs leading-relaxed text-ink-500">
+            <p className={`mt-2 ${styles.soft}`}>
               Maps opens a search for this text. Prefer a Google result when you can, so the pin
               and address match a real place.
             </p>
@@ -570,7 +681,7 @@ export function RegisterClinicAddressField({
               inputId ??
               (index === 0 ? "register-clinic-address" : `register-clinic-address-${index}`)
             }
-            tone="light"
+            tone={tone}
             showReadyHint={false}
             onChange={(nextValue) => {
               // Address text wins over a wrong component/centroid district, so a
@@ -586,7 +697,7 @@ export function RegisterClinicAddressField({
               location.address.trim() ? () => setMode("confirmed") : undefined
             }
           />
-          <p className={registerHelperClass}>
+          <p className={styles.helper}>
             Can&rsquo;t find it on Google?{" "}
             <button type="button" onClick={startManual} className={linkClass}>
               Drop a pin instead
@@ -596,12 +707,12 @@ export function RegisterClinicAddressField({
       ) : null}
 
       {mode === "adjust" && coords ? (
-        <div className="mt-2 rounded-xl border border-ink-200 bg-white p-3">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-500">
+        <div className={styles.panel}>
+          <p className={styles.eyebrow}>
             Patients will see
           </p>
-          <p className="mt-1 flex items-start gap-1.5 text-sm leading-relaxed text-ink-900">
-            <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-clinical-600" aria-hidden />
+          <p className={`mt-1 flex items-start gap-1.5 ${styles.body}`}>
+            <MapPin className={styles.pinIcon} aria-hidden />
             {location.address}
           </p>
 
@@ -612,12 +723,12 @@ export function RegisterClinicAddressField({
               the doctor's address is wrong — it is their call. */}
           {suggestionAddress ? (
             <div
-              className="mt-2 rounded-lg border border-clinical-200 bg-clinical-50/60 px-3 py-2"
+              className={styles.clinicalNotice}
               data-testid="clinic-pin-suggestion"
             >
-              <p className="text-xs leading-relaxed text-ink-700">
+              <p className={styles.clinicalNoticeText}>
                 Google reads the pin as{" "}
-                <span className="font-semibold text-ink-900">{suggestionAddress}</span>
+                <span className={styles.clinicalNoticeStrong}>{suggestionAddress}</span>
               </p>
               <button
                 type="button"
@@ -630,10 +741,10 @@ export function RegisterClinicAddressField({
             </div>
           ) : showPinMismatch ? (
             <div
-              className="mt-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2"
+              className={styles.amberNotice}
               data-testid="clinic-pin-mismatch"
             >
-              <p className="text-xs leading-relaxed text-amber-900">
+              <p className={styles.amberNoticeText}>
                 The pin is a long way from the address above. Undo it, or search for the clinic
                 again with the right street.
               </p>
@@ -641,7 +752,7 @@ export function RegisterClinicAddressField({
           ) : null}
 
           {pinMoved && !suggestionAddress && !showPinMismatch ? (
-            <p className="mt-2 text-xs leading-relaxed text-ink-500">
+            <p className={`mt-2 ${styles.soft}`}>
               Patients still read the address above. The pin only sets where you appear nearby.
             </p>
           ) : null}
@@ -650,17 +761,20 @@ export function RegisterClinicAddressField({
               records like a Paphos address filed under Limassol; if the district
               is wrong, the address is wrong and they should search again. */}
           {location.district ? (
-            <p className="mt-3 text-xs text-ink-600">
-              District: <span className="font-semibold text-ink-800">{location.district}</span>
+            <p className={`mt-3 ${styles.muted}`}>
+              District:{" "}
+              <span className={styles.emphasis}>
+                {location.district}
+              </span>
             </p>
           ) : null}
 
           {addressDistrictConflict ? (
             <div
-              className="mt-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2"
+              className={styles.amberNotice}
               data-testid="clinic-district-mismatch"
             >
-              <p className="text-xs leading-relaxed text-amber-900">
+              <p className={styles.amberNoticeText}>
                 The address says{" "}
                 <span className="font-semibold">
                   {location.address.match(/Nicosia|Limassol|Paphos|Pafos|Larnaca|Famagusta/i)?.[0] ??
@@ -691,13 +805,13 @@ export function RegisterClinicAddressField({
       ) : null}
 
       {mode === "manual" ? (
-        <div className="mt-2 rounded-xl border border-ink-200 bg-white p-3">
-          <p className="text-xs leading-relaxed text-ink-600">
-            <span className="font-semibold text-ink-800">1.</span> District{" "}
-            <span className="text-ink-400">·</span>{" "}
-            <span className="font-semibold text-ink-800">2.</span> Pin on your clinic{" "}
-            <span className="text-ink-400">·</span>{" "}
-            <span className="font-semibold text-ink-800">3.</span> Address patients will see
+        <div className={styles.panel}>
+          <p className={styles.stepMuted}>
+            <span className={styles.stepStrong}>1.</span> District{" "}
+            <span className={styles.stepDot}>·</span>{" "}
+            <span className={styles.stepStrong}>2.</span> Pin on your clinic{" "}
+            <span className={styles.stepDot}>·</span>{" "}
+            <span className={styles.stepStrong}>3.</span> Address patients will see
           </p>
 
           {districtSelect}
@@ -708,12 +822,12 @@ export function RegisterClinicAddressField({
 
               {suggestionAddress ? (
                 <div
-                  className="mt-2 rounded-lg border border-clinical-200 bg-clinical-50/60 px-3 py-2"
+                  className={styles.clinicalNotice}
                   data-testid="clinic-manual-pin-suggestion"
                 >
-                  <p className="text-xs leading-relaxed text-ink-700">
+                  <p className={styles.clinicalNoticeText}>
                     Suggested from the pin:{" "}
-                    <span className="font-semibold text-ink-900">{suggestionAddress}</span>
+                    <span className={styles.clinicalNoticeStrong}>{suggestionAddress}</span>
                   </p>
                   <button
                     type="button"
@@ -727,7 +841,7 @@ export function RegisterClinicAddressField({
               ) : null}
 
               <label className="mt-3 block" htmlFor={`register-manual-street-${index}`}>
-                <span className="text-xs font-medium text-ink-700">
+                <span className={styles.label}>
                   Address patients will see
                 </span>
                 <input
@@ -756,14 +870,14 @@ export function RegisterClinicAddressField({
                   }}
                   placeholder="e.g. 12 Makariou Avenue, 2nd floor"
                   autoComplete="street-address"
-                  className={`${registerInputClass}${
+                  className={`${styles.input}${
                     streetError ? " border-red-400 focus:border-red-400 focus:ring-red-400/25" : ""
                   }`}
                 />
                 {streetError ? (
                   <span
                     id={`register-manual-street-error-${index}`}
-                    className="mt-1 block text-xs text-red-600"
+                    className={styles.streetError}
                     data-testid="clinic-manual-street-error"
                   >
                     Add the address patients will see, then save.
@@ -771,7 +885,7 @@ export function RegisterClinicAddressField({
                 ) : (
                   <span
                     id={`register-manual-street-hint-${index}`}
-                    className={registerHelperClass}
+                    className={styles.helper}
                   >
                     This text appears on your profile and in Maps search — use a real street
                     address.

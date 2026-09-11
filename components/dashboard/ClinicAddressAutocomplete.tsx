@@ -13,14 +13,12 @@ type Props = {
 
 /**
  * Settings clinic address editor — same MAP wizard as registration (search /
- * pin adjust / manual), on a light surface inside the dark settings chrome.
+ * pin adjust / manual), using dark tone to match Settings chrome.
  */
 export function ClinicAddressAutocomplete({ id, value, onChange, disabled = false }: Props) {
   return (
     <div
-      className={`mt-2 rounded-xl border border-slate-700/80 bg-white p-3 text-ink-900 shadow-sm ${
-        disabled ? "pointer-events-none opacity-60" : ""
-      }`}
+      className={`mt-2 ${disabled ? "pointer-events-none opacity-60" : ""}`}
       data-testid="settings-clinic-address-wizard"
     >
       <RegisterClinicAddressField
@@ -30,6 +28,7 @@ export function ClinicAddressAutocomplete({ id, value, onChange, disabled = fals
         showAddLaterHint={false}
         hideIntro
         inputId={id}
+        tone="dark"
       />
     </div>
   );
