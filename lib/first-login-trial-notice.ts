@@ -4,6 +4,8 @@ import { isFounderSubscriptionTier } from "@/lib/subscription-tier";
 
 export const FIRST_LOGIN_TRIAL_NOTICE_TEST_ID = "first-login-trial-notice";
 export const TRIAL_NOTICE_DISMISS_PATH = "/api/doctor-settings/trial-notice";
+/** First verified login lands here until the welcome notice is dismissed. */
+export const DOCTOR_FIRST_LOGIN_PATH = "/agenda/settings";
 
 export type FirstLoginTrialNoticeCopy = {
   title: string;
@@ -18,6 +20,14 @@ export function shouldShowFirstLoginTrialNotice(input: {
 }): boolean {
   if (!isDoctorVerifiedForProduct(input.status)) return false;
   return String(input.trialNoticeSeenAt ?? "").trim().length === 0;
+}
+
+/** Same signal as the welcome modal: verified + not yet dismissed. */
+export function shouldRedirectFirstLoginToSettings(input: {
+  status?: string | null;
+  trialNoticeSeenAt?: string | null;
+}): boolean {
+  return shouldShowFirstLoginTrialNotice(input);
 }
 
 export function firstLoginTrialNoticeCopy(isFounder: boolean): FirstLoginTrialNoticeCopy {

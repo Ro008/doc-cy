@@ -33,7 +33,9 @@ test.describe("Integration UI: first-login trial notice (local only)", { tag: "@
 
       await loginDoctorUi(page, fixture.email, fixture.password);
       await page.goto("/agenda", { waitUntil: "domcontentloaded" });
-      await expect(page).toHaveURL(/\/agenda(?:[/?#]|$)/i, { timeout: 30_000 });
+      await expect(page).toHaveURL(/\/agenda\/settings(?:[/?#]|$)/i, {
+        timeout: 30_000,
+      });
 
       const dialog = page.getByTestId(FIRST_LOGIN_TRIAL_NOTICE_TEST_ID);
       await expect(dialog).toBeVisible({ timeout: 20_000 });
@@ -52,8 +54,9 @@ test.describe("Integration UI: first-login trial notice (local only)", { tag: "@
       expect(row.error).toBeNull();
       expect(String(row.data?.trial_notice_seen_at ?? "").trim().length).toBeGreaterThan(0);
 
-      await page.reload({ waitUntil: "domcontentloaded" });
+      await page.goto("/agenda", { waitUntil: "domcontentloaded" });
       await expect(page).toHaveURL(/\/agenda(?:[/?#]|$)/i, { timeout: 30_000 });
+      await expect(page).not.toHaveURL(/\/agenda\/settings/i);
       await expect(page.getByTestId(FIRST_LOGIN_TRIAL_NOTICE_TEST_ID)).toHaveCount(0);
     } finally {
       if (fixture) await deleteTestDoctor(fixture);

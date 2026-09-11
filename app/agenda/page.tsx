@@ -10,6 +10,10 @@ import { FirstLoginTrialNoticeGate } from "@/components/dashboard/FirstLoginTria
 import { isFounderSubscriptionTier } from "@/lib/subscription-tier";
 import { doctorDashboardDisplayName } from "@/lib/doctor-display-name";
 import {
+  DOCTOR_FIRST_LOGIN_PATH,
+  shouldRedirectFirstLoginToSettings,
+} from "@/lib/first-login-trial-notice";
+import {
   buildWeeklyScheduleFromSettings,
   type DoctorSettingsRow,
   type WeeklySchedule,
@@ -49,7 +53,7 @@ export default async function AgendaPage({ searchParams }: AgendaPageProps) {
 
   let doctorRes = await supabase
     .from("professionals")
-    .select("id, name, status, auth_user_id, slug, subscription_tier")
+    .select("id, name, status, auth_user_id, slug, subscription_tier, trial_notice_seen_at")
     .eq("auth_user_id", user.id)
     .single();
 
@@ -63,7 +67,20 @@ export default async function AgendaPage({ searchParams }: AgendaPageProps) {
   if (tierMissingAgenda) {
     doctorRes = await supabase
       .from("professionals")
-      .select("id, name, status, auth_user_id, slug")
+      .select("id, name, status, auth_user_id, slug, trial_notice_seen_at")
+      .eq("auth_user_id", user.id)
+      .single();
+  }
+
+  if (
+    doctorRes.error &&
+    String(doctorRes.error.message ?? "")
+      .toLowerCase()
+      .includes("trial_notice_seen_at")
+  ) {
+    doctorRes = await supabase
+      .from("professionals")
+      .select("id, name, status, auth_user_id, slug, subscription_tier")
       .eq("auth_user_id", user.id)
       .single();
   }
@@ -87,6 +104,16 @@ export default async function AgendaPage({ searchParams }: AgendaPageProps) {
         </div>
       </main>
     );
+  }
+
+  if (
+    shouldRedirectFirstLoginToSettings({
+      status: (doctor as { status?: string | null }).status,
+      trialNoticeSeenAt: (doctor as { trial_notice_seen_at?: string | null })
+        .trial_notice_seen_at,
+    })
+  ) {
+    redirect(DOCTOR_FIRST_LOGIN_PATH);
   }
 
   const { data: appointments, error } = await fetchAllSupabaseRows(() =>
