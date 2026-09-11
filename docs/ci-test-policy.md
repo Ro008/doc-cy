@@ -68,7 +68,7 @@ Constants: `tests/helpers/ciTags.ts`. To tag new specs: `node scripts/apply-ci-p
 
 - Live prod booking writes (nightly only)
 - `tests/feedback_support_live_formspree.spec.ts` (local only)
-- Live registration UI (`tests/integration/doctor_register_flow.integration.spec.ts`, tag `@local-register`). Not a PR check: Google Places, Auth `signUp`, and Resend are too heavy/flaky for GitHub. Run **once locally before opening a PR** with `npm run test:e2e:register` (testing DB, founder email asserted, doctor always deleted). The PR template has the checkbox. Do **not** put this on a git commit hook. Onboarding DB state on PR remains `doctor_onboarding_pipeline.integration.spec.ts`.
+- Live registration UI (`doctor_register_flow.integration.spec.ts` + `doctor_register_claim_flow.integration.spec.ts`, tag `@local-register`). Not a PR check: Google Places, Auth `signUp`, and Resend are too heavy/flaky for GitHub. Run **once locally before opening a PR** with `npm run test:e2e:register` (testing DB, founder email asserted, doctor always deleted). The claim spec opens a QA clone’s public profile and clicks that listing’s Activate online booking CTA — never a real directory person. The PR template has the checkbox. Do **not** put this on a git commit hook. Onboarding DB state on PR remains `doctor_onboarding_pipeline.integration.spec.ts`.
 
 **Optional PR follow-up:** add `tests/integration/directory_duplicates_actions.integration.spec.ts` if `INTERNAL_DIRECTORY_SECRET` is set (already in PR list when secret present).
 

@@ -12,7 +12,9 @@ import {
 } from "./helpers/test-doctor";
 
 test.describe("Integration UI: first-login trial notice (local only)", { tag: "@pr-e2e" }, () => {
-  test("verified founder sees the notice once, then it stays dismissed", async ({ page }) => {
+  test("verified founder sees the notice once, then it stays dismissed after re-login", async ({
+    page,
+  }) => {
     test.setTimeout(120_000);
     const env = requireSafeIntegration();
     const admin = createIntegrationAdmin(env);
@@ -33,7 +35,9 @@ test.describe("Integration UI: first-login trial notice (local only)", { tag: "@
 
       await loginDoctorUi(page, fixture.email, fixture.password);
       await page.goto("/agenda", { waitUntil: "domcontentloaded" });
-      await expect(page).toHaveURL(/\/agenda(?:[/?#]|$)/i, { timeout: 30_000 });
+      await expect(page).toHaveURL(/\/agenda\/settings(?:[/?#]|$)/i, {
+        timeout: 30_000,
+      });
 
       const dialog = page.getByTestId(FIRST_LOGIN_TRIAL_NOTICE_TEST_ID);
       await expect(dialog).toBeVisible({ timeout: 20_000 });
@@ -52,9 +56,27 @@ test.describe("Integration UI: first-login trial notice (local only)", { tag: "@
       expect(row.error).toBeNull();
       expect(String(row.data?.trial_notice_seen_at ?? "").trim().length).toBeGreaterThan(0);
 
-      await page.reload({ waitUntil: "domcontentloaded" });
+      // Same session: agenda must no longer redirect or show the modal.
+      await page.goto("/agenda", { waitUntil: "domcontentloaded" });
       await expect(page).toHaveURL(/\/agenda(?:[/?#]|$)/i, { timeout: 30_000 });
+      await expect(page).not.toHaveURL(/\/agenda\/settings/i);
       await expect(page.getByTestId(FIRST_LOGIN_TRIAL_NOTICE_TEST_ID)).toHaveCount(0);
+
+      // Fresh session (tester bug: modal came back every visit).
+      await page.context().clearCookies();
+      await loginDoctorUi(page, fixture.email, fixture.password);
+      await page.goto("/agenda", { waitUntil: "domcontentloaded" });
+      await expect(page).toHaveURL(
+        (url) => {
+          const path = url.pathname.replace(/\/$/, "") || "/";
+          return path === "/agenda";
+        },
+        { timeout: 30_000 },
+      );
+      await expect(page.getByTestId(FIRST_LOGIN_TRIAL_NOTICE_TEST_ID)).toHaveCount(0);
+      await expect(page.getByRole("button", { name: /^Today$/i })).toBeVisible({
+        timeout: 15_000,
+      });
     } finally {
       if (fixture) await deleteTestDoctor(fixture);
     }

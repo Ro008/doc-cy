@@ -1,13 +1,8 @@
 import { stripPlusCodePrefix } from "@/lib/clinic-location-pin";
 
-export const CLINIC_ADDRESS =
-  "Evangelismos Private Hospital, 87 Vasileos Constantinou Ave, Paphos";
-
-export const MAPS_URL = "https://maps.google.com/?q=Evangelismos+Private+Hospital+Paphos";
-
-export function buildMapsUrlFromAddress(address: string): string {
+export function buildMapsUrlFromAddress(address: string): string | null {
   const trimmed = stripPlusCodePrefix(address);
-  if (!trimmed) return MAPS_URL;
+  if (!trimmed) return null;
   return `https://maps.google.com/?q=${encodeURIComponent(trimmed)}`;
 }
 

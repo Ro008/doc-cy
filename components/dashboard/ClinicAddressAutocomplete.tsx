@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { ClinicAddressSearchInput } from "@/components/clinic/ClinicAddressSearchInput";
+import { RegisterClinicAddressField } from "@/components/auth/RegisterClinicAddressField";
 import type { ClinicLocation } from "@/lib/clinic-location";
 
 type Props = {
@@ -11,63 +11,25 @@ type Props = {
   disabled?: boolean;
 };
 
+/**
+ * Settings clinic address editor — same MAP wizard as registration (search /
+ * pin adjust / manual), using dark tone to match Settings chrome.
+ */
 export function ClinicAddressAutocomplete({ id, value, onChange, disabled = false }: Props) {
-  const [isEditing, setIsEditing] = React.useState(() => !value.address.trim());
-  const [searchSession, setSearchSession] = React.useState(0);
-  const savedLocationRef = React.useRef<ClinicLocation>(value);
-
-  React.useEffect(() => {
-    if (!isEditing) {
-      savedLocationRef.current = value;
-    }
-    if (!value.address.trim()) {
-      setIsEditing(true);
-    }
-  }, [value, isEditing]);
-
-  const hasSavedAddress = value.address.trim().length > 0;
-
-  if (hasSavedAddress && !isEditing) {
-    return (
-      <div>
-        <p className="mt-2 rounded-xl border border-slate-800/80 bg-ink-900/40 px-3 py-2 text-sm leading-relaxed text-slate-100">
-          {value.address}
-        </p>
-        <button
-          type="button"
-          disabled={disabled}
-          onClick={() => {
-            savedLocationRef.current = value;
-            setSearchSession((current) => current + 1);
-            setIsEditing(true);
-          }}
-          className="mt-2 text-xs font-semibold text-clinical-300 underline underline-offset-2 transition hover:text-clinical-200 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          Change clinic address
-        </button>
-      </div>
-    );
-  }
-
   return (
-    <ClinicAddressSearchInput
-      key={searchSession}
-      id={id}
-      tone="dark"
-      onChange={(nextValue) => {
-        onChange(nextValue);
-        if (nextValue.latitude != null && nextValue.longitude != null) {
-          setIsEditing(false);
-        }
-      }}
-      onCancel={
-        hasSavedAddress
-          ? () => {
-              onChange(savedLocationRef.current);
-              setIsEditing(false);
-            }
-          : undefined
-      }
-    />
+    <div
+      className={`mt-2 ${disabled ? "pointer-events-none opacity-60" : ""}`}
+      data-testid="settings-clinic-address-wizard"
+    >
+      <RegisterClinicAddressField
+        initialLocation={value}
+        onLocationChange={onChange}
+        includeHiddenInputs={false}
+        showAddLaterHint={false}
+        hideIntro
+        inputId={id}
+        tone="dark"
+      />
+    </div>
   );
 }

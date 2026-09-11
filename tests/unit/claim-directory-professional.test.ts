@@ -198,6 +198,19 @@ describe("register claim from finder card", () => {
     assert.deepEqual(prefill.clinics, []);
   });
 
+  it("maps legacy directory specialties onto current register master labels", () => {
+    const prefill = toRegisterClaimPrefill({
+      id: "55555555-5555-5555-5555-555555555555",
+      slug: "qa-claim-ioanna-legacy",
+      name: "QA Claim Ioanna Severi",
+      specialty: "Gynecology",
+      specialties: ["Gynecology"],
+      district: "Nicosia",
+    });
+    assert.equal(prefill.specialties[0]?.specialty, "Obstetrics - Gynaecology");
+    assert.equal(prefill.specialties[0]?.fromMaster, true);
+  });
+
   it("maps linked clinics for claim without copying a clinic phone", () => {
     const clinics = registerClaimClinicsFromJoin([
       {
@@ -238,10 +251,23 @@ describe("register claim from finder card", () => {
     });
   });
 
-  it("never binds a card listing to a test signup", () => {
+  it("never binds a real directory person to a test signup", () => {
     assert.equal(
-      pickExplicitDirectoryClaim({ id: maria.id, slug: maria.slug }, { isTestSignup: true }),
+      pickExplicitDirectoryClaim({ id: maria.id, slug: maria.slug, name: maria.name }, { isTestSignup: true }),
       null,
     );
+  });
+
+  it("lets a test signup claim a QA clone listing by card link", () => {
+    const clone = {
+      id: "44444444-4444-4444-4444-444444444444",
+      slug: "qa-claim-ioanna-1",
+      name: "QA Claim Ioanna Severi 1",
+    };
+    assert.deepEqual(pickExplicitDirectoryClaim(clone, { isTestSignup: true }), {
+      id: clone.id,
+      slug: clone.slug,
+      reason: "card_link",
+    });
   });
 });

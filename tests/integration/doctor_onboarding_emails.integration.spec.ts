@@ -78,7 +78,7 @@ test.describe("Doctor onboarding email content", { tag: "@pr-email" }, () => {
     expect(content.html.toLowerCase()).not.toContain("otp");
   });
 
-  test("doctor account verified email points at sign-in, then agenda", () => {
+  test("doctor account verified email points at sign-in, then settings", () => {
     const content = buildDoctorAccountVerifiedEmailContent({
       siteUrl: "https://mydoccy.com",
       doctorName: "Maria Papadopoulos",
@@ -86,14 +86,15 @@ test.describe("Doctor onboarding email content", { tag: "@pr-email" }, () => {
 
     expect(content.subject).toBe("[DocCy] Your account is ready — sign in");
     expect(content.loginUrl).toContain("/login");
-    expect(content.loginUrl).toContain("next=%2Fagenda");
+    expect(content.loginUrl).toContain("next=%2Fagenda%2Fsettings");
     expect(content.text).toContain("Hi Maria");
     expect(content.text).toContain("Sign in:");
     expect(content.text).toContain("email and password you used when registering");
+    expect(content.text).toContain("land on Settings");
     expect(content.text.toLowerCase()).not.toContain("open your dashboard");
     expect(content.html).toContain("Sign in to DocCy");
     expect(content.html).not.toContain("Open your dashboard");
-    expect(content.html).toContain(encodeURIComponent("/agenda"));
+    expect(content.html).toContain(encodeURIComponent("/agenda/settings"));
   });
 
   test("doctor application rejected email points at the support form", () => {

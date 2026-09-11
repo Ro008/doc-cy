@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 
 import {
   firstLoginTrialNoticeCopy,
+  shouldRedirectFirstLoginToSettings,
   shouldShowFirstLoginTrialNotice,
 } from "../../lib/first-login-trial-notice";
 
@@ -32,6 +33,25 @@ describe("shouldShowFirstLoginTrialNotice", () => {
     );
     assert.equal(
       shouldShowFirstLoginTrialNotice({ status: "rejected", trialNoticeSeenAt: null }),
+      false,
+    );
+  });
+});
+
+describe("shouldRedirectFirstLoginToSettings", () => {
+  it("matches the welcome-notice signal so first login skips the empty agenda", () => {
+    assert.equal(
+      shouldRedirectFirstLoginToSettings({
+        status: "verified",
+        trialNoticeSeenAt: null,
+      }),
+      true,
+    );
+    assert.equal(
+      shouldRedirectFirstLoginToSettings({
+        status: "verified",
+        trialNoticeSeenAt: "2026-09-09T12:00:00.000Z",
+      }),
       false,
     );
   });

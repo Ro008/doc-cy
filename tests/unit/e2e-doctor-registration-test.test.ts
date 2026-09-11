@@ -35,12 +35,15 @@ describe("e2e doctor registration helpers", () => {
     }
   });
 
-  it("keeps the live register spec off the PR Playwright grep", () => {
-    const spec = fs.readFileSync(
-      path.join(repoRoot, "tests/integration/doctor_register_flow.integration.spec.ts"),
-      "utf8",
-    );
-    assert.equal(spec.includes(`tag: "${TAG_LOCAL_REGISTER}"`), true);
-    assert.equal(spec.includes(TAG_PR_E2E), false);
+  it("keeps the live register specs off the PR Playwright grep", () => {
+    const specs = [
+      "tests/integration/doctor_register_flow.integration.spec.ts",
+      "tests/integration/doctor_register_claim_flow.integration.spec.ts",
+    ];
+    for (const relative of specs) {
+      const spec = fs.readFileSync(path.join(repoRoot, relative), "utf8");
+      assert.equal(spec.includes(`tag: "${TAG_LOCAL_REGISTER}"`), true, relative);
+      assert.equal(spec.includes(TAG_PR_E2E), false, relative);
+    }
   });
 });

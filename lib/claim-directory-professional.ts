@@ -3,7 +3,10 @@ import { isCurrentRegistrationSpecialty } from "@/lib/cyprus-specialties";
 import { firstNameFromProfessionalName } from "@/lib/doctor-display-name";
 import { MAX_DOCTOR_LOCATIONS } from "@/lib/doctor-locations";
 import { MAX_DOCTOR_SPECIALTIES } from "@/lib/doctor-specialties";
-import { isTestDoctorRegistrationEmail } from "@/lib/doctor-test-profile";
+import {
+  isQaClaimDirectoryListing,
+  isTestDoctorRegistrationEmail,
+} from "@/lib/doctor-test-profile";
 import { escapeIlikePattern } from "@/lib/finder-results-paging";
 import { harmonizeFinderSpecialtyLabel } from "@/lib/finder-specialty-harmonize";
 
@@ -216,10 +219,10 @@ export function pickUniqueDirectoryClaim(
 }
 
 export function pickExplicitDirectoryClaim(
-  listing: { id: string; slug?: string | null } | null | undefined,
+  listing: { id: string; slug?: string | null; name?: string | null } | null | undefined,
   options?: { isTestSignup?: boolean },
 ): DirectoryClaimMatch | null {
-  if (options?.isTestSignup) return null;
+  if (options?.isTestSignup && !isQaClaimDirectoryListing(listing)) return null;
   const id = String(listing?.id ?? "").trim();
   if (!id) return null;
   return {
@@ -240,7 +243,8 @@ function listingSpecialtyLabels(row: {
   const seen = new Set<string>();
   const labels: string[] = [];
   for (const item of raw) {
-    const label = String(item ?? "").trim();
+    // Map legacy directory labels (e.g. Gynecology) onto current GeSY register options.
+    const label = harmonizeFinderSpecialtyLabel(String(item ?? "").trim());
     if (!label) continue;
     const key = label.toLowerCase();
     if (seen.has(key)) continue;
@@ -480,7 +484,7 @@ export async function loadUnregisteredProfessionalForRegisterClaim(
 
 /**
  * Prefer the listing UUID from the card CTA. Fall back to unique email / identity match.
- * Test signup emails never claim a real listing, even with an explicit id.
+ * Test signup emails may only claim QA clones (`QA Claim …` / `qa-claim-…`), never a real person.
  */
 export async function resolveSignupDirectoryClaim(
   supabase: SupabaseClient,
@@ -492,14 +496,15 @@ export async function resolveSignupDirectoryClaim(
     specialties: readonly string[];
   },
 ): Promise<DirectoryClaimMatch | null> {
-  if (isTestDoctorRegistrationEmail(input.email)) return null;
-
+  const isTestSignup = isTestDoctorRegistrationEmail(input.email);
   const explicitId = String(input.explicitClaimId ?? "").trim();
   if (isProfessionalUuid(explicitId)) {
     const listing = await loadUnregisteredProfessionalForRegisterClaim(supabase, explicitId);
-    const explicit = pickExplicitDirectoryClaim(listing);
+    const explicit = pickExplicitDirectoryClaim(listing, { isTestSignup });
     if (explicit) return explicit;
   }
+
+  if (isTestSignup) return null;
 
   return findDirectoryProfessionalToClaim(supabase, {
     name: input.name,

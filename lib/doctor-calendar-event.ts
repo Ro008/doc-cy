@@ -1,4 +1,3 @@
-import { CLINIC_ADDRESS } from "@/lib/clinic-info";
 import type {
   PatientCalendarDoctor,
   PatientCalendarEventDetails,
@@ -53,8 +52,7 @@ export function getDoctorCalendarEventDetails(
 
   const description = lines.join("\n");
 
-  const location =
-    String(doctor.clinic_address ?? "").trim() || CLINIC_ADDRESS;
+  const location = String(doctor.clinic_address ?? "").trim();
 
   return { title, description, location };
 }

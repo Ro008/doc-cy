@@ -1,7 +1,4 @@
-import {
-  CLINIC_ADDRESS,
-  buildMapsUrlFromAddress,
-} from "@/lib/clinic-info";
+import { buildMapsUrlFromAddress } from "@/lib/clinic-info";
 import {
   clinicDisplayName,
   sortDoctorLocations,
@@ -52,13 +49,12 @@ export function appointmentClinicCopy(opts: {
   const clinicName = clinicDisplayName(selected?.label, index, total);
   const address =
     String(selected?.clinic_address ?? "").trim() ||
-    String(opts.doctorClinicAddressFallback ?? "").trim() ||
-    CLINIC_ADDRESS;
+    String(opts.doctorClinicAddressFallback ?? "").trim();
 
   return {
     clinicName,
     address,
-    mapsUrl: buildMapsUrlFromAddress(address),
+    mapsUrl: buildMapsUrlFromAddress(address) ?? "",
   };
 }
 
@@ -67,34 +63,45 @@ export function appointmentClinicCopyFromAddress(opts: {
   clinicName?: string | null;
   address?: string | null;
 }): AppointmentClinicCopy {
-  const address = String(opts.address ?? "").trim() || CLINIC_ADDRESS;
+  const address = String(opts.address ?? "").trim();
   const clinicName = String(opts.clinicName ?? "").trim() || "Clinic";
   return {
     clinicName,
     address,
-    mapsUrl: buildMapsUrlFromAddress(address),
+    mapsUrl: buildMapsUrlFromAddress(address) ?? "",
   };
 }
 
 export function formatAppointmentClinicEmailText(
   clinic: AppointmentClinicCopy,
 ): string {
-  return (
-    `Clinic: ${clinic.clinicName}\n` +
-    `Address: ${clinic.address}\n` +
-    `Maps: ${clinic.mapsUrl}\n`
-  );
+  const lines = [`Clinic: ${clinic.clinicName}`];
+  if (clinic.address) {
+    lines.push(`Address: ${clinic.address}`);
+  }
+  if (clinic.mapsUrl) {
+    lines.push(`Maps: ${clinic.mapsUrl}`);
+  }
+  return `${lines.join("\n")}\n`;
 }
 
 export function formatAppointmentClinicEmailHtml(
   clinic: AppointmentClinicCopy,
 ): string {
+  const addressBlock = clinic.address
+    ? clinic.mapsUrl
+      ? `<p style="margin:0 0 14px;font-size:15px;line-height:1.6;color:${EMAIL_TEXT};">
+      <a href="${escapeHtml(clinic.mapsUrl)}" style="${EMAIL_LINK_ACCENT}">${escapeHtml(clinic.address)}</a>
+    </p>`
+      : `<p style="margin:0 0 14px;font-size:15px;line-height:1.6;color:${EMAIL_TEXT};">
+      ${escapeHtml(clinic.address)}
+    </p>`
+    : "";
+
   return `
     <p style="${EMAIL_SECTION_LABEL}">Clinic</p>
     <p style="margin:0 0 4px;font-size:15px;line-height:1.6;color:${EMAIL_TEXT};">
       <strong>${escapeHtml(clinic.clinicName)}</strong>
     </p>
-    <p style="margin:0 0 14px;font-size:15px;line-height:1.6;color:${EMAIL_TEXT};">
-      <a href="${escapeHtml(clinic.mapsUrl)}" style="${EMAIL_LINK_ACCENT}">${escapeHtml(clinic.address)}</a>
-    </p>`;
+    ${addressBlock}`;
 }

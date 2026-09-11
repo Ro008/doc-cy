@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { createPortal } from "react-dom";
 import { Check, X } from "lucide-react";
 import { ClinicPinMap } from "@/components/clinic/ClinicPinMap";
 import { clinicPinMoved } from "@/lib/clinic-location-pin";
@@ -21,9 +22,9 @@ type Props = {
 /**
  * Full-screen surface for moving the pin.
  *
- * The fixed-centre-pin pattern needs a one-finger drag to pan, which fights the
- * page scroll when the map is inline in a long form. Giving it its own screen
- * removes the conflict: there is nothing behind the map to scroll to.
+ * Portaled to `document.body` so `position: fixed` is not trapped by ancestors
+ * with `transform` / `filter` / `backdrop-filter` (e.g. Settings' blurred card).
+ * Without that, the chrome can sit off-screen and the doctor is stuck on the map.
  */
 export function ClinicPinAdjustSheet({
   center,
@@ -34,7 +35,14 @@ export function ClinicPinAdjustSheet({
   address,
   zoom = 17,
 }: Props) {
+  const [mounted, setMounted] = React.useState(false);
+
   React.useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  React.useEffect(() => {
+    if (!mounted) return;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
 
@@ -50,9 +58,11 @@ export function ClinicPinAdjustSheet({
       document.body.style.overflow = previousOverflow;
       window.removeEventListener("keydown", onKeyDown);
     };
-  }, [onCancel, onClose]);
+  }, [mounted, onCancel, onClose]);
 
-  return (
+  if (!mounted) return null;
+
+  return createPortal(
     <div
       // Above the PWA install banner (z-95) and the cookie bar (z-96), which
       // otherwise cover the confirm button on a phone.
@@ -62,7 +72,10 @@ export function ClinicPinAdjustSheet({
       aria-label="Adjust your clinic location"
       data-testid="clinic-pin-sheet"
     >
-      <div className="flex items-start justify-between gap-3 border-b border-ink-200 px-4 py-3">
+      <div
+        className="flex shrink-0 items-start justify-between gap-3 border-b border-ink-200 bg-white px-4 py-3"
+        data-testid="clinic-pin-sheet-header"
+      >
         <div className="min-w-0">
           <p className="text-sm font-semibold text-ink-900">Put the pin on your clinic</p>
           {address ? <p className="truncate text-xs text-ink-500">{address}</p> : null}
@@ -90,7 +103,10 @@ export function ClinicPinAdjustSheet({
         frameClassName="min-h-0 flex-1 rounded-none border-0"
       />
 
-      <div className="border-t border-ink-200 px-4 py-3">
+      <div
+        className="shrink-0 border-t border-ink-200 bg-white px-4 py-3"
+        data-testid="clinic-pin-sheet-footer"
+      >
         <button
           type="button"
           onClick={onClose}
@@ -100,6 +116,7 @@ export function ClinicPinAdjustSheet({
           Use this location
         </button>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

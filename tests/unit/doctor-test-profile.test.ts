@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  isQaClaimDirectoryListing,
   isRegisteredDoctorHiddenFromFinder,
   isTestDoctorRegistrationEmail,
   isTestProfileLike,
@@ -43,6 +44,18 @@ describe("isTestProfileLike", () => {
     );
   });
 
+  it("flags QA claim clones by name and slug prefix", () => {
+    assert.equal(
+      isTestProfileLike({
+        name: "QA Claim Ioanna Severi 1",
+        slug: "qa-claim-ioanna-1",
+        email: null,
+        isTestProfile: false,
+      }),
+      true,
+    );
+  });
+
   it("does not flag ordinary professionals", () => {
     assert.equal(
       isTestProfileLike({
@@ -51,6 +64,23 @@ describe("isTestProfileLike", () => {
         email: "maria@clinic.cy",
         isTestProfile: false,
       }),
+      false,
+    );
+  });
+});
+
+describe("isQaClaimDirectoryListing", () => {
+  it("accepts name or slug prefixes only", () => {
+    assert.equal(
+      isQaClaimDirectoryListing({ name: "QA Claim Ioanna Severi 1", slug: "other" }),
+      true,
+    );
+    assert.equal(
+      isQaClaimDirectoryListing({ name: "Ioanna Severi", slug: "qa-claim-ioanna-1" }),
+      true,
+    );
+    assert.equal(
+      isQaClaimDirectoryListing({ name: "Ioanna Severi", slug: "ioanna-severi" }),
       false,
     );
   });
