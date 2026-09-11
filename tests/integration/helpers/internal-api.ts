@@ -37,7 +37,8 @@ export function postPendingRegistrationTwin(
   secret: string,
   body: {
     registeredId: string;
-    unregisteredId: string;
+    unregisteredId?: string;
+    listingUrl?: string;
     action: "absorb" | "keep_both";
   },
 ) {

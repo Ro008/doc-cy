@@ -1,3 +1,5 @@
+import { harmonizeFinderSpecialtyLabel } from "@/lib/finder-specialty-harmonize";
+
 type ManualDirectoryCandidate = {
   id: string;
   name: string;
@@ -30,6 +32,11 @@ function normalizeText(value: string | null | undefined): string {
     .replace(/\s+/g, " ");
 }
 
+function normalizeSpecialty(value: string | null | undefined): string {
+  const harmonized = harmonizeFinderSpecialtyLabel(String(value ?? "").trim());
+  return normalizeText(harmonized || value);
+}
+
 function tokenSet(value: string): Set<string> {
   return new Set(value.split(" ").filter(Boolean));
 }
@@ -54,13 +61,13 @@ export function buildDuplicateSuggestions(
   for (const manual of manualRows) {
     const normalizedManualName = normalizeText(manual.name);
     const manualTokens = tokenSet(normalizedManualName);
-    const manualSpecialty = normalizeText(manual.specialty);
+    const manualSpecialty = normalizeSpecialty(manual.specialty);
     const manualDistrict = normalizeText(manual.district);
 
     for (const doctor of doctors) {
       const normalizedDoctorName = normalizeText(doctor.name);
       const doctorTokens = tokenSet(normalizedDoctorName);
-      const doctorSpecialty = normalizeText(doctor.specialty);
+      const doctorSpecialty = normalizeSpecialty(doctor.specialty);
       const doctorDistrict = normalizeText(doctor.district);
 
       const nameScore =

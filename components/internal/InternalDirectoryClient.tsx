@@ -76,7 +76,9 @@ export function InternalDirectoryClient({
   const [languageFilter, setLanguageFilter] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState("");
   const [busyId, setBusyId] = React.useState<string | null>(null);
+  const [busyLabel, setBusyLabel] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
+  const [success, setSuccess] = React.useState<string | null>(null);
   const [purgeTarget, setPurgeTarget] = React.useState<DirectoryDoctorRow | null>(
     null,
   );
@@ -150,14 +152,22 @@ export function InternalDirectoryClient({
 
   async function runAction(doctorId: string, action: "verify" | "reject") {
     setError(null);
+    setSuccess(null);
     setBusyId(doctorId);
+    setBusyLabel(action === "verify" ? "Verifying…" : "Rejecting…");
     try {
       await postVerification(doctorId, action);
-      router.refresh();
+      setSuccess(
+        action === "verify"
+          ? "Professional verified. Reloading…"
+          : "License rejected. Reloading…",
+      );
+      setBusyLabel("Reloading dashboard…");
+      window.location.reload();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Action failed.");
-    } finally {
       setBusyId(null);
+      setBusyLabel(null);
     }
   }
 
@@ -274,6 +284,24 @@ export function InternalDirectoryClient({
         </button>
       </div>
 
+      {busyLabel ? (
+        <div
+          className="rounded-xl border border-clinical-500/40 bg-clinical-500/10 px-4 py-3 text-sm text-clinical-100"
+          role="status"
+          aria-live="polite"
+        >
+          {busyLabel}
+        </div>
+      ) : null}
+      {success ? (
+        <div
+          className="rounded-xl border border-clinical-500/40 bg-clinical-500/10 px-4 py-3 text-sm text-clinical-100"
+          role="status"
+          aria-live="polite"
+        >
+          {success}
+        </div>
+      ) : null}
       {error ? (
         <div className="rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-100">
           {error}
