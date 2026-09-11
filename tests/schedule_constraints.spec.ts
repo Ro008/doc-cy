@@ -92,7 +92,7 @@ async function syncPrimaryLocationSchedule(
   };
 }
 
-test.describe("Schedule constraints @booking-creates", { tag: "@pr-e2e" }, () => {
+test.describe("Schedule constraints @booking-creates", { tag: ["@pr-e2e", "@pr-e2e-booking"] }, () => {
   test("friday end time 15:00 allows 14:30 but blocks 15:00", async ({
     request,
   }) => {

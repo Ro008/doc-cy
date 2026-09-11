@@ -2,7 +2,7 @@
 
 Living document: update when workflows or specs change.
 
-- **PR lane:** `.github/workflows/pr-integration.yml` → `PR Playwright (core business)` gate (`PR Playwright · core` + `PR Playwright · finder`)
+- **PR lane:** `.github/workflows/pr-integration.yml` → `PR Playwright (core business)` gate (`PR Playwright · booking` + `PR Playwright · account` + `PR Playwright · finder`)
 - **Nightly lane:** `.github/workflows/prod-critical-smoke.yml` → `prod-email-guards` + `prod-smoke-edge` (mydoccy.com) + optional `prod-smoke-origin` (`*.vercel.app`); no integration E2E job
 
 ## Legend

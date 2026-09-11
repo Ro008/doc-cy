@@ -56,7 +56,7 @@ function findStableAppointmentIso(opts: {
   return new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
 }
 
-test.describe("Integration: propose reschedule (confirmed visit)", { tag: "@pr-e2e" }, () => {
+test.describe("Integration: propose reschedule (confirmed visit)", { tag: ["@pr-e2e", "@pr-e2e-booking"] }, () => {
   test("doctor can send reschedule proposal for CONFIRMED appointment", async ({
     page,
   }) => {
