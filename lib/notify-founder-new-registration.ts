@@ -1,6 +1,11 @@
 import { sendResendEmail } from "@/lib/resend";
 import { getPublicBookingBaseUrl } from "@/lib/site-url";
 import { formatPendingRegistrationNotifyLines } from "@/lib/pending-registration-review";
+import {
+  founderNotifyNoteForOrigin,
+  founderNotifySubjectForOrigin,
+  type PendingRegistrationOriginKind,
+} from "@/lib/pending-registration-origin";
 
 export type NewRegistrationNotifyPayload = {
   doctorId: string;
@@ -10,7 +15,10 @@ export type NewRegistrationNotifyPayload = {
   specialty: string;
   /** Custom "Other" specialty pending founder approval */
   needsSpecialtyReview: boolean;
+  /** @deprecated Prefer originKind */
   claimedDirectory?: boolean;
+  originKind?: PendingRegistrationOriginKind;
+  originLabel?: string;
   languages?: string[];
   specialties?: {
     specialty: string;
@@ -30,6 +38,14 @@ export type NewRegistrationNotifyPayload = {
   hasAvatar?: boolean;
 };
 
+function resolveOriginKind(
+  payload: NewRegistrationNotifyPayload,
+): PendingRegistrationOriginKind {
+  if (payload.originKind) return payload.originKind;
+  if (payload.claimedDirectory) return "claimed_listing";
+  return "unclaimed_review";
+}
+
 /**
  * Best-effort email when a professional completes signup (pending your verification).
  *
@@ -41,6 +57,16 @@ export function buildFounderNewRegistrationNotifyContent(
 ): { subject: string; textBody: string; reviewUrl: string } {
   const base = (siteUrl?.trim() || getPublicBookingBaseUrl()).replace(/\/$/, "");
   const reviewUrl = `${base}/internal/directory#pending-registration-review`;
+  const originKind = resolveOriginKind(payload);
+  const originLabel =
+    payload.originLabel?.trim() ||
+    (originKind === "claimed_listing"
+      ? "Claimed listing"
+      : originKind === "auto_matched_listing"
+        ? "Auto-matched listing"
+        : originKind === "possible_twin"
+          ? "Possible twin"
+          : "Unclaimed — review");
 
   const detailLines = formatPendingRegistrationNotifyLines({
     name: payload.fullName,
@@ -65,7 +91,10 @@ export function buildFounderNewRegistrationNotifyContent(
       placeId: loc.placeId,
       isPrimary: loc.isPrimary,
     })),
-    fromDirectoryListing: Boolean(payload.claimedDirectory),
+    fromDirectoryListing:
+      originKind === "claimed_listing" || originKind === "auto_matched_listing",
+    originKind,
+    originLabel,
     avatarUrl: payload.hasAvatar ? "yes" : null,
   });
 
@@ -73,17 +102,13 @@ export function buildFounderNewRegistrationNotifyContent(
     `New professional registration (email confirmed — pending verification)`,
     ...detailLines,
     payload.needsSpecialtyReview ? `Note: custom specialty pending your approval` : null,
-    payload.claimedDirectory
-      ? `This person claimed their existing finder listing (same professional id). Pending verification — patients keep the same public profile.`
-      : null,
+    founderNotifyNoteForOrigin(originKind),
     `Professional id: ${payload.doctorId}`,
     `Review: ${reviewUrl}`,
   ].filter(Boolean) as string[];
 
   return {
-    subject: payload.claimedDirectory
-      ? `[DocCy] Finder listing claimed — ${payload.fullName}`
-      : `[DocCy] New registration — ${payload.fullName}`,
+    subject: founderNotifySubjectForOrigin(originKind, payload.fullName),
     textBody: lines.join("\n"),
     reviewUrl,
   };

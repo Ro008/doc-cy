@@ -14,30 +14,35 @@ const prE2eFinder = [
   "navigation.spec.ts",
 ];
 
+const prE2eBooking = [
+  "agenda_auth.spec.ts",
+  "booking_flow.spec.ts",
+  "manual_booking_flow.spec.ts",
+  "manual_booking_modal_ux.spec.ts",
+  "schedule_constraints.spec.ts",
+  "integration/appointments_race_condition.integration.spec.ts",
+  "integration/needs_reschedule_slot_free.integration.spec.ts",
+  "integration/propose_reschedule_confirmed.integration.spec.ts",
+  "integration/doctor_confirmation_flow.integration.spec.ts",
+];
+
 const prE2e = [
   "blog_single_image_ui.spec.ts",
   "landing_i18n.spec.ts",
-  "integration/appointments_race_condition.integration.spec.ts",
   "integration/settings_clinic_address_notice.integration.spec.ts",
-  "integration/needs_reschedule_slot_free.integration.spec.ts",
   "feedback_support_modal.spec.ts",
   "promote_practice_settings.spec.ts",
   "practice_insights.spec.ts",
   "practice_insights_metrics.spec.ts",
-  "agenda_auth.spec.ts",
   "integration/monthly_digest.integration.spec.ts",
   "integration/doctor_account_access.integration.spec.ts",
   "integration/doctor_onboarding_pipeline.integration.spec.ts",
   "navigation_feedback.spec.ts",
   "doctor_settings_language_guard.spec.ts",
   "profile_structured_data.spec.ts",
-  "schedule_constraints.spec.ts",
-  "booking_flow.spec.ts",
-  "manual_booking_flow.spec.ts",
-  "manual_booking_modal_ux.spec.ts",
-  "integration/doctor_confirmation_flow.integration.spec.ts",
-  "integration/propose_reschedule_confirmed.integration.spec.ts",
   "integration/directory_duplicates_actions.integration.spec.ts",
+  "integration/pending_registration_origin_actions.integration.spec.ts",
+  ...prE2eBooking,
   ...prE2eFinder,
 ];
 
@@ -89,10 +94,12 @@ function applyTag(filePath, tags) {
 for (const f of prE2e) {
   const tags =
     f === "integration/doctor_confirmation_flow.integration.spec.ts"
-      ? ["@pr-e2e", "@pr-mobile-monitor"]
+      ? ["@pr-e2e", "@pr-e2e-booking", "@pr-mobile-monitor"]
       : prE2eFinder.includes(f)
         ? ["@pr-e2e", "@pr-e2e-finder"]
-        : ["@pr-e2e"];
+        : prE2eBooking.includes(f)
+          ? ["@pr-e2e", "@pr-e2e-booking"]
+          : ["@pr-e2e"];
   applyTag(f, tags);
 }
 for (const f of prEmail) applyTag(f, ["@pr-email"]);

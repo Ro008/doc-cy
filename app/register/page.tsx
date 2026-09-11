@@ -564,6 +564,29 @@ async function runRegister(formData: FormData) {
     }
   }
 
+  const claimedThisListing = Boolean(claim?.id && doctorId === claim.id && claim.reason);
+
+  const persistDirectoryClaimSource = async () => {
+    if (!claimedThisListing || !claim?.reason || !doctorId) return;
+    const { error: claimSourceError } = await service
+      .from("professionals")
+      .update({ directory_claim_source: claim.reason })
+      .eq("id", doctorId);
+    if (claimSourceError) {
+      console.error(
+        "[DocCy] Failed to persist directory_claim_source (registration continues)",
+        claimSourceError,
+      );
+    }
+  };
+
+  const finishRegistrationSuccess = async () => {
+    await persistBookingLocations();
+    await persistDirectoryClaimSource();
+    await sendRegistrationEmails();
+    redirect(claimedThisListing ? "/register?submitted=1&claimed=1" : "/register?submitted=1");
+  };
+
   const sendRegistrationEmails = async () => {
     // Founder notify waits until the professional confirms email (`/auth/confirm-email`).
     try {
@@ -688,9 +711,7 @@ async function runRegister(formData: FormData) {
         .update(withoutTown)
         .eq("id", doctorId);
       if (!withoutTownError) {
-        await persistBookingLocations();
-        await sendRegistrationEmails();
-        redirect("/register?submitted=1");
+        await finishRegistrationSuccess();
       }
     }
     if (missingAvatarColumn) {
@@ -699,9 +720,7 @@ async function runRegister(formData: FormData) {
       console.warn(
         "[DocCy] avatar_url column missing on doctors. Apply SQL migration to persist avatar path."
       );
-      await persistBookingLocations();
-      await sendRegistrationEmails();
-      redirect("/register?submitted=1");
+      await finishRegistrationSuccess();
     }
     if (missingClinicColumns) {
       const { error: legacyProfileError } = await service
@@ -715,9 +734,7 @@ async function runRegister(formData: FormData) {
       if (legacyProfileError) {
         console.error("[DocCy] Failed legacy profile save on doctor", legacyProfileError);
       } else {
-        await persistBookingLocations();
-        await sendRegistrationEmails();
-        redirect("/register?submitted=1");
+        await finishRegistrationSuccess();
       }
     }
     console.error("[DocCy] Failed to save avatar_url on doctor", avatarSaveError);
@@ -734,10 +751,7 @@ async function runRegister(formData: FormData) {
     fail("avatar_save", avatarSaveError);
   }
 
-  await persistBookingLocations();
-  await sendRegistrationEmails();
-  const claimedThisListing = Boolean(claim?.id && doctorId === claim.id);
-  redirect(claimedThisListing ? "/register?submitted=1&claimed=1" : "/register?submitted=1");
+  await finishRegistrationSuccess();
 }
 
 export default async function RegisterPage({ searchParams }: PageProps) {
@@ -1053,6 +1067,10 @@ export default async function RegisterPage({ searchParams }: PageProps) {
                           listingAddressHint={
                             clinic?.address ??
                             (index === 0 ? claimPrefill?.addressHint : null)
+                          }
+                          listingDistrict={
+                            clinic?.district ??
+                            (index === 0 ? claimPrefill?.district : null)
                           }
                           showAddLaterHint={clinicSlots.length === 1}
                           heading={

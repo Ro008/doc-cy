@@ -23,6 +23,11 @@ import {
 } from "@/components/internal/PendingSpecialtiesPanel";
 import { PendingRegistrationReviewPanel } from "@/components/internal/PendingRegistrationReviewPanel";
 import type { PendingRegistrationReviewItem } from "@/lib/pending-registration-review";
+import {
+  classifyPendingRegistrationOrigin,
+  originFromClaimSource,
+  parseDirectoryClaimSource,
+} from "@/lib/pending-registration-origin";
 import { resolveShareAvatarUrl } from "@/lib/doctor-seo-formatting";
 import { stripPlusCodePrefix } from "@/lib/clinic-location-pin";
 import {
@@ -219,9 +224,9 @@ export default async function FounderDashboardPage({
   const chartRangeStart = startOfMonth(subMonths(new Date(), 5));
 
   const doctorSelectWithAccountEmail =
-    "id, name, email, registration_email, phone, slug, specialty, languages, status, created_at, license_number, license_file_url, is_specialty_approved, specialty_requires_standard_at, auth_user_id, ghs_code, address_maps_link";
+    "id, name, email, registration_email, phone, slug, specialty, languages, status, created_at, license_number, license_file_url, is_specialty_approved, specialty_requires_standard_at, auth_user_id, directory_claim_source";
   const doctorSelectLegacy =
-    "id, name, email, phone, slug, specialty, languages, status, created_at, license_number, license_file_url, is_specialty_approved, specialty_requires_standard_at, auth_user_id, ghs_code, address_maps_link";
+    "id, name, email, phone, slug, specialty, languages, status, created_at, license_number, license_file_url, is_specialty_approved, specialty_requires_standard_at, auth_user_id, directory_claim_source";
 
   let doctorsRes = await fetchAllSupabaseRows(() =>
     supabase
@@ -238,6 +243,20 @@ export default async function FounderDashboardPage({
       supabase
         .from("professionals")
         .select(doctorSelectLegacy)
+        .eq("is_registered", true)
+        .order("created_at", { ascending: false }),
+    )) as typeof doctorsRes;
+  }
+  if (
+    doctorsRes.error &&
+    /directory_claim_source/i.test(String(doctorsRes.error.message ?? ""))
+  ) {
+    doctorsRes = (await fetchAllSupabaseRows(() =>
+      supabase
+        .from("professionals")
+        .select(
+          "id, name, email, registration_email, phone, slug, specialty, languages, status, created_at, license_number, license_file_url, is_specialty_approved, specialty_requires_standard_at, auth_user_id",
+        )
         .eq("is_registered", true)
         .order("created_at", { ascending: false }),
     )) as typeof doctorsRes;
@@ -344,33 +363,15 @@ export default async function FounderDashboardPage({
       (d as { specialty_requires_standard_at?: string | null })
         .specialty_requires_standard_at ?? null,
     auth_user_id: (d as { auth_user_id?: string | null }).auth_user_id ?? null,
-    fromDirectoryListing:
-      Boolean(String((d as { ghs_code?: string | null }).ghs_code ?? "").trim()) ||
-      Boolean(String((d as { address_maps_link?: string | null }).address_maps_link ?? "").trim()),
+    directoryClaimSource: parseDirectoryClaimSource(
+      (d as { directory_claim_source?: string | null }).directory_claim_source,
+    ),
   }));
 
   const showLocalTestCredentials = runtimeLabel === "local";
-  let directoryDoctorRows: DirectoryDoctorRow[] = rows.map((r) => ({
-    id: r.id,
-    name: r.name,
-    slug: r.slug,
-    specialty: r.specialty,
-    languages: r.languages,
-    status: r.status,
-    license_number: r.license_number,
-    license_file_url: r.license_file_url,
-    is_specialty_approved: r.is_specialty_approved,
-    specialty_requires_standard_at: r.specialty_requires_standard_at,
-    fromDirectoryListing: r.fromDirectoryListing,
-  }));
-
-  if (showLocalTestCredentials) {
-    const loginPasswordsByAuthUserId = await loadLocalTestLoginPasswordsByAuthUserId(
-      supabase,
-      rows.map((r) => r.auth_user_id).filter((id): id is string => Boolean(id)),
-    );
-
-    directoryDoctorRows = rows.map((r) => ({
+  let directoryDoctorRows: DirectoryDoctorRow[] = rows.map((r) => {
+    const origin = originFromClaimSource(r.directoryClaimSource);
+    return {
       id: r.id,
       name: r.name,
       slug: r.slug,
@@ -381,12 +382,48 @@ export default async function FounderDashboardPage({
       license_file_url: r.license_file_url,
       is_specialty_approved: r.is_specialty_approved,
       specialty_requires_standard_at: r.specialty_requires_standard_at,
-      fromDirectoryListing: r.fromDirectoryListing,
-      email: r.email,
-      loginPassword: r.auth_user_id
-        ? loginPasswordsByAuthUserId.get(r.auth_user_id) ?? null
-        : null,
-    }));
+      fromDirectoryListing:
+        origin.kind === "claimed_listing" || origin.kind === "auto_matched_listing",
+      originKind: origin.kind,
+      originLabel:
+        origin.kind === "claimed_listing" || origin.kind === "auto_matched_listing"
+          ? origin.label
+          : null,
+    };
+  });
+
+  if (showLocalTestCredentials) {
+    const loginPasswordsByAuthUserId = await loadLocalTestLoginPasswordsByAuthUserId(
+      supabase,
+      rows.map((r) => r.auth_user_id).filter((id): id is string => Boolean(id)),
+    );
+
+    directoryDoctorRows = rows.map((r) => {
+      const origin = originFromClaimSource(r.directoryClaimSource);
+      return {
+        id: r.id,
+        name: r.name,
+        slug: r.slug,
+        specialty: r.specialty,
+        languages: r.languages,
+        status: r.status,
+        license_number: r.license_number,
+        license_file_url: r.license_file_url,
+        is_specialty_approved: r.is_specialty_approved,
+        specialty_requires_standard_at: r.specialty_requires_standard_at,
+        fromDirectoryListing:
+          origin.kind === "claimed_listing" || origin.kind === "auto_matched_listing",
+        originKind: origin.kind,
+        originLabel:
+          origin.kind === "claimed_listing" || origin.kind === "auto_matched_listing"
+            ? origin.label
+            : null,
+        email: r.email,
+        loginPassword: r.auth_user_id
+          ? loginPasswordsByAuthUserId.get(r.auth_user_id) ?? null
+          : null,
+      };
+    });
   }
 
   let pendingRes = await supabase
@@ -539,17 +576,29 @@ export default async function FounderDashboardPage({
   let pendingRegistrationItems: PendingRegistrationReviewItem[] = [];
   if (pendingRegistrationIds.length > 0) {
     const pendingSelectFull =
-      "id, name, slug, email, registration_email, phone, mobile_number, avatar_url, languages, specialty, license_number, license_file_url, district, town, clinic_address, latitude, longitude, clinic_place_id, created_at, is_specialty_approved, specialty_requires_standard_at, ghs_code, address_maps_link, status";
+      "id, name, slug, email, registration_email, phone, mobile_number, avatar_url, languages, specialty, license_number, license_file_url, district, town, clinic_address, latitude, longitude, clinic_place_id, created_at, is_specialty_approved, specialty_requires_standard_at, directory_claim_source, status";
     const pendingSelectNoMobile =
-      "id, name, slug, email, registration_email, phone, avatar_url, languages, specialty, license_number, license_file_url, district, town, clinic_address, latitude, longitude, clinic_place_id, created_at, is_specialty_approved, specialty_requires_standard_at, ghs_code, address_maps_link, status";
+      "id, name, slug, email, registration_email, phone, avatar_url, languages, specialty, license_number, license_file_url, district, town, clinic_address, latitude, longitude, clinic_place_id, created_at, is_specialty_approved, specialty_requires_standard_at, directory_claim_source, status";
     const pendingSelectLegacy =
-      "id, name, slug, email, phone, avatar_url, languages, specialty, license_number, license_file_url, district, clinic_address, latitude, longitude, clinic_place_id, created_at, is_specialty_approved, specialty_requires_standard_at, ghs_code, address_maps_link, status";
+      "id, name, slug, email, phone, avatar_url, languages, specialty, license_number, license_file_url, district, clinic_address, latitude, longitude, clinic_place_id, created_at, is_specialty_approved, specialty_requires_standard_at, directory_claim_source, status";
+    const pendingSelectNoClaimSource =
+      "id, name, slug, email, registration_email, phone, mobile_number, avatar_url, languages, specialty, license_number, license_file_url, district, town, clinic_address, latitude, longitude, clinic_place_id, created_at, is_specialty_approved, specialty_requires_standard_at, status";
 
     let pendingFullRes = await fetchAllSupabaseRowsForIdChunks(
       pendingRegistrationIds,
       (chunk) =>
         supabase.from("professionals").select(pendingSelectFull).in("id", chunk),
     );
+    if (
+      pendingFullRes.error &&
+      /directory_claim_source/i.test(String(pendingFullRes.error.message ?? ""))
+    ) {
+      pendingFullRes = (await fetchAllSupabaseRowsForIdChunks(
+        pendingRegistrationIds,
+        (chunk) =>
+          supabase.from("professionals").select(pendingSelectNoClaimSource).in("id", chunk),
+      )) as typeof pendingFullRes;
+    }
     if (
       pendingFullRes.error &&
       /mobile_number/i.test(String(pendingFullRes.error.message ?? ""))
@@ -664,6 +713,62 @@ export default async function FounderDashboardPage({
       (pendingFullRes.data ?? []).map((row) => [String((row as { id: string }).id), row]),
     );
 
+    const needsTwinScan = pendingRegistrationIds.some((id) => {
+      const raw = pendingById.get(id) as Record<string, unknown> | undefined;
+      return !parseDirectoryClaimSource(
+        raw?.directory_claim_source as string | null | undefined,
+      );
+    });
+
+    let unregisteredListings: {
+      id: string;
+      name: string;
+      specialty: string | null;
+      district: string | null;
+      slug: string | null;
+    }[] = [];
+    const dismissedByDoctor = new Map<string, Set<string>>();
+
+    if (needsTwinScan) {
+      const [manualRes, dismissedRes] = await Promise.all([
+        fetchAllSupabaseRows(() =>
+          supabase
+            .from("professionals")
+            .select("id, name, specialty, district, slug")
+            .eq("is_archived", false)
+            .eq("is_registered", false),
+        ),
+        fetchAllSupabaseRowsForIdChunks(pendingRegistrationIds, (chunk) =>
+          supabase
+            .from("directory_duplicate_suggestions")
+            .select("manual_id, doctor_id")
+            .in("doctor_id", chunk)
+            .eq("status", "dismissed"),
+        ),
+      ]);
+      if (!manualRes.error && manualRes.data) {
+        unregisteredListings = manualRes.data.map((m) => ({
+          id: String((m as { id: string }).id),
+          name: String((m as { name?: string | null }).name ?? ""),
+          specialty: ((m as { specialty?: string | null }).specialty ?? null) as
+            | string
+            | null,
+          district: ((m as { district?: string | null }).district ?? null) as
+            | string
+            | null,
+          slug: String((m as { slug?: string | null }).slug ?? "").trim() || null,
+        }));
+      }
+      for (const row of dismissedRes.data ?? []) {
+        const doctorId = String((row as { doctor_id?: string }).doctor_id ?? "").trim();
+        const manualId = String((row as { manual_id?: string }).manual_id ?? "").trim();
+        if (!doctorId || !manualId) continue;
+        const set = dismissedByDoctor.get(doctorId) ?? new Set<string>();
+        set.add(manualId);
+        dismissedByDoctor.set(doctorId, set);
+      }
+    }
+
     pendingRegistrationItems = pendingRegistrationIds
       .map((id) => {
         const raw = pendingById.get(id) as Record<string, unknown> | undefined;
@@ -709,6 +814,25 @@ export default async function FounderDashboardPage({
         const specialties = (specialtiesByDoctor.get(id) ?? []).filter((s) =>
           Boolean(s.specialty),
         );
+        const claimSource = parseDirectoryClaimSource(
+          raw.directory_claim_source as string | null | undefined,
+        );
+        const primarySpecialty = String(raw.specialty ?? "").trim() || null;
+        const primaryDistrict =
+          locations.find((l) => l.isPrimary)?.district ||
+          String(raw.district ?? "").trim() ||
+          null;
+        const origin = classifyPendingRegistrationOrigin({
+          claimSource,
+          doctor: {
+            doctorId: id,
+            name: String(raw.name ?? "").trim() || "Professional",
+            specialty: primarySpecialty,
+            district: primaryDistrict,
+          },
+          unregisteredListings,
+          dismissedUnregisteredIds: dismissedByDoctor.get(id),
+        });
         return {
           id,
           name: String(raw.name ?? "").trim() || "Professional",
@@ -730,7 +854,7 @@ export default async function FounderDashboardPage({
             licenseNumber,
             isApproved,
           })),
-          primarySpecialty: String(raw.specialty ?? "").trim() || null,
+          primarySpecialty,
           primaryLicenseNumber: String(raw.license_number ?? "").trim() || null,
           locations: locations.map(
             ({ id: lid, district, town, address, latitude, longitude, placeId, isPrimary }) => ({
@@ -751,8 +875,12 @@ export default async function FounderDashboardPage({
           specialtyRequiresStandardAt:
             String(raw.specialty_requires_standard_at ?? "").trim() || null,
           fromDirectoryListing:
-            Boolean(String(raw.ghs_code ?? "").trim()) ||
-            Boolean(String(raw.address_maps_link ?? "").trim()),
+            origin.kind === "claimed_listing" || origin.kind === "auto_matched_listing",
+          originKind: origin.kind,
+          originLabel: origin.label,
+          originDescription: origin.description,
+          claimSource: origin.claimSource,
+          twins: origin.twins,
           status: String(raw.status ?? "pending").trim() || "pending",
         } satisfies PendingRegistrationReviewItem;
       })

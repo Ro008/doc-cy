@@ -7,7 +7,7 @@ import { createClient } from "@supabase/supabase-js";
 import { signInDoctorOrSkipOnInfraError } from "./helpers/signInDoctorWithInfraSkip";
 import { skipIfSafeNoBooking } from "./helpers/safeMode";
 
-test.describe("Manual booking flow @booking-creates", { tag: "@pr-e2e" }, () => {
+test.describe("Manual booking flow @booking-creates", { tag: ["@pr-e2e", "@pr-e2e-booking"] }, () => {
   test.beforeEach(({}, testInfo) => {
     if (
       testInfo.project.name === "Mobile Safari (iPhone 12)" ||

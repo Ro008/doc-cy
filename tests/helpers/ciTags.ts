@@ -4,6 +4,8 @@
 export const TAG_PR_E2E = "@pr-e2e";
 /** Finder / patient-directory slice of `@pr-e2e` (runs in parallel PR job). */
 export const TAG_PR_E2E_FINDER = "@pr-e2e-finder";
+/** Booking / schedule / confirmation slice of `@pr-e2e` (runs in parallel PR job). */
+export const TAG_PR_E2E_BOOKING = "@pr-e2e-booking";
 export const TAG_PR_EMAIL = "@pr-email";
 export const TAG_PR_PREVIEW = "@pr-preview";
 export const TAG_PR_MOBILE = "@pr-mobile-monitor";

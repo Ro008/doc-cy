@@ -31,3 +31,19 @@ export function postDoctorVerification(
     data: body,
   });
 }
+
+export function postPendingRegistrationTwin(
+  request: APIRequestContext,
+  secret: string,
+  body: {
+    registeredId: string;
+    unregisteredId?: string;
+    listingUrl?: string;
+    action: "absorb" | "keep_both";
+  },
+) {
+  return request.post("/api/internal/pending-registration-twin", {
+    headers: internalDirectoryHeaders(secret),
+    data: body,
+  });
+}

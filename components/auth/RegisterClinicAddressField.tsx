@@ -155,6 +155,7 @@ const toneStyles: Record<
 
 export function RegisterClinicAddressField({
   listingAddressHint,
+  listingDistrict = null,
   initialLocation = null,
   index = 0,
   showAddLaterHint = true,
@@ -166,6 +167,8 @@ export function RegisterClinicAddressField({
   tone = "light",
 }: {
   listingAddressHint?: string | null;
+  /** District from the finder listing — used when confirming the listing address. */
+  listingDistrict?: string | null;
   initialLocation?: ClinicLocation | null;
   index?: number;
   showAddLaterHint?: boolean;
@@ -339,6 +342,58 @@ export function RegisterClinicAddressField({
   const startSearch = () => {
     setSearchSession((current) => current + 1);
     setMode("search");
+  };
+
+  const confirmListingAddress = () => {
+    const address = hint || location.address.trim();
+    if (!address) return;
+    const districtRaw =
+      location.district ||
+      String(listingDistrict ?? "").trim() ||
+      null;
+    const district = isCyprusDistrict(districtRaw ?? "")
+      ? (districtRaw as ClinicLocation["district"])
+      : location.district;
+    const existingCoords = clinicLocationCoordinates(location);
+    const next = existingCoords
+      ? manualClinicLocation({
+          address,
+          district,
+          coords: existingCoords,
+        })
+      : clinicLocationFromParts({
+          address,
+          district,
+          latitude: location.latitude,
+          longitude: location.longitude,
+          placeId: null,
+          town: location.town,
+        });
+    setLocation(next);
+    setOrigin(clinicLocationCoordinates(next));
+    setManualAddressDraft(address);
+    setStreetTouched(true);
+    setStreetError(false);
+    if (hasConfirmedClinicCoordinates(next) && next.district) {
+      setMode("confirmed");
+      return;
+    }
+    // Address known but no pin yet — open the pin sheet with the typed address.
+    const center =
+      district && isCyprusDistrict(district)
+        ? fallbackDistrictCoordinates(district)
+        : null;
+    if (center) {
+      setOrigin(center);
+      setLocation(
+        manualClinicLocation({
+          address,
+          district,
+          coords: center,
+        }),
+      );
+    }
+    setMode("manual");
   };
 
   const startManual = () => {
@@ -526,15 +581,17 @@ export function RegisterClinicAddressField({
             <span className="text-red-600">*</span>
           </span>
           <p className={styles.helper}>
-            Search for your clinic on Google — that gives us the address patients read and the map
-            pin for &ldquo;near me&rdquo;. If Google does not list it, drop a pin and type what patients
-            should see.
+            {hint
+              ? "Confirm the clinic from your listing, or search Google / drop a pin if you need a different one."
+              : "Search for your clinic on Google — that gives us the address patients read and the map pin for “near me”. If Google does not list it, drop a pin and type what patients should see."}
           </p>
           {hint ? (
             <p className={styles.helper}>
               Your listing already shows:{" "}
               <span className={styles.listingHint}>{hint}</span>
-              . Search and confirm the same clinic below.
+              {mode === "confirmed"
+                ? ". Check it below — change it only if it is wrong."
+                : "."}
             </p>
           ) : null}
           {showAddLaterHint ? (
@@ -675,6 +732,28 @@ export function RegisterClinicAddressField({
 
       {mode === "search" ? (
         <>
+          {hint ? (
+            <div
+              className={styles.summaryPanel}
+              data-testid="clinic-listing-confirm-panel"
+            >
+              <p className={styles.eyebrow}>From your listing</p>
+              <p className={`mt-1.5 ${styles.body}`}>{hint}</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={confirmListingAddress}
+                  className={styles.secondaryButton}
+                  data-testid="clinic-confirm-listing-address"
+                >
+                  Confirm this address
+                </button>
+                <button type="button" onClick={startSearch} className={linkClass}>
+                  Search a different clinic
+                </button>
+              </div>
+            </div>
+          ) : null}
           <ClinicAddressSearchInput
             key={searchSession}
             id={

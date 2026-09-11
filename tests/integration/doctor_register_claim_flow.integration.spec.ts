@@ -133,7 +133,9 @@ test.describe("Integration: directory claim registration flow", { tag: "@local-r
 
       const { data: absorbed, error: absorbedErr } = await admin
         .from("professionals")
-        .select("id, slug, is_registered, is_test_profile, status, registration_email")
+        .select(
+          "id, slug, is_registered, is_test_profile, status, registration_email, directory_claim_source",
+        )
         .eq("id", clone.id)
         .maybeSingle();
       if (absorbedErr) throw new Error(`Failed reading claimed clone: ${absorbedErr.message}`);
@@ -143,6 +145,7 @@ test.describe("Integration: directory claim registration flow", { tag: "@local-r
       expect(absorbed?.is_test_profile).toBe(true);
       expect(absorbed?.status).toBe("pending");
       expect(String(absorbed?.registration_email ?? "").toLowerCase()).toBe(email.toLowerCase());
+      expect(absorbed?.directory_claim_source).toBe("card_link");
 
       const { count: twinCount, error: twinErr } = await admin
         .from("professionals")

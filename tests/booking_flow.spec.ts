@@ -5,7 +5,7 @@ import { pickFirstAvailableBookingDay } from "./helpers/pickBookingCalendarDay";
 import { skipIfSafeNoBooking } from "./helpers/safeMode";
 import { createTestDataClient } from "./helpers/testDataClient";
 
-test.describe("Booking flow @booking-creates", { tag: "@pr-e2e" }, () => {
+test.describe("Booking flow @booking-creates", { tag: ["@pr-e2e", "@pr-e2e-booking"] }, () => {
   test("full booking flow on doctor profile", async ({ page, request }) => {
     test.setTimeout(120_000);
     skipIfSafeNoBooking(test.info());

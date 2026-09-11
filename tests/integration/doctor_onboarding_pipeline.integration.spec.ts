@@ -71,7 +71,7 @@ test.describe("Integration: doctor onboarding pipeline", { tag: "@pr-e2e" }, () 
         },
         getPublicBookingBaseUrl(),
       );
-      expect(founderContent.subject).toContain("New registration");
+      expect(founderContent.subject).toContain("Unclaimed registration");
       expect(founderContent.textBody).toContain(fixture.doctorId);
       expect(founderContent.textBody).toContain("/internal/directory");
       expect(founderContent.textBody).not.toContain("custom specialty pending");
