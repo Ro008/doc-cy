@@ -126,6 +126,32 @@ export function registerClaimClinicsFromJoin(
   return out;
 }
 
+/**
+ * When the listing has no `professional_clinics` rows, use the professional's own
+ * address + pin so claim signup can confirm instead of forcing a Google re-search.
+ */
+export function registerClaimClinicFromProfessionalRow(row: {
+  address?: string | null;
+  clinic_address?: string | null;
+  district?: string | null;
+  town?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+}): RegisterClaimClinic | null {
+  const address =
+    String(row.address ?? "").trim() || String(row.clinic_address ?? "").trim();
+  if (!address) return null;
+  return {
+    name: "",
+    address,
+    district: String(row.district ?? "").trim() || null,
+    latitude: typeof row.latitude === "number" ? row.latitude : null,
+    longitude: typeof row.longitude === "number" ? row.longitude : null,
+    town: String(row.town ?? "").trim() || null,
+    placeId: null,
+  };
+}
+
 /** Same conservative name key as duplicate review (exact, not fuzzy). */
 export function normalizeClaimPersonName(value: string | null | undefined): string {
   return String(value ?? "")
@@ -452,7 +478,9 @@ export async function loadUnregisteredProfessionalForRegisterClaim(
 
   const { data, error } = await supabase
     .from("professionals")
-    .select("id, slug, name, specialty, specialties, district, address, clinic_address")
+    .select(
+      "id, slug, name, specialty, specialties, district, town, address, clinic_address, latitude, longitude",
+    )
     .eq("id", id)
     .eq("is_registered", false)
     .eq("is_archived", false)
@@ -475,10 +503,15 @@ export async function loadUnregisteredProfessionalForRegisterClaim(
 
   if (linkError) {
     console.error("[DocCy] register claim clinics lookup failed", linkError);
-    return prefill;
+  } else {
+    prefill.clinics = registerClaimClinicsFromJoin((linkRows ?? []) as ClaimClinicJoinRow[]);
   }
 
-  prefill.clinics = registerClaimClinicsFromJoin((linkRows ?? []) as ClaimClinicJoinRow[]);
+  if (prefill.clinics.length === 0) {
+    const fromListing = registerClaimClinicFromProfessionalRow(data);
+    if (fromListing) prefill.clinics = [fromListing];
+  }
+
   return prefill;
 }
 

@@ -19,7 +19,7 @@ test.describe("Doctor onboarding email content", { tag: "@pr-email" }, () => {
       },
       "https://mydoccy.com",
     );
-    expect(standard.subject).toBe("[DocCy] New registration — Maria Papadopoulos");
+    expect(standard.subject).toBe("[DocCy] Unclaimed registration — Maria Papadopoulos");
     expect(standard.textBody).toContain("email confirmed — pending verification");
     expect(standard.textBody).toContain("doc-1");
     expect(standard.textBody).toContain("maria@example.com");
@@ -30,6 +30,7 @@ test.describe("Doctor onboarding email content", { tag: "@pr-email" }, () => {
     expect(standard.textBody).toContain("Specialties:");
     expect(standard.textBody).toContain("Clinic locations:");
     expect(standard.textBody).toContain("Photo uploaded:");
+    expect(standard.textBody).toContain("Unclaimed — review");
 
     const custom = buildFounderNewRegistrationNotifyContent(
       {
@@ -52,13 +53,31 @@ test.describe("Doctor onboarding email content", { tag: "@pr-email" }, () => {
         phone: "+35799333444",
         specialty: "Dentist",
         needsSpecialtyReview: false,
-        claimedDirectory: true,
+        originKind: "claimed_listing",
+        originLabel: "Claimed listing",
       },
       "https://mydoccy.com",
     );
     expect(claimed.subject).toBe("[DocCy] Finder listing claimed — Ioanna Severi");
-    expect(claimed.textBody).toContain("claimed their existing finder listing");
+    expect(claimed.textBody).toContain("Activate online booking");
     expect(claimed.textBody).toContain("listing-1");
+    expect(claimed.textBody).toContain("Registration origin: Claimed listing");
+
+    const unclaimed = buildFounderNewRegistrationNotifyContent(
+      {
+        doctorId: "doc-3",
+        fullName: "New Doctor",
+        email: "new@example.com",
+        phone: "+35799444555",
+        specialty: "General Practice",
+        needsSpecialtyReview: false,
+        originKind: "unclaimed_review",
+        originLabel: "Unclaimed — review",
+      },
+      "https://mydoccy.com",
+    );
+    expect(unclaimed.subject).toBe("[DocCy] Unclaimed registration — New Doctor");
+    expect(unclaimed.textBody).toContain("Unclaimed — review");
   });
 
   test("doctor registration received email asks them to confirm with a magic link", () => {

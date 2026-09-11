@@ -153,7 +153,7 @@ test.describe("Integration: doctor registration flow", { tag: "@local-register" 
           subjectIncludes: fullName,
           timeoutMs: 30_000,
         });
-        expect(founderMail.subject).toMatch(/New registration/i);
+        expect(founderMail.subject).toMatch(/Unclaimed registration/i);
       }
     } finally {
       await deleteRegistrationE2eDoctor(admin, email);

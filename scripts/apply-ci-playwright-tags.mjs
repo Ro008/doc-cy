@@ -38,6 +38,7 @@ const prE2e = [
   "integration/doctor_confirmation_flow.integration.spec.ts",
   "integration/propose_reschedule_confirmed.integration.spec.ts",
   "integration/directory_duplicates_actions.integration.spec.ts",
+  "integration/pending_registration_origin_actions.integration.spec.ts",
   ...prE2eFinder,
 ];
 

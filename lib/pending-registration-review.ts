@@ -1,5 +1,11 @@
 /** Full signup payload for founder review of pending professionals. */
 
+import type {
+  DirectoryClaimSource,
+  PendingRegistrationOriginKind,
+  PendingTwinCandidate,
+} from "@/lib/pending-registration-origin";
+
 export type PendingRegistrationSpecialty = {
   id: string | null;
   specialty: string;
@@ -35,7 +41,13 @@ export type PendingRegistrationReviewItem = {
   createdAt: string | null;
   isSpecialtyApproved: boolean;
   specialtyRequiresStandardAt: string | null;
+  /** @deprecated Prefer originKind — kept for older call sites. */
   fromDirectoryListing: boolean;
+  originKind: PendingRegistrationOriginKind;
+  originLabel: string;
+  originDescription: string;
+  claimSource: DirectoryClaimSource | null;
+  twins: PendingTwinCandidate[];
   status: string;
 };
 
@@ -52,7 +64,8 @@ export function formatPendingRegistrationNotifyLines(
     | "locations"
     | "fromDirectoryListing"
     | "avatarUrl"
-  >,
+  > &
+    Partial<Pick<PendingRegistrationReviewItem, "originKind" | "originLabel">>,
 ): string[] {
   const specialtyLines =
     item.specialties.length > 0
@@ -87,6 +100,10 @@ export function formatPendingRegistrationNotifyLines(
         })
       : ["  - —"];
 
+  const originNote =
+    item.originLabel?.trim() ||
+    (item.fromDirectoryListing ? "Claimed listing" : null);
+
   return [
     `Name: ${item.name}`,
     `Email: ${item.email?.trim() || "—"}`,
@@ -97,8 +114,6 @@ export function formatPendingRegistrationNotifyLines(
     ...specialtyLines,
     `Clinic locations:`,
     ...locationLines,
-    item.fromDirectoryListing
-      ? `Note: claimed an existing finder listing`
-      : null,
+    originNote ? `Registration origin: ${originNote}` : null,
   ].filter((line): line is string => Boolean(line));
 }

@@ -12,6 +12,7 @@ import {
 import { publicProfessionalProfilePath } from "@/lib/manual-directory-landing-path";
 import { stripPlusCodePrefix } from "@/lib/clinic-location-pin";
 import type { PendingRegistrationReviewItem } from "@/lib/pending-registration-review";
+import type { PendingRegistrationOriginKind } from "@/lib/pending-registration-origin";
 
 async function postVerification(doctorId: string, action: "verify" | "reject") {
   const res = await fetch("/api/internal/doctors/verification", {
@@ -19,6 +20,23 @@ async function postVerification(doctorId: string, action: "verify" | "reject") {
     headers: { "Content-Type": "application/json" },
     credentials: "same-origin",
     body: JSON.stringify({ doctorId, action }),
+  });
+  if (!res.ok) {
+    const j = await res.json().catch(() => ({}));
+    throw new Error((j as { message?: string }).message ?? res.statusText);
+  }
+}
+
+async function postTwinAction(
+  registeredId: string,
+  unregisteredId: string,
+  action: "absorb" | "keep_both",
+) {
+  const res = await fetch("/api/internal/pending-registration-twin", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "same-origin",
+    body: JSON.stringify({ registeredId, unregisteredId, action }),
   });
   if (!res.ok) {
     const j = await res.json().catch(() => ({}));
@@ -36,6 +54,19 @@ function formatCoords(lat: number | null, lng: number | null): string | null {
     return null;
   }
   return `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+}
+
+function originBadgeClass(kind: PendingRegistrationOriginKind): string {
+  switch (kind) {
+    case "claimed_listing":
+      return "bg-clinical-500/15 text-clinical-200";
+    case "auto_matched_listing":
+      return "bg-sky-500/15 text-sky-200";
+    case "possible_twin":
+      return "bg-violet-500/15 text-violet-200";
+    case "unclaimed_review":
+      return "bg-amber-500/15 text-amber-100";
+  }
 }
 
 export function PendingRegistrationReviewPanel({
@@ -63,6 +94,23 @@ export function PendingRegistrationReviewPanel({
     }
   }
 
+  async function runTwinAction(
+    registeredId: string,
+    unregisteredId: string,
+    action: "absorb" | "keep_both",
+  ) {
+    setError(null);
+    setBusyId(`${registeredId}:${unregisteredId}:${action}`);
+    try {
+      await postTwinAction(registeredId, unregisteredId, action);
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Request failed");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   return (
     <section
       id="pending-registration-review"
@@ -77,7 +125,9 @@ export function PendingRegistrationReviewPanel({
         </h2>
         <p className="mt-1 text-sm text-slate-400">
           Everything the professional submitted at signup — photo, contact,
-          specialties, licenses, and clinic locations.
+          specialties, licenses, and clinic locations. Origin labels show whether
+          they claimed a finder card, were auto-matched, look like a twin, or need
+          an unclaimed review.
         </p>
       </div>
 
@@ -89,7 +139,7 @@ export function PendingRegistrationReviewPanel({
 
       <div className="space-y-4">
         {items.map((item) => {
-          const busy = busyId === item.id;
+          const busy = busyId === item.id || Boolean(busyId?.startsWith(`${item.id}:`));
           const specialtyResolved = isSpecialtyResolvedForVerification({
             is_specialty_approved: item.isSpecialtyApproved,
             specialty_requires_standard_at: item.specialtyRequiresStandardAt,
@@ -156,11 +206,15 @@ export function PendingRegistrationReviewPanel({
                           })}
                         </p>
                       ) : null}
-                      {item.fromDirectoryListing ? (
-                        <span className="mt-2 inline-flex rounded-full bg-clinical-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-clinical-200">
-                          Finder listing claimed
-                        </span>
-                      ) : null}
+                      <span
+                        className={`mt-2 inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${originBadgeClass(item.originKind)}`}
+                        title={item.originDescription}
+                      >
+                        {item.originLabel}
+                      </span>
+                      <p className="mt-1 max-w-xl text-[11px] leading-snug text-slate-500">
+                        {item.originDescription}
+                      </p>
                     </div>
                     {item.slug ? (
                       <Link
@@ -173,6 +227,74 @@ export function PendingRegistrationReviewPanel({
                       </Link>
                     ) : null}
                   </div>
+
+                  {item.originKind === "possible_twin" && item.twins.length > 0 ? (
+                    <div className="rounded-xl border border-violet-400/30 bg-violet-500/10 p-3">
+                      <p className="text-[10px] font-semibold uppercase tracking-wide text-violet-200/90">
+                        Similar finder listings
+                      </p>
+                      <ul className="mt-2 space-y-2">
+                        {item.twins.map((twin) => {
+                          const twinBusy =
+                            busyId === `${item.id}:${twin.id}:absorb` ||
+                            busyId === `${item.id}:${twin.id}:keep_both`;
+                          return (
+                            <li
+                              key={twin.id}
+                              className="rounded-lg border border-violet-300/20 bg-slate-950/40 px-3 py-2"
+                            >
+                              <p className="text-sm text-slate-100">
+                                <span className="font-semibold">{twin.name}</span>
+                                {" · "}
+                                {twin.specialty ?? "—"}
+                                {" · "}
+                                {twin.district ?? "—"}
+                              </p>
+                              <p className="mt-0.5 text-[11px] text-violet-200/85">
+                                Score {(twin.score * 100).toFixed(0)}% · {twin.reason}
+                              </p>
+                              <div className="mt-2 flex flex-wrap gap-2">
+                                {twin.slug ? (
+                                  <Link
+                                    href={publicProfessionalProfilePath(twin.slug)}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="rounded-lg border border-slate-600 bg-slate-800/40 px-2.5 py-1 text-[11px] font-medium text-slate-200 hover:border-slate-500"
+                                  >
+                                    Open listing ↗
+                                  </Link>
+                                ) : null}
+                                {canMutate ? (
+                                  <>
+                                    <button
+                                      type="button"
+                                      disabled={busy || twinBusy}
+                                      onClick={() =>
+                                        void runTwinAction(item.id, twin.id, "absorb")
+                                      }
+                                      className="rounded-lg bg-clinical-500/20 px-2.5 py-1 text-[11px] font-semibold text-clinical-100 ring-1 ring-clinical-500/35 transition hover:bg-clinical-500/30 disabled:opacity-50"
+                                    >
+                                      Absorb into this registration
+                                    </button>
+                                    <button
+                                      type="button"
+                                      disabled={busy || twinBusy}
+                                      onClick={() =>
+                                        void runTwinAction(item.id, twin.id, "keep_both")
+                                      }
+                                      className="rounded-lg bg-slate-700/60 px-2.5 py-1 text-[11px] font-semibold text-slate-100 ring-1 ring-slate-500/40 transition hover:bg-slate-700/80 disabled:opacity-50"
+                                    >
+                                      Keep both
+                                    </button>
+                                  </>
+                                ) : null}
+                              </div>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </div>
+                  ) : null}
 
                   <dl className="grid gap-3 sm:grid-cols-2">
                     <div>

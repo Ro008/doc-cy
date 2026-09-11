@@ -6,6 +6,7 @@ import {
   pickExplicitDirectoryClaim,
   pickUniqueDirectoryClaim,
   pickUniqueHistoricalAbsorbPairs,
+  registerClaimClinicFromProfessionalRow,
   registerClaimClinicsFromJoin,
   registerClaimPath,
   toRegisterClaimPrefill,
@@ -240,6 +241,20 @@ describe("register claim from finder card", () => {
     assert.equal(clinics[1]?.name, "Paphos Rooms");
     assert.equal(clinics[0]?.placeId, null);
     assert.equal(clinics.every((clinic) => !("phone" in clinic)), true);
+  });
+
+  it("builds a confirmable clinic from the listing row when there is no clinic join", () => {
+    const clinic = registerClaimClinicFromProfessionalRow({
+      address: "Archiepiskopou Makariou III, Nicosia 1065, Cyprus",
+      district: "Nicosia",
+      latitude: 35.1856,
+      longitude: 33.3823,
+    });
+    assert.equal(clinic?.address, "Archiepiskopou Makariou III, Nicosia 1065, Cyprus");
+    assert.equal(clinic?.district, "Nicosia");
+    assert.equal(clinic?.latitude, 35.1856);
+    assert.equal(clinic?.longitude, 33.3823);
+    assert.equal(clinic?.placeId, null);
   });
 
   it("binds the explicit card listing even when the typed name would not fuzzy-match", () => {

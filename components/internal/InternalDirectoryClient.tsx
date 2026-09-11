@@ -30,8 +30,10 @@ export type DirectoryDoctorRow = {
   email?: string | null;
   /** Local founder dashboard only — from auth user metadata */
   loginPassword?: string | null;
-  /** Registered account that originated as a finder / GeSY listing. */
+  /** Registered account that converted a finder listing at signup. */
   fromDirectoryListing?: boolean;
+  originKind?: "claimed_listing" | "auto_matched_listing" | "possible_twin" | "unclaimed_review";
+  originLabel?: string | null;
 };
 
 async function postVerification(doctorId: string, action: "verify" | "reject") {
@@ -344,9 +346,9 @@ export function InternalDirectoryClient({
                     <div className="mt-1">
                       <LanguageBadgeList languages={d.languages} compact />
                     </div>
-                    {d.fromDirectoryListing ? (
+                    {d.originLabel ? (
                       <span className="mt-1 block w-fit rounded-full bg-clinical-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-clinical-200">
-                        Finder listing claimed
+                        {d.originLabel}
                       </span>
                     ) : null}
                     {d.slug ? (
