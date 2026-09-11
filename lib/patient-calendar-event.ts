@@ -1,4 +1,3 @@
-import { CLINIC_ADDRESS } from "@/lib/clinic-info";
 import { isMasterSpecialty } from "@/lib/cyprus-specialties";
 
 /** Minimal appointment shape for shared calendar copy (datetime reserved for future use). */
@@ -21,7 +20,7 @@ export type PatientCalendarEventDetails = {
   title: string;
   /** Google Calendar `details` / ICS DESCRIPTION */
   description: string;
-  /** Google Calendar `location` / ICS LOCATION — clinic address from DB with fallback */
+  /** Google Calendar `location` / ICS LOCATION — clinic address from DB when set */
   location: string;
 };
 
@@ -103,8 +102,7 @@ export function getCalendarEventDetails(
     contactLine,
   ].join("\n");
 
-  const location =
-    String(doctor.clinic_address ?? "").trim() || CLINIC_ADDRESS;
+  const location = String(doctor.clinic_address ?? "").trim();
 
   return { title, description, location };
 }

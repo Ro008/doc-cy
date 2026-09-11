@@ -247,6 +247,23 @@ function initialWorkplacesFromForm(initial: DoctorSettingsFormData): DoctorWorkp
   ];
 }
 
+/** Prefer workplace row when professionals.clinic_address is empty (dual-store drift). */
+function resolveInitialClinicLocation(initial: DoctorSettingsFormData): ClinicLocation {
+  const workplaces = initialWorkplacesFromForm(initial);
+  const primary = workplaces[0];
+  const address =
+    String(initial.clinicAddress ?? "").trim() ||
+    String(primary?.clinicAddress ?? "").trim();
+  return clinicLocationFromParts({
+    address,
+    latitude: initial.clinicLatitude ?? primary?.clinicLatitude ?? null,
+    longitude: initial.clinicLongitude ?? primary?.clinicLongitude ?? null,
+    placeId: initial.clinicPlaceId ?? primary?.clinicPlaceId ?? null,
+    district: initial.district || primary?.district || "",
+    town: initial.clinicTown ?? primary?.clinicTown ?? null,
+  });
+}
+
 export function SettingsForm({ initial }: SettingsFormProps) {
   const [isClient, setIsClient] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
@@ -433,17 +450,10 @@ export function SettingsForm({ initial }: SettingsFormProps) {
     ],
   );
   const [district, setDistrict] = React.useState(initial.district ?? "");
-  const initialClinicAddressRef = React.useRef(initial.clinicAddress ?? "");
   const [clinicLocation, setClinicLocation] = React.useState<ClinicLocation>(() =>
-    clinicLocationFromParts({
-      address: initial.clinicAddress,
-      latitude: initial.clinicLatitude,
-      longitude: initial.clinicLongitude,
-      placeId: initial.clinicPlaceId,
-      district: initial.district,
-      town: initial.clinicTown,
-    }),
+    resolveInitialClinicLocation(initial),
   );
+  const initialClinicAddressRef = React.useRef(clinicLocation.address);
 
   const handleClinicLocationChange = React.useCallback((nextLocation: ClinicLocation) => {
     setClinicLocation(nextLocation);
@@ -1001,6 +1011,12 @@ export function SettingsForm({ initial }: SettingsFormProps) {
       toast.error(text);
       return;
     }
+    if (!clinicLocation.address.trim()) {
+      const text = "Add your clinic address so patients can find you in Health Finder.";
+      setMessage({ type: "error", text });
+      toast.error(text);
+      return;
+    }
     const directoryPhoneToSave = directoryPhoneForSave({
       clinicRowVisible,
       clinicPhone,
@@ -1021,6 +1037,18 @@ export function SettingsForm({ initial }: SettingsFormProps) {
     });
     if (showPhonePublic && publicCallNumber.length === 0) {
       const text = "Add a phone number before showing a Call button on your profile.";
+      setMessage({ type: "error", text });
+      toast.error(text);
+      return;
+    }
+
+    const hasCoords = hasConfirmedClinicCoordinates(clinicLocation);
+    const isUnchangedLegacyAddress =
+      !hasCoords &&
+      clinicLocation.address.trim() === initialClinicAddressRef.current.trim();
+    if (!hasCoords && !isUnchangedLegacyAddress) {
+      const text =
+        "Confirm your clinic on the map (Google suggestion or drop a pin) before saving.";
       setMessage({ type: "error", text });
       toast.error(text);
       return;
@@ -1673,8 +1701,9 @@ export function SettingsForm({ initial }: SettingsFormProps) {
             Clinic address
           </p>
           <p className="mt-1 text-sm text-slate-400">
-            Type the clinic name or address and choose it from the Google suggestions.
-            Patients see this on your profile, and we use the map pin so nearby people can find you.
+            Type the clinic name or address and choose it from the Google suggestions, or drop a pin
+            on the map. Patients see this on your profile, and we use the map pin so nearby people
+            can find you.
           </p>
           {!clinicLocation.address.trim() ? (
             <div
@@ -1683,41 +1712,31 @@ export function SettingsForm({ initial }: SettingsFormProps) {
             >
               <p className="font-medium text-amber-100">Add your clinic address</p>
               <p className="mt-1 text-xs leading-relaxed text-amber-100/90">
-                Search your clinic on Google Maps and pick it from the suggestions. Patients see this
-                address on your public profile, and we use the pinned location for accurate distance
-                in Health Finder.
+                Search your clinic on Google Maps and pick it from the suggestions, or drop a pin.
+                Patients see this address on your public profile, and we use the pinned location for
+                accurate distance in Health Finder.
               </p>
             </div>
           ) : null}
-          <div className="mt-4 space-y-4">
-            <div>
-              <label
-                htmlFor="clinicAddress"
-                className="text-[11px] font-semibold uppercase tracking-wide text-slate-400"
-              >
-                Clinic address
-              </label>
-              <ClinicAddressAutocomplete
-                key={activeWorkplaceId}
-                id="clinicAddress"
-                value={clinicLocation}
-                onChange={handleClinicLocationChange}
-              />
+          <ClinicAddressAutocomplete
+            key={activeWorkplaceId}
+            id="clinicAddress"
+            value={clinicLocation}
+            onChange={handleClinicLocationChange}
+          />
+          {clinicLocation.address.trim() &&
+          !isCyprusDistrict(clinicLocation.district ?? district) ? (
+            <div
+              className="mt-4 rounded-xl border border-amber-500/35 bg-amber-500/10 px-4 py-3 text-sm text-amber-50"
+              role="status"
+            >
+              <p className="font-medium text-amber-100">District not detected</p>
+              <p className="mt-1 text-xs leading-relaxed text-amber-100/90">
+                Re-select this clinic from Google suggestions so we can place you correctly in Health
+                Finder.
+              </p>
             </div>
-            {clinicLocation.address.trim() &&
-            !isCyprusDistrict(clinicLocation.district ?? district) ? (
-              <div
-                className="rounded-xl border border-amber-500/35 bg-amber-500/10 px-4 py-3 text-sm text-amber-50"
-                role="status"
-              >
-                <p className="font-medium text-amber-100">District not detected</p>
-                <p className="mt-1 text-xs leading-relaxed text-amber-100/90">
-                  Re-select this clinic from Google suggestions so we can place you correctly in
-                  Health Finder.
-                </p>
-              </div>
-            ) : null}
-          </div>
+          ) : null}
         </div>
 
         <div className="mt-4 rounded-xl border border-slate-800/70 bg-ink-900/35 p-4">

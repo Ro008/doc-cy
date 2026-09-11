@@ -230,6 +230,15 @@ export async function POST(req: NextRequest) {
   const clinicAddress = String(
     primaryLocationInput?.clinicAddress ?? b.clinicAddress ?? "",
   ).trim();
+  if (!clinicAddress) {
+    return NextResponse.json(
+      {
+        message:
+          "Add your clinic address so patients can find you in Health Finder.",
+      },
+      { status: 400 },
+    );
+  }
   const listingPhone = String((owned as { phone?: string | null }).phone ?? "").trim();
   const doctorPhoneTrimmed =
     typeof b.doctorPhone === "string" ? b.doctorPhone.trim() : "";
@@ -549,6 +558,15 @@ export async function POST(req: NextRequest) {
     const loc = locationInputs[index];
     if (!loc) continue;
     const locAddress = String(loc.clinicAddress ?? "").trim();
+    if (!locAddress) {
+      return NextResponse.json(
+        {
+          message:
+            "Each clinic needs an address. Search Google or drop a pin before saving.",
+        },
+        { status: 400 },
+      );
+    }
     const locDistrict = String(loc.district ?? "").trim();
     const locClinic = clinicLocationFromParts({
       address: locAddress,

@@ -61,23 +61,54 @@ export function RegisterClinicAddressField({
   index = 0,
   showAddLaterHint = true,
   heading = null,
+  onLocationChange,
+  includeHiddenInputs = true,
+  hideIntro = false,
+  inputId,
 }: {
   listingAddressHint?: string | null;
   initialLocation?: ClinicLocation | null;
   index?: number;
   showAddLaterHint?: boolean;
   heading?: string | null;
+  /** When set, parent owns persistence (Settings); wizard still keeps local UI state. */
+  onLocationChange?: (location: ClinicLocation) => void;
+  /** Registration uses hidden inputs for form POST; Settings saves via fetch. */
+  includeHiddenInputs?: boolean;
+  /** Settings already shows section copy — skip wizard label/helpers. */
+  hideIntro?: boolean;
+  inputId?: string;
 } = {}) {
   const names = registerClinicInputNames(index);
   const fieldKey = index === 0 ? "clinic" : `clinic${index}`;
   const fieldLabel =
     heading ?? (index === 0 ? "Clinic address" : `Clinic ${index + 1} address`);
-  const starting = initialLocation && registerClinicLocationIsComplete(initialLocation)
+  const starting = initialLocation && String(initialLocation.address ?? "").trim()
     ? initialLocation
     : emptyClinicLocation();
-  const [location, setLocation] = React.useState<ClinicLocation>(starting);
-  const [mode, setMode] = React.useState<Mode>(
-    registerClinicLocationIsComplete(starting) ? "confirmed" : "search",
+  const [location, setLocationState] = React.useState<ClinicLocation>(starting);
+  const onLocationChangeRef = React.useRef(onLocationChange);
+  React.useEffect(() => {
+    onLocationChangeRef.current = onLocationChange;
+  }, [onLocationChange]);
+  const skipLocationNotifyRef = React.useRef(true);
+  React.useEffect(() => {
+    if (skipLocationNotifyRef.current) {
+      skipLocationNotifyRef.current = false;
+      return;
+    }
+    onLocationChangeRef.current?.(location);
+  }, [location]);
+  const setLocation = React.useCallback(
+    (next: ClinicLocation | ((prev: ClinicLocation) => ClinicLocation)) => {
+      setLocationState((prev) => (typeof next === "function" ? next(prev) : next));
+    },
+    [],
+  );
+  const [mode, setMode] = React.useState<Mode>(() =>
+    // Address text alone is enough to show the saved summary. Requiring coords
+    // here hid legacy settings rows (address, no lat/lng) behind an empty search.
+    starting.address.trim() ? "confirmed" : "search",
   );
   const [searchSession, setSearchSession] = React.useState(0);
   /** Coordinates before the doctor moved the pin, so Undo can snap back. */
@@ -379,32 +410,37 @@ export function RegisterClinicAddressField({
   return (
     <div
       className="group"
-      data-validate-field="1"
-      data-invalid="0"
+      data-validate-field={includeHiddenInputs ? "1" : undefined}
+      data-invalid={includeHiddenInputs ? "0" : undefined}
       data-field-key={fieldKey}
       data-field-label={fieldLabel}
     >
-      <span className={registerLabelClass}>
-        {fieldLabel}<span className="text-red-600">*</span>
-      </span>
-      <p className={registerHelperClass}>
-        Search for your clinic on Google — that gives us the address patients read and the map
-        pin for &ldquo;near me&rdquo;. If Google does not list it, drop a pin and type what patients
-        should see.
-      </p>
-      {hint ? (
-        <p className={registerHelperClass}>
-          Your listing already shows: <span className="font-medium text-ink-700">{hint}</span>.
-          Search and confirm the same clinic below.
-        </p>
-      ) : null}
-      {showAddLaterHint ? (
-        <p className={registerHelperClass}>
-          If you work at more than one clinic, you can add the others later in Settings.
-        </p>
+      {!hideIntro ? (
+        <>
+          <span className={registerLabelClass}>
+            {fieldLabel}
+            <span className="text-red-600">*</span>
+          </span>
+          <p className={registerHelperClass}>
+            Search for your clinic on Google — that gives us the address patients read and the map
+            pin for &ldquo;near me&rdquo;. If Google does not list it, drop a pin and type what patients
+            should see.
+          </p>
+          {hint ? (
+            <p className={registerHelperClass}>
+              Your listing already shows: <span className="font-medium text-ink-700">{hint}</span>.
+              Search and confirm the same clinic below.
+            </p>
+          ) : null}
+          {showAddLaterHint ? (
+            <p className={registerHelperClass}>
+              If you work at more than one clinic, you can add the others later in Settings.
+            </p>
+          ) : null}
+        </>
       ) : null}
 
-      {mode === "confirmed" && isComplete ? (
+      {mode === "confirmed" && location.address.trim() ? (
         addressDistrictConflict ? (
           <div
             className="mt-2 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2.5"
@@ -442,10 +478,16 @@ export function RegisterClinicAddressField({
               className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
                 location.placeId
                   ? "bg-clinical-500/15 text-clinical-800"
-                  : "bg-amber-500/15 text-amber-900"
+                  : coords
+                    ? "bg-amber-500/15 text-amber-900"
+                    : "bg-ink-500/10 text-ink-700"
               }`}
             >
-              {location.placeId ? "From Google" : "Pin + typed address"}
+              {location.placeId
+                ? "From Google"
+                : coords
+                  ? "Pin + typed address"
+                  : "Saved address"}
             </span>
           </div>
           <p className="mt-1.5 text-sm leading-relaxed text-ink-900">{location.address}</p>
@@ -457,7 +499,11 @@ export function RegisterClinicAddressField({
               ) : null}
             </p>
           ) : null}
-          {!location.placeId ? (
+          {!coords ? (
+            <p className="mt-2 text-xs leading-relaxed text-amber-900">
+              Add a map pin so nearby patients can find you accurately in Health Finder.
+            </p>
+          ) : !location.placeId ? (
             <p className="mt-2 text-xs leading-relaxed text-ink-500">
               Maps opens a search for this text. Prefer a Google result when you can, so the pin
               and address match a real place.
@@ -479,7 +525,35 @@ export function RegisterClinicAddressField({
               >
                 Adjust pin on map
               </button>
-            ) : null}
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  setManualAddressDraft(location.address);
+                  setStreetTouched(true);
+                  setStreetError(false);
+                  const district = location.district;
+                  const center =
+                    district && isCyprusDistrict(district)
+                      ? fallbackDistrictCoordinates(district)
+                      : null;
+                  if (center) {
+                    setOrigin(center);
+                    setLocation((current) =>
+                      manualClinicLocation({
+                        address: current.address,
+                        district: current.district,
+                        coords: center,
+                      }),
+                    );
+                  }
+                  setMode("manual");
+                }}
+                className={linkClass}
+              >
+                Add map pin
+              </button>
+            )}
             <button type="button" onClick={startSearch} className={linkClass}>
               Change clinic address
             </button>
@@ -492,7 +566,10 @@ export function RegisterClinicAddressField({
         <>
           <ClinicAddressSearchInput
             key={searchSession}
-            id={index === 0 ? "register-clinic-address" : `register-clinic-address-${index}`}
+            id={
+              inputId ??
+              (index === 0 ? "register-clinic-address" : `register-clinic-address-${index}`)
+            }
             tone="light"
             showReadyHint={false}
             onChange={(nextValue) => {
@@ -505,7 +582,9 @@ export function RegisterClinicAddressField({
                 setMode("adjust");
               }
             }}
-            onCancel={isComplete ? () => setMode("confirmed") : undefined}
+            onCancel={
+              location.address.trim() ? () => setMode("confirmed") : undefined
+            }
           />
           <p className={registerHelperClass}>
             Can&rsquo;t find it on Google?{" "}
@@ -735,51 +814,61 @@ export function RegisterClinicAddressField({
         />
       ) : null}
 
-      <input
-        type="text"
-        name={names.confirmed}
-        value={isComplete && !addressDistrictConflict ? "1" : ""}
-        required
-        data-validity-proxy="true"
-        // A readonly input is barred from constraint validation, which would make
-        // this required field silently always valid. The no-op keeps React quiet.
-        onChange={() => {}}
-        aria-hidden
-        tabIndex={-1}
-        className="pointer-events-none absolute h-0 w-0 opacity-0"
-      />
-      <input type="hidden" name={names.address} value={location.address} readOnly aria-hidden />
-      <input
-        type="hidden"
-        name={names.latitude}
-        value={readClinicLocationLatitude(location)}
-        readOnly
-        aria-hidden
-      />
-      <input
-        type="hidden"
-        name={names.longitude}
-        value={
-          location.longitude != null && location.latitude != null
-            ? String(location.longitude)
-            : ""
-        }
-        readOnly
-        aria-hidden
-      />
-      <input
-        type="hidden"
-        name={names.placeId}
-        value={location.placeId ?? ""}
-        readOnly
-        aria-hidden
-      />
-      <input type="hidden" name={names.district} value={location.district ?? ""} readOnly aria-hidden />
-      <input type="hidden" name={names.town} value={location.town ?? ""} readOnly aria-hidden />
+      {includeHiddenInputs ? (
+        <>
+          <input
+            type="text"
+            name={names.confirmed}
+            value={isComplete && !addressDistrictConflict ? "1" : ""}
+            required
+            data-validity-proxy="true"
+            // A readonly input is barred from constraint validation, which would make
+            // this required field silently always valid. The no-op keeps React quiet.
+            onChange={() => {}}
+            aria-hidden
+            tabIndex={-1}
+            className="pointer-events-none absolute h-0 w-0 opacity-0"
+          />
+          <input type="hidden" name={names.address} value={location.address} readOnly aria-hidden />
+          <input
+            type="hidden"
+            name={names.latitude}
+            value={readClinicLocationLatitude(location)}
+            readOnly
+            aria-hidden
+          />
+          <input
+            type="hidden"
+            name={names.longitude}
+            value={
+              location.longitude != null && location.latitude != null
+                ? String(location.longitude)
+                : ""
+            }
+            readOnly
+            aria-hidden
+          />
+          <input
+            type="hidden"
+            name={names.placeId}
+            value={location.placeId ?? ""}
+            readOnly
+            aria-hidden
+          />
+          <input
+            type="hidden"
+            name={names.district}
+            value={location.district ?? ""}
+            readOnly
+            aria-hidden
+          />
+          <input type="hidden" name={names.town} value={location.town ?? ""} readOnly aria-hidden />
 
-      <p className={registerFieldErrorClass}>
-        Search for your clinic on Google, or drop a pin and type the address patients will see.
-      </p>
+          <p className={registerFieldErrorClass}>
+            Search for your clinic on Google, or drop a pin and type the address patients will see.
+          </p>
+        </>
+      ) : null}
     </div>
   );
 }

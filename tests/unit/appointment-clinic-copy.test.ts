@@ -76,4 +76,24 @@ describe("appointment-clinic-copy", () => {
     assert.match(html, /href="https:\/\/maps\.google\.com\/\?q=/);
     assert.match(html, /10 Harbour Road, Limassol/);
   });
+
+  it("does not fall back to Evangelismos when address is missing", () => {
+    const clinic = appointmentClinicCopy({
+      locations: [
+        {
+          id: "loc-1",
+          label: "City clinic",
+          clinic_address: null,
+          is_primary: true,
+          sort_order: 0,
+        },
+      ],
+      doctorClinicAddressFallback: null,
+    });
+
+    assert.equal(clinic.clinicName, "City clinic");
+    assert.equal(clinic.address, "");
+    assert.equal(clinic.mapsUrl, "");
+    assert.doesNotMatch(clinic.address, /Evangelismos/i);
+  });
 });

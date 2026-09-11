@@ -29,7 +29,7 @@ import {
 import { appointmentToCyprusDate, CY_TZ } from "@/lib/appointments";
 import { addDays, format } from "date-fns";
 import { utcToZonedTime, zonedTimeToUtc } from "date-fns-tz";
-import { CLINIC_ADDRESS, buildMapsUrlFromAddress, buildMapsUrlFromClinicLocation } from "@/lib/clinic-info";
+import { buildMapsUrlFromAddress, buildMapsUrlFromClinicLocation } from "@/lib/clinic-info";
 import { stripPlusCodePrefix } from "@/lib/clinic-location-pin";
 import {
   DOCTOR_FIELD_LIST_PUBLIC_PROFILE_BASE,
@@ -617,9 +617,8 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
       .maybeSingle();
     isOwnerView = ownerDoctor?.auth_user_id === user.id;
   }
-  const clinicAddress =
-    stripPlusCodePrefix((profile.clinic_address ?? "").trim()) || CLINIC_ADDRESS;
-  const mapsUrl = buildMapsUrlFromAddress(clinicAddress);
+  const clinicAddress = stripPlusCodePrefix((profile.clinic_address ?? "").trim());
+  const mapsUrl = buildMapsUrlFromAddress(clinicAddress) ?? "";
   let avatarUrl: string | null = null;
   let publicPhone: string | null = null;
   const contactLookup = await supabase
@@ -1050,32 +1049,38 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
                   latitude: selectedLocation?.latitude,
                   longitude: selectedLocation?.longitude,
                   placeId: selectedLocation?.clinic_place_id,
-                }) || buildMapsUrlFromAddress(clinicAddress)
+                }) ||
+                buildMapsUrlFromAddress(clinicAddress) ||
+                ""
               }
               clinics={
                 practiceLocations.length > 1
-                  ? practiceLocations.map((row, index) => ({
-                      title: clinicTitleOrFallback(
-                        row.label,
-                        bookingT("clinicNumber", { number: index + 1 }),
-                      ),
-                      address:
+                  ? practiceLocations.map((row, index) => {
+                      const address =
                         stripPlusCodePrefix(String(row.clinic_address ?? "")) ||
                         String(row.town ?? "").trim() ||
                         String(row.district ?? "").trim() ||
-                        bookingT("clinicAddressMissing"),
-                      mapsUrl:
-                        buildMapsUrlFromClinicLocation({
-                          address: row.clinic_address,
-                          latitude: row.latitude,
-                          longitude: row.longitude,
-                          placeId: row.clinic_place_id,
-                        }) ||
-                        buildMapsUrlFromAddress(
-                          String(row.clinic_address ?? "").trim() || clinicAddress,
+                        bookingT("clinicAddressMissing");
+                      return {
+                        title: clinicTitleOrFallback(
+                          row.label,
+                          bookingT("clinicNumber", { number: index + 1 }),
                         ),
-                      isBookingHere: row.id === selectedLocation?.id,
-                    }))
+                        address,
+                        mapsUrl:
+                          buildMapsUrlFromClinicLocation({
+                            address: row.clinic_address,
+                            latitude: row.latitude,
+                            longitude: row.longitude,
+                            placeId: row.clinic_place_id,
+                          }) ||
+                          buildMapsUrlFromAddress(
+                            String(row.clinic_address ?? "").trim(),
+                          ) ||
+                          "",
+                        isBookingHere: row.id === selectedLocation?.id,
+                      };
+                    })
                   : []
               }
             />

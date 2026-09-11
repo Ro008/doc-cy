@@ -97,7 +97,20 @@ test.describe("Integration UI: register clinic location", { tag: "@pr-e2e" }, ()
     // page scroll.
     await page.getByRole("button", { name: "Adjust on map" }).click();
     await expect(sheet).toBeVisible();
+    await expect(sheet.getByTestId("clinic-pin-sheet-header")).toBeVisible();
+    await expect(sheet.getByTestId("clinic-pin-sheet-footer")).toBeVisible();
     await expect(sheet.getByText("Put the pin on your clinic")).toBeVisible();
+    await expect(sheet.getByRole("button", { name: "Use this location" })).toBeVisible();
+    await expect(sheet.getByRole("button", { name: "Cancel" })).toBeVisible();
+
+    const viewport = page.viewportSize();
+    expect(viewport).toBeTruthy();
+    const headerBox = await sheet.getByTestId("clinic-pin-sheet-header").boundingBox();
+    const footerBox = await sheet.getByTestId("clinic-pin-sheet-footer").boundingBox();
+    expect(headerBox).toBeTruthy();
+    expect(footerBox).toBeTruthy();
+    expect(headerBox!.y).toBeLessThan(64);
+    expect(footerBox!.y + footerBox!.height).toBeLessThanOrEqual(viewport!.height + 2);
 
     await sheet.getByRole("button", { name: "Use this location" }).click();
     await expect(sheet).toBeHidden();
