@@ -36,8 +36,10 @@ function collapseSpecialtyOptions(
 }
 
 /**
- * Builds finder specialty dropdown options from directory rows only (no registration master list).
- * Manual rows are absorbed first; labels are harmonized before grouping by slug.
+ * Builds finder specialty dropdown options from directory rows (plus any seed rows).
+ * Registered `specialties[]` entries are absorbed so approved custom labels
+ * (e.g. Sexology) appear even when they are not the primary `specialty`.
+ * Labels are harmonized before grouping by slug.
  */
 export function buildFinderSpecialtyOptions(
   manualRows: readonly FinderSpecialtyOptionSource[],

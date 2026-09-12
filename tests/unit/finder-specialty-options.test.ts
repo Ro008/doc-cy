@@ -67,6 +67,8 @@ describe("resolveFinderSpecialtyDropdown (no on-the-fly options)", () => {
   });
 
   it("leaves the select unselected for unknown specialties instead of inventing a row", () => {
+    // Ghost URL labels stay out. Approved custom specialties still belong in the
+    // dropdown when they come from registered specialties[] (see Sexology case).
     const resolved = resolveFinderSpecialtyDropdown(CANONICAL, "Quantum Healing");
     assert.equal(resolved.selectedSlug, "");
     assert.equal(resolved.options.some((o) => /quantum/i.test(o.label)), false);
@@ -81,5 +83,18 @@ describe("buildFinderSpecialtyOptions", () => {
     );
     assert.equal(options.filter((o) => /h[ae]matology/i.test(o.label)).length, 1);
     assert.equal(options.find((o) => /h[ae]matology/i.test(o.label))?.label, "Hematology");
+  });
+
+  it("adds approved custom specialties from the registered specialties array", () => {
+    const options = buildFinderSpecialtyOptions(
+      [],
+      [{ specialty: "Psychology", specialties: ["Psychology", "Sexology"] }],
+    );
+    assert.equal(options.some((o) => o.label === "Psychology"), true);
+    assert.equal(options.some((o) => o.label === "Sexology" && o.slug === "sexology"), true);
+
+    const resolved = resolveFinderSpecialtyDropdown(options, "sexology");
+    assert.equal(resolved.selectedSlug, "sexology");
+    assert.equal(resolved.options.some((o) => o.label === "Sexology"), true);
   });
 });

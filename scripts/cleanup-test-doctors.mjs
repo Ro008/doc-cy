@@ -33,6 +33,7 @@ const DEFAULT_PRESERVED_SLUGS = [
   "andreas-nikos",
   "ross-geller",
   "tasos-smith",
+  "test-sexology-doctor",
 ];
 
 function loadEnv() {
