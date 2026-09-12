@@ -1,6 +1,11 @@
 /** Shared layout tokens so sticky week nav aligns with card availability grids. */
+/**
+ * Two columns only from `lg`: the calendar's 300px floor leaves the location
+ * column ~30px on a tablet beside the identity column, which breaks addresses
+ * mid-word. Below `lg` location and calendar stack at full width.
+ */
 export const finderRegisteredCardDetailsGridClass =
-  "grid items-start gap-5 sm:grid-cols-[minmax(0,0.72fr)_minmax(300px,1.28fr)]";
+  "grid items-start gap-5 lg:grid-cols-[minmax(0,0.72fr)_minmax(300px,1.28fr)]";
 
 export const finderRegisteredIdentityColumnClass = "sm:w-[260px] lg:w-[300px]";
 
