@@ -37,6 +37,12 @@ describe("finder results paging helpers", () => {
     assert.ok(!values.includes("Orthodontics"));
   });
 
+  it("includes title-case so custom specialties survive case-sensitive overlaps", () => {
+    const values = finderSpecialtyDbMatchValues("sexology");
+    assert.ok(values.includes("sexology"));
+    assert.ok(values.includes("Sexology"));
+  });
+
   it("parses page and builds href", () => {
     assert.equal(parseFinderResultsPage("3"), 3);
     assert.equal(parseFinderResultsPage("3", { hasListFilter: true }), 3);

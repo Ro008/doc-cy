@@ -1,6 +1,10 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
 import { dismissCookieConsentIfPresent } from "../prod/helpers/dismissCookieConsent";
+import {
+  listFinderSpecialtySlugs,
+  selectFinderSpecialty,
+} from "./helpers/finder-specialty-combobox";
 
 const THANKS_TOAST_RE = /Thank you! We will notify the doctor\./i;
 
@@ -45,14 +49,10 @@ function shuffle<T>(arr: T[]): T[] {
   return a;
 }
 
-async function optionValues(select: Locator): Promise<string[]> {
+async function districtOptionValues(select: Locator): Promise<string[]> {
   return select.locator("option").evaluateAll((els) =>
-    els.map((e) => (e as HTMLOptionElement).value),
+    els.map((e) => (e as HTMLOptionElement).value).filter((v) => v.length > 0),
   );
-}
-
-async function optionValuesNonEmpty(select: Locator): Promise<string[]> {
-  return (await optionValues(select)).filter((v) => v.length > 0);
 }
 
 async function applyFinderFilters(page: Page): Promise<void> {
@@ -61,23 +61,21 @@ async function applyFinderFilters(page: Page): Promise<void> {
 
 async function findManualCardRequestCta(page: Page): Promise<Locator> {
   const districtSelect = page.getByLabel("District");
-  const specialtySelect = page.getByLabel("Specialty");
 
-  const districtOrder = shuffle(await optionValues(districtSelect));
+  const districtOrder = shuffle(await districtOptionValues(districtSelect));
 
   for (const districtValue of districtOrder) {
     await districtSelect.selectOption(districtValue);
     await applyFinderFilters(page);
     await expect(page).toHaveURL(/\/(?:nicosia|limassol|paphos|larnaca|famagusta|all)(?:\/|$)/, { timeout: 20_000 });
-    await expect(specialtySelect).toBeEnabled({ timeout: 20_000 });
 
-    const specialtySlugs = shuffle(await optionValuesNonEmpty(specialtySelect));
+    const specialtySlugs = shuffle(await listFinderSpecialtySlugs(page));
     if (specialtySlugs.length === 0) {
       continue;
     }
 
     for (const slug of specialtySlugs) {
-      await specialtySelect.selectOption(slug);
+      await selectFinderSpecialty(page, slug);
       await applyFinderFilters(page);
       await expect(page).toHaveURL(/\/(?:nicosia|limassol|paphos|larnaca|famagusta|all)\//, { timeout: 20_000 });
 

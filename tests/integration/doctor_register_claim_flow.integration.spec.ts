@@ -19,7 +19,7 @@ import { INTEGRATION_DOCTOR_PASSWORD } from "./helpers/test-doctor";
 
 /**
  * Live finder-claim → `/register?claim=` against the testing database (not production).
- * Clicks Activate online booking on the clone's public listing page.
+ * Clicks "Claim this Profile" on the clone's public listing page.
  */
 test.describe("Integration: directory claim registration flow", { tag: "@local-register" }, () => {
   test.describe.configure({ retries: 0 });
@@ -47,7 +47,7 @@ test.describe("Integration: directory claim registration flow", { tag: "@local-r
 
       await page.goto(clone.profilePath, { waitUntil: "domcontentloaded" });
       await dismissCookieConsentIfPresent(page);
-      const activate = page.getByRole("link", { name: /Activate online booking/i });
+      const activate = page.getByRole("link", { name: /Claim this Profile/i });
       await expect(activate).toBeVisible({ timeout: 20_000 });
       await expect(activate).toHaveAttribute("href", `/register?claim=${clone.id}`);
       await activate.click();

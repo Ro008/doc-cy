@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
 import { FINDER_RESULTS_PAGE_SIZE } from "@/lib/finder-results-paging";
 import { fetchAllSupabaseRows } from "@/lib/supabase-fetch-all";
+import { selectFinderSpecialty } from "./helpers/finder-specialty-combobox";
 
 type CreatedDoctor = {
   doctorId: string;
@@ -532,12 +533,9 @@ test.describe("Integration: finder business-critical UX", { tag: ["@pr-e2e", "@p
         timeout: 60_000,
       });
 
-      const specialtySelect = page.getByLabel("Specialty");
-      await expect(specialtySelect).toBeEnabled({ timeout: 30_000 });
-      await expect(specialtySelect.locator('option[value="dentist"]')).toHaveCount(1, {
-        timeout: 60_000,
-      });
-      await specialtySelect.selectOption("dentist");
+      const specialtySelect = page.getByTestId("finder-specialty-trigger");
+      await selectFinderSpecialty(page, "dentist");
+      await expect(specialtySelect).toHaveText("Dentist");
       await showResults.click();
       await expect(page).toHaveURL(/\/nicosia\/dentist(?:\?|$)/, { timeout: 60_000 });
       await expect(page.getByTestId("finder-active-filters")).toContainText("Dentist", {

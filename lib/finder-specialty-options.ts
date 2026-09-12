@@ -36,8 +36,10 @@ function collapseSpecialtyOptions(
 }
 
 /**
- * Builds finder specialty dropdown options from directory rows only (no registration master list).
- * Manual rows are absorbed first; labels are harmonized before grouping by slug.
+ * Builds finder specialty dropdown options from directory rows (plus any seed rows).
+ * Registered `specialties[]` entries are absorbed so approved custom labels
+ * (e.g. Sexology) appear even when they are not the primary `specialty`.
+ * Labels are harmonized before grouping by slug.
  */
 export function buildFinderSpecialtyOptions(
   manualRows: readonly FinderSpecialtyOptionSource[],
@@ -82,7 +84,7 @@ export function buildFinderSpecialtyOptions(
 }
 
 /**
- * Dropdown options + selected slug for the finder specialty <select>.
+ * Dropdown options + selected slug for the finder specialty control.
  *
  * Never invents a new option from the current URL / active filter. Spelling
  * variants (Haematology vs Hematology) collapse onto the canonical label.
@@ -100,4 +102,17 @@ export function resolveFinderSpecialtyDropdown(
   if (!canonical) return { options: list, selectedSlug: "" };
   const match = list.find((option) => option.slug === canonical.slug);
   return { options: list, selectedSlug: match?.slug ?? "" };
+}
+
+/** Case-insensitive filter for the finder specialty combobox search box. */
+export function filterFinderSpecialtyOptions(
+  options: readonly FinderSpecialtyOption[],
+  query: string,
+): FinderSpecialtyOption[] {
+  const q = String(query ?? "").trim().toLowerCase();
+  if (!q) return [...options];
+  return options.filter(
+    (option) =>
+      option.label.toLowerCase().includes(q) || option.slug.toLowerCase().includes(q),
+  );
 }

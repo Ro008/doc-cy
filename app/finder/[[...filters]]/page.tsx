@@ -62,7 +62,10 @@ import {
   specialtyToSlug,
   toTitleCaseWords,
 } from "@/lib/finder-seo";
-import { buildFinderSpecialtyOptions } from "@/lib/finder-specialty-options";
+import {
+  buildFinderSpecialtyOptions,
+  type FinderSpecialtyOptionSource,
+} from "@/lib/finder-specialty-options";
 import {
   matchesAnySpecialtyFilter,
   matchesSpecialtyFilter,
@@ -515,22 +518,34 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
         name: "",
         specialty: "",
       };
-      const registeredSpecialtyRes = await getCachedDirectoryRows(
-        ["registered-specialties", specialtyOptionFilters.district],
-        () =>
-          fetchAllSupabaseRows(() =>
-            applyFinderListFilters(
-              supabase
-                .from("professionals")
-                .select("specialty")
-                .eq("is_registered", true)
-                .eq("is_archived", false)
-                .eq("status", "verified")
-                .not("slug", "is", null),
-              specialtyOptionFilters,
+      const registeredSpecialtySelectAttempts = ["specialty, specialties", "specialty"] as const;
+      let registeredSpecialtyRows: FinderSpecialtyOptionSource[] = [];
+      for (const selectClause of registeredSpecialtySelectAttempts) {
+        const registeredSpecialtyRes = await getCachedDirectoryRows(
+          ["registered-specialties", specialtyOptionFilters.district, selectClause],
+          () =>
+            fetchAllSupabaseRows(() =>
+              applyFinderListFilters(
+                supabase
+                  .from("professionals")
+                  .select(selectClause)
+                  .eq("is_registered", true)
+                  .eq("is_archived", false)
+                  .eq("status", "verified")
+                  .not("slug", "is", null),
+                specialtyOptionFilters,
+              ),
             ),
-          ),
-      );
+        );
+        if (registeredSpecialtyRes.error) {
+          if (isRecoverableSelectSchemaError(registeredSpecialtyRes.error)) {
+            continue;
+          }
+          break;
+        }
+        registeredSpecialtyRows = (registeredSpecialtyRes.data ?? []) as FinderSpecialtyOptionSource[];
+        break;
+      }
       const gesyDropdownSeed = GESY_MANUAL_SPECIALTIES.filter(
         (label) => label !== "Pharmacy",
       ).map((specialty) => ({ specialty }));
@@ -539,7 +554,7 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
       }));
       return buildFinderSpecialtyOptions(
         [...gesyDropdownSeed, ...doccyExtraSeed],
-        (registeredSpecialtyRes.data ?? []) as { specialty: string | null | undefined }[],
+        registeredSpecialtyRows,
       );
     })();
 
@@ -594,7 +609,6 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
           selectClause,
           listFilters.district,
           listFilters.name,
-          listFilters.specialty,
         ],
         () =>
           fetchAllSupabaseRows(() =>
@@ -606,9 +620,10 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
                 .eq("is_archived", false)
                 .eq("status", "verified")
                 .not("slug", "is", null),
-              // Town is inferred from clinic_address when the column is still empty
-              // (doctors who registered before town existed). Filter in memory.
-              { ...listFilters, district: "", town: "" },
+              // District/town/specialty are matched in memory: town is often inferred,
+              // clinic districts are N:M, and PostgREST overlaps() is case-sensitive
+              // (URL "sexology" would drop stored "Sexology").
+              { ...listFilters, district: "", town: "", specialty: "" },
               {
                 specialtyColumn: selectClause.includes("specialties")
                   ? "specialties"

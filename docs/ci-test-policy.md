@@ -62,7 +62,7 @@ Constants: `tests/helpers/ciTags.ts`. To tag new specs: `node scripts/apply-ci-p
 - Unit: `npm run test:unit`
 - Booking lane: `--grep @pr-email` then `--grep @pr-e2e-booking`
 - Account lane: `--grep @pr-e2e --grep-invert "@pr-e2e-finder|@pr-e2e-booking"`
-- Finder lane: `--grep @pr-e2e-finder` (today: `finder_critical`, `finder_user_behaviors`, `navigation`)
+- Finder lane: `--grep @pr-e2e-finder` (today: `finder_critical`, `finder_user_behaviors`, `finder_custom_specialty`, `navigation`)
 - Preview job: `--grep @pr-preview`
 - Non-blocking mobile: `--grep @pr-mobile-monitor` (on booking lane)
 - Non-blocking login form: `--grep @pr-login-monitor` (on account lane)

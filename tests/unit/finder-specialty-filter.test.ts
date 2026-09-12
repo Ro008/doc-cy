@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
+import { matchesFinderSpecialtyFilter } from "../../lib/doctor-specialty-public";
 import {
   matchesAnySpecialtyFilter,
   matchesSpecialtyFilter,
@@ -44,6 +45,30 @@ describe("matchesSpecialtyFilter", () => {
     assert.equal(
       matchesAnySpecialtyFilter(["Personal Doctor", "Paediatrics"], "Cardiology"),
       false,
+    );
+  });
+
+  it("matches a custom specialty from a slug-decoded finder URL", () => {
+    assert.equal(matchesSpecialtyFilter("Sexology", "sexology"), true);
+    assert.equal(
+      matchesAnySpecialtyFilter(["Psychology", "Sexology"], "sexology"),
+      true,
+    );
+    assert.equal(matchesAnySpecialtyFilter(["Psychology"], "sexology"), false);
+  });
+});
+
+describe("matchesFinderSpecialtyFilter", () => {
+  it("keeps a multi-specialty registered card on a custom specialty URL", () => {
+    assert.equal(
+      matchesFinderSpecialtyFilter({
+        specialty: "Psychology",
+        specialties: ["Psychology", "Sexology"],
+        is_specialty_approved: true,
+        activeSpecialty: "sexology",
+        matchesSpecialty: matchesSpecialtyFilter,
+      }),
+      true,
     );
   });
 });

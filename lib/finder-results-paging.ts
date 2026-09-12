@@ -1,4 +1,5 @@
 import { isTestProfileLike } from "@/lib/doctor-test-profile";
+import { toTitleCaseWords } from "@/lib/finder-seo";
 import { harmonizeFinderSpecialtyLabel } from "@/lib/finder-specialty-harmonize";
 
 /**
@@ -58,7 +59,12 @@ export function finderSpecialtyDbMatchValues(activeSpecialty: string): string[] 
   if (!trimmed) return [];
   const canon = harmonizeFinderSpecialtyLabel(trimmed) || trimmed;
   const variants = SPECIALTY_DB_VARIANTS[canon] ?? [canon];
-  return Array.from(new Set([trimmed, canon, ...variants].map((v) => v.trim()).filter(Boolean)));
+  // PostgREST overlaps() is case-sensitive. Finder URLs decode to lowercase
+  // ("sexology"); approved custom labels are stored as entered ("Sexology").
+  const titleCase = toTitleCaseWords(canon);
+  return Array.from(
+    new Set([trimmed, canon, titleCase, ...variants].map((v) => v.trim()).filter(Boolean)),
+  );
 }
 
 export function finderResultsMaxPage(hasListFilter?: boolean): number {

@@ -22,7 +22,7 @@ Living document: update when workflows or specs change.
 | Flow | PR blocking | Other | Notes |
 | --- | --- | --- | --- |
 | Landing / marketing shell | Partial via `navigation.spec.ts` | `landing.spec.ts`, `prod_site_availability.spec.ts` (preview) | PR navigation suite scope depends on test content |
-| Finder search & filters | `finder_critical.integration.spec.ts`, `finder_user_behaviors.integration.spec.ts` | — | PR only (not nightly) |
+| Finder search & filters | `finder_critical.integration.spec.ts`, `finder_user_behaviors.integration.spec.ts`, `finder_custom_specialty.integration.spec.ts` | — | PR only (not nightly). Custom secondary specialty (Sexology) is the Karina regression. |
 | Doctor public profile | `profile_structured_data.spec.ts`, `booking_flow.spec.ts` | `doctor_profile_mobile.spec.ts`, `service_menu_public_profile.integration.spec.ts` | Mobile layout local/supabase |
 | Blog content / MDX | `blog_single_image_ui.spec.ts` | `blog_scheduling.spec.ts`, `blog_user_flow.spec.ts` | PR runs `npm run test:content:blog-images` |
 | Language / locale | Partial | `language_switcher.spec.ts`, `landing_i18n.spec.ts` | Not all in PR gate |
