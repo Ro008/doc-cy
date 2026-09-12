@@ -172,7 +172,7 @@ test.describe("Integration: custom specialty finder (Sexology)", { tag: ["@pr-e2
         timeout: 60_000,
       });
 
-      const specialtySelect = page.getByLabel("Specialty");
+      const specialtySelect = page.getByTestId("finder-specialty-trigger");
       await expect(specialtySelect).toHaveText("Sexology", { timeout: 20_000 });
       await specialtySelect.click();
       await expect(page.locator('[role="option"][data-value="sexology"]')).toBeVisible({

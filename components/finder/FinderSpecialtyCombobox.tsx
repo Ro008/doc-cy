@@ -94,13 +94,14 @@ export function FinderSpecialtyCombobox({
   return (
     <div ref={wrapRef} className="relative min-w-0 flex-1 basis-[22%]">
       <input type="hidden" name="specialty" value={value} readOnly />
-      <label htmlFor={inputId} className="relative block">
+      <label className="relative block">
         <span className="sr-only">Specialty</span>
         <BriefcaseMedical className={iconClass} strokeWidth={2} aria-hidden />
         <button
           id={inputId}
           type="button"
           disabled={disabled}
+          aria-label="Specialty"
           aria-haspopup="listbox"
           aria-expanded={open}
           aria-controls={listId}

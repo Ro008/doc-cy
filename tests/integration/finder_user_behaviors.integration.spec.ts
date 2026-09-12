@@ -174,7 +174,7 @@ test.describe("Integration: finder user-like filter behavior matrix", { tag: ["@
       ).toBeVisible({ timeout: 60_000 });
 
       const districtSelect = page.getByLabel("District");
-      const specialtySelect = page.getByLabel("Specialty");
+      const specialtySelect = page.getByTestId("finder-specialty-trigger");
       const nameInput = page.locator("#finder-name-filter");
       const showResults = page.getByRole("button", { name: /^Find$/i });
 
@@ -256,7 +256,7 @@ test.describe("Integration: finder user-like filter behavior matrix", { tag: ["@
       page.getByRole("heading", { level: 1, name: /The most complete health directory in Cyprus|Cyprus['’]s most complete health directory|Find your next health professional/i }),
     ).toBeVisible({ timeout: 20_000 });
 
-    const specialtySelect = page.getByLabel("Specialty");
+    const specialtySelect = page.getByTestId("finder-specialty-trigger");
     await selectFinderSpecialty(page, "otorhinolaryngology");
     await expect(specialtySelect).toHaveText("Otorhinolaryngology");
 

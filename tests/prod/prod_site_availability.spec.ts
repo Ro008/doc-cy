@@ -77,6 +77,6 @@ test.describe("Public shell health", { tag: ["@pr-preview", "@nightly-prod"] }, 
     ).toBeVisible({ timeout: 15000 });
     await expect(page.getByLabel("District")).toBeVisible();
     // Specialty is a searchable combobox trigger (not a native <select>).
-    await expect(page.getByLabel("Specialty", { exact: true })).toBeVisible();
+    await expect(page.getByTestId("finder-specialty-trigger")).toBeVisible();
   });
 });

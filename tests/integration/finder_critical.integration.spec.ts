@@ -533,7 +533,7 @@ test.describe("Integration: finder business-critical UX", { tag: ["@pr-e2e", "@p
         timeout: 60_000,
       });
 
-      const specialtySelect = page.getByLabel("Specialty");
+      const specialtySelect = page.getByTestId("finder-specialty-trigger");
       await selectFinderSpecialty(page, "dentist");
       await expect(specialtySelect).toHaveText("Dentist");
       await showResults.click();

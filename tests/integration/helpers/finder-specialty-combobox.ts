@@ -3,7 +3,7 @@ import { expect } from "@playwright/test";
 
 /** Opens the finder specialty combobox (labelled "Specialty"). */
 export function finderSpecialtyTrigger(page: Page): Locator {
-  return page.getByLabel("Specialty", { exact: true });
+  return page.getByTestId("finder-specialty-trigger");
 }
 
 export async function openFinderSpecialtyCombobox(page: Page): Promise<void> {
