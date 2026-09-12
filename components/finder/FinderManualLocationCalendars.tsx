@@ -23,7 +23,6 @@ type Props = {
   dayHeaders: readonly FinderAvailabilityDayHeader[];
   callToBookSource: CallToBookSource;
   layoutVariant?: "finder" | "landing";
-  anchorStickyWeekNav?: boolean;
 };
 
 function listingLocations(listing: FinderManualLocationListing): FinderClinicRef[] {
@@ -41,7 +40,6 @@ export function FinderManualLocationCalendars({
   dayHeaders,
   callToBookSource,
   layoutVariant = "finder",
-  anchorStickyWeekNav = false,
 }: Props) {
   const locations = listingLocations(listing);
   const isMulti = locations.length > 1;
@@ -80,7 +78,6 @@ export function FinderManualLocationCalendars({
                   clinicId={clinic.id}
                   requestSource={callToBookSource}
                   dayHeaders={[...dayHeaders]}
-                  anchorStickyWeekNav={anchorStickyWeekNav && index === 0}
                 />
               </div>
             ),
@@ -114,7 +111,6 @@ export function FinderManualLocationCalendars({
                   clinicId={listing.clinic?.id}
                   requestSource={callToBookSource}
                   dayHeaders={[...dayHeaders]}
-                  anchorStickyWeekNav={anchorStickyWeekNav}
                 />
               </div>
             ),

@@ -564,7 +564,7 @@ test.describe("Integration: finder business-critical UX", { tag: ["@pr-e2e", "@p
     }
   });
 
-  test("test profile card pins shared availability week nav on scroll", async ({ page }) => {
+  test("every card has its own week-nav arrows, and they move every card together", async ({ page }) => {
     const baseUrl = process.env.PLAYWRIGHT_BASE_URL ?? "";
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
     const serviceRole = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
@@ -579,55 +579,60 @@ test.describe("Integration: finder business-critical UX", { tag: ["@pr-e2e", "@p
 
     const admin = createClient(supabaseUrl, serviceRole);
     const nonce = `${Date.now()}-${Math.floor(Math.random() * 100000)}`;
-    let created: CreatedDoctor | null = null;
+    const sharedNamePart = `Avail Sync ${nonce}`;
+    const created: CreatedDoctor[] = [];
 
     try {
-      created = await createVerifiedDoctor(admin, nonce, {
-        slugPrefix: "finder-card-avail",
-        name: `Avail Sticky ${nonce}`,
-        specialty: "Dentistry",
-        district: "Paphos",
-        languages: ["English"],
-      });
-      await seedWeekdayAvailabilitySettings(admin, created.doctorId);
-
-      await page.goto(
-        `/paphos/dentist?name=${encodeURIComponent(created.name)}`,
-      );
-      const card = page
-        .locator("section.mt-6 article")
-        .filter({ has: page.getByText(created.name, { exact: true }) })
-        .first();
-
-      await expect(card).toBeVisible({ timeout: 20000 });
-      await expect(card.getByTestId("finder-card-calendar-preview")).toBeVisible({
-        timeout: 20_000,
-      });
-      await expect(page.getByTestId("finder-availability-week-nav")).toBeVisible();
-      await expect(card.getByRole("button", { name: /Show next week/i })).toBeVisible();
-
-      await page.setViewportSize({ width: 1280, height: 720 });
-      await page.locator("[data-finder-sticky-week-anchor]").scrollIntoViewIfNeeded();
-      for (let step = 0; step < 40; step += 1) {
-        await page.mouse.wheel(0, 200);
-        if ((await page.getByTestId("finder-availability-week-nav-pinned").count()) > 0) {
-          break;
-        }
+      for (const suffix of ["a", "b"] as const) {
+        const doctor = await createVerifiedDoctor(admin, `${nonce}-${suffix}`, {
+          slugPrefix: `finder-card-avail-sync-${suffix}`,
+          name: `${sharedNamePart} ${suffix.toUpperCase()}`,
+          specialty: "Dentistry",
+          district: "Paphos",
+          languages: ["English"],
+        });
+        await seedWeekdayAvailabilitySettings(admin, doctor.doctorId);
+        created.push(doctor);
       }
+      const [doctorA, doctorB] = created;
 
-      await expect(page.getByTestId("finder-availability-week-nav-pinned")).toBeVisible({
-        timeout: 5000,
-      });
-      await expect(
+      await page.goto(`/paphos/dentist?name=${encodeURIComponent(sharedNamePart)}`);
+
+      const cardFor = (doctor: CreatedDoctor) =>
         page
-          .getByTestId("finder-availability-week-nav-pinned")
-          .getByRole("button", { name: /Show next week/i }),
-      ).toBeVisible();
+          .locator("section.mt-6 article")
+          .filter({ has: page.getByText(doctor.name, { exact: true }) })
+          .first();
+
+      const cardA = cardFor(doctorA);
+      const cardB = cardFor(doctorB);
+
+      await expect(cardA).toBeVisible({ timeout: 20000 });
+      await expect(cardB).toBeVisible({ timeout: 20000 });
+
+      // No shared "anchor" card anymore -- both cards carry their own arrows.
+      const nextButtonA = cardA.getByRole("button", { name: /Show next week/i });
+      const nextButtonB = cardB.getByRole("button", { name: /Show next week/i });
+      await expect(nextButtonA).toBeVisible({ timeout: 20_000 });
+      await expect(nextButtonB).toBeVisible({ timeout: 20_000 });
+
+      const dayHeaderA = cardA.getByTestId("finder-availability-day-header");
+      const dayHeaderB = cardB.getByTestId("finder-availability-day-header");
+      const initialDatesA = await dayHeaderA.textContent();
+      const initialDatesB = await dayHeaderB.textContent();
+      expect(initialDatesA).toEqual(initialDatesB);
+
+      await nextButtonA.click();
+
+      // Clicking one card's arrow must advance every card, since they all
+      // read from one shared week-window state.
+      await expect(dayHeaderA).not.toHaveText(initialDatesA ?? "");
+      await expect(dayHeaderB).toHaveText((await dayHeaderA.textContent()) ?? "");
     } finally {
-      if (created) {
-        await admin.from("doctor_settings").delete().eq("doctor_id", created.doctorId);
-        await admin.from("professionals").delete().eq("id", created.doctorId);
-        await admin.auth.admin.deleteUser(created.authUserId);
+      for (const doctor of created) {
+        await admin.from("doctor_settings").delete().eq("doctor_id", doctor.doctorId);
+        await admin.from("professionals").delete().eq("id", doctor.doctorId);
+        await admin.auth.admin.deleteUser(doctor.authUserId);
       }
     }
   });
