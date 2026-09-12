@@ -1,0 +1,32 @@
+---
+description: When the user opens or announces a PR — register gate reminder, CI watch, master/Livio awareness
+alwaysApply: true
+---
+
+# PR opened — agent checklist (DocCy)
+
+When the user says they opened / created / pushed a PR (or asks to watch CI on a new PR), do this **in chat** every time. Do **not** rely on GitHub PR description checkboxes for these reminders — the user reads those too late.
+
+## 1. Local register gate (not CI)
+
+Immediately remind them to run once on the testing DB:
+
+```bash
+npm run test:e2e:register
+```
+
+Live `/register` (Places/Auth/Resend), founder email asserted, doctor deleted afterwards. See `docs/ci-test-policy.md`.
+
+Then **ask** whether they want you to run it for them in this session. Do not start it until they say yes.
+
+Do **not** add this block back into PR body templates as the primary reminder path.
+
+## 2. Watch CI and fix failures
+
+Stay on the PR checks. If any fail, diagnose and fix (push to the PR branch). Prefer fixing real product/test mismatches over blind re-runs.
+
+## 3. Master / coworker sync (Livio)
+
+Coworker: **Livio** (`elance1985`, typically `liviolanzo@gmail.com`).
+
+After `git fetch origin master`, report whether this branch is behind `origin/master` (commits not yet in the PR). Call out Livio’s commits explicitly when present. Ask before merging/rebasing master into the PR branch unless the user already asked to update from master.

@@ -3,7 +3,6 @@ import {
   QA_CLAIM_DIRECTORY_NAME_PREFIX,
   QA_CLAIM_DIRECTORY_SLUG_PREFIX,
 } from "@/lib/doctor-test-profile";
-import { publicProfessionalProfilePath } from "@/lib/manual-directory-landing-path";
 
 export type QaClaimDirectoryClone = {
   id: string;
@@ -15,6 +14,9 @@ export type QaClaimDirectoryClone = {
 /**
  * Unregistered testing listing used by the local claim-register e2e.
  * Name/slug prefixes are the only listings a test email is allowed to absorb.
+ *
+ * Profile path is inlined (`/en/{slug}`) so Playwright does not load next-intl
+ * via `manual-directory-landing-path` (CJS/ESM clash under the test runner).
  */
 export async function createQaClaimDirectoryClone(
   admin: SupabaseClient,
@@ -52,6 +54,6 @@ export async function createQaClaimDirectoryClone(
     id: String(insert.data.id),
     slug,
     name,
-    profilePath: publicProfessionalProfilePath(slug),
+    profilePath: `/en/${encodeURIComponent(slug)}`,
   };
 }

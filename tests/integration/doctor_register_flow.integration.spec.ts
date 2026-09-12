@@ -55,11 +55,23 @@ test.describe("Integration: doctor registration flow", { tag: "@local-register" 
       await page.locator("#register-form input[name='firstName']").fill(firstName);
       await page.locator("#register-form input[name='lastName']").fill(lastName);
       await page.locator("#register-form input[name='email']").fill(email);
-      await page.locator("#register-form input[name='password']").fill(INTEGRATION_DOCTOR_PASSWORD);
+      const passwordInput = page.locator("#register-form input[name='password']");
+      await passwordInput.click();
+      await passwordInput.fill(INTEGRATION_DOCTOR_PASSWORD);
+      await passwordInput.evaluate((el) => {
+        const input = el as HTMLInputElement;
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+        input.dispatchEvent(new Event("change", { bubbles: true }));
+      });
       await page.locator("#register-form input[name='phone']").fill("+35799123456");
+      for (const key of ["firstName", "lastName", "email", "password", "phone"]) {
+        await expect(
+          page.locator(`[data-register-step='1'] [data-field-key='${key}']`),
+        ).toHaveAttribute("data-complete", "1", { timeout: 10_000 });
+      }
       await page.getByTestId("register-wizard-continue").click();
 
-      await expect(page.getByTestId("register-step-2")).toBeVisible();
+      await expect(page.getByTestId("register-step-2")).toBeVisible({ timeout: 15_000 });
       const avatarPath = path.join(process.cwd(), "tests", "fixtures", "e2e-person-avatar.jpg");
       await page.getByTestId("register-avatar-file-input").setInputFiles(avatarPath);
       const confirmCrop = page.getByRole("button", { name: /Confirm crop/i });
