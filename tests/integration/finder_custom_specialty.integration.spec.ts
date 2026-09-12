@@ -173,10 +173,14 @@ test.describe("Integration: custom specialty finder (Sexology)", { tag: ["@pr-e2
       });
 
       const specialtySelect = page.getByLabel("Specialty");
-      await expect(specialtySelect.locator('option[value="sexology"]')).toHaveText("Sexology", {
-        timeout: 20_000,
+      await expect(specialtySelect).toHaveText("Sexology", { timeout: 20_000 });
+      await specialtySelect.click();
+      await expect(page.locator('[role="option"][data-value="sexology"]')).toBeVisible({
+        timeout: 10_000,
       });
-      await expect(specialtySelect).toHaveValue("sexology");
+      await expect(page.locator('[role="option"][data-value="sexology"]')).toContainText(
+        "Sexology",
+      );
 
       await expect(page.getByRole("link", { name: created.name, exact: true })).toBeVisible({
         timeout: 60_000,

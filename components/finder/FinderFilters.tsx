@@ -18,9 +18,10 @@ import {
   townToSlug,
   type CyprusTownOption,
 } from "@/lib/cyprus-towns";
+import { FinderSpecialtyCombobox } from "@/components/finder/FinderSpecialtyCombobox";
 import { FinderTownCombobox } from "@/components/finder/FinderTownCombobox";
 import { appendFinderNearMeParams, type FinderNearMeCoords } from "@/lib/finder-distance";
-import { BriefcaseMedical, Info, LocateFixed, MapPin, Search, UserRound } from "lucide-react";
+import { ChevronDown, Info, LocateFixed, MapPin, Search, UserRound } from "lucide-react";
 import { PendingLink } from "@/components/navigation/PendingLink";
 import { emitNavigationStart, getNavigationStartMessage, NAVIGATION_START_EVENT } from "@/lib/doccy-navigation";
 
@@ -260,8 +261,11 @@ export function FinderFilters({
 
   const fieldClass =
     "h-11 w-full bg-transparent pl-10 pr-3 text-sm font-medium text-ink-900 placeholder:font-normal placeholder:text-ink-400 focus:outline-none";
+  const selectFieldClass = `${fieldClass} appearance-none pr-9 cursor-pointer focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-clinical-200`;
   const iconClass =
     "pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-clinical-500";
+  const chevronClass =
+    "pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-400";
 
   return (
     <div className="relative space-y-2.5">
@@ -315,28 +319,20 @@ export function FinderFilters({
                 className={fieldClass}
               />
             </label>
-            <label className="relative min-w-0 flex-1 basis-[22%]">
-              <span className="sr-only">Specialty</span>
-              <BriefcaseMedical className={iconClass} strokeWidth={2} aria-hidden />
-              <select
-                name="specialty"
-                value={specialtySlug}
-                onChange={(e) => setSpecialtySlug(e.target.value)}
-                className={fieldClass}
-              >
-                <option value="">All specialties</option>
-                {dropdown.options.map((opt) => (
-                  <option key={opt.slug} value={opt.slug}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <FinderSpecialtyCombobox
+              options={dropdown.options}
+              value={specialtySlug}
+              disabled={isFilterFormBusy}
+              fieldClass={selectFieldClass}
+              iconClass={iconClass}
+              onChange={setSpecialtySlug}
+            />
             <div className="relative min-w-0 flex-1 basis-[22%]">
-              <label className="relative block">
+              <label htmlFor="finder-district-filter" className="relative block">
                 <span className="sr-only">District</span>
                 <MapPin className={iconClass} strokeWidth={2} aria-hidden />
                 <select
+                  id="finder-district-filter"
                   name="district"
                   value={district}
                   onChange={(e) => {
@@ -347,7 +343,7 @@ export function FinderFilters({
                       setTownQuery("");
                     }
                   }}
-                  className={fieldClass}
+                  className={`${selectFieldClass} ${district ? "text-ink-900" : "text-ink-400"}`}
                 >
                   <option value="">All districts</option>
                   {districts.map((item) => (
@@ -356,6 +352,7 @@ export function FinderFilters({
                     </option>
                   ))}
                 </select>
+                <ChevronDown className={chevronClass} strokeWidth={2} aria-hidden />
               </label>
             </div>
             <FinderTownCombobox

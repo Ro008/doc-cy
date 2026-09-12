@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
 import { finderIncludesRegisteredTestProfiles } from "@/lib/doctor-test-profile";
+import { selectFinderSpecialty } from "./helpers/finder-specialty-combobox";
 
 type CreatedDoctor = {
   doctorId: string;
@@ -193,11 +194,8 @@ test.describe("Integration: finder user-like filter behavior matrix", { tag: ["@
       await expect(page.getByText(created[2].name, { exact: true })).toHaveCount(0);
 
       // Scenario 2: District + specialty narrowing.
-      await expect(specialtySelect).toBeEnabled({ timeout: 30_000 });
-      await expect(specialtySelect.locator('option[value="dentist"]')).toHaveCount(1, {
-        timeout: 60_000,
-      });
-      await specialtySelect.selectOption("dentist");
+      await selectFinderSpecialty(page, "dentist");
+      await expect(specialtySelect).toHaveText("Dentist");
       await showResults.click();
       await expect(page).toHaveURL(/\/limassol\/dentist(?:\?|$)/, { timeout: 60_000 });
       await expect(
@@ -259,10 +257,8 @@ test.describe("Integration: finder user-like filter behavior matrix", { tag: ["@
     ).toBeVisible({ timeout: 20_000 });
 
     const specialtySelect = page.getByLabel("Specialty");
-    await expect(specialtySelect.locator('option[value="otorhinolaryngology"]')).toHaveCount(1, {
-      timeout: 20_000,
-    });
-    await specialtySelect.selectOption("otorhinolaryngology");
+    await selectFinderSpecialty(page, "otorhinolaryngology");
+    await expect(specialtySelect).toHaveText("Otorhinolaryngology");
 
     await page.getByRole("button", { name: /Doctor near me/i }).click();
     await expect(page).toHaveURL(/\/all\/otorhinolaryngology(?:\?|$)/, { timeout: 20_000 });

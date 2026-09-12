@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   buildFinderSpecialtyOptions,
+  filterFinderSpecialtyOptions,
   resolveFinderSpecialtyDropdown,
 } from "../../lib/finder-specialty-options";
 
@@ -96,5 +97,22 @@ describe("buildFinderSpecialtyOptions", () => {
     const resolved = resolveFinderSpecialtyDropdown(options, "sexology");
     assert.equal(resolved.selectedSlug, "sexology");
     assert.equal(resolved.options.some((o) => o.label === "Sexology"), true);
+  });
+
+  it("filters specialty options by label or slug for the combobox search", () => {
+    const options = [
+      { slug: "sexology", label: "Sexology" },
+      { slug: "psychology", label: "Psychology" },
+      { slug: "dentist", label: "Dentist" },
+    ];
+    assert.deepEqual(
+      filterFinderSpecialtyOptions(options, "sex").map((o) => o.slug),
+      ["sexology"],
+    );
+    assert.deepEqual(
+      filterFinderSpecialtyOptions(options, "PSYCH").map((o) => o.slug),
+      ["psychology"],
+    );
+    assert.equal(filterFinderSpecialtyOptions(options, "").length, 3);
   });
 });
