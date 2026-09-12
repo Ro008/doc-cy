@@ -12,6 +12,7 @@ import {
   FINDER_AVAILABILITY_VISIBLE_DAY_COUNT,
   type FinderAvailabilityDayHeader,
 } from "@/lib/public/compute-public-booking-slots";
+import { snapWindowStartToDayIndex } from "@/lib/public/finder-availability-week-window";
 
 type FinderAvailabilityWeekContextValue = {
   dayHeaders: FinderAvailabilityDayHeader[];
@@ -22,6 +23,7 @@ type FinderAvailabilityWeekContextValue = {
   canGoNext: boolean;
   goToPreviousWeek: () => void;
   goToNextWeek: () => void;
+  goToWeekContainingDayIndex: (dayIndex: number) => void;
 };
 
 const FinderAvailabilityWeekContext = React.createContext<FinderAvailabilityWeekContextValue | null>(
@@ -63,6 +65,8 @@ function FinderAvailabilityWeekProvider({ dayHeaders, children }: ProviderProps)
       goToPreviousWeek: () => setWindowStart((current) => Math.max(0, current - weekStep)),
       goToNextWeek: () =>
         setWindowStart((current) => Math.min(maxWindowStart, current + weekStep)),
+      goToWeekContainingDayIndex: (dayIndex: number) =>
+        setWindowStart(snapWindowStartToDayIndex(dayIndex, weekStep, maxWindowStart)),
     };
   }, [dayHeaders, maxWindowStart, visibleDayCount, weekStep, windowStart]);
 
