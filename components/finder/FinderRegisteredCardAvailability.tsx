@@ -33,7 +33,6 @@ type FinderRegisteredCardAvailabilityProps = {
   doctorIdsKey: string;
   /** Fallback address when locations have not been loaded yet. */
   clinicAddress?: string | null;
-  anchorStickyWeekNav?: boolean;
 };
 
 export async function FinderRegisteredCardAvailability({
@@ -41,7 +40,6 @@ export async function FinderRegisteredCardAvailability({
   profileSlug,
   doctorIdsKey,
   clinicAddress = null,
-  anchorStickyWeekNav = false,
 }: FinderRegisteredCardAvailabilityProps) {
   const [batch, publicCallIds] = await Promise.all([
     loadFinderAvailabilityForRequest(doctorIdsKey),
@@ -71,24 +69,6 @@ export async function FinderRegisteredCardAvailability({
       );
     }
     const calendar = batch.calendars.get(doctorId);
-    if (!calendar || calendar.days.length === 0 || !profileSlug) {
-      return (
-        <FinderMultiLocationAvailability
-          rows={[
-            {
-              key: doctorId,
-              location: (
-                <RegisteredLocationCopy
-                  address={clinicAddress}
-                  callDoctorId={callDoctorId}
-                />
-              ),
-              calendar: null,
-            },
-          ]}
-        />
-      );
-    }
     return (
       <FinderMultiLocationAvailability
         rows={[
@@ -100,13 +80,10 @@ export async function FinderRegisteredCardAvailability({
                 callDoctorId={callDoctorId}
               />
             ),
-            calendar: (
-              <FinderCardAvailabilityGrid
-                calendar={calendar}
-                profileSlug={profileSlug}
-                anchorStickyWeekNav={anchorStickyWeekNav}
-              />
-            ),
+            calendar:
+              calendar && profileSlug ? (
+                <FinderCardAvailabilityGrid calendar={calendar} profileSlug={profileSlug} />
+              ) : null,
           },
         ]}
       />
@@ -126,13 +103,12 @@ export async function FinderRegisteredCardAvailability({
             locationScoped={locationScopedPause}
           />
         )
-      : availability?.calendar && availability.calendar.days.length > 0 && profileSlug
+      : availability?.calendar && profileSlug
         ? (
             <FinderCardAvailabilityGrid
               calendar={availability.calendar}
               profileSlug={profileSlug}
               locationId={isMulti ? location.id : null}
-              anchorStickyWeekNav={anchorStickyWeekNav && index === 0}
             />
           )
         : null;

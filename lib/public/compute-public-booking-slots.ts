@@ -6,7 +6,7 @@ import type { WeeklySlotFromSettings } from "@/lib/doctor-settings";
 import { normalizeMinimumNoticeHours } from "@/lib/doctor-settings";
 
 export const FINDER_CALENDAR_PREVIEW_SLOT_COUNT = 3;
-export const FINDER_AVAILABILITY_CALENDAR_DAY_COUNT = 14;
+export const FINDER_AVAILABILITY_CALENDAR_DAY_COUNT = 90;
 export const FINDER_AVAILABILITY_VISIBLE_DAY_COUNT = 5;
 export const FINDER_AVAILABILITY_MAX_SLOTS_PER_DAY = 4;
 

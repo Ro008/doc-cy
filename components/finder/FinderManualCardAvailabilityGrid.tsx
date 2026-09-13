@@ -1,9 +1,9 @@
 import { FinderAvailabilityDayHeaderCell } from "@/components/finder/FinderAvailabilityDayHeaderRow";
-import { FinderAvailabilityStickyWeekHeader } from "@/components/finder/FinderAvailabilityStickyWeekHeader";
 import {
   finderAvailabilitySlotClassName,
   finderAvailabilityWeekTrackClassName,
 } from "@/components/finder/finder-availability-layout";
+import { FinderAvailabilityWeekControls } from "@/components/finder/FinderResultsAvailabilityShell";
 import { buildManualPreviewCalendar } from "@/lib/finder-manual-preview-calendar";
 import {
   FINDER_MANUAL_CALENDAR_ATTR,
@@ -16,7 +16,6 @@ export const REQUEST_ONLINE_BOOKING_BUTTON_LABEL = "Request online booking";
 type Props = {
   manualId: string;
   dayHeaders: readonly FinderAvailabilityDayHeader[];
-  anchorStickyWeekNav?: boolean;
   /** Defaults to `manualId`. Distinct per practice location so multi-clinic previews differ. */
   seedKey?: string;
   clinicId?: string | null;
@@ -49,7 +48,6 @@ function CalendarPlusIcon() {
 export function FinderManualCardAvailabilityGrid({
   manualId,
   dayHeaders,
-  anchorStickyWeekNav = false,
   seedKey,
   clinicId,
   requestSource,
@@ -69,17 +67,14 @@ export function FinderManualCardAvailabilityGrid({
       data-request-source={String(requestSource ?? "").trim() || undefined}
     >
       <div className="overflow-hidden rounded-lg border border-ink-200 bg-ink-50/50">
-        {anchorStickyWeekNav ? (
-          <FinderAvailabilityStickyWeekHeader />
-        ) : (
-          <div className="overflow-hidden border-b border-ink-100 bg-ink-50 opacity-50">
-            <div className={finderAvailabilityWeekTrackClassName}>
-              {previewCalendar.map((day) => (
-                <FinderAvailabilityDayHeaderCell key={day.dateKey} day={day} />
-              ))}
-            </div>
+        <FinderAvailabilityWeekControls />
+        <div className="overflow-hidden border-b border-ink-100 bg-ink-50 opacity-50">
+          <div className={finderAvailabilityWeekTrackClassName}>
+            {previewCalendar.map((day) => (
+              <FinderAvailabilityDayHeaderCell key={day.dateKey} day={day} />
+            ))}
           </div>
-        )}
+        </div>
         <div className="relative overflow-hidden">
           <div
             className={`${finderAvailabilityWeekTrackClassName} pointer-events-none items-stretch opacity-45 grayscale`}

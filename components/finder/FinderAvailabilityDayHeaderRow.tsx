@@ -26,6 +26,7 @@ export function FinderAvailabilityDayHeaderRow({ days }: Props) {
 
   return (
     <div
+      data-testid="finder-availability-day-header"
       className="grid divide-x divide-ink-100 border-b border-ink-100 bg-ink-50"
       style={{ gridTemplateColumns: `repeat(${days.length}, minmax(0, 1fr))` }}
     >
