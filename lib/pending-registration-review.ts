@@ -3,7 +3,6 @@
 import type {
   DirectoryClaimSource,
   PendingRegistrationOriginKind,
-  PendingTwinCandidate,
 } from "@/lib/pending-registration-origin";
 
 export type PendingRegistrationSpecialty = {
@@ -30,6 +29,8 @@ export type PendingRegistrationReviewItem = {
   email: string | null;
   phone: string | null;
   slug: string | null;
+  /** Slug of the finder listing this registration claims (Claimed origin only). */
+  claimedListingSlug: string | null;
   avatarUrl: string | null;
   languages: string[];
   specialties: PendingRegistrationSpecialty[];
@@ -47,7 +48,6 @@ export type PendingRegistrationReviewItem = {
   originLabel: string;
   originDescription: string;
   claimSource: DirectoryClaimSource | null;
-  twins: PendingTwinCandidate[];
   status: string;
 };
 

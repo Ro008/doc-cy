@@ -6,17 +6,14 @@ import {
   createIntegrationAdmin,
   requireSafeIntegration,
 } from "./helpers/safe-integration";
-import { postPendingRegistrationTwin } from "./helpers/internal-api";
+import { postDoctorVerification } from "./helpers/internal-api";
 
 /**
- * Critical founder flows for pending registration origin:
- * Possible twin absorb/keep both, Unclaimed, Auto-matched, Claimed.
- * Uses DB fixtures + internal API (no live /register UI).
+ * Founder pending registration flows: Claimed/Unclaimed badges, verify+absorb via URL,
+ * and card-link claims that must never mutate the claimed listing before Verify.
  */
 test.describe("Integration: pending registration origin actions", { tag: "@pr-e2e" }, () => {
-  test("classifies twin/unclaimed/auto-match and absorb/keep_both work", async ({
-    request,
-  }) => {
+  test("classifies claimed/unclaimed and verify absorbs from URL", async ({ request }) => {
     const env = requireSafeIntegration({ needsInternalSecret: true });
     const admin = createIntegrationAdmin(env);
     const nonce = `${Date.now()}-${Math.floor(Math.random() * 100000)}`;
@@ -25,18 +22,20 @@ test.describe("Integration: pending registration origin actions", { tag: "@pr-e2
     let authAuto = "";
     let pendingId = "";
     let twinListingId = "";
-    let keepListingId = "";
-    let keepPendingId = "";
-    let authKeep = "";
     let unclaimedId = "";
     let authUnclaimed = "";
     let autoListingId = "";
     let autoRegisteredId = "";
-    let claimedOnlyId = "";
-    let authClaimed = "";
+    let claimedVerifyId = "";
+    let authClaimedVerify = "";
+    let claimVerifyTargetListingId = "";
+    let claimedRejectId = "";
+    let authClaimedReject = "";
+    let claimRejectTargetListingId = "";
+    let registeredBlockerId = "";
+    let authBlocker = "";
 
     const twinName = `Pending Twin ${nonce}`;
-    const keepName = `Keep Twin ${nonce}`;
     const unclaimedName = `Unclaimed Solo ${nonce}`;
     const autoEmail = `auto.match.${nonce}@example.com`;
     const autoName = `Auto Match ${nonce}`;
@@ -52,17 +51,6 @@ test.describe("Integration: pending registration origin actions", { tag: "@pr-e2
         throw new Error(`pending auth: ${createPendingUser.error?.message}`);
       }
       authPending = createPendingUser.data.user.id;
-
-      const createKeepUser = await admin.auth.admin.createUser({
-        email: `keep-twin-${nonce}@integration.test`,
-        password: "StrongPass123!",
-        email_confirm: true,
-        user_metadata: { role: "doctor" },
-      });
-      if (createKeepUser.error || !createKeepUser.data.user?.id) {
-        throw new Error(`keep auth: ${createKeepUser.error?.message}`);
-      }
-      authKeep = createKeepUser.data.user.id;
 
       const createUnclaimedUser = await admin.auth.admin.createUser({
         email: `unclaimed-${nonce}@integration.test`,
@@ -86,16 +74,38 @@ test.describe("Integration: pending registration origin actions", { tag: "@pr-e2
       }
       authAuto = createAutoUser.data.user.id;
 
-      const createClaimedUser = await admin.auth.admin.createUser({
-        email: `claimed-card-${nonce}@integration.test`,
+      const createClaimedVerifyUser = await admin.auth.admin.createUser({
+        email: `claimed-verify-${nonce}@integration.test`,
         password: "StrongPass123!",
         email_confirm: true,
         user_metadata: { role: "doctor" },
       });
-      if (createClaimedUser.error || !createClaimedUser.data.user?.id) {
-        throw new Error(`claimed auth: ${createClaimedUser.error?.message}`);
+      if (createClaimedVerifyUser.error || !createClaimedVerifyUser.data.user?.id) {
+        throw new Error(`claimed verify auth: ${createClaimedVerifyUser.error?.message}`);
       }
-      authClaimed = createClaimedUser.data.user.id;
+      authClaimedVerify = createClaimedVerifyUser.data.user.id;
+
+      const createClaimedRejectUser = await admin.auth.admin.createUser({
+        email: `claimed-reject-${nonce}@integration.test`,
+        password: "StrongPass123!",
+        email_confirm: true,
+        user_metadata: { role: "doctor" },
+      });
+      if (createClaimedRejectUser.error || !createClaimedRejectUser.data.user?.id) {
+        throw new Error(`claimed reject auth: ${createClaimedRejectUser.error?.message}`);
+      }
+      authClaimedReject = createClaimedRejectUser.data.user.id;
+
+      const createBlockerUser = await admin.auth.admin.createUser({
+        email: `registered-blocker-${nonce}@integration.test`,
+        password: "StrongPass123!",
+        email_confirm: true,
+        user_metadata: { role: "doctor" },
+      });
+      if (createBlockerUser.error || !createBlockerUser.data.user?.id) {
+        throw new Error(`blocker auth: ${createBlockerUser.error?.message}`);
+      }
+      authBlocker = createBlockerUser.data.user.id;
 
       const listings = await admin
         .from("professionals")
@@ -106,18 +116,6 @@ test.describe("Integration: pending registration origin actions", { tag: "@pr-e2
             district: "Paphos",
             slug: `pending-twin-listing-${nonce}`,
             address_maps_link: "https://maps.google.com/?q=pending-twin",
-            is_registered: false,
-            has_online_booking: false,
-            finder_visible: true,
-            is_archived: false,
-            is_test_profile: true,
-          },
-          {
-            name: keepName,
-            specialty: "Dentistry",
-            district: "Limassol",
-            slug: `keep-twin-listing-${nonce}`,
-            address_maps_link: "https://maps.google.com/?q=keep-twin",
             is_registered: false,
             has_online_booking: false,
             finder_visible: true,
@@ -137,14 +135,39 @@ test.describe("Integration: pending registration origin actions", { tag: "@pr-e2
             is_archived: false,
             is_test_profile: true,
           },
+          {
+            name: `Claim Verify Target ${nonce}`,
+            specialty: "Dentistry",
+            district: "Limassol",
+            slug: `claim-verify-target-${nonce}`,
+            address_maps_link: "https://maps.google.com/?q=claim-verify-target",
+            is_registered: false,
+            has_online_booking: false,
+            finder_visible: true,
+            is_archived: false,
+            is_test_profile: true,
+          },
+          {
+            name: `Claim Reject Target ${nonce}`,
+            specialty: "Dentistry",
+            district: "Famagusta",
+            slug: `claim-reject-target-${nonce}`,
+            address_maps_link: "https://maps.google.com/?q=claim-reject-target",
+            is_registered: false,
+            has_online_booking: false,
+            finder_visible: true,
+            is_archived: false,
+            is_test_profile: true,
+          },
         ])
         .select("id, name, email, specialty, district, slug");
-      if (listings.error || !listings.data || listings.data.length !== 3) {
+      if (listings.error || !listings.data || listings.data.length !== 4) {
         throw new Error(`listings insert: ${listings.error?.message}`);
       }
       twinListingId = String(listings.data[0].id);
-      keepListingId = String(listings.data[1].id);
-      autoListingId = String(listings.data[2].id);
+      autoListingId = String(listings.data[1].id);
+      claimVerifyTargetListingId = String(listings.data[2].id);
+      claimRejectTargetListingId = String(listings.data[3].id);
 
       const pendingRows = await admin
         .from("professionals")
@@ -161,27 +184,6 @@ test.describe("Integration: pending registration origin actions", { tag: "@pr-e2
             license_file_url: `licenses/integration/${nonce}-twin.pdf`,
             status: "pending",
             slug: `pending-twin-reg-${nonce}`,
-            is_specialty_approved: true,
-            is_registered: true,
-            has_online_booking: true,
-            finder_visible: true,
-            is_archived: false,
-            is_test_profile: true,
-            subscription_tier: "standard",
-            directory_claim_source: null,
-          },
-          {
-            auth_user_id: authKeep,
-            name: keepName,
-            specialty: "Dentistry",
-            district: "Limassol",
-            registration_email: `keep-twin-${nonce}@integration.test`,
-            mobile_number: "+35799222222",
-            languages: ["English"],
-            license_number: `LIC-KEEP-${nonce}`,
-            license_file_url: `licenses/integration/${nonce}-keep.pdf`,
-            status: "pending",
-            slug: `keep-twin-reg-${nonce}`,
             is_specialty_approved: true,
             is_registered: true,
             has_online_booking: true,
@@ -213,17 +215,17 @@ test.describe("Integration: pending registration origin actions", { tag: "@pr-e2
             directory_claim_source: null,
           },
           {
-            auth_user_id: authClaimed,
-            name: `Card Claimed ${nonce}`,
+            auth_user_id: authClaimedVerify,
+            name: `Card Claimed Verify ${nonce}`,
             specialty: "Dentistry",
-            district: "Paphos",
-            registration_email: `claimed-card-${nonce}@integration.test`,
+            district: "Limassol",
+            registration_email: `claimed-verify-${nonce}@integration.test`,
             mobile_number: "+35799444444",
             languages: ["English"],
-            license_number: `LIC-CARD-${nonce}`,
-            license_file_url: `licenses/integration/${nonce}-card.pdf`,
+            license_number: `LIC-CARD-V-${nonce}`,
+            license_file_url: `licenses/integration/${nonce}-card-v.pdf`,
             status: "pending",
-            slug: `card-claimed-reg-${nonce}`,
+            slug: `card-claimed-verify-reg-${nonce}`,
             is_specialty_approved: true,
             is_registered: true,
             has_online_booking: true,
@@ -232,79 +234,70 @@ test.describe("Integration: pending registration origin actions", { tag: "@pr-e2
             is_test_profile: true,
             subscription_tier: "standard",
             directory_claim_source: "card_link",
+            claim_listing_id: claimVerifyTargetListingId,
+          },
+          {
+            auth_user_id: authClaimedReject,
+            name: `Card Claimed Reject ${nonce}`,
+            specialty: "Dentistry",
+            district: "Famagusta",
+            registration_email: `claimed-reject-${nonce}@integration.test`,
+            mobile_number: "+35799777777",
+            languages: ["English"],
+            license_number: `LIC-CARD-R-${nonce}`,
+            license_file_url: `licenses/integration/${nonce}-card-r.pdf`,
+            status: "pending",
+            slug: `card-claimed-reject-reg-${nonce}`,
+            is_specialty_approved: true,
+            is_registered: true,
+            has_online_booking: true,
+            finder_visible: true,
+            is_archived: false,
+            is_test_profile: true,
+            subscription_tier: "standard",
+            directory_claim_source: "card_link",
+            claim_listing_id: claimRejectTargetListingId,
+          },
+          {
+            auth_user_id: authBlocker,
+            name: `Already Registered ${nonce}`,
+            specialty: "Dentistry",
+            district: "Limassol",
+            registration_email: `registered-blocker-${nonce}@integration.test`,
+            mobile_number: "+35799666666",
+            languages: ["English"],
+            license_number: `LIC-BLOCK-${nonce}`,
+            license_file_url: `licenses/integration/${nonce}-block.pdf`,
+            status: "verified",
+            slug: `registered-blocker-${nonce}`,
+            is_specialty_approved: true,
+            is_registered: true,
+            has_online_booking: true,
+            finder_visible: true,
+            is_archived: false,
+            is_test_profile: true,
+            subscription_tier: "standard",
           },
         ])
-        .select("id, name, specialty, district, directory_claim_source");
-      if (pendingRows.error || !pendingRows.data || pendingRows.data.length !== 4) {
+        .select("id, name, specialty, district, directory_claim_source, status");
+      if (pendingRows.error || !pendingRows.data || pendingRows.data.length !== 5) {
         throw new Error(`pending insert: ${pendingRows.error?.message}`);
       }
       pendingId = String(pendingRows.data[0].id);
-      keepPendingId = String(pendingRows.data[1].id);
-      unclaimedId = String(pendingRows.data[2].id);
-      claimedOnlyId = String(pendingRows.data[3].id);
+      unclaimedId = String(pendingRows.data[1].id);
+      claimedVerifyId = String(pendingRows.data[2].id);
+      claimedRejectId = String(pendingRows.data[3].id);
+      registeredBlockerId = String(pendingRows.data[4].id);
 
-      const activeListings = [
-        {
-          id: twinListingId,
-          name: twinName,
-          specialty: "Dentistry",
-          district: "Paphos",
-          slug: `pending-twin-listing-${nonce}`,
-        },
-        {
-          id: keepListingId,
-          name: keepName,
-          specialty: "Dentistry",
-          district: "Limassol",
-          slug: `keep-twin-listing-${nonce}`,
-        },
-        {
-          id: autoListingId,
-          name: autoName,
-          specialty: "Dentistry",
-          district: "Nicosia",
-          slug: `auto-match-listing-${nonce}`,
-        },
-      ];
-
-      const twinOrigin = classifyPendingRegistrationOrigin({
-        claimSource: null,
-        doctor: {
-          doctorId: pendingId,
-          name: twinName,
-          specialty: "Dentistry",
-          district: "Paphos",
-        },
-        unregisteredListings: activeListings,
-      });
-      expect(twinOrigin.kind).toBe("possible_twin");
-      expect(twinOrigin.twins.map((t) => t.id)).toContain(twinListingId);
-
-      const unclaimedOrigin = classifyPendingRegistrationOrigin({
-        claimSource: null,
-        doctor: {
-          doctorId: unclaimedId,
-          name: unclaimedName,
-          specialty: "Cardiology",
-          district: "Larnaca",
-        },
-        unregisteredListings: activeListings,
-      });
-      expect(unclaimedOrigin.kind).toBe("unclaimed_review");
-      expect(unclaimedOrigin.twins).toEqual([]);
-
-      const claimedOrigin = classifyPendingRegistrationOrigin({
-        claimSource: "card_link",
-        doctor: {
-          doctorId: claimedOnlyId,
-          name: `Card Claimed ${nonce}`,
-          specialty: "Dentistry",
-          district: "Paphos",
-        },
-        unregisteredListings: activeListings,
-      });
-      expect(claimedOrigin.kind).toBe("claimed_listing");
-      expect(claimedOrigin.twins).toEqual([]);
+      expect(classifyPendingRegistrationOrigin({ claimSource: null }).kind).toBe(
+        "unclaimed",
+      );
+      expect(
+        classifyPendingRegistrationOrigin({ claimSource: "card_link" }).kind,
+      ).toBe("claimed");
+      expect(
+        classifyPendingRegistrationOrigin({ claimSource: "email" }).kind,
+      ).toBe("unclaimed");
 
       const fuzzy = pickUniqueDirectoryClaim(
         {
@@ -328,6 +321,8 @@ test.describe("Integration: pending registration origin actions", { tag: "@pr-e2
       expect(fuzzy?.id).toBe(autoListingId);
       expect(fuzzy?.reason).toBe("email");
 
+      // Any claim (explicit card_link or fuzzy email match) must NEVER mutate
+      // the claimed listing at signup — it stays live/untouched until Verify.
       const { data: autoRpc, error: autoRpcErr } = await admin.rpc(
         "register_doctor_with_founder_lock",
         {
@@ -339,130 +334,171 @@ test.describe("Integration: pending registration origin actions", { tag: "@pr-e2
           p_languages: ["English"],
           p_license_number: `LIC-AUTO-${nonce}`,
           p_license_file_url: `licenses/integration/${nonce}-auto.pdf`,
-          p_slug: `auto-match-listing-${nonce}`,
+          p_slug: `auto-match-registration-${nonce}`,
           p_is_specialty_approved: true,
-          p_claim_professional_id: autoListingId,
+          p_claim_listing_id: autoListingId,
+          p_directory_claim_source: fuzzy!.reason,
         },
       );
       if (autoRpcErr || !autoRpc?.[0]?.doctor_id) {
         throw new Error(`auto claim RPC: ${autoRpcErr?.message ?? "missing id"}`);
       }
       autoRegisteredId = String(autoRpc[0].doctor_id);
-      expect(autoRegisteredId).toBe(autoListingId);
-
-      const { error: sourceErr } = await admin
-        .from("professionals")
-        .update({
-          directory_claim_source: fuzzy!.reason,
-          district: "Nicosia",
-          status: "pending",
-        })
-        .eq("id", autoRegisteredId);
-      if (sourceErr) throw new Error(`auto claim source: ${sourceErr.message}`);
+      // A fresh row was inserted — the claimed listing is a *different* id.
+      expect(autoRegisteredId).not.toBe(autoListingId);
 
       const { data: autoRow, error: autoRowErr } = await admin
         .from("professionals")
-        .select("id, is_registered, directory_claim_source")
+        .select("id, is_registered, directory_claim_source, claim_listing_id")
         .eq("id", autoRegisteredId)
         .single();
       if (autoRowErr) throw new Error(autoRowErr.message);
       expect(autoRow?.is_registered).toBe(true);
       expect(autoRow?.directory_claim_source).toBe("email");
+      expect(autoRow?.claim_listing_id).toBe(autoListingId);
 
-      const autoOrigin = classifyPendingRegistrationOrigin({
-        claimSource: "email",
-        doctor: {
-          doctorId: autoRegisteredId,
-          name: autoName,
-          specialty: "Dentistry",
-          district: "Nicosia",
-        },
-        unregisteredListings: activeListings.filter((l) => l.id !== autoListingId),
-      });
-      expect(autoOrigin.kind).toBe("auto_matched_listing");
+      // The claimed listing itself is completely untouched.
+      const { data: autoListingRow, error: autoListingErr } = await admin
+        .from("professionals")
+        .select("is_registered, is_archived")
+        .eq("id", autoListingId)
+        .single();
+      if (autoListingErr) throw new Error(autoListingErr.message);
+      expect(autoListingRow?.is_registered).toBe(false);
+      expect(autoListingRow?.is_archived).toBe(false);
 
-      const absorbRes = await postPendingRegistrationTwin(request, env.internalSecret, {
-        registeredId: pendingId,
-        unregisteredId: twinListingId,
-        action: "absorb",
+      const blockedRes = await postDoctorVerification(request, env.internalSecret, {
+        doctorId: pendingId,
+        action: "verify",
+        listingUrl: `https://mydoccy.com/en/registered-blocker-${nonce}`,
       });
-      expect(absorbRes.status()).toBe(200);
+      expect(blockedRes.status()).toBe(400);
+      const blockedBody = (await blockedRes.json()) as { message?: string };
+      expect(blockedBody.message).toMatch(/registered account/i);
+
+      const verifyRes = await postDoctorVerification(request, env.internalSecret, {
+        doctorId: pendingId,
+        action: "verify",
+        listingUrl: `https://mydoccy.com/en/pending-twin-listing-${nonce}`,
+      });
+      expect(verifyRes.status()).toBe(200);
 
       const { data: absorbedListing, error: absorbedErr } = await admin
         .from("professionals")
-        .select("is_archived")
+        .select("is_archived, status")
         .eq("id", twinListingId)
         .single();
       if (absorbedErr) throw new Error(absorbedErr.message);
       expect(absorbedListing?.is_archived).toBe(true);
 
-      const afterAbsorb = classifyPendingRegistrationOrigin({
-        claimSource: null,
-        doctor: {
-          doctorId: pendingId,
-          name: twinName,
-          specialty: "Dentistry",
-          district: "Paphos",
-        },
-        unregisteredListings: activeListings.filter((l) => l.id !== twinListingId),
-      });
-      expect(afterAbsorb.kind).toBe("unclaimed_review");
-
-      const keepRes = await postPendingRegistrationTwin(request, env.internalSecret, {
-        registeredId: keepPendingId,
-        unregisteredId: keepListingId,
-        action: "keep_both",
-      });
-      expect(keepRes.status()).toBe(200);
-
-      const { data: keepSuggestion, error: keepSugErr } = await admin
-        .from("directory_duplicate_suggestions")
-        .select("status")
-        .eq("manual_id", keepListingId)
-        .eq("doctor_id", keepPendingId)
-        .maybeSingle();
-      if (keepSugErr) throw new Error(keepSugErr.message);
-      expect(keepSuggestion?.status).toBe("dismissed");
-
-      const { data: keepListing, error: keepListErr } = await admin
+      const { data: verifiedPending, error: verifiedErr } = await admin
         .from("professionals")
-        .select("is_archived, is_registered")
-        .eq("id", keepListingId)
+        .select("status")
+        .eq("id", pendingId)
         .single();
-      if (keepListErr) throw new Error(keepListErr.message);
-      expect(keepListing?.is_archived).toBe(false);
-      expect(keepListing?.is_registered).toBe(false);
+      if (verifiedErr) throw new Error(verifiedErr.message);
+      expect(verifiedPending?.status).toBe("verified");
 
-      const afterKeep = classifyPendingRegistrationOrigin({
-        claimSource: null,
-        doctor: {
-          doctorId: keepPendingId,
-          name: keepName,
-          specialty: "Dentistry",
-          district: "Limassol",
-        },
-        unregisteredListings: activeListings.filter((l) => l.id !== twinListingId),
-        dismissedUnregisteredIds: new Set([keepListingId]),
+      // Verifying a card-link claim absorbs the claimed listing (same RPC as
+      // manual URL absorb) using the stored claim_listing_id — no listingUrl
+      // needed from the founder.
+      const verifyClaimedRes = await postDoctorVerification(request, env.internalSecret, {
+        doctorId: claimedVerifyId,
+        action: "verify",
       });
-      expect(afterKeep.kind).toBe("unclaimed_review");
-      expect(afterKeep.twins).toEqual([]);
+      expect(verifyClaimedRes.status()).toBe(200);
+
+      const { data: verifiedClaimedRow, error: verifiedClaimedErr } = await admin
+        .from("professionals")
+        .select("status")
+        .eq("id", claimedVerifyId)
+        .single();
+      if (verifiedClaimedErr) throw new Error(verifiedClaimedErr.message);
+      expect(verifiedClaimedRow?.status).toBe("verified");
+
+      const { data: absorbedClaimTarget, error: absorbedClaimTargetErr } = await admin
+        .from("professionals")
+        .select("is_archived")
+        .eq("id", claimVerifyTargetListingId)
+        .single();
+      if (absorbedClaimTargetErr) throw new Error(absorbedClaimTargetErr.message);
+      expect(absorbedClaimTarget?.is_archived).toBe(true);
+
+      // Rejecting a card-link claim must NOT touch the claimed listing at all
+      // (it was never mutated in the first place) — just close the pending
+      // application, exactly like an Unclaimed reject.
+      const rejectClaimedRes = await postDoctorVerification(request, env.internalSecret, {
+        doctorId: claimedRejectId,
+        action: "reject",
+      });
+      expect(rejectClaimedRes.status()).toBe(200);
+      const rejectClaimedBody = (await rejectClaimedRes.json()) as { status?: string };
+      expect(rejectClaimedBody.status).toBe("rejected");
+
+      const { data: rejectedClaimedRow, error: rejectedClaimedErr } = await admin
+        .from("professionals")
+        .select("is_registered, status")
+        .eq("id", claimedRejectId)
+        .single();
+      if (rejectedClaimedErr) throw new Error(rejectedClaimedErr.message);
+      expect(rejectedClaimedRow?.is_registered).toBe(true);
+      expect(rejectedClaimedRow?.status).toBe("rejected");
+
+      const { data: untouchedClaimTarget, error: untouchedClaimTargetErr } = await admin
+        .from("professionals")
+        .select("is_registered, is_archived, slug, name")
+        .eq("id", claimRejectTargetListingId)
+        .single();
+      if (untouchedClaimTargetErr) throw new Error(untouchedClaimTargetErr.message);
+      expect(untouchedClaimTarget?.is_registered).toBe(false);
+      expect(untouchedClaimTarget?.is_archived).toBe(false);
+      expect(untouchedClaimTarget?.slug).toBe(`claim-reject-target-${nonce}`);
+      expect(untouchedClaimTarget?.name).toBe(`Claim Reject Target ${nonce}`);
+
+      // Rejecting an unclaimed registration keeps the existing behavior:
+      // just close the application, nothing to revert in the finder.
+      const rejectUnclaimedRes = await postDoctorVerification(request, env.internalSecret, {
+        doctorId: unclaimedId,
+        action: "reject",
+      });
+      expect(rejectUnclaimedRes.status()).toBe(200);
+      const rejectUnclaimedBody = (await rejectUnclaimedRes.json()) as { status?: string };
+      expect(rejectUnclaimedBody.status).toBe("rejected");
+
+      const { data: rejectedUnclaimedRow, error: rejectedUnclaimedErr } = await admin
+        .from("professionals")
+        .select("is_registered, status")
+        .eq("id", unclaimedId)
+        .single();
+      if (rejectedUnclaimedErr) throw new Error(rejectedUnclaimedErr.message);
+      expect(rejectedUnclaimedRow?.is_registered).toBe(true);
+      expect(rejectedUnclaimedRow?.status).toBe("rejected");
     } finally {
       const ids = [
         twinListingId,
-        keepListingId,
         autoListingId,
         autoRegisteredId,
         pendingId,
-        keepPendingId,
         unclaimedId,
-        claimedOnlyId,
+        claimedVerifyId,
+        claimVerifyTargetListingId,
+        claimedRejectId,
+        claimRejectTargetListingId,
+        registeredBlockerId,
       ].filter(Boolean);
       for (const id of Array.from(new Set(ids))) {
         await admin.from("directory_duplicate_suggestions").delete().eq("manual_id", id);
         await admin.from("directory_duplicate_suggestions").delete().eq("doctor_id", id);
         await admin.from("professionals").delete().eq("id", id);
       }
-      for (const authId of [authPending, authKeep, authUnclaimed, authAuto, authClaimed]) {
+      for (const authId of [
+        authPending,
+        authUnclaimed,
+        authAuto,
+        authClaimedVerify,
+        authClaimedReject,
+        authBlocker,
+      ]) {
         if (authId) await admin.auth.admin.deleteUser(authId);
       }
     }

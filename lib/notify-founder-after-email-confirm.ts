@@ -2,7 +2,6 @@ import { createServiceRoleClient } from "@/lib/supabase-service";
 import { notifyFounderNewRegistration } from "@/lib/notify-founder-new-registration";
 import { professionalAccountEmail } from "@/lib/professional-account-contact";
 import { stripPlusCodePrefix } from "@/lib/clinic-location-pin";
-import { fetchAllSupabaseRows } from "@/lib/supabase-fetch-all";
 import {
   classifyPendingRegistrationOrigin,
   parseDirectoryClaimSource,
@@ -148,59 +147,7 @@ export async function notifyFounderAfterRegisterEmailConfirm(
   }
 
   const claimSource = parseDirectoryClaimSource(row.directory_claim_source);
-  let dismissedUnregisteredIds = new Set<string>();
-  let unregisteredListings: {
-    id: string;
-    name: string;
-    specialty: string | null;
-    district: string | null;
-    slug: string | null;
-  }[] = [];
-
-  if (!claimSource) {
-    const [manualRes, dismissedRes] = await Promise.all([
-      fetchAllSupabaseRows(() =>
-        service
-          .from("professionals")
-          .select("id, name, specialty, district, slug")
-          .eq("is_archived", false)
-          .eq("is_registered", false),
-      ),
-      service
-        .from("directory_duplicate_suggestions")
-        .select("manual_id")
-        .eq("doctor_id", row.id)
-        .eq("status", "dismissed"),
-    ]);
-    if (!manualRes.error && manualRes.data) {
-      unregisteredListings = manualRes.data.map((m) => ({
-        id: String((m as { id: string }).id),
-        name: String((m as { name?: string | null }).name ?? ""),
-        specialty: ((m as { specialty?: string | null }).specialty ?? null) as string | null,
-        district: ((m as { district?: string | null }).district ?? null) as string | null,
-        slug: String((m as { slug?: string | null }).slug ?? "").trim() || null,
-      }));
-    }
-    if (!dismissedRes.error) {
-      dismissedUnregisteredIds = new Set(
-        (dismissedRes.data ?? [])
-          .map((d) => String((d as { manual_id?: string }).manual_id ?? "").trim())
-          .filter(Boolean),
-      );
-    }
-  }
-
-  const origin = classifyPendingRegistrationOrigin({
-    claimSource,
-    doctor: {
-      doctorId: row.id,
-      name: String(row.name ?? "").trim() || "Professional",
-      specialty: String(row.specialty ?? "").trim() || null,
-      district: String(row.district ?? "").trim() || null,
-    },
-    unregisteredListings,
-    dismissedUnregisteredIds,
-  });
+  const origin = classifyPendingRegistrationOrigin({ claimSource });
 
   await notifyFounderNewRegistration({
     doctorId: row.id,
@@ -211,8 +158,7 @@ export async function notifyFounderAfterRegisterEmailConfirm(
     specialty: String(row.specialty ?? "").trim() || "—",
     primaryLicenseNumber: String(row.license_number ?? "").trim() || null,
     needsSpecialtyReview: row.is_specialty_approved === false,
-    claimedDirectory:
-      origin.kind === "claimed_listing" || origin.kind === "auto_matched_listing",
+    claimedDirectory: origin.kind === "claimed",
     originKind: origin.kind,
     originLabel: origin.label,
     languages,
