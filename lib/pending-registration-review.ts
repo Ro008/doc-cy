@@ -102,7 +102,7 @@ export function formatPendingRegistrationNotifyLines(
 
   const originNote =
     item.originLabel?.trim() ||
-    (item.fromDirectoryListing ? "Claimed listing" : null);
+    (item.fromDirectoryListing ? "Claimed" : null);
 
   return [
     `Name: ${item.name}`,
