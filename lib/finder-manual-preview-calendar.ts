@@ -7,7 +7,7 @@ import type {
 } from "@/lib/public/compute-public-booking-slots";
 import { FINDER_AVAILABILITY_VISIBLE_DAY_COUNT } from "@/lib/public/compute-public-booking-slots";
 
-export const MANUAL_PREVIEW_SLOTS_PER_DAY = 4;
+export const MANUAL_PREVIEW_SLOTS_PER_DAY = 3;
 /** At least this many fake slots land in the first visible week strip. */
 export const MANUAL_PREVIEW_MIN_FIRST_WINDOW_SLOTS = 2;
 

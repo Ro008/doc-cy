@@ -14,16 +14,23 @@ import {
 } from "@/lib/public/compute-public-booking-slots";
 import { snapWindowStartToDayIndex } from "@/lib/public/finder-availability-week-window";
 
+export type FinderExpandedSlot = { id: string; revealedCount: number };
+
 type FinderAvailabilityWeekContextValue = {
   dayHeaders: FinderAvailabilityDayHeader[];
   windowStart: number;
   visibleDayCount: number;
   visibleDays: FinderAvailabilityDayHeader[];
+  /** Which way the window last moved — drives the page-in animation direction. */
+  direction: "forward" | "backward";
   canGoPrevious: boolean;
   canGoNext: boolean;
   goToPreviousWeek: () => void;
   goToNextWeek: () => void;
   goToWeekContainingDayIndex: (dayIndex: number) => void;
+  /** Page-wide: only one day, on one card, can be expanded past its default slot count at a time. */
+  expandedSlot: FinderExpandedSlot | null;
+  setExpandedSlot: (next: FinderExpandedSlot | null) => void;
 };
 
 const FinderAvailabilityWeekContext = React.createContext<FinderAvailabilityWeekContextValue | null>(
@@ -48,6 +55,8 @@ function FinderAvailabilityWeekProvider({ dayHeaders, children }: ProviderProps)
   const weekStep = FINDER_AVAILABILITY_VISIBLE_DAY_COUNT;
   const maxWindowStart = Math.max(0, dayHeaders.length - visibleDayCount);
   const [windowStart, setWindowStart] = React.useState(0);
+  const [direction, setDirection] = React.useState<"forward" | "backward">("forward");
+  const [expandedSlot, setExpandedSlot] = React.useState<FinderExpandedSlot | null>(null);
 
   React.useEffect(() => {
     setWindowStart((current) => Math.min(current, maxWindowStart));
@@ -60,15 +69,29 @@ function FinderAvailabilityWeekProvider({ dayHeaders, children }: ProviderProps)
       windowStart,
       visibleDayCount,
       visibleDays,
+      direction,
       canGoPrevious: windowStart > 0,
       canGoNext: windowStart < maxWindowStart,
-      goToPreviousWeek: () => setWindowStart((current) => Math.max(0, current - weekStep)),
-      goToNextWeek: () =>
-        setWindowStart((current) => Math.min(maxWindowStart, current + weekStep)),
-      goToWeekContainingDayIndex: (dayIndex: number) =>
-        setWindowStart(snapWindowStartToDayIndex(dayIndex, weekStep, maxWindowStart)),
+      goToPreviousWeek: () => {
+        setDirection("backward");
+        setWindowStart((current) => Math.max(0, current - weekStep));
+      },
+      goToNextWeek: () => {
+        setDirection("forward");
+        setWindowStart((current) => Math.min(maxWindowStart, current + weekStep));
+      },
+      goToWeekContainingDayIndex: (dayIndex: number) => {
+        const target = snapWindowStartToDayIndex(dayIndex, weekStep, maxWindowStart);
+        setDirection((current) => {
+          if (target === windowStart) return current;
+          return target > windowStart ? "forward" : "backward";
+        });
+        setWindowStart(target);
+      },
+      expandedSlot,
+      setExpandedSlot,
     };
-  }, [dayHeaders, maxWindowStart, visibleDayCount, weekStep, windowStart]);
+  }, [dayHeaders, direction, expandedSlot, maxWindowStart, visibleDayCount, weekStep, windowStart]);
 
   return (
     <FinderAvailabilityWeekContext.Provider value={value}>
@@ -77,31 +100,23 @@ function FinderAvailabilityWeekProvider({ dayHeaders, children }: ProviderProps)
   );
 }
 
-export function FinderAvailabilityWeekControls() {
-  const { canGoPrevious, canGoNext, goToPreviousWeek, goToNextWeek } =
-    useFinderAvailabilityWeek();
+/** A single day-paging arrow, sized to sit flush beside the day-header row instead of its own bar. */
+export function FinderAvailabilityDayArrowButton({ direction }: { direction: "prev" | "next" }) {
+  const { canGoPrevious, canGoNext, goToPreviousWeek, goToNextWeek } = useFinderAvailabilityWeek();
+  const isPrev = direction === "prev";
 
   return (
-    <div className="flex items-center justify-between border-b border-ink-100 bg-white px-2 py-1">
-      <button
-        type="button"
-        aria-label="Show previous week"
-        disabled={!canGoPrevious}
-        onClick={goToPreviousWeek}
-        className="flex h-7 w-7 items-center justify-center rounded-md text-ink-500 transition hover:bg-ink-50 hover:text-clinical-600 disabled:cursor-not-allowed disabled:opacity-30"
-      >
-        <ChevronLeft className="h-4 w-4" aria-hidden />
-      </button>
-      <button
-        type="button"
-        aria-label="Show next week"
-        disabled={!canGoNext}
-        onClick={goToNextWeek}
-        className="flex h-7 w-7 items-center justify-center rounded-md text-ink-500 transition hover:bg-ink-50 hover:text-clinical-600 disabled:cursor-not-allowed disabled:opacity-30"
-      >
-        <ChevronRight className="h-4 w-4" aria-hidden />
-      </button>
-    </div>
+    <button
+      type="button"
+      aria-label={isPrev ? "Show previous days" : "Show next days"}
+      disabled={isPrev ? !canGoPrevious : !canGoNext}
+      onClick={isPrev ? goToPreviousWeek : goToNextWeek}
+      className={`flex w-9 shrink-0 items-center justify-center self-stretch bg-ink-50 text-ink-500 transition hover:bg-clinical-100 hover:text-clinical-700 disabled:cursor-not-allowed disabled:opacity-30 ${
+        isPrev ? "border-r" : "border-l"
+      } border-ink-100`}
+    >
+      {isPrev ? <ChevronLeft className="h-5 w-5" aria-hidden /> : <ChevronRight className="h-5 w-5" aria-hidden />}
+    </button>
   );
 }
 

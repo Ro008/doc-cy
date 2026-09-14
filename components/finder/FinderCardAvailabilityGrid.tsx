@@ -6,7 +6,7 @@ import { FinderAvailabilityDayHeaderRow } from "@/components/finder/FinderAvaila
 import { FinderAvailabilityDaySlotGrid } from "@/components/finder/FinderAvailabilityDaySlotGrid";
 import { finderAvailabilitySlotClassName } from "@/components/finder/finder-availability-layout";
 import {
-  FinderAvailabilityWeekControls,
+  FinderAvailabilityDayArrowButton,
   useFinderAvailabilityWeek,
 } from "@/components/finder/FinderResultsAvailabilityShell";
 import { buildDoctorBookingHref } from "@/lib/booking-slot-param";
@@ -25,7 +25,8 @@ export function FinderCardAvailabilityGrid({
   profileSlug,
   locationId = null,
 }: Props) {
-  const { windowStart, visibleDayCount, goToWeekContainingDayIndex } = useFinderAvailabilityWeek();
+  const { windowStart, visibleDayCount, direction, goToWeekContainingDayIndex } =
+    useFinderAvailabilityWeek();
   const weekState = computeFinderCardAvailabilityWeekState(calendar.days, windowStart, visibleDayCount);
 
   if (weekState.kind === "no-availability-in-window") {
@@ -48,31 +49,43 @@ export function FinderCardAvailabilityGrid({
 
   return (
     <div data-testid="finder-card-calendar-preview">
-      <div className="overflow-hidden rounded-lg border border-ink-200 bg-white">
-        <FinderAvailabilityWeekControls />
-        <FinderAvailabilityDayHeaderRow days={visibleCalendarDays} />
-        {weekState.kind === "no-slots-this-week" ? (
-          <FinderCardNoSlotsThisWeek
-            nextAvailableDayIndex={weekState.nextAvailableDayIndex}
-            nextAvailableDateLabel={weekState.nextAvailableDateLabel}
-            onGoToNextAvailableWeek={goToWeekContainingDayIndex}
-          />
-        ) : (
-          <FinderAvailabilityDaySlotGrid
-            days={visibleCalendarDays}
-            resetKey={`${profileSlug}:${locationId ?? "primary"}:${windowStart}`}
-            renderSlot={(slot, day) => (
-              <PendingLink
-                href={buildDoctorBookingHref(profileSlug, slot.slotKey, locationId)}
-                navigationReason="profile"
-                className={finderAvailabilitySlotClassName}
-                aria-label={`Book ${day.weekdayLabel} ${day.dateLabel} at ${slot.timeLabel}`}
-              >
-                <span className="whitespace-nowrap tabular-nums">{slot.timeLabel}</span>
-              </PendingLink>
+      <div className="flex items-stretch overflow-hidden rounded-lg border border-ink-200 bg-white">
+        <FinderAvailabilityDayArrowButton direction="prev" />
+        <div className="min-w-0 flex-1">
+          <div
+            key={windowStart}
+            className={`motion-reduce:animate-none ${
+              direction === "backward"
+                ? "animate-[finder-availability-page-in-backward_260ms_ease-out]"
+                : "animate-[finder-availability-page-in-forward_260ms_ease-out]"
+            }`}
+          >
+            <FinderAvailabilityDayHeaderRow days={visibleCalendarDays} />
+            {weekState.kind === "no-slots-this-week" ? (
+              <FinderCardNoSlotsThisWeek
+                nextAvailableDayIndex={weekState.nextAvailableDayIndex}
+                nextAvailableDateLabel={weekState.nextAvailableDateLabel}
+                onGoToNextAvailableWeek={goToWeekContainingDayIndex}
+              />
+            ) : (
+              <FinderAvailabilityDaySlotGrid
+                days={visibleCalendarDays}
+                resetKey={`${profileSlug}:${locationId ?? "primary"}:${windowStart}`}
+                renderSlot={(slot, day) => (
+                  <PendingLink
+                    href={buildDoctorBookingHref(profileSlug, slot.slotKey, locationId)}
+                    navigationReason="profile"
+                    className={finderAvailabilitySlotClassName}
+                    aria-label={`Book ${day.weekdayLabel} ${day.dateLabel} at ${slot.timeLabel}`}
+                  >
+                    <span className="whitespace-nowrap tabular-nums">{slot.timeLabel}</span>
+                  </PendingLink>
+                )}
+              />
             )}
-          />
-        )}
+          </div>
+        </div>
+        <FinderAvailabilityDayArrowButton direction="next" />
       </div>
     </div>
   );

@@ -48,7 +48,11 @@ export function computeFinderCardAvailabilityWeekState(
   };
 }
 
-/** Snaps a day index to the start of the 5-day "page" that contains it. */
+/**
+ * Snaps a day index to the start of the fixed-size "page" that contains it.
+ * Pages always roll forward from day 0 (today), so every page — including
+ * the first — is a full `weekStep`-day stretch of never-in-the-past days.
+ */
 export function snapWindowStartToDayIndex(
   dayIndex: number,
   weekStep: number,
