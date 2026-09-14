@@ -1237,14 +1237,6 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
   const registeredAvailabilityKey = finderAvailabilityRequestKey(
     visibleRegistered.map((item) => item.row.id),
   );
-  const showFinderAvailabilityWeekNav =
-    visibleRegistered.some((item) => Boolean(item.row.slug)) || visibleManual.length > 0;
-  const stickyWeekAnchorDoctorId = showFinderAvailabilityWeekNav
-    ? visibleResults.find((item) => {
-        if (item.kind === "registered") return Boolean(item.row.slug);
-        return true;
-      })?.row.id ?? null
-    : null;
   const finderAvailabilityDayHeaders = buildFinderAvailabilityDayHeaders();
   const hasActiveFilters = Boolean(
     activeDistrict || activeSpecialty || activeName || activeTown || userCoords,
@@ -1458,7 +1450,6 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
                               profileSlug={row.slug ?? ""}
                               doctorIdsKey={registeredAvailabilityKey}
                               clinicAddress={row.clinic_address}
-                              anchorStickyWeekNav={row.id === stickyWeekAnchorDoctorId}
                             />
                           </Suspense>
                         ) : (
@@ -1559,7 +1550,6 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
                         listing={row}
                         dayHeaders={finderAvailabilityDayHeaders}
                         callToBookSource="finder_card"
-                        anchorStickyWeekNav={row.id === stickyWeekAnchorDoctorId}
                       />
                     </div>
                     </div>

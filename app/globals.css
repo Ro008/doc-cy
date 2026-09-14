@@ -27,6 +27,32 @@ html {
   }
 }
 
+/* Registered-doctor calendar cards render only the visible day slice server-side,
+   so paging swaps that slice outright; this slide reads clearly as motion in a
+   direction rather than a jump cut. Opacity barely moves — it's there to soften
+   the leading edge, not to read as a fade. */
+@keyframes finder-availability-page-in-forward {
+  from {
+    opacity: 0.6;
+    transform: translateX(22px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes finder-availability-page-in-backward {
+  from {
+    opacity: 0.6;
+    transform: translateX(-22px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
 /* Guest header hamburger: blinds / roller-shade open and close. */
 .public-guest-menu-blind {
   display: grid;
