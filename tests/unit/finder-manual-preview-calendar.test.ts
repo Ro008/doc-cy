@@ -4,13 +4,17 @@ import {
   buildManualPreviewCalendar,
   isManualPreviewSlotInFuture,
 } from "../../lib/finder-manual-preview-calendar";
-import type { FinderAvailabilityDayHeader } from "../../lib/public/compute-public-booking-slots";
+import {
+  FINDER_AVAILABILITY_VISIBLE_DAY_COUNT,
+  type FinderAvailabilityDayHeader,
+} from "../../lib/public/compute-public-booking-slots";
 
 function headersFor(dateKeys: string[]): FinderAvailabilityDayHeader[] {
-  return dateKeys.map((dateKey) => ({
+  return dateKeys.map((dateKey, index) => ({
     dateKey,
     weekdayLabel: "MON",
     dateLabel: "1 Jan",
+    isToday: index === 0,
   }));
 }
 
@@ -73,7 +77,7 @@ describe("buildManualPreviewCalendar", () => {
     for (let i = 0; i < 40; i += 1) {
       const calendar = buildManualPreviewCalendar(headers, `listing-seed-${i}`, now);
       const firstWindowSlots = calendar
-        .slice(0, 5)
+        .slice(0, FINDER_AVAILABILITY_VISIBLE_DAY_COUNT)
         .reduce((sum, day) => sum + day.slots.length, 0);
       assert.ok(
         firstWindowSlots >= 2,

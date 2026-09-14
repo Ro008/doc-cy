@@ -66,7 +66,7 @@ describe("finder multi-location layout", () => {
     assert.equal(manual.includes("FinderMultiLocationAvailability"), true);
   });
 
-  it("lets the card grow from the identity column and slot expansion", () => {
+  it("keeps a fixed slot-grid height (scrolls, doesn't grow) while the identity column can still grow", () => {
     const tokens = fs.readFileSync(
       path.join(repoRoot, "components/finder/finder-availability-layout.ts"),
       "utf8",
@@ -87,7 +87,7 @@ describe("finder multi-location layout", () => {
     assert.equal(tokens.includes("sm:items-start"), true);
     assert.equal(tokens.includes("sm:items-stretch"), false);
     assert.equal(tokens.includes("grid items-start gap-5"), true);
-    assert.equal(slotGrid.includes("transition-[grid-template-rows]"), true);
+    assert.equal(slotGrid.includes("overflow-y-auto"), true);
     assert.equal(slotGrid.includes("flex-1"), false);
     assert.equal(registeredGrid.includes("overflow-hidden rounded-lg"), true);
     assert.equal(surface.includes("h-auto overflow-visible"), true);

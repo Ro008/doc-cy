@@ -8,7 +8,7 @@ import { normalizeMinimumNoticeHours } from "@/lib/doctor-settings";
 export const FINDER_CALENDAR_PREVIEW_SLOT_COUNT = 3;
 export const FINDER_AVAILABILITY_CALENDAR_DAY_COUNT = 90;
 export const FINDER_AVAILABILITY_VISIBLE_DAY_COUNT = 5;
-export const FINDER_AVAILABILITY_MAX_SLOTS_PER_DAY = 4;
+export const FINDER_AVAILABILITY_MAX_SLOTS_PER_DAY = 3;
 
 export type PublicNextAvailableSlot = {
   slotKey: string;
@@ -26,12 +26,14 @@ export type PublicAvailabilityDay = {
   dateKey: string;
   weekdayLabel: string;
   dateLabel: string;
+  /** True for the first day in the calendar (today, Cyprus wall clock) — shown as "TODAY" instead of its weekday. */
+  isToday: boolean;
   slots: PublicAvailabilitySlot[];
 };
 
 export type FinderAvailabilityDayHeader = Pick<
   PublicAvailabilityDay,
-  "dateKey" | "weekdayLabel" | "dateLabel"
+  "dateKey" | "weekdayLabel" | "dateLabel" | "isToday"
 >;
 
 /** Shared day columns for finder sticky nav (Cyprus wall clock, no doctor settings). */
@@ -50,6 +52,7 @@ export function buildFinderAvailabilityDayHeaders(
       dateKey: format(cyprusDay, "yyyy-MM-dd"),
       weekdayLabel: format(cyprusDay, "EEE", { locale: enGB }).toUpperCase(),
       dateLabel: format(cyprusDay, "d MMM", { locale: enGB }),
+      isToday: offset === 0,
     });
   }
 
@@ -227,6 +230,7 @@ export function computePublicAvailabilityCalendar(
       dateKey,
       weekdayLabel: format(cyprusDay, "EEE", { locale: enGB }).toUpperCase(),
       dateLabel: format(cyprusDay, "d MMM", { locale: enGB }),
+      isToday: offset === 0,
       slots,
     });
 

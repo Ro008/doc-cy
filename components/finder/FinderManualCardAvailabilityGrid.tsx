@@ -82,7 +82,7 @@ export function FinderManualCardAvailabilityGrid({
           >
             {previewCalendar.map((day) => (
               <div key={day.dateKey} className="flex min-w-0 flex-col">
-                <div className="flex min-h-[10rem] flex-1 flex-col gap-1 p-1.5">
+                <div className="flex min-h-[10rem] flex-1 flex-col gap-1 px-1 py-1.5">
                   {day.slots.map((slot) => (
                     <span
                       key={slot.slotKey}

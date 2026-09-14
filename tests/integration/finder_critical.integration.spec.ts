@@ -611,8 +611,8 @@ test.describe("Integration: finder business-critical UX", { tag: ["@pr-e2e", "@p
       await expect(cardB).toBeVisible({ timeout: 20000 });
 
       // No shared "anchor" card anymore -- both cards carry their own arrows.
-      const nextButtonA = cardA.getByRole("button", { name: /Show next week/i });
-      const nextButtonB = cardB.getByRole("button", { name: /Show next week/i });
+      const nextButtonA = cardA.getByRole("button", { name: /Show next days/i });
+      const nextButtonB = cardB.getByRole("button", { name: /Show next days/i });
       await expect(nextButtonA).toBeVisible({ timeout: 20_000 });
       await expect(nextButtonB).toBeVisible({ timeout: 20_000 });
 
