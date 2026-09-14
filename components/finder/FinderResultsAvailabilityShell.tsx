@@ -120,34 +120,6 @@ export function FinderAvailabilityDayArrowButton({ direction }: { direction: "pr
   );
 }
 
-export function FinderAvailabilityWeekControls() {
-  const { canGoPrevious, canGoNext, goToPreviousWeek, goToNextWeek } =
-    useFinderAvailabilityWeek();
-
-  return (
-    <div className="flex items-center justify-between border-b border-ink-100 bg-white px-1 py-0.5">
-      <button
-        type="button"
-        aria-label="Show previous days"
-        disabled={!canGoPrevious}
-        onClick={goToPreviousWeek}
-        className="flex h-11 w-11 items-center justify-center rounded-md text-ink-500 transition hover:bg-ink-50 hover:text-clinical-600 disabled:cursor-not-allowed disabled:opacity-30"
-      >
-        <ChevronLeft className="h-5 w-5" aria-hidden />
-      </button>
-      <button
-        type="button"
-        aria-label="Show next days"
-        disabled={!canGoNext}
-        onClick={goToNextWeek}
-        className="flex h-11 w-11 items-center justify-center rounded-md text-ink-500 transition hover:bg-ink-50 hover:text-clinical-600 disabled:cursor-not-allowed disabled:opacity-30"
-      >
-        <ChevronRight className="h-5 w-5" aria-hidden />
-      </button>
-    </div>
-  );
-}
-
 type ShellProps = {
   dayHeaders: FinderAvailabilityDayHeader[];
   children: React.ReactNode;
