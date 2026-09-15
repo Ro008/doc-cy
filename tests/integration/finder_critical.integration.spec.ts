@@ -562,7 +562,10 @@ test.describe("Integration: finder business-critical UX", { tag: ["@pr-e2e", "@p
         await nameInput.fill(doctor.name);
         await findButton.click();
         await expect(page).toHaveURL(/name=/, { timeout: 60_000 });
-        await expect(page.getByText(doctor.name, { exact: true })).toBeVisible({ timeout: 60_000 });
+        // Prefer the card link — exact name also appears in the active-filters chip.
+        await expect(page.getByRole("link", { name: doctor.name, exact: true })).toBeVisible({
+          timeout: 60_000,
+        });
       }    } finally {
       for (const doctor of created) {
         await admin.from("professionals").delete().eq("id", doctor.doctorId);
