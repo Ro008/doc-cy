@@ -77,6 +77,7 @@ export const INTEGRATION_TEST_NAME_PREFIXES = [
   "Finder Filter ",
   "Prefix Cleanup ",
   "Register E2E ",
+  "Auto Match ",
   QA_CLAIM_DIRECTORY_NAME_PREFIX,
 ] as const;
 
@@ -95,6 +96,7 @@ export const INTEGRATION_TEST_SLUG_PREFIXES = [
   "qa-prefix-",
   "finder-prefix-",
   "register-e2e-",
+  "auto-match-",
   QA_CLAIM_DIRECTORY_SLUG_PREFIX,
 ] as const;
 

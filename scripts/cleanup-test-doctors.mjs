@@ -13,6 +13,7 @@ const TEST_NAME_PREFIXES = [
   "Finder Filter ",
   "Prefix Cleanup ",
   "Register E2E ",
+  "Auto Match ",
   "QA Claim ",
 ];
 /** Keep in sync with lib/doctor-test-profile.ts INTEGRATION_TEST_SLUG_PREFIXES. */
@@ -27,6 +28,7 @@ const TEST_SLUG_PREFIXES = [
   "qa-prefix-",
   "finder-prefix-",
   "register-e2e-",
+  "auto-match-",
   "qa-claim-",
 ];
 const DEFAULT_PRESERVED_SLUGS = [

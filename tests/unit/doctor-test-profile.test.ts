@@ -69,6 +69,18 @@ describe("isTestProfileLike", () => {
       false,
     );
   });
+
+  it("flags Auto Match integration orphans by name prefix", () => {
+    assert.equal(
+      isTestProfileLike({
+        name: "Auto Match 1789459863391-62419",
+        slug: "auto-match-registration-1789459863391-62419",
+        email: "auto.match.1789459863391-62419@example.com",
+        isTestProfile: false,
+      }),
+      true,
+    );
+  });
 });
 
 describe("isQaClaimDirectoryListing", () => {
