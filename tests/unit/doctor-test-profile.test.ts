@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  isDocCyTestingSupabaseProject,
   isQaClaimDirectoryListing,
   isRegisteredDoctorHiddenFromFinder,
   isTestDoctorRegistrationEmail,
   isTestProfileLike,
+  restrictTestSignupDirectoryClaimsToQaListings,
 } from "@/lib/doctor-test-profile";
 
 describe("isTestProfileLike", () => {
@@ -65,6 +67,39 @@ describe("isTestProfileLike", () => {
         isTestProfile: false,
       }),
       false,
+    );
+  });
+
+  it("flags Auto Match integration orphans by name prefix", () => {
+    assert.equal(
+      isTestProfileLike({
+        name: "Auto Match 1789459863391-62419",
+        slug: "auto-match-registration-1789459863391-62419",
+        email: "auto.match.1789459863391-62419@example.com",
+        isTestProfile: false,
+      }),
+      true,
+    );
+  });
+
+  it("flags claim/pending-registration leftovers by name prefix", () => {
+    assert.equal(
+      isTestProfileLike({
+        name: "Pending Twin 123",
+        slug: "pending-twin-reg-123",
+        email: "x@example.com",
+        isTestProfile: false,
+      }),
+      true,
+    );
+    assert.equal(
+      isTestProfileLike({
+        name: "Card Claimed Verify 123",
+        slug: "card-claimed-verify-reg-123",
+        email: "y@example.com",
+        isTestProfile: false,
+      }),
+      true,
     );
   });
 });
@@ -136,5 +171,33 @@ describe("isRegisteredDoctorHiddenFromFinder", () => {
     } else {
       process.env.NEXT_PUBLIC_DOC_CY_FINDER_INCLUDE_TEST_PROFILES = previous;
     }
+  });
+});
+
+describe("testing vs prod claim restriction", () => {
+  it("detects the testing Supabase project ref", () => {
+    assert.equal(
+      isDocCyTestingSupabaseProject("https://fwinchqdgrkpxuuttech.supabase.co"),
+      true,
+    );
+    assert.equal(
+      isDocCyTestingSupabaseProject("https://oiwlztcduxojadbcxkil.supabase.co"),
+      false,
+    );
+  });
+
+  it("allows test emails to claim real listings only on the testing DB", () => {
+    assert.equal(
+      restrictTestSignupDirectoryClaimsToQaListings(
+        "https://fwinchqdgrkpxuuttech.supabase.co",
+      ),
+      false,
+    );
+    assert.equal(
+      restrictTestSignupDirectoryClaimsToQaListings(
+        "https://oiwlztcduxojadbcxkil.supabase.co",
+      ),
+      true,
+    );
   });
 });

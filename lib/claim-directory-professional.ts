@@ -6,6 +6,7 @@ import { MAX_DOCTOR_SPECIALTIES } from "@/lib/doctor-specialties";
 import {
   isQaClaimDirectoryListing,
   isTestDoctorRegistrationEmail,
+  restrictTestSignupDirectoryClaimsToQaListings,
 } from "@/lib/doctor-test-profile";
 import { escapeIlikePattern } from "@/lib/finder-results-paging";
 import { harmonizeFinderSpecialtyLabel } from "@/lib/finder-specialty-harmonize";
@@ -517,7 +518,8 @@ export async function loadUnregisteredProfessionalForRegisterClaim(
 
 /**
  * Prefer the listing UUID from the card CTA. Fall back to unique email / identity match.
- * Test signup emails may only claim QA clones (`QA Claim …` / `qa-claim-…`), never a real person.
+ * On production, test signup emails may only claim QA clones (`QA Claim …` / `qa-claim-…`).
+ * On the testing database that restriction is off so manual QA can claim real listings.
  */
 export async function resolveSignupDirectoryClaim(
   supabase: SupabaseClient,
@@ -529,7 +531,9 @@ export async function resolveSignupDirectoryClaim(
     specialties: readonly string[];
   },
 ): Promise<DirectoryClaimMatch | null> {
-  const isTestSignup = isTestDoctorRegistrationEmail(input.email);
+  const isTestSignup =
+    isTestDoctorRegistrationEmail(input.email) &&
+    restrictTestSignupDirectoryClaimsToQaListings();
   const explicitId = String(input.explicitClaimId ?? "").trim();
   if (isProfessionalUuid(explicitId)) {
     const listing = await loadUnregisteredProfessionalForRegisterClaim(supabase, explicitId);

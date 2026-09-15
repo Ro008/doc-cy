@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceRoleClient } from "@/lib/supabase-service";
 import { denyUnlessInternalFounder } from "@/lib/internal-directory-auth";
-import { parseProfessionalListingRef } from "@/lib/parse-professional-listing-ref";
+import { resolveUnregisteredListingFromUrl } from "@/lib/resolve-unregistered-listing-from-url";
 
 type Body = {
   registeredId?: string;
@@ -39,54 +39,11 @@ export async function POST(req: NextRequest) {
   }
 
   if (!UUID_RE.test(unregisteredId) && listingUrl) {
-    const ref = parseProfessionalListingRef(listingUrl);
-    if (!ref) {
-      return NextResponse.json(
-        { message: "Could not read a professional slug or id from that URL." },
-        { status: 400 },
-      );
+    const resolved = await resolveUnregisteredListingFromUrl(supabase, listingUrl);
+    if (resolved.ok === false) {
+      return NextResponse.json({ message: resolved.message }, { status: resolved.status });
     }
-    const query = supabase
-      .from("professionals")
-      .select("id, is_archived, is_registered")
-      .eq(ref.kind === "uuid" ? "id" : "slug", ref.value)
-      .maybeSingle();
-    const lookup = await query;
-    if (lookup.error) {
-      console.error("[pending-twin] listing lookup failed", lookup.error);
-      return NextResponse.json({ message: "Could not look up that listing." }, { status: 500 });
-    }
-    const row = lookup.data as
-      | { id?: string; is_archived?: boolean | null; is_registered?: boolean | null }
-      | null;
-    if (!row?.id) {
-      return NextResponse.json(
-        {
-          message:
-            "No finder listing matched that URL. Check the link and try again.",
-        },
-        { status: 404 },
-      );
-    }
-    if (row.is_registered) {
-      return NextResponse.json(
-        {
-          message:
-            "That URL points at a registered account, not an unregistered finder listing.",
-        },
-        { status: 400 },
-      );
-    }
-    if (row.is_archived) {
-      return NextResponse.json(
-        {
-          message:
-            "That finder listing is already archived (often after Absorb). It cannot be linked again.",
-        },
-        { status: 409 },
-      );
-    }
-    unregisteredId = String(row.id);
+    unregisteredId = resolved.listing.id;
   }
 
   if (!UUID_RE.test(unregisteredId)) {

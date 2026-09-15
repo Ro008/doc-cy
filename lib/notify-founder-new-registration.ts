@@ -42,8 +42,8 @@ function resolveOriginKind(
   payload: NewRegistrationNotifyPayload,
 ): PendingRegistrationOriginKind {
   if (payload.originKind) return payload.originKind;
-  if (payload.claimedDirectory) return "claimed_listing";
-  return "unclaimed_review";
+  if (payload.claimedDirectory) return "claimed";
+  return "unclaimed";
 }
 
 /**
@@ -60,13 +60,7 @@ export function buildFounderNewRegistrationNotifyContent(
   const originKind = resolveOriginKind(payload);
   const originLabel =
     payload.originLabel?.trim() ||
-    (originKind === "claimed_listing"
-      ? "Claimed listing"
-      : originKind === "auto_matched_listing"
-        ? "Auto-matched listing"
-        : originKind === "possible_twin"
-          ? "Possible twin"
-          : "Unclaimed — review");
+    (originKind === "claimed" ? "Claimed" : "Unclaimed");
 
   const detailLines = formatPendingRegistrationNotifyLines({
     name: payload.fullName,
@@ -91,8 +85,7 @@ export function buildFounderNewRegistrationNotifyContent(
       placeId: loc.placeId,
       isPrimary: loc.isPrimary,
     })),
-    fromDirectoryListing:
-      originKind === "claimed_listing" || originKind === "auto_matched_listing",
+    fromDirectoryListing: originKind === "claimed",
     originKind,
     originLabel,
     avatarUrl: payload.hasAvatar ? "yes" : null,

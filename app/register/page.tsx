@@ -410,13 +410,13 @@ async function runRegister(formData: FormData) {
     });
   }
 
-  const slug =
-    claim?.slug ||
-    (await allocateUniqueDoctorSlug(service, {
-      name: fullName,
-      district,
-      authUserId,
-    }));
+  // Claims never reuse the claimed listing's slug: that listing stays untouched
+  // (and keeps its own slug/card) until a founder Verifies this registration.
+  const slug = await allocateUniqueDoctorSlug(service, {
+    name: fullName,
+    district,
+    authUserId,
+  });
 
   const avatarPath = `profiles/${authUserId}/avatar-${Date.now()}-${Math.random()
     .toString(36)
@@ -452,13 +452,29 @@ async function runRegister(formData: FormData) {
       p_license_file_url: licenseFileUrl,
       p_slug: slug,
       p_is_specialty_approved: isSpecialtyApproved,
-      ...(claim?.id ? { p_claim_professional_id: claim.id } : {}),
+      ...(claim?.id
+        ? {
+            p_claim_listing_id: claim.id,
+            p_directory_claim_source: claim.reason,
+          }
+        : {}),
     }),
     REGISTER_DB_TIMEOUT_MS,
     "Register doctor RPC",
   );
 
   let doctorId = regRows?.[0]?.doctor_id as string | undefined;
+
+  const cleanupFailedRegistration = async () => {
+    try {
+      if (avatarFileUrl) {
+        await service.storage.from("avatars").remove([avatarFileUrl]);
+      }
+      await service.auth.admin.deleteUser(authUserId);
+    } catch (cleanupError) {
+      console.error("[DocCy] Failed cleanup after registration error", cleanupError);
+    }
+  };
 
   if (insertError || !doctorId) {
     console.error("[DocCy] Failed to register doctor row (RPC)", insertError);
@@ -507,42 +523,32 @@ async function runRegister(formData: FormData) {
       has_online_booking: true,
       finder_visible: true,
       is_archived: false,
+      ...(claim?.id
+        ? { claim_listing_id: claim.id, directory_claim_source: claim.reason }
+        : {}),
     };
 
-    if (claim?.id) {
-      const fallbackClaim = await service
-        .from("professionals")
-        .update(fallbackPayload)
-        .eq("id", claim.id)
-        .eq("is_registered", false)
-        .eq("is_archived", false)
-        .select("id")
-        .maybeSingle();
-      if (!fallbackClaim.error && fallbackClaim.data?.id) {
-        doctorId = fallbackClaim.data.id as string;
+    // Always a plain insert: a claimed listing (claim.id) is never mutated here.
+    // It stays live/untouched in /finder until a founder Verifies this registration
+    // (see app/api/internal/doctors/verification/route.ts, which absorbs it then).
+    const fallbackInsert = await service
+      .from("professionals")
+      .insert(fallbackPayload)
+      .select("id")
+      .single();
+
+    if (fallbackInsert.error || !fallbackInsert.data?.id) {
+      console.error("[DocCy] Failed fallback doctor insert", fallbackInsert.error);
+      try {
+        await service.storage.from("avatars").remove([avatarFileUrl]);
+        await service.auth.admin.deleteUser(authUserId);
+      } catch (cleanupError) {
+        console.error("[DocCy] Failed cleanup after fallback doctor insert error", cleanupError);
       }
+      fail("db", fallbackInsert.error);
     }
 
-    if (!doctorId) {
-      const fallbackInsert = await service
-        .from("professionals")
-        .insert(fallbackPayload)
-        .select("id")
-        .single();
-
-      if (fallbackInsert.error || !fallbackInsert.data?.id) {
-        console.error("[DocCy] Failed fallback doctor insert", fallbackInsert.error);
-        try {
-          await service.storage.from("avatars").remove([avatarFileUrl]);
-          await service.auth.admin.deleteUser(authUserId);
-        } catch (cleanupError) {
-          console.error("[DocCy] Failed cleanup after fallback doctor insert error", cleanupError);
-        }
-        fail("db", fallbackInsert.error);
-      }
-
-      doctorId = fallbackInsert.data.id as string;
-    }
+    doctorId = fallbackInsert.data.id as string;
   }
 
   {
@@ -564,25 +570,10 @@ async function runRegister(formData: FormData) {
     }
   }
 
-  const claimedThisListing = Boolean(claim?.id && doctorId === claim.id && claim.reason);
-
-  const persistDirectoryClaimSource = async () => {
-    if (!claimedThisListing || !claim?.reason || !doctorId) return;
-    const { error: claimSourceError } = await service
-      .from("professionals")
-      .update({ directory_claim_source: claim.reason })
-      .eq("id", doctorId);
-    if (claimSourceError) {
-      console.error(
-        "[DocCy] Failed to persist directory_claim_source (registration continues)",
-        claimSourceError,
-      );
-    }
-  };
+  const claimedThisListing = Boolean(claim?.reason === "card_link" && claim?.id);
 
   const finishRegistrationSuccess = async () => {
     await persistBookingLocations();
-    await persistDirectoryClaimSource();
     await sendRegistrationEmails();
     redirect(claimedThisListing ? "/register?submitted=1&claimed=1" : "/register?submitted=1");
   };
@@ -740,11 +731,10 @@ async function runRegister(formData: FormData) {
     console.error("[DocCy] Failed to save avatar_url on doctor", avatarSaveError);
     try {
       await service.storage.from("avatars").remove([avatarFileUrl]);
-      const claimedThisRow = Boolean(claim?.id && doctorId === claim.id);
-      if (!claimedThisRow) {
-        await service.from("professionals").delete().eq("id", doctorId);
-        await service.auth.admin.deleteUser(authUserId);
-      }
+      // This registration row is always freshly inserted (never a claimed
+      // listing in place), so it's always safe to delete on cleanup.
+      await service.from("professionals").delete().eq("id", doctorId);
+      await service.auth.admin.deleteUser(authUserId);
     } catch (cleanupError) {
       console.error("[DocCy] Failed cleanup after avatar save error", cleanupError);
     }

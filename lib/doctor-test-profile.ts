@@ -43,6 +43,25 @@ export function isTestDoctorRegistrationEmail(email: string | null | undefined):
   return TEST_EMAIL_DOMAIN_PATTERN.test(normalized);
 }
 
+/** DocCy - Testing Supabase project (`fwinchqdgrkpxuuttech`). */
+export const DOC_CY_TESTING_SUPABASE_REF = "fwinchqdgrkpxuuttech";
+
+export function isDocCyTestingSupabaseProject(
+  supabaseUrl: string | null | undefined = process.env.NEXT_PUBLIC_SUPABASE_URL,
+): boolean {
+  return String(supabaseUrl ?? "").includes(DOC_CY_TESTING_SUPABASE_REF);
+}
+
+/**
+ * Prod: test signup emails may only claim QA clones (`QA Claim…` / `qa-claim-…`).
+ * Testing DB: off — founders may claim real directory listings while QA'ing.
+ */
+export function restrictTestSignupDirectoryClaimsToQaListings(
+  supabaseUrl: string | null | undefined = process.env.NEXT_PUBLIC_SUPABASE_URL,
+): boolean {
+  return !isDocCyTestingSupabaseProject(supabaseUrl);
+}
+
 /**
  * Integration Playwright doctors use these name prefixes (see finder_*.integration.spec.ts).
  * Keep in sync with scripts/cleanup-test-doctors.mjs TEST_NAME_PREFIXES.
@@ -58,6 +77,14 @@ export const INTEGRATION_TEST_NAME_PREFIXES = [
   "Finder Filter ",
   "Prefix Cleanup ",
   "Register E2E ",
+  "Auto Match ",
+  // Claim / pending-registration integration leftovers (account lane, parallel with finder).
+  "Pending Twin ",
+  "Unclaimed Solo ",
+  "Card Claimed ",
+  "Already Registered ",
+  "Claim Verify Target ",
+  "Claim Reject Target ",
   QA_CLAIM_DIRECTORY_NAME_PREFIX,
 ] as const;
 
@@ -76,6 +103,13 @@ export const INTEGRATION_TEST_SLUG_PREFIXES = [
   "qa-prefix-",
   "finder-prefix-",
   "register-e2e-",
+  "auto-match-",
+  "pending-twin-",
+  "unclaimed-reg-",
+  "card-claimed-",
+  "registered-blocker-",
+  "claim-verify-target-",
+  "claim-reject-target-",
   QA_CLAIM_DIRECTORY_SLUG_PREFIX,
 ] as const;
 

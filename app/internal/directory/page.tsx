@@ -382,13 +382,9 @@ export default async function FounderDashboardPage({
       license_file_url: r.license_file_url,
       is_specialty_approved: r.is_specialty_approved,
       specialty_requires_standard_at: r.specialty_requires_standard_at,
-      fromDirectoryListing:
-        origin.kind === "claimed_listing" || origin.kind === "auto_matched_listing",
+      fromDirectoryListing: origin.kind === "claimed",
       originKind: origin.kind,
-      originLabel:
-        origin.kind === "claimed_listing" || origin.kind === "auto_matched_listing"
-          ? origin.label
-          : null,
+      originLabel: origin.kind === "claimed" ? origin.label : null,
     };
   });
 
@@ -411,13 +407,9 @@ export default async function FounderDashboardPage({
         license_file_url: r.license_file_url,
         is_specialty_approved: r.is_specialty_approved,
         specialty_requires_standard_at: r.specialty_requires_standard_at,
-        fromDirectoryListing:
-          origin.kind === "claimed_listing" || origin.kind === "auto_matched_listing",
+        fromDirectoryListing: origin.kind === "claimed",
         originKind: origin.kind,
-        originLabel:
-          origin.kind === "claimed_listing" || origin.kind === "auto_matched_listing"
-            ? origin.label
-            : null,
+        originLabel: origin.kind === "claimed" ? origin.label : null,
         email: r.email,
         loginPassword: r.auth_user_id
           ? loginPasswordsByAuthUserId.get(r.auth_user_id) ?? null
@@ -576,9 +568,9 @@ export default async function FounderDashboardPage({
   let pendingRegistrationItems: PendingRegistrationReviewItem[] = [];
   if (pendingRegistrationIds.length > 0) {
     const pendingSelectFull =
-      "id, name, slug, email, registration_email, phone, mobile_number, avatar_url, languages, specialty, license_number, license_file_url, district, town, clinic_address, latitude, longitude, clinic_place_id, created_at, is_specialty_approved, specialty_requires_standard_at, directory_claim_source, status";
+      "id, name, slug, email, registration_email, phone, mobile_number, avatar_url, languages, specialty, license_number, license_file_url, district, town, clinic_address, latitude, longitude, clinic_place_id, created_at, is_specialty_approved, specialty_requires_standard_at, directory_claim_source, claim_listing_id, status";
     const pendingSelectNoMobile =
-      "id, name, slug, email, registration_email, phone, avatar_url, languages, specialty, license_number, license_file_url, district, town, clinic_address, latitude, longitude, clinic_place_id, created_at, is_specialty_approved, specialty_requires_standard_at, directory_claim_source, status";
+      "id, name, slug, email, registration_email, phone, avatar_url, languages, specialty, license_number, license_file_url, district, town, clinic_address, latitude, longitude, clinic_place_id, created_at, is_specialty_approved, specialty_requires_standard_at, directory_claim_source, claim_listing_id, status";
     const pendingSelectLegacy =
       "id, name, slug, email, phone, avatar_url, languages, specialty, license_number, license_file_url, district, clinic_address, latitude, longitude, clinic_place_id, created_at, is_specialty_approved, specialty_requires_standard_at, directory_claim_source, status";
     const pendingSelectNoClaimSource =
@@ -591,7 +583,7 @@ export default async function FounderDashboardPage({
     );
     if (
       pendingFullRes.error &&
-      /directory_claim_source/i.test(String(pendingFullRes.error.message ?? ""))
+      /directory_claim_source|claim_listing_id/i.test(String(pendingFullRes.error.message ?? ""))
     ) {
       pendingFullRes = (await fetchAllSupabaseRowsForIdChunks(
         pendingRegistrationIds,
@@ -713,59 +705,29 @@ export default async function FounderDashboardPage({
       (pendingFullRes.data ?? []).map((row) => [String((row as { id: string }).id), row]),
     );
 
-    const needsTwinScan = pendingRegistrationIds.some((id) => {
-      const raw = pendingById.get(id) as Record<string, unknown> | undefined;
-      return !parseDirectoryClaimSource(
-        raw?.directory_claim_source as string | null | undefined,
+    // Claimed rows (card_link) only store which listing they intend to claim
+    // (claim_listing_id) — that listing is untouched until Verify, so we need
+    // a separate lookup to show its slug/URL in the review panel.
+    const claimListingIds = Array.from(
+      new Set(
+        (pendingFullRes.data ?? [])
+          .map((row) => String((row as { claim_listing_id?: string | null }).claim_listing_id ?? "").trim())
+          .filter(Boolean),
+      ),
+    );
+    const claimedListingSlugById = new Map<string, string | null>();
+    if (claimListingIds.length > 0) {
+      const { data: claimListingRows } = await fetchAllSupabaseRowsForIdChunks(
+        claimListingIds,
+        (chunk) => supabase.from("professionals").select("id, slug").in("id", chunk),
       );
-    });
-
-    let unregisteredListings: {
-      id: string;
-      name: string;
-      specialty: string | null;
-      district: string | null;
-      slug: string | null;
-    }[] = [];
-    const dismissedByDoctor = new Map<string, Set<string>>();
-
-    if (needsTwinScan) {
-      const [manualRes, dismissedRes] = await Promise.all([
-        fetchAllSupabaseRows(() =>
-          supabase
-            .from("professionals")
-            .select("id, name, specialty, district, slug")
-            .eq("is_archived", false)
-            .eq("is_registered", false),
-        ),
-        fetchAllSupabaseRowsForIdChunks(pendingRegistrationIds, (chunk) =>
-          supabase
-            .from("directory_duplicate_suggestions")
-            .select("manual_id, doctor_id")
-            .in("doctor_id", chunk)
-            .eq("status", "dismissed"),
-        ),
-      ]);
-      if (!manualRes.error && manualRes.data) {
-        unregisteredListings = manualRes.data.map((m) => ({
-          id: String((m as { id: string }).id),
-          name: String((m as { name?: string | null }).name ?? ""),
-          specialty: ((m as { specialty?: string | null }).specialty ?? null) as
-            | string
-            | null,
-          district: ((m as { district?: string | null }).district ?? null) as
-            | string
-            | null,
-          slug: String((m as { slug?: string | null }).slug ?? "").trim() || null,
-        }));
-      }
-      for (const row of dismissedRes.data ?? []) {
-        const doctorId = String((row as { doctor_id?: string }).doctor_id ?? "").trim();
-        const manualId = String((row as { manual_id?: string }).manual_id ?? "").trim();
-        if (!doctorId || !manualId) continue;
-        const set = dismissedByDoctor.get(doctorId) ?? new Set<string>();
-        set.add(manualId);
-        dismissedByDoctor.set(doctorId, set);
+      for (const r of claimListingRows ?? []) {
+        const rid = String((r as { id?: string }).id ?? "");
+        if (!rid) continue;
+        claimedListingSlugById.set(
+          rid,
+          String((r as { slug?: string | null }).slug ?? "").trim() || null,
+        );
       }
     }
 
@@ -818,21 +780,12 @@ export default async function FounderDashboardPage({
           raw.directory_claim_source as string | null | undefined,
         );
         const primarySpecialty = String(raw.specialty ?? "").trim() || null;
-        const primaryDistrict =
-          locations.find((l) => l.isPrimary)?.district ||
-          String(raw.district ?? "").trim() ||
-          null;
-        const origin = classifyPendingRegistrationOrigin({
-          claimSource,
-          doctor: {
-            doctorId: id,
-            name: String(raw.name ?? "").trim() || "Professional",
-            specialty: primarySpecialty,
-            district: primaryDistrict,
-          },
-          unregisteredListings,
-          dismissedUnregisteredIds: dismissedByDoctor.get(id),
-        });
+        const origin = classifyPendingRegistrationOrigin({ claimSource });
+        const claimListingId = String(raw.claim_listing_id ?? "").trim() || null;
+        const claimedListingSlug =
+          origin.kind === "claimed" && claimListingId
+            ? (claimedListingSlugById.get(claimListingId) ?? null)
+            : null;
         return {
           id,
           name: String(raw.name ?? "").trim() || "Professional",
@@ -846,6 +799,7 @@ export default async function FounderDashboardPage({
             String(raw.phone ?? "").trim() ||
             null,
           slug: String(raw.slug ?? "").trim() || null,
+          claimedListingSlug,
           avatarUrl,
           languages,
           specialties: specialties.map(({ id: sid, specialty, licenseNumber, isApproved }) => ({
@@ -874,13 +828,11 @@ export default async function FounderDashboardPage({
             (raw.is_specialty_approved as boolean | null | undefined) ?? true,
           specialtyRequiresStandardAt:
             String(raw.specialty_requires_standard_at ?? "").trim() || null,
-          fromDirectoryListing:
-            origin.kind === "claimed_listing" || origin.kind === "auto_matched_listing",
+          fromDirectoryListing: origin.kind === "claimed",
           originKind: origin.kind,
           originLabel: origin.label,
           originDescription: origin.description,
           claimSource: origin.claimSource,
-          twins: origin.twins,
           status: String(raw.status ?? "pending").trim() || "pending",
         } satisfies PendingRegistrationReviewItem;
       })
