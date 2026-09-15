@@ -32,7 +32,12 @@ Prior consent for one prod change does **not** authorize later prod changes.
 - You may apply migrations to **testing** if that helps local/debug work and is reasonable in context.
 - You must **not** run prod push, link-to-prod + push, or prod data mutations.
 
+## After merge
+
+See `post-merge-migration-check.mdc`: verify testing yourself and **inform** the user; do not ask them if testing is already applied.
+
 ## Example
 
 - User earlier said yes to prod push for migration A → **does not** allow prod push for migration B.
 - User says “fix the migration and apply it” without naming prod → apply to **testing only**, then ask whether to push to prod.
+- User says merge is done and the PR had migrations → check testing yourself, report status; only push prod if they explicitly ask in that task.

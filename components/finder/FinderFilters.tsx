@@ -260,7 +260,7 @@ export function FinderFilters({
   const showPaphosUrgentCareNote = district === "Paphos";
 
   const fieldClass =
-    "h-11 w-full bg-transparent pl-10 pr-3 text-sm font-medium text-ink-900 placeholder:font-normal placeholder:text-ink-400 focus:outline-none";
+    "h-11 w-full bg-transparent pl-10 pr-3 text-sm font-medium text-ink-900 placeholder:font-normal placeholder:text-ink-400 focus:outline-none lg:text-base";
   const selectFieldClass = `${fieldClass} appearance-none pr-9 cursor-pointer focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-clinical-200`;
   const iconClass =
     "pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-clinical-500";
@@ -386,7 +386,7 @@ export function FinderFilters({
             disabled={isFilterFormBusy}
             aria-busy={isNearMeBusy}
             aria-label={isNearMeBusy ? nearMeBusyMessage : "Doctor near me"}
-            className={`inline-flex h-11 w-full shrink-0 items-center justify-center gap-2 rounded-2xl px-4 text-sm font-semibold shadow-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-clinical-600 disabled:cursor-not-allowed disabled:opacity-70 lg:w-auto lg:min-w-[8.5rem] ${
+            className={`inline-flex h-11 w-full shrink-0 items-center justify-center gap-2 rounded-2xl px-4 text-sm font-semibold shadow-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-clinical-600 disabled:cursor-not-allowed disabled:opacity-70 lg:w-auto lg:min-w-[8.5rem] lg:text-base ${
               nearMeActive || isNearMeBusy
                 ? "bg-clinical-500 text-white hover:bg-clinical-400"
                 : "bg-white text-clinical-700 hover:bg-clinical-50"
@@ -406,7 +406,7 @@ export function FinderFilters({
             type="submit"
             disabled={isFilterFormBusy}
             aria-label={pendingAction === "apply" ? "Showing results..." : "Find"}
-            className="inline-flex h-11 w-full shrink-0 items-center justify-center gap-2 rounded-2xl bg-white px-5 text-sm font-bold uppercase tracking-[0.12em] text-clinical-700 shadow-sm transition hover:bg-clinical-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-clinical-600 disabled:cursor-not-allowed disabled:opacity-70 lg:w-auto lg:min-w-[5.5rem]"
+            className="inline-flex h-11 w-full shrink-0 items-center justify-center gap-2 rounded-2xl bg-white px-5 text-sm font-bold uppercase tracking-[0.12em] text-clinical-700 shadow-sm transition hover:bg-clinical-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-clinical-600 disabled:cursor-not-allowed disabled:opacity-70 lg:w-auto lg:min-w-[5.5rem] lg:text-base"
           >
             {pendingAction === "apply" ? (
               <span

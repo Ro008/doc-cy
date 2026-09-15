@@ -1,0 +1,23 @@
+---
+description: After merge, verify testing migrations yourself; inform, do not ask
+alwaysApply: true
+---
+
+# Post-merge migration check (DocCy)
+
+## Hard rule
+
+After a PR with `supabase/migrations/` merges (or the user says merge is done), **verify migration status yourself**. Do **not** ask the user whether testing already has the migrations.
+
+## What to do
+
+1. Confirm the migration filenames from the merged PR / `master`.
+2. Check **testing** (`fwinchqdgrkpxuuttech`) with the linked CLI, e.g. `npx supabase migration list` while linked to testing (or `npm run db:testing:push` only if remote is behind).
+3. **Inform** the user of the result in one short line (applied / already present / failed).
+4. For **production**, still wait for an explicit ask in the current task (`DOC_CY_CONFIRM_PROD=YES npm run db:prod:push`). When they ask for prod push, you may report testing status as context, but do not turn it into a question.
+
+## Do not
+
+- Ask “¿Quieres que aplique testing?” when you can (and should) check yourself.
+- Assume testing is up to date without listing remote vs local for the PR’s migrations.
+- Push prod without an explicit prod request in the current task (see `production-database-safety.mdc`).
