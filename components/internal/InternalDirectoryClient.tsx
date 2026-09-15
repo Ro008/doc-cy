@@ -32,7 +32,7 @@ export type DirectoryDoctorRow = {
   loginPassword?: string | null;
   /** Registered account that converted a finder listing at signup. */
   fromDirectoryListing?: boolean;
-  originKind?: "claimed_listing" | "auto_matched_listing" | "possible_twin" | "unclaimed_review";
+  originKind?: "claimed" | "unclaimed";
   originLabel?: string | null;
 };
 

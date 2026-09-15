@@ -266,14 +266,14 @@ describe("register claim from finder card", () => {
     });
   });
 
-  it("never binds a real directory person to a test signup", () => {
+  it("blocks a real directory person for a test signup when the QA-only flag is on (prod)", () => {
     assert.equal(
       pickExplicitDirectoryClaim({ id: maria.id, slug: maria.slug, name: maria.name }, { isTestSignup: true }),
       null,
     );
   });
 
-  it("lets a test signup claim a QA clone listing by card link", () => {
+  it("lets a test signup claim a QA clone listing by card link when the QA-only flag is on", () => {
     const clone = {
       id: "44444444-4444-4444-4444-444444444444",
       slug: "qa-claim-ioanna-1",
