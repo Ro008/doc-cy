@@ -36,7 +36,6 @@ env:
   NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.INTEGRATION_SUPABASE_URL }}
   NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.INTEGRATION_SUPABASE_ANON_KEY }}
   SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.INTEGRATION_SUPABASE_SERVICE_ROLE_KEY }}
-  DOC_CY_SUPPRESS_TRAFFIC_LOG_SECRET: ${{ secrets.DOC_CY_SUPPRESS_TRAFFIC_LOG_SECRET }}
   TEST_USER_EMAIL: ${{ secrets.INTEGRATION_TEST_USER_EMAIL || secrets.TEST_USER_EMAIL }}
   TEST_USER_PASSWORD: ${{ secrets.INTEGRATION_TEST_USER_PASSWORD || secrets.TEST_USER_PASSWORD }}
   PROD_NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.PROD_NEXT_PUBLIC_SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL }}
@@ -432,7 +431,6 @@ jobs:
           PLAYWRIGHT_BASE_URL: ${{ steps.vercel.outputs.url }}
           PLAYWRIGHT_PREVIEW_SMOKE: "1"
           CI: "true"
-          DOC_CY_SUPPRESS_TRAFFIC_LOG_SECRET: ${{ secrets.DOC_CY_SUPPRESS_TRAFFIC_LOG_SECRET }}
         run: |
           npx playwright test --grep @pr-preview \
             --project="Desktop Large (Chromium)" \

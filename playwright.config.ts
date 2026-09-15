@@ -1,7 +1,6 @@
 // playwright.config.ts
 import { defineConfig, devices } from "@playwright/test";
 import dotenv from "dotenv";
-import { TRAFFIC_LOG_SUPPRESS_HEADER } from "./lib/traffic-log";
 
 // Load env file for Playwright runs (defaults to .env.local).
 const envFilePath = process.env.PLAYWRIGHT_ENV_FILE?.trim() || ".env.local";
@@ -12,9 +11,6 @@ const localUrl = "http://localhost:3000";
 const baseUrl = process.env.PLAYWRIGHT_BASE_URL ?? localUrl;
 const safeNoBooking = process.env.PLAYWRIGHT_SAFE_NO_BOOKING === "1";
 const normalizedEnvFilePath = envFilePath.toLowerCase().replace(/\\/g, "/");
-
-/** When set (same value as server DOC_CY_SUPPRESS_TRAFFIC_LOG_SECRET), E2E requests skip traffic logging. */
-const trafficLogSuppressSecret = process.env.DOC_CY_SUPPRESS_TRAFFIC_LOG_SECRET?.trim();
 
 /** CI often uses 127.0.0.1:3000; dev uses localhost:3000; integration uses :3100 via `scripts/dev-with-env.mjs`. */
 function isLocalDevBaseUrl(url: string): boolean {
@@ -69,9 +65,6 @@ if (process.env.CI && shouldRunWebServer) {
 const isCi = Boolean(process.env.CI);
 
 const extraHTTPHeaders: Record<string, string> = {};
-if (trafficLogSuppressSecret && !isProductionSiteUrl(baseUrl)) {
-  extraHTTPHeaders[TRAFFIC_LOG_SUPPRESS_HEADER] = trafficLogSuppressSecret;
-}
 const vercelAutomationBypass = process.env.VERCEL_AUTOMATION_BYPASS_SECRET?.trim();
 if (vercelAutomationBypass) {
   extraHTTPHeaders["x-vercel-protection-bypass"] = vercelAutomationBypass;
@@ -97,9 +90,8 @@ export default defineConfig({
     // Domain/SSL might not be fully propagated yet after switching providers.
     ignoreHTTPSErrors: true,
     // Custom headers on every request to mydoccy.com are a Bot Fight Mode signal
-    // (nightly 2026-08-10+). Prod smokes attach the suppress header only on
-    // POST /api/traffic/log via tests/prod/helpers/preparePublicPage.ts.
-    // Vercel Deployment Protection bypass is safe on *.vercel.app origin smokes.
+    // (nightly 2026-08-10+). Prefer preparePublicPage (hide webdriver) over
+    // global headers. Vercel Deployment Protection bypass is safe on *.vercel.app.
     ...(Object.keys(extraHTTPHeaders).length > 0 ? { extraHTTPHeaders } : {}),
     ...(isProductionSiteUrl(baseUrl)
       ? {

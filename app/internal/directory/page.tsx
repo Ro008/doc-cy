@@ -7,8 +7,6 @@ import {
   founderDirectoryHref,
   getCallToBookWindowDays,
   getManualVotesWindowDays,
-  getVisitsRangeLabel,
-  getVisitsWindowDays,
   parseFounderDashboardQuery,
   type CallToBookSortCol,
   type FounderDashboardQuery,
@@ -55,12 +53,6 @@ import { buildLastSixMonthsAppointmentCounts } from "@/lib/founder-appointments-
 import { cyprusMonthStartUtcIso } from "@/lib/cyprus-calendar";
 import { TrialConversionTable } from "@/components/internal/TrialConversionTable";
 import { getTrialPeriodDays } from "@/lib/trial-period";
-import {
-  buildTopDoctorProfileQrScans,
-  countBusinessCardVisits,
-  type DoctorQrScanCount,
-  type WebsiteVisitRow,
-} from "@/lib/website-analytics";
 import { WebsiteAnalyticsPanel } from "@/components/internal/WebsiteAnalyticsPanel";
 import { PendingLink } from "@/components/navigation/PendingLink";
 import {
@@ -171,7 +163,6 @@ export default async function FounderDashboardPage({
   searchParams,
 }: {
   searchParams?: {
-    visitsRange?: string | string[];
     manualVotesRange?: string | string[];
     manualVotesCol?: string | string[];
     manualVotesDir?: string | string[];
@@ -215,11 +206,6 @@ export default async function FounderDashboardPage({
   const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
   const sevenDaysAgoIso = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
   const dashboardQuery: FounderDashboardQuery = parseFounderDashboardQuery(searchParams);
-  const visitsRange = dashboardQuery.visitsRange;
-  const visitsWindowDays = getVisitsWindowDays(visitsRange);
-  const visitsWindowStartIso = new Date(
-    Date.now() - visitsWindowDays * 24 * 60 * 60 * 1000
-  ).toISOString();
   const monthStartIso = cyprusMonthStartUtcIso();
   const chartRangeStart = startOfMonth(subMonths(new Date(), 5));
 
@@ -268,7 +254,6 @@ export default async function FounderDashboardPage({
     appts7dRes,
     recentApptsRes,
     apptsForChartRes,
-    websiteVisitsLast7dRes,
   ] = await Promise.all([
     supabase.from("appointments").select("id", { count: "exact", head: true }),
     supabase
@@ -288,13 +273,6 @@ export default async function FounderDashboardPage({
         .from("appointments")
         .select("created_at")
         .gte("created_at", chartRangeStart.toISOString()),
-    ),
-    fetchAllSupabaseRows(() =>
-      supabase
-        .from("website_visits")
-        .select("session_id, page_path, city, country, traffic_origin, ref_code, utm_source, utm_medium, user_agent, is_bot, created_at")
-        .gte("created_at", visitsWindowStartIso)
-        .eq("is_bot", false),
     ),
   ]);
 
@@ -1240,20 +1218,6 @@ export default async function FounderDashboardPage({
     };
   });
   const trialPeriodDays = getTrialPeriodDays();
-  const visits7dRows: WebsiteVisitRow[] =
-    !websiteVisitsLast7dRes.error && websiteVisitsLast7dRes.data
-      ? (websiteVisitsLast7dRes.data as WebsiteVisitRow[])
-      : [];
-  const businessCardVisitsInRange = countBusinessCardVisits(visits7dRows);
-  const topDoctorProfileQrScans: DoctorQrScanCount[] = buildTopDoctorProfileQrScans(
-    visits7dRows,
-    verifiedRows.map((r) => ({
-      id: r.id,
-      name: r.name,
-      slug: r.slug,
-    })),
-    10
-  );
 
   return (
     <main className="min-h-screen bg-slate-950 text-slate-50">
@@ -1389,29 +1353,7 @@ export default async function FounderDashboardPage({
           from registration date.
         </div>
         <TrialConversionTable doctors={verifiedRows} />
-        <WebsiteAnalyticsPanel
-          businessCardVisitsCount={businessCardVisitsInRange}
-          doctorProfileQrTop={topDoctorProfileQrScans}
-          visitsRangeLabel={getVisitsRangeLabel(visitsRange)}
-          rangeOptions={[
-            {
-              key: "7d",
-              label: "7d",
-              href: founderDirectoryHref(dashboardQuery, { visitsRange: "7d" }),
-            },
-            {
-              key: "30d",
-              label: "30d",
-              href: founderDirectoryHref(dashboardQuery, { visitsRange: "30d" }),
-            },
-            {
-              key: "90d",
-              label: "90d",
-              href: founderDirectoryHref(dashboardQuery, { visitsRange: "90d" }),
-            },
-          ]}
-          activeRange={visitsRange}
-        />
+        <WebsiteAnalyticsPanel />
 
         <div className="grid gap-6 xl:grid-cols-12">
           <div className="order-2 space-y-6 xl:order-1 xl:col-span-8">

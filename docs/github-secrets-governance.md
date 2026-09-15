@@ -18,7 +18,6 @@ This file defines the canonical secret naming and cleanup policy for CI workflow
 - `TEST_USER_EMAIL` (optional; falls back to doctor credentials)
 - `TEST_USER_PASSWORD` (optional; falls back to doctor credentials)
 - `TEST_BOOKING_DOCTOR_SLUG`
-- `DOC_CY_SUPPRESS_TRAFFIC_LOG_SECRET`
 
 ### Integration CI
 

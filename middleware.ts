@@ -1,15 +1,10 @@
 // middleware.ts
 import {NextResponse} from "next/server";
-import type {NextFetchEvent, NextRequest} from "next/server";
+import type {NextRequest} from "next/server";
 import {createMiddlewareClient} from "@supabase/auth-helpers-nextjs";
 
 import createMiddleware from "next-intl/middleware";
 import {routing} from "./i18n/routing";
-import {isLikelyBotUserAgent} from "./lib/bot-user-agent";
-import {
-  shouldSuppressTrafficLog,
-  trafficSessionIdFromCookieStore,
-} from "./lib/traffic-log";
 import {parseAuthTokenClaims} from "./lib/auth-token-claims";
 import {isSessionRevokedByPolicy} from "./lib/auth-session-revocation";
 import {
@@ -81,66 +76,7 @@ function isPublicPatientRoute(pathname: string): boolean {
   return false;
 }
 
-function shouldTrackTraffic(pathname: string): boolean {
-  if (pathname.startsWith("/internal")) return false;
-  if (pathname.startsWith("/agenda")) return false;
-  if (pathname.startsWith("/dashboard")) return false;
-  return true;
-}
-
-function buildTrafficOrigin(req: NextRequest): {origin: "direct" | "ref"; refCode: string | null} {
-  const ref = req.nextUrl.searchParams.get("ref")?.trim();
-  if (ref) return {origin: "ref", refCode: ref.slice(0, 80)};
-  return {origin: "direct", refCode: null};
-}
-
-function trimUtm(value: string | null): string | null {
-  const v = value?.trim();
-  if (!v) return null;
-  // Canonicalize UTMs so analytics queries remain stable across scanners/providers.
-  // Example: "Business-Card" -> "business_card".
-  return v.toLowerCase().replace(/[\s-]+/g, "_").slice(0, 80);
-}
-
-const MAX_USER_AGENT_LEN = 512;
-
-function queueTrafficLog(req: NextRequest, sessionId: string, event: NextFetchEvent) {
-  const rawUa = req.headers.get("user-agent");
-  const userAgent =
-    rawUa && rawUa.trim() ? rawUa.trim().slice(0, MAX_USER_AGENT_LEN) : null;
-  const isBot = isLikelyBotUserAgent(userAgent);
-
-  const {origin, refCode} = buildTrafficOrigin(req);
-  const payload = {
-    session_id: sessionId,
-    page_path: req.nextUrl.pathname,
-    traffic_origin: origin,
-    ref_code: refCode,
-    utm_source: trimUtm(req.nextUrl.searchParams.get("utm_source")),
-    utm_medium: trimUtm(req.nextUrl.searchParams.get("utm_medium")),
-    city: req.headers.get("x-vercel-ip-city"),
-    country: req.headers.get("x-vercel-ip-country"),
-    user_agent: userAgent,
-    is_bot: isBot,
-    created_at: new Date().toISOString(),
-  };
-
-  const endpoint = `${req.nextUrl.origin}/api/traffic/log`;
-  event.waitUntil(
-    fetch(endpoint, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    }).catch((error) => {
-      console.error("[DocCy][traffic] middleware_forward_failed", error);
-      return undefined;
-    })
-  );
-}
-
-export async function middleware(req: NextRequest, event: NextFetchEvent) {
+export async function middleware(req: NextRequest) {
   const pathname = req.nextUrl.pathname;
 
   // Legacy /finder filter URLs → public unprefixed paths (keep /finder/professional|clinic for their own 301s).
@@ -243,14 +179,6 @@ export async function middleware(req: NextRequest, event: NextFetchEvent) {
       gate.searchParams.set("next", "/internal/directory");
       return NextResponse.redirect(gate);
     }
-  }
-
-  // Log visits without Set-Cookie on the HTML response (that would bust CDN/cache).
-  // Returning visitors still send a session cookie; first-time IDs persist via a
-  // tiny inline script after HTML (`doccy-ts`), not on this response.
-  if (req.method === "GET" && shouldTrackTraffic(pathname) && !shouldSuppressTrafficLog(req)) {
-    const sessionId = trafficSessionIdFromCookieStore(req.cookies) || crypto.randomUUID();
-    queueTrafficLog(req, sessionId, event);
   }
 
   return res;
