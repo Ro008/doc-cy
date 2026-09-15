@@ -1,5 +1,3 @@
-export type VisitsRangeKey = "7d" | "30d" | "90d";
-
 export type ManualVotesRangeKey = "7d" | "30d" | "90d" | "all";
 
 export type CallToBookRangeKey = "7d" | "30d" | "90d" | "all";
@@ -18,7 +16,6 @@ export type CallToBookSortCol =
 export type SortDir = "asc" | "desc";
 
 export type FounderDashboardQuery = {
-  visitsRange: VisitsRangeKey;
   manualVotesRange: ManualVotesRangeKey;
   manualVotesCol: ManualVotesSortCol;
   manualVotesDir: SortDir;
@@ -29,24 +26,6 @@ export type FounderDashboardQuery = {
 
 function first(param: string | string[] | undefined): string | undefined {
   return Array.isArray(param) ? param[0] : param;
-}
-
-export function parseVisitsRange(value: string | string[] | undefined): VisitsRangeKey {
-  const raw = first(value);
-  if (raw === "30d" || raw === "90d") return raw;
-  return "7d";
-}
-
-export function getVisitsWindowDays(range: VisitsRangeKey): number {
-  if (range === "30d") return 30;
-  if (range === "90d") return 90;
-  return 7;
-}
-
-export function getVisitsRangeLabel(range: VisitsRangeKey): string {
-  if (range === "30d") return "Last 30 days";
-  if (range === "90d") return "Last 90 days";
-  return "Last 7 days";
 }
 
 export function parseManualVotesRange(value: string | string[] | undefined): ManualVotesRangeKey {
@@ -106,7 +85,6 @@ export function getCallToBookRangeLabel(range: CallToBookRangeKey): string {
 }
 
 export function parseFounderDashboardQuery(searchParams?: {
-  visitsRange?: string | string[];
   manualVotesRange?: string | string[];
   manualVotesCol?: string | string[];
   manualVotesDir?: string | string[];
@@ -115,7 +93,6 @@ export function parseFounderDashboardQuery(searchParams?: {
   callToBookDir?: string | string[];
 }): FounderDashboardQuery {
   return {
-    visitsRange: parseVisitsRange(searchParams?.visitsRange),
     manualVotesRange: parseManualVotesRange(searchParams?.manualVotesRange),
     manualVotesCol: parseManualVotesCol(searchParams?.manualVotesCol),
     manualVotesDir: parseManualVotesDir(searchParams?.manualVotesDir),
@@ -146,7 +123,6 @@ export function founderDirectoryHref(
 ): string {
   const merged: FounderDashboardQuery = { ...q, ...patch };
   const sp = new URLSearchParams();
-  sp.set("visitsRange", merged.visitsRange);
   sp.set("manualVotesRange", merged.manualVotesRange);
   sp.set("manualVotesCol", merged.manualVotesCol);
   sp.set("manualVotesDir", merged.manualVotesDir);

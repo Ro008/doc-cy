@@ -5,7 +5,6 @@ export type PublicApiRateLimitBucket =
   | "manualBookingRequest"
   | "doctorInvitation"
   | "appointments"
-  | "trafficLog"
   | "contactReveal"
   | "passwordReset";
 
@@ -19,7 +18,6 @@ export const PUBLIC_API_RATE_LIMITS: Record<PublicApiRateLimitBucket, RateLimitC
   manualBookingRequest: { limit: 10, windowMs: 60 * 60 * 1000 },
   doctorInvitation: { limit: 5, windowMs: 60 * 60 * 1000 },
   appointments: { limit: 20, windowMs: 60 * 60 * 1000 },
-  trafficLog: { limit: 60, windowMs: 60 * 1000 },
   /** Phone reveal clicks — blunt bulk extraction of directory phones. */
   contactReveal: { limit: 40, windowMs: 60 * 60 * 1000 },
   /** Practitioner forgot-password emails (IP). Per-address cap is separate. */

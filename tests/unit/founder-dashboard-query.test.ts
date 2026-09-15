@@ -52,11 +52,10 @@ describe("parseFounderDashboardQuery", () => {
   it("keeps call-to-book range in dashboard hrefs", () => {
     const q = parseFounderDashboardQuery({
       callToBookRange: "30d",
-      visitsRange: "90d",
     });
     assert.equal(q.callToBookRange, "30d");
     assert.match(founderDirectoryHref(q), /callToBookRange=30d/);
-    assert.match(founderDirectoryHref(q), /visitsRange=90d/);
+    assert.doesNotMatch(founderDirectoryHref(q), /visitsRange=/);
   });
 
   it("builds a CSV href from the selected table ranges", () => {

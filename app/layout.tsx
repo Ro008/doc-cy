@@ -8,7 +8,6 @@ import "sonner/dist/styles.css";
 import { NavigationProgressBar } from "@/components/navigation/NavigationProgressBar";
 import { AppChrome } from "@/components/navigation/AppChrome";
 import { ProChromeBoot } from "@/components/navigation/ProChromeBoot";
-import { trafficSessionPersistInlineScript } from "@/lib/traffic-log";
 import { proChromeBootInlineScript } from "@/lib/pro-session-hint";
 import { Toaster } from "sonner";
 import { Analytics } from "@vercel/analytics/react";
@@ -121,9 +120,6 @@ export default function RootLayout({
         />
         <ProChromeBoot />
         <GoogleAdsTag />
-        <script
-          dangerouslySetInnerHTML={{ __html: trafficSessionPersistInlineScript() }}
-        />
         <Suspense fallback={null}>
           <NavigationProgressBar />
         </Suspense>

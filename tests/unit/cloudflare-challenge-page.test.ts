@@ -51,12 +51,12 @@ describe("isCloudflareChallengePage", () => {
 describe("prod nightly Cloudflare harness", () => {
   const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 
-  it("does not send the traffic-log suppress header on every mydoccy.com request", () => {
+  it("does not set custom Bot Fight Mode headers on every mydoccy.com request", () => {
     const src = fs.readFileSync(path.join(repoRoot, "playwright.config.ts"), "utf8");
-    assert.match(
+    assert.doesNotMatch(
       src,
-      /trafficLogSuppressSecret && !isProductionSiteUrl\(baseUrl\)/,
-      "Global extraHTTPHeaders on production is a Bot Fight Mode signal.",
+      /TRAFFIC_LOG_SUPPRESS_HEADER|x-doccy-suppress-traffic-log/,
+      "Global custom headers on production are a Bot Fight Mode signal.",
     );
   });
 
