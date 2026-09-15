@@ -24,7 +24,7 @@ export function postSpecialtyReview(
 export function postDoctorVerification(
   request: APIRequestContext,
   secret: string,
-  body: { doctorId: string; action: "verify" | "reject" },
+  body: { doctorId: string; action: "verify" | "reject"; listingUrl?: string },
 ) {
   return request.post("/api/internal/doctors/verification", {
     headers: internalDirectoryHeaders(secret),

@@ -97,3 +97,79 @@ export async function allocateUniqueDoctorSlug(
     `doctor-${authUserSlugSuffix(input.authUserId)}`
   );
 }
+
+function slugMatchesNameCandidates(
+  currentSlug: string,
+  candidates: string[],
+): boolean {
+  const normalized = currentSlug.trim().toLowerCase();
+  if (!normalized) return false;
+  return candidates.some((candidate) => candidate.toLowerCase() === normalized);
+}
+
+/**
+ * When a founder verifies a registration whose name changed, realign the public slug.
+ * Returns the new slug when updated, or null when unchanged.
+ */
+export async function realignDoctorSlugIfNameChanged(
+  supabase: SupabaseClient,
+  input: {
+    doctorId: string;
+    name: string;
+    district?: string | null;
+    authUserId: string;
+    currentSlug?: string | null;
+  },
+): Promise<string | null> {
+  const currentSlug = String(input.currentSlug ?? "").trim();
+  const candidates = buildDoctorSlugCandidates({
+    name: input.name,
+    district: input.district,
+    authUserId: input.authUserId,
+  });
+
+  if (currentSlug && slugMatchesNameCandidates(currentSlug, candidates)) {
+    return null;
+  }
+
+  const { data, error } = await supabase
+    .from("professionals")
+    .select("slug")
+    .in("slug", candidates);
+
+  if (error) {
+    console.error("[DocCy] doctor slug realign lookup failed:", error);
+    return null;
+  }
+
+  const taken = new Set(
+    (data ?? [])
+      .map((row) => String((row as { slug?: string | null }).slug ?? "").trim().toLowerCase())
+      .filter(Boolean),
+  );
+
+  if (currentSlug) {
+    taken.delete(currentSlug.toLowerCase());
+  }
+
+  const nextSlug =
+    pickFirstAvailableDoctorSlug(taken, candidates) ??
+    candidates[candidates.length - 1] ??
+    null;
+
+  if (!nextSlug || nextSlug.toLowerCase() === currentSlug.toLowerCase()) {
+    return null;
+  }
+
+  const { error: updateError } = await supabase
+    .from("professionals")
+    .update({ slug: nextSlug })
+    .eq("id", input.doctorId);
+
+  if (updateError) {
+    console.error("[DocCy] doctor slug realign update failed:", updateError);
+    return null;
+  }
+
+  return nextSlug;
+}

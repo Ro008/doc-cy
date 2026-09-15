@@ -12,34 +12,22 @@ import { publicProfessionalProfilePath } from "@/lib/manual-directory-landing-pa
 import { stripPlusCodePrefix } from "@/lib/clinic-location-pin";
 import type { PendingRegistrationReviewItem } from "@/lib/pending-registration-review";
 import type { PendingRegistrationOriginKind } from "@/lib/pending-registration-origin";
+import { isClaimedRegistrationOrigin } from "@/lib/pending-registration-origin";
 
-async function postVerification(doctorId: string, action: "verify" | "reject") {
+async function postVerification(
+  doctorId: string,
+  action: "verify" | "reject",
+  options?: { listingUrl?: string },
+) {
+  const listingUrl = String(options?.listingUrl ?? "").trim();
   const res = await fetch("/api/internal/doctors/verification", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     credentials: "same-origin",
-    body: JSON.stringify({ doctorId, action }),
-  });
-  if (!res.ok) {
-    const j = await res.json().catch(() => ({}));
-    throw new Error((j as { message?: string }).message ?? res.statusText);
-  }
-}
-
-async function postTwinAction(
-  registeredId: string,
-  action: "absorb" | "keep_both",
-  options: { unregisteredId?: string; listingUrl?: string },
-) {
-  const res = await fetch("/api/internal/pending-registration-twin", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    credentials: "same-origin",
     body: JSON.stringify({
-      registeredId,
+      doctorId,
       action,
-      unregisteredId: options.unregisteredId,
-      listingUrl: options.listingUrl,
+      ...(action === "verify" && listingUrl ? { listingUrl } : {}),
     }),
   });
   if (!res.ok) {
@@ -61,16 +49,16 @@ function formatCoords(lat: number | null, lng: number | null): string | null {
 }
 
 function originBadgeClass(kind: PendingRegistrationOriginKind): string {
-  switch (kind) {
-    case "claimed_listing":
-      return "bg-clinical-500/15 text-clinical-200";
-    case "auto_matched_listing":
-      return "bg-sky-500/15 text-sky-200";
-    case "possible_twin":
-      return "bg-violet-500/15 text-violet-200";
-    case "unclaimed_review":
-      return "bg-amber-500/15 text-amber-100";
-  }
+  return isClaimedRegistrationOrigin(kind)
+    ? "bg-clinical-500/15 text-clinical-200"
+    : "bg-amber-500/15 text-amber-100";
+}
+
+function claimedProfileUrl(slug: string | null): string {
+  const path = publicProfessionalProfilePath(String(slug ?? "").trim());
+  if (!path) return "";
+  if (typeof window === "undefined") return path;
+  return `${window.location.origin}${path}`;
 }
 
 export function PendingRegistrationReviewPanel({
@@ -90,53 +78,28 @@ export function PendingRegistrationReviewPanel({
   async function finishWithReload(message: string) {
     setSuccess(message);
     setBusyLabel("Reloading dashboard…");
-    // Soft refresh often feels hung on this page (large directory twin scan).
-    // Hard reload gives clear completion feedback.
     window.location.reload();
   }
 
-  async function runAction(doctorId: string, action: "verify" | "reject") {
+  async function runAction(
+    item: PendingRegistrationReviewItem,
+    action: "verify" | "reject",
+  ) {
     setError(null);
     setSuccess(null);
-    setBusyId(doctorId);
+    setBusyId(item.id);
     setBusyLabel(action === "verify" ? "Verifying…" : "Rejecting…");
     try {
-      await postVerification(doctorId, action);
+      const listingUrl = String(listingUrlById[item.id] ?? "").trim();
+      await postVerification(item.id, action, {
+        listingUrl: action === "verify" && !isClaimedRegistrationOrigin(item.originKind)
+          ? listingUrl
+          : undefined,
+      });
       await finishWithReload(
         action === "verify"
           ? "Professional verified. Reloading…"
           : "License rejected. Reloading…",
-      );
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Request failed");
-      setBusyId(null);
-      setBusyLabel(null);
-    }
-  }
-
-  async function runTwinAction(
-    registeredId: string,
-    action: "absorb" | "keep_both",
-    options: { unregisteredId?: string; listingUrl?: string },
-  ) {
-    const key = options.unregisteredId
-      ? `${registeredId}:${options.unregisteredId}:${action}`
-      : `${registeredId}:url:${action}`;
-    setError(null);
-    setSuccess(null);
-    setBusyId(key);
-    setBusyLabel(action === "absorb" ? "Absorbing listing…" : "Saving keep both…");
-    try {
-      await postTwinAction(registeredId, action, options);
-      setListingUrlById((prev) => {
-        const next = { ...prev };
-        delete next[registeredId];
-        return next;
-      });
-      await finishWithReload(
-        action === "absorb"
-          ? "Finder listing absorbed into this registration. Reloading…"
-          : "Kept both profiles. Reloading…",
       );
     } catch (err) {
       setError(err instanceof Error ? err.message : "Request failed");
@@ -159,10 +122,9 @@ export function PendingRegistrationReviewPanel({
           Pending applications ({items.length})
         </h2>
         <p className="mt-1 text-sm text-slate-400">
-          Everything the professional submitted at signup — photo, contact,
-          specialties, licenses, and clinic locations. Origin labels show whether
-          they claimed a finder card, were auto-matched, look like a twin, or need
-          an unclaimed review.
+          Everything the professional submitted at signup. Use Claimed vs Unclaimed to
+          see how they entered, then Verify or Reject. For Unclaimed registrations,
+          check manually whether they already exist in the directory before verifying.
         </p>
       </div>
 
@@ -192,7 +154,7 @@ export function PendingRegistrationReviewPanel({
 
       <div className="space-y-4">
         {items.map((item) => {
-          const busy = busyId === item.id || Boolean(busyId?.startsWith(`${item.id}:`));
+          const busy = busyId === item.id;
           const specialtyResolved = isSpecialtyResolvedForVerification({
             is_specialty_approved: item.isSpecialtyApproved,
             specialty_requires_standard_at: item.specialtyRequiresStandardAt,
@@ -220,6 +182,8 @@ export function PendingRegistrationReviewPanel({
                     },
                   ]
                 : [];
+          const isClaimed = isClaimedRegistrationOrigin(item.originKind);
+          const claimedUrl = claimedProfileUrl(item.claimedListingSlug);
 
           return (
             <article
@@ -281,131 +245,47 @@ export function PendingRegistrationReviewPanel({
                     ) : null}
                   </div>
 
-                  {item.originKind === "possible_twin" && item.twins.length > 0 ? (
-                    <div className="rounded-xl border border-violet-400/30 bg-violet-500/10 p-3">
-                      <p className="text-[10px] font-semibold uppercase tracking-wide text-violet-200/90">
-                        Similar finder listings
-                      </p>
-                      <ul className="mt-2 space-y-2">
-                        {item.twins.map((twin) => {
-                          const twinBusy =
-                            busyId === `${item.id}:${twin.id}:absorb` ||
-                            busyId === `${item.id}:${twin.id}:keep_both`;
-                          return (
-                            <li
-                              key={twin.id}
-                              className="rounded-lg border border-violet-300/20 bg-slate-950/40 px-3 py-2"
-                            >
-                              <p className="text-sm text-slate-100">
-                                <span className="font-semibold">{twin.name}</span>
-                                {" · "}
-                                {twin.specialty ?? "—"}
-                                {" · "}
-                                {twin.district ?? "—"}
-                              </p>
-                              <p className="mt-0.5 text-[11px] text-violet-200/85">
-                                Score {(twin.score * 100).toFixed(0)}% · {twin.reason}
-                              </p>
-                              <div className="mt-2 flex flex-wrap gap-2">
-                                {twin.slug ? (
-                                  <Link
-                                    href={publicProfessionalProfilePath(twin.slug)}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="rounded-lg border border-slate-600 bg-slate-800/40 px-2.5 py-1 text-[11px] font-medium text-slate-200 hover:border-slate-500"
-                                  >
-                                    Open listing ↗
-                                  </Link>
-                                ) : null}
-                                {canMutate ? (
-                                  <>
-                                    <button
-                                      type="button"
-                                      disabled={busy || twinBusy}
-                                      onClick={() =>
-                                        void runTwinAction(item.id, "absorb", {
-                                          unregisteredId: twin.id,
-                                        })
-                                      }
-                                      className="rounded-lg bg-clinical-500/20 px-2.5 py-1 text-[11px] font-semibold text-clinical-100 ring-1 ring-clinical-500/35 transition hover:bg-clinical-500/30 disabled:opacity-50"
-                                    >
-                                      {busyId === `${item.id}:${twin.id}:absorb`
-                                        ? "Absorbing…"
-                                        : "Absorb into this registration"}
-                                    </button>
-                                    <button
-                                      type="button"
-                                      disabled={busy || twinBusy}
-                                      onClick={() =>
-                                        void runTwinAction(item.id, "keep_both", {
-                                          unregisteredId: twin.id,
-                                        })
-                                      }
-                                      className="rounded-lg bg-slate-700/60 px-2.5 py-1 text-[11px] font-semibold text-slate-100 ring-1 ring-slate-500/40 transition hover:bg-slate-700/80 disabled:opacity-50"
-                                    >
-                                      {busyId === `${item.id}:${twin.id}:keep_both`
-                                        ? "Saving…"
-                                        : "Keep both"}
-                                    </button>
-                                  </>
-                                ) : null}
-                              </div>
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    </div>
-                  ) : null}
-
-                  {item.originKind === "unclaimed_review" ||
-                  (item.originKind === "possible_twin" && item.twins.length === 0) ? (
-                    <div
-                      className="rounded-xl border border-amber-400/30 bg-amber-500/10 p-3"
-                      data-testid="pending-manual-listing-link"
-                    >
-                      <p className="text-[10px] font-semibold uppercase tracking-wide text-amber-200/90">
-                        Link a finder listing manually
-                      </p>
+                  <div
+                    className="rounded-xl border border-slate-700/80 bg-slate-950/40 p-3"
+                    data-testid="pending-listing-url"
+                  >
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+                      Finder listing URL
+                    </p>
+                    {isClaimed ? (
                       <p className="mt-1 text-[11px] leading-snug text-slate-400">
-                        If you know this person already exists in the finder, paste their public
-                        profile URL and absorb it into this registration.
+                        The finder listing they claimed. It stays untouched and public
+                        until you Verify — Verify will merge it into this registration.
+                        Reject leaves it exactly as it is now.
                       </p>
-                      <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center">
-                        <input
-                          type="url"
-                          value={listingUrlById[item.id] ?? ""}
-                          onChange={(e) =>
-                            setListingUrlById((prev) => ({
-                              ...prev,
-                              [item.id]: e.target.value,
-                            }))
-                          }
-                          placeholder="https://…/en/their-slug"
-                          className="min-w-0 flex-1 rounded-lg border border-slate-700 bg-slate-950/60 px-3 py-1.5 text-xs text-slate-100 placeholder:text-slate-600"
-                        />
-                        {canMutate ? (
-                          <button
-                            type="button"
-                            disabled={
-                              busy ||
-                              busyId === `${item.id}:url:absorb` ||
-                              !String(listingUrlById[item.id] ?? "").trim()
-                            }
-                            onClick={() =>
-                              void runTwinAction(item.id, "absorb", {
-                                listingUrl: listingUrlById[item.id],
-                              })
-                            }
-                            className="rounded-lg bg-clinical-500/20 px-3 py-1.5 text-xs font-semibold text-clinical-100 ring-1 ring-clinical-500/35 transition hover:bg-clinical-500/30 disabled:opacity-50"
-                          >
-                            {busyId === `${item.id}:url:absorb`
-                              ? "Absorbing…"
-                              : "Absorb listing from URL"}
-                          </button>
-                        ) : null}
-                      </div>
-                    </div>
-                  ) : null}
+                    ) : (
+                      <p className="mt-1 text-[11px] leading-snug text-slate-400">
+                        Check manually whether this person already exists in the directory.
+                        If you find a matching unregistered listing, paste its public URL
+                        here — Verify will link and approve in one step. Leave empty if
+                        this is a new profile.
+                      </p>
+                    )}
+                    <input
+                      type="url"
+                      readOnly={isClaimed}
+                      value={
+                        isClaimed
+                          ? claimedUrl
+                          : (listingUrlById[item.id] ?? "")
+                      }
+                      onChange={(e) =>
+                        setListingUrlById((prev) => ({
+                          ...prev,
+                          [item.id]: e.target.value,
+                        }))
+                      }
+                      placeholder={
+                        isClaimed ? undefined : "https://…/en/their-slug"
+                      }
+                      className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950/60 px-3 py-1.5 text-xs text-slate-100 placeholder:text-slate-600 read-only:cursor-default read-only:opacity-90"
+                    />
+                  </div>
 
                   <dl className="grid gap-3 sm:grid-cols-2">
                     <div>
@@ -535,23 +415,23 @@ export function PendingRegistrationReviewPanel({
                           type="button"
                           disabled={busy || !canVerify}
                           title={blockReason ?? undefined}
-                          onClick={() => void runAction(item.id, "verify")}
+                          onClick={() => void runAction(item, "verify")}
                           className="rounded-lg bg-clinical-500/20 px-3 py-1.5 text-xs font-semibold text-clinical-100 ring-1 ring-clinical-500/35 transition hover:bg-clinical-500/30 disabled:opacity-50"
                         >
                           {busyId === item.id && busyLabel?.startsWith("Verif")
                             ? "Verifying…"
-                            : "Verify professional"}
+                            : "Verify"}
                         </button>
                         <button
                           type="button"
                           disabled={busy || !canVerify}
                           title={blockReason ?? undefined}
-                          onClick={() => void runAction(item.id, "reject")}
+                          onClick={() => void runAction(item, "reject")}
                           className="rounded-lg bg-red-500/15 px-3 py-1.5 text-xs font-semibold text-red-100 ring-1 ring-red-500/35 transition hover:bg-red-500/25 disabled:opacity-50"
                         >
                           {busyId === item.id && busyLabel?.startsWith("Reject")
                             ? "Rejecting…"
-                            : "Reject license"}
+                            : "Reject"}
                         </button>
                       </>
                     ) : null}

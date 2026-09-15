@@ -131,21 +131,41 @@ test.describe("Integration: directory claim registration flow", { tag: "@local-r
       ).toBeVisible({ timeout: 15_000 });
       await expect(overlay).toBeHidden();
 
-      const { data: absorbed, error: absorbedErr } = await admin
+      // The claimed clone must stay completely untouched while the
+      // registration is pending — it's a fresh row that only remembers
+      // claim_listing_id, never a conversion of the clone in place.
+      const { data: untouchedClone, error: untouchedCloneErr } = await admin
         .from("professionals")
-        .select(
-          "id, slug, is_registered, is_test_profile, status, registration_email, directory_claim_source",
-        )
+        .select("id, slug, is_registered, is_archived, directory_claim_source")
         .eq("id", clone.id)
         .maybeSingle();
-      if (absorbedErr) throw new Error(`Failed reading claimed clone: ${absorbedErr.message}`);
-      expect(absorbed?.id).toBe(clone.id);
-      expect(absorbed?.slug).toBe(clone.slug);
-      expect(absorbed?.is_registered).toBe(true);
-      expect(absorbed?.is_test_profile).toBe(true);
-      expect(absorbed?.status).toBe("pending");
-      expect(String(absorbed?.registration_email ?? "").toLowerCase()).toBe(email.toLowerCase());
-      expect(absorbed?.directory_claim_source).toBe("card_link");
+      if (untouchedCloneErr) {
+        throw new Error(`Failed reading claimed clone: ${untouchedCloneErr.message}`);
+      }
+      expect(untouchedClone?.id).toBe(clone.id);
+      expect(untouchedClone?.slug).toBe(clone.slug);
+      expect(untouchedClone?.is_registered).toBe(false);
+      expect(untouchedClone?.is_archived).toBe(false);
+      expect(untouchedClone?.directory_claim_source).toBeNull();
+
+      const { data: pendingRow, error: pendingRowErr } = await admin
+        .from("professionals")
+        .select(
+          "id, slug, is_registered, is_test_profile, status, registration_email, directory_claim_source, claim_listing_id",
+        )
+        .ilike("registration_email", email)
+        .maybeSingle();
+      if (pendingRowErr || !pendingRow?.id) {
+        throw new Error(`Failed reading pending registration: ${pendingRowErr?.message}`);
+      }
+      const pendingDoctorId = String(pendingRow.id);
+      expect(pendingDoctorId).not.toBe(clone.id);
+      expect(pendingRow.slug).not.toBe(clone.slug);
+      expect(pendingRow.is_registered).toBe(true);
+      expect(pendingRow.is_test_profile).toBe(true);
+      expect(pendingRow.status).toBe("pending");
+      expect(pendingRow.directory_claim_source).toBe("card_link");
+      expect(pendingRow.claim_listing_id).toBe(clone.id);
 
       const { count: twinCount, error: twinErr } = await admin
         .from("professionals")
@@ -185,16 +205,25 @@ test.describe("Integration: directory claim registration flow", { tag: "@local-r
 
       if (internalSecret) {
         const verify = await postDoctorVerification(request, internalSecret, {
-          doctorId: clone.id,
+          doctorId: pendingDoctorId,
           action: "verify",
         });
         expect(verify.ok()).toBeTruthy();
         const { data: verified } = await admin
           .from("professionals")
           .select("status")
-          .eq("id", clone.id)
+          .eq("id", pendingDoctorId)
           .maybeSingle();
         expect(verified?.status).toBe("verified");
+
+        // Verify absorbs the claimed clone (same mechanism as manual URL
+        // absorb) — the clone is archived, not deleted.
+        const { data: absorbedClone } = await admin
+          .from("professionals")
+          .select("is_archived")
+          .eq("id", clone.id)
+          .maybeSingle();
+        expect(absorbedClone?.is_archived).toBe(true);
       }
     } finally {
       await deleteRegistrationE2eDoctor(admin, email);
