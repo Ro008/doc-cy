@@ -14,6 +14,8 @@ import { postDoctorVerification } from "./helpers/internal-api";
  */
 test.describe("Integration: pending registration origin actions", { tag: "@pr-e2e" }, () => {
   test("classifies claimed/unclaimed and verify absorbs from URL", async ({ request }) => {
+    // Multiple auth users + listings + verify/reject/absorb RPCs exceed the default 30s budget.
+    test.setTimeout(120_000);
     const env = requireSafeIntegration({ needsInternalSecret: true });
     const admin = createIntegrationAdmin(env);
     const nonce = `${Date.now()}-${Math.floor(Math.random() * 100000)}`;

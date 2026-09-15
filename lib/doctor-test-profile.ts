@@ -78,6 +78,13 @@ export const INTEGRATION_TEST_NAME_PREFIXES = [
   "Prefix Cleanup ",
   "Register E2E ",
   "Auto Match ",
+  // Claim / pending-registration integration leftovers (account lane, parallel with finder).
+  "Pending Twin ",
+  "Unclaimed Solo ",
+  "Card Claimed ",
+  "Already Registered ",
+  "Claim Verify Target ",
+  "Claim Reject Target ",
   QA_CLAIM_DIRECTORY_NAME_PREFIX,
 ] as const;
 
@@ -97,6 +104,12 @@ export const INTEGRATION_TEST_SLUG_PREFIXES = [
   "finder-prefix-",
   "register-e2e-",
   "auto-match-",
+  "pending-twin-",
+  "unclaimed-reg-",
+  "card-claimed-",
+  "registered-blocker-",
+  "claim-verify-target-",
+  "claim-reject-target-",
   QA_CLAIM_DIRECTORY_SLUG_PREFIX,
 ] as const;
 

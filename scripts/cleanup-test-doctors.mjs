@@ -14,6 +14,12 @@ const TEST_NAME_PREFIXES = [
   "Prefix Cleanup ",
   "Register E2E ",
   "Auto Match ",
+  "Pending Twin ",
+  "Unclaimed Solo ",
+  "Card Claimed ",
+  "Already Registered ",
+  "Claim Verify Target ",
+  "Claim Reject Target ",
   "QA Claim ",
 ];
 /** Keep in sync with lib/doctor-test-profile.ts INTEGRATION_TEST_SLUG_PREFIXES. */
@@ -29,6 +35,12 @@ const TEST_SLUG_PREFIXES = [
   "finder-prefix-",
   "register-e2e-",
   "auto-match-",
+  "pending-twin-",
+  "unclaimed-reg-",
+  "card-claimed-",
+  "registered-blocker-",
+  "claim-verify-target-",
+  "claim-reject-target-",
   "qa-claim-",
 ];
 const DEFAULT_PRESERVED_SLUGS = [

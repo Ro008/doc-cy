@@ -81,6 +81,27 @@ describe("isTestProfileLike", () => {
       true,
     );
   });
+
+  it("flags claim/pending-registration leftovers by name prefix", () => {
+    assert.equal(
+      isTestProfileLike({
+        name: "Pending Twin 123",
+        slug: "pending-twin-reg-123",
+        email: "x@example.com",
+        isTestProfile: false,
+      }),
+      true,
+    );
+    assert.equal(
+      isTestProfileLike({
+        name: "Card Claimed Verify 123",
+        slug: "card-claimed-verify-reg-123",
+        email: "y@example.com",
+        isTestProfile: false,
+      }),
+      true,
+    );
+  });
 });
 
 describe("isQaClaimDirectoryListing", () => {

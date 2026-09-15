@@ -32,6 +32,35 @@ function registeredDoctorLink(page: import("@playwright/test").Page, name: strin
   return page.getByRole("link", { name, exact: true });
 }
 
+/**
+ * Account-lane claim leftovers also pin as test profiles on page 1 (12 cards).
+ * Assert via the name filter so seeded doctors are not crowded off the first page.
+ */
+async function expectRegisteredDoctorViaNameFilter(
+  page: import("@playwright/test").Page,
+  name: string,
+  options?: { absent?: boolean },
+) {
+  const nameInput = page.locator("#finder-name-filter");
+  const showResults = page.getByRole("button", { name: /^Find$/i });
+  await nameInput.fill(name);
+  await showResults.click();
+  await expect(page).toHaveURL(/name=/, { timeout: 60_000 });
+  if (options?.absent) {
+    await expect(page.getByText(name, { exact: true })).toHaveCount(0);
+  } else {
+    await expect(registeredDoctorLink(page, name)).toBeVisible({ timeout: 60_000 });
+  }
+}
+
+async function clearFinderNameFilter(page: import("@playwright/test").Page) {
+  const nameInput = page.locator("#finder-name-filter");
+  const showResults = page.getByRole("button", { name: /^Find$/i });
+  await nameInput.fill("");
+  await showResults.click();
+  await expect(page).not.toHaveURL(/name=/, { timeout: 60_000 });
+}
+
 async function createVerifiedDoctor(
   admin: ReturnType<typeof createClient>,
   nonce: string,
@@ -189,9 +218,10 @@ test.describe("Integration: finder user-like filter behavior matrix", { tag: ["@
       await expect(
         page.getByRole("heading", { level: 1, name: /Health professionals in Limassol/i }),
       ).toBeVisible({ timeout: 60_000 });
-      await expect(registeredDoctorLink(page, created[0].name)).toBeVisible({ timeout: 60_000 });
-      await expect(registeredDoctorLink(page, created[1].name)).toBeVisible({ timeout: 60_000 });
-      await expect(page.getByText(created[2].name, { exact: true })).toHaveCount(0);
+      await expectRegisteredDoctorViaNameFilter(page, created[0].name);
+      await expectRegisteredDoctorViaNameFilter(page, created[1].name);
+      await expectRegisteredDoctorViaNameFilter(page, created[2].name, { absent: true });
+      await clearFinderNameFilter(page);
 
       // Scenario 2: District + specialty narrowing.
       await selectFinderSpecialty(page, "dentist");
@@ -206,13 +236,13 @@ test.describe("Integration: finder user-like filter behavior matrix", { tag: ["@
       await expect(page.getByTestId("finder-active-filters")).toContainText("Dentist", {
         timeout: 60_000,
       });
-      await expect(registeredDoctorLink(page, created[1].name)).toBeVisible({ timeout: 60_000 });
-      await expect(page.getByText(created[0].name, { exact: true })).toHaveCount(0);
+      await expectRegisteredDoctorViaNameFilter(page, created[1].name);
+      await expectRegisteredDoctorViaNameFilter(page, created[0].name, { absent: true });
+      await clearFinderNameFilter(page);
 
       // Scenario 3: Name filter applies on Enter or Find (not while typing).
       await nameInput.fill("Dent");
       await expect(page).not.toHaveURL(/name=/, { timeout: 5_000 });
-      await expect(registeredDoctorLink(page, created[1].name)).toBeVisible({ timeout: 60_000 });
       await nameInput.press("Enter");
       await expect(page).toHaveURL(/name=Dent/, { timeout: 60_000 });
       await expect(page.getByTestId("finder-active-filters")).toContainText("Dent", {
@@ -227,9 +257,9 @@ test.describe("Integration: finder user-like filter behavior matrix", { tag: ["@
       await expect(
         page.getByRole("heading", { level: 1, name: /The most complete health directory in Cyprus|Cyprus['’]s most complete health directory|Find your next health professional/i })
       ).toBeVisible({ timeout: 60_000 });
-      await expect(registeredDoctorLink(page, created[0].name)).toBeVisible({ timeout: 60_000 });
-      await expect(registeredDoctorLink(page, created[1].name)).toBeVisible({ timeout: 60_000 });
-      await expect(registeredDoctorLink(page, created[2].name)).toBeVisible({ timeout: 60_000 });
+      await expectRegisteredDoctorViaNameFilter(page, created[0].name);
+      await expectRegisteredDoctorViaNameFilter(page, created[1].name);
+      await expectRegisteredDoctorViaNameFilter(page, created[2].name);
     } finally {
       for (const doctor of created) {
         await admin.from("professionals").delete().eq("id", doctor.doctorId);
