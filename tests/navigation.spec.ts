@@ -74,6 +74,33 @@ test.describe("Navigation and routing", { tag: ["@pr-e2e", "@pr-e2e-finder"] }, 
     ).toBeVisible({ timeout: 15_000 });
   });
 
+  test("doctor profile header links to professional sales page and practitioner login", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    const profileLink = page
+      .locator("section.mt-6 article")
+      .first()
+      .getByRole("link")
+      .first();
+    await expect(profileLink).toBeVisible({ timeout: 30_000 });
+
+    await Promise.all([
+      page.waitForURL(/\/(?:en|el)\/[^/?#]+\/?(?:[?#].*)?$/, { timeout: 30_000 }),
+      profileLink.click(),
+    ]);
+
+    const header = page.getByTestId("finder-public-header");
+    await expect(header).toBeVisible({ timeout: 30_000 });
+    await expect(header.getByRole("link", { name: /practitioner login/i })).toHaveAttribute(
+      "href",
+      "/login",
+    );
+    await expect(
+      header.getByRole("link", { name: /are you a healthcare professional/i }),
+    ).toHaveAttribute("href", "/for-professionals");
+  });
+
   test("finder header uses a hamburger menu on mobile", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/");

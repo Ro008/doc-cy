@@ -41,7 +41,7 @@ function secondaryCta(): {
 }
 
 /**
- * Thin public chrome for finder / clinics / sales.
+ * Thin public chrome for finder / clinics / public profiles / sales.
  * Signed-in professionals use the global user bar; this header stays logo-only.
  */
 export function FinderPublicHeader({

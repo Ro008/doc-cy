@@ -41,8 +41,9 @@ import {
 } from "@/lib/doctor-fieldsets";
 import { GesyProviderBadge } from "@/components/brand/GesyProviderBadge";
 import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher";
-import { DocCyWordmark } from "@/components/brand/DocCyWordmark";
 import { RecordRecentlyViewed } from "@/components/finder/RecordRecentlyViewed";
+import { FinderPublicHeader } from "@/components/finder/FinderPublicHeader";
+import { isProSessionHintValue, PRO_SESSION_HINT_COOKIE } from "@/lib/pro-session-hint";
 import { ManualDirectoryProfessionalLanding } from "@/components/finder/ManualDirectoryProfessionalLanding";
 import {
   FinderDistrictLink,
@@ -579,12 +580,21 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
   const t = await getTranslations("DoctorProfilePage");
   const bookingT = await getTranslations("BookingPage");
   const authSupabase = createServerComponentClient({ cookies });
+  const proSessionHint = isProSessionHintValue(
+    cookies().get(PRO_SESSION_HINT_COOKIE)?.value,
+  );
 
   if (result.kind === "not_found") {
     const locale = profileLocale(params);
     const unregistered = await loadUnregisteredLandingOrRedirect(params.slug, locale);
     if (unregistered) {
-      return <ManualDirectoryProfessionalLanding row={unregistered} locale={locale} />;
+      return (
+        <ManualDirectoryProfessionalLanding
+          row={unregistered}
+          locale={locale}
+          proSessionHint={proSessionHint}
+        />
+      );
     }
     notFound();
   }
@@ -808,6 +818,7 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
 
   return (
     <main className="min-h-screen bg-ink-50 text-ink-800">
+      <FinderPublicHeader proSessionHint={proSessionHint} />
       {!isOwnerView ? (
         <RecordRecentlyViewed
           item={{
@@ -841,17 +852,9 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
         ) : null}
         <header className="mb-8 flex flex-col gap-4 sm:gap-6">
           <div className="flex items-center justify-between gap-3">
-            <div className="flex min-w-0 items-center gap-2 break-words">
-              <a
-                href="/"
-                className="inline-flex transition hover:opacity-90"
-              >
-                <DocCyWordmark variant="light" />
-              </a>
-              <span className="text-xs font-semibold tracking-[0.16em] text-ink-500">
-                · {t("profileTag")}
-              </span>
-            </div>
+            <span className="text-xs font-semibold tracking-[0.16em] text-ink-500">
+              {t("profileTag")}
+            </span>
             <LanguageSwitcher compact variant="light" />
           </div>
           <div className="flex items-start gap-5">
