@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  isDocCyTestingSupabaseProject,
   isQaClaimDirectoryListing,
   isRegisteredDoctorHiddenFromFinder,
   isTestDoctorRegistrationEmail,
   isTestProfileLike,
+  restrictTestSignupDirectoryClaimsToQaListings,
 } from "@/lib/doctor-test-profile";
 
 describe("isTestProfileLike", () => {
@@ -136,5 +138,33 @@ describe("isRegisteredDoctorHiddenFromFinder", () => {
     } else {
       process.env.NEXT_PUBLIC_DOC_CY_FINDER_INCLUDE_TEST_PROFILES = previous;
     }
+  });
+});
+
+describe("testing vs prod claim restriction", () => {
+  it("detects the testing Supabase project ref", () => {
+    assert.equal(
+      isDocCyTestingSupabaseProject("https://fwinchqdgrkpxuuttech.supabase.co"),
+      true,
+    );
+    assert.equal(
+      isDocCyTestingSupabaseProject("https://oiwlztcduxojadbcxkil.supabase.co"),
+      false,
+    );
+  });
+
+  it("allows test emails to claim real listings only on the testing DB", () => {
+    assert.equal(
+      restrictTestSignupDirectoryClaimsToQaListings(
+        "https://fwinchqdgrkpxuuttech.supabase.co",
+      ),
+      false,
+    );
+    assert.equal(
+      restrictTestSignupDirectoryClaimsToQaListings(
+        "https://oiwlztcduxojadbcxkil.supabase.co",
+      ),
+      true,
+    );
   });
 });

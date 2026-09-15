@@ -43,6 +43,25 @@ export function isTestDoctorRegistrationEmail(email: string | null | undefined):
   return TEST_EMAIL_DOMAIN_PATTERN.test(normalized);
 }
 
+/** DocCy - Testing Supabase project (`fwinchqdgrkpxuuttech`). */
+export const DOC_CY_TESTING_SUPABASE_REF = "fwinchqdgrkpxuuttech";
+
+export function isDocCyTestingSupabaseProject(
+  supabaseUrl: string | null | undefined = process.env.NEXT_PUBLIC_SUPABASE_URL,
+): boolean {
+  return String(supabaseUrl ?? "").includes(DOC_CY_TESTING_SUPABASE_REF);
+}
+
+/**
+ * Prod: test signup emails may only claim QA clones (`QA Claim…` / `qa-claim-…`).
+ * Testing DB: off — founders may claim real directory listings while QA'ing.
+ */
+export function restrictTestSignupDirectoryClaimsToQaListings(
+  supabaseUrl: string | null | undefined = process.env.NEXT_PUBLIC_SUPABASE_URL,
+): boolean {
+  return !isDocCyTestingSupabaseProject(supabaseUrl);
+}
+
 /**
  * Integration Playwright doctors use these name prefixes (see finder_*.integration.spec.ts).
  * Keep in sync with scripts/cleanup-test-doctors.mjs TEST_NAME_PREFIXES.
