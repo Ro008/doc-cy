@@ -208,7 +208,14 @@ async function ClinicsPageContent({ params, searchParams }: ClinicsPageProps) {
     if (!supabase) notFound();
     const clinic = await loadClinicBySlug(supabase, segment);
     if (!clinic) notFound();
-    return <ClinicLandingView clinic={clinic} />;
+    return (
+      <ClinicLandingView
+        clinic={clinic}
+        proSessionHint={isProSessionHintValue(
+          cookies().get(PRO_SESSION_HINT_COOKIE)?.value,
+        )}
+      />
+    );
   }
 
   return ClinicsSearchPage({ params, searchParams });

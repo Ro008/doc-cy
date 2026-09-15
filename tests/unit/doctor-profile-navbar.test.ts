@@ -61,3 +61,30 @@ describe("doctor profile page navbar", () => {
     assert.equal(source.includes("DocCyWordmark"), false);
   });
 });
+
+describe("clinic landing page navbar", () => {
+  it("renders the same public header (with practitioner login CTAs) as the finder", () => {
+    const source = fs.readFileSync(
+      path.join(repoRoot, "components/finder/ClinicLandingView.tsx"),
+      "utf8",
+    );
+
+    assert.equal(
+      source.includes(
+        'import { FinderPublicHeader } from "@/components/finder/FinderPublicHeader";',
+      ),
+      true,
+    );
+    assert.equal(/<FinderPublicHeader\s+proSessionHint=\{proSessionHint\}\s*\/>/.test(source), true);
+    assert.equal(source.includes("DocCyWordmark"), false);
+
+    const clinicsPage = fs.readFileSync(
+      path.join(repoRoot, "app/clinics/[[...filters]]/page.tsx"),
+      "utf8",
+    );
+    assert.match(
+      clinicsPage,
+      /<ClinicLandingView[\s\S]*proSessionHint=\{isProSessionHintValue\(/,
+    );
+  });
+});
