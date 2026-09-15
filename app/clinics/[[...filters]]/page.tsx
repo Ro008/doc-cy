@@ -51,11 +51,9 @@ import {
 } from "@/lib/finder-distance";
 import { isAllSlug, slugToDistrict, toTitleCaseWords } from "@/lib/finder-seo";
 import { loadClinicBySlug } from "@/lib/load-clinic-by-slug";
+import { loadClinicProfessionalCountById } from "@/lib/clinic-professional-counts";
 import { createServiceRoleClient } from "@/lib/supabase-service";
-import {
-  fetchAllSupabaseRows,
-  fetchAllSupabaseRowsForIdChunks,
-} from "@/lib/supabase-fetch-all";
+import { fetchAllSupabaseRows } from "@/lib/supabase-fetch-all";
 import { getCachedDirectoryPayload } from "@/lib/finder-directory-cache";
 
 export const dynamic = "force-dynamic";
@@ -342,92 +340,26 @@ async function ClinicsSearchPage({ params, searchParams }: ClinicsPageProps) {
    * so counts are computed for every filtered row (not just the visible page)
    * before pagination — otherwise a hidden single-practitioner row would still
    * count toward `matchingClinicCount` and the "Show more" cutoff.
+   *
+   * Counts come from two global `fetchAll` reads (links + active professionals),
+   * not per-clinic `.in(...)` chunks — CI bypasses directory cache and the chunked
+   * path left `/clinics` stuck on "Updating results…".
    */
   if (supabase && clinics.length > 0 && !dataWarning) {
-    const clinicIds = clinics.map((clinic) => clinic.id);
-    const professionalIdsByClinic = new Map<string, Set<string>>();
-
-    const addProfessional = (clinicId: string, professionalId: string) => {
-      if (!clinicId || !professionalId) return;
-      let set = professionalIdsByClinic.get(clinicId);
-      if (!set) {
-        set = new Set();
-        professionalIdsByClinic.set(clinicId, set);
+    try {
+      const counts = await getCachedDirectoryPayload(["clinic-professional-counts"], async () => {
+        const { data, error } = await loadClinicProfessionalCountById(supabase);
+        if (error) throw new Error(error);
+        return Object.fromEntries(data.entries());
+      });
+      for (const clinic of clinics) {
+        clinic.professionalCount = Number(counts[clinic.id] ?? 0);
       }
-      set.add(professionalId);
-    };
-
-    const [linksRes, legacyRes] = await Promise.all([
-      fetchAllSupabaseRowsForIdChunks<{
-        clinic_id: string;
-        professional_id: string;
-      }>(clinicIds, (chunk) =>
-        supabase
-          .from("professional_clinics")
-          .select("clinic_id, professional_id")
-          .in("clinic_id", chunk),
-      ),
-      fetchAllSupabaseRowsForIdChunks<{
-        id: string;
-        clinic_id: string | null;
-      }>(clinicIds, (chunk) =>
-        supabase
-          .from("professionals")
-          .select("id, clinic_id")
-          .eq("is_archived", false)
-          .in("clinic_id", chunk),
-      ),
-    ]);
-
-    if (!linksRes.error && linksRes.data?.length) {
-      const linkedProfessionalIds = Array.from(
-        new Set(
-          linksRes.data
-            .map((row) => String(row.professional_id ?? "").trim())
-            .filter(Boolean),
-        ),
-      );
-      const activeProfessionalIds = new Set<string>();
-
-      if (linkedProfessionalIds.length > 0) {
-        const activeRes = await fetchAllSupabaseRowsForIdChunks<{ id: string }>(
-          linkedProfessionalIds,
-          (chunk) =>
-            supabase
-              .from("professionals")
-              .select("id")
-              .eq("is_archived", false)
-              .in("id", chunk),
-        );
-        if (!activeRes.error && activeRes.data?.length) {
-          for (const row of activeRes.data) {
-            const id = String(row.id ?? "").trim();
-            if (id) activeProfessionalIds.add(id);
-          }
-        }
-      }
-
-      for (const row of linksRes.data) {
-        const clinicId = String(row.clinic_id ?? "").trim();
-        const professionalId = String(row.professional_id ?? "").trim();
-        if (!activeProfessionalIds.has(professionalId)) continue;
-        addProfessional(clinicId, professionalId);
-      }
+      clinics = clinics.filter((clinic) => clinic.professionalCount >= 2);
+    } catch {
+      dataWarning = "We could not load clinics right now. Please try again.";
+      clinics = [];
     }
-
-    if (!legacyRes.error && legacyRes.data?.length) {
-      for (const row of legacyRes.data) {
-        const clinicId = String(row.clinic_id ?? "").trim();
-        const professionalId = String(row.id ?? "").trim();
-        addProfessional(clinicId, professionalId);
-      }
-    }
-
-    for (const clinic of clinics) {
-      clinic.professionalCount = professionalIdsByClinic.get(clinic.id)?.size ?? 0;
-    }
-
-    clinics = clinics.filter((clinic) => clinic.professionalCount >= 2);
   }
 
   if (userCoords) {
