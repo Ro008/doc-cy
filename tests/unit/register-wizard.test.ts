@@ -20,12 +20,14 @@ describe("register wizard wiring", () => {
     assert.doesNotMatch(source, /RegisterDemoAside/);
   });
 
-  it("scrolls the wizard to the top and animates incoming steps", () => {
+  it("scrolls the wizard only when the step changes, and animates incoming steps", () => {
     const wizard = fs.readFileSync(
       path.join(repoRoot, "components/auth/RegisterWizard.tsx"),
       "utf8",
     );
     assert.match(wizard, /scrollRegisterWizardToTop/);
+    assert.match(wizard, /previousStepRef/);
+    assert.match(wizard, /previousStepRef\.current === step/);
     assert.match(wizard, /register-step-in/);
   });
 });

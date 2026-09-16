@@ -128,6 +128,15 @@ export function RegisterIntroSection({
       <p className="text-sm text-ink-500">
         Apply now · We verify within 24 hours · Go live
       </p>
+      <p className="text-sm text-ink-500">
+        Already have an account?{" "}
+        <a
+          href="/login"
+          className="font-semibold text-clinical-700 underline-offset-2 hover:text-clinical-800 hover:underline"
+        >
+          Sign in
+        </a>
+      </p>
     </header>
   );
 }

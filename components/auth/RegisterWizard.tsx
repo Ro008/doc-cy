@@ -51,12 +51,13 @@ export function RegisterWizard({
     }
   }, [formId, step]);
 
-  const isFirstStepPaint = React.useRef(true);
+  // Scroll only when the user changes step — never on first mount.
+  // Comparing to the previous step (not a "first paint" flag) also survives
+  // React Strict Mode's double effect invoke in development.
+  const previousStepRef = React.useRef(step);
   React.useEffect(() => {
-    if (isFirstStepPaint.current) {
-      isFirstStepPaint.current = false;
-      return;
-    }
+    if (previousStepRef.current === step) return;
+    previousStepRef.current = step;
     scrollRegisterWizardToTop();
     const heading = document.querySelector<HTMLElement>(
       `[data-register-step="${step}"]:not([hidden]) h3`,
