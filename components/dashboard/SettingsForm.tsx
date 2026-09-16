@@ -109,6 +109,7 @@ export type DoctorSettingsFormData = {
   holidayModeEnabled: boolean;
   holidayStartDate: string | null; // "YYYY-MM-DD"
   holidayEndDate: string | null; // "YYYY-MM-DD"
+  pauseOnlineBookings: boolean;
   services: DoctorServiceItem[];
   locations?: DoctorWorkplaceFormData[];
 };
@@ -242,7 +243,7 @@ function initialWorkplacesFromForm(initial: DoctorSettingsFormData): DoctorWorkp
       breakStart: initial.breakStart,
       breakEnd: initial.breakEnd,
       slotDurationMinutes: initial.slotDurationMinutes,
-      pauseOnlineBookings: false,
+      pauseOnlineBookings: initial.pauseOnlineBookings,
     },
   ];
 }

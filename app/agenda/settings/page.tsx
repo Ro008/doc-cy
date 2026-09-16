@@ -510,6 +510,7 @@ export default async function AgendaSettingsPage() {
     holidayEndDate:
       (settings as { holiday_end_date?: string | null } | null)
         ?.holiday_end_date ?? null,
+    pauseOnlineBookings,
     services,
     locations: workplaceLocations,
   };
