@@ -145,6 +145,21 @@ test.describe("Integration: appointment race condition guard", { tag: ["@pr-e2e"
         );
       }
 
+      // Registering a doctor auto-creates a primary doctor_locations row
+      // (trigger: professionals_create_primary_location), defaulting to
+      // pause_online_bookings = true. Booking now reads the pause flag from
+      // the location, not doctor_settings — unpause it too or every booking
+      // attempt gets 403 "Bookings temporarily unavailable".
+      const locationUnpause = await admin
+        .from("doctor_locations")
+        .update({ pause_online_bookings: false })
+        .eq("doctor_id", doctorId);
+      if (locationUnpause.error) {
+        throw new Error(
+          `Failed unpausing doctor location: ${locationUnpause.error.message}`,
+        );
+      }
+
       const targetDate = nextWeekdayDateKey(1);
       const targetLocal = `${targetDate}T10:00`;
 
