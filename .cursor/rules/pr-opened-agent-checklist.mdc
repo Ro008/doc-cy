@@ -25,7 +25,11 @@ Do **not** add this block back into PR body templates as the primary reminder pa
 
 ## 2. Watch CI and fix failures
 
-Stay on the PR checks **while the PR stays open**. Report status in chat (not only in a background terminal). If any fail, diagnose and fix (push to the PR branch). Prefer fixing real product/test mismatches over blind re-runs.
+Stay on the PR checks **while the PR stays open**.
+
+**Visibility (required):** post status updates **in chat** on a short cadence (about every 2–3 minutes while anything is pending, and immediately when a check fails/passes or master moves). Do **not** rely on a background terminal alone — the user must see progress in the conversation.
+
+If any check fails, diagnose and fix (push to the PR branch). Prefer fixing real product/test mismatches over blind re-runs.
 
 ## 3. Master / coworker sync (Livio) — ongoing
 
