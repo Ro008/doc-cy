@@ -69,7 +69,8 @@ import {
   CallToBookClicksSection,
   type CallToBookDashboardRow,
 } from "@/components/internal/CallToBookClicksSection";
-import { aggregateCallToBookClicks } from "@/lib/call-to-book";
+import { buildCallToBookDashboardRows, sumCallToBookStats } from "@/lib/call-to-book";
+import { buildManualVoteDashboardRows } from "@/lib/founder-manual-votes";
 import {
   FinderInvitationRequestsSection,
   type FinderInvitationRequestRow,
@@ -260,20 +261,17 @@ export default async function FounderDashboardPage({
       .from("appointments")
       .select("id", { count: "exact", head: true })
       .gte("created_at", monthStartIso),
-    fetchAllSupabaseRows(() =>
-      supabase.from("appointments").select("doctor_id").gte("created_at", sevenDaysAgoIso),
-    ),
+    // Distinct-doctor count computed in SQL instead of fetching every appointment row.
+    supabase.rpc("founder_active_doctor_count", { p_since: sevenDaysAgoIso }),
     supabase
       .from("appointments")
       .select("id, patient_name, appointment_datetime, created_at, doctor_id")
       .order("created_at", { ascending: false })
       .limit(5),
-    fetchAllSupabaseRows(() =>
-      supabase
-        .from("appointments")
-        .select("created_at")
-        .gte("created_at", chartRangeStart.toISOString()),
-    ),
+    // Pre-grouped by month in SQL instead of fetching every appointment row since chartRangeStart.
+    supabase.rpc("founder_appointments_by_month", {
+      p_since: chartRangeStart.toISOString(),
+    }),
   ]);
 
   if (doctorsRes.error) {
@@ -829,12 +827,8 @@ export default async function FounderDashboardPage({
     ? 0
     : apptsMonthCountRes.count ?? 0;
 
-  let activeDoctors7d = 0;
-  if (!appts7dRes.error && appts7dRes.data?.length) {
-    activeDoctors7d = Array.from(
-      new Set(appts7dRes.data.map((a) => a.doctor_id as string))
-    ).length;
-  }
+  const activeDoctors7d =
+    !appts7dRes.error && typeof appts7dRes.data === "number" ? appts7dRes.data : 0;
 
   const newDoctorsThisWeek = verifiedRows.filter((r) => {
     if (!r.created_at) return false;
@@ -843,7 +837,7 @@ export default async function FounderDashboardPage({
 
   const chartRows =
     !apptsForChartRes.error && apptsForChartRes.data
-      ? (apptsForChartRes.data as { created_at: string | null }[])
+      ? (apptsForChartRes.data as { month_key: string; appt_count: number | string | null }[])
       : [];
   const chartData = buildLastSixMonthsAppointmentCounts(chartRows);
 
@@ -989,36 +983,17 @@ export default async function FounderDashboardPage({
   let manualVoteRowsUnsorted: ManualPatientVoteRow[] = [];
   try {
     const manualVotesDays = getManualVotesWindowDays(dashboardQuery.manualVotesRange);
-    const { data: reqRows, error: reqErr } = await fetchAllSupabaseRows(() => {
-      let q = supabase
-        .from("professional_patient_booking_requests")
-        .select("id, professional_id, created_at, voter_key");
-      if (manualVotesDays != null) {
-        const sinceIso = new Date(
-          Date.now() - manualVotesDays * 24 * 60 * 60 * 1000,
-        ).toISOString();
-        q = q.gte("created_at", sinceIso);
-      }
-      return q;
-    });
-    if (!reqErr && reqRows?.length) {
-      const byManual = new Map<string, { voters: Set<string>; lastAt: string }>();
-      for (const r of reqRows) {
-        const mid = String((r as { professional_id?: string }).professional_id ?? "");
-        const ca = String((r as { created_at?: string }).created_at ?? "");
-        const id = String((r as { id?: string }).id ?? "");
-        const vk = (r as { voter_key?: string | null }).voter_key?.trim();
-        const dedupeId = vk || `legacy:${id}`;
-        if (!mid) continue;
-        const cur = byManual.get(mid);
-        if (!cur) {
-          byManual.set(mid, { voters: new Set([dedupeId]), lastAt: ca });
-        } else {
-          cur.voters.add(dedupeId);
-          if (ca > cur.lastAt) cur.lastAt = ca;
-        }
-      }
-      const ids = Array.from(byManual.keys());
+    const sinceIso =
+      manualVotesDays != null
+        ? new Date(Date.now() - manualVotesDays * 24 * 60 * 60 * 1000).toISOString()
+        : null;
+    // Voter dedupe + count computed in SQL instead of fetching every booking-request row.
+    const { data: voteStats, error: reqErr } = await supabase.rpc(
+      "founder_manual_vote_stats",
+      { p_since: sinceIso },
+    );
+    if (!reqErr && voteStats?.length) {
+      const ids = voteStats.map((v: { professional_id: string }) => String(v.professional_id));
       const { data: namesRows } = await supabase
         .from("professionals")
         .select("id, name, district, specialty")
@@ -1033,18 +1008,7 @@ export default async function FounderDashboardPage({
           },
         ])
       );
-      manualVoteRowsUnsorted = ids.map((id) => {
-        const agg = byManual.get(id)!;
-        const meta = nameMap.get(id);
-        return {
-          manualId: id,
-          name: meta?.name?.trim() || id.slice(0, 8),
-          district: meta?.district ?? null,
-          specialty: meta?.specialty ?? null,
-          count: agg.voters.size,
-          lastAt: agg.lastAt,
-        };
-      });
+      manualVoteRowsUnsorted = buildManualVoteDashboardRows(voteStats, nameMap);
     }
   } catch (reqStatsErr) {
     console.error("[DocCy] manual patient request stats failed", reqStatsErr);
@@ -1132,31 +1096,22 @@ export default async function FounderDashboardPage({
   let callToBookProfessionalProfileCount = 0;
   try {
     const callToBookDays = getCallToBookWindowDays(dashboardQuery.callToBookRange);
-    const { data: clickRows, error: clickErr } = await fetchAllSupabaseRows(() => {
-      let q = supabase
-        .from("professional_call_to_book_clicks")
-        .select("professional_id, clinic_id, source, created_at");
-      if (callToBookDays != null) {
-        const sinceIso = new Date(
-          Date.now() - callToBookDays * 24 * 60 * 60 * 1000,
-        ).toISOString();
-        q = q.gte("created_at", sinceIso);
-      }
-      return q;
-    });
-    if (!clickErr && clickRows?.length) {
-      const aggregated = aggregateCallToBookClicks(
-        clickRows.map((r) => ({
-          manualId: String((r as { professional_id?: string }).professional_id ?? ""),
-          clinicId: String((r as { clinic_id?: string | null }).clinic_id ?? "").trim() || null,
-          source: String((r as { source?: string }).source ?? ""),
-          createdAt: String((r as { created_at?: string }).created_at ?? ""),
-        })),
-      );
-      callToBookTotal = aggregated.total;
-      callToBookFinderCount = aggregated.finderCount;
-      callToBookProfessionalProfileCount = aggregated.professionalProfileCount;
-      const ids = aggregated.byProfessional.map((p) => p.manualId);
+    const sinceIso =
+      callToBookDays != null
+        ? new Date(Date.now() - callToBookDays * 24 * 60 * 60 * 1000).toISOString()
+        : null;
+    // Per-professional click/finder/profile counts computed in SQL instead of
+    // fetching every click row.
+    const { data: clickStats, error: clickErr } = await supabase.rpc(
+      "founder_call_to_book_stats",
+      { p_since: sinceIso },
+    );
+    if (!clickErr && clickStats?.length) {
+      const totals = sumCallToBookStats(clickStats);
+      callToBookTotal = totals.total;
+      callToBookFinderCount = totals.finderCount;
+      callToBookProfessionalProfileCount = totals.professionalProfileCount;
+      const ids = clickStats.map((r: { professional_id: string }) => String(r.professional_id));
       const { data: namesRows } = await fetchAllSupabaseRowsForIdChunks(ids, (idChunk) =>
         supabase.from("professionals").select("id, name, district, specialty").in("id", idChunk),
       );
@@ -1171,19 +1126,7 @@ export default async function FounderDashboardPage({
         ]),
       );
       callToBookRows = sortCallToBookRows(
-        aggregated.byProfessional.map((agg) => {
-          const meta = nameMap.get(agg.manualId);
-          return {
-            manualId: agg.manualId,
-            name: meta?.name?.trim() || agg.manualId.slice(0, 8),
-            district: meta?.district ?? null,
-            specialty: meta?.specialty ?? null,
-            count: agg.count,
-            finderCount: agg.finderCount,
-            professionalProfileCount: agg.professionalProfileCount,
-            lastAt: agg.lastAt,
-          };
-        }),
+        buildCallToBookDashboardRows(clickStats, nameMap),
         dashboardQuery.callToBookCol,
         dashboardQuery.callToBookDir,
       ).slice(0, 120);

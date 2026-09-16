@@ -80,3 +80,52 @@ export function aggregateCallToBookClicks(events: readonly CallToBookClickEvent[
     byProfessional,
   };
 }
+
+/** One row from the `founder_call_to_book_stats` SQL aggregate. */
+export type CallToBookStatRow = {
+  professional_id: string;
+  click_count: number | string | null;
+  finder_count: number | string | null;
+  profile_count: number | string | null;
+  last_at: string | null;
+};
+
+/** Totals across every stat row — the database already grouped by professional, so this is a plain sum. */
+export function sumCallToBookStats(
+  stats: readonly CallToBookStatRow[],
+): Pick<CallToBookTotals, "total" | "finderCount" | "professionalProfileCount"> {
+  let total = 0;
+  let finderCount = 0;
+  let professionalProfileCount = 0;
+  for (const row of stats) {
+    total += Number(row.click_count) || 0;
+    finderCount += Number(row.finder_count) || 0;
+    professionalProfileCount += Number(row.profile_count) || 0;
+  }
+  return { total, finderCount, professionalProfileCount };
+}
+
+/**
+ * Maps pre-aggregated click stats onto dashboard rows, filling in professional
+ * metadata. Return shape matches `CallToBookDashboardRow`
+ * (components/internal/CallToBookClicksSection.tsx).
+ */
+export function buildCallToBookDashboardRows(
+  stats: readonly CallToBookStatRow[],
+  metaById: ReadonlyMap<string, { name?: string | null; district?: string | null; specialty?: string | null }>,
+) {
+  return stats.map((row) => {
+    const id = String(row.professional_id ?? "");
+    const meta = metaById.get(id);
+    return {
+      manualId: id,
+      name: meta?.name?.trim() || id.slice(0, 8),
+      district: meta?.district ?? null,
+      specialty: meta?.specialty ?? null,
+      count: Number(row.click_count) || 0,
+      finderCount: Number(row.finder_count) || 0,
+      professionalProfileCount: Number(row.profile_count) || 0,
+      lastAt: String(row.last_at ?? ""),
+    };
+  });
+}

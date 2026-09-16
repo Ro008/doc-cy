@@ -1,10 +1,17 @@
-import { format, parseISO, startOfMonth, subMonths } from "date-fns";
+import { format, startOfMonth, subMonths } from "date-fns";
 
 export type MonthBucket = { key: string; label: string; count: number };
 
-/** Last 6 calendar months including current; counts by appointment created_at (yyyy-MM in UTC). */
+/** One row from the `founder_appointments_by_month` SQL aggregate. */
+export type AppointmentMonthCount = { month_key: string; appt_count: number | string | null };
+
+/**
+ * Last 6 calendar months including current, zero-filled. `rows` are
+ * pre-aggregated by the database (one row per month with appointments) —
+ * this only maps them onto a fixed 6-month scaffold for the chart.
+ */
 export function buildLastSixMonthsAppointmentCounts(
-  rows: { created_at: string | null }[]
+  rows: readonly AppointmentMonthCount[]
 ): MonthBucket[] {
   const now = new Date();
   const months: MonthBucket[] = [];
@@ -18,14 +25,11 @@ export function buildLastSixMonthsAppointmentCounts(
   }
   const idxByKey = new Map(months.map((m, i) => [m.key, i] as const));
   for (const row of rows) {
-    if (!row.created_at) continue;
-    try {
-      const key = format(parseISO(row.created_at), "yyyy-MM");
-      const i = idxByKey.get(key);
-      if (i !== undefined) months[i].count += 1;
-    } catch {
-      /* invalid date */
-    }
+    const key = String(row.month_key ?? "");
+    const i = idxByKey.get(key);
+    if (i === undefined) continue;
+    const count = Number(row.appt_count);
+    months[i].count = Number.isFinite(count) ? count : 0;
   }
   return months;
 }
