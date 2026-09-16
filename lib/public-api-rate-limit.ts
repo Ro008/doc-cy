@@ -6,7 +6,8 @@ export type PublicApiRateLimitBucket =
   | "doctorInvitation"
   | "appointments"
   | "contactReveal"
-  | "passwordReset";
+  | "passwordReset"
+  | "internalAuthLogin";
 
 type RateLimitConfig = {
   limit: number;
@@ -22,6 +23,13 @@ export const PUBLIC_API_RATE_LIMITS: Record<PublicApiRateLimitBucket, RateLimitC
   contactReveal: { limit: 40, windowMs: 60 * 60 * 1000 },
   /** Practitioner forgot-password emails (IP). Per-address cap is separate. */
   passwordReset: { limit: 5, windowMs: 60 * 60 * 1000 },
+  /**
+   * Internal/founder directory login. A single shared secret, previously
+   * with no limit at all. Every attempt (right or wrong) counts; the 4th
+   * within the hour gets a 429 with Retry-After instead of being checked
+   * against the secret.
+   */
+  internalAuthLogin: { limit: 3, windowMs: 60 * 60 * 1000 },
 };
 
 type BucketState = {

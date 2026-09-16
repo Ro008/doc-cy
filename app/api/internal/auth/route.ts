@@ -4,8 +4,14 @@ import {
   readInternalDirectorySecrets,
   roleFromCookieValue,
 } from "@/lib/internal-directory-auth-core";
+import { enforcePublicApiRateLimit } from "@/lib/public-api-rate-limit";
 
 export async function POST(req: NextRequest) {
+  const limited = enforcePublicApiRateLimit(req, "internalAuthLogin", {
+    body: { message: "Too many attempts. Try again later." },
+  });
+  if (limited) return limited;
+
   const secrets = readInternalDirectorySecrets();
   if (!secrets.founder) {
     return NextResponse.json(
