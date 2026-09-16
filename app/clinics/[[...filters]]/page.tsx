@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { FinderPublicHeader } from "@/components/finder/FinderPublicHeader";
 import { ClinicLandingView } from "@/components/finder/ClinicLandingView";
@@ -31,6 +31,7 @@ import {
   finderResultsListScope,
   resolveFinderResultsPage,
 } from "@/lib/finder-results-page-state";
+import { isFinderBrowseAllowed } from "@/lib/public-api-rate-limit";
 import { CYPRUS_DISTRICTS, type CyprusDistrict, isCyprusDistrict } from "@/lib/cyprus-districts";
 import {
   reconcileFinderTownAndDistrict,
@@ -239,12 +240,20 @@ async function ClinicsSearchPage({ params, searchParams }: ClinicsPageProps) {
     lon: searchParams?.lon ?? null,
     acc: searchParams?.acc ?? null,
   });
-  const resultsPage = resolveFinderResultsPage({
-    cookieRaw: cookies().get(FINDER_RESULTS_PAGE_COOKIE)?.value,
-    scope: listScope,
-    urlPage: searchParams?.page,
-    hasListFilter,
-  });
+  /**
+   * Every search counts against the visitor's IP for the hour, regardless of
+   * page depth — catches looping through every district x specialty combo,
+   * not just deep pagination on one search (see anti-scraping-security.mdc).
+   * Over the limit: silently fall back to page 1, no error shown.
+   */
+  const resultsPage = isFinderBrowseAllowed(headers())
+    ? resolveFinderResultsPage({
+        cookieRaw: cookies().get(FINDER_RESULTS_PAGE_COOKIE)?.value,
+        scope: listScope,
+        urlPage: searchParams?.page,
+        hasListFilter,
+      })
+    : 1;
   const districtLabel = activeDistrict ? toTitleCaseWords(activeDistrict) : "";
   const placeLabel = activeTown || districtLabel;
   const townHint =

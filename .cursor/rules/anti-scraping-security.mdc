@@ -41,7 +41,8 @@ Browser bundles still contain the anon key, but PostgREST list dumps of the cura
 **In app (shipped in code):**
 
 - Phone numbers for manual listings / clinics are **not** in SSR props; revealed via `POST /api/directory/contact-reveal` after click (rate limit bucket `contactReveal`: 40/hour/IP).
-- Finder `?page=` capped at **2** without list filters, **20** with district/specialty/name/near-me.
+- Finder `?page=` capped at **5** (60 listings) whether or not a list filter is active — see `lib/finder-results-paging.ts`. (Previously 2/20; the unfiltered cap drifted to 20 in an unrelated pagination refactor on 2026-08-19 before being corrected back down.)
+- Per-IP hourly limit on finder/clinics searches (rate limit bucket `finderBrowse`: 15/hour/IP) — every search counts against the visitor's IP regardless of page depth, so looping through every district × specialty combination gets throttled too, not just deep pagination on one search.
 
 **Cloudflare Free (manual DNS — finish when domain status is Active):**
 
@@ -79,15 +80,15 @@ All app code queries these views, never the base tables, for public-facing reads
 
 ### 3. In-memory rate limiting (`lib/public-api-rate-limit.ts`)
 
-Silent (returns 429 but no error UI) on public write APIs:
+Silent (returns 429 / silently truncated, no error UI) on public write APIs and on finder/clinics search itself:
 
-| Route | Limit |
+| Route / surface | Limit |
 |---|---|
 | `POST /api/directory-manual/patient-booking-request` | 10 req / hour / IP |
 | `POST /api/finder/doctor-invitation-request` | 5 req / hour / IP |
 | `POST /api/appointments` | 20 req / hour / IP |
-| `POST /api/traffic/log` | 60 req / min / IP |
 | `POST /api/directory/contact-reveal` | 40 req / hour / IP |
+| Finder / clinics searches (any page depth) — bucket `finderBrowse` | 15 req / hour / IP; over limit silently clamps to page 1 |
 
 Disable for tests: `DOC_CY_PUBLIC_API_RATE_LIMIT=off`.
 

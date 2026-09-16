@@ -68,7 +68,7 @@ export async function POST(req: Request) {
   const district = normalizeContext(body.district);
   const searchName = normalizeContext(body.searchName);
 
-  const ip = getClientIp(req);
+  const ip = getClientIp(req.headers);
   const voterKey = voterFingerprint(invitationDedupeScope(requestedName, specialty, district), ip);
   const sinceIso = new Date(Date.now() - DEDUPE_WINDOW_MS).toISOString();
 

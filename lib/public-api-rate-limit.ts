@@ -6,7 +6,8 @@ export type PublicApiRateLimitBucket =
   | "doctorInvitation"
   | "appointments"
   | "contactReveal"
-  | "passwordReset";
+  | "passwordReset"
+  | "finderBrowse";
 
 type RateLimitConfig = {
   limit: number;
@@ -22,6 +23,16 @@ export const PUBLIC_API_RATE_LIMITS: Record<PublicApiRateLimitBucket, RateLimitC
   contactReveal: { limit: 40, windowMs: 60 * 60 * 1000 },
   /** Practitioner forgot-password emails (IP). Per-address cap is separate. */
   passwordReset: { limit: 5, windowMs: 60 * 60 * 1000 },
+  /**
+   * Finder/clinics searches (reads, not writes). Counts every search against
+   * the visitor's IP for the window regardless of page depth, so it also
+   * catches looping through every district x specialty combo — not just
+   * paging deep into one search (that's handled separately by
+   * FINDER_RESULTS_MAX_PAGE_UNFILTERED/FILTERED in finder-results-paging.ts).
+   * Cyprus has few districts/specialties, so 15/hour comfortably covers a
+   * real patient comparing several areas in one sitting.
+   */
+  finderBrowse: { limit: 15, windowMs: 60 * 60 * 1000 },
 };
 
 type BucketState = {
@@ -103,7 +114,7 @@ export function enforcePublicApiRateLimit(
 ): NextResponse | null {
   if (isPublicApiRateLimitDisabled()) return null;
 
-  const ip = getClientIp(req);
+  const ip = getClientIp(req.headers);
   if (!ip) return null;
 
   const cfg = PUBLIC_API_RATE_LIMITS[bucket];
@@ -135,6 +146,29 @@ export function enforcePublicApiRateLimit(
       "Retry-After": String(limited.retryAfterSec),
     },
   });
+}
+
+/**
+ * Same fail-open rules as enforcePublicApiRateLimit (disabled via env, or no
+ * IP available), but for Server Components that only have `headers()`, not a
+ * full `Request` — so there's no NextResponse to build. Callers decide what
+ * "over the limit" looks like (finder/clinics silently clamp to page 1).
+ */
+export function isFinderBrowseAllowed(headers: Pick<Headers, "get">): boolean {
+  if (isPublicApiRateLimitDisabled()) return true;
+
+  const ip = getClientIp(headers);
+  if (!ip) return true;
+
+  const cfg = PUBLIC_API_RATE_LIMITS.finderBrowse;
+  const result = consumePublicApiRateLimit({
+    bucket: "finderBrowse",
+    key: ip,
+    limit: cfg.limit,
+    windowMs: cfg.windowMs,
+  });
+
+  return result.ok;
 }
 
 /** Test-only: clear in-memory counters. */
