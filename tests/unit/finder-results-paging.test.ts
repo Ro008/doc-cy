@@ -46,8 +46,8 @@ describe("finder results paging helpers", () => {
   it("parses page and builds href", () => {
     assert.equal(parseFinderResultsPage("3"), 3);
     assert.equal(parseFinderResultsPage("3", { hasListFilter: true }), 3);
-    assert.equal(parseFinderResultsPage("99", { hasListFilter: true }), 20);
-    assert.equal(parseFinderResultsPage("99"), 20);
+    assert.equal(parseFinderResultsPage("99", { hasListFilter: true }), 5);
+    assert.equal(parseFinderResultsPage("99"), 5);
     assert.equal(parseFinderResultsPage("0"), 1);
     assert.equal(
       buildFinderResultsPageHref({
@@ -103,8 +103,8 @@ describe("finder results paging helpers", () => {
     assert.equal(
       hasMoreFinderResults({
         totalCount: 500,
-        visibleCount: 240,
-        resultsPage: 20,
+        visibleCount: 60,
+        resultsPage: 5,
       }),
       false,
     );

@@ -1,9 +1,19 @@
 import assert from "node:assert/strict";
-import { describe, it, beforeEach } from "node:test";
+import { describe, it, beforeEach, after } from "node:test";
 import {
   consumePublicApiRateLimit,
+  isFinderBrowseAllowed,
+  PUBLIC_API_RATE_LIMITS,
   resetPublicApiRateLimitStoreForTests,
 } from "@/lib/public-api-rate-limit";
+import { getClientIp } from "@/lib/vote-fingerprint";
+
+/** Minimal `.get(name)` stand-in for a Server Component's `headers()` result. */
+function fakeHeaders(values: Record<string, string | undefined>): Pick<Headers, "get"> {
+  return {
+    get: (name: string) => values[name.toLowerCase()] ?? null,
+  };
+}
 
 describe("consumePublicApiRateLimit", () => {
   beforeEach(() => {
@@ -113,5 +123,75 @@ describe("consumePublicApiRateLimit", () => {
       }).ok,
       true,
     );
+  });
+});
+
+describe("getClientIp", () => {
+  it("reads the first hop off x-forwarded-for from any .get(name) header source", () => {
+    // Works from a real Request...
+    const req = new Request("https://example.com", {
+      headers: { "x-forwarded-for": "9.9.9.9, 10.0.0.1" },
+    });
+    assert.equal(getClientIp(req.headers), "9.9.9.9");
+
+    // ...and from a plain object shaped like Next's headers() result, which
+    // is what Server Components (the finder/clinics pages) actually have.
+    assert.equal(
+      getClientIp(fakeHeaders({ "x-forwarded-for": "8.8.8.8" })),
+      "8.8.8.8",
+    );
+  });
+
+  it("falls back to x-real-ip, then empty string", () => {
+    assert.equal(getClientIp(fakeHeaders({ "x-real-ip": "1.1.1.1" })), "1.1.1.1");
+    assert.equal(getClientIp(fakeHeaders({})), "");
+  });
+});
+
+describe("isFinderBrowseAllowed", () => {
+  const originalEnv = process.env.DOC_CY_PUBLIC_API_RATE_LIMIT;
+
+  beforeEach(() => {
+    resetPublicApiRateLimitStoreForTests();
+    delete process.env.DOC_CY_PUBLIC_API_RATE_LIMIT;
+  });
+
+  it("allows finderBrowse.limit searches per IP, then blocks the next one", () => {
+    const limit = PUBLIC_API_RATE_LIMITS.finderBrowse.limit;
+    const h = fakeHeaders({ "x-forwarded-for": "203.0.113.5" });
+    for (let i = 0; i < limit; i += 1) {
+      assert.equal(isFinderBrowseAllowed(h), true, `request ${i + 1} should be allowed`);
+    }
+    assert.equal(isFinderBrowseAllowed(h), false);
+  });
+
+  it("tracks each IP independently", () => {
+    const limit = PUBLIC_API_RATE_LIMITS.finderBrowse.limit;
+    const a = fakeHeaders({ "x-forwarded-for": "203.0.113.10" });
+    const b = fakeHeaders({ "x-forwarded-for": "203.0.113.11" });
+    for (let i = 0; i < limit; i += 1) {
+      assert.equal(isFinderBrowseAllowed(a), true);
+    }
+    assert.equal(isFinderBrowseAllowed(a), false);
+    // A different visitor still has their own full budget.
+    assert.equal(isFinderBrowseAllowed(b), true);
+  });
+
+  it("fails open when no IP can be determined (local dev, missing headers)", () => {
+    assert.equal(isFinderBrowseAllowed(fakeHeaders({})), true);
+  });
+
+  it("fails open when DOC_CY_PUBLIC_API_RATE_LIMIT=off, even past the limit", () => {
+    process.env.DOC_CY_PUBLIC_API_RATE_LIMIT = "off";
+    const limit = PUBLIC_API_RATE_LIMITS.finderBrowse.limit;
+    const h = fakeHeaders({ "x-forwarded-for": "203.0.113.20" });
+    for (let i = 0; i < limit + 5; i += 1) {
+      assert.equal(isFinderBrowseAllowed(h), true);
+    }
+  });
+
+  after(() => {
+    if (originalEnv === undefined) delete process.env.DOC_CY_PUBLIC_API_RATE_LIMIT;
+    else process.env.DOC_CY_PUBLIC_API_RATE_LIMIT = originalEnv;
   });
 });

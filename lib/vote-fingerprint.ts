@@ -1,12 +1,17 @@
 import { createHmac } from "node:crypto";
 
-export function getClientIp(req: Request): string {
-  const xff = req.headers.get("x-forwarded-for");
+/**
+ * Accepts a plain `.get(name)` header source so callers can pass either an
+ * API route's `req.headers` or the `headers()` result from a Server
+ * Component (neither has a full `Request` to hand over).
+ */
+export function getClientIp(headers: Pick<Headers, "get">): string {
+  const xff = headers.get("x-forwarded-for");
   if (xff) {
     const first = xff.split(",")[0]?.trim();
     if (first) return first;
   }
-  const xri = req.headers.get("x-real-ip")?.trim();
+  const xri = headers.get("x-real-ip")?.trim();
   if (xri) return xri;
   return "";
 }
