@@ -54,7 +54,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, reason: "manual_not_found" }, { status: 404 });
   }
 
-  const ip = getClientIp(req);
+  const ip = getClientIp(req.headers);
   const voterKey = voterFingerprint(manualId, ip);
 
   // Same IP+professional fingerprint: keep one row lifetime (toast still OK; Ads skips).

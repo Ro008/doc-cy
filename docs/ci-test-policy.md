@@ -11,7 +11,7 @@ Goal: **one blocking suite on every PR** (integration) and **one small scheduled
 
 **Local** (`npm run test:e2e`, `test:e2e:register`, `test:prod:smoke:local`, etc.) is for development only — not a third CI lane.
 
-**Pre-PR local gate:** `npm run test:e2e:register` (live `/register` + Resend on testing). Run it as the last step before opening a pull request. Do not run it on every commit (Auth rate limits + 1–3 min). Reminder: `.github/pull_request_template.md`.
+**Local register gate:** `npm run test:e2e:register` (live `/register` + Resend on testing). Not a GitHub check. When a PR is opened, the Cursor agent runs it once and reports the result in chat (see `.cursor/rules/pr-opened-agent-checklist.mdc`). Do not run it on every commit (Auth rate limits + 1–3 min). PR template note: `.github/pull_request_template.md`.
 
 ### Folder conventions (same Playwright runner)
 
@@ -36,7 +36,7 @@ After the Playwright lanes, PR CI always runs `scripts/cleanup-test-doctors.mjs 
 | `@pr-mobile-monitor` | `playwright test --grep @pr-mobile-monitor` | Doctor confirmation flow on mobile (PR, non-blocking) |
 | `@pr-login-monitor` | `playwright test --grep @pr-login-monitor` | Doctor `/login` form UI (PR, non-blocking) |
 | `@nightly-prod` | `playwright test --grep @nightly-prod` | Prod URL blocking smokes (site + booking) |
-| `@local-register` | `npm run test:e2e:register` | Live `/register` UI + Resend on **testing** DB. **Local pre-PR gate only** — not CI |
+| `@local-register` | `npm run test:e2e:register` | Live `/register` UI + Resend on **testing** DB. **Local gate (agent runs on PR open)** — not CI |
 
 Constants: `tests/helpers/ciTags.ts`. To tag new specs: `node scripts/apply-ci-playwright-tags.mjs` (edit file lists first).
 
@@ -71,7 +71,7 @@ Constants: `tests/helpers/ciTags.ts`. To tag new specs: `node scripts/apply-ci-p
 
 - Live prod booking writes (nightly only)
 - `tests/feedback_support_live_formspree.spec.ts` (local only)
-- Live registration UI (`doctor_register_flow.integration.spec.ts` + `doctor_register_claim_flow.integration.spec.ts`, tag `@local-register`). Not a PR check: Google Places, Auth `signUp`, and Resend are too heavy/flaky for GitHub. Run **once locally before opening a PR** with `npm run test:e2e:register` (testing DB, founder email asserted, doctor always deleted). The claim spec opens a QA clone’s public profile and clicks that listing’s Activate online booking CTA — never a real directory person — and asserts `directory_claim_source = card_link`. The PR template has the checkbox. Do **not** put this on a git commit hook. Onboarding DB state on PR remains `doctor_onboarding_pipeline.integration.spec.ts`. Pending origin labels (Possible twin / Unclaimed / Auto-matched) + absorb/keep_both are covered on PR by `pending_registration_origin_actions.integration.spec.ts` (`@pr-e2e`) when `INTERNAL_DIRECTORY_SECRET` is set.
+- Live registration UI (`doctor_register_flow.integration.spec.ts` + `doctor_register_claim_flow.integration.spec.ts`, tag `@local-register`). Not a PR check: Google Places, Auth `signUp`, and Resend are too heavy/flaky for GitHub. When a PR is opened, the Cursor agent runs `npm run test:e2e:register` once on the testing DB (founder email asserted, doctor always deleted) and reports the result in chat. The claim spec opens a QA clone’s public profile and clicks that listing’s Activate online booking CTA — never a real directory person — and asserts `directory_claim_source = card_link`. Do **not** put this on a git commit hook. Onboarding DB state on PR remains `doctor_onboarding_pipeline.integration.spec.ts`. Pending origin labels (Possible twin / Unclaimed / Auto-matched) + absorb/keep_both are covered on PR by `pending_registration_origin_actions.integration.spec.ts` (`@pr-e2e`) when `INTERNAL_DIRECTORY_SECRET` is set.
 
 **Optional PR follow-up:** add `tests/integration/directory_duplicates_actions.integration.spec.ts` if `INTERNAL_DIRECTORY_SECRET` is set (already in PR list when secret present).
 

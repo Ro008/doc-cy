@@ -5,6 +5,11 @@ test.describe("Password reset UI", { tag: "@pr-e2e" }, () => {
     page,
   }) => {
     await page.goto("/login");
+    await expect(page.getByRole("link", { name: /my doccy/i })).toHaveAttribute("href", "/");
+    await expect(page.getByRole("link", { name: /^Find a professional$/i })).toHaveAttribute(
+      "href",
+      "/",
+    );
     const forgot = page.getByRole("link", { name: /Forgot your password\?/i });
     await expect(forgot).toBeVisible();
 

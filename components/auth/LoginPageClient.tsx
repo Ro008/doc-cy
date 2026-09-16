@@ -70,7 +70,9 @@ export function LoginPageClient({ nextPath }: { nextPath?: string | null }) {
         <div className="w-full max-w-md rounded-3xl border border-clinical-100/10 bg-slate-900/60 p-6 shadow-2xl shadow-ink-900/50 backdrop-blur-xl sm:p-8">
           <div className="mb-6 text-left">
             <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-semibold tracking-[0.2em] text-clinical-200/80">
-              <DocCyWordmark variant="dark" size="sm" />
+              <PendingLink href="/" className="inline-flex shrink-0 transition hover:opacity-90">
+                <DocCyWordmark variant="dark" size="sm" />
+              </PendingLink>
               <span>· Practitioner login</span>
             </p>
             <h1 className="mt-3 text-2xl font-semibold tracking-tight text-slate-50 sm:text-3xl">
@@ -142,6 +144,15 @@ export function LoginPageClient({ nextPath }: { nextPath?: string | null }) {
               className="font-medium text-clinical-300 hover:text-clinical-200"
             >
               Create your profile
+            </PendingLink>
+          </p>
+          <p className="mt-3 text-center text-xs text-slate-400">
+            Looking for a health professional?{" "}
+            <PendingLink
+              href="/"
+              className="font-medium text-clinical-300 hover:text-clinical-200"
+            >
+              Find a professional
             </PendingLink>
           </p>
         </div>

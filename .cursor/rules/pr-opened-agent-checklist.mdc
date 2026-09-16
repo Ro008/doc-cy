@@ -1,5 +1,5 @@
 ---
-description: When the user opens or announces a PR — register gate reminder, CI watch, master/Livio awareness
+description: When the user opens or announces a PR — auto-run register e2e, CI watch, master/Livio awareness
 alwaysApply: true
 ---
 
@@ -7,9 +7,9 @@ alwaysApply: true
 
 When the user says they opened / created / pushed a PR (or asks to watch CI on a new PR), do this **in chat** every time. Do **not** rely on GitHub PR description checkboxes for these reminders — the user reads those too late.
 
-## 1. Local register gate (not CI)
+## 1. Local register gate (not CI) — run it yourself
 
-Immediately remind them to run once on the testing DB:
+Immediately start the testing-DB register E2E (do **not** wait for the user to ask):
 
 ```bash
 npm run test:e2e:register
@@ -17,16 +17,26 @@ npm run test:e2e:register
 
 Live `/register` (Places/Auth/Resend), founder email asserted, doctor deleted afterwards. See `docs/ci-test-policy.md`.
 
-Then **ask** whether they want you to run it for them in this session. Do not start it until they say yes.
+In the same turn, **tell the user** that you launched it and that you will report the result when it finishes. Stay on the run until it completes (pass/fail); if it fails, diagnose and fix (or report clearly if blocked).
+
+Do **not** only remind them to run it themselves. Do **not** ask permission first.
 
 Do **not** add this block back into PR body templates as the primary reminder path.
 
 ## 2. Watch CI and fix failures
 
-Stay on the PR checks. If any fail, diagnose and fix (push to the PR branch). Prefer fixing real product/test mismatches over blind re-runs.
+Stay on the PR checks **while the PR stays open**.
 
-## 3. Master / coworker sync (Livio)
+**Visibility (required):** post status updates **in chat** on a short cadence (about every 2–3 minutes while anything is pending, and immediately when a check fails/passes or master moves). Do **not** rely on a background terminal alone — the user must see progress in the conversation.
+
+If any check fails, diagnose and fix (push to the PR branch). Prefer fixing real product/test mismatches over blind re-runs.
+
+## 3. Master / coworker sync (Livio) — ongoing
 
 Coworker: **Livio** (`elance1985`, typically `liviolanzo@gmail.com`).
 
-After `git fetch origin master`, report whether this branch is behind `origin/master` (commits not yet in the PR). Call out Livio’s commits explicitly when present. Ask before merging/rebasing master into the PR branch unless the user already asked to update from master.
+This is not a one-shot at PR open. **While the PR remains open** (and especially while watching CI), periodically `git fetch origin master` and check whether this branch is behind `origin/master`.
+
+- If behind: report it in chat immediately, list the missing commits, and **call out Livio’s commits explicitly** when present.
+- Ask before merging/rebasing `master` into the PR branch unless the user already asked to update from master.
+- Do not assume “we checked once at open” is enough — a coworker merge can land while CI is still running.
