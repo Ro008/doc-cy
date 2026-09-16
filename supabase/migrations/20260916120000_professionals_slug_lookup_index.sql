@@ -1,0 +1,12 @@
+-- Speed up exact-slug lookups (professional profile pages, registration slug
+-- availability checks). The existing professionals_slug_unique_lower_idx is an
+-- expression index on lower(trim(slug)) WHERE is_archived = false; it does not
+-- match the plain `slug = $1` filters used throughout the app, so those queries
+-- fell back to a sequential scan of the whole table on every call.
+--
+-- Confirmed via pg_stat_statements: the manual-directory profile-page slug
+-- lookup (lib/load-manual-directory-by-slug.ts) was the single highest-cost
+-- query in the database (~56.9k calls / 1.19M ms total). EXPLAIN ANALYZE
+-- showed a full Seq Scan on professionals for every call; with this index,
+-- the same query drops from ~365 buffer reads to 2.
+create index if not exists professionals_slug_idx on public.professionals (slug);

@@ -67,9 +67,8 @@ import {
 } from "@/lib/doctor-specialties";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
-  loadManualDirectoryBySlug,
   resolveAbsorbedProfessionalSlugRedirect,
-  resolveCanonicalManualDirectorySlug,
+  resolveManualDirectoryProfileForSlug,
 } from "@/lib/load-manual-directory-by-slug";
 import { publicProfessionalProfilePath } from "@/lib/manual-directory-landing-path";
 import {
@@ -122,12 +121,12 @@ async function loadUnregisteredLandingOrRedirect(slug: string, locale: string) {
     permanentRedirect(publicProfessionalProfilePath(absorbed, locale));
   }
 
-  const canonical = await resolveCanonicalManualDirectorySlug(supabase, slug);
-  if (canonical && canonical.toLowerCase() !== slug.toLowerCase()) {
-    permanentRedirect(publicProfessionalProfilePath(canonical, locale));
+  const { row, redirectSlug } = await resolveManualDirectoryProfileForSlug(supabase, slug);
+  if (redirectSlug && redirectSlug.toLowerCase() !== slug.toLowerCase()) {
+    permanentRedirect(publicProfessionalProfilePath(redirectSlug, locale));
   }
 
-  return loadManualDirectoryBySlug(supabase, canonical ?? slug);
+  return row;
 }
 
 function isOptionalProfileColumnError(msg: string): boolean {
