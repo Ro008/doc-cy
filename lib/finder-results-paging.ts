@@ -9,11 +9,20 @@ import { harmonizeFinderSpecialtyLabel } from "@/lib/finder-specialty-harmonize"
  */
 export const FINDER_RESULTS_PAGE_SIZE = 12;
 
-/** Max Show more depth without district/specialty/name/near-me. Queries stay bounded by visibleLimit. */
-export const FINDER_RESULTS_MAX_PAGE_UNFILTERED = 20;
+/**
+ * Max Show more depth without district/specialty/name/near-me (60 listings at
+ * page size 12). Kept short on purpose: real patients narrow down almost
+ * immediately, so unfiltered browsing past this depth reads as bulk copying,
+ * not searching. See .cursor/rules/anti-scraping-security.mdc (P1).
+ */
+export const FINDER_RESULTS_MAX_PAGE_UNFILTERED = 5;
 
-/** Max Show more depth when at least one list filter is active. */
-export const FINDER_RESULTS_MAX_PAGE_FILTERED = 20;
+/**
+ * Max Show more depth when at least one list filter is active (60 listings).
+ * Same anti-scraping rationale as the unfiltered cap — see
+ * .cursor/rules/anti-scraping-security.mdc (P1).
+ */
+export const FINDER_RESULTS_MAX_PAGE_FILTERED = 5;
 
 /** Escape `%` / `_` / `\` for PostgREST `ilike` patterns. */
 export function escapeIlikePattern(value: string): string {
