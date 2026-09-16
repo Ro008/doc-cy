@@ -1,8 +1,8 @@
-import { DocCyWordmark } from "@/components/brand/DocCyWordmark";
 import {
   ManualDirectoryLandingBrowseLink,
   ManualDirectoryLandingCard,
 } from "@/components/finder/ManualDirectoryLandingCard";
+import { FinderPublicHeader } from "@/components/finder/FinderPublicHeader";
 import { ManualDirectoryStructuredData } from "@/components/finder/ManualDirectoryStructuredData";
 import { RecordRecentlyViewed } from "@/components/finder/RecordRecentlyViewed";
 import { PendingLink } from "@/components/navigation/PendingLink";
@@ -25,9 +25,12 @@ function siteBaseUrl(): string {
 export function ManualDirectoryProfessionalLanding({
   row,
   locale,
+  proSessionHint = false,
 }: {
   row: ManualDirectoryLandingRow;
   locale?: string;
+  /** Server-read hint so signed-in professionals never flash guest CTAs. */
+  proSessionHint?: boolean;
 }) {
   const siteUrl = siteBaseUrl();
   const profileHref = publicProfessionalProfilePath(row.slug, locale);
@@ -58,13 +61,7 @@ export function ManualDirectoryProfessionalLanding({
         mapsUrl={row.address_maps_link.trim()}
       />
 
-      <header className="border-b border-ink-200 bg-white">
-        <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
-          <PendingLink href="/" className="inline-flex items-center">
-            <DocCyWordmark className="h-7 w-auto" />
-          </PendingLink>
-        </div>
-      </header>
+      <FinderPublicHeader proSessionHint={proSessionHint} />
 
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <nav aria-label="Breadcrumb" className="mb-4 text-sm text-ink-500">

@@ -42,68 +42,81 @@ test.describe("Navigation and routing", { tag: ["@pr-e2e", "@pr-e2e-finder"] }, 
     await expect(page.getByTestId("finder-missing-doctor-card")).toHaveCount(0);
   });
 
-  test("finder header links to professional sales page and practitioner login", async ({ page }) => {
+  test("finder header links to Join as a professional register", async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
 
     const header = page.getByTestId("finder-public-header");
     await expect(header).toBeVisible({ timeout: 30_000 });
 
-    const salesLink = header.getByRole("link", {
-      name: /are you a healthcare professional/i,
-    });
+    const joinLink = header.getByRole("link", { name: /join as a professional/i });
     const loginLink = header.getByRole("link", { name: /practitioner login/i });
-    await expect(salesLink).toHaveAttribute("href", "/for-professionals");
+    await expect(joinLink).toHaveAttribute("href", "/register");
     await expect(loginLink).toHaveAttribute("href", "/login");
 
     await Promise.all([
-      page.waitForURL(/\/for-professionals\/?$/, { timeout: 30_000 }),
-      salesLink.click(),
+      page.waitForURL(/\/register\/?$/, { timeout: 30_000 }),
+      joinLink.click(),
     ]);
     await expect(
-      page.getByRole("heading", { level: 1, name: /Run a Smarter Practice/i }),
+      page.getByRole("heading", { level: 1, name: /List your practice on DocCy/i }),
     ).toBeVisible({ timeout: 15_000 });
-
-    await page.goto("/");
-    await expect(header).toBeVisible({ timeout: 30_000 });
-    await Promise.all([
-      page.waitForURL(/\/login\/?$/, { timeout: 30_000 }),
-      header.getByRole("link", { name: /practitioner login/i }).click(),
-    ]);
-    await expect(
-      page.getByRole("heading", { level: 1, name: /Welcome back/i }),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("link", { name: /^Sign in$/i })).toHaveAttribute("href", "/login");
   });
 
-  test("finder header uses a hamburger menu on mobile", async ({ page }) => {
+  test("doctor profile header links to Join as a professional register", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto("/");
+    const profileLink = page
+      .locator("section.mt-6 article")
+      .first()
+      .getByRole("link")
+      .first();
+    await expect(profileLink).toBeVisible({ timeout: 30_000 });
+
+    await Promise.all([
+      page.waitForURL(/\/(?:en|el)\/[^/?#]+\/?(?:[?#].*)?$/, { timeout: 30_000 }),
+      profileLink.click(),
+    ]);
+
+    const header = page.getByTestId("finder-public-header");
+    await expect(header).toBeVisible({ timeout: 30_000 });
+    await expect(header.getByRole("link", { name: /join as a professional/i })).toHaveAttribute(
+      "href",
+      "/register",
+    );
+    await expect(header.getByRole("link", { name: /practitioner login/i })).toHaveAttribute(
+      "href",
+      "/login",
+    );
+  });
+
+  test("finder header shows Join only on mobile; login stays desktop", async ({
+    page,
+  }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/");
 
     const header = page.getByTestId("finder-public-header");
-    const toggle = header.getByTestId("public-header-menu-toggle");
-    await expect(toggle).toBeVisible({ timeout: 30_000 });
-    const blind = header.getByTestId("public-header-menu-blind");
-    const menu = header.getByTestId("public-header-menu");
-    await expect(blind).toHaveAttribute("data-open", "false");
+    await expect(header).toBeVisible({ timeout: 30_000 });
+    await expect(header.getByTestId("public-header-menu-toggle")).toHaveCount(0);
 
-    await toggle.click();
-    await expect(blind).toHaveAttribute("data-open", "true");
-    await expect(menu.getByRole("link", { name: /practitioner login/i })).toHaveAttribute(
-      "href",
-      "/login",
-    );
-    await expect(
-      menu.getByRole("link", { name: /are you a healthcare professional/i }),
-    ).toHaveAttribute("href", "/for-professionals");
+    const joinLink = header.getByRole("link", { name: /join as a professional/i });
+    await expect(joinLink).toBeVisible();
+    await expect(joinLink).toHaveAttribute("href", "/register");
+    await expect(header.getByRole("link", { name: /practitioner login/i })).toBeHidden();
   });
 
-  test("sales header has no guest menu; hero keeps the conversion CTAs", async ({ page }) => {
+  test("sales header has no guest CTAs; hero keeps the conversion CTAs", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/for-professionals");
 
     const header = page.getByTestId("sales-public-header");
     await expect(header).toBeVisible({ timeout: 30_000 });
     await expect(header.getByTestId("public-header-menu-toggle")).toHaveCount(0);
-    await expect(header.getByRole("link", { name: /practitioner login/i })).toHaveCount(0);
+    await expect(header.getByRole("link", { name: /join as a professional/i })).toHaveCount(0);
 
     await expect(page.getByRole("link", { name: /list my practice/i }).first()).toBeVisible();
     await expect(page.getByRole("link", { name: /practitioner login/i }).first()).toBeVisible();
