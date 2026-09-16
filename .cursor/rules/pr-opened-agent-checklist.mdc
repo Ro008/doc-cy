@@ -25,10 +25,14 @@ Do **not** add this block back into PR body templates as the primary reminder pa
 
 ## 2. Watch CI and fix failures
 
-Stay on the PR checks. If any fail, diagnose and fix (push to the PR branch). Prefer fixing real product/test mismatches over blind re-runs.
+Stay on the PR checks **while the PR stays open**. Report status in chat (not only in a background terminal). If any fail, diagnose and fix (push to the PR branch). Prefer fixing real product/test mismatches over blind re-runs.
 
-## 3. Master / coworker sync (Livio)
+## 3. Master / coworker sync (Livio) — ongoing
 
 Coworker: **Livio** (`elance1985`, typically `liviolanzo@gmail.com`).
 
-After `git fetch origin master`, report whether this branch is behind `origin/master` (commits not yet in the PR). Call out Livio’s commits explicitly when present. Ask before merging/rebasing master into the PR branch unless the user already asked to update from master.
+This is not a one-shot at PR open. **While the PR remains open** (and especially while watching CI), periodically `git fetch origin master` and check whether this branch is behind `origin/master`.
+
+- If behind: report it in chat immediately, list the missing commits, and **call out Livio’s commits explicitly** when present.
+- Ask before merging/rebasing `master` into the PR branch unless the user already asked to update from master.
+- Do not assume “we checked once at open” is enough — a coworker merge can land while CI is still running.
