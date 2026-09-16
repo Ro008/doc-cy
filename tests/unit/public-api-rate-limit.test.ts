@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it, beforeEach, after } from "node:test";
 import {
   consumePublicApiRateLimit,
+  enforcePublicApiRateLimit,
   isFinderBrowseAllowed,
   PUBLIC_API_RATE_LIMITS,
   resetPublicApiRateLimitStoreForTests,
@@ -13,6 +14,13 @@ function fakeHeaders(values: Record<string, string | undefined>): Pick<Headers, 
   return {
     get: (name: string) => values[name.toLowerCase()] ?? null,
   };
+}
+
+function requestFromIp(ip: string): Request {
+  return new Request("https://example.com/api/internal/auth", {
+    method: "POST",
+    headers: { "x-forwarded-for": ip },
+  });
 }
 
 describe("consumePublicApiRateLimit", () => {
@@ -123,6 +131,38 @@ describe("consumePublicApiRateLimit", () => {
       }).ok,
       true,
     );
+  });
+});
+
+describe("enforcePublicApiRateLimit(internalAuthLogin)", () => {
+  beforeEach(() => {
+    resetPublicApiRateLimitStoreForTests();
+  });
+
+  it("allows the first 3 attempts, then throttles the 4th with a 429 + Retry-After", () => {
+    const limit = PUBLIC_API_RATE_LIMITS.internalAuthLogin.limit;
+    const req = requestFromIp("192.0.2.50");
+    for (let i = 0; i < limit; i += 1) {
+      const result = enforcePublicApiRateLimit(req, "internalAuthLogin");
+      assert.equal(result, null, `attempt ${i + 1} should not be throttled`);
+    }
+
+    const throttled = enforcePublicApiRateLimit(req, "internalAuthLogin");
+    assert.notEqual(throttled, null);
+    assert.equal(throttled?.status, 429);
+    assert.ok(throttled?.headers.get("Retry-After"));
+  });
+
+  it("tracks each IP independently, so one guesser can't exhaust another visitor's budget", () => {
+    const limit = PUBLIC_API_RATE_LIMITS.internalAuthLogin.limit;
+    const attacker = requestFromIp("192.0.2.60");
+    const founder = requestFromIp("192.0.2.61");
+    for (let i = 0; i < limit; i += 1) {
+      assert.equal(enforcePublicApiRateLimit(attacker, "internalAuthLogin"), null);
+    }
+    assert.notEqual(enforcePublicApiRateLimit(attacker, "internalAuthLogin"), null);
+    // Founder's own attempt from a different IP still has a full budget.
+    assert.equal(enforcePublicApiRateLimit(founder, "internalAuthLogin"), null);
   });
 });
 
