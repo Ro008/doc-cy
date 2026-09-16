@@ -187,12 +187,15 @@ test.describe("Navigation and routing", { tag: ["@pr-e2e", "@pr-e2e-finder"] }, 
     await dentistsQuickLink.click();
 
     await expect(page).toHaveURL(/\/paphos\/dentist(?:\?|$)/);
+    // Client-side transition + results fetch can outrun the default 5s
+    // expect timeout under CI/dev load; other nav checks in this file already
+    // use an explicit longer timeout for the same reason.
     await expect(
       page.getByRole("heading", {
         level: 1,
         name: /Dentist in Paphos/i,
       })
-    ).toBeVisible();
+    ).toBeVisible({ timeout: 20_000 });
   });
 
   test("legacy /finder filter URLs redirect to public paths", async ({ page }) => {
