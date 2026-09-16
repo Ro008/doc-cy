@@ -70,32 +70,14 @@ function slugLookupHasMissingColumn(
 }
 
 /**
- * Canonical slug for a professional landing URL.
- * Exact slugs win (duplicate-proof). A retired name-only slug redirects only
- * when it uniquely identifies one visible professional.
+ * Retired name-only slug -> current slug, only when it uniquely identifies one
+ * visible professional. Shared by `resolveCanonicalManualDirectorySlug` and the
+ * combined lookup below so both stay in sync without an extra round trip.
  */
-export async function resolveCanonicalManualDirectorySlug(
+async function resolveManualDirectorySlugAlias(
   supabase: SupabaseClient,
-  slug: string,
+  normalizedSlug: string,
 ): Promise<string | null> {
-  const normalizedSlug = String(slug ?? "").trim().toLowerCase();
-  if (!normalizedSlug) return null;
-  // PostgREST LIKE treats `_` / `%` as wildcards; public slugs never include them.
-  if (/[%_]/.test(normalizedSlug)) return null;
-
-  const exact = await supabase
-    .from("professionals")
-    .select("slug")
-    .eq("is_registered", false)
-    .eq("is_archived", false)
-    .eq("slug", normalizedSlug)
-    .maybeSingle();
-
-  if (!exact.error && exact.data) {
-    const current = String((exact.data as { slug?: string | null }).slug ?? "").trim();
-    return current || normalizedSlug;
-  }
-
   let aliasRes: {
     data: {
       slug?: string | null;
@@ -135,6 +117,36 @@ export async function resolveCanonicalManualDirectorySlug(
 }
 
 /**
+ * Canonical slug for a professional landing URL.
+ * Exact slugs win (duplicate-proof). A retired name-only slug redirects only
+ * when it uniquely identifies one visible professional.
+ */
+export async function resolveCanonicalManualDirectorySlug(
+  supabase: SupabaseClient,
+  slug: string,
+): Promise<string | null> {
+  const normalizedSlug = String(slug ?? "").trim().toLowerCase();
+  if (!normalizedSlug) return null;
+  // PostgREST LIKE treats `_` / `%` as wildcards; public slugs never include them.
+  if (/[%_]/.test(normalizedSlug)) return null;
+
+  const exact = await supabase
+    .from("professionals")
+    .select("slug")
+    .eq("is_registered", false)
+    .eq("is_archived", false)
+    .eq("slug", normalizedSlug)
+    .maybeSingle();
+
+  if (!exact.error && exact.data) {
+    const current = String((exact.data as { slug?: string | null }).slug ?? "").trim();
+    return current || normalizedSlug;
+  }
+
+  return resolveManualDirectorySlugAlias(supabase, normalizedSlug);
+}
+
+/**
  * After a directory row is absorbed into a registered account, the old slug
  * 308s to the surviving professional.
  */
@@ -171,13 +183,34 @@ export async function resolveAbsorbedProfessionalSlugRedirect(
   return target;
 }
 
-export async function loadManualDirectoryBySlug(
-  supabase: SupabaseClient,
-  slug: string,
-): Promise<ManualDirectoryLandingRow | null> {
-  const normalizedSlug = String(slug ?? "").trim();
-  if (!normalizedSlug) return null;
+type ManualDirectoryRawRow = {
+  id: string;
+  slug: string;
+  name: string;
+  specialty: string;
+  specialties?: string[] | null;
+  district: CyprusDistrict;
+  address_maps_link: string;
+  phone?: string | null;
+  address?: string | null;
+  is_gesy?: boolean | null;
+  latitude?: unknown;
+  longitude?: unknown;
+  clinic_id?: string | null;
+  gender?: string | null;
+  finder_visible?: boolean | null;
+};
 
+/**
+ * Fetches the raw `professionals` row for an exact (already-lowercased) slug
+ * match, tolerating column drift across environments via progressively
+ * narrower `select()` fallbacks. Returns the row regardless of `finder_visible`
+ * so callers can distinguish "no such slug" from "exists but hidden".
+ */
+async function fetchManualDirectoryRawRow(
+  supabase: SupabaseClient,
+  normalizedSlugLower: string,
+): Promise<ManualDirectoryRawRow | null> {
   let res = await supabase
     .from("professionals")
     .select(
@@ -185,7 +218,7 @@ export async function loadManualDirectoryBySlug(
     )
     .eq("is_registered", false)
     .eq("is_archived", false)
-    .eq("slug", normalizedSlug.toLowerCase())
+    .eq("slug", normalizedSlugLower)
     .maybeSingle();
 
   if (
@@ -201,7 +234,7 @@ export async function loadManualDirectoryBySlug(
       )
       .eq("is_registered", false)
       .eq("is_archived", false)
-      .eq("slug", normalizedSlug.toLowerCase())
+      .eq("slug", normalizedSlugLower)
       .maybeSingle();
   }
 
@@ -217,7 +250,7 @@ export async function loadManualDirectoryBySlug(
       )
       .eq("is_registered", false)
       .eq("is_archived", false)
-      .eq("slug", normalizedSlug.toLowerCase())
+      .eq("slug", normalizedSlugLower)
       .maybeSingle();
   }
 
@@ -233,7 +266,7 @@ export async function loadManualDirectoryBySlug(
       )
       .eq("is_registered", false)
       .eq("is_archived", false)
-      .eq("slug", normalizedSlug.toLowerCase())
+      .eq("slug", normalizedSlugLower)
       .maybeSingle();
   }
 
@@ -241,29 +274,15 @@ export async function loadManualDirectoryBySlug(
     return null;
   }
 
-  const row = res.data as {
-    id: string;
-    slug: string;
-    name: string;
-    specialty: string;
-    specialties?: string[] | null;
-    district: CyprusDistrict;
-    address_maps_link: string;
-    phone?: string | null;
-    address?: string | null;
-    is_gesy?: boolean | null;
-    latitude?: unknown;
-    longitude?: unknown;
-    clinic_id?: string | null;
-    gender?: string | null;
-    finder_visible?: boolean | null;
-  };
+  return res.data as ManualDirectoryRawRow;
+}
 
-  // Inpatient-only professionals are clinic-profile only (no public profile landing).
-  if (row.finder_visible === false) {
-    return null;
-  }
-
+/** Builds the public landing shape (clinics, vote count) for an already-fetched raw row. */
+async function buildManualDirectoryLandingRow(
+  supabase: SupabaseClient,
+  row: ManualDirectoryRawRow,
+  normalizedSlug: string,
+): Promise<ManualDirectoryLandingRow> {
   const manualId = String(row.id);
   let monthlyRequestCount = 0;
 
@@ -360,4 +379,62 @@ export async function loadManualDirectoryBySlug(
     clinic: primary ? { id: primary.id, name: primary.name, slug: primary.slug } : null,
     clinics,
   };
+}
+
+export async function loadManualDirectoryBySlug(
+  supabase: SupabaseClient,
+  slug: string,
+): Promise<ManualDirectoryLandingRow | null> {
+  const normalizedSlug = String(slug ?? "").trim();
+  if (!normalizedSlug) return null;
+
+  const row = await fetchManualDirectoryRawRow(supabase, normalizedSlug.toLowerCase());
+  // Inpatient-only professionals are clinic-profile only (no public profile landing).
+  if (!row || row.finder_visible === false) return null;
+
+  return buildManualDirectoryLandingRow(supabase, row, normalizedSlug);
+}
+
+export type ManualDirectoryProfileLookup = {
+  row: ManualDirectoryLandingRow | null;
+  /**
+   * The slug this professional actually lives at, when a matching row exists
+   * (visible or not) or a unique legacy alias resolves to one. Compare against
+   * the requested slug to decide whether to 301 redirect. `null` means no
+   * professional (visible or hidden) matches this slug at all.
+   */
+  redirectSlug: string | null;
+};
+
+/**
+ * Combines `resolveCanonicalManualDirectorySlug` + `loadManualDirectoryBySlug`
+ * into a single exact-match query (falling back to the alias search only on a
+ * miss), instead of two near-identical round trips per profile-page request.
+ */
+export async function resolveManualDirectoryProfileForSlug(
+  supabase: SupabaseClient,
+  slug: string,
+): Promise<ManualDirectoryProfileLookup> {
+  const normalizedSlug = String(slug ?? "").trim();
+  if (!normalizedSlug) return { row: null, redirectSlug: null };
+
+  const rawRow = await fetchManualDirectoryRawRow(supabase, normalizedSlug.toLowerCase());
+  if (rawRow) {
+    const redirectSlug = String(rawRow.slug ?? "").trim() || normalizedSlug.toLowerCase();
+    // Inpatient-only professionals are clinic-profile only (no public profile landing).
+    const row =
+      rawRow.finder_visible === false
+        ? null
+        : await buildManualDirectoryLandingRow(supabase, rawRow, normalizedSlug);
+    return { row, redirectSlug };
+  }
+
+  // PostgREST LIKE treats `_` / `%` as wildcards; public slugs never include them.
+  if (/[%_]/.test(normalizedSlug.toLowerCase())) return { row: null, redirectSlug: null };
+
+  const redirectSlug = await resolveManualDirectorySlugAlias(
+    supabase,
+    normalizedSlug.toLowerCase(),
+  );
+  return { row: null, redirectSlug };
 }
