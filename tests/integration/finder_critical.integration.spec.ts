@@ -384,7 +384,10 @@ test.describe("Integration: finder business-critical UX", { tag: ["@pr-e2e", "@p
     ).toBeVisible();
     const resultsCount = page.getByTestId("finder-results-count");
     await expect(resultsCount).toBeVisible({ timeout: 60_000 });
-    await expect(resultsCount).toContainText(String(expectedTotal));
+    // The count can render a placeholder before the final client-side fetch
+    // resolves; give the text-match the same generous timeout as visibility
+    // above instead of the default 5s.
+    await expect(resultsCount).toContainText(String(expectedTotal), { timeout: 60_000 });
     // First page only renders a page-size slice; do not expect every row in the DOM.
     const cardCount = await page.locator("section.mt-6 article").count();
     expect(cardCount).toBeGreaterThan(0);

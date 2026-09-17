@@ -3,7 +3,9 @@ import { describe, it } from "node:test";
 import {
   CALL_TO_BOOK_BUTTON_LABEL,
   aggregateCallToBookClicks,
+  buildCallToBookDashboardRows,
   parseCallToBookSource,
+  sumCallToBookStats,
 } from "../../lib/call-to-book";
 
 describe("CALL_TO_BOOK_BUTTON_LABEL", () => {
@@ -59,5 +61,69 @@ describe("aggregateCallToBookClicks", () => {
     assert.equal(stats.byProfessional[0]?.lastAt, "2026-08-02T10:00:00.000Z");
     assert.equal(stats.byProfessional[1]?.manualId, "m2");
     assert.equal(stats.byProfessional[1]?.count, 1);
+  });
+});
+
+describe("sumCallToBookStats", () => {
+  it("sums pre-aggregated per-professional rows from the SQL RPC", () => {
+    const totals = sumCallToBookStats([
+      { professional_id: "m1", click_count: 5, finder_count: 3, profile_count: 2, last_at: null },
+      { professional_id: "m2", click_count: "2", finder_count: "0", profile_count: "2", last_at: null },
+    ]);
+    assert.deepEqual(totals, { total: 7, finderCount: 3, professionalProfileCount: 4 });
+  });
+
+  it("returns zero totals for an empty result set", () => {
+    assert.deepEqual(sumCallToBookStats([]), {
+      total: 0,
+      finderCount: 0,
+      professionalProfileCount: 0,
+    });
+  });
+});
+
+describe("buildCallToBookDashboardRows", () => {
+  it("fills in professional metadata and coerces numeric-string counts", () => {
+    const rows = buildCallToBookDashboardRows(
+      [
+        {
+          professional_id: "m1",
+          click_count: "4",
+          finder_count: "3",
+          profile_count: "1",
+          last_at: "2026-08-02T10:00:00.000Z",
+        },
+      ],
+      new Map([["m1", { name: "Vera Politou", district: "Paphos", specialty: "Dentist" }]]),
+    );
+    assert.deepEqual(rows, [
+      {
+        manualId: "m1",
+        name: "Vera Politou",
+        district: "Paphos",
+        specialty: "Dentist",
+        count: 4,
+        finderCount: 3,
+        professionalProfileCount: 1,
+        lastAt: "2026-08-02T10:00:00.000Z",
+      },
+    ]);
+  });
+
+  it("falls back to a truncated id when the professional has no name on file", () => {
+    const rows = buildCallToBookDashboardRows(
+      [
+        {
+          professional_id: "0123456789abcdef",
+          click_count: 1,
+          finder_count: 1,
+          profile_count: 0,
+          last_at: null,
+        },
+      ],
+      new Map(),
+    );
+    assert.equal(rows[0]?.name, "01234567");
+    assert.equal(rows[0]?.lastAt, "");
   });
 });
