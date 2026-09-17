@@ -693,13 +693,6 @@ export function SettingsForm({ initial }: SettingsFormProps) {
         directoryPhone: clinicRowVisible ? clinicPhone : "",
         showPhonePublic,
         publicPhoneSource,
-        district,
-        clinicLocation,
-        weeklySchedule,
-        breakEnabled,
-        breakStart,
-        breakEnd,
-        slotDurationMinutes,
         bookingHorizonDays,
         minimumNoticeHours,
         holidayModeEnabled,
@@ -718,7 +711,6 @@ export function SettingsForm({ initial }: SettingsFormProps) {
           breakStart: row.breakStart,
           breakEnd: row.breakEnd,
           slotDurationMinutes: row.slotDurationMinutes,
-          pauseOnlineBookings: row.pauseOnlineBookings,
         })),
       }),
     [
@@ -731,13 +723,6 @@ export function SettingsForm({ initial }: SettingsFormProps) {
       clinicRowVisible,
       showPhonePublic,
       publicPhoneSource,
-      district,
-      clinicLocation,
-      weeklySchedule,
-      breakEnabled,
-      breakStart,
-      breakEnd,
-      slotDurationMinutes,
       bookingHorizonDays,
       minimumNoticeHours,
       holidayModeEnabled,
@@ -768,20 +753,6 @@ export function SettingsForm({ initial }: SettingsFormProps) {
         mobileNumber: initial.mobileNumber ?? "",
         directoryPhone: initial.directoryPhone ?? "",
       }),
-      district: initial.district ?? "",
-      clinicLocation: clinicLocationFromParts({
-        address: initial.clinicAddress,
-        latitude: initial.clinicLatitude,
-        longitude: initial.clinicLongitude,
-        placeId: initial.clinicPlaceId,
-        district: initial.district,
-        town: initial.clinicTown,
-      }),
-      weeklySchedule: initial.weeklySchedule,
-      breakEnabled: initial.breakEnabled,
-      breakStart: timeToInputValue(initial.breakStart),
-      breakEnd: timeToInputValue(initial.breakEnd),
-      slotDurationMinutes: initial.slotDurationMinutes,
       bookingHorizonDays: initial.bookingHorizonDays,
       minimumNoticeHours: initial.minimumNoticeHours,
       holidayModeEnabled: initial.holidayModeEnabled,
@@ -800,7 +771,6 @@ export function SettingsForm({ initial }: SettingsFormProps) {
         breakStart: row.breakStart,
         breakEnd: row.breakEnd,
         slotDurationMinutes: row.slotDurationMinutes,
-        pauseOnlineBookings: row.pauseOnlineBookings,
       })),
     });
   });
@@ -1665,37 +1635,34 @@ export function SettingsForm({ initial }: SettingsFormProps) {
           </p>
         </div>
 
-        {workplaces.length > 1 ? (
-          <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <OnlineBookingsPauseToggle
-              key={activeWorkplaceId}
-              initialPaused={Boolean(
-                workplaces.find((row) => row.id === activeWorkplaceId)?.pauseOnlineBookings,
-              )}
-              locationId={activeWorkplaceId === "primary" ? null : activeWorkplaceId}
-              layout="card"
-              onPausedChange={(paused) => {
-                setWorkplaces((prev) =>
-                  prev.map((row) =>
-                    row.id === activeWorkplaceId
-                      ? { ...row, pauseOnlineBookings: paused }
-                      : row,
-                  ),
-                );
-              }}
-            />
-            {!(workplaces.find((row) => row.id === activeWorkplaceId)?.isPrimary) ? (
-              <button
-                type="button"
-                onClick={() => handleRemoveWorkplace(activeWorkplaceId)}
-                disabled={workplaceBusy}
-                className="inline-flex items-center justify-center rounded-xl border border-red-400/40 px-3 py-2 text-xs font-medium text-red-200 hover:border-red-300 disabled:opacity-60"
-              >
-                Remove this clinic
-              </button>
-            ) : null}
-          </div>
-        ) : null}
+        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <OnlineBookingsPauseToggle
+            key={activeWorkplaceId}
+            initialPaused={Boolean(
+              workplaces.find((row) => row.id === activeWorkplaceId)?.pauseOnlineBookings,
+            )}
+            locationId={activeWorkplaceId === "primary" ? null : activeWorkplaceId}
+            onPausedChange={(paused) => {
+              setWorkplaces((prev) =>
+                prev.map((row) =>
+                  row.id === activeWorkplaceId
+                    ? { ...row, pauseOnlineBookings: paused }
+                    : row,
+                ),
+              );
+            }}
+          />
+          {!(workplaces.find((row) => row.id === activeWorkplaceId)?.isPrimary) ? (
+            <button
+              type="button"
+              onClick={() => handleRemoveWorkplace(activeWorkplaceId)}
+              disabled={workplaceBusy}
+              className="inline-flex items-center justify-center rounded-xl border border-red-400/40 px-3 py-2 text-xs font-medium text-red-200 hover:border-red-300 disabled:opacity-60"
+            >
+              Remove this clinic
+            </button>
+          ) : null}
+        </div>
 
         <div className="mt-5 rounded-xl border border-slate-800/70 bg-ink-900/35 p-4">
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">

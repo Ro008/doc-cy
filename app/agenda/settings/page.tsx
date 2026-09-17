@@ -14,7 +14,6 @@ import type {
 } from "@/components/dashboard/SettingsForm";
 import { PromotePracticeSection } from "@/components/dashboard/PromotePracticeSection";
 import { FoundingMemberBadge } from "@/components/dashboard/FoundingMemberBadge";
-import { OnlineBookingsPauseToggle } from "@/components/dashboard/OnlineBookingsPauseToggle";
 import { GesyPatientsToggle } from "@/components/dashboard/GesyPatientsToggle";
 import { SignOutOtherSessionsButton } from "@/components/auth/SignOutOtherSessionsButton";
 import { doctorDashboardDisplayName } from "@/lib/doctor-display-name";
@@ -318,10 +317,6 @@ export default async function AgendaSettingsPage() {
     slotDurationMinutes: Number(row.slot_duration_minutes) > 0 ? Number(row.slot_duration_minutes) : 30,
     pauseOnlineBookings: Boolean(row.pause_online_bookings),
   }));
-  const primaryWorkplace = workplaceLocations[0];
-  const headerPaused = Boolean(
-    primaryWorkplace?.pauseOnlineBookings ?? pauseOnlineBookings,
-  );
 
   const displayName = doctorDashboardDisplayName(doctor.name);
 
@@ -526,27 +521,15 @@ export default async function AgendaSettingsPage() {
       <div className="mx-auto w-full max-w-5xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
         <FirstLoginTrialNoticeGate />
 
-        <header className="mb-8 mt-2 flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between lg:gap-10">
-          <div className="min-w-0 flex-1">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-clinical-400/90">
-              Settings
-            </p>
-            <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-3">
-              <h1 className="text-balance text-3xl font-semibold tracking-tight text-slate-50 sm:text-4xl">
-                {displayName}
-              </h1>
-              {isFoundingMember ? <FoundingMemberBadge /> : null}
-            </div>
-          </div>
-
-          <div className="flex w-full flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-center lg:w-auto lg:max-w-md lg:flex-nowrap lg:justify-end">
-            {workplaceLocations.length <= 1 ? (
-              <OnlineBookingsPauseToggle
-                initialPaused={headerPaused}
-                locationId={primaryWorkplace?.id ?? null}
-                layout="header"
-              />
-            ) : null}
+        <header className="mb-8 mt-2">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-clinical-400/90">
+            Settings
+          </p>
+          <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-3">
+            <h1 className="text-balance text-3xl font-semibold tracking-tight text-slate-50 sm:text-4xl">
+              {displayName}
+            </h1>
+            {isFoundingMember ? <FoundingMemberBadge /> : null}
           </div>
         </header>
 
