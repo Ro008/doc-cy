@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
-import { signInDoctorOrSkipOnInfraError } from "../helpers/signInDoctorWithInfraSkip";
+import { signInDoctorOrFail } from "../helpers/signInDoctorOrFail";
 
 const DEFAULT_DURATION_MINUTES = 30;
 
@@ -146,7 +146,7 @@ test.describe("Integration: doctor confirmation flow", { tag: ["@pr-e2e", "@pr-e
     const appointmentId = String(inserted.id);
 
     try {
-      await signInDoctorOrSkipOnInfraError(page, undefined, {
+      await signInDoctorOrFail(page, undefined, {
         email: doctorEmail,
         password: doctorPassword,
       });
@@ -210,7 +210,7 @@ test.describe("Integration: doctor confirmation flow", { tag: ["@pr-e2e", "@pr-e
       "Missing TEST_USER_EMAIL/TEST_USER_PASSWORD for doctor link fallback test.",
     );
 
-    await signInDoctorOrSkipOnInfraError(page, undefined, {
+    await signInDoctorOrFail(page, undefined, {
       email: doctorEmail,
       password: doctorPassword,
     });

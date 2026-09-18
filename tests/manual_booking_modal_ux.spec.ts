@@ -1,6 +1,6 @@
 // tests/manual_booking_modal_ux.spec.ts
 import { test, expect } from "@playwright/test";
-import { signInDoctorOrSkipOnInfraError } from "./helpers/signInDoctorWithInfraSkip";
+import { signInDoctorOrFail } from "./helpers/signInDoctorOrFail";
 
 test.describe("Manual booking modal UX", { tag: ["@pr-e2e", "@pr-e2e-booking"] }, () => {
   test.beforeEach(({}, testInfo) => {
@@ -16,7 +16,7 @@ test.describe("Manual booking modal UX", { tag: ["@pr-e2e", "@pr-e2e-booking"] }
   });
 
   async function openManualModal(page: import("@playwright/test").Page) {
-    await signInDoctorOrSkipOnInfraError(page);
+    await signInDoctorOrFail(page);
     await page.goto("/agenda?manual=1");
     await expect(page).toHaveURL(/\/agenda/, { timeout: 15_000 });
     const panel = page.getByTestId("manual-booking-modal-panel");

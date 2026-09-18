@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import { isSupabaseAuthInfraError } from "./signInDoctorWithInfraSkip";
+import { isSupabaseAuthInfraError } from "./signInDoctorOrFail";
 
 function isInvalidCredentialsError(error: unknown): boolean {
   const message = String((error as { message?: unknown } | null)?.message ?? "")

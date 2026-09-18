@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
-import { signInDoctorOrSkipOnInfraError } from "../helpers/signInDoctorWithInfraSkip";
+import { signInDoctorOrFail } from "../helpers/signInDoctorOrFail";
 
 const DEFAULT_DURATION_MINUTES = 30;
 const REASON =
@@ -144,7 +144,7 @@ test.describe("Integration: propose reschedule (confirmed visit)", { tag: ["@pr-
     const appointmentId = String(inserted.id);
 
     try {
-      await signInDoctorOrSkipOnInfraError(page, undefined, {
+      await signInDoctorOrFail(page, undefined, {
         email: doctorEmail,
         password: doctorPassword,
       });

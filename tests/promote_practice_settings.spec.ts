@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { signInDoctorOrSkipOnInfraError } from "./helpers/signInDoctorWithInfraSkip";
+import { signInDoctorOrFail } from "./helpers/signInDoctorOrFail";
 import { exposeSupabaseAuthCookiesToClient } from "./helpers/doctorAuth";
 
 function normalizeSecret(raw: string): string {
@@ -17,7 +17,7 @@ test.describe("Promote your practice (settings)", { tag: "@pr-e2e" }, () => {
     );
     test.skip(!email || !password, "Missing test doctor credentials.");
 
-    await signInDoctorOrSkipOnInfraError(page, undefined, { email, password });
+    await signInDoctorOrFail(page, undefined, { email, password });
     await exposeSupabaseAuthCookiesToClient(page);
     await page.goto("/agenda/settings#promote-practice", { waitUntil: "domcontentloaded" });
     await expect(page).toHaveURL(/\/agenda\/settings(?:#promote-practice)?/, { timeout: 20_000 });
