@@ -12,3 +12,6 @@ tmp-shots/
 *.tsbuildinfo
 supabase/.temp/
 .vercel
+
+# Claude Code local config and worktrees
+.claude/
