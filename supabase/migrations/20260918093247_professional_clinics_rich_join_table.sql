@@ -23,33 +23,12 @@
 -- 1) Data fixups on the source rows, so the backfill below can stay rule-driven.
 -- ---------------------------------------------------------------------------
 
--- A test professional's auto-created location never received an address. A join row
--- must point at a clinic, so it needs one before it can be migrated.
-UPDATE public.doctor_locations dl
-SET clinic_address = 'Vasileos Constantinou XIII 87, Paphos',
-    district = 'Paphos',
-    town = 'Paphos'
-FROM public.professionals p
-WHERE p.id = dl.doctor_id
-  AND p.slug = 'ross-geller'
-  AND dl.clinic_address IS NULL;
-
 -- Addresses captured through Google autocomplete under a non-English locale kept that
--- locale's name for the country.
+-- locale's name for the country ("Zypern", "Chipre"). Normalise before they become the
+-- address on a shared clinic row.
 UPDATE public.doctor_locations
 SET clinic_address = regexp_replace(clinic_address, '(Zypern|Chipre|Chypre|Cipro)\s*$', 'Cyprus')
 WHERE clinic_address ~ '(Zypern|Chipre|Chypre|Cipro)\s*$';
-
--- The clinics table is entirely Latin script; these two are the only Greek-script
--- addresses among the registered doctors' locations.
-UPDATE public.doctor_locations
-SET clinic_address = 'Archiepiskopou Makariou G'' 19A, Konia, Paphos 8300, Cyprus',
-    town = coalesce(town, 'Konia')
-WHERE clinic_address = 'Αρχιεπίσκοπου Μακαρίου Γ 19Α, Κονιά, Πάφος 8300, Cyprus';
-
-UPDATE public.doctor_locations
-SET clinic_address = 'Agias Paraskevis 1-1, Geroskipou, Pafos 8201, Cyprus'
-WHERE clinic_address = 'Αγίας Παρασκευής 1-1, Geroskipou, Pafos 8201, Cyprus';
 
 -- ---------------------------------------------------------------------------
 -- 2) professional_clinics gains a surrogate primary key.
