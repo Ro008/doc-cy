@@ -13,6 +13,10 @@ test.describe("Agenda multi-session sync", { tag: "@pr-email" }, () => {
   test("mobile session reflects confirm + delete without manual refresh", async ({
     browser,
   }, testInfo) => {
+    // Two browser contexts, two sign-ins, two agenda loads and a polled realtime
+    // assertion do not fit in the 30s default, which is what actually killed this
+    // spec — the leftover appointment row was the symptom of dying before cleanup.
+    test.setTimeout(120_000);
     testInfo.skip(
       testInfo.project.name !== "Desktop Large (Chromium)",
       "Run only on Desktop Chromium for CI stability.",
@@ -78,6 +82,16 @@ test.describe("Agenda multi-session sync", { tag: "@pr-email" }, () => {
         `Test user slug mismatch (expected ${SCHEDULE_TEST_SLUG}).`,
       );
 
+      // This spec always books the same fixed slot, and appointments_active_slot_unique
+      // rejects a second active row on it. A run killed by its own timeout never reaches
+      // the finally-block cleanup, so its leftover row would block every later run for
+      // the rest of the day. Clear the slot first so the suite heals itself.
+      await admin
+        .from("appointments")
+        .delete()
+        .eq("doctor_id", doctor.id)
+        .eq("appointment_datetime", iso);
+
       const inserted = await admin
         .from("appointments")
         .insert({
@@ -102,7 +116,7 @@ test.describe("Agenda multi-session sync", { tag: "@pr-email" }, () => {
       await expect(mobileCard).toBeVisible({ timeout: 20000 });
       await mobileCard.click();
       await expect(mobile.getByText("Review & confirm request")).toBeVisible();
-      await mobile.getByRole("button", { name: "Close" }).click();
+      await mobile.getByRole("button", { name: "Close", exact: true }).first().click();
 
       const confirmRes = await admin
         .from("appointments")
@@ -118,7 +132,7 @@ test.describe("Agenda multi-session sync", { tag: "@pr-email" }, () => {
             const hasReschedule = await mobile
               .getByRole("button", { name: /Reschedule appointment/i })
               .count();
-            await mobile.getByRole("button", { name: "Close" }).click();
+            await mobile.getByRole("button", { name: "Close", exact: true }).first().click();
             return hasReschedule;
           },
           { timeout: 20000, intervals: [1000, 2000, 3000] },
