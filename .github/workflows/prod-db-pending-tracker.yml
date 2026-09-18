@@ -1,0 +1,110 @@
+# Post-merge counterpart to prod-db-push-notice.yml.
+#
+# The PR-time notice tells the merger a prod push will be needed. This one fires
+# *after* the merge and keeps a single tracking issue open until someone actually
+# promotes the database, because application code and the database ship by
+# different routes at different speeds: merging to master deploys the code through
+# Vercel within minutes, while the database only changes when a human runs
+# db:prod:push. Anything relying on both lands half-applied in production until
+# that second step happens, and a PR comment scrolls out of sight the moment the
+# PR is merged.
+name: Pending prod DB migrations
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - "supabase/migrations/**"
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  track:
+    name: Track pending prod migrations
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect migrations added in this push
+        id: detect
+        shell: bash
+        run: |
+          set -euo pipefail
+          before="${{ github.event.before }}"
+          after="${{ github.event.after }}"
+          # A brand-new branch (or a force-push losing history) reports an all-zero
+          # before-sha; fall back to the merge commit's first parent.
+          if [ "${before}" = "0000000000000000000000000000000000000000" ]; then
+            before="$(git rev-parse "${after}^" 2>/dev/null || echo "${after}")"
+          fi
+          mapfile -t files < <(git diff --name-only --diff-filter=A "${before}...${after}" -- supabase/migrations/ | sed '/^$/d' | sort)
+          {
+            echo "count=${#files[@]}"
+            echo "files<<EOF"
+            if [ "${#files[@]}" -gt 0 ]; then
+              printf '%s\n' "${files[@]}"
+            fi
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Open or update the tracking issue
+        if: steps.detect.outputs.count != '0'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MIGRATION_FILES: ${{ steps.detect.outputs.files }}
+          MERGE_SHA: ${{ github.event.after }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          marker="<!-- doccy-pending-prod-db -->"
+          title="⚠️ Migrations waiting for a production DB push"
+
+          files_md="$(printf '%s\n' "${MIGRATION_FILES}" | sed '/^$/d' | sed 's/^/- `/; s/$/`/')"
+          short_sha="${MERGE_SHA:0:7}"
+
+          entry="$(cat <<EOF
+          ### Landed in [\`${short_sha}\`](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/commit/${MERGE_SHA})
+
+          ${files_md}
+          EOF
+          )"
+
+          existing="$(gh issue list --state open --search "${title} in:title" --json number,body --jq '.[0]' || true)"
+          existing_number="$(printf '%s' "${existing}" | jq -r '.number // empty')"
+
+          if [ -n "${existing_number}" ]; then
+            previous="$(printf '%s' "${existing}" | jq -r '.body')"
+            printf '%s\n\n%s\n' "${previous}" "${entry}" > issue-body.md
+            gh issue edit "${existing_number}" --body-file issue-body.md
+            echo "Updated issue #${existing_number}"
+          else
+            cat > issue-body.md <<EOF
+          ${marker}
+          These migrations are merged into \`master\` and already live in the application code,
+          but the **production database has not been promoted yet**.
+
+          Until someone runs the push, production runs new code against an old schema.
+
+          \`\`\`bash
+          DOC_CY_CONFIRM_PROD=YES npm run db:prod:push
+          \`\`\`
+
+          Testing first if it has not had them yet (\`npm run db:testing:push\`), and see
+          \`docs/db-release-runbook.md\` — a non-backward-compatible migration must be promoted
+          **before** the code that depends on it, not after.
+
+          **Close this issue once production has been promoted.**
+
+          ---
+
+          ${entry}
+          EOF
+            gh issue create --title "${title}" --body-file issue-body.md --assignee "${GITHUB_REPOSITORY_OWNER}"
+            echo "Opened a new tracking issue"
+          fi

@@ -56,6 +56,8 @@ Constants: `tests/helpers/ciTags.ts`. To tag new specs: `node scripts/apply-ci-p
 | `PR Preview site health (Vercel)` | `@pr-preview` against the Vercel Preview URL (same-repo PRs only) |
 | `Production DB push` | Informational (always green): sticky PR comment if `supabase/migrations/` changed vs base — **not** a required check |
 
+**Post-merge counterpart:** `.github/workflows/prod-db-pending-tracker.yml` runs on pushes to `master` that add files under `supabase/migrations/`, and opens (or appends to) a single tracking issue titled *"⚠️ Migrations waiting for a production DB push"*. Merging deploys the code through Vercel in minutes while the database only moves when a human runs `db:prod:push`, so anything depending on both sits half-applied in production until then — and the PR comment disappears from view the moment the PR is merged. Close the issue once production has been promoted; it does not detect the push by itself.
+
 **Includes:**
 
 - Content: `test:content:blog-images`, `test:content:messages-parity`
