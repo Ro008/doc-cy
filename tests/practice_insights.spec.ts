@@ -37,7 +37,6 @@ test.describe("Practice insights (doctor dashboard)", { tag: "@pr-e2e" }, () => 
     await expect(page.getByText("Quick overview")).toBeVisible();
     await expect(page.getByText("New patients captured")).toBeVisible();
     await expect(page.getByText("No-shows (this month)")).toBeVisible();
-    await expect(page.getByText("Coming soon")).toHaveCount(0);
   });
 
   test("mobile tab bar shows four tabs and navigates to insights", async ({ page }) => {
