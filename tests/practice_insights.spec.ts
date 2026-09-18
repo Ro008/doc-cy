@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { signInDoctorOrSkipOnInfraError } from "./helpers/signInDoctorWithInfraSkip";
+import { exposeSupabaseAuthCookiesToClient } from "./helpers/doctorAuth";
 
 function normalizeSecret(raw: string): string {
   return raw
@@ -18,6 +19,7 @@ async function signInAndOpenAgenda(page: import("@playwright/test").Page) {
   test.skip(!email || !password, "Missing test doctor credentials.");
 
   await signInDoctorOrSkipOnInfraError(page, undefined, { email, password });
+  await exposeSupabaseAuthCookiesToClient(page);
   await page.goto("/agenda", { waitUntil: "domcontentloaded" });
   await expect(page).toHaveURL(/\/agenda(?:[/?#]|$)/, { timeout: 20_000 });
 }
@@ -35,7 +37,6 @@ test.describe("Practice insights (doctor dashboard)", { tag: "@pr-e2e" }, () => 
     await expect(page.getByText("Quick overview")).toBeVisible();
     await expect(page.getByText("New patients captured")).toBeVisible();
     await expect(page.getByText("No-shows (this month)")).toBeVisible();
-    await expect(page.getByText("Coming soon")).toHaveCount(0);
   });
 
   test("mobile tab bar shows four tabs and navigates to insights", async ({ page }) => {

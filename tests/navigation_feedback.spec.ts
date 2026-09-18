@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { signInDoctorOrSkipOnInfraError } from "./helpers/signInDoctorWithInfraSkip";
+import { exposeSupabaseAuthCookiesToClient } from "./helpers/doctorAuth";
 
 function normalizeSecret(raw: string): string {
   return raw
@@ -16,6 +17,7 @@ async function signInMobileAgenda(page: import("@playwright/test").Page) {
   test.skip(!email || !password, "Missing test doctor credentials.");
 
   await signInDoctorOrSkipOnInfraError(page, undefined, { email, password });
+  await exposeSupabaseAuthCookiesToClient(page);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/agenda", { waitUntil: "domcontentloaded" });
   await expect(page).toHaveURL(/\/agenda(?:[/?#]|$)/, { timeout: 20_000 });
@@ -31,6 +33,7 @@ async function signInDesktopAgenda(page: import("@playwright/test").Page) {
 
   await page.setViewportSize({ width: 1280, height: 800 });
   await signInDoctorOrSkipOnInfraError(page, undefined, { email, password });
+  await exposeSupabaseAuthCookiesToClient(page);
   await page.goto("/agenda", { waitUntil: "domcontentloaded" });
   await expect(page).toHaveURL(/\/agenda(?:[/?#]|$)/, { timeout: 20_000 });
   await expect(page.locator("main header h1").first()).toBeVisible({ timeout: 10_000 });
