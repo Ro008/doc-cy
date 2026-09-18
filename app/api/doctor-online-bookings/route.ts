@@ -109,10 +109,13 @@ export async function POST(req: NextRequest) {
   const locations = await loadDoctorLocations(supabase, doctor.id);
   const requestedLocationId =
     typeof b.locationId === "string" ? b.locationId.trim() : "";
-  const target =
-    (requestedLocationId
-      ? locations.find((row) => row.id === requestedLocationId)
-      : null) ?? primaryDoctorLocation(locations);
+  const target = requestedLocationId
+    ? locations.find((row) => row.id === requestedLocationId)
+    : primaryDoctorLocation(locations);
+
+  if (requestedLocationId && !target) {
+    return NextResponse.json({ message: "Clinic not found." }, { status: 404 });
+  }
 
   if (target) {
     const { error: locationErr } = await supabase

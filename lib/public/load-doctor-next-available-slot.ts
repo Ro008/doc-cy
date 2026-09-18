@@ -11,6 +11,7 @@ import {
 } from "@/lib/load-doctor-settings-for-slots";
 import { loadDoctorLocationsByDoctorIds } from "@/lib/load-doctor-locations";
 import {
+  ACCOUNT_SETTINGS_FALLBACK,
   locationToSettingsRow,
   type DoctorLocationRow,
 } from "@/lib/doctor-locations";
@@ -244,16 +245,19 @@ export async function loadFinderCardAvailabilityByDoctorId(
       const locationResults = await Promise.all(
         locations.map(async (location) => {
           const locationPaused = Boolean(location.pause_online_bookings);
-          if (locationPaused || !loaded) {
+          if (locationPaused) {
             const entry: FinderLocationAvailability = {
               doctorId,
               location,
-              paused: locationPaused || !loaded,
+              paused: true,
               calendar: EMPTY_CALENDAR,
             };
             return entry;
           }
-          const merged = locationToSettingsRow(location, loaded.settings);
+          const merged = locationToSettingsRow(
+            location,
+            loaded?.settings ?? ACCOUNT_SETTINGS_FALLBACK,
+          );
           if (merged.pause_online_bookings) {
             return {
               doctorId,

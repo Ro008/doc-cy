@@ -18,6 +18,7 @@ import { DoctorLocationSection } from "@/components/doctor/DoctorLocationSection
 import { DoctorProfileClinicPicker } from "@/components/doctor/DoctorProfileClinicPicker";
 import { loadDoctorLocations, primaryDoctorLocation } from "@/lib/load-doctor-locations";
 import {
+  ACCOUNT_SETTINGS_FALLBACK,
   clinicTitleOrFallback,
   locationToSettingsRow,
 } from "@/lib/doctor-locations";
@@ -714,10 +715,12 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
     (practiceLocations.length === 1 ? practiceLocations[0] : null) ??
     primaryDoctorLocation(practiceLocations);
 
-  const locationSettings =
-    selectedLocation && normalizedSettings
-      ? locationToSettingsRow(selectedLocation, normalizedSettings)
-      : normalizedSettings;
+  const locationSettings = selectedLocation
+    ? locationToSettingsRow(
+        selectedLocation,
+        normalizedSettings ?? ACCOUNT_SETTINGS_FALLBACK,
+      )
+    : normalizedSettings;
 
   const weeklySlots = locationSettings
     ? settingsToWeeklySlots(locationSettings)

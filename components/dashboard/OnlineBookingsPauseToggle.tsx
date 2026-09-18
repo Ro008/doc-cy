@@ -3,16 +3,12 @@
 import * as React from "react";
 import { toast } from "sonner";
 
-type Layout = "card" | "header";
-
 export function OnlineBookingsPauseToggle({
   initialPaused,
-  layout = "card",
   locationId,
   onPausedChange,
 }: {
   initialPaused: boolean;
-  layout?: Layout;
   locationId?: string | null;
   onPausedChange?: (paused: boolean) => void;
 }) {
@@ -65,13 +61,8 @@ export function OnlineBookingsPauseToggle({
 
   const track = accepting ? "bg-clinical-500/90" : "bg-slate-600";
 
-  const shell =
-    layout === "header"
-      ? "rounded-lg border border-slate-700/60 bg-slate-900/40 px-2.5 py-1.5 sm:px-3 sm:py-1.5"
-      : "rounded-2xl border border-slate-700/80 bg-slate-900/60 px-4 py-3 backdrop-blur";
-
   return (
-    <div className={shell}>
+    <div className="rounded-2xl border border-slate-700/80 bg-slate-900/60 px-4 py-3 backdrop-blur">
       <div className="flex items-center justify-between gap-2.5">
         <div className="min-w-0 flex-1">
           <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">

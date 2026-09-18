@@ -1,5 +1,7 @@
 import {
   DAY_NAMES,
+  DEFAULT_BOOKING_HORIZON_DAYS,
+  DEFAULT_MIN_NOTICE_HOURS,
   buildWeeklyScheduleFromSettings,
   settingsToWeeklySlots,
   type DoctorSettingsRow,
@@ -286,29 +288,27 @@ export function locationToSettingsRow(
   };
 }
 
+/**
+ * Account-level settings to merge a clinic row against when the professional has no
+ * doctor_settings row. Without this the clinic's own schedule gets discarded and the
+ * professional silently disappears from their profile and the finder.
+ */
+export const ACCOUNT_SETTINGS_FALLBACK = {
+  show_phone_public: false,
+  holiday_mode_enabled: false,
+  holiday_start_date: null,
+  holiday_end_date: null,
+  booking_horizon_days: DEFAULT_BOOKING_HORIZON_DAYS,
+  minimum_notice_hours: DEFAULT_MIN_NOTICE_HOURS,
+} as const;
+
 export function locationWeeklySlots(location: DoctorLocationRow): WeeklySlotFromSettings[] {
-  return settingsToWeeklySlots(
-    locationToSettingsRow(location, {
-      show_phone_public: false,
-      holiday_mode_enabled: false,
-      holiday_start_date: null,
-      holiday_end_date: null,
-      booking_horizon_days: 90,
-      minimum_notice_hours: 2,
-    }),
-  );
+  return settingsToWeeklySlots(locationToSettingsRow(location, ACCOUNT_SETTINGS_FALLBACK));
 }
 
 export function locationWeeklySchedule(location: DoctorLocationRow): WeeklySchedule {
   return buildWeeklyScheduleFromSettings(
-    locationToSettingsRow(location, {
-      show_phone_public: false,
-      holiday_mode_enabled: false,
-      holiday_start_date: null,
-      holiday_end_date: null,
-      booking_horizon_days: 90,
-      minimum_notice_hours: 2,
-    }),
+    locationToSettingsRow(location, ACCOUNT_SETTINGS_FALLBACK),
   );
 }
 
