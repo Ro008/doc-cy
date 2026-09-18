@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { signInDoctorOrSkipOnInfraError } from "./helpers/signInDoctorWithInfraSkip";
+import { exposeSupabaseAuthCookiesToClient } from "./helpers/doctorAuth";
 
 function normalizeSecret(raw: string): string {
   return raw
@@ -30,6 +31,7 @@ test.describe("Doctor settings language guard", { tag: "@pr-e2e" }, () => {
     ]);
 
     await signInDoctorOrSkipOnInfraError(page, undefined, { email, password });
+    await exposeSupabaseAuthCookiesToClient(page);
     await page.goto("/agenda", { waitUntil: "domcontentloaded" });
     await expect(page).toHaveURL(/\/agenda(?:[/?#]|$)/, { timeout: 20_000 });
 
