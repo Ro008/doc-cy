@@ -4,7 +4,7 @@
  */
 import { test, expect } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
-import { signInDoctorOrSkipOnInfraError } from "./helpers/signInDoctorWithInfraSkip";
+import { signInDoctorOrFail } from "./helpers/signInDoctorOrFail";
 import { skipIfSafeNoBooking } from "./helpers/safeMode";
 
 test.describe("Manual booking flow @booking-creates", { tag: ["@pr-e2e", "@pr-e2e-booking"] }, () => {
@@ -56,7 +56,7 @@ test.describe("Manual booking flow @booking-creates", { tag: ["@pr-e2e", "@pr-e2
     expect(serviceKey).not.toBe("");
 
     const admin = createClient(supabaseUrl, serviceKey);
-    await signInDoctorOrSkipOnInfraError(page);
+    await signInDoctorOrFail(page);
 
     let createdAppointmentId: string | null = null;
     let selectedTimeLabel = "";
@@ -153,7 +153,7 @@ test.describe("Manual booking flow @booking-creates", { tag: ["@pr-e2e", "@pr-e2
     expect(serviceKey).not.toBe("");
 
     const admin = createClient(supabaseUrl, serviceKey);
-    await signInDoctorOrSkipOnInfraError(page);
+    await signInDoctorOrFail(page);
 
     let createdAppointmentId: string | null = null;
 
