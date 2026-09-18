@@ -2,14 +2,19 @@
 
 Use environment files by test scope:
 
-- `tests/prod/*` -> `.env.local` only
+- `tests/prod/*` locally -> `.env.production.local` (see `npm run test:prod:smoke:local`)
+- `tests/prod/*` in CI -> GitHub secrets via `.github/actions/prod-nightly-smoke`; no env file is read
 - `tests/integration/*` -> `.env.testing.local`
-- local app dev (`npm run dev`) -> `.env.local`
+- local app dev (`npm run dev`) -> `.env.testing.local`; `npm run dev:prod` -> `.env.production.local`
+- Playwright's own default, when `PLAYWRIGHT_ENV_FILE` is unset -> `.env.local`, which points at **testing**
 
 ## Why
 
-`tests/prod/*` run against `https://www.mydoccy.com`, so the Supabase credentials must point to the same production project.  
-Using `.env.testing.local` with production URL can produce false failures (UI succeeds but DB assertions query the wrong project).
+`tests/prod/*` run against `https://www.mydoccy.com`, so their Supabase credentials must point at the production project. That is what `.env.production.local` is for.
+
+**`.env.local` must keep pointing at the testing project.** It is the file `playwright.config.ts` falls back to when `PLAYWRIGHT_ENV_FILE` is unset, so a bare `npx playwright test` or `npm run test:e2e` reads it, and `npm run test:integration:doctor-access` names it explicitly. Those lanes create and delete appointments and doctors. Pointing `.env.local` at production would run them against the live database.
+
+This file previously said `tests/prod/*` -> `.env.local` and told you to point it at production. That was wrong and dangerous; it did not match any script in `package.json`.
 
 ## Test doctors: prod vs integration
 
