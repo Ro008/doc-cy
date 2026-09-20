@@ -218,19 +218,6 @@ export async function POST(req: NextRequest) {
       console.error("[internal/doctors/verification] absorb failed", absorbErr);
       return NextResponse.json({ message: "Could not absorb listing." }, { status: 500 });
     }
-
-    const now = new Date().toISOString();
-    await supabase
-      .from("directory_duplicate_suggestions")
-      .update({ status: "merged", resolved_at: now, updated_at: now })
-      .eq("manual_id", resolved.listing.id)
-      .eq("doctor_id", doctorId);
-
-    await supabase
-      .from("directory_duplicate_suggestions")
-      .update({ status: "dismissed", resolved_at: now, updated_at: now })
-      .eq("manual_id", resolved.listing.id)
-      .eq("status", "pending");
   }
 
   if (authUserId) {

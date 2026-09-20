@@ -43,7 +43,6 @@ const CHILD_TABLES_BY_DOCTOR_ID = [
   "doctor_services",
   "doctor_settings",
   "doctor_monthly_digest_sent",
-  "directory_duplicate_suggestions",
 ] as const;
 
 const CHILD_TABLES_BY_PROFESSIONAL_ID = [
@@ -51,7 +50,6 @@ const CHILD_TABLES_BY_PROFESSIONAL_ID = [
   "professional_patient_booking_requests",
   "professional_call_to_book_clicks",
   "professional_slug_redirects",
-  "directory_duplicate_suggestions",
 ] as const;
 
 function namesMatch(a: string, b: string): boolean {
@@ -170,7 +168,6 @@ export async function purgeRegisteredProfessional(
     if (err) warnings.push(err);
   }
 
-  // directory_duplicate_suggestions may also key by professional_id / manual_id legacy.
   for (const table of CHILD_TABLES_BY_PROFESSIONAL_ID) {
     const err = await deleteByEq(admin, table, "professional_id", professionalId);
     if (err) warnings.push(err);
