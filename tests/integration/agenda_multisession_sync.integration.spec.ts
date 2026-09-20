@@ -1,71 +1,57 @@
 import { expect, test } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
-import { format } from "date-fns";
+import { addDays, format } from "date-fns";
 import { zonedTimeToUtc, utcToZonedTime } from "date-fns-tz";
 
 import { CY_TZ } from "@/lib/appointments";
-import { signInDoctorAndSetCookies } from "../helpers/doctorAuth";
+import { exposeSupabaseAuthCookiesToClient } from "../helpers/doctorAuth";
+import {
+  createTestDoctor,
+  deleteTestDoctor,
+  loginDoctorUi,
+  type TestDoctorFixture,
+} from "./helpers/test-doctor";
 
-const SCHEDULE_TEST_SLUG =
-  process.env.INTEGRATION_SCHEDULE_TEST_DOCTOR_SLUG?.trim() || "andreas-nikos";
-
+/**
+ * Guards a promise we make to professionals: a second open session reflects a
+ * confirmation without a manual refresh.
+ *
+ * This was quarantined as `test.fixme` because the appointment vanished from the
+ * mobile session. Measured cause: nothing to do with confirming, and nothing to
+ * do with the multi-clinic filter. `signInDoctorAndSetCookies` injects the
+ * Supabase session cookie as **httpOnly**, which the server can read but
+ * `document.cookie` cannot. So SSR rendered the agenda while the browser-side
+ * client in AgendaRealtime had no session at all: its PostgREST read ran as
+ * `anon`, RLS returned `200 []`, and the 10s refresh replaced the whole list
+ * with nothing about five seconds after load. The confirmation merely happened
+ * to come after that, which is why it looked like the trigger.
+ *
+ * The fix is `exposeSupabaseAuthCookiesToClient`, which already existed for the
+ * public-page specs: it rewrites those cookies as non-httpOnly. Any spec that
+ * asserts on data fetched by a client component needs it.
+ *
+ * This spec also now builds its own doctor instead of leaning on the shared
+ * account and the `andreas-nikos` fixture, so it no longer skips itself when
+ * that slug or credential drifts.
+ */
 test.describe("Agenda multi-session sync", { tag: "@pr-email" }, () => {
-  // FIXME: quarantined, not deleted - this guards a promise we make to professionals
-  // (a second open session reflects a confirmation without a manual refresh) and it is
-  // currently failing for a reason we do not understand yet.
-  //
-  // Measured, not assumed: before the confirmation the appointment is visible in the
-  // mobile session; immediately after it, the patient name is absent from the page
-  // entirely - no button, no node, not even in body innerText. The agenda refreshes
-  // itself every 10s (AgendaRealtime.tsx), the probe waited 13s, so the data does
-  // arrive. CI reproduces this identically, so it is not a local artefact.
-  //
-  // Ruled out: the multi-clinic location filter. clinicIdForAppointment falls back to
-  // clinics[0] (lib/agenda-clinics.ts:128), so it never resolves to null and never
-  // drops the row. Booking the fixture into a real location changes nothing.
-  //
-  // Left as fixme rather than removed so every run keeps reporting it. These specs
-  // were invisible for weeks behind an infra-skip; that must not happen again.
-  test.fixme("mobile session reflects confirm + delete without manual refresh", async ({
+  test("second session reflects confirm + delete without manual refresh", async ({
     browser,
   }, testInfo) => {
-    // Two browser contexts, two sign-ins, two agenda loads and a polled realtime
-    // assertion do not fit in the 30s default, which is what actually killed this
-    // spec — the leftover appointment row was the symptom of dying before cleanup.
-    test.setTimeout(120_000);
+    // Two contexts, two sign-ins, two agenda loads and polled realtime
+    // assertions do not fit in the 30s default.
+    test.setTimeout(150_000);
     testInfo.skip(
       testInfo.project.name !== "Desktop Large (Chromium)",
       "Run only on Desktop Chromium for CI stability.",
     );
 
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
-    const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
     const serviceRole = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
-    test.skip(
-      !supabaseUrl || !anon || !serviceRole,
-      "Missing Supabase integration env vars.",
-    );
+    test.skip(!supabaseUrl || !serviceRole, "Missing Supabase integration env vars.");
 
     const admin = createClient(supabaseUrl, serviceRole);
-    const anonClient = createClient(supabaseUrl, anon);
-    const testUserEmail = String(process.env.TEST_USER_EMAIL ?? "").trim();
-    const testUserPassword = String(process.env.TEST_USER_PASSWORD ?? "").trim();
-    test.skip(!testUserEmail || !testUserPassword, "Missing TEST_USER_* credentials.");
-
-    // Infra guard: when Supabase Auth is unhealthy ("Database error querying schema"),
-    // skip this cross-session E2E to avoid flaky PR blocking.
-    const authProbe = await anonClient.auth.signInWithPassword({
-      email: testUserEmail,
-      password: testUserPassword,
-    });
-    if (authProbe.error) {
-      const msg = String(authProbe.error.message ?? "");
-      if (/Database error querying schema/i.test(msg)) {
-        test.skip(true, "Supabase auth schema is temporarily unavailable.");
-      }
-      throw authProbe.error;
-    }
-    await anonClient.auth.signOut();
+    const nonce = `sync${Date.now()}`.slice(-12);
 
     const laptopCtx = await browser.newContext();
     const mobileCtx = await browser.newContext({
@@ -76,42 +62,33 @@ test.describe("Agenda multi-session sync", { tag: "@pr-email" }, () => {
     const laptop = await laptopCtx.newPage();
     const mobile = await mobileCtx.newPage();
 
+    // Book tomorrow, not a fixed hour today. The modal's "Review & confirm
+    // request" button is guarded by `!selectedPast`, so a slot that has already
+    // ended renders no button at all. The original 19:30 Cyprus slot ends at
+    // 17:00 UTC, which made this spec pass only when it ran earlier in the day —
+    // it failed in CI at 17:05 UTC for exactly that reason. 10:00 tomorrow is
+    // always in the future and always inside the 08:00-20:00 agenda grid.
     const nowCy = utcToZonedTime(new Date(), CY_TZ);
-    const todayKey = format(nowCy, "yyyy-MM-dd");
-    const iso = zonedTimeToUtc(`${todayKey}T19:30`, CY_TZ).toISOString();
-    const nonce = `${Date.now()}-${Math.floor(Math.random() * 100000)}`;
+    const dayKey = format(addDays(nowCy, 1), "yyyy-MM-dd");
+    const iso = zonedTimeToUtc(`${dayKey}T10:00`, CY_TZ).toISOString();
     const patientName = `SyncAuto ${nonce.slice(-5)}`;
 
+    let fixture: TestDoctorFixture | null = null;
     let appointmentId = "";
     try {
-      const { authUserId } = await signInDoctorAndSetCookies(laptop, anonClient);
-      await signInDoctorAndSetCookies(mobile, anonClient);
-
-      const { data: doctor, error: docErr } = await admin
-        .from("professionals")
-        .select("id,slug")
-        .eq("auth_user_id", authUserId)
-        .maybeSingle();
-      test.skip(Boolean(docErr) || !doctor?.id, "Doctor not found for auth user.");
-      test.skip(
-        String(doctor.slug ?? "") !== SCHEDULE_TEST_SLUG,
-        `Test user slug mismatch (expected ${SCHEDULE_TEST_SLUG}).`,
-      );
-
-      // This spec always books the same fixed slot, and appointments_active_slot_unique
-      // rejects a second active row on it. A run killed by its own timeout never reaches
-      // the finally-block cleanup, so its leftover row would block every later run for
-      // the rest of the day. Clear the slot first so the suite heals itself.
-      await admin
-        .from("appointments")
-        .delete()
-        .eq("doctor_id", doctor.id)
-        .eq("appointment_datetime", iso);
+      fixture = await createTestDoctor({
+        admin,
+        nonce,
+        name: `Sync Doctor ${nonce.slice(-4)}`,
+        specialty: "Cardiology",
+        is_specialty_approved: true,
+        status: "verified",
+      });
 
       const inserted = await admin
         .from("appointments")
         .insert({
-          doctor_id: doctor.id,
+          doctor_id: fixture.doctorId,
           patient_name: patientName,
           patient_email: `sync-${nonce}@integration.test`,
           patient_phone: "99123456",
@@ -125,22 +102,33 @@ test.describe("Agenda multi-session sync", { tag: "@pr-email" }, () => {
       appointmentId = String(inserted.data?.id ?? "");
       expect(appointmentId).not.toBe("");
 
-      await laptop.goto("/agenda");
-      await mobile.goto("/agenda");
+      for (const page of [laptop, mobile]) {
+        await loginDoctorUi(page, fixture.email, fixture.password);
+        // Without this the browser-side Supabase client has no session and the
+        // agenda's own refresh silently empties itself. See the note above.
+        await exposeSupabaseAuthCookiesToClient(page);
+        // ?date= drives the mobile day offset, so the agenda opens on the day
+        // the fixture is booked rather than today.
+        await page.goto(`/agenda?date=${dayKey}`);
+      }
 
       const mobileCard = mobile.locator("button", { hasText: patientName }).first();
-      await expect(mobileCard).toBeVisible({ timeout: 20000 });
+      await expect(mobileCard).toBeVisible({ timeout: 20_000 });
       await mobileCard.click();
-      await expect(mobile.getByText("Review & confirm request")).toBeVisible();
+      await expect(mobile.getByText("Review & confirm request")).toBeVisible({
+        timeout: 20_000,
+      });
       await mobile.getByRole("button", { name: "Close", exact: true }).first().click();
 
       const confirmRes = await admin
         .from("appointments")
         .update({ status: "CONFIRMED" })
         .eq("id", appointmentId)
-        .eq("doctor_id", doctor.id);
+        .eq("doctor_id", fixture.doctorId);
       expect(confirmRes.error).toBeNull();
 
+      // The confirmation must reach this session on its own (realtime, or the
+      // 10s polling fallback) — no reload.
       await expect
         .poll(
           async () => {
@@ -148,10 +136,13 @@ test.describe("Agenda multi-session sync", { tag: "@pr-email" }, () => {
             const hasReschedule = await mobile
               .getByRole("button", { name: /Reschedule appointment/i })
               .count();
-            await mobile.getByRole("button", { name: "Close", exact: true }).first().click();
+            await mobile
+              .getByRole("button", { name: "Close", exact: true })
+              .first()
+              .click();
             return hasReschedule;
           },
-          { timeout: 20000, intervals: [1000, 2000, 3000] },
+          { timeout: 30_000, intervals: [1000, 2000, 3000] },
         )
         .toBe(1);
 
@@ -159,14 +150,15 @@ test.describe("Agenda multi-session sync", { tag: "@pr-email" }, () => {
         .from("appointments")
         .delete()
         .eq("id", appointmentId)
-        .eq("doctor_id", doctor.id);
+        .eq("doctor_id", fixture.doctorId);
       expect(deleteRes.error).toBeNull();
       appointmentId = "";
 
-      await expect(mobileCard).toHaveCount(0, { timeout: 20000 });
+      await expect(mobileCard).toHaveCount(0, { timeout: 30_000 });
     } finally {
-      if (appointmentId) {
-        await admin.from("appointments").delete().eq("id", appointmentId);
+      if (fixture) {
+        await admin.from("appointments").delete().eq("doctor_id", fixture.doctorId);
+        await deleteTestDoctor(fixture);
       }
       await laptopCtx.close();
       await mobileCtx.close();
