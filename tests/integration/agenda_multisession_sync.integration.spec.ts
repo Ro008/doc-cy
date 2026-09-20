@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
-import { format } from "date-fns";
+import { addDays, format } from "date-fns";
 import { zonedTimeToUtc, utcToZonedTime } from "date-fns-tz";
 
 import { CY_TZ } from "@/lib/appointments";
@@ -62,9 +62,15 @@ test.describe("Agenda multi-session sync", { tag: "@pr-email" }, () => {
     const laptop = await laptopCtx.newPage();
     const mobile = await mobileCtx.newPage();
 
+    // Book tomorrow, not a fixed hour today. The modal's "Review & confirm
+    // request" button is guarded by `!selectedPast`, so a slot that has already
+    // ended renders no button at all. The original 19:30 Cyprus slot ends at
+    // 17:00 UTC, which made this spec pass only when it ran earlier in the day —
+    // it failed in CI at 17:05 UTC for exactly that reason. 10:00 tomorrow is
+    // always in the future and always inside the 08:00-20:00 agenda grid.
     const nowCy = utcToZonedTime(new Date(), CY_TZ);
-    const todayKey = format(nowCy, "yyyy-MM-dd");
-    const iso = zonedTimeToUtc(`${todayKey}T19:30`, CY_TZ).toISOString();
+    const dayKey = format(addDays(nowCy, 1), "yyyy-MM-dd");
+    const iso = zonedTimeToUtc(`${dayKey}T10:00`, CY_TZ).toISOString();
     const patientName = `SyncAuto ${nonce.slice(-5)}`;
 
     let fixture: TestDoctorFixture | null = null;
@@ -101,7 +107,9 @@ test.describe("Agenda multi-session sync", { tag: "@pr-email" }, () => {
         // Without this the browser-side Supabase client has no session and the
         // agenda's own refresh silently empties itself. See the note above.
         await exposeSupabaseAuthCookiesToClient(page);
-        await page.goto("/agenda");
+        // ?date= drives the mobile day offset, so the agenda opens on the day
+        // the fixture is booked rather than today.
+        await page.goto(`/agenda?date=${dayKey}`);
       }
 
       const mobileCard = mobile.locator("button", { hasText: patientName }).first();
