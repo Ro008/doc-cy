@@ -1,0 +1,28 @@
+-- Drop the last two *_public views; public reads go straight to `professionals`.
+--
+-- The views added no security. Neither ever granted SELECT to anon or authenticated
+-- (only postgres and service_role), and every read path already used the service role,
+-- so they were a naming convention, not a boundary. They were also the exact shape
+-- 20260919085031 had to clean up on clinics_public: owner-rights views sitting in
+-- `public`, one DDL slip away from being exposed through /rest/v1.
+--
+-- The three things they did now live in code:
+--   * the safe column list  -> lib/doctor-fieldsets.ts
+--   * the phone rule        -> publicPhoneForProfessional() in lib/public-call-phone.ts
+--     (show_phone_public, then mobile vs directory by public_phone_source)
+--   * is_registered AND NOT is_archived -> the two .eq() at each call site
+--     (lib/public/doctor-profile-page.tsx, app/api/directory/contact-reveal/route.ts)
+--
+-- Verified before dropping: the code-side rule expressed in SQL reproduced
+-- doctors_public row for row on both projects -- 7/7 on Testing (identical md5
+-- fingerprint, 2 rows with a visible phone) and 2/2 on Production.
+--
+-- professionals_public had no application reader at all.
+--
+-- Deploy order: the code that stops reading these views ships at merge; this migration
+-- runs afterwards, so the views outlive their last reader rather than the reverse.
+--
+-- Idempotent: DROP VIEW IF EXISTS. Not CASCADE -- nothing should depend on these, and
+-- if something does, this should fail loudly rather than drop it too.
+DROP VIEW IF EXISTS public.doctors_public;
+DROP VIEW IF EXISTS public.professionals_public;

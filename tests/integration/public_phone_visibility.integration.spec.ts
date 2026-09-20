@@ -104,8 +104,10 @@ test.describe("Integration: public phone visibility toggle", () => {
       let visiblePublic = false;
       for (let i = 0; i < 10; i += 1) {
         const check = await admin
-          .from("doctors_public")
+          .from("professionals")
           .select("id")
+          .eq("is_registered", true)
+          .eq("is_archived", false)
           .eq("slug", doctorSlug)
           .maybeSingle();
         if (!check.error && check.data?.id) {

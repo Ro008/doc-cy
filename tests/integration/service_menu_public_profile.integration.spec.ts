@@ -77,12 +77,14 @@ test.describe("Integration: public Service Menu section", () => {
         throw new Error(`Failed inserting doctor services: ${serviceInsert.error.message}`);
       }
 
-      // doctors_public is server-only; poll via service role after insert.
+      // The public read path is service-role only; poll it the same way after insert.
       let visiblePublic = false;
       for (let i = 0; i < 10; i++) {
         const check = await admin
-          .from("doctors_public")
+          .from("professionals")
           .select("id")
+          .eq("is_registered", true)
+          .eq("is_archived", false)
           .eq("slug", doctorSlug)
           .maybeSingle();
         if (!check.error && check.data?.id) {

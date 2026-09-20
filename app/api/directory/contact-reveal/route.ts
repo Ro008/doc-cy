@@ -4,6 +4,7 @@ import { formatCyprusPhoneDisplay } from "@/lib/phone-link";
 import { createServiceRoleClient } from "@/lib/supabase-service";
 import { enforcePublicApiRateLimit } from "@/lib/public-api-rate-limit";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { publicPhoneForProfessional } from "@/lib/public-call-phone";
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -203,9 +204,15 @@ export async function POST(req: Request) {
   }
 
   if (kind === "registered") {
+    // Was `doctors_public`, which filtered and computed `phone` in SQL. Both now live
+    // here: the two eq() are the view's WHERE, publicPhoneForProfessional its CASE.
     const { data, error } = await supabase
-      .from("doctors_public")
-      .select("id, phone")
+      .from("professionals")
+      .select(
+        "id, phone, mobile_number, doctor_settings(show_phone_public, public_phone_source)",
+      )
+      .eq("is_registered", true)
+      .eq("is_archived", false)
       .eq("id", id)
       .maybeSingle();
     if (error) {
@@ -215,9 +222,27 @@ export async function POST(req: Request) {
     if (!data) {
       return NextResponse.json({ ok: false, reason: "not_found" }, { status: 404 });
     }
+    const row = data as {
+      phone?: string | null;
+      mobile_number?: string | null;
+      doctor_settings?:
+        | { show_phone_public?: boolean | null; public_phone_source?: string | null }
+        | { show_phone_public?: boolean | null; public_phone_source?: string | null }[]
+        | null;
+    };
+    const settings = Array.isArray(row.doctor_settings)
+      ? row.doctor_settings[0]
+      : row.doctor_settings;
     return NextResponse.json({
       ok: true,
-      phone: normalizePhone((data as { phone?: string | null }).phone),
+      phone: normalizePhone(
+        publicPhoneForProfessional({
+          showPhonePublic: settings?.show_phone_public,
+          publicPhoneSource: settings?.public_phone_source,
+          phone: row.phone,
+          mobileNumber: row.mobile_number,
+        }),
+      ),
     });
   }
 
