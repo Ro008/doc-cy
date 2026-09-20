@@ -62,9 +62,9 @@ export default async function BookingSuccessPage({
       .eq("id", appointment.doctor_id)
       .single(),
     supabase
-      .from("doctor_settings")
+      .from("professional_settings")
       .select("slot_duration_minutes")
-      .eq("doctor_id", appointment.doctor_id)
+      .eq("professional_id", appointment.doctor_id)
       .single(),
   ]);
 

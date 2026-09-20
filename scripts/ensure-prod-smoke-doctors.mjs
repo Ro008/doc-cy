@@ -79,7 +79,7 @@ function bookableSettingsPayload(doctorId) {
     end_time: "18:00:00",
   };
   return {
-    doctor_id: doctorId,
+    professional_id: doctorId,
     monday: true,
     tuesday: true,
     wednesday: true,
@@ -112,7 +112,7 @@ function bookableSettingsPayload(doctorId) {
 }
 
 function settingsLookBookable(settings) {
-  if (!settings) return { ok: false, reason: "missing doctor_settings row" };
+  if (!settings) return { ok: false, reason: "missing professional_settings row" };
   if (settings.pause_online_bookings) {
     return { ok: false, reason: "pause_online_bookings is true" };
   }
@@ -237,11 +237,11 @@ async function main() {
       }
 
       const settingsRes = await admin
-        .from("doctor_settings")
+        .from("professional_settings")
         .select(
-          "doctor_id, pause_online_bookings, holiday_mode_enabled, holiday_start_date, holiday_end_date, booking_horizon_days, weekly_schedule, monday, tuesday, wednesday, thursday, friday",
+          "professional_id, pause_online_bookings, holiday_mode_enabled, holiday_start_date, holiday_end_date, booking_horizon_days, weekly_schedule, monday, tuesday, wednesday, thursday, friday",
         )
-        .eq("doctor_id", d.id)
+        .eq("professional_id", d.id)
         .maybeSingle();
 
       const bookable = settingsLookBookable(settingsRes.data);
@@ -251,14 +251,14 @@ async function main() {
         console.warn(`[booking] NOT bookable — ${bookable.reason}`);
         if (args.apply) {
           const payload = bookableSettingsPayload(d.id);
-          const upsert = await admin.from("doctor_settings").upsert(payload, {
-            onConflict: "doctor_id",
+          const upsert = await admin.from("professional_settings").upsert(payload, {
+            onConflict: "professional_id",
           });
           if (upsert.error) {
             console.error("[booking] Upsert failed:", upsert.error.message);
             exitCode = 1;
           } else {
-            console.log("[booking] Applied smoke-friendly doctor_settings.");
+            console.log("[booking] Applied smoke-friendly professional_settings.");
           }
         } else {
           exitCode = 1;

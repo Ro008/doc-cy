@@ -261,7 +261,7 @@ export function locationToSettingsRow(
     Partial<DoctorSettingsRow>,
 ): DoctorSettingsRow {
   return {
-    doctor_id: location.doctor_id,
+    professional_id: location.doctor_id,
     monday: Boolean(location.monday),
     tuesday: Boolean(location.tuesday),
     wednesday: Boolean(location.wednesday),
@@ -290,7 +290,7 @@ export function locationToSettingsRow(
 
 /**
  * Account-level settings to merge a clinic row against when the professional has no
- * doctor_settings row. Without this the clinic's own schedule gets discarded and the
+ * professional_settings row. Without this the clinic's own schedule gets discarded and the
  * professional silently disappears from their profile and the finder.
  */
 export const ACCOUNT_SETTINGS_FALLBACK = {

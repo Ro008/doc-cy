@@ -125,11 +125,11 @@ export default async function DashboardAppointmentDetailPage({
   }
 
   const { data: settingsRow } = await supabase
-    .from("doctor_settings")
+    .from("professional_settings")
     .select(
       "slot_duration_minutes, monday, tuesday, wednesday, thursday, friday, saturday, sunday, start_time, end_time, weekly_schedule, break_start, break_end"
     )
-    .eq("doctor_id", doctor.id)
+    .eq("professional_id", doctor.id)
     .maybeSingle();
 
   const settingsTyped = settingsRow as DoctorSettingsRow | null;

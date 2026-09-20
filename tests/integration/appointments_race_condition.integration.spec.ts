@@ -97,9 +97,9 @@ test.describe("Integration: appointment race condition guard", { tag: ["@pr-e2e"
         start_time: "09:00:00",
         end_time: "17:00:00",
       };
-      const settingsUpsert = await admin.from("doctor_settings").upsert(
+      const settingsUpsert = await admin.from("professional_settings").upsert(
         {
-          doctor_id: doctorId,
+          professional_id: doctorId,
           monday: true,
           tuesday: true,
           wednesday: true,
@@ -137,7 +137,7 @@ test.describe("Integration: appointment race condition guard", { tag: ["@pr-e2e"
           minimum_notice_hours: 1,
           updated_at: new Date().toISOString(),
         },
-        { onConflict: "doctor_id" },
+        { onConflict: "professional_id" },
       );
       if (settingsUpsert.error) {
         throw new Error(
@@ -148,7 +148,7 @@ test.describe("Integration: appointment race condition guard", { tag: ["@pr-e2e"
       // Registering a doctor auto-creates a primary doctor_locations row
       // (trigger: professionals_create_primary_location), defaulting to
       // pause_online_bookings = true. Booking now reads the pause flag from
-      // the location, not doctor_settings — unpause it too or every booking
+      // the location, not professional_settings — unpause it too or every booking
       // attempt gets 403 "Bookings temporarily unavailable".
       const locationUnpause = await admin
         .from("doctor_locations")
@@ -223,7 +223,7 @@ test.describe("Integration: appointment race condition guard", { tag: ["@pr-e2e"
           .in("id", Array.from(new Set(createdAppointmentIds)));
       }
       if (doctorId) {
-        await admin.from("doctor_settings").delete().eq("doctor_id", doctorId);
+        await admin.from("professional_settings").delete().eq("professional_id", doctorId);
         await admin.from("professionals").delete().eq("id", doctorId);
       }
       if (authUserId) {

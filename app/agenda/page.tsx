@@ -131,11 +131,11 @@ export default async function AgendaPage({ searchParams }: AgendaPageProps) {
   let workingHours: AgendaWorkingHours | null = null;
   {
     let settingsRes = await supabase
-      .from("doctor_settings")
+      .from("professional_settings")
       .select(
-        "doctor_id, monday, tuesday, wednesday, thursday, friday, saturday, sunday, start_time, end_time, weekly_schedule, break_start, break_end, pause_online_bookings, show_phone_public, holiday_mode_enabled, holiday_start_date, holiday_end_date, booking_horizon_days, minimum_notice_hours, slot_duration_minutes",
+        "professional_id, monday, tuesday, wednesday, thursday, friday, saturday, sunday, start_time, end_time, weekly_schedule, break_start, break_end, pause_online_bookings, show_phone_public, holiday_mode_enabled, holiday_start_date, holiday_end_date, booking_horizon_days, minimum_notice_hours, slot_duration_minutes",
       )
-      .eq("doctor_id", doctor.id)
+      .eq("professional_id", doctor.id)
       .single();
 
     const weeklyMissing =
@@ -147,11 +147,11 @@ export default async function AgendaPage({ searchParams }: AgendaPageProps) {
 
     if (weeklyMissing) {
       settingsRes = await supabase
-        .from("doctor_settings")
+        .from("professional_settings")
         .select(
-          "doctor_id, monday, tuesday, wednesday, thursday, friday, saturday, sunday, start_time, end_time, break_start, break_end, pause_online_bookings, show_phone_public, holiday_mode_enabled, holiday_start_date, holiday_end_date, booking_horizon_days, minimum_notice_hours, slot_duration_minutes",
+          "professional_id, monday, tuesday, wednesday, thursday, friday, saturday, sunday, start_time, end_time, break_start, break_end, pause_online_bookings, show_phone_public, holiday_mode_enabled, holiday_start_date, holiday_end_date, booking_horizon_days, minimum_notice_hours, slot_duration_minutes",
         )
-        .eq("doctor_id", doctor.id)
+        .eq("professional_id", doctor.id)
         .single();
     }
 

@@ -72,7 +72,7 @@ Cloudflare Free does **not** replace P0; it slows HTML scrapers once PostgREST d
 
 ### 2. Safe public views (same migration)
 
-**`public.doctors_public`** (`security_invoker = false`) — exposes only: `id, name, specialty, bio, clinic_address, slug, status, languages, created_at, is_specialty_approved, is_gesy, district, avatar_url, latitude, longitude, phone` (phone only when `doctor_settings.show_phone_public = true`). No `email`, `internal_email`, `ghs_code`, `license_*`.
+**`public.doctors_public`** (`security_invoker = false`) — exposes only: `id, name, specialty, bio, clinic_address, slug, status, languages, created_at, is_specialty_approved, is_gesy, district, avatar_url, latitude, longitude, phone` (phone only when `professional_settings.show_phone_public = true`). No `email`, `internal_email`, `ghs_code`, `license_*`.
 
 **`public.professionals_public`** (`security_invoker = false`) — unified directory fields for SSR. No `email`, `ghs_code`, `gender`. (`directory_manual_public` was dropped after identity unification.)
 

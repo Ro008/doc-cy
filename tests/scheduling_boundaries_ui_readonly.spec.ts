@@ -34,11 +34,11 @@ test.describe("Scheduling boundaries UI (read-only)", () => {
     );
 
     const { data: settings } = await supabase
-      .from("doctor_settings")
+      .from("professional_settings")
       .select("booking_horizon_days, minimum_notice_hours")
-      .eq("doctor_id", doctor.id)
+      .eq("professional_id", doctor.id)
       .single();
-    test.skip(!settings, "No doctor_settings row found.");
+    test.skip(!settings, "No professional_settings row found.");
 
     const horizonDays =
       [14, 30, 90, 180].includes(Number(settings.booking_horizon_days))

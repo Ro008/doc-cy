@@ -194,7 +194,7 @@ test.describe("Integration UI: settings clinic address wizard (Pareto)", { tag: 
       if (doctorId) {
         await admin.from("doctor_locations").delete().eq("doctor_id", doctorId);
         await admin.from("doctor_services").delete().eq("doctor_id", doctorId);
-        await admin.from("doctor_settings").delete().eq("doctor_id", doctorId);
+        await admin.from("professional_settings").delete().eq("professional_id", doctorId);
         await admin.from("professionals").delete().eq("id", doctorId);
       }
       if (authUserId) {
@@ -305,7 +305,7 @@ test.describe("Integration UI: settings clinic address wizard (Pareto)", { tag: 
       if (doctorId) {
         await admin.from("doctor_locations").delete().eq("doctor_id", doctorId);
         await admin.from("doctor_services").delete().eq("doctor_id", doctorId);
-        await admin.from("doctor_settings").delete().eq("doctor_id", doctorId);
+        await admin.from("professional_settings").delete().eq("professional_id", doctorId);
         await admin.from("professionals").delete().eq("id", doctorId);
       }
       if (authUserId) {
@@ -509,7 +509,7 @@ test.describe("Integration UI: settings clinic address wizard (Pareto)", { tag: 
       if (doctorId) {
         await admin.from("doctor_locations").delete().eq("doctor_id", doctorId);
         await admin.from("doctor_services").delete().eq("doctor_id", doctorId);
-        await admin.from("doctor_settings").delete().eq("doctor_id", doctorId);
+        await admin.from("professional_settings").delete().eq("professional_id", doctorId);
         await admin.from("professionals").delete().eq("id", doctorId);
       }
       if (authUserId) {

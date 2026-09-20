@@ -193,7 +193,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Verify requested time against doctor_settings (working days + hours)
+  // Verify requested time against professional_settings (working days + hours)
   const cyLocal = utcToZonedTime(appointmentUtc, CY_TZ);
   const dayOfWeek = cyLocal.getDay(); // 0-6
   const hours = cyLocal.getHours();
@@ -203,9 +203,9 @@ export async function POST(req: NextRequest) {
     .padStart(2, "0")}:00`;
 
   const { data: settings, error: settingsError } = await supabase
-    .from("doctor_settings")
+    .from("professional_settings")
     .select("*")
-    .eq("doctor_id", doctorId)
+    .eq("professional_id", doctorId)
     .single();
 
   if (settingsError || !settings) {
@@ -371,7 +371,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(body, { status: 409 });
   }
 
-  // Initial duration for overlap checks and agenda height uses doctor_settings.slot_duration_minutes
+  // Initial duration for overlap checks and agenda height uses professional_settings.slot_duration_minutes
   // (defaults to 30). This is provisional until the professional confirms and adjusts the slot.
   const bookedAtIso = new Date().toISOString();
 

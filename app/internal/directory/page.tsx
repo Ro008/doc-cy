@@ -447,9 +447,9 @@ export default async function FounderDashboardPage({
   let specialtyChangeRequestItems: SpecialtyChangeRequestRow[] = [];
   {
     let changeReqRes = await supabase
-      .from("doctor_specialty_change_requests")
+      .from("professional_specialty_change_requests")
       .select(
-        "id, doctor_id, request_kind, from_specialty, to_specialty, to_specialty_from_master, license_number, created_at, professionals(name, email, registration_email)",
+        "id, professional_id, request_kind, from_specialty, to_specialty, to_specialty_from_master, license_number, created_at, professionals(name, email, registration_email)",
       )
       .eq("status", "pending")
       .order("created_at", { ascending: false });
@@ -458,9 +458,9 @@ export default async function FounderDashboardPage({
       /registration_email/i.test(String(changeReqRes.error.message ?? ""))
     ) {
       changeReqRes = (await supabase
-        .from("doctor_specialty_change_requests")
+        .from("professional_specialty_change_requests")
         .select(
-          "id, doctor_id, request_kind, from_specialty, to_specialty, to_specialty_from_master, license_number, created_at, professionals(name, email)",
+          "id, professional_id, request_kind, from_specialty, to_specialty, to_specialty_from_master, license_number, created_at, professionals(name, email)",
         )
         .eq("status", "pending")
         .order("created_at", { ascending: false })) as typeof changeReqRes;
@@ -510,7 +510,7 @@ export default async function FounderDashboardPage({
                 : "add";
         return {
           id: r.id as string,
-          doctorId: r.doctor_id as string,
+          doctorId: r.professional_id as string,
           doctorName: (doc?.name ?? "").trim() || "—",
           doctorEmail:
             professionalAccountEmail({
@@ -878,7 +878,7 @@ export default async function FounderDashboardPage({
     const invitationSinceIso = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
     const { data: invitationRows, error: invitationErr } = await fetchAllSupabaseRows(() =>
       supabase
-        .from("finder_doctor_invitation_requests")
+        .from("missing_professional_requests")
         .select("id, requested_name, specialty, district, created_at, voter_key")
         .gte("created_at", invitationSinceIso)
         .order("created_at", { ascending: false }),

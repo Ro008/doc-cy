@@ -73,9 +73,9 @@ export async function GET(req: NextRequest, { params }: RouteContext) {
     .single();
 
   const { data: settings } = await supabase
-    .from("doctor_settings")
+    .from("professional_settings")
     .select("slot_duration_minutes")
-    .eq("doctor_id", appointment.doctor_id)
+    .eq("professional_id", appointment.doctor_id)
     .single();
 
   const rowDur = Number(

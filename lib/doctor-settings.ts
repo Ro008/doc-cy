@@ -1,5 +1,5 @@
 // lib/doctor-settings.ts
-// Converts doctor_settings rows into the weekly slot shape used by BookingSection.
+// Converts professional_settings rows into the weekly slot shape used by BookingSection.
 // day_of_week: 0=Sun, 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat
 
 export type DayKey =
@@ -20,7 +20,7 @@ export type DayScheduleEntry = {
 export type WeeklySchedule = Record<DayKey, DayScheduleEntry>;
 
 export type DoctorSettingsRow = {
-  doctor_id: string;
+  professional_id: string;
   monday: boolean;
   tuesday: boolean;
   wednesday: boolean;
@@ -124,7 +124,7 @@ export function buildWeeklyScheduleFromSettings(
 }
 
 /**
- * Build the weeklySlots array expected by BookingSection from a doctor_settings row.
+ * Build the weeklySlots array expected by BookingSection from a professional_settings row.
  * Only includes days that are enabled (Mon–Sun).
  */
 export function settingsToWeeklySlots(
@@ -140,7 +140,7 @@ export function settingsToWeeklySlots(
     if (!dayConfig.enabled) continue;
     const dayOfWeek = DAY_OF_WEEK_MAP[dayName];
     slots.push({
-      id: `settings-${settings.doctor_id}-${dayOfWeek}`,
+      id: `settings-${settings.professional_id}-${dayOfWeek}`,
       day_of_week: dayOfWeek,
       start_time: dayConfig.start_time,
       end_time: dayConfig.end_time,

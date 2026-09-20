@@ -104,9 +104,9 @@ export async function POST(req: NextRequest) {
   }
 
   const { data: settings, error: settingsError } = await supabase
-    .from("doctor_settings")
+    .from("professional_settings")
     .select("*")
-    .eq("doctor_id", doctor.id)
+    .eq("professional_id", doctor.id)
     .single();
 
   if (settingsError || !settings) {

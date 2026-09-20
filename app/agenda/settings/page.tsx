@@ -266,9 +266,9 @@ export default async function AgendaSettingsPage() {
   }
 
   const { data: settings } = await supabase
-    .from("doctor_settings")
+    .from("professional_settings")
     .select("*")
-    .eq("doctor_id", doctor.id)
+    .eq("professional_id", doctor.id)
     .single();
 
   const { data: serviceRows } = await supabase
@@ -323,9 +323,9 @@ export default async function AgendaSettingsPage() {
   let pendingSpecialtyChange: DoctorSettingsFormData["pendingSpecialtyChange"] = null;
   {
     const pendingChangeRes = await supabase
-      .from("doctor_specialty_change_requests")
+      .from("professional_specialty_change_requests")
       .select("request_kind, from_specialty, to_specialty, license_number, created_at")
-      .eq("doctor_id", doctor.id)
+      .eq("professional_id", doctor.id)
       .eq("status", "pending")
       .maybeSingle();
     if (
@@ -333,9 +333,9 @@ export default async function AgendaSettingsPage() {
       /request_kind/i.test(String(pendingChangeRes.error.message ?? ""))
     ) {
       const legacy = await supabase
-        .from("doctor_specialty_change_requests")
+        .from("professional_specialty_change_requests")
         .select("from_specialty, to_specialty, license_number, created_at")
-        .eq("doctor_id", doctor.id)
+        .eq("professional_id", doctor.id)
         .eq("status", "pending")
         .maybeSingle();
       if (!legacy.error && legacy.data) {
@@ -431,7 +431,7 @@ export default async function AgendaSettingsPage() {
     saturday: (settings as { saturday?: boolean } | null)?.saturday ?? false,
     sunday: (settings as { sunday?: boolean } | null)?.sunday ?? false,
     weeklySchedule: buildWeeklyScheduleFromSettings({
-      doctor_id: doctor.id,
+      professional_id: doctor.id,
       monday: (settings as { monday?: boolean } | null)?.monday ?? true,
       tuesday: (settings as { tuesday?: boolean } | null)?.tuesday ?? true,
       wednesday: (settings as { wednesday?: boolean } | null)?.wednesday ?? true,

@@ -47,9 +47,9 @@ async function main() {
   console.log(`Found ${doctors?.length ?? 0} candidate smoke doctors:\n`);
   for (const d of doctors ?? []) {
     const settings = await admin
-      .from("doctor_settings")
+      .from("professional_settings")
       .select("pause_online_bookings, holiday_mode_enabled, booking_horizon_days")
-      .eq("doctor_id", d.id)
+      .eq("professional_id", d.id)
       .maybeSingle();
     const s = settings.data;
     const flags = [

@@ -8,7 +8,7 @@
 --
 -- Notes:
 -- - Safe to re-run (upsert-like behavior by slug).
--- - Keeps existing doctor_settings row when present; otherwise creates one.
+-- - Keeps existing professional_settings row when present; otherwise creates one.
 -- - Auth seed password for restored doctors: demo1234
 
 DO $seed$
@@ -221,8 +221,8 @@ BEGIN
       WHERE id = v_doctor_id;
     END IF;
 
-    INSERT INTO public.doctor_settings (
-      doctor_id,
+    INSERT INTO public.professional_settings (
+      professional_id,
       monday,
       tuesday,
       wednesday,
@@ -261,7 +261,7 @@ BEGIN
       30,
       now()
     )
-    ON CONFLICT (doctor_id) DO UPDATE SET
+    ON CONFLICT (professional_id) DO UPDATE SET
       monday = excluded.monday,
       tuesday = excluded.tuesday,
       wednesday = excluded.wednesday,

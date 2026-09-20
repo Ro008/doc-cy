@@ -52,11 +52,11 @@ export default async function PracticeInsightsPage() {
 
   let weeklySchedule = null;
   const settingsRes = await supabase
-    .from("doctor_settings")
+    .from("professional_settings")
     .select(
-      "doctor_id, monday, tuesday, wednesday, thursday, friday, saturday, sunday, start_time, end_time, weekly_schedule",
+      "professional_id, monday, tuesday, wednesday, thursday, friday, saturday, sunday, start_time, end_time, weekly_schedule",
     )
-    .eq("doctor_id", doctor.id)
+    .eq("professional_id", doctor.id)
     .maybeSingle();
 
   if (!settingsRes.error && settingsRes.data) {

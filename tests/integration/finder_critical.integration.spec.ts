@@ -150,9 +150,9 @@ async function seedWeekdayAvailabilitySettings(
     start_time: "09:00:00",
     end_time: "17:00:00",
   };
-  const settingsUpsert = await admin.from("doctor_settings").upsert(
+  const settingsUpsert = await admin.from("professional_settings").upsert(
     {
-      doctor_id: doctorId,
+      professional_id: doctorId,
       monday: true,
       tuesday: true,
       wednesday: true,
@@ -182,7 +182,7 @@ async function seedWeekdayAvailabilitySettings(
       minimum_notice_hours: 1,
       updated_at: new Date().toISOString(),
     },
-    { onConflict: "doctor_id" },
+    { onConflict: "professional_id" },
   );
   if (settingsUpsert.error) {
     throw new Error(`Failed preparing doctor settings: ${settingsUpsert.error.message}`);
@@ -191,7 +191,7 @@ async function seedWeekdayAvailabilitySettings(
   // Registering a doctor auto-creates a primary doctor_locations row
   // (trigger: professionals_create_primary_location), defaulting to
   // pause_online_bookings = true. Availability/booking now reads the pause
-  // flag from the location, not doctor_settings — unpause it too or the
+  // flag from the location, not professional_settings — unpause it too or the
   // finder card shows no availability at all.
   const locationUnpause = await admin
     .from("doctor_locations")
@@ -656,7 +656,7 @@ test.describe("Integration: finder business-critical UX", { tag: ["@pr-e2e", "@p
       await expect(dayHeaderB).toHaveText((await dayHeaderA.textContent()) ?? "");
     } finally {
       for (const doctor of created) {
-        await admin.from("doctor_settings").delete().eq("doctor_id", doctor.doctorId);
+        await admin.from("professional_settings").delete().eq("professional_id", doctor.doctorId);
         await admin.from("professionals").delete().eq("id", doctor.doctorId);
         await admin.auth.admin.deleteUser(doctor.authUserId);
       }

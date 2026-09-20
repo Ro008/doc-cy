@@ -163,9 +163,9 @@ export async function loadOnlineBookingsPausedByDoctorId(
   if (uniqueIds.length === 0) return new Map();
 
   const { data, error } = await supabase
-    .from("doctor_settings")
-    .select("doctor_id, pause_online_bookings")
-    .in("doctor_id", uniqueIds);
+    .from("professional_settings")
+    .select("professional_id, pause_online_bookings")
+    .in("professional_id", uniqueIds);
 
   if (error) {
     console.error("[DocCy] finder pause_online_bookings lookup failed:", error);
@@ -174,7 +174,7 @@ export async function loadOnlineBookingsPausedByDoctorId(
 
   return new Map(
     (data ?? []).map((row) => [
-      String((row as { doctor_id: string }).doctor_id),
+      String((row as { professional_id: string }).professional_id),
       Boolean((row as { pause_online_bookings?: boolean | null }).pause_online_bookings),
     ]),
   );

@@ -72,7 +72,7 @@ test.describe("Future appointments cancellation @booking-creates", () => {
     let appointmentId: string | undefined = undefined;
 
     // Try multiple future working days/time slots to avoid flaky
-    // `doctor_settings` states (holiday range and/or pause_online_bookings).
+    // `professional_settings` states (holiday range and/or pause_online_bookings).
     // 30-min aligned candidates only, and strictly inside a 09:00-18:00 day.
     // For 30-min slots, 17:30 is the last valid start when end_time is 18:00.
     const candidateTimes = ["16:30", "17:00", "17:30"];

@@ -5,7 +5,7 @@
 -- Does:
 --   1) appointments.duration_minutes (INTEGER, default 30) if missing
 --   2) Auth user + doctor "Andreas Nikos Test" / slug andreas-nikos (verified, bookable test profile)
---   3) doctor_settings Mon–Fri 09:00–17:00 linked by doctor_id
+--   3) professional_settings Mon–Fri 09:00–17:00 linked by professional_id
 --
 -- Prerequisite: at least one row in auth.users (any signup) so instance_id exists;
 --               if the project has zero users, register once in the Dashboard, then run this.
@@ -203,8 +203,8 @@ BEGIN
     WHERE id = v_doctor_id;
   END IF;
 
-  INSERT INTO public.doctor_settings (
-    doctor_id,
+  INSERT INTO public.professional_settings (
+    professional_id,
     monday,
     tuesday,
     wednesday,
@@ -249,7 +249,7 @@ BEGIN
     30,
     now()
   )
-  ON CONFLICT (doctor_id) DO UPDATE SET
+  ON CONFLICT (professional_id) DO UPDATE SET
     monday = excluded.monday,
     tuesday = excluded.tuesday,
     wednesday = excluded.wednesday,
