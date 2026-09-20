@@ -1,7 +1,6 @@
 import { createServiceRoleClient } from "@/lib/supabase-service";
 
 export const MAX_FOUNDERS = 50;
-const MARKETING_INCLUDED_DOCTOR_SLUGS = ["andreas-nikos"] as const;
 
 export type FoundersAvailability = {
   currentUsersCount: number;
@@ -26,12 +25,15 @@ export async function getFoundersAvailability(): Promise<FoundersAvailability> {
     };
   }
 
+  // `is_test_profile` is excluded deliberately: this number is public, shown on the
+  // marketing page as spots remaining. A QA or smoke profile must never move it.
   const countRes = await supabase
     .from("professionals")
     .select("id", { count: "exact", head: true })
     .eq("subscription_tier", "founder")
     .eq("status", "verified")
-    .eq("is_registered", true);
+    .eq("is_registered", true)
+    .eq("is_test_profile", false);
 
   if (countRes.error) {
     // Safe fallback: default to standard pricing on data errors.
@@ -43,24 +45,10 @@ export async function getFoundersAvailability(): Promise<FoundersAvailability> {
     };
   }
 
-  let currentUsersCount = countRes.count ?? 0;
-
-  // Marketing override: explicitly count selected seeded profiles even if
-  // they are no longer founder+verified after test/ops adjustments.
-  const marketingRes = await supabase
-    .from("professionals")
-    .select("id, slug, subscription_tier, status")
-    .in("slug", [...MARKETING_INCLUDED_DOCTOR_SLUGS]);
-
-  if (!marketingRes.error && Array.isArray(marketingRes.data)) {
-    const extraMarketingCount = marketingRes.data.filter((doctor) => {
-      const alreadyCounted = doctor.subscription_tier === "founder" && doctor.status === "verified";
-      return !alreadyCounted;
-    }).length;
-    currentUsersCount += extraMarketingCount;
-  }
-
-  currentUsersCount = clamp(currentUsersCount, 0, MAX_FOUNDERS);
+  // No slug overrides here. There used to be one that added a seeded QA doctor to this
+  // count even after it stopped being founder+verified, which meant a test profile was
+  // inflating a public number. The count is now exactly the real founders.
+  const currentUsersCount = clamp(countRes.count ?? 0, 0, MAX_FOUNDERS);
   const spotsRemaining = clamp(MAX_FOUNDERS - currentUsersCount, 0, MAX_FOUNDERS);
   const progressPercent = clamp(((MAX_FOUNDERS - spotsRemaining) / MAX_FOUNDERS) * 100, 0, 100);
 
