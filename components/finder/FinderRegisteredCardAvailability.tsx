@@ -8,6 +8,8 @@ import { loadFinderAvailabilityForRequest } from "@/lib/public/load-finder-avail
 import { loadFinderRegisteredPublicCallIds } from "@/lib/public/load-finder-registered-public-call";
 import { doctorLocationDisplayName } from "@/lib/doctor-locations";
 import { formatClinicCountLabel } from "@/lib/manual-directory-clinics";
+import { FinderClinicNameLink } from "@/components/finder/FinderClinicLocationBlock";
+import { loadFinderRegisteredClinics } from "@/lib/public/load-finder-registered-clinics";
 
 const registeredFinderCallClass =
   "inline-flex min-h-9 items-center justify-center rounded-lg border border-clinical-200 bg-clinical-50 px-3 py-1.5 text-xs font-semibold text-clinical-800 transition-none hover:border-clinical-300 hover:bg-clinical-100 disabled:cursor-wait disabled:opacity-60";
@@ -41,13 +43,18 @@ export async function FinderRegisteredCardAvailability({
   doctorIdsKey,
   clinicAddress = null,
 }: FinderRegisteredCardAvailabilityProps) {
-  const [batch, publicCallIds] = await Promise.all([
+  const [batch, publicCallIds, registeredClinics] = await Promise.all([
     loadFinderAvailabilityForRequest(doctorIdsKey),
     loadFinderRegisteredPublicCallIds(doctorIdsKey),
+    loadFinderRegisteredClinics(doctorIdsKey),
   ]);
   const locations = batch.locationsByDoctorId.get(doctorId) ?? [];
   const isMulti = locations.length > 1;
   const callDoctorId = publicCallIds.has(doctorId) ? doctorId : null;
+  // Stage 1 reused doctor_locations.id as the professional_clinics row id, so a
+  // location maps to its clinic exactly. Falls back to the professional's first
+  // clinic for cards with no doctor_locations rows.
+  const fallbackClinic = registeredClinics.byProfessionalId.get(doctorId)?.[0] ?? null;
 
   if (locations.length === 0) {
     if (batch.paused.get(doctorId)) {
@@ -59,6 +66,7 @@ export async function FinderRegisteredCardAvailability({
               location: (
                 <RegisteredLocationCopy
                   address={clinicAddress}
+                  clinic={fallbackClinic}
                   callDoctorId={callDoctorId}
                 />
               ),
@@ -77,6 +85,7 @@ export async function FinderRegisteredCardAvailability({
             location: (
               <RegisteredLocationCopy
                 address={clinicAddress}
+                clinic={fallbackClinic}
                 callDoctorId={callDoctorId}
               />
             ),
@@ -118,6 +127,10 @@ export async function FinderRegisteredCardAvailability({
       location: (
         <RegisteredLocationCopy
           address={address}
+          clinic={
+            registeredClinics.byLocationId.get(location.id) ??
+            (locations.length === 1 ? fallbackClinic : null)
+          }
           latitude={location.latitude}
           longitude={location.longitude}
           placeId={location.clinic_place_id}
@@ -174,6 +187,7 @@ export async function FinderRegisteredPublicCall({
 function RegisteredLocationCopy({
   address,
   title,
+  clinic = null,
   callDoctorId = null,
   latitude = null,
   longitude = null,
@@ -181,6 +195,8 @@ function RegisteredLocationCopy({
 }: {
   address?: string | null;
   title?: string | null;
+  /** Clinic behind this location, so the card names it as unregistered cards do. */
+  clinic?: { name: string; slug: string } | null;
   callDoctorId?: string | null;
   latitude?: number | null;
   longitude?: number | null;
@@ -202,6 +218,7 @@ function RegisteredLocationCopy({
         </p>
       ) : null}
       <div>
+        {clinic ? <FinderClinicNameLink name={clinic.name} slug={clinic.slug} /> : null}
         <p className="text-xs leading-relaxed text-ink-600 whitespace-pre-wrap break-words">
           {displayAddress || "Not provided yet"}
         </p>

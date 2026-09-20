@@ -90,6 +90,42 @@ function LocationCallToBook({
   );
 }
 
+/**
+ * The clinic name above a location's address, linking to the clinic page.
+ *
+ * Shared so registered and unregistered finder cards render it identically —
+ * registered cards keep their own richer Maps handling (lat/lng + place id) and only
+ * borrow this heading.
+ */
+export function FinderClinicNameLink({
+  name,
+  slug,
+}: {
+  name: string;
+  slug?: string | null;
+}) {
+  const trimmedName = String(name ?? "").trim();
+  if (!trimmedName) return null;
+
+  const clinicHref = String(slug ?? "").trim() ? clinicLandingPath(String(slug).trim()) : null;
+  if (!clinicHref) {
+    return (
+      <p className="mb-1 text-sm font-semibold leading-snug text-ink-800">{trimmedName}</p>
+    );
+  }
+
+  return (
+    <PendingLink
+      href={clinicHref}
+      navigationReason="profile"
+      prefetch={false}
+      className="mb-1 block text-sm font-semibold leading-snug text-ink-800 transition-none hover:text-clinical-600"
+    >
+      {trimmedName}
+    </PendingLink>
+  );
+}
+
 function ClinicEntry({
   item,
   district,
@@ -105,7 +141,6 @@ function ClinicEntry({
   useFallback: boolean;
   callToBook?: FinderCallToBookContext | null;
 }) {
-  const clinicHref = item.slug ? clinicLandingPath(item.slug) : null;
   const addressText = stripPlusCodePrefix(
     String(item.address ?? "").trim() || (useFallback ? fallbackAddress : ""),
   );
@@ -115,18 +150,7 @@ function ClinicEntry({
 
   return (
     <div>
-      {clinicHref ? (
-        <PendingLink
-          href={clinicHref}
-          navigationReason="profile"
-          prefetch={false}
-          className="mb-1 block text-sm font-semibold leading-snug text-ink-800 transition-none hover:text-clinical-600"
-        >
-          {item.name}
-        </PendingLink>
-      ) : (
-        <p className="mb-1 text-sm font-semibold leading-snug text-ink-800">{item.name}</p>
-      )}
+      <FinderClinicNameLink name={item.name} slug={item.slug} />
       <p className="text-xs leading-relaxed text-ink-600 whitespace-pre-wrap break-words">
         {locationLine}
       </p>
