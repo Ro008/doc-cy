@@ -68,14 +68,18 @@ test.describe("Integration: public directory RLS hardening", () => {
       .limit(5);
     expect(isDeniedOrEmpty(doctorsPublicDump)).toBe(true);
 
-    // Service role still reads views for SSR / trusted servers.
+    // The *_public views above are dropped, not merely ungranted: the probes stay as a
+    // regression guard that they are never recreated. SSR now reads `professionals`
+    // directly through the service role, so that is the positive control.
     test.skip(!serviceKey, "Missing SUPABASE_SERVICE_ROLE_KEY for positive control.");
     const admin = createClient(supabaseUrl, serviceKey, {
       auth: { persistSession: false, autoRefreshToken: false },
     });
     const serviceProfessionals = await admin
-      .from("professionals_public")
+      .from("professionals")
       .select("id, name")
+      .eq("is_registered", true)
+      .eq("is_archived", false)
       .limit(1);
     expect(serviceProfessionals.error).toBeNull();
   });

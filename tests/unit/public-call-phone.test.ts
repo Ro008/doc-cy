@@ -7,6 +7,7 @@ import {
   hasDistinctDirectoryPhone,
   inferPublicPhoneSource,
   phonesMatch,
+  publicPhoneForProfessional,
   publicPhoneSourceForSave,
 } from "../../lib/public-call-phone";
 
@@ -105,6 +106,84 @@ describe("public-call-phone", () => {
         directoryPhone: null,
       }),
       "mobile",
+    );
+  });
+});
+
+describe("publicPhoneForProfessional", () => {
+  const mobile = "+35799747322";
+  const directory = "+35722123456";
+
+  it("hides the number unless show_phone_public is on", () => {
+    for (const showPhonePublic of [false, null, undefined]) {
+      assert.equal(
+        publicPhoneForProfessional({
+          showPhonePublic,
+          publicPhoneSource: "mobile",
+          phone: directory,
+          mobileNumber: mobile,
+        }),
+        null,
+      );
+    }
+  });
+
+  it("defaults to the directory number, matching the view's COALESCE", () => {
+    for (const publicPhoneSource of [undefined, null, "directory", "nonsense"]) {
+      assert.equal(
+        publicPhoneForProfessional({
+          showPhonePublic: true,
+          publicPhoneSource,
+          phone: directory,
+          mobileNumber: mobile,
+        }),
+        directory,
+      );
+    }
+  });
+
+  it("returns the mobile number when public_phone_source says so", () => {
+    assert.equal(
+      publicPhoneForProfessional({
+        showPhonePublic: true,
+        publicPhoneSource: "mobile",
+        phone: directory,
+        mobileNumber: mobile,
+      }),
+      mobile,
+    );
+  });
+
+  it("treats blank and whitespace-only numbers as null, like NULLIF(BTRIM(..), '')", () => {
+    assert.equal(
+      publicPhoneForProfessional({
+        showPhonePublic: true,
+        publicPhoneSource: "directory",
+        phone: "   ",
+        mobileNumber: mobile,
+      }),
+      null,
+    );
+    assert.equal(
+      publicPhoneForProfessional({
+        showPhonePublic: true,
+        publicPhoneSource: "mobile",
+        phone: directory,
+        mobileNumber: null,
+      }),
+      null,
+    );
+  });
+
+  it("does not fall back to the other number when the chosen one is empty", () => {
+    assert.equal(
+      publicPhoneForProfessional({
+        showPhonePublic: true,
+        publicPhoneSource: "mobile",
+        phone: directory,
+        mobileNumber: "",
+      }),
+      null,
     );
   });
 });

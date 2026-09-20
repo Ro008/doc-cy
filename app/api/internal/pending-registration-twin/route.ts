@@ -56,39 +56,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ message: "Ids must differ." }, { status: 400 });
   }
 
-  const now = new Date().toISOString();
-
+  // "keep both" means: these are two different people, do not absorb. It used to also
+  // write a dismissed row to directory_duplicate_suggestions so the automatic signup
+  // dedupe would stop proposing the pair. That automation is retired -- a claim now
+  // names its own target, and a plain "join as a professional" is checked by hand -- so
+  // there is no suggestion left to suppress and the decision is simply to do nothing.
   if (action === "keep_both") {
-    const { data: existing } = await supabase
-      .from("directory_duplicate_suggestions")
-      .select("id, status")
-      .eq("manual_id", unregisteredId)
-      .eq("doctor_id", registeredId)
-      .maybeSingle();
-
-    if (existing?.id) {
-      const { error } = await supabase
-        .from("directory_duplicate_suggestions")
-        .update({ status: "dismissed", resolved_at: now, updated_at: now })
-        .eq("id", existing.id);
-      if (error) {
-        console.error("[pending-twin] dismiss update failed", error);
-        return NextResponse.json({ message: "Could not keep both." }, { status: 500 });
-      }
-    } else {
-      const { error } = await supabase.from("directory_duplicate_suggestions").insert({
-        manual_id: unregisteredId,
-        doctor_id: registeredId,
-        score: 0,
-        reason: "Founder keep both from pending twin review",
-        status: "dismissed",
-        resolved_at: now,
-      });
-      if (error) {
-        console.error("[pending-twin] dismiss insert failed", error);
-        return NextResponse.json({ message: "Could not keep both." }, { status: 500 });
-      }
-    }
     return NextResponse.json({ ok: true, action: "keep_both" });
   }
 
@@ -100,18 +73,6 @@ export async function POST(req: NextRequest) {
     console.error("[pending-twin] absorb failed", absorbErr);
     return NextResponse.json({ message: "Could not absorb listing." }, { status: 500 });
   }
-
-  await supabase
-    .from("directory_duplicate_suggestions")
-    .update({ status: "merged", resolved_at: now, updated_at: now })
-    .eq("manual_id", unregisteredId)
-    .eq("doctor_id", registeredId);
-
-  await supabase
-    .from("directory_duplicate_suggestions")
-    .update({ status: "dismissed", resolved_at: now, updated_at: now })
-    .eq("manual_id", unregisteredId)
-    .eq("status", "pending");
 
   return NextResponse.json({ ok: true, action: "absorb", unregisteredId });
 }

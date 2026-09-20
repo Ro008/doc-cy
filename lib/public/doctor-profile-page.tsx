@@ -67,6 +67,7 @@ import {
   publicSpecialtyLabels,
 } from "@/lib/doctor-specialties";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { publicPhoneForProfessional } from "@/lib/public-call-phone";
 import {
   resolveAbsorbedProfessionalSlugRedirect,
   resolveManualDirectoryProfileForSlug,
@@ -77,7 +78,7 @@ import {
   buildManualDirectorySeoTitle,
 } from "@/lib/manual-directory-seo";
 
-/** Public profile SSR reads — service_role only (doctors_public is not granted to anon). */
+/** Public profile SSR reads — service_role only (anon has no SELECT on professionals). */
 function getPublicDirectoryDb(): SupabaseClient | null {
   return createServiceRoleClient();
 }
@@ -138,14 +139,44 @@ function isOptionalProfileColumnError(msg: string): boolean {
   );
 }
 
-function isDoctorsPublicUnavailable(msg: string, code?: string): boolean {
+function isPublicProfileSourceUnavailable(msg: string, code?: string): boolean {
   // Missing optional columns (e.g. district before migration) must fall through to
-  // isOptionalProfileColumnError — not be treated as a missing view.
+  // isOptionalProfileColumnError — not be treated as a missing table.
   if (code === "42703" || isOptionalProfileColumnError(msg)) return false;
   return (
     code === "PGRST205" ||
-    /doctors_public|schema cache|not find.*table|does not exist/i.test(msg)
+    /professionals|schema cache|not find.*table|does not exist/i.test(msg)
   );
+}
+
+/**
+ * Read a public profile straight from `professionals`.
+ *
+ * Replaces the dropped `doctors_public` view: the two filters below are the view's
+ * WHERE clause, and the callers pass the view's safe column lists from
+ * lib/doctor-fieldsets. Service role only — anon was never granted either.
+ */
+async function selectPublicProfessionalBySlug(
+  supabase: SupabaseClient,
+  fields: string,
+  slug: string,
+): Promise<{
+  data: Record<string, unknown> | null;
+  error: { message?: string; code?: string } | null;
+}> {
+  // `fields` is a runtime-chosen column list, so PostgREST cannot infer a row type
+  // here; the shape is narrowed by the caller's cast, as it was through the view.
+  const res = await supabase
+    .from("professionals")
+    .select(fields)
+    .eq("is_registered", true)
+    .eq("is_archived", false)
+    .eq("slug", slug)
+    .maybeSingle();
+  return {
+    data: (res.data as unknown as Record<string, unknown> | null) ?? null,
+    error: (res.error as { message?: string; code?: string } | null) ?? null,
+  };
 }
 
 function isDoctorSettingsSchemaError(msg: string, code?: string): boolean {
@@ -181,17 +212,13 @@ async function fetchPublicDoctorBySlug(
   const basicList = DOCTOR_FIELD_LIST_PUBLIC_PROFILE_NO_LANG;
   const baseList = DOCTOR_FIELD_LIST_PUBLIC_PROFILE_BASE;
 
-  let first = await supabase
-    .from("doctors_public")
-    .select(fullList)
-    .eq("slug", slug)
-    .maybeSingle();
+  let first = await selectPublicProfessionalBySlug(supabase, fullList, slug);
 
   if (first.error) {
     const msg = first.error.message ?? "";
     const code = (first.error as { code?: string }).code;
-    if (isDoctorsPublicUnavailable(msg, code)) {
-      console.error("[DocCy] doctors_public view unavailable:", first.error);
+    if (isPublicProfileSourceUnavailable(msg, code)) {
+      console.error("[DocCy] professionals read unavailable:", first.error);
       return { kind: "not_found" };
     }
   }
@@ -201,27 +228,19 @@ async function fetchPublicDoctorBySlug(
   if (first.error) {
     const msg = first.error.message ?? "";
     if (/is_gesy/i.test(msg)) {
-      const noGesy = await supabase
-        .from("doctors_public")
-        .select(DOCTOR_FIELD_LIST_PUBLIC_PROFILE_NO_GESY)
-        .eq("slug", slug)
-        .maybeSingle();
+      const noGesy = await selectPublicProfessionalBySlug(
+        supabase,
+        DOCTOR_FIELD_LIST_PUBLIC_PROFILE_NO_GESY,
+        slug,
+      );
       if (!noGesy.error && noGesy.data) {
         row = { ...noGesy.data, is_gesy: false } as DoctorProfileRow;
       }
     }
     if (!row && isOptionalProfileColumnError(msg)) {
-      const second = await supabase
-        .from("doctors_public")
-        .select(basicList)
-        .eq("slug", slug)
-        .maybeSingle();
+      const second = await selectPublicProfessionalBySlug(supabase, basicList, slug);
       if (second.error && isOptionalProfileColumnError(second.error.message ?? "")) {
-        const third = await supabase
-          .from("doctors_public")
-          .select(baseList)
-          .eq("slug", slug)
-          .maybeSingle();
+        const third = await selectPublicProfessionalBySlug(supabase, baseList, slug);
         if (third.error || !third.data) {
           console.error(
             "[DocCy] Doctor profile fallback query failed:",
@@ -405,15 +424,11 @@ export async function generateMetadata({
         error: { message: "service role unavailable", code: "DOC_CY_NO_SERVICE_ROLE" },
       };
     }
-    let m = await supabase
-      .from("doctors_public")
-      .select(fields)
-      .eq("slug", params.slug)
-      .maybeSingle();
+    let m = await selectPublicProfessionalBySlug(supabase, fields, params.slug);
 
     if (
       m.error &&
-      isDoctorsPublicUnavailable(m.error.message ?? "", m.error.code)
+      isPublicProfileSourceUnavailable(m.error.message ?? "", m.error.code)
     ) {
       return m;
     }
@@ -631,23 +646,42 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
   const mapsUrl = buildMapsUrlFromAddress(clinicAddress) ?? "";
   let avatarUrl: string | null = null;
   let publicPhone: string | null = null;
+  // doctors_public used to compute `phone` in SQL; publicPhoneForProfessional applies
+  // the same show_phone_public / public_phone_source rule over the raw columns.
   const contactLookup = await supabase
-    .from("doctors_public")
-    .select("avatar_url, phone")
+    .from("professionals")
+    .select(
+      "avatar_url, phone, mobile_number, doctor_settings(show_phone_public, public_phone_source)",
+    )
+    .eq("is_registered", true)
+    .eq("is_archived", false)
     .eq("id", profile.id)
     .maybeSingle();
   if (!contactLookup.error && contactLookup.data) {
-    const avatarPath = String(
-      (contactLookup.data as { avatar_url?: string | null }).avatar_url ?? "",
-    ).trim();
-    publicPhone =
-      String((contactLookup.data as { phone?: string | null }).phone ?? "").trim() ||
-      null;
+    const contact = contactLookup.data as {
+      avatar_url?: string | null;
+      phone?: string | null;
+      mobile_number?: string | null;
+      doctor_settings?:
+        | { show_phone_public?: boolean | null; public_phone_source?: string | null }
+        | { show_phone_public?: boolean | null; public_phone_source?: string | null }[]
+        | null;
+    };
+    const contactSettings = Array.isArray(contact.doctor_settings)
+      ? contact.doctor_settings[0]
+      : contact.doctor_settings;
+    const avatarPath = String(contact.avatar_url ?? "").trim();
+    publicPhone = publicPhoneForProfessional({
+      showPhonePublic: contactSettings?.show_phone_public,
+      publicPhoneSource: contactSettings?.public_phone_source,
+      phone: contact.phone,
+      mobileNumber: contact.mobile_number,
+    });
     if (avatarPath) {
       avatarUrl = resolvePublicAvatarUrl(supabase, avatarPath);
     }
   } else if (contactLookup.error) {
-    console.error("[DocCy] doctors_public contact lookup failed:", contactLookup.error);
+    console.error("[DocCy] public contact lookup failed:", contactLookup.error);
   }
 
   const profileCanonicalUrl = `${siteBaseUrl()}${publicProfessionalProfilePath(params.slug, profileLocale(params))}`;

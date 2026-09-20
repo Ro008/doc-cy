@@ -489,8 +489,6 @@ test.describe("Integration: pending registration origin actions", { tag: "@pr-e2
         registeredBlockerId,
       ].filter(Boolean);
       for (const id of Array.from(new Set(ids))) {
-        await admin.from("directory_duplicate_suggestions").delete().eq("manual_id", id);
-        await admin.from("directory_duplicate_suggestions").delete().eq("doctor_id", id);
         await admin.from("professionals").delete().eq("id", id);
       }
       for (const authId of [
