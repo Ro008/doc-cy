@@ -135,9 +135,12 @@ runs:
         set -euo pipefail
         case "${DOC_CY_SMOKE_SUITE}" in
           site) spec="tests/prod/prod_site_availability.spec.ts" ;;
+          profile) spec="tests/prod/prod_professional_profile_availability.spec.ts" ;;
+          # Kept for manual runs only -- it books for real against a doctor that must
+          # exist in production, so it is no longer part of the nightly matrix.
           booking) spec="tests/prod/prod_appointment_booking_flow.spec.ts" ;;
           *)
-            echo "::error::Unknown smoke suite '${DOC_CY_SMOKE_SUITE}'. Use site or booking."
+            echo "::error::Unknown smoke suite '${DOC_CY_SMOKE_SUITE}'. Use site, profile or booking."
             exit 1
             ;;
         esac

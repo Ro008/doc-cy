@@ -3,12 +3,15 @@
 #
 # Dual @nightly-prod: Cloudflare edge (PLAYWRIGHT_BASE_URL_PROD / mydoccy.com) then
 # Vercel origin (PLAYWRIGHT_BASE_URL_VERCEL_PROD / *.vercel.app). Each target runs
-# site / booking as a matrix (fail-fast: false) so one flake does not
-# hide the others. Origin starts after all edge legs so we do not double-book the
-# same prod doctor slot. Email guards stay a single job (@pr-email).
+# site / profile as a matrix (fail-fast: false) so one flake does not
+# hide the others. Origin starts after all edge legs to keep the two targets from
+# interleaving. Email guards stay a single job (@pr-email).
 # Optional: VERCEL_AUTOMATION_BYPASS_SECRET for Deployment Protection on origin.
 #
-# Blocking: prod Supabase + public shell, guest booking, email guards.
+# Blocking: prod Supabase + public shell, professional profile + availability,
+# email guards. Completing a booking is NOT checked nightly: it needs a permanent
+# test doctor in production, which we deliberately do not keep. Run the booking
+# suite by hand around risky releases instead (npm run test:prod:smoke:local).
 # Doctor login form UI: PR non-blocking (`doctor_password_login_form.spec.ts` @pr-login-monitor).
 # Integration E2E (finder, navigation, etc.) runs only on PR - not duplicated here.
 
@@ -150,7 +153,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        suite: [site, booking]
+        suite: [site, profile]
     runs-on: ubuntu-latest
     timeout-minutes: 45
     continue-on-error: ${{ needs.smoke-targets.outputs.origin_enabled == 'true' }}
@@ -166,7 +169,6 @@ jobs:
       TEST_DOCTOR_PASSWORD: ${{ secrets.TEST_DOCTOR_PASSWORD }}
       TEST_USER_EMAIL: ${{ secrets.TEST_USER_EMAIL || secrets.TEST_DOCTOR_EMAIL }}
       TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD || secrets.TEST_DOCTOR_PASSWORD }}
-      TEST_BOOKING_DOCTOR_SLUG: ${{ secrets.TEST_BOOKING_DOCTOR_SLUG }}
       INTERNAL_DIRECTORY_SECRET: ${{ secrets.INTERNAL_DIRECTORY_SECRET }}
     steps:
       - name: Checkout
@@ -187,7 +189,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        suite: [site, booking]
+        suite: [site, profile]
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
@@ -203,7 +205,6 @@ jobs:
       TEST_DOCTOR_PASSWORD: ${{ secrets.TEST_DOCTOR_PASSWORD }}
       TEST_USER_EMAIL: ${{ secrets.TEST_USER_EMAIL || secrets.TEST_DOCTOR_EMAIL }}
       TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD || secrets.TEST_DOCTOR_PASSWORD }}
-      TEST_BOOKING_DOCTOR_SLUG: ${{ secrets.TEST_BOOKING_DOCTOR_SLUG }}
       INTERNAL_DIRECTORY_SECRET: ${{ secrets.INTERNAL_DIRECTORY_SECRET }}
     steps:
       - name: Checkout
@@ -267,7 +268,7 @@ jobs:
             exit 1
           fi
           if [ "${ORIGIN_RESULT}" = "failure" ]; then
-            echo "::error::Vercel origin smoke failed. Check the site / booking matrix legs."
+            echo "::error::Vercel origin smoke failed. Check the site / profile matrix legs."
             exit 1
           fi
           if [ "${ORIGIN_RESULT}" = "skipped" ] && [ "${EDGE_RESULT}" != "success" ]; then

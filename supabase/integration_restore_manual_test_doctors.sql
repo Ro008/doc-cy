@@ -101,6 +101,10 @@ BEGIN
       IF v_user_id IS NULL THEN
         v_user_id := gen_random_uuid();
 
+        -- The four token columns are written explicitly as '' rather than left to
+        -- default NULL. GoTrue scans them into Go strings, so a NULL makes it return
+        -- 500 for that user -- which also breaks auth.admin.listUsers for the whole
+        -- project, and with it the integration cleanup, leaving orphaned users behind.
         INSERT INTO auth.users (
           id,
           instance_id,
@@ -109,6 +113,10 @@ BEGIN
           email,
           encrypted_password,
           email_confirmed_at,
+          confirmation_token,
+          recovery_token,
+          email_change,
+          email_change_token_new,
           raw_app_meta_data,
           raw_user_meta_data,
           created_at,
@@ -122,6 +130,10 @@ BEGIN
           rec.email,
           extensions.crypt(v_seed_password, extensions.gen_salt('bf')),
           now(),
+          '',
+          '',
+          '',
+          '',
           jsonb_build_object('provider', 'email', 'providers', jsonb_build_array('email')),
           jsonb_build_object('role', 'doctor'),
           now(),
