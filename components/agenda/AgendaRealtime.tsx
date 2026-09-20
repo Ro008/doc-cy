@@ -438,6 +438,16 @@ export function AgendaRealtime({
     const mapped = (data as Record<string, unknown>[])
       .map(agendaRowFromSupabasePayload)
       .filter((x): x is AgendaAppointmentRow => x !== null);
+
+    // An unauthenticated read is not an empty agenda. RLS answers 200 with []
+    // rather than an error, so without this check a session that has lost its
+    // token silently wipes every appointment off the doctor's screen. A real
+    // empty result (session present, no rows) still clears the list.
+    if (mapped.length === 0) {
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData.session) return;
+    }
+
     setAppointments(sortAgendaRowsByDatetime(mapped));
   }, [doctorId, supabase]);
 
