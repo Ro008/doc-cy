@@ -20,6 +20,11 @@ function assertSafeIntegrationTarget(baseUrl: string, supabaseUrl: string): stri
 
 test.describe("Integration: public phone visibility toggle", () => {
   test("public profile hides/shows contact based on show_phone_public", async ({ page }) => {
+    // Seeds an auth user, professional and settings row, polls for visibility, then
+    // renders the profile twice. The default 30s budget leaves nothing for the second
+    // SSR render, so the post-navigation assertions time out the whole test rather
+    // than the step. Generous budget per the integration-testing notes.
+    test.setTimeout(120_000);
     const baseUrl = process.env.PLAYWRIGHT_BASE_URL ?? "";
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
     const serviceRole = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
