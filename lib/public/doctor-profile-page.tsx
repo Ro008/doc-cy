@@ -67,6 +67,7 @@ import {
   publicSpecialtyLabels,
 } from "@/lib/doctor-specialties";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { SPECIALTY_LINKS_SELECT, specialtiesFromLinks } from "@/lib/specialty-catalogue";
 import { publicPhoneForProfessional } from "@/lib/public-call-phone";
 import {
   resolveAbsorbedProfessionalSlugRedirect,
@@ -168,13 +169,24 @@ async function selectPublicProfessionalBySlug(
   // here; the shape is narrowed by the caller's cast, as it was through the view.
   const res = await supabase
     .from("professionals")
-    .select(fields)
+    .select(`${fields}, ${SPECIALTY_LINKS_SELECT}`)
     .eq("is_registered", true)
     .eq("is_archived", false)
     .eq("slug", slug)
     .maybeSingle();
+  const data = (res.data as unknown as Record<string, unknown> | null) ?? null;
+  if (data) {
+    // Specialties come from professional_specialties (approved, alphabetical).
+    // Unapproved ones stay hidden downstream via is_specialty_approved, as before.
+    const { specialty_links: links, ...rest } = data;
+    const names = specialtiesFromLinks(links).map((label) => label.name);
+    return {
+      data: { ...rest, specialties: names, ...(names[0] ? { specialty: names[0] } : {}) },
+      error: null,
+    };
+  }
   return {
-    data: (res.data as unknown as Record<string, unknown> | null) ?? null,
+    data: null,
     error: (res.error as { message?: string; code?: string } | null) ?? null,
   };
 }

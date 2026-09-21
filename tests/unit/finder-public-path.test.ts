@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
+  canonicalFinderSpecialtyRedirectPath,
   finderResultsPath,
   isLegacyFinderFilterPath,
   isPatientDirectoryChromePath,
@@ -58,5 +59,40 @@ describe("finder public paths", () => {
     assert.equal(isPatientDirectoryChromePath("/for-professionals"), false);
     assert.equal(isPatientDirectoryChromePath("/agenda"), false);
     assert.equal(isPatientDirectoryChromePath("/finder/professional/maria"), false);
+  });
+});
+
+describe("canonicalFinderSpecialtyRedirectPath (308 for legacy specialty URLs)", () => {
+  it("redirects legacy spellings to the catalogue slug", () => {
+    assert.equal(canonicalFinderSpecialtyRedirectPath("/paphos/dentistry"), "/paphos/dentist");
+    assert.equal(canonicalFinderSpecialtyRedirectPath("/all/gynecology"), "/all/obstetrics-gynaecology");
+    assert.equal(canonicalFinderSpecialtyRedirectPath("/paphos/pediatrics"), "/paphos/paediatrics");
+    assert.equal(canonicalFinderSpecialtyRedirectPath("/paphos/dermatology"), "/paphos/dermato-venereology");
+    assert.equal(canonicalFinderSpecialtyRedirectPath("/limassol/haematology"), "/limassol/hematology");
+    assert.equal(canonicalFinderSpecialtyRedirectPath("/all/midwifery"), "/all/midwife");
+    assert.equal(canonicalFinderSpecialtyRedirectPath("/all/ent"), "/all/otorhinolaryngology");
+  });
+
+  it("normalizes casing", () => {
+    assert.equal(canonicalFinderSpecialtyRedirectPath("/limassol/PAEDIATRICS"), "/limassol/paediatrics");
+  });
+
+  it("leaves canonical, custom and non-finder paths alone", () => {
+    for (const path of [
+      "/limassol/paediatrics",
+      "/all/obstetrics-gynaecology",
+      "/all/thoracic-surgery-cardio-surgery",
+      "/all/sexology",
+      "/all/psychology",
+      "/all/clinical-psychologist",
+      "/limassol/all",
+      "/limassol",
+      "/",
+      "/dr-maria-georgiou",
+      "/clinics/paphos",
+      "/limassol/paediatrics/extra",
+    ]) {
+      assert.equal(canonicalFinderSpecialtyRedirectPath(path), null, path);
+    }
   });
 });

@@ -5,7 +5,6 @@ import {
   buildFinderResultsPageHref,
   escapeIlikePattern,
   FINDER_RESULTS_PAGE_SIZE,
-  finderSpecialtyDbMatchValues,
   hasMoreFinderResults,
   orderUnifiedFinderResultsPhase1,
   parseFinderResultsPage,
@@ -20,27 +19,6 @@ describe("finder results paging helpers", () => {
 
   it("escapes ilike wildcards", () => {
     assert.equal(escapeIlikePattern("100%_x\\y"), "100\\%\\_x\\\\y");
-  });
-
-  it("expands Hematology specialty variants for SQL (British spelling)", () => {
-    const values = finderSpecialtyDbMatchValues("Haematology");
-    assert.ok(values.includes("Hematology"));
-    assert.ok(values.includes("Haematology"));
-  });
-
-  it("expands dentistry specialty variants for SQL (GeSY Dentist + legacy)", () => {
-    const values = finderSpecialtyDbMatchValues("Dentistry");
-    assert.ok(values.includes("Dentist"));
-    assert.ok(values.includes("Dentistry"));
-    assert.ok(values.includes("Pediatric Dentistry"));
-    // Orthodontics is its own GeSY specialty — not collapsed into Dentist.
-    assert.ok(!values.includes("Orthodontics"));
-  });
-
-  it("includes title-case so custom specialties survive case-sensitive overlaps", () => {
-    const values = finderSpecialtyDbMatchValues("sexology");
-    assert.ok(values.includes("sexology"));
-    assert.ok(values.includes("Sexology"));
   });
 
   it("parses page and builds href", () => {

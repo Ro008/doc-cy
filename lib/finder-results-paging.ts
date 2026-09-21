@@ -1,6 +1,4 @@
 import { isTestProfileLike } from "@/lib/doctor-test-profile";
-import { toTitleCaseWords } from "@/lib/finder-seo";
-import { harmonizeFinderSpecialtyLabel } from "@/lib/finder-specialty-harmonize";
 
 /**
  * How many finder/clinic cards to render per "page" (Show more multiplies this).
@@ -27,53 +25,6 @@ export const FINDER_RESULTS_MAX_PAGE_FILTERED = 5;
 /** Escape `%` / `_` / `\` for PostgREST `ilike` patterns. */
 export function escapeIlikePattern(value: string): string {
   return value.replace(/\\/g, "\\\\").replace(/%/g, "\\%").replace(/_/g, "\\_");
-}
-
-/**
- * Raw specialty strings that should match a finder specialty filter in SQL.
- * Includes GeSY labels plus legacy registration labels bridged by harmonize.
- */
-const SPECIALTY_DB_VARIANTS: Record<string, readonly string[]> = {
-  Dentist: ["Dentist", "Dentistry", "Pediatric Dentistry", "Cosmetic Dentistry", "Dental"],
-  Paediatrics: ["Paediatrics", "Pediatrics", "Paediatric"],
-  "Obstetrics - Gynaecology": [
-    "Obstetrics - Gynaecology",
-    "Gynecology",
-    "Gynecologic Oncology",
-    "Obstetrics/Gynecology",
-    "Obstetrics / Gynecology",
-    "Obstetrics and Gynecology",
-  ],
-  Physiotherapist: [
-    "Physiotherapist",
-    "Physiotherapy",
-    "Physiotherapy & Rehabilitation",
-    "Physiotherapy and Rehabilitation",
-  ],
-  "Clinical Psychologist": ["Clinical Psychologist"],
-  Psychology: ["Psychology"],
-  "Dermato-Venereology": ["Dermato-Venereology", "Dermatology"],
-  Orthopaedics: ["Orthopaedics", "Orthopedics"],
-  Otorhinolaryngology: ["Otorhinolaryngology", "ENT"],
-  "Respiratory Medicine": ["Respiratory Medicine", "Pulmonology"],
-  "Renal Diseases": ["Renal Diseases", "Nephrology"],
-  "Clinical Dietitian": ["Clinical Dietitian", "Nutrition & Dietetics"],
-  "Personal Doctor": ["Personal Doctor", "General Practice", "Wellness"],
-  "Medical Oncology": ["Medical Oncology", "Oncology"],
-  Hematology: ["Hematology", "Haematology"],
-};
-
-export function finderSpecialtyDbMatchValues(activeSpecialty: string): string[] {
-  const trimmed = String(activeSpecialty ?? "").trim();
-  if (!trimmed) return [];
-  const canon = harmonizeFinderSpecialtyLabel(trimmed) || trimmed;
-  const variants = SPECIALTY_DB_VARIANTS[canon] ?? [canon];
-  // PostgREST overlaps() is case-sensitive. Finder URLs decode to lowercase
-  // ("sexology"); approved custom labels are stored as entered ("Sexology").
-  const titleCase = toTitleCaseWords(canon);
-  return Array.from(
-    new Set([trimmed, canon, titleCase, ...variants].map((v) => v.trim()).filter(Boolean)),
-  );
 }
 
 export function finderResultsMaxPage(hasListFilter?: boolean): number {

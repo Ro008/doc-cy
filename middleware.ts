@@ -13,6 +13,7 @@ import {
   isDoctorVerifiedForProduct,
 } from "./lib/doctor-account-access";
 import {
+  canonicalFinderSpecialtyRedirectPath,
   FINDER_DISTRICT_PATH_SLUGS,
   isLegacyFinderFilterPath,
   legacyFinderFilterToPublicPath,
@@ -81,7 +82,16 @@ export async function middleware(req: NextRequest) {
 
   // Legacy /finder filter URLs → public unprefixed paths (keep /finder/professional|clinic for their own 301s).
   if (isLegacyFinderFilterPath(pathname)) {
-    const dest = new URL(legacyFinderFilterToPublicPath(pathname), req.url);
+    const publicPath = legacyFinderFilterToPublicPath(pathname);
+    const dest = new URL(canonicalFinderSpecialtyRedirectPath(publicPath) ?? publicPath, req.url);
+    dest.search = req.nextUrl.search;
+    return NextResponse.redirect(dest, 308);
+  }
+
+  // Legacy specialty spellings / casing (`/all/gynecology`) → the catalogue slug.
+  const canonicalSpecialtyPath = canonicalFinderSpecialtyRedirectPath(pathname);
+  if (canonicalSpecialtyPath) {
+    const dest = new URL(canonicalSpecialtyPath, req.url);
     dest.search = req.nextUrl.search;
     return NextResponse.redirect(dest, 308);
   }

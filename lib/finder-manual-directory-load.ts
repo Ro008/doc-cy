@@ -1,4 +1,7 @@
-import { escapeIlikePattern, finderSpecialtyDbMatchValues } from "@/lib/finder-results-paging";
+import { escapeIlikePattern } from "@/lib/finder-results-paging";
+import { SPECIALTY_FILTER_SELECT } from "@/lib/specialty-catalogue";
+
+const NO_SPECIALTY_MATCH_ID = "00000000-0000-0000-0000-000000000000";
 import {
   SUPABASE_IN_FILTER_CHUNK,
   fetchAllSupabaseRows,
@@ -8,15 +11,34 @@ import {
 export type FinderListFilters = {
   district: string;
   name: string;
+  /** Active catalogue slug (cache keys only); filtering uses `specialtyIds`. */
   specialty: string;
+  /**
+   * `specialties.id`s the active filter matches (the canonical row plus any
+   * legacy-spelling rows). Undefined for no specialty filter; an empty list
+   * keeps the filter active and matches nothing.
+   */
+  specialtyIds?: readonly string[];
   town?: string;
 };
+
+/**
+ * Adds the inner-join embed a specialty filter needs. Without an active
+ * specialty the select clause is unchanged.
+ */
+export function finderSelectWithSpecialtyFilter(
+  selectClause: string,
+  filters: Pick<FinderListFilters, "specialtyIds">,
+): string {
+  return filters.specialtyIds ? `${selectClause}, ${SPECIALTY_FILTER_SELECT}` : selectClause;
+}
 
 /** Finder list source. `professionals` is the unified identity table. */
 export type FinderDirectorySource = "directory_manual" | "professionals";
 
 /**
  * Apply district / name / specialty filters to a PostgREST query builder.
+ * A specialty filter needs {@link finderSelectWithSpecialtyFilter} in the select.
  *
  * IMPORTANT: never fold large `extraDistrictManualIds` into a single
  * `.or(...,id.in.(uuid,uuid,...))` — PostgREST rejects ~1–2k UUIDs (Limassol).
@@ -25,9 +47,6 @@ export type FinderDirectorySource = "directory_manual" | "professionals";
 export function applyFinderListFilters(
   query: any,
   filters: FinderListFilters,
-  options?: {
-    specialtyColumn?: "specialty" | "specialties";
-  },
 ): any {
   let next = query;
   if (filters.district) {
@@ -39,17 +58,10 @@ export function applyFinderListFilters(
   if (filters.name) {
     next = next.ilike("name", `%${escapeIlikePattern(filters.name)}%`);
   }
-  if (filters.specialty) {
-    const values = finderSpecialtyDbMatchValues(filters.specialty);
-    if (values.length > 0) {
-      if (options?.specialtyColumn === "specialties") {
-        next = next.overlaps("specialties", values);
-      } else if (values.length === 1) {
-        next = next.eq("specialty", values[0]!);
-      } else {
-        next = next.in("specialty", values);
-      }
-    }
+  if (filters.specialtyIds) {
+    // No matching catalogue row: keep the filter active with an id nothing has.
+    const ids = filters.specialtyIds.length > 0 ? filters.specialtyIds : [NO_SPECIALTY_MATCH_ID];
+    next = next.in("specialty_filter.specialty_id", ids);
   }
   return next;
 }
@@ -82,20 +94,18 @@ export function mustChunkExtraManualIds(extraCount: number): boolean {
 export async function countManualDirectoryForFinder(input: {
   supabase: any;
   filters: FinderListFilters;
-  specialtyColumn?: "specialty" | "specialties";
   requireFinderVisible?: boolean;
   source?: FinderDirectorySource;
 }): Promise<{ count: number; error: { code?: string; message?: string } | null }> {
   const {
     supabase,
     filters,
-    specialtyColumn,
     requireFinderVisible = false,
     source = "professionals",
   } = input;
   let q = supabase
     .from(source)
-    .select("id", { count: "exact", head: true })
+    .select(finderSelectWithSpecialtyFilter("id", filters), { count: "exact", head: true })
     .eq("is_archived", false);
   if (source === "professionals") {
     q = q.eq("is_registered", false);
@@ -103,7 +113,7 @@ export async function countManualDirectoryForFinder(input: {
   if (requireFinderVisible) {
     q = q.eq("finder_visible", true);
   }
-  q = applyFinderListFilters(q, filters, { specialtyColumn });
+  q = applyFinderListFilters(q, filters);
   const { count, error } = await q;
   if (error) return { count: 0, error };
   return { count: count ?? 0, error: null };
@@ -122,7 +132,6 @@ export async function fetchManualDirectoryForFinder(input: {
   supabase: any;
   selectClause: string;
   filters: FinderListFilters;
-  specialtyColumn?: "specialty" | "specialties";
   extraDistrictManualIds?: readonly string[];
   requireFinderVisible?: boolean;
   orderByName?: boolean;
@@ -134,7 +143,6 @@ export async function fetchManualDirectoryForFinder(input: {
     supabase,
     selectClause,
     filters,
-    specialtyColumn,
     extraDistrictManualIds = [],
     requireFinderVisible = false,
     orderByName = false,
@@ -143,7 +151,10 @@ export async function fetchManualDirectoryForFinder(input: {
   } = input;
 
   const baseQuery = (): any => {
-    let q = supabase.from(source).select(selectClause).eq("is_archived", false);
+    let q = supabase
+      .from(source)
+      .select(finderSelectWithSpecialtyFilter(selectClause, filters))
+      .eq("is_archived", false);
     if (source === "professionals") {
       q = q.eq("is_registered", false);
     }
@@ -159,7 +170,7 @@ export async function fetchManualDirectoryForFinder(input: {
       : null;
 
   if (boundedLimit != null) {
-    let q = applyFinderListFilters(baseQuery(), filters, { specialtyColumn });
+    let q = applyFinderListFilters(baseQuery(), filters);
     if (orderByName) q = q.order("name", { ascending: true });
     q = q.range(0, boundedLimit - 1);
     const { data, error } = await q;
@@ -168,7 +179,7 @@ export async function fetchManualDirectoryForFinder(input: {
   }
 
   const primaryRes = await fetchAllSupabaseRows(() => {
-    let q = applyFinderListFilters(baseQuery(), filters, { specialtyColumn });
+    let q = applyFinderListFilters(baseQuery(), filters);
     if (orderByName) q = q.order("name", { ascending: true });
     return q;
   });
@@ -187,7 +198,7 @@ export async function fetchManualDirectoryForFinder(input: {
   // Extras already matched via clinic district/town — do not re-filter by primary location.
   const extraFilters = { ...filters, district: "", town: "" };
   const extraRes = await fetchAllSupabaseRowsForIdChunks(extrasOnly, (idChunk) =>
-    applyFinderListFilters(baseQuery().in("id", idChunk), extraFilters, { specialtyColumn }),
+    applyFinderListFilters(baseQuery().in("id", idChunk), extraFilters),
   );
 
   // Prefer primary district hits over failing the whole page if extras blow up.

@@ -6,6 +6,12 @@
  * - Manual rows from GeSY are always is_gesy=true.
  * - Skips Pharmacy + Laboratory segments (later product surfaces).
  * - Inpatient Services–only people get finder_visible=false (clinic profiles only).
+ * - Specialties must already be in the `specialties` catalogue (matched by slug, so
+ *   casing does not matter). Unknown labels stop the run before anything is written:
+ *   the catalogue only grows when a founder approves a specialty.
+ * - Each listing's `professional_specialties` rows are synced (added / removed) along
+ *   with the denormalized `professionals.specialty` / `specialties` columns, which stay
+ *   until Point C3 drops them.
  *
  * Usage:
  *   node scripts/import-gesy-directory-batch.mjs --env-file .env.testing.local --xlsx "path/to/ALL.xlsx" --batch personal-doctor --dry-run
@@ -18,6 +24,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { createRequire } from "node:module";
+import { fileURLToPath } from "node:url";
 import { createClient } from "@supabase/supabase-js";
 import { config as loadEnv } from "dotenv";
 import { cleanGesyDirectoryDisplayName } from "./lib/gesy-directory-display-name.mjs";
@@ -125,6 +132,77 @@ function parseSpecialtyCell(raw) {
     out.push(part);
   }
   return out;
+}
+
+/**
+ * Same as specialtyToSlug() in lib/finder-seo.ts and public.specialty_slug() in the
+ * database (tests/unit/import-gesy-specialty-slug.test.ts keeps them in step).
+ */
+export function specialtySlug(value) {
+  return String(value || "")
+    .normalize("NFKD")
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+export async function loadSpecialtyCatalogueBySlug(supabase) {
+  const res = await supabase.from("specialties").select("id, name, slug");
+  if (res.error) throw new Error(`Loading specialties catalogue failed: ${res.error.message}`);
+  return new Map((res.data ?? []).map((row) => [row.slug, row]));
+}
+
+/**
+ * Every label the batch would write, resolved against the catalogue. Returns the
+ * labels the catalogue lacks, with how many people carry each.
+ */
+export function unknownSpecialtyLabels(people, catalogueBySlug) {
+  const unknown = new Map();
+  for (const person of people) {
+    for (const label of person.specialties) {
+      if (catalogueBySlug.has(specialtySlug(label))) continue;
+      unknown.set(label, (unknown.get(label) ?? 0) + 1);
+    }
+  }
+  return unknown;
+}
+
+/** Make the listing's professional_specialties rows equal `specialties` (catalogue rows). */
+export async function syncProfessionalSpecialties(supabase, professionalId, specialties) {
+  const existing = await supabase
+    .from("professional_specialties")
+    .select("id, specialty_id")
+    .eq("professional_id", professionalId);
+  if (existing.error) throw new Error(existing.error.message);
+
+  const wanted = new Map(specialties.map((row) => [row.id, row]));
+  const staleIds = (existing.data ?? [])
+    .filter((row) => !wanted.has(row.specialty_id))
+    .map((row) => row.id);
+  const haveIds = new Set((existing.data ?? []).map((row) => row.specialty_id));
+  const missing = specialties.filter((row) => !haveIds.has(row.id));
+
+  if (staleIds.length > 0) {
+    const del = await supabase.from("professional_specialties").delete().in("id", staleIds);
+    if (del.error) throw new Error(del.error.message);
+  }
+  if (missing.length > 0) {
+    // Scraped listings have no licence; the row is approved (GeSY is the source).
+    const ins = await supabase.from("professional_specialties").insert(
+      missing.map((row) => ({
+        professional_id: professionalId,
+        specialty: row.name,
+        specialty_id: row.id,
+        license_number: null,
+        is_approved: true,
+      })),
+    );
+    if (ins.error) throw new Error(ins.error.message);
+  }
+  return { added: missing.length, removed: staleIds.length };
 }
 
 function slugify(name) {
@@ -429,9 +507,25 @@ async function main() {
   console.log(`Batch=${args.batch} people=${batchPeople.length} dryRun=${args.dryRun}`);
 
   const supabase = createClient(url, key, { auth: { persistSession: false } });
+
+  const catalogueBySlug = await loadSpecialtyCatalogueBySlug(supabase);
+  const unknown = unknownSpecialtyLabels(batchPeople, catalogueBySlug);
+  if (unknown.size > 0) {
+    console.error(
+      "Specialties missing from the catalogue (nothing was written). Approve them into " +
+        "`specialties` or map them to an existing specialty, then re-run:",
+    );
+    for (const [label, count] of [...unknown.entries()].sort((a, b) => b[1] - a[1])) {
+      console.error(`  ${label}  (${count} ${count === 1 ? "person" : "people"})`);
+    }
+    process.exit(1);
+  }
+
   const takenSlugs = await loadTakenSlugs(supabase);
 
   let imported = 0;
+  let specialtyRowsAdded = 0;
+  let specialtyRowsRemoved = 0;
   let linkedClinics = 0;
   let skippedNoDistrict = 0;
 
@@ -442,7 +536,13 @@ async function main() {
       continue;
     }
 
-    const specialties = [...person.specialties];
+    // Catalogue rows in the sheet's order, one per specialty.
+    const catalogueRows = [];
+    for (const label of person.specialties) {
+      const row = catalogueBySlug.get(specialtySlug(label));
+      if (row && !catalogueRows.some((r) => r.id === row.id)) catalogueRows.push(row);
+    }
+    const specialties = catalogueRows.map((row) => row.name);
     if (specialties.length === 0) continue;
 
     // Prefer clinics from bookable segments; for inpatient-only batch use all clinics.
@@ -530,6 +630,16 @@ async function main() {
     }
 
     if (!args.dryRun && manualId) {
+      try {
+        const synced = await syncProfessionalSpecialties(supabase, manualId, catalogueRows);
+        specialtyRowsAdded += synced.added;
+        specialtyRowsRemoved += synced.removed;
+      } catch (err) {
+        console.error("Specialty sync failed", person.ghs_code, err.message ?? err);
+      }
+    }
+
+    if (!args.dryRun && manualId) {
       await supabase.from("professional_clinics").delete().eq("professional_id", manualId);
       const links = [...clinicIdByGhs.entries()].map(([ghs, clinicId], index) => ({
         professional_id: manualId,
@@ -566,6 +676,8 @@ async function main() {
         batch: args.batch,
         dryRun: args.dryRun,
         imported,
+        specialtyRowsAdded,
+        specialtyRowsRemoved,
         clinicUpsertTouches: linkedClinics,
         skippedNoDistrict,
       },
@@ -575,7 +687,10 @@ async function main() {
   );
 }
 
-main().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+// Run only as a script, so tests can import specialtySlug.
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  main().catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });
+}

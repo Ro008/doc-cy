@@ -381,7 +381,8 @@ test.describe("Integration: finder business-critical UX", { tag: ["@pr-e2e", "@p
         level: 1,
         name: /The most complete health directory in Cyprus|Cyprus['’]s most complete health directory|Find your next health professional(?: in Cyprus)?|Health Professionals in Cyprus|Find a Professional/i,
       })
-    ).toBeVisible();
+      // The unfiltered home renders in 3-8s on the dev server (master too).
+    ).toBeVisible({ timeout: 20_000 });
     const resultsCount = page.getByTestId("finder-results-count");
     await expect(resultsCount).toBeVisible({ timeout: 60_000 });
     // The count can render a placeholder before the final client-side fetch

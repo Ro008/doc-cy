@@ -1,5 +1,6 @@
 import type { CyprusDistrict } from "@/lib/cyprus-districts";
-import { districtToSlug, specialtyToSlug } from "@/lib/finder-seo";
+import { districtToSlug, slugToSpecialty, specialtyToSlug } from "@/lib/finder-seo";
+import { harmonizeFinderSpecialtyLabel } from "@/lib/finder-specialty-harmonize";
 
 /** Internal App Router base where finder pages still live. */
 export const FINDER_INTERNAL_BASE = "/finder";
@@ -106,4 +107,30 @@ export function needsMiddlewareFinderRewrite(_pathname: string): boolean {
 export function publicFinderPathToInternal(pathname: string): string {
   if (pathname === "/") return FINDER_INTERNAL_BASE;
   return `${FINDER_INTERNAL_BASE}${pathname}`;
+}
+
+/**
+ * `/limassol/dentistry` -> `/limassol/dentist`, `/limassol/PAEDIATRICS` -> `/limassol/paediatrics`.
+ * Legacy spellings (the harmonize aliases) and casing in a finder specialty segment,
+ * 308'd by the middleware: a redirect from the page itself would arrive after the
+ * streamed 200 (the district routes have a loading boundary). Static, so no database.
+ * A future catalogue label that equals an alias key would be redirected away; drop
+ * the alias in lib/finder-specialty-harmonize.ts if that ever happens.
+ */
+export function canonicalFinderSpecialtyRedirectPath(pathname: string): string | null {
+  const segments = normalizePathname(pathname).split("/").filter(Boolean);
+  if (segments.length !== 2) return null;
+  const [district, rawSpecialty] = segments;
+  if (!FINDER_DISTRICT_PATH_SLUGS.has(district)) return null;
+  let decoded: string;
+  try {
+    decoded = decodeURIComponent(rawSpecialty);
+  } catch {
+    return null;
+  }
+  const slug = specialtyToSlug(decoded);
+  if (slug === "all") return null;
+  const canonical = specialtyToSlug(harmonizeFinderSpecialtyLabel(slugToSpecialty(slug)));
+  if (!canonical || canonical === "all" || canonical === rawSpecialty) return null;
+  return `/${district}/${canonical}`;
 }
