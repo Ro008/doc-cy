@@ -49,15 +49,15 @@ test.describe("Doctor lunch/break time", () => {
     expect(doctorId).toBeTruthy();
     expect(slug).toBeTruthy();
 
-    // Configure break directly in doctor_settings to avoid mutating profile fields.
-    const { error: upsertErr } = await admin.from("doctor_settings").upsert(
+    // Configure break directly in professional_settings to avoid mutating profile fields.
+    const { error: upsertErr } = await admin.from("professional_settings").upsert(
       {
-        doctor_id: doctorId,
+        professional_id: doctorId,
         break_start: "14:00:00",
         break_end: "16:00:00",
         updated_at: new Date().toISOString(),
       },
-      { onConflict: "doctor_id" }
+      { onConflict: "professional_id" }
     );
     expect(upsertErr).toBeNull();
 

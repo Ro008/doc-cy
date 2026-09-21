@@ -82,9 +82,9 @@ async function createDoctor({ slugPrefix, name }) {
 async function seedWeekdaySettings(doctorId, { holidayModeEnabled, holidayStartDate, holidayEndDate }) {
   const day = { enabled: true, start_time: "09:00:00", end_time: "17:00:00" };
   const disabledDay = { enabled: false, start_time: "09:00:00", end_time: "17:00:00" };
-  const settingsUpsert = await admin.from("doctor_settings").upsert(
+  const settingsUpsert = await admin.from("professional_settings").upsert(
     {
-      doctor_id: doctorId,
+      professional_id: doctorId,
       monday: true,
       tuesday: true,
       wednesday: true,
@@ -114,7 +114,7 @@ async function seedWeekdaySettings(doctorId, { holidayModeEnabled, holidayStartD
       minimum_notice_hours: 1,
       updated_at: new Date().toISOString(),
     },
-    { onConflict: "doctor_id" },
+    { onConflict: "professional_id" },
   );
   if (settingsUpsert.error) {
     throw new Error(`Failed preparing doctor settings: ${settingsUpsert.error.message}`);
@@ -138,7 +138,7 @@ const zeroAvailability = await createDoctor({
   slugPrefix: "finder-demo-view-full",
   name: `Test Demo ViewFull ${nonce}`,
 });
-// No doctor_settings row at all -> zero days anywhere in the 90-day window
+// No professional_settings row at all -> zero days anywhere in the 90-day window
 // -> "View full availability" link instead of a calendar.
 
 console.log(JSON.stringify({ noSlotsThisWeek, zeroAvailability }, null, 2));

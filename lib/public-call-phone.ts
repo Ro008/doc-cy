@@ -91,8 +91,8 @@ export function publicPhoneSourceForSave(input: {
  *
  * This is the rule the `doctors_public` / `professionals_public` views used to apply
  * in SQL, moved into code when those views were dropped:
- *   hidden unless doctor_settings.show_phone_public, then the mobile or the directory
- *   number depending on doctor_settings.public_phone_source (default "directory"),
+ *   hidden unless professional_settings.show_phone_public, then the mobile or the directory
+ *   number depending on professional_settings.public_phone_source (default "directory"),
  *   blank-as-null.
  */
 export function publicPhoneForProfessional(input: {

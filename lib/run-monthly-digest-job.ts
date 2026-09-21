@@ -53,9 +53,9 @@ async function wasDigestAlreadySent(
   monthKey: string,
 ): Promise<boolean> {
   const { data, error } = await supabase
-    .from("doctor_monthly_digest_sent")
+    .from("professional_monthly_digest_sent")
     .select("id")
-    .eq("doctor_id", doctorId)
+    .eq("professional_id", doctorId)
     .eq("month_key", monthKey)
     .maybeSingle();
 
@@ -70,8 +70,8 @@ async function recordDigestSent(
   doctorId: string,
   monthKey: string,
 ): Promise<void> {
-  const { error } = await supabase.from("doctor_monthly_digest_sent").insert({
-    doctor_id: doctorId,
+  const { error } = await supabase.from("professional_monthly_digest_sent").insert({
+    professional_id: doctorId,
     month_key: monthKey,
   });
   if (error) {
@@ -145,11 +145,11 @@ export async function runMonthlyDigestJob(opts?: {
 
       let weeklySchedule = null;
       const { data: settings, error: settingsError } = await supabase
-        .from("doctor_settings")
+        .from("professional_settings")
         .select(
-          "doctor_id, monday, tuesday, wednesday, thursday, friday, saturday, sunday, start_time, end_time, weekly_schedule",
+          "professional_id, monday, tuesday, wednesday, thursday, friday, saturday, sunday, start_time, end_time, weekly_schedule",
         )
-        .eq("doctor_id", doctor.id)
+        .eq("professional_id", doctor.id)
         .maybeSingle();
 
       if (settingsError) {

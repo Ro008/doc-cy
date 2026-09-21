@@ -95,7 +95,7 @@ test.describe("Integration UI: doctor settings Service Menu", () => {
     } finally {
       if (doctorId) {
         await admin.from("doctor_services").delete().eq("doctor_id", doctorId);
-        await admin.from("doctor_settings").delete().eq("doctor_id", doctorId);
+        await admin.from("professional_settings").delete().eq("professional_id", doctorId);
         await admin.from("professionals").delete().eq("id", doctorId);
       }
       if (authUserId) {

@@ -114,9 +114,9 @@ export async function POST(req: NextRequest) {
   }
 
   const { data: existingPending, error: pendingErr } = await admin
-    .from("doctor_specialty_change_requests")
+    .from("professional_specialty_change_requests")
     .select("id")
-    .eq("doctor_id", doctorId)
+    .eq("professional_id", doctorId)
     .eq("status", "pending")
     .maybeSingle();
 
@@ -144,7 +144,7 @@ export async function POST(req: NextRequest) {
   }
 
   const insertPayload: Record<string, unknown> = {
-    doctor_id: doctorId,
+    professional_id: doctorId,
     from_specialty: profileCheck.fromSpecialty,
     to_specialty: requestKind === "remove" ? null : toSpecialty,
     to_specialty_from_master:
@@ -157,7 +157,7 @@ export async function POST(req: NextRequest) {
   void isSpecialtyApproved;
 
   const { data: inserted, error: insertErr } = await admin
-    .from("doctor_specialty_change_requests")
+    .from("professional_specialty_change_requests")
     .insert(insertPayload)
     .select("id, created_at")
     .single();

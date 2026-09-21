@@ -77,7 +77,7 @@ async function main() {
   const authUserId = doctor.auth_user_id;
 
   await admin.from("doctor_services").delete().eq("doctor_id", doctorId);
-  await admin.from("doctor_settings").delete().eq("doctor_id", doctorId);
+  await admin.from("professional_settings").delete().eq("professional_id", doctorId);
   await admin.from("appointments").delete().eq("doctor_id", doctorId);
 
   const delDoctor = await admin.from("professionals").delete().eq("id", doctorId);

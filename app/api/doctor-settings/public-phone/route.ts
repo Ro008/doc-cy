@@ -77,9 +77,9 @@ export async function POST(req: NextRequest) {
   }
 
   const existing = await supabase
-    .from("doctor_settings")
+    .from("professional_settings")
     .select("show_phone_public, public_phone_source")
-    .eq("doctor_id", doctor.id)
+    .eq("professional_id", doctor.id)
     .maybeSingle();
   if (existing.error) {
     return NextResponse.json(
@@ -117,21 +117,21 @@ export async function POST(req: NextRequest) {
   }
 
   const payload = {
-    doctor_id: doctor.id,
+    professional_id: doctor.id,
     show_phone_public: nextShow,
     public_phone_source: nextSource,
     updated_at: new Date().toISOString(),
   };
 
   let upsert = await supabase
-    .from("doctor_settings")
-    .upsert(payload, { onConflict: "doctor_id" });
+    .from("professional_settings")
+    .upsert(payload, { onConflict: "professional_id" });
 
   if (upsert.error && /public_phone_source/i.test(String(upsert.error.message ?? ""))) {
     const { public_phone_source: _source, ...withoutSource } = payload;
     upsert = await supabase
-      .from("doctor_settings")
-      .upsert(withoutSource, { onConflict: "doctor_id" });
+      .from("professional_settings")
+      .upsert(withoutSource, { onConflict: "professional_id" });
   }
 
   if (upsert.error) {

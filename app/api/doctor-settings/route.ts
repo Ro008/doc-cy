@@ -62,9 +62,9 @@ export async function GET(req: NextRequest) {
   }
 
   const { data, error } = await supabase
-    .from("doctor_settings")
+    .from("professional_settings")
     .select("*")
-    .eq("doctor_id", doctorId)
+    .eq("professional_id", doctorId)
     .single();
 
   if (error) {
@@ -81,7 +81,7 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ settings: data });
 }
 
-/** POST - upsert doctor_settings + update doctors.phone, languages (owner only).
+/** POST - upsert professional_settings + update doctors.phone, languages (owner only).
  * Specialty is locked after registration — changes go through Support. */
 export async function POST(req: NextRequest) {
   const supabase = createRouteHandlerClient({ cookies });
@@ -341,7 +341,7 @@ export async function POST(req: NextRequest) {
   }, {} as Record<DayKey, { enabled: boolean; start_time: string; end_time: string }>);
 
   const payload = {
-    doctor_id: doctorId,
+    professional_id: doctorId,
     monday: Boolean(b.monday),
     tuesday: Boolean(b.tuesday),
     wednesday: Boolean(b.wednesday),
@@ -370,7 +370,7 @@ export async function POST(req: NextRequest) {
   };
 
   const legacyPayload = {
-    doctor_id: doctorId,
+    professional_id: doctorId,
     monday: Boolean(b.monday),
     tuesday: Boolean(b.tuesday),
     wednesday: Boolean(b.wednesday),
@@ -388,8 +388,8 @@ export async function POST(req: NextRequest) {
     data: dataFull,
     error: errorFull,
   } = await supabase
-    .from("doctor_settings")
-    .upsert(payload, { onConflict: "doctor_id" })
+    .from("professional_settings")
+    .upsert(payload, { onConflict: "professional_id" })
     .select()
     .single();
 
@@ -406,8 +406,8 @@ export async function POST(req: NextRequest) {
     if (missingPhoneSource && !missingNewCols) {
       const { public_phone_source: _source, ...withoutSource } = payload;
       const retry = await supabase
-        .from("doctor_settings")
-        .upsert(withoutSource, { onConflict: "doctor_id" })
+        .from("professional_settings")
+        .upsert(withoutSource, { onConflict: "professional_id" })
         .select()
         .single();
       if (!retry.error && retry.data) {
@@ -428,8 +428,8 @@ export async function POST(req: NextRequest) {
         data: dataLegacy,
         error: errorLegacy,
       } = await supabase
-        .from("doctor_settings")
-        .upsert(legacyPayload, { onConflict: "doctor_id" })
+        .from("professional_settings")
+        .upsert(legacyPayload, { onConflict: "professional_id" })
         .select()
         .single();
 

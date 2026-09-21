@@ -209,7 +209,7 @@ export async function POST(req: Request) {
     const { data, error } = await supabase
       .from("professionals")
       .select(
-        "id, phone, mobile_number, doctor_settings(show_phone_public, public_phone_source)",
+        "id, phone, mobile_number, professional_settings(show_phone_public, public_phone_source)",
       )
       .eq("is_registered", true)
       .eq("is_archived", false)
@@ -225,14 +225,14 @@ export async function POST(req: Request) {
     const row = data as {
       phone?: string | null;
       mobile_number?: string | null;
-      doctor_settings?:
+      professional_settings?:
         | { show_phone_public?: boolean | null; public_phone_source?: string | null }
         | { show_phone_public?: boolean | null; public_phone_source?: string | null }[]
         | null;
     };
-    const settings = Array.isArray(row.doctor_settings)
-      ? row.doctor_settings[0]
-      : row.doctor_settings;
+    const settings = Array.isArray(row.professional_settings)
+      ? row.professional_settings[0]
+      : row.professional_settings;
     return NextResponse.json({
       ok: true,
       phone: normalizePhone(

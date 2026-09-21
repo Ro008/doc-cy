@@ -182,7 +182,7 @@ async function selectPublicProfessionalBySlug(
 function isDoctorSettingsSchemaError(msg: string, code?: string): boolean {
   return (
     code === "42703" ||
-    /doctor_settings|column|does not exist|schema cache/i.test(msg ?? "")
+    /professional_settings|column|does not exist|schema cache/i.test(msg ?? "")
   );
 }
 
@@ -651,7 +651,7 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
   const contactLookup = await supabase
     .from("professionals")
     .select(
-      "avatar_url, phone, mobile_number, doctor_settings(show_phone_public, public_phone_source)",
+      "avatar_url, phone, mobile_number, professional_settings(show_phone_public, public_phone_source)",
     )
     .eq("is_registered", true)
     .eq("is_archived", false)
@@ -662,14 +662,14 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
       avatar_url?: string | null;
       phone?: string | null;
       mobile_number?: string | null;
-      doctor_settings?:
+      professional_settings?:
         | { show_phone_public?: boolean | null; public_phone_source?: string | null }
         | { show_phone_public?: boolean | null; public_phone_source?: string | null }[]
         | null;
     };
-    const contactSettings = Array.isArray(contact.doctor_settings)
-      ? contact.doctor_settings[0]
-      : contact.doctor_settings;
+    const contactSettings = Array.isArray(contact.professional_settings)
+      ? contact.professional_settings[0]
+      : contact.professional_settings;
     const avatarPath = String(contact.avatar_url ?? "").trim();
     publicPhone = publicPhoneForProfessional({
       showPhonePublic: contactSettings?.show_phone_public,
@@ -687,14 +687,14 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
   const profileCanonicalUrl = `${siteBaseUrl()}${publicProfessionalProfilePath(params.slug, profileLocale(params))}`;
 
   const settingsSelectFull =
-    "doctor_id, monday, tuesday, wednesday, thursday, friday, saturday, sunday, start_time, end_time, weekly_schedule, break_start, break_end, slot_duration_minutes, pause_online_bookings, show_phone_public, holiday_mode_enabled, holiday_start_date, holiday_end_date, booking_horizon_days, minimum_notice_hours";
+    "professional_id, monday, tuesday, wednesday, thursday, friday, saturday, sunday, start_time, end_time, weekly_schedule, break_start, break_end, slot_duration_minutes, pause_online_bookings, show_phone_public, holiday_mode_enabled, holiday_start_date, holiday_end_date, booking_horizon_days, minimum_notice_hours";
   const settingsSelectLegacy =
-    "doctor_id, monday, tuesday, wednesday, thursday, friday, start_time, end_time, break_start, break_end, slot_duration_minutes";
+    "professional_id, monday, tuesday, wednesday, thursday, friday, start_time, end_time, break_start, break_end, slot_duration_minutes";
 
   const { data: settingsFull, error: settingsErr } = await supabase
-    .from("doctor_settings")
+    .from("professional_settings")
     .select(settingsSelectFull)
-    .eq("doctor_id", profile.id)
+    .eq("professional_id", profile.id)
     .single();
 
   let settings: any = settingsFull ?? null;
@@ -706,9 +706,9 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
     )
   ) {
     const { data: settingsLegacy } = await supabase
-      .from("doctor_settings")
+      .from("professional_settings")
       .select(settingsSelectLegacy)
-      .eq("doctor_id", profile.id)
+      .eq("professional_id", profile.id)
       .single();
     settings = settingsLegacy ?? null;
   }

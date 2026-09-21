@@ -47,9 +47,9 @@ export async function POST(req: NextRequest) {
   }
 
   const { data: row, error: fetchErr } = await supabase
-    .from("doctor_specialty_change_requests")
+    .from("professional_specialty_change_requests")
     .select(
-      "id, doctor_id, from_specialty, to_specialty, to_specialty_from_master, license_number, status, request_kind",
+      "id, professional_id, from_specialty, to_specialty, to_specialty_from_master, license_number, status, request_kind",
     )
     .eq("id", requestId)
     .maybeSingle();
@@ -80,7 +80,7 @@ export async function POST(req: NextRequest) {
 
   if (action === "reject") {
     const { error: rejectErr } = await supabase
-      .from("doctor_specialty_change_requests")
+      .from("professional_specialty_change_requests")
       .update({
         status: "rejected",
         resolved_at: nowIso,
@@ -96,7 +96,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, status: "rejected" });
   }
 
-  const doctorId = (row as { doctor_id: string }).doctor_id;
+  const doctorId = (row as { professional_id: string }).professional_id;
   const fromSpecialty = String(
     (row as { from_specialty?: string | null }).from_specialty ?? "",
   ).trim();
@@ -149,7 +149,7 @@ export async function POST(req: NextRequest) {
     }
 
     const { error: approveErr } = await supabase
-      .from("doctor_specialty_change_requests")
+      .from("professional_specialty_change_requests")
       .update({
         status: "approved",
         resolved_at: nowIso,
@@ -258,7 +258,7 @@ export async function POST(req: NextRequest) {
   }
 
   const { error: approveErr } = await supabase
-    .from("doctor_specialty_change_requests")
+    .from("professional_specialty_change_requests")
     .update({
       status: "approved",
       resolved_at: nowIso,

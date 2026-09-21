@@ -8,7 +8,7 @@
 --
 -- Notes:
 -- - Safe to re-run (upsert-like behavior by slug).
--- - Keeps existing doctor_settings row when present; otherwise creates one.
+-- - Keeps existing professional_settings row when present; otherwise creates one.
 -- - Auth seed password for restored doctors: demo1234
 
 DO $seed$
@@ -88,7 +88,7 @@ BEGIN
     v_doctor_id := NULL;
 
     SELECT id INTO v_doctor_id
-    FROM public.doctors
+    FROM public.professionals
     WHERE slug = rec.slug
     LIMIT 1;
 
@@ -175,7 +175,7 @@ BEGIN
         updated_at = now()
       WHERE id = v_user_id;
 
-      INSERT INTO public.doctors (
+      INSERT INTO public.professionals (
         auth_user_id,
         name,
         specialty,
@@ -188,7 +188,10 @@ BEGIN
         slug,
         is_specialty_approved,
         is_test_profile,
-        subscription_tier
+        subscription_tier,
+        is_registered,
+        has_online_booking,
+        trial_notice_seen_at
       )
       VALUES (
         v_user_id,
@@ -203,12 +206,25 @@ BEGIN
         rec.slug,
         rec.specialty_approved,
         false,
-        rec.tier
+        rec.tier,
+        -- professionals defaults is_registered and has_online_booking to false; the
+        -- legacy doctors table this seed was written against had no such split.
+        -- Without them the row reads as a scraped GeSY listing:
+        -- create_primary_doctor_location() never fires, so there is no settings or
+        -- location row, and the profile is not bookable -- the opposite of the
+        -- "verified, bookable test profile" this file promises. trial_notice_seen_at
+        -- skips the one-time welcome modal, which otherwise redirects /agenda.
+        true,
+        true,
+        now()
       )
       RETURNING id INTO v_doctor_id;
     ELSE
-      UPDATE public.doctors
+      UPDATE public.professionals
       SET
+        is_registered = true,
+        has_online_booking = true,
+        trial_notice_seen_at = coalesce(trial_notice_seen_at, now()),
         name = rec.full_name,
         specialty = rec.specialty,
         status = rec.doctor_status,
@@ -221,8 +237,8 @@ BEGIN
       WHERE id = v_doctor_id;
     END IF;
 
-    INSERT INTO public.doctor_settings (
-      doctor_id,
+    INSERT INTO public.professional_settings (
+      professional_id,
       monday,
       tuesday,
       wednesday,
@@ -261,7 +277,7 @@ BEGIN
       30,
       now()
     )
-    ON CONFLICT (doctor_id) DO UPDATE SET
+    ON CONFLICT (professional_id) DO UPDATE SET
       monday = excluded.monday,
       tuesday = excluded.tuesday,
       wednesday = excluded.wednesday,

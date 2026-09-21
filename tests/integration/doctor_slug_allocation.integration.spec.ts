@@ -105,7 +105,7 @@ test.describe("Integration: doctor slug allocation", () => {
       expect(new Set(slugs).size).toBe(2);
     } finally {
       for (const doctorId of createdDoctorIds) {
-        await admin.from("doctor_settings").delete().eq("doctor_id", doctorId);
+        await admin.from("professional_settings").delete().eq("professional_id", doctorId);
         await admin.from("professionals").delete().eq("id", doctorId);
       }
       for (const authUserId of createdAuthUserIds) {

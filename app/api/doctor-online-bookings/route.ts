@@ -39,9 +39,9 @@ export async function GET() {
   }
 
   const { data: settings, error: settingsErr } = await supabase
-    .from("doctor_settings")
+    .from("professional_settings")
     .select("pause_online_bookings")
-    .eq("doctor_id", doctor.id)
+    .eq("professional_id", doctor.id)
     .maybeSingle();
 
   if (settingsErr) {
@@ -139,14 +139,14 @@ export async function POST(req: NextRequest) {
   }
 
   const { error: upsertErr } = await supabase
-    .from("doctor_settings")
+    .from("professional_settings")
     .upsert(
       {
-        doctor_id: doctor.id,
+        professional_id: doctor.id,
         pause_online_bookings: nextPaused,
         updated_at: new Date().toISOString(),
       },
-      { onConflict: "doctor_id" }
+      { onConflict: "professional_id" }
     );
 
   if (upsertErr) {

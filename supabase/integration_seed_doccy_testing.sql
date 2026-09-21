@@ -5,7 +5,7 @@
 -- Does:
 --   1) appointments.duration_minutes (INTEGER, default 30) if missing
 --   2) Auth user + doctor "Andreas Nikos Test" / slug andreas-nikos (verified, bookable test profile)
---   3) doctor_settings Mon–Fri 09:00–17:00 linked by doctor_id
+--   3) professional_settings Mon–Fri 09:00–17:00 linked by professional_id
 --
 -- Prerequisite: at least one row in auth.users (any signup) so instance_id exists;
 --               if the project has zero users, register once in the Dashboard, then run this.
@@ -84,7 +84,7 @@ BEGIN
     )
   );
 
-  SELECT id INTO v_doctor_id FROM public.doctors WHERE slug = v_slug LIMIT 1;
+  SELECT id INTO v_doctor_id FROM public.professionals WHERE slug = v_slug LIMIT 1;
 
   IF v_doctor_id IS NULL THEN
     SELECT id INTO v_user_id FROM auth.users WHERE lower(email) = lower(v_email) LIMIT 1;
@@ -159,7 +159,7 @@ BEGIN
       );
     END IF;
 
-    INSERT INTO public.doctors (
+    INSERT INTO public.professionals (
       auth_user_id,
       name,
       specialty,
@@ -172,7 +172,10 @@ BEGIN
       slug,
       is_specialty_approved,
       is_test_profile,
-      subscription_tier
+      subscription_tier,
+      is_registered,
+      has_online_booking,
+      trial_notice_seen_at
     )
     VALUES (
       v_user_id,
@@ -187,24 +190,37 @@ BEGIN
       v_slug,
       true,
       true,
-      'standard'
+      'standard',
+      -- professionals defaults is_registered and has_online_booking to false; the
+      -- legacy doctors table this seed was written against had no such split.
+      -- Without them the row reads as a scraped GeSY listing:
+      -- create_primary_doctor_location() never fires, so there is no settings or
+      -- location row, and the profile is not bookable -- the opposite of the
+      -- "verified, bookable test profile" this file promises. trial_notice_seen_at
+      -- skips the one-time welcome modal, which otherwise redirects /agenda.
+      true,
+      true,
+      now()
     )
     RETURNING id INTO v_doctor_id;
   ELSE
-    UPDATE public.doctors
+    UPDATE public.professionals
     SET
       name = 'Andreas Nikos Test',
       status = 'verified',
       is_specialty_approved = true,
       is_test_profile = true,
+      is_registered = true,
+      has_online_booking = true,
+      trial_notice_seen_at = coalesce(trial_notice_seen_at, now()),
       email = coalesce(nullif(trim(email), ''), v_email),
       phone = coalesce(nullif(trim(phone), ''), '+35799123456'),
       languages = coalesce(languages, ARRAY['English', 'Greek']::text[])
     WHERE id = v_doctor_id;
   END IF;
 
-  INSERT INTO public.doctor_settings (
-    doctor_id,
+  INSERT INTO public.professional_settings (
+    professional_id,
     monday,
     tuesday,
     wednesday,
@@ -249,7 +265,7 @@ BEGIN
     30,
     now()
   )
-  ON CONFLICT (doctor_id) DO UPDATE SET
+  ON CONFLICT (professional_id) DO UPDATE SET
     monday = excluded.monday,
     tuesday = excluded.tuesday,
     wednesday = excluded.wednesday,

@@ -85,9 +85,9 @@ test.describe("Integration: public phone visibility toggle", () => {
       }
       doctorId = String(doctorInsert.data.id);
 
-      const settingsUpsert = await admin.from("doctor_settings").upsert(
+      const settingsUpsert = await admin.from("professional_settings").upsert(
         {
-          doctor_id: doctorId,
+          professional_id: doctorId,
           monday: true,
           tuesday: true,
           wednesday: true,
@@ -100,7 +100,7 @@ test.describe("Integration: public phone visibility toggle", () => {
           slot_duration_minutes: 30,
           show_phone_public: false,
         },
-        { onConflict: "doctor_id" },
+        { onConflict: "professional_id" },
       );
       if (settingsUpsert.error) {
         throw new Error(`Failed preparing doctor settings: ${settingsUpsert.error.message}`);
@@ -129,9 +129,9 @@ test.describe("Integration: public phone visibility toggle", () => {
       await expect(page.getByText(publicPhone)).toHaveCount(0);
 
       const enablePublicPhone = await admin
-        .from("doctor_settings")
+        .from("professional_settings")
         .update({ show_phone_public: true })
-        .eq("doctor_id", doctorId);
+        .eq("professional_id", doctorId);
       if (enablePublicPhone.error) {
         throw new Error(`Failed enabling public phone: ${enablePublicPhone.error.message}`);
       }
@@ -149,7 +149,7 @@ test.describe("Integration: public phone visibility toggle", () => {
     } finally {
       if (doctorId) {
         await admin.from("doctor_services").delete().eq("doctor_id", doctorId);
-        await admin.from("doctor_settings").delete().eq("doctor_id", doctorId);
+        await admin.from("professional_settings").delete().eq("professional_id", doctorId);
         await admin.from("professionals").delete().eq("id", doctorId);
       }
       if (authUserId) {

@@ -102,9 +102,9 @@ test.describe("Integration: doctor confirmation flow", { tag: ["@pr-e2e", "@pr-e
 
     const nonce = `${Date.now()}-${Math.floor(Math.random() * 100000)}`;
     const { data: settingsRow } = await admin
-      .from("doctor_settings")
+      .from("professional_settings")
       .select("slot_duration_minutes")
-      .eq("doctor_id", doctor.id)
+      .eq("professional_id", doctor.id)
       .maybeSingle();
     const fallbackDurationMinutes =
       Number((settingsRow as { slot_duration_minutes?: number | null } | null)?.slot_duration_minutes) >

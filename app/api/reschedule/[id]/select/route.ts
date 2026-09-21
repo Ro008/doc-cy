@@ -117,9 +117,9 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
   const dm = Number.isFinite(durationMinutes) && durationMinutes > 0 ? durationMinutes : 30;
 
   const { data: settings } = await supabase
-    .from("doctor_settings")
+    .from("professional_settings")
     .select("slot_duration_minutes")
-    .eq("doctor_id", doctorId)
+    .eq("professional_id", doctorId)
     .maybeSingle();
 
   const fallback =

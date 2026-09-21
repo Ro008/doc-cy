@@ -74,7 +74,7 @@ export async function POST(req: Request) {
 
   if (voterKey) {
     const { data: existing, error: dupErr } = await supabase
-      .from("finder_doctor_invitation_requests")
+      .from("missing_professional_requests")
       .select("id")
       .eq("voter_key", voterKey)
       .eq("requested_name", requestedName)
@@ -93,7 +93,7 @@ export async function POST(req: Request) {
     }
   }
 
-  const { error: insertErr } = await supabase.from("finder_doctor_invitation_requests").insert({
+  const { error: insertErr } = await supabase.from("missing_professional_requests").insert({
     requested_name: requestedName,
     specialty,
     district,

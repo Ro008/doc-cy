@@ -8,7 +8,7 @@ type PublicCallRow = {
   id: string;
   phone?: string | null;
   mobile_number?: string | null;
-  doctor_settings?:
+  professional_settings?:
     | { show_phone_public?: boolean | null; public_phone_source?: string | null }
     | { show_phone_public?: boolean | null; public_phone_source?: string | null }[]
     | null;
@@ -17,7 +17,7 @@ type PublicCallRow = {
 function nestedSettings(
   row: PublicCallRow,
 ): { show_phone_public?: boolean | null; public_phone_source?: string | null } | null {
-  const nested = row.doctor_settings;
+  const nested = row.professional_settings;
   if (!nested) return null;
   return Array.isArray(nested) ? nested[0] ?? null : nested;
 }
@@ -43,7 +43,7 @@ export const loadFinderRegisteredPublicCallIds = cache(
     let result = await fetchAllSupabaseRowsForIdChunks<PublicCallRow>(ids, (chunk) =>
       supabase
         .from("professionals")
-        .select("id, phone, mobile_number, doctor_settings(show_phone_public, public_phone_source)")
+        .select("id, phone, mobile_number, professional_settings(show_phone_public, public_phone_source)")
         .in("id", chunk),
     );
     if (
@@ -53,7 +53,7 @@ export const loadFinderRegisteredPublicCallIds = cache(
       result = await fetchAllSupabaseRowsForIdChunks<PublicCallRow>(ids, (chunk) =>
         supabase
           .from("professionals")
-          .select("id, phone, doctor_settings(show_phone_public)")
+          .select("id, phone, professional_settings(show_phone_public)")
           .in("id", chunk),
       );
     }

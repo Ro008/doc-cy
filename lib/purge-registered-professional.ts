@@ -37,15 +37,15 @@ type ProfessionalRow = {
 
 const CHILD_TABLES_BY_DOCTOR_ID = [
   "appointments",
-  "doctor_specialty_change_requests",
   "doctor_specialties",
   "doctor_locations",
   "doctor_services",
-  "doctor_settings",
-  "doctor_monthly_digest_sent",
 ] as const;
 
 const CHILD_TABLES_BY_PROFESSIONAL_ID = [
+  "professional_settings",
+  "professional_specialty_change_requests",
+  "professional_monthly_digest_sent",
   "professional_clinics",
   "professional_patient_booking_requests",
   "professional_call_to_book_clicks",

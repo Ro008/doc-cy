@@ -69,7 +69,7 @@ async function cleanupByEmail(admin, email) {
   for (const row of doctors ?? []) {
     if (row.id) {
       await admin.from("doctor_services").delete().eq("doctor_id", row.id);
-      await admin.from("doctor_settings").delete().eq("doctor_id", row.id);
+      await admin.from("professional_settings").delete().eq("professional_id", row.id);
       await admin.from("professionals").delete().eq("id", row.id);
     }
     if (row.auth_user_id) authIds.add(row.auth_user_id);

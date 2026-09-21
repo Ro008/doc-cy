@@ -36,8 +36,8 @@ type WeeklySchedulePayload = {
 };
 
 /**
- * Booking availability is resolved from doctor_locations (primary), not doctor_settings alone.
- * Updating the primary location also syncs schedule columns back to doctor_settings via trigger.
+ * Booking availability is resolved from doctor_locations (primary), not professional_settings alone.
+ * Updating the primary location also syncs schedule columns back to professional_settings via trigger.
  */
 async function syncPrimaryLocationSchedule(
   supabase: SupabaseClient,
@@ -134,17 +134,17 @@ test.describe("Schedule constraints @booking-creates", { tag: ["@pr-e2e", "@pr-e
     });
     test.skip(Boolean(synced.error), synced.error ?? "Could not sync primary location schedule.");
 
-    const { error: upsertErr } = await supabase.from("doctor_settings").upsert(
+    const { error: upsertErr } = await supabase.from("professional_settings").upsert(
       {
-        doctor_id: doctor.id,
+        professional_id: doctor.id,
         holiday_mode_enabled: false,
         holiday_start_date: null,
         holiday_end_date: null,
         updated_at: new Date().toISOString(),
       },
-      { onConflict: "doctor_id" },
+      { onConflict: "professional_id" },
     );
-    test.skip(Boolean(upsertErr), "Missing migrated doctor_settings columns.");
+    test.skip(Boolean(upsertErr), "Missing migrated professional_settings columns.");
 
     const nowCy = utcToZonedTime(new Date(), CY_TZ);
     const daysUntilFriday = (5 - nowCy.getDay() + 7) % 7 || 7;
@@ -217,17 +217,17 @@ test.describe("Schedule constraints @booking-creates", { tag: ["@pr-e2e", "@pr-e
     });
     test.skip(Boolean(synced.error), synced.error ?? "Could not sync primary location schedule.");
 
-    const { error: upsertErr } = await supabase.from("doctor_settings").upsert(
+    const { error: upsertErr } = await supabase.from("professional_settings").upsert(
       {
-        doctor_id: doctor.id,
+        professional_id: doctor.id,
         holiday_mode_enabled: true,
         holiday_start_date: start,
         holiday_end_date: end,
         updated_at: new Date().toISOString(),
       },
-      { onConflict: "doctor_id" },
+      { onConflict: "professional_id" },
     );
-    test.skip(Boolean(upsertErr), "Missing migrated doctor_settings columns.");
+    test.skip(Boolean(upsertErr), "Missing migrated professional_settings columns.");
 
     const res = await request.post("/api/appointments", {
       data: {
@@ -285,17 +285,17 @@ test.describe("Schedule constraints @booking-creates", { tag: ["@pr-e2e", "@pr-e
     test.skip(Boolean(synced.error), synced.error ?? "Could not sync primary location schedule.");
     const primaryLocationId = synced.locationId;
 
-    const { error: upsertErr } = await supabase.from("doctor_settings").upsert(
+    const { error: upsertErr } = await supabase.from("professional_settings").upsert(
       {
-        doctor_id: doctor.id,
+        professional_id: doctor.id,
         holiday_mode_enabled: false,
         holiday_start_date: null,
         holiday_end_date: null,
         updated_at: new Date().toISOString(),
       },
-      { onConflict: "doctor_id" },
+      { onConflict: "professional_id" },
     );
-    test.skip(Boolean(upsertErr), "Missing migrated doctor_settings columns.");
+    test.skip(Boolean(upsertErr), "Missing migrated professional_settings columns.");
 
     const targetDate = nextWeekdayCyprusKey(1);
 
