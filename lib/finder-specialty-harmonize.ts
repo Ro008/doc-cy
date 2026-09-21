@@ -48,6 +48,8 @@ const LEGACY_TO_GESY: Record<string, string> = {
   wellness: "Personal Doctor",
   oncology: "Medical Oncology",
   haematology: "Hematology",
+  // Blog links use /all/midwifery; the GeSY label is Midwife.
+  midwifery: "Midwife",
 };
 
 const GESY_BY_SLUG = new Map<string, string>(

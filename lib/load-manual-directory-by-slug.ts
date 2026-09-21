@@ -9,7 +9,7 @@ import {
   type ManualClinicJoinLink,
 } from "@/lib/manual-directory-clinics";
 import { fetchAllSupabaseRows } from "@/lib/supabase-fetch-all";
-import { harmonizeFinderSpecialtyList } from "@/lib/finder-specialty-harmonize";
+import { SPECIALTY_LINKS_SELECT, specialtyNamesForRow } from "@/lib/specialty-catalogue";
 import { pickUniqueLegacyNameSlugAlias } from "@/lib/manual-directory-slug";
 
 export type ManualDirectoryLandingClinic = {
@@ -45,20 +45,6 @@ export type ManualDirectoryLandingRow = {
   /** All clinics this professional practices at (interlinking). */
   clinics: ManualDirectoryLandingClinic[];
 };
-
-function normalizeSpecialties(row: {
-  specialty?: string | null;
-  specialties?: string[] | null;
-}): string[] {
-  const fromArray = Array.isArray(row.specialties)
-    ? row.specialties.map((s) => String(s ?? "").trim()).filter(Boolean)
-    : [];
-  const raw =
-    fromArray.length > 0
-      ? fromArray
-      : [String(row.specialty ?? "").trim()].filter(Boolean);
-  return harmonizeFinderSpecialtyList(raw);
-}
 
 function slugLookupHasMissingColumn(
   error: { message?: string; code?: string } | null,
@@ -214,7 +200,7 @@ async function fetchManualDirectoryRawRow(
   let res = await supabase
     .from("professionals")
     .select(
-      "id, slug, name, specialty, specialties, district, address_maps_link, phone, address, is_gesy, latitude, longitude, clinic_id, gender, finder_visible",
+      `id, slug, name, specialty, specialties, district, address_maps_link, phone, address, is_gesy, latitude, longitude, clinic_id, gender, finder_visible, ${SPECIALTY_LINKS_SELECT}`,
     )
     .eq("is_registered", false)
     .eq("is_archived", false)
@@ -230,7 +216,7 @@ async function fetchManualDirectoryRawRow(
     res = await supabase
       .from("professionals")
       .select(
-        "id, slug, name, specialty, district, address_maps_link, phone, address, is_gesy, latitude, longitude, clinic_id, gender",
+        `id, slug, name, specialty, district, address_maps_link, phone, address, is_gesy, latitude, longitude, clinic_id, gender, ${SPECIALTY_LINKS_SELECT}`,
       )
       .eq("is_registered", false)
       .eq("is_archived", false)
@@ -246,7 +232,7 @@ async function fetchManualDirectoryRawRow(
     res = await supabase
       .from("professionals")
       .select(
-        "id, slug, name, specialty, district, address_maps_link, phone, address, is_gesy, latitude, longitude, clinic_id",
+        `id, slug, name, specialty, district, address_maps_link, phone, address, is_gesy, latitude, longitude, clinic_id, ${SPECIALTY_LINKS_SELECT}`,
       )
       .eq("is_registered", false)
       .eq("is_archived", false)
@@ -262,7 +248,7 @@ async function fetchManualDirectoryRawRow(
     res = await supabase
       .from("professionals")
       .select(
-        "id, slug, name, specialty, district, address_maps_link, phone, address, is_gesy, latitude, longitude",
+        `id, slug, name, specialty, district, address_maps_link, phone, address, is_gesy, latitude, longitude, ${SPECIALTY_LINKS_SELECT}`,
       )
       .eq("is_registered", false)
       .eq("is_archived", false)
@@ -305,7 +291,7 @@ async function buildManualDirectoryLandingRow(
 
   const addressMapsLink = String(row.address_maps_link ?? "");
   const coords = parseOptionalCoordinates(row.latitude, row.longitude);
-  const specialties = normalizeSpecialties(row);
+  const specialties = specialtyNamesForRow(row);
 
   const clinics: ManualDirectoryLandingClinic[] = [];
 

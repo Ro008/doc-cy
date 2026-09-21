@@ -1,10 +1,10 @@
 import type { MetadataRoute } from "next";
 import { CYPRUS_DISTRICTS, isCyprusDistrict, type CyprusDistrict } from "@/lib/cyprus-districts";
 import { createServiceRoleClient } from "@/lib/supabase-service";
-import { districtToSlug, specialtyToSlug, slugToDistrict } from "@/lib/finder-seo";
-import { harmonizeFinderSpecialtyLabel } from "@/lib/finder-specialty-harmonize";
+import { districtToSlug, slugToDistrict } from "@/lib/finder-seo";
 import { getAllBlogPostMeta } from "@/lib/blog";
 import { publicProfessionalProfilePath } from "@/lib/manual-directory-landing-path";
+import { canonicalFinderSpecialtyRedirectPath } from "@/lib/finder-public-path";
 import { isDirectoryCanarySlug } from "@/lib/directory-canaries";
 import { fetchAllSupabaseRows } from "@/lib/supabase-fetch-all";
 
@@ -16,11 +16,14 @@ function normalizeDistrictSlug(value: unknown): string {
   return fromSlug ? districtToSlug(fromSlug) : "";
 }
 
-function normalizeSpecialtySlug(value: unknown): string {
-  const raw = String(value ?? "").trim();
-  if (!raw) return "";
-  return specialtyToSlug(harmonizeFinderSpecialtyLabel(raw) || raw);
-}
+type SpecialtyPairRow = {
+  specialties?: { slug?: string | null } | null;
+  professionals?: {
+    district?: string | null;
+    is_test_profile?: boolean | null;
+    name?: string | null;
+  } | null;
+};
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim() || "https://www.mydoccy.com";
@@ -57,59 +60,47 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const supabase = createServiceRoleClient();
   if (!supabase) return staticEntries;
 
-  // All listed professionals (registered + directory) live in `professionals`.
-  const [doctorsRes, profilesRes, manualRes] = await Promise.all([
-    fetchAllSupabaseRows(() =>
-      supabase
-        .from("professionals")
-        .select("district, specialty, is_test_profile, name")
-        .eq("status", "verified")
-        .eq("is_registered", true)
-        .not("slug", "is", null),
-    ),
-    fetchAllSupabaseRows(() =>
-      supabase.from("profiles").select("district, specialty").eq("status", "verified"),
-    ),
-    fetchAllSupabaseRows(() =>
-      supabase
-        .from("professionals")
-        .select("district, specialty")
-        .eq("is_archived", false)
-        .eq("is_registered", false),
-    ),
-  ]);
+  // One URL per district x specialty with at least one professional the finder
+  // shows: verified registered professionals, and visible scraped listings. Every
+  // specialty counts, not only the first (professional_specialties).
+  const loadPairs = (registered: boolean) =>
+    fetchAllSupabaseRows(() => {
+      let q = supabase
+        .from("professional_specialties")
+        .select(
+          "specialties!inner(slug), professionals!inner(district, is_test_profile, name, is_archived, is_registered, status, slug, finder_visible)",
+        )
+        .eq("is_approved", true)
+        .eq("professionals.is_archived", false)
+        .eq("professionals.is_registered", registered);
+      q = registered
+        ? q.eq("professionals.status", "verified").not("professionals.slug", "is", null)
+        : q.eq("professionals.finder_visible", true);
+      return q.order("id");
+    });
+  const [registeredPairs, scrapedPairs] = await Promise.all([loadPairs(true), loadPairs(false)]);
 
   const pairSet = new Set<string>();
-
-  const doctorRows = !doctorsRes.error ? doctorsRes.data ?? [] : [];
-  for (const row of doctorRows) {
-    const isExplicitTest = Boolean(
-      (row as { is_test_profile?: boolean | null }).is_test_profile
-    );
-    const isNameTest = /\btest\b/i.test(String((row as { name?: string }).name ?? ""));
-    if (isExplicitTest || isNameTest) continue;
-
-    const districtSlug = normalizeDistrictSlug((row as { district?: unknown }).district);
-    const specialtySlug = normalizeSpecialtySlug((row as { specialty?: unknown }).specialty);
-    if (!districtSlug || !specialtySlug || specialtySlug === "all") continue;
-    pairSet.add(`${districtSlug}::${specialtySlug}`);
-  }
-
-  const profileRows = !profilesRes.error ? profilesRes.data ?? [] : [];
-  for (const row of profileRows) {
-    const districtSlug = normalizeDistrictSlug((row as { district?: unknown }).district);
-    const specialtySlug = normalizeSpecialtySlug((row as { specialty?: unknown }).specialty);
-    if (!districtSlug || !specialtySlug || specialtySlug === "all") continue;
-    pairSet.add(`${districtSlug}::${specialtySlug}`);
-  }
-
-  const manualRows = !manualRes.error ? manualRes.data ?? [] : [];
-  for (const row of manualRows) {
-    const districtSlug = normalizeDistrictSlug((row as { district?: unknown }).district);
-    const specialtySlug = normalizeSpecialtySlug((row as { specialty?: unknown }).specialty);
-    if (!districtSlug || !specialtySlug || specialtySlug === "all") continue;
-    pairSet.add(`${districtSlug}::${specialtySlug}`);
-  }
+  const addPairs = (res: { data: unknown[] | null; error: unknown }, registered: boolean) => {
+    if (res.error) {
+      console.error("[DocCy] sitemap specialty pairs failed", res.error);
+      return;
+    }
+    for (const row of (res.data ?? []) as SpecialtyPairRow[]) {
+      const pro = row.professionals;
+      if (registered && (pro?.is_test_profile || /\btest\b/i.test(String(pro?.name ?? "")))) {
+        continue;
+      }
+      const districtSlug = normalizeDistrictSlug(pro?.district);
+      const specialtySlug = String(row.specialties?.slug ?? "").trim();
+      if (!districtSlug || !specialtySlug) continue;
+      // A legacy-spelling catalogue row 308s to its canonical URL; list that one.
+      const redirect = canonicalFinderSpecialtyRedirectPath(`/${districtSlug}/${specialtySlug}`);
+      pairSet.add(redirect ? redirect.slice(1).replace("/", "::") : `${districtSlug}::${specialtySlug}`);
+    }
+  };
+  addPairs(registeredPairs, true);
+  addPairs(scrapedPairs, false);
 
   // Ensure district-only URLs also exist for each district that currently has content.
   const districtSet = new Set<string>();

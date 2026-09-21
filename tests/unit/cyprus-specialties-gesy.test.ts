@@ -13,7 +13,6 @@ import {
   harmonizeFinderSpecialtyLabel,
   harmonizeFinderSpecialtyList,
 } from "../../lib/finder-specialty-harmonize";
-import { finderSpecialtyDbMatchValues } from "../../lib/finder-results-paging";
 import { matchesSpecialtyFilter } from "../../lib/finder-specialty-filter";
 import { buildFinderSpecialtyOptions } from "../../lib/finder-specialty-options";
 
@@ -74,11 +73,9 @@ describe("Hematology vs Haematology (one category)", () => {
     );
   });
 
-  it("matches either spelling in finder filters and SQL variants", () => {
+  it("matches either spelling in finder filters", () => {
     assert.equal(matchesSpecialtyFilter("Haematology", "Hematology"), true);
     assert.equal(matchesSpecialtyFilter("Hematology", "Haematology"), true);
-    assert.ok(finderSpecialtyDbMatchValues("Hematology").includes("Haematology"));
-    assert.ok(finderSpecialtyDbMatchValues("Haematology").includes("Hematology"));
   });
 });
 
@@ -95,16 +92,5 @@ describe("Psychology vs Clinical Psychologist (no merge)", () => {
     assert.equal(matchesSpecialtyFilter("Clinical Psychologist", "Psychology"), false);
     assert.equal(matchesSpecialtyFilter("Psychology", "Clinical Psychologist"), false);
     assert.equal(matchesSpecialtyFilter("Psychology", "Psychology"), true);
-  });
-
-  it("keeps SQL variants separate", () => {
-    assert.deepEqual(finderSpecialtyDbMatchValues("Clinical Psychologist"), [
-      "Clinical Psychologist",
-    ]);
-    assert.ok(finderSpecialtyDbMatchValues("Psychology").includes("Psychology"));
-    assert.equal(
-      finderSpecialtyDbMatchValues("Clinical Psychologist").includes("Psychology"),
-      false,
-    );
   });
 });

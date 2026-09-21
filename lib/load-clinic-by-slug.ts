@@ -9,7 +9,7 @@ import {
 import { parseOptionalCoordinates } from "@/lib/finder-distance";
 import { publicProfessionalProfilePath } from "@/lib/manual-directory-landing-path";
 import { fetchAllSupabaseRowsForIdChunks } from "@/lib/supabase-fetch-all";
-import { harmonizeFinderSpecialtyList } from "@/lib/finder-specialty-harmonize";
+import { SPECIALTY_LINKS_SELECT, specialtyNamesForRow } from "@/lib/specialty-catalogue";
 
 export type ClinicLandingProfessional = {
   id: string;
@@ -39,20 +39,6 @@ export type ClinicLandingRow = {
   photoUrl: string;
   professionals: ClinicLandingProfessional[];
 };
-
-function normalizeSpecialties(row: {
-  specialty?: string | null;
-  specialties?: string[] | null;
-}): string[] {
-  const fromArray = Array.isArray(row.specialties)
-    ? row.specialties.map((s) => String(s ?? "").trim()).filter(Boolean)
-    : [];
-  const raw =
-    fromArray.length > 0
-      ? fromArray
-      : [String(row.specialty ?? "").trim()].filter(Boolean);
-  return harmonizeFinderSpecialtyList(raw);
-}
 
 export async function loadClinicBySlug(
   supabase: SupabaseClient,
@@ -122,12 +108,11 @@ export async function loadClinicBySlug(
         supabase
           .from("professionals")
           .select(
-            "id, slug, name, specialty, specialties, district, address_maps_link, is_gesy, gender, finder_visible",
+            `id, slug, name, specialty, specialties, district, address_maps_link, is_gesy, gender, finder_visible, ${SPECIALTY_LINKS_SELECT}`,
           )
           .eq("is_archived", false)
           .in("id", idChunk)
-          .order("specialty", { ascending: true })
-          .order("name", { ascending: true }),
+          .order("id", { ascending: true }),
     );
 
     if (!docsRes.error && docsRes.data?.length) {
@@ -144,7 +129,7 @@ export async function loadClinicBySlug(
           gender?: string | null;
           finder_visible?: boolean | null;
         };
-        const specialties = normalizeSpecialties(row);
+        const specialties = specialtyNamesForRow(row);
         const slugValue = String(row.slug ?? "").trim() || null;
         return {
           id: String(row.id),
@@ -168,6 +153,12 @@ export async function loadClinicBySlug(
           finderVisible: row.finder_visible !== false,
         };
       });
+      // Grouped by specialty (first alphabetical label), then name.
+      professionals.sort(
+        (a, b) =>
+          a.specialty.localeCompare(b.specialty, "en", { sensitivity: "base" }) ||
+          a.displayName.localeCompare(b.displayName, "en", { sensitivity: "base" }),
+      );
     }
   }
 

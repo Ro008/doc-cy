@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { permanentRedirect } from "next/navigation";
 import { Suspense } from "react";
 import { cookies, headers } from "next/headers";
 import { Instagram } from "lucide-react";
@@ -62,14 +63,19 @@ import {
   specialtyToSlug,
   toTitleCaseWords,
 } from "@/lib/finder-seo";
+import type { FinderSpecialtyOption } from "@/lib/finder-specialty-options";
 import {
-  buildFinderSpecialtyOptions,
-  type FinderSpecialtyOptionSource,
-} from "@/lib/finder-specialty-options";
-import {
-  matchesAnySpecialtyFilter,
-  matchesSpecialtyFilter,
-} from "@/lib/finder-specialty-filter";
+  findCatalogueSpecialty,
+  finderSpecialtyOptionsFromCatalogue,
+  loadFinderAvailableSpecialtyIds,
+  loadSpecialtiesByProfessionalIds,
+  catalogueIdsForFinderSlug,
+  hasSpecialtySlug,
+  loadSpecialtyCatalogue,
+  SPECIALTY_LINKS_SELECT,
+  specialtyNamesForRow,
+  type CatalogueSpecialty,
+} from "@/lib/specialty-catalogue";
 import { professionalMatchesDistrictFilter } from "@/lib/manual-directory-clinics";
 import {
   inferCyprusTownFromClinic,
@@ -77,11 +83,7 @@ import {
   resolveFinderTownQuery,
   townToSlug,
 } from "@/lib/cyprus-towns";
-import {
-  getPublicSpecialtyDisplayLabel,
-  matchesFinderSpecialtyFilter,
-} from "@/lib/doctor-specialty-public";
-import { publicSpecialtyLabels } from "@/lib/doctor-specialties";
+import { getPublicSpecialtyDisplayLabel } from "@/lib/doctor-specialty-public";
 import { FinderShuffleSeedCookie } from "@/components/finder/FinderShuffleSeedCookie";
 import {
   aggregateBookingRequestStats,
@@ -120,12 +122,7 @@ import {
   getCachedDirectoryPayload,
   getCachedDirectoryRows,
 } from "@/lib/finder-directory-cache";
-import { DOCCY_EXTRA_REGISTRATION_SPECIALTIES } from "@/lib/cyprus-specialties";
-import { GESY_MANUAL_SPECIALTIES } from "@/lib/gesy-specialties";
-import {
-  harmonizeFinderSpecialtyLabel,
-  harmonizeFinderSpecialtyList,
-} from "@/lib/finder-specialty-harmonize";
+import { harmonizeFinderSpecialtyLabel } from "@/lib/finder-specialty-harmonize";
 import { publicProfessionalProfilePath } from "@/lib/manual-directory-landing-path";
 import { finderIncludesRegisteredTestProfiles, isRegisteredDoctorHiddenFromFinder } from "@/lib/doctor-test-profile";
 import { finderAvailabilityRequestKey } from "@/lib/public/finder-availability-request-key";
@@ -328,35 +325,95 @@ function resolveDistrictValue(
   return slugToDistrict(queryValue) ?? "";
 }
 
-function resolveSpecialtyValue(
+type ActiveSpecialtyFilter = {
+  /** Catalogue name, or the harmonized raw value when the catalogue has no match. */
+  label: string;
+  slug: string;
+  /** `specialties.id`; null when the value is not in the catalogue (matches nothing). */
+  id: string | null;
+  /** Matched only through a legacy spelling; a path segment redirects to `slug`. */
+  isAlias: boolean;
+  fromPath: boolean;
+};
+
+/**
+ * Finder specialty from the path segment (or `?specialty=`), resolved against the
+ * catalogue. An unknown value still filters, and matches nothing, as before.
+ */
+function resolveActiveSpecialty(
+  catalogue: readonly CatalogueSpecialty[],
   specialtySegment: string | undefined,
-  specialtyQueryParam: string | undefined
-): string {
+  specialtyQueryParam: string | undefined,
+): ActiveSpecialtyFilter | null {
   const segment = normalizeSelectValue(decodeSegment(specialtySegment));
-  if (segment) {
-    if (isAllSlug(segment)) return "";
-    return harmonizeFinderSpecialtyLabel(slugToSpecialty(segment));
-  }
   const queryValue = normalizeSelectValue(specialtyQueryParam);
-  if (!queryValue || isAllSlug(queryValue)) return "";
-  return harmonizeFinderSpecialtyLabel(queryValue);
+  const fromPath = Boolean(segment);
+  const raw = fromPath ? segment : queryValue;
+  if (!raw || isAllSlug(raw)) return null;
+
+  const hit = findCatalogueSpecialty(catalogue, raw);
+  if (hit) {
+    return {
+      label: hit.specialty.name,
+      slug: hit.specialty.slug,
+      id: hit.specialty.id,
+      isAlias: hit.isAlias,
+      fromPath,
+    };
+  }
+  const label = harmonizeFinderSpecialtyLabel(fromPath ? slugToSpecialty(raw) : raw);
+  return { label, slug: specialtyToSlug(label), id: null, isAlias: false, fromPath };
 }
 
-function resolveMetadataFilters(params: FinderPageProps["params"]): {
-  district: string;
-  specialty: string;
-} {
+/**
+ * Legacy spellings in indexed URLs (/limassol/dentistry) 308 to the canonical slug.
+ * Called from generateMetadata, which runs before the page streams: a redirect from
+ * inside the Suspense boundary would arrive after the 200 headers.
+ */
+function redirectLegacySpecialtyPath(
+  district: string,
+  specialty: ActiveSpecialtyFilter | null,
+  searchParams: FinderPageProps["searchParams"],
+): void {
+  if (!specialty?.isAlias || !specialty.fromPath) return;
+  const query = new URLSearchParams();
+  for (const [key, value] of Object.entries(searchParams ?? {})) {
+    if (typeof value === "string" && value) query.set(key, value);
+  }
+  const qs = query.toString();
+  permanentRedirect(`${finderResultsPath(district || null, specialty.label)}${qs ? `?${qs}` : ""}`);
+}
+
+async function loadCatalogueForFinder(
+  supabase: ReturnType<typeof createServiceRoleClient>,
+): Promise<CatalogueSpecialty[]> {
+  if (!supabase) return [];
+  try {
+    return await loadSpecialtyCatalogue(supabase);
+  } catch (err) {
+    console.error("[DocCy] specialty catalogue failed", err);
+    return [];
+  }
+}
+
+export async function generateMetadata({
+  params,
+  searchParams,
+}: FinderPageProps): Promise<Metadata> {
   const district = resolveDistrictValue(params.filters?.[0], undefined);
-  const specialty = resolveSpecialtyValue(params.filters?.[1], undefined);
-  return { district, specialty };
-}
-
-export async function generateMetadata({ params }: FinderPageProps): Promise<Metadata> {
-  const { district, specialty } = resolveMetadataFilters(params);
+  const catalogue = params.filters?.[1]
+    ? await loadCatalogueForFinder(createServiceRoleClient())
+    : [];
+  const specialty = resolveActiveSpecialty(catalogue, params.filters?.[1], undefined);
+  redirectLegacySpecialtyPath(district, specialty, searchParams);
   const cleanDistrict = district.trim();
-  const cleanSpecialty = specialty.trim();
   const districtLabel = cleanDistrict ? toTitleCaseWords(cleanDistrict) : "";
-  const specialtyLabel = cleanSpecialty ? toTitleCaseWords(cleanSpecialty) : "";
+  // Catalogue names keep their own casing ("Obstetrics - Gynaecology").
+  const specialtyLabel = specialty
+    ? specialty.id
+      ? specialty.label
+      : toTitleCaseWords(specialty.label)
+    : "";
 
   const genericTitle = "The most complete health directory in Cyprus | Book Online - DocCy";
   const genericDescription =
@@ -407,7 +464,16 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
   });
   const activeDistrict = reconciled.district;
   const activeTown = reconciled.town;
-  const activeSpecialty = resolveSpecialtyValue(params.filters?.[1], searchParams?.specialty);
+  const catalogue = await loadCatalogueForFinder(supabase);
+  const specialtyFilter = resolveActiveSpecialty(
+    catalogue,
+    params.filters?.[1],
+    searchParams?.specialty,
+  );
+  // Normally already redirected by generateMetadata; kept for any other entry point.
+  redirectLegacySpecialtyPath(activeDistrict, specialtyFilter, searchParams);
+  const activeSpecialty = specialtyFilter?.label ?? "";
+  const activeSpecialtySlug = specialtyFilter?.slug ?? "";
   const userCoords = parseUserCoordinates(searchParams);
   const nearMeAccuracyMeters = parseNearMeAccuracyMeters(searchParams);
   const nearMeApproximate = isApproximateNearMeAccuracy(nearMeAccuracyMeters);
@@ -459,7 +525,11 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
   const listFilters = {
     district: activeDistrict,
     name: activeName,
-    specialty: activeSpecialty,
+    specialty: activeSpecialtySlug,
+    // Unknown specialty: an empty list keeps the filter on and matches nothing.
+    specialtyIds: specialtyFilter
+      ? catalogueIdsForFinderSlug(catalogue, activeSpecialtySlug)
+      : undefined,
     town: activeTown,
   };
 
@@ -469,7 +539,7 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
   const manualClinicIdByRowId = new Map<string, string>();
   /** Pros whose primary district differs but who practice at a clinic in the active district. */
   const manualIdsWithClinicInActiveDistrict = new Set<string>();
-  let finderSpecialtyOptions: ReturnType<typeof buildFinderSpecialtyOptions> = [];
+  let finderSpecialtyOptions: FinderSpecialtyOption[] = [];
   let dataWarning: string | null = null;
   let bookingStatsById = new Map<
     string,
@@ -522,49 +592,13 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
     );
 
     const specialtyOptionsPromise = (async () => {
-      const specialtyOptionFilters = {
-        district: activeDistrict,
-        name: "",
-        specialty: "",
-      };
-      const registeredSpecialtySelectAttempts = ["specialty, specialties", "specialty"] as const;
-      let registeredSpecialtyRows: FinderSpecialtyOptionSource[] = [];
-      for (const selectClause of registeredSpecialtySelectAttempts) {
-        const registeredSpecialtyRes = await getCachedDirectoryRows(
-          ["registered-specialties", specialtyOptionFilters.district, selectClause],
-          () =>
-            fetchAllSupabaseRows(() =>
-              applyFinderListFilters(
-                supabase
-                  .from("professionals")
-                  .select(selectClause)
-                  .eq("is_registered", true)
-                  .eq("is_archived", false)
-                  .eq("status", "verified")
-                  .not("slug", "is", null),
-                specialtyOptionFilters,
-              ),
-            ),
-        );
-        if (registeredSpecialtyRes.error) {
-          if (isRecoverableSelectSchemaError(registeredSpecialtyRes.error)) {
-            continue;
-          }
-          break;
-        }
-        registeredSpecialtyRows = (registeredSpecialtyRes.data ?? []) as FinderSpecialtyOptionSource[];
-        break;
+      try {
+        const available = await loadFinderAvailableSpecialtyIds(supabase, activeDistrict);
+        return finderSpecialtyOptionsFromCatalogue(catalogue, available);
+      } catch (err) {
+        console.error("[DocCy] finder specialty options failed", err);
+        return [];
       }
-      const gesyDropdownSeed = GESY_MANUAL_SPECIALTIES.filter(
-        (label) => label !== "Pharmacy",
-      ).map((specialty) => ({ specialty }));
-      const doccyExtraSeed = DOCCY_EXTRA_REGISTRATION_SPECIALTIES.map((specialty) => ({
-        specialty,
-      }));
-      return buildFinderSpecialtyOptions(
-        [...gesyDropdownSeed, ...doccyExtraSeed],
-        registeredSpecialtyRows,
-      );
     })();
 
     const registeredSelectAttempts = [
@@ -629,15 +663,9 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
                 .eq("is_archived", false)
                 .eq("status", "verified")
                 .not("slug", "is", null),
-              // District/town/specialty are matched in memory: town is often inferred,
-              // clinic districts are N:M, and PostgREST overlaps() is case-sensitive
-              // (URL "sexology" would drop stored "Sexology").
-              { ...listFilters, district: "", town: "", specialty: "" },
-              {
-                specialtyColumn: selectClause.includes("specialties")
-                  ? "specialties"
-                  : "specialty",
-              },
+              // District/town/specialty are matched in memory: town is often inferred
+              // and clinic districts are N:M. Specialties come from professional_specialties.
+              { ...listFilters, district: "", town: "", specialty: "", specialtyIds: undefined },
             ).order("name", { ascending: true }),
           ),
       );
@@ -665,11 +693,8 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
               specialty: (raw.specialty as string | null) ?? null,
               is_specialty_approved: raw.is_specialty_approved as boolean | null,
             }),
-            specialties: publicSpecialtyLabels({
-              specialties: raw.specialties as string[] | null,
-              specialty: (raw.specialty as string | null) ?? null,
-              is_specialty_approved: raw.is_specialty_approved as boolean | null,
-            }),
+            // Filled from professional_specialties below.
+            specialties: [],
             district: (raw.district as string | null) ?? null,
             town: inferCyprusTownFromClinic({
               town: (raw.town as string | null) ?? null,
@@ -698,6 +723,22 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
             })
         );
       break;
+    }
+
+    try {
+      const labelsById = await loadSpecialtiesByProfessionalIds(
+        supabase,
+        registeredRows.map((row) => row.id),
+      );
+      registeredRows = registeredRows.map((row) => {
+        // A pending custom specialty hides every label, as publicSpecialtyLabels did.
+        if (!row.isSpecialtyApproved) return { ...row, specialties: [] };
+        const names = (labelsById.get(row.id) ?? []).map((label) => label.name);
+        return { ...row, specialties: names, specialty: names[0] ?? row.specialty };
+      });
+    } catch (err) {
+      console.error("[DocCy] registered specialties failed", err);
+      dataWarning = dataWarning ?? "Could not load registered professionals.";
     }
 
     const locationsByDoctor = await loadDoctorLocationsByDoctorIds(
@@ -764,7 +805,7 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
       town?: string | null;
     }> = [];
     let manualLoadError: { code?: string; message?: string } | null = null;
-    let manualUsesSpecialtiesColumn = false;
+    let manualRequiresFinderVisible = false;
     let manualSelectClause = "";
     const manualSelectAttempts = [
       "id, slug, name, specialty, specialties, district, town, address_maps_link, phone, address, is_gesy, latitude, longitude, clinic_id, gender, finder_visible",
@@ -779,8 +820,8 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
       "id, name, specialty, district, address_maps_link, latitude, longitude",
       "id, name, specialty, district, address_maps_link",
     ];
-    for (const selectClause of manualSelectAttempts) {
-      const useSpecialtiesFilter = selectClause.includes("specialties");
+    for (const baseSelectClause of manualSelectAttempts) {
+      const selectClause = `${baseSelectClause}, ${SPECIALTY_LINKS_SELECT}`;
       const extraIds = Array.from(manualIdsWithClinicInActiveDistrict);
       const manualRes = await getCachedDirectoryRows(
         [
@@ -798,7 +839,6 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
             supabase,
             selectClause,
             filters: listFilters,
-            specialtyColumn: useSpecialtiesFilter ? "specialties" : "specialty",
             extraDistrictManualIds: extraIds,
             requireFinderVisible: selectClause.includes("finder_visible"),
             orderByName: false,
@@ -830,7 +870,7 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
         gender?: string | null;
       }>;
       manualLoadError = null;
-      manualUsesSpecialtiesColumn = useSpecialtiesFilter;
+      manualRequiresFinderVisible = selectClause.includes("finder_visible");
       manualSelectClause = selectClause;
       break;
     }
@@ -891,14 +931,13 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
             listFilters.name,
             listFilters.specialty,
             listFilters.town,
-            manualUsesSpecialtiesColumn ? "specialties" : "specialty",
+            manualRequiresFinderVisible ? "finder-visible" : "all",
           ],
           async () => {
             const manualCountRes = await countManualDirectoryForFinder({
               supabase,
               filters: listFilters,
-              specialtyColumn: manualUsesSpecialtiesColumn ? "specialties" : "specialty",
-              requireFinderVisible: manualUsesSpecialtiesColumn,
+              requireFinderVisible: manualRequiresFinderVisible,
               source: "professionals",
             });
             if (manualCountRes.error) {
@@ -920,14 +959,7 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
         const manualId = row.id as string;
         const clinicId = String(row.clinic_id ?? "").trim();
         if (clinicId) manualClinicIdByRowId.set(manualId, clinicId);
-        const specialties = Array.isArray(row.specialties)
-          ? row.specialties.map((s) => String(s ?? "").trim()).filter(Boolean)
-          : [];
-        const specialtyParts = harmonizeFinderSpecialtyList(
-          specialties.length > 0
-            ? specialties
-            : [String(row.specialty ?? "").trim()].filter(Boolean),
-        );
+        const specialtyParts = specialtyNamesForRow(row);
         return {
           id: manualId,
           slug: String(row.slug ?? "").trim() || null,
@@ -969,13 +1001,8 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
       return false;
     }
     if (
-      !matchesFinderSpecialtyFilter({
-        specialty: row.specialty,
-        specialties: row.specialties,
-        is_specialty_approved: row.isSpecialtyApproved,
-        activeSpecialty,
-        matchesSpecialty: matchesSpecialtyFilter,
-      })
+      specialtyFilter &&
+      !hasSpecialtySlug(row.specialties.map((name) => ({ name })), activeSpecialtySlug)
     ) {
       return false;
     }
@@ -1009,11 +1036,8 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
       return false;
     }
     if (
-      activeSpecialty &&
-      !matchesAnySpecialtyFilter(
-        row.specialties.length > 0 ? row.specialties : [row.specialty],
-        activeSpecialty,
-      )
+      specialtyFilter &&
+      !hasSpecialtySlug(row.specialties.map((name) => ({ name })), activeSpecialtySlug)
     ) {
       return false;
     }
