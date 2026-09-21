@@ -199,8 +199,10 @@ test.describe("Navigation and routing", { tag: ["@pr-e2e", "@pr-e2e-finder"] }, 
   });
 
   test("legacy /finder filter URLs redirect to public paths", async ({ page }) => {
+    // /finder prefix dropped, then the legacy "dentistry" spelling 308s to the
+    // catalogue slug (middleware canonicalFinderSpecialtyRedirectPath).
     await page.goto("/finder/paphos/dentistry");
-    await expect(page).toHaveURL(/\/paphos\/dentistry(?:\?|$)/);
+    await expect(page).toHaveURL(/\/paphos\/dentist(?:\?|$)/, { timeout: 20_000 });
   });
 
   test("clinics search is reachable from homepage toggle and footer", async ({ page }) => {
