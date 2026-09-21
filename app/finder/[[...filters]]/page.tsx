@@ -67,7 +67,8 @@ import type { FinderSpecialtyOption } from "@/lib/finder-specialty-options";
 import {
   findCatalogueSpecialty,
   finderSpecialtyOptionsFromCatalogue,
-  loadFinderAvailableSpecialtyIds,
+  catalogueIdsForSpecialtyNames,
+  loadScrapedAvailableSpecialtyIds,
   loadSpecialtiesByProfessionalIds,
   catalogueIdsForFinderSlug,
   hasSpecialtySlug,
@@ -591,15 +592,13 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
         ),
     );
 
-    const specialtyOptionsPromise = (async () => {
-      try {
-        const available = await loadFinderAvailableSpecialtyIds(supabase, activeDistrict);
-        return finderSpecialtyOptionsFromCatalogue(catalogue, available);
-      } catch (err) {
-        console.error("[DocCy] finder specialty options failed", err);
-        return [];
-      }
-    })();
+    const scrapedAvailabilityPromise = loadScrapedAvailableSpecialtyIds(
+      supabase,
+      activeDistrict,
+    ).catch((err) => {
+      console.error("[DocCy] finder specialty options failed", err);
+      return new Set<string>();
+    });
 
     const registeredSelectAttempts = [
       "id, name, specialty, specialties, district, town, slug, email, languages, avatar_url, is_test_profile, clinic_address, is_gesy, is_specialty_approved, latitude, longitude, has_online_booking, is_registered",
@@ -920,7 +919,25 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
       }
     }
 
-    finderSpecialtyOptions = await specialtyOptionsPromise;
+    // Dropdown: specialties with a visible scraped listing in the district (cached),
+    // plus those of the registered professionals shown there (already loaded).
+    const available = new Set(await scrapedAvailabilityPromise);
+    const registeredInDistrict = registeredRows.filter(
+      (row) =>
+        !activeDistrict ||
+        professionalMatchesDistrictFilter({
+          district: row.district,
+          clinicDistricts: row.locations.map((loc) => loc.district),
+          activeDistrict,
+        }),
+    );
+    for (const id of catalogueIdsForSpecialtyNames(
+      catalogue,
+      registeredInDistrict.flatMap((row) => row.specialties),
+    )) {
+      available.add(id);
+    }
+    finderSpecialtyOptions = finderSpecialtyOptionsFromCatalogue(catalogue, available);
 
     if (!manualLoadError) {
       try {

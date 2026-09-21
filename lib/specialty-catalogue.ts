@@ -11,7 +11,10 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { unstable_cache } from "next/cache";
+
 import { getCachedDirectoryPayload } from "@/lib/finder-directory-cache";
+import { FINDER_DIRECTORY_CACHE_TAG } from "@/lib/finder-directory-cache-key";
 import { slugToSpecialty, specialtyToSlug } from "@/lib/finder-seo";
 import {
   harmonizeFinderSpecialtyLabel,
@@ -194,48 +197,61 @@ export async function loadSpecialtyCatalogue(
   });
 }
 
+/** Scraped listings only change when the GeSY import runs. */
+const SCRAPED_AVAILABILITY_REVALIDATE_SECONDS = 600;
+
 /**
- * Specialty ids with at least one professional the finder shows in `district`
- * (all districts when empty): active scraped listings with `finder_visible`, and
- * verified registered professionals. District is the professional's own district,
- * as the finder's database filter uses.
+ * Specialty ids with at least one visible scraped listing (active, `finder_visible`)
+ * in `district` (all districts when empty).
+ *
+ * Always cached, including when integration runs bypass the finder cache: the query
+ * costs ~150-650ms on the Testing instance, and running it on every finder request
+ * timed out under CI load. Registered professionals, which do change mid-run, are
+ * added per request from the rows the finder already loads
+ * (`catalogueIdsForSpecialtyNames`).
  */
-export async function loadFinderAvailableSpecialtyIds(
+export async function loadScrapedAvailableSpecialtyIds(
   supabase: SupabaseClient,
   district: string,
 ): Promise<Set<string>> {
-  const ids = await getCachedDirectoryPayload(
-    ["specialty-available", district || "all"],
-    async () => {
-      // One row per specialty that has at least one matching professional (the
-      // nested !inner filters), capped at one child: ~60 rows instead of paging
-      // through every join row (~7k, several seconds uncached).
-      const load = (registered: boolean) => {
-        const pro = "professional_specialties.professionals";
-        let q = supabase
-          .from("specialties")
-          .select("id, professional_specialties!inner(id, professionals!inner(id))")
-          .eq("professional_specialties.is_approved", true)
-          .eq(`${pro}.is_archived`, false)
-          .eq(`${pro}.is_registered`, registered);
-        q = registered
-          ? q.eq(`${pro}.status`, "verified").not(`${pro}.slug`, "is", null)
-          : q.eq(`${pro}.finder_visible`, true);
-        if (district) q = q.eq(`${pro}.district`, district);
-        return q.limit(1, { referencedTable: "professional_specialties" });
-      };
-      const [scraped, registered] = await Promise.all([load(false), load(true)]);
-      const error = scraped.error ?? registered.error;
-      if (error) throw new Error(`specialty availability: ${error.message}`);
-      const out = new Set<string>();
-      for (const row of [...(scraped.data ?? []), ...(registered.data ?? [])]) {
-        const id = String((row as { id?: string }).id ?? "").trim();
-        if (id) out.add(id);
-      }
-      return [...out];
-    },
-  );
+  const load = async () => {
+    // One row per specialty with a matching listing (nested !inner), capped at one
+    // child, instead of paging through every join row.
+    const pro = "professional_specialties.professionals";
+    let q = supabase
+      .from("specialties")
+      .select("id, professional_specialties!inner(id, professionals!inner(id))")
+      .eq("professional_specialties.is_approved", true)
+      .eq(`${pro}.is_archived`, false)
+      .eq(`${pro}.is_registered`, false)
+      .eq(`${pro}.finder_visible`, true);
+    if (district) q = q.eq(`${pro}.district`, district);
+    const res = await q.limit(1, { referencedTable: "professional_specialties" });
+    if (res.error) throw new Error(`specialty availability: ${res.error.message}`);
+    return (res.data ?? [])
+      .map((row) => String((row as { id?: string }).id ?? "").trim())
+      .filter(Boolean);
+  };
+  const ids = await unstable_cache(
+    load,
+    [FINDER_DIRECTORY_CACHE_TAG, "specialty-available-scraped", district || "all"],
+    { revalidate: SCRAPED_AVAILABILITY_REVALIDATE_SECONDS, tags: [FINDER_DIRECTORY_CACHE_TAG] },
+  )();
   return new Set(ids);
+}
+
+/** Catalogue ids for display names (e.g. registered rows' labels), legacy spellings included. */
+export function catalogueIdsForSpecialtyNames(
+  catalogue: readonly CatalogueSpecialty[],
+  names: Iterable<string>,
+): Set<string> {
+  const out = new Set<string>();
+  for (const name of names) {
+    for (const id of catalogueIdsForFinderSlug(catalogue, canonicalSpecialtySlug(name))) {
+      out.add(id);
+    }
+  }
+  return out;
 }
 
 /** professional id -> approved labels, for rows loaded without the embed. */
