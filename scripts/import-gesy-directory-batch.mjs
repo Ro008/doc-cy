@@ -10,8 +10,7 @@
  *   casing does not matter). Unknown labels stop the run before anything is written:
  *   the catalogue only grows when a founder approves a specialty.
  * - Each listing's specialties live only in `professional_specialties`, synced (added /
- *   removed) per run. The denormalized `professionals.specialty` / `specialties`
- *   columns are no longer written (Point C3 drops them).
+ *   removed) per run. `professionals` has no specialty columns since Point C3.
  *
  * Usage:
  *   node scripts/import-gesy-directory-batch.mjs --env-file .env.testing.local --xlsx "path/to/ALL.xlsx" --batch personal-doctor --dry-run

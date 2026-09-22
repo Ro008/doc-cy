@@ -162,15 +162,12 @@ BEGIN
     INSERT INTO public.professionals (
       auth_user_id,
       name,
-      specialty,
       email,
       phone,
       languages,
-      license_number,
       license_file_url,
       status,
       slug,
-      is_specialty_approved,
       is_test_profile,
       subscription_tier,
       is_registered,
@@ -180,15 +177,12 @@ BEGIN
     VALUES (
       v_user_id,
       'Andreas Nikos Test',
-      'General Practice',
       v_email,
       '+35799123456',
       ARRAY['English', 'Greek']::text[],
-      'INTEGRATION-SEED-LIC',
       'licenses/integration/andreas-nikos-seed.pdf',
       'verified',
       v_slug,
-      true,
       true,
       'standard',
       -- professionals defaults is_registered and has_online_booking to false; the
@@ -208,7 +202,6 @@ BEGIN
     SET
       name = 'Andreas Nikos Test',
       status = 'verified',
-      is_specialty_approved = true,
       is_test_profile = true,
       is_registered = true,
       has_online_booking = true,
@@ -217,6 +210,19 @@ BEGIN
       phone = coalesce(nullif(trim(phone), ''), '+35799123456'),
       languages = coalesce(languages, ARRAY['English', 'Greek']::text[])
     WHERE id = v_doctor_id;
+  END IF;
+
+  -- Specialties live only in professional_specialties (Point C3 dropped the
+  -- professionals columns). Keep an existing approved row; add one otherwise.
+  UPDATE public.professional_specialties
+  SET is_approved = true
+  WHERE professional_id = v_doctor_id;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM public.professional_specialties WHERE professional_id = v_doctor_id
+  ) THEN
+    INSERT INTO public.professional_specialties (professional_id, specialty, license_number, is_approved)
+    VALUES (v_doctor_id, 'General Practice', 'INTEGRATION-SEED-LIC', true);
   END IF;
 
   INSERT INTO public.professional_settings (
