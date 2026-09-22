@@ -1030,6 +1030,7 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
               }
               breakStart={breakStart ? breakStart.slice(0, 5) : undefined}
               breakEnd={breakEnd ? breakEnd.slice(0, 5) : undefined}
+              publicPhoneAvailable={hasPublicPhone}
               onlineBookingsPaused={Boolean(
                 (
                   locationSettings as {

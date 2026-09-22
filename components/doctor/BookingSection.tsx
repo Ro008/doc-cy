@@ -45,6 +45,8 @@ type BookingSectionProps = {
   breakStart?: string;
   breakEnd?: string;
   onlineBookingsPaused?: boolean;
+  /** The profile shows a Call button, so a paused calendar can point the patient at it. */
+  publicPhoneAvailable?: boolean;
   holidayModeEnabled?: boolean;
   holidayStartDate?: string | null;
   holidayEndDate?: string | null;
@@ -74,6 +76,7 @@ export function BookingSection({
   breakStart,
   breakEnd,
   onlineBookingsPaused = false,
+  publicPhoneAvailable = false,
   holidayModeEnabled = false,
   holidayStartDate = null,
   holidayEndDate = null,
@@ -406,6 +409,11 @@ export function BookingSection({
             ? t("appointmentsPausedAtLocation")
             : t("appointmentsPaused")}
         </p>
+        {publicPhoneAvailable ? (
+          <p className="mt-2 text-sm font-medium text-ink-700">
+            {t("appointmentsPausedCallHint")}
+          </p>
+        ) : null}
       </div>
     );
   }

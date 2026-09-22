@@ -2,6 +2,81 @@ import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 import { loadDoctorLocations, primaryDoctorLocation } from "@/lib/load-doctor-locations";
+import {
+  CONTACT_PHONE_REQUIRED_CODE,
+  CONTACT_PHONE_REQUIRED_MESSAGE,
+  contactPhoneState,
+  onlineBookingUnavailable,
+  pauseFlagsAfterChange,
+  type ContactPhoneState,
+} from "@/lib/booking-contact-phone";
+import type { SupabaseClient } from "@supabase/supabase-js";
+
+/**
+ * What patients would be left with once `pauseFlags` applies. Tolerates the older
+ * schema without professionals.mobile_number / public_phone_source.
+ */
+async function loadContactPhoneState(
+  supabase: SupabaseClient,
+  professionalId: string,
+  pauseFlags: readonly boolean[],
+): Promise<ContactPhoneState> {
+  let contact: { phone?: string | null; mobile_number?: string | null } | null = null;
+  const withMobile = await supabase
+    .from("professionals")
+    .select("phone, mobile_number")
+    .eq("id", professionalId)
+    .maybeSingle();
+  if (withMobile.error) {
+    const fallback = await supabase
+      .from("professionals")
+      .select("phone")
+      .eq("id", professionalId)
+      .maybeSingle();
+    contact = fallback.data ?? null;
+  } else {
+    contact = withMobile.data;
+  }
+
+  const settings = await supabase
+    .from("professional_settings")
+    .select("public_phone_source")
+    .eq("professional_id", professionalId)
+    .maybeSingle();
+
+  return contactPhoneState({
+    pauseFlags,
+    mobileNumber: contact?.mobile_number ?? null,
+    directoryPhone: contact?.phone ?? null,
+    publicPhoneSource: settings.data?.public_phone_source ?? null,
+  });
+}
+
+/** Pausing the last bookable clinic makes the Call button the only way in. */
+async function revealPublicPhone(
+  supabase: SupabaseClient,
+  professionalId: string,
+  source: ContactPhoneState["source"],
+): Promise<void> {
+  const payload = {
+    professional_id: professionalId,
+    show_phone_public: true,
+    public_phone_source: source,
+    updated_at: new Date().toISOString(),
+  };
+  let upsert = await supabase
+    .from("professional_settings")
+    .upsert(payload, { onConflict: "professional_id" });
+  if (upsert.error && /public_phone_source/i.test(String(upsert.error.message ?? ""))) {
+    const { public_phone_source: _source, ...withoutSource } = payload;
+    upsert = await supabase
+      .from("professional_settings")
+      .upsert(withoutSource, { onConflict: "professional_id" });
+  }
+  if (upsert.error) {
+    console.error("[DocCy] Failed to reveal the public phone on pause", upsert.error);
+  }
+}
 
 export async function GET() {
   const supabase = createRouteHandlerClient({ cookies });
@@ -117,6 +192,30 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ message: "Clinic not found." }, { status: 404 });
   }
 
+  // Patients book online or they call. Never let the last online path close while the
+  // account has no phone to show, or patients are left with no way to reach anyone.
+  const nextPauseFlags = target
+    ? pauseFlagsAfterChange(
+        locations.map((row) => ({
+          id: row.id,
+          pauseOnlineBookings: Boolean(row.pause_online_bookings),
+        })),
+        target.id,
+        nextPaused,
+      )
+    : [nextPaused];
+
+  let contact: ContactPhoneState | null = null;
+  if (onlineBookingUnavailable(nextPauseFlags)) {
+    contact = await loadContactPhoneState(supabase, doctor.id, nextPauseFlags);
+    if (contact.needsNumber) {
+      return NextResponse.json(
+        { message: CONTACT_PHONE_REQUIRED_MESSAGE, code: CONTACT_PHONE_REQUIRED_CODE },
+        { status: 400 },
+      );
+    }
+  }
+
   if (target) {
     const { error: locationErr } = await supabase
       .from("doctor_locations")
@@ -132,8 +231,17 @@ export async function POST(req: NextRequest) {
         { status: 500 }
       );
     }
+    if (contact) {
+      await revealPublicPhone(supabase, doctor.id, contact.source);
+    }
     return NextResponse.json(
-      { pauseOnlineBookings: nextPaused, locationId: target.id },
+      {
+        pauseOnlineBookings: nextPaused,
+        locationId: target.id,
+        ...(contact
+          ? { showPhonePublic: true, callNumber: contact.callNumber }
+          : {}),
+      },
       { status: 200 }
     );
   }
@@ -156,8 +264,15 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  if (contact) {
+    await revealPublicPhone(supabase, doctor.id, contact.source);
+  }
+
   return NextResponse.json(
-    { pauseOnlineBookings: nextPaused },
+    {
+      pauseOnlineBookings: nextPaused,
+      ...(contact ? { showPhonePublic: true, callNumber: contact.callNumber } : {}),
+    },
     { status: 200 }
   );
 }

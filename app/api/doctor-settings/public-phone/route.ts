@@ -6,6 +6,13 @@ import {
   parsePublicPhoneSource,
   publicPhoneSourceForSave,
 } from "@/lib/public-call-phone";
+import {
+  CALL_LOCKED_WHILE_PAUSED_CODE,
+  CALL_LOCKED_WHILE_PAUSED_MESSAGE,
+  normalizeContactPhone,
+  onlineBookingUnavailable,
+} from "@/lib/booking-contact-phone";
+import { loadDoctorLocations } from "@/lib/load-doctor-locations";
 
 /** Instant save for the public Call switch (and which number it uses). */
 export async function POST(req: NextRequest) {
@@ -28,12 +35,26 @@ export async function POST(req: NextRequest) {
   const b = body as {
     showPhonePublic?: unknown;
     publicPhoneSource?: unknown;
+    callNumber?: unknown;
   };
   const showProvided = typeof b.showPhonePublic === "boolean";
   const sourceProvided = b.publicPhoneSource !== undefined;
-  if (!showProvided && !sourceProvided) {
+  // Typed straight into the pause card by a professional who had no number at all.
+  const callNumberProvided =
+    typeof b.callNumber === "string" && b.callNumber.trim().length > 0;
+  if (!showProvided && !sourceProvided && !callNumberProvided) {
     return NextResponse.json(
-      { message: "Missing showPhonePublic or publicPhoneSource." },
+      { message: "Missing showPhonePublic, publicPhoneSource or callNumber." },
+      { status: 400 },
+    );
+  }
+
+  const newCallNumber = callNumberProvided
+    ? normalizeContactPhone(String(b.callNumber))
+    : null;
+  if (callNumberProvided && !newCallNumber) {
+    return NextResponse.json(
+      { message: "Enter a valid phone number." },
       { status: 400 },
     );
   }
@@ -76,9 +97,24 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ message: "Forbidden." }, { status: 403 });
   }
 
+  if (newCallNumber) {
+    const { error: phoneErr } = await supabase
+      .from("professionals")
+      .update({ mobile_number: newCallNumber, updated_at: new Date().toISOString() })
+      .eq("id", doctor.id);
+    if (phoneErr) {
+      console.error("[DocCy] Failed to save the contact phone", phoneErr);
+      return NextResponse.json(
+        { message: "Error saving your phone number." },
+        { status: 500 },
+      );
+    }
+    doctor = { ...doctor, mobile_number: newCallNumber };
+  }
+
   const existing = await supabase
     .from("professional_settings")
-    .select("show_phone_public, public_phone_source")
+    .select("show_phone_public, public_phone_source, pause_online_bookings")
     .eq("professional_id", doctor.id)
     .maybeSingle();
   if (existing.error) {
@@ -101,6 +137,28 @@ export async function POST(req: NextRequest) {
     mobileNumber,
     directoryPhone: directoryPhone || null,
   });
+
+  // While no clinic takes online bookings the Call button is the only way in.
+  if (!nextShow) {
+    const locations = await loadDoctorLocations(supabase, doctor.id);
+    const pauseFlags = locations.length
+      ? locations.map((row) => Boolean(row.pause_online_bookings))
+      : [
+          Boolean(
+            (existing.data as { pause_online_bookings?: boolean | null } | null)
+              ?.pause_online_bookings,
+          ),
+        ];
+    if (onlineBookingUnavailable(pauseFlags)) {
+      return NextResponse.json(
+        {
+          message: CALL_LOCKED_WHILE_PAUSED_MESSAGE,
+          code: CALL_LOCKED_WHILE_PAUSED_CODE,
+        },
+        { status: 400 },
+      );
+    }
+  }
 
   if (
     nextShow &&
@@ -143,7 +201,11 @@ export async function POST(req: NextRequest) {
   }
 
   return NextResponse.json(
-    { showPhonePublic: nextShow, publicPhoneSource: nextSource },
+    {
+      showPhonePublic: nextShow,
+      publicPhoneSource: nextSource,
+      ...(newCallNumber ? { callNumber: newCallNumber } : {}),
+    },
     { status: 200 },
   );
 }

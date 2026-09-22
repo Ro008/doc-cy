@@ -52,6 +52,12 @@ import {
 } from "@/lib/doctor-specialty-change-request";
 import { PhoneNumbersSettings } from "@/components/dashboard/PhoneNumbersSettings";
 import {
+  CONTACT_PHONE_REQUIRED_MESSAGE,
+  contactPhoneState,
+  onlineBookingUnavailable,
+  pauseFlagsAfterChange,
+} from "@/lib/booking-contact-phone";
+import {
   callNumberForSource,
   directoryPhoneForSave,
   hasDistinctDirectoryPhone,
@@ -486,6 +492,78 @@ export function SettingsForm({ initial }: SettingsFormProps) {
   );
   const [workplaceBusy, setWorkplaceBusy] = React.useState(false);
   const workplaceTabScrollYRef = React.useRef<number | null>(null);
+
+  // Booking online or calling are the only two ways in. Once every clinic is paused the
+  // public phone stops being optional, so the Call button is forced on and locked there.
+  const contactPhone = React.useMemo(
+    () =>
+      contactPhoneState({
+        pauseFlags: workplaces.map((row) => Boolean(row.pauseOnlineBookings)),
+        mobileNumber: savedMobileNumber,
+        directoryPhone: hasDistinctDirectoryPhone(savedMobileNumber, savedDirectoryPhone)
+          ? savedDirectoryPhone
+          : "",
+        publicPhoneSource,
+      }),
+    [workplaces, savedMobileNumber, savedDirectoryPhone, publicPhoneSource],
+  );
+
+  const pausingLeavesNoOnlinePath = React.useMemo(
+    () =>
+      onlineBookingUnavailable(
+        pauseFlagsAfterChange(
+          workplaces.map((row) => ({
+            id: row.id,
+            pauseOnlineBookings: Boolean(row.pauseOnlineBookings),
+          })),
+          activeWorkplaceId,
+          true,
+        ),
+      ),
+    [workplaces, activeWorkplaceId],
+  );
+
+  /** Saves the number typed in the pause card and puts it on the public profile. */
+  const handleSaveContactPhone = React.useCallback(
+    async (phone: string): Promise<boolean> => {
+      try {
+        const res = await fetch("/api/doctor-settings/public-phone", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ callNumber: phone, showPhonePublic: true }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          toast.error((data?.message as string) || "Could not save your phone number.");
+          return false;
+        }
+        const saved = String(data?.callNumber ?? "").trim();
+        if (saved) {
+          setMobileNumber(saved);
+          setSavedMobileNumber(saved);
+        }
+        setShowPhonePublic(true);
+        if (data?.publicPhoneSource === "mobile" || data?.publicPhoneSource === "directory") {
+          setPublicPhoneSource(data.publicPhoneSource);
+        }
+        setSavedSnapshot((prev) => ({
+          ...prev,
+          ...(saved ? { mobileNumber: saved } : {}),
+          ...(data?.publicPhoneSource === "mobile" || data?.publicPhoneSource === "directory"
+            ? { publicPhoneSource: data.publicPhoneSource }
+            : {}),
+          showPhonePublic: true,
+        }));
+        toast.success("Saved. Patients can call you from your profile.");
+        return true;
+      } catch (err) {
+        console.error(err);
+        toast.error("Something went wrong.");
+        return false;
+      }
+    },
+    [],
+  );
   const [bookingHorizonDays, setBookingHorizonDays] = React.useState(
     initial.bookingHorizonDays
   );
@@ -1010,6 +1088,12 @@ export function SettingsForm({ initial }: SettingsFormProps) {
       const text = "Add a phone number before showing a Call button on your profile.";
       setMessage({ type: "error", text });
       toast.error(text);
+      return;
+    }
+    // Paused everywhere: the phone is the only way in, so it cannot be emptied here.
+    if (contactPhone.required && publicCallNumber.length === 0) {
+      setMessage({ type: "error", text: CONTACT_PHONE_REQUIRED_MESSAGE });
+      toast.error(CONTACT_PHONE_REQUIRED_MESSAGE);
       return;
     }
 
@@ -1642,7 +1726,7 @@ export function SettingsForm({ initial }: SettingsFormProps) {
               workplaces.find((row) => row.id === activeWorkplaceId)?.pauseOnlineBookings,
             )}
             locationId={activeWorkplaceId === "primary" ? null : activeWorkplaceId}
-            onPausedChange={(paused) => {
+            onPausedChange={(paused, details) => {
               setWorkplaces((prev) =>
                 prev.map((row) =>
                   row.id === activeWorkplaceId
@@ -1650,7 +1734,15 @@ export function SettingsForm({ initial }: SettingsFormProps) {
                     : row,
                 ),
               );
+              if (details?.showPhonePublic) {
+                setShowPhonePublic(true);
+                setSavedSnapshot((prev) => ({ ...prev, showPhonePublic: true }));
+              }
             }}
+            contactCallNumber={contactPhone.callNumber}
+            noOnlinePathNow={contactPhone.required}
+            pausingLeavesNoOnlinePath={pausingLeavesNoOnlinePath}
+            onSaveContactPhone={handleSaveContactPhone}
           />
           {!(workplaces.find((row) => row.id === activeWorkplaceId)?.isPrimary) ? (
             <button
@@ -2015,6 +2107,7 @@ export function SettingsForm({ initial }: SettingsFormProps) {
           void persistPublicCallSettings({ publicPhoneSource: next });
         }}
         saving={publicCallSaving}
+        lockedOnWhilePaused={contactPhone.lockCallOn}
       />
 
       <section className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-5">

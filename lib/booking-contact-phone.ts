@@ -1,0 +1,82 @@
+// lib/booking-contact-phone.ts
+// A professional who stops taking online bookings must still leave patients a way to
+// reach them. Pausing is per clinic (doctor_locations.pause_online_bookings) while the
+// public Call button is per account (professional_settings.show_phone_public), so the
+// requirement only bites once NO clinic accepts online bookings any more.
+
+import { cyprusPhoneDigits, formatCyprusPhoneDisplay } from "@/lib/phone-link";
+import {
+  callNumberForSource,
+  inferPublicPhoneSource,
+  type PublicPhoneSource,
+} from "@/lib/public-call-phone";
+
+export type ClinicPauseState = { id: string; pauseOnlineBookings: boolean };
+
+export const CONTACT_PHONE_REQUIRED_CODE = "contact_phone_required";
+export const CONTACT_PHONE_REQUIRED_MESSAGE =
+  "Add a phone number patients can call before pausing online bookings.";
+
+export const CALL_LOCKED_WHILE_PAUSED_CODE = "call_locked_while_paused";
+export const CALL_LOCKED_WHILE_PAUSED_MESSAGE =
+  "Online bookings are paused, so your phone stays visible. Resume online bookings to hide it.";
+
+/** No clinic takes online bookings, so patients have no booking path left. */
+export function onlineBookingUnavailable(pauseFlags: readonly boolean[]): boolean {
+  if (pauseFlags.length === 0) return false;
+  return pauseFlags.every(Boolean);
+}
+
+/** The pause flags the account would land on after flipping one clinic. */
+export function pauseFlagsAfterChange(
+  clinics: readonly ClinicPauseState[],
+  clinicId: string,
+  paused: boolean,
+): boolean[] {
+  return clinics.map((clinic) =>
+    clinic.id === clinicId ? paused : Boolean(clinic.pauseOnlineBookings),
+  );
+}
+
+/** Accept a Cyprus number typed in any common shape; null when it cannot be one. */
+export function normalizeContactPhone(value?: string | null): string | null {
+  const digits = cyprusPhoneDigits(value);
+  if (!digits || digits.length < 8) return null;
+  return formatCyprusPhoneDisplay(value);
+}
+
+export type ContactPhoneState = {
+  /** Every clinic is paused: patients need a phone number to reach this professional. */
+  required: boolean;
+  source: PublicPhoneSource;
+  /** The number patients would see; "" when the account has none. */
+  callNumber: string;
+  /** Required, but nothing to show yet — ask for a number before pausing. */
+  needsNumber: boolean;
+  /** Required and available — the Call button is forced on and cannot be switched off. */
+  lockCallOn: boolean;
+};
+
+export function contactPhoneState(input: {
+  pauseFlags: readonly boolean[];
+  mobileNumber?: string | null;
+  directoryPhone?: string | null;
+  publicPhoneSource?: unknown;
+}): ContactPhoneState {
+  const mobileNumber = String(input.mobileNumber ?? "").trim();
+  const directoryPhone = String(input.directoryPhone ?? "").trim();
+  const source = inferPublicPhoneSource({
+    saved: input.publicPhoneSource,
+    mobileNumber,
+    directoryPhone,
+  });
+  const callNumber = callNumberForSource({ source, mobileNumber, directoryPhone });
+  const required = onlineBookingUnavailable(input.pauseFlags);
+  return {
+    required,
+    source,
+    callNumber,
+    needsNumber: required && callNumber.length === 0,
+    lockCallOn: required && callNumber.length > 0,
+  };
+}
