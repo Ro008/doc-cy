@@ -32,6 +32,13 @@ import { loadDoctorLocations } from "@/lib/load-doctor-locations";
 import { locationWeeklySchedule } from "@/lib/doctor-locations";
 import { inferPublicPhoneSource } from "@/lib/public-call-phone";
 import { FirstLoginTrialNoticeGate } from "@/components/dashboard/FirstLoginTrialNoticeGate";
+import { createServiceRoleClient } from "@/lib/supabase-service";
+import {
+  approvedSpecialtyNames,
+  hasPendingSpecialty,
+  loadSpecialtyEntries,
+  primarySpecialtyEntry,
+} from "@/lib/specialty-catalogue";
 
 export default async function AgendaSettingsPage() {
   const supabase = createServerComponentClient({ cookies });
@@ -56,7 +63,6 @@ export default async function AgendaSettingsPage() {
     phone?: string | null;
     mobile_number?: string | null;
     slug?: string | null;
-    specialty?: string | null;
     bio?: string | null;
     languages?: string[] | null;
     district?: string | null;
@@ -66,7 +72,6 @@ export default async function AgendaSettingsPage() {
     clinic_place_id?: string | null;
     town?: string | null;
     status?: string | null;
-    is_specialty_approved?: boolean | null;
     specialty_requires_standard_at?: string | null;
     subscription_tier?: string | null;
     is_gesy?: boolean | null;
@@ -80,7 +85,7 @@ export default async function AgendaSettingsPage() {
     let res = await supabase
       .from("professionals")
       .select(
-        "id, name, avatar_url, phone, mobile_number, slug, specialty, specialties, bio, languages, district, town, clinic_address, latitude, longitude, clinic_place_id, status, subscription_tier, is_gesy"
+        "id, name, avatar_url, phone, mobile_number, slug, bio, languages, district, town, clinic_address, latitude, longitude, clinic_place_id, status, subscription_tier, is_gesy"
       )
       .eq("auth_user_id", user.id)
       .single();
@@ -89,17 +94,7 @@ export default async function AgendaSettingsPage() {
       res = await supabase
         .from("professionals")
         .select(
-          "id, name, avatar_url, phone, slug, specialty, specialties, bio, languages, district, town, clinic_address, latitude, longitude, clinic_place_id, status, subscription_tier, is_gesy"
-        )
-        .eq("auth_user_id", user.id)
-        .single();
-    }
-
-    if (res.error && hasColError(res.error, "specialties")) {
-      res = await supabase
-        .from("professionals")
-        .select(
-          "id, name, avatar_url, phone, slug, specialty, bio, languages, district, town, clinic_address, latitude, longitude, clinic_place_id, status, subscription_tier, is_gesy"
+          "id, name, avatar_url, phone, slug, bio, languages, district, town, clinic_address, latitude, longitude, clinic_place_id, status, subscription_tier, is_gesy"
         )
         .eq("auth_user_id", user.id)
         .single();
@@ -109,7 +104,7 @@ export default async function AgendaSettingsPage() {
       res = await supabase
         .from("professionals")
         .select(
-          "id, name, avatar_url, phone, slug, specialty, bio, languages, district, clinic_address, latitude, longitude, clinic_place_id, status, subscription_tier, is_gesy"
+          "id, name, avatar_url, phone, slug, bio, languages, district, clinic_address, latitude, longitude, clinic_place_id, status, subscription_tier, is_gesy"
         )
         .eq("auth_user_id", user.id)
         .single();
@@ -124,7 +119,7 @@ export default async function AgendaSettingsPage() {
       res = await supabase
         .from("professionals")
         .select(
-          "id, name, avatar_url, phone, slug, specialty, languages, district, clinic_address, status, subscription_tier, is_gesy"
+          "id, name, avatar_url, phone, slug, languages, district, clinic_address, status, subscription_tier, is_gesy"
         )
         .eq("auth_user_id", user.id)
         .single();
@@ -134,7 +129,7 @@ export default async function AgendaSettingsPage() {
       res = await supabase
         .from("professionals")
         .select(
-          "id, name, avatar_url, phone, slug, specialty, languages, district, clinic_address, status, subscription_tier"
+          "id, name, avatar_url, phone, slug, languages, district, clinic_address, status, subscription_tier"
         )
         .eq("auth_user_id", user.id)
         .single();
@@ -143,7 +138,7 @@ export default async function AgendaSettingsPage() {
       res = await supabase
         .from("professionals")
         .select(
-          "id, name, phone, slug, specialty, languages, district, clinic_address, status, subscription_tier"
+          "id, name, phone, slug, languages, district, clinic_address, status, subscription_tier"
         )
         .eq("auth_user_id", user.id)
         .single();
@@ -152,7 +147,7 @@ export default async function AgendaSettingsPage() {
       res = await supabase
         .from("professionals")
         .select(
-          "id, name, avatar_url, phone, slug, specialty, languages, district, clinic_address, status"
+          "id, name, avatar_url, phone, slug, languages, district, clinic_address, status"
         )
         .eq("auth_user_id", user.id)
         .single();
@@ -160,7 +155,7 @@ export default async function AgendaSettingsPage() {
     if (res.error && (res.error as { code?: string }).code === "42703") {
       res = await supabase
         .from("professionals")
-        .select("id, name, phone, slug, specialty, languages, district, clinic_address, status")
+        .select("id, name, phone, slug, languages, district, clinic_address, status")
         .eq("auth_user_id", user.id)
         .single();
     }
@@ -175,7 +170,7 @@ export default async function AgendaSettingsPage() {
     let fallback = await supabase
       .from("professionals")
       .select(
-        "id, name, avatar_url, slug, specialty, languages, district, clinic_address, status, is_specialty_approved, specialty_requires_standard_at, subscription_tier"
+        "id, name, avatar_url, slug, languages, district, clinic_address, status, specialty_requires_standard_at, subscription_tier"
       )
       .eq("auth_user_id", user.id)
       .single();
@@ -184,7 +179,7 @@ export default async function AgendaSettingsPage() {
       fallback = await supabase
         .from("professionals")
         .select(
-          "id, name, avatar_url, slug, specialty, languages, district, clinic_address, status, is_specialty_approved, subscription_tier"
+          "id, name, avatar_url, slug, languages, district, clinic_address, status, subscription_tier"
         )
         .eq("auth_user_id", user.id)
         .single();
@@ -194,7 +189,7 @@ export default async function AgendaSettingsPage() {
       fallback = await supabase
         .from("professionals")
         .select(
-          "id, name, slug, specialty, languages, district, clinic_address, status, is_specialty_approved, subscription_tier"
+          "id, name, slug, languages, district, clinic_address, status, subscription_tier"
         )
         .eq("auth_user_id", user.id)
         .single();
@@ -203,7 +198,7 @@ export default async function AgendaSettingsPage() {
       fallback = await supabase
         .from("professionals")
         .select(
-          "id, name, avatar_url, slug, specialty, languages, district, clinic_address, status, is_specialty_approved"
+          "id, name, avatar_url, slug, languages, district, clinic_address, status"
         )
         .eq("auth_user_id", user.id)
         .single();
@@ -211,7 +206,7 @@ export default async function AgendaSettingsPage() {
     if (fallback.error && (fallback.error as { code?: string }).code === "42703") {
       fallback = await supabase
         .from("professionals")
-        .select("id, name, slug, specialty, languages, district, clinic_address, status, is_specialty_approved")
+        .select("id, name, slug, languages, district, clinic_address, status")
         .eq("auth_user_id", user.id)
         .single();
     }
@@ -221,19 +216,16 @@ export default async function AgendaSettingsPage() {
   }
 
   if (doctor) {
-    // Always hydrate specialty review flags so banner/UI state remains correct
+    // Always hydrate the specialty review flag so banner/UI state remains correct
     // even when primary selects use compatibility fallbacks.
     const { data: specialtyFlags } = await supabase
       .from("professionals")
-      .select("is_specialty_approved, specialty_requires_standard_at")
+      .select("specialty_requires_standard_at")
       .eq("id", doctor.id)
       .maybeSingle();
     if (specialtyFlags) {
       doctor = {
         ...doctor,
-        is_specialty_approved:
-          (specialtyFlags as { is_specialty_approved?: boolean | null })
-            .is_specialty_approved ?? doctor.is_specialty_approved ?? null,
         specialty_requires_standard_at:
           (specialtyFlags as { specialty_requires_standard_at?: string | null })
             .specialty_requires_standard_at ??
@@ -320,6 +312,12 @@ export default async function AgendaSettingsPage() {
 
   const displayName = doctorDashboardDisplayName(doctor.name);
 
+  // professional_specialties has no RLS policies for users: read it with the service role.
+  const specialtyService = createServiceRoleClient();
+  const specialtyEntries = specialtyService
+    ? await loadSpecialtyEntries(specialtyService, doctor.id)
+    : [];
+
   let pendingSpecialtyChange: DoctorSettingsFormData["pendingSpecialtyChange"] = null;
   {
     const pendingChangeRes = await supabase
@@ -396,13 +394,9 @@ export default async function AgendaSettingsPage() {
       (doctor.avatar_url ?? "").trim().length > 0
         ? supabase.storage.from("avatars").getPublicUrl(String(doctor.avatar_url)).data.publicUrl
         : null,
-    specialty: (doctor.specialty ?? "").trim(),
-    specialties: Array.isArray((doctor as { specialties?: string[] | null }).specialties)
-      ? ((doctor as { specialties?: string[] }).specialties ?? [])
-          .map((s) => String(s ?? "").trim())
-          .filter(Boolean)
-      : undefined,
-    isSpecialtyApproved: doctor.is_specialty_approved ?? true,
+    specialty: primarySpecialtyEntry(specialtyEntries)?.name ?? "",
+    specialties: approvedSpecialtyNames(specialtyEntries),
+    isSpecialtyApproved: !hasPendingSpecialty(specialtyEntries),
     pendingSpecialtyChange,
     bio: (doctor.bio ?? "").trim(),
     languages: langArr,

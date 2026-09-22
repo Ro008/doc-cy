@@ -99,6 +99,24 @@ export async function createTestDoctor(
   };
 }
 
+/**
+ * Gives a seeded professional its specialty the way /register does: a
+ * professional_specialties row (the professionals columns are derived/legacy).
+ */
+export async function seedProfessionalSpecialty(
+  admin: SupabaseClient,
+  professionalId: string,
+  input: { specialty: string; licenseNumber?: string | null; isApproved?: boolean },
+): Promise<void> {
+  const { error } = await admin.from("professional_specialties").insert({
+    professional_id: professionalId,
+    specialty: input.specialty,
+    license_number: input.licenseNumber ?? null,
+    is_approved: input.isApproved ?? true,
+  });
+  if (error) throw new Error(`Failed creating professional_specialties: ${error.message}`);
+}
+
 export async function deleteTestDoctor(fixture: TestDoctorFixture): Promise<void> {
   const { admin, doctorId, authUserId } = fixture;
   if (doctorId) {

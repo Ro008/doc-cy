@@ -15,6 +15,8 @@ import { loadDoctorLocations } from "@/lib/load-doctor-locations";
 import { sendPatientAppointmentConfirmedEmail } from "@/lib/send-patient-appointment-confirmed-email";
 import { sendDoctorAppointmentConfirmedEmail } from "@/lib/send-doctor-appointment-confirmed-email";
 import { professionalAccountEmail } from "@/lib/professional-account-contact";
+import { createServiceRoleClient } from "@/lib/supabase-service";
+import { loadPrimarySpecialtyName } from "@/lib/specialty-catalogue";
 
 type RouteContext = { params: { id: string } };
 
@@ -52,7 +54,7 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
 
   const { data: doctor, error: doctorErr } = await supabase
     .from("professionals")
-    .select("id, name, email, registration_email, phone, specialty, clinic_address")
+    .select("id, name, email, registration_email, phone, clinic_address")
     .eq("auth_user_id", user.id)
     .maybeSingle();
 
@@ -154,6 +156,11 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
       .clinic_address,
   });
 
+  const specialtyService = createServiceRoleClient();
+  const specialtyName = specialtyService
+    ? await loadPrimarySpecialtyName(specialtyService, doctor.id as string)
+    : null;
+
   try {
     await sendPatientAppointmentConfirmedEmail({
       siteUrl,
@@ -165,7 +172,7 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
       reason: (appt as { reason?: string | null }).reason ?? null,
       doctor: {
         name: doctor.name,
-        specialty: (doctor as { specialty?: string | null }).specialty,
+        specialty: specialtyName,
         phone: (doctor as { phone?: string | null }).phone,
         clinic_address: clinic.address,
       },

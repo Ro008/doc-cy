@@ -11,6 +11,8 @@ import {
   normalizeDoctorVerificationStatus,
 } from "@/lib/doctor-account-access";
 import { doctorDashboardDisplayName } from "@/lib/doctor-display-name";
+import { createServiceRoleClient } from "@/lib/supabase-service";
+import { hasPendingSpecialty, loadSpecialtyEntries } from "@/lib/specialty-catalogue";
 
 export default async function DoctorAccountReviewPage() {
   const supabase = createServerComponentClient({ cookies });
@@ -26,7 +28,7 @@ export default async function DoctorAccountReviewPage() {
 
   const { data: doctor, error: doctorError } = await supabase
     .from("professionals")
-    .select("id, name, status, is_specialty_approved")
+    .select("id, name, status")
     .eq("auth_user_id", user.id)
     .maybeSingle();
 
@@ -54,10 +56,14 @@ export default async function DoctorAccountReviewPage() {
   if (verificationStatus === "verified") {
     redirect("/agenda");
   }
+  // professional_specialties has no RLS policies for users: read it with the service role.
+  const specialtyService = createServiceRoleClient();
+  const specialtyEntries = specialtyService
+    ? await loadSpecialtyEntries(specialtyService, doctor.id)
+    : [];
   const rejectionKind = getDoctorRejectionKind({
     status: doctor.status,
-    is_specialty_approved: (doctor as { is_specialty_approved?: boolean | null })
-      .is_specialty_approved,
+    is_specialty_approved: !hasPendingSpecialty(specialtyEntries),
   });
 
   return (

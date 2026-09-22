@@ -11,14 +11,13 @@ const karina: PendingSpecialtyProfessional = {
   id: "pro-1",
   name: "Karina Miño",
   email: "karina@example.com",
-  specialty: "Psychology",
 };
 
 function junction(
   overrides: Partial<PendingSpecialtyJunctionRow> & { id: string },
 ): PendingSpecialtyJunctionRow {
   return {
-    doctor_id: "pro-1",
+    professional_id: "pro-1",
     specialty: null,
     license_number: null,
     is_approved: true,
@@ -85,7 +84,7 @@ describe("buildPendingSpecialtyItems", () => {
 
   it("flags a lone pending specialty so rejecting closes the application", () => {
     const items = buildPendingSpecialtyItems(
-      [{ ...karina, specialty: "meditation" }],
+      [karina],
       [junction({ id: "only", specialty: "meditation", is_approved: false })],
     );
 
@@ -93,12 +92,13 @@ describe("buildPendingSpecialtyItems", () => {
     assert.equal(items[0]?.specialtyId, "only");
   });
 
-  it("falls back to the denormalized column when there is no junction row", () => {
-    const items = buildPendingSpecialtyItems([karina], []);
+  it("skips a professional with nothing pending", () => {
+    const items = buildPendingSpecialtyItems(
+      [karina],
+      [junction({ id: "done", specialty: "Psychology", is_approved: true })],
+    );
 
-    assert.equal(items[0]?.specialtyId, null);
-    assert.equal(items[0]?.specialty, "Psychology");
-    assert.equal(items[0]?.hasOtherSpecialties, false);
+    assert.deepEqual(items, []);
   });
 
   it("keeps professionals apart when several have pending specialties", () => {
@@ -106,7 +106,6 @@ describe("buildPendingSpecialtyItems", () => {
       id: "pro-2",
       name: "  ",
       email: null,
-      specialty: "Wellness",
     };
     const items = buildPendingSpecialtyItems(
       [karina, other],
@@ -114,7 +113,7 @@ describe("buildPendingSpecialtyItems", () => {
         junction({ id: "a", specialty: "Sexologist", is_approved: false }),
         junction({
           id: "b",
-          doctor_id: "pro-2",
+          professional_id: "pro-2",
           specialty: "energy healing",
           is_approved: false,
         }),

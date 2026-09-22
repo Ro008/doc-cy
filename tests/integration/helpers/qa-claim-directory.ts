@@ -3,6 +3,7 @@ import {
   QA_CLAIM_DIRECTORY_NAME_PREFIX,
   QA_CLAIM_DIRECTORY_SLUG_PREFIX,
 } from "@/lib/doctor-test-profile";
+import { seedProfessionalSpecialty } from "./test-doctor";
 
 export type QaClaimDirectoryClone = {
   id: string;
@@ -28,8 +29,6 @@ export async function createQaClaimDirectoryClone(
     .from("professionals")
     .insert({
       name,
-      specialty: "Gynecology",
-      specialties: ["Gynecology"],
       district: "Nicosia",
       slug,
       clinic_address: "Archiepiskopou Makariou III, Nicosia 1065, Cyprus",
@@ -49,6 +48,9 @@ export async function createQaClaimDirectoryClone(
   if (insert.error || !insert.data?.id) {
     throw new Error(`Failed creating QA claim clone: ${insert.error?.message ?? "missing id"}`);
   }
+  await seedProfessionalSpecialty(admin, String(insert.data.id), {
+    specialty: "Obstetrics - Gynaecology",
+  });
 
   return {
     id: String(insert.data.id),

@@ -10,6 +10,7 @@ import {
 } from "@/lib/doctor-test-profile";
 import { escapeIlikePattern } from "@/lib/finder-results-paging";
 import { harmonizeFinderSpecialtyLabel } from "@/lib/finder-specialty-harmonize";
+import { SPECIALTY_LINKS_SELECT, specialtyNamesForRow } from "@/lib/specialty-catalogue";
 
 export const REGISTER_CLAIM_QUERY = "claim";
 
@@ -374,7 +375,15 @@ export function pickUniqueHistoricalAbsorbPairs(
 }
 
 function claimSelect() {
-  return "id, slug, name, specialty, specialties, district, email";
+  return `id, slug, name, district, email, ${SPECIALTY_LINKS_SELECT}`;
+}
+
+/** Listing row with its approved labels (professional_specialties) as `specialties`. */
+function withListingSpecialties<T extends { specialty_links?: unknown }>(
+  row: T,
+): Omit<T, "specialty_links"> & { specialties: string[] } {
+  const { specialty_links: links, ...rest } = row;
+  return { ...rest, specialties: specialtyNamesForRow({ specialty_links: links }) };
 }
 
 async function loadUnregisteredListings(
@@ -386,7 +395,9 @@ async function loadUnregisteredListings(
     console.error("[DocCy] directory claim lookup failed", error);
     return [];
   }
-  return (data ?? []) as DirectoryClaimListing[];
+  return ((data ?? []) as (DirectoryClaimListing & { specialty_links?: unknown })[]).map(
+    withListingSpecialties,
+  );
 }
 
 /**
@@ -480,7 +491,7 @@ export async function loadUnregisteredProfessionalForRegisterClaim(
   const { data, error } = await supabase
     .from("professionals")
     .select(
-      "id, slug, name, specialty, specialties, district, town, address, clinic_address, latitude, longitude",
+      `id, slug, name, district, town, address, clinic_address, latitude, longitude, ${SPECIALTY_LINKS_SELECT}`,
     )
     .eq("id", id)
     .eq("is_registered", false)
@@ -493,7 +504,7 @@ export async function loadUnregisteredProfessionalForRegisterClaim(
   }
   if (!data?.id) return null;
 
-  const prefill = toRegisterClaimPrefill(data);
+  const prefill = toRegisterClaimPrefill(withListingSpecialties(data));
   const { data: linkRows, error: linkError } = await supabase
     .from("professional_clinics")
     .select(

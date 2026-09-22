@@ -419,7 +419,7 @@ export async function POST(req: NextRequest) {
   try {
     const { data: doctor } = await supabase
       .from("professionals")
-      .select("name, email, registration_email, phone, specialty, clinic_address")
+      .select("name, email, registration_email, phone, clinic_address")
       .eq("id", doctorId)
       .single();
 

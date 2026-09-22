@@ -276,14 +276,30 @@ test.describe("Integration: doctor account access", { tag: "@pr-e2e" }, () => {
         if (res.error) throw new Error(`pending specialty: ${res.error.message}`);
         return String(res.data.id);
       };
-      const readProfessional = async () =>
-        (
-          await admin
-            .from("professionals")
-            .select("specialty, specialties, is_specialty_approved, status")
-            .eq("id", doctorId)
-            .single()
-        ).data;
+      // What the app derives from professional_specialties: approved labels
+      // (alphabetical), the first one as `specialty`, and the pending flag.
+      const readProfessional = async () => {
+        const status = (
+          await admin.from("professionals").select("status").eq("id", doctorId).single()
+        ).data?.status;
+        const rows =
+          (
+            await admin
+              .from("professional_specialties")
+              .select("is_approved, specialties(name)")
+              .eq("professional_id", doctorId)
+          ).data ?? [];
+        const specialties = rows
+          .filter((r) => r.is_approved)
+          .map((r) => (r.specialties as { name?: string } | null)?.name ?? "")
+          .sort((a, b) => a.localeCompare(b));
+        return {
+          status,
+          specialty: specialties[0] ?? null,
+          specialties,
+          is_specialty_approved: rows.every((r) => r.is_approved),
+        };
+      };
       const specialtyLabels = async () =>
         (
           (
@@ -299,7 +315,8 @@ test.describe("Integration: doctor account access", { tag: "@pr-e2e" }, () => {
           .status(),
       ).toBe(200);
       let row = await readProfessional();
-      expect(row?.specialty).toBe("Wellness");
+      // Labels are catalogue names; Testing's catalogue keeps earlier runs' casing.
+      expect(row?.specialty?.toLowerCase()).toBe("wellness");
       expect(row?.is_specialty_approved).toBe(true);
       expect(row?.status).toBe("pending");
 
@@ -317,7 +334,10 @@ test.describe("Integration: doctor account access", { tag: "@pr-e2e" }, () => {
         ).status(),
       ).toBe(200);
       row = await readProfessional();
-      expect(row?.specialties).toEqual(["Meditation", "Wellness"]);
+      expect(row?.specialties.map((label) => label.toLowerCase())).toEqual([
+        "meditation",
+        "wellness",
+      ]);
       expect(row?.is_specialty_approved).toBe(true);
 
       // Rejecting one of several specialties removes only that one.
@@ -415,17 +435,13 @@ test.describe("Integration: doctor account access", { tag: "@pr-e2e" }, () => {
               .select("specialty, is_approved")
               .eq("professional_id", doctorId)
           ).data ?? [];
-        const pro = (
-          await admin
-            .from("professionals")
-            .select("specialties, is_specialty_approved")
-            .eq("id", doctorId)
-            .single()
-        ).data;
         return {
           rows: rows.map((r) => `${r.specialty}:${r.is_approved}`).sort(),
-          specialties: pro?.specialties,
-          approved: pro?.is_specialty_approved,
+          specialties: rows
+            .filter((r) => r.is_approved)
+            .map((r) => r.specialty)
+            .sort((a, b) => a.localeCompare(b)),
+          approved: rows.every((r) => r.is_approved),
         };
       };
 

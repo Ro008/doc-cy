@@ -103,17 +103,18 @@ async function createPsychologyPlusSexologyDoctor(
   }
 
   const verify = await admin
-    .from("professionals")
-    .select("specialty, specialties")
-    .eq("id", doctorId)
-    .single();
-  const specialties = Array.isArray(verify.data?.specialties) ? verify.data.specialties : [];
+    .from("professional_specialties")
+    .select("is_approved, specialties(name)")
+    .eq("professional_id", doctorId);
+  const specialties = (verify.data ?? [])
+    .filter((row) => row.is_approved)
+    .map((row) => (row.specialties as { name?: string } | null)?.name ?? "");
   if (verify.error || !specialties.includes("Sexology") || !specialties.includes("Psychology")) {
     await admin.from("professional_specialties").delete().eq("professional_id", doctorId);
     await admin.from("professionals").delete().eq("id", doctorId);
     await admin.auth.admin.deleteUser(authUserId);
     throw new Error(
-      `Expected Psychology + Sexology on professionals.specialties, got ${JSON.stringify(verify.data)}`,
+      `Expected approved Psychology + Sexology specialty rows, got ${JSON.stringify(verify.data)}`,
     );
   }
 

@@ -73,6 +73,14 @@ import {
 import { loadLocalTestLoginPasswordsByAuthUserId } from "@/lib/local-test-login-credentials";
 import { getInternalDirectoryRole } from "@/lib/internal-directory-auth";
 import { professionalAccountEmail } from "@/lib/professional-account-contact";
+import {
+  hasPendingSpecialty,
+  loadSpecialtyEntriesByProfessionalIds,
+  primarySpecialtyEntry,
+  SPECIALTY_LINKS_SELECT,
+  specialtyNamesForRow,
+  type ProfessionalSpecialtyEntry,
+} from "@/lib/specialty-catalogue";
 
 function sortManualPatientVoteRows(
   rows: ManualPatientVoteRow[],
@@ -206,9 +214,9 @@ export default async function FounderDashboardPage({
   const chartRangeStart = startOfMonth(subMonths(new Date(), 5));
 
   const doctorSelectWithAccountEmail =
-    "id, name, email, registration_email, phone, slug, specialty, languages, status, created_at, license_number, license_file_url, is_specialty_approved, specialty_requires_standard_at, auth_user_id, directory_claim_source";
+    "id, name, email, registration_email, phone, slug, languages, status, created_at, license_file_url, specialty_requires_standard_at, auth_user_id, directory_claim_source";
   const doctorSelectLegacy =
-    "id, name, email, phone, slug, specialty, languages, status, created_at, license_number, license_file_url, is_specialty_approved, specialty_requires_standard_at, auth_user_id, directory_claim_source";
+    "id, name, email, phone, slug, languages, status, created_at, license_file_url, specialty_requires_standard_at, auth_user_id, directory_claim_source";
 
   let doctorsRes = await fetchAllSupabaseRows(() =>
     supabase
@@ -237,7 +245,7 @@ export default async function FounderDashboardPage({
       supabase
         .from("professionals")
         .select(
-          "id, name, email, registration_email, phone, slug, specialty, languages, status, created_at, license_number, license_file_url, is_specialty_approved, specialty_requires_standard_at, auth_user_id",
+          "id, name, email, registration_email, phone, slug, languages, status, created_at, license_file_url, specialty_requires_standard_at, auth_user_id",
         )
         .eq("is_registered", true)
         .order("created_at", { ascending: false }),
@@ -308,7 +316,20 @@ export default async function FounderDashboardPage({
   }
 
   const rawDoctors = doctorsRes.data ?? [];
-  const rows = rawDoctors.map((d) => ({
+  // Specialty, licence and review flag come from professional_specialties.
+  let specialtyEntriesByDoctor = new Map<string, ProfessionalSpecialtyEntry[]>();
+  try {
+    specialtyEntriesByDoctor = await loadSpecialtyEntriesByProfessionalIds(
+      supabase,
+      rawDoctors.map((d) => String(d.id)),
+    );
+  } catch (err) {
+    console.error("[internal/directory] professional specialties load failed", err);
+  }
+  const rows = rawDoctors.map((d) => {
+    const entries = specialtyEntriesByDoctor.get(String(d.id)) ?? [];
+    const primary = primarySpecialtyEntry(entries);
+    return {
     id: d.id as string,
     name: d.name as string,
     email:
@@ -318,18 +339,17 @@ export default async function FounderDashboardPage({
       }) || null,
     phone: (d as { phone?: string | null }).phone ?? null,
     slug: (d.slug as string | null) ?? null,
-    specialty: (d.specialty as string | null) ?? null,
+    specialty: primary?.name ?? null,
     languages: Array.isArray(d.languages)
       ? (d.languages as string[])
       : d.languages
         ? [String(d.languages)]
         : [],
     status: (d.status as string | null) ?? null,
-    license_number: (d as { license_number?: string | null }).license_number ?? null,
+    license_number: primary?.licenseNumber ?? null,
     license_file_url: (d as { license_file_url?: string | null }).license_file_url ?? null,
     created_at: (d as { created_at?: string | null }).created_at ?? null,
-    is_specialty_approved:
-      (d as { is_specialty_approved?: boolean | null }).is_specialty_approved ?? true,
+    is_specialty_approved: !hasPendingSpecialty(entries),
     specialty_requires_standard_at:
       (d as { specialty_requires_standard_at?: string | null })
         .specialty_requires_standard_at ?? null,
@@ -337,7 +357,8 @@ export default async function FounderDashboardPage({
     directoryClaimSource: parseDirectoryClaimSource(
       (d as { directory_claim_source?: string | null }).directory_claim_source,
     ),
-  }));
+    };
+  });
 
   const showLocalTestCredentials = runtimeLabel === "local";
   let directoryDoctorRows: DirectoryDoctorRow[] = rows.map((r) => {
@@ -389,60 +410,27 @@ export default async function FounderDashboardPage({
     });
   }
 
-  let pendingRes = await supabase
-    .from("professionals")
-    .select("id, name, specialty, email, registration_email")
-    .eq("is_specialty_approved", false)
-    .eq("status", "pending")
-    .eq("is_registered", true)
-    .order("created_at", { ascending: false });
-  if (
-    pendingRes.error &&
-    /registration_email/i.test(String(pendingRes.error.message ?? ""))
-  ) {
-    pendingRes = (await supabase
-      .from("professionals")
-      .select("id, name, specialty, email")
-      .eq("is_specialty_approved", false)
-      .eq("status", "pending")
-      .eq("is_registered", true)
-      .order("created_at", { ascending: false })) as typeof pendingRes;
-  }
+  // Registered, still pending, with a custom specialty awaiting review (newest first).
+  const pendingProfessionals = rows
+    .filter(
+      (r) => !r.is_specialty_approved && (r.status ?? "").trim().toLowerCase() === "pending",
+    )
+    .map((r) => ({ id: r.id, name: r.name ?? null, email: r.email }));
 
-  const pendingProfessionals =
-    pendingRes.error || !pendingRes.data
-      ? []
-      : pendingRes.data.map((r) => ({
-          id: r.id as string,
-          name: (r.name as string) ?? null,
-          specialty: (r as { specialty?: string | null }).specialty ?? null,
-          email:
-            professionalAccountEmail({
-              registration_email: (r as { registration_email?: string | null })
-                .registration_email,
-              email: (r as { email?: string | null }).email,
-            }) || null,
-        }));
-
-  let pendingSpecialtyItems: PendingSpecialtyRow[] = [];
-  if (pendingProfessionals.length > 0) {
-    const { data: specialtyRows, error: specialtyRowsError } =
-      await fetchAllSupabaseRowsForIdChunks(
-        pendingProfessionals.map((r) => r.id),
-        (chunk) =>
-          supabase
-            .from("doctor_specialties")
-            .select("id, doctor_id, specialty, license_number, is_approved")
-            .in("doctor_id", chunk),
-      );
-    if (specialtyRowsError) {
-      console.error("[internal/directory] pending specialties load failed", specialtyRowsError);
-    }
-    pendingSpecialtyItems = buildPendingSpecialtyItems(
-      pendingProfessionals,
-      (specialtyRows ?? []) as PendingSpecialtyJunctionRow[],
-    );
-  }
+  const pendingSpecialtyItems: PendingSpecialtyRow[] = buildPendingSpecialtyItems(
+    pendingProfessionals,
+    pendingProfessionals.flatMap((r) =>
+      (specialtyEntriesByDoctor.get(r.id) ?? []).map(
+        (entry): PendingSpecialtyJunctionRow => ({
+          id: entry.id,
+          professional_id: r.id,
+          specialty: entry.name,
+          license_number: entry.licenseNumber,
+          is_approved: entry.isApproved,
+        }),
+      ),
+    ),
+  );
 
   let specialtyChangeRequestItems: SpecialtyChangeRequestRow[] = [];
   {
@@ -539,13 +527,13 @@ export default async function FounderDashboardPage({
   let pendingRegistrationItems: PendingRegistrationReviewItem[] = [];
   if (pendingRegistrationIds.length > 0) {
     const pendingSelectFull =
-      "id, name, slug, email, registration_email, phone, mobile_number, avatar_url, languages, specialty, license_number, license_file_url, district, town, clinic_address, latitude, longitude, clinic_place_id, created_at, is_specialty_approved, specialty_requires_standard_at, directory_claim_source, claim_listing_id, status";
+      "id, name, slug, email, registration_email, phone, mobile_number, avatar_url, languages, license_file_url, district, town, clinic_address, latitude, longitude, clinic_place_id, created_at, specialty_requires_standard_at, directory_claim_source, claim_listing_id, status";
     const pendingSelectNoMobile =
-      "id, name, slug, email, registration_email, phone, avatar_url, languages, specialty, license_number, license_file_url, district, town, clinic_address, latitude, longitude, clinic_place_id, created_at, is_specialty_approved, specialty_requires_standard_at, directory_claim_source, claim_listing_id, status";
+      "id, name, slug, email, registration_email, phone, avatar_url, languages, license_file_url, district, town, clinic_address, latitude, longitude, clinic_place_id, created_at, specialty_requires_standard_at, directory_claim_source, claim_listing_id, status";
     const pendingSelectLegacy =
-      "id, name, slug, email, phone, avatar_url, languages, specialty, license_number, license_file_url, district, clinic_address, latitude, longitude, clinic_place_id, created_at, is_specialty_approved, specialty_requires_standard_at, directory_claim_source, status";
+      "id, name, slug, email, phone, avatar_url, languages, license_file_url, district, clinic_address, latitude, longitude, clinic_place_id, created_at, specialty_requires_standard_at, directory_claim_source, status";
     const pendingSelectNoClaimSource =
-      "id, name, slug, email, registration_email, phone, mobile_number, avatar_url, languages, specialty, license_number, license_file_url, district, town, clinic_address, latitude, longitude, clinic_place_id, created_at, is_specialty_approved, specialty_requires_standard_at, status";
+      "id, name, slug, email, registration_email, phone, mobile_number, avatar_url, languages, license_file_url, district, town, clinic_address, latitude, longitude, clinic_place_id, created_at, specialty_requires_standard_at, status";
 
     let pendingFullRes = await fetchAllSupabaseRowsForIdChunks(
       pendingRegistrationIds,
@@ -585,14 +573,8 @@ export default async function FounderDashboardPage({
       )) as typeof pendingFullRes;
     }
 
-    const [{ data: specialtyRowsForPending }, { data: locationRowsForPending }] =
+    const [{ data: locationRowsForPending }] =
       await Promise.all([
-        fetchAllSupabaseRowsForIdChunks(pendingRegistrationIds, (chunk) =>
-          supabase
-            .from("doctor_specialties")
-            .select("id, doctor_id, specialty, license_number, is_approved")
-            .in("doctor_id", chunk),
-        ),
         fetchAllSupabaseRowsForIdChunks(pendingRegistrationIds, (chunk) =>
           supabase
             .from("doctor_locations")
@@ -602,30 +584,6 @@ export default async function FounderDashboardPage({
             .in("doctor_id", chunk),
         ),
       ]);
-
-    const specialtiesByDoctor = new Map<
-      string,
-      {
-        id: string | null;
-        specialty: string;
-        licenseNumber: string | null;
-        isApproved: boolean;
-      }[]
-    >();
-    for (const row of specialtyRowsForPending ?? []) {
-      const doctorId = String((row as { doctor_id?: string }).doctor_id ?? "");
-      if (!doctorId) continue;
-      const list = specialtiesByDoctor.get(doctorId) ?? [];
-      list.push({
-        id: String((row as { id?: string }).id ?? "") || null,
-        specialty: String((row as { specialty?: string }).specialty ?? "").trim(),
-        licenseNumber:
-          String((row as { license_number?: string | null }).license_number ?? "").trim() ||
-          null,
-        isApproved: Boolean((row as { is_approved?: boolean | null }).is_approved),
-      });
-      specialtiesByDoctor.set(doctorId, list);
-    }
 
     const locationsByDoctor = new Map<
       string,
@@ -744,13 +702,11 @@ export default async function FounderDashboardPage({
             ];
           }
         }
-        const specialties = (specialtiesByDoctor.get(id) ?? []).filter((s) =>
-          Boolean(s.specialty),
-        );
+        const specialtyEntries = specialtyEntriesByDoctor.get(id) ?? [];
+        const primaryEntry = primarySpecialtyEntry(specialtyEntries);
         const claimSource = parseDirectoryClaimSource(
           raw.directory_claim_source as string | null | undefined,
         );
-        const primarySpecialty = String(raw.specialty ?? "").trim() || null;
         const origin = classifyPendingRegistrationOrigin({ claimSource });
         const claimListingId = String(raw.claim_listing_id ?? "").trim() || null;
         const claimedListingSlug =
@@ -773,14 +729,14 @@ export default async function FounderDashboardPage({
           claimedListingSlug,
           avatarUrl,
           languages,
-          specialties: specialties.map(({ id: sid, specialty, licenseNumber, isApproved }) => ({
-            id: sid,
-            specialty,
-            licenseNumber,
-            isApproved,
+          specialties: specialtyEntries.map((entry) => ({
+            id: entry.id || null,
+            specialty: entry.name,
+            licenseNumber: entry.licenseNumber,
+            isApproved: entry.isApproved,
           })),
-          primarySpecialty,
-          primaryLicenseNumber: String(raw.license_number ?? "").trim() || null,
+          primarySpecialty: primaryEntry?.name ?? null,
+          primaryLicenseNumber: primaryEntry?.licenseNumber ?? null,
           locations: locations.map(
             ({ id: lid, district, town, address, latitude, longitude, placeId, isPrimary }) => ({
               id: lid,
@@ -795,8 +751,7 @@ export default async function FounderDashboardPage({
           ),
           licenseFileUrl: String(raw.license_file_url ?? "").trim() || null,
           createdAt: String(raw.created_at ?? "").trim() || null,
-          isSpecialtyApproved:
-            (raw.is_specialty_approved as boolean | null | undefined) ?? true,
+          isSpecialtyApproved: !hasPendingSpecialty(specialtyEntries),
           specialtyRequiresStandardAt:
             String(raw.specialty_requires_standard_at ?? "").trim() || null,
           fromDirectoryListing: origin.kind === "claimed",
@@ -855,7 +810,7 @@ export default async function FounderDashboardPage({
       const ids = voteStats.map((v: { professional_id: string }) => String(v.professional_id));
       const { data: namesRows } = await supabase
         .from("professionals")
-        .select("id, name, district, specialty")
+        .select(`id, name, district, ${SPECIALTY_LINKS_SELECT}`)
         .in("id", ids.length > 500 ? ids.slice(0, 500) : ids);
       const nameMap = new Map(
         (namesRows ?? []).map((n) => [
@@ -863,7 +818,7 @@ export default async function FounderDashboardPage({
           {
             name: String((n as { name?: string }).name ?? ""),
             district: (n as { district?: string | null }).district ?? null,
-            specialty: (n as { specialty?: string | null }).specialty ?? null,
+            specialty: specialtyNamesForRow(n as { specialty_links?: unknown })[0] ?? null,
           },
         ])
       );
@@ -972,7 +927,10 @@ export default async function FounderDashboardPage({
       callToBookProfessionalProfileCount = totals.professionalProfileCount;
       const ids = clickStats.map((r: { professional_id: string }) => String(r.professional_id));
       const { data: namesRows } = await fetchAllSupabaseRowsForIdChunks(ids, (idChunk) =>
-        supabase.from("professionals").select("id, name, district, specialty").in("id", idChunk),
+        supabase
+          .from("professionals")
+          .select(`id, name, district, ${SPECIALTY_LINKS_SELECT}`)
+          .in("id", idChunk),
       );
       const nameMap = new Map(
         (namesRows ?? []).map((n) => [
@@ -980,7 +938,7 @@ export default async function FounderDashboardPage({
           {
             name: String((n as { name?: string }).name ?? ""),
             district: (n as { district?: string | null }).district ?? null,
-            specialty: (n as { specialty?: string | null }).specialty ?? null,
+            specialty: specialtyNamesForRow(n as { specialty_links?: unknown })[0] ?? null,
           },
         ]),
       );

@@ -69,7 +69,9 @@ import {
   finderSpecialtyOptionsFromCatalogue,
   catalogueIdsForSpecialtyNames,
   loadScrapedAvailableSpecialtyIds,
-  loadSpecialtiesByProfessionalIds,
+  approvedSpecialtyNames,
+  hasPendingSpecialty,
+  loadSpecialtyEntriesByProfessionalIds,
   catalogueIdsForFinderSlug,
   hasSpecialtySlug,
   loadSpecialtyCatalogue,
@@ -601,47 +603,45 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
     });
 
     const registeredSelectAttempts = [
-      "id, name, specialty, specialties, district, town, slug, email, languages, avatar_url, is_test_profile, clinic_address, is_gesy, is_specialty_approved, latitude, longitude, has_online_booking, is_registered",
-      "id, name, specialty, specialties, district, town, slug, email, languages, avatar_url, is_test_profile, clinic_address, is_gesy, is_specialty_approved, latitude, longitude",
-      "id, name, specialty, specialties, district, slug, email, languages, avatar_url, is_test_profile, clinic_address, is_gesy, is_specialty_approved, latitude, longitude",
-      "id, name, specialty, district, town, slug, email, languages, avatar_url, is_test_profile, clinic_address, is_gesy, is_specialty_approved, latitude, longitude",
-      "id, name, specialty, district, slug, email, languages, avatar_url, is_test_profile, clinic_address, is_gesy, is_specialty_approved, latitude, longitude",
-      "id, name, specialty, district, slug, email, languages, avatar_url, is_test_profile, clinic_address, is_gesy, is_specialty_approved",
-      "id, name, specialty, district, slug, email, languages, avatar_url, is_test_profile, clinic_address, latitude, longitude",
-      "id, name, specialty, district, slug, email, languages, avatar_url, is_test_profile, clinic_address",
-      "id, name, specialty, district, slug, email, languages, avatar_url, clinic_address, latitude, longitude",
-      "id, name, specialty, district, slug, email, languages, avatar_url, clinic_address",
-      "id, name, specialty, district, slug, email, languages, avatar_url, is_test_profile, latitude, longitude",
-      "id, name, specialty, district, slug, email, languages, avatar_url, is_test_profile",
-      "id, name, specialty, district, slug, email, languages, avatar_url",
-      "id, name, specialty, district, slug, email, languages, is_test_profile, latitude, longitude",
-      "id, name, specialty, district, slug, email, languages, is_test_profile",
-      "id, name, specialty, district, slug, email, languages, latitude, longitude",
-      "id, name, specialty, district, slug, email, languages",
-      "id, name, specialty, district, slug, email, is_test_profile, latitude, longitude",
-      "id, name, specialty, district, slug, email, is_test_profile",
-      "id, name, specialty, district, slug, email, latitude, longitude",
-      "id, name, specialty, district, slug, email",
-      "id, name, specialty, slug, email, is_test_profile, latitude, longitude",
-      "id, name, specialty, slug, email, is_test_profile",
-      "id, name, specialty, slug, email, latitude, longitude",
-      "id, name, specialty, slug, email",
-      "id, name, specialty, district, slug, languages, avatar_url, is_test_profile, latitude, longitude",
-      "id, name, specialty, district, slug, languages, avatar_url, is_test_profile",
-      "id, name, specialty, district, slug, languages, avatar_url, latitude, longitude",
-      "id, name, specialty, district, slug, languages, avatar_url",
-      "id, name, specialty, district, slug, languages, is_test_profile, latitude, longitude",
-      "id, name, specialty, district, slug, languages, is_test_profile",
-      "id, name, specialty, district, slug, languages, latitude, longitude",
-      "id, name, specialty, district, slug, languages",
-      "id, name, specialty, district, slug, is_test_profile, latitude, longitude",
-      "id, name, specialty, district, slug, is_test_profile",
-      "id, name, specialty, district, slug, latitude, longitude",
-      "id, name, specialty, district, slug",
-      "id, name, specialty, slug, is_test_profile, latitude, longitude",
-      "id, name, specialty, slug, is_test_profile",
-      "id, name, specialty, slug, latitude, longitude",
-      "id, name, specialty, slug",
+      "id, name, district, town, slug, email, languages, avatar_url, is_test_profile, clinic_address, is_gesy, latitude, longitude, has_online_booking, is_registered",
+      "id, name, district, town, slug, email, languages, avatar_url, is_test_profile, clinic_address, is_gesy, latitude, longitude",
+      "id, name, district, slug, email, languages, avatar_url, is_test_profile, clinic_address, is_gesy, latitude, longitude",
+      "id, name, district, slug, email, languages, avatar_url, is_test_profile, clinic_address, is_gesy",
+      "id, name, district, slug, email, languages, avatar_url, is_test_profile, clinic_address, latitude, longitude",
+      "id, name, district, slug, email, languages, avatar_url, is_test_profile, clinic_address",
+      "id, name, district, slug, email, languages, avatar_url, clinic_address, latitude, longitude",
+      "id, name, district, slug, email, languages, avatar_url, clinic_address",
+      "id, name, district, slug, email, languages, avatar_url, is_test_profile, latitude, longitude",
+      "id, name, district, slug, email, languages, avatar_url, is_test_profile",
+      "id, name, district, slug, email, languages, avatar_url",
+      "id, name, district, slug, email, languages, is_test_profile, latitude, longitude",
+      "id, name, district, slug, email, languages, is_test_profile",
+      "id, name, district, slug, email, languages, latitude, longitude",
+      "id, name, district, slug, email, languages",
+      "id, name, district, slug, email, is_test_profile, latitude, longitude",
+      "id, name, district, slug, email, is_test_profile",
+      "id, name, district, slug, email, latitude, longitude",
+      "id, name, district, slug, email",
+      "id, name, slug, email, is_test_profile, latitude, longitude",
+      "id, name, slug, email, is_test_profile",
+      "id, name, slug, email, latitude, longitude",
+      "id, name, slug, email",
+      "id, name, district, slug, languages, avatar_url, is_test_profile, latitude, longitude",
+      "id, name, district, slug, languages, avatar_url, is_test_profile",
+      "id, name, district, slug, languages, avatar_url, latitude, longitude",
+      "id, name, district, slug, languages, avatar_url",
+      "id, name, district, slug, languages, is_test_profile, latitude, longitude",
+      "id, name, district, slug, languages, is_test_profile",
+      "id, name, district, slug, languages, latitude, longitude",
+      "id, name, district, slug, languages",
+      "id, name, district, slug, is_test_profile, latitude, longitude",
+      "id, name, district, slug, is_test_profile",
+      "id, name, district, slug, latitude, longitude",
+      "id, name, district, slug",
+      "id, name, slug, is_test_profile, latitude, longitude",
+      "id, name, slug, is_test_profile",
+      "id, name, slug, latitude, longitude",
+      "id, name, slug",
     ];
 
     for (const selectClause of registeredSelectAttempts) {
@@ -686,13 +686,9 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
             id: String(raw.id ?? ""),
             name: String(raw.name ?? "Professional"),
             displayName: doctorDashboardDisplayName(String(raw.name ?? "Professional")),
-            isSpecialtyApproved:
-              (raw.is_specialty_approved as boolean | null | undefined) !== false,
-            specialty: getPublicSpecialtyDisplayLabel({
-              specialty: (raw.specialty as string | null) ?? null,
-              is_specialty_approved: raw.is_specialty_approved as boolean | null,
-            }),
             // Filled from professional_specialties below.
+            isSpecialtyApproved: true,
+            specialty: null,
             specialties: [],
             district: (raw.district as string | null) ?? null,
             town: inferCyprusTownFromClinic({
@@ -725,15 +721,24 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
     }
 
     try {
-      const labelsById = await loadSpecialtiesByProfessionalIds(
+      const entriesById = await loadSpecialtyEntriesByProfessionalIds(
         supabase,
         registeredRows.map((row) => row.id),
       );
       registeredRows = registeredRows.map((row) => {
-        // A pending custom specialty hides every label, as publicSpecialtyLabels did.
-        if (!row.isSpecialtyApproved) return { ...row, specialties: [] };
-        const names = (labelsById.get(row.id) ?? []).map((label) => label.name);
-        return { ...row, specialties: names, specialty: names[0] ?? row.specialty };
+        const entries = entriesById.get(row.id) ?? [];
+        const isSpecialtyApproved = !hasPendingSpecialty(entries);
+        // A pending custom specialty hides every label.
+        const names = isSpecialtyApproved ? approvedSpecialtyNames(entries) : [];
+        return {
+          ...row,
+          isSpecialtyApproved,
+          specialties: names,
+          specialty: getPublicSpecialtyDisplayLabel({
+            specialty: names[0] ?? null,
+            is_specialty_approved: isSpecialtyApproved,
+          }),
+        };
       });
     } catch (err) {
       console.error("[DocCy] registered specialties failed", err);
@@ -789,8 +794,7 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
       id: string;
       slug?: string | null;
       name: string | null;
-      specialty: string | null;
-      specialties?: string[] | null;
+      specialty_links?: unknown;
       district: CyprusDistrict;
       address_maps_link: string | null;
       phone?: string | null;
@@ -807,17 +811,16 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
     let manualRequiresFinderVisible = false;
     let manualSelectClause = "";
     const manualSelectAttempts = [
-      "id, slug, name, specialty, specialties, district, town, address_maps_link, phone, address, is_gesy, latitude, longitude, clinic_id, gender, finder_visible",
-      "id, slug, name, specialty, specialties, district, address_maps_link, phone, address, is_gesy, latitude, longitude, clinic_id, gender, finder_visible",
-      "id, slug, name, specialty, specialties, district, address_maps_link, phone, address, is_gesy, latitude, longitude, clinic_id, gender",
-      "id, slug, name, specialty, district, address_maps_link, phone, address, is_gesy, latitude, longitude, clinic_id, gender",
-      "id, slug, name, specialty, district, address_maps_link, phone, address, is_gesy, latitude, longitude, clinic_id",
-      "id, slug, name, specialty, district, address_maps_link, phone, address, is_gesy, latitude, longitude",
-      "id, slug, name, specialty, district, address_maps_link, phone, address, latitude, longitude",
-      "id, slug, name, specialty, district, address_maps_link, phone, latitude, longitude",
-      "id, name, specialty, district, address_maps_link, phone, latitude, longitude",
-      "id, name, specialty, district, address_maps_link, latitude, longitude",
-      "id, name, specialty, district, address_maps_link",
+      "id, slug, name, district, town, address_maps_link, phone, address, is_gesy, latitude, longitude, clinic_id, gender, finder_visible",
+      "id, slug, name, district, address_maps_link, phone, address, is_gesy, latitude, longitude, clinic_id, gender, finder_visible",
+      "id, slug, name, district, address_maps_link, phone, address, is_gesy, latitude, longitude, clinic_id, gender",
+      "id, slug, name, district, address_maps_link, phone, address, is_gesy, latitude, longitude, clinic_id",
+      "id, slug, name, district, address_maps_link, phone, address, is_gesy, latitude, longitude",
+      "id, slug, name, district, address_maps_link, phone, address, latitude, longitude",
+      "id, slug, name, district, address_maps_link, phone, latitude, longitude",
+      "id, name, district, address_maps_link, phone, latitude, longitude",
+      "id, name, district, address_maps_link, latitude, longitude",
+      "id, name, district, address_maps_link",
     ];
     for (const baseSelectClause of manualSelectAttempts) {
       const selectClause = `${baseSelectClause}, ${SPECIALTY_LINKS_SELECT}`;
@@ -856,8 +859,7 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
         id: string;
         slug?: string | null;
         name: string | null;
-        specialty: string | null;
-        specialties?: string[] | null;
+        specialty_links?: unknown;
         district: CyprusDistrict;
         address_maps_link: string | null;
         phone?: string | null;

@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { seedProfessionalSpecialty } from "./helpers/test-doctor";
 import { createClient } from "@supabase/supabase-js";
 
 function normalizeUrl(u: string): string {
@@ -60,17 +61,14 @@ test.describe("Integration: public phone visibility toggle", () => {
         .insert({
           auth_user_id: authUserId,
           name: `Public Phone Doctor ${nonce}`,
-          specialty: "Dentistry",
           district: "Paphos",
           clinic_address: "1 Clinic Street, Paphos",
           email: doctorEmail,
           phone: publicPhone,
           languages: ["English"],
-          license_number: `LIC-PHONE-${nonce}`,
           license_file_url: `licenses/integration/${nonce}-public-phone.pdf`,
           status: "verified",
           slug: doctorSlug,
-          is_specialty_approved: true,
                 is_registered: true,
       has_online_booking: true,
       finder_visible: true,
@@ -84,6 +82,11 @@ test.describe("Integration: public phone visibility toggle", () => {
         throw new Error(`Failed creating integration doctor: ${doctorInsert.error?.message}`);
       }
       doctorId = String(doctorInsert.data.id);
+      await seedProfessionalSpecialty(admin, doctorId, {
+        specialty: "Dentistry",
+        licenseNumber: `LIC-PHONE-${nonce}`,
+        isApproved: true,
+      });
 
       const settingsUpsert = await admin.from("professional_settings").upsert(
         {

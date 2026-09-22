@@ -6,6 +6,7 @@ import { getCalendarEventDetails } from "@/lib/patient-calendar-event";
 import { isConfirmedForCalendar } from "@/lib/appointment-status";
 import { appointmentClinicCopy } from "@/lib/appointment-clinic-copy";
 import { loadDoctorLocations } from "@/lib/load-doctor-locations";
+import { loadPrimarySpecialtyName } from "@/lib/specialty-catalogue";
 
 type RouteContext = {
   params: { id: string };
@@ -68,9 +69,13 @@ export async function GET(req: NextRequest, { params }: RouteContext) {
 
   const { data: doctor } = await supabase
     .from("professionals")
-    .select("id, name, phone, slug, clinic_address, specialty")
+    .select("id, name, phone, slug, clinic_address")
     .eq("id", appointment.doctor_id)
     .single();
+  const specialtyName = await loadPrimarySpecialtyName(
+    supabase,
+    appointment.doctor_id as string,
+  );
 
   const { data: settings } = await supabase
     .from("professional_settings")
@@ -104,7 +109,7 @@ export async function GET(req: NextRequest, { params }: RouteContext) {
 
   const doctorPayload = {
     name: doctor?.name,
-    specialty: (doctor as { specialty?: string | null } | null)?.specialty,
+    specialty: specialtyName,
     phone: doctor?.phone,
     clinic_address: clinic.address,
   };

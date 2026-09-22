@@ -6,6 +6,11 @@ import {
   classifyPendingRegistrationOrigin,
   parseDirectoryClaimSource,
 } from "@/lib/pending-registration-origin";
+import {
+  hasPendingSpecialty,
+  loadSpecialtyEntries,
+  primarySpecialtyEntry,
+} from "@/lib/specialty-catalogue";
 
 /**
  * After the professional confirms signup email, notify the founder for license review.
@@ -26,7 +31,7 @@ export async function notifyFounderAfterRegisterEmailConfirm(
   let { data, error } = await service
     .from("professionals")
     .select(
-      "id, name, email, registration_email, phone, mobile_number, specialty, license_number, languages, avatar_url, district, town, clinic_address, latitude, longitude, clinic_place_id, is_specialty_approved, directory_claim_source",
+      "id, name, email, registration_email, phone, mobile_number, languages, avatar_url, district, town, clinic_address, latitude, longitude, clinic_place_id, directory_claim_source",
     )
     .eq("auth_user_id", userId)
     .eq("is_registered", true)
@@ -36,7 +41,7 @@ export async function notifyFounderAfterRegisterEmailConfirm(
     const fallback = await service
       .from("professionals")
       .select(
-        "id, name, email, registration_email, phone, mobile_number, specialty, license_number, languages, avatar_url, district, town, clinic_address, latitude, longitude, clinic_place_id, is_specialty_approved",
+        "id, name, email, registration_email, phone, mobile_number, languages, avatar_url, district, town, clinic_address, latitude, longitude, clinic_place_id",
       )
       .eq("auth_user_id", userId)
       .eq("is_registered", true)
@@ -61,8 +66,6 @@ export async function notifyFounderAfterRegisterEmailConfirm(
     registration_email?: string | null;
     phone?: string | null;
     mobile_number?: string | null;
-    specialty?: string | null;
-    license_number?: string | null;
     languages?: string[] | string | null;
     avatar_url?: string | null;
     district?: string | null;
@@ -71,15 +74,11 @@ export async function notifyFounderAfterRegisterEmailConfirm(
     latitude?: number | null;
     longitude?: number | null;
     clinic_place_id?: string | null;
-    is_specialty_approved?: boolean | null;
     directory_claim_source?: string | null;
   };
 
-  const [{ data: specialtyRows }, { data: locationRows }] = await Promise.all([
-    service
-      .from("doctor_specialties")
-      .select("specialty, license_number, is_approved")
-      .eq("doctor_id", row.id),
+  const [specialtyEntries, { data: locationRows }] = await Promise.all([
+    loadSpecialtyEntries(service, row.id),
     service
       .from("doctor_locations")
       .select(
@@ -96,15 +95,12 @@ export async function notifyFounderAfterRegisterEmailConfirm(
       ? [String(row.languages).trim()].filter(Boolean)
       : [];
 
-  const specialties = (specialtyRows ?? [])
-    .map((s) => ({
-      specialty: String((s as { specialty?: string }).specialty ?? "").trim(),
-      licenseNumber:
-        String((s as { license_number?: string | null }).license_number ?? "").trim() ||
-        null,
-      isApproved: Boolean((s as { is_approved?: boolean | null }).is_approved),
-    }))
-    .filter((s) => Boolean(s.specialty));
+  const specialties = specialtyEntries.map((entry) => ({
+    specialty: entry.name,
+    licenseNumber: entry.licenseNumber,
+    isApproved: entry.isApproved,
+  }));
+  const primarySpecialty = primarySpecialtyEntry(specialtyEntries);
 
   let locations = (locationRows ?? []).map((loc) => ({
     district: String((loc as { district?: string | null }).district ?? "").trim() || null,
@@ -155,9 +151,9 @@ export async function notifyFounderAfterRegisterEmailConfirm(
     email: professionalAccountEmail(row),
     phone:
       String(row.mobile_number ?? "").trim() || String(row.phone ?? "").trim() || "—",
-    specialty: String(row.specialty ?? "").trim() || "—",
-    primaryLicenseNumber: String(row.license_number ?? "").trim() || null,
-    needsSpecialtyReview: row.is_specialty_approved === false,
+    specialty: primarySpecialty?.name || "—",
+    primaryLicenseNumber: primarySpecialty?.licenseNumber ?? null,
+    needsSpecialtyReview: hasPendingSpecialty(specialtyEntries),
     claimedDirectory: origin.kind === "claimed",
     originKind: origin.kind,
     originLabel: origin.label,

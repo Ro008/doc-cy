@@ -7,6 +7,7 @@ import {
   requireSafeIntegration,
 } from "./helpers/safe-integration";
 import { postDoctorVerification } from "./helpers/internal-api";
+import { seedProfessionalSpecialty } from "./helpers/test-doctor";
 
 /**
  * Founder pending registration flows: Claimed/Unclaimed badges, verify+absorb via URL,
@@ -114,7 +115,6 @@ test.describe("Integration: pending registration origin actions", { tag: "@pr-e2
         .insert([
           {
             name: twinName,
-            specialty: "Dentistry",
             district: "Paphos",
             slug: `pending-twin-listing-${nonce}`,
             address_maps_link: "https://maps.google.com/?q=pending-twin",
@@ -126,7 +126,6 @@ test.describe("Integration: pending registration origin actions", { tag: "@pr-e2
           },
           {
             name: autoName,
-            specialty: "Dentistry",
             district: "Nicosia",
             email: autoEmail,
             slug: `auto-match-listing-${nonce}`,
@@ -139,7 +138,6 @@ test.describe("Integration: pending registration origin actions", { tag: "@pr-e2
           },
           {
             name: `Claim Verify Target ${nonce}`,
-            specialty: "Dentistry",
             district: "Limassol",
             slug: `claim-verify-target-${nonce}`,
             address_maps_link: "https://maps.google.com/?q=claim-verify-target",
@@ -151,7 +149,6 @@ test.describe("Integration: pending registration origin actions", { tag: "@pr-e2
           },
           {
             name: `Claim Reject Target ${nonce}`,
-            specialty: "Dentistry",
             district: "Famagusta",
             slug: `claim-reject-target-${nonce}`,
             address_maps_link: "https://maps.google.com/?q=claim-reject-target",
@@ -162,7 +159,7 @@ test.describe("Integration: pending registration origin actions", { tag: "@pr-e2
             is_test_profile: true,
           },
         ])
-        .select("id, name, email, specialty, district, slug");
+        .select("id, name, email, district, slug");
       if (listings.error || !listings.data || listings.data.length !== 4) {
         throw new Error(`listings insert: ${listings.error?.message}`);
       }
@@ -170,6 +167,9 @@ test.describe("Integration: pending registration origin actions", { tag: "@pr-e2
       autoListingId = String(listings.data[1].id);
       claimVerifyTargetListingId = String(listings.data[2].id);
       claimRejectTargetListingId = String(listings.data[3].id);
+      for (const listing of listings.data) {
+        await seedProfessionalSpecialty(admin, String(listing.id), { specialty: "Dentist" });
+      }
 
       const pendingRows = await admin
         .from("professionals")
@@ -177,16 +177,13 @@ test.describe("Integration: pending registration origin actions", { tag: "@pr-e2
           {
             auth_user_id: authPending,
             name: twinName,
-            specialty: "Dentistry",
             district: "Paphos",
             registration_email: `pending-twin-${nonce}@integration.test`,
             mobile_number: "+35799111111",
             languages: ["English"],
-            license_number: `LIC-TWIN-${nonce}`,
             license_file_url: `licenses/integration/${nonce}-twin.pdf`,
             status: "pending",
             slug: `pending-twin-reg-${nonce}`,
-            is_specialty_approved: true,
             is_registered: true,
             has_online_booking: true,
             finder_visible: true,
@@ -198,16 +195,13 @@ test.describe("Integration: pending registration origin actions", { tag: "@pr-e2
           {
             auth_user_id: authUnclaimed,
             name: unclaimedName,
-            specialty: "Cardiology",
             district: "Larnaca",
             registration_email: `unclaimed-${nonce}@integration.test`,
             mobile_number: "+35799333333",
             languages: ["English"],
-            license_number: `LIC-UNC-${nonce}`,
             license_file_url: `licenses/integration/${nonce}-unc.pdf`,
             status: "pending",
             slug: `unclaimed-reg-${nonce}`,
-            is_specialty_approved: true,
             is_registered: true,
             has_online_booking: true,
             finder_visible: true,
@@ -219,16 +213,13 @@ test.describe("Integration: pending registration origin actions", { tag: "@pr-e2
           {
             auth_user_id: authClaimedVerify,
             name: `Card Claimed Verify ${nonce}`,
-            specialty: "Dentistry",
             district: "Limassol",
             registration_email: `claimed-verify-${nonce}@integration.test`,
             mobile_number: "+35799444444",
             languages: ["English"],
-            license_number: `LIC-CARD-V-${nonce}`,
             license_file_url: `licenses/integration/${nonce}-card-v.pdf`,
             status: "pending",
             slug: `card-claimed-verify-reg-${nonce}`,
-            is_specialty_approved: true,
             is_registered: true,
             has_online_booking: true,
             finder_visible: true,
@@ -241,16 +232,13 @@ test.describe("Integration: pending registration origin actions", { tag: "@pr-e2
           {
             auth_user_id: authClaimedReject,
             name: `Card Claimed Reject ${nonce}`,
-            specialty: "Dentistry",
             district: "Famagusta",
             registration_email: `claimed-reject-${nonce}@integration.test`,
             mobile_number: "+35799777777",
             languages: ["English"],
-            license_number: `LIC-CARD-R-${nonce}`,
             license_file_url: `licenses/integration/${nonce}-card-r.pdf`,
             status: "pending",
             slug: `card-claimed-reject-reg-${nonce}`,
-            is_specialty_approved: true,
             is_registered: true,
             has_online_booking: true,
             finder_visible: true,
@@ -263,16 +251,13 @@ test.describe("Integration: pending registration origin actions", { tag: "@pr-e2
           {
             auth_user_id: authBlocker,
             name: `Already Registered ${nonce}`,
-            specialty: "Dentistry",
             district: "Limassol",
             registration_email: `registered-blocker-${nonce}@integration.test`,
             mobile_number: "+35799666666",
             languages: ["English"],
-            license_number: `LIC-BLOCK-${nonce}`,
             license_file_url: `licenses/integration/${nonce}-block.pdf`,
             status: "verified",
             slug: `registered-blocker-${nonce}`,
-            is_specialty_approved: true,
             is_registered: true,
             has_online_booking: true,
             finder_visible: true,
@@ -281,7 +266,7 @@ test.describe("Integration: pending registration origin actions", { tag: "@pr-e2
             subscription_tier: "standard",
           },
         ])
-        .select("id, name, specialty, district, directory_claim_source, status");
+        .select("id, name, district, directory_claim_source, status");
       if (pendingRows.error || !pendingRows.data || pendingRows.data.length !== 5) {
         throw new Error(`pending insert: ${pendingRows.error?.message}`);
       }
@@ -290,6 +275,16 @@ test.describe("Integration: pending registration origin actions", { tag: "@pr-e2
       claimedVerifyId = String(pendingRows.data[2].id);
       claimedRejectId = String(pendingRows.data[3].id);
       registeredBlockerId = String(pendingRows.data[4].id);
+      const registeredSpecialties = [
+        { specialty: "Dentist", licenseNumber: `LIC-TWIN-${nonce}` },
+        { specialty: "Cardiology", licenseNumber: `LIC-UNC-${nonce}` },
+        { specialty: "Dentist", licenseNumber: `LIC-CARD-V-${nonce}` },
+        { specialty: "Dentist", licenseNumber: `LIC-CARD-R-${nonce}` },
+        { specialty: "Dentist", licenseNumber: `LIC-BLOCK-${nonce}` },
+      ];
+      for (const [index, row] of pendingRows.data.entries()) {
+        await seedProfessionalSpecialty(admin, String(row.id), registeredSpecialties[index]!);
+      }
 
       expect(classifyPendingRegistrationOrigin({ claimSource: null }).kind).toBe(
         "unclaimed",
@@ -326,26 +321,26 @@ test.describe("Integration: pending registration origin actions", { tag: "@pr-e2
       // Any claim (explicit card_link or fuzzy email match) must NEVER mutate
       // the claimed listing at signup — it stays live/untouched until Verify.
       const { data: autoRpc, error: autoRpcErr } = await admin.rpc(
-        "register_doctor_with_founder_lock",
+        "register_professional_with_founder_lock",
         {
           p_auth_user_id: authAuto,
           p_name: autoName,
-          p_specialty: "Dentistry",
           p_email: autoEmail,
           p_phone: "+35799555555",
           p_languages: ["English"],
-          p_license_number: `LIC-AUTO-${nonce}`,
           p_license_file_url: `licenses/integration/${nonce}-auto.pdf`,
           p_slug: `auto-match-registration-${nonce}`,
-          p_is_specialty_approved: true,
+          p_specialties: [
+            { specialty: "Dentist", license_number: `LIC-AUTO-${nonce}`, is_approved: true },
+          ],
           p_claim_listing_id: autoListingId,
           p_directory_claim_source: fuzzy!.reason,
         },
       );
-      if (autoRpcErr || !autoRpc?.[0]?.doctor_id) {
+      if (autoRpcErr || !autoRpc?.[0]?.professional_id) {
         throw new Error(`auto claim RPC: ${autoRpcErr?.message ?? "missing id"}`);
       }
-      autoRegisteredId = String(autoRpc[0].doctor_id);
+      autoRegisteredId = String(autoRpc[0].professional_id);
       // A fresh row was inserted — the claimed listing is a *different* id.
       expect(autoRegisteredId).not.toBe(autoListingId);
 

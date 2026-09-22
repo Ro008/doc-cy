@@ -4,7 +4,6 @@ export type DoctorRow = {
   email?: string | null;
   slug?: string | null;
   phone?: string;
-  specialty?: string | null;
   district?: string | null;
   town?: string | null;
   clinic_address?: string | null;
@@ -13,8 +12,6 @@ export type DoctorRow = {
   auth_user_id?: string | null;
   /** Verification: `pending` | `verified` | `rejected` (public profile + API booking only when verified). */
   status?: string | null;
-  /** false when custom “Other” specialty awaits founder review */
-  is_specialty_approved?: boolean | null;
   /** `founder` = first 50 locked pricing; `standard` otherwise */
   subscription_tier?: "founder" | "standard" | null;
   /** Set when the verified professional dismisses the first-login trial notice. */

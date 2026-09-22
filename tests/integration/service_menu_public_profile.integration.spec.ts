@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { seedProfessionalSpecialty } from "./helpers/test-doctor";
 import { createClient } from "@supabase/supabase-js";
 
 test.describe("Integration: public Service Menu section", () => {
@@ -46,15 +47,12 @@ test.describe("Integration: public Service Menu section", () => {
         .insert({
           auth_user_id: authUserId,
           name: `Service Menu Doctor ${nonce}`,
-          specialty: "Laser & Medical Aesthetics",
           email: doctorEmail,
           phone: "+35799123456",
           languages: ["English"],
-          license_number: `LIC-SM-${nonce}`,
           license_file_url: `licenses/integration/${nonce}-sm.pdf`,
           status: "verified",
           slug: doctorSlug,
-          is_specialty_approved: true,
                 is_registered: true,
       has_online_booking: true,
       finder_visible: true,
@@ -68,6 +66,11 @@ test.describe("Integration: public Service Menu section", () => {
         throw new Error(`Failed creating integration doctor: ${doctorInsert.error?.message}`);
       }
       doctorId = String(doctorInsert.data.id);
+      await seedProfessionalSpecialty(admin, doctorId, {
+        specialty: "Dermatology",
+        licenseNumber: `LIC-SM-${nonce}`,
+        isApproved: true,
+      });
 
       const serviceInsert = await admin.from("doctor_services").insert([
         { doctor_id: doctorId, name: "Facial Laser", price: "From 50€" },

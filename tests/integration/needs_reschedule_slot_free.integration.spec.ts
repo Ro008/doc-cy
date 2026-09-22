@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { seedProfessionalSpecialty } from "./helpers/test-doctor";
 import { createClient } from "@supabase/supabase-js";
 import { zonedTimeToUtc } from "date-fns-tz";
 
@@ -70,15 +71,12 @@ test.describe("Integration: NEEDS_RESCHEDULE frees original slot", { tag: ["@pr-
         .insert({
           auth_user_id: authUserId,
           name: `NeedsRs Doctor ${nonce}`,
-          specialty: "General Practice",
           email: doctorEmail,
           phone: "+35799123456",
           languages: ["English"],
-          license_number: `LIC-NR-${nonce}`,
           license_file_url: `licenses/integration/${nonce}-nr.pdf`,
           status: "verified",
           slug: doctorSlug,
-          is_specialty_approved: true,
                 is_registered: true,
       has_online_booking: true,
       finder_visible: true,
@@ -94,6 +92,11 @@ test.describe("Integration: NEEDS_RESCHEDULE frees original slot", { tag: ["@pr-
         );
       }
       doctorId = doctorInsert.data.id as string;
+      await seedProfessionalSpecialty(admin, doctorId, {
+        specialty: "General Practice",
+        licenseNumber: `LIC-NR-${nonce}`,
+        isApproved: true,
+      });
 
       const day = {
         enabled: true,

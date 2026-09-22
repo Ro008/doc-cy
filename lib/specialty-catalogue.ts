@@ -16,10 +16,7 @@ import { unstable_cache } from "next/cache";
 import { getCachedDirectoryPayload } from "@/lib/finder-directory-cache";
 import { FINDER_DIRECTORY_CACHE_TAG } from "@/lib/finder-directory-cache-key";
 import { slugToSpecialty, specialtyToSlug } from "@/lib/finder-seo";
-import {
-  harmonizeFinderSpecialtyLabel,
-  harmonizeFinderSpecialtyList,
-} from "@/lib/finder-specialty-harmonize";
+import { harmonizeFinderSpecialtyLabel } from "@/lib/finder-specialty-harmonize";
 import type { FinderSpecialtyOption } from "@/lib/finder-specialty-options";
 import { fetchAllSupabaseRowsForIdChunks } from "@/lib/supabase-fetch-all";
 
@@ -101,24 +98,9 @@ export function specialtiesFromLinks(links: unknown): ProfessionalSpecialtyLabel
   return sortSpecialtyLabels([...bySlug.values()]);
 }
 
-/**
- * Display names for a `professionals` row selected with `SPECIALTY_LINKS_SELECT`.
- * The denormalized `specialties` / `specialty` columns are only a fallback for a
- * listing written before its join rows existed (they go away in Point C3).
- */
-export function specialtyNamesForRow(row: {
-  specialty_links?: unknown;
-  specialty?: string | null;
-  specialties?: readonly string[] | null;
-}): string[] {
-  const linked = specialtiesFromLinks(row.specialty_links).map((label) => label.name);
-  if (linked.length > 0) return linked;
-  const legacy = Array.isArray(row.specialties)
-    ? row.specialties.map((s) => String(s ?? "").trim()).filter(Boolean)
-    : [];
-  return harmonizeFinderSpecialtyList(
-    legacy.length > 0 ? legacy : [String(row.specialty ?? "").trim()].filter(Boolean),
-  );
+/** Display names for a `professionals` row selected with `SPECIALTY_LINKS_SELECT`. */
+export function specialtyNamesForRow(row: { specialty_links?: unknown }): string[] {
+  return specialtiesFromLinks(row.specialty_links).map((label) => label.name);
 }
 
 export function sortSpecialtyLabels<T extends { name: string }>(labels: readonly T[]): T[] {
@@ -252,6 +234,126 @@ export function catalogueIdsForSpecialtyNames(
     }
   }
   return out;
+}
+
+// ---------------------------------------------------------------------------
+// Every specialty row of a professional, pending ones included (account, founder
+// and email paths). Pending custom labels have no catalogue row yet, so their name
+// is the submitted text.
+// ---------------------------------------------------------------------------
+
+/** Embeds all of a professional's specialty rows into a `professionals` select. */
+export const SPECIALTY_ROWS_SELECT =
+  "specialty_rows:professional_specialties(id, specialty, license_number, is_approved, created_at, specialties(name, slug))";
+
+const SPECIALTY_ROW_COLUMNS =
+  "id, professional_id, specialty, license_number, is_approved, created_at, specialties(name, slug)";
+
+export type ProfessionalSpecialtyEntry = {
+  /** `professional_specialties.id` */
+  id: string;
+  name: string;
+  /** Null while a custom label is pending (no catalogue row). */
+  slug: string | null;
+  licenseNumber: string | null;
+  isApproved: boolean;
+};
+
+type SpecialtyEntryRow = {
+  id?: string | null;
+  specialty?: string | null;
+  license_number?: string | null;
+  is_approved?: boolean | null;
+  specialties?: { name?: string | null; slug?: string | null } | null;
+};
+
+/** Rows from `SPECIALTY_ROWS_SELECT` (or `professional_specialties`), alphabetical. */
+export function specialtyEntriesFromRows(rows: unknown): ProfessionalSpecialtyEntry[] {
+  if (!Array.isArray(rows)) return [];
+  const entries: ProfessionalSpecialtyEntry[] = [];
+  for (const row of rows as SpecialtyEntryRow[]) {
+    if (!row) continue;
+    const name = String(row.specialties?.name ?? row.specialty ?? "").trim();
+    if (!name) continue;
+    entries.push({
+      id: String(row.id ?? ""),
+      name,
+      slug: String(row.specialties?.slug ?? "").trim() || null,
+      licenseNumber: String(row.license_number ?? "").trim() || null,
+      isApproved: row.is_approved !== false,
+    });
+  }
+  return sortSpecialtyLabels(entries);
+}
+
+/** True while a custom specialty awaits founder review (was `is_specialty_approved = false`). */
+export function hasPendingSpecialty(entries: readonly ProfessionalSpecialtyEntry[]): boolean {
+  return entries.some((entry) => !entry.isApproved);
+}
+
+/**
+ * The one specialty shown where a single label fits (emails, calendar events, account
+ * screens): the first approved one alphabetically, else the first pending one. Same
+ * rule the sync trigger used for `professionals.specialty`.
+ */
+export function primarySpecialtyEntry(
+  entries: readonly ProfessionalSpecialtyEntry[],
+): ProfessionalSpecialtyEntry | null {
+  return entries.find((entry) => entry.isApproved) ?? entries[0] ?? null;
+}
+
+/** Approved names, alphabetical. */
+export function approvedSpecialtyNames(entries: readonly ProfessionalSpecialtyEntry[]): string[] {
+  return entries.filter((entry) => entry.isApproved).map((entry) => entry.name);
+}
+
+/** professional id -> all specialty rows (pending included), alphabetical. */
+export async function loadSpecialtyEntriesByProfessionalIds(
+  supabase: SupabaseClient,
+  professionalIds: readonly string[],
+): Promise<Map<string, ProfessionalSpecialtyEntry[]>> {
+  const out = new Map<string, ProfessionalSpecialtyEntry[]>();
+  const ids = [...new Set(professionalIds.map((id) => String(id ?? "").trim()).filter(Boolean))];
+  if (ids.length === 0) return out;
+  const res = await fetchAllSupabaseRowsForIdChunks(ids, (chunk) =>
+    supabase
+      .from("professional_specialties")
+      .select(SPECIALTY_ROW_COLUMNS)
+      .in("professional_id", chunk)
+      .order("id"),
+  );
+  if (res.error) throw new Error(`professional specialties: ${res.error.message}`);
+  const rowsById = new Map<string, unknown[]>();
+  for (const row of res.data ?? []) {
+    const id = String((row as { professional_id?: string }).professional_id ?? "");
+    const list = rowsById.get(id) ?? [];
+    list.push(row);
+    rowsById.set(id, list);
+  }
+  for (const [id, rows] of rowsById) out.set(id, specialtyEntriesFromRows(rows));
+  return out;
+}
+
+/** One professional's specialty rows (pending included), alphabetical. */
+export async function loadSpecialtyEntries(
+  supabase: SupabaseClient,
+  professionalId: string,
+): Promise<ProfessionalSpecialtyEntry[]> {
+  const map = await loadSpecialtyEntriesByProfessionalIds(supabase, [professionalId]);
+  return map.get(professionalId) ?? [];
+}
+
+/**
+ * The single label for emails and calendar events (see `primarySpecialtyEntry`).
+ * Pass the service-role client: the tables have no RLS policies for users.
+ */
+export async function loadPrimarySpecialtyName(
+  supabase: SupabaseClient,
+  professionalId: string | null | undefined,
+): Promise<string | null> {
+  const id = String(professionalId ?? "").trim();
+  if (!id) return null;
+  return primarySpecialtyEntry(await loadSpecialtyEntries(supabase, id))?.name ?? null;
 }
 
 /** professional id -> approved labels, for rows loaded without the embed. */

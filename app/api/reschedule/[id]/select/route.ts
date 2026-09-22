@@ -8,6 +8,7 @@ import {
 import { sendPatientAppointmentConfirmedEmail } from "@/lib/send-patient-appointment-confirmed-email";
 import { appointmentClinicCopy } from "@/lib/appointment-clinic-copy";
 import { loadDoctorLocations } from "@/lib/load-doctor-locations";
+import { loadPrimarySpecialtyName } from "@/lib/specialty-catalogue";
 
 type RouteContext = { params: { id: string } };
 
@@ -171,9 +172,10 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
 
   const { data: doctor } = await supabase
     .from("professionals")
-    .select("name, phone, specialty, clinic_address")
+    .select("name, phone, clinic_address")
     .eq("id", doctorId)
     .maybeSingle();
+  const specialtyName = await loadPrimarySpecialtyName(supabase, doctorId);
 
   const siteUrl =
     process.env.NEXT_PUBLIC_SITE_URL?.trim() || "https://www.mydoccy.com";
@@ -201,7 +203,7 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
       reason: (appt as { reason?: string | null }).reason ?? null,
       doctor: {
         name: doctor?.name,
-        specialty: (doctor as { specialty?: string | null } | null)?.specialty,
+        specialty: specialtyName,
         phone: (doctor as { phone?: string | null } | null)?.phone,
         clinic_address: clinic.address,
       },

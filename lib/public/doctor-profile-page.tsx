@@ -67,7 +67,13 @@ import {
   publicSpecialtyLabels,
 } from "@/lib/doctor-specialties";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { SPECIALTY_LINKS_SELECT, specialtiesFromLinks } from "@/lib/specialty-catalogue";
+import {
+  approvedSpecialtyNames,
+  hasPendingSpecialty,
+  primarySpecialtyEntry,
+  SPECIALTY_ROWS_SELECT,
+  specialtyEntriesFromRows,
+} from "@/lib/specialty-catalogue";
 import { publicPhoneForProfessional } from "@/lib/public-call-phone";
 import {
   resolveAbsorbedProfessionalSlugRedirect,
@@ -169,19 +175,26 @@ async function selectPublicProfessionalBySlug(
   // here; the shape is narrowed by the caller's cast, as it was through the view.
   const res = await supabase
     .from("professionals")
-    .select(`${fields}, ${SPECIALTY_LINKS_SELECT}`)
+    .select(`${fields}, ${SPECIALTY_ROWS_SELECT}`)
     .eq("is_registered", true)
     .eq("is_archived", false)
     .eq("slug", slug)
     .maybeSingle();
   const data = (res.data as unknown as Record<string, unknown> | null) ?? null;
   if (data) {
-    // Specialties come from professional_specialties (approved, alphabetical).
-    // Unapproved ones stay hidden downstream via is_specialty_approved, as before.
-    const { specialty_links: links, ...rest } = data;
-    const names = specialtiesFromLinks(links).map((label) => label.name);
+    // Specialty fields are derived from professional_specialties (the columns on
+    // professionals are going away): approved labels alphabetical, the first one as
+    // `specialty`, and `is_specialty_approved` false while a custom label is pending,
+    // which hides them all downstream.
+    const { specialty_rows: rows, ...rest } = data;
+    const entries = specialtyEntriesFromRows(rows);
     return {
-      data: { ...rest, specialties: names, ...(names[0] ? { specialty: names[0] } : {}) },
+      data: {
+        ...rest,
+        specialties: approvedSpecialtyNames(entries),
+        specialty: primarySpecialtyEntry(entries)?.name ?? "",
+        is_specialty_approved: !hasPendingSpecialty(entries),
+      },
       error: null,
     };
   }
