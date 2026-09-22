@@ -57,6 +57,19 @@ test.describe("Integration: public directory RLS hardening", () => {
       .limit(5);
     expect(isDeniedOrEmpty(specialtyRowsDump)).toBe(true);
 
+    // SECURITY DEFINER RPCs that must not be callable with the anon key. Expect a
+    // permission error, not just an empty result: a random id would return nothing
+    // even if the grant came back.
+    const anyId = "00000000-0000-0000-0000-000000000000";
+    const occupiedRpc = await anon.rpc("public_doctor_occupied_datetimes", {
+      p_doctor_id: anyId,
+      p_from: new Date().toISOString(),
+      p_to: new Date(Date.now() + 86_400_000).toISOString(),
+    });
+    expect(occupiedRpc.error?.code).toBe("42501");
+    const ownerRpc = await anon.rpc("is_doctor_owner", { p_doctor_id: anyId });
+    expect(ownerRpc.error?.code).toBe("42501");
+
     const professionalsPublicDump = await anon
       .from("professionals_public")
       .select("id, name, specialty, phone, slug")

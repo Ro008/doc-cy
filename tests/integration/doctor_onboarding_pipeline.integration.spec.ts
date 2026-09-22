@@ -140,6 +140,9 @@ test.describe("Integration: doctor onboarding pipeline", { tag: "@pr-e2e" }, () 
     page,
     request,
   }) => {
+    // Same budget as the first test: doctor setup, three founder API calls, a UI login
+    // and the agenda regularly exceed the 30s default on a loaded Testing instance.
+    test.setTimeout(120_000);
     const env = requireSafeIntegration({ needsInternalSecret: true });
     const admin = createIntegrationAdmin(env);
     const nonce = `${Date.now()}-${Math.floor(Math.random() * 100000)}`;
