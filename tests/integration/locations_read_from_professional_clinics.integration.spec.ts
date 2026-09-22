@@ -180,6 +180,42 @@ test.describe("Integration: locations read from professional_clinics", { tag: "@
     }
   });
 
+  test("a clinic still being set up, with no address yet, is still listed", async ({ page }) => {
+    // "Add clinic" in settings creates a location with no address, and the wizard fills
+    // it in afterwards. The mirror cannot give that a join row (a clinic needs a
+    // district), so reading only join rows would make the new clinic vanish.
+    test.setTimeout(120_000);
+    const admin = createIntegrationAdmin(requireSafeIntegration());
+    const nonce = `${Date.now()}-${Math.floor(Math.random() * 100000)}`;
+    const created: Created = { professionalId: "", authUserId: "", clinicIds: [] };
+
+    try {
+      const seeded = await seedProfessional(admin, nonce);
+      created.professionalId = seeded.professionalId;
+      created.authUserId = seeded.authUserId;
+
+      const primaryId = await setPrimaryLocation(admin, seeded.professionalId, {
+        clinic_address: `Only Street ${nonce}, Paphos, Cyprus`,
+        pause_online_bookings: false,
+      });
+      created.clinicIds.push(await clinicIdFor(admin, primaryId));
+
+      // Exactly what POST /api/doctor-locations writes: no address, no district.
+      await addLocation(admin, seeded.professionalId, {
+        sort_order: 1,
+        district: null,
+        clinic_address: null,
+        pause_online_bookings: false,
+      });
+
+      await page.goto(`/en/${seeded.slug}`);
+
+      await expect(page.getByText(/2 clinics/i).first()).toBeVisible({ timeout: 20_000 });
+    } finally {
+      await cleanup(admin, created);
+    }
+  });
+
   test("a clinic archived on the join side stops being offered", async ({ page }) => {
     test.setTimeout(120_000);
     const admin = createIntegrationAdmin(requireSafeIntegration());
