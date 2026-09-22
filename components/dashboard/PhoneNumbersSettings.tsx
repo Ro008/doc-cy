@@ -21,6 +21,8 @@ type PhoneNumbersSettingsProps = {
   publicPhoneSource: PublicPhoneSource;
   onPublicPhoneSourceChange: (value: PublicPhoneSource) => void;
   saving?: boolean;
+  /** No clinic takes online bookings: the Call button is the only way in, so it stays on. */
+  lockedOnWhilePaused?: boolean;
 };
 
 function PhoneSwitch({
@@ -157,6 +159,7 @@ export function PhoneNumbersSettings({
   publicPhoneSource,
   onPublicPhoneSourceChange,
   saving = false,
+  lockedOnWhilePaused = false,
 }: PhoneNumbersSettingsProps) {
   const twoNumbers = hasDistinctDirectoryPhone(mobileNumber, clinicPhone);
   const showChooser = twoNumbers && clinicRowVisible;
@@ -169,11 +172,15 @@ export function PhoneNumbersSettings({
     directoryPhone: clinicPhone,
   });
   const callReady = selectedNumber.length > 0;
-  const callIsOn = showPhonePublic && callReady;
+  const lockedOn = lockedOnWhilePaused && callReady;
+  const callIsOn = lockedOn || (showPhonePublic && callReady);
   const callNumberLabel = formatCyprusPhoneDisplay(selectedNumber);
 
   return (
-    <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-5">
+    <div
+      id="phone-numbers"
+      className="scroll-mt-24 rounded-2xl border border-slate-800/80 bg-slate-900/60 p-5"
+    >
       <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
         Phone numbers
       </p>
@@ -231,15 +238,21 @@ export function PhoneNumbersSettings({
             <p className="mt-1 text-xs text-slate-400">
               {!callReady
                 ? "Add a number before patients can call you."
-                : callIsOn
-                  ? `Patients can call ${callNumberLabel}.`
-                  : "Keep this off to encourage online bookings and reduce direct calls."}
+                : lockedOn
+                  ? `Online bookings are paused, so patients can call ${callNumberLabel} instead.`
+                  : callIsOn
+                    ? `Patients can call ${callNumberLabel}.`
+                    : "Keep this off to encourage online bookings and reduce direct calls."}
             </p>
-            <p className="mt-1 text-xs text-slate-500">Saves immediately.</p>
+            <p className="mt-1 text-xs text-slate-500">
+              {lockedOn
+                ? "Resume online bookings to hide it again."
+                : "Saves immediately."}
+            </p>
           </div>
           <PhoneSwitch
             checked={callIsOn}
-            disabled={!callReady || saving}
+            disabled={!callReady || saving || lockedOn}
             busy={saving}
             onChange={(next) => {
               if (next && !callReady) return;

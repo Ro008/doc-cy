@@ -17,6 +17,7 @@
     "bookingsTemporarilyUnavailable": "Οι κρατήσεις προσωρινά δεν είναι διαθέσιμες",
     "appointmentsPaused": "Οι συνεδρίες έχουν παγώσει από τον επαγγελματία. Παρακαλούμε ελέγξτε ξανά αργότερα.",
     "appointmentsPausedAtLocation": "Η online κράτηση δεν είναι διαθέσιμη σε αυτή την τοποθεσία.",
+    "appointmentsPausedCallHint": "Καλέστε τον αριθμό στην ενότητα Επικοινωνία για να κλείσετε ραντεβού.",
     "chooseClinicStep": "Βήμα 1 από 2",
     "chooseClinicHeading": "Πού θέλετε να πάτε;",
     "chooseClinicBody": "Ο επαγγελματίας δέχεται σε {count} κλινικές. Διαλέξτε μία και μετά κλείστε ώρα για αυτό το μέρος.",

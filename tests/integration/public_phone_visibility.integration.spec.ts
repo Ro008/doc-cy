@@ -102,11 +102,22 @@ test.describe("Integration: public phone visibility toggle", () => {
           end_time: "17:00:00",
           slot_duration_minutes: 30,
           show_phone_public: false,
+          pause_online_bookings: false,
         },
         { onConflict: "professional_id" },
       );
       if (settingsUpsert.error) {
         throw new Error(`Failed preparing doctor settings: ${settingsUpsert.error.message}`);
+      }
+
+      // Clinics are created paused, and a paused clinic reveals the phone on its own.
+      // Accept bookings here so this test isolates the show_phone_public toggle.
+      const acceptBookings = await admin
+        .from("doctor_locations")
+        .update({ pause_online_bookings: false })
+        .eq("doctor_id", doctorId);
+      if (acceptBookings.error) {
+        throw new Error(`Failed accepting bookings: ${acceptBookings.error.message}`);
       }
 
       let visiblePublic = false;
@@ -149,9 +160,40 @@ test.describe("Integration: public phone visibility toggle", () => {
       const revealed = page.getByRole("link", { name: /\+357/ });
       await expect(revealed).toBeVisible({ timeout: 10000 });
       await expect(revealed).toHaveAttribute("href", /tel:\+35799123456/);
+
+      // The Karina Miño case: a professional who never configured online booking has a
+      // paused clinic, so the phone shows even with the Call button switched off.
+      const hidePhoneAndPause = await admin
+        .from("professional_settings")
+        .update({ show_phone_public: false })
+        .eq("professional_id", doctorId);
+      if (hidePhoneAndPause.error) {
+        throw new Error(`Failed hiding public phone: ${hidePhoneAndPause.error.message}`);
+      }
+      const pauseClinic = await admin
+        .from("doctor_locations")
+        .update({ pause_online_bookings: true })
+        .eq("doctor_id", doctorId);
+      if (pauseClinic.error) {
+        throw new Error(`Failed pausing clinic: ${pauseClinic.error.message}`);
+      }
+
+      await page.goto(`/en/${doctorSlug}`);
+      await expect(page.getByRole("heading", { name: /^Contact$/i })).toBeVisible({
+        timeout: 10000,
+      });
+      const pausedCallButton = page.getByRole("button", { name: /^Call$/i });
+      await expect(pausedCallButton).toBeVisible({ timeout: 10000 });
+      await pausedCallButton.click();
+      await expect(page.getByRole("link", { name: /\+357/ })).toHaveAttribute(
+        "href",
+        /tel:\+35799123456/,
+        { timeout: 10000 },
+      );
     } finally {
       if (doctorId) {
         await admin.from("doctor_services").delete().eq("doctor_id", doctorId);
+        await admin.from("doctor_locations").delete().eq("doctor_id", doctorId);
         await admin.from("professional_settings").delete().eq("professional_id", doctorId);
         await admin.from("professionals").delete().eq("id", doctorId);
       }

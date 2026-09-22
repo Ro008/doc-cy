@@ -21,6 +21,11 @@ import {
 import { locationScheduleColumns, sanitizeClinicLabel } from "@/lib/doctor-locations";
 import { loadDoctorLocations, primaryDoctorLocation } from "@/lib/load-doctor-locations";
 import {
+  CONTACT_PHONE_REQUIRED_CODE,
+  CONTACT_PHONE_REQUIRED_MESSAGE,
+  anyClinicPaused,
+} from "@/lib/booking-contact-phone";
+import {
   isSpecialtyChangeAttempt,
   SPECIALTY_CHANGE_REQUIRES_SUPPORT_MESSAGE,
 } from "@/lib/doctor-specialty-settings-lock";
@@ -270,6 +275,26 @@ export async function POST(req: NextRequest) {
       { message: "Add a phone number before showing a Call button on your profile." },
       { status: 400 },
     );
+  }
+  // Same invariant as the pause toggle: with a clinic paused, its patients can only
+  // call, so this save must not leave the account without a public number.
+  if (
+    callNumberForSource({
+      source: phoneSourceToSave,
+      mobileNumber: doctorPhoneTrimmed,
+      directoryPhone: directoryPhoneToSave,
+    }).length === 0
+  ) {
+    const currentLocations = await loadDoctorLocations(supabase, doctorId);
+    const pauseFlags = currentLocations.map((row) =>
+      Boolean(row.pause_online_bookings),
+    );
+    if (anyClinicPaused(pauseFlags)) {
+      return NextResponse.json(
+        { message: CONTACT_PHONE_REQUIRED_MESSAGE, code: CONTACT_PHONE_REQUIRED_CODE },
+        { status: 400 },
+      );
+    }
   }
   const clinicLocation = clinicLocationFromParts({
     address: clinicAddress,

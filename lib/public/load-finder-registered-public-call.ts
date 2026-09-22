@@ -1,6 +1,7 @@
 import { cache } from "react";
 
-import { callNumberForSource, parsePublicPhoneSource } from "@/lib/public-call-phone";
+import { publicPhoneForProfessional } from "@/lib/public-call-phone";
+import { loadDoctorLocationsByDoctorIds } from "@/lib/load-doctor-locations";
 import { fetchAllSupabaseRowsForIdChunks } from "@/lib/supabase-fetch-all";
 import { createServiceRoleClient } from "@/lib/supabase-service";
 
@@ -22,15 +23,20 @@ function nestedSettings(
   return Array.isArray(nested) ? nested[0] ?? null : nested;
 }
 
-function rowHasPublicCall(row: PublicCallRow): boolean {
+function rowHasPublicCall(row: PublicCallRow, pauseFlags: readonly boolean[]): boolean {
   const settings = nestedSettings(row);
-  if (!settings?.show_phone_public) return false;
-  const callNumber = callNumberForSource({
-    source: parsePublicPhoneSource(settings.public_phone_source),
-    mobileNumber: row.mobile_number,
-    directoryPhone: row.phone,
-  });
-  return callNumber.length > 0;
+  // Same rule as the profile page and the reveal API: a clinic that takes no online
+  // bookings shows the phone, so a professional who never configured anything is still
+  // reachable from the card.
+  return (
+    publicPhoneForProfessional({
+      showPhonePublic: settings?.show_phone_public,
+      publicPhoneSource: settings?.public_phone_source,
+      phone: row.phone,
+      mobileNumber: row.mobile_number,
+      pauseFlags,
+    }) !== null
+  );
 }
 
 export const loadFinderRegisteredPublicCallIds = cache(
@@ -66,11 +72,17 @@ export const loadFinderRegisteredPublicCallIds = cache(
       return new Set();
     }
 
+    const clinicsByProfessional = await loadDoctorLocationsByDoctorIds(supabase, ids);
+
     const out = new Set<string>();
     for (const row of result.data ?? []) {
-      if (!rowHasPublicCall(row)) continue;
       const id = String(row.id ?? "").trim();
-      if (id) out.add(id);
+      if (!id) continue;
+      const pauseFlags = (clinicsByProfessional.get(id) ?? []).map((clinic) =>
+        Boolean(clinic.pause_online_bookings),
+      );
+      if (!rowHasPublicCall(row, pauseFlags)) continue;
+      out.add(id);
     }
     return out;
   },

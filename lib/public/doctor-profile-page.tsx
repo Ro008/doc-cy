@@ -671,6 +671,13 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
   const mapsUrl = buildMapsUrlFromAddress(clinicAddress) ?? "";
   let avatarUrl: string | null = null;
   let publicPhone: string | null = null;
+  // Resolved once the clinics are loaded: a paused clinic reveals the phone.
+  let contactPhoneInput: {
+    showPhonePublic?: boolean | null;
+    publicPhoneSource?: unknown;
+    phone?: string | null;
+    mobileNumber?: string | null;
+  } | null = null;
   // doctors_public used to compute `phone` in SQL; publicPhoneForProfessional applies
   // the same show_phone_public / public_phone_source rule over the raw columns.
   const contactLookup = await supabase
@@ -696,12 +703,12 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
       ? contact.professional_settings[0]
       : contact.professional_settings;
     const avatarPath = String(contact.avatar_url ?? "").trim();
-    publicPhone = publicPhoneForProfessional({
+    contactPhoneInput = {
       showPhonePublic: contactSettings?.show_phone_public,
       publicPhoneSource: contactSettings?.public_phone_source,
       phone: contact.phone,
       mobileNumber: contact.mobile_number,
-    });
+    };
     if (avatarPath) {
       avatarUrl = resolvePublicAvatarUrl(supabase, avatarPath);
     }
@@ -762,6 +769,12 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
     : null;
 
   const practiceLocations = await loadDoctorLocations(supabase, profile.id);
+  if (contactPhoneInput) {
+    publicPhone = publicPhoneForProfessional({
+      ...contactPhoneInput,
+      pauseFlags: practiceLocations.map((row) => Boolean(row.pause_online_bookings)),
+    });
+  }
   const requestedLocationId = parseBookingLocationParam(
     Array.isArray(searchParams?.location)
       ? searchParams?.location[0]
@@ -1030,6 +1043,7 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
               }
               breakStart={breakStart ? breakStart.slice(0, 5) : undefined}
               breakEnd={breakEnd ? breakEnd.slice(0, 5) : undefined}
+              publicPhoneAvailable={hasPublicPhone}
               onlineBookingsPaused={Boolean(
                 (
                   locationSettings as {
