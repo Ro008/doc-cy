@@ -169,15 +169,12 @@ async function main() {
     .insert({
       auth_user_id: authUserId,
       name: DEMO_NAME,
-      specialty: "General Practice",
       email: args.email,
       phone: "+35799111222",
       languages: ["English"],
-      license_number: `DEMO-${nonce}`,
       license_file_url: `licenses/demo/${nonce}.pdf`,
       status: "pending",
       slug,
-      is_specialty_approved: true,
       is_test_profile: true,
       is_registered: true,
       has_online_booking: true,
@@ -197,6 +194,20 @@ async function main() {
   }
 
   const doctorId = String(doctorInsert.data.id);
+
+  // The sync trigger fills the denormalized professionals columns from this row.
+  const specialtyInsert = await admin.from("professional_specialties").insert({
+    professional_id: doctorId,
+    specialty: "General Practice",
+    license_number: `DEMO-${nonce}`,
+    is_approved: true,
+  });
+  if (specialtyInsert.error) {
+    await admin.from("professionals").delete().eq("id", doctorId);
+    await admin.auth.admin.deleteUser(authUserId);
+    console.error("Failed to create specialty:", specialtyInsert.error.message);
+    process.exit(1);
+  }
   console.log(`[DocCy demo] Created pending doctor id=${doctorId} slug=${slug}`);
 
   console.log(`\n--- Step 1: see "Account under review" (optional) ---`);

@@ -1,5 +1,6 @@
 import { validateSpecialtySubmission } from "@/lib/specialty-submission";
 import { SPECIALTY_CHANGE_LICENSE_MAX } from "@/lib/doctor-specialty-change-request";
+import { specialtyToSlug } from "@/lib/finder-seo";
 
 export const MAX_DOCTOR_SPECIALTIES = 5;
 
@@ -22,7 +23,7 @@ export type ValidateDoctorSpecialtyEntriesResult =
 
 /**
  * Validates 1..MAX flat specialty+license rows for registration / add-specialty.
- * Duplicates (case-insensitive) are rejected.
+ * Duplicates (same slug, the key of `professional_specialties`) are rejected.
  */
 export function validateDoctorSpecialtyEntries(
   inputs: DoctorSpecialtyEntryInput[],
@@ -67,7 +68,7 @@ export function validateDoctorSpecialtyEntries(
       };
     }
 
-    const key = spec.specialty.toLowerCase();
+    const key = specialtyToSlug(spec.specialty);
     if (seen.has(key)) {
       return {
         ok: false,

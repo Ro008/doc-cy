@@ -29,13 +29,11 @@ import {
 import { sendDoctorRegistrationReceivedEmail } from "@/lib/send-doctor-registration-received-email";
 import { generateRegisterEmailConfirmUrl } from "@/lib/register-email-confirm";
 import { matchesAutomatedDoctorRegistrationTestEmailForAdminBypass } from "@/lib/e2e-doctor-registration-test";
-import { isTestDoctorRegistrationEmail } from "@/lib/doctor-test-profile";
 import {
   persistLocalTestLoginPassword,
   shouldPersistLocalTestLoginPassword,
   TEST_LOGIN_PASSWORD_METADATA_KEY,
 } from "@/lib/local-test-login-credentials";
-import { MAX_FOUNDERS } from "@/lib/founders-club";
 import {
   readRegisterClinicsFromFormData,
   shouldAllowRegisterClinicE2eFallback,
@@ -262,9 +260,6 @@ async function runRegister(formData: FormData) {
     fail("specialty");
   }
   const specialtyEntries = specialtiesParsed.entries;
-  const specialty = specialtyEntries[0]!.specialty;
-  const licenseNumber = specialtyEntries[0]!.licenseNumber;
-  const isSpecialtyApproved = specialtyEntries.every((e) => e.isApproved);
 
   if (
     !firstName ||
@@ -441,17 +436,20 @@ async function runRegister(formData: FormData) {
   const avatarFileUrl = avatarUploadData.path;
 
   const { data: regRows, error: insertError } = await withTimeout(
-    service.rpc("register_doctor_with_founder_lock", {
+    service.rpc("register_professional_with_founder_lock", {
       p_auth_user_id: authUserId,
       p_name: fullName,
-      p_specialty: specialty,
       p_email: email,
       p_phone: phone,
       p_languages: languages,
-      p_license_number: licenseNumber,
       p_license_file_url: licenseFileUrl,
       p_slug: slug,
-      p_is_specialty_approved: isSpecialtyApproved,
+      // Written as professional_specialties rows in the same transaction.
+      p_specialties: specialtyEntries.map((entry) => ({
+        specialty: entry.specialty,
+        license_number: entry.licenseNumber,
+        is_approved: entry.isApproved,
+      })),
       ...(claim?.id
         ? {
             p_claim_listing_id: claim.id,
@@ -463,7 +461,7 @@ async function runRegister(formData: FormData) {
     "Register doctor RPC",
   );
 
-  let doctorId = regRows?.[0]?.doctor_id as string | undefined;
+  const doctorId = regRows?.[0]?.professional_id as string | undefined;
 
   const cleanupFailedRegistration = async () => {
     try {
@@ -477,97 +475,9 @@ async function runRegister(formData: FormData) {
   };
 
   if (insertError || !doctorId) {
-    console.error("[DocCy] Failed to register doctor row (RPC)", insertError);
-
-    // Fallback path when SQL RPC is unavailable/broken in the target environment.
-    // Match register_doctor_with_founder_lock: only non-test founders consume the real founder slots.
-    const { count: founderCount, error: founderCountError } = await service
-      .from("professionals")
-      .select("id", { head: true, count: "exact" })
-      .eq("subscription_tier", "founder")
-      .eq("is_test_profile", false)
-      .eq("is_registered", true);
-    if (founderCountError) {
-      console.error("[DocCy] Founder count fallback failed", founderCountError);
-      try {
-        await service.storage.from("avatars").remove([avatarFileUrl]);
-        await service.auth.admin.deleteUser(authUserId);
-      } catch (cleanupError) {
-        console.error("[DocCy] Failed cleanup after founder-count fallback error", cleanupError);
-      }
-      fail("db", founderCountError);
-    }
-
-    const fallbackTier = (founderCount ?? 0) < MAX_FOUNDERS ? "founder" : "standard";
-    const fallbackPayload = {
-      auth_user_id: authUserId,
-      name: fullName,
-      specialty,
-      registration_email: email,
-      mobile_number: phone,
-      languages,
-      license_number: licenseNumber,
-      license_file_url: licenseFileUrl,
-      status: "pending" as const,
-      slug,
-      is_specialty_approved: isSpecialtyApproved,
-      subscription_tier: fallbackTier,
-      district,
-      town,
-      clinic_address: clinicAddress,
-      latitude: clinicLatitude,
-      longitude: clinicLongitude,
-      clinic_place_id: clinicPlaceId,
-      is_test_profile: isTestDoctorRegistrationEmail(email),
-      is_registered: true,
-      has_online_booking: true,
-      finder_visible: true,
-      is_archived: false,
-      ...(claim?.id
-        ? { claim_listing_id: claim.id, directory_claim_source: claim.reason }
-        : {}),
-    };
-
-    // Always a plain insert: a claimed listing (claim.id) is never mutated here.
-    // It stays live/untouched in /finder until a founder Verifies this registration
-    // (see app/api/internal/doctors/verification/route.ts, which absorbs it then).
-    const fallbackInsert = await service
-      .from("professionals")
-      .insert(fallbackPayload)
-      .select("id")
-      .single();
-
-    if (fallbackInsert.error || !fallbackInsert.data?.id) {
-      console.error("[DocCy] Failed fallback doctor insert", fallbackInsert.error);
-      try {
-        await service.storage.from("avatars").remove([avatarFileUrl]);
-        await service.auth.admin.deleteUser(authUserId);
-      } catch (cleanupError) {
-        console.error("[DocCy] Failed cleanup after fallback doctor insert error", cleanupError);
-      }
-      fail("db", fallbackInsert.error);
-    }
-
-    doctorId = fallbackInsert.data.id as string;
-  }
-
-  {
-    const specialtyRows = specialtyEntries.map((entry) => ({
-      doctor_id: doctorId,
-      specialty: entry.specialty,
-      license_number: entry.licenseNumber,
-      is_approved: entry.isApproved,
-    }));
-    const { error: specialtyInsertError } = await service
-      .from("doctor_specialties")
-      .upsert(specialtyRows, { onConflict: "doctor_id,specialty" });
-    if (specialtyInsertError) {
-      // Table may not exist yet on older environments — keep registration alive.
-      console.error(
-        "[DocCy] doctor_specialties insert failed (registration continues)",
-        specialtyInsertError,
-      );
-    }
+    console.error("[DocCy] Failed to register professional row (RPC)", insertError);
+    await cleanupFailedRegistration();
+    fail("db", insertError);
   }
 
   const claimedThisListing = Boolean(claim?.reason === "card_link" && claim?.id);

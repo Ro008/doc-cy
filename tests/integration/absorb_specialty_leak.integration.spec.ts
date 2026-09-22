@@ -10,8 +10,8 @@ import { createIntegrationAdmin, requireSafeIntegration } from "./helpers/safe-i
  *
  * `professionals.specialties` drives the public finder card + profile
  * badges directly (see lib/doctor-specialties.ts publicSpecialtyLabels).
- * `doctor_specialties` (license-backed, is_approved) is the only source
- * that should ever expand it, via sync_doctor_specialties_to_doctor.
+ * `professional_specialties` (license-backed, is_approved) is the only source
+ * that should ever expand it, via sync_professional_specialties_to_professional.
  * absorb_unregistered_into_registered must never touch it.
  */
 test.describe("Integration: absorb must not leak specialties", { tag: "@pr-e2e" }, () => {
@@ -26,7 +26,7 @@ test.describe("Integration: absorb must not leak specialties", { tag: "@pr-e2e" 
 
     try {
       // 1) A doctor registers with exactly one license-backed specialty
-      // (Biochemistry) — mirrors what /register writes: doctor_specialties
+      // (Biochemistry) — mirrors what /register writes: professional_specialties
       // row + synced professionals.specialty/specialties.
       const createUser = await admin.auth.admin.createUser({
         email: `absorb-leak-${nonce}@integration.test`,
@@ -44,16 +44,12 @@ test.describe("Integration: absorb must not leak specialties", { tag: "@pr-e2e" 
         .insert({
           auth_user_id: authRegistered,
           name: `Absorb Leak Doctor ${nonce}`,
-          specialty: "Biochemistry",
-          specialties: ["Biochemistry"],
           district: "Nicosia",
           registration_email: `absorb-leak-${nonce}@integration.test`,
           mobile_number: "+35799112233",
           languages: ["English"],
-          license_number: `LIC-LEAK-${nonce}`,
           status: "verified",
           slug: `absorb-leak-doctor-${nonce}`,
-          is_specialty_approved: true,
           is_registered: true,
           has_online_booking: true,
           finder_visible: true,
@@ -68,14 +64,14 @@ test.describe("Integration: absorb must not leak specialties", { tag: "@pr-e2e" 
       }
       registeredId = String(registeredInsert.data.id);
 
-      const specialtyInsert = await admin.from("doctor_specialties").insert({
-        doctor_id: registeredId,
+      const specialtyInsert = await admin.from("professional_specialties").insert({
+        professional_id: registeredId,
         specialty: "Biochemistry",
         license_number: `LIC-LEAK-${nonce}`,
         is_approved: true,
       });
       if (specialtyInsert.error) {
-        throw new Error(`doctor_specialties insert: ${specialtyInsert.error.message}`);
+        throw new Error(`professional_specialties insert: ${specialtyInsert.error.message}`);
       }
 
       // 2) An unrelated unregistered finder listing with a DIFFERENT
@@ -122,12 +118,12 @@ test.describe("Integration: absorb must not leak specialties", { tag: "@pr-e2e" 
       expect(afterAbsorb?.specialty).toBe("Biochemistry");
       expect(afterAbsorb?.specialties).toEqual(["Biochemistry"]);
 
-      // doctor_specialties (the license-backed source of truth) must also be
+      // professional_specialties (the license-backed source of truth) must also be
       // untouched — absorb never writes to it.
       const { data: specRows, error: specErr } = await admin
-        .from("doctor_specialties")
+        .from("professional_specialties")
         .select("specialty, is_approved")
-        .eq("doctor_id", registeredId);
+        .eq("professional_id", registeredId);
       if (specErr) throw new Error(specErr.message);
       expect(specRows).toHaveLength(1);
       expect(specRows?.[0]?.specialty).toBe("Biochemistry");
@@ -143,7 +139,7 @@ test.describe("Integration: absorb must not leak specialties", { tag: "@pr-e2e" 
       expect(archivedTarget?.is_archived).toBe(true);
     } finally {
       for (const id of [registeredId, unregisteredId].filter(Boolean)) {
-        await admin.from("doctor_specialties").delete().eq("doctor_id", id);
+        await admin.from("professional_specialties").delete().eq("professional_id", id);
         await admin.from("professional_slug_redirects").delete().eq("professional_id", id);
         await admin.from("professionals").delete().eq("id", id);
       }

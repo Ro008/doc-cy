@@ -1,5 +1,9 @@
 import { expect, test } from "@playwright/test";
-import { postDoctorVerification, postSpecialtyReview } from "./helpers/internal-api";
+import {
+  postDoctorVerification,
+  postSpecialtyChangeReview,
+  postSpecialtyReview,
+} from "./helpers/internal-api";
 import {
   createIntegrationAdmin,
   requireSafeIntegration,
@@ -261,52 +265,93 @@ test.describe("Integration: doctor account access", { tag: "@pr-e2e" }, () => {
       });
       const { doctorId } = fixture;
 
+      // Each scenario queues a pending specialty the way /register and the
+      // "Other" flow do: an unapproved professional_specialties row.
+      const addPending = async (specialty: string) => {
+        const res = await admin
+          .from("professional_specialties")
+          .insert({ professional_id: doctorId, specialty, license_number: `LIC-${nonce}`, is_approved: false })
+          .select("id")
+          .single();
+        if (res.error) throw new Error(`pending specialty: ${res.error.message}`);
+        return String(res.data.id);
+      };
+      const readProfessional = async () =>
+        (
+          await admin
+            .from("professionals")
+            .select("specialty, specialties, is_specialty_approved, status")
+            .eq("id", doctorId)
+            .single()
+        ).data;
+      const specialtyLabels = async () =>
+        (
+          (
+            await admin
+              .from("professional_specialties")
+              .select("specialty, is_approved")
+              .eq("professional_id", doctorId)
+          ).data ?? []
+        ).map((r) => `${r.specialty}:${r.is_approved}`).sort();
+
       expect(
         (await postSpecialtyReview(request, secret, { doctorId, action: "map", mapTo: "Wellness" }))
           .status(),
       ).toBe(200);
-      let row = await admin
-        .from("professionals")
-        .select("specialty, is_specialty_approved, status")
-        .eq("id", doctorId)
-        .single();
-      expect(row.data?.specialty).toBe("Wellness");
-      expect(row.data?.is_specialty_approved).toBe(true);
-      expect(row.data?.status).toBe("pending");
+      let row = await readProfessional();
+      expect(row?.specialty).toBe("Wellness");
+      expect(row?.is_specialty_approved).toBe(true);
+      expect(row?.status).toBe("pending");
 
-      await admin
-        .from("professionals")
-        .update({ specialty: "medittation", is_specialty_approved: false, status: "pending" })
-        .eq("id", doctorId);
-
+      // A second pending specialty, approved under an edited label.
+      const meditationId = await addPending("medittation");
+      expect((await readProfessional())?.is_specialty_approved).toBe(false);
       expect(
         (
           await postSpecialtyReview(request, secret, {
             doctorId,
+            specialtyId: meditationId,
             action: "approve_edited",
             editedSpecialty: " Meditation ",
           })
         ).status(),
       ).toBe(200);
-      row = await admin.from("professionals").select("specialty, is_specialty_approved").eq("id", doctorId).single();
-      expect(row.data?.specialty).toBe("Meditation");
-      expect(row.data?.is_specialty_approved).toBe(true);
+      row = await readProfessional();
+      expect(row?.specialties).toEqual(["Meditation", "Wellness"]);
+      expect(row?.is_specialty_approved).toBe(true);
 
-      await admin
-        .from("professionals")
-        .update({ specialty: "oddity", is_specialty_approved: false, status: "pending" })
-        .eq("id", doctorId);
+      // Rejecting one of several specialties removes only that one.
+      await addPending("oddity");
       expect(
         (await postSpecialtyReview(request, secret, { doctorId, action: "reject_specialty" })).status(),
       ).toBe(200);
-      row = await admin.from("professionals").select("status, is_specialty_approved").eq("id", doctorId).single();
-      expect(row.data?.status).toBe("rejected");
-      expect(row.data?.is_specialty_approved).toBe(false);
+      expect(await specialtyLabels()).toEqual(["Meditation:true", "Wellness:true"]);
+      row = await readProfessional();
+      expect(row?.status).toBe("pending");
+      expect(row?.is_specialty_approved).toBe(true);
 
+      // Rejecting the only specialty closes the application.
+      await admin.from("professional_specialties").delete().eq("professional_id", doctorId);
+      await addPending("oddity");
+      expect(
+        (await postSpecialtyReview(request, secret, { doctorId, action: "reject_specialty" })).status(),
+      ).toBe(200);
+      row = await readProfessional();
+      expect(row?.status).toBe("rejected");
+      expect(row?.is_specialty_approved).toBe(false);
+
+      // Nothing pending any more.
+      await admin.from("professional_specialties").delete().eq("professional_id", doctorId);
+      await admin.from("professionals").update({ status: "pending" }).eq("id", doctorId);
       await admin
-        .from("professionals")
-        .update({ specialty: "acupuncture", is_specialty_approved: false, status: "pending" })
-        .eq("id", doctorId);
+        .from("professional_specialties")
+        .insert({ professional_id: doctorId, specialty: "Wellness", license_number: `LIC-${nonce}`, is_approved: true });
+      expect(
+        (await postSpecialtyReview(request, secret, { doctorId, action: "approve_new" })).status(),
+      ).toBe(400);
+
+      // Validation: "edit" must not be used for a standard specialty.
+      await addPending("acupuncture");
       expect(
         (
           await postSpecialtyReview(request, secret, {
@@ -318,6 +363,101 @@ test.describe("Integration: doctor account access", { tag: "@pr-e2e" }, () => {
       ).toBe(400);
     } finally {
       if (fixture) await deleteTestDoctor(fixture);
+    }
+  });
+
+  test("specialty change review API: add, replace and remove write professional_specialties", async ({
+    request,
+  }) => {
+    const env = requireSafeIntegration({ needsInternalSecret: true });
+    const admin = createIntegrationAdmin(env);
+    const secret = env.internalSecret;
+    const nonce = `${Date.now()}-${Math.floor(Math.random() * 100000)}`;
+    let fixture: TestDoctorFixture | null = null;
+
+    try {
+      fixture = await createTestDoctor({
+        admin,
+        nonce,
+        name: `Spec Change ${nonce}`,
+        specialty: "Cardiology",
+        is_specialty_approved: true,
+        status: "verified",
+      });
+      const { doctorId } = fixture;
+
+      const approve = async (request_kind: string, from: string | null, to: string | null) => {
+        const inserted = await admin
+          .from("professional_specialty_change_requests")
+          .insert({
+            professional_id: doctorId,
+            request_kind,
+            from_specialty: from,
+            to_specialty: to,
+            to_specialty_from_master: to !== null,
+            license_number: to === null ? null : `LIC-CHG-${nonce}`,
+            status: "pending",
+          })
+          .select("id")
+          .single();
+        if (inserted.error) throw new Error(`change request: ${inserted.error.message}`);
+        const res = await postSpecialtyChangeReview(request, secret, {
+          requestId: String(inserted.data.id),
+          action: "approve",
+        });
+        expect(res.status(), await res.text()).toBe(200);
+      };
+      const state = async () => {
+        const rows =
+          (
+            await admin
+              .from("professional_specialties")
+              .select("specialty, is_approved")
+              .eq("professional_id", doctorId)
+          ).data ?? [];
+        const pro = (
+          await admin
+            .from("professionals")
+            .select("specialties, is_specialty_approved")
+            .eq("id", doctorId)
+            .single()
+        ).data;
+        return {
+          rows: rows.map((r) => `${r.specialty}:${r.is_approved}`).sort(),
+          specialties: pro?.specialties,
+          approved: pro?.is_specialty_approved,
+        };
+      };
+
+      await approve("add", null, "Dermatology");
+      expect(await state()).toEqual({
+        rows: ["Cardiology:true", "Dermatology:true"],
+        specialties: ["Cardiology", "Dermatology"],
+        approved: true,
+      });
+
+      // "from" matches by slug, whatever its casing.
+      await approve("replace", "cardiology", "Rheumatology");
+      expect(await state()).toEqual({
+        rows: ["Dermatology:true", "Rheumatology:true"],
+        specialties: ["Dermatology", "Rheumatology"],
+        approved: true,
+      });
+
+      await approve("remove", "Dermatology", null);
+      expect(await state()).toEqual({
+        rows: ["Rheumatology:true"],
+        specialties: ["Rheumatology"],
+        approved: true,
+      });
+    } finally {
+      if (fixture) {
+        await fixture.admin
+          .from("professional_specialty_change_requests")
+          .delete()
+          .eq("professional_id", fixture.doctorId);
+        await deleteTestDoctor(fixture);
+      }
     }
   });
 });

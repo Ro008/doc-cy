@@ -7,15 +7,16 @@ import { normalizeApprovedCustomSpecialty } from "@/lib/specialty-submission";
 import { sendDoctorAccountRejectedEmail } from "@/lib/send-doctor-account-rejected-email";
 import { getPublicBookingBaseUrl } from "@/lib/site-url";
 import { professionalAccountEmail } from "@/lib/professional-account-contact";
+import { sameSpecialtySlug } from "@/lib/professional-specialty-writes";
 
 type ReviewAction = "map" | "approve_new" | "approve_edited" | "reject_specialty";
 
 type Body = {
   doctorId?: string;
   /**
-   * doctor_specialties.id of the row under review. A professional can register
-   * several specialties, so the pending one is not necessarily the primary.
-   * Omitted by older clients — those fall back to professionals.specialty.
+   * professional_specialties.id of the row under review. A professional can register
+   * several specialties, so the pending one is not necessarily the first. Optional
+   * while exactly one of the professional's specialties is pending.
    */
   specialtyId?: string | null;
   action?: ReviewAction;
@@ -27,7 +28,7 @@ type Body = {
 
 type SpecialtyRow = {
   id: string;
-  doctor_id: string;
+  professional_id: string;
   specialty: string | null;
   is_approved: boolean | null;
 };
@@ -58,13 +59,11 @@ async function notifySpecialtyRejection(professional: {
   }
 }
 
-function sameLabel(a: string, b: string): boolean {
-  return a.trim().toLowerCase() === b.trim().toLowerCase();
-}
+const SPECIALTY_ROW_SELECT = "id, professional_id, specialty, is_approved";
 
 /**
  * Approves the reviewed row under `label`. When the professional already has that
- * specialty (unique on doctor_id + specialty), the duplicate pending row is dropped.
+ * specialty (same slug, the table's key), the duplicate pending row is dropped.
  */
 async function approveSpecialtyRow(
   supabase: SupabaseClient,
@@ -72,9 +71,9 @@ async function approveSpecialtyRow(
   label: string,
 ): Promise<string | null> {
   const { data: siblings, error: siblingsError } = await supabase
-    .from("doctor_specialties")
-    .select("id, doctor_id, specialty, is_approved")
-    .eq("doctor_id", pending.doctor_id);
+    .from("professional_specialties")
+    .select(SPECIALTY_ROW_SELECT)
+    .eq("professional_id", pending.professional_id);
 
   if (siblingsError) {
     console.error("[specialty-review] sibling load failed", siblingsError);
@@ -82,13 +81,13 @@ async function approveSpecialtyRow(
   }
 
   const clash = ((siblings ?? []) as SpecialtyRow[]).find(
-    (row) => row.id !== pending.id && sameLabel(String(row.specialty ?? ""), label),
+    (row) => row.id !== pending.id && sameSpecialtySlug(String(row.specialty ?? ""), label),
   );
 
   if (clash) {
     if (clash.is_approved !== true) {
       const { error } = await supabase
-        .from("doctor_specialties")
+        .from("professional_specialties")
         .update({ is_approved: true })
         .eq("id", clash.id);
       if (error) {
@@ -97,7 +96,7 @@ async function approveSpecialtyRow(
       }
     }
     const { error } = await supabase
-      .from("doctor_specialties")
+      .from("professional_specialties")
       .delete()
       .eq("id", pending.id);
     if (error) {
@@ -108,7 +107,7 @@ async function approveSpecialtyRow(
   }
 
   const { error } = await supabase
-    .from("doctor_specialties")
+    .from("professional_specialties")
     .update({ specialty: label, is_approved: true })
     .eq("id", pending.id);
   if (error) {
@@ -118,39 +117,47 @@ async function approveSpecialtyRow(
   return null;
 }
 
+type PendingResolution =
+  | { kind: "row"; row: SpecialtyRow }
+  | { kind: "not_found" }
+  | { kind: "already_approved" }
+  | { kind: "ambiguous" }
+  | { kind: "error" };
+
 /**
- * Finds the `doctor_specialties` row under review. Clients that predate multi-specialty
- * omit `specialtyId`; that still resolves as long as exactly one row is unapproved.
- * Returns null when the junction has nothing to review (denormalized fallback).
+ * Finds the `professional_specialties` row under review. Without `specialtyId` it
+ * resolves only while exactly one of the professional's specialties is pending.
  */
 async function resolvePendingSpecialty(
   supabase: SupabaseClient,
-  doctorId: string,
+  professionalId: string,
   specialtyId: string,
-): Promise<SpecialtyRow | null | "not_found" | "already_approved"> {
+): Promise<PendingResolution> {
   if (specialtyId) {
     const { data, error } = await supabase
-      .from("doctor_specialties")
-      .select("id, doctor_id, specialty, is_approved")
+      .from("professional_specialties")
+      .select(SPECIALTY_ROW_SELECT)
       .eq("id", specialtyId)
-      .eq("doctor_id", doctorId)
+      .eq("professional_id", professionalId)
       .maybeSingle();
-    if (error || !data) return "not_found";
+    if (error || !data) return { kind: "not_found" };
     const row = data as SpecialtyRow;
-    return row.is_approved === true ? "already_approved" : row;
+    return row.is_approved === true ? { kind: "already_approved" } : { kind: "row", row };
   }
 
   const { data, error } = await supabase
-    .from("doctor_specialties")
-    .select("id, doctor_id, specialty, is_approved")
-    .eq("doctor_id", doctorId)
+    .from("professional_specialties")
+    .select(SPECIALTY_ROW_SELECT)
+    .eq("professional_id", professionalId)
     .eq("is_approved", false);
   if (error) {
     console.error("[specialty-review] pending specialty lookup failed", error);
-    return null;
+    return { kind: "error" };
   }
   const rows = (data ?? []) as SpecialtyRow[];
-  return rows.length === 1 ? rows[0]! : null;
+  if (rows.length === 0) return { kind: "already_approved" };
+  if (rows.length > 1) return { kind: "ambiguous" };
+  return { kind: "row", row: rows[0]! };
 }
 
 export async function POST(req: NextRequest) {
@@ -187,16 +194,12 @@ export async function POST(req: NextRequest) {
 
   const { data: professional, error: fetchErr } = await supabase
     .from("professionals")
-    .select("id, name, email, registration_email, specialty, is_specialty_approved, status")
+    .select("id, name, email, registration_email, status")
     .eq("id", doctorId)
     .maybeSingle();
 
   if (fetchErr || !professional) {
     return NextResponse.json({ message: "Professional not found." }, { status: 404 });
-  }
-
-  if ((professional as { is_specialty_approved?: boolean }).is_specialty_approved) {
-    return badRequest("This specialty is already approved.");
   }
 
   const currentStatus = String((professional as { status?: string | null }).status ?? "")
@@ -227,135 +230,93 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const pending = await resolvePendingSpecialty(supabase, doctorId, specialtyId);
-  if (pending === "not_found") {
+  const resolved = await resolvePendingSpecialty(supabase, doctorId, specialtyId);
+  if (resolved.kind === "not_found") {
     return NextResponse.json({ message: "Specialty not found." }, { status: 404 });
   }
-  if (pending === "already_approved") {
+  if (resolved.kind === "already_approved") {
     return badRequest("This specialty is already approved.");
   }
-
-  if (pending) {
-    if (action === "reject_specialty") {
-      if (currentStatus === "verified") {
-        return badRequest("Cannot reject specialty for an already verified professional.");
-      }
-
-      const { count, error: countErr } = await supabase
-        .from("doctor_specialties")
-        .select("id", { count: "exact", head: true })
-        .eq("doctor_id", doctorId);
-
-      if (countErr) {
-        console.error("[specialty-review] specialty count failed", countErr);
-        return NextResponse.json({ message: "Update failed." }, { status: 500 });
-      }
-
-      // Removing the only specialty would leave the profile empty — close the application.
-      if ((count ?? 0) <= 1) {
-        const { error } = await supabase
-          .from("professionals")
-          .update({
-            status: "rejected",
-            is_specialty_approved: false,
-            ...clearRequiresStandard(),
-          })
-          .eq("id", doctorId);
-        if (error) {
-          console.error("[specialty-review] reject_specialty failed", error);
-          return NextResponse.json({ message: "Update failed." }, { status: 500 });
-        }
-        await notifySpecialtyRejection(professional as { name?: string | null; email?: string | null });
-        return NextResponse.json({
-          ok: true,
-          status: "rejected",
-          removed: pending.specialty ?? null,
-          is_specialty_approved: false,
-        });
-      }
-
-      const { error: deleteErr } = await supabase
-        .from("doctor_specialties")
-        .delete()
-        .eq("id", pending.id);
-      if (deleteErr) {
-        console.error("[specialty-review] specialty removal failed", deleteErr);
-        return NextResponse.json({ message: "Update failed." }, { status: 500 });
-      }
-      await supabase
-        .from("professionals")
-        .update(clearRequiresStandard())
-        .eq("id", doctorId);
-
-      return NextResponse.json({
-        ok: true,
-        status: currentStatus || null,
-        removed: pending.specialty ?? null,
-      });
-    }
-
-    const label =
-      action === "approve_new"
-        ? normalizeApprovedCustomSpecialty(String(pending.specialty ?? ""))
-        : targetLabel;
-    if (!label) {
-      return badRequest("This specialty has no text to approve.");
-    }
-
-    const failure = await approveSpecialtyRow(supabase, pending, label);
-    if (failure) {
-      return NextResponse.json({ message: failure }, { status: 500 });
-    }
-
-    await supabase.from("professionals").update(clearRequiresStandard()).eq("id", doctorId);
-
-    return NextResponse.json({ ok: true, specialty: label, is_specialty_approved: true });
+  if (resolved.kind === "ambiguous") {
+    return badRequest("Several specialties are pending; specialtyId is required.");
   }
+  if (resolved.kind === "error") {
+    return NextResponse.json({ message: "Update failed." }, { status: 500 });
+  }
+  const pending = resolved.row;
 
-  // Legacy path: no doctor_specialties row, so the denormalized column is the truth.
   if (action === "reject_specialty") {
     if (currentStatus === "verified") {
       return badRequest("Cannot reject specialty for an already verified professional.");
     }
-    const { error } = await supabase
-      .from("professionals")
-      .update({
-        status: "rejected",
-        is_specialty_approved: false,
-        ...clearRequiresStandard(),
-      })
-      .eq("id", doctorId);
-    if (error) {
-      console.error("[specialty-review] reject_specialty failed", error);
+
+    const { count, error: countErr } = await supabase
+      .from("professional_specialties")
+      .select("id", { count: "exact", head: true })
+      .eq("professional_id", doctorId);
+
+    if (countErr) {
+      console.error("[specialty-review] specialty count failed", countErr);
       return NextResponse.json({ message: "Update failed." }, { status: 500 });
     }
-    await notifySpecialtyRejection(professional as { name?: string | null; email?: string | null });
-    return NextResponse.json({ ok: true, status: "rejected", is_specialty_approved: false });
+
+    // Removing the only specialty would leave the profile empty — close the application.
+    // The row stays unapproved, so the professional stays flagged for specialty review.
+    if ((count ?? 0) <= 1) {
+      const { error } = await supabase
+        .from("professionals")
+        .update({
+          status: "rejected",
+          ...clearRequiresStandard(),
+        })
+        .eq("id", doctorId);
+      if (error) {
+        console.error("[specialty-review] reject_specialty failed", error);
+        return NextResponse.json({ message: "Update failed." }, { status: 500 });
+      }
+      await notifySpecialtyRejection(professional as { name?: string | null; email?: string | null });
+      return NextResponse.json({
+        ok: true,
+        status: "rejected",
+        removed: pending.specialty ?? null,
+        is_specialty_approved: false,
+      });
+    }
+
+    const { error: deleteErr } = await supabase
+      .from("professional_specialties")
+      .delete()
+      .eq("id", pending.id);
+    if (deleteErr) {
+      console.error("[specialty-review] specialty removal failed", deleteErr);
+      return NextResponse.json({ message: "Update failed." }, { status: 500 });
+    }
+    await supabase
+      .from("professionals")
+      .update(clearRequiresStandard())
+      .eq("id", doctorId);
+
+    return NextResponse.json({
+      ok: true,
+      status: currentStatus || null,
+      removed: pending.specialty ?? null,
+    });
   }
 
   const label =
     action === "approve_new"
-      ? normalizeApprovedCustomSpecialty(
-          String((professional as { specialty?: string | null }).specialty ?? ""),
-        )
+      ? normalizeApprovedCustomSpecialty(String(pending.specialty ?? ""))
       : targetLabel;
   if (!label) {
-    return badRequest("Professional has no specialty text to approve.");
+    return badRequest("This specialty has no text to approve.");
   }
 
-  const { error } = await supabase
-    .from("professionals")
-    .update({
-      specialty: label,
-      is_specialty_approved: true,
-      ...clearRequiresStandard(),
-    })
-    .eq("id", doctorId);
-
-  if (error) {
-    console.error("[specialty-review] approve failed", error);
-    return NextResponse.json({ message: "Update failed." }, { status: 500 });
+  const failure = await approveSpecialtyRow(supabase, pending, label);
+  if (failure) {
+    return NextResponse.json({ message: failure }, { status: 500 });
   }
+
+  await supabase.from("professionals").update(clearRequiresStandard()).eq("id", doctorId);
 
   return NextResponse.json({ ok: true, specialty: label, is_specialty_approved: true });
 }

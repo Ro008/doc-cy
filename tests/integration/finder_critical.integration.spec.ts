@@ -80,18 +80,14 @@ async function createVerifiedDoctor(
     .insert({
       auth_user_id: authUserId,
       name: input.name,
-      specialty: input.specialty,
-      specialties: [input.specialty],
       district: input.district,
       email,
       phone: "+35799123456",
       languages: input.languages,
       avatar_url: input.avatarPath ?? null,
-      license_number: `LIC-FINDER-${nonce}-${input.slugPrefix}`,
       license_file_url: `licenses/integration/${nonce}-${input.slugPrefix}.pdf`,
       status: "verified",
       slug,
-      is_specialty_approved: true,
       // Mark as test so cleanup + prod finder hide are reliable; still visible when
       // NEXT_PUBLIC_DOC_CY_FINDER_INCLUDE_TEST_PROFILES=1 (integration).
       is_test_profile: true,
@@ -111,20 +107,19 @@ async function createVerifiedDoctor(
   }
 
   const doctorId = String(doctorInsert.data.id);
-  const specialtyUpsert = await admin.from("doctor_specialties").upsert(
+  const specialtyInsert = await admin.from("professional_specialties").insert(
     {
-      doctor_id: doctorId,
+      professional_id: doctorId,
       specialty: input.specialty,
       license_number: `LIC-FINDER-${nonce}-${input.slugPrefix}`,
       is_approved: true,
     },
-    { onConflict: "doctor_id,specialty" },
   );
-  if (specialtyUpsert.error) {
+  if (specialtyInsert.error) {
     await admin.from("professionals").delete().eq("id", doctorId);
     await admin.auth.admin.deleteUser(authUserId);
     throw new Error(
-      `Failed creating doctor_specialties: ${specialtyUpsert.error.message}`,
+      `Failed creating professional_specialties: ${specialtyInsert.error.message}`,
     );
   }
 
