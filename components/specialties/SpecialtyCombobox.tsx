@@ -3,12 +3,10 @@
 import * as React from "react";
 import { ChevronDown, Search } from "lucide-react";
 import {
-  CYPRUS_MASTER_SPECIALTIES,
   SPECIALTY_OTHER_LABEL,
-  isCurrentRegistrationSpecialty,
-  isMasterSpecialty,
-} from "@/lib/cyprus-specialties";
-import { filterAvailableMasterSpecialties } from "@/lib/specialty-options";
+  filterAvailableMasterSpecialties,
+  matchCatalogueSpecialty,
+} from "@/lib/specialty-options";
 
 type Props = {
   /** For label association */
@@ -17,6 +15,8 @@ type Props = {
   specialtyName?: string;
   fromMasterName?: string;
   initialSpecialty: string;
+  /** Catalogue names to offer (`loadSpecialtyCatalogueNames`, loaded by the page). */
+  options: readonly string[];
   /** When false, initial value is treated as custom "Other" text even if it accidentally matches a master string */
   initialIsApproved?: boolean;
   /** Visual variant */
@@ -39,16 +39,19 @@ export function SpecialtyCombobox({
   specialtyName = "specialty",
   fromMasterName = "specialtyFromMaster",
   initialSpecialty,
+  options,
   initialIsApproved = true,
   variant = "settings",
   excludeSpecialties,
   onSelectionChange,
 }: Props) {
   const initialTrim = initialSpecialty.trim();
+  const initialMatch = matchCatalogueSpecialty(options, initialTrim);
   const startsAsMaster =
     Boolean(initialTrim) &&
     initialIsApproved !== false &&
-    isMasterSpecialty(initialTrim);
+    initialMatch !== null &&
+    !initialMatch.viaAlias;
 
   const [open, setOpen] = React.useState(false);
   const [query, setQuery] = React.useState("");
@@ -56,7 +59,7 @@ export function SpecialtyCombobox({
     startsAsMaster ? "master" : initialTrim ? "other" : "master"
   );
   const [masterValue, setMasterValue] = React.useState(() =>
-    startsAsMaster ? initialTrim : ""
+    startsAsMaster ? initialMatch!.name : ""
   );
   const [otherText, setOtherText] = React.useState(() =>
     startsAsMaster || !initialTrim ? "" : initialTrim
@@ -86,14 +89,8 @@ export function SpecialtyCombobox({
   }, []);
 
   const q = query.trim().toLowerCase();
-  const masterOptions =
-    masterValue &&
-    isMasterSpecialty(masterValue) &&
-    !isCurrentRegistrationSpecialty(masterValue)
-      ? [masterValue, ...CYPRUS_MASTER_SPECIALTIES]
-      : CYPRUS_MASTER_SPECIALTIES;
   const availableMasters = filterAvailableMasterSpecialties(
-    masterOptions,
+    options,
     excludeSpecialties ?? [],
     masterValue,
   );

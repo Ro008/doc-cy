@@ -179,6 +179,36 @@ export async function loadSpecialtyCatalogue(
   });
 }
 
+/**
+ * Catalogue names for the register / settings / founder comboboxes and for
+ * validating what they submit: canonical rows only (a legacy spelling such as
+ * `Dentistry` is not offered), minus the generic ones the finder also hides.
+ *
+ * Not cached: a label founders just approved must be offered straight away, and
+ * these pages are low-traffic. The table is small (under 100 rows).
+ */
+export async function loadSpecialtyCatalogueNames(
+  supabase: SupabaseClient,
+): Promise<string[]> {
+  const res = await supabase.from("specialties").select("id, name, slug").order("name");
+  if (res.error) throw new Error(`specialty catalogue: ${res.error.message}`);
+  return catalogueNamesForForms(
+    (res.data ?? [])
+      .map(cleanCatalogueRow)
+      .filter((row): row is CatalogueSpecialty => row !== null),
+  );
+}
+
+export function catalogueNamesForForms(catalogue: readonly CatalogueSpecialty[]): string[] {
+  return sortSpecialtyLabels(
+    catalogue.filter(
+      (row) =>
+        canonicalSpecialtySlug(row.name) === row.slug &&
+        !EXCLUDED_FINDER_SPECIALTY_SLUGS.has(row.slug),
+    ),
+  ).map((row) => row.name);
+}
+
 /** Scraped listings only change when the GeSY import runs. */
 const SCRAPED_AVAILABILITY_REVALIDATE_SECONDS = 600;
 

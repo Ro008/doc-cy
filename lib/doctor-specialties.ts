@@ -1,6 +1,7 @@
 import { validateSpecialtySubmission } from "@/lib/specialty-submission";
 import { SPECIALTY_CHANGE_LICENSE_MAX } from "@/lib/doctor-specialty-change-request";
 import { specialtyToSlug } from "@/lib/finder-seo";
+import type { SpecialtyCatalogueNames } from "@/lib/specialty-options";
 
 export const MAX_DOCTOR_SPECIALTIES = 5;
 
@@ -27,6 +28,7 @@ export type ValidateDoctorSpecialtyEntriesResult =
  */
 export function validateDoctorSpecialtyEntries(
   inputs: DoctorSpecialtyEntryInput[],
+  catalogue: SpecialtyCatalogueNames,
 ): ValidateDoctorSpecialtyEntriesResult {
   if (!Array.isArray(inputs) || inputs.length === 0) {
     return { ok: false, message: "Add at least one specialty." };
@@ -57,7 +59,7 @@ export function validateDoctorSpecialtyEntries(
       };
     }
 
-    const spec = validateSpecialtySubmission(row.specialty, row.fromMaster);
+    const spec = validateSpecialtySubmission(row.specialty, row.fromMaster, catalogue);
     if (spec.ok === false) {
       return {
         ok: false,

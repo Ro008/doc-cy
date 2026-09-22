@@ -7,13 +7,16 @@ import {
   validateDoctorSpecialtyEntries,
 } from "@/lib/doctor-specialties";
 
+/** Catalogue names as `loadSpecialtyCatalogueNames` returns them. */
+const CATALOGUE = ["Dentist", "Paediatrics", "Psychiatry", "Psychology"];
+
 describe("validateDoctorSpecialtyEntries", () => {
   it("requires at least one specialty with license", () => {
-    assert.equal(validateDoctorSpecialtyEntries([]).ok, false);
+    assert.equal(validateDoctorSpecialtyEntries([], CATALOGUE).ok, false);
     assert.equal(
       validateDoctorSpecialtyEntries([
         { specialty: "Pediatrics", fromMaster: true, licenseNumber: "" },
-      ]).ok,
+      ], CATALOGUE).ok,
       false,
     );
   });
@@ -22,7 +25,7 @@ describe("validateDoctorSpecialtyEntries", () => {
     const result = validateDoctorSpecialtyEntries([
       { specialty: "Psychology", fromMaster: true, licenseNumber: "A1" },
       { specialty: "Psychiatry", fromMaster: true, licenseNumber: "B2" },
-    ]);
+    ], CATALOGUE);
     assert.equal(result.ok, true);
     if (result.ok) {
       assert.equal(result.entries.length, 2);
@@ -33,9 +36,9 @@ describe("validateDoctorSpecialtyEntries", () => {
 
   it("rejects duplicates", () => {
     const result = validateDoctorSpecialtyEntries([
-      { specialty: "Dentistry", fromMaster: true, licenseNumber: "1" },
-      { specialty: "Dentistry", fromMaster: true, licenseNumber: "2" },
-    ]);
+      { specialty: "Dentist", fromMaster: true, licenseNumber: "1" },
+      { specialty: "Dentist", fromMaster: true, licenseNumber: "2" },
+    ], CATALOGUE);
     assert.equal(result.ok, false);
     if (result.ok === false) {
       assert.match(result.message, /duplicate specialty/i);
@@ -46,7 +49,7 @@ describe("validateDoctorSpecialtyEntries", () => {
     const result = validateDoctorSpecialtyEntries([
       { specialty: "Sound Healing", fromMaster: false, licenseNumber: "1" },
       { specialty: "sound-healing!", fromMaster: false, licenseNumber: "2" },
-    ]);
+    ], CATALOGUE);
     assert.equal(result.ok, false);
     if (result.ok === false) {
       assert.match(result.message, /duplicate specialty/i);

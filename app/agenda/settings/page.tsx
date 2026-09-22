@@ -36,6 +36,7 @@ import { createServiceRoleClient } from "@/lib/supabase-service";
 import {
   approvedSpecialtyNames,
   hasPendingSpecialty,
+  loadSpecialtyCatalogueNames,
   loadSpecialtyEntries,
   primarySpecialtyEntry,
 } from "@/lib/specialty-catalogue";
@@ -314,9 +315,12 @@ export default async function AgendaSettingsPage() {
 
   // professional_specialties has no RLS policies for users: read it with the service role.
   const specialtyService = createServiceRoleClient();
-  const specialtyEntries = specialtyService
-    ? await loadSpecialtyEntries(specialtyService, doctor.id)
-    : [];
+  const [specialtyEntries, specialtyOptions] = specialtyService
+    ? await Promise.all([
+        loadSpecialtyEntries(specialtyService, doctor.id),
+        loadSpecialtyCatalogueNames(specialtyService),
+      ])
+    : [[], []];
 
   let pendingSpecialtyChange: DoctorSettingsFormData["pendingSpecialtyChange"] = null;
   {
@@ -388,6 +392,7 @@ export default async function AgendaSettingsPage() {
   }
 
   const initial: DoctorSettingsFormData = {
+    specialtyOptions,
     doctorId: doctor.id,
     doctorName: doctor.name,
     avatarUrl:

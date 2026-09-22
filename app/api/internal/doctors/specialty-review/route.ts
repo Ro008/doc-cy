@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createServiceRoleClient } from "@/lib/supabase-service";
 import { denyUnlessInternalFounder } from "@/lib/internal-directory-auth";
-import { isMasterSpecialty } from "@/lib/cyprus-specialties";
+import { loadSpecialtyCatalogueNames } from "@/lib/specialty-catalogue";
+import { matchCatalogueSpecialty } from "@/lib/specialty-options";
 import { normalizeApprovedCustomSpecialty } from "@/lib/specialty-submission";
 import { sendDoctorAccountRejectedEmail } from "@/lib/send-doctor-account-rejected-email";
 import { getPublicBookingBaseUrl } from "@/lib/site-url";
@@ -208,11 +209,17 @@ export async function POST(req: NextRequest) {
 
   // Resolve the target label up front so validation errors happen before any write.
   let targetLabel = "";
+  const catalogue =
+    action === "map" || action === "approve_edited"
+      ? await loadSpecialtyCatalogueNames(supabase)
+      : [];
   if (action === "map") {
-    targetLabel = typeof body.mapTo === "string" ? body.mapTo.trim() : "";
-    if (!targetLabel || !isMasterSpecialty(targetLabel)) {
-      return badRequest("mapTo must be a standard specialty from the master list.");
+    const mapTo = typeof body.mapTo === "string" ? body.mapTo.trim() : "";
+    const match = mapTo ? matchCatalogueSpecialty(catalogue, mapTo) : null;
+    if (!match || match.viaAlias) {
+      return badRequest("mapTo must be a standard specialty from the catalogue.");
     }
+    targetLabel = match.name;
   } else if (action === "approve_edited") {
     targetLabel = normalizeApprovedCustomSpecialty(
       typeof body.editedSpecialty === "string" ? body.editedSpecialty : "",
@@ -223,7 +230,7 @@ export async function POST(req: NextRequest) {
     if (targetLabel.length > 120) {
       return badRequest("Custom specialty must be 120 characters or less.");
     }
-    if (isMasterSpecialty(targetLabel)) {
+    if (matchCatalogueSpecialty(catalogue, targetLabel)) {
       return badRequest(
         "This matches a standard specialty. Use 'Merge with existing' for canonical categories.",
       );

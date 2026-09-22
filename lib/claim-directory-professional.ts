@@ -1,5 +1,4 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { isCurrentRegistrationSpecialty } from "@/lib/cyprus-specialties";
 import { firstNameFromProfessionalName } from "@/lib/doctor-display-name";
 import { MAX_DOCTOR_LOCATIONS } from "@/lib/doctor-locations";
 import { MAX_DOCTOR_SPECIALTIES } from "@/lib/doctor-specialties";
@@ -302,10 +301,9 @@ export function toRegisterClaimPrefill(row: {
     name,
     firstName: firstNameFromProfessionalName(name),
     specialty: labels[0] ?? "",
-    specialties: labels.map((specialty) => ({
-      specialty,
-      fromMaster: isCurrentRegistrationSpecialty(specialty),
-    })),
+    // Listing labels are approved (harmonized onto current names). The combobox
+    // shows each as a pick when it is in the catalogue it was given, else as "Other".
+    specialties: labels.map((specialty) => ({ specialty, fromMaster: true })),
     district: String(row.district ?? "").trim() || null,
     addressHint:
       String(row.address ?? "").trim() || String(row.clinic_address ?? "").trim() || null,

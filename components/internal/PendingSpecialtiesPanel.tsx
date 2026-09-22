@@ -5,10 +5,7 @@ import { useRouter } from "next/navigation";
 import { AlertTriangle, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { useDirectoryNav } from "@/components/internal/DirectoryNavContext";
-import {
-  CYPRUS_MASTER_SPECIALTIES,
-  isMasterSpecialty,
-} from "@/lib/cyprus-specialties";
+import { isCatalogueSpecialty } from "@/lib/specialty-options";
 import type { PendingSpecialtyItem } from "@/lib/pending-specialty-review";
 
 export type PendingSpecialtyRow = PendingSpecialtyItem;
@@ -37,7 +34,14 @@ function itemKey(row: PendingSpecialtyRow): string {
   return row.specialtyId ?? row.id;
 }
 
-export function PendingSpecialtiesPanel({ items }: { items: PendingSpecialtyRow[] }) {
+export function PendingSpecialtiesPanel({
+  items,
+  specialtyOptions,
+}: {
+  items: PendingSpecialtyRow[];
+  /** Catalogue names a pending label can be merged into. */
+  specialtyOptions: readonly string[];
+}) {
   const router = useRouter();
   const { canMutate } = useDirectoryNav();
   const [busyKey, setBusyKey] = React.useState<string | null>(null);
@@ -46,10 +50,8 @@ export function PendingSpecialtiesPanel({ items }: { items: PendingSpecialtyRow[
   const [mapTarget, setMapTarget] = React.useState<string>("");
   const [editForKey, setEditForKey] = React.useState<string | null>(null);
   const [editValue, setEditValue] = React.useState<string>("");
-  const sortedSpecialties = React.useMemo(
-    () => [...CYPRUS_MASTER_SPECIALTIES].sort((a, b) => a.localeCompare(b)),
-    [],
-  );
+  // Already alphabetical (loadSpecialtyCatalogueNames).
+  const sortedSpecialties = specialtyOptions;
 
   if (items.length === 0) {
     return null;
@@ -81,7 +83,7 @@ export function PendingSpecialtiesPanel({ items }: { items: PendingSpecialtyRow[
   }
 
   async function mapSubmit(row: PendingSpecialtyRow) {
-    if (!mapTarget || !isMasterSpecialty(mapTarget)) {
+    if (!mapTarget || !isCatalogueSpecialty(specialtyOptions, mapTarget)) {
       const message = "Choose a standard specialty to merge with.";
       setError(message);
       toast.error(message);
