@@ -52,32 +52,6 @@ async function loadContactPhoneState(
   });
 }
 
-/** Pausing the last bookable clinic makes the Call button the only way in. */
-async function revealPublicPhone(
-  supabase: SupabaseClient,
-  professionalId: string,
-  source: ContactPhoneState["source"],
-): Promise<void> {
-  const payload = {
-    professional_id: professionalId,
-    show_phone_public: true,
-    public_phone_source: source,
-    updated_at: new Date().toISOString(),
-  };
-  let upsert = await supabase
-    .from("professional_settings")
-    .upsert(payload, { onConflict: "professional_id" });
-  if (upsert.error && /public_phone_source/i.test(String(upsert.error.message ?? ""))) {
-    const { public_phone_source: _source, ...withoutSource } = payload;
-    upsert = await supabase
-      .from("professional_settings")
-      .upsert(withoutSource, { onConflict: "professional_id" });
-  }
-  if (upsert.error) {
-    console.error("[DocCy] Failed to reveal the public phone on pause", upsert.error);
-  }
-}
-
 export async function GET() {
   const supabase = createRouteHandlerClient({ cookies });
   const {
@@ -231,16 +205,11 @@ export async function POST(req: NextRequest) {
         { status: 500 }
       );
     }
-    if (contact) {
-      await revealPublicPhone(supabase, doctor.id, contact.source);
-    }
     return NextResponse.json(
       {
         pauseOnlineBookings: nextPaused,
         locationId: target.id,
-        ...(contact
-          ? { showPhonePublic: true, callNumber: contact.callNumber }
-          : {}),
+        ...(contact ? { callNumber: contact.callNumber } : {}),
       },
       { status: 200 }
     );
@@ -264,14 +233,10 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  if (contact) {
-    await revealPublicPhone(supabase, doctor.id, contact.source);
-  }
-
   return NextResponse.json(
     {
       pauseOnlineBookings: nextPaused,
-      ...(contact ? { showPhonePublic: true, callNumber: contact.callNumber } : {}),
+      ...(contact ? { callNumber: contact.callNumber } : {}),
     },
     { status: 200 }
   );

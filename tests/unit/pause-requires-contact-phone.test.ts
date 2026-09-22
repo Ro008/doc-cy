@@ -46,9 +46,8 @@ describe("api: pause route enforces a reachable phone", () => {
     assert.equal(route.includes("pauseFlagsAfterChange"), true);
   });
 
-  it("turns the public Call button on when the last clinic is paused", () => {
-    assert.equal(route.includes("show_phone_public"), true);
-    assert.equal(route.includes("professional_settings"), true);
+  it("does not write the public Call flag: a paused clinic reveals the phone on read", () => {
+    assert.equal(route.includes("show_phone_public"), false);
   });
 });
 
@@ -81,11 +80,29 @@ describe("the number cannot be emptied from the main settings save either", () =
   });
 });
 
-describe("settings load repairs an account that was never toggled", () => {
-  it("the settings page reveals the phone when it loads a paused account with the Call button off", () => {
+describe("a paused clinic reveals the phone on the public read path", () => {
+  it("the profile page and the reveal API both pass the clinic pause flags", () => {
+    for (const file of [
+      "lib/public/doctor-profile-page.tsx",
+      "app/api/directory/contact-reveal/route.ts",
+    ]) {
+      assert.match(read(file), /pauseFlags:/, `${file} must pass pauseFlags`);
+    }
+  });
+
+  it("the finder card reveals the phone for a paused professional too", () => {
+    // Third read path: the finder decided on show_phone_public alone, so a professional
+    // who never configured anything had no Call button on the card either.
+    const loader = read("lib/public/load-finder-registered-public-call.ts");
+    assert.equal(loader.includes("publicPhoneForProfessional"), true);
+    assert.equal(loader.includes("loadDoctorLocationsByDoctorIds"), true);
+    assert.match(loader, /pauseFlags:/);
+  });
+
+  it("the settings page no longer writes the flag on load", () => {
     const page = read("app/agenda/settings/page.tsx");
-    assert.equal(page.includes("shouldRevealPublicPhone"), true);
-    assert.equal(page.includes("show_phone_public: true"), true);
+    assert.equal(page.includes("shouldRevealPublicPhone"), false);
+    assert.equal(page.includes("show_phone_public: true"), false);
   });
 });
 

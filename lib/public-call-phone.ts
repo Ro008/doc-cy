@@ -100,10 +100,25 @@ export function publicPhoneForProfessional(input: {
   publicPhoneSource?: unknown;
   phone?: string | null;
   mobileNumber?: string | null;
+  /** pause_online_bookings of each clinic. One paused clinic reveals the phone. */
+  pauseFlags?: readonly boolean[];
 }): string | null {
-  if (!input.showPhonePublic) return null;
+  // A clinic that takes no online bookings leaves its patients the phone as their only
+  // way in, so the number shows whatever the Call button says. Derived on read rather
+  // than stored, so it is true for professionals who never opened their settings — and
+  // so resuming bookings restores whatever they had chosen.
+  const revealedByPause = (input.pauseFlags ?? []).some(Boolean);
+  if (!input.showPhonePublic && !revealedByPause) return null;
+  const source = input.showPhonePublic
+    ? parsePublicPhoneSource(input.publicPhoneSource)
+    : // Nothing was ever chosen here, so fall back to whichever number exists.
+      inferPublicPhoneSource({
+        saved: input.publicPhoneSource,
+        mobileNumber: input.mobileNumber,
+        directoryPhone: input.phone,
+      });
   const number = callNumberForSource({
-    source: parsePublicPhoneSource(input.publicPhoneSource),
+    source,
     mobileNumber: input.mobileNumber,
     directoryPhone: input.phone,
   });

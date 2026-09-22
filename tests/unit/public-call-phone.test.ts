@@ -187,3 +187,70 @@ describe("publicPhoneForProfessional", () => {
     );
   });
 });
+
+describe("publicPhoneForProfessional with a paused clinic", () => {
+  const mobile = "+35799747322";
+  const directory = "+35722123456";
+
+  it("shows the number when a clinic is paused, even with the Call button never switched on", () => {
+    // Clinics are created paused, so this is the state a professional registers into.
+    assert.equal(
+      publicPhoneForProfessional({
+        showPhonePublic: false,
+        phone: null,
+        mobileNumber: mobile,
+        pauseFlags: [true],
+      }),
+      mobile,
+    );
+  });
+
+  it("shows it when only one of several clinics is paused", () => {
+    assert.equal(
+      publicPhoneForProfessional({
+        showPhonePublic: false,
+        phone: null,
+        mobileNumber: mobile,
+        pauseFlags: [true, false],
+      }),
+      mobile,
+    );
+  });
+
+  it("respects a stored choice when revealing because of a pause", () => {
+    assert.equal(
+      publicPhoneForProfessional({
+        showPhonePublic: false,
+        publicPhoneSource: "directory",
+        phone: directory,
+        mobileNumber: mobile,
+        pauseFlags: [true],
+      }),
+      directory,
+    );
+  });
+
+  it("stays hidden while every clinic takes online bookings", () => {
+    assert.equal(
+      publicPhoneForProfessional({
+        showPhonePublic: false,
+        phone: null,
+        mobileNumber: mobile,
+        pauseFlags: [false, false],
+      }),
+      null,
+    );
+  });
+
+  it("returns null when a clinic is paused but there is no number at all", () => {
+    assert.equal(
+      publicPhoneForProfessional({
+        showPhonePublic: false,
+        phone: null,
+        mobileNumber: null,
+        pauseFlags: [true],
+      }),
+      null,
+    );
+  });
+});

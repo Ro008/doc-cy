@@ -82,20 +82,3 @@ export function contactPhoneState(input: {
     lockCallOn: required && callNumber.length > 0,
   };
 }
-
-/**
- * True when an account has a paused clinic and a number, but never had the Call button
- * switched on — the state every new professional starts in, since clinics are created
- * paused. Without this the settings UI shows a locked-on Call button while the public
- * profile still shows nothing at all.
- */
-export function shouldRevealPublicPhone(input: {
-  pauseFlags: readonly boolean[];
-  mobileNumber?: string | null;
-  directoryPhone?: string | null;
-  publicPhoneSource?: unknown;
-  showPhonePublic: boolean;
-}): boolean {
-  if (input.showPhonePublic) return false;
-  return contactPhoneState(input).lockCallOn;
-}

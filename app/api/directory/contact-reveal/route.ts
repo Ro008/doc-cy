@@ -5,6 +5,7 @@ import { createServiceRoleClient } from "@/lib/supabase-service";
 import { enforcePublicApiRateLimit } from "@/lib/public-api-rate-limit";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { publicPhoneForProfessional } from "@/lib/public-call-phone";
+import { loadDoctorLocations } from "@/lib/load-doctor-locations";
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -233,6 +234,8 @@ export async function POST(req: Request) {
     const settings = Array.isArray(row.professional_settings)
       ? row.professional_settings[0]
       : row.professional_settings;
+    // A clinic that takes no online bookings reveals the phone, whatever the flag says.
+    const clinics = await loadDoctorLocations(supabase, id);
     return NextResponse.json({
       ok: true,
       phone: normalizePhone(
@@ -241,6 +244,7 @@ export async function POST(req: Request) {
           publicPhoneSource: settings?.public_phone_source,
           phone: row.phone,
           mobileNumber: row.mobile_number,
+          pauseFlags: clinics.map((clinic) => Boolean(clinic.pause_online_bookings)),
         }),
       ),
     });
