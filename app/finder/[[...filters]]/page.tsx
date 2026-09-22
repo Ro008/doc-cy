@@ -746,7 +746,6 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
     }
 
     const locationsByDoctor = await loadDoctorLocationsByDoctorIds(
-      supabase,
       registeredRows.map((row) => row.id),
     );
     registeredRows = registeredRows.map((row) => {

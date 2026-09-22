@@ -78,7 +78,7 @@ export async function GET() {
     return NextResponse.json({ message: "Forbidden." }, { status: 403 });
   }
 
-  const locations = await loadDoctorLocations(supabase, doctor.id);
+  const locations = await loadDoctorLocations(doctor.id);
   const primary = primaryDoctorLocation(locations);
   if (primary) {
     return NextResponse.json(
@@ -155,7 +155,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ message: "Forbidden." }, { status: 403 });
   }
 
-  const locations = await loadDoctorLocations(supabase, doctor.id);
+  const locations = await loadDoctorLocations(doctor.id);
   const requestedLocationId =
     typeof b.locationId === "string" ? b.locationId.trim() : "";
   const target = requestedLocationId

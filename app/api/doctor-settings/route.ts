@@ -285,7 +285,7 @@ export async function POST(req: NextRequest) {
       directoryPhone: directoryPhoneToSave,
     }).length === 0
   ) {
-    const currentLocations = await loadDoctorLocations(supabase, doctorId);
+    const currentLocations = await loadDoctorLocations(doctorId);
     const pauseFlags = currentLocations.map((row) =>
       Boolean(row.pause_online_bookings),
     );
@@ -554,7 +554,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const existingLocations = await loadDoctorLocations(supabase, doctorId);
+  const existingLocations = await loadDoctorLocations(doctorId);
   const locationInputs =
     locationsPayload.length > 0
       ? locationsPayload

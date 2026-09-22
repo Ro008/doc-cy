@@ -101,10 +101,7 @@ export default async function BookingSuccessPage({
 
   const confirmed = isConfirmedForCalendar(appointment.status as string);
 
-  const locations = await loadDoctorLocations(
-    supabase,
-    appointment.doctor_id as string,
-  );
+  const locations = await loadDoctorLocations(appointment.doctor_id as string);
   const clinic = appointmentClinicCopy({
     locations,
     locationId: (appointment as { location_id?: string | null }).location_id,

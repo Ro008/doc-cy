@@ -222,7 +222,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const locations = await loadDoctorLocations(supabase, doctorId);
+  const locations = await loadDoctorLocations(doctorId);
   const requestedLocationId = String(rawLocationId ?? "").trim();
   const bookingLocation =
     (requestedLocationId

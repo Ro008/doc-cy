@@ -118,7 +118,7 @@ export async function POST(req: NextRequest) {
   }
 
   const settingsRowBase = settings as DoctorSettingsRow;
-  const locations = await loadDoctorLocations(supabase, doctor.id);
+  const locations = await loadDoctorLocations(doctor.id);
   const requestedLocationId = String(rawLocationId ?? "").trim();
   let bookingLocation = requestedLocationId
     ? locations.find((row) => row.id === requestedLocationId) ?? null

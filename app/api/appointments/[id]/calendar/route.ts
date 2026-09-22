@@ -96,10 +96,7 @@ export async function GET(req: NextRequest, { params }: RouteContext) {
   const endUtc = addMinutes(startUtc, durationMinutes);
   const createdUtc = new Date((appointment.created_at as string) ?? new Date().toISOString());
 
-  const locations = await loadDoctorLocations(
-    supabase,
-    appointment.doctor_id as string,
-  );
+  const locations = await loadDoctorLocations(appointment.doctor_id as string);
   const clinic = appointmentClinicCopy({
     locations,
     locationId: (appointment as { location_id?: string | null }).location_id,

@@ -235,7 +235,7 @@ export async function POST(req: Request) {
       ? row.professional_settings[0]
       : row.professional_settings;
     // A clinic that takes no online bookings reveals the phone, whatever the flag says.
-    const clinics = await loadDoctorLocations(supabase, id);
+    const clinics = await loadDoctorLocations(id);
     return NextResponse.json({
       ok: true,
       phone: normalizePhone(
