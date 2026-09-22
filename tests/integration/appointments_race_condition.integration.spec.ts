@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { seedProfessionalSpecialty } from "./helpers/test-doctor";
 import { createClient } from "@supabase/supabase-js";
 
 function nextWeekdayDateKey(daysAhead = 1): string {
@@ -67,15 +68,12 @@ test.describe("Integration: appointment race condition guard", { tag: ["@pr-e2e"
         .insert({
           auth_user_id: authUserId,
           name: `Race Doctor ${nonce}`,
-          specialty: "General Practice",
           email: doctorEmail,
           phone: "+35799123456",
           languages: ["English"],
-          license_number: `LIC-RACE-${nonce}`,
           license_file_url: `licenses/integration/${nonce}.pdf`,
           status: "verified",
           slug: doctorSlug,
-          is_specialty_approved: true,
                 is_registered: true,
       has_online_booking: true,
       finder_visible: true,
@@ -91,6 +89,11 @@ test.describe("Integration: appointment race condition guard", { tag: ["@pr-e2e"
         );
       }
       doctorId = doctorInsert.data.id as string;
+      await seedProfessionalSpecialty(admin, doctorId, {
+        specialty: "General Practice",
+        licenseNumber: `LIC-RACE-${nonce}`,
+        isApproved: true,
+      });
 
       const day = {
         enabled: true,

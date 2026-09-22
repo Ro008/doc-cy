@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { seedProfessionalSpecialty } from "./helpers/test-doctor";
 import { createClient } from "@supabase/supabase-js";
 import { signInDoctorAndSetCookies } from "../helpers/doctorAuth";
 
@@ -112,7 +113,6 @@ test.describe("Integration UI: settings clinic address wizard (Pareto)", { tag: 
         .insert({
           auth_user_id: authUserId,
           name: `Address Wizard Doctor ${nonce}`,
-          specialty: "Cardiology",
           district: "Limassol",
           clinic_address: "",
           latitude: null,
@@ -121,11 +121,9 @@ test.describe("Integration UI: settings clinic address wizard (Pareto)", { tag: 
           email: doctorEmail,
           phone: "+35799123456",
           languages: ["English"],
-          license_number: `LIC-ADDR-WIZ-${nonce}`,
           license_file_url: `licenses/integration/${nonce}-addr-wizard.pdf`,
           status: "verified",
           slug: doctorSlug,
-          is_specialty_approved: true,
           is_registered: true,
           has_online_booking: true,
           finder_visible: true,
@@ -139,6 +137,11 @@ test.describe("Integration UI: settings clinic address wizard (Pareto)", { tag: 
         throw new Error(`Failed creating doctor: ${doctorInsert.error?.message}`);
       }
       doctorId = String(doctorInsert.data.id);
+      await seedProfessionalSpecialty(admin, doctorId, {
+        specialty: "Cardiology",
+        licenseNumber: `LIC-ADDR-WIZ-${nonce}`,
+        isApproved: true,
+      });
 
       // 1) Public profile must not invent Evangelismos when address is missing.
       await page.goto(`/en/${doctorSlug}`, { waitUntil: "domcontentloaded" });
@@ -242,7 +245,6 @@ test.describe("Integration UI: settings clinic address wizard (Pareto)", { tag: 
         .insert({
           auth_user_id: authUserId,
           name: `Legacy Address Doctor ${nonce}`,
-          specialty: "Cardiology",
           district: "Paphos",
           town: "Paphos",
           clinic_address: legacyAddress,
@@ -252,11 +254,9 @@ test.describe("Integration UI: settings clinic address wizard (Pareto)", { tag: 
           email: doctorEmail,
           phone: "+35799123456",
           languages: ["English"],
-          license_number: `LIC-ADDR-LEG-${nonce}`,
           license_file_url: `licenses/integration/${nonce}-addr-legacy.pdf`,
           status: "verified",
           slug: doctorSlug,
-          is_specialty_approved: true,
           is_registered: true,
           has_online_booking: true,
           finder_visible: true,
@@ -270,6 +270,11 @@ test.describe("Integration UI: settings clinic address wizard (Pareto)", { tag: 
         throw new Error(`Failed creating doctor: ${doctorInsert.error?.message}`);
       }
       doctorId = String(doctorInsert.data.id);
+      await seedProfessionalSpecialty(admin, doctorId, {
+        specialty: "Cardiology",
+        licenseNumber: `LIC-ADDR-LEG-${nonce}`,
+        isApproved: true,
+      });
 
       await signInDoctorAndSetCookies(page, undefined, {
         email: doctorEmail,
@@ -352,7 +357,6 @@ test.describe("Integration UI: settings clinic address wizard (Pareto)", { tag: 
         .insert({
           auth_user_id: authUserId,
           name: `Multi Clinic Doctor ${nonce}`,
-          specialty: "Cardiology",
           district: "Nicosia",
           town: "Nicosia",
           clinic_address: primaryAddress,
@@ -362,11 +366,9 @@ test.describe("Integration UI: settings clinic address wizard (Pareto)", { tag: 
           email: doctorEmail,
           phone: "+35799123456",
           languages: ["English"],
-          license_number: `LIC-ADDR-MULTI-${nonce}`,
           license_file_url: `licenses/integration/${nonce}-addr-multi.pdf`,
           status: "verified",
           slug: doctorSlug,
-          is_specialty_approved: true,
           is_registered: true,
           has_online_booking: true,
           finder_visible: true,
@@ -380,6 +382,11 @@ test.describe("Integration UI: settings clinic address wizard (Pareto)", { tag: 
         throw new Error(`Failed creating doctor: ${doctorInsert.error?.message}`);
       }
       doctorId = String(doctorInsert.data.id);
+      await seedProfessionalSpecialty(admin, doctorId, {
+        specialty: "Cardiology",
+        licenseNumber: `LIC-ADDR-MULTI-${nonce}`,
+        isApproved: true,
+      });
 
       // Trigger may already create a primary row — ensure it has the primary address,
       // then add an empty secondary clinic (the wipe risk when editing that tab).

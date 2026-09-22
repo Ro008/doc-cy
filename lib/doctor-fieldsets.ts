@@ -9,22 +9,25 @@
  * Read via service_role on the server only, and always alongside the view's old
  * WHERE clause: `is_registered = true AND is_archived = false`. Phone is never in
  * these lists — it is resolved separately through `publicPhoneForProfessional`.
+ *
+ * Specialties are not columns here: readers embed `professional_specialties`
+ * (see `SPECIALTY_ROWS_SELECT` in lib/specialty-catalogue).
  */
 export const DOCTOR_FIELD_LIST_PUBLIC_PROFILE =
-  "id, name, specialty, specialties, bio, clinic_address, district, slug, status, languages, is_gesy, is_specialty_approved" as const;
+  "id, name, bio, clinic_address, district, slug, status, languages, is_gesy" as const;
 
 export const DOCTOR_FIELD_LIST_PUBLIC_PROFILE_NO_GESY =
-  "id, name, specialty, specialties, bio, clinic_address, district, slug, status, languages, is_specialty_approved" as const;
+  "id, name, bio, clinic_address, district, slug, status, languages" as const;
 
 export const DOCTOR_FIELD_LIST_PUBLIC_PROFILE_NO_LANG =
-  "id, name, specialty, specialties, bio, clinic_address, district, slug, status, is_specialty_approved" as const;
+  "id, name, bio, clinic_address, district, slug, status" as const;
 
 export const DOCTOR_FIELD_LIST_PUBLIC_PROFILE_BASE =
-  "id, name, specialty, specialties, bio, clinic_address, slug, status, is_specialty_approved" as const;
+  "id, name, bio, clinic_address, slug, status" as const;
 
 export const DOCTOR_FIELD_LIST_METADATA =
-  "name, specialty, specialties, status, district, is_specialty_approved, avatar_url" as const;
+  "name, status, district, avatar_url" as const;
 
 /** Metadata select without `district` when the column/view is unavailable. */
 export const DOCTOR_FIELD_LIST_METADATA_NO_DISTRICT =
-  "name, specialty, specialties, status, is_specialty_approved, avatar_url" as const;
+  "name, status, avatar_url" as const;

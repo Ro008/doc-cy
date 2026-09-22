@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { seedProfessionalSpecialty } from "./helpers/test-doctor";
 import { createClient } from "@supabase/supabase-js";
 import { allocateUniqueDoctorSlug } from "@/lib/doctor-slug";
 
@@ -61,17 +62,14 @@ test.describe("Integration: doctor slug allocation", () => {
           .insert({
             auth_user_id: authUserId,
             name: sharedName,
-            specialty: "Dentistry",
             district: "Paphos",
             clinic_address: "1 Clinic Street, Paphos",
             email,
             phone: "+35799123456",
             languages: ["English"],
-            license_number: `LIC-SLUG-${nonce}-${index}`,
             license_file_url: `licenses/integration/${nonce}-${index}.pdf`,
             status: "verified",
             slug,
-            is_specialty_approved: true,
                   is_registered: true,
       has_online_booking: true,
       finder_visible: true,
@@ -87,6 +85,16 @@ test.describe("Integration: doctor slug allocation", () => {
         }
 
         createdDoctorIds.push(String(doctorInsert.data.id));
+
+        await seedProfessionalSpecialty(admin, String(doctorInsert.data.id), {
+
+          specialty: "Dentistry",
+
+          licenseNumber: `LIC-SLUG-${nonce}-${index}`,
+
+          isApproved: true,
+
+        });
       }
 
       expect(allocatedSlugs[0]).toBe(`slug-collision-${nonce}`);

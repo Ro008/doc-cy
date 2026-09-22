@@ -15,6 +15,7 @@ import {
   type DirectoryClickCsvEvent,
 } from "@/lib/founder-directory-clicks-csv";
 import { getPublicBookingBaseUrl } from "@/lib/site-url";
+import { SPECIALTY_LINKS_SELECT, specialtyNamesForRow } from "@/lib/specialty-catalogue";
 
 export const dynamic = "force-dynamic";
 
@@ -105,7 +106,7 @@ export async function GET(req: NextRequest) {
     (idChunk) =>
       supabase
         .from("professionals")
-        .select("id, name, slug, district, specialty, is_test_profile, email")
+        .select(`id, name, slug, district, is_test_profile, email, ${SPECIALTY_LINKS_SELECT}`)
         .in("id", idChunk),
   );
   if (proErr) {
@@ -118,7 +119,7 @@ export async function GET(req: NextRequest) {
     byId.set(String((p as { id?: string }).id ?? ""), {
       name: (p as { name?: string | null }).name ?? null,
       slug: (p as { slug?: string | null }).slug ?? null,
-      specialty: (p as { specialty?: string | null }).specialty ?? null,
+      specialty: specialtyNamesForRow(p as { specialty_links?: unknown })[0] ?? null,
       district: (p as { district?: string | null }).district ?? null,
       isTestProfile: Boolean((p as { is_test_profile?: boolean | null }).is_test_profile),
       email: (p as { email?: string | null }).email ?? null,

@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { seedProfessionalSpecialty } from "./helpers/test-doctor";
 import { createClient } from "@supabase/supabase-js";
 
 test.describe("Integration UI: doctor settings Service Menu", () => {
@@ -47,15 +48,12 @@ test.describe("Integration UI: doctor settings Service Menu", () => {
         .insert({
           auth_user_id: authUserId,
           name: `Service UI Doctor ${nonce}`,
-          specialty: "Laser & Medical Aesthetics",
           email: doctorEmail,
           phone: "+35799123456",
           languages: ["English"],
-          license_number: `LIC-SVC-UI-${nonce}`,
           license_file_url: `licenses/integration/${nonce}-svc-ui.pdf`,
           status: "verified",
           slug: doctorSlug,
-          is_specialty_approved: true,
                 is_registered: true,
       has_online_booking: true,
       finder_visible: true,
@@ -69,6 +67,11 @@ test.describe("Integration UI: doctor settings Service Menu", () => {
         throw new Error(`Failed creating integration doctor: ${doctorInsert.error?.message}`);
       }
       doctorId = String(doctorInsert.data.id);
+      await seedProfessionalSpecialty(admin, doctorId, {
+        specialty: "Laser & Medical Aesthetics",
+        licenseNumber: `LIC-SVC-UI-${nonce}`,
+        isApproved: true,
+      });
 
       await page.goto("/login");
       await page.getByLabel("Email").fill(doctorEmail);

@@ -1,18 +1,17 @@
 import { expect, test } from "@playwright/test";
 import { createIntegrationAdmin, requireSafeIntegration } from "./helpers/safe-integration";
+import { seedProfessionalSpecialty } from "./helpers/test-doctor";
 
 /**
  * Regression test for a bug found manually (2026-09-14): verifying an
  * Unclaimed registration and absorbing a manually-pasted unregistered
  * listing URL leaked the *unregistered* listing's specialty onto the
- * *registered* doctor's public `professionals.specialties` array — even
- * though the doctor never submitted or got license-approved for it.
+ * *registered* doctor's public specialties — even though the doctor never
+ * submitted or got license-approved for it.
  *
- * `professionals.specialties` drives the public finder card + profile
- * badges directly (see lib/doctor-specialties.ts publicSpecialtyLabels).
- * `professional_specialties` (license-backed, is_approved) is the only source
- * that should ever expand it, via sync_professional_specialties_to_professional.
- * absorb_unregistered_into_registered must never touch it.
+ * A professional's specialties are its `professional_specialties` rows
+ * (license-backed, is_approved); they drive the finder card and profile badges.
+ * absorb_unregistered_into_registered must never add to them.
  */
 test.describe("Integration: absorb must not leak specialties", { tag: "@pr-e2e" }, () => {
   test("absorb_unregistered_into_registered never adds specialties to the registered row", async () => {
@@ -26,8 +25,8 @@ test.describe("Integration: absorb must not leak specialties", { tag: "@pr-e2e" 
 
     try {
       // 1) A doctor registers with exactly one license-backed specialty
-      // (Biochemistry) — mirrors what /register writes: professional_specialties
-      // row + synced professionals.specialty/specialties.
+      // (Biochemistry) — mirrors what /register writes: a professional_specialties
+      // row.
       const createUser = await admin.auth.admin.createUser({
         email: `absorb-leak-${nonce}@integration.test`,
         password: "StrongPass123!",
@@ -75,14 +74,12 @@ test.describe("Integration: absorb must not leak specialties", { tag: "@pr-e2e" 
       }
 
       // 2) An unrelated unregistered finder listing with a DIFFERENT
-      // specialty (Gynecology) — the founder pastes its URL to absorb it
+      // specialty (Dermatology) — the founder pastes its URL to absorb it
       // (e.g. thinking it's a stray duplicate of the same person/clinic).
       const unregisteredInsert = await admin
         .from("professionals")
         .insert({
           name: `Absorb Leak Target ${nonce}`,
-          specialty: "Gynecology",
-          specialties: ["Gynecology"],
           district: "Nicosia",
           slug: `absorb-leak-target-${nonce}`,
           address_maps_link: "https://maps.google.com/?q=absorb-leak-target",
@@ -98,6 +95,7 @@ test.describe("Integration: absorb must not leak specialties", { tag: "@pr-e2e" 
         throw new Error(`unregistered insert: ${unregisteredInsert.error?.message}`);
       }
       unregisteredId = String(unregisteredInsert.data.id);
+      await seedProfessionalSpecialty(admin, unregisteredId, { specialty: "Dermatology" });
 
       // 3) Absorb (same RPC used by Verify + manual URL, Verify + card-link
       // claim_listing_id, and the internal duplicate-merge tools).
@@ -107,19 +105,8 @@ test.describe("Integration: absorb must not leak specialties", { tag: "@pr-e2e" 
       });
       if (absorbErr) throw new Error(`absorb rpc: ${absorbErr.message}`);
 
-      // 4) The registered doctor's public specialty data must be EXACTLY
-      // what they submitted — no leak from the absorbed listing.
-      const { data: afterAbsorb, error: afterErr } = await admin
-        .from("professionals")
-        .select("specialty, specialties")
-        .eq("id", registeredId)
-        .single();
-      if (afterErr) throw new Error(afterErr.message);
-      expect(afterAbsorb?.specialty).toBe("Biochemistry");
-      expect(afterAbsorb?.specialties).toEqual(["Biochemistry"]);
-
-      // professional_specialties (the license-backed source of truth) must also be
-      // untouched — absorb never writes to it.
+      // 4) The registered doctor's specialties must be EXACTLY what they
+      // submitted — no leak from the absorbed listing.
       const { data: specRows, error: specErr } = await admin
         .from("professional_specialties")
         .select("specialty, is_approved")

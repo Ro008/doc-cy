@@ -50,6 +50,13 @@ test.describe("Integration: public directory RLS hardening", () => {
       .limit(1);
     expect(isDeniedOrEmpty(manualDump)).toBe(true);
 
+    // Specialty rows carry licence numbers: service role only.
+    const specialtyRowsDump = await anon
+      .from("professional_specialties")
+      .select("professional_id, specialty, license_number")
+      .limit(5);
+    expect(isDeniedOrEmpty(specialtyRowsDump)).toBe(true);
+
     const professionalsPublicDump = await anon
       .from("professionals_public")
       .select("id, name, specialty, phone, slug")

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceRoleClient } from "@/lib/supabase-service";
 import { denyUnlessInternalFounder } from "@/lib/internal-directory-auth";
 import { verificationBlockedReason } from "@/lib/doctor-specialty-public";
+import { hasPendingSpecialty, loadSpecialtyEntries } from "@/lib/specialty-catalogue";
 import { sendDoctorAccountVerifiedEmail } from "@/lib/send-doctor-account-verified-email";
 import { sendDoctorAccountRejectedEmail } from "@/lib/send-doctor-account-rejected-email";
 import { professionalAccountEmail } from "@/lib/professional-account-contact";
@@ -92,7 +93,7 @@ export async function POST(req: NextRequest) {
   const { data: row, error: fetchErr } = await supabase
     .from("professionals")
     .select(
-      "id, name, email, registration_email, status, is_specialty_approved, specialty_requires_standard_at, slug, district, auth_user_id, directory_claim_source, claim_listing_id, avatar_url",
+      "id, name, email, registration_email, status, specialty_requires_standard_at, slug, district, auth_user_id, directory_claim_source, claim_listing_id, avatar_url",
     )
     .eq("id", doctorId)
     .maybeSingle();
@@ -118,8 +119,7 @@ export async function POST(req: NextRequest) {
   }
 
   const blockReason = verificationBlockedReason({
-    is_specialty_approved: (row as { is_specialty_approved?: boolean | null })
-      .is_specialty_approved,
+    is_specialty_approved: !hasPendingSpecialty(await loadSpecialtyEntries(supabase, doctorId)),
     specialty_requires_standard_at: (
       row as { specialty_requires_standard_at?: string | null }
     ).specialty_requires_standard_at,

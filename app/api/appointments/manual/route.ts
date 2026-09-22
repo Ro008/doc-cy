@@ -21,6 +21,7 @@ import { normalizeAppointmentReason } from "@/lib/visit-types";
 import { sendPatientAppointmentConfirmedEmail } from "@/lib/send-patient-appointment-confirmed-email";
 import { sendDoctorAppointmentConfirmedEmail } from "@/lib/send-doctor-appointment-confirmed-email";
 import { professionalAccountEmail } from "@/lib/professional-account-contact";
+import { loadPrimarySpecialtyName } from "@/lib/specialty-catalogue";
 import { getDoctorCalendarEventDetails } from "@/lib/doctor-calendar-event";
 import { buildGoogleCalendarUrl } from "@/lib/patient-calendar-event";
 import { appointmentClinicCopy } from "@/lib/appointment-clinic-copy";
@@ -85,7 +86,7 @@ export async function POST(req: NextRequest) {
 
   const { data: doctor, error: doctorErr } = await supabase
     .from("professionals")
-    .select("id, name, email, registration_email, phone, slug, specialty, clinic_address")
+    .select("id, name, email, registration_email, phone, slug, clinic_address")
     .eq("auth_user_id", user.id)
     .maybeSingle();
 
@@ -272,6 +273,8 @@ export async function POST(req: NextRequest) {
       .clinic_address,
   });
 
+  const specialtyName = await loadPrimarySpecialtyName(supabase, doctor.id as string);
+
   try {
     if (patientEmail) {
       await sendPatientAppointmentConfirmedEmail({
@@ -284,7 +287,7 @@ export async function POST(req: NextRequest) {
         reason,
         doctor: {
           name: doctor.name,
-          specialty: (doctor as { specialty?: string | null }).specialty,
+          specialty: specialtyName,
           phone: (doctor as { phone?: string | null }).phone,
           clinic_address: clinic.address,
         },

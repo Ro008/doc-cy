@@ -7,8 +7,13 @@ import {
   catalogueIdsForFinderSlug,
   findCatalogueSpecialty,
   finderSpecialtyOptionsFromCatalogue,
+  approvedSpecialtyNames,
+  hasPendingSpecialty,
   hasSpecialtySlug,
+  primarySpecialtyEntry,
   specialtiesFromLinks,
+  specialtyEntriesFromRows,
+  specialtyNamesForRow,
   type CatalogueSpecialty,
 } from "../../lib/specialty-catalogue";
 
@@ -245,5 +250,62 @@ describe("finderSpecialtyOptionsFromCatalogue", () => {
     assert.deepEqual(finderSpecialtyOptionsFromCatalogue(catalogue, new Set(["p", "u"])), [
       { slug: "urology", label: "Urology" },
     ]);
+  });
+});
+
+describe("specialty rows (replacing the professionals columns)", () => {
+  const rows = [
+    { id: "r1", specialty: "Psychology", license_number: "L1", is_approved: true,
+      specialties: { name: "Psychology", slug: "psychology" } },
+    { id: "r2", specialty: "  Sexologist ", license_number: null, is_approved: false, specialties: null },
+    { id: "r3", specialty: "cardiology", license_number: " L3 ", is_approved: true,
+      specialties: { name: "Cardiology", slug: "cardiology" } },
+  ];
+
+  it("names approved rows by catalogue name, pending ones by the submitted text, alphabetical", () => {
+    assert.deepEqual(
+      specialtyEntriesFromRows(rows).map((e) => [e.name, e.slug, e.licenseNumber, e.isApproved]),
+      [
+        ["Cardiology", "cardiology", "L3", true],
+        ["Psychology", "psychology", "L1", true],
+        ["Sexologist", null, null, false],
+      ],
+    );
+  });
+
+  it("derives what the sync trigger used to write", () => {
+    const entries = specialtyEntriesFromRows(rows);
+    // is_specialty_approved
+    assert.equal(hasPendingSpecialty(entries), true);
+    // specialties
+    assert.deepEqual(approvedSpecialtyNames(entries), ["Cardiology", "Psychology"]);
+    // specialty + license_number: first approved label alphabetically
+    assert.equal(primarySpecialtyEntry(entries)?.name, "Cardiology");
+    assert.equal(primarySpecialtyEntry(entries)?.licenseNumber, "L3");
+  });
+
+  it("falls back to the pending label when nothing is approved yet", () => {
+    const entries = specialtyEntriesFromRows([rows[1]]);
+    assert.equal(primarySpecialtyEntry(entries)?.name, "Sexologist");
+    assert.deepEqual(approvedSpecialtyNames(entries), []);
+  });
+
+  it("handles no rows", () => {
+    assert.deepEqual(specialtyEntriesFromRows(null), []);
+    assert.equal(primarySpecialtyEntry([]), null);
+    assert.equal(hasPendingSpecialty([]), false);
+  });
+
+  it("reads display names only from the join rows", () => {
+    assert.deepEqual(
+      specialtyNamesForRow({
+        specialty_links: [
+          { is_approved: true, specialties: { name: "Dermatology", slug: "dermatology" } },
+          { is_approved: false, specialties: null },
+        ],
+      }),
+      ["Dermatology"],
+    );
+    assert.deepEqual(specialtyNamesForRow({}), []);
   });
 });

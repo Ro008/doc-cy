@@ -180,9 +180,9 @@ test.describe("Integration: doctor onboarding pipeline", { tag: "@pr-e2e" }, () 
             "internal verify returned 404 — Next server likely on a different Supabase than PLAYWRIGHT_ENV_FILE; finishing via admin updates",
         });
         const specialtyOk = await admin
-          .from("professionals")
-          .update({ is_specialty_approved: true })
-          .eq("id", fixture.doctorId);
+          .from("professional_specialties")
+          .update({ is_approved: true })
+          .eq("professional_id", fixture.doctorId);
         expect(specialtyOk.error).toBeNull();
         const verifyOk = await admin
           .from("professionals")

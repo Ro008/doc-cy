@@ -29,6 +29,8 @@ import {
   parsePublicPhoneSource,
   publicPhoneSourceForSave,
 } from "@/lib/public-call-phone";
+import { createServiceRoleClient } from "@/lib/supabase-service";
+import { loadPrimarySpecialtyName } from "@/lib/specialty-catalogue";
 
 /** GET ?doctorId=xxx - returns current settings for the doctor (authenticated owner only) */
 export async function GET(req: NextRequest) {
@@ -176,7 +178,7 @@ export async function POST(req: NextRequest) {
 
   const { data: owned, error: ownErr } = await supabase
     .from("professionals")
-    .select("id, specialty, phone")
+    .select("id, phone")
     .eq("id", doctorId)
     .eq("auth_user_id", user.id)
     .maybeSingle();
@@ -187,12 +189,13 @@ export async function POST(req: NextRequest) {
 
   const specialtyRaw =
     typeof b.specialty === "string" ? b.specialty.trim() : undefined;
-  if (
-    isSpecialtyChangeAttempt(
-      (owned as { specialty?: string | null }).specialty,
-      specialtyRaw,
-    )
-  ) {
+  // Same label the settings page shows (professional_specialties, service role:
+  // the table has no RLS policies for users).
+  const specialtyService = specialtyRaw === undefined ? null : createServiceRoleClient();
+  const currentSpecialty = specialtyService
+    ? await loadPrimarySpecialtyName(specialtyService, doctorId)
+    : null;
+  if (specialtyRaw !== undefined && isSpecialtyChangeAttempt(currentSpecialty, specialtyRaw)) {
     return NextResponse.json(
       { message: SPECIALTY_CHANGE_REQUIRES_SUPPORT_MESSAGE },
       { status: 400 },

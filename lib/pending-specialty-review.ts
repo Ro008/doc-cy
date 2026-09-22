@@ -1,21 +1,20 @@
 /**
  * Founder review queue for custom ("Other") specialties.
  *
- * `professionals.specialty` only holds the denormalized primary label, so a doctor
- * who registered `Psychology` + a custom `Sexologist` shows up as "Psychology".
- * The reviewable unit is a `doctor_specialties` row, not the professional.
+ * The reviewable unit is a `professional_specialties` row, not the professional:
+ * a professional who registered `Psychology` + a custom `Sexologist` is reviewed
+ * for `Sexologist` only.
  */
 
 export type PendingSpecialtyProfessional = {
   id: string;
   name: string | null;
   email: string | null;
-  specialty: string | null;
 };
 
 export type PendingSpecialtyJunctionRow = {
   id: string;
-  doctor_id: string;
+  professional_id: string;
   specialty: string | null;
   license_number: string | null;
   is_approved: boolean | null;
@@ -24,8 +23,8 @@ export type PendingSpecialtyJunctionRow = {
 export type PendingSpecialtyItem = {
   /** professionals.id */
   id: string;
-  /** doctor_specialties.id — null when the junction row is missing (older rows). */
-  specialtyId: string | null;
+  /** professional_specialties.id of the pending row. */
+  specialtyId: string;
   name: string;
   email: string | null;
   specialty: string | null;
@@ -46,9 +45,9 @@ export function buildPendingSpecialtyItems(
 ): PendingSpecialtyItem[] {
   const byDoctor = new Map<string, PendingSpecialtyJunctionRow[]>();
   for (const row of specialtyRows) {
-    const list = byDoctor.get(row.doctor_id);
+    const list = byDoctor.get(row.professional_id);
     if (list) list.push(row);
-    else byDoctor.set(row.doctor_id, [row]);
+    else byDoctor.set(row.professional_id, [row]);
   }
 
   const items: PendingSpecialtyItem[] = [];
@@ -62,20 +61,6 @@ export function buildPendingSpecialtyItems(
       .sort((a, b) => a.localeCompare(b));
     const pending = rows.filter((row) => row.is_approved === false);
     const name = cleanLabel(professional.name) || "—";
-
-    if (pending.length === 0) {
-      items.push({
-        id: professional.id,
-        specialtyId: null,
-        name,
-        email: professional.email ?? null,
-        specialty: cleanLabel(professional.specialty) || null,
-        licenseNumber: null,
-        approvedSpecialties,
-        hasOtherSpecialties: false,
-      });
-      continue;
-    }
 
     for (const row of pending) {
       items.push({

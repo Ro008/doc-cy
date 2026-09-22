@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { seedProfessionalSpecialty } from "./helpers/test-doctor";
 import { createClient } from "@supabase/supabase-js";
 import { signInDoctorAndSetCookies } from "../helpers/doctorAuth";
 
@@ -71,17 +72,14 @@ test.describe("Integration UI: settings clinic address notice (local only)", { t
         .insert({
           auth_user_id: authUserId,
           name: `Address Notice Doctor ${nonce}`,
-          specialty: "Laser & Medical Aesthetics",
           district: "Nicosia",
           clinic_address: "",
           email: doctorEmail,
           phone: "+35799123456",
           languages: ["English"],
-          license_number: `LIC-ADDR-${nonce}`,
           license_file_url: `licenses/integration/${nonce}-addr-notice.pdf`,
           status: "verified",
           slug: doctorSlug,
-          is_specialty_approved: true,
                 is_registered: true,
       has_online_booking: true,
       finder_visible: true,
@@ -96,6 +94,11 @@ test.describe("Integration UI: settings clinic address notice (local only)", { t
         throw new Error(`Failed creating doctor: ${doctorInsert.error?.message}`);
       }
       doctorId = String(doctorInsert.data.id);
+      await seedProfessionalSpecialty(admin, doctorId, {
+        specialty: "Laser & Medical Aesthetics",
+        licenseNumber: `LIC-ADDR-${nonce}`,
+        isApproved: true,
+      });
 
       // Deterministic session bootstrap avoids intermittent UI login flake in CI.
       await signInDoctorAndSetCookies(page, undefined, {

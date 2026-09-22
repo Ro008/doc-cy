@@ -9,9 +9,9 @@
  * - Specialties must already be in the `specialties` catalogue (matched by slug, so
  *   casing does not matter). Unknown labels stop the run before anything is written:
  *   the catalogue only grows when a founder approves a specialty.
- * - Each listing's `professional_specialties` rows are synced (added / removed) along
- *   with the denormalized `professionals.specialty` / `specialties` columns, which stay
- *   until Point C3 drops them.
+ * - Each listing's specialties live only in `professional_specialties`, synced (added /
+ *   removed) per run. The denormalized `professionals.specialty` / `specialties`
+ *   columns are no longer written (Point C3 drops them).
  *
  * Usage:
  *   node scripts/import-gesy-directory-batch.mjs --env-file .env.testing.local --xlsx "path/to/ALL.xlsx" --batch personal-doctor --dry-run
@@ -542,8 +542,7 @@ async function main() {
       const row = catalogueBySlug.get(specialtySlug(label));
       if (row && !catalogueRows.some((r) => r.id === row.id)) catalogueRows.push(row);
     }
-    const specialties = catalogueRows.map((row) => row.name);
-    if (specialties.length === 0) continue;
+    if (catalogueRows.length === 0) continue;
 
     // Prefer clinics from bookable segments; for inpatient-only batch use all clinics.
     const clinicEntries = [...person.clinics.values()].filter((c) => {
@@ -583,8 +582,6 @@ async function main() {
 
     const payload = {
       name: cleanGesyDirectoryDisplayName(person.name),
-      specialty: specialties[0],
-      specialties,
       district,
       town: primaryClinic?.town ?? null,
       address_maps_link: maps,

@@ -108,7 +108,7 @@ export async function loadClinicBySlug(
         supabase
           .from("professionals")
           .select(
-            `id, slug, name, specialty, specialties, district, address_maps_link, is_gesy, gender, finder_visible, ${SPECIALTY_LINKS_SELECT}`,
+            `id, slug, name, district, address_maps_link, is_gesy, gender, finder_visible, ${SPECIALTY_LINKS_SELECT}`,
           )
           .eq("is_archived", false)
           .in("id", idChunk)
@@ -121,8 +121,7 @@ export async function loadClinicBySlug(
           id: string;
           slug?: string | null;
           name: string | null;
-          specialty: string | null;
-          specialties?: string[] | null;
+          specialty_links?: unknown;
           district: CyprusDistrict;
           address_maps_link?: string | null;
           is_gesy?: boolean | null;

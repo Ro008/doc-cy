@@ -12,6 +12,7 @@ import {
 } from "@/lib/patient-calendar-event";
 import { appointmentClinicCopy } from "@/lib/appointment-clinic-copy";
 import { loadDoctorLocations } from "@/lib/load-doctor-locations";
+import { loadPrimarySpecialtyName } from "@/lib/specialty-catalogue";
 import { getTranslations } from "next-intl/server";
 import { isConfirmedForCalendar } from "@/lib/appointment-status";
 
@@ -58,7 +59,7 @@ export default async function BookingSuccessPage({
   const [doctorResult, settingsResult] = await Promise.all([
     supabase
       .from("professionals")
-      .select("id, name, slug, phone, clinic_address, specialty")
+      .select("id, name, slug, phone, clinic_address")
       .eq("id", appointment.doctor_id)
       .single(),
     supabase
@@ -73,6 +74,7 @@ export default async function BookingSuccessPage({
   }
 
   const doctor = doctorResult.data;
+  const specialtyName = await loadPrimarySpecialtyName(supabase, doctor.id as string);
 
   if (doctor.slug !== params.slug) {
     redirect(
@@ -117,7 +119,7 @@ export default async function BookingSuccessPage({
     },
     {
       name: doctor.name,
-      specialty: (doctor as { specialty?: string | null }).specialty,
+      specialty: specialtyName,
       phone: doctor.phone,
       clinic_address: clinic.address,
     },

@@ -8,7 +8,11 @@ import {
   validateSpecialtyChangeAgainstProfile,
   validateSpecialtyChangeRequestInput,
 } from "@/lib/doctor-specialty-change-request";
-import { publicSpecialtyLabels } from "@/lib/doctor-specialties";
+import {
+  approvedSpecialtyNames,
+  loadSpecialtyEntries,
+  primarySpecialtyEntry,
+} from "@/lib/specialty-catalogue";
 
 type Body = {
   requestKind?: string;
@@ -77,7 +81,7 @@ export async function POST(req: NextRequest) {
 
   const { data: doctor, error: doctorErr } = await admin
     .from("professionals")
-    .select("id, specialty, specialties, is_specialty_approved")
+    .select("id")
     .eq("auth_user_id", user.id)
     .maybeSingle();
 
@@ -86,28 +90,18 @@ export async function POST(req: NextRequest) {
   }
 
   const doctorId = doctor.id as string;
-  const existingLabels = publicSpecialtyLabels({
-    specialties: (doctor as { specialties?: string[] | null }).specialties,
-    specialty: (doctor as { specialty?: string | null }).specialty,
-    is_specialty_approved: true,
-  });
-  const rawLabels = Array.isArray((doctor as { specialties?: string[] | null }).specialties)
-    ? ((doctor as { specialties?: string[] }).specialties ?? [])
-        .map((s) => String(s ?? "").trim())
-        .filter(Boolean)
-    : [];
-  const labelsForMatch =
-    rawLabels.length > 0
-      ? rawLabels
-      : [String((doctor as { specialty?: string | null }).specialty ?? "").trim()].filter(
-          Boolean,
-        );
+  // Approved labels; while none is approved, the pending one (what the profile shows).
+  const specialtyEntries = await loadSpecialtyEntries(admin, doctorId);
+  const approvedLabels = approvedSpecialtyNames(specialtyEntries);
+  const primaryLabel = primarySpecialtyEntry(specialtyEntries)?.name;
+  const existingLabels =
+    approvedLabels.length > 0 ? approvedLabels : primaryLabel ? [primaryLabel] : [];
 
   const profileCheck = validateSpecialtyChangeAgainstProfile({
     kind: requestKind,
     fromSpecialty: typeof body.fromSpecialty === "string" ? body.fromSpecialty : "",
     toSpecialty: requestKind === "remove" ? "" : toSpecialty,
-    existingLabels: labelsForMatch.length > 0 ? labelsForMatch : existingLabels,
+    existingLabels,
   });
   if (profileCheck.ok === false) {
     return NextResponse.json({ message: profileCheck.message }, { status: 400 });
