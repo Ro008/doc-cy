@@ -10,6 +10,8 @@ import { getPublicBookingBaseUrl } from "@/lib/site-url";
 import { realignDoctorSlugIfNameChanged } from "@/lib/doctor-slug";
 import { resolveUnregisteredListingFromUrl } from "@/lib/resolve-unregistered-listing-from-url";
 import { parseDirectoryClaimSource } from "@/lib/pending-registration-origin";
+import { locationsToAddForAbsorbedClinics } from "@/lib/absorbed-clinic-locations";
+import { MAX_DOCTOR_LOCATIONS } from "@/lib/doctor-locations";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 type Body = {
@@ -58,6 +60,69 @@ async function resolveClaimListingForVerify(
     };
   }
   return { ok: true, id: String(data.id) };
+}
+
+type AbsorbedClinicRow = {
+  id?: string | null;
+  address?: string | null;
+  town?: string | null;
+  district?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  clinic_place_id?: string | null;
+  is_archived?: boolean | null;
+};
+
+/** PostgREST types an embed as an array; a to-one join still arrives as an object. */
+type AbsorbedClinicJoin = { clinics?: AbsorbedClinicRow | AbsorbedClinicRow[] | null };
+
+/**
+ * Give every clinic now linked to this professional a practice location, unless one of
+ * theirs is already at that address. Best effort: the absorb has already committed, and
+ * a missing location is recoverable, so this never fails the verification.
+ */
+async function addLocationsForAbsorbedClinics(
+  supabase: SupabaseClient,
+  doctorId: string,
+): Promise<void> {
+  const [links, locations] = await Promise.all([
+    supabase
+      .from("professional_clinics")
+      .select(
+        "clinics ( id, address, town, district, latitude, longitude, clinic_place_id, is_archived )",
+      )
+      .eq("professional_id", doctorId)
+      .limit(MAX_DOCTOR_LOCATIONS),
+    supabase
+      .from("doctor_locations")
+      .select("clinic_address, sort_order")
+      .eq("doctor_id", doctorId),
+  ]);
+
+  if (links.error || locations.error) {
+    console.error(
+      "[internal/doctors/verification] absorbed clinic locations lookup failed",
+      links.error ?? locations.error,
+    );
+    return;
+  }
+
+  const clinics = ((links.data ?? []) as unknown as AbsorbedClinicJoin[])
+    .map((row) => (Array.isArray(row.clinics) ? row.clinics[0] : row.clinics))
+    .filter((clinic): clinic is AbsorbedClinicRow => Boolean(clinic) && !clinic?.is_archived);
+
+  const toAdd = locationsToAddForAbsorbedClinics({
+    clinics,
+    existingLocations: locations.data ?? [],
+  });
+  if (toAdd.length === 0) return;
+
+  const { error } = await supabase
+    .from("doctor_locations")
+    .insert(toAdd.map((location) => ({ ...location, doctor_id: doctorId })));
+  if (error) {
+    console.error("[internal/doctors/verification] absorbed clinic locations insert failed", error);
+  }
 }
 
 export async function POST(req: NextRequest) {
@@ -177,6 +242,8 @@ export async function POST(req: NextRequest) {
 
   // action === "verify" from here.
 
+  let absorbed = false;
+
   if (claimSource === "card_link") {
     const claimListingId = String(
       (row as { claim_listing_id?: string | null }).claim_listing_id ?? "",
@@ -196,6 +263,7 @@ export async function POST(req: NextRequest) {
         console.error("[internal/doctors/verification] claim absorb failed", absorbErr);
         return NextResponse.json({ message: "Could not absorb listing." }, { status: 500 });
       }
+      absorbed = true;
     }
   } else if (listingUrl) {
     const resolved = await resolveUnregisteredListingFromUrl(supabase, listingUrl);
@@ -218,6 +286,14 @@ export async function POST(req: NextRequest) {
       console.error("[internal/doctors/verification] absorb failed", absorbErr);
       return NextResponse.json({ message: "Could not absorb listing." }, { status: 500 });
     }
+    absorbed = true;
+  }
+
+  // An absorbed clinic is a workplace the listing advertised publicly until now. It
+  // arrives as a professional_clinics row, which nothing on the professional's own
+  // profile renders, so without this it disappears the moment we verify them.
+  if (absorbed) {
+    await addLocationsForAbsorbedClinics(supabase, doctorId);
   }
 
   if (authUserId) {
