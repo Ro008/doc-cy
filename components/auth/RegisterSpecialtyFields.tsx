@@ -37,9 +37,12 @@ function specialtyKey(value: string): string {
  */
 export function RegisterSpecialtyFields({
   initialSpecialties,
+  specialtyOptions,
 }: {
   initialSpecialties?: readonly { specialty: string; fromMaster: boolean }[];
-} = {}) {
+  /** Catalogue names offered in each row's combobox (loaded on the server). */
+  specialtyOptions: readonly string[];
+}) {
   const [rows, setRows] = React.useState<RowState[]>(() => {
     if (initialSpecialties && initialSpecialties.length > 0) {
       return initialSpecialties.slice(0, MAX_DOCTOR_SPECIALTIES).map((entry, index) => ({
@@ -168,6 +171,7 @@ export function RegisterSpecialtyFields({
               fromMasterName={`_unused_from_master_${row.key}`}
               initialSpecialty={row.specialty}
               initialIsApproved={row.fromMaster}
+              options={specialtyOptions}
               variant="register"
               excludeSpecialties={excluded}
               onSelectionChange={(p) => {

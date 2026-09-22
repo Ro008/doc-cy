@@ -90,7 +90,7 @@ A professional is included in the Dermatology export if **any** of their
 |---------|---------------|---------|
 | GeSY specialty **codes** in use | ~135 | Internal IDs (`CD`, `ISCD`, `AECD`, …) |
 | Distinct English **labels** | ~67–72 | Real specialties as shown in GeSY |
-| DocCy master labels | See `lib/cyprus-specialties.ts` | What we store in `directory_manual.specialty` |
+| DocCy master labels | The `specialties` table (catalogue); see `lib/specialty-catalogue.ts` | What we store in `directory_manual.specialty` |
 
 Example: Cardiology → codes `CD`, `ISCD`, `AECD` → one DocCy label `Cardiology`.
 

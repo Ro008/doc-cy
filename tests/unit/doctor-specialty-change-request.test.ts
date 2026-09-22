@@ -8,6 +8,9 @@ import {
   validateSpecialtyChangeRequestInput,
 } from "@/lib/doctor-specialty-change-request";
 
+/** Catalogue names as `loadSpecialtyCatalogueNames` returns them. */
+const CATALOGUE = ["Dentist", "Paediatrics", "Psychiatry", "Psychology"];
+
 describe("validateSpecialtyChangeRequestInput", () => {
   it("requires license and a valid specialty", () => {
     assert.equal(
@@ -15,7 +18,7 @@ describe("validateSpecialtyChangeRequestInput", () => {
         toSpecialty: "Pediatrics",
         toSpecialtyFromMaster: true,
         licenseNumber: "",
-      }).ok,
+      }, CATALOGUE).ok,
       false,
     );
     assert.equal(
@@ -23,20 +26,31 @@ describe("validateSpecialtyChangeRequestInput", () => {
         toSpecialty: "",
         toSpecialtyFromMaster: true,
         licenseNumber: "123",
-      }).ok,
+      }, CATALOGUE).ok,
       false,
     );
   });
 
-  it("accepts a master specialty with license", () => {
+  it("rejects a legacy label picked as a catalogue specialty", () => {
+    assert.equal(
+      validateSpecialtyChangeRequestInput({
+        toSpecialty: "Pediatrics",
+        toSpecialtyFromMaster: true,
+        licenseNumber: "123",
+      }, CATALOGUE).ok,
+      false,
+    );
+  });
+
+  it("accepts a catalogue specialty with license", () => {
     const result = validateSpecialtyChangeRequestInput({
-      toSpecialty: "Pediatrics",
+      toSpecialty: "Paediatrics",
       toSpecialtyFromMaster: true,
       licenseNumber: " 123456 ",
-    });
+    }, CATALOGUE);
     assert.equal(result.ok, true);
     if (result.ok) {
-      assert.equal(result.toSpecialty, "Pediatrics");
+      assert.equal(result.toSpecialty, "Paediatrics");
       assert.equal(result.licenseNumber, "123456");
       assert.equal(result.isSpecialtyApproved, true);
     }
@@ -146,6 +160,7 @@ describe("buildSpecialtyChangeApproveReviewBody", () => {
       fromSpecialty: "Psychology",
       toSpecialty: "",
       licenseNumber: "",
+      catalogue: CATALOGUE,
     });
     assert.equal(result.ok, true);
     if (result.ok) {
@@ -165,6 +180,7 @@ describe("buildSpecialtyChangeApproveReviewBody", () => {
       fromSpecialty: "  ",
       toSpecialty: "",
       licenseNumber: "",
+      catalogue: CATALOGUE,
     });
     assert.equal(result.ok, false);
   });
@@ -177,6 +193,7 @@ describe("buildSpecialtyChangeApproveReviewBody", () => {
         fromSpecialty: "",
         toSpecialty: "",
         licenseNumber: "123",
+        catalogue: CATALOGUE,
       }).ok,
       false,
     );
@@ -187,6 +204,7 @@ describe("buildSpecialtyChangeApproveReviewBody", () => {
         fromSpecialty: "",
         toSpecialty: "Pediatrics",
         licenseNumber: "",
+        catalogue: CATALOGUE,
       }).ok,
       false,
     );
@@ -194,12 +212,13 @@ describe("buildSpecialtyChangeApproveReviewBody", () => {
       requestId: "req-2",
       requestKind: "add",
       fromSpecialty: "",
-      toSpecialty: "Pediatrics",
+      toSpecialty: "Paediatrics",
       licenseNumber: "LIC-9",
+      catalogue: CATALOGUE,
     });
     assert.equal(ok.ok, true);
     if (ok.ok) {
-      assert.equal(ok.body.toSpecialty, "Pediatrics");
+      assert.equal(ok.body.toSpecialty, "Paediatrics");
       assert.equal(ok.body.licenseNumber, "LIC-9");
       assert.equal(ok.body.toSpecialtyFromMaster, true);
     }

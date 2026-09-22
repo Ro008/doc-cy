@@ -11,6 +11,7 @@ import {
 } from "./helpers/safe-integration";
 import {
   createTestDoctor,
+  deleteTestCatalogueSpecialty,
   deleteTestDoctor,
   loginDoctorUi,
   type TestDoctorFixture,
@@ -222,6 +223,8 @@ test.describe("Integration: doctor onboarding pipeline", { tag: "@pr-e2e" }, () 
       });
     } finally {
       if (fixture) await deleteTestDoctor(fixture);
+      // approve_new put the label into the catalogue.
+      await deleteTestCatalogueSpecialty(admin, "holistic coaching");
     }
   });
 });

@@ -131,6 +131,26 @@ export async function deleteTestDoctor(fixture: TestDoctorFixture): Promise<void
   }
 }
 
+/**
+ * Approving a custom label adds it to the `specialties` catalogue, where it would
+ * stay after the test (and show in Testing's dropdowns). Call after
+ * `deleteTestDoctor`: deletes the catalogue row by name unless something still uses
+ * it (the foreign key from professional_specialties is RESTRICT).
+ */
+export async function deleteTestCatalogueSpecialty(
+  admin: SupabaseClient,
+  name: string,
+): Promise<void> {
+  const row = await admin.from("specialties").select("id").eq("name", name).maybeSingle();
+  if (row.error || !row.data?.id) return;
+  const used = await admin
+    .from("professional_specialties")
+    .select("id", { count: "exact", head: true })
+    .eq("specialty_id", row.data.id);
+  if (used.error || (used.count ?? 0) > 0) return;
+  await admin.from("specialties").delete().eq("id", row.data.id);
+}
+
 /** Programmatic session (stable on CI with `npm run start` + 127.0.0.1). */
 export async function loginDoctorUi(
   page: Page,

@@ -7,7 +7,8 @@ import {
   parseSpecialtyChangeRequestKind,
   validateSpecialtyChangeRequestInput,
 } from "@/lib/doctor-specialty-change-request";
-import { isMasterSpecialty } from "@/lib/cyprus-specialties";
+import { loadSpecialtyCatalogueNames } from "@/lib/specialty-catalogue";
+import { isCatalogueSpecialty } from "@/lib/specialty-options";
 import {
   deleteProfessionalSpecialty,
   upsertProfessionalSpecialty,
@@ -195,17 +196,21 @@ export async function POST(req: NextRequest) {
       ? body.licenseNumber
       : String((row as { license_number?: string }).license_number ?? "");
 
-  const validated = validateSpecialtyChangeRequestInput({
-    toSpecialty: toSpecialtyRaw,
-    toSpecialtyFromMaster: fromMasterFlag,
-    licenseNumber: licenseRaw,
-  });
+  const catalogue = await loadSpecialtyCatalogueNames(supabase);
+  const validated = validateSpecialtyChangeRequestInput(
+    {
+      toSpecialty: toSpecialtyRaw,
+      toSpecialtyFromMaster: fromMasterFlag,
+      licenseNumber: licenseRaw,
+    },
+    catalogue,
+  );
   if (validated.ok === false) {
     return NextResponse.json({ message: validated.message }, { status: 400 });
   }
 
   const finalSpecialty = validated.toSpecialty;
-  const isApproved = isMasterSpecialty(finalSpecialty)
+  const isApproved = isCatalogueSpecialty(catalogue, finalSpecialty)
     ? true
     : validated.isSpecialtyApproved;
 
@@ -245,7 +250,7 @@ export async function POST(req: NextRequest) {
       resolved_at: nowIso,
       founder_note: founderNote,
       to_specialty: finalSpecialty,
-      to_specialty_from_master: isMasterSpecialty(finalSpecialty),
+      to_specialty_from_master: isCatalogueSpecialty(catalogue, finalSpecialty),
       license_number: validated.licenseNumber,
     })
     .eq("id", requestId)

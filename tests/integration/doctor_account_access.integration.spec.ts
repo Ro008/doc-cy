@@ -10,6 +10,7 @@ import {
 } from "./helpers/safe-integration";
 import {
   createTestDoctor,
+  deleteTestCatalogueSpecialty,
   deleteTestDoctor,
   loginDoctorUi,
   type TestDoctorFixture,
@@ -177,6 +178,8 @@ test.describe("Integration: doctor account access", { tag: "@pr-e2e" }, () => {
       });
     } finally {
       if (fixture) await deleteTestDoctor(fixture);
+      // approve_new put the label into the catalogue.
+      await deleteTestCatalogueSpecialty(admin, "meditation");
     }
   });
 
@@ -253,6 +256,10 @@ test.describe("Integration: doctor account access", { tag: "@pr-e2e" }, () => {
     const secret = env.internalSecret;
     const nonce = `${Date.now()}-${Math.floor(Math.random() * 100000)}`;
     let fixture: TestDoctorFixture | null = null;
+    // Approving an edited label adds it to the catalogue, so make it unique per run
+    // and delete it afterwards (a fixed label would already be in the catalogue on
+    // the next run, and the route would then ask for a merge instead).
+    const editedLabel = `Meditation ${nonce.replace(/\D/g, "").slice(-6)}`;
 
     try {
       fixture = await createTestDoctor({
@@ -311,12 +318,11 @@ test.describe("Integration: doctor account access", { tag: "@pr-e2e" }, () => {
         ).map((r) => `${r.specialty}:${r.is_approved}`).sort();
 
       expect(
-        (await postSpecialtyReview(request, secret, { doctorId, action: "map", mapTo: "Wellness" }))
+        (await postSpecialtyReview(request, secret, { doctorId, action: "map", mapTo: "Personal Doctor" }))
           .status(),
       ).toBe(200);
       let row = await readProfessional();
-      // Labels are catalogue names; Testing's catalogue keeps earlier runs' casing.
-      expect(row?.specialty?.toLowerCase()).toBe("wellness");
+      expect(row?.specialty).toBe("Personal Doctor");
       expect(row?.is_specialty_approved).toBe(true);
       expect(row?.status).toBe("pending");
 
@@ -329,15 +335,12 @@ test.describe("Integration: doctor account access", { tag: "@pr-e2e" }, () => {
             doctorId,
             specialtyId: meditationId,
             action: "approve_edited",
-            editedSpecialty: " Meditation ",
+            editedSpecialty: ` ${editedLabel} `,
           })
         ).status(),
       ).toBe(200);
       row = await readProfessional();
-      expect(row?.specialties.map((label) => label.toLowerCase())).toEqual([
-        "meditation",
-        "wellness",
-      ]);
+      expect(row?.specialties).toEqual([editedLabel, "Personal Doctor"]);
       expect(row?.is_specialty_approved).toBe(true);
 
       // Rejecting one of several specialties removes only that one.
@@ -345,7 +348,7 @@ test.describe("Integration: doctor account access", { tag: "@pr-e2e" }, () => {
       expect(
         (await postSpecialtyReview(request, secret, { doctorId, action: "reject_specialty" })).status(),
       ).toBe(200);
-      expect(await specialtyLabels()).toEqual(["Meditation:true", "Wellness:true"]);
+      expect(await specialtyLabels()).toEqual([`${editedLabel}:true`, "Personal Doctor:true"]);
       row = await readProfessional();
       expect(row?.status).toBe("pending");
       expect(row?.is_specialty_approved).toBe(true);
@@ -365,7 +368,7 @@ test.describe("Integration: doctor account access", { tag: "@pr-e2e" }, () => {
       await admin.from("professionals").update({ status: "pending" }).eq("id", doctorId);
       await admin
         .from("professional_specialties")
-        .insert({ professional_id: doctorId, specialty: "Wellness", license_number: `LIC-${nonce}`, is_approved: true });
+        .insert({ professional_id: doctorId, specialty: "Personal Doctor", license_number: `LIC-${nonce}`, is_approved: true });
       expect(
         (await postSpecialtyReview(request, secret, { doctorId, action: "approve_new" })).status(),
       ).toBe(400);
@@ -383,6 +386,7 @@ test.describe("Integration: doctor account access", { tag: "@pr-e2e" }, () => {
       ).toBe(400);
     } finally {
       if (fixture) await deleteTestDoctor(fixture);
+      await admin.from("specialties").delete().eq("name", editedLabel);
     }
   });
 
@@ -445,22 +449,23 @@ test.describe("Integration: doctor account access", { tag: "@pr-e2e" }, () => {
         };
       };
 
-      await approve("add", null, "Dermatology");
+      // A catalogue name: legacy labels such as "Dermatology" are refused as picks.
+      await approve("add", null, "Dermato-Venereology");
       expect(await state()).toEqual({
-        rows: ["Cardiology:true", "Dermatology:true"],
-        specialties: ["Cardiology", "Dermatology"],
+        rows: ["Cardiology:true", "Dermato-Venereology:true"],
+        specialties: ["Cardiology", "Dermato-Venereology"],
         approved: true,
       });
 
       // "from" matches by slug, whatever its casing.
       await approve("replace", "cardiology", "Rheumatology");
       expect(await state()).toEqual({
-        rows: ["Dermatology:true", "Rheumatology:true"],
-        specialties: ["Dermatology", "Rheumatology"],
+        rows: ["Dermato-Venereology:true", "Rheumatology:true"],
+        specialties: ["Dermato-Venereology", "Rheumatology"],
         approved: true,
       });
 
-      await approve("remove", "Dermatology", null);
+      await approve("remove", "Dermato-Venereology", null);
       expect(await state()).toEqual({
         rows: ["Rheumatology:true"],
         specialties: ["Rheumatology"],

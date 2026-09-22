@@ -19,7 +19,7 @@ Use this when the user passes a new doctor list (Excel/CSV) for the **manual fin
 | Field | DB column | Notes |
 |-------|-----------|--------|
 | Name | `name` | Person name; Title Case (not clinic brand) |
-| Specialty | `specialty` | Use canonical labels (e.g. `Dentistry`, `Dermatology`) — see `lib/cyprus-specialties.ts` / `lib/finder-specialty-harmonize.ts` |
+| Specialty | `specialty` | Use canonical labels (e.g. `Dentistry`, `Dermatology`) — see the `specialties` catalogue / `lib/finder-specialty-harmonize.ts` |
 | District | `district` | One of: `Nicosia`, `Limassol`, `Paphos`, `Larnaca`, `Famagusta` |
 | Google Maps URL | `address_maps_link` | Used for Maps CTA and curated photo lookup |
 | Phone | `phone` | Optional; shown via Call to Book on the finder card |

@@ -43,7 +43,7 @@ import {
 } from "@/lib/settings-form-dirty";
 import { useSettingsUnsavedChangesWarning } from "@/components/dashboard/useSettingsUnsavedChangesWarning";
 import { SpecialtyCombobox } from "@/components/specialties/SpecialtyCombobox";
-import { isMasterSpecialty } from "@/lib/cyprus-specialties";
+import { isCatalogueSpecialty } from "@/lib/specialty-options";
 import { PUBLIC_SPECIALTY_UNDER_REVIEW_LABEL } from "@/lib/doctor-specialty-public";
 import {
   validateSpecialtyChangeAgainstProfile,
@@ -72,6 +72,8 @@ export type DoctorSettingsFormData = {
   avatarUrl?: string | null;
   /** Shown in directory & public profile */
   specialty: string;
+  /** Catalogue names offered in the specialty combobox (`loadSpecialtyCatalogueNames`). */
+  specialtyOptions: string[];
   /** Approved specialty labels (flat). */
   specialties?: string[];
   /** false = custom “Other” text pending founder approval */
@@ -288,7 +290,7 @@ export function SettingsForm({ initial }: SettingsFormProps) {
         : [];
   const specialtyFromMaster =
     (initial.isSpecialtyApproved ?? true) !== false &&
-    isMasterSpecialty(lockedSpecialty);
+    isCatalogueSpecialty(initial.specialtyOptions, lockedSpecialty);
   const specialtyUnderReview = (initial.isSpecialtyApproved ?? true) === false;
   const [pendingSpecialtyChange, setPendingSpecialtyChange] = React.useState(
     () => initial.pendingSpecialtyChange ?? null,
@@ -816,7 +818,8 @@ export function SettingsForm({ initial }: SettingsFormProps) {
     return buildSettingsDirtySnapshot({
       specialty,
       specialtyFromMaster:
-        (initial.isSpecialtyApproved ?? true) !== false && isMasterSpecialty(specialty),
+        (initial.isSpecialtyApproved ?? true) !== false &&
+        isCatalogueSpecialty(initial.specialtyOptions, specialty),
       bio: (initial.bio ?? "").trim(),
       languages: Array.isArray(initial.languages) ? [...initial.languages] : [],
       mobileNumber: initial.mobileNumber ?? "",
@@ -1428,6 +1431,7 @@ export function SettingsForm({ initial }: SettingsFormProps) {
                       <SpecialtyCombobox
                         id="settings-specialty-change"
                         initialSpecialty=""
+                        options={initial.specialtyOptions}
                         initialIsApproved
                         variant="settings"
                         excludeSpecialties={
@@ -1477,11 +1481,14 @@ export function SettingsForm({ initial }: SettingsFormProps) {
                       let licenseNumber: string | null = null;
 
                       if (specialtyRequestKind !== "remove") {
-                        const validated = validateSpecialtyChangeRequestInput({
-                          toSpecialty: specialtyChangeSpec.specialty,
-                          toSpecialtyFromMaster: specialtyChangeSpec.fromMaster,
-                          licenseNumber: specialtyChangeLicense,
-                        });
+                        const validated = validateSpecialtyChangeRequestInput(
+                          {
+                            toSpecialty: specialtyChangeSpec.specialty,
+                            toSpecialtyFromMaster: specialtyChangeSpec.fromMaster,
+                            licenseNumber: specialtyChangeLicense,
+                          },
+                          initial.specialtyOptions,
+                        );
                         if (validated.ok === false) {
                           toast.error(validated.message);
                           return;
