@@ -5,6 +5,7 @@ import {
   contactPhoneState,
   onlineBookingUnavailable,
   normalizeContactPhone,
+  shouldRevealPublicPhone,
   pauseFlagsAfterChange,
 } from "../../lib/booking-contact-phone";
 
@@ -130,5 +131,37 @@ describe("normalizeContactPhone", () => {
     assert.equal(normalizeContactPhone("   "), null);
     assert.equal(normalizeContactPhone("12345"), null);
     assert.equal(normalizeContactPhone("abc"), null);
+  });
+});
+
+describe("shouldRevealPublicPhone", () => {
+  const paused = { pauseFlags: [true], mobileNumber: "+357 99 123456", directoryPhone: "" };
+
+  it("reveals the number for an account that is paused everywhere with the Call button still off", () => {
+    // Every new professional lands here: clinics start paused, so nothing was ever toggled.
+    assert.equal(shouldRevealPublicPhone({ ...paused, showPhonePublic: false }), true);
+  });
+
+  it("does nothing when the Call button is already on", () => {
+    assert.equal(shouldRevealPublicPhone({ ...paused, showPhonePublic: true }), false);
+  });
+
+  it("does nothing when there is no number to reveal", () => {
+    assert.equal(
+      shouldRevealPublicPhone({
+        pauseFlags: [true],
+        mobileNumber: "",
+        directoryPhone: "",
+        showPhonePublic: false,
+      }),
+      false,
+    );
+  });
+
+  it("does nothing while a clinic still takes online bookings", () => {
+    assert.equal(
+      shouldRevealPublicPhone({ ...paused, pauseFlags: [true, false], showPhonePublic: false }),
+      false,
+    );
   });
 });

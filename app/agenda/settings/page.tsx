@@ -31,6 +31,10 @@ import { isFounderSubscriptionTier } from "@/lib/subscription-tier";
 import { loadDoctorLocations } from "@/lib/load-doctor-locations";
 import { locationWeeklySchedule } from "@/lib/doctor-locations";
 import { inferPublicPhoneSource } from "@/lib/public-call-phone";
+import {
+  contactPhoneState,
+  shouldRevealPublicPhone,
+} from "@/lib/booking-contact-phone";
 import { FirstLoginTrialNoticeGate } from "@/components/dashboard/FirstLoginTrialNoticeGate";
 import { createServiceRoleClient } from "@/lib/supabase-service";
 import {
@@ -310,6 +314,37 @@ export default async function AgendaSettingsPage() {
     pauseOnlineBookings: Boolean(row.pause_online_bookings),
   }));
 
+  // New professionals start with every clinic paused, so patients can only call them —
+  // but nothing ever switched the Call button on. Repair that the first time the owner
+  // opens this page, or the settings UI would promise a phone the profile never shows.
+  let showPhonePublic = Boolean(
+    (settings as { show_phone_public?: boolean | null } | null)?.show_phone_public,
+  );
+  {
+    const phoneInput = {
+      pauseFlags: workplaceLocations.map((row) => Boolean(row.pauseOnlineBookings)),
+      mobileNumber: (doctor.mobile_number ?? doctor.phone ?? "").trim(),
+      directoryPhone: (doctor.phone ?? "").trim(),
+      publicPhoneSource: (settings as { public_phone_source?: string | null } | null)
+        ?.public_phone_source,
+    };
+    if (shouldRevealPublicPhone({ ...phoneInput, showPhonePublic })) {
+      const { error: revealErr } = await supabase
+        .from("professional_settings")
+        .update({
+          show_phone_public: true,
+          public_phone_source: contactPhoneState(phoneInput).source,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("professional_id", doctor.id);
+      if (revealErr) {
+        console.error("[DocCy] Failed to reveal the phone for a paused account", revealErr);
+      } else {
+        showPhonePublic = true;
+      }
+    }
+  }
+
   const displayName = doctorDashboardDisplayName(doctor.name);
 
   // professional_specialties has no RLS policies for users: read it with the service role.
@@ -402,9 +437,7 @@ export default async function AgendaSettingsPage() {
     languages: langArr,
     mobileNumber: (doctor.mobile_number ?? doctor.phone ?? "").trim() || undefined,
     directoryPhone: (doctor.phone ?? "").trim() || undefined,
-    showPhonePublic: Boolean(
-      (settings as { show_phone_public?: boolean | null } | null)?.show_phone_public
-    ),
+    showPhonePublic,
     publicPhoneSource: inferPublicPhoneSource({
       saved: (settings as { public_phone_source?: string | null } | null)
         ?.public_phone_source,

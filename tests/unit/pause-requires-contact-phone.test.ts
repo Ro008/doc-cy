@@ -81,6 +81,14 @@ describe("the number cannot be emptied from the main settings save either", () =
   });
 });
 
+describe("settings load repairs an account that was never toggled", () => {
+  it("the settings page reveals the phone when it loads a paused account with the Call button off", () => {
+    const page = read("app/agenda/settings/page.tsx");
+    assert.equal(page.includes("shouldRevealPublicPhone"), true);
+    assert.equal(page.includes("show_phone_public: true"), true);
+  });
+});
+
 describe("public profile: a paused calendar points the patient at the phone", () => {
   it("BookingSection takes the phone availability and uses the call hint", () => {
     const section = read("components/doctor/BookingSection.tsx");
