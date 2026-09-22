@@ -3,23 +3,29 @@ import { describe, it } from "node:test";
 import {
   CONTACT_PHONE_REQUIRED_CODE,
   contactPhoneState,
-  onlineBookingUnavailable,
+  anyClinicPaused,
   normalizeContactPhone,
   shouldRevealPublicPhone,
   pauseFlagsAfterChange,
 } from "../../lib/booking-contact-phone";
 
-describe("onlineBookingUnavailable", () => {
-  it("is true only when every clinic has online bookings paused", () => {
-    assert.equal(onlineBookingUnavailable([true]), true);
-    assert.equal(onlineBookingUnavailable([true, true]), true);
-    assert.equal(onlineBookingUnavailable([false]), false);
-    assert.equal(onlineBookingUnavailable([true, false]), false);
-    assert.equal(onlineBookingUnavailable([false, false]), false);
+describe("anyClinicPaused", () => {
+  it("is true as soon as one clinic has online bookings paused", () => {
+    assert.equal(anyClinicPaused([true]), true);
+    assert.equal(anyClinicPaused([true, true]), true);
+    // Patients looking at the paused clinic hit a dead end, even though the other one
+    // still takes bookings, so a phone is required here too.
+    assert.equal(anyClinicPaused([true, false]), true);
+    assert.equal(anyClinicPaused([false, true]), true);
+  });
+
+  it("is false while every clinic takes online bookings", () => {
+    assert.equal(anyClinicPaused([false]), false);
+    assert.equal(anyClinicPaused([false, false]), false);
   });
 
   it("stays false with no known clinics, so an unknown state never blocks the professional", () => {
-    assert.equal(onlineBookingUnavailable([]), false);
+    assert.equal(anyClinicPaused([]), false);
   });
 });
 
@@ -44,15 +50,25 @@ describe("pauseFlagsAfterChange", () => {
 });
 
 describe("contactPhoneState", () => {
-  it("asks for nothing while at least one clinic still takes online bookings", () => {
+  it("asks for nothing while every clinic takes online bookings", () => {
     const state = contactPhoneState({
-      pauseFlags: [true, false],
+      pauseFlags: [false, false],
       mobileNumber: "",
       directoryPhone: "",
     });
     assert.equal(state.required, false);
     assert.equal(state.needsNumber, false);
     assert.equal(state.lockCallOn, false);
+  });
+
+  it("requires a phone when one clinic is paused and another is not", () => {
+    const state = contactPhoneState({
+      pauseFlags: [true, false],
+      mobileNumber: "+357 99 123456",
+      directoryPhone: "",
+    });
+    assert.equal(state.required, true);
+    assert.equal(state.lockCallOn, true);
   });
 
   it("locks the Call button on the mobile number once every clinic is paused", () => {
@@ -158,10 +174,17 @@ describe("shouldRevealPublicPhone", () => {
     );
   });
 
-  it("does nothing while a clinic still takes online bookings", () => {
+  it("does nothing while every clinic takes online bookings", () => {
+    assert.equal(
+      shouldRevealPublicPhone({ ...paused, pauseFlags: [false, false], showPhonePublic: false }),
+      false,
+    );
+  });
+
+  it("reveals the number when only one of the clinics is paused", () => {
     assert.equal(
       shouldRevealPublicPhone({ ...paused, pauseFlags: [true, false], showPhonePublic: false }),
-      false,
+      true,
     );
   });
 });

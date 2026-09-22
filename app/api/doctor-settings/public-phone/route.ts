@@ -10,7 +10,7 @@ import {
   CALL_LOCKED_WHILE_PAUSED_CODE,
   CALL_LOCKED_WHILE_PAUSED_MESSAGE,
   normalizeContactPhone,
-  onlineBookingUnavailable,
+  anyClinicPaused,
 } from "@/lib/booking-contact-phone";
 import { loadDoctorLocations } from "@/lib/load-doctor-locations";
 
@@ -138,7 +138,7 @@ export async function POST(req: NextRequest) {
     directoryPhone: directoryPhone || null,
   });
 
-  // While no clinic takes online bookings the Call button is the only way in.
+  // While a clinic takes no online bookings the Call button is its patients' only way in.
   if (!nextShow) {
     const locations = await loadDoctorLocations(supabase, doctor.id);
     const pauseFlags = locations.length
@@ -149,7 +149,7 @@ export async function POST(req: NextRequest) {
               ?.pause_online_bookings,
           ),
         ];
-    if (onlineBookingUnavailable(pauseFlags)) {
+    if (anyClinicPaused(pauseFlags)) {
       return NextResponse.json(
         {
           message: CALL_LOCKED_WHILE_PAUSED_MESSAGE,

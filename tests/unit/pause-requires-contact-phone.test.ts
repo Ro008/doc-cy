@@ -14,7 +14,7 @@ describe("settings: pausing online bookings requires a contact phone", () => {
     assert.equal(form.includes("@/lib/booking-contact-phone"), true);
     // The requirement is account-wide: it looks at the pause flag of every workplace.
     assert.match(form, /pauseFlags:\s*workplaces\.map\(/);
-    assert.equal(form.includes("pausingLeavesNoOnlinePath"), true);
+    assert.equal(form.includes("pausingRequiresPhone"), true);
     assert.equal(form.includes("lockedOnWhilePaused"), true);
   });
 
@@ -22,8 +22,8 @@ describe("settings: pausing online bookings requires a contact phone", () => {
     const toggle = read("components/dashboard/OnlineBookingsPauseToggle.tsx");
     assert.equal(toggle.includes("onSaveContactPhone"), true);
     assert.equal(toggle.includes("contactCallNumber"), true);
-    assert.equal(toggle.includes("noOnlinePathNow"), true);
-    assert.equal(toggle.includes("pausingLeavesNoOnlinePath"), true);
+    assert.equal(toggle.includes("phoneRequiredNow"), true);
+    assert.equal(toggle.includes("pausingRequiresPhone"), true);
     // An input to type the number right where the decision is made.
     assert.match(toggle, /type="tel"/);
     // And it must not fire the pause request before that number is saved.
@@ -62,7 +62,7 @@ describe("api: public phone route backs the inline prompt and the lock", () => {
   });
 
   it("refuses to hide the Call button while online bookings are unavailable", () => {
-    assert.equal(route.includes("onlineBookingUnavailable"), true);
+    assert.equal(route.includes("anyClinicPaused"), true);
     assert.equal(route.includes("CALL_LOCKED_WHILE_PAUSED_CODE"), true);
   });
 });
@@ -76,7 +76,7 @@ describe("the number cannot be emptied from the main settings save either", () =
   it("the settings route enforces the same invariant server side", () => {
     const route = read("app/api/doctor-settings/route.ts");
     assert.equal(route.includes("@/lib/booking-contact-phone"), true);
-    assert.equal(route.includes("onlineBookingUnavailable"), true);
+    assert.equal(route.includes("anyClinicPaused"), true);
     assert.equal(route.includes("CONTACT_PHONE_REQUIRED_CODE"), true);
   });
 });

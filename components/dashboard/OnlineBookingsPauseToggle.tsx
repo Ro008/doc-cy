@@ -10,8 +10,8 @@ export function OnlineBookingsPauseToggle({
   locationId,
   onPausedChange,
   contactCallNumber = "",
-  noOnlinePathNow = false,
-  pausingLeavesNoOnlinePath = false,
+  phoneRequiredNow = false,
+  pausingRequiresPhone = false,
   onSaveContactPhone,
 }: {
   initialPaused: boolean;
@@ -19,10 +19,10 @@ export function OnlineBookingsPauseToggle({
   onPausedChange?: (paused: boolean, details?: { showPhonePublic?: boolean }) => void;
   /** The number patients see today; "" when the account has none. */
   contactCallNumber?: string;
-  /** Right now no clinic takes online bookings. */
-  noOnlinePathNow?: boolean;
-  /** Pausing this clinic would close the last online booking path. */
-  pausingLeavesNoOnlinePath?: boolean;
+  /** Right now at least one clinic takes no online bookings. */
+  phoneRequiredNow?: boolean;
+  /** Pausing this clinic would leave its patients with the phone as their only way in. */
+  pausingRequiresPhone?: boolean;
   onSaveContactPhone?: (phone: string) => Promise<boolean>;
 }) {
   const [paused, setPaused] = React.useState(initialPaused);
@@ -37,8 +37,8 @@ export function OnlineBookingsPauseToggle({
   }, [initialPaused]);
 
   const hasContactNumber = contactCallNumber.trim().length > 0;
-  // Already unreachable: paused everywhere with no number. Keep asking until it is fixed.
-  const strandedNow = noOnlinePathNow && !hasContactNumber;
+  // Already unreachable: a paused clinic and no number. Keep asking until it is fixed.
+  const strandedNow = phoneRequiredNow && !hasContactNumber;
   const contactPhonePrompt = promptOpen || strandedNow;
 
   async function setPausedRemote(next: boolean) {
@@ -90,8 +90,8 @@ export function OnlineBookingsPauseToggle({
 
   function handleToggle() {
     const next = !paused;
-    // Never close the last online path without leaving patients a number to call.
-    if (next && pausingLeavesNoOnlinePath && !hasContactNumber) {
+    // Never close a clinic's online path without leaving its patients a number to call.
+    if (next && pausingRequiresPhone && !hasContactNumber) {
       setPromptOpen(true);
       return;
     }
@@ -154,9 +154,9 @@ export function OnlineBookingsPauseToggle({
         </button>
       </div>
 
-      {!contactPhonePrompt && hasContactNumber && noOnlinePathNow ? (
+      {!contactPhonePrompt && hasContactNumber && phoneRequiredNow ? (
         <p className="mt-2 text-xs leading-relaxed text-slate-400">
-          Patients cannot book online, so your profile shows{" "}
+          Patients cannot book online at this clinic, so your profile shows{" "}
           <span className="font-semibold text-slate-200">
             {formatCyprusPhoneDisplay(contactCallNumber)}
           </span>{" "}
@@ -170,7 +170,7 @@ export function OnlineBookingsPauseToggle({
         </p>
       ) : null}
 
-      {!contactPhonePrompt && hasContactNumber && accepting && pausingLeavesNoOnlinePath ? (
+      {!contactPhonePrompt && hasContactNumber && accepting && pausingRequiresPhone ? (
         <p className="mt-2 text-xs leading-relaxed text-slate-400">
           If you pause, patients will see{" "}
           <span className="font-semibold text-slate-200">
@@ -184,12 +184,12 @@ export function OnlineBookingsPauseToggle({
         <div className="mt-3 rounded-xl border border-amber-500/35 bg-amber-500/10 p-3">
           <p className="text-sm font-medium text-amber-100">
             {strandedNow
-              ? "Patients have no way to reach you"
+              ? "Patients cannot reach you at this clinic"
               : "Patients need a way to reach you"}
           </p>
           <p className="mt-1 text-xs leading-relaxed text-amber-100/90">
-            With online bookings paused, the only way to book is by phone. Add the
-            number patients should call and we will show it on your profile.
+            With online bookings paused here, patients can only reach you by phone. Add
+            the number they should call and we will show it on your profile.
           </p>
           <div className="mt-3 flex flex-col gap-2 sm:flex-row">
             <input

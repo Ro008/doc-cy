@@ -6,7 +6,7 @@ import {
   CONTACT_PHONE_REQUIRED_CODE,
   CONTACT_PHONE_REQUIRED_MESSAGE,
   contactPhoneState,
-  onlineBookingUnavailable,
+  anyClinicPaused,
   pauseFlagsAfterChange,
   type ContactPhoneState,
 } from "@/lib/booking-contact-phone";
@@ -192,8 +192,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ message: "Clinic not found." }, { status: 404 });
   }
 
-  // Patients book online or they call. Never let the last online path close while the
-  // account has no phone to show, or patients are left with no way to reach anyone.
+  // Patients book online or they call. Never let a clinic stop taking bookings while
+  // the account has no phone to show, or its patients are left with no way to reach it.
   const nextPauseFlags = target
     ? pauseFlagsAfterChange(
         locations.map((row) => ({
@@ -206,7 +206,7 @@ export async function POST(req: NextRequest) {
     : [nextPaused];
 
   let contact: ContactPhoneState | null = null;
-  if (onlineBookingUnavailable(nextPauseFlags)) {
+  if (anyClinicPaused(nextPauseFlags)) {
     contact = await loadContactPhoneState(supabase, doctor.id, nextPauseFlags);
     if (contact.needsNumber) {
       return NextResponse.json(

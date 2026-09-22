@@ -54,7 +54,7 @@ import { PhoneNumbersSettings } from "@/components/dashboard/PhoneNumbersSetting
 import {
   CONTACT_PHONE_REQUIRED_MESSAGE,
   contactPhoneState,
-  onlineBookingUnavailable,
+  anyClinicPaused,
   pauseFlagsAfterChange,
 } from "@/lib/booking-contact-phone";
 import {
@@ -493,8 +493,9 @@ export function SettingsForm({ initial }: SettingsFormProps) {
   const [workplaceBusy, setWorkplaceBusy] = React.useState(false);
   const workplaceTabScrollYRef = React.useRef<number | null>(null);
 
-  // Booking online or calling are the only two ways in. Once every clinic is paused the
-  // public phone stops being optional, so the Call button is forced on and locked there.
+  // Booking online or calling are the only two ways in. Once any clinic stops taking
+  // bookings the public phone stops being optional for the patients looking at it, so
+  // the Call button is forced on and locked there.
   const contactPhone = React.useMemo(
     () =>
       contactPhoneState({
@@ -508,9 +509,9 @@ export function SettingsForm({ initial }: SettingsFormProps) {
     [workplaces, savedMobileNumber, savedDirectoryPhone, publicPhoneSource],
   );
 
-  const pausingLeavesNoOnlinePath = React.useMemo(
+  const pausingRequiresPhone = React.useMemo(
     () =>
-      onlineBookingUnavailable(
+      anyClinicPaused(
         pauseFlagsAfterChange(
           workplaces.map((row) => ({
             id: row.id,
@@ -1090,7 +1091,7 @@ export function SettingsForm({ initial }: SettingsFormProps) {
       toast.error(text);
       return;
     }
-    // Paused everywhere: the phone is the only way in, so it cannot be emptied here.
+    // A clinic is paused: the phone is its patients' only way in, so it cannot go empty.
     if (contactPhone.required && publicCallNumber.length === 0) {
       setMessage({ type: "error", text: CONTACT_PHONE_REQUIRED_MESSAGE });
       toast.error(CONTACT_PHONE_REQUIRED_MESSAGE);
@@ -1740,8 +1741,8 @@ export function SettingsForm({ initial }: SettingsFormProps) {
               }
             }}
             contactCallNumber={contactPhone.callNumber}
-            noOnlinePathNow={contactPhone.required}
-            pausingLeavesNoOnlinePath={pausingLeavesNoOnlinePath}
+            phoneRequiredNow={contactPhone.required}
+            pausingRequiresPhone={pausingRequiresPhone}
             onSaveContactPhone={handleSaveContactPhone}
           />
           {!(workplaces.find((row) => row.id === activeWorkplaceId)?.isPrimary) ? (

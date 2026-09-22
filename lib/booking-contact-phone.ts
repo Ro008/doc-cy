@@ -1,8 +1,10 @@
 // lib/booking-contact-phone.ts
 // A professional who stops taking online bookings must still leave patients a way to
 // reach them. Pausing is per clinic (doctor_locations.pause_online_bookings) while the
-// public Call button is per account (professional_settings.show_phone_public), so the
-// requirement only bites once NO clinic accepts online bookings any more.
+// public Call button is per account (professional_settings.show_phone_public). One
+// paused clinic is enough to strand the patients looking at it — the other clinic's
+// calendar is no use to someone who wants to be seen at this one — so the requirement
+// bites as soon as ANY clinic stops taking online bookings.
 
 import { cyprusPhoneDigits, formatCyprusPhoneDisplay } from "@/lib/phone-link";
 import {
@@ -21,10 +23,10 @@ export const CALL_LOCKED_WHILE_PAUSED_CODE = "call_locked_while_paused";
 export const CALL_LOCKED_WHILE_PAUSED_MESSAGE =
   "Online bookings are paused, so your phone stays visible. Resume online bookings to hide it.";
 
-/** No clinic takes online bookings, so patients have no booking path left. */
-export function onlineBookingUnavailable(pauseFlags: readonly boolean[]): boolean {
+/** At least one clinic takes no online bookings, so some patients need a phone. */
+export function anyClinicPaused(pauseFlags: readonly boolean[]): boolean {
   if (pauseFlags.length === 0) return false;
-  return pauseFlags.every(Boolean);
+  return pauseFlags.some(Boolean);
 }
 
 /** The pause flags the account would land on after flipping one clinic. */
@@ -46,7 +48,7 @@ export function normalizeContactPhone(value?: string | null): string | null {
 }
 
 export type ContactPhoneState = {
-  /** Every clinic is paused: patients need a phone number to reach this professional. */
+  /** A clinic is paused: the patients looking at it need a phone number. */
   required: boolean;
   source: PublicPhoneSource;
   /** The number patients would see; "" when the account has none. */
@@ -71,7 +73,7 @@ export function contactPhoneState(input: {
     directoryPhone,
   });
   const callNumber = callNumberForSource({ source, mobileNumber, directoryPhone });
-  const required = onlineBookingUnavailable(input.pauseFlags);
+  const required = anyClinicPaused(input.pauseFlags);
   return {
     required,
     source,
@@ -82,10 +84,10 @@ export function contactPhoneState(input: {
 }
 
 /**
- * True when an account is paused everywhere, has a number, but never had the Call
- * button switched on — the state every new professional starts in, since clinics are
- * created paused. Without this the settings UI shows a locked-on Call button while the
- * public profile still shows nothing at all.
+ * True when an account has a paused clinic and a number, but never had the Call button
+ * switched on — the state every new professional starts in, since clinics are created
+ * paused. Without this the settings UI shows a locked-on Call button while the public
+ * profile still shows nothing at all.
  */
 export function shouldRevealPublicPhone(input: {
   pauseFlags: readonly boolean[];

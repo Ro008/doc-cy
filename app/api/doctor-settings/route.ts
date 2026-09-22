@@ -23,7 +23,7 @@ import { loadDoctorLocations, primaryDoctorLocation } from "@/lib/load-doctor-lo
 import {
   CONTACT_PHONE_REQUIRED_CODE,
   CONTACT_PHONE_REQUIRED_MESSAGE,
-  onlineBookingUnavailable,
+  anyClinicPaused,
 } from "@/lib/booking-contact-phone";
 import {
   isSpecialtyChangeAttempt,
@@ -276,7 +276,7 @@ export async function POST(req: NextRequest) {
       { status: 400 },
     );
   }
-  // Same invariant as the pause toggle: with every clinic paused, patients can only
+  // Same invariant as the pause toggle: with a clinic paused, its patients can only
   // call, so this save must not leave the account without a public number.
   if (
     callNumberForSource({
@@ -289,7 +289,7 @@ export async function POST(req: NextRequest) {
     const pauseFlags = currentLocations.map((row) =>
       Boolean(row.pause_online_bookings),
     );
-    if (onlineBookingUnavailable(pauseFlags)) {
+    if (anyClinicPaused(pauseFlags)) {
       return NextResponse.json(
         { message: CONTACT_PHONE_REQUIRED_MESSAGE, code: CONTACT_PHONE_REQUIRED_CODE },
         { status: 400 },
