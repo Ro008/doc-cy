@@ -49,16 +49,12 @@ export async function createTestDoctor(
     .insert({
       auth_user_id: authUserId,
       name: input.name,
-      specialty: input.specialty,
-      specialties: [input.specialty],
       email,
       phone: "+35799123456",
       languages: ["English"],
-      license_number: `LIC-${input.nonce}`,
       license_file_url: `licenses/integration/${input.nonce}.pdf`,
       status: input.status,
       slug,
-      is_specialty_approved: input.is_specialty_approved,
       subscription_tier: input.subscription_tier ?? "standard",
       trial_notice_seen_at:
         input.markTrialNoticeSeen === false ? null : new Date().toISOString(),
@@ -77,20 +73,19 @@ export async function createTestDoctor(
   }
 
   const doctorId = String(doctorInsert.data.id);
-  const specialtyUpsert = await input.admin.from("doctor_specialties").upsert(
+  const specialtyInsert = await input.admin.from("professional_specialties").insert(
     {
-      doctor_id: doctorId,
+      professional_id: doctorId,
       specialty: input.specialty,
       license_number: `LIC-${input.nonce}`,
       is_approved: input.is_specialty_approved,
     },
-    { onConflict: "doctor_id,specialty" },
   );
-  if (specialtyUpsert.error) {
+  if (specialtyInsert.error) {
     await input.admin.from("professionals").delete().eq("id", doctorId);
     await input.admin.auth.admin.deleteUser(authUserId);
     throw new Error(
-      `Failed creating doctor_specialties: ${specialtyUpsert.error.message}`,
+      `Failed creating professional_specialties: ${specialtyInsert.error.message}`,
     );
   }
 
@@ -107,7 +102,7 @@ export async function createTestDoctor(
 export async function deleteTestDoctor(fixture: TestDoctorFixture): Promise<void> {
   const { admin, doctorId, authUserId } = fixture;
   if (doctorId) {
-    await admin.from("doctor_specialties").delete().eq("doctor_id", doctorId);
+    await admin.from("professional_specialties").delete().eq("professional_id", doctorId);
     await admin.from("doctor_locations").delete().eq("doctor_id", doctorId);
     await admin.from("doctor_services").delete().eq("doctor_id", doctorId);
     await admin.from("professional_settings").delete().eq("professional_id", doctorId);

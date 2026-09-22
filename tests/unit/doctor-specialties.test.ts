@@ -41,6 +41,17 @@ describe("validateDoctorSpecialtyEntries", () => {
       assert.match(result.message, /duplicate specialty/i);
     }
   });
+
+  it("rejects custom labels that share a slug (the professional_specialties key)", () => {
+    const result = validateDoctorSpecialtyEntries([
+      { specialty: "Sound Healing", fromMaster: false, licenseNumber: "1" },
+      { specialty: "sound-healing!", fromMaster: false, licenseNumber: "2" },
+    ]);
+    assert.equal(result.ok, false);
+    if (result.ok === false) {
+      assert.match(result.message, /duplicate specialty/i);
+    }
+  });
 });
 
 describe("publicSpecialtyLabels", () => {

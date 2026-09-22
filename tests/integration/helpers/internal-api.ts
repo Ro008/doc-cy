@@ -21,6 +21,17 @@ export function postSpecialtyReview(
   });
 }
 
+export function postSpecialtyChangeReview(
+  request: APIRequestContext,
+  secret: string,
+  body: { requestId: string; action: "approve" | "reject" },
+) {
+  return request.post("/api/internal/doctors/specialty-change-review", {
+    headers: internalDirectoryHeaders(secret),
+    data: body,
+  });
+}
+
 export function postDoctorVerification(
   request: APIRequestContext,
   secret: string,

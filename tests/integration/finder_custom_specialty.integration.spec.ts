@@ -56,18 +56,14 @@ async function createPsychologyPlusSexologyDoctor(
     .insert({
       auth_user_id: authUserId,
       name,
-      specialty: "Psychology",
-      specialties: ["Psychology", "Sexology"],
       district: "Paphos",
       town: "Paphos",
       email,
       phone: "+35799123456",
       languages: ["English"],
-      license_number: `LIC-FINDER-SEX-${nonce}`,
       license_file_url: `licenses/integration/${nonce}-${slugPrefix}.pdf`,
       status: "verified",
       slug,
-      is_specialty_approved: true,
       is_test_profile: true,
       is_registered: true,
       has_online_booking: true,
@@ -84,27 +80,26 @@ async function createPsychologyPlusSexologyDoctor(
   }
 
   const doctorId = String(doctorInsert.data.id);
-  const specialtyUpsert = await admin.from("doctor_specialties").upsert(
+  const specialtyInsert = await admin.from("professional_specialties").insert(
     [
       {
-        doctor_id: doctorId,
+        professional_id: doctorId,
         specialty: "Psychology",
         license_number: `LIC-FINDER-SEX-${nonce}-psy`,
         is_approved: true,
       },
       {
-        doctor_id: doctorId,
+        professional_id: doctorId,
         specialty: "Sexology",
         license_number: `LIC-FINDER-SEX-${nonce}-sex`,
         is_approved: true,
       },
     ],
-    { onConflict: "doctor_id,specialty" },
   );
-  if (specialtyUpsert.error) {
+  if (specialtyInsert.error) {
     await admin.from("professionals").delete().eq("id", doctorId);
     await admin.auth.admin.deleteUser(authUserId);
-    throw new Error(`Failed creating doctor_specialties: ${specialtyUpsert.error.message}`);
+    throw new Error(`Failed creating professional_specialties: ${specialtyInsert.error.message}`);
   }
 
   const verify = await admin
@@ -114,7 +109,7 @@ async function createPsychologyPlusSexologyDoctor(
     .single();
   const specialties = Array.isArray(verify.data?.specialties) ? verify.data.specialties : [];
   if (verify.error || !specialties.includes("Sexology") || !specialties.includes("Psychology")) {
-    await admin.from("doctor_specialties").delete().eq("doctor_id", doctorId);
+    await admin.from("professional_specialties").delete().eq("professional_id", doctorId);
     await admin.from("professionals").delete().eq("id", doctorId);
     await admin.auth.admin.deleteUser(authUserId);
     throw new Error(
@@ -187,7 +182,7 @@ test.describe("Integration: custom specialty finder (Sexology)", { tag: ["@pr-e2
       });
     } finally {
       if (created) {
-        await admin.from("doctor_specialties").delete().eq("doctor_id", created.doctorId);
+        await admin.from("professional_specialties").delete().eq("professional_id", created.doctorId);
         await admin.from("professionals").delete().eq("id", created.doctorId);
         await admin.auth.admin.deleteUser(created.authUserId);
       }

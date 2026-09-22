@@ -35,18 +35,14 @@ async function createDoctor({ slugPrefix, name }) {
     .insert({
       auth_user_id: authUserId,
       name,
-      specialty: "Dentistry",
-      specialties: ["Dentistry"],
       district: "Paphos",
       email,
       phone: "+35799123456",
       languages: ["English"],
       avatar_url: null,
-      license_number: `LIC-DEMO-${nonce}-${slugPrefix}`,
       license_file_url: `licenses/demo/${nonce}-${slugPrefix}.pdf`,
       status: "verified",
       slug,
-      is_specialty_approved: true,
       is_test_profile: true,
       is_registered: true,
       has_online_booking: true,
@@ -63,17 +59,15 @@ async function createDoctor({ slugPrefix, name }) {
   }
   const doctorId = String(doctorInsert.data.id);
 
-  const specialtyUpsert = await admin.from("doctor_specialties").upsert(
-    {
-      doctor_id: doctorId,
-      specialty: "Dentistry",
-      license_number: `LIC-DEMO-${nonce}-${slugPrefix}`,
-      is_approved: true,
-    },
-    { onConflict: "doctor_id,specialty" },
-  );
-  if (specialtyUpsert.error) {
-    throw new Error(`Failed creating doctor_specialties: ${specialtyUpsert.error.message}`);
+  // The sync trigger fills the denormalized professionals columns from this row.
+  const specialtyInsert = await admin.from("professional_specialties").insert({
+    professional_id: doctorId,
+    specialty: "Dentist",
+    license_number: `LIC-DEMO-${nonce}-${slugPrefix}`,
+    is_approved: true,
+  });
+  if (specialtyInsert.error) {
+    throw new Error(`Failed creating professional_specialties: ${specialtyInsert.error.message}`);
   }
 
   return { doctorId, authUserId, slug, name };
