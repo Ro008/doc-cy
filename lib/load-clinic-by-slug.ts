@@ -2,10 +2,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { CyprusDistrict } from "@/lib/cyprus-districts";
 import { doctorDashboardDisplayName } from "@/lib/doctor-display-name";
 import { getFinderManualPhotoUrl } from "@/lib/finder-manual-photos";
-import {
-  resolveClinicDisplayPhotoUrl,
-  resolveFinderDisplayPhotoUrl,
-} from "@/lib/finder-default-avatars";
+import { resolveClinicDisplayPhotoUrl } from "@/lib/finder-default-avatars";
+import { clinicRosterPhotoUrl } from "@/lib/clinic-roster-photo";
 import { parseOptionalCoordinates } from "@/lib/finder-distance";
 import { publicProfessionalProfilePath } from "@/lib/manual-directory-landing-path";
 import { fetchAllSupabaseRowsForIdChunks } from "@/lib/supabase-fetch-all";
@@ -108,7 +106,7 @@ export async function loadClinicBySlug(
         supabase
           .from("professionals")
           .select(
-            `id, slug, name, district, address_maps_link, is_gesy, gender, finder_visible, ${SPECIALTY_LINKS_SELECT}`,
+            `id, slug, name, district, address_maps_link, avatar_url, is_gesy, gender, finder_visible, ${SPECIALTY_LINKS_SELECT}`,
           )
           .eq("is_archived", false)
           .in("id", idChunk)
@@ -124,6 +122,7 @@ export async function loadClinicBySlug(
           specialty_links?: unknown;
           district: CyprusDistrict;
           address_maps_link?: string | null;
+          avatar_url?: string | null;
           is_gesy?: boolean | null;
           gender?: string | null;
           finder_visible?: boolean | null;
@@ -137,11 +136,12 @@ export async function loadClinicBySlug(
           specialty: specialties[0] ?? "Specialty not set",
           specialties,
           district: row.district,
-          photoUrl: resolveFinderDisplayPhotoUrl({
-            curatedOrCustomPhotoUrl: getFinderManualPhotoUrl(
-              String(row.address_maps_link ?? ""),
-            ),
+          photoUrl: clinicRosterPhotoUrl({
+            avatarUrl: row.avatar_url,
             gender: row.gender,
+            curatedPhotoUrl: getFinderManualPhotoUrl(String(row.address_maps_link ?? "")),
+            getStoragePublicUrl: (path) =>
+              supabase.storage.from("avatars").getPublicUrl(path).data.publicUrl,
           }),
           isGesy: Boolean(row.is_gesy ?? false),
           // Inpatient-only: listed on the clinic, but no public professional landing.

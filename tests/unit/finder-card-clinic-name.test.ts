@@ -38,7 +38,12 @@ describe("finder card clinic name", () => {
     assert.equal(loader.includes('.from("professional_clinics")'), true);
     assert.equal(loader.includes("id, professional_id, is_primary, clinics ("), true);
     assert.equal(loader.includes("byLocationId"), true);
-    assert.equal(registered.includes("registeredClinics.byLocationId.get(location.id)"), true);
+    // The join-row lookup now happens inside clinicForRenderedLocation, which also
+    // refuses a fallback clinic that sits at a different address (see
+    // tests/unit/finder-card-clinic-match.test.ts).
+    assert.equal(registered.includes("clinicForRenderedLocation"), true);
+    assert.equal(registered.includes("byLocationId: registeredClinics.byLocationId"), true);
+    assert.equal(registered.includes("locationId: location.id"), true);
 
     // Chunked id filtering, per the repo's supabase row-cap rules.
     assert.equal(loader.includes("fetchAllSupabaseRowsForIdChunks"), true);

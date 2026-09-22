@@ -9,6 +9,7 @@ import { loadFinderRegisteredPublicCallIds } from "@/lib/public/load-finder-regi
 import { doctorLocationDisplayName } from "@/lib/doctor-locations";
 import { formatClinicCountLabel } from "@/lib/manual-directory-clinics";
 import { FinderClinicNameLink } from "@/components/finder/FinderClinicLocationBlock";
+import { clinicForRenderedLocation } from "@/lib/public/finder-card-clinic-match";
 import { loadFinderRegisteredClinics } from "@/lib/public/load-finder-registered-clinics";
 
 const registeredFinderCallClass =
@@ -52,9 +53,18 @@ export async function FinderRegisteredCardAvailability({
   const isMulti = locations.length > 1;
   const callDoctorId = publicCallIds.has(doctorId) ? doctorId : null;
   // Stage 1 reused doctor_locations.id as the professional_clinics row id, so a
-  // location maps to its clinic exactly. Falls back to the professional's first
-  // clinic for cards with no doctor_locations rows.
-  const fallbackClinic = registeredClinics.byProfessionalId.get(doctorId)?.[0] ?? null;
+  // location maps to its clinic exactly. Where the ids do not line up,
+  // clinicForRenderedLocation matches these by address instead of assuming the first
+  // one — an absorbed listing can leave a clinic nowhere near the address on screen.
+  const linkedClinics = registeredClinics.byProfessionalId.get(doctorId) ?? [];
+  // With no location rows the card renders `professionals.clinic_address`, so the
+  // clinic named above it has to agree with that address just the same.
+  const clinicForClinicAddress = clinicForRenderedLocation({
+    locationId: null,
+    locationAddress: clinicAddress,
+    byLocationId: registeredClinics.byLocationId,
+    candidates: linkedClinics,
+  });
 
   if (locations.length === 0) {
     if (batch.paused.get(doctorId)) {
@@ -66,7 +76,7 @@ export async function FinderRegisteredCardAvailability({
               location: (
                 <RegisteredLocationCopy
                   address={clinicAddress}
-                  clinic={fallbackClinic}
+                  clinic={clinicForClinicAddress}
                   callDoctorId={callDoctorId}
                 />
               ),
@@ -85,7 +95,7 @@ export async function FinderRegisteredCardAvailability({
             location: (
               <RegisteredLocationCopy
                 address={clinicAddress}
-                clinic={fallbackClinic}
+                clinic={clinicForClinicAddress}
                 callDoctorId={callDoctorId}
               />
             ),
@@ -127,10 +137,12 @@ export async function FinderRegisteredCardAvailability({
       location: (
         <RegisteredLocationCopy
           address={address}
-          clinic={
-            registeredClinics.byLocationId.get(location.id) ??
-            (locations.length === 1 ? fallbackClinic : null)
-          }
+          clinic={clinicForRenderedLocation({
+            locationId: location.id,
+            locationAddress: address,
+            byLocationId: registeredClinics.byLocationId,
+            candidates: linkedClinics,
+          })}
           latitude={location.latitude}
           longitude={location.longitude}
           placeId={location.clinic_place_id}
