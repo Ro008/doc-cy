@@ -59,7 +59,6 @@ async function createDoctor({ slugPrefix, name }) {
   }
   const doctorId = String(doctorInsert.data.id);
 
-  // The sync trigger fills the denormalized professionals columns from this row.
   const specialtyInsert = await admin.from("professional_specialties").insert({
     professional_id: doctorId,
     specialty: "Dentist",

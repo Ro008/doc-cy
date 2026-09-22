@@ -294,7 +294,7 @@ export function hasPendingSpecialty(entries: readonly ProfessionalSpecialtyEntry
 /**
  * The one specialty shown where a single label fits (emails, calendar events, account
  * screens): the first approved one alphabetically, else the first pending one. Same
- * rule the sync trigger used for `professionals.specialty`.
+ * rule the old sync trigger used for `professionals.specialty` (dropped in Point C3).
  */
 export function primarySpecialtyEntry(
   entries: readonly ProfessionalSpecialtyEntry[],

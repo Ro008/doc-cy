@@ -178,15 +178,12 @@ BEGIN
       INSERT INTO public.professionals (
         auth_user_id,
         name,
-        specialty,
         email,
         phone,
         languages,
-        license_number,
         license_file_url,
         status,
         slug,
-        is_specialty_approved,
         is_test_profile,
         subscription_tier,
         is_registered,
@@ -196,15 +193,12 @@ BEGIN
       VALUES (
         v_user_id,
         rec.full_name,
-        rec.specialty,
         rec.email,
         rec.phone,
         coalesce(rec.langs, ARRAY[]::text[]),
-        upper(rec.slug) || '-SEED-LIC',
         'licenses/integration/' || rec.slug || '-seed.pdf',
         rec.doctor_status,
         rec.slug,
-        rec.specialty_approved,
         false,
         rec.tier,
         -- professionals defaults is_registered and has_online_booking to false; the
@@ -226,9 +220,7 @@ BEGIN
         has_online_booking = true,
         trial_notice_seen_at = coalesce(trial_notice_seen_at, now()),
         name = rec.full_name,
-        specialty = rec.specialty,
         status = rec.doctor_status,
-        is_specialty_approved = rec.specialty_approved,
         subscription_tier = rec.tier,
         email = rec.email,
         phone = rec.phone,
@@ -236,6 +228,14 @@ BEGIN
         is_test_profile = false
       WHERE id = v_doctor_id;
     END IF;
+
+    -- Specialties live only in professional_specialties (Point C3 dropped the
+    -- professionals columns). Restore resets the doctor to exactly one seed row.
+    DELETE FROM public.professional_specialties
+    WHERE professional_id = v_doctor_id;
+
+    INSERT INTO public.professional_specialties (professional_id, specialty, license_number, is_approved)
+    VALUES (v_doctor_id, rec.specialty, upper(rec.slug) || '-SEED-LIC', rec.specialty_approved);
 
     INSERT INTO public.professional_settings (
       professional_id,

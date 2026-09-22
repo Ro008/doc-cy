@@ -1,7 +1,7 @@
 /**
  * Writes to a professional's specialties (`professional_specialties`), the source of
- * truth since Point C2b. The table's triggers resolve `specialty_id` from the label
- * and, until Point C3, keep the denormalized `professionals` columns in sync.
+ * truth since Point C2b and the only copy since Point C3. A BEFORE trigger on the
+ * table resolves `specialty_id` from the label.
  *
  * Rows are matched by slug, the key the table is unique on, so a label that differs
  * only in case or punctuation updates the existing row instead of clashing with it.
