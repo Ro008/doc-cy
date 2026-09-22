@@ -10,6 +10,7 @@ import {
 } from "@/lib/doctor-specialty-change-request";
 import {
   approvedSpecialtyNames,
+  loadSpecialtyCatalogueNames,
   loadSpecialtyEntries,
   primarySpecialtyEntry,
 } from "@/lib/specialty-catalogue";
@@ -65,11 +66,14 @@ export async function POST(req: NextRequest) {
   let licenseNumber: string | null = null;
 
   if (requestKind !== "remove") {
-    const validated = validateSpecialtyChangeRequestInput({
-      toSpecialty: typeof body.toSpecialty === "string" ? body.toSpecialty : "",
-      toSpecialtyFromMaster: fromMaster,
-      licenseNumber: typeof body.licenseNumber === "string" ? body.licenseNumber : "",
-    });
+    const validated = validateSpecialtyChangeRequestInput(
+      {
+        toSpecialty: typeof body.toSpecialty === "string" ? body.toSpecialty : "",
+        toSpecialtyFromMaster: fromMaster,
+        licenseNumber: typeof body.licenseNumber === "string" ? body.licenseNumber : "",
+      },
+      await loadSpecialtyCatalogueNames(admin),
+    );
     if (validated.ok === false) {
       return NextResponse.json({ message: validated.message }, { status: 400 });
     }

@@ -4,10 +4,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { Stethoscope } from "lucide-react";
 import { toast } from "sonner";
-import {
-  CYPRUS_MASTER_SPECIALTIES,
-  isMasterSpecialty,
-} from "@/lib/cyprus-specialties";
+import { isCatalogueSpecialty } from "@/lib/specialty-options";
 import { useDirectoryNav } from "@/components/internal/DirectoryNavContext";
 import { buildSpecialtyChangeApproveReviewBody } from "@/lib/doctor-specialty-change-request";
 
@@ -58,8 +55,11 @@ function formatRequestedAt(iso: string): string {
 
 export function SpecialtyChangeRequestsPanel({
   items,
+  specialtyOptions,
 }: {
   items: SpecialtyChangeRequestRow[];
+  /** Catalogue names offered when editing a request before approval. */
+  specialtyOptions: readonly string[];
 }) {
   const router = useRouter();
   const { canMutate } = useDirectoryNav();
@@ -68,10 +68,8 @@ export function SpecialtyChangeRequestsPanel({
   const [editForId, setEditForId] = React.useState<string | null>(null);
   const [editSpecialty, setEditSpecialty] = React.useState("");
   const [editLicense, setEditLicense] = React.useState("");
-  const sortedSpecialties = React.useMemo(
-    () => [...CYPRUS_MASTER_SPECIALTIES].sort((a, b) => a.localeCompare(b)),
-    [],
-  );
+  // Already alphabetical (loadSpecialtyCatalogueNames).
+  const sortedSpecialties = specialtyOptions;
 
   if (items.length === 0) {
     return null;
@@ -87,6 +85,7 @@ export function SpecialtyChangeRequestsPanel({
       licenseNumber: row.licenseNumber,
       editedSpecialty: editing ? editSpecialty : null,
       editedLicense: editing ? editLicense : null,
+      catalogue: specialtyOptions,
     });
     if (built.ok === false) {
       setError(built.message);
@@ -273,7 +272,7 @@ export function SpecialtyChangeRequestsPanel({
                     </label>
                     <select
                       value={
-                        isMasterSpecialty(editSpecialty) ? editSpecialty : ""
+                        isCatalogueSpecialty(specialtyOptions, editSpecialty) ? editSpecialty : ""
                       }
                       onChange={(e) => setEditSpecialty(e.target.value)}
                       className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950/60 px-3 py-2 text-sm text-slate-100"
@@ -285,7 +284,7 @@ export function SpecialtyChangeRequestsPanel({
                         </option>
                       ))}
                     </select>
-                    {!isMasterSpecialty(editSpecialty) && editSpecialty ? (
+                    {!isCatalogueSpecialty(specialtyOptions, editSpecialty) && editSpecialty ? (
                       <p className="mt-1.5 text-xs text-amber-200/90">
                         Custom request “{editSpecialty}” — pick a standard label
                         above, or keep typing below.

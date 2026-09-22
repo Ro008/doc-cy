@@ -1,8 +1,8 @@
 /**
  * GeSY specialty labels for the manual directory (Excel `professionals.specialty`).
  *
- * Registration / settings use `lib/cyprus-specialties.ts`, which is built from this
- * list plus DocCy extras (e.g. Psychology) and excludes Pharmacy / Laboratory.
+ * Registration / settings / founder comboboxes offer the `specialties` catalogue
+ * instead (`loadSpecialtyCatalogueNames` in lib/specialty-catalogue).
  */
 
 /** Canonical labels after splitting Excel cells on `;`. */

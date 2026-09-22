@@ -1,5 +1,8 @@
 import { validateSpecialtySubmission } from "@/lib/specialty-submission";
-import { isMasterSpecialty } from "@/lib/cyprus-specialties";
+import {
+  type SpecialtyCatalogueNames,
+  isCatalogueSpecialty,
+} from "@/lib/specialty-options";
 
 export const SPECIALTY_CHANGE_LICENSE_MAX = 80;
 export const SPECIALTY_CHANGE_FOUNDER_NOTE_MAX = 500;
@@ -32,6 +35,7 @@ export function parseSpecialtyChangeRequestKind(
 
 export function validateSpecialtyChangeRequestInput(
   input: SpecialtyChangeRequestInput,
+  catalogue: SpecialtyCatalogueNames,
 ): SpecialtyChangeRequestValidation {
   const licenseNumber = String(input.licenseNumber ?? "").trim();
   if (!licenseNumber) {
@@ -47,6 +51,7 @@ export function validateSpecialtyChangeRequestInput(
   const spec = validateSpecialtySubmission(
     input.toSpecialty,
     input.toSpecialtyFromMaster,
+    catalogue,
   );
   if (spec.ok === false) {
     return { ok: false, message: spec.message };
@@ -167,6 +172,8 @@ export function buildSpecialtyChangeApproveReviewBody(input: {
   /** When editing before approve, overrides the stored toSpecialty / license. */
   editedSpecialty?: string | null;
   editedLicense?: string | null;
+  /** Catalogue names, to flag whether the approved label is a catalogue pick. */
+  catalogue: SpecialtyCatalogueNames;
 }):
   | {
       ok: true;
@@ -217,7 +224,7 @@ export function buildSpecialtyChangeApproveReviewBody(input: {
       requestId,
       action: "approve",
       toSpecialty: specialty,
-      toSpecialtyFromMaster: isMasterSpecialty(specialty),
+      toSpecialtyFromMaster: isCatalogueSpecialty(input.catalogue, specialty),
       licenseNumber: license,
     },
   };

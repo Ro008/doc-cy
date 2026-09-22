@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import { catalogueNamesForForms } from "../../lib/specialty-catalogue";
 import {
-  CYPRUS_MASTER_SPECIALTIES,
-  isCurrentRegistrationSpecialty,
-  isMasterSpecialty,
-} from "../../lib/cyprus-specialties";
+  isCatalogueSpecialty,
+  matchCatalogueSpecialty,
+} from "../../lib/specialty-options";
+import { validateSpecialtySubmission } from "../../lib/specialty-submission";
 import {
   GESY_MANUAL_SPECIALTIES,
   parseGesySpecialtyCell,
@@ -16,22 +17,71 @@ import {
 import { matchesSpecialtyFilter } from "../../lib/finder-specialty-filter";
 import { buildFinderSpecialtyOptions } from "../../lib/finder-specialty-options";
 
-describe("registration specialties (GeSY + Psychology)", () => {
-  it("offers GeSY labels and Psychology, not Pharmacy/Laboratory", () => {
-    assert.ok(CYPRUS_MASTER_SPECIALTIES.includes("Personal Doctor"));
-    assert.ok(CYPRUS_MASTER_SPECIALTIES.includes("Clinical Psychologist"));
-    assert.ok(CYPRUS_MASTER_SPECIALTIES.includes("Psychology"));
-    assert.ok(CYPRUS_MASTER_SPECIALTIES.includes("Dentist"));
-    assert.equal(CYPRUS_MASTER_SPECIALTIES.includes("Pharmacy"), false);
-    assert.equal(CYPRUS_MASTER_SPECIALTIES.includes("Laboratory"), false);
-    assert.equal(CYPRUS_MASTER_SPECIALTIES.includes("Dentistry"), false);
+/** Shaped like the `specialties` table, including rows Testing still carries. */
+const CATALOGUE_ROWS = [
+  { id: "1", name: "Personal Doctor", slug: "personal-doctor" },
+  { id: "2", name: "Clinical Psychologist", slug: "clinical-psychologist" },
+  { id: "3", name: "Psychology", slug: "psychology" },
+  { id: "4", name: "Dentist", slug: "dentist" },
+  { id: "5", name: "Dentistry", slug: "dentistry" },
+  { id: "6", name: "Pharmacy", slug: "pharmacy" },
+  { id: "7", name: "Hematology", slug: "hematology" },
+  { id: "8", name: "Sexology", slug: "sexology" },
+  { id: "9", name: "Paediatrics", slug: "paediatrics" },
+];
+const FORM_CATALOGUE = catalogueNamesForForms(CATALOGUE_ROWS);
+
+describe("form specialties come from the catalogue", () => {
+  it("offers canonical catalogue names, Psychology and approved custom labels, alphabetically", () => {
+    assert.deepEqual(FORM_CATALOGUE, [
+      "Clinical Psychologist",
+      "Dentist",
+      "Hematology",
+      "Paediatrics",
+      "Personal Doctor",
+      "Psychology",
+      "Sexology",
+    ]);
   });
 
-  it("accepts legacy labels as master for grandfathered doctors", () => {
-    assert.equal(isMasterSpecialty("Psychology"), true);
-    assert.equal(isMasterSpecialty("Dentistry"), true);
-    assert.equal(isCurrentRegistrationSpecialty("Dentistry"), false);
-    assert.equal(isCurrentRegistrationSpecialty("Dentist"), true);
+  it("drops legacy spellings and the generic Pharmacy row", () => {
+    assert.equal(FORM_CATALOGUE.includes("Dentistry"), false);
+    assert.equal(FORM_CATALOGUE.includes("Pharmacy"), false);
+  });
+
+  it("no longer grandfathers legacy labels", () => {
+    assert.equal(isCatalogueSpecialty(FORM_CATALOGUE, "Psychology"), true);
+    assert.equal(isCatalogueSpecialty(FORM_CATALOGUE, "Dentist"), true);
+    assert.equal(isCatalogueSpecialty(FORM_CATALOGUE, "Dentistry"), false);
+    assert.equal(isCatalogueSpecialty(FORM_CATALOGUE, "Pediatrics"), false);
+    assert.deepEqual(matchCatalogueSpecialty(FORM_CATALOGUE, "Pediatrics"), {
+      name: "Paediatrics",
+      viaAlias: true,
+    });
+  });
+
+  it("matches casing variants to the catalogue name", () => {
+    assert.deepEqual(matchCatalogueSpecialty(FORM_CATALOGUE, "sexology"), {
+      name: "Sexology",
+      viaAlias: false,
+    });
+  });
+
+  it("validates picks and Other text against the catalogue", () => {
+    assert.deepEqual(validateSpecialtySubmission("sexology", true, FORM_CATALOGUE), {
+      ok: true,
+      specialty: "Sexology",
+      is_specialty_approved: true,
+    });
+    assert.equal(validateSpecialtySubmission("Dentistry", true, FORM_CATALOGUE).ok, false);
+    // Other text that names a catalogue specialty (even by a legacy spelling) is refused.
+    assert.equal(validateSpecialtySubmission("Sexology", false, FORM_CATALOGUE).ok, false);
+    assert.equal(validateSpecialtySubmission("Pediatrics", false, FORM_CATALOGUE).ok, false);
+    assert.deepEqual(validateSpecialtySubmission("Reiki", false, FORM_CATALOGUE), {
+      ok: true,
+      specialty: "Reiki",
+      is_specialty_approved: false,
+    });
   });
 });
 
@@ -39,11 +89,12 @@ describe("Hematology vs Haematology (one category)", () => {
   it("keeps Hematology as the only canonical GeSY/registration label", () => {
     assert.equal(GESY_MANUAL_SPECIALTIES.includes("Hematology"), true);
     assert.equal(GESY_MANUAL_SPECIALTIES.includes("Haematology" as never), false);
-    assert.equal(CYPRUS_MASTER_SPECIALTIES.includes("Hematology"), true);
-    assert.equal(CYPRUS_MASTER_SPECIALTIES.includes("Haematology"), false);
-    assert.equal(isCurrentRegistrationSpecialty("Hematology"), true);
-    assert.equal(isCurrentRegistrationSpecialty("Haematology"), false);
-    assert.equal(isMasterSpecialty("Haematology"), true);
+    assert.equal(isCatalogueSpecialty(FORM_CATALOGUE, "Hematology"), true);
+    assert.equal(isCatalogueSpecialty(FORM_CATALOGUE, "Haematology"), false);
+    assert.deepEqual(matchCatalogueSpecialty(FORM_CATALOGUE, "Haematology"), {
+      name: "Hematology",
+      viaAlias: true,
+    });
   });
 
   it("harmonizes British spelling and GeSY ALL CAPS to Hematology", () => {

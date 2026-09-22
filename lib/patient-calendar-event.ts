@@ -1,4 +1,3 @@
-import { isMasterSpecialty } from "@/lib/cyprus-specialties";
 
 /** Minimal appointment shape for shared calendar copy (datetime reserved for future use). */
 export type PatientCalendarAppointment = {
@@ -51,14 +50,10 @@ export function doctorDisplayNameForCalendar(
   return cleaned || "Professional";
 }
 
-/**
- * Label for the calendar title: prefer a master-list specialty; otherwise stored text; fallback General Practice.
- */
+/** Label for the calendar title: the stored specialty; fallback General Practice. */
 export function specialtyLabelForCalendar(specialty: string | null | undefined): string {
   const s = String(specialty ?? "").trim();
-  if (!s) return "General Practice";
-  if (isMasterSpecialty(s)) return s;
-  return s;
+  return s || "General Practice";
 }
 
 /**

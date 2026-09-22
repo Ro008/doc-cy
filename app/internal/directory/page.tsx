@@ -75,6 +75,7 @@ import { getInternalDirectoryRole } from "@/lib/internal-directory-auth";
 import { professionalAccountEmail } from "@/lib/professional-account-contact";
 import {
   hasPendingSpecialty,
+  loadSpecialtyCatalogueNames,
   loadSpecialtyEntriesByProfessionalIds,
   primarySpecialtyEntry,
   SPECIALTY_LINKS_SELECT,
@@ -432,6 +433,7 @@ export default async function FounderDashboardPage({
     ),
   );
 
+  const specialtyOptions = await loadSpecialtyCatalogueNames(supabase);
   let specialtyChangeRequestItems: SpecialtyChangeRequestRow[] = [];
   {
     let changeReqRes = await supabase
@@ -1090,9 +1092,15 @@ export default async function FounderDashboardPage({
           newDoctorsThisWeek={newDoctorsThisWeek}
         />
 
-        <SpecialtyChangeRequestsPanel items={specialtyChangeRequestItems} />
+        <SpecialtyChangeRequestsPanel
+          items={specialtyChangeRequestItems}
+          specialtyOptions={specialtyOptions}
+        />
         <PendingRegistrationReviewPanel items={pendingRegistrationItems} />
-        <PendingSpecialtiesPanel items={pendingSpecialtyItems} />
+        <PendingSpecialtiesPanel
+          items={pendingSpecialtyItems}
+          specialtyOptions={specialtyOptions}
+        />
         <ManualPatientVotesSection
           query={dashboardQuery}
           rows={manualVoteRowsSorted}

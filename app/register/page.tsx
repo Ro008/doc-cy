@@ -26,6 +26,7 @@ import {
   validateDoctorSpecialtyEntries,
   type DoctorSpecialtyEntryInput,
 } from "@/lib/doctor-specialties";
+import { loadSpecialtyCatalogueNames } from "@/lib/specialty-catalogue";
 import { sendDoctorRegistrationReceivedEmail } from "@/lib/send-doctor-registration-received-email";
 import { generateRegisterEmailConfirmUrl } from "@/lib/register-email-confirm";
 import { matchesAutomatedDoctorRegistrationTestEmailForAdminBypass } from "@/lib/e2e-doctor-registration-test";
@@ -255,7 +256,18 @@ async function runRegister(formData: FormData) {
     ];
   }
 
-  const specialtiesParsed = validateDoctorSpecialtyEntries(specialtyInputs);
+  const catalogueService = createServiceRoleClient();
+  if (!catalogueService) {
+    fail("db", "SUPABASE_SERVICE_ROLE_KEY missing");
+  }
+  let specialtyCatalogue: string[];
+  try {
+    specialtyCatalogue = await loadSpecialtyCatalogueNames(catalogueService);
+  } catch (err) {
+    console.error("[DocCy] register: specialty catalogue failed", err);
+    fail("db", err);
+  }
+  const specialtiesParsed = validateDoctorSpecialtyEntries(specialtyInputs, specialtyCatalogue);
   if (!specialtiesParsed.ok) {
     fail("specialty");
   }
@@ -662,10 +674,18 @@ export default async function RegisterPage({ searchParams }: PageProps) {
   const claimId = String(searchParams?.claim ?? "").trim();
 
   let claimPrefill: RegisterClaimPrefill | null = null;
-  if (!submitted && isProfessionalUuid(claimId)) {
+  let specialtyOptions: string[] = [];
+  if (!submitted) {
     const service = createServiceRoleClient();
     if (service) {
-      claimPrefill = await loadUnregisteredProfessionalForRegisterClaim(service, claimId);
+      if (isProfessionalUuid(claimId)) {
+        claimPrefill = await loadUnregisteredProfessionalForRegisterClaim(service, claimId);
+      }
+      try {
+        specialtyOptions = await loadSpecialtyCatalogueNames(service);
+      } catch (err) {
+        console.error("[DocCy] register page: specialty catalogue failed", err);
+      }
     }
   }
 
@@ -947,6 +967,7 @@ export default async function RegisterPage({ searchParams }: PageProps) {
                     <RegisterSpecialtyFields
                       key={claimPrefill?.id ?? "new"}
                       initialSpecialties={claimPrefill?.specialties}
+                      specialtyOptions={specialtyOptions}
                     />
                     {clinicSlots.map((clinic, index) => {
                       const initialLocation = clinic
