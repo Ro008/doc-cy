@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 import { loadDoctorLocations, primaryDoctorLocation } from "@/lib/load-doctor-locations";
+import { writeClinicSettings } from "@/lib/professional-clinic-settings-writes";
 import {
   CONTACT_PHONE_REQUIRED_CODE,
   CONTACT_PHONE_REQUIRED_MESSAGE,
@@ -191,15 +192,12 @@ export async function POST(req: NextRequest) {
   }
 
   if (target) {
-    const { error: locationErr } = await supabase
-      .from("doctor_locations")
-      .update({
-        pause_online_bookings: nextPaused,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", target.id)
-      .eq("doctor_id", doctor.id);
-    if (locationErr) {
+    // The pause is this professional's setting at this clinic: it lives on their join row.
+    const saved = await writeClinicSettings(doctor.id, target.id, {
+      pause_online_bookings: nextPaused,
+    });
+    if (!saved.ok) {
+      console.error("[DocCy] Failed to save clinic pause state", saved.error);
       return NextResponse.json(
         { message: "Error saving pause state." },
         { status: 500 }
