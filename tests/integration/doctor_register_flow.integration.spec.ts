@@ -1,4 +1,3 @@
-import path from "node:path";
 import { expect, test } from "@playwright/test";
 
 import {
@@ -15,6 +14,7 @@ import {
 import {
   answerRegisterAccountChoices,
   selectRegisterEnglishLanguage,
+  uploadRegisterAvatar,
   waitForRegisterWizardReady,
 } from "./helpers/goto-register-practice-step";
 import { INTEGRATION_DOCTOR_PASSWORD } from "./helpers/test-doctor";
@@ -78,12 +78,7 @@ test.describe("Integration: doctor registration flow", { tag: "@local-register" 
       await page.getByTestId("register-wizard-continue").click();
 
       await expect(page.getByTestId("register-step-2")).toBeVisible({ timeout: 15_000 });
-      const avatarPath = path.join(process.cwd(), "tests", "fixtures", "e2e-person-avatar.jpg");
-      await page.getByTestId("register-avatar-file-input").setInputFiles(avatarPath);
-      const confirmCrop = page.getByRole("button", { name: /Confirm crop/i });
-      await expect(confirmCrop).toBeVisible({ timeout: 10_000 });
-      await confirmCrop.click();
-      await expect(page.getByText(/Ready for submission/i)).toBeVisible({ timeout: 15_000 });
+      await uploadRegisterAvatar(page);
 
       await selectRegisterEnglishLanguage(page);
       await page.getByTestId("register-wizard-continue").click();

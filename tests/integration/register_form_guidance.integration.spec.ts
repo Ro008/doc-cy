@@ -1,7 +1,11 @@
+import fs from "node:fs";
 import { expect, test } from "@playwright/test";
 import {
+  REGISTER_AVATAR_FIXTURE,
+  REGISTER_SMALL_AVATAR_FIXTURE,
   answerRegisterAccountChoices,
   gotoRegisterPracticeStep,
+  gotoRegisterProfileStep,
   waitForRegisterWizardReady,
 } from "./helpers/goto-register-practice-step";
 
@@ -298,6 +302,84 @@ test.describe("Integration UI: register form guidance", { tag: "@pr-e2e" }, () =
     const box = await submit.boundingBox();
     expect(box).not.toBeNull();
     expect(box!.y + box!.height).toBeLessThanOrEqual(900);
+  });
+
+  test("languages are one-click pills, with more on demand", async ({ page }) => {
+    await gotoRegisterProfileStep(page);
+    await expect(page.getByTestId("language-multiselect-trigger")).toHaveCount(0);
+
+    const greek = page.getByTestId("language-option-Greek");
+    await expect(greek).toBeVisible();
+    await greek.click();
+    await expect(greek.getByRole("checkbox")).toBeChecked();
+    await expect(page.locator("[data-field-key='languages']")).toHaveAttribute("data-complete", "1");
+
+    const german = page.getByTestId("language-option-German");
+    await expect(german).toHaveCount(0);
+    await page.getByRole("button", { name: /More languages/i }).click();
+    await german.click();
+    await page.getByRole("button", { name: /Fewer languages/i }).click();
+    // A language they picked stays visible when the list collapses.
+    await expect(german.getByRole("checkbox")).toBeChecked();
+
+    await greek.click();
+    await expect(greek.getByRole("checkbox")).not.toBeChecked();
+  });
+
+  test("a photo below 400×400 is refused with its size", async ({ page }) => {
+    await gotoRegisterProfileStep(page);
+    await page.getByTestId("register-avatar-file-input").setInputFiles(REGISTER_SMALL_AVATAR_FIXTURE);
+    await expect(page.getByTestId("register-avatar-error")).toContainText("128×128");
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+  });
+
+  test("an iPhone HEIC photo gets a specific message", async ({ page }) => {
+    await gotoRegisterProfileStep(page);
+    await page.getByTestId("register-avatar-file-input").setInputFiles({
+      name: "IMG_0001.HEIC",
+      mimeType: "image/heic",
+      buffer: Buffer.from("not really a heic"),
+    });
+    await expect(page.getByTestId("register-avatar-error")).toContainText(/HEIC/);
+    await expect(page.getByTestId("register-avatar-error")).toContainText(/JPG/);
+  });
+
+  test("the crop dialog keeps focus inside and closes with Escape", async ({ page }) => {
+    await gotoRegisterProfileStep(page);
+    await page.getByTestId("register-avatar-file-input").setInputFiles(REGISTER_AVATAR_FIXTURE);
+    const dialog = page.getByRole("dialog", { name: /Crop your photo/i });
+    await expect(dialog).toBeVisible();
+
+    for (let i = 0; i < 6; i += 1) {
+      await page.keyboard.press("Tab");
+      expect(
+        await dialog.evaluate((el) => el.contains(document.activeElement)),
+        `focus stays in the dialog after ${i + 1} Tab`,
+      ).toBe(true);
+    }
+
+    await page.keyboard.press("Escape");
+    await expect(dialog).toHaveCount(0);
+    await expect(page.getByTestId("register-avatar-error")).toContainText(/No photo yet/i);
+  });
+
+  test("a photo can be dragged onto the upload area", async ({ page }) => {
+    await gotoRegisterProfileStep(page);
+    const bytes = fs.readFileSync(REGISTER_AVATAR_FIXTURE).toString("base64");
+    const dataTransfer = await page.evaluateHandle((b64) => {
+      const binary = atob(b64);
+      const data = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i += 1) data[i] = binary.charCodeAt(i);
+      const transfer = new DataTransfer();
+      transfer.items.add(new File([data], "me.jpg", { type: "image/jpeg" }));
+      return transfer;
+    }, bytes);
+    await page.getByTestId("register-avatar-dropzone").dispatchEvent("drop", { dataTransfer });
+
+    await page.getByRole("button", { name: /Confirm crop/i }).click();
+    await expect(page.getByTestId("register-avatar-ready")).toBeVisible();
+    await expect(page.locator("[data-field-key='photo']")).toHaveAttribute("data-complete", "1");
+    await expect(page.getByRole("button", { name: /Change photo/i })).toBeVisible();
   });
 
   test("submitted screen asks them to confirm email with a link, not a code", async ({ page }) => {

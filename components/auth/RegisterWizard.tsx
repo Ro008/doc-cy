@@ -225,11 +225,12 @@ export function RegisterWizardStep({
             <p className="text-[13px] leading-snug text-ink-600">{description}</p>
           ) : null}
         </div>
+        {/* Edit: 44px touch target on phones; desktop keeps collapsed cards short. */}
         {state === "done" ? (
           <button
             type="button"
             onClick={() => wizard?.setStep(step)}
-            className="inline-flex min-h-[44px] items-center rounded-lg px-3 text-sm font-bold text-clinical-800 transition hover:bg-white/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-500"
+            className="inline-flex min-h-[44px] items-center rounded-lg px-3 text-sm font-bold text-clinical-800 lg:min-h-[32px] transition hover:bg-white/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-500"
           >
             Edit<span className="sr-only"> {title}</span>
           </button>

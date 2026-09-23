@@ -2,19 +2,36 @@ import path from "node:path";
 import { expect, type Page } from "@playwright/test";
 import { INTEGRATION_DOCTOR_PASSWORD } from "./test-doctor";
 
-/** Native click: Playwright retries on the toggle can open then immediately close it. */
+/** 600×600: above the 400×400 minimum the avatar upload enforces. */
+export const REGISTER_AVATAR_FIXTURE = path.join(
+  process.cwd(),
+  "tests",
+  "fixtures",
+  "e2e-person-avatar-600.jpg",
+);
+
+/** 128×128: below the minimum, for the "too small" case. */
+export const REGISTER_SMALL_AVATAR_FIXTURE = path.join(
+  process.cwd(),
+  "tests",
+  "fixtures",
+  "e2e-person-avatar.jpg",
+);
+
+/** Languages are one-click pills on /register (no dropdown). */
 export async function selectRegisterEnglishLanguage(page: Page): Promise<void> {
-  const trigger = page.getByTestId("language-multiselect-trigger");
-  await trigger.evaluate((el) => {
-    (el as HTMLButtonElement).click();
-  });
-  await expect(page.getByTestId("language-option-English")).toBeVisible({ timeout: 5_000 });
-  await page.getByTestId("language-option-English").click({ force: true });
-  await expect(page.getByText(/1 language selected/i)).toBeVisible();
-  await trigger.evaluate((el) => {
-    (el as HTMLButtonElement).click();
-  });
-  await expect(page.getByTestId("language-option-English")).toBeHidden();
+  const pill = page.getByTestId("language-option-English");
+  await pill.click();
+  await expect(pill.getByRole("checkbox")).toBeChecked();
+}
+
+/** Upload the fixture photo and confirm the crop. */
+export async function uploadRegisterAvatar(page: Page): Promise<void> {
+  await page.getByTestId("register-avatar-file-input").setInputFiles(REGISTER_AVATAR_FIXTURE);
+  const confirmCrop = page.getByRole("button", { name: /Confirm crop/i });
+  await expect(confirmCrop).toBeVisible({ timeout: 10_000 });
+  await confirmCrop.click();
+  await expect(page.getByTestId("register-avatar-ready")).toBeVisible({ timeout: 15_000 });
 }
 
 /**
@@ -40,8 +57,8 @@ export async function answerRegisterAccountChoices(
     .click();
 }
 
-/** Fill steps 1–2 so clinic / GeSY fields on step 3 are visible. */
-export async function gotoRegisterPracticeStep(page: Page): Promise<void> {
+/** Fill step 1 so the profile step (photo, languages) is open. */
+export async function gotoRegisterProfileStep(page: Page): Promise<void> {
   await expect(page.getByTestId("register-wizard-continue")).toBeVisible({ timeout: 20_000 });
   await waitForRegisterWizardReady(page);
 
@@ -54,13 +71,12 @@ export async function gotoRegisterPracticeStep(page: Page): Promise<void> {
   await page.getByTestId("register-wizard-continue").click();
 
   await expect(page.getByTestId("register-step-2")).toBeVisible();
-  const avatarPath = path.join(process.cwd(), "tests", "fixtures", "e2e-person-avatar.jpg");
-  await page.getByTestId("register-avatar-file-input").setInputFiles(avatarPath);
-  const confirmCrop = page.getByRole("button", { name: /Confirm crop/i });
-  await expect(confirmCrop).toBeVisible({ timeout: 10_000 });
-  await confirmCrop.click();
-  await expect(page.getByText(/Ready for submission/i)).toBeVisible({ timeout: 15_000 });
+}
 
+/** Fill steps 1–2 so clinic / GeSY fields on step 3 are visible. */
+export async function gotoRegisterPracticeStep(page: Page): Promise<void> {
+  await gotoRegisterProfileStep(page);
+  await uploadRegisterAvatar(page);
   await selectRegisterEnglishLanguage(page);
   await page.getByTestId("register-wizard-continue").click();
 

@@ -975,7 +975,7 @@ export default async function RegisterPage({ searchParams }: PageProps) {
                     title="Profile"
                     description="A photo and the languages you consult in."
                   >
-                    <RegisterAvatarUpload tone="light" />
+                    <RegisterAvatarUpload />
                     <RegisterLanguageFields />
                   </RegisterWizardStep>
 
