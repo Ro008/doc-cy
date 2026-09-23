@@ -47,6 +47,7 @@ import {
   shouldAllowRegisterClinicE2eFallback,
 } from "@/lib/register-clinic-location";
 import { RegisterClinicAddressField } from "@/components/auth/RegisterClinicAddressField";
+import { RegisterChoiceField } from "@/components/auth/RegisterChoiceField";
 import { allocateUniqueDoctorSlug } from "@/lib/doctor-slug";
 import {
   joinProfessionalFullName,
@@ -903,6 +904,31 @@ export default async function RegisterPage({ searchParams }: PageProps) {
                         </label>
                         <p className={registerFieldErrorClass}>Please enter your last name.</p>
                       </div>
+                    </div>
+                    {/* UI only for now: handleRegister does not store gender or GeSY yet. */}
+                    <div className="grid gap-4 sm:grid-cols-2 sm:gap-3">
+                      <RegisterChoiceField
+                        name="gender"
+                        fieldKey="gender"
+                        fieldLabel="Gender"
+                        question="Gender"
+                        options={[
+                          { value: "male", label: "Male" },
+                          { value: "female", label: "Female" },
+                        ]}
+                        errorMessage="Please select your gender."
+                      />
+                      <RegisterChoiceField
+                        name="gesy"
+                        fieldKey="gesy"
+                        fieldLabel="GeSY"
+                        question="Work with GeSY?"
+                        options={[
+                          { value: "yes", label: "Yes" },
+                          { value: "no", label: "No" },
+                        ]}
+                        errorMessage="Please tell us whether you work with GeSY."
+                      />
                     </div>
                     <div className="grid gap-4 sm:grid-cols-2 sm:gap-3">
                       <div

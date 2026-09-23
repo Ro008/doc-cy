@@ -17,6 +17,21 @@ export async function selectRegisterEnglishLanguage(page: Page): Promise<void> {
   await expect(page.getByTestId("language-option-English")).toBeHidden();
 }
 
+/** Step 1 radio questions (gender, GeSY). Clicks the visible pill, not the hidden radio. */
+export async function answerRegisterAccountChoices(
+  page: Page,
+  answers: { gender?: "Male" | "Female"; gesy?: "Yes" | "No" } = {},
+): Promise<void> {
+  await page
+    .getByRole("radiogroup", { name: "Gender" })
+    .getByText(answers.gender ?? "Female", { exact: true })
+    .click();
+  await page
+    .getByRole("radiogroup", { name: /GeSY/ })
+    .getByText(answers.gesy ?? "Yes", { exact: true })
+    .click();
+}
+
 /** Fill steps 1–2 so clinic / GeSY fields on step 3 are visible. */
 export async function gotoRegisterPracticeStep(page: Page): Promise<void> {
   await expect(page.getByTestId("register-wizard-continue")).toBeVisible({ timeout: 20_000 });
@@ -26,6 +41,7 @@ export async function gotoRegisterPracticeStep(page: Page): Promise<void> {
   await page.locator("#register-form input[name='email']").fill("karina.mino@example.com");
   await page.locator("#register-form input[name='password']").fill(INTEGRATION_DOCTOR_PASSWORD);
   await page.locator("#register-form input[name='phone']").fill("+35799123456");
+  await answerRegisterAccountChoices(page);
   await page.getByTestId("register-wizard-continue").click();
 
   await expect(page.getByTestId("register-step-2")).toBeVisible();

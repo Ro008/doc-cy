@@ -12,7 +12,10 @@ import {
   createIntegrationAdmin,
   requireSafeIntegration,
 } from "./helpers/safe-integration";
-import { selectRegisterEnglishLanguage } from "./helpers/goto-register-practice-step";
+import {
+  answerRegisterAccountChoices,
+  selectRegisterEnglishLanguage,
+} from "./helpers/goto-register-practice-step";
 import { INTEGRATION_DOCTOR_PASSWORD } from "./helpers/test-doctor";
 
 /**
@@ -64,7 +67,8 @@ test.describe("Integration: doctor registration flow", { tag: "@local-register" 
         input.dispatchEvent(new Event("change", { bubbles: true }));
       });
       await page.locator("#register-form input[name='phone']").fill("+35799123456");
-      for (const key of ["firstName", "lastName", "email", "password", "phone"]) {
+      await answerRegisterAccountChoices(page);
+      for (const key of ["firstName", "lastName", "email", "password", "phone", "gender", "gesy"]) {
         await expect(
           page.locator(`[data-register-step='1'] [data-field-key='${key}']`),
         ).toHaveAttribute("data-complete", "1", { timeout: 10_000 });

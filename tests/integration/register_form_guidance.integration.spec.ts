@@ -1,5 +1,8 @@
 import { expect, test } from "@playwright/test";
-import { gotoRegisterPracticeStep } from "./helpers/goto-register-practice-step";
+import {
+  answerRegisterAccountChoices,
+  gotoRegisterPracticeStep,
+} from "./helpers/goto-register-practice-step";
 
 /**
  * Beta testers were skipping fields and could not tell why the form refused to
@@ -54,7 +57,7 @@ test.describe("Integration UI: register form guidance", { tag: "@pr-e2e" }, () =
 
     const summary = page.getByTestId("register-missing-summary");
     await expect(summary).toBeVisible();
-    await expect(summary).toContainText("4 things left before you can continue");
+    await expect(summary).toContainText("6 things left before you can continue");
     await expect(summary.getByRole("button", { name: "Last name" })).toBeVisible();
 
     await summary.getByRole("button", { name: "Email address" }).click();
@@ -65,14 +68,14 @@ test.describe("Integration UI: register form guidance", { tag: "@pr-e2e" }, () =
     await page.getByTestId("register-wizard-continue").click();
 
     const summary = page.getByTestId("register-missing-summary");
-    await expect(summary).toContainText("5 things left before you can continue");
-    await expect(summary.locator("li")).toHaveCount(5);
+    await expect(summary).toContainText("7 things left before you can continue");
+    await expect(summary.locator("li")).toHaveCount(7);
 
     await page.locator("input[name='phone']").fill("+35799123456");
 
-    await expect(summary).toContainText("4 things left before you can continue");
+    await expect(summary).toContainText("6 things left before you can continue");
     // The row stays put, struck through, so the list never shifts under the user.
-    await expect(summary.locator("li")).toHaveCount(5);
+    await expect(summary.locator("li")).toHaveCount(7);
     await expect(summary.locator("li", { hasText: "Mobile number" }).locator("s, .line-through"))
       .toHaveCount(1);
   });
@@ -87,12 +90,42 @@ test.describe("Integration UI: register form guidance", { tag: "@pr-e2e" }, () =
     await expect(page).toHaveURL(/\/register\/?$/);
   });
 
+  test("gender and GeSY are required on the account step", async ({ page }) => {
+    await page.locator("#register-first-name").fill("Karina");
+    await page.locator("#register-last-name").fill("Mino");
+    await page.locator("#register-form input[name='email']").fill("karina.mino@example.com");
+    await page.locator("#register-form input[name='password']").fill("StrongPass123!");
+    await page.locator("#register-form input[name='phone']").fill("+35799123456");
+    await page.getByTestId("register-wizard-continue").click();
+
+    const summary = page.getByTestId("register-missing-summary");
+    await expect(summary).toContainText("2 things left before you can continue");
+    await expect(summary.getByRole("button", { name: "Gender" })).toBeVisible();
+    await expect(summary.getByRole("button", { name: "GeSY" })).toBeVisible();
+    await expect(page.getByTestId("register-step-1")).toBeVisible();
+
+    const gender = page.getByRole("radiogroup", { name: "Gender" });
+    await expect(gender.getByRole("radio")).toHaveCount(2);
+    await expect(gender.getByRole("radio", { name: "Male", exact: true })).toBeAttached();
+    await expect(gender.getByRole("radio", { name: "Female" })).toBeAttached();
+    const gesy = page.getByRole("radiogroup", { name: /GeSY/ });
+    await expect(gesy.getByRole("radio", { name: "Yes" })).toBeAttached();
+    await expect(gesy.getByRole("radio", { name: "No" })).toBeAttached();
+
+    await answerRegisterAccountChoices(page, { gender: "Male", gesy: "No" });
+    await expect(gender.getByRole("radio", { name: "Male", exact: true })).toBeChecked();
+    await expect(gesy.getByRole("radio", { name: "No" })).toBeChecked();
+    await page.getByTestId("register-wizard-continue").click();
+    await expect(page.getByTestId("register-step-2")).toBeVisible();
+  });
+
   test("a finished step collapses to a summary and Edit reopens it", async ({ page }) => {
     await page.locator("#register-first-name").fill("Karina");
     await page.locator("#register-last-name").fill("Mino");
     await page.locator("#register-form input[name='email']").fill("karina.mino@example.com");
     await page.locator("#register-form input[name='password']").fill("StrongPass123!");
     await page.locator("#register-form input[name='phone']").fill("+35799123456");
+    await answerRegisterAccountChoices(page);
     await expect(page.getByTestId("register-wizard-continue")).toHaveText(/Continue to profile/i);
     await page.getByTestId("register-wizard-continue").click();
 

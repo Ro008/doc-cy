@@ -121,6 +121,16 @@ describe("register page layout", () => {
     assert.doesNotMatch(page, /RegisterSecondarySections/);
   });
 
+  it("choice pills skip the generic 'complete' tick (it sat next to the unselected option)", () => {
+    const choice = read("components/auth/RegisterChoiceField.tsx");
+    assert.match(choice, /data-complete-tick="off"/);
+    const css = read("app/globals.css");
+    assert.match(
+      css,
+      /\[data-complete-tick="off"\]\[data-complete="1"\]::after\s*\{\s*content:\s*none;/,
+    );
+  });
+
   it("the showcase never claims automatic calendar sync", () => {
     const showcase = read("components/register/RegisterShowcase.tsx");
     assert.doesNotMatch(showcase, /\bsync(ed|s)?\b/i);

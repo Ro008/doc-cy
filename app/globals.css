@@ -470,6 +470,11 @@ button {
   pointer-events: none;
 }
 
+/* Choice pills show their own selected state, so they opt out of the tick. */
+[data-validate-field="1"][data-complete-tick="off"][data-complete="1"]::after {
+  content: none;
+}
+
 /* Fields drawn as a card already have padding, so inset the badge. */
 [data-validate-field="1"][data-field-boxed="1"][data-complete="1"]::after {
   top: 0.7rem;

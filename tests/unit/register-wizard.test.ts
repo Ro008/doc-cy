@@ -13,6 +13,9 @@ describe("register wizard wiring", () => {
     assert.match(source, /name="firstName"/);
     assert.match(source, /name="lastName"/);
     assert.doesNotMatch(source, /name="fullName"/);
+    // Step 1 radio questions (UI only for now: the server action does not store them yet).
+    assert.match(source, /name="gender"/);
+    assert.match(source, /name="gesy"/);
     // Split layout: wizard on the left, benefits showcase on the right (desktop).
     assert.match(source, /lg:grid-cols/);
     assert.doesNotMatch(source, /RegisterPromoBanner/);
