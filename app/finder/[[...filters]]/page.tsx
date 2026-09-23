@@ -96,7 +96,7 @@ import {
 import { getFinderManualPhotoUrl } from "@/lib/finder-manual-photos";
 import { resolveFinderDisplayPhotoUrl } from "@/lib/finder-default-avatars";
 import { finderCardImagePriority } from "@/lib/finder-card-image-priority";
-import { finderResultsPath, FOR_PROFESSIONALS_PATH } from "@/lib/finder-public-path";
+import { finderResultsPath } from "@/lib/finder-public-path";
 import { isProSessionHintValue, PRO_SESSION_HINT_COOKIE } from "@/lib/pro-session-hint";
 import { buildFinderResultsHeading, buildFinderResultsSnippet } from "@/lib/finder-results-heading";
 import {
@@ -1703,7 +1703,7 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
                 <p className="text-xs text-ink-500">
                   Are you a healthcare professional?{" "}
                   <PendingLink
-                    href={`${FOR_PROFESSIONALS_PATH}#founders-pricing`}
+                    href="/register"
                     className="font-semibold text-clinical-600 underline underline-offset-4 transition hover:text-clinical-500"
                   >
                     List your practice

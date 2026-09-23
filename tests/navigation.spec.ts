@@ -122,61 +122,16 @@ test.describe("Navigation and routing", { tag: ["@pr-e2e", "@pr-e2e-finder"] }, 
     await expect(page.getByRole("link", { name: /practitioner login/i }).first()).toBeVisible();
   });
 
-  test("finder pricing CTA jumps to for-professionals founders pricing section", async ({ page }) => {
+  test("finder 'Are you a healthcare professional?' CTA opens /register", async ({ page }) => {
     await page.goto("/");
 
-    const pricingCta = page
-      .getByRole("link", { name: /claim your professional profile|list your practice/i })
-      .first();
-    await expect(pricingCta).toBeVisible();
-    await pricingCta.click();
-
-    await expect(page).toHaveURL(/\/for-professionals#founders-pricing$/);
-
-    const pricingSection = page.locator("#founders-pricing");
-    await expect(pricingSection).toBeVisible();
-
-    await expect
-      .poll(async () => {
-        return page.evaluate(() => window.scrollY);
-      })
-      .toBeGreaterThan(300);
-
-    await page.waitForTimeout(900);
-    await expect
-      .poll(async () => page.evaluate(() => window.scrollY))
-      .toBeGreaterThan(300);
-  });
-
-  test("finder pricing CTA jumps to for-professionals founders pricing on mobile", async ({
-    page,
-  }, testInfo) => {
-    test.skip(
-      !testInfo.project.name.includes("Mobile"),
-      "Mobile-specific coverage only."
-    );
-
-    await page.goto("/");
-
-    const pricingCta = page
-      .getByRole("link", { name: /claim your professional profile|list your practice/i })
-      .first();
-    await expect(pricingCta).toBeVisible();
-    await pricingCta.click();
-
-    await expect(page).toHaveURL(/\/for-professionals#founders-pricing$/);
-
-    const pricingSection = page.locator("#founders-pricing");
-    await expect(pricingSection).toBeVisible();
-
-    await expect
-      .poll(async () => page.evaluate(() => window.scrollY))
-      .toBeGreaterThan(220);
-
-    await page.waitForTimeout(900);
-    await expect
-      .poll(async () => page.evaluate(() => window.scrollY))
-      .toBeGreaterThan(220);
+    const registerCta = page.getByRole("link", { name: /list your practice/i }).first();
+    await expect(registerCta).toBeVisible();
+    await expect(registerCta).toHaveAttribute("href", "/register");
+    await Promise.all([
+      page.waitForURL(/\/register\/?$/, { timeout: 30_000 }),
+      registerCta.click(),
+    ]);
   });
 
   test("finder quick links apply filters without stuck loading state", async ({ page }) => {
