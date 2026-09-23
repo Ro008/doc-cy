@@ -86,6 +86,39 @@ test.describe("Integration UI: register form guidance", { tag: "@pr-e2e" }, () =
     await expect(page).toHaveURL(/\/register\/?$/);
   });
 
+  test("a finished step collapses to a summary and Edit reopens it", async ({ page }) => {
+    await page.locator("#register-first-name").fill("Karina");
+    await page.locator("#register-last-name").fill("Mino");
+    await page.locator("#register-form input[name='email']").fill("karina.mino@example.com");
+    await page.locator("#register-form input[name='password']").fill("StrongPass123!");
+    await page.locator("#register-form input[name='phone']").fill("+35799123456");
+    await expect(page.getByTestId("register-wizard-continue")).toHaveText(/Continue to profile/i);
+    await page.getByTestId("register-wizard-continue").click();
+
+    await expect(page.getByTestId("register-step-2")).toBeVisible();
+    await expect(page.getByTestId("register-step-1")).toBeHidden();
+    const accountCard = page.locator("[data-register-step-card='1']");
+    await expect(accountCard).toContainText("Karina Mino · karina.mino@example.com");
+    await expect(page.getByTestId("register-wizard-continue")).toHaveText(/Continue to practice/i);
+
+    await accountCard.getByRole("button", { name: /Edit/i }).click();
+    await expect(page.getByTestId("register-step-1")).toBeVisible();
+    await expect(page.locator("#register-first-name")).toHaveValue("Karina");
+  });
+
+  test("benefits showcase and FAQ stay on the page", async ({ page }) => {
+    const showcase = page.getByTestId("register-showcase");
+    await expect(showcase).toBeVisible();
+    await expect(showcase.getByText(/You approve in one click/i)).toBeVisible();
+    await showcase.getByRole("button", { name: "Next benefit" }).click();
+    await expect(showcase.getByText(/Your profile is your new website/i)).toBeVisible();
+    await expect(page.getByText(/synced|synchroni[sz]ation/i)).toHaveCount(0);
+
+    const faq = page.getByTestId("register-faq");
+    await faq.getByText("Can I see bookings in my own calendar?").click();
+    await expect(faq.getByText(/Google Calendar or Apple \/ Outlook/)).toBeVisible();
+  });
+
   test("submitted screen asks them to confirm email with a link, not a code", async ({ page }) => {
     await page.goto("/register?submitted=1");
     await expect(

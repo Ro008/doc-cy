@@ -10,16 +10,23 @@ import { RegisterFormValidation } from "@/components/auth/RegisterFormValidation
 import { RegisterFormSubmitFeedback } from "@/components/auth/RegisterFormSubmitFeedback";
 import { RegisterWizard, RegisterWizardStep } from "@/components/auth/RegisterWizard";
 import {
+  REGISTER_SETUP_CALL_ID,
+  RegisterFaqSection,
   RegisterIntroSection,
-  RegisterSecondarySections,
+  RegisterNextSteps,
+  RegisterPlanTicket,
+  RegisterSetupCallCard,
   RegisterSubmittedPanel,
 } from "@/components/register/RegisterMarketingSections";
+import { RegisterShowcase } from "@/components/register/RegisterShowcase";
+import { DocCyWordmark } from "@/components/brand/DocCyWordmark";
+import { getFoundersAvailability, type FoundersAvailability } from "@/lib/founders-club";
+import { registerPlanTicket } from "@/lib/register-plan-ticket";
 import {
   registerFieldErrorClass,
   registerHelperClass,
   registerInputClass,
   registerLabelClass,
-  registerSectionShell,
 } from "@/lib/register-ui";
 import { validateLanguageSelection } from "@/lib/cyprus-languages";
 import {
@@ -84,6 +91,23 @@ const REGISTER_AUTH_TIMEOUT_MS = 20_000;
 const REGISTER_UPLOAD_TIMEOUT_MS = 20_000;
 const REGISTER_DB_TIMEOUT_MS = 20_000;
 const REGISTER_NOTIFY_TIMEOUT_MS = 12_000;
+const REGISTER_FOUNDERS_TIMEOUT_MS = 5_000;
+
+/** Price ticket data; on a slow or failed count, show standard pricing rather than oversell. */
+async function loadRegisterFoundersAvailability(): Promise<
+  Pick<FoundersAvailability, "offerAvailable" | "spotsRemaining">
+> {
+  try {
+    return await withTimeout(
+      getFoundersAvailability(),
+      REGISTER_FOUNDERS_TIMEOUT_MS,
+      "founders availability",
+    );
+  } catch (err) {
+    console.error("[DocCy] register page: founders availability failed", err);
+    return { offerAvailable: false, spotsRemaining: 0 };
+  }
+}
 
 function createRegisterAuthClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
@@ -673,6 +697,7 @@ export default async function RegisterPage({ searchParams }: PageProps) {
   const debugDetail = searchParams?.debug ?? null;
   const claimId = String(searchParams?.claim ?? "").trim();
 
+  const foundersAvailability = loadRegisterFoundersAvailability();
   let claimPrefill: RegisterClaimPrefill | null = null;
   let specialtyOptions: string[] = [];
   if (!submitted) {
@@ -750,18 +775,31 @@ export default async function RegisterPage({ searchParams }: PageProps) {
   const clinicSlots =
     claimClinics.length > 0 ? claimClinics.slice(0, MAX_DOCTOR_LOCATIONS) : [null];
 
-  return (
-    <main className="min-h-screen bg-ink-50 text-ink-900">
-      <div className="pointer-events-none fixed inset-0 -z-10">
-        <div className="absolute inset-x-0 top-0 h-72 bg-gradient-to-b from-clinical-100/40 to-transparent" />
-        <div className="absolute right-[-10%] top-24 h-64 w-64 rounded-full bg-wellness-200/30 blur-3xl" />
-        <div className="absolute bottom-0 left-[-5%] h-72 w-72 rounded-full bg-clinical-200/25 blur-3xl" />
-      </div>
+  const planTicket = registerPlanTicket(await foundersAvailability);
 
-      <div className="mx-auto flex min-h-screen max-w-2xl flex-col gap-6 px-4 py-8 sm:px-6 lg:py-10">
-        <RegisterIntroSection
-          claim={claimPrefill ? { firstName: claimPrefill.firstName } : null}
-        />
+  return (
+    <main className="min-h-screen bg-white text-ink-900">
+      <header className="mx-auto flex h-16 max-w-[1440px] items-center justify-between px-4 sm:h-20 sm:px-8 lg:px-14">
+        <a href="/" className="inline-flex rounded-md transition hover:opacity-90" aria-label="DocCy home">
+          <DocCyWordmark size="lg" />
+        </a>
+        <p className="text-sm text-ink-600">
+          <span className="hidden sm:inline">Already have an account? </span>
+          <a
+            href="/login"
+            className="inline-flex min-h-[44px] items-center font-bold text-clinical-800 underline-offset-2 hover:text-clinical-900 hover:underline"
+          >
+            Sign in
+          </a>
+        </p>
+      </header>
+
+      <div className="mx-auto grid max-w-[1440px] lg:grid-cols-[minmax(0,640px)_minmax(0,1fr)]">
+        <div className="flex min-w-0 flex-col gap-5 px-4 pb-4 pt-2 sm:px-8 lg:px-14 lg:pb-12 lg:pt-6">
+          <RegisterIntroSection
+            claim={claimPrefill ? { firstName: claimPrefill.firstName } : null}
+          />
+          <RegisterPlanTicket ticket={planTicket} layout="stacked" className="lg:hidden" />
 
         {submitted ? (
           <RegisterSubmittedPanel
@@ -771,18 +809,12 @@ export default async function RegisterPage({ searchParams }: PageProps) {
           />
         ) : (
           <>
-            <section className={registerSectionShell}>
-              {claimPrefill ? (
-                <h2 className="text-base font-semibold tracking-tight text-ink-900">
-                  Confirm your details to activate this listing
-                </h2>
-              ) : null}
-
+            <section aria-label="Application form">
               <form
                 id="register-form"
                 action={handleRegister}
                 noValidate
-                className={`${claimPrefill ? "mt-5" : ""} space-y-6`}
+                className="space-y-4"
               >
                 {process.env.NODE_ENV === "development" && errorCode && debugDetail ? (
                   <RegisterDevErrorConsole
@@ -818,8 +850,8 @@ export default async function RegisterPage({ searchParams }: PageProps) {
                   formId="register-form"
                   submitLabel={
                     claimPrefill
-                      ? "Activate this listing & Claim 6 Months Free"
-                      : "Submit My Application & Claim 6 Months Free"
+                      ? "Activate this listing & claim 6 months free"
+                      : "Submit my application & claim 6 months free"
                   }
                 >
                   <RegisterFormValidation formId="register-form" />
@@ -1035,11 +1067,34 @@ export default async function RegisterPage({ searchParams }: PageProps) {
                 </RegisterFormSubmitFeedback>
               </form>
             </section>
-            <RegisterSecondarySections />
+            <a
+              href={`#${REGISTER_SETUP_CALL_ID}`}
+              className="inline-flex min-h-[44px] items-center justify-center self-center text-sm font-bold text-clinical-800 underline-offset-4 hover:underline lg:self-start"
+            >
+              Prefer we set you up on a 15-minute call?
+            </a>
           </>
         )}
+        </div>
+
+        <aside
+          aria-label="Why DocCy"
+          className="relative mx-4 mt-2 flex flex-col gap-6 overflow-hidden rounded-[26px] bg-clinical-500 px-5 pb-5 pt-6 sm:mx-8 lg:sticky lg:top-4 lg:mx-0 lg:mb-6 lg:mr-6 lg:mt-1 lg:h-[calc(100svh-2rem)] lg:min-h-[680px] lg:self-start lg:rounded-[32px] lg:px-12 lg:pb-9 lg:pt-9"
+        >
+          <span aria-hidden className="pointer-events-none absolute -bottom-28 -right-24 h-64 w-64 rounded-full bg-clinical-400 lg:-bottom-40 lg:-right-36 lg:h-[460px] lg:w-[460px]" />
+          <span aria-hidden className="pointer-events-none absolute bottom-20 right-16 hidden h-44 w-44 rounded-full border-2 border-clinical-300 lg:block" />
+          <span aria-hidden className="pointer-events-none absolute -left-16 top-40 hidden h-36 w-36 rounded-full bg-clinical-600 lg:block" />
+          <RegisterPlanTicket ticket={planTicket} layout="row" className="relative hidden lg:block" />
+          <RegisterShowcase />
+        </aside>
+      </div>
+
+      <RegisterNextSteps />
+
+      <div className="mx-auto flex max-w-[1440px] flex-col gap-6 px-4 pb-10 pt-8 sm:px-8 sm:pb-20 sm:pt-16 lg:flex-row lg:items-start lg:gap-16 lg:px-[120px]">
+        <RegisterFaqSection />
+        <RegisterSetupCallCard />
       </div>
     </main>
   );
 }
-

@@ -54,7 +54,7 @@ test.describe("Public shell health", { tag: ["@pr-preview", "@nightly-prod"] }, 
 
     await gotoPublicAndReady(page, "/register");
     await expect(
-      page.getByRole("heading", { name: /List your practice on DocCy/i }),
+      page.getByRole("heading", { name: /List your practice on DocCy|Join DocCy in 3 steps/i }),
     ).toBeVisible({ timeout: 20_000 });
     // Name attribute — do not rely on getByLabel; wrapping labels + "*"
     // spans have failed this locator against production HTML.

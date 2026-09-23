@@ -6,6 +6,10 @@ export type RegisterWizardContextValue = {
   step: number;
   stepCount: number;
   setStep: (step: number) => void;
+  goNext: () => void;
+  submitLabel: string;
+  /** One-line recap per finished step, keyed by step number. */
+  summaries: Readonly<Record<number, string>>;
 };
 
 export const RegisterWizardContext =

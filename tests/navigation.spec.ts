@@ -59,7 +59,7 @@ test.describe("Navigation and routing", { tag: ["@pr-e2e", "@pr-e2e-finder"] }, 
       joinLink.click(),
     ]);
     await expect(
-      page.getByRole("heading", { level: 1, name: /List your practice on DocCy/i }),
+      page.getByRole("heading", { level: 1, name: /Join DocCy in 3 steps/i }),
     ).toBeVisible({ timeout: 15_000 });
     await expect(page.getByRole("link", { name: /^Sign in$/i })).toHaveAttribute("href", "/login");
   });
