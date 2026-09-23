@@ -115,7 +115,7 @@ test.describe("Landing page", () => {
       section.getByRole("heading", { name: /Getting started is this simple/i }),
     ).toBeVisible();
     await expect(section.getByText(/Create your profile/i)).toBeVisible();
-    await expect(section.getByText(/Total synchronization/i)).toBeVisible();
+    await expect(section.getByText(/Add it to your calendar/i)).toBeVisible();
   });
 
   test("pricing section shows risk-free intro before founders card", async ({ page }) => {

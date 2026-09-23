@@ -103,8 +103,8 @@ export default async function HomePage() {
       body: t("HowItWorks.steps.requests.body"),
     },
     {
-      title: t("HowItWorks.steps.sync.title"),
-      body: t("HowItWorks.steps.sync.body"),
+      title: t("HowItWorks.steps.calendar.title"),
+      body: t("HowItWorks.steps.calendar.body"),
     },
   ];
 

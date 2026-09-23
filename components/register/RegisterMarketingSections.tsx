@@ -78,7 +78,7 @@ const faqItems = [
   {
     question: "I am already using a paper diary or another tool. Is it hard to switch?",
     answer:
-      "Less than 5 minutes. DocCy is built to be intuitive and plug-and-play. Prefer a hands-off start? Contact us and we'll set you up on a call: we activate your account, walk you through the site, and handle the calendar transition for you.",
+      "Less than 5 minutes. DocCy is built to be intuitive and plug-and-play. Prefer a hands-off start? Contact us and we'll set you up on a call: we activate your account and walk you through the site.",
   },
   {
     question: "How does the 1-click approval protect my agenda?",
@@ -155,8 +155,8 @@ export function RegisterOnboardingCallDetails() {
       </summary>
       <div className="mt-3 space-y-3 border-t border-ink-100 pt-3 text-sm leading-relaxed text-ink-600">
         <p>
-          On a short call we register you, walk through the site, and sync your calendar. Free, no
-          commitment, about 15 minutes.
+          On a short call we register you and walk you through the site. Free, no commitment,
+          about 15 minutes.
         </p>
         <RegisterDemoBookingButton />
       </div>
