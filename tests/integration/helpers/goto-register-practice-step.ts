@@ -17,6 +17,14 @@ export async function selectRegisterEnglishLanguage(page: Page): Promise<void> {
   await expect(page.getByTestId("language-option-English")).toBeHidden();
 }
 
+/**
+ * The form is server-rendered, so its controls are visible before React hydrates.
+ * Typing earlier is lost or never validated; wait for the wizard to mark the form.
+ */
+export async function waitForRegisterWizardReady(page: Page): Promise<void> {
+  await expect(page.locator("#register-form[data-wizard-step]")).toBeAttached({ timeout: 30_000 });
+}
+
 /** Step 1 radio questions (gender, GeSY). Clicks the visible pill, not the hidden radio. */
 export async function answerRegisterAccountChoices(
   page: Page,
@@ -35,12 +43,13 @@ export async function answerRegisterAccountChoices(
 /** Fill steps 1–2 so clinic / GeSY fields on step 3 are visible. */
 export async function gotoRegisterPracticeStep(page: Page): Promise<void> {
   await expect(page.getByTestId("register-wizard-continue")).toBeVisible({ timeout: 20_000 });
+  await waitForRegisterWizardReady(page);
 
   await page.locator("#register-form input[name='firstName']").fill("Karina");
   await page.locator("#register-form input[name='lastName']").fill("Mino");
   await page.locator("#register-form input[name='email']").fill("karina.mino@example.com");
   await page.locator("#register-form input[name='password']").fill(INTEGRATION_DOCTOR_PASSWORD);
-  await page.locator("#register-form input[name='phone']").fill("+35799123456");
+  await page.getByTestId("register-phone-input").fill("+35799123456");
   await answerRegisterAccountChoices(page);
   await page.getByTestId("register-wizard-continue").click();
 

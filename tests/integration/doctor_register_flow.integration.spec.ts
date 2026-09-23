@@ -15,6 +15,7 @@ import {
 import {
   answerRegisterAccountChoices,
   selectRegisterEnglishLanguage,
+  waitForRegisterWizardReady,
 } from "./helpers/goto-register-practice-step";
 import { INTEGRATION_DOCTOR_PASSWORD } from "./helpers/test-doctor";
 
@@ -54,6 +55,7 @@ test.describe("Integration: doctor registration flow", { tag: "@local-register" 
       ).toBeVisible({ timeout: 20_000 });
       // Wait for the client form wrapper to hydrate before filling uncontrolled inputs.
       await expect(page.getByTestId("register-wizard-continue")).toBeVisible({ timeout: 20_000 });
+      await waitForRegisterWizardReady(page);
 
       await page.locator("#register-form input[name='firstName']").fill(firstName);
       await page.locator("#register-form input[name='lastName']").fill(lastName);
@@ -66,7 +68,7 @@ test.describe("Integration: doctor registration flow", { tag: "@local-register" 
         input.dispatchEvent(new Event("input", { bubbles: true }));
         input.dispatchEvent(new Event("change", { bubbles: true }));
       });
-      await page.locator("#register-form input[name='phone']").fill("+35799123456");
+      await page.getByTestId("register-phone-input").fill("+35799123456");
       await answerRegisterAccountChoices(page);
       for (const key of ["firstName", "lastName", "email", "password", "phone", "gender", "gesy"]) {
         await expect(

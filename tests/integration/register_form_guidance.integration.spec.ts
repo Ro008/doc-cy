@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 import {
   answerRegisterAccountChoices,
   gotoRegisterPracticeStep,
+  waitForRegisterWizardReady,
 } from "./helpers/goto-register-practice-step";
 
 /**
@@ -16,22 +17,28 @@ test.describe("Integration UI: register form guidance", { tag: "@pr-e2e" }, () =
       timeout: 20_000,
     });
     await expect(page.getByTestId("register-step-1")).toBeVisible();
+    await waitForRegisterWizardReady(page);
   });
 
   test("requires a strong password before counting the field as done", async ({ page }) => {
     const progress = page.getByTestId("register-progress");
-    await expect(
-      page.getByText(
-        "Use at least 8 characters, including uppercase, lowercase, a number, and a special character.",
-      ),
-    ).toBeVisible();
+    const rules = page.getByTestId("register-password-rules");
+    await expect(rules).toBeVisible();
+    const rule = (key: string) => rules.locator(`[data-rule='${key}']`);
 
     const passwordField = page.locator("[data-field-key='password']");
     await page.locator("#register-form input[name='password']").fill("password");
     await expect(passwordField).toHaveAttribute("data-complete", "0");
+    // The checklist says exactly what is still missing.
+    await expect(rule("length")).toHaveAttribute("data-met", "1");
+    await expect(rule("lower")).toHaveAttribute("data-met", "1");
+    await expect(rule("upper")).toHaveAttribute("data-met", "0");
+    await expect(rule("number")).toHaveAttribute("data-met", "0");
+    await expect(rule("symbol")).toHaveAttribute("data-met", "0");
 
     await page.locator("#register-form input[name='password']").fill("StrongPass123!");
     await expect(passwordField).toHaveAttribute("data-complete", "1");
+    await expect(rules.locator("[data-met='0']")).toHaveCount(0);
     await expect(progress).toContainText("Step 1 of 3");
   });
 
@@ -71,7 +78,7 @@ test.describe("Integration UI: register form guidance", { tag: "@pr-e2e" }, () =
     await expect(summary).toContainText("7 things left before you can continue");
     await expect(summary.locator("li")).toHaveCount(7);
 
-    await page.locator("input[name='phone']").fill("+35799123456");
+    await page.getByTestId("register-phone-input").fill("+35799123456");
 
     await expect(summary).toContainText("6 things left before you can continue");
     // The row stays put, struck through, so the list never shifts under the user.
@@ -90,12 +97,103 @@ test.describe("Integration UI: register form guidance", { tag: "@pr-e2e" }, () =
     await expect(page).toHaveURL(/\/register\/?$/);
   });
 
+  test("email needs a real domain before it counts as done", async ({ page }) => {
+    const field = page.locator("[data-field-key='email']");
+    const email = page.locator("#register-form input[name='email']");
+
+    await email.fill("sdfgdfg@a");
+    await expect(field).toHaveAttribute("data-complete", "0");
+    await page.getByTestId("register-wizard-continue").click();
+    await expect(
+      page.getByTestId("register-missing-summary").getByRole("button", { name: "Email address" }),
+    ).toBeVisible();
+    await expect(field.getByText(/valid email/i)).toBeVisible();
+
+    await email.fill("maria@practice.com");
+    await expect(field).toHaveAttribute("data-complete", "1");
+  });
+
+  test("hydrates without a server/client mismatch (it re-renders the form and wipes input)", async ({
+    page,
+  }) => {
+    const hydrationErrors: string[] = [];
+    page.on("console", (message) => {
+      if (message.type() !== "error") return;
+      const text = message.text();
+      if (/hydrat|did not match|server-rendered/i.test(text)) hydrationErrors.push(text);
+    });
+    page.on("pageerror", (error) => {
+      if (/hydrat|did not match|server-rendered/i.test(error.message)) {
+        hydrationErrors.push(error.message);
+      }
+    });
+    await page.reload();
+    await waitForRegisterWizardReady(page);
+    await expect(page.getByTestId("register-phone-country").locator("option")).not.toHaveCount(1);
+    expect(hydrationErrors).toEqual([]);
+  });
+
+  test("names need letters, not just spaces or numbers", async ({ page }) => {
+    const field = page.locator("[data-field-key='firstName']");
+    const input = page.locator("#register-first-name");
+    for (const bad of ["   ", "123", "Maria2"]) {
+      await input.fill(bad);
+      await expect(field, JSON.stringify(bad)).toHaveAttribute("data-complete", "0");
+    }
+    await page.getByTestId("register-wizard-continue").click();
+    await expect(field.getByText(/letters only/i)).toBeVisible();
+
+    await input.fill("Anne-Marie");
+    await expect(field).toHaveAttribute("data-complete", "1");
+  });
+
+  test("suggests a fix for a mistyped email provider", async ({ page }) => {
+    const email = page.locator("#register-form input[name='email']");
+    await email.fill("maria@gmial.com");
+    await email.blur();
+
+    const suggestion = page.getByTestId("register-email-suggestion");
+    await expect(suggestion).toContainText("Did you mean");
+    await suggestion.getByRole("button", { name: "maria@gmail.com" }).click();
+    await expect(email).toHaveValue("maria@gmail.com");
+    await expect(suggestion).toBeHidden();
+    await expect(page.locator("[data-field-key='email']")).toHaveAttribute("data-complete", "1");
+  });
+
+  test("mobile number is checked against the chosen country code", async ({ page }) => {
+    const field = page.locator("[data-field-key='phone']");
+    const country = page.getByTestId("register-phone-country");
+    const number = page.getByTestId("register-phone-input");
+    await expect(country).toHaveValue("CY");
+
+    await country.selectOption("ES");
+    await expect(number).toHaveAttribute("placeholder", /^612 34 56 78$/);
+    // Right length for Spain, wrong pattern: Spanish mobiles start with 6 or 7.
+    await number.fill("123456789");
+    await expect(field).toHaveAttribute("data-complete", "0");
+    await page.getByTestId("register-wizard-continue").click();
+    await expect(
+      page.getByTestId("register-missing-summary").getByRole("button", { name: "Mobile number" }),
+    ).toBeVisible();
+    await expect(field.getByText(/valid Spain mobile number/i)).toBeVisible();
+
+    await number.fill("667000000");
+    await expect(field).toHaveAttribute("data-complete", "1");
+    await expect(page.locator("#register-form input[name='phone']")).toHaveValue("+34667000000");
+
+    // Pasting a full international number picks the country for them.
+    await number.fill("+35799123456");
+    await expect(country).toHaveValue("CY");
+    await expect(field).toHaveAttribute("data-complete", "1");
+    await expect(page.locator("#register-form input[name='phone']")).toHaveValue("+35799123456");
+  });
+
   test("gender and GeSY are required on the account step", async ({ page }) => {
     await page.locator("#register-first-name").fill("Karina");
     await page.locator("#register-last-name").fill("Mino");
     await page.locator("#register-form input[name='email']").fill("karina.mino@example.com");
     await page.locator("#register-form input[name='password']").fill("StrongPass123!");
-    await page.locator("#register-form input[name='phone']").fill("+35799123456");
+    await page.getByTestId("register-phone-input").fill("+35799123456");
     await page.getByTestId("register-wizard-continue").click();
 
     const summary = page.getByTestId("register-missing-summary");
@@ -124,7 +222,7 @@ test.describe("Integration UI: register form guidance", { tag: "@pr-e2e" }, () =
     await page.locator("#register-last-name").fill("Mino");
     await page.locator("#register-form input[name='email']").fill("karina.mino@example.com");
     await page.locator("#register-form input[name='password']").fill("StrongPass123!");
-    await page.locator("#register-form input[name='phone']").fill("+35799123456");
+    await page.getByTestId("register-phone-input").fill("+35799123456");
     await answerRegisterAccountChoices(page);
     await expect(page.getByTestId("register-wizard-continue")).toHaveText(/Continue to profile/i);
     await page.getByTestId("register-wizard-continue").click();
@@ -165,6 +263,7 @@ test.describe("Integration UI: register form guidance", { tag: "@pr-e2e" }, () =
       await page.setViewportSize(viewport);
       await page.goto("/register");
       await expect(page.getByTestId("register-wizard-continue")).toBeVisible({ timeout: 20_000 });
+      await waitForRegisterWizardReady(page);
       expect(await page.evaluate(() => window.scrollY)).toBe(0);
 
       const withinFold = async (name: string, locator: ReturnType<typeof page.locator>) => {

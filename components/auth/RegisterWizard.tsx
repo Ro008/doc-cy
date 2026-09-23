@@ -135,7 +135,7 @@ export function RegisterWizard({
       value={{ step, stepCount, setStep, goNext, submitLabel, summaries }}
     >
       <RegisterFormProgress formId={formId} />
-      <div className="space-y-3 lg:space-y-2.5">{children}</div>
+      <div className="mt-4 space-y-3 lg:space-y-2.5">{children}</div>
     </RegisterWizardContext.Provider>
   );
 }

@@ -17,6 +17,7 @@ import { postDoctorVerification } from "./helpers/internal-api";
 import {
   answerRegisterAccountChoices,
   selectRegisterEnglishLanguage,
+  waitForRegisterWizardReady,
 } from "./helpers/goto-register-practice-step";
 import { INTEGRATION_DOCTOR_PASSWORD } from "./helpers/test-doctor";
 
@@ -61,6 +62,7 @@ test.describe("Integration: directory claim registration flow", { tag: "@local-r
       await expect(page.getByText(/We were waiting for you/i)).toBeVisible({ timeout: 20_000 });
       await expect(page.getByRole("heading", { name: /Confirm your details to activate this listing/i })).toBeVisible();
       await expect(page.getByTestId("register-wizard-continue")).toBeVisible({ timeout: 20_000 });
+      await waitForRegisterWizardReady(page);
       await expect(page.locator("#register-first-name")).toHaveValue("QA");
       await expect(page.locator("#register-last-name")).toHaveValue(
         new RegExp(`Claim Ioanna Severi ${nonce}`),
@@ -76,7 +78,7 @@ test.describe("Integration: directory claim registration flow", { tag: "@local-r
         input.dispatchEvent(new Event("input", { bubbles: true }));
         input.dispatchEvent(new Event("change", { bubbles: true }));
       });
-      await page.locator("#register-form input[name='phone']").fill("+35799123456");
+      await page.getByTestId("register-phone-input").fill("+35799123456");
       await answerRegisterAccountChoices(page);
       for (const key of ["firstName", "lastName", "email", "password", "phone", "gender", "gesy"]) {
         await expect(

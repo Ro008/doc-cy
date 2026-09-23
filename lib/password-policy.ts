@@ -31,3 +31,24 @@ export function isStrongPassword(value: string): boolean {
     HAS_SPECIAL.test(value)
   );
 }
+
+export type PasswordRuleCheck = {
+  key: "length" | "upper" | "lower" | "number" | "symbol";
+  label: string;
+  met: boolean;
+};
+
+/** The same rules as `isStrongPassword`, one by one, for the live checklist. */
+export function passwordRuleChecks(value: string): PasswordRuleCheck[] {
+  return [
+    {
+      key: "length",
+      label: `${PASSWORD_MIN_LENGTH}+ characters`,
+      met: value.length >= PASSWORD_MIN_LENGTH && value.length <= PASSWORD_MAX_LENGTH,
+    },
+    { key: "upper", label: "Uppercase", met: HAS_UPPER.test(value) },
+    { key: "lower", label: "Lowercase", met: HAS_LOWER.test(value) },
+    { key: "number", label: "Number", met: HAS_DIGIT.test(value) },
+    { key: "symbol", label: "Symbol", met: HAS_SPECIAL.test(value) },
+  ];
+}

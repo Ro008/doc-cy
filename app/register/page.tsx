@@ -24,7 +24,6 @@ import { getFoundersAvailability, type FoundersAvailability } from "@/lib/founde
 import { registerPlanTicket } from "@/lib/register-plan-ticket";
 import {
   registerFieldErrorClass,
-  registerHelperClass,
   registerInputClass,
   registerLabelClass,
 } from "@/lib/register-ui";
@@ -48,6 +47,10 @@ import {
 } from "@/lib/register-clinic-location";
 import { RegisterClinicAddressField } from "@/components/auth/RegisterClinicAddressField";
 import { RegisterChoiceField } from "@/components/auth/RegisterChoiceField";
+import { RegisterPhoneField } from "@/components/auth/RegisterPhoneField";
+import { RegisterEmailField } from "@/components/auth/RegisterEmailField";
+import { RegisterPasswordRules } from "@/components/auth/RegisterPasswordRules";
+import { REGISTER_NAME_HTML_PATTERN } from "@/lib/register-name";
 import { allocateUniqueDoctorSlug } from "@/lib/doctor-slug";
 import {
   joinProfessionalFullName,
@@ -59,7 +62,6 @@ import {
   PASSWORD_MAX_LENGTH,
   PASSWORD_MIN_LENGTH,
   PASSWORD_POLICY_ERROR,
-  PASSWORD_POLICY_HELPER,
   PASSWORD_POLICY_HTML_PATTERN,
   PASSWORD_POLICY_TITLE,
   isStrongPassword,
@@ -878,11 +880,14 @@ export default async function RegisterPage({ searchParams }: PageProps) {
                             name="firstName"
                             required
                             autoComplete="given-name"
+                            pattern={REGISTER_NAME_HTML_PATTERN}
                             defaultValue={claimName.firstName}
                             className={registerInputClass}
                           />
                         </label>
-                        <p className={registerFieldErrorClass}>Please enter your first name.</p>
+                        <p className={registerFieldErrorClass}>
+                          Enter your first name (letters only).
+                        </p>
                       </div>
                       <div
                         className="group"
@@ -898,11 +903,14 @@ export default async function RegisterPage({ searchParams }: PageProps) {
                             name="lastName"
                             required
                             autoComplete="family-name"
+                            pattern={REGISTER_NAME_HTML_PATTERN}
                             defaultValue={claimName.lastName}
                             className={registerInputClass}
                           />
                         </label>
-                        <p className={registerFieldErrorClass}>Please enter your last name.</p>
+                        <p className={registerFieldErrorClass}>
+                          Enter your last name (letters only).
+                        </p>
                       </div>
                     </div>
                     {/* UI only for now: handleRegister does not store gender or GeSY yet. */}
@@ -931,49 +939,8 @@ export default async function RegisterPage({ searchParams }: PageProps) {
                       />
                     </div>
                     <div className="grid gap-4 sm:grid-cols-2 sm:gap-3">
-                      <div
-                        className="group"
-                        data-validate-field="1"
-                        data-invalid="0"
-                        data-field-key="email"
-                        data-field-label="Email address"
-                      >
-                        <label className={registerLabelClass}>
-                          Email Address<span className="text-red-600">*</span>
-                          <input
-                            type="email"
-                            name="email"
-                            required
-                            autoComplete="email"
-                            pattern="[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}"
-                            title="Use a valid email. '+' aliases are supported (e.g. rociosirvent+test@gmail.com)."
-                            className={registerInputClass}
-                          />
-                        </label>
-                        <p className={registerFieldErrorClass}>Please enter a valid email address.</p>
-                      </div>
-                      <div
-                        className="group"
-                        data-validate-field="1"
-                        data-invalid="0"
-                        data-field-key="phone"
-                        data-field-label="Mobile number"
-                      >
-                        <label className={registerLabelClass}>
-                          Mobile Number<span className="text-red-600">*</span>
-                          <input
-                            type="tel"
-                            name="phone"
-                            required
-                            autoComplete="tel"
-                            placeholder="e.g., +357 99XXXXXX"
-                            className={registerInputClass}
-                          />
-                        </label>
-                        <p className={registerFieldErrorClass}>
-                          Please enter your mobile number with country code.
-                        </p>
-                      </div>
+                      <RegisterEmailField />
+                      <RegisterPhoneField />
                     </div>
                     <div
                       className="group"
@@ -997,7 +964,7 @@ export default async function RegisterPage({ searchParams }: PageProps) {
                           allowCopy
                         />
                       </label>
-                      <p className={registerHelperClass}>{PASSWORD_POLICY_HELPER}</p>
+                      <RegisterPasswordRules formId="register-form" />
                       <p className={registerFieldErrorClass}>{PASSWORD_POLICY_ERROR}</p>
                     </div>
 
