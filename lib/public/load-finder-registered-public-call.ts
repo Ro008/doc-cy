@@ -72,7 +72,7 @@ export const loadFinderRegisteredPublicCallIds = cache(
       return new Set();
     }
 
-    const clinicsByProfessional = await loadDoctorLocationsByDoctorIds(supabase, ids);
+    const clinicsByProfessional = await loadDoctorLocationsByDoctorIds(ids);
 
     const out = new Set<string>();
     for (const row of result.data ?? []) {

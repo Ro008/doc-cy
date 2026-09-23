@@ -216,7 +216,7 @@ export async function loadFinderCardAvailabilityByDoctorId(
   const calendars = new Map<string, PublicAvailabilityCalendar>();
   const byLocationId = new Map<string, FinderLocationAvailability>();
   const locationsByDoctorId = uniqueIds.length
-    ? await loadDoctorLocationsByDoctorIds(supabase, uniqueIds)
+    ? await loadDoctorLocationsByDoctorIds(uniqueIds)
     : new Map<string, DoctorLocationRow[]>();
   if (uniqueIds.length === 0) {
     return { paused, calendars, locationsByDoctorId, byLocationId };

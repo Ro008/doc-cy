@@ -12,6 +12,7 @@ import { resolveUnregisteredListingFromUrl } from "@/lib/resolve-unregistered-li
 import { parseDirectoryClaimSource } from "@/lib/pending-registration-origin";
 import { locationsToAddForAbsorbedClinics } from "@/lib/absorbed-clinic-locations";
 import { MAX_DOCTOR_LOCATIONS } from "@/lib/doctor-locations";
+import { loadDoctorLocations } from "@/lib/load-doctor-locations";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 type Body = {
@@ -85,7 +86,7 @@ async function addLocationsForAbsorbedClinics(
   supabase: SupabaseClient,
   doctorId: string,
 ): Promise<void> {
-  const [links, locations] = await Promise.all([
+  const [links, existingLocations] = await Promise.all([
     supabase
       .from("professional_clinics")
       .select(
@@ -93,16 +94,13 @@ async function addLocationsForAbsorbedClinics(
       )
       .eq("professional_id", doctorId)
       .limit(MAX_DOCTOR_LOCATIONS),
-    supabase
-      .from("doctor_locations")
-      .select("clinic_address, sort_order")
-      .eq("doctor_id", doctorId),
+    loadDoctorLocations(doctorId),
   ]);
 
-  if (links.error || locations.error) {
+  if (links.error) {
     console.error(
       "[internal/doctors/verification] absorbed clinic locations lookup failed",
-      links.error ?? locations.error,
+      links.error,
     );
     return;
   }
@@ -113,7 +111,7 @@ async function addLocationsForAbsorbedClinics(
 
   const toAdd = locationsToAddForAbsorbedClinics({
     clinics,
-    existingLocations: locations.data ?? [],
+    existingLocations,
   });
   if (toAdd.length === 0) return;
 

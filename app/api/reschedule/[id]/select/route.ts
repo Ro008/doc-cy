@@ -184,7 +184,7 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
       ? process.env.RESEND_TO_OVERRIDE?.trim() || null
       : null;
 
-  const locations = await loadDoctorLocations(supabase, doctorId);
+  const locations = await loadDoctorLocations(doctorId);
   const clinic = appointmentClinicCopy({
     locations,
     locationId: (appt as { location_id?: string | null }).location_id,

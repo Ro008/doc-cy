@@ -2,6 +2,7 @@ import { createServiceRoleClient } from "@/lib/supabase-service";
 import { notifyFounderNewRegistration } from "@/lib/notify-founder-new-registration";
 import { professionalAccountEmail } from "@/lib/professional-account-contact";
 import { stripPlusCodePrefix } from "@/lib/clinic-location-pin";
+import { loadDoctorLocations } from "@/lib/load-doctor-locations";
 import {
   classifyPendingRegistrationOrigin,
   parseDirectoryClaimSource,
@@ -77,16 +78,9 @@ export async function notifyFounderAfterRegisterEmailConfirm(
     directory_claim_source?: string | null;
   };
 
-  const [specialtyEntries, { data: locationRows }] = await Promise.all([
+  const [specialtyEntries, locationRows] = await Promise.all([
     loadSpecialtyEntries(service, row.id),
-    service
-      .from("doctor_locations")
-      .select(
-        "district, town, clinic_address, latitude, longitude, clinic_place_id, is_primary, sort_order",
-      )
-      .eq("doctor_id", row.id)
-      .order("is_primary", { ascending: false })
-      .order("sort_order", { ascending: true }),
+    loadDoctorLocations(row.id),
   ]);
 
   const languages = Array.isArray(row.languages)

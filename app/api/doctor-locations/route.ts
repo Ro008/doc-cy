@@ -45,7 +45,7 @@ export async function GET(req: NextRequest) {
   const owned = await requireOwnedDoctor(supabase, doctorId);
   if ("error" in owned && owned.error) return owned.error;
 
-  const locations = await loadDoctorLocations(supabase, doctorId);
+  const locations = await loadDoctorLocations(doctorId);
   return NextResponse.json({ locations }, { status: 200 });
 }
 
@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
   const owned = await requireOwnedDoctor(supabase, doctorId);
   if ("error" in owned && owned.error) return owned.error;
 
-  const existing = await loadDoctorLocations(supabase, doctorId);
+  const existing = await loadDoctorLocations(doctorId);
   if (existing.length >= MAX_DOCTOR_LOCATIONS) {
     return NextResponse.json(
       { message: `You can add up to ${MAX_DOCTOR_LOCATIONS} clinics.` },
@@ -272,7 +272,7 @@ export async function DELETE(req: NextRequest) {
   const owned = await requireOwnedDoctor(supabase, doctorId);
   if ("error" in owned && owned.error) return owned.error;
 
-  const existing = await loadDoctorLocations(supabase, doctorId);
+  const existing = await loadDoctorLocations(doctorId);
   const target = existing.find((row) => row.id === locationId);
   if (!target) {
     return NextResponse.json({ message: "Clinic not found." }, { status: 404 });

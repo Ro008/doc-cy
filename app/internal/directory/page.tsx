@@ -28,6 +28,7 @@ import {
 } from "@/lib/pending-registration-origin";
 import { resolveShareAvatarUrl } from "@/lib/doctor-seo-formatting";
 import { stripPlusCodePrefix } from "@/lib/clinic-location-pin";
+import { loadDoctorLocationsByDoctorIds } from "@/lib/load-doctor-locations";
 import {
   SpecialtyChangeRequestsPanel,
   type SpecialtyChangeRequestRow,
@@ -575,17 +576,9 @@ export default async function FounderDashboardPage({
       )) as typeof pendingFullRes;
     }
 
-    const [{ data: locationRowsForPending }] =
-      await Promise.all([
-        fetchAllSupabaseRowsForIdChunks(pendingRegistrationIds, (chunk) =>
-          supabase
-            .from("doctor_locations")
-            .select(
-              "id, doctor_id, is_primary, sort_order, district, town, clinic_address, latitude, longitude, clinic_place_id",
-            )
-            .in("doctor_id", chunk),
-        ),
-      ]);
+    const locationRowsForPending = [
+      ...(await loadDoctorLocationsByDoctorIds(pendingRegistrationIds)).values(),
+    ].flat();
 
     const locationsByDoctor = new Map<
       string,

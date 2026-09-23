@@ -768,7 +768,7 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
       } as DoctorSettingsRow)
     : null;
 
-  const practiceLocations = await loadDoctorLocations(supabase, profile.id);
+  const practiceLocations = await loadDoctorLocations(profile.id);
   if (contactPhoneInput) {
     publicPhone = publicPhoneForProfessional({
       ...contactPhoneInput,

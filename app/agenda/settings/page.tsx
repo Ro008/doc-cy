@@ -292,7 +292,7 @@ export default async function AgendaSettingsPage() {
     (settings as { pause_online_bookings?: boolean } | null)?.pause_online_bookings
   );
 
-  const locationRows = await loadDoctorLocations(supabase, doctor.id);
+  const locationRows = await loadDoctorLocations(doctor.id);
   const workplaceLocations: DoctorWorkplaceFormData[] = locationRows.map((row) => ({
     id: row.id,
     isPrimary: Boolean(row.is_primary),

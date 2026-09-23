@@ -174,7 +174,7 @@ export default async function AgendaPage({ searchParams }: AgendaPageProps) {
     }
   }
 
-  const locationRows = await loadDoctorLocations(supabase, doctor.id);
+  const locationRows = await loadDoctorLocations(doctor.id);
   const clinics = locationsToAgendaClinics(locationRows);
 
   const displayName = doctorDashboardDisplayName(doctor.name);

@@ -140,7 +140,7 @@ export async function POST(req: NextRequest) {
 
   // While a clinic takes no online bookings the Call button is its patients' only way in.
   if (!nextShow) {
-    const locations = await loadDoctorLocations(supabase, doctor.id);
+    const locations = await loadDoctorLocations(doctor.id);
     const pauseFlags = locations.length
       ? locations.map((row) => Boolean(row.pause_online_bookings))
       : [
