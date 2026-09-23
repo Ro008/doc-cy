@@ -31,13 +31,16 @@ function prefersReducedMotion(): boolean {
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
-/** Brings the newly opened step card to the top of the viewport. */
+/**
+ * Brings the newly opened step card into view — only if part of it is off-screen.
+ * On desktop the whole wizard fits in one viewport, so this must not move the page.
+ */
 function scrollRegisterWizardToTop(step: number): void {
   const card = document.querySelector<HTMLElement>(`[data-register-step-card="${step}"]`);
   if (!card) return;
   card.scrollIntoView({
     behavior: prefersReducedMotion() ? "auto" : "smooth",
-    block: "start",
+    block: "nearest",
   });
 }
 
@@ -132,7 +135,7 @@ export function RegisterWizard({
       value={{ step, stepCount, setStep, goNext, submitLabel, summaries }}
     >
       <RegisterFormProgress formId={formId} />
-      <div className="space-y-3">{children}</div>
+      <div className="space-y-3 lg:space-y-2.5">{children}</div>
     </RegisterWizardContext.Provider>
   );
 }
@@ -192,25 +195,35 @@ export function RegisterWizardStep({
     <section
       data-register-step-card={step}
       aria-current={active ? "step" : undefined}
-      className={`scroll-mt-6 rounded-[20px] px-4 py-4 transition sm:px-5 ${stepCardClass(state)}`}
+      className={`scroll-mt-6 rounded-[20px] px-4 transition sm:px-5 ${
+        active ? "py-4 lg:py-3.5" : "py-2.5 lg:py-2"
+      } ${stepCardClass(state)}`}
     >
       <div className="flex items-center gap-3.5">
         <span
           aria-hidden
-          className={`inline-flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full text-[15px] font-extrabold ${stepNumberClass(state)}`}
+          className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[15px] font-extrabold ${stepNumberClass(state)}`}
         >
           {state === "done" ? <Check className="h-4 w-4" strokeWidth={3} /> : step}
         </span>
         <div className="min-w-0 flex-1">
-          <h3
-            className={`text-base font-bold tracking-tight outline-none ${
-              state === "pending" ? "text-ink-600" : "text-ink-900"
-            }`}
-          >
-            {title}
-            {state === "done" ? <span className="sr-only"> (completed)</span> : null}
-          </h3>
-          {summary ? <p className="truncate text-[13px] text-ink-600">{summary}</p> : null}
+          {/* Finished steps keep their recap on the title line so collapsed cards stay short. */}
+          <div className="flex min-w-0 items-baseline gap-2">
+            <h3
+              className={`shrink-0 text-base font-bold tracking-tight outline-none ${
+                state === "pending" ? "text-ink-600" : "text-ink-900"
+              }`}
+            >
+              {title}
+              {state === "done" ? <span className="sr-only"> (completed)</span> : null}
+            </h3>
+            {summary ? (
+              <p className="min-w-0 truncate text-[13px] text-ink-600">{summary}</p>
+            ) : null}
+          </div>
+          {active ? (
+            <p className="text-[13px] leading-snug text-ink-600">{description}</p>
+          ) : null}
         </div>
         {state === "done" ? (
           <button
@@ -227,9 +240,8 @@ export function RegisterWizardStep({
         data-register-step={step}
         data-testid={`register-step-${step}`}
         hidden={!active}
-        className={`mt-5 space-y-5${active ? " register-step-in" : ""}`}
+        className={`mt-4 space-y-4 lg:mt-3 lg:space-y-3.5${active ? " register-step-in" : ""}`}
       >
-        <p className="text-sm leading-relaxed text-ink-600">{description}</p>
         {children}
         {active ? <RegisterWizardStepActions /> : null}
       </div>

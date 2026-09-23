@@ -18,7 +18,6 @@ export function RegisterFormProgress({ formId: _formId }: { formId: string }) {
           <span className="text-ink-400"> · </span>
           <span className="text-ink-900">{STEP_LABELS[step - 1]}</span>
         </span>
-        <span className="font-medium text-ink-500">About 4 minutes</span>
       </p>
       <div
         className="grid grid-cols-3 gap-1.5"

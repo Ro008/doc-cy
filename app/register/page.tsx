@@ -779,23 +779,24 @@ export default async function RegisterPage({ searchParams }: PageProps) {
 
   return (
     <main className="min-h-screen bg-white text-ink-900">
-      <header className="mx-auto flex h-16 max-w-[1440px] items-center justify-between px-4 sm:h-20 sm:px-8 lg:px-14">
-        <a href="/" className="inline-flex rounded-md transition hover:opacity-90" aria-label="DocCy home">
-          <DocCyWordmark size="lg" />
-        </a>
-        <p className="text-sm text-ink-600">
-          <span className="hidden sm:inline">Already have an account? </span>
-          <a
-            href="/login"
-            className="inline-flex min-h-[44px] items-center font-bold text-clinical-800 underline-offset-2 hover:text-clinical-900 hover:underline"
-          >
-            Sign in
-          </a>
-        </p>
-      </header>
-
+      {/* Desktop: everything above the fold. The header lives in the left column so the
+          sticky benefits panel can start at the top and fill exactly one viewport. */}
       <div className="mx-auto grid max-w-[1440px] lg:grid-cols-[minmax(0,640px)_minmax(0,1fr)]">
-        <div className="flex min-w-0 flex-col gap-5 px-4 pb-4 pt-2 sm:px-8 lg:px-14 lg:pb-12 lg:pt-6">
+        <div className="flex min-w-0 flex-col gap-4 px-4 pb-4 sm:px-8 lg:gap-3 lg:px-14 lg:pb-8">
+          <header className="flex h-16 items-center justify-between lg:h-14">
+            <a href="/" className="inline-flex rounded-md transition hover:opacity-90" aria-label="DocCy home">
+              <DocCyWordmark size="lg" />
+            </a>
+            <p className="text-sm text-ink-600">
+              <span className="hidden sm:inline">Already have an account? </span>
+              <a
+                href="/login"
+                className="inline-flex min-h-[44px] items-center font-bold text-clinical-800 underline-offset-2 hover:text-clinical-900 hover:underline"
+              >
+                Sign in
+              </a>
+            </p>
+          </header>
           <RegisterIntroSection
             claim={claimPrefill ? { firstName: claimPrefill.firstName } : null}
           />
@@ -814,7 +815,7 @@ export default async function RegisterPage({ searchParams }: PageProps) {
                 id="register-form"
                 action={handleRegister}
                 noValidate
-                className="space-y-4"
+                className="space-y-4 lg:space-y-3"
               >
                 {process.env.NODE_ENV === "development" && errorCode && debugDetail ? (
                   <RegisterDevErrorConsole
@@ -859,72 +860,95 @@ export default async function RegisterPage({ searchParams }: PageProps) {
                   <RegisterWizardStep
                     step={1}
                     title="Account"
-                    description="Your DocCy login and how we contact you. Patients never see this email or mobile."
+                    description="Your DocCy login. Patients never see this email or mobile."
                   >
-                    <div
-                      className="group"
-                      data-validate-field="1"
-                      data-invalid="0"
-                      data-field-key="firstName"
-                      data-field-label="First name"
-                    >
-                      <label htmlFor="register-first-name" className={registerLabelClass}>
-                        First name<span className="text-red-600">*</span>
-                        <input
-                          id="register-first-name"
-                          name="firstName"
-                          required
-                          autoComplete="given-name"
-                          defaultValue={claimName.firstName}
-                          className={registerInputClass}
-                        />
-                      </label>
-                      <p className={registerFieldErrorClass}>Please enter your first name.</p>
+                    <div className="grid gap-4 sm:grid-cols-2 sm:gap-3">
+                      <div
+                        className="group"
+                        data-validate-field="1"
+                        data-invalid="0"
+                        data-field-key="firstName"
+                        data-field-label="First name"
+                      >
+                        <label htmlFor="register-first-name" className={registerLabelClass}>
+                          First name<span className="text-red-600">*</span>
+                          <input
+                            id="register-first-name"
+                            name="firstName"
+                            required
+                            autoComplete="given-name"
+                            defaultValue={claimName.firstName}
+                            className={registerInputClass}
+                          />
+                        </label>
+                        <p className={registerFieldErrorClass}>Please enter your first name.</p>
+                      </div>
+                      <div
+                        className="group"
+                        data-validate-field="1"
+                        data-invalid="0"
+                        data-field-key="lastName"
+                        data-field-label="Last name"
+                      >
+                        <label htmlFor="register-last-name" className={registerLabelClass}>
+                          Last name<span className="text-red-600">*</span>
+                          <input
+                            id="register-last-name"
+                            name="lastName"
+                            required
+                            autoComplete="family-name"
+                            defaultValue={claimName.lastName}
+                            className={registerInputClass}
+                          />
+                        </label>
+                        <p className={registerFieldErrorClass}>Please enter your last name.</p>
+                      </div>
                     </div>
-
-                    <div
-                      className="group"
-                      data-validate-field="1"
-                      data-invalid="0"
-                      data-field-key="lastName"
-                      data-field-label="Last name"
-                    >
-                      <label htmlFor="register-last-name" className={registerLabelClass}>
-                        Last name<span className="text-red-600">*</span>
-                        <input
-                          id="register-last-name"
-                          name="lastName"
-                          required
-                          autoComplete="family-name"
-                          defaultValue={claimName.lastName}
-                          className={registerInputClass}
-                        />
-                      </label>
-                      <p className={registerFieldErrorClass}>Please enter your last name.</p>
+                    <div className="grid gap-4 sm:grid-cols-2 sm:gap-3">
+                      <div
+                        className="group"
+                        data-validate-field="1"
+                        data-invalid="0"
+                        data-field-key="email"
+                        data-field-label="Email address"
+                      >
+                        <label className={registerLabelClass}>
+                          Email Address<span className="text-red-600">*</span>
+                          <input
+                            type="email"
+                            name="email"
+                            required
+                            autoComplete="email"
+                            pattern="[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}"
+                            title="Use a valid email. '+' aliases are supported (e.g. rociosirvent+test@gmail.com)."
+                            className={registerInputClass}
+                          />
+                        </label>
+                        <p className={registerFieldErrorClass}>Please enter a valid email address.</p>
+                      </div>
+                      <div
+                        className="group"
+                        data-validate-field="1"
+                        data-invalid="0"
+                        data-field-key="phone"
+                        data-field-label="Mobile number"
+                      >
+                        <label className={registerLabelClass}>
+                          Mobile Number<span className="text-red-600">*</span>
+                          <input
+                            type="tel"
+                            name="phone"
+                            required
+                            autoComplete="tel"
+                            placeholder="e.g., +357 99XXXXXX"
+                            className={registerInputClass}
+                          />
+                        </label>
+                        <p className={registerFieldErrorClass}>
+                          Please enter your mobile number with country code.
+                        </p>
+                      </div>
                     </div>
-
-                    <div
-                      className="group"
-                      data-validate-field="1"
-                      data-invalid="0"
-                      data-field-key="email"
-                      data-field-label="Email address"
-                    >
-                      <label className={registerLabelClass}>
-                        Email Address<span className="text-red-600">*</span>
-                        <input
-                          type="email"
-                          name="email"
-                          required
-                          autoComplete="email"
-                          pattern="[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}"
-                          title="Use a valid email. '+' aliases are supported (e.g. rociosirvent+test@gmail.com)."
-                          className={registerInputClass}
-                        />
-                      </label>
-                      <p className={registerFieldErrorClass}>Please enter a valid email address.</p>
-                    </div>
-
                     <div
                       className="group"
                       data-validate-field="1"
@@ -947,35 +971,10 @@ export default async function RegisterPage({ searchParams }: PageProps) {
                           allowCopy
                         />
                       </label>
-                      <p className={registerHelperClass}>
-                        {PASSWORD_POLICY_HELPER} Save it somewhere safe (or tap copy) — you&apos;ll
-                        need it to sign in.
-                      </p>
+                      <p className={registerHelperClass}>{PASSWORD_POLICY_HELPER}</p>
                       <p className={registerFieldErrorClass}>{PASSWORD_POLICY_ERROR}</p>
                     </div>
 
-                    <div
-                      className="group"
-                      data-validate-field="1"
-                      data-invalid="0"
-                      data-field-key="phone"
-                      data-field-label="Mobile number"
-                    >
-                      <label className={registerLabelClass}>
-                        Mobile Number<span className="text-red-600">*</span>
-                        <input
-                          type="tel"
-                          name="phone"
-                          required
-                          autoComplete="tel"
-                          placeholder="e.g., +357 99XXXXXX"
-                          className={registerInputClass}
-                        />
-                      </label>
-                      <p className={registerFieldErrorClass}>
-                        Please enter your mobile number with country code.
-                      </p>
-                    </div>
                   </RegisterWizardStep>
 
                   <RegisterWizardStep
@@ -1044,7 +1043,7 @@ export default async function RegisterPage({ searchParams }: PageProps) {
                       data-field-label="Professional disclaimer"
                       data-field-boxed="1"
                     >
-                      <label className="flex cursor-pointer gap-3 rounded-xl border border-ink-200 bg-ink-50/80 p-4 text-left transition hover:border-clinical-300">
+                      <label className="flex cursor-pointer gap-3 rounded-xl border border-ink-200 bg-ink-50/80 px-3.5 py-3 text-left transition hover:border-clinical-300">
                         <input
                           type="checkbox"
                           name="professionalDisclaimer"
@@ -1052,7 +1051,7 @@ export default async function RegisterPage({ searchParams }: PageProps) {
                           required
                           className="mt-1 h-4 w-4 shrink-0 rounded border-ink-300 bg-white text-clinical-500 focus:ring-clinical-400/50"
                         />
-                        <span className="text-xs leading-relaxed text-ink-600">
+                        <span className="text-xs leading-snug text-ink-600">
                           I confirm I am a qualified health or wellness professional. I accept that
                           DocCy is a technology provider and assumes no liability for the authenticity
                           of professional credentials.
@@ -1079,7 +1078,7 @@ export default async function RegisterPage({ searchParams }: PageProps) {
 
         <aside
           aria-label="Why DocCy"
-          className="relative mx-4 mt-2 flex flex-col gap-6 overflow-hidden rounded-[26px] bg-clinical-500 px-5 pb-5 pt-6 sm:mx-8 lg:sticky lg:top-4 lg:mx-0 lg:mb-6 lg:mr-6 lg:mt-1 lg:h-[calc(100svh-2rem)] lg:min-h-[680px] lg:self-start lg:rounded-[32px] lg:px-12 lg:pb-9 lg:pt-9"
+          className="relative mx-4 mt-2 flex flex-col gap-6 overflow-hidden rounded-[26px] bg-clinical-500 px-5 pb-5 pt-6 sm:mx-8 lg:sticky lg:top-4 lg:mx-0 lg:mb-4 lg:mr-4 lg:mt-4 lg:h-[calc(100svh-2rem)] lg:min-h-[600px] lg:self-start lg:rounded-[32px] lg:px-11 lg:pb-7 lg:pt-8"
         >
           <span aria-hidden className="pointer-events-none absolute -bottom-28 -right-24 h-64 w-64 rounded-full bg-clinical-400 lg:-bottom-40 lg:-right-36 lg:h-[460px] lg:w-[460px]" />
           <span aria-hidden className="pointer-events-none absolute bottom-20 right-16 hidden h-44 w-44 rounded-full border-2 border-clinical-300 lg:block" />

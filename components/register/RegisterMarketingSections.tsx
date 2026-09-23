@@ -18,12 +18,8 @@ export function RegisterIntroSection({
       : null;
 
   return (
-    <header className="space-y-2.5">
-      <p className="inline-flex items-center gap-2 rounded-full bg-wellness-50 px-3 py-1.5 text-[11px] font-bold tracking-[0.06em] text-wellness-700 sm:text-xs">
-        <span className="h-2 w-2 rounded-full bg-wellness-500" aria-hidden />
-        FOUNDING MEMBERS CLUB IS OPEN
-      </p>
-      <h1 className="text-balance text-[30px] font-extrabold leading-[1.1] tracking-[-0.03em] text-ink-900 sm:text-[38px]">
+    <header className="space-y-1.5">
+      <h1 className="text-balance text-[30px] font-extrabold leading-[1.1] tracking-[-0.03em] text-ink-900 sm:text-[32px]">
         {greeting ?? (
           <>
             Join DocCy in{" "}

@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { gotoRegisterPracticeStep } from "./helpers/goto-register-practice-step";
 
 /**
  * Beta testers were skipping fields and could not tell why the form refused to
@@ -117,6 +118,54 @@ test.describe("Integration UI: register form guidance", { tag: "@pr-e2e" }, () =
     const faq = page.getByTestId("register-faq");
     await faq.getByText("Can I see bookings in my own calendar?").click();
     await expect(faq.getByText(/Google Calendar or Apple \/ Outlook/)).toBeVisible();
+  });
+
+  test("on desktop the form and the benefits fit in one screen, no scrolling", async ({
+    page,
+  }, testInfo) => {
+    testInfo.skip(!testInfo.project.name.startsWith("Desktop"), "Desktop layout only.");
+
+    for (const viewport of [
+      { width: 1440, height: 900 },
+      { width: 1280, height: 800 },
+    ]) {
+      await page.setViewportSize(viewport);
+      await page.goto("/register");
+      await expect(page.getByTestId("register-wizard-continue")).toBeVisible({ timeout: 20_000 });
+      expect(await page.evaluate(() => window.scrollY)).toBe(0);
+
+      const withinFold = async (name: string, locator: ReturnType<typeof page.locator>) => {
+        const box = await locator.boundingBox();
+        expect(box, `${name} is rendered`).not.toBeNull();
+        expect(box!.y, `${name} top at ${viewport.width}x${viewport.height}`).toBeGreaterThanOrEqual(0);
+        expect(
+          box!.y + box!.height,
+          `${name} bottom at ${viewport.width}x${viewport.height}`,
+        ).toBeLessThanOrEqual(viewport.height);
+      };
+
+      await withinFold("Continue button", page.getByTestId("register-wizard-continue"));
+      await withinFold("Practice step card", page.locator("[data-register-step-card='3']"));
+      await withinFold("Price ticket", page.getByTestId("register-plan-ticket-row"));
+      await withinFold(
+        "Next benefit button",
+        page.getByTestId("register-showcase").getByRole("button", { name: "Next benefit" }),
+      );
+    }
+  });
+
+  test("on desktop the practice step also fits without scrolling", async ({ page }, testInfo) => {
+    testInfo.skip(!testInfo.project.name.startsWith("Desktop"), "Desktop layout only.");
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto("/register");
+    await gotoRegisterPracticeStep(page);
+
+    // Moving between steps must not scroll the page when the card already fits.
+    expect(await page.evaluate(() => window.scrollY)).toBe(0);
+    const submit = page.getByRole("button", { name: /Submit my application/i });
+    const box = await submit.boundingBox();
+    expect(box).not.toBeNull();
+    expect(box!.y + box!.height).toBeLessThanOrEqual(900);
   });
 
   test("submitted screen asks them to confirm email with a link, not a code", async ({ page }) => {

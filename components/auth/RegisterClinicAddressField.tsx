@@ -583,7 +583,8 @@ export function RegisterClinicAddressField({
           <p className={styles.helper}>
             {hint
               ? "Confirm the clinic from your listing, or search Google / drop a pin if you need a different one."
-              : "Search for your clinic on Google — that gives us the address patients read and the map pin for “near me”. If Google does not list it, drop a pin and type what patients should see."}
+              : "Search your clinic on Google."}
+            {showAddLaterHint && !hint ? " More clinics can be added later in Settings." : null}
           </p>
           {hint ? (
             <p className={styles.helper}>
@@ -594,7 +595,7 @@ export function RegisterClinicAddressField({
                 : "."}
             </p>
           ) : null}
-          {showAddLaterHint ? (
+          {showAddLaterHint && hint ? (
             <p className={styles.helper}>
               If you work at more than one clinic, you can add the others later in Settings.
             </p>

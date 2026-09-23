@@ -70,7 +70,7 @@ export function RegisterSpecialtyFields({
 
   return (
     <div
-      className="group space-y-4"
+      className="group space-y-3"
       data-validate-field="1"
       data-invalid="0"
       data-field-key="specialties"
@@ -81,9 +81,7 @@ export function RegisterSpecialtyFields({
           Specialties<span className="text-red-600">*</span>
         </p>
         <p className={registerHelperClass}>
-          Add every specialty you practise. Each one needs its own license or
-          certification number. Choose from the list, or select &quot;Other&quot; if
-          yours isn&apos;t listed (our team will review it).
+          One licence number per specialty. Not listed? Pick &quot;Other&quot;.
           {initialSpecialties && initialSpecialties.length > 0
             ? " We filled this from your listing — confirm or adjust it."
             : null}
@@ -124,7 +122,7 @@ export function RegisterSpecialtyFields({
         className="pointer-events-none absolute h-0 w-0 opacity-0"
       />
 
-      <ul className="space-y-4">
+      <ul className="space-y-3">
         {rows.map((row, index) => {
           const key = specialtyKey(row.specialty);
           const isDuplicate =
@@ -141,8 +139,13 @@ export function RegisterSpecialtyFields({
           return (
             <li
               key={row.key}
-              className="rounded-2xl border border-ink-200 bg-white/70 p-4 shadow-sm"
+              className={
+                rows.length > 1
+                  ? "rounded-2xl border border-ink-200 bg-white/70 p-4 shadow-sm"
+                  : undefined
+              }
             >
+              {rows.length > 1 ? (
               <div className="mb-3 flex items-center justify-between gap-2">
                 <p className="text-xs font-semibold uppercase tracking-wide text-ink-500">
                   Specialty {index + 1}
@@ -161,6 +164,10 @@ export function RegisterSpecialtyFields({
                   </button>
                 ) : null}
               </div>
+              ) : null}
+              {/* Specialty and its licence side by side on wider screens. */}
+              <div className="grid gap-3 sm:grid-cols-2 sm:items-start">
+              <div className="min-w-0">
             <SpecialtyCombobox
               id={
                 index === 0
@@ -194,8 +201,9 @@ export function RegisterSpecialtyFields({
                   This specialty is already selected. Choose a different one.
                 </p>
               ) : null}
-              <label className={`${registerLabelClass} mt-3`}>
-                License / certification number for this specialty
+              </div>
+              <label className={registerLabelClass}>
+                Licence / certification no.
                 <span className="text-red-600">*</span>
                 <input
                   type="text"
@@ -211,9 +219,10 @@ export function RegisterSpecialtyFields({
                   autoComplete="off"
                   data-testid={`register-license-${index}`}
                   className={registerInputClass}
-                  placeholder="Registration or certification number"
+                  placeholder="e.g. 1234"
                 />
               </label>
+              </div>
             </li>
           );
         })}
