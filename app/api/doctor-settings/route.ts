@@ -21,6 +21,10 @@ import {
 import { locationScheduleColumns, sanitizeClinicLabel } from "@/lib/doctor-locations";
 import { loadDoctorLocations, primaryDoctorLocation } from "@/lib/load-doctor-locations";
 import {
+  splitLocationPatch,
+  writeClinicSettings,
+} from "@/lib/professional-clinic-settings-writes";
+import {
   CONTACT_PHONE_REQUIRED_CODE,
   CONTACT_PHONE_REQUIRED_MESSAGE,
   anyClinicPaused,
@@ -643,11 +647,16 @@ export async function POST(req: NextRequest) {
     }
     const locationId = String(loc.id ?? "").trim();
     const matched = existingLocations.find((row) => row.id === locationId);
-    if (matched) {
+    const targetId =
+      matched?.id ?? (index === 0 ? primaryDoctorLocation(existingLocations)?.id : undefined);
+    if (targetId) {
+      const { settings, location: locationFields } = splitLocationPatch(locationPatch);
+
+      // Where the clinic is stays on the location for now; the D1 trigger mirrors it.
       const { error: locErr } = await supabase
         .from("doctor_locations")
-        .update(locationPatch)
-        .eq("id", matched.id)
+        .update({ ...locationFields, updated_at: new Date().toISOString() })
+        .eq("id", targetId)
         .eq("doctor_id", doctorId);
       if (locErr) {
         console.error("[DocCy] Failed to update doctor location", locErr);
@@ -656,21 +665,15 @@ export async function POST(req: NextRequest) {
           { status: 500 },
         );
       }
-    } else if (index === 0) {
-      const primary = primaryDoctorLocation(existingLocations);
-      if (primary) {
-        const { error: locErr } = await supabase
-          .from("doctor_locations")
-          .update(locationPatch)
-          .eq("id", primary.id)
-          .eq("doctor_id", doctorId);
-        if (locErr) {
-          console.error("[DocCy] Failed to update primary doctor location", locErr);
-          return NextResponse.json(
-            { message: "Error saving clinic settings." },
-            { status: 500 },
-          );
-        }
+
+      // This professional's own settings at the clinic go to their join row.
+      const saved = await writeClinicSettings(doctorId, targetId, settings);
+      if (!saved.ok) {
+        console.error("[DocCy] Failed to save clinic settings", saved.error);
+        return NextResponse.json(
+          { message: "Error saving clinic settings." },
+          { status: 500 },
+        );
       }
     }
   }

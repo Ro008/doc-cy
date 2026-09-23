@@ -15,6 +15,10 @@ import {
   type DoctorLocationRow,
 } from "@/lib/doctor-locations";
 import { loadDoctorLocations, primaryDoctorLocation } from "@/lib/load-doctor-locations";
+import {
+  splitLocationPatch,
+  writeClinicSettings,
+} from "@/lib/professional-clinic-settings-writes";
 
 async function requireOwnedDoctor(
   supabase: ReturnType<typeof createRouteHandlerClient>,
@@ -238,20 +242,34 @@ export async function PATCH(req: NextRequest) {
     patch.label = sanitizeClinicLabel(b.label);
   }
 
-  const { data, error } = await supabase
-    .from("doctor_locations")
-    .update(patch)
-    .eq("id", locationId)
-    .eq("doctor_id", doctorId)
-    .select(DOCTOR_LOCATION_SELECT)
-    .single();
+  const { settings, location: locationFields } = splitLocationPatch(patch);
 
-  if (error || !data) {
+  // Where the clinic is stays on the location for now; the D1 trigger mirrors it.
+  const { error } = await supabase
+    .from("doctor_locations")
+    .update({ ...locationFields, updated_at: new Date().toISOString() })
+    .eq("id", locationId)
+    .eq("doctor_id", doctorId);
+
+  if (error) {
     console.error("[DocCy] update doctor location failed:", error);
     return NextResponse.json({ message: "Could not save clinic." }, { status: 500 });
   }
 
-  return NextResponse.json({ location: data as DoctorLocationRow }, { status: 200 });
+  // This professional's own settings at the clinic go to their join row. Written after
+  // the address, so a clinic that just got its first address already has one.
+  const saved = await writeClinicSettings(doctorId, locationId, settings);
+  if (!saved.ok) {
+    console.error("[DocCy] save clinic settings failed:", saved.error);
+    return NextResponse.json({ message: "Could not save clinic." }, { status: 500 });
+  }
+
+  const updated = (await loadDoctorLocations(doctorId)).find((row) => row.id === locationId);
+  if (!updated) {
+    return NextResponse.json({ message: "Could not save clinic." }, { status: 500 });
+  }
+
+  return NextResponse.json({ location: updated }, { status: 200 });
 }
 
 export async function DELETE(req: NextRequest) {
