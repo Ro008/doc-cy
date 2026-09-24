@@ -13,6 +13,8 @@ const TEST_NAME_PREFIXES = [
   "Finder Filter ",
   "Prefix Cleanup ",
   "Register E2E ",
+  // Register names take letters only, so the live register e2e spells it out.
+  "Register Etoe ",
   "Auto Match ",
   "Pending Twin ",
   "Unclaimed Solo ",

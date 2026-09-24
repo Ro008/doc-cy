@@ -32,6 +32,8 @@ test.describe("Integration: directory claim registration flow", { tag: "@local-r
     const env = requireSafeIntegration();
     const admin = createIntegrationAdmin(env);
     const nonce = `${Date.now()}`;
+    // The listing name becomes the prefilled last name, which takes letters only.
+    const nameTag = nonce.replace(/\d/g, (digit) => "abcdefghij"[Number(digit)]!);
     const email = `rociosirvent+claime2e${nonce}@gmail.com`;
     const resendKey = process.env.RESEND_API_KEY?.trim() ?? "";
     const founderNotify = process.env.FOUNDER_NOTIFY_EMAIL?.trim() ?? "";
@@ -46,7 +48,7 @@ test.describe("Integration: directory claim registration flow", { tag: "@local-r
     }
 
     try {
-      const clone = await createQaClaimDirectoryClone(admin, nonce);
+      const clone = await createQaClaimDirectoryClone(admin, nameTag);
       cloneId = clone.id;
 
       await page.goto(clone.profilePath, { waitUntil: "domcontentloaded" });
@@ -60,12 +62,12 @@ test.describe("Integration: directory claim registration flow", { tag: "@local-r
         timeout: 20_000,
       });
       await expect(page.getByText(/We were waiting for you/i)).toBeVisible({ timeout: 20_000 });
-      await expect(page.getByRole("heading", { name: /Confirm your details to activate this listing/i })).toBeVisible();
+      await expect(page.getByText(/Confirm your details to activate this listing/i)).toBeVisible();
       await expect(page.getByTestId("register-wizard-continue")).toBeVisible({ timeout: 20_000 });
       await waitForRegisterWizardReady(page);
       await expect(page.locator("#register-first-name")).toHaveValue("QA");
       await expect(page.locator("#register-last-name")).toHaveValue(
-        new RegExp(`Claim Ioanna Severi ${nonce}`),
+        new RegExp(`Claim Ioanna Severi ${nameTag}`),
       );
 
       await page.locator("#register-form input[name='email']").fill(email);

@@ -77,6 +77,8 @@ export const INTEGRATION_TEST_NAME_PREFIXES = [
   "Finder Filter ",
   "Prefix Cleanup ",
   "Register E2E ",
+  // Register names take letters only, so the live register e2e spells it out.
+  "Register Etoe ",
   "Auto Match ",
   // Claim / pending-registration integration leftovers (account lane, parallel with finder).
   "Pending Twin ",

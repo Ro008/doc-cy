@@ -34,7 +34,8 @@ test.describe("Integration: doctor registration flow", { tag: "@local-register" 
     const admin = createIntegrationAdmin(env);
     const nonce = `${Date.now()}`;
     const firstName = "Register";
-    const lastName = `E2E ${nonce}`;
+    // Names take letters only ("Register Etoe" is a test-profile prefix); spell the nonce.
+    const lastName = `Etoe ${nonce.replace(/\d/g, (digit) => "abcdefghij"[Number(digit)]!)}`;
     const fullName = `${firstName} ${lastName}`;
     const email = `rociosirvent+rege2e${nonce}@gmail.com`;
     const resendKey = process.env.RESEND_API_KEY?.trim() ?? "";
