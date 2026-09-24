@@ -133,7 +133,13 @@ export function useRegisterFieldStates(formId: string): RegisterFieldState[] {
     // Composite fields swap their markup (clinic summary, specialty rows) without
     // firing form events, so watch the tree as well.
     const observer = new MutationObserver(sync);
-    observer.observe(form, { childList: true, subtree: true });
+    // The clinic field also renames itself ("Clinic name") when that is what is missing.
+    observer.observe(form, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ["data-field-label"],
+    });
 
     return () => {
       cancelAnimationFrame(frame);

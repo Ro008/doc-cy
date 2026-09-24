@@ -326,6 +326,16 @@ export function RegisterClinicAddressField({
   const pinMoved = clinicPinMoved(origin, coords);
   // A DocCy clinic comes with its address and pin: they pick it, they do not edit it.
   const locationLocked = Boolean(chosenClinic) && Boolean(coords);
+  // The missing-fields list names what is actually missing, not always the address.
+  const rowLabel = fieldLabel.replace(/ address$/, "");
+  const missingName =
+    includeHiddenInputs && isComplete && mode !== "search" && !effectiveName;
+  const missingLabel =
+    duplicateOf != null && location.address.trim()
+      ? `${rowLabel} (same address as clinic ${duplicateOf})`
+      : missingName
+        ? `${rowLabel} name`
+        : fieldLabel;
   const duplicateNotice =
     duplicateOf != null && location.address.trim() ? (
       <p className="mt-2 text-xs font-medium text-red-600" role="alert">
@@ -343,6 +353,8 @@ export function RegisterClinicAddressField({
           type="text"
           value={clinicName}
           onChange={(event) => setClinicName(event.target.value)}
+          // What "Clinic name" in the missing-fields list jumps to.
+          data-focus-target={missingName ? "true" : undefined}
           placeholder="e.g. Makariou Medical Centre"
           autoComplete="organization"
           maxLength={120}
@@ -711,7 +723,7 @@ export function RegisterClinicAddressField({
       data-validate-field={includeHiddenInputs ? "1" : undefined}
       data-invalid={includeHiddenInputs ? "0" : undefined}
       data-field-key={fieldKey}
-      data-field-label={fieldLabel}
+      data-field-label={missingLabel}
     >
       {!hideIntro ? (
         <>

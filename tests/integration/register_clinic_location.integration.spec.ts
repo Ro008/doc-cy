@@ -237,6 +237,28 @@ test.describe("Integration UI: register clinic location", { tag: "@pr-e2e" }, ()
     await expect(second.getByText("Same address as clinic 1.")).toBeVisible();
     await expect(second).toHaveAttribute("data-clinic-complete", "0");
     await expect(add).toBeDisabled();
+
+    await page.getByRole("button", { name: /Submit My Application/i }).click();
+    await expect(
+      page
+        .getByTestId("register-missing-summary")
+        .getByRole("button", { name: "Clinic 2 (same address as clinic 1)" }),
+    ).toBeVisible();
+  });
+
+  test("the missing-fields summary names what is missing: the clinic name", async ({ page }) => {
+    await page.getByRole("button", { name: "Drop a pin instead" }).click();
+    await page.getByLabel("District").selectOption("Nicosia");
+    await typeAddress(page, "12 Makariou Avenue");
+    await page.getByRole("button", { name: "Save this location" }).click();
+
+    await page.getByRole("button", { name: /Submit My Application/i }).click();
+    const summary = page.getByTestId("register-missing-summary");
+    await expect(summary.getByRole("button", { name: "Clinic name" })).toBeVisible();
+    await expect(summary.getByRole("button", { name: "Clinic address" })).toHaveCount(0);
+
+    await summary.getByRole("button", { name: "Clinic name" }).click();
+    await expect(page.getByLabel("Clinic name")).toBeFocused();
   });
 
   test("the missing-fields summary still points at the clinic field", async ({ page }) => {
