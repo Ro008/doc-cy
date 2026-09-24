@@ -82,6 +82,31 @@ test.describe("Integration UI: register clinics", { tag: "@pr-e2e" }, () => {
     await expect(page.locator("#register-form input[name='clinicId']")).toHaveValue("");
   });
 
+  test("a DocCy clinic picked in one row is not offered in another", async ({ page }) => {
+    await page.goto("/register");
+    await gotoRegisterPracticeStep(page);
+
+    const name = await chooseDocCyClinic(page, 0, "lefkotheou");
+    await page.getByRole("button", { name: /Add another clinic/i }).click();
+
+    const searched = page.waitForResponse((res) =>
+      res.url().includes("/api/register/clinic-search?q=lefkotheou"),
+    );
+    await page.getByTestId("register-clinic-search-1").fill("lefkotheou");
+    await searched;
+    await expect(page.getByTestId("register-clinic-search-1-option").first()).toBeVisible();
+    await expect(
+      page.locator(`[data-testid='register-clinic-search-1-option'][data-clinic-name="${name}"]`),
+    ).toHaveCount(0);
+
+    // Another DocCy clinic in the same building is offered, but the server keeps
+    // one clinic per address today, so the row says so instead of losing it.
+    await page.getByTestId("register-clinic-search-1-option").first().click();
+    const second = page.locator("[data-clinic-row='1']");
+    await expect(second.getByText("Same address as clinic 1.")).toBeVisible();
+    await expect(second).toHaveAttribute("data-clinic-complete", "0");
+  });
+
   test("every professional can add up to five clinics, one open at a time", async ({ page }) => {
     await page.goto("/register");
     await gotoRegisterPracticeStep(page);

@@ -66,6 +66,10 @@ Files:
   ("Change clinic" makes it unfinished until they pick or Cancel).
 - **One at a time:** "Add another clinic" is disabled until every row is done
   ("Finish clinic N to add another.").
+- **No clinic twice:** the DocCy search hides clinics picked in other rows (by id only — two
+  DocCy clinics can share a building address). A row with the same address as an earlier one says
+  "Same address as clinic N" and is not done, because the server keeps one clinic per address
+  today (phase 2 could allow different `clinicId`s at one address).
 - Row headers **toggle** (the open row folds; all rows may be closed).
 
 ### Still to check

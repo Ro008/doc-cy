@@ -6,6 +6,8 @@ import {
   clinicSearchTokens,
   normalizeClinicSearchText,
   rankClinicSearchResults,
+  sameClinicAddress,
+  withoutTakenClinics,
   type ClinicSearchCandidate,
 } from "../../lib/register-clinic-search";
 import { registerClinicInputNames } from "../../lib/register-clinic-location";
@@ -99,5 +101,28 @@ describe("register clinic form fields", () => {
   it("posts the chosen DocCy clinic id next to each clinic address", () => {
     assert.equal(registerClinicInputNames(0).clinicId, "clinicId");
     assert.equal(registerClinicInputNames(2).clinicId, "clinic2Id");
+  });
+});
+
+describe("clinics already added in another row", () => {
+  it("compares addresses ignoring case, accents and punctuation", () => {
+    assert.equal(sameClinicAddress("12 Makariou Ave., Nicosia", "12 makariou ave nicosia"), true);
+    assert.equal(sameClinicAddress("12 Makariou Ave", "14 Makariou Ave"), false);
+    assert.equal(sameClinicAddress("", ""), false);
+  });
+
+  it("drops only the clinics picked elsewhere, not their neighbours in the same building", () => {
+    const a = clinic({ id: "a", name: "Alpha", address: "20 Lefkotheou Ave, Nicosia" });
+    const b = clinic({ id: "b", name: "Beta", address: "20 Lefkotheou Ave, Nicosia" });
+    const c = clinic({ id: "c", name: "Gamma", address: "3 Gamma St, Paphos" });
+    assert.deepEqual(
+      withoutTakenClinics([a, b, c], ["a"]).map((x) => x.id),
+      ["b", "c"],
+    );
+  });
+
+  it("keeps everything when nothing else is taken", () => {
+    const a = clinic({ id: "a", name: "Alpha", address: "1 Alpha St" });
+    assert.equal(withoutTakenClinics([a], []).length, 1);
   });
 });

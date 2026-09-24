@@ -8,6 +8,7 @@ import { REGISTER_REVEAL_EVENT } from "@/components/auth/useRegisterFieldStates"
 import { clinicLocationFromParts, type ClinicLocation } from "@/lib/clinic-location";
 import type { RegisterClaimClinic } from "@/lib/claim-directory-professional";
 import { registerClinicLocationIsComplete } from "@/lib/register-clinic-location";
+import { sameClinicAddress } from "@/lib/register-clinic-search";
 import { registerAddAnotherButtonClass } from "@/lib/register-ui";
 
 type Slot = {
@@ -19,7 +20,13 @@ type Slot = {
   listingDistrict: string | null;
 };
 
-type SlotSummary = { name: string | null; address: string; complete: boolean };
+type SlotSummary = {
+  name: string | null;
+  address: string;
+  complete: boolean;
+  /** The DocCy clinic picked in this row, if any. */
+  clinicId: string | null;
+};
 
 function initialSlots(
   clinics: readonly RegisterClaimClinic[],
@@ -86,6 +93,7 @@ export function RegisterClinicsFields({
           name: slot.listingName,
           address: slot.initial?.address ?? "",
           complete: slot.initial ? registerClinicLocationIsComplete(slot.initial) : false,
+          clinicId: null,
         },
       ]),
     ),
@@ -109,7 +117,7 @@ export function RegisterClinicsFields({
   const updateSummary = (key: string, patch: Partial<SlotSummary>) =>
     setSummaries((current) => ({
       ...current,
-      [key]: { name: null, address: "", complete: false, ...current[key], ...patch },
+      [key]: { name: null, address: "", complete: false, clinicId: null, ...current[key], ...patch },
     }));
 
   const addSlot = () => {
@@ -145,6 +153,15 @@ export function RegisterClinicsFields({
         const summary = summaries[slot.key];
         const title = summary?.name || summary?.address || "Not set yet";
         const done = Boolean(summary?.complete);
+        const others = slots
+          .filter((other) => other.key !== slot.key)
+          .map((other) => summaries[other.key]);
+        // The later of two rows with the same place is the one flagged.
+        const earlier = slots
+          .slice(0, index)
+          .findIndex((other) =>
+            sameClinicAddress(summaries[other.key]?.address ?? "", summary?.address ?? ""),
+          );
         return (
           <section
             key={slot.key}
@@ -205,6 +222,11 @@ export function RegisterClinicsFields({
                 onLocationChange={(location) => updateSummary(slot.key, { address: location.address })}
                 onCompleteChange={(complete) => updateSummary(slot.key, { complete })}
                 onNameChange={(name) => updateSummary(slot.key, { name })}
+                onClinicChange={(clinic) => updateSummary(slot.key, { clinicId: clinic?.id ?? null })}
+                takenClinicIds={others
+                  .map((other) => other?.clinicId)
+                  .filter((id): id is string => Boolean(id))}
+                duplicateOf={earlier === -1 ? null : earlier + 1}
               />
             </div>
           </section>

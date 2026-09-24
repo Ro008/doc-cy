@@ -216,6 +216,29 @@ test.describe("Integration UI: register clinic location", { tag: "@pr-e2e" }, ()
     await expect(page.getByText("Finish clinic 1 to add another.")).toBeVisible();
   });
 
+  test("the same address in two rows is flagged", async ({ page }) => {
+    await page.getByRole("button", { name: "Drop a pin instead" }).click();
+    await page.getByLabel("District").selectOption("Nicosia");
+    await typeAddress(page, "12 Makariou Avenue");
+    await page.getByLabel("Clinic name").fill("Makariou Clinic");
+    await page.getByRole("button", { name: "Save this location" }).click();
+
+    const add = page.getByRole("button", { name: /Add another clinic/i });
+    await add.click();
+    await switchRegisterClinicToGoogle(page, 1);
+    const second = page.locator("[data-clinic-row='1']");
+    await second.getByRole("button", { name: "Drop a pin instead" }).click();
+    await second.getByLabel("District").selectOption("Nicosia");
+    await second.getByLabel("Address patients will see").pressSequentially("12 makariou avenue", {
+      delay: 10,
+    });
+    await second.getByLabel("Clinic name").fill("Makariou Clinic again");
+
+    await expect(second.getByText("Same address as clinic 1.")).toBeVisible();
+    await expect(second).toHaveAttribute("data-clinic-complete", "0");
+    await expect(add).toBeDisabled();
+  });
+
   test("the missing-fields summary still points at the clinic field", async ({ page }) => {
     await page.getByRole("button", { name: /Submit My Application/i }).click();
 

@@ -69,3 +69,20 @@ export function rankClinicSearchResults(
     .slice(0, limit)
     .map((entry) => entry.candidate);
 }
+
+/** Same place typed or picked twice: addresses equal once case, accents and punctuation go. */
+export function sameClinicAddress(a: string, b: string): boolean {
+  const left = normalizeClinicSearchText(a);
+  return left.length > 0 && left === normalizeClinicSearchText(b);
+}
+
+/**
+ * Search results minus the DocCy clinics picked in other rows. Only by id: two
+ * clinics can share a building address and still be different clinics.
+ */
+export function withoutTakenClinics(
+  results: readonly ClinicSearchCandidate[],
+  takenIds: readonly string[],
+): ClinicSearchCandidate[] {
+  return results.filter((clinic) => !takenIds.includes(clinic.id));
+}

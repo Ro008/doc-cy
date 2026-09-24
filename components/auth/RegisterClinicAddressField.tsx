@@ -172,6 +172,8 @@ export function RegisterClinicAddressField({
   initialClinicName = null,
   onNameChange,
   onCompleteChange,
+  takenClinicIds,
+  duplicateOf = null,
 }: {
   listingAddressHint?: string | null;
   /** District from the finder listing — used when confirming the listing address. */
@@ -202,6 +204,10 @@ export function RegisterClinicAddressField({
   onNameChange?: (name: string | null) => void;
   /** Whether this clinic is done (set, and not being searched again). */
   onCompleteChange?: (complete: boolean) => void;
+  /** Register: DocCy clinics picked in other rows, left out of the DocCy search. */
+  takenClinicIds?: readonly string[];
+  /** Register: 1-based number of an earlier row with the same address. */
+  duplicateOf?: number | null;
 } = {}) {
   const styles = toneStyles[tone];
   const linkClass = styles.link;
@@ -320,6 +326,12 @@ export function RegisterClinicAddressField({
   const pinMoved = clinicPinMoved(origin, coords);
   // A DocCy clinic comes with its address and pin: they pick it, they do not edit it.
   const locationLocked = Boolean(chosenClinic) && Boolean(coords);
+  const duplicateNotice =
+    duplicateOf != null && location.address.trim() ? (
+      <p className="mt-2 text-xs font-medium text-red-600" role="alert">
+        Same address as clinic {duplicateOf}. Pick a different clinic or remove this one.
+      </p>
+    ) : null;
   const nameField =
     includeHiddenInputs && !chosenClinic ? (
       <label className="mt-3 block" htmlFor={`register-clinic-name-${index}`}>
@@ -593,6 +605,7 @@ export function RegisterClinicAddressField({
     isComplete &&
     !addressDistrictConflict &&
     mode !== "search" &&
+    duplicateOf == null &&
     (!includeHiddenInputs || Boolean(effectiveName));
   const onCompleteChangeRef = React.useRef(onCompleteChange);
   React.useEffect(() => {
@@ -814,6 +827,7 @@ export function RegisterClinicAddressField({
             </p>
           ) : null}
           {nameField}
+          {duplicateNotice}
           <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
             {locationLocked ? null : coords ? (
               <button
@@ -897,6 +911,7 @@ export function RegisterClinicAddressField({
                 key={searchSession}
                 index={index}
                 onSelect={chooseDocCyClinic}
+                takenIds={takenClinicIds}
                 onSearchGoogle={() => {
                   setChosenClinic(null);
                   setSearchSource("google");
@@ -1156,6 +1171,7 @@ export function RegisterClinicAddressField({
                 )}
               </label>
               {nameField}
+              {duplicateNotice}
             </>
           ) : null}
 

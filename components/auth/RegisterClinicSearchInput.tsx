@@ -4,6 +4,7 @@ import * as React from "react";
 import { Building2, Search } from "lucide-react";
 import {
   REGISTER_CLINIC_SEARCH_MIN_QUERY,
+  withoutTakenClinics,
   type ClinicSearchCandidate,
 } from "@/lib/register-clinic-search";
 import { registerInputClass } from "@/lib/register-ui";
@@ -18,15 +19,19 @@ export function RegisterClinicSearchInput({
   index,
   onSelect,
   onSearchGoogle,
+  takenIds,
 }: {
   index: number;
   onSelect: (clinic: ClinicSearchCandidate) => void;
   onSearchGoogle: () => void;
+  /** DocCy clinics already picked in other rows: never offered twice. */
+  takenIds?: readonly string[];
 }) {
   const testId = `register-clinic-search-${index}`;
   const listId = `${testId}-list`;
   const [query, setQuery] = React.useState("");
-  const [results, setResults] = React.useState<ClinicSearchCandidate[]>([]);
+  const [found, setFound] = React.useState<ClinicSearchCandidate[]>([]);
+  const results = takenIds ? withoutTakenClinics(found, takenIds) : found;
   const [loading, setLoading] = React.useState(false);
   const [open, setOpen] = React.useState(false);
   const [highlight, setHighlight] = React.useState(0);
@@ -36,7 +41,7 @@ export function RegisterClinicSearchInput({
 
   React.useEffect(() => {
     if (!ready) {
-      setResults([]);
+      setFound([]);
       setLoading(false);
       return;
     }
@@ -48,10 +53,10 @@ export function RegisterClinicSearchInput({
           signal: controller.signal,
         });
         const body = (await res.json()) as { results?: ClinicSearchCandidate[] };
-        setResults(Array.isArray(body.results) ? body.results : []);
+        setFound(Array.isArray(body.results) ? body.results : []);
         setHighlight(0);
       } catch (error) {
-        if ((error as Error).name !== "AbortError") setResults([]);
+        if ((error as Error).name !== "AbortError") setFound([]);
       } finally {
         if (!controller.signal.aborted) setLoading(false);
       }
