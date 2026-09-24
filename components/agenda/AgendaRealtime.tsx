@@ -34,6 +34,7 @@ import {
   isVisitSlotEnded,
 } from "@/lib/appointments";
 import { patientVisitReasonFromAppointmentRow } from "@/lib/agenda-visit-reason";
+import { agendaRefreshOutcome } from "@/lib/agenda-refresh";
 import { ManualBookingFlow } from "@/components/agenda/ManualBookingFlow";
 import { AgendaClinicCalendars } from "@/components/agenda/AgendaClinicCalendars";
 import {
@@ -356,6 +357,7 @@ export function AgendaRealtime({
 }) {
   const router = useRouter();
   const pathname = usePathname();
+  const tAgenda = useTranslations("DoctorAgenda");
   const supabase = React.useMemo(() => createClientComponentClient(), []);
   const [openingReview, setOpeningReview] = React.useState(false);
   const [appointments, setAppointments] =
@@ -426,16 +428,32 @@ export function AgendaRealtime({
     setAppointments(initialAppointments);
   }, [initialAppointments]);
 
+  const [signedOut, setSignedOut] = React.useState(false);
+
   const refreshAppointmentsFromServer = React.useCallback(async () => {
     if (!doctorId) return;
-    const { data, error } = await supabase
-      .from("appointments")
-      .select(AGENDA_APPOINTMENT_SELECT)
-      .eq("doctor_id", doctorId)
-      .order("appointment_datetime", { ascending: true });
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    const { data, error } = session
+      ? await supabase
+          .from("appointments")
+          .select(AGENDA_APPOINTMENT_SELECT)
+          .eq("doctor_id", doctorId)
+          .order("appointment_datetime", { ascending: true })
+      : { data: null, error: null };
 
-    if (error || !data) return;
-    const mapped = (data as Record<string, unknown>[])
+    const outcome = agendaRefreshOutcome({
+      hasSession: Boolean(session),
+      error,
+      data: data as Record<string, unknown>[] | null,
+    });
+    if (outcome.kind === "keep") {
+      if (outcome.reason === "signed_out") setSignedOut(true);
+      return;
+    }
+    setSignedOut(false);
+    const mapped = outcome.rows
       .map(agendaRowFromSupabasePayload)
       .filter((x): x is AgendaAppointmentRow => x !== null);
     setAppointments(sortAgendaRowsByDatetime(mapped));
@@ -1082,6 +1100,21 @@ export function AgendaRealtime({
       {toast && (
         <div className="fixed right-5 top-5 z-50 rounded-2xl border border-clinical-400/30 bg-slate-900/90 px-4 py-3 text-xs font-medium text-clinical-200 shadow-2xl shadow-ink-900/60 backdrop-blur">
           New booking activity
+        </div>
+      )}
+
+      {signedOut && (
+        <div
+          role="alert"
+          className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-100"
+        >
+          <span>{tAgenda("signedOutNotice")}</span>
+          <a
+            href={`/login?next=${encodeURIComponent("/agenda")}`}
+            className="shrink-0 rounded-full border border-amber-400/50 px-3 py-1 text-xs font-semibold text-amber-50 transition hover:bg-amber-500/20"
+          >
+            {tAgenda("signedOutSignIn")}
+          </a>
         </div>
       )}
 

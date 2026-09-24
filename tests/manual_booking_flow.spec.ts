@@ -4,6 +4,8 @@
  */
 import { test, expect } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
+import { formatInTimeZone } from "date-fns-tz";
+import { CY_TZ } from "@/lib/appointments";
 import { signInDoctorOrFail } from "./helpers/signInDoctorOrFail";
 import { skipIfSafeNoBooking } from "./helpers/safeMode";
 
@@ -74,6 +76,14 @@ test.describe("Manual booking flow @booking-creates", { tag: ["@pr-e2e", "@pr-e2
       }
       const { firstAvailableDay, timePanel } = slotPick;
       selectedTimeLabel = slotPick.selectedTimeLabel;
+      // The calendar reopens on the same month after a reload, so the day's
+      // position in the grid finds it again.
+      const bookedDayIndex = await firstAvailableDay.evaluate((el) =>
+        Array.from(
+          el.closest(".rdp")?.querySelectorAll('button[name="day"]') ?? [],
+        ).indexOf(el as HTMLButtonElement),
+      );
+      expect(bookedDayIndex).toBeGreaterThanOrEqual(0);
 
       const nonce = Date.now().toString().slice(-6);
       const patientName = `Manual E2E ${nonce}`;
@@ -116,24 +126,50 @@ test.describe("Manual booking flow @booking-creates", { tag: ["@pr-e2e", "@pr-e2
       await page.reload();
       await expect(page).toHaveURL(/\/agenda/, { timeout: 10_000 });
 
+      // The agenda now knows the booking, so the modal must not offer that time
+      // again. (This used to pass only because the agenda emptied itself: with
+      // no browser session its refresh read `[]` and the slot came back.)
       await expect(modalTitle).toBeVisible({ timeout: 10_000 });
-      await firstAvailableDay.click();
-      const sameTimeSlot = timePanel
-        .locator("button")
-        .filter({ hasText: new RegExp(`^${selectedTimeLabel}\\b`) })
-        .first();
-      await expect(sameTimeSlot).toBeVisible({ timeout: 10_000 });
-      await sameTimeSlot.click();
+      const sameDay = page
+        .locator(".rdp-dark")
+        .first()
+        .locator('button[name="day"]')
+        .nth(bookedDayIndex);
+      if (await sameDay.isEnabled()) {
+        await sameDay.click();
+        await expect(
+          timePanel.locator("button").filter({ hasText: /^\d{2}:\d{2}/ }).first(),
+        ).toBeVisible({ timeout: 10_000 });
+        await expect(
+          timePanel
+            .locator("button")
+            .filter({ hasText: new RegExp(`^${selectedTimeLabel}\\b`) }),
+        ).toHaveCount(0);
+      }
 
-      await page.getByPlaceholder("Patient full name").fill(`${patientName} Duplicate`);
-      await page
-        .getByPlaceholder("Brief reason for this visit")
-        .fill("Trying to rebook same slot should fail.");
-
-      await page.getByRole("button", { name: /Confirm Booking/i }).click();
-      await expect(page.getByText(/Slot already taken/i)).toBeVisible({
-        timeout: 10_000,
+      // And the server refuses the same slot if a stale screen sends it anyway.
+      const booked = await admin
+        .from("appointments")
+        .select("appointment_datetime, location_id")
+        .eq("id", createdAppointmentId!)
+        .single();
+      expect(booked.error).toBeNull();
+      const duplicate = await page.request.post("/api/appointments/manual", {
+        data: {
+          patientName: `${patientName} Duplicate`,
+          patientPhone: "",
+          patientEmail: "",
+          appointmentLocal: formatInTimeZone(
+            new Date(String(booked.data!.appointment_datetime)),
+            CY_TZ,
+            "yyyy-MM-dd'T'HH:mm",
+          ),
+          reason: "Trying to rebook same slot should fail.",
+          locationId: booked.data!.location_id ?? null,
+        },
       });
+      expect(duplicate.status()).toBe(409);
+      expect(String((await duplicate.json())?.message ?? "")).toMatch(/Slot already taken/i);
     } finally {
       if (createdAppointmentId) {
         await admin.from("appointments").delete().eq("id", createdAppointmentId);

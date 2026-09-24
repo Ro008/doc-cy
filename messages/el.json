@@ -88,7 +88,9 @@
   },
   "DoctorAgenda": {
     "appointmentPendingBadge": "Εκκρεμεί",
-    "counterOfferHoldBadge": "Προτεινόμενο"
+    "counterOfferHoldBadge": "Προτεινόμενο",
+    "signedOutNotice": "Έχετε αποσυνδεθεί, οπότε η ατζέντα σας μπορεί να μην είναι ενημερωμένη. Τα ραντεβού σας είναι ασφαλή.",
+    "signedOutSignIn": "Σύνδεση"
   },
   "AppointmentReview": {
     "scheduleOverlapWarning": "⚠️ Αυτή η διάρκεια επικαλύπτεται με το προγραμματισμένο διάλειμμα ή εκτός ωραρίου, από τις {time}.",
