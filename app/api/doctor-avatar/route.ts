@@ -110,7 +110,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           message:
-            "Avatar column is missing in doctors table. Run supabase/doctors_avatar_url.sql and try again.",
+            "Your photo could not be saved because the database is missing a column. Please contact DocCy support.",
         },
         { status: 500 }
       );

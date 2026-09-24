@@ -449,7 +449,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           message:
-            "Database migration required for advanced schedule settings. Run supabase/doctor_settings_schedule_upgrade.sql in Supabase, then save again.",
+            "Advanced schedule settings are unavailable because the database is missing columns. Please contact DocCy support.",
         },
         { status: 500 }
       );
@@ -551,7 +551,7 @@ export async function POST(req: NextRequest) {
       {
         message:
           docErr.message?.includes("languages") || docErr.code === "42703"
-            ? "Database missing `languages` column. Run supabase/doctors_add_languages.sql in Supabase."
+            ? "Languages could not be saved because the database is missing a column. Please contact DocCy support."
             : "Error updating professional profile.",
       },
       { status: 500 }

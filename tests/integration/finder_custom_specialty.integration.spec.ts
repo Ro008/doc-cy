@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { finderIncludesRegisteredTestProfiles } from "@/lib/doctor-test-profile";
 
 /**
@@ -32,7 +32,7 @@ function assertSafeIntegrationTarget(baseUrl: string, supabaseUrl: string): stri
 }
 
 async function createPsychologyPlusSexologyDoctor(
-  admin: ReturnType<typeof createClient>,
+  admin: SupabaseClient,
   nonce: string,
 ): Promise<CreatedDoctor> {
   const slugPrefix = "finder-filter-sexology";

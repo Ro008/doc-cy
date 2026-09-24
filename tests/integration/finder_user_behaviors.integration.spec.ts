@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { finderIncludesRegisteredTestProfiles } from "@/lib/doctor-test-profile";
 import { selectFinderSpecialty } from "./helpers/finder-specialty-combobox";
 
@@ -62,7 +62,7 @@ async function clearFinderNameFilter(page: import("@playwright/test").Page) {
 }
 
 async function createVerifiedDoctor(
-  admin: ReturnType<typeof createClient>,
+  admin: SupabaseClient,
   nonce: string,
   input: {
     slugPrefix: string;

@@ -17,10 +17,10 @@ test.describe("Support feedback live Formspree (local only)", () => {
     const isPlaceholder =
       !formspreeId || formspreeId === "e2e_placeholder" || formspreeId === "placeholder";
 
-    test.skip(isPlaceholder, {
-      message:
-        "Set NEXT_PUBLIC_FORMSPREE_ID in .env.local to your real Formspree form id, then re-run.",
-    });
+    test.skip(
+      isPlaceholder,
+      "Set NEXT_PUBLIC_FORMSPREE_ID in .env.local to your real Formspree form id, then re-run.",
+    );
 
     const message = `[DocCy local E2E] ${new Date().toISOString()} — safe to ignore.`;
 

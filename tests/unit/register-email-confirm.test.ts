@@ -11,6 +11,9 @@ import {
 } from "../../lib/register-email-confirm";
 import { buildDoctorRegistrationReceivedEmailContent } from "../../lib/send-doctor-registration-received-email";
 
+// Next's types make NODE_ENV read-only; the tests set it deliberately.
+const mutableEnv = process.env as Record<string, string | undefined>;
+
 describe("register email confirm URLs", () => {
   it("builds a DocCy confirm-email link with token_hash, not a 6-digit code", () => {
     assert.equal(
@@ -58,8 +61,8 @@ describe("register email confirm URLs", () => {
       else process.env.VERCEL_ENV = prevVercelEnv;
       if (prevVercelUrl === undefined) delete process.env.VERCEL_URL;
       else process.env.VERCEL_URL = prevVercelUrl;
-      if (prevNodeEnv === undefined) delete process.env.NODE_ENV;
-      else process.env.NODE_ENV = prevNodeEnv;
+      if (prevNodeEnv === undefined) delete mutableEnv.NODE_ENV;
+      else mutableEnv.NODE_ENV = prevNodeEnv;
     }
   });
 
@@ -70,7 +73,7 @@ describe("register email confirm URLs", () => {
     try {
       process.env.NEXT_PUBLIC_SITE_URL = "https://www.mydoccy.com";
       process.env.VERCEL_ENV = "";
-      process.env.NODE_ENV = "development";
+      mutableEnv.NODE_ENV = "development";
       assert.equal(
         resolveRegisterEmailConfirmOrigin("http://localhost:3100"),
         "http://localhost:3100",
@@ -81,8 +84,8 @@ describe("register email confirm URLs", () => {
       else process.env.NEXT_PUBLIC_SITE_URL = prevSite;
       if (prevVercelEnv === undefined) delete process.env.VERCEL_ENV;
       else process.env.VERCEL_ENV = prevVercelEnv;
-      if (prevNodeEnv === undefined) delete process.env.NODE_ENV;
-      else process.env.NODE_ENV = prevNodeEnv;
+      if (prevNodeEnv === undefined) delete mutableEnv.NODE_ENV;
+      else mutableEnv.NODE_ENV = prevNodeEnv;
     }
   });
 });

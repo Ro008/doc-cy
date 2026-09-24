@@ -29,6 +29,7 @@ describe("internal directory gate roles", () => {
     );
     assert.equal(
       readInternalDirectorySecrets({
+        NODE_ENV: "test",
         INTERNAL_DIRECTORY_SECRET: " a ",
         INTERNAL_DIRECTORY_PARTNER_SECRET: " b ",
       } as NodeJS.ProcessEnv).partner,

@@ -38,7 +38,7 @@ export async function POST() {
       return NextResponse.json(
         {
           message:
-            "Database migration required. Run supabase/doctors_auth_session_revocation.sql.",
+            "Signing out other sessions is unavailable because the database is missing a column. Please contact DocCy support.",
         },
         { status: 500 }
       );
