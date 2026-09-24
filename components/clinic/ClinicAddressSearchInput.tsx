@@ -3,6 +3,7 @@
 import * as React from "react";
 import { loadGoogleMapsPlaces } from "@/lib/google-maps-loader";
 import {
+  googlePlaceClinicName,
   inferCyprusDistrictFromClinic,
   type ClinicLocation,
 } from "@/lib/clinic-location";
@@ -14,7 +15,8 @@ type Tone = "dark" | "light";
 type Props = {
   id: string;
   tone?: Tone;
-  onChange: (value: ClinicLocation) => void;
+  /** `placeName`: the business Google matched, when it is more than the address. */
+  onChange: (value: ClinicLocation, meta?: { placeName: string | null }) => void;
   onCancel?: () => void;
   placeholder?: string;
   /** When false, hide the ready-state tip (parent already explains how to search). */
@@ -125,7 +127,7 @@ export function ClinicAddressSearchInput({
             placeId: place.place_id?.trim() || null,
             district,
             town,
-          });
+          }, { placeName: googlePlaceClinicName(place.name, formattedAddress) });
         });
 
         setIsReady(true);

@@ -169,6 +169,9 @@ export function RegisterClinicAddressField({
   tone = "light",
   docCySearch = false,
   onClinicChange,
+  initialClinicName = null,
+  onNameChange,
+  onCompleteChange,
 }: {
   listingAddressHint?: string | null;
   /** District from the finder listing — used when confirming the listing address. */
@@ -193,6 +196,12 @@ export function RegisterClinicAddressField({
   docCySearch?: boolean;
   /** The DocCy clinic picked from that search (null for Google / pin / listing). */
   onClinicChange?: (clinic: { id: string; name: string } | null) => void;
+  /** Register: the clinic name, e.g. from the claimed listing. */
+  initialClinicName?: string | null;
+  /** The name patients will see: the DocCy clinic's, or the one typed / found on Google. */
+  onNameChange?: (name: string | null) => void;
+  /** Whether this clinic is done (set, and not being searched again). */
+  onCompleteChange?: (complete: boolean) => void;
 } = {}) {
   const styles = toneStyles[tone];
   const linkClass = styles.link;
@@ -247,6 +256,21 @@ export function RegisterClinicAddressField({
     }
     onClinicChangeRef.current?.(chosenClinic);
   }, [chosenClinic]);
+  /** Typed (or Google's) clinic name. A DocCy clinic brings its own and hides this. */
+  const [clinicName, setClinicName] = React.useState(initialClinicName ?? "");
+  const effectiveName = chosenClinic?.name ?? (clinicName.trim() || null);
+  const onNameChangeRef = React.useRef(onNameChange);
+  React.useEffect(() => {
+    onNameChangeRef.current = onNameChange;
+  }, [onNameChange]);
+  const skipNameNotifyRef = React.useRef(true);
+  React.useEffect(() => {
+    if (skipNameNotifyRef.current) {
+      skipNameNotifyRef.current = false;
+      return;
+    }
+    onNameChangeRef.current?.(effectiveName);
+  }, [effectiveName]);
   /** Coordinates before the doctor moved the pin, so Undo can snap back. */
   const [origin, setOrigin] = React.useState<Coordinates | null>(null);
   const [sheetOpen, setSheetOpen] = React.useState(false);
@@ -279,6 +303,8 @@ export function RegisterClinicAddressField({
         town: String(detail.town ?? "").trim() || null,
       };
       if (!hasConfirmedClinicCoordinates(next) || !next.address || !next.district) return;
+      const name = (detail as { name?: unknown }).name;
+      if (typeof name === "string") setClinicName(name);
       setLocation(next);
       setOrigin(clinicLocationCoordinates(next));
       setMode("confirmed");
@@ -292,6 +318,26 @@ export function RegisterClinicAddressField({
   const hint = String(listingAddressHint ?? "").trim();
   const coords = clinicLocationCoordinates(location);
   const pinMoved = clinicPinMoved(origin, coords);
+  // A DocCy clinic comes with its address and pin: they pick it, they do not edit it.
+  const locationLocked = Boolean(chosenClinic) && Boolean(coords);
+  const nameField =
+    includeHiddenInputs && !chosenClinic ? (
+      <label className="mt-3 block" htmlFor={`register-clinic-name-${index}`}>
+        <span className={styles.label}>
+          Clinic name<span className="text-red-600">*</span>
+        </span>
+        <input
+          id={`register-clinic-name-${index}`}
+          type="text"
+          value={clinicName}
+          onChange={(event) => setClinicName(event.target.value)}
+          placeholder="e.g. Makariou Medical Centre"
+          autoComplete="organization"
+          maxLength={120}
+          className={styles.input}
+        />
+      </label>
+    ) : null;
   const pinLatitude = coords?.latitude ?? null;
   const pinLongitude = coords?.longitude ?? null;
 
@@ -461,6 +507,7 @@ export function RegisterClinicAddressField({
 
   const startManual = () => {
     setChosenClinic(null);
+    setClinicName("");
     setLocation(emptyClinicLocation());
     setOrigin(null);
     setManualAddressDraft("");
@@ -540,6 +587,20 @@ export function RegisterClinicAddressField({
   };
 
   const addressDistrictConflict = clinicAddressDistrictConflicts(location);
+  // Searching for another clinic keeps the old one for Cancel, but is not done.
+  // Registration also needs the clinic's name (a DocCy clinic brings its own).
+  const fieldComplete =
+    isComplete &&
+    !addressDistrictConflict &&
+    mode !== "search" &&
+    (!includeHiddenInputs || Boolean(effectiveName));
+  const onCompleteChangeRef = React.useRef(onCompleteChange);
+  React.useEffect(() => {
+    onCompleteChangeRef.current = onCompleteChange;
+  }, [onCompleteChange]);
+  React.useEffect(() => {
+    onCompleteChangeRef.current?.(fieldComplete);
+  }, [fieldComplete]);
   /** Street conflict or district/address contradiction — do not let them confirm. */
   const cannotConfirm =
     Boolean(suggestionAddress) || showPinMismatch || addressDistrictConflict;
@@ -745,14 +806,15 @@ export function RegisterClinicAddressField({
             <p className={styles.amberHint}>
               Add a map pin so nearby patients can find you accurately in Health Finder.
             </p>
-          ) : !location.placeId ? (
+          ) : !location.placeId && !chosenClinic ? (
             <p className={`mt-2 ${styles.soft}`}>
               Maps opens a search for this text. Prefer a Google result when you can, so the pin
               and address match a real place.
             </p>
           ) : null}
+          {nameField}
           <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
-            {coords ? (
+            {locationLocked ? null : coords ? (
               <button
                 type="button"
                 onClick={() => {
@@ -871,7 +933,8 @@ export function RegisterClinicAddressField({
             }
             tone={tone}
             showReadyHint={false}
-            onChange={(nextValue) => {
+            onChange={(nextValue, meta) => {
+              if (meta) setClinicName(meta.placeName ?? "");
               // Address text wins over a wrong component/centroid district, so a
               // Nicosia street never lands under Paphos from a Google quirk.
               const aligned = clinicLocationWithAddressAlignedDistrict(nextValue);
@@ -1091,6 +1154,7 @@ export function RegisterClinicAddressField({
                   </span>
                 )}
               </label>
+              {nameField}
             </>
           ) : null}
 
@@ -1132,7 +1196,7 @@ export function RegisterClinicAddressField({
           <input
             type="text"
             name={names.confirmed}
-            value={isComplete && !addressDistrictConflict ? "1" : ""}
+            value={fieldComplete ? "1" : ""}
             required
             data-validity-proxy="true"
             // A readonly input is barred from constraint validation, which would make
@@ -1180,6 +1244,13 @@ export function RegisterClinicAddressField({
             type="hidden"
             name={names.clinicId}
             value={chosenClinic?.id ?? ""}
+            readOnly
+            aria-hidden
+          />
+          <input
+            type="hidden"
+            name={names.name}
+            value={effectiveName ?? ""}
             readOnly
             aria-hidden
           />

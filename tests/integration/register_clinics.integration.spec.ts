@@ -21,10 +21,15 @@ const PUBLIC_CLINIC_FIELDS = [
 ];
 
 /** Pick the first DocCy suggestion for `query` in clinic row `index`. */
-async function chooseDocCyClinic(page: Page, index: number, query: string): Promise<string> {
+async function chooseDocCyClinic(
+  page: Page,
+  index: number,
+  query: string,
+  nth = 0,
+): Promise<string> {
   const input = page.getByTestId(`register-clinic-search-${index}`);
   await input.fill(query);
-  const option = page.getByTestId(`register-clinic-search-${index}-option`).first();
+  const option = page.getByTestId(`register-clinic-search-${index}-option`).nth(nth);
   await expect(option).toBeVisible({ timeout: 15_000 });
   const name = (await option.getAttribute("data-clinic-name")) ?? "";
   await option.click();
@@ -65,6 +70,11 @@ test.describe("Integration UI: register clinics", { tag: "@pr-e2e" }, () => {
     await expect(page.locator("#register-form input[name='clinicId']")).not.toHaveValue("");
     await expect(page.locator("[data-field-key='clinic']")).toHaveAttribute("data-complete", "1");
 
+    // A DocCy clinic already has its location and name: nothing to edit but the choice.
+    await expect(summary.getByRole("button", { name: "Adjust pin on map" })).toHaveCount(0);
+    await expect(summary.getByRole("button", { name: "Add map pin" })).toHaveCount(0);
+    await expect(summary.getByLabel("Clinic name")).toHaveCount(0);
+
     // Changing clinic can fall back to Google Maps.
     await summary.getByRole("button", { name: /Change clinic/i }).click();
     await page.getByRole("button", { name: /Search Google Maps/i }).click();
@@ -100,8 +110,13 @@ test.describe("Integration UI: register clinics", { tag: "@pr-e2e" }, () => {
     await summaryList.getByRole("button", { name: "Clinic 2 address" }).click();
     await expect(page.getByTestId("register-clinic-search-1")).toBeVisible();
 
+    // One at a time: the empty Clinic 2 must be set before Clinic 3.
+    await expect(add).toBeDisabled();
     await chooseDocCyClinic(page, 1, "polykliniki");
-    for (let i = 2; i < 5; i += 1) await add.click();
+    for (let i = 2; i < 5; i += 1) {
+      await add.click();
+      await chooseDocCyClinic(page, i, "clinic", i);
+    }
     await expect(page.locator("[data-clinic-row]")).toHaveCount(5);
     await expect(add).toHaveCount(0);
 

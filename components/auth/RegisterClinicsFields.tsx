@@ -7,6 +7,7 @@ import { RegisterClinicAddressField } from "@/components/auth/RegisterClinicAddr
 import { REGISTER_REVEAL_EVENT } from "@/components/auth/useRegisterFieldStates";
 import { clinicLocationFromParts, type ClinicLocation } from "@/lib/clinic-location";
 import type { RegisterClaimClinic } from "@/lib/claim-directory-professional";
+import { registerClinicLocationIsComplete } from "@/lib/register-clinic-location";
 import { registerAddAnotherButtonClass } from "@/lib/register-ui";
 
 type Slot = {
@@ -18,7 +19,7 @@ type Slot = {
   listingDistrict: string | null;
 };
 
-type SlotSummary = { name: string | null; address: string };
+type SlotSummary = { name: string | null; address: string; complete: boolean };
 
 function initialSlots(
   clinics: readonly RegisterClaimClinic[],
@@ -75,12 +76,17 @@ export function RegisterClinicsFields({
   const [slots, setSlots] = React.useState<Slot[]>(() =>
     initialSlots(claimClinics.slice(0, max), listingAddressHint, listingDistrict),
   );
-  const [openKey, setOpenKey] = React.useState<string>(() => slots[0]!.key);
+  /** The one open row; null when they folded it (every row closed). */
+  const [openKey, setOpenKey] = React.useState<string | null>(() => slots[0]!.key);
   const [summaries, setSummaries] = React.useState<Record<string, SlotSummary>>(() =>
     Object.fromEntries(
       slots.map((slot) => [
         slot.key,
-        { name: slot.listingName, address: slot.initial?.address ?? "" },
+        {
+          name: slot.listingName,
+          address: slot.initial?.address ?? "",
+          complete: slot.initial ? registerClinicLocationIsComplete(slot.initial) : false,
+        },
       ]),
     ),
   );
@@ -103,7 +109,7 @@ export function RegisterClinicsFields({
   const updateSummary = (key: string, patch: Partial<SlotSummary>) =>
     setSummaries((current) => ({
       ...current,
-      [key]: { name: null, address: "", ...current[key], ...patch },
+      [key]: { name: null, address: "", complete: false, ...current[key], ...patch },
     }));
 
   const addSlot = () => {
@@ -129,6 +135,8 @@ export function RegisterClinicsFields({
   };
 
   const multiple = slots.length > 1;
+  // One at a time: no new row while one is still empty or half set.
+  const unfinished = slots.findIndex((slot) => !summaries[slot.key]?.complete);
 
   return (
     <div ref={rootRef} className="space-y-2.5">
@@ -136,12 +144,13 @@ export function RegisterClinicsFields({
         const open = !multiple || openKey === slot.key;
         const summary = summaries[slot.key];
         const title = summary?.name || summary?.address || "Not set yet";
-        const done = Boolean(summary?.address.trim());
+        const done = Boolean(summary?.complete);
         return (
           <section
             key={slot.key}
             data-clinic-row={index}
             data-clinic-slot={slot.key}
+            data-clinic-complete={done ? "1" : "0"}
             className={
               multiple
                 ? `rounded-2xl border ${open ? "border-clinical-300 bg-white" : "border-ink-100 bg-ink-50"}`
@@ -154,7 +163,7 @@ export function RegisterClinicsFields({
                   type="button"
                   data-clinic-row-toggle
                   aria-expanded={open}
-                  onClick={() => setOpenKey(slot.key)}
+                  onClick={() => setOpenKey(open ? null : slot.key)}
                   className="flex min-h-[44px] min-w-0 flex-1 items-center gap-2.5 text-left lg:min-h-[36px]"
                 >
                   <span
@@ -187,19 +196,15 @@ export function RegisterClinicsFields({
                 index={index}
                 docCySearch
                 initialLocation={slot.initial}
+                initialClinicName={slot.listingName}
                 listingAddressHint={slot.listingAddressHint}
                 listingDistrict={slot.listingDistrict}
                 showAddLaterHint={false}
                 hideIntro={multiple}
                 heading={multiple || index > 0 ? `Clinic ${index + 1} address` : undefined}
-                onLocationChange={(location) =>
-                  updateSummary(slot.key, {
-                    address: location.address,
-                    // A different place than the listing's: drop the listing's name.
-                    ...(location.address !== (slot.initial?.address ?? "") ? { name: null } : {}),
-                  })
-                }
-                onClinicChange={(clinic) => updateSummary(slot.key, { name: clinic?.name ?? null })}
+                onLocationChange={(location) => updateSummary(slot.key, { address: location.address })}
+                onCompleteChange={(complete) => updateSummary(slot.key, { complete })}
+                onNameChange={(name) => updateSummary(slot.key, { name })}
               />
             </div>
           </section>
@@ -207,14 +212,22 @@ export function RegisterClinicsFields({
       })}
 
       {slots.length < max ? (
-        <button
-          type="button"
-          onClick={addSlot}
-          className={registerAddAnotherButtonClass}
-        >
-          <Plus className="h-4 w-4" aria-hidden />
-          Add another clinic
-        </button>
+        <div className="flex flex-wrap items-center gap-x-3">
+          <button
+            type="button"
+            onClick={addSlot}
+            disabled={unfinished !== -1}
+            className={`${registerAddAnotherButtonClass} disabled:cursor-not-allowed disabled:text-ink-400 disabled:hover:bg-transparent`}
+          >
+            <Plus className="h-4 w-4" aria-hidden />
+            Add another clinic
+          </button>
+          {unfinished !== -1 && multiple ? (
+            <span className="text-xs text-ink-500">
+              Finish clinic {unfinished + 1} to add another.
+            </span>
+          ) : null}
+        </div>
       ) : (
         <p className="text-xs text-ink-500">Maximum of {max} clinics.</p>
       )}

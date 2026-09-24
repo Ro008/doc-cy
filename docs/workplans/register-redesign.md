@@ -55,6 +55,19 @@ Files:
 - "Add another specialty" and "Add another clinic" share `registerAddAnotherButtonClass`
   (compact link-button) so step 3 still fits 1440×900
 
+### Clinic rows: rules agreed with Rocío (commit "feat(register): lock DocCy clinics, name other clinics, add clinics in order")
+- A picked **DocCy clinic is read-only**: no "Adjust pin" / "Add map pin", only "Change clinic".
+  Exception: a DocCy clinic without coordinates still asks for a pin (registration needs one).
+- **Clinic name is required** for Google / pin clinics ("Clinic name*"; prefilled from a Google
+  business name, or the claimed listing). Posted as `clinicName`, `clinic1Name`… — the server
+  **ignores it for now** (phase 2 with Livio; today the DB trigger names new clinics after the
+  professional). `doctor_locations.label` exists but is not used.
+- A clinic is **done** only with location + name and while not being searched again
+  ("Change clinic" makes it unfinished until they pick or Cancel).
+- **One at a time:** "Add another clinic" is disabled until every row is done
+  ("Finish clinic N to add another.").
+- Row headers **toggle** (the open row folds; all rows may be closed).
+
 ### Still to check
 - Mobile layout of the accordion rows and the search dropdown.
 
