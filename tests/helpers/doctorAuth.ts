@@ -71,6 +71,9 @@ function chunkString(value: string, chunkSize: number): string[] {
  * Programmatic doctor login for Playwright:
  * - Uses Supabase `signInWithPassword` (server-side, deterministic).
  * - Injects the Supabase auth session cookies in the browser.
+ * - The cookies are readable by page scripts, as a real login's are. When they
+ *   were httpOnly, client components (the agenda) had no session and read as
+ *   anon, so specs tested a browser no professional ever has.
  *
  * This avoids flakiness from UI form submit + middleware redirects.
  */
@@ -129,7 +132,7 @@ export async function signInDoctorAndSetCookies(
         return {
           name,
           value: chunkValue,
-          httpOnly: true,
+          httpOnly: false,
           secure: isHttps,
           sameSite: "Lax" as const,
           domain: cookieDomain,
@@ -205,7 +208,7 @@ export async function signInDoctorAndSetCookies(
       return {
         name,
         value: chunkValue,
-        httpOnly: true,
+        httpOnly: false,
         secure: isHttps,
         sameSite: "Lax",
         domain: cookieDomain,
@@ -225,9 +228,10 @@ export async function signInDoctorAndSetCookies(
 }
 
 /**
- * Auth-helpers cookies are httpOnly when injected in Playwright. The browser
- * client reads `document.cookie`, so tests that load public pages (finder,
- * for-professionals) need a readable copy.
+ * Rewrites the auth cookies as readable by page scripts (for sessions set some
+ * other way; `signInDoctorAndSetCookies` already sets them readable) and adds
+ * the pro session hint cookie that public pages (finder, for-professionals)
+ * use to show the signed-in header.
  */
 export async function exposeSupabaseAuthCookiesToClient(page: Page): Promise<void> {
   const supabaseUrl = (
