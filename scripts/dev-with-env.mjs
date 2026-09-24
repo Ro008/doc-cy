@@ -3,7 +3,9 @@ import { spawn } from "node:child_process";
 import { config as loadEnv } from "dotenv";
 
 const envFile = process.argv[2] || ".env.local";
-const port = process.argv[3] || "3000";
+// PORT (set by the preview harness's autoPort assignment) takes priority over
+// the positional arg, so a fixed port passed here doesn't fight an assigned one.
+const port = process.env.PORT || process.argv[3] || "3000";
 
 loadEnv({ path: envFile, override: true });
 
