@@ -925,6 +925,7 @@ export default async function RegisterPage({ searchParams }: PageProps) {
                           { value: "female", label: "Female" },
                         ]}
                         errorMessage="Please select your gender."
+                        defaultValue={claimPrefill?.gender}
                       />
                       <RegisterChoiceField
                         name="gesy"
@@ -936,6 +937,7 @@ export default async function RegisterPage({ searchParams }: PageProps) {
                           { value: "no", label: "No" },
                         ]}
                         errorMessage="Please tell us whether you work with GeSY."
+                        defaultValue={claimPrefill?.gesy}
                       />
                     </div>
                     <div className="grid gap-4 sm:grid-cols-2 sm:gap-3">

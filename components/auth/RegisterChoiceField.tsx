@@ -17,6 +17,7 @@ export function RegisterChoiceField({
   question,
   options,
   errorMessage,
+  defaultValue,
 }: {
   name: string;
   fieldKey: string;
@@ -26,6 +27,8 @@ export function RegisterChoiceField({
   question: string;
   options: readonly RegisterChoiceOption[];
   errorMessage: string;
+  /** Preselected option (claim prefill); omit to start unanswered. */
+  defaultValue?: string | null;
 }) {
   const questionId = `register-${fieldKey}-question`;
   return (
@@ -56,6 +59,7 @@ export function RegisterChoiceField({
                 type="radio"
                 name={name}
                 value={option.value}
+                defaultChecked={defaultValue === option.value}
                 required
                 className="peer sr-only"
               />

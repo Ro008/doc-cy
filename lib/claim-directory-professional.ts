@@ -74,7 +74,19 @@ export type RegisterClaimPrefill = {
   district: string | null;
   addressHint: string | null;
   clinics: RegisterClaimClinic[];
+  /** From `professionals.gender`; null when the listing does not say. */
+  gender: "female" | "male" | null;
+  /**
+   * "yes" only when the listing is a GeSY one. `is_gesy` defaults to false for
+   * listings from other sources, which means "unknown", so it never prefills "no".
+   */
+  gesy: "yes" | null;
 };
+
+function claimGender(raw: string | null | undefined): "female" | "male" | null {
+  const value = String(raw ?? "").trim().toLowerCase();
+  return value === "female" || value === "male" ? value : null;
+}
 
 type ClaimClinicNested = {
   name?: string | null;
@@ -292,6 +304,8 @@ export function toRegisterClaimPrefill(row: {
   phone?: string | null;
   address?: string | null;
   clinic_address?: string | null;
+  gender?: string | null;
+  is_gesy?: boolean | null;
 }): RegisterClaimPrefill {
   const name = String(row.name ?? "").trim();
   const labels = listingSpecialtyLabels(row);
@@ -308,6 +322,8 @@ export function toRegisterClaimPrefill(row: {
     addressHint:
       String(row.address ?? "").trim() || String(row.clinic_address ?? "").trim() || null,
     clinics: [],
+    gender: claimGender(row.gender),
+    gesy: row.is_gesy === true ? "yes" : null,
   };
 }
 
@@ -489,7 +505,7 @@ export async function loadUnregisteredProfessionalForRegisterClaim(
   const { data, error } = await supabase
     .from("professionals")
     .select(
-      `id, slug, name, district, town, address, clinic_address, latitude, longitude, ${SPECIALTY_LINKS_SELECT}`,
+      `id, slug, name, district, town, address, clinic_address, latitude, longitude, gender, is_gesy, ${SPECIALTY_LINKS_SELECT}`,
     )
     .eq("id", id)
     .eq("is_registered", false)

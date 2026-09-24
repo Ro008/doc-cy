@@ -199,6 +199,22 @@ describe("register claim from finder card", () => {
     assert.deepEqual(prefill.clinics, []);
   });
 
+  it("prefills gender and GeSY from the listing, only when the listing knows them", () => {
+    const gesyListing = toRegisterClaimPrefill({ ...maria, gender: "female", is_gesy: true });
+    assert.equal(gesyListing.gender, "female");
+    assert.equal(gesyListing.gesy, "yes");
+
+    // Stored casing varies (older imports used "Male").
+    assert.equal(toRegisterClaimPrefill({ ...maria, gender: "Male" }).gender, "male");
+
+    // is_gesy defaults to false for listings that did not come from GeSY: that means
+    // "unknown", not "no", so the question stays unanswered.
+    const manualListing = toRegisterClaimPrefill({ ...maria, gender: null, is_gesy: false });
+    assert.equal(manualListing.gender, null);
+    assert.equal(manualListing.gesy, null);
+    assert.equal(toRegisterClaimPrefill({ ...maria, gender: "unknown" }).gender, null);
+  });
+
   it("maps legacy directory specialties onto current register master labels", () => {
     const prefill = toRegisterClaimPrefill({
       id: "55555555-5555-5555-5555-555555555555",
