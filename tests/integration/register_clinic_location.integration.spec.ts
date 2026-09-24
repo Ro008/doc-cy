@@ -1,5 +1,8 @@
 import { expect, test, type Page } from "@playwright/test";
-import { gotoRegisterPracticeStep } from "./helpers/goto-register-practice-step";
+import {
+  gotoRegisterPracticeStep,
+  switchRegisterClinicToGoogle,
+} from "./helpers/goto-register-practice-step";
 
 /**
  * The clinic field used to accept nothing but a Google Places pick, so a doctor
@@ -28,6 +31,8 @@ test.describe("Integration UI: register clinic location", { tag: "@pr-e2e" }, ()
   test.beforeEach(async ({ page }) => {
     await page.goto("/register");
     await gotoRegisterPracticeStep(page);
+    // DocCy's clinic search is the default; these cover the Google / manual path.
+    await switchRegisterClinicToGoogle(page);
   });
 
   test("lets a doctor place the clinic without a Google match", async ({ page }) => {
@@ -77,7 +82,7 @@ test.describe("Integration UI: register clinic location", { tag: "@pr-e2e" }, ()
 
     // Still editable afterwards, both ways.
     await expect(page.getByRole("button", { name: "Adjust pin on map" })).toBeVisible();
-    await page.getByRole("button", { name: "Change clinic address" }).click();
+    await page.getByRole("button", { name: "Change clinic", exact: true }).click();
     await expect(page.locator("#register-clinic-address")).toBeVisible();
 
     // Opening the search by mistake must not wipe the saved location.
@@ -151,5 +156,21 @@ test.describe("Integration UI: register clinic location", { tag: "@pr-e2e" }, ()
     await summary.getByRole("button", { name: "Clinic address" }).click();
 
     await expect(page.locator("#register-clinic-address")).toBeFocused();
+  });
+});
+
+test.describe("Integration UI: register clinic default search", { tag: "@pr-e2e" }, () => {
+  test.describe.configure({ timeout: 90_000 });
+
+  test("the missing-fields summary points at the DocCy search by default", async ({ page }) => {
+    await page.goto("/register");
+    await gotoRegisterPracticeStep(page);
+    await page.getByRole("button", { name: /Submit My Application/i }).click();
+
+    const summary = page.getByTestId("register-missing-summary");
+    await expect(summary).toBeVisible();
+    await summary.getByRole("button", { name: "Clinic address" }).click();
+
+    await expect(page.getByTestId("register-clinic-search-0")).toBeFocused();
   });
 });

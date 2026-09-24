@@ -45,7 +45,7 @@ import {
   readRegisterClinicsFromFormData,
   shouldAllowRegisterClinicE2eFallback,
 } from "@/lib/register-clinic-location";
-import { RegisterClinicAddressField } from "@/components/auth/RegisterClinicAddressField";
+import { RegisterClinicsFields } from "@/components/auth/RegisterClinicsFields";
 import { RegisterChoiceField } from "@/components/auth/RegisterChoiceField";
 import { RegisterPhoneField } from "@/components/auth/RegisterPhoneField";
 import { RegisterEmailField } from "@/components/auth/RegisterEmailField";
@@ -57,7 +57,6 @@ import {
   splitProfessionalFullName,
 } from "@/lib/doctor-display-name";
 import { MAX_DOCTOR_LOCATIONS } from "@/lib/doctor-locations";
-import { clinicLocationFromParts } from "@/lib/clinic-location";
 import {
   PASSWORD_MAX_LENGTH,
   PASSWORD_MIN_LENGTH,
@@ -775,8 +774,6 @@ export default async function RegisterPage({ searchParams }: PageProps) {
   }
   const claimName = splitProfessionalFullName(claimPrefill?.name);
   const claimClinics = claimPrefill?.clinics ?? [];
-  const clinicSlots =
-    claimClinics.length > 0 ? claimClinics.slice(0, MAX_DOCTOR_LOCATIONS) : [null];
 
   const planTicket = registerPlanTicket(await foundersAvailability);
 
@@ -985,9 +982,9 @@ export default async function RegisterPage({ searchParams }: PageProps) {
                     step={3}
                     title="Practice"
                     description={
-                      clinicSlots.length > 1
-                        ? "Confirm each clinic already linked to this listing. You can still add more later in Settings."
-                        : "Your specialty, license, and the clinic patients will visit. Extra clinics can be added later in Settings."
+                      claimClinics.length > 1
+                        ? "Confirm the clinics from your listing, and add any others you work at."
+                        : "Your specialty, licence, and every clinic where patients can see you."
                     }
                   >
                     <RegisterSpecialtyFields
@@ -995,41 +992,13 @@ export default async function RegisterPage({ searchParams }: PageProps) {
                       initialSpecialties={claimPrefill?.specialties}
                       specialtyOptions={specialtyOptions}
                     />
-                    {clinicSlots.map((clinic, index) => {
-                      const initialLocation = clinic
-                        ? clinicLocationFromParts({
-                            address: clinic.address,
-                            latitude: clinic.latitude,
-                            longitude: clinic.longitude,
-                            placeId: clinic.placeId,
-                            district: clinic.district,
-                            town: clinic.town,
-                          })
-                        : null;
-                      return (
-                        <RegisterClinicAddressField
-                          key={`${claimPrefill?.id ?? "new"}-${index}`}
-                          index={index}
-                          initialLocation={initialLocation}
-                          listingAddressHint={
-                            clinic?.address ??
-                            (index === 0 ? claimPrefill?.addressHint : null)
-                          }
-                          listingDistrict={
-                            clinic?.district ??
-                            (index === 0 ? claimPrefill?.district : null)
-                          }
-                          showAddLaterHint={clinicSlots.length === 1}
-                          heading={
-                            clinicSlots.length > 1
-                              ? clinic?.name
-                                ? `Clinic ${index + 1}: ${clinic.name}`
-                                : `Clinic ${index + 1} address`
-                              : undefined
-                          }
-                        />
-                      );
-                    })}
+                    <RegisterClinicsFields
+                      key={claimPrefill?.id ?? "new"}
+                      claimClinics={claimClinics}
+                      listingAddressHint={claimPrefill?.addressHint ?? null}
+                      listingDistrict={claimPrefill?.district ?? null}
+                      max={MAX_DOCTOR_LOCATIONS}
+                    />
                     <div
                       className="group"
                       data-validate-field="1"

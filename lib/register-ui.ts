@@ -20,3 +20,7 @@ export const registerSubmitClass = registerPrimaryButtonClass;
 
 export const registerSecondaryButtonClass =
   "inline-flex w-full items-center justify-center rounded-xl border border-ink-200 bg-white px-6 py-3 text-sm font-semibold text-ink-800 transition hover:border-clinical-300 hover:text-clinical-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-500 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-50 sm:w-auto";
+
+/** "+ Add another specialty / clinic": one compact brand link-button for both lists. */
+export const registerAddAnotherButtonClass =
+  "-ml-2 inline-flex min-h-[36px] items-center gap-1.5 rounded-lg px-2 text-sm font-bold text-clinical-800 transition hover:bg-clinical-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-500 lg:min-h-[32px]";

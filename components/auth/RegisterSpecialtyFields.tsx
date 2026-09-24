@@ -4,6 +4,7 @@ import * as React from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { SpecialtyCombobox } from "@/components/specialties/SpecialtyCombobox";
 import {
+  registerAddAnotherButtonClass,
   registerFieldErrorClass,
   registerHelperClass,
   registerInputClass,
@@ -248,7 +249,7 @@ export function RegisterSpecialtyFields({
               return [...prev, newRow(maxIndex + 1)];
             })
           }
-          className="inline-flex items-center gap-1.5 rounded-xl border border-dashed border-ink-300 bg-ink-50/80 px-3 py-2 text-sm font-semibold text-ink-700 transition hover:border-clinical-400 hover:bg-clinical-50 hover:text-clinical-800"
+          className={registerAddAnotherButtonClass}
         >
           <Plus className="h-4 w-4" aria-hidden />
           Add another specialty

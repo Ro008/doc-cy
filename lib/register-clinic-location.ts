@@ -120,6 +120,8 @@ export function registerClinicInputNames(index: number): {
   district: string;
   town: string;
   confirmed: string;
+  /** DocCy clinic picked from the register search (not read by the server yet). */
+  clinicId: string;
 } {
   if (index <= 0) {
     return {
@@ -130,6 +132,7 @@ export function registerClinicInputNames(index: number): {
       district: "district",
       town: "town",
       confirmed: "clinicConfirmed",
+      clinicId: "clinicId",
     };
   }
   return {
@@ -140,6 +143,7 @@ export function registerClinicInputNames(index: number): {
     district: `clinic${index}District`,
     town: `clinic${index}Town`,
     confirmed: `clinic${index}Confirmed`,
+    clinicId: `clinic${index}Id`,
   };
 }
 

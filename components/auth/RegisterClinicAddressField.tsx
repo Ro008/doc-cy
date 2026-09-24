@@ -3,6 +3,8 @@
 import * as React from "react";
 import { Check, MapPin, Move, Search, Undo2 } from "lucide-react";
 import { ClinicAddressSearchInput } from "@/components/clinic/ClinicAddressSearchInput";
+import { RegisterClinicSearchInput } from "@/components/auth/RegisterClinicSearchInput";
+import type { ClinicSearchCandidate } from "@/lib/register-clinic-search";
 import { ClinicPinAdjustSheet } from "@/components/clinic/ClinicPinAdjustSheet";
 import { ClinicPinMap } from "@/components/clinic/ClinicPinMap";
 import {
@@ -165,6 +167,8 @@ export function RegisterClinicAddressField({
   hideIntro = false,
   inputId,
   tone = "light",
+  docCySearch = false,
+  onClinicChange,
 }: {
   listingAddressHint?: string | null;
   /** District from the finder listing — used when confirming the listing address. */
@@ -182,6 +186,13 @@ export function RegisterClinicAddressField({
   inputId?: string;
   /** Settings uses dark chrome; registration keeps the light wizard. */
   tone?: Tone;
+  /**
+   * Register: search DocCy's own clinics first, Google Maps as the fallback.
+   * Settings keeps the Google-only search.
+   */
+  docCySearch?: boolean;
+  /** The DocCy clinic picked from that search (null for Google / pin / listing). */
+  onClinicChange?: (clinic: { id: string; name: string } | null) => void;
 } = {}) {
   const styles = toneStyles[tone];
   const linkClass = styles.link;
@@ -218,6 +229,24 @@ export function RegisterClinicAddressField({
     starting.address.trim() ? "confirmed" : "search",
   );
   const [searchSession, setSearchSession] = React.useState(0);
+  const [searchSource, setSearchSource] = React.useState<"doccy" | "google">(
+    docCySearch ? "doccy" : "google",
+  );
+  const [chosenClinic, setChosenClinic] = React.useState<{ id: string; name: string } | null>(
+    null,
+  );
+  const onClinicChangeRef = React.useRef(onClinicChange);
+  React.useEffect(() => {
+    onClinicChangeRef.current = onClinicChange;
+  }, [onClinicChange]);
+  const skipClinicNotifyRef = React.useRef(true);
+  React.useEffect(() => {
+    if (skipClinicNotifyRef.current) {
+      skipClinicNotifyRef.current = false;
+      return;
+    }
+    onClinicChangeRef.current?.(chosenClinic);
+  }, [chosenClinic]);
   /** Coordinates before the doctor moved the pin, so Undo can snap back. */
   const [origin, setOrigin] = React.useState<Coordinates | null>(null);
   const [sheetOpen, setSheetOpen] = React.useState(false);
@@ -396,7 +425,42 @@ export function RegisterClinicAddressField({
     setMode("manual");
   };
 
+  /** A clinic from DocCy's own list: its stored address and pin, no Google round trip. */
+  const chooseDocCyClinic = (clinic: ClinicSearchCandidate) => {
+    const next = clinicLocationFromParts({
+      address: clinic.address,
+      latitude: clinic.latitude,
+      longitude: clinic.longitude,
+      placeId: clinic.placeId,
+      district: clinic.district,
+      town: clinic.town,
+    });
+    setChosenClinic({ id: clinic.id, name: clinic.name });
+    setLocation(next);
+    setManualAddressDraft(next.address);
+    setStreetTouched(true);
+    setStreetError(false);
+    if (hasConfirmedClinicCoordinates(next) && next.district) {
+      setOrigin(clinicLocationCoordinates(next));
+      setMode("confirmed");
+      return;
+    }
+    // Listed without a pin: keep its address and let them place the pin.
+    const center =
+      next.district && isCyprusDistrict(next.district)
+        ? fallbackDistrictCoordinates(next.district)
+        : null;
+    if (center) {
+      setOrigin(center);
+      setLocation(
+        manualClinicLocation({ address: next.address, district: next.district, coords: center }),
+      );
+    }
+    setMode("manual");
+  };
+
   const startManual = () => {
+    setChosenClinic(null);
     setLocation(emptyClinicLocation());
     setOrigin(null);
     setManualAddressDraft("");
@@ -583,7 +647,9 @@ export function RegisterClinicAddressField({
           <p className={styles.helper}>
             {hint
               ? "Confirm the clinic from your listing, or search Google / drop a pin if you need a different one."
-              : "Search your clinic on Google."}
+              : docCySearch
+                ? "Find your clinic in DocCy by name, street or town."
+                : "Search your clinic on Google."}
             {showAddLaterHint && !hint ? " More clinics can be added later in Settings." : null}
           </p>
           {hint ? (
@@ -639,21 +705,28 @@ export function RegisterClinicAddressField({
             </p>
             <span
               className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
-                location.placeId
+                chosenClinic || location.placeId
                   ? styles.badgeGoogle
                   : coords
                     ? styles.badgePin
                     : styles.badgeSaved
               }`}
             >
-              {location.placeId
+              {chosenClinic
+                ? "From DocCy"
+                : location.placeId
                 ? "From Google"
                 : coords
                   ? "Pin + typed address"
                   : "Saved address"}
             </span>
           </div>
-          <p className={`mt-1.5 ${styles.body}`}>{location.address}</p>
+          {chosenClinic ? (
+            <p className={`mt-1.5 font-bold ${styles.body}`}>{chosenClinic.name}</p>
+          ) : null}
+          <p className={`${chosenClinic ? "mt-0.5" : "mt-1.5"} ${styles.body}`}>
+            {location.address}
+          </p>
           {location.district ? (
             <p className={`mt-1 ${styles.muted}`}>
               District:{" "}
@@ -724,7 +797,7 @@ export function RegisterClinicAddressField({
               </button>
             )}
             <button type="button" onClick={startSearch} className={linkClass}>
-              Change clinic address
+              {docCySearch ? "Change clinic" : "Change clinic address"}
             </button>
           </div>
         </div>
@@ -755,6 +828,41 @@ export function RegisterClinicAddressField({
               </div>
             </div>
           ) : null}
+          {searchSource === "doccy" ? (
+            <>
+              <RegisterClinicSearchInput
+                key={searchSession}
+                index={index}
+                onSelect={chooseDocCyClinic}
+                onSearchGoogle={() => {
+                  setChosenClinic(null);
+                  setSearchSource("google");
+                }}
+              />
+              <p className={styles.helper}>
+                Can&rsquo;t find your clinic?{" "}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setChosenClinic(null);
+                    setSearchSource("google");
+                  }}
+                  className={linkClass}
+                >
+                  Search Google Maps
+                </button>
+                {location.address.trim() ? (
+                  <>
+                    {" · "}
+                    <button type="button" onClick={() => setMode("confirmed")} className={linkClass}>
+                      Keep current clinic
+                    </button>
+                  </>
+                ) : null}
+              </p>
+            </>
+          ) : (
+            <>
           <ClinicAddressSearchInput
             key={searchSession}
             id={
@@ -767,6 +875,7 @@ export function RegisterClinicAddressField({
               // Address text wins over a wrong component/centroid district, so a
               // Nicosia street never lands under Paphos from a Google quirk.
               const aligned = clinicLocationWithAddressAlignedDistrict(nextValue);
+              setChosenClinic(null);
               setLocation(aligned);
               if (hasConfirmedClinicCoordinates(aligned)) {
                 setOrigin(clinicLocationCoordinates(aligned));
@@ -782,7 +891,17 @@ export function RegisterClinicAddressField({
             <button type="button" onClick={startManual} className={linkClass}>
               Drop a pin instead
             </button>
+            {docCySearch ? (
+              <>
+                {" · "}
+                <button type="button" onClick={() => setSearchSource("doccy")} className={linkClass}>
+                  Search DocCy clinics
+                </button>
+              </>
+            ) : null}
           </p>
+            </>
+          )}
         </>
       ) : null}
 
@@ -1057,6 +1176,13 @@ export function RegisterClinicAddressField({
             aria-hidden
           />
           <input type="hidden" name={names.town} value={location.town ?? ""} readOnly aria-hidden />
+          <input
+            type="hidden"
+            name={names.clinicId}
+            value={chosenClinic?.id ?? ""}
+            readOnly
+            aria-hidden
+          />
 
           <p className={registerFieldErrorClass}>
             Search for your clinic on Google, or drop a pin and type the address patients will see.

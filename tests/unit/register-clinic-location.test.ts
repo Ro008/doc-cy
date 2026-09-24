@@ -98,12 +98,14 @@ describe("registerClinicInputNames", () => {
       district: "district",
       town: "town",
       confirmed: "clinicConfirmed",
+      clinicId: "clinicId",
     });
   });
 
   it("namespaces extra clinics", () => {
     assert.equal(registerClinicInputNames(1).address, "clinic1Address");
     assert.equal(registerClinicInputNames(1).district, "clinic1District");
+    assert.equal(registerClinicInputNames(1).clinicId, "clinic1Id");
   });
 });
 

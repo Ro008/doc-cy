@@ -8,6 +8,7 @@ export type PublicApiRateLimitBucket =
   | "contactReveal"
   | "passwordReset"
   | "finderBrowse"
+  | "clinicSearch"
   | "internalAuthLogin";
 
 type RateLimitConfig = {
@@ -34,6 +35,11 @@ export const PUBLIC_API_RATE_LIMITS: Record<PublicApiRateLimitBucket, RateLimitC
    * real patient comparing several areas in one sitting.
    */
   finderBrowse: { limit: 15, windowMs: 60 * 60 * 1000 },
+  /**
+   * Register clinic type-ahead (reads public clinic names/addresses). One lookup
+   * per pause while typing, a few per clinic, up to five clinics per sign-up.
+   */
+  clinicSearch: { limit: 150, windowMs: 60 * 60 * 1000 },
   /**
    * Internal/founder directory login. A single shared secret, previously
    * with no limit at all. Every attempt (right or wrong) counts; the 4th

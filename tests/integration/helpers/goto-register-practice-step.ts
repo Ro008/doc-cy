@@ -83,3 +83,13 @@ export async function gotoRegisterPracticeStep(page: Page): Promise<void> {
   await expect(page.getByTestId("register-step-3")).toBeVisible();
   await expect(page.getByTestId("register-specialty-trigger")).toBeVisible();
 }
+
+/**
+ * Step 3 searches DocCy's clinics first. Switch clinic row `index` to the Google
+ * Maps search (and its "Drop a pin instead" fallback).
+ */
+export async function switchRegisterClinicToGoogle(page: Page, index = 0): Promise<void> {
+  const row = page.locator(`[data-clinic-row='${index}']`);
+  await row.getByRole("button", { name: "Search Google Maps", exact: true }).first().click();
+  await expect(row.getByRole("button", { name: "Drop a pin instead" })).toBeVisible();
+}
