@@ -26,6 +26,7 @@ import {
   EMAIL_TEXT,
   EMAIL_HEADING,
 } from "@/lib/email-brand";
+import { appointmentCalendarPath } from "@/lib/appointment-links";
 
 const CAL_GOOGLE_STYLE = EMAIL_CAL_GOOGLE_BTN;
 const CAL_ICS_STYLE = EMAIL_CAL_ICS_BTN;
@@ -128,7 +129,7 @@ export function buildPatientAppointmentConfirmedEmailContent(opts: {
   });
 
   const patientIcsUrl = new URL(
-    `/api/appointments/${encodeURIComponent(appointmentId)}/calendar`,
+    appointmentCalendarPath(appointmentId, "patient") ?? "/",
     siteUrl
   ).toString();
 

@@ -27,6 +27,7 @@ import { buildGoogleCalendarUrl } from "@/lib/patient-calendar-event";
 import { appointmentClinicCopy } from "@/lib/appointment-clinic-copy";
 import { loadDoctorLocations, primaryDoctorLocation } from "@/lib/load-doctor-locations";
 import { locationToSettingsRow } from "@/lib/doctor-locations";
+import { appointmentCalendarPath } from "@/lib/appointment-links";
 
 export async function POST(req: NextRequest) {
   const authSupabase = createRouteHandlerClient({ cookies });
@@ -336,7 +337,7 @@ export async function POST(req: NextRequest) {
     startUtc,
     endUtc,
   });
-  const iCalUrl = `/api/appointments/${encodeURIComponent(String(inserted.id))}/calendar?audience=doctor`;
+  const iCalUrl = appointmentCalendarPath(String(inserted.id), "professional") ?? "";
   const profileUrl = doctor.slug
     ? new URL(`/${doctor.slug}`, siteUrl).toString()
     : null;

@@ -8,7 +8,7 @@ export {revalidate};
 
 type Props = {
   params: {locale: string; slug: string};
-  searchParams?: {appointmentId?: string};
+  searchParams?: {appointmentId?: string; sig?: string};
 };
 
 export default async function LocaleBookingRequestSentPage({

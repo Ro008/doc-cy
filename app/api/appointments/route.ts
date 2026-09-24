@@ -48,6 +48,7 @@ import {
   formatAppointmentClinicEmailText,
 } from "@/lib/appointment-clinic-copy";
 import { enforcePublicApiRateLimit } from "@/lib/public-api-rate-limit";
+import { appointmentRequestSentQuery } from "@/lib/appointment-links";
 import { locationToSettingsRow } from "@/lib/doctor-locations";
 import { loadDoctorLocations, primaryDoctorLocation } from "@/lib/load-doctor-locations";
 import { professionalAccountEmail } from "@/lib/professional-account-contact";
@@ -538,6 +539,8 @@ ${EMAIL_SHELL_CLOSE}`;
   return NextResponse.json(
     {
       appointment: inserted,
+      // Signed query for the request-sent page (the browser can't sign it).
+      requestSentQuery: appointmentRequestSentQuery(String(inserted.id)),
       message: "Your booking request was submitted.",
     },
     { status: 201 }
