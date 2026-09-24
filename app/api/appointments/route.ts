@@ -399,7 +399,7 @@ export async function POST(req: NextRequest) {
 
     // 23505: unique violation — e.g. UNIQUE(doctor_id, appointment_datetime) while a
     // NEEDS_RESCHEDULE row still holds the original instant. See
-    // supabase/appointments_unique_slot_active_only.sql (partial unique).
+    // the partial unique index appointments_doctor_datetime_active_booking_key.
     const code = (insertError as any)?.code;
     if (code === "23505") {
       return NextResponse.json(
