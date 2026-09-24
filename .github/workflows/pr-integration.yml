@@ -117,6 +117,10 @@ jobs:
       - name: Run unit tests (finder distance / clinic location)
         run: npm run test:unit
 
+      # `next build` typechecks app code only; this also covers tests/ and scripts/.
+      - name: Typecheck (whole project, including tests)
+        run: npx tsc --noEmit
+
       - name: Build Next.js (PR branch)
         run: npm run build
 
