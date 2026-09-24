@@ -80,7 +80,7 @@ test.describe("Manual booking flow @booking-creates", { tag: ["@pr-e2e", "@pr-e2
       // position in the grid finds it again.
       const bookedDayIndex = await firstAvailableDay.evaluate((el) =>
         Array.from(
-          el.closest(".rdp")?.querySelectorAll('button[name="day"]') ?? [],
+          el.closest(".rdp-dark")?.querySelectorAll('button[name="day"]') ?? [],
         ).indexOf(el as HTMLButtonElement),
       );
       expect(bookedDayIndex).toBeGreaterThanOrEqual(0);
