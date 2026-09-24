@@ -402,6 +402,62 @@ test.describe("Integration UI: register form guidance", { tag: "@pr-e2e" }, () =
     expect(Math.abs(a.height - b.height), "same height").toBeLessThanOrEqual(1);
   });
 
+  test("one specialty has one label; the group title comes with the second", async ({ page }) => {
+    await gotoRegisterPracticeStep(page);
+    const groupTitle = page.getByTestId("register-specialties-title");
+    await expect(groupTitle).toHaveCount(0);
+    await expect(page.locator("label[for='register-specialty-trigger']")).toBeVisible();
+
+    await page.getByRole("button", { name: /Add another specialty/i }).click();
+    await expect(groupTitle).toBeVisible();
+  });
+
+  test("the licence number needs 3 characters and a digit", async ({ page }) => {
+    await gotoRegisterPracticeStep(page);
+    await page.getByTestId("register-specialty-trigger").click();
+    await page.getByRole("button", { name: "Cardiology", exact: true }).click();
+
+    const specialties = page.locator("[data-field-key='specialties']");
+    const licence = page.getByTestId("register-license-0");
+    const hint = page.getByText("Use at least 3 characters, including a number.");
+
+    await licence.fill("ab");
+    await licence.blur();
+    await expect(hint).toBeVisible();
+    await expect(licence).toHaveAttribute("aria-invalid", "true");
+    await expect(specialties).toHaveAttribute("data-complete", "0");
+
+    await licence.fill("A12");
+    await expect(hint).toHaveCount(0);
+    await expect(specialties).toHaveAttribute("data-complete", "1");
+  });
+
+  test("\"Other\" reads as chosen and needs at least 3 letters", async ({ page }) => {
+    await gotoRegisterPracticeStep(page);
+    await page.getByTestId("register-specialty-trigger").click();
+    await page.getByRole("button", { name: "Other (Specify)", exact: true }).click();
+    await page.getByTestId("register-license-0").fill("1234");
+
+    // The chosen "Other" reads like any chosen specialty, not like the placeholder.
+    await expect(page.getByTestId("register-specialty-trigger")).toHaveAttribute(
+      "data-has-value",
+      "1",
+    );
+
+    const specialties = page.locator("[data-field-key='specialties']");
+    const describe = page.getByLabel(/Describe your specialty/);
+    const hint = page.getByText("Describe your specialty in at least 3 letters.");
+
+    await describe.fill("ab");
+    await describe.blur();
+    await expect(hint).toBeVisible();
+    await expect(specialties).toHaveAttribute("data-complete", "0");
+
+    await describe.fill("Sports medicine");
+    await expect(hint).toHaveCount(0);
+    await expect(specialties).toHaveAttribute("data-complete", "1");
+  });
+
   test("submitted screen asks them to confirm email with a link, not a code", async ({ page }) => {
     await page.goto("/register?submitted=1");
     await expect(

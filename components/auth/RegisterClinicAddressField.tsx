@@ -642,7 +642,8 @@ export function RegisterClinicAddressField({
         zoom={previewZoom}
         interactive={false}
         className="mt-2"
-        frameClassName="h-40"
+        // Registration keeps step 3 short; "Adjust on map" opens the full sheet anyway.
+        frameClassName={tone === "light" ? "h-32" : "h-40"}
         label="Clinic location preview"
       />
       <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">

@@ -37,6 +37,10 @@ type Props = {
     specialty: string;
     fromMaster: boolean;
   }) => void;
+  /** Register: extra classes for the "Describe your specialty" block (e.g. full row width). */
+  otherFieldClassName?: string;
+  /** Register: shown under "Describe your specialty" once they leave it, while it is set. */
+  otherError?: string | null;
 };
 
 export function SpecialtyCombobox({
@@ -50,6 +54,8 @@ export function SpecialtyCombobox({
   excludeSpecialties,
   visibleLabel,
   onSelectionChange,
+  otherFieldClassName = "",
+  otherError = null,
 }: Props) {
   const initialTrim = initialSpecialty.trim();
   const initialMatch = matchCatalogueSpecialty(options, initialTrim);
@@ -71,6 +77,7 @@ export function SpecialtyCombobox({
     startsAsMaster || !initialTrim ? "" : initialTrim
   );
 
+  const [otherTouched, setOtherTouched] = React.useState(false);
   const rootRef = React.useRef<HTMLDivElement>(null);
 
   const resolvedSpecialty =
@@ -115,6 +122,9 @@ export function SpecialtyCombobox({
         ? SPECIALTY_OTHER_LABEL
         : "Select specialty…";
 
+  // "Other (Specify)" is a choice like any specialty, not the placeholder.
+  const hasValue = mode === "other" || Boolean(masterValue);
+
   const inputBase =
     variant === "register"
       ? // Same box as the register text inputs, so it lines up with the licence field.
@@ -156,12 +166,13 @@ export function SpecialtyCombobox({
         type="button"
         data-testid={`${id}-trigger`}
         data-focus-target="true"
+        data-has-value={hasValue ? "1" : "0"}
         aria-haspopup="listbox"
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
         className={`flex w-full items-center justify-between gap-2 text-left ${inputBase}`}
       >
-        <span className={mode === "master" && masterValue ? "text-ink-900" : "text-ink-400"}>
+        <span className={hasValue ? "text-ink-900" : "text-ink-400"}>
           {displayLabel}
         </span>
         <ChevronDown
@@ -244,18 +255,25 @@ export function SpecialtyCombobox({
       )}
 
       {mode === "other" && (
-        <div className="mt-3">
+        <div className={`mt-3 ${otherFieldClassName}`}>
           <label
             htmlFor={`${id}-other`}
             className={
               variant === "register"
-                ? "block text-sm font-medium text-ink-800"
+                ? "block text-[13px] font-semibold text-ink-800"
                 : "text-xs font-medium text-slate-400"
             }
           >
-            Describe your specialty <span className="text-amber-700">*</span>
+            Describe your specialty
+            <span className={variant === "register" ? "text-red-600" : "text-amber-700"}>*</span>
           </label>
-          <p className="mt-0.5 text-[11px] text-slate-500">
+          <p
+            className={
+              variant === "register"
+                ? "mt-1 text-xs leading-relaxed text-ink-500"
+                : "mt-0.5 text-[11px] text-slate-500"
+            }
+          >
             Our team will review and may map it to a standard category.
           </p>
           <input
@@ -263,11 +281,21 @@ export function SpecialtyCombobox({
             type="text"
             value={otherText}
             onChange={(e) => setOtherText(e.target.value)}
+            onBlur={() => setOtherTouched(true)}
             required
             maxLength={120}
+            aria-invalid={otherTouched && otherError ? true : undefined}
+            aria-describedby={otherTouched && otherError ? `${id}-other-error` : undefined}
             placeholder="e.g. Sports medicine, Clinical genetics…"
-            className={inputBase}
+            className={`${inputBase}${
+              otherTouched && otherError ? " border-red-400 focus:border-red-400 focus:ring-red-400/25" : ""
+            }`}
           />
+          {otherTouched && otherError ? (
+            <p id={`${id}-other-error`} className="mt-1 text-xs text-red-600">
+              {otherError}
+            </p>
+          ) : null}
         </div>
       )}
     </div>

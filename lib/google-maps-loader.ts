@@ -5,6 +5,20 @@ export function getGoogleMapsApiKey(): string | null {
   return key || null;
 }
 
+/**
+ * English and Cyprus-biased, whatever the browser language: the addresses we save
+ * from Places must read "Nicosia, Cyprus", not "Lefkosia, Chipre".
+ */
+export function googleMapsScriptUrl(apiKey: string): string {
+  const params = new URLSearchParams({
+    key: apiKey,
+    libraries: "places",
+    language: "en",
+    region: "CY",
+  });
+  return `https://maps.googleapis.com/maps/api/js?${params.toString()}`;
+}
+
 export function loadGoogleMapsPlaces(): Promise<typeof google.maps> {
   if (typeof window === "undefined") {
     return Promise.reject(new Error("Google Maps can only load in the browser."));
@@ -40,7 +54,7 @@ export function loadGoogleMapsPlaces(): Promise<typeof google.maps> {
     }
 
     const script = document.createElement("script");
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}&libraries=places`;
+    script.src = googleMapsScriptUrl(apiKey);
     script.async = true;
     script.defer = true;
     script.dataset.doccyGoogleMaps = "true";

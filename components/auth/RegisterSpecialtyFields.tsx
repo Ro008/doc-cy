@@ -12,12 +12,18 @@ import {
 } from "@/lib/register-ui";
 import { MAX_DOCTOR_SPECIALTIES } from "@/lib/doctor-specialties";
 import { hasDuplicateSpecialtyLabels } from "@/lib/specialty-options";
+import {
+  isValidRegisterCustomSpecialty,
+  isValidRegisterLicenseNumber,
+} from "@/lib/register-specialty-rules";
 
 type RowState = {
   key: string;
   specialty: string;
   fromMaster: boolean;
   licenseNumber: string;
+  /** Left the licence field once: from then on its rule is shown. */
+  licenseTouched: boolean;
 };
 
 function newRow(index = 0): RowState {
@@ -26,7 +32,15 @@ function newRow(index = 0): RowState {
     specialty: "",
     fromMaster: true,
     licenseNumber: "",
+    licenseTouched: false,
   };
+}
+
+function rowIsValid(row: RowState): boolean {
+  const specialty = row.specialty.trim();
+  if (!specialty) return false;
+  if (!row.fromMaster && !isValidRegisterCustomSpecialty(specialty)) return false;
+  return isValidRegisterLicenseNumber(row.licenseNumber);
 }
 
 function specialtyKey(value: string): string {
@@ -62,11 +76,8 @@ export function RegisterSpecialtyFields({
   }));
 
   const hasDuplicates = hasDuplicateSpecialtyLabels(rows.map((r) => r.specialty));
-  const allFilled =
-    rows.length > 0 &&
-    rows.every(
-      (r) => r.specialty.trim().length > 0 && r.licenseNumber.trim().length > 0,
-    );
+  const allFilled = rows.length > 0 && rows.every(rowIsValid);
+  const allEntered = rows.every((r) => r.specialty.trim() && r.licenseNumber.trim());
   const formValid = allFilled && !hasDuplicates;
 
   return (
@@ -78,10 +89,13 @@ export function RegisterSpecialtyFields({
       data-field-label="Specialties and license numbers"
     >
       <div>
-        <p className={registerLabelClass}>
-          Specialties<span className="text-red-600">*</span>
-        </p>
-        <p className={registerHelperClass}>
+        {/* With one row its own "Specialty*" label is enough; the group title comes with the second. */}
+        {rows.length > 1 ? (
+          <p className={registerLabelClass} data-testid="register-specialties-title">
+            Specialties<span className="text-red-600">*</span>
+          </p>
+        ) : null}
+        <p className={rows.length > 1 ? registerHelperClass : "text-xs leading-relaxed text-ink-500"}>
           One licence number per specialty. Not listed? Pick &quot;Other&quot;.
           {initialSpecialties && initialSpecialties.length > 0
             ? " We filled this from your listing — confirm or adjust it."
@@ -132,6 +146,10 @@ export function RegisterSpecialtyFields({
               (other, otherIndex) =>
                 otherIndex !== index && specialtyKey(other.specialty) === key,
             );
+          const licenseError =
+            row.licenseTouched &&
+            row.licenseNumber.trim().length > 0 &&
+            !isValidRegisterLicenseNumber(row.licenseNumber);
           const excluded = rows
             .filter((r) => r.key !== row.key)
             .map((r) => r.specialty)
@@ -190,6 +208,13 @@ export function RegisterSpecialtyFields({
                 className: registerLabelClass,
               }}
               excludeSpecialties={excluded}
+              // "Describe your specialty" spans the specialty and licence columns.
+              otherFieldClassName="sm:w-[calc(200%+0.75rem)]"
+              otherError={
+                !row.fromMaster && row.specialty.trim() && !isValidRegisterCustomSpecialty(row.specialty)
+                  ? "Describe your specialty in at least 3 letters."
+                  : null
+              }
               onSelectionChange={(p) => {
                 setRows((prev) => {
                   let changed = false;
@@ -217,6 +242,13 @@ export function RegisterSpecialtyFields({
                 <input
                   type="text"
                   value={row.licenseNumber}
+                  onBlur={() =>
+                    setRows((prev) =>
+                      prev.map((r) => (r.key === row.key ? { ...r, licenseTouched: true } : r)),
+                    )
+                  }
+                  aria-invalid={licenseError || undefined}
+                  aria-describedby={licenseError ? `register-license-error-${index}` : undefined}
                   onChange={(e) => {
                     const value = e.target.value;
                     setRows((prev) =>
@@ -227,9 +259,19 @@ export function RegisterSpecialtyFields({
                   }}
                   autoComplete="off"
                   data-testid={`register-license-${index}`}
-                  className={registerInputClass}
+                  className={`${registerInputClass}${
+                    licenseError ? " border-red-400 focus:border-red-400 focus:ring-red-400/25" : ""
+                  }`}
                   placeholder="e.g. 1234"
                 />
+                {licenseError ? (
+                  <span
+                    id={`register-license-error-${index}`}
+                    className="mt-1 block text-xs font-normal text-red-600"
+                  >
+                    Use at least 3 characters, including a number.
+                  </span>
+                ) : null}
               </label>
               </div>
             </li>
@@ -263,7 +305,9 @@ export function RegisterSpecialtyFields({
       <p className={registerFieldErrorClass}>
         {hasDuplicates
           ? "Each specialty can only be added once."
-          : "Please add at least one specialty with its license number."}
+          : allEntered
+            ? "Check the specialty and licence details above."
+            : "Please add at least one specialty with its license number."}
       </p>
     </div>
   );

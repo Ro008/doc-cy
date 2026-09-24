@@ -3,6 +3,10 @@ import { describe, it } from "node:test";
 import { REGISTER_NAME_HTML_PATTERN, isValidRegisterName } from "../../lib/register-name";
 import { suggestRegisterEmail } from "../../lib/register-email";
 import { isStrongPassword, passwordRuleChecks } from "../../lib/password-policy";
+import {
+  isValidRegisterCustomSpecialty,
+  isValidRegisterLicenseNumber,
+} from "../../lib/register-specialty-rules";
 
 function htmlPattern(pattern: string): RegExp {
   // How Chrome 112+ applies a `pattern` attribute.
@@ -64,5 +68,30 @@ describe("password rule checklist", () => {
       const allMet = passwordRuleChecks(value).every((check) => check.met);
       assert.equal(allMet, isStrongPassword(value), value);
     }
+  });
+});
+
+describe("register licence number", () => {
+  it("needs at least 3 characters and a digit", () => {
+    assert.equal(isValidRegisterLicenseNumber("1234"), true);
+    assert.equal(isValidRegisterLicenseNumber("CY-12"), true);
+    assert.equal(isValidRegisterLicenseNumber(" 123 "), true);
+  });
+
+  it("rejects short, digit-less or blank numbers", () => {
+    assert.equal(isValidRegisterLicenseNumber("12"), false);
+    assert.equal(isValidRegisterLicenseNumber(" 1 2 "), false);
+    assert.equal(isValidRegisterLicenseNumber("abc"), false);
+    assert.equal(isValidRegisterLicenseNumber("   "), false);
+  });
+});
+
+describe("register custom specialty", () => {
+  it("needs at least 3 letters", () => {
+    assert.equal(isValidRegisterCustomSpecialty("Sports medicine"), true);
+    assert.equal(isValidRegisterCustomSpecialty("Ψυχ"), true);
+    assert.equal(isValidRegisterCustomSpecialty("ab"), false);
+    assert.equal(isValidRegisterCustomSpecialty("a 1 2 3"), false);
+    assert.equal(isValidRegisterCustomSpecialty("   "), false);
   });
 });

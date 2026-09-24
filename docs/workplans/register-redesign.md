@@ -71,18 +71,17 @@ Files:
 ### Still to check
 - Mobile layout of the accordion rows and the search dropdown.
 
-## Still pending from the step 3 analysis (not started)
-1. **Google Maps language:** `lib/google-maps-loader.ts` loads without `language=en&region=CY`,
-   so the saved clinic address follows the registrant's browser language ("Lefkosia, Chipre").
-   One-line fix, but the loader is shared (Settings, pin map) — agreed direction, not yet done.
-2. Specialty "Other (Specify)" looks unselected (grey); "Describe your specialty" has a different
-   style/half width and no minimum length (min ~3 letters).
-3. Double label "Specialties*" + "Specialty*" with a single specialty.
-4. ~~"Add another specialty" still old style.~~ Done (shared compact style with "Add another clinic").
-5. Licence number: only non-empty today → require ≥3 chars and at least one digit.
-6. Disclaimer checkbox styling (keep the legal text).
-7. Step 3 map after confirming a clinic makes the step taller than one viewport → smaller map /
-   fold after "Looks right".
+## Step 3 analysis items — done (commit "feat(register): polish step 3 fields")
+1. Google Maps loads with `language=en&region=CY` (`googleMapsScriptUrl`), shared by register,
+   Settings and the pin map: saved addresses read "Nicosia, Cyprus".
+2. "Other (Specify)" reads as chosen; "Describe your specialty" matches the register inputs, spans
+   the row, needs ≥3 letters (`isValidRegisterCustomSpecialty`).
+3. One specialty: only its "Specialty*" label; the "Specialties*" title appears from the second row.
+4. "Add another specialty" shares the compact style with "Add another clinic".
+5. Licence: ≥3 characters and a digit (`isValidRegisterLicenseNumber`, client only; the server
+   still only requires non-empty).
+6. Disclaimer checkbox restyled (brand accent, checked/invalid box states), legal text unchanged.
+7. Map preview before "Looks right" is 128px on register (Settings keeps 160px).
 
 ## Open decisions for Rocío
 - Two specialty aliases that look wrong in `harmonizeFinderSpecialtyLabel`:

@@ -1007,13 +1007,13 @@ export default async function RegisterPage({ searchParams }: PageProps) {
                       data-field-label="Professional disclaimer"
                       data-field-boxed="1"
                     >
-                      <label className="flex cursor-pointer gap-3 rounded-xl border border-ink-200 bg-ink-50/80 px-3.5 py-3 text-left transition hover:border-clinical-300">
+                      <label className="flex cursor-pointer items-start gap-3 rounded-xl border-[1.5px] border-ink-200 bg-white py-3 pl-3.5 pr-9 text-left transition hover:border-clinical-300 has-[:checked]:border-clinical-500 has-[:checked]:bg-clinical-50 has-[:focus-visible]:ring-4 has-[:focus-visible]:ring-clinical-500/20 group-data-[invalid=1]:border-red-400">
                         <input
                           type="checkbox"
                           name="professionalDisclaimer"
                           value="on"
                           required
-                          className="mt-1 h-4 w-4 shrink-0 rounded border-ink-300 bg-white text-clinical-500 focus:ring-clinical-400/50"
+                          className="mt-px h-[18px] w-[18px] shrink-0 cursor-pointer accent-clinical-600 focus:outline-none"
                         />
                         <span className="text-xs leading-snug text-ink-600">
                           I confirm I am a qualified health or wellness professional. I accept that
