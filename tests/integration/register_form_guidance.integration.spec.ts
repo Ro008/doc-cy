@@ -382,6 +382,26 @@ test.describe("Integration UI: register form guidance", { tag: "@pr-e2e" }, () =
     await expect(page.getByRole("button", { name: /Change photo/i })).toBeVisible();
   });
 
+  test("specialty and licence sit side by side, labelled and aligned", async ({ page }, testInfo) => {
+    testInfo.skip(!testInfo.project.name.startsWith("Desktop"), "Side-by-side layout is desktop.");
+    await gotoRegisterPracticeStep(page);
+
+    const trigger = page.getByRole("button", { name: /^Specialty/ });
+    const licence = page.getByTestId("register-license-0");
+    await expect(trigger).toBeVisible();
+    // A visible label, same as the licence field next to it.
+    await expect(page.locator("label[for='register-specialty-trigger']")).toBeVisible();
+
+    // Measure once the step's entrance animation has settled.
+    await page.waitForFunction(() =>
+      document.getAnimations().every((animation) => animation.playState !== "running"),
+    );
+    const a = (await trigger.boundingBox())!;
+    const b = (await licence.boundingBox())!;
+    expect(Math.abs(a.y - b.y), "tops line up").toBeLessThanOrEqual(1);
+    expect(Math.abs(a.height - b.height), "same height").toBeLessThanOrEqual(1);
+  });
+
   test("submitted screen asks them to confirm email with a link, not a code", async ({ page }) => {
     await page.goto("/register?submitted=1");
     await expect(

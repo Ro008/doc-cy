@@ -27,6 +27,11 @@ type Props = {
    * The current selection remains visible even if present in this list.
    */
   excludeSpecialties?: readonly string[];
+  /**
+   * Visible label above the trigger (register form). Without it the label stays
+   * screen-reader only, as in Settings.
+   */
+  visibleLabel?: { text: React.ReactNode; className: string };
   /** Settings form: keep parent in sync for JSON save (registration omits this). */
   onSelectionChange?: (payload: {
     specialty: string;
@@ -43,6 +48,7 @@ export function SpecialtyCombobox({
   initialIsApproved = true,
   variant = "settings",
   excludeSpecialties,
+  visibleLabel,
   onSelectionChange,
 }: Props) {
   const initialTrim = initialSpecialty.trim();
@@ -111,7 +117,8 @@ export function SpecialtyCombobox({
 
   const inputBase =
     variant === "register"
-      ? "mt-1 w-full rounded-xl border border-ink-200 bg-white px-3 py-2.5 text-sm text-ink-900 shadow-sm outline-none transition placeholder:text-ink-400 focus:border-clinical-400 focus:ring-2 focus:ring-clinical-400/25"
+      ? // Same box as the register text inputs, so it lines up with the licence field.
+        "mt-1 w-full rounded-[10px] border-[1.5px] border-ink-200 bg-white px-3.5 py-2.5 text-base text-ink-900 outline-none transition placeholder:text-ink-400 focus:border-clinical-500 focus:ring-4 focus:ring-clinical-500/20 sm:text-[15px]"
       : "mt-2 w-full rounded-xl border border-slate-800/80 bg-slate-950/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-clinical-400/60";
 
   const listBoxClass =
@@ -141,8 +148,8 @@ export function SpecialtyCombobox({
         className="pointer-events-none absolute h-0 w-0 opacity-0"
       />
 
-      <label htmlFor={`${id}-trigger`} className="sr-only">
-        Specialty
+      <label htmlFor={`${id}-trigger`} className={visibleLabel?.className ?? "sr-only"}>
+        {visibleLabel?.text ?? "Specialty"}
       </label>
       <button
         id={`${id}-trigger`}
@@ -213,7 +220,7 @@ export function SpecialtyCombobox({
               </li>
             ))}
             {showOther ? (
-              <li role="option">
+              <li role="option" aria-selected={mode === "other"}>
                 <button
                   type="button"
                   className={

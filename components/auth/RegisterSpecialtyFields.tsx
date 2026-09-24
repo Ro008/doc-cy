@@ -180,6 +180,14 @@ export function RegisterSpecialtyFields({
               initialIsApproved={row.fromMaster}
               options={specialtyOptions}
               variant="register"
+              visibleLabel={{
+                text: (
+                  <>
+                    Specialty<span className="text-red-600">*</span>
+                  </>
+                ),
+                className: registerLabelClass,
+              }}
               excludeSpecialties={excluded}
               onSelectionChange={(p) => {
                 setRows((prev) => {
