@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { FINDER_RESULTS_PAGE_SIZE } from "@/lib/finder-results-paging";
 import { fetchAllSupabaseRows } from "@/lib/supabase-fetch-all";
 import { selectFinderSpecialty } from "./helpers/finder-specialty-combobox";
@@ -49,7 +49,7 @@ function isTestProfileLike(row: {
 }
 
 async function createVerifiedDoctor(
-  admin: ReturnType<typeof createClient>,
+  admin: SupabaseClient,
   nonce: string,
   input: {
     slugPrefix: string;
@@ -132,7 +132,7 @@ async function createVerifiedDoctor(
 }
 
 async function seedWeekdayAvailabilitySettings(
-  admin: ReturnType<typeof createClient>,
+  admin: SupabaseClient,
   doctorId: string,
 ): Promise<void> {
   const day = {

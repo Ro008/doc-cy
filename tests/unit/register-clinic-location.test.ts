@@ -7,11 +7,14 @@ import {
   shouldAllowRegisterClinicE2eFallback,
 } from "../../lib/register-clinic-location";
 
+// Next's types make NODE_ENV read-only; the tests set it deliberately.
+const mutableEnv = process.env as Record<string, string | undefined>;
+
 describe("shouldAllowRegisterClinicE2eFallback", () => {
   it("allows test doctor emails outside production", () => {
     const previousNodeEnv = process.env.NODE_ENV;
     const previousVercelEnv = process.env.VERCEL_ENV;
-    process.env.NODE_ENV = "development";
+    mutableEnv.NODE_ENV = "development";
     delete process.env.VERCEL_ENV;
 
     assert.equal(
@@ -19,7 +22,7 @@ describe("shouldAllowRegisterClinicE2eFallback", () => {
       true,
     );
 
-    process.env.NODE_ENV = previousNodeEnv;
+    mutableEnv.NODE_ENV = previousNodeEnv;
     if (previousVercelEnv === undefined) {
       delete process.env.VERCEL_ENV;
     } else {
@@ -29,12 +32,12 @@ describe("shouldAllowRegisterClinicE2eFallback", () => {
 
   it("blocks fallback on production", () => {
     const previousNodeEnv = process.env.NODE_ENV;
-    process.env.NODE_ENV = "production";
+    mutableEnv.NODE_ENV = "production";
     assert.equal(
       shouldAllowRegisterClinicE2eFallback("rociosirvent+qa@test-doccy.com.cy"),
       false,
     );
-    process.env.NODE_ENV = previousNodeEnv;
+    mutableEnv.NODE_ENV = previousNodeEnv;
   });
 });
 

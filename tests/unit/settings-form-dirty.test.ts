@@ -8,13 +8,13 @@ import {
 import type { WeeklySchedule } from "@/lib/doctor-settings";
 
 const weeklySchedule: WeeklySchedule = {
-  monday: { enabled: true, start: "09:00", end: "17:00" },
-  tuesday: { enabled: true, start: "09:00", end: "17:00" },
-  wednesday: { enabled: false, start: "09:00", end: "17:00" },
-  thursday: { enabled: true, start: "09:00", end: "17:00" },
-  friday: { enabled: true, start: "09:00", end: "17:00" },
-  saturday: { enabled: false, start: "09:00", end: "13:00" },
-  sunday: { enabled: false, start: "09:00", end: "13:00" },
+  monday: { enabled: true, start_time: "09:00:00", end_time: "17:00:00" },
+  tuesday: { enabled: true, start_time: "09:00:00", end_time: "17:00:00" },
+  wednesday: { enabled: false, start_time: "09:00:00", end_time: "17:00:00" },
+  thursday: { enabled: true, start_time: "09:00:00", end_time: "17:00:00" },
+  friday: { enabled: true, start_time: "09:00:00", end_time: "17:00:00" },
+  saturday: { enabled: false, start_time: "09:00:00", end_time: "13:00:00" },
+  sunday: { enabled: false, start_time: "09:00:00", end_time: "13:00:00" },
 };
 
 const baseWorkplace = {
@@ -67,7 +67,7 @@ describe("settings-form-dirty", () => {
           ...baseWorkplace,
           weeklySchedule: {
             ...weeklySchedule,
-            monday: { enabled: false, start: "09:00", end: "17:00" },
+            monday: { enabled: false, start_time: "09:00:00", end_time: "17:00:00" },
           },
         },
       ],
