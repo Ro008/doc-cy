@@ -351,13 +351,13 @@ export function BookingSection({
         }
         const newId =
           (data?.appointment?.id as string | undefined) ?? null;
+        const requestSentQuery =
+          (data?.requestSentQuery as string | undefined) ?? null;
         setLastAppointmentId(newId);
-        if (profileSlug && newId) {
+        if (profileSlug && newId && requestSentQuery) {
           didNavigateToSuccess = true;
           router.push(
-            `/${activeLocale}/${profileSlug}/request-sent?appointmentId=${encodeURIComponent(
-              newId
-            )}`
+            `/${activeLocale}/${profileSlug}/request-sent?${requestSentQuery}`
           );
           return;
         }

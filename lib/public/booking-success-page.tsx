@@ -15,12 +15,18 @@ import { loadDoctorLocations } from "@/lib/load-doctor-locations";
 import { loadPrimarySpecialtyName } from "@/lib/specialty-catalogue";
 import { getTranslations } from "next-intl/server";
 import { isConfirmedForCalendar } from "@/lib/appointment-status";
+import {
+  appointmentCalendarPath,
+  appointmentRequestSentQuery,
+  isAppointmentLinkExpired,
+  verifyAppointmentLink,
+} from "@/lib/appointment-links";
 
 import { publicProfessionalProfilePath } from "@/lib/manual-directory-landing-path";
 
 type PageProps = {
   params: { slug: string; locale?: string };
-  searchParams?: { appointmentId?: string };
+  searchParams?: { appointmentId?: string; sig?: string };
 };
 
 function bookingProfilePath(params: PageProps["params"]): string {
@@ -38,6 +44,17 @@ export default async function BookingSuccessPage({
   if (!appointmentId) {
     redirect(bookingProfilePath(params));
   }
+  // The link is signed (lib/appointment-links.ts): the id alone doesn't open
+  // someone's booking.
+  if (
+    !verifyAppointmentLink({
+      id: appointmentId,
+      audience: "request-sent",
+      sig: searchParams?.sig,
+    })
+  ) {
+    redirect(bookingProfilePath(params));
+  }
 
   const supabase = createServiceRoleClient();
   if (!supabase) {
@@ -47,12 +64,16 @@ export default async function BookingSuccessPage({
   const { data: appointment, error: apptError } = await supabase
     .from("appointments")
     .select(
-      "id, doctor_id, patient_name, appointment_datetime, status, visit_type, visit_notes, reason, location_id",
+      "id, doctor_id, appointment_datetime, status, visit_type, reason, location_id",
     )
     .eq("id", appointmentId)
     .single();
 
   if (apptError || !appointment) {
+    redirect(bookingProfilePath(params));
+  }
+
+  if (isAppointmentLinkExpired(appointment.appointment_datetime as string)) {
     redirect(bookingProfilePath(params));
   }
 
@@ -78,7 +99,7 @@ export default async function BookingSuccessPage({
 
   if (doctor.slug !== params.slug) {
     redirect(
-      `${publicProfessionalProfilePath(String(doctor.slug), params.locale)}/request-sent?appointmentId=${encodeURIComponent(appointmentId)}`,
+      `${publicProfessionalProfilePath(String(doctor.slug), params.locale)}/request-sent?${appointmentRequestSentQuery(appointmentId) ?? ""}`,
     );
   }
 
@@ -95,7 +116,6 @@ export default async function BookingSuccessPage({
 
   const apptRow = appointment as {
     visit_type?: string | null;
-    visit_notes?: string | null;
     reason?: string | null;
   };
 
@@ -123,7 +143,6 @@ export default async function BookingSuccessPage({
     {
       reason: apptRow.reason,
       visitType: apptRow.visit_type,
-      visitNotes: apptRow.visit_notes,
     },
     { includeDirectClinicContact: confirmed }
   );
@@ -268,7 +287,7 @@ export default async function BookingSuccessPage({
                 </a>
 
                 <a
-                  href={`/api/appointments/${encodeURIComponent(appointmentId)}/calendar`}
+                  href={appointmentCalendarPath(appointmentId, "patient") ?? ""}
                   className="flex items-center justify-center gap-2 rounded-2xl border border-clinical-300 bg-clinical-50 px-4 py-2.5 text-sm font-semibold text-clinical-800 shadow-sm transition hover:border-clinical-400 hover:bg-clinical-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-400/50 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-50"
                 >
                   {t("downloadIcsLabel")}

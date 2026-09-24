@@ -4,6 +4,7 @@ import { createServiceRoleClient } from "@/lib/supabase-service";
 import { getDoctorCalendarEventDetails } from "@/lib/doctor-calendar-event";
 import { getCalendarEventDetails } from "@/lib/patient-calendar-event";
 import { isConfirmedForCalendar } from "@/lib/appointment-status";
+import { isAppointmentLinkExpired, verifyAppointmentLink } from "@/lib/appointment-links";
 import { appointmentClinicCopy } from "@/lib/appointment-clinic-copy";
 import { loadDoctorLocations } from "@/lib/load-doctor-locations";
 import { loadPrimarySpecialtyName } from "@/lib/specialty-catalogue";
@@ -41,20 +42,32 @@ export async function GET(req: NextRequest, { params }: RouteContext) {
     );
   }
 
-  const forDoctor =
-    req.nextUrl.searchParams.get("audience") === "doctor" ||
-    req.nextUrl.searchParams.get("for") === "doctor";
+  // Links are signed per audience (lib/appointment-links.ts): the id alone is
+  // not enough, and a patient link can't be turned into the professional's.
+  const forDoctor = req.nextUrl.searchParams.get("audience") === "professional";
+  const linkIsValid = verifyAppointmentLink({
+    id: appointmentId,
+    audience: forDoctor ? "professional" : "patient",
+    sig: req.nextUrl.searchParams.get("sig"),
+  });
+  if (!linkIsValid) {
+    return NextResponse.json({ message: "This calendar link is not valid." }, { status: 403 });
+  }
 
   const { data: appointment, error: apptError } = await supabase
     .from("appointments")
     .select(
-      "id, doctor_id, appointment_datetime, patient_name, patient_phone, status, created_at, visit_type, visit_notes, reason, duration_minutes, location_id"
+      "id, doctor_id, appointment_datetime, patient_name, patient_phone, status, created_at, visit_type, reason, duration_minutes, location_id"
     )
     .eq("id", appointmentId)
     .single();
 
   if (apptError || !appointment) {
     return NextResponse.json({ message: "Appointment not found." }, { status: 404 });
+  }
+
+  if (isAppointmentLinkExpired(appointment.appointment_datetime as string)) {
+    return NextResponse.json({ message: "This calendar link has expired." }, { status: 410 });
   }
 
   if (!isConfirmedForCalendar(appointment.status as string)) {
@@ -113,13 +126,11 @@ export async function GET(req: NextRequest, { params }: RouteContext) {
 
   const apptRow = appointment as {
     visit_type?: string | null;
-    visit_notes?: string | null;
     reason?: string | null;
   };
   const apptVisit = {
     reason: apptRow.reason,
     visitType: apptRow.visit_type,
-    visitNotes: apptRow.visit_notes,
   };
 
   const cal = forDoctor

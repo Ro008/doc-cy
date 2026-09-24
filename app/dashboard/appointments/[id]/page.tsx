@@ -14,6 +14,7 @@ import { AppointmentReviewClient } from "@/components/dashboard/AppointmentRevie
 import { PendingLink } from "@/components/navigation/PendingLink";
 import { buildGoogleCalendarUrl } from "@/lib/patient-calendar-event";
 import { getDoctorCalendarEventDetails } from "@/lib/doctor-calendar-event";
+import { appointmentCalendarPath } from "@/lib/appointment-links";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -169,7 +170,7 @@ export default async function DashboardAppointmentDetailPage({
       initialDurationMinutes,
     ),
   });
-  const doctorIcsUrl = `/api/appointments/${encodeURIComponent(appt.id as string)}/calendar?audience=doctor`;
+  const doctorIcsUrl = appointmentCalendarPath(appt.id as string, "professional") ?? "";
 
   const scheduleForReview =
     settingsTyped != null
