@@ -57,6 +57,17 @@ test.describe("Integration: public directory RLS hardening", () => {
       .limit(5);
     expect(isDeniedOrEmpty(specialtyRowsDump)).toBe(true);
 
+    // Admin accounts: service role only. Expect a permission error, not an empty
+    // result, so the test also fails if the table is missing or a grant comes back.
+    const adminUsersRead = await anon.from("admin_users").select("id, email").limit(1);
+    expect(adminUsersRead.error?.code).toBe("42501");
+    const adminUsersInsert = await anon.from("admin_users").insert({
+      auth_user_id: "00000000-0000-0000-0000-000000000000",
+      name: "Anon",
+      email: "anon@example.com",
+    });
+    expect(adminUsersInsert.error?.code).toBe("42501");
+
     // SECURITY DEFINER RPCs that must not be callable with the anon key. Expect a
     // permission error, not just an empty result: a random id would return nothing
     // even if the grant came back.
