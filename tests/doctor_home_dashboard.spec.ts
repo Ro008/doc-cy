@@ -34,7 +34,15 @@ test.describe("Doctor home dashboard", { tag: "@pr-e2e" }, () => {
     await expect(page.getByRole("heading", { name: "Needs your answer" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Today" })).toBeVisible();
     await expect(page.getByTestId("dashboard-today-schedule")).toBeVisible();
+    await expect(page.getByTestId("dashboard-now-marker")).toBeVisible();
     await expect(page.getByRole("link", { name: "Open agenda" })).toHaveAttribute("href", "/agenda");
+
+    // Two columns: requests on the left, today's timeline on the right.
+    const requestsBox = await page.getByRole("region", { name: "Needs your answer" }).boundingBox();
+    const todayBox = await page.getByRole("region", { name: "Today" }).boundingBox();
+    expect(requestsBox && todayBox).toBeTruthy();
+    expect(todayBox!.x).toBeGreaterThan(requestsBox!.x + requestsBox!.width - 1);
+    expect(Math.abs(todayBox!.y - requestsBox!.y)).toBeLessThan(40);
 
     const header = page.getByTestId("pro-sticky-header");
     await expect(header).toBeVisible();

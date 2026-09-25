@@ -228,8 +228,10 @@ export function UserBar() {
 
   const tabBaseClass =
     "flex min-h-[3.25rem] flex-1 flex-col items-center justify-center gap-0.5 px-1 py-1 text-[10px] font-medium leading-tight transition active:scale-[0.98] sm:text-[11px]";
-  const tabInactiveClass = "text-ink-200 hover:text-ink-50";
-  const tabActiveClass = "font-semibold text-clinical-100";
+  const tabInactiveClass = "text-clinical-100 hover:text-white";
+  // Teal label plus a short bar on the top edge, matching the desktop pill.
+  const tabActiveClass =
+    "relative font-semibold text-clinical-300 before:absolute before:top-0 before:h-0.5 before:w-8 before:rounded-full before:bg-clinical-400";
 
   const useStickyDesktopChrome = isDoctorProductPath(pathname);
 

@@ -10,6 +10,7 @@ import {
   startsInLabel,
   todaySummaryLabel,
   todayWorkingWindow,
+  nowMarkerPosition,
   type DashboardAppointmentRow,
 } from "../../lib/doctor-dashboard";
 
@@ -243,6 +244,35 @@ describe("todayWorkingWindow", () => {
       Date.parse("2026-09-25T21:30:00Z"),
     );
     assert.deepEqual(window, { startHour: 10, endHour: 14, breakStart: 13 * 60 + 30, breakEnd: 15 * 60 });
+  });
+});
+
+describe("nowMarkerPosition", () => {
+  const items = buildTodaySchedule(
+    [
+      row({ id: "done", appointment_datetime: "2026-09-25T06:00:00Z", duration_minutes: 20 }), // 09:00–09:20
+      row({ id: "next", appointment_datetime: "2026-09-25T07:30:00Z", duration_minutes: 30 }), // 10:30–11:00
+      row({ id: "later", appointment_datetime: "2026-09-25T09:00:00Z", duration_minutes: 30 }), // 12:00–12:30
+    ],
+    { nowMs: NOW },
+  ).items;
+  const at = (iso: string) => nowMarkerPosition(items, Date.parse(iso));
+
+  it("sits before the first visit that has not started", () => {
+    assert.deepEqual(at("2026-09-25T06:50:00Z"), { beforeIndex: 1, currentId: null }); // 09:50
+  });
+
+  it("points at the visit in progress instead of adding a marker", () => {
+    assert.deepEqual(at("2026-09-25T06:10:00Z"), { beforeIndex: 1, currentId: "done" }); // 09:10
+  });
+
+  it("goes first before the day starts and last after it ends", () => {
+    assert.deepEqual(at("2026-09-25T05:00:00Z"), { beforeIndex: 0, currentId: null }); // 08:00
+    assert.deepEqual(at("2026-09-25T17:00:00Z"), { beforeIndex: 3, currentId: null }); // 20:00
+  });
+
+  it("handles an empty day", () => {
+    assert.deepEqual(nowMarkerPosition([], NOW), { beforeIndex: 0, currentId: null });
   });
 });
 

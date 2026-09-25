@@ -22,7 +22,7 @@ const BOOT_TAB_ICONS: Record<DoctorNavTabId, typeof CalendarDays> = {
 };
 
 const tabClass =
-  "flex min-h-[3.25rem] flex-1 flex-col items-center justify-center gap-0.5 px-1 py-1 text-[10px] font-medium leading-tight text-ink-200 no-underline sm:text-[11px]";
+  "flex min-h-[3.25rem] flex-1 flex-col items-center justify-center gap-0.5 px-1 py-1 text-[10px] font-medium leading-tight text-clinical-100 no-underline sm:text-[11px]";
 
 /**
  * Server HTML stand-in for professional chrome.
@@ -84,7 +84,7 @@ export function ProChromeBoot() {
                 <a
                   key={tab.id}
                   href={tab.href}
-                  className="inline-flex h-9 items-center rounded-full border border-transparent px-3.5 text-sm font-medium text-ink-300 no-underline"
+                  className="inline-flex h-9 items-center rounded-full border border-transparent px-3.5 text-sm font-medium text-clinical-100 no-underline"
                 >
                   {tab.label}
                 </a>

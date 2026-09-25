@@ -31,7 +31,7 @@ export function MobileTabNavLink({
   const { pending, beginNavigation } = useLinkNavigationPending(href);
 
   const stateClass = pending
-    ? "text-clinical-100"
+    ? "text-white"
     : isActive
       ? activeClass
       : inactiveClass;

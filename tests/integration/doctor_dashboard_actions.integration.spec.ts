@@ -44,6 +44,36 @@ function findFreeSlotIso(
   return new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
 }
 
+/** Clicks before React hydrates are lost; the doctor chrome marks <html> once hydrated. */
+async function waitForHydration(page: import("@playwright/test").Page) {
+  await expect(page.locator("html")).toHaveAttribute("data-doccy-pro-chrome-hydrated", "1", {
+    timeout: 20_000,
+  });
+}
+
+/** Holds matching requests until release(), so the in-flight UI can be checked. */
+async function holdRequests(page: import("@playwright/test").Page, pattern: string) {
+  let release!: () => void;
+  const released = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route(pattern, async (route) => {
+    await released;
+    await route.continue();
+  });
+  return release;
+}
+
+async function expectRowBusy(card: import("@playwright/test").Locator) {
+  await expect(card).toHaveAttribute("aria-busy", "true");
+  await expect(card.getByRole("button", { name: /^Accept/ })).toBeDisabled();
+  await expect(card.getByRole("button", { name: "Decline" })).toBeDisabled();
+  await expect(card.getByRole("link", { name: /Suggest other times|Opening/ })).toHaveAttribute(
+    "aria-disabled",
+    "true",
+  );
+}
+
 type Setup = {
   admin: SupabaseClient;
   doctorEmail: string;
@@ -110,6 +140,7 @@ test.describe("Integration: dashboard request actions", { tag: ["@pr-e2e", "@pr-
         password: setup.doctorPassword,
       });
       await page.goto("/dashboard", { waitUntil: "domcontentloaded" });
+      await waitForHydration(page);
 
       const card = page.getByTestId("dashboard-pending-request").filter({ hasText: setup.patientName });
       await expect(card).toBeVisible({ timeout: 20_000 });
@@ -118,7 +149,12 @@ test.describe("Integration: dashboard request actions", { tag: ["@pr-e2e", "@pr-
         `/dashboard/appointments/${setup.appointmentId}`,
       );
 
+      const releaseConfirm = await holdRequests(page, "**/api/appointments/*/confirm");
       await card.getByRole("button", { name: "Accept" }).click();
+      await expectRowBusy(card);
+      await expect(card.getByRole("button", { name: "Accepting…" })).toBeVisible();
+      releaseConfirm();
+
       await expect(card).toHaveCount(0, { timeout: 20_000 });
       await expect(page).toHaveURL(/\/dashboard(?:[/?#]|$)/);
 
@@ -147,6 +183,7 @@ test.describe("Integration: dashboard request actions", { tag: ["@pr-e2e", "@pr-
         password: setup.doctorPassword,
       });
       await page.goto("/dashboard", { waitUntil: "domcontentloaded" });
+      await waitForHydration(page);
 
       const card = page.getByTestId("dashboard-pending-request").filter({ hasText: setup.patientName });
       await expect(card).toBeVisible({ timeout: 20_000 });
@@ -159,7 +196,15 @@ test.describe("Integration: dashboard request actions", { tag: ["@pr-e2e", "@pr-
 
       await dialog.getByLabel(/Reason for the patient/i).fill("I am away that day, sorry.");
       await expect(submit).toBeEnabled();
+
+      const releaseReject = await holdRequests(page, "**/api/appointments/*/reject");
       await submit.click();
+      await expect(dialog.getByRole("button", { name: "Declining…" })).toBeDisabled();
+      await expect(dialog.getByRole("button", { name: "Go back" })).toBeDisabled();
+      await expect(dialog.getByLabel(/Reason for the patient/i)).toBeDisabled();
+      await page.keyboard.press("Escape");
+      await expect(dialog).toBeVisible();
+      releaseReject();
 
       await expect(dialog).toBeHidden({ timeout: 15_000 });
       await expect(card).toHaveCount(0, { timeout: 20_000 });
@@ -174,6 +219,35 @@ test.describe("Integration: dashboard request actions", { tag: ["@pr-e2e", "@pr-
           return data?.id ?? null;
         }, { timeout: 15_000 })
         .toBeNull();
+    } finally {
+      await setup.admin.from("appointments").delete().eq("id", setup.appointmentId);
+    }
+  });
+
+  test("Suggest other times shows the row as busy while the review page opens", async ({ page }) => {
+    test.setTimeout(120_000);
+    const setup = await createRequest("Suggest");
+    try {
+      await page.setViewportSize({ width: 1280, height: 900 });
+      await signInDoctorOrFail(page, undefined, {
+        email: setup.doctorEmail,
+        password: setup.doctorPassword,
+      });
+      await page.goto("/dashboard", { waitUntil: "domcontentloaded" });
+      await waitForHydration(page);
+
+      const card = page.getByTestId("dashboard-pending-request").filter({ hasText: setup.patientName });
+      await expect(card).toBeVisible({ timeout: 20_000 });
+
+      const releaseNavigation = await holdRequests(page, `**/dashboard/appointments/${setup.appointmentId}**`);
+      await card.getByRole("link", { name: "Suggest other times" }).click();
+      await expectRowBusy(card);
+      await expect(card.getByRole("link", { name: "Opening…" })).toBeVisible();
+      releaseNavigation();
+
+      await expect(page).toHaveURL(new RegExp(`/dashboard/appointments/${setup.appointmentId}`), {
+        timeout: 20_000,
+      });
     } finally {
       await setup.admin.from("appointments").delete().eq("id", setup.appointmentId);
     }

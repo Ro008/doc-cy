@@ -24,10 +24,10 @@ export function DesktopNavTabLink({
   const { pending, beginNavigation } = useLinkNavigationPending(href);
 
   const stateClass = isActive
-    ? "border-clinical-400/45 bg-clinical-500/15 font-semibold text-ink-50"
+    ? "border-clinical-400 bg-clinical-500 font-semibold text-ink-900 shadow-sm shadow-clinical-500/30"
     : pending
-      ? "border-transparent text-clinical-100"
-      : "border-transparent text-ink-300 hover:bg-ink-800/80 hover:text-ink-50";
+      ? "border-clinical-400/50 bg-clinical-500/20 text-white"
+      : "border-transparent text-clinical-100 hover:border-clinical-400/50 hover:bg-clinical-500/20 hover:text-white";
 
   return (
     <Link
@@ -44,7 +44,7 @@ export function DesktopNavTabLink({
         beginNavigation();
         router.push(href);
       }}
-      className={`inline-flex h-9 items-center gap-1.5 rounded-full border px-3.5 text-sm font-medium transition ${stateClass}`}
+      className={`inline-flex h-9 items-center gap-1.5 rounded-full border px-3.5 text-sm font-medium no-underline transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-300 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-900 ${stateClass}`}
     >
       {label}
       {pending ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> : null}

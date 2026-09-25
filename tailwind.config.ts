@@ -16,6 +16,33 @@ const config: Config = {
       fontFamily: {
         sans: ["var(--font-inter)", "system-ui", "sans-serif"],
       },
+      // Doctor dashboard motion; always paired with `motion-safe:` at call sites.
+      keyframes: {
+        "fade-up": {
+          from: { opacity: "0", transform: "translateY(8px)" },
+          to: { opacity: "1", transform: "translateY(0)" },
+        },
+        pop: {
+          "0%": { transform: "scale(0.6)" },
+          "60%": { transform: "scale(1.18)" },
+          "100%": { transform: "scale(1)" },
+        },
+        "check-in": {
+          "0%": { opacity: "0", transform: "scale(0.4) rotate(-20deg)" },
+          "70%": { opacity: "1", transform: "scale(1.1) rotate(4deg)" },
+          "100%": { opacity: "1", transform: "scale(1) rotate(0)" },
+        },
+        blink: {
+          "0%, 100%": { opacity: "1" },
+          "50%": { opacity: "0.35" },
+        },
+      },
+      animation: {
+        "fade-up": "fade-up 420ms cubic-bezier(0.2, 0.7, 0.2, 1) both",
+        pop: "pop 360ms cubic-bezier(0.2, 0.7, 0.2, 1)",
+        "check-in": "check-in 520ms cubic-bezier(0.2, 0.7, 0.2, 1) both",
+        blink: "blink 1.6s ease-in-out infinite",
+      },
       colors: {
         // Doccy Teal scale — primary CTAs, accents, focus rings
         clinical: {

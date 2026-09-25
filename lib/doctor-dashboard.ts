@@ -201,6 +201,21 @@ export function todayWorkingWindow(
   };
 }
 
+/**
+ * Where the "now" dot goes in today's timeline: before the first visit that
+ * has not started, or on the visit in progress (currentId) when there is one.
+ */
+export function nowMarkerPosition(
+  items: readonly TodayScheduleItem[],
+  nowMs: number,
+): { beforeIndex: number; currentId: string | null } {
+  const now = cyprusMinuteOfDay(nowMs);
+  const firstUpcoming = items.findIndex((item) => item.startMinute > now);
+  const beforeIndex = firstUpcoming === -1 ? items.length : firstUpcoming;
+  const current = items.find((item) => item.startMinute <= now && now < item.endMinute);
+  return { beforeIndex, currentId: current?.id ?? null };
+}
+
 export function todaySummaryLabel(items: TodayScheduleItem[]): string {
   if (items.length === 0) return "No appointments today";
   const first = items[0].startMinute;

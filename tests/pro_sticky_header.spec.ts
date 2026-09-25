@@ -32,6 +32,10 @@ test.describe("Professional sticky header", { tag: "@pr-e2e" }, () => {
     const stickyHeader = page.getByTestId("pro-sticky-header");
     await expect(stickyHeader).toBeVisible();
     await expect(stickyHeader.getByRole("link", { name: /my doccy/i })).toBeVisible();
+    await expect(stickyHeader.getByRole("img", { name: /my doccy/i })).toHaveAttribute(
+      "src",
+      /doccy-logo-on-dark\.png/,
+    );
     await expect(stickyHeader.getByTestId("userbar-nav-settings")).toBeVisible();
     await expect(stickyHeader.getByTestId("userbar-nav-agenda")).toHaveAttribute("aria-current", "page");
 
