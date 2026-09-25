@@ -441,6 +441,13 @@ export function AgendaRealtime({
           .select(AGENDA_APPOINTMENT_SELECT)
           .eq("doctor_id", doctorId)
           .order("appointment_datetime", { ascending: true })
+          // Send the token checked above. Otherwise the client looks the
+          // session up again for the request and, if it vanished in between,
+          // silently falls back to the anon key: RLS then answers 200 [] and
+          // the list is wiped. With this token the read returns the
+          // professional's rows or an error (e.g. JWT expired), and an error
+          // keeps the list.
+          .setHeader("Authorization", `Bearer ${session.access_token}`)
       : { data: null, error: null };
 
     const outcome = agendaRefreshOutcome({

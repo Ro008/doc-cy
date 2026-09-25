@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
-import { addDays, format } from "date-fns";
+import { addDays, format, isWeekend } from "date-fns";
 import { utcToZonedTime, zonedTimeToUtc } from "date-fns-tz";
 
 import { CY_TZ } from "@/lib/appointments";
@@ -61,8 +61,12 @@ test.describe("Agenda keeps appointments when signed out", { tag: "@pr-e2e" }, (
       status: "verified",
     });
 
-    // Tomorrow, 10:00 Cyprus time: always in the future, always inside the grid.
-    dayKey = format(addDays(utcToZonedTime(new Date(), CY_TZ), 1), "yyyy-MM-dd");
+    // The next weekday, 10:00 Cyprus time: always in the future and inside the
+    // grid. Not simply "tomorrow": the desktop week view shows Monday to Friday
+    // only, so a Saturday booking (a run on a Friday) was never on screen.
+    let day = addDays(utcToZonedTime(new Date(), CY_TZ), 1);
+    while (isWeekend(day)) day = addDays(day, 1);
+    dayKey = format(day, "yyyy-MM-dd");
     patientName = `Lapse Patient ${nonce.slice(-5)}`;
     const inserted = await admin.from("appointments").insert({
       doctor_id: fixture.doctorId,
@@ -119,6 +123,13 @@ test.describe("Agenda keeps appointments when signed out", { tag: "@pr-e2e" }, (
 
     const notice = signedOutNotice(page);
     await expect(notice).toBeVisible({ timeout: 20_000 });
+    await expect(card).toBeVisible();
+
+    // Past the agenda's next 10 s refresh: still there. A read that went out
+    // after the session vanished used to fall back to the anon key and wipe
+    // the list, even though the session check just before it had passed.
+    await page.waitForTimeout(11_000);
+    await expect(notice).toBeVisible();
     await expect(card).toBeVisible();
     await expect(notice.getByRole("link", { name: /sign in/i })).toHaveAttribute(
       "href",
