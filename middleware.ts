@@ -22,7 +22,7 @@ import {
   needsSupabaseSessionMiddleware,
   shouldSkipSupabaseSessionRefresh,
 } from "./lib/needs-supabase-session-middleware";
-import {isInternalDirectoryCookieAuthorized} from "./lib/internal-directory-auth-core";
+import {adminSignInPath} from "./lib/admin-sign-in-flow";
 
 const handleI18nRouting = createMiddleware(routing);
 
@@ -118,6 +118,15 @@ export async function middleware(req: NextRequest) {
       data: {session},
     } = await supabase.auth.getSession();
 
+    // Admin dashboard: no session → sign-in. The page itself checks the admin row
+    // and the 2FA code (lib/admin-auth.ts); this only saves a render.
+    if (pathname === "/internal/directory" || pathname.startsWith("/internal/directory/")) {
+      if (!session) {
+        return NextResponse.redirect(new URL(adminSignInPath(pathname), req.url));
+      }
+      return res;
+    }
+
     if (pathname === "/agenda" || pathname.startsWith("/agenda/")) {
       if (!session) {
         const loginUrl = new URL("/login", req.url);
@@ -167,27 +176,6 @@ export async function middleware(req: NextRequest) {
           return NextResponse.redirect(loginUrl);
         }
       }
-    }
-  }
-
-  // Private internal directory (founder or partner cookie; set via /internal gate)
-  if (
-    pathname === "/internal/directory" ||
-    pathname.startsWith("/internal/directory/")
-  ) {
-    const founderSecret = process.env.INTERNAL_DIRECTORY_SECRET?.trim();
-    if (!founderSecret) {
-      // Don't send people to "/" — they think the app is broken. Explain on /internal.
-      const gate = new URL("/internal", req.url);
-      gate.searchParams.set("configure", "1");
-      return NextResponse.redirect(gate);
-    }
-
-    const cookie = req.cookies.get("doccy-internal-directory")?.value;
-    if (!isInternalDirectoryCookieAuthorized(cookie)) {
-      const gate = new URL("/internal", req.url);
-      gate.searchParams.set("next", "/internal/directory");
-      return NextResponse.redirect(gate);
     }
   }
 

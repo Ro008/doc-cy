@@ -1,16 +1,14 @@
-import { Suspense } from "react";
-import { InternalGateForm } from "./InternalGateForm";
+import { redirect } from "next/navigation";
+import { adminSignInPath } from "@/lib/admin-sign-in-flow";
 
-export default function InternalGatePage() {
-  return (
-    <Suspense
-      fallback={
-        <main className="flex min-h-screen items-center justify-center bg-slate-950 px-4 text-slate-400">
-          Loading…
-        </main>
-      }
-    >
-      <InternalGateForm />
-    </Suspense>
-  );
+export const dynamic = "force-dynamic";
+
+/** Old gate address (bookmarks, emails): the admin sign-in lives at /internal/sign-in. */
+export default function InternalGatePage({
+  searchParams,
+}: {
+  searchParams?: { next?: string | string[] };
+}) {
+  const next = Array.isArray(searchParams?.next) ? searchParams?.next[0] : searchParams?.next;
+  redirect(adminSignInPath(next));
 }

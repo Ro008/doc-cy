@@ -27,7 +27,6 @@ This file defines the canonical secret naming and cleanup policy for CI workflow
 - `INTEGRATION_SUPABASE_SERVICE_ROLE_KEY`
 - `INTEGRATION_TEST_USER_EMAIL`
 - `INTEGRATION_TEST_USER_PASSWORD`
-- `INTERNAL_DIRECTORY_SECRET` (required for PR directory-duplicate actions when enabled; founder specialty-change review uses the same internal cookie)
 
 ## 2) Temporary compatibility aliases (remove after migration)
 
@@ -51,7 +50,6 @@ These do not appear in current GitHub workflows and are good deletion candidates
 
 At audit time, the following were referenced by workflows and not present as repository secrets:
 
-- `INTERNAL_DIRECTORY_SECRET`
 - `NEXT_PUBLIC_SITE_URL` (now optional fallback; prefer `PROD_SITE_URL`)
 - `PLAYWRIGHT_BASE_URL_INTEGRATION` (optional alias; `INTEGRATION_BASE_URL` is enough)
 - `TEST_USER_EMAIL` (optional)
@@ -61,7 +59,6 @@ At audit time, the following were referenced by workflows and not present as rep
 
 1. Create any missing canonical secrets first:
    - `PROD_SITE_URL`
-   - `INTERNAL_DIRECTORY_SECRET`
 2. Keep existing fallbacks for one full week of green CI runs.
 3. Remove legacy/unused secrets in small batches (2-3 at a time), re-run:
    - `PR Integration Tests`

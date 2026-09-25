@@ -1,4 +1,4 @@
-import { createHmac, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import { expect, test } from "@playwright/test";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import {
@@ -7,6 +7,7 @@ import {
   resolveAdminAccess,
   supabaseAdminAccessDeps,
 } from "../../lib/admin-auth-core";
+import { totpCode } from "../../scripts/lib/totp.mjs";
 
 /**
  * Admin access against real Supabase Auth: a throwaway login signs in with a
@@ -29,35 +30,6 @@ function unsafeTargetReason(supabaseUrl: string): string | null {
   return null;
 }
 
-function base32Decode(input: string): Buffer {
-  const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
-  const clean = input.replace(/=+$/, "").replace(/\s+/g, "").toUpperCase();
-  let bits = 0;
-  let value = 0;
-  const out: number[] = [];
-  for (const char of clean) {
-    const idx = alphabet.indexOf(char);
-    if (idx < 0) throw new Error(`Invalid base32 character: ${char}`);
-    value = (value << 5) | idx;
-    bits += 5;
-    if (bits >= 8) {
-      out.push((value >>> (bits - 8)) & 0xff);
-      bits -= 8;
-    }
-  }
-  return Buffer.from(out);
-}
-
-/** RFC 6238 TOTP (SHA-1, 30 s, 6 digits), as authenticator apps compute it. */
-function totpCode(secret: string, nowMs = Date.now()): string {
-  const counter = Buffer.alloc(8);
-  counter.writeBigUInt64BE(BigInt(Math.floor(nowMs / 1000 / 30)));
-  const hmac = createHmac("sha1", base32Decode(secret)).update(counter).digest();
-  const offset = hmac[hmac.length - 1] & 0x0f;
-  const code = (hmac.readUInt32BE(offset) & 0x7fffffff) % 1_000_000;
-  return String(code).padStart(6, "0");
-}
-
 test.describe("Admin access (Supabase MFA)", { tag: ["@pr-e2e"] }, () => {
   test("admin needs an active row and a verified TOTP code", async () => {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
@@ -76,7 +48,7 @@ test.describe("Admin access (Supabase MFA)", { tag: ["@pr-e2e"] }, () => {
     const access = () => resolveAdminAccess(supabaseAdminAccessDeps(user, service));
 
     const tag = randomUUID().slice(0, 8);
-    const email = `admin-access-${tag}@example.com`;
+    const email = `admin-access-${tag}@integration.test`;
     const password = `Adm1n-${randomUUID()}`;
     let authUserId: string | null = null;
 

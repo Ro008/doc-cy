@@ -13,6 +13,8 @@ export function needsSupabaseSessionMiddleware(pathname: string): boolean {
   if (path === "/dashboard" || path.startsWith("/dashboard/")) return true;
   if (path === "/login" || path.startsWith("/login/")) return true;
   if (path === "/register" || path.startsWith("/register/")) return true;
+  // Admin pages: keep the admin's session cookie fresh (server components can't).
+  if (path === "/internal" || path.startsWith("/internal/")) return true;
   // `/auth/callback` and `/auth/confirm-email` — exchanging the token belongs
   // in the route handler, not middleware.
   if (isForgotPasswordPath(path) || isResetPasswordPath(path)) return true;
