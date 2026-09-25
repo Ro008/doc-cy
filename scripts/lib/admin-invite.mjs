@@ -8,15 +8,20 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /**
  * @param {string[]} argv
- * @returns {{ ok: true, value: { email: string, name: string, role: "founder" | "partner", envFile: string, dryRun: boolean } } | { ok: false, error: string }}
+ * @returns {{ ok: true, value: { email: string, name: string, role: "founder" | "partner", envFile: string, dryRun: boolean, useExistingLogin: boolean } } | { ok: false, error: string }}
  */
 export function parseAdminInviteArgs(argv) {
   const values = {};
   let dryRun = false;
+  let useExistingLogin = false;
   for (let i = 0; i < argv.length; i += 1) {
     const flag = argv[i];
     if (flag === "--dry-run") {
       dryRun = true;
+      continue;
+    }
+    if (flag === "--use-existing-login") {
+      useExistingLogin = true;
       continue;
     }
     if (!VALUE_FLAGS.has(flag)) return { ok: false, error: `Unknown argument: ${flag}` };
@@ -36,7 +41,22 @@ export function parseAdminInviteArgs(argv) {
   if (!ADMIN_ROLES.has(role)) return { ok: false, error: "--role must be founder or partner." };
   const envFile = String(values["--env-file"] ?? ".env.testing.local").trim();
 
-  return { ok: true, value: { email, name, role, envFile, dryRun } };
+  return { ok: true, value: { email, name, role, envFile, dryRun, useExistingLogin } };
+}
+
+/**
+ * Why an existing login can't become an admin, or null if it can. Admins must
+ * never share a login with a professional (lib/admin-auth-core.ts refuses those).
+ * @param {{ login: { id: string, email: string } | null, linkedProfessionals: number, isAdmin: boolean }} input
+ * @returns {string | null}
+ */
+export function existingLoginAdminProblem({ login, linkedProfessionals, isAdmin }) {
+  if (!login) return "No login exists for this email; run without --use-existing-login to invite a new one.";
+  if (linkedProfessionals > 0) {
+    return `${login.email} is a professional's login. Admins need their own login; use another address.`;
+  }
+  if (isAdmin) return `${login.email} is already an admin.`;
+  return null;
 }
 
 /** Where the invite email sends the new admin (they set a password, then enrol 2FA). */

@@ -1,21 +1,29 @@
 /**
- * Invite a DocCy admin: creates their Supabase login through an invite email and
- * adds their `admin_users` row. The admin sets their own password from the email,
- * then enrols an authenticator app on first sign-in at /internal/sign-in.
+ * Invite a DocCy admin and add their `admin_users` row.
+ *
+ * - Default: creates a new Supabase login through an invite email. The admin sets
+ *   their own password from the email, then enrols an authenticator app on first
+ *   sign-in at /internal/sign-in.
+ * - --use-existing-login: links a login that already exists (and belongs to no
+ *   professional), then sends a password-reset email so the admin chooses a fresh
+ *   password before enrolling the authenticator app.
  *
  * Usage:
  *   node scripts/invite-admin.mjs --email <email> --name "<name>" [--role founder|partner]
- *     [--env-file .env.testing.local] [--dry-run]
+ *     [--use-existing-login] [--env-file .env.testing.local] [--dry-run]
  *
  * Production needs DOC_CY_CONFIRM_PROD=YES and --env-file .env.production.local.
- * Admins need their own login: an email that already has an account (for example a
- * professional's) is refused. Use a separate address (a +alias works).
+ * A professional's login is always refused: admins need their own login.
  */
 import fs from "node:fs";
 import path from "node:path";
 import dotenv from "dotenv";
 import { createClient } from "@supabase/supabase-js";
-import { adminInviteRedirectUrl, parseAdminInviteArgs } from "./lib/admin-invite.mjs";
+import {
+  adminInviteRedirectUrl,
+  existingLoginAdminProblem,
+  parseAdminInviteArgs,
+} from "./lib/admin-invite.mjs";
 
 const PROD_REF = "oiwlztcduxojadbcxkil";
 
@@ -39,10 +47,10 @@ async function main() {
   const parsed = parseAdminInviteArgs(process.argv.slice(2));
   if (!parsed.ok) {
     fail(
-      `${parsed.error}\nUsage: node scripts/invite-admin.mjs --email <email> --name "<name>" [--role founder|partner] [--env-file <file>] [--dry-run]`,
+      `${parsed.error}\nUsage: node scripts/invite-admin.mjs --email <email> --name "<name>" [--role founder|partner] [--use-existing-login] [--env-file <file>] [--dry-run]`,
     );
   }
-  const { email, name, role, envFile, dryRun } = parsed.value;
+  const { email, name, role, envFile, dryRun, useExistingLogin } = parsed.value;
 
   const envPath = path.resolve(process.cwd(), envFile);
   if (!fs.existsSync(envPath)) fail(`Env file not found: ${envFile}`);
@@ -82,15 +90,68 @@ async function main() {
   }
 
   const existingUser = await findAuthUserByEmail(admin, email);
-  if (existingUser) {
-    fail(`${email} already has a login (${existingUser.id}). Admins need a new one; use another address.`);
+  if (existingUser && !useExistingLogin) {
+    fail(
+      `${email} already has a login (${existingUser.id}). If it's this person's own login (not a professional's), ` +
+        "run again with --use-existing-login; otherwise use another address.",
+    );
+  }
+
+  if (useExistingLogin) {
+    let linkedProfessionals = 0;
+    let isAdmin = false;
+    if (existingUser) {
+      const { count, error } = await admin
+        .from("professionals")
+        .select("id", { count: "exact", head: true })
+        .eq("auth_user_id", existingUser.id);
+      if (error) fail(`Reading professionals failed: ${error.message}`);
+      linkedProfessionals = count ?? 0;
+      const { count: adminCount, error: aErr } = await admin
+        .from("admin_users")
+        .select("id", { count: "exact", head: true })
+        .eq("auth_user_id", existingUser.id);
+      if (aErr) fail(`Reading admin_users failed: ${aErr.message}`);
+      isAdmin = (adminCount ?? 0) > 0;
+    }
+    const problem = existingLoginAdminProblem({
+      login: existingUser ? { id: existingUser.id, email } : null,
+      linkedProfessionals,
+      isAdmin,
+    });
+    if (problem) fail(problem);
   }
 
   console.log(`Project:  ${url}`);
   console.log(`Admin:    ${name} <${email}>, role ${role}`);
+  console.log(
+    useExistingLogin
+      ? `Login:    existing ${existingUser.id} (last sign-in ${existingUser.last_sign_in_at ?? "never"}); a password-reset email will be sent`
+      : "Login:    new, through an invite email",
+  );
   console.log(`Redirect: ${redirectTo}`);
   if (dryRun) {
-    console.log("Dry run: no invite sent, nothing written.");
+    console.log("Dry run: no email sent, nothing written.");
+    return;
+  }
+
+  if (useExistingLogin) {
+    const authUserId = existingUser.id;
+    const { data: row, error: insertErr } = await admin
+      .from("admin_users")
+      .insert({ auth_user_id: authUserId, name, email, role })
+      .select("id")
+      .single();
+    if (insertErr || !row) fail(`Adding the admin row failed: ${insertErr?.message ?? "no row"}`);
+    const { error: resetErr } = await admin.auth.resetPasswordForEmail(email, { redirectTo });
+    if (resetErr) {
+      fail(
+        `Admin row ${row.id} added, but the password-reset email failed (${resetErr.message}). ` +
+          'They can use "Forgot your password?" on /internal/sign-in instead.',
+      );
+    }
+    console.log(`Admin row ${row.id} added to login ${authUserId}. Password-reset email sent.`);
+    console.log("They choose a new password from the email, then enrol an authenticator app.");
     return;
   }
 
