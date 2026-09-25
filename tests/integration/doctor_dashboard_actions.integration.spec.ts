@@ -1,0 +1,181 @@
+import { expect, test } from "@playwright/test";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { signInDoctorOrFail } from "../helpers/signInDoctorOrFail";
+
+const DEFAULT_DURATION_MINUTES = 30;
+
+function firstNonEmpty(...values: Array<string | undefined>): string {
+  for (const value of values) {
+    const normalized = String(value ?? "").trim();
+    if (normalized) return normalized;
+  }
+  return "";
+}
+
+function overlapsUtc(startA: Date, durationA: number, startB: Date, durationB: number): boolean {
+  const aStart = startA.getTime();
+  const bStart = startB.getTime();
+  return aStart < bStart + durationB * 60_000 && bStart < aStart + durationA * 60_000;
+}
+
+/** A free weekday slot a few days out, so Accept does not hit an overlap. */
+function findFreeSlotIso(
+  existing: Array<{ appointment_datetime: string; duration_minutes: number | null }>,
+): string {
+  const now = new Date();
+  for (let dayOffset = 3; dayOffset <= 45; dayOffset += 1) {
+    for (const hour of [9, 10, 11, 12, 14, 15, 16]) {
+      const candidate = new Date(now);
+      candidate.setUTCDate(now.getUTCDate() + dayOffset);
+      candidate.setUTCHours(hour, 0, 0, 0);
+      const weekday = candidate.getUTCDay();
+      if (weekday === 0 || weekday === 6) continue;
+      const clash = existing.some((row) =>
+        overlapsUtc(
+          candidate,
+          DEFAULT_DURATION_MINUTES,
+          new Date(row.appointment_datetime),
+          row.duration_minutes && row.duration_minutes > 0 ? row.duration_minutes : DEFAULT_DURATION_MINUTES,
+        ),
+      );
+      if (!clash) return candidate.toISOString();
+    }
+  }
+  return new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
+}
+
+type Setup = {
+  admin: SupabaseClient;
+  doctorEmail: string;
+  doctorPassword: string;
+  appointmentId: string;
+  patientName: string;
+};
+
+async function createRequest(label: string): Promise<Setup> {
+  const supabaseUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").trim();
+  const serviceRoleKey = (process.env.SUPABASE_SERVICE_ROLE_KEY ?? "").trim();
+  const doctorEmail = firstNonEmpty(process.env.TEST_DOCTOR_EMAIL, process.env.TEST_USER_EMAIL);
+  const doctorPassword = firstNonEmpty(process.env.TEST_DOCTOR_PASSWORD, process.env.TEST_USER_PASSWORD);
+  test.skip(
+    !supabaseUrl || !serviceRoleKey || !doctorEmail || !doctorPassword,
+    "Missing required integration env vars for dashboard actions.",
+  );
+
+  const admin = createClient(supabaseUrl, serviceRoleKey);
+  const { data: doctor } = await admin
+    .from("professionals")
+    .select("id")
+    .eq("email", doctorEmail)
+    .maybeSingle();
+  test.skip(!doctor?.id, `Test doctor not present in this dataset (${doctorEmail}).`);
+
+  const { data: existing } = await admin
+    .from("appointments")
+    .select("appointment_datetime, duration_minutes")
+    .eq("doctor_id", doctor!.id)
+    .gte("appointment_datetime", new Date().toISOString());
+
+  const nonce = `${Date.now()}-${Math.floor(Math.random() * 100000)}`;
+  const patientName = `CI Dashboard ${label} ${nonce}`;
+  const { data: inserted, error } = await admin
+    .from("appointments")
+    .insert({
+      doctor_id: doctor!.id,
+      patient_name: patientName,
+      patient_email: `ci-dashboard-${nonce}@example.test`,
+      patient_phone: "+35799123456",
+      appointment_datetime: findFreeSlotIso(existing ?? []),
+      duration_minutes: DEFAULT_DURATION_MINUTES,
+      reason: "CI integration dashboard actions",
+      status: "REQUESTED",
+    })
+    .select("id")
+    .single();
+  if (error || !inserted?.id) {
+    throw new Error(`Could not create requested appointment: ${error?.message ?? "missing row"}`);
+  }
+
+  return { admin, doctorEmail, doctorPassword, appointmentId: String(inserted.id), patientName };
+}
+
+test.describe("Integration: dashboard request actions", { tag: ["@pr-e2e", "@pr-e2e-booking"] }, () => {
+  test("Accept confirms the request without leaving the dashboard", async ({ page }) => {
+    test.setTimeout(120_000);
+    const setup = await createRequest("Accept");
+    try {
+      await page.setViewportSize({ width: 1280, height: 900 });
+      await signInDoctorOrFail(page, undefined, {
+        email: setup.doctorEmail,
+        password: setup.doctorPassword,
+      });
+      await page.goto("/dashboard", { waitUntil: "domcontentloaded" });
+
+      const card = page.getByTestId("dashboard-pending-request").filter({ hasText: setup.patientName });
+      await expect(card).toBeVisible({ timeout: 20_000 });
+      await expect(card.getByRole("link", { name: "Suggest other times" })).toHaveAttribute(
+        "href",
+        `/dashboard/appointments/${setup.appointmentId}`,
+      );
+
+      await card.getByRole("button", { name: "Accept" }).click();
+      await expect(card).toHaveCount(0, { timeout: 20_000 });
+      await expect(page).toHaveURL(/\/dashboard(?:[/?#]|$)/);
+
+      await expect
+        .poll(async () => {
+          const { data } = await setup.admin
+            .from("appointments")
+            .select("status")
+            .eq("id", setup.appointmentId)
+            .maybeSingle();
+          return String(data?.status ?? "").toUpperCase();
+        }, { timeout: 15_000 })
+        .toBe("CONFIRMED");
+    } finally {
+      await setup.admin.from("appointments").delete().eq("id", setup.appointmentId);
+    }
+  });
+
+  test("Decline asks for a reason and removes the request", async ({ page }) => {
+    test.setTimeout(120_000);
+    const setup = await createRequest("Decline");
+    try {
+      await page.setViewportSize({ width: 1280, height: 900 });
+      await signInDoctorOrFail(page, undefined, {
+        email: setup.doctorEmail,
+        password: setup.doctorPassword,
+      });
+      await page.goto("/dashboard", { waitUntil: "domcontentloaded" });
+
+      const card = page.getByTestId("dashboard-pending-request").filter({ hasText: setup.patientName });
+      await expect(card).toBeVisible({ timeout: 20_000 });
+      await card.getByRole("button", { name: "Decline" }).click();
+
+      const dialog = page.getByRole("dialog", { name: /Decline this request/i });
+      await expect(dialog).toBeVisible();
+      const submit = dialog.getByRole("button", { name: "Decline & notify" });
+      await expect(submit).toBeDisabled();
+
+      await dialog.getByLabel(/Reason for the patient/i).fill("I am away that day, sorry.");
+      await expect(submit).toBeEnabled();
+      await submit.click();
+
+      await expect(dialog).toBeHidden({ timeout: 15_000 });
+      await expect(card).toHaveCount(0, { timeout: 20_000 });
+
+      await expect
+        .poll(async () => {
+          const { data } = await setup.admin
+            .from("appointments")
+            .select("id")
+            .eq("id", setup.appointmentId)
+            .maybeSingle();
+          return data?.id ?? null;
+        }, { timeout: 15_000 })
+        .toBeNull();
+    } finally {
+      await setup.admin.from("appointments").delete().eq("id", setup.appointmentId);
+    }
+  });
+});

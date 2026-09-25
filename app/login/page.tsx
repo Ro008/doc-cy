@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
 import { LoginPageClient } from "@/components/auth/LoginPageClient";
 import { safeAuthNextPath } from "@/lib/auth-redirect";
+import { postLoginDestination } from "@/lib/doctor-routes";
 
 export const dynamic = "force-dynamic";
 
@@ -20,7 +21,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   const nextPath = safeAuthNextPath(Array.isArray(rawNext) ? rawNext[0] : rawNext);
 
   if (user) {
-    redirect(nextPath ?? "/agenda");
+    redirect(postLoginDestination(nextPath));
   }
 
   return <LoginPageClient nextPath={nextPath} />;

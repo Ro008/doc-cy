@@ -7,15 +7,24 @@ import { UserMenuNavLink } from "@/components/navigation/UserMenuNavLink";
 import { UserBarMoreMenuItems } from "@/components/navigation/UserBarMoreMenuItems";
 import { MobileTabNavLink } from "@/components/navigation/MobileTabNavLink";
 import { PendingLink } from "@/components/navigation/PendingLink";
+import { DesktopNavTabLink } from "@/components/navigation/DesktopNavTabLink";
 import { DocCyWordmark } from "@/components/brand/DocCyWordmark";
 import { publicProfessionalProfilePath } from "@/lib/manual-directory-landing-path";
 import { useDoctorSession } from "@/components/navigation/DoctorSessionProvider";
 import { emitOpenFeedback } from "@/lib/doccy-feedback";
 import { PRO_CHROME_HYDRATED_ATTR } from "@/lib/pro-session-hint";
 import {
+  DOCTOR_HOME_PATH,
+  DOCTOR_NAV_TABS,
+  activeDoctorNavTab,
+  isDoctorProductPath,
+  type DoctorNavTabId,
+} from "@/lib/doctor-routes";
+import {
   BarChart3,
   CalendarPlus,
   CalendarDays,
+  LayoutDashboard,
   LifeBuoy,
   LogOut,
   Megaphone,
@@ -30,6 +39,20 @@ function getInitials(name: string | null): string {
   const parts = name.trim().split(/\s+/);
   if (parts.length === 1) return parts[0]?.[0]?.toUpperCase() ?? "D";
   return `${parts[0]?.[0] ?? ""}${parts[1]?.[0] ?? ""}`.toUpperCase();
+}
+
+function mobileTabIcon(id: DoctorNavTabId) {
+  const className = "h-5 w-5 shrink-0 sm:h-[1.35rem] sm:w-[1.35rem]";
+  switch (id) {
+    case "dashboard":
+      return <LayoutDashboard className={className} aria-hidden />;
+    case "agenda":
+      return <CalendarDays className={className} aria-hidden />;
+    case "settings":
+      return <Settings className={className} aria-hidden />;
+    case "insights":
+      return <BarChart3 className={className} aria-hidden />;
+  }
 }
 
 export function UserBar() {
@@ -163,9 +186,7 @@ export function UserBar() {
 
   const pathNorm = pathname.replace(/\/$/, "") || "/";
 
-  const isAgendaActive = pathNorm === "/agenda";
-  const isInsightsActive = pathname.startsWith("/agenda/insights");
-  const isSettingsActive = pathname.startsWith("/agenda/settings");
+  const activeTab = activeDoctorNavTab(pathname);
   const isPublicProfileActive = Boolean(
     slug && (pathNorm === `/${slug}` || pathNorm.endsWith(`/${slug}`)),
   );
@@ -176,7 +197,7 @@ export function UserBar() {
   const tabInactiveClass = "text-ink-200 hover:text-ink-50";
   const tabActiveClass = "font-semibold text-clinical-100";
 
-  const useStickyDesktopChrome = pathname.startsWith("/agenda");
+  const useStickyDesktopChrome = isDoctorProductPath(pathname);
 
   const desktopUserMenu = (
     <>
@@ -250,27 +271,6 @@ export function UserBar() {
             + Add Manual Booking
           </UserMenuNavLink>
           <UserMenuNavLink
-            href="/agenda"
-            data-testid="userbar-link-agenda"
-            icon={<CalendarDays className="h-4 w-4 text-clinical-300" aria-hidden />}
-          >
-            My Agenda
-          </UserMenuNavLink>
-          <UserMenuNavLink
-            href="/agenda/insights"
-            data-testid="userbar-link-insights"
-            icon={<BarChart3 className="h-4 w-4 text-clinical-300" aria-hidden />}
-          >
-            Practice insights
-          </UserMenuNavLink>
-          <UserMenuNavLink
-            href="/agenda/settings"
-            data-testid="userbar-link-settings"
-            icon={<Settings className="h-4 w-4 text-clinical-300" aria-hidden />}
-          >
-            Settings
-          </UserMenuNavLink>
-          <UserMenuNavLink
             href="/agenda/settings#promote-practice"
             data-testid="userbar-link-promote"
             icon={<Megaphone className="h-4 w-4 text-clinical-300" aria-hidden />}
@@ -320,9 +320,22 @@ export function UserBar() {
           className="sticky top-0 z-50 hidden border-b border-clinical-400/15 bg-ink-900/90 shadow-sm shadow-ink-900/25 backdrop-blur-md lg:block"
         >
           <div className="mx-auto flex h-14 max-w-[1920px] items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
-            <PendingLink href="/agenda" className="inline-flex shrink-0 transition hover:opacity-90">
-              <DocCyWordmark variant="dark" />
-            </PendingLink>
+            <div className="flex min-w-0 items-center gap-6">
+              <PendingLink href={DOCTOR_HOME_PATH} className="inline-flex shrink-0 transition hover:opacity-90">
+                <DocCyWordmark variant="dark" />
+              </PendingLink>
+              <nav aria-label="Doctor sections" className="flex items-center gap-1">
+                {DOCTOR_NAV_TABS.map((tab) => (
+                  <DesktopNavTabLink
+                    key={tab.id}
+                    href={tab.href}
+                    label={tab.label}
+                    isActive={activeTab === tab.id}
+                    data-testid={`userbar-nav-${tab.id}`}
+                  />
+                ))}
+              </nav>
+            </div>
             <div className="relative shrink-0" ref={menuRef}>
               {desktopUserMenu}
             </div>
@@ -373,42 +386,19 @@ export function UserBar() {
           </div>
         ) : null}
         <div className="relative mx-auto flex max-w-2xl items-stretch justify-between gap-0 px-1 pt-0.5">
-          <MobileTabNavLink
-            href="/agenda"
-            label="Agenda"
-            data-testid="userbar-tab-agenda"
-            isActive={isAgendaActive}
-            baseClass={tabBaseClass}
-            activeClass={tabActiveClass}
-            inactiveClass={tabInactiveClass}
-            icon={
-              <CalendarDays className="h-5 w-5 shrink-0 sm:h-[1.35rem] sm:w-[1.35rem]" aria-hidden />
-            }
-          />
-          <MobileTabNavLink
-            href="/agenda/insights"
-            label="Insights"
-            data-testid="userbar-tab-insights"
-            isActive={isInsightsActive}
-            baseClass={tabBaseClass}
-            activeClass={tabActiveClass}
-            inactiveClass={tabInactiveClass}
-            icon={
-              <BarChart3 className="h-5 w-5 shrink-0 sm:h-[1.35rem] sm:w-[1.35rem]" aria-hidden />
-            }
-          />
-          <MobileTabNavLink
-            href="/agenda/settings"
-            label="Settings"
-            data-testid="userbar-tab-settings"
-            isActive={isSettingsActive}
-            baseClass={tabBaseClass}
-            activeClass={tabActiveClass}
-            inactiveClass={tabInactiveClass}
-            icon={
-              <Settings className="h-5 w-5 shrink-0 sm:h-[1.35rem] sm:w-[1.35rem]" aria-hidden />
-            }
-          />
+          {DOCTOR_NAV_TABS.map((tab) => (
+            <MobileTabNavLink
+              key={tab.id}
+              href={tab.href}
+              label={tab.label}
+              data-testid={`userbar-tab-${tab.id}`}
+              isActive={activeTab === tab.id}
+              baseClass={tabBaseClass}
+              activeClass={tabActiveClass}
+              inactiveClass={tabInactiveClass}
+              icon={mobileTabIcon(tab.id)}
+            />
+          ))}
           <div ref={mobileMoreAnchorRef} className="relative flex min-w-0 flex-1">
             <button
               type="button"

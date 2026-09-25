@@ -253,7 +253,8 @@ export async function authenticateDoctorViaPasswordUi(
     await submitLoginFormViaUi(page, resolvedEmail, resolvedPassword);
 
     try {
-      await expect(page).toHaveURL(/\/agenda(?:[/?#]|$)/, { timeout: 45_000 });
+      // Login lands on /dashboard; prod keeps /agenda until the dashboard ships.
+      await expect(page).toHaveURL(/\/(?:dashboard|agenda)(?:[/?#]|$)/, { timeout: 45_000 });
       return;
     } catch (error) {
       const currentUrl = page.url();

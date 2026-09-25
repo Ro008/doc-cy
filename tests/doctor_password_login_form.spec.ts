@@ -10,7 +10,7 @@ function normalizeSecret(raw: string): string {
 }
 
 test.describe("Doctor password login form", { tag: "@pr-login-monitor" }, () => {
-  test("doctor can sign in via login form and reach agenda", async ({ page, baseURL }) => {
+  test("doctor can sign in via login form and land on the dashboard", async ({ page, baseURL }) => {
     test.setTimeout(120_000);
     const appBaseUrl = (process.env.PLAYWRIGHT_BASE_URL ?? baseURL ?? "http://localhost:3000").trim();
     const email = normalizeSecret(process.env.TEST_USER_EMAIL ?? process.env.TEST_DOCTOR_EMAIL ?? "");
@@ -22,8 +22,8 @@ test.describe("Doctor password login form", { tag: "@pr-login-monitor" }, () => 
 
     await assertDoctorPasswordAuthReachable(email, password);
     await authenticateDoctorViaPasswordUi(page, appBaseUrl, email, password);
-    await expect(page).toHaveURL(/\/agenda(?:[/?#]|$)/, { timeout: 45_000 });
-    await expect(page.getByRole("button", { name: /^Today$/i })).toBeVisible({
+    await expect(page).toHaveURL(/\/dashboard(?:[/?#]|$)/, { timeout: 45_000 });
+    await expect(page.getByRole("heading", { name: "Needs your answer" })).toBeVisible({
       timeout: 20_000,
     });
   });

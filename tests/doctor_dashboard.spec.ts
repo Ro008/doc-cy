@@ -105,7 +105,7 @@ test.describe("Doctor dashboard", () => {
 
     await expect(page).toHaveURL(/\/agenda/, { timeout: 10000 });
 
-    const settingsLink = page.getByTestId("userbar-link-settings");
+    const settingsLink = page.getByTestId("userbar-nav-settings");
     if ((await settingsLink.count()) > 0) {
       await expect(settingsLink).toBeVisible();
       await expect(settingsLink).toHaveAttribute("href", "/agenda/settings");
@@ -118,7 +118,7 @@ test.describe("Doctor dashboard", () => {
       await expect(page).toHaveURL(/\/agenda\/settings/, { timeout: 10000 });
     }
     await expect(page).toHaveURL("/agenda/settings");
-    await expect(page.getByText(/^Settings$/i).first()).toBeVisible({
+    await expect(page.getByText(/^Settings$/i).filter({ visible: true }).first()).toBeVisible({
       timeout: 5000,
     });
     await expect(page.locator("main header h1").first()).toBeVisible({

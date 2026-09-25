@@ -39,7 +39,7 @@ test.describe("Practice insights (doctor dashboard)", { tag: "@pr-e2e" }, () => 
     await expect(page.getByText("No-shows (this month)")).toBeVisible();
   });
 
-  test("mobile tab bar shows four tabs and navigates to insights", async ({ page }) => {
+  test("mobile tab bar shows five tabs and navigates to insights", async ({ page }) => {
     test.setTimeout(120_000);
     await signInAndOpenAgenda(page);
     await page.setViewportSize({ width: 390, height: 844 });
@@ -47,6 +47,7 @@ test.describe("Practice insights (doctor dashboard)", { tag: "@pr-e2e" }, () => 
     await expect(page).toHaveURL(/\/agenda(?:[/?#]|$)/, { timeout: 20_000 });
 
     await expect(page.getByTestId("userbar-mobile-tabs")).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByTestId("userbar-tab-dashboard")).toBeVisible();
     await expect(page.getByTestId("userbar-tab-agenda")).toBeVisible();
     await expect(page.getByTestId("userbar-tab-insights")).toBeVisible();
     await expect(page.getByTestId("userbar-tab-settings")).toBeVisible();

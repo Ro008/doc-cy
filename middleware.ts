@@ -23,6 +23,7 @@ import {
   shouldSkipSupabaseSessionRefresh,
 } from "./lib/needs-supabase-session-middleware";
 import {isInternalDirectoryCookieAuthorized} from "./lib/internal-directory-auth-core";
+import {isDoctorProductPath} from "./lib/doctor-routes";
 
 const handleI18nRouting = createMiddleware(routing);
 
@@ -118,7 +119,7 @@ export async function middleware(req: NextRequest) {
       data: {session},
     } = await supabase.auth.getSession();
 
-    if (pathname === "/agenda" || pathname.startsWith("/agenda/")) {
+    if (isDoctorProductPath(pathname)) {
       if (!session) {
         const loginUrl = new URL("/login", req.url);
         loginUrl.searchParams.set("next", pathname);
