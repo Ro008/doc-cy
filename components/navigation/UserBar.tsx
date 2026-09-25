@@ -7,7 +7,8 @@ import { UserMenuNavLink } from "@/components/navigation/UserMenuNavLink";
 import { UserBarMoreMenuItems } from "@/components/navigation/UserBarMoreMenuItems";
 import { MobileTabNavLink } from "@/components/navigation/MobileTabNavLink";
 import { PendingLink } from "@/components/navigation/PendingLink";
-import { DesktopNavTabLink } from "@/components/navigation/DesktopNavTabLink";
+import { DesktopNavTabs } from "@/components/navigation/DesktopNavTabs";
+import { usePendingRequestsCount } from "@/components/navigation/usePendingRequestsCount";
 import { DocCyWordmark } from "@/components/brand/DocCyWordmark";
 import { publicProfessionalProfilePath } from "@/lib/manual-directory-landing-path";
 import { useDoctorSession } from "@/components/navigation/DoctorSessionProvider";
@@ -18,6 +19,7 @@ import {
   DOCTOR_NAV_TABS,
   activeDoctorNavTab,
   isDoctorProductPath,
+  pendingBadgeLabel,
   type DoctorNavTabId,
 } from "@/lib/doctor-routes";
 import {
@@ -205,6 +207,11 @@ export function UserBar() {
     isDistractionFreeDoctorFlow ||
     isAccountReviewGate;
 
+  const pendingCount = usePendingRequestsCount(!hideChrome && sessionState.isLoggedIn, pathname);
+  const tabBadges: Partial<Record<DoctorNavTabId, string | null>> = {
+    dashboard: pendingBadgeLabel(pendingCount),
+  };
+
   useLayoutEffect(() => {
     if (hideChrome) return;
     document.documentElement.setAttribute(PRO_CHROME_HYDRATED_ATTR, "1");
@@ -341,17 +348,7 @@ export function UserBar() {
               <PendingLink href={DOCTOR_HOME_PATH} className="inline-flex shrink-0 transition hover:opacity-90">
                 <DocCyWordmark variant="dark" />
               </PendingLink>
-              <nav aria-label="Doctor sections" className="flex items-center gap-1">
-                {DOCTOR_NAV_TABS.map((tab) => (
-                  <DesktopNavTabLink
-                    key={tab.id}
-                    href={tab.href}
-                    label={tab.label}
-                    isActive={activeTab === tab.id}
-                    data-testid={`userbar-nav-${tab.id}`}
-                  />
-                ))}
-              </nav>
+              <DesktopNavTabs pathname={pathname} badges={tabBadges} />
             </div>
             <div className="relative shrink-0" ref={menuRef}>
               {desktopUserMenu}
@@ -421,6 +418,7 @@ export function UserBar() {
               activeClass={tabActiveClass}
               inactiveClass={tabInactiveClass}
               icon={mobileTabIcon(tab.id)}
+              badge={tabBadges[tab.id] ?? null}
             />
           ))}
           <div ref={mobileMoreAnchorRef} className="relative flex min-w-0 flex-1">

@@ -9,6 +9,17 @@ function normalizeSecret(raw: string): string {
     .replace(/^['"]+|['"]+$/g, "");
 }
 
+function badgeLabel(count: number): string | null {
+  if (count <= 0) return null;
+  return count > 9 ? "9+" : String(count);
+}
+
+async function waitForHydration(page: import("@playwright/test").Page) {
+  await expect(page.locator("html")).toHaveAttribute("data-doccy-pro-chrome-hydrated", "1", {
+    timeout: 20_000,
+  });
+}
+
 async function signInAndOpenDashboard(page: import("@playwright/test").Page) {
   const email = normalizeSecret(process.env.TEST_USER_EMAIL ?? process.env.TEST_DOCTOR_EMAIL ?? "");
   const password = normalizeSecret(
@@ -180,5 +191,87 @@ test.describe("Doctor home dashboard", { tag: "@pr-e2e" }, () => {
       "userbar-mobile-more-action-logout",
     ]);
     await expect(menu.getByRole("separator")).toHaveCount(1);
+  });
+
+  test("desktop: the nav pill moves to the clicked tab before the page arrives", async ({ page }) => {
+    test.setTimeout(120_000);
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await signInAndOpenDashboard(page);
+    await waitForHydration(page);
+
+    const header = page.getByTestId("pro-sticky-header");
+    const insights = header.getByTestId("userbar-nav-insights");
+    const pill = header.getByTestId("userbar-nav-pill");
+    const widthBefore = (await insights.boundingBox())!.width;
+
+    let release!: () => void;
+    const released = new Promise<void>((resolve) => (release = resolve));
+    await page.route("**/agenda/insights**", async (route) => {
+      await released;
+      await route.continue();
+    });
+
+    await insights.click({ noWaitAfter: true });
+    await expect(insights).toHaveAttribute("data-selected", "true");
+    await expect(header.getByTestId("userbar-nav-dashboard")).toHaveAttribute("data-selected", "false");
+    await expect(insights).toHaveAttribute("aria-busy", "true");
+    await expect
+      .poll(async () => {
+        const [p, t] = [await pill.boundingBox(), await insights.boundingBox()];
+        return p && t ? Math.abs(p.x - t.x) < 2 && Math.abs(p.width - t.width) < 2 : false;
+      }, { timeout: 3_000 })
+      .toBe(true);
+    expect(Math.abs((await insights.boundingBox())!.width - widthBefore)).toBeLessThan(1);
+
+    release();
+    await expect(page).toHaveURL(/\/agenda\/insights(?:[/?#]|$)/, { timeout: 20_000 });
+    await expect(insights).toHaveAttribute("aria-current", "page");
+  });
+
+  test("the Dashboard tab shows how many requests are waiting, on every page", async ({ page }) => {
+    test.setTimeout(120_000);
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await signInAndOpenDashboard(page);
+    await waitForHydration(page);
+
+    const requests = page.getByTestId("dashboard-pending-request");
+    await expect(requests.first().or(page.getByText("No requests waiting for you."))).toBeVisible({
+      timeout: 15_000,
+    });
+    const expected = badgeLabel(await requests.count());
+
+    const header = page.getByTestId("pro-sticky-header");
+    const badge = header.getByTestId("userbar-nav-dashboard-badge");
+    if (expected) await expect(badge).toHaveText(expected, { timeout: 10_000 });
+    else await expect(badge).toHaveCount(0);
+
+    await header.getByTestId("userbar-nav-agenda").click();
+    await expect(page).toHaveURL(/\/agenda(?:[?#]|$)/, { timeout: 20_000 });
+    if (expected) await expect(badge).toHaveText(expected, { timeout: 10_000 });
+    else await expect(badge).toHaveCount(0);
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    const mobileBadge = page.getByTestId("userbar-tab-dashboard-badge");
+    if (expected) await expect(mobileBadge).toHaveText(expected, { timeout: 10_000 });
+    else await expect(mobileBadge).toHaveCount(0);
+  });
+
+  test("a soft fade marks that the page continues below, and goes away at the end", async ({ page }) => {
+    test.setTimeout(120_000);
+    await page.setViewportSize({ width: 1280, height: 480 });
+    await signInAndOpenDashboard(page);
+    await waitForHydration(page);
+
+    const fade = page.getByTestId("dashboard-scroll-fade");
+    const scrollable = await page.evaluate(
+      () => document.documentElement.scrollHeight > window.innerHeight + 16,
+    );
+    test.skip(!scrollable, "Dashboard fits the viewport for this account; nothing to fade.");
+
+    await expect(fade).toHaveAttribute("data-visible", "true");
+    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+    await expect(fade).toHaveAttribute("data-visible", "false");
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await expect(fade).toHaveAttribute("data-visible", "true");
   });
 });

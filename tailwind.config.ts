@@ -36,12 +36,17 @@ const config: Config = {
           "0%, 100%": { opacity: "1" },
           "50%": { opacity: "0.35" },
         },
+        shimmer: {
+          from: { backgroundPosition: "100% 0" },
+          to: { backgroundPosition: "-100% 0" },
+        },
       },
       animation: {
         "fade-up": "fade-up 420ms cubic-bezier(0.2, 0.7, 0.2, 1) both",
         pop: "pop 360ms cubic-bezier(0.2, 0.7, 0.2, 1)",
         "check-in": "check-in 520ms cubic-bezier(0.2, 0.7, 0.2, 1) both",
         blink: "blink 1.6s ease-in-out infinite",
+        shimmer: "shimmer 1.4s linear infinite",
       },
       colors: {
         // Doccy Teal scale — primary CTAs, accents, focus rings

@@ -149,6 +149,11 @@ test.describe("Integration: dashboard request actions", { tag: ["@pr-e2e", "@pr-
         `/dashboard/appointments/${setup.appointmentId}`,
       );
 
+      const badge = page.getByTestId("pro-sticky-header").getByTestId("userbar-nav-dashboard-badge");
+      const waitingBefore = await page.getByTestId("dashboard-pending-request").count();
+      const label = (n: number) => (n <= 0 ? null : n > 9 ? "9+" : String(n));
+      await expect(badge).toHaveText(label(waitingBefore)!, { timeout: 10_000 });
+
       const releaseConfirm = await holdRequests(page, "**/api/appointments/*/confirm");
       await card.getByRole("button", { name: "Accept" }).click();
       await expectRowBusy(card);
@@ -157,6 +162,9 @@ test.describe("Integration: dashboard request actions", { tag: ["@pr-e2e", "@pr-
 
       await expect(card).toHaveCount(0, { timeout: 20_000 });
       await expect(page).toHaveURL(/\/dashboard(?:[/?#]|$)/);
+      const after = label(waitingBefore - 1);
+      if (after) await expect(badge).toHaveText(after, { timeout: 10_000 });
+      else await expect(badge).toHaveCount(0);
 
       await expect
         .poll(async () => {

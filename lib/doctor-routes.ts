@@ -43,3 +43,23 @@ export function isDoctorProductPath(pathname: string): boolean {
   const path = normalizePath(pathname);
   return path === DOCTOR_HOME_PATH || path === "/agenda" || path.startsWith("/agenda/");
 }
+
+/**
+ * The tab the nav highlights: the one being opened (so the pill moves on click,
+ * before the page arrives), otherwise the current page's tab.
+ */
+export function selectedDoctorNavTab(
+  pathname: string,
+  pendingHref: string | null,
+): DoctorNavTabId | null {
+  const pendingTab = pendingHref
+    ? DOCTOR_NAV_TABS.find((tab) => tab.href === pendingHref)?.id ?? null
+    : null;
+  return pendingTab ?? activeDoctorNavTab(pathname);
+}
+
+/** Text for the pending-requests badge on the Dashboard tab; null hides it. */
+export function pendingBadgeLabel(count: number | null | undefined): string | null {
+  if (typeof count !== "number" || !Number.isFinite(count) || count <= 0) return null;
+  return count > 9 ? "9+" : String(Math.floor(count));
+}

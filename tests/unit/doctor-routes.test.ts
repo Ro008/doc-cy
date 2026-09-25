@@ -6,7 +6,9 @@ import {
   DOCTOR_NAV_TABS,
   activeDoctorNavTab,
   isDoctorProductPath,
+  pendingBadgeLabel,
   postLoginDestination,
+  selectedDoctorNavTab,
 } from "../../lib/doctor-routes";
 
 describe("DOCTOR_HOME_PATH", () => {
@@ -92,5 +94,39 @@ describe("isDoctorProductPath", () => {
     ]) {
       assert.equal(isDoctorProductPath(path), false, path);
     }
+  });
+});
+
+describe("selectedDoctorNavTab", () => {
+  it("follows the current page when nothing is loading", () => {
+    assert.equal(selectedDoctorNavTab("/dashboard", null), "dashboard");
+    assert.equal(selectedDoctorNavTab("/agenda/settings", null), "settings");
+  });
+
+  it("jumps to the tab being opened before the page arrives", () => {
+    assert.equal(selectedDoctorNavTab("/dashboard", "/agenda/insights"), "insights");
+    assert.equal(selectedDoctorNavTab("/agenda", "/dashboard"), "dashboard");
+  });
+
+  it("ignores pending links that are not tabs", () => {
+    assert.equal(selectedDoctorNavTab("/dashboard", "/agenda?manual=1"), "dashboard");
+    assert.equal(selectedDoctorNavTab("/dashboard", "/agenda/settings#promote-practice"), "dashboard");
+    assert.equal(selectedDoctorNavTab("/for-professionals", "/some-public-page"), null);
+  });
+});
+
+describe("pendingBadgeLabel", () => {
+  it("hides the badge when nothing is waiting", () => {
+    assert.equal(pendingBadgeLabel(0), null);
+    assert.equal(pendingBadgeLabel(-1), null);
+    assert.equal(pendingBadgeLabel(Number.NaN), null);
+    assert.equal(pendingBadgeLabel(null), null);
+  });
+
+  it("shows the count up to nine, then 9+", () => {
+    assert.equal(pendingBadgeLabel(1), "1");
+    assert.equal(pendingBadgeLabel(9), "9");
+    assert.equal(pendingBadgeLabel(10), "9+");
+    assert.equal(pendingBadgeLabel(42), "9+");
   });
 });

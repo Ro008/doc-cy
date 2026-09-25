@@ -27,6 +27,7 @@ import {
   type TodayWorkingWindow,
 } from "@/lib/doctor-dashboard";
 import { isAllowedProfessionalDuration } from "@/lib/professional-appointment-durations";
+import { emitPendingRequestsCount } from "@/lib/pending-requests-count";
 
 type Props = {
   doctorId: string;
@@ -98,6 +99,10 @@ export function DoctorDashboard({
   const pending = selectPendingRequests(rows, nowMs);
   const waitingCount = pending.filter((row) => !exiting[row.id]).length;
   const awaiting = selectAwaitingPatient(rows, nowMs);
+
+  React.useEffect(() => {
+    emitPendingRequestsCount(waitingCount);
+  }, [waitingCount]);
   const schedule = buildTodaySchedule(rows, {
     nowMs,
     startHour: todayWindow?.startHour,
@@ -161,7 +166,7 @@ export function DoctorDashboard({
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)] lg:items-start">
         <section aria-labelledby="dashboard-pending-heading" className="min-w-0">
-          <div className="flex items-center gap-2.5">
+          <div className="flex h-7 items-center gap-2.5">
             <h2 id="dashboard-pending-heading" className="text-xl font-semibold tracking-tight text-slate-50">
               Needs your answer
             </h2>
@@ -247,7 +252,45 @@ export function DoctorDashboard({
         onClose={() => setManualOpen(false)}
         onBooked={() => router.refresh()}
       />
+
+      <ScrollFade />
     </div>
+  );
+}
+
+/**
+ * Soft fade at the bottom of the viewport while more of the page sits below,
+ * so the last visible card does not look cut off. Sits above the phone tab bar.
+ */
+function ScrollFade() {
+  const [visible, setVisible] = React.useState(false);
+
+  React.useEffect(() => {
+    function update() {
+      const root = document.documentElement;
+      setVisible(root.scrollHeight - (window.scrollY + window.innerHeight) > 24);
+    }
+    update();
+    window.addEventListener("scroll", update, { passive: true });
+    window.addEventListener("resize", update);
+    const observer = new ResizeObserver(update);
+    observer.observe(document.body);
+    return () => {
+      window.removeEventListener("scroll", update);
+      window.removeEventListener("resize", update);
+      observer.disconnect();
+    };
+  }, []);
+
+  return (
+    <div
+      aria-hidden
+      data-testid="dashboard-scroll-fade"
+      data-visible={visible ? "true" : "false"}
+      className={`pointer-events-none fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom,0px))] z-40 h-24 bg-gradient-to-t from-ink-900 via-ink-900/70 to-transparent transition-opacity duration-300 lg:bottom-0 ${
+        visible ? "opacity-100" : "opacity-0"
+      }`}
+    />
   );
 }
 
@@ -372,7 +415,7 @@ function PendingRequestItem({
     >
       <div className="min-h-0 overflow-hidden">
         <article
-          className={`flex gap-4 px-5 py-4 transition-colors duration-300 ${
+          className={`flex flex-col gap-2 px-5 py-4 transition-colors duration-300 sm:flex-row sm:gap-4 ${
             exit === "accepted"
               ? "bg-clinical-500/10"
               : exit === "declined"
@@ -382,11 +425,12 @@ function PendingRequestItem({
                   : "hover:bg-slate-800/30"
           }`}
         >
-          <div className="w-20 shrink-0">
+          {/* Phone: date and time on one line above, so the buttons get the full width. */}
+          <div className="flex items-baseline gap-2 sm:block sm:w-20 sm:shrink-0">
             <p className="text-xs font-semibold uppercase tracking-wide text-clinical-300">
               {formatInTimeZone(start, CY_TZ, "EEE d MMM")}
             </p>
-            <p className="mt-0.5 text-xl font-semibold tabular-nums text-slate-50">
+            <p className="text-xl font-semibold tabular-nums text-slate-50 sm:mt-0.5">
               {formatInTimeZone(start, CY_TZ, "HH:mm")}
             </p>
           </div>
@@ -441,7 +485,7 @@ function PendingRequestItem({
                   onClick={openReview}
                   aria-disabled={locked}
                   tabIndex={locked ? -1 : undefined}
-                  className={`inline-flex h-11 items-center justify-center gap-2 whitespace-nowrap rounded-xl border border-clinical-400/40 px-2 text-sm font-medium text-clinical-100 transition hover:border-clinical-400/70 hover:bg-clinical-500/10 sm:h-10 sm:px-3.5 ${
+                  className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-clinical-400/40 px-2 py-1 text-center text-sm leading-tight font-medium text-clinical-100 transition hover:border-clinical-400/70 hover:bg-clinical-500/10 sm:min-h-10 sm:whitespace-nowrap sm:px-3.5 ${
                     locked ? "pointer-events-none" : ""
                   } ${busy && busy !== "suggest" ? "opacity-50" : ""}`}
                 >
@@ -495,11 +539,9 @@ function TodayTimeline({
   const nowLabel = formatInTimeZone(new Date(nowMs), CY_TZ, "HH:mm");
 
   return (
-    <section
-      aria-labelledby="dashboard-today-heading"
-      className="min-w-0 rounded-3xl border border-slate-700/70 bg-slate-900/70 p-5 shadow-xl shadow-black/20 lg:sticky lg:top-20"
-    >
-      <div className="flex items-baseline gap-3">
+    // Heading outside the card, like "Needs your answer", so both columns line up.
+    <section aria-labelledby="dashboard-today-heading" className="min-w-0 lg:sticky lg:top-20">
+      <div className="flex h-7 items-center gap-3">
         <h2 id="dashboard-today-heading" className="text-xl font-semibold tracking-tight text-slate-50">
           Today
         </h2>
@@ -509,7 +551,10 @@ function TodayTimeline({
         </Link>
       </div>
 
-      <div data-testid="dashboard-today-schedule" className="mt-5">
+      <div
+        data-testid="dashboard-today-schedule"
+        className="mt-3 rounded-3xl border border-slate-700/70 bg-slate-900/70 p-5 shadow-xl shadow-black/20"
+      >
         <ol className="relative">
           <span aria-hidden className="absolute bottom-3 left-[7px] top-3 w-px bg-gradient-to-b from-slate-700 via-slate-700 to-transparent" />
           {entries.map((entry, index) =>

@@ -95,7 +95,7 @@ describe("agenda clinics", () => {
     assert.equal(calendarsUi.includes("You're viewing appointments for your"), true);
     assert.equal(calendarsUi.includes("No calendars selected."), true);
     const page = fs.readFileSync(
-      path.join(path.dirname(fileURLToPath(import.meta.url)), "../../app/agenda/page.tsx"),
+      path.join(path.dirname(fileURLToPath(import.meta.url)), "../../app/agenda/(calendar)/page.tsx"),
       "utf8",
     );
     assert.equal(page.includes("locationsToAgendaClinics"), true);
