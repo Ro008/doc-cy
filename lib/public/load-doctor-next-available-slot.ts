@@ -24,12 +24,22 @@ import {
 
 const EMPTY_CALENDAR: PublicAvailabilityCalendar = { days: [], soonestSlot: null };
 
-async function loadOccupiedSlotTimes(
-  supabase: SupabaseClient,
-  doctorId: string,
-  settings: DoctorSettingsRow,
-  locationId?: string | null,
-): Promise<string[] | null> {
+/**
+ * One call returns the taken slot starts for many professionals, each row with
+ * its clinic. The finder used to call public_doctor_occupied_datetimes once
+ * per card and clinic (32% of Testing's database time); it now calls this once
+ * per page. Same rules: the per-professional function wraps this one.
+ */
+export const OCCUPIED_BATCH_RPC = "public_professionals_occupied_datetimes";
+
+export type OccupiedRow = {
+  professional_id: string;
+  location_id: string | null;
+  appointment_datetime: string;
+};
+
+/** From yesterday to the day after the professional's last bookable day (Cyprus). */
+function occupiedRange(settings: DoctorSettingsRow): { fromIso: string; toIso: string } {
   const maxHorizonDays = [14, 30, 90, 180].includes(Number(settings.booking_horizon_days))
     ? Number(settings.booking_horizon_days)
     : 90;
@@ -43,32 +53,56 @@ async function loadOccupiedSlotTimes(
     `${format(occupiedRangeEndCyprus, "yyyy-MM-dd")}T23:59:59.999`,
     CY_TZ,
   ).toISOString();
+  return { fromIso, toIso };
+}
 
-  const rpcArgs: {
-    p_doctor_id: string;
-    p_from: string;
-    p_to: string;
-    p_location_id?: string;
-  } = {
-    p_doctor_id: doctorId,
+async function loadOccupiedRows(
+  supabase: SupabaseClient,
+  professionalIds: string[],
+  fromIso: string,
+  toIso: string,
+): Promise<OccupiedRow[] | null> {
+  const { data, error } = await supabase.rpc(OCCUPIED_BATCH_RPC, {
+    p_professional_ids: professionalIds,
     p_from: fromIso,
     p_to: toIso,
-  };
-  if (locationId) rpcArgs.p_location_id = locationId;
-
-  const { data: occupiedRows, error: occupiedErr } = await supabase.rpc(
-    "public_doctor_occupied_datetimes",
-    rpcArgs,
-  );
-
-  if (occupiedErr) {
-    console.error("[DocCy] finder availability calendar lookup failed:", occupiedErr);
+  });
+  if (error) {
+    console.error("[DocCy] finder availability calendar lookup failed:", error);
     return null;
   }
+  return (data ?? []) as OccupiedRow[];
+}
 
-  return (occupiedRows ?? []).map((row: { appointment_datetime: string }) =>
-    format(appointmentToCyprusDate(row.appointment_datetime), "yyyy-MM-dd'T'HH:mm"),
-  );
+/**
+ * One professional's taken slot starts (Cyprus "yyyy-MM-ddTHH:mm"), at one
+ * clinic or, with no clinic, at all of them; up to their own horizon.
+ */
+export function takenSlotTimesFor(
+  rows: readonly OccupiedRow[],
+  target: { professionalId: string; locationId: string | null; toIso: string },
+): string[] {
+  const toMs = new Date(target.toIso).getTime();
+  const keys = new Set<string>();
+  for (const row of rows) {
+    if (row.professional_id !== target.professionalId) continue;
+    if (target.locationId && row.location_id !== target.locationId) continue;
+    if (new Date(row.appointment_datetime).getTime() > toMs) continue;
+    keys.add(format(appointmentToCyprusDate(row.appointment_datetime), "yyyy-MM-dd'T'HH:mm"));
+  }
+  return Array.from(keys).sort();
+}
+
+async function loadOccupiedSlotTimes(
+  supabase: SupabaseClient,
+  doctorId: string,
+  settings: DoctorSettingsRow,
+  locationId?: string | null,
+): Promise<string[] | null> {
+  const { fromIso, toIso } = occupiedRange(settings);
+  const rows = await loadOccupiedRows(supabase, [doctorId], fromIso, toIso);
+  if (!rows) return null;
+  return takenSlotTimesFor(rows, { professionalId: doctorId, locationId: locationId ?? null, toIso });
 }
 
 async function loadDoctorAvailabilityContext(
@@ -205,6 +239,9 @@ export async function loadFinderCardAvailabilityByDoctorId(
   supabase: SupabaseClient,
   doctorIds: string[],
   dayCount = FINDER_AVAILABILITY_CALENDAR_DAY_COUNT,
+  deps: {
+    loadLocations?: (ids: string[]) => Promise<Map<string, DoctorLocationRow[]>>;
+  } = {},
 ): Promise<{
   paused: Map<string, boolean>;
   calendars: Map<string, PublicAvailabilityCalendar>;
@@ -215,8 +252,9 @@ export async function loadFinderCardAvailabilityByDoctorId(
   const paused = new Map<string, boolean>();
   const calendars = new Map<string, PublicAvailabilityCalendar>();
   const byLocationId = new Map<string, FinderLocationAvailability>();
+  const loadLocations = deps.loadLocations ?? loadDoctorLocationsByDoctorIds;
   const locationsByDoctorId = uniqueIds.length
-    ? await loadDoctorLocationsByDoctorIds(uniqueIds)
+    ? await loadLocations(uniqueIds)
     : new Map<string, DoctorLocationRow[]>();
   if (uniqueIds.length === 0) {
     return { paused, calendars, locationsByDoctorId, byLocationId };
@@ -224,84 +262,105 @@ export async function loadFinderCardAvailabilityByDoctorId(
 
   const settingsById = await loadDoctorSettingsForSlotsByDoctorIds(supabase, uniqueIds);
 
-  await Promise.all(
-    uniqueIds.map(async (doctorId) => {
-      const loaded = settingsById.get(doctorId) ?? null;
-      const locations = locationsByDoctorId.get(doctorId) ?? [];
-      if (locations.length === 0) {
-        const doctorPaused = Boolean(loaded?.settings.pause_online_bookings);
-        paused.set(doctorId, doctorPaused);
-        if (doctorPaused) return;
-        const context = await loadDoctorAvailabilityContext(supabase, doctorId, loaded);
-        calendars.set(doctorId, context
-          ? computePublicAvailabilityCalendar(
-              buildSlotParams(context.settings, context.weeklySlots, context.takenSlotTimes),
-              dayCount,
-            )
-          : EMPTY_CALENDAR);
-        return;
-      }
+  // Every open calendar on the page, planned before any occupancy lookup.
+  type Plan = {
+    doctorId: string;
+    location: DoctorLocationRow | null;
+    settings: DoctorSettingsRow;
+    weeklySlots: ReturnType<typeof settingsToWeeklySlots>;
+    toIso: string;
+  };
+  const plans: Plan[] = [];
 
-      const locationResults = await Promise.all(
-        locations.map(async (location) => {
-          const locationPaused = Boolean(location.pause_online_bookings);
-          if (locationPaused) {
-            const entry: FinderLocationAvailability = {
-              doctorId,
-              location,
-              paused: true,
-              calendar: EMPTY_CALENDAR,
-            };
-            return entry;
-          }
-          const merged = locationToSettingsRow(
-            location,
-            loaded?.settings ?? ACCOUNT_SETTINGS_FALLBACK,
-          );
-          if (merged.pause_online_bookings) {
-            return {
-              doctorId,
-              location,
-              paused: true,
-              calendar: EMPTY_CALENDAR,
-            };
-          }
-          const weeklySlots = settingsToWeeklySlots(merged);
-          const takenSlotTimes = await loadOccupiedSlotTimes(
-            supabase,
-            doctorId,
-            merged,
-            location.id,
-          );
-          const calendar =
-            !takenSlotTimes || weeklySlots.length === 0
-              ? EMPTY_CALENDAR
-              : computePublicAvailabilityCalendar(
-                  buildSlotParams(merged, weeklySlots, takenSlotTimes),
-                  dayCount,
-                );
-          return {
-            doctorId,
-            location,
-            paused: false,
-            calendar,
-          };
-        }),
-      );
+  for (const doctorId of uniqueIds) {
+    const loaded = settingsById.get(doctorId) ?? null;
+    const locations = locationsByDoctorId.get(doctorId) ?? [];
 
-      let anyOpen = false;
-      let firstOpenCalendar: PublicAvailabilityCalendar | null = null;
-      for (const entry of locationResults) {
-        byLocationId.set(entry.location.id, entry);
-        if (!entry.paused) {
-          anyOpen = true;
-          if (!firstOpenCalendar) firstOpenCalendar = entry.calendar;
-        }
+    if (locations.length === 0) {
+      const doctorPaused = Boolean(loaded?.settings.pause_online_bookings);
+      paused.set(doctorId, doctorPaused);
+      if (doctorPaused) continue;
+      if (!loaded || loaded.weeklySlots.length === 0) {
+        calendars.set(doctorId, EMPTY_CALENDAR);
+        continue;
       }
-      paused.set(doctorId, !anyOpen);
-      calendars.set(doctorId, firstOpenCalendar ?? EMPTY_CALENDAR);
-    }),
-  );
+      plans.push({
+        doctorId,
+        location: null,
+        settings: loaded.settings,
+        weeklySlots: loaded.weeklySlots,
+        toIso: occupiedRange(loaded.settings).toIso,
+      });
+      continue;
+    }
+
+    for (const location of locations) {
+      const merged = locationToSettingsRow(location, loaded?.settings ?? ACCOUNT_SETTINGS_FALLBACK);
+      if (location.pause_online_bookings || merged.pause_online_bookings) {
+        byLocationId.set(location.id, { doctorId, location, paused: true, calendar: EMPTY_CALENDAR });
+        continue;
+      }
+      const weeklySlots = settingsToWeeklySlots(merged);
+      if (weeklySlots.length === 0) {
+        byLocationId.set(location.id, { doctorId, location, paused: false, calendar: EMPTY_CALENDAR });
+        continue;
+      }
+      plans.push({ doctorId, location, settings: merged, weeklySlots, toIso: occupiedRange(merged).toIso });
+    }
+  }
+
+  // One call for the whole page, covering the longest horizon on it.
+  let occupiedRows: OccupiedRow[] | null = [];
+  if (plans.length > 0) {
+    const fromIso = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const toIso = plans.reduce((max, plan) => (plan.toIso > max ? plan.toIso : max), plans[0].toIso);
+    const ids = Array.from(new Set(plans.map((plan) => plan.doctorId)));
+    occupiedRows = await loadOccupiedRows(supabase, ids, fromIso, toIso);
+  }
+
+  for (const plan of plans) {
+    const calendar = !occupiedRows
+      ? EMPTY_CALENDAR
+      : computePublicAvailabilityCalendar(
+          buildSlotParams(
+            plan.settings,
+            plan.weeklySlots,
+            takenSlotTimesFor(occupiedRows, {
+              professionalId: plan.doctorId,
+              locationId: plan.location?.id ?? null,
+              toIso: plan.toIso,
+            }),
+          ),
+          dayCount,
+        );
+    if (plan.location) {
+      byLocationId.set(plan.location.id, {
+        doctorId: plan.doctorId,
+        location: plan.location,
+        paused: false,
+        calendar,
+      });
+    } else {
+      calendars.set(plan.doctorId, calendar);
+    }
+  }
+
+  // A professional is paused only when every clinic is; the card shows the
+  // first open clinic's calendar (clinics come in display order).
+  for (const doctorId of uniqueIds) {
+    const locations = locationsByDoctorId.get(doctorId) ?? [];
+    if (locations.length === 0) continue;
+    let anyOpen = false;
+    let firstOpenCalendar: PublicAvailabilityCalendar | null = null;
+    for (const location of locations) {
+      const entry = byLocationId.get(location.id);
+      if (!entry || entry.paused) continue;
+      anyOpen = true;
+      if (!firstOpenCalendar) firstOpenCalendar = entry.calendar;
+    }
+    paused.set(doctorId, !anyOpen);
+    calendars.set(doctorId, firstOpenCalendar ?? EMPTY_CALENDAR);
+  }
 
   return { paused, calendars, locationsByDoctorId, byLocationId };
 }

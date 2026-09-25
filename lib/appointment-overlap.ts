@@ -53,7 +53,7 @@ function coerceProposedSlotsArray(raw: unknown): unknown[] {
  * - NEEDS_RESCHEDULE: never uses `appointment_datetime` (original request time is free).
  *   Only `proposed_slots` while `proposal_expires_at` is in the future.
  * - REQUESTED / CONFIRMED: [appointment_datetime, appointment_datetime + duration).
- * - Expired counter-offers: contribute nothing (must match public_doctor_occupied_datetimes).
+ * - Expired counter-offers: contribute nothing (must match public_professionals_occupied_datetimes, which public_doctor_occupied_datetimes wraps).
  */
 export function blockingIntervalsFromAppointment(
   row: DoctorAppointmentForBlocking,

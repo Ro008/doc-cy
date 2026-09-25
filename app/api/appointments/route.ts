@@ -345,7 +345,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Overlap: REQUESTED/CONFIRMED use appointment_datetime + duration; NEEDS_RESCHEDULE uses
-  // proposed_slots only (original datetime must stay bookable). Matches public_doctor_occupied_datetimes.
+  // proposed_slots only (original datetime must stay bookable). Matches public_professionals_occupied_datetimes.
   const taken = candidateOverlapsAnyBlockingInterval(
     requestedStartIso,
     slotDuration,
