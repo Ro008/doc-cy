@@ -1,12 +1,18 @@
 import type { APIRequestContext } from "@playwright/test";
+import { adminCookieHeader, sharedTestFounder } from "./test-admin";
 
-export function internalDirectoryHeaders(secret: string): { Cookie: string } {
-  return { Cookie: `doccy-internal-directory=${secret}` };
+/** Session cookie of this worker's test founder (real login, verified TOTP). */
+export async function founderCookie(): Promise<string> {
+  return adminCookieHeader(await sharedTestFounder());
+}
+
+export function internalDirectoryHeaders(adminCookie: string): { Cookie: string } {
+  return { Cookie: adminCookie };
 }
 
 export function postSpecialtyReview(
   request: APIRequestContext,
-  secret: string,
+  adminCookie: string,
   body: {
     doctorId: string;
     specialtyId?: string | null;
@@ -16,36 +22,36 @@ export function postSpecialtyReview(
   },
 ) {
   return request.post("/api/internal/doctors/specialty-review", {
-    headers: internalDirectoryHeaders(secret),
+    headers: internalDirectoryHeaders(adminCookie),
     data: body,
   });
 }
 
 export function postSpecialtyChangeReview(
   request: APIRequestContext,
-  secret: string,
+  adminCookie: string,
   body: { requestId: string; action: "approve" | "reject" },
 ) {
   return request.post("/api/internal/doctors/specialty-change-review", {
-    headers: internalDirectoryHeaders(secret),
+    headers: internalDirectoryHeaders(adminCookie),
     data: body,
   });
 }
 
 export function postDoctorVerification(
   request: APIRequestContext,
-  secret: string,
+  adminCookie: string,
   body: { doctorId: string; action: "verify" | "reject"; listingUrl?: string },
 ) {
   return request.post("/api/internal/doctors/verification", {
-    headers: internalDirectoryHeaders(secret),
+    headers: internalDirectoryHeaders(adminCookie),
     data: body,
   });
 }
 
 export function postPendingRegistrationTwin(
   request: APIRequestContext,
-  secret: string,
+  adminCookie: string,
   body: {
     registeredId: string;
     unregisteredId?: string;
@@ -54,7 +60,7 @@ export function postPendingRegistrationTwin(
   },
 ) {
   return request.post("/api/internal/pending-registration-twin", {
-    headers: internalDirectoryHeaders(secret),
+    headers: internalDirectoryHeaders(adminCookie),
     data: body,
   });
 }

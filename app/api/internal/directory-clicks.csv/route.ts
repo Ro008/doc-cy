@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceRoleClient } from "@/lib/supabase-service";
 import { fetchAllSupabaseRows, fetchAllSupabaseRowsForIdChunks } from "@/lib/supabase-fetch-all";
-import { denyUnlessInternalAuthenticated } from "@/lib/internal-directory-auth";
+import { requireAdmin } from "@/lib/admin-auth";
 import {
   getCallToBookWindowDays,
   getManualVotesWindowDays,
@@ -29,7 +29,7 @@ type ProfessionalMeta = {
 };
 
 export async function GET(req: NextRequest) {
-  const denied = denyUnlessInternalAuthenticated();
+  const { response: denied } = await requireAdmin();
   if (denied) return denied;
 
   const supabase = createServiceRoleClient();

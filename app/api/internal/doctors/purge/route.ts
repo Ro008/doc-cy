@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceRoleClient } from "@/lib/supabase-service";
-import { denyUnlessInternalFounder } from "@/lib/internal-directory-auth";
+import { requireAdminWrite } from "@/lib/admin-auth";
 import {
   PurgeRegisteredProfessionalError,
   purgeRegisteredProfessional,
@@ -12,7 +12,7 @@ type Body = {
 };
 
 export async function POST(req: NextRequest) {
-  const denied = denyUnlessInternalFounder();
+  const { response: denied } = await requireAdminWrite();
   if (denied) return denied;
 
   const supabase = createServiceRoleClient();

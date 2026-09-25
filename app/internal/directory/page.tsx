@@ -72,7 +72,9 @@ import {
   type FinderInvitationRequestRow,
 } from "@/components/internal/FinderInvitationRequestsSection";
 import { loadLocalTestLoginPasswordsByAuthUserId } from "@/lib/local-test-login-credentials";
-import { getInternalDirectoryRole } from "@/lib/internal-directory-auth";
+import { redirect } from "next/navigation";
+import { adminCanWrite, getAdminAccess } from "@/lib/admin-auth";
+import { adminSignInPath } from "@/lib/admin-sign-in-flow";
 import { professionalAccountEmail } from "@/lib/professional-account-contact";
 import {
   hasPendingSpecialty,
@@ -177,10 +179,14 @@ export default async function FounderDashboardPage({
     callToBookDir?: string | string[];
   };
 }) {
+  // Admin login + active admin_users row + authenticator code within 7 days.
+  const access = await getAdminAccess("page");
+  if ("reason" in access) redirect(adminSignInPath("/internal/directory"));
+  const signedInAdmin = access.admin;
+  const canMutate = adminCanWrite(signedInAdmin);
+
   const supabase = createServiceRoleClient();
   const runtimeLabel = getRuntimeEnvironmentLabel();
-  const accessRole = getInternalDirectoryRole() ?? "partner";
-  const canMutate = accessRole === "founder";
   const runtimeBadgeClass =
     runtimeLabel === "production"
       ? "border-clinical-400/35 bg-clinical-500/10 text-clinical-200"
@@ -999,7 +1005,7 @@ export default async function FounderDashboardPage({
             ) : (
               <>
                 <h1 className="mt-1 text-2xl font-semibold tracking-tight text-white lg:text-3xl">
-                  Hi Livio
+                  Hi {signedInAdmin.name}
                 </h1>
                 <p className="mt-1 text-sm text-slate-400">Your DocCy overview.</p>
               </>
@@ -1009,6 +1015,9 @@ export default async function FounderDashboardPage({
                 className={`inline-flex items-center rounded-full border px-2 py-1 font-semibold uppercase tracking-[0.12em] ${runtimeBadgeClass}`}
               >
                 Environment: {runtimeLabel}
+              </span>
+              <span className="inline-flex items-center rounded-full border border-slate-600/60 bg-slate-800/70 px-2 py-1 font-semibold tracking-[0.04em] text-slate-200">
+                Signed in: {signedInAdmin.name}
               </span>
               {canMutate ? null : (
                 <span className="inline-flex items-center rounded-full border border-slate-600/60 bg-slate-800/70 px-2 py-1 font-semibold uppercase tracking-[0.12em] text-slate-200">
