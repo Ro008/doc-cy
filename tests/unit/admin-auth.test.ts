@@ -2,7 +2,9 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   ADMIN_MFA_MAX_AGE_SECONDS,
+  adminCanWrite,
   adminDenialStatus,
+  decideAdminWriteAccess,
   decideAdminAccess,
   decodeJwtClaims,
   lastTotpVerifiedAt,
@@ -185,7 +187,45 @@ describe("decideAdminAccess", () => {
   });
 });
 
+describe("adminCanWrite", () => {
+  it("gives founders full access", () => {
+    assert.equal(adminCanWrite(admin), true);
+  });
+
+  it("keeps partners read-only", () => {
+    assert.equal(adminCanWrite({ ...admin, role: "partner" }), false);
+  });
+
+  it("refuses an unknown or inactive role", () => {
+    assert.equal(adminCanWrite({ ...admin, role: "owner" as never }), false);
+    assert.equal(adminCanWrite({ ...admin, is_active: false }), false);
+  });
+});
+
+describe("decideAdminWriteAccess", () => {
+  it("passes a founder's access through", () => {
+    const access = { ok: true as const, admin, mfaVerifiedAt: NOW };
+    assert.deepEqual(decideAdminWriteAccess(access), access);
+  });
+
+  it("refuses a partner as read-only", () => {
+    const access = { ok: true as const, admin: { ...admin, role: "partner" as const }, mfaVerifiedAt: NOW };
+    assert.deepEqual(decideAdminWriteAccess(access), { ok: false, reason: "read_only" });
+  });
+
+  it("keeps the original refusal when there is no admin", () => {
+    assert.deepEqual(decideAdminWriteAccess({ ok: false, reason: "mfa_expired" }), {
+      ok: false,
+      reason: "mfa_expired",
+    });
+  });
+});
+
 describe("adminDenialStatus", () => {
+  it("maps a read-only partner to 403", () => {
+    assert.equal(adminDenialStatus("read_only"), 403);
+  });
+
   it("maps sign-in problems to 401, wrong accounts to 403, and lookups to 503", () => {
     assert.equal(adminDenialStatus("signed_out"), 401);
     assert.equal(adminDenialStatus("mfa_required"), 401);

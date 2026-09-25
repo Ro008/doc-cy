@@ -38,6 +38,7 @@ export type AdminAccessDenial =
   | "inactive"
   | "mfa_required"
   | "mfa_expired"
+  | "read_only"
   | "unavailable";
 
 export type AdminAccess =
@@ -81,6 +82,20 @@ export function decideAdminAccess(input: {
     return { ok: false, reason: "mfa_expired" };
   }
   return { ok: true, admin, mfaVerifiedAt: verifiedAt };
+}
+
+/**
+ * Founders have full access; partners are read-only (user, 2026-09-25), including
+ * review requests. Any action that changes data checks this.
+ */
+export function adminCanWrite(admin: AdminUserRow): boolean {
+  return admin.is_active && admin.role === "founder";
+}
+
+/** Narrows admin access to admins who may change data; partners get `read_only`. */
+export function decideAdminWriteAccess(access: AdminAccess): AdminAccess {
+  if ("reason" in access) return access;
+  return adminCanWrite(access.admin) ? access : { ok: false, reason: "read_only" };
 }
 
 /** HTTP status for a refused admin request. */

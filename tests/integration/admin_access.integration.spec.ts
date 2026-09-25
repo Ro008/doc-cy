@@ -3,6 +3,7 @@ import { expect, test } from "@playwright/test";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import {
   ADMIN_MFA_MAX_AGE_SECONDS,
+  decideAdminWriteAccess,
   resolveAdminAccess,
   supabaseAdminAccessDeps,
 } from "../../lib/admin-auth-core";
@@ -130,6 +131,16 @@ test.describe("Admin access (Supabase MFA)", { tag: ["@pr-e2e"] }, () => {
         expect(Math.abs(now - granted.mfaVerifiedAt)).toBeLessThan(120);
         expect(ADMIN_MFA_MAX_AGE_SECONDS).toBe(7 * 24 * 60 * 60);
       }
+
+      // A founder may change data; a partner may only read.
+      expect(decideAdminWriteAccess(await access()).ok).toBe(true);
+      const toPartner = await service
+        .from("admin_users")
+        .update({ role: "partner" })
+        .eq("auth_user_id", authUserId);
+      expect(toPartner.error).toBeNull();
+      expect((await access()).ok).toBe(true);
+      expect(decideAdminWriteAccess(await access())).toEqual({ ok: false, reason: "read_only" });
 
       // Deactivated admins lose access at once, even with a valid 2FA session.
       const deactivated = await service

@@ -4,6 +4,7 @@ import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
 import { createServiceRoleClient } from "@/lib/supabase-service";
 import {
   adminDenialStatus,
+  decideAdminWriteAccess,
   resolveAdminAccess,
   supabaseAdminAccessDeps,
   type AdminAccess,
@@ -12,6 +13,7 @@ import {
 
 export {
   ADMIN_MFA_MAX_AGE_SECONDS,
+  adminCanWrite,
   adminDenialStatus,
   type AdminAccess,
   type AdminAccessDenial,
@@ -31,17 +33,31 @@ export async function getAdminAccess(): Promise<AdminAccess> {
   return resolveAdminAccess(supabaseAdminAccessDeps(supabase, service));
 }
 
-/** For API routes: the admin, or the response to return instead. */
-export async function requireAdmin(): Promise<
-  { admin: AdminUserRow; response: null } | { admin: null; response: NextResponse }
-> {
-  const access = await getAdminAccess();
+type RequireAdminResult =
+  | { admin: AdminUserRow; response: null }
+  | { admin: null; response: NextResponse };
+
+function toRequireAdminResult(access: AdminAccess): RequireAdminResult {
   if (!("reason" in access)) return { admin: access.admin, response: null };
+  const message =
+    access.reason === "read_only"
+      ? "Partner access is read-only. Ask a founder to make this change."
+      : "Admin sign-in required.";
   return {
     admin: null,
     response: NextResponse.json(
-      { message: "Admin sign-in required.", reason: access.reason },
+      { message, reason: access.reason },
       { status: adminDenialStatus(access.reason) },
     ),
   };
+}
+
+/** For API routes that only read: any active admin (founder or partner). */
+export async function requireAdmin(): Promise<RequireAdminResult> {
+  return toRequireAdminResult(await getAdminAccess());
+}
+
+/** For API routes that change data: founders only; partners get 403 `read_only`. */
+export async function requireAdminWrite(): Promise<RequireAdminResult> {
+  return toRequireAdminResult(decideAdminWriteAccess(await getAdminAccess()));
 }
