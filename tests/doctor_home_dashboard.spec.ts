@@ -145,4 +145,32 @@ test.describe("Doctor home dashboard", { tag: "@pr-e2e" }, () => {
     await expect(page.getByRole("heading", { name: "Needs your answer" })).toBeVisible();
     await expect(page.getByRole("button", { name: "New booking" })).toBeVisible();
   });
+
+  test("mobile: More menu shows the account, manual booking first and logout last", async ({ page }) => {
+    test.setTimeout(120_000);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await signInAndOpenDashboard(page);
+
+    const menu = page.getByTestId("userbar-mobile-more-menu");
+    await expect(async () => {
+      await page.getByTestId("userbar-tab-more").click();
+      await expect(menu).toBeVisible({ timeout: 2_000 });
+    }).toPass({ timeout: 20_000 });
+
+    const email = normalizeSecret(process.env.TEST_USER_EMAIL ?? process.env.TEST_DOCTOR_EMAIL ?? "");
+    await expect(menu.getByTestId("userbar-mobile-more-account")).toContainText(email);
+
+    const items = await menu
+      .locator('[role="menuitem"]')
+      .evaluateAll((els) => els.map((el) => el.getAttribute("data-testid")));
+    expect(items[0]).toBe("userbar-mobile-more-link-manual-booking");
+    expect(items[items.length - 1]).toBe("userbar-mobile-more-action-logout");
+    expect(items.filter((id) => id !== "userbar-mobile-more-link-public-profile")).toEqual([
+      "userbar-mobile-more-link-manual-booking",
+      "userbar-mobile-more-link-promote",
+      "userbar-mobile-more-action-support",
+      "userbar-mobile-more-action-logout",
+    ]);
+    await expect(menu.getByRole("separator")).toHaveCount(1);
+  });
 });

@@ -44,6 +44,8 @@ export function clearProSessionHintCookie(): void {
 export const PRO_CHROME_BOOT_ATTR = "data-doccy-pro-chrome";
 export const PRO_CHROME_AGENDA_ATTR = "data-doccy-pro-chrome-agenda";
 export const PRO_CHROME_HYDRATED_ATTR = "data-doccy-pro-chrome-hydrated";
+/** Set on <html> while the mobile More menu is open (the install banner hides). */
+export const PRO_MOBILE_MORE_OPEN_ATTR = "data-doccy-mobile-more-open";
 export const PRO_CHROME_BOOT_TABS_ID = "doccy-pro-mobile-tabs-boot";
 export const PRO_CHROME_BOOT_AVATAR_ID = "doccy-pro-desktop-avatar-boot";
 export const PRO_CHROME_BOOT_STICKY_ID = "doccy-pro-sticky-header-boot";

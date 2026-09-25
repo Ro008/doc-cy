@@ -12,7 +12,7 @@ import { DocCyWordmark } from "@/components/brand/DocCyWordmark";
 import { publicProfessionalProfilePath } from "@/lib/manual-directory-landing-path";
 import { useDoctorSession } from "@/components/navigation/DoctorSessionProvider";
 import { emitOpenFeedback } from "@/lib/doccy-feedback";
-import { PRO_CHROME_HYDRATED_ATTR } from "@/lib/pro-session-hint";
+import { PRO_CHROME_HYDRATED_ATTR, PRO_MOBILE_MORE_OPEN_ATTR } from "@/lib/pro-session-hint";
 import {
   DOCTOR_HOME_PATH,
   DOCTOR_NAV_TABS,
@@ -55,6 +55,38 @@ function mobileTabIcon(id: DoctorNavTabId) {
   }
 }
 
+function AccountHeader({
+  avatarUrl,
+  initials,
+  name,
+  email,
+  "data-testid": testId,
+}: {
+  avatarUrl: string | null | undefined;
+  initials: string;
+  name: string | null | undefined;
+  email: string | null | undefined;
+  "data-testid"?: string;
+}) {
+  return (
+    <div data-testid={testId} className="flex items-center gap-3 px-3 py-2.5">
+      <div className="relative h-9 w-9 overflow-hidden rounded-full bg-ink-800">
+        {avatarUrl ? (
+          <Image src={avatarUrl} alt="Doctor avatar" fill sizes="40px" className="object-cover" />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center text-xs font-semibold text-clinical-200">
+            {initials}
+          </div>
+        )}
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-xs font-medium text-ink-50">{name ?? "Logged in"}</p>
+        <p className="truncate text-[11px] text-ink-400">{email ?? ""}</p>
+      </div>
+    </div>
+  );
+}
+
 export function UserBar() {
   const router = useRouter();
   const pathname = usePathname();
@@ -75,6 +107,8 @@ export function UserBar() {
 
   useEffect(() => {
     isMobileMoreOpenRef.current = isMobileMoreOpen;
+    document.documentElement.toggleAttribute(PRO_MOBILE_MORE_OPEN_ATTR, isMobileMoreOpen);
+    return () => document.documentElement.removeAttribute(PRO_MOBILE_MORE_OPEN_ATTR);
   }, [isMobileMoreOpen]);
 
   useEffect(() => {
@@ -235,31 +269,12 @@ export function UserBar() {
           data-testid="userbar-menu"
           className="absolute right-0 top-[calc(100%+0.4rem)] w-64 overflow-hidden rounded-2xl border border-clinical-400/25 bg-ink-900/95 p-1.5 shadow-2xl shadow-ink-900/70 backdrop-blur"
         >
-          <div className="flex items-center gap-3 px-3 py-2.5">
-            <div className="relative h-9 w-9 overflow-hidden rounded-full bg-ink-800">
-              {sessionState.avatarUrl ? (
-                <Image
-                  src={sessionState.avatarUrl}
-                  alt="Doctor avatar"
-                  fill
-                  sizes="40px"
-                  className="object-cover"
-                />
-              ) : (
-                <div className="flex h-full w-full items-center justify-center text-xs font-semibold text-clinical-200">
-                  {initials}
-                </div>
-              )}
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-xs font-medium text-ink-50">
-                {sessionState.doctorName ?? "Logged in"}
-              </p>
-              <p className="truncate text-[11px] text-ink-400">
-                {sessionState.email ?? ""}
-              </p>
-            </div>
-          </div>
+          <AccountHeader
+            avatarUrl={sessionState.avatarUrl}
+            initials={initials}
+            name={sessionState.doctorName}
+            email={sessionState.email}
+          />
 
           <UserMenuNavLink
             href="/agenda?manual=1"
@@ -376,6 +391,13 @@ export function UserBar() {
             data-testid="userbar-mobile-more-menu"
             className="absolute inset-x-2 bottom-[calc(100%+0.35rem)] z-[60] overflow-hidden rounded-2xl border border-white/10 bg-ink-900/90 p-1.5 shadow-2xl shadow-ink-900/70 backdrop-blur-xl supports-[backdrop-filter]:bg-ink-900/82"
           >
+            <AccountHeader
+              avatarUrl={sessionState.avatarUrl}
+              initials={initials}
+              name={sessionState.doctorName}
+              email={sessionState.email}
+              data-testid="userbar-mobile-more-account"
+            />
             <UserBarMoreMenuItems
               publicProfilePath={publicProfilePath}
               isSigningOut={isSigningOut}

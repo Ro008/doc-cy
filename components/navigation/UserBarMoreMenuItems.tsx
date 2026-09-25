@@ -27,6 +27,15 @@ export function UserBarMoreMenuItems({
 }: UserBarMoreMenuItemsProps) {
   return (
     <>
+      <UserMenuNavLink
+        href="/agenda?manual=1"
+        title="Took a phone call? Block the slot manually here. Next time, share your link to save time."
+        data-testid={`${testIdPrefix}-link-manual-booking`}
+        className="mb-1 border border-clinical-400/35 bg-clinical-500/10 font-semibold text-clinical-100 hover:bg-clinical-500/20"
+        icon={<CalendarPlus className="h-4 w-4 text-clinical-200" aria-hidden />}
+      >
+        + Add Manual Booking
+      </UserMenuNavLink>
       {publicProfilePath ? (
         <UserMenuNavLink
           href={publicProfilePath}
@@ -53,6 +62,7 @@ export function UserBarMoreMenuItems({
         <LifeBuoy className="h-4 w-4 text-clinical-300" aria-hidden />
         Support
       </button>
+      <div role="separator" className="my-1 border-t border-white/10" />
       <button
         type="button"
         onClick={onLogout}
@@ -64,15 +74,6 @@ export function UserBarMoreMenuItems({
         <LogOut className="h-4 w-4" aria-hidden />
         {isSigningOut ? "Logging out..." : "Logout"}
       </button>
-      <UserMenuNavLink
-        href="/agenda?manual=1"
-        title="Took a phone call? Block the slot manually here. Next time, share your link to save time."
-        data-testid={`${testIdPrefix}-link-manual-booking`}
-        className="mt-0.5 border border-clinical-400/35 bg-clinical-500/10 font-semibold text-clinical-100 hover:bg-clinical-500/20"
-        icon={<CalendarPlus className="h-4 w-4 text-clinical-200" aria-hidden />}
-      >
-        + Add Manual Booking
-      </UserMenuNavLink>
     </>
   );
 }
