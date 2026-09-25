@@ -4,6 +4,7 @@ import {
   adminCookieHeader,
   createServiceClient,
   createTestAdmin,
+  createUserClient,
   deleteTestAdmin,
   sessionCookies,
   TEST_ADMIN_EMAIL_DOMAIN,
@@ -142,6 +143,52 @@ test.describe("Admin sign-in (/internal)", { tag: ["@pr-e2e"] }, () => {
     } finally {
       if (adminId) await service.from("admin_users").delete().eq("id", adminId);
       if (authUserId) await service.auth.admin.deleteUser(authUserId);
+    }
+  });
+
+  test("existing login made admin: reset link → new password → authenticator app → dashboard", async ({
+    page,
+  }) => {
+    requireSafeIntegration();
+    const service = createServiceClient();
+    let admin: TestAdmin | null = null;
+    try {
+      // What `invite-admin.mjs --use-existing-login` leaves: an older login with an
+      // admin row and no authenticator app, then a password-reset email.
+      admin = await createTestAdmin({ role: "founder", withTotp: false });
+      const link = await service.auth.admin.generateLink({
+        type: "recovery",
+        email: admin.email,
+        options: { redirectTo: `${baseUrl()}/internal/sign-in` },
+      });
+      expect(link.error).toBeNull();
+      const verify = await fetch(link.data.properties.action_link, { redirect: "manual" });
+      const location = verify.headers.get("location") ?? "";
+      const hash = location.slice(location.indexOf("#"));
+      expect(hash).toContain("type=recovery");
+      await page.goto(`/internal/sign-in${hash}`);
+
+      await expect(page.getByRole("heading", { name: "Choose your password" })).toBeVisible({
+        timeout: 20_000,
+      });
+      const password = `Reset-${Date.now()}-Strong!`;
+      await page.getByLabel("New password").fill(password);
+      await page.getByLabel("Confirm password").fill(password);
+      await page.getByRole("button", { name: "Save password" }).click();
+
+      await expect(page.getByRole("heading", { name: "Set up your authenticator app" })).toBeVisible({
+        timeout: 20_000,
+      });
+      const secret = (await page.getByTestId("totp-secret").innerText()).replace(/\s+/g, "");
+      await enterCode(page, secret);
+      await expect(page).toHaveURL(/\/internal\/directory/, { timeout: 30_000 });
+      await expect(page.getByText(`Signed in: ${admin.name}`)).toBeVisible({ timeout: 30_000 });
+
+      // The new password is the one that works now.
+      const check = await createUserClient().auth.signInWithPassword({ email: admin.email, password });
+      expect(check.error).toBeNull();
+    } finally {
+      await deleteTestAdmin(admin);
     }
   });
 
