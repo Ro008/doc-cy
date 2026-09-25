@@ -154,7 +154,7 @@ test.describe("Integration: doctor confirmation flow", { tag: ["@pr-e2e", "@pr-e
       await page.goto(`/dashboard/appointments/${appointmentId}`, {
         waitUntil: "domcontentloaded",
       });
-      const confirmButton = page.getByRole("button", { name: /Confirm appointment/i });
+      const confirmButton = page.getByRole("button", { name: /^Confirm /i });
       await expect(confirmButton).toBeVisible({ timeout: 15000 });
       await expect(confirmButton).toBeEnabled({ timeout: 15000 });
       await confirmButton.click();

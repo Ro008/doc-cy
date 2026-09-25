@@ -15,11 +15,20 @@ import { PendingLink } from "@/components/navigation/PendingLink";
 import { buildGoogleCalendarUrl } from "@/lib/patient-calendar-event";
 import { getDoctorCalendarEventDetails } from "@/lib/doctor-calendar-event";
 import { appointmentCalendarPath } from "@/lib/appointment-links";
+import { formatInTimeZone, zonedTimeToUtc } from "date-fns-tz";
+import { CY_TZ } from "@/lib/appointments";
+import { reviewBackTarget, wantsSuggestOnOpen, type ReviewDayRow } from "@/lib/appointment-review";
+import { requestedAgoLabel, todayWorkingWindow } from "@/lib/doctor-dashboard";
+import { clinicIdForAppointment, locationsToAgendaClinics } from "@/lib/agenda-clinics";
+import { loadDoctorLocations } from "@/lib/load-doctor-locations";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-type PageProps = { params: { id: string }; searchParams?: { confirmed?: string } };
+type PageProps = {
+  params: { id: string };
+  searchParams?: { confirmed?: string; intent?: string; from?: string };
+};
 
 const PRIMARY_BTN_CLASS =
   "flex w-full items-center justify-center rounded-2xl bg-clinical-500 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-clinical-500/20 transition hover:bg-clinical-400";
@@ -34,7 +43,7 @@ function DoctorAppointmentLinkShell({ children }: { children: React.ReactNode })
         <div className="absolute inset-y-0 left-[-10%] h-full w-64 bg-clinical-500/5 blur-3xl" />
         <div className="absolute inset-y-0 right-[-15%] h-full w-72 bg-clinical-400/10 blur-3xl" />
       </div>
-      <div className="mx-auto max-w-lg px-4 py-10">
+      <div className="mx-auto max-w-xl px-4 py-10">
         <div className="rounded-3xl border border-clinical-100/10 bg-ink-900/70 p-6 shadow-2xl shadow-ink-900/50 backdrop-blur-xl sm:p-8">
           {children}
         </div>
@@ -104,7 +113,7 @@ export default async function DashboardAppointmentDetailPage({
   const { data: appt, error: apptErr } = await supabase
     .from("appointments")
     .select(
-      "id, patient_name, patient_phone, appointment_datetime, status, reason, duration_minutes, proposal_expires_at, proposed_slots"
+      "id, patient_name, patient_phone, appointment_datetime, status, reason, duration_minutes, proposal_expires_at, proposed_slots, created_at, is_new_patient, location_id"
     )
     .eq("id", appointmentId)
     .eq("doctor_id", doctor.id)
@@ -243,18 +252,56 @@ export default async function DashboardAppointmentDetailPage({
       appointmentId,
       status,
     });
+    const startIso = appt.appointment_datetime as string;
+    const dayKey = formatInTimeZone(new Date(startIso), CY_TZ, "yyyy-MM-dd");
+    const dayStartUtc = zonedTimeToUtc(`${dayKey}T00:00:00`, CY_TZ).toISOString();
+    const dayEndUtc = zonedTimeToUtc(`${dayKey}T23:59:59.999`, CY_TZ).toISOString();
+
+    const [{ data: dayRows }, locationRows] = await Promise.all([
+      supabase
+        .from("appointments")
+        .select("id, appointment_datetime, patient_name, status, duration_minutes")
+        .eq("doctor_id", doctor.id)
+        .gte("appointment_datetime", dayStartUtc)
+        .lte("appointment_datetime", dayEndUtc)
+        .order("appointment_datetime", { ascending: true }),
+      loadDoctorLocations(doctor.id),
+    ]);
+
+    const clinics = locationsToAgendaClinics(locationRows);
+    const locationId = (appt as { location_id?: string | null }).location_id ?? null;
+    const clinicName =
+      clinics.length > 1
+        ? clinics.find((c) => c.id === clinicIdForAppointment(locationId, clinics))?.name ?? null
+        : null;
+    const hoursList =
+      clinics.length > 0
+        ? clinics.map((c) => c.hours)
+        : scheduleForReview
+          ? [{ ...scheduleForReview, slotDurationMinutes: slotDefault }]
+          : [];
+    const dayWindow = todayWorkingWindow(hoursList, new Date(startIso).getTime());
+    const pad = (h: number) => `${String(h).padStart(2, "0")}:00`;
+
     return (
       <DoctorAppointmentLinkShell>
         <AppointmentReviewClient
-            appointmentId={appt.id as string}
-            appointmentDatetimeIso={appt.appointment_datetime as string}
-            professionalFirstName={greet}
-            patientName={patientName}
-            requestedDateLabel={dateStr}
-            requestedTimeLabel={timeStr}
-            reason={reason}
-            initialDurationMinutes={initialDurationMinutes}
-            scheduleForReview={scheduleForReview}
+          appointmentId={appt.id as string}
+          appointmentDatetimeIso={startIso}
+          patientName={patientName}
+          isNewPatient={(appt as { is_new_patient?: boolean | null }).is_new_patient === true}
+          requestedAgo={requestedAgoLabel((appt as { created_at?: string | null }).created_at, Date.now())}
+          clinicName={clinicName}
+          dayLabel={formatInTimeZone(new Date(startIso), CY_TZ, "EEE d MMM")}
+          dayHoursLabel={
+            dayWindow ? `Your hours: ${pad(dayWindow.startHour)}–${pad(dayWindow.endHour)}` : "You're not working that day"
+          }
+          dayRows={(dayRows ?? []) as ReviewDayRow[]}
+          reason={reason}
+          initialDurationMinutes={initialDurationMinutes}
+          scheduleForReview={scheduleForReview}
+          back={reviewBackTarget(searchParams?.from)}
+          openSuggestions={wantsSuggestOnOpen(searchParams?.intent)}
         />
       </DoctorAppointmentLinkShell>
     );

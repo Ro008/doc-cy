@@ -5,7 +5,6 @@ import {
   isAllowedProfessionalDuration,
   PROFESSIONAL_DURATION_OPTIONS,
 } from "@/lib/professional-appointment-durations";
-import { candidateOverlapsAnyBlockingInterval } from "@/lib/appointment-overlap";
 import { findFirstAlternativeSlotStarts } from "@/lib/find-alternative-appointment-slots";
 import { loadDoctorSettingsForSlots } from "@/lib/load-doctor-settings-for-slots";
 import {
@@ -94,21 +93,6 @@ export async function GET(req: NextRequest, { params }: RouteContext) {
   }
 
   const blockingRows = toBlockingRows(blockingRaw);
-  const hasConflict = candidateOverlapsAnyBlockingInterval(
-    appt.appointment_datetime as string,
-    durationMinutes,
-    id,
-    blockingRows,
-    loaded.fallbackSlotDurationMinutes
-  );
-
-  if (st === "REQUESTED" && !hasConflict) {
-    return NextResponse.json(
-      { message: "No conflict for this duration; confirm the request instead." },
-      { status: 400 }
-    );
-  }
-
   const slots = findFirstAlternativeSlotStarts({
     settings: loaded.settings,
     weeklySlots: loaded.weeklySlots,

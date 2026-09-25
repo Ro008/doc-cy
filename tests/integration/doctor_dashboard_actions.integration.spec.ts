@@ -146,7 +146,7 @@ test.describe("Integration: dashboard request actions", { tag: ["@pr-e2e", "@pr-
       await expect(card).toBeVisible({ timeout: 20_000 });
       await expect(card.getByRole("link", { name: "Suggest other times" })).toHaveAttribute(
         "href",
-        `/dashboard/appointments/${setup.appointmentId}`,
+        `/dashboard/appointments/${setup.appointmentId}?intent=suggest&from=dashboard`,
       );
 
       const badge = page.getByTestId("pro-sticky-header").getByTestId("userbar-nav-dashboard-badge");
@@ -232,7 +232,7 @@ test.describe("Integration: dashboard request actions", { tag: ["@pr-e2e", "@pr-
     }
   });
 
-  test("Suggest other times shows the row as busy while the review page opens", async ({ page }) => {
+  test("Suggest other times opens the review page with three times ready to send", async ({ page }) => {
     test.setTimeout(120_000);
     const setup = await createRequest("Suggest");
     try {
@@ -256,6 +256,75 @@ test.describe("Integration: dashboard request actions", { tag: ["@pr-e2e", "@pr-
       await expect(page).toHaveURL(new RegExp(`/dashboard/appointments/${setup.appointmentId}`), {
         timeout: 20_000,
       });
+      // No overlap here: suggesting other times must still be possible.
+      await expect(page.getByTestId("review-suggested-times").locator("li")).toHaveCount(3, {
+        timeout: 20_000,
+      });
+      await expect(page.getByRole("link", { name: "Back to dashboard" })).toHaveAttribute("href", "/dashboard");
+      // Suggest mode: the page is about sending new times, not confirming this one.
+      await expect(page.getByRole("heading", { level: 1 })).toContainText("Suggest other times to");
+      await expect(page.getByRole("button", { name: /^Confirm / })).toHaveCount(0);
+      await expect(page.getByRole("button", { name: "Keep the original time instead" })).toBeVisible();
+      // Say where the times come from and that they are held.
+      await expect(page.getByText(/DocCy checked your working hours and appointments/)).toBeVisible();
+      await expect(page.getByText(/We'll hold these times for/)).toBeVisible();
+
+      await page.getByRole("button", { name: "Send proposal to patient" }).click();
+      await expect(page).toHaveURL(/\/dashboard(?:[?#]|$)/, { timeout: 20_000 });
+      await expect
+        .poll(async () => {
+          const { data } = await setup.admin
+            .from("appointments")
+            .select("status")
+            .eq("id", setup.appointmentId)
+            .maybeSingle();
+          return String(data?.status ?? "").toUpperCase();
+        }, { timeout: 15_000 })
+        .toBe("NEEDS_RESCHEDULE");
+    } finally {
+      await setup.admin.from("appointments").delete().eq("id", setup.appointmentId);
+    }
+  });
+
+  test("Review page states the request, confirms with the time and can decline", async ({ page }) => {
+    test.setTimeout(120_000);
+    const setup = await createRequest("Review");
+    try {
+      await page.setViewportSize({ width: 1280, height: 900 });
+      await signInDoctorOrFail(page, undefined, {
+        email: setup.doctorEmail,
+        password: setup.doctorPassword,
+      });
+      await page.goto(`/dashboard/appointments/${setup.appointmentId}`, { waitUntil: "domcontentloaded" });
+
+      await expect(page.getByRole("heading", { level: 1 })).toContainText(`${setup.patientName} wants`, {
+        timeout: 20_000,
+      });
+      await expect(page.getByRole("button", { name: /^Confirm .+\d{2}:\d{2}–\d{2}:\d{2}$/ })).toBeVisible();
+      await expect(page.getByText(/will get an email confirmation/)).toBeVisible();
+      await expect(page.getByTestId("review-day-timeline")).toContainText("This request");
+      await expect(page.getByRole("link", { name: "Back to agenda" })).toHaveAttribute("href", "/agenda");
+
+      // This page has no doctor chrome to signal hydration; retry until the dialog opens.
+      const dialog = page.getByRole("dialog", { name: /Decline this request/i });
+      await expect(async () => {
+        await page.getByRole("button", { name: "Decline" }).click();
+        await expect(dialog).toBeVisible({ timeout: 2_000 });
+      }).toPass({ timeout: 20_000 });
+      await dialog.getByLabel(/Reason for the patient/i).fill("I am away that day, sorry.");
+      await dialog.getByRole("button", { name: "Decline & notify" }).click();
+
+      await expect(page).toHaveURL(/\/agenda(?:[?#]|$)/, { timeout: 20_000 });
+      await expect
+        .poll(async () => {
+          const { data } = await setup.admin
+            .from("appointments")
+            .select("id")
+            .eq("id", setup.appointmentId)
+            .maybeSingle();
+          return data?.id ?? null;
+        }, { timeout: 15_000 })
+        .toBeNull();
     } finally {
       await setup.admin.from("appointments").delete().eq("id", setup.appointmentId);
     }
