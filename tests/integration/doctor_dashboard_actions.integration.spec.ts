@@ -329,4 +329,41 @@ test.describe("Integration: dashboard request actions", { tag: ["@pr-e2e", "@pr-
       await setup.admin.from("appointments").delete().eq("id", setup.appointmentId);
     }
   });
+
+  test("Clicking a visit in Today opens the agenda with that visit highlighted", async ({ page }) => {
+    test.setTimeout(120_000);
+    const setup = await createRequest("Highlight");
+    // Make it a confirmed visit today (Cyprus), inside the agenda grid (08:00–20:00).
+    const todayCy = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Nicosia" }).format(new Date());
+    const minute = String(Math.floor(Math.random() * 50)).padStart(2, "0");
+    const startIso = new Date(`${todayCy}T19:${minute}:00+03:00`).toISOString();
+    await setup.admin
+      .from("appointments")
+      .update({ status: "CONFIRMED", appointment_datetime: startIso, duration_minutes: 15 })
+      .eq("id", setup.appointmentId);
+    try {
+      await page.setViewportSize({ width: 1280, height: 900 });
+      await signInDoctorOrFail(page, undefined, {
+        email: setup.doctorEmail,
+        password: setup.doctorPassword,
+      });
+      await page.goto("/dashboard", { waitUntil: "domcontentloaded" });
+      await waitForHydration(page);
+
+      await page
+        .getByTestId("dashboard-today-schedule")
+        .getByRole("link", { name: new RegExp(`Appointment ${setup.patientName}`) })
+        .click();
+      await expect(page).toHaveURL(new RegExp(`/agenda\\?date=${todayCy}&highlight=${setup.appointmentId}`), {
+        timeout: 20_000,
+      });
+
+      const chip = page.locator(`[data-appointment-id="${setup.appointmentId}"]`).filter({ visible: true });
+      await expect(chip).toHaveAttribute("data-highlighted", "true", { timeout: 15_000 });
+      await expect(chip).toBeInViewport();
+      await expect(chip).toHaveAttribute("data-highlighted", "false", { timeout: 8_000 });
+    } finally {
+      await setup.admin.from("appointments").delete().eq("id", setup.appointmentId);
+    }
+  });
 });

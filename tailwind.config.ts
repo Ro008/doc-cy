@@ -40,6 +40,17 @@ const config: Config = {
           from: { backgroundPosition: "100% 0" },
           to: { backgroundPosition: "-100% 0" },
         },
+        // Noticeable but calm, drawn inside the chip (agenda columns clip overflow).
+        spotlight: {
+          "0%, 100%": {
+            boxShadow: "inset 0 0 0 2px rgba(255, 255, 255, 0.25), 0 0 0 0 rgba(125, 217, 223, 0)",
+            filter: "brightness(1)",
+          },
+          "50%": {
+            boxShadow: "inset 0 0 0 2px rgba(255, 255, 255, 0.85), 0 0 16px 2px rgba(125, 217, 223, 0.55)",
+            filter: "brightness(1.15)",
+          },
+        },
       },
       animation: {
         "fade-up": "fade-up 420ms cubic-bezier(0.2, 0.7, 0.2, 1) both",
@@ -47,6 +58,7 @@ const config: Config = {
         "check-in": "check-in 520ms cubic-bezier(0.2, 0.7, 0.2, 1) both",
         blink: "blink 1.6s ease-in-out infinite",
         shimmer: "shimmer 1.4s linear infinite",
+        spotlight: "spotlight 1.6s ease-in-out 1",
       },
       colors: {
         // Doccy Teal scale — primary CTAs, accents, focus rings

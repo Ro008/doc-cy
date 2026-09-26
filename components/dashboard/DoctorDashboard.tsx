@@ -29,6 +29,7 @@ import {
 import { isAllowedProfessionalDuration } from "@/lib/professional-appointment-durations";
 import { emitPendingRequestsCount } from "@/lib/pending-requests-count";
 import { reviewPathFromDashboard } from "@/lib/appointment-review";
+import { agendaHighlightHref } from "@/lib/agenda-highlight";
 import { DeclineRequestDialog } from "@/components/dashboard/DeclineRequestDialog";
 
 type Props = {
@@ -655,7 +656,7 @@ function TimelineVisit({
         )}
       </span>
       <Link
-        href={`/agenda?date=${dateKey}`}
+        href={agendaHighlightHref(dateKey, item.id)}
         aria-label={`Appointment ${item.patientName} at ${item.rangeLabel}`}
         className="group -mx-2 -my-1 min-w-0 flex-1 rounded-xl px-2 py-1 text-slate-50 no-underline transition hover:bg-slate-800/50 hover:text-slate-50"
       >

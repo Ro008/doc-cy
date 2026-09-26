@@ -14,6 +14,7 @@ import {
   shouldRedirectFirstLoginToSettings,
 } from "@/lib/first-login-trial-notice";
 import { loadAgendaSettings } from "@/lib/load-agenda-settings";
+import { parseAgendaHighlight } from "@/lib/agenda-highlight";
 import { fetchAllSupabaseRows } from "@/lib/supabase-fetch-all";
 import { loadDoctorLocations } from "@/lib/load-doctor-locations";
 import {
@@ -25,6 +26,7 @@ type AgendaPageProps = {
   searchParams?: {
     date?: string;
     manual?: string;
+    highlight?: string;
   };
 };
 
@@ -150,6 +152,7 @@ export default async function AgendaPage({ searchParams }: AgendaPageProps) {
           clinics={clinics}
           initialDateKey={searchParams?.date ?? null}
           openManualBooking={searchParams?.manual === "1"}
+          highlightAppointmentId={parseAgendaHighlight(searchParams?.highlight)}
         />
       </div>
     </main>

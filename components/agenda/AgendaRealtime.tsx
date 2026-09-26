@@ -36,6 +36,7 @@ import {
 import { patientVisitReasonFromAppointmentRow } from "@/lib/agenda-visit-reason";
 import { agendaRefreshOutcome } from "@/lib/agenda-refresh";
 import { ManualBookingFlow } from "@/components/agenda/ManualBookingFlow";
+import { AGENDA_HIGHLIGHT_MS } from "@/lib/agenda-highlight";
 import { AgendaClinicCalendars } from "@/components/agenda/AgendaClinicCalendars";
 import {
   AGENDA_APPOINTMENT_SELECT,
@@ -201,6 +202,10 @@ function sortAgendaRowsByDatetime(rows: AgendaAppointmentRow[]): AgendaAppointme
   return copy;
 }
 
+/** Linked visit: a light edge and soft glow that fade in and out once. */
+const AGENDA_SPOTLIGHT_CLASS =
+  " motion-safe:animate-spotlight motion-reduce:shadow-[inset_0_0_0_2px_rgba(255,255,255,0.75)]";
+
 const START_HOUR = 8;
 const END_HOUR = 20;
 const HOUR_ROW_HEIGHT = 56;
@@ -346,6 +351,7 @@ export function AgendaRealtime({
   clinics = [],
   initialDateKey,
   openManualBooking,
+  highlightAppointmentId,
 }: {
   doctorId: string | null;
   doctorSlug?: string | null;
@@ -354,6 +360,8 @@ export function AgendaRealtime({
   clinics?: AgendaClinic[];
   initialDateKey?: string | null;
   openManualBooking?: boolean;
+  /** Visit to point out after arriving from a link (e.g. the dashboard's Today). */
+  highlightAppointmentId?: string | null;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -423,6 +431,37 @@ export function AgendaRealtime({
     if (!openManualBooking) return;
     setManualBookingOpen(true);
   }, [openManualBooking]);
+
+  // Linked visit: scroll it into view and spotlight it for a few seconds.
+  const [highlightedId, setHighlightedId] = React.useState<string | null>(
+    highlightAppointmentId ?? null,
+  );
+  React.useEffect(() => {
+    if (!highlightAppointmentId) return;
+    setHighlightedId(highlightAppointmentId);
+    let attempts = 0;
+    let scrollTimer = 0;
+    let clearTimer = 0;
+    // The countdown starts once the visit is on screen, so a slow load does not eat it.
+    const findAndScroll = () => {
+      const el = Array.from(
+        document.querySelectorAll<HTMLElement>(`[data-appointment-id="${highlightAppointmentId}"]`),
+      ).find((node) => node.offsetParent !== null);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        clearTimer = window.setTimeout(() => setHighlightedId(null), AGENDA_HIGHLIGHT_MS);
+      } else if (attempts++ < 30) {
+        scrollTimer = window.setTimeout(findAndScroll, 100);
+      } else {
+        setHighlightedId(null);
+      }
+    };
+    scrollTimer = window.setTimeout(findAndScroll, 120);
+    return () => {
+      window.clearTimeout(scrollTimer);
+      window.clearTimeout(clearTimer);
+    };
+  }, [highlightAppointmentId]);
 
   React.useEffect(() => {
     setAppointments(initialAppointments);
@@ -1340,12 +1379,16 @@ export function AgendaRealtime({
                       key={row.rowKey}
                       type="button"
                       aria-label={`Appointment ${row.patient_name} at ${row.timeLabel}${clinicNameForRow(row.location_id) ? ` · ${clinicNameForRow(row.location_id)}` : ""}`}
+                      data-appointment-id={row.id}
+                      data-highlighted={highlightedId === row.id ? "true" : "false"}
                       onClick={() => openAppointment(row)}
                       className={`group absolute overflow-hidden rounded-xl border text-left shadow-lg transition focus:outline-none ${
                         row.isCounterOfferHold
                           ? `flex flex-col items-stretch justify-start py-1.5 pr-2 ${isMultiClinic ? "pl-2.5" : "pl-2"}`
                           : `py-1 pr-2 ${isMultiClinic ? "pl-2.5" : "pl-2"}`
-                      } ${appointmentChipClass(row.isPendingRequest)}`}
+                      } ${appointmentChipClass(row.isPendingRequest)}${
+                        highlightedId === row.id ? AGENDA_SPOTLIGHT_CLASS : ""
+                      }`}
                       style={{
                         top: topForRow(row),
                         height: blockHeightFor(row),
@@ -1497,12 +1540,16 @@ export function AgendaRealtime({
                         key={row.rowKey}
                         type="button"
                         aria-label={`Appointment ${row.patient_name} at ${row.timeLabel}${clinicNameForRow(row.location_id) ? ` · ${clinicNameForRow(row.location_id)}` : ""}`}
+                        data-appointment-id={row.id}
+                        data-highlighted={highlightedId === row.id ? "true" : "false"}
                         onClick={() => openAppointment(row)}
                         className={`group absolute overflow-hidden rounded-xl border text-left shadow-lg transition focus:outline-none ${
                           row.isCounterOfferHold
                             ? `flex flex-col items-stretch justify-start py-1.5 pr-2 ${isMultiClinic ? "pl-2.5" : "pl-2"}`
                             : `py-1 pr-2 ${isMultiClinic ? "pl-2.5" : "pl-2"}`
-                        } ${appointmentChipClass(row.isPendingRequest)}`}
+                        } ${appointmentChipClass(row.isPendingRequest)}${
+                        highlightedId === row.id ? AGENDA_SPOTLIGHT_CLASS : ""
+                      }`}
                         style={{
                           top: topForRow(row),
                           height: blockHeightFor(row),
