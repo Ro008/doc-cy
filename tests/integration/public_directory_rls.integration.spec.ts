@@ -74,7 +74,7 @@ test.describe("Integration: public directory RLS hardening", () => {
     const requestTypesRead = await anon.from("request_types").select("name").limit(1);
     expect(requestTypesRead.error?.code).toBe("42501");
     const requestSubmit = await anon.rpc("request_submit", {
-      p_request_type: "registration",
+      p_request_type: "professional_registration",
       p_professional_id: "00000000-0000-0000-0000-000000000000",
       p_details: {},
       p_details_version: 1,

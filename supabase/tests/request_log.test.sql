@@ -1,5 +1,5 @@
 -- Database tests for request_log / request_types and their functions
--- (migration 20260926071953_request_log_and_types).
+-- (migration 20260926073215_request_log_and_types).
 --
 -- Run against TESTING only (Supabase SQL editor or the MCP execute_sql tool).
 -- Everything runs in one transaction that ALWAYS rolls back: the final error
@@ -73,9 +73,11 @@ begin
   ---------------------------------------------------------------- types
   assert exists (
     select 1 from public.request_types
-    where name = 'registration' and requires_approval and not is_edit and btrim(description) <> ''
-  ), 'FAIL: registration type is seeded (needs approval, not an edit)';
-  v_checks := v_checks + 1;
+    where name = 'professional_registration' and requires_approval and not is_edit and btrim(description) <> ''
+  ), 'FAIL: professional_registration type is seeded (needs approval, not an edit)';
+  assert (select count(*) from public.request_types where name not like 'zz\_test\_%') = 1,
+    'FAIL: professional_registration is the only real type so far';
+  v_checks := v_checks + 2;
 
   perform pg_temp.expect_error(
     $$insert into public.request_types (name, requires_approval, description) values ('Bad Name', true, 'x')$$,
@@ -83,7 +85,7 @@ begin
   v_checks := v_checks + 1;
 
   ---------------------------------------------------------------- submit
-  v_req := public.request_submit('registration', v_pro, '{"specialties": []}'::jsonb, 1::smallint);
+  v_req := public.request_submit('professional_registration', v_pro, '{"specialties": []}'::jsonb, 1::smallint);
   select * into v_row from public.request_log where id = v_req;
   assert v_row.status = 'pending', 'FAIL: a type needing approval starts pending';
   assert v_row.decided_at is null and v_row.decided_by is null, 'FAIL: pending has no decision';
@@ -96,9 +98,9 @@ begin
   v_checks := v_checks + 5;
 
   perform pg_temp.expect_error(
-    format($$select public.request_submit('registration', %L::uuid, '{}'::jsonb, 1::smallint)$$, v_pro),
+    format($$select public.request_submit('professional_registration', %L::uuid, '{}'::jsonb, 1::smallint)$$, v_pro),
     '23505', 'one pending registration per professional');
-  v_req2 := public.request_submit('registration', v_pro2, '{}'::jsonb, 1::smallint);
+  v_req2 := public.request_submit('professional_registration', v_pro2, '{}'::jsonb, 1::smallint);
   assert v_req2 is not null, 'FAIL: another professional can have their own pending registration';
   v_checks := v_checks + 2;
 
@@ -106,15 +108,18 @@ begin
     format($$select public.request_submit('no_such_type', %L::uuid, '{}'::jsonb, 1::smallint)$$, v_pro),
     '22023', 'unknown request type');
   perform pg_temp.expect_error(
-    format($$select public.request_submit('registration', %L::uuid, '[1]'::jsonb, 1::smallint)$$, v_pro2),
+    format($$select public.request_submit('registration', %L::uuid, '{}'::jsonb, 1::smallint)$$, v_pro2),
+    '22023', 'the type is professional_registration, not registration');
+  perform pg_temp.expect_error(
+    format($$select public.request_submit('professional_registration', %L::uuid, '[1]'::jsonb, 1::smallint)$$, v_pro2),
     '22023', 'details must be a JSON object');
   perform pg_temp.expect_error(
-    format($$select public.request_submit('registration', %L::uuid, '{}'::jsonb, 0::smallint)$$, v_pro2),
+    format($$select public.request_submit('professional_registration', %L::uuid, '{}'::jsonb, 0::smallint)$$, v_pro2),
     '22023', 'details_version must be at least 1');
   perform pg_temp.expect_error(
-    $$select public.request_submit('registration', gen_random_uuid(), '{}'::jsonb, 1::smallint)$$,
+    $$select public.request_submit('professional_registration', gen_random_uuid(), '{}'::jsonb, 1::smallint)$$,
     'P0002', 'the professional must exist');
-  v_checks := v_checks + 4;
+  v_checks := v_checks + 5;
 
   -- Types without approval are recorded, closed at birth.
   v_rec := public.request_submit('zz_test_recorded', v_pro, '{"clinic_id": "x"}'::jsonb, 1::smallint);
@@ -136,7 +141,7 @@ begin
   ---------------------------------------------------------------- born pending or recorded
   perform pg_temp.expect_error(
     format($$insert into public.request_log (request_type, status, details, details_version, professional_id, decided_at, decided_by)
-             values ('registration', 'approved', '{}'::jsonb, 1, %L::uuid, now(), %L::uuid)$$, v_pro2, v_founder),
+             values ('professional_registration', 'approved', '{}'::jsonb, 1, %L::uuid, now(), %L::uuid)$$, v_pro2, v_founder),
     '23514', 'a request cannot be born approved');
   perform pg_temp.expect_error(
     format($$insert into public.request_log (request_type, status, details, details_version, professional_id)
@@ -144,7 +149,7 @@ begin
     '23514', 'a type without approval cannot be born pending');
   perform pg_temp.expect_error(
     $$insert into public.request_log (request_type, status, details, details_version)
-      values ('registration', 'pending', '{}'::jsonb, 1)$$,
+      values ('professional_registration', 'pending', '{}'::jsonb, 1)$$,
     '23514', 'a new request names its professional');
   v_checks := v_checks + 3;
 
@@ -227,7 +232,7 @@ begin
   v_checks := v_checks + 6;
 
   -- After a rejection the professional may submit a new registration.
-  v_req := public.request_submit('registration', v_pro, '{"second": true}'::jsonb, 1::smallint);
+  v_req := public.request_submit('professional_registration', v_pro, '{"second": true}'::jsonb, 1::smallint);
   v_checks := v_checks + 1;
 
   ---------------------------------------------------------------- withdraw
@@ -241,7 +246,7 @@ begin
   v_checks := v_checks + 2;
 
   ---------------------------------------------------------------- deleting a professional keeps their requests
-  v_req := public.request_submit('registration', v_pro, '{"third": true}'::jsonb, 1::smallint);
+  v_req := public.request_submit('professional_registration', v_pro, '{"third": true}'::jsonb, 1::smallint);
   delete from public.professionals where id = v_pro;
   -- Theirs: rejected, recorded, withdrawn, pending.
   assert (select count(*) from public.request_log where requester_email = 'rl-test-pro@integration.test') = 4,

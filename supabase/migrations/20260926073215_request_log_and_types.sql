@@ -22,7 +22,7 @@ comment on table public.request_types is
 
 insert into public.request_types (name, requires_approval, is_edit, description)
 values (
-  'registration',
+  'professional_registration',
   true,
   false,
   'A professional''s sign-up as one request: specialties with licence numbers and clinic choices (existing clinics or new-clinic proposals). Approving verifies the professional and writes the approved specialties and clinics.'
@@ -78,8 +78,8 @@ create index if not exists request_log_decided_by_idx
   on public.request_log (decided_by) where decided_by is not null;
 
 -- Pending limits (one index per limited type).
-create unique index if not exists request_log_one_pending_registration_idx
-  on public.request_log (professional_id) where status = 'pending' and request_type = 'registration';
+create unique index if not exists request_log_one_pending_professional_registration_idx
+  on public.request_log (professional_id) where status = 'pending' and request_type = 'professional_registration';
 
 -- Tamper-proofing. Allowed: inserting a new pending (or recorded) request; a
 -- request function closing a pending request; the professionals ON DELETE SET
@@ -274,7 +274,7 @@ begin
   -- Each type's approval step goes here, added with the type: for edit types,
   -- stop with a conflict if the live values no longer match before_snapshot;
   -- then apply v_details and set v_outcome, e.g.
-  --   if v_req.request_type = 'registration' then v_outcome := ...; end if;
+  --   if v_req.request_type = 'professional_registration' then v_outcome := ...; end if;
   if v_outcome is null then
     raise exception 'request type % has no approval step yet', v_req.request_type using errcode = '0A000';
   end if;
