@@ -13,7 +13,7 @@ import {
   createIntegrationAdmin,
   requireSafeIntegration,
 } from "./helpers/safe-integration";
-import { postDoctorVerification } from "./helpers/internal-api";
+import { founderCookie, postDoctorVerification } from "./helpers/internal-api";
 import { selectRegisterEnglishLanguage } from "./helpers/goto-register-practice-step";
 import { INTEGRATION_DOCTOR_PASSWORD } from "./helpers/test-doctor";
 
@@ -32,7 +32,7 @@ test.describe("Integration: directory claim registration flow", { tag: "@local-r
     const resendKey = process.env.RESEND_API_KEY?.trim() ?? "";
     const founderNotify = process.env.FOUNDER_NOTIFY_EMAIL?.trim() ?? "";
     const canAssertResend = Boolean(resendKey && founderNotify);
-    const internalSecret = env.internalSecret;
+    const adminCookie = await founderCookie();
     let cloneId: string | null = null;
 
     if (!canAssertResend && !process.env.CI) {
@@ -203,8 +203,8 @@ test.describe("Integration: directory claim registration flow", { tag: "@local-r
         expect(founderMail.subject).toMatch(/Finder listing claimed/i);
       }
 
-      if (internalSecret) {
-        const verify = await postDoctorVerification(request, internalSecret, {
+      if (adminCookie) {
+        const verify = await postDoctorVerification(request, adminCookie, {
           doctorId: pendingDoctorId,
           action: "verify",
         });

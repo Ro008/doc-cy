@@ -7,8 +7,7 @@ export type PublicApiRateLimitBucket =
   | "appointments"
   | "contactReveal"
   | "passwordReset"
-  | "finderBrowse"
-  | "internalAuthLogin";
+  | "finderBrowse";
 
 type RateLimitConfig = {
   limit: number;
@@ -34,13 +33,6 @@ export const PUBLIC_API_RATE_LIMITS: Record<PublicApiRateLimitBucket, RateLimitC
    * real patient comparing several areas in one sitting.
    */
   finderBrowse: { limit: 15, windowMs: 60 * 60 * 1000 },
-  /**
-   * Internal/founder directory login. A single shared secret, previously
-   * with no limit at all. Every attempt (right or wrong) counts; the 4th
-   * within the hour gets a 429 with Retry-After instead of being checked
-   * against the secret.
-   */
-  internalAuthLogin: { limit: 3, windowMs: 60 * 60 * 1000 },
 };
 
 type BucketState = {

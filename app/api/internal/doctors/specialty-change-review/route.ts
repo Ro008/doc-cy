@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceRoleClient } from "@/lib/supabase-service";
-import { denyUnlessInternalFounder } from "@/lib/internal-directory-auth";
+import { requireAdminWrite } from "@/lib/admin-auth";
 import { isSupabaseMissingTableError } from "@/lib/supabase-db-errors";
 import {
   normalizeFounderNote,
@@ -27,7 +27,7 @@ type Body = {
 
 /** POST — founder approves or rejects a specialty change request. */
 export async function POST(req: NextRequest) {
-  const denied = denyUnlessInternalFounder();
+  const { response: denied } = await requireAdminWrite();
   if (denied) return denied;
 
   const supabase = createServiceRoleClient();

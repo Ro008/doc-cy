@@ -20,8 +20,7 @@ describe("needsSupabaseSessionMiddleware", () => {
       "/privacy",
       "/andreas-nikos",
       "/en/andreas-nikos",
-      "/internal",
-      "/internal/directory",
+      "/internalx",
     ]) {
       assert.equal(needsSupabaseSessionMiddleware(path), false, path);
     }
@@ -43,6 +42,11 @@ describe("needsSupabaseSessionMiddleware", () => {
       "/forgot-password/",
       "/reset-password",
       "/reset-password/",
+      // Admin pages: the middleware keeps the admin's session cookie fresh.
+      "/internal",
+      "/internal/sign-in",
+      "/internal/directory",
+      "/internal/directory/",
     ]) {
       assert.equal(needsSupabaseSessionMiddleware(path), true, path);
     }

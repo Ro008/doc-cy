@@ -6,7 +6,7 @@ import {
   createIntegrationAdmin,
   requireSafeIntegration,
 } from "./helpers/safe-integration";
-import { postDoctorVerification } from "./helpers/internal-api";
+import { founderCookie, postDoctorVerification } from "./helpers/internal-api";
 import { seedProfessionalSpecialty } from "./helpers/test-doctor";
 
 /**
@@ -17,7 +17,7 @@ test.describe("Integration: pending registration origin actions", { tag: "@pr-e2
   test("classifies claimed/unclaimed and verify absorbs from URL", async ({ request }) => {
     // Multiple auth users + listings + verify/reject/absorb RPCs exceed the default 30s budget.
     test.setTimeout(120_000);
-    const env = requireSafeIntegration({ needsInternalSecret: true });
+    const env = requireSafeIntegration();
     const admin = createIntegrationAdmin(env);
     const nonce = `${Date.now()}-${Math.floor(Math.random() * 100000)}`;
 
@@ -364,7 +364,7 @@ test.describe("Integration: pending registration origin actions", { tag: "@pr-e2
       expect(autoListingRow?.is_registered).toBe(false);
       expect(autoListingRow?.is_archived).toBe(false);
 
-      const blockedRes = await postDoctorVerification(request, env.internalSecret, {
+      const blockedRes = await postDoctorVerification(request, await founderCookie(), {
         doctorId: pendingId,
         action: "verify",
         listingUrl: `https://mydoccy.com/en/registered-blocker-${nonce}`,
@@ -373,7 +373,7 @@ test.describe("Integration: pending registration origin actions", { tag: "@pr-e2
       const blockedBody = (await blockedRes.json()) as { message?: string };
       expect(blockedBody.message).toMatch(/registered account/i);
 
-      const verifyRes = await postDoctorVerification(request, env.internalSecret, {
+      const verifyRes = await postDoctorVerification(request, await founderCookie(), {
         doctorId: pendingId,
         action: "verify",
         listingUrl: `https://mydoccy.com/en/pending-twin-listing-${nonce}`,
@@ -399,7 +399,7 @@ test.describe("Integration: pending registration origin actions", { tag: "@pr-e2
       // Verifying a card-link claim absorbs the claimed listing (same RPC as
       // manual URL absorb) using the stored claim_listing_id — no listingUrl
       // needed from the founder.
-      const verifyClaimedRes = await postDoctorVerification(request, env.internalSecret, {
+      const verifyClaimedRes = await postDoctorVerification(request, await founderCookie(), {
         doctorId: claimedVerifyId,
         action: "verify",
       });
@@ -424,7 +424,7 @@ test.describe("Integration: pending registration origin actions", { tag: "@pr-e2
       // Rejecting a card-link claim must NOT touch the claimed listing at all
       // (it was never mutated in the first place) — just close the pending
       // application, exactly like an Unclaimed reject.
-      const rejectClaimedRes = await postDoctorVerification(request, env.internalSecret, {
+      const rejectClaimedRes = await postDoctorVerification(request, await founderCookie(), {
         doctorId: claimedRejectId,
         action: "reject",
       });
@@ -454,7 +454,7 @@ test.describe("Integration: pending registration origin actions", { tag: "@pr-e2
 
       // Rejecting an unclaimed registration keeps the existing behavior:
       // just close the application, nothing to revert in the finder.
-      const rejectUnclaimedRes = await postDoctorVerification(request, env.internalSecret, {
+      const rejectUnclaimedRes = await postDoctorVerification(request, await founderCookie(), {
         doctorId: unclaimedId,
         action: "reject",
       });

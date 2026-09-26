@@ -7,13 +7,19 @@
  *   node scripts/demo-doctor-verification-email.mjs --pause-before-verify   # browse /agenda/account-review first
  *   node scripts/demo-doctor-verification-email.mjs --cleanup-only
  *
- * Requires: dev server on --base-url (default http://localhost:3000), RESEND_API_KEY, SUPABASE_SERVICE_ROLE_KEY.
+ * Requires: dev server on --base-url (default http://localhost:3000), RESEND_API_KEY, SUPABASE_SERVICE_ROLE_KEY,
+ * NEXT_PUBLIC_SUPABASE_ANON_KEY. Verifies through the internal API as a throwaway founder
+ * (login + admin row + authenticator code), deleted afterwards. Refuses Production.
  */
 import fs from "node:fs";
 import path from "node:path";
 import readline from "node:readline";
 import dotenv from "dotenv";
+import { randomUUID } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
+import { totpCode } from "./lib/totp.mjs";
+
+const PROD_REF = "oiwlztcduxojadbcxkil";
 
 const DEFAULT_EMAIL = "rociosirvent+testingdocverification@gmail.com";
 const DEMO_PASSWORD = "DocVerifyDemo123!";
@@ -113,21 +119,67 @@ async function promptEnter(message) {
   });
 }
 
+/**
+ * A throwaway founder for the internal API: login, admin row, verified authenticator
+ * code (aal2). Returns its session cookie and a remover (row first: it blocks the login).
+ */
+async function createTempFounder(admin, supabaseUrl, anonKey) {
+  const email = `demo-admin-${randomUUID().slice(0, 8)}@integration.test`;
+  const password = `Demo-${randomUUID()}`;
+  const created = await admin.auth.admin.createUser({ email, password, email_confirm: true });
+  if (created.error) throw new Error(`Temp admin login failed: ${created.error.message}`);
+  const authUserId = created.data.user.id;
+  const remove = async () => {
+    await admin.from("admin_users").delete().eq("auth_user_id", authUserId);
+    await admin.auth.admin.deleteUser(authUserId);
+  };
+  try {
+    const row = await admin
+      .from("admin_users")
+      .insert({ auth_user_id: authUserId, name: "Demo script", email, role: "founder" });
+    if (row.error) throw new Error(`Temp admin row failed: ${row.error.message}`);
+    const user = createClient(supabaseUrl, anonKey, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+    const signIn = await user.auth.signInWithPassword({ email, password });
+    if (signIn.error) throw new Error(`Temp admin sign-in failed: ${signIn.error.message}`);
+    const enrolled = await user.auth.mfa.enroll({ factorType: "totp" });
+    if (enrolled.error) throw new Error(`Temp admin 2FA failed: ${enrolled.error.message}`);
+    const verified = await user.auth.mfa.challengeAndVerify({
+      factorId: enrolled.data.id,
+      code: totpCode(enrolled.data.totp.secret),
+    });
+    if (verified.error) throw new Error(`Temp admin 2FA failed: ${verified.error.message}`);
+    const { data } = await user.auth.getSession();
+    const s = data.session;
+    const name = `sb-${new URL(supabaseUrl).hostname.split(".")[0]}-auth-token`;
+    const value = JSON.stringify([s.access_token, s.refresh_token, null, null, s.user?.factors ?? null]);
+    return { cookie: `${name}=${encodeURIComponent(value)}`, remove };
+  } catch (error) {
+    await remove();
+    throw error;
+  }
+}
+
 async function main() {
   const args = parseArgs(process.argv);
   const envPath = loadEnv(args.envFile);
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
-  const internalSecret = process.env.INTERNAL_DIRECTORY_SECRET?.trim();
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
   const resendKey = process.env.RESEND_API_KEY?.trim();
 
   if (!supabaseUrl || !serviceKey) {
     console.error("Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY.");
     process.exit(1);
   }
-  if (!internalSecret) {
-    console.error("Missing INTERNAL_DIRECTORY_SECRET.");
+  if (!anonKey) {
+    console.error("Missing NEXT_PUBLIC_SUPABASE_ANON_KEY.");
+    process.exit(1);
+  }
+  if (supabaseUrl.includes(PROD_REF)) {
+    console.error("Refusing to run the demo against Production.");
     process.exit(1);
   }
   if (!resendKey) {
@@ -216,7 +268,7 @@ async function main() {
 
   console.log(`\n--- Step 2: founder verifies in internal directory (optional UI) ---`);
   console.log(`Open: ${args.baseUrl}/internal/directory`);
-  console.log(`Gate password: value of INTERNAL_DIRECTORY_SECRET in ${args.envFile}`);
+  console.log("Sign in there with your own admin account (password + authenticator code).");
   console.log(`Find: "${DEMO_NAME}" → Verify license`);
 
   const serverOk = await waitForServer(args.baseUrl);
@@ -232,14 +284,20 @@ async function main() {
   }
 
   console.log(`\n[DocCy demo] POST /api/internal/doctors/verification (verify)…`);
-  const verifyRes = await fetch(`${args.baseUrl}/api/internal/doctors/verification`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Cookie: `doccy-internal-directory=${internalSecret}`,
-    },
-    body: JSON.stringify({ doctorId, action: "verify" }),
-  });
+  const tempAdmin = await createTempFounder(admin, supabaseUrl, anonKey);
+  let verifyRes;
+  try {
+    verifyRes = await fetch(`${args.baseUrl}/api/internal/doctors/verification`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Cookie: tempAdmin.cookie,
+      },
+      body: JSON.stringify({ doctorId, action: "verify" }),
+    });
+  } finally {
+    await tempAdmin.remove();
+  }
   const verifyBody = await verifyRes.json().catch(() => ({}));
   if (!verifyRes.ok) {
     console.error("Verification API failed:", verifyRes.status, verifyBody);

@@ -134,35 +134,35 @@ describe("consumePublicApiRateLimit", () => {
   });
 });
 
-describe("enforcePublicApiRateLimit(internalAuthLogin)", () => {
+describe("enforcePublicApiRateLimit(doctorInvitation)", () => {
   beforeEach(() => {
     resetPublicApiRateLimitStoreForTests();
   });
 
-  it("allows the first 3 attempts, then throttles the 4th with a 429 + Retry-After", () => {
-    const limit = PUBLIC_API_RATE_LIMITS.internalAuthLogin.limit;
+  it("allows the limit, then throttles the next attempt with a 429 + Retry-After", () => {
+    const limit = PUBLIC_API_RATE_LIMITS.doctorInvitation.limit;
     const req = requestFromIp("192.0.2.50");
     for (let i = 0; i < limit; i += 1) {
-      const result = enforcePublicApiRateLimit(req, "internalAuthLogin");
+      const result = enforcePublicApiRateLimit(req, "doctorInvitation");
       assert.equal(result, null, `attempt ${i + 1} should not be throttled`);
     }
 
-    const throttled = enforcePublicApiRateLimit(req, "internalAuthLogin");
+    const throttled = enforcePublicApiRateLimit(req, "doctorInvitation");
     assert.notEqual(throttled, null);
     assert.equal(throttled?.status, 429);
     assert.ok(throttled?.headers.get("Retry-After"));
   });
 
   it("tracks each IP independently, so one guesser can't exhaust another visitor's budget", () => {
-    const limit = PUBLIC_API_RATE_LIMITS.internalAuthLogin.limit;
+    const limit = PUBLIC_API_RATE_LIMITS.doctorInvitation.limit;
     const attacker = requestFromIp("192.0.2.60");
-    const founder = requestFromIp("192.0.2.61");
+    const visitor = requestFromIp("192.0.2.61");
     for (let i = 0; i < limit; i += 1) {
-      assert.equal(enforcePublicApiRateLimit(attacker, "internalAuthLogin"), null);
+      assert.equal(enforcePublicApiRateLimit(attacker, "doctorInvitation"), null);
     }
-    assert.notEqual(enforcePublicApiRateLimit(attacker, "internalAuthLogin"), null);
-    // Founder's own attempt from a different IP still has a full budget.
-    assert.equal(enforcePublicApiRateLimit(founder, "internalAuthLogin"), null);
+    assert.notEqual(enforcePublicApiRateLimit(attacker, "doctorInvitation"), null);
+    // Another visitor on a different IP still has a full budget.
+    assert.equal(enforcePublicApiRateLimit(visitor, "doctorInvitation"), null);
   });
 });
 

@@ -1,14 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceRoleClient } from "@/lib/supabase-service";
-import { isInternalDirectoryAuthenticated } from "@/lib/internal-directory-auth";
+import { requireAdmin } from "@/lib/admin-auth";
 
 export async function GET(
   _req: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  if (!isInternalDirectoryAuthenticated()) {
-    return NextResponse.json({ message: "Unauthorized." }, { status: 401 });
-  }
+  const { response: denied } = await requireAdmin();
+  if (denied) return denied;
 
   const supabase = createServiceRoleClient();
   if (!supabase) {

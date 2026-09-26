@@ -3,6 +3,7 @@ import {
   postDoctorVerification,
   postSpecialtyChangeReview,
   postSpecialtyReview,
+  founderCookie,
 } from "./helpers/internal-api";
 import {
   createIntegrationAdmin,
@@ -53,7 +54,7 @@ test.describe("Integration: doctor account access", { tag: "@pr-e2e" }, () => {
   });
 
   test("rejected specialty shows specialty-not-accepted copy", async ({ page }) => {
-    const env = requireSafeIntegration({ needsInternalSecret: true });
+    const env = requireSafeIntegration();
     const admin = createIntegrationAdmin(env);
     const nonce = `${Date.now()}-${Math.floor(Math.random() * 100000)}`;
     let fixture: TestDoctorFixture | null = null;
@@ -68,7 +69,7 @@ test.describe("Integration: doctor account access", { tag: "@pr-e2e" }, () => {
         status: "pending",
       });
 
-      const rejectRes = await postSpecialtyReview(page.request, env.internalSecret, {
+      const rejectRes = await postSpecialtyReview(page.request, await founderCookie(), {
         doctorId: fixture.doctorId,
         action: "reject_specialty",
       });
@@ -87,7 +88,7 @@ test.describe("Integration: doctor account access", { tag: "@pr-e2e" }, () => {
   });
 
   test("rejected license shows license copy after specialty approved", async ({ page }) => {
-    const env = requireSafeIntegration({ needsInternalSecret: true });
+    const env = requireSafeIntegration();
     const admin = createIntegrationAdmin(env);
     const nonce = `${Date.now()}-${Math.floor(Math.random() * 100000)}`;
     let fixture: TestDoctorFixture | null = null;
@@ -104,7 +105,7 @@ test.describe("Integration: doctor account access", { tag: "@pr-e2e" }, () => {
 
       expect(
         (
-          await postSpecialtyReview(page.request, env.internalSecret, {
+          await postSpecialtyReview(page.request, await founderCookie(), {
             doctorId: fixture.doctorId,
             action: "approve_new",
           })
@@ -112,7 +113,7 @@ test.describe("Integration: doctor account access", { tag: "@pr-e2e" }, () => {
       ).toBe(200);
       expect(
         (
-          await postDoctorVerification(page.request, env.internalSecret, {
+          await postDoctorVerification(page.request, await founderCookie(), {
             doctorId: fixture.doctorId,
             action: "reject",
           })
@@ -135,7 +136,7 @@ test.describe("Integration: doctor account access", { tag: "@pr-e2e" }, () => {
   });
 
   test("verified doctor opens agenda after specialty + license approval", async ({ page }) => {
-    const env = requireSafeIntegration({ needsInternalSecret: true });
+    const env = requireSafeIntegration();
     const admin = createIntegrationAdmin(env);
     const nonce = `${Date.now()}-${Math.floor(Math.random() * 100000)}`;
     let fixture: TestDoctorFixture | null = null;
@@ -152,7 +153,7 @@ test.describe("Integration: doctor account access", { tag: "@pr-e2e" }, () => {
 
       expect(
         (
-          await postSpecialtyReview(page.request, env.internalSecret, {
+          await postSpecialtyReview(page.request, await founderCookie(), {
             doctorId: fixture.doctorId,
             action: "approve_new",
           })
@@ -160,7 +161,7 @@ test.describe("Integration: doctor account access", { tag: "@pr-e2e" }, () => {
       ).toBe(200);
       expect(
         (
-          await postDoctorVerification(page.request, env.internalSecret, {
+          await postDoctorVerification(page.request, await founderCookie(), {
             doctorId: fixture.doctorId,
             action: "verify",
           })
@@ -186,9 +187,9 @@ test.describe("Integration: doctor account access", { tag: "@pr-e2e" }, () => {
   test("founder APIs: specialty before license; standard skips specialty queue", async ({
     request,
   }) => {
-    const env = requireSafeIntegration({ needsInternalSecret: true });
+    const env = requireSafeIntegration();
     const admin = createIntegrationAdmin(env);
-    const secret = env.internalSecret;
+    const secret = await founderCookie();
     const nonce = `${Date.now()}-${Math.floor(Math.random() * 100000)}`;
     let custom: TestDoctorFixture | null = null;
     let standard: TestDoctorFixture | null = null;
@@ -251,9 +252,9 @@ test.describe("Integration: doctor account access", { tag: "@pr-e2e" }, () => {
   });
 
   test("specialty review API: merge, edit, reject, and validation", async ({ request }) => {
-    const env = requireSafeIntegration({ needsInternalSecret: true });
+    const env = requireSafeIntegration();
     const admin = createIntegrationAdmin(env);
-    const secret = env.internalSecret;
+    const secret = await founderCookie();
     const nonce = `${Date.now()}-${Math.floor(Math.random() * 100000)}`;
     let fixture: TestDoctorFixture | null = null;
     // Approving an edited label adds it to the catalogue, so make it unique per run
@@ -393,9 +394,9 @@ test.describe("Integration: doctor account access", { tag: "@pr-e2e" }, () => {
   test("specialty change review API: add, replace and remove write professional_specialties", async ({
     request,
   }) => {
-    const env = requireSafeIntegration({ needsInternalSecret: true });
+    const env = requireSafeIntegration();
     const admin = createIntegrationAdmin(env);
-    const secret = env.internalSecret;
+    const secret = await founderCookie();
     const nonce = `${Date.now()}-${Math.floor(Math.random() * 100000)}`;
     let fixture: TestDoctorFixture | null = null;
 

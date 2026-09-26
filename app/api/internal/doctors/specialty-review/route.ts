@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createServiceRoleClient } from "@/lib/supabase-service";
-import { denyUnlessInternalFounder } from "@/lib/internal-directory-auth";
+import { requireAdminWrite } from "@/lib/admin-auth";
 import { loadSpecialtyCatalogueNames } from "@/lib/specialty-catalogue";
 import { matchCatalogueSpecialty } from "@/lib/specialty-options";
 import { normalizeApprovedCustomSpecialty } from "@/lib/specialty-submission";
@@ -162,7 +162,7 @@ async function resolvePendingSpecialty(
 }
 
 export async function POST(req: NextRequest) {
-  const denied = denyUnlessInternalFounder();
+  const { response: denied } = await requireAdminWrite();
   if (denied) return denied;
 
   const supabase = createServiceRoleClient();
