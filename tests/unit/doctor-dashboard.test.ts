@@ -11,6 +11,7 @@ import {
   todaySummaryLabel,
   todayWorkingWindow,
   nowMarkerPosition,
+  awaitingPatientSummary,
   type DashboardAppointmentRow,
 } from "../../lib/doctor-dashboard";
 
@@ -19,6 +20,7 @@ const NOW = Date.parse("2026-09-25T06:50:00Z");
 
 function row(partial: Partial<DashboardAppointmentRow> & { id: string }): DashboardAppointmentRow {
   return {
+    proposed_slots: null,
     patient_name: `Patient ${partial.id}`,
     appointment_datetime: "2026-09-25T06:00:00Z",
     status: "CONFIRMED",
@@ -273,6 +275,40 @@ describe("nowMarkerPosition", () => {
 
   it("handles an empty day", () => {
     assert.deepEqual(nowMarkerPosition([], NOW), { beforeIndex: 0, currentId: null });
+  });
+});
+
+describe("awaitingPatientSummary", () => {
+  const proposal = row({
+    id: "prop",
+    status: "NEEDS_RESCHEDULE",
+    appointment_datetime: "2026-09-28T09:00:00Z",
+    proposal_expires_at: "2026-09-26T17:06:00Z", // Sat 20:06 Cyprus
+    proposed_slots: ["2026-09-29T07:00:00Z", "2026-09-28T09:30:00Z", "2026-09-28T10:00:00Z"],
+  });
+
+  it("lists the suggested times in order, in Cyprus time", () => {
+    assert.deepEqual(awaitingPatientSummary(proposal).slotLabels, [
+      "Mon 28 Sep, 12:30",
+      "Mon 28 Sep, 13:00",
+      "Tue 29 Sep, 10:00",
+    ]);
+  });
+
+  it("gives the deadline and opens the agenda on the first suggested day", () => {
+    const summary = awaitingPatientSummary(proposal);
+    assert.equal(summary.expiresLabel, "Sat 26 Sep, 20:06");
+    assert.equal(summary.agendaHref, "/agenda?date=2026-09-28&highlight=prop");
+  });
+
+  it("copes with slots stored as a JSON string or missing", () => {
+    const asString = awaitingPatientSummary({ ...proposal, proposed_slots: JSON.stringify(["2026-09-28T09:30:00Z"]) });
+    assert.deepEqual(asString.slotLabels, ["Mon 28 Sep, 12:30"]);
+    const empty = awaitingPatientSummary({ ...proposal, proposed_slots: null, proposal_expires_at: null });
+    assert.deepEqual(empty.slotLabels, []);
+    assert.equal(empty.expiresLabel, null);
+    // No suggested day: fall back to the original request's day.
+    assert.equal(empty.agendaHref, "/agenda?date=2026-09-28&highlight=prop");
   });
 });
 

@@ -18,7 +18,7 @@ import { appointmentCalendarPath } from "@/lib/appointment-links";
 import { formatInTimeZone, zonedTimeToUtc } from "date-fns-tz";
 import { CY_TZ } from "@/lib/appointments";
 import { reviewBackTarget, wantsSuggestOnOpen, type ReviewDayRow } from "@/lib/appointment-review";
-import { requestedAgoLabel, todayWorkingWindow } from "@/lib/doctor-dashboard";
+import { awaitingPatientSummary, requestedAgoLabel, todayWorkingWindow } from "@/lib/doctor-dashboard";
 import { clinicIdForAppointment, locationsToAgendaClinics } from "@/lib/agenda-clinics";
 import { loadDoctorLocations } from "@/lib/load-doctor-locations";
 
@@ -197,40 +197,50 @@ export default async function DashboardAppointmentDetailPage({
       appointmentId,
       status,
     });
-    const expRaw = (appt as { proposal_expires_at?: string | null })
-      .proposal_expires_at;
-    const expLabel = expRaw
-      ? format(appointmentToCyprusDate(expRaw), "EEEE, d MMMM yyyy 'at' HH:mm", {
-          locale: enUS,
-        })
-      : null;
-    const rawSlots = (appt as { proposed_slots?: unknown }).proposed_slots;
-    const slotCount = Array.isArray(rawSlots) ? rawSlots.length : 0;
+    const summary = awaitingPatientSummary({
+      id: appt.id as string,
+      appointment_datetime: appt.appointment_datetime as string,
+      proposed_slots: (appt as { proposed_slots?: unknown }).proposed_slots,
+      proposal_expires_at: (appt as { proposal_expires_at?: string | null }).proposal_expires_at ?? null,
+    });
+    const back = reviewBackTarget(searchParams?.from);
 
     return (
       <DoctorAppointmentLinkShell>
-        <p className="text-xs font-semibold uppercase tracking-wide text-amber-300">
-          Awaiting patient
-        </p>
-        <h1 className="mt-2 text-xl font-semibold text-ink-50">Hi {greet}</h1>
-        <p className="mt-3 text-sm leading-relaxed text-ink-300">
-          {patientName} has been sent a link to choose among{" "}
-          {slotCount > 0 ? `${slotCount} proposed times` : "proposed times"}.
-          {expLabel ? (
+        <p className="text-xs font-semibold uppercase tracking-wide text-amber-300">Awaiting patient</p>
+        <h1 className="mt-2 text-xl font-semibold leading-snug text-ink-50 sm:text-2xl">
+          Waiting for {patientName} to pick a time
+        </h1>
+        <p className="mt-2 text-sm leading-relaxed text-ink-300">
+          You suggested these times; they stay held in your agenda until {patientName} chooses one
+          {summary.expiresLabel ? (
             <>
-              {" "}
-              They should respond before{" "}
-              <span className="font-medium text-amber-200">{expLabel}</span> (Cyprus time).
+              {" "}or the offer expires on{" "}
+              <span className="font-medium text-amber-200">{summary.expiresLabel}</span>
             </>
           ) : null}
+          . <span className="text-ink-500">Cyprus time.</span>
         </p>
+
+        {summary.slotLabels.length > 0 ? (
+          <ul data-testid="review-proposed-times" className="mt-5 space-y-2 text-sm">
+            {summary.slotLabels.map((label, i) => (
+              <li
+                key={label}
+                className="flex items-center gap-3 rounded-xl border border-clinical-400/25 bg-clinical-500/10 px-3 py-2 text-ink-50"
+              >
+                <span className="text-xs font-semibold text-clinical-300">{i + 1}</span>
+                <span className="tabular-nums">{label}</span>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+
         <dl className="mt-6 space-y-3 text-sm">
           <div>
-            <dt className="text-xs font-medium uppercase tracking-wide text-ink-500">
-              Original request
-            </dt>
-            <dd className="mt-0.5 text-ink-100">
-              {dateStr} · {timeStr} (Cyprus time)
+            <dt className="text-xs font-medium uppercase tracking-wide text-ink-500">Original request</dt>
+            <dd className="mt-0.5 text-ink-300 line-through decoration-ink-500/60">
+              {dateStr} · {timeStr}
             </dd>
           </div>
           <div>
@@ -238,8 +248,15 @@ export default async function DashboardAppointmentDetailPage({
             <dd className="mt-0.5 whitespace-pre-wrap text-ink-200">{reason || "—"}</dd>
           </div>
         </dl>
-        <PendingLink href="/agenda" className={`mt-8 ${PRIMARY_BTN_CLASS}`}>
-          Open agenda
+
+        <PendingLink href={summary.agendaHref} className={`mt-8 ${PRIMARY_BTN_CLASS}`}>
+          Open in agenda
+        </PendingLink>
+        <PendingLink
+          href={back.href}
+          className="mt-3 block text-center text-sm text-ink-400 underline-offset-2 hover:text-ink-200 hover:underline"
+        >
+          {back.label}
         </PendingLink>
       </DoctorAppointmentLinkShell>
     );

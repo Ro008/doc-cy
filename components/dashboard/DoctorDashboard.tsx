@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { formatInTimeZone } from "date-fns-tz";
-import { AlertTriangle, CalendarPlus, Check, CheckCircle2, Loader2, X } from "lucide-react";
+import { AlertTriangle, CalendarPlus, Check, CheckCircle2, ChevronDown, Loader2, X } from "lucide-react";
 import { ManualBookingFlow } from "@/components/agenda/ManualBookingFlow";
 import { CY_TZ } from "@/lib/appointments";
 import {
@@ -15,6 +15,7 @@ import {
 } from "@/lib/agenda-clinics";
 import {
   buildTodaySchedule,
+  awaitingPatientSummary,
   dashboardGreeting,
   nowMarkerPosition,
   requestedAgoLabel,
@@ -209,13 +210,7 @@ export function DoctorDashboard({
                 </p>
                 <ul className="mt-2 space-y-1.5">
                   {awaiting.map((row) => (
-                    <li key={row.id} className="flex flex-wrap items-center gap-x-2">
-                      <span className="font-semibold text-slate-100">{row.patient_name}</span>
-                      <span>You suggested other times.</span>
-                      <Link href={reviewPath(row.id)} className="font-medium text-clinical-300 hover:text-clinical-200">
-                        View
-                      </Link>
-                    </li>
+                    <AwaitingPatientItem key={row.id} row={row} />
                   ))}
                 </ul>
               </div>
@@ -293,6 +288,69 @@ function ScrollFade() {
         visible ? "opacity-100" : "opacity-0"
       }`}
     />
+  );
+}
+
+/** A request where the doctor suggested times; "View" unfolds them in place. */
+function AwaitingPatientItem({ row }: { row: DashboardAppointmentRow }) {
+  const [open, setOpen] = React.useState(false);
+  const summary = awaitingPatientSummary(row);
+  const panelId = `awaiting-${row.id}`;
+
+  return (
+    <li data-testid="dashboard-awaiting-patient">
+      <div className="flex flex-wrap items-center gap-x-2">
+        <span className="font-semibold text-slate-100">{row.patient_name}</span>
+        <span>You suggested other times.</span>
+        <button
+          type="button"
+          aria-expanded={open}
+          aria-controls={panelId}
+          onClick={() => setOpen((v) => !v)}
+          className="inline-flex items-center gap-1 font-medium text-clinical-300 transition hover:text-clinical-200"
+        >
+          {open ? "Hide" : "View"}
+          <ChevronDown className={`h-3.5 w-3.5 transition-transform ${open ? "rotate-180" : ""}`} aria-hidden />
+        </button>
+      </div>
+      <div
+        id={panelId}
+        className={`grid transition-[grid-template-rows,opacity] duration-300 ease-out ${
+          open ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+        }`}
+      >
+        <div className="min-h-0 overflow-hidden">
+          <div className="mt-2 rounded-xl border border-slate-800 bg-slate-950/40 px-3 py-2.5">
+            {summary.slotLabels.length > 0 ? (
+              <ul data-testid="dashboard-awaiting-slots" className="flex flex-wrap gap-1.5">
+                {summary.slotLabels.map((label) => (
+                  <li
+                    key={label}
+                    className="rounded-full border border-clinical-400/30 bg-clinical-500/10 px-2.5 py-1 text-xs font-medium tabular-nums text-clinical-100"
+                  >
+                    {label}
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+            <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs">
+              {summary.expiresLabel ? (
+                <span className="text-amber-200/90">Expires {summary.expiresLabel}</span>
+              ) : (
+                <span />
+              )}
+              <Link
+                href={summary.agendaHref}
+                tabIndex={open ? undefined : -1}
+                className="font-semibold text-clinical-300 hover:text-clinical-200"
+              >
+                See in agenda
+              </Link>
+            </div>
+          </div>
+        </div>
+      </div>
+    </li>
   );
 }
 

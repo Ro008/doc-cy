@@ -158,3 +158,35 @@ export function InsightsSkeleton() {
     </SkeletonPage>
   );
 }
+
+/** Request review / awaiting-patient card (distraction-free, no nav). */
+export function ReviewSkeleton() {
+  return (
+    <main className="min-h-screen bg-ink-900 text-ink-50">
+      <div className="mx-auto max-w-xl px-4 py-10">
+        <div
+          data-testid="page-skeleton"
+          role="status"
+          aria-busy="true"
+          className="space-y-6 rounded-3xl border border-clinical-100/10 bg-ink-900/70 p-6 shadow-2xl shadow-ink-900/50 sm:p-8"
+        >
+          <span className="sr-only">Loading request…</span>
+          <div className="space-y-3">
+            <Bone className="h-3 w-44" />
+            <Bone className="h-7 w-80 max-w-full" />
+            <Bone className="h-4 w-56" />
+          </div>
+          <Bone className="h-20 w-full rounded-2xl" />
+          <div className="flex gap-2">
+            <Bone className="h-9 w-16" />
+            <Bone className="h-9 w-16" />
+            <Bone className="h-9 w-16" />
+            <Bone className="h-9 w-16" />
+          </div>
+          <Bone className="h-28 w-full rounded-2xl" />
+          <Bone className="h-12 w-full rounded-2xl" />
+        </div>
+      </div>
+    </main>
+  );
+}

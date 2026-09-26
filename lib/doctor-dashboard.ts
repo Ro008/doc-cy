@@ -2,10 +2,12 @@ import { formatInTimeZone } from "date-fns-tz";
 import { CY_TZ, isRescheduleProposalLive } from "@/lib/appointments";
 import { isNoShowAttendance } from "@/lib/appointment-attendance";
 import { parseAgendaClockMinutes, type AgendaWorkingHours } from "@/lib/agenda-clinics";
+import { coerceProposedSlotsArray } from "@/lib/appointment-overlap";
+import { agendaHighlightHref } from "@/lib/agenda-highlight";
 import type { DayKey } from "@/lib/doctor-settings";
 
 export const DASHBOARD_APPOINTMENT_SELECT =
-  "id, patient_name, appointment_datetime, status, duration_minutes, created_at, is_new_patient, attendance, proposal_expires_at, reason, location_id";
+  "id, patient_name, appointment_datetime, status, duration_minutes, created_at, is_new_patient, attendance, proposal_expires_at, proposed_slots, reason, location_id";
 
 export type DashboardAppointmentRow = {
   id: string;
@@ -17,6 +19,7 @@ export type DashboardAppointmentRow = {
   is_new_patient: boolean | null;
   attendance: string | null;
   proposal_expires_at: string | null;
+  proposed_slots: unknown;
   reason: string | null;
   location_id: string | null;
 };
@@ -251,4 +254,31 @@ export function startsInLabel(startIso: string, nowMs: number): string {
   const h = Math.floor(minutes / 60);
   const m = minutes % 60;
   return m === 0 ? `in ${h} h` : `in ${h} h ${m} min`;
+}
+
+export type AwaitingPatientSummary = {
+  /** "Mon 28 Sep, 12:30", earliest first (Cyprus). */
+  slotLabels: string[];
+  /** "Sat 26 Sep, 20:06" (Cyprus), or null when unknown. */
+  expiresLabel: string | null;
+  /** Agenda on the first suggested day, pointing out the held times. */
+  agendaHref: string;
+};
+
+/** What a doctor needs about times they suggested and the patient has not picked yet. */
+export function awaitingPatientSummary(
+  row: Pick<DashboardAppointmentRow, "id" | "appointment_datetime" | "proposed_slots" | "proposal_expires_at">,
+): AwaitingPatientSummary {
+  const slotMs = coerceProposedSlotsArray(row.proposed_slots)
+    .map((v) => (typeof v === "string" ? new Date(v).getTime() : NaN))
+    .filter((ms) => Number.isFinite(ms))
+    .sort((a, b) => a - b);
+  const label = (ms: number) => formatInTimeZone(new Date(ms), CY_TZ, "EEE d MMM, HH:mm");
+  const expiresMs = timeMs(row.proposal_expires_at);
+  const dayMs = slotMs[0] ?? timeMs(row.appointment_datetime);
+  return {
+    slotLabels: slotMs.map(label),
+    expiresLabel: Number.isFinite(expiresMs) ? label(expiresMs) : null,
+    agendaHref: agendaHighlightHref(cyprusDateKeyOf(dayMs), row.id),
+  };
 }

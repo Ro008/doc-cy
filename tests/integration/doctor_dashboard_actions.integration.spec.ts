@@ -129,6 +129,23 @@ async function createRequest(label: string): Promise<Setup> {
   return { admin, doctorEmail, doctorPassword, appointmentId: String(inserted.id), patientName };
 }
 
+/** Turn a fresh request into "waiting for the patient" with three held times. */
+async function makeProposal(setup: Setup): Promise<{ firstDay: string }> {
+  const base = Date.now() + 5 * 24 * 60 * 60 * 1000;
+  const slots = [0, 1, 2].map((i) => new Date(base + i * 60 * 60 * 1000));
+  slots.forEach((d) => d.setUTCMinutes(0, 0, 0));
+  await setup.admin
+    .from("appointments")
+    .update({
+      status: "NEEDS_RESCHEDULE",
+      proposed_slots: slots.map((d) => d.toISOString()),
+      proposal_expires_at: new Date(Date.now() + 20 * 60 * 60 * 1000).toISOString(),
+    })
+    .eq("id", setup.appointmentId);
+  const firstDay = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Nicosia" }).format(slots[0]);
+  return { firstDay };
+}
+
 test.describe("Integration: dashboard request actions", { tag: ["@pr-e2e", "@pr-e2e-booking"] }, () => {
   test("Accept confirms the request without leaving the dashboard", async ({ page }) => {
     test.setTimeout(120_000);
@@ -342,7 +359,9 @@ test.describe("Integration: dashboard request actions", { tag: ["@pr-e2e", "@pr-
       .update({ status: "CONFIRMED", appointment_datetime: startIso, duration_minutes: 15 })
       .eq("id", setup.appointmentId);
     try {
-      await page.setViewportSize({ width: 1280, height: 900 });
+      // Phone size: the agenda shows single days there, so this works on weekends too
+      // (the desktop week view only has Monday–Friday).
+      await page.setViewportSize({ width: 390, height: 844 });
       await signInDoctorOrFail(page, undefined, {
         email: setup.doctorEmail,
         password: setup.doctorPassword,
@@ -362,6 +381,67 @@ test.describe("Integration: dashboard request actions", { tag: ["@pr-e2e", "@pr-
       await expect(chip).toHaveAttribute("data-highlighted", "true", { timeout: 15_000 });
       await expect(chip).toBeInViewport();
       await expect(chip).toHaveAttribute("data-highlighted", "false", { timeout: 8_000 });
+    } finally {
+      await setup.admin.from("appointments").delete().eq("id", setup.appointmentId);
+    }
+  });
+
+  test("View expands a waiting request in place with the held times", async ({ page }) => {
+    test.setTimeout(120_000);
+    const setup = await createRequest("Waiting");
+    const { firstDay } = await makeProposal(setup);
+    try {
+      await page.setViewportSize({ width: 1280, height: 900 });
+      await signInDoctorOrFail(page, undefined, {
+        email: setup.doctorEmail,
+        password: setup.doctorPassword,
+      });
+      await page.goto("/dashboard", { waitUntil: "domcontentloaded" });
+      await waitForHydration(page);
+
+      const row = page.getByTestId("dashboard-awaiting-patient").filter({ hasText: setup.patientName });
+      await expect(row).toBeVisible({ timeout: 20_000 });
+      const toggle = row.getByRole("button", { name: "View" });
+      await expect(toggle).toHaveAttribute("aria-expanded", "false");
+      await toggle.click();
+
+      await expect(row.getByRole("button", { name: "Hide" })).toHaveAttribute("aria-expanded", "true");
+      await expect(row.getByTestId("dashboard-awaiting-slots").locator("li")).toHaveCount(3);
+      await expect(row.getByText(/^Expires /)).toBeVisible();
+      await expect(row.getByRole("link", { name: "See in agenda" })).toHaveAttribute(
+        "href",
+        `/agenda?date=${firstDay}&highlight=${setup.appointmentId}`,
+      );
+      await expect(page).toHaveURL(/\/dashboard(?:[?#]|$)/);
+    } finally {
+      await setup.admin.from("appointments").delete().eq("id", setup.appointmentId);
+    }
+  });
+
+  test("Awaiting-patient page shows the held times and opens the agenda on their day", async ({ page }) => {
+    test.setTimeout(120_000);
+    const setup = await createRequest("AwaitPage");
+    const { firstDay } = await makeProposal(setup);
+    try {
+      await page.setViewportSize({ width: 1280, height: 900 });
+      await signInDoctorOrFail(page, undefined, {
+        email: setup.doctorEmail,
+        password: setup.doctorPassword,
+      });
+      await page.goto(`/dashboard/appointments/${setup.appointmentId}?from=dashboard`, {
+        waitUntil: "domcontentloaded",
+      });
+
+      await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+        `Waiting for ${setup.patientName} to pick a time`,
+        { timeout: 20_000 },
+      );
+      await expect(page.getByTestId("review-proposed-times").locator("li")).toHaveCount(3);
+      await expect(page.getByRole("link", { name: "Open in agenda" })).toHaveAttribute(
+        "href",
+        `/agenda?date=${firstDay}&highlight=${setup.appointmentId}`,
+      );
+      await expect(page.getByRole("link", { name: "Back to dashboard" })).toHaveAttribute("href", "/dashboard");
     } finally {
       await setup.admin.from("appointments").delete().eq("id", setup.appointmentId);
     }
