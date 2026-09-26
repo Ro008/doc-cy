@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceRoleClient } from "@/lib/supabase-service";
-import { denyUnlessInternalFounder } from "@/lib/internal-directory-auth";
+import { requireAdminWrite } from "@/lib/admin-auth";
 import { verificationBlockedReason } from "@/lib/doctor-specialty-public";
 import { hasPendingSpecialty, loadSpecialtyEntries } from "@/lib/specialty-catalogue";
 import { sendDoctorAccountVerifiedEmail } from "@/lib/send-doctor-account-verified-email";
@@ -124,7 +124,7 @@ async function addLocationsForAbsorbedClinics(
 }
 
 export async function POST(req: NextRequest) {
-  const denied = denyUnlessInternalFounder();
+  const { response: denied } = await requireAdminWrite();
   if (denied) return denied;
 
   const supabase = createServiceRoleClient();

@@ -4,7 +4,7 @@ import { buildFounderNewRegistrationNotifyContent } from "@/lib/notify-founder-n
 import { buildDoctorAccountVerifiedEmailContent } from "@/lib/send-doctor-account-verified-email";
 import { FIRST_LOGIN_TRIAL_NOTICE_TEST_ID } from "@/lib/first-login-trial-notice";
 import { getPublicBookingBaseUrl } from "@/lib/site-url";
-import { postDoctorVerification, postSpecialtyReview } from "./helpers/internal-api";
+import { founderCookie, postDoctorVerification, postSpecialtyReview } from "./helpers/internal-api";
 import {
   createIntegrationAdmin,
   requireSafeIntegration,
@@ -45,7 +45,7 @@ test.describe("Integration: doctor onboarding pipeline", { tag: "@pr-e2e" }, () 
     baseURL,
   }) => {
     test.setTimeout(120_000);
-    const env = requireSafeIntegration({ needsInternalSecret: true });
+    const env = requireSafeIntegration();
     const admin = createIntegrationAdmin(env);
     const nonce = `${Date.now()}-${Math.floor(Math.random() * 100000)}`;
     let fixture: TestDoctorFixture | null = null;
@@ -143,7 +143,7 @@ test.describe("Integration: doctor onboarding pipeline", { tag: "@pr-e2e" }, () 
     // Same budget as the first test: doctor setup, three founder API calls, a UI login
     // and the agenda regularly exceed the 30s default on a loaded Testing instance.
     test.setTimeout(120_000);
-    const env = requireSafeIntegration({ needsInternalSecret: true });
+    const env = requireSafeIntegration();
     const admin = createIntegrationAdmin(env);
     const nonce = `${Date.now()}-${Math.floor(Math.random() * 100000)}`;
     let fixture: TestDoctorFixture | null = null;
@@ -171,7 +171,7 @@ test.describe("Integration: doctor onboarding pipeline", { tag: "@pr-e2e" }, () 
       );
       expect(founderContent.textBody).toContain("custom specialty pending your approval");
 
-      const blockedVerify = await postDoctorVerification(request, env.internalSecret, {
+      const blockedVerify = await postDoctorVerification(request, await founderCookie(), {
         doctorId: fixture.doctorId,
         action: "verify",
       });
@@ -198,7 +198,7 @@ test.describe("Integration: doctor onboarding pipeline", { tag: "@pr-e2e" }, () 
 
         expect(
           (
-            await postSpecialtyReview(request, env.internalSecret, {
+            await postSpecialtyReview(request, await founderCookie(), {
               doctorId: fixture.doctorId,
               action: "approve_new",
             })
@@ -207,7 +207,7 @@ test.describe("Integration: doctor onboarding pipeline", { tag: "@pr-e2e" }, () 
 
         expect(
           (
-            await postDoctorVerification(request, env.internalSecret, {
+            await postDoctorVerification(request, await founderCookie(), {
               doctorId: fixture.doctorId,
               action: "verify",
             })

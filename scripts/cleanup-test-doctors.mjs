@@ -205,6 +205,25 @@ async function main() {
     if (error) throw new Error(`Failed deleting doctors: ${error.message}`);
   }
 
+  // Test admins (tests/integration/helpers/test-admin.ts): their admin_users row
+  // blocks deleting the login (ON DELETE RESTRICT), so remove the rows first.
+  // Only rows with a test email and a login this run is deleting.
+  if (authUserIds.size > 0) {
+    const { data: testAdmins, error: adminReadErr } = await admin
+      .from("admin_users")
+      .select("id, email, auth_user_id")
+      .in("auth_user_id", [...authUserIds]);
+    if (adminReadErr) throw new Error(`Failed reading test admins: ${adminReadErr.message}`);
+    const testAdminIds = (testAdmins ?? [])
+      .filter((row) => TEST_EMAIL_SUFFIXES.some((suffix) => String(row.email).toLowerCase().endsWith(suffix)))
+      .map((row) => row.id);
+    if (testAdminIds.length > 0) {
+      const { error } = await admin.from("admin_users").delete().in("id", testAdminIds);
+      if (error) throw new Error(`Failed deleting test admins: ${error.message}`);
+      console.log(`[cleanup-test-doctors] removed test admins=${testAdminIds.length}`);
+    }
+  }
+
   for (const id of authUserIds) {
     const { error } = await admin.auth.admin.deleteUser(id);
     if (error && !String(error.message ?? "").toLowerCase().includes("not found")) {

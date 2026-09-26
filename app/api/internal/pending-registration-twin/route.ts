@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceRoleClient } from "@/lib/supabase-service";
-import { denyUnlessInternalFounder } from "@/lib/internal-directory-auth";
+import { requireAdminWrite } from "@/lib/admin-auth";
 import { resolveUnregisteredListingFromUrl } from "@/lib/resolve-unregistered-listing-from-url";
 
 type Body = {
@@ -14,7 +14,7 @@ const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export async function POST(req: NextRequest) {
-  const denied = denyUnlessInternalFounder();
+  const { response: denied } = await requireAdminWrite();
   if (denied) return denied;
 
   const supabase = createServiceRoleClient();
