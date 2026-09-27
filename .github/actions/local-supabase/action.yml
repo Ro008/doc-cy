@@ -26,10 +26,19 @@ runs:
   steps:
     - name: Start local Supabase stack
       shell: bash
-      # Keep the version in sync with scripts/ci-db/cli.mjs.
+      # Keep the version in sync with scripts/ci-db/cli.mjs. One retry: the runner's Docker
+      # sometimes fails to publish a container port ("failed to set up container
+      # networking"); stopping what did start and starting again clears it.
       run: |
-        npx --yes supabase@2.118.0 start \
-          -x studio,imgproxy,edge-runtime,logflare,vector,postgres-meta,supavisor
+        start() {
+          npx --yes supabase@2.118.0 start \
+            -x studio,imgproxy,edge-runtime,logflare,vector,postgres-meta,supavisor
+        }
+        if ! start; then
+          echo "::warning title=Local Supabase::start failed, retrying once"
+          npx --yes supabase@2.118.0 stop --no-backup || true
+          start
+        fi
 
     # Schema snapshot → migrations the snapshot lacks (a PR's new migration runs here)
     # → catalogue rows → synthetic seed.
