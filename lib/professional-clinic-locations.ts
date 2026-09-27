@@ -64,6 +64,69 @@ function num(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
+type LocationFieldsSource = {
+  district?: string | null;
+  town?: string | null;
+  clinic_address?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+};
+
+export type PrimaryClinicLocationFields = {
+  district: string | null;
+  town: string | null;
+  clinic_address: string | null;
+  latitude: number | null;
+  longitude: number | null;
+};
+
+/**
+ * Where a professional practises, for readers that used to take it from the copies on
+ * `professionals` (district, town, clinic_address, latitude, longitude). Point E
+ * removes those copies, and a professional created by the registration approval never
+ * has them, so they come from the clinics alone, with no fallback.
+ *
+ * `locations` are sorted primary first, as the loaders return them. The first clinic
+ * with a district wins (skipping one still being set up), and coordinates come from
+ * the first clinic that has a pin.
+ */
+export function primaryClinicLocationFields(
+  locations: readonly LocationFieldsSource[],
+): PrimaryClinicLocationFields {
+  const placed = locations.find((loc) => text(loc.district));
+  const pinned = locations.find((loc) => num(loc.latitude) != null && num(loc.longitude) != null);
+  return {
+    district: text(placed?.district),
+    town: text(placed?.town),
+    clinic_address: text(placed?.clinic_address),
+    latitude: num(pinned?.latitude),
+    longitude: num(pinned?.longitude),
+  };
+}
+
+/**
+ * False for a clinic still being set up: a `doctor_locations` row "Add clinic" created
+ * with no address or district, which the loaders return alongside the join rows (the
+ * bridge). It has no clinic link, and `appointments.location_id` references
+ * `professional_clinics`, so nothing can be booked there. Same rule as the bridge
+ * filter (`clinic_address is null or district is null`): a real clinic always has
+ * both (`clinics.district` is NOT NULL; every clinic has an address, checked
+ * 2026-09-27).
+ */
+export function locationHasClinic(location: LocationFieldsSource): boolean {
+  return text(location.district) != null && text(location.clinic_address) != null;
+}
+
+/** Each district a professional's clinics are in, once, in clinic order. */
+export function clinicDistricts(locations: readonly LocationFieldsSource[]): string[] {
+  const out: string[] = [];
+  for (const loc of locations) {
+    const district = text(loc.district);
+    if (district && !out.includes(district)) out.push(district);
+  }
+  return out;
+}
+
 /**
  * `null` when the row has no clinic, or an archived one: the same rule the manual
  * directory and the registered finder cards already apply, so a clinic that was

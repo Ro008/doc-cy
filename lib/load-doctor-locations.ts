@@ -41,8 +41,12 @@ import { fetchAllSupabaseRows, fetchAllSupabaseRowsForIdChunks } from "@/lib/sup
  * So these rows still come from `doctor_locations` — only the ones the mirror skips,
  * which are exactly the ones that are not yet a place a patient could be sent to.
  * D3/D4 remove this bridge, when adding a clinic means choosing one up front.
+ *
+ * "Skips" means the mirror's own rule: an address that is null OR blank
+ * (`nullif(btrim(clinic_address), '')`), or no district. A location created with
+ * clinic_address '' would otherwise be neither a join row nor pending, and vanish.
  */
-const PENDING_LOCATION_FILTER = "clinic_address.is.null,district.is.null";
+const PENDING_LOCATION_FILTER = "clinic_address.is.null,clinic_address.eq.,district.is.null";
 
 function locationsFromRows(data: unknown[] | null): DoctorLocationRow[] {
   const rows = (data ?? []) as ProfessionalClinicJoinRow[];

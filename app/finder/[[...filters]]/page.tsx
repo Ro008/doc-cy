@@ -12,6 +12,7 @@ import {
   fetchAllSupabaseRowsForIdChunks,
 } from "@/lib/supabase-fetch-all";
 import { loadDoctorLocationsByDoctorIds } from "@/lib/load-doctor-locations";
+import { primaryClinicLocationFields } from "@/lib/professional-clinic-locations";
 import { doctorDashboardDisplayName } from "@/lib/doctor-display-name";
 import { FinderAudienceToggle } from "@/components/finder/FinderAudienceToggle";
 import { FinderFilters } from "@/components/finder/FinderFilters";
@@ -602,46 +603,9 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
       return new Set<string>();
     });
 
+    // Location is not selected here: it comes from the clinics below.
     const registeredSelectAttempts = [
-      "id, name, district, town, slug, email, languages, avatar_url, is_test_profile, clinic_address, is_gesy, latitude, longitude, has_online_booking, is_registered",
-      "id, name, district, town, slug, email, languages, avatar_url, is_test_profile, clinic_address, is_gesy, latitude, longitude",
-      "id, name, district, slug, email, languages, avatar_url, is_test_profile, clinic_address, is_gesy, latitude, longitude",
-      "id, name, district, slug, email, languages, avatar_url, is_test_profile, clinic_address, is_gesy",
-      "id, name, district, slug, email, languages, avatar_url, is_test_profile, clinic_address, latitude, longitude",
-      "id, name, district, slug, email, languages, avatar_url, is_test_profile, clinic_address",
-      "id, name, district, slug, email, languages, avatar_url, clinic_address, latitude, longitude",
-      "id, name, district, slug, email, languages, avatar_url, clinic_address",
-      "id, name, district, slug, email, languages, avatar_url, is_test_profile, latitude, longitude",
-      "id, name, district, slug, email, languages, avatar_url, is_test_profile",
-      "id, name, district, slug, email, languages, avatar_url",
-      "id, name, district, slug, email, languages, is_test_profile, latitude, longitude",
-      "id, name, district, slug, email, languages, is_test_profile",
-      "id, name, district, slug, email, languages, latitude, longitude",
-      "id, name, district, slug, email, languages",
-      "id, name, district, slug, email, is_test_profile, latitude, longitude",
-      "id, name, district, slug, email, is_test_profile",
-      "id, name, district, slug, email, latitude, longitude",
-      "id, name, district, slug, email",
-      "id, name, slug, email, is_test_profile, latitude, longitude",
-      "id, name, slug, email, is_test_profile",
-      "id, name, slug, email, latitude, longitude",
-      "id, name, slug, email",
-      "id, name, district, slug, languages, avatar_url, is_test_profile, latitude, longitude",
-      "id, name, district, slug, languages, avatar_url, is_test_profile",
-      "id, name, district, slug, languages, avatar_url, latitude, longitude",
-      "id, name, district, slug, languages, avatar_url",
-      "id, name, district, slug, languages, is_test_profile, latitude, longitude",
-      "id, name, district, slug, languages, is_test_profile",
-      "id, name, district, slug, languages, latitude, longitude",
-      "id, name, district, slug, languages",
-      "id, name, district, slug, is_test_profile, latitude, longitude",
-      "id, name, district, slug, is_test_profile",
-      "id, name, district, slug, latitude, longitude",
-      "id, name, district, slug",
-      "id, name, slug, is_test_profile, latitude, longitude",
-      "id, name, slug, is_test_profile",
-      "id, name, slug, latitude, longitude",
-      "id, name, slug",
+      "id, name, slug, email, languages, avatar_url, is_test_profile, is_gesy, has_online_booking, is_registered",
     ];
 
     for (const selectClause of registeredSelectAttempts) {
@@ -690,21 +654,19 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
             isSpecialtyApproved: true,
             specialty: null,
             specialties: [],
-            district: (raw.district as string | null) ?? null,
-            town: inferCyprusTownFromClinic({
-              town: (raw.town as string | null) ?? null,
-              address: (raw.clinic_address as string | null) ?? null,
-            }),
+            // Filled from the clinics below.
+            district: null,
+            town: null,
             slug: (raw.slug as string | null) ?? null,
             email: (raw.email as string | null) ?? null,
             languages: normalizeLanguages(raw.languages),
             avatarUrl: toPublicAvatarUrl(raw.avatar_url),
             isTestProfile: Boolean(raw.is_test_profile ?? false),
             hasOnlineBooking: Boolean(raw.has_online_booking ?? true),
-            clinic_address: (raw.clinic_address as string | null) ?? null,
+            clinic_address: null,
             isGesy: Boolean(raw.is_gesy ?? false),
-            latitude: parseOptionalCoordinates(raw.latitude, raw.longitude)?.latitude ?? null,
-            longitude: parseOptionalCoordinates(raw.latitude, raw.longitude)?.longitude ?? null,
+            latitude: null,
+            longitude: null,
             locations: [],
           };
         })
@@ -757,22 +719,17 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
         latitude: parseOptionalCoordinates(loc.latitude, loc.longitude)?.latitude ?? null,
         longitude: parseOptionalCoordinates(loc.latitude, loc.longitude)?.longitude ?? null,
       }));
-      const coordCandidates = [
-        ...locs.map((loc) =>
-          loc.latitude != null && loc.longitude != null
-            ? { latitude: loc.latitude, longitude: loc.longitude }
-            : null,
-        ),
-        row.latitude != null && row.longitude != null
-          ? { latitude: row.latitude, longitude: row.longitude }
-          : null,
-      ].filter(Boolean) as Array<{ latitude: number; longitude: number }>;
-      const nearest = coordCandidates[0] ?? null;
+      // District, town, address and pin come from the clinics only, never from the
+      // copies on professionals (Point E): the registration approval creates none.
+      const place = primaryClinicLocationFields(locs);
       return {
         ...row,
         locations: locs,
-        latitude: nearest?.latitude ?? row.latitude,
-        longitude: nearest?.longitude ?? row.longitude,
+        district: place.district,
+        town: inferCyprusTownFromClinic({ town: place.town, address: place.clinic_address }),
+        clinic_address: place.clinic_address,
+        latitude: place.latitude,
+        longitude: place.longitude,
       };
     });
 

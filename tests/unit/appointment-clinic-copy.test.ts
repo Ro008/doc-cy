@@ -28,7 +28,6 @@ describe("appointment-clinic-copy", () => {
         },
       ],
       locationId: "loc-2",
-      doctorClinicAddressFallback: "Fallback address",
     });
 
     assert.equal(clinic.clinicName, "Coast clinic");
@@ -88,7 +87,6 @@ describe("appointment-clinic-copy", () => {
           sort_order: 0,
         },
       ],
-      doctorClinicAddressFallback: null,
     });
 
     assert.equal(clinic.clinicName, "City clinic");
