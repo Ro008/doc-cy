@@ -366,6 +366,10 @@ jobs:
           PLAYWRIGHT_BASE_URL: ${{ steps.vercel.outputs.url }}
           PLAYWRIGHT_PREVIEW_SMOKE: "1"
           CI: "true"
+          # Placeholders: Playwright loads every spec file before filtering by tag, and some
+          # create a Supabase client at load time. The @pr-preview specs never call Supabase.
+          NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
+          SUPABASE_SERVICE_ROLE_KEY: unused-by-preview-smoke
         run: |
           npx playwright test --grep @pr-preview \
             --project="Desktop Large (Chromium)" \
