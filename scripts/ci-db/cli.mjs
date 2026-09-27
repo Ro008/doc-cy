@@ -22,10 +22,11 @@ export function supabase(args, { input, cwd } = {}) {
 }
 
 /** Runs SQL inside the local stack's Postgres container (never a hosted database). */
-export function psqlLocal(sql, label) {
+export function psqlLocal(sql, label, vars = {}) {
+  const varArgs = Object.entries(vars).flatMap(([key, value]) => ["-v", `${key}=${value}`]);
   const result = spawnSync(
     "docker",
-    ["exec", "-i", DB_CONTAINER, "psql", "-U", "postgres", "-d", "postgres", "-v", "ON_ERROR_STOP=1", "-q"],
+    ["exec", "-i", DB_CONTAINER, "psql", "-U", "postgres", "-d", "postgres", "-v", "ON_ERROR_STOP=1", "-q", ...varArgs],
     { encoding: "utf8", input: sql, maxBuffer: 64 * 1024 * 1024 },
   );
   if (result.status !== 0) {
