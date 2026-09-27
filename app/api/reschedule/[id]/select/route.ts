@@ -172,7 +172,7 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
 
   const { data: doctor } = await supabase
     .from("professionals")
-    .select("name, phone, clinic_address")
+    .select("name, phone")
     .eq("id", doctorId)
     .maybeSingle();
   const specialtyName = await loadPrimarySpecialtyName(supabase, doctorId);
@@ -188,8 +188,6 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
   const clinic = appointmentClinicCopy({
     locations,
     locationId: (appt as { location_id?: string | null }).location_id,
-    doctorClinicAddressFallback: (doctor as { clinic_address?: string | null } | null)
-      ?.clinic_address,
   });
 
   try {

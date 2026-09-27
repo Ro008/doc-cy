@@ -54,7 +54,7 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
 
   const { data: doctor, error: doctorErr } = await supabase
     .from("professionals")
-    .select("id, name, email, registration_email, phone, clinic_address")
+    .select("id, name, email, registration_email, phone")
     .eq("auth_user_id", user.id)
     .maybeSingle();
 
@@ -152,8 +152,6 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
   const clinic = appointmentClinicCopy({
     locations,
     locationId: (appt as { location_id?: string | null }).location_id,
-    doctorClinicAddressFallback: (doctor as { clinic_address?: string | null })
-      .clinic_address,
   });
 
   const specialtyService = createServiceRoleClient();
@@ -197,8 +195,6 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
       patientPhone: (appt as { patient_phone?: string | null }).patient_phone ?? null,
       reason: (appt as { reason?: string | null }).reason ?? null,
       clinic,
-      clinicAddressFallback: (doctor as { clinic_address?: string | null })
-        .clinic_address,
       resendToOverride,
     });
   } catch (e) {

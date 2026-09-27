@@ -26,6 +26,7 @@ import { getDoctorCalendarEventDetails } from "@/lib/doctor-calendar-event";
 import { buildGoogleCalendarUrl } from "@/lib/patient-calendar-event";
 import { appointmentClinicCopy } from "@/lib/appointment-clinic-copy";
 import { loadDoctorLocations, primaryDoctorLocation } from "@/lib/load-doctor-locations";
+import { locationHasClinic } from "@/lib/professional-clinic-locations";
 import { locationToSettingsRow } from "@/lib/doctor-locations";
 import { appointmentCalendarPath } from "@/lib/appointment-links";
 
@@ -87,7 +88,7 @@ export async function POST(req: NextRequest) {
 
   const { data: doctor, error: doctorErr } = await supabase
     .from("professionals")
-    .select("id, name, email, registration_email, phone, slug, clinic_address")
+    .select("id, name, email, registration_email, phone, slug")
     .eq("auth_user_id", user.id)
     .maybeSingle();
 
@@ -136,6 +137,14 @@ export async function POST(req: NextRequest) {
     if (!bookingLocation) {
       return NextResponse.json({ message: "Clinic not found." }, { status: 400 });
     }
+  }
+
+  // No clinic link to reference yet: the address has to be set first.
+  if (bookingLocation && !locationHasClinic(bookingLocation)) {
+    return NextResponse.json(
+      { message: "Add this clinic's address before booking appointments there." },
+      { status: 400 },
+    );
   }
 
   const settingsRow = bookingLocation
@@ -270,8 +279,6 @@ export async function POST(req: NextRequest) {
   const clinic = appointmentClinicCopy({
     locations,
     locationId: bookingLocation?.id ?? null,
-    doctorClinicAddressFallback: (doctor as { clinic_address?: string | null })
-      .clinic_address,
   });
 
   const specialtyName = await loadPrimarySpecialtyName(supabase, doctor.id as string);
@@ -314,8 +321,6 @@ export async function POST(req: NextRequest) {
       patientPhone: patientPhoneStored,
       reason,
       clinic,
-      clinicAddressFallback: (doctor as { clinic_address?: string | null })
-        .clinic_address,
       resendToOverride,
       manualCreated: true,
     });

@@ -106,7 +106,7 @@ export async function loadClinicBySlug(
         supabase
           .from("professionals")
           .select(
-            `id, slug, name, district, address_maps_link, avatar_url, is_gesy, gender, finder_visible, ${SPECIALTY_LINKS_SELECT}`,
+            `id, slug, name, address_maps_link, avatar_url, is_gesy, gender, finder_visible, ${SPECIALTY_LINKS_SELECT}`,
           )
           .eq("is_archived", false)
           .in("id", idChunk)
@@ -120,7 +120,6 @@ export async function loadClinicBySlug(
           slug?: string | null;
           name: string | null;
           specialty_links?: unknown;
-          district: CyprusDistrict;
           address_maps_link?: string | null;
           avatar_url?: string | null;
           is_gesy?: boolean | null;
@@ -135,7 +134,8 @@ export async function loadClinicBySlug(
           displayName: doctorDashboardDisplayName(String(row.name ?? "Professional")),
           specialty: specialties[0] ?? "Specialty not set",
           specialties,
-          district: row.district,
+          // Listed on this clinic's page, so this clinic's district.
+          district: clinic.district,
           photoUrl: clinicRosterPhotoUrl({
             avatarUrl: row.avatar_url,
             gender: row.gender,
