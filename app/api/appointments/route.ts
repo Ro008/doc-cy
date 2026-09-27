@@ -51,6 +51,7 @@ import { enforcePublicApiRateLimit } from "@/lib/public-api-rate-limit";
 import { appointmentRequestSentQuery } from "@/lib/appointment-links";
 import { locationToSettingsRow } from "@/lib/doctor-locations";
 import { loadDoctorLocations, primaryDoctorLocation } from "@/lib/load-doctor-locations";
+import { locationHasClinic } from "@/lib/professional-clinic-locations";
 import { professionalAccountEmail } from "@/lib/professional-account-contact";
 
 const PRIMARY_ACTIONS_LABEL = EMAIL_SECTION_LABEL;
@@ -239,6 +240,15 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // A clinic still being set up has no address to send a patient to, and no clinic
+  // link for the appointment to reference.
+  if (bookingLocation && !locationHasClinic(bookingLocation)) {
+    return NextResponse.json(
+      { message: "Bookings temporarily unavailable" },
+      { status: 403 }
+    );
+  }
+
   const locationSettings = bookingLocation
     ? locationToSettingsRow(bookingLocation, settings as DoctorSettingsRow)
     : (settings as DoctorSettingsRow);
@@ -420,7 +430,7 @@ export async function POST(req: NextRequest) {
   try {
     const { data: doctor } = await supabase
       .from("professionals")
-      .select("name, email, registration_email, phone, clinic_address")
+      .select("name, email, registration_email, phone")
       .eq("id", doctorId)
       .single();
 
@@ -443,7 +453,6 @@ export async function POST(req: NextRequest) {
     const clinic = appointmentClinicCopy({
       locations,
       locationId: bookingLocation?.id ?? null,
-      doctorClinicAddressFallback: doctorRow?.clinic_address,
     });
 
     if (doctorName) {
