@@ -1,24 +1,7 @@
 const DAY_MS = 24 * 60 * 60 * 1000;
-const DEFAULT_TRIAL_DAYS = 180;
 const EXPIRING_SOON_DAYS = 3;
 
-/**
- * Backend source of truth for trial duration.
- * Set TRIAL_PERIOD_DAYS in env to override (default 180 days / 6 months).
- */
-export function getTrialPeriodDays(): number {
-  const raw = process.env.TRIAL_PERIOD_DAYS?.trim();
-  if (!raw) return DEFAULT_TRIAL_DAYS;
-  const parsed = Number(raw);
-  if (!Number.isFinite(parsed) || parsed <= 0) return DEFAULT_TRIAL_DAYS;
-  return Math.floor(parsed);
-}
-
-export function computeTrialEndDate(createdAtIso: string, trialDays = getTrialPeriodDays()): Date {
-  const createdAt = new Date(createdAtIso);
-  return new Date(createdAt.getTime() + trialDays * DAY_MS);
-}
-
+/** Days until a professional's pro access ends (`professionals.pro_access_until`). */
 export function computeTrialDaysRemaining(trialEndDate: Date, now = new Date()): number {
   return Math.ceil((trialEndDate.getTime() - now.getTime()) / DAY_MS);
 }

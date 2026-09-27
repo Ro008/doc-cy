@@ -53,7 +53,8 @@ import {
 import { buildLastSixMonthsAppointmentCounts } from "@/lib/founder-appointments-by-month";
 import { cyprusMonthStartUtcIso } from "@/lib/cyprus-calendar";
 import { TrialConversionTable } from "@/components/internal/TrialConversionTable";
-import { getTrialPeriodDays } from "@/lib/trial-period";
+import { TrialMonthsSetting } from "@/components/internal/TrialMonthsSetting";
+import { loadTrialMonths } from "@/lib/trial-months-setting";
 import { WebsiteAnalyticsPanel } from "@/components/internal/WebsiteAnalyticsPanel";
 import { PendingLink } from "@/components/navigation/PendingLink";
 import { InternalDirectoryShell } from "@/components/internal/DirectoryNavContext";
@@ -222,7 +223,7 @@ export default async function FounderDashboardPage({
   const chartRangeStart = startOfMonth(subMonths(new Date(), 5));
 
   const doctorSelectWithAccountEmail =
-    "id, name, email, registration_email, phone, slug, languages, status, created_at, license_file_url, specialty_requires_standard_at, auth_user_id, directory_claim_source";
+    "id, name, email, registration_email, phone, slug, languages, status, created_at, license_file_url, specialty_requires_standard_at, auth_user_id, directory_claim_source, pro_access_until";
   const doctorSelectLegacy =
     "id, name, email, phone, slug, languages, status, created_at, license_file_url, specialty_requires_standard_at, auth_user_id, directory_claim_source";
 
@@ -357,6 +358,7 @@ export default async function FounderDashboardPage({
     license_number: primary?.licenseNumber ?? null,
     license_file_url: (d as { license_file_url?: string | null }).license_file_url ?? null,
     created_at: (d as { created_at?: string | null }).created_at ?? null,
+    pro_access_until: (d as { pro_access_until?: string | null }).pro_access_until ?? null,
     is_specialty_approved: !hasPendingSpecialty(entries),
     specialty_requires_standard_at:
       (d as { specialty_requires_standard_at?: string | null })
@@ -978,7 +980,8 @@ export default async function FounderDashboardPage({
       doctor_name: nameById[a.doctor_id as string] ?? null,
     };
   });
-  const trialPeriodDays = getTrialPeriodDays();
+  const trialMonths = await loadTrialMonths(supabase);
+  if (trialMonths.ok === false) console.error("[internal/directory] trial months load failed", trialMonths.error);
 
   return (
     <main className="min-h-screen bg-slate-950 text-slate-50">
@@ -1117,10 +1120,10 @@ export default async function FounderDashboardPage({
           rows={callToBookRows}
         />
         <FinderInvitationRequestsSection rows={finderInvitationRows} />
-        <div className="rounded-2xl border border-slate-800/80 bg-slate-900/20 p-3 text-xs text-slate-400">
-          Trial policy: <span className="font-medium text-slate-200">{trialPeriodDays} days</span>{" "}
-          from registration date.
-        </div>
+        <TrialMonthsSetting
+          months={trialMonths.ok ? trialMonths.months : null}
+          canEdit={canMutate}
+        />
         <TrialConversionTable doctors={verifiedRows} />
         <WebsiteAnalyticsPanel />
 

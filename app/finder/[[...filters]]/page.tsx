@@ -12,6 +12,7 @@ import {
   fetchAllSupabaseRowsForIdChunks,
 } from "@/lib/supabase-fetch-all";
 import { loadDoctorLocationsByDoctorIds } from "@/lib/load-doctor-locations";
+import { hasProAccess } from "@/lib/pro-access";
 import { doctorDashboardDisplayName } from "@/lib/doctor-display-name";
 import { FinderAudienceToggle } from "@/components/finder/FinderAudienceToggle";
 import { FinderFilters } from "@/components/finder/FinderFilters";
@@ -603,7 +604,7 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
     });
 
     const registeredSelectAttempts = [
-      "id, name, district, town, slug, email, languages, avatar_url, is_test_profile, clinic_address, is_gesy, latitude, longitude, has_online_booking, is_registered",
+      "id, name, district, town, slug, email, languages, avatar_url, is_test_profile, clinic_address, is_gesy, latitude, longitude, pro_access_until, is_registered",
       "id, name, district, town, slug, email, languages, avatar_url, is_test_profile, clinic_address, is_gesy, latitude, longitude",
       "id, name, district, slug, email, languages, avatar_url, is_test_profile, clinic_address, is_gesy, latitude, longitude",
       "id, name, district, slug, email, languages, avatar_url, is_test_profile, clinic_address, is_gesy",
@@ -700,7 +701,8 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
             languages: normalizeLanguages(raw.languages),
             avatarUrl: toPublicAvatarUrl(raw.avatar_url),
             isTestProfile: Boolean(raw.is_test_profile ?? false),
-            hasOnlineBooking: Boolean(raw.has_online_booking ?? true),
+            // Online booking is the pro tier: on while pro_access_until is in the future.
+            hasOnlineBooking: hasProAccess(raw.pro_access_until as string | null | undefined),
             clinic_address: (raw.clinic_address as string | null) ?? null,
             isGesy: Boolean(raw.is_gesy ?? false),
             latitude: parseOptionalCoordinates(raw.latitude, raw.longitude)?.latitude ?? null,
