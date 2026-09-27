@@ -62,6 +62,23 @@ export function publicTablesOutside(schemaSql, allowlist) {
     .map((name) => `public.${name}`);
 }
 
+/**
+ * How far supabase/ci/ is from the repo's migrations.
+ * - pending: repo versions the snapshot lacks (CI applies them on every run)
+ * - snapshotOnly: versions applied in Testing but not in the repo (unmerged work baked
+ *   into the snapshot; if that migration changes before merge, CI skips the new version)
+ * - stale: more than `maxPending` pending, time to refresh the snapshot
+ */
+export function snapshotFreshness(fileNames, appliedVersions, maxPending) {
+  const repoVersions = fileNames
+    .map((name) => name.match(MIGRATION_FILE_RE)?.[1])
+    .filter(Boolean);
+  const repoSet = new Set(repoVersions);
+  const pending = repoVersions.filter((version) => !appliedVersions.has(version)).sort();
+  const snapshotOnly = [...appliedVersions].filter((version) => !repoSet.has(version)).sort();
+  return { pending, snapshotOnly, stale: pending.length > maxPending };
+}
+
 /** Repo migration files whose version the snapshot has not applied, oldest first. */
 export function pendingMigrations(fileNames, appliedVersions) {
   return fileNames

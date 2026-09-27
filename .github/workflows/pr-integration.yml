@@ -63,6 +63,11 @@ jobs:
       - name: Run unit tests
         run: npm run test:unit
 
+      # Fails when supabase/ci/ falls more than 10 migrations behind; warns about
+      # unmerged migrations baked into it (scripts/ci-db/check-snapshot.mjs).
+      - name: Check the CI schema snapshot is fresh
+        run: npm run db:ci-snapshot:check
+
       # Each Playwright lane runs `next build` against its own stack; this also covers tests/ and scripts/.
       - name: Typecheck (whole project, including tests)
         run: npx tsc --noEmit
