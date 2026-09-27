@@ -1,7 +1,13 @@
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { afterEach, beforeEach, describe, it } from "node:test";
 
-import { hrefMatchesCurrentLocation, shouldStartLinkNavigationPending } from "@/lib/doccy-navigation";
+import {
+  beginLinkNavigationPending,
+  clearNavigationPending,
+  getNavigationPendingKey,
+  hrefMatchesCurrentLocation,
+  shouldStartLinkNavigationPending,
+} from "@/lib/doccy-navigation";
 
 describe("hrefMatchesCurrentLocation", () => {
   it("does not start pending when href is already the current location", () => {
@@ -21,5 +27,35 @@ describe("hrefMatchesCurrentLocation", () => {
       hrefMatchesCurrentLocation("/limassol/dentistry?page=2", "/paphos/dentistry", "page=2"),
       false,
     );
+  });
+});
+
+describe("beginLinkNavigationPending", () => {
+  const globals = globalThis as { window?: unknown };
+  let hadWindow = false;
+
+  beforeEach(() => {
+    hadWindow = "window" in globals;
+    if (!hadWindow) globals.window = new EventTarget();
+    clearNavigationPending();
+  });
+
+  afterEach(() => {
+    clearNavigationPending();
+    if (!hadWindow) delete globals.window;
+  });
+
+  it("marks the clicked link pending when it leads somewhere else", () => {
+    assert.equal(beginLinkNavigationPending("/agenda/settings", "/agenda", ""), true);
+    assert.equal(getNavigationPendingKey(), "/agenda/settings");
+  });
+
+  it("clears another link's pending state when the current page is clicked", () => {
+    // Settings clicked, then My Agenda while still on /agenda: router.push("/agenda")
+    // supersedes the Settings navigation, the pathname never changes, and Settings
+    // used to stay disabled with a spinner until reload.
+    beginLinkNavigationPending("/agenda/settings", "/agenda", "");
+    assert.equal(beginLinkNavigationPending("/agenda", "/agenda", ""), false);
+    assert.equal(getNavigationPendingKey(), null);
   });
 });

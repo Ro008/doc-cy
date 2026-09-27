@@ -3,10 +3,9 @@
 import { usePathname, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import {
+  beginLinkNavigationPending,
   clearNavigationPending,
-  emitNavigationStart,
   hrefMatchesCurrentLocation,
-  shouldStartLinkNavigationPending,
   subscribeNavigationPending,
   type NavigationStartReason,
 } from "@/lib/doccy-navigation";
@@ -36,8 +35,7 @@ export function useLinkNavigationPending(
   const pending = activeKey === linkKey;
 
   const beginNavigation = useCallback(() => {
-    if (!shouldStartLinkNavigationPending(linkKey, pathname, searchParams)) return;
-    emitNavigationStart(linkKey, navigationReason);
+    beginLinkNavigationPending(linkKey, pathname, searchParams, navigationReason);
   }, [linkKey, navigationReason, pathname, searchParams]);
 
   return { pending, beginNavigation };
