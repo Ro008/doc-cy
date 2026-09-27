@@ -12,6 +12,7 @@ import {
   fetchAllSupabaseRowsForIdChunks,
 } from "@/lib/supabase-fetch-all";
 import { loadDoctorLocationsByDoctorIds } from "@/lib/load-doctor-locations";
+import { hasProAccess } from "@/lib/pro-access";
 import { primaryClinicLocationFields } from "@/lib/professional-clinic-locations";
 import { doctorDashboardDisplayName } from "@/lib/doctor-display-name";
 import { FinderAudienceToggle } from "@/components/finder/FinderAudienceToggle";
@@ -605,7 +606,7 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
 
     // Location is not selected here: it comes from the clinics below.
     const registeredSelectAttempts = [
-      "id, name, slug, email, languages, avatar_url, is_test_profile, is_gesy, has_online_booking, is_registered",
+      "id, name, slug, email, languages, avatar_url, is_test_profile, is_gesy, pro_access_until, is_registered",
     ];
 
     for (const selectClause of registeredSelectAttempts) {
@@ -662,7 +663,8 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
             languages: normalizeLanguages(raw.languages),
             avatarUrl: toPublicAvatarUrl(raw.avatar_url),
             isTestProfile: Boolean(raw.is_test_profile ?? false),
-            hasOnlineBooking: Boolean(raw.has_online_booking ?? true),
+            // Online booking is the pro tier: on while pro_access_until is in the future.
+            hasOnlineBooking: hasProAccess(raw.pro_access_until as string | null | undefined),
             clinic_address: null,
             isGesy: Boolean(raw.is_gesy ?? false),
             latitude: null,
