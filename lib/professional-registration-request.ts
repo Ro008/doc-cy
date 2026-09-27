@@ -43,7 +43,8 @@ export type ProfessionalRegistrationDetails = {
   email: string;
   mobile: string;
   languages: string[];
-  photo: { bucket: typeof REGISTRATION_UPLOADS_BUCKET; path: string };
+  /** null only in approved_details: founders removed the photo. */
+  photo: { bucket: typeof REGISTRATION_UPLOADS_BUCKET; path: string } | null;
   specialties: RegistrationSpecialty[];
   clinics: RegistrationClinic[];
   /** The unregistered listing the applicant claimed ("Claim this Profile"), if any. */
@@ -183,8 +184,7 @@ export function parseProfessionalRegistrationDetails(
     typeof value.email !== "string" ||
     typeof value.mobile !== "string" ||
     !Array.isArray(value.languages) ||
-    !isRecord(photo) ||
-    typeof photo.path !== "string" ||
+    (photo !== null && (!isRecord(photo) || typeof photo.path !== "string")) ||
     !Array.isArray(value.specialties) ||
     !Array.isArray(value.clinics)
   ) {
@@ -198,7 +198,7 @@ export function parseProfessionalRegistrationDetails(
     email: value.email,
     mobile: value.mobile,
     languages: value.languages.map(String),
-    photo: { bucket: REGISTRATION_UPLOADS_BUCKET, path: photo.path },
+    photo: isRecord(photo) ? { bucket: REGISTRATION_UPLOADS_BUCKET, path: String(photo.path) } : null,
     specialties: value.specialties.filter(isRecord).map((s) => ({
       name: String(s.name ?? ""),
       from_catalogue: s.from_catalogue === true,

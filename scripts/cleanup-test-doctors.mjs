@@ -214,9 +214,30 @@ async function main() {
       .select("id, email, auth_user_id")
       .in("auth_user_id", [...authUserIds]);
     if (adminReadErr) throw new Error(`Failed reading test admins: ${adminReadErr.message}`);
-    const testAdminIds = (testAdmins ?? [])
-      .filter((row) => TEST_EMAIL_SUFFIXES.some((suffix) => String(row.email).toLowerCase().endsWith(suffix)))
-      .map((row) => row.id);
+    const testAdminRows = (testAdmins ?? []).filter((row) =>
+      TEST_EMAIL_SUFFIXES.some((suffix) => String(row.email).toLowerCase().endsWith(suffix)),
+    );
+    // A test admin who decided a request stays for good (request_log.decided_by never
+    // lets a decider go): deactivate it and keep its login instead.
+    const { data: deciders, error: decidersErr } = testAdminRows.length
+      ? await admin
+          .from("request_log")
+          .select("decided_by")
+          .in("decided_by", testAdminRows.map((row) => row.id))
+      : { data: [], error: null };
+    if (decidersErr) throw new Error(`Failed reading request deciders: ${decidersErr.message}`);
+    const deciderIds = new Set((deciders ?? []).map((row) => row.decided_by));
+    const keptAdmins = testAdminRows.filter((row) => deciderIds.has(row.id));
+    if (keptAdmins.length > 0) {
+      const { error } = await admin
+        .from("admin_users")
+        .update({ is_active: false })
+        .in("id", keptAdmins.map((row) => row.id));
+      if (error) throw new Error(`Failed deactivating test admins: ${error.message}`);
+      for (const row of keptAdmins) authUserIds.delete(row.auth_user_id);
+      console.log(`[cleanup-test-doctors] deactivated test admins with decisions=${keptAdmins.length}`);
+    }
+    const testAdminIds = testAdminRows.filter((row) => !deciderIds.has(row.id)).map((row) => row.id);
     if (testAdminIds.length > 0) {
       const { error } = await admin.from("admin_users").delete().in("id", testAdminIds);
       if (error) throw new Error(`Failed deleting test admins: ${error.message}`);

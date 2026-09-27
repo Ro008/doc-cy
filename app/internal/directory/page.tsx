@@ -55,6 +55,11 @@ import { cyprusMonthStartUtcIso } from "@/lib/cyprus-calendar";
 import { TrialConversionTable } from "@/components/internal/TrialConversionTable";
 import { TrialMonthsSetting } from "@/components/internal/TrialMonthsSetting";
 import { loadTrialMonths } from "@/lib/trial-months-setting";
+import { RegistrationRequestsSection } from "@/components/internal/RegistrationRequestsSection";
+import {
+  loadRegistrationRequestsForReview,
+  type RegistrationReviewItem,
+} from "@/lib/registration-requests";
 import { WebsiteAnalyticsPanel } from "@/components/internal/WebsiteAnalyticsPanel";
 import { PendingLink } from "@/components/navigation/PendingLink";
 import { InternalDirectoryShell } from "@/components/internal/DirectoryNavContext";
@@ -983,6 +988,14 @@ export default async function FounderDashboardPage({
   const trialMonths = await loadTrialMonths(supabase);
   if (trialMonths.ok === false) console.error("[internal/directory] trial months load failed", trialMonths.error);
 
+  let registrationRequests: RegistrationReviewItem[] = [];
+  try {
+    registrationRequests = await loadRegistrationRequestsForReview(supabase);
+  } catch (err) {
+    console.error("[internal/directory] registration requests load failed", err);
+  }
+  const pendingRequestsCount = registrationRequests.filter((item) => item.status === "pending").length;
+
   return (
     <main className="min-h-screen bg-slate-950 text-slate-50">
       <div className="pointer-events-none fixed inset-0 -z-10">
@@ -1044,7 +1057,7 @@ export default async function FounderDashboardPage({
       >
         <InternalDirectoryShell canMutate={canMutate}>
           <div className="mx-auto max-w-7xl space-y-8 px-4 py-8 lg:px-8">
-        {pendingDoctorsCount > 0 || specialtyChangeRequestItems.length > 0 ? (
+        {pendingRequestsCount > 0 || pendingDoctorsCount > 0 || specialtyChangeRequestItems.length > 0 ? (
           <section className="rounded-2xl border border-amber-500/45 bg-amber-500/10 p-5 shadow-lg shadow-black/20">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
@@ -1053,6 +1066,9 @@ export default async function FounderDashboardPage({
                 </p>
                 <h2 className="mt-1 text-lg font-semibold text-amber-100">
                   {[
+                    pendingRequestsCount > 0
+                      ? `${pendingRequestsCount} registration request${pendingRequestsCount === 1 ? "" : "s"}`
+                      : null,
                     pendingDoctorsCount > 0
                       ? `${pendingDoctorsCount} pending professional${pendingDoctorsCount === 1 ? "" : "s"}`
                       : null,
@@ -1071,7 +1087,9 @@ export default async function FounderDashboardPage({
               </div>
               <Link
                 href={
-                  pendingRegistrationItems.length > 0
+                  pendingRequestsCount > 0
+                    ? "#requests"
+                    : pendingRegistrationItems.length > 0
                     ? "#pending-registration-review"
                     : specialtyChangeRequestItems.length > 0
                       ? "#specialty-change-requests"
@@ -1079,7 +1097,9 @@ export default async function FounderDashboardPage({
                 }
                 className="inline-flex items-center justify-center rounded-xl bg-amber-300 px-4 py-2 text-sm font-semibold text-slate-950 shadow-md shadow-amber-900/30 transition hover:bg-amber-200"
               >
-                {pendingRegistrationItems.length > 0
+                {pendingRequestsCount > 0
+                  ? "Review requests"
+                  : pendingRegistrationItems.length > 0
                   ? "Review applications"
                   : specialtyChangeRequestItems.length > 0
                     ? "Review specialty changes"
@@ -1095,6 +1115,12 @@ export default async function FounderDashboardPage({
           appointmentsThisMonth={appointmentsThisMonth}
           activeDoctors7d={activeDoctors7d}
           newDoctorsThisWeek={newDoctorsThisWeek}
+        />
+
+        <RegistrationRequestsSection
+          items={registrationRequests}
+          canMutate={canMutate}
+          defaultTrialMonths={trialMonths.ok ? trialMonths.months : null}
         />
 
         <SpecialtyChangeRequestsPanel
