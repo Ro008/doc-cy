@@ -1,9 +1,5 @@
 import { format } from "date-fns";
-import {
-  computeTrialDaysRemaining,
-  getTrialStatus,
-  computeTrialEndDate,
-} from "@/lib/trial-period";
+import { computeTrialDaysRemaining, getTrialStatus } from "@/lib/trial-period";
 
 type TrialRow = {
   id: string;
@@ -11,6 +7,8 @@ type TrialRow = {
   email: string | null;
   phone: string | null;
   created_at: string | null;
+  /** End of their pro access (trial, later subscription); null = none. */
+  pro_access_until: string | null;
 };
 
 type Props = {
@@ -40,9 +38,9 @@ function statusBadge(daysRemaining: number): { label: string; className: string 
 export function TrialConversionTable({ doctors }: Props) {
   const now = new Date();
   const rows = doctors
-    .filter((d) => !!d.created_at)
+    .filter((d) => !!d.created_at && !!d.pro_access_until)
     .map((d) => {
-      const trialEnd = computeTrialEndDate(d.created_at as string);
+      const trialEnd = new Date(d.pro_access_until as string);
       const daysRemaining = computeTrialDaysRemaining(trialEnd, now);
       return {
         ...d,
@@ -70,6 +68,7 @@ export function TrialConversionTable({ doctors }: Props) {
             <tr className="text-xs uppercase tracking-wide text-slate-400">
               <th className="px-3 py-2 font-medium">Name / Email</th>
               <th className="px-3 py-2 font-medium">Registered</th>
+              <th className="px-3 py-2 font-medium">Access until</th>
               <th className="px-3 py-2 font-medium">Days left</th>
               <th className="px-3 py-2 font-medium">Status</th>
             </tr>
@@ -94,6 +93,7 @@ export function TrialConversionTable({ doctors }: Props) {
                     <p className="text-xs text-slate-400">{row.email ?? "No email"}</p>
                   </td>
                   <td className="px-3 py-3 text-slate-300">{registeredAt}</td>
+                  <td className="px-3 py-3 text-slate-300">{format(row.trialEnd, "dd MMM yyyy")}</td>
                   <td className="px-3 py-3">
                     <p className={isExpired ? "font-medium text-red-200" : "text-slate-200"}>
                       {isExpired ? `Expired (${Math.abs(row.daysRemaining)}d ago)` : `${row.daysRemaining} days`}

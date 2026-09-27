@@ -1,5 +1,9 @@
 import { test, expect } from "@playwright/test";
-import { seedProfessionalSpecialty } from "./helpers/test-doctor";
+import {
+  deleteTestClinics,
+  openPrimaryClinicForBookings,
+  seedProfessionalSpecialty,
+} from "./helpers/test-doctor";
 import { createClient } from "@supabase/supabase-js";
 
 function nextWeekdayDateKey(daysAhead = 1): string {
@@ -47,6 +51,7 @@ test.describe("Integration: appointment race condition guard", { tag: ["@pr-e2e"
 
     let authUserId = "";
     let doctorId = "";
+    let clinicId = "";
     const createdAppointmentIds: string[] = [];
 
     try {
@@ -148,20 +153,9 @@ test.describe("Integration: appointment race condition guard", { tag: ["@pr-e2e"
         );
       }
 
-      // Registering a doctor auto-creates a primary doctor_locations row
-      // (trigger: professionals_create_primary_location), defaulting to
-      // pause_online_bookings = true. Booking now reads the pause flag from
-      // the location, not professional_settings — unpause it too or every booking
-      // attempt gets 403 "Bookings temporarily unavailable".
-      const locationUnpause = await admin
-        .from("doctor_locations")
-        .update({ pause_online_bookings: false })
-        .eq("doctor_id", doctorId);
-      if (locationUnpause.error) {
-        throw new Error(
-          `Failed unpausing doctor location: ${locationUnpause.error.message}`,
-        );
-      }
+      // Registering auto-creates an addressless primary location, which takes no
+      // bookings; give it an address (as every sign-up does) and open it.
+      clinicId = (await openPrimaryClinicForBookings(admin, doctorId, nonce)).clinicId;
 
       const targetDate = nextWeekdayDateKey(1);
       const targetLocal = `${targetDate}T10:00`;
@@ -228,6 +222,7 @@ test.describe("Integration: appointment race condition guard", { tag: ["@pr-e2e"
       if (doctorId) {
         await admin.from("professional_settings").delete().eq("professional_id", doctorId);
         await admin.from("professionals").delete().eq("id", doctorId);
+        await deleteTestClinics(admin, [clinicId]);
       }
       if (authUserId) {
         await admin.auth.admin.deleteUser(authUserId);

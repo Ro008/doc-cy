@@ -80,7 +80,7 @@ export default async function BookingSuccessPage({
   const [doctorResult, settingsResult] = await Promise.all([
     supabase
       .from("professionals")
-      .select("id, name, slug, phone, clinic_address")
+      .select("id, name, slug, phone")
       .eq("id", appointment.doctor_id)
       .single(),
     supabase
@@ -125,8 +125,6 @@ export default async function BookingSuccessPage({
   const clinic = appointmentClinicCopy({
     locations,
     locationId: (appointment as { location_id?: string | null }).location_id,
-    doctorClinicAddressFallback: (doctor as { clinic_address?: string | null })
-      .clinic_address,
   });
 
   const cal = getCalendarEventDetails(

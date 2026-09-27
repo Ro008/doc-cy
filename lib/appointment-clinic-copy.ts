@@ -24,12 +24,12 @@ type LocationLike = Pick<
 
 /**
  * Resolve clinic name + address for booking emails / calendar LOCATION from the
- * appointment's `location_id` (falls back to primary / doctor.clinic_address).
+ * appointment's `location_id` (falls back to the primary clinic). The address comes
+ * from the clinic only, never from the copy on `professionals` (Point E).
  */
 export function appointmentClinicCopy(opts: {
   locations: readonly LocationLike[];
   locationId?: string | null;
-  doctorClinicAddressFallback?: string | null;
 }): AppointmentClinicCopy {
   const sorted = sortDoctorLocations(opts.locations);
   const requestedId = String(opts.locationId ?? "").trim();
@@ -47,9 +47,7 @@ export function appointmentClinicCopy(opts: {
     : 0;
   const total = Math.max(sorted.length, 1);
   const clinicName = clinicDisplayName(selected?.label, index, total);
-  const address =
-    String(selected?.clinic_address ?? "").trim() ||
-    String(opts.doctorClinicAddressFallback ?? "").trim();
+  const address = String(selected?.clinic_address ?? "").trim();
 
   return {
     clinicName,

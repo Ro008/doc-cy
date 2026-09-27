@@ -196,7 +196,7 @@ function orderUnregisteredByRequestBuckets<T>(
 
 /**
  * Finder ordering:
- * 1. has_online_booking (product entitlement)
+ * 1. pro access (online booking entitlement: professionals.pro_access_until in the future)
  * 2. registered without booking
  * 3. unregistered directory, bucketed by lifetime unique patients (same number as the 🔥 badge)
  *    (highest first; session-seeded shuffle inside a tied count)

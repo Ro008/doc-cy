@@ -17,6 +17,7 @@ import { ServiceMenuSection } from "@/components/doctor/ServiceMenuSection";
 import { DoctorLocationSection } from "@/components/doctor/DoctorLocationSection";
 import { DoctorProfileClinicPicker } from "@/components/doctor/DoctorProfileClinicPicker";
 import { loadDoctorLocations, primaryDoctorLocation } from "@/lib/load-doctor-locations";
+import { primaryClinicLocationFields } from "@/lib/professional-clinic-locations";
 import {
   ACCOUNT_SETTINGS_FALLBACK,
   clinicTitleOrFallback,
@@ -35,7 +36,6 @@ import { stripPlusCodePrefix } from "@/lib/clinic-location-pin";
 import {
   DOCTOR_FIELD_LIST_PUBLIC_PROFILE_BASE,
   DOCTOR_FIELD_LIST_METADATA,
-  DOCTOR_FIELD_LIST_METADATA_NO_DISTRICT,
   DOCTOR_FIELD_LIST_PUBLIC_PROFILE,
   DOCTOR_FIELD_LIST_PUBLIC_PROFILE_NO_GESY,
   DOCTOR_FIELD_LIST_PUBLIC_PROFILE_NO_LANG,
@@ -188,9 +188,16 @@ async function selectPublicProfessionalBySlug(
     // which hides them all downstream.
     const { specialty_rows: rows, ...rest } = data;
     const entries = specialtyEntriesFromRows(rows);
+    // Where they practise comes from their clinics, not the copies on professionals
+    // (Point E): a professional created by the registration approval has none.
+    const location = primaryClinicLocationFields(
+      await loadDoctorLocations(String(rest.id ?? "")),
+    );
     return {
       data: {
         ...rest,
+        district: location.district,
+        clinic_address: location.clinic_address,
         specialties: approvedSpecialtyNames(entries),
         specialty: primarySpecialtyEntry(entries)?.name ?? "",
         is_specialty_approved: !hasPendingSpecialty(entries),
@@ -276,7 +283,6 @@ async function fetchPublicDoctorBySlug(
         row = {
           ...third.data,
           languages: null,
-          district: null,
           is_gesy: false,
         } as DoctorProfileRow;
       } else if (second.error || !second.data) {
@@ -441,7 +447,7 @@ export async function generateMetadata({
   const profileUrl = `${siteBaseUrl()}${publicProfessionalProfilePath(params.slug, locale)}`;
   const fallbackTitle = "Healthcare Professional | DocCy";
 
-  const loadMeta = async (fields: typeof DOCTOR_FIELD_LIST_METADATA | typeof DOCTOR_FIELD_LIST_METADATA_NO_DISTRICT) => {
+  const loadMeta = async (fields: typeof DOCTOR_FIELD_LIST_METADATA) => {
     const supabase = getPublicDirectoryDb();
     if (!supabase) {
       return {
@@ -449,7 +455,7 @@ export async function generateMetadata({
         error: { message: "service role unavailable", code: "DOC_CY_NO_SERVICE_ROLE" },
       };
     }
-    let m = await selectPublicProfessionalBySlug(supabase, fields, params.slug);
+    const m = await selectPublicProfessionalBySlug(supabase, fields, params.slug);
 
     if (
       m.error &&
@@ -460,10 +466,7 @@ export async function generateMetadata({
     return m;
   };
 
-  let meta = await loadMeta(DOCTOR_FIELD_LIST_METADATA);
-  if (meta.error && isOptionalProfileColumnError(meta.error.message ?? "")) {
-    meta = await loadMeta(DOCTOR_FIELD_LIST_METADATA_NO_DISTRICT);
-  }
+  const meta = await loadMeta(DOCTOR_FIELD_LIST_METADATA);
 
   const doctor = meta.data as {
     name?: string;
