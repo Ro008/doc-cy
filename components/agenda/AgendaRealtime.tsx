@@ -37,6 +37,7 @@ import { patientVisitReasonFromAppointmentRow } from "@/lib/agenda-visit-reason"
 import { agendaRefreshOutcome } from "@/lib/agenda-refresh";
 import { ManualBookingFlow } from "@/components/agenda/ManualBookingFlow";
 import { AGENDA_HIGHLIGHT_MS } from "@/lib/agenda-highlight";
+import { expandAgendaAppointmentsForGrid } from "@/lib/agenda-grid";
 import {
   closeExpiredRequestPath,
   isExpiredRequest,
@@ -101,11 +102,6 @@ type AgendaAppointmentRow = {
   location_id?: string | null;
 };
 
-function parseProposedSlotIsoList(raw: unknown): string[] {
-  if (!Array.isArray(raw)) return [];
-  return raw.filter((x): x is string => typeof x === "string");
-}
-
 function closestAllowedDuration(maybeMinutes: number): ProfessionalDurationOption {
   const allowed = [...PROFESSIONAL_DURATION_OPTIONS];
   let best = allowed[0]!;
@@ -118,55 +114,6 @@ function closestAllowedDuration(maybeMinutes: number): ProfessionalDurationOptio
     }
   }
   return best;
-}
-
-/** One grid row per visible block (counter-offer holds expand to one row per proposed start while the proposal is live). */
-function expandAgendaAppointmentsForGrid(
-  appointments: AgendaAppointmentRow[],
-  nowMs: number,
-): Array<
-  AgendaAppointmentRow & {
-    rowKey: string;
-    gridStartIso: string;
-    isCounterOfferHold: boolean;
-  }
-> {
-  const out: Array<
-    AgendaAppointmentRow & {
-      rowKey: string;
-      gridStartIso: string;
-      isCounterOfferHold: boolean;
-    }
-  > = [];
-  for (const a of appointments) {
-    const su = String(a.status ?? "").toUpperCase();
-    const expRaw = a.proposal_expires_at;
-    const expMs = expRaw ? new Date(expRaw).getTime() : NaN;
-    const proposalLive =
-      su === "NEEDS_RESCHEDULE" && Number.isFinite(expMs) && expMs > nowMs;
-    const slots = proposalLive
-      ? parseProposedSlotIsoList(a.proposed_slots)
-      : [];
-
-    if (slots.length > 0) {
-      slots.forEach((iso, i) => {
-        out.push({
-          ...a,
-          rowKey: `${a.id}-proposal-${i}`,
-          gridStartIso: iso,
-          isCounterOfferHold: true,
-        });
-      });
-    } else {
-      out.push({
-        ...a,
-        rowKey: a.id,
-        gridStartIso: a.appointment_datetime,
-        isCounterOfferHold: false,
-      });
-    }
-  }
-  return out;
 }
 
 function agendaRowFromSupabasePayload(

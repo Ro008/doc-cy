@@ -53,4 +53,29 @@ describe("buildPracticeInsights with expired requests", () => {
     assert.equal(insights.totalBookingsThisMonth, 2);
     assert.equal(insights.newPatientsCapturedThisMonth, 2);
   });
+
+  it("counts a live counter-offer but not one the patient let expire", () => {
+    const insights = buildPracticeInsights(
+      [
+        { ...base, status: "CONFIRMED", appointment_datetime: "2026-09-24T06:00:00Z" },
+        {
+          ...base,
+          status: "NEEDS_RESCHEDULE",
+          appointment_datetime: "2026-10-02T06:00:00Z",
+          proposal_expires_at: "2026-09-28T06:00:00Z", // still live
+        },
+        {
+          ...base,
+          status: "NEEDS_RESCHEDULE",
+          appointment_datetime: "2026-09-28T09:00:00Z",
+          proposal_expires_at: "2026-09-26T06:00:00Z", // expired
+        },
+        { ...base, status: "NEEDS_RESCHEDULE", appointment_datetime: "2026-09-29T09:00:00Z", proposal_expires_at: null },
+      ],
+      null,
+      new Date(NOW),
+    );
+    assert.equal(insights.totalBookingsThisMonth, 2);
+    assert.equal(insights.newPatientsCapturedThisMonth, 2);
+  });
 });

@@ -45,7 +45,7 @@ export default async function PracticeInsightsPage() {
     supabase
       .from("appointments")
       .select(
-        "appointment_datetime, status, created_at, is_new_patient, attendance, duration_minutes",
+        "appointment_datetime, status, created_at, is_new_patient, attendance, duration_minutes, proposal_expires_at",
       )
       .eq("doctor_id", doctor.id),
   );
@@ -73,6 +73,7 @@ export default async function PracticeInsightsPage() {
       is_new_patient: boolean | null;
       attendance: string | null;
       duration_minutes: number | null;
+      proposal_expires_at: string | null;
     }[],
     weeklySchedule,
   );
