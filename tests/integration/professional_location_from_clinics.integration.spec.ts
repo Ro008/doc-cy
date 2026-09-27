@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { zonedTimeToUtc } from "date-fns-tz";
 
 import { CY_TZ } from "@/lib/appointments";
+import { loadDoctorLocations } from "@/lib/load-doctor-locations";
 import { createIntegrationAdmin, requireSafeIntegration } from "./helpers/safe-integration";
 import { seedProfessionalSpecialty } from "./helpers/test-doctor";
 
@@ -245,6 +246,67 @@ test.describe(
           zonedTimeToUtc(local, CY_TZ).toISOString(),
         );
       } finally {
+        await cleanup(admin, created);
+      }
+    });
+
+    test("a location with a blank address is still offered as a clinic being set up", async () => {
+      // The mirror treats a blank address ('') as missing, so such a location has no
+      // clinic link. The loaders must still return it as "being set up", or settings
+      // finds no location to save the address into (CI: settings_clinic_address_wizard,
+      // whose professional is created with clinic_address '').
+      test.setTimeout(60_000);
+      const admin = createIntegrationAdmin(requireSafeIntegration());
+      const nonce = `${Date.now()}-${Math.floor(Math.random() * 100000)}`;
+      const created = emptyCreated();
+
+      try {
+        const email = `blank-address-${nonce}@integration.test`;
+        const auth = await admin.auth.admin.createUser({
+          email,
+          password: "StrongPass123!",
+          email_confirm: true,
+          user_metadata: { role: "doctor" },
+        });
+        if (auth.error || !auth.data.user?.id) throw new Error(`auth user: ${auth.error?.message}`);
+        created.authUserId = auth.data.user.id;
+
+        const insert = await admin
+          .from("professionals")
+          .insert({
+            auth_user_id: auth.data.user.id,
+            name: `Blank Address ${nonce}`,
+            district: "Limassol",
+            clinic_address: "",
+            registration_email: email,
+            email,
+            status: "verified",
+            slug: `blank-address-${nonce}`,
+            is_registered: true,
+            has_online_booking: true,
+            is_archived: false,
+            is_test_profile: true,
+            subscription_tier: "standard",
+          })
+          .select("id")
+          .single();
+        if (insert.error || !insert.data?.id) throw new Error(`professional: ${insert.error?.message}`);
+        created.professionalId = String(insert.data.id);
+
+        const location = await admin
+          .from("doctor_locations")
+          .select("id, clinic_address")
+          .eq("doctor_id", created.professionalId)
+          .single();
+        expect(location.error).toBeNull();
+        expect(location.data?.clinic_address).toBe("");
+
+        const loaded = await loadDoctorLocations(created.professionalId);
+        expect(loaded.map((row) => row.id)).toEqual([location.data?.id]);
+      } finally {
+        if (created.professionalId) {
+          await admin.from("doctor_locations").delete().eq("doctor_id", created.professionalId);
+        }
         await cleanup(admin, created);
       }
     });
