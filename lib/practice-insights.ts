@@ -1,4 +1,5 @@
 import { addMonths, format, parseISO, startOfMonth } from "date-fns";
+import { isExpiredRequest } from "@/lib/appointment-status";
 import { formatInTimeZone, zonedTimeToUtc } from "date-fns-tz";
 import { CY_TZ, isVisitSlotEnded } from "@/lib/appointments";
 import { isNoShowAttendance } from "@/lib/appointment-attendance";
@@ -144,6 +145,8 @@ export function buildPracticeInsights(
   for (const row of rows) {
     const status = normalizeStatus(row.status);
     if (status === "CANCELLED") continue;
+    // Unanswered requests whose time has passed are not bookings.
+    if (isExpiredRequest({ status, startIso: row.appointment_datetime }, nowMs)) continue;
 
     const createdAt = row.created_at ?? row.appointment_datetime;
     const inMonth = isInCyprusMonth(createdAt, startUtc, endUtc);

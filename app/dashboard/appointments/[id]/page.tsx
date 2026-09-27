@@ -18,6 +18,8 @@ import { appointmentCalendarPath } from "@/lib/appointment-links";
 import { formatInTimeZone, zonedTimeToUtc } from "date-fns-tz";
 import { CY_TZ } from "@/lib/appointments";
 import { reviewBackTarget, wantsSuggestOnOpen, type ReviewDayRow } from "@/lib/appointment-review";
+import { isExpiredRequest, isStoredExpiredStatus } from "@/lib/appointment-status";
+import { agendaHighlightHref } from "@/lib/agenda-highlight";
 import { awaitingPatientSummary, requestedAgoLabel, todayWorkingWindow } from "@/lib/doctor-dashboard";
 import { clinicIdForAppointment, locationsToAgendaClinics } from "@/lib/agenda-clinics";
 import { loadDoctorLocations } from "@/lib/load-doctor-locations";
@@ -252,6 +254,45 @@ export default async function DashboardAppointmentDetailPage({
         <PendingLink href={summary.agendaHref} className={`mt-8 ${PRIMARY_BTN_CLASS}`}>
           Open in agenda
         </PendingLink>
+        <PendingLink
+          href={back.href}
+          className="mt-3 block text-center text-sm text-ink-400 underline-offset-2 hover:text-ink-200 hover:underline"
+        >
+          {back.label}
+        </PendingLink>
+      </DoctorAppointmentLinkShell>
+    );
+  }
+
+  // Unanswered request whose time has passed (or closed as EXPIRED): nothing to confirm.
+  if (isExpiredRequest({ status, startIso: appt.appointment_datetime as string })) {
+    const back = reviewBackTarget(searchParams?.from);
+    const agendaHref = agendaHighlightHref(
+      formatInTimeZone(new Date(appt.appointment_datetime as string), CY_TZ, "yyyy-MM-dd"),
+      appt.id as string,
+    );
+    return (
+      <DoctorAppointmentLinkShell>
+        <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Expired request</p>
+        <h1 className="mt-2 text-xl font-semibold leading-snug text-ink-50 sm:text-2xl">This request expired</h1>
+        <p className="mt-2 text-sm leading-relaxed text-ink-300">
+          {patientName} asked for {dateStr} · {timeStr}, but nobody answered before the visit time.
+          {isStoredExpiredStatus(status)
+            ? " It has been closed."
+            : " You can let them know or remove it from your agenda."}{" "}
+          <span className="text-ink-500">Cyprus time.</span>
+        </p>
+        <dl className="mt-6 space-y-3 text-sm">
+          <div>
+            <dt className="text-xs font-medium uppercase tracking-wide text-ink-500">Reason</dt>
+            <dd className="mt-0.5 whitespace-pre-wrap text-ink-200">{reason || "—"}</dd>
+          </div>
+        </dl>
+        {isStoredExpiredStatus(status) ? null : (
+          <PendingLink href={agendaHref} className={`mt-8 ${PRIMARY_BTN_CLASS}`}>
+            Open in agenda
+          </PendingLink>
+        )}
         <PendingLink
           href={back.href}
           className="mt-3 block text-center text-sm text-ink-400 underline-offset-2 hover:text-ink-200 hover:underline"

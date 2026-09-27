@@ -446,4 +446,47 @@ test.describe("Integration: dashboard request actions", { tag: ["@pr-e2e", "@pr-
       await setup.admin.from("appointments").delete().eq("id", setup.appointmentId);
     }
   });
+
+  test("An unanswered request whose time has passed shows as expired", async ({ page }) => {
+    test.setTimeout(120_000);
+    const setup = await createRequest("Expired");
+    // Yesterday 10:xx in Cyprus: the visit time passed without an answer.
+    const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const dayKey = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Nicosia" }).format(yesterday);
+    const minute = String(Math.floor(Math.random() * 50)).padStart(2, "0");
+    await setup.admin
+      .from("appointments")
+      .update({ appointment_datetime: new Date(`${dayKey}T10:${minute}:00+03:00`).toISOString() })
+      .eq("id", setup.appointmentId);
+    try {
+      // Phone size: the agenda shows single days (the desktop week view is Mon–Fri only).
+      await page.setViewportSize({ width: 390, height: 844 });
+      await signInDoctorOrFail(page, undefined, {
+        email: setup.doctorEmail,
+        password: setup.doctorPassword,
+      });
+      await page.goto(`/agenda?date=${dayKey}`, { waitUntil: "domcontentloaded" });
+
+      const chip = page.locator(`[data-appointment-id="${setup.appointmentId}"]`).filter({ visible: true });
+      await expect(chip).toHaveAttribute("data-expired", "true", { timeout: 20_000 });
+      await expect(chip).toContainText("Expired");
+      await expect(chip).not.toContainText("Pending");
+
+      await expect(async () => {
+        await chip.click();
+        await expect(page.getByText(/This request expired/)).toBeVisible({ timeout: 2_000 });
+      }).toPass({ timeout: 20_000 });
+      await expect(page.getByRole("button", { name: "Close expired request" })).toHaveCount(0);
+      await expect(page.getByRole("button", { name: /^Let .+ know and close$/ })).toBeVisible();
+      await expect(page.getByRole("button", { name: "Remove from agenda" })).toBeVisible();
+
+      await page.goto(`/dashboard/appointments/${setup.appointmentId}`, { waitUntil: "domcontentloaded" });
+      await expect(page.getByRole("heading", { level: 1 })).toContainText("This request expired", {
+        timeout: 20_000,
+      });
+      await expect(page.getByRole("button", { name: /^Confirm / })).toHaveCount(0);
+    } finally {
+      await setup.admin.from("appointments").delete().eq("id", setup.appointmentId);
+    }
+  });
 });

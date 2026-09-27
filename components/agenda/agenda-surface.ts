@@ -83,5 +83,11 @@ export const agendaAppointmentNameConfirmedClass = "text-white";
 
 export const agendaAppointmentNamePendingClass = "text-amber-50";
 
+/** Request nobody answered before its time: muted, clearly not actionable as a booking. */
+export const agendaAppointmentExpiredClass =
+  "border-slate-600/80 bg-slate-800/70 text-slate-300 shadow-none hover:bg-slate-700/70 focus-visible:ring-2 focus-visible:ring-slate-400/60";
+
+export const agendaAppointmentNameExpiredClass = "text-slate-300 line-through decoration-slate-500/60";
+
 export const agendaAppointmentBadgeClass =
   "rounded bg-amber-950/90 px-1 py-0 text-[10px] font-semibold leading-none text-amber-100 ring-1 ring-amber-400/40";

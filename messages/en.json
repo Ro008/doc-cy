@@ -145,6 +145,7 @@
   },
   "DoctorAgenda": {
     "appointmentPendingBadge": "Pending",
+    "appointmentExpiredBadge": "Expired",
     "counterOfferHoldBadge": "Proposed slot",
     "signedOutNotice": "You're signed out, so your agenda may be out of date. Your appointments are safe.",
     "signedOutSignIn": "Sign in"

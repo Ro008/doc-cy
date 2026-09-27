@@ -37,6 +37,11 @@ import { patientVisitReasonFromAppointmentRow } from "@/lib/agenda-visit-reason"
 import { agendaRefreshOutcome } from "@/lib/agenda-refresh";
 import { ManualBookingFlow } from "@/components/agenda/ManualBookingFlow";
 import { AGENDA_HIGHLIGHT_MS } from "@/lib/agenda-highlight";
+import {
+  closeExpiredRequestPath,
+  isExpiredRequest,
+  isStoredExpiredStatus,
+} from "@/lib/appointment-status";
 import { AgendaClinicCalendars } from "@/components/agenda/AgendaClinicCalendars";
 import {
   AGENDA_APPOINTMENT_SELECT,
@@ -50,6 +55,8 @@ import { agendaClinicEventColor } from "@/lib/doctor-locations";
 import {
   agendaAppointmentBadgeClass,
   agendaAppointmentConfirmedClass,
+  agendaAppointmentExpiredClass,
+  agendaAppointmentNameExpiredClass,
   agendaAppointmentNameConfirmedClass,
   agendaAppointmentNamePendingClass,
   agendaAppointmentPendingClass,
@@ -233,11 +240,16 @@ function renderAgendaHourZebraBands(isTodayColumn: boolean) {
   return bands;
 }
 
+function firstNameOf(fullName: string | null | undefined): string {
+  return String(fullName ?? "").trim().split(/\s+/)[0] || "the patient";
+}
+
 function AgendaAppointmentCardInner({
   timeLabel,
   patientName,
   isPendingRequest,
   isRequested,
+  isExpired = false,
   isCounterOfferHold,
   isCompactCounterOffer,
 }: {
@@ -245,15 +257,20 @@ function AgendaAppointmentCardInner({
   patientName: string;
   isPendingRequest: boolean;
   isRequested: boolean;
+  isExpired?: boolean;
   isCounterOfferHold: boolean;
   isCompactCounterOffer: boolean;
 }) {
   const t = useTranslations("DoctorAgenda");
-  const nameColor = isPendingRequest
-    ? agendaAppointmentNamePendingClass
-    : agendaAppointmentNameConfirmedClass;
+  const nameColor = isExpired
+    ? agendaAppointmentNameExpiredClass
+    : isPendingRequest
+      ? agendaAppointmentNamePendingClass
+      : agendaAppointmentNameConfirmedClass;
   const patientDisplay = patientName.trim() || "Patient";
-  const topRightBadge = isRequested
+  const topRightBadge = isExpired
+    ? t("appointmentExpiredBadge")
+    : isRequested
     ? t("appointmentPendingBadge")
     : isCounterOfferHold
       ? t("counterOfferHoldBadge")
@@ -382,6 +399,7 @@ export function AgendaRealtime({
         minutesFromStart: number;
         isPendingRequest: boolean;
         isRequested: boolean;
+        isExpired: boolean;
         showReviewLink: boolean;
         rowDurationMinutes: number;
         sortKeyMs: number;
@@ -406,6 +424,8 @@ export function AgendaRealtime({
   );
   const [previewSlots, setPreviewSlots] = React.useState<string[] | null>(null);
   const [markingAttendance, setMarkingAttendance] = React.useState(false);
+  const [closingExpired, setClosingExpired] = React.useState<null | "notify" | "quiet">(null);
+  const [closeExpiredError, setCloseExpiredError] = React.useState<string | null>(null);
   const [attendanceError, setAttendanceError] = React.useState<string | null>(
     null,
   );
@@ -416,6 +436,7 @@ export function AgendaRealtime({
 
   React.useEffect(() => {
     setOpeningReview(false);
+    setCloseExpiredError(null);
   }, [selected?.id]);
 
   const modalBusy = isCancelling || openingReview || markingAttendance;
@@ -623,8 +644,10 @@ export function AgendaRealtime({
   }, [clinics, hiddenClinicIds]);
 
   const visibleAppointments = React.useMemo(() => {
-    if (!isMultiClinic) return appointments;
-    return appointments.filter((row) => {
+    // Requests the doctor closed as expired leave the agenda (kept in the DB for stats).
+    const open = appointments.filter((row) => !isStoredExpiredStatus(row.status));
+    if (!isMultiClinic) return open;
+    return open.filter((row) => {
       const clinicId = clinicIdForAppointment(row.location_id, clinics);
       return clinicId != null && visibleClinicIds.has(clinicId);
     });
@@ -670,8 +693,10 @@ export function AgendaRealtime({
         ? rawDm
         : defaultSlotMinutes;
     const su = String(a.status ?? "").toUpperCase();
-    const isPendingRequest = su === "REQUESTED" || su === "NEEDS_RESCHEDULE";
-    const isRequested = su === "REQUESTED";
+    // Unanswered request whose time has started: no longer something to accept.
+    const isExpired = isExpiredRequest({ status: su, startIso: utc }, nowMs);
+    const isPendingRequest = !isExpired && (su === "REQUESTED" || su === "NEEDS_RESCHEDULE");
+    const isRequested = !isExpired && su === "REQUESTED";
     return {
       ...a,
       dateKey,
@@ -683,7 +708,8 @@ export function AgendaRealtime({
       rowDurationMinutes,
       isPendingRequest,
       isRequested,
-      showReviewLink: su === "REQUESTED",
+      isExpired,
+      showReviewLink: su === "REQUESTED" && !isExpired,
       sortKeyMs: new Date(utc).getTime(),
     };
   });
@@ -779,7 +805,8 @@ export function AgendaRealtime({
     return clinics.find((clinic) => clinic.id === clinicId)?.name ?? null;
   }
 
-  function appointmentChipClass(isPendingRequest: boolean): string {
+  function appointmentChipClass(isPendingRequest: boolean, isExpired = false): string {
+    if (isExpired) return agendaAppointmentExpiredClass;
     return isPendingRequest
       ? agendaAppointmentPendingClass
       : agendaAppointmentConfirmedClass;
@@ -1044,6 +1071,41 @@ export function AgendaRealtime({
       ),
     );
     setSelected(row);
+  }
+
+  /**
+   * Close a request nobody answered in time (backend pending: POST close-expired).
+   * Until that endpoint exists the call 404s and the doctor sees why.
+   */
+  async function closeExpiredRequest(notifyPatient: boolean) {
+    if (!selected || closingExpired) return;
+    const id = selected.id;
+    setCloseExpiredError(null);
+    setClosingExpired(notifyPatient ? "notify" : "quiet");
+    try {
+      const res = await fetch(closeExpiredRequestPath(id), {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ notifyPatient }),
+      });
+      if (res.status === 404 || res.status === 405) {
+        setCloseExpiredError("Not connected yet: the close-expired endpoint is still to be built on the backend.");
+        return;
+      }
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        setCloseExpiredError(typeof data?.message === "string" ? data.message : "Could not close this request.");
+        return;
+      }
+      setAppointments((prev) => prev.map((row) => (row.id === id ? { ...row, status: "EXPIRED" } : row)));
+      setSelected(null);
+      sonnerToast.success(notifyPatient ? "Closed. The patient has been told." : "Removed from your agenda.");
+    } catch {
+      setCloseExpiredError("Something went wrong. Please try again.");
+    } finally {
+      setClosingExpired(null);
+    }
   }
 
   function openCancelFlow(row: (typeof rows)[number]) {
@@ -1381,12 +1443,13 @@ export function AgendaRealtime({
                       aria-label={`Appointment ${row.patient_name} at ${row.timeLabel}${clinicNameForRow(row.location_id) ? ` · ${clinicNameForRow(row.location_id)}` : ""}`}
                       data-appointment-id={row.id}
                       data-highlighted={highlightedId === row.id ? "true" : "false"}
+                        data-expired={row.isExpired ? "true" : "false"}
                       onClick={() => openAppointment(row)}
                       className={`group absolute overflow-hidden rounded-xl border text-left shadow-lg transition focus:outline-none ${
                         row.isCounterOfferHold
                           ? `flex flex-col items-stretch justify-start py-1.5 pr-2 ${isMultiClinic ? "pl-2.5" : "pl-2"}`
                           : `py-1 pr-2 ${isMultiClinic ? "pl-2.5" : "pl-2"}`
-                      } ${appointmentChipClass(row.isPendingRequest)}${
+                      } ${appointmentChipClass(row.isPendingRequest, row.isExpired)}${
                         highlightedId === row.id ? AGENDA_SPOTLIGHT_CLASS : ""
                       }`}
                       style={{
@@ -1407,6 +1470,7 @@ export function AgendaRealtime({
                         patientName={row.patient_name}
                         isPendingRequest={row.isPendingRequest}
                         isRequested={row.isRequested}
+                          isExpired={row.isExpired}
                         isCounterOfferHold={row.isCounterOfferHold}
                         isCompactCounterOffer={
                           row.isCounterOfferHold && row.rowDurationMinutes <= 30
@@ -1542,12 +1606,13 @@ export function AgendaRealtime({
                         aria-label={`Appointment ${row.patient_name} at ${row.timeLabel}${clinicNameForRow(row.location_id) ? ` · ${clinicNameForRow(row.location_id)}` : ""}`}
                         data-appointment-id={row.id}
                         data-highlighted={highlightedId === row.id ? "true" : "false"}
+                        data-expired={row.isExpired ? "true" : "false"}
                         onClick={() => openAppointment(row)}
                         className={`group absolute overflow-hidden rounded-xl border text-left shadow-lg transition focus:outline-none ${
                           row.isCounterOfferHold
                             ? `flex flex-col items-stretch justify-start py-1.5 pr-2 ${isMultiClinic ? "pl-2.5" : "pl-2"}`
                             : `py-1 pr-2 ${isMultiClinic ? "pl-2.5" : "pl-2"}`
-                        } ${appointmentChipClass(row.isPendingRequest)}${
+                        } ${appointmentChipClass(row.isPendingRequest, row.isExpired)}${
                         highlightedId === row.id ? AGENDA_SPOTLIGHT_CLASS : ""
                       }`}
                         style={{
@@ -1568,6 +1633,7 @@ export function AgendaRealtime({
                           patientName={row.patient_name}
                           isPendingRequest={row.isPendingRequest}
                           isRequested={row.isRequested}
+                          isExpired={row.isExpired}
                           isCounterOfferHold={row.isCounterOfferHold}
                           isCompactCounterOffer={row.isCounterOfferHold && row.rowDurationMinutes <= 30}
                         />
@@ -1659,7 +1725,11 @@ export function AgendaRealtime({
               ) : null}
             </p>
             <div className="mt-2 flex flex-wrap items-center gap-2">
-              {selectedPast ? (
+              {selected.isExpired ? (
+                <p className="inline-flex rounded-full border border-slate-600/80 bg-slate-800/80 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-slate-300">
+                  Expired request
+                </p>
+              ) : selectedPast ? (
                 <p className="inline-flex rounded-full border border-slate-600/80 bg-slate-800/80 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-slate-300">
                   Past visit
                 </p>
@@ -1696,7 +1766,40 @@ export function AgendaRealtime({
                 · {appointmentTimeLabelCyprus(selected.appointment_datetime)}
               </p>
             ) : null}
+            {selected.isExpired && !confirmingCancel && !rescheduleOpen ? (
+              <div className="mt-4 space-y-3" data-testid="agenda-expired-request">
+                <p className="text-sm leading-relaxed text-slate-300">
+                  This request expired: nobody answered it before the visit time, so{" "}
+                  {firstNameOf(selected.patient_name)} never got a reply.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => void closeExpiredRequest(true)}
+                  disabled={closingExpired !== null}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-clinical-400/50 bg-clinical-500/15 px-3 py-2.5 text-sm font-semibold text-clinical-100 transition hover:bg-clinical-500/25 disabled:cursor-wait disabled:opacity-60"
+                >
+                  {closingExpired === "notify" ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : null}
+                  Let {firstNameOf(selected.patient_name)} know and close
+                </button>
+                <p className="-mt-1 text-center text-xs text-slate-500">
+                  Sends a short note that you couldn&apos;t reply in time, with a link to book again.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => void closeExpiredRequest(false)}
+                  disabled={closingExpired !== null}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-2xl px-3 py-2 text-sm font-medium text-slate-400 transition hover:bg-slate-800/60 hover:text-slate-200 disabled:cursor-wait disabled:opacity-60"
+                >
+                  {closingExpired === "quiet" ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : null}
+                  Remove from agenda
+                </button>
+                {closeExpiredError ? (
+                  <p className="text-xs text-amber-200">{closeExpiredError}</p>
+                ) : null}
+              </div>
+            ) : null}
             {selectedPast &&
+            !selected.isExpired &&
             !confirmingCancel &&
             !rescheduleOpen ? (
               <div className="mt-4 space-y-3">
@@ -1712,16 +1815,6 @@ export function AgendaRealtime({
                           ? "This visit is in the past. You can mark it as a no-show for your records."
                           : "This visit is in the past. Details are read-only."}
                 </p>
-                {selectedStatus === "REQUESTED" ? (
-                  <button
-                    type="button"
-                    onClick={() => openCancelFlow(selected)}
-                    disabled={openingReview || markingAttendance}
-                    className="inline-flex w-full items-center justify-center rounded-2xl border border-slate-600 px-3 py-2.5 text-sm font-medium text-slate-300 transition hover:border-slate-500 hover:bg-slate-800/60 hover:text-red-200 disabled:cursor-not-allowed disabled:opacity-40"
-                  >
-                    Close expired request
-                  </button>
-                ) : null}
                 {selectedStatus === "CONFIRMED" ? (
                   selectedNoShow ? (
                     <button

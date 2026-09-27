@@ -88,6 +88,7 @@
   },
   "DoctorAgenda": {
     "appointmentPendingBadge": "Εκκρεμεί",
+    "appointmentExpiredBadge": "Έληξε",
     "counterOfferHoldBadge": "Προτεινόμενο",
     "signedOutNotice": "Έχετε αποσυνδεθεί, οπότε η ατζέντα σας μπορεί να μην είναι ενημερωμένη. Τα ραντεβού σας είναι ασφαλή.",
     "signedOutSignIn": "Σύνδεση"
