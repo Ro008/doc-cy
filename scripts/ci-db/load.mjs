@@ -33,6 +33,20 @@ if (alreadyLoaded) {
   throw new Error("This stack already has the DocCy schema. Reset it first: npx --yes supabase@2.118.0 db reset");
 }
 
+// A fresh local stack grants anon/authenticated everything on any new public object.
+// The snapshot carries Testing's exact grants (e.g. admin_users: service_role only), so
+// drop those defaults first or every table would load more open than in Testing.
+// schema.sql ends by setting Testing's own defaults, for the migrations applied below.
+psqlLocal(
+  ["TABLES", "SEQUENCES", "FUNCTIONS"]
+    .map(
+      (kind) =>
+        `alter default privileges for role postgres in schema public revoke all on ${kind} from anon, authenticated, service_role;`,
+    )
+    .join("\n"),
+  "the default-privileges reset",
+);
+
 console.error("Loading schema snapshot…");
 psqlLocal(read(path.join(ciDir, "schema.sql")), "supabase/ci/schema.sql");
 

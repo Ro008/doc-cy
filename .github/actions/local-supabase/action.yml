@@ -1,0 +1,53 @@
+name: Local Supabase stack + app build
+description: >
+  Starts a throwaway Supabase stack in the runner, loads it (scripts/ci-db/load.mjs), creates
+  the fixture doctor login (scripts/ci-db/fixtures.mjs) and builds the app against it.
+  Run after `npm ci`. Map the outputs onto the Playwright step's env.
+
+outputs:
+  supabase_url:
+    description: Local API URL (NEXT_PUBLIC_SUPABASE_URL)
+    value: ${{ steps.db.outputs.supabase_url }}
+  anon_key:
+    description: Local anon key (NEXT_PUBLIC_SUPABASE_ANON_KEY)
+    value: ${{ steps.db.outputs.anon_key }}
+  service_role_key:
+    description: Local service-role key (SUPABASE_SERVICE_ROLE_KEY)
+    value: ${{ steps.db.outputs.service_role_key }}
+  test_user_email:
+    description: Fixture doctor login (TEST_USER_EMAIL)
+    value: ${{ steps.fixtures.outputs.test_user_email }}
+  test_user_password:
+    description: Fixture doctor password, fresh each run (TEST_USER_PASSWORD)
+    value: ${{ steps.fixtures.outputs.test_user_password }}
+
+runs:
+  using: composite
+  steps:
+    - name: Start local Supabase stack
+      shell: bash
+      # Keep the version in sync with scripts/ci-db/cli.mjs.
+      run: |
+        npx --yes supabase@2.118.0 start \
+          -x studio,imgproxy,edge-runtime,logflare,vector,postgres-meta,supavisor
+
+    # Schema snapshot → migrations the snapshot lacks (a PR's new migration runs here)
+    # → catalogue rows → synthetic seed.
+    - name: Load schema, migrations and seed
+      id: db
+      shell: bash
+      run: node scripts/ci-db/load.mjs
+
+    - name: Create fixture doctor login
+      id: fixtures
+      shell: bash
+      run: node scripts/ci-db/fixtures.mjs
+
+    # After the load: pages prerendered at build time read the seeded directory.
+    - name: Build Next.js against the local stack
+      shell: bash
+      env:
+        NEXT_PUBLIC_SUPABASE_URL: ${{ steps.db.outputs.supabase_url }}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ steps.db.outputs.anon_key }}
+        SUPABASE_SERVICE_ROLE_KEY: ${{ steps.db.outputs.service_role_key }}
+      run: npm run build
