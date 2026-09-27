@@ -1,5 +1,9 @@
 import { redirect } from "next/navigation";
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
+import {
+  createServerActionClient,
+  createServerComponentClient,
+} from "@supabase/auth-helpers-nextjs";
 import { createServiceRoleClient } from "@/lib/supabase-service";
 import { PasswordToggleInput } from "@/components/auth/PasswordToggleInput";
 import { RegisterSpecialtyFields } from "@/components/auth/RegisterSpecialtyFields";
@@ -83,6 +87,9 @@ import {
 import { isNextRedirectError } from "@/lib/next-redirect-error";
 import { withTimeout } from "@/lib/promise-timeout";
 import { createClient } from "@supabase/supabase-js";
+import { reapplyStateForUser } from "@/lib/registration-reapply";
+import { confirmRegistrationDraft } from "@/lib/registration-draft-confirm";
+import { REGISTRATION_STATUS_PATH } from "@/lib/registration-status";
 
 type PageProps = {
   searchParams?: {
@@ -252,6 +259,19 @@ async function runRegister(formData: FormData) {
     "";
   const email = (formData.get("email") as string | null)?.trim() || "";
   const password = (formData.get("password") as string | null) || "";
+
+  // Signed in after a denial or a withdrawal: apply again with the same login.
+  const reapplyService = createServiceRoleClient();
+  const sessionUser = reapplyService
+    ? (await createServerActionClient({ cookies }).auth.getUser()).data.user
+    : null;
+  const reapplyState =
+    reapplyService && sessionUser ? await reapplyStateForUser(reapplyService, sessionUser) : null;
+  if (reapplyState?.kind === "pending") redirect(REGISTRATION_STATUS_PATH);
+  const reapply =
+    reapplyState?.kind === "reapply" && reapplyState.email.toLowerCase() === email.toLowerCase()
+      ? reapplyState
+      : null;
   const phone = (formData.get("phone") as string | null)?.trim() || "";
   const avatarFile = formData.get("avatarFile") as File | null;
   const professionalDisclaimer = formData.get("professionalDisclaimer");
@@ -312,7 +332,7 @@ async function runRegister(formData: FormData) {
     !lastName ||
     !fullName ||
     !email ||
-    !password ||
+    (!reapply && !password) ||
     !phone ||
     !avatarFile ||
     professionalDisclaimer !== "on"
@@ -320,7 +340,7 @@ async function runRegister(formData: FormData) {
     fail("validation");
   }
 
-  if (!isStrongPassword(password)) {
+  if (!reapply && !isStrongPassword(password)) {
     fail("password_policy");
   }
 
@@ -402,7 +422,9 @@ async function runRegister(formData: FormData) {
       : {}),
   };
 
-  if (shouldUseAdminAuthForAutomatedRegistration(email)) {
+  if (reapply) {
+    authUserId = reapply.authUserId;
+  } else if (shouldUseAdminAuthForAutomatedRegistration(email)) {
     const { data: adminData, error: adminError } = await withTimeout(
       service.auth.admin.createUser({
         email,
@@ -468,7 +490,8 @@ async function runRegister(formData: FormData) {
       if (removePhoto) {
         await service.storage.from(REGISTRATION_UPLOADS_BUCKET).remove([photoPath]);
       }
-      await service.auth.admin.deleteUser(authUserId);
+      // A re-applicant's login is their account: never delete it.
+      if (!reapply) await service.auth.admin.deleteUser(authUserId);
     } catch (cleanupError) {
       console.error("[DocCy] Failed cleanup after registration error", cleanupError);
     }
@@ -516,6 +539,17 @@ async function runRegister(formData: FormData) {
     fail("db", draftError);
   }
 
+  if (reapply) {
+    // Already confirmed: the application goes to the founders now.
+    try {
+      await confirmRegistrationDraft(service, authUserId);
+    } catch (confirmError) {
+      // The daily purge moves a confirmed draft that is still waiting.
+      console.error("[DocCy] Re-application confirm failed", confirmError);
+    }
+    redirect(REGISTRATION_STATUS_PATH);
+  }
+
   // The DocCy email carries the confirmation link; confirming moves the draft
   // into the founders' queue (`/auth/confirm-email`).
   try {
@@ -558,9 +592,16 @@ export default async function RegisterPage({ searchParams }: PageProps) {
   const foundersAvailability = loadRegisterFoundersAvailability();
   let claimPrefill: RegisterClaimPrefill | null = null;
   let specialtyOptions: string[] = [];
+  let reapplyEmail: string | null = null;
   if (!submitted) {
     const service = createServiceRoleClient();
     if (service) {
+      const {
+        data: { user: sessionUser },
+      } = await createServerComponentClient({ cookies }).auth.getUser();
+      const reapplyState = sessionUser ? await reapplyStateForUser(service, sessionUser) : null;
+      if (reapplyState?.kind === "pending") redirect(REGISTRATION_STATUS_PATH);
+      if (reapplyState?.kind === "reapply") reapplyEmail = reapplyState.email;
       if (isProfessionalUuid(claimId)) {
         claimPrefill = await loadUnregisteredProfessionalForRegisterClaim(service, claimId);
       }
@@ -800,9 +841,11 @@ export default async function RegisterPage({ searchParams }: PageProps) {
                       />
                     </div>
                     <div className="grid gap-4 sm:grid-cols-2 sm:gap-3">
-                      <RegisterEmailField />
+                      <RegisterEmailField lockedEmail={reapplyEmail} />
                       <RegisterPhoneField />
                     </div>
+                    {/* Signed in to apply again: the account exists, so no password. */}
+                    {reapplyEmail ? null : (
                     <div
                       className="group"
                       data-validate-field="1"
@@ -828,6 +871,7 @@ export default async function RegisterPage({ searchParams }: PageProps) {
                       <RegisterPasswordRules formId="register-form" />
                       <p className={registerFieldErrorClass}>{PASSWORD_POLICY_ERROR}</p>
                     </div>
+                    )}
 
                   </RegisterWizardStep>
 

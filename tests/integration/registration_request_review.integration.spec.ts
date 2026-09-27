@@ -354,7 +354,7 @@ test.describe("Integration: registration request review", { tag: "@pr-e2e" }, ()
   });
 
   test("the Requests section shows a pending request and approves it", async ({ page }) => {
-    test.setTimeout(150_000);
+    test.setTimeout(240_000);
     const lastName = `Uiflow ${Date.now().toString(36)}`;
     const seeded = await seedRequest(admin, cleanup, {
       lastName,
@@ -373,11 +373,9 @@ test.describe("Integration: registration request review", { tag: "@pr-e2e" }, ()
     await expect(card.getByRole("img", { name: /photo/i })).toBeVisible();
 
     // An invalid listing URL blocks approval until it is fixed or cleared.
-    // The dashboard is server-rendered: retry until React has hydrated and sees the typing.
-    await expect(async () => {
-      await card.getByLabel("Listing URL").fill("https://www.mydoccy.com/paphos/cardiology");
-      await expect(card.getByRole("button", { name: "Check listing" })).toBeEnabled({ timeout: 2_000 });
-    }).toPass({ timeout: 60_000 });
+    // The dashboard is server-rendered and heavy: type only once React has hydrated it.
+    await expect(page.locator("#requests[data-hydrated='1']")).toBeAttached({ timeout: 120_000 });
+    await card.getByLabel("Listing URL").fill("https://www.mydoccy.com/paphos/cardiology");
     await card.getByRole("button", { name: "Check listing" }).click();
     await expect(card.getByRole("alert")).toContainText(/not a profile URL/i);
     await expect(card.getByRole("button", { name: "APPROVE" })).toBeDisabled();

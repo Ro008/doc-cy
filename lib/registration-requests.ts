@@ -10,6 +10,13 @@ import {
   type ProfessionalRegistrationDetails,
 } from "@/lib/professional-registration-request";
 import {
+  buildRegistrationApprovedEmail,
+  buildRegistrationDeniedEmail,
+  describeRegistrationCorrections,
+  sendRegistrationDecisionEmail,
+} from "@/lib/registration-decision-emails";
+import { getPublicBookingBaseUrl } from "@/lib/site-url";
+import {
   approvalErrorMessage,
   approvedAvatarPath,
   claimedListingKeepsSlug,
@@ -289,9 +296,20 @@ export async function approveRegistrationRequest(
 
   const { data: approved } = await service
     .from("request_log")
-    .select("professional_id")
+    .select("professional_id, outcome")
     .eq("id", request.id)
     .single();
+  const outcome = (approved?.outcome ?? {}) as { pro_access_until?: string | null };
+  await sendRegistrationDecisionEmail(
+    request.details.email,
+    buildRegistrationApprovedEmail({
+      name,
+      siteUrl: getPublicBookingBaseUrl(),
+      profilePath: `/en/${slug}`,
+      accessUntil: outcome.pro_access_until ?? null,
+      corrections: describeRegistrationCorrections(request.details, corrected),
+    }),
+  );
   return { ok: true, professionalId: String(approved?.professional_id ?? ""), slug };
 }
 
@@ -312,6 +330,14 @@ export async function denyRegistrationRequest(
     console.error("[requests] deny failed", error);
     return { ok: false, status: statusForDbError(error.code), message: approvalErrorMessage(error) };
   }
+  await sendRegistrationDecisionEmail(
+    loaded.request.details.email,
+    buildRegistrationDeniedEmail({
+      name: registrationRequesterName(loaded.request.details),
+      siteUrl: getPublicBookingBaseUrl(),
+      reason,
+    }),
+  );
   return { ok: true };
 }
 

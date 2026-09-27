@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { CYPRUS_DISTRICTS } from "@/lib/cyprus-districts";
@@ -30,8 +30,15 @@ const labelClass = "flex flex-col gap-1 text-xs text-slate-400";
 export function RegistrationRequestsSection({ items, canMutate, defaultTrialMonths }: Props) {
   const pending = items.filter((item) => item.status === "pending");
   const decided = items.filter((item) => item.status !== "pending");
+  // Marks when the section is interactive (tests wait for it on this heavy page).
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => setHydrated(true), []);
   return (
-    <section id="requests" className="space-y-4 rounded-2xl border border-slate-800/80 bg-slate-900/30 p-5">
+    <section
+      id="requests"
+      data-hydrated={hydrated ? "1" : "0"}
+      className="space-y-4 rounded-2xl border border-slate-800/80 bg-slate-900/30 p-5"
+    >
       <div>
         <h2 className="text-lg font-semibold text-slate-100">Requests</h2>
         <p className="text-sm text-slate-400">
