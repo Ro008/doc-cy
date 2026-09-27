@@ -28,7 +28,7 @@ import {
   type DoctorSettingsRow,
 } from "@/lib/doctor-settings";
 import { isFounderSubscriptionTier } from "@/lib/subscription-tier";
-import { loadDoctorLocations } from "@/lib/load-doctor-locations";
+import { loadDoctorLocations, primaryDoctorLocation } from "@/lib/load-doctor-locations";
 import { locationWeeklySchedule } from "@/lib/doctor-locations";
 import { inferPublicPhoneSource } from "@/lib/public-call-phone";
 import { FirstLoginTrialNoticeGate } from "@/components/dashboard/FirstLoginTrialNoticeGate";
@@ -86,7 +86,7 @@ export default async function AgendaSettingsPage() {
     let res = await supabase
       .from("professionals")
       .select(
-        "id, name, avatar_url, phone, mobile_number, slug, bio, languages, district, town, clinic_address, latitude, longitude, clinic_place_id, status, subscription_tier, is_gesy"
+        "id, name, avatar_url, phone, mobile_number, slug, bio, languages, status, subscription_tier, is_gesy"
       )
       .eq("auth_user_id", user.id)
       .single();
@@ -95,7 +95,7 @@ export default async function AgendaSettingsPage() {
       res = await supabase
         .from("professionals")
         .select(
-          "id, name, avatar_url, phone, slug, bio, languages, district, town, clinic_address, latitude, longitude, clinic_place_id, status, subscription_tier, is_gesy"
+          "id, name, avatar_url, phone, slug, bio, languages, status, subscription_tier, is_gesy"
         )
         .eq("auth_user_id", user.id)
         .single();
@@ -105,7 +105,7 @@ export default async function AgendaSettingsPage() {
       res = await supabase
         .from("professionals")
         .select(
-          "id, name, avatar_url, phone, slug, bio, languages, district, clinic_address, latitude, longitude, clinic_place_id, status, subscription_tier, is_gesy"
+          "id, name, avatar_url, phone, slug, bio, languages, status, subscription_tier, is_gesy"
         )
         .eq("auth_user_id", user.id)
         .single();
@@ -120,7 +120,7 @@ export default async function AgendaSettingsPage() {
       res = await supabase
         .from("professionals")
         .select(
-          "id, name, avatar_url, phone, slug, languages, district, clinic_address, status, subscription_tier, is_gesy"
+          "id, name, avatar_url, phone, slug, languages, status, subscription_tier, is_gesy"
         )
         .eq("auth_user_id", user.id)
         .single();
@@ -130,7 +130,7 @@ export default async function AgendaSettingsPage() {
       res = await supabase
         .from("professionals")
         .select(
-          "id, name, avatar_url, phone, slug, languages, district, clinic_address, status, subscription_tier"
+          "id, name, avatar_url, phone, slug, languages, status, subscription_tier"
         )
         .eq("auth_user_id", user.id)
         .single();
@@ -139,7 +139,7 @@ export default async function AgendaSettingsPage() {
       res = await supabase
         .from("professionals")
         .select(
-          "id, name, phone, slug, languages, district, clinic_address, status, subscription_tier"
+          "id, name, phone, slug, languages, status, subscription_tier"
         )
         .eq("auth_user_id", user.id)
         .single();
@@ -148,7 +148,7 @@ export default async function AgendaSettingsPage() {
       res = await supabase
         .from("professionals")
         .select(
-          "id, name, avatar_url, phone, slug, languages, district, clinic_address, status"
+          "id, name, avatar_url, phone, slug, languages, status"
         )
         .eq("auth_user_id", user.id)
         .single();
@@ -156,7 +156,7 @@ export default async function AgendaSettingsPage() {
     if (res.error && (res.error as { code?: string }).code === "42703") {
       res = await supabase
         .from("professionals")
-        .select("id, name, phone, slug, languages, district, clinic_address, status")
+        .select("id, name, phone, slug, languages, status")
         .eq("auth_user_id", user.id)
         .single();
     }
@@ -171,7 +171,7 @@ export default async function AgendaSettingsPage() {
     let fallback = await supabase
       .from("professionals")
       .select(
-        "id, name, avatar_url, slug, languages, district, clinic_address, status, specialty_requires_standard_at, subscription_tier"
+        "id, name, avatar_url, slug, languages, status, specialty_requires_standard_at, subscription_tier"
       )
       .eq("auth_user_id", user.id)
       .single();
@@ -180,7 +180,7 @@ export default async function AgendaSettingsPage() {
       fallback = await supabase
         .from("professionals")
         .select(
-          "id, name, avatar_url, slug, languages, district, clinic_address, status, subscription_tier"
+          "id, name, avatar_url, slug, languages, status, subscription_tier"
         )
         .eq("auth_user_id", user.id)
         .single();
@@ -190,7 +190,7 @@ export default async function AgendaSettingsPage() {
       fallback = await supabase
         .from("professionals")
         .select(
-          "id, name, slug, languages, district, clinic_address, status, subscription_tier"
+          "id, name, slug, languages, status, subscription_tier"
         )
         .eq("auth_user_id", user.id)
         .single();
@@ -199,7 +199,7 @@ export default async function AgendaSettingsPage() {
       fallback = await supabase
         .from("professionals")
         .select(
-          "id, name, avatar_url, slug, languages, district, clinic_address, status"
+          "id, name, avatar_url, slug, languages, status"
         )
         .eq("auth_user_id", user.id)
         .single();
@@ -207,7 +207,7 @@ export default async function AgendaSettingsPage() {
     if (fallback.error && (fallback.error as { code?: string }).code === "42703") {
       fallback = await supabase
         .from("professionals")
-        .select("id, name, slug, languages, district, clinic_address, status")
+        .select("id, name, slug, languages, status")
         .eq("auth_user_id", user.id)
         .single();
     }
@@ -293,6 +293,7 @@ export default async function AgendaSettingsPage() {
   );
 
   const locationRows = await loadDoctorLocations(doctor.id);
+  const primaryClinic = primaryDoctorLocation(locationRows);
   const workplaceLocations: DoctorWorkplaceFormData[] = locationRows.map((row) => ({
     id: row.id,
     isPrimary: Boolean(row.is_primary),
@@ -416,12 +417,13 @@ export default async function AgendaSettingsPage() {
       mobileNumber: (doctor.mobile_number ?? doctor.phone ?? "").trim(),
       directoryPhone: (doctor.phone ?? "").trim(),
     }),
-    district: (doctor.district ?? "").trim(),
-    clinicAddress: (doctor.clinic_address ?? "").trim(),
-    clinicTown: (doctor.town ?? "").trim() || null,
-    clinicLatitude: doctor.latitude ?? null,
-    clinicLongitude: doctor.longitude ?? null,
-    clinicPlaceId: doctor.clinic_place_id ?? null,
+    // The primary clinic, not the copies on professionals (Point E).
+    district: (primaryClinic?.district ?? "").trim(),
+    clinicAddress: (primaryClinic?.clinic_address ?? "").trim(),
+    clinicTown: (primaryClinic?.town ?? "").trim() || null,
+    clinicLatitude: primaryClinic?.latitude ?? null,
+    clinicLongitude: primaryClinic?.longitude ?? null,
+    clinicPlaceId: primaryClinic?.clinic_place_id ?? null,
     monday: (settings as { monday?: boolean } | null)?.monday ?? true,
     tuesday: (settings as { tuesday?: boolean } | null)?.tuesday ?? true,
     wednesday: (settings as { wednesday?: boolean } | null)?.wednesday ?? true,

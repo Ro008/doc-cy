@@ -7,6 +7,8 @@ import { publicProfessionalProfilePath } from "@/lib/manual-directory-landing-pa
 import { canonicalFinderSpecialtyRedirectPath } from "@/lib/finder-public-path";
 import { isDirectoryCanarySlug } from "@/lib/directory-canaries";
 import { fetchAllSupabaseRows } from "@/lib/supabase-fetch-all";
+import { loadDoctorLocationsByDoctorIds } from "@/lib/load-doctor-locations";
+import { clinicDistricts } from "@/lib/professional-clinic-locations";
 
 function normalizeDistrictSlug(value: unknown): string {
   const raw = String(value ?? "").trim();
@@ -19,6 +21,7 @@ function normalizeDistrictSlug(value: unknown): string {
 type SpecialtyPairRow = {
   specialties?: { slug?: string | null } | null;
   professionals?: {
+    id?: string | null;
     district?: string | null;
     is_test_profile?: boolean | null;
     name?: string | null;
@@ -68,7 +71,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       let q = supabase
         .from("professional_specialties")
         .select(
-          "specialties!inner(slug), professionals!inner(district, is_test_profile, name, is_archived, is_registered, status, slug, finder_visible)",
+          "specialties!inner(slug), professionals!inner(id, district, is_test_profile, name, is_archived, is_registered, status, slug, finder_visible)",
         )
         .eq("is_approved", true)
         .eq("professionals.is_archived", false)
@@ -79,6 +82,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       return q.order("id");
     });
   const [registeredPairs, scrapedPairs] = await Promise.all([loadPairs(true), loadPairs(false)]);
+  // A registered professional counts in every district their clinics are in, never by
+  // the copy on professionals (Point E). Listings keep professionals.district until the
+  // Point E cleanup moves them onto their clinics too.
+  const registeredIds = ((registeredPairs.data ?? []) as SpecialtyPairRow[])
+    .map((row) => String(row.professionals?.id ?? "").trim())
+    .filter(Boolean);
+  const registeredLocations = await loadDoctorLocationsByDoctorIds(registeredIds);
 
   const pairSet = new Set<string>();
   const addPairs = (res: { data: unknown[] | null; error: unknown }, registered: boolean) => {
@@ -91,12 +101,20 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       if (registered && (pro?.is_test_profile || /\btest\b/i.test(String(pro?.name ?? "")))) {
         continue;
       }
-      const districtSlug = normalizeDistrictSlug(pro?.district);
       const specialtySlug = String(row.specialties?.slug ?? "").trim();
-      if (!districtSlug || !specialtySlug) continue;
-      // A legacy-spelling catalogue row 308s to its canonical URL; list that one.
-      const redirect = canonicalFinderSpecialtyRedirectPath(`/${districtSlug}/${specialtySlug}`);
-      pairSet.add(redirect ? redirect.slice(1).replace("/", "::") : `${districtSlug}::${specialtySlug}`);
+      if (!specialtySlug) continue;
+      const districts = registered
+        ? clinicDistricts(registeredLocations.get(String(pro?.id ?? "")) ?? [])
+        : [pro?.district];
+      for (const district of districts) {
+        const districtSlug = normalizeDistrictSlug(district);
+        if (!districtSlug) continue;
+        // A legacy-spelling catalogue row 308s to its canonical URL; list that one.
+        const redirect = canonicalFinderSpecialtyRedirectPath(`/${districtSlug}/${specialtySlug}`);
+        pairSet.add(
+          redirect ? redirect.slice(1).replace("/", "::") : `${districtSlug}::${specialtySlug}`,
+        );
+      }
     }
   };
   addPairs(registeredPairs, true);

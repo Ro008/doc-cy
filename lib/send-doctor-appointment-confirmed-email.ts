@@ -41,7 +41,6 @@ export async function sendDoctorAppointmentConfirmedEmail(opts: {
   patientPhone?: string | null;
   reason?: string | null;
   clinic?: AppointmentClinicCopy | null;
-  clinicAddressFallback?: string | null;
   resendToOverride?: string | null;
   manualCreated?: boolean;
 }): Promise<void> {
@@ -70,7 +69,6 @@ export function buildDoctorAppointmentConfirmedEmailContent(opts: {
   patientPhone?: string | null;
   reason?: string | null;
   clinic?: AppointmentClinicCopy | null;
-  clinicAddressFallback?: string | null;
   resendToOverride?: string | null;
   manualCreated?: boolean;
 }): { subject: string; text: string; html: string } {
@@ -83,9 +81,7 @@ export function buildDoctorAppointmentConfirmedEmailContent(opts: {
 
   const clinic =
     opts.clinic ??
-    appointmentClinicCopyFromAddress({
-      address: opts.clinicAddressFallback,
-    });
+    appointmentClinicCopyFromAddress({});
 
   const cal = getDoctorCalendarEventDetails(
     {
