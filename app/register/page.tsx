@@ -43,15 +43,23 @@ import {
 } from "@/lib/local-test-login-credentials";
 import {
   readRegisterClinicsFromFormData,
+  registerClinicInputNames,
   shouldAllowRegisterClinicE2eFallback,
 } from "@/lib/register-clinic-location";
+import {
+  PROFESSIONAL_REGISTRATION_DETAILS_VERSION,
+  PROFESSIONAL_REGISTRATION_REQUEST_TYPE,
+  REGISTRATION_UPLOADS_BUCKET,
+  buildProfessionalRegistrationDetails,
+  registrationPhotoPath,
+  registrationRequesterName,
+} from "@/lib/professional-registration-request";
 import { RegisterClinicsFields } from "@/components/auth/RegisterClinicsFields";
 import { RegisterChoiceField } from "@/components/auth/RegisterChoiceField";
 import { RegisterPhoneField } from "@/components/auth/RegisterPhoneField";
 import { RegisterEmailField } from "@/components/auth/RegisterEmailField";
 import { RegisterPasswordRules } from "@/components/auth/RegisterPasswordRules";
 import { REGISTER_NAME_HTML_PATTERN } from "@/lib/register-name";
-import { allocateUniqueDoctorSlug } from "@/lib/doctor-slug";
 import {
   joinProfessionalFullName,
   splitProfessionalFullName,
@@ -69,7 +77,7 @@ import {
   isProfessionalUuid,
   loadUnregisteredProfessionalForRegisterClaim,
   REGISTER_CLAIM_QUERY,
-  resolveSignupDirectoryClaim,
+  resolveRegisterClaimListing,
   type RegisterClaimPrefill,
 } from "@/lib/claim-directory-professional";
 import { isNextRedirectError } from "@/lib/next-redirect-error";
@@ -320,16 +328,6 @@ async function runRegister(formData: FormData) {
     fail(clinicsResolved.code);
   }
 
-  const {
-    clinicAddress,
-    district,
-    town,
-    latitude: clinicLatitude,
-    longitude: clinicLongitude,
-    clinicPlaceId,
-  } = clinicsResolved.value[0]!;
-  const extraClinics = clinicsResolved.value.slice(1);
-
   if (!emailRegex.test(email)) {
     fail("invalid_email_format");
   }
@@ -356,13 +354,43 @@ async function runRegister(formData: FormData) {
     fail("avatar_file");
   }
 
+  // Gender, GeSY and clinic names/ids are checked before any login exists
+  // (the photo path is only known once it does).
+  const clinicChoices = clinicsResolved.value.map((clinic, index) => {
+    const names = registerClinicInputNames(index);
+    return { ...clinic, clinicId: formData.get(names.clinicId), name: formData.get(names.name) };
+  });
+  const detailsInput = {
+    firstName,
+    lastName,
+    gender: String(formData.get("gender") ?? ""),
+    gesy: String(formData.get("gesy") ?? ""),
+    email,
+    mobile: phone,
+    languages,
+    photoPath: "pending",
+    specialties: specialtyEntries,
+    clinics: clinicChoices,
+    claimedProfessionalId: claimFromForm,
+    disclaimerAccepted: professionalDisclaimer === "on",
+  };
+  const precheck = buildProfessionalRegistrationDetails(detailsInput);
+  if (precheck.ok === false) {
+    fail(precheck.code);
+  }
+
   const service = createServiceRoleClient();
   if (!service) {
     console.error("[DocCy] SUPABASE_SERVICE_ROLE_KEY missing — cannot complete registration safely");
     fail("db", "SUPABASE_SERVICE_ROLE_KEY missing");
   }
 
-  const licenseFileUrl = null;
+  // "Claim this Profile" keeps the listing only while it is still unregistered;
+  // otherwise founders search the directory themselves. No automatic matching.
+  const claimedListing = await resolveRegisterClaimListing(service, {
+    claimId: claimFromForm,
+    email,
+  });
 
   let authUserId: string;
 
@@ -379,7 +407,8 @@ async function runRegister(formData: FormData) {
       service.auth.admin.createUser({
         email,
         password,
-        email_confirm: true,
+        // Unconfirmed, like a real sign-up: the draft waits for the email link.
+        email_confirm: false,
         user_metadata: doctorAuthMetadata,
       }),
       REGISTER_AUTH_TIMEOUT_MS,
@@ -429,82 +458,15 @@ async function runRegister(formData: FormData) {
     });
   }
 
-  const claim = await resolveSignupDirectoryClaim(service, {
-    explicitClaimId: claimFromForm,
-    name: fullName,
-    email,
-    district,
-    specialties: specialtyEntries.map((entry) => entry.specialty),
-  });
-  if (claim) {
-    console.info("[DocCy] claiming directory professional on signup", {
-      professionalId: claim.id,
-      reason: claim.reason,
-    });
-  }
-
-  // Claims never reuse the claimed listing's slug: that listing stays untouched
-  // (and keeps its own slug/card) until a founder Verifies this registration.
-  const slug = await allocateUniqueDoctorSlug(service, {
-    name: fullName,
-    district,
+  // The photo waits in the private request-uploads bucket until a founder approves it.
+  const photoPath = registrationPhotoPath(
     authUserId,
-  });
-
-  const avatarPath = `profiles/${authUserId}/avatar-${Date.now()}-${Math.random()
-    .toString(36)
-    .slice(2)}.jpg`;
-  const { data: avatarUploadData, error: avatarUploadError } = await withTimeout(
-    service.storage.from("avatars").upload(avatarPath, avatarFile, {
-      contentType: avatarFile.type || "image/jpeg",
-      upsert: false,
-    }),
-    REGISTER_UPLOAD_TIMEOUT_MS,
-    "Avatar upload",
+    `${Date.now()}-${Math.random().toString(36).slice(2)}`,
   );
-  if (avatarUploadError || !avatarUploadData?.path) {
-    console.error("[DocCy] Avatar upload failed", avatarUploadError);
+  const cleanupFailedRegistration = async (removePhoto: boolean) => {
     try {
-      await service.auth.admin.deleteUser(authUserId);
-    } catch (cleanupError) {
-      console.error("[DocCy] Failed to cleanup files/user after avatar upload", cleanupError);
-    }
-    fail("avatar_upload", avatarUploadError);
-  }
-  const avatarFileUrl = avatarUploadData.path;
-
-  const { data: regRows, error: insertError } = await withTimeout(
-    service.rpc("register_professional_with_founder_lock", {
-      p_auth_user_id: authUserId,
-      p_name: fullName,
-      p_email: email,
-      p_phone: phone,
-      p_languages: languages,
-      p_license_file_url: licenseFileUrl,
-      p_slug: slug,
-      // Written as professional_specialties rows in the same transaction.
-      p_specialties: specialtyEntries.map((entry) => ({
-        specialty: entry.specialty,
-        license_number: entry.licenseNumber,
-        is_approved: entry.isApproved,
-      })),
-      ...(claim?.id
-        ? {
-            p_claim_listing_id: claim.id,
-            p_directory_claim_source: claim.reason,
-          }
-        : {}),
-    }),
-    REGISTER_DB_TIMEOUT_MS,
-    "Register doctor RPC",
-  );
-
-  const doctorId = regRows?.[0]?.professional_id as string | undefined;
-
-  const cleanupFailedRegistration = async () => {
-    try {
-      if (avatarFileUrl) {
-        await service.storage.from("avatars").remove([avatarFileUrl]);
+      if (removePhoto) {
+        await service.storage.from(REGISTRATION_UPLOADS_BUCKET).remove([photoPath]);
       }
       await service.auth.admin.deleteUser(authUserId);
     } catch (cleanupError) {
@@ -512,184 +474,78 @@ async function runRegister(formData: FormData) {
     }
   };
 
-  if (insertError || !doctorId) {
-    console.error("[DocCy] Failed to register professional row (RPC)", insertError);
-    await cleanupFailedRegistration();
-    fail("db", insertError);
+  const { error: photoUploadError } = await withTimeout(
+    service.storage.from(REGISTRATION_UPLOADS_BUCKET).upload(photoPath, avatarFile, {
+      contentType: avatarFile.type || "image/jpeg",
+      upsert: false,
+    }),
+    REGISTER_UPLOAD_TIMEOUT_MS,
+    "Avatar upload",
+  );
+  if (photoUploadError) {
+    console.error("[DocCy] Registration photo upload failed", photoUploadError);
+    await cleanupFailedRegistration(false);
+    fail("avatar_upload", photoUploadError);
   }
 
-  const claimedThisListing = Boolean(claim?.reason === "card_link" && claim?.id);
+  const built = buildProfessionalRegistrationDetails({
+    ...detailsInput,
+    photoPath,
+    claimedProfessionalId: claimedListing?.id ?? null,
+  });
+  if (built.ok === false) {
+    await cleanupFailedRegistration(true);
+    fail(built.code);
+  }
 
-  const finishRegistrationSuccess = async () => {
-    await persistBookingLocations();
-    await sendRegistrationEmails();
-    redirect(claimedThisListing ? "/register?submitted=1&claimed=1" : "/register?submitted=1");
-  };
+  const { error: draftError } = await withTimeout(
+    service.rpc("request_draft_submit", {
+      p_request_type: PROFESSIONAL_REGISTRATION_REQUEST_TYPE,
+      p_auth_user_id: authUserId,
+      p_details: built.details,
+      p_details_version: PROFESSIONAL_REGISTRATION_DETAILS_VERSION,
+      p_requester_name: registrationRequesterName(built.details),
+      p_requester_email: email,
+    }),
+    REGISTER_DB_TIMEOUT_MS,
+    "Registration draft",
+  );
+  if (draftError) {
+    console.error("[DocCy] Registration draft failed", draftError);
+    await cleanupFailedRegistration(true);
+    fail("db", draftError);
+  }
 
-  const sendRegistrationEmails = async () => {
-    // Founder notify waits until the professional confirms email (`/auth/confirm-email`).
-    try {
-      const h = headers();
-      const requestOrigin =
-        h.get("origin")?.trim() ||
-        (() => {
-          const host = h.get("x-forwarded-host")?.trim() || h.get("host")?.trim() || "";
-          const proto = h.get("x-forwarded-proto")?.trim() || "http";
-          return host ? `${proto}://${host}` : "";
-        })();
-      const confirmUrl = await generateRegisterEmailConfirmUrl(
-        service,
-        email,
-        requestOrigin || null,
-      );
-      await withTimeout(
-        sendDoctorRegistrationReceivedEmail({
-          doctorEmail: email,
-          doctorName: fullName,
-          confirmUrl,
-        }),
-        REGISTER_NOTIFY_TIMEOUT_MS,
-        "Doctor registration received email",
-      );
-    } catch (err) {
-      console.error("[DocCy] Doctor registration received email failed or timed out", err);
-    }
-  };
-
-  const profileUpdateBase = {
-    avatar_url: avatarFileUrl,
-    district,
-    town,
-    clinic_address: clinicAddress,
-    latitude: clinicLatitude,
-    longitude: clinicLongitude,
-    clinic_place_id: clinicPlaceId,
-  };
-
-  const { error: avatarSaveError } = await service
-    .from("professionals")
-    .update(profileUpdateBase)
-    .eq("id", doctorId);
-
-  const syncPrimaryBookingLocation = async () => {
-    const locationFields = {
-      district,
-      town,
-      clinic_address: clinicAddress,
-      latitude: clinicLatitude,
-      longitude: clinicLongitude,
-      clinic_place_id: clinicPlaceId,
-    };
-    const existing = await service
-      .from("doctor_locations")
-      .select("id")
-      .eq("doctor_id", doctorId)
-      .eq("is_primary", true)
-      .maybeSingle();
-    if (existing.data?.id) {
-      await service.from("doctor_locations").update(locationFields).eq("id", existing.data.id);
-      return;
-    }
-    await service.from("doctor_locations").insert({
-      doctor_id: doctorId,
-      is_primary: true,
-      sort_order: 0,
-      ...locationFields,
-    });
-  };
-  const persistBookingLocations = async () => {
-    await syncPrimaryBookingLocation();
-    if (extraClinics.length === 0) return;
-
-    const existing = await service
-      .from("doctor_locations")
-      .select("id, clinic_address")
-      .eq("doctor_id", doctorId);
-    const seen = new Set(
-      (existing.data ?? []).map((row) =>
-        String((row as { clinic_address?: string | null }).clinic_address ?? "")
-          .trim()
-          .toLowerCase(),
-      ),
+  // The DocCy email carries the confirmation link; confirming moves the draft
+  // into the founders' queue (`/auth/confirm-email`).
+  try {
+    const h = headers();
+    const requestOrigin =
+      h.get("origin")?.trim() ||
+      (() => {
+        const host = h.get("x-forwarded-host")?.trim() || h.get("host")?.trim() || "";
+        const proto = h.get("x-forwarded-proto")?.trim() || "http";
+        return host ? `${proto}://${host}` : "";
+      })();
+    const confirmUrl = await generateRegisterEmailConfirmUrl(
+      service,
+      email,
+      requestOrigin || null,
     );
-    let sortOrder = 1;
-    for (const clinic of extraClinics) {
-      const key = clinic.clinicAddress.trim().toLowerCase();
-      if (seen.has(key)) continue;
-      await service.from("doctor_locations").insert({
-        doctor_id: doctorId,
-        is_primary: false,
-        sort_order: sortOrder,
-        district: clinic.district,
-        town: clinic.town,
-        clinic_address: clinic.clinicAddress,
-        latitude: clinic.latitude,
-        longitude: clinic.longitude,
-        clinic_place_id: clinic.clinicPlaceId,
-      });
-      seen.add(key);
-      sortOrder += 1;
-    }
-  };
-  if (avatarSaveError) {
-    const missingAvatarColumn =
-      avatarSaveError.code === "PGRST204" &&
-      String(avatarSaveError.message ?? "").includes("avatar_url");
-    const missingTownColumn =
-      (avatarSaveError.code === "42703" || avatarSaveError.code === "PGRST204") &&
-      /town/i.test(String(avatarSaveError.message ?? ""));
-    const missingClinicColumns =
-      (avatarSaveError.code === "42703" || avatarSaveError.code === "PGRST204") &&
-      /(latitude|longitude|clinic_place_id|clinic_address)/i.test(
-        String(avatarSaveError.message ?? ""),
-      );
-    if (missingTownColumn && !missingClinicColumns) {
-      const { town: _town, ...withoutTown } = profileUpdateBase;
-      const { error: withoutTownError } = await service
-        .from("professionals")
-        .update(withoutTown)
-        .eq("id", doctorId);
-      if (!withoutTownError) {
-        await finishRegistrationSuccess();
-      }
-    }
-    if (missingAvatarColumn) {
-      // Backward compatibility: some environments may not have avatar_url migrated yet.
-      // Keep registration successful and preserve uploaded avatar in storage.
-      console.warn(
-        "[DocCy] avatar_url column missing on doctors. Apply SQL migration to persist avatar path."
-      );
-      await finishRegistrationSuccess();
-    }
-    if (missingClinicColumns) {
-      const { error: legacyProfileError } = await service
-        .from("professionals")
-        .update({
-          avatar_url: avatarFileUrl,
-          district,
-          clinic_address: clinicAddress,
-        })
-        .eq("id", doctorId);
-      if (legacyProfileError) {
-        console.error("[DocCy] Failed legacy profile save on doctor", legacyProfileError);
-      } else {
-        await finishRegistrationSuccess();
-      }
-    }
-    console.error("[DocCy] Failed to save avatar_url on doctor", avatarSaveError);
-    try {
-      await service.storage.from("avatars").remove([avatarFileUrl]);
-      // This registration row is always freshly inserted (never a claimed
-      // listing in place), so it's always safe to delete on cleanup.
-      await service.from("professionals").delete().eq("id", doctorId);
-      await service.auth.admin.deleteUser(authUserId);
-    } catch (cleanupError) {
-      console.error("[DocCy] Failed cleanup after avatar save error", cleanupError);
-    }
-    fail("avatar_save", avatarSaveError);
+    await withTimeout(
+      sendDoctorRegistrationReceivedEmail({
+        doctorEmail: email,
+        doctorName: fullName,
+        confirmUrl,
+      }),
+      REGISTER_NOTIFY_TIMEOUT_MS,
+      "Doctor registration received email",
+    );
+  } catch (err) {
+    console.error("[DocCy] Doctor registration received email failed or timed out", err);
   }
 
-  await finishRegistrationSuccess();
+  redirect(claimedListing ? "/register?submitted=1&claimed=1" : "/register?submitted=1");
 }
 
 export default async function RegisterPage({ searchParams }: PageProps) {
@@ -735,8 +591,15 @@ export default async function RegisterPage({ searchParams }: PageProps) {
     errorMessage =
       "We couldn’t create your account. Please double‑check your email and try again.";
   } else if (errorCode === "db") {
-    errorMessage =
-      "We saved your login but couldn’t finish setting up your profile. Please try again in a moment.";
+    errorMessage = "We couldn’t save your application. Please try again in a moment.";
+  } else if (errorCode === "gender") {
+    errorMessage = "Please select your gender.";
+  } else if (errorCode === "gesy") {
+    errorMessage = "Please tell us whether you work with GeSY.";
+  } else if (errorCode === "clinic_name") {
+    errorMessage = "Please give each clinic you added from Google Maps a name.";
+  } else if (errorCode === "clinic_duplicate") {
+    errorMessage = "You picked the same DocCy clinic twice. Remove one of them.";
   } else if (errorCode === "upload") {
     errorMessage =
       "We couldn’t process your registration right now. Please try again in a moment.";
@@ -910,7 +773,6 @@ export default async function RegisterPage({ searchParams }: PageProps) {
                         </p>
                       </div>
                     </div>
-                    {/* UI only for now: handleRegister does not store gender or GeSY yet. */}
                     <div className="grid gap-4 sm:grid-cols-2 sm:gap-3">
                       <RegisterChoiceField
                         name="gender"

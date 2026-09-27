@@ -12,7 +12,6 @@ import {
   createIntegrationAdmin,
   requireSafeIntegration,
 } from "./helpers/safe-integration";
-import { founderCookie, postDoctorVerification } from "./helpers/internal-api";
 import {
   answerRegisterAccountChoices,
   selectRegisterEnglishLanguage,
@@ -27,7 +26,7 @@ import { INTEGRATION_DOCTOR_PASSWORD } from "./helpers/test-doctor";
  */
 test.describe("Integration: directory claim registration flow", { tag: "@local-register" }, () => {
   test.describe.configure({ retries: 0 });
-  test("absorbs a QA clone listing from its public profile CTA", async ({ page, request }) => {
+  test("claims a QA clone listing from its public profile CTA", async ({ page }) => {
     test.setTimeout(180_000);
     const env = requireSafeIntegration();
     const admin = createIntegrationAdmin(env);
@@ -38,7 +37,6 @@ test.describe("Integration: directory claim registration flow", { tag: "@local-r
     const resendKey = process.env.RESEND_API_KEY?.trim() ?? "";
     const founderNotify = process.env.FOUNDER_NOTIFY_EMAIL?.trim() ?? "";
     const canAssertResend = Boolean(resendKey && founderNotify);
-    const adminCookie = await founderCookie();
     let cloneId: string | null = null;
 
     if (!canAssertResend && !process.env.CI) {
@@ -127,48 +125,42 @@ test.describe("Integration: directory claim registration flow", { tag: "@local-r
       // Claim URLs already include `?claim=…`, so wait for submitted (not merely `?`).
       await expect(page).toHaveURL(/[?&]submitted=1(?:&|$)/, { timeout: 90_000 });
       if (!/[?&]claimed=1(?:&|$)/.test(page.url())) {
-        throw new Error(`Claim registration did not absorb the listing. URL: ${page.url()}`);
+        throw new Error(`Claim registration did not keep the listing. URL: ${page.url()}`);
       }
       await expect(
         page.getByRole("heading", { name: /confirm your email to continue/i }),
       ).toBeVisible({ timeout: 15_000 });
       await expect(overlay).toBeHidden();
 
-      // The claimed clone must stay completely untouched while the
-      // registration is pending — it's a fresh row that only remembers
-      // claim_listing_id, never a conversion of the clone in place.
+      // The claimed clone stays untouched while the request waits: approving it
+      // (build PR 4) updates the listing in place.
       const { data: untouchedClone, error: untouchedCloneErr } = await admin
         .from("professionals")
-        .select("id, slug, is_registered, is_archived, directory_claim_source")
+        .select("id, slug, is_registered, is_archived")
         .eq("id", clone.id)
         .maybeSingle();
       if (untouchedCloneErr) {
         throw new Error(`Failed reading claimed clone: ${untouchedCloneErr.message}`);
       }
-      expect(untouchedClone?.id).toBe(clone.id);
       expect(untouchedClone?.slug).toBe(clone.slug);
       expect(untouchedClone?.is_registered).toBe(false);
       expect(untouchedClone?.is_archived).toBe(false);
-      expect(untouchedClone?.directory_claim_source).toBeNull();
 
-      const { data: pendingRow, error: pendingRowErr } = await admin
-        .from("professionals")
-        .select(
-          "id, slug, is_registered, is_test_profile, status, registration_email, directory_claim_source, claim_listing_id",
-        )
-        .ilike("registration_email", email)
+      // The draft names the claimed listing; no professional row was created.
+      const { data: draft, error: draftErr } = await admin
+        .from("request_drafts")
+        .select("details")
+        .eq("requester_email", email)
         .maybeSingle();
-      if (pendingRowErr || !pendingRow?.id) {
-        throw new Error(`Failed reading pending registration: ${pendingRowErr?.message}`);
+      if (draftErr || !draft) {
+        throw new Error(`Failed reading registration draft: ${draftErr?.message}`);
       }
-      const pendingDoctorId = String(pendingRow.id);
-      expect(pendingDoctorId).not.toBe(clone.id);
-      expect(pendingRow.slug).not.toBe(clone.slug);
-      expect(pendingRow.is_registered).toBe(true);
-      expect(pendingRow.is_test_profile).toBe(true);
-      expect(pendingRow.status).toBe("pending");
-      expect(pendingRow.directory_claim_source).toBe("card_link");
-      expect(pendingRow.claim_listing_id).toBe(clone.id);
+      expect((draft.details as { claimed_professional_id?: string }).claimed_professional_id).toBe(clone.id);
+      const { count: professionalCount } = await admin
+        .from("professionals")
+        .select("id", { count: "exact", head: true })
+        .ilike("registration_email", email);
+      expect(professionalCount).toBe(0);
 
       const { count: twinCount, error: twinErr } = await admin
         .from("professionals")
@@ -200,34 +192,12 @@ test.describe("Integration: directory claim registration flow", { tag: "@local-r
 
         const founderMail = await waitForResendEmailWithSubject({
           apiKey: resendKey,
-          subjectIncludes: `Finder listing claimed — ${clone.name}`,
+          subjectIncludes: nameTag,
           timeoutMs: 30_000,
         });
-        expect(founderMail.subject).toMatch(/Finder listing claimed/i);
+        expect(founderMail.subject).toMatch(/\[CLAIMED PROFILE\] Registration request/);
       }
 
-      if (adminCookie) {
-        const verify = await postDoctorVerification(request, adminCookie, {
-          doctorId: pendingDoctorId,
-          action: "verify",
-        });
-        expect(verify.ok()).toBeTruthy();
-        const { data: verified } = await admin
-          .from("professionals")
-          .select("status")
-          .eq("id", pendingDoctorId)
-          .maybeSingle();
-        expect(verified?.status).toBe("verified");
-
-        // Verify absorbs the claimed clone (same mechanism as manual URL
-        // absorb) — the clone is archived, not deleted.
-        const { data: absorbedClone } = await admin
-          .from("professionals")
-          .select("is_archived")
-          .eq("id", clone.id)
-          .maybeSingle();
-        expect(absorbedClone?.is_archived).toBe(true);
-      }
     } finally {
       await deleteRegistrationE2eDoctor(admin, email);
       if (cloneId) {

@@ -14,8 +14,11 @@ const foundersClub = fs.readFileSync(path.join(repoRoot, "lib/founders-club.ts")
  * prospective customers read. Both guards below exist to stop that coming back.
  */
 describe("founders club availability count", () => {
-  it("excludes test profiles from the public count", () => {
-    assert.equal(foundersClub.includes('.eq("is_test_profile", false)'), true);
+  it("counts through founders_club_places_taken (reservations included, test profiles excluded)", () => {
+    // The SQL function is covered by supabase/tests/request_drafts.test.sql: it counts
+    // registered non-test founders plus places reserved by drafts and pending requests.
+    assert.equal(foundersClub.includes('.rpc("founders_club_places_taken")'), true);
+    assert.equal(foundersClub.includes('.from("professionals")'), false);
   });
 
   it("has no slug-based marketing override", () => {

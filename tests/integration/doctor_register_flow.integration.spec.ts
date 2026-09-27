@@ -26,7 +26,7 @@ import { INTEGRATION_DOCTOR_PASSWORD } from "./helpers/test-doctor";
  */
 test.describe("Integration: doctor registration flow", { tag: "@local-register" }, () => {
   test.describe.configure({ retries: 0 });
-  test("submits the register form, fires doctor confirm email first, then founder after confirm", async ({
+  test("submits the register form, fires doctor confirm email first, then founders after confirm", async ({
     page,
   }) => {
     test.setTimeout(180_000);
@@ -126,24 +126,19 @@ test.describe("Integration: doctor registration flow", { tag: "@local-register" 
       ).toBeVisible({ timeout: 15_000 });
       await expect(overlay).toBeHidden();
 
-      const { data: byRegistration, error: regErr } = await admin
-        .from("professionals")
-        .select("id, email, registration_email, is_test_profile, status")
-        .eq("registration_email", email)
+      // Submitting stores a draft for review; no professional exists until approval.
+      const { data: draft, error: draftErr } = await admin
+        .from("request_drafts")
+        .select("details")
+        .eq("requester_email", email)
         .maybeSingle();
-      if (regErr) throw new Error(`Failed reading registered doctor: ${regErr.message}`);
-      let doctor = byRegistration;
-      if (!doctor?.id) {
-        const { data: byEmail, error: emailErr } = await admin
-          .from("professionals")
-          .select("id, email, registration_email, is_test_profile, status")
-          .eq("email", email)
-          .maybeSingle();
-        if (emailErr) throw new Error(`Failed reading registered doctor: ${emailErr.message}`);
-        doctor = byEmail;
-      }
-      expect(doctor?.id).toBeTruthy();
-      expect(doctor?.is_test_profile).toBe(true);
+      if (draftErr) throw new Error(`Failed reading registration draft: ${draftErr.message}`);
+      expect((draft?.details as { last_name?: string } | undefined)?.last_name).toBe(lastName);
+      const { count: professionalCount } = await admin
+        .from("professionals")
+        .select("id", { count: "exact", head: true })
+        .ilike("registration_email", email);
+      expect(professionalCount).toBe(0);
 
       if (canAssertResend) {
         const receivedMail = await waitForResendEmailWithSubject({
@@ -167,7 +162,7 @@ test.describe("Integration: doctor registration flow", { tag: "@local-register" 
           subjectIncludes: fullName,
           timeoutMs: 30_000,
         });
-        expect(founderMail.subject).toMatch(/Unclaimed registration/i);
+        expect(founderMail.subject).toMatch(/\[UNCLAIMED PROFILE\] Registration request/);
       }
     } finally {
       await deleteRegistrationE2eDoctor(admin, email);

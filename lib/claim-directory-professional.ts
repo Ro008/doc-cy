@@ -7,7 +7,6 @@ import {
   isTestDoctorRegistrationEmail,
   restrictTestSignupDirectoryClaimsToQaListings,
 } from "@/lib/doctor-test-profile";
-import { escapeIlikePattern } from "@/lib/finder-results-paging";
 import { harmonizeFinderSpecialtyLabel } from "@/lib/finder-specialty-harmonize";
 import { SPECIALTY_LINKS_SELECT, specialtyNamesForRow } from "@/lib/specialty-catalogue";
 
@@ -388,107 +387,12 @@ export function pickUniqueHistoricalAbsorbPairs(
   );
 }
 
-function claimSelect() {
-  return `id, slug, name, district, email, ${SPECIALTY_LINKS_SELECT}`;
-}
-
 /** Listing row with its approved labels (professional_specialties) as `specialties`. */
 function withListingSpecialties<T extends { specialty_links?: unknown }>(
   row: T,
 ): Omit<T, "specialty_links"> & { specialties: string[] } {
   const { specialty_links: links, ...rest } = row;
   return { ...rest, specialties: specialtyNamesForRow({ specialty_links: links }) };
-}
-
-async function loadUnregisteredListings(
-  supabase: SupabaseClient,
-  builder: () => ReturnType<SupabaseClient["from"]> extends never ? never : any,
-): Promise<DirectoryClaimListing[]> {
-  const { data, error } = await builder();
-  if (error) {
-    console.error("[DocCy] directory claim lookup failed", error);
-    return [];
-  }
-  return ((data ?? []) as (DirectoryClaimListing & { specialty_links?: unknown })[]).map(
-    withListingSpecialties,
-  );
-}
-
-/**
- * Find an unregistered directory row this signup should become.
- * Test emails never claim a real listing.
- */
-export async function findDirectoryProfessionalToClaim(
-  supabase: SupabaseClient,
-  input: {
-    name: string;
-    email: string;
-    district: string | null;
-    specialties: readonly string[];
-  },
-): Promise<FuzzyDirectoryClaimMatch | null> {
-  const email = normalizeEmail(input.email);
-  if (isTestDoctorRegistrationEmail(email)) return null;
-
-  const name = String(input.name ?? "").trim();
-  const district = String(input.district ?? "").trim() || null;
-  const strippedName = normalizeClaimPersonName(name);
-  const listings: DirectoryClaimListing[] = [];
-  const seen = new Set<string>();
-
-  const push = (rows: DirectoryClaimListing[]) => {
-    for (const row of rows) {
-      const id = String(row.id ?? "").trim();
-      if (!id || seen.has(id)) continue;
-      seen.add(id);
-      listings.push(row);
-    }
-  };
-
-  if (email) {
-    push(
-      await loadUnregisteredListings(supabase, () =>
-        supabase
-          .from("professionals")
-          .select(claimSelect())
-          .eq("is_registered", false)
-          .eq("is_archived", false)
-          .ilike("email", escapeIlikePattern(email))
-          .limit(5),
-      ),
-    );
-  }
-
-  if (district && (name || strippedName)) {
-    const nameQueries = Array.from(
-      new Set([name, strippedName].map((value) => value.trim()).filter(Boolean)),
-    );
-    for (const queryName of nameQueries) {
-      push(
-        await loadUnregisteredListings(supabase, () =>
-          supabase
-            .from("professionals")
-            .select(claimSelect())
-            .eq("is_registered", false)
-            .eq("is_archived", false)
-            .eq("district", district)
-            .ilike("name", escapeIlikePattern(queryName))
-            .limit(10),
-        ),
-      );
-    }
-  }
-
-  return pickUniqueDirectoryClaim(
-    {
-      name,
-      email,
-      district,
-      specialties: input.specialties,
-      isTestSignup: false,
-    },
-    listings,
-  );
 }
 
 /**
@@ -542,36 +446,20 @@ export async function loadUnregisteredProfessionalForRegisterClaim(
 }
 
 /**
- * Prefer the listing UUID from the card CTA. Fall back to unique email / identity match.
- * On production, test signup emails may only claim QA clones (`QA Claim …` / `qa-claim-…`).
- * On the testing database that restriction is off so manual QA can claim real listings.
+ * The listing a registration claims: only the one the applicant chose with
+ * "Claim this Profile" (no automatic matching; founders search the directory for
+ * unclaimed requests). It must still be unregistered. On production, test signup
+ * emails may only claim QA clones (`QA Claim …` / `qa-claim-…`); on the testing
+ * database that restriction is off so manual QA can claim real listings.
  */
-export async function resolveSignupDirectoryClaim(
+export async function resolveRegisterClaimListing(
   supabase: SupabaseClient,
-  input: {
-    explicitClaimId?: string | null;
-    name: string;
-    email: string;
-    district: string | null;
-    specialties: readonly string[];
-  },
+  input: { claimId: string | null | undefined; email: string },
 ): Promise<DirectoryClaimMatch | null> {
+  const claimId = String(input.claimId ?? "").trim();
+  if (!isProfessionalUuid(claimId)) return null;
+  const listing = await loadUnregisteredProfessionalForRegisterClaim(supabase, claimId);
   const isTestSignup =
-    isTestDoctorRegistrationEmail(input.email) &&
-    restrictTestSignupDirectoryClaimsToQaListings();
-  const explicitId = String(input.explicitClaimId ?? "").trim();
-  if (isProfessionalUuid(explicitId)) {
-    const listing = await loadUnregisteredProfessionalForRegisterClaim(supabase, explicitId);
-    const explicit = pickExplicitDirectoryClaim(listing, { isTestSignup });
-    if (explicit) return explicit;
-  }
-
-  if (isTestSignup) return null;
-
-  return findDirectoryProfessionalToClaim(supabase, {
-    name: input.name,
-    email: input.email,
-    district: input.district,
-    specialties: input.specialties,
-  });
+    isTestDoctorRegistrationEmail(input.email) && restrictTestSignupDirectoryClaimsToQaListings();
+  return pickExplicitDirectoryClaim(listing, { isTestSignup });
 }
