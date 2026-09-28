@@ -5,10 +5,7 @@ import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
 import { AgendaRealtime } from "@/components/agenda/AgendaRealtime";
-import { FoundingMemberBadge } from "@/components/dashboard/FoundingMemberBadge";
 import { FirstLoginTrialNoticeGate } from "@/components/dashboard/FirstLoginTrialNoticeGate";
-import { isFounderSubscriptionTier } from "@/lib/subscription-tier";
-import { doctorDashboardDisplayName } from "@/lib/doctor-display-name";
 import {
   DOCTOR_FIRST_LOGIN_PATH,
   shouldRedirectFirstLoginToSettings,
@@ -125,23 +122,13 @@ export default async function AgendaPage({ searchParams }: AgendaPageProps) {
   const locationRows = await loadDoctorLocations(doctor.id);
   const clinics = locationsToAgendaClinics(locationRows);
 
-  const displayName = doctorDashboardDisplayName(doctor.name);
-
-  const isFoundingMember = isFounderSubscriptionTier(
-    (doctor as { subscription_tier?: string | null }).subscription_tier,
-  );
-
   return (
     <main className="min-h-[calc(100dvh-5.25rem-env(safe-area-inset-bottom,0px))] lg:min-h-[calc(100dvh-57px)] bg-ink-900 text-slate-50">
       <div className="pointer-events-none fixed inset-0 -z-10 bg-gradient-to-b from-clinical-500/[0.04] via-transparent to-transparent" />
 
       <div className="mx-auto flex min-h-[calc(100dvh-5.25rem-env(safe-area-inset-bottom,0px))] lg:min-h-[calc(100dvh-57px)] w-full max-w-[1920px] flex-col gap-3 px-4 py-4 sm:px-6 lg:gap-4 lg:px-8 lg:py-4">
-        <header className="flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1">
-          <h1 className="min-w-0 truncate text-xl font-semibold tracking-tight text-slate-50 sm:text-2xl">
-            {displayName}
-          </h1>
-          {isFoundingMember ? <FoundingMemberBadge compact /> : null}
-        </header>
+        {/* No visible title row: the nav already says "Agenda"; the grid gets the height. */}
+        <h1 className="sr-only">Agenda</h1>
 
         <FirstLoginTrialNoticeGate />
 
