@@ -35,6 +35,7 @@ const original: ProfessionalRegistrationDetails = {
       latitude: 34.68,
       longitude: 33.04,
       place_id: null,
+      phone: null,
     },
   ],
   claimed_professional_id: null,

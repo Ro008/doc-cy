@@ -22,10 +22,12 @@ import {
   registrationContactConflictMessage,
   approvedAvatarPath,
   claimedListingKeepsSlug,
+  listingUrlExample,
   parseListingUrl,
   validateApprovedRegistrationDetails,
 } from "@/lib/registration-approval";
 import { checkProfessionalContact } from "@/lib/professional-contact-check";
+import { loadSpecialtyCatalogueNames } from "@/lib/specialty-catalogue";
 import type { ProfessionalContactUse } from "@/lib/professional-contact";
 
 /**
@@ -203,10 +205,20 @@ export async function lookupClaimableListing(
   service: SupabaseClient,
   url: string,
 ): Promise<HttpResult<{ listing: ReviewListing }>> {
-  const slug = parseListingUrl(url);
-  if (!slug) {
-    return { ok: false, status: 400, message: "That is not a profile URL (it should look like https://www.mydoccy.com/en/name)." };
+  const siteUrl = getPublicBookingBaseUrl();
+  const parsed = parseListingUrl(url, siteUrl);
+  if (parsed.ok === false) {
+    const example = listingUrlExample(siteUrl);
+    return {
+      ok: false,
+      status: 400,
+      message:
+        parsed.reason === "other_site"
+          ? `That URL is from another site. Paste a profile URL from ${siteUrl} (like ${example}).`
+          : `That is not a profile URL (it should look like ${example}).`,
+    };
   }
+  const { slug } = parsed;
   let { data: listing } = await service
     .from("professionals")
     .select("id, name, slug, is_registered, is_archived")
@@ -293,9 +305,16 @@ export async function approveRegistrationRequest(
   if (loaded.ok === false) return loaded;
   const { request } = loaded;
 
-  const edited = validateApprovedRegistrationDetails(request.details, input.details ?? request.details);
+  let catalogue: string[];
+  try {
+    catalogue = await loadSpecialtyCatalogueNames(service);
+  } catch (error) {
+    console.error("[requests] approve: specialty catalogue failed", error);
+    return { ok: false, status: 500, message: "Could not load the specialty catalogue. Try again in a moment." };
+  }
+  const edited = validateApprovedRegistrationDetails(request.details, input.details ?? request.details, { catalogue });
   if (edited.ok === false) return { ok: false, status: 400, message: edited.message };
-  const unchanged = validateApprovedRegistrationDetails(request.details, request.details);
+  const unchanged = validateApprovedRegistrationDetails(request.details, request.details, { catalogue });
   const corrected =
     unchanged.ok && JSON.stringify(unchanged.details) === JSON.stringify(edited.details) ? null : edited.details;
   const details = edited.details;

@@ -1,6 +1,7 @@
 import type { DoctorSpecialtyEntryValidated } from "@/lib/doctor-specialties";
 import type { ResolvedRegisterClinicLocation } from "@/lib/register-clinic-location";
 import { MAX_DOCTOR_LOCATIONS } from "@/lib/doctor-locations";
+import { normalizeCyprusClinicPhone } from "@/lib/clinic-phone";
 
 /**
  * `professional_registration` requests: the whole sign-up form as one request.
@@ -33,6 +34,12 @@ export type RegistrationClinic = {
   latitude: number;
   longitude: number;
   place_id: string | null;
+  /**
+   * A proposed clinic's phone (8 national digits), required since 2026-09-28: the
+   * public Call button shows it. null for a picked DocCy clinic (it keeps its own)
+   * and in requests submitted before then.
+   */
+  phone: string | null;
 };
 
 export type ProfessionalRegistrationDetails = {
@@ -64,7 +71,7 @@ export type ProfessionalRegistrationInput = {
   languages: string[];
   photoPath: string;
   specialties: DoctorSpecialtyEntryValidated[];
-  clinics: Array<ResolvedRegisterClinicLocation & { clinicId: unknown; name: unknown }>;
+  clinics: Array<ResolvedRegisterClinicLocation & { clinicId: unknown; name: unknown; phone: unknown }>;
   claimedProfessionalId: unknown;
   disclaimerAccepted: boolean;
 };
@@ -75,6 +82,7 @@ export type RegistrationDetailsErrorCode =
   | "gesy"
   | "clinic_address"
   | "clinic_name"
+  | "clinic_phone"
   | "clinic_duplicate";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -127,6 +135,8 @@ export function buildProfessionalRegistrationDetails(
     const clinicId = uuidOrNull(clinic.clinicId);
     const name = text(clinic.name) || null;
     if (!clinicId && !name) return { ok: false, code: "clinic_name" };
+    const phone = clinicId ? null : normalizeCyprusClinicPhone(text(clinic.phone));
+    if (!clinicId && !phone) return { ok: false, code: "clinic_phone" };
     if (clinicId) {
       if (pickedIds.has(clinicId)) return { ok: false, code: "clinic_duplicate" };
       pickedIds.add(clinicId);
@@ -140,6 +150,7 @@ export function buildProfessionalRegistrationDetails(
       latitude: clinic.latitude,
       longitude: clinic.longitude,
       place_id: clinic.clinicPlaceId,
+      phone,
     });
   }
 
@@ -213,6 +224,7 @@ export function parseProfessionalRegistrationDetails(
       latitude: Number(c.latitude),
       longitude: Number(c.longitude),
       place_id: typeof c.place_id === "string" ? c.place_id : null,
+      phone: typeof c.phone === "string" && c.phone.trim() ? c.phone : null,
     })),
     claimed_professional_id:
       typeof value.claimed_professional_id === "string" ? value.claimed_professional_id : null,

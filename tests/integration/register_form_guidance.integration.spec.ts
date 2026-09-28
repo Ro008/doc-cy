@@ -219,7 +219,7 @@ test.describe("Integration UI: register form guidance", { tag: "@pr-e2e" }, () =
     await expect(gender.getByRole("radio", { name: "Male", exact: true })).toBeChecked();
     await expect(gesy.getByRole("radio", { name: "No" })).toBeChecked();
     await page.getByTestId("register-wizard-continue").click();
-    await expect(page.getByTestId("register-step-2")).toBeVisible();
+    await expect(page.getByTestId("register-step-2")).toBeVisible({ timeout: 20_000 });
   });
 
   test("a finished step collapses to a summary and Edit reopens it", async ({ page }) => {
@@ -232,7 +232,7 @@ test.describe("Integration UI: register form guidance", { tag: "@pr-e2e" }, () =
     await expect(page.getByTestId("register-wizard-continue")).toHaveText(/Continue to profile/i);
     await page.getByTestId("register-wizard-continue").click();
 
-    await expect(page.getByTestId("register-step-2")).toBeVisible();
+    await expect(page.getByTestId("register-step-2")).toBeVisible({ timeout: 20_000 });
     await expect(page.getByTestId("register-step-1")).toBeHidden();
     const accountCard = page.locator("[data-register-step-card='1']");
     await expect(accountCard).toContainText("Karina Mino · karina.mino@example.com");

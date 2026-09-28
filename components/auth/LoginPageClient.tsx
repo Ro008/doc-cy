@@ -9,6 +9,17 @@ import { DocCyWordmark } from "@/components/brand/DocCyWordmark";
 import { writeProSessionHintCookie } from "@/lib/pro-session-hint";
 import { forgotPasswordPathWithEmail } from "@/lib/password-reset";
 
+async function signedInAsProfessional(): Promise<boolean> {
+  try {
+    const response = await fetch("/api/account/summary", { cache: "no-store" });
+    if (!response.ok) return true;
+    const summary = (await response.json()) as { kind?: string };
+    return summary.kind === "professional";
+  } catch {
+    return true;
+  }
+}
+
 export function LoginPageClient({ nextPath }: { nextPath?: string | null }) {
   const router = useRouter();
   const supabase = createClientComponentClient();
@@ -53,7 +64,9 @@ export function LoginPageClient({ nextPath }: { nextPath?: string | null }) {
       console.warn("[DocCy] Session audit failed", auditError);
     }
 
-    writeProSessionHintCookie();
+    // The professional chrome hint only for a real profile: an applicant (or an account
+    // with nothing) gets Support and Log out only, so no full menu should flash first.
+    if (await signedInAsProfessional()) writeProSessionHintCookie();
     router.push(destination);
     router.refresh();
   }

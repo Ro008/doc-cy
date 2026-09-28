@@ -4,7 +4,11 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { createQaClaimDirectoryClone } from "./helpers/qa-claim-directory";
 import { createIntegrationAdmin, requireSafeIntegration } from "./helpers/safe-integration";
-import { REGISTER_AVATAR_FIXTURE, uniqueRegisterTestMobile } from "./helpers/goto-register-practice-step";
+import {
+  REGISTER_AVATAR_FIXTURE,
+  REGISTER_SMALL_AVATAR_FIXTURE,
+  uniqueRegisterTestMobile,
+} from "./helpers/goto-register-practice-step";
 import { seedRealContactHolder } from "./helpers/contact-holder";
 import {
   adminCookieHeader,
@@ -14,7 +18,7 @@ import {
   sharedTestFounder,
   type TestAdmin,
 } from "./helpers/test-admin";
-import { deleteTestClinics, loginDoctorUi } from "./helpers/test-doctor";
+import { deleteTestCatalogueSpecialty, deleteTestClinics, loginDoctorUi } from "./helpers/test-doctor";
 
 /**
  * Build PR 4 of the registration redesign: founders review professional_registration
@@ -30,6 +34,8 @@ const baseUrl = () => (process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3100
 type Seeded = { requestId: string; authUserId: string; email: string; photoPath: string };
 
 type Cleanup = {
+  /** Catalogue labels a test approved into existence (deleted once unused). */
+  catalogue: string[];
   logins: string[];
   professionals: string[];
   clinics: string[];
@@ -60,6 +66,8 @@ async function seedRequest(
     clinicDistrict: string;
     claimId?: string | null;
     mobile?: string;
+    /** The proposed clinic's phone; null = a request from before clinic phones were asked. */
+    newClinicPhone?: string | null;
   },
 ): Promise<Seeded> {
   const email = `review-${Date.now()}-${Math.random().toString(36).slice(2, 7)}@integration.test`;
@@ -105,6 +113,7 @@ async function seedRequest(
         latitude: 34.92,
         longitude: 33.63,
         place_id: null,
+        phone: input.newClinicPhone === undefined ? "24123456" : input.newClinicPhone,
       },
     ],
     claimed_professional_id: input.claimId ?? null,
@@ -169,7 +178,7 @@ test.describe("Integration: registration request review", { tag: "@pr-e2e" }, ()
   let admin: SupabaseClient;
   let founder: TestAdmin;
   let clinic: { id: string; address: string; district: string };
-  const cleanup: Cleanup = { logins: [], professionals: [], clinics: [], photos: [] };
+  const cleanup: Cleanup = { catalogue: [], logins: [], professionals: [], clinics: [], photos: [] };
 
   test.beforeAll(async () => {
     admin = createIntegrationAdmin(requireSafeIntegration());
@@ -182,6 +191,7 @@ test.describe("Integration: registration request review", { tag: "@pr-e2e" }, ()
       await admin.from("professionals").delete().eq("id", id);
     }
     await deleteTestClinics(admin, cleanup.clinics);
+    for (const name of cleanup.catalogue) await deleteTestCatalogueSpecialty(admin, name);
     for (const photo of cleanup.photos) await admin.storage.from(photo.bucket).remove([photo.path]);
     for (const id of cleanup.logins) await admin.auth.admin.deleteUser(id);
   });
@@ -258,6 +268,9 @@ test.describe("Integration: registration request review", { tag: "@pr-e2e" }, ()
       .order("sort_order");
     expect(links?.map((l) => l.clinic_id)[0]).toBe(clinic.id);
     expect(links).toHaveLength(2);
+    // The proposed clinic was created with its phone.
+    const { data: created } = await admin.from("clinics").select("phone").eq("id", links![1]!.clinic_id).single();
+    expect(created?.phone).toBe("24123456");
 
     // The public profile is live.
     await page.goto(`/en/${body.slug}`, { waitUntil: "domcontentloaded" });
@@ -310,6 +323,23 @@ test.describe("Integration: registration request review", { tag: "@pr-e2e" }, ()
     expect(lookup.status(), await lookup.text()).toBe(200);
     expect(((await lookup.json()) as { listing: { id: string } }).listing.id).toBe(listing.id);
 
+    // Pasted without the scheme ("localhost:3000/en/…") it still works.
+    const bare = `${baseUrl()}${listing.profilePath}`.replace(/^https?:\/\//, "");
+    const bareLookup = await request.get(
+      `${baseUrl()}/api/internal/requests/listing?url=${encodeURIComponent(bare)}`,
+      { headers },
+    );
+    expect(bareLookup.status(), await bareLookup.text()).toBe(200);
+
+    // A URL from another site (the live site, when testing locally) is refused clearly.
+    const otherSite = new URL(baseUrl()).hostname === "localhost" ? "https://www.mydoccy.com" : "http://localhost:3000";
+    const wrongSite = await request.get(
+      `${baseUrl()}/api/internal/requests/listing?url=${encodeURIComponent(`${otherSite}${listing.profilePath}`)}`,
+      { headers },
+    );
+    expect(wrongSite.status()).toBe(400);
+    expect(await wrongSite.text()).toMatch(/another site/i);
+
     const { details } = await loadRequest(admin, seeded.requestId);
     const approved = await request.post(`${baseUrl()}/api/internal/requests/${seeded.requestId}/approve`, {
       headers,
@@ -359,6 +389,81 @@ test.describe("Integration: registration request review", { tag: "@pr-e2e" }, ()
     const row = await loadRequest(admin, seeded.requestId);
     expect(row.status).toBe("rejected");
     expect(row.decision_note).toBe("Licence number not found");
+  });
+
+  test("a new clinic without a phone can't be approved until a founder adds one", async ({ request }) => {
+    const seeded = await seedRequest(admin, cleanup, {
+      lastName: `Nophone ${Date.now().toString(36)}`,
+      clinicId: clinic.id,
+      clinicAddress: clinic.address,
+      clinicDistrict: clinic.district,
+      newClinicPhone: null,
+    });
+    const url = `${baseUrl()}/api/internal/requests/${seeded.requestId}/approve`;
+    const headers = { cookie: adminCookieHeader(founder) };
+    const refused = await request.post(url, { headers, data: {} });
+    expect(refused.status()).toBe(400);
+    expect(await refused.text()).toMatch(/phone number/i);
+
+    const { details } = await loadRequest(admin, seeded.requestId);
+    const withPhone = details as { clinics: Array<Record<string, unknown>> };
+    const fixed = await request.post(url, {
+      headers,
+      data: {
+        details: {
+          ...withPhone,
+          clinics: withPhone.clinics.map((c, i) => (i === 1 ? { ...c, phone: "+357 24 654321" } : c)),
+        },
+      },
+    });
+    expect(fixed.status(), await fixed.text()).toBe(200);
+    const { outcome } = await recordOutcome(admin, cleanup, seeded.requestId);
+    const createdId = outcome.clinics?.find((c) => c.created)?.clinic_id;
+    const { data: created } = await admin.from("clinics").select("phone").eq("id", createdId!).single();
+    expect(created?.phone).toBe("24654321");
+  });
+
+  test("founders replace the photo with the same checks and crop as the form", async ({ page }) => {
+    test.setTimeout(240_000);
+    const seeded = await seedRequest(admin, cleanup, {
+      lastName: `Photo ${Date.now().toString(36)}`,
+      clinicId: clinic.id,
+      clinicAddress: clinic.address,
+      clinicDistrict: clinic.district,
+    });
+    await signInAsAdmin(page, founder);
+    await page.goto("/internal/directory", { waitUntil: "domcontentloaded" });
+    const card = page.locator(`[data-request-id='${seeded.requestId}']`);
+    await expect(card).toBeVisible({ timeout: 60_000 });
+    await expect(page.locator("#requests[data-hydrated='1']")).toBeAttached({ timeout: 120_000 });
+    const photoInput = card.getByTestId("request-photo-file-input");
+
+    // Too small: refused with the form's message, no dialog.
+    await photoInput.setInputFiles(REGISTER_SMALL_AVATAR_FIXTURE);
+    await expect(card.getByTestId("request-photo-error")).toContainText(/too small/i, { timeout: 20_000 });
+    await expect(page.getByRole("dialog", { name: "Crop the photo" })).toHaveCount(0);
+
+    // A normal photo opens the same round crop dialog; confirming stores the crop.
+    await photoInput.setInputFiles(REGISTER_AVATAR_FIXTURE);
+    const dialog = page.getByRole("dialog", { name: "Crop the photo" });
+    await expect(dialog).toBeVisible({ timeout: 20_000 });
+    await expect(dialog.getByLabel("Zoom")).toBeVisible();
+    await dialog.getByRole("button", { name: "Confirm crop" }).click();
+    await expect(dialog).toBeHidden({ timeout: 20_000 });
+    await expect(card.getByRole("img", { name: /Applicant photo/ })).toHaveAttribute("src", /founder-/, {
+      timeout: 30_000,
+    });
+
+    // The stored replacement is the cropped JPEG (900×900, well under the 1 MB limit).
+    const { data: uploads } = await admin.storage
+      .from("request-uploads")
+      .list(`professional_registration/${seeded.authUserId}`);
+    const founderPhoto = (uploads ?? []).find((file) => file.name.startsWith("founder-"));
+    expect(founderPhoto?.name).toMatch(/\.jpg$/);
+    cleanup.photos.push({
+      bucket: "request-uploads",
+      path: `professional_registration/${seeded.authUserId}/${founderPhoto!.name}`,
+    });
   });
 
   test("approving is refused while another professional uses the mobile", async ({ request }) => {
@@ -422,18 +527,87 @@ test.describe("Integration: registration request review", { tag: "@pr-e2e" }, ()
     await expect(page.locator("#requests[data-hydrated='1']")).toBeAttached({ timeout: 120_000 });
     await card.getByLabel("Listing URL").fill("https://www.mydoccy.com/paphos/cardiology");
     await card.getByRole("button", { name: "Check listing" }).click();
-    await expect(card.getByRole("alert")).toContainText(/not a profile URL/i);
+    await expect(card.getByRole("alert")).toContainText(/not a profile URL/i, { timeout: 20_000 });
     await expect(card.getByRole("button", { name: "APPROVE" })).toBeDisabled();
     await card.getByLabel("Listing URL").fill("");
     await expect(card.getByRole("button", { name: "APPROVE" })).toBeEnabled();
 
     await card.getByLabel("Last name").fill(`${lastName} Ui`);
+
+    // Founders can add a specialty (from the catalogue, or a new label) with its licence.
+    const { data: catalogueRow } = await admin
+      .from("specialties")
+      .select("name")
+      .neq("slug", "cardiology")
+      .order("name")
+      .limit(1)
+      .single();
+    const addedSpecialty = String(catalogueRow!.name);
+    // Each section is its own panel with a count; each item its own card.
+    await expect(card.getByRole("heading", { name: "Specialties (1)" })).toBeVisible();
+    await expect(card.getByRole("heading", { name: "Clinics (2)" })).toBeVisible();
+    await card.getByRole("button", { name: "Add specialty" }).click();
+    await expect(card.getByRole("heading", { name: "Specialties (2)" })).toBeVisible();
+    await card.getByLabel("Specialty 2", { exact: true }).fill(addedSpecialty);
+    await card.getByTestId("request-specialty-licence-1").fill("ADD-77");
+    await expect(card.getByTestId("request-specialty-kind-1")).toHaveText(/From the catalogue/);
+
+    // A specialty that isn't in the catalogue yet: the box says so, approving adds it.
+    const newLabel = `Review Newlabel ${lastName.replace(/[^a-z]/gi, "")}`;
+    cleanup.catalogue.push(newLabel);
+    await card.getByRole("button", { name: "Add specialty" }).click();
+    const newName = card.getByLabel("Specialty 3", { exact: true });
+    await expect(newName).toHaveAttribute("placeholder", /type a new specialty/i);
+    await newName.fill(newLabel);
+    await card.getByTestId("request-specialty-licence-2").fill("NEW-88");
+    await expect(card.getByTestId("request-specialty-kind-2")).toHaveText(/New specialty: approving adds it to the catalogue/);
+
+    // …and a clinic: here an existing DocCy clinic, found with the row's search.
+    const { data: otherClinic } = await admin
+      .from("clinics")
+      .select("id, name")
+      .eq("is_archived", false)
+      .neq("id", clinic.id)
+      .not("address", "is", null)
+      .ilike("name", "%medical%")
+      .limit(1)
+      .single();
+    await card.getByRole("button", { name: "Add clinic" }).click();
+    const addedRow = card.locator("[data-request-clinic-row='2']");
+    await expect(addedRow).toContainText("new clinic");
+    await addedRow.getByPlaceholder("Search clinics…").fill(String(otherClinic!.name));
+    await addedRow.locator("li button", { hasText: String(otherClinic!.name) }).first().click();
+    await expect(addedRow).toContainText("existing DocCy clinic");
+
     await card.getByRole("button", { name: "APPROVE" }).click();
     await expect(card.getByText(/Approved/)).toBeVisible({ timeout: 30_000 });
 
     const { row } = await recordOutcome(admin, cleanup, seeded.requestId);
+    const { data: approvedLinks } = await admin
+      .from("professional_clinics")
+      .select("clinic_id, sort_order")
+      .eq("professional_id", row.professional_id!)
+      .order("sort_order");
+    expect(approvedLinks?.map((l) => l.clinic_id)).toContain(otherClinic!.id);
     expect(row.status).toBe("approved");
     expect((row.approved_details as { last_name: string }).last_name).toBe(`${lastName} Ui`);
+    const { data: proSpecialties } = await admin
+      .from("professional_specialties")
+      .select("license_number, specialties(name)")
+      .eq("professional_id", row.professional_id!);
+    expect(
+      (proSpecialties ?? []).map((ps) => ({
+        name: (ps.specialties as unknown as { name: string }).name,
+        license: ps.license_number,
+      })),
+    ).toEqual(
+      expect.arrayContaining([
+        { name: addedSpecialty, license: "ADD-77" },
+        { name: newLabel, license: "NEW-88" },
+      ]),
+    );
+    const { data: catalogueEntry } = await admin.from("specialties").select("id").eq("name", newLabel).maybeSingle();
+    expect(catalogueEntry?.id, "the new label joined the catalogue").toBeTruthy();
 
     // Everything else lives on the Statistics tab, and its links keep that tab.
     await tabs.getByRole("link", { name: "Statistics" }).click();

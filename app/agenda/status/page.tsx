@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
 
 import { SignOutButton } from "@/components/auth/SignOutButton";
+import { SignOutOnMount } from "@/components/auth/SignOutOnMount";
 import { DocCyWordmark } from "@/components/brand/DocCyWordmark";
 import { createServiceRoleClient } from "@/lib/supabase-service";
 import {
@@ -36,6 +37,7 @@ export default async function RegistrationStatusPage() {
 
   const service = createServiceRoleClient();
   let status: RegistrationStatus = { kind: "none" };
+  let isAdmin = false;
   if (service) {
     const { data: professional } = await service
       .from("professionals")
@@ -48,14 +50,26 @@ export default async function RegistrationStatusPage() {
     } catch (error) {
       console.error("[DocCy] registration status failed", error);
     }
+    if (status.kind === "none") {
+      const { data: adminRow } = await service
+        .from("admin_users")
+        .select("id")
+        .eq("auth_user_id", user.id)
+        .eq("is_active", true)
+        .maybeSingle();
+      isAdmin = Boolean(adminRow?.id);
+    }
   }
+  // No profile and no application: not kept signed in (user, 2026-09-28). A founder's
+  // login is exempt: signing it out would also end the dashboard session in this browser.
+  const signOutNow = status.kind === "none" && !isAdmin;
 
   return (
     <main className="min-h-screen bg-ink-900 text-slate-50">
       <div className="mx-auto flex min-h-screen max-w-xl flex-col gap-8 px-4 py-10">
         <header className="flex items-center justify-between">
           <DocCyWordmark size="lg" />
-          <SignOutButton />
+          {signOutNow ? <SignOutOnMount /> : <SignOutButton />}
         </header>
 
         <section className="space-y-4 rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
@@ -118,12 +132,20 @@ export default async function RegistrationStatusPage() {
                 This account ({user.email}) has no DocCy profile or application. Register as a professional to get
                 started.
               </p>
-              <Link
-                href="/register"
-                className="inline-flex rounded-xl bg-clinical-600 px-4 py-2 font-semibold text-white hover:bg-clinical-500"
-              >
-                Join as a professional
-              </Link>
+              <div className="flex flex-wrap items-center gap-3">
+                <Link
+                  href="/register"
+                  className="inline-flex rounded-xl bg-clinical-600 px-4 py-2 font-semibold text-white hover:bg-clinical-500"
+                >
+                  Join as a professional
+                </Link>
+                <Link
+                  href="/finder"
+                  className="inline-flex rounded-xl border border-slate-700 px-4 py-2 font-semibold text-slate-200 hover:border-clinical-400/50 hover:text-clinical-200"
+                >
+                  Back to the finder
+                </Link>
+              </div>
             </>
           )}
         </section>

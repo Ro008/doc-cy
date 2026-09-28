@@ -385,7 +385,12 @@ async function runRegister(formData: FormData) {
   // (the photo path is only known once it does).
   const clinicChoices = clinicsResolved.value.map((clinic, index) => {
     const names = registerClinicInputNames(index);
-    return { ...clinic, clinicId: formData.get(names.clinicId), name: formData.get(names.name) };
+    return {
+      ...clinic,
+      clinicId: formData.get(names.clinicId),
+      name: formData.get(names.name),
+      phone: formData.get(names.phone),
+    };
   });
   const detailsInput = {
     firstName,
@@ -666,6 +671,9 @@ export default async function RegisterPage({ searchParams }: PageProps) {
     errorMessage = "Please tell us whether you work with GeSY.";
   } else if (errorCode === "clinic_name") {
     errorMessage = "Please give each clinic you added from Google Maps a name.";
+  } else if (errorCode === "clinic_phone") {
+    errorMessage =
+      "Please give each new clinic its phone number: a Cyprus landline or mobile, e.g. 25 123456.";
   } else if (errorCode === "clinic_duplicate") {
     errorMessage = "You picked the same DocCy clinic twice. Remove one of them.";
   } else if (errorCode === "upload") {

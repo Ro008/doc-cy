@@ -16,6 +16,8 @@ type Slot = {
   initial: ClinicLocation | null;
   /** Clinic name from the claimed listing, until they pick another clinic. */
   listingName: string | null;
+  /** The claimed listing's DocCy clinic, linked as-is. */
+  listingClinic: { id: string; name: string } | null;
   listingAddressHint: string | null;
   listingDistrict: string | null;
 };
@@ -39,6 +41,7 @@ function initialSlots(
         key: "initial-0",
         initial: null,
         listingName: null,
+        listingClinic: null,
         listingAddressHint: fallbackHint,
         listingDistrict: fallbackDistrict,
       },
@@ -56,6 +59,9 @@ function initialSlots(
       town: clinic.town,
     }),
     listingName: clinic.name.trim() || null,
+    listingClinic: clinic.clinicId
+      ? { id: clinic.clinicId, name: clinic.name.trim() || clinic.address }
+      : null,
     listingAddressHint: clinic.address,
     listingDistrict: clinic.district,
   }));
@@ -93,7 +99,7 @@ export function RegisterClinicsFields({
           name: slot.listingName,
           address: slot.initial?.address ?? "",
           complete: slot.initial ? registerClinicLocationIsComplete(slot.initial) : false,
-          clinicId: null,
+          clinicId: slot.listingClinic?.id ?? null,
         },
       ]),
     ),
@@ -126,6 +132,7 @@ export function RegisterClinicsFields({
       key: `added-${addedCount.current}`,
       initial: null,
       listingName: null,
+      listingClinic: null,
       listingAddressHint: null,
       listingDistrict: null,
     };
@@ -214,6 +221,7 @@ export function RegisterClinicsFields({
                 docCySearch
                 initialLocation={slot.initial}
                 initialClinicName={slot.listingName}
+                initialClinic={slot.listingClinic}
                 listingAddressHint={slot.listingAddressHint}
                 listingDistrict={slot.listingDistrict}
                 showAddLaterHint={false}

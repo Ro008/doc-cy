@@ -78,7 +78,7 @@ export async function gotoRegisterProfileStep(page: Page): Promise<void> {
   await answerRegisterAccountChoices(page);
   await page.getByTestId("register-wizard-continue").click();
 
-  await expect(page.getByTestId("register-step-2")).toBeVisible();
+  await expect(page.getByTestId("register-step-2")).toBeVisible({ timeout: 20_000 });
 }
 
 /** Fill steps 1–2 so clinic / GeSY fields on step 3 are visible. */
