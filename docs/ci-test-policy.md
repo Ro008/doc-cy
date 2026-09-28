@@ -36,6 +36,7 @@ Each lane's database is thrown away with its runner, so an interrupted test leav
 | `@pr-mobile-monitor` | `playwright test --grep @pr-mobile-monitor` | Doctor confirmation flow on mobile (PR, non-blocking) |
 | `@pr-login-monitor` | `playwright test --grep @pr-login-monitor` | Doctor `/login` form UI (PR, non-blocking) |
 | `@nightly-prod` | `playwright test --grep @nightly-prod` | Prod URL blocking smokes (site + booking) |
+| `@origin-only` | left out of the nightly edge run (`--grep-invert @origin-only`) | Nightly test that runs on the Vercel origin (and preview) only. `/register`: Bot Fight Mode challenges GitHub's runners there on the Cloudflare edge every night, so the edge can't check it |
 | `@local-register` | `npm run test:e2e:register` | Live `/register` UI + Resend on **testing** DB. **Local gate (agent runs on PR open)** — not CI |
 
 Constants: `tests/helpers/ciTags.ts`. To tag new specs: `node scripts/apply-ci-playwright-tags.mjs` (edit file lists first).
