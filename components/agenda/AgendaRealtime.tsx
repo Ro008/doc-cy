@@ -4,19 +4,15 @@ import * as React from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import {
-  addDays,
-  addWeeks,
-  differenceInCalendarDays,
   format,
   isSameDay,
   isValid,
   parseISO,
   startOfDay,
-  startOfWeek,
 } from "date-fns";
 import { enGB } from "date-fns/locale";
 import { formatInTimeZone, utcToZonedTime } from "date-fns-tz";
-import { ChevronLeft, ChevronRight, Loader2, Trash2, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Loader2, Menu, Trash2, X } from "lucide-react";
 import { toast as sonnerToast } from "sonner";
 import { useTranslations } from "next-intl";
 import {
@@ -37,6 +33,16 @@ import { patientVisitReasonFromAppointmentRow } from "@/lib/agenda-visit-reason"
 import { agendaRefreshOutcome } from "@/lib/agenda-refresh";
 import { ManualBookingFlow } from "@/components/agenda/ManualBookingFlow";
 import { AgendaClinicCalendars } from "@/components/agenda/AgendaClinicCalendars";
+import { AgendaMonthGrid, type AgendaMonthItem } from "@/components/agenda/AgendaMonthGrid";
+import { AgendaSidebar } from "@/components/agenda/AgendaSidebar";
+import {
+  agendaHref,
+  agendaRangeTitle,
+  agendaWeekDays,
+  parseAgendaView,
+  shiftAgendaAnchor,
+  type AgendaView,
+} from "@/lib/agenda-calendar";
 import {
   AGENDA_APPOINTMENT_SELECT,
   clinicIdForAppointment,
@@ -56,6 +62,7 @@ import {
   agendaBreakBandClass,
   agendaCalendarShellClass,
   agendaDayColumnClass,
+  agendaDayGridColsClass,
   agendaDayHeaderShellClass,
   agendaDayNameClass,
   agendaDayNumberClass,
@@ -71,6 +78,7 @@ import {
   agendaStickyWeekHeaderClass,
   agendaTodayChipButtonClass,
   agendaToolbarDividerClass,
+  agendaWeekGridColsClass,
 } from "@/components/agenda/agenda-surface";
 import { emitNavigationStart } from "@/lib/doccy-navigation";
 import {
@@ -199,6 +207,13 @@ function sortAgendaRowsByDatetime(rows: AgendaAppointmentRow[]): AgendaAppointme
       new Date(b.appointment_datetime).getTime(),
   );
   return copy;
+}
+
+function agendaDateFromKey(raw: string | null | undefined): Date | null {
+  const value = String(raw ?? "").trim();
+  if (!value) return null;
+  const parsed = parseISO(value);
+  return isValid(parsed) ? startOfDay(parsed) : null;
 }
 
 const START_HOUR = 8;
@@ -345,6 +360,7 @@ export function AgendaRealtime({
   workingHours,
   clinics = [],
   initialDateKey,
+  initialView,
   openManualBooking,
 }: {
   doctorId: string | null;
@@ -353,6 +369,7 @@ export function AgendaRealtime({
   workingHours: AgendaWorkingHours | null;
   clinics?: AgendaClinic[];
   initialDateKey?: string | null;
+  initialView?: string | null;
   openManualBooking?: boolean;
 }) {
   const router = useRouter();
@@ -411,8 +428,12 @@ export function AgendaRealtime({
   }, [selected?.id]);
 
   const modalBusy = isCancelling || openingReview || markingAttendance;
-  const [weekOffset, setWeekOffset] = React.useState(0);
-  const [mobileDayOffset, setMobileDayOffset] = React.useState(0);
+  const [view, setView] = React.useState<AgendaView>(() => parseAgendaView(initialView));
+  const [anchorDate, setAnchorDate] = React.useState<Date>(
+    () =>
+      agendaDateFromKey(initialDateKey) ?? startOfDay(utcToZonedTime(new Date(), CY_TZ)),
+  );
+  const [sidebarOpen, setSidebarOpen] = React.useState(true);
   const [manualBookingOpen, setManualBookingOpen] = React.useState(false);
   const [hiddenClinicIds, setHiddenClinicIds] = React.useState<Set<string>>(
     () => new Set(),
@@ -649,33 +670,33 @@ export function AgendaRealtime({
     };
   });
 
-  const selectedMobileDate = addDays(todayDate, mobileDayOffset);
-  const selectedMobileKey = format(selectedMobileDate, "yyyy-MM-dd");
-  const mobileRows = rows
-    .filter((r) => r.dateKey === selectedMobileKey)
-    .sort((a, b) => a.sortKeyMs - b.sortKeyMs);
-  const weekStart = startOfWeek(addWeeks(todayDate, weekOffset), {
-    weekStartsOn: 1,
-  });
+  const anchorKey = format(anchorDate, "yyyy-MM-dd");
+  const anchorIsToday = anchorKey === todayKey;
+  /** Phones get Day and Month only; a week of 7 columns does not fit. */
+  const mobileView: AgendaView = view === "month" ? "month" : "day";
+  const gridDays = view === "day" ? [anchorDate] : agendaWeekDays(anchorDate);
 
   React.useEffect(() => {
-    const raw = String(initialDateKey ?? "").trim();
-    if (!raw) return;
-    const parsed = parseISO(raw);
-    if (!isValid(parsed)) return;
-    const targetDay = startOfDay(parsed);
-    setMobileDayOffset(differenceInCalendarDays(targetDay, todayDate));
+    const target = agendaDateFromKey(initialDateKey);
+    if (target) setAnchorDate(target);
+  }, [initialDateKey]);
 
-    const targetWeekStart = startOfWeek(targetDay, { weekStartsOn: 1 });
-    const todayWeekStart = startOfWeek(todayDate, { weekStartsOn: 1 });
-    const weekDeltaDays = differenceInCalendarDays(targetWeekStart, todayWeekStart);
-    setWeekOffset(Math.round(weekDeltaDays / 7));
-  }, [initialDateKey, todayDate]);
-  const weekDays = React.useMemo(
-    () => Array.from({ length: 5 }, (_, i) => addDays(weekStart, i)),
-    [weekStart],
-  );
-  const weekKeys = weekDays.map((d) => format(d, "yyyy-MM-dd"));
+  React.useEffect(() => {
+    const href = agendaHref({ view, dateKey: anchorIsToday ? null : anchorKey });
+    if (`${window.location.pathname}${window.location.search}` !== href) {
+      window.history.replaceState(window.history.state, "", href);
+    }
+  }, [view, anchorKey, anchorIsToday]);
+
+  const rowsByDay = new Map<string, (typeof rows)[number][]>();
+  for (const row of rows) {
+    const list = rowsByDay.get(row.dateKey);
+    if (list) list.push(row);
+    else rowsByDay.set(row.dateKey, [row]);
+  }
+  for (const list of rowsByDay.values()) list.sort((a, b) => a.sortKeyMs - b.sortKeyMs);
+  const rowsForDay = (dateKey: string) => rowsByDay.get(dateKey) ?? [];
+  const anchorRows = rowsForDay(anchorKey);
   const hours = React.useMemo(
     () =>
       Array.from(
@@ -699,7 +720,6 @@ export function AgendaRealtime({
       r.dateKey === todayKey &&
       String(r.status ?? "").toUpperCase() === "CONFIRMED",
   ).length;
-  const mobileShowsToday = selectedMobileKey === todayKey;
 
   function workingWindowsForDate(d: Date): {
     enabled: boolean;
@@ -1102,6 +1122,199 @@ export function AgendaRealtime({
     return output;
   }
 
+  function goToToday() {
+    setAnchorDate(todayDate);
+  }
+
+  function shiftAnchor(delta: number) {
+    setAnchorDate((date) => shiftAgendaAnchor(date, view, delta));
+  }
+
+  function shiftMobile(delta: number) {
+    setAnchorDate((date) => shiftAgendaAnchor(date, mobileView, delta));
+  }
+
+  function openDay(date: Date) {
+    setAnchorDate(startOfDay(date));
+    setView("day");
+  }
+
+  const pendingRows = rows
+    .filter(
+      (row) =>
+        row.isRequested &&
+        !isVisitSlotEnded(row.gridStartIso, row.rowDurationMinutes, nowMs),
+    )
+    .sort((a, b) => a.sortKeyMs - b.sortKeyMs);
+
+  function openPendingRequests() {
+    const first = pendingRows[0];
+    if (!first) return;
+    const target = agendaDateFromKey(first.dateKey);
+    if (target) setAnchorDate(target);
+    if (view === "month") setView("week");
+  }
+
+  const nowMinutesCyprus = nowCyprus.getHours() * 60 + nowCyprus.getMinutes();
+  const nowLineTop =
+    nowMinutesCyprus >= START_HOUR * 60 && nowMinutesCyprus <= END_HOUR * 60
+      ? CALENDAR_TOP_INSET + ((nowMinutesCyprus - START_HOUR * 60) / 60) * HOUR_ROW_HEIGHT
+      : null;
+
+  function monthItemsForDay(dateKey: string): AgendaMonthItem[] {
+    return rowsForDay(dateKey).map((row) => ({
+      key: row.rowKey,
+      timeLabel: row.timeLabel,
+      patientName: row.patient_name.trim() || "Patient",
+      clinicName: clinicNameForRow(row.location_id),
+      isPendingRequest: row.isPendingRequest,
+      dotClass: clinicSwatchClass(row.location_id) ?? "bg-clinical-400",
+      onOpen: () => openAppointment(row),
+    }));
+  }
+
+  function renderViewSwitcher(options: AgendaView[], current: AgendaView) {
+    return (
+      <div
+        role="group"
+        aria-label="Calendar view"
+        data-testid="agenda-view-switcher"
+        className="inline-flex overflow-hidden rounded-lg border border-slate-600"
+      >
+        {options.map((option) => (
+          <button
+            key={option}
+            type="button"
+            aria-pressed={option === current}
+            onClick={() => setView(option)}
+            className={`px-3 py-1.5 text-xs font-semibold capitalize transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-clinical-400/70 ${
+              option === current
+                ? "bg-clinical-500/25 text-clinical-100"
+                : "text-slate-300 hover:bg-slate-800 hover:text-white"
+            }`}
+          >
+            {option}
+          </button>
+        ))}
+      </div>
+    );
+  }
+
+  function renderHourAxis() {
+    return (
+      <div className={agendaHourAxisClass} style={{ height: calendarBodyHeight }}>
+        {renderAgendaHourZebraBands(false)}
+        {hours.map((hour) => (
+          <span
+            key={hour}
+            className={agendaHourAxisLabelClass(hour, START_HOUR)}
+            style={{ top: CALENDAR_TOP_INSET + (hour - START_HOUR) * HOUR_ROW_HEIGHT, left: 0 }}
+          >
+            {String(hour).padStart(2, "0")}:00
+          </span>
+        ))}
+      </div>
+    );
+  }
+
+  function renderDayColumn(dayDate: Date, keyPrefix: string) {
+    const dayKey = format(dayDate, "yyyy-MM-dd");
+    const isTodayCol = isSameDay(dayDate, todayDate);
+    const work = workingWindowsForDate(dayDate);
+    const startMin = START_HOUR * 60;
+    const endMin = END_HOUR * 60;
+    const y = (m: number) => CALENDAR_TOP_INSET + ((m - startMin) / 60) * HOUR_ROW_HEIGHT;
+    return (
+      <div
+        key={`${keyPrefix}-${dayKey}`}
+        className={agendaDayColumnClass(isTodayCol)}
+        style={{ height: calendarBodyHeight }}
+      >
+        {renderAgendaHourZebraBands(isTodayCol)}
+        {!work.enabled ? (
+          <div className={agendaOffHoursOverlayClass} />
+        ) : (
+          <>
+            {work.start > startMin ? (
+              <div
+                className={agendaOffHoursBandClass}
+                style={{ top: 0, height: y(Math.min(work.start, endMin)) }}
+              />
+            ) : null}
+            {work.end < endMin ? (
+              <div
+                className={agendaOffHoursBandClass}
+                style={{ top: y(Math.max(work.end, startMin)), bottom: 0 }}
+              />
+            ) : null}
+            {work.breakStart != null && work.breakEnd != null && work.breakEnd > work.breakStart
+              ? (() => {
+                  const top = y(Math.max(work.breakStart!, startMin));
+                  const bottom = y(Math.min(work.breakEnd!, endMin));
+                  if (bottom <= top) return null;
+                  return (
+                    <div className={agendaBreakBandClass} style={{ top, height: bottom - top }} />
+                  );
+                })()
+              : null}
+          </>
+        )}
+        {hours.slice(0, -1).map((hour) => (
+          <div
+            key={`${dayKey}-line-${hour}`}
+            className={agendaHourGridLineClass}
+            style={{ top: CALENDAR_TOP_INSET + (hour - START_HOUR + 1) * HOUR_ROW_HEIGHT }}
+          />
+        ))}
+        {layoutOverlaps(rowsForDay(dayKey)).map((row) => (
+          <button
+            key={row.rowKey}
+            type="button"
+            aria-label={`Appointment ${row.patient_name} at ${row.timeLabel}${clinicNameForRow(row.location_id) ? ` · ${clinicNameForRow(row.location_id)}` : ""}`}
+            onClick={() => openAppointment(row)}
+            className={`group absolute overflow-hidden rounded-xl border text-left shadow-lg transition focus:outline-none ${
+              row.isCounterOfferHold
+                ? `flex flex-col items-stretch justify-start py-1.5 pr-2 ${isMultiClinic ? "pl-2.5" : "pl-2"}`
+                : `py-1 pr-2 ${isMultiClinic ? "pl-2.5" : "pl-2"}`
+            } ${appointmentChipClass(row.isPendingRequest)}`}
+            style={{
+              top: topForRow(row),
+              height: blockHeightFor(row),
+              left: `${0.25 + (row.column / row.columns) * 99.5}%`,
+              width: `${99.5 / row.columns - 0.5}%`,
+            }}
+          >
+            {clinicSwatchClass(row.location_id) ? (
+              <span
+                className={`absolute inset-y-0 left-0 w-1 ${clinicSwatchClass(row.location_id)}`}
+                aria-hidden
+              />
+            ) : null}
+            <AgendaAppointmentCardInner
+              timeLabel={row.timeLabel}
+              patientName={row.patient_name}
+              isPendingRequest={row.isPendingRequest}
+              isRequested={row.isRequested}
+              isCounterOfferHold={row.isCounterOfferHold}
+              isCompactCounterOffer={row.isCounterOfferHold && row.rowDurationMinutes <= 30}
+            />
+          </button>
+        ))}
+        {isTodayCol && nowLineTop != null ? (
+          <div
+            className="pointer-events-none absolute inset-x-0 z-20 flex items-center"
+            style={{ top: nowLineTop - 5 }}
+            data-testid="agenda-now-line"
+            aria-hidden
+          >
+            <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-rose-400" />
+            <span className="h-0.5 flex-1 bg-rose-400" />
+          </div>
+        ) : null}
+      </div>
+    );
+  }
+
   return (
     <>
       {toast && (
@@ -1126,410 +1339,198 @@ export function AgendaRealtime({
       )}
 
       <section className={agendaCalendarShellClass}>
-        <div className={`${agendaToolbarDividerClass} px-4 py-2.5 sm:px-6 md:py-2`}>
-          <div className="flex flex-wrap items-center justify-between gap-2 md:gap-3">
-            <div className="min-w-0 space-y-0.5 md:flex md:items-baseline md:gap-2 md:space-y-0">
-              <h2 className="text-sm font-semibold text-white md:text-[13px]">
-                {format(nowCyprus, "dd/MM/yyyy", { locale: enGB })}
-              </h2>
-              <p className="text-xs leading-snug text-slate-300 md:text-[13px]">
-                {todayCount === 0 ? (
-                  "No appointments today"
-                ) : (
-                  <>
-                    <span className="font-bold tabular-nums text-clinical-300">
-                      {todayCount}
-                    </span>{" "}
-                    {todayCount === 1 ? "appointment today" : "appointments today"}
-                  </>
-                )}
-              </p>
-            </div>
-            <div className="hidden items-center gap-2 md:flex">
-              <button
-                type="button"
-                onClick={() => setManualBookingOpen(true)}
-                title="Took a phone call? Block the slot manually here. Next time, share your link to save time."
-                className={agendaPrimaryChipButtonClass}
-              >
-                + Add Manual Booking
-              </button>
-            </div>
-            <div className="hidden items-center gap-2 md:flex">
-              <button
-                type="button"
-                onClick={() => {
-                  setWeekOffset(0);
-                  setMobileDayOffset(0);
-                }}
-                className={agendaTodayChipButtonClass}
-              >
-                Today
-              </button>
-              <button
-                type="button"
-                onClick={() => setWeekOffset((w) => w - 1)}
-                className={agendaNavIconButtonClass}
-                aria-label="Previous week"
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </button>
-              <p className="text-xs font-medium text-slate-300">
-                {format(weekDays[0], "dd MMM", { locale: enGB })} -{" "}
-                {format(weekDays[4], "dd MMM", { locale: enGB })}
-              </p>
-              <button
-                type="button"
-                onClick={() => setWeekOffset((w) => w + 1)}
-                className={agendaNavIconButtonClass}
-                aria-label="Next week"
-              >
-                <ChevronRight className="h-4 w-4" />
-              </button>
-            </div>
+        <div className={`${agendaToolbarDividerClass} px-3 py-2.5 sm:px-4 md:py-2`}>
+          <div className="hidden flex-wrap items-center gap-2 md:flex">
+            <button
+              type="button"
+              onClick={() => setSidebarOpen((open) => !open)}
+              className={`${agendaNavIconButtonClass} hidden lg:inline-flex`}
+              aria-label={sidebarOpen ? "Hide sidebar" : "Show sidebar"}
+              aria-expanded={sidebarOpen}
+            >
+              <Menu className="h-4 w-4" />
+            </button>
+            <button type="button" onClick={goToToday} className={agendaTodayChipButtonClass}>
+              Today
+            </button>
+            <button
+              type="button"
+              onClick={() => shiftAnchor(-1)}
+              className={agendaNavIconButtonClass}
+              aria-label={`Previous ${view}`}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => shiftAnchor(1)}
+              className={agendaNavIconButtonClass}
+              aria-label={`Next ${view}`}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+            <h2
+              className="ml-1 min-w-0 truncate text-base font-semibold text-white lg:text-lg"
+              data-testid="agenda-range-title"
+            >
+              {agendaRangeTitle(anchorDate, view)}
+            </h2>
+            <div className="flex-1" />
+            <p className="text-xs leading-snug text-slate-300 md:text-[13px]">
+              {todayCount === 0 ? (
+                "No appointments today"
+              ) : (
+                <>
+                  <span className="font-bold tabular-nums text-clinical-300">{todayCount}</span>{" "}
+                  {todayCount === 1 ? "appointment today" : "appointments today"}
+                </>
+              )}
+            </p>
+            <button
+              type="button"
+              onClick={() => setManualBookingOpen(true)}
+              title="Took a phone call? Block the slot manually here. Next time, share your link to save time."
+              className={`${agendaPrimaryChipButtonClass} ${sidebarOpen ? "lg:hidden" : ""}`}
+            >
+              + Add Manual Booking
+            </button>
+            {renderViewSwitcher(["day", "week", "month"], view)}
           </div>
           <AgendaClinicCalendars
             clinics={clinics}
             hiddenIds={hiddenClinicIds}
             onToggle={toggleClinicCalendar}
+            className={sidebarOpen ? "lg:hidden" : ""}
           />
           <div className="mt-2 flex items-center justify-between gap-2 md:hidden">
             <button
               type="button"
-              onClick={() => setMobileDayOffset((v) => v - 1)}
+              onClick={() => shiftMobile(-1)}
               className={agendaNavIconButtonClass}
-              aria-label="Previous day"
+              aria-label={mobileView === "month" ? "Previous month" : "Previous day"}
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
-            <p className="text-sm font-semibold text-white">
-              {format(selectedMobileDate, "EEE, dd MMM", { locale: enGB })}
+            <p className="min-w-0 truncate text-sm font-semibold text-white">
+              {mobileView === "month"
+                ? agendaRangeTitle(anchorDate, "month")
+                : format(anchorDate, "EEE, dd MMM", { locale: enGB })}
             </p>
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={() => {
-                  setWeekOffset(0);
-                  setMobileDayOffset(0);
-                }}
+                onClick={goToToday}
                 className={`${agendaTodayChipButtonClass} px-2 py-1 text-[11px]`}
               >
                 Today
               </button>
               <button
                 type="button"
-                onClick={() => setMobileDayOffset((v) => v + 1)}
+                onClick={() => shiftMobile(1)}
                 className={agendaNavIconButtonClass}
-                aria-label="Next day"
+                aria-label={mobileView === "month" ? "Next month" : "Next day"}
               >
                 <ChevronRight className="h-4 w-4" />
               </button>
             </div>
           </div>
+          <div className="mt-2 flex justify-center md:hidden">
+            {renderViewSwitcher(["day", "month"], mobileView)}
+          </div>
         </div>
 
-        <div className="px-4 pb-4 pt-2 sm:px-6 sm:pb-5 sm:pt-2">
-          <div className="md:hidden">
-            {mobileRows.length === 0 && !mobileShowsToday ? (
-              <p className="mb-2 text-center text-xs text-slate-400">
-                {isMultiClinic && visibleClinicIds.size === 0
-                  ? "No calendars selected."
-                  : "No appointments this day"}
-              </p>
+        <div className="flex min-w-0">
+          {sidebarOpen ? (
+            <AgendaSidebar
+              anchor={anchorDate}
+              today={todayDate}
+              rangeDays={view === "month" ? [] : gridDays}
+              onPickDate={(date) => {
+                setAnchorDate(startOfDay(date));
+                if (view === "month") setView("day");
+              }}
+              onCreate={() => setManualBookingOpen(true)}
+              pendingCount={pendingRows.length}
+              onOpenPending={openPendingRequests}
+              clinics={clinics}
+              hiddenClinicIds={hiddenClinicIds}
+              onToggleClinic={toggleClinicCalendar}
+            />
+          ) : null}
+
+          <div className="min-w-0 flex-1 px-3 pb-4 pt-2 sm:px-4 sm:pb-5">
+            {view === "month" ? (
+              <div>
+                <AgendaMonthGrid
+                  anchor={anchorDate}
+                  today={todayDate}
+                  itemsForDay={monthItemsForDay}
+                  isWorkingDay={(date) => workingWindowsForDate(date).enabled}
+                  onOpenDay={openDay}
+                />
+              </div>
             ) : null}
-            <div className="grid grid-cols-[50px_1fr] gap-3">
-                <div
-                  className={agendaHourAxisClass}
-                  style={{ height: calendarBodyHeight }}
-                >
-                  {renderAgendaHourZebraBands(false)}
-                  {hours.map((hour) => {
-                    const y =
-                      CALENDAR_TOP_INSET +
-                      (hour - START_HOUR) * HOUR_ROW_HEIGHT;
-                    return (
-                      <span
-                        key={hour}
-                        className={agendaHourAxisLabelClass(hour, START_HOUR)}
-                        style={{ top: y, left: 0 }}
-                      >
-                        {String(hour).padStart(2, "0")}:00
-                      </span>
-                    );
-                  })}
+
+            {mobileView === "day" ? (
+              <div className="md:hidden">
+                {anchorRows.length === 0 && !anchorIsToday ? (
+                  <p className="mb-2 text-center text-xs text-slate-400">
+                    {isMultiClinic && visibleClinicIds.size === 0
+                      ? "No calendars selected."
+                      : "No appointments this day"}
+                  </p>
+                ) : null}
+                <div className={`grid ${agendaDayGridColsClass}`}>
+                  {renderHourAxis()}
+                  {renderDayColumn(anchorDate, "mobile")}
                 </div>
+              </div>
+            ) : null}
+
+            {view !== "month" ? (
+              <div className="hidden min-w-0 md:block">
                 <div
-                  className={agendaDayColumnClass(mobileShowsToday)}
-                  style={{ height: calendarBodyHeight }}
+                  className={`${agendaStickyWeekHeaderClass} ${
+                    view === "day" ? agendaDayGridColsClass : agendaWeekGridColsClass
+                  }`}
                 >
-                  {renderAgendaHourZebraBands(mobileShowsToday)}
-                  {(() => {
-                    const w = workingWindowsForDate(selectedMobileDate);
-                    const startMin = START_HOUR * 60;
-                    const endMin = END_HOUR * 60;
-                      const y = (m: number) =>
-                        CALENDAR_TOP_INSET +
-                        ((m - startMin) / 60) * HOUR_ROW_HEIGHT;
-                    const overlays: React.ReactNode[] = [];
-                    if (!w.enabled) {
-                      overlays.push(
-                        <div
-                          key="mobile-disabled-day"
-                          className={agendaOffHoursOverlayClass}
-                        />,
-                      );
-                    } else {
-                      if (w.start > startMin) {
-                        overlays.push(
-                          <div
-                            key="mobile-before-start"
-                            className={agendaOffHoursBandClass}
-                            style={{
-                              top: 0,
-                              height: y(Math.min(w.start, endMin)),
-                            }}
-                          />,
-                        );
-                      }
-                      if (w.end < endMin) {
-                        overlays.push(
-                          <div
-                            key="mobile-after-end"
-                            className={agendaOffHoursBandClass}
-                            style={{
-                              top: y(Math.max(w.end, startMin)),
-                              bottom: 0,
-                            }}
-                          />,
-                        );
-                      }
-                      if (
-                        w.breakStart != null &&
-                        w.breakEnd != null &&
-                        w.breakEnd > w.breakStart
-                      ) {
-                        const top = y(Math.max(w.breakStart, startMin));
-                        const bottom = y(Math.min(w.breakEnd, endMin));
-                        if (bottom > top) {
-                          overlays.push(
-                            <div
-                              key="mobile-break"
-                              className={agendaBreakBandClass}
-                              style={{ top, height: bottom - top }}
-                            />,
-                          );
-                        }
-                      }
-                    }
-                    return overlays;
-                  })()}
-                  {hours.slice(0, -1).map((hour) => {
-                    const y =
-                      CALENDAR_TOP_INSET +
-                      (hour - START_HOUR + 1) * HOUR_ROW_HEIGHT;
+                  <div />
+                  {gridDays.map((day) => {
+                    const isTodayHeader = isSameDay(day, todayDate);
+                    const working = workingWindowsForDate(day).enabled;
                     return (
                       <div
-                        key={`mobile-line-${hour}`}
-                        className={agendaHourGridLineClass}
-                        style={{ top: y }}
-                      />
+                        key={format(day, "yyyy-MM-dd")}
+                        className={`${agendaDayHeaderShellClass} ${view === "day" ? "items-start pl-2" : ""} ${
+                          working || isTodayHeader ? "" : "opacity-60"
+                        }`}
+                      >
+                        <p className={agendaDayNameClass(isTodayHeader)}>
+                          {format(day, "EEE", { locale: enGB })}
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => openDay(day)}
+                          aria-label={`Open ${format(day, "EEEE d MMMM", { locale: enGB })}`}
+                          className={`${agendaDayNumberClass(isTodayHeader)} rounded-full transition hover:ring-2 hover:ring-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-400/70`}
+                        >
+                          {format(day, "d")}
+                        </button>
+                      </div>
                     );
                   })}
-                    {layoutOverlaps(mobileRows).map((row) => (
-                    <button
-                      key={row.rowKey}
-                      type="button"
-                      aria-label={`Appointment ${row.patient_name} at ${row.timeLabel}${clinicNameForRow(row.location_id) ? ` · ${clinicNameForRow(row.location_id)}` : ""}`}
-                      onClick={() => openAppointment(row)}
-                      className={`group absolute overflow-hidden rounded-xl border text-left shadow-lg transition focus:outline-none ${
-                        row.isCounterOfferHold
-                          ? `flex flex-col items-stretch justify-start py-1.5 pr-2 ${isMultiClinic ? "pl-2.5" : "pl-2"}`
-                          : `py-1 pr-2 ${isMultiClinic ? "pl-2.5" : "pl-2"}`
-                      } ${appointmentChipClass(row.isPendingRequest)}`}
-                      style={{
-                        top: topForRow(row),
-                        height: blockHeightFor(row),
-                        left: `${0.25 + (row.column / row.columns) * 99.5}%`,
-                        width: `${99.5 / row.columns - 0.5}%`,
-                      }}
-                    >
-                      {clinicSwatchClass(row.location_id) ? (
-                        <span
-                          className={`absolute inset-y-0 left-0 w-1 ${clinicSwatchClass(row.location_id)}`}
-                          aria-hidden
-                        />
-                      ) : null}
-                      <AgendaAppointmentCardInner
-                        timeLabel={row.timeLabel}
-                        patientName={row.patient_name}
-                        isPendingRequest={row.isPendingRequest}
-                        isRequested={row.isRequested}
-                        isCounterOfferHold={row.isCounterOfferHold}
-                        isCompactCounterOffer={
-                          row.isCounterOfferHold && row.rowDurationMinutes <= 30
-                        }
-                      />
-                    </button>
-                  ))}
                 </div>
-              </div>
-          </div>
 
-          <div className="hidden min-w-0 md:block">
-            <div className={agendaStickyWeekHeaderClass}>
-              <div />
-              {weekDays.map((day) => {
-                const isTodayHeader = isSameDay(day, todayDate);
-                return (
                 <div
-                  key={format(day, "yyyy-MM-dd")}
-                  className={agendaDayHeaderShellClass}
+                  className={`grid ${
+                    view === "day" ? agendaDayGridColsClass : agendaWeekGridColsClass
+                  }`}
                 >
-                  <p className={agendaDayNameClass(isTodayHeader)}>
-                    {format(day, "EEE", { locale: enGB })}
-                  </p>
-                  <p className={agendaDayNumberClass(isTodayHeader)}>
-                    {format(day, "d")}
-                  </p>
+                  {renderHourAxis()}
+                  {gridDays.map((day) => renderDayColumn(day, "desktop"))}
                 </div>
-              );
-              })}
-            </div>
-
-            <div className="grid grid-cols-[64px_repeat(5,minmax(104px,1fr))] gap-3 lg:grid-cols-[72px_repeat(5,minmax(120px,1fr))] xl:grid-cols-[80px_repeat(5,minmax(140px,1fr))]">
-              <div
-                className={agendaHourAxisClass}
-                style={{ height: calendarBodyHeight }}
-              >
-                {renderAgendaHourZebraBands(false)}
-                {hours.map((hour) => {
-                  const y =
-                    CALENDAR_TOP_INSET +
-                    (hour - START_HOUR) * HOUR_ROW_HEIGHT;
-                  return (
-                    <span
-                      key={hour}
-                      className={agendaHourAxisLabelClass(hour, START_HOUR)}
-                      style={{ top: y, left: 0 }}
-                    >
-                      {String(hour).padStart(2, "0")}:00
-                    </span>
-                  );
-                })}
               </div>
-
-              {weekKeys.map((dayKey) => {
-                const dayRows = rows
-                  .filter((r) => r.dateKey === dayKey)
-                  .sort((a, b) => a.sortKeyMs - b.sortKeyMs);
-                const dayDate = weekDays[weekKeys.indexOf(dayKey)];
-                const isTodayCol = isSameDay(dayDate, todayDate);
-                const work = workingWindowsForDate(dayDate);
-                const startMin = START_HOUR * 60;
-                const endMin = END_HOUR * 60;
-                const y = (m: number) =>
-                  CALENDAR_TOP_INSET +
-                  ((m - startMin) / 60) * HOUR_ROW_HEIGHT;
-                return (
-                  <div
-                    key={dayKey}
-                    className={agendaDayColumnClass(isTodayCol)}
-                    style={{ height: calendarBodyHeight }}
-                  >
-                    {renderAgendaHourZebraBands(isTodayCol)}
-                    {!work.enabled ? (
-                      <div className={agendaOffHoursOverlayClass} />
-                    ) : (
-                      <>
-                        {work.start > startMin ? (
-                          <div
-                            className={agendaOffHoursBandClass}
-                            style={{
-                              top: 0,
-                              height: y(Math.min(work.start, endMin)),
-                            }}
-                          />
-                        ) : null}
-                        {work.end < endMin ? (
-                          <div
-                            className={agendaOffHoursBandClass}
-                            style={{
-                              top: y(Math.max(work.end, startMin)),
-                              bottom: 0,
-                            }}
-                          />
-                        ) : null}
-                        {work.breakStart != null &&
-                        work.breakEnd != null &&
-                        work.breakEnd > work.breakStart
-                          ? (() => {
-                              const top = y(
-                                Math.max(work.breakStart!, startMin),
-                              );
-                              const bottom = y(
-                                Math.min(work.breakEnd!, endMin),
-                              );
-                              if (bottom <= top) return null;
-                              return (
-                                <div
-                                  className={agendaBreakBandClass}
-                                  style={{ top, height: bottom - top }}
-                                />
-                              );
-                            })()
-                          : null}
-                      </>
-                    )}
-                    {hours.slice(0, -1).map((hour) => {
-                      const y =
-                      CALENDAR_TOP_INSET +
-                      (hour - START_HOUR + 1) * HOUR_ROW_HEIGHT;
-                      return (
-                        <div
-                          key={`${dayKey}-line-${hour}`}
-                          className={agendaHourGridLineClass}
-                          style={{ top: y }}
-                        />
-                      );
-                    })}
-                    {layoutOverlaps(dayRows).map((row) => (
-                      <button
-                        key={row.rowKey}
-                        type="button"
-                        aria-label={`Appointment ${row.patient_name} at ${row.timeLabel}${clinicNameForRow(row.location_id) ? ` · ${clinicNameForRow(row.location_id)}` : ""}`}
-                        onClick={() => openAppointment(row)}
-                        className={`group absolute overflow-hidden rounded-xl border text-left shadow-lg transition focus:outline-none ${
-                          row.isCounterOfferHold
-                            ? `flex flex-col items-stretch justify-start py-1.5 pr-2 ${isMultiClinic ? "pl-2.5" : "pl-2"}`
-                            : `py-1 pr-2 ${isMultiClinic ? "pl-2.5" : "pl-2"}`
-                        } ${appointmentChipClass(row.isPendingRequest)}`}
-                        style={{
-                          top: topForRow(row),
-                          height: blockHeightFor(row),
-                          left: `${0.25 + (row.column / row.columns) * 99.5}%`,
-                          width: `${99.5 / row.columns - 0.5}%`,
-                        }}
-                      >
-                        {clinicSwatchClass(row.location_id) ? (
-                          <span
-                            className={`absolute inset-y-0 left-0 w-1 ${clinicSwatchClass(row.location_id)}`}
-                            aria-hidden
-                          />
-                        ) : null}
-                        <AgendaAppointmentCardInner
-                          timeLabel={row.timeLabel}
-                          patientName={row.patient_name}
-                          isPendingRequest={row.isPendingRequest}
-                          isRequested={row.isRequested}
-                          isCounterOfferHold={row.isCounterOfferHold}
-                          isCompactCounterOffer={row.isCounterOfferHold && row.rowDurationMinutes <= 30}
-                        />
-                      </button>
-                    ))}
-                  </div>
-                );
-              })}
-            </div>
+            ) : null}
           </div>
         </div>
       </section>

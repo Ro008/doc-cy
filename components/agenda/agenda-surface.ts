@@ -8,8 +8,16 @@ export const agendaCalendarShellClass =
 
 export const agendaToolbarDividerClass = "border-b border-slate-700";
 
+/** Pair with agendaWeekGridColsClass / agendaDayGridColsClass so the header lines up with the grid. */
 export const agendaStickyWeekHeaderClass =
-  "sticky top-0 z-30 grid min-h-[3.5rem] grid-cols-[64px_repeat(5,minmax(104px,1fr))] items-end gap-3 border-b border-slate-700 bg-slate-950 py-2 shadow-sm lg:top-14 lg:grid-cols-[72px_repeat(5,minmax(120px,1fr))] xl:grid-cols-[80px_repeat(5,minmax(140px,1fr))]";
+  "sticky top-0 z-30 grid min-h-[3.5rem] items-end border-b border-slate-700 bg-slate-950 py-2 shadow-sm lg:top-14";
+
+/** Week view: hour axis + 7 days (Mon–Sun). */
+export const agendaWeekGridColsClass =
+  "grid-cols-[52px_repeat(7,minmax(0,1fr))] gap-1.5 lg:grid-cols-[60px_repeat(7,minmax(0,1fr))] xl:gap-2";
+
+/** Day view (desktop) and the phone agenda: hour axis + one day. */
+export const agendaDayGridColsClass = "grid-cols-[52px_minmax(0,1fr)] gap-2 lg:grid-cols-[60px_minmax(0,1fr)]";
 
 export const agendaHourAxisClass =
   "relative shrink-0 text-xs tabular-nums text-slate-300";
