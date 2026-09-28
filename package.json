@@ -44,6 +44,8 @@
     "test:cleanup:testing:assert": "powershell -NoProfile -Command \"$env:PLAYWRIGHT_ENV_FILE='.env.testing.local'; node scripts/cleanup-test-doctors.mjs --assert-empty\"",
     "seed:languages": "node scripts/seed-doctor-languages.mjs",
     "db:local:reset": "supabase db reset",
+    "db:ci-snapshot": "node scripts/ci-db/dump-snapshot.mjs",
+    "db:ci-snapshot:check": "node scripts/ci-db/check-snapshot.mjs",
     "db:status": "node scripts/supabase-safe.mjs status",
     "db:testing:link": "node scripts/supabase-safe.mjs link-testing",
     "db:testing:push": "node scripts/supabase-safe.mjs push-testing",

@@ -92,7 +92,12 @@ The load runs in this order:
 
 Before the schema loads, the loader drops the local stack's default grants to `anon`/`authenticated`: the snapshot carries Testing's exact grants, and those defaults would make every table more open than in Testing. A `supabase db dump --local` of a loaded stack matches `schema.sql`, grants included.
 
-**Refresh the snapshot** after applying migrations to Testing: `node scripts/ci-db/dump-snapshot.mjs` (read-only; needs Docker running and the CLI linked to Testing), then commit `supabase/ci/`. The catalogue dump excludes every table not on the allowlist, so a new table never leaks rows into the repo.
+**Refresh the snapshot** after applying migrations to Testing: `npm run db:ci-snapshot` (read-only; needs Docker running and the CLI linked to Testing), then commit `supabase/ci/`. The catalogue dump excludes every table not on the allowlist, so a new table never leaks rows into the repo.
+
+**Freshness check** (`npm run db:ci-snapshot:check`, in `PR build + unit`):
+
+- It fails when the repo has more than 10 migrations the snapshot lacks. CI applies them on every run anyway, but at that point the snapshot is due a refresh.
+- It warns, without failing, about versions the snapshot has that the branch does not. This happens with a migration applied to Testing before it merges. If that migration changes before merging, CI would skip it (its version is already "applied"), so refresh the snapshot then.
 
 The build must come after the load. Pages prerendered at build time read the seeded directory.
 

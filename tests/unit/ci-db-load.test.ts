@@ -6,7 +6,45 @@ import {
   parseAppliedVersions,
   pendingMigrations,
   publicTablesOutside,
+  snapshotFreshness,
 } from "../../scripts/ci-db/load-lib.mjs";
+
+describe("ci-db snapshotFreshness", () => {
+  const files = [
+    "20260926073215_request_log_and_types.sql",
+    "20260927074306_appointments_location.sql",
+    "20261001090000_future_change.sql",
+    ".gitkeep",
+  ];
+
+  it("is fresh when the snapshot has every repo migration", () => {
+    const applied = new Set(["20260926073215", "20260927074306", "20261001090000"]);
+    assert.deepEqual(snapshotFreshness(files, applied, 10), {
+      pending: [],
+      snapshotOnly: [],
+      stale: false,
+    });
+  });
+
+  it("lists repo migrations the snapshot lacks, and stays fresh up to the limit", () => {
+    const applied = new Set(["20260926073215"]);
+    const result = snapshotFreshness(files, applied, 2);
+    assert.deepEqual(result.pending, ["20260927074306", "20261001090000"]);
+    assert.equal(result.stale, false);
+  });
+
+  it("is stale once more migrations than the limit are pending", () => {
+    const applied = new Set(["20260926073215"]);
+    assert.equal(snapshotFreshness(files, applied, 1).stale, true);
+  });
+
+  it("lists versions applied in Testing that the repo does not have (unmerged work)", () => {
+    const applied = new Set(["20260926073215", "20260927074306", "20261001090000", "20260927140604"]);
+    const result = snapshotFreshness(files, applied, 10);
+    assert.deepEqual(result.snapshotOnly, ["20260927140604"]);
+    assert.equal(result.stale, false);
+  });
+});
 
 describe("ci-db publicTablesOutside", () => {
   const schemaSql = [
