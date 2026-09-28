@@ -43,6 +43,8 @@ function input(overrides: Partial<ProfessionalRegistrationInput> = {}): Professi
         clinicPlaceId: "place-1",
         clinicId: DOC_CY_CLINIC_ID,
         name: "",
+        // A DocCy clinic keeps its own phone: whatever is posted is ignored.
+        phone: "22 000000",
       },
       {
         clinicAddress: "2 Makariou, Limassol 3030, Cyprus",
@@ -53,6 +55,7 @@ function input(overrides: Partial<ProfessionalRegistrationInput> = {}): Professi
         clinicPlaceId: null,
         clinicId: "",
         name: " Golden Recovery ",
+        phone: "+357 99 472551",
       },
     ],
     claimedProfessionalId: "",
@@ -89,6 +92,7 @@ describe("buildProfessionalRegistrationDetails", () => {
           latitude: 34.77,
           longitude: 32.42,
           place_id: "place-1",
+          phone: null,
         },
         {
           clinic_id: null,
@@ -99,6 +103,7 @@ describe("buildProfessionalRegistrationDetails", () => {
           latitude: 34.68,
           longitude: 33.04,
           place_id: null,
+          phone: "99472551",
         },
       ],
       claimed_professional_id: null,
@@ -156,6 +161,20 @@ describe("buildProfessionalRegistrationDetails", () => {
     });
   });
 
+  it("needs a valid Cyprus phone for a clinic that is not already in DocCy", () => {
+    for (const phone of ["", "12345678", "+34667000000"]) {
+      const clinics = input().clinics.map((c, i) => (i === 1 ? { ...c, phone } : c));
+      assert.deepEqual(buildProfessionalRegistrationDetails(input({ clinics })), {
+        ok: false,
+        code: "clinic_phone",
+      }, phone);
+    }
+    // A landline is fine too.
+    const clinics = input().clinics.map((c, i) => (i === 1 ? { ...c, phone: "25 123456" } : c));
+    const result = buildProfessionalRegistrationDetails(input({ clinics }));
+    assert.equal(result.ok && result.details.clinics[1]!.phone, "25123456");
+  });
+
   it("refuses the same DocCy clinic twice", () => {
     const clinics = input().clinics.map((c) => ({ ...c, clinicId: DOC_CY_CLINIC_ID }));
     assert.deepEqual(buildProfessionalRegistrationDetails(input({ clinics })), {
@@ -207,6 +226,16 @@ describe("parseProfessionalRegistrationDetails", () => {
     const stored = JSON.parse(JSON.stringify({ ...built.details, founders_club: true }));
     const parsed = parseProfessionalRegistrationDetails(stored);
     assert.deepEqual(parsed, { ...built.details, founders_club: true });
+  });
+
+  it("reads requests submitted before clinic phones existed (phone null)", () => {
+    const built = buildProfessionalRegistrationDetails(input());
+    assert.equal(built.ok, true);
+    if (!built.ok) return;
+    const stored = JSON.parse(JSON.stringify(built.details));
+    for (const clinic of stored.clinics) delete clinic.phone;
+    const parsed = parseProfessionalRegistrationDetails(stored);
+    assert.deepEqual(parsed?.clinics.map((c) => c.phone), [null, null]);
   });
 
   it("returns null for anything that is not version-1 registration details", () => {

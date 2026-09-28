@@ -29,6 +29,7 @@ import {
   stripPlusCodePrefix,
 } from "@/lib/clinic-location-pin";
 import { CYPRUS_DISTRICTS, isCyprusDistrict } from "@/lib/cyprus-districts";
+import { CLINIC_PHONE_HINT, normalizeCyprusClinicPhone } from "@/lib/clinic-phone";
 import {
   e2eRegisterHooksEnabled,
   E2E_REGISTER_CLINIC_EVENT,
@@ -170,6 +171,7 @@ export function RegisterClinicAddressField({
   docCySearch = false,
   onClinicChange,
   initialClinicName = null,
+  initialClinic = null,
   onNameChange,
   onCompleteChange,
   takenClinicIds,
@@ -200,6 +202,8 @@ export function RegisterClinicAddressField({
   onClinicChange?: (clinic: { id: string; name: string } | null) => void;
   /** Register: the clinic name, e.g. from the claimed listing. */
   initialClinicName?: string | null;
+  /** Register: the claimed listing's DocCy clinic, linked as-is (no copy, no phone to type). */
+  initialClinic?: { id: string; name: string } | null;
   /** The name patients will see: the DocCy clinic's, or the one typed / found on Google. */
   onNameChange?: (name: string | null) => void;
   /** Whether this clinic is done (set, and not being searched again). */
@@ -248,7 +252,7 @@ export function RegisterClinicAddressField({
     docCySearch ? "doccy" : "google",
   );
   const [chosenClinic, setChosenClinic] = React.useState<{ id: string; name: string } | null>(
-    null,
+    initialClinic,
   );
   const onClinicChangeRef = React.useRef(onClinicChange);
   React.useEffect(() => {
@@ -265,6 +269,10 @@ export function RegisterClinicAddressField({
   /** Typed (or Google's) clinic name. A DocCy clinic brings its own and hides this. */
   const [clinicName, setClinicName] = React.useState(initialClinicName ?? "");
   const effectiveName = chosenClinic?.name ?? (clinicName.trim() || null);
+  /** A new clinic's phone (a DocCy clinic keeps its own): the number patients will call. */
+  const [clinicPhone, setClinicPhone] = React.useState("");
+  const [clinicPhoneTouched, setClinicPhoneTouched] = React.useState(false);
+  const clinicPhoneValue = chosenClinic ? null : normalizeCyprusClinicPhone(clinicPhone);
   const onNameChangeRef = React.useRef(onNameChange);
   React.useEffect(() => {
     onNameChangeRef.current = onNameChange;
@@ -311,6 +319,10 @@ export function RegisterClinicAddressField({
       if (!hasConfirmedClinicCoordinates(next) || !next.address || !next.district) return;
       const name = (detail as { name?: unknown }).name;
       if (typeof name === "string") setClinicName(name);
+      const phone = (detail as { phone?: unknown }).phone;
+      if (typeof phone === "string") setClinicPhone(phone);
+      // A Google clinic is a new one, never the DocCy clinic a claim started with.
+      setChosenClinic(null);
       setLocation(next);
       setOrigin(clinicLocationCoordinates(next));
       setMode("confirmed");
@@ -330,12 +342,21 @@ export function RegisterClinicAddressField({
   const rowLabel = fieldLabel.replace(/ address$/, "");
   const missingName =
     includeHiddenInputs && isComplete && mode !== "search" && !effectiveName;
+  const missingPhone =
+    includeHiddenInputs &&
+    isComplete &&
+    mode !== "search" &&
+    !chosenClinic &&
+    !missingName &&
+    !clinicPhoneValue;
   const missingLabel =
     duplicateOf != null && location.address.trim()
       ? `${rowLabel} (same address as clinic ${duplicateOf})`
       : missingName
         ? `${rowLabel} name`
-        : fieldLabel;
+        : missingPhone
+          ? `${rowLabel} phone`
+          : fieldLabel;
   const duplicateNotice =
     duplicateOf != null && location.address.trim() ? (
       <p className="mt-2 text-xs font-medium text-red-600" role="alert">
@@ -360,6 +381,35 @@ export function RegisterClinicAddressField({
           maxLength={120}
           className={styles.input}
         />
+      </label>
+    ) : null;
+  const phoneField =
+    includeHiddenInputs && !chosenClinic ? (
+      <label className="mt-3 block" htmlFor={`register-clinic-phone-${index}`}>
+        <span className={styles.label}>
+          Clinic phone<span className="text-red-600">*</span>
+        </span>
+        <input
+          id={`register-clinic-phone-${index}`}
+          data-testid={`register-clinic-phone-${index}`}
+          type="tel"
+          inputMode="tel"
+          value={clinicPhone}
+          onChange={(event) => setClinicPhone(event.target.value)}
+          onBlur={() => setClinicPhoneTouched(true)}
+          // What "Clinic phone" in the missing-fields list jumps to.
+          data-focus-target={missingPhone ? "true" : undefined}
+          placeholder="e.g. 25 123456"
+          autoComplete="off"
+          maxLength={20}
+          className={styles.input}
+        />
+        <span className={styles.helper}>Patients call this number. {CLINIC_PHONE_HINT}</span>
+        {clinicPhoneTouched && clinicPhone.trim() && !clinicPhoneValue ? (
+          <span className="mt-1 block text-xs font-medium text-red-600" role="alert">
+            Enter a valid Cyprus landline or mobile, e.g. 25 123456.
+          </span>
+        ) : null}
       </label>
     ) : null;
   const pinLatitude = coords?.latitude ?? null;
@@ -618,7 +668,8 @@ export function RegisterClinicAddressField({
     !addressDistrictConflict &&
     mode !== "search" &&
     duplicateOf == null &&
-    (!includeHiddenInputs || Boolean(effectiveName));
+    (!includeHiddenInputs ||
+      (Boolean(effectiveName) && (Boolean(chosenClinic) || Boolean(clinicPhoneValue))));
   const onCompleteChangeRef = React.useRef(onCompleteChange);
   React.useEffect(() => {
     onCompleteChangeRef.current = onCompleteChange;
@@ -839,6 +890,7 @@ export function RegisterClinicAddressField({
             </p>
           ) : null}
           {nameField}
+          {phoneField}
           {duplicateNotice}
           <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
             {locationLocked ? null : coords ? (
@@ -1183,6 +1235,7 @@ export function RegisterClinicAddressField({
                 )}
               </label>
               {nameField}
+              {phoneField}
               {duplicateNotice}
             </>
           ) : null}
@@ -1280,6 +1333,13 @@ export function RegisterClinicAddressField({
             type="hidden"
             name={names.name}
             value={effectiveName ?? ""}
+            readOnly
+            aria-hidden
+          />
+          <input
+            type="hidden"
+            name={names.phone}
+            value={clinicPhoneValue ?? ""}
             readOnly
             aria-hidden
           />

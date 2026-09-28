@@ -600,6 +600,14 @@ function ClinicRow({
             <input className={inputClass} disabled={disabled} value={clinic.town ?? ""}
               onChange={(e) => onChange({ town: e.target.value || null })} />
           </label>
+          <label className={labelClass}>
+            Clinic phone (shown to patients)
+            <input className={inputClass} disabled={disabled} value={clinic.phone ?? ""}
+              data-testid={`request-clinic-phone-${index}`}
+              placeholder="e.g. 25 123456"
+              onChange={(e) => onChange({ phone: e.target.value || null })} />
+            {clinic.phone ? null : <span className="text-[11px] font-semibold text-amber-300">Needed before approving</span>}
+          </label>
           {canMutate ? (
             <label className={`${labelClass} sm:col-span-2`}>
               Or use an existing DocCy clinic

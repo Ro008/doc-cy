@@ -54,6 +54,8 @@ export type DirectoryClaimMatch = FuzzyDirectoryClaimMatch | {
 };
 
 export type RegisterClaimClinic = {
+  /** The DocCy clinic the listing is linked to: the form links it instead of proposing a copy. */
+  clinicId: string | null;
   name: string;
   address: string;
   district: string | null;
@@ -88,6 +90,7 @@ function claimGender(raw: string | null | undefined): "female" | "male" | null {
 }
 
 type ClaimClinicNested = {
+  id?: string | null;
   name?: string | null;
   address?: string | null;
   district?: string | null;
@@ -125,6 +128,7 @@ export function registerClaimClinicsFromJoin(
     const address = String(clinic.address ?? "").trim();
     if (!address) continue;
     out.push({
+      clinicId: String(clinic.id ?? "").trim() || null,
       name: String(clinic.name ?? "").trim(),
       address,
       district: String(clinic.district ?? "").trim() || null,
@@ -154,6 +158,7 @@ export function registerClaimClinicFromProfessionalRow(row: {
     String(row.address ?? "").trim() || String(row.clinic_address ?? "").trim();
   if (!address) return null;
   return {
+    clinicId: null,
     name: "",
     address,
     district: String(row.district ?? "").trim() || null,
@@ -426,7 +431,7 @@ export async function loadUnregisteredProfessionalForRegisterClaim(
   const { data: linkRows, error: linkError } = await supabase
     .from("professional_clinics")
     .select(
-      "is_primary, clinics ( name, address, district, town, latitude, longitude, is_archived )",
+      "is_primary, clinics ( id, name, address, district, town, latitude, longitude, is_archived )",
     )
     .eq("professional_id", id)
     .limit(MAX_DOCTOR_LOCATIONS);

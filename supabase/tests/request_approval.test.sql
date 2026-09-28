@@ -39,7 +39,8 @@ end
 $f$;
 
 -- Version-1 registration details (see lib/professional-registration-request.ts).
-create or replace function pg_temp.details(p_email text, p_last text, p_clinics jsonb, p_claim uuid default null)
+create or replace function pg_temp.details(p_email text, p_last text, p_clinics jsonb, p_claim uuid default null,
+  p_mobile text default '+35799123456')
 returns jsonb
 language sql
 as $f$
@@ -49,7 +50,7 @@ as $f$
     'gender', 'female',
     'gesy', true,
     'email', p_email,
-    'mobile', '+35799123456',
+    'mobile', p_mobile,
     'languages', jsonb_build_array('English', 'Greek'),
     'photo', jsonb_build_object('bucket', 'request-uploads', 'path', 'professional_registration/x/photo.jpg'),
     'specialties', jsonb_build_array(
@@ -111,7 +112,8 @@ begin
     jsonb_build_object('clinic_id', v_clinic, 'name', null, 'address', '1 Existing St, Paphos',
       'district', 'Paphos', 'town', 'Paphos', 'latitude', 34.77, 'longitude', 32.42, 'place_id', null),
     jsonb_build_object('clinic_id', null, 'name', 'Appr New Clinic ' || v_tag, 'address', '2 New Rd, Limassol',
-      'district', 'Limassol', 'town', null, 'latitude', 34.68, 'longitude', 33.04, 'place_id', 'place-' || v_tag));
+      'district', 'Limassol', 'town', null, 'latitude', 34.68, 'longitude', 33.04, 'place_id', 'place-' || v_tag,
+      'phone', '25123456'));
 
   -- 1. Access: service role only; the old four-argument version is gone.
   if to_regprocedure('public.request_approve(uuid, uuid, jsonb, text)') is not null then
@@ -189,9 +191,9 @@ begin
   where pc.professional_id = v_pro.id and not pc.is_primary and pc.sort_order = 1
     and c.name = 'Appr New Clinic ' || v_tag and c.slug = 'appr-new-clinic-' || v_tag
     and c.district = 'Limassol' and c.address = '2 New Rd, Limassol' and c.ghs_code is null
-    and c.clinic_place_id = 'place-' || v_tag;
+    and c.clinic_place_id = 'place-' || v_tag and c.phone = '25123456';
   if v_new_clinic is null then
-    raise exception 'FAIL: the proposed clinic should be created (name, slug, district, address) and linked second';
+    raise exception 'FAIL: the proposed clinic should be created (name, slug, district, address, phone) and linked second';
   end if;
   if not exists (select 1 from public.professional_specialties ps join public.specialties s on s.id = ps.specialty_id
                  where ps.professional_id = v_pro.id and s.name = 'Cardiology' and ps.is_approved and ps.license_number = 'LIC-1') then
@@ -254,7 +256,9 @@ begin
 
   -- 6. A real applicant with a reserved place becomes a founder.
   v_email := 'appr-real-' || v_tag || '@example.org';
-  v_req2 := pg_temp.new_request(v_email, pg_temp.details(v_email, 'Real ' || v_tag, jsonb_build_array(v_clinics -> 0)));
+  -- A real professional's mobile must be unique (test profiles are exempt): use a fresh one.
+  v_req2 := pg_temp.new_request(v_email, pg_temp.details(v_email, 'Real ' || v_tag, jsonb_build_array(v_clinics -> 0), null,
+    '+35799' || lpad((floor(random() * 1000000))::int::text, 6, '0')));
   if (select details -> 'founders_club' from public.request_log where id = v_req2) = 'true'::jsonb then
     perform public.request_approve(v_req2, v_admin, null, null, jsonb_build_object('slug', 'appr-real-' || v_tag));
     select * into v_pro from public.professionals where registration_email = v_email;

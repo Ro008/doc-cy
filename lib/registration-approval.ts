@@ -1,6 +1,7 @@
 import { isCyprusDistrict } from "@/lib/cyprus-districts";
 import { buildDoctorSlugCandidates } from "@/lib/doctor-slug";
 import { MAX_DOCTOR_LOCATIONS } from "@/lib/doctor-locations";
+import { normalizeCyprusClinicPhone } from "@/lib/clinic-phone";
 import {
   professionalContactUniqueViolation,
   type ProfessionalContactUse,
@@ -93,9 +94,12 @@ export function validateApprovedRegistrationDetails(
     const name = text(raw.name);
     const address = text(raw.address);
     const district = text(raw.district);
+    // A new clinic needs its phone: the public Call button shows the clinic's number.
+    const phone = clinicId ? null : normalizeCyprusClinicPhone(text(raw.phone));
     if (!clinicId) {
       if (!name) return fail("Every new clinic needs a name.");
       if (!address) return fail("Every new clinic needs an address.");
+      if (!phone) return fail(`Give ${name} a phone number: a Cyprus landline or mobile, e.g. 25 123456.`);
     }
     if (!isCyprusDistrict(district)) return fail(`Unknown district "${district}".`);
     const latitude = Number(raw.latitude);
@@ -109,6 +113,7 @@ export function validateApprovedRegistrationDetails(
       latitude: Number.isFinite(latitude) ? latitude : 0,
       longitude: Number.isFinite(longitude) ? longitude : 0,
       place_id: text(raw.place_id) || null,
+      phone,
     });
   }
 

@@ -233,6 +233,7 @@ describe("register claim from finder card", () => {
       {
         is_primary: false,
         clinics: {
+          id: "11111111-1111-4111-8111-111111111111",
           name: "Paphos Rooms",
           address: "1 Kennedy, Paphos",
           district: "Paphos",
@@ -244,6 +245,7 @@ describe("register claim from finder card", () => {
       {
         is_primary: true,
         clinics: {
+          id: "22222222-2222-4222-8222-222222222222",
           name: "Nicosia Rooms",
           address: "12 Ledras Street, Nicosia",
           district: "Nicosia",
@@ -257,6 +259,10 @@ describe("register claim from finder card", () => {
     assert.equal(clinics[1]?.name, "Paphos Rooms");
     assert.equal(clinics[0]?.placeId, null);
     assert.equal(clinics.every((clinic) => !("phone" in clinic)), true);
+    // The listing's clinics are existing DocCy clinics: the form links them by id
+    // (no new clinic, no phone to type) instead of proposing copies.
+    assert.equal(clinics[0]?.clinicId, "22222222-2222-4222-8222-222222222222");
+    assert.equal(clinics[1]?.clinicId, "11111111-1111-4111-8111-111111111111");
   });
 
   it("builds a confirmable clinic from the listing row when there is no clinic join", () => {

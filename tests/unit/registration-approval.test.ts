@@ -41,6 +41,7 @@ const original: ProfessionalRegistrationDetails = {
       latitude: 34.77,
       longitude: 32.42,
       place_id: null,
+      phone: null,
     },
     {
       clinic_id: null,
@@ -51,6 +52,7 @@ const original: ProfessionalRegistrationDetails = {
       latitude: 34.68,
       longitude: 33.04,
       place_id: null,
+      phone: "99472551",
     },
   ],
   claimed_professional_id: null,
@@ -66,6 +68,24 @@ describe("validateApprovedRegistrationDetails", () => {
   it("accepts the request unchanged", () => {
     const result = validateApprovedRegistrationDetails(original, edited({}));
     assert.deepEqual(result, { ok: true, details: original });
+  });
+
+  it("needs a Cyprus phone for every new clinic, and stores it as 8 digits", () => {
+    const withPhone = (phone: string | null) =>
+      edited({ clinics: [original.clinics[0]!, { ...original.clinics[1]!, phone }] });
+    for (const phone of [null, "", "12345678"]) {
+      const result = validateApprovedRegistrationDetails(original, withPhone(phone));
+      assert.equal(result.ok, false, String(phone));
+      assert.match(result.ok ? "" : result.message, /phone/i);
+    }
+    const fixed = validateApprovedRegistrationDetails(original, withPhone("+357 25 123456"));
+    assert.equal(fixed.ok && fixed.details.clinics[1]!.phone, "25123456");
+    // A DocCy clinic keeps its own phone.
+    const picked = validateApprovedRegistrationDetails(
+      original,
+      edited({ clinics: [{ ...original.clinics[0]!, phone: "22000000" }, original.clinics[1]!] }),
+    );
+    assert.equal(picked.ok && picked.details.clinics[0]!.phone, null);
   });
 
   it("accepts founders' corrections and trims them", () => {

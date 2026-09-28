@@ -98,6 +98,7 @@ const details: ProfessionalRegistrationDetails = {
       latitude: 34.77,
       longitude: 32.42,
       place_id: null,
+      phone: null,
     },
     {
       clinic_id: null,
@@ -108,6 +109,7 @@ const details: ProfessionalRegistrationDetails = {
       latitude: 34.68,
       longitude: 33.04,
       place_id: null,
+      phone: null,
     },
   ],
   claimed_professional_id: null,

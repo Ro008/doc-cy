@@ -60,6 +60,8 @@ async function seedRequest(
     clinicDistrict: string;
     claimId?: string | null;
     mobile?: string;
+    /** The proposed clinic's phone; null = a request from before clinic phones were asked. */
+    newClinicPhone?: string | null;
   },
 ): Promise<Seeded> {
   const email = `review-${Date.now()}-${Math.random().toString(36).slice(2, 7)}@integration.test`;
@@ -105,6 +107,7 @@ async function seedRequest(
         latitude: 34.92,
         longitude: 33.63,
         place_id: null,
+        phone: input.newClinicPhone === undefined ? "24123456" : input.newClinicPhone,
       },
     ],
     claimed_professional_id: input.claimId ?? null,
@@ -258,6 +261,9 @@ test.describe("Integration: registration request review", { tag: "@pr-e2e" }, ()
       .order("sort_order");
     expect(links?.map((l) => l.clinic_id)[0]).toBe(clinic.id);
     expect(links).toHaveLength(2);
+    // The proposed clinic was created with its phone.
+    const { data: created } = await admin.from("clinics").select("phone").eq("id", links![1]!.clinic_id).single();
+    expect(created?.phone).toBe("24123456");
 
     // The public profile is live.
     await page.goto(`/en/${body.slug}`, { waitUntil: "domcontentloaded" });
@@ -376,6 +382,38 @@ test.describe("Integration: registration request review", { tag: "@pr-e2e" }, ()
     const row = await loadRequest(admin, seeded.requestId);
     expect(row.status).toBe("rejected");
     expect(row.decision_note).toBe("Licence number not found");
+  });
+
+  test("a new clinic without a phone can't be approved until a founder adds one", async ({ request }) => {
+    const seeded = await seedRequest(admin, cleanup, {
+      lastName: `Nophone ${Date.now().toString(36)}`,
+      clinicId: clinic.id,
+      clinicAddress: clinic.address,
+      clinicDistrict: clinic.district,
+      newClinicPhone: null,
+    });
+    const url = `${baseUrl()}/api/internal/requests/${seeded.requestId}/approve`;
+    const headers = { cookie: adminCookieHeader(founder) };
+    const refused = await request.post(url, { headers, data: {} });
+    expect(refused.status()).toBe(400);
+    expect(await refused.text()).toMatch(/phone number/i);
+
+    const { details } = await loadRequest(admin, seeded.requestId);
+    const withPhone = details as { clinics: Array<Record<string, unknown>> };
+    const fixed = await request.post(url, {
+      headers,
+      data: {
+        details: {
+          ...withPhone,
+          clinics: withPhone.clinics.map((c, i) => (i === 1 ? { ...c, phone: "+357 24 654321" } : c)),
+        },
+      },
+    });
+    expect(fixed.status(), await fixed.text()).toBe(200);
+    const { outcome } = await recordOutcome(admin, cleanup, seeded.requestId);
+    const createdId = outcome.clinics?.find((c) => c.created)?.clinic_id;
+    const { data: created } = await admin.from("clinics").select("phone").eq("id", createdId!).single();
+    expect(created?.phone).toBe("24654321");
   });
 
   test("approving is refused while another professional uses the mobile", async ({ request }) => {
