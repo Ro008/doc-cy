@@ -310,6 +310,23 @@ test.describe("Integration: registration request review", { tag: "@pr-e2e" }, ()
     expect(lookup.status(), await lookup.text()).toBe(200);
     expect(((await lookup.json()) as { listing: { id: string } }).listing.id).toBe(listing.id);
 
+    // Pasted without the scheme ("localhost:3000/en/…") it still works.
+    const bare = `${baseUrl()}${listing.profilePath}`.replace(/^https?:\/\//, "");
+    const bareLookup = await request.get(
+      `${baseUrl()}/api/internal/requests/listing?url=${encodeURIComponent(bare)}`,
+      { headers },
+    );
+    expect(bareLookup.status(), await bareLookup.text()).toBe(200);
+
+    // A URL from another site (the live site, when testing locally) is refused clearly.
+    const otherSite = new URL(baseUrl()).hostname === "localhost" ? "https://www.mydoccy.com" : "http://localhost:3000";
+    const wrongSite = await request.get(
+      `${baseUrl()}/api/internal/requests/listing?url=${encodeURIComponent(`${otherSite}${listing.profilePath}`)}`,
+      { headers },
+    );
+    expect(wrongSite.status()).toBe(400);
+    expect(await wrongSite.text()).toMatch(/another site/i);
+
     const { details } = await loadRequest(admin, seeded.requestId);
     const approved = await request.post(`${baseUrl()}/api/internal/requests/${seeded.requestId}/approve`, {
       headers,

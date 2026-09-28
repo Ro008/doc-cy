@@ -137,31 +137,51 @@ export function validateApprovedRegistrationDetails(
   return { ok: true, details };
 }
 
+export type ListingUrlResult = { ok: true; slug: string } | { ok: false; reason: "not_profile" | "other_site" };
+
+/** "www.mydoccy.com" and "mydoccy.com" are the same site; so are localhost:3000 and :3100. */
+function siteHost(hostname: string): string {
+  return hostname.toLowerCase().replace(/^www\./, "");
+}
+
 /**
- * The slug of a public profile URL (`/en/<slug>`, `/el/<slug>`, legacy
- * `/finder/professional/<slug>`), from a full URL or a path. Anything else: null.
+ * The listing slug in a public profile URL pasted by a founder: `/en/<slug>`,
+ * `/el/<slug>` or `/finder/professional/<slug>`, with or without the scheme. A full
+ * URL must belong to this site (`siteUrl`: localhost when testing, mydoccy.com live).
  */
-export function parseListingUrl(value: string): string | null {
+export function parseListingUrl(value: string, siteUrl: string): ListingUrlResult {
   const raw = String(value ?? "").trim();
-  if (!raw) return null;
+  if (!raw) return { ok: false, reason: "not_profile" };
   let pathname: string;
+  let host: string | null = null;
   try {
     if (raw.startsWith("/")) {
       pathname = new URL(raw, "https://placeholder.invalid").pathname;
     } else {
-      const url = new URL(raw);
-      if (url.protocol !== "https:" && url.protocol !== "http:") return null;
+      // "localhost:3000/en/x" would parse with "localhost:" as its scheme.
+      const withScheme = /^[a-z][a-z0-9+.-]*:\/\//i.test(raw) ? raw : `https://${raw}`;
+      const url = new URL(withScheme);
+      if (url.protocol !== "https:" && url.protocol !== "http:") return { ok: false, reason: "not_profile" };
+      host = url.hostname;
       pathname = url.pathname;
     }
   } catch {
-    return null;
+    return { ok: false, reason: "not_profile" };
   }
   const parts = pathname.split("/").filter(Boolean).map((part) => decodeURIComponent(part));
   let slug: string | undefined;
   if (parts.length === 2 && PUBLIC_LOCALES.has(parts[0]!.toLowerCase())) slug = parts[1];
   if (parts.length === 3 && parts[0] === "finder" && parts[1] === "professional") slug = parts[2];
-  if (!slug || !/^[a-z0-9-]+$/i.test(slug)) return null;
-  return slug.toLowerCase();
+  if (!slug || !/^[a-z0-9-]+$/i.test(slug)) return { ok: false, reason: "not_profile" };
+  if (host !== null && siteHost(host) !== siteHost(new URL(siteUrl).hostname)) {
+    return { ok: false, reason: "other_site" };
+  }
+  return { ok: true, slug: slug.toLowerCase() };
+}
+
+/** What a listing URL looks like on this site, for the placeholder and error messages. */
+export function listingUrlExample(siteUrl: string): string {
+  return `${siteUrl.replace(/\/+$/, "")}/en/name`;
 }
 
 /** Whether a claimed listing keeps its slug: it still matches the approved name. */

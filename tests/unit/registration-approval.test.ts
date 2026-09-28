@@ -5,6 +5,7 @@ import {
   approvalErrorMessage,
   approvedAvatarPath,
   claimedListingKeepsSlug,
+  listingUrlExample,
   parseListingUrl,
   validateApprovedRegistrationDetails,
 } from "../../lib/registration-approval";
@@ -139,12 +140,35 @@ describe("validateApprovedRegistrationDetails", () => {
 });
 
 describe("parseListingUrl", () => {
+  const site = "https://www.mydoccy.com";
+  const slug = (value: string, siteUrl = site) => {
+    const result = parseListingUrl(value, siteUrl);
+    return result.ok ? result.slug : null;
+  };
+
   it("reads the slug from a public profile URL or path", () => {
-    assert.equal(parseListingUrl("https://www.mydoccy.com/en/karina-mino"), "karina-mino");
-    assert.equal(parseListingUrl(" https://www.mydoccy.com/el/karina-mino/?utm=x#top "), "karina-mino");
-    assert.equal(parseListingUrl("/en/karina-mino"), "karina-mino");
-    assert.equal(parseListingUrl("http://localhost:3000/en/Karina-Mino"), "karina-mino");
-    assert.equal(parseListingUrl("https://www.mydoccy.com/finder/professional/karina-mino"), "karina-mino");
+    assert.equal(slug("https://www.mydoccy.com/en/karina-mino"), "karina-mino");
+    assert.equal(slug(" https://www.mydoccy.com/el/karina-mino/?utm=x#top "), "karina-mino");
+    assert.equal(slug("/en/karina-mino"), "karina-mino");
+    assert.equal(slug("https://www.mydoccy.com/finder/professional/karina-mino"), "karina-mino");
+    // With or without "www." and the scheme.
+    assert.equal(slug("https://mydoccy.com/en/karina-mino"), "karina-mino");
+    assert.equal(slug("www.mydoccy.com/en/karina-mino"), "karina-mino");
+    assert.equal(slug("mydoccy.com/en/Karina-Mino"), "karina-mino");
+  });
+
+  it("accepts the current site's own address, e.g. localhost when testing", () => {
+    const local = "http://localhost:3000";
+    assert.equal(slug("http://localhost:3000/en/Karina-Mino", local), "karina-mino");
+    assert.equal(slug("localhost:3000/en/karina-mino", local), "karina-mino");
+    // Another local port is the same site (specs run the app on :3100).
+    assert.equal(slug("http://localhost:3100/en/karina-mino", local), "karina-mino");
+  });
+
+  it("refuses a profile URL from another site", () => {
+    const result = parseListingUrl("https://www.mydoccy.com/en/karina-mino", "http://localhost:3000");
+    assert.deepEqual(result, { ok: false, reason: "other_site" });
+    assert.deepEqual(parseListingUrl("https://example.com/en/karina-mino", site), { ok: false, reason: "other_site" });
   });
 
   it("refuses anything that isn't a profile URL", () => {
@@ -156,8 +180,15 @@ describe("parseListingUrl", () => {
       "https://www.mydoccy.com/en/karina-mino/book",
       "ftp://www.mydoccy.com/en/karina-mino",
     ]) {
-      assert.equal(parseListingUrl(value), null, value);
+      assert.deepEqual(parseListingUrl(value, site), { ok: false, reason: "not_profile" }, value);
     }
+  });
+});
+
+describe("listingUrlExample", () => {
+  it("shows the current site's address", () => {
+    assert.equal(listingUrlExample("http://localhost:3000"), "http://localhost:3000/en/name");
+    assert.equal(listingUrlExample("https://www.mydoccy.com/"), "https://www.mydoccy.com/en/name");
   });
 });
 

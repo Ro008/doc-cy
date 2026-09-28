@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { CYPRUS_DISTRICTS } from "@/lib/cyprus-districts";
+import { getPublicBookingBaseUrl } from "@/lib/site-url";
 import type {
   ProfessionalRegistrationDetails,
   RegistrationClinic,
@@ -417,7 +418,7 @@ function RequestCard({
                   className={inputClass}
                   disabled={disabled}
                   value={listingUrl}
-                  placeholder="https://www.mydoccy.com/en/…"
+                  placeholder={`${getPublicBookingBaseUrl()}/en/…`}
                   onChange={(e) => {
                     setListingUrl(e.target.value);
                     setListingCheck({ state: e.target.value.trim() ? "unchecked" : "empty" });

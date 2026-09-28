@@ -22,6 +22,7 @@ import {
   registrationContactConflictMessage,
   approvedAvatarPath,
   claimedListingKeepsSlug,
+  listingUrlExample,
   parseListingUrl,
   validateApprovedRegistrationDetails,
 } from "@/lib/registration-approval";
@@ -203,10 +204,20 @@ export async function lookupClaimableListing(
   service: SupabaseClient,
   url: string,
 ): Promise<HttpResult<{ listing: ReviewListing }>> {
-  const slug = parseListingUrl(url);
-  if (!slug) {
-    return { ok: false, status: 400, message: "That is not a profile URL (it should look like https://www.mydoccy.com/en/name)." };
+  const siteUrl = getPublicBookingBaseUrl();
+  const parsed = parseListingUrl(url, siteUrl);
+  if (parsed.ok === false) {
+    const example = listingUrlExample(siteUrl);
+    return {
+      ok: false,
+      status: 400,
+      message:
+        parsed.reason === "other_site"
+          ? `That URL is from another site. Paste a profile URL from ${siteUrl} (like ${example}).`
+          : `That is not a profile URL (it should look like ${example}).`,
+    };
   }
+  const { slug } = parsed;
   let { data: listing } = await service
     .from("professionals")
     .select("id, name, slug, is_registered, is_archived")
