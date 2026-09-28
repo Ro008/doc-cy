@@ -7,6 +7,9 @@ import { CYPRUS_DISTRICTS } from "@/lib/cyprus-districts";
 import { getPublicBookingBaseUrl } from "@/lib/site-url";
 import { AvatarCropDialog, prepareAvatarSource } from "@/components/auth/AvatarCropDialog";
 import { REGISTER_AVATAR_ACCEPT } from "@/lib/register-avatar";
+import { registerLanguageOptions } from "@/lib/register-languages";
+import { CYPRUS_SPOKEN_LANGUAGE_LABELS } from "@/lib/cyprus-languages";
+import { Check, ChevronDown } from "lucide-react";
 import { ClinicAddressAutocomplete } from "@/components/dashboard/ClinicAddressAutocomplete";
 import { MAX_DOCTOR_LOCATIONS } from "@/lib/doctor-locations";
 import type { ClinicLocation } from "@/lib/clinic-location";
@@ -41,6 +44,74 @@ const chipNewClass = `${chipBaseClass} bg-amber-500/20 text-amber-200`;
 const chipPrimaryClass = `${chipBaseClass} bg-clinical-500/20 text-clinical-200`;
 const addButtonClass =
   "rounded-lg border border-dashed border-clinical-400/50 px-3 py-1.5 text-xs font-semibold text-clinical-200 hover:bg-clinical-500/10 disabled:opacity-60";
+
+/**
+ * Languages as the registration form shows them: one-click pills from the same list
+ * (the most common first, the rest behind "More languages"), never free text.
+ */
+function ReviewLanguagePills({
+  requestId,
+  selected,
+  disabled,
+  onChange,
+}: {
+  requestId: string;
+  selected: readonly string[];
+  disabled: boolean;
+  onChange: (languages: string[]) => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const { visible, hiddenCount } = registerLanguageOptions(selected, expanded);
+  const labelId = `request-languages-${requestId}`;
+  const toggle = (label: string, checked: boolean) => {
+    const next = checked ? [...selected, label] : selected.filter((item) => item !== label);
+    // Keep the list's order, as the form and the approval do.
+    onChange(CYPRUS_SPOKEN_LANGUAGE_LABELS.filter((item) => next.includes(item)));
+  };
+  return (
+    <div className="flex flex-col gap-1">
+      <span id={labelId} className="text-xs text-slate-400">
+        Languages
+      </span>
+      <div role="group" aria-labelledby={labelId} className="flex flex-wrap items-center gap-2">
+        {visible.map((label) => {
+          const checked = selected.includes(label);
+          return (
+            <label
+              key={label}
+              data-testid={`request-language-option-${label.replace(/\s+/g, "-")}`}
+              className={`relative ${disabled ? "cursor-default" : "cursor-pointer"}`}
+            >
+              <input
+                type="checkbox"
+                checked={checked}
+                disabled={disabled}
+                onChange={(event) => toggle(label, event.target.checked)}
+                className="peer sr-only"
+              />
+              <span className="inline-flex h-8 items-center gap-1.5 rounded-full border border-slate-600 bg-slate-950 px-3 text-xs font-semibold text-slate-200 transition hover:border-clinical-400/70 peer-checked:border-clinical-400 peer-checked:bg-clinical-500 peer-checked:text-ink-900 peer-focus-visible:ring-2 peer-focus-visible:ring-clinical-400/60 peer-disabled:opacity-70">
+                {checked ? <Check className="h-3.5 w-3.5" strokeWidth={3} aria-hidden /> : null}
+                {label}
+              </span>
+            </label>
+          );
+        })}
+        <button
+          type="button"
+          onClick={() => setExpanded((value) => !value)}
+          aria-expanded={expanded}
+          className="inline-flex h-8 items-center gap-1 rounded-full px-2 text-xs font-semibold text-clinical-300 hover:bg-clinical-500/10"
+        >
+          {expanded ? "Fewer languages" : `More languages (${hiddenCount})`}
+          <ChevronDown className={`h-3.5 w-3.5 transition ${expanded ? "rotate-180" : ""}`} aria-hidden />
+        </button>
+      </div>
+      {selected.length === 0 ? (
+        <span className="text-[11px] font-semibold text-amber-300">Pick at least one language before approving</span>
+      ) : null}
+    </div>
+  );
+}
 
 /** One section of a request (Applicant, Specialties, Clinics, …): its own panel and heading. */
 function ReviewPanel({ title, children }: { title: string; children: React.ReactNode }) {
@@ -454,11 +525,14 @@ function RequestCard({
               <option value="no">No</option>
             </select>
           </label>
-          <label className={`${labelClass} sm:col-span-2`}>
-            Languages (comma-separated)
-            <input className={inputClass} disabled={disabled} value={draft.languages.join(", ")}
-              onChange={(e) => update({ languages: e.target.value.split(",").map((l) => l.trim()) })} />
-          </label>
+          <div className="sm:col-span-2">
+            <ReviewLanguagePills
+              requestId={item.id}
+              selected={draft.languages}
+              disabled={disabled}
+              onChange={(languages) => update({ languages })}
+            />
+          </div>
         </div>
       </div>
       </ReviewPanel>

@@ -128,6 +128,22 @@ describe("validateApprovedRegistrationDetails", () => {
     assert.match(result.ok === false ? result.message : "", /map/i);
   });
 
+  it("accepts only languages from the form's list, deduplicated and in the list's order", () => {
+    const refused = validateApprovedRegistrationDetails(original, edited({ languages: ["English", "Englsh"] }));
+    assert.equal(refused.ok, false);
+    assert.match(refused.ok === false ? refused.message : "", /Englsh/);
+
+    const none = validateApprovedRegistrationDetails(original, edited({ languages: [] }));
+    assert.equal(none.ok, false);
+
+    const ok = validateApprovedRegistrationDetails(
+      original,
+      edited({ languages: ["English", "Greek", "English"] }),
+    );
+    assert.equal(ok.ok, true);
+    assert.deepEqual(ok.ok && ok.details.languages, ["Greek", "English"]);
+  });
+
   it("lets founders add a specialty, marked by whether the catalogue has it", () => {
     const catalogue = ["Physiotherapy", "Dermatology"];
     const result = validateApprovedRegistrationDetails(

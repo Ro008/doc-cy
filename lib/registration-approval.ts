@@ -1,4 +1,5 @@
 import { isCyprusDistrict } from "@/lib/cyprus-districts";
+import { validateLanguageSelection } from "@/lib/cyprus-languages";
 import { buildDoctorSlugCandidates } from "@/lib/doctor-slug";
 import { MAX_DOCTOR_LOCATIONS } from "@/lib/doctor-locations";
 import { normalizeCyprusClinicPhone } from "@/lib/clinic-phone";
@@ -67,8 +68,16 @@ export function validateApprovedRegistrationDetails(
   const mobile = text(edited.mobile);
   if (!mobile) return fail("Enter the mobile number.");
 
-  const languages = Array.isArray(edited.languages) ? edited.languages.map(text).filter(Boolean) : [];
-  if (languages.length === 0) return fail("Choose at least one language.");
+  // The form's list only (a typo would reach the public profile), deduplicated, in the list's order.
+  const languagesParsed = validateLanguageSelection(Array.isArray(edited.languages) ? edited.languages : []);
+  if (languagesParsed.ok === false) {
+    return fail(
+      languagesParsed.message === "Select at least one language."
+        ? "Choose at least one language."
+        : languagesParsed.message,
+    );
+  }
+  const languages = languagesParsed.value;
 
   let photo: ProfessionalRegistrationDetails["photo"] = null;
   if (edited.photo !== null && edited.photo !== undefined) {

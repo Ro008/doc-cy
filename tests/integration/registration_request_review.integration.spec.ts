@@ -534,6 +534,13 @@ test.describe("Integration: registration request review", { tag: "@pr-e2e" }, ()
 
     await card.getByLabel("Last name").fill(`${lastName} Ui`);
 
+    // Languages are the form's pills, not free text: the applicant's English is on,
+    // and a founder adds Russian with one click.
+    await expect(card.getByLabel(/Languages \(comma-separated\)/)).toHaveCount(0);
+    await expect(card.getByTestId("request-language-option-English").getByRole("checkbox")).toBeChecked();
+    await card.getByTestId("request-language-option-Russian").click();
+    await expect(card.getByTestId("request-language-option-Russian").getByRole("checkbox")).toBeChecked();
+
     // Founders can add a specialty (from the catalogue, or a new label) with its licence.
     const { data: catalogueRow } = await admin
       .from("specialties")
@@ -591,6 +598,12 @@ test.describe("Integration: registration request review", { tag: "@pr-e2e" }, ()
     expect(approvedLinks?.map((l) => l.clinic_id)).toContain(otherClinic!.id);
     expect(row.status).toBe("approved");
     expect((row.approved_details as { last_name: string }).last_name).toBe(`${lastName} Ui`);
+    const { data: approvedPro } = await admin
+      .from("professionals")
+      .select("languages")
+      .eq("id", row.professional_id!)
+      .single();
+    expect(approvedPro?.languages).toEqual(["English", "Russian"]);
     const { data: proSpecialties } = await admin
       .from("professional_specialties")
       .select("license_number, specialties(name)")
