@@ -5,6 +5,7 @@ import { createIntegrationAdmin, requireSafeIntegration } from "./helpers/safe-i
 import {
   answerRegisterAccountChoices,
   selectRegisterEnglishLanguage,
+  uniqueRegisterTestMobile,
   uploadRegisterAvatar,
   waitForRegisterWizardReady,
 } from "./helpers/goto-register-practice-step";
@@ -39,6 +40,7 @@ test.describe("Integration: registration request submit", { tag: "@pr-e2e" }, ()
     const email = buildAutomatedDoctorRegistrationTestEmail();
     const nonce = `${Date.now()}`.replace(/\d/g, (digit) => "abcdefghij"[Number(digit)]!);
     const lastName = `Etoe ${nonce}`;
+    const mobile = uniqueRegisterTestMobile();
     let authUserId: string | null = null;
     let photoPath: string | null = null;
 
@@ -51,7 +53,7 @@ test.describe("Integration: registration request submit", { tag: "@pr-e2e" }, ()
       await page.locator("#register-form input[name='lastName']").fill(lastName);
       await page.locator("#register-form input[name='email']").fill(email);
       await page.locator("#register-form input[name='password']").fill(INTEGRATION_DOCTOR_PASSWORD);
-      await page.getByTestId("register-phone-input").fill("+35799123456");
+      await page.getByTestId("register-phone-input").fill(mobile);
       await answerRegisterAccountChoices(page, { gender: "Female", gesy: "No" });
       await page.getByTestId("register-wizard-continue").click();
 
@@ -103,7 +105,7 @@ test.describe("Integration: registration request submit", { tag: "@pr-e2e" }, ()
         gender: "female",
         gesy: false,
         email,
-        mobile: "+35799123456",
+        mobile,
         languages: ["English"],
         specialties: [{ name: "Cardiology", from_catalogue: true, license_number: "REQ-LIC-123" }],
         claimed_professional_id: null,

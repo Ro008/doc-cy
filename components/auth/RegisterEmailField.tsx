@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useRegisterContactTaken } from "@/components/auth/useRegisterContactTaken";
 import { REGISTER_EMAIL_HTML_PATTERN, suggestRegisterEmail } from "@/lib/register-email";
 import {
   registerFieldErrorClass,
@@ -16,6 +17,7 @@ import {
 export function RegisterEmailField({ lockedEmail = null }: { lockedEmail?: string | null } = {}) {
   const inputRef = React.useRef<HTMLInputElement>(null);
   const [suggestion, setSuggestion] = React.useState<string | null>(null);
+  const [taken, clearTaken] = useRegisterContactTaken(inputRef, "email");
 
   const applySuggestion = () => {
     const input = inputRef.current;
@@ -55,13 +57,21 @@ export function RegisterEmailField({ lockedEmail = null }: { lockedEmail?: strin
           onBlur={(event) => {
             if (!lockedEmail) setSuggestion(suggestRegisterEmail(event.currentTarget.value));
           }}
-          onChange={() => setSuggestion(null)}
+          onChange={() => {
+            setSuggestion(null);
+            clearTaken();
+          }}
           className={registerInputClass}
         />
       </label>
       {lockedEmail ? (
         <p className="mt-1 text-xs text-ink-600" data-testid="register-email-locked">
           You&apos;re signed in, so this application uses this account.
+        </p>
+      ) : null}
+      {taken ? (
+        <p data-testid="register-email-taken" role="alert" className="mt-1 text-xs font-semibold text-red-700">
+          {taken}
         </p>
       ) : null}
       {suggestion ? (

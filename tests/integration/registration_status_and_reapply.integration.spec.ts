@@ -9,6 +9,7 @@ import {
   selectRegisterEnglishLanguage,
   uploadRegisterAvatar,
   waitForRegisterWizardReady,
+  uniqueRegisterTestMobile,
 } from "./helpers/goto-register-practice-step";
 import { adminCookieHeader, sharedTestFounder, type TestAdmin } from "./helpers/test-admin";
 import { deleteTestClinics, loginDoctorUi } from "./helpers/test-doctor";
@@ -69,7 +70,7 @@ test.describe("Integration: registration status and re-apply", { tag: "@pr-e2e" 
         gender: "female",
         gesy: true,
         email,
-        mobile: "+35799123456",
+        mobile: uniqueRegisterTestMobile(),
         languages: ["English"],
         photo: { bucket: "request-uploads", path: photoPath },
         specialties: [{ name: "Cardiology", from_catalogue: true, license_number: "ST-1" }],
@@ -169,7 +170,7 @@ test.describe("Integration: registration status and re-apply", { tag: "@pr-e2e" 
 
     await page.locator("#register-form input[name='firstName']").fill("Review");
     await page.locator("#register-form input[name='lastName']").fill(lastName);
-    await page.getByTestId("register-phone-input").fill("+35799123456");
+    await page.getByTestId("register-phone-input").fill(uniqueRegisterTestMobile());
     await answerRegisterAccountChoices(page);
     await page.getByTestId("register-wizard-continue").click();
     await expect(page.getByTestId("register-step-2")).toBeVisible({ timeout: 15_000 });

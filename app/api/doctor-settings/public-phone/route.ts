@@ -13,6 +13,10 @@ import {
   anyClinicPaused,
 } from "@/lib/booking-contact-phone";
 import { loadDoctorLocations } from "@/lib/load-doctor-locations";
+import {
+  SETTINGS_MOBILE_IN_USE_MESSAGE,
+  professionalContactUniqueViolation,
+} from "@/lib/professional-contact";
 
 /** Instant save for the public Call switch (and which number it uses). */
 export async function POST(req: NextRequest) {
@@ -102,6 +106,9 @@ export async function POST(req: NextRequest) {
       .from("professionals")
       .update({ mobile_number: newCallNumber, updated_at: new Date().toISOString() })
       .eq("id", doctor.id);
+    if (professionalContactUniqueViolation(phoneErr) === "mobile") {
+      return NextResponse.json({ message: SETTINGS_MOBILE_IN_USE_MESSAGE }, { status: 409 });
+    }
     if (phoneErr) {
       console.error("[DocCy] Failed to save the contact phone", phoneErr);
       return NextResponse.json(

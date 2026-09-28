@@ -40,6 +40,10 @@ import {
 } from "@/lib/public-call-phone";
 import { createServiceRoleClient } from "@/lib/supabase-service";
 import { loadPrimarySpecialtyName } from "@/lib/specialty-catalogue";
+import {
+  SETTINGS_MOBILE_IN_USE_MESSAGE,
+  professionalContactUniqueViolation,
+} from "@/lib/professional-contact";
 
 /** GET ?doctorId=xxx - returns current settings for the doctor (authenticated owner only) */
 export async function GET(req: NextRequest) {
@@ -543,6 +547,10 @@ export async function POST(req: NextRequest) {
         await supabase.from("professionals").update(legacyPhoneUpdate).eq("id", doctorId)
       ).error;
     }
+  }
+
+  if (professionalContactUniqueViolation(docErr) === "mobile") {
+    return NextResponse.json({ message: SETTINGS_MOBILE_IN_USE_MESSAGE }, { status: 409 });
   }
 
   if (docErr) {

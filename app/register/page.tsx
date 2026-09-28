@@ -90,6 +90,13 @@ import { createClient } from "@supabase/supabase-js";
 import { reapplyStateForUser } from "@/lib/registration-reapply";
 import { confirmRegistrationDraft } from "@/lib/registration-draft-confirm";
 import { REGISTRATION_STATUS_PATH } from "@/lib/registration-status";
+import { checkProfessionalContact } from "@/lib/professional-contact-check";
+import {
+  REGISTER_ACCOUNT_EXISTS_MESSAGE,
+  REGISTER_EMAIL_IN_USE_MESSAGE,
+  REGISTER_MOBILE_IN_USE_MESSAGE,
+  registrationContactErrorCode,
+} from "@/lib/professional-contact";
 
 type PageProps = {
   searchParams?: {
@@ -405,6 +412,23 @@ async function runRegister(formData: FormData) {
     fail("db", "SUPABASE_SERVICE_ROLE_KEY missing");
   }
 
+  // The email and personal mobile belong to one real professional each. The form
+  // asked at the Account step; this is the barrier (the browser check can be skipped,
+  // or the number taken in the meantime). Test profiles never block.
+  const contactUse = await withTimeout(
+    checkProfessionalContact(service, {
+      email,
+      mobile: phone,
+      applicantAuthUserId: reapply?.authUserId ?? null,
+    }),
+    REGISTER_DB_TIMEOUT_MS,
+    "Contact check",
+  );
+  const contactError = registrationContactErrorCode(contactUse);
+  if (contactError) {
+    fail(contactError);
+  }
+
   // "Claim this Profile" keeps the listing only while it is still unregistered;
   // otherwise founders search the directory themselves. No automatic matching.
   const claimedListing = await resolveRegisterClaimListing(service, {
@@ -618,8 +642,11 @@ export default async function RegisterPage({ searchParams }: PageProps) {
     errorMessage =
       "Too many signup attempts. Please wait a minute before trying again.";
   } else if (errorCode === "auth_user_exists") {
-    errorMessage =
-      "An account with this email already exists. Try logging in or reset your password.";
+    errorMessage = REGISTER_ACCOUNT_EXISTS_MESSAGE;
+  } else if (errorCode === "email_in_use") {
+    errorMessage = REGISTER_EMAIL_IN_USE_MESSAGE;
+  } else if (errorCode === "mobile_in_use") {
+    errorMessage = REGISTER_MOBILE_IN_USE_MESSAGE;
   } else if (errorCode === "auth_invalid_email" || errorCode === "invalid_email_format") {
     errorMessage =
       "Please enter a valid email address. Gmail aliases with '+' are allowed (e.g. rociosirvent+test@gmail.com).";
