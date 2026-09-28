@@ -283,7 +283,8 @@ export function RegisterSubmittedPanel({
         <span className="inline-block h-1.5 w-1.5 rounded-full bg-clinical-500" />
         {emailConfirmed ? "EMAIL CONFIRMED" : "APPLICATION RECEIVED"}
       </div>
-      <h2 className="text-lg font-semibold text-ink-900 sm:text-xl">
+      {/* Focusable so the reveal can move screen readers straight to the message. */}
+      <h2 tabIndex={-1} className="text-lg font-semibold text-ink-900 outline-none sm:text-xl">
         {emailConfirmed
           ? claimed
             ? "Thank you — your listing is under review"

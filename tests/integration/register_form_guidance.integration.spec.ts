@@ -459,6 +459,31 @@ test.describe("Integration UI: register form guidance", { tag: "@pr-e2e" }, () =
     await expect(specialties).toHaveAttribute("data-complete", "1");
   });
 
+  test("the thank-you message is brought into view, however far down they were", async ({ page }) => {
+    await page.goto("/register?submitted=1");
+    const heading = page.getByRole("heading", { name: /confirm your email to continue/i });
+    await expect(heading).toBeVisible({ timeout: 20_000 });
+    // Let the first reveal's own scroll finish before scrolling away from it.
+    await expect(page.getByTestId("register-submitted-panel")).toHaveAttribute(
+      "data-revealed",
+      "1",
+    );
+    await page.waitForTimeout(800);
+
+    // After a long form the page lands wherever they were scrolled (the browser
+    // keeps the position); a reload with the page scrolled down does the same.
+    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+    await page.waitForFunction(() => window.scrollY > 300);
+    await page.reload();
+
+    await expect(heading).toBeInViewport({ timeout: 5_000 });
+    await expect(page.getByTestId("register-submitted-panel")).toHaveAttribute(
+      "data-revealed",
+      "1",
+    );
+    await expect(heading).toBeFocused();
+  });
+
   test("submitted screen asks them to confirm email with a link, not a code", async ({ page }) => {
     await page.goto("/register?submitted=1");
     await expect(

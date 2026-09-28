@@ -23,6 +23,7 @@ import {
   RegisterSubmittedPanel,
 } from "@/components/register/RegisterMarketingSections";
 import { RegisterShowcase } from "@/components/register/RegisterShowcase";
+import { RegisterSubmittedReveal } from "@/components/register/RegisterSubmittedReveal";
 import { DocCyWordmark } from "@/components/brand/DocCyWordmark";
 import { getFoundersAvailability, type FoundersAvailability } from "@/lib/founders-club";
 import { registerPlanTicket } from "@/lib/register-plan-ticket";
@@ -742,11 +743,13 @@ export default async function RegisterPage({ searchParams }: PageProps) {
           <RegisterPlanTicket ticket={planTicket} layout="stacked" className="lg:hidden" />
 
         {submitted ? (
-          <RegisterSubmittedPanel
-            claimed={claimedSubmit}
-            emailConfirmed={searchParams?.email === "confirmed"}
-            confirmError={errorCode === "email_confirm"}
-          />
+          <RegisterSubmittedReveal>
+            <RegisterSubmittedPanel
+              claimed={claimedSubmit}
+              emailConfirmed={searchParams?.email === "confirmed"}
+              confirmError={errorCode === "email_confirm"}
+            />
+          </RegisterSubmittedReveal>
         ) : (
           <>
             <section aria-label="Application form">
