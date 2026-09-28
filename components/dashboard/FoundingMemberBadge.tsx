@@ -90,7 +90,7 @@ export function FoundingMemberBadge({ compact = false }: { compact?: boolean }) 
                 <span className="font-semibold text-slate-200">
                   Online booking free for your first 6 months.
                 </span>{" "}
-                Your agenda, patient requests and 1-click approval cost nothing. No card needed.
+                Your agenda, patient requests and 1-click approval cost nothing.
               </li>
               <li>
                 <span className="font-semibold text-slate-200">Then €19/month, locked for life.</span>{" "}
