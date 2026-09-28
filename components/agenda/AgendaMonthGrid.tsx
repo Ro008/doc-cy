@@ -67,7 +67,14 @@ export function AgendaMonthGrid({ anchor, today, itemsForDay, isWorkingDay, onOp
                       : "text-slate-500 hover:bg-slate-800"
                 }`}
               >
-                {day.getDate() === 1 ? format(day, "d MMM", { locale: enGB }) : day.getDate()}
+                {day.getDate() === 1 ? (
+                  <>
+                    <span className="md:hidden">1</span>
+                    <span className="hidden md:inline">{format(day, "d MMM", { locale: enGB })}</span>
+                  </>
+                ) : (
+                  day.getDate()
+                )}
               </button>
 
               {items.length > 0 ? (
