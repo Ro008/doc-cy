@@ -1,6 +1,6 @@
-import { type Page } from "@playwright/test";
+import { test, type Page } from "@playwright/test";
 
-import { isCloudflareChallengePage } from "./cloudflareChallengePage";
+import { cloudflareChallengeAction, isCloudflareChallengePage } from "./cloudflareChallengePage";
 import { dismissCookieConsentIfPresent } from "./dismissCookieConsent";
 import { preparePublicPage } from "./preparePublicPage";
 
@@ -14,6 +14,14 @@ export async function assertNoCloudflareChallenge(page: Page): Promise<void> {
   const title = await page.title().catch(() => "");
   const html = await page.content().catch(() => "");
   if (!isCloudflareChallengePage(title, html)) return;
+
+  if (cloudflareChallengeAction(process.env) === "skip") {
+    // Gray, not red: the page was never checked. The origin lane checks it without Cloudflare.
+    test.skip(
+      true,
+      `Cloudflare challenged GitHub's IP at ${page.url()} (Bot Fight Mode); the Vercel origin lane checks this page.`,
+    );
+  }
 
   throw new Error(
     `Cloudflare bot challenge blocked ${page.url()} (title: "${title}"). ` +

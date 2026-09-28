@@ -158,6 +158,10 @@ jobs:
     timeout-minutes: 45
     continue-on-error: ${{ needs.smoke-targets.outputs.origin_enabled == 'true' }}
     env:
+      # With the origin lane as the real check, a Bot Fight challenge on GitHub's IP marks
+      # the test skipped (gray) instead of failed; a broken page still fails. Without the
+      # origin lane, edge is the only check and stays strict.
+      PLAYWRIGHT_CLOUDFLARE_CHALLENGE: ${{ needs.smoke-targets.outputs.origin_enabled == 'true' && 'skip' || 'fail' }}
       PLAYWRIGHT_BASE_URL: ${{ secrets.PLAYWRIGHT_BASE_URL_PROD }}
       PROD_SITE_URL: ${{ secrets.PROD_SITE_URL || secrets.NEXT_PUBLIC_SITE_URL }}
       NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.PROD_NEXT_PUBLIC_SUPABASE_URL }}
@@ -249,7 +253,8 @@ jobs:
             echo ""
             echo "| Edge (mydoccy.com / Cloudflare) | Origin (\`*.vercel.app\`) | What to do |"
             echo "| --- | --- | --- |"
-            echo "| Failed (*Just a moment…*) | Success | Nothing. GitHub runners vs Bot Fight Mode. **Keep Bot Fight on.** |"
+            echo "| Success, some tests skipped (*Cloudflare challenged GitHub's IP*) | Success | Nothing. GitHub runners vs Bot Fight Mode. **Keep Bot Fight on.** |"
+            echo "| Failed | Success | Look at **Cloudflare**: the page works on the origin but not through the edge. |"
             echo "| Failed | Failed | Look at the **product** (origin), not Cloudflare. |"
             echo "| Success | Success | All good. |"
             echo "| Failed | Skipped | Origin not configured; edge is blocking. |"

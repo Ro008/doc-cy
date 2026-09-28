@@ -4,7 +4,10 @@ import path from "node:path";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { isCloudflareChallengePage } from "../prod/helpers/cloudflareChallengePage";
+import {
+  cloudflareChallengeAction,
+  isCloudflareChallengePage,
+} from "../prod/helpers/cloudflareChallengePage";
 
 describe("isCloudflareChallengePage", () => {
   it("detects the Bot Fight interstitial title", () => {
@@ -48,6 +51,18 @@ describe("isCloudflareChallengePage", () => {
   });
 });
 
+describe("cloudflareChallengeAction", () => {
+  it("skips only when the run opts in (edge lane with the Vercel origin as the real check)", () => {
+    assert.equal(cloudflareChallengeAction({ PLAYWRIGHT_CLOUDFLARE_CHALLENGE: "skip" }), "skip");
+  });
+
+  it("fails by default, so origin, preview and local runs stay strict", () => {
+    assert.equal(cloudflareChallengeAction({}), "fail");
+    assert.equal(cloudflareChallengeAction({ PLAYWRIGHT_CLOUDFLARE_CHALLENGE: "fail" }), "fail");
+    assert.equal(cloudflareChallengeAction({ PLAYWRIGHT_CLOUDFLARE_CHALLENGE: "yes" }), "fail");
+  });
+});
+
 describe("prod nightly Cloudflare harness", () => {
   const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 
@@ -73,6 +88,20 @@ describe("prod nightly Cloudflare harness", () => {
     assert.match(src, /How to read this nightly/);
     assert.match(src, /Keep Bot Fight on/);
     assert.doesNotMatch(src, /^\s+prod-critical-smoke:/m);
+  });
+
+  it("skips Cloudflare challenges on the edge lane only, and only when origin is the real check", () => {
+    const src = fs.readFileSync(
+      path.join(repoRoot, ".github/workflows/prod-critical-smoke.yml"),
+      "utf8",
+    );
+    const edge = src.slice(src.indexOf("  prod-smoke-edge:"), src.indexOf("  prod-smoke-origin:"));
+    const origin = src.slice(src.indexOf("  prod-smoke-origin:"));
+    assert.match(
+      edge,
+      /PLAYWRIGHT_CLOUDFLARE_CHALLENGE: \$\{\{ needs.smoke-targets.outputs.origin_enabled == 'true' && 'skip' \|\| 'fail' \}\}/,
+    );
+    assert.doesNotMatch(origin, /PLAYWRIGHT_CLOUDFLARE_CHALLENGE/);
   });
 
   it("dismisses the cookie bar via shared prod smoke helpers", () => {
