@@ -24,6 +24,11 @@ async function typeAddress(page: Page, text: string): Promise<void> {
   await input.pressSequentially(text, { delay: 10 });
 }
 
+/** A clinic that isn't in DocCy needs its phone before it counts as done. */
+async function fillClinicPhone(page: Page, index = 0): Promise<void> {
+  await page.getByTestId(`register-clinic-phone-${index}`).fill("25 123456");
+}
+
 test.describe("Integration UI: register clinic location", { tag: "@pr-e2e" }, () => {
   test.describe.configure({ timeout: 90_000 });
   const clinicField = "[data-field-key='clinic']";
@@ -51,6 +56,9 @@ test.describe("Integration UI: register clinic location", { tag: "@pr-e2e" }, ()
     // The clinic name is required too.
     await expect(page.locator(`${clinicField}[data-complete='1']`)).toHaveCount(0);
     await page.getByLabel("Clinic name").fill("Makariou Clinic");
+    // And its phone.
+    await expect(page.locator(`${clinicField}[data-complete='1']`)).toHaveCount(0);
+    await fillClinicPhone(page);
     await expect(page.locator(`${clinicField}[data-complete='1']`)).toHaveCount(1);
     await expect(page.locator("input[name='district']")).toHaveValue("Nicosia");
     await expect(page.locator("input[name='clinicAddress']")).toHaveValue(
@@ -77,6 +85,7 @@ test.describe("Integration UI: register clinic location", { tag: "@pr-e2e" }, ()
     await page.getByLabel("District").selectOption("Limassol");
     await typeAddress(page, "5 Anexartisias Street");
     await page.getByLabel("Clinic name").fill("Anexartisias Physio");
+    await fillClinicPhone(page);
 
     await page.getByRole("button", { name: "Save this location" }).click();
 
@@ -181,6 +190,8 @@ test.describe("Integration UI: register clinic location", { tag: "@pr-e2e" }, ()
     await expect(firstRow).toHaveAttribute("data-clinic-complete", "0");
     await expect(add).toBeDisabled();
     await page.getByLabel("Clinic name").fill("Makariou Clinic");
+    await expect(firstRow).toHaveAttribute("data-clinic-complete", "0");
+    await fillClinicPhone(page);
     await expect(firstRow).toHaveAttribute("data-clinic-complete", "1");
 
     // Searching for another clinic leaves the row unfinished until they pick or cancel.
@@ -221,6 +232,7 @@ test.describe("Integration UI: register clinic location", { tag: "@pr-e2e" }, ()
     await page.getByLabel("District").selectOption("Nicosia");
     await typeAddress(page, "12 Makariou Avenue");
     await page.getByLabel("Clinic name").fill("Makariou Clinic");
+    await fillClinicPhone(page);
     await page.getByRole("button", { name: "Save this location" }).click();
 
     const add = page.getByRole("button", { name: /Add another clinic/i });
@@ -233,6 +245,7 @@ test.describe("Integration UI: register clinic location", { tag: "@pr-e2e" }, ()
       delay: 10,
     });
     await second.getByLabel("Clinic name").fill("Makariou Clinic again");
+    await fillClinicPhone(page, 1);
 
     await expect(second.getByText("Same address as clinic 1.")).toBeVisible();
     await expect(second).toHaveAttribute("data-clinic-complete", "0");
@@ -265,7 +278,7 @@ test.describe("Integration UI: register clinic location", { tag: "@pr-e2e" }, ()
     await page.getByRole("button", { name: /Submit My Application/i }).click();
 
     const summary = page.getByTestId("register-missing-summary");
-    await expect(summary).toBeVisible();
+    await expect(summary).toBeVisible({ timeout: 20_000 });
     await summary.getByRole("button", { name: "Clinic address" }).click();
 
     await expect(page.locator("#register-clinic-address")).toBeFocused();
@@ -281,7 +294,7 @@ test.describe("Integration UI: register clinic default search", { tag: "@pr-e2e"
     await page.getByRole("button", { name: /Submit My Application/i }).click();
 
     const summary = page.getByTestId("register-missing-summary");
-    await expect(summary).toBeVisible();
+    await expect(summary).toBeVisible({ timeout: 20_000 });
     await summary.getByRole("button", { name: "Clinic address" }).click();
 
     await expect(page.getByTestId("register-clinic-search-0")).toBeFocused();

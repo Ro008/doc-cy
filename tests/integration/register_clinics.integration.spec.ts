@@ -8,6 +8,7 @@ import {
   uniqueRegisterTestMobile,
 } from "./helpers/goto-register-practice-step";
 import { INTEGRATION_DOCTOR_PASSWORD } from "./helpers/test-doctor";
+import { seedRegisterFixtures, type RegisterFixtures } from "./helpers/register-fixtures";
 
 const PUBLIC_CLINIC_FIELDS = [
   "address",
@@ -38,6 +39,16 @@ async function chooseDocCyClinic(
 }
 
 test.describe("Integration UI: register clinics", { tag: "@pr-e2e" }, () => {
+  // Own clinics and listing: CI's synthetic seed has none of Testing's real ones.
+  let fixtures: RegisterFixtures;
+  test.beforeAll(async () => {
+    fixtures = await seedRegisterFixtures(createIntegrationAdmin(requireSafeIntegration()));
+  });
+  test.afterAll(async () => {
+    await fixtures?.remove();
+  });
+  const lefkotheou = () => `${fixtures.token} lefkotheou`;
+
   test("clinic search API returns public fields only, and nothing for one letter", async ({
     request,
   }) => {
@@ -45,7 +56,9 @@ test.describe("Integration UI: register clinics", { tag: "@pr-e2e" }, () => {
     expect(short.status()).toBe(200);
     expect((await short.json()).results).toEqual([]);
 
-    const res = await request.get("/api/register/clinic-search?q=lefkotheou");
+    const res = await request.get(
+      `/api/register/clinic-search?q=${encodeURIComponent(lefkotheou())}`,
+    );
     expect(res.status()).toBe(200);
     const { results } = (await res.json()) as { results: Record<string, unknown>[] };
     expect(results.length).toBeGreaterThan(0);
@@ -63,7 +76,7 @@ test.describe("Integration UI: register clinics", { tag: "@pr-e2e" }, () => {
     await gotoRegisterPracticeStep(page);
 
     const row = page.locator("[data-clinic-row='0']");
-    const name = await chooseDocCyClinic(page, 0, "lefkotheou");
+    const name = await chooseDocCyClinic(page, 0, lefkotheou());
     const summary = row.getByTestId("clinic-location-saved-summary");
     await expect(summary).toContainText(name);
     await expect(summary).toContainText(/Lefkotheou/i);
@@ -87,13 +100,13 @@ test.describe("Integration UI: register clinics", { tag: "@pr-e2e" }, () => {
     await page.goto("/register");
     await gotoRegisterPracticeStep(page);
 
-    const name = await chooseDocCyClinic(page, 0, "lefkotheou");
+    const name = await chooseDocCyClinic(page, 0, lefkotheou());
     await page.getByRole("button", { name: /Add another clinic/i }).click();
 
     const searched = page.waitForResponse((res) =>
-      res.url().includes("/api/register/clinic-search?q=lefkotheou"),
+      res.url().includes(`/api/register/clinic-search?q=${encodeURIComponent(lefkotheou())}`),
     );
-    await page.getByTestId("register-clinic-search-1").fill("lefkotheou");
+    await page.getByTestId("register-clinic-search-1").fill(lefkotheou());
     await searched;
     await expect(page.getByTestId("register-clinic-search-1-option").first()).toBeVisible();
     await expect(
@@ -112,7 +125,7 @@ test.describe("Integration UI: register clinics", { tag: "@pr-e2e" }, () => {
     await page.goto("/register");
     await gotoRegisterPracticeStep(page);
 
-    const firstName = await chooseDocCyClinic(page, 0, "lefkotheou");
+    const firstName = await chooseDocCyClinic(page, 0, lefkotheou());
     const add = page.getByRole("button", { name: /Add another clinic/i });
     await add.click();
 
@@ -138,10 +151,11 @@ test.describe("Integration UI: register clinics", { tag: "@pr-e2e" }, () => {
 
     // One at a time: the empty Clinic 2 must be set before Clinic 3.
     await expect(add).toBeDisabled();
-    await chooseDocCyClinic(page, 1, "polykliniki");
+    await chooseDocCyClinic(page, 1, `${fixtures.token} polykliniki`);
     for (let i = 2; i < 5; i += 1) {
       await add.click();
-      await chooseDocCyClinic(page, i, "clinic", i);
+      // Clinics picked in earlier rows aren't offered again, so the first is new.
+      await chooseDocCyClinic(page, i, `${fixtures.token} clinic`);
     }
     await expect(page.locator("[data-clinic-row]")).toHaveCount(5);
     await expect(add).toHaveCount(0);
@@ -154,28 +168,7 @@ test.describe("Integration UI: register clinics", { tag: "@pr-e2e" }, () => {
   });
 
   test("a claim with several clinics shows them as rows, the first one open", async ({ page }) => {
-    const admin = createIntegrationAdmin(requireSafeIntegration());
-    const links: { professional_id: string }[] = [];
-    for (let from = 0; ; from += 1000) {
-      const { data } = await admin
-        .from("professional_clinics")
-        .select("professional_id")
-        .range(from, from + 999);
-      links.push(...((data ?? []) as { professional_id: string }[]));
-      if ((data ?? []).length < 1000) break;
-    }
-    const counts = new Map<string, number>();
-    for (const link of links) counts.set(link.professional_id, (counts.get(link.professional_id) ?? 0) + 1);
-    const multi = [...counts.entries()].filter(([, n]) => n >= 2).map(([id]) => id);
-    const { data: listing } = await admin
-      .from("professionals")
-      .select("id")
-      .in("id", multi.slice(0, 300))
-      .eq("is_registered", false)
-      .eq("is_archived", false)
-      .limit(1)
-      .single();
-    const claimId = (listing as { id: string }).id;
+    const claimId = fixtures.listing.id;
 
     await page.goto(`/register?claim=${claimId}`);
     await waitForRegisterWizardReady(page);

@@ -8,27 +8,24 @@ import {
   uniqueRegisterTestMobile,
 } from "./helpers/goto-register-practice-step";
 import { INTEGRATION_DOCTOR_PASSWORD } from "./helpers/test-doctor";
+import { seedRegisterFixtures, type RegisterFixtures } from "./helpers/register-fixtures";
 
 /**
  * "Claim this Profile" opens /register?claim=<listing id>. The account step then
  * starts from what the listing already knows; a plain /register starts blank.
- * Read-only: it only loads an existing unregistered listing, nothing is written.
+ * Uses its own GeSY listing (female, one specialty): CI's synthetic seed has none.
  */
 test.describe("Integration UI: register claim prefill", { tag: "@pr-e2e" }, () => {
+  let fixtures: RegisterFixtures;
+  test.beforeAll(async () => {
+    fixtures = await seedRegisterFixtures(createIntegrationAdmin(requireSafeIntegration()));
+  });
+  test.afterAll(async () => {
+    await fixtures?.remove();
+  });
+
   test("a claim prefills name, gender and GeSY from the listing", async ({ page }) => {
-    const admin = createIntegrationAdmin(requireSafeIntegration());
-    const { data, error } = await admin
-      .from("professionals")
-      .select("id, name, gender")
-      .eq("is_registered", false)
-      .eq("is_archived", false)
-      .eq("is_gesy", true)
-      .in("gender", ["female", "male"])
-      .not("name", "ilike", "%dr.%")
-      .limit(1)
-      .single();
-    expect(error, error?.message).toBeNull();
-    const listing = data as { id: string; name: string; gender: "female" | "male" };
+    const listing = { ...fixtures.listing, gender: "female" as const };
 
     await page.goto(`/register?claim=${listing.id}`);
     await waitForRegisterWizardReady(page);
