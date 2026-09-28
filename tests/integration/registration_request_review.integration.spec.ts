@@ -14,7 +14,7 @@ import {
   sharedTestFounder,
   type TestAdmin,
 } from "./helpers/test-admin";
-import { deleteTestClinics, loginDoctorUi } from "./helpers/test-doctor";
+import { deleteTestCatalogueSpecialty, deleteTestClinics, loginDoctorUi } from "./helpers/test-doctor";
 
 /**
  * Build PR 4 of the registration redesign: founders review professional_registration
@@ -30,6 +30,8 @@ const baseUrl = () => (process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3100
 type Seeded = { requestId: string; authUserId: string; email: string; photoPath: string };
 
 type Cleanup = {
+  /** Catalogue labels a test approved into existence (deleted once unused). */
+  catalogue: string[];
   logins: string[];
   professionals: string[];
   clinics: string[];
@@ -172,7 +174,7 @@ test.describe("Integration: registration request review", { tag: "@pr-e2e" }, ()
   let admin: SupabaseClient;
   let founder: TestAdmin;
   let clinic: { id: string; address: string; district: string };
-  const cleanup: Cleanup = { logins: [], professionals: [], clinics: [], photos: [] };
+  const cleanup: Cleanup = { catalogue: [], logins: [], professionals: [], clinics: [], photos: [] };
 
   test.beforeAll(async () => {
     admin = createIntegrationAdmin(requireSafeIntegration());
@@ -185,6 +187,7 @@ test.describe("Integration: registration request review", { tag: "@pr-e2e" }, ()
       await admin.from("professionals").delete().eq("id", id);
     }
     await deleteTestClinics(admin, cleanup.clinics);
+    for (const name of cleanup.catalogue) await deleteTestCatalogueSpecialty(admin, name);
     for (const photo of cleanup.photos) await admin.storage.from(photo.bucket).remove([photo.path]);
     for (const id of cleanup.logins) await admin.auth.admin.deleteUser(id);
   });
@@ -493,10 +496,24 @@ test.describe("Integration: registration request review", { tag: "@pr-e2e" }, ()
       .limit(1)
       .single();
     const addedSpecialty = String(catalogueRow!.name);
+    // Each section is its own panel with a count; each item its own card.
+    await expect(card.getByRole("heading", { name: "Specialties (1)" })).toBeVisible();
+    await expect(card.getByRole("heading", { name: "Clinics (2)" })).toBeVisible();
     await card.getByRole("button", { name: "Add specialty" }).click();
-    await card.getByLabel("Specialty 2", { exact: false }).fill(addedSpecialty);
+    await expect(card.getByRole("heading", { name: "Specialties (2)" })).toBeVisible();
+    await card.getByLabel("Specialty 2", { exact: true }).fill(addedSpecialty);
     await card.getByTestId("request-specialty-licence-1").fill("ADD-77");
-    await expect(card.getByText("not in the catalogue: approving adds it")).toHaveCount(0);
+    await expect(card.getByTestId("request-specialty-kind-1")).toHaveText(/From the catalogue/);
+
+    // A specialty that isn't in the catalogue yet: the box says so, approving adds it.
+    const newLabel = `Review Newlabel ${lastName.replace(/[^a-z]/gi, "")}`;
+    cleanup.catalogue.push(newLabel);
+    await card.getByRole("button", { name: "Add specialty" }).click();
+    const newName = card.getByLabel("Specialty 3", { exact: true });
+    await expect(newName).toHaveAttribute("placeholder", /type a new specialty/i);
+    await newName.fill(newLabel);
+    await card.getByTestId("request-specialty-licence-2").fill("NEW-88");
+    await expect(card.getByTestId("request-specialty-kind-2")).toHaveText(/New specialty: approving adds it to the catalogue/);
 
     // …and a clinic: here an existing DocCy clinic, found with the row's search.
     const { data: otherClinic } = await admin
@@ -536,7 +553,14 @@ test.describe("Integration: registration request review", { tag: "@pr-e2e" }, ()
         name: (ps.specialties as unknown as { name: string }).name,
         license: ps.license_number,
       })),
-    ).toEqual(expect.arrayContaining([{ name: addedSpecialty, license: "ADD-77" }]));
+    ).toEqual(
+      expect.arrayContaining([
+        { name: addedSpecialty, license: "ADD-77" },
+        { name: newLabel, license: "NEW-88" },
+      ]),
+    );
+    const { data: catalogueEntry } = await admin.from("specialties").select("id").eq("name", newLabel).maybeSingle();
+    expect(catalogueEntry?.id, "the new label joined the catalogue").toBeTruthy();
 
     // Everything else lives on the Statistics tab, and its links keep that tab.
     await tabs.getByRole("link", { name: "Statistics" }).click();

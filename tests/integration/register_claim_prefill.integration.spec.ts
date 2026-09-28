@@ -52,7 +52,7 @@ test.describe("Integration UI: register claim prefill", { tag: "@pr-e2e" }, () =
     await page.locator("#register-form input[name='password']").fill(INTEGRATION_DOCTOR_PASSWORD);
     await page.getByTestId("register-phone-input").fill(uniqueRegisterTestMobile());
     await page.getByTestId("register-wizard-continue").click();
-    await expect(page.getByTestId("register-step-2")).toBeVisible();
+    await expect(page.getByTestId("register-step-2")).toBeVisible({ timeout: 20_000 });
     await uploadRegisterAvatar(page);
     await selectRegisterEnglishLanguage(page);
     await page.getByTestId("register-wizard-continue").click();

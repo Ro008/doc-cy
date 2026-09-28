@@ -173,7 +173,9 @@ export function UserBar() {
     pathname === "/reset-password" ||
     pathname.startsWith("/reset-password/") ||
     isDistractionFreeDoctorFlow ||
-    isAccountReviewGate;
+    isAccountReviewGate ||
+    // The founders' dashboard has its own header and sign-out.
+    pathname.startsWith("/internal");
 
   useLayoutEffect(() => {
     if (hideChrome) return;

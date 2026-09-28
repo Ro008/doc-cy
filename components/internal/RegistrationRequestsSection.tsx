@@ -33,6 +33,70 @@ const inputClass =
   "w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-1.5 text-sm text-slate-100 disabled:opacity-60";
 const labelClass = "flex flex-col gap-1 text-xs text-slate-400";
 const contactWarningClass = "text-[11px] font-semibold text-red-300";
+const chipBaseClass = "rounded-md px-2 py-0.5 text-[11px] font-bold tracking-wide";
+const chipCatalogueClass = `${chipBaseClass} bg-emerald-500/15 text-emerald-200`;
+const chipNewClass = `${chipBaseClass} bg-amber-500/20 text-amber-200`;
+const chipPrimaryClass = `${chipBaseClass} bg-clinical-500/20 text-clinical-200`;
+const addButtonClass =
+  "rounded-lg border border-dashed border-clinical-400/50 px-3 py-1.5 text-xs font-semibold text-clinical-200 hover:bg-clinical-500/10 disabled:opacity-60";
+
+/** One section of a request (Applicant, Specialties, Clinics, …): its own panel and heading. */
+function ReviewPanel({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section className="space-y-3 rounded-xl border border-slate-700/80 bg-slate-900/70 p-3 sm:p-4">
+      <h4 className="text-sm font-semibold tracking-wide text-white">{title}</h4>
+      {children}
+    </section>
+  );
+}
+
+/** One item in a section (a specialty, a clinic): a card with its own header bar. */
+function ReviewItemCard({
+  number,
+  title,
+  chip,
+  onRemove,
+  removeLabel,
+  disabled,
+  dataAttrs,
+  children,
+}: {
+  number: number;
+  title: string;
+  chip?: React.ReactNode;
+  onRemove?: () => void;
+  removeLabel: string;
+  disabled: boolean;
+  dataAttrs?: Record<string, string | number>;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="overflow-hidden rounded-lg border border-slate-600/70 bg-slate-950/80" {...dataAttrs}>
+      <div className="flex flex-wrap items-center gap-2 border-b border-slate-700/80 bg-slate-800/70 px-3 py-2">
+        <span
+          aria-hidden
+          className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-600 text-xs font-bold text-white"
+        >
+          {number}
+        </span>
+        <span className="min-w-0 truncate font-semibold text-white">{title}</span>
+        {chip}
+        {onRemove ? (
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={onRemove}
+            aria-label={removeLabel}
+            className="ml-auto rounded-md px-2 py-0.5 text-xs font-semibold text-red-300 hover:bg-red-500/10"
+          >
+            Remove
+          </button>
+        ) : null}
+      </div>
+      <div className="space-y-3 p-3">{children}</div>
+    </div>
+  );
+}
 
 /**
  * Registration requests (professional_registration). Founders review every field
@@ -235,7 +299,7 @@ function RequestCard({
   return (
     <article
       data-request-id={item.id}
-      className="space-y-4 rounded-xl border border-slate-700/80 bg-slate-950/40 p-4 text-sm text-slate-200"
+      className="space-y-5 rounded-2xl border border-slate-600/80 bg-slate-950/60 p-4 text-sm text-slate-200 shadow-lg shadow-black/20 sm:p-5"
     >
       <header className="flex flex-wrap items-center gap-2">
         <h3 className="text-base font-semibold text-white">{item.requesterName}</h3>
@@ -257,6 +321,7 @@ function RequestCard({
         </span>
       </header>
 
+      <ReviewPanel title="Applicant">
       <div className="grid gap-4 md:grid-cols-[160px_minmax(0,1fr)]">
         <div className="space-y-2">
           {draft.photo && photoUrl ? (
@@ -353,73 +418,100 @@ function RequestCard({
           </label>
         </div>
       </div>
+      </ReviewPanel>
 
-      <div className="space-y-2">
-        <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-400">Specialties</h4>
-        {specialtyRows.map((specialty, index) => (
-          <div key={index} className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_200px_auto]">
-            <label className={labelClass}>
-              <span>
-                Specialty {index + 1}
-                {specialty.from_catalogue || !specialty.name.trim() ? null : (
-                  <span className="ml-2 text-amber-300">not in the catalogue: approving adds it</span>
-                )}
-              </span>
-              <input className={inputClass} disabled={disabled} value={specialty.name}
-                list={`request-specialty-catalogue-${item.id}`}
-                onChange={(e) => {
-                  const name = e.target.value;
-                  const fromCatalogue = catalogueKeys.has(name.trim().toLowerCase());
-                  update({
-                    specialties: draft.specialties.map((s, i) =>
-                      i === index ? { ...s, name, from_catalogue: fromCatalogue } : s,
-                    ),
-                  });
-                }} />
-            </label>
-            <label className={labelClass}>
-              Licence number
-              <input className={inputClass} disabled={disabled} value={specialty.license_number}
-                data-testid={`request-specialty-licence-${index}`}
-                onChange={(e) =>
-                  update({
-                    specialties: draft.specialties.map((s, i) =>
-                      i === index ? { ...s, license_number: e.target.value } : s,
-                    ),
-                  })
-                } />
-            </label>
-            {canMutate && draft.specialties.length > 1 ? (
-              <button type="button" disabled={disabled} className="self-end text-xs text-red-300"
-                onClick={() => update({ specialties: draft.specialties.filter((_, i) => i !== index) })}>
-                Remove
-              </button>
-            ) : null}
-          </div>
-        ))}
+      <ReviewPanel title={`Specialties (${specialtyRows.length})`}>
+        {specialtyRows.map((specialty, index) => {
+          const named = Boolean(specialty.name.trim());
+          return (
+            <ReviewItemCard
+              key={index}
+              number={index + 1}
+              title={named ? specialty.name : "New specialty"}
+              chip={
+                named ? (
+                  <span
+                    data-testid={`request-specialty-kind-${index}`}
+                    className={specialty.from_catalogue ? chipCatalogueClass : chipNewClass}
+                  >
+                    {specialty.from_catalogue
+                      ? "From the catalogue"
+                      : "New specialty: approving adds it to the catalogue"}
+                  </span>
+                ) : null
+              }
+              onRemove={
+                canMutate && draft.specialties.length > 1
+                  ? () => update({ specialties: draft.specialties.filter((_, i) => i !== index) })
+                  : undefined
+              }
+              removeLabel={`Remove specialty ${index + 1}`}
+              disabled={disabled}
+            >
+              <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_220px]">
+                <label className={labelClass}>
+                  Specialty
+                  <input
+                    className={inputClass}
+                    disabled={disabled}
+                    value={specialty.name}
+                    aria-label={`Specialty ${index + 1}`}
+                    list={`request-specialty-catalogue-${item.id}`}
+                    placeholder="Pick from the list, or type a new specialty"
+                    onChange={(e) => {
+                      const name = e.target.value;
+                      const fromCatalogue = catalogueKeys.has(name.trim().toLowerCase());
+                      update({
+                        specialties: draft.specialties.map((s, i) =>
+                          i === index ? { ...s, name, from_catalogue: fromCatalogue } : s,
+                        ),
+                      });
+                    }}
+                  />
+                  <span className="text-[11px] text-slate-500">
+                    Not in the list? Type it: approving adds it to the catalogue.
+                  </span>
+                </label>
+                <label className={labelClass}>
+                  Licence number
+                  <input
+                    className={inputClass}
+                    disabled={disabled}
+                    value={specialty.license_number}
+                    aria-label={`Licence number for specialty ${index + 1}`}
+                    data-testid={`request-specialty-licence-${index}`}
+                    onChange={(e) =>
+                      update({
+                        specialties: draft.specialties.map((s, i) =>
+                          i === index ? { ...s, license_number: e.target.value } : s,
+                        ),
+                      })
+                    }
+                  />
+                </label>
+              </div>
+            </ReviewItemCard>
+          );
+        })}
         <datalist id={`request-specialty-catalogue-${item.id}`}>
           {specialtyCatalogue.map((name) => (
             <option key={name} value={name} />
           ))}
         </datalist>
         {canMutate && draft.specialties.length < MAX_REVIEW_SPECIALTIES ? (
-          <button
-            type="button"
-            disabled={disabled}
-            className="text-xs font-semibold text-clinical-300 underline-offset-2 hover:underline disabled:opacity-60"
+          <button type="button" disabled={disabled} className={addButtonClass}
             onClick={() =>
               update({
                 specialties: [...draft.specialties, { name: "", from_catalogue: false, license_number: "" }],
               })
             }
           >
-            Add specialty
+            + Add specialty
           </button>
         ) : null}
-      </div>
+      </ReviewPanel>
 
-      <div className="space-y-2">
-        <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-400">Clinics</h4>
+      <ReviewPanel title={`Clinics (${draft.clinics.length})`}>
         {draft.clinics.map((clinic, index) => (
           <ClinicRow
             key={index}
@@ -448,19 +540,15 @@ function RequestCard({
           />
         ))}
         {canMutate && draft.clinics.length < MAX_DOCTOR_LOCATIONS ? (
-          <button
-            type="button"
-            disabled={disabled}
-            className="text-xs font-semibold text-clinical-300 underline-offset-2 hover:underline disabled:opacity-60"
+          <button type="button" disabled={disabled} className={addButtonClass}
             onClick={() => update({ clinics: [...draft.clinics, emptyReviewClinic()] })}
           >
-            Add clinic
+            + Add clinic
           </button>
         ) : null}
-      </div>
+      </ReviewPanel>
 
-      <div className="space-y-2 rounded-lg border border-slate-800 p-3">
-        <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-400">Directory listing</h4>
+      <ReviewPanel title="Directory listing">
         {claimedByApplicant ? (
           <p>
             Claims{" "}
@@ -517,8 +605,9 @@ function RequestCard({
             ) : null}
           </>
         )}
-      </div>
+      </ReviewPanel>
 
+      <ReviewPanel title="Decision">
       {decision ? (
         <p className={decision === "approved" ? "font-semibold text-emerald-300" : "font-semibold text-red-300"}>
           {decision === "approved" ? "Approved" : "Denied"}
@@ -583,6 +672,7 @@ function RequestCard({
           {error}
         </p>
       ) : null}
+      </ReviewPanel>
     </article>
   );
 }
@@ -623,19 +713,25 @@ function ClinicRow({
   }
 
   return (
-    <div className="space-y-2 rounded-lg border border-slate-800 p-3" data-request-clinic-row={index}>
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-semibold text-slate-300">
-          Clinic {index + 1}
-          {index === 0 ? " (primary)" : ""} ·{" "}
-          {clinic.clinic_id ? "existing DocCy clinic" : "new clinic (created on approval)"}
-        </span>
-        {canMutate && onRemove ? (
-          <button type="button" disabled={disabled} onClick={onRemove} className="text-xs text-red-300">
-            Remove
-          </button>
-        ) : null}
-      </div>
+    <ReviewItemCard
+      number={index + 1}
+      dataAttrs={{ "data-request-clinic-row": index }}
+      title={
+        (clinic.clinic_id ? info?.name : clinic.name?.trim()) ||
+        (clinic.clinic_id ? "DocCy clinic" : "New clinic")
+      }
+      chip={
+        <>
+          {index === 0 ? <span className={chipPrimaryClass}>Primary</span> : null}
+          <span className={clinic.clinic_id ? chipCatalogueClass : chipNewClass}>
+            {clinic.clinic_id ? "existing DocCy clinic" : "new clinic (created on approval)"}
+          </span>
+        </>
+      }
+      onRemove={canMutate ? onRemove : undefined}
+      removeLabel={`Remove clinic ${index + 1}`}
+      disabled={disabled}
+    >
       {clinic.clinic_id ? (
         <p>
           {info?.name ?? "Clinic"} · {info?.address ?? clinic.address} · {info?.district ?? clinic.district}
@@ -655,12 +751,7 @@ function ClinicRow({
               disabled={disabled}
               onChange={(location) => onChange(reviewClinicPatch(location))}
             />
-            {clinic.address.trim() ? (
-              <span className="text-[11px] text-slate-400">
-                {clinic.address} · {clinic.district || "no district"}
-                {clinic.town ? ` · ${clinic.town}` : ""}
-              </span>
-            ) : (
+            {clinic.address.trim() ? null : (
               <span className="text-[11px] font-semibold text-amber-300">Needed before approving</span>
             )}
           </div>
@@ -700,7 +791,7 @@ function ClinicRow({
           ) : null}
         </div>
       )}
-    </div>
+    </ReviewItemCard>
   );
 }
 
