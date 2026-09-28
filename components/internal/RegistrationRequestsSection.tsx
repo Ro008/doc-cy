@@ -12,6 +12,8 @@ import type { RegistrationReviewItem, ReviewClinicInfo, ReviewListing } from "@/
 
 type Props = {
   items: RegistrationReviewItem[];
+  /** Pending requests left out because their applicant login no longer exists. */
+  hiddenPending?: number;
   /** Founders decide; partners only see. */
   canMutate: boolean;
   /** The global trial length (app_settings), shown as the default. */
@@ -27,7 +29,7 @@ const labelClass = "flex flex-col gap-1 text-xs text-slate-400";
  * (all editable except the email, which is the login), the photo, and whether the
  * applicant claims an existing listing, then DENY with a reason or APPROVE.
  */
-export function RegistrationRequestsSection({ items, canMutate, defaultTrialMonths }: Props) {
+export function RegistrationRequestsSection({ items, hiddenPending = 0, canMutate, defaultTrialMonths }: Props) {
   const pending = items.filter((item) => item.status === "pending");
   const decided = items.filter((item) => item.status !== "pending");
   // Marks when the section is interactive (tests wait for it on this heavy page).
@@ -46,6 +48,13 @@ export function RegistrationRequestsSection({ items, canMutate, defaultTrialMont
             ? "No registration requests waiting."
             : `${pending.length} registration request${pending.length === 1 ? "" : "s"} waiting for review.`}
         </p>
+        {hiddenPending > 0 ? (
+          <p className="mt-1 text-xs text-slate-500" data-testid="requests-hidden-pending">
+            {hiddenPending} pending request{hiddenPending === 1 ? "" : "s"} not shown: the applicant&apos;s account no
+            longer exists, so {hiddenPending === 1 ? "it" : "they"} can&apos;t be approved (automated test runs leave
+            these behind).
+          </p>
+        ) : null}
       </div>
       {pending.map((item) => (
         <RequestCard key={item.id} item={item} canMutate={canMutate} defaultTrialMonths={defaultTrialMonths} />

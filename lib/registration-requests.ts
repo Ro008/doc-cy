@@ -16,6 +16,7 @@ import {
   sendRegistrationDecisionEmail,
 } from "@/lib/registration-decision-emails";
 import { getPublicBookingBaseUrl } from "@/lib/site-url";
+import { reviewableRegistrationRows } from "@/lib/registration-review-filter";
 import {
   approvalErrorMessage,
   approvedAvatarPath,
@@ -74,10 +75,16 @@ async function listingSummary(service: SupabaseClient, id: string): Promise<Revi
   return { id: String(data.id), name: String(data.name ?? ""), slug: String(data.slug), path: `/en/${data.slug}` };
 }
 
-/** Pending requests (oldest first) and the latest decisions. */
-export async function loadRegistrationRequestsForReview(service: SupabaseClient): Promise<RegistrationReviewItem[]> {
+/**
+ * Pending requests (oldest first) and the latest decisions, without the rows no
+ * founder can act on (see `reviewableRegistrationRows`); `hiddenPending` counts the
+ * pending ones left out.
+ */
+export async function loadRegistrationRequestsForReview(
+  service: SupabaseClient,
+): Promise<{ items: RegistrationReviewItem[]; hiddenPending: number }> {
   const select =
-    "id, status, created_at, decided_at, decision_note, requester_name, requester_email, details, approved_details, outcome";
+    "id, status, created_at, decided_at, decision_note, requester_name, requester_email, applicant_auth_user_id, details, approved_details, outcome";
   const [pending, decided] = await Promise.all([
     service
       .from("request_log")
@@ -91,12 +98,15 @@ export async function loadRegistrationRequestsForReview(service: SupabaseClient)
       .eq("request_type", PROFESSIONAL_REGISTRATION_REQUEST_TYPE)
       .neq("status", "pending")
       .order("decided_at", { ascending: false })
-      .limit(RECENT_DECISIONS),
+      // Read more than shown: decisions on automated-test addresses are filtered out.
+      .limit(RECENT_DECISIONS * 10),
   ]);
   if (pending.error) throw new Error(`requests: ${pending.error.message}`);
   if (decided.error) throw new Error(`requests: ${decided.error.message}`);
 
-  const rows = [...(pending.data ?? []), ...(decided.data ?? [])];
+  const pendingView = reviewableRegistrationRows(pending.data ?? []);
+  const decidedView = reviewableRegistrationRows(decided.data ?? []);
+  const rows = [...pendingView.rows, ...decidedView.rows.slice(0, RECENT_DECISIONS)];
   const parsed = rows
     .map((row) => ({ row, details: parseProfessionalRegistrationDetails(row.details) }))
     .filter((entry): entry is { row: (typeof rows)[number]; details: ProfessionalRegistrationDetails } =>
@@ -123,7 +133,7 @@ export async function loadRegistrationRequestsForReview(service: SupabaseClient)
     }
   }
 
-  return Promise.all(
+  const items = await Promise.all(
     parsed.map(async ({ row, details }) => {
       const approved = parseProfessionalRegistrationDetails(row.approved_details);
       return {
@@ -145,6 +155,22 @@ export async function loadRegistrationRequestsForReview(service: SupabaseClient)
       };
     }),
   );
+  return { items, hiddenPending: pendingView.hiddenPending };
+}
+
+/** Pending requests founders can act on (their applicant still has a login), for tab badges. */
+export async function countReviewablePendingRequests(service: SupabaseClient): Promise<number> {
+  const { count, error } = await service
+    .from("request_log")
+    .select("id", { count: "exact", head: true })
+    .eq("request_type", PROFESSIONAL_REGISTRATION_REQUEST_TYPE)
+    .eq("status", "pending")
+    .not("applicant_auth_user_id", "is", null);
+  if (error) {
+    console.error("[requests] pending count failed", error.message);
+    return 0;
+  }
+  return count ?? 0;
 }
 
 /** Resolves a pasted public URL to an unregistered listing founders can claim for a request. */

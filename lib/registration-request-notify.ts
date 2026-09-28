@@ -92,7 +92,7 @@ export function buildRegistrationRequestNotifyContent(input: {
     `Founders' Club place: ${details.founders_club ? "reserved" : "no (standard pricing)"}`,
     "",
     `Request id: ${input.requestId}`,
-    `Review: ${base}/internal/directory#requests`,
+    `Review: ${base}/internal/directory?tab=requests`,
   ];
 
   return { subject: `${tag} Registration request: ${name}`, text: lines.join("\n") };

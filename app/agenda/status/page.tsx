@@ -59,7 +59,20 @@ export default async function RegistrationStatusPage() {
         </header>
 
         <section className="space-y-4 rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
-          {status.kind === "pending" ? (
+          {status.kind === "confirm_email" ? (
+            <>
+              <h1 className="text-xl font-semibold">Confirm your email to send your application</h1>
+              <p className="text-slate-300">
+                We sent a link to <strong>{user.email}</strong> in the email &ldquo;We received your
+                application&rdquo;. Open it to confirm your address: your application then goes to our team for
+                review.
+              </p>
+              <p className="text-sm text-slate-400">
+                Can&apos;t find it? Check your spam folder. An application that isn&apos;t confirmed within 7 days is
+                deleted, and you can register again.
+              </p>
+            </>
+          ) : status.kind === "pending" ? (
             <>
               <h1 className="text-xl font-semibold">Your application is under review</h1>
               <p className="text-slate-300">

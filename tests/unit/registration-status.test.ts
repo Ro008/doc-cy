@@ -66,6 +66,17 @@ describe("registrationStatusFromRequests", () => {
     assert.deepEqual(registrationStatusFromRequests([]), { kind: "none" });
   });
 
+  it("asks to confirm the email while only a draft exists", () => {
+    assert.deepEqual(registrationStatusFromRequests([], { hasDraft: true }), { kind: "confirm_email" });
+    // After a denial, a new draft waiting for the link is what matters.
+    assert.deepEqual(registrationStatusFromRequests([denied], { hasDraft: true }), { kind: "confirm_email" });
+    // A pending request always wins.
+    assert.deepEqual(registrationStatusFromRequests([pending], { hasDraft: true }), {
+      kind: "pending",
+      submittedAt: "2026-09-27T10:00:00Z",
+    });
+  });
+
   it("treats an approved request whose profile is gone as none", () => {
     assert.deepEqual(
       registrationStatusFromRequests([{ ...denied, status: "approved", decision_note: null }]),

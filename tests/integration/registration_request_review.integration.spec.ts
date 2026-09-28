@@ -363,7 +363,12 @@ test.describe("Integration: registration request review", { tag: "@pr-e2e" }, ()
       clinicDistrict: clinic.district,
     });
     await signInAsAdmin(page, founder);
-    await page.goto("/internal/directory#requests", { waitUntil: "domcontentloaded" });
+    // Requests is the dashboard's default tab.
+    await page.goto("/internal/directory", { waitUntil: "domcontentloaded" });
+    const tabs = page.getByRole("navigation", { name: "Dashboard sections" });
+    await expect(tabs.getByRole("link", { name: /^Requests/ })).toHaveAttribute("aria-current", "page", {
+      timeout: 60_000,
+    });
 
     const card = page.locator(`[data-request-id='${seeded.requestId}']`);
     await expect(card).toBeVisible({ timeout: 60_000 });
@@ -389,5 +394,11 @@ test.describe("Integration: registration request review", { tag: "@pr-e2e" }, ()
     const { row } = await recordOutcome(admin, cleanup, seeded.requestId);
     expect(row.status).toBe("approved");
     expect((row.approved_details as { last_name: string }).last_name).toBe(`${lastName} Ui`);
+
+    // Everything else lives on the Statistics tab, and its links keep that tab.
+    await tabs.getByRole("link", { name: "Statistics" }).click();
+    await expect(page).toHaveURL(/[?&]tab=statistics/, { timeout: 30_000 });
+    await expect(page.locator("#requests")).toHaveCount(0);
+    await expect(page.locator("#professional-directory")).toBeVisible({ timeout: 60_000 });
   });
 });

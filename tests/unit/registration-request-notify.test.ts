@@ -137,7 +137,7 @@ describe("buildRegistrationRequestNotifyContent", () => {
       "- Golden Recovery (new clinic): 2 Makariou, Limassol · Limassol",
       "Founders' Club place: reserved",
       "Request id: req-1",
-      "Review: https://www.mydoccy.com/internal/directory#requests",
+      "Review: https://www.mydoccy.com/internal/directory?tab=requests",
     ]) {
       assert.ok(text.includes(line), `missing line: ${line}\n---\n${text}`);
     }

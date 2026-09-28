@@ -106,6 +106,33 @@ test.describe("Integration: registration status and re-apply", { tag: "@pr-e2e" 
     if (authUserId) await admin.auth.admin.deleteUser(authUserId);
   });
 
+  test("an applicant who hasn't clicked the confirmation link is asked to", async ({ page }) => {
+    test.setTimeout(90_000);
+    // Supabase marks every login confirmed at once, so they can sign in before clicking DocCy's link.
+    const draftEmail = `status-draft-${Date.now()}@integration.test`;
+    const created = await admin.auth.admin.createUser({ email: draftEmail, password: PASSWORD, email_confirm: true });
+    if (created.error || !created.data.user) throw new Error(`login: ${created.error?.message}`);
+    const draftLogin = created.data.user.id;
+    try {
+      const draft = await admin.rpc("request_draft_submit", {
+        p_request_type: "professional_registration",
+        p_auth_user_id: draftLogin,
+        p_details: { first_name: "Draft", last_name: lastName, email: draftEmail },
+        p_details_version: 1,
+        p_requester_name: `Draft ${lastName}`,
+        p_requester_email: draftEmail,
+      });
+      if (draft.error) throw new Error(`draft: ${draft.error.message}`);
+      await loginDoctorUi(page, draftEmail, PASSWORD);
+      await page.goto("/agenda", { waitUntil: "domcontentloaded" });
+      await expect(page).toHaveURL(/\/agenda\/status$/, { timeout: 30_000 });
+      await expect(page.getByRole("heading", { name: /Confirm your email/i })).toBeVisible({ timeout: 20_000 });
+      await expect(page.getByText(draftEmail)).toBeVisible();
+    } finally {
+      await admin.auth.admin.deleteUser(draftLogin);
+    }
+  });
+
   test("a pending applicant sees only the Status page", async ({ page }) => {
     test.setTimeout(90_000);
     await loginDoctorUi(page, email, PASSWORD);

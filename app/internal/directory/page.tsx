@@ -57,9 +57,15 @@ import { TrialMonthsSetting } from "@/components/internal/TrialMonthsSetting";
 import { loadTrialMonths } from "@/lib/trial-months-setting";
 import { RegistrationRequestsSection } from "@/components/internal/RegistrationRequestsSection";
 import {
+  countReviewablePendingRequests,
   loadRegistrationRequestsForReview,
-  type RegistrationReviewItem,
 } from "@/lib/registration-requests";
+import {
+  INTERNAL_DASHBOARD_TABS,
+  internalDashboardTab,
+  internalDashboardTabHref,
+  type InternalDashboardTab,
+} from "@/lib/internal-dashboard-tab";
 import { WebsiteAnalyticsPanel } from "@/components/internal/WebsiteAnalyticsPanel";
 import { PendingLink } from "@/components/navigation/PendingLink";
 import { InternalDirectoryShell } from "@/components/internal/DirectoryNavContext";
@@ -173,10 +179,97 @@ function getRuntimeEnvironmentLabel(): "production" | "preview" | "local" {
   return "local";
 }
 
+/** Page header with the Requests / Statistics tabs (until the internal site gets its own design). */
+function DashboardHeader({
+  admin: signedInAdmin,
+  canMutate,
+  runtimeLabel,
+  runtimeBadgeClass,
+  tab,
+  pendingRequestsCount,
+}: {
+  admin: { name: string };
+  canMutate: boolean;
+  runtimeLabel: string;
+  runtimeBadgeClass: string;
+  tab: InternalDashboardTab;
+  pendingRequestsCount: number;
+}) {
+  return (
+    <header className="border-b border-slate-800/80 bg-slate-950/80 backdrop-blur-md">
+      <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-6 sm:flex-row sm:items-center sm:justify-between lg:px-8">
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-clinical-500/90">
+            {canMutate ? "Founder" : "Business Partner"}
+          </p>
+          {canMutate ? (
+            <>
+              <h1 className="mt-1 text-2xl font-semibold tracking-tight text-white lg:text-3xl">
+                Dashboard
+              </h1>
+              <p className="mt-1 text-sm text-slate-500">
+                Platform health · professionals · bookings · live data
+              </p>
+            </>
+          ) : (
+            <>
+              <h1 className="mt-1 text-2xl font-semibold tracking-tight text-white lg:text-3xl">
+                Hi {signedInAdmin.name}
+              </h1>
+              <p className="mt-1 text-sm text-slate-400">Your DocCy overview.</p>
+            </>
+          )}
+          <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px]">
+            <span
+              className={`inline-flex items-center rounded-full border px-2 py-1 font-semibold uppercase tracking-[0.12em] ${runtimeBadgeClass}`}
+            >
+              Environment: {runtimeLabel}
+            </span>
+            <span className="inline-flex items-center rounded-full border border-slate-600/60 bg-slate-800/70 px-2 py-1 font-semibold tracking-[0.04em] text-slate-200">
+              Signed in: {signedInAdmin.name}
+            </span>
+            {canMutate ? null : (
+              <span className="inline-flex items-center rounded-full border border-slate-600/60 bg-slate-800/70 px-2 py-1 font-semibold uppercase tracking-[0.12em] text-slate-200">
+                Access: Read-only
+              </span>
+            )}
+          </div>
+        </div>
+        <InternalSignOutButton />
+      </div>
+      <nav aria-label="Dashboard sections" className="mx-auto flex max-w-7xl gap-1 px-4 lg:px-8">
+        {INTERNAL_DASHBOARD_TABS.map((item) => {
+          const selected = item.id === tab;
+          return (
+            <Link
+              key={item.id}
+              href={internalDashboardTabHref(item.id)}
+              aria-current={selected ? "page" : undefined}
+              className={`-mb-px border-b-2 px-4 py-2 text-sm font-semibold transition ${
+                selected
+                  ? "border-clinical-400 text-white"
+                  : "border-transparent text-slate-400 hover:text-slate-200"
+              }`}
+            >
+              {item.label}
+              {item.id === "requests" && pendingRequestsCount > 0 ? (
+                <span className="ml-2 rounded-full bg-amber-400 px-2 py-0.5 text-xs font-bold text-slate-950">
+                  {pendingRequestsCount}
+                </span>
+              ) : null}
+            </Link>
+          );
+        })}
+      </nav>
+    </header>
+  );
+}
+
 export default async function FounderDashboardPage({
   searchParams,
 }: {
   searchParams?: {
+    tab?: string | string[];
     manualVotesRange?: string | string[];
     manualVotesCol?: string | string[];
     manualVotesDir?: string | string[];
@@ -216,6 +309,42 @@ export default async function FounderDashboardPage({
           >
             ← Back to gate
           </PendingLink>
+        </div>
+      </main>
+    );
+  }
+
+  const tab = internalDashboardTab(searchParams?.tab);
+  if (tab === "requests") {
+    // The review queue only: nothing else on this page is loaded.
+    const [trialMonthsSetting, review] = await Promise.all([
+      loadTrialMonths(supabase),
+      loadRegistrationRequestsForReview(supabase).catch((err) => {
+        console.error("[internal/directory] registration requests load failed", err);
+        return { items: [], hiddenPending: 0 };
+      }),
+    ]);
+    return (
+      <main className="min-h-screen bg-slate-950 text-slate-50">
+      <div className="pointer-events-none fixed inset-0 -z-10">
+        <div className="absolute inset-x-0 top-0 mx-auto h-96 max-w-4xl rounded-full bg-clinical-600/[0.07] blur-3xl" />
+        <div className="absolute right-0 top-1/4 h-64 w-64 rounded-full bg-violet-600/[0.06] blur-3xl" />
+      </div>
+        <DashboardHeader
+          admin={signedInAdmin}
+          canMutate={canMutate}
+          runtimeLabel={runtimeLabel}
+          runtimeBadgeClass={runtimeBadgeClass}
+          tab="requests"
+          pendingRequestsCount={review.items.filter((item) => item.status === "pending").length}
+        />
+        <div className="mx-auto max-w-7xl space-y-8 px-4 py-8 lg:px-8">
+          <RegistrationRequestsSection
+            items={review.items}
+            hiddenPending={review.hiddenPending}
+            canMutate={canMutate}
+            defaultTrialMonths={trialMonthsSetting.ok ? trialMonthsSetting.months : null}
+          />
         </div>
       </main>
     );
@@ -988,13 +1117,7 @@ export default async function FounderDashboardPage({
   const trialMonths = await loadTrialMonths(supabase);
   if (trialMonths.ok === false) console.error("[internal/directory] trial months load failed", trialMonths.error);
 
-  let registrationRequests: RegistrationReviewItem[] = [];
-  try {
-    registrationRequests = await loadRegistrationRequestsForReview(supabase);
-  } catch (err) {
-    console.error("[internal/directory] registration requests load failed", err);
-  }
-  const pendingRequestsCount = registrationRequests.filter((item) => item.status === "pending").length;
+  const pendingRequestsCount = await countReviewablePendingRequests(supabase);
 
   return (
     <main className="min-h-screen bg-slate-950 text-slate-50">
@@ -1003,48 +1126,14 @@ export default async function FounderDashboardPage({
         <div className="absolute right-0 top-1/4 h-64 w-64 rounded-full bg-violet-600/[0.06] blur-3xl" />
       </div>
 
-      <header className="border-b border-slate-800/80 bg-slate-950/80 backdrop-blur-md">
-        <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-6 sm:flex-row sm:items-center sm:justify-between lg:px-8">
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-clinical-500/90">
-              {canMutate ? "Founder" : "Business Partner"}
-            </p>
-            {canMutate ? (
-              <>
-                <h1 className="mt-1 text-2xl font-semibold tracking-tight text-white lg:text-3xl">
-                  Dashboard
-                </h1>
-                <p className="mt-1 text-sm text-slate-500">
-                  Platform health · professionals · bookings · live data
-                </p>
-              </>
-            ) : (
-              <>
-                <h1 className="mt-1 text-2xl font-semibold tracking-tight text-white lg:text-3xl">
-                  Hi {signedInAdmin.name}
-                </h1>
-                <p className="mt-1 text-sm text-slate-400">Your DocCy overview.</p>
-              </>
-            )}
-            <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px]">
-              <span
-                className={`inline-flex items-center rounded-full border px-2 py-1 font-semibold uppercase tracking-[0.12em] ${runtimeBadgeClass}`}
-              >
-                Environment: {runtimeLabel}
-              </span>
-              <span className="inline-flex items-center rounded-full border border-slate-600/60 bg-slate-800/70 px-2 py-1 font-semibold tracking-[0.04em] text-slate-200">
-                Signed in: {signedInAdmin.name}
-              </span>
-              {canMutate ? null : (
-                <span className="inline-flex items-center rounded-full border border-slate-600/60 bg-slate-800/70 px-2 py-1 font-semibold uppercase tracking-[0.12em] text-slate-200">
-                  Access: Read-only
-                </span>
-              )}
-            </div>
-          </div>
-          <InternalSignOutButton />
-        </div>
-      </header>
+      <DashboardHeader
+        admin={signedInAdmin}
+        canMutate={canMutate}
+        runtimeLabel={runtimeLabel}
+        runtimeBadgeClass={runtimeBadgeClass}
+        tab="statistics"
+        pendingRequestsCount={pendingRequestsCount}
+      />
 
       <Suspense
         fallback={
@@ -1088,7 +1177,7 @@ export default async function FounderDashboardPage({
               <Link
                 href={
                   pendingRequestsCount > 0
-                    ? "#requests"
+                    ? internalDashboardTabHref("requests")
                     : pendingRegistrationItems.length > 0
                     ? "#pending-registration-review"
                     : specialtyChangeRequestItems.length > 0
@@ -1115,12 +1204,6 @@ export default async function FounderDashboardPage({
           appointmentsThisMonth={appointmentsThisMonth}
           activeDoctors7d={activeDoctors7d}
           newDoctorsThisWeek={newDoctorsThisWeek}
-        />
-
-        <RegistrationRequestsSection
-          items={registrationRequests}
-          canMutate={canMutate}
-          defaultTrialMonths={trialMonths.ok ? trialMonths.months : null}
         />
 
         <SpecialtyChangeRequestsPanel

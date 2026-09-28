@@ -11,6 +11,7 @@ import { PROFESSIONAL_REGISTRATION_REQUEST_TYPE } from "@/lib/professional-regis
 export { REGISTRATION_STATUS_PATH, agendaRedirectForLogin } from "@/lib/registration-status-path";
 
 export type RegistrationStatus =
+  | { kind: "confirm_email" }
   | { kind: "pending"; submittedAt: string }
   | { kind: "denied"; decidedAt: string; reason: string }
   | { kind: "withdrawn"; decidedAt: string }
@@ -23,11 +24,19 @@ type RequestRow = {
   decision_note: string | null;
 };
 
-/** The applicant's latest registration request, as the Status page shows it. */
-export function registrationStatusFromRequests(rows: RequestRow[]): RegistrationStatus {
+/**
+ * What the Status page shows: a pending request; else a draft still waiting for
+ * DocCy's confirmation link (Supabase marks logins confirmed at once, so an applicant
+ * can sign in before clicking it); else the latest decided request.
+ */
+export function registrationStatusFromRequests(
+  rows: RequestRow[],
+  options: { hasDraft?: boolean } = {},
+): RegistrationStatus {
   const latest = [...rows].sort((a, b) => b.created_at.localeCompare(a.created_at))[0];
+  if (latest?.status === "pending") return { kind: "pending", submittedAt: latest.created_at };
+  if (options.hasDraft) return { kind: "confirm_email" };
   if (!latest) return { kind: "none" };
-  if (latest.status === "pending") return { kind: "pending", submittedAt: latest.created_at };
   if (latest.status === "rejected") {
     return { kind: "denied", decidedAt: String(latest.decided_at), reason: String(latest.decision_note ?? "") };
   }
@@ -40,13 +49,24 @@ export async function loadRegistrationStatus(
   service: SupabaseClient,
   authUserId: string,
 ): Promise<RegistrationStatus> {
-  const { data, error } = await service
-    .from("request_log")
-    .select("status, created_at, decided_at, decision_note")
-    .eq("applicant_auth_user_id", authUserId)
-    .eq("request_type", PROFESSIONAL_REGISTRATION_REQUEST_TYPE)
-    .order("created_at", { ascending: false })
-    .limit(5);
+  const [{ data, error }, drafts] = await Promise.all([
+    service
+      .from("request_log")
+      .select("status, created_at, decided_at, decision_note")
+      .eq("applicant_auth_user_id", authUserId)
+      .eq("request_type", PROFESSIONAL_REGISTRATION_REQUEST_TYPE)
+      .order("created_at", { ascending: false })
+      .limit(5),
+    service
+      .from("request_drafts")
+      .select("id")
+      .eq("auth_user_id", authUserId)
+      .eq("request_type", PROFESSIONAL_REGISTRATION_REQUEST_TYPE)
+      .limit(1),
+  ]);
   if (error) throw new Error(`registration status: ${error.message}`);
-  return registrationStatusFromRequests((data ?? []) as RequestRow[]);
+  if (drafts.error) throw new Error(`registration status: ${drafts.error.message}`);
+  return registrationStatusFromRequests((data ?? []) as RequestRow[], {
+    hasDraft: (drafts.data ?? []).length > 0,
+  });
 }
