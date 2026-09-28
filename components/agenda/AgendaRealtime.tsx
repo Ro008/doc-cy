@@ -1217,9 +1217,9 @@ export function AgendaRealtime({
       nowOffsetPx: todayInGrid ? nowLineTop : null,
       hourRowHeight: HOUR_ROW_HEIGHT,
     });
-    // Only when the visible range changes, not on every clock tick.
+    // When the visible range changes (and once the grid has its height), not on every clock tick.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [gridKey]);
+  }, [gridKey, gridScrollHeight != null]);
 
   function monthItemsForDay(dateKey: string): AgendaMonthItem[] {
     return rowsForDay(dateKey).map((row) => ({
