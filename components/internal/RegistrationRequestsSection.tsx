@@ -19,7 +19,12 @@ type Props = {
   canMutate: boolean;
   /** The global trial length (app_settings), shown as the default. */
   defaultTrialMonths: number | null;
+  /** The specialty catalogue, offered when founders add a specialty. */
+  specialtyCatalogue?: readonly string[];
 };
+
+/** Same limit as the registration form. */
+const MAX_REVIEW_SPECIALTIES = 5;
 
 const inputClass =
   "w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-1.5 text-sm text-slate-100 disabled:opacity-60";
@@ -31,7 +36,13 @@ const contactWarningClass = "text-[11px] font-semibold text-red-300";
  * (all editable except the email, which is the login), the photo, and whether the
  * applicant claims an existing listing, then DENY with a reason or APPROVE.
  */
-export function RegistrationRequestsSection({ items, hiddenPending = 0, canMutate, defaultTrialMonths }: Props) {
+export function RegistrationRequestsSection({
+  items,
+  hiddenPending = 0,
+  canMutate,
+  defaultTrialMonths,
+  specialtyCatalogue = [],
+}: Props) {
   const pending = items.filter((item) => item.status === "pending");
   const decided = items.filter((item) => item.status !== "pending");
   // Marks when the section is interactive (tests wait for it on this heavy page).
@@ -59,7 +70,13 @@ export function RegistrationRequestsSection({ items, hiddenPending = 0, canMutat
         ) : null}
       </div>
       {pending.map((item) => (
-        <RequestCard key={item.id} item={item} canMutate={canMutate} defaultTrialMonths={defaultTrialMonths} />
+        <RequestCard
+          key={item.id}
+          item={item}
+          canMutate={canMutate}
+          defaultTrialMonths={defaultTrialMonths}
+          specialtyCatalogue={specialtyCatalogue}
+        />
       ))}
       {decided.length > 0 ? (
         <details className="rounded-xl border border-slate-800 p-3 text-sm text-slate-300">
@@ -93,10 +110,12 @@ function RequestCard({
   item,
   canMutate,
   defaultTrialMonths,
+  specialtyCatalogue,
 }: {
   item: RegistrationReviewItem;
   canMutate: boolean;
   defaultTrialMonths: number | null;
+  specialtyCatalogue: readonly string[];
 }) {
   const router = useRouter();
   const [draft, setDraft] = useState<ProfessionalRegistrationDetails>(item.details);
@@ -205,6 +224,10 @@ function RequestCard({
   }
 
   const specialtyRows = useMemo(() => draft.specialties, [draft.specialties]);
+  const catalogueKeys = useMemo(
+    () => new Set(specialtyCatalogue.map((name) => name.trim().toLowerCase())),
+    [specialtyCatalogue],
+  );
 
   return (
     <article
@@ -335,20 +358,26 @@ function RequestCard({
             <label className={labelClass}>
               <span>
                 Specialty {index + 1}
-                {specialty.from_catalogue ? null : (
+                {specialty.from_catalogue || !specialty.name.trim() ? null : (
                   <span className="ml-2 text-amber-300">not in the catalogue: approving adds it</span>
                 )}
               </span>
               <input className={inputClass} disabled={disabled} value={specialty.name}
-                onChange={(e) =>
+                list={`request-specialty-catalogue-${item.id}`}
+                onChange={(e) => {
+                  const name = e.target.value;
+                  const fromCatalogue = catalogueKeys.has(name.trim().toLowerCase());
                   update({
-                    specialties: draft.specialties.map((s, i) => (i === index ? { ...s, name: e.target.value } : s)),
-                  })
-                } />
+                    specialties: draft.specialties.map((s, i) =>
+                      i === index ? { ...s, name, from_catalogue: fromCatalogue } : s,
+                    ),
+                  });
+                }} />
             </label>
             <label className={labelClass}>
               Licence number
               <input className={inputClass} disabled={disabled} value={specialty.license_number}
+                data-testid={`request-specialty-licence-${index}`}
                 onChange={(e) =>
                   update({
                     specialties: draft.specialties.map((s, i) =>
@@ -365,6 +394,25 @@ function RequestCard({
             ) : null}
           </div>
         ))}
+        <datalist id={`request-specialty-catalogue-${item.id}`}>
+          {specialtyCatalogue.map((name) => (
+            <option key={name} value={name} />
+          ))}
+        </datalist>
+        {canMutate && draft.specialties.length < MAX_REVIEW_SPECIALTIES ? (
+          <button
+            type="button"
+            disabled={disabled}
+            className="text-xs font-semibold text-clinical-300 underline-offset-2 hover:underline disabled:opacity-60"
+            onClick={() =>
+              update({
+                specialties: [...draft.specialties, { name: "", from_catalogue: false, license_number: "" }],
+              })
+            }
+          >
+            Add specialty
+          </button>
+        ) : null}
       </div>
 
       <div className="space-y-2">

@@ -317,11 +317,15 @@ export default async function FounderDashboardPage({
   const tab = internalDashboardTab(searchParams?.tab);
   if (tab === "requests") {
     // The review queue only: nothing else on this page is loaded.
-    const [trialMonthsSetting, review] = await Promise.all([
+    const [trialMonthsSetting, review, specialtyCatalogue] = await Promise.all([
       loadTrialMonths(supabase),
       loadRegistrationRequestsForReview(supabase).catch((err) => {
         console.error("[internal/directory] registration requests load failed", err);
         return { items: [], hiddenPending: 0 };
+      }),
+      loadSpecialtyCatalogueNames(supabase).catch((err) => {
+        console.error("[internal/directory] specialty catalogue load failed", err);
+        return [] as string[];
       }),
     ]);
     return (
@@ -344,6 +348,7 @@ export default async function FounderDashboardPage({
             hiddenPending={review.hiddenPending}
             canMutate={canMutate}
             defaultTrialMonths={trialMonthsSetting.ok ? trialMonthsSetting.months : null}
+            specialtyCatalogue={specialtyCatalogue}
           />
         </div>
       </main>

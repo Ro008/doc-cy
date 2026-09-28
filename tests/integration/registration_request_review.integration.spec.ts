@@ -477,18 +477,43 @@ test.describe("Integration: registration request review", { tag: "@pr-e2e" }, ()
     await expect(page.locator("#requests[data-hydrated='1']")).toBeAttached({ timeout: 120_000 });
     await card.getByLabel("Listing URL").fill("https://www.mydoccy.com/paphos/cardiology");
     await card.getByRole("button", { name: "Check listing" }).click();
-    await expect(card.getByRole("alert")).toContainText(/not a profile URL/i);
+    await expect(card.getByRole("alert")).toContainText(/not a profile URL/i, { timeout: 20_000 });
     await expect(card.getByRole("button", { name: "APPROVE" })).toBeDisabled();
     await card.getByLabel("Listing URL").fill("");
     await expect(card.getByRole("button", { name: "APPROVE" })).toBeEnabled();
 
     await card.getByLabel("Last name").fill(`${lastName} Ui`);
+
+    // Founders can add a specialty (from the catalogue, or a new label) with its licence.
+    const { data: catalogueRow } = await admin
+      .from("specialties")
+      .select("name")
+      .neq("slug", "cardiology")
+      .order("name")
+      .limit(1)
+      .single();
+    const addedSpecialty = String(catalogueRow!.name);
+    await card.getByRole("button", { name: "Add specialty" }).click();
+    await card.getByLabel("Specialty 2", { exact: false }).fill(addedSpecialty);
+    await card.getByTestId("request-specialty-licence-1").fill("ADD-77");
+    await expect(card.getByText("not in the catalogue: approving adds it")).toHaveCount(0);
+
     await card.getByRole("button", { name: "APPROVE" }).click();
     await expect(card.getByText(/Approved/)).toBeVisible({ timeout: 30_000 });
 
     const { row } = await recordOutcome(admin, cleanup, seeded.requestId);
     expect(row.status).toBe("approved");
     expect((row.approved_details as { last_name: string }).last_name).toBe(`${lastName} Ui`);
+    const { data: proSpecialties } = await admin
+      .from("professional_specialties")
+      .select("license_number, specialties(name)")
+      .eq("professional_id", row.professional_id!);
+    expect(
+      (proSpecialties ?? []).map((ps) => ({
+        name: (ps.specialties as unknown as { name: string }).name,
+        license: ps.license_number,
+      })),
+    ).toEqual(expect.arrayContaining([{ name: addedSpecialty, license: "ADD-77" }]));
 
     // Everything else lives on the Statistics tab, and its links keep that tab.
     await tabs.getByRole("link", { name: "Statistics" }).click();

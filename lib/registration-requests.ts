@@ -27,6 +27,7 @@ import {
   validateApprovedRegistrationDetails,
 } from "@/lib/registration-approval";
 import { checkProfessionalContact } from "@/lib/professional-contact-check";
+import { loadSpecialtyCatalogueNames } from "@/lib/specialty-catalogue";
 import type { ProfessionalContactUse } from "@/lib/professional-contact";
 
 /**
@@ -304,9 +305,16 @@ export async function approveRegistrationRequest(
   if (loaded.ok === false) return loaded;
   const { request } = loaded;
 
-  const edited = validateApprovedRegistrationDetails(request.details, input.details ?? request.details);
+  let catalogue: string[];
+  try {
+    catalogue = await loadSpecialtyCatalogueNames(service);
+  } catch (error) {
+    console.error("[requests] approve: specialty catalogue failed", error);
+    return { ok: false, status: 500, message: "Could not load the specialty catalogue. Try again in a moment." };
+  }
+  const edited = validateApprovedRegistrationDetails(request.details, input.details ?? request.details, { catalogue });
   if (edited.ok === false) return { ok: false, status: 400, message: edited.message };
-  const unchanged = validateApprovedRegistrationDetails(request.details, request.details);
+  const unchanged = validateApprovedRegistrationDetails(request.details, request.details, { catalogue });
   const corrected =
     unchanged.ok && JSON.stringify(unchanged.details) === JSON.stringify(edited.details) ? null : edited.details;
   const details = edited.details;

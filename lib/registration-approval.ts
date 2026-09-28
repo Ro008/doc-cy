@@ -2,6 +2,11 @@ import { isCyprusDistrict } from "@/lib/cyprus-districts";
 import { buildDoctorSlugCandidates } from "@/lib/doctor-slug";
 import { MAX_DOCTOR_LOCATIONS } from "@/lib/doctor-locations";
 import { normalizeCyprusClinicPhone } from "@/lib/clinic-phone";
+import { MAX_DOCTOR_SPECIALTIES } from "@/lib/doctor-specialties";
+import {
+  isValidRegisterCustomSpecialty,
+  isValidRegisterLicenseNumber,
+} from "@/lib/register-specialty-rules";
 import {
   professionalContactUniqueViolation,
   type ProfessionalContactUse,
@@ -38,6 +43,13 @@ function fail(message: string): { ok: false; message: string } {
 export function validateApprovedRegistrationDetails(
   original: ProfessionalRegistrationDetails,
   edited: unknown,
+  options: {
+    /**
+     * The specialty catalogue. When given, each specialty's `from_catalogue` (and
+     * spelling) comes from it rather than from the client.
+     */
+    catalogue?: readonly string[];
+  } = {},
 ): { ok: true; details: ProfessionalRegistrationDetails } | { ok: false; message: string } {
   if (!isRecord(edited)) return fail("The request details are missing.");
 
@@ -66,16 +78,35 @@ export function validateApprovedRegistrationDetails(
   }
 
   const specialtiesRaw = Array.isArray(edited.specialties) ? edited.specialties : [];
-  const specialties = specialtiesRaw.filter(isRecord).map((s) => ({
-    name: text(s.name),
-    from_catalogue: s.from_catalogue === true,
-    license_number: text(s.license_number),
-  }));
+  const catalogue = options.catalogue
+    ? new Map(options.catalogue.map((name) => [name.trim().toLowerCase(), name.trim()]))
+    : null;
+  const specialties = specialtiesRaw.filter(isRecord).map((s) => {
+    const name = text(s.name);
+    const listed = catalogue?.get(name.toLowerCase());
+    return {
+      name: listed ?? name,
+      from_catalogue: catalogue ? Boolean(listed) : s.from_catalogue === true,
+      license_number: text(s.license_number),
+    };
+  });
   if (specialties.length === 0 || specialties.some((s) => !s.name)) {
     return fail("Every specialty needs a name, and at least one specialty is required.");
   }
+  if (specialties.length > MAX_DOCTOR_SPECIALTIES) {
+    return fail(`Keep up to ${MAX_DOCTOR_SPECIALTIES} specialties.`);
+  }
   const specialtyKeys = new Set(specialties.map((s) => s.name.toLowerCase()));
   if (specialtyKeys.size !== specialties.length) return fail("The same specialty is listed twice.");
+  // The form's rules, for the applicant's specialties and any founders add.
+  for (const specialty of specialties) {
+    if (!specialty.from_catalogue && !isValidRegisterCustomSpecialty(specialty.name)) {
+      return fail(`"${specialty.name}" is too short for a new specialty: use at least 3 letters.`);
+    }
+    if (!isValidRegisterLicenseNumber(specialty.license_number)) {
+      return fail(`The licence number for ${specialty.name} needs at least 3 characters, including a digit.`);
+    }
+  }
 
   const clinicsRaw = Array.isArray(edited.clinics) ? edited.clinics : [];
   if (clinicsRaw.length === 0 || clinicsRaw.length > MAX_DOCTOR_LOCATIONS) {

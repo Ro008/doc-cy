@@ -76,7 +76,7 @@ describe("validateApprovedRegistrationDetails", () => {
     for (const phone of [null, "", "12345678"]) {
       const result = validateApprovedRegistrationDetails(original, withPhone(phone));
       assert.equal(result.ok, false, String(phone));
-      assert.match(result.ok ? "" : result.message, /phone/i);
+      assert.match(result.ok === false ? result.message : "", /phone/i);
     }
     const fixed = validateApprovedRegistrationDetails(original, withPhone("+357 25 123456"));
     assert.equal(fixed.ok && fixed.details.clinics[1]!.phone, "25123456");
@@ -86,6 +86,48 @@ describe("validateApprovedRegistrationDetails", () => {
       edited({ clinics: [{ ...original.clinics[0]!, phone: "22000000" }, original.clinics[1]!] }),
     );
     assert.equal(picked.ok && picked.details.clinics[0]!.phone, null);
+  });
+
+  it("lets founders add a specialty, marked by whether the catalogue has it", () => {
+    const catalogue = ["Physiotherapy", "Dermatology"];
+    const result = validateApprovedRegistrationDetails(
+      original,
+      edited({
+        specialties: [
+          ...original.specialties,
+          { name: "dermatology", from_catalogue: false, license_number: "DERM-22" },
+          { name: "Sports massage", from_catalogue: true, license_number: "SM-1" },
+        ],
+      }),
+      { catalogue },
+    );
+    assert.equal(result.ok, true);
+    if (!result.ok) return;
+    assert.deepEqual(result.details.specialties, [
+      { name: "Physiotherapy", from_catalogue: true, license_number: "PT-1" },
+      // The catalogue's own spelling; approving links it.
+      { name: "Dermatology", from_catalogue: true, license_number: "DERM-22" },
+      // Not in the catalogue: approving adds it.
+      { name: "Sports massage", from_catalogue: false, license_number: "SM-1" },
+    ]);
+  });
+
+  it("checks specialties with the form's rules", () => {
+    const withSpecialty = (name: string, license_number: string) =>
+      edited({ specialties: [...original.specialties, { name, from_catalogue: false, license_number }] });
+    const refused = (value: unknown) => {
+      const result = validateApprovedRegistrationDetails(original, value, { catalogue: ["Physiotherapy"] });
+      return result.ok === false ? result.message : null;
+    };
+    assert.match(refused(withSpecialty("Dermatology", "abc")) ?? "", /licence/i);
+    assert.match(refused(withSpecialty("Dermatology", "1")) ?? "", /licence/i);
+    assert.match(refused(withSpecialty("Xy", "LIC-1")) ?? "", /3 letters/i);
+    const six = Array.from({ length: 6 }, (_, i) => ({
+      name: `Specialty ${"abcdef"[i]}`,
+      from_catalogue: false,
+      license_number: `L-${i}1`,
+    }));
+    assert.match(refused(edited({ specialties: six })) ?? "", /up to 5/i);
   });
 
   it("accepts founders' corrections and trims them", () => {
