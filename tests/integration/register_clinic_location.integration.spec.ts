@@ -275,10 +275,13 @@ test.describe("Integration UI: register clinic location", { tag: "@pr-e2e" }, ()
   });
 
   test("the missing-fields summary still points at the clinic field", async ({ page }) => {
-    await page.getByRole("button", { name: /Submit My Application/i }).click();
-
+    // Without a Maps key (CI) the Google field shows its error as the page settles;
+    // the layout shift can swallow a click on Submit, so press it until the list shows.
     const summary = page.getByTestId("register-missing-summary");
-    await expect(summary).toBeVisible({ timeout: 20_000 });
+    await expect(async () => {
+      await page.getByRole("button", { name: /Submit My Application/i }).click();
+      await expect(summary).toBeVisible({ timeout: 2_000 });
+    }).toPass({ timeout: 30_000 });
     await summary.getByRole("button", { name: "Clinic address" }).click();
 
     await expect(page.locator("#register-clinic-address")).toBeFocused();

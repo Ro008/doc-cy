@@ -11,6 +11,7 @@ import {
   uniqueRegisterTestMobile,
 } from "./helpers/goto-register-practice-step";
 import { seedRealContactHolder } from "./helpers/contact-holder";
+import { seedRegisterFixtures, type RegisterFixtures } from "./helpers/register-fixtures";
 import {
   adminCookieHeader,
   createTestAdmin,
@@ -181,18 +182,22 @@ test.describe("Integration: registration request review", { tag: "@pr-e2e" }, ()
   let admin: SupabaseClient;
   let founder: TestAdmin;
   let clinic: { id: string; address: string; district: string };
+  // Uniquely named DocCy clinics to search for: CI's synthetic seed has none of Testing's.
+  let fixtures: RegisterFixtures;
   const cleanup: Cleanup = { catalogue: [], logins: [], professionals: [], clinics: [], photos: [] };
 
   test.beforeAll(async () => {
     admin = createIntegrationAdmin(requireSafeIntegration());
     founder = await sharedTestFounder();
     clinic = await anyActiveClinic(admin);
+    fixtures = await seedRegisterFixtures(admin);
   });
 
   test.afterAll(async () => {
     for (const id of cleanup.professionals) {
       await admin.from("professionals").delete().eq("id", id);
     }
+    await fixtures?.remove();
     await deleteTestClinics(admin, cleanup.clinics);
     for (const name of cleanup.catalogue) await deleteTestCatalogueSpecialty(admin, name);
     for (const photo of cleanup.photos) await admin.storage.from(photo.bucket).remove([photo.path]);
@@ -576,11 +581,7 @@ test.describe("Integration: registration request review", { tag: "@pr-e2e" }, ()
     const { data: otherClinic } = await admin
       .from("clinics")
       .select("id, name")
-      .eq("is_archived", false)
-      .neq("id", clinic.id)
-      .not("address", "is", null)
-      .ilike("name", "%medical%")
-      .limit(1)
+      .eq("name", `${fixtures.token} Polykliniki`)
       .single();
     await card.getByRole("button", { name: "Add clinic" }).click();
     const addedRow = card.locator("[data-request-clinic-row='2']");

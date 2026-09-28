@@ -84,13 +84,20 @@ test.describe("Integration: registration request submit", { tag: "@pr-e2e" }, ()
       await page.getByRole("button", { name: /Submit My Application/i }).click();
       await expect(page).toHaveURL(/\/register\?.*submitted=1/, { timeout: 90_000 });
 
-      // A login exists, unconfirmed, and no professional was created.
+      // A login exists and no professional was created. (Whether Supabase marks the
+      // login confirmed depends on the project; DocCy's own link is the proof.)
       const { data: users } = await admin.auth.admin.listUsers({ page: 1, perPage: 200 });
-      const logins: Array<{ id: string; email?: string; email_confirmed_at?: string }> = users?.users ?? [];
+      const logins: Array<{ id: string; email?: string }> = users?.users ?? [];
       const login = logins.find((u) => u.email?.toLowerCase() === email.toLowerCase());
       expect(login?.id).toBeTruthy();
       authUserId = login!.id;
-      expect(login!.email_confirmed_at ?? null).toBeNull();
+
+      // Nothing reaches the founders until the link is clicked.
+      const { data: early } = await admin
+        .from("request_log")
+        .select("id")
+        .eq("applicant_auth_user_id", authUserId);
+      expect(early ?? []).toHaveLength(0);
 
       const { data: professionals } = await admin
         .from("professionals")
