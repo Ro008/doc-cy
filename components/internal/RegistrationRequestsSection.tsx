@@ -5,6 +5,9 @@ import { useRouter } from "next/navigation";
 
 import { CYPRUS_DISTRICTS } from "@/lib/cyprus-districts";
 import { getPublicBookingBaseUrl } from "@/lib/site-url";
+import { ClinicAddressAutocomplete } from "@/components/dashboard/ClinicAddressAutocomplete";
+import { MAX_DOCTOR_LOCATIONS } from "@/lib/doctor-locations";
+import type { ClinicLocation } from "@/lib/clinic-location";
 import type {
   ProfessionalRegistrationDetails,
   RegistrationClinic,
@@ -428,7 +431,14 @@ function RequestCard({
             onChange={(patch) => updateClinic(index, patch)}
             onPickExisting={(picked) => {
               setClinicNames((names) => ({ ...names, [picked.id]: picked }));
-              updateClinic(index, { clinic_id: picked.id, name: null });
+              // The DocCy clinic brings its own address and district (an added row has none).
+              updateClinic(index, {
+                clinic_id: picked.id,
+                name: null,
+                address: picked.address ?? clinic.address,
+                district: picked.district ?? clinic.district,
+                phone: null,
+              });
             }}
             onRemove={
               draft.clinics.length > 1
@@ -437,6 +447,16 @@ function RequestCard({
             }
           />
         ))}
+        {canMutate && draft.clinics.length < MAX_DOCTOR_LOCATIONS ? (
+          <button
+            type="button"
+            disabled={disabled}
+            className="text-xs font-semibold text-clinical-300 underline-offset-2 hover:underline disabled:opacity-60"
+            onClick={() => update({ clinics: [...draft.clinics, emptyReviewClinic()] })}
+          >
+            Add clinic
+          </button>
+        ) : null}
       </div>
 
       <div className="space-y-2 rounded-lg border border-slate-800 p-3">
@@ -603,7 +623,7 @@ function ClinicRow({
   }
 
   return (
-    <div className="space-y-2 rounded-lg border border-slate-800 p-3">
+    <div className="space-y-2 rounded-lg border border-slate-800 p-3" data-request-clinic-row={index}>
       <div className="flex items-center justify-between">
         <span className="text-xs font-semibold text-slate-300">
           Clinic {index + 1}
@@ -627,27 +647,23 @@ function ClinicRow({
             <input className={inputClass} disabled={disabled} value={clinic.name ?? ""}
               onChange={(e) => onChange({ name: e.target.value })} />
           </label>
-          <label className={labelClass}>
-            Address
-            <input className={inputClass} disabled={disabled} value={clinic.address}
-              onChange={(e) => onChange({ address: e.target.value })} />
-          </label>
-          <label className={labelClass}>
-            District
-            <select className={inputClass} disabled={disabled} value={clinic.district}
-              onChange={(e) => onChange({ district: e.target.value })}>
-              {CYPRUS_DISTRICTS.map((d) => (
-                <option key={d} value={d}>
-                  {d}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className={labelClass}>
-            Town
-            <input className={inputClass} disabled={disabled} value={clinic.town ?? ""}
-              onChange={(e) => onChange({ town: e.target.value || null })} />
-          </label>
+          <div className={`${labelClass} sm:col-span-2`}>
+            <span>Location (what patients see; search the address or drop a pin)</span>
+            <ClinicAddressAutocomplete
+              id={`request-clinic-location-${index}`}
+              value={reviewClinicLocation(clinic)}
+              disabled={disabled}
+              onChange={(location) => onChange(reviewClinicPatch(location))}
+            />
+            {clinic.address.trim() ? (
+              <span className="text-[11px] text-slate-400">
+                {clinic.address} · {clinic.district || "no district"}
+                {clinic.town ? ` · ${clinic.town}` : ""}
+              </span>
+            ) : (
+              <span className="text-[11px] font-semibold text-amber-300">Needed before approving</span>
+            )}
+          </div>
           <label className={labelClass}>
             Clinic phone (shown to patients)
             <input className={inputClass} disabled={disabled} value={clinic.phone ?? ""}
@@ -686,4 +702,45 @@ function ClinicRow({
       )}
     </div>
   );
+}
+
+/** A clinic row founders add: new until they place it or pick an existing DocCy clinic. */
+function emptyReviewClinic(): RegistrationClinic {
+  return {
+    clinic_id: null,
+    name: "",
+    address: "",
+    district: "",
+    town: null,
+    latitude: Number.NaN,
+    longitude: Number.NaN,
+    place_id: null,
+    phone: null,
+  };
+}
+
+function reviewClinicLocation(clinic: RegistrationClinic): ClinicLocation {
+  const known = (value: number) => (Number.isFinite(value) ? value : null);
+  return {
+    address: clinic.address,
+    latitude: known(clinic.latitude),
+    longitude: known(clinic.longitude),
+    placeId: clinic.place_id,
+    district: (CYPRUS_DISTRICTS as readonly string[]).includes(clinic.district)
+      ? (clinic.district as ClinicLocation["district"])
+      : null,
+    town: clinic.town,
+  };
+}
+
+/** The map field's result, in the request's shape. A missing pin stays "unknown" (NaN → null in JSON). */
+function reviewClinicPatch(location: ClinicLocation): Partial<RegistrationClinic> {
+  return {
+    address: location.address,
+    district: location.district ?? "",
+    town: location.town,
+    latitude: location.latitude ?? Number.NaN,
+    longitude: location.longitude ?? Number.NaN,
+    place_id: location.placeId,
+  };
 }

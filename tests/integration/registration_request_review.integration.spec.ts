@@ -498,10 +498,33 @@ test.describe("Integration: registration request review", { tag: "@pr-e2e" }, ()
     await card.getByTestId("request-specialty-licence-1").fill("ADD-77");
     await expect(card.getByText("not in the catalogue: approving adds it")).toHaveCount(0);
 
+    // …and a clinic: here an existing DocCy clinic, found with the row's search.
+    const { data: otherClinic } = await admin
+      .from("clinics")
+      .select("id, name")
+      .eq("is_archived", false)
+      .neq("id", clinic.id)
+      .not("address", "is", null)
+      .ilike("name", "%medical%")
+      .limit(1)
+      .single();
+    await card.getByRole("button", { name: "Add clinic" }).click();
+    const addedRow = card.locator("[data-request-clinic-row='2']");
+    await expect(addedRow).toContainText("new clinic");
+    await addedRow.getByPlaceholder("Search clinics…").fill(String(otherClinic!.name));
+    await addedRow.locator("li button", { hasText: String(otherClinic!.name) }).first().click();
+    await expect(addedRow).toContainText("existing DocCy clinic");
+
     await card.getByRole("button", { name: "APPROVE" }).click();
     await expect(card.getByText(/Approved/)).toBeVisible({ timeout: 30_000 });
 
     const { row } = await recordOutcome(admin, cleanup, seeded.requestId);
+    const { data: approvedLinks } = await admin
+      .from("professional_clinics")
+      .select("clinic_id, sort_order")
+      .eq("professional_id", row.professional_id!)
+      .order("sort_order");
+    expect(approvedLinks?.map((l) => l.clinic_id)).toContain(otherClinic!.id);
     expect(row.status).toBe("approved");
     expect((row.approved_details as { last_name: string }).last_name).toBe(`${lastName} Ui`);
     const { data: proSpecialties } = await admin

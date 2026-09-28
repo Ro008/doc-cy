@@ -127,14 +127,19 @@ export function validateApprovedRegistrationDetails(
     const district = text(raw.district);
     // A new clinic needs its phone: the public Call button shows the clinic's number.
     const phone = clinicId ? null : normalizeCyprusClinicPhone(text(raw.phone));
+    // Number(null) is 0: a missing coordinate must not become a pin in the sea.
+    const coordinate = (value: unknown) =>
+      value === null || value === undefined || value === "" ? Number.NaN : Number(value);
+    const latitude = coordinate(raw.latitude);
+    const longitude = coordinate(raw.longitude);
     if (!clinicId) {
       if (!name) return fail("Every new clinic needs a name.");
-      if (!address) return fail("Every new clinic needs an address.");
+      if (!address || !Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+        return fail(`Place ${name} on the map: search its address or drop a pin.`);
+      }
       if (!phone) return fail(`Give ${name} a phone number: a Cyprus landline or mobile, e.g. 25 123456.`);
     }
     if (!isCyprusDistrict(district)) return fail(`Unknown district "${district}".`);
-    const latitude = Number(raw.latitude);
-    const longitude = Number(raw.longitude);
     clinics.push({
       clinic_id: clinicId ? clinicId.toLowerCase() : null,
       name: clinicId ? null : name,

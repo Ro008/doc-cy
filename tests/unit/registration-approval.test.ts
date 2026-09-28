@@ -88,6 +88,46 @@ describe("validateApprovedRegistrationDetails", () => {
     assert.equal(picked.ok && picked.details.clinics[0]!.phone, null);
   });
 
+  it("lets founders add clinics: an existing DocCy clinic, or a new one placed on the map", () => {
+    const existing = { ...original.clinics[0]!, clinic_id: "5b4a3c2d-1e0f-4a9b-8c7d-6e5f4a3b2c1d" };
+    const added = {
+      clinic_id: null,
+      name: "Founders Added Clinic",
+      address: "7 Ayias Fylaxeos, Limassol",
+      district: "Limassol",
+      town: "Limassol",
+      latitude: 34.69,
+      longitude: 33.03,
+      place_id: "place-added",
+      phone: "25 111222",
+    };
+    const result = validateApprovedRegistrationDetails(
+      original,
+      edited({ clinics: [...original.clinics, existing, added] }),
+    );
+    assert.equal(result.ok, true);
+    if (!result.ok) return;
+    assert.equal(result.details.clinics.length, 4);
+    assert.deepEqual(result.details.clinics[3], { ...added, phone: "25111222" });
+  });
+
+  it("refuses a new clinic that isn't placed on the map", () => {
+    const blank = {
+      clinic_id: null,
+      name: "Unplaced Clinic",
+      address: "",
+      district: "",
+      town: null,
+      latitude: null,
+      longitude: null,
+      place_id: null,
+      phone: "25111222",
+    };
+    const result = validateApprovedRegistrationDetails(original, edited({ clinics: [...original.clinics, blank] as never }));
+    assert.equal(result.ok, false);
+    assert.match(result.ok === false ? result.message : "", /map/i);
+  });
+
   it("lets founders add a specialty, marked by whether the catalogue has it", () => {
     const catalogue = ["Physiotherapy", "Dermatology"];
     const result = validateApprovedRegistrationDetails(
