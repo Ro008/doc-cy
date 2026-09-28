@@ -94,10 +94,10 @@ Before the schema loads, the loader drops the local stack's default grants to `a
 
 **Refresh the snapshot** after applying migrations to Testing: `npm run db:ci-snapshot` (read-only; needs Docker running and the CLI linked to Testing), then commit `supabase/ci/`. The catalogue dump excludes every table not on the allowlist, so a new table never leaks rows into the repo.
 
-**Freshness check** (`npm run db:ci-snapshot:check`, in `PR build + unit`):
+**Freshness check** (`npm run db:ci-snapshot:check`, in `PR build + unit`). It only warns and never fails the build. A snapshot behind the repo is harmless, because the loader applies the missing migrations on every run; a refresh only shortens that list.
 
-- It fails when the repo has more than 10 migrations the snapshot lacks. CI applies them on every run anyway, but at that point the snapshot is due a refresh.
-- It warns, without failing, about versions the snapshot has that the branch does not. This happens with a migration applied to Testing before it merges. If that migration changes before merging, CI would skip it (its version is already "applied"), so refresh the snapshot then.
+- It warns when the repo has more than 10 migrations the snapshot lacks: refresh when convenient.
+- It warns about versions the snapshot has that the branch does not. This happens with a migration applied to Testing before it merges. If that migration changes before merging, CI would skip it (its version is already "applied"), so refresh the snapshot then.
 
 The build must come after the load. Pages prerendered at build time read the seeded directory.
 
