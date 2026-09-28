@@ -87,4 +87,21 @@ describe("prod nightly Cloudflare harness", () => {
     assert.match(harness, /dismissCookieConsentIfPresent/);
     assert.match(booking, /@nightly-prod/);
   });
+
+  it("checks /register on the Vercel origin only (Bot Fight challenges GitHub there on the edge)", () => {
+    const spec = fs.readFileSync(
+      path.join(repoRoot, "tests/prod/prod_site_availability.spec.ts"),
+      "utf8",
+    );
+    const action = fs.readFileSync(
+      path.join(repoRoot, ".github/actions/prod-nightly-smoke/action.yml"),
+      "utf8",
+    );
+    // /login keeps its edge check; /register is its own test, tagged origin-only.
+    assert.match(spec, /test\("login route renders",\s*async/);
+    assert.match(spec, /test\(\s*"register route renders",\s*\{ tag: "@origin-only" \}/);
+    // The edge run leaves @origin-only tests out entirely, so they are neither red nor gray.
+    assert.match(action, /DOC_CY_SMOKE_TARGET: \$\{\{ inputs.target \}\}/);
+    assert.match(action, /if \[ "\$\{DOC_CY_SMOKE_TARGET\}" = "edge" \]; then\s+grep_invert=\(--grep-invert @origin-only\)/);
+  });
 });

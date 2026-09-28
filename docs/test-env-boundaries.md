@@ -67,7 +67,7 @@ npm run test:cleanup:testing:assert # delete + fail if any remain
 
 - Playwright helpers mark these rows `is_test_profile: true` and use `finder-filter-` / `finder-ux-` slug prefixes.
 - `isTestProfileLike` also matches name prefixes (`Finder Filter `, `Finder UX `, …) and legacy `qa-filter-` / `qa-ux-` slugs.
-- PR integration CI runs `node scripts/cleanup-test-doctors.mjs --assert-empty` after both Playwright lanes (`if: always()`, when the build succeeded).
+- PR integration CI no longer touches Testing: each lane runs on a throwaway local stack (`docs/ci-test-policy.md`). Orphans in Testing now only come from local runs, so use the commands above after an interrupted one.
 
 ## Canonical commands
 

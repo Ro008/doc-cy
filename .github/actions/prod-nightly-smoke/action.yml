@@ -131,8 +131,15 @@ runs:
         PLAYWRIGHT_LIVE_REGISTRATION: "1"
         CI: "true"
         DOC_CY_SMOKE_SUITE: ${{ inputs.suite }}
+        DOC_CY_SMOKE_TARGET: ${{ inputs.target }}
       run: |
         set -euo pipefail
+        # @origin-only tests (e.g. /register, which Bot Fight Mode challenges GitHub's
+        # runners on) run on the Vercel origin only; the edge run leaves them out.
+        grep_invert=()
+        if [ "${DOC_CY_SMOKE_TARGET}" = "edge" ]; then
+          grep_invert=(--grep-invert @origin-only)
+        fi
         case "${DOC_CY_SMOKE_SUITE}" in
           site) spec="tests/prod/prod_site_availability.spec.ts" ;;
           profile) spec="tests/prod/prod_professional_profile_availability.spec.ts" ;;
@@ -145,7 +152,7 @@ runs:
             ;;
         esac
         echo "Smoke target=${{ inputs.target }} suite=${DOC_CY_SMOKE_SUITE} spec=${spec} base=${PLAYWRIGHT_BASE_URL}"
-        npx playwright test "${spec}" --grep @nightly-prod \
+        npx playwright test "${spec}" --grep @nightly-prod "${grep_invert[@]}" \
           --project="Desktop Large (Chromium)" \
           --workers=1 \
           --reporter=line

@@ -91,6 +91,26 @@ export function shouldStartLinkNavigationPending(
   return !hrefMatchesCurrentLocation(href, pathname, search);
 }
 
+/**
+ * A nav-link click: marks `linkKey` pending when it leads somewhere else. A click on the
+ * current page instead clears whatever link is pending: its router.push supersedes that
+ * navigation, the location never changes, and the other link would stay stuck (disabled,
+ * spinning) until reload. Returns whether a pending state was started.
+ */
+export function beginLinkNavigationPending(
+  linkKey: string,
+  pathname: string,
+  search: string | { toString(): string },
+  reason: NavigationStartReason = "default",
+): boolean {
+  if (!shouldStartLinkNavigationPending(linkKey, pathname, search)) {
+    clearNavigationPending();
+    return false;
+  }
+  emitNavigationStart(linkKey, reason);
+  return true;
+}
+
 export function emitNavigationStart(
   linkKey?: string,
   reason: NavigationStartReason = "default",
