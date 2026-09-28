@@ -23,6 +23,7 @@ type Props = {
 const inputClass =
   "w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-1.5 text-sm text-slate-100 disabled:opacity-60";
 const labelClass = "flex flex-col gap-1 text-xs text-slate-400";
+const contactWarningClass = "text-[11px] font-semibold text-red-300";
 
 /**
  * Registration requests (professional_registration). Founders review every field
@@ -286,11 +287,21 @@ function RequestCard({
           <label className={labelClass}>
             Email
             <input className={inputClass} disabled value={draft.email} readOnly />
+            {item.contactInUse?.email === "professional" ? (
+              <span className={contactWarningClass} data-testid="request-email-in-use">
+                Already used by another professional
+              </span>
+            ) : null}
           </label>
           <label className={labelClass}>
             Mobile
             <input className={inputClass} disabled={disabled} value={draft.mobile}
               onChange={(e) => update({ mobile: e.target.value })} />
+            {item.contactInUse?.mobile && draft.mobile === item.details.mobile ? (
+              <span className={contactWarningClass} data-testid="request-mobile-in-use">
+                Already used by another professional: correct it, or deny
+              </span>
+            ) : null}
           </label>
           <label className={labelClass}>
             Gender

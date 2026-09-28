@@ -2,6 +2,10 @@ import { isCyprusDistrict } from "@/lib/cyprus-districts";
 import { buildDoctorSlugCandidates } from "@/lib/doctor-slug";
 import { MAX_DOCTOR_LOCATIONS } from "@/lib/doctor-locations";
 import {
+  professionalContactUniqueViolation,
+  type ProfessionalContactUse,
+} from "@/lib/professional-contact";
+import {
   REGISTRATION_UPLOADS_BUCKET,
   type ProfessionalRegistrationDetails,
   type RegistrationClinic,
@@ -181,8 +185,29 @@ export function approvedAvatarPath(authUserId: string, random: string): string {
 }
 
 /** A message founders can act on, from the database's refusal. */
-export function approvalErrorMessage(error: { code?: string | null; message?: string | null }): string {
+const APPROVAL_EMAIL_IN_USE =
+  "This email is already used by another professional. Deny the request, or ask the applicant to sign in to their existing profile.";
+const APPROVAL_MOBILE_IN_USE =
+  "This mobile number is already used by another professional. Correct it to the applicant's own mobile, or deny the request.";
+
+/** Why a registration can't be approved with these contact details, if it can't. */
+export function registrationContactConflictMessage(use: ProfessionalContactUse): string | null {
+  // 'account' can't happen here: the applicant's own login is excluded, and the email is their login.
+  if (use.email === "professional") return APPROVAL_EMAIL_IN_USE;
+  if (use.mobile) return APPROVAL_MOBILE_IN_USE;
+  return null;
+}
+
+export function approvalErrorMessage(error: {
+  code?: string | null;
+  message?: string | null;
+  details?: string | null;
+}): string {
   const message = String(error.message ?? "").trim();
+  // A race the pre-check missed: the unique index is the real barrier.
+  const contact = professionalContactUniqueViolation(error);
+  if (contact === "email") return APPROVAL_EMAIL_IN_USE;
+  if (contact === "mobile") return APPROVAL_MOBILE_IN_USE;
   switch (error.code) {
     case "55000":
     case "P0002":

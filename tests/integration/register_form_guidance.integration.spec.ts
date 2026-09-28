@@ -7,6 +7,7 @@ import {
   gotoRegisterPracticeStep,
   gotoRegisterProfileStep,
   waitForRegisterWizardReady,
+  uniqueRegisterTestMobile,
 } from "./helpers/goto-register-practice-step";
 
 /**
@@ -82,7 +83,7 @@ test.describe("Integration UI: register form guidance", { tag: "@pr-e2e" }, () =
     await expect(summary).toContainText("7 things left before you can continue");
     await expect(summary.locator("li")).toHaveCount(7);
 
-    await page.getByTestId("register-phone-input").fill("+35799123456");
+    await page.getByTestId("register-phone-input").fill(uniqueRegisterTestMobile());
 
     await expect(summary).toContainText("6 things left before you can continue");
     // The row stays put, struck through, so the list never shifts under the user.
@@ -197,7 +198,7 @@ test.describe("Integration UI: register form guidance", { tag: "@pr-e2e" }, () =
     await page.locator("#register-last-name").fill("Mino");
     await page.locator("#register-form input[name='email']").fill("karina.mino@example.com");
     await page.locator("#register-form input[name='password']").fill("StrongPass123!");
-    await page.getByTestId("register-phone-input").fill("+35799123456");
+    await page.getByTestId("register-phone-input").fill(uniqueRegisterTestMobile());
     await page.getByTestId("register-wizard-continue").click();
 
     const summary = page.getByTestId("register-missing-summary");
@@ -226,7 +227,7 @@ test.describe("Integration UI: register form guidance", { tag: "@pr-e2e" }, () =
     await page.locator("#register-last-name").fill("Mino");
     await page.locator("#register-form input[name='email']").fill("karina.mino@example.com");
     await page.locator("#register-form input[name='password']").fill("StrongPass123!");
-    await page.getByTestId("register-phone-input").fill("+35799123456");
+    await page.getByTestId("register-phone-input").fill(uniqueRegisterTestMobile());
     await answerRegisterAccountChoices(page);
     await expect(page.getByTestId("register-wizard-continue")).toHaveText(/Continue to profile/i);
     await page.getByTestId("register-wizard-continue").click();

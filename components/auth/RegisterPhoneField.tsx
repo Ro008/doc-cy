@@ -11,6 +11,7 @@ import {
   type RegisterPhoneCountry,
 } from "@/lib/register-phone";
 import { registerFieldErrorClass, registerLabelClass } from "@/lib/register-ui";
+import { useRegisterContactTaken } from "@/components/auth/useRegisterContactTaken";
 
 const REGISTER_PHONE_DEFAULT_OPTION: RegisterPhoneCountry = {
   code: "CY",
@@ -36,6 +37,8 @@ export function RegisterPhoneField() {
   }, []);
   const [country, setCountry] = React.useState(REGISTER_PHONE_DEFAULT_COUNTRY.toUpperCase());
   const [typed, setTyped] = React.useState("");
+  const inputRef = React.useRef<HTMLInputElement>(null);
+  const [taken, clearTaken] = useRegisterContactTaken(inputRef, "mobile");
 
   const { e164 } = composeRegisterPhone(country, typed);
   const valid = isValidRegisterMobile(e164);
@@ -45,6 +48,7 @@ export function RegisterPhoneField() {
   const placeholder = example ? example.replace(`${dialCode} `, "") : "";
 
   const onNumberChange = (value: string) => {
+    clearTaken();
     // A full international number (typed or pasted) picks its own country.
     if (value.trim().startsWith("+")) {
       const next = composeRegisterPhone(country, value);
@@ -80,7 +84,10 @@ export function RegisterPhoneField() {
             aria-label="Country code"
             data-testid="register-phone-country"
             value={country}
-            onChange={(event) => setCountry(event.target.value)}
+            onChange={(event) => {
+              clearTaken();
+              setCountry(event.target.value);
+            }}
             className="absolute inset-0 cursor-pointer opacity-0"
           >
             {countries.map((item) => (
@@ -91,6 +98,7 @@ export function RegisterPhoneField() {
           </select>
         </div>
         <input
+          ref={inputRef}
           id="register-phone"
           type="tel"
           inputMode="tel"
@@ -116,6 +124,11 @@ export function RegisterPhoneField() {
         tabIndex={-1}
         className="pointer-events-none absolute h-0 w-0 opacity-0"
       />
+      {taken ? (
+        <p data-testid="register-phone-taken" role="alert" className="mt-1 text-xs font-semibold text-red-700">
+          {taken}
+        </p>
+      ) : null}
       <p className={registerFieldErrorClass}>
         Enter a valid {selected?.name ?? country} mobile number
         {example ? `, e.g. ${example}` : ""}.

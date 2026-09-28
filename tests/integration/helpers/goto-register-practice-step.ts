@@ -18,6 +18,14 @@ export const REGISTER_SMALL_AVATAR_FIXTURE = path.join(
   "e2e-person-avatar.jpg",
 );
 
+/**
+ * A fresh Cyprus mobile for each sign-up: a mobile belongs to one real professional,
+ * and Testing's fixtures already hold the old fixed +35799123456.
+ */
+export function uniqueRegisterTestMobile(): string {
+  return `+35799${String(Math.floor(Math.random() * 1_000_000)).padStart(6, "0")}`;
+}
+
 /** Languages are one-click pills on /register (no dropdown). */
 export async function selectRegisterEnglishLanguage(page: Page): Promise<void> {
   const pill = page.getByTestId("language-option-English");
@@ -66,7 +74,7 @@ export async function gotoRegisterProfileStep(page: Page): Promise<void> {
   await page.locator("#register-form input[name='lastName']").fill("Mino");
   await page.locator("#register-form input[name='email']").fill("karina.mino@example.com");
   await page.locator("#register-form input[name='password']").fill(INTEGRATION_DOCTOR_PASSWORD);
-  await page.getByTestId("register-phone-input").fill("+35799123456");
+  await page.getByTestId("register-phone-input").fill(uniqueRegisterTestMobile());
   await answerRegisterAccountChoices(page);
   await page.getByTestId("register-wizard-continue").click();
 

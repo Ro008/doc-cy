@@ -5,6 +5,7 @@ import {
   selectRegisterEnglishLanguage,
   uploadRegisterAvatar,
   waitForRegisterWizardReady,
+  uniqueRegisterTestMobile,
 } from "./helpers/goto-register-practice-step";
 import { INTEGRATION_DOCTOR_PASSWORD } from "./helpers/test-doctor";
 
@@ -180,7 +181,7 @@ test.describe("Integration UI: register clinics", { tag: "@pr-e2e" }, () => {
     await waitForRegisterWizardReady(page);
     await page.locator("#register-form input[name='email']").fill("claim.clinics@example.com");
     await page.locator("#register-form input[name='password']").fill(INTEGRATION_DOCTOR_PASSWORD);
-    await page.getByTestId("register-phone-input").fill("+35799123456");
+    await page.getByTestId("register-phone-input").fill(uniqueRegisterTestMobile());
     const gesyYes = page.getByRole("radiogroup", { name: /GeSY/ }).getByText("Yes", { exact: true });
     await gesyYes.click();
     const gender = page.getByRole("radiogroup", { name: "Gender" });

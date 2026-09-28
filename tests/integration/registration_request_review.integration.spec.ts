@@ -4,7 +4,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { createQaClaimDirectoryClone } from "./helpers/qa-claim-directory";
 import { createIntegrationAdmin, requireSafeIntegration } from "./helpers/safe-integration";
-import { REGISTER_AVATAR_FIXTURE } from "./helpers/goto-register-practice-step";
+import { REGISTER_AVATAR_FIXTURE, uniqueRegisterTestMobile } from "./helpers/goto-register-practice-step";
+import { seedRealContactHolder } from "./helpers/contact-holder";
 import {
   adminCookieHeader,
   createTestAdmin,
@@ -52,7 +53,14 @@ async function anyActiveClinic(admin: SupabaseClient): Promise<{ id: string; add
 async function seedRequest(
   admin: SupabaseClient,
   cleanup: Cleanup,
-  input: { lastName: string; clinicId: string; clinicAddress: string; clinicDistrict: string; claimId?: string | null },
+  input: {
+    lastName: string;
+    clinicId: string;
+    clinicAddress: string;
+    clinicDistrict: string;
+    claimId?: string | null;
+    mobile?: string;
+  },
 ): Promise<Seeded> {
   const email = `review-${Date.now()}-${Math.random().toString(36).slice(2, 7)}@integration.test`;
   const created = await admin.auth.admin.createUser({ email, password: "StrongPass123!", email_confirm: true });
@@ -73,7 +81,7 @@ async function seedRequest(
     gender: "female",
     gesy: true,
     email,
-    mobile: "+35799123456",
+    mobile: input.mobile ?? uniqueRegisterTestMobile(),
     languages: ["English"],
     photo: { bucket: "request-uploads", path: photoPath },
     specialties: [{ name: "Cardiology", from_catalogue: true, license_number: "REV-1" }],
@@ -351,6 +359,38 @@ test.describe("Integration: registration request review", { tag: "@pr-e2e" }, ()
     const row = await loadRequest(admin, seeded.requestId);
     expect(row.status).toBe("rejected");
     expect(row.decision_note).toBe("Licence number not found");
+  });
+
+  test("approving is refused while another professional uses the mobile", async ({ request }) => {
+    const mobile = uniqueRegisterTestMobile();
+    const holder = await seedRealContactHolder(admin, { mobile });
+    try {
+      const seeded = await seedRequest(admin, cleanup, {
+        lastName: `Taken ${Date.now().toString(36)}`,
+        clinicId: clinic.id,
+        clinicAddress: clinic.address,
+        clinicDistrict: clinic.district,
+        mobile,
+      });
+      const url = `${baseUrl()}/api/internal/requests/${seeded.requestId}/approve`;
+      const headers = { cookie: adminCookieHeader(founder) };
+
+      const refused = await request.post(url, { headers, data: {} });
+      expect(refused.status()).toBe(409);
+      expect(await refused.text()).toMatch(/mobile number is already used by another professional/i);
+      expect((await loadRequest(admin, seeded.requestId)).status).toBe("pending");
+
+      // A founder can correct it to the applicant's real number and approve.
+      const { details } = await loadRequest(admin, seeded.requestId);
+      const fixed = await request.post(url, {
+        headers,
+        data: { details: { ...(details as Record<string, unknown>), mobile: uniqueRegisterTestMobile() } },
+      });
+      expect(fixed.status(), await fixed.text()).toBe(200);
+      await recordOutcome(admin, cleanup, seeded.requestId);
+    } finally {
+      await holder.remove();
+    }
   });
 
   test("the Requests section shows a pending request and approves it", async ({ page }) => {

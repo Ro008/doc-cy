@@ -5,6 +5,7 @@ import {
   selectRegisterEnglishLanguage,
   uploadRegisterAvatar,
   waitForRegisterWizardReady,
+  uniqueRegisterTestMobile,
 } from "./helpers/goto-register-practice-step";
 import { INTEGRATION_DOCTOR_PASSWORD } from "./helpers/test-doctor";
 
@@ -49,7 +50,7 @@ test.describe("Integration UI: register claim prefill", { tag: "@pr-e2e" }, () =
     // Only the private fields are left to type on step 1.
     await page.locator("#register-form input[name='email']").fill("claim.prefill@example.com");
     await page.locator("#register-form input[name='password']").fill(INTEGRATION_DOCTOR_PASSWORD);
-    await page.getByTestId("register-phone-input").fill("+35799123456");
+    await page.getByTestId("register-phone-input").fill(uniqueRegisterTestMobile());
     await page.getByTestId("register-wizard-continue").click();
     await expect(page.getByTestId("register-step-2")).toBeVisible();
     await uploadRegisterAvatar(page);

@@ -12,6 +12,7 @@ import {
   RegisterWizardContext,
   useRegisterWizard,
 } from "@/components/auth/register-wizard-context";
+import { registerContactBlocksAccountStep } from "@/components/auth/register-contact-check";
 import { registerPrimaryButtonClass } from "@/lib/register-ui";
 import {
   registerAccountSummary,
@@ -75,6 +76,8 @@ export function RegisterWizard({
 }) {
   const [step, setStep] = React.useState(1);
   const [summaries, setSummaries] = React.useState<Record<number, string>>({});
+  const [checking, setChecking] = React.useState(false);
+  const checkingRef = React.useRef(false);
   const stepCount = REGISTER_WIZARD_STEP_COUNT;
   const stepRef = React.useRef(step);
   stepRef.current = step;
@@ -102,9 +105,9 @@ export function RegisterWizard({
     heading.focus({ preventScroll: true });
   }, [step]);
 
-  const goNext = React.useCallback(() => {
+  const goNext = React.useCallback(async () => {
     const form = document.getElementById(formId) as HTMLFormElement | null;
-    if (!form) return;
+    if (!form || checkingRef.current) return;
     const current = stepRef.current;
     const event = new CustomEvent(REGISTER_NEXT_EVENT, {
       bubbles: true,
@@ -113,6 +116,18 @@ export function RegisterWizard({
     });
     form.dispatchEvent(event);
     if (event.defaultPrevented) return;
+    // The email and personal mobile must not already be another professional's.
+    if (current === 1) {
+      checkingRef.current = true;
+      setChecking(true);
+      try {
+        if (await registerContactBlocksAccountStep(form)) return;
+      } finally {
+        checkingRef.current = false;
+        setChecking(false);
+      }
+      if (stepRef.current !== current) return;
+    }
     const summary = readStepSummary(form, current);
     setSummaries((existing) => ({ ...existing, [current]: summary }));
     setStep((value) => Math.min(stepCount, value + 1));
@@ -124,7 +139,7 @@ export function RegisterWizard({
     const onSubmit = (event: Event) => {
       if (stepRef.current >= stepCount) return;
       event.preventDefault();
-      goNext();
+      void goNext();
     };
     form.addEventListener("submit", onSubmit, true);
     return () => form.removeEventListener("submit", onSubmit, true);
@@ -132,7 +147,7 @@ export function RegisterWizard({
 
   return (
     <RegisterWizardContext.Provider
-      value={{ step, stepCount, setStep, goNext, submitLabel, summaries }}
+      value={{ step, stepCount, setStep, goNext, checking, submitLabel, summaries }}
     >
       <RegisterFormProgress formId={formId} />
       <div className="mt-4 space-y-3 lg:space-y-2.5">{children}</div>
@@ -164,11 +179,13 @@ function RegisterWizardStepActions() {
   return (
     <button
       type="button"
-      onClick={wizard.goNext}
+      onClick={() => void wizard.goNext()}
+      disabled={wizard.checking}
+      aria-busy={wizard.checking || undefined}
       data-testid="register-wizard-continue"
       className={registerPrimaryButtonClass}
     >
-      {CONTINUE_LABELS[wizard.step] ?? "Continue"}
+      {wizard.checking ? "Checking…" : (CONTINUE_LABELS[wizard.step] ?? "Continue")}
       <ArrowRight className="h-[18px] w-[18px]" strokeWidth={2.4} aria-hidden />
     </button>
   );

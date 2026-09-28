@@ -16,6 +16,7 @@ import {
   selectRegisterEnglishLanguage,
   uploadRegisterAvatar,
   waitForRegisterWizardReady,
+  uniqueRegisterTestMobile,
 } from "./helpers/goto-register-practice-step";
 import { INTEGRATION_DOCTOR_PASSWORD } from "./helpers/test-doctor";
 
@@ -69,7 +70,7 @@ test.describe("Integration: doctor registration flow", { tag: "@local-register" 
         input.dispatchEvent(new Event("input", { bubbles: true }));
         input.dispatchEvent(new Event("change", { bubbles: true }));
       });
-      await page.getByTestId("register-phone-input").fill("+35799123456");
+      await page.getByTestId("register-phone-input").fill(uniqueRegisterTestMobile());
       await answerRegisterAccountChoices(page);
       for (const key of ["firstName", "lastName", "email", "password", "phone", "gender", "gesy"]) {
         await expect(

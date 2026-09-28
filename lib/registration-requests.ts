@@ -19,11 +19,14 @@ import { getPublicBookingBaseUrl } from "@/lib/site-url";
 import { reviewableRegistrationRows } from "@/lib/registration-review-filter";
 import {
   approvalErrorMessage,
+  registrationContactConflictMessage,
   approvedAvatarPath,
   claimedListingKeepsSlug,
   parseListingUrl,
   validateApprovedRegistrationDetails,
 } from "@/lib/registration-approval";
+import { checkProfessionalContact } from "@/lib/professional-contact-check";
+import type { ProfessionalContactUse } from "@/lib/professional-contact";
 
 /**
  * Server side of the dashboard's Requests section for professional_registration:
@@ -53,6 +56,8 @@ export type RegistrationReviewItem = {
   clinics: Record<string, ReviewClinicInfo>;
   /** The listing claimed with "Claim this Profile", if any. */
   claimedListing: ReviewListing | null;
+  /** Pending only: whether the email / mobile already belong to another real professional. */
+  contactInUse: ProfessionalContactUse | null;
 };
 
 type HttpResult<T> = ({ ok: true } & T) | { ok: false; status: number; message: string };
@@ -152,6 +157,8 @@ export async function loadRegistrationRequestsForReview(
         claimedListing: details.claimed_professional_id
           ? await listingSummary(service, details.claimed_professional_id)
           : null,
+        contactInUse:
+          row.status === "pending" ? await reviewContactInUse(service, approved ?? details, row.applicant_auth_user_id) : null,
       };
     }),
   );
@@ -159,6 +166,24 @@ export async function loadRegistrationRequestsForReview(
 }
 
 /** Pending requests founders can act on (their applicant still has a login), for tab badges. */
+/** The review still shows the request if this lookup fails; approving checks again. */
+async function reviewContactInUse(
+  service: SupabaseClient,
+  details: ProfessionalRegistrationDetails,
+  applicantAuthUserId: string | null,
+): Promise<ProfessionalContactUse | null> {
+  try {
+    return await checkProfessionalContact(service, {
+      email: details.email,
+      mobile: details.mobile,
+      applicantAuthUserId,
+    });
+  } catch (error) {
+    console.error("[requests] contact check failed", error);
+    return null;
+  }
+}
+
 export async function countReviewablePendingRequests(service: SupabaseClient): Promise<number> {
   const { count, error } = await service
     .from("request_log")
@@ -283,6 +308,21 @@ export async function approveRegistrationRequest(
     }
     trialMonths = months;
   }
+
+  // The email and personal mobile must not already be another real professional's.
+  let contactUse: ProfessionalContactUse;
+  try {
+    contactUse = await checkProfessionalContact(service, {
+      email: details.email,
+      mobile: details.mobile,
+      applicantAuthUserId: request.applicantAuthUserId,
+    });
+  } catch (error) {
+    console.error("[requests] approve: contact check failed", error);
+    return { ok: false, status: 500, message: "Could not check the email and mobile. Try again in a moment." };
+  }
+  const contactConflict = registrationContactConflictMessage(contactUse);
+  if (contactConflict) return { ok: false, status: 409, message: contactConflict };
 
   const name = registrationRequesterName(details);
   const district = details.clinics[0]?.district ?? null;
