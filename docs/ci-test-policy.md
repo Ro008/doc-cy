@@ -36,6 +36,7 @@ Each lane's database is thrown away with its runner, so an interrupted test leav
 | `@pr-mobile-monitor` | `playwright test --grep @pr-mobile-monitor` | Doctor confirmation flow on mobile (PR, non-blocking) |
 | `@pr-login-monitor` | `playwright test --grep @pr-login-monitor` | Doctor `/login` form UI (PR, non-blocking) |
 | `@nightly-prod` | `playwright test --grep @nightly-prod` | Prod URL blocking smokes (site + booking) |
+| `@origin-only` | left out of the nightly edge run (`--grep-invert @origin-only`) | Nightly test that runs on the Vercel origin (and preview) only. `/register`: Bot Fight Mode challenges GitHub's runners there on the Cloudflare edge every night, so the edge can't check it |
 | `@local-register` | `npm run test:e2e:register` | Live `/register` UI + Resend on **testing** DB. **Local gate (agent runs on PR open)** — not CI |
 
 Constants: `tests/helpers/ciTags.ts`. To tag new specs: `node scripts/apply-ci-playwright-tags.mjs` (edit file lists first).
@@ -94,10 +95,10 @@ Before the schema loads, the loader drops the local stack's default grants to `a
 
 **Refresh the snapshot** after applying migrations to Testing: `npm run db:ci-snapshot` (read-only; needs Docker running and the CLI linked to Testing), then commit `supabase/ci/`. The catalogue dump excludes every table not on the allowlist, so a new table never leaks rows into the repo.
 
-**Freshness check** (`npm run db:ci-snapshot:check`, in `PR build + unit`):
+**Freshness check** (`npm run db:ci-snapshot:check`, in `PR build + unit`). It only warns and never fails the build. A snapshot behind the repo is harmless, because the loader applies the missing migrations on every run; a refresh only shortens that list.
 
-- It fails when the repo has more than 10 migrations the snapshot lacks. CI applies them on every run anyway, but at that point the snapshot is due a refresh.
-- It warns, without failing, about versions the snapshot has that the branch does not. This happens with a migration applied to Testing before it merges. If that migration changes before merging, CI would skip it (its version is already "applied"), so refresh the snapshot then.
+- It warns when the repo has more than 10 migrations the snapshot lacks: refresh when convenient.
+- It warns about versions the snapshot has that the branch does not. This happens with a migration applied to Testing before it merges. If that migration changes before merging, CI would skip it (its version is already "applied"), so refresh the snapshot then.
 
 The build must come after the load. Pages prerendered at build time read the seeded directory.
 
