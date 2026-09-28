@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 
 import { CYPRUS_DISTRICTS } from "@/lib/cyprus-districts";
 import { getPublicBookingBaseUrl } from "@/lib/site-url";
+import { AvatarCropDialog, prepareAvatarSource } from "@/components/auth/AvatarCropDialog";
+import { REGISTER_AVATAR_ACCEPT } from "@/lib/register-avatar";
 import { ClinicAddressAutocomplete } from "@/components/dashboard/ClinicAddressAutocomplete";
 import { MAX_DOCTOR_LOCATIONS } from "@/lib/doctor-locations";
 import type { ClinicLocation } from "@/lib/clinic-location";
@@ -188,6 +190,9 @@ function RequestCard({
   const [draft, setDraft] = useState<ProfessionalRegistrationDetails>(item.details);
   const [clinicNames, setClinicNames] = useState<Record<string, ReviewClinicInfo>>(item.clinics);
   const [photoUrl, setPhotoUrl] = useState<string | null>(item.photoUrl);
+  /** The picked replacement photo, open in the crop dialog. */
+  const [cropSource, setCropSource] = useState<string | null>(null);
+  const [photoError, setPhotoError] = useState<string | null>(null);
   const [listingUrl, setListingUrl] = useState("");
   const [listingCheck, setListingCheck] = useState<ListingCheck>({ state: "empty" });
   const [trialMonths, setTrialMonths] = useState("");
@@ -221,22 +226,41 @@ function RequestCard({
     }
   }
 
+  /** A picked photo goes through the form's checks, then the same crop dialog. */
+  async function pickReplacementPhoto(file: File) {
+    const prepared = await prepareAvatarSource(file);
+    if (prepared.ok === false) {
+      setPhotoError(prepared.message);
+      return;
+    }
+    setPhotoError(null);
+    if (cropSource) URL.revokeObjectURL(cropSource);
+    setCropSource(prepared.url);
+  }
+
+  function closeCrop() {
+    if (cropSource) URL.revokeObjectURL(cropSource);
+    setCropSource(null);
+  }
+
+  /** Uploads the cropped JPEG (900×900, like the form's). */
   async function replacePhoto(file: File) {
     setBusy(true);
-    setError(null);
+    setPhotoError(null);
     try {
       const body = new FormData();
       body.set("file", file);
       const res = await fetch(`/api/internal/requests/${item.id}/photo`, { method: "POST", body });
       const json = (await res.json().catch(() => ({}))) as { path?: string; url?: string | null; message?: string };
       if (!res.ok || !json.path) {
-        setError(json.message ?? "Could not replace the photo.");
+        setPhotoError(json.message ?? "Could not replace the photo.");
         return;
       }
       update({ photo: { bucket: "request-uploads", path: json.path } });
       setPhotoUrl(json.url ?? null);
     } finally {
       setBusy(false);
+      closeCrop();
     }
   }
 
@@ -352,16 +376,35 @@ function RequestCard({
                 Replace photo
                 <input
                   type="file"
-                  accept="image/jpeg,image/png,image/webp"
+                  accept={REGISTER_AVATAR_ACCEPT}
                   className="sr-only"
                   disabled={disabled}
+                  data-testid="request-photo-file-input"
                   onChange={(event) => {
                     const file = event.target.files?.[0];
-                    if (file) void replacePhoto(file);
+                    // Reset so picking the same file again still fires `change`.
+                    event.target.value = "";
+                    if (file) void pickReplacementPhoto(file);
                   }}
                 />
               </label>
             </div>
+          ) : null}
+          {canMutate ? (
+            <p className="text-[11px] text-slate-500">JPG, PNG or WebP · at least 400×400 px · max 10 MB</p>
+          ) : null}
+          {photoError ? (
+            <p role="alert" data-testid="request-photo-error" className="text-xs text-red-300">
+              {photoError}
+            </p>
+          ) : null}
+          {cropSource ? (
+            <AvatarCropDialog
+              sourceUrl={cropSource}
+              title="Crop the photo"
+              onCancel={closeCrop}
+              onConfirm={(file) => replacePhoto(file)}
+            />
           ) : null}
         </div>
 

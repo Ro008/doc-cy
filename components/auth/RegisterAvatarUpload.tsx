@@ -1,94 +1,26 @@
 "use client";
 
 import * as React from "react";
-import Cropper from "react-easy-crop";
 import { Camera, Check } from "lucide-react";
-import {
-  REGISTER_AVATAR_ACCEPT,
-  avatarDimensionsProblem,
-  avatarFileProblem,
-} from "@/lib/register-avatar";
-import { registerLabelClass, registerPrimaryButtonClass } from "@/lib/register-ui";
-
-type CropArea = { x: number; y: number; width: number; height: number };
+import { AvatarCropDialog, prepareAvatarSource } from "@/components/auth/AvatarCropDialog";
+import { REGISTER_AVATAR_ACCEPT } from "@/lib/register-avatar";
+import { registerLabelClass } from "@/lib/register-ui";
 
 type RegisterAvatarUploadProps = {
   fieldName?: string;
 };
 
-function loadImage(src: string): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => resolve(img);
-    img.onerror = () => reject(new Error("Failed to load image."));
-    img.src = src;
-  });
-}
-
-async function cropToBlob(imageSrc: string, area: CropArea): Promise<Blob> {
-  const image = await loadImage(imageSrc);
-  const canvas = document.createElement("canvas");
-  // Keep enough resolution for retina profile circles while avoiding oversized uploads.
-  canvas.width = 900;
-  canvas.height = 900;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) throw new Error("Could not prepare crop canvas.");
-
-  ctx.drawImage(
-    image,
-    area.x,
-    area.y,
-    area.width,
-    area.height,
-    0,
-    0,
-    canvas.width,
-    canvas.height
-  );
-
-  const toBlob = (quality: number) =>
-    new Promise<Blob | null>((resolve) => {
-      canvas.toBlob((value) => resolve(value), "image/jpeg", quality);
-    });
-
-  // Compress progressively until we get a compact file while preserving quality.
-  // Target chosen to keep uploads snappy without visible pixelation in avatar usage.
-  const targetBytes = 280 * 1024;
-  let quality = 0.9;
-  let blob = await toBlob(quality);
-  if (!blob) throw new Error("Could not generate cropped image.");
-
-  while (blob.size > targetBytes && quality > 0.72) {
-    quality -= 0.06;
-    const nextBlob = await toBlob(quality);
-    if (!nextBlob) break;
-    blob = nextBlob;
-  }
-
-  return blob;
-}
-
-const FOCUSABLE = 'button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])';
-
 /**
  * Required profile photo: drop or browse, checked (format, size, 400×400 min)
  * before the square crop dialog opens, then posted as `fieldName` (JPEG).
+ * The checks and the dialog are shared with the founders' review (AvatarCropDialog).
  */
 export function RegisterAvatarUpload({ fieldName = "avatarFile" }: RegisterAvatarUploadProps) {
   const sourceInputRef = React.useRef<HTMLInputElement | null>(null);
   const formFileInputRef = React.useRef<HTMLInputElement | null>(null);
-  const dialogRef = React.useRef<HTMLDivElement | null>(null);
-  const confirmRef = React.useRef<HTMLButtonElement | null>(null);
   const [sourceUrl, setSourceUrl] = React.useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = React.useState<string | null>(null);
-  const [crop, setCrop] = React.useState({ x: 0, y: 0 });
-  const [zoom, setZoom] = React.useState(1);
-  const [croppedAreaPixels, setCroppedAreaPixels] = React.useState<CropArea | null>(
-    null
-  );
   const [error, setError] = React.useState<string | null>(null);
-  const [isModalOpen, setIsModalOpen] = React.useState(false);
-  const [isCropping, setIsCropping] = React.useState(false);
   const [isReady, setIsReady] = React.useState(false);
   const [isDragOver, setIsDragOver] = React.useState(false);
 
@@ -99,47 +31,16 @@ export function RegisterAvatarUpload({ fieldName = "avatarFile" }: RegisterAvata
     };
   }, [previewUrl, sourceUrl]);
 
-  React.useEffect(() => {
-    if (isModalOpen) confirmRef.current?.focus();
-  }, [isModalOpen]);
-
-  function clearFormFile() {
-    if (formFileInputRef.current) {
-      formFileInputRef.current.value = "";
-    }
-    setIsReady(false);
-  }
-
   async function handleFile(file: File | undefined) {
     if (!file) return;
-    const problem = avatarFileProblem(file);
-    if (problem) {
-      setError(problem);
+    const prepared = await prepareAvatarSource(file);
+    if (prepared.ok === false) {
+      setError(prepared.message);
       return;
     }
-
-    const url = URL.createObjectURL(file);
-    try {
-      const image = await loadImage(url);
-      const sizeProblem = avatarDimensionsProblem(image.naturalWidth, image.naturalHeight);
-      if (sizeProblem) {
-        URL.revokeObjectURL(url);
-        setError(sizeProblem);
-        return;
-      }
-    } catch {
-      URL.revokeObjectURL(url);
-      setError("We couldn't open that image. Please try a JPG or PNG.");
-      return;
-    }
-
     setError(null);
-    setCrop({ x: 0, y: 0 });
-    setZoom(1);
-    setCroppedAreaPixels(null);
     if (sourceUrl) URL.revokeObjectURL(sourceUrl);
-    setSourceUrl(url);
-    setIsModalOpen(true);
+    setSourceUrl(prepared.url);
   }
 
   function onPickFile(e: React.ChangeEvent<HTMLInputElement>) {
@@ -156,7 +57,6 @@ export function RegisterAvatarUpload({ fieldName = "avatarFile" }: RegisterAvata
   }
 
   function onCancelCrop() {
-    setIsModalOpen(false);
     if (sourceUrl) {
       URL.revokeObjectURL(sourceUrl);
       setSourceUrl(null);
@@ -165,59 +65,18 @@ export function RegisterAvatarUpload({ fieldName = "avatarFile" }: RegisterAvata
     if (!isReady) setError("No photo yet — upload one to continue.");
   }
 
-  function onDialogKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
-    if (e.key === "Escape") {
-      e.preventDefault();
-      onCancelCrop();
-      return;
+  function onCropped(croppedFile: File) {
+    const dt = new DataTransfer();
+    dt.items.add(croppedFile);
+    if (formFileInputRef.current) {
+      formFileInputRef.current.files = dt.files;
     }
-    if (e.key !== "Tab" || !dialogRef.current) return;
-    // Keep keyboard focus inside the dialog while it is open.
-    const focusable = Array.from(dialogRef.current.querySelectorAll<HTMLElement>(FOCUSABLE));
-    if (focusable.length === 0) return;
-    const first = focusable[0]!;
-    const last = focusable[focusable.length - 1]!;
-    const active = document.activeElement;
-    if (e.shiftKey && (active === first || !dialogRef.current.contains(active))) {
-      e.preventDefault();
-      last.focus();
-    } else if (!e.shiftKey && (active === last || !dialogRef.current.contains(active))) {
-      e.preventDefault();
-      first.focus();
-    }
-  }
-
-  async function onConfirmCrop() {
-    if (!sourceUrl || !croppedAreaPixels) {
-      setError("Please adjust and confirm your crop.");
-      return;
-    }
-
-    setIsCropping(true);
-    try {
-      const blob = await cropToBlob(sourceUrl, croppedAreaPixels);
-      const croppedFile = new File([blob], "profile-photo.jpg", {
-        type: "image/jpeg",
-      });
-
-      const dt = new DataTransfer();
-      dt.items.add(croppedFile);
-      if (formFileInputRef.current) {
-        formFileInputRef.current.files = dt.files;
-      }
-
-      if (previewUrl) URL.revokeObjectURL(previewUrl);
-      setPreviewUrl(URL.createObjectURL(croppedFile));
-      setIsReady(true);
-      setError(null);
-      setIsModalOpen(false);
-    } catch (err) {
-      console.error(err);
-      setError("Failed to process image. Please try another photo.");
-      clearFormFile();
-    } finally {
-      setIsCropping(false);
-    }
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    setPreviewUrl(URL.createObjectURL(croppedFile));
+    setIsReady(true);
+    setError(null);
+    if (sourceUrl) URL.revokeObjectURL(sourceUrl);
+    setSourceUrl(null);
   }
 
   return (
@@ -320,69 +179,14 @@ export function RegisterAvatarUpload({ fieldName = "avatarFile" }: RegisterAvata
         </p>
       )}
 
-      {isModalOpen && sourceUrl ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink-900/70 p-4">
-          <div
-            ref={dialogRef}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="register-crop-title"
-            onKeyDown={onDialogKeyDown}
-            className="w-full max-w-md rounded-3xl bg-white p-5 shadow-2xl"
-          >
-            <p id="register-crop-title" className="text-lg font-extrabold text-ink-900">
-              Crop your photo
-            </p>
-            <p className="mt-0.5 text-sm text-ink-600">
-              Drag to position your face in the circle.
-            </p>
-            <div className="relative mt-4 h-72 overflow-hidden rounded-2xl bg-ink-100">
-              <Cropper
-                image={sourceUrl}
-                crop={crop}
-                zoom={zoom}
-                aspect={1}
-                cropShape="round"
-                showGrid={false}
-                onCropChange={setCrop}
-                onZoomChange={setZoom}
-                onCropComplete={(_, croppedPixels) => {
-                  setCroppedAreaPixels(croppedPixels as CropArea);
-                }}
-              />
-            </div>
-            <label className="mt-4 block text-[13px] font-semibold text-ink-800">
-              Zoom
-              <input
-                type="range"
-                min={1}
-                max={3}
-                step={0.05}
-                value={zoom}
-                onChange={(e) => setZoom(Number(e.target.value))}
-                className="mt-2 w-full accent-clinical-500"
-              />
-            </label>
-            <div className="mt-5 flex items-center gap-2">
-              <button
-                type="button"
-                onClick={onCancelCrop}
-                className="inline-flex min-h-[48px] items-center rounded-xl border-[1.5px] border-ink-200 px-5 text-sm font-semibold text-ink-800 transition hover:border-clinical-300"
-              >
-                Cancel
-              </button>
-              <button
-                ref={confirmRef}
-                type="button"
-                onClick={onConfirmCrop}
-                disabled={isCropping}
-                className={`${registerPrimaryButtonClass} flex-1 disabled:opacity-60`}
-              >
-                {isCropping ? "Processing…" : "Confirm crop"}
-              </button>
-            </div>
-          </div>
-        </div>
+      {sourceUrl ? (
+        <AvatarCropDialog
+          sourceUrl={sourceUrl}
+          title="Crop your photo"
+          hint="Drag to position your face in the circle."
+          onCancel={onCancelCrop}
+          onConfirm={onCropped}
+        />
       ) : null}
     </div>
   );

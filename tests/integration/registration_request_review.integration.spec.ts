@@ -4,7 +4,11 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { createQaClaimDirectoryClone } from "./helpers/qa-claim-directory";
 import { createIntegrationAdmin, requireSafeIntegration } from "./helpers/safe-integration";
-import { REGISTER_AVATAR_FIXTURE, uniqueRegisterTestMobile } from "./helpers/goto-register-practice-step";
+import {
+  REGISTER_AVATAR_FIXTURE,
+  REGISTER_SMALL_AVATAR_FIXTURE,
+  uniqueRegisterTestMobile,
+} from "./helpers/goto-register-practice-step";
 import { seedRealContactHolder } from "./helpers/contact-holder";
 import {
   adminCookieHeader,
@@ -417,6 +421,49 @@ test.describe("Integration: registration request review", { tag: "@pr-e2e" }, ()
     const createdId = outcome.clinics?.find((c) => c.created)?.clinic_id;
     const { data: created } = await admin.from("clinics").select("phone").eq("id", createdId!).single();
     expect(created?.phone).toBe("24654321");
+  });
+
+  test("founders replace the photo with the same checks and crop as the form", async ({ page }) => {
+    test.setTimeout(240_000);
+    const seeded = await seedRequest(admin, cleanup, {
+      lastName: `Photo ${Date.now().toString(36)}`,
+      clinicId: clinic.id,
+      clinicAddress: clinic.address,
+      clinicDistrict: clinic.district,
+    });
+    await signInAsAdmin(page, founder);
+    await page.goto("/internal/directory", { waitUntil: "domcontentloaded" });
+    const card = page.locator(`[data-request-id='${seeded.requestId}']`);
+    await expect(card).toBeVisible({ timeout: 60_000 });
+    await expect(page.locator("#requests[data-hydrated='1']")).toBeAttached({ timeout: 120_000 });
+    const photoInput = card.getByTestId("request-photo-file-input");
+
+    // Too small: refused with the form's message, no dialog.
+    await photoInput.setInputFiles(REGISTER_SMALL_AVATAR_FIXTURE);
+    await expect(card.getByTestId("request-photo-error")).toContainText(/too small/i, { timeout: 20_000 });
+    await expect(page.getByRole("dialog", { name: "Crop the photo" })).toHaveCount(0);
+
+    // A normal photo opens the same round crop dialog; confirming stores the crop.
+    await photoInput.setInputFiles(REGISTER_AVATAR_FIXTURE);
+    const dialog = page.getByRole("dialog", { name: "Crop the photo" });
+    await expect(dialog).toBeVisible({ timeout: 20_000 });
+    await expect(dialog.getByLabel("Zoom")).toBeVisible();
+    await dialog.getByRole("button", { name: "Confirm crop" }).click();
+    await expect(dialog).toBeHidden({ timeout: 20_000 });
+    await expect(card.getByRole("img", { name: /Applicant photo/ })).toHaveAttribute("src", /founder-/, {
+      timeout: 30_000,
+    });
+
+    // The stored replacement is the cropped JPEG (900×900, well under the 1 MB limit).
+    const { data: uploads } = await admin.storage
+      .from("request-uploads")
+      .list(`professional_registration/${seeded.authUserId}`);
+    const founderPhoto = (uploads ?? []).find((file) => file.name.startsWith("founder-"));
+    expect(founderPhoto?.name).toMatch(/\.jpg$/);
+    cleanup.photos.push({
+      bucket: "request-uploads",
+      path: `professional_registration/${seeded.authUserId}/${founderPhoto!.name}`,
+    });
   });
 
   test("approving is refused while another professional uses the mobile", async ({ request }) => {
