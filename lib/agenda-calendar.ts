@@ -100,3 +100,30 @@ export function agendaHref({
   const query = params.toString();
   return query ? `/agenda?${query}` : "/agenda";
 }
+
+/** Height for the scrolling time grid so the page itself doesn't scroll (Google Calendar–style). */
+export function agendaGridScrollHeight({
+  viewportHeight,
+  gridTop,
+  bottomReserve,
+  minHeight = 320,
+}: {
+  viewportHeight: number;
+  gridTop: number;
+  bottomReserve: number;
+  minHeight?: number;
+}): number {
+  return Math.max(minHeight, Math.round(viewportHeight - gridTop - bottomReserve));
+}
+
+/** Where the time grid opens: two hours before now when today is visible, else the top. */
+export function agendaInitialGridScrollTop({
+  nowOffsetPx,
+  hourRowHeight,
+}: {
+  nowOffsetPx: number | null;
+  hourRowHeight: number;
+}): number {
+  if (nowOffsetPx == null) return 0;
+  return Math.max(0, Math.round(nowOffsetPx - 2 * hourRowHeight));
+}

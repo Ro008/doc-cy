@@ -36,7 +36,9 @@ import { AgendaClinicCalendars } from "@/components/agenda/AgendaClinicCalendars
 import { AgendaMonthGrid, type AgendaMonthItem } from "@/components/agenda/AgendaMonthGrid";
 import { AgendaSidebar } from "@/components/agenda/AgendaSidebar";
 import {
+  agendaGridScrollHeight,
   agendaHref,
+  agendaInitialGridScrollTop,
   agendaRangeTitle,
   agendaWeekDays,
   parseAgendaView,
@@ -410,6 +412,9 @@ export function AgendaRealtime({
       agendaDateFromKey(initialDateKey) ?? startOfDay(utcToZonedTime(new Date(), CY_TZ)),
   );
   const [sidebarOpen, setSidebarOpen] = React.useState(true);
+  /** Desktop time grid scrolls inside itself so the page fits the window. */
+  const gridScrollRef = React.useRef<HTMLDivElement | null>(null);
+  const [gridScrollHeight, setGridScrollHeight] = React.useState<number | null>(null);
   const [manualBookingOpen, setManualBookingOpen] = React.useState(false);
   const [hiddenClinicIds, setHiddenClinicIds] = React.useState<Set<string>>(
     () => new Set(),
@@ -1137,6 +1142,37 @@ export function AgendaRealtime({
       ? CALENDAR_TOP_INSET + ((nowMinutesCyprus - START_HOUR * 60) / 60) * HOUR_ROW_HEIGHT
       : null;
 
+  const todayInGrid = gridDays.some((day) => isSameDay(day, todayDate));
+  const gridKey = `${view}-${format(gridDays[0]!, "yyyy-MM-dd")}`;
+
+  React.useEffect(() => {
+    const el = gridScrollRef.current;
+    if (!el) return;
+    const measure = () => {
+      if (!gridScrollRef.current) return;
+      const gridTop = gridScrollRef.current.getBoundingClientRect().top + window.scrollY;
+      // Section + page bottom padding; below lg the bottom tab bar (5.25rem) covers the page too.
+      const bottomReserve = 40 + (window.innerWidth >= 1024 ? 0 : 84);
+      setGridScrollHeight(
+        agendaGridScrollHeight({ viewportHeight: window.innerHeight, gridTop, bottomReserve }),
+      );
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, [view, sidebarOpen]);
+
+  React.useEffect(() => {
+    const el = gridScrollRef.current;
+    if (!el) return;
+    el.scrollTop = agendaInitialGridScrollTop({
+      nowOffsetPx: todayInGrid ? nowLineTop : null,
+      hourRowHeight: HOUR_ROW_HEIGHT,
+    });
+    // Only when the visible range changes, not on every clock tick.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gridKey]);
+
   function monthItemsForDay(dateKey: string): AgendaMonthItem[] {
     return rowsForDay(dateKey).map((row) => ({
       key: row.rowKey,
@@ -1467,7 +1503,7 @@ export function AgendaRealtime({
             {view !== "month" ? (
               <div className="hidden min-w-0 md:block">
                 <div
-                  className={`${agendaStickyWeekHeaderClass} ${
+                  className={`${agendaStickyWeekHeaderClass} overflow-hidden [scrollbar-gutter:stable] ${
                     view === "day" ? agendaDayGridColsClass : agendaWeekGridColsClass
                   }`}
                 >
@@ -1499,12 +1535,19 @@ export function AgendaRealtime({
                 </div>
 
                 <div
-                  className={`grid ${
-                    view === "day" ? agendaDayGridColsClass : agendaWeekGridColsClass
-                  }`}
+                  ref={gridScrollRef}
+                  data-testid="agenda-grid-scroll"
+                  className="overflow-y-auto overscroll-contain [scrollbar-gutter:stable]"
+                  style={gridScrollHeight != null ? { height: gridScrollHeight } : undefined}
                 >
-                  {renderHourAxis()}
-                  {gridDays.map((day) => renderDayColumn(day, "desktop"))}
+                  <div
+                    className={`grid ${
+                      view === "day" ? agendaDayGridColsClass : agendaWeekGridColsClass
+                    }`}
+                  >
+                    {renderHourAxis()}
+                    {gridDays.map((day) => renderDayColumn(day, "desktop"))}
+                  </div>
                 </div>
               </div>
             ) : null}

@@ -3,7 +3,9 @@ import { describe, it } from "node:test";
 import { format } from "date-fns";
 
 import {
+  agendaGridScrollHeight,
   agendaHref,
+  agendaInitialGridScrollTop,
   agendaMonthGrid,
   agendaRangeTitle,
   agendaWeekDays,
@@ -175,5 +177,46 @@ describe("agendaHref", () => {
 
   it("returns the bare path for the default state", () => {
     assert.equal(agendaHref({ view: "week", dateKey: null }), "/agenda");
+  });
+});
+
+describe("agendaGridScrollHeight", () => {
+  it("fills the viewport below the grid's top edge, minus the bottom reserve", () => {
+    assert.equal(
+      agendaGridScrollHeight({ viewportHeight: 900, gridTop: 250, bottomReserve: 40 }),
+      610,
+    );
+  });
+
+  it("reserves room for the phone/tablet bottom bar when asked", () => {
+    assert.equal(
+      agendaGridScrollHeight({ viewportHeight: 800, gridTop: 250, bottomReserve: 40 + 84 }),
+      426,
+    );
+  });
+
+  it("never goes below the minimum on very short windows", () => {
+    assert.equal(
+      agendaGridScrollHeight({ viewportHeight: 500, gridTop: 400, bottomReserve: 40 }),
+      320,
+    );
+    assert.equal(
+      agendaGridScrollHeight({ viewportHeight: 500, gridTop: 400, bottomReserve: 40, minHeight: 200 }),
+      200,
+    );
+  });
+});
+
+describe("agendaInitialGridScrollTop", () => {
+  it("starts two hours before now when today is on screen", () => {
+    assert.equal(agendaInitialGridScrollTop({ nowOffsetPx: 400, hourRowHeight: 56 }), 288);
+  });
+
+  it("does not scroll past the top early in the morning", () => {
+    assert.equal(agendaInitialGridScrollTop({ nowOffsetPx: 60, hourRowHeight: 56 }), 0);
+  });
+
+  it("starts at the top (08:00) when today is not on screen", () => {
+    assert.equal(agendaInitialGridScrollTop({ nowOffsetPx: null, hourRowHeight: 56 }), 0);
   });
 });
