@@ -46,11 +46,19 @@ test.describe("Public shell health", { tag: ["@pr-preview", "@nightly-prod"] }, 
     await expect(primaryCta).toHaveAttribute("href", "#founders-pricing-card");
   });
 
-  test("login and register routes render", async ({ page }) => {
+  test("login route renders", async ({ page }) => {
     await gotoPublicAndReady(page, "/login");
     await expect(page.getByLabel("Email")).toBeVisible({ timeout: 15000 });
     await expect(page.getByRole("button", { name: /Sign in/i })).toBeVisible();
     await expect(page.getByRole("link", { name: /Forgot your password\?/i })).toBeVisible();
+  });
+
+  // Origin (Vercel) and preview only: on the Cloudflare edge, Bot Fight Mode challenges
+  // GitHub's runners on /register every night, so the edge lane leaves this test out.
+  test(
+    "register route renders",
+    { tag: "@origin-only" },
+    async ({ page }) => {
 
     await gotoPublicAndReady(page, "/register");
     await expect(

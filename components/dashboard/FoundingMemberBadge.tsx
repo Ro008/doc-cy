@@ -73,7 +73,7 @@ export function FoundingMemberBadge({ compact = false }: { compact?: boolean }) 
                 id="founding-status-title"
                 className="text-sm font-semibold tracking-tight text-slate-50"
               >
-                Your Special Status
+                Founding Member
               </h2>
               <button
                 type="button"
@@ -85,25 +85,24 @@ export function FoundingMemberBadge({ compact = false }: { compact?: boolean }) 
               </button>
             </div>
 
-            <p className="mt-3 text-xs font-medium text-clinical-200/95">
-              What does this mean for you?
-            </p>
-
             <ul className="mt-3 space-y-3 text-xs leading-relaxed text-slate-300">
               <li>
-                <span className="font-semibold text-slate-200">6 Months of Onboarding:</span> Your
-                first 180 days are on us. We want you to see the impact on your practice before you
-                pay a cent.
+                <span className="font-semibold text-slate-200">
+                  Online booking free for your first 6 months.
+                </span>{" "}
+                Your agenda, patient requests and 1-click approval cost nothing.
               </li>
               <li>
-                <span className="font-semibold text-slate-200">Lifetime Price Protection:</span> As a
-                thank you for your early trust, your price is locked at €19/month forever. You will
-                never be affected by future price increases.
+                <span className="font-semibold text-slate-200">Then €19/month, locked for life.</span>{" "}
+                As a Founding Member, your price never goes up.
               </li>
               <li>
-                <span className="font-semibold text-slate-200">Founder&apos;s Direct Line:</span> You
-                have a direct channel to our founding team. Your feedback shapes the future of
-                DocCy.
+                <span className="font-semibold text-slate-200">Your public profile is always free.</span>{" "}
+                Patients can find you on DocCy even if you stop taking online bookings.
+              </li>
+              <li>
+                <span className="font-semibold text-slate-200">Talk to the founders.</span> We&apos;re
+                the two people building DocCy, and we read and answer every message ourselves.
               </li>
             </ul>
 
@@ -115,7 +114,7 @@ export function FoundingMemberBadge({ compact = false }: { compact?: boolean }) 
               }}
               className="mt-4 w-full rounded-xl border-2 border-clinical-400/45 bg-clinical-400/15 py-2.5 text-sm font-semibold text-clinical-100 shadow-[0_0_24px_-8px_rgba(18,184,192,0.45)] transition hover:border-clinical-300/70 hover:bg-clinical-400/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
             >
-              Contact Founding Team
+              Message the founders
             </button>
           </div>
         </>

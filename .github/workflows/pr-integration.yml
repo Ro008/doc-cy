@@ -1,18 +1,15 @@
-# PR lane (blocking): integration Supabase + local app build/start on every PR.
-# Nightly prod-only lane: .github/workflows/prod-critical-smoke.yml
+# PR lane (blocking) on every PR. Nightly prod-only lane: .github/workflows/prod-critical-smoke.yml
 # Policy: docs/ci-test-policy.md
 #
-# Layout:
-#   1) pr-build — unit + Next build, uploads `.next`
-#   2) pr-playwright-booking + pr-playwright-account + pr-playwright-finder — parallel Playwright lanes (reuse build)
+# Layout (all jobs start at once):
+#   1) pr-build — content checks, unit tests, typecheck
+#   2) pr-playwright-booking + pr-playwright-account + pr-playwright-finder — Playwright lanes, each
+#      on its own throwaway Supabase stack in the runner, with its own app build
+#      (.github/actions/local-supabase, scripts/ci-db/). No PR job touches the Testing project.
 #   3) pr-playwright-gate — single required check name for branch protection
 #   4) pr-preview-public-shell — Vercel preview smoke (unchanged)
 #
-# Secrets: INTEGRATION_SUPABASE_URL, INTEGRATION_SUPABASE_ANON_KEY,
-#          INTEGRATION_SUPABASE_SERVICE_ROLE_KEY, PROD_NEXT_PUBLIC_SUPABASE_URL (production URL only;
-#          used to refuse running integration tests against prod Supabase).
-# Optional repo variable: INTEGRATION_SCHEDULE_TEST_DOCTOR_SLUG (default andreas-nikos) for schedule_constraints.
-# Optional legacy: INTEGRATION_BASE_URL — not required when building locally in CI.
+# Secrets: PROD_NEXT_PUBLIC_SUPABASE_URL (production URL only; the specs refuse to run against it).
 
 name: PR Integration Tests
 
@@ -33,13 +30,7 @@ env:
   INTEGRATION_SAFE_ENV: "1"
   PLAYWRIGHT_BASE_URL: http://127.0.0.1:3000
   PLAYWRIGHT_WEB_SERVER_COMMAND: npm run start
-  NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.INTEGRATION_SUPABASE_URL }}
-  NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.INTEGRATION_SUPABASE_ANON_KEY }}
-  SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.INTEGRATION_SUPABASE_SERVICE_ROLE_KEY }}
-  TEST_USER_EMAIL: ${{ secrets.INTEGRATION_TEST_USER_EMAIL || secrets.TEST_USER_EMAIL }}
-  TEST_USER_PASSWORD: ${{ secrets.INTEGRATION_TEST_USER_PASSWORD || secrets.TEST_USER_PASSWORD }}
   PROD_NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.PROD_NEXT_PUBLIC_SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL }}
-  INTEGRATION_SCHEDULE_TEST_DOCTOR_SLUG: ${{ vars.INTEGRATION_SCHEDULE_TEST_DOCTOR_SLUG }}
   NEXT_PUBLIC_DOC_CY_FINDER_INCLUDE_TEST_PROFILES: "1"
   NEXT_PUBLIC_FORMSPREE_ID: e2e_placeholder
 
@@ -53,50 +44,6 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
-      - name: Validate isolated Supabase configuration
-        shell: bash
-        env:
-          NEXT_PUBLIC_SUPABASE_URL: "${{ secrets.INTEGRATION_SUPABASE_URL }}"
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: "${{ secrets.INTEGRATION_SUPABASE_ANON_KEY }}"
-          SUPABASE_SERVICE_ROLE_KEY: "${{ secrets.INTEGRATION_SUPABASE_SERVICE_ROLE_KEY }}"
-          PROD_NEXT_PUBLIC_SUPABASE_URL: "${{ secrets.PROD_NEXT_PUBLIC_SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL }}"
-        run: |
-          set -euo pipefail
-          missing=0
-
-          if [ -z "${NEXT_PUBLIC_SUPABASE_URL}" ]; then
-            echo "::error::Missing GitHub secret INTEGRATION_SUPABASE_URL."
-            missing=1
-          fi
-          if [ -z "${NEXT_PUBLIC_SUPABASE_ANON_KEY}" ]; then
-            echo "::error::Missing GitHub secret INTEGRATION_SUPABASE_ANON_KEY."
-            missing=1
-          fi
-          if [ -z "${SUPABASE_SERVICE_ROLE_KEY}" ]; then
-            echo "::error::Missing GitHub secret INTEGRATION_SUPABASE_SERVICE_ROLE_KEY."
-            missing=1
-          fi
-
-          if [ "${missing}" -ne 0 ]; then
-            echo "Add the INTEGRATION_* secrets in Repo Settings → Secrets and variables → Actions."
-            if [ "${GITHUB_EVENT_NAME:-}" = "pull_request" ] && [ "${{ github.event.pull_request.head.repo.full_name }}" != "${{ github.repository }}" ]; then
-              echo "This PR is from a fork; GitHub does not inject repository secrets into fork PR workflows."
-            fi
-            exit 1
-          fi
-
-          normalize_url() { echo "$1" | sed 's:/*$::'; }
-
-          integration_norm="$(normalize_url "${NEXT_PUBLIC_SUPABASE_URL}")"
-          prod_norm="$(normalize_url "${PROD_NEXT_PUBLIC_SUPABASE_URL:-}")"
-
-          if echo "${integration_norm}" | grep -Eqi '\.supabase\.co'; then
-            if [ -n "${prod_norm}" ] && [ "${integration_norm}" = "${prod_norm}" ]; then
-              echo "Unsafe NEXT_PUBLIC_SUPABASE_URL matches production Supabase URL. Aborting."
-              exit 1
-            fi
-          fi
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -113,27 +60,20 @@ jobs:
       - name: Validate messages EN/EL parity
         run: npm run test:content:messages-parity
 
-      - name: Run unit tests (finder distance / clinic location)
+      - name: Run unit tests
         run: npm run test:unit
 
-      # `next build` typechecks app code only; this also covers tests/ and scripts/.
+      # Warn-only: supabase/ci/ more than 10 migrations behind, or holding unmerged
+      # migrations from Testing (scripts/ci-db/check-snapshot.mjs). Never fails the build.
+      - name: Check the CI schema snapshot is fresh
+        run: npm run db:ci-snapshot:check
+
+      # Each Playwright lane runs `next build` against its own stack; this also covers tests/ and scripts/.
       - name: Typecheck (whole project, including tests)
         run: npx tsc --noEmit
 
-      - name: Build Next.js (PR branch)
-        run: npm run build
-
-      - name: Upload Next.js build
-        uses: actions/upload-artifact@v4
-        with:
-          name: pr-next-build
-          path: .next
-          retention-days: 1
-          include-hidden-files: true
-
   pr-playwright-booking:
     name: PR Playwright · booking
-    needs: pr-build
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -151,11 +91,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Download Next.js build
-        uses: actions/download-artifact@v4
-        with:
-          name: pr-next-build
-          path: .next
+      - name: Local Supabase stack + build
+        id: stack
+        uses: ./.github/actions/local-supabase
 
       - name: Install Playwright browsers
         run: |
@@ -169,6 +107,11 @@ jobs:
       - name: Run critical reschedule email guards
         env:
           CI: "true"
+          NEXT_PUBLIC_SUPABASE_URL: ${{ steps.stack.outputs.supabase_url }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ steps.stack.outputs.anon_key }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ steps.stack.outputs.service_role_key }}
+          TEST_USER_EMAIL: ${{ steps.stack.outputs.test_user_email }}
+          TEST_USER_PASSWORD: ${{ steps.stack.outputs.test_user_password }}
         run: |
           npx playwright test --grep @pr-email \
             --project="Desktop Large (Chromium)" \
@@ -178,6 +121,11 @@ jobs:
       - name: Run booking Playwright suite
         env:
           CI: "true"
+          NEXT_PUBLIC_SUPABASE_URL: ${{ steps.stack.outputs.supabase_url }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ steps.stack.outputs.anon_key }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ steps.stack.outputs.service_role_key }}
+          TEST_USER_EMAIL: ${{ steps.stack.outputs.test_user_email }}
+          TEST_USER_PASSWORD: ${{ steps.stack.outputs.test_user_password }}
         run: |
           npx playwright test --grep @pr-e2e-booking \
             --project="Desktop Large (Chromium)" \
@@ -199,6 +147,11 @@ jobs:
         continue-on-error: true
         env:
           CI: "true"
+          NEXT_PUBLIC_SUPABASE_URL: ${{ steps.stack.outputs.supabase_url }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ steps.stack.outputs.anon_key }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ steps.stack.outputs.service_role_key }}
+          TEST_USER_EMAIL: ${{ steps.stack.outputs.test_user_email }}
+          TEST_USER_PASSWORD: ${{ steps.stack.outputs.test_user_password }}
         run: |
           npx playwright test --grep @pr-mobile-monitor \
             --project="Mobile Chrome (Pixel 5)" \
@@ -207,7 +160,6 @@ jobs:
 
   pr-playwright-account:
     name: PR Playwright · account
-    needs: pr-build
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -225,11 +177,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Download Next.js build
-        uses: actions/download-artifact@v4
-        with:
-          name: pr-next-build
-          path: .next
+      - name: Local Supabase stack + build
+        id: stack
+        uses: ./.github/actions/local-supabase
 
       - name: Install Playwright browsers
         run: |
@@ -243,6 +193,11 @@ jobs:
       - name: Run account Playwright suite
         env:
           CI: "true"
+          NEXT_PUBLIC_SUPABASE_URL: ${{ steps.stack.outputs.supabase_url }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ steps.stack.outputs.anon_key }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ steps.stack.outputs.service_role_key }}
+          TEST_USER_EMAIL: ${{ steps.stack.outputs.test_user_email }}
+          TEST_USER_PASSWORD: ${{ steps.stack.outputs.test_user_password }}
         run: |
           # Remaining @pr-e2e (onboarding, settings, directory, marketing UI).
           # Excludes finder + booking lanes so retries stay scoped.
@@ -266,6 +221,11 @@ jobs:
         continue-on-error: true
         env:
           CI: "true"
+          NEXT_PUBLIC_SUPABASE_URL: ${{ steps.stack.outputs.supabase_url }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ steps.stack.outputs.anon_key }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ steps.stack.outputs.service_role_key }}
+          TEST_USER_EMAIL: ${{ steps.stack.outputs.test_user_email }}
+          TEST_USER_PASSWORD: ${{ steps.stack.outputs.test_user_password }}
         run: |
           npx playwright test --grep @pr-login-monitor \
             --project="Desktop Large (Chromium)" \
@@ -274,7 +234,6 @@ jobs:
 
   pr-playwright-finder:
     name: PR Playwright · finder
-    needs: pr-build
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -292,11 +251,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Download Next.js build
-        uses: actions/download-artifact@v4
-        with:
-          name: pr-next-build
-          path: .next
+      - name: Local Supabase stack + build
+        id: stack
+        uses: ./.github/actions/local-supabase
 
       - name: Install Playwright browsers
         run: |
@@ -310,6 +267,11 @@ jobs:
       - name: Run finder Playwright suite
         env:
           CI: "true"
+          NEXT_PUBLIC_SUPABASE_URL: ${{ steps.stack.outputs.supabase_url }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ steps.stack.outputs.anon_key }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ steps.stack.outputs.service_role_key }}
+          TEST_USER_EMAIL: ${{ steps.stack.outputs.test_user_email }}
+          TEST_USER_PASSWORD: ${{ steps.stack.outputs.test_user_password }}
         run: |
           npx playwright test --grep @pr-e2e-finder \
             --project="Desktop Large (Chromium)" \
@@ -326,50 +288,25 @@ jobs:
             test-results
           if-no-files-found: ignore
 
-  pr-cleanup-test-doctors:
-    name: Cleanup integration test doctors
-    needs: [pr-build, pr-playwright-booking, pr-playwright-account, pr-playwright-finder]
-    if: always() && needs.pr-build.result == 'success'
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      # Sweep ephemeral Finder Filter / Finder UX doctors left by interrupted runs.
-      - name: Cleanup orphan integration test doctors
-        env:
-          PLAYWRIGHT_ENV_FILE: ""
-        run: node scripts/cleanup-test-doctors.mjs --assert-empty
-
   # Preserves the historical required-check name used in branch protection.
   pr-playwright-gate:
     name: PR Playwright (core business)
-    needs: [pr-playwright-booking, pr-playwright-account, pr-playwright-finder, pr-cleanup-test-doctors]
+    needs: [pr-build, pr-playwright-booking, pr-playwright-account, pr-playwright-finder]
     if: always()
     runs-on: ubuntu-latest
     steps:
-      - name: Require all Playwright lanes (+ cleanup)
+      - name: Require build + unit and all Playwright lanes
         shell: bash
         run: |
           set -euo pipefail
+          echo "build=${{ needs.pr-build.result }}"
           echo "booking=${{ needs.pr-playwright-booking.result }}"
           echo "account=${{ needs.pr-playwright-account.result }}"
           echo "finder=${{ needs.pr-playwright-finder.result }}"
-          echo "cleanup=${{ needs.pr-cleanup-test-doctors.result }}"
+          test "${{ needs.pr-build.result }}" = "success"
           test "${{ needs.pr-playwright-booking.result }}" = "success"
           test "${{ needs.pr-playwright-account.result }}" = "success"
           test "${{ needs.pr-playwright-finder.result }}" = "success"
-          test "${{ needs.pr-cleanup-test-doctors.result }}" = "success"
 
   pr-preview-public-shell:
     name: PR Preview site health (Vercel)
@@ -434,6 +371,10 @@ jobs:
           PLAYWRIGHT_BASE_URL: ${{ steps.vercel.outputs.url }}
           PLAYWRIGHT_PREVIEW_SMOKE: "1"
           CI: "true"
+          # Placeholders: Playwright loads every spec file before filtering by tag, and some
+          # create a Supabase client at load time. The @pr-preview specs never call Supabase.
+          NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
+          SUPABASE_SERVICE_ROLE_KEY: unused-by-preview-smoke
         run: |
           npx playwright test --grep @pr-preview \
             --project="Desktop Large (Chromium)" \

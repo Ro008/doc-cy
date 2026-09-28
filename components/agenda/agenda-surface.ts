@@ -1,87 +1,91 @@
 /**
- * Agenda calendar surfaces — solid dark chrome + high-contrast appointment chips.
- * Prefer these tokens over one-off slate/clinical opacity stacks.
+ * Agenda calendar surfaces — Google Calendar–style (design option A):
+ * navy app surface, continuous grid, solid appointment blocks, hatched off-hours.
  */
 
+/** App surface behind the calendar (matches the redesign mockup). */
+const AGENDA_SURFACE_BG = "bg-[#041C3A]";
+
 export const agendaCalendarShellClass =
-  "min-w-0 overflow-visible rounded-3xl border border-slate-700 bg-slate-950 shadow-xl shadow-black/40";
+  `min-w-0 overflow-visible rounded-3xl border border-white/10 ${AGENDA_SURFACE_BG} shadow-xl shadow-black/40`;
 
-export const agendaToolbarDividerClass = "border-b border-slate-700";
+export const agendaToolbarDividerClass = "border-b border-white/10";
 
+/** Pair with agendaWeekGridColsClass / agendaDayGridColsClass so the header lines up with the grid. */
 export const agendaStickyWeekHeaderClass =
-  "sticky top-0 z-30 grid min-h-[3.5rem] grid-cols-[64px_repeat(5,minmax(104px,1fr))] items-end gap-3 border-b border-slate-700 bg-slate-950 py-2 shadow-sm lg:top-14 lg:grid-cols-[72px_repeat(5,minmax(120px,1fr))] xl:grid-cols-[80px_repeat(5,minmax(140px,1fr))]";
+  `sticky top-0 z-30 grid min-h-[4.25rem] items-end border-b border-white/10 ${AGENDA_SURFACE_BG} py-2 lg:top-14`;
+
+/** Week view: hour axis + 7 days (Mon–Sun), one continuous grid. */
+export const agendaWeekGridColsClass =
+  "grid-cols-[52px_repeat(7,minmax(0,1fr))] lg:grid-cols-[64px_repeat(7,minmax(0,1fr))]";
+
+/** Day view (desktop) and the phone agenda: hour axis + one day. */
+export const agendaDayGridColsClass = "grid-cols-[52px_minmax(0,1fr)] lg:grid-cols-[64px_minmax(0,1fr)]";
 
 export const agendaHourAxisClass =
-  "relative shrink-0 text-xs tabular-nums text-slate-300";
+  "relative shrink-0 text-xs tabular-nums text-slate-400";
 
-export const agendaHourGridLineClass = "absolute inset-x-0 border-t border-slate-600/80";
+export const agendaHourGridLineClass = "absolute inset-x-0 border-t border-white/[0.08]";
 
-/** Alternating hour bands — improves vertical scan (Phase C). */
-export const agendaHourZebraBandClass =
-  "pointer-events-none absolute inset-x-0 bg-white/[0.045]";
-
-export const agendaHourZebraBandTodayClass =
-  "pointer-events-none absolute inset-x-0 bg-clinical-500/[0.09]";
-
-export function agendaHourAxisLabelClass(hour: number, startHour: number): string {
-  const onZebraBand = (hour - startHour) % 2 === 0;
-  return onZebraBand
-    ? "absolute -translate-y-1/2 font-semibold tabular-nums text-slate-100"
-    : "absolute -translate-y-1/2 font-medium tabular-nums text-slate-400";
+export function agendaHourAxisLabelClass(_hour: number, _startHour: number): string {
+  return "absolute -translate-y-1/2 pl-1 text-[11px] font-medium tabular-nums text-slate-400";
 }
 
-/** Outside working hours / closed day — dims slot area without muddy transparency stacks. */
-export const agendaOffHoursOverlayClass = "absolute inset-0 bg-slate-950/90";
+const OFF_HOURS_HATCH =
+  "bg-[repeating-linear-gradient(135deg,rgba(0,0,0,0.32)_0_6px,rgba(176,192,206,0.05)_6px_12px)]";
 
-export const agendaOffHoursBandClass = "absolute inset-x-0 bg-slate-950/85";
+/** Closed day — hatched over the whole column. */
+export const agendaOffHoursOverlayClass = `absolute inset-0 ${OFF_HOURS_HATCH}`;
 
-export const agendaBreakBandClass = "absolute inset-x-0 bg-slate-950/80";
+/** Before opening / after closing time. */
+export const agendaOffHoursBandClass = `absolute inset-x-0 ${OFF_HOURS_HATCH}`;
+
+export const agendaBreakBandClass =
+  "absolute inset-x-0 bg-[repeating-linear-gradient(135deg,rgba(245,185,66,0.10)_0_5px,transparent_5px_10px)]";
 
 export const agendaPrimaryChipButtonClass =
-  "rounded-lg border border-clinical-500/60 bg-clinical-500/25 px-3 py-1.5 text-xs font-semibold text-white shadow-sm shadow-clinical-500/20 transition hover:border-clinical-400 hover:bg-clinical-500/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-400/70";
+  "inline-flex items-center gap-1.5 rounded-full bg-clinical-500 px-4 py-1.5 text-[13px] font-semibold text-ink-900 transition hover:bg-clinical-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-300";
 
 export const agendaTodayChipButtonClass =
-  "rounded-lg border border-clinical-500/60 bg-clinical-500/20 px-2.5 py-1.5 text-xs font-semibold text-white transition hover:bg-clinical-500/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-400/70";
+  "rounded-full border border-white/25 px-4 py-1.5 text-[13px] font-medium text-slate-50 transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-400/70";
 
 export const agendaNavIconButtonClass =
-  "inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-600 bg-slate-800 text-slate-200 transition hover:border-slate-500 hover:bg-slate-700 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-500/50";
+  "inline-flex h-9 w-9 items-center justify-center rounded-full text-slate-100 transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-400/70";
 
 export const agendaAppointmentConfirmedClass =
-  "border-clinical-500/70 bg-clinical-500/35 text-white shadow-md shadow-clinical-500/25 hover:bg-clinical-500/45 focus-visible:ring-2 focus-visible:ring-clinical-400/80";
+  "border-clinical-800 bg-clinical-800 text-clinical-50 hover:border-clinical-700 hover:bg-clinical-700 focus-visible:ring-2 focus-visible:ring-clinical-300";
 
 export const agendaAppointmentPendingClass =
-  "border-amber-400/75 bg-amber-500/30 text-amber-50 shadow-md shadow-amber-500/20 hover:bg-amber-500/40 focus-visible:ring-2 focus-visible:ring-amber-400/70";
+  "border-dashed border-amber-400 bg-amber-500/10 text-amber-100 hover:bg-amber-500/20 focus-visible:ring-2 focus-visible:ring-amber-300";
 
 /** Google Calendar–style week column headers (day label + large date). */
 export const agendaDayHeaderShellClass =
-  "flex min-w-0 flex-col items-center justify-end pb-0.5 text-center";
+  "flex min-w-0 flex-col items-center justify-end gap-0.5 text-center";
 
 export function agendaDayNameClass(isToday: boolean): string {
   return isToday
-    ? "text-[10px] font-medium uppercase tracking-[0.08em] text-clinical-400"
-    : "text-[10px] font-medium uppercase tracking-[0.08em] text-slate-400";
+    ? "text-[11px] font-semibold uppercase tracking-[0.08em] text-clinical-300"
+    : "text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-300";
 }
 
 export function agendaDayNumberClass(isToday: boolean): string {
   return isToday
-    ? "mt-0.5 flex h-8 w-8 items-center justify-center rounded-full bg-clinical-500 text-lg font-normal leading-none tabular-nums text-white"
-    : "text-[22px] font-normal leading-none tabular-nums text-slate-200";
+    ? "flex h-10 w-10 items-center justify-center rounded-full bg-clinical-500 text-[22px] font-medium leading-none tabular-nums text-ink-900"
+    : "flex h-10 w-10 items-center justify-center rounded-full text-[22px] font-normal leading-none tabular-nums text-slate-100";
 }
 
 export function agendaDayColumnClass(isToday: boolean): string {
-  const base = "relative min-w-0 overflow-hidden rounded-2xl border bg-slate-900";
-  return isToday
-    ? `${base} border-clinical-500/65 ring-2 ring-clinical-500/40 shadow-[inset_0_0_32px_rgba(18,184,192,0.07)]`
-    : `${base} border-slate-700`;
+  const base = "relative min-w-0 overflow-hidden border-l border-white/10";
+  return isToday ? `${base} bg-clinical-500/[0.05]` : base;
 }
 
-/** Confirmed appointment card typography */
+/** Appointment block typography */
 export const agendaAppointmentTimeClass =
-  "shrink-0 tabular-nums text-[11px] font-bold leading-none text-white/90 sm:text-xs";
+  "shrink-0 tabular-nums text-[11px] font-medium leading-tight opacity-85";
 
-export const agendaAppointmentNameConfirmedClass = "text-white";
+export const agendaAppointmentNameConfirmedClass = "text-clinical-50";
 
-export const agendaAppointmentNamePendingClass = "text-amber-50";
+export const agendaAppointmentNamePendingClass = "text-amber-100";
 
 /** Request nobody answered before its time: muted, clearly not actionable as a booking. */
 export const agendaAppointmentExpiredClass =

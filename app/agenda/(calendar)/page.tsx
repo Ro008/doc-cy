@@ -25,6 +25,7 @@ import {
 type AgendaPageProps = {
   searchParams?: {
     date?: string;
+    view?: string;
     manual?: string;
     highlight?: string;
   };
@@ -151,6 +152,7 @@ export default async function AgendaPage({ searchParams }: AgendaPageProps) {
           workingHours={workingHours}
           clinics={clinics}
           initialDateKey={searchParams?.date ?? null}
+          initialView={searchParams?.view ?? null}
           openManualBooking={searchParams?.manual === "1"}
           highlightAppointmentId={parseAgendaHighlight(searchParams?.highlight)}
         />

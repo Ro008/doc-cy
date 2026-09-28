@@ -6,7 +6,7 @@ Goal: **one blocking suite on every PR** (integration) and **one small scheduled
 
 | Lane | Workflow | When | App target | Supabase |
 |------|----------|------|------------|----------|
-| **PR** | `.github/workflows/pr-integration.yml` | Every pull request | `build` + `start` on `127.0.0.1:3000` | `INTEGRATION_*` secrets |
+| **PR** | `.github/workflows/pr-integration.yml` | Every pull request | `build` + `start` on `127.0.0.1:3000` | Throwaway local stack per lane (see below); never the Testing project |
 | **Nightly** | `.github/workflows/prod-critical-smoke.yml` | Cron + manual dispatch | Edge: `PLAYWRIGHT_BASE_URL_PROD` (mydoccy.com). Origin: `PLAYWRIGHT_BASE_URL_VERCEL_PROD` (`*.vercel.app`) | `PROD_*` secrets |
 
 **Local** (`npm run test:e2e`, `test:e2e:register`, `test:prod:smoke:local`, etc.) is for development only — not a third CI lane.
@@ -18,11 +18,11 @@ Goal: **one blocking suite on every PR** (integration) and **one small scheduled
 | Path | Typical use in CI |
 |------|-------------------|
 | `tests/` | PR lane |
-| `tests/integration/` | PR lane (DB + `INTEGRATION_SAFE_ENV`) |
+| `tests/integration/` | PR lane (local DB + `INTEGRATION_SAFE_ENV`) |
 | `tests/prod/` | Nightly lane (real prod URL); `prod_site_availability` also runs on Vercel Preview in PR |
 Build flag for integration finder tests: `NEXT_PUBLIC_DOC_CY_FINDER_INCLUDE_TEST_PROFILES=1` on PR build only (see `pr-integration.yml`).
 
-After the Playwright lanes, PR CI always runs `scripts/cleanup-test-doctors.mjs --assert-empty` so interrupted finder tests cannot leave `Finder Filter …` / `Finder UX …` orphans in the shared testing DB (see `docs/test-env-boundaries.md`).
+Each lane's database is thrown away with its runner, so an interrupted test leaves nothing behind. `scripts/cleanup-test-doctors.mjs` is still there for local runs against Testing.
 
 ### Playwright tags (source of truth for CI lists)
 
@@ -36,6 +36,7 @@ After the Playwright lanes, PR CI always runs `scripts/cleanup-test-doctors.mjs 
 | `@pr-mobile-monitor` | `playwright test --grep @pr-mobile-monitor` | Doctor confirmation flow on mobile (PR, non-blocking) |
 | `@pr-login-monitor` | `playwright test --grep @pr-login-monitor` | Doctor `/login` form UI (PR, non-blocking) |
 | `@nightly-prod` | `playwright test --grep @nightly-prod` | Prod URL blocking smokes (site + booking) |
+| `@origin-only` | left out of the nightly edge run (`--grep-invert @origin-only`) | Nightly test that runs on the Vercel origin (and preview) only. `/register`: Bot Fight Mode challenges GitHub's runners there on the Cloudflare edge every night, so the edge can't check it |
 | `@local-register` | `npm run test:e2e:register` | Live `/register` UI + Resend on **testing** DB. **Local gate (agent runs on PR open)** — not CI |
 
 Constants: `tests/helpers/ciTags.ts`. To tag new specs: `node scripts/apply-ci-playwright-tags.mjs` (edit file lists first).
@@ -48,11 +49,13 @@ Constants: `tests/helpers/ciTags.ts`. To tag new specs: `node scripts/apply-ci-p
 
 | Check name | What it runs |
 |------------|--------------|
-| `PR build + unit` | Content checks, unit tests, Next.js build (uploads `.next`) |
-| `PR Playwright · booking` | `@pr-email` + `@pr-e2e-booking` (reuses build artifact) |
-| `PR Playwright · account` | `@pr-e2e` excluding `@pr-e2e-finder` + `@pr-e2e-booking` (reuses build artifact) |
-| `PR Playwright · finder` | `@pr-e2e-finder` (reuses build artifact) |
-| `PR Playwright (core business)` | Gate: all Playwright lanes + orphan-doctor cleanup must succeed (keeps the historical required-check name) |
+| `PR build + unit` | Content checks, unit tests, whole-project typecheck |
+| `PR Playwright · booking` | `@pr-email` + `@pr-e2e-booking` |
+| `PR Playwright · account` | `@pr-e2e` excluding `@pr-e2e-finder` + `@pr-e2e-booking` |
+| `PR Playwright · finder` | `@pr-e2e-finder` |
+| `PR Playwright (core business)` | Gate: build + unit and all Playwright lanes must succeed (keeps the historical required-check name) |
+
+All jobs start at once. Each Playwright lane brings up its own local Supabase stack and builds the app against it (`.github/actions/local-supabase`, see below).
 | `PR Preview site health (Vercel)` | `@pr-preview` against the Vercel Preview URL (same-repo PRs only) |
 | `Production DB push` | Informational (always green): sticky PR comment if `supabase/migrations/` changed vs base — **not** a required check |
 
@@ -76,7 +79,30 @@ Constants: `tests/helpers/ciTags.ts`. To tag new specs: `node scripts/apply-ci-p
 - Live registration UI (`doctor_register_flow.integration.spec.ts` + `doctor_register_claim_flow.integration.spec.ts`, tag `@local-register`). Not a PR check: Google Places, Auth `signUp`, and Resend are too heavy/flaky for GitHub. When a PR is opened, the Cursor agent runs `npm run test:e2e:register` once on the testing DB (founder email asserted, doctor always deleted) and reports the result in chat. The claim spec opens a QA clone’s public profile and clicks that listing’s Activate online booking CTA — never a real directory person — and asserts `directory_claim_source = card_link`. Do **not** put this on a git commit hook. Onboarding DB state on PR remains `doctor_onboarding_pipeline.integration.spec.ts`. Pending origin labels (Possible twin / Unclaimed / Auto-matched) + absorb/keep_both are covered on PR by `pending_registration_origin_actions.integration.spec.ts` (`@pr-e2e`), calling the internal API as a throwaway test founder (`tests/integration/helpers/test-admin.ts`).
 
 
-**Retry tip:** re-run only `PR Playwright · booking`, `PR Playwright · account`, or `PR Playwright · finder` from the Actions UI when a single lane fails — the shared build artifact is reused within the same workflow run; a fresh push rebuilds once for all lanes.
+### Playwright lanes: local Supabase stack
+
+No PR lane uses the Testing project. Each one starts a throwaway Supabase stack in its runner (`supabase/config.toml`, CLI pinned in `scripts/ci-db/cli.mjs`), loads it, creates the fixture login, builds the app against it and runs its suites. The stack is thrown away with the runner. Lanes share no data, and local runs against Testing can't disturb CI.
+
+The load runs in this order:
+
+1. `supabase/ci/schema.sql`: schema-only dump of Testing. The migrations cannot rebuild the schema from empty, because the first ones alter tables created in the dashboard.
+2. Every file in `supabase/migrations/` whose version is not in `supabase/ci/applied-migrations.txt`. A PR's new migration runs here, so a broken one fails this lane.
+3. `supabase/ci/catalogue.sql`: rows of the allowlisted reference tables (`specialties`, `request_types`, `app_settings`).
+4. `supabase/ci/seed.sql`: synthetic directory (fake people and clinics, 2 per city × specialty). No real practitioner data. Specs that need registered professionals create their own.
+5. `node scripts/ci-db/fixtures.mjs` → `supabase/ci/fixtures.sql`: the fixture doctor `andreas-nikos` (registered, verified, bookable Mon–Fri 09:00–18:00, one Larnaca clinic). Its login is CI's `TEST_USER_EMAIL`, on the reserved `.test` domain, with a fresh random password each run. It goes through the same triggers as a real sign-up, so a trigger change shows up here too.
+
+Before the schema loads, the loader drops the local stack's default grants to `anon`/`authenticated`: the snapshot carries Testing's exact grants, and those defaults would make every table more open than in Testing. A `supabase db dump --local` of a loaded stack matches `schema.sql`, grants included.
+
+**Refresh the snapshot** after applying migrations to Testing: `npm run db:ci-snapshot` (read-only; needs Docker running and the CLI linked to Testing), then commit `supabase/ci/`. The catalogue dump excludes every table not on the allowlist, so a new table never leaks rows into the repo.
+
+**Freshness check** (`npm run db:ci-snapshot:check`, in `PR build + unit`). It only warns and never fails the build. A snapshot behind the repo is harmless, because the loader applies the missing migrations on every run; a refresh only shortens that list.
+
+- It warns when the repo has more than 10 migrations the snapshot lacks: refresh when convenient.
+- It warns about versions the snapshot has that the branch does not. This happens with a migration applied to Testing before it merges. If that migration changes before merging, CI would skip it (its version is already "applied"), so refresh the snapshot then.
+
+The build must come after the load. Pages prerendered at build time read the seeded directory.
+
+**Retry tip:** re-run only `PR Playwright · booking`, `PR Playwright · account`, or `PR Playwright · finder` from the Actions UI when a single lane fails. Each lane brings up its own stack and build, so a re-run starts clean.
 
 ---
 
@@ -144,7 +170,7 @@ When nightly fails:
 
 1. **Product regression** → fix code or prod smoke doctor config (`TEST_BOOKING_DOCTOR_SLUG`, schedule).
 2. **Env/secret** → verify `PROD_*`, `TEST_DOCTOR_*`, `PLAYWRIGHT_BASE_URL_PROD`, and `PLAYWRIGHT_BASE_URL_VERCEL_PROD` if using the origin lane.
-3. **Login form failure on PR** → check hydration/login UI; integration `TEST_USER_*` secrets.
+3. **Login form failure on PR** → check hydration/login UI; the fixture login from `scripts/ci-db/fixtures.mjs`.
 4. **Cloudflare** → a real interstitial has title `Just a moment...`. Proxied pages also include `/cdn-cgi/challenge-platform` scripts; that alone is not a block. Bot Fight Mode cannot be skipped with WAF Skip rules and **must stay on** (anti-scraping P1, 2026-08-09). Nightly smokes wait briefly for the JS challenge to clear and must **not** send custom headers on every mydoccy.com request (Bot Fight Mode signal). After merge, compare **edge vs origin** using the **How to read this nightly** table in the `prod-nightly-gate` job summary on the Actions run page: edge fail + origin OK is a **warning** (GitHub runner vs Bot Fight), not a product outage — do not turn Bot Fight Mode off. Origin fail means the app/origin. Re-run a single matrix leg (`site` or `booking`) when only one suite failed.
 
 When PR fails: integration env / test data — not prod calendar.

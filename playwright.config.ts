@@ -77,7 +77,9 @@ export default defineConfig({
   testIgnore: ["**/unit/**"],
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 2 : 1,
+  // One retry in CI: a second one mostly re-runs real failures, with tracing on, against a
+  // Testing project that is already short on RAM under CI load.
+  retries: 1,
   workers: 1,
   reporter: "html",
   grepInvert: safeNoBooking ? /@booking-creates/ : undefined,
