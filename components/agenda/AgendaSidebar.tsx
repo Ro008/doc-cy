@@ -47,7 +47,7 @@ export function AgendaSidebar({
 
   return (
     <aside
-      className="hidden w-64 shrink-0 flex-col gap-6 border-r border-slate-700 p-4 lg:flex"
+      className="hidden w-64 shrink-0 flex-col gap-6 border-r border-white/10 p-4 lg:flex"
       data-testid="agenda-sidebar"
     >
       <button
@@ -70,7 +70,7 @@ export function AgendaSidebar({
               type="button"
               onClick={() => setMiniMonth((m) => addMonths(m, -1))}
               aria-label="Previous month (mini calendar)"
-              className="inline-flex h-7 w-7 items-center justify-center rounded-full text-slate-300 transition hover:bg-slate-800 hover:text-white"
+              className="inline-flex h-7 w-7 items-center justify-center rounded-full text-slate-300 transition hover:bg-white/10 hover:text-white"
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
@@ -78,7 +78,7 @@ export function AgendaSidebar({
               type="button"
               onClick={() => setMiniMonth((m) => addMonths(m, 1))}
               aria-label="Next month (mini calendar)"
-              className="inline-flex h-7 w-7 items-center justify-center rounded-full text-slate-300 transition hover:bg-slate-800 hover:text-white"
+              className="inline-flex h-7 w-7 items-center justify-center rounded-full text-slate-300 transition hover:bg-white/10 hover:text-white"
             >
               <ChevronRight className="h-4 w-4" />
             </button>
@@ -106,8 +106,8 @@ export function AgendaSidebar({
                     : highlighted
                       ? "bg-clinical-500/20 text-clinical-100 hover:bg-clinical-500/30"
                       : isSameMonth(day, miniMonth)
-                        ? "text-slate-200 hover:bg-slate-800"
-                        : "text-slate-500 hover:bg-slate-800"
+                        ? "text-slate-200 hover:bg-white/10"
+                        : "text-slate-500 hover:bg-white/10"
                 }`}
               >
                 {day.getDate()}
@@ -145,7 +145,7 @@ export function AgendaSidebar({
 
       <div className="mt-auto space-y-1.5 text-[11px] text-slate-400">
         <p className="flex items-center gap-2">
-          <span className="h-3 w-3 rounded-[3px] bg-clinical-500/60" aria-hidden />
+          <span className="h-3 w-3 rounded-[3px] bg-clinical-800" aria-hidden />
           Confirmed
         </p>
         <p className="flex items-center gap-2">
@@ -153,7 +153,7 @@ export function AgendaSidebar({
           Pending request
         </p>
         <p className="flex items-center gap-2">
-          <span className="h-3 w-3 rounded-[3px] bg-slate-950 ring-1 ring-slate-700" aria-hidden />
+          <span className="h-3 w-3 rounded-[3px] bg-[repeating-linear-gradient(135deg,rgba(0,0,0,0.45)_0_3px,rgba(176,192,206,0.15)_3px_6px)] ring-1 ring-white/10" aria-hidden />
           Outside working hours
         </p>
       </div>

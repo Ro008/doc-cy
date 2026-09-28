@@ -69,8 +69,6 @@ import {
   agendaHourAxisClass,
   agendaHourGridLineClass,
   agendaHourAxisLabelClass,
-  agendaHourZebraBandClass,
-  agendaHourZebraBandTodayClass,
   agendaNavIconButtonClass,
   agendaOffHoursBandClass,
   agendaOffHoursOverlayClass,
@@ -222,29 +220,9 @@ const HOUR_ROW_HEIGHT = 56;
 /** Room for the first hour label (-translate-y-1/2 at y=0). */
 const CALENDAR_TOP_INSET = 14;
 
-function renderAgendaHourZebraBands(isTodayColumn: boolean) {
-  const bandClass = isTodayColumn
-    ? agendaHourZebraBandTodayClass
-    : agendaHourZebraBandClass;
-  const bands: React.ReactNode[] = [];
-  for (let hour = START_HOUR; hour < END_HOUR; hour++) {
-    if ((hour - START_HOUR) % 2 !== 0) continue;
-    bands.push(
-      <div
-        key={`zebra-${hour}`}
-        className={bandClass}
-        style={{
-          top: CALENDAR_TOP_INSET + (hour - START_HOUR) * HOUR_ROW_HEIGHT,
-          height: HOUR_ROW_HEIGHT,
-        }}
-      />,
-    );
-  }
-  return bands;
-}
-
 function AgendaAppointmentCardInner({
   timeLabel,
+  endTimeLabel,
   patientName,
   isPendingRequest,
   isRequested,
@@ -252,6 +230,7 @@ function AgendaAppointmentCardInner({
   isCompactCounterOffer,
 }: {
   timeLabel: string;
+  endTimeLabel?: string;
   patientName: string;
   isPendingRequest: boolean;
   isRequested: boolean;
@@ -340,15 +319,12 @@ function AgendaAppointmentCardInner({
           {topRightBadge}
         </span>
       ) : null}
-      <p
-        className={`flex min-h-0 min-w-0 items-center gap-0.5 truncate text-left text-xs font-semibold leading-tight sm:text-[13px] ${nameColor} ${topRightBadge ? "pr-[2.15rem]" : ""}`}
-      >
-        <span className={agendaAppointmentTimeClass}>{timeLabel}</span>
-        <span className="shrink-0 text-white/50">·</span>
-        <span className="min-w-0 truncate" title={patientDisplay}>
-          {patientDisplay}
-        </span>
-      </p>
+      <div className={`min-w-0 text-left leading-tight ${topRightBadge ? "pr-[2.15rem]" : ""}`} title={cardTitle}>
+        <p className={`truncate text-xs font-semibold ${nameColor}`}>{patientDisplay}</p>
+        <p className={`truncate ${agendaAppointmentTimeClass} ${nameColor}`}>
+          {endTimeLabel ? `${timeLabel} – ${endTimeLabel}` : timeLabel}
+        </p>
+      </div>
     </>
   );
 }
@@ -1179,7 +1155,7 @@ export function AgendaRealtime({
         role="group"
         aria-label="Calendar view"
         data-testid="agenda-view-switcher"
-        className="inline-flex overflow-hidden rounded-lg border border-slate-600"
+        className="inline-flex overflow-hidden rounded-full border border-white/25"
       >
         {options.map((option) => (
           <button
@@ -1187,10 +1163,10 @@ export function AgendaRealtime({
             type="button"
             aria-pressed={option === current}
             onClick={() => setView(option)}
-            className={`px-3 py-1.5 text-xs font-semibold capitalize transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-clinical-400/70 ${
+            className={`px-4 py-1.5 text-[13px] font-semibold capitalize transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-clinical-400/70 ${
               option === current
-                ? "bg-clinical-500/25 text-clinical-100"
-                : "text-slate-300 hover:bg-slate-800 hover:text-white"
+                ? "bg-clinical-500/20 text-clinical-200"
+                : "text-slate-300 hover:bg-white/10 hover:text-white"
             }`}
           >
             {option}
@@ -1203,7 +1179,6 @@ export function AgendaRealtime({
   function renderHourAxis() {
     return (
       <div className={agendaHourAxisClass} style={{ height: calendarBodyHeight }}>
-        {renderAgendaHourZebraBands(false)}
         {hours.map((hour) => (
           <span
             key={hour}
@@ -1230,7 +1205,6 @@ export function AgendaRealtime({
         className={agendaDayColumnClass(isTodayCol)}
         style={{ height: calendarBodyHeight }}
       >
-        {renderAgendaHourZebraBands(isTodayCol)}
         {!work.enabled ? (
           <div className={agendaOffHoursOverlayClass} />
         ) : (
@@ -1272,16 +1246,16 @@ export function AgendaRealtime({
             type="button"
             aria-label={`Appointment ${row.patient_name} at ${row.timeLabel}${clinicNameForRow(row.location_id) ? ` · ${clinicNameForRow(row.location_id)}` : ""}`}
             onClick={() => openAppointment(row)}
-            className={`group absolute overflow-hidden rounded-xl border text-left shadow-lg transition focus:outline-none ${
+            className={`group absolute overflow-hidden rounded-md border text-left transition focus:outline-none ${
               row.isCounterOfferHold
-                ? `flex flex-col items-stretch justify-start py-1.5 pr-2 ${isMultiClinic ? "pl-2.5" : "pl-2"}`
-                : `py-1 pr-2 ${isMultiClinic ? "pl-2.5" : "pl-2"}`
+                ? `flex flex-col items-stretch justify-start py-1 pr-1.5 ${isMultiClinic ? "pl-2.5" : "pl-1.5"}`
+                : `py-0.5 pr-1.5 ${isMultiClinic ? "pl-2.5" : "pl-1.5"}`
             } ${appointmentChipClass(row.isPendingRequest)}`}
             style={{
-              top: topForRow(row),
-              height: blockHeightFor(row),
-              left: `${0.25 + (row.column / row.columns) * 99.5}%`,
-              width: `${99.5 / row.columns - 0.5}%`,
+              top: topForRow(row) + 1,
+              height: blockHeightFor(row) - 1,
+              left: `calc(${(row.column / row.columns) * 100}% + 2px)`,
+              width: `calc(${100 / row.columns}% - 4px)`,
             }}
           >
             {clinicSwatchClass(row.location_id) ? (
@@ -1292,6 +1266,9 @@ export function AgendaRealtime({
             ) : null}
             <AgendaAppointmentCardInner
               timeLabel={row.timeLabel}
+              endTimeLabel={appointmentTimeLabelCyprus(
+                new Date(new Date(row.gridStartIso).getTime() + row.rowDurationMinutes * 60_000).toISOString(),
+              )}
               patientName={row.patient_name}
               isPendingRequest={row.isPendingRequest}
               isRequested={row.isRequested}
@@ -1370,7 +1347,7 @@ export function AgendaRealtime({
               <ChevronRight className="h-4 w-4" />
             </button>
             <h2
-              className="ml-1 min-w-0 truncate text-base font-semibold text-white lg:text-lg"
+              className="ml-1 min-w-0 truncate text-lg font-medium text-white lg:text-xl"
               data-testid="agenda-range-title"
             >
               {agendaRangeTitle(anchorDate, view)}
@@ -1512,7 +1489,7 @@ export function AgendaRealtime({
                           type="button"
                           onClick={() => openDay(day)}
                           aria-label={`Open ${format(day, "EEEE d MMMM", { locale: enGB })}`}
-                          className={`${agendaDayNumberClass(isTodayHeader)} rounded-full transition hover:ring-2 hover:ring-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-400/70`}
+                          className={`${agendaDayNumberClass(isTodayHeader)} transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-400/70`}
                         >
                           {format(day, "d")}
                         </button>

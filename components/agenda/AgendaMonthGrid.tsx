@@ -29,7 +29,7 @@ export function AgendaMonthGrid({ anchor, today, itemsForDay, isWorkingDay, onOp
 
   return (
     <div className="min-w-0" data-testid="agenda-month-grid">
-      <div className="grid grid-cols-7 border-b border-slate-700">
+      <div className="grid grid-cols-7 border-b border-white/10">
         {weeks[0]!.map((day) => (
           <p
             key={format(day, "EEE")}
@@ -39,7 +39,7 @@ export function AgendaMonthGrid({ anchor, today, itemsForDay, isWorkingDay, onOp
           </p>
         ))}
       </div>
-      <div className="grid grid-cols-7 border-l border-slate-800">
+      <div className="grid grid-cols-7 border-l border-white/[0.08]">
         {weeks.flat().map((day) => {
           const dateKey = format(day, "yyyy-MM-dd");
           const items = itemsForDay(dateKey);
@@ -51,7 +51,7 @@ export function AgendaMonthGrid({ anchor, today, itemsForDay, isWorkingDay, onOp
             <div
               key={dateKey}
               data-testid={`agenda-month-day-${dateKey}`}
-              className={`flex min-h-[4.25rem] min-w-0 flex-col gap-0.5 border-b border-r border-slate-800 p-1 md:min-h-[7.5rem] ${
+              className={`flex min-h-[4.25rem] min-w-0 flex-col gap-0.5 border-b border-r border-white/[0.08] p-1 md:min-h-[7.5rem] ${
                 isWorkingDay(day) ? "" : "bg-black/25"
               }`}
             >
@@ -63,8 +63,8 @@ export function AgendaMonthGrid({ anchor, today, itemsForDay, isWorkingDay, onOp
                   isToday
                     ? "bg-clinical-500 font-bold text-ink-900 hover:bg-clinical-400"
                     : inMonth
-                      ? "font-medium text-slate-100 hover:bg-slate-700"
-                      : "text-slate-500 hover:bg-slate-800"
+                      ? "font-medium text-slate-100 hover:bg-white/15"
+                      : "text-slate-500 hover:bg-white/10"
                 }`}
               >
                 {day.getDate() === 1 ? (
@@ -104,7 +104,7 @@ export function AgendaMonthGrid({ anchor, today, itemsForDay, isWorkingDay, onOp
                     onClick={item.onOpen}
                     aria-label={`Appointment ${item.patientName} at ${item.timeLabel}${item.clinicName ? ` · ${item.clinicName}` : ""}`}
                     title={`${item.timeLabel} · ${item.patientName}`}
-                    className={`flex min-w-0 items-center gap-1.5 rounded px-1.5 py-0.5 text-left text-xs transition hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-400/70 ${
+                    className={`flex min-w-0 items-center gap-1.5 rounded px-1.5 py-0.5 text-left text-xs transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-400/70 ${
                       item.isPendingRequest ? "text-amber-100" : "text-slate-100"
                     }`}
                   >
@@ -122,7 +122,7 @@ export function AgendaMonthGrid({ anchor, today, itemsForDay, isWorkingDay, onOp
                   <button
                     type="button"
                     onClick={() => onOpenDay(day)}
-                    className="rounded px-1.5 py-0.5 text-left text-xs font-semibold text-slate-300 transition hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-400/70"
+                    className="rounded px-1.5 py-0.5 text-left text-xs font-semibold text-slate-300 transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-400/70"
                   >
                     +{hiddenCount} more
                   </button>
