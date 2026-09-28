@@ -10,6 +10,7 @@ import {
   waitForRegisterWizardReady,
 } from "./helpers/goto-register-practice-step";
 import { INTEGRATION_DOCTOR_PASSWORD } from "./helpers/test-doctor";
+import { seedRegisterFixtures, type RegisterFixtures } from "./helpers/register-fixtures";
 
 /**
  * Build PR 3 of the registration redesign: submitting /register no longer creates a
@@ -31,6 +32,16 @@ async function pickDocCyClinic(page: Page, query: string): Promise<void> {
 }
 
 test.describe("Integration: registration request submit", { tag: "@pr-e2e" }, () => {
+  // A DocCy clinic of its own to pick: CI's synthetic seed has none of Testing's.
+  let fixtures: RegisterFixtures;
+  test.beforeAll(async () => {
+    fixtures = await seedRegisterFixtures(createIntegrationAdmin(requireSafeIntegration()));
+  });
+  test.afterAll(async () => {
+    await fixtures?.remove();
+  });
+  const clinicQuery = () => `${fixtures.token} polykliniki`;
+
   test.describe.configure({ retries: 0 });
 
   test("submit stores a draft, and confirming the email makes it a pending request", async ({ page }) => {
@@ -66,7 +77,7 @@ test.describe("Integration: registration request submit", { tag: "@pr-e2e" }, ()
       await page.getByTestId("register-specialty-trigger").click();
       await page.getByRole("button", { name: "Cardiology", exact: true }).click();
       await page.getByTestId("register-license-0").fill("REQ-LIC-123");
-      await pickDocCyClinic(page, "lefkotheou");
+      await pickDocCyClinic(page, clinicQuery());
       const clinicId = await page.locator("#register-form input[name='clinicId']").inputValue();
       await page.locator("#register-form input[name='professionalDisclaimer']").check();
 

@@ -13,6 +13,7 @@ import {
 } from "./helpers/goto-register-practice-step";
 import { adminCookieHeader, sharedTestFounder, type TestAdmin } from "./helpers/test-admin";
 import { deleteTestClinics, loginDoctorUi } from "./helpers/test-doctor";
+import { seedRegisterFixtures, type RegisterFixtures } from "./helpers/register-fixtures";
 
 /**
  * Build PR 5 of the registration redesign: a signed-in applicant without a profile
@@ -28,6 +29,16 @@ const baseUrl = () => (process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3100
 const PASSWORD = "StrongPass123!";
 
 test.describe("Integration: registration status and re-apply", { tag: "@pr-e2e" }, () => {
+  // A DocCy clinic of its own to pick: CI's synthetic seed has none of Testing's.
+  let fixtures: RegisterFixtures;
+  test.beforeAll(async () => {
+    fixtures = await seedRegisterFixtures(createIntegrationAdmin(requireSafeIntegration()));
+  });
+  test.afterAll(async () => {
+    await fixtures?.remove();
+  });
+  const clinicQuery = () => `${fixtures.token} polykliniki`;
+
   test.describe.configure({ mode: "serial", retries: 0 });
 
   let admin: SupabaseClient;
@@ -181,7 +192,7 @@ test.describe("Integration: registration status and re-apply", { tag: "@pr-e2e" 
     await page.getByTestId("register-specialty-trigger").click();
     await page.getByRole("button", { name: "Cardiology", exact: true }).click();
     await page.getByTestId("register-license-0").fill("ST-2");
-    await page.getByTestId("register-clinic-search-0").fill("lefkotheou");
+    await page.getByTestId("register-clinic-search-0").fill(clinicQuery());
     await page.getByTestId("register-clinic-search-0-option").first().click();
     await page.locator("#register-form input[name='professionalDisclaimer']").check();
     await page.getByRole("button", { name: /Submit My Application/i }).click();

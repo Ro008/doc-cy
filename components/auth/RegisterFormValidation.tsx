@@ -81,12 +81,15 @@ export function RegisterFormValidation({ formId }: Props) {
       }
       form.dataset.attempted = "1";
       setAttempted(true);
-      if (form.checkValidity()) return;
-
-      event.preventDefault();
+      // Our own field states as well as the browser's: not every field is a
+      // `required` input (without a Maps key the clinic address box isn't), and an
+      // incomplete form must never reach the server.
       const missingFields = Array.from(
         form.querySelectorAll<HTMLElement>("[data-validate-field='1']"),
       ).filter((field) => !isRegisterFieldComplete(field));
+      if (missingFields.length === 0 && form.checkValidity()) return;
+
+      event.preventDefault();
       reportMissing(missingFields);
     };
 

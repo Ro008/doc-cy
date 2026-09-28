@@ -11,6 +11,7 @@ import {
   waitForRegisterWizardReady,
 } from "./helpers/goto-register-practice-step";
 import { INTEGRATION_DOCTOR_PASSWORD } from "./helpers/test-doctor";
+import { seedRegisterFixtures, type RegisterFixtures } from "./helpers/register-fixtures";
 
 /**
  * A professional's registration email and personal mobile belong to one real
@@ -35,6 +36,16 @@ async function fillAccountStep(page: Page, input: { email: string; mobile: strin
 }
 
 test.describe("Integration: unique registration email and mobile", { tag: "@pr-e2e" }, () => {
+  // A DocCy clinic of its own to pick: CI's synthetic seed has none of Testing's.
+  let fixtures: RegisterFixtures;
+  test.beforeAll(async () => {
+    fixtures = await seedRegisterFixtures(createIntegrationAdmin(requireSafeIntegration()));
+  });
+  test.afterAll(async () => {
+    await fixtures?.remove();
+  });
+  const clinicQuery = () => `${fixtures.token} polykliniki`;
+
   test.describe.configure({ retries: 0 });
 
   test("the check API reports taken contact details without naming anyone", async ({ request }) => {
@@ -110,7 +121,7 @@ test.describe("Integration: unique registration email and mobile", { tag: "@pr-e
       await page.getByRole("button", { name: "Cardiology", exact: true }).click();
       await page.getByTestId("register-license-0").fill("UNIQ-LIC-1");
       const clinicSearch = page.getByTestId("register-clinic-search-0");
-      await clinicSearch.fill("lefkotheou");
+      await clinicSearch.fill(clinicQuery());
       const option = page.getByTestId("register-clinic-search-0-option").first();
       await expect(option).toBeVisible({ timeout: 15_000 });
       await option.click();

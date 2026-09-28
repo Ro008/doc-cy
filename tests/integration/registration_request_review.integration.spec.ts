@@ -2,6 +2,7 @@ import fs from "node:fs";
 import { expect, test, type Page } from "@playwright/test";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { getPublicBookingBaseUrl } from "@/lib/site-url";
 import { createQaClaimDirectoryClone } from "./helpers/qa-claim-directory";
 import { createIntegrationAdmin, requireSafeIntegration } from "./helpers/safe-integration";
 import {
@@ -30,6 +31,8 @@ import { deleteTestCatalogueSpecialty, deleteTestClinics, loginDoctorUi } from "
  */
 
 const baseUrl = () => (process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3100").replace(/\/+$/, "");
+/** The public site the app accepts listing URLs from (NEXT_PUBLIC_SITE_URL, else mydoccy.com). */
+const siteUrl = () => getPublicBookingBaseUrl();
 
 type Seeded = { requestId: string; authUserId: string; email: string; photoPath: string };
 
@@ -317,14 +320,14 @@ test.describe("Integration: registration request review", { tag: "@pr-e2e" }, ()
     });
     expect(junk.status()).toBe(400);
     const lookup = await request.get(
-      `${baseUrl()}/api/internal/requests/listing?url=${encodeURIComponent(`${baseUrl()}${listing.profilePath}`)}`,
+      `${baseUrl()}/api/internal/requests/listing?url=${encodeURIComponent(`${siteUrl()}${listing.profilePath}`)}`,
       { headers },
     );
     expect(lookup.status(), await lookup.text()).toBe(200);
     expect(((await lookup.json()) as { listing: { id: string } }).listing.id).toBe(listing.id);
 
-    // Pasted without the scheme ("localhost:3000/en/…") it still works.
-    const bare = `${baseUrl()}${listing.profilePath}`.replace(/^https?:\/\//, "");
+    // Pasted without the scheme ("www.mydoccy.com/en/…") it still works.
+    const bare = `${siteUrl()}${listing.profilePath}`.replace(/^https?:\/\//, "");
     const bareLookup = await request.get(
       `${baseUrl()}/api/internal/requests/listing?url=${encodeURIComponent(bare)}`,
       { headers },
@@ -332,7 +335,7 @@ test.describe("Integration: registration request review", { tag: "@pr-e2e" }, ()
     expect(bareLookup.status(), await bareLookup.text()).toBe(200);
 
     // A URL from another site (the live site, when testing locally) is refused clearly.
-    const otherSite = new URL(baseUrl()).hostname === "localhost" ? "https://www.mydoccy.com" : "http://localhost:3000";
+    const otherSite = /mydoccy\.com$/.test(new URL(siteUrl()).hostname) ? "http://localhost:3000" : "https://www.mydoccy.com";
     const wrongSite = await request.get(
       `${baseUrl()}/api/internal/requests/listing?url=${encodeURIComponent(`${otherSite}${listing.profilePath}`)}`,
       { headers },
@@ -367,7 +370,7 @@ test.describe("Integration: registration request review", { tag: "@pr-e2e" }, ()
 
     // Now registered, the listing is no longer claimable.
     const taken = await request.get(
-      `${baseUrl()}/api/internal/requests/listing?url=${encodeURIComponent(`${baseUrl()}/en/${pro!.slug}`)}`,
+      `${baseUrl()}/api/internal/requests/listing?url=${encodeURIComponent(`${siteUrl()}/en/${pro!.slug}`)}`,
       { headers },
     );
     expect(taken.status()).toBe(409);
