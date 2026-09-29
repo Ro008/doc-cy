@@ -1,85 +1,10 @@
 import { expect, test } from "@playwright/test";
 
-import { buildFounderNewRegistrationNotifyContent } from "@/lib/notify-founder-new-registration";
-import { buildDoctorAccountVerifiedEmailContent } from "@/lib/send-doctor-account-verified-email";
 import { buildDoctorRegistrationReceivedEmailContent } from "@/lib/send-doctor-registration-received-email";
 import { buildDoctorAccountRejectedEmailContent } from "@/lib/send-doctor-account-rejected-email";
 import { buildPasswordResetEmailContent } from "@/lib/send-password-reset-email";
 
 test.describe("Doctor onboarding email content", { tag: "@pr-email" }, () => {
-  test("founder new registration alert includes review link and custom specialty note", () => {
-    const standard = buildFounderNewRegistrationNotifyContent(
-      {
-        doctorId: "doc-1",
-        fullName: "Maria Papadopoulos",
-        email: "maria@example.com",
-        phone: "+35799111222",
-        specialty: "General Practice",
-        needsSpecialtyReview: false,
-      },
-      "https://mydoccy.com",
-    );
-    expect(standard.subject).toBe("[DocCy] Unclaimed registration — Maria Papadopoulos");
-    expect(standard.textBody).toContain("email confirmed — pending verification");
-    expect(standard.textBody).toContain("doc-1");
-    expect(standard.textBody).toContain("maria@example.com");
-    expect(standard.reviewUrl).toBe(
-      "https://mydoccy.com/internal/directory#pending-registration-review",
-    );
-    expect(standard.textBody).toContain("Languages:");
-    expect(standard.textBody).toContain("Specialties:");
-    expect(standard.textBody).toContain("Clinic locations:");
-    expect(standard.textBody).toContain("Photo uploaded:");
-    expect(standard.textBody).toContain("Registration origin: Unclaimed");
-
-    const custom = buildFounderNewRegistrationNotifyContent(
-      {
-        doctorId: "doc-2",
-        fullName: "Alex Other",
-        email: "alex@example.com",
-        phone: "+35799222333",
-        specialty: "Reiki",
-        needsSpecialtyReview: true,
-      },
-      "https://mydoccy.com",
-    );
-    expect(custom.textBody).toContain("custom specialty pending your approval");
-
-    const claimed = buildFounderNewRegistrationNotifyContent(
-      {
-        doctorId: "listing-1",
-        fullName: "Ioanna Severi",
-        email: "ioanna@example.com",
-        phone: "+35799333444",
-        specialty: "Dentist",
-        needsSpecialtyReview: false,
-        originKind: "claimed",
-        originLabel: "Claimed",
-      },
-      "https://mydoccy.com",
-    );
-    expect(claimed.subject).toBe("[DocCy] Finder listing claimed — Ioanna Severi");
-    expect(claimed.textBody).toContain("claimed their existing finder listing");
-    expect(claimed.textBody).toContain("listing-1");
-    expect(claimed.textBody).toContain("Registration origin: Claimed");
-
-    const unclaimed = buildFounderNewRegistrationNotifyContent(
-      {
-        doctorId: "doc-3",
-        fullName: "New Doctor",
-        email: "new@example.com",
-        phone: "+35799444555",
-        specialty: "General Practice",
-        needsSpecialtyReview: false,
-        originKind: "unclaimed",
-        originLabel: "Unclaimed",
-      },
-      "https://mydoccy.com",
-    );
-    expect(unclaimed.subject).toBe("[DocCy] Unclaimed registration — New Doctor");
-    expect(unclaimed.textBody).toContain("Registration origin: Unclaimed");
-  });
-
   test("doctor registration received email asks them to confirm with a magic link", () => {
     const content = buildDoctorRegistrationReceivedEmailContent({
       doctorName: "Maria Papadopoulos",
@@ -95,25 +20,6 @@ test.describe("Doctor onboarding email content", { tag: "@pr-email" }, () => {
     expect(content.html).toContain("Confirm your email");
     expect(content.html.toLowerCase()).not.toContain("/agenda");
     expect(content.html.toLowerCase()).not.toContain("otp");
-  });
-
-  test("doctor account verified email points at sign-in, then settings", () => {
-    const content = buildDoctorAccountVerifiedEmailContent({
-      siteUrl: "https://mydoccy.com",
-      doctorName: "Maria Papadopoulos",
-    });
-
-    expect(content.subject).toBe("[DocCy] Your account is ready — sign in");
-    expect(content.loginUrl).toContain("/login");
-    expect(content.loginUrl).toContain("next=%2Fagenda%2Fsettings");
-    expect(content.text).toContain("Hi Maria");
-    expect(content.text).toContain("Sign in:");
-    expect(content.text).toContain("email and password you used when registering");
-    expect(content.text).toContain("land on Settings");
-    expect(content.text.toLowerCase()).not.toContain("open your dashboard");
-    expect(content.html).toContain("Sign in to DocCy");
-    expect(content.html).not.toContain("Open your dashboard");
-    expect(content.html).toContain(encodeURIComponent("/agenda/settings"));
   });
 
   test("doctor application rejected email points at the support form", () => {

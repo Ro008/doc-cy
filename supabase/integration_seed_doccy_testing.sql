@@ -171,7 +171,7 @@ BEGIN
       is_test_profile,
       subscription_tier,
       is_registered,
-      has_online_booking,
+      pro_access_until,
       trial_notice_seen_at
     )
     VALUES (
@@ -185,7 +185,7 @@ BEGIN
       v_slug,
       true,
       'standard',
-      -- professionals defaults is_registered and has_online_booking to false; the
+      -- professionals defaults is_registered to false and pro_access_until to null; the
       -- legacy doctors table this seed was written against had no such split.
       -- Without them the row reads as a scraped GeSY listing:
       -- create_primary_doctor_location() never fires, so there is no settings or
@@ -193,7 +193,7 @@ BEGIN
       -- "verified, bookable test profile" this file promises. trial_notice_seen_at
       -- skips the one-time welcome modal, which otherwise redirects /agenda.
       true,
-      true,
+      now() + interval '6 months',
       now()
     )
     RETURNING id INTO v_doctor_id;
@@ -204,7 +204,7 @@ BEGIN
       status = 'verified',
       is_test_profile = true,
       is_registered = true,
-      has_online_booking = true,
+      pro_access_until = coalesce(pro_access_until, now() + interval '6 months'),
       trial_notice_seen_at = coalesce(trial_notice_seen_at, now()),
       email = coalesce(nullif(trim(email), ''), v_email),
       phone = coalesce(nullif(trim(phone), ''), '+35799123456'),

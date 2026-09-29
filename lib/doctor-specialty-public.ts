@@ -1,25 +1,6 @@
 /** Shown on public profile / finder when custom specialty is not yet approved. */
 export const PUBLIC_SPECIALTY_UNDER_REVIEW_LABEL = "Specialty under review";
 
-export function isSpecialtyResolvedForVerification(doctor: {
-  is_specialty_approved?: boolean | null;
-  specialty_requires_standard_at?: string | null;
-}): boolean {
-  if (doctor.specialty_requires_standard_at) return false;
-  return doctor.is_specialty_approved !== false;
-}
-
-export function verificationBlockedReason(doctor: {
-  is_specialty_approved?: boolean | null;
-  specialty_requires_standard_at?: string | null;
-}): string | null {
-  if (isSpecialtyResolvedForVerification(doctor)) return null;
-  if (doctor.specialty_requires_standard_at) {
-    return "Resolve this custom specialty in Pending specialties first (approve, merge, edit, or reject).";
-  }
-  return "Resolve specialty in Pending specialties first (approve as submitted, edit, merge, or reject).";
-}
-
 /** Public-facing specialty label; never exposes unapproved custom text. */
 export function getPublicSpecialtyDisplayLabel(input: {
   specialty?: string | null;

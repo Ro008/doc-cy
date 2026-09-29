@@ -70,7 +70,7 @@ test.describe("Integration: public phone visibility toggle", () => {
           status: "verified",
           slug: doctorSlug,
                 is_registered: true,
-      has_online_booking: true,
+      pro_access_until: new Date(Date.now() + 180 * 86_400_000).toISOString(),
       finder_visible: true,
       is_archived: false,
       subscription_tier: "standard",

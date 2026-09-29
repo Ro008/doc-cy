@@ -383,7 +383,7 @@ function buildReplaceMigration(entries, sourceLabel) {
     const latSql = entry.latitude === null ? "null" : String(entry.latitude);
     const lonSql = entry.longitude === null ? "null" : String(entry.longitude);
 
-    return `  (${sqlLiteral(entry.name)}, ${sqlLiteral(entry.specialty)}, ${sqlLiteral(entry.district)}::public.cyprus_district, ${sqlLiteral(entry.address_maps_link)}, ${phoneSql}, ${latSql}, ${lonSql}, ${sqlLiteral(entry.slug)}, false, false)`;
+    return `  (${sqlLiteral(entry.name)}, ${sqlLiteral(entry.specialty)}, ${sqlLiteral(entry.district)}::public.cyprus_district, ${sqlLiteral(entry.address_maps_link)}, ${phoneSql}, ${latSql}, ${lonSql}, ${sqlLiteral(entry.slug)}, false)`;
   });
 
   return `-- Reset unregistered directory listings from spreadsheet (${sourceLabel}).
@@ -400,8 +400,7 @@ insert into public.professionals (
   latitude,
   longitude,
   slug,
-  is_registered,
-  has_online_booking
+  is_registered
 )
 values
 ${valueLines.join(",\n")};
@@ -456,8 +455,7 @@ insert into public.professionals (
   latitude,
   longitude,
   slug,
-  is_registered,
-  has_online_booking
+  is_registered
 )
 select
   v.name,
@@ -468,7 +466,6 @@ select
   v.latitude,
   v.longitude,
   v.slug,
-  false,
   false
 from (
   values
