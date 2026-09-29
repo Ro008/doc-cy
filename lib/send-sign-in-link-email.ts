@@ -12,6 +12,7 @@ import {
   EMAIL_TEXT,
   EMAIL_TEXT_MUTED,
 } from "@/lib/email-brand";
+import { isUndeliverableTestEmail } from "@/lib/registration-decision-emails";
 
 /** Hosted logo so Gmail can load it even when the sign-in started on localhost. */
 const DOCCY_EMAIL_LOGO_URL = "https://www.mydoccy.com/brand/doccy-logo.png";
@@ -55,12 +56,17 @@ ${EMAIL_SHELL_CLOSE}`;
   return { subject, text, html };
 }
 
-/** Throws when the email can't be sent (the caller tells her to try again). */
+/**
+ * Throws when the email can't be sent (the caller tells her to try again).
+ * `undeliverable`: a test-only address no inbox receives, never sent (tests fetch
+ * their own link from Supabase).
+ */
 export async function sendSignInLinkEmail(opts: {
   to: string;
   signInUrl: string;
   code: string;
-}): Promise<{ skipped: boolean }> {
+}): Promise<{ skipped: boolean; undeliverable?: true }> {
+  if (isUndeliverableTestEmail(opts.to)) return { skipped: true, undeliverable: true };
   const content = buildSignInLinkEmailContent(opts);
   const result = await sendResendEmail({
     to: opts.to.trim(),

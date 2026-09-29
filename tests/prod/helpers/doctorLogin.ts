@@ -55,6 +55,35 @@ async function submitLoginFormViaUi(
   await signInButton.click();
 }
 
+/**
+ * An approved professional gets "Check your email" after the password (user,
+ * 2026-09-29). Finish with a fresh one-time link from Supabase (it replaces the
+ * emailed one), as clicking the email would. Anyone else goes straight on.
+ */
+async function finishEmailedStepIfAsked(page: Page, baseUrl: string, email: string): Promise<void> {
+  const checkEmail = page.getByRole("heading", { name: /Check your email/i });
+  const asked = await checkEmail
+    .waitFor({ state: "visible", timeout: 20_000 })
+    .then(() => true)
+    .catch(() => false);
+  if (!asked) return;
+
+  const supabaseUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").trim();
+  const serviceRole = (process.env.SUPABASE_SERVICE_ROLE_KEY ?? "").trim();
+  if (!supabaseUrl || !serviceRole) {
+    throw new Error("Sign-in asks for the emailed link: set SUPABASE_SERVICE_ROLE_KEY to finish it.");
+  }
+  const admin = createClient(supabaseUrl, serviceRole, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  const { data, error } = await admin.auth.admin.generateLink({ type: "magiclink", email });
+  const tokenHash = data?.properties?.hashed_token;
+  if (error || !tokenHash) throw new Error(`sign-in link: ${error?.message ?? "no token"}`);
+  await page.goto(`${baseUrl}/auth/sign-in-link?token_hash=${encodeURIComponent(tokenHash)}`, {
+    waitUntil: "domcontentloaded",
+  });
+}
+
 export async function authenticateDoctorViaMagicLink(
   page: Page,
   email: string,
@@ -156,6 +185,7 @@ export async function authenticateDoctorViaMagicLink(
         attemptedPairs.push(`${candidateEmail}:${"*".repeat(Math.min(candidatePassword.length, 8))}`);
         await page.goto(`${normalizedBaseUrl}/login`, { waitUntil: "domcontentloaded" });
         await submitLoginFormViaUi(page, candidateEmail, candidatePassword);
+        await finishEmailedStepIfAsked(page, normalizedBaseUrl, candidateEmail);
 
         for (let attempt = 0; attempt < 10; attempt += 1) {
           await page.goto(`${normalizedBaseUrl}/agenda`, { waitUntil: "domcontentloaded" });
@@ -251,6 +281,7 @@ export async function authenticateDoctorViaPasswordUi(
   for (let attempt = 1; attempt <= 3; attempt += 1) {
     await page.goto(`${normalizedBaseUrl}/login`, { waitUntil: "domcontentloaded" });
     await submitLoginFormViaUi(page, resolvedEmail, resolvedPassword);
+    await finishEmailedStepIfAsked(page, normalizedBaseUrl, resolvedEmail);
 
     try {
       await expect(page).toHaveURL(/\/agenda(?:[/?#]|$)/, { timeout: 45_000 });

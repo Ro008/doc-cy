@@ -34,8 +34,9 @@ function passwordClient() {
   return createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
 }
 
-function isLocalDev(): boolean {
-  return process.env.NODE_ENV !== "production" && !process.env.VERCEL;
+/** Not a Vercel deployment (a dev server, or CI's `npm run start`): no email service needed. */
+function isOffVercel(): boolean {
+  return !process.env.VERCEL;
 }
 
 export async function POST(req: Request) {
@@ -129,11 +130,12 @@ export async function POST(req: Request) {
   // The login's email is where the link goes (it is her registration email).
   try {
     const sent = await sendSignInLinkEmail({ to: loginEmail, signInUrl, code });
-    if (sent.skipped) {
-      if (!isLocalDev()) {
+    if (sent.skipped && !sent.undeliverable) {
+      if (!isOffVercel()) {
         return NextResponse.json({ ok: false, reason: "send_failed" }, { status: 503 });
       }
-      // No RESEND_API_KEY locally: the link is in the dev server's log instead.
+      // No RESEND_API_KEY off Vercel (local dev, CI): the link is in the server's log
+      // instead, and tests fetch their own link from Supabase.
       console.info("[DocCy][dev] sign-in link (not emailed):", signInUrl, "code:", code);
     }
   } catch (sendError) {

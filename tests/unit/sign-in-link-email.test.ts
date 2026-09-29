@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { buildSignInLinkEmailContent } from "../../lib/send-sign-in-link-email";
+import { buildSignInLinkEmailContent, sendSignInLinkEmail } from "../../lib/send-sign-in-link-email";
 
 /** The email with her sign-in link and code (English only for now; user, 2026-09-29). */
 describe("buildSignInLinkEmailContent", () => {
@@ -39,5 +39,14 @@ describe("buildSignInLinkEmailContent", () => {
       code: "123456",
     });
     assert.doesNotMatch(risky.html, /<e>/);
+  });
+});
+
+describe("sendSignInLinkEmail", () => {
+  it("never sends to test-only addresses no inbox receives", async () => {
+    for (const to of ["pro-1@integration.test", "QA@test-doccy.com.cy"]) {
+      const result = await sendSignInLinkEmail({ to, signInUrl: "https://x.test/a", code: "123456" });
+      assert.deepEqual(result, { skipped: true, undeliverable: true });
+    }
   });
 });
