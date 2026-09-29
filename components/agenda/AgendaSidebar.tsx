@@ -3,8 +3,9 @@
 import * as React from "react";
 import { addMonths, format, isSameDay, isSameMonth, startOfMonth } from "date-fns";
 import { enGB } from "date-fns/locale";
-import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { CalendarPlus, ChevronLeft, ChevronRight } from "lucide-react";
 import { agendaMonthGrid } from "@/lib/agenda-calendar";
+import { MANUAL_BOOKING_HINT, MANUAL_BOOKING_LABEL } from "@/lib/manual-booking-copy";
 import type { AgendaClinic } from "@/lib/agenda-clinics";
 import { AgendaClinicCalendars } from "@/components/agenda/AgendaClinicCalendars";
 
@@ -53,11 +54,11 @@ export function AgendaSidebar({
       <button
         type="button"
         onClick={onCreate}
-        title="Took a phone call? Block the slot manually here. Next time, share your link to save time."
+        title={MANUAL_BOOKING_HINT}
         className="inline-flex h-12 items-center gap-2 self-start rounded-2xl bg-clinical-500 pl-4 pr-5 text-sm font-semibold text-ink-900 shadow-md shadow-clinical-500/20 transition hover:bg-clinical-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-300"
       >
-        <Plus className="h-5 w-5" aria-hidden />
-        Create
+        <CalendarPlus className="h-5 w-5" aria-hidden />
+        {MANUAL_BOOKING_LABEL}
       </button>
 
       <div className="space-y-2" data-testid="agenda-mini-month">

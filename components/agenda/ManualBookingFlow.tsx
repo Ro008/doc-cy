@@ -1,6 +1,8 @@
 "use client";
 
 import * as React from "react";
+
+import { MANUAL_BOOKING_HINT, MANUAL_BOOKING_LABEL } from "@/lib/manual-booking-copy";
 import { addDays, addHours, format } from "date-fns";
 import { enGB } from "date-fns/locale";
 import { utcToZonedTime, zonedTimeToUtc } from "date-fns-tz";
@@ -385,11 +387,10 @@ export function ManualBookingFlow({
                 data-testid="manual-booking-modal-title"
                 className="text-xl font-semibold text-slate-50"
               >
-                + Add Manual Booking
+                {MANUAL_BOOKING_LABEL}
               </h3>
               <p className="mt-1 text-sm text-slate-400">
-                Took a phone call? Block the slot manually here. Next time, share your link to
-                save time.
+                {MANUAL_BOOKING_HINT}
               </p>
             </div>
 

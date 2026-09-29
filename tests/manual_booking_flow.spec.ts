@@ -67,7 +67,7 @@ test.describe("Manual booking flow @booking-creates", { tag: ["@pr-e2e", "@pr-e2
       await page.goto("/agenda?manual=1");
       await expect(page).toHaveURL(/\/agenda/, { timeout: 15_000 });
 
-      const modalTitle = page.getByRole("heading", { name: /\+ Add Manual Booking/i });
+      const modalTitle = page.getByRole("heading", { name: /Add manual booking/i });
       await expect(modalTitle).toBeVisible({ timeout: 15_000 });
 
       const slotPick = await pickFirstAvailableSlot(page);

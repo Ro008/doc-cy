@@ -45,7 +45,7 @@ test.describe("Doctor navigation feedback", { tag: "@pr-e2e" }, () => {
     await signInMobileAgenda(page);
 
     await expect(
-      page.locator('button.fixed:has-text("+ Add Manual Booking")'),
+      page.locator('button.fixed:has-text("Add manual booking")'),
     ).toHaveCount(0);
   });
 

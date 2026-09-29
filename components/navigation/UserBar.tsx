@@ -2,6 +2,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import Image from "next/image";
+import { MANUAL_BOOKING_HINT, MANUAL_BOOKING_LABEL } from "@/lib/manual-booking-copy";
 import { usePathname, useRouter } from "next/navigation";
 import { UserMenuNavLink } from "@/components/navigation/UserMenuNavLink";
 import { UserBarMoreMenuItems } from "@/components/navigation/UserBarMoreMenuItems";
@@ -316,12 +317,12 @@ export function UserBar() {
           <>
           <UserMenuNavLink
             href="/agenda?manual=1"
-            title="Took a phone call? Block the slot manually here. Next time, share your link to save time."
+            title={MANUAL_BOOKING_HINT}
             data-testid="userbar-link-manual-booking"
             className="mb-1 border border-clinical-400/35 bg-clinical-500/10 font-semibold text-clinical-100 hover:bg-clinical-500/20"
             icon={<CalendarPlus className="h-4 w-4 text-clinical-200" aria-hidden />}
           >
-            + Add Manual Booking
+            {MANUAL_BOOKING_LABEL}
           </UserMenuNavLink>
           <UserMenuNavLink
             href="/agenda/settings#promote-practice"

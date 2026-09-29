@@ -12,7 +12,7 @@ import {
 } from "date-fns";
 import { enGB } from "date-fns/locale";
 import { formatInTimeZone, utcToZonedTime } from "date-fns-tz";
-import { ChevronLeft, ChevronRight, Loader2, Menu, Trash2, X } from "lucide-react";
+import { CalendarPlus, ChevronLeft, ChevronRight, Loader2, Menu, Trash2, X } from "lucide-react";
 import { toast as sonnerToast } from "sonner";
 import { useTranslations } from "next-intl";
 import {
@@ -62,6 +62,7 @@ import {
   type AgendaWorkingHours,
 } from "@/lib/agenda-clinics";
 import { agendaClinicEventColor } from "@/lib/doctor-locations";
+import { MANUAL_BOOKING_HINT, MANUAL_BOOKING_LABEL } from "@/lib/manual-booking-copy";
 import {
   RESCHEDULE_REASON_MAX,
   rescheduleDeadlineIso,
@@ -1503,10 +1504,11 @@ export function AgendaRealtime({
             <button
               type="button"
               onClick={() => setManualBookingOpen(true)}
-              title="Took a phone call? Block the slot manually here. Next time, share your link to save time."
+              title={MANUAL_BOOKING_HINT}
               className={`${agendaPrimaryChipButtonClass} ${sidebarOpen ? "lg:hidden" : ""}`}
             >
-              + Add Manual Booking
+              <CalendarPlus className="h-4 w-4" aria-hidden />
+              {MANUAL_BOOKING_LABEL}
             </button>
             {renderViewSwitcher(["day", "week", "month"], view)}
           </div>

@@ -32,6 +32,7 @@ import { emitPendingRequestsCount } from "@/lib/pending-requests-count";
 import { reviewPathFromDashboard } from "@/lib/appointment-review";
 import { agendaHighlightHref } from "@/lib/agenda-highlight";
 import { DeclineRequestDialog } from "@/components/dashboard/DeclineRequestDialog";
+import { MANUAL_BOOKING_HINT, MANUAL_BOOKING_LABEL } from "@/lib/manual-booking-copy";
 import {
   askedForAnotherTimeLabel,
   rescheduleWithoutAnswerSummary,
@@ -165,10 +166,11 @@ export function DoctorDashboard({
         <button
           type="button"
           onClick={() => setManualOpen(true)}
+          title={MANUAL_BOOKING_HINT}
           className="group inline-flex h-11 items-center gap-2 rounded-xl border border-clinical-400/40 bg-clinical-500/10 px-4 text-sm font-semibold text-clinical-100 transition hover:-translate-y-0.5 hover:border-clinical-400/70 hover:bg-clinical-500/20 hover:shadow-lg hover:shadow-clinical-500/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-400/70 active:translate-y-0"
         >
           <CalendarPlus className="h-4 w-4 text-clinical-200 transition group-hover:scale-110" aria-hidden />
-          New booking
+          {MANUAL_BOOKING_LABEL}
         </button>
       </header>
 

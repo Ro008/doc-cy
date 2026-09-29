@@ -83,7 +83,7 @@ test.describe("Doctor home dashboard", { tag: "@pr-e2e" }, () => {
     }
   });
 
-  test("desktop: New booking opens the manual booking flow on the dashboard", async ({ page }) => {
+  test("desktop: Add manual booking opens the manual booking flow on the dashboard", async ({ page }) => {
     test.setTimeout(120_000);
     await page.setViewportSize({ width: 1280, height: 900 });
     await signInAndOpenDashboard(page);
@@ -91,7 +91,7 @@ test.describe("Doctor home dashboard", { tag: "@pr-e2e" }, () => {
     const panel = page.getByTestId("manual-booking-modal-panel");
     // A click before hydration does nothing; retry until the modal opens.
     await expect(async () => {
-      await page.getByRole("button", { name: "New booking" }).click();
+      await page.getByRole("button", { name: "Add manual booking" }).click();
       await expect(panel).toBeVisible({ timeout: 2_000 });
     }).toPass({ timeout: 20_000 });
     await expect(page).toHaveURL(/\/dashboard(?:[/?#]|$)/);
@@ -162,7 +162,7 @@ test.describe("Doctor home dashboard", { tag: "@pr-e2e" }, () => {
     ]);
     await expect(page.getByTestId("userbar-tab-dashboard")).toHaveAttribute("aria-current", "page");
     await expect(page.getByRole("heading", { name: "Needs your answer" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "New booking" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Add manual booking" })).toBeVisible();
   });
 
   test("mobile: More menu shows the account, manual booking first and logout last", async ({ page }) => {
