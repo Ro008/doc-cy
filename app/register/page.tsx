@@ -89,6 +89,8 @@ import { isNextRedirectError } from "@/lib/next-redirect-error";
 import { withTimeout } from "@/lib/promise-timeout";
 import { createClient } from "@supabase/supabase-js";
 import { reapplyStateForUser } from "@/lib/registration-reapply";
+import { registerPageGate } from "@/lib/register-gate";
+import { RegisterAlreadyHaveProfile } from "@/components/register/RegisterAlreadyHaveProfile";
 import { confirmRegistrationDraft } from "@/lib/registration-draft-confirm";
 import { REGISTRATION_STATUS_PATH } from "@/lib/registration-status";
 import { checkProfessionalContact } from "@/lib/professional-contact-check";
@@ -275,7 +277,10 @@ async function runRegister(formData: FormData) {
     : null;
   const reapplyState =
     reapplyService && sessionUser ? await reapplyStateForUser(reapplyService, sessionUser) : null;
-  if (reapplyState?.kind === "pending") redirect(REGISTRATION_STATUS_PATH);
+  const gate = registerPageGate(reapplyState);
+  if (gate === "status") redirect(REGISTRATION_STATUS_PATH);
+  // A professional already has a profile: no second registration, no claim.
+  if (gate === "has_profile") redirect("/register");
   const reapply =
     reapplyState?.kind === "reapply" && reapplyState.email.toLowerCase() === email.toLowerCase()
       ? reapplyState
@@ -623,6 +628,7 @@ export default async function RegisterPage({ searchParams }: PageProps) {
   let claimPrefill: RegisterClaimPrefill | null = null;
   let specialtyOptions: string[] = [];
   let reapplyEmail: string | null = null;
+  let hasProfile = false;
   if (!submitted) {
     const service = createServiceRoleClient();
     if (service) {
@@ -630,7 +636,9 @@ export default async function RegisterPage({ searchParams }: PageProps) {
         data: { user: sessionUser },
       } = await createServerComponentClient({ cookies }).auth.getUser();
       const reapplyState = sessionUser ? await reapplyStateForUser(service, sessionUser) : null;
-      if (reapplyState?.kind === "pending") redirect(REGISTRATION_STATUS_PATH);
+      const gate = registerPageGate(reapplyState);
+      if (gate === "status") redirect(REGISTRATION_STATUS_PATH);
+      hasProfile = gate === "has_profile";
       if (reapplyState?.kind === "reapply") reapplyEmail = reapplyState.email;
       if (isProfessionalUuid(claimId)) {
         claimPrefill = await loadUnregisteredProfessionalForRegisterClaim(service, claimId);
@@ -641,6 +649,10 @@ export default async function RegisterPage({ searchParams }: PageProps) {
         console.error("[DocCy] register page: specialty catalogue failed", err);
       }
     }
+  }
+
+  if (hasProfile) {
+    return <RegisterAlreadyHaveProfile listingName={claimPrefill?.name ?? null} />;
   }
 
   let errorMessage: string | null = null;

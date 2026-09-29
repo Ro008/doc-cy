@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { seedProfessionalSpecialty } from "./helpers/test-doctor";
+import { finishEmailedSignIn, seedProfessionalSpecialty } from "./helpers/test-doctor";
 import { createClient } from "@supabase/supabase-js";
 
 test.describe("Integration UI: doctor settings Service Menu", () => {
@@ -59,6 +59,8 @@ test.describe("Integration UI: doctor settings Service Menu", () => {
       finder_visible: true,
       is_archived: false,
       subscription_tier: "standard",
+      // The first-login welcome dialog would cover the settings page.
+      trial_notice_seen_at: new Date().toISOString(),
 
         })
         .select("id")
@@ -75,9 +77,10 @@ test.describe("Integration UI: doctor settings Service Menu", () => {
 
       await page.goto("/login");
       await page.getByLabel("Email").fill(doctorEmail);
-      await page.getByLabel("Password").fill(doctorPassword);
+      await page.locator('input[name="password"]').fill(doctorPassword);
       await page.getByRole("button", { name: /sign in/i }).click();
-      await page.waitForURL("**/agenda", { timeout: 15000 });
+      await finishEmailedSignIn(page, admin, doctorEmail);
+      await page.waitForURL(/\/agenda/, { timeout: 30_000 });
       await page.goto("/agenda/settings");
 
       const uniqueService = `UI Service ${Date.now()}`;

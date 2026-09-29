@@ -8,12 +8,14 @@ import {
 import {
   createTestDoctor,
   deleteTestDoctor,
+  finishEmailedSignIn,
   loginDoctorUi,
   type TestDoctorFixture,
 } from "./helpers/test-doctor";
 
 async function signInWithPasswordForm(
   page: import("@playwright/test").Page,
+  admin: import("@supabase/supabase-js").SupabaseClient,
   email: string,
   password: string,
 ) {
@@ -24,6 +26,7 @@ async function signInWithPasswordForm(
   await page.locator('input[name="email"]').fill(email);
   await page.locator('input[name="password"]').fill(password);
   await submit.click();
+  await finishEmailedSignIn(page, admin, email);
 }
 
 /**
@@ -65,7 +68,7 @@ test.describe("Integration: doctor onboarding pipeline", { tag: "@pr-e2e" }, () 
       expect(approve.data?.status).toBe("verified");
 
       // First login (normal form — default next=/agenda, then redirect to settings).
-      await signInWithPasswordForm(page, fixture.email, fixture.password);
+      await signInWithPasswordForm(page, admin, fixture.email, fixture.password);
       await expect(page).toHaveURL(/\/agenda\/settings(?:[/?#]|$)/, {
         timeout: 30_000,
       });
@@ -88,7 +91,7 @@ test.describe("Integration: doctor onboarding pipeline", { tag: "@pr-e2e" }, () 
       );
 
       // Second login → agenda (home), not settings.
-      await signInWithPasswordForm(page, fixture.email, fixture.password);
+      await signInWithPasswordForm(page, admin, fixture.email, fixture.password);
       await expect(page).toHaveURL(
         (url) => {
           const path = url.pathname.replace(/\/$/, "") || "/";
