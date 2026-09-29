@@ -31,9 +31,17 @@ describe("root layout does not block public HTML", () => {
     const source = fs.readFileSync(path.join(repoRoot, "middleware.ts"), "utf8");
     assert.equal(source.includes("needsSupabaseSessionMiddleware"), true);
     assert.equal(source.includes("await supabase.auth.getSession()"), true);
-    const sessionCallIndex = source.indexOf("await supabase.auth.getSession()");
-    const gateIndex = source.lastIndexOf("needsSupabaseSessionMiddleware(pathname)", sessionCallIndex);
-    assert.ok(gateIndex >= 0 && gateIndex < sessionCallIndex);
+    // Every session read sits behind a gate: the page gate, or the professional-API gate
+    // (API routes only, never public HTML).
+    let sessionCallIndex = source.indexOf("await supabase.auth.getSession()");
+    while (sessionCallIndex >= 0) {
+      const gateIndex = Math.max(
+        source.lastIndexOf("needsSupabaseSessionMiddleware(pathname)", sessionCallIndex),
+        source.lastIndexOf("isProfessionalApiPath(pathname)", sessionCallIndex),
+      );
+      assert.ok(gateIndex >= 0 && gateIndex < sessionCallIndex);
+      sessionCallIndex = source.indexOf("await supabase.auth.getSession()", sessionCallIndex + 1);
+    }
   });
 
   it("does not Set-Cookie on the HTML middleware response", () => {

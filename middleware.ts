@@ -24,6 +24,11 @@ import {
 } from "./lib/needs-supabase-session-middleware";
 import {adminSignInPath} from "./lib/admin-sign-in-flow";
 import {agendaRedirectForLogin} from "./lib/registration-status-path";
+import {
+  amrFromAccessToken,
+  hasValidEmailStep,
+  isProfessionalApiPath,
+} from "./lib/professional-email-step";
 
 const handleI18nRouting = createMiddleware(routing);
 
@@ -80,6 +85,24 @@ function isPublicPatientRoute(pathname: string): boolean {
 
 export async function middleware(req: NextRequest) {
   const pathname = req.nextUrl.pathname;
+
+  // The professional's own API routes write through the service role, so the
+  // database rule alone doesn't guard them: a session must carry the emailed
+  // sign-in step (30 days). No session: the route answers 401 itself.
+  if (isProfessionalApiPath(pathname)) {
+    const res = NextResponse.next();
+    const supabase = createMiddlewareClient({req, res});
+    const {
+      data: {session},
+    } = await supabase.auth.getSession();
+    if (session && !hasValidEmailStep(amrFromAccessToken(session.access_token))) {
+      return NextResponse.json(
+        {message: "Sign in again: we'll email you a sign-in link."},
+        {status: 401},
+      );
+    }
+    return res;
+  }
 
   // Legacy /finder filter URLs → public unprefixed paths (keep /finder/professional|clinic for their own 301s).
   if (isLegacyFinderFilterPath(pathname)) {
@@ -151,6 +174,15 @@ export async function middleware(req: NextRequest) {
         if (applicantRedirect) return NextResponse.redirect(new URL(applicantRedirect, req.url));
       }
 
+      // A professional's session needs the emailed step (password alone, or older
+      // than 30 days, is not enough): sign in again.
+      if (doctorRow && !hasValidEmailStep(amrFromAccessToken(session.access_token))) {
+        const loginUrl = new URL("/login", req.url);
+        loginUrl.searchParams.set("next", pathname);
+        loginUrl.searchParams.set("signin", "again");
+        return NextResponse.redirect(loginUrl);
+      }
+
       if (
         doctorRow &&
         !isDoctorAccountReviewPath(pathname) &&
@@ -190,6 +222,17 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  // Keep existing behavior: run on pages (exclude api/_next/_vercel and dot-files)
-  matcher: "/((?!api|_next|_vercel|.*\\..*).*)",
+  // Pages (exclude api/_next/_vercel and dot-files), plus the professional's own API
+  // routes (keep in sync with isProfessionalApiPath in lib/professional-email-step.ts).
+  matcher: [
+    "/((?!api|_next|_vercel|.*\\..*).*)",
+    "/api/appointments/:path+",
+    "/api/doctor-avatar",
+    "/api/doctor-gesy",
+    "/api/doctor-locations",
+    "/api/doctor-online-bookings",
+    "/api/doctor-services",
+    "/api/doctor-settings/:path*",
+    "/api/doctor-specialty-change-request",
+  ],
 };
