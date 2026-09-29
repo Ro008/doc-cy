@@ -120,6 +120,7 @@ export function buildPatientRescheduleProposalEmailContent(opts: {
     `${reasonBlockText}` +
     `${calendarCleanupText}` +
     `${slotsText}\n\n` +
+    `None of them work? From the same link you can pick any other free time.\n\n` +
     `Open this link to pick a time:\n${pickUrl}\n\n` +
     `---\n${AUTOMATED_EMAIL_FOOTER_TEXT}`;
 
@@ -137,6 +138,9 @@ ${EMAIL_SHELL_OPEN}
     ${reasonBlockHtml}
     ${calendarCleanupHtml}
     <ul style="margin:12px 0 16px;padding-left:20px;">${slotsHtml}</ul>
+    <p style="margin:0 0 14px;font-size:14px;line-height:1.55;color:${EMAIL_TEXT_MUTED};">
+      None of them work? From the same link you can pick any other free time.
+    </p>
     <a href="${pickUrl}" style="${PRIMARY_BTN}">Choose a time</a>
     ${automatedEmailFooterHtml()}
 ${EMAIL_SHELL_CLOSE}`;
