@@ -9,7 +9,8 @@ export type PublicApiRateLimitBucket =
   | "passwordReset"
   | "finderBrowse"
   | "clinicSearch"
-  | "registerContactCheck";
+  | "registerContactCheck"
+  | "signIn";
 
 type RateLimitConfig = {
   limit: number;
@@ -46,6 +47,8 @@ export const PUBLIC_API_RATE_LIMITS: Record<PublicApiRateLimitBucket, RateLimitC
    * is registered.
    */
   registerContactCheck: { limit: 30, windowMs: 60 * 60 * 1000 },
+  /** Practitioner password checks at /login (IP). Link emails per address are capped separately. */
+  signIn: { limit: 30, windowMs: 60 * 60 * 1000 },
 };
 
 type BucketState = {

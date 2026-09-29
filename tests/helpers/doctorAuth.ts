@@ -62,6 +62,30 @@ function firstNonEmpty(...values: Array<string | undefined>): string {
   return "";
 }
 
+/** A session from the one-time sign-in link (marked "otp"), as the emailed link gives. */
+async function sessionFromEmailedLink(
+  supabaseUrl: string,
+  anonKey: string,
+  serviceRoleKey: string,
+  email: string,
+) {
+  const admin = createClient(supabaseUrl, serviceRoleKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  const { data: link, error: linkError } = await admin.auth.admin.generateLink({
+    type: "magiclink",
+    email,
+  });
+  const tokenHash = link?.properties?.hashed_token;
+  if (linkError || !tokenHash) throw new Error(`sign-in link: ${linkError?.message ?? "no token"}`);
+  const client = createClient(supabaseUrl, anonKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  const { data, error } = await client.auth.verifyOtp({ type: "magiclink", token_hash: tokenHash });
+  if (error || !data.session) throw new Error(`sign-in link verify: ${error?.message ?? "no session"}`);
+  return data.session;
+}
+
 function chunkString(value: string, chunkSize: number): string[] {
   if (value.length <= chunkSize) return [value];
   return value.match(new RegExp(`.{1,${chunkSize}}`, "g")) ?? [];
@@ -177,7 +201,13 @@ export async function signInDoctorAndSetCookies(
     throw signInError;
   }
 
-  const session = signInData?.session;
+  let session = signInData?.session;
+  // A professional's session needs the emailed sign-in step (user, 2026-09-29): with
+  // the password checked, finish with the one-time link, as she does from her email.
+  const serviceRoleKey = normalizeSecret(process.env.SUPABASE_SERVICE_ROLE_KEY ?? "");
+  if (session && serviceRoleKey) {
+    session = await sessionFromEmailedLink(supabaseUrl, supabaseAnonKey, serviceRoleKey, loginEmail);
+  }
   const authUserId =
     signInData?.user?.id ?? session?.user?.id ?? (session as any)?.user?.id;
 

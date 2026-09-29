@@ -211,6 +211,29 @@ export async function loginDoctorUi(
 }
 
 /**
+ * After the password on /login, a professional gets "Check your email" and signs in
+ * with the emailed link (user, 2026-09-29). Locally no email goes out, so this asks
+ * Supabase for a fresh link for the same login (it replaces the emailed one) and opens
+ * it with the login page's `next`, as clicking the email would.
+ */
+export async function finishEmailedSignIn(
+  page: Page,
+  admin: SupabaseClient,
+  email: string,
+): Promise<void> {
+  await expect(page.getByRole("heading", { name: /Check your email/i })).toBeVisible({
+    timeout: 20_000,
+  });
+  const next = new URL(page.url()).searchParams.get("next");
+  const { data, error } = await admin.auth.admin.generateLink({ type: "magiclink", email });
+  const tokenHash = data?.properties?.hashed_token;
+  if (error || !tokenHash) throw new Error(`sign-in link: ${error?.message ?? "no token"}`);
+  const params = new URLSearchParams({ token_hash: tokenHash });
+  if (next) params.set("next", next);
+  await page.goto(`/auth/sign-in-link?${params.toString()}`);
+}
+
+/**
  * Sign in the way a doctor does from the verified-account email: open the
  * login URL from the message, fill the form, land on `next` (usually /agenda).
  */
