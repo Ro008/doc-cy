@@ -12,9 +12,15 @@ export type RegisterContactTakenDetail = { email: string | null; mobile: string 
  * professional's, shows the answer on the fields, and returns true when the step
  * must stop. A failed check lets the applicant continue: the submit checks again.
  */
+function readContact(form: HTMLFormElement): { email: string; mobile: string } {
+  return {
+    email: form.querySelector<HTMLInputElement>("input[name='email']")?.value.trim() ?? "",
+    mobile: form.querySelector<HTMLInputElement>("input[name='phone']")?.value.trim() ?? "",
+  };
+}
+
 export async function registerContactBlocksAccountStep(form: HTMLFormElement): Promise<boolean> {
-  const email = form.querySelector<HTMLInputElement>("input[name='email']")?.value.trim() ?? "";
-  const mobile = form.querySelector<HTMLInputElement>("input[name='phone']")?.value.trim() ?? "";
+  const { email, mobile } = readContact(form);
   if (!email && !mobile) return false;
 
   let messages: RegisterContactTakenDetail;
@@ -34,6 +40,11 @@ export async function registerContactBlocksAccountStep(form: HTMLFormElement): P
   } catch {
     return false;
   }
+
+  // Edited while checking: this answer is about the old values. Stay on the step;
+  // the next Continue checks what the fields hold now.
+  const now = readContact(form);
+  if (now.email !== email || now.mobile !== mobile) return true;
 
   form.dispatchEvent(
     new CustomEvent<RegisterContactTakenDetail>(REGISTER_CONTACT_TAKEN_EVENT, { detail: messages }),

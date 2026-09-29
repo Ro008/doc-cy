@@ -5,6 +5,8 @@ import { PendingLink } from "@/components/navigation/PendingLink";
 import { emitOpenFeedback } from "@/lib/doccy-feedback";
 import { formatFinderRequestBadgeLabel } from "@/lib/finder-booking-request-stats";
 import { registerClaimPath } from "@/lib/claim-directory-professional";
+import { canClaimListing } from "@/lib/register-gate";
+import { useDoctorSession } from "@/components/navigation/DoctorSessionProvider";
 
 export function ManualDirectoryMonthlyRequestBadge({
   monthlyRequestCount,
@@ -79,7 +81,11 @@ export function ManualDirectoryReportIncorrectInfoLink({
   );
 }
 
-/** High-visibility claim prompt for the listed professional, so an unclaimed profile is unmistakable. */
+/**
+ * High-visibility claim prompt for the listed professional, so an unclaimed profile is unmistakable.
+ * Never offered to a signed-in professional: she already has a profile (bug, 2026-09-29). Until her
+ * session loads, the professional hint hides it from first paint (`globals.css`).
+ */
 export function ManualDirectoryDoctorClaimFooter({
   professionalId,
   className = "",
@@ -87,8 +93,15 @@ export function ManualDirectoryDoctorClaimFooter({
   professionalId: string;
   className?: string;
 }) {
+  const { sessionState } = useDoctorSession();
+  if (!canClaimListing(sessionState.accountKind)) return null;
+
   return (
-    <div className={`text-left ${className}`}>
+    <div
+      className={`text-left ${className}`}
+      data-testid="listing-claim-profile"
+      data-doccy-claim-footer={sessionState.accountKind === null ? "pending" : "shown"}
+    >
       <PendingLink
         href={registerClaimPath(professionalId)}
         className="inline-block rounded-lg border border-clinical-300 bg-clinical-50 px-3 py-1.5 text-[11px] leading-snug transition hover:border-clinical-400 hover:bg-clinical-100"

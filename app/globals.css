@@ -94,6 +94,11 @@ html[data-doccy-pro-chrome="1"]:not([data-doccy-pro-chrome-hydrated]) #doccy-pro
   }
 }
 
+/* "Claim this Profile" on listing cards: hidden for a professional before her session loads. */
+html[data-doccy-pro-chrome="1"] [data-doccy-claim-footer="pending"] {
+  display: none;
+}
+
 body {
   @apply bg-ink-50 text-ink-800 antialiased;
 }
