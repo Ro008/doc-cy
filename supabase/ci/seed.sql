@@ -65,7 +65,7 @@ with
   ins_pros as (
     insert into public.professionals (
       id, name, slug, district, town, phone, languages, is_gesy, address, latitude, longitude,
-      clinic_id, finder_visible, is_archived, is_registered, has_online_booking, is_test_profile
+      clinic_id, finder_visible, is_archived, is_registered, is_test_profile
     )
     select
       professional_id,
@@ -80,7 +80,7 @@ with
       lat + seq * 0.001,
       lng + seq * 0.001,
       clinic_id,
-      true, false, false, false, false
+      true, false, false, false
     from people
     where clinic_id in (select id from ins_clinics)
     returning id

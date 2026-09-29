@@ -59,7 +59,7 @@ async function seed(admin: SupabaseClient, tag: string): Promise<Seeded> {
       status: "verified",
       slug: `d3a-${tag}-${n}`,
       is_registered: true,
-      has_online_booking: true,
+      pro_access_until: new Date(Date.now() + 180 * 86_400_000).toISOString(),
       finder_visible: false,
       is_archived: false,
       is_test_profile: true,

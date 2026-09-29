@@ -37,7 +37,6 @@ export async function createQaClaimDirectoryClone(
       latitude: 35.1856,
       longitude: 33.3823,
       is_registered: false,
-      has_online_booking: false,
       finder_visible: true,
       is_archived: false,
       is_test_profile: true,

@@ -14,6 +14,7 @@ import {
 } from "react";
 import { usePathname } from "next/navigation";
 
+import type { AccountKind, AccountSummary } from "@/lib/account-summary";
 import { hasBrowserAuthHint } from "@/lib/browser-auth-hint";
 import { isProfessionalMarketingPath } from "@/lib/finder-public-path";
 import { needsSupabaseSessionMiddleware } from "@/lib/needs-supabase-session-middleware";
@@ -32,6 +33,13 @@ export type DoctorSessionState = {
   doctorSlug: string | null;
   doctorName: string | null;
   avatarUrl: string | null;
+  /**
+   * professional = a profile exists (full menu); applicant / none = not approved yet
+   * (Support and Log out only). null while unknown.
+   */
+  accountKind: AccountKind | null;
+  /** The avatar is a short-lived private link (an applicant's upload): not for next/image. */
+  avatarIsPrivate: boolean;
 };
 
 export const LOGGED_OUT_DOCTOR_SESSION: DoctorSessionState = {
@@ -40,7 +48,20 @@ export const LOGGED_OUT_DOCTOR_SESSION: DoctorSessionState = {
   doctorSlug: null,
   doctorName: null,
   avatarUrl: null,
+  accountKind: null,
+  avatarIsPrivate: false,
 };
+
+/** The account behind a login without a profile (applicant or none), via the service role. */
+async function fetchAccountSummary(): Promise<AccountSummary | null> {
+  try {
+    const response = await fetch("/api/account/summary", { cache: "no-store" });
+    if (!response.ok) return null;
+    return (await response.json()) as AccountSummary;
+  } catch {
+    return null;
+  }
+}
 
 type DoctorSessionContextValue = {
   sessionState: DoctorSessionState;
@@ -104,9 +125,6 @@ export function DoctorSessionProvider({ children }: { children: ReactNode }) {
           return;
         }
 
-        writeProSessionHintCookie();
-        setHintChrome(true);
-
         const { data: doctorRow } = await client
           .from("professionals")
           .select("slug, name, avatar_url")
@@ -114,6 +132,27 @@ export function DoctorSessionProvider({ children }: { children: ReactNode }) {
           .maybeSingle();
 
         if (!isActive) return;
+
+        if (!doctorRow) {
+          // Not approved yet (or nothing at all): no professional chrome before the
+          // page loads next time, and the menu offers only Support and Log out.
+          clearProSessionHintCookie();
+          const summary = await fetchAccountSummary();
+          if (!isActive) return;
+          setSessionState({
+            isLoggedIn: true,
+            email: user.email ?? null,
+            doctorSlug: null,
+            doctorName: summary?.name ?? null,
+            avatarUrl: summary?.photoUrl ?? null,
+            accountKind: summary?.kind ?? null,
+            avatarIsPrivate: Boolean(summary?.photoUrl),
+          });
+          return;
+        }
+
+        writeProSessionHintCookie();
+        setHintChrome(true);
 
         const avatarPath = String(
           (doctorRow as { avatar_url?: string | null } | null)?.avatar_url ?? "",
@@ -128,6 +167,8 @@ export function DoctorSessionProvider({ children }: { children: ReactNode }) {
           doctorSlug: typeof doctorRow?.slug === "string" ? doctorRow.slug : null,
           doctorName: typeof doctorRow?.name === "string" ? doctorRow.name : null,
           avatarUrl,
+          accountKind: "professional",
+          avatarIsPrivate: false,
         });
       }
 

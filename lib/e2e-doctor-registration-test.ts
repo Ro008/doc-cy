@@ -18,6 +18,10 @@ export const E2E_REGISTER_CLINIC_LOCATION = {
   placeId: "e2e-register-clinic-nicosia",
   district: "Nicosia" as const,
   town: "Nicosia",
+  /** Registration requires a clinic name for Google / pin clinics. */
+  name: "Register E2E Clinic",
+  /** …and its phone (a Cyprus landline or mobile). */
+  phone: "22 123456",
 };
 
 export function e2eRegisterHooksEnabled(): boolean {

@@ -1,4 +1,3 @@
-import path from "node:path";
 import { expect, test } from "@playwright/test";
 
 import {
@@ -12,7 +11,13 @@ import {
   createIntegrationAdmin,
   requireSafeIntegration,
 } from "./helpers/safe-integration";
-import { selectRegisterEnglishLanguage } from "./helpers/goto-register-practice-step";
+import {
+  answerRegisterAccountChoices,
+  selectRegisterEnglishLanguage,
+  uploadRegisterAvatar,
+  waitForRegisterWizardReady,
+  uniqueRegisterTestMobile,
+} from "./helpers/goto-register-practice-step";
 import { INTEGRATION_DOCTOR_PASSWORD } from "./helpers/test-doctor";
 
 /**
@@ -22,7 +27,7 @@ import { INTEGRATION_DOCTOR_PASSWORD } from "./helpers/test-doctor";
  */
 test.describe("Integration: doctor registration flow", { tag: "@local-register" }, () => {
   test.describe.configure({ retries: 0 });
-  test("submits the register form, fires doctor confirm email first, then founder after confirm", async ({
+  test("submits the register form, fires doctor confirm email first, then founders after confirm", async ({
     page,
   }) => {
     test.setTimeout(180_000);
@@ -30,7 +35,8 @@ test.describe("Integration: doctor registration flow", { tag: "@local-register" 
     const admin = createIntegrationAdmin(env);
     const nonce = `${Date.now()}`;
     const firstName = "Register";
-    const lastName = `E2E ${nonce}`;
+    // Names take letters only ("Register Etoe" is a test-profile prefix); spell the nonce.
+    const lastName = `Etoe ${nonce.replace(/\d/g, (digit) => "abcdefghij"[Number(digit)]!)}`;
     const fullName = `${firstName} ${lastName}`;
     const email = `rociosirvent+rege2e${nonce}@gmail.com`;
     const resendKey = process.env.RESEND_API_KEY?.trim() ?? "";
@@ -47,10 +53,11 @@ test.describe("Integration: doctor registration flow", { tag: "@local-register" 
       await page.goto("/register", { waitUntil: "domcontentloaded" });
       await dismissCookieConsentIfPresent(page);
       await expect(
-        page.getByRole("heading", { name: /List your practice on DocCy/i }),
+        page.getByRole("heading", { name: /Join DocCy in 3 steps/i }),
       ).toBeVisible({ timeout: 20_000 });
       // Wait for the client form wrapper to hydrate before filling uncontrolled inputs.
       await expect(page.getByTestId("register-wizard-continue")).toBeVisible({ timeout: 20_000 });
+      await waitForRegisterWizardReady(page);
 
       await page.locator("#register-form input[name='firstName']").fill(firstName);
       await page.locator("#register-form input[name='lastName']").fill(lastName);
@@ -63,8 +70,9 @@ test.describe("Integration: doctor registration flow", { tag: "@local-register" 
         input.dispatchEvent(new Event("input", { bubbles: true }));
         input.dispatchEvent(new Event("change", { bubbles: true }));
       });
-      await page.locator("#register-form input[name='phone']").fill("+35799123456");
-      for (const key of ["firstName", "lastName", "email", "password", "phone"]) {
+      await page.getByTestId("register-phone-input").fill(uniqueRegisterTestMobile());
+      await answerRegisterAccountChoices(page);
+      for (const key of ["firstName", "lastName", "email", "password", "phone", "gender", "gesy"]) {
         await expect(
           page.locator(`[data-register-step='1'] [data-field-key='${key}']`),
         ).toHaveAttribute("data-complete", "1", { timeout: 10_000 });
@@ -72,12 +80,7 @@ test.describe("Integration: doctor registration flow", { tag: "@local-register" 
       await page.getByTestId("register-wizard-continue").click();
 
       await expect(page.getByTestId("register-step-2")).toBeVisible({ timeout: 15_000 });
-      const avatarPath = path.join(process.cwd(), "tests", "fixtures", "e2e-person-avatar.jpg");
-      await page.getByTestId("register-avatar-file-input").setInputFiles(avatarPath);
-      const confirmCrop = page.getByRole("button", { name: /Confirm crop/i });
-      await expect(confirmCrop).toBeVisible({ timeout: 10_000 });
-      await confirmCrop.click();
-      await expect(page.getByText(/Ready for submission/i)).toBeVisible({ timeout: 15_000 });
+      await uploadRegisterAvatar(page);
 
       await selectRegisterEnglishLanguage(page);
       await page.getByTestId("register-wizard-continue").click();
@@ -124,24 +127,19 @@ test.describe("Integration: doctor registration flow", { tag: "@local-register" 
       ).toBeVisible({ timeout: 15_000 });
       await expect(overlay).toBeHidden();
 
-      const { data: byRegistration, error: regErr } = await admin
-        .from("professionals")
-        .select("id, email, registration_email, is_test_profile, status")
-        .eq("registration_email", email)
+      // Submitting stores a draft for review; no professional exists until approval.
+      const { data: draft, error: draftErr } = await admin
+        .from("request_drafts")
+        .select("details")
+        .eq("requester_email", email)
         .maybeSingle();
-      if (regErr) throw new Error(`Failed reading registered doctor: ${regErr.message}`);
-      let doctor = byRegistration;
-      if (!doctor?.id) {
-        const { data: byEmail, error: emailErr } = await admin
-          .from("professionals")
-          .select("id, email, registration_email, is_test_profile, status")
-          .eq("email", email)
-          .maybeSingle();
-        if (emailErr) throw new Error(`Failed reading registered doctor: ${emailErr.message}`);
-        doctor = byEmail;
-      }
-      expect(doctor?.id).toBeTruthy();
-      expect(doctor?.is_test_profile).toBe(true);
+      if (draftErr) throw new Error(`Failed reading registration draft: ${draftErr.message}`);
+      expect((draft?.details as { last_name?: string } | undefined)?.last_name).toBe(lastName);
+      const { count: professionalCount } = await admin
+        .from("professionals")
+        .select("id", { count: "exact", head: true })
+        .ilike("registration_email", email);
+      expect(professionalCount).toBe(0);
 
       if (canAssertResend) {
         const receivedMail = await waitForResendEmailWithSubject({
@@ -165,7 +163,7 @@ test.describe("Integration: doctor registration flow", { tag: "@local-register" 
           subjectIncludes: fullName,
           timeoutMs: 30_000,
         });
-        expect(founderMail.subject).toMatch(/Unclaimed registration/i);
+        expect(founderMail.subject).toMatch(/\[UNCLAIMED PROFILE\] Registration request/);
       }
     } finally {
       await deleteRegistrationE2eDoctor(admin, email);

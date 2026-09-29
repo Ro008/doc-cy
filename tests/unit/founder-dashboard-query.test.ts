@@ -55,6 +55,8 @@ describe("parseFounderDashboardQuery", () => {
     });
     assert.equal(q.callToBookRange, "30d");
     assert.match(founderDirectoryHref(q), /callToBookRange=30d/);
+    // These links live on the Statistics tab and must stay there.
+    assert.match(founderDirectoryHref(q), /[?&]tab=statistics(&|$)/);
     assert.doesNotMatch(founderDirectoryHref(q), /visitsRange=/);
   });
 

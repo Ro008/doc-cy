@@ -36,6 +36,33 @@ import {
   UserRound,
 } from "lucide-react";
 
+function UserAvatar({
+  url,
+  isPrivate,
+  initials,
+  sizes,
+}: {
+  url: string | null;
+  isPrivate: boolean;
+  initials: string;
+  sizes: string;
+}) {
+  if (url && isPrivate) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element -- short-lived signed link to a private upload
+      <img src={url} alt="Your photo" className="h-full w-full object-cover" />
+    );
+  }
+  if (url) {
+    return <Image src={url} alt="Doctor avatar" fill sizes={sizes} className="object-cover" />;
+  }
+  return (
+    <div className="flex h-full w-full items-center justify-center text-xs font-semibold text-clinical-200">
+      {initials}
+    </div>
+  );
+}
+
 function getInitials(name: string | null): string {
   if (!name) return "DC";
   const parts = name.trim().split(/\s+/);
@@ -59,12 +86,14 @@ function mobileTabIcon(id: DoctorNavTabId) {
 
 function AccountHeader({
   avatarUrl,
+  avatarIsPrivate,
   initials,
   name,
   email,
   "data-testid": testId,
 }: {
   avatarUrl: string | null | undefined;
+  avatarIsPrivate: boolean;
   initials: string;
   name: string | null | undefined;
   email: string | null | undefined;
@@ -73,13 +102,12 @@ function AccountHeader({
   return (
     <div data-testid={testId} className="flex items-center gap-3 px-3 py-2.5">
       <div className="relative h-9 w-9 overflow-hidden rounded-full bg-ink-800">
-        {avatarUrl ? (
-          <Image src={avatarUrl} alt="Doctor avatar" fill sizes="40px" className="object-cover" />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center text-xs font-semibold text-clinical-200">
-            {initials}
-          </div>
-        )}
+        <UserAvatar
+          url={avatarUrl ?? null}
+          isPrivate={avatarIsPrivate}
+          initials={initials}
+          sizes="40px"
+        />
       </div>
       <div className="min-w-0 flex-1">
         <p className="truncate text-xs font-medium text-ink-50">{name ?? "Logged in"}</p>
@@ -205,7 +233,9 @@ export function UserBar() {
     pathname === "/reset-password" ||
     pathname.startsWith("/reset-password/") ||
     isDistractionFreeDoctorFlow ||
-    isAccountReviewGate;
+    isAccountReviewGate ||
+    // The founders' dashboard has its own header and sign-out.
+    pathname.startsWith("/internal");
 
   const pendingCount = usePendingRequestsCount(!hideChrome && sessionState.isLoggedIn, pathname);
   const tabBadges: Partial<Record<DoctorNavTabId, string | null>> = {
@@ -222,6 +252,9 @@ export function UserBar() {
   }
 
   const initials = getInitials(sessionState.doctorName);
+  // Until founders approve the profile (an applicant, or an account with nothing),
+  // the menu offers only Support and Log out (user, 2026-09-28).
+  const supportOnly = sessionState.isLoggedIn && sessionState.accountKind !== "professional";
   const slug = sessionState.doctorSlug?.trim() || null;
   const publicProfilePath = slug ? publicProfessionalProfilePath(slug) : null;
 
@@ -254,19 +287,12 @@ export function UserBar() {
         className="inline-flex items-center gap-2 rounded-full border border-clinical-400/45 bg-ink-900/90 px-1.5 py-1 shadow-sm shadow-ink-900/40 transition hover:border-clinical-300/80"
       >
         <div className="relative h-8 w-8 overflow-hidden rounded-full bg-ink-800 sm:h-9 sm:w-9">
-          {sessionState.avatarUrl ? (
-            <Image
-              src={sessionState.avatarUrl}
-              alt="Doctor avatar"
-              fill
-              sizes="36px"
-              className="object-cover"
-            />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center text-xs font-semibold text-clinical-200">
-              {initials}
-            </div>
-          )}
+          <UserAvatar
+            url={sessionState.avatarUrl}
+            isPrivate={sessionState.avatarIsPrivate}
+            initials={initials}
+            sizes="36px"
+          />
         </div>
         <UserRound className="hidden h-4 w-4 text-clinical-200/90 sm:inline" aria-hidden />
         <span className="sr-only">Open user menu</span>
@@ -280,11 +306,14 @@ export function UserBar() {
         >
           <AccountHeader
             avatarUrl={sessionState.avatarUrl}
+            avatarIsPrivate={sessionState.avatarIsPrivate}
             initials={initials}
             name={sessionState.doctorName}
             email={sessionState.email}
           />
 
+          {supportOnly ? null : (
+          <>
           <UserMenuNavLink
             href="/agenda?manual=1"
             title="Took a phone call? Block the slot manually here. Next time, share your link to save time."
@@ -301,6 +330,8 @@ export function UserBar() {
           >
             Promote Your Practice
           </UserMenuNavLink>
+          </>
+          )}
           <button
             type="button"
             onClick={handleOpenSupport}
@@ -311,7 +342,7 @@ export function UserBar() {
             <LifeBuoy className="h-4 w-4 text-clinical-300" aria-hidden />
             Support
           </button>
-          {slug ? (
+          {slug && !supportOnly ? (
             <UserMenuNavLink
               href={publicProfilePath!}
               data-testid="userbar-link-public-profile"
@@ -392,6 +423,7 @@ export function UserBar() {
           >
             <AccountHeader
               avatarUrl={sessionState.avatarUrl}
+              avatarIsPrivate={sessionState.avatarIsPrivate}
               initials={initials}
               name={sessionState.doctorName}
               email={sessionState.email}
@@ -406,6 +438,29 @@ export function UserBar() {
             />
           </div>
         ) : null}
+        {supportOnly ? (
+          <div className="relative mx-auto flex max-w-2xl items-stretch justify-between gap-0 px-1 pt-0.5">
+            <button
+              type="button"
+              data-testid="userbar-tab-support"
+              onClick={handleOpenSupport}
+              className={`${tabBaseClass} ${tabInactiveClass}`}
+            >
+              <LifeBuoy className="h-5 w-5 shrink-0 sm:h-[1.35rem] sm:w-[1.35rem]" aria-hidden />
+              <span>Support</span>
+            </button>
+            <button
+              type="button"
+              data-testid="userbar-tab-logout"
+              onClick={handleLogout}
+              disabled={isSigningOut}
+              className={`${tabBaseClass} text-red-200 hover:text-red-100 disabled:opacity-70`}
+            >
+              <LogOut className="h-5 w-5 shrink-0 sm:h-[1.35rem] sm:w-[1.35rem]" aria-hidden />
+              <span>{isSigningOut ? "Logging out..." : "Log out"}</span>
+            </button>
+          </div>
+        ) : (
         <div className="relative mx-auto flex max-w-2xl items-stretch justify-between gap-0 px-1 pt-0.5">
           {DOCTOR_NAV_TABS.map((tab) => (
             <MobileTabNavLink
@@ -438,6 +493,7 @@ export function UserBar() {
             </button>
           </div>
         </div>
+        )}
       </nav>
     </>
   );

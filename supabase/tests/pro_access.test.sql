@@ -24,29 +24,10 @@ exception
 end
 $f$;
 
-create or replace function pg_temp.new_login()
-returns uuid
-language plpgsql
-as $f$
-declare
-  v_u uuid := gen_random_uuid();
-begin
-  -- Registered professionals need a login (professionals_registered_requires_auth).
-  insert into auth.users (id, instance_id, aud, role, email, created_at, updated_at)
-  values (v_u, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
-          'pro-access-' || v_u || '@integration.test', now(), now());
-  return v_u;
-end
-$f$;
-
 do $test$
 declare
   v_checks int := 0;
   v_months int;
-  v_pro uuid;
-  v_until timestamptz;
-  v_expected timestamptz;
-  v_tag text := 'pro-access-' || substr(md5(random()::text), 1, 8);
 begin
   -- 1. The setting exists and defaults to six months.
   select (value #>> '{}')::int into v_months from public.app_settings where key = 'trial_months';
@@ -76,65 +57,11 @@ begin
   if not (select relrowsecurity from pg_class where oid = 'public.app_settings'::regclass) then
     raise exception 'FAIL: app_settings must have RLS enabled';
   end if;
-  if has_function_privilege('anon', 'public.professionals_default_pro_access_until()', 'EXECUTE')
-     or has_function_privilege('authenticated', 'public.professionals_default_pro_access_until()', 'EXECUTE') then
-    raise exception 'FAIL: the trigger function must not be callable by anon/authenticated';
-  end if;
-  v_checks := v_checks + 3;
-
-  -- 4. A new registered professional with online booking gets now + trial months
-  --    on the Cyprus calendar.
-  insert into public.professionals (auth_user_id, name, slug, is_registered, has_online_booking, status, is_test_profile)
-  values (pg_temp.new_login(), 'Pro Access ' || v_tag, v_tag || '-a', true, true, 'verified', true)
-  returning id, pro_access_until into v_pro, v_until;
-  v_expected := ((now() at time zone 'Asia/Nicosia') + make_interval(months => 6)) at time zone 'Asia/Nicosia';
-  if v_until is distinct from v_expected then
-    raise exception 'FAIL: expected pro_access_until %, got %', v_expected, v_until;
-  end if;
-  v_checks := v_checks + 1;
-
-  -- 5. An explicit date is kept (the registration approval will set its own).
-  insert into public.professionals (auth_user_id, name, slug, is_registered, has_online_booking, status, is_test_profile, pro_access_until)
-  values (pg_temp.new_login(), 'Pro Access ' || v_tag, v_tag || '-b', true, true, 'verified', true, '2030-01-01T00:00:00Z')
-  returning pro_access_until into v_until;
-  if v_until is distinct from '2030-01-01T00:00:00Z'::timestamptz then
-    raise exception 'FAIL: an explicit pro_access_until must be kept, got %', v_until;
-  end if;
-  v_checks := v_checks + 1;
-
-  -- 6. Listings and professionals without online booking get nothing.
-  insert into public.professionals (name, slug, is_registered, has_online_booking, is_test_profile)
-  values ('Pro Access ' || v_tag, v_tag || '-c', false, false, true)
-  returning pro_access_until into v_until;
-  if v_until is not null then
-    raise exception 'FAIL: a listing must not get pro access, got %', v_until;
-  end if;
-  insert into public.professionals (auth_user_id, name, slug, is_registered, has_online_booking, status, is_test_profile)
-  values (pg_temp.new_login(), 'Pro Access ' || v_tag, v_tag || '-d', true, false, 'verified', true)
-  returning pro_access_until into v_until;
-  if v_until is not null then
-    raise exception 'FAIL: no online booking must mean no pro access, got %', v_until;
-  end if;
   v_checks := v_checks + 2;
 
-  -- 7. No trial (0 months) means no access.
-  update public.app_settings set value = '0' where key = 'trial_months';
-  insert into public.professionals (auth_user_id, name, slug, is_registered, has_online_booking, status, is_test_profile)
-  values (pg_temp.new_login(), 'Pro Access ' || v_tag, v_tag || '-e', true, true, 'verified', true)
-  returning pro_access_until into v_until;
-  if v_until is not null then
-    raise exception 'FAIL: 0 trial months must give no access, got %', v_until;
-  end if;
-  v_checks := v_checks + 1;
-
-  -- 8. Only inserts are touched: an update leaves the date alone.
-  update public.professionals set pro_access_until = null where id = v_pro;
-  update public.professionals set name = name || ' (edited)' where id = v_pro;
-  select pro_access_until into v_until from public.professionals where id = v_pro;
-  if v_until is not null then
-    raise exception 'FAIL: an update must not set pro_access_until, got %', v_until;
-  end if;
-  v_checks := v_checks + 1;
+  -- (The transitional default trigger that set pro_access_until on insert was dropped
+  --  in *_remove_old_registration_path: approvals set it themselves, see
+  --  request_approval.test.sql. old_registration_path_removed.test.sql checks it's gone.)
 
   raise exception 'ALL pro_access TESTS PASSED (% checks)', v_checks;
 end

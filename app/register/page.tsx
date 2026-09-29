@@ -1,5 +1,9 @@
 import { redirect } from "next/navigation";
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
+import {
+  createServerActionClient,
+  createServerComponentClient,
+} from "@supabase/auth-helpers-nextjs";
 import { createServiceRoleClient } from "@/lib/supabase-service";
 import { PasswordToggleInput } from "@/components/auth/PasswordToggleInput";
 import { RegisterSpecialtyFields } from "@/components/auth/RegisterSpecialtyFields";
@@ -10,16 +14,23 @@ import { RegisterFormValidation } from "@/components/auth/RegisterFormValidation
 import { RegisterFormSubmitFeedback } from "@/components/auth/RegisterFormSubmitFeedback";
 import { RegisterWizard, RegisterWizardStep } from "@/components/auth/RegisterWizard";
 import {
+  REGISTER_SETUP_CALL_ID,
+  RegisterFaqSection,
   RegisterIntroSection,
-  RegisterSecondarySections,
+  RegisterNextSteps,
+  RegisterPlanTicket,
+  RegisterSetupCallCard,
   RegisterSubmittedPanel,
 } from "@/components/register/RegisterMarketingSections";
+import { RegisterShowcase } from "@/components/register/RegisterShowcase";
+import { RegisterSubmittedReveal } from "@/components/register/RegisterSubmittedReveal";
+import { DocCyWordmark } from "@/components/brand/DocCyWordmark";
+import { getFoundersAvailability, type FoundersAvailability } from "@/lib/founders-club";
+import { registerPlanTicket } from "@/lib/register-plan-ticket";
 import {
   registerFieldErrorClass,
-  registerHelperClass,
   registerInputClass,
   registerLabelClass,
-  registerSectionShell,
 } from "@/lib/register-ui";
 import { validateLanguageSelection } from "@/lib/cyprus-languages";
 import {
@@ -37,21 +48,32 @@ import {
 } from "@/lib/local-test-login-credentials";
 import {
   readRegisterClinicsFromFormData,
+  registerClinicInputNames,
   shouldAllowRegisterClinicE2eFallback,
 } from "@/lib/register-clinic-location";
-import { RegisterClinicAddressField } from "@/components/auth/RegisterClinicAddressField";
-import { allocateUniqueDoctorSlug } from "@/lib/doctor-slug";
+import {
+  PROFESSIONAL_REGISTRATION_DETAILS_VERSION,
+  PROFESSIONAL_REGISTRATION_REQUEST_TYPE,
+  REGISTRATION_UPLOADS_BUCKET,
+  buildProfessionalRegistrationDetails,
+  registrationPhotoPath,
+  registrationRequesterName,
+} from "@/lib/professional-registration-request";
+import { RegisterClinicsFields } from "@/components/auth/RegisterClinicsFields";
+import { RegisterChoiceField } from "@/components/auth/RegisterChoiceField";
+import { RegisterPhoneField } from "@/components/auth/RegisterPhoneField";
+import { RegisterEmailField } from "@/components/auth/RegisterEmailField";
+import { RegisterPasswordRules } from "@/components/auth/RegisterPasswordRules";
+import { REGISTER_NAME_HTML_PATTERN } from "@/lib/register-name";
 import {
   joinProfessionalFullName,
   splitProfessionalFullName,
 } from "@/lib/doctor-display-name";
 import { MAX_DOCTOR_LOCATIONS } from "@/lib/doctor-locations";
-import { clinicLocationFromParts } from "@/lib/clinic-location";
 import {
   PASSWORD_MAX_LENGTH,
   PASSWORD_MIN_LENGTH,
   PASSWORD_POLICY_ERROR,
-  PASSWORD_POLICY_HELPER,
   PASSWORD_POLICY_HTML_PATTERN,
   PASSWORD_POLICY_TITLE,
   isStrongPassword,
@@ -60,12 +82,22 @@ import {
   isProfessionalUuid,
   loadUnregisteredProfessionalForRegisterClaim,
   REGISTER_CLAIM_QUERY,
-  resolveSignupDirectoryClaim,
+  resolveRegisterClaimListing,
   type RegisterClaimPrefill,
 } from "@/lib/claim-directory-professional";
 import { isNextRedirectError } from "@/lib/next-redirect-error";
 import { withTimeout } from "@/lib/promise-timeout";
 import { createClient } from "@supabase/supabase-js";
+import { reapplyStateForUser } from "@/lib/registration-reapply";
+import { confirmRegistrationDraft } from "@/lib/registration-draft-confirm";
+import { REGISTRATION_STATUS_PATH } from "@/lib/registration-status";
+import { checkProfessionalContact } from "@/lib/professional-contact-check";
+import {
+  REGISTER_ACCOUNT_EXISTS_MESSAGE,
+  REGISTER_EMAIL_IN_USE_MESSAGE,
+  REGISTER_MOBILE_IN_USE_MESSAGE,
+  registrationContactErrorCode,
+} from "@/lib/professional-contact";
 
 type PageProps = {
   searchParams?: {
@@ -84,6 +116,23 @@ const REGISTER_AUTH_TIMEOUT_MS = 20_000;
 const REGISTER_UPLOAD_TIMEOUT_MS = 20_000;
 const REGISTER_DB_TIMEOUT_MS = 20_000;
 const REGISTER_NOTIFY_TIMEOUT_MS = 12_000;
+const REGISTER_FOUNDERS_TIMEOUT_MS = 5_000;
+
+/** Price ticket data; on a slow or failed count, show standard pricing rather than oversell. */
+async function loadRegisterFoundersAvailability(): Promise<
+  Pick<FoundersAvailability, "offerAvailable" | "spotsRemaining">
+> {
+  try {
+    return await withTimeout(
+      getFoundersAvailability(),
+      REGISTER_FOUNDERS_TIMEOUT_MS,
+      "founders availability",
+    );
+  } catch (err) {
+    console.error("[DocCy] register page: founders availability failed", err);
+    return { offerAvailable: false, spotsRemaining: 0 };
+  }
+}
 
 function createRegisterAuthClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
@@ -218,6 +267,19 @@ async function runRegister(formData: FormData) {
     "";
   const email = (formData.get("email") as string | null)?.trim() || "";
   const password = (formData.get("password") as string | null) || "";
+
+  // Signed in after a denial or a withdrawal: apply again with the same login.
+  const reapplyService = createServiceRoleClient();
+  const sessionUser = reapplyService
+    ? (await createServerActionClient({ cookies }).auth.getUser()).data.user
+    : null;
+  const reapplyState =
+    reapplyService && sessionUser ? await reapplyStateForUser(reapplyService, sessionUser) : null;
+  if (reapplyState?.kind === "pending") redirect(REGISTRATION_STATUS_PATH);
+  const reapply =
+    reapplyState?.kind === "reapply" && reapplyState.email.toLowerCase() === email.toLowerCase()
+      ? reapplyState
+      : null;
   const phone = (formData.get("phone") as string | null)?.trim() || "";
   const avatarFile = formData.get("avatarFile") as File | null;
   const professionalDisclaimer = formData.get("professionalDisclaimer");
@@ -278,7 +340,7 @@ async function runRegister(formData: FormData) {
     !lastName ||
     !fullName ||
     !email ||
-    !password ||
+    (!reapply && !password) ||
     !phone ||
     !avatarFile ||
     professionalDisclaimer !== "on"
@@ -286,23 +348,13 @@ async function runRegister(formData: FormData) {
     fail("validation");
   }
 
-  if (!isStrongPassword(password)) {
+  if (!reapply && !isStrongPassword(password)) {
     fail("password_policy");
   }
 
   if (clinicsResolved.ok === false) {
     fail(clinicsResolved.code);
   }
-
-  const {
-    clinicAddress,
-    district,
-    town,
-    latitude: clinicLatitude,
-    longitude: clinicLongitude,
-    clinicPlaceId,
-  } = clinicsResolved.value[0]!;
-  const extraClinics = clinicsResolved.value.slice(1);
 
   if (!emailRegex.test(email)) {
     fail("invalid_email_format");
@@ -330,13 +382,65 @@ async function runRegister(formData: FormData) {
     fail("avatar_file");
   }
 
+  // Gender, GeSY and clinic names/ids are checked before any login exists
+  // (the photo path is only known once it does).
+  const clinicChoices = clinicsResolved.value.map((clinic, index) => {
+    const names = registerClinicInputNames(index);
+    return {
+      ...clinic,
+      clinicId: formData.get(names.clinicId),
+      name: formData.get(names.name),
+      phone: formData.get(names.phone),
+    };
+  });
+  const detailsInput = {
+    firstName,
+    lastName,
+    gender: String(formData.get("gender") ?? ""),
+    gesy: String(formData.get("gesy") ?? ""),
+    email,
+    mobile: phone,
+    languages,
+    photoPath: "pending",
+    specialties: specialtyEntries,
+    clinics: clinicChoices,
+    claimedProfessionalId: claimFromForm,
+    disclaimerAccepted: professionalDisclaimer === "on",
+  };
+  const precheck = buildProfessionalRegistrationDetails(detailsInput);
+  if (precheck.ok === false) {
+    fail(precheck.code);
+  }
+
   const service = createServiceRoleClient();
   if (!service) {
     console.error("[DocCy] SUPABASE_SERVICE_ROLE_KEY missing — cannot complete registration safely");
     fail("db", "SUPABASE_SERVICE_ROLE_KEY missing");
   }
 
-  const licenseFileUrl = null;
+  // The email and personal mobile belong to one real professional each. The form
+  // asked at the Account step; this is the barrier (the browser check can be skipped,
+  // or the number taken in the meantime). Test profiles never block.
+  const contactUse = await withTimeout(
+    checkProfessionalContact(service, {
+      email,
+      mobile: phone,
+      applicantAuthUserId: reapply?.authUserId ?? null,
+    }),
+    REGISTER_DB_TIMEOUT_MS,
+    "Contact check",
+  );
+  const contactError = registrationContactErrorCode(contactUse);
+  if (contactError) {
+    fail(contactError);
+  }
+
+  // "Claim this Profile" keeps the listing only while it is still unregistered;
+  // otherwise founders search the directory themselves. No automatic matching.
+  const claimedListing = await resolveRegisterClaimListing(service, {
+    claimId: claimFromForm,
+    email,
+  });
 
   let authUserId: string;
 
@@ -348,12 +452,15 @@ async function runRegister(formData: FormData) {
       : {}),
   };
 
-  if (shouldUseAdminAuthForAutomatedRegistration(email)) {
+  if (reapply) {
+    authUserId = reapply.authUserId;
+  } else if (shouldUseAdminAuthForAutomatedRegistration(email)) {
     const { data: adminData, error: adminError } = await withTimeout(
       service.auth.admin.createUser({
         email,
         password,
-        email_confirm: true,
+        // Unconfirmed, like a real sign-up: the draft waits for the email link.
+        email_confirm: false,
         user_metadata: doctorAuthMetadata,
       }),
       REGISTER_AUTH_TIMEOUT_MS,
@@ -403,267 +510,106 @@ async function runRegister(formData: FormData) {
     });
   }
 
-  const claim = await resolveSignupDirectoryClaim(service, {
-    explicitClaimId: claimFromForm,
-    name: fullName,
-    email,
-    district,
-    specialties: specialtyEntries.map((entry) => entry.specialty),
-  });
-  if (claim) {
-    console.info("[DocCy] claiming directory professional on signup", {
-      professionalId: claim.id,
-      reason: claim.reason,
-    });
-  }
-
-  // Claims never reuse the claimed listing's slug: that listing stays untouched
-  // (and keeps its own slug/card) until a founder Verifies this registration.
-  const slug = await allocateUniqueDoctorSlug(service, {
-    name: fullName,
-    district,
+  // The photo waits in the private request-uploads bucket until a founder approves it.
+  const photoPath = registrationPhotoPath(
     authUserId,
-  });
+    `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+  );
+  const cleanupFailedRegistration = async (removePhoto: boolean) => {
+    try {
+      if (removePhoto) {
+        await service.storage.from(REGISTRATION_UPLOADS_BUCKET).remove([photoPath]);
+      }
+      // A re-applicant's login is their account: never delete it.
+      if (!reapply) await service.auth.admin.deleteUser(authUserId);
+    } catch (cleanupError) {
+      console.error("[DocCy] Failed cleanup after registration error", cleanupError);
+    }
+  };
 
-  const avatarPath = `profiles/${authUserId}/avatar-${Date.now()}-${Math.random()
-    .toString(36)
-    .slice(2)}.jpg`;
-  const { data: avatarUploadData, error: avatarUploadError } = await withTimeout(
-    service.storage.from("avatars").upload(avatarPath, avatarFile, {
+  const { error: photoUploadError } = await withTimeout(
+    service.storage.from(REGISTRATION_UPLOADS_BUCKET).upload(photoPath, avatarFile, {
       contentType: avatarFile.type || "image/jpeg",
       upsert: false,
     }),
     REGISTER_UPLOAD_TIMEOUT_MS,
     "Avatar upload",
   );
-  if (avatarUploadError || !avatarUploadData?.path) {
-    console.error("[DocCy] Avatar upload failed", avatarUploadError);
-    try {
-      await service.auth.admin.deleteUser(authUserId);
-    } catch (cleanupError) {
-      console.error("[DocCy] Failed to cleanup files/user after avatar upload", cleanupError);
-    }
-    fail("avatar_upload", avatarUploadError);
+  if (photoUploadError) {
+    console.error("[DocCy] Registration photo upload failed", photoUploadError);
+    await cleanupFailedRegistration(false);
+    fail("avatar_upload", photoUploadError);
   }
-  const avatarFileUrl = avatarUploadData.path;
 
-  const { data: regRows, error: insertError } = await withTimeout(
-    service.rpc("register_professional_with_founder_lock", {
+  const built = buildProfessionalRegistrationDetails({
+    ...detailsInput,
+    photoPath,
+    claimedProfessionalId: claimedListing?.id ?? null,
+  });
+  if (built.ok === false) {
+    await cleanupFailedRegistration(true);
+    fail(built.code);
+  }
+
+  const { error: draftError } = await withTimeout(
+    service.rpc("request_draft_submit", {
+      p_request_type: PROFESSIONAL_REGISTRATION_REQUEST_TYPE,
       p_auth_user_id: authUserId,
-      p_name: fullName,
-      p_email: email,
-      p_phone: phone,
-      p_languages: languages,
-      p_license_file_url: licenseFileUrl,
-      p_slug: slug,
-      // Written as professional_specialties rows in the same transaction.
-      p_specialties: specialtyEntries.map((entry) => ({
-        specialty: entry.specialty,
-        license_number: entry.licenseNumber,
-        is_approved: entry.isApproved,
-      })),
-      ...(claim?.id
-        ? {
-            p_claim_listing_id: claim.id,
-            p_directory_claim_source: claim.reason,
-          }
-        : {}),
+      p_details: built.details,
+      p_details_version: PROFESSIONAL_REGISTRATION_DETAILS_VERSION,
+      p_requester_name: registrationRequesterName(built.details),
+      p_requester_email: email,
     }),
     REGISTER_DB_TIMEOUT_MS,
-    "Register doctor RPC",
+    "Registration draft",
   );
-
-  const doctorId = regRows?.[0]?.professional_id as string | undefined;
-
-  const cleanupFailedRegistration = async () => {
-    try {
-      if (avatarFileUrl) {
-        await service.storage.from("avatars").remove([avatarFileUrl]);
-      }
-      await service.auth.admin.deleteUser(authUserId);
-    } catch (cleanupError) {
-      console.error("[DocCy] Failed cleanup after registration error", cleanupError);
-    }
-  };
-
-  if (insertError || !doctorId) {
-    console.error("[DocCy] Failed to register professional row (RPC)", insertError);
-    await cleanupFailedRegistration();
-    fail("db", insertError);
+  if (draftError) {
+    console.error("[DocCy] Registration draft failed", draftError);
+    await cleanupFailedRegistration(true);
+    fail("db", draftError);
   }
 
-  const claimedThisListing = Boolean(claim?.reason === "card_link" && claim?.id);
-
-  const finishRegistrationSuccess = async () => {
-    await persistBookingLocations();
-    await sendRegistrationEmails();
-    redirect(claimedThisListing ? "/register?submitted=1&claimed=1" : "/register?submitted=1");
-  };
-
-  const sendRegistrationEmails = async () => {
-    // Founder notify waits until the professional confirms email (`/auth/confirm-email`).
+  if (reapply) {
+    // Already confirmed: the application goes to the founders now.
     try {
-      const h = headers();
-      const requestOrigin =
-        h.get("origin")?.trim() ||
-        (() => {
-          const host = h.get("x-forwarded-host")?.trim() || h.get("host")?.trim() || "";
-          const proto = h.get("x-forwarded-proto")?.trim() || "http";
-          return host ? `${proto}://${host}` : "";
-        })();
-      const confirmUrl = await generateRegisterEmailConfirmUrl(
-        service,
-        email,
-        requestOrigin || null,
-      );
-      await withTimeout(
-        sendDoctorRegistrationReceivedEmail({
-          doctorEmail: email,
-          doctorName: fullName,
-          confirmUrl,
-        }),
-        REGISTER_NOTIFY_TIMEOUT_MS,
-        "Doctor registration received email",
-      );
-    } catch (err) {
-      console.error("[DocCy] Doctor registration received email failed or timed out", err);
+      await confirmRegistrationDraft(service, authUserId);
+    } catch (confirmError) {
+      // The daily purge moves a confirmed draft that is still waiting.
+      console.error("[DocCy] Re-application confirm failed", confirmError);
     }
-  };
+    redirect(REGISTRATION_STATUS_PATH);
+  }
 
-  const profileUpdateBase = {
-    avatar_url: avatarFileUrl,
-    district,
-    town,
-    clinic_address: clinicAddress,
-    latitude: clinicLatitude,
-    longitude: clinicLongitude,
-    clinic_place_id: clinicPlaceId,
-  };
-
-  const { error: avatarSaveError } = await service
-    .from("professionals")
-    .update(profileUpdateBase)
-    .eq("id", doctorId);
-
-  const syncPrimaryBookingLocation = async () => {
-    const locationFields = {
-      district,
-      town,
-      clinic_address: clinicAddress,
-      latitude: clinicLatitude,
-      longitude: clinicLongitude,
-      clinic_place_id: clinicPlaceId,
-    };
-    const existing = await service
-      .from("doctor_locations")
-      .select("id")
-      .eq("doctor_id", doctorId)
-      .eq("is_primary", true)
-      .maybeSingle();
-    if (existing.data?.id) {
-      await service.from("doctor_locations").update(locationFields).eq("id", existing.data.id);
-      return;
-    }
-    await service.from("doctor_locations").insert({
-      doctor_id: doctorId,
-      is_primary: true,
-      sort_order: 0,
-      ...locationFields,
-    });
-  };
-  const persistBookingLocations = async () => {
-    await syncPrimaryBookingLocation();
-    if (extraClinics.length === 0) return;
-
-    const existing = await service
-      .from("doctor_locations")
-      .select("id, clinic_address")
-      .eq("doctor_id", doctorId);
-    const seen = new Set(
-      (existing.data ?? []).map((row) =>
-        String((row as { clinic_address?: string | null }).clinic_address ?? "")
-          .trim()
-          .toLowerCase(),
-      ),
+  // The DocCy email carries the confirmation link; confirming moves the draft
+  // into the founders' queue (`/auth/confirm-email`).
+  try {
+    const h = headers();
+    const requestOrigin =
+      h.get("origin")?.trim() ||
+      (() => {
+        const host = h.get("x-forwarded-host")?.trim() || h.get("host")?.trim() || "";
+        const proto = h.get("x-forwarded-proto")?.trim() || "http";
+        return host ? `${proto}://${host}` : "";
+      })();
+    const confirmUrl = await generateRegisterEmailConfirmUrl(
+      service,
+      email,
+      requestOrigin || null,
     );
-    let sortOrder = 1;
-    for (const clinic of extraClinics) {
-      const key = clinic.clinicAddress.trim().toLowerCase();
-      if (seen.has(key)) continue;
-      await service.from("doctor_locations").insert({
-        doctor_id: doctorId,
-        is_primary: false,
-        sort_order: sortOrder,
-        district: clinic.district,
-        town: clinic.town,
-        clinic_address: clinic.clinicAddress,
-        latitude: clinic.latitude,
-        longitude: clinic.longitude,
-        clinic_place_id: clinic.clinicPlaceId,
-      });
-      seen.add(key);
-      sortOrder += 1;
-    }
-  };
-  if (avatarSaveError) {
-    const missingAvatarColumn =
-      avatarSaveError.code === "PGRST204" &&
-      String(avatarSaveError.message ?? "").includes("avatar_url");
-    const missingTownColumn =
-      (avatarSaveError.code === "42703" || avatarSaveError.code === "PGRST204") &&
-      /town/i.test(String(avatarSaveError.message ?? ""));
-    const missingClinicColumns =
-      (avatarSaveError.code === "42703" || avatarSaveError.code === "PGRST204") &&
-      /(latitude|longitude|clinic_place_id|clinic_address)/i.test(
-        String(avatarSaveError.message ?? ""),
-      );
-    if (missingTownColumn && !missingClinicColumns) {
-      const { town: _town, ...withoutTown } = profileUpdateBase;
-      const { error: withoutTownError } = await service
-        .from("professionals")
-        .update(withoutTown)
-        .eq("id", doctorId);
-      if (!withoutTownError) {
-        await finishRegistrationSuccess();
-      }
-    }
-    if (missingAvatarColumn) {
-      // Backward compatibility: some environments may not have avatar_url migrated yet.
-      // Keep registration successful and preserve uploaded avatar in storage.
-      console.warn(
-        "[DocCy] avatar_url column missing on doctors. Apply SQL migration to persist avatar path."
-      );
-      await finishRegistrationSuccess();
-    }
-    if (missingClinicColumns) {
-      const { error: legacyProfileError } = await service
-        .from("professionals")
-        .update({
-          avatar_url: avatarFileUrl,
-          district,
-          clinic_address: clinicAddress,
-        })
-        .eq("id", doctorId);
-      if (legacyProfileError) {
-        console.error("[DocCy] Failed legacy profile save on doctor", legacyProfileError);
-      } else {
-        await finishRegistrationSuccess();
-      }
-    }
-    console.error("[DocCy] Failed to save avatar_url on doctor", avatarSaveError);
-    try {
-      await service.storage.from("avatars").remove([avatarFileUrl]);
-      // This registration row is always freshly inserted (never a claimed
-      // listing in place), so it's always safe to delete on cleanup.
-      await service.from("professionals").delete().eq("id", doctorId);
-      await service.auth.admin.deleteUser(authUserId);
-    } catch (cleanupError) {
-      console.error("[DocCy] Failed cleanup after avatar save error", cleanupError);
-    }
-    fail("avatar_save", avatarSaveError);
+    await withTimeout(
+      sendDoctorRegistrationReceivedEmail({
+        doctorEmail: email,
+        doctorName: fullName,
+        confirmUrl,
+      }),
+      REGISTER_NOTIFY_TIMEOUT_MS,
+      "Doctor registration received email",
+    );
+  } catch (err) {
+    console.error("[DocCy] Doctor registration received email failed or timed out", err);
   }
 
-  await finishRegistrationSuccess();
+  redirect(claimedListing ? "/register?submitted=1&claimed=1" : "/register?submitted=1");
 }
 
 export default async function RegisterPage({ searchParams }: PageProps) {
@@ -673,11 +619,19 @@ export default async function RegisterPage({ searchParams }: PageProps) {
   const debugDetail = searchParams?.debug ?? null;
   const claimId = String(searchParams?.claim ?? "").trim();
 
+  const foundersAvailability = loadRegisterFoundersAvailability();
   let claimPrefill: RegisterClaimPrefill | null = null;
   let specialtyOptions: string[] = [];
+  let reapplyEmail: string | null = null;
   if (!submitted) {
     const service = createServiceRoleClient();
     if (service) {
+      const {
+        data: { user: sessionUser },
+      } = await createServerComponentClient({ cookies }).auth.getUser();
+      const reapplyState = sessionUser ? await reapplyStateForUser(service, sessionUser) : null;
+      if (reapplyState?.kind === "pending") redirect(REGISTRATION_STATUS_PATH);
+      if (reapplyState?.kind === "reapply") reapplyEmail = reapplyState.email;
       if (isProfessionalUuid(claimId)) {
         claimPrefill = await loadUnregisteredProfessionalForRegisterClaim(service, claimId);
       }
@@ -694,8 +648,11 @@ export default async function RegisterPage({ searchParams }: PageProps) {
     errorMessage =
       "Too many signup attempts. Please wait a minute before trying again.";
   } else if (errorCode === "auth_user_exists") {
-    errorMessage =
-      "An account with this email already exists. Try logging in or reset your password.";
+    errorMessage = REGISTER_ACCOUNT_EXISTS_MESSAGE;
+  } else if (errorCode === "email_in_use") {
+    errorMessage = REGISTER_EMAIL_IN_USE_MESSAGE;
+  } else if (errorCode === "mobile_in_use") {
+    errorMessage = REGISTER_MOBILE_IN_USE_MESSAGE;
   } else if (errorCode === "auth_invalid_email" || errorCode === "invalid_email_format") {
     errorMessage =
       "Please enter a valid email address. Gmail aliases with '+' are allowed (e.g. rociosirvent+test@gmail.com).";
@@ -708,8 +665,18 @@ export default async function RegisterPage({ searchParams }: PageProps) {
     errorMessage =
       "We couldn’t create your account. Please double‑check your email and try again.";
   } else if (errorCode === "db") {
+    errorMessage = "We couldn’t save your application. Please try again in a moment.";
+  } else if (errorCode === "gender") {
+    errorMessage = "Please select your gender.";
+  } else if (errorCode === "gesy") {
+    errorMessage = "Please tell us whether you work with GeSY.";
+  } else if (errorCode === "clinic_name") {
+    errorMessage = "Please give each clinic you added from Google Maps a name.";
+  } else if (errorCode === "clinic_phone") {
     errorMessage =
-      "We saved your login but couldn’t finish setting up your profile. Please try again in a moment.";
+      "Please give each new clinic its phone number: a Cyprus landline or mobile, e.g. 25 123456.";
+  } else if (errorCode === "clinic_duplicate") {
+    errorMessage = "You picked the same DocCy clinic twice. Remove one of them.";
   } else if (errorCode === "upload") {
     errorMessage =
       "We couldn’t process your registration right now. Please try again in a moment.";
@@ -747,42 +714,50 @@ export default async function RegisterPage({ searchParams }: PageProps) {
   }
   const claimName = splitProfessionalFullName(claimPrefill?.name);
   const claimClinics = claimPrefill?.clinics ?? [];
-  const clinicSlots =
-    claimClinics.length > 0 ? claimClinics.slice(0, MAX_DOCTOR_LOCATIONS) : [null];
+
+  const planTicket = registerPlanTicket(await foundersAvailability);
 
   return (
-    <main className="min-h-screen bg-ink-50 text-ink-900">
-      <div className="pointer-events-none fixed inset-0 -z-10">
-        <div className="absolute inset-x-0 top-0 h-72 bg-gradient-to-b from-clinical-100/40 to-transparent" />
-        <div className="absolute right-[-10%] top-24 h-64 w-64 rounded-full bg-wellness-200/30 blur-3xl" />
-        <div className="absolute bottom-0 left-[-5%] h-72 w-72 rounded-full bg-clinical-200/25 blur-3xl" />
-      </div>
-
-      <div className="mx-auto flex min-h-screen max-w-2xl flex-col gap-6 px-4 py-8 sm:px-6 lg:py-10">
-        <RegisterIntroSection
-          claim={claimPrefill ? { firstName: claimPrefill.firstName } : null}
-        />
+    <main className="min-h-screen bg-white text-ink-900">
+      {/* Desktop: everything above the fold. The header lives in the left column so the
+          sticky benefits panel can start at the top and fill exactly one viewport. */}
+      <div className="mx-auto grid max-w-[1440px] lg:grid-cols-[minmax(0,640px)_minmax(0,1fr)]">
+        <div className="flex min-w-0 flex-col gap-4 px-4 pb-4 sm:px-8 lg:gap-3 lg:px-14 lg:pb-8">
+          <header className="flex h-16 items-center justify-between lg:h-14">
+            <a href="/" className="inline-flex rounded-md transition hover:opacity-90" aria-label="DocCy home">
+              <DocCyWordmark size="lg" />
+            </a>
+            <p className="text-sm text-ink-600">
+              <span className="hidden sm:inline">Already have an account? </span>
+              <a
+                href="/login"
+                className="inline-flex min-h-[44px] items-center font-bold text-clinical-800 underline-offset-2 hover:text-clinical-900 hover:underline"
+              >
+                Sign in
+              </a>
+            </p>
+          </header>
+          <RegisterIntroSection
+            claim={claimPrefill ? { firstName: claimPrefill.firstName } : null}
+          />
+          <RegisterPlanTicket ticket={planTicket} layout="stacked" className="lg:hidden" />
 
         {submitted ? (
-          <RegisterSubmittedPanel
-            claimed={claimedSubmit}
-            emailConfirmed={searchParams?.email === "confirmed"}
-            confirmError={errorCode === "email_confirm"}
-          />
+          <RegisterSubmittedReveal>
+            <RegisterSubmittedPanel
+              claimed={claimedSubmit}
+              emailConfirmed={searchParams?.email === "confirmed"}
+              confirmError={errorCode === "email_confirm"}
+            />
+          </RegisterSubmittedReveal>
         ) : (
           <>
-            <section className={registerSectionShell}>
-              {claimPrefill ? (
-                <h2 className="text-base font-semibold tracking-tight text-ink-900">
-                  Confirm your details to activate this listing
-                </h2>
-              ) : null}
-
+            <section aria-label="Application form">
               <form
                 id="register-form"
                 action={handleRegister}
                 noValidate
-                className={`${claimPrefill ? "mt-5" : ""} space-y-6`}
+                className="space-y-4 lg:space-y-3"
               >
                 {process.env.NODE_ENV === "development" && errorCode && debugDetail ? (
                   <RegisterDevErrorConsole
@@ -818,8 +793,8 @@ export default async function RegisterPage({ searchParams }: PageProps) {
                   formId="register-form"
                   submitLabel={
                     claimPrefill
-                      ? "Activate this listing & Claim 6 Months Free"
-                      : "Submit My Application & Claim 6 Months Free"
+                      ? "Activate this listing & claim 6 months free"
+                      : "Submit my application & claim 6 months free"
                   }
                 >
                   <RegisterFormValidation formId="register-form" />
@@ -827,72 +802,88 @@ export default async function RegisterPage({ searchParams }: PageProps) {
                   <RegisterWizardStep
                     step={1}
                     title="Account"
-                    description="Your DocCy login and how we contact you. Patients never see this email or mobile."
+                    description="Your DocCy login. Patients never see this email or mobile."
                   >
-                    <div
-                      className="group"
-                      data-validate-field="1"
-                      data-invalid="0"
-                      data-field-key="firstName"
-                      data-field-label="First name"
-                    >
-                      <label htmlFor="register-first-name" className={registerLabelClass}>
-                        First name<span className="text-red-600">*</span>
-                        <input
-                          id="register-first-name"
-                          name="firstName"
-                          required
-                          autoComplete="given-name"
-                          defaultValue={claimName.firstName}
-                          className={registerInputClass}
-                        />
-                      </label>
-                      <p className={registerFieldErrorClass}>Please enter your first name.</p>
+                    <div className="grid gap-4 sm:grid-cols-2 sm:gap-3">
+                      <div
+                        className="group"
+                        data-validate-field="1"
+                        data-invalid="0"
+                        data-field-key="firstName"
+                        data-field-label="First name"
+                      >
+                        <label htmlFor="register-first-name" className={registerLabelClass}>
+                          First name<span className="text-red-600">*</span>
+                          <input
+                            id="register-first-name"
+                            name="firstName"
+                            required
+                            autoComplete="given-name"
+                            pattern={REGISTER_NAME_HTML_PATTERN}
+                            defaultValue={claimName.firstName}
+                            className={registerInputClass}
+                          />
+                        </label>
+                        <p className={registerFieldErrorClass}>
+                          Enter your first name (letters only).
+                        </p>
+                      </div>
+                      <div
+                        className="group"
+                        data-validate-field="1"
+                        data-invalid="0"
+                        data-field-key="lastName"
+                        data-field-label="Last name"
+                      >
+                        <label htmlFor="register-last-name" className={registerLabelClass}>
+                          Last name<span className="text-red-600">*</span>
+                          <input
+                            id="register-last-name"
+                            name="lastName"
+                            required
+                            autoComplete="family-name"
+                            pattern={REGISTER_NAME_HTML_PATTERN}
+                            defaultValue={claimName.lastName}
+                            className={registerInputClass}
+                          />
+                        </label>
+                        <p className={registerFieldErrorClass}>
+                          Enter your last name (letters only).
+                        </p>
+                      </div>
                     </div>
-
-                    <div
-                      className="group"
-                      data-validate-field="1"
-                      data-invalid="0"
-                      data-field-key="lastName"
-                      data-field-label="Last name"
-                    >
-                      <label htmlFor="register-last-name" className={registerLabelClass}>
-                        Last name<span className="text-red-600">*</span>
-                        <input
-                          id="register-last-name"
-                          name="lastName"
-                          required
-                          autoComplete="family-name"
-                          defaultValue={claimName.lastName}
-                          className={registerInputClass}
-                        />
-                      </label>
-                      <p className={registerFieldErrorClass}>Please enter your last name.</p>
+                    <div className="grid gap-4 sm:grid-cols-2 sm:gap-3">
+                      <RegisterChoiceField
+                        name="gender"
+                        fieldKey="gender"
+                        fieldLabel="Gender"
+                        question="Gender"
+                        options={[
+                          { value: "male", label: "Male" },
+                          { value: "female", label: "Female" },
+                        ]}
+                        errorMessage="Please select your gender."
+                        defaultValue={claimPrefill?.gender}
+                      />
+                      <RegisterChoiceField
+                        name="gesy"
+                        fieldKey="gesy"
+                        fieldLabel="GeSY"
+                        question="Work with GeSY?"
+                        options={[
+                          { value: "yes", label: "Yes" },
+                          { value: "no", label: "No" },
+                        ]}
+                        errorMessage="Please tell us whether you work with GeSY."
+                        defaultValue={claimPrefill?.gesy}
+                      />
                     </div>
-
-                    <div
-                      className="group"
-                      data-validate-field="1"
-                      data-invalid="0"
-                      data-field-key="email"
-                      data-field-label="Email address"
-                    >
-                      <label className={registerLabelClass}>
-                        Email Address<span className="text-red-600">*</span>
-                        <input
-                          type="email"
-                          name="email"
-                          required
-                          autoComplete="email"
-                          pattern="[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}"
-                          title="Use a valid email. '+' aliases are supported (e.g. rociosirvent+test@gmail.com)."
-                          className={registerInputClass}
-                        />
-                      </label>
-                      <p className={registerFieldErrorClass}>Please enter a valid email address.</p>
+                    <div className="grid gap-4 sm:grid-cols-2 sm:gap-3">
+                      <RegisterEmailField lockedEmail={reapplyEmail} />
+                      <RegisterPhoneField />
                     </div>
-
+                    {/* Signed in to apply again: the account exists, so no password. */}
+                    {reapplyEmail ? null : (
                     <div
                       className="group"
                       data-validate-field="1"
@@ -915,35 +906,11 @@ export default async function RegisterPage({ searchParams }: PageProps) {
                           allowCopy
                         />
                       </label>
-                      <p className={registerHelperClass}>
-                        {PASSWORD_POLICY_HELPER} Save it somewhere safe (or tap copy) — you&apos;ll
-                        need it to sign in.
-                      </p>
+                      <RegisterPasswordRules formId="register-form" />
                       <p className={registerFieldErrorClass}>{PASSWORD_POLICY_ERROR}</p>
                     </div>
+                    )}
 
-                    <div
-                      className="group"
-                      data-validate-field="1"
-                      data-invalid="0"
-                      data-field-key="phone"
-                      data-field-label="Mobile number"
-                    >
-                      <label className={registerLabelClass}>
-                        Mobile Number<span className="text-red-600">*</span>
-                        <input
-                          type="tel"
-                          name="phone"
-                          required
-                          autoComplete="tel"
-                          placeholder="e.g., +357 99XXXXXX"
-                          className={registerInputClass}
-                        />
-                      </label>
-                      <p className={registerFieldErrorClass}>
-                        Please enter your mobile number with country code.
-                      </p>
-                    </div>
                   </RegisterWizardStep>
 
                   <RegisterWizardStep
@@ -951,7 +918,7 @@ export default async function RegisterPage({ searchParams }: PageProps) {
                     title="Profile"
                     description="A photo and the languages you consult in."
                   >
-                    <RegisterAvatarUpload tone="light" />
+                    <RegisterAvatarUpload />
                     <RegisterLanguageFields />
                   </RegisterWizardStep>
 
@@ -959,9 +926,9 @@ export default async function RegisterPage({ searchParams }: PageProps) {
                     step={3}
                     title="Practice"
                     description={
-                      clinicSlots.length > 1
-                        ? "Confirm each clinic already linked to this listing. You can still add more later in Settings."
-                        : "Your specialty, license, and the clinic patients will visit. Extra clinics can be added later in Settings."
+                      claimClinics.length > 1
+                        ? "Confirm the clinics from your listing, and add any others you work at."
+                        : "Your specialty, licence, and every clinic where patients can see you."
                     }
                   >
                     <RegisterSpecialtyFields
@@ -969,41 +936,13 @@ export default async function RegisterPage({ searchParams }: PageProps) {
                       initialSpecialties={claimPrefill?.specialties}
                       specialtyOptions={specialtyOptions}
                     />
-                    {clinicSlots.map((clinic, index) => {
-                      const initialLocation = clinic
-                        ? clinicLocationFromParts({
-                            address: clinic.address,
-                            latitude: clinic.latitude,
-                            longitude: clinic.longitude,
-                            placeId: clinic.placeId,
-                            district: clinic.district,
-                            town: clinic.town,
-                          })
-                        : null;
-                      return (
-                        <RegisterClinicAddressField
-                          key={`${claimPrefill?.id ?? "new"}-${index}`}
-                          index={index}
-                          initialLocation={initialLocation}
-                          listingAddressHint={
-                            clinic?.address ??
-                            (index === 0 ? claimPrefill?.addressHint : null)
-                          }
-                          listingDistrict={
-                            clinic?.district ??
-                            (index === 0 ? claimPrefill?.district : null)
-                          }
-                          showAddLaterHint={clinicSlots.length === 1}
-                          heading={
-                            clinicSlots.length > 1
-                              ? clinic?.name
-                                ? `Clinic ${index + 1}: ${clinic.name}`
-                                : `Clinic ${index + 1} address`
-                              : undefined
-                          }
-                        />
-                      );
-                    })}
+                    <RegisterClinicsFields
+                      key={claimPrefill?.id ?? "new"}
+                      claimClinics={claimClinics}
+                      listingAddressHint={claimPrefill?.addressHint ?? null}
+                      listingDistrict={claimPrefill?.district ?? null}
+                      max={MAX_DOCTOR_LOCATIONS}
+                    />
                     <div
                       className="group"
                       data-validate-field="1"
@@ -1012,15 +951,15 @@ export default async function RegisterPage({ searchParams }: PageProps) {
                       data-field-label="Professional disclaimer"
                       data-field-boxed="1"
                     >
-                      <label className="flex cursor-pointer gap-3 rounded-xl border border-ink-200 bg-ink-50/80 p-4 text-left transition hover:border-clinical-300">
+                      <label className="flex cursor-pointer items-start gap-3 rounded-xl border-[1.5px] border-ink-200 bg-white py-3 pl-3.5 pr-9 text-left transition hover:border-clinical-300 has-[:checked]:border-clinical-500 has-[:checked]:bg-clinical-50 has-[:focus-visible]:ring-4 has-[:focus-visible]:ring-clinical-500/20 group-data-[invalid=1]:border-red-400">
                         <input
                           type="checkbox"
                           name="professionalDisclaimer"
                           value="on"
                           required
-                          className="mt-1 h-4 w-4 shrink-0 rounded border-ink-300 bg-white text-clinical-500 focus:ring-clinical-400/50"
+                          className="mt-px h-[18px] w-[18px] shrink-0 cursor-pointer accent-clinical-600 focus:outline-none"
                         />
-                        <span className="text-xs leading-relaxed text-ink-600">
+                        <span className="text-xs leading-snug text-ink-600">
                           I confirm I am a qualified health or wellness professional. I accept that
                           DocCy is a technology provider and assumes no liability for the authenticity
                           of professional credentials.
@@ -1035,11 +974,34 @@ export default async function RegisterPage({ searchParams }: PageProps) {
                 </RegisterFormSubmitFeedback>
               </form>
             </section>
-            <RegisterSecondarySections />
+            <a
+              href={`#${REGISTER_SETUP_CALL_ID}`}
+              className="inline-flex min-h-[44px] items-center justify-center self-center text-sm font-bold text-clinical-800 underline-offset-4 hover:underline lg:self-start"
+            >
+              Prefer we set you up on a 15-minute call?
+            </a>
           </>
         )}
+        </div>
+
+        <aside
+          aria-label="Why DocCy"
+          className="relative mx-4 mt-2 flex flex-col gap-6 overflow-hidden rounded-[26px] bg-clinical-500 px-5 pb-5 pt-6 sm:mx-8 lg:sticky lg:top-4 lg:mx-0 lg:mb-4 lg:mr-4 lg:mt-4 lg:h-[calc(100svh-2rem)] lg:min-h-[600px] lg:self-start lg:rounded-[32px] lg:px-11 lg:pb-7 lg:pt-8"
+        >
+          <span aria-hidden className="pointer-events-none absolute -bottom-28 -right-24 h-64 w-64 rounded-full bg-clinical-400 lg:-bottom-40 lg:-right-36 lg:h-[460px] lg:w-[460px]" />
+          <span aria-hidden className="pointer-events-none absolute bottom-20 right-16 hidden h-44 w-44 rounded-full border-2 border-clinical-300 lg:block" />
+          <span aria-hidden className="pointer-events-none absolute -left-16 top-40 hidden h-36 w-36 rounded-full bg-clinical-600 lg:block" />
+          <RegisterPlanTicket ticket={planTicket} layout="row" className="relative hidden lg:block" />
+          <RegisterShowcase />
+        </aside>
+      </div>
+
+      <RegisterNextSteps />
+
+      <div className="mx-auto flex max-w-[1440px] flex-col gap-6 px-4 pb-10 pt-8 sm:px-8 sm:pb-20 sm:pt-16 lg:flex-row lg:items-start lg:gap-16 lg:px-[120px]">
+        <RegisterFaqSection />
+        <RegisterSetupCallCard />
       </div>
     </main>
   );
 }
-

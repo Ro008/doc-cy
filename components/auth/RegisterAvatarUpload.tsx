@@ -1,84 +1,28 @@
 "use client";
 
 import * as React from "react";
-import Cropper from "react-easy-crop";
-
-type CropArea = { x: number; y: number; width: number; height: number };
+import { Camera, Check } from "lucide-react";
+import { AvatarCropDialog, prepareAvatarSource } from "@/components/auth/AvatarCropDialog";
+import { REGISTER_AVATAR_ACCEPT } from "@/lib/register-avatar";
+import { registerLabelClass } from "@/lib/register-ui";
 
 type RegisterAvatarUploadProps = {
   fieldName?: string;
-  tone?: "dark" | "light";
 };
 
-function loadImage(src: string): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => resolve(img);
-    img.onerror = () => reject(new Error("Failed to load image."));
-    img.src = src;
-  });
-}
-
-async function cropToBlob(imageSrc: string, area: CropArea): Promise<Blob> {
-  const image = await loadImage(imageSrc);
-  const canvas = document.createElement("canvas");
-  // Keep enough resolution for retina profile circles while avoiding oversized uploads.
-  canvas.width = 900;
-  canvas.height = 900;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) throw new Error("Could not prepare crop canvas.");
-
-  ctx.drawImage(
-    image,
-    area.x,
-    area.y,
-    area.width,
-    area.height,
-    0,
-    0,
-    canvas.width,
-    canvas.height
-  );
-
-  const toBlob = (quality: number) =>
-    new Promise<Blob | null>((resolve) => {
-      canvas.toBlob((value) => resolve(value), "image/jpeg", quality);
-    });
-
-  // Compress progressively until we get a compact file while preserving quality.
-  // Target chosen to keep uploads snappy without visible pixelation in avatar usage.
-  const targetBytes = 280 * 1024;
-  let quality = 0.9;
-  let blob = await toBlob(quality);
-  if (!blob) throw new Error("Could not generate cropped image.");
-
-  while (blob.size > targetBytes && quality > 0.72) {
-    quality -= 0.06;
-    const nextBlob = await toBlob(quality);
-    if (!nextBlob) break;
-    blob = nextBlob;
-  }
-
-  return blob;
-}
-
-export function RegisterAvatarUpload({
-  fieldName = "avatarFile",
-  tone = "dark",
-}: RegisterAvatarUploadProps) {
+/**
+ * Required profile photo: drop or browse, checked (format, size, 400×400 min)
+ * before the square crop dialog opens, then posted as `fieldName` (JPEG).
+ * The checks and the dialog are shared with the founders' review (AvatarCropDialog).
+ */
+export function RegisterAvatarUpload({ fieldName = "avatarFile" }: RegisterAvatarUploadProps) {
   const sourceInputRef = React.useRef<HTMLInputElement | null>(null);
   const formFileInputRef = React.useRef<HTMLInputElement | null>(null);
   const [sourceUrl, setSourceUrl] = React.useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = React.useState<string | null>(null);
-  const [crop, setCrop] = React.useState({ x: 0, y: 0 });
-  const [zoom, setZoom] = React.useState(1);
-  const [croppedAreaPixels, setCroppedAreaPixels] = React.useState<CropArea | null>(
-    null
-  );
   const [error, setError] = React.useState<string | null>(null);
-  const [isModalOpen, setIsModalOpen] = React.useState(false);
-  const [isCropping, setIsCropping] = React.useState(false);
   const [isReady, setIsReady] = React.useState(false);
+  const [isDragOver, setIsDragOver] = React.useState(false);
 
   React.useEffect(() => {
     return () => {
@@ -87,131 +31,120 @@ export function RegisterAvatarUpload({
     };
   }, [previewUrl, sourceUrl]);
 
-  function clearFormFile() {
-    if (formFileInputRef.current) {
-      formFileInputRef.current.value = "";
+  async function handleFile(file: File | undefined) {
+    if (!file) return;
+    const prepared = await prepareAvatarSource(file);
+    if (prepared.ok === false) {
+      setError(prepared.message);
+      return;
     }
-    setIsReady(false);
+    setError(null);
+    if (sourceUrl) URL.revokeObjectURL(sourceUrl);
+    setSourceUrl(prepared.url);
   }
 
   function onPickFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
-    if (!file) return;
-    if (!file.type.startsWith("image/")) {
-      setError("Please select an image file.");
-      e.target.value = "";
-      clearFormFile();
-      return;
-    }
-    if (file.size > 10 * 1024 * 1024) {
-      setError("Image is too large. Please use a file under 10 MB.");
-      e.target.value = "";
-      clearFormFile();
-      return;
-    }
+    // Reset so picking the same file again still fires `change`.
+    e.target.value = "";
+    void handleFile(file);
+  }
 
-    setError(null);
-    setCrop({ x: 0, y: 0 });
-    setZoom(1);
-    setCroppedAreaPixels(null);
-    setIsReady(false);
-
-    if (sourceUrl) URL.revokeObjectURL(sourceUrl);
-    const url = URL.createObjectURL(file);
-    setSourceUrl(url);
-    setIsModalOpen(true);
+  function onDrop(e: React.DragEvent<HTMLDivElement>) {
+    e.preventDefault();
+    setIsDragOver(false);
+    void handleFile(e.dataTransfer.files?.[0]);
   }
 
   function onCancelCrop() {
-    setIsModalOpen(false);
-    setError("Profile photo is required. Please upload and confirm your crop.");
-    if (sourceInputRef.current) sourceInputRef.current.value = "";
     if (sourceUrl) {
       URL.revokeObjectURL(sourceUrl);
       setSourceUrl(null);
     }
-    clearFormFile();
+    // Keep a photo they already confirmed; only nudge when there is none yet.
+    if (!isReady) setError("No photo yet — upload one to continue.");
   }
 
-  async function onConfirmCrop() {
-    if (!sourceUrl || !croppedAreaPixels) {
-      setError("Please adjust and confirm your crop.");
-      return;
+  function onCropped(croppedFile: File) {
+    const dt = new DataTransfer();
+    dt.items.add(croppedFile);
+    if (formFileInputRef.current) {
+      formFileInputRef.current.files = dt.files;
     }
-
-    setIsCropping(true);
-    try {
-      const blob = await cropToBlob(sourceUrl, croppedAreaPixels);
-      const croppedFile = new File([blob], "profile-photo.jpg", {
-        type: "image/jpeg",
-      });
-
-      const dt = new DataTransfer();
-      dt.items.add(croppedFile);
-      if (formFileInputRef.current) {
-        formFileInputRef.current.files = dt.files;
-      }
-
-      if (previewUrl) URL.revokeObjectURL(previewUrl);
-      setPreviewUrl(URL.createObjectURL(croppedFile));
-      setIsReady(true);
-      setError(null);
-      setIsModalOpen(false);
-    } catch (err) {
-      console.error(err);
-      setError("Failed to process image. Please try another photo.");
-      clearFormFile();
-    } finally {
-      setIsCropping(false);
-    }
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    setPreviewUrl(URL.createObjectURL(croppedFile));
+    setIsReady(true);
+    setError(null);
+    if (sourceUrl) URL.revokeObjectURL(sourceUrl);
+    setSourceUrl(null);
   }
-
-  const isLight = tone === "light";
 
   return (
     <div
-      className={`group rounded-2xl border p-4 ${
-        isLight
-          ? "border-ink-200 bg-ink-50/70"
-          : "border-slate-700/80 bg-slate-900/40"
-      }`}
+      className="group"
       data-validate-field="1"
       data-invalid="0"
       data-field-key="photo"
       data-field-label="Profile photo"
-      data-field-boxed="1"
     >
-      <p
-        className={`text-xs font-semibold uppercase tracking-wide ${
-          isLight ? "text-ink-700" : "text-slate-300"
+      <p className={registerLabelClass}>
+        Profile photo<span className="text-red-600">*</span>
+      </p>
+      <div
+        data-testid="register-avatar-dropzone"
+        onDragOver={(e) => {
+          e.preventDefault();
+          setIsDragOver(true);
+        }}
+        onDragLeave={() => setIsDragOver(false)}
+        onDrop={onDrop}
+        className={`mt-1 flex items-center gap-4 rounded-2xl border-[1.5px] border-dashed px-4 py-3 transition group-data-[invalid=1]:border-red-300 ${
+          isDragOver ? "border-clinical-500 bg-clinical-100" : "border-ink-200 bg-ink-50"
         }`}
       >
-        Professional Profile Photo<span className="text-red-600">*</span>
-      </p>
-      <p className={`mt-2 text-xs ${isLight ? "text-ink-600" : "text-slate-300"}`}>
-        A professional, close-up photo with a neutral background helps build patient trust.
-      </p>
-
-      <div className="mt-3 flex flex-wrap items-center gap-4">
-        <label
-          className={`inline-flex cursor-pointer items-center justify-center rounded-xl border px-3 py-2 text-xs font-medium transition ${
-            isLight
-              ? "border-clinical-300 bg-clinical-50 text-clinical-700 hover:bg-clinical-100"
-              : "border-clinical-400/30 bg-clinical-500/10 text-clinical-200 hover:bg-clinical-500/20"
-          }`}
-        >
-          ⬆️ Upload Photo
-          <input
-            ref={sourceInputRef}
-            type="file"
-            accept="image/jpeg,image/png,image/webp,image/gif"
-            className="sr-only"
-            data-testid="register-avatar-file-input"
-            onChange={onPickFile}
+        {previewUrl ? (
+          // Local blob: preview of the crop; next/image cannot optimise object URLs.
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={previewUrl}
+            alt="Your profile photo"
+            className="h-16 w-16 shrink-0 rounded-full border-2 border-white object-cover shadow-sm"
           />
-        </label>
-        <div className={`text-xs ${isLight ? "text-ink-500" : "text-slate-400"}`}>
-          {isReady ? "Crop confirmed." : "Upload and confirm crop to continue."}
+        ) : (
+          <span className="inline-flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-white text-clinical-800 shadow-sm">
+            <Camera className="h-6 w-6" aria-hidden />
+          </span>
+        )}
+        <div className="min-w-0 flex-1">
+          {isReady ? (
+            <p
+              data-testid="register-avatar-ready"
+              className="inline-flex items-center gap-1.5 text-sm font-bold text-wellness-700"
+            >
+              <Check className="h-4 w-4" strokeWidth={3} aria-hidden />
+              Photo ready
+            </p>
+          ) : (
+            <p className="text-sm text-ink-700">
+              <span className="hidden sm:inline">Drag a photo here or </span>
+              <span className="sm:hidden">Add a clear, close-up photo.</span>
+            </p>
+          )}
+          <label className="mt-1 inline-flex min-h-[36px] cursor-pointer items-center rounded-lg border-[1.5px] border-clinical-500 bg-white px-3 text-sm font-bold text-clinical-800 transition hover:bg-clinical-50 focus-within:ring-4 focus-within:ring-clinical-500/25">
+            {isReady ? "Change photo" : "Browse files"}
+            <input
+              ref={sourceInputRef}
+              type="file"
+              accept={REGISTER_AVATAR_ACCEPT}
+              className="sr-only"
+              data-testid="register-avatar-file-input"
+              data-focus-target="true"
+              onChange={onPickFile}
+            />
+          </label>
+          <p className="mt-1 text-xs text-ink-500">
+            JPG, PNG or WebP · at least 400×400 px · max 10 MB
+          </p>
         </div>
       </div>
 
@@ -222,6 +155,7 @@ export function RegisterAvatarUpload({
         className="sr-only"
         accept="image/jpeg"
         tabIndex={-1}
+        aria-hidden
       />
       <input
         type="text"
@@ -235,95 +169,25 @@ export function RegisterAvatarUpload({
         tabIndex={-1}
         className="pointer-events-none absolute h-0 w-0 opacity-0"
       />
-      <p
-        className={`field-hint mt-2 hidden text-xs group-data-[invalid=1]:block ${
-          isLight ? "text-red-600" : "text-red-300"
-        }`}
-      >
-        Please upload and confirm your profile photo.
-      </p>
-
-      {previewUrl ? (
-        <div className="mt-4 flex items-center gap-3">
-          <img
-            src={previewUrl}
-            alt="Profile preview"
-            className="h-20 w-20 rounded-full border border-slate-600 object-cover"
-          />
-          <span className={`text-xs ${isLight ? "text-ink-600" : "text-slate-300"}`}>
-            Ready for submission
-          </span>
-        </div>
-      ) : null}
-
       {error ? (
-        <p
-          className={`mt-3 rounded-xl border px-3 py-2 text-xs ${
-            isLight
-              ? "border-red-300 bg-red-50 text-red-700"
-              : "border-red-500/40 bg-red-500/10 text-red-100"
-          }`}
-        >
+        <p data-testid="register-avatar-error" role="alert" className="mt-1.5 text-xs text-red-600">
           {error}
         </p>
-      ) : null}
+      ) : (
+        <p className="field-hint mt-1.5 hidden text-xs text-red-600 group-data-[invalid=1]:block">
+          Please upload and confirm your profile photo.
+        </p>
+      )}
 
-      {isModalOpen && sourceUrl ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink-900/85 p-4">
-          <div className="w-full max-w-xl rounded-2xl border border-slate-700 bg-slate-900 p-4 shadow-2xl">
-            <p className="mb-2 text-sm font-semibold text-slate-100">
-              Crop profile photo (1:1)
-            </p>
-            <div className="relative h-72 overflow-hidden rounded-xl bg-ink-900">
-              <Cropper
-                image={sourceUrl}
-                crop={crop}
-                zoom={zoom}
-                aspect={1}
-                cropShape="round"
-                showGrid={false}
-                onCropChange={setCrop}
-                onZoomChange={setZoom}
-                onCropComplete={(_, croppedPixels) => {
-                  setCroppedAreaPixels(croppedPixels as CropArea);
-                }}
-              />
-            </div>
-            <div className="mt-3">
-              <label className="text-xs text-slate-300">
-                Zoom
-                <input
-                  type="range"
-                  min={1}
-                  max={3}
-                  step={0.05}
-                  value={zoom}
-                  onChange={(e) => setZoom(Number(e.target.value))}
-                  className="mt-2 w-full"
-                />
-              </label>
-            </div>
-            <div className="mt-4 flex items-center justify-end gap-2">
-              <button
-                type="button"
-                onClick={onCancelCrop}
-                className="rounded-xl border border-slate-600 px-3 py-2 text-xs text-slate-200 hover:border-slate-500"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={onConfirmCrop}
-                disabled={isCropping}
-                className="rounded-xl bg-clinical-400 px-3 py-2 text-xs font-semibold text-slate-950 disabled:opacity-60"
-              >
-                {isCropping ? "Processing..." : "Confirm crop"}
-              </button>
-            </div>
-          </div>
-        </div>
+      {sourceUrl ? (
+        <AvatarCropDialog
+          sourceUrl={sourceUrl}
+          title="Crop your photo"
+          hint="Drag to position your face in the circle."
+          onCancel={onCancelCrop}
+          onConfirm={onCropped}
+        />
       ) : null}
     </div>
   );
 }
-

@@ -1,6 +1,5 @@
 import { expect, test } from "@playwright/test";
 import {
-  postDoctorVerification,
   postSpecialtyChangeReview,
   postSpecialtyReview,
   founderCookie,
@@ -111,14 +110,12 @@ test.describe("Integration: doctor account access", { tag: "@pr-e2e" }, () => {
           })
         ).status(),
       ).toBe(200);
-      expect(
-        (
-          await postDoctorVerification(page.request, await founderCookie(), {
-            doctorId: fixture.doctorId,
-            action: "reject",
-          })
-        ).status(),
-      ).toBe(200);
+      // The account status the founders' old Verify / Reject set (no route any more).
+      const decided = await admin
+        .from("professionals")
+        .update({ status: "rejected" })
+        .eq("id", fixture.doctorId);
+      expect(decided.error).toBeNull();
 
       await loginDoctorUi(page, fixture.email, fixture.password);
       await page.goto("/agenda");
@@ -159,14 +156,12 @@ test.describe("Integration: doctor account access", { tag: "@pr-e2e" }, () => {
           })
         ).status(),
       ).toBe(200);
-      expect(
-        (
-          await postDoctorVerification(page.request, await founderCookie(), {
-            doctorId: fixture.doctorId,
-            action: "verify",
-          })
-        ).status(),
-      ).toBe(200);
+      // The account status the founders' old Verify / Reject set (no route any more).
+      const decided = await admin
+        .from("professionals")
+        .update({ status: "verified" })
+        .eq("id", fixture.doctorId);
+      expect(decided.error).toBeNull();
 
       await loginDoctorUi(page, fixture.email, fixture.password);
       await page.goto("/agenda");
@@ -181,73 +176,6 @@ test.describe("Integration: doctor account access", { tag: "@pr-e2e" }, () => {
       if (fixture) await deleteTestDoctor(fixture);
       // approve_new put the label into the catalogue.
       await deleteTestCatalogueSpecialty(admin, "meditation");
-    }
-  });
-
-  test("founder APIs: specialty before license; standard skips specialty queue", async ({
-    request,
-  }) => {
-    const env = requireSafeIntegration();
-    const admin = createIntegrationAdmin(env);
-    const secret = await founderCookie();
-    const nonce = `${Date.now()}-${Math.floor(Math.random() * 100000)}`;
-    let custom: TestDoctorFixture | null = null;
-    let standard: TestDoctorFixture | null = null;
-
-    try {
-      custom = await createTestDoctor({
-        admin,
-        nonce: `c-${nonce}`,
-        name: `Custom ${nonce}`,
-        specialty: "meditation",
-        is_specialty_approved: false,
-        status: "pending",
-      });
-
-      expect(
-        (await postDoctorVerification(request, secret, { doctorId: custom.doctorId, action: "verify" }))
-          .status(),
-      ).toBe(400);
-      expect(
-        (await postDoctorVerification(request, secret, { doctorId: custom.doctorId, action: "reject" }))
-          .status(),
-      ).toBe(400);
-
-      expect(
-        (
-          await postSpecialtyReview(request, secret, {
-            doctorId: custom.doctorId,
-            action: "reject_specialty",
-          })
-        ).status(),
-      ).toBe(200);
-      expect(
-        (await postDoctorVerification(request, secret, { doctorId: custom.doctorId, action: "verify" }))
-          .status(),
-      ).toBe(400);
-
-      standard = await createTestDoctor({
-        admin,
-        nonce: `s-${nonce}`,
-        name: `Standard ${nonce}`,
-        specialty: "Pediatrics",
-        is_specialty_approved: true,
-        status: "pending",
-      });
-      expect(
-        (
-          await postDoctorVerification(request, secret, {
-            doctorId: standard.doctorId,
-            action: "verify",
-          })
-        ).status(),
-      ).toBe(200);
-
-      const row = await admin.from("professionals").select("status").eq("id", standard.doctorId).single();
-      expect(row.data?.status).toBe("verified");
-    } finally {
-      if (custom) await deleteTestDoctor(custom);
-      if (standard) await deleteTestDoctor(standard);
     }
   });
 

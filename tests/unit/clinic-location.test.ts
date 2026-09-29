@@ -4,6 +4,7 @@ import {
   clinicAddressDistrictConflicts,
   clinicLocationFromParts,
   clinicLocationWithAddressAlignedDistrict,
+  googlePlaceClinicName,
   hasConfirmedClinicCoordinates,
   inferCyprusDistrictFromClinic,
 } from "../../lib/clinic-location";
@@ -179,5 +180,24 @@ describe("hasConfirmedClinicCoordinates", () => {
       }),
       false,
     );
+  });
+});
+
+describe("googlePlaceClinicName", () => {
+  it("keeps the name of a business Google knows", () => {
+    assert.equal(
+      googlePlaceClinicName("Limassol Physio Centre", "Anexartisias 5, Limassol 3036, Cyprus"),
+      "Limassol Physio Centre",
+    );
+  });
+
+  it("drops a name that is only the start of the address (a street pick)", () => {
+    assert.equal(googlePlaceClinicName("Eleftherias 51", "Eleftherias 51, Larnaka 7020, Cyprus"), null);
+    assert.equal(googlePlaceClinicName("Pomos", "Pomos, Paphos 8870, Cyprus"), null);
+  });
+
+  it("returns null for an empty or missing name", () => {
+    assert.equal(googlePlaceClinicName("  ", "Somewhere, Cyprus"), null);
+    assert.equal(googlePlaceClinicName(undefined, "Somewhere, Cyprus"), null);
   });
 });

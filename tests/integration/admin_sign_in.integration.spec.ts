@@ -57,20 +57,26 @@ test.describe("Admin sign-in (/internal)", { tag: ["@pr-e2e"] }, () => {
     await expect(page).toHaveURL(/\/internal\/sign-in/, { timeout: 20_000 });
 
     const anyId = "00000000-0000-0000-0000-000000000000";
-    const noSession = await request.post("/api/internal/doctors/verification", {
-      data: { doctorId: anyId, action: "verify" },
+    // A founder-only write (deny a registration request); the access check comes first.
+    const noSession = await request.post(`/api/internal/requests/${anyId}/deny`, {
+      data: { reason: "x" },
     });
     expect(noSession.status()).toBe(401);
 
     // The retired shared-code cookie opens nothing, whatever its value.
-    const oldCookie = await request.post("/api/internal/doctors/verification", {
+    const oldCookie = await request.post(`/api/internal/requests/${anyId}/deny`, {
       headers: { Cookie: `doccy-internal-directory=${process.env.INTERNAL_DIRECTORY_SECRET || "x"}` },
-      data: { doctorId: anyId, action: "verify" },
+      data: { reason: "x" },
     });
     expect(oldCookie.status()).toBe(401);
 
     const csv = await request.get("/api/internal/directory-clicks.csv");
     expect(csv.status()).toBe(401);
+
+    // The old registration path's founder routes are gone.
+    for (const path of ["/api/internal/doctors/verification", "/api/internal/pending-registration-twin"]) {
+      expect((await request.post(path, { data: {} })).status(), path).toBe(404);
+    }
     const session = await request.get("/api/internal/session");
     expect(session.status()).toBe(401);
     expect((await session.json()).reason).toBe("signed_out");
@@ -230,9 +236,9 @@ test.describe("Admin sign-in (/internal)", { tag: ["@pr-e2e"] }, () => {
       const csv = await request.get("/api/internal/directory-clicks.csv", { headers: { Cookie: cookie } });
       expect(csv.status()).toBe(200);
 
-      const write = await request.post("/api/internal/doctors/verification", {
+      const write = await request.post("/api/internal/requests/00000000-0000-0000-0000-000000000000/deny", {
         headers: { Cookie: cookie },
-        data: { doctorId: "00000000-0000-0000-0000-000000000000", action: "verify" },
+        data: { reason: "x" },
       });
       expect(write.status()).toBe(403);
       expect((await write.json()).reason).toBe("read_only");

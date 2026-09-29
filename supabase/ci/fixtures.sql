@@ -13,13 +13,13 @@
 insert into public.professionals (
   id, name, slug, district, town, phone, email, registration_email, mobile_number, languages,
   is_gesy, clinic_address, latitude, longitude, finder_visible, is_archived, is_registered,
-  has_online_booking, is_test_profile, auth_user_id, status, subscription_tier,
+  is_test_profile, auth_user_id, status, subscription_tier,
   trial_notice_seen_at, pro_access_until
 )
 values (
   md5('ci-fixture-andreas-nikos')::uuid, :'name', :'slug', 'Larnaca', 'Larnaca', '+35700999002',
   :'email', :'email', '+35700999003', :'languages'::text[], true, '1 Fixture Street, Larnaca',
-  34.9229, 33.6233, true, false, true, true, true, :'auth_user_id'::uuid, 'verified', 'founder',
+  34.9229, 33.6233, true, false, true, true, :'auth_user_id'::uuid, 'verified', 'founder',
   now(), now() + interval '1 year'
 );
 

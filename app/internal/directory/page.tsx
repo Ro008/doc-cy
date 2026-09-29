@@ -19,16 +19,10 @@ import {
   PendingSpecialtiesPanel,
   type PendingSpecialtyRow,
 } from "@/components/internal/PendingSpecialtiesPanel";
-import { PendingRegistrationReviewPanel } from "@/components/internal/PendingRegistrationReviewPanel";
-import type { PendingRegistrationReviewItem } from "@/lib/pending-registration-review";
 import {
-  classifyPendingRegistrationOrigin,
   originFromClaimSource,
   parseDirectoryClaimSource,
 } from "@/lib/pending-registration-origin";
-import { resolveShareAvatarUrl } from "@/lib/doctor-seo-formatting";
-import { stripPlusCodePrefix } from "@/lib/clinic-location-pin";
-import { loadDoctorLocationsByDoctorIds } from "@/lib/load-doctor-locations";
 import {
   SpecialtyChangeRequestsPanel,
   type SpecialtyChangeRequestRow,
@@ -55,6 +49,17 @@ import { cyprusMonthStartUtcIso } from "@/lib/cyprus-calendar";
 import { TrialConversionTable } from "@/components/internal/TrialConversionTable";
 import { TrialMonthsSetting } from "@/components/internal/TrialMonthsSetting";
 import { loadTrialMonths } from "@/lib/trial-months-setting";
+import { RegistrationRequestsSection } from "@/components/internal/RegistrationRequestsSection";
+import {
+  countReviewablePendingRequests,
+  loadRegistrationRequestsForReview,
+} from "@/lib/registration-requests";
+import {
+  INTERNAL_DASHBOARD_TABS,
+  internalDashboardTab,
+  internalDashboardTabHref,
+  type InternalDashboardTab,
+} from "@/lib/internal-dashboard-tab";
 import { WebsiteAnalyticsPanel } from "@/components/internal/WebsiteAnalyticsPanel";
 import { PendingLink } from "@/components/navigation/PendingLink";
 import { InternalDirectoryShell } from "@/components/internal/DirectoryNavContext";
@@ -168,10 +173,97 @@ function getRuntimeEnvironmentLabel(): "production" | "preview" | "local" {
   return "local";
 }
 
+/** Page header with the Requests / Statistics tabs (until the internal site gets its own design). */
+function DashboardHeader({
+  admin: signedInAdmin,
+  canMutate,
+  runtimeLabel,
+  runtimeBadgeClass,
+  tab,
+  pendingRequestsCount,
+}: {
+  admin: { name: string };
+  canMutate: boolean;
+  runtimeLabel: string;
+  runtimeBadgeClass: string;
+  tab: InternalDashboardTab;
+  pendingRequestsCount: number;
+}) {
+  return (
+    <header className="border-b border-slate-800/80 bg-slate-950/80 backdrop-blur-md">
+      <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-6 sm:flex-row sm:items-center sm:justify-between lg:px-8">
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-clinical-500/90">
+            {canMutate ? "Founder" : "Business Partner"}
+          </p>
+          {canMutate ? (
+            <>
+              <h1 className="mt-1 text-2xl font-semibold tracking-tight text-white lg:text-3xl">
+                Dashboard
+              </h1>
+              <p className="mt-1 text-sm text-slate-500">
+                Platform health · professionals · bookings · live data
+              </p>
+            </>
+          ) : (
+            <>
+              <h1 className="mt-1 text-2xl font-semibold tracking-tight text-white lg:text-3xl">
+                Hi {signedInAdmin.name}
+              </h1>
+              <p className="mt-1 text-sm text-slate-400">Your DocCy overview.</p>
+            </>
+          )}
+          <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px]">
+            <span
+              className={`inline-flex items-center rounded-full border px-2 py-1 font-semibold uppercase tracking-[0.12em] ${runtimeBadgeClass}`}
+            >
+              Environment: {runtimeLabel}
+            </span>
+            <span className="inline-flex items-center rounded-full border border-slate-600/60 bg-slate-800/70 px-2 py-1 font-semibold tracking-[0.04em] text-slate-200">
+              Signed in: {signedInAdmin.name}
+            </span>
+            {canMutate ? null : (
+              <span className="inline-flex items-center rounded-full border border-slate-600/60 bg-slate-800/70 px-2 py-1 font-semibold uppercase tracking-[0.12em] text-slate-200">
+                Access: Read-only
+              </span>
+            )}
+          </div>
+        </div>
+        <InternalSignOutButton />
+      </div>
+      <nav aria-label="Dashboard sections" className="mx-auto flex max-w-7xl gap-1 px-4 lg:px-8">
+        {INTERNAL_DASHBOARD_TABS.map((item) => {
+          const selected = item.id === tab;
+          return (
+            <Link
+              key={item.id}
+              href={internalDashboardTabHref(item.id)}
+              aria-current={selected ? "page" : undefined}
+              className={`-mb-px border-b-2 px-4 py-2 text-sm font-semibold transition ${
+                selected
+                  ? "border-clinical-400 text-white"
+                  : "border-transparent text-slate-400 hover:text-slate-200"
+              }`}
+            >
+              {item.label}
+              {item.id === "requests" && pendingRequestsCount > 0 ? (
+                <span className="ml-2 rounded-full bg-amber-400 px-2 py-0.5 text-xs font-bold text-slate-950">
+                  {pendingRequestsCount}
+                </span>
+              ) : null}
+            </Link>
+          );
+        })}
+      </nav>
+    </header>
+  );
+}
+
 export default async function FounderDashboardPage({
   searchParams,
 }: {
   searchParams?: {
+    tab?: string | string[];
     manualVotesRange?: string | string[];
     manualVotesCol?: string | string[];
     manualVotesDir?: string | string[];
@@ -211,6 +303,47 @@ export default async function FounderDashboardPage({
           >
             ← Back to gate
           </PendingLink>
+        </div>
+      </main>
+    );
+  }
+
+  const tab = internalDashboardTab(searchParams?.tab);
+  if (tab === "requests") {
+    // The review queue only: nothing else on this page is loaded.
+    const [trialMonthsSetting, review, specialtyCatalogue] = await Promise.all([
+      loadTrialMonths(supabase),
+      loadRegistrationRequestsForReview(supabase).catch((err) => {
+        console.error("[internal/directory] registration requests load failed", err);
+        return { items: [], hiddenPending: 0 };
+      }),
+      loadSpecialtyCatalogueNames(supabase).catch((err) => {
+        console.error("[internal/directory] specialty catalogue load failed", err);
+        return [] as string[];
+      }),
+    ]);
+    return (
+      <main className="min-h-screen bg-slate-950 text-slate-50">
+      <div className="pointer-events-none fixed inset-0 -z-10">
+        <div className="absolute inset-x-0 top-0 mx-auto h-96 max-w-4xl rounded-full bg-clinical-600/[0.07] blur-3xl" />
+        <div className="absolute right-0 top-1/4 h-64 w-64 rounded-full bg-violet-600/[0.06] blur-3xl" />
+      </div>
+        <DashboardHeader
+          admin={signedInAdmin}
+          canMutate={canMutate}
+          runtimeLabel={runtimeLabel}
+          runtimeBadgeClass={runtimeBadgeClass}
+          tab="requests"
+          pendingRequestsCount={review.items.filter((item) => item.status === "pending").length}
+        />
+        <div className="mx-auto max-w-7xl space-y-8 px-4 py-8 lg:px-8">
+          <RegistrationRequestsSection
+            items={review.items}
+            hiddenPending={review.hiddenPending}
+            canMutate={canMutate}
+            defaultTrialMonths={trialMonthsSetting.ok ? trialMonthsSetting.months : null}
+            specialtyCatalogue={specialtyCatalogue}
+          />
         </div>
       </main>
     );
@@ -531,250 +664,10 @@ export default async function FounderDashboardPage({
     }
   }
 
-  const pendingRegistrationIds = rows
-    .filter((r) => (r.status ?? "").trim().toLowerCase() === "pending")
-    .map((r) => r.id);
-
-  let pendingRegistrationItems: PendingRegistrationReviewItem[] = [];
-  if (pendingRegistrationIds.length > 0) {
-    const pendingSelectFull =
-      "id, name, slug, email, registration_email, phone, mobile_number, avatar_url, languages, license_file_url, district, town, clinic_address, latitude, longitude, clinic_place_id, created_at, specialty_requires_standard_at, directory_claim_source, claim_listing_id, status";
-    const pendingSelectNoMobile =
-      "id, name, slug, email, registration_email, phone, avatar_url, languages, license_file_url, district, town, clinic_address, latitude, longitude, clinic_place_id, created_at, specialty_requires_standard_at, directory_claim_source, claim_listing_id, status";
-    const pendingSelectLegacy =
-      "id, name, slug, email, phone, avatar_url, languages, license_file_url, district, clinic_address, latitude, longitude, clinic_place_id, created_at, specialty_requires_standard_at, directory_claim_source, status";
-    const pendingSelectNoClaimSource =
-      "id, name, slug, email, registration_email, phone, mobile_number, avatar_url, languages, license_file_url, district, town, clinic_address, latitude, longitude, clinic_place_id, created_at, specialty_requires_standard_at, status";
-
-    let pendingFullRes = await fetchAllSupabaseRowsForIdChunks(
-      pendingRegistrationIds,
-      (chunk) =>
-        supabase.from("professionals").select(pendingSelectFull).in("id", chunk),
-    );
-    if (
-      pendingFullRes.error &&
-      /directory_claim_source|claim_listing_id/i.test(String(pendingFullRes.error.message ?? ""))
-    ) {
-      pendingFullRes = (await fetchAllSupabaseRowsForIdChunks(
-        pendingRegistrationIds,
-        (chunk) =>
-          supabase.from("professionals").select(pendingSelectNoClaimSource).in("id", chunk),
-      )) as typeof pendingFullRes;
-    }
-    if (
-      pendingFullRes.error &&
-      /mobile_number/i.test(String(pendingFullRes.error.message ?? ""))
-    ) {
-      pendingFullRes = (await fetchAllSupabaseRowsForIdChunks(
-        pendingRegistrationIds,
-        (chunk) =>
-          supabase.from("professionals").select(pendingSelectNoMobile).in("id", chunk),
-      )) as typeof pendingFullRes;
-    }
-    if (
-      pendingFullRes.error &&
-      /registration_email|town|avatar_url/i.test(
-        String(pendingFullRes.error.message ?? ""),
-      )
-    ) {
-      pendingFullRes = (await fetchAllSupabaseRowsForIdChunks(
-        pendingRegistrationIds,
-        (chunk) =>
-          supabase.from("professionals").select(pendingSelectLegacy).in("id", chunk),
-      )) as typeof pendingFullRes;
-    }
-
-    const locationRowsForPending = [
-      ...(await loadDoctorLocationsByDoctorIds(pendingRegistrationIds)).values(),
-    ].flat();
-
-    const locationsByDoctor = new Map<
-      string,
-      {
-        id: string | null;
-        district: string | null;
-        town: string | null;
-        address: string | null;
-        latitude: number | null;
-        longitude: number | null;
-        placeId: string | null;
-        isPrimary: boolean;
-        sortOrder: number;
-      }[]
-    >();
-    for (const row of locationRowsForPending ?? []) {
-      const doctorId = String((row as { doctor_id?: string }).doctor_id ?? "");
-      if (!doctorId) continue;
-      const list = locationsByDoctor.get(doctorId) ?? [];
-      list.push({
-        id: String((row as { id?: string }).id ?? "") || null,
-        district:
-          String((row as { district?: string | null }).district ?? "").trim() || null,
-        town: String((row as { town?: string | null }).town ?? "").trim() || null,
-        address:
-          stripPlusCodePrefix(
-            String((row as { clinic_address?: string | null }).clinic_address ?? ""),
-          ) || null,
-        latitude:
-          typeof (row as { latitude?: number | null }).latitude === "number"
-            ? (row as { latitude: number }).latitude
-            : null,
-        longitude:
-          typeof (row as { longitude?: number | null }).longitude === "number"
-            ? (row as { longitude: number }).longitude
-            : null,
-        placeId:
-          String(
-            (row as { clinic_place_id?: string | null }).clinic_place_id ?? "",
-          ).trim() || null,
-        isPrimary: Boolean((row as { is_primary?: boolean | null }).is_primary),
-        sortOrder: Number((row as { sort_order?: number | null }).sort_order ?? 0),
-      });
-      locationsByDoctor.set(doctorId, list);
-    }
-
-    const pendingById = new Map(
-      (pendingFullRes.data ?? []).map((row) => [String((row as { id: string }).id), row]),
-    );
-
-    // Claimed rows (card_link) only store which listing they intend to claim
-    // (claim_listing_id) — that listing is untouched until Verify, so we need
-    // a separate lookup to show its slug/URL in the review panel.
-    const claimListingIds = Array.from(
-      new Set(
-        (pendingFullRes.data ?? [])
-          .map((row) => String((row as { claim_listing_id?: string | null }).claim_listing_id ?? "").trim())
-          .filter(Boolean),
-      ),
-    );
-    const claimedListingSlugById = new Map<string, string | null>();
-    if (claimListingIds.length > 0) {
-      const { data: claimListingRows } = await fetchAllSupabaseRowsForIdChunks(
-        claimListingIds,
-        (chunk) => supabase.from("professionals").select("id, slug").in("id", chunk),
-      );
-      for (const r of claimListingRows ?? []) {
-        const rid = String((r as { id?: string }).id ?? "");
-        if (!rid) continue;
-        claimedListingSlugById.set(
-          rid,
-          String((r as { slug?: string | null }).slug ?? "").trim() || null,
-        );
-      }
-    }
-
-    pendingRegistrationItems = pendingRegistrationIds
-      .map((id) => {
-        const raw = pendingById.get(id) as Record<string, unknown> | undefined;
-        if (!raw) return null;
-        const languagesRaw = raw.languages;
-        const languages = Array.isArray(languagesRaw)
-          ? languagesRaw.map((l) => String(l).trim()).filter(Boolean)
-          : languagesRaw
-            ? [String(languagesRaw).trim()].filter(Boolean)
-            : [];
-        const avatarPath = String(raw.avatar_url ?? "").trim();
-        const avatarUrl = resolveShareAvatarUrl(avatarPath, (path) =>
-          supabase.storage.from("avatars").getPublicUrl(path).data.publicUrl,
-        );
-        let locations = [...(locationsByDoctor.get(id) ?? [])].sort((a, b) => {
-          if (a.isPrimary !== b.isPrimary) return a.isPrimary ? -1 : 1;
-          return a.sortOrder - b.sortOrder;
-        });
-        if (locations.length === 0) {
-          const fallbackAddress =
-            stripPlusCodePrefix(String(raw.clinic_address ?? "")) || null;
-          const fallbackDistrict =
-            String(raw.district ?? "").trim() || null;
-          const fallbackTown = String(raw.town ?? "").trim() || null;
-          if (fallbackAddress || fallbackDistrict || fallbackTown) {
-            locations = [
-              {
-                id: null,
-                district: fallbackDistrict,
-                town: fallbackTown,
-                address: fallbackAddress,
-                latitude:
-                  typeof raw.latitude === "number" ? raw.latitude : null,
-                longitude:
-                  typeof raw.longitude === "number" ? raw.longitude : null,
-                placeId: String(raw.clinic_place_id ?? "").trim() || null,
-                isPrimary: true,
-                sortOrder: 0,
-              },
-            ];
-          }
-        }
-        const specialtyEntries = specialtyEntriesByDoctor.get(id) ?? [];
-        const primaryEntry = primarySpecialtyEntry(specialtyEntries);
-        const claimSource = parseDirectoryClaimSource(
-          raw.directory_claim_source as string | null | undefined,
-        );
-        const origin = classifyPendingRegistrationOrigin({ claimSource });
-        const claimListingId = String(raw.claim_listing_id ?? "").trim() || null;
-        const claimedListingSlug =
-          origin.kind === "claimed" && claimListingId
-            ? (claimedListingSlugById.get(claimListingId) ?? null)
-            : null;
-        return {
-          id,
-          name: String(raw.name ?? "").trim() || "Professional",
-          email:
-            professionalAccountEmail({
-              registration_email: raw.registration_email as string | null | undefined,
-              email: raw.email as string | null | undefined,
-            }) || null,
-          phone:
-            String(raw.mobile_number ?? "").trim() ||
-            String(raw.phone ?? "").trim() ||
-            null,
-          slug: String(raw.slug ?? "").trim() || null,
-          claimedListingSlug,
-          avatarUrl,
-          languages,
-          specialties: specialtyEntries.map((entry) => ({
-            id: entry.id || null,
-            specialty: entry.name,
-            licenseNumber: entry.licenseNumber,
-            isApproved: entry.isApproved,
-          })),
-          primarySpecialty: primaryEntry?.name ?? null,
-          primaryLicenseNumber: primaryEntry?.licenseNumber ?? null,
-          locations: locations.map(
-            ({ id: lid, district, town, address, latitude, longitude, placeId, isPrimary }) => ({
-              id: lid,
-              district,
-              town,
-              address,
-              latitude,
-              longitude,
-              placeId,
-              isPrimary,
-            }),
-          ),
-          licenseFileUrl: String(raw.license_file_url ?? "").trim() || null,
-          createdAt: String(raw.created_at ?? "").trim() || null,
-          isSpecialtyApproved: !hasPendingSpecialty(specialtyEntries),
-          specialtyRequiresStandardAt:
-            String(raw.specialty_requires_standard_at ?? "").trim() || null,
-          fromDirectoryListing: origin.kind === "claimed",
-          originKind: origin.kind,
-          originLabel: origin.label,
-          originDescription: origin.description,
-          claimSource: origin.claimSource,
-          status: String(raw.status ?? "pending").trim() || "pending",
-        } satisfies PendingRegistrationReviewItem;
-      })
-      .filter((item): item is PendingRegistrationReviewItem => item != null);
-  }
-
   const verifiedRows = rows.filter(
     (r) => (r.status ?? "").trim().toLowerCase() === "verified"
   );
   const totalDoctors = verifiedRows.length;
-  const pendingDoctorsCount = rows.filter(
-    (r) => (r.status ?? "").trim().toLowerCase() === "pending"
-  ).length;
   const totalAppointments = apptCountRes.error ? 0 : apptCountRes.count ?? 0;
   const appointmentsThisMonth = apptsMonthCountRes.error
     ? 0
@@ -983,6 +876,8 @@ export default async function FounderDashboardPage({
   const trialMonths = await loadTrialMonths(supabase);
   if (trialMonths.ok === false) console.error("[internal/directory] trial months load failed", trialMonths.error);
 
+  const pendingRequestsCount = await countReviewablePendingRequests(supabase);
+
   return (
     <main className="min-h-screen bg-slate-950 text-slate-50">
       <div className="pointer-events-none fixed inset-0 -z-10">
@@ -990,48 +885,14 @@ export default async function FounderDashboardPage({
         <div className="absolute right-0 top-1/4 h-64 w-64 rounded-full bg-violet-600/[0.06] blur-3xl" />
       </div>
 
-      <header className="border-b border-slate-800/80 bg-slate-950/80 backdrop-blur-md">
-        <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-6 sm:flex-row sm:items-center sm:justify-between lg:px-8">
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-clinical-500/90">
-              {canMutate ? "Founder" : "Business Partner"}
-            </p>
-            {canMutate ? (
-              <>
-                <h1 className="mt-1 text-2xl font-semibold tracking-tight text-white lg:text-3xl">
-                  Dashboard
-                </h1>
-                <p className="mt-1 text-sm text-slate-500">
-                  Platform health · professionals · bookings · live data
-                </p>
-              </>
-            ) : (
-              <>
-                <h1 className="mt-1 text-2xl font-semibold tracking-tight text-white lg:text-3xl">
-                  Hi {signedInAdmin.name}
-                </h1>
-                <p className="mt-1 text-sm text-slate-400">Your DocCy overview.</p>
-              </>
-            )}
-            <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px]">
-              <span
-                className={`inline-flex items-center rounded-full border px-2 py-1 font-semibold uppercase tracking-[0.12em] ${runtimeBadgeClass}`}
-              >
-                Environment: {runtimeLabel}
-              </span>
-              <span className="inline-flex items-center rounded-full border border-slate-600/60 bg-slate-800/70 px-2 py-1 font-semibold tracking-[0.04em] text-slate-200">
-                Signed in: {signedInAdmin.name}
-              </span>
-              {canMutate ? null : (
-                <span className="inline-flex items-center rounded-full border border-slate-600/60 bg-slate-800/70 px-2 py-1 font-semibold uppercase tracking-[0.12em] text-slate-200">
-                  Access: Read-only
-                </span>
-              )}
-            </div>
-          </div>
-          <InternalSignOutButton />
-        </div>
-      </header>
+      <DashboardHeader
+        admin={signedInAdmin}
+        canMutate={canMutate}
+        runtimeLabel={runtimeLabel}
+        runtimeBadgeClass={runtimeBadgeClass}
+        tab="statistics"
+        pendingRequestsCount={pendingRequestsCount}
+      />
 
       <Suspense
         fallback={
@@ -1044,7 +905,7 @@ export default async function FounderDashboardPage({
       >
         <InternalDirectoryShell canMutate={canMutate}>
           <div className="mx-auto max-w-7xl space-y-8 px-4 py-8 lg:px-8">
-        {pendingDoctorsCount > 0 || specialtyChangeRequestItems.length > 0 ? (
+        {pendingRequestsCount > 0 || specialtyChangeRequestItems.length > 0 ? (
           <section className="rounded-2xl border border-amber-500/45 bg-amber-500/10 p-5 shadow-lg shadow-black/20">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
@@ -1053,8 +914,8 @@ export default async function FounderDashboardPage({
                 </p>
                 <h2 className="mt-1 text-lg font-semibold text-amber-100">
                   {[
-                    pendingDoctorsCount > 0
-                      ? `${pendingDoctorsCount} pending professional${pendingDoctorsCount === 1 ? "" : "s"}`
+                    pendingRequestsCount > 0
+                      ? `${pendingRequestsCount} registration request${pendingRequestsCount === 1 ? "" : "s"}`
                       : null,
                     specialtyChangeRequestItems.length > 0
                       ? `${specialtyChangeRequestItems.length} specialty change request${specialtyChangeRequestItems.length === 1 ? "" : "s"}`
@@ -1065,22 +926,22 @@ export default async function FounderDashboardPage({
                 </h2>
                 <p className="mt-1 text-sm text-amber-100/85">
                   {canMutate
-                    ? "Open each application below to review photo, specialties, licenses, and clinic details before verifying."
+                    ? "Open each item below to review it."
                     : "Pending items are listed below for awareness. Your access is read-only."}
                 </p>
               </div>
               <Link
                 href={
-                  pendingRegistrationItems.length > 0
-                    ? "#pending-registration-review"
+                  pendingRequestsCount > 0
+                    ? internalDashboardTabHref("requests")
                     : specialtyChangeRequestItems.length > 0
                       ? "#specialty-change-requests"
                       : "#professional-directory"
                 }
                 className="inline-flex items-center justify-center rounded-xl bg-amber-300 px-4 py-2 text-sm font-semibold text-slate-950 shadow-md shadow-amber-900/30 transition hover:bg-amber-200"
               >
-                {pendingRegistrationItems.length > 0
-                  ? "Review applications"
+                {pendingRequestsCount > 0
+                  ? "Review requests"
                   : specialtyChangeRequestItems.length > 0
                     ? "Review specialty changes"
                     : "Go to Professional Directory"}
@@ -1101,7 +962,6 @@ export default async function FounderDashboardPage({
           items={specialtyChangeRequestItems}
           specialtyOptions={specialtyOptions}
         />
-        <PendingRegistrationReviewPanel items={pendingRegistrationItems} />
         <PendingSpecialtiesPanel
           items={pendingSpecialtyItems}
           specialtyOptions={specialtyOptions}

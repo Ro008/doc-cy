@@ -24,6 +24,7 @@ import {
 } from "./lib/needs-supabase-session-middleware";
 import {adminSignInPath} from "./lib/admin-sign-in-flow";
 import {isDoctorProductPath} from "./lib/doctor-routes";
+import {agendaRedirectForLogin} from "./lib/registration-status-path";
 
 const handleI18nRouting = createMiddleware(routing);
 
@@ -143,6 +144,12 @@ export async function middleware(req: NextRequest) {
 
       if (doctorRowError && (doctorRowError as {code?: string}).code !== "42703") {
         console.error("[DocCy][auth] middleware_doctor_lookup_failed", doctorRowError);
+      }
+
+      // Applicants (registration pending or denied) see only the Status page.
+      if (!doctorRowError) {
+        const applicantRedirect = agendaRedirectForLogin(pathname, Boolean(doctorRow));
+        if (applicantRedirect) return NextResponse.redirect(new URL(applicantRedirect, req.url));
       }
 
       if (

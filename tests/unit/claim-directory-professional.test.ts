@@ -199,6 +199,22 @@ describe("register claim from finder card", () => {
     assert.deepEqual(prefill.clinics, []);
   });
 
+  it("prefills gender and GeSY from the listing, only when the listing knows them", () => {
+    const gesyListing = toRegisterClaimPrefill({ ...maria, gender: "female", is_gesy: true });
+    assert.equal(gesyListing.gender, "female");
+    assert.equal(gesyListing.gesy, "yes");
+
+    // Stored casing varies (older imports used "Male").
+    assert.equal(toRegisterClaimPrefill({ ...maria, gender: "Male" }).gender, "male");
+
+    // is_gesy defaults to false for listings that did not come from GeSY: that means
+    // "unknown", not "no", so the question stays unanswered.
+    const manualListing = toRegisterClaimPrefill({ ...maria, gender: null, is_gesy: false });
+    assert.equal(manualListing.gender, null);
+    assert.equal(manualListing.gesy, null);
+    assert.equal(toRegisterClaimPrefill({ ...maria, gender: "unknown" }).gender, null);
+  });
+
   it("maps legacy directory specialties onto current register master labels", () => {
     const prefill = toRegisterClaimPrefill({
       id: "55555555-5555-5555-5555-555555555555",
@@ -217,6 +233,7 @@ describe("register claim from finder card", () => {
       {
         is_primary: false,
         clinics: {
+          id: "11111111-1111-4111-8111-111111111111",
           name: "Paphos Rooms",
           address: "1 Kennedy, Paphos",
           district: "Paphos",
@@ -228,6 +245,7 @@ describe("register claim from finder card", () => {
       {
         is_primary: true,
         clinics: {
+          id: "22222222-2222-4222-8222-222222222222",
           name: "Nicosia Rooms",
           address: "12 Ledras Street, Nicosia",
           district: "Nicosia",
@@ -241,6 +259,10 @@ describe("register claim from finder card", () => {
     assert.equal(clinics[1]?.name, "Paphos Rooms");
     assert.equal(clinics[0]?.placeId, null);
     assert.equal(clinics.every((clinic) => !("phone" in clinic)), true);
+    // The listing's clinics are existing DocCy clinics: the form links them by id
+    // (no new clinic, no phone to type) instead of proposing copies.
+    assert.equal(clinics[0]?.clinicId, "22222222-2222-4222-8222-222222222222");
+    assert.equal(clinics[1]?.clinicId, "11111111-1111-4111-8111-111111111111");
   });
 
   it("builds a confirmable clinic from the listing row when there is no clinic join", () => {

@@ -35,6 +35,7 @@ declare
   v_u uuid;
   v_req uuid;
   v_req2 uuid;
+  v_req3 uuid;
   v_rec uuid;
   v_row public.request_log%rowtype;
   v_checks int := 0;
@@ -68,7 +69,8 @@ begin
   -- Throwaway types for the generic rules (rolled back with everything else).
   insert into public.request_types (name, requires_approval, is_edit, description) values
     ('zz_test_recorded', false, false, 'test: recorded without approval'),
-    ('zz_test_edit', true, true, 'test: edit type');
+    ('zz_test_edit', true, true, 'test: edit type'),
+    ('zz_test_approval', true, false, 'test: needs approval, no approval step');
 
   ---------------------------------------------------------------- types
   assert exists (
@@ -177,11 +179,12 @@ begin
     '55000', 'nobody approves with a plain update (skipping the approval step)');
   v_checks := v_checks + 7;
 
-  ---------------------------------------------------------------- approve (no approval step yet)
+  ---------------------------------------------------------------- approve (a type without an approval step)
+  v_req3 := public.request_submit('zz_test_approval', v_pro2, '{}'::jsonb, 1::smallint);
   perform pg_temp.expect_error(
-    format($$select public.request_approve(%L::uuid, %L::uuid)$$, v_req, v_founder),
+    format($$select public.request_approve(%L::uuid, %L::uuid)$$, v_req3, v_founder),
     '0A000', 'approving a type without an approval step is refused');
-  assert (select status from public.request_log where id = v_req) = 'pending', 'FAIL: a refused approval changes nothing';
+  assert (select status from public.request_log where id = v_req3) = 'pending', 'FAIL: a refused approval changes nothing';
   perform pg_temp.expect_error(
     format($$select public.request_approve(%L::uuid, %L::uuid)$$, v_req, v_partner),
     '42501', 'partners cannot approve (read-only)');
@@ -278,8 +281,8 @@ begin
     'FAIL: the service role can read and write through the rules';
   assert not has_function_privilege('anon', 'public.request_submit(text, uuid, jsonb, smallint)', 'execute')
     and not has_function_privilege('authenticated', 'public.request_submit(text, uuid, jsonb, smallint)', 'execute')
-    and not has_function_privilege('anon', 'public.request_approve(uuid, uuid, jsonb, text)', 'execute')
-    and not has_function_privilege('authenticated', 'public.request_approve(uuid, uuid, jsonb, text)', 'execute')
+    and not has_function_privilege('anon', 'public.request_approve(uuid, uuid, jsonb, text, jsonb)', 'execute')
+    and not has_function_privilege('authenticated', 'public.request_approve(uuid, uuid, jsonb, text, jsonb)', 'execute')
     and not has_function_privilege('anon', 'public.request_reject(uuid, uuid, text)', 'execute')
     and not has_function_privilege('authenticated', 'public.request_reject(uuid, uuid, text)', 'execute')
     and not has_function_privilege('anon', 'public.request_withdraw(uuid, uuid)', 'execute')

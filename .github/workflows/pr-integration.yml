@@ -198,6 +198,10 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ steps.stack.outputs.service_role_key }}
           TEST_USER_EMAIL: ${{ steps.stack.outputs.test_user_email }}
           TEST_USER_PASSWORD: ${{ steps.stack.outputs.test_user_password }}
+          # Every request comes from one IP, and the register specs alone press the
+          # Account step's contact check more often than its hourly per-IP limit.
+          # No spec here tests a rate limit (unit tests cover them).
+          DOC_CY_PUBLIC_API_RATE_LIMIT: "off"
         run: |
           # Remaining @pr-e2e (onboarding, settings, directory, marketing UI).
           # Excludes finder + booking lanes so retries stay scoped.

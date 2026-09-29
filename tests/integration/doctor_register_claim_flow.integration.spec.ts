@@ -1,4 +1,3 @@
-import path from "node:path";
 import { expect, test } from "@playwright/test";
 
 import {
@@ -13,8 +12,13 @@ import {
   createIntegrationAdmin,
   requireSafeIntegration,
 } from "./helpers/safe-integration";
-import { founderCookie, postDoctorVerification } from "./helpers/internal-api";
-import { selectRegisterEnglishLanguage } from "./helpers/goto-register-practice-step";
+import {
+  answerRegisterAccountChoices,
+  selectRegisterEnglishLanguage,
+  uploadRegisterAvatar,
+  waitForRegisterWizardReady,
+  uniqueRegisterTestMobile,
+} from "./helpers/goto-register-practice-step";
 import { INTEGRATION_DOCTOR_PASSWORD } from "./helpers/test-doctor";
 
 /**
@@ -23,16 +27,17 @@ import { INTEGRATION_DOCTOR_PASSWORD } from "./helpers/test-doctor";
  */
 test.describe("Integration: directory claim registration flow", { tag: "@local-register" }, () => {
   test.describe.configure({ retries: 0 });
-  test("absorbs a QA clone listing from its public profile CTA", async ({ page, request }) => {
+  test("claims a QA clone listing from its public profile CTA", async ({ page }) => {
     test.setTimeout(180_000);
     const env = requireSafeIntegration();
     const admin = createIntegrationAdmin(env);
     const nonce = `${Date.now()}`;
+    // The listing name becomes the prefilled last name, which takes letters only.
+    const nameTag = nonce.replace(/\d/g, (digit) => "abcdefghij"[Number(digit)]!);
     const email = `rociosirvent+claime2e${nonce}@gmail.com`;
     const resendKey = process.env.RESEND_API_KEY?.trim() ?? "";
     const founderNotify = process.env.FOUNDER_NOTIFY_EMAIL?.trim() ?? "";
     const canAssertResend = Boolean(resendKey && founderNotify);
-    const adminCookie = await founderCookie();
     let cloneId: string | null = null;
 
     if (!canAssertResend && !process.env.CI) {
@@ -42,7 +47,7 @@ test.describe("Integration: directory claim registration flow", { tag: "@local-r
     }
 
     try {
-      const clone = await createQaClaimDirectoryClone(admin, nonce);
+      const clone = await createQaClaimDirectoryClone(admin, nameTag);
       cloneId = clone.id;
 
       await page.goto(clone.profilePath, { waitUntil: "domcontentloaded" });
@@ -56,11 +61,12 @@ test.describe("Integration: directory claim registration flow", { tag: "@local-r
         timeout: 20_000,
       });
       await expect(page.getByText(/We were waiting for you/i)).toBeVisible({ timeout: 20_000 });
-      await expect(page.getByRole("heading", { name: /Confirm your details to activate this listing/i })).toBeVisible();
+      await expect(page.getByText(/Confirm your details to activate this listing/i)).toBeVisible();
       await expect(page.getByTestId("register-wizard-continue")).toBeVisible({ timeout: 20_000 });
+      await waitForRegisterWizardReady(page);
       await expect(page.locator("#register-first-name")).toHaveValue("QA");
       await expect(page.locator("#register-last-name")).toHaveValue(
-        new RegExp(`Claim Ioanna Severi ${nonce}`),
+        new RegExp(`Claim Ioanna Severi ${nameTag}`),
       );
 
       await page.locator("#register-form input[name='email']").fill(email);
@@ -73,8 +79,9 @@ test.describe("Integration: directory claim registration flow", { tag: "@local-r
         input.dispatchEvent(new Event("input", { bubbles: true }));
         input.dispatchEvent(new Event("change", { bubbles: true }));
       });
-      await page.locator("#register-form input[name='phone']").fill("+35799123456");
-      for (const key of ["firstName", "lastName", "email", "password", "phone"]) {
+      await page.getByTestId("register-phone-input").fill(uniqueRegisterTestMobile());
+      await answerRegisterAccountChoices(page);
+      for (const key of ["firstName", "lastName", "email", "password", "phone", "gender", "gesy"]) {
         await expect(
           page.locator(`[data-register-step='1'] [data-field-key='${key}']`),
         ).toHaveAttribute("data-complete", "1", { timeout: 10_000 });
@@ -82,12 +89,7 @@ test.describe("Integration: directory claim registration flow", { tag: "@local-r
       await page.getByTestId("register-wizard-continue").click();
 
       await expect(page.getByTestId("register-step-2")).toBeVisible({ timeout: 15_000 });
-      const avatarPath = path.join(process.cwd(), "tests", "fixtures", "e2e-person-avatar.jpg");
-      await page.getByTestId("register-avatar-file-input").setInputFiles(avatarPath);
-      const confirmCrop = page.getByRole("button", { name: /Confirm crop/i });
-      await expect(confirmCrop).toBeVisible({ timeout: 10_000 });
-      await confirmCrop.click();
-      await expect(page.getByText(/Ready for submission/i)).toBeVisible({ timeout: 15_000 });
+      await uploadRegisterAvatar(page);
 
       await selectRegisterEnglishLanguage(page);
       await page.getByTestId("register-wizard-continue").click();
@@ -124,48 +126,42 @@ test.describe("Integration: directory claim registration flow", { tag: "@local-r
       // Claim URLs already include `?claim=…`, so wait for submitted (not merely `?`).
       await expect(page).toHaveURL(/[?&]submitted=1(?:&|$)/, { timeout: 90_000 });
       if (!/[?&]claimed=1(?:&|$)/.test(page.url())) {
-        throw new Error(`Claim registration did not absorb the listing. URL: ${page.url()}`);
+        throw new Error(`Claim registration did not keep the listing. URL: ${page.url()}`);
       }
       await expect(
         page.getByRole("heading", { name: /confirm your email to continue/i }),
       ).toBeVisible({ timeout: 15_000 });
       await expect(overlay).toBeHidden();
 
-      // The claimed clone must stay completely untouched while the
-      // registration is pending — it's a fresh row that only remembers
-      // claim_listing_id, never a conversion of the clone in place.
+      // The claimed clone stays untouched while the request waits: approving it
+      // (build PR 4) updates the listing in place.
       const { data: untouchedClone, error: untouchedCloneErr } = await admin
         .from("professionals")
-        .select("id, slug, is_registered, is_archived, directory_claim_source")
+        .select("id, slug, is_registered, is_archived")
         .eq("id", clone.id)
         .maybeSingle();
       if (untouchedCloneErr) {
         throw new Error(`Failed reading claimed clone: ${untouchedCloneErr.message}`);
       }
-      expect(untouchedClone?.id).toBe(clone.id);
       expect(untouchedClone?.slug).toBe(clone.slug);
       expect(untouchedClone?.is_registered).toBe(false);
       expect(untouchedClone?.is_archived).toBe(false);
-      expect(untouchedClone?.directory_claim_source).toBeNull();
 
-      const { data: pendingRow, error: pendingRowErr } = await admin
-        .from("professionals")
-        .select(
-          "id, slug, is_registered, is_test_profile, status, registration_email, directory_claim_source, claim_listing_id",
-        )
-        .ilike("registration_email", email)
+      // The draft names the claimed listing; no professional row was created.
+      const { data: draft, error: draftErr } = await admin
+        .from("request_drafts")
+        .select("details")
+        .eq("requester_email", email)
         .maybeSingle();
-      if (pendingRowErr || !pendingRow?.id) {
-        throw new Error(`Failed reading pending registration: ${pendingRowErr?.message}`);
+      if (draftErr || !draft) {
+        throw new Error(`Failed reading registration draft: ${draftErr?.message}`);
       }
-      const pendingDoctorId = String(pendingRow.id);
-      expect(pendingDoctorId).not.toBe(clone.id);
-      expect(pendingRow.slug).not.toBe(clone.slug);
-      expect(pendingRow.is_registered).toBe(true);
-      expect(pendingRow.is_test_profile).toBe(true);
-      expect(pendingRow.status).toBe("pending");
-      expect(pendingRow.directory_claim_source).toBe("card_link");
-      expect(pendingRow.claim_listing_id).toBe(clone.id);
+      expect((draft.details as { claimed_professional_id?: string }).claimed_professional_id).toBe(clone.id);
+      const { count: professionalCount } = await admin
+        .from("professionals")
+        .select("id", { count: "exact", head: true })
+        .ilike("registration_email", email);
+      expect(professionalCount).toBe(0);
 
       const { count: twinCount, error: twinErr } = await admin
         .from("professionals")
@@ -197,34 +193,12 @@ test.describe("Integration: directory claim registration flow", { tag: "@local-r
 
         const founderMail = await waitForResendEmailWithSubject({
           apiKey: resendKey,
-          subjectIncludes: `Finder listing claimed — ${clone.name}`,
+          subjectIncludes: nameTag,
           timeoutMs: 30_000,
         });
-        expect(founderMail.subject).toMatch(/Finder listing claimed/i);
+        expect(founderMail.subject).toMatch(/\[CLAIMED PROFILE\] Registration request/);
       }
 
-      if (adminCookie) {
-        const verify = await postDoctorVerification(request, adminCookie, {
-          doctorId: pendingDoctorId,
-          action: "verify",
-        });
-        expect(verify.ok()).toBeTruthy();
-        const { data: verified } = await admin
-          .from("professionals")
-          .select("status")
-          .eq("id", pendingDoctorId)
-          .maybeSingle();
-        expect(verified?.status).toBe("verified");
-
-        // Verify absorbs the claimed clone (same mechanism as manual URL
-        // absorb) — the clone is archived, not deleted.
-        const { data: absorbedClone } = await admin
-          .from("professionals")
-          .select("is_archived")
-          .eq("id", clone.id)
-          .maybeSingle();
-        expect(absorbedClone?.is_archived).toBe(true);
-      }
     } finally {
       await deleteRegistrationE2eDoctor(admin, email);
       if (cloneId) {

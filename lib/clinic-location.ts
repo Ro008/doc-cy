@@ -145,6 +145,21 @@ export function clinicLocationFromParts(input: {
   };
 }
 
+/**
+ * The name of a Google place worth offering as the clinic name. A street or
+ * village pick comes back "named" after the start of its own address
+ * ("Eleftherias 51"), which is not a clinic name.
+ */
+export function googlePlaceClinicName(
+  name: string | null | undefined,
+  formattedAddress: string,
+): string | null {
+  const trimmed = String(name ?? "").trim();
+  if (!trimmed) return null;
+  if (formattedAddress.trim().toLowerCase().startsWith(trimmed.toLowerCase())) return null;
+  return trimmed;
+}
+
 export function hasConfirmedClinicCoordinates(location: ClinicLocation): boolean {
   const coords = parseOptionalCoordinates(location.latitude, location.longitude);
   return Boolean(coords && isLikelyCyprusCoordinates(coords));

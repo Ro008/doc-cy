@@ -7,7 +7,6 @@ import {
   isTestDoctorRegistrationEmail,
   restrictTestSignupDirectoryClaimsToQaListings,
 } from "@/lib/doctor-test-profile";
-import { escapeIlikePattern } from "@/lib/finder-results-paging";
 import { harmonizeFinderSpecialtyLabel } from "@/lib/finder-specialty-harmonize";
 import { SPECIALTY_LINKS_SELECT, specialtyNamesForRow } from "@/lib/specialty-catalogue";
 
@@ -55,6 +54,8 @@ export type DirectoryClaimMatch = FuzzyDirectoryClaimMatch | {
 };
 
 export type RegisterClaimClinic = {
+  /** The DocCy clinic the listing is linked to: the form links it instead of proposing a copy. */
+  clinicId: string | null;
   name: string;
   address: string;
   district: string | null;
@@ -74,9 +75,22 @@ export type RegisterClaimPrefill = {
   district: string | null;
   addressHint: string | null;
   clinics: RegisterClaimClinic[];
+  /** From `professionals.gender`; null when the listing does not say. */
+  gender: "female" | "male" | null;
+  /**
+   * "yes" only when the listing is a GeSY one. `is_gesy` defaults to false for
+   * listings from other sources, which means "unknown", so it never prefills "no".
+   */
+  gesy: "yes" | null;
 };
 
+function claimGender(raw: string | null | undefined): "female" | "male" | null {
+  const value = String(raw ?? "").trim().toLowerCase();
+  return value === "female" || value === "male" ? value : null;
+}
+
 type ClaimClinicNested = {
+  id?: string | null;
   name?: string | null;
   address?: string | null;
   district?: string | null;
@@ -114,6 +128,7 @@ export function registerClaimClinicsFromJoin(
     const address = String(clinic.address ?? "").trim();
     if (!address) continue;
     out.push({
+      clinicId: String(clinic.id ?? "").trim() || null,
       name: String(clinic.name ?? "").trim(),
       address,
       district: String(clinic.district ?? "").trim() || null,
@@ -143,6 +158,7 @@ export function registerClaimClinicFromProfessionalRow(row: {
     String(row.address ?? "").trim() || String(row.clinic_address ?? "").trim();
   if (!address) return null;
   return {
+    clinicId: null,
     name: "",
     address,
     district: String(row.district ?? "").trim() || null,
@@ -292,6 +308,8 @@ export function toRegisterClaimPrefill(row: {
   phone?: string | null;
   address?: string | null;
   clinic_address?: string | null;
+  gender?: string | null;
+  is_gesy?: boolean | null;
 }): RegisterClaimPrefill {
   const name = String(row.name ?? "").trim();
   const labels = listingSpecialtyLabels(row);
@@ -308,6 +326,8 @@ export function toRegisterClaimPrefill(row: {
     addressHint:
       String(row.address ?? "").trim() || String(row.clinic_address ?? "").trim() || null,
     clinics: [],
+    gender: claimGender(row.gender),
+    gesy: row.is_gesy === true ? "yes" : null,
   };
 }
 
@@ -372,107 +392,12 @@ export function pickUniqueHistoricalAbsorbPairs(
   );
 }
 
-function claimSelect() {
-  return `id, slug, name, district, email, ${SPECIALTY_LINKS_SELECT}`;
-}
-
 /** Listing row with its approved labels (professional_specialties) as `specialties`. */
 function withListingSpecialties<T extends { specialty_links?: unknown }>(
   row: T,
 ): Omit<T, "specialty_links"> & { specialties: string[] } {
   const { specialty_links: links, ...rest } = row;
   return { ...rest, specialties: specialtyNamesForRow({ specialty_links: links }) };
-}
-
-async function loadUnregisteredListings(
-  supabase: SupabaseClient,
-  builder: () => ReturnType<SupabaseClient["from"]> extends never ? never : any,
-): Promise<DirectoryClaimListing[]> {
-  const { data, error } = await builder();
-  if (error) {
-    console.error("[DocCy] directory claim lookup failed", error);
-    return [];
-  }
-  return ((data ?? []) as (DirectoryClaimListing & { specialty_links?: unknown })[]).map(
-    withListingSpecialties,
-  );
-}
-
-/**
- * Find an unregistered directory row this signup should become.
- * Test emails never claim a real listing.
- */
-export async function findDirectoryProfessionalToClaim(
-  supabase: SupabaseClient,
-  input: {
-    name: string;
-    email: string;
-    district: string | null;
-    specialties: readonly string[];
-  },
-): Promise<FuzzyDirectoryClaimMatch | null> {
-  const email = normalizeEmail(input.email);
-  if (isTestDoctorRegistrationEmail(email)) return null;
-
-  const name = String(input.name ?? "").trim();
-  const district = String(input.district ?? "").trim() || null;
-  const strippedName = normalizeClaimPersonName(name);
-  const listings: DirectoryClaimListing[] = [];
-  const seen = new Set<string>();
-
-  const push = (rows: DirectoryClaimListing[]) => {
-    for (const row of rows) {
-      const id = String(row.id ?? "").trim();
-      if (!id || seen.has(id)) continue;
-      seen.add(id);
-      listings.push(row);
-    }
-  };
-
-  if (email) {
-    push(
-      await loadUnregisteredListings(supabase, () =>
-        supabase
-          .from("professionals")
-          .select(claimSelect())
-          .eq("is_registered", false)
-          .eq("is_archived", false)
-          .ilike("email", escapeIlikePattern(email))
-          .limit(5),
-      ),
-    );
-  }
-
-  if (district && (name || strippedName)) {
-    const nameQueries = Array.from(
-      new Set([name, strippedName].map((value) => value.trim()).filter(Boolean)),
-    );
-    for (const queryName of nameQueries) {
-      push(
-        await loadUnregisteredListings(supabase, () =>
-          supabase
-            .from("professionals")
-            .select(claimSelect())
-            .eq("is_registered", false)
-            .eq("is_archived", false)
-            .eq("district", district)
-            .ilike("name", escapeIlikePattern(queryName))
-            .limit(10),
-        ),
-      );
-    }
-  }
-
-  return pickUniqueDirectoryClaim(
-    {
-      name,
-      email,
-      district,
-      specialties: input.specialties,
-      isTestSignup: false,
-    },
-    listings,
-  );
 }
 
 /**
@@ -489,7 +414,7 @@ export async function loadUnregisteredProfessionalForRegisterClaim(
   const { data, error } = await supabase
     .from("professionals")
     .select(
-      `id, slug, name, district, town, address, clinic_address, latitude, longitude, ${SPECIALTY_LINKS_SELECT}`,
+      `id, slug, name, district, town, address, clinic_address, latitude, longitude, gender, is_gesy, ${SPECIALTY_LINKS_SELECT}`,
     )
     .eq("id", id)
     .eq("is_registered", false)
@@ -506,7 +431,7 @@ export async function loadUnregisteredProfessionalForRegisterClaim(
   const { data: linkRows, error: linkError } = await supabase
     .from("professional_clinics")
     .select(
-      "is_primary, clinics ( name, address, district, town, latitude, longitude, is_archived )",
+      "is_primary, clinics ( id, name, address, district, town, latitude, longitude, is_archived )",
     )
     .eq("professional_id", id)
     .limit(MAX_DOCTOR_LOCATIONS);
@@ -526,36 +451,20 @@ export async function loadUnregisteredProfessionalForRegisterClaim(
 }
 
 /**
- * Prefer the listing UUID from the card CTA. Fall back to unique email / identity match.
- * On production, test signup emails may only claim QA clones (`QA Claim …` / `qa-claim-…`).
- * On the testing database that restriction is off so manual QA can claim real listings.
+ * The listing a registration claims: only the one the applicant chose with
+ * "Claim this Profile" (no automatic matching; founders search the directory for
+ * unclaimed requests). It must still be unregistered. On production, test signup
+ * emails may only claim QA clones (`QA Claim …` / `qa-claim-…`); on the testing
+ * database that restriction is off so manual QA can claim real listings.
  */
-export async function resolveSignupDirectoryClaim(
+export async function resolveRegisterClaimListing(
   supabase: SupabaseClient,
-  input: {
-    explicitClaimId?: string | null;
-    name: string;
-    email: string;
-    district: string | null;
-    specialties: readonly string[];
-  },
+  input: { claimId: string | null | undefined; email: string },
 ): Promise<DirectoryClaimMatch | null> {
+  const claimId = String(input.claimId ?? "").trim();
+  if (!isProfessionalUuid(claimId)) return null;
+  const listing = await loadUnregisteredProfessionalForRegisterClaim(supabase, claimId);
   const isTestSignup =
-    isTestDoctorRegistrationEmail(input.email) &&
-    restrictTestSignupDirectoryClaimsToQaListings();
-  const explicitId = String(input.explicitClaimId ?? "").trim();
-  if (isProfessionalUuid(explicitId)) {
-    const listing = await loadUnregisteredProfessionalForRegisterClaim(supabase, explicitId);
-    const explicit = pickExplicitDirectoryClaim(listing, { isTestSignup });
-    if (explicit) return explicit;
-  }
-
-  if (isTestSignup) return null;
-
-  return findDirectoryProfessionalToClaim(supabase, {
-    name: input.name,
-    email: input.email,
-    district: input.district,
-    specialties: input.specialties,
-  });
+    isTestDoctorRegistrationEmail(input.email) && restrictTestSignupDirectoryClaimsToQaListings();
+  return pickExplicitDirectoryClaim(listing, { isTestSignup });
 }

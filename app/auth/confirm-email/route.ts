@@ -5,12 +5,13 @@ import {
   registerSubmittedEmailConfirmErrorPath,
   registerSubmittedEmailConfirmedPath,
 } from "@/lib/register-email-confirm";
-import { notifyFounderAfterRegisterEmailConfirm } from "@/lib/notify-founder-after-email-confirm";
+import { confirmRegistrationDraft } from "@/lib/registration-draft-confirm";
+import { createServiceRoleClient } from "@/lib/supabase-service";
 
 /**
  * Completes the signup email magic link (`token_hash` from the DocCy Resend email).
- * Confirms the address, notifies the founder for review, then signs out —
- * they still wait for credential verification.
+ * Confirms the address, moves the registration draft into the founders' review
+ * queue (and emails them), then signs out — they still wait for the review.
  */
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
@@ -47,10 +48,13 @@ export async function GET(request: Request) {
     (await supabase.auth.getUser()).data.user?.id ||
     "";
   if (authUserId) {
+    const service = createServiceRoleClient();
     try {
-      await notifyFounderAfterRegisterEmailConfirm(authUserId);
-    } catch (notifyError) {
-      console.error("[DocCy] Founder notify after email confirm failed", notifyError);
+      if (service) await confirmRegistrationDraft(service, authUserId);
+    } catch (confirmError) {
+      // The draft stays; the applicant can click the link again (the daily purge
+      // deletes drafts still waiting after 7 days).
+      console.error("[DocCy] Registration confirm after email confirm failed", confirmError);
     }
   }
 
