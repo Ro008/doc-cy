@@ -49,6 +49,11 @@ type Props = {
   back: ReviewBackTarget;
   /** Opened from "Suggest other times": load the three times straight away. */
   openSuggestions: boolean;
+  /**
+   * "noNewTime": the patient let earlier proposed times expire, so the visit is no longer
+   * booked. Only suggesting new times makes sense (no accept / keep / decline).
+   */
+  context?: "request" | "noNewTime";
 };
 
 const OTHER_DURATIONS = PROFESSIONAL_DURATION_OPTIONS.filter(
@@ -88,7 +93,9 @@ export function AppointmentReviewClient({
   scheduleForReview,
   back,
   openSuggestions,
+  context = "request",
 }: Props) {
+  const noNewTime = context === "noNewTime";
   const router = useRouter();
   const t = useTranslations("AppointmentReview");
   const [duration, setDuration] = React.useState<ProfessionalDurationOption>(
@@ -181,7 +188,13 @@ export function AppointmentReviewClient({
       const data = await res.json().catch(() => null);
       if (!res.ok) {
         setAlternativesError(
-          typeof data?.message === "string" ? data.message : "Could not load alternative times.",
+          // Backend contract: alternative-slots / propose-reschedule will accept lapsed
+          // reschedules; until then say so plainly instead of the API's status message.
+          noNewTime && res.status === 400
+            ? "Suggesting new times for a lapsed reschedule isn't available yet."
+            : typeof data?.message === "string"
+              ? data.message
+              : "Could not load alternative times.",
         );
         return;
       }
@@ -198,7 +211,7 @@ export function AppointmentReviewClient({
     } finally {
       setLoadingAlternatives(false);
     }
-  }, [appointmentId, duration]);
+  }, [appointmentId, duration, noNewTime]);
 
   // Opened from "Suggest other times": show the three times straight away.
   const autoLoaded = React.useRef(false);
@@ -312,8 +325,9 @@ export function AppointmentReviewClient({
             ))}
           </ul>
           <p className="text-xs leading-relaxed text-slate-500">
-            We&apos;ll hold these times for {firstName(patientName)} until they choose one (up to 24 h), and
-            free up {startLabel} again. They get an email with a link to pick.
+            {noNewTime
+              ? `We'll hold these times for ${firstName(patientName)} until they choose one (up to 24 h). They get an email with a link to pick.`
+              : `We'll hold these times for ${firstName(patientName)} until they choose one (up to 24 h), and free up ${startLabel} again. They get an email with a link to pick.`}
           </p>
           <button
             type="button"
@@ -334,7 +348,9 @@ export function AppointmentReviewClient({
       {/* 3. Say what is being asked. */}
       <header>
         <p className="text-xs font-semibold uppercase tracking-wide text-clinical-300/90">
-          Booking request{requestedAgo ? ` · Requested ${requestedAgo}` : ""}
+          {noNewTime
+            ? "No new time chosen"
+            : `Booking request${requestedAgo ? ` · Requested ${requestedAgo}` : ""}`}
         </p>
         <h1 className="mt-2 text-xl font-semibold leading-snug text-slate-50 sm:text-2xl">
           {mode === "suggest"
@@ -342,7 +358,11 @@ export function AppointmentReviewClient({
             : `${patientName} wants ${dayLabel}, ${startLabel}`}
         </h1>
         <p className="mt-1 text-sm text-slate-400">
-          {mode === "suggest" ? `They asked for ${dayLabel}, ${startLabel} · ` : ""}
+          {noNewTime
+            ? `Nothing is booked for ${dayLabel}, ${startLabel} · `
+            : mode === "suggest"
+              ? `They asked for ${dayLabel}, ${startLabel} · `
+              : ""}
           <span className="text-slate-500">Cyprus time</span>
         </p>
         <div className="mt-3 flex flex-wrap items-center gap-2 text-xs empty:hidden">
@@ -498,6 +518,7 @@ export function AppointmentReviewClient({
         /* Came to offer new times: that is the main action; the rest stays quiet. */
         <div className="space-y-4">
           {suggestionsPanel}
+          {noNewTime ? null : (
           <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-sm">
             <button
               type="button"
@@ -516,6 +537,7 @@ export function AppointmentReviewClient({
               Decline
             </button>
           </div>
+          )}
         </div>
       ) : (
       /* 1 + 7. Every decision available, and what confirming does. */

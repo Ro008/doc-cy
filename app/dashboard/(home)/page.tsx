@@ -11,6 +11,7 @@ import { locationsToAgendaClinics } from "@/lib/agenda-clinics";
 import { firstNameFromProfessionalName } from "@/lib/doctor-display-name";
 import {
   DASHBOARD_APPOINTMENT_SELECT,
+  DASHBOARD_APPOINTMENT_SELECT_WITH_RESCHEDULE,
   todayWorkingWindow,
   type DashboardAppointmentRow,
 } from "@/lib/doctor-dashboard";
@@ -21,6 +22,33 @@ import {
 import { loadAgendaSettings } from "@/lib/load-agenda-settings";
 import { loadDoctorLocations } from "@/lib/load-doctor-locations";
 import { fetchAllSupabaseRows } from "@/lib/supabase-fetch-all";
+
+/**
+ * Today onwards, plus reschedules waiting on the patient or lapsed without a choice (their
+ * original time can be in the past). Tries the `rescheduled_from` column first and falls back
+ * while the backend has not added it.
+ */
+async function loadDashboardAppointments(
+  supabase: ReturnType<typeof createServerComponentClient>,
+  doctorId: string,
+  todayStartUtc: string,
+) {
+  const query = (select: string) =>
+    fetchAllSupabaseRows(() =>
+      supabase
+        .from("appointments")
+        .select(select)
+        .eq("doctor_id", doctorId)
+        .or(`appointment_datetime.gte."${todayStartUtc}",status.eq.NEEDS_RESCHEDULE`)
+        .order("appointment_datetime", { ascending: true }),
+    );
+  const withColumn = await query(DASHBOARD_APPOINTMENT_SELECT_WITH_RESCHEDULE);
+  const missingColumn =
+    withColumn.error &&
+    ((withColumn.error as { code?: string }).code === "42703" ||
+      String(withColumn.error.message ?? "").includes("rescheduled_from"));
+  return missingColumn ? query(DASHBOARD_APPOINTMENT_SELECT) : withColumn;
+}
 
 export default async function DoctorDashboardPage() {
   const supabase = createServerComponentClient({ cookies });
@@ -86,14 +114,7 @@ export default async function DoctorDashboardPage() {
 
   const [{ data: appointments, error: appointmentsError }, settings, locationRows] =
     await Promise.all([
-      fetchAllSupabaseRows(() =>
-        supabase
-          .from("appointments")
-          .select(DASHBOARD_APPOINTMENT_SELECT)
-          .eq("doctor_id", doctor.id)
-          .gte("appointment_datetime", todayStartUtc)
-          .order("appointment_datetime", { ascending: true }),
-      ),
+      loadDashboardAppointments(supabase, doctor.id, todayStartUtc),
       loadAgendaSettings(supabase, doctor.id),
       loadDoctorLocations(doctor.id),
     ]);

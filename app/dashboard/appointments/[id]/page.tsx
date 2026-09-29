@@ -19,6 +19,7 @@ import { formatInTimeZone, zonedTimeToUtc } from "date-fns-tz";
 import { CY_TZ } from "@/lib/appointments";
 import { reviewBackTarget, wantsSuggestOnOpen, type ReviewDayRow } from "@/lib/appointment-review";
 import { isExpiredRequest, isStoredExpiredStatus } from "@/lib/appointment-status";
+import { isRescheduleWithoutAnswer } from "@/lib/reschedule-follow-up";
 import { agendaHighlightHref } from "@/lib/agenda-highlight";
 import { awaitingPatientSummary, requestedAgoLabel, todayWorkingWindow } from "@/lib/doctor-dashboard";
 import { clinicIdForAppointment, locationsToAgendaClinics } from "@/lib/agenda-clinics";
@@ -192,7 +193,17 @@ export default async function DashboardAppointmentDetailPage({
         }
       : null;
 
-  if (status === "NEEDS_RESCHEDULE") {
+  // The patient let the proposed times expire: offer new times (request branch, "noNewTime").
+  const noNewTime = isRescheduleWithoutAnswer(
+    {
+      status,
+      proposal_expires_at: (appt as { proposal_expires_at?: string | null }).proposal_expires_at ?? null,
+      appointment_datetime: appt.appointment_datetime as string,
+    },
+    Date.now(),
+  );
+
+  if (status === "NEEDS_RESCHEDULE" && !noNewTime) {
     console.info("[DocCy][doctor-link] reopened_after_action", {
       userId: user.id,
       doctorId: doctor.id,
@@ -303,7 +314,7 @@ export default async function DashboardAppointmentDetailPage({
     );
   }
 
-  if (status === "REQUESTED") {
+  if (status === "REQUESTED" || noNewTime) {
     console.info("[DocCy][doctor-link] opened_pending_request", {
       userId: user.id,
       doctorId: doctor.id,
@@ -359,7 +370,8 @@ export default async function DashboardAppointmentDetailPage({
           initialDurationMinutes={initialDurationMinutes}
           scheduleForReview={scheduleForReview}
           back={reviewBackTarget(searchParams?.from)}
-          openSuggestions={wantsSuggestOnOpen(searchParams?.intent)}
+          openSuggestions={noNewTime || wantsSuggestOnOpen(searchParams?.intent)}
+          context={noNewTime ? "noNewTime" : "request"}
         />
       </DoctorAppointmentLinkShell>
     );

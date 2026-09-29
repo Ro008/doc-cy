@@ -32,6 +32,12 @@ import { emitPendingRequestsCount } from "@/lib/pending-requests-count";
 import { reviewPathFromDashboard } from "@/lib/appointment-review";
 import { agendaHighlightHref } from "@/lib/agenda-highlight";
 import { DeclineRequestDialog } from "@/components/dashboard/DeclineRequestDialog";
+import {
+  askedForAnotherTimeLabel,
+  rescheduleWithoutAnswerSummary,
+  selectRescheduleWithoutAnswer,
+} from "@/lib/reschedule-follow-up";
+import { closeExpiredRequestPath } from "@/lib/appointment-status";
 
 type Props = {
   doctorId: string;
@@ -102,6 +108,7 @@ export function DoctorDashboard({
   const pending = selectPendingRequests(rows, nowMs);
   const waitingCount = pending.filter((row) => !exiting[row.id]).length;
   const awaiting = selectAwaitingPatient(rows, nowMs);
+  const noNewTime = selectRescheduleWithoutAnswer(rows, nowMs);
 
   React.useEffect(() => {
     emitPendingRequestsCount(waitingCount);
@@ -184,9 +191,9 @@ export function DoctorDashboard({
           </div>
 
           <div className="mt-3 overflow-hidden rounded-3xl border border-slate-700/70 bg-slate-900/70 shadow-xl shadow-black/20">
-            {pending.length === 0 ? (
+            {pending.length === 0 && noNewTime.length === 0 ? (
               <AllCaughtUp />
-            ) : (
+            ) : pending.length === 0 ? null : (
               <ul className="divide-y divide-slate-800/80">
                 {pending.map((row, index) => (
                   <PendingRequestItem
@@ -203,6 +210,25 @@ export function DoctorDashboard({
                 ))}
               </ul>
             )}
+            {noNewTime.length > 0 ? (
+              <div
+                className={`px-5 py-4 text-sm text-slate-300 ${pending.length > 0 ? "border-t border-slate-800" : ""}`}
+                data-testid="dashboard-no-new-time"
+              >
+                <p className="text-xs font-semibold uppercase tracking-wide text-amber-300/90">
+                  No new time chosen
+                </p>
+                <ul className="mt-2 space-y-3">
+                  {noNewTime.map((row) => (
+                    <RescheduleNoAnswerItem
+                      key={row.id}
+                      row={row}
+                      onClosed={() => setRows((prev) => prev.filter((r) => r.id !== row.id))}
+                    />
+                  ))}
+                </ul>
+              </div>
+            ) : null}
             {awaiting.length > 0 ? (
               <div className="border-t border-slate-800 px-5 py-3.5 text-sm text-slate-400">
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
@@ -288,6 +314,79 @@ function ScrollFade() {
         visible ? "opacity-100" : "opacity-0"
       }`}
     />
+  );
+}
+
+/**
+ * The patient let the proposed times expire: the visit is no longer booked and they were
+ * already told to book a new time online. The doctor suggests other times or closes it.
+ */
+function RescheduleNoAnswerItem({
+  row,
+  onClosed,
+}: {
+  row: DashboardAppointmentRow;
+  onClosed: () => void;
+}) {
+  const [closing, setClosing] = React.useState(false);
+  const summary = rescheduleWithoutAnswerSummary(row);
+
+  async function close() {
+    if (closing) return;
+    setClosing(true);
+    try {
+      const res = await fetch(closeExpiredRequestPath(row.id), {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        // The patient already got the "no longer booked" email when it expired.
+        body: JSON.stringify({ notifyPatient: false }),
+      });
+      if (res.status === 404 || res.status === 405 || res.status === 501) {
+        toast.message("Closing these isn't available yet.");
+        return;
+      }
+      if (!res.ok) {
+        toast.error("Could not close it. Please try again.");
+        return;
+      }
+      onClosed();
+    } catch {
+      toast.error("Could not close it. Please try again.");
+    } finally {
+      setClosing(false);
+    }
+  }
+
+  return (
+    <li data-testid="dashboard-no-new-time-item" className="rounded-2xl border border-amber-400/20 bg-amber-500/[0.06] px-3.5 py-3">
+      <p className="leading-snug">
+        <span className="font-semibold text-slate-50">{row.patient_name}</span> didn&apos;t pick any of the
+        times you suggested instead of{" "}
+        <span className="font-medium text-slate-100">{summary.originalLabel}</span>. Nothing is booked.
+      </p>
+      <p className="mt-0.5 text-xs text-slate-500">
+        {summary.expiredLabel ? `Offer expired ${summary.expiredLabel} · ` : ""}They were sent a link to book
+        a new time online.
+      </p>
+      <div className="mt-2.5 flex flex-wrap items-center gap-2">
+        <Link
+          href={reviewPath(row.id, "suggest")}
+          className="inline-flex h-9 items-center rounded-xl bg-clinical-500/15 px-3 text-sm font-semibold text-clinical-100 ring-1 ring-clinical-400/40 transition hover:bg-clinical-500/25"
+        >
+          Suggest other times
+        </Link>
+        <button
+          type="button"
+          onClick={() => void close()}
+          disabled={closing}
+          className="inline-flex h-9 items-center gap-1.5 rounded-xl px-3 text-sm font-medium text-slate-400 transition hover:bg-slate-800 hover:text-slate-200 disabled:opacity-60"
+        >
+          {closing ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> : null}
+          Close
+        </button>
+      </div>
+    </li>
   );
 }
 
@@ -502,6 +601,14 @@ function PendingRequestItem({
                 {row.is_new_patient ? (
                   <span className="rounded-full bg-wellness-500/15 px-2 py-0.5 text-[11px] font-semibold text-wellness-200">
                     New patient
+                  </span>
+                ) : null}
+                {askedForAnotherTimeLabel(row) ? (
+                  <span
+                    data-testid="dashboard-asked-other-time"
+                    className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] font-semibold text-amber-200"
+                  >
+                    {askedForAnotherTimeLabel(row)}
                   </span>
                 ) : null}
               </div>
