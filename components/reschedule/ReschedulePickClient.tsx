@@ -147,7 +147,7 @@ export function ReschedulePickClient({
 
   return (
     <div
-      className="mx-auto max-w-lg space-y-8"
+      className={`mx-auto space-y-8 transition-[max-width] duration-300 ${showOtherTimes ? "max-w-3xl" : "max-w-lg"}`}
       aria-busy={locked}
     >
       <div className="text-center">
