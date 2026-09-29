@@ -247,9 +247,9 @@
           "title": "Manage requests",
           "body": "Review incoming appointment requests with full context (patient details and reason for consultation) and confirm with one click."
         },
-        "sync": {
-          "title": "Total synchronization",
-          "body": "Once approved, visits are automatically synced with your preferred Google or iOS Calendar."
+        "calendar": {
+          "title": "Add it to your calendar",
+          "body": "Once approved, you and your patient each get a confirmation email with one-click buttons to add the visit to Google Calendar or Apple / Outlook."
         }
       }
     },

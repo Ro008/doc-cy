@@ -25,17 +25,13 @@ export async function getFoundersAvailability(): Promise<FoundersAvailability> {
     };
   }
 
-  // `is_test_profile` is excluded deliberately: this number is public, shown on the
-  // marketing page as spots remaining. A QA or smoke profile must never move it.
-  const countRes = await supabase
-    .from("professionals")
-    .select("id", { count: "exact", head: true })
-    .eq("subscription_tier", "founder")
-    .eq("status", "verified")
-    .eq("is_registered", true)
-    .eq("is_test_profile", false);
+  // Places taken = registered founders + places reserved by registrations waiting for
+  // email confirmation or review (released on expiry, denial or withdrawal). Test
+  // profiles and test registrations are excluded in SQL: this number is public, shown
+  // on the marketing page as spots remaining, and a QA profile must never move it.
+  const countRes = await supabase.rpc("founders_club_places_taken");
 
-  if (countRes.error) {
+  if (countRes.error || typeof countRes.data !== "number") {
     // Safe fallback: default to standard pricing on data errors.
     return {
       currentUsersCount: MAX_FOUNDERS,
@@ -47,8 +43,8 @@ export async function getFoundersAvailability(): Promise<FoundersAvailability> {
 
   // No slug overrides here. There used to be one that added a seeded QA doctor to this
   // count even after it stopped being founder+verified, which meant a test profile was
-  // inflating a public number. The count is now exactly the real founders.
-  const currentUsersCount = clamp(countRes.count ?? 0, 0, MAX_FOUNDERS);
+  // inflating a public number. The count is now exactly the real founders and reservations.
+  const currentUsersCount = clamp(countRes.data, 0, MAX_FOUNDERS);
   const spotsRemaining = clamp(MAX_FOUNDERS - currentUsersCount, 0, MAX_FOUNDERS);
   const progressPercent = clamp(((MAX_FOUNDERS - spotsRemaining) / MAX_FOUNDERS) * 100, 0, 100);
 

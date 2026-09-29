@@ -54,6 +54,14 @@ export async function deleteRegistrationE2eDoctor(
     for (const user of data?.users ?? []) {
       if (String(user.email ?? "").trim().toLowerCase() !== normalized) continue;
       if (seenAuth.has(user.id)) continue;
+      // A registration draft goes with its login; its photo does not.
+      const photoFolder = `professional_registration/${user.id}`;
+      const { data: photos } = await admin.storage.from("request-uploads").list(photoFolder);
+      if (photos?.length) {
+        await admin.storage
+          .from("request-uploads")
+          .remove(photos.map((photo) => `${photoFolder}/${photo.name}`));
+      }
       await admin.auth.admin.deleteUser(user.id);
     }
   } catch {

@@ -70,10 +70,17 @@ export function readRegisterFields(form: HTMLFormElement): RegisterFieldState[] 
   );
 }
 
+/**
+ * Fired on a field just before it is revealed, so a collapsed container (a folded
+ * clinic row) can open synchronously and the field is focusable.
+ */
+export const REGISTER_REVEAL_EVENT = "doccy-register-reveal";
+
 /** Scrolls the field into view, focuses something visible, and flashes it. */
 export function revealRegisterField(form: HTMLFormElement, key: string): void {
   const field = form.querySelector<HTMLElement>(`${FIELD_SELECTOR}[data-field-key="${key}"]`);
   if (!field) return;
+  field.dispatchEvent(new CustomEvent(REGISTER_REVEAL_EVENT, { bubbles: true }));
 
   field.scrollIntoView({ behavior: "smooth", block: "center" });
   focusTarget(field)?.focus({ preventScroll: true });
@@ -126,7 +133,13 @@ export function useRegisterFieldStates(formId: string): RegisterFieldState[] {
     // Composite fields swap their markup (clinic summary, specialty rows) without
     // firing form events, so watch the tree as well.
     const observer = new MutationObserver(sync);
-    observer.observe(form, { childList: true, subtree: true });
+    // The clinic field also renames itself ("Clinic name") when that is what is missing.
+    observer.observe(form, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ["data-field-label"],
+    });
 
     return () => {
       cancelAnimationFrame(frame);

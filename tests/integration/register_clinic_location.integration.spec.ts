@@ -1,5 +1,8 @@
 import { expect, test, type Page } from "@playwright/test";
-import { gotoRegisterPracticeStep } from "./helpers/goto-register-practice-step";
+import {
+  gotoRegisterPracticeStep,
+  switchRegisterClinicToGoogle,
+} from "./helpers/goto-register-practice-step";
 
 /**
  * The clinic field used to accept nothing but a Google Places pick, so a doctor
@@ -21,6 +24,11 @@ async function typeAddress(page: Page, text: string): Promise<void> {
   await input.pressSequentially(text, { delay: 10 });
 }
 
+/** A clinic that isn't in DocCy needs its phone before it counts as done. */
+async function fillClinicPhone(page: Page, index = 0): Promise<void> {
+  await page.getByTestId(`register-clinic-phone-${index}`).fill("25 123456");
+}
+
 test.describe("Integration UI: register clinic location", { tag: "@pr-e2e" }, () => {
   test.describe.configure({ timeout: 90_000 });
   const clinicField = "[data-field-key='clinic']";
@@ -28,6 +36,8 @@ test.describe("Integration UI: register clinic location", { tag: "@pr-e2e" }, ()
   test.beforeEach(async ({ page }) => {
     await page.goto("/register");
     await gotoRegisterPracticeStep(page);
+    // DocCy's clinic search is the default; these cover the Google / manual path.
+    await switchRegisterClinicToGoogle(page);
   });
 
   test("lets a doctor place the clinic without a Google match", async ({ page }) => {
@@ -43,6 +53,12 @@ test.describe("Integration UI: register clinic location", { tag: "@pr-e2e" }, ()
 
     await typeAddress(page, "12 Makariou Avenue, 2nd floor");
 
+    // The clinic name is required too.
+    await expect(page.locator(`${clinicField}[data-complete='1']`)).toHaveCount(0);
+    await page.getByLabel("Clinic name").fill("Makariou Clinic");
+    // And its phone.
+    await expect(page.locator(`${clinicField}[data-complete='1']`)).toHaveCount(0);
+    await fillClinicPhone(page);
     await expect(page.locator(`${clinicField}[data-complete='1']`)).toHaveCount(1);
     await expect(page.locator("input[name='district']")).toHaveValue("Nicosia");
     await expect(page.locator("input[name='clinicAddress']")).toHaveValue(
@@ -68,6 +84,8 @@ test.describe("Integration UI: register clinic location", { tag: "@pr-e2e" }, ()
     await page.getByRole("button", { name: "Drop a pin instead" }).click();
     await page.getByLabel("District").selectOption("Limassol");
     await typeAddress(page, "5 Anexartisias Street");
+    await page.getByLabel("Clinic name").fill("Anexartisias Physio");
+    await fillClinicPhone(page);
 
     await page.getByRole("button", { name: "Save this location" }).click();
 
@@ -77,13 +95,15 @@ test.describe("Integration UI: register clinic location", { tag: "@pr-e2e" }, ()
 
     // Still editable afterwards, both ways.
     await expect(page.getByRole("button", { name: "Adjust pin on map" })).toBeVisible();
-    await page.getByRole("button", { name: "Change clinic address" }).click();
+    await page.getByRole("button", { name: "Change clinic", exact: true }).click();
     await expect(page.locator("#register-clinic-address")).toBeVisible();
 
-    // Opening the search by mistake must not wipe the saved location.
-    await expect(page.locator(`${clinicField}[data-complete='1']`)).toHaveCount(1);
+    // While they search for another clinic the field is not done, but opening
+    // the search by mistake must not wipe the saved location: Cancel brings it back.
+    await expect(page.locator(`${clinicField}[data-complete='1']`)).toHaveCount(0);
     await page.getByRole("button", { name: "Cancel" }).click();
     await expect(page.getByText("5 Anexartisias Street")).toBeVisible();
+    await expect(page.locator(`${clinicField}[data-complete='1']`)).toHaveCount(1);
   });
 
   test("adjusts the pin in a full-screen sheet", async ({ page }) => {
@@ -143,13 +163,143 @@ test.describe("Integration UI: register clinic location", { tag: "@pr-e2e" }, ()
     await expect(page.locator("input[name='clinicLatitude']")).not.toHaveValue("35.1856");
   });
 
-  test("the missing-fields summary still points at the clinic field", async ({ page }) => {
-    await page.getByRole("button", { name: /Submit My Application/i }).click();
+  test("names a clinic placed with a pin", async ({ page }) => {
+    await page.getByRole("button", { name: "Drop a pin instead" }).click();
+    await page.getByLabel("District").selectOption("Limassol");
+    await typeAddress(page, "5 Anexartisias Street");
 
+    // Google and the pin only know the address; the name is the doctor's to give.
+    await page.getByLabel("Clinic name").fill("Anexartisias Physio");
+    await expect(page.locator("input[name='clinicName']")).toHaveValue("Anexartisias Physio");
+
+    await page.getByRole("button", { name: "Save this location" }).click();
+    const summary = page.getByTestId("clinic-location-saved-summary");
+    await expect(summary.getByLabel("Clinic name")).toHaveValue("Anexartisias Physio");
+    await expect(page.locator("input[name='clinicName']")).toHaveValue("Anexartisias Physio");
+  });
+
+  test("clinics are added one at a time, and each row folds and unfolds", async ({ page }) => {
+    await page.getByRole("button", { name: "Drop a pin instead" }).click();
+    await page.getByLabel("District").selectOption("Nicosia");
+    await typeAddress(page, "12 Makariou Avenue");
+    await page.getByRole("button", { name: "Save this location" }).click();
+
+    // No clinic name yet: the clinic is not done and no other can be added.
+    const add = page.getByRole("button", { name: /Add another clinic/i });
+    const firstRow = page.locator("[data-clinic-row='0']");
+    await expect(firstRow).toHaveAttribute("data-clinic-complete", "0");
+    await expect(add).toBeDisabled();
+    await page.getByLabel("Clinic name").fill("Makariou Clinic");
+    await expect(firstRow).toHaveAttribute("data-clinic-complete", "0");
+    await fillClinicPhone(page);
+    await expect(firstRow).toHaveAttribute("data-clinic-complete", "1");
+
+    // Searching for another clinic leaves the row unfinished until they pick or cancel.
+    await page.getByRole("button", { name: "Change clinic", exact: true }).click();
+    await expect(firstRow).toHaveAttribute("data-clinic-complete", "0");
+    await expect(add).toBeDisabled();
+    await page.getByRole("button", { name: "Cancel" }).click();
+    await expect(firstRow).toHaveAttribute("data-clinic-complete", "1");
+
+    await add.click();
+
+    // Clinic 2 is empty: no Clinic 3 until it is set.
+    await expect(add).toBeDisabled();
+    await expect(page.getByText("Finish clinic 2 to add another.")).toBeVisible();
+
+    const firstToggle = page.locator("[data-clinic-row='0'] [data-clinic-row-toggle]");
+    const secondToggle = page.locator("[data-clinic-row='1'] [data-clinic-row-toggle]");
+    await expect(firstToggle).toContainText("Makariou Clinic");
+
+    // The open row's header folds it; clicking again unfolds it.
+    await expect(secondToggle).toHaveAttribute("aria-expanded", "true");
+    await secondToggle.click();
+    await expect(secondToggle).toHaveAttribute("aria-expanded", "false");
+    await expect(page.getByTestId("register-clinic-search-1")).toBeHidden();
+    await secondToggle.click();
+    await expect(secondToggle).toHaveAttribute("aria-expanded", "true");
+    await expect(page.getByTestId("register-clinic-search-1")).toBeVisible();
+
+    // A finished row reopened to change its clinic blocks the next one again.
+    await firstToggle.click();
+    await firstRow.getByRole("button", { name: "Change clinic", exact: true }).click();
+    await expect(firstRow).toHaveAttribute("data-clinic-complete", "0");
+    await expect(page.getByText("Finish clinic 1 to add another.")).toBeVisible();
+  });
+
+  test("the same address in two rows is flagged", async ({ page }) => {
+    await page.getByRole("button", { name: "Drop a pin instead" }).click();
+    await page.getByLabel("District").selectOption("Nicosia");
+    await typeAddress(page, "12 Makariou Avenue");
+    await page.getByLabel("Clinic name").fill("Makariou Clinic");
+    await fillClinicPhone(page);
+    await page.getByRole("button", { name: "Save this location" }).click();
+
+    const add = page.getByRole("button", { name: /Add another clinic/i });
+    await add.click();
+    await switchRegisterClinicToGoogle(page, 1);
+    const second = page.locator("[data-clinic-row='1']");
+    await second.getByRole("button", { name: "Drop a pin instead" }).click();
+    await second.getByLabel("District").selectOption("Nicosia");
+    await second.getByLabel("Address patients will see").pressSequentially("12 makariou avenue", {
+      delay: 10,
+    });
+    await second.getByLabel("Clinic name").fill("Makariou Clinic again");
+    await fillClinicPhone(page, 1);
+
+    await expect(second.getByText("Same address as clinic 1.")).toBeVisible();
+    await expect(second).toHaveAttribute("data-clinic-complete", "0");
+    await expect(add).toBeDisabled();
+
+    await page.getByRole("button", { name: /Submit My Application/i }).click();
+    await expect(
+      page
+        .getByTestId("register-missing-summary")
+        .getByRole("button", { name: "Clinic 2 (same address as clinic 1)" }),
+    ).toBeVisible();
+  });
+
+  test("the missing-fields summary names what is missing: the clinic name", async ({ page }) => {
+    await page.getByRole("button", { name: "Drop a pin instead" }).click();
+    await page.getByLabel("District").selectOption("Nicosia");
+    await typeAddress(page, "12 Makariou Avenue");
+    await page.getByRole("button", { name: "Save this location" }).click();
+
+    await page.getByRole("button", { name: /Submit My Application/i }).click();
     const summary = page.getByTestId("register-missing-summary");
-    await expect(summary).toBeVisible();
+    await expect(summary.getByRole("button", { name: "Clinic name" })).toBeVisible();
+    await expect(summary.getByRole("button", { name: "Clinic address" })).toHaveCount(0);
+
+    await summary.getByRole("button", { name: "Clinic name" }).click();
+    await expect(page.getByLabel("Clinic name")).toBeFocused();
+  });
+
+  test("the missing-fields summary still points at the clinic field", async ({ page }) => {
+    // Without a Maps key (CI) the Google field shows its error as the page settles;
+    // the layout shift can swallow a click on Submit, so press it until the list shows.
+    const summary = page.getByTestId("register-missing-summary");
+    await expect(async () => {
+      await page.getByRole("button", { name: /Submit My Application/i }).click();
+      await expect(summary).toBeVisible({ timeout: 2_000 });
+    }).toPass({ timeout: 30_000 });
     await summary.getByRole("button", { name: "Clinic address" }).click();
 
     await expect(page.locator("#register-clinic-address")).toBeFocused();
+  });
+});
+
+test.describe("Integration UI: register clinic default search", { tag: "@pr-e2e" }, () => {
+  test.describe.configure({ timeout: 90_000 });
+
+  test("the missing-fields summary points at the DocCy search by default", async ({ page }) => {
+    await page.goto("/register");
+    await gotoRegisterPracticeStep(page);
+    await page.getByRole("button", { name: /Submit My Application/i }).click();
+
+    const summary = page.getByTestId("register-missing-summary");
+    await expect(summary).toBeVisible({ timeout: 20_000 });
+    await summary.getByRole("button", { name: "Clinic address" }).click();
+
+    await expect(page.getByTestId("register-clinic-search-0")).toBeFocused();
   });
 });

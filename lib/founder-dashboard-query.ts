@@ -123,6 +123,8 @@ export function founderDirectoryHref(
 ): string {
   const merged: FounderDashboardQuery = { ...q, ...patch };
   const sp = new URLSearchParams();
+  // These links live on the dashboard's Statistics tab.
+  sp.set("tab", "statistics");
   sp.set("manualVotesRange", merged.manualVotesRange);
   sp.set("manualVotesCol", merged.manualVotesCol);
   sp.set("manualVotesDir", merged.manualVotesDir);

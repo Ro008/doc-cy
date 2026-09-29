@@ -111,10 +111,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
-      <body
-        className={`${inter.variable} min-h-screen bg-slate-950 text-slate-900 antialiased`}
-      >
+    // Inter's variable lives on <html>: the page's font-family is resolved there
+    // (Tailwind's base sets it on html), so on <body> it never applied and every
+    // page fell back to the visitor's system font.
+    <html lang="en" className={inter.variable}>
+      <body className="min-h-screen bg-slate-950 text-slate-900 antialiased">
         <script
           dangerouslySetInnerHTML={{ __html: proChromeBootInlineScript() }}
         />

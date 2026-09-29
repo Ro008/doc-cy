@@ -59,7 +59,7 @@ test.describe("Internal setting: trial months", { tag: "@pr-e2e" }, () => {
       expect(stored.data?.updated_by).toBe(founder.adminId);
 
       // The dashboard shows it.
-      const dashboard = await request.get("/internal/directory", { headers: founderHeaders });
+      const dashboard = await request.get("/internal/directory?tab=statistics", { headers: founderHeaders });
       expect(dashboard.status()).toBe(200);
       expect(await dashboard.text()).toMatch(/Free trial:\s*(<!-- -->)?\s*7\s*(<!-- -->)?\s*months/);
 

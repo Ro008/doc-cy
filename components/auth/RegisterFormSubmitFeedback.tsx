@@ -95,7 +95,7 @@ export function RegisterSubmitButton({ children }: RegisterSubmitButtonProps) {
         <>
           <span
             aria-hidden
-            className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-white border-r-transparent"
+            className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-ink-900 border-r-transparent"
           />
           <span>Submitting your application…</span>
         </>
