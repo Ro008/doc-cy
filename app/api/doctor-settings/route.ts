@@ -25,19 +25,9 @@ import {
   writeClinicSettings,
 } from "@/lib/professional-clinic-settings-writes";
 import {
-  CONTACT_PHONE_REQUIRED_CODE,
-  CONTACT_PHONE_REQUIRED_MESSAGE,
-  anyClinicPaused,
-} from "@/lib/booking-contact-phone";
-import {
   isSpecialtyChangeAttempt,
   SPECIALTY_CHANGE_REQUIRES_SUPPORT_MESSAGE,
 } from "@/lib/doctor-specialty-settings-lock";
-import {
-  callNumberForSource,
-  parsePublicPhoneSource,
-  publicPhoneSourceForSave,
-} from "@/lib/public-call-phone";
 import { createServiceRoleClient } from "@/lib/supabase-service";
 import { loadPrimarySpecialtyName } from "@/lib/specialty-catalogue";
 import {
@@ -96,7 +86,8 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ settings: data });
 }
 
-/** POST - upsert professional_settings + update doctors.phone, languages (owner only).
+/** POST - upsert professional_settings + update the mobile, bio, languages (owner only).
+ * Clinic phones are read-only here: clinics are curated by DocCy (user, 2026-09-29).
  * Specialty is locked after registration — changes go through Support. */
 export async function POST(req: NextRequest) {
   const supabase = createRouteHandlerClient({ cookies });
@@ -152,9 +143,6 @@ export async function POST(req: NextRequest) {
     holidayModeEnabled?: boolean;
     holidayStartDate?: string | null;
     holidayEndDate?: string | null;
-    showPhonePublic?: boolean;
-    directoryPhone?: string | null;
-    publicPhoneSource?: string;
     locations?: Array<{
       id?: string;
       district?: string | null;
@@ -191,7 +179,7 @@ export async function POST(req: NextRequest) {
 
   const { data: owned, error: ownErr } = await supabase
     .from("professionals")
-    .select("id, phone")
+    .select("id")
     .eq("id", doctorId)
     .eq("auth_user_id", user.id)
     .maybeSingle();
@@ -255,55 +243,8 @@ export async function POST(req: NextRequest) {
       { status: 400 },
     );
   }
-  const listingPhone = String((owned as { phone?: string | null }).phone ?? "").trim();
   const doctorPhoneTrimmed =
     typeof b.doctorPhone === "string" ? b.doctorPhone.trim() : "";
-  const directoryPhoneTrimmed =
-    b.directoryPhone === undefined
-      ? listingPhone
-      : typeof b.directoryPhone === "string"
-        ? b.directoryPhone.trim()
-        : "";
-  const directoryPhoneToSave = directoryPhoneTrimmed || null;
-  const phoneSourceToSave = publicPhoneSourceForSave({
-    showPhonePublic: Boolean(b.showPhonePublic),
-    selected: parsePublicPhoneSource(b.publicPhoneSource),
-    mobileNumber: doctorPhoneTrimmed,
-    directoryPhone: directoryPhoneToSave,
-  });
-  if (
-    Boolean(b.showPhonePublic) &&
-    callNumberForSource({
-      source: phoneSourceToSave,
-      mobileNumber: doctorPhoneTrimmed,
-      directoryPhone: directoryPhoneToSave,
-    }).length === 0
-  ) {
-    return NextResponse.json(
-      { message: "Add a phone number before showing a Call button on your profile." },
-      { status: 400 },
-    );
-  }
-  // Same invariant as the pause toggle: with a clinic paused, its patients can only
-  // call, so this save must not leave the account without a public number.
-  if (
-    callNumberForSource({
-      source: phoneSourceToSave,
-      mobileNumber: doctorPhoneTrimmed,
-      directoryPhone: directoryPhoneToSave,
-    }).length === 0
-  ) {
-    const currentLocations = await loadDoctorLocations(doctorId);
-    const pauseFlags = currentLocations.map((row) =>
-      Boolean(row.pause_online_bookings),
-    );
-    if (anyClinicPaused(pauseFlags)) {
-      return NextResponse.json(
-        { message: CONTACT_PHONE_REQUIRED_MESSAGE, code: CONTACT_PHONE_REQUIRED_CODE },
-        { status: 400 },
-      );
-    }
-  }
   const clinicLocation = clinicLocationFromParts({
     address: clinicAddress,
     latitude: primaryLocationInput?.clinicLatitude ?? b.clinicLatitude,
@@ -400,8 +341,6 @@ export async function POST(req: NextRequest) {
     holiday_end_date: Boolean(b.holidayModeEnabled)
       ? (b.holidayEndDate ?? null)
       : null,
-    show_phone_public: Boolean(b.showPhonePublic),
-    public_phone_source: phoneSourceToSave,
     updated_at: new Date().toISOString(),
   };
 
@@ -434,22 +373,10 @@ export async function POST(req: NextRequest) {
     // Missing new scheduling columns means advanced availability cannot be saved reliably.
     const errMsg = String((errorFull as any)?.message ?? "");
     const missingNewCols =
-      /(saturday|sunday|weekly_schedule|pause_online_bookings|show_phone_public|holiday_mode_enabled|holiday_start_date|holiday_end_date|booking_horizon_days|minimum_notice_hours)/i.test(
+      /(saturday|sunday|weekly_schedule|pause_online_bookings|holiday_mode_enabled|holiday_start_date|holiday_end_date|booking_horizon_days|minimum_notice_hours)/i.test(
         errMsg
       );
-    const missingPhoneSource = /public_phone_source/i.test(errMsg);
-
-    if (missingPhoneSource && !missingNewCols) {
-      const { public_phone_source: _source, ...withoutSource } = payload;
-      const retry = await supabase
-        .from("professional_settings")
-        .upsert(withoutSource, { onConflict: "professional_id" })
-        .select()
-        .single();
-      if (!retry.error && retry.data) {
-        data = retry.data;
-      }
-    } else if ((errorFull as { code?: string }).code === "42703" || missingNewCols) {
+    if ((errorFull as { code?: string }).code === "42703" || missingNewCols) {
       return NextResponse.json(
         {
           message:
@@ -487,7 +414,6 @@ export async function POST(req: NextRequest) {
 
   const phoneUpdateBase: {
     mobile_number?: string | null;
-    phone?: string | null;
     bio?: string | null;
     district: string;
     clinic_address: string | null;
@@ -507,9 +433,6 @@ export async function POST(req: NextRequest) {
   };
   if (b.doctorPhone !== undefined) {
     phoneUpdateBase.mobile_number = doctorPhoneTrimmed ? doctorPhoneTrimmed : null;
-  }
-  if (b.directoryPhone !== undefined) {
-    phoneUpdateBase.phone = directoryPhoneToSave;
   }
   if (b.bio !== undefined) {
     phoneUpdateBase.bio = bioRaw.length > 0 ? bioRaw : null;

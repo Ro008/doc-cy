@@ -10,7 +10,8 @@ import {
 import { googleAdsCallToBookSendTo, reportGoogleAdsConversion } from "@/lib/google-ads";
 import { formatCyprusPhoneDisplay, phoneToTelHref } from "@/lib/phone-link";
 
-type ContactRevealKind = "manual" | "clinic" | "registered";
+/** Every public phone is a clinic's phone (user, 2026-09-29). */
+type ContactRevealKind = "clinic";
 
 type RevealState =
   | { status: "idle" }
@@ -24,7 +25,6 @@ async function fetchContactPhone(input: {
   id: string;
   source?: CallToBookSource | null;
   manualId?: string | null;
-  clinicId?: string | null;
 }): Promise<{ phone: string | null } | { error: string }> {
   try {
     const res = await fetch("/api/directory/contact-reveal", {
@@ -35,7 +35,6 @@ async function fetchContactPhone(input: {
         id: input.id,
         ...(input.source ? { source: input.source } : {}),
         ...(input.manualId ? { manualId: input.manualId } : {}),
-        ...(input.clinicId ? { clinicId: input.clinicId } : {}),
       }),
     });
     const data = (await res.json().catch(() => null)) as
@@ -55,6 +54,7 @@ async function fetchContactPhone(input: {
 
 type RevealPhoneButtonProps = {
   kind: ContactRevealKind;
+  /** The clinic whose phone is revealed. */
   id: string;
   /** When false, show nothing (no phone on file). */
   hasPhone: boolean;
@@ -70,8 +70,6 @@ type RevealPhoneButtonProps = {
   source?: CallToBookSource | null;
   /** Professional id when revealing a clinic phone from a listing card. */
   manualId?: string | null;
-  /** Clinic id when revealing a listing phone for a specific location. */
-  clinicId?: string | null;
 };
 
 function RevealedPhoneLink({
@@ -109,7 +107,6 @@ export function RevealPhoneButton({
   variant = "show-phone",
   source = null,
   manualId = null,
-  clinicId = null,
 }: RevealPhoneButtonProps) {
   const [state, setState] = React.useState<RevealState>({ status: "idle" });
   const analyticsSource = parseCallToBookSource(source);
@@ -145,7 +142,6 @@ export function RevealPhoneButton({
             id,
             source: variant === "call-to-book" ? analyticsSource : null,
             manualId,
-            clinicId,
           });
           if ("error" in result) {
             setState({ status: "error", message: result.error });
@@ -188,41 +184,4 @@ export function RevealPhoneButton({
       ) : null}
     </div>
   );
-}
-
-/** Fetch phone when a parent becomes active (e.g. booking modal opens). */
-export function useContactPhoneReveal(
-  kind: ContactRevealKind,
-  id: string,
-  enabled: boolean,
-  hasPhone: boolean,
-): RevealState {
-  const [state, setState] = React.useState<RevealState>({ status: "idle" });
-
-  React.useEffect(() => {
-    if (!enabled || !hasPhone) {
-      setState({ status: "idle" });
-      return;
-    }
-    let cancelled = false;
-    setState({ status: "loading" });
-    void (async () => {
-      const result = await fetchContactPhone({ kind, id });
-      if (cancelled) return;
-      if ("error" in result) {
-        setState({ status: "error", message: result.error });
-        return;
-      }
-      if (!result.phone) {
-        setState({ status: "empty" });
-        return;
-      }
-      setState({ status: "ready", phone: result.phone });
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [kind, id, enabled, hasPhone]);
-
-  return state;
 }

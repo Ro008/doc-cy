@@ -203,8 +203,6 @@ type ManualFinderRow = {
   district: CyprusDistrict;
   town?: string | null;
   address_maps_link: string;
-  /** Phone exists server-side; value is revealed via API after click (not in SSR props). */
-  hasPhone: boolean;
   address: string | null;
   photoUrl: string;
   /** Unique patients who requested online booking (lifetime). */
@@ -755,7 +753,6 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
       specialty_links?: unknown;
       district: CyprusDistrict;
       address_maps_link: string | null;
-      phone?: string | null;
       address?: string | null;
       is_gesy?: boolean | null;
       latitude?: unknown;
@@ -769,14 +766,13 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
     let manualRequiresFinderVisible = false;
     let manualSelectClause = "";
     const manualSelectAttempts = [
-      "id, slug, name, district, town, address_maps_link, phone, address, is_gesy, latitude, longitude, clinic_id, gender, finder_visible",
-      "id, slug, name, district, address_maps_link, phone, address, is_gesy, latitude, longitude, clinic_id, gender, finder_visible",
-      "id, slug, name, district, address_maps_link, phone, address, is_gesy, latitude, longitude, clinic_id, gender",
-      "id, slug, name, district, address_maps_link, phone, address, is_gesy, latitude, longitude, clinic_id",
-      "id, slug, name, district, address_maps_link, phone, address, is_gesy, latitude, longitude",
-      "id, slug, name, district, address_maps_link, phone, address, latitude, longitude",
-      "id, slug, name, district, address_maps_link, phone, latitude, longitude",
-      "id, name, district, address_maps_link, phone, latitude, longitude",
+      "id, slug, name, district, town, address_maps_link, address, is_gesy, latitude, longitude, clinic_id, gender, finder_visible",
+      "id, slug, name, district, address_maps_link, address, is_gesy, latitude, longitude, clinic_id, gender, finder_visible",
+      "id, slug, name, district, address_maps_link, address, is_gesy, latitude, longitude, clinic_id, gender",
+      "id, slug, name, district, address_maps_link, address, is_gesy, latitude, longitude, clinic_id",
+      "id, slug, name, district, address_maps_link, address, is_gesy, latitude, longitude",
+      "id, slug, name, district, address_maps_link, address, latitude, longitude",
+      "id, slug, name, district, address_maps_link, latitude, longitude",
       "id, name, district, address_maps_link, latitude, longitude",
       "id, name, district, address_maps_link",
     ];
@@ -820,7 +816,6 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
         specialty_links?: unknown;
         district: CyprusDistrict;
         address_maps_link: string | null;
-        phone?: string | null;
         address?: string | null;
         is_gesy?: boolean | null;
         latitude?: unknown;
@@ -947,7 +942,6 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
           district: row.district as CyprusDistrict,
           town: String((row as { town?: string | null }).town ?? "").trim() || null,
           address_maps_link: addressMapsLink,
-          hasPhone: Boolean(String(row.phone ?? "").trim()),
           address: String(row.address ?? "").trim() || null,
           photoUrl: resolveFinderDisplayPhotoUrl({
             curatedOrCustomPhotoUrl: getFinderManualPhotoUrl(addressMapsLink),

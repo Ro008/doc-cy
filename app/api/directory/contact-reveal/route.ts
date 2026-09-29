@@ -4,8 +4,6 @@ import { formatCyprusPhoneDisplay } from "@/lib/phone-link";
 import { createServiceRoleClient } from "@/lib/supabase-service";
 import { enforcePublicApiRateLimit } from "@/lib/public-api-rate-limit";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { publicPhoneForProfessional } from "@/lib/public-call-phone";
-import { loadDoctorLocations } from "@/lib/load-doctor-locations";
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -15,35 +13,12 @@ type Body = {
   id?: string;
   source?: string;
   manualId?: string;
-  clinicId?: string;
 };
 
 function normalizePhone(value: unknown): string | null {
   const raw = String(value ?? "").trim();
   if (!raw) return null;
   return formatCyprusPhoneDisplay(raw) || raw;
-}
-
-async function listingPhone(
-  supabase: SupabaseClient,
-  manualId: string,
-): Promise<{ phone: string | null; found: boolean; error: boolean }> {
-  const { data, error } = await supabase
-    .from("professionals")
-    .select("phone")
-    .eq("id", manualId)
-    .eq("is_archived", false)
-    .maybeSingle();
-  if (error) {
-    console.error("[DocCy][contact-reveal] manual_lookup_failed", error.message);
-    return { phone: null, found: false, error: true };
-  }
-  if (!data) return { phone: null, found: false, error: false };
-  return {
-    phone: normalizePhone((data as { phone?: string | null }).phone),
-    found: true,
-    error: false,
-  };
 }
 
 async function clinicPhone(
@@ -115,9 +90,11 @@ async function logCallToBookClick(input: {
 }
 
 /**
- * Reveal phone for a manual listing, clinic, or registered public profile after an intentional click.
- * Keeps phone out of SSR HTML / RSC props (anti-scraping P1).
- * Call to Book CTAs pass `source` so the click is stored for the founder dashboard.
+ * Reveal a clinic's phone after an intentional click. Every public phone is the clinic's
+ * (user, 2026-09-29): listings and registered professionals alike, and the scraped
+ * `professionals.phone` is never shown. Keeps phone out of SSR HTML / RSC props
+ * (anti-scraping P1). Call to Book CTAs pass `source` and the professional
+ * (`manualId`) so the click is stored for the founder dashboard.
  */
 export async function POST(req: Request) {
   const limited = enforcePublicApiRateLimit(req, "contactReveal", {
@@ -145,30 +122,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, reason: "invalid_id" }, { status: 400 });
   }
 
-  if (kind === "manual") {
-    const looked = await listingPhone(supabase, id);
-    if (looked.error) {
-      return NextResponse.json({ ok: false, reason: "lookup_failed" }, { status: 500 });
-    }
-    if (!looked.found) {
-      return NextResponse.json({ ok: false, reason: "not_found" }, { status: 404 });
-    }
-    if (source && looked.phone) {
-      const attributedClinic = String(body.clinicId ?? "").trim();
-      let clinicId: string | null = UUID_RE.test(attributedClinic) ? attributedClinic : null;
-      if (clinicId && !(await professionalLinkedToClinic(supabase, id, clinicId))) {
-        clinicId = null;
-      }
-      await logCallToBookClick({
-        supabase,
-        manualId: id,
-        clinicId,
-        source,
-      });
-    }
-    return NextResponse.json({ ok: true, phone: looked.phone });
-  }
-
   if (kind === "clinic") {
     const looked = await clinicPhone(supabase, id);
     if (looked.error) {
@@ -178,21 +131,15 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, reason: "not_found" }, { status: 404 });
     }
 
-    let phone = looked.phone;
+    const phone = looked.phone;
     const linkedManualId = UUID_RE.test(manualIdFromBody) ? manualIdFromBody : "";
-    let linked = false;
-    if (linkedManualId) {
-      linked = await professionalLinkedToClinic(supabase, linkedManualId, id);
-      if (!phone && linked) {
-        const listing = await listingPhone(supabase, linkedManualId);
-        if (listing.error) {
-          return NextResponse.json({ ok: false, reason: "lookup_failed" }, { status: 500 });
-        }
-        phone = listing.phone;
-      }
-    }
 
-    if (source && phone && linkedManualId && linked) {
+    if (
+      source &&
+      phone &&
+      linkedManualId &&
+      (await professionalLinkedToClinic(supabase, linkedManualId, id))
+    ) {
       await logCallToBookClick({
         supabase,
         manualId: linkedManualId,
@@ -202,52 +149,6 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json({ ok: true, phone });
-  }
-
-  if (kind === "registered") {
-    // Was `doctors_public`, which filtered and computed `phone` in SQL. Both now live
-    // here: the two eq() are the view's WHERE, publicPhoneForProfessional its CASE.
-    const { data, error } = await supabase
-      .from("professionals")
-      .select(
-        "id, phone, mobile_number, professional_settings(show_phone_public, public_phone_source)",
-      )
-      .eq("is_registered", true)
-      .eq("is_archived", false)
-      .eq("id", id)
-      .maybeSingle();
-    if (error) {
-      console.error("[DocCy][contact-reveal] registered_lookup_failed", error.message);
-      return NextResponse.json({ ok: false, reason: "lookup_failed" }, { status: 500 });
-    }
-    if (!data) {
-      return NextResponse.json({ ok: false, reason: "not_found" }, { status: 404 });
-    }
-    const row = data as {
-      phone?: string | null;
-      mobile_number?: string | null;
-      professional_settings?:
-        | { show_phone_public?: boolean | null; public_phone_source?: string | null }
-        | { show_phone_public?: boolean | null; public_phone_source?: string | null }[]
-        | null;
-    };
-    const settings = Array.isArray(row.professional_settings)
-      ? row.professional_settings[0]
-      : row.professional_settings;
-    // A clinic that takes no online bookings reveals the phone, whatever the flag says.
-    const clinics = await loadDoctorLocations(id);
-    return NextResponse.json({
-      ok: true,
-      phone: normalizePhone(
-        publicPhoneForProfessional({
-          showPhonePublic: settings?.show_phone_public,
-          publicPhoneSource: settings?.public_phone_source,
-          phone: row.phone,
-          mobileNumber: row.mobile_number,
-          pauseFlags: clinics.map((clinic) => Boolean(clinic.pause_online_bookings)),
-        }),
-      ),
-    });
   }
 
   return NextResponse.json({ ok: false, reason: "invalid_kind" }, { status: 400 });

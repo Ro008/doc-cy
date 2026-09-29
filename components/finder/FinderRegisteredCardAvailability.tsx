@@ -5,7 +5,6 @@ import { RevealPhoneButton } from "@/components/finder/RevealPhoneButton";
 import { buildMapsUrlFromClinicLocation } from "@/lib/clinic-info";
 import { stripPlusCodePrefix } from "@/lib/clinic-location-pin";
 import { loadFinderAvailabilityForRequest } from "@/lib/public/load-finder-availability-request";
-import { loadFinderRegisteredPublicCallIds } from "@/lib/public/load-finder-registered-public-call";
 import { doctorLocationDisplayName } from "@/lib/doctor-locations";
 import { formatClinicCountLabel } from "@/lib/manual-directory-clinics";
 import { FinderClinicNameLink } from "@/components/finder/FinderClinicLocationBlock";
@@ -44,14 +43,12 @@ export async function FinderRegisteredCardAvailability({
   doctorIdsKey,
   clinicAddress = null,
 }: FinderRegisteredCardAvailabilityProps) {
-  const [batch, publicCallIds, registeredClinics] = await Promise.all([
+  const [batch, registeredClinics] = await Promise.all([
     loadFinderAvailabilityForRequest(doctorIdsKey),
-    loadFinderRegisteredPublicCallIds(doctorIdsKey),
     loadFinderRegisteredClinics(doctorIdsKey),
   ]);
   const locations = batch.locationsByDoctorId.get(doctorId) ?? [];
   const isMulti = locations.length > 1;
-  const callDoctorId = publicCallIds.has(doctorId) ? doctorId : null;
   // Stage 1 reused doctor_locations.id as the professional_clinics row id, so a
   // location maps to its clinic exactly. Where the ids do not line up,
   // clinicForRenderedLocation matches these by address instead of assuming the first
@@ -77,7 +74,7 @@ export async function FinderRegisteredCardAvailability({
                 <RegisteredLocationCopy
                   address={clinicAddress}
                   clinic={clinicForClinicAddress}
-                  callDoctorId={callDoctorId}
+                  doctorId={doctorId}
                 />
               ),
               calendar: <FinderCardOnlineBookingPaused profileSlug={profileSlug} />,
@@ -96,7 +93,7 @@ export async function FinderRegisteredCardAvailability({
               <RegisteredLocationCopy
                 address={clinicAddress}
                 clinic={clinicForClinicAddress}
-                callDoctorId={callDoctorId}
+                doctorId={doctorId}
               />
             ),
             calendar:
@@ -151,7 +148,7 @@ export async function FinderRegisteredCardAvailability({
               ? doctorLocationDisplayName(location, index, locations.length)
               : null
           }
-          callDoctorId={index === 0 ? callDoctorId : null}
+          doctorId={doctorId}
         />
       ),
       calendar: calendarNode,
@@ -166,12 +163,25 @@ export async function FinderRegisteredCardAvailability({
   );
 }
 
-function RegisteredPublicCallButton({ doctorId }: { doctorId: string }) {
+/**
+ * The clinic's phone for one location of a registered card (user, 2026-09-29): shown
+ * whenever the clinic has one, whether or not it takes online bookings.
+ */
+function RegisteredClinicCallButton({
+  clinic,
+  doctorId,
+}: {
+  clinic: { id?: string | null; hasPhone?: boolean } | null;
+  doctorId: string;
+}) {
+  const clinicId = String(clinic?.id ?? "").trim();
+  if (!clinicId || !clinic?.hasPhone) return null;
   return (
     <RevealPhoneButton
-      kind="registered"
-      id={doctorId}
+      kind="clinic"
+      id={clinicId}
       hasPhone
+      manualId={doctorId}
       variant="show-phone-number"
       className={registeredFinderCallClass}
       revealedClassName={registeredFinderCallRevealedClass}
@@ -179,7 +189,7 @@ function RegisteredPublicCallButton({ doctorId }: { doctorId: string }) {
   );
 }
 
-/** Address-only registered cards (no slug / no calendar column) still get the opted-in Call. */
+/** Address-only registered cards (no slug / no calendar column): the primary clinic's phone. */
 export async function FinderRegisteredPublicCall({
   doctorId,
   doctorIdsKey,
@@ -187,11 +197,13 @@ export async function FinderRegisteredPublicCall({
   doctorId: string;
   doctorIdsKey: string;
 }) {
-  const publicCallIds = await loadFinderRegisteredPublicCallIds(doctorIdsKey);
-  if (!publicCallIds.has(doctorId)) return null;
+  const registeredClinics = await loadFinderRegisteredClinics(doctorIdsKey);
+  const clinic =
+    (registeredClinics.byProfessionalId.get(doctorId) ?? []).find((c) => c.hasPhone) ?? null;
+  if (!clinic) return null;
   return (
     <div className="mt-1.5">
-      <RegisteredPublicCallButton doctorId={doctorId} />
+      <RegisteredClinicCallButton clinic={clinic} doctorId={doctorId} />
     </div>
   );
 }
@@ -200,7 +212,7 @@ function RegisteredLocationCopy({
   address,
   title,
   clinic = null,
-  callDoctorId = null,
+  doctorId,
   latitude = null,
   longitude = null,
   placeId = null,
@@ -208,8 +220,8 @@ function RegisteredLocationCopy({
   address?: string | null;
   title?: string | null;
   /** Clinic behind this location, so the card names it as unregistered cards do. */
-  clinic?: { name: string; slug: string } | null;
-  callDoctorId?: string | null;
+  clinic?: { id?: string | null; name: string; slug: string; hasPhone?: boolean } | null;
+  doctorId: string;
   latitude?: number | null;
   longitude?: number | null;
   placeId?: string | null;
@@ -245,7 +257,7 @@ function RegisteredLocationCopy({
               Open in Maps ↗
             </a>
           ) : null}
-          {callDoctorId ? <RegisteredPublicCallButton doctorId={callDoctorId} /> : null}
+          <RegisteredClinicCallButton clinic={clinic} doctorId={doctorId} />
         </div>
       </div>
     </div>

@@ -51,20 +51,7 @@ import {
   type SpecialtyChangeRequestKind,
 } from "@/lib/doctor-specialty-change-request";
 import { PhoneNumbersSettings } from "@/components/dashboard/PhoneNumbersSettings";
-import {
-  CONTACT_PHONE_REQUIRED_MESSAGE,
-  contactPhoneState,
-  anyClinicPaused,
-  pauseFlagsAfterChange,
-} from "@/lib/booking-contact-phone";
-import {
-  callNumberForSource,
-  directoryPhoneForSave,
-  hasDistinctDirectoryPhone,
-  inferPublicPhoneSource,
-  publicPhoneSourceForSave,
-  type PublicPhoneSource,
-} from "@/lib/public-call-phone";
+import type { SettingsClinicPhone } from "@/lib/settings-clinic-phones";
 
 export type DoctorSettingsFormData = {
   doctorId: string;
@@ -91,9 +78,8 @@ export type DoctorSettingsFormData = {
   /** Canonical labels, saved as string[] on doctors */
   languages: string[];
   mobileNumber?: string;
-  directoryPhone?: string;
-  showPhonePublic: boolean;
-  publicPhoneSource?: PublicPhoneSource;
+  /** The phones patients see, one per clinic; read-only here (clinics are curated). */
+  clinicPhones?: SettingsClinicPhone[];
   district: string;
   clinicAddress: string;
   clinicTown?: string | null;
@@ -326,138 +312,6 @@ export function SettingsForm({ initial }: SettingsFormProps) {
   const [mobileNumber, setMobileNumber] = React.useState(
     initial.mobileNumber ?? ""
   );
-  const [savedMobileNumber, setSavedMobileNumber] = React.useState(
-    (initial.mobileNumber ?? "").trim(),
-  );
-  const [savedDirectoryPhone, setSavedDirectoryPhone] = React.useState(
-    (initial.directoryPhone ?? "").trim(),
-  );
-  const [clinicPhone, setClinicPhone] = React.useState(savedDirectoryPhone);
-  const [clinicRowVisible, setClinicRowVisible] = React.useState(
-    hasDistinctDirectoryPhone(savedMobileNumber, savedDirectoryPhone)
-  );
-  const [publicPhoneSource, setPublicPhoneSource] =
-    React.useState<PublicPhoneSource>(() =>
-      inferPublicPhoneSource({
-        saved: initial.publicPhoneSource,
-        mobileNumber: initial.mobileNumber ?? "",
-        directoryPhone: initial.directoryPhone ?? "",
-      }),
-    );
-  const [showPhonePublic, setShowPhonePublic] = React.useState(() => {
-    const source = inferPublicPhoneSource({
-      saved: initial.publicPhoneSource,
-      mobileNumber: initial.mobileNumber ?? "",
-      directoryPhone: initial.directoryPhone ?? "",
-    });
-    return (
-      Boolean(initial.showPhonePublic) &&
-      callNumberForSource({
-        source,
-        mobileNumber: initial.mobileNumber ?? "",
-        directoryPhone: initial.directoryPhone ?? "",
-      }).length > 0
-    );
-  });
-  React.useEffect(() => {
-    if (publicPhoneSource === "directory" && !clinicPhone.trim() && mobileNumber.trim()) {
-      setPublicPhoneSource("mobile");
-    } else if (publicPhoneSource === "mobile" && !mobileNumber.trim() && clinicPhone.trim()) {
-      setPublicPhoneSource("directory");
-    }
-  }, [clinicPhone, mobileNumber, publicPhoneSource]);
-  const [publicCallSaving, setPublicCallSaving] = React.useState(false);
-  const persistPublicCallSettings = React.useCallback(
-    async (next: {
-      showPhonePublic?: boolean;
-      publicPhoneSource?: PublicPhoneSource;
-    }) => {
-      const nextShow = next.showPhonePublic ?? showPhonePublic;
-      const nextSource = next.publicPhoneSource ?? publicPhoneSource;
-      const previousShow = showPhonePublic;
-      const previousSource = publicPhoneSource;
-      const savedDirectory = hasDistinctDirectoryPhone(
-        savedMobileNumber,
-        savedDirectoryPhone,
-      )
-        ? savedDirectoryPhone
-        : "";
-      if (nextShow) {
-        const sourceToSave = publicPhoneSourceForSave({
-          showPhonePublic: true,
-          selected: nextSource,
-          mobileNumber: savedMobileNumber,
-          directoryPhone: savedDirectory || null,
-        });
-        const savedNumber = callNumberForSource({
-          source: sourceToSave,
-          mobileNumber: savedMobileNumber,
-          directoryPhone: savedDirectory,
-        });
-        if (!savedNumber) {
-          toast.error("Save your phone number first, then turn this on.");
-          return;
-        }
-      }
-
-      if (next.showPhonePublic !== undefined) setShowPhonePublic(next.showPhonePublic);
-      if (next.publicPhoneSource !== undefined) setPublicPhoneSource(next.publicPhoneSource);
-      setPublicCallSaving(true);
-      try {
-        const res = await fetch("/api/doctor-settings/public-phone", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            showPhonePublic: nextShow,
-            publicPhoneSource: nextSource,
-          }),
-        });
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok) {
-          const message =
-            (data?.message as string) || "Failed to update Call button setting.";
-          toast.error(message);
-          setShowPhonePublic(previousShow);
-          setPublicPhoneSource(previousSource);
-          return;
-        }
-        const savedShow = Boolean(data?.showPhonePublic ?? nextShow);
-        const savedSource =
-          data?.publicPhoneSource === "mobile" || data?.publicPhoneSource === "directory"
-            ? data.publicPhoneSource
-            : nextSource;
-        setShowPhonePublic(savedShow);
-        setPublicPhoneSource(savedSource);
-        setSavedSnapshot((prev) => ({
-          ...prev,
-          showPhonePublic: savedShow,
-          publicPhoneSource: savedSource,
-        }));
-        if (next.showPhonePublic !== undefined) {
-          toast.success(
-            savedShow
-              ? "Call button is visible on your profile."
-              : "Call button hidden from your profile.",
-          );
-        } else if (savedShow) {
-          toast.success("Call number updated.");
-        }
-      } catch (err) {
-        console.error(err);
-        toast.error("Something went wrong.");
-        setShowPhonePublic(previousShow);
-        setPublicPhoneSource(previousSource);
-      } finally {
-        setPublicCallSaving(false);
-      }
-    },
-    [
-      publicPhoneSource,
-      savedDirectoryPhone,
-      savedMobileNumber,
-      showPhonePublic,
-    ],
-  );
   const [district, setDistrict] = React.useState(initial.district ?? "");
   const [clinicLocation, setClinicLocation] = React.useState<ClinicLocation>(() =>
     resolveInitialClinicLocation(initial),
@@ -495,78 +349,6 @@ export function SettingsForm({ initial }: SettingsFormProps) {
   const [workplaceBusy, setWorkplaceBusy] = React.useState(false);
   const workplaceTabScrollYRef = React.useRef<number | null>(null);
 
-  // Booking online or calling are the only two ways in. Once any clinic stops taking
-  // bookings the public phone stops being optional for the patients looking at it, so
-  // the Call button is forced on and locked there.
-  const contactPhone = React.useMemo(
-    () =>
-      contactPhoneState({
-        pauseFlags: workplaces.map((row) => Boolean(row.pauseOnlineBookings)),
-        mobileNumber: savedMobileNumber,
-        directoryPhone: hasDistinctDirectoryPhone(savedMobileNumber, savedDirectoryPhone)
-          ? savedDirectoryPhone
-          : "",
-        publicPhoneSource,
-      }),
-    [workplaces, savedMobileNumber, savedDirectoryPhone, publicPhoneSource],
-  );
-
-  const pausingRequiresPhone = React.useMemo(
-    () =>
-      anyClinicPaused(
-        pauseFlagsAfterChange(
-          workplaces.map((row) => ({
-            id: row.id,
-            pauseOnlineBookings: Boolean(row.pauseOnlineBookings),
-          })),
-          activeWorkplaceId,
-          true,
-        ),
-      ),
-    [workplaces, activeWorkplaceId],
-  );
-
-  /** Saves the number typed in the pause card and puts it on the public profile. */
-  const handleSaveContactPhone = React.useCallback(
-    async (phone: string): Promise<boolean> => {
-      try {
-        const res = await fetch("/api/doctor-settings/public-phone", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ callNumber: phone, showPhonePublic: true }),
-        });
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok) {
-          toast.error((data?.message as string) || "Could not save your phone number.");
-          return false;
-        }
-        const saved = String(data?.callNumber ?? "").trim();
-        if (saved) {
-          setMobileNumber(saved);
-          setSavedMobileNumber(saved);
-        }
-        setShowPhonePublic(true);
-        if (data?.publicPhoneSource === "mobile" || data?.publicPhoneSource === "directory") {
-          setPublicPhoneSource(data.publicPhoneSource);
-        }
-        setSavedSnapshot((prev) => ({
-          ...prev,
-          ...(saved ? { mobileNumber: saved } : {}),
-          ...(data?.publicPhoneSource === "mobile" || data?.publicPhoneSource === "directory"
-            ? { publicPhoneSource: data.publicPhoneSource }
-            : {}),
-          showPhonePublic: true,
-        }));
-        toast.success("Saved. Patients can call you from your profile.");
-        return true;
-      } catch (err) {
-        console.error(err);
-        toast.error("Something went wrong.");
-        return false;
-      }
-    },
-    [],
-  );
   const [bookingHorizonDays, setBookingHorizonDays] = React.useState(
     initial.bookingHorizonDays
   );
@@ -771,9 +553,6 @@ export function SettingsForm({ initial }: SettingsFormProps) {
         bio,
         languages,
         mobileNumber,
-        directoryPhone: clinicRowVisible ? clinicPhone : "",
-        showPhonePublic,
-        publicPhoneSource,
         bookingHorizonDays,
         minimumNoticeHours,
         holidayModeEnabled,
@@ -800,10 +579,6 @@ export function SettingsForm({ initial }: SettingsFormProps) {
       bio,
       languages,
       mobileNumber,
-      clinicPhone,
-      clinicRowVisible,
-      showPhonePublic,
-      publicPhoneSource,
       bookingHorizonDays,
       minimumNoticeHours,
       holidayModeEnabled,
@@ -823,18 +598,6 @@ export function SettingsForm({ initial }: SettingsFormProps) {
       bio: (initial.bio ?? "").trim(),
       languages: Array.isArray(initial.languages) ? [...initial.languages] : [],
       mobileNumber: initial.mobileNumber ?? "",
-      directoryPhone: hasDistinctDirectoryPhone(
-        initial.mobileNumber ?? "",
-        initial.directoryPhone ?? "",
-      )
-        ? (initial.directoryPhone ?? "")
-        : "",
-      showPhonePublic: Boolean(initial.showPhonePublic),
-      publicPhoneSource: inferPublicPhoneSource({
-        saved: initial.publicPhoneSource,
-        mobileNumber: initial.mobileNumber ?? "",
-        directoryPhone: initial.directoryPhone ?? "",
-      }),
       bookingHorizonDays: initial.bookingHorizonDays,
       minimumNoticeHours: initial.minimumNoticeHours,
       holidayModeEnabled: initial.holidayModeEnabled,
@@ -1070,37 +833,6 @@ export function SettingsForm({ initial }: SettingsFormProps) {
       toast.error(text);
       return;
     }
-    const directoryPhoneToSave = directoryPhoneForSave({
-      clinicRowVisible,
-      clinicPhone,
-      mobileNumber,
-      initialDirectoryPhone: savedDirectoryPhone,
-      initialMobileNumber: savedMobileNumber,
-    });
-    const phoneSourceToSave = publicPhoneSourceForSave({
-      showPhonePublic,
-      selected: publicPhoneSource,
-      mobileNumber,
-      directoryPhone: directoryPhoneToSave,
-    });
-    const publicCallNumber = callNumberForSource({
-      source: phoneSourceToSave,
-      mobileNumber,
-      directoryPhone: directoryPhoneToSave,
-    });
-    if (showPhonePublic && publicCallNumber.length === 0) {
-      const text = "Add a phone number before showing a Call button on your profile.";
-      setMessage({ type: "error", text });
-      toast.error(text);
-      return;
-    }
-    // A clinic is paused: the phone is its patients' only way in, so it cannot go empty.
-    if (contactPhone.required && publicCallNumber.length === 0) {
-      setMessage({ type: "error", text: CONTACT_PHONE_REQUIRED_MESSAGE });
-      toast.error(CONTACT_PHONE_REQUIRED_MESSAGE);
-      return;
-    }
-
     const hasCoords = hasConfirmedClinicCoordinates(clinicLocation);
     const isUnchangedLegacyAddress =
       !hasCoords &&
@@ -1148,9 +880,6 @@ export function SettingsForm({ initial }: SettingsFormProps) {
       const savePayload: Record<string, unknown> = {
         doctorId: initial.doctorId,
         doctorPhone: mobileNumber || null,
-        directoryPhone: directoryPhoneToSave,
-        publicPhoneSource: phoneSourceToSave,
-        showPhonePublic,
         district: clinicLocation.district ?? district,
         clinicAddress: clinicLocation.address.trim() || null,
         town: clinicLocation.town,
@@ -1227,8 +956,6 @@ export function SettingsForm({ initial }: SettingsFormProps) {
         setHolidayEndDate(parsedHolidayEnd);
       }
       initialClinicAddressRef.current = clinicLocation.address.trim();
-      setSavedMobileNumber(mobileNumber.trim());
-      setSavedDirectoryPhone(directoryPhoneToSave ?? "");
       setSavedSnapshot(buildCurrentDirtySnapshot());
       setMessage({ type: "success", text: "Settings saved." });
       toast.success("Settings saved.");
@@ -1734,7 +1461,7 @@ export function SettingsForm({ initial }: SettingsFormProps) {
               workplaces.find((row) => row.id === activeWorkplaceId)?.pauseOnlineBookings,
             )}
             locationId={activeWorkplaceId === "primary" ? null : activeWorkplaceId}
-            onPausedChange={(paused, details) => {
+            onPausedChange={(paused) => {
               setWorkplaces((prev) =>
                 prev.map((row) =>
                   row.id === activeWorkplaceId
@@ -1742,15 +1469,7 @@ export function SettingsForm({ initial }: SettingsFormProps) {
                     : row,
                 ),
               );
-              if (details?.showPhonePublic) {
-                setShowPhonePublic(true);
-                setSavedSnapshot((prev) => ({ ...prev, showPhonePublic: true }));
-              }
             }}
-            contactCallNumber={contactPhone.callNumber}
-            phoneRequiredNow={contactPhone.required}
-            pausingRequiresPhone={pausingRequiresPhone}
-            onSaveContactPhone={handleSaveContactPhone}
           />
           {!(workplaces.find((row) => row.id === activeWorkplaceId)?.isPrimary) ? (
             <button
@@ -2089,33 +1808,7 @@ export function SettingsForm({ initial }: SettingsFormProps) {
       <PhoneNumbersSettings
         mobileNumber={mobileNumber}
         onMobileNumberChange={setMobileNumber}
-        clinicPhone={clinicPhone}
-        onClinicPhoneChange={setClinicPhone}
-        clinicRowVisible={clinicRowVisible}
-        onAddClinicPhone={() => {
-          setClinicRowVisible(true);
-          if (
-            !clinicPhone.trim() &&
-            hasDistinctDirectoryPhone(mobileNumber, savedDirectoryPhone)
-          ) {
-            setClinicPhone(savedDirectoryPhone);
-          }
-        }}
-        onRemoveClinicPhone={() => {
-          setClinicRowVisible(false);
-          setClinicPhone("");
-          setPublicPhoneSource("mobile");
-        }}
-        showPhonePublic={showPhonePublic}
-        onShowPhonePublicChange={(next) => {
-          void persistPublicCallSettings({ showPhonePublic: next });
-        }}
-        publicPhoneSource={publicPhoneSource}
-        onPublicPhoneSourceChange={(next) => {
-          void persistPublicCallSettings({ publicPhoneSource: next });
-        }}
-        saving={publicCallSaving}
-        lockedOnWhilePaused={contactPhone.lockCallOn}
+        clinicPhones={initial.clinicPhones ?? []}
       />
 
       <section className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-5">
