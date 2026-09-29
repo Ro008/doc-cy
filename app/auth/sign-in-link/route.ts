@@ -10,6 +10,15 @@ import {
 } from "@/lib/pro-session-hint";
 
 /**
+ * A relative redirect: the browser stays on the host it used. `request.url` carries
+ * the server's own host in a production build (CI opens 127.0.0.1, the server says
+ * localhost), and the session cookie belongs to the host the browser used.
+ */
+function redirectTo(pathWithQuery: string): NextResponse {
+  return new NextResponse(null, { status: 307, headers: { Location: pathWithQuery } });
+}
+
+/**
  * The link in "[DocCy] Your sign-in link": the professional's second sign-in step.
  * Supabase verifies the one-time token (1 hour, once) and creates her session,
  * marked "otp" in its `amr`, which the database and middleware require.
@@ -20,10 +29,9 @@ export async function GET(request: Request) {
   const next = safeAuthNextPath(requestUrl.searchParams.get("next"));
 
   const refused = () => {
-    const login = new URL("/login", requestUrl.origin);
-    login.searchParams.set("link", "invalid");
-    if (next) login.searchParams.set("next", next);
-    return NextResponse.redirect(login);
+    const params = new URLSearchParams({ link: "invalid" });
+    if (next) params.set("next", next);
+    return redirectTo(`/login?${params.toString()}`);
   };
   if (!tokenHash) return refused();
 
@@ -34,7 +42,7 @@ export async function GET(request: Request) {
     return refused();
   }
 
-  const response = NextResponse.redirect(new URL(next ?? "/agenda", requestUrl.origin));
+  const response = redirectTo(next ?? "/agenda");
   // Professional chrome from first paint on the next pages (only professionals get links).
   response.cookies.set(PRO_SESSION_HINT_COOKIE, PRO_SESSION_HINT_VALUE, {
     path: "/",
