@@ -63,6 +63,12 @@ import {
 } from "@/lib/agenda-clinics";
 import { agendaClinicEventColor } from "@/lib/doctor-locations";
 import {
+  RESCHEDULE_REASON_MAX,
+  rescheduleDeadlineIso,
+  rescheduleReasonState,
+  sentSlotsDifferFromPreview,
+} from "@/lib/reschedule-proposal";
+import {
   agendaAppointmentBadgeClass,
   agendaAppointmentConfirmedClass,
   agendaAppointmentExpiredClass,
@@ -894,10 +900,16 @@ export function AgendaRealtime({
 
   async function sendRescheduleProposal() {
     if (!selected || sendingProposal) return;
-    if (rescheduleReason.trim().length < 10) {
+    const reasonState = rescheduleReasonState(rescheduleReason);
+    if (reasonState.tooShort) {
       setRescheduleError("Please explain the reason (at least 10 characters).");
       return;
     }
+    if (reasonState.tooLong) {
+      setRescheduleError(`Please keep the reason under ${RESCHEDULE_REASON_MAX} characters.`);
+      return;
+    }
+    const previewAtSend = previewSlots;
     setRescheduleError(null);
     setSendingProposal(true);
     try {
@@ -945,9 +957,21 @@ export function AgendaRealtime({
             : a,
         ),
       );
-      sonnerToast.success(
-        "Reschedule options sent to the patient. Waiting for their choice.",
-      );
+      if (sentSlotsDifferFromPreview(previewAtSend, slots)) {
+        // The server picks the times again on send; say so when they moved.
+        sonnerToast.warning("Some times changed since your preview.", {
+          description: `Sent to the patient: ${slots
+            .map((iso) =>
+              format(appointmentToCyprusDate(iso), "EEE d MMM, HH:mm", { locale: enGB }),
+            )
+            .join(" · ")}`,
+          duration: 10_000,
+        });
+      } else {
+        sonnerToast.success(
+          "Reschedule options sent to the patient. Waiting for their choice.",
+        );
+      }
       setSelected(null);
       setRescheduleOpen(false);
       setPreviewSlots(null);
@@ -1985,13 +2009,17 @@ export function AgendaRealtime({
                 <textarea
                   value={rescheduleReason}
                   onChange={(e) => setRescheduleReason(e.target.value)}
+                  maxLength={RESCHEDULE_REASON_MAX}
                   placeholder="e.g. I have an urgent hospital procedure and need to move this visit to another time."
                   rows={3}
                   className="mt-1.5 w-full resize-y rounded-xl border border-slate-700 bg-ink-900/80 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:border-clinical-500/50 focus:outline-none focus:ring-1 focus:ring-clinical-500/40"
                   disabled={loadingAlternatives || sendingProposal}
                 />
-                <p className="mt-1 text-[11px] text-slate-500">
-                  At least 10 characters.
+                <p className="mt-1 flex justify-between gap-2 text-[11px] text-slate-500">
+                  <span>At least 10 characters.</span>
+                  <span className="tabular-nums" data-testid="reschedule-reason-count">
+                    {rescheduleReasonState(rescheduleReason).length}/{RESCHEDULE_REASON_MAX}
+                  </span>
                 </p>
                 {previewSlots && previewSlots.length >= 3 ? (
                   <div className="mt-3 space-y-2 border-t border-slate-700/80 pt-3">
@@ -2013,6 +2041,29 @@ export function AgendaRealtime({
                         </li>
                       ))}
                     </ul>
+                    {(() => {
+                      const deadlineIso = rescheduleDeadlineIso(new Date(), previewSlots);
+                      const deadline = deadlineIso
+                        ? format(appointmentToCyprusDate(deadlineIso), "EEE d MMM 'at' HH:mm", {
+                            locale: enGB,
+                          })
+                        : null;
+                      const wasConfirmed =
+                        String(selected.status ?? "").toUpperCase() === "CONFIRMED";
+                      return (
+                        <p
+                          className="rounded-lg border border-amber-400/30 bg-amber-500/10 px-2.5 py-2 text-[11px] leading-relaxed text-amber-100"
+                          data-testid="reschedule-send-notice"
+                        >
+                          {wasConfirmed
+                            ? `Sending frees ${format(appointmentToCyprusDate(selected.gridStartIso), "EEE d MMM", { locale: enGB })} at ${selected.timeLabel} right away. `
+                            : null}
+                          {deadline
+                            ? `The patient has until ${deadline} to choose one of these times; after that the visit is no longer booked.`
+                            : "The patient has a limited time to choose; after that the visit is no longer booked."}
+                        </p>
+                      );
+                    })()}
                     <button
                       type="button"
                       onClick={() => {
@@ -2020,7 +2071,9 @@ export function AgendaRealtime({
                       }}
                       className="mt-1 inline-flex w-full items-center justify-center rounded-2xl border border-clinical-500/40 bg-clinical-500/10 px-3 py-2 text-xs font-semibold text-clinical-200 transition hover:border-clinical-400/60 hover:bg-clinical-500/20 disabled:cursor-not-allowed disabled:opacity-70"
                       disabled={
-                        sendingProposal || rescheduleReason.trim().length < 10
+                        sendingProposal ||
+                        rescheduleReasonState(rescheduleReason).tooShort ||
+                        rescheduleReasonState(rescheduleReason).tooLong
                       }
                     >
                       {sendingProposal ? "Sending..." : "Send proposal to patient"}
