@@ -127,3 +127,26 @@ export function agendaInitialGridScrollTop({
   if (nowOffsetPx == null) return 0;
   return Math.max(0, Math.round(nowOffsetPx - 2 * hourRowHeight));
 }
+
+/**
+ * Pixel height of one hour so the working day fills the available grid height.
+ * Clamped: below `minPx` appointments stop being readable (the grid scrolls instead);
+ * above `maxPx` blocks get needlessly tall on very large screens.
+ */
+export function agendaHourRowHeight({
+  availablePx,
+  hours,
+  topInset,
+  minPx = 44,
+  maxPx = 96,
+}: {
+  availablePx: number;
+  hours: number;
+  topInset: number;
+  minPx?: number;
+  maxPx?: number;
+}): number {
+  if (!(hours > 0) || !(availablePx > 0)) return minPx;
+  const fitted = Math.floor((availablePx - topInset) / hours);
+  return Math.min(maxPx, Math.max(minPx, fitted));
+}

@@ -4,6 +4,7 @@ import { format } from "date-fns";
 
 import {
   agendaGridScrollHeight,
+  agendaHourRowHeight,
   agendaHref,
   agendaInitialGridScrollTop,
   agendaMonthGrid,
@@ -218,5 +219,30 @@ describe("agendaInitialGridScrollTop", () => {
 
   it("starts at the top (08:00) when today is not on screen", () => {
     assert.equal(agendaInitialGridScrollTop({ nowOffsetPx: null, hourRowHeight: 56 }), 0);
+  });
+});
+
+describe("agendaHourRowHeight", () => {
+  it("stretches the hours so the working day fills the available height", () => {
+    // 12 hours + 14px top inset in 664px → 54px per hour (whole pixels, rounded down)
+    assert.equal(agendaHourRowHeight({ availablePx: 664, hours: 12, topInset: 14 }), 54);
+    assert.equal(agendaHourRowHeight({ availablePx: 830, hours: 12, topInset: 14 }), 68);
+  });
+
+  it("never shrinks below the readable minimum (the grid scrolls instead)", () => {
+    assert.equal(agendaHourRowHeight({ availablePx: 518, hours: 12, topInset: 14 }), 44);
+    assert.equal(
+      agendaHourRowHeight({ availablePx: 400, hours: 12, topInset: 14, minPx: 40 }),
+      40,
+    );
+  });
+
+  it("caps the height on very tall screens", () => {
+    assert.equal(agendaHourRowHeight({ availablePx: 2000, hours: 12, topInset: 14 }), 96);
+  });
+
+  it("falls back to the minimum for nonsense input", () => {
+    assert.equal(agendaHourRowHeight({ availablePx: 0, hours: 12, topInset: 14 }), 44);
+    assert.equal(agendaHourRowHeight({ availablePx: 600, hours: 0, topInset: 14 }), 44);
   });
 });

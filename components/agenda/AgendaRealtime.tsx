@@ -44,6 +44,7 @@ import { AgendaMonthGrid, type AgendaMonthItem } from "@/components/agenda/Agend
 import { AgendaSidebar } from "@/components/agenda/AgendaSidebar";
 import {
   agendaGridScrollHeight,
+  agendaHourRowHeight,
   agendaHref,
   agendaInitialGridScrollTop,
   agendaRangeTitle,
@@ -177,9 +178,12 @@ function agendaDateFromKey(raw: string | null | undefined): Date | null {
 
 const START_HOUR = 8;
 const END_HOUR = 20;
-const HOUR_ROW_HEIGHT = 56;
+/** Hour height on phones and until the desktop grid has measured the window. */
+const DEFAULT_HOUR_ROW_HEIGHT = 56;
 /** Room for the first hour label (-translate-y-1/2 at y=0). */
 const CALENDAR_TOP_INSET = 14;
+/** Room for the lower half of the last hour label ("20:00"), so the grid does not overflow. */
+const CALENDAR_BOTTOM_INSET = 10;
 
 function firstNameOf(fullName: string | null | undefined): string {
   return String(fullName ?? "").trim().split(/\s+/)[0] || "the patient";
@@ -391,6 +395,8 @@ export function AgendaRealtime({
   /** Desktop time grid scrolls inside itself so the page fits the window. */
   const gridScrollRef = React.useRef<HTMLDivElement | null>(null);
   const [gridScrollHeight, setGridScrollHeight] = React.useState<number | null>(null);
+  /** Stretched so the working day fills the grid (see agendaHourRowHeight). */
+  const [hourRowHeight, setHourRowHeight] = React.useState(DEFAULT_HOUR_ROW_HEIGHT);
   const [manualBookingOpen, setManualBookingOpen] = React.useState(false);
   const [hiddenClinicIds, setHiddenClinicIds] = React.useState<Set<string>>(
     () => new Set(),
@@ -698,13 +704,13 @@ export function AgendaRealtime({
       ),
     [],
   );
-  const dayHeight = (END_HOUR - START_HOUR) * HOUR_ROW_HEIGHT;
-  const calendarBodyHeight = dayHeight + CALENDAR_TOP_INSET;
+  const dayHeight = (END_HOUR - START_HOUR) * hourRowHeight;
+  const calendarBodyHeight = dayHeight + CALENDAR_TOP_INSET + CALENDAR_BOTTOM_INSET;
   const maxMinutes = (END_HOUR - START_HOUR) * 60;
   const appointmentDurationMinutes = defaultSlotMinutes;
 
   function blockHeightFor(row: (typeof rows)[number]): number {
-    const h = (row.rowDurationMinutes / 60) * HOUR_ROW_HEIGHT - 2;
+    const h = (row.rowDurationMinutes / 60) * hourRowHeight - 2;
     return Math.max(22, h);
   }
 
@@ -1095,7 +1101,7 @@ export function AgendaRealtime({
 
   function topForRow(row: (typeof rows)[number]): number {
     const minutes = Math.min(Math.max(row.minutesFromStart, 0), maxMinutes);
-    return CALENDAR_TOP_INSET + (minutes / 60) * HOUR_ROW_HEIGHT;
+    return CALENDAR_TOP_INSET + (minutes / 60) * hourRowHeight;
   }
 
   type PositionedRow = (typeof rows)[number] & {
@@ -1187,7 +1193,7 @@ export function AgendaRealtime({
   const nowMinutesCyprus = nowCyprus.getHours() * 60 + nowCyprus.getMinutes();
   const nowLineTop =
     nowMinutesCyprus >= START_HOUR * 60 && nowMinutesCyprus <= END_HOUR * 60
-      ? CALENDAR_TOP_INSET + ((nowMinutesCyprus - START_HOUR * 60) / 60) * HOUR_ROW_HEIGHT
+      ? CALENDAR_TOP_INSET + ((nowMinutesCyprus - START_HOUR * 60) / 60) * hourRowHeight
       : null;
 
   const todayInGrid = gridDays.some((day) => isSameDay(day, todayDate));
@@ -1197,12 +1203,27 @@ export function AgendaRealtime({
     const el = gridScrollRef.current;
     if (!el) return;
     const measure = () => {
-      if (!gridScrollRef.current) return;
-      const gridTop = gridScrollRef.current.getBoundingClientRect().top + window.scrollY;
+      const grid = gridScrollRef.current;
+      // Phones use the day list below the grid; the desktop grid is hidden there.
+      if (!grid || grid.offsetParent === null) {
+        setHourRowHeight(DEFAULT_HOUR_ROW_HEIGHT);
+        return;
+      }
+      const gridTop = grid.getBoundingClientRect().top + window.scrollY;
       // Section + page bottom padding; below lg the bottom tab bar (5.25rem) covers the page too.
       const bottomReserve = 40 + (window.innerWidth >= 1024 ? 0 : 84);
-      setGridScrollHeight(
-        agendaGridScrollHeight({ viewportHeight: window.innerHeight, gridTop, bottomReserve }),
+      const available = agendaGridScrollHeight({
+        viewportHeight: window.innerHeight,
+        gridTop,
+        bottomReserve,
+      });
+      setGridScrollHeight(available);
+      setHourRowHeight(
+        agendaHourRowHeight({
+          availablePx: available,
+          hours: END_HOUR - START_HOUR,
+          topInset: CALENDAR_TOP_INSET + CALENDAR_BOTTOM_INSET,
+        }),
       );
     };
     measure();
@@ -1215,7 +1236,7 @@ export function AgendaRealtime({
     if (!el) return;
     el.scrollTop = agendaInitialGridScrollTop({
       nowOffsetPx: todayInGrid ? nowLineTop : null,
-      hourRowHeight: HOUR_ROW_HEIGHT,
+      hourRowHeight: hourRowHeight,
     });
     // When the visible range changes (and once the grid has its height), not on every clock tick.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1269,7 +1290,7 @@ export function AgendaRealtime({
           <span
             key={hour}
             className={agendaHourAxisLabelClass(hour, START_HOUR)}
-            style={{ top: CALENDAR_TOP_INSET + (hour - START_HOUR) * HOUR_ROW_HEIGHT, left: 0 }}
+            style={{ top: CALENDAR_TOP_INSET + (hour - START_HOUR) * hourRowHeight, left: 0 }}
           >
             {String(hour).padStart(2, "0")}:00
           </span>
@@ -1284,7 +1305,7 @@ export function AgendaRealtime({
     const work = workingWindowsForDate(dayDate);
     const startMin = START_HOUR * 60;
     const endMin = END_HOUR * 60;
-    const y = (m: number) => CALENDAR_TOP_INSET + ((m - startMin) / 60) * HOUR_ROW_HEIGHT;
+    const y = (m: number) => CALENDAR_TOP_INSET + ((m - startMin) / 60) * hourRowHeight;
     return (
       <div
         key={`${keyPrefix}-${dayKey}`}
@@ -1323,7 +1344,7 @@ export function AgendaRealtime({
           <div
             key={`${dayKey}-line-${hour}`}
             className={agendaHourGridLineClass}
-            style={{ top: CALENDAR_TOP_INSET + (hour - START_HOUR + 1) * HOUR_ROW_HEIGHT }}
+            style={{ top: CALENDAR_TOP_INSET + (hour - START_HOUR + 1) * hourRowHeight }}
           />
         ))}
         {layoutOverlaps(rowsForDay(dayKey)).map((row) => (
