@@ -87,12 +87,53 @@ test.describe("Integration: unique registration email and mobile", { tag: "@pr-e
       await page.locator("#register-form input[name='email']").fill(buildAutomatedDoctorRegistrationTestEmail());
       await expect(emailTaken).toBeHidden();
       await page.getByTestId("register-wizard-continue").click();
+      // The message is still up from the first check: wait for this check's answer.
+      await expect(page.getByTestId("register-wizard-continue")).not.toHaveText(/Checking/, {
+        timeout: 20_000,
+      });
       await expect(mobileTaken).toBeVisible({ timeout: 20_000 });
       await expect(page.getByTestId("register-step-2")).toBeHidden();
 
       await page.getByTestId("register-phone-input").fill(uniqueRegisterTestMobile());
       await expect(mobileTaken).toBeHidden();
       await page.getByTestId("register-wizard-continue").click();
+      await expect(page.getByTestId("register-step-2")).toBeVisible({ timeout: 20_000 });
+    } finally {
+      await holder.remove();
+    }
+  });
+
+  test("an answer about numbers edited while it was checking is ignored", async ({ page }) => {
+    test.setTimeout(120_000);
+    const admin = createIntegrationAdmin(requireSafeIntegration());
+    const holder = await seedRealContactHolder(admin, { mobile: uniqueRegisterTestMobile() });
+    try {
+      await fillAccountStep(page, {
+        email: buildAutomatedDoctorRegistrationTestEmail(),
+        mobile: holder.mobile!,
+      });
+      // Hold the check's answer until the mobile has been changed.
+      let release: () => void = () => {};
+      const held = new Promise<void>((resolve) => (release = resolve));
+      await page.route("**/api/register/contact-check", async (route) => {
+        await held;
+        await route.continue();
+      });
+
+      const continueButton = page.getByTestId("register-wizard-continue");
+      await continueButton.click();
+      await expect(continueButton).toHaveText(/Checking/, { timeout: 20_000 });
+      await page.getByTestId("register-phone-input").fill(uniqueRegisterTestMobile());
+      release();
+      await expect(continueButton).not.toHaveText(/Checking/, { timeout: 20_000 });
+
+      // The answer was about the old number: no message, still on the Account step.
+      await expect(page.getByTestId("register-phone-taken")).toHaveCount(0);
+      await expect(page.getByTestId("register-step-2")).toBeHidden();
+
+      // Continue checks the new number.
+      await page.unroute("**/api/register/contact-check");
+      await continueButton.click();
       await expect(page.getByTestId("register-step-2")).toBeVisible({ timeout: 20_000 });
     } finally {
       await holder.remove();
