@@ -25,6 +25,10 @@ import { formatDateDDMMYYYY } from "@/lib/date-format";
 import "react-day-picker/dist/style.css";
 import { useLocale, useTranslations } from "next-intl";
 import { PendingLink } from "@/components/navigation/PendingLink";
+import {
+  rescheduleOtherTimeErrorMessage,
+  rescheduleRequestOtherTimePath,
+} from "@/lib/reschedule-other-times";
 
 type WeeklySlot = {
   id: string;
@@ -55,6 +59,15 @@ type BookingSectionProps = {
   locationId?: string | null;
   locationLabel?: string | null;
   locationScopedPause?: boolean;
+  /**
+   * Reschedule email-link page: the patient is known, so picking a time sends it straight
+   * away as a request for this appointment (no contact form).
+   */
+  rescheduleOf?: {
+    appointmentId: string;
+    token: string;
+    onRequested: (slotLabelFull: string) => void;
+  };
 };
 
 type SlotOption = {
@@ -85,6 +98,7 @@ export function BookingSection({
   locationId = null,
   locationLabel = null,
   locationScopedPause = false,
+  rescheduleOf,
 }: BookingSectionProps) {
   const normalizedBookingHorizonDays = [14, 30, 90, 180].includes(
     bookingHorizonDays
@@ -291,6 +305,39 @@ export function BookingSection({
       (slot) => slot.dateKey === dayKey && !isSlotTaken(slot)
     );
   }, [selectedDate, upcomingSlots, takenSet]);
+
+  const [rescheduleSending, setRescheduleSending] = React.useState(false);
+
+  const requestRescheduleTime = React.useCallback(
+    async (slot: SlotOption) => {
+      if (!rescheduleOf || rescheduleSending) return;
+      setError(null);
+      setRescheduleSending(true);
+      try {
+        const res = await fetch(rescheduleRequestOtherTimePath(rescheduleOf.appointmentId), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token: rescheduleOf.token, appointmentLocal: slot.slotKey }),
+        });
+        const data = await res.json().catch(() => null);
+        if (!res.ok) {
+          setError(
+            rescheduleOtherTimeErrorMessage(
+              res.status,
+              typeof data?.message === "string" ? data.message : null,
+            ),
+          );
+          return;
+        }
+        rescheduleOf.onRequested(slot.labelFull);
+      } catch {
+        setError(rescheduleOtherTimeErrorMessage(0, null));
+      } finally {
+        setRescheduleSending(false);
+      }
+    },
+    [rescheduleOf, rescheduleSending],
+  );
 
   const handleSubmit = React.useCallback(
     async (e: React.FormEvent) => {
@@ -801,10 +848,21 @@ export function BookingSection({
                           {isSelected && (
                             <button
                               type="button"
-                              onClick={() => setShowContactForm(true)}
-                              className="shrink-0 rounded-xl bg-clinical-500 px-4 py-2 text-sm font-semibold text-white shadow-md transition hover:bg-clinical-400 focus:outline-none focus:ring-2 focus:ring-clinical-400/50"
+                              onClick={() => {
+                                if (rescheduleOf) {
+                                  void requestRescheduleTime(slot);
+                                  return;
+                                }
+                                setShowContactForm(true);
+                              }}
+                              disabled={rescheduleSending}
+                              aria-busy={rescheduleSending}
+                              className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-clinical-500 px-4 py-2 text-sm font-semibold text-white shadow-md transition hover:bg-clinical-400 focus:outline-none focus:ring-2 focus:ring-clinical-400/50 disabled:opacity-70"
                             >
-                              Confirm
+                              {rescheduleOf && rescheduleSending ? (
+                                <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                              ) : null}
+                              {rescheduleOf ? "Request this time" : "Confirm"}
                             </button>
                           )}
                         </div>

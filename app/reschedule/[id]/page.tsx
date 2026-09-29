@@ -8,6 +8,9 @@ import {
   ReschedulePickClient,
   RescheduleResolvedPanel,
 } from "@/components/reschedule/ReschedulePickClient";
+import { EnglishIntlProvider } from "@/components/i18n/EnglishIntlProvider";
+import { loadRescheduleCalendar } from "@/lib/public/load-reschedule-calendar";
+import { publicProfessionalProfilePath } from "@/lib/manual-directory-landing-path";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -47,7 +50,7 @@ export default async function ReschedulePage({ params, searchParams }: PageProps
   const { data: appt, error } = await supabase
     .from("appointments")
     .select(
-      "id, doctor_id, patient_name, status, proposed_slots, proposal_expires_at, reschedule_access_token"
+      "id, doctor_id, patient_name, status, proposed_slots, proposal_expires_at, reschedule_access_token, location_id"
     )
     .eq("id", params.id)
     .maybeSingle();
@@ -60,13 +63,23 @@ export default async function ReschedulePage({ params, searchParams }: PageProps
     );
   }
 
+  const doctorId = (appt as { doctor_id: string }).doctor_id;
+  const { data: doctor } = await supabase
+    .from("professionals")
+    .select("name, slug")
+    .eq("id", doctorId)
+    .maybeSingle();
+  const doctorSlug = String((doctor as { slug?: string | null } | null)?.slug ?? "").trim();
+  /** Online booking first: every dead end points at the profile's calendar. */
+  const bookOnlineHref = doctorSlug ? publicProfessionalProfilePath(doctorSlug) : null;
+
   const st = String(appt.status ?? "").toUpperCase();
   // After a successful pick we clear the token; URL still has ?token=… — check status before token
   // so patients see "already handled" instead of a generic invalid link.
   if (st !== "NEEDS_RESCHEDULE") {
     return (
       <main className="min-h-screen bg-ink-900 px-4 py-16 text-slate-50">
-        <RescheduleResolvedPanel />
+        <RescheduleResolvedPanel bookOnlineHref={bookOnlineHref} />
       </main>
     );
   }
@@ -76,7 +89,7 @@ export default async function ReschedulePage({ params, searchParams }: PageProps
   if (!rowToken || rowToken !== token) {
     return (
       <main className="min-h-screen bg-ink-900 px-4 py-16 text-slate-50">
-        <RescheduleInvalidPanel reason="link_revoked" />
+        <RescheduleInvalidPanel reason="link_revoked" bookOnlineHref={bookOnlineHref} />
       </main>
     );
   }
@@ -85,7 +98,7 @@ export default async function ReschedulePage({ params, searchParams }: PageProps
   if (!exp || new Date(exp).getTime() <= Date.now()) {
     return (
       <main className="min-h-screen bg-ink-900 px-4 py-16 text-slate-50">
-        <RescheduleExpiredPanel />
+        <RescheduleExpiredPanel bookOnlineHref={bookOnlineHref} />
       </main>
     );
   }
@@ -98,16 +111,15 @@ export default async function ReschedulePage({ params, searchParams }: PageProps
   if (isoList.length === 0) {
     return (
       <main className="min-h-screen bg-ink-900 px-4 py-16 text-slate-50">
-        <RescheduleInvalidPanel reason="no_slots" />
+        <RescheduleInvalidPanel reason="no_slots" bookOnlineHref={bookOnlineHref} />
       </main>
     );
   }
 
-  const { data: doctor } = await supabase
-    .from("professionals")
-    .select("name")
-    .eq("id", (appt as { doctor_id: string }).doctor_id)
-    .maybeSingle();
+  const otherTimes = await loadRescheduleCalendar(supabase, {
+    doctorId,
+    locationId: (appt as { location_id?: string | null }).location_id ?? null,
+  });
 
   const doctorName = String(doctor?.name ?? "your professional");
   const patientName = String((appt as { patient_name?: string }).patient_name ?? "");
@@ -131,15 +143,20 @@ export default async function ReschedulePage({ params, searchParams }: PageProps
         <div className="absolute inset-x-0 top-[-10%] mx-auto h-80 max-w-xl rounded-full bg-clinical-500/10 blur-3xl" />
         <div className="absolute inset-y-0 right-[-15%] h-full w-72 bg-clinical-500/10 blur-3xl" />
       </div>
-      <ReschedulePickClient
-        appointmentId={params.id}
-        token={token}
-        professionalName={doctorName}
-        patientFirstName={patientFirst}
-        expiresAtIso={exp}
-        expiryLabel={expiryLabel}
-        slots={slots}
-      />
+      <EnglishIntlProvider namespaces={["BookingPage"]}>
+        <ReschedulePickClient
+          appointmentId={params.id}
+          token={token}
+          doctorId={doctorId}
+          professionalName={doctorName}
+          patientFirstName={patientFirst}
+          expiresAtIso={exp}
+          expiryLabel={expiryLabel}
+          slots={slots}
+          otherTimes={otherTimes}
+          bookOnlineHref={bookOnlineHref}
+        />
+      </EnglishIntlProvider>
     </main>
   );
 }

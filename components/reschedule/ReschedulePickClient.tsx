@@ -1,9 +1,24 @@
 "use client";
 
 import * as React from "react";
-import { CalendarClock, CheckCircle2, Loader2 } from "lucide-react";
+import { CalendarClock, CheckCircle2, Clock, Loader2 } from "lucide-react";
+import { BookingSection } from "@/components/doctor/BookingSection";
+import type { RescheduleCalendarData } from "@/lib/public/load-reschedule-calendar";
 
 type SlotItem = { iso: string; label: string };
+
+/** Online booking first: dead ends point at the profile's calendar, never at a phone call. */
+function BookOnlineLink({ href }: { href: string | null | undefined }) {
+  if (!href) return null;
+  return (
+    <a
+      href={href}
+      className="mt-6 inline-flex w-full items-center justify-center rounded-2xl bg-clinical-400 px-4 py-3 text-sm font-semibold text-slate-950 shadow-lg shadow-clinical-500/25 transition hover:bg-clinical-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-clinical-300"
+    >
+      Book a new time online
+    </a>
+  );
+}
 
 type Props = {
   appointmentId: string;
@@ -14,6 +29,10 @@ type Props = {
   expiresAtIso: string;
   expiryLabel: string;
   slots: SlotItem[];
+  doctorId: string;
+  /** The professional's online booking calendar for "See other times" (null if it can't load). */
+  otherTimes: RescheduleCalendarData | null;
+  bookOnlineHref: string | null;
 };
 
 export function ReschedulePickClient({
@@ -24,7 +43,12 @@ export function ReschedulePickClient({
   expiresAtIso,
   expiryLabel,
   slots,
+  doctorId,
+  otherTimes,
+  bookOnlineHref,
 }: Props) {
+  const [showOtherTimes, setShowOtherTimes] = React.useState(false);
+  const [requestedLabel, setRequestedLabel] = React.useState<string | null>(null);
   const [selectedIso, setSelectedIso] = React.useState<string | null>(null);
   const [submitting, setSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -72,8 +96,25 @@ export function ReschedulePickClient({
     }
   }
 
+  if (requestedLabel) {
+    return (
+      <div
+        className="mx-auto max-w-md rounded-3xl border border-amber-400/30 bg-amber-500/10 p-8 text-center shadow-xl"
+        data-testid="reschedule-other-time-requested"
+      >
+        <Clock className="mx-auto h-14 w-14 text-amber-300" aria-hidden />
+        <h2 className="mt-4 text-xl font-semibold text-slate-50">Request sent, {patientFirstName}</h2>
+        <p className="mt-2 text-sm text-slate-300">
+          You asked {professionalName} for{" "}
+          <span className="font-medium text-amber-100">{requestedLabel}</span> (Cyprus time).
+          You&apos;ll get an email as soon as it&apos;s confirmed.
+        </p>
+      </div>
+    );
+  }
+
   if (expiredClient) {
-    return <RescheduleExpiredPanel />;
+    return <RescheduleExpiredPanel bookOnlineHref={bookOnlineHref} />;
   }
 
   if (done) {
@@ -185,18 +226,73 @@ export function ReschedulePickClient({
           "Confirm this time"
         )}
       </button>
+
+      {otherTimes ? (
+        <section
+          className="space-y-4 border-t border-slate-800 pt-6"
+          aria-labelledby="reschedule-other-times-title"
+          data-testid="reschedule-other-times"
+        >
+          <div className="text-center">
+            <h2 id="reschedule-other-times-title" className="text-sm font-semibold text-slate-200">
+              None of these work for you?
+            </h2>
+            {!showOtherTimes ? (
+              <button
+                type="button"
+                onClick={() => setShowOtherTimes(true)}
+                disabled={locked}
+                className="mt-3 inline-flex items-center justify-center rounded-2xl border border-clinical-400/50 px-5 py-2.5 text-sm font-semibold text-clinical-100 transition hover:bg-clinical-400/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-clinical-300 disabled:opacity-60"
+              >
+                See other times
+              </button>
+            ) : (
+              <p className="mt-1 text-xs text-slate-400">
+                Pick any free time. {professionalName} will confirm it, and the three times above
+                will be released.
+              </p>
+            )}
+          </div>
+          {showOtherTimes ? (
+            <BookingSection
+              doctorId={doctorId}
+              doctorName={professionalName}
+              weeklySlots={otherTimes.weeklySlots}
+              takenSlotTimes={otherTimes.takenSlotTimes}
+              breakStart={otherTimes.breakStart}
+              breakEnd={otherTimes.breakEnd}
+              onlineBookingsPaused={otherTimes.onlineBookingsPaused}
+              holidayModeEnabled={otherTimes.holidayModeEnabled}
+              holidayStartDate={otherTimes.holidayStartDate}
+              holidayEndDate={otherTimes.holidayEndDate}
+              bookingHorizonDays={otherTimes.bookingHorizonDays}
+              minimumNoticeHours={otherTimes.minimumNoticeHours}
+              locationId={otherTimes.locationId}
+              rescheduleOf={{
+                appointmentId,
+                token,
+                onRequested: (label) => setRequestedLabel(label),
+              }}
+            />
+          ) : null}
+        </section>
+      ) : null}
     </div>
   );
 }
 
-export function RescheduleExpiredPanel() {
+export function RescheduleExpiredPanel({ bookOnlineHref }: { bookOnlineHref?: string | null }) {
   return (
-    <div className="mx-auto max-w-md rounded-3xl border border-slate-700 bg-slate-900/70 p-8 text-center">
+    <div
+      className="mx-auto max-w-md rounded-3xl border border-slate-700 bg-slate-900/70 p-8 text-center"
+      data-testid="reschedule-expired"
+    >
       <h1 className="text-xl font-semibold text-slate-50">This offer has expired</h1>
       <p className="mt-3 text-sm leading-relaxed text-slate-400">
-        The reserved times are no longer held. Please visit the professional&apos;s
-        profile and submit a new appointment request when it suits you.
+        You didn&apos;t choose a new time in time, so this visit is no longer booked and the
+        reserved times have been released.
       </p>
+      <BookOnlineLink href={bookOnlineHref} />
     </div>
   );
 }
@@ -221,18 +317,20 @@ const INVALID_COPY: Record<
   },
   link_revoked: {
     title: "This link no longer works",
-    body: "It may have been replaced by a newer email, or the offer was withdrawn. If you still need to pick a time, ask the clinic to send a fresh link.",
+    body: "It may have been replaced by a newer email, or the offer was withdrawn. Check your latest email from DocCy, or book a new time online.",
   },
   no_slots: {
     title: "No times to choose",
-    body: "There are no proposed slots on file for this link. Please contact the clinic so they can send options again.",
+    body: "There are no proposed times on file for this link. You can book a new time online.",
   },
 };
 
 export function RescheduleInvalidPanel({
   reason,
+  bookOnlineHref,
 }: {
   reason?: RescheduleInvalidReason;
+  bookOnlineHref?: string | null;
 }) {
   const { title, body } = reason
     ? INVALID_COPY[reason]
@@ -244,20 +342,21 @@ export function RescheduleInvalidPanel({
     <div className="mx-auto max-w-md rounded-3xl border border-slate-700 bg-slate-900/70 p-8 text-center">
       <h1 className="text-xl font-semibold text-slate-50">{title}</h1>
       <p className="mt-3 text-sm leading-relaxed text-slate-400">{body}</p>
+      <BookOnlineLink href={bookOnlineHref} />
     </div>
   );
 }
 
-export function RescheduleResolvedPanel() {
+export function RescheduleResolvedPanel({ bookOnlineHref }: { bookOnlineHref?: string | null }) {
   return (
     <div className="mx-auto max-w-md rounded-3xl border border-slate-700 bg-slate-900/70 p-8 text-center">
       <h1 className="text-xl font-semibold text-slate-50">Already sorted</h1>
       <p className="mt-3 text-sm leading-relaxed text-slate-400">
         This visit is no longer waiting for you to pick a time — for example, you
         may have already confirmed a slot, or the clinic updated the appointment.
-        Check your email for the latest details, or contact the clinic if
-        something looks wrong.
+        Check your email for the latest details.
       </p>
+      <BookOnlineLink href={bookOnlineHref} />
     </div>
   );
 }
