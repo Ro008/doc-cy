@@ -59,7 +59,7 @@ export async function createTestDoctor(
       trial_notice_seen_at:
         input.markTrialNoticeSeen === false ? null : new Date().toISOString(),
       is_registered: true,
-      has_online_booking: true,
+      pro_access_until: new Date(Date.now() + 180 * 86_400_000).toISOString(),
       finder_visible: true,
       is_archived: false,
       is_test_profile: true,

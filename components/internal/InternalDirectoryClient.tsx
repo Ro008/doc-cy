@@ -8,10 +8,6 @@ import {
   CYPRUS_SPOKEN_LANGUAGE_LABELS,
   canonicalLanguageLabel,
 } from "@/lib/cyprus-languages";
-import {
-  isSpecialtyResolvedForVerification,
-  verificationBlockedReason,
-} from "@/lib/doctor-specialty-public";
 import { publicProfessionalProfilePath } from "@/lib/manual-directory-landing-path";
 import { useDirectoryNav } from "@/components/internal/DirectoryNavContext";
 
@@ -35,19 +31,6 @@ export type DirectoryDoctorRow = {
   originKind?: "claimed" | "unclaimed";
   originLabel?: string | null;
 };
-
-async function postVerification(doctorId: string, action: "verify" | "reject") {
-  const res = await fetch("/api/internal/doctors/verification", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    credentials: "same-origin",
-    body: JSON.stringify({ doctorId, action }),
-  });
-  if (!res.ok) {
-    const j = await res.json().catch(() => ({}));
-    throw new Error((j as { message?: string }).message ?? res.statusText);
-  }
-}
 
 async function postPurge(doctorId: string, confirmName: string) {
   const res = await fetch("/api/internal/doctors/purge", {
@@ -76,9 +59,7 @@ export function InternalDirectoryClient({
   const [languageFilter, setLanguageFilter] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState("");
   const [busyId, setBusyId] = React.useState<string | null>(null);
-  const [busyLabel, setBusyLabel] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
-  const [success, setSuccess] = React.useState<string | null>(null);
   const [purgeTarget, setPurgeTarget] = React.useState<DirectoryDoctorRow | null>(
     null,
   );
@@ -148,27 +129,6 @@ export function InternalDirectoryClient({
     setSpecialtyFilter("");
     setLanguageFilter("");
     setStatusFilter("");
-  }
-
-  async function runAction(doctorId: string, action: "verify" | "reject") {
-    setError(null);
-    setSuccess(null);
-    setBusyId(doctorId);
-    setBusyLabel(action === "verify" ? "Verifying…" : "Rejecting…");
-    try {
-      await postVerification(doctorId, action);
-      setSuccess(
-        action === "verify"
-          ? "Professional verified. Reloading…"
-          : "License rejected. Reloading…",
-      );
-      setBusyLabel("Reloading dashboard…");
-      window.location.reload();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Action failed.");
-      setBusyId(null);
-      setBusyLabel(null);
-    }
   }
 
   function openPurgeDialog(doctor: DirectoryDoctorRow) {
@@ -284,24 +244,6 @@ export function InternalDirectoryClient({
         </button>
       </div>
 
-      {busyLabel ? (
-        <div
-          className="rounded-xl border border-clinical-500/40 bg-clinical-500/10 px-4 py-3 text-sm text-clinical-100"
-          role="status"
-          aria-live="polite"
-        >
-          {busyLabel}
-        </div>
-      ) : null}
-      {success ? (
-        <div
-          className="rounded-xl border border-clinical-500/40 bg-clinical-500/10 px-4 py-3 text-sm text-clinical-100"
-          role="status"
-          aria-live="polite"
-        >
-          {success}
-        </div>
-      ) : null}
       {error ? (
         <div className="rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-100">
           {error}
@@ -343,24 +285,6 @@ export function InternalDirectoryClient({
               const status = d.status?.trim().toLowerCase() || "pending";
               const isPending = status === "pending";
               const isRejected = status === "rejected";
-              const isVerified = status === "verified";
-              const specialtyResolved = isSpecialtyResolvedForVerification({
-                is_specialty_approved: d.is_specialty_approved,
-                specialty_requires_standard_at: d.specialty_requires_standard_at,
-              });
-              const canVerifyLicense = isPending && specialtyResolved;
-              const verifyBlockReason = isPending
-                ? !specialtyResolved
-                  ? verificationBlockedReason({
-                      is_specialty_approved: d.is_specialty_approved,
-                      specialty_requires_standard_at: d.specialty_requires_standard_at,
-                    })
-                  : null
-                : isRejected
-                  ? "Application closed."
-                  : isVerified
-                    ? "Already verified."
-                    : null;
               const proofHref = d.license_file_url
                 ? `/api/internal/doctors/${d.id}/license`
                 : null;
@@ -436,37 +360,6 @@ export function InternalDirectoryClient({
                   </td>
                   <td className="px-4 py-3 align-top">
                     <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-                      {canMutate && isPending ? (
-                        <>
-                          <button
-                            type="button"
-                            disabled={busy || !canVerifyLicense}
-                            title={verifyBlockReason ?? undefined}
-                            onClick={() => runAction(d.id, "verify")}
-                            className="rounded-lg bg-clinical-500/20 px-3 py-1.5 text-xs font-semibold text-clinical-100 ring-1 ring-clinical-500/35 transition hover:bg-clinical-500/30 disabled:opacity-50"
-                          >
-                            Verify professional
-                          </button>
-                          <button
-                            type="button"
-                            disabled={busy || !canVerifyLicense}
-                            title={verifyBlockReason ?? undefined}
-                            onClick={() => runAction(d.id, "reject")}
-                            className="rounded-lg bg-red-500/15 px-3 py-1.5 text-xs font-semibold text-red-100 ring-1 ring-red-500/35 transition hover:bg-red-500/25 disabled:opacity-50"
-                          >
-                            Reject license
-                          </button>
-                        </>
-                      ) : null}
-                      {canMutate && verifyBlockReason && (isRejected || isVerified || (isPending && !canVerifyLicense)) ? (
-                        <p
-                          className={`text-[11px] leading-snug ${
-                            isRejected ? "text-red-200/80" : "text-amber-200/90"
-                          }`}
-                        >
-                          {verifyBlockReason}
-                        </p>
-                      ) : null}
                       {proofHref ? (
                         <a
                           href={proofHref}

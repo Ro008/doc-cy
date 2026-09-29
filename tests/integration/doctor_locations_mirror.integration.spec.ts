@@ -56,7 +56,7 @@ async function createProfessional(
       status: "verified",
       slug: `mirror-${tag}-${n}`,
       is_registered: true,
-      has_online_booking: true,
+      pro_access_until: new Date(Date.now() + 180 * 86_400_000).toISOString(),
       finder_visible: false,
       is_archived: false,
       is_test_profile: true,
@@ -221,7 +221,7 @@ test.describe("Integration: doctor_locations mirror onto professional_clinics", 
       if (gesyErr || !gesy) throw new Error(`clinic insert: ${gesyErr?.message}`);
       created.clinicIds.push(String(gesy.id));
 
-      // What absorb_unregistered_into_registered leaves behind: a link with its own id.
+      // What the old absorb (absorb_unregistered_into_registered, dropped) left behind: a link with its own id.
       const { data: link, error: linkErr } = await admin
         .from("professional_clinics")
         .insert({ professional_id: pro.id, clinic_id: gesy.id, is_primary: true })

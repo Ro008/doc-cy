@@ -37,30 +37,3 @@ export function postSpecialtyChangeReview(
     data: body,
   });
 }
-
-export function postDoctorVerification(
-  request: APIRequestContext,
-  adminCookie: string,
-  body: { doctorId: string; action: "verify" | "reject"; listingUrl?: string },
-) {
-  return request.post("/api/internal/doctors/verification", {
-    headers: internalDirectoryHeaders(adminCookie),
-    data: body,
-  });
-}
-
-export function postPendingRegistrationTwin(
-  request: APIRequestContext,
-  adminCookie: string,
-  body: {
-    registeredId: string;
-    unregisteredId?: string;
-    listingUrl?: string;
-    action: "absorb" | "keep_both";
-  },
-) {
-  return request.post("/api/internal/pending-registration-twin", {
-    headers: internalDirectoryHeaders(adminCookie),
-    data: body,
-  });
-}

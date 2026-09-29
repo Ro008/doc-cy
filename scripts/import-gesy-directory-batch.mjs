@@ -597,7 +597,6 @@ async function main() {
       clinic_id: primaryClinicId,
       is_archived: false,
       is_registered: false,
-      has_online_booking: false,
     };
 
     if (!manualId) {

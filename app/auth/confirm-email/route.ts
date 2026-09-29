@@ -5,7 +5,6 @@ import {
   registerSubmittedEmailConfirmErrorPath,
   registerSubmittedEmailConfirmedPath,
 } from "@/lib/register-email-confirm";
-import { notifyFounderAfterRegisterEmailConfirm } from "@/lib/notify-founder-after-email-confirm";
 import { confirmRegistrationDraft } from "@/lib/registration-draft-confirm";
 import { createServiceRoleClient } from "@/lib/supabase-service";
 
@@ -51,13 +50,10 @@ export async function GET(request: Request) {
   if (authUserId) {
     const service = createServiceRoleClient();
     try {
-      const moved = service ? await confirmRegistrationDraft(service, authUserId) : null;
-      // Registered on the old path (a professional row, no draft): notify as before.
-      if (!moved?.requestId) {
-        await notifyFounderAfterRegisterEmailConfirm(authUserId);
-      }
+      if (service) await confirmRegistrationDraft(service, authUserId);
     } catch (confirmError) {
-      // The daily purge moves a confirmed draft that is still waiting.
+      // The draft stays; the applicant can click the link again (the daily purge
+      // deletes drafts still waiting after 7 days).
       console.error("[DocCy] Registration confirm after email confirm failed", confirmError);
     }
   }

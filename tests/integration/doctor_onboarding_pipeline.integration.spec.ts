@@ -1,17 +1,12 @@
 import { expect, test } from "@playwright/test";
 
-import { buildFounderNewRegistrationNotifyContent } from "@/lib/notify-founder-new-registration";
-import { buildDoctorAccountVerifiedEmailContent } from "@/lib/send-doctor-account-verified-email";
 import { FIRST_LOGIN_TRIAL_NOTICE_TEST_ID } from "@/lib/first-login-trial-notice";
-import { getPublicBookingBaseUrl } from "@/lib/site-url";
-import { founderCookie, postDoctorVerification, postSpecialtyReview } from "./helpers/internal-api";
 import {
   createIntegrationAdmin,
   requireSafeIntegration,
 } from "./helpers/safe-integration";
 import {
   createTestDoctor,
-  deleteTestCatalogueSpecialty,
   deleteTestDoctor,
   loginDoctorUi,
   type TestDoctorFixture,
@@ -32,17 +27,15 @@ async function signInWithPasswordForm(
 }
 
 /**
- * Core business pipeline (PR-blocking):
- * post-registration DB state → founder alert payload → approve →
- * first login lands on Settings → dismiss welcome → sign out →
- * second login lands on Agenda → cleanup.
+ * Core business pipeline (PR-blocking): an approved professional's first login lands
+ * on Settings → dismiss welcome → sign out → second login lands on Agenda → cleanup.
  *
- * Live `/register` UI e2e is a local pre-PR gate (`npm run test:e2e:register`).
+ * Submitting, reviewing and approving a registration request are covered by the
+ * registration_request_* specs.
  */
 test.describe("Integration: doctor onboarding pipeline", { tag: "@pr-e2e" }, () => {
   test("verified doctor: first login → settings, second login → agenda", async ({
     page,
-    baseURL,
   }) => {
     test.setTimeout(120_000);
     const env = requireSafeIntegration();
@@ -61,24 +54,7 @@ test.describe("Integration: doctor onboarding pipeline", { tag: "@pr-e2e" }, () 
         markTrialNoticeSeen: false,
       });
 
-      const founderContent = buildFounderNewRegistrationNotifyContent(
-        {
-          doctorId: fixture.doctorId,
-          fullName: `Onboard Std ${nonce}`,
-          email: fixture.email,
-          phone: "+35799123456",
-          specialty: "Pediatrics",
-          needsSpecialtyReview: false,
-        },
-        getPublicBookingBaseUrl(),
-      );
-      expect(founderContent.subject).toContain("Unclaimed registration");
-      expect(founderContent.textBody).toContain(fixture.doctorId);
-      expect(founderContent.textBody).toContain("/internal/directory");
-      expect(founderContent.textBody).not.toContain("custom specialty pending");
-
-      // Approve in DB (same outcome as founder Verify). Avoids flaky 404 when the
-      // Playwright process and a reused local Next server point at different DBs.
+      // Approved (what request_approve leaves behind for the professional row).
       const approve = await admin
         .from("professionals")
         .update({ status: "verified" })
@@ -87,14 +63,6 @@ test.describe("Integration: doctor onboarding pipeline", { tag: "@pr-e2e" }, () 
         .single();
       expect(approve.error).toBeNull();
       expect(approve.data?.status).toBe("verified");
-
-      const doctorEmail = buildDoctorAccountVerifiedEmailContent({
-        siteUrl: (baseURL ?? getPublicBookingBaseUrl()).replace(/\/$/, ""),
-        doctorName: `Onboard Std ${nonce}`,
-      });
-      expect(doctorEmail.subject).toBe("[DocCy] Your account is ready — sign in");
-      expect(doctorEmail.loginUrl).toContain("/login");
-      expect(doctorEmail.loginUrl).toContain("next=%2Fagenda%2Fsettings");
 
       // First login (normal form — default next=/agenda, then redirect to settings).
       await signInWithPasswordForm(page, fixture.email, fixture.password);
@@ -133,101 +101,6 @@ test.describe("Integration: doctor onboarding pipeline", { tag: "@pr-e2e" }, () 
       });
     } finally {
       if (fixture) await deleteTestDoctor(fixture);
-    }
-  });
-
-  test("custom specialty: founder note → specialty approve → verify → doctor opens agenda", async ({
-    page,
-    request,
-  }) => {
-    // Same budget as the first test: doctor setup, three founder API calls, a UI login
-    // and the agenda regularly exceed the 30s default on a loaded Testing instance.
-    test.setTimeout(120_000);
-    const env = requireSafeIntegration();
-    const admin = createIntegrationAdmin(env);
-    const nonce = `${Date.now()}-${Math.floor(Math.random() * 100000)}`;
-    let fixture: TestDoctorFixture | null = null;
-
-    try {
-      fixture = await createTestDoctor({
-        admin,
-        nonce,
-        name: `Onboard Custom ${nonce}`,
-        specialty: "holistic coaching",
-        is_specialty_approved: false,
-        status: "pending",
-      });
-
-      const founderContent = buildFounderNewRegistrationNotifyContent(
-        {
-          doctorId: fixture.doctorId,
-          fullName: `Onboard Custom ${nonce}`,
-          email: fixture.email,
-          phone: "+35799123456",
-          specialty: "holistic coaching",
-          needsSpecialtyReview: true,
-        },
-        getPublicBookingBaseUrl(),
-      );
-      expect(founderContent.textBody).toContain("custom specialty pending your approval");
-
-      const blockedVerify = await postDoctorVerification(request, await founderCookie(), {
-        doctorId: fixture.doctorId,
-        action: "verify",
-      });
-      // 400 = specialty blocks verify; 404 = Next server DB ≠ Playwright admin DB
-      // (common with reuseExistingServer). Fall back to DB checks in that case.
-      if (blockedVerify.status() === 404) {
-        test.info().annotations.push({
-          type: "warning",
-          description:
-            "internal verify returned 404 — Next server likely on a different Supabase than PLAYWRIGHT_ENV_FILE; finishing via admin updates",
-        });
-        const specialtyOk = await admin
-          .from("professional_specialties")
-          .update({ is_approved: true })
-          .eq("professional_id", fixture.doctorId);
-        expect(specialtyOk.error).toBeNull();
-        const verifyOk = await admin
-          .from("professionals")
-          .update({ status: "verified" })
-          .eq("id", fixture.doctorId);
-        expect(verifyOk.error).toBeNull();
-      } else {
-        expect(blockedVerify.status()).toBe(400);
-
-        expect(
-          (
-            await postSpecialtyReview(request, await founderCookie(), {
-              doctorId: fixture.doctorId,
-              action: "approve_new",
-            })
-          ).status(),
-        ).toBe(200);
-
-        expect(
-          (
-            await postDoctorVerification(request, await founderCookie(), {
-              doctorId: fixture.doctorId,
-              action: "verify",
-            })
-          ).status(),
-        ).toBe(200);
-      }
-
-      const row = await admin.from("professionals").select("status").eq("id", fixture.doctorId).single();
-      expect(row.data?.status).toBe("verified");
-
-      await loginDoctorUi(page, fixture.email, fixture.password);
-      await page.goto("/agenda");
-      await expect(page).toHaveURL(/\/agenda\/?$/, { timeout: 20000 });
-      await expect(page.getByRole("button", { name: /^Today$/i })).toBeVisible({
-        timeout: 15000,
-      });
-    } finally {
-      if (fixture) await deleteTestDoctor(fixture);
-      // approve_new put the label into the catalogue.
-      await deleteTestCatalogueSpecialty(admin, "holistic coaching");
     }
   });
 });

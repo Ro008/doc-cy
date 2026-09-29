@@ -1,4 +1,7 @@
-/** Stored on professionals.directory_claim_source after a successful CONVERT. */
+/**
+ * Stored on professionals.directory_claim_source by the old registration path (before
+ * the request-based registration, #231); shown as a badge in the founders' list.
+ */
 export type DirectoryClaimSource =
   | "card_link"
   | "email"
@@ -21,12 +24,12 @@ const LABELS: Record<
   claimed: {
     label: "Claimed",
     description:
-      "Registered via Claim this profile on a finder card. The finder listing stays untouched until Verify merges them.",
+      "Registered via Claim this profile on a finder card (old registration path).",
   },
   unclaimed: {
     label: "Unclaimed",
     description:
-      "Registered via Are you a healthcare professional? Check manually whether this person already exists in the directory.",
+      "Registered via the general professional sign-up (old registration path).",
   },
 };
 
@@ -47,12 +50,6 @@ export function parseDirectoryClaimSource(
   return isDirectoryClaimSource(raw) ? raw : null;
 }
 
-export function isClaimedRegistrationOrigin(
-  kind: PendingRegistrationOriginKind,
-): boolean {
-  return kind === "claimed";
-}
-
 export function originFromClaimSource(
   claimSource: DirectoryClaimSource | null,
 ): PendingRegistrationOrigin {
@@ -68,34 +65,4 @@ export function originFromClaimSource(
     claimSource: claimSource ?? null,
     ...LABELS.unclaimed,
   };
-}
-
-/** Classify a pending registration using stored claim source only (no twin scan). */
-export function classifyPendingRegistrationOrigin(input: {
-  claimSource: DirectoryClaimSource | null;
-}): PendingRegistrationOrigin {
-  return originFromClaimSource(input.claimSource);
-}
-
-export function founderNotifySubjectForOrigin(
-  kind: PendingRegistrationOriginKind,
-  fullName: string,
-): string {
-  switch (kind) {
-    case "claimed":
-      return `[DocCy] Finder listing claimed — ${fullName}`;
-    case "unclaimed":
-      return `[DocCy] Unclaimed registration — ${fullName}`;
-  }
-}
-
-export function founderNotifyNoteForOrigin(
-  kind: PendingRegistrationOriginKind,
-): string | null {
-  switch (kind) {
-    case "claimed":
-      return "This person claimed their existing finder listing via Claim this profile. The finder listing is untouched until a founder Verifies — it will then merge into this registration.";
-    case "unclaimed":
-      return "Unclaimed registration: entered via the general healthcare professional signup. Check manually whether they already exist in the directory before verifying.";
-  }
 }
