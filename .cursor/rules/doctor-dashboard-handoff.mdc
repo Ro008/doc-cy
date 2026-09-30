@@ -1,0 +1,13 @@
+---
+description: feat/doctor-dashboard handoff — read docs/handoff/README.md first (temporary, remove before merging)
+alwaysApply: true
+---
+
+# Branch handoff: `feat/doctor-dashboard`
+
+If you are working on the branch `feat/doctor-dashboard`, read `docs/handoff/README.md` first. The
+frontend is finished and every product decision is already taken. Your job is to build the backend and
+database changes it lists, run the e2e and open the PR. Do not change the frontend behaviour or reopen
+those decisions; ask Rocío if something does not fit.
+
+Remove this file before the PR is merged.

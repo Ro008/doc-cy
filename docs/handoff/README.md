@@ -40,9 +40,17 @@ Nothing else in the branch touches the database. Please state this DB impact in 
 ## Tests
 
 - Unit: `npm run test:unit` is green (1033 tests at handoff).
-- e2e: **not run** on this branch. Run at least the dashboard, navigation, insights, agenda, brand and
-  manual booking specs, plus the `doctor_dashboard_actions` integration test. The desktop agenda now
-  shows 7 days (weekends included), so any spec that assumes Monday–Friday may need updating.
+- e2e: not run on this branch yet. The PR runs the `@pr-e2e` suites in CI automatically (agenda auth,
+  manual booking, dashboard home, navigation, insights, sticky header). Run these by hand, since CI does
+  not: `doctor_dashboard`, `doctor_cancel_upcoming`, `doctor_break_slots` and the
+  `doctor_dashboard_actions` integration test. Rocío and Claude read the agenda and dashboard specs and
+  found nothing that depends on the old layout, but that is not the same as running them. If one fails,
+  fix the test only when the change of behaviour was intended (see the commits on this branch).
+
+## When the PR is ready
+
+Remove the "Branch handoff" section from `CLAUDE.md` and delete
+`.cursor/rules/doctor-dashboard-handoff.mdc` before merging, so they do not reach `master`.
 
 ## Not in scope
 
