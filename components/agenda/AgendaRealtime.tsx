@@ -1207,14 +1207,6 @@ export function AgendaRealtime({
     )
     .sort((a, b) => a.sortKeyMs - b.sortKeyMs);
 
-  function openPendingRequests() {
-    const first = pendingRows[0];
-    if (!first) return;
-    const target = agendaDateFromKey(first.dateKey);
-    if (target) setAnchorDate(target);
-    if (view === "month") setView("week");
-  }
-
   const nowMinutesCyprus = nowCyprus.getHours() * 60 + nowCyprus.getMinutes();
   const nowLineTop =
     nowMinutesCyprus >= START_HOUR * 60 && nowMinutesCyprus <= END_HOUR * 60
@@ -1567,7 +1559,6 @@ export function AgendaRealtime({
               }}
               onCreate={() => setManualBookingOpen(true)}
               pendingCount={pendingRows.length}
-              onOpenPending={openPendingRequests}
               clinics={clinics}
               hiddenClinicIds={hiddenClinicIds}
               onToggleClinic={toggleClinicCalendar}

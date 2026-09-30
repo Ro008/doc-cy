@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 
 import {
   buildTodaySchedule,
+  dashboardClinicTag,
   dashboardGreeting,
   requestedAgoLabel,
   selectAwaitingPatient,
@@ -365,5 +366,28 @@ describe("startsInLabel", () => {
   it("says Now once the visit has started", () => {
     assert.equal(startsInLabel("2026-09-25T06:50:00Z", NOW), "Now");
     assert.equal(startsInLabel("2026-09-25T06:40:00Z", NOW), "Now");
+  });
+});
+
+describe("dashboardClinicTag", () => {
+  const hours = {} as never;
+  const clinics = [
+    { id: "c1", name: "Clinic 1", hours },
+    { id: "c2", name: "Clinic 2", hours },
+  ];
+
+  it("gives each clinic its agenda colour, in settings order", () => {
+    assert.deepEqual(dashboardClinicTag("c1", clinics), { name: "Clinic 1", swatchClass: "bg-clinical-400" });
+    assert.deepEqual(dashboardClinicTag("c2", clinics), { name: "Clinic 2", swatchClass: "bg-violet-400" });
+  });
+
+  it("treats a visit without a clinic as the first clinic, like the agenda", () => {
+    assert.deepEqual(dashboardClinicTag(null, clinics), { name: "Clinic 1", swatchClass: "bg-clinical-400" });
+    assert.deepEqual(dashboardClinicTag("gone", clinics), { name: "Clinic 1", swatchClass: "bg-clinical-400" });
+  });
+
+  it("shows nothing when the professional has a single clinic", () => {
+    assert.equal(dashboardClinicTag("c1", [clinics[0]!]), null);
+    assert.equal(dashboardClinicTag(null, []), null);
   });
 });

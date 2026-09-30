@@ -1,10 +1,37 @@
 import { formatInTimeZone } from "date-fns-tz";
 import { CY_TZ, isRescheduleProposalLive } from "@/lib/appointments";
 import { isNoShowAttendance } from "@/lib/appointment-attendance";
-import { parseAgendaClockMinutes, type AgendaWorkingHours } from "@/lib/agenda-clinics";
+import {
+  clinicIdForAppointment,
+  parseAgendaClockMinutes,
+  type AgendaClinic,
+  type AgendaWorkingHours,
+} from "@/lib/agenda-clinics";
+import { agendaClinicEventColor } from "@/lib/doctor-locations";
 import { coerceProposedSlotsArray } from "@/lib/appointment-overlap";
 import { agendaHighlightHref } from "@/lib/agenda-highlight";
 import type { DayKey } from "@/lib/doctor-settings";
+
+/** Anchor of the "Needs your answer" section (agenda sidebar "Pending requests" links here). */
+export const DASHBOARD_NEEDS_ANSWER_ID = "needs-your-answer";
+export const DASHBOARD_NEEDS_ANSWER_HREF = `/dashboard#${DASHBOARD_NEEDS_ANSWER_ID}`;
+
+export type DashboardClinicTag = { name: string; swatchClass: string };
+
+/**
+ * Clinic label + agenda colour for a dashboard row, so the doctor tells clinics apart at a glance
+ * (same colours as the agenda). Null with a single clinic: nothing to tell apart.
+ */
+export function dashboardClinicTag(
+  locationId: string | null | undefined,
+  clinics: readonly AgendaClinic[],
+): DashboardClinicTag | null {
+  if (clinics.length < 2) return null;
+  const id = clinicIdForAppointment(locationId, clinics);
+  const index = clinics.findIndex((clinic) => clinic.id === id);
+  if (index < 0) return null;
+  return { name: clinics[index]!.name, swatchClass: agendaClinicEventColor(index).swatch };
+}
 
 export const DASHBOARD_APPOINTMENT_SELECT =
   "id, patient_name, appointment_datetime, status, duration_minutes, created_at, is_new_patient, attendance, proposal_expires_at, proposed_slots, reason, location_id";

@@ -1,10 +1,12 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { addMonths, format, isSameDay, isSameMonth, startOfMonth } from "date-fns";
 import { enGB } from "date-fns/locale";
 import { CalendarPlus, ChevronLeft, ChevronRight } from "lucide-react";
 import { agendaMonthGrid } from "@/lib/agenda-calendar";
+import { DASHBOARD_NEEDS_ANSWER_HREF } from "@/lib/doctor-dashboard";
 import { MANUAL_BOOKING_HINT, MANUAL_BOOKING_LABEL } from "@/lib/manual-booking-copy";
 import type { AgendaClinic } from "@/lib/agenda-clinics";
 import { AgendaClinicCalendars } from "@/components/agenda/AgendaClinicCalendars";
@@ -17,7 +19,6 @@ type Props = {
   onPickDate: (date: Date) => void;
   onCreate: () => void;
   pendingCount: number;
-  onOpenPending: () => void;
   clinics: readonly AgendaClinic[];
   hiddenClinicIds: ReadonlySet<string>;
   onToggleClinic: (clinicId: string) => void;
@@ -30,7 +31,6 @@ export function AgendaSidebar({
   onPickDate,
   onCreate,
   pendingCount,
-  onOpenPending,
   clinics,
   hiddenClinicIds,
   onToggleClinic,
@@ -123,9 +123,8 @@ export function AgendaSidebar({
           <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
             Needs your action
           </p>
-          <button
-            type="button"
-            onClick={onOpenPending}
+          <Link
+            href={DASHBOARD_NEEDS_ANSWER_HREF}
             data-testid="agenda-pending-requests"
             className="flex w-full items-center justify-between rounded-xl border border-dashed border-amber-400/80 px-3 py-2.5 text-left text-sm font-medium text-amber-100 transition hover:bg-amber-500/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/70"
           >
@@ -133,7 +132,7 @@ export function AgendaSidebar({
             <span className="flex h-6 min-w-[1.5rem] items-center justify-center rounded-full bg-amber-400 px-1.5 text-xs font-bold text-amber-950">
               {pendingCount}
             </span>
-          </button>
+          </Link>
         </div>
       ) : null}
 

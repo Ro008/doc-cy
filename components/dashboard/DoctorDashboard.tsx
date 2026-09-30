@@ -14,7 +14,9 @@ import {
   type AgendaWorkingHours,
 } from "@/lib/agenda-clinics";
 import {
+  DASHBOARD_NEEDS_ANSWER_ID,
   buildTodaySchedule,
+  dashboardClinicTag,
   awaitingPatientSummary,
   dashboardGreeting,
   nowMarkerPosition,
@@ -24,6 +26,7 @@ import {
   startsInLabel,
   todaySummaryLabel,
   type DashboardAppointmentRow,
+  type DashboardClinicTag,
   type TodayScheduleItem,
   type TodayWorkingWindow,
 } from "@/lib/doctor-dashboard";
@@ -96,14 +99,9 @@ export function DoctorDashboard({
     setRows(appointments);
   }, [appointments]);
 
-  const isMultiClinic = clinics.length > 1;
-  const clinicName = React.useCallback(
-    (locationId: string | null) => {
-      if (!isMultiClinic) return null;
-      const id = clinicIdForAppointment(locationId, clinics);
-      return clinics.find((clinic) => clinic.id === id)?.name ?? null;
-    },
-    [clinics, isMultiClinic],
+  const clinicTag = React.useCallback(
+    (locationId: string | null | undefined) => dashboardClinicTag(locationId, clinics),
+    [clinics],
   );
 
   const pending = selectPendingRequests(rows, nowMs);
@@ -177,7 +175,11 @@ export function DoctorDashboard({
       <BookingsPausedNotice paused={bookingsPaused} />
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)] lg:items-start">
-        <section aria-labelledby="dashboard-pending-heading" className="min-w-0">
+        <section
+          id={DASHBOARD_NEEDS_ANSWER_ID}
+          aria-labelledby="dashboard-pending-heading"
+          className="min-w-0 scroll-mt-24"
+        >
           <div className="flex h-7 items-center gap-2.5">
             <h2 id="dashboard-pending-heading" className="text-xl font-semibold tracking-tight text-slate-50">
               Needs your answer
@@ -203,7 +205,7 @@ export function DoctorDashboard({
                     index={index}
                     row={row}
                     nowMs={nowMs}
-                    clinicName={clinicName(row.location_id)}
+                    clinicTag={clinicTag(row.location_id)}
                     durationMinutes={confirmDuration(row)}
                     exit={exiting[row.id] ?? null}
                     onAccepted={() => finishRequest(row, "accepted")}
@@ -225,6 +227,7 @@ export function DoctorDashboard({
                     <RescheduleNoAnswerItem
                       key={row.id}
                       row={row}
+                      clinicTag={clinicTag(row.location_id)}
                       onClosed={() => setRows((prev) => prev.filter((r) => r.id !== row.id))}
                     />
                   ))}
@@ -238,7 +241,7 @@ export function DoctorDashboard({
                 </p>
                 <ul className="mt-2 space-y-1.5">
                   {awaiting.map((row) => (
-                    <AwaitingPatientItem key={row.id} row={row} />
+                    <AwaitingPatientItem key={row.id} row={row} clinicTag={clinicTag(row.location_id)} />
                   ))}
                 </ul>
               </div>
@@ -251,7 +254,7 @@ export function DoctorDashboard({
           todayWindow={todayWindow}
           nowMs={nowMs}
           dateKey={formatInTimeZone(new Date(nowMs), CY_TZ, "yyyy-MM-dd")}
-          clinicName={clinicName}
+          clinicTag={clinicTag}
         />
       </div>
 
@@ -325,9 +328,11 @@ function ScrollFade() {
  */
 function RescheduleNoAnswerItem({
   row,
+  clinicTag,
   onClosed,
 }: {
   row: DashboardAppointmentRow;
+  clinicTag: DashboardClinicTag | null;
   onClosed: () => void;
 }) {
   const [closing, setClosing] = React.useState(false);
@@ -363,6 +368,7 @@ function RescheduleNoAnswerItem({
   return (
     <li data-testid="dashboard-no-new-time-item" className="rounded-2xl border border-amber-400/20 bg-amber-500/[0.06] px-3.5 py-3">
       <p className="leading-snug">
+        {clinicTag ? <ClinicTag tag={clinicTag} className="mr-1.5 align-[1px]" /> : null}
         <span className="font-semibold text-slate-50">{row.patient_name}</span> didn&apos;t pick any of the
         times you suggested instead of{" "}
         <span className="font-medium text-slate-100">{summary.originalLabel}</span>. Nothing is booked.
@@ -392,8 +398,27 @@ function RescheduleNoAnswerItem({
   );
 }
 
+/** Clinic name with its agenda colour, so clinics are told apart at a glance. */
+function ClinicTag({ tag, className = "" }: { tag: DashboardClinicTag; className?: string }) {
+  return (
+    <span
+      data-testid="dashboard-clinic-tag"
+      className={`inline-flex max-w-[12rem] items-center gap-1.5 rounded-md border border-slate-700/80 bg-slate-800/70 px-1.5 py-0.5 text-[11px] font-semibold text-slate-200 ${className}`}
+    >
+      <span className={`h-2.5 w-2.5 shrink-0 rounded-[3px] ${tag.swatchClass}`} aria-hidden />
+      <span className="truncate">{tag.name}</span>
+    </span>
+  );
+}
+
 /** A request where the doctor suggested times; "View" unfolds them in place. */
-function AwaitingPatientItem({ row }: { row: DashboardAppointmentRow }) {
+function AwaitingPatientItem({
+  row,
+  clinicTag,
+}: {
+  row: DashboardAppointmentRow;
+  clinicTag: DashboardClinicTag | null;
+}) {
   const [open, setOpen] = React.useState(false);
   const summary = awaitingPatientSummary(row);
   const panelId = `awaiting-${row.id}`;
@@ -401,6 +426,7 @@ function AwaitingPatientItem({ row }: { row: DashboardAppointmentRow }) {
   return (
     <li data-testid="dashboard-awaiting-patient">
       <div className="flex flex-wrap items-center gap-x-2">
+        {clinicTag ? <ClinicTag tag={clinicTag} /> : null}
         <span className="font-semibold text-slate-100">{row.patient_name}</span>
         <span>You suggested other times.</span>
         <button
@@ -492,7 +518,7 @@ function PendingRequestItem({
   index,
   row,
   nowMs,
-  clinicName,
+  clinicTag,
   durationMinutes,
   exit,
   onAccepted,
@@ -501,7 +527,7 @@ function PendingRequestItem({
   index: number;
   row: DashboardAppointmentRow;
   nowMs: number;
-  clinicName: string | null;
+  clinicTag: DashboardClinicTag | null;
   durationMinutes: number;
   exit: ExitKind | null;
   onAccepted: () => void;
@@ -521,7 +547,7 @@ function PendingRequestItem({
 
   const start = new Date(row.appointment_datetime);
   const ago = requestedAgoLabel(row.created_at, nowMs);
-  const details = [row.reason?.trim(), clinicName, `${durationMinutes} min`].filter(Boolean).join(" · ");
+  const details = [row.reason?.trim(), `${durationMinutes} min`].filter(Boolean).join(" · ");
   const locked = busy !== null || exit !== null;
 
   async function accept() {
@@ -600,6 +626,7 @@ function PendingRequestItem({
             <div className={`transition-opacity ${busy ? "opacity-60" : ""}`}>
               <div className="flex flex-wrap items-center gap-2">
                 <p className="truncate text-[15px] font-semibold text-slate-50">{row.patient_name}</p>
+                {clinicTag ? <ClinicTag tag={clinicTag} /> : null}
                 {row.is_new_patient ? (
                   <span className="rounded-full bg-wellness-500/15 px-2 py-0.5 text-[11px] font-semibold text-wellness-200">
                     New patient
@@ -687,13 +714,13 @@ function TodayTimeline({
   todayWindow,
   nowMs,
   dateKey,
-  clinicName,
+  clinicTag,
 }: {
   items: TodayScheduleItem[];
   todayWindow: TodayWorkingWindow | null;
   nowMs: number;
   dateKey: string;
-  clinicName: (locationId: string | null) => string | null;
+  clinicTag: (locationId: string | null) => DashboardClinicTag | null;
 }) {
   const { beforeIndex, currentId } = nowMarkerPosition(items, nowMs);
   // "Next" is the first visit that has not started, even while another is in progress.
@@ -737,7 +764,7 @@ function TodayTimeline({
                 isNext={entry.isUpcomingNext}
                 index={index}
                 nowMs={nowMs}
-                clinicName={clinicName(entry.item.locationId)}
+                clinicTag={clinicTag(entry.item.locationId)}
                 dateKey={dateKey}
               />
             ),
@@ -783,7 +810,7 @@ function TimelineVisit({
   isNext,
   index,
   nowMs,
-  clinicName,
+  clinicTag,
   dateKey,
 }: {
   item: TodayScheduleItem;
@@ -791,10 +818,10 @@ function TimelineVisit({
   isNext: boolean;
   index: number;
   nowMs: number;
-  clinicName: string | null;
+  clinicTag: DashboardClinicTag | null;
   dateKey: string;
 }) {
-  const details = [item.reason, clinicName].filter(Boolean).join(" · ");
+  const details = item.reason;
   const timeTone = isCurrent
     ? "text-rose-300"
     : isNext
@@ -836,6 +863,7 @@ function TimelineVisit({
               Next · {startsInLabel(item.startIso, nowMs)}
             </span>
           ) : null}
+          {clinicTag ? <ClinicTag tag={clinicTag} /> : null}
         </div>
         <p className="mt-0.5 truncate text-[15px] font-semibold transition group-hover:translate-x-0.5">
           {item.patientName}
