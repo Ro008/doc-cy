@@ -56,7 +56,13 @@ export function DesktopNavTabLink({
           : "font-medium text-clinical-100 hover:bg-clinical-500/15 hover:text-white"
       }`}
     >
-      {label}
+      {/* Invisible bold copy reserves the selected width, so the tab never shifts. */}
+      <span className="inline-grid">
+        <span aria-hidden className="invisible col-start-1 row-start-1 font-semibold">
+          {label}
+        </span>
+        <span className="col-start-1 row-start-1">{label}</span>
+      </span>
       {badge ? (
         <span
           data-testid={testId ? `${testId}-badge` : undefined}

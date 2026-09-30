@@ -36,7 +36,7 @@ async function signInDesktopAgenda(page: import("@playwright/test").Page) {
   await exposeSupabaseAuthCookiesToClient(page);
   await page.goto("/agenda", { waitUntil: "domcontentloaded" });
   await expect(page).toHaveURL(/\/agenda(?:[/?#]|$)/, { timeout: 20_000 });
-  await expect(page.locator("main header h1").first()).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByTestId("agenda-page")).toBeVisible({ timeout: 10_000 });
 }
 
 test.describe("Doctor navigation feedback", { tag: "@pr-e2e" }, () => {

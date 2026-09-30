@@ -108,7 +108,7 @@ test.describe("Integration: sign-in with an emailed link", { tag: "@pr-e2e" }, (
 
     await page.getByLabel(/Code from the email/i).fill(code);
     await page.getByRole("button", { name: /^Continue$/i }).click();
-    await expect(page).toHaveURL(/\/agenda(\?|$)/, { timeout: 30_000 });
+    await expect(page).toHaveURL(/\/dashboard(\?|$)/, { timeout: 30_000 });
     await expect(page.getByTestId("userbar-toggle")).toBeVisible({ timeout: 30_000 });
   });
 

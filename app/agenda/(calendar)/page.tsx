@@ -123,7 +123,10 @@ export default async function AgendaPage({ searchParams }: AgendaPageProps) {
   const clinics = locationsToAgendaClinics(locationRows);
 
   return (
-    <main className="min-h-[calc(100dvh-5.25rem-env(safe-area-inset-bottom,0px))] lg:min-h-[calc(100dvh-57px)] bg-ink-900 text-slate-50">
+    <main
+      data-testid="agenda-page"
+      className="min-h-[calc(100dvh-5.25rem-env(safe-area-inset-bottom,0px))] lg:min-h-[calc(100dvh-57px)] bg-ink-900 text-slate-50"
+    >
       <div className="pointer-events-none fixed inset-0 -z-10 bg-gradient-to-b from-clinical-500/[0.04] via-transparent to-transparent" />
 
       <div className="mx-auto flex min-h-[calc(100dvh-5.25rem-env(safe-area-inset-bottom,0px))] lg:min-h-[calc(100dvh-57px)] w-full max-w-[1920px] flex-col gap-3 px-4 py-4 sm:px-6 lg:gap-4 lg:px-8 lg:py-4">

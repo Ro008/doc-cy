@@ -7,7 +7,7 @@ async function signIn(page: any) {
   await signInDoctorAndSetCookies(page as Page);
   await page.goto("/agenda");
   await expect(page).toHaveURL(/\/agenda/, { timeout: 10000 });
-  await expect(page.locator("main header h1").first()).toBeVisible({
+  await expect(page.getByTestId("agenda-page")).toBeVisible({
     timeout: 10000,
   });
 }

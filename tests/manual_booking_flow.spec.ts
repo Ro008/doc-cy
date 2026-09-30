@@ -123,7 +123,7 @@ test.describe("Manual booking flow @booking-creates", { tag: ["@pr-e2e", "@pr-e2
       await page.getByRole("button", { name: /^Done$/i }).click();
       await expect(modalTitle).toHaveCount(0);
 
-      await page.reload();
+      await page.goto("/agenda?manual=1");
       await expect(page).toHaveURL(/\/agenda/, { timeout: 10_000 });
 
       // The agenda now knows the booking, so the modal must not offer that time

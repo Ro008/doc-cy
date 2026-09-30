@@ -27,7 +27,7 @@ test.describe("Professional sticky header", { tag: "@pr-e2e" }, () => {
     test.setTimeout(120_000);
     await page.setViewportSize({ width: 1280, height: 800 });
     await signInAndOpenAgenda(page);
-    await expect(page.locator("main header h1").first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByTestId("agenda-page")).toBeVisible({ timeout: 10_000 });
 
     const stickyHeader = page.getByTestId("pro-sticky-header");
     await expect(stickyHeader).toBeVisible();

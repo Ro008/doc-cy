@@ -90,16 +90,16 @@ test.describe("Integration: doctor onboarding pipeline", { tag: "@pr-e2e" }, () 
         { timeout: 20_000 },
       );
 
-      // Second login → agenda (home), not settings.
+      // Second login → dashboard (home), not settings.
       await signInWithPasswordForm(page, admin, fixture.email, fixture.password);
       await expect(page).toHaveURL(
         (url) => {
           const path = url.pathname.replace(/\/$/, "") || "/";
-          return path === "/agenda";
+          return path === "/dashboard";
         },
         { timeout: 30_000 },
       );
-      await expect(page.getByRole("button", { name: /^Today$/i })).toBeVisible({
+      await expect(page.getByRole("heading", { name: /^Needs your answer$/i })).toBeVisible({
         timeout: 15_000,
       });
     } finally {
