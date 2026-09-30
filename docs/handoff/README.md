@@ -39,13 +39,17 @@ Nothing else in the branch touches the database. Please state this DB impact in 
 
 ## Tests
 
-- Unit: `npm run test:unit` is green (1033 tests at handoff).
-- e2e: not run on this branch yet. The PR runs the `@pr-e2e` suites in CI automatically (agenda auth,
-  manual booking, dashboard home, navigation, insights, sticky header). Run these by hand, since CI does
-  not: `doctor_dashboard`, `doctor_cancel_upcoming`, `doctor_break_slots` and the
-  `doctor_dashboard_actions` integration test. Rocío and Claude read the agenda and dashboard specs and
-  found nothing that depends on the old layout, but that is not the same as running them. If one fails,
-  fix the test only when the change of behaviour was intended (see the commits on this branch).
+- Unit: `npm run test:unit` is green (988 tests at handoff, after merging master with #238).
+- e2e: run locally on 2026-09-30 exactly like the PR lanes (throwaway Supabase stack, `@pr-email|@pr-e2e`,
+  Desktop Large) plus `doctor_dashboard`, `doctor_cancel_upcoming` and `doctor_break_slots`.
+  - Specs that assumed the old agenda/landing were updated on this branch (agenda title row, landing on
+    `/dashboard`, `?manual=1` after reload, phone agenda).
+  - Still failing locally, but they fail the same way on `master` in that setup and pass in GitHub CI, so
+    they are not caused by this branch: `doctor_account_access` (3), `applicant_account_menu:133`,
+    `first_login_trial_notice:85`, `registration_request_review:509`,
+    `registration_status_and_reapply:121`, `doctor_break_slots:20`. `registration_contact_unique` only
+    fails when every lane shares one server (per-IP rate limit); it passes on its own.
+  - Once your backend changes land, run the PR CI and the three specs above again.
 
 ## When the PR is ready
 
