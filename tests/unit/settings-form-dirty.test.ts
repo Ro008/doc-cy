@@ -39,9 +39,6 @@ function baseSnapshotInput() {
     bio: "Helping patients across Cyprus.",
     languages: ["English", "Greek"],
     mobileNumber: "+35799111222",
-    directoryPhone: "",
-    showPhonePublic: false,
-    publicPhoneSource: "mobile" as const,
     bookingHorizonDays: 60,
     minimumNoticeHours: 24,
     holidayModeEnabled: false,
@@ -103,11 +100,11 @@ describe("settings-form-dirty", () => {
     assert.equal(settingsFormHasUnsavedChanges(current, saved), false);
   });
 
-  it("detects phone visibility edits", () => {
+  it("detects mobile number edits", () => {
     const saved = buildSettingsDirtySnapshot(baseSnapshotInput());
     const changed = buildSettingsDirtySnapshot({
       ...baseSnapshotInput(),
-      showPhonePublic: true,
+      mobileNumber: "+35799111333",
     });
     assert.equal(settingsFormHasUnsavedChanges(changed, saved), true);
   });

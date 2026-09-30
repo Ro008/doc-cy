@@ -1,181 +1,32 @@
 "use client";
 
 import * as React from "react";
-import { formatCyprusPhoneDisplay } from "@/lib/phone-link";
-import {
-  callNumberForSource,
-  hasDistinctDirectoryPhone,
-  type PublicPhoneSource,
-} from "@/lib/public-call-phone";
+import { emitOpenFeedback } from "@/lib/doccy-feedback";
+import type { SettingsClinicPhone } from "@/lib/settings-clinic-phones";
 
 type PhoneNumbersSettingsProps = {
   mobileNumber: string;
   onMobileNumberChange: (value: string) => void;
-  clinicPhone: string;
-  onClinicPhoneChange: (value: string) => void;
-  clinicRowVisible: boolean;
-  onAddClinicPhone: () => void;
-  onRemoveClinicPhone: () => void;
-  showPhonePublic: boolean;
-  onShowPhonePublicChange: (value: boolean) => void;
-  publicPhoneSource: PublicPhoneSource;
-  onPublicPhoneSourceChange: (value: PublicPhoneSource) => void;
-  saving?: boolean;
-  /** No clinic takes online bookings: the Call button is the only way in, so it stays on. */
-  lockedOnWhilePaused?: boolean;
+  clinicPhones: readonly SettingsClinicPhone[];
 };
 
-function PhoneSwitch({
-  checked,
-  onChange,
-  disabled,
-  busy,
-  label,
-}: {
-  checked: boolean;
-  onChange: (next: boolean) => void;
-  disabled?: boolean;
-  busy?: boolean;
-  label: string;
-}) {
-  const switchId = React.useId();
-  return (
-    <button
-      id={switchId}
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      aria-label={label}
-      aria-busy={busy}
-      disabled={disabled}
-      onClick={() => onChange(!checked)}
-      className={`relative h-7 w-11 shrink-0 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-900 disabled:cursor-not-allowed disabled:opacity-50 ${
-        checked ? "bg-clinical-500/90" : "bg-slate-600"
-      }`}
-    >
-      <span
-        className={`absolute left-0.5 top-1/2 h-6 w-6 -translate-y-1/2 rounded-full bg-white shadow-md transition-transform duration-200 ease-out ${
-          checked ? "translate-x-[1.125rem]" : "translate-x-0"
-        }`}
-        aria-hidden
-      />
-    </button>
-  );
+function clinicPhoneChangeMessage(clinicPhones: readonly SettingsClinicPhone[]): string {
+  const names = clinicPhones.map((clinic) => clinic.name).filter(Boolean);
+  const where = names.length === 1 ? `my clinic "${names[0]}"` : "one of my clinics";
+  return `Hello, I would like to change the phone number of ${where}. The new number is: `;
 }
 
-function NumberRow({
-  id,
-  label,
-  hint,
-  value,
-  onChange,
-  placeholder,
-  showChooser,
-  selectedForCall,
-  shownOnProfile,
-  onSelectForCall,
-  onRemove,
-  chooserDisabled = false,
-}: {
-  id: string;
-  label: string;
-  hint: string;
-  value: string;
-  onChange: (value: string) => void;
-  placeholder: string;
-  showChooser: boolean;
-  selectedForCall: boolean;
-  shownOnProfile: boolean;
-  onSelectForCall: () => void;
-  onRemove?: () => void;
-  chooserDisabled?: boolean;
-}) {
-  return (
-    <div
-      className={`rounded-xl border bg-ink-900/35 p-3 ${
-        shownOnProfile || (showChooser && selectedForCall)
-          ? "border-clinical-500/50"
-          : "border-slate-800/80"
-      }`}
-    >
-      <div className="flex items-start justify-between gap-3">
-        <label htmlFor={id} className="text-sm font-medium text-slate-100">
-          {label}
-        </label>
-        <div className="flex shrink-0 items-center gap-2">
-          {shownOnProfile ? (
-            <span className="rounded-full bg-clinical-500/15 px-2 py-0.5 text-[11px] font-semibold text-clinical-200">
-              Shown on Call
-            </span>
-          ) : null}
-          {onRemove ? (
-            <button
-              type="button"
-              onClick={onRemove}
-              className="text-xs font-medium text-slate-400 hover:text-slate-200"
-            >
-              Remove
-            </button>
-          ) : null}
-        </div>
-      </div>
-      <input
-        id={id}
-        type="tel"
-        autoComplete="tel"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        className="mt-2 w-full rounded-xl border border-slate-800/80 bg-ink-900/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-clinical-400/60"
-      />
-      <p className="mt-2 text-xs text-slate-400">{hint}</p>
-      {showChooser ? (
-        <label className="mt-3 flex cursor-pointer items-center gap-2 text-sm text-slate-200">
-          <input
-            type="radio"
-            name="public-call-number"
-            checked={selectedForCall}
-            onChange={onSelectForCall}
-            disabled={chooserDisabled}
-            className="h-4 w-4 border-slate-600 bg-slate-900 text-clinical-500 focus:ring-clinical-400/60 disabled:opacity-50"
-          />
-          Use this number for Call
-        </label>
-      ) : null}
-    </div>
-  );
-}
-
+/**
+ * Phone numbers on the settings page (user, 2026-09-29). Patients see each clinic's
+ * phone on the public Call buttons, whether or not the clinic takes online bookings.
+ * Clinics are curated by DocCy, so their phones are read-only here. The mobile is the
+ * account's own number and is not shown to patients.
+ */
 export function PhoneNumbersSettings({
   mobileNumber,
   onMobileNumberChange,
-  clinicPhone,
-  onClinicPhoneChange,
-  clinicRowVisible,
-  onAddClinicPhone,
-  onRemoveClinicPhone,
-  showPhonePublic,
-  onShowPhonePublicChange,
-  publicPhoneSource,
-  onPublicPhoneSourceChange,
-  saving = false,
-  lockedOnWhilePaused = false,
+  clinicPhones,
 }: PhoneNumbersSettingsProps) {
-  const twoNumbers = hasDistinctDirectoryPhone(mobileNumber, clinicPhone);
-  const showChooser = twoNumbers && clinicRowVisible;
-  const activeSource = showChooser
-    ? publicPhoneSource
-    : inferCollapsedSource(mobileNumber, clinicPhone);
-  const selectedNumber = callNumberForSource({
-    source: activeSource,
-    mobileNumber,
-    directoryPhone: clinicPhone,
-  });
-  const callReady = selectedNumber.length > 0;
-  const lockedOn = lockedOnWhilePaused && callReady;
-  const callIsOn = lockedOn || (showPhonePublic && callReady);
-  const callNumberLabel = formatCyprusPhoneDisplay(selectedNumber);
-
   return (
     <div
       id="phone-numbers"
@@ -184,96 +35,73 @@ export function PhoneNumbersSettings({
       <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
         Phone numbers
       </p>
-      <p className="mt-1 text-sm text-slate-400">
-        Patients book online by default. The Call button can show one number on
-        your public profile.
-      </p>
 
       <div className="mt-4 space-y-3">
-        <NumberRow
-          id="mobileNumber"
-          label="Mobile"
-          hint="Your DocCy account number."
-          value={mobileNumber}
-          onChange={onMobileNumberChange}
-          placeholder="+357..."
-          showChooser={showChooser}
-          selectedForCall={activeSource === "mobile"}
-          shownOnProfile={callIsOn && activeSource === "mobile"}
-          onSelectForCall={() => onPublicPhoneSourceChange("mobile")}
-          chooserDisabled={saving}
-        />
-        {clinicRowVisible ? (
-          <NumberRow
-            id="clinicPhone"
-            label="Clinic"
-            hint="Landline or listing number, if it is different."
-            value={clinicPhone}
-            onChange={onClinicPhoneChange}
+        <div className="rounded-xl border border-slate-800/80 bg-ink-900/35 p-3">
+          <label htmlFor="mobileNumber" className="text-sm font-medium text-slate-100">
+            Mobile
+          </label>
+          <input
+            id="mobileNumber"
+            type="tel"
+            autoComplete="tel"
+            value={mobileNumber}
+            onChange={(e) => onMobileNumberChange(e.target.value)}
             placeholder="+357..."
-            showChooser={showChooser}
-            selectedForCall={activeSource === "directory"}
-            shownOnProfile={callIsOn && activeSource === "directory"}
-            onSelectForCall={() => onPublicPhoneSourceChange("directory")}
-            onRemove={onRemoveClinicPhone}
-            chooserDisabled={saving}
+            className="mt-2 w-full rounded-xl border border-slate-800/80 bg-ink-900/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-clinical-400/60"
           />
-        ) : (
-          <button
-            type="button"
-            onClick={onAddClinicPhone}
-            className="text-sm font-medium text-clinical-300 hover:text-clinical-200"
-          >
-            Add a clinic phone
-          </button>
-        )}
-      </div>
+          <p className="mt-2 text-xs text-slate-400">
+            Your DocCy account number. Patients don&apos;t see it.
+          </p>
+        </div>
 
-      <div className="mt-4 rounded-xl border border-slate-700/80 bg-ink-900/35 p-3">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-sm font-medium text-slate-100">
-              Show a Call button on my profile
-            </p>
-            <p className="mt-1 text-xs text-slate-400">
-              {!callReady
-                ? "Add a number before patients can call you."
-                : lockedOn
-                  ? `Online bookings are paused, so patients can call ${callNumberLabel} instead.`
-                  : callIsOn
-                    ? `Patients can call ${callNumberLabel}.`
-                    : "Keep this off to encourage online bookings and reduce direct calls."}
-            </p>
-            <p className="mt-1 text-xs text-slate-500">
-              {lockedOn
-                ? "Resume online bookings to hide it again."
-                : "Saves immediately."}
-            </p>
-          </div>
-          <PhoneSwitch
-            checked={callIsOn}
-            disabled={!callReady || saving || lockedOn}
-            busy={saving}
-            onChange={(next) => {
-              if (next && !callReady) return;
-              onShowPhonePublicChange(next);
-            }}
-            label={
-              callIsOn
-                ? `Show a Call button on my profile with ${callNumberLabel}`
-                : "Show a Call button on my profile"
-            }
-          />
+        <div
+          data-testid="settings-clinic-phones"
+          className="rounded-xl border border-slate-800/80 bg-ink-900/35 p-3"
+        >
+          <p className="text-sm font-medium text-slate-100">
+            {clinicPhones.length === 1 ? "Clinic phone" : "Clinic phones"}
+          </p>
+          <p className="mt-1 text-xs text-slate-400">
+            Patients can call this number from your profile and your listing in Health
+            Finder.
+          </p>
+          {clinicPhones.length > 0 ? (
+            <ul className="mt-3 space-y-2">
+              {clinicPhones.map((clinic) => (
+                <li
+                  key={clinic.clinicId}
+                  className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 rounded-lg border border-slate-800/80 bg-ink-900/40 px-3 py-2"
+                >
+                  <span className="text-sm text-slate-200">{clinic.name || "Clinic"}</span>
+                  <span className="text-sm font-semibold tabular-nums text-slate-100">
+                    {clinic.phone || "No phone yet"}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="mt-3 text-sm text-slate-300">No clinic yet.</p>
+          )}
+          <p className="mt-3 text-xs text-slate-400">
+            To change a clinic&apos;s phone,{" "}
+            <button
+              type="button"
+              data-testid="settings-clinic-phone-contact"
+              onClick={() =>
+                emitOpenFeedback({
+                  subject: "General Question",
+                  message: clinicPhoneChangeMessage(clinicPhones),
+                })
+              }
+              className="font-medium text-clinical-300 underline-offset-2 hover:text-clinical-200 hover:underline"
+            >
+              contact us
+            </button>
+            .
+          </p>
         </div>
       </div>
     </div>
   );
-}
-
-function inferCollapsedSource(
-  mobileNumber: string,
-  clinicPhone: string,
-): PublicPhoneSource {
-  if (clinicPhone.trim() && !mobileNumber.trim()) return "directory";
-  return "mobile";
 }

@@ -3,55 +3,6 @@ import { cookies } from "next/headers";
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 import { loadDoctorLocations, primaryDoctorLocation } from "@/lib/load-doctor-locations";
 import { writeClinicSettings } from "@/lib/professional-clinic-settings-writes";
-import {
-  CONTACT_PHONE_REQUIRED_CODE,
-  CONTACT_PHONE_REQUIRED_MESSAGE,
-  contactPhoneState,
-  anyClinicPaused,
-  pauseFlagsAfterChange,
-  type ContactPhoneState,
-} from "@/lib/booking-contact-phone";
-import type { SupabaseClient } from "@supabase/supabase-js";
-
-/**
- * What patients would be left with once `pauseFlags` applies. Tolerates the older
- * schema without professionals.mobile_number / public_phone_source.
- */
-async function loadContactPhoneState(
-  supabase: SupabaseClient,
-  professionalId: string,
-  pauseFlags: readonly boolean[],
-): Promise<ContactPhoneState> {
-  let contact: { phone?: string | null; mobile_number?: string | null } | null = null;
-  const withMobile = await supabase
-    .from("professionals")
-    .select("phone, mobile_number")
-    .eq("id", professionalId)
-    .maybeSingle();
-  if (withMobile.error) {
-    const fallback = await supabase
-      .from("professionals")
-      .select("phone")
-      .eq("id", professionalId)
-      .maybeSingle();
-    contact = fallback.data ?? null;
-  } else {
-    contact = withMobile.data;
-  }
-
-  const settings = await supabase
-    .from("professional_settings")
-    .select("public_phone_source")
-    .eq("professional_id", professionalId)
-    .maybeSingle();
-
-  return contactPhoneState({
-    pauseFlags,
-    mobileNumber: contact?.mobile_number ?? null,
-    directoryPhone: contact?.phone ?? null,
-    publicPhoneSource: settings.data?.public_phone_source ?? null,
-  });
-}
 
 export async function GET() {
   const supabase = createRouteHandlerClient({ cookies });
@@ -167,30 +118,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ message: "Clinic not found." }, { status: 404 });
   }
 
-  // Patients book online or they call. Never let a clinic stop taking bookings while
-  // the account has no phone to show, or its patients are left with no way to reach it.
-  const nextPauseFlags = target
-    ? pauseFlagsAfterChange(
-        locations.map((row) => ({
-          id: row.id,
-          pauseOnlineBookings: Boolean(row.pause_online_bookings),
-        })),
-        target.id,
-        nextPaused,
-      )
-    : [nextPaused];
-
-  let contact: ContactPhoneState | null = null;
-  if (anyClinicPaused(nextPauseFlags)) {
-    contact = await loadContactPhoneState(supabase, doctor.id, nextPauseFlags);
-    if (contact.needsNumber) {
-      return NextResponse.json(
-        { message: CONTACT_PHONE_REQUIRED_MESSAGE, code: CONTACT_PHONE_REQUIRED_CODE },
-        { status: 400 },
-      );
-    }
-  }
-
+  // Paused or not, patients can call the clinic's phone (user, 2026-09-29): pausing
+  // needs no number from the professional.
   if (target) {
     // The pause is this professional's setting at this clinic: it lives on their join row.
     const saved = await writeClinicSettings(doctor.id, target.id, {
@@ -207,7 +136,6 @@ export async function POST(req: NextRequest) {
       {
         pauseOnlineBookings: nextPaused,
         locationId: target.id,
-        ...(contact ? { callNumber: contact.callNumber } : {}),
       },
       { status: 200 }
     );
@@ -234,7 +162,6 @@ export async function POST(req: NextRequest) {
   return NextResponse.json(
     {
       pauseOnlineBookings: nextPaused,
-      ...(contact ? { callNumber: contact.callNumber } : {}),
     },
     { status: 200 }
   );

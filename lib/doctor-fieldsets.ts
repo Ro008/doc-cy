@@ -8,7 +8,8 @@
  *
  * Read via service_role on the server only, and always alongside the view's old
  * WHERE clause: `is_registered = true AND is_archived = false`. Phone is never in
- * these lists — it is resolved separately through `publicPhoneForProfessional`.
+ * these lists — the public phone is the clinic's, revealed on click by
+ * `/api/directory/contact-reveal`.
  *
  * Specialties are not columns here: readers embed `professional_specialties`
  * (see `SPECIALTY_ROWS_SELECT` in lib/specialty-catalogue). Nor is location: district and

@@ -32,8 +32,6 @@ export type ManualDirectoryLandingRow = {
   specialties: string[];
   district: CyprusDistrict;
   address_maps_link: string;
-  /** Phone exists server-side; value is never sent to the client. */
-  hasPhone: boolean;
   address: string | null;
   photoUrl: string;
   monthlyRequestCount: number;
@@ -176,7 +174,6 @@ type ManualDirectoryRawRow = {
   specialty_links?: unknown;
   district: CyprusDistrict;
   address_maps_link: string;
-  phone?: string | null;
   address?: string | null;
   is_gesy?: boolean | null;
   latitude?: unknown;
@@ -199,7 +196,7 @@ async function fetchManualDirectoryRawRow(
   let res = await supabase
     .from("professionals")
     .select(
-      `id, slug, name, district, address_maps_link, phone, address, is_gesy, latitude, longitude, clinic_id, gender, finder_visible, ${SPECIALTY_LINKS_SELECT}`,
+      `id, slug, name, district, address_maps_link, address, is_gesy, latitude, longitude, clinic_id, gender, finder_visible, ${SPECIALTY_LINKS_SELECT}`,
     )
     .eq("is_registered", false)
     .eq("is_archived", false)
@@ -214,7 +211,7 @@ async function fetchManualDirectoryRawRow(
     res = await supabase
       .from("professionals")
       .select(
-        `id, slug, name, district, address_maps_link, phone, address, is_gesy, latitude, longitude, clinic_id, gender, ${SPECIALTY_LINKS_SELECT}`,
+        `id, slug, name, district, address_maps_link, address, is_gesy, latitude, longitude, clinic_id, gender, ${SPECIALTY_LINKS_SELECT}`,
       )
       .eq("is_registered", false)
       .eq("is_archived", false)
@@ -230,7 +227,7 @@ async function fetchManualDirectoryRawRow(
     res = await supabase
       .from("professionals")
       .select(
-        `id, slug, name, district, address_maps_link, phone, address, is_gesy, latitude, longitude, clinic_id, ${SPECIALTY_LINKS_SELECT}`,
+        `id, slug, name, district, address_maps_link, address, is_gesy, latitude, longitude, clinic_id, ${SPECIALTY_LINKS_SELECT}`,
       )
       .eq("is_registered", false)
       .eq("is_archived", false)
@@ -246,7 +243,7 @@ async function fetchManualDirectoryRawRow(
     res = await supabase
       .from("professionals")
       .select(
-        `id, slug, name, district, address_maps_link, phone, address, is_gesy, latitude, longitude, ${SPECIALTY_LINKS_SELECT}`,
+        `id, slug, name, district, address_maps_link, address, is_gesy, latitude, longitude, ${SPECIALTY_LINKS_SELECT}`,
       )
       .eq("is_registered", false)
       .eq("is_archived", false)
@@ -350,7 +347,6 @@ async function buildManualDirectoryLandingRow(
     specialties,
     district: row.district,
     address_maps_link: addressMapsLink,
-    hasPhone: Boolean(String(row.phone ?? "").trim()),
     address: String(row.address ?? "").trim() || null,
     photoUrl: resolveFinderDisplayPhotoUrl({
       curatedOrCustomPhotoUrl: getFinderManualPhotoUrl(addressMapsLink),

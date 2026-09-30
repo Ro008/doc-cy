@@ -12,7 +12,6 @@ export type FinderManualLocationListing = {
   district: string;
   address?: string | null;
   address_maps_link?: string | null;
-  hasPhone: boolean;
   clinic?: FinderClinicRef | null;
   clinics?: readonly FinderClinicRef[] | null;
   monthlyRequestCount: number;
@@ -58,7 +57,6 @@ export function FinderManualLocationCalendars({
                 variant="full"
                 callToBook={{
                   manualId: listing.id,
-                  listingHasPhone: listing.hasPhone,
                   source: callToBookSource,
                 }}
               />
@@ -96,7 +94,6 @@ export function FinderManualLocationCalendars({
                 variant="full"
                 callToBook={{
                   manualId: listing.id,
-                  listingHasPhone: listing.hasPhone,
                   source: callToBookSource,
                 }}
               />
