@@ -1,5 +1,4 @@
 import type { WeeklySchedule } from "@/lib/doctor-settings";
-import type { PublicPhoneSource } from "@/lib/public-call-phone";
 
 export type SettingsDirtySnapshot = {
   specialty: string;
@@ -7,9 +6,6 @@ export type SettingsDirtySnapshot = {
   bio: string;
   languages: string[];
   mobileNumber: string;
-  directoryPhone: string;
-  showPhonePublic: boolean;
-  publicPhoneSource: PublicPhoneSource;
   bookingHorizonDays: number;
   minimumNoticeHours: number;
   holidayModeEnabled: boolean;
@@ -46,9 +42,6 @@ export function buildSettingsDirtySnapshot(input: {
   bio: string;
   languages: string[];
   mobileNumber: string;
-  directoryPhone: string;
-  showPhonePublic: boolean;
-  publicPhoneSource: PublicPhoneSource;
   bookingHorizonDays: number;
   minimumNoticeHours: number;
   holidayModeEnabled: boolean;
@@ -62,9 +55,6 @@ export function buildSettingsDirtySnapshot(input: {
     bio: input.bio.trim(),
     languages: [...input.languages].map((l) => l.trim()).filter(Boolean).sort(),
     mobileNumber: input.mobileNumber.trim(),
-    directoryPhone: input.directoryPhone.trim(),
-    showPhonePublic: input.showPhonePublic,
-    publicPhoneSource: input.publicPhoneSource,
     bookingHorizonDays: input.bookingHorizonDays,
     minimumNoticeHours: input.minimumNoticeHours,
     holidayModeEnabled: input.holidayModeEnabled,

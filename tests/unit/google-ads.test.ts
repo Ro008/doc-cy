@@ -197,20 +197,20 @@ describe("Google Ads wiring", () => {
     assert.equal(source.includes("handleCallToBookClick"), false);
     assert.equal(source.includes("reportGoogleAdsConversion(googleAdsCallToBookSendTo(), telHref)"), false);
     assert.equal(source.includes('variant === "profile-call"'), true);
-    assert.equal(source.includes('"registered"'), true);
+    assert.equal(source.includes('"registered"'), false);
 
     const profilePage = fs.readFileSync(
       path.join(repoRoot, "lib/public/doctor-profile-page.tsx"),
       "utf8",
     );
-    assert.equal(profilePage.includes('kind="registered"'), true);
+    assert.equal(profilePage.includes('kind="clinic"'), true);
     assert.equal(profilePage.includes("publicTelHref"), false);
 
     const registeredFinder = fs.readFileSync(
       path.join(repoRoot, "components/finder/FinderRegisteredCardAvailability.tsx"),
       "utf8",
     );
-    assert.equal(registeredFinder.includes('kind="registered"'), true);
+    assert.equal(registeredFinder.includes('kind="clinic"'), true);
     assert.equal(registeredFinder.includes('variant="show-phone-number"'), true);
     assert.equal(registeredFinder.includes('variant="profile-call"'), false);
     assert.equal(registeredFinder.includes('variant="call-to-book"'), false);

@@ -20,7 +20,6 @@ export type FinderClinicRef = {
 
 export type FinderCallToBookContext = {
   manualId: string;
-  listingHasPhone: boolean;
   source: CallToBookSource;
 };
 
@@ -41,7 +40,7 @@ type FinderClinicLocationBlockProps = {
   variant?: "full" | "compact";
   /** Where “+N more clinic(s)” navigates (usually the professional landing). */
   moreClinicsHref?: string | null;
-  /** When set, each visible location gets a Call to Book CTA. */
+  /** When set, each visible clinic with a phone gets a Call to Book CTA. */
   callToBook?: FinderCallToBookContext | null;
 };
 
@@ -51,39 +50,25 @@ const callToBookClass =
 const callToBookRevealedClass =
   "inline-flex min-h-9 items-center justify-center rounded-lg border border-clinical-200 bg-clinical-50 px-3 py-1.5 text-xs font-semibold tabular-nums text-clinical-800 transition-none hover:border-clinical-300 hover:bg-clinical-100";
 
+/** The clinic's phone, never the listing's scraped one (user, 2026-09-29). */
 function LocationCallToBook({
   item,
   callToBook,
 }: {
-  item?: FinderClinicRef | null;
+  item: FinderClinicRef;
   callToBook: FinderCallToBookContext;
 }) {
-  const clinicId = String(item?.id ?? "").trim() || null;
-  const hasPhone = Boolean(item?.hasPhone) || callToBook.listingHasPhone;
-  if (!hasPhone) return null;
-
-  if (clinicId) {
-    return (
-      <RevealPhoneButton
-        kind="clinic"
-        id={clinicId}
-        hasPhone
-        variant="call-to-book"
-        source={callToBook.source}
-        manualId={callToBook.manualId}
-        className={callToBookClass}
-        revealedClassName={callToBookRevealedClass}
-      />
-    );
-  }
+  const clinicId = String(item.id ?? "").trim();
+  if (!clinicId || !item.hasPhone) return null;
 
   return (
     <RevealPhoneButton
-      kind="manual"
-      id={callToBook.manualId}
+      kind="clinic"
+      id={clinicId}
       hasPhone
       variant="call-to-book"
       source={callToBook.source}
+      manualId={callToBook.manualId}
       className={callToBookClass}
       revealedClassName={callToBookRevealedClass}
     />
@@ -209,7 +194,6 @@ export function FinderClinicLocationBlock({
               Open in Maps ↗
             </a>
           ) : null}
-          {callToBook ? <LocationCallToBook callToBook={callToBook} /> : null}
         </div>
       </div>
     );

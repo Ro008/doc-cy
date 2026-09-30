@@ -53,7 +53,7 @@ describe("finder multi-location layout", () => {
     assert.equal(page.includes("FinderRegisteredCardAvailability"), true);
     assert.equal(page.includes("FinderRegisteredPublicCall"), true);
     assert.equal(page.includes("FinderManualLocationCalendars"), true);
-    assert.equal(registered.includes('kind="registered"'), true);
+    assert.equal(registered.includes('kind="clinic"'), true);
     assert.equal(registered.includes('variant="show-phone-number"'), true);
     assert.equal(registered.includes('variant="profile-call"'), false);
     assert.equal(registered.includes("tel:"), false);

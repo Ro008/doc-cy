@@ -30,7 +30,7 @@ import {
 import { isFounderSubscriptionTier } from "@/lib/subscription-tier";
 import { loadDoctorLocations, primaryDoctorLocation } from "@/lib/load-doctor-locations";
 import { locationWeeklySchedule } from "@/lib/doctor-locations";
-import { inferPublicPhoneSource } from "@/lib/public-call-phone";
+import { loadSettingsClinicPhones } from "@/lib/settings-clinic-phones";
 import { FirstLoginTrialNoticeGate } from "@/components/dashboard/FirstLoginTrialNoticeGate";
 import { createServiceRoleClient } from "@/lib/supabase-service";
 import {
@@ -55,13 +55,12 @@ export default async function AgendaSettingsPage() {
   }
 
   // Fetch doctor row for this authenticated user.
-  // If the `phone` column isn't available in the DB yet (or query fails),
+  // If a column isn't available in the DB yet (or the query fails),
   // fall back to a basic select so the rest of the settings page still works.
   let doctor: {
     id: string;
     name: string;
     avatar_url?: string | null;
-    phone?: string | null;
     mobile_number?: string | null;
     slug?: string | null;
     bio?: string | null;
@@ -86,7 +85,7 @@ export default async function AgendaSettingsPage() {
     let res = await supabase
       .from("professionals")
       .select(
-        "id, name, avatar_url, phone, mobile_number, slug, bio, languages, status, subscription_tier, is_gesy"
+        "id, name, avatar_url, mobile_number, slug, bio, languages, status, subscription_tier, is_gesy"
       )
       .eq("auth_user_id", user.id)
       .single();
@@ -95,7 +94,7 @@ export default async function AgendaSettingsPage() {
       res = await supabase
         .from("professionals")
         .select(
-          "id, name, avatar_url, phone, slug, bio, languages, status, subscription_tier, is_gesy"
+          "id, name, avatar_url, slug, bio, languages, status, subscription_tier, is_gesy"
         )
         .eq("auth_user_id", user.id)
         .single();
@@ -105,7 +104,7 @@ export default async function AgendaSettingsPage() {
       res = await supabase
         .from("professionals")
         .select(
-          "id, name, avatar_url, phone, slug, bio, languages, status, subscription_tier, is_gesy"
+          "id, name, avatar_url, slug, bio, languages, status, subscription_tier, is_gesy"
         )
         .eq("auth_user_id", user.id)
         .single();
@@ -120,7 +119,7 @@ export default async function AgendaSettingsPage() {
       res = await supabase
         .from("professionals")
         .select(
-          "id, name, avatar_url, phone, slug, languages, status, subscription_tier, is_gesy"
+          "id, name, avatar_url, slug, languages, status, subscription_tier, is_gesy"
         )
         .eq("auth_user_id", user.id)
         .single();
@@ -130,7 +129,7 @@ export default async function AgendaSettingsPage() {
       res = await supabase
         .from("professionals")
         .select(
-          "id, name, avatar_url, phone, slug, languages, status, subscription_tier"
+          "id, name, avatar_url, slug, languages, status, subscription_tier"
         )
         .eq("auth_user_id", user.id)
         .single();
@@ -139,7 +138,7 @@ export default async function AgendaSettingsPage() {
       res = await supabase
         .from("professionals")
         .select(
-          "id, name, phone, slug, languages, status, subscription_tier"
+          "id, name, slug, languages, status, subscription_tier"
         )
         .eq("auth_user_id", user.id)
         .single();
@@ -148,7 +147,7 @@ export default async function AgendaSettingsPage() {
       res = await supabase
         .from("professionals")
         .select(
-          "id, name, avatar_url, phone, slug, languages, status"
+          "id, name, avatar_url, slug, languages, status"
         )
         .eq("auth_user_id", user.id)
         .single();
@@ -156,7 +155,7 @@ export default async function AgendaSettingsPage() {
     if (res.error && (res.error as { code?: string }).code === "42703") {
       res = await supabase
         .from("professionals")
-        .select("id, name, phone, slug, languages, status")
+        .select("id, name, slug, languages, status")
         .eq("auth_user_id", user.id)
         .single();
     }
@@ -406,17 +405,9 @@ export default async function AgendaSettingsPage() {
     pendingSpecialtyChange,
     bio: (doctor.bio ?? "").trim(),
     languages: langArr,
-    mobileNumber: (doctor.mobile_number ?? doctor.phone ?? "").trim() || undefined,
-    directoryPhone: (doctor.phone ?? "").trim() || undefined,
-    showPhonePublic: Boolean(
-      (settings as { show_phone_public?: boolean | null } | null)?.show_phone_public
-    ),
-    publicPhoneSource: inferPublicPhoneSource({
-      saved: (settings as { public_phone_source?: string | null } | null)
-        ?.public_phone_source,
-      mobileNumber: (doctor.mobile_number ?? doctor.phone ?? "").trim(),
-      directoryPhone: (doctor.phone ?? "").trim(),
-    }),
+    mobileNumber: (doctor.mobile_number ?? "").trim() || undefined,
+    // Shown read-only: patients see these, and clinics are admin-curated.
+    clinicPhones: await loadSettingsClinicPhones(doctor.id),
     // The primary clinic, not the copies on professionals (Point E).
     district: (primaryClinic?.district ?? "").trim(),
     clinicAddress: (primaryClinic?.clinic_address ?? "").trim(),

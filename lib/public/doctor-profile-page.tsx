@@ -74,7 +74,8 @@ import {
   SPECIALTY_ROWS_SELECT,
   specialtyEntriesFromRows,
 } from "@/lib/specialty-catalogue";
-import { publicPhoneForProfessional } from "@/lib/public-call-phone";
+import { loadFinderRegisteredClinics } from "@/lib/public/load-finder-registered-clinics";
+import { clinicForRenderedLocation } from "@/lib/public/finder-card-clinic-match";
 import {
   resolveAbsorbedProfessionalSlugRedirect,
   resolveManualDirectoryProfileForSlug,
@@ -673,45 +674,16 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
   const clinicAddress = stripPlusCodePrefix((profile.clinic_address ?? "").trim());
   const mapsUrl = buildMapsUrlFromAddress(clinicAddress) ?? "";
   let avatarUrl: string | null = null;
-  let publicPhone: string | null = null;
-  // Resolved once the clinics are loaded: a paused clinic reveals the phone.
-  let contactPhoneInput: {
-    showPhonePublic?: boolean | null;
-    publicPhoneSource?: unknown;
-    phone?: string | null;
-    mobileNumber?: string | null;
-  } | null = null;
-  // doctors_public used to compute `phone` in SQL; publicPhoneForProfessional applies
-  // the same show_phone_public / public_phone_source rule over the raw columns.
   const contactLookup = await supabase
     .from("professionals")
-    .select(
-      "avatar_url, phone, mobile_number, professional_settings(show_phone_public, public_phone_source)",
-    )
+    .select("avatar_url")
     .eq("is_registered", true)
     .eq("is_archived", false)
     .eq("id", profile.id)
     .maybeSingle();
   if (!contactLookup.error && contactLookup.data) {
-    const contact = contactLookup.data as {
-      avatar_url?: string | null;
-      phone?: string | null;
-      mobile_number?: string | null;
-      professional_settings?:
-        | { show_phone_public?: boolean | null; public_phone_source?: string | null }
-        | { show_phone_public?: boolean | null; public_phone_source?: string | null }[]
-        | null;
-    };
-    const contactSettings = Array.isArray(contact.professional_settings)
-      ? contact.professional_settings[0]
-      : contact.professional_settings;
+    const contact = contactLookup.data as { avatar_url?: string | null };
     const avatarPath = String(contact.avatar_url ?? "").trim();
-    contactPhoneInput = {
-      showPhonePublic: contactSettings?.show_phone_public,
-      publicPhoneSource: contactSettings?.public_phone_source,
-      phone: contact.phone,
-      mobileNumber: contact.mobile_number,
-    };
     if (avatarPath) {
       avatarUrl = resolvePublicAvatarUrl(supabase, avatarPath);
     }
@@ -771,13 +743,21 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
       } as DoctorSettingsRow)
     : null;
 
-  const practiceLocations = await loadDoctorLocations(profile.id);
-  if (contactPhoneInput) {
-    publicPhone = publicPhoneForProfessional({
-      ...contactPhoneInput,
-      pauseFlags: practiceLocations.map((row) => Boolean(row.pause_online_bookings)),
+  const [practiceLocations, registeredClinics] = await Promise.all([
+    loadDoctorLocations(profile.id),
+    loadFinderRegisteredClinics(profile.id),
+  ]);
+  // Every public phone is the clinic's (user, 2026-09-29): one Call per clinic that has
+  // a phone, whether or not it takes online bookings.
+  const linkedClinics = registeredClinics.byProfessionalId.get(profile.id) ?? [];
+  const clinicForLocation = (location: { id: string; clinic_address?: string | null }) =>
+    clinicForRenderedLocation({
+      locationId: location.id,
+      locationAddress: location.clinic_address,
+      byLocationId: registeredClinics.byLocationId,
+      candidates: linkedClinics,
     });
-  }
+  const callClinics = linkedClinics.filter((clinic) => clinic.id && clinic.hasPhone);
   const requestedLocationId = parseBookingLocationParam(
     Array.isArray(searchParams?.location)
       ? searchParams?.location[0]
@@ -876,7 +856,11 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
     is_specialty_approved: profile.is_specialty_approved,
   });
   const profileSpecialtySeo = formatSpecialtiesForSeo(profileSpecialtyLabels);
-  const hasPublicPhone = Boolean(publicPhone);
+  // The booking panel's "call instead" hint is about the clinic being booked.
+  const selectedClinic = selectedLocation ? clinicForLocation(selectedLocation) : null;
+  const hasPublicPhone = selectedClinic
+    ? Boolean(selectedClinic.hasPhone)
+    : callClinics.length > 0;
   const structuredData = buildPhysicianStructuredData({
     name: profile.name,
     specialty:
@@ -1099,21 +1083,29 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
               name={profile.name}
               bio={profile.bio}
             />
-            {hasPublicPhone ? (
+            {callClinics.length > 0 ? (
               <section className="lg:min-w-0">
                 <div className="rounded-3xl border border-clinical-200 bg-white p-5 shadow-[0_1px_3px_rgba(26,43,60,0.06),0_8px_24px_rgba(18,184,192,0.06)] backdrop-blur-xl sm:p-6">
                   <h2 className="text-sm font-semibold tracking-wide text-ink-900">
                     Contact
                   </h2>
                   <div className="mt-3 flex flex-col gap-3">
-                    <RevealPhoneButton
-                      kind="registered"
-                      id={profile.id}
-                      hasPhone
-                      variant="profile-call"
-                      className="inline-flex items-center gap-3 rounded-xl border border-clinical-200 bg-clinical-50 px-3 py-2 text-sm font-semibold text-clinical-800 transition hover:bg-clinical-100 disabled:cursor-wait disabled:opacity-60"
-                      revealedClassName="inline-flex items-center gap-3 rounded-xl border border-clinical-200 bg-clinical-50 px-3 py-2 text-sm font-semibold tabular-nums text-clinical-800 transition hover:bg-clinical-100"
-                    />
+                    {callClinics.map((clinic) => (
+                      <div key={clinic.id} className="flex flex-col gap-1.5">
+                        {callClinics.length > 1 ? (
+                          <p className="text-xs font-semibold text-ink-600">{clinic.name}</p>
+                        ) : null}
+                        <RevealPhoneButton
+                          kind="clinic"
+                          id={String(clinic.id)}
+                          manualId={profile.id}
+                          hasPhone
+                          variant="profile-call"
+                          className="inline-flex items-center gap-3 rounded-xl border border-clinical-200 bg-clinical-50 px-3 py-2 text-sm font-semibold text-clinical-800 transition hover:bg-clinical-100 disabled:cursor-wait disabled:opacity-60"
+                          revealedClassName="inline-flex items-center gap-3 rounded-xl border border-clinical-200 bg-clinical-50 px-3 py-2 text-sm font-semibold tabular-nums text-clinical-800 transition hover:bg-clinical-100"
+                        />
+                      </div>
+                    ))}
                   </div>
                 </div>
               </section>

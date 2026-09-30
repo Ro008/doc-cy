@@ -74,7 +74,6 @@ describe("isProfessionalApiPath", () => {
       "/api/doctor-online-bookings",
       "/api/doctor-services",
       "/api/doctor-settings",
-      "/api/doctor-settings/public-phone",
       "/api/doctor-settings/trial-notice",
       "/api/doctor-specialty-change-request",
     ]) {
