@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceRoleClient } from "@/lib/supabase-service";
 import { enforcePublicApiRateLimit } from "@/lib/public-api-rate-limit";
 import { escapeIlikePattern } from "@/lib/finder-results-paging";
+import { withoutDirectoryCanaryClinics } from "@/lib/directory-canaries";
 import {
   clinicSearchTokens,
   rankClinicSearchResults,
@@ -76,7 +77,7 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  const candidates: ClinicSearchCandidate[] = rows
+  const candidates: ClinicSearchCandidate[] = withoutDirectoryCanaryClinics(rows)
     .filter((row) => String(row.name ?? "").trim() && String(row.address ?? "").trim())
     .map((row) => ({
       id: row.id,
