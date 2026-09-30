@@ -57,7 +57,7 @@ export async function loadRescheduleCalendar(
       p_doctor_id: opts.doctorId,
       p_from: fromIso,
       p_to: toIso,
-      ...(location ? { p_location_id: location.id } : {}),
+      // No p_location_id: a visit in any clinic blocks the time (one professional, one agenda).
     },
   );
   if (occupiedErr) {

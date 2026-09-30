@@ -11,27 +11,21 @@ import { DayPicker } from "react-day-picker";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { CY_TZ } from "@/lib/appointments";
 import type { WeeklySchedule } from "@/lib/doctor-settings";
+import { type AgendaClinic, type AgendaWorkingHours } from "@/lib/agenda-clinics";
 import {
-  clinicIdForAppointment,
-  type AgendaClinic,
-  type AgendaWorkingHours,
-} from "@/lib/agenda-clinics";
+  isManualBookingSlotTaken,
+  type ManualBookingAppointmentRow,
+} from "@/lib/manual-booking-slots";
 import { agendaClinicEventColor } from "@/lib/doctor-locations";
 import { APPOINTMENT_REASON_MAX_LENGTH } from "@/lib/visit-types";
 import "react-day-picker/dist/style.css";
 
-type AgendaAppointmentRow = {
-  id: string;
-  appointment_datetime: string;
-  status?: string | null;
-  location_id?: string | null;
-};
 
 type ManualBookingFlowProps = {
   open: boolean;
   doctorId: string | null;
   doctorSlug?: string | null;
-  appointments: AgendaAppointmentRow[];
+  appointments: ManualBookingAppointmentRow[];
   workingHours: AgendaWorkingHours | null;
   clinics?: AgendaClinic[];
   preferredClinicId?: string | null;
@@ -61,13 +55,6 @@ type SuccessState = {
 
 const HORIZON_DAYS = 90;
 const MINIMUM_NOTICE_HOURS = 2;
-
-function isBlockingStatus(status: string | null | undefined): boolean {
-  const upper = String(status ?? "").toUpperCase();
-  return (
-    upper === "REQUESTED" || upper === "CONFIRMED" || upper === "NEEDS_RESCHEDULE"
-  );
-}
 
 function dayKeyForDate(d: Date): keyof WeeklySchedule {
   const map: Array<keyof WeeklySchedule> = [
@@ -121,6 +108,16 @@ export function ManualBookingFlow({
     setSelectedClinicId(preferredClinicId ?? clinics[0]?.id ?? null);
   }, [open]);
 
+  // Only the panel scrolls: freeze the page behind the modal.
+  React.useEffect(() => {
+    if (!open) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previous;
+    };
+  }, [open]);
+
   const selectedClinic =
     clinics.find((clinic) => clinic.id === selectedClinicId) ?? clinics[0] ?? null;
   const activeHours = selectedClinic?.hours ?? workingHours;
@@ -130,22 +127,11 @@ export function ManualBookingFlow({
       ? activeHours.slotDurationMinutes
       : 30;
 
-  const takenSet = React.useMemo(() => {
-    const set = new Set<string>();
-    appointments.forEach((a) => {
-      if (!isBlockingStatus(a.status)) return;
-      if (
-        selectedClinic &&
-        clinicIdForAppointment(a.location_id, clinics) !== selectedClinic.id
-      ) {
-        return;
-      }
-      const cy = utcToZonedTime(new Date(a.appointment_datetime), CY_TZ);
-      const key = format(cy, "yyyy-MM-dd'T'HH:mm");
-      set.add(key);
-    });
-    return set;
-  }, [appointments, clinics, selectedClinic]);
+  // One professional, one agenda: a visit in any clinic blocks the time in all of them.
+  const isSlotTaken = React.useCallback(
+    (slot: SlotOption) => isManualBookingSlotTaken(slot.key, slotDuration, appointments),
+    [appointments, slotDuration],
+  );
 
   const upcomingSlots = React.useMemo(() => {
     if (!activeHours) return [] as SlotOption[];
@@ -218,7 +204,7 @@ export function ManualBookingFlow({
   const availableDates = React.useMemo(() => {
     const set = new Set<string>();
     upcomingSlots.forEach((slot) => {
-      if (!takenSet.has(slot.slotKey)) {
+      if (!isSlotTaken(slot)) {
         set.add(slot.dateKey);
       }
     });
@@ -226,15 +212,15 @@ export function ManualBookingFlow({
       const [y, m, day] = d.split("-").map(Number);
       return new Date(y, m - 1, day);
     });
-  }, [upcomingSlots, takenSet]);
+  }, [upcomingSlots, isSlotTaken]);
 
   const slotsForSelectedDay = React.useMemo(() => {
     if (!selectedDate) return [];
     const dayKey = format(selectedDate, "yyyy-MM-dd");
     return upcomingSlots.filter(
-      (slot) => slot.dateKey === dayKey && !takenSet.has(slot.slotKey),
+      (slot) => slot.dateKey === dayKey && !isSlotTaken(slot),
     );
-  }, [selectedDate, upcomingSlots, takenSet]);
+  }, [selectedDate, upcomingSlots, isSlotTaken]);
 
   const isDateAvailable = React.useCallback(
     (date: Date) =>
@@ -319,7 +305,7 @@ export function ManualBookingFlow({
   return (
     <div
       data-testid="manual-booking-modal-root"
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-3 sm:p-4"
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-hidden p-3 sm:p-4"
     >
       <button
         type="button"
@@ -329,7 +315,7 @@ export function ManualBookingFlow({
       />
       <div
         data-testid="manual-booking-modal-panel"
-        className="relative z-10 my-2 w-full max-w-4xl max-h-[calc(100dvh-1rem)] overflow-y-auto rounded-3xl border border-clinical-100/10 bg-slate-900/95 p-5 shadow-2xl backdrop-blur-xl sm:my-4 sm:max-h-[calc(100dvh-2rem)] sm:p-6"
+        className="relative z-10 w-full max-w-4xl max-h-[calc(100dvh-1.5rem)] overflow-y-auto overscroll-contain rounded-3xl border border-clinical-100/10 bg-slate-900/95 p-5 shadow-2xl backdrop-blur-xl sm:max-h-[calc(100dvh-2rem)] sm:p-6"
       >
         <button
           type="button"

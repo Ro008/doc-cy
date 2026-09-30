@@ -826,13 +826,13 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
   ).toISOString();
 
   // Slot starts covered by visits (forward + backward vs slot_duration_minutes); must match POST /api/appointments.
+  // No p_location_id: one professional, one agenda, so a visit in any clinic blocks the time.
   const { data: occupiedRows, error: occupiedErr } = await supabase.rpc(
     "public_doctor_occupied_datetimes",
     {
       p_doctor_id: profile.id,
       p_from: fromIso,
       p_to: toIso,
-      ...(selectedLocation?.id ? { p_location_id: selectedLocation.id } : {}),
     },
   );
 
