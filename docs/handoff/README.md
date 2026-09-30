@@ -49,8 +49,7 @@ Nothing else in the branch touches the database. Please state this DB impact in 
 
 ## When the PR is ready
 
-Remove the "Branch handoff" section from `CLAUDE.md` and delete
-`.cursor/rules/doctor-dashboard-handoff.mdc` before merging, so they do not reach `master`.
+Remove the "Branch handoff" section from `CLAUDE.md` before merging, so it does not reach `master`.
 
 ## Not in scope
 
