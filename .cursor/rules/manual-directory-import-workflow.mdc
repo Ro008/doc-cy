@@ -94,7 +94,7 @@ Script behavior:
 **Full replace (user says “empezar de cero”, new clean list):**
 
 1. Generate with `--replace` (default): `DELETE FROM public.directory_manual;` then bulk `INSERT`.
-2. Cascades delete: `professional_patient_booking_requests`, `directory_duplicate_suggestions`.
+2. Cascades delete: `user_events` (their clicks and votes), `directory_duplicate_suggestions`.
 3. Do **not** delete curated photo assets — see `manual-directory-preserved-photos.mdc`.
 
 **Incremental add (small batch):**

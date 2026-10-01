@@ -131,6 +131,7 @@ import { harmonizeFinderSpecialtyLabel } from "@/lib/finder-specialty-harmonize"
 import { publicProfessionalProfilePath } from "@/lib/manual-directory-landing-path";
 import { finderIncludesRegisteredTestProfiles, isRegisteredDoctorHiddenFromFinder } from "@/lib/doctor-test-profile";
 import { finderAvailabilityRequestKey } from "@/lib/public/finder-availability-request-key";
+import { USER_EVENTS_TABLE } from "@/lib/user-events";
 import { buildFinderAvailabilityDayHeaders } from "@/lib/public/compute-public-booking-slots";
 import {
   computeFinderDistanceKm,
@@ -585,12 +586,13 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
     })();
 
     const bookingRequestRowsPromise = getCachedDirectoryRows(
-      ["booking-requests-all-time"],
+      ["online-appointment-votes-all-time"],
       () =>
         fetchAllSupabaseRows(() =>
           supabase
-            .from("professional_patient_booking_requests")
-            .select("id, professional_id, voter_key"),
+            .from(USER_EVENTS_TABLE)
+            .select("id, professional_id, visitor_key")
+            .eq("event_type", "request_online_appointment"),
         ),
     );
 
@@ -739,7 +741,7 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
       (bookingRequestRowsRes.data ?? []).map((r) => ({
         professionalId: String((r as { professional_id?: string }).professional_id ?? ""),
         id: String((r as { id?: string }).id ?? ""),
-        voterKey: (r as { voter_key?: string | null }).voter_key ?? null,
+        voterKey: (r as { visitor_key?: string | null }).visitor_key ?? null,
       })),
     );
     if (bookingRequestRowsRes.error) {

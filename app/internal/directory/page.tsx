@@ -83,6 +83,7 @@ import {
   specialtyNamesForRow,
   type ProfessionalSpecialtyEntry,
 } from "@/lib/specialty-catalogue";
+import { USER_EVENTS_TABLE, parseMissingProfessionalReportDetails } from "@/lib/user-events";
 
 function sortManualPatientVoteRows(
   rows: ManualPatientVoteRow[],
@@ -568,10 +569,10 @@ export default async function FounderDashboardPage({
         ? new Date(Date.now() - manualVotesDays * 24 * 60 * 60 * 1000).toISOString()
         : null;
     // Voter dedupe + count computed in SQL instead of fetching every booking-request row.
-    const { data: voteStats, error: reqErr } = await supabase.rpc(
-      "founder_manual_vote_stats",
-      { p_since: sinceIso },
-    );
+    const { data: voteStats, error: reqErr } = await supabase.rpc("founder_user_event_stats", {
+      p_event_type: "request_online_appointment",
+      p_since: sinceIso,
+    });
     if (!reqErr && voteStats?.length) {
       const ids = voteStats.map((v: { professional_id: string }) => String(v.professional_id));
       const { data: namesRows } = await supabase
@@ -599,8 +600,9 @@ export default async function FounderDashboardPage({
     const invitationSinceIso = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
     const { data: invitationRows, error: invitationErr } = await fetchAllSupabaseRows(() =>
       supabase
-        .from("missing_professional_requests")
-        .select("id, requested_name, specialty, district, created_at, voter_key")
+        .from(USER_EVENTS_TABLE)
+        .select("id, details, created_at, visitor_key")
+        .eq("event_type", "missing_professional_report")
         .gte("created_at", invitationSinceIso)
         .order("created_at", { ascending: false }),
     );
@@ -611,14 +613,14 @@ export default async function FounderDashboardPage({
         { requestedName: string; specialty: string | null; district: string | null; voters: Set<string>; lastAt: string }
       >();
       for (const r of invitationRows) {
-        const requestedName = String((r as { requested_name?: string }).requested_name ?? "").trim();
-        const specialty = (r as { specialty?: string | null }).specialty ?? null;
-        const district = (r as { district?: string | null }).district ?? null;
+        const report = parseMissingProfessionalReportDetails((r as { details?: unknown }).details);
+        if (!report) continue;
+        const requestedName = report.requested_name;
+        const { specialty, district } = report;
         const ca = String((r as { created_at?: string }).created_at ?? "");
         const id = String((r as { id?: string }).id ?? "");
-        const vk = (r as { voter_key?: string | null }).voter_key?.trim();
+        const vk = (r as { visitor_key?: string | null }).visitor_key?.trim();
         const dedupeId = vk || `legacy:${id}`;
-        if (!requestedName) continue;
         const key = `${requestedName.toLowerCase()}|${specialty ?? ""}|${district ?? ""}`;
         const cur = byKey.get(key);
         if (!cur) {
@@ -682,10 +684,10 @@ export default async function FounderDashboardPage({
         : null;
     // Per-professional click/finder/profile counts computed in SQL instead of
     // fetching every click row.
-    const { data: clickStats, error: clickErr } = await supabase.rpc(
-      "founder_call_to_book_stats",
-      { p_since: sinceIso },
-    );
+    const { data: clickStats, error: clickErr } = await supabase.rpc("founder_user_event_stats", {
+      p_event_type: "show_phone_number",
+      p_since: sinceIso,
+    });
     if (!clickErr && clickStats?.length) {
       const totals = sumCallToBookStats(clickStats);
       callToBookTotal = totals.total;

@@ -25,7 +25,7 @@ function invitationErrorMessage(reason: string | undefined, status: number): str
     return "We could not record your request. Please try again.";
   }
   if (reason === "table_missing") {
-    return "This feature is not active yet: the database needs the latest DocCy migration (table missing_professional_requests).";
+    return "This feature is not active yet: the database needs the latest DocCy migration (table user_events).";
   }
   if (reason === "insert_failed" || reason === "permission_denied") {
     return "We could not save your request. If you run DocCy, apply pending Supabase migrations and try again.";

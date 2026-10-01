@@ -32,8 +32,9 @@ export function FinderInvitationRequestsSection({ rows }: Props) {
           Finder: patients looking for unlisted professionals
         </h2>
         <p className="mt-1 max-w-3xl text-xs leading-relaxed text-emerald-100/80">
-          Free-text names from the finder empty state — rows in{" "}
-          <code className="rounded bg-black/30 px-1">missing_professional_requests</code>. Use
+          Free-text names from the finder empty state —{" "}
+          <code className="rounded bg-black/30 px-1">missing_professional_report</code> rows in{" "}
+          <code className="rounded bg-black/30 px-1">user_events</code>. Use
           this list to decide who to add to the manual directory next (separate from online-booking
           vote podium above).
         </p>

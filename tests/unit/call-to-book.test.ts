@@ -67,8 +67,8 @@ describe("aggregateCallToBookClicks", () => {
 describe("sumCallToBookStats", () => {
   it("sums pre-aggregated per-professional rows from the SQL RPC", () => {
     const totals = sumCallToBookStats([
-      { professional_id: "m1", click_count: 5, finder_count: 3, profile_count: 2, last_at: null },
-      { professional_id: "m2", click_count: "2", finder_count: "0", profile_count: "2", last_at: null },
+      { professional_id: "m1", event_count: 5, visitor_count: 5, finder_count: 3, profile_count: 2, last_at: null },
+      { professional_id: "m2", event_count: "2", visitor_count: "2", finder_count: "0", profile_count: "2", last_at: null },
     ]);
     assert.deepEqual(totals, { total: 7, finderCount: 3, professionalProfileCount: 4 });
   });
@@ -88,7 +88,8 @@ describe("buildCallToBookDashboardRows", () => {
       [
         {
           professional_id: "m1",
-          click_count: "4",
+          event_count: "4",
+          visitor_count: "4",
           finder_count: "3",
           profile_count: "1",
           last_at: "2026-08-02T10:00:00.000Z",
@@ -115,7 +116,8 @@ describe("buildCallToBookDashboardRows", () => {
       [
         {
           professional_id: "0123456789abcdef",
-          click_count: 1,
+          event_count: 1,
+          visitor_count: 1,
           finder_count: 1,
           profile_count: 0,
           last_at: null,

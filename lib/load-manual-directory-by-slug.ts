@@ -11,6 +11,7 @@ import {
 import { fetchAllSupabaseRows } from "@/lib/supabase-fetch-all";
 import { SPECIALTY_LINKS_SELECT, specialtyNamesForRow } from "@/lib/specialty-catalogue";
 import { pickUniqueLegacyNameSlugAlias } from "@/lib/manual-directory-slug";
+import { USER_EVENTS_TABLE } from "@/lib/user-events";
 
 export type ManualDirectoryLandingClinic = {
   id: string | null;
@@ -220,8 +221,9 @@ async function buildManualDirectoryLandingRow(
 
   const { data: requestRows } = await fetchAllSupabaseRows(() =>
     supabase
-      .from("professional_patient_booking_requests")
-      .select("id, voter_key")
+      .from(USER_EVENTS_TABLE)
+      .select("id, visitor_key")
+      .eq("event_type", "request_online_appointment")
       .eq("professional_id", manualId),
   );
 
@@ -229,7 +231,7 @@ async function buildManualDirectoryLandingRow(
     const voters = new Set<string>();
     for (const r of requestRows) {
       const id = String((r as { id?: string }).id ?? "");
-      const vk = (r as { voter_key?: string | null }).voter_key?.trim();
+      const vk = (r as { visitor_key?: string | null }).visitor_key?.trim();
       voters.add(vk || `legacy:${id}`);
     }
     monthlyRequestCount = voters.size;

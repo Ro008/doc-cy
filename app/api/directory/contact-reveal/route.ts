@@ -3,6 +3,7 @@ import { parseCallToBookSource } from "@/lib/call-to-book";
 import { formatCyprusPhoneDisplay } from "@/lib/phone-link";
 import { createServiceRoleClient } from "@/lib/supabase-service";
 import { enforcePublicApiRateLimit } from "@/lib/public-api-rate-limit";
+import { USER_EVENTS_TABLE, showPhoneNumberEvent } from "@/lib/user-events";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 const UUID_RE =
@@ -79,11 +80,13 @@ async function logCallToBookClick(input: {
   clinicId: string | null;
   source: "finder_card" | "professional_profile_page";
 }): Promise<void> {
-  const { error } = await input.supabase.from("professional_call_to_book_clicks").insert({
-    professional_id: input.manualId,
-    clinic_id: input.clinicId,
-    source: input.source,
-  });
+  const { error } = await input.supabase.from(USER_EVENTS_TABLE).insert(
+    showPhoneNumberEvent({
+      professionalId: input.manualId,
+      clinicId: input.clinicId,
+      source: input.source,
+    }),
+  );
   if (error) {
     console.error("[DocCy][contact-reveal] call_to_book_log_failed", error.message);
   }

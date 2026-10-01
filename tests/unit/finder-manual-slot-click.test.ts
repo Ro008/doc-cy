@@ -82,14 +82,14 @@ describe("finder manual calendars stay static HTML", () => {
     assert.equal(source.includes("reportGoogleAdsConversion"), true);
   });
 
-  it("skips inserting a second row for the same voter fingerprint", () => {
+  it("a second vote from the same voter fingerprint is a duplicate, not an error", () => {
     const source = fs.readFileSync(
       path.join(repoRoot, "app/api/directory-manual/patient-booking-request/route.ts"),
       "utf8",
     );
     assert.equal(source.includes("duplicate: true"), true);
     assert.equal(source.includes("DUPLICATE_UI_WINDOW_MS"), false);
-    assert.match(source, /if \(\(existing \?\? \[\]\)\[0\]\?\.id\)/);
+    assert.match(source, /if \(isUniqueViolation\(insertErr\)\)/);
     assert.match(source, /return NextResponse\.json\(\{ ok: true, duplicate: true \}/);
   });
 

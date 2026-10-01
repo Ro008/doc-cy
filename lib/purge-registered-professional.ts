@@ -43,8 +43,7 @@ const CHILD_TABLES_BY_PROFESSIONAL_ID = [
   "professional_settings",
   "professional_specialties",
   "professional_clinics",
-  "professional_patient_booking_requests",
-  "professional_call_to_book_clicks",
+  "user_events",
   "professional_slug_redirects",
 ] as const;
 
