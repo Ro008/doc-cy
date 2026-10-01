@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { createPortal } from "react-dom";
-import { Lock, Save, Trash2, X } from "lucide-react";
+import { Clock, Lock, Save, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import Cropper from "react-easy-crop";
 import { LanguageMultiSelect } from "@/components/languages/LanguageMultiSelect";
@@ -40,11 +40,13 @@ import { useSettingsUnsavedChangesWarning } from "@/components/dashboard/useSett
 import { SpecialtyCombobox } from "@/components/specialties/SpecialtyCombobox";
 import { isCatalogueSpecialty } from "@/lib/specialty-options";
 import { PUBLIC_SPECIALTY_UNDER_REVIEW_LABEL } from "@/lib/doctor-specialty-public";
+import { type SpecialtyChangeRequestKind } from "@/lib/doctor-specialty-change-request";
 import {
-  validateSpecialtyChangeAgainstProfile,
-  validateSpecialtyChangeRequestInput,
-  type SpecialtyChangeRequestKind,
-} from "@/lib/doctor-specialty-change-request";
+  SPECIALTY_LICENSE_HELP,
+  pendingSpecialtyChip,
+  validateAddSpecialtyRequest,
+  type AddSpecialtyErrors,
+} from "@/lib/settings-specialty-request";
 import { PhoneNumbersSettings } from "@/components/dashboard/PhoneNumbersSettings";
 import type { SettingsClinicPhone } from "@/lib/settings-clinic-phones";
 import {
@@ -394,26 +396,28 @@ export function SettingsForm({
   const [pendingSpecialtyChange, setPendingSpecialtyChange] = React.useState(
     () => initial.pendingSpecialtyChange ?? null,
   );
-  const [specialtyRequestKind, setSpecialtyRequestKind] =
-    React.useState<SpecialtyChangeRequestKind | null>(null);
-  const [specialtyReplaceFrom, setSpecialtyReplaceFrom] = React.useState("");
+  // One request only: add a specialty (removing is instant with the chip's ✕).
+  const [specialtyFormOpen, setSpecialtyFormOpen] = React.useState(false);
   const [specialtyChangeSpec, setSpecialtyChangeSpec] = React.useState({
     specialty: "",
     fromMaster: true,
   });
   const [specialtyChangeLicense, setSpecialtyChangeLicense] = React.useState("");
+  const [specialtyErrors, setSpecialtyErrors] = React.useState<AddSpecialtyErrors>({});
   const [specialtyChangeBusy, setSpecialtyChangeBusy] = React.useState(false);
+  const [specialtyCancelBusy, setSpecialtyCancelBusy] = React.useState(false);
   const onSpecialtyChangeSpec = React.useCallback(
     (p: { specialty: string; fromMaster: boolean }) => {
       setSpecialtyChangeSpec(p);
+      setSpecialtyErrors((prev) => (prev.specialty ? { ...prev, specialty: undefined } : prev));
     },
     [],
   );
 
   function resetSpecialtyRequestForm() {
-    setSpecialtyRequestKind(null);
-    setSpecialtyReplaceFrom("");
+    setSpecialtyFormOpen(false);
     setSpecialtyChangeLicense("");
+    setSpecialtyErrors({});
     setSpecialtyChangeSpec({ specialty: "", fromMaster: true });
   }
 
@@ -1050,42 +1054,26 @@ export function SettingsForm({
   }
 
   async function submitSpecialtyChangeRequest() {
-    if (specialtyRequestKind === null || specialtyRequestKind === "remove") return;
-    const kind = specialtyRequestKind;
-    const validated = validateSpecialtyChangeRequestInput(
+    const validated = validateAddSpecialtyRequest(
       {
-        toSpecialty: specialtyChangeSpec.specialty,
-        toSpecialtyFromMaster: specialtyChangeSpec.fromMaster,
-        licenseNumber: specialtyChangeLicense,
+        specialty: specialtyChangeSpec.specialty,
+        fromMaster: specialtyChangeSpec.fromMaster,
+        license: specialtyChangeLicense,
       },
       initial.specialtyOptions,
+      lockedSpecialties,
     );
     if (validated.ok === false) {
-      toast.error(validated.message);
+      setSpecialtyErrors(validated.errors);
       return;
     }
-    const profileCheck = validateSpecialtyChangeAgainstProfile({
-      kind,
-      fromSpecialty: specialtyReplaceFrom,
-      toSpecialty: validated.toSpecialty,
-      existingLabels: lockedSpecialties,
-    });
-    if (profileCheck.ok === false) {
-      toast.error(profileCheck.message);
-      return;
-    }
+    const { request } = validated;
     setSpecialtyChangeBusy(true);
     try {
       const res = await fetch("/api/doctor-specialty-change-request", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          requestKind: kind,
-          fromSpecialty: profileCheck.fromSpecialty,
-          toSpecialty: validated.toSpecialty,
-          toSpecialtyFromMaster: validated.toSpecialtyFromMaster,
-          licenseNumber: validated.licenseNumber,
-        }),
+        body: JSON.stringify(request),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -1093,10 +1081,10 @@ export function SettingsForm({
         return;
       }
       setPendingSpecialtyChange({
-        requestKind: kind,
-        fromSpecialty: profileCheck.fromSpecialty,
-        toSpecialty: validated.toSpecialty,
-        licenseNumber: validated.licenseNumber,
+        requestKind: request.requestKind,
+        fromSpecialty: null,
+        toSpecialty: request.toSpecialty,
+        licenseNumber: request.licenseNumber,
         createdAt: new Date().toISOString(),
       });
       resetSpecialtyRequestForm();
@@ -1106,6 +1094,30 @@ export function SettingsForm({
       toast.error("Could not submit specialty request.");
     } finally {
       setSpecialtyChangeBusy(false);
+    }
+  }
+
+  /** Withdraws the pending request (contract: DELETE /api/doctor-specialty-change-request). */
+  async function cancelSpecialtyRequest() {
+    setSpecialtyCancelBusy(true);
+    try {
+      // EXPECTED TO FAIL until Livio builds DELETE /api/doctor-specialty-change-request
+      // (backend pending, see lib/settings-backend-pending.ts): the doctor sees a message saying so.
+      const res = await fetch("/api/doctor-specialty-change-request", { method: "DELETE" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(
+          settingsActionErrorMessage("cancelSpecialtyRequest", res.status, data, "Could not cancel the request."),
+        );
+        return;
+      }
+      setPendingSpecialtyChange(null);
+      toast.success("Request cancelled.");
+    } catch (err) {
+      console.error(err);
+      toast.error("Could not cancel the request.");
+    } finally {
+      setSpecialtyCancelBusy(false);
     }
   }
 
@@ -1647,11 +1659,12 @@ export function SettingsForm({
     </div>
   );
 
+  const pendingChip = pendingSpecialtyChange ? pendingSpecialtyChip(pendingSpecialtyChange) : null;
   const specialtiesCard = (
     <section className={SECTION_CARD_CLASS} data-testid="settings-specialties">
       <p className={SECTION_EYEBROW_CLASS}>Specialties</p>
       <div data-testid="settings-specialty-locked" className="mt-3">
-        {lockedSpecialties.length > 0 ? (
+        {lockedSpecialties.length > 0 || pendingChip ? (
           <ul className="flex flex-wrap gap-2">
             {lockedSpecialties.map((label) => {
               const removable = canRemoveSpecialty(lockedSpecialties, label).ok;
@@ -1678,6 +1691,25 @@ export function SettingsForm({
                 </li>
               );
             })}
+            {pendingChip ? (
+              <li
+                data-testid="settings-specialty-change-pending"
+                className="inline-flex h-9 items-center gap-1.5 rounded-full border border-dashed border-amber-300/50 bg-amber-500/[0.07] pl-3 pr-1.5 text-sm font-semibold text-amber-50"
+              >
+                <Clock className="h-3.5 w-3.5 text-amber-300" aria-hidden />
+                {pendingChip.label}
+                <span className="text-xs font-medium text-amber-200/80">{pendingChip.status}</span>
+                <button
+                  type="button"
+                  aria-label={`Cancel the request for ${pendingChip.label}`}
+                  disabled={specialtyCancelBusy}
+                  onClick={() => void cancelSpecialtyRequest()}
+                  className="inline-flex h-6 w-6 items-center justify-center rounded-full text-amber-200 transition hover:bg-amber-400/15 hover:text-amber-50 disabled:opacity-50"
+                >
+                  <X className="h-3.5 w-3.5" aria-hidden />
+                </button>
+              </li>
+            ) : null}
           </ul>
         ) : (
           <p className="text-sm font-medium text-slate-100">Not set</p>
@@ -1689,92 +1721,20 @@ export function SettingsForm({
         ) : null}
       </div>
       <p className="mt-3 text-xs leading-relaxed text-slate-400">
-        {lockedSpecialties.length > 1
-          ? "Removing a specialty is instant. Adding or changing one needs a quick check by DocCy."
-          : `${LAST_SPECIALTY_MESSAGE} To switch it, request a change.`}
+        {pendingChip
+          ? "DocCy is checking your request. You can add another specialty once it’s reviewed."
+          : lockedSpecialties.length > 1
+            ? "Remove a specialty with ✕. Adding one needs a quick check by DocCy."
+            : `${LAST_SPECIALTY_MESSAGE} To switch it, add the new one; once it’s approved, remove the old one.`}
       </p>
-      {pendingSpecialtyChange ? (
-        <div
-          data-testid="settings-specialty-change-pending"
-          className="mt-3 rounded-2xl border border-amber-400/25 bg-amber-500/[0.06] px-3.5 py-2.5 text-xs text-amber-100/95"
-        >
-          <p className="font-semibold text-amber-100">
-            {pendingSpecialtyChange.requestKind === "replace"
-              ? "Change-specialty request in review"
-              : pendingSpecialtyChange.requestKind === "remove"
-                ? "Remove-specialty request in review"
-                : "Add-specialty request in review"}
-          </p>
-          {pendingSpecialtyChange.requestKind === "replace" && pendingSpecialtyChange.fromSpecialty ? (
-            <p className="mt-1">
-              Change: <span className="font-medium">{pendingSpecialtyChange.fromSpecialty}</span>
-              <span className="mx-1.5 text-amber-100/60">→</span>
-              <span className="font-medium">{pendingSpecialtyChange.toSpecialty}</span>
-            </p>
-          ) : pendingSpecialtyChange.requestKind === "remove" ? (
-            <p className="mt-1">
-              Remove: <span className="font-medium">{pendingSpecialtyChange.fromSpecialty}</span>
-            </p>
-          ) : (
-            <p className="mt-1">
-              Requested: <span className="font-medium">{pendingSpecialtyChange.toSpecialty}</span>
-            </p>
-          )}
-          {pendingSpecialtyChange.licenseNumber ? (
-            <p className="mt-0.5 text-amber-100/80">License: {pendingSpecialtyChange.licenseNumber}</p>
-          ) : null}
-        </div>
-      ) : specialtyRequestKind !== null ? (
+      {pendingChip ? null : specialtyFormOpen ? (
         <div
           data-testid="settings-specialty-change-form"
-          className="mt-3 space-y-3 rounded-2xl border border-slate-700 bg-slate-950/40 p-4"
+          className="mt-3 space-y-4 rounded-2xl border border-slate-700 bg-slate-950/40 p-4"
         >
           <div>
-            <label htmlFor="settings-specialty-request-kind" className={SECTION_EYEBROW_CLASS}>
-              What do you want to do? <span className="text-red-300">*</span>
-            </label>
-            <select
-              id="settings-specialty-request-kind"
-              value={specialtyRequestKind}
-              onChange={(e) => {
-                const next = e.target.value as SpecialtyChangeRequestKind;
-                setSpecialtyRequestKind(next);
-                setSpecialtyReplaceFrom(
-                  next !== "add" && lockedSpecialties.length === 1 ? lockedSpecialties[0]! : "",
-                );
-              }}
-              className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2.5 text-sm text-slate-100 outline-none transition focus:border-clinical-400/60 focus:ring-2 focus:ring-clinical-400/30"
-            >
-              <option value="add">Add a specialty</option>
-              {lockedSpecialties.length > 0 ? (
-                <option value="replace">Change an existing specialty</option>
-              ) : null}
-            </select>
-          </div>
-          {specialtyRequestKind === "replace" ? (
-            <div>
-              <label htmlFor="settings-specialty-replace-from" className={SECTION_EYEBROW_CLASS}>
-                Specialty to replace <span className="text-red-300">*</span>
-              </label>
-              <select
-                id="settings-specialty-replace-from"
-                value={specialtyReplaceFrom}
-                onChange={(e) => setSpecialtyReplaceFrom(e.target.value)}
-                className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2.5 text-sm text-slate-100 outline-none transition focus:border-clinical-400/60 focus:ring-2 focus:ring-clinical-400/30"
-              >
-                <option value="">Select…</option>
-                {lockedSpecialties.map((label) => (
-                  <option key={label} value={label}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-            </div>
-          ) : null}
-          <div>
             <p className={SECTION_EYEBROW_CLASS}>
-              {specialtyRequestKind === "replace" ? "New specialty" : "Specialty to add"}{" "}
-              <span className="text-red-300">*</span>
+              Specialty to add <span className="text-red-300">*</span>
             </p>
             <SpecialtyCombobox
               id="settings-specialty-change"
@@ -1782,28 +1742,56 @@ export function SettingsForm({
               options={initial.specialtyOptions}
               initialIsApproved
               variant="settings"
-              excludeSpecialties={
-                specialtyRequestKind === "replace"
-                  ? lockedSpecialties.filter(
-                      (label) => label.toLowerCase() !== specialtyReplaceFrom.trim().toLowerCase(),
-                    )
-                  : lockedSpecialties
-              }
+              excludeSpecialties={lockedSpecialties}
               onSelectionChange={onSpecialtyChangeSpec}
             />
+            {specialtyErrors.specialty ? (
+              <p
+                className="mt-1.5 text-xs font-medium text-red-300"
+                role="alert"
+                data-testid="settings-specialty-error"
+              >
+                {specialtyErrors.specialty}
+              </p>
+            ) : null}
           </div>
           <div>
             <label htmlFor="settings-specialty-change-license" className={SECTION_EYEBROW_CLASS}>
               License / certification number <span className="text-red-300">*</span>
             </label>
+            <p id="settings-specialty-change-license-help" className="mt-1 text-xs text-slate-400">
+              {SPECIALTY_LICENSE_HELP}
+            </p>
             <input
               id="settings-specialty-change-license"
               type="text"
               value={specialtyChangeLicense}
-              onChange={(e) => setSpecialtyChangeLicense(e.target.value)}
-              placeholder="e.g. registration or certification number"
-              className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2.5 text-sm text-slate-100 placeholder:text-slate-500 outline-none transition focus:border-clinical-400/60 focus:ring-2 focus:ring-clinical-400/30"
+              onChange={(e) => {
+                setSpecialtyChangeLicense(e.target.value);
+                if (specialtyErrors.license) setSpecialtyErrors((prev) => ({ ...prev, license: undefined }));
+              }}
+              aria-invalid={specialtyErrors.license ? true : undefined}
+              aria-describedby={
+                specialtyErrors.license
+                  ? "settings-specialty-change-license-help settings-specialty-license-error"
+                  : "settings-specialty-change-license-help"
+              }
+              placeholder="e.g. Cyprus Medical Council number"
+              className={`mt-2 w-full rounded-xl border bg-slate-950/60 px-3 py-2.5 text-sm text-slate-100 placeholder:text-slate-500 outline-none transition focus:ring-2 ${
+                specialtyErrors.license
+                  ? "border-red-400/70 focus:border-red-400 focus:ring-red-400/25"
+                  : "border-slate-700 focus:border-clinical-400/60 focus:ring-clinical-400/30"
+              }`}
             />
+            {specialtyErrors.license ? (
+              <p
+                id="settings-specialty-license-error"
+                className="mt-1.5 text-xs font-medium text-red-300"
+                role="alert"
+              >
+                {specialtyErrors.license}
+              </p>
+            ) : null}
           </div>
           <div className="flex flex-wrap gap-2">
             <button
@@ -1813,7 +1801,7 @@ export function SettingsForm({
               onClick={() => void submitSpecialtyChangeRequest()}
               className="inline-flex items-center justify-center rounded-xl bg-clinical-500 px-4 py-2 text-sm font-semibold text-ink-900 transition hover:bg-clinical-400 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {specialtyChangeBusy ? "Sending…" : "Submit request"}
+              {specialtyChangeBusy ? "Sending…" : "Send request"}
             </button>
             <button
               type="button"
@@ -1829,10 +1817,10 @@ export function SettingsForm({
         <button
           type="button"
           data-testid="settings-specialty-change-request"
-          onClick={() => setSpecialtyRequestKind("add")}
+          onClick={() => setSpecialtyFormOpen(true)}
           className="mt-3 text-sm font-semibold text-clinical-300 transition hover:text-clinical-200"
         >
-          + Request a new specialty
+          + Add a specialty
         </button>
       )}
     </section>

@@ -18,6 +18,7 @@ describe("backendPendingMessage", () => {
   it("has a message for every stubbed settings action", () => {
     assert.deepEqual(Object.keys(BACKEND_PENDING).sort(), [
       "addClinic",
+      "cancelSpecialtyRequest",
       "clinicChangeRequest",
       "removeClinic",
       "removeSpecialty",
@@ -28,6 +29,15 @@ describe("backendPendingMessage", () => {
       assert.match(message, /Livio/);
       assert.match(message, new RegExp(BACKEND_PENDING[action].endpoint.replace(/[/?]/g, "\$&")));
     }
+  });
+});
+
+describe("cancelling a specialty request", () => {
+  it("waits for Livio's DELETE on the request endpoint", () => {
+    assert.equal(
+      backendPendingMessage("cancelSpecialtyRequest"),
+      "Expected to fail for now: cancelling a specialty request works once Livio builds it in the backend (DELETE /api/doctor-specialty-change-request).",
+    );
   });
 });
 

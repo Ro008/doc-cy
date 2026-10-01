@@ -183,6 +183,10 @@ async function cleanup(admin: SupabaseClient, seeded: Partial<Seeded>) {
       .eq("professional_id", seeded.professionalId);
     const clinicIds = [...new Set((data ?? []).map((row) => String(row.clinic_id)))];
     await admin.from("professional_specialties").delete().eq("professional_id", seeded.professionalId);
+    await admin
+      .from("professional_specialty_change_requests")
+      .delete()
+      .eq("professional_id", seeded.professionalId);
     await admin.from("professionals").delete().eq("id", seeded.professionalId);
     if (clinicIds.length) await admin.from("clinics").delete().in("id", clinicIds);
   }
@@ -429,5 +433,59 @@ test.describe("Settings redesign (B1)", { tag: "@pr-e2e" }, () => {
     await expect(specialties.getByRole("button", { name: /^Remove / })).toHaveCount(0);
     await expect(specialties).toContainText("Your profile needs at least one specialty.");
     expect(sent).toEqual({ specialty: "Venereology" });
+  });
+
+  test("adding a specialty: errors by each field, then an in-review chip that can be cancelled", async ({
+    page,
+  }) => {
+    test.setTimeout(120_000);
+    // Cancelling is a new endpoint (DELETE, docs/handoff/settings-redesign.md): stubbed here.
+    let cancelMethod: string | null = null;
+    await page.route("**/api/doctor-specialty-change-request", async (route) => {
+      if (route.request().method() !== "DELETE") return route.fallback();
+      cancelMethod = route.request().method();
+      await route.fulfill({ status: 200, contentType: "application/json", body: "{}" });
+    });
+    await openSettings(page, seeded!, "profile");
+
+    const specialties = page.getByTestId("settings-specialties");
+    // One action only: no "what do you want to do?" choice.
+    await specialties.getByRole("button", { name: "+ Add a specialty" }).click();
+    const form = page.getByTestId("settings-specialty-change-form");
+    await expect(form.locator("select")).toHaveCount(0);
+    await expect(form).toContainText("So DocCy can check you're registered for this specialty.");
+
+    // Both errors at once, next to their fields.
+    await page.getByTestId("settings-specialty-change-submit").click();
+    await expect(page.getByTestId("settings-specialty-error")).toHaveText("Choose the specialty you want to add.");
+    await expect(form).toContainText("Enter your license or certification number.");
+
+    await page.getByTestId("settings-specialty-change-trigger").click();
+    await form.getByRole("button", { name: "Gastroenterology", exact: true }).click();
+    await expect(page.getByTestId("settings-specialty-error")).toHaveCount(0);
+    await page.getByLabel("License / certification number").fill("CY-E2E-1");
+    await page.getByTestId("settings-specialty-change-submit").click();
+
+    // The real request endpoint stores it; the page shows it as a chip in review.
+    const chip = page.getByTestId("settings-specialty-change-pending");
+    await expect(chip).toContainText("Gastroenterology");
+    await expect(chip).toContainText("In review");
+    await expect(specialties.getByRole("button", { name: "+ Add a specialty" })).toHaveCount(0);
+    const stored = await admin
+      .from("professional_specialty_change_requests")
+      .select("request_kind, to_specialty, license_number, status")
+      .eq("professional_id", seeded!.professionalId)
+      .single();
+    expect(stored.data).toEqual({
+      request_kind: "add",
+      to_specialty: "Gastroenterology",
+      license_number: "CY-E2E-1",
+      status: "pending",
+    });
+
+    await chip.getByRole("button", { name: "Cancel the request for Gastroenterology" }).click();
+    await expect(chip).toHaveCount(0);
+    expect(cancelMethod).toBe("DELETE");
+    await expect(specialties.getByRole("button", { name: "+ Add a specialty" })).toBeVisible();
   });
 });

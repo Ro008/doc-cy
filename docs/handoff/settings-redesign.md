@@ -38,9 +38,16 @@ https://claude.ai/artifact/3XYQpTSDQPyn2wWFg8NBmm (board "B1 · Sidebar + clinic
 - The save bar names the sections with unsaved changes (links to each, a dot in the
   sidebar) and offers "Discard changes".
 - Any clinic can be removed, the primary one too, as long as one clinic is left.
-- Any specialty can be removed instantly, as long as one specialty is left. Adding or
-  replacing a specialty is still a request (`POST /api/doctor-specialty-change-request`);
-  the "remove" kind is no longer sent from settings.
+- Any specialty can be removed instantly, as long as one specialty is left.
+- Specialty requests (user, 2026-10-01): settings only sends **"add"** to
+  `POST /api/doctor-specialty-change-request` (unchanged API). Changing one is "add the
+  new one, remove the old one once approved", so the "what do you want to do?" choice is
+  gone; "replace" / "remove" are no longer sent (older pending ones still show).
+  - Errors show next to each field (`lib/settings-specialty-request.ts`), all at once.
+  - The license field says why: "So DocCy can check you're registered for this specialty."
+  - The pending request is a dashed chip "In review" next to the specialties, with ✕ to
+    cancel it (endpoint 5 below). While it is pending, "+ Add a specialty" is hidden: the
+    API allows one pending request per professional.
 - Phones: unchanged from #238 (clinic phones read-only, mobile private).
 
 Pure rules the backend should mirror (and can import):
@@ -105,6 +112,13 @@ clinic is a request too (reviewed like the others).
   follow the new primary.
 - 200 `{}`; 400 `{ "message" }` (the page shows it as is).
 
+### 5. `DELETE /api/doctor-specialty-change-request` (new) — cancel the pending request
+
+- Auth: the signed-in professional. No body: they have at most one pending request.
+- Marks their pending row in `professional_specialty_change_requests` as cancelled (or
+  deletes it; yours to choose). It must no longer show to founders for review.
+- 200 `{}`; 404 `{ "message": "No pending request." }` when there is none.
+
 ## Temporary message to remove
 
 Until these endpoints exist they answer 404 and the page says the failure is expected
@@ -139,9 +153,10 @@ agenda "fits the window" layout when merging.
 ## Tests
 
 - Unit: `settings-sections`, `settings-removal-rules`, `clinic-change-request`,
-  `settings-clinic-summary` (in `npm run test:unit`).
+  `settings-clinic-summary`, `settings-specialty-request`, `settings-backend-pending`
+  (in `npm run test:unit`).
 - e2e: `tests/integration/settings_redesign.integration.spec.ts` (@pr-e2e). The specialty
-  removal and clinic change request tests stub the new endpoints with `page.route` and pin
+  removal, specialty request cancel and clinic change request tests stub the new endpoints with `page.route` and pin
   the request body; once the endpoints exist, the stubs can go.
 - Updated for the new layout: address wizard/notice, service menu, public phones, sign-out
   other sessions, registration review, avatar upload, language guard, feedback matrix,
