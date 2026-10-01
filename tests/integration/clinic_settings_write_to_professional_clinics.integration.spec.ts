@@ -11,9 +11,8 @@ import { seedProfessionalClinic } from "./helpers/test-doctor";
  * their own hours.
  *
  * Rules pinned here:
- * - account settings (professional_settings) follow the PRIMARY clinic's join row
- *   (trigger professional_clinics_sync_primary_settings); a secondary clinic's settings
- *   stay its own;
+ * - each clinic's settings stay on its own join row (since Point E6 professional_settings
+ *   keeps no copy of the primary clinic's schedule);
  * - the bookings toggle writes the clinic's join row (the settings save is covered by
  *   settings_clinics_read_only).
  */
@@ -105,16 +104,6 @@ async function joinRow(admin: SupabaseClient, id: string) {
   return data;
 }
 
-async function accountSettings(admin: SupabaseClient, professionalId: string) {
-  const { data, error } = await admin
-    .from("professional_settings")
-    .select("slot_duration_minutes, pause_online_bookings")
-    .eq("professional_id", professionalId)
-    .single();
-  if (error) throw new Error(`settings: ${error.message}`);
-  return data;
-}
-
 async function signIn(page: Page, seeded: Seeded) {
   await signInDoctorAndSetCookies(page, undefined, {
     email: seeded.email,
@@ -123,7 +112,9 @@ async function signIn(page: Page, seeded: Seeded) {
 }
 
 test.describe("Integration: per-clinic settings live on professional_clinics", { tag: "@pr-e2e" }, () => {
-  test("account settings follow the primary clinic's join row, not a secondary one", async () => {
+  // Since Point E6 professional_settings holds no copy of the primary clinic's schedule:
+  // each clinic's settings are its own join row's.
+  test("each clinic keeps its own settings on its join row", async () => {
     const admin = createIntegrationAdmin(requireSafeIntegration());
     let seeded: Partial<Seeded> = {};
     try {
@@ -136,12 +127,12 @@ test.describe("Integration: per-clinic settings live on professional_clinics", {
         .eq("id", id);
       if (save.error) throw new Error(save.error.message);
 
-      expect(await accountSettings(admin, seeded.professionalId!)).toEqual({
+      expect(await joinRow(admin, id)).toMatchObject({
         slot_duration_minutes: 50,
         pause_online_bookings: false,
       });
 
-      // A secondary clinic's settings are its own and never become the account's.
+      // A secondary clinic's settings are its own.
       const n = nonce();
       const clinic = await admin
         .from("clinics")
@@ -172,7 +163,8 @@ test.describe("Integration: per-clinic settings live on professional_clinics", {
         .eq("id", secondary.data.id);
       if (secondarySave.error) throw new Error(secondarySave.error.message);
 
-      expect((await accountSettings(admin, seeded.professionalId!)).slot_duration_minutes).toBe(50);
+      expect((await joinRow(admin, String(secondary.data.id)))?.slot_duration_minutes).toBe(15);
+      expect((await joinRow(admin, id))?.slot_duration_minutes).toBe(50);
     } finally {
       await cleanup(admin, seeded);
     }

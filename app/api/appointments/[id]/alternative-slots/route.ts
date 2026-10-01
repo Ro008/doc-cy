@@ -53,7 +53,7 @@ export async function GET(req: NextRequest, { params }: RouteContext) {
 
   const { data: appt, error: apptErr } = await supabase
     .from("appointments")
-    .select("id, doctor_id, appointment_datetime, status")
+    .select("id, doctor_id, appointment_datetime, status, location_id")
     .eq("id", id)
     .maybeSingle();
 
@@ -73,11 +73,16 @@ export async function GET(req: NextRequest, { params }: RouteContext) {
     );
   }
 
-  const loaded = await loadDoctorSettingsForSlots(supabase, doctor.id);
+  // Alternatives at the appointment's own clinic (its hours and slot length, Point E6).
+  const loaded = await loadDoctorSettingsForSlots(
+    supabase,
+    doctor.id,
+    (appt as { location_id?: string | null }).location_id,
+  );
   if (!loaded) {
     return NextResponse.json(
-      { message: "Professional settings not found." },
-      { status: 500 }
+      { message: "This clinic is not set up yet. Contact us to set it up." },
+      { status: 409 }
     );
   }
 

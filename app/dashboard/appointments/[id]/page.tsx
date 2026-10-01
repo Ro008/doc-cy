@@ -6,10 +6,9 @@ import { addMinutes } from "date-fns";
 import { enUS } from "date-fns/locale";
 import { appointmentToCyprusDate } from "@/lib/appointments";
 import { professionalFirstName } from "@/lib/professional-name";
-import {
-  buildWeeklyScheduleFromSettings,
-  type DoctorSettingsRow,
-} from "@/lib/doctor-settings";
+import { locationWeeklySchedule } from "@/lib/doctor-locations";
+import { loadDoctorLocations } from "@/lib/load-doctor-locations";
+import { clinicForAppointment, clinicSlotMinutes } from "@/lib/professional-account-settings";
 import { AppointmentReviewClient } from "@/components/dashboard/AppointmentReviewClient";
 import { PendingLink } from "@/components/navigation/PendingLink";
 import { buildGoogleCalendarUrl } from "@/lib/patient-calendar-event";
@@ -104,7 +103,7 @@ export default async function DashboardAppointmentDetailPage({
   const { data: appt, error: apptErr } = await supabase
     .from("appointments")
     .select(
-      "id, patient_name, patient_phone, appointment_datetime, status, reason, duration_minutes, proposal_expires_at, proposed_slots"
+      "id, patient_name, patient_phone, appointment_datetime, status, reason, duration_minutes, proposal_expires_at, proposed_slots, location_id"
     )
     .eq("id", appointmentId)
     .eq("doctor_id", doctor.id)
@@ -125,16 +124,11 @@ export default async function DashboardAppointmentDetailPage({
     );
   }
 
-  const { data: settingsRow } = await supabase
-    .from("professional_settings")
-    .select(
-      "slot_duration_minutes, monday, tuesday, wednesday, thursday, friday, saturday, sunday, start_time, end_time, weekly_schedule, break_start, break_end"
-    )
-    .eq("professional_id", doctor.id)
-    .maybeSingle();
-
-  const settingsTyped = settingsRow as DoctorSettingsRow | null;
-  const slotDefault = settingsTyped?.slot_duration_minutes ?? 30;
+  // The appointment's clinic schedule (Point E6: schedules live on the clinic links).
+  const locations = await loadDoctorLocations(doctor.id);
+  const apptLocationId = (appt as { location_id?: string | null }).location_id;
+  const appointmentClinic = clinicForAppointment(locations, apptLocationId);
+  const slotDefault = clinicSlotMinutes(locations, apptLocationId);
   const initialDurationMinutes = Number(
     (appt as { duration_minutes?: number | null }).duration_minutes ?? slotDefault
   );
@@ -173,11 +167,11 @@ export default async function DashboardAppointmentDetailPage({
   const doctorIcsUrl = appointmentCalendarPath(appt.id as string, "professional") ?? "";
 
   const scheduleForReview =
-    settingsTyped != null
+    appointmentClinic != null
       ? {
-          weeklySchedule: buildWeeklyScheduleFromSettings(settingsTyped),
-          breakStart: settingsTyped.break_start,
-          breakEnd: settingsTyped.break_end,
+          weeklySchedule: locationWeeklySchedule(appointmentClinic),
+          breakStart: appointmentClinic.break_start,
+          breakEnd: appointmentClinic.break_end,
         }
       : null;
 

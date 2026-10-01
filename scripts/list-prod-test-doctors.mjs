@@ -48,13 +48,21 @@ async function main() {
   for (const d of doctors ?? []) {
     const settings = await admin
       .from("professional_settings")
-      .select("pause_online_bookings, holiday_mode_enabled, booking_horizon_days")
+      .select("holiday_mode_enabled, booking_horizon_days")
       .eq("professional_id", d.id)
       .maybeSingle();
     const s = settings.data;
+    // The pause lives on the clinic link (Point E6).
+    const clinic = await admin
+      .from("professional_clinics")
+      .select("pause_online_bookings")
+      .eq("professional_id", d.id)
+      .eq("is_primary", true)
+      .limit(1)
+      .maybeSingle();
     const flags = [
       d.status !== "verified" ? "NOT_VERIFIED" : null,
-      s?.pause_online_bookings ? "PAUSED" : null,
+      !clinic.data ? "NO_CLINIC" : clinic.data.pause_online_bookings ? "PAUSED" : null,
       s?.holiday_mode_enabled ? "HOLIDAY" : null,
       !d.auth_user_id ? "NO_AUTH_LINK" : null,
     ]

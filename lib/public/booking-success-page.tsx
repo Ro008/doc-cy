@@ -12,6 +12,7 @@ import {
 } from "@/lib/patient-calendar-event";
 import { appointmentClinicCopy, loadAppointmentClinicPhone } from "@/lib/appointment-clinic-copy";
 import { loadDoctorLocations } from "@/lib/load-doctor-locations";
+import { clinicSlotMinutes } from "@/lib/professional-account-settings";
 import { loadPrimarySpecialtyName } from "@/lib/specialty-catalogue";
 import { getTranslations } from "next-intl/server";
 import { isConfirmedForCalendar } from "@/lib/appointment-status";
@@ -77,18 +78,15 @@ export default async function BookingSuccessPage({
     redirect(bookingProfilePath(params));
   }
 
-  const [doctorResult, settingsResult] = await Promise.all([
+  const [doctorResult, locations] = await Promise.all([
     supabase
       .from("professionals")
       .select("id, name, slug")
       .eq("id", appointment.doctor_id)
       .single(),
-    supabase
-      .from("professional_settings")
-      .select("slot_duration_minutes")
-      .eq("professional_id", appointment.doctor_id)
-      .single(),
+    loadDoctorLocations(appointment.doctor_id as string),
   ]);
+  const locationId = (appointment as { location_id?: string | null }).location_id;
 
   if (doctorResult.error || !doctorResult.data) {
     redirect(bookingProfilePath(params));
@@ -103,9 +101,8 @@ export default async function BookingSuccessPage({
     );
   }
 
-  const durationMinutes =
-    (settingsResult.data as { slot_duration_minutes?: number | null } | null)
-      ?.slot_duration_minutes ?? 30;
+  // The slot length of the appointment's clinic (Point E6: it lives on the clinic link).
+  const durationMinutes = clinicSlotMinutes(locations, locationId);
 
   const startUtc = new Date(appointment.appointment_datetime as string);
   const endUtc = addMinutes(startUtc, durationMinutes);
@@ -121,11 +118,7 @@ export default async function BookingSuccessPage({
 
   const confirmed = isConfirmedForCalendar(appointment.status as string);
 
-  const locations = await loadDoctorLocations(appointment.doctor_id as string);
-  const clinic = appointmentClinicCopy({
-    locations,
-    locationId: (appointment as { location_id?: string | null }).location_id,
-  });
+  const clinic = appointmentClinicCopy({ locations, locationId });
 
   const cal = getCalendarEventDetails(
     {

@@ -49,16 +49,16 @@ test.describe("Doctor lunch/break time", () => {
     expect(doctorId).toBeTruthy();
     expect(slug).toBeTruthy();
 
-    // Configure break directly in professional_settings to avoid mutating profile fields.
-    const { error: upsertErr } = await admin.from("professional_settings").upsert(
-      {
-        professional_id: doctorId,
+    // Configure the break on the primary clinic link (Point E6: schedules live there).
+    const { error: upsertErr } = await admin
+      .from("professional_clinics")
+      .update({
         break_start: "14:00:00",
         break_end: "16:00:00",
         updated_at: new Date().toISOString(),
-      },
-      { onConflict: "professional_id" }
-    );
+      })
+      .eq("professional_id", doctorId)
+      .eq("is_primary", true);
     expect(upsertErr).toBeNull();
 
     // Go to doctor profile and verify no slots are shown in 14:00–16:00

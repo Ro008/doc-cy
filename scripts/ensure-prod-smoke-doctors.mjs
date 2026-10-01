@@ -72,14 +72,24 @@ function loadEnvFile(explicit) {
   return null;
 }
 
-function bookableSettingsPayload(doctorId) {
-  const day = {
-    enabled: true,
-    start_time: "09:00:00",
-    end_time: "18:00:00",
-  };
+// Point E6: professional_settings holds the account settings (holiday, horizon, notice);
+// the schedule and the pause live on the professional's clinic link.
+function bookableAccountSettingsPayload(doctorId) {
   return {
     professional_id: doctorId,
+    holiday_mode_enabled: false,
+    holiday_start_date: null,
+    holiday_end_date: null,
+    booking_horizon_days: 90,
+    minimum_notice_hours: 1,
+    updated_at: new Date().toISOString(),
+  };
+}
+
+function bookableClinicSchedulePayload() {
+  const day = { enabled: true, start_time: "09:00:00", end_time: "18:00:00" };
+  const off = { enabled: false, start_time: "09:00:00", end_time: "18:00:00" };
+  return {
     monday: true,
     tuesday: true,
     wednesday: true,
@@ -95,26 +105,22 @@ function bookableSettingsPayload(doctorId) {
       wednesday: day,
       thursday: day,
       friday: day,
-      saturday: { enabled: false, start_time: "09:00:00", end_time: "18:00:00" },
-      sunday: { enabled: false, start_time: "09:00:00", end_time: "18:00:00" },
+      saturday: off,
+      sunday: off,
     },
     break_start: null,
     break_end: null,
-    holiday_mode_enabled: false,
-    holiday_start_date: null,
-    holiday_end_date: null,
     pause_online_bookings: false,
     slot_duration_minutes: 30,
-    booking_horizon_days: 90,
-    minimum_notice_hours: 1,
     updated_at: new Date().toISOString(),
   };
 }
 
-function settingsLookBookable(settings) {
+function settingsLookBookable(settings, clinicLink) {
   if (!settings) return { ok: false, reason: "missing professional_settings row" };
-  if (settings.pause_online_bookings) {
-    return { ok: false, reason: "pause_online_bookings is true" };
+  if (!clinicLink) return { ok: false, reason: "no primary clinic link (founders link a clinic)" };
+  if (clinicLink.pause_online_bookings) {
+    return { ok: false, reason: "the primary clinic's pause_online_bookings is true" };
   }
   if (settings.holiday_mode_enabled) {
     const today = new Date().toISOString().slice(0, 10);
@@ -129,12 +135,12 @@ function settingsLookBookable(settings) {
     return { ok: false, reason: `booking_horizon_days too low (${horizon})` };
   }
   const weekdays = ["monday", "tuesday", "wednesday", "thursday", "friday"];
-  const weekly = settings.weekly_schedule ?? {};
+  const weekly = clinicLink.weekly_schedule ?? {};
   const anyWeekday =
     weekdays.some((key) => weekly[key]?.enabled === true) ||
-    weekdays.some((key) => settings[key] === true);
+    weekdays.some((key) => clinicLink[key] === true);
   if (!anyWeekday) {
-    return { ok: false, reason: "no enabled weekday in schedule" };
+    return { ok: false, reason: "no enabled weekday in the primary clinic's schedule" };
   }
   return { ok: true, reason: "schedule looks bookable" };
 }
@@ -239,26 +245,42 @@ async function main() {
       const settingsRes = await admin
         .from("professional_settings")
         .select(
-          "professional_id, pause_online_bookings, holiday_mode_enabled, holiday_start_date, holiday_end_date, booking_horizon_days, weekly_schedule, monday, tuesday, wednesday, thursday, friday",
+          "professional_id, holiday_mode_enabled, holiday_start_date, holiday_end_date, booking_horizon_days",
         )
         .eq("professional_id", d.id)
         .maybeSingle();
+      const clinicRes = await admin
+        .from("professional_clinics")
+        .select("id, pause_online_bookings, weekly_schedule, monday, tuesday, wednesday, thursday, friday")
+        .eq("professional_id", d.id)
+        .eq("is_primary", true)
+        .limit(1)
+        .maybeSingle();
 
-      const bookable = settingsLookBookable(settingsRes.data);
+      const bookable = settingsLookBookable(settingsRes.data, clinicRes.data);
       if (bookable.ok) {
         console.log(`[booking] OK — ${bookable.reason}`);
       } else {
         console.warn(`[booking] NOT bookable — ${bookable.reason}`);
         if (args.apply) {
-          const payload = bookableSettingsPayload(d.id);
-          const upsert = await admin.from("professional_settings").upsert(payload, {
+          const accountPayload = bookableAccountSettingsPayload(d.id);
+          const upsert = await admin.from("professional_settings").upsert(accountPayload, {
             onConflict: "professional_id",
           });
-          if (upsert.error) {
-            console.error("[booking] Upsert failed:", upsert.error.message);
+          const clinicUpdate = clinicRes.data?.id
+            ? await admin
+                .from("professional_clinics")
+                .update(bookableClinicSchedulePayload())
+                .eq("id", clinicRes.data.id)
+            : { error: { message: "no primary clinic link to open (founders link a clinic first)" } };
+          if (upsert.error || clinicUpdate.error) {
+            console.error(
+              "[booking] Apply failed:",
+              upsert.error?.message ?? clinicUpdate.error?.message,
+            );
             exitCode = 1;
           } else {
-            console.log("[booking] Applied smoke-friendly professional_settings.");
+            console.log("[booking] Applied smoke-friendly account settings and clinic schedule.");
           }
         } else {
           exitCode = 1;

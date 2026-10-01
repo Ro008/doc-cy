@@ -88,10 +88,13 @@ test.describe("Integration: propose reschedule (confirmed visit)", { tag: ["@pr-
     }
 
     const nonce = `${Date.now()}-${Math.floor(Math.random() * 100000)}`;
+    // The primary clinic's slot length (Point E6: it lives on the clinic link).
     const { data: settingsRow } = await admin
-      .from("professional_settings")
+      .from("professional_clinics")
       .select("slot_duration_minutes")
       .eq("professional_id", doctor.id)
+      .eq("is_primary", true)
+      .limit(1)
       .maybeSingle();
     const fallbackDurationMinutes =
       Number(

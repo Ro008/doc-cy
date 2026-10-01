@@ -162,9 +162,9 @@ begin
   end if;
   v_checks := v_checks + 4;
 
-  -- Settings exist (bookings paused).
-  if not exists (select 1 from public.professional_settings where professional_id = v_pro.id and pause_online_bookings) then
-    raise exception 'FAIL: approval should create paused professional_settings';
+  -- Account settings exist (the pause lives on the clinic links since Point E6).
+  if not exists (select 1 from public.professional_settings where professional_id = v_pro.id) then
+    raise exception 'FAIL: approval should create professional_settings';
   end if;
   v_checks := v_checks + 1;
 
@@ -303,8 +303,8 @@ begin
      or not exists (select 1 from public.professional_clinics where professional_id = v_listing and clinic_id = v_clinic and is_primary) then
     raise exception 'FAIL: clinic links should be replaced, and the old clinic kept';
   end if;
-  if not exists (select 1 from public.professional_settings where professional_id = v_listing and pause_online_bookings) then
-    raise exception 'FAIL: approving a claim should create paused professional_settings';
+  if not exists (select 1 from public.professional_settings where professional_id = v_listing) then
+    raise exception 'FAIL: approving a claim should create professional_settings';
   end if;
   v_checks := v_checks + 5;
 
@@ -316,13 +316,13 @@ begin
     '55000', 'claiming a listing that is already registered');
   v_checks := v_checks + 1;
 
-  -- 9. Outside approvals (fixtures, seeds) a registered professional still gets paused settings.
+  -- 9. Outside approvals (fixtures, seeds) a registered professional still gets settings.
   insert into public.professionals (auth_user_id, name, slug, is_registered, status, is_test_profile)
   values (pg_temp.new_login('appr-old-' || v_tag || '@integration.test'), 'Old Path ' || v_tag, 'old-path-' || v_tag,
           true, 'pending', true)
   returning id into v_listing;
-  if not exists (select 1 from public.professional_settings where professional_id = v_listing and pause_online_bookings) then
-    raise exception 'FAIL: a directly inserted registered professional should get paused settings';
+  if not exists (select 1 from public.professional_settings where professional_id = v_listing) then
+    raise exception 'FAIL: a directly inserted registered professional should get settings';
   end if;
   v_checks := v_checks + 1;
 

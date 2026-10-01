@@ -73,12 +73,12 @@ begin
   v_checks := v_checks + 1;
 
   -- 7. Since D4 the registration location trigger is gone (with doctor_locations); the
-  --    professional still gets paused settings (doctor_locations_dropped.test.sql).
+  --    professional still gets settings (doctor_locations_dropped.test.sql).
   if exists (select 1 from pg_trigger where tgname = 'professionals_create_primary_location') then
     raise exception 'FAIL: professionals_create_primary_location should be gone since D4';
   end if;
-  if not exists (select 1 from public.professional_settings where professional_id = v_pro and pause_online_bookings) then
-    raise exception 'FAIL: a directly inserted registered professional should get paused settings';
+  if not exists (select 1 from public.professional_settings where professional_id = v_pro) then
+    raise exception 'FAIL: a directly inserted registered professional should get settings';
   end if;
   v_checks := v_checks + 1;
 

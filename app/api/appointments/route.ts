@@ -19,7 +19,6 @@ import {
   isDateInHolidayRange,
   isTimeWithinSettings,
   normalizeMinimumNoticeHours,
-  type DoctorSettingsRow,
 } from "@/lib/doctor-settings";
 import {
   sendResendEmail,
@@ -50,6 +49,7 @@ import {
 import { enforcePublicApiRateLimit } from "@/lib/public-api-rate-limit";
 import { appointmentRequestSentQuery } from "@/lib/appointment-links";
 import { locationToSettingsRow } from "@/lib/doctor-locations";
+import { PROFESSIONAL_ACCOUNT_SETTINGS_SELECT } from "@/lib/professional-account-settings";
 import { loadDoctorLocations, primaryDoctorLocation } from "@/lib/load-doctor-locations";
 import { locationHasClinic } from "@/lib/professional-clinic-locations";
 import { professionalAccountEmail } from "@/lib/professional-account-contact";
@@ -195,7 +195,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Verify requested time against professional_settings (working days + hours)
+  // Verify the requested time against the clinic's schedule and the account settings.
   const cyLocal = utcToZonedTime(appointmentUtc, CY_TZ);
   const dayOfWeek = cyLocal.getDay(); // 0-6
   const hours = cyLocal.getHours();
@@ -206,7 +206,7 @@ export async function POST(req: NextRequest) {
 
   const { data: settings, error: settingsError } = await supabase
     .from("professional_settings")
-    .select("*")
+    .select(PROFESSIONAL_ACCOUNT_SETTINGS_SELECT)
     .eq("professional_id", doctorId)
     .single();
 
@@ -250,9 +250,8 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const locationSettings = bookingLocation
-    ? locationToSettingsRow(bookingLocation, settings as DoctorSettingsRow)
-    : (settings as DoctorSettingsRow);
+  // The schedule is the clinic link's; holiday, horizon and notice are the account's.
+  const locationSettings = locationToSettingsRow(bookingLocation, settings);
 
   const pauseOnlineBookings = Boolean(locationSettings.pause_online_bookings);
   if (pauseOnlineBookings) {

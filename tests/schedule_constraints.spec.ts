@@ -37,8 +37,7 @@ type WeeklySchedulePayload = {
 
 /**
  * Booking availability is resolved from the primary clinic link (professional_clinics), not
- * professional_settings alone. Updating the primary link also syncs its schedule onto
- * professional_settings (trigger professional_clinics_sync_primary_settings), and
+ * professional_settings (which holds the account settings only since Point E6), and
  * appointments reference the link's id.
  */
 async function syncPrimaryLocationSchedule(

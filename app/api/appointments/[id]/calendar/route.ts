@@ -7,6 +7,7 @@ import { isConfirmedForCalendar } from "@/lib/appointment-status";
 import { isAppointmentLinkExpired, verifyAppointmentLink } from "@/lib/appointment-links";
 import { appointmentClinicCopy, loadAppointmentClinicPhone } from "@/lib/appointment-clinic-copy";
 import { loadDoctorLocations } from "@/lib/load-doctor-locations";
+import { clinicSlotMinutes } from "@/lib/professional-account-settings";
 import { loadPrimarySpecialtyName } from "@/lib/specialty-catalogue";
 
 type RouteContext = {
@@ -90,11 +91,8 @@ export async function GET(req: NextRequest, { params }: RouteContext) {
     appointment.doctor_id as string,
   );
 
-  const { data: settings } = await supabase
-    .from("professional_settings")
-    .select("slot_duration_minutes")
-    .eq("professional_id", appointment.doctor_id)
-    .single();
+  const locations = await loadDoctorLocations(appointment.doctor_id as string);
+  const locationId = (appointment as { location_id?: string | null }).location_id;
 
   const rowDur = Number(
     (appointment as { duration_minutes?: number | null }).duration_minutes
@@ -102,18 +100,13 @@ export async function GET(req: NextRequest, { params }: RouteContext) {
   const durationMinutes =
     Number.isFinite(rowDur) && rowDur > 0
       ? rowDur
-      : (settings as { slot_duration_minutes?: number | null } | null)
-          ?.slot_duration_minutes ?? 30;
+      : clinicSlotMinutes(locations, locationId);
 
   const startUtc = new Date(appointment.appointment_datetime as string);
   const endUtc = addMinutes(startUtc, durationMinutes);
   const createdUtc = new Date((appointment.created_at as string) ?? new Date().toISOString());
 
-  const locations = await loadDoctorLocations(appointment.doctor_id as string);
-  const clinic = appointmentClinicCopy({
-    locations,
-    locationId: (appointment as { location_id?: string | null }).location_id,
-  });
+  const clinic = appointmentClinicCopy({ locations, locationId });
 
   const doctorPayload = {
     name: doctor?.name,

@@ -13,24 +13,14 @@ import {
   DOCTOR_FIRST_LOGIN_PATH,
   shouldRedirectFirstLoginToSettings,
 } from "@/lib/first-login-trial-notice";
-import {
-  buildWeeklyScheduleFromSettings,
-  type DoctorSettingsRow,
-  type WeeklySchedule,
-} from "@/lib/doctor-settings";
 import { fetchAllSupabaseRows } from "@/lib/supabase-fetch-all";
-import { loadDoctorLocations } from "@/lib/load-doctor-locations";
+import { loadDoctorLocations, primaryDoctorLocation } from "@/lib/load-doctor-locations";
 import {
   AGENDA_APPOINTMENT_SELECT,
+  locationToAgendaHours,
   locationsToAgendaClinics,
+  type AgendaWorkingHours,
 } from "@/lib/agenda-clinics";
-
-type AgendaWorkingHours = {
-  weeklySchedule: WeeklySchedule;
-  breakStart: string | null;
-  breakEnd: string | null;
-  slotDurationMinutes: number;
-};
 
 type AgendaPageProps = {
   searchParams?: {
@@ -128,51 +118,14 @@ export default async function AgendaPage({ searchParams }: AgendaPageProps) {
     console.error(error);
   }
 
-  let workingHours: AgendaWorkingHours | null = null;
-  {
-    let settingsRes = await supabase
-      .from("professional_settings")
-      .select(
-        "professional_id, monday, tuesday, wednesday, thursday, friday, saturday, sunday, start_time, end_time, weekly_schedule, break_start, break_end, pause_online_bookings, holiday_mode_enabled, holiday_start_date, holiday_end_date, booking_horizon_days, minimum_notice_hours, slot_duration_minutes",
-      )
-      .eq("professional_id", doctor.id)
-      .single();
-
-    const weeklyMissing =
-      settingsRes.error &&
-      (String(settingsRes.error.message ?? "")
-        .toLowerCase()
-        .includes("weekly_schedule") ||
-        (settingsRes.error as { code?: string }).code === "42703");
-
-    if (weeklyMissing) {
-      settingsRes = await supabase
-        .from("professional_settings")
-        .select(
-          "professional_id, monday, tuesday, wednesday, thursday, friday, saturday, sunday, start_time, end_time, break_start, break_end, pause_online_bookings, holiday_mode_enabled, holiday_start_date, holiday_end_date, booking_horizon_days, minimum_notice_hours, slot_duration_minutes",
-        )
-        .eq("professional_id", doctor.id)
-        .single();
-    }
-
-    if (!settingsRes.error && settingsRes.data) {
-      const s = settingsRes.data as DoctorSettingsRow;
-      workingHours = {
-        weeklySchedule: buildWeeklyScheduleFromSettings({
-          ...s,
-          weekly_schedule: s.weekly_schedule ?? null,
-        }),
-        breakStart: (s.break_start ?? null) as string | null,
-        breakEnd: (s.break_end ?? null) as string | null,
-        slotDurationMinutes:
-          (s as { slot_duration_minutes?: number | null })
-            .slot_duration_minutes ?? 30,
-      };
-    }
-  }
-
   const locationRows = await loadDoctorLocations(doctor.id);
   const clinics = locationsToAgendaClinics(locationRows);
+  // The primary clinic's hours frame the calendar (Point E6: schedules live on the
+  // clinic links, each clinic's own hours come with `clinics`).
+  const primaryClinic = primaryDoctorLocation(locationRows);
+  const workingHours: AgendaWorkingHours | null = primaryClinic
+    ? locationToAgendaHours(primaryClinic)
+    : null;
 
   const displayName = doctorDashboardDisplayName(doctor.name);
 

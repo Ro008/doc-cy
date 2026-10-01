@@ -3,11 +3,10 @@
 -- Mirrors the Testing profile the specs were written against: registered, verified,
 -- bookable Monday–Friday 09:00–18:00 at one Larnaca clinic, one service, Neurology.
 --
--- Inserting a registered professional creates its settings (paused, as for anyone new)
--- through the same trigger as a real sign-up. The clinic and its primary link are then
--- written the way an approved registration writes them (clinics + professional_clinics),
--- open for bookings; professional_clinics_sync_primary_settings copies the primary link's
--- schedule and pause onto the settings, as for every professional.
+-- Inserting a registered professional creates its account settings through the same
+-- trigger as a real sign-up. The clinic and its primary link are then written the way an
+-- approved registration writes them (clinics + professional_clinics), open for bookings:
+-- the schedule and the pause live on the link (Point E6).
 
 \set ON_ERROR_STOP on
 
@@ -67,7 +66,7 @@ begin
     join public.clinics c on c.id = pc.clinic_id
     join public.professional_settings ps on ps.professional_id = pc.professional_id
     where pc.professional_id = md5('ci-fixture-andreas-nikos')::uuid
-      and pc.is_primary and not pc.pause_online_bookings and not ps.pause_online_bookings
+      and pc.is_primary and not pc.pause_online_bookings
       and nullif(btrim(c.address), '') is not null
   ) then
     raise exception 'Fixture doctor andreas-nikos is not bookable after the load.';

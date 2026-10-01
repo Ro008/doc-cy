@@ -24,10 +24,8 @@ import {
   locationToSettingsRow,
 } from "@/lib/doctor-locations";
 import { parseBookingLocationParam, parseBookingSlotParam } from "@/lib/booking-slot-param";
-import {
-  settingsToWeeklySlots,
-  type DoctorSettingsRow,
-} from "@/lib/doctor-settings";
+import { loadProfessionalAccountSettings } from "@/lib/professional-account-settings";
+import { settingsToWeeklySlots } from "@/lib/doctor-settings";
 import { appointmentToCyprusDate, CY_TZ } from "@/lib/appointments";
 import { addDays, format } from "date-fns";
 import { utcToZonedTime, zonedTimeToUtc } from "date-fns-tz";
@@ -210,13 +208,6 @@ async function selectPublicProfessionalBySlug(
     data: null,
     error: (res.error as { message?: string; code?: string } | null) ?? null,
   };
-}
-
-function isDoctorSettingsSchemaError(msg: string, code?: string): boolean {
-  return (
-    code === "42703" ||
-    /professional_settings|column|does not exist|schema cache/i.test(msg ?? "")
-  );
 }
 
 type PublicDoctorFetch =
@@ -693,54 +684,11 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
 
   const profileCanonicalUrl = `${siteBaseUrl()}${publicProfessionalProfilePath(params.slug, profileLocale(params))}`;
 
-  const settingsSelectFull =
-    "professional_id, monday, tuesday, wednesday, thursday, friday, saturday, sunday, start_time, end_time, weekly_schedule, break_start, break_end, slot_duration_minutes, pause_online_bookings, holiday_mode_enabled, holiday_start_date, holiday_end_date, booking_horizon_days, minimum_notice_hours";
-  const settingsSelectLegacy =
-    "professional_id, monday, tuesday, wednesday, thursday, friday, start_time, end_time, break_start, break_end, slot_duration_minutes";
-
-  const { data: settingsFull, error: settingsErr } = await supabase
-    .from("professional_settings")
-    .select(settingsSelectFull)
-    .eq("professional_id", profile.id)
-    .single();
-
-  let settings: any = settingsFull ?? null;
-  if (
-    settingsErr &&
-    isDoctorSettingsSchemaError(
-      settingsErr.message ?? "",
-      (settingsErr as any)?.code,
-    )
-  ) {
-    const { data: settingsLegacy } = await supabase
-      .from("professional_settings")
-      .select(settingsSelectLegacy)
-      .eq("professional_id", profile.id)
-      .single();
-    settings = settingsLegacy ?? null;
-  }
-
-  const normalizedSettings: DoctorSettingsRow | null = settings
-    ? ({
-        ...settings,
-        saturday: Boolean((settings as any).saturday ?? false),
-        sunday: Boolean((settings as any).sunday ?? false),
-        pause_online_bookings: Boolean(
-          (settings as any).pause_online_bookings ?? false,
-        ),
-        holiday_mode_enabled: Boolean(
-          (settings as any).holiday_mode_enabled ?? false,
-        ),
-        holiday_start_date: (settings as any).holiday_start_date ?? null,
-        holiday_end_date: (settings as any).holiday_end_date ?? null,
-        booking_horizon_days: Number(
-          (settings as any).booking_horizon_days ?? 90,
-        ),
-        minimum_notice_hours: Number(
-          (settings as any).minimum_notice_hours ?? 2,
-        ),
-      } as DoctorSettingsRow)
-    : null;
+  // Account settings (holiday, horizon, notice); the schedule is the clinic link's (Point E6).
+  const { settings: normalizedSettings } = await loadProfessionalAccountSettings(
+    supabase,
+    profile.id,
+  );
 
   const [practiceLocations, registeredClinics] = await Promise.all([
     loadDoctorLocations(profile.id),
@@ -774,7 +722,7 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
         selectedLocation,
         normalizedSettings ?? ACCOUNT_SETTINGS_FALLBACK,
       )
-    : normalizedSettings;
+    : null;
 
   const weeklySlots = locationSettings
     ? settingsToWeeklySlots(locationSettings)
@@ -1030,13 +978,10 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
               breakStart={breakStart ? breakStart.slice(0, 5) : undefined}
               breakEnd={breakEnd ? breakEnd.slice(0, 5) : undefined}
               publicPhoneAvailable={hasPublicPhone}
-              onlineBookingsPaused={Boolean(
-                (
-                  locationSettings as {
-                    pause_online_bookings?: boolean | null;
-                  } | null
-                )?.pause_online_bookings,
-              )}
+              onlineBookingsPaused={
+                // No clinic, no schedule: nothing to book online.
+                !locationSettings || Boolean(locationSettings.pause_online_bookings)
+              }
               holidayModeEnabled={Boolean(
                 (
                   normalizedSettings as {

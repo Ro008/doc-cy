@@ -100,39 +100,12 @@ test.describe("Integration: NEEDS_RESCHEDULE frees original slot", { tag: ["@pr-
         isApproved: true,
       });
 
-      const day = {
-        enabled: true,
-        start_time: "09:00:00",
-        end_time: "17:00:00",
-      };
       const settingsUpsert = await admin.from("professional_settings").upsert(
         {
           professional_id: doctorId,
-          monday: true,
-          tuesday: true,
-          wednesday: true,
-          thursday: true,
-          friday: true,
-          saturday: false,
-          sunday: false,
-          start_time: "09:00:00",
-          end_time: "17:00:00",
-          weekly_schedule: {
-            monday: day,
-            tuesday: day,
-            wednesday: day,
-            thursday: day,
-            friday: day,
-            saturday: { enabled: false, start_time: "09:00:00", end_time: "17:00:00" },
-            sunday: { enabled: false, start_time: "09:00:00", end_time: "17:00:00" },
-          },
-          break_start: null,
-          break_end: null,
           holiday_mode_enabled: false,
           holiday_start_date: null,
           holiday_end_date: null,
-          pause_online_bookings: false,
-          slot_duration_minutes: 30,
           booking_horizon_days: 90,
           minimum_notice_hours: 1,
           updated_at: new Date().toISOString(),

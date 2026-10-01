@@ -10,6 +10,8 @@ import {
   fetchBlockingAppointments,
   toBlockingRows,
 } from "@/lib/appointment-blocking-query";
+import { loadDoctorLocations } from "@/lib/load-doctor-locations";
+import { clinicSlotMinutes } from "@/lib/professional-account-settings";
 
 type RouteContext = { params: { id: string } };
 
@@ -63,15 +65,8 @@ export async function GET(req: NextRequest, { params }: RouteContext) {
     return NextResponse.json({ message: "Forbidden." }, { status: 403 });
   }
 
-  const { data: settings } = await supabase
-    .from("professional_settings")
-    .select("slot_duration_minutes")
-    .eq("professional_id", doctor.id)
-    .maybeSingle();
-
-  const fallbackDuration =
-    (settings as { slot_duration_minutes?: number | null } | null)
-      ?.slot_duration_minutes ?? 30;
+  // A visit saved without a length counts as the primary clinic's slot (Point E6).
+  const fallbackDuration = clinicSlotMinutes(await loadDoctorLocations(doctor.id));
 
   const { data: blockingRaw, error: othersErr } = await fetchBlockingAppointments(
     supabase,
