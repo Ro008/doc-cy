@@ -6,6 +6,8 @@ export const SETTINGS_SECTIONS = [
   { id: "services", label: "Services & prices" },
   { id: "profile", label: "Profile" },
   { id: "contact", label: "Contact & phone" },
+  // QR, print sign and scripts: their own section, not part of Account (user, 2026-10-01).
+  { id: "promote", label: "Promote" },
   { id: "account", label: "Account" },
 ] as const;
 

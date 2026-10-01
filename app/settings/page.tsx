@@ -536,28 +536,26 @@ export default async function AgendaSettingsPage({
             </div>
           }
           profileExtra={<GesyPatientsToggle initialAcceptsGesy={Boolean(doctor.is_gesy)} />}
-          account={
-            <>
-              <AccountSecurityCard email={user.email ?? ""} />
-              <div id="promote-practice" className="scroll-mt-24">
-                {isVerified ? (
-                  <PromotePracticeSection
-                    slug={doctor.slug}
-                    doctorName={doctor.name}
-                    localeLike={localeLike}
-                  />
-                ) : (
-                  <section className="rounded-3xl border border-slate-700/70 bg-slate-900/70 p-5">
-                    <h2 className="text-sm font-semibold text-slate-100">Promote your practice</h2>
-                    <p className="mt-2 text-sm text-slate-400">
-                      QR codes, printable signs, and downloads are available after your profile is{" "}
-                      <span className="font-medium text-amber-200/90">verified</span> by our team.
-                      You can still use your agenda and settings in the meantime.
-                    </p>
-                  </section>
-                )}
-              </div>
-            </>
+          account={<AccountSecurityCard email={user.email ?? ""} />}
+          promote={
+            <div id="promote-practice">
+              {isVerified ? (
+                <PromotePracticeSection
+                  slug={doctor.slug}
+                  doctorName={doctor.name}
+                  localeLike={localeLike}
+                />
+              ) : (
+                <section className="rounded-3xl border border-slate-700/70 bg-slate-900/70 p-5">
+                  <h2 className="text-sm font-semibold text-slate-100">Promote your practice</h2>
+                  <p className="mt-2 text-sm text-slate-400">
+                    QR codes, printable signs, and downloads are available after your profile is{" "}
+                    <span className="font-medium text-amber-200/90">verified</span> by our team.
+                    You can still use your agenda and settings in the meantime.
+                  </p>
+                </section>
+              )}
+            </div>
           }
         />
       </div>

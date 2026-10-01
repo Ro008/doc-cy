@@ -129,7 +129,7 @@ test.describe("Doctor dashboard", () => {
   test("settings: QR section is visible and download button works", async ({ page }) => {
     test.setTimeout(60000);
     await signIn(page);
-    await page.goto("/settings?section=account");
+    await page.goto("/settings?section=promote");
     await expect(page).toHaveURL(/\/settings/, { timeout: 10000 });
 
     await expect(page.getByText(/Patients scan to open|Οι ασθενείς σκανάρουν/i)).toBeVisible({
@@ -154,7 +154,7 @@ test.describe("Doctor dashboard", () => {
     test.setTimeout(60000);
     await page.setViewportSize({ width: 390, height: 844 });
     await signIn(page);
-    await page.goto("/settings?section=account");
+    await page.goto("/settings?section=promote");
     await expect(page).toHaveURL(/\/settings/, { timeout: 10000 });
     await expect(page.getByText(/Patients scan to open|Οι ασθενείς σκανάρουν/i)).toBeVisible({
       timeout: 10000,

@@ -182,8 +182,10 @@ type SettingsFormProps = {
   sidebarHeader?: React.ReactNode;
   /** Extra Profile rows rendered by the page (e.g. the GESY switch). */
   profileExtra?: React.ReactNode;
-  /** The Account section: sign-out, promote your practice. */
+  /** The Account section: sign-in & security. */
   account?: React.ReactNode;
+  /** The Promote section: QR, print sign, scripts. */
+  promote?: React.ReactNode;
 };
 
 type CropArea = { x: number; y: number; width: number; height: number };
@@ -321,6 +323,7 @@ export function SettingsForm({
   sidebarHeader,
   profileExtra,
   account,
+  promote,
 }: SettingsFormProps) {
   const [section, setSection] = React.useState<SettingsSectionId>(
     () => initialSection ?? parseSettingsSection(null),
@@ -335,6 +338,12 @@ export function SettingsForm({
       setSection(parseSettingsSection(new URLSearchParams(window.location.search).get("section")));
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
+  }, []);
+  // Old "Promote your practice" links pointed at Account (#promote-practice).
+  React.useEffect(() => {
+    if (window.location.hash !== "#promote-practice") return;
+    setSection("promote");
+    window.history.replaceState(null, "", settingsSectionHref("promote"));
   }, []);
   const [isClient, setIsClient] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
@@ -1910,8 +1919,15 @@ export function SettingsForm({
 
   const accountSection = (
     <div className="space-y-5">
-      {sectionTitle("Account", "Your sessions and the material to promote your practice.")}
+      {sectionTitle("Account", "How you sign in to DocCy.")}
       {account}
+    </div>
+  );
+
+  const promoteSection = (
+    <div className="space-y-5">
+      {sectionTitle("Promote", "Bring patients to your booking page: your QR, a printable sign and ready-made scripts.")}
+      {promote}
     </div>
   );
 
@@ -1921,6 +1937,7 @@ export function SettingsForm({
     services: servicesSection,
     profile: profileSection,
     contact: contactSection,
+    promote: promoteSection,
     account: accountSection,
   };
 

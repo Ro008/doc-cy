@@ -5,6 +5,7 @@ import {
   Building2,
   CalendarDays,
   Lock,
+  Megaphone,
   Phone,
   Tags,
   UserRound,
@@ -22,6 +23,7 @@ const SECTION_ICONS: Record<SettingsSectionId, LucideIcon> = {
   services: Tags,
   profile: UserRound,
   contact: Phone,
+  promote: Megaphone,
   account: Lock,
 };
 

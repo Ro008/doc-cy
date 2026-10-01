@@ -19,8 +19,8 @@ test.describe("Promote your practice (settings)", { tag: "@pr-e2e" }, () => {
 
     await signInDoctorOrFail(page, undefined, { email, password });
     await exposeSupabaseAuthCookiesToClient(page);
-    await page.goto("/settings?section=account#promote-practice", { waitUntil: "domcontentloaded" });
-    await expect(page).toHaveURL(/\/settings(?:#promote-practice)?/, { timeout: 20_000 });
+    await page.goto("/settings?section=promote", { waitUntil: "domcontentloaded" });
+    await expect(page).toHaveURL(/\/settings\?section=promote/, { timeout: 20_000 });
   });
 
   test("verified doctor sees QR block and phone/website scripts", async ({ page }) => {
@@ -69,9 +69,9 @@ test.describe("Promote your practice (settings)", { tag: "@pr-e2e" }, () => {
 
     await page.getByTestId("userbar-tab-settings").click();
     await expect(page).toHaveURL(/\/settings(?:[/?#]|$)/, { timeout: 15_000 });
-    // Promote your practice lives in the Account section.
-    await page.getByTestId("settings-sidebar").getByRole("link", { name: "Account" }).click();
-    await expect(page).toHaveURL(/section=account/);
+    // Promote has its own settings section (user, 2026-10-01).
+    await page.getByTestId("settings-sidebar").getByRole("link", { name: "Promote" }).click();
+    await expect(page).toHaveURL(/section=promote/);
     await expect(page.getByTestId("promote-voicemail-script")).toBeVisible();
   });
 });

@@ -446,6 +446,17 @@ test.describe("Settings redesign (B1)", { tag: "@pr-e2e" }, () => {
     await expect(card.getByTestId("settings-sign-out-button")).toBeVisible();
   });
 
+  test("Promote is its own section, and old Account links land on it", async ({ page }) => {
+    test.setTimeout(120_000);
+    await openSettings(page, seeded!);
+    await page.goto("/settings?section=account#promote-practice");
+    await expect(page).toHaveURL(/\/settings\?section=promote$/);
+    await expect(page.getByRole("heading", { level: 1, name: "Promote" })).toBeVisible();
+    await expect(
+      page.getByTestId("settings-sidebar").getByRole("link", { name: /Promote/ }),
+    ).toHaveAttribute("aria-current", "page");
+  });
+
   test("adding a specialty: errors by each field, then an in-review chip that can be cancelled", async ({
     page,
   }) => {

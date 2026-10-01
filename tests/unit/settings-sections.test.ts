@@ -14,8 +14,13 @@ describe("settings sections (sidebar)", () => {
   it("lists the sidebar sections in order", () => {
     assert.deepEqual(
       SETTINGS_SECTIONS.map((s) => s.id),
-      ["availability", "clinics", "services", "profile", "contact", "account"],
+      ["availability", "clinics", "services", "profile", "contact", "promote", "account"],
     );
+  });
+
+  it("gives promoting the practice its own section, apart from Account", () => {
+    assert.equal(SETTINGS_SECTIONS.find((s) => s.id === "promote")?.label, "Promote");
+    assert.equal(parseSettingsSection("promote"), "promote");
   });
 
   it("gives every section a label", () => {
