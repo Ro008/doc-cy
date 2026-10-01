@@ -39,6 +39,8 @@ async function addClinic(
   input: {
     token: string;
     label: string;
+    /** The professional's own label for the link, when it differs from DocCy's name. */
+    ownLabel?: string;
     district: string;
     address: string;
     pin: { latitude: number; longitude: number };
@@ -66,7 +68,7 @@ async function addClinic(
       clinic_id: String(clinic.data.id),
       is_primary: input.isPrimary,
       sort_order: input.isPrimary ? 0 : 1,
-      label: input.label,
+      label: input.ownLabel ?? input.label,
       pause_online_bookings: input.paused,
       monday: true,
       tuesday: true,
@@ -144,6 +146,8 @@ async function seed(admin: SupabaseClient, tag: string): Promise<Seeded> {
   const primary = await addClinic(admin, professionalId, {
     token: `b1p-${n}`,
     label: "Limassol Skin Clinic",
+    // An old per-doctor rename: patients must still see DocCy's name.
+    ownLabel: "My Limassol room",
     district: "Limassol",
     address: `Settings Street ${n}, Limassol, Cyprus`,
     pin: { latitude: 34.68, longitude: 33.04 },
@@ -343,6 +347,20 @@ test.describe("Settings redesign (B1)", { tag: "@pr-e2e" }, () => {
     await expect(page.getByTestId("settings-unsaved-changes")).toHaveCount(0);
   });
 
+  test("the clinic name is DocCy's, and only a request can change it", async ({ page }) => {
+    test.setTimeout(120_000);
+    await openSettings(page, seeded!, "clinics");
+
+    const card = clinicCard(page, "Limassol Skin Clinic");
+    await expect(card).toHaveCount(1);
+    await expect(page.getByTestId("settings-clinic-card").filter({ hasText: "My Limassol room" })).toHaveCount(0);
+
+    await card.getByRole("button", { name: "Edit hours" }).click();
+    await expect(page.getByTestId("settings-clinic-name-note")).toContainText("Request a change");
+    await expect(page.locator("#clinicName")).toHaveCount(0);
+    await expect(card.getByRole("button", { name: "Request a change" })).toBeVisible();
+  });
+
   test("unsaved changes say where they are and can be discarded", async ({ page }) => {
     test.setTimeout(120_000);
     await openSettings(page, seeded!, "clinics");
@@ -351,8 +369,8 @@ test.describe("Settings redesign (B1)", { tag: "@pr-e2e" }, () => {
     await expect(page.getByTestId("settings-unsaved-changes")).toHaveCount(0);
 
     const card = clinicCard(page, "Limassol Skin Clinic");
-    await card.getByRole("button", { name: "Edit name and hours" }).click();
-    await page.locator("#clinicName").fill("Limassol Skin Care");
+    await card.getByRole("button", { name: "Edit hours" }).click();
+    await card.getByRole("radio", { name: "45 min" }).click();
 
     const bar = page.getByTestId("settings-unsaved-changes");
     await expect(bar).toContainText("Unsaved changes in Clinics.");

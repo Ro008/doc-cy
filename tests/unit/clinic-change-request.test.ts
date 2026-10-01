@@ -112,17 +112,28 @@ describe("validateClinicChangeRequest", () => {
     });
   });
 
-  it("needs a clinic name of up to 40 characters", () => {
+  it("needs a clinic name of up to 120 characters, like /register", () => {
     assert.deepEqual(validateClinicChangeRequest({ current, requested: pick({ name: "   " }) }), {
       ok: false,
       field: "name",
       message: "Enter the clinic name.",
     });
-    assert.deepEqual(validateClinicChangeRequest({ current, requested: pick({ name: "x".repeat(41) }) }), {
+    assert.deepEqual(validateClinicChangeRequest({ current, requested: pick({ name: "x".repeat(121) }) }), {
       ok: false,
       field: "name",
-      message: "Keep the clinic name under 40 characters.",
+      message: "Keep the clinic name under 120 characters.",
     });
+  });
+
+  it("changes only the phone of a clinic with a long DocCy name", () => {
+    const longName = "WellClub - Wellness Family Experience clinic";
+    assert.deepEqual(
+      validateClinicChangeRequest({
+        current: { ...current, name: longName },
+        requested: pick({ name: longName, phone: "26 123456" }),
+      }),
+      { ok: true, changes: { phone: "26123456" } },
+    );
   });
 
   it("refuses a phone that is not a Cyprus line, and never removes one", () => {

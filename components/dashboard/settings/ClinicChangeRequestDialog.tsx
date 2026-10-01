@@ -57,6 +57,8 @@ export function ClinicChangeRequestDialog({
     }
     setBusy(true);
     try {
+      // EXPECTED TO FAIL until Livio builds POST /api/clinic-change-requests (backend pending, see
+      // lib/settings-backend-pending.ts): the doctor sees a message saying so.
       const res = await fetch("/api/clinic-change-requests", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -64,7 +66,7 @@ export function ClinicChangeRequestDialog({
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        toast.error(settingsActionErrorMessage(res.status, data, "Could not send the request."));
+        toast.error(settingsActionErrorMessage("clinicChangeRequest", res.status, data, "Could not send the request."));
         return;
       }
       onSent({

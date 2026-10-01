@@ -55,6 +55,15 @@ describe("doctor locations", () => {
     assert.equal(clinicDefaultName(1, 2), "Clinic 2");
     assert.equal(clinicDisplayName("  ", 0, 2), "Clinic 1");
     assert.equal(clinicDisplayName("Evangelismos", 0, 2), "Evangelismos");
+    // DocCy's clinic names are shown whole (the old 40-character cap was for typed labels).
+    assert.equal(
+      clinicDisplayName("WellClub - Wellness Family Experience clinic", 0, 2),
+      "WellClub - Wellness Family Experience clinic",
+    );
+    assert.equal(
+      clinicTitleOrFallback("WellClub - Wellness Family Experience clinic", "Clinic 1"),
+      "WellClub - Wellness Family Experience clinic",
+    );
     assert.equal(sanitizeClinicLabel("   "), null);
     assert.equal(clinicTitleOrFallback(null, "Κλινική 1"), "Κλινική 1");
     assert.equal(clinicTitleOrFallback("Makarios", "Κλινική 1"), "Makarios");
@@ -93,7 +102,8 @@ describe("doctor locations", () => {
     // Settings redesign (B1): one card per clinic, the hours editor opens inside it.
     assert.equal(settingsForm.includes("<ClinicCard"), true);
     assert.equal(settingsForm.includes("agendaClinicEventColor"), true);
-    assert.equal(settingsForm.includes('id="clinicName"'), true);
+    // One name everywhere, DocCy's (user, 2026-10-01): no clinic name field.
+    assert.equal(settingsForm.includes('id="clinicName"'), false);
     // D4 (user, 2026-09-30): clinics are curated by DocCy; adding, leaving and changing a
     // clinic are requests (settings redesign), never an address field.
     assert.equal(settingsForm.includes("/api/clinic-requests"), true);

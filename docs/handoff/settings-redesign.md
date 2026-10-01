@@ -16,13 +16,25 @@ https://claude.ai/artifact/3XYQpTSDQPyn2wWFg8NBmm (board "B1 · Sidebar + clinic
 - Holiday mode sits at the bottom of the sidebar (same fields, same save).
 - Clinics: one card per clinic with its online booking switch
   (`POST /api/doctor-online-bookings`, unchanged), a summary of days, hours, break and slot,
-  and "Edit hours and slots" to open the editor inside the card.
+  and "Edit hours" to open the editor inside the card.
 - "Add clinic" and "Request a change" use the **/register clinic picker** (dark tone):
   DocCy's clinics first, then Google Maps or a pin, plus name and phone for a clinic
   DocCy does not have yet (`components/dashboard/settings/ClinicPicker.tsx`).
-- A clinic's address and phone change **only by request** (read-only since #243). The
-  name patients see (the join row's label) and the hours stay editable on the card
-  ("Edit name and hours").
+- A clinic's name, address and phone change **only by request**. Only the hours are
+  editable on the card ("Edit hours").
+- **One clinic name everywhere: DocCy's `clinics.name`** (user, 2026-10-01). A doctor
+  at a shared clinic (e.g. Evangelismos) must not rename it for their patients. A rename
+  is a `name` in `POST /api/clinic-change-requests`; DocCy approves it only when the
+  doctor is the clinic's only professional. /register already worked this way (picking
+  a DocCy clinic hides the name field).
+  - Frontend side, done here: `professionalClinicRowToLocation` reads `clinics.name`
+    (falls back to `professional_clinics.label` only if the clinic has no name), so
+    settings, agenda, booking, profile, finder and emails show the same name; settings
+    no longer sends `label` in `POST /api/doctor-settings` (the API already leaves it
+    untouched when it is missing).
+  - For you: `professional_clinics.label` is now unused by the UI. Dropping the column
+    and the `label` handling in `lib/professional-clinic-settings-writes.ts` is yours to
+    decide; nothing breaks while it stays.
 - The save bar names the sections with unsaved changes (links to each, a dot in the
   sidebar) and offers "Discard changes".
 - Any clinic can be removed, the primary one too, as long as one clinic is left.
@@ -95,10 +107,12 @@ clinic is a request too (reviewed like the others).
 
 ## Temporary message to remove
 
-Until these endpoints exist they answer 404 and the page shows
-"This fails as expected for now: it works once Livio updates the backend."
-(`lib/settings-backend-pending.ts`). Once they are in, drop that file and use the
-server's message.
+Until these endpoints exist they answer 404 and the page says the failure is expected
+and what it waits for, e.g. "Expected to fail for now: removing a clinic works once
+Livio builds it in the backend (DELETE /api/professional-clinics)." One message per
+action in `BACKEND_PENDING` (`lib/settings-backend-pending.ts`); each call site is marked
+`EXPECTED TO FAIL until Livio builds …`. Once the endpoints are in, drop that file and
+show the server's message.
 
 ## Links elsewhere
 

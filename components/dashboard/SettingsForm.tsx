@@ -21,7 +21,6 @@ import {
   parseDDMMYYYYToISO,
 } from "@/lib/date-format";
 import {
-  MAX_CLINIC_NAME_LENGTH,
   MAX_DOCTOR_LOCATIONS,
   clinicDefaultName,
   clinicDisplayName,
@@ -362,6 +361,8 @@ export function SettingsForm({
     }
     setSpecialtyRemoving(true);
     try {
+      // EXPECTED TO FAIL until Livio builds DELETE /api/doctor-specialties (backend pending, see
+      // lib/settings-backend-pending.ts): the doctor sees a message saying so.
       const res = await fetch("/api/doctor-specialties", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
@@ -369,7 +370,7 @@ export function SettingsForm({
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        toast.error(settingsActionErrorMessage(res.status, data, "Could not remove the specialty."));
+        toast.error(settingsActionErrorMessage("removeSpecialty", res.status, data, "Could not remove the specialty."));
         return false;
       }
       const next = Array.isArray(data?.specialties)
@@ -595,6 +596,8 @@ export function SettingsForm({
    */
   async function handleAddWorkplace(clinic: NewClinic): Promise<boolean> {
     try {
+      // EXPECTED TO FAIL until Livio builds POST /api/clinic-requests (backend pending, see
+      // lib/settings-backend-pending.ts): the doctor sees a message saying so.
       const res = await fetch("/api/clinic-requests", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -602,7 +605,7 @@ export function SettingsForm({
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        toast.error(settingsActionErrorMessage(res.status, data, "Could not send the request."));
+        toast.error(settingsActionErrorMessage("addClinic", res.status, data, "Could not send the request."));
         return false;
       }
       setPendingClinicAdds((prev) => [
@@ -627,13 +630,15 @@ export function SettingsForm({
     setWorkplaceBusy(true);
     try {
       // Contract (docs/handoff/settings-redesign.md): the professional leaves the clinic.
+      // EXPECTED TO FAIL until Livio builds DELETE /api/professional-clinics (backend pending, see
+      // lib/settings-backend-pending.ts): the doctor sees a message saying so.
       const res = await fetch(
         `/api/professional-clinics?locationId=${encodeURIComponent(id)}`,
         { method: "DELETE" },
       );
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        toast.error(settingsActionErrorMessage(res.status, data, "Could not remove clinic."));
+        toast.error(settingsActionErrorMessage("removeClinic", res.status, data, "Could not remove clinic."));
         return false;
       }
       const captured = captureActiveWorkplace();
@@ -996,7 +1001,7 @@ export function SettingsForm({
         holidayEndDate: parsedHolidayEnd,
         locations: workplacesForSave().map((row) => ({
           id: row.id.startsWith("primary") && row.id === "primary" ? undefined : row.id,
-          label: String(row.label ?? "").trim(),
+          // No label: the name is DocCy's, and the API leaves the stored label as is.
           weeklySchedule: row.weeklySchedule,
           monday: row.weeklySchedule.monday.enabled,
           tuesday: row.weeklySchedule.tuesday.enabled,
@@ -1236,31 +1241,15 @@ export function SettingsForm({
     </div>
   );
 
-  const workplaceEditor = (row: DoctorWorkplaceFormData, index: number) => (
+  // No name field: patients see DocCy's name for the clinic everywhere (user,
+  // 2026-10-01); a rename goes through "Request a change" so DocCy can check that a
+  // shared clinic is not renamed by one of its doctors.
+  const workplaceEditor = (row: DoctorWorkplaceFormData) => (
     <div className="space-y-5">
-      <div>
-        <label htmlFor="clinicName" className={SECTION_EYEBROW_CLASS}>
-          Clinic name
-        </label>
-        <input
-          id="clinicName"
-          type="text"
-          maxLength={MAX_CLINIC_NAME_LENGTH}
-          value={row.label ?? ""}
-          onChange={(e) => {
-            const next = e.target.value.slice(0, MAX_CLINIC_NAME_LENGTH);
-            setWorkplaces((prev) =>
-              prev.map((item) => (item.id === row.id ? { ...item, label: next } : item)),
-            );
-          }}
-          placeholder={clinicDefaultName(index, liveWorkplaces.length)}
-          className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-clinical-400/60"
-        />
-        <p className="mt-1.5 text-xs text-slate-500">
-          The name patients see when they book. Leave it blank to use “
-          {clinicDefaultName(index, liveWorkplaces.length)}”.
-        </p>
-      </div>
+      <p className="text-xs text-slate-400" data-testid="settings-clinic-name-note">
+        The clinic name and address are DocCy&apos;s, the same for every doctor there. To
+        change them, use Request a change.
+      </p>
 
       <div>
         <p className={SECTION_EYEBROW_CLASS}>Working hours</p>
@@ -1555,7 +1544,7 @@ export function SettingsForm({
               slot: `${row.slotDurationMinutes} min`,
             }}
             editing={editing}
-            editLabel="Edit name and hours"
+            editLabel="Edit hours"
             onToggleEdit={() => {
               if (editing) {
                 setEditingWorkplaceId(null);
@@ -1564,7 +1553,7 @@ export function SettingsForm({
               handleSelectWorkplace(row.id);
               setEditingWorkplaceId(row.id);
             }}
-            editor={row.id === activeWorkplaceId ? workplaceEditor(row, index) : null}
+            editor={row.id === activeWorkplaceId ? workplaceEditor(row) : null}
             removal={removal.ok === false ? { ok: false, message: removal.message } : { ok: true }}
             onRemove={() => setWorkplaceToRemove(row.id)}
             busy={workplaceBusy}

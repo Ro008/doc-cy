@@ -8,8 +8,8 @@ import type { DoctorLocationRow } from "@/lib/doctor-locations";
  * the old `doctor_locations` table), so profiles, agendas, emails, the finder and the
  * booking flow read clinics without knowing where they come from.
  *
- * The split of ownership is the point: the join row owns the schedule, pause, label
- * and ordering; the clinic owns the address, town, district and coordinates. Clinics
+ * The split of ownership is the point: the join row owns the schedule, pause and
+ * ordering; the clinic owns the name, address, town, district and coordinates. Clinics
  * are admin-curated, which is why a professional edits the former and requests the
  * latter.
  */
@@ -143,7 +143,10 @@ export function professionalClinicRowToLocation(
     doctor_id: String(row.professional_id ?? ""),
     is_primary: Boolean(row.is_primary),
     sort_order: Number.isFinite(Number(row.sort_order)) ? Number(row.sort_order) : 0,
-    label: text(row.label),
+    // One name everywhere, DocCy's (user, 2026-10-01): a doctor at a shared clinic must
+    // not rename it for their patients; a rename goes through "Request a change".
+    // professional_clinics.label is only a fallback for a clinic with no name.
+    label: text(clinic.name) ?? text(row.label),
     district: text(clinic.district),
     clinic_address: text(clinic.address),
     town: text(clinic.town),

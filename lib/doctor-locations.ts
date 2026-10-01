@@ -70,6 +70,12 @@ export function sanitizeClinicLabel(value: string | null | undefined): string | 
   return trimmed || null;
 }
 
+/** A clinic name as shown: DocCy's names are shown whole, only spaces are tidied. */
+function clinicNameForDisplay(value: string | null | undefined): string | null {
+  const trimmed = String(value ?? "").replace(/\s+/g, " ").trim();
+  return trimmed || null;
+}
+
 export function clinicDefaultName(index: number, _total = 0): string {
   return `Clinic ${index + 1}`;
 }
@@ -79,7 +85,7 @@ export function clinicDisplayName(
   index: number,
   total: number,
 ): string {
-  return sanitizeClinicLabel(label) ?? clinicDefaultName(index, total);
+  return clinicNameForDisplay(label) ?? clinicDefaultName(index, total);
 }
 
 /** Custom name if set, otherwise the caller’s fallback (e.g. translated “Clinic 1”). */
@@ -87,7 +93,7 @@ export function clinicTitleOrFallback(
   label: string | null | undefined,
   fallback: string,
 ): string {
-  return sanitizeClinicLabel(label) ?? fallback;
+  return clinicNameForDisplay(label) ?? fallback;
 }
 
 export function workplaceTabLabel(index: number, total: number): string {

@@ -1,6 +1,5 @@
 import { normalizeCyprusClinicPhone } from "@/lib/clinic-phone";
 import type { ClinicLocation } from "@/lib/clinic-location";
-import { MAX_CLINIC_NAME_LENGTH } from "@/lib/doctor-locations";
 import { registerClinicLocationIsComplete } from "@/lib/register-clinic-location";
 
 /**
@@ -62,10 +61,16 @@ function pinFields(location: ClinicLocation): ClinicPinFields {
   };
 }
 
+/** The same cap as the clinic name field on /register. */
+export const MAX_REQUESTED_CLINIC_NAME_LENGTH = 120;
+
 function checkName(name: string): { field: Field; message: string } | null {
   if (!name) return { field: "name", message: "Enter the clinic name." };
-  if (name.length > MAX_CLINIC_NAME_LENGTH) {
-    return { field: "name", message: `Keep the clinic name under ${MAX_CLINIC_NAME_LENGTH} characters.` };
+  if (name.length > MAX_REQUESTED_CLINIC_NAME_LENGTH) {
+    return {
+      field: "name",
+      message: `Keep the clinic name under ${MAX_REQUESTED_CLINIC_NAME_LENGTH} characters.`,
+    };
   }
   return null;
 }

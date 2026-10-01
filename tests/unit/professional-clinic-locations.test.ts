@@ -69,7 +69,8 @@ describe("professional clinic locations", () => {
       doctor_id: "pro-1",
       is_primary: true,
       sort_order: 0,
-      label: "Evenings",
+      // One name everywhere: DocCy's, never the professional's own label (user, 2026-10-01).
+      label: "Evangelismos",
       district: "Nicosia",
       clinic_address: "Makariou Avenue 10, Nicosia 1065, Cyprus",
       town: "Nicosia",
@@ -134,7 +135,20 @@ describe("professional clinic locations", () => {
     assert.equal(location.is_primary, false);
     assert.equal(location.sort_order, 0);
     assert.equal(location.monday, false);
-    assert.equal(location.label, null);
+    assert.equal(location.label, "Evangelismos");
+  });
+
+  it("shows the DocCy clinic's name, not a professional's own label for it", () => {
+    // A doctor at Evangelismos must not rename it to "Evangelismos private hospital"
+    // for their patients: a rename goes through "Request a change".
+    const location = professionalClinicRowToLocation(joinRow({ label: "Evangelismos private hospital" }));
+    assert.equal(location.label, "Evangelismos");
+  });
+
+  it("keeps the old label only when the clinic has no name", () => {
+    const row = joinRow();
+    const nameless = { ...row, clinics: { ...(row.clinics as object), name: "  " } } as ProfessionalClinicJoinRow;
+    assert.equal(professionalClinicRowToLocation(nameless).label, "Evenings");
   });
 
   it("drops a join row whose clinic is missing or archived", () => {

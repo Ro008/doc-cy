@@ -73,8 +73,10 @@ test.describe("Integration: clinics are read-only in settings", { tag: "@pr-e2e"
     await expect(cards.first()).toContainText(clinicAddress);
     await expect(cards.first().getByRole("button", { name: "Request a change" })).toBeVisible();
 
-    await cards.first().getByRole("button", { name: "Edit name and hours" }).click();
-    await expect(page.locator("#clinicName")).toBeVisible();
+    // Hours only: the name is DocCy's too, changed by request (user, 2026-10-01).
+    await cards.first().getByRole("button", { name: "Edit hours" }).click();
+    await expect(page.getByTestId("settings-clinic-name-note")).toBeVisible();
+    await expect(page.locator("#clinicName")).toHaveCount(0);
     await expect(page.locator("#clinicAddress")).toHaveCount(0);
     // The last clinic cannot be removed.
     await expect(cards.first().getByRole("button", { name: "Remove clinic" })).toHaveCount(0);
