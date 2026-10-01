@@ -73,6 +73,11 @@ test.describe("Integration: clinics are read-only in settings", { tag: "@pr-e2e"
     await expect(page.getByTestId("settings-clinics-contact")).toHaveText(
       /Contact us to change your clinics/i,
     );
+    // Point E3: specialties are read-only too, until the new specialty requests.
+    await expect(page.getByTestId("settings-specialties-contact")).toHaveText(
+      /Contact us if you wish to change your specialties/i,
+    );
+    await expect(page.getByText(/Request a specialty update/i)).toHaveCount(0);
 
     await expect(page.locator("#clinicAddress")).toHaveCount(0);
     await expect(page.getByRole("button", { name: /^Add clinic$/i })).toHaveCount(0);

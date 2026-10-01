@@ -67,7 +67,6 @@ test.describe("Integration: doctor slug allocation", () => {
             email,
             phone: "+35799123456",
             languages: ["English"],
-            license_file_url: `licenses/integration/${nonce}-${index}.pdf`,
             status: "verified",
             slug,
                   is_registered: true,

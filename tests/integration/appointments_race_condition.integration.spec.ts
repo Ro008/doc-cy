@@ -76,7 +76,6 @@ test.describe("Integration: appointment race condition guard", { tag: ["@pr-e2e"
           email: doctorEmail,
           phone: "+35799123456",
           languages: ["English"],
-          license_file_url: `licenses/integration/${nonce}.pdf`,
           status: "verified",
           slug: doctorSlug,
                 is_registered: true,

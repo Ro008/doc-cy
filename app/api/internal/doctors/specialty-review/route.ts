@@ -34,10 +34,6 @@ type SpecialtyRow = {
   is_approved: boolean | null;
 };
 
-function clearRequiresStandard() {
-  return { specialty_requires_standard_at: null };
-}
-
 function badRequest(message: string) {
   return NextResponse.json({ message }, { status: 400 });
 }
@@ -272,10 +268,7 @@ export async function POST(req: NextRequest) {
     if ((count ?? 0) <= 1) {
       const { error } = await supabase
         .from("professionals")
-        .update({
-          status: "rejected",
-          ...clearRequiresStandard(),
-        })
+        .update({ status: "rejected" })
         .eq("id", doctorId);
       if (error) {
         console.error("[specialty-review] reject_specialty failed", error);
@@ -298,11 +291,6 @@ export async function POST(req: NextRequest) {
       console.error("[specialty-review] specialty removal failed", deleteErr);
       return NextResponse.json({ message: "Update failed." }, { status: 500 });
     }
-    await supabase
-      .from("professionals")
-      .update(clearRequiresStandard())
-      .eq("id", doctorId);
-
     return NextResponse.json({
       ok: true,
       status: currentStatus || null,
@@ -322,8 +310,6 @@ export async function POST(req: NextRequest) {
   if (failure) {
     return NextResponse.json({ message: failure }, { status: 500 });
   }
-
-  await supabase.from("professionals").update(clearRequiresStandard()).eq("id", doctorId);
 
   return NextResponse.json({ ok: true, specialty: label, is_specialty_approved: true });
 }

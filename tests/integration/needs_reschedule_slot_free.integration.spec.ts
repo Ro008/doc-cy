@@ -79,7 +79,6 @@ test.describe("Integration: NEEDS_RESCHEDULE frees original slot", { tag: ["@pr-
           email: doctorEmail,
           phone: "+35799123456",
           languages: ["English"],
-          license_file_url: `licenses/integration/${nonce}-nr.pdf`,
           status: "verified",
           slug: doctorSlug,
                 is_registered: true,

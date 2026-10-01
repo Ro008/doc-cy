@@ -29,7 +29,6 @@ type ProfessionalRow = {
   name: string | null;
   auth_user_id: string | null;
   is_registered: boolean | null;
-  license_file_url: string | null;
   avatar_url: string | null;
   email: string | null;
   registration_email: string | null;
@@ -43,7 +42,6 @@ const CHILD_TABLES_BY_DOCTOR_ID = [
 const CHILD_TABLES_BY_PROFESSIONAL_ID = [
   "professional_settings",
   "professional_specialties",
-  "professional_specialty_change_requests",
   "professional_clinics",
   "professional_patient_booking_requests",
   "professional_call_to_book_clicks",
@@ -106,7 +104,7 @@ async function removeStoragePaths(
 
 /**
  * Permanently deletes a registered professional: related rows, Auth user, and
- * known storage objects (license proof + avatars). Irreversible.
+ * known storage objects (avatars). Irreversible.
  */
 export async function purgeRegisteredProfessional(
   admin: SupabaseClient,
@@ -127,7 +125,7 @@ export async function purgeRegisteredProfessional(
   const { data: row, error: fetchErr } = await admin
     .from("professionals")
     .select(
-      "id, name, auth_user_id, is_registered, license_file_url, avatar_url, email, registration_email",
+      "id, name, auth_user_id, is_registered, avatar_url, email, registration_email",
     )
     .eq("id", professionalId)
     .maybeSingle();
@@ -193,10 +191,6 @@ export async function purgeRegisteredProfessional(
       warnings.push(`auth user: ${authErr.message}`);
     }
   }
-
-  const licensePaths: string[] = [];
-  if (pro.license_file_url) licensePaths.push(String(pro.license_file_url));
-  await removeStoragePaths(admin, "doctor-verifications", licensePaths, warnings);
 
   const avatarPaths: string[] = [];
   if (pro.avatar_url) avatarPaths.push(String(pro.avatar_url));

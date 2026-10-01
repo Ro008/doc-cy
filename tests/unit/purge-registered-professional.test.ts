@@ -10,7 +10,6 @@ type FakeRow = {
   name: string;
   auth_user_id: string | null;
   is_registered: boolean;
-  license_file_url: string | null;
   avatar_url: string | null;
   email: string | null;
   registration_email: string | null;
@@ -73,7 +72,6 @@ describe("purgeRegisteredProfessional", () => {
       name: "Oscar Wilde",
       auth_user_id: "auth-1",
       is_registered: true,
-      license_file_url: null,
       avatar_url: null,
       email: null,
       registration_email: "o@example.com",
@@ -96,7 +94,6 @@ describe("purgeRegisteredProfessional", () => {
       name: "Finder Only",
       auth_user_id: null,
       is_registered: false,
-      license_file_url: null,
       avatar_url: null,
       email: null,
       registration_email: null,
@@ -119,7 +116,6 @@ describe("purgeRegisteredProfessional", () => {
       name: "Oscar Wilde",
       auth_user_id: "auth-1",
       is_registered: true,
-      license_file_url: "licenses/x.pdf",
       avatar_url: "profiles/p1/avatar.jpg",
       email: null,
       registration_email: "o@example.com",
@@ -142,16 +138,18 @@ describe("purgeRegisteredProfessional", () => {
         (d) => d.table === "professional_clinics" && d.column === "professional_id",
       ),
     );
-    // Point E1 dropped the monthly digest and its table.
-    assert.ok(
-      !fake.deleted.some((d) => d.table === "professional_monthly_digest_sent"),
-      "professional_monthly_digest_sent is dropped and must not be purged",
-    );
-    // Renamed in Point B: these moved from doctor_id to professional_id.
-    for (const table of [
-      "professional_settings",
+    // Point E1 dropped the monthly digest table, Point E3 the old specialty-change requests.
+    for (const dropped of [
+      "professional_monthly_digest_sent",
       "professional_specialty_change_requests",
     ]) {
+      assert.ok(
+        !fake.deleted.some((d) => d.table === dropped),
+        `${dropped} is dropped and must not be purged`,
+      );
+    }
+    // Renamed in Point B: these moved from doctor_id to professional_id.
+    for (const table of ["professional_settings", "professional_specialties"]) {
       assert.ok(
         fake.deleted.some(
           (d) => d.table === table && d.column === "professional_id",

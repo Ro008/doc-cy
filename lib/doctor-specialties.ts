@@ -1,9 +1,21 @@
 import { validateSpecialtySubmission } from "@/lib/specialty-submission";
-import { SPECIALTY_CHANGE_LICENSE_MAX } from "@/lib/doctor-specialty-change-request";
 import { specialtyToSlug } from "@/lib/finder-seo";
 import type { SpecialtyCatalogueNames } from "@/lib/specialty-options";
 
 export const MAX_DOCTOR_SPECIALTIES = 5;
+
+/** Longest licence / certification number accepted for one specialty. */
+export const SPECIALTY_LICENSE_MAX = 80;
+
+/**
+ * Prefilled "contact us" message from the read-only specialties on the settings page
+ * (Point E3: specialty changes wait for the new specialty requests).
+ */
+export function specialtyChangeContactMessage(specialties: readonly string[]): string {
+  const names = specialties.map((name) => String(name ?? "").trim()).filter(Boolean);
+  const what = names.length === 1 ? `my specialty "${names[0]}"` : "my specialties";
+  return `Hello, I would like to change ${what}. The change is: `;
+}
 
 export type DoctorSpecialtyEntryInput = {
   specialty: string;
@@ -52,10 +64,10 @@ export function validateDoctorSpecialtyEntries(
         message: `License / certification number is required for specialty ${i + 1}.`,
       };
     }
-    if (licenseNumber.length > SPECIALTY_CHANGE_LICENSE_MAX) {
+    if (licenseNumber.length > SPECIALTY_LICENSE_MAX) {
       return {
         ok: false,
-        message: `License number for specialty ${i + 1} must be ${SPECIALTY_CHANGE_LICENSE_MAX} characters or fewer.`,
+        message: `License number for specialty ${i + 1} must be ${SPECIALTY_LICENSE_MAX} characters or fewer.`,
       };
     }
 

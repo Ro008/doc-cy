@@ -72,7 +72,6 @@ export default async function AgendaSettingsPage() {
     clinic_place_id?: string | null;
     town?: string | null;
     status?: string | null;
-    specialty_requires_standard_at?: string | null;
     subscription_tier?: string | null;
     is_gesy?: boolean | null;
   } | null = null;
@@ -170,20 +169,10 @@ export default async function AgendaSettingsPage() {
     let fallback = await supabase
       .from("professionals")
       .select(
-        "id, name, avatar_url, slug, languages, status, specialty_requires_standard_at, subscription_tier"
+        "id, name, avatar_url, slug, languages, status, subscription_tier"
       )
       .eq("auth_user_id", user.id)
       .single();
-
-    if (fallback.error && hasColError(fallback.error, "specialty_requires_standard_at")) {
-      fallback = await supabase
-        .from("professionals")
-        .select(
-          "id, name, avatar_url, slug, languages, status, subscription_tier"
-        )
-        .eq("auth_user_id", user.id)
-        .single();
-    }
 
     if (fallback.error && hasColError(fallback.error, "avatar_url")) {
       fallback = await supabase
@@ -213,26 +202,6 @@ export default async function AgendaSettingsPage() {
 
     doctor = fallback.data as typeof doctor;
     doctorError = fallback.error ?? doctorError;
-  }
-
-  if (doctor) {
-    // Always hydrate the specialty review flag so banner/UI state remains correct
-    // even when primary selects use compatibility fallbacks.
-    const { data: specialtyFlags } = await supabase
-      .from("professionals")
-      .select("specialty_requires_standard_at")
-      .eq("id", doctor.id)
-      .maybeSingle();
-    if (specialtyFlags) {
-      doctor = {
-        ...doctor,
-        specialty_requires_standard_at:
-          (specialtyFlags as { specialty_requires_standard_at?: string | null })
-            .specialty_requires_standard_at ??
-          doctor.specialty_requires_standard_at ??
-          null,
-      };
-    }
   }
 
   if (doctorError) {
@@ -322,75 +291,6 @@ export default async function AgendaSettingsPage() {
       ])
     : [[], []];
 
-  let pendingSpecialtyChange: DoctorSettingsFormData["pendingSpecialtyChange"] = null;
-  {
-    const pendingChangeRes = await supabase
-      .from("professional_specialty_change_requests")
-      .select("request_kind, from_specialty, to_specialty, license_number, created_at")
-      .eq("professional_id", doctor.id)
-      .eq("status", "pending")
-      .maybeSingle();
-    if (
-      pendingChangeRes.error &&
-      /request_kind/i.test(String(pendingChangeRes.error.message ?? ""))
-    ) {
-      const legacy = await supabase
-        .from("professional_specialty_change_requests")
-        .select("from_specialty, to_specialty, license_number, created_at")
-        .eq("professional_id", doctor.id)
-        .eq("status", "pending")
-        .maybeSingle();
-      if (!legacy.error && legacy.data) {
-        const from = String(
-          (legacy.data as { from_specialty?: string | null }).from_specialty ?? "",
-        ).trim();
-        pendingSpecialtyChange = {
-          requestKind: from ? "replace" : "add",
-          fromSpecialty: from || null,
-          toSpecialty: String(
-            (legacy.data as { to_specialty?: string }).to_specialty ?? "",
-          ).trim(),
-          licenseNumber: String(
-            (legacy.data as { license_number?: string }).license_number ?? "",
-          ).trim(),
-          createdAt: String(
-            (legacy.data as { created_at?: string }).created_at ?? "",
-          ),
-        };
-      }
-    } else if (!pendingChangeRes.error && pendingChangeRes.data) {
-      const kindRaw = String(
-        (pendingChangeRes.data as { request_kind?: string }).request_kind ?? "add",
-      ).trim();
-      const from = String(
-        (pendingChangeRes.data as { from_specialty?: string | null }).from_specialty ??
-          "",
-      ).trim();
-      const to = String(
-        (pendingChangeRes.data as { to_specialty?: string | null }).to_specialty ?? "",
-      ).trim();
-      const license = String(
-        (pendingChangeRes.data as { license_number?: string | null }).license_number ??
-          "",
-      ).trim();
-      const requestKind =
-        kindRaw === "replace" || kindRaw === "remove"
-          ? kindRaw
-          : from && !to
-            ? "remove"
-            : "add";
-      pendingSpecialtyChange = {
-        requestKind,
-        fromSpecialty: from || null,
-        toSpecialty: to || null,
-        licenseNumber: license || null,
-        createdAt: String(
-          (pendingChangeRes.data as { created_at?: string }).created_at ?? "",
-        ),
-      };
-    }
-  }
-
   const initial: DoctorSettingsFormData = {
     specialtyOptions,
     doctorId: doctor.id,
@@ -402,7 +302,6 @@ export default async function AgendaSettingsPage() {
     specialty: primarySpecialtyEntry(specialtyEntries)?.name ?? "",
     specialties: approvedSpecialtyNames(specialtyEntries),
     isSpecialtyApproved: !hasPendingSpecialty(specialtyEntries),
-    pendingSpecialtyChange,
     bio: (doctor.bio ?? "").trim(),
     languages: langArr,
     mobileNumber: (doctor.mobile_number ?? "").trim() || undefined,

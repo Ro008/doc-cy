@@ -20,14 +20,6 @@ import {
   type PendingSpecialtyRow,
 } from "@/components/internal/PendingSpecialtiesPanel";
 import {
-  originFromClaimSource,
-  parseDirectoryClaimSource,
-} from "@/lib/pending-registration-origin";
-import {
-  SpecialtyChangeRequestsPanel,
-  type SpecialtyChangeRequestRow,
-} from "@/components/internal/SpecialtyChangeRequestsPanel";
-import {
   buildPendingSpecialtyItems,
   type PendingSpecialtyJunctionRow,
 } from "@/lib/pending-specialty-review";
@@ -356,9 +348,9 @@ export default async function FounderDashboardPage({
   const chartRangeStart = startOfMonth(subMonths(new Date(), 5));
 
   const doctorSelectWithAccountEmail =
-    "id, name, email, registration_email, phone, slug, languages, status, created_at, license_file_url, specialty_requires_standard_at, auth_user_id, directory_claim_source, pro_access_until";
+    "id, name, email, registration_email, phone, slug, languages, status, created_at, auth_user_id, pro_access_until";
   const doctorSelectLegacy =
-    "id, name, email, phone, slug, languages, status, created_at, license_file_url, specialty_requires_standard_at, auth_user_id, directory_claim_source";
+    "id, name, email, phone, slug, languages, status, created_at, auth_user_id";
 
   let doctorsRes = await fetchAllSupabaseRows(() =>
     supabase
@@ -379,21 +371,6 @@ export default async function FounderDashboardPage({
         .order("created_at", { ascending: false }),
     )) as typeof doctorsRes;
   }
-  if (
-    doctorsRes.error &&
-    /directory_claim_source/i.test(String(doctorsRes.error.message ?? ""))
-  ) {
-    doctorsRes = (await fetchAllSupabaseRows(() =>
-      supabase
-        .from("professionals")
-        .select(
-          "id, name, email, registration_email, phone, slug, languages, status, created_at, license_file_url, specialty_requires_standard_at, auth_user_id",
-        )
-        .eq("is_registered", true)
-        .order("created_at", { ascending: false }),
-    )) as typeof doctorsRes;
-  }
-
   const [
     apptCountRes,
     apptsMonthCountRes,
@@ -489,23 +466,15 @@ export default async function FounderDashboardPage({
         : [],
     status: (d.status as string | null) ?? null,
     license_number: primary?.licenseNumber ?? null,
-    license_file_url: (d as { license_file_url?: string | null }).license_file_url ?? null,
     created_at: (d as { created_at?: string | null }).created_at ?? null,
     pro_access_until: (d as { pro_access_until?: string | null }).pro_access_until ?? null,
     is_specialty_approved: !hasPendingSpecialty(entries),
-    specialty_requires_standard_at:
-      (d as { specialty_requires_standard_at?: string | null })
-        .specialty_requires_standard_at ?? null,
     auth_user_id: (d as { auth_user_id?: string | null }).auth_user_id ?? null,
-    directoryClaimSource: parseDirectoryClaimSource(
-      (d as { directory_claim_source?: string | null }).directory_claim_source,
-    ),
     };
   });
 
   const showLocalTestCredentials = runtimeLabel === "local";
   let directoryDoctorRows: DirectoryDoctorRow[] = rows.map((r) => {
-    const origin = originFromClaimSource(r.directoryClaimSource);
     return {
       id: r.id,
       name: r.name,
@@ -514,12 +483,7 @@ export default async function FounderDashboardPage({
       languages: r.languages,
       status: r.status,
       license_number: r.license_number,
-      license_file_url: r.license_file_url,
       is_specialty_approved: r.is_specialty_approved,
-      specialty_requires_standard_at: r.specialty_requires_standard_at,
-      fromDirectoryListing: origin.kind === "claimed",
-      originKind: origin.kind,
-      originLabel: origin.kind === "claimed" ? origin.label : null,
     };
   });
 
@@ -530,7 +494,6 @@ export default async function FounderDashboardPage({
     );
 
     directoryDoctorRows = rows.map((r) => {
-      const origin = originFromClaimSource(r.directoryClaimSource);
       return {
         id: r.id,
         name: r.name,
@@ -539,12 +502,7 @@ export default async function FounderDashboardPage({
         languages: r.languages,
         status: r.status,
         license_number: r.license_number,
-        license_file_url: r.license_file_url,
         is_specialty_approved: r.is_specialty_approved,
-        specialty_requires_standard_at: r.specialty_requires_standard_at,
-        fromDirectoryListing: origin.kind === "claimed",
-        originKind: origin.kind,
-        originLabel: origin.kind === "claimed" ? origin.label : null,
         email: r.email,
         loginPassword: r.auth_user_id
           ? loginPasswordsByAuthUserId.get(r.auth_user_id) ?? null
@@ -576,94 +534,6 @@ export default async function FounderDashboardPage({
   );
 
   const specialtyOptions = await loadSpecialtyCatalogueNames(supabase);
-  let specialtyChangeRequestItems: SpecialtyChangeRequestRow[] = [];
-  {
-    let changeReqRes = await supabase
-      .from("professional_specialty_change_requests")
-      .select(
-        "id, professional_id, request_kind, from_specialty, to_specialty, to_specialty_from_master, license_number, created_at, professionals(name, email, registration_email)",
-      )
-      .eq("status", "pending")
-      .order("created_at", { ascending: false });
-    if (
-      changeReqRes.error &&
-      /registration_email/i.test(String(changeReqRes.error.message ?? ""))
-    ) {
-      changeReqRes = (await supabase
-        .from("professional_specialty_change_requests")
-        .select(
-          "id, professional_id, request_kind, from_specialty, to_specialty, to_specialty_from_master, license_number, created_at, professionals(name, email)",
-        )
-        .eq("status", "pending")
-        .order("created_at", { ascending: false })) as typeof changeReqRes;
-    }
-
-    if (changeReqRes.error) {
-      // Table may not exist until migration is applied on this environment.
-      console.warn(
-        "[founder] specialty change requests load skipped:",
-        changeReqRes.error.message,
-      );
-    } else if (changeReqRes.data) {
-      specialtyChangeRequestItems = changeReqRes.data.map((r) => {
-        const nested = (
-          r as {
-            professionals?:
-              | {
-                  name?: string | null;
-                  email?: string | null;
-                  registration_email?: string | null;
-                }
-              | {
-                  name?: string | null;
-                  email?: string | null;
-                  registration_email?: string | null;
-                }[]
-              | null;
-          }
-        ).professionals;
-        const doc = Array.isArray(nested) ? nested[0] : nested;
-        const fromSpecialty = String(
-          (r as { from_specialty?: string | null }).from_specialty ?? "",
-        ).trim();
-        const toSpecialty = String(
-          (r as { to_specialty?: string | null }).to_specialty ?? "",
-        ).trim();
-        const kindRaw = String(
-          (r as { request_kind?: string | null }).request_kind ?? "",
-        ).trim();
-        const requestKind: "add" | "replace" | "remove" =
-          kindRaw === "add" || kindRaw === "replace" || kindRaw === "remove"
-            ? kindRaw
-            : fromSpecialty && !toSpecialty
-              ? "remove"
-              : fromSpecialty
-                ? "replace"
-                : "add";
-        return {
-          id: r.id as string,
-          doctorId: r.professional_id as string,
-          doctorName: (doc?.name ?? "").trim() || "—",
-          doctorEmail:
-            professionalAccountEmail({
-              registration_email: doc?.registration_email,
-              email: doc?.email,
-            }) || null,
-          requestKind,
-          fromSpecialty,
-          toSpecialty,
-          toSpecialtyFromMaster: Boolean(
-            (r as { to_specialty_from_master?: boolean }).to_specialty_from_master,
-          ),
-          licenseNumber: String(
-            (r as { license_number?: string | null }).license_number ?? "",
-          ).trim(),
-          createdAt: String((r as { created_at?: string }).created_at ?? ""),
-        };
-      });
-    }
-  }
-
   const verifiedRows = rows.filter(
     (r) => (r.status ?? "").trim().toLowerCase() === "verified"
   );
@@ -905,7 +775,7 @@ export default async function FounderDashboardPage({
       >
         <InternalDirectoryShell canMutate={canMutate}>
           <div className="mx-auto max-w-7xl space-y-8 px-4 py-8 lg:px-8">
-        {pendingRequestsCount > 0 || specialtyChangeRequestItems.length > 0 ? (
+        {pendingRequestsCount > 0 ? (
           <section className="rounded-2xl border border-amber-500/45 bg-amber-500/10 p-5 shadow-lg shadow-black/20">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
@@ -913,16 +783,7 @@ export default async function FounderDashboardPage({
                   Action required
                 </p>
                 <h2 className="mt-1 text-lg font-semibold text-amber-100">
-                  {[
-                    pendingRequestsCount > 0
-                      ? `${pendingRequestsCount} registration request${pendingRequestsCount === 1 ? "" : "s"}`
-                      : null,
-                    specialtyChangeRequestItems.length > 0
-                      ? `${specialtyChangeRequestItems.length} specialty change request${specialtyChangeRequestItems.length === 1 ? "" : "s"}`
-                      : null,
-                  ]
-                    .filter(Boolean)
-                    .join(" · ")}
+                  {`${pendingRequestsCount} registration request${pendingRequestsCount === 1 ? "" : "s"}`}
                 </h2>
                 <p className="mt-1 text-sm text-amber-100/85">
                   {canMutate
@@ -931,20 +792,10 @@ export default async function FounderDashboardPage({
                 </p>
               </div>
               <Link
-                href={
-                  pendingRequestsCount > 0
-                    ? internalDashboardTabHref("requests")
-                    : specialtyChangeRequestItems.length > 0
-                      ? "#specialty-change-requests"
-                      : "#professional-directory"
-                }
+                href={internalDashboardTabHref("requests")}
                 className="inline-flex items-center justify-center rounded-xl bg-amber-300 px-4 py-2 text-sm font-semibold text-slate-950 shadow-md shadow-amber-900/30 transition hover:bg-amber-200"
               >
-                {pendingRequestsCount > 0
-                  ? "Review requests"
-                  : specialtyChangeRequestItems.length > 0
-                    ? "Review specialty changes"
-                    : "Go to Professional Directory"}
+                Review requests
               </Link>
             </div>
           </section>
@@ -958,10 +809,6 @@ export default async function FounderDashboardPage({
           newDoctorsThisWeek={newDoctorsThisWeek}
         />
 
-        <SpecialtyChangeRequestsPanel
-          items={specialtyChangeRequestItems}
-          specialtyOptions={specialtyOptions}
-        />
         <PendingSpecialtiesPanel
           items={pendingSpecialtyItems}
           specialtyOptions={specialtyOptions}

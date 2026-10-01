@@ -19,17 +19,11 @@ export type DirectoryDoctorRow = {
   languages: string[] | null;
   status: string | null;
   license_number: string | null;
-  license_file_url: string | null;
   is_specialty_approved: boolean;
-  specialty_requires_standard_at: string | null;
   /** Local founder dashboard only */
   email?: string | null;
   /** Local founder dashboard only — from auth user metadata */
   loginPassword?: string | null;
-  /** Registered account that converted a finder listing at signup. */
-  fromDirectoryListing?: boolean;
-  originKind?: "claimed" | "unclaimed";
-  originLabel?: string | null;
 };
 
 async function postPurge(doctorId: string, confirmName: string) {
@@ -285,9 +279,6 @@ export function InternalDirectoryClient({
               const status = d.status?.trim().toLowerCase() || "pending";
               const isPending = status === "pending";
               const isRejected = status === "rejected";
-              const proofHref = d.license_file_url
-                ? `/api/internal/doctors/${d.id}/license`
-                : null;
               return (
                 <tr
                   key={d.id}
@@ -298,11 +289,6 @@ export function InternalDirectoryClient({
                     <div className="mt-1">
                       <LanguageBadgeList languages={d.languages} compact />
                     </div>
-                    {d.originLabel ? (
-                      <span className="mt-1 block w-fit rounded-full bg-clinical-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-clinical-200">
-                        {d.originLabel}
-                      </span>
-                    ) : null}
                     {d.slug ? (
                       <Link
                         href={publicProfessionalProfilePath(d.slug)}
@@ -360,18 +346,6 @@ export function InternalDirectoryClient({
                   </td>
                   <td className="px-4 py-3 align-top">
                     <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-                      {proofHref ? (
-                        <a
-                          href={proofHref}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center justify-center rounded-lg border border-slate-600 bg-slate-800/40 px-3 py-1.5 text-xs font-medium text-slate-200 hover:border-slate-500"
-                        >
-                          View ID proof
-                        </a>
-                      ) : (
-                        <span className="text-xs text-slate-600">No file</span>
-                      )}
                       {canMutate ? (
                         <button
                           type="button"
@@ -414,8 +388,7 @@ export function InternalDirectoryClient({
             <p className="mt-2 text-sm text-slate-300">
               This permanently removes{" "}
               <span className="font-semibold text-slate-100">{purgeTarget.name}</span>{" "}
-              from DocCy: profile, appointments, Auth login, license file, and
-              avatar. This cannot be undone.
+              from DocCy: profile, appointments, Auth login and avatar. This cannot be undone.
             </p>
             <label className="mt-4 block text-xs font-semibold uppercase tracking-wide text-slate-400">
               Type their name to confirm
