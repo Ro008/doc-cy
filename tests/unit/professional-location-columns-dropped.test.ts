@@ -63,7 +63,15 @@ function professionalsQueries(src: string): string[] {
   while ((m = call.exec(src))) {
     const rest = src.slice(m.index + m[0].length, m.index + m[0].length + 1500);
     const stop = rest.search(/;|\.from\(/);
-    out.push(stop >= 0 ? rest.slice(0, stop) : rest);
+    const statement = stop >= 0 ? rest.slice(0, stop) : rest;
+    out.push(statement);
+    // A select list kept in a variable: `.select(doctorSelect)` -> `const doctorSelect = "..."`.
+    for (const sel of statement.matchAll(/\.select\(\s*([A-Za-z_$][\w$]*)\s*[,)]/g)) {
+      const def = new RegExp(
+        String.raw`\b(?:const|let)\s+${sel[1]}\s*(?::[^=]+)?=\s*(["'` + "`" + String.raw`])([\s\S]*?)\1`,
+      ).exec(src);
+      if (def) out.push(def[2] ?? "");
+    }
   }
   const embed = /\bprofessionals(?:![a-z_]+)?\s*\(([^)]*)\)/g;
   while ((m = embed.exec(src))) out.push(m[1] ?? "");

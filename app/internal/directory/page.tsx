@@ -350,9 +350,9 @@ export default async function FounderDashboardPage({
   const chartRangeStart = startOfMonth(subMonths(new Date(), 5));
 
   const doctorSelectWithAccountEmail =
-    "id, name, email, registration_email, phone, slug, languages, status, created_at, auth_user_id, pro_access_until";
+    "id, name, email, registration_email, mobile_number, slug, languages, status, created_at, auth_user_id, pro_access_until";
   const doctorSelectLegacy =
-    "id, name, email, phone, slug, languages, status, created_at, auth_user_id";
+    "id, name, email, mobile_number, slug, languages, status, created_at, auth_user_id";
 
   let doctorsRes = await fetchAllSupabaseRows(() =>
     supabase
@@ -458,7 +458,8 @@ export default async function FounderDashboardPage({
         registration_email: (d as { registration_email?: string | null }).registration_email,
         email: (d as { email?: string | null }).email,
       }) || null,
-    phone: (d as { phone?: string | null }).phone ?? null,
+    // The professional's own mobile (professionals.phone was dropped in Point E5).
+    phone: (d as { mobile_number?: string | null }).mobile_number ?? null,
     slug: (d.slug as string | null) ?? null,
     specialty: primary?.name ?? null,
     languages: Array.isArray(d.languages)
