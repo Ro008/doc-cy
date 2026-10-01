@@ -87,13 +87,6 @@ test.describe("Integration: clinics are read-only in settings", { tag: "@pr-e2e"
   });
 
   test("saving settings keeps the address and saves the hours", async ({ page }) => {
-    const before = await admin
-      .from("professionals")
-      .select("district, clinic_address, latitude, longitude, clinic_place_id")
-      .eq("id", doctor!.doctorId)
-      .single();
-    if (before.error) throw new Error(`before: ${before.error.message}`);
-
     await loginDoctorUi(page, doctor!.email, doctor!.password);
     const res = await page.request.post("/api/doctor-settings", {
       data: {
@@ -153,14 +146,6 @@ test.describe("Integration: clinics are read-only in settings", { tag: "@pr-e2e"
     const clinic = await admin.from("clinics").select("address, district").eq("id", clinicId).single();
     if (clinic.error) throw new Error(`clinic: ${clinic.error.message}`);
     expect(clinic.data).toEqual({ address: clinicAddress, district: "Nicosia" });
-
-    const after = await admin
-      .from("professionals")
-      .select("district, clinic_address, latitude, longitude, clinic_place_id")
-      .eq("id", doctor!.doctorId)
-      .single();
-    if (after.error) throw new Error(`after: ${after.error.message}`);
-    expect(after.data).toEqual(before.data);
 
     // The unknown location id is ignored: it creates nothing.
     const unknown = await admin

@@ -12,15 +12,15 @@
 \set ON_ERROR_STOP on
 
 insert into public.professionals (
-  id, name, slug, district, town, phone, email, registration_email, mobile_number, languages,
-  is_gesy, clinic_address, latitude, longitude, is_archived, is_registered,
+  id, name, slug, email, registration_email, mobile_number, languages,
+  is_gesy, is_archived, is_registered,
   is_test_profile, auth_user_id, status, subscription_tier,
   trial_notice_seen_at, pro_access_until
 )
 values (
-  md5('ci-fixture-andreas-nikos')::uuid, :'name', :'slug', 'Larnaca', 'Larnaca', '+35700999002',
-  :'email', :'email', '+35700999003', :'languages'::text[], true, '1 Fixture Street, Larnaca',
-  34.9229, 33.6233, false, true, true, :'auth_user_id'::uuid, 'verified', 'founder',
+  md5('ci-fixture-andreas-nikos')::uuid, :'name', :'slug',
+  :'email', :'email', '+35700999003', :'languages'::text[], true,
+  false, true, true, :'auth_user_id'::uuid, 'verified', 'founder',
   now(), now() + interval '1 year'
 );
 

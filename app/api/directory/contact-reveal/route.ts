@@ -59,19 +59,7 @@ async function professionalLinkedToClinic(
     console.error("[DocCy][contact-reveal] clinic_link_lookup_failed", linkErr.message);
     return false;
   }
-  if (link) return true;
-
-  const { data: row, error: rowErr } = await supabase
-    .from("professionals")
-    .select("clinic_id")
-    .eq("id", manualId)
-    .eq("is_archived", false)
-    .maybeSingle();
-  if (rowErr) {
-    console.error("[DocCy][contact-reveal] listing_clinic_lookup_failed", rowErr.message);
-    return false;
-  }
-  return String((row as { clinic_id?: string | null } | null)?.clinic_id ?? "").trim() === clinicId;
+  return Boolean(link);
 }
 
 async function logCallToBookClick(input: {

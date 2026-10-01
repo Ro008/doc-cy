@@ -1,3 +1,4 @@
+import { LISTING_CLINICS_SELECT, listingClinicLocations } from "@/lib/listing-clinic-location";
 import Link from "next/link";
 import { Suspense } from "react";
 import { startOfMonth, startOfWeek, subMonths } from "date-fns";
@@ -577,14 +578,15 @@ export default async function FounderDashboardPage({
       const ids = voteStats.map((v: { professional_id: string }) => String(v.professional_id));
       const { data: namesRows } = await supabase
         .from("professionals")
-        .select(`id, name, district, ${SPECIALTY_LINKS_SELECT}`)
+        .select(`id, name, ${LISTING_CLINICS_SELECT}, ${SPECIALTY_LINKS_SELECT}`)
         .in("id", ids.length > 500 ? ids.slice(0, 500) : ids);
       const nameMap = new Map(
         (namesRows ?? []).map((n) => [
           String(n.id),
           {
             name: String((n as { name?: string }).name ?? ""),
-            district: (n as { district?: string | null }).district ?? null,
+            // The primary clinic's district (Point E5).
+            district: listingClinicLocations(n as { listing_clinics?: unknown })[0]?.district ?? null,
             specialty: specialtyNamesForRow(n as { specialty_links?: unknown })[0] ?? null,
           },
         ])
@@ -697,7 +699,7 @@ export default async function FounderDashboardPage({
       const { data: namesRows } = await fetchAllSupabaseRowsForIdChunks(ids, (idChunk) =>
         supabase
           .from("professionals")
-          .select(`id, name, district, ${SPECIALTY_LINKS_SELECT}`)
+          .select(`id, name, ${LISTING_CLINICS_SELECT}, ${SPECIALTY_LINKS_SELECT}`)
           .in("id", idChunk),
       );
       const nameMap = new Map(
@@ -705,7 +707,8 @@ export default async function FounderDashboardPage({
           String((n as { id?: string }).id ?? ""),
           {
             name: String((n as { name?: string }).name ?? ""),
-            district: (n as { district?: string | null }).district ?? null,
+            // The primary clinic's district (Point E5).
+            district: listingClinicLocations(n as { listing_clinics?: unknown })[0]?.district ?? null,
             specialty: specialtyNamesForRow(n as { specialty_links?: unknown })[0] ?? null,
           },
         ]),

@@ -1,3 +1,5 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
+
 import { buildMapsUrlFromAddress } from "@/lib/clinic-info";
 import {
   clinicDisplayName,
@@ -15,6 +17,8 @@ export type AppointmentClinicCopy = {
   clinicName: string;
   address: string;
   mapsUrl: string;
+  /** The `professional_clinics` row the appointment is at (for its clinic phone). */
+  locationId?: string | null;
 };
 
 type LocationLike = Pick<
@@ -53,7 +57,34 @@ export function appointmentClinicCopy(opts: {
     clinicName,
     address,
     mapsUrl: buildMapsUrlFromAddress(address) ?? "",
+    locationId: selected?.id ?? null,
   };
+}
+
+/**
+ * The phone patients see for an appointment: its clinic's (Point E5), never
+ * `professionals.phone`, which held the professional's personal mobile. Server-only:
+ * clinic phones stay out of public page data (anti-scraping).
+ */
+export async function loadAppointmentClinicPhone(
+  supabase: SupabaseClient,
+  locationId: string | null | undefined,
+): Promise<string | null> {
+  const id = String(locationId ?? "").trim();
+  if (!id) return null;
+  const { data, error } = await supabase
+    .from("professional_clinics")
+    .select("clinics ( phone, is_archived )")
+    .eq("id", id)
+    .maybeSingle();
+  if (error || !data) return null;
+  const embed = (data as { clinics?: unknown }).clinics;
+  const clinic = (Array.isArray(embed) ? embed[0] : embed) as
+    | { phone?: string | null; is_archived?: boolean | null }
+    | null
+    | undefined;
+  if (!clinic || clinic.is_archived) return null;
+  return String(clinic.phone ?? "").trim() || null;
 }
 
 /** Flat fallback when the caller only has an address (legacy single-clinic paths). */

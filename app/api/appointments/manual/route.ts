@@ -24,7 +24,7 @@ import { professionalAccountEmail } from "@/lib/professional-account-contact";
 import { loadPrimarySpecialtyName } from "@/lib/specialty-catalogue";
 import { getDoctorCalendarEventDetails } from "@/lib/doctor-calendar-event";
 import { buildGoogleCalendarUrl } from "@/lib/patient-calendar-event";
-import { appointmentClinicCopy } from "@/lib/appointment-clinic-copy";
+import { appointmentClinicCopy, loadAppointmentClinicPhone } from "@/lib/appointment-clinic-copy";
 import { loadDoctorLocations, primaryDoctorLocation } from "@/lib/load-doctor-locations";
 import { locationHasClinic } from "@/lib/professional-clinic-locations";
 import { locationToSettingsRow } from "@/lib/doctor-locations";
@@ -88,7 +88,7 @@ export async function POST(req: NextRequest) {
 
   const { data: doctor, error: doctorErr } = await supabase
     .from("professionals")
-    .select("id, name, email, registration_email, phone, slug")
+    .select("id, name, email, registration_email, slug")
     .eq("auth_user_id", user.id)
     .maybeSingle();
 
@@ -296,7 +296,7 @@ export async function POST(req: NextRequest) {
         doctor: {
           name: doctor.name,
           specialty: specialtyName,
-          phone: (doctor as { phone?: string | null }).phone,
+          phone: await loadAppointmentClinicPhone(supabase, clinic.locationId),
           clinic_address: clinic.address,
         },
         clinic,

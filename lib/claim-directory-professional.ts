@@ -142,33 +142,6 @@ export function registerClaimClinicsFromJoin(
   return out;
 }
 
-/**
- * When the listing has no `professional_clinics` rows, use the professional's own
- * address + pin so claim signup can confirm instead of forcing a Google re-search.
- */
-export function registerClaimClinicFromProfessionalRow(row: {
-  address?: string | null;
-  clinic_address?: string | null;
-  district?: string | null;
-  town?: string | null;
-  latitude?: number | null;
-  longitude?: number | null;
-}): RegisterClaimClinic | null {
-  const address =
-    String(row.address ?? "").trim() || String(row.clinic_address ?? "").trim();
-  if (!address) return null;
-  return {
-    clinicId: null,
-    name: "",
-    address,
-    district: String(row.district ?? "").trim() || null,
-    latitude: typeof row.latitude === "number" ? row.latitude : null,
-    longitude: typeof row.longitude === "number" ? row.longitude : null,
-    town: String(row.town ?? "").trim() || null,
-    placeId: null,
-  };
-}
-
 /** Same conservative name key as duplicate review (exact, not fuzzy). */
 export function normalizeClaimPersonName(value: string | null | undefined): string {
   return String(value ?? "")
@@ -297,20 +270,25 @@ function listingSpecialtyLabels(row: {
   return labels.slice(0, MAX_DOCTOR_SPECIALTIES);
 }
 
-export function toRegisterClaimPrefill(row: {
-  id: string;
-  slug?: string | null;
-  name?: string | null;
-  specialty?: string | null;
-  specialties?: string[] | null;
-  district?: string | null;
-  /** Present on listing rows; never copied — account mobile must be entered by the professional. */
-  phone?: string | null;
-  address?: string | null;
-  clinic_address?: string | null;
-  gender?: string | null;
-  is_gesy?: boolean | null;
-}): RegisterClaimPrefill {
+/**
+ * `clinics` are the listing's clinics, primary first: its district and address hint
+ * come from the first one (Point E5), never from copies on `professionals`.
+ */
+export function toRegisterClaimPrefill(
+  row: {
+    id: string;
+    slug?: string | null;
+    name?: string | null;
+    specialty?: string | null;
+    specialties?: string[] | null;
+    district?: string | null;
+    /** Never copied: the account mobile must be entered by the professional. */
+    phone?: string | null;
+    gender?: string | null;
+    is_gesy?: boolean | null;
+  },
+  clinics: RegisterClaimClinic[] = [],
+): RegisterClaimPrefill {
   const name = String(row.name ?? "").trim();
   const labels = listingSpecialtyLabels(row);
   return {
@@ -322,10 +300,9 @@ export function toRegisterClaimPrefill(row: {
     // Listing labels are approved (harmonized onto current names). The combobox
     // shows each as a pick when it is in the catalogue it was given, else as "Other".
     specialties: labels.map((specialty) => ({ specialty, fromMaster: true })),
-    district: String(row.district ?? "").trim() || null,
-    addressHint:
-      String(row.address ?? "").trim() || String(row.clinic_address ?? "").trim() || null,
-    clinics: [],
+    district: clinics[0]?.district ?? null,
+    addressHint: String(clinics[0]?.address ?? "").trim() || null,
+    clinics,
     gender: claimGender(row.gender),
     gesy: row.is_gesy === true ? "yes" : null,
   };
@@ -414,7 +391,7 @@ export async function loadUnregisteredProfessionalForRegisterClaim(
   const { data, error } = await supabase
     .from("professionals")
     .select(
-      `id, slug, name, district, town, address, clinic_address, latitude, longitude, gender, is_gesy, ${SPECIALTY_LINKS_SELECT}`,
+      `id, slug, name, gender, is_gesy, ${SPECIALTY_LINKS_SELECT}`,
     )
     .eq("id", id)
     .eq("is_registered", false)
@@ -427,7 +404,6 @@ export async function loadUnregisteredProfessionalForRegisterClaim(
   }
   if (!data?.id) return null;
 
-  const prefill = toRegisterClaimPrefill(withListingSpecialties(data));
   const { data: linkRows, error: linkError } = await supabase
     .from("professional_clinics")
     .select(
@@ -438,16 +414,11 @@ export async function loadUnregisteredProfessionalForRegisterClaim(
 
   if (linkError) {
     console.error("[DocCy] register claim clinics lookup failed", linkError);
-  } else {
-    prefill.clinics = registerClaimClinicsFromJoin((linkRows ?? []) as ClaimClinicJoinRow[]);
   }
-
-  if (prefill.clinics.length === 0) {
-    const fromListing = registerClaimClinicFromProfessionalRow(data);
-    if (fromListing) prefill.clinics = [fromListing];
-  }
-
-  return prefill;
+  return toRegisterClaimPrefill(
+    withListingSpecialties(data),
+    linkError ? [] : registerClaimClinicsFromJoin((linkRows ?? []) as ClaimClinicJoinRow[]),
+  );
 }
 
 /**

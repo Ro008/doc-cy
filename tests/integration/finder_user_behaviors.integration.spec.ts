@@ -93,9 +93,7 @@ async function createVerifiedDoctor(
     .insert({
       auth_user_id: authUserId,
       name: input.name,
-      district: input.district,
       email,
-      phone: "+35799123456",
       languages: input.languages,
       status: "verified",
       slug,

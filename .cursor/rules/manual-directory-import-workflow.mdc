@@ -14,99 +14,21 @@ Use this when the user passes a new doctor list (Excel/CSV) for the **manual fin
 - **Shown in:** `/finder` (cards with a disabled calendar + request-online-booking overlay)
 - **Not shown as directory-only:** registered verified professionals (same table, `is_registered = true`)
 
-### Required columns per row
+### Where a listing's data lives (Point E5, 2026-10-01)
 
-| Field | DB column | Notes |
-|-------|-----------|--------|
-| Name | `name` | Person name; Title Case (not clinic brand) |
-| Specialty | `specialty` | Use canonical labels (e.g. `Dentistry`, `Dermatology`) — see the `specialties` catalogue / `lib/finder-specialty-harmonize.ts` |
-| District | `district` | One of: `Nicosia`, `Limassol`, `Paphos`, `Larnaca`, `Famagusta` |
-| Google Maps URL | `address_maps_link` | Used for Maps CTA and curated photo lookup |
-| Phone | `phone` | Optional; shown via Call to Book on the finder card |
-| Latitude | `latitude` | For “doctor near me” distance sorting |
-| Longitude | `longitude` | For “doctor near me” distance sorting |
+| Data | Where |
+|------|-------|
+| Name, gender, GeSY flag, `ghs_code`, outreach `email` | `professionals` |
+| Specialties | `professional_specialties` (catalogue `specialties`) |
+| District, town, address, Google Maps link, pin, phone | the listing's **clinics** (`clinics`, linked through `professional_clinics`; one `is_primary`) |
 
-### User spreadsheet aliases (map on import)
+`professionals` has **no** location columns any more (`district`, `town`, `phone`, `address`, `clinic_address`, `address_maps_link`, `latitude`, `longitude`, `clinic_place_id`, `clinic_id` were dropped). The finder matches a listing to a district or town when **any** of its clinics is there (`lib/listing-clinic-location.ts`, `lib/finder-manual-directory-load.ts`). The public phone is always the clinic's.
 
-- `google_maps_url` / `maps_url` / `google_maps_link` → `address_maps_link`
-- `speciality` → `specialty`
-- `telephone` / `tel` → `phone`
-- `lat` / `lon` / `lng` → `latitude` / `longitude`
-- `city` → ignore if `district` is present
-- Specialty values like `dentist`, `dermatologist`, `dental`, `psychiatrist` → normalized via `scripts/generate-manual-directory-migration.mjs` (mirrors `lib/finder-specialty-harmonize.ts` + common aliases; **`psychiatrist` → `Psychiatry`**, not Psychology)
+## Importing listings
 
-## Generating a migration from Excel
+Listings come from the GeSY spreadsheet through `scripts/import-gesy-directory-batch.mjs` (`npm run import:gesy:batch`): it upserts clinics by `ghs_code`, the professional by their own `ghs_code`, and rebuilds the `professional_clinics` links. **Before a re-import**, go through the importer with the user: it finds a listing by `ghs_code` without checking `is_registered` (user, 2026-10-01: no re-import planned for now).
 
-Script: `scripts/generate-manual-directory-migration.mjs`  
-(Legacy alias: `scripts/generate-dentist-directory-migration.mjs`)
-
-Optional pre-clean for dirty Google Places names: `scripts/clean-gynecologist-spreadsheet.mjs` (pattern for specialty-specific cleaners).
-
-```bash
-# Full replace (wipe directory_manual, then insert all rows)
-node scripts/generate-manual-directory-migration.mjs --replace "path/to/file.xlsx" "supabase/migrations/TIMESTAMP_description.sql"
-
-# Append batch (insert only rows not already present under dedupe rules below)
-node scripts/generate-manual-directory-migration.mjs --append "path/to/file.xlsx" "supabase/migrations/TIMESTAMP_description.sql"
-
-# Multi-consultation batch (same person, several Maps links / phones in one file)
-node scripts/generate-manual-directory-migration.mjs --append --no-dedupe-maps-url "path/to/file.xlsx" "supabase/migrations/TIMESTAMP_description.sql"
-```
-
-### Append dedupe rules (important)
-
-A row is considered **already in the directory** (and skipped on `--append`) only when **all three** match an active (`is_archived = false`) row:
-
-1. **Name** (`lower(name)`)
-2. **Specialty** (exact label, plus legacy Ob/Gyn aliases when importing `Gynecology`)
-3. **District**
-
-This allows:
-
-- Same name in **different districts** (e.g. Paphos + Nicosia)
-- Same name + district with **different specialties** in DB (e.g. Physiotherapy vs Gynecology)
-- **Multiple cards** for several consultations when Maps/phone differ (use `--no-dedupe-maps-url`)
-
-**Not** a duplicate: same name in different district, or same name with a different specialty already in DB.
-
-**Optional extra dedupe** (flags):
-
-| Flag | Effect |
-|------|--------|
-| `--no-dedupe-maps-url` | Do not drop shared `google_maps_url` rows within the spreadsheet; omit Maps URL from SQL `NOT EXISTS`. Use for shared clinic addresses (e.g. pediatrics) **or** the same Maps link already used by another specialty for that person (e.g. Urology after Gynecology/GP). Prefer this for specialty append batches when overlap is likely. |
-| `--dedupe-spreadsheet-person` | Within the spreadsheet only, keep first row when **name + district + phone** match. Off by default. |
-| `--normalize-names` | Run `scripts/lib/manual-directory-name-clean.mjs` (titles, Greek, clinic fluff). Use for psychology-style dirty exports. |
-
-**Historical note:** older append migrations used `lower(name)` alone (or OR `address_maps_link`), which blocked valid multi-location rows. New imports must use the generator as updated above.
-
-Script behavior:
-
-- Reads `specialty` from each row (single-specialty files and mixed-specialty files)
-- Normalizes specialty labels (Dentistry, Dermatology, Gynecology, master list, common aliases)
-- Title-cases person names (or `--normalize-names` for dirty exports)
-- By default, dedupes duplicate `google_maps_url` **within the spreadsheet** only
-- Outputs SQL with `phone`, `latitude`, `longitude`, `slug`
-- **Append slugs** prefer `{name}-{district}` first (e.g. `maria-paschalidou-paphos`) to avoid colliding with existing name-only slugs in DB; numeric suffix for multi-consultation rows in the same district
-- Prints a specialty breakdown after generation
-
-## Full replace vs incremental add
-
-**Full replace (user says “empezar de cero”, new clean list):**
-
-1. Generate with `--replace` (default): `DELETE FROM public.directory_manual;` then bulk `INSERT`.
-2. Cascades delete: `user_events` (their clicks and votes), `directory_duplicate_suggestions`.
-3. Do **not** delete curated photo assets — see `manual-directory-preserved-photos.mdc`.
-
-**Incremental add (small batch):**
-
-- Generate with `--append` (see dedupe rules above), or hand-write `INSERT … SELECT … WHERE NOT EXISTS` matching **name + specialty + district**.
-
-After generating, review for:
-
-- clinic names instead of person names
-- duplicate people with different name spelling (e.g. hyphen vs space)
-- missing phone (Call to Book falls back to Maps only)
-- wrong district enum values
+The old spreadsheet → migration generator (`generate-manual-directory-migration.mjs`) was retired in Point E5: it wrote columns that no longer exist.
 
 ## Clinic-style names (exclude from manual directory)
 
@@ -115,7 +37,7 @@ DocCy lists **individual health professionals**, not clinic or centre brands. Sk
 - contains `Center`, `Centre`, `Clinic`, `Studio`, `Practice`, `Hospital`, `Group`, `Performance` (as a business name), `&` in a brand sense, etc.
 - is clearly a business (`Papapavlou Dental Clinic`) rather than a person (`Andreas Pallouras`)
 
-**Import script:** clinic-style rows are skipped in `scripts/generate-manual-directory-migration.mjs` (`isClinicStyleName`).
+**Import script:** check new batches for clinic-style names before importing (the retired generator's `isClinicStyleName` did this).
 
 ### Removed clinic entries (2026-07-14)
 
@@ -138,10 +60,7 @@ When working on the next feature branch that touches directory data:
 
 ## Curated finder photos
 
-- Assets: `public/finder/manual-photos/*.png`
-- Map: `lib/finder-manual-photos.ts` (key = `address_maps_link`)
-- After import, re-link preserved roster if those doctors are in the new list
-- See `.cursor/rules/manual-directory-preserved-photos.mdc`
+None: cards use the uploaded avatar or the default gender avatar. The empty maps-link photo map (`lib/finder-manual-photos.ts`) was removed in Point E5. See `.cursor/rules/manual-directory-preserved-photos.mdc`.
 
 ## App code touchpoints (when schema or fields change)
 

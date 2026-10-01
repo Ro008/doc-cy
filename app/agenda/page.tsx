@@ -133,7 +133,7 @@ export default async function AgendaPage({ searchParams }: AgendaPageProps) {
     let settingsRes = await supabase
       .from("professional_settings")
       .select(
-        "professional_id, monday, tuesday, wednesday, thursday, friday, saturday, sunday, start_time, end_time, weekly_schedule, break_start, break_end, pause_online_bookings, show_phone_public, holiday_mode_enabled, holiday_start_date, holiday_end_date, booking_horizon_days, minimum_notice_hours, slot_duration_minutes",
+        "professional_id, monday, tuesday, wednesday, thursday, friday, saturday, sunday, start_time, end_time, weekly_schedule, break_start, break_end, pause_online_bookings, holiday_mode_enabled, holiday_start_date, holiday_end_date, booking_horizon_days, minimum_notice_hours, slot_duration_minutes",
       )
       .eq("professional_id", doctor.id)
       .single();
@@ -149,7 +149,7 @@ export default async function AgendaPage({ searchParams }: AgendaPageProps) {
       settingsRes = await supabase
         .from("professional_settings")
         .select(
-          "professional_id, monday, tuesday, wednesday, thursday, friday, saturday, sunday, start_time, end_time, break_start, break_end, pause_online_bookings, show_phone_public, holiday_mode_enabled, holiday_start_date, holiday_end_date, booking_horizon_days, minimum_notice_hours, slot_duration_minutes",
+          "professional_id, monday, tuesday, wednesday, thursday, friday, saturday, sunday, start_time, end_time, break_start, break_end, pause_online_bookings, holiday_mode_enabled, holiday_start_date, holiday_end_date, booking_horizon_days, minimum_notice_hours, slot_duration_minutes",
         )
         .eq("professional_id", doctor.id)
         .single();
@@ -161,9 +161,6 @@ export default async function AgendaPage({ searchParams }: AgendaPageProps) {
         weeklySchedule: buildWeeklyScheduleFromSettings({
           ...s,
           weekly_schedule: s.weekly_schedule ?? null,
-          show_phone_public: Boolean(
-            (s as { show_phone_public?: boolean | null }).show_phone_public,
-          ),
         }),
         breakStart: (s.break_start ?? null) as string | null,
         breakEnd: (s.break_end ?? null) as string | null,

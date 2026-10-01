@@ -3,18 +3,22 @@ import {
   QA_CLAIM_DIRECTORY_NAME_PREFIX,
   QA_CLAIM_DIRECTORY_SLUG_PREFIX,
 } from "@/lib/doctor-test-profile";
-import { seedProfessionalSpecialty } from "./test-doctor";
+import { seedProfessionalClinic, seedProfessionalSpecialty } from "./test-doctor";
 
 export type QaClaimDirectoryClone = {
   id: string;
   slug: string;
   name: string;
   profilePath: string;
+  /** Its clinic: delete with `deleteTestClinics` after the professional. */
+  clinicId: string;
 };
 
 /**
  * Unregistered testing listing used by the local claim-register e2e.
  * Name/slug prefixes are the only listings a test email is allowed to absorb.
+ *
+ * Like a real listing, its location is a clinic (Point E5).
  *
  * Profile path is inlined (`/en/{slug}`) so Playwright does not load next-intl
  * via `manual-directory-landing-path` (CJS/ESM clash under the test runner).
@@ -29,13 +33,7 @@ export async function createQaClaimDirectoryClone(
     .from("professionals")
     .insert({
       name,
-      district: "Nicosia",
       slug,
-      clinic_address: "Archiepiskopou Makariou III, Nicosia 1065, Cyprus",
-      address: "Archiepiskopou Makariou III, Nicosia 1065, Cyprus",
-      address_maps_link: "https://maps.google.com/?q=qa-claim-ioanna-e2e",
-      latitude: 35.1856,
-      longitude: 33.3823,
       is_registered: false,
       is_archived: false,
       is_test_profile: true,
@@ -49,11 +47,16 @@ export async function createQaClaimDirectoryClone(
   await seedProfessionalSpecialty(admin, String(insert.data.id), {
     specialty: "Obstetrics - Gynaecology",
   });
+  const { clinicId } = await seedProfessionalClinic(admin, String(insert.data.id), {
+    nonce,
+    district: "Nicosia",
+  });
 
   return {
     id: String(insert.data.id),
     slug,
     name,
     profilePath: `/en/${encodeURIComponent(slug)}`,
+    clinicId,
   };
 }

@@ -6,7 +6,7 @@ import {
   toBlockingRows,
 } from "@/lib/appointment-blocking-query";
 import { sendPatientAppointmentConfirmedEmail } from "@/lib/send-patient-appointment-confirmed-email";
-import { appointmentClinicCopy } from "@/lib/appointment-clinic-copy";
+import { appointmentClinicCopy, loadAppointmentClinicPhone } from "@/lib/appointment-clinic-copy";
 import { loadDoctorLocations } from "@/lib/load-doctor-locations";
 import { loadPrimarySpecialtyName } from "@/lib/specialty-catalogue";
 
@@ -172,7 +172,7 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
 
   const { data: doctor } = await supabase
     .from("professionals")
-    .select("name, phone")
+    .select("name")
     .eq("id", doctorId)
     .maybeSingle();
   const specialtyName = await loadPrimarySpecialtyName(supabase, doctorId);
@@ -202,7 +202,7 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
       doctor: {
         name: doctor?.name,
         specialty: specialtyName,
-        phone: (doctor as { phone?: string | null } | null)?.phone,
+        phone: await loadAppointmentClinicPhone(supabase, clinic.locationId),
         clinic_address: clinic.address,
       },
       clinic,

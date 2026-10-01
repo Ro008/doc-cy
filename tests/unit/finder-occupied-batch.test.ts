@@ -46,7 +46,6 @@ function settingsRow(professionalId: string): DoctorSettingsRow {
     professional_id: professionalId,
     ...allWeek,
     pause_online_bookings: false,
-    show_phone_public: false,
     holiday_mode_enabled: false,
     holiday_start_date: null,
     holiday_end_date: null,

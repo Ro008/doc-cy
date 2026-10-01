@@ -40,12 +40,12 @@ test.describe("Integration: public directory RLS hardening", () => {
 
     const anon = createClient(supabaseUrl, anonKey);
 
-    const doctorsDump = await anon.from("professionals").select("email, phone").limit(1);
+    const doctorsDump = await anon.from("professionals").select("email, mobile_number").limit(1);
     expect(isDeniedOrEmpty(doctorsDump)).toBe(true);
 
     const manualDump = await anon
       .from("professionals")
-      .select("email, ghs_code, gender, name, phone")
+      .select("email, ghs_code, gender, name, mobile_number")
       .eq("is_registered", false)
       .limit(1);
     expect(isDeniedOrEmpty(manualDump)).toBe(true);

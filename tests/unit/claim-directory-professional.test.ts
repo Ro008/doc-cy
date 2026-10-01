@@ -6,7 +6,6 @@ import {
   pickExplicitDirectoryClaim,
   pickUniqueDirectoryClaim,
   pickUniqueHistoricalAbsorbPairs,
-  registerClaimClinicFromProfessionalRow,
   registerClaimClinicsFromJoin,
   registerClaimPath,
   toRegisterClaimPrefill,
@@ -185,18 +184,39 @@ describe("register claim from finder card", () => {
     assert.equal(registerClaimPath(maria.id), `/register?claim=${maria.id}`);
   });
 
-  it("prefills name, first name, address, and GeSY specialty, but never the mobile number", () => {
-    const prefill = toRegisterClaimPrefill({
-      ...maria,
-      phone: "+35799111222",
-      address: "12 Ledras Street, Nicosia",
-    });
+  it("prefills name, first name and GeSY specialty, but never the mobile number", () => {
+    const prefill = toRegisterClaimPrefill({ ...maria, phone: "+35799111222" });
     assert.equal(prefill.firstName, "Maria");
-    assert.equal(prefill.addressHint, "12 Ledras Street, Nicosia");
     assert.equal(prefill.specialties[0]?.specialty, "Dentist");
     assert.equal(prefill.specialties[0]?.fromMaster, true);
     assert.equal("phone" in prefill, false);
     assert.deepEqual(prefill.clinics, []);
+  });
+
+  // Point E5: the listing's district and address come from its clinics (primary first),
+  // never from copies on `professionals`.
+  it("takes district and address hint from the first (primary) clinic", () => {
+    const clinics = registerClaimClinicsFromJoin([
+      {
+        is_primary: false,
+        clinics: { id: "c2", name: "Paphos Rooms", address: "1 Kennedy, Paphos", district: "Paphos" },
+      },
+      {
+        is_primary: true,
+        clinics: { id: "c1", name: "Nicosia Rooms", address: "12 Ledras Street, Nicosia", district: "Nicosia" },
+      },
+    ]);
+    const prefill = toRegisterClaimPrefill({ ...maria, district: "Limassol" }, clinics);
+    assert.equal(prefill.district, "Nicosia");
+    assert.equal(prefill.addressHint, "12 Ledras Street, Nicosia");
+    assert.deepEqual(
+      prefill.clinics.map((c) => c.clinicId),
+      ["c1", "c2"],
+    );
+
+    const none = toRegisterClaimPrefill({ ...maria, district: "Limassol" });
+    assert.equal(none.district, null);
+    assert.equal(none.addressHint, null);
   });
 
   it("prefills gender and GeSY from the listing, only when the listing knows them", () => {
@@ -263,20 +283,6 @@ describe("register claim from finder card", () => {
     // (no new clinic, no phone to type) instead of proposing copies.
     assert.equal(clinics[0]?.clinicId, "22222222-2222-4222-8222-222222222222");
     assert.equal(clinics[1]?.clinicId, "11111111-1111-4111-8111-111111111111");
-  });
-
-  it("builds a confirmable clinic from the listing row when there is no clinic join", () => {
-    const clinic = registerClaimClinicFromProfessionalRow({
-      address: "Archiepiskopou Makariou III, Nicosia 1065, Cyprus",
-      district: "Nicosia",
-      latitude: 35.1856,
-      longitude: 33.3823,
-    });
-    assert.equal(clinic?.address, "Archiepiskopou Makariou III, Nicosia 1065, Cyprus");
-    assert.equal(clinic?.district, "Nicosia");
-    assert.equal(clinic?.latitude, 35.1856);
-    assert.equal(clinic?.longitude, 33.3823);
-    assert.equal(clinic?.placeId, null);
   });
 
   it("binds the explicit card listing even when the typed name would not fuzzy-match", () => {

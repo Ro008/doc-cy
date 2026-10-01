@@ -143,7 +143,6 @@ describe("doctor locations", () => {
     const merged = locationToSettingsRow(
       loc({ id: "lim", pause_online_bookings: true, district: "Limassol" }),
       {
-        show_phone_public: false,
         holiday_mode_enabled: true,
         holiday_start_date: "2026-08-01",
         holiday_end_date: "2026-08-10",

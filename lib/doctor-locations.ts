@@ -251,7 +251,6 @@ export function locationToSettingsRow(
   location: DoctorLocationRow,
   global: Pick<
     DoctorSettingsRow,
-    | "show_phone_public"
     | "holiday_mode_enabled"
     | "holiday_start_date"
     | "holiday_end_date"
@@ -275,7 +274,6 @@ export function locationToSettingsRow(
     break_start: location.break_start,
     break_end: location.break_end,
     pause_online_bookings: Boolean(location.pause_online_bookings),
-    show_phone_public: Boolean(global.show_phone_public),
     holiday_mode_enabled: Boolean(global.holiday_mode_enabled),
     holiday_start_date: global.holiday_start_date ?? null,
     holiday_end_date: global.holiday_end_date ?? null,
@@ -294,7 +292,6 @@ export function locationToSettingsRow(
  * professional silently disappears from their profile and the finder.
  */
 export const ACCOUNT_SETTINGS_FALLBACK = {
-  show_phone_public: false,
   holiday_mode_enabled: false,
   holiday_start_date: null,
   holiday_end_date: null,

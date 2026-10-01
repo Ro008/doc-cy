@@ -1,9 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { CyprusDistrict } from "@/lib/cyprus-districts";
 import { doctorDashboardDisplayName } from "@/lib/doctor-display-name";
-import { getFinderManualPhotoUrl } from "@/lib/finder-manual-photos";
 import { resolveFinderDisplayPhotoUrl } from "@/lib/finder-default-avatars";
-import { parseOptionalCoordinates } from "@/lib/finder-distance";
+import { LISTING_CLINICS_SELECT, listingClinicLocations } from "@/lib/listing-clinic-location";
 import {
   buildManualDirectoryClinicRefs,
   type ManualClinicJoinLink,
@@ -142,72 +141,30 @@ type ManualDirectoryRawRow = {
   slug: string;
   name: string;
   specialty_links?: unknown;
-  district: CyprusDistrict;
-  address_maps_link: string;
-  address?: string | null;
+  /** The listing's clinics: its location (Point E5). */
+  listing_clinics?: unknown;
   is_gesy?: boolean | null;
-  latitude?: unknown;
-  longitude?: unknown;
-  clinic_id?: string | null;
   gender?: string | null;
 };
 
-/**
- * Fetches the raw `professionals` row for an exact (already-lowercased) slug
- * match, tolerating column drift across environments via progressively
- * narrower `select()` fallbacks.
- */
+/** Fetches the raw `professionals` row for an exact (already-lowercased) slug match. */
 async function fetchManualDirectoryRawRow(
   supabase: SupabaseClient,
   normalizedSlugLower: string,
 ): Promise<ManualDirectoryRawRow | null> {
-  let res = await supabase
+  const res = await supabase
     .from("professionals")
-    .select(
-      `id, slug, name, district, address_maps_link, address, is_gesy, latitude, longitude, clinic_id, gender, ${SPECIALTY_LINKS_SELECT}`,
-    )
+    .select(`id, slug, name, is_gesy, gender, ${LISTING_CLINICS_SELECT}, ${SPECIALTY_LINKS_SELECT}`)
     .eq("is_registered", false)
     .eq("is_archived", false)
     .eq("slug", normalizedSlugLower)
     .maybeSingle();
 
-  if (
-    res.error &&
-    (String(res.error.message ?? "").toLowerCase().includes("gender") ||
-      (res.error as { code?: string }).code === "42703")
-  ) {
-    res = await supabase
-      .from("professionals")
-      .select(
-        `id, slug, name, district, address_maps_link, address, is_gesy, latitude, longitude, clinic_id, ${SPECIALTY_LINKS_SELECT}`,
-      )
-      .eq("is_registered", false)
-      .eq("is_archived", false)
-      .eq("slug", normalizedSlugLower)
-      .maybeSingle();
-  }
-
-  if (
-    res.error &&
-    (String(res.error.message ?? "").toLowerCase().includes("clinic_id") ||
-      (res.error as { code?: string }).code === "42703")
-  ) {
-    res = await supabase
-      .from("professionals")
-      .select(
-        `id, slug, name, district, address_maps_link, address, is_gesy, latitude, longitude, ${SPECIALTY_LINKS_SELECT}`,
-      )
-      .eq("is_registered", false)
-      .eq("is_archived", false)
-      .eq("slug", normalizedSlugLower)
-      .maybeSingle();
-  }
-
   if (res.error || !res.data) {
     return null;
   }
 
-  return res.data as ManualDirectoryRawRow;
+  return res.data as unknown as ManualDirectoryRawRow;
 }
 
 /** Builds the public landing shape (clinics, vote count) for an already-fetched raw row. */
@@ -237,8 +194,8 @@ async function buildManualDirectoryLandingRow(
     monthlyRequestCount = voters.size;
   }
 
-  const addressMapsLink = String(row.address_maps_link ?? "");
-  const coords = parseOptionalCoordinates(row.latitude, row.longitude);
+  // District, address, map link and pin are the primary clinic's (Point E5).
+  const place = listingClinicLocations(row)[0] ?? null;
   const specialties = specialtyNamesForRow(row);
 
   const clinics: ManualDirectoryLandingClinic[] = [];
@@ -256,39 +213,6 @@ async function buildManualDirectoryLandingRow(
     );
   }
 
-  if (clinics.length === 0) {
-    const clinicId = String(row.clinic_id ?? "").trim();
-    if (clinicId) {
-      const clinicRes = await supabase
-        .from("clinics")
-        .select("id, name, slug, address, address_maps_link, district, phone")
-        .eq("id", clinicId)
-        .eq("is_archived", false)
-        .maybeSingle();
-      if (!clinicRes.error && clinicRes.data) {
-        clinics.push(
-          ...buildManualDirectoryClinicRefs([
-            {
-              clinic_id: clinicId,
-              is_primary: true,
-              clinics: {
-                id: clinicId,
-                name: (clinicRes.data as { name?: string }).name,
-                slug: (clinicRes.data as { slug?: string }).slug,
-                address: (clinicRes.data as { address?: string | null }).address,
-                address_maps_link: (clinicRes.data as { address_maps_link?: string | null })
-                  .address_maps_link,
-                district: (clinicRes.data as { district?: string | null }).district,
-                phone: (clinicRes.data as { phone?: string | null }).phone,
-                is_archived: false,
-              },
-            },
-          ]),
-        );
-      }
-    }
-  }
-
   const primary = clinics.find((c) => c.isPrimary) ?? clinics[0] ?? null;
 
   return {
@@ -298,17 +222,17 @@ async function buildManualDirectoryLandingRow(
     displayName: doctorDashboardDisplayName(String(row.name ?? "Professional")),
     specialty: specialties[0] ?? "Specialty not set",
     specialties,
-    district: row.district,
-    address_maps_link: addressMapsLink,
-    address: String(row.address ?? "").trim() || null,
+    district: place?.district as CyprusDistrict,
+    address_maps_link: place?.addressMapsLink ?? "",
+    address: place?.address ?? null,
     photoUrl: resolveFinderDisplayPhotoUrl({
-      curatedOrCustomPhotoUrl: getFinderManualPhotoUrl(addressMapsLink),
+      curatedOrCustomPhotoUrl: null,
       gender: row.gender,
     }),
     monthlyRequestCount,
     isGesy: Boolean(row.is_gesy ?? false),
-    latitude: coords?.latitude ?? null,
-    longitude: coords?.longitude ?? null,
+    latitude: place?.latitude ?? null,
+    longitude: place?.longitude ?? null,
     clinic: primary ? { id: primary.id, name: primary.name, slug: primary.slug } : null,
     clinics,
   };

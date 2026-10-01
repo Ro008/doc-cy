@@ -311,6 +311,7 @@ test.describe("Integration: registration request review", { tag: "@pr-e2e" }, ()
     const nonce = Date.now().toString(36).replace(/\d/g, (d) => "abcdefghij"[Number(d)]!);
     const listing = await createQaClaimDirectoryClone(admin, nonce);
     cleanup.professionals.push(listing.id);
+    cleanup.clinics.push(listing.clinicId);
     const seeded = await seedRequest(admin, cleanup, {
       lastName: `Claimer ${nonce}`,
       clinicId: clinic.id,

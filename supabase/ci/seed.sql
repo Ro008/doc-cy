@@ -63,23 +63,16 @@ with
     returning id
   ),
   ins_pros as (
+    -- Location lives on the clinic, through the link below (Point E5).
     insert into public.professionals (
-      id, name, slug, district, town, phone, languages, is_gesy, address, latitude, longitude,
-      clinic_id, is_archived, is_registered, is_test_profile
+      id, name, slug, languages, is_gesy, is_archived, is_registered, is_test_profile
     )
     select
       professional_id,
       name,
       lower(replace(name, ' ', '-')) || '-' || specialty_slug || '-' || seq,
-      district,
-      district::text,
-      '+35700' || lpad(seq::text, 6, '0'),
       array['Greek', 'English'],
       seq % 2 = 0,
-      seq || ' Synthetic Street, ' || district::text,
-      lat + seq * 0.001,
-      lng + seq * 0.001,
-      clinic_id,
       false, false, false
     from people
     where clinic_id in (select id from ins_clinics)

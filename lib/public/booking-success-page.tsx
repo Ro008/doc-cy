@@ -10,7 +10,7 @@ import {
   buildGoogleCalendarUrl,
   getCalendarEventDetails,
 } from "@/lib/patient-calendar-event";
-import { appointmentClinicCopy } from "@/lib/appointment-clinic-copy";
+import { appointmentClinicCopy, loadAppointmentClinicPhone } from "@/lib/appointment-clinic-copy";
 import { loadDoctorLocations } from "@/lib/load-doctor-locations";
 import { loadPrimarySpecialtyName } from "@/lib/specialty-catalogue";
 import { getTranslations } from "next-intl/server";
@@ -80,7 +80,7 @@ export default async function BookingSuccessPage({
   const [doctorResult, settingsResult] = await Promise.all([
     supabase
       .from("professionals")
-      .select("id, name, slug, phone")
+      .select("id, name, slug")
       .eq("id", appointment.doctor_id)
       .single(),
     supabase
@@ -135,7 +135,7 @@ export default async function BookingSuccessPage({
     {
       name: doctor.name,
       specialty: specialtyName,
-      phone: doctor.phone,
+      phone: await loadAppointmentClinicPhone(supabase, clinic.locationId),
       clinic_address: clinic.address,
     },
     {
