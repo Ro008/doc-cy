@@ -8,6 +8,7 @@ import {
   type ClinicPick,
 } from "@/lib/clinic-change-request";
 import { ClinicPicker } from "@/components/dashboard/settings/ClinicPicker";
+import { settingsActionErrorMessage } from "@/lib/settings-backend-pending";
 import {
   SettingsDialog,
   dialogPrimaryButtonClass,
@@ -63,7 +64,7 @@ export function ClinicChangeRequestDialog({
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        toast.error((data?.message as string) || "Could not send the request.");
+        toast.error(settingsActionErrorMessage(res.status, data, "Could not send the request."));
         return;
       }
       onSent({

@@ -61,6 +61,7 @@ import {
   clinicsAfterRemoval,
 } from "@/lib/settings-removal-rules";
 import { AddClinicDialog, type NewClinic } from "@/components/dashboard/settings/AddClinicDialog";
+import { settingsActionErrorMessage } from "@/lib/settings-backend-pending";
 import {
   clinicBookingStatus,
   summarizeClinicBreak,
@@ -368,7 +369,7 @@ export function SettingsForm({
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        toast.error((data?.message as string) || "Could not remove the specialty.");
+        toast.error(settingsActionErrorMessage(res.status, data, "Could not remove the specialty."));
         return false;
       }
       const next = Array.isArray(data?.specialties)
@@ -601,7 +602,7 @@ export function SettingsForm({
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        toast.error((data?.message as string) || "Could not send the request.");
+        toast.error(settingsActionErrorMessage(res.status, data, "Could not send the request."));
         return false;
       }
       setPendingClinicAdds((prev) => [
@@ -632,7 +633,7 @@ export function SettingsForm({
       );
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        toast.error((data.message as string) || "Could not remove clinic.");
+        toast.error(settingsActionErrorMessage(res.status, data, "Could not remove clinic."));
         return false;
       }
       const captured = captureActiveWorkplace();

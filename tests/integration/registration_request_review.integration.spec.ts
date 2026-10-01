@@ -586,7 +586,11 @@ test.describe("Integration: registration request review", { tag: "@pr-e2e" }, ()
     await expect(addedRow).toContainText("existing DocCy clinic");
 
     await card.getByRole("button", { name: "APPROVE" }).click();
-    await expect(card.getByText(/Approved/)).toBeVisible({ timeout: 30_000 });
+    // The card shows "Approved", then the list refreshes without it (it is no longer
+    // pending), sometimes before a check could read the label: wait for the request.
+    await expect
+      .poll(async () => (await loadRequest(admin, seeded.requestId)).status, { timeout: 30_000 })
+      .toBe("approved");
 
     const { row } = await recordOutcome(admin, cleanup, seeded.requestId);
     const { data: approvedLinks } = await admin

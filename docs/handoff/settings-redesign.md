@@ -93,6 +93,13 @@ clinic is a request too (reviewed like the others).
   follow the new primary.
 - 200 `{}`; 400 `{ "message" }` (the page shows it as is).
 
+## Temporary message to remove
+
+Until these endpoints exist they answer 404 and the page shows
+"This fails as expected for now: it works once Livio updates the backend."
+(`lib/settings-backend-pending.ts`). Once they are in, drop that file and use the
+server's message.
+
 ## Links elsewhere
 
 `/agenda/settings` is used in `lib/registration-decision-emails.ts` through
