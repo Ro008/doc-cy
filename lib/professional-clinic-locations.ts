@@ -3,10 +3,10 @@ import type { DoctorLocationRow } from "@/lib/doctor-locations";
 /**
  * Point D2: practice locations read from `professional_clinics -> clinics`.
  *
- * Stage 1 made the join row a per-(professional, clinic) row carrying the schedule,
- * and D1 keeps it an exact mirror of `doctor_locations` (same id). This maps it onto
- * the `DoctorLocationRow` every caller already renders, so profiles, agendas, emails,
- * the finder and the booking flow keep behaving identically while the read moves.
+ * Stage 1 made the join row a per-(professional, clinic) row carrying the schedule.
+ * This maps it onto the `DoctorLocationRow` every caller already renders (the shape of
+ * the old `doctor_locations` table), so profiles, agendas, emails, the finder and the
+ * booking flow read clinics without knowing where they come from.
  *
  * The split of ownership is the point: the join row owns the schedule, pause, label
  * and ordering; the clinic owns the address, town, district and coordinates. Clinics
@@ -105,13 +105,11 @@ export function primaryClinicLocationFields(
 }
 
 /**
- * False for a clinic still being set up: a `doctor_locations` row "Add clinic" created
- * with no address or district, which the loaders return alongside the join rows (the
- * bridge). It has no clinic link, and `appointments.location_id` references
- * `professional_clinics`, so nothing can be booked there. Same rule as the bridge
- * filter (`clinic_address is null or district is null`): a real clinic always has
- * both (`clinics.district` is NOT NULL; every clinic has an address, checked
- * 2026-09-27).
+ * False for a location with no address or district, which is not a place a patient can
+ * be sent to. The loaders only return join rows now (D4 removed the bridge for
+ * addressless "Add clinic" rows), and a real clinic always has both (`clinics.district`
+ * is NOT NULL; every clinic has an address, checked 2026-09-27), so this is a guard
+ * the booking routes keep.
  */
 export function locationHasClinic(location: LocationFieldsSource): boolean {
   return text(location.district) != null && text(location.clinic_address) != null;

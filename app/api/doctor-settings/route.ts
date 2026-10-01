@@ -3,12 +3,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 import { validateLanguageSelection } from "@/lib/cyprus-languages";
-import { isCyprusDistrict } from "@/lib/cyprus-districts";
-import {
-  hasConfirmedClinicCoordinates,
-  clinicLocationFromParts,
-} from "@/lib/clinic-location";
-import { parseOptionalCoordinates } from "@/lib/finder-distance";
 import {
   BOOKING_HORIZON_OPTIONS_DAYS,
   DAY_NAMES,
@@ -18,11 +12,11 @@ import {
   type DayKey,
   type WeeklySchedule,
 } from "@/lib/doctor-settings";
-import { locationScheduleColumns, sanitizeClinicLabel } from "@/lib/doctor-locations";
-import { loadDoctorLocations, primaryDoctorLocation } from "@/lib/load-doctor-locations";
+import { loadDoctorLocations } from "@/lib/load-doctor-locations";
 import {
-  splitLocationPatch,
+  settingsSaveTargets,
   writeClinicSettings,
+  type SettingsClinicInput,
 } from "@/lib/professional-clinic-settings-writes";
 import {
   isSpecialtyChangeAttempt,
@@ -87,7 +81,9 @@ export async function GET(req: NextRequest) {
 }
 
 /** POST - upsert professional_settings + update the mobile, bio, languages (owner only).
- * Clinic phones are read-only here: clinics are curated by DocCy (user, 2026-09-29).
+ * Clinics are read-only here (user, 2026-09-29 phones; 2026-09-30 D4 addresses): they are
+ * curated by DocCy, so a save writes each clinic's hours and name on the professional's
+ * join row and never an address. Address fields an old page still sends are ignored.
  * Specialty is locked after registration — changes go through Support. */
 export async function POST(req: NextRequest) {
   const supabase = createRouteHandlerClient({ cookies });
@@ -112,12 +108,6 @@ export async function POST(req: NextRequest) {
   const b = body as {
     doctorId?: string;
     doctorPhone?: string | null;
-    district?: string | null;
-    clinicAddress?: string | null;
-    clinicLatitude?: number | null;
-    clinicLongitude?: number | null;
-    clinicPlaceId?: string | null;
-    town?: string | null;
     specialty?: string;
     /** true when chosen from master list (JSON boolean) */
     specialtyFromMaster?: boolean | string | number;
@@ -143,29 +133,7 @@ export async function POST(req: NextRequest) {
     holidayModeEnabled?: boolean;
     holidayStartDate?: string | null;
     holidayEndDate?: string | null;
-    locations?: Array<{
-      id?: string;
-      district?: string | null;
-      clinicAddress?: string | null;
-      clinicLatitude?: number | null;
-      clinicLongitude?: number | null;
-      clinicPlaceId?: string | null;
-      town?: string | null;
-      label?: string | null;
-      weeklySchedule?: WeeklySchedule;
-      monday?: boolean;
-      tuesday?: boolean;
-      wednesday?: boolean;
-      thursday?: boolean;
-      friday?: boolean;
-      saturday?: boolean;
-      sunday?: boolean;
-      breakEnabled?: boolean;
-      breakStart?: string;
-      breakEnd?: string;
-      slotDurationMinutes?: number;
-      pauseOnlineBookings?: boolean;
-    }>;
+    locations?: SettingsClinicInput[];
   };
 
   if (!b.doctorId) {
@@ -218,62 +186,8 @@ export async function POST(req: NextRequest) {
   }
   const languages = langsParsed.value;
   const locationsPayload = Array.isArray(b.locations) ? b.locations : [];
-  const primaryLocationInput = locationsPayload[0];
-  const districtRaw = String(
-    primaryLocationInput?.district ?? b.district ?? "",
-  ).trim();
-  if (!isCyprusDistrict(districtRaw)) {
-    return NextResponse.json(
-      {
-        message:
-          "We could not detect a valid clinic district. Re-select the clinic from Google suggestions.",
-      },
-      { status: 400 }
-    );
-  }
-  const clinicAddress = String(
-    primaryLocationInput?.clinicAddress ?? b.clinicAddress ?? "",
-  ).trim();
-  if (!clinicAddress) {
-    return NextResponse.json(
-      {
-        message:
-          "Add your clinic address so patients can find you in Health Finder.",
-      },
-      { status: 400 },
-    );
-  }
   const doctorPhoneTrimmed =
     typeof b.doctorPhone === "string" ? b.doctorPhone.trim() : "";
-  const clinicLocation = clinicLocationFromParts({
-    address: clinicAddress,
-    latitude: primaryLocationInput?.clinicLatitude ?? b.clinicLatitude,
-    longitude: primaryLocationInput?.clinicLongitude ?? b.clinicLongitude,
-    placeId: primaryLocationInput?.clinicPlaceId ?? b.clinicPlaceId,
-    district: districtRaw,
-    town:
-      typeof primaryLocationInput?.town === "string"
-        ? primaryLocationInput.town
-        : typeof b.town === "string"
-          ? b.town
-          : null,
-  });
-  const coords = parseOptionalCoordinates(
-    primaryLocationInput?.clinicLatitude ?? b.clinicLatitude,
-    primaryLocationInput?.clinicLongitude ?? b.clinicLongitude,
-  );
-  const hasLegacyAddressOnly =
-    clinicAddress.length > 0 &&
-    !coords &&
-    typeof b.clinicLatitude === "undefined" &&
-    typeof b.clinicLongitude === "undefined";
-
-  if (clinicAddress && !hasConfirmedClinicCoordinates(clinicLocation) && !hasLegacyAddressOnly) {
-    return NextResponse.json(
-      { message: "Please select your clinic from the Google suggestions." },
-      { status: 400 },
-    );
-  }
 
   const toTime = (v: string | undefined, fallback: string) => {
     if (!v || typeof v !== "string") return fallback;
@@ -415,22 +329,8 @@ export async function POST(req: NextRequest) {
   const phoneUpdateBase: {
     mobile_number?: string | null;
     bio?: string | null;
-    district: string;
-    clinic_address: string | null;
-    town?: string | null;
-    latitude?: number | null;
-    longitude?: number | null;
-    clinic_place_id?: string | null;
     languages: string[];
-  } = {
-    district: districtRaw,
-    clinic_address: clinicAddress || null,
-    town: clinicAddress ? clinicLocation.town : null,
-    latitude: clinicAddress ? clinicLocation.latitude : null,
-    longitude: clinicAddress ? clinicLocation.longitude : null,
-    clinic_place_id: clinicAddress ? clinicLocation.placeId : null,
-    languages,
-  };
+  } = { languages };
   if (b.doctorPhone !== undefined) {
     phoneUpdateBase.mobile_number = doctorPhoneTrimmed ? doctorPhoneTrimmed : null;
   }
@@ -448,26 +348,10 @@ export async function POST(req: NextRequest) {
       docErr.code === "PGRST204" ||
       String(docErr.message ?? "").toLowerCase().includes("column"))
   ) {
-    if (/town/i.test(String(docErr.message ?? ""))) {
-      const { town: _town, ...withoutTown } = phoneUpdateBase;
-      docErr = (await supabase.from("professionals").update(withoutTown).eq("id", doctorId)).error;
-    }
-    if (docErr && /mobile_number/i.test(String(docErr.message ?? ""))) {
+    if (/mobile_number/i.test(String(docErr.message ?? ""))) {
       const { mobile_number: _mobile, ...withoutMobile } = phoneUpdateBase;
       docErr = (
         await supabase.from("professionals").update(withoutMobile).eq("id", doctorId)
-      ).error;
-    }
-    if (
-      docErr &&
-      (docErr.code === "42703" ||
-        docErr.code === "PGRST204" ||
-        String(docErr.message ?? "").toLowerCase().includes("column"))
-    ) {
-      const { latitude: _lat, longitude: _lon, clinic_place_id: _placeId, town: _town, ...legacyPhoneUpdate } =
-        phoneUpdateBase;
-      docErr = (
-        await supabase.from("professionals").update(legacyPhoneUpdate).eq("id", doctorId)
       ).error;
     }
   }
@@ -489,19 +373,12 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const existingLocations = await loadDoctorLocations(doctorId);
-  const locationInputs =
+  const ownedClinics = await loadDoctorLocations(doctorId);
+  const clinicInputs: SettingsClinicInput[] =
     locationsPayload.length > 0
       ? locationsPayload
       : [
           {
-            id: primaryDoctorLocation(existingLocations)?.id,
-            district: districtRaw,
-            clinicAddress,
-            clinicLatitude: b.clinicLatitude,
-            clinicLongitude: b.clinicLongitude,
-            clinicPlaceId: b.clinicPlaceId,
-            town: typeof b.town === "string" ? b.town : null,
             weeklySchedule: b.weeklySchedule,
             monday: b.monday,
             tuesday: b.tuesday,
@@ -517,95 +394,14 @@ export async function POST(req: NextRequest) {
           },
         ];
 
-  for (let index = 0; index < locationInputs.length; index += 1) {
-    const loc = locationInputs[index];
-    if (!loc) continue;
-    const locAddress = String(loc.clinicAddress ?? "").trim();
-    if (!locAddress) {
+  for (const { locationId, settings } of settingsSaveTargets(clinicInputs, ownedClinics)) {
+    const saved = await writeClinicSettings(doctorId, locationId, settings);
+    if (!saved.ok) {
+      console.error("[DocCy] Failed to save clinic settings", saved.error);
       return NextResponse.json(
-        {
-          message:
-            "Each clinic needs an address. Search Google or drop a pin before saving.",
-        },
-        { status: 400 },
+        { message: "Error saving clinic settings." },
+        { status: 500 },
       );
-    }
-    const locDistrict = String(loc.district ?? "").trim();
-    const locClinic = clinicLocationFromParts({
-      address: locAddress,
-      latitude: loc.clinicLatitude,
-      longitude: loc.clinicLongitude,
-      placeId: loc.clinicPlaceId,
-      district: locDistrict,
-      town: typeof loc.town === "string" ? loc.town : null,
-    });
-    if (locAddress && locDistrict && !isCyprusDistrict(locDistrict) && !locClinic.district) {
-      return NextResponse.json(
-        {
-          message:
-            "We could not detect a valid district for each clinic. Re-select each clinic from Google suggestions.",
-        },
-        { status: 400 },
-      );
-    }
-    const schedule = locationScheduleColumns({
-      weeklySchedule: loc.weeklySchedule,
-      monday: loc.monday,
-      tuesday: loc.tuesday,
-      wednesday: loc.wednesday,
-      thursday: loc.thursday,
-      friday: loc.friday,
-      saturday: loc.saturday,
-      sunday: loc.sunday,
-      breakEnabled: loc.breakEnabled,
-      breakStart: loc.breakStart,
-      breakEnd: loc.breakEnd,
-      slotDurationMinutes: loc.slotDurationMinutes,
-      pauseOnlineBookings: loc.pauseOnlineBookings,
-    });
-    const locationPatch: Record<string, unknown> = {
-      ...schedule,
-      district: locClinic.district ?? (locDistrict || null),
-      clinic_address: locAddress || null,
-      town: locAddress ? locClinic.town : null,
-      latitude: locAddress ? locClinic.latitude : null,
-      longitude: locAddress ? locClinic.longitude : null,
-      clinic_place_id: locAddress ? locClinic.placeId : null,
-      updated_at: new Date().toISOString(),
-    };
-    if (typeof loc.label === "string") {
-      locationPatch.label = sanitizeClinicLabel(loc.label);
-    }
-    const locationId = String(loc.id ?? "").trim();
-    const matched = existingLocations.find((row) => row.id === locationId);
-    const targetId =
-      matched?.id ?? (index === 0 ? primaryDoctorLocation(existingLocations)?.id : undefined);
-    if (targetId) {
-      const { settings, location: locationFields } = splitLocationPatch(locationPatch);
-
-      // Where the clinic is stays on the location for now; the D1 trigger mirrors it.
-      const { error: locErr } = await supabase
-        .from("doctor_locations")
-        .update({ ...locationFields, updated_at: new Date().toISOString() })
-        .eq("id", targetId)
-        .eq("doctor_id", doctorId);
-      if (locErr) {
-        console.error("[DocCy] Failed to update doctor location", locErr);
-        return NextResponse.json(
-          { message: "Error saving clinic settings." },
-          { status: 500 },
-        );
-      }
-
-      // This professional's own settings at the clinic go to their join row.
-      const saved = await writeClinicSettings(doctorId, targetId, settings);
-      if (!saved.ok) {
-        console.error("[DocCy] Failed to save clinic settings", saved.error);
-        return NextResponse.json(
-          { message: "Error saving clinic settings." },
-          { status: 500 },
-        );
-      }
     }
   }
 

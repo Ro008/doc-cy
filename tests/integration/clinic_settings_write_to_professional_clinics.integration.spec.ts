@@ -16,8 +16,8 @@ import { createIntegrationAdmin, requireSafeIntegration } from "./helpers/safe-i
  * - a settings edit made the old way (on the location) still reaches the join row;
  * - account settings (professional_settings) follow the PRIMARY clinic's join row,
  *   and an address edit never resets them either;
- * - the routes write settings to the join row, and fall back to the location only for
- *   a clinic still being set up (no address yet, so no join row).
+ * - the routes write settings to the join row only (D4: the settings save is covered by
+ *   settings_clinics_read_only; the old /api/doctor-locations route is gone).
  */
 
 type Seeded = {
@@ -270,95 +270,6 @@ test.describe("Integration: per-clinic settings live on professional_clinics", {
       expect((await joinRow(admin, id))?.pause_online_bookings).toBe(false);
       // The write moved: the location row is no longer where this setting is saved.
       expect((await location(admin, id)).pause_online_bookings).toBe(true);
-    } finally {
-      await cleanup(admin, seeded);
-    }
-  });
-
-  test("editing a clinic writes its hours to the join row", async ({ page }) => {
-    test.setTimeout(90_000);
-    const admin = createIntegrationAdmin(requireSafeIntegration());
-    let seeded: Partial<Seeded> = {};
-    try {
-      seeded = await seed(admin, "patch");
-      const id = seeded.primaryId!;
-      const before = await location(admin, id);
-
-      await signIn(page, seeded as Seeded);
-      const res = await page.request.patch("/api/doctor-locations", {
-        data: {
-          doctorId: seeded.professionalId,
-          locationId: id,
-          clinicAddress: before.clinic_address,
-          clinicLatitude: 34.77,
-          clinicLongitude: 32.42,
-          clinicPlaceId: "d3a-patch-place",
-          district: "Paphos",
-          town: "Paphos",
-          label: "Afternoons",
-          weeklySchedule: {
-            monday: { enabled: true, start_time: "14:00", end_time: "18:00" },
-            tuesday: { enabled: false, start_time: "09:00", end_time: "17:00" },
-            wednesday: { enabled: false, start_time: "09:00", end_time: "17:00" },
-            thursday: { enabled: false, start_time: "09:00", end_time: "17:00" },
-            friday: { enabled: false, start_time: "09:00", end_time: "17:00" },
-            saturday: { enabled: false, start_time: "09:00", end_time: "17:00" },
-            sunday: { enabled: false, start_time: "09:00", end_time: "17:00" },
-          },
-          slotDurationMinutes: 50,
-        },
-        timeout: 30_000,
-      });
-      expect(res.status(), await res.text()).toBe(200);
-      const body = (await res.json()) as { location?: { slot_duration_minutes?: number; label?: string } };
-      expect(body.location).toMatchObject({ slot_duration_minutes: 50, label: "Afternoons" });
-
-      expect(await joinRow(admin, id)).toMatchObject({ slot_duration_minutes: 50, label: "Afternoons" });
-      // The location keeps its address, but no longer holds the settings.
-      expect((await location(admin, id)).slot_duration_minutes).toBe(before.slot_duration_minutes);
-    } finally {
-      await cleanup(admin, seeded);
-    }
-  });
-
-  test("a clinic still being set up keeps its hours until it has an address", async ({ page }) => {
-    test.setTimeout(90_000);
-    const admin = createIntegrationAdmin(requireSafeIntegration());
-    let seeded: Partial<Seeded> = {};
-    try {
-      seeded = await seed(admin, "pending");
-      // Exactly what "Add clinic" creates: no address, no district, so no join row.
-      const added = await admin
-        .from("doctor_locations")
-        .insert({ doctor_id: seeded.professionalId, is_primary: false, sort_order: 1 })
-        .select("id")
-        .single();
-      if (added.error || !added.data) throw new Error(`added: ${added.error?.message}`);
-      const id = String(added.data.id);
-      expect(await joinRow(admin, id)).toBeNull();
-
-      await signIn(page, seeded as Seeded);
-      const res = await page.request.patch("/api/doctor-locations", {
-        data: {
-          doctorId: seeded.professionalId,
-          locationId: id,
-          clinicAddress: "",
-          district: "",
-          slotDurationMinutes: 40,
-        },
-        timeout: 30_000,
-      });
-      expect(res.status(), await res.text()).toBe(200);
-
-      expect((await location(admin, id)).slot_duration_minutes).toBe(40);
-
-      // Once it gets an address, its join row starts from those hours.
-      const addressed = await admin
-        .from("doctor_locations")
-        .update({ clinic_address: `Pending Street ${nonce()}, Paphos, Cyprus`, district: "Paphos" })
-        .eq("id", id);
-      if (addressed.error) throw new Error(addressed.error.message);
-      expect((await joinRow(admin, id))?.slot_duration_minutes).toBe(40);
     } finally {
       await cleanup(admin, seeded);
     }

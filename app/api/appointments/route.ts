@@ -240,9 +240,10 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // A clinic still being set up has no address to send a patient to, and no clinic
+  // Every appointment is at a clinic (every professional has one, user 2026-09-29): no
+  // clinic, or one with no address, leaves nowhere to send the patient and no clinic
   // link for the appointment to reference.
-  if (bookingLocation && !locationHasClinic(bookingLocation)) {
+  if (!bookingLocation || !locationHasClinic(bookingLocation)) {
     return NextResponse.json(
       { message: "Bookings temporarily unavailable" },
       { status: 403 }

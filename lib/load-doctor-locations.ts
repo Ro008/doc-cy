@@ -1,8 +1,4 @@
-import {
-  DOCTOR_LOCATION_SELECT,
-  sortDoctorLocations,
-  type DoctorLocationRow,
-} from "@/lib/doctor-locations";
+import { sortDoctorLocations, type DoctorLocationRow } from "@/lib/doctor-locations";
 import {
   PROFESSIONAL_CLINIC_LOCATION_SELECT,
   professionalClinicRowToLocation,
@@ -14,10 +10,10 @@ import { fetchAllSupabaseRows, fetchAllSupabaseRowsForIdChunks } from "@/lib/sup
 /**
  * Practice locations for registered professionals.
  *
- * Point D2: these read `professional_clinics -> clinics`, not `doctor_locations`.
- * D1's trigger keeps the join row an exact mirror of the location it was created from,
- * including its id, so everything downstream — `?location=<uuid>` links,
- * `appointments.location_id`, agenda clinic colours — keeps resolving.
+ * These read `professional_clinics -> clinics` only (Point D2; D4 removed the last read
+ * of `doctor_locations`, the bridge for addressless "Add clinic" rows). A join row id is
+ * what `?location=<uuid>` links, `appointments.location_id` and agenda clinic colours
+ * point at.
  *
  * Reads go through the service role with an explicit column list, because
  * `professional_clinics` and `clinics` have RLS enabled with no policies. Callers pass
@@ -25,28 +21,8 @@ import { fetchAllSupabaseRows, fetchAllSupabaseRowsForIdChunks } from "@/lib/sup
  * profile being rendered), exactly as the specialty loaders do since Point C.
  *
  * Scraped GeSY listings have join rows too, and those are not practice locations: they
- * are workplaces the directory lists. Only registered professionals are returned, which
- * is what `doctor_locations` meant.
+ * are workplaces the directory lists. Only registered professionals are returned.
  */
-
-/**
- * Clinics being set up, which have no join row yet.
- *
- * "Add clinic" in settings creates a location with no address and no district, and the
- * professional fills the address in afterwards through the wizard. D1's mirror cannot
- * represent that: a join row needs a clinic, and `clinics.district` is NOT NULL, so
- * there is nothing to point at until an address exists. Reading only the join rows
- * would make the new tab vanish the moment it was added.
- *
- * So these rows still come from `doctor_locations` — only the ones the mirror skips,
- * which are exactly the ones that are not yet a place a patient could be sent to.
- * D3/D4 remove this bridge, when adding a clinic means choosing one up front.
- *
- * "Skips" means the mirror's own rule: an address that is null OR blank
- * (`nullif(btrim(clinic_address), '')`), or no district. A location created with
- * clinic_address '' would otherwise be neither a join row nor pending, and vanish.
- */
-const PENDING_LOCATION_FILTER = "clinic_address.is.null,clinic_address.eq.,district.is.null";
 
 function locationsFromRows(data: unknown[] | null): DoctorLocationRow[] {
   const rows = (data ?? []) as ProfessionalClinicJoinRow[];
@@ -56,18 +32,6 @@ function locationsFromRows(data: unknown[] | null): DoctorLocationRow[] {
     if (location && location.id && location.doctor_id) locations.push(location);
   }
   return sortDoctorLocations(locations);
-}
-
-function mergePendingLocations(
-  locations: readonly DoctorLocationRow[],
-  pendingData: unknown[] | null,
-): DoctorLocationRow[] {
-  const known = new Set(locations.map((row) => row.id));
-  const pending = ((pendingData ?? []) as DoctorLocationRow[]).filter(
-    (row) => row?.id && !known.has(row.id),
-  );
-  if (pending.length === 0) return [...locations];
-  return sortDoctorLocations([...locations, ...pending]);
 }
 
 export async function loadDoctorLocations(professionalId: string): Promise<DoctorLocationRow[]> {
@@ -95,21 +59,7 @@ export async function loadDoctorLocations(professionalId: string): Promise<Docto
     return [];
   }
 
-  const locations = locationsFromRows(data);
-
-  const pending = await fetchAllSupabaseRows(() =>
-    supabase
-      .from("doctor_locations")
-      .select(DOCTOR_LOCATION_SELECT)
-      .eq("doctor_id", id)
-      .or(PENDING_LOCATION_FILTER),
-  );
-  if (pending.error) {
-    console.error("[DocCy] loadDoctorLocations pending clinics failed:", pending.error);
-    return locations;
-  }
-
-  return mergePendingLocations(locations, pending.data);
+  return locationsFromRows(data);
 }
 
 export async function loadDoctorLocationsByDoctorIds(
@@ -142,29 +92,6 @@ export async function loadDoctorLocationsByDoctorIds(
     const list = byDoctor.get(row.doctor_id) ?? [];
     list.push(row);
     byDoctor.set(row.doctor_id, list);
-  }
-
-  const pending = await fetchAllSupabaseRowsForIdChunks(uniqueIds, (chunk) =>
-    supabase
-      .from("doctor_locations")
-      .select(DOCTOR_LOCATION_SELECT)
-      .in("doctor_id", chunk)
-      .or(PENDING_LOCATION_FILTER),
-  );
-  if (pending.error) {
-    console.error("[DocCy] loadDoctorLocationsByDoctorIds pending clinics failed:", pending.error);
-  } else {
-    const pendingByDoctor = new Map<string, DoctorLocationRow[]>();
-    for (const row of (pending.data ?? []) as DoctorLocationRow[]) {
-      const doctorId = String(row?.doctor_id ?? "").trim();
-      if (!doctorId) continue;
-      const list = pendingByDoctor.get(doctorId) ?? [];
-      list.push(row);
-      pendingByDoctor.set(doctorId, list);
-    }
-    for (const [doctorId, rows] of pendingByDoctor) {
-      byDoctor.set(doctorId, mergePendingLocations(byDoctor.get(doctorId) ?? [], rows));
-    }
   }
 
   for (const [doctorId, rows] of byDoctor) {
