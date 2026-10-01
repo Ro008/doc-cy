@@ -123,6 +123,33 @@ clinic is a request too (reviewed like the others).
   deletes it; yours to choose). It must no longer show to founders for review.
 - 200 `{}`; 404 `{ "message": "No pending request." }` when there is none.
 
+### 6. Notifications — `PUT /api/doctor-notification-settings` (new) + loading them
+
+Settings → Notifications (user, 2026-10-01; `lib/settings-notifications.ts`,
+`components/dashboard/settings/NotificationsSection.tsx`). Today every professional sees
+`DEFAULT_NOTIFICATION_SETTINGS`, which is what DocCy sends now.
+
+- Body (and the shape the page should be given on load):
+  `{ "emails": { "newRequest": true, "confirmedCopy": true, "dailySummary": false, "monthlySummary": true }, "extraEmail": "", "patientReminder": { "enabled": false, "hoursBefore": 24 } }`
+  (`hoursBefore` is 24 or 2; `extraEmail` "" = none, never the account email).
+- Auth: the signed-in professional. 200 with the saved settings; 400 `{ "message" }`.
+- Load: `app/settings/page.tsx` passes `initial` to `NotificationsSection`; replace the
+  defaults with the stored row (a table per professional, or columns on
+  `professional_settings`; yours to choose).
+- What each switch means for the senders:
+  - `newRequest`: the "New appointment request" email (`app/api/appointments/route.ts`).
+  - `confirmedCopy`: `lib/send-doctor-appointment-confirmed-email.ts`.
+  - `monthlySummary`: `lib/send-doctor-monthly-digest-email.ts`.
+  - `dailySummary` (new): one email each evening with the next day's visits.
+  - `extraEmail`: also send the professional's emails there.
+  - `patientReminder` (new): an email to the patient before each confirmed visit.
+  - Security emails (new sign-in) always go and are not listed.
+
+### Plan & billing (no backend needed)
+
+Reads `professionals.pro_access_until` and `subscription_tier` (`lib/settings-plan.ts`).
+Read-only; "Nothing to pay today" until payments exist.
+
 ## Temporary message to remove
 
 Until these endpoints exist they answer 404 and the page says the failure is expected

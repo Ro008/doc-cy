@@ -6,6 +6,8 @@ export const SETTINGS_SECTIONS = [
   { id: "services", label: "Services & prices" },
   { id: "profile", label: "Profile" },
   { id: "contact", label: "Contact & phone" },
+  // Which emails come and to where, and patient reminders (user, 2026-10-01).
+  { id: "notifications", label: "Notifications" },
   // QR, print sign and scripts: their own section, not part of Account (user, 2026-10-01).
   { id: "promote", label: "Promote" },
   // The professional's own terms: free period, price after it (user, 2026-10-01).

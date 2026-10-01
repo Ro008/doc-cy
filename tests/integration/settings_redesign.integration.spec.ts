@@ -446,6 +446,34 @@ test.describe("Settings redesign (B1)", { tag: "@pr-e2e" }, () => {
     await expect(page.getByText(/coming soon/i)).toHaveCount(0);
   });
 
+  test("Notifications: today's emails by default; a switch saves the whole settings", async ({ page }) => {
+    test.setTimeout(120_000);
+    // New endpoint (handoff: Notifications), stubbed here.
+    let sent: unknown = null;
+    await page.route("**/api/doctor-notification-settings", async (route) => {
+      sent = route.request().postDataJSON();
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(sent) });
+    });
+    await openSettings(page, seeded!, "notifications");
+
+    const emails = page.getByTestId("settings-notification-emails");
+    await expect(emails.getByRole("switch", { name: "New appointment requests" })).toHaveAttribute("aria-checked", "true");
+    await expect(emails.getByRole("switch", { name: "Tomorrow’s appointments" })).toHaveAttribute("aria-checked", "false");
+
+    await emails.getByRole("switch", { name: "Tomorrow’s appointments" }).click();
+    await expect(emails.getByRole("switch", { name: "Tomorrow’s appointments" })).toHaveAttribute("aria-checked", "true");
+    expect(sent).toEqual({
+      emails: { newRequest: true, confirmedCopy: true, dailySummary: true, monthlySummary: true },
+      extraEmail: "",
+      patientReminder: { enabled: false, hoursBefore: 24 },
+    });
+
+    // The second address is checked before it is sent.
+    await page.locator("#notification-extra-email").fill(seeded!.email);
+    await page.getByTestId("settings-notification-extra-save").click();
+    await expect(page.getByTestId("settings-notification-addresses")).toContainText("That is already your account email.");
+  });
+
   test("Profile and Services link to the public profile", async ({ page }) => {
     test.setTimeout(120_000);
     await openSettings(page, seeded!, "profile");

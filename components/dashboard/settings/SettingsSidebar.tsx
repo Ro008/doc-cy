@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import {
+  Bell,
   Building2,
   CalendarDays,
   CreditCard,
@@ -24,6 +25,7 @@ const SECTION_ICONS: Record<SettingsSectionId, LucideIcon> = {
   services: Tags,
   profile: UserRound,
   contact: Phone,
+  notifications: Bell,
   promote: Megaphone,
   plan: CreditCard,
   account: Lock,

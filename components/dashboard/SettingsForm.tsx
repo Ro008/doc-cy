@@ -197,6 +197,8 @@ type SettingsFormProps = {
   publicProfileHref?: string | null;
   /** The Plan & billing section: free period, terms, payment. */
   plan?: React.ReactNode;
+  /** The Notifications section: emails, second address, patient reminders. */
+  notifications?: React.ReactNode;
 };
 
 type CropArea = { x: number; y: number; width: number; height: number };
@@ -337,6 +339,7 @@ export function SettingsForm({
   promote,
   publicProfileHref,
   plan,
+  notifications,
 }: SettingsFormProps) {
   const [section, setSection] = React.useState<SettingsSectionId>(
     () => initialSection ?? parseSettingsSection(null),
@@ -2028,6 +2031,13 @@ export function SettingsForm({
     </div>
   );
 
+  const notificationsSection = (
+    <div className="space-y-5">
+      {sectionTitle("Notifications", "Which emails you get, where they go, and reminders to your patients.")}
+      {notifications}
+    </div>
+  );
+
   const planSection = (
     <div className="space-y-5">
       {sectionTitle("Plan & billing", "Your free period and what comes after it.")}
@@ -2041,6 +2051,7 @@ export function SettingsForm({
     services: servicesSection,
     profile: profileSection,
     contact: contactSection,
+    notifications: notificationsSection,
     promote: promoteSection,
     plan: planSection,
     account: accountSection,

@@ -21,6 +21,8 @@ import { publicProfessionalProfilePath } from "@/lib/manual-directory-landing-pa
 import { SETTINGS_CARD_CLASS } from "@/components/dashboard/settings/styles";
 import { PlanBillingSection } from "@/components/dashboard/settings/PlanBillingSection";
 import { planSummary } from "@/lib/settings-plan";
+import { NotificationsSection } from "@/components/dashboard/settings/NotificationsSection";
+import { DEFAULT_NOTIFICATION_SETTINGS } from "@/lib/settings-notifications";
 import { doctorDashboardDisplayName } from "@/lib/doctor-display-name";
 import {
   canonicalLanguageLabel,
@@ -536,6 +538,11 @@ export default async function AgendaSettingsPage({
         <SettingsForm
           initial={initial}
           plan={<PlanBillingSection plan={plan} isFounder={isFoundingMember} />}
+          // Until Livio stores them (handoff: Notifications), every professional has
+          // the defaults, which are what DocCy sends today.
+          notifications={
+            <NotificationsSection accountEmail={user.email ?? ""} initial={DEFAULT_NOTIFICATION_SETTINGS} />
+          }
           publicProfileHref={doctor.slug ? publicProfessionalProfilePath(doctor.slug) : null}
           section={section}
           sidebarHeader={

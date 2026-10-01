@@ -20,6 +20,7 @@ describe("backendPendingMessage", () => {
       "addClinic",
       "cancelSpecialtyRequest",
       "clinicChangeRequest",
+      "notificationSettings",
       "removeClinic",
       "removeSpecialty",
     ]);

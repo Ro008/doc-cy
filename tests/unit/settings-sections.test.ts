@@ -14,7 +14,7 @@ describe("settings sections (sidebar)", () => {
   it("lists the sidebar sections in order", () => {
     assert.deepEqual(
       SETTINGS_SECTIONS.map((s) => s.id),
-      ["availability", "clinics", "services", "profile", "contact", "promote", "plan", "account"],
+      ["availability", "clinics", "services", "profile", "contact", "notifications", "promote", "plan", "account"],
     );
   });
 
