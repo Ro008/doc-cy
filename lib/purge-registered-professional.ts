@@ -44,7 +44,6 @@ const CHILD_TABLES_BY_PROFESSIONAL_ID = [
   "professional_settings",
   "professional_specialties",
   "professional_specialty_change_requests",
-  "professional_monthly_digest_sent",
   "professional_clinics",
   "professional_patient_booking_requests",
   "professional_call_to_book_clicks",

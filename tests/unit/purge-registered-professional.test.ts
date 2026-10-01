@@ -142,11 +142,15 @@ describe("purgeRegisteredProfessional", () => {
         (d) => d.table === "professional_clinics" && d.column === "professional_id",
       ),
     );
-    // Renamed in Point B: these three moved from doctor_id to professional_id.
+    // Point E1 dropped the monthly digest and its table.
+    assert.ok(
+      !fake.deleted.some((d) => d.table === "professional_monthly_digest_sent"),
+      "professional_monthly_digest_sent is dropped and must not be purged",
+    );
+    // Renamed in Point B: these moved from doctor_id to professional_id.
     for (const table of [
       "professional_settings",
       "professional_specialty_change_requests",
-      "professional_monthly_digest_sent",
     ]) {
       assert.ok(
         fake.deleted.some(
