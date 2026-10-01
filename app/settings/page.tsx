@@ -17,6 +17,7 @@ import { PromotePracticeSection } from "@/components/dashboard/PromotePracticeSe
 import { FoundingMemberBadge } from "@/components/dashboard/FoundingMemberBadge";
 import { GesyPatientsToggle } from "@/components/dashboard/GesyPatientsToggle";
 import { AccountSecurityCard } from "@/components/dashboard/settings/AccountSecurityCard";
+import { SETTINGS_CARD_CLASS } from "@/components/dashboard/settings/styles";
 import { doctorDashboardDisplayName } from "@/lib/doctor-display-name";
 import {
   canonicalLanguageLabel,
@@ -546,8 +547,8 @@ export default async function AgendaSettingsPage({
                   localeLike={localeLike}
                 />
               ) : (
-                <section className="rounded-3xl border border-slate-700/70 bg-slate-900/70 p-5">
-                  <h2 className="text-sm font-semibold text-slate-100">Promote your practice</h2>
+                <section className={SETTINGS_CARD_CLASS}>
+                  <h2 className="text-sm font-semibold text-slate-100">Available once you&apos;re verified</h2>
                   <p className="mt-2 text-sm text-slate-400">
                     QR codes, printable signs, and downloads are available after your profile is{" "}
                     <span className="font-medium text-amber-200/90">verified</span> by our team.

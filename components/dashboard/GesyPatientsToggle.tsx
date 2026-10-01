@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { toast } from "sonner";
+import { SETTINGS_CARD_CLASS } from "@/components/dashboard/settings/styles";
 
 export function GesyPatientsToggle({ initialAcceptsGesy }: { initialAcceptsGesy: boolean }) {
   const [acceptsGesy, setAcceptsGesy] = React.useState(initialAcceptsGesy);
@@ -49,13 +50,13 @@ export function GesyPatientsToggle({ initialAcceptsGesy }: { initialAcceptsGesy:
   const track = acceptsGesy ? "bg-clinical-500/90" : "bg-slate-600";
 
   return (
-    <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-5">
+    <div className={SETTINGS_CARD_CLASS}>
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0 flex-1">
-          <label htmlFor={switchId} className="text-sm font-medium text-slate-100">
+          <label htmlFor={switchId} className="text-sm font-semibold text-slate-100">
             Accepts GESY patients
           </label>
-          <p className="mt-2 text-xs text-slate-400">
+          <p className="mt-0.5 text-xs text-slate-400">
             Display a GESY badge on your profile to help patients find you faster.
           </p>
         </div>

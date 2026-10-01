@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { settingsSectionHref } from "@/lib/settings-sections";
+import { SETTINGS_CARD_CLASS, SETTINGS_EYEBROW_CLASS } from "@/components/dashboard/settings/styles";
 import type { SettingsClinicPhone } from "@/lib/settings-clinic-phones";
 
 type PhoneNumbersSettingsProps = {
@@ -26,19 +27,17 @@ export function PhoneNumbersSettings({
   onOpenClinics,
 }: PhoneNumbersSettingsProps) {
   return (
-    <div
-      id="phone-numbers"
-      className="scroll-mt-24 rounded-2xl border border-slate-800/80 bg-slate-900/60 p-5"
-    >
-      <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-        Phone numbers
-      </p>
+    <section id="phone-numbers" className={`scroll-mt-24 ${SETTINGS_CARD_CLASS}`}>
+      <h2 className={SETTINGS_EYEBROW_CLASS}>Phone numbers</h2>
 
-      <div className="mt-4 space-y-3">
-        <div className="rounded-xl border border-slate-800/80 bg-ink-900/35 p-3">
-          <label htmlFor="mobileNumber" className="text-sm font-medium text-slate-100">
+      <div className="mt-4 divide-y divide-slate-800">
+        <div className="pb-5">
+          <label htmlFor="mobileNumber" className="text-sm font-semibold text-slate-100">
             Mobile
           </label>
+          <p className="mt-0.5 text-xs text-slate-400">
+            Your DocCy account number. Patients don&apos;t see it.
+          </p>
           <input
             id="mobileNumber"
             type="tel"
@@ -46,30 +45,24 @@ export function PhoneNumbersSettings({
             value={mobileNumber}
             onChange={(e) => onMobileNumberChange(e.target.value)}
             placeholder="+357..."
-            className="mt-2 w-full rounded-xl border border-slate-800/80 bg-ink-900/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-clinical-400/60"
+            className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2.5 text-sm text-slate-100 placeholder:text-slate-500 outline-none transition focus:border-clinical-400/60 focus:ring-2 focus:ring-clinical-400/30"
           />
-          <p className="mt-2 text-xs text-slate-400">
-            Your DocCy account number. Patients don&apos;t see it.
-          </p>
         </div>
 
-        <div
-          data-testid="settings-clinic-phones"
-          className="rounded-xl border border-slate-800/80 bg-ink-900/35 p-3"
-        >
-          <p className="text-sm font-medium text-slate-100">
+        <div data-testid="settings-clinic-phones" className="pt-5">
+          <p className="text-sm font-semibold text-slate-100">
             {clinicPhones.length === 1 ? "Clinic phone" : "Clinic phones"}
           </p>
-          <p className="mt-1 text-xs text-slate-400">
+          <p className="mt-0.5 text-xs text-slate-400">
             Patients can call this number from your profile and your listing in Health
             Finder.
           </p>
           {clinicPhones.length > 0 ? (
-            <ul className="mt-3 space-y-2">
+            <ul className="mt-3 divide-y divide-slate-800 rounded-2xl border border-slate-800 bg-slate-950/40">
               {clinicPhones.map((clinic) => (
                 <li
                   key={clinic.clinicId}
-                  className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 rounded-lg border border-slate-800/80 bg-ink-900/40 px-3 py-2"
+                  className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 px-4 py-3"
                 >
                   <span className="text-sm text-slate-200">{clinic.name || "Clinic"}</span>
                   <span className="text-sm font-semibold tabular-nums text-slate-100">
@@ -100,6 +93,6 @@ export function PhoneNumbersSettings({
           </p>
         </div>
       </div>
-    </div>
+    </section>
   );
 }
