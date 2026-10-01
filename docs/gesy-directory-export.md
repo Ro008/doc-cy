@@ -223,7 +223,7 @@ review, then the existing manual-directory migration workflow can be used.
 4. **Extend** `SPECIALTY_EXPORTS` in the script for other DocCy specialties; export
    one file at a time.
 5. **Optional later:** Places backfill for lat/lon + Maps URL; outreach digests
-   using `email` + vote counts (`directory_manual_patient_booking_requests`).
+   using `email` + vote counts (`request_online_appointment` rows in `user_events`).
 
 ---
 

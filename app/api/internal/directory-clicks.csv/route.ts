@@ -16,6 +16,7 @@ import {
 } from "@/lib/founder-directory-clicks-csv";
 import { getPublicBookingBaseUrl } from "@/lib/site-url";
 import { SPECIALTY_LINKS_SELECT, specialtyNamesForRow } from "@/lib/specialty-catalogue";
+import { USER_EVENTS_TABLE } from "@/lib/user-events";
 
 export const dynamic = "force-dynamic";
 
@@ -60,8 +61,9 @@ export async function GET(req: NextRequest) {
     includePhone
       ? fetchAllSupabaseRows(() => {
           let q = supabase
-            .from("professional_call_to_book_clicks")
+            .from(USER_EVENTS_TABLE)
             .select("professional_id, source, created_at")
+            .eq("event_type", "show_phone_number")
             .order("created_at", { ascending: false });
           if (phoneSince) q = q.gte("created_at", phoneSince);
           return q;
@@ -70,8 +72,9 @@ export async function GET(req: NextRequest) {
     includeBooking
       ? fetchAllSupabaseRows(() => {
           let q = supabase
-            .from("professional_patient_booking_requests")
+            .from(USER_EVENTS_TABLE)
             .select("professional_id, source, created_at")
+            .eq("event_type", "request_online_appointment")
             .order("created_at", { ascending: false });
           if (bookingSince) q = q.gte("created_at", bookingSince);
           return q;
