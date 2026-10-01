@@ -50,7 +50,6 @@ export async function createTestDoctor(
       auth_user_id: authUserId,
       name: input.name,
       email,
-      phone: "+35799123456",
       languages: ["English"],
       status: input.status,
       slug,

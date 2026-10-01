@@ -48,10 +48,8 @@ async function seed(admin: SupabaseClient, tag: string): Promise<Seeded> {
     .insert({
       auth_user_id: auth.data.user.id,
       name: `D3a ${tag} ${n}`,
-      district: "Paphos",
       registration_email: email,
       email,
-      phone: "+35799123456",
       mobile_number: "+35799123456",
       languages: ["English"],
       status: "verified",

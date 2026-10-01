@@ -73,7 +73,6 @@ export async function seedRegisterFixtures(admin: SupabaseClient): Promise<Regis
         name,
         slug: `anna-fixture-${token}`,
         email: `${token}@integration.test`,
-        district: "Nicosia",
         gender: "female",
         is_gesy: true,
         is_registered: false,

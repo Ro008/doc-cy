@@ -33,10 +33,8 @@ async function seedProfessional(
     .insert({
       auth_user_id: auth.data.user.id,
       name: `D2 Locations Doctor ${nonce}`,
-      district: "Paphos",
       registration_email: email,
       email,
-      phone: "+35799123456",
       languages: ["English"],
       status: "verified",
       slug,

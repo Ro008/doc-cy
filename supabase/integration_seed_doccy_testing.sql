@@ -163,7 +163,6 @@ BEGIN
       auth_user_id,
       name,
       email,
-      phone,
       languages,
       status,
       slug,
@@ -177,7 +176,6 @@ BEGIN
       v_user_id,
       'Andreas Nikos Test',
       v_email,
-      '+35799123456',
       ARRAY['English', 'Greek']::text[],
       'verified',
       v_slug,
@@ -205,7 +203,6 @@ BEGIN
       pro_access_until = coalesce(pro_access_until, now() + interval '6 months'),
       trial_notice_seen_at = coalesce(trial_notice_seen_at, now()),
       email = coalesce(nullif(trim(email), ''), v_email),
-      phone = coalesce(nullif(trim(phone), ''), '+35799123456'),
       languages = coalesce(languages, ARRAY['English', 'Greek']::text[])
     WHERE id = v_doctor_id;
   END IF;

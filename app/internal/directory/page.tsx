@@ -1,3 +1,4 @@
+import { LISTING_CLINICS_SELECT, listingClinicLocations } from "@/lib/listing-clinic-location";
 import Link from "next/link";
 import { Suspense } from "react";
 import { startOfMonth, startOfWeek, subMonths } from "date-fns";
@@ -349,9 +350,9 @@ export default async function FounderDashboardPage({
   const chartRangeStart = startOfMonth(subMonths(new Date(), 5));
 
   const doctorSelectWithAccountEmail =
-    "id, name, email, registration_email, phone, slug, languages, status, created_at, auth_user_id, pro_access_until";
+    "id, name, email, registration_email, mobile_number, slug, languages, status, created_at, auth_user_id, pro_access_until";
   const doctorSelectLegacy =
-    "id, name, email, phone, slug, languages, status, created_at, auth_user_id";
+    "id, name, email, mobile_number, slug, languages, status, created_at, auth_user_id";
 
   let doctorsRes = await fetchAllSupabaseRows(() =>
     supabase
@@ -457,7 +458,8 @@ export default async function FounderDashboardPage({
         registration_email: (d as { registration_email?: string | null }).registration_email,
         email: (d as { email?: string | null }).email,
       }) || null,
-    phone: (d as { phone?: string | null }).phone ?? null,
+    // The professional's own mobile (professionals.phone was dropped in Point E5).
+    phone: (d as { mobile_number?: string | null }).mobile_number ?? null,
     slug: (d.slug as string | null) ?? null,
     specialty: primary?.name ?? null,
     languages: Array.isArray(d.languages)
@@ -577,14 +579,15 @@ export default async function FounderDashboardPage({
       const ids = voteStats.map((v: { professional_id: string }) => String(v.professional_id));
       const { data: namesRows } = await supabase
         .from("professionals")
-        .select(`id, name, district, ${SPECIALTY_LINKS_SELECT}`)
+        .select(`id, name, ${LISTING_CLINICS_SELECT}, ${SPECIALTY_LINKS_SELECT}`)
         .in("id", ids.length > 500 ? ids.slice(0, 500) : ids);
       const nameMap = new Map(
         (namesRows ?? []).map((n) => [
           String(n.id),
           {
             name: String((n as { name?: string }).name ?? ""),
-            district: (n as { district?: string | null }).district ?? null,
+            // The primary clinic's district (Point E5).
+            district: listingClinicLocations(n as { listing_clinics?: unknown })[0]?.district ?? null,
             specialty: specialtyNamesForRow(n as { specialty_links?: unknown })[0] ?? null,
           },
         ])
@@ -697,7 +700,7 @@ export default async function FounderDashboardPage({
       const { data: namesRows } = await fetchAllSupabaseRowsForIdChunks(ids, (idChunk) =>
         supabase
           .from("professionals")
-          .select(`id, name, district, ${SPECIALTY_LINKS_SELECT}`)
+          .select(`id, name, ${LISTING_CLINICS_SELECT}, ${SPECIALTY_LINKS_SELECT}`)
           .in("id", idChunk),
       );
       const nameMap = new Map(
@@ -705,7 +708,8 @@ export default async function FounderDashboardPage({
           String((n as { id?: string }).id ?? ""),
           {
             name: String((n as { name?: string }).name ?? ""),
-            district: (n as { district?: string | null }).district ?? null,
+            // The primary clinic's district (Point E5).
+            district: listingClinicLocations(n as { listing_clinics?: unknown })[0]?.district ?? null,
             specialty: specialtyNamesForRow(n as { specialty_links?: unknown })[0] ?? null,
           },
         ]),

@@ -266,8 +266,8 @@ begin
   end if;
 
   -- 7. Approving a claim updates the listing in place.
-  insert into public.professionals (name, slug, is_registered, district, is_test_profile)
-  values ('Old Listing ' || v_tag, 'old-listing-' || v_tag, false, 'Paphos', true)
+  insert into public.professionals (name, slug, is_registered, is_test_profile)
+  values ('Old Listing ' || v_tag, 'old-listing-' || v_tag, false, true)
   returning id into v_listing;
   insert into public.professional_specialties (professional_id, specialty, is_approved)
   values (v_listing, 'Dermatology', true);

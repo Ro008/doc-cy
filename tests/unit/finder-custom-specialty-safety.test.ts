@@ -34,7 +34,7 @@ describe("finder custom-specialty wiring (Sexology regression)", () => {
     );
     assert.match(
       catalogueModule,
-      /\.from\("specialties"\)\s*\.select\("id, professional_specialties!inner\(/,
+      /\.from\("specialties"\)\s*\.select\(["`]id, professional_specialties!inner\(/,
       "Availability must go through professional_specialties, which holds every label.",
     );
   });

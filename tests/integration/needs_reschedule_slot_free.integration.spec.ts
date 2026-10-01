@@ -77,7 +77,6 @@ test.describe("Integration: NEEDS_RESCHEDULE frees original slot", { tag: ["@pr-
           auth_user_id: authUserId,
           name: `NeedsRs Doctor ${nonce}`,
           email: doctorEmail,
-          phone: "+35799123456",
           languages: ["English"],
           status: "verified",
           slug: doctorSlug,

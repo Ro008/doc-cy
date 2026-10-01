@@ -50,7 +50,6 @@ begin
   join public.professional_clinics pc on pc.professional_id = p.id
   join public.clinics c on c.id = pc.clinic_id
   where p.id::text like 'c04180_0-d0cc-4a01-800_-cafebabe000_'
-    and c.phone = right(regexp_replace(p.phone, '\D', '', 'g'), 8)
     and c.phone ~ '^990418(0[1-6])$';
   if v_phone <> v_canaries then
     raise exception 'FAIL: % of % fake clinics carry their reserved phone', v_phone, v_canaries;

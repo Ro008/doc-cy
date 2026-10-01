@@ -5,7 +5,7 @@ import { getDoctorCalendarEventDetails } from "@/lib/doctor-calendar-event";
 import { getCalendarEventDetails } from "@/lib/patient-calendar-event";
 import { isConfirmedForCalendar } from "@/lib/appointment-status";
 import { isAppointmentLinkExpired, verifyAppointmentLink } from "@/lib/appointment-links";
-import { appointmentClinicCopy } from "@/lib/appointment-clinic-copy";
+import { appointmentClinicCopy, loadAppointmentClinicPhone } from "@/lib/appointment-clinic-copy";
 import { loadDoctorLocations } from "@/lib/load-doctor-locations";
 import { loadPrimarySpecialtyName } from "@/lib/specialty-catalogue";
 
@@ -82,7 +82,7 @@ export async function GET(req: NextRequest, { params }: RouteContext) {
 
   const { data: doctor } = await supabase
     .from("professionals")
-    .select("id, name, phone, slug")
+    .select("id, name, slug")
     .eq("id", appointment.doctor_id)
     .single();
   const specialtyName = await loadPrimarySpecialtyName(
@@ -118,7 +118,7 @@ export async function GET(req: NextRequest, { params }: RouteContext) {
   const doctorPayload = {
     name: doctor?.name,
     specialty: specialtyName,
-    phone: doctor?.phone,
+    phone: await loadAppointmentClinicPhone(supabase, clinic.locationId),
     clinic_address: clinic.address,
   };
 

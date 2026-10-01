@@ -506,16 +506,6 @@ async function main() {
     }
 
     const primaryClinicId = clinicIdByGhs.values().next().value ?? null;
-    const primaryClinic =
-      clinicEntries.find((c) => clinicIdByGhs.get(c.ghs_code) === primaryClinicId) ??
-      clinicEntries[0] ??
-      null;
-
-    const phone = [...person.phones][0] ?? primaryClinic?.phone ?? null;
-    const address = person.addresses[0] ?? primaryClinic?.address ?? null;
-    const maps = person.maps[0] ?? primaryClinic?.address_maps_link ?? null;
-    const coords = parseLatLonFromMaps(maps);
-
     const existing = await supabase
       .from("professionals")
       .select("id, slug")
@@ -526,20 +516,14 @@ async function main() {
     let manualId = existing.data?.id ?? null;
     let slug = existing.data?.slug ?? null;
 
+    // Location (district, town, address, map link, pin, phone) lives on the clinics,
+    // linked below through professional_clinics (Point E5).
     const payload = {
       name: cleanGesyDirectoryDisplayName(person.name),
-      district,
-      town: primaryClinic?.town ?? null,
-      address_maps_link: maps,
-      phone,
-      address,
-      latitude: coords.latitude ?? primaryClinic?.latitude ?? null,
-      longitude: coords.longitude ?? primaryClinic?.longitude ?? null,
       email: person.email,
       gender: person.gender,
       ghs_code: person.ghs_code,
       is_gesy: true,
-      clinic_id: primaryClinicId,
       is_archived: false,
       is_registered: false,
     };

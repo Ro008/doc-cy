@@ -35,9 +35,7 @@ async function createDoctor({ slugPrefix, name }) {
     .insert({
       auth_user_id: authUserId,
       name,
-      district: "Paphos",
       email,
-      phone: "+35799123456",
       languages: ["English"],
       avatar_url: null,
       status: "verified",

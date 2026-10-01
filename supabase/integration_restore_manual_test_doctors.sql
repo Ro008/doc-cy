@@ -179,7 +179,6 @@ BEGIN
         auth_user_id,
         name,
         email,
-        phone,
         languages,
         status,
         slug,
@@ -193,7 +192,6 @@ BEGIN
         v_user_id,
         rec.full_name,
         rec.email,
-        rec.phone,
         coalesce(rec.langs, ARRAY[]::text[]),
         rec.doctor_status,
         rec.slug,
@@ -221,7 +219,6 @@ BEGIN
         status = rec.doctor_status,
         subscription_tier = rec.tier,
         email = rec.email,
-        phone = rec.phone,
         languages = coalesce(rec.langs, ARRAY[]::text[]),
         is_test_profile = false
       WHERE id = v_doctor_id;

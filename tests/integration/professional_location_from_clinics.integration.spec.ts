@@ -268,8 +268,6 @@ test.describe(
           .insert({
             auth_user_id: auth.data.user.id,
             name: `Blank Address ${nonce}`,
-            district: "Limassol",
-            clinic_address: "",
             registration_email: email,
             email,
             status: "verified",

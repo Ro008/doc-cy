@@ -10,7 +10,7 @@ import {
   isAllowedProfessionalDuration,
   PROFESSIONAL_DURATION_OPTIONS,
 } from "@/lib/professional-appointment-durations";
-import { appointmentClinicCopy } from "@/lib/appointment-clinic-copy";
+import { appointmentClinicCopy, loadAppointmentClinicPhone } from "@/lib/appointment-clinic-copy";
 import { loadDoctorLocations } from "@/lib/load-doctor-locations";
 import { sendPatientAppointmentConfirmedEmail } from "@/lib/send-patient-appointment-confirmed-email";
 import { sendDoctorAppointmentConfirmedEmail } from "@/lib/send-doctor-appointment-confirmed-email";
@@ -54,7 +54,7 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
 
   const { data: doctor, error: doctorErr } = await supabase
     .from("professionals")
-    .select("id, name, email, registration_email, phone")
+    .select("id, name, email, registration_email")
     .eq("auth_user_id", user.id)
     .maybeSingle();
 
@@ -171,7 +171,10 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
       doctor: {
         name: doctor.name,
         specialty: specialtyName,
-        phone: (doctor as { phone?: string | null }).phone,
+        // Signed-in client can't read clinics (RLS): the service role reads the phone.
+        phone: specialtyService
+          ? await loadAppointmentClinicPhone(specialtyService, clinic.locationId)
+          : null,
         clinic_address: clinic.address,
       },
       clinic,

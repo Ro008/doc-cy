@@ -694,7 +694,7 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
   const profileCanonicalUrl = `${siteBaseUrl()}${publicProfessionalProfilePath(params.slug, profileLocale(params))}`;
 
   const settingsSelectFull =
-    "professional_id, monday, tuesday, wednesday, thursday, friday, saturday, sunday, start_time, end_time, weekly_schedule, break_start, break_end, slot_duration_minutes, pause_online_bookings, show_phone_public, holiday_mode_enabled, holiday_start_date, holiday_end_date, booking_horizon_days, minimum_notice_hours";
+    "professional_id, monday, tuesday, wednesday, thursday, friday, saturday, sunday, start_time, end_time, weekly_schedule, break_start, break_end, slot_duration_minutes, pause_online_bookings, holiday_mode_enabled, holiday_start_date, holiday_end_date, booking_horizon_days, minimum_notice_hours";
   const settingsSelectLegacy =
     "professional_id, monday, tuesday, wednesday, thursday, friday, start_time, end_time, break_start, break_end, slot_duration_minutes";
 
@@ -728,7 +728,6 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
         pause_online_bookings: Boolean(
           (settings as any).pause_online_bookings ?? false,
         ),
-        show_phone_public: Boolean((settings as any).show_phone_public ?? false),
         holiday_mode_enabled: Boolean(
           (settings as any).holiday_mode_enabled ?? false,
         ),

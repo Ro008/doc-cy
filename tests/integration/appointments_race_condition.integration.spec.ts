@@ -74,7 +74,6 @@ test.describe("Integration: appointment race condition guard", { tag: ["@pr-e2e"
           auth_user_id: authUserId,
           name: `Race Doctor ${nonce}`,
           email: doctorEmail,
-          phone: "+35799123456",
           languages: ["English"],
           status: "verified",
           slug: doctorSlug,

@@ -9,6 +9,7 @@ import { isDirectoryCanarySlug } from "@/lib/directory-canaries";
 import { fetchAllSupabaseRows } from "@/lib/supabase-fetch-all";
 import { loadDoctorLocationsByDoctorIds } from "@/lib/load-doctor-locations";
 import { clinicDistricts } from "@/lib/professional-clinic-locations";
+import { LISTING_CLINICS_SELECT, listingClinicLocations } from "@/lib/listing-clinic-location";
 
 function normalizeDistrictSlug(value: unknown): string {
   const raw = String(value ?? "").trim();
@@ -22,9 +23,9 @@ type SpecialtyPairRow = {
   specialties?: { slug?: string | null } | null;
   professionals?: {
     id?: string | null;
-    district?: string | null;
     is_test_profile?: boolean | null;
     name?: string | null;
+    listing_clinics?: unknown;
   } | null;
 };
 
@@ -71,7 +72,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       let q = supabase
         .from("professional_specialties")
         .select(
-          "specialties!inner(slug), professionals!inner(id, district, is_test_profile, name, is_archived, is_registered, status, slug)",
+          `specialties!inner(slug), professionals!inner(id, is_test_profile, name, is_archived, is_registered, status, slug${registered ? "" : `, ${LISTING_CLINICS_SELECT}`})`,
         )
         .eq("is_approved", true)
         .eq("professionals.is_archived", false)
@@ -82,9 +83,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       return q.order("id");
     });
   const [registeredPairs, scrapedPairs] = await Promise.all([loadPairs(true), loadPairs(false)]);
-  // A registered professional counts in every district their clinics are in, never by
-  // the copy on professionals (Point E). Listings keep professionals.district until the
-  // Point E cleanup moves them onto their clinics too.
+  // Every professional counts in each district their clinics are in (Point E5).
   const registeredIds = ((registeredPairs.data ?? []) as SpecialtyPairRow[])
     .map((row) => String(row.professionals?.id ?? "").trim())
     .filter(Boolean);
@@ -105,7 +104,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       if (!specialtySlug) continue;
       const districts = registered
         ? clinicDistricts(registeredLocations.get(String(pro?.id ?? "")) ?? [])
-        : [pro?.district];
+        : clinicDistricts(listingClinicLocations(pro ?? {}));
       for (const district of districts) {
         const districtSlug = normalizeDistrictSlug(district);
         if (!districtSlug) continue;

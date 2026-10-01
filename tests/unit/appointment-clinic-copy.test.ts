@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 
 import {
   appointmentClinicCopy,
+  loadAppointmentClinicPhone,
   appointmentClinicCopyFromAddress,
   formatAppointmentClinicEmailHtml,
   formatAppointmentClinicEmailText,
@@ -31,6 +32,7 @@ describe("appointment-clinic-copy", () => {
     });
 
     assert.equal(clinic.clinicName, "Coast clinic");
+    assert.equal(clinic.locationId, "loc-2");
     assert.equal(clinic.address, "10 Harbour Road, Limassol");
     assert.match(clinic.mapsUrl, /maps\.google\.com/);
     assert.match(clinic.mapsUrl, /Harbour/);
@@ -93,5 +95,59 @@ describe("appointment-clinic-copy", () => {
     assert.equal(clinic.address, "");
     assert.equal(clinic.mapsUrl, "");
     assert.doesNotMatch(clinic.address, /Evangelismos/i);
+  });
+});
+
+/**
+ * Point E5: the phone patients see after booking is the appointment's clinic phone,
+ * never `professionals.phone` (which held the professional's personal mobile).
+ */
+describe("loadAppointmentClinicPhone", () => {
+  function fakeClient(rows: Record<string, unknown>) {
+    const seen: string[] = [];
+    const client = {
+      from(table: string) {
+        seen.push(`from ${table}`);
+        const builder = {
+          select(columns: string) {
+            seen.push(`select ${columns}`);
+            return builder;
+          },
+          eq(column: string, value: string) {
+            seen.push(`${column}=${value}`);
+            return builder;
+          },
+          async maybeSingle() {
+            const id = seen.find((s) => s.startsWith("id="))?.slice(3) ?? "";
+            return { data: rows[id] ?? null, error: null };
+          },
+        };
+        return builder;
+      },
+    };
+    return { client, seen };
+  }
+
+  it("reads the phone of the clinic behind the appointment's clinic link", async () => {
+    const { client, seen } = fakeClient({
+      "loc-2": { clinics: { phone: " 25202712 ", is_archived: false } },
+    });
+    assert.equal(await loadAppointmentClinicPhone(client as never, "loc-2"), "25202712");
+    assert.deepEqual(seen, [
+      "from professional_clinics",
+      "select clinics ( phone, is_archived )",
+      "id=loc-2",
+    ]);
+  });
+
+  it("is null without a link, for an archived clinic or a clinic without a phone", async () => {
+    const { client } = fakeClient({
+      archived: { clinics: [{ phone: "25202712", is_archived: true }] },
+      blank: { clinics: { phone: "  ", is_archived: false } },
+    });
+    assert.equal(await loadAppointmentClinicPhone(client as never, null), null);
+    assert.equal(await loadAppointmentClinicPhone(client as never, "missing"), null);
+    assert.equal(await loadAppointmentClinicPhone(client as never, "archived"), null);
+    assert.equal(await loadAppointmentClinicPhone(client as never, "blank"), null);
   });
 });

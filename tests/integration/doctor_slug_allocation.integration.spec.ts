@@ -62,10 +62,7 @@ test.describe("Integration: doctor slug allocation", () => {
           .insert({
             auth_user_id: authUserId,
             name: sharedName,
-            district: "Paphos",
-            clinic_address: "1 Clinic Street, Paphos",
             email,
-            phone: "+35799123456",
             languages: ["English"],
             status: "verified",
             slug,

@@ -48,7 +48,6 @@ test.describe("Integration: public Service Menu section", () => {
           auth_user_id: authUserId,
           name: `Service Menu Doctor ${nonce}`,
           email: doctorEmail,
-          phone: "+35799123456",
           languages: ["English"],
           status: "verified",
           slug: doctorSlug,

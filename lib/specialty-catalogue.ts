@@ -229,14 +229,22 @@ export async function loadScrapedAvailableSpecialtyIds(
   const load = async () => {
     // One row per specialty with a matching listing (nested !inner), capped at one
     // child, instead of paging through every join row.
+    // A listing counts in each district one of its clinics is in (Point E5).
     const pro = "professional_specialties.professionals";
+    const professionals = district
+      ? "professionals!inner(id, location_filter:professional_clinics!inner(clinics!inner(district, is_archived)))"
+      : "professionals!inner(id)";
     let q = supabase
       .from("specialties")
-      .select("id, professional_specialties!inner(id, professionals!inner(id))")
+      .select(`id, professional_specialties!inner(id, ${professionals})`)
       .eq("professional_specialties.is_approved", true)
       .eq(`${pro}.is_archived`, false)
       .eq(`${pro}.is_registered`, false);
-    if (district) q = q.eq(`${pro}.district`, district);
+    if (district) {
+      q = q
+        .eq(`${pro}.location_filter.clinics.is_archived`, false)
+        .eq(`${pro}.location_filter.clinics.district`, district);
+    }
     const res = await q.limit(1, { referencedTable: "professional_specialties" });
     if (res.error) throw new Error(`specialty availability: ${res.error.message}`);
     return (res.data ?? [])

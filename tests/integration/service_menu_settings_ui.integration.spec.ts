@@ -49,7 +49,6 @@ test.describe("Integration UI: doctor settings Service Menu", () => {
           auth_user_id: authUserId,
           name: `Service UI Doctor ${nonce}`,
           email: doctorEmail,
-          phone: "+35799123456",
           languages: ["English"],
           status: "verified",
           slug: doctorSlug,

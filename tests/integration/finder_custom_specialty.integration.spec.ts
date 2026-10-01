@@ -58,10 +58,7 @@ async function createPsychologyPlusSexologyDoctor(
     .insert({
       auth_user_id: authUserId,
       name,
-      district: "Paphos",
-      town: "Paphos",
       email,
-      phone: "+35799123456",
       languages: ["English"],
       status: "verified",
       slug,
