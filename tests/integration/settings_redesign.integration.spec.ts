@@ -435,6 +435,17 @@ test.describe("Settings redesign (B1)", { tag: "@pr-e2e" }, () => {
     expect(sent).toEqual({ specialty: "Venereology" });
   });
 
+  test("Account: one sign-in & security card with the signed-in email", async ({ page }) => {
+    test.setTimeout(120_000);
+    await openSettings(page, seeded!, "account");
+    const card = page.getByTestId("settings-account-security");
+    await expect(card.getByRole("heading", { name: "Sign-in & security" })).toBeVisible();
+    await expect(page.getByTestId("settings-account-email")).toHaveText(seeded!.email);
+    await expect(card.getByRole("button", { name: "Change password" })).toBeVisible();
+    await expect(card.getByRole("button", { name: "Sign out other devices" })).toBeVisible();
+    await expect(card.getByTestId("settings-sign-out-button")).toBeVisible();
+  });
+
   test("adding a specialty: errors by each field, then an in-review chip that can be cancelled", async ({
     page,
   }) => {

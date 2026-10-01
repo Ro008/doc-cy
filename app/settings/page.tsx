@@ -16,7 +16,7 @@ import type {
 import { PromotePracticeSection } from "@/components/dashboard/PromotePracticeSection";
 import { FoundingMemberBadge } from "@/components/dashboard/FoundingMemberBadge";
 import { GesyPatientsToggle } from "@/components/dashboard/GesyPatientsToggle";
-import { SignOutOtherSessionsButton } from "@/components/auth/SignOutOtherSessionsButton";
+import { AccountSecurityCard } from "@/components/dashboard/settings/AccountSecurityCard";
 import { doctorDashboardDisplayName } from "@/lib/doctor-display-name";
 import {
   canonicalLanguageLabel,
@@ -538,12 +538,7 @@ export default async function AgendaSettingsPage({
           profileExtra={<GesyPatientsToggle initialAcceptsGesy={Boolean(doctor.is_gesy)} />}
           account={
             <>
-              <section className="rounded-3xl border border-slate-700/70 bg-slate-900/70 p-5 shadow-xl shadow-black/20 sm:p-6">
-                <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
-                  <SignOutOtherSessionsButton />
-                  <SignOutButton data-testid="settings-sign-out-button" />
-                </div>
-              </section>
+              <AccountSecurityCard email={user.email ?? ""} />
               <div id="promote-practice" className="scroll-mt-24">
                 {isVerified ? (
                   <PromotePracticeSection

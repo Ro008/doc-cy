@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 
-export function SignOutOtherSessionsButton() {
+/** The button and its result line; the caller places it (settings "Sign-in & security"). */
+export function SignOutOtherSessionsButton({ className }: { className?: string }) {
   const supabase = createClientComponentClient();
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -42,22 +43,12 @@ export function SignOutOtherSessionsButton() {
   }
 
   return (
-    <div className="rounded-2xl border border-slate-800/80 bg-slate-900/40 p-4">
-      <h3 className="text-sm font-semibold text-slate-100">Device security</h3>
-      <p className="mt-2 text-xs leading-relaxed text-slate-400">
-        Keep this session active on this device and close all other active sessions.
-      </p>
-      <button
-        type="button"
-        onClick={handleClick}
-        disabled={pending}
-        className="mt-3 inline-flex items-center rounded-xl border border-slate-700 bg-slate-900/60 px-3 py-2 text-xs font-medium text-slate-200 transition hover:border-clinical-400/40 hover:text-clinical-200 disabled:cursor-not-allowed disabled:opacity-60"
-      >
-        {pending ? "Closing sessions..." : "Sign out on other devices"}
+    <div className="flex flex-col items-start gap-1.5 sm:items-end">
+      <button type="button" onClick={handleClick} disabled={pending} className={className}>
+        {pending ? "Signing out other devices…" : "Sign out other devices"}
       </button>
-      {message ? <p className="mt-2 text-xs text-clinical-300">{message}</p> : null}
-      {error ? <p className="mt-2 text-xs text-red-300">{error}</p> : null}
+      {message ? <p className="text-xs text-clinical-300">{message}</p> : null}
+      {error ? <p className="text-xs text-red-300">{error}</p> : null}
     </div>
   );
 }
-

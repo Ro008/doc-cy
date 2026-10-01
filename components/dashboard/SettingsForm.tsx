@@ -48,6 +48,7 @@ import {
   type AddSpecialtyErrors,
 } from "@/lib/settings-specialty-request";
 import { PhoneNumbersSettings } from "@/components/dashboard/PhoneNumbersSettings";
+import { SETTINGS_CARD_CLASS, SETTINGS_EYEBROW_CLASS } from "@/components/dashboard/settings/styles";
 import type { SettingsClinicPhone } from "@/lib/settings-clinic-phones";
 import {
   SETTINGS_SECTIONS,
@@ -311,9 +312,8 @@ function cyprusTodayKey(): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Nicosia" }).format(new Date());
 }
 
-const SECTION_CARD_CLASS =
-  "rounded-3xl border border-slate-700/70 bg-slate-900/70 p-5 shadow-xl shadow-black/20 sm:p-6";
-const SECTION_EYEBROW_CLASS = "text-xs font-semibold uppercase tracking-[0.14em] text-slate-500";
+const SECTION_CARD_CLASS = SETTINGS_CARD_CLASS;
+const SECTION_EYEBROW_CLASS = SETTINGS_EYEBROW_CLASS;
 
 export function SettingsForm({
   initial,
