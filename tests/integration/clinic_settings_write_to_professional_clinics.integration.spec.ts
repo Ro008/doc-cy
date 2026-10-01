@@ -2,6 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { signInDoctorAndSetCookies } from "../helpers/doctorAuth";
 import { createIntegrationAdmin, requireSafeIntegration } from "./helpers/safe-integration";
+import { seedProfessionalClinic } from "./helpers/test-doctor";
 
 /**
  * Point D3a: a professional's own settings at a clinic — hours, breaks, slot length,
@@ -9,15 +10,12 @@ import { createIntegrationAdmin, requireSafeIntegration } from "./helpers/safe-i
  * professional at a clinic has their own row, so two doctors at the same clinic keep
  * their own hours.
  *
- * Which clinic, and its address, stay on doctor_locations until the registration
- * redesign moves them behind admin review. So both tables are written for a while,
- * and these tests pin the rules that keep them from overwriting each other:
- * - an address edit on the location never resets settings saved on the join row;
- * - a settings edit made the old way (on the location) still reaches the join row;
- * - account settings (professional_settings) follow the PRIMARY clinic's join row,
- *   and an address edit never resets them either;
- * - the routes write settings to the join row only (D4: the settings save is covered by
- *   settings_clinics_read_only; the old /api/doctor-locations route is gone).
+ * Rules pinned here:
+ * - account settings (professional_settings) follow the PRIMARY clinic's join row
+ *   (trigger professional_clinics_sync_primary_settings); a secondary clinic's settings
+ *   stay its own;
+ * - the bookings toggle writes the clinic's join row (the settings save is covered by
+ *   settings_clinics_read_only).
  */
 
 type Seeded = {
@@ -71,30 +69,19 @@ async function seed(admin: SupabaseClient, tag: string): Promise<Seeded> {
   if (insert.error || !insert.data?.id) throw new Error(`professional: ${insert.error?.message}`);
   const professionalId = String(insert.data.id);
 
-  // Registering created an addressless primary location; give it an address so the
-  // mirror creates its join row (and clinic).
-  const primary = await admin
-    .from("doctor_locations")
-    .update({
-      clinic_address: `D3a Street ${n}, Paphos, Cyprus`,
-      district: "Paphos",
-      town: "Paphos",
-      latitude: 34.77,
-      longitude: 32.42,
-      clinic_place_id: `d3a-place-${n}`,
-    })
-    .eq("doctor_id", professionalId)
-    .eq("is_primary", true)
-    .select("id")
-    .single();
-  if (primary.error || !primary.data?.id) throw new Error(`primary: ${primary.error?.message}`);
+  // A paused primary clinic, as an approved registration leaves it.
+  const primary = await seedProfessionalClinic(admin, professionalId, {
+    nonce: `d3a-${tag}-${n}`,
+    district: "Paphos",
+    open: false,
+  });
 
   return {
     professionalId,
     authUserId: auth.data.user.id,
     email,
     password: PASSWORD,
-    primaryId: String(primary.data.id),
+    primaryId: primary.linkId,
   };
 }
 
@@ -121,16 +108,6 @@ async function joinRow(admin: SupabaseClient, id: string) {
   return data;
 }
 
-async function location(admin: SupabaseClient, id: string) {
-  const { data, error } = await admin
-    .from("doctor_locations")
-    .select("id, slot_duration_minutes, pause_online_bookings, label, clinic_address")
-    .eq("id", id)
-    .single();
-  if (error) throw new Error(`location: ${error.message}`);
-  return data;
-}
-
 async function accountSettings(admin: SupabaseClient, professionalId: string) {
   const { data, error } = await admin
     .from("professional_settings")
@@ -149,53 +126,7 @@ async function signIn(page: Page, seeded: Seeded) {
 }
 
 test.describe("Integration: per-clinic settings live on professional_clinics", { tag: "@pr-e2e" }, () => {
-  test("an address edit on the location keeps the settings saved on the join row", async () => {
-    const admin = createIntegrationAdmin(requireSafeIntegration());
-    let seeded: Partial<Seeded> = {};
-    try {
-      seeded = await seed(admin, "addr-keeps");
-      const id = seeded.primaryId!;
-
-      // The new write path: settings go straight to the join row.
-      const save = await admin
-        .from("professional_clinics")
-        .update({ slot_duration_minutes: 45, label: "Mornings" })
-        .eq("id", id);
-      if (save.error) throw new Error(save.error.message);
-
-      // An address-only edit on the location must not copy its (older) settings over.
-      const move = await admin
-        .from("doctor_locations")
-        .update({ clinic_address: "Moved Street 2, Paphos, Cyprus" })
-        .eq("id", id);
-      if (move.error) throw new Error(move.error.message);
-
-      expect(await joinRow(admin, id)).toMatchObject({ slot_duration_minutes: 45, label: "Mornings" });
-    } finally {
-      await cleanup(admin, seeded);
-    }
-  });
-
-  test("a settings edit made the old way still reaches the join row", async () => {
-    const admin = createIntegrationAdmin(requireSafeIntegration());
-    let seeded: Partial<Seeded> = {};
-    try {
-      seeded = await seed(admin, "old-path");
-      const id = seeded.primaryId!;
-
-      const old = await admin
-        .from("doctor_locations")
-        .update({ slot_duration_minutes: 20, label: "Old path" })
-        .eq("id", id);
-      if (old.error) throw new Error(old.error.message);
-
-      expect(await joinRow(admin, id)).toMatchObject({ slot_duration_minutes: 20, label: "Old path" });
-    } finally {
-      await cleanup(admin, seeded);
-    }
-  });
-
-  test("account settings follow the primary clinic's join row, and survive an address edit", async () => {
+  test("account settings follow the primary clinic's join row, not a secondary one", async () => {
     const admin = createIntegrationAdmin(requireSafeIntegration());
     let seeded: Partial<Seeded> = {};
     try {
@@ -213,27 +144,27 @@ test.describe("Integration: per-clinic settings live on professional_clinics", {
         pause_online_bookings: false,
       });
 
-      // The location still holds its older values; an address edit must not copy them in.
-      const move = await admin
-        .from("doctor_locations")
-        .update({ clinic_address: "Account Moved 3, Paphos, Cyprus" })
-        .eq("id", id);
-      if (move.error) throw new Error(move.error.message);
-
-      expect(await accountSettings(admin, seeded.professionalId!)).toEqual({
-        slot_duration_minutes: 50,
-        pause_online_bookings: false,
-      });
-
       // A secondary clinic's settings are its own and never become the account's.
-      const secondary = await admin
-        .from("doctor_locations")
+      const n = nonce();
+      const clinic = await admin
+        .from("clinics")
         .insert({
-          doctor_id: seeded.professionalId,
+          name: `D3a Secondary ${n}`,
+          slug: `d3a-secondary-${n}`,
+          district: "Limassol",
+          address: `Secondary ${n}, Limassol, Cyprus`,
+          phone: "25123456",
+        })
+        .select("id")
+        .single();
+      if (clinic.error || !clinic.data) throw new Error(`secondary clinic: ${clinic.error?.message}`);
+      const secondary = await admin
+        .from("professional_clinics")
+        .insert({
+          professional_id: seeded.professionalId,
+          clinic_id: clinic.data.id,
           is_primary: false,
           sort_order: 1,
-          clinic_address: `Secondary ${nonce()}, Limassol, Cyprus`,
-          district: "Limassol",
         })
         .select("id")
         .single();
@@ -257,8 +188,8 @@ test.describe("Integration: per-clinic settings live on professional_clinics", {
     try {
       seeded = await seed(admin, "toggle");
       const id = seeded.primaryId!;
-      // Clinics start paused; the location and its join row agree on that.
-      expect((await location(admin, id)).pause_online_bookings).toBe(true);
+      // Clinics start paused.
+      expect((await joinRow(admin, id))?.pause_online_bookings).toBe(true);
 
       await signIn(page, seeded as Seeded);
       const res = await page.request.post("/api/doctor-online-bookings", {
@@ -268,8 +199,6 @@ test.describe("Integration: per-clinic settings live on professional_clinics", {
       expect(res.status(), await res.text()).toBe(200);
 
       expect((await joinRow(admin, id))?.pause_online_bookings).toBe(false);
-      // The write moved: the location row is no longer where this setting is saved.
-      expect((await location(admin, id)).pause_online_bookings).toBe(true);
     } finally {
       await cleanup(admin, seeded);
     }

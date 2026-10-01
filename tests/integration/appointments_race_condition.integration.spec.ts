@@ -153,8 +153,7 @@ test.describe("Integration: appointment race condition guard", { tag: ["@pr-e2e"
         );
       }
 
-      // Registering auto-creates an addressless primary location, which takes no
-      // bookings; give it an address (as every sign-up does) and open it.
+      // An open primary clinic, as every approved registration has.
       clinicId = (await openPrimaryClinicForBookings(admin, doctorId, nonce)).clinicId;
 
       const targetDate = nextWeekdayDateKey(1);

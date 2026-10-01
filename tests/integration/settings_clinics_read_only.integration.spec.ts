@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+
 import { expect, test } from "@playwright/test";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -16,8 +18,9 @@ import {
  * ("Contact us to change your clinics") until Ro008's clinic join/leave/create/edit
  * screens and their requests exist. Clinics are curated by DocCy:
  * - no Add clinic, no Remove this clinic, no address field;
- * - a clinic still being set up (an addressless `doctor_locations` row) is no longer
- *   shown: nothing reads `doctor_locations` any more;
+ * - only the professional's clinic links are shown and saved (`doctor_locations`, with
+ *   its addressless "clinics being set up", was dropped in D4 step 2); a location id that
+ *   is not one of their links is ignored;
  * - saving settings still saves each clinic's hours and name on its join row, and never
  *   changes an address, on the clinic or on the professional;
  * - the old `/api/doctor-locations` route is gone.
@@ -31,7 +34,8 @@ test.describe("Integration: clinics are read-only in settings", { tag: "@pr-e2e"
   let clinicId = "";
   let locationId = "";
   let clinicAddress = "";
-  let pendingLocationId = "";
+  // Not one of the professional's clinic links (an old page, or a forged request).
+  const unknownLocationId = randomUUID();
 
   test.beforeAll(async () => {
     admin = createIntegrationAdmin(requireSafeIntegration());
@@ -50,15 +54,6 @@ test.describe("Integration: clinics are read-only in settings", { tag: "@pr-e2e"
     const clinic = await admin.from("clinics").select("address").eq("id", clinicId).single();
     if (clinic.error) throw new Error(`clinic: ${clinic.error.message}`);
     clinicAddress = String(clinic.data.address);
-
-    // What the old "Add clinic" created: no address, no district, so no join row.
-    const pending = await admin
-      .from("doctor_locations")
-      .insert({ doctor_id: doctor.doctorId, is_primary: false, sort_order: 1 })
-      .select("id")
-      .single();
-    if (pending.error || !pending.data) throw new Error(`pending: ${pending.error?.message}`);
-    pendingLocationId = String(pending.data.id);
   });
 
   test.afterAll(async () => {
@@ -82,7 +77,7 @@ test.describe("Integration: clinics are read-only in settings", { tag: "@pr-e2e"
     await expect(page.locator("#clinicAddress")).toHaveCount(0);
     await expect(page.getByRole("button", { name: /^Add clinic$/i })).toHaveCount(0);
     await expect(page.getByRole("button", { name: /Remove this clinic/i })).toHaveCount(0);
-    // The addressless location is not a clinic: one clinic, so no tabs.
+    // One clinic, so no tabs.
     await expect(page.getByRole("tablist", { name: "Clinics" })).toHaveCount(0);
   });
 
@@ -130,7 +125,7 @@ test.describe("Integration: clinics are read-only in settings", { tag: "@pr-e2e"
             },
             slotDurationMinutes: 50,
           },
-          { id: pendingLocationId, slotDurationMinutes: 10 },
+          { id: unknownLocationId, slotDurationMinutes: 10 },
         ],
       },
       timeout: 30_000,
@@ -162,14 +157,13 @@ test.describe("Integration: clinics are read-only in settings", { tag: "@pr-e2e"
     if (after.error) throw new Error(`after: ${after.error.message}`);
     expect(after.data).toEqual(before.data);
 
-    // The addressless location is not a clinic and is never written.
-    const pending = await admin
-      .from("doctor_locations")
-      .select("slot_duration_minutes")
-      .eq("id", pendingLocationId)
-      .single();
-    if (pending.error) throw new Error(`pending: ${pending.error.message}`);
-    expect(pending.data.slot_duration_minutes).not.toBe(10);
+    // The unknown location id is ignored: it creates nothing.
+    const unknown = await admin
+      .from("professional_clinics")
+      .select("id", { count: "exact", head: true })
+      .eq("id", unknownLocationId);
+    expect(unknown.error).toBeNull();
+    expect(unknown.count).toBe(0);
   });
 
   test("a save with no address at all is accepted", async ({ page }) => {

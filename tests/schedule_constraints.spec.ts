@@ -36,8 +36,10 @@ type WeeklySchedulePayload = {
 };
 
 /**
- * Booking availability is resolved from doctor_locations (primary), not professional_settings alone.
- * Updating the primary location also syncs schedule columns back to professional_settings via trigger.
+ * Booking availability is resolved from the primary clinic link (professional_clinics), not
+ * professional_settings alone. Updating the primary link also syncs its schedule onto
+ * professional_settings (trigger professional_clinics_sync_primary_settings), and
+ * appointments reference the link's id.
  */
 async function syncPrimaryLocationSchedule(
   supabase: SupabaseClient,
@@ -53,21 +55,21 @@ async function syncPrimaryLocationSchedule(
 ): Promise<{ locationId: string | null; error: string | null }> {
   const schedule = input.weekly_schedule;
   const { data: primary, error: primaryErr } = await supabase
-    .from("doctor_locations")
+    .from("professional_clinics")
     .select("id")
-    .eq("doctor_id", doctorId)
+    .eq("professional_id", doctorId)
     .eq("is_primary", true)
     .maybeSingle();
 
   if (primaryErr || !primary?.id) {
     return {
       locationId: null,
-      error: primaryErr?.message ?? "Primary doctor_locations row missing.",
+      error: primaryErr?.message ?? "Primary professional_clinics row missing.",
     };
   }
 
   const { error: updateErr } = await supabase
-    .from("doctor_locations")
+    .from("professional_clinics")
     .update({
       monday: schedule.monday.enabled,
       tuesday: schedule.tuesday.enabled,
