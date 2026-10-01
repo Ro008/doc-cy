@@ -12,24 +12,35 @@ import {
   SETTINGS_SECONDARY_BUTTON_CLASS,
 } from "@/components/dashboard/settings/styles";
 import { shortBookingLink } from "@/lib/settings-account";
-
-function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
+import { buildBookingSignHtml } from "@/lib/booking-sign";
 
 type Props = {
   slug: string | null | undefined;
   doctorName: string;
+  /** The profile's approved specialty, printed under the name on the sign. */
+  specialty?: string | null;
   localeLike?: string | null;
 };
+
+/** Waits for the sign's logo, QR and font, so the print never comes out half drawn. */
+function whenSignReady(doc: Document, maxMs = 3000): Promise<void> {
+  const images = Array.from(doc.images).map((img) =>
+    img.complete
+      ? Promise.resolve()
+      : new Promise<void>((resolve) => {
+          img.addEventListener("load", () => resolve(), { once: true });
+          img.addEventListener("error", () => resolve(), { once: true });
+        }),
+  );
+  const fonts = doc.fonts?.ready.then(() => undefined) ?? Promise.resolve();
+  const cap = new Promise<void>((resolve) => window.setTimeout(resolve, maxMs));
+  return Promise.race([Promise.all([...images, fonts]).then(() => undefined), cap]);
+}
 
 export function PromotePracticeSection({
   slug,
   doctorName,
+  specialty,
   localeLike,
 }: Props) {
   const copy = React.useMemo(
@@ -76,82 +87,14 @@ export function PromotePracticeSection({
     const canvas = canvasRef.current;
     const dataUrl = canvas?.toDataURL("image/png") ?? "";
 
-    const html = `<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>DocCy · Booking sign</title>
-<style>
-  @page { size: A5 portrait; margin: 10mm; }
-  * { box-sizing: border-box; }
-  body {
-    margin: 0;
-    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    color: #0f172a;
-    background: #fff;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-  }
-  .sheet {
-    max-width: 148mm;
-    min-height: 210mm;
-    margin: 0 auto;
-    padding: 10mm 12mm 14mm;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-  }
-  .logo {
-    font-size: 2.25rem;
-    font-weight: 800;
-    letter-spacing: -0.03em;
-    margin-bottom: 2mm;
-    color: #0f172a;
-  }
-  .logo span { color: #12B8C0; }
-  .name {
-    font-size: 0.9rem;
-    font-weight: 600;
-    color: #475569;
-    margin-bottom: 5mm;
-  }
-  .qr img {
-    display: block;
-    width: 46mm;
-    height: 46mm;
-    image-rendering: pixelated;
-    image-rendering: crisp-edges;
-  }
-  .cta {
-    margin-top: 7mm;
-    font-size: 1.2rem;
-    font-weight: 700;
-    color: #0f172a;
-    line-height: 1.35;
-    max-width: 118mm;
-  }
-  .url {
-    margin-top: 5mm;
-    font-size: 0.62rem;
-    color: #64748b;
-    word-break: break-all;
-    max-width: 130mm;
-  }
-</style>
-</head>
-<body>
-  <div class="sheet">
-    <div class="logo">Doc<span>Cy</span></div>
-    <p class="name">${escapeHtml(doctorName)}</p>
-    <div class="qr"><img src="${dataUrl}" alt="" width="512" height="512" /></div>
-    <p class="cta">${escapeHtml(copy.printCta)}</p>
-    <p class="url">${escapeHtml(bookingUrl)}</p>
-  </div>
-</body>
-</html>`;
+    const html = buildBookingSignHtml({
+      doctorName,
+      specialty: specialty ?? "",
+      qrDataUrl: dataUrl,
+      logoUrl: `${window.location.origin}/brand/doccy-logo.png`,
+      shortLink: shortBookingLink(profileBookingUrl),
+      copy,
+    });
 
     const iframe = document.createElement("iframe");
     iframe.setAttribute("title", "DocCy booking sign");
@@ -200,12 +143,12 @@ export function PromotePracticeSection({
       fallbackRemove = window.setTimeout(cleanup, 120_000);
     };
 
-    requestAnimationFrame(() => {
+    void whenSignReady(idoc).then(() => {
       requestAnimationFrame(() => {
-        window.setTimeout(triggerPrint, 150);
+        window.setTimeout(triggerPrint, 50);
       });
     });
-  }, [slug, bookingUrl, doctorName, copy.printCta, copy.printPrepareFailed, copy.printDialogFailed]);
+  }, [slug, bookingUrl, profileBookingUrl, doctorName, specialty, copy]);
 
   if (!slug?.trim()) {
     return (
@@ -243,7 +186,7 @@ export function PromotePracticeSection({
             level="H"
             includeMargin
             bgColor="#ffffff"
-            fgColor="#0f172a"
+            fgColor="#062F61"
             className="shrink-0 rounded-lg ring-1 ring-slate-200"
           />
           <div className="flex w-full flex-col gap-3 sm:max-w-xs">

@@ -544,6 +544,11 @@ export default async function AgendaSettingsPage({
                 <PromotePracticeSection
                   slug={doctor.slug}
                   doctorName={doctor.name}
+                  specialty={
+                    primarySpecialtyEntry(specialtyEntries)?.isApproved
+                      ? primarySpecialtyEntry(specialtyEntries)?.name
+                      : ""
+                  }
                   localeLike={localeLike}
                 />
               ) : (

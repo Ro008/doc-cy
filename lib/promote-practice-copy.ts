@@ -9,7 +9,14 @@ export type PromotePracticeCopy = {
   printHelper: string;
   printPrepareFailed: string;
   printDialogFailed: string;
-  printCta: string;
+  /** `lang` of the printed sign. */
+  htmlLang: string;
+  signBadge: string;
+  signHeadline: string;
+  signStepScan: string;
+  signStepPick: string;
+  signStepConfirm: string;
+  signNoApp: string;
   scriptsSectionTitle: string;
   voicemailTitle: string;
   voicemailHint: string;
@@ -41,7 +48,13 @@ const EN_COPY: PromotePracticeCopy = {
   printHelper: "An A5 sign with your name and QR, ready to print.",
   printPrepareFailed: "Could not prepare print view. Please try again.",
   printDialogFailed: "Could not open the print dialog on this device.",
-  printCta: "Scan to book your next appointment",
+  htmlLang: "en",
+  signBadge: "Book online · 24/7",
+  signHeadline: "Book your next visit online",
+  signStepScan: "Scan the code",
+  signStepPick: "Pick a time",
+  signStepConfirm: "Get a confirmation",
+  signNoApp: "No app needed",
   scriptsSectionTitle: "Phone and website scripts",
   voicemailTitle: "Voicemail message",
   voicemailHint: "Paste this on your clinic phone when you are closed. Edit the wording if you like, then copy.",
@@ -76,7 +89,13 @@ const EL_COPY: PromotePracticeCopy = {
   printHelper: "Πινακίδα A5 με το όνομά σας και το QR, έτοιμη για εκτύπωση.",
   printPrepareFailed: "Δεν ήταν δυνατή η προετοιμασία για εκτύπωση. Δοκιμάστε ξανά.",
   printDialogFailed: "Δεν ήταν δυνατό να ανοίξει το παράθυρο εκτύπωσης σε αυτή τη συσκευή.",
-  printCta: "Σκανάρετε για να κλείσετε το επόμενο ραντεβού σας",
+  htmlLang: "el",
+  signBadge: "Κράτηση online · 24/7",
+  signHeadline: "Κλείστε το επόμενο ραντεβού σας online",
+  signStepScan: "Σκανάρετε τον κωδικό",
+  signStepPick: "Επιλέξτε ώρα",
+  signStepConfirm: "Λάβετε επιβεβαίωση",
+  signNoApp: "Χωρίς εφαρμογή",
   scriptsSectionTitle: "Σενάρια τηλεφώνου και ιστότοπου",
   voicemailTitle: "Μήνυμα φωνητικού ταχυδρομείου",
   voicemailHint:
