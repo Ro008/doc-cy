@@ -546,7 +546,8 @@ export default async function AgendaSettingsPage({
               <p className="mt-1.5 text-lg font-semibold tracking-tight text-slate-50">{displayName}</p>
               {isFoundingMember ? (
                 <div className="mt-2">
-                  <FoundingMemberBadge />
+                  {/* No link here: Plan & billing is in the sidebar right below. */}
+                  <FoundingMemberBadge href={null} />
                 </div>
               ) : null}
             </div>

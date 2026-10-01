@@ -443,6 +443,11 @@ test.describe("Settings redesign (B1)", { tag: "@pr-e2e" }, () => {
     await expect(terms).toContainText("Free, forever");
     await expect(terms).toContainText("€19/month, locked for life");
     await expect(page.getByTestId("settings-plan-payment")).toContainText("Nothing to pay today.");
+    // The badge names the status here; it no longer opens a pop-up with the terms.
+    await expect(page.getByTestId("settings-plan-status").getByTestId("founding-member-badge")).toBeVisible();
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    await page.getByTestId("settings-plan-write-founders").click();
+    await expect(page.getByRole("dialog", { name: /How can we help you/i })).toBeVisible();
     await expect(page.getByText(/coming soon/i)).toHaveCount(0);
   });
 

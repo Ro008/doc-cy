@@ -5,9 +5,7 @@ import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
 import { AgendaRealtime } from "@/components/agenda/AgendaRealtime";
-import { FoundingMemberBadge } from "@/components/dashboard/FoundingMemberBadge";
 import { FirstLoginTrialNoticeGate } from "@/components/dashboard/FirstLoginTrialNoticeGate";
-import { isFounderSubscriptionTier } from "@/lib/subscription-tier";
 import { doctorDashboardDisplayName } from "@/lib/doctor-display-name";
 import {
   DOCTOR_FIRST_LOGIN_PATH,
@@ -179,10 +177,6 @@ export default async function AgendaPage({ searchParams }: AgendaPageProps) {
 
   const displayName = doctorDashboardDisplayName(doctor.name);
 
-  const isFoundingMember = isFounderSubscriptionTier(
-    (doctor as { subscription_tier?: string | null }).subscription_tier,
-  );
-
   return (
     <main className="min-h-screen bg-ink-900 text-slate-50">
       <div className="pointer-events-none fixed inset-0 -z-10 bg-gradient-to-b from-clinical-500/[0.04] via-transparent to-transparent" />
@@ -192,7 +186,6 @@ export default async function AgendaPage({ searchParams }: AgendaPageProps) {
           <h1 className="min-w-0 truncate text-xl font-semibold tracking-tight text-slate-50 sm:text-2xl">
             {displayName}
           </h1>
-          {isFoundingMember ? <FoundingMemberBadge compact /> : null}
         </header>
 
         <FirstLoginTrialNoticeGate />

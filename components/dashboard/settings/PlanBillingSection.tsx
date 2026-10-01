@@ -28,7 +28,6 @@ export function PlanBillingSection({ plan, isFounder }: { plan: PlanSummary; isF
     ],
     ["After your free period", plan.priceAfter],
   ];
-  if (isFounder) terms.push(["Founding Member", "A direct line to the founders"]);
 
   return (
     <div className="space-y-5">
@@ -38,7 +37,7 @@ export function PlanBillingSection({ plan, isFounder }: { plan: PlanSummary; isF
       >
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className={SETTINGS_EYEBROW_CLASS}>Your plan</h2>
-          {isFounder ? <FoundingMemberBadge /> : (
+          {isFounder ? <FoundingMemberBadge href={null} /> : (
             <span className="rounded-full border border-slate-600 px-2.5 py-1 text-xs font-semibold text-slate-200">
               {plan.tierLabel}
             </span>
@@ -101,6 +100,23 @@ export function PlanBillingSection({ plan, isFounder }: { plan: PlanSummary; isF
             </div>
           ))}
         </dl>
+        {isFounder ? (
+          // The Founding Member's direct line (was the badge pop-up's "Contact Founding Team").
+          <div className="mt-4 flex flex-col gap-3 border-t border-slate-800 pt-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm font-semibold text-slate-100">A direct line to the founders</p>
+              <p className="mt-0.5 text-xs text-slate-400">Your feedback shapes what DocCy builds next.</p>
+            </div>
+            <button
+              type="button"
+              data-testid="settings-plan-write-founders"
+              onClick={() => emitOpenFeedback({ subject: "Founding Member Inquiry" })}
+              className={SETTINGS_SECONDARY_BUTTON_CLASS}
+            >
+              Write to the founders
+            </button>
+          </div>
+        ) : null}
       </section>
 
       <section className={SETTINGS_CARD_CLASS} data-testid="settings-plan-payment">
