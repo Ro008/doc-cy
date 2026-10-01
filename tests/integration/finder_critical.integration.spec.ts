@@ -103,7 +103,6 @@ async function createVerifiedDoctor(
       is_test_profile: true,
       is_registered: true,
       pro_access_until: new Date(Date.now() + 180 * 86_400_000).toISOString(),
-      finder_visible: true,
       is_archived: false,
       subscription_tier: "standard",
 
@@ -311,7 +310,6 @@ test.describe("Integration: finder business-critical UX", { tag: ["@pr-e2e", "@p
       .select("slug, name")
       .eq("is_archived", false)
       .eq("is_registered", false)
-      .eq("finder_visible", true)
       .not("slug", "is", null)
       .order("name", { ascending: true })
       .limit(1)
@@ -364,8 +362,7 @@ test.describe("Integration: finder business-critical UX", { tag: ["@pr-e2e", "@p
       .from("professionals")
       .select("id", { count: "exact", head: true })
       .eq("is_archived", false)
-      .eq("is_registered", false)
-      .eq("finder_visible", true);
+      .eq("is_registered", false);
 
     if (manualCountError) {
       throw new Error(`Failed reading unregistered professionals for finder count: ${manualCountError.message}`);

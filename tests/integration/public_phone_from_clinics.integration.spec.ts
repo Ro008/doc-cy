@@ -66,7 +66,6 @@ test.describe("Integration: public phone comes from the clinic", { tag: "@pr-e2e
         is_registered: false,
         is_archived: false,
         is_test_profile: true,
-        finder_visible: true,
       })
       .select("id")
       .single();

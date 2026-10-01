@@ -79,7 +79,6 @@ export async function seedRegisterFixtures(admin: SupabaseClient): Promise<Regis
         is_registered: false,
         is_archived: false,
         is_test_profile: true,
-        finder_visible: false,
       })
       .select("id")
       .single();

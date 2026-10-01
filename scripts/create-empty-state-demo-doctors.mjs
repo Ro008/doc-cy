@@ -46,7 +46,6 @@ async function createDoctor({ slugPrefix, name }) {
       is_test_profile: true,
       is_registered: true,
       pro_access_until: new Date(Date.now() + 180 * 86_400_000).toISOString(),
-      finder_visible: true,
       is_archived: false,
       subscription_tier: "standard",
     })

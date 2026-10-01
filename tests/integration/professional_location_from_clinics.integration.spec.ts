@@ -72,7 +72,6 @@ async function seedClinicOnlyProfessional(
       slug,
       is_registered: true,
       pro_access_until: new Date(Date.now() + 180 * 86_400_000).toISOString(),
-      finder_visible: true,
       is_archived: false,
       is_test_profile: true,
       subscription_tier: "standard",

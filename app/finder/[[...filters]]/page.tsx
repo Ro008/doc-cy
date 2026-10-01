@@ -759,15 +759,12 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
       longitude?: unknown;
       clinic_id?: string | null;
       gender?: string | null;
-      finder_visible?: boolean | null;
       town?: string | null;
     }> = [];
     let manualLoadError: { code?: string; message?: string } | null = null;
-    let manualRequiresFinderVisible = false;
     let manualSelectClause = "";
     const manualSelectAttempts = [
-      "id, slug, name, district, town, address_maps_link, address, is_gesy, latitude, longitude, clinic_id, gender, finder_visible",
-      "id, slug, name, district, address_maps_link, address, is_gesy, latitude, longitude, clinic_id, gender, finder_visible",
+      "id, slug, name, district, town, address_maps_link, address, is_gesy, latitude, longitude, clinic_id, gender",
       "id, slug, name, district, address_maps_link, address, is_gesy, latitude, longitude, clinic_id, gender",
       "id, slug, name, district, address_maps_link, address, is_gesy, latitude, longitude, clinic_id",
       "id, slug, name, district, address_maps_link, address, is_gesy, latitude, longitude",
@@ -796,7 +793,6 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
             selectClause,
             filters: listFilters,
             extraDistrictManualIds: extraIds,
-            requireFinderVisible: selectClause.includes("finder_visible"),
             orderByName: false,
             limit: manualListLimit,
             source: "professionals",
@@ -824,7 +820,6 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
         gender?: string | null;
       }>;
       manualLoadError = null;
-      manualRequiresFinderVisible = selectClause.includes("finder_visible");
       manualSelectClause = selectClause;
       break;
     }
@@ -847,18 +842,14 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
             directoryIdSetCacheKey(missingRequestedIds),
           ],
           () =>
-            fetchAllSupabaseRowsForIdChunks(missingRequestedIds, (idChunk) => {
-              let q = supabase
+            fetchAllSupabaseRowsForIdChunks(missingRequestedIds, (idChunk) =>
+              supabase
                 .from("professionals")
                 .select(manualSelectClause)
                 .eq("is_archived", false)
                 .eq("is_registered", false)
-                .in("id", idChunk);
-              if (manualSelectClause.includes("finder_visible")) {
-                q = q.eq("finder_visible", true);
-              }
-              return q;
-            }),
+                .in("id", idChunk),
+            ),
         );
         if (requestedRes.error) {
           console.error(
@@ -903,13 +894,11 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
             listFilters.name,
             listFilters.specialty,
             listFilters.town,
-            manualRequiresFinderVisible ? "finder-visible" : "all",
           ],
           async () => {
             const manualCountRes = await countManualDirectoryForFinder({
               supabase,
               filters: listFilters,
-              requireFinderVisible: manualRequiresFinderVisible,
               source: "professionals",
             });
             if (manualCountRes.error) {

@@ -20,7 +20,6 @@ import {
 type AliasRow = {
   slug: string;
   name: string;
-  finder_visible?: boolean;
 };
 
 function mockManualDirectorySlugClient(opts: {
@@ -86,7 +85,7 @@ describe("manual-directory-slug", () => {
   it("redirects a retired name-only slug only when the person is unique", () => {
     assert.equal(
       pickUniqueLegacyNameSlugAlias("vera-politou", [
-        { slug: "vera-politou-paphos", name: "Vera Politou", finder_visible: true },
+        { slug: "vera-politou-paphos", name: "Vera Politou" },
       ]),
       "vera-politou-paphos",
     );
@@ -95,8 +94,8 @@ describe("manual-directory-slug", () => {
   it("does not collapse two people with the same name onto one URL", () => {
     assert.equal(
       pickUniqueLegacyNameSlugAlias("vera-politou", [
-        { slug: "vera-politou-paphos", name: "Vera Politou", finder_visible: true },
-        { slug: "vera-politou-nicosia", name: "Vera Politou", finder_visible: true },
+        { slug: "vera-politou-paphos", name: "Vera Politou" },
+        { slug: "vera-politou-nicosia", name: "Vera Politou" },
       ]),
       null,
     );
@@ -105,30 +104,13 @@ describe("manual-directory-slug", () => {
   it("does not treat a longer different name as the same professional", () => {
     assert.equal(
       pickUniqueLegacyNameSlugAlias("maria", [
-        { slug: "maria-papadopoulos-nicosia", name: "Maria Papadopoulos", finder_visible: true },
+        { slug: "maria-papadopoulos-nicosia", name: "Maria Papadopoulos" },
       ]),
       null,
     );
   });
 
-  it("does not redirect when a same-name hidden listing makes the target ambiguous", () => {
-    assert.equal(
-      pickUniqueLegacyNameSlugAlias("vera-politou", [
-        { slug: "vera-politou-paphos", name: "Vera Politou", finder_visible: false },
-        { slug: "vera-politou-limassol", name: "Vera Politou", finder_visible: true },
-      ]),
-      null,
-    );
-  });
 
-  it("does not redirect a unique name that is hidden from the finder", () => {
-    assert.equal(
-      pickUniqueLegacyNameSlugAlias("vera-politou", [
-        { slug: "vera-politou-paphos", name: "Vera Politou", finder_visible: false },
-      ]),
-      null,
-    );
-  });
 });
 
 describe("resolveCanonicalManualDirectorySlug", () => {
@@ -150,7 +132,6 @@ describe("resolveCanonicalManualDirectorySlug", () => {
         {
           slug: "vera-politou-paphos",
           name: "Vera Politou",
-          finder_visible: true,
         },
       ],
     });
@@ -164,8 +145,8 @@ describe("resolveCanonicalManualDirectorySlug", () => {
     const supabase = mockManualDirectorySlugClient({
       exactSlug: null,
       aliasRows: [
-        { slug: "vera-politou-paphos", name: "Vera Politou", finder_visible: true },
-        { slug: "vera-politou-nicosia", name: "Vera Politou", finder_visible: true },
+        { slug: "vera-politou-paphos", name: "Vera Politou" },
+        { slug: "vera-politou-nicosia", name: "Vera Politou" },
       ],
     });
     assert.equal(await resolveCanonicalManualDirectorySlug(supabase, "vera-politou"), null);
@@ -175,7 +156,7 @@ describe("resolveCanonicalManualDirectorySlug", () => {
     const supabase = mockManualDirectorySlugClient({
       exactSlug: null,
       aliasRows: [
-        { slug: "vera-politou-paphos", name: "Vera Politou", finder_visible: true },
+        { slug: "vera-politou-paphos", name: "Vera Politou" },
       ],
     });
     assert.equal(await resolveCanonicalManualDirectorySlug(supabase, "vera_politou"), null);

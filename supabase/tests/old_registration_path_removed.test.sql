@@ -43,11 +43,12 @@ begin
   end if;
   v_checks := v_checks + 1;
 
-  -- 4. The finder's state index is back, without the dropped column.
+  -- 4. The finder's state index is back, without the dropped column (and, since
+  --    Point E2, without finder_visible too).
   select indexdef into v_def from pg_indexes
   where schemaname = 'public' and indexname = 'professionals_finder_state_idx';
-  if v_def is null or v_def not like '%(is_archived, finder_visible, is_registered)' then
-    raise exception 'FAIL: professionals_finder_state_idx should be (is_archived, finder_visible, is_registered), got %', v_def;
+  if v_def is null or v_def not like '%(is_archived, is_registered)' then
+    raise exception 'FAIL: professionals_finder_state_idx should be (is_archived, is_registered), got %', v_def;
   end if;
   v_checks := v_checks + 1;
 

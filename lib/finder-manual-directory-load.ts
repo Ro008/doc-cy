@@ -94,24 +94,15 @@ export function mustChunkExtraManualIds(extraCount: number): boolean {
 export async function countManualDirectoryForFinder(input: {
   supabase: any;
   filters: FinderListFilters;
-  requireFinderVisible?: boolean;
   source?: FinderDirectorySource;
 }): Promise<{ count: number; error: { code?: string; message?: string } | null }> {
-  const {
-    supabase,
-    filters,
-    requireFinderVisible = false,
-    source = "professionals",
-  } = input;
+  const { supabase, filters, source = "professionals" } = input;
   let q = supabase
     .from(source)
     .select(finderSelectWithSpecialtyFilter("id", filters), { count: "exact", head: true })
     .eq("is_archived", false);
   if (source === "professionals") {
     q = q.eq("is_registered", false);
-  }
-  if (requireFinderVisible) {
-    q = q.eq("finder_visible", true);
   }
   q = applyFinderListFilters(q, filters);
   const { count, error } = await q;
@@ -133,7 +124,6 @@ export async function fetchManualDirectoryForFinder(input: {
   selectClause: string;
   filters: FinderListFilters;
   extraDistrictManualIds?: readonly string[];
-  requireFinderVisible?: boolean;
   orderByName?: boolean;
   /** Max rows to return (PostgREST range). Omit for unbounded near-me sorts. */
   limit?: number;
@@ -144,7 +134,6 @@ export async function fetchManualDirectoryForFinder(input: {
     selectClause,
     filters,
     extraDistrictManualIds = [],
-    requireFinderVisible = false,
     orderByName = false,
     limit,
     source = "professionals",
@@ -157,9 +146,6 @@ export async function fetchManualDirectoryForFinder(input: {
       .eq("is_archived", false);
     if (source === "professionals") {
       q = q.eq("is_registered", false);
-    }
-    if (requireFinderVisible && selectClause.includes("finder_visible")) {
-      q = q.eq("finder_visible", true);
     }
     return q;
   };
