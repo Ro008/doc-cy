@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { createPortal } from "react-dom";
-import { Clock, Lock, Save, Trash2, X } from "lucide-react";
+import { Clock, ExternalLink, Lock, Save, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import Cropper from "react-easy-crop";
 import { LanguageMultiSelect } from "@/components/languages/LanguageMultiSelect";
@@ -49,6 +49,13 @@ import {
 } from "@/lib/settings-specialty-request";
 import { PhoneNumbersSettings } from "@/components/dashboard/PhoneNumbersSettings";
 import { SETTINGS_CARD_CLASS, SETTINGS_EYEBROW_CLASS } from "@/components/dashboard/settings/styles";
+import {
+  applySaveGroup,
+  buildSettingsSavePayload,
+  saveGroupHasChanges,
+  validateSettingsToSave,
+  type SaveGroup,
+} from "@/lib/settings-save-groups";
 import type { SettingsClinicPhone } from "@/lib/settings-clinic-phones";
 import {
   SETTINGS_SECTIONS,
@@ -186,6 +193,8 @@ type SettingsFormProps = {
   account?: React.ReactNode;
   /** The Promote section: QR, print sign, scripts. */
   promote?: React.ReactNode;
+  /** The public profile, for "Preview profile" in Profile and Services. */
+  publicProfileHref?: string | null;
 };
 
 type CropArea = { x: number; y: number; width: number; height: number };
@@ -324,6 +333,7 @@ export function SettingsForm({
   profileExtra,
   account,
   promote,
+  publicProfileHref,
 }: SettingsFormProps) {
   const [section, setSection] = React.useState<SettingsSectionId>(
     () => initialSection ?? parseSettingsSection(null),
@@ -346,11 +356,6 @@ export function SettingsForm({
     window.history.replaceState(null, "", settingsSectionHref("promote"));
   }, []);
   const [isClient, setIsClient] = React.useState(false);
-  const [saving, setSaving] = React.useState(false);
-  const [message, setMessage] = React.useState<{
-    type: "success" | "error";
-    text: string;
-  } | null>(null);
 
   const lockedSpecialty = (initial.specialty ?? "").trim();
   const [lockedSpecialties, setLockedSpecialties] = React.useState<string[]>(() =>
@@ -765,13 +770,8 @@ export function SettingsForm({
     () => unsavedSettingsSections(buildCurrentDirtySnapshot(), savedSnapshot),
     [buildCurrentDirtySnapshot, savedSnapshot],
   );
-  /** "Discard changes": reload the saved settings without the leave-page prompt. */
-  const [discarding, setDiscarding] = React.useState(false);
-  React.useEffect(() => {
-    if (discarding) window.location.reload();
-  }, [discarding]);
-
-  useSettingsUnsavedChangesWarning(hasUnsavedChanges && !discarding);
+  // A block left half-edited (a clinic's hours, the bio…) still warns before leaving.
+  useSettingsUnsavedChangesWarning(hasUnsavedChanges);
 
   React.useEffect(() => {
     setIsClient(true);
@@ -947,120 +947,110 @@ export function SettingsForm({
     }
   }
 
-  async function handleSubmit(e: React.FormEvent) {
+  // Nothing saves the whole page any more: Enter in a field must not submit.
+  function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setMessage(null);
+  }
 
-    const langList = languages.filter((s) => s.trim().length > 0);
-    if (langList.length === 0) {
-      const text = "Add at least one language (e.g. English, Greek).";
-      setMessage({ type: "error", text });
-      toast.error(text);
-      return;
-    }
-    const bioTrimmed = bio.trim();
-    if (bioTrimmed.length > BIO_MAX_CHARS) {
-      const text = `Bio must be ${BIO_MAX_CHARS} characters or fewer.`;
-      setMessage({ type: "error", text });
-      toast.error(text);
-      return;
-    }
-    const parsedHolidayStart = holidayModeEnabled
-      ? parseDDMMYYYYToISO(holidayStartInput)
-      : null;
-    const parsedHolidayEnd = holidayModeEnabled
-      ? parseDDMMYYYYToISO(holidayEndInput)
-      : null;
+  const [savingGroup, setSavingGroup] = React.useState<string | null>(null);
+  const saveGroupKey = (group: SaveGroup) => (group.kind === "clinic" ? `clinic:${group.id}` : group.kind);
 
-    if (holidayModeEnabled) {
-      if (!parsedHolidayStart || !parsedHolidayEnd) {
-        const text = "Use DD/MM/YYYY for Holiday start and end.";
-        setMessage({ type: "error", text });
-        toast.error(text);
-        return;
-      }
-      if (parsedHolidayStart > parsedHolidayEnd) {
-        const text =
-          "Holiday start date must be before (or equal to) end date.";
-        setMessage({ type: "error", text });
-        toast.error(text);
-        return;
-      }
+  /**
+   * One save rule (user, 2026-10-01; lib/settings-save-groups.ts): each block saves on
+   * its own, sending the last saved settings with only that block changed. `override`
+   * holds a value picked this instant, before React state catches up.
+   */
+  async function saveGroup(
+    group: SaveGroup,
+    successText: string,
+    override: Partial<SettingsDirtySnapshot> = {},
+  ): Promise<boolean> {
+    const current = { ...buildCurrentDirtySnapshot(), ...override };
+    const next = applySaveGroup(savedSnapshot, current, group);
+    const invalid = validateSettingsToSave(next);
+    if (invalid) {
+      toast.error(invalid);
+      return false;
     }
-
-    setSaving(true);
+    const key = saveGroupKey(group);
+    setSavingGroup(key);
     try {
-      const savePayload: Record<string, unknown> = {
-        doctorId: initial.doctorId,
-        doctorPhone: mobileNumber || null,
-        bio: bioTrimmed,
-        languages: langList,
-        monday: weeklySchedule.monday.enabled,
-        tuesday: weeklySchedule.tuesday.enabled,
-        wednesday: weeklySchedule.wednesday.enabled,
-        thursday: weeklySchedule.thursday.enabled,
-        friday: weeklySchedule.friday.enabled,
-        saturday: weeklySchedule.saturday.enabled,
-        sunday: weeklySchedule.sunday.enabled,
-        weeklySchedule,
-        breakEnabled,
-        breakStart,
-        breakEnd,
-        slotDurationMinutes,
-        bookingHorizonDays,
-        minimumNoticeHours,
-        holidayModeEnabled,
-        holidayStartDate: parsedHolidayStart,
-        holidayEndDate: parsedHolidayEnd,
-        locations: workplacesForSave().map((row) => ({
-          id: row.id.startsWith("primary") && row.id === "primary" ? undefined : row.id,
-          // No label: the name is DocCy's, and the API leaves the stored label as is.
-          weeklySchedule: row.weeklySchedule,
-          monday: row.weeklySchedule.monday.enabled,
-          tuesday: row.weeklySchedule.tuesday.enabled,
-          wednesday: row.weeklySchedule.wednesday.enabled,
-          thursday: row.weeklySchedule.thursday.enabled,
-          friday: row.weeklySchedule.friday.enabled,
-          saturday: row.weeklySchedule.saturday.enabled,
-          sunday: row.weeklySchedule.sunday.enabled,
-          breakEnabled: row.breakEnabled,
-          breakStart: row.breakStart,
-          breakEnd: row.breakEnd,
-          slotDurationMinutes: row.slotDurationMinutes,
-        })),
-      };
-
       const res = await fetch("/api/doctor-settings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(savePayload),
+        body: JSON.stringify(buildSettingsSavePayload(initial.doctorId, next)),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const text = (data.message as string) || "Failed to save settings.";
-        setMessage({
-          type: "error",
-          text,
-        });
-        toast.error(text);
-        return;
+        toast.error((data.message as string) || "Could not save. Please try again.", { id: key });
+        return false;
       }
-      if (holidayModeEnabled) {
-        setHolidayStartDate(parsedHolidayStart);
-        setHolidayEndDate(parsedHolidayEnd);
+      setSavedSnapshot(next);
+      if (group.kind === "holiday") {
+        setHolidayStartDate(next.holidayModeEnabled ? parseDDMMYYYYToISO(next.holidayStartInput) : null);
+        setHolidayEndDate(next.holidayModeEnabled ? parseDDMMYYYYToISO(next.holidayEndInput) : null);
       }
-      setSavedSnapshot(buildCurrentDirtySnapshot());
-      setMessage({ type: "success", text: "Settings saved." });
-      toast.success("Settings saved.");
+      // One toast per block, replaced on each save (quick toggles do not stack).
+      toast.success(successText, { id: key });
+      return true;
     } catch (err) {
       console.error(err);
-      const text = "Something went wrong.";
-      setMessage({ type: "error", text });
-      toast.error(text);
+      toast.error("Could not save. Please try again.", { id: key });
+      return false;
     } finally {
-      setSaving(false);
+      setSavingGroup(null);
     }
   }
+
+  const currentSnapshot = buildCurrentDirtySnapshot();
+  const groupDirty = (group: SaveGroup) => saveGroupHasChanges(savedSnapshot, currentSnapshot, group);
+  const holidayDirty = groupDirty({ kind: "holiday" });
+
+  function revertHoliday() {
+    setHolidayModeEnabled(savedSnapshot.holidayModeEnabled);
+    setHolidayStartInput(savedSnapshot.holidayStartInput);
+    setHolidayEndInput(savedSnapshot.holidayEndInput);
+  }
+
+  /** "Cancel" in a clinic's hours editor: back to its saved hours. */
+  function revertClinicHours(id: string) {
+    const saved = savedSnapshot.workplaces.find((row) => row.id === id);
+    const draft = workplaces.find((row) => row.id === id);
+    if (!saved || !draft) return;
+    const reverted: DoctorWorkplaceFormData = {
+      ...draft,
+      weeklySchedule: saved.weeklySchedule,
+      breakEnabled: saved.breakEnabled,
+      breakStart: saved.breakStart,
+      breakEnd: saved.breakEnd,
+      slotDurationMinutes: saved.slotDurationMinutes,
+    };
+    setWorkplaces((prev) => prev.map((row) => (row.id === id ? reverted : row)));
+    if (id === activeWorkplaceId) applyWorkplaceToForm(reverted);
+  }
+
+  const [languagesError, setLanguagesError] = React.useState<string | null>(null);
+  function changeLanguages(next: string[]) {
+    setLanguages(next);
+    const picked = next.map((l) => l.trim()).filter(Boolean).sort();
+    if (picked.length === 0) {
+      setLanguagesError("Choose at least one language.");
+      return;
+    }
+    setLanguagesError(null);
+    void saveGroup({ kind: "languages" }, "Languages saved.", { languages: picked });
+  }
+
+  // Holiday mode sits in the sidebar on wide screens and inside Availability on
+  // phones, where the sidebar is a row above every section (user, 2026-10-01).
+  const [isDesktop, setIsDesktop] = React.useState(false);
+  React.useEffect(() => {
+    const query = window.matchMedia("(min-width: 1024px)");
+    const update = () => setIsDesktop(query.matches);
+    update();
+    query.addEventListener("change", update);
+    return () => query.removeEventListener("change", update);
+  }, []);
 
   async function submitSpecialtyChangeRequest() {
     const validated = validateAddSpecialtyRequest(
@@ -1197,6 +1187,20 @@ export function SettingsForm({
     </div>
   );
 
+  // See the result of an edit where patients see it (user, 2026-10-01).
+  const previewProfileLink = publicProfileHref ? (
+    <a
+      href={publicProfileHref}
+      target="_blank"
+      rel="noopener noreferrer"
+      data-testid="settings-preview-profile"
+      className="inline-flex h-10 items-center gap-2 rounded-xl border border-white/20 px-3.5 text-sm font-medium text-slate-100 transition hover:bg-white/10"
+    >
+      <ExternalLink className="h-4 w-4" aria-hidden />
+      Preview profile
+    </a>
+  ) : null;
+
   const holidayCard = (
     <div
       className={`rounded-3xl border p-4 transition-colors ${
@@ -1213,11 +1217,16 @@ export function SettingsForm({
           checked={holidayModeEnabled}
           onChange={(enabled) => {
             setHolidayModeEnabled(enabled);
-            if (!enabled) {
-              setHolidayStartDate(null);
-              setHolidayEndDate(null);
-              setHolidayStartInput("");
-              setHolidayEndInput("");
+            if (enabled) return;
+            setHolidayStartInput("");
+            setHolidayEndInput("");
+            // Turning it off saves at once; turning it on waits for the dates.
+            if (savedSnapshot.holidayModeEnabled) {
+              void saveGroup({ kind: "holiday" }, "Holiday mode is off.", {
+                holidayModeEnabled: false,
+                holidayStartInput: "",
+                holidayEndInput: "",
+              });
             }
           }}
         />
@@ -1235,10 +1244,7 @@ export function SettingsForm({
               inputMode="numeric"
               placeholder="DD/MM/YYYY"
               value={holidayStartInput}
-              onChange={(e) => {
-                setHolidayStartInput(e.target.value);
-                setHolidayStartDate(parseDDMMYYYYToISO(e.target.value));
-              }}
+              onChange={(e) => setHolidayStartInput(e.target.value)}
               className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950/60 px-2.5 py-2 text-sm font-normal text-slate-100 outline-none focus:ring-2 focus:ring-amber-300/50"
             />
           </label>
@@ -1250,13 +1256,39 @@ export function SettingsForm({
               inputMode="numeric"
               placeholder="DD/MM/YYYY"
               value={holidayEndInput}
-              onChange={(e) => {
-                setHolidayEndInput(e.target.value);
-                setHolidayEndDate(parseDDMMYYYYToISO(e.target.value));
-              }}
+              onChange={(e) => setHolidayEndInput(e.target.value)}
               className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950/60 px-2.5 py-2 text-sm font-normal text-slate-100 outline-none focus:ring-2 focus:ring-amber-300/50"
             />
           </label>
+          {holidayDirty ? (
+          <div className="col-span-2 mt-3 flex flex-wrap gap-2">
+            <button
+              type="button"
+              data-testid="settings-holiday-save"
+              disabled={savingGroup === "holiday"}
+              onClick={() =>
+                void saveGroup(
+                  { kind: "holiday" },
+                  savedSnapshot.holidayModeEnabled ? "Holiday dates saved." : "Holiday mode is on.",
+                )
+              }
+              className="inline-flex h-9 items-center rounded-xl bg-amber-300 px-3.5 text-sm font-semibold text-ink-900 transition hover:bg-amber-200 disabled:opacity-60"
+            >
+              {savingGroup === "holiday"
+                ? "Saving…"
+                : savedSnapshot.holidayModeEnabled
+                  ? "Save dates"
+                  : "Turn on holiday mode"}
+            </button>
+            <button
+              type="button"
+              onClick={revertHoliday}
+              className="inline-flex h-9 items-center rounded-xl px-3 text-sm font-medium text-slate-300 transition hover:bg-white/10"
+            >
+              Cancel
+            </button>
+          </div>
+          ) : null}
         </div>
       ) : null}
     </div>
@@ -1402,10 +1434,31 @@ export function SettingsForm({
           </div>
         </div>
       </div>
-      <p className="text-xs text-slate-500">
-        Changes to {activeWorkplaceLabel} are kept when you switch sections. Save them with
-        “Save settings”.
-      </p>
+      <div className="flex flex-wrap items-center gap-2 border-t border-white/10 pt-4">
+        <button
+          type="button"
+          data-testid="settings-clinic-hours-save"
+          disabled={!groupDirty({ kind: "clinic", id: row.id }) || savingGroup === `clinic:${row.id}`}
+          onClick={async () => {
+            const saved = await saveGroup({ kind: "clinic", id: row.id }, `Hours saved for ${activeWorkplaceLabel}.`);
+            if (saved) setEditingWorkplaceId(null);
+          }}
+          className="inline-flex h-10 items-center rounded-xl bg-clinical-500 px-4 text-sm font-semibold text-ink-900 transition hover:bg-clinical-400 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <Save className="mr-2 h-4 w-4" aria-hidden />
+          {savingGroup === `clinic:${row.id}` ? "Saving…" : "Save hours"}
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            revertClinicHours(row.id);
+            setEditingWorkplaceId(null);
+          }}
+          className="inline-flex h-10 items-center rounded-xl px-3.5 text-sm font-medium text-slate-300 transition hover:bg-white/10 hover:text-slate-50"
+        >
+          Cancel
+        </button>
+      </div>
     </div>
   );
 
@@ -1420,11 +1473,12 @@ export function SettingsForm({
           Holiday mode is on until {holidayEndInput}. No clinic takes online bookings until then.
         </div>
       ) : null}
-      <section className={SECTION_CARD_CLASS}>
+      {isDesktop ? null : holidayCard}
+      {/* A status summary only: each clinic's switch lives on its card in Clinics. */}
+      <section className={SECTION_CARD_CLASS} data-testid="settings-availability-clinics">
         <p className={SECTION_EYEBROW_CLASS}>Online booking by clinic</p>
         <ul className="mt-3 divide-y divide-slate-800">
           {liveWorkplaces.map((row, index) => {
-            const name = workplaceName(row, index);
             const status = clinicBookingStatus({
               pauseOnlineBookings: row.pauseOnlineBookings,
               holidayActive,
@@ -1435,28 +1489,30 @@ export function SettingsForm({
                   className={`h-2.5 w-2.5 shrink-0 rounded-[3px] ${agendaClinicEventColor(index).swatch}`}
                   aria-hidden
                 />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold text-slate-100">{name}</p>
-                  <p
-                    className={`text-xs ${
-                      status.kind === "taking" ? "text-wellness-200" : "text-amber-200"
-                    }`}
-                  >
-                    {status.label}
-                  </p>
-                </div>
-                <ClinicBookingSwitch
-                  clinicName={name}
-                  locationId={row.id === "primary" ? null : row.id}
-                  paused={row.pauseOnlineBookings}
-                  onPausedChange={(paused) => setWorkplacePaused(row.id, paused)}
-                />
+                <p className="min-w-0 flex-1 truncate text-sm font-semibold text-slate-100">
+                  {workplaceName(row, index)}
+                </p>
+                <p className={`text-xs ${status.kind === "taking" ? "text-wellness-200" : "text-amber-200"}`}>
+                  {status.label}
+                </p>
               </li>
             );
           })}
         </ul>
-        <p className="mt-2 text-xs text-slate-500">
-          While a clinic is paused, patients see its phone number instead of your calendar.
+        <p className="mt-2 text-xs text-slate-400">
+          Turn online booking on or off for a clinic on its card in{" "}
+          <a
+            href={settingsSectionHref("clinics")}
+            data-settings-section="clinics"
+            onClick={(event) => {
+              event.preventDefault();
+              selectSection("clinics");
+            }}
+            className="font-medium text-clinical-300 underline-offset-2 hover:text-clinical-200 hover:underline"
+          >
+            Clinics
+          </a>
+          . While a clinic is paused, patients see its phone number instead of your calendar.
         </p>
       </section>
       <section className={SECTION_CARD_CLASS}>
@@ -1471,14 +1527,14 @@ export function SettingsForm({
               id="bookingHorizonDays"
               value={bookingHorizonDays}
               onChange={(e) => {
-                const next = Number(e.target.value);
-                setBookingHorizonDays(
-                  BOOKING_HORIZON_OPTIONS_DAYS.includes(
-                    next as (typeof BOOKING_HORIZON_OPTIONS_DAYS)[number],
-                  )
-                    ? next
-                    : DEFAULT_BOOKING_HORIZON_DAYS,
-                );
+                const picked = Number(e.target.value);
+                const next = BOOKING_HORIZON_OPTIONS_DAYS.includes(
+                  picked as (typeof BOOKING_HORIZON_OPTIONS_DAYS)[number],
+                )
+                  ? picked
+                  : DEFAULT_BOOKING_HORIZON_DAYS;
+                setBookingHorizonDays(next);
+                void saveGroup({ kind: "limits" }, "Booking limits saved.", { bookingHorizonDays: next });
               }}
               className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-clinical-400/60"
             >
@@ -1497,12 +1553,14 @@ export function SettingsForm({
               id="minimumNoticeHours"
               value={minimumNoticeHours}
               onChange={(e) => {
-                const next = Number(e.target.value);
-                setMinimumNoticeHours(
-                  MIN_NOTICE_OPTIONS_HOURS.includes(next as (typeof MIN_NOTICE_OPTIONS_HOURS)[number])
-                    ? next
-                    : DEFAULT_MIN_NOTICE_HOURS,
-                );
+                const picked = Number(e.target.value);
+                const next = MIN_NOTICE_OPTIONS_HOURS.includes(
+                  picked as (typeof MIN_NOTICE_OPTIONS_HOURS)[number],
+                )
+                  ? picked
+                  : DEFAULT_MIN_NOTICE_HOURS;
+                setMinimumNoticeHours(next);
+                void saveGroup({ kind: "limits" }, "Booking limits saved.", { minimumNoticeHours: next });
               }}
               className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-clinical-400/60"
             >
@@ -1611,6 +1669,7 @@ export function SettingsForm({
       {sectionTitle(
         "Services & prices",
         "Treatments on your public profile. Prices are in euros (€) and the same at every clinic.",
+        previewProfileLink,
       )}
       <section className={SECTION_CARD_CLASS}>
         <div className="grid gap-3 sm:grid-cols-[1fr_180px_auto]">
@@ -1837,7 +1896,11 @@ export function SettingsForm({
 
   const profileSection = (
     <div className="space-y-5">
-      {sectionTitle("Profile", "What patients see about you in Health Finder and on your profile.")}
+      {sectionTitle(
+        "Profile",
+        "What patients see about you in Health Finder and on your profile.",
+        previewProfileLink,
+      )}
       <section className={SECTION_CARD_CLASS}>
         <p className={SECTION_EYEBROW_CLASS}>Profile photo</p>
         <div className="mt-3 flex items-center gap-4">
@@ -1888,18 +1951,45 @@ export function SettingsForm({
           placeholder="Example: I treat back pain, sports injuries, and post-surgery rehab."
           className="mt-2 w-full resize-y rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2.5 text-sm text-slate-100 placeholder:text-slate-500 outline-none transition focus:border-clinical-400/60 focus:ring-2 focus:ring-clinical-400/30"
         />
-        <p className="mt-1.5 text-right text-[11px] tabular-nums text-slate-500">
-          {bio.trim().length}/{BIO_MAX_CHARS}
-        </p>
+        <div className="mt-1.5 flex flex-wrap items-center gap-2">
+          {groupDirty({ kind: "bio" }) ? (
+            <>
+              <button
+                type="button"
+                data-testid="settings-bio-save"
+                disabled={savingGroup === "bio"}
+                onClick={() => void saveGroup({ kind: "bio" }, "Bio saved.")}
+                className="inline-flex h-9 items-center rounded-xl bg-clinical-500 px-3.5 text-sm font-semibold text-ink-900 transition hover:bg-clinical-400 disabled:opacity-60"
+              >
+                {savingGroup === "bio" ? "Saving…" : "Save bio"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setBio(savedSnapshot.bio)}
+                className="inline-flex h-9 items-center rounded-xl px-3 text-sm font-medium text-slate-300 transition hover:bg-white/10"
+              >
+                Cancel
+              </button>
+            </>
+          ) : null}
+          <p className="ml-auto text-[11px] tabular-nums text-slate-500">
+            {bio.trim().length}/{BIO_MAX_CHARS}
+          </p>
+        </div>
         <p className={`${SECTION_EYEBROW_CLASS} mt-4`}>
           Languages <span className="text-red-300">*</span>
         </p>
         <LanguageMultiSelect
           id="settings-languages"
           selected={languages}
-          onSelectedChange={setLanguages}
+          onSelectedChange={changeLanguages}
           variant="settings"
         />
+        {languagesError ? (
+          <p className="mt-1.5 text-xs font-medium text-red-300" role="alert">
+            {languagesError}
+          </p>
+        ) : null}
       </section>
       {profileExtra}
     </div>
@@ -1911,6 +2001,10 @@ export function SettingsForm({
       <PhoneNumbersSettings
         mobileNumber={mobileNumber}
         onMobileNumberChange={setMobileNumber}
+        mobileDirty={groupDirty({ kind: "mobile" })}
+        mobileSaving={savingGroup === "mobile"}
+        onSaveMobile={() => void saveGroup({ kind: "mobile" }, "Mobile saved.")}
+        onCancelMobile={() => setMobileNumber(savedSnapshot.mobileNumber)}
         clinicPhones={initial.clinicPhones ?? []}
         onOpenClinics={() => selectSection("clinics")}
       />
@@ -1962,7 +2056,7 @@ export function SettingsForm({
             <span className="h-2 w-2 rounded-full bg-amber-400" aria-label="Request in review" />
           ) : null,
         }}
-        footer={holidayCard}
+        footer={isDesktop ? holidayCard : null}
       />
 
       <div className="min-w-0 flex-1 space-y-5 pb-4">
@@ -1973,57 +2067,6 @@ export function SettingsForm({
         ))}
 
 
-        {hasUnsavedChanges ? (
-          <div
-            role="status"
-            data-testid="settings-unsaved-changes"
-            className="sticky bottom-24 z-30 flex flex-wrap items-center gap-3 rounded-2xl border border-amber-400/30 bg-[#0B1A30]/95 px-4 py-3 shadow-xl shadow-black/40 backdrop-blur lg:bottom-6"
-          >
-            <p className="min-w-0 flex-1 text-sm text-amber-100">
-              {unsavedSections.length > 0 ? (
-                <>
-                  Unsaved changes in{" "}
-                  {unsavedSections.map((id, index) => (
-                    <React.Fragment key={id}>
-                      {index > 0 ? (index === unsavedSections.length - 1 ? " and " : ", ") : null}
-                      <button
-                        type="button"
-                        onClick={() => selectSection(id)}
-                        className="font-semibold underline decoration-amber-300/50 underline-offset-2 hover:text-amber-50"
-                      >
-                        {SETTINGS_SECTIONS.find((s) => s.id === id)?.label ?? id}
-                      </button>
-                    </React.Fragment>
-                  ))}
-                  .
-                </>
-              ) : (
-                "You have unsaved changes."
-              )}
-            </p>
-            {message?.type === "error" ? (
-              <p className="w-full text-sm text-red-200 sm:order-last" role="alert">
-                {message.text}
-              </p>
-            ) : null}
-            <button
-              type="button"
-              onClick={() => setDiscarding(true)}
-              disabled={saving || discarding}
-              className="inline-flex h-10 items-center rounded-xl px-3 text-sm font-medium text-slate-300 transition hover:bg-white/10 hover:text-slate-50 disabled:opacity-60"
-            >
-              Discard changes
-            </button>
-            <button
-              type="submit"
-              disabled={saving || discarding}
-              className="inline-flex h-10 items-center rounded-xl bg-clinical-500 px-4 text-sm font-semibold text-ink-900 transition hover:bg-clinical-400 disabled:opacity-60"
-            >
-              <Save className="mr-2 h-4 w-4" aria-hidden />
-              {saving ? "Saving..." : "Save settings"}
-            </button>
-          </div>
-        ) : null}
       </div>
 
       {workplaceToRemove ? (

@@ -17,6 +17,7 @@ import { PromotePracticeSection } from "@/components/dashboard/PromotePracticeSe
 import { FoundingMemberBadge } from "@/components/dashboard/FoundingMemberBadge";
 import { GesyPatientsToggle } from "@/components/dashboard/GesyPatientsToggle";
 import { AccountSecurityCard } from "@/components/dashboard/settings/AccountSecurityCard";
+import { publicProfessionalProfilePath } from "@/lib/manual-directory-landing-path";
 import { SETTINGS_CARD_CLASS } from "@/components/dashboard/settings/styles";
 import { doctorDashboardDisplayName } from "@/lib/doctor-display-name";
 import {
@@ -522,6 +523,7 @@ export default async function AgendaSettingsPage({
 
         <SettingsForm
           initial={initial}
+          publicProfileHref={doctor.slug ? publicProfessionalProfilePath(doctor.slug) : null}
           section={section}
           sidebarHeader={
             <div>

@@ -247,13 +247,12 @@ test.describe("Feedback matrix toasts", () => {
     });
 
     await page.goto("/settings");
-    // "Save settings" shows once something changed.
+    // Booking limits save the moment they change (one save rule, no page-wide Save).
     const notice = page.locator("#minimumNoticeHours");
     const current = await notice.inputValue();
     await notice.selectOption(current === "24" ? "48" : "24");
-    await page.getByRole("button", { name: /Save settings/i }).click();
     await expect(
-      page.locator("[data-sonner-toast]").getByText(/Settings saved\./i),
+      page.locator("[data-sonner-toast]").getByText(/Booking limits saved\./i),
     ).toBeVisible({
       timeout: 8_000,
     });

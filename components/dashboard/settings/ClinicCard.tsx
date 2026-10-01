@@ -126,15 +126,20 @@ export function ClinicCard({
       </Collapse>
 
       <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
-        <button
-          type="button"
-          onClick={onToggleEdit}
-          aria-expanded={editing}
-          className="inline-flex h-10 items-center gap-2 rounded-xl border border-white/20 px-3.5 text-sm font-medium text-slate-100 transition hover:bg-white/10"
-        >
-          {editing ? "Done editing" : editLabel}
-          <ChevronDown className={`h-4 w-4 transition-transform ${editing ? "rotate-180" : ""}`} aria-hidden />
-        </button>
+        {/* While open, the editor has its own Save hours / Cancel. */}
+        {editing ? (
+          <span />
+        ) : (
+          <button
+            type="button"
+            onClick={onToggleEdit}
+            aria-expanded={false}
+            className="inline-flex h-10 items-center gap-2 rounded-xl border border-white/20 px-3.5 text-sm font-medium text-slate-100 transition hover:bg-white/10"
+          >
+            {editLabel}
+            <ChevronDown className="h-4 w-4" aria-hidden />
+          </button>
+        )}
         {removal.ok === false ? (
           <p className="text-xs text-slate-400">{removal.message}</p>
         ) : (

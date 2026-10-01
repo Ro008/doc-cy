@@ -8,6 +8,11 @@ import type { SettingsClinicPhone } from "@/lib/settings-clinic-phones";
 type PhoneNumbersSettingsProps = {
   mobileNumber: string;
   onMobileNumberChange: (value: string) => void;
+  /** The mobile differs from the saved one: show its own Save / Cancel. */
+  mobileDirty?: boolean;
+  mobileSaving?: boolean;
+  onSaveMobile?: () => void;
+  onCancelMobile?: () => void;
   clinicPhones: readonly SettingsClinicPhone[];
   /** Switches settings to the Clinics section (no page load). */
   onOpenClinics?: () => void;
@@ -23,6 +28,10 @@ type PhoneNumbersSettingsProps = {
 export function PhoneNumbersSettings({
   mobileNumber,
   onMobileNumberChange,
+  mobileDirty = false,
+  mobileSaving = false,
+  onSaveMobile,
+  onCancelMobile,
   clinicPhones,
   onOpenClinics,
 }: PhoneNumbersSettingsProps) {
@@ -47,6 +56,26 @@ export function PhoneNumbersSettings({
             placeholder="+357..."
             className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2.5 text-sm text-slate-100 placeholder:text-slate-500 outline-none transition focus:border-clinical-400/60 focus:ring-2 focus:ring-clinical-400/30"
           />
+          {mobileDirty ? (
+            <div className="mt-2 flex flex-wrap gap-2">
+              <button
+                type="button"
+                data-testid="settings-mobile-save"
+                disabled={mobileSaving}
+                onClick={onSaveMobile}
+                className="inline-flex h-9 items-center rounded-xl bg-clinical-500 px-3.5 text-sm font-semibold text-ink-900 transition hover:bg-clinical-400 disabled:opacity-60"
+              >
+                {mobileSaving ? "Saving…" : "Save mobile"}
+              </button>
+              <button
+                type="button"
+                onClick={onCancelMobile}
+                className="inline-flex h-9 items-center rounded-xl px-3 text-sm font-medium text-slate-300 transition hover:bg-white/10"
+              >
+                Cancel
+              </button>
+            </div>
+          ) : null}
         </div>
 
         <div data-testid="settings-clinic-phones" className="pt-5">

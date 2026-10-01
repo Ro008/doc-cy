@@ -365,26 +365,75 @@ test.describe("Settings redesign (B1)", { tag: "@pr-e2e" }, () => {
     await expect(card.getByRole("button", { name: "Request a change" })).toBeVisible();
   });
 
-  test("unsaved changes say where they are and can be discarded", async ({ page }) => {
+  test("a clinic's hours save from its card, and Cancel puts them back", async ({ page }) => {
     test.setTimeout(120_000);
     await openSettings(page, seeded!, "clinics");
-    // Nothing touched: no save bar.
     await expect(page.getByTestId("settings-clinic-card")).toHaveCount(2);
-    await expect(page.getByTestId("settings-unsaved-changes")).toHaveCount(0);
+    // One save rule (user, 2026-10-01): no page-wide save bar.
+    await expect(page.getByRole("button", { name: /Save settings/ })).toHaveCount(0);
 
     const card = clinicCard(page, "Limassol Skin Clinic");
     await card.getByRole("button", { name: "Edit hours" }).click();
-    await card.getByRole("radio", { name: "45 min" }).click();
+    const save = card.getByTestId("settings-clinic-hours-save");
+    await expect(save).toBeDisabled();
 
-    const bar = page.getByTestId("settings-unsaved-changes");
-    await expect(bar).toContainText("Unsaved changes in Clinics.");
+    // Cancel: back to the saved slot, nothing sent.
+    await card.getByRole("radio", { name: "45 min" }).click();
     await expect(
       page.getByTestId("settings-sidebar").getByRole("link", { name: /Clinics/ }).getByLabel("Unsaved changes"),
     ).toBeVisible();
+    await card.getByRole("button", { name: "Cancel" }).click();
+    await expect(card).toContainText("30 min");
 
-    await bar.getByRole("button", { name: "Discard changes" }).click();
-    await expect(bar).toHaveCount(0, { timeout: 20_000 });
-    await expect(clinicCard(page, "Limassol Skin Clinic")).toBeVisible();
+    // Save: only this clinic changes.
+    await card.getByRole("button", { name: "Edit hours" }).click();
+    await card.getByRole("radio", { name: "45 min" }).click();
+    await save.click();
+    await expect(page.locator("[data-sonner-toast]").getByText(/Hours saved for Limassol Skin Clinic/)).toBeVisible();
+    await expect(card).toContainText("45 min");
+
+    const rows = await admin
+      .from("professional_clinics")
+      .select("id, slot_duration_minutes")
+      .in("id", [seeded!.primaryId, seeded!.secondId]);
+    const slots = Object.fromEntries((rows.data ?? []).map((row) => [row.id, row.slot_duration_minutes]));
+    expect(slots[seeded!.primaryId]).toBe(45);
+    expect(slots[seeded!.secondId]).toBe(30);
+  });
+
+  test("booking limits save the moment they change, leaving a half-edited bio alone", async ({ page }) => {
+    test.setTimeout(120_000);
+    await openSettings(page, seeded!, "profile");
+    await page.locator("#settings-bio").fill("A bio I have not saved");
+    await expect(page.getByTestId("settings-bio-save")).toBeVisible();
+
+    await page.getByTestId("settings-sidebar").getByRole("link", { name: /Availability/ }).click();
+    // Clinic switches live on the clinic cards only.
+    await expect(page.getByTestId("settings-availability-clinics").getByRole("switch")).toHaveCount(0);
+    await page.locator("#minimumNoticeHours").selectOption("48");
+    await expect(page.locator("[data-sonner-toast]").getByText("Booking limits saved.")).toBeVisible();
+
+    await expect
+      .poll(async () => {
+        const { data } = await admin
+          .from("professional_settings")
+          .select("minimum_notice_hours")
+          .eq("professional_id", seeded!.professionalId)
+          .maybeSingle();
+        return data?.minimum_notice_hours ?? null;
+      })
+      .toBe(48);
+    const { data: pro } = await admin.from("professionals").select("bio").eq("id", seeded!.professionalId).single();
+    expect(pro?.bio ?? "").not.toBe("A bio I have not saved");
+  });
+
+  test("Profile and Services link to the public profile", async ({ page }) => {
+    test.setTimeout(120_000);
+    await openSettings(page, seeded!, "profile");
+    const preview = page.getByTestId("settings-preview-profile").first();
+    await expect(preview).toBeVisible();
+    await expect(preview).toHaveAttribute("href", /^\/[a-z]{2}\/[^/]+$/);
+    await expect(preview).toHaveAttribute("target", "_blank");
   });
 
   test("a section that fits the window does not scroll", async ({ page }) => {

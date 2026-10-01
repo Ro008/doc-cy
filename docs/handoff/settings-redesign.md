@@ -35,8 +35,12 @@ https://claude.ai/artifact/3XYQpTSDQPyn2wWFg8NBmm (board "B1 · Sidebar + clinic
   - For you: `professional_clinics.label` is now unused by the UI. Dropping the column
     and the `label` handling in `lib/professional-clinic-settings-writes.ts` is yours to
     decide; nothing breaks while it stays.
-- The save bar names the sections with unsaved changes (links to each, a dot in the
-  sidebar) and offers "Discard changes".
+- **One save rule** (user, 2026-10-01; `lib/settings-save-groups.ts`): no page-wide
+  "Save settings". Booking limits, languages and turning holiday mode off save at once;
+  a clinic's hours, the bio, the mobile and holiday dates have their own Save / Cancel.
+  `POST /api/doctor-settings` is unchanged: each save sends the last saved settings
+  with only that block changed, so expect more, smaller saves than before. A block left
+  half-edited shows a dot in the sidebar and warns before leaving the page.
 - Any clinic can be removed, the primary one too, as long as one clinic is left.
 - Any specialty can be removed instantly, as long as one specialty is left.
 - Specialty requests (user, 2026-10-01): settings only sends **"add"** to
