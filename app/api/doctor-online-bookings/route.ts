@@ -30,30 +30,10 @@ export async function GET() {
     return NextResponse.json({ message: "Forbidden." }, { status: 403 });
   }
 
-  const locations = await loadDoctorLocations(doctor.id);
-  const primary = primaryDoctorLocation(locations);
-  if (primary) {
-    return NextResponse.json(
-      { pauseOnlineBookings: Boolean(primary.pause_online_bookings) },
-      { status: 200 }
-    );
-  }
-
-  const { data: settings, error: settingsErr } = await supabase
-    .from("professional_settings")
-    .select("pause_online_bookings")
-    .eq("professional_id", doctor.id)
-    .maybeSingle();
-
-  if (settingsErr) {
-    return NextResponse.json(
-      { message: "Error fetching availability pause state." },
-      { status: 500 }
-    );
-  }
-
+  // The pause lives on each clinic link (Point E6); without a clinic nothing is bookable.
+  const primary = primaryDoctorLocation(await loadDoctorLocations(doctor.id));
   return NextResponse.json(
-    { pauseOnlineBookings: Boolean(settings?.pause_online_bookings) },
+    { pauseOnlineBookings: primary ? Boolean(primary.pause_online_bookings) : true },
     { status: 200 }
   );
 }
@@ -117,51 +97,30 @@ export async function POST(req: NextRequest) {
   if (requestedLocationId && !target) {
     return NextResponse.json({ message: "Clinic not found." }, { status: 404 });
   }
-
-  // Paused or not, patients can call the clinic's phone (user, 2026-09-29): pausing
-  // needs no number from the professional.
-  if (target) {
-    // The pause is this professional's setting at this clinic: it lives on their join row.
-    const saved = await writeClinicSettings(doctor.id, target.id, {
-      pause_online_bookings: nextPaused,
-    });
-    if (!saved.ok) {
-      console.error("[DocCy] Failed to save clinic pause state", saved.error);
-      return NextResponse.json(
-        { message: "Error saving pause state." },
-        { status: 500 }
-      );
-    }
+  if (!target) {
     return NextResponse.json(
-      {
-        pauseOnlineBookings: nextPaused,
-        locationId: target.id,
-      },
-      { status: 200 }
+      { message: "This clinic is not set up yet. Contact us to set it up." },
+      { status: 409 }
     );
   }
 
-  const { error: upsertErr } = await supabase
-    .from("professional_settings")
-    .upsert(
-      {
-        professional_id: doctor.id,
-        pause_online_bookings: nextPaused,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "professional_id" }
-    );
-
-  if (upsertErr) {
+  // Paused or not, patients can call the clinic's phone (user, 2026-09-29): pausing
+  // needs no number from the professional.
+  // The pause is this professional's setting at this clinic: it lives on their join row.
+  const saved = await writeClinicSettings(doctor.id, target.id, {
+    pause_online_bookings: nextPaused,
+  });
+  if (!saved.ok) {
+    console.error("[DocCy] Failed to save clinic pause state", saved.error);
     return NextResponse.json(
       { message: "Error saving pause state." },
       { status: 500 }
     );
   }
-
   return NextResponse.json(
     {
       pauseOnlineBookings: nextPaused,
+      locationId: target.id,
     },
     { status: 200 }
   );

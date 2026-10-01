@@ -1,5 +1,6 @@
 // lib/doctor-settings.ts
-// Converts professional_settings rows into the weekly slot shape used by BookingSection.
+// Converts a schedule (a clinic link's, merged with the account settings: see
+// locationToSettingsRow) into the weekly slot shape used by BookingSection.
 // day_of_week: 0=Sun, 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat
 
 export type DayKey =
@@ -19,6 +20,11 @@ export type DayScheduleEntry = {
 
 export type WeeklySchedule = Record<DayKey, DayScheduleEntry>;
 
+/**
+ * A bookable schedule: one clinic link's hours, break, slot length and pause merged with the
+ * account settings (`locationToSettingsRow`). Not a table row: since Point E6
+ * professional_settings holds only the account fields.
+ */
 export type DoctorSettingsRow = {
   professional_id: string;
   monday: boolean;
@@ -122,7 +128,7 @@ export function buildWeeklyScheduleFromSettings(
 }
 
 /**
- * Build the weeklySlots array expected by BookingSection from a professional_settings row.
+ * Build the weeklySlots array expected by BookingSection from a clinic's merged settings row.
  * Only includes days that are enabled (Mon–Sun).
  */
 export function settingsToWeeklySlots(

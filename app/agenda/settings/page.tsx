@@ -25,11 +25,15 @@ import {
   buildWeeklyScheduleFromSettings,
   DEFAULT_BOOKING_HORIZON_DAYS,
   DEFAULT_MIN_NOTICE_HOURS,
-  type DoctorSettingsRow,
 } from "@/lib/doctor-settings";
 import { isFounderSubscriptionTier } from "@/lib/subscription-tier";
 import { loadDoctorLocations, primaryDoctorLocation } from "@/lib/load-doctor-locations";
-import { locationWeeklySchedule } from "@/lib/doctor-locations";
+import {
+  ACCOUNT_SETTINGS_FALLBACK,
+  locationToSettingsRow,
+  locationWeeklySchedule,
+} from "@/lib/doctor-locations";
+import { PROFESSIONAL_ACCOUNT_SETTINGS_SELECT } from "@/lib/professional-account-settings";
 import { loadSettingsClinicPhones } from "@/lib/settings-clinic-phones";
 import { FirstLoginTrialNoticeGate } from "@/components/dashboard/FirstLoginTrialNoticeGate";
 import { createServiceRoleClient } from "@/lib/supabase-service";
@@ -228,7 +232,7 @@ export default async function AgendaSettingsPage() {
 
   const { data: settings } = await supabase
     .from("professional_settings")
-    .select("*")
+    .select(PROFESSIONAL_ACCOUNT_SETTINGS_SELECT)
     .eq("professional_id", doctor.id)
     .single();
 
@@ -256,12 +260,14 @@ export default async function AgendaSettingsPage() {
   const isVerified = doctor.status === "verified";
   const isFoundingMember = isFounderSubscriptionTier(doctor.subscription_tier);
 
-  const pauseOnlineBookings = Boolean(
-    (settings as { pause_online_bookings?: boolean } | null)?.pause_online_bookings
-  );
-
   const locationRows = await loadDoctorLocations(doctor.id);
   const primaryClinic = primaryDoctorLocation(locationRows);
+  // The single-clinic fields mirror the primary clinic (Point E6: schedules and the pause
+  // live on the clinic links; professional_settings holds the account settings).
+  const primaryHours = primaryClinic
+    ? locationToSettingsRow(primaryClinic, ACCOUNT_SETTINGS_FALLBACK)
+    : null;
+  const pauseOnlineBookings = Boolean(primaryHours?.pause_online_bookings);
   const workplaceLocations: DoctorWorkplaceFormData[] = locationRows.map((row) => ({
     id: row.id,
     isPrimary: Boolean(row.is_primary),
@@ -314,69 +320,37 @@ export default async function AgendaSettingsPage() {
     clinicLatitude: primaryClinic?.latitude ?? null,
     clinicLongitude: primaryClinic?.longitude ?? null,
     clinicPlaceId: primaryClinic?.clinic_place_id ?? null,
-    monday: (settings as { monday?: boolean } | null)?.monday ?? true,
-    tuesday: (settings as { tuesday?: boolean } | null)?.tuesday ?? true,
-    wednesday: (settings as { wednesday?: boolean } | null)?.wednesday ?? true,
-    thursday: (settings as { thursday?: boolean } | null)?.thursday ?? true,
-    friday: (settings as { friday?: boolean } | null)?.friday ?? true,
-    saturday: (settings as { saturday?: boolean } | null)?.saturday ?? false,
-    sunday: (settings as { sunday?: boolean } | null)?.sunday ?? false,
-    weeklySchedule: buildWeeklyScheduleFromSettings({
-      professional_id: doctor.id,
-      monday: (settings as { monday?: boolean } | null)?.monday ?? true,
-      tuesday: (settings as { tuesday?: boolean } | null)?.tuesday ?? true,
-      wednesday: (settings as { wednesday?: boolean } | null)?.wednesday ?? true,
-      thursday: (settings as { thursday?: boolean } | null)?.thursday ?? true,
-      friday: (settings as { friday?: boolean } | null)?.friday ?? true,
-      saturday: (settings as { saturday?: boolean } | null)?.saturday ?? false,
-      sunday: (settings as { sunday?: boolean } | null)?.sunday ?? false,
-      start_time:
-        (settings as { start_time?: string } | null)?.start_time ?? "09:00:00",
-      end_time:
-        (settings as { end_time?: string } | null)?.end_time ?? "17:00:00",
-      weekly_schedule:
-        (settings as { weekly_schedule?: DoctorSettingsRow["weekly_schedule"] } | null)
-          ?.weekly_schedule ?? null,
-      break_start:
-        (settings as { break_start?: string | null } | null)?.break_start ?? null,
-      break_end:
-        (settings as { break_end?: string | null } | null)?.break_end ?? null,
-      pause_online_bookings: Boolean(
-        (settings as { pause_online_bookings?: boolean } | null)
-          ?.pause_online_bookings
-      ),
-      holiday_mode_enabled: Boolean(
-        (settings as { holiday_mode_enabled?: boolean } | null)
-          ?.holiday_mode_enabled
-      ),
-      holiday_start_date:
-        (settings as { holiday_start_date?: string | null } | null)
-          ?.holiday_start_date ?? null,
-      holiday_end_date:
-        (settings as { holiday_end_date?: string | null } | null)
-          ?.holiday_end_date ?? null,
-      booking_horizon_days:
-        (settings as { booking_horizon_days?: number } | null)
-          ?.booking_horizon_days ?? DEFAULT_BOOKING_HORIZON_DAYS,
-      minimum_notice_hours:
-        (settings as { minimum_notice_hours?: number } | null)
-          ?.minimum_notice_hours ?? DEFAULT_MIN_NOTICE_HOURS,
-      slot_duration_minutes:
-        (settings as { slot_duration_minutes?: number } | null)
-          ?.slot_duration_minutes ?? 30,
-    }),
-    breakEnabled:
-      Boolean((settings as { break_start?: string | null } | null)?.break_start) &&
-      Boolean((settings as { break_end?: string | null } | null)?.break_end),
-    breakStart: (
-      (settings as { break_start?: string | null } | null)?.break_start ?? "13:00:00"
-    ).slice(0, 5),
-    breakEnd: (
-      (settings as { break_end?: string | null } | null)?.break_end ?? "14:00:00"
-    ).slice(0, 5),
-    slotDurationMinutes:
-      (settings as { slot_duration_minutes?: number } | null)
-        ?.slot_duration_minutes ?? 30,
+    monday: primaryHours?.monday ?? true,
+    tuesday: primaryHours?.tuesday ?? true,
+    wednesday: primaryHours?.wednesday ?? true,
+    thursday: primaryHours?.thursday ?? true,
+    friday: primaryHours?.friday ?? true,
+    saturday: primaryHours?.saturday ?? false,
+    sunday: primaryHours?.sunday ?? false,
+    weeklySchedule: buildWeeklyScheduleFromSettings(
+      primaryHours ?? {
+        professional_id: doctor.id,
+        monday: true,
+        tuesday: true,
+        wednesday: true,
+        thursday: true,
+        friday: true,
+        saturday: false,
+        sunday: false,
+        start_time: "09:00:00",
+        end_time: "17:00:00",
+        weekly_schedule: null,
+        break_start: null,
+        break_end: null,
+        pause_online_bookings: false,
+        slot_duration_minutes: 30,
+        ...ACCOUNT_SETTINGS_FALLBACK,
+      },
+    ),
+    breakEnabled: Boolean(primaryHours?.break_start) && Boolean(primaryHours?.break_end),
+    breakStart: String(primaryHours?.break_start ?? "13:00:00").slice(0, 5),
+    breakEnd: String(primaryHours?.break_end ?? "14:00:00").slice(0, 5),
+    slotDurationMinutes: primaryHours?.slot_duration_minutes ?? 30,
     bookingHorizonDays:
       (settings as { booking_horizon_days?: number } | null)
         ?.booking_horizon_days ?? DEFAULT_BOOKING_HORIZON_DAYS,

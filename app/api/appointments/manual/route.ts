@@ -10,7 +10,6 @@ import {
   isDateInHolidayRange,
   isTimeWithinSettings,
   normalizeMinimumNoticeHours,
-  type DoctorSettingsRow,
 } from "@/lib/doctor-settings";
 import {
   fetchBlockingAppointments,
@@ -28,6 +27,7 @@ import { appointmentClinicCopy, loadAppointmentClinicPhone } from "@/lib/appoint
 import { loadDoctorLocations, primaryDoctorLocation } from "@/lib/load-doctor-locations";
 import { locationHasClinic } from "@/lib/professional-clinic-locations";
 import { locationToSettingsRow } from "@/lib/doctor-locations";
+import { PROFESSIONAL_ACCOUNT_SETTINGS_SELECT } from "@/lib/professional-account-settings";
 import { appointmentCalendarPath } from "@/lib/appointment-links";
 
 export async function POST(req: NextRequest) {
@@ -108,7 +108,7 @@ export async function POST(req: NextRequest) {
 
   const { data: settings, error: settingsError } = await supabase
     .from("professional_settings")
-    .select("*")
+    .select(PROFESSIONAL_ACCOUNT_SETTINGS_SELECT)
     .eq("professional_id", doctor.id)
     .single();
 
@@ -119,7 +119,6 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const settingsRowBase = settings as DoctorSettingsRow;
   const locations = await loadDoctorLocations(doctor.id);
   const requestedLocationId = String(rawLocationId ?? "").trim();
   let bookingLocation = requestedLocationId
@@ -147,9 +146,8 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const settingsRow = bookingLocation
-    ? locationToSettingsRow(bookingLocation, settingsRowBase)
-    : settingsRowBase;
+  // The schedule is the clinic link's; holiday, horizon and notice are the account's.
+  const settingsRow = locationToSettingsRow(bookingLocation, settings);
   const cyLocal = utcToZonedTime(appointmentUtc, CY_TZ);
   const dayOfWeek = cyLocal.getDay();
   const hours = cyLocal.getHours();

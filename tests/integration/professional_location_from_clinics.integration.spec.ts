@@ -292,8 +292,8 @@ test.describe(
 
     test("a professional with no clinic takes no bookings", async ({ request }) => {
       // A registered professional with no clinic link has nowhere to point an appointment
-      // at. Even with account settings unpaused and with hours, a patient must be refused
-      // (403) rather than booked with no clinic.
+      // at, and no schedule (it lives on the clinic link since Point E6): a patient must be
+      // refused (403) rather than booked with no clinic.
       test.setTimeout(120_000);
       const admin = createIntegrationAdmin(requireSafeIntegration());
       const nonce = `${Date.now()}-${Math.floor(Math.random() * 100000)}`;
@@ -330,23 +330,6 @@ test.describe(
           .single();
         if (insert.error || !insert.data?.id) throw new Error(`professional: ${insert.error?.message}`);
         created.professionalId = String(insert.data.id);
-
-        // Registering created paused account settings; open them, with weekday hours.
-        const open = await admin
-          .from("professional_settings")
-          .update({
-            pause_online_bookings: false,
-            monday: true,
-            tuesday: true,
-            wednesday: true,
-            thursday: true,
-            friday: true,
-            start_time: "09:00:00",
-            end_time: "17:00:00",
-          })
-          .eq("professional_id", created.professionalId)
-          .select("professional_id");
-        if (open.error || open.data?.length !== 1) throw new Error(`open settings: ${open.error?.message}`);
 
         const res = await request.post("/api/appointments", {
           data: {

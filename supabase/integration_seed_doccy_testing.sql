@@ -5,7 +5,7 @@
 -- Does:
 --   1) appointments.duration_minutes (INTEGER, default 30) if missing
 --   2) Auth user + doctor "Andreas Nikos Test" / slug andreas-nikos (verified, bookable test profile)
---   3) professional_settings Mon–Fri 09:00–17:00 linked by professional_id
+--   3) professional_settings (account settings; the schedule lives on the clinic link)
 --
 -- Prerequisite: at least one row in auth.users (any signup) so instance_id exists;
 --               if the project has zero users, register once in the Dashboard, then run this.
@@ -49,12 +49,6 @@ DECLARE
   v_instance_id uuid;
   v_user_id uuid;
   v_doctor_id uuid;
-  v_common jsonb := jsonb_build_object(
-    'enabled', true,
-    'start_time', '09:00:00',
-    'end_time', '17:00:00'
-  );
-  v_weekly jsonb;
 BEGIN
   SELECT instance_id
   INTO v_instance_id
@@ -65,24 +59,6 @@ BEGIN
     RAISE EXCEPTION
       'auth.users is empty: create any user once in Authentication (Dashboard), then re-run this script.';
   END IF;
-
-  v_weekly := jsonb_build_object(
-    'monday', v_common,
-    'tuesday', v_common,
-    'wednesday', v_common,
-    'thursday', v_common,
-    'friday', v_common,
-    'saturday', jsonb_build_object(
-      'enabled', false,
-      'start_time', '09:00:00',
-      'end_time', '17:00:00'
-    ),
-    'sunday', jsonb_build_object(
-      'enabled', false,
-      'start_time', '09:00:00',
-      'end_time', '17:00:00'
-    )
-  );
 
   SELECT id INTO v_doctor_id FROM public.professionals WHERE slug = v_slug LIMIT 1;
 
@@ -220,72 +196,23 @@ BEGIN
     VALUES (v_doctor_id, 'General Practice', 'INTEGRATION-SEED-LIC', true);
   END IF;
 
+  -- Account settings only: the schedule and the pause live on the clinic link (Point E6).
   INSERT INTO public.professional_settings (
     professional_id,
-    monday,
-    tuesday,
-    wednesday,
-    thursday,
-    friday,
-    saturday,
-    sunday,
-    start_time,
-    end_time,
-    weekly_schedule,
-    break_start,
-    break_end,
-    pause_online_bookings,
     holiday_mode_enabled,
     holiday_start_date,
     holiday_end_date,
     booking_horizon_days,
     minimum_notice_hours,
-    slot_duration_minutes,
     updated_at
   )
-  VALUES (
-    v_doctor_id,
-    true,
-    true,
-    true,
-    true,
-    true,
-    false,
-    false,
-    time '09:00',
-    time '17:00',
-    v_weekly,
-    null,
-    null,
-    false,
-    false,
-    null,
-    null,
-    90,
-    1,
-    30,
-    now()
-  )
+  VALUES (v_doctor_id, false, null, null, 90, 1, now())
   ON CONFLICT (professional_id) DO UPDATE SET
-    monday = excluded.monday,
-    tuesday = excluded.tuesday,
-    wednesday = excluded.wednesday,
-    thursday = excluded.thursday,
-    friday = excluded.friday,
-    saturday = excluded.saturday,
-    sunday = excluded.sunday,
-    start_time = excluded.start_time,
-    end_time = excluded.end_time,
-    weekly_schedule = excluded.weekly_schedule,
-    break_start = excluded.break_start,
-    break_end = excluded.break_end,
-    pause_online_bookings = excluded.pause_online_bookings,
     holiday_mode_enabled = excluded.holiday_mode_enabled,
     holiday_start_date = excluded.holiday_start_date,
     holiday_end_date = excluded.holiday_end_date,
     booking_horizon_days = excluded.booking_horizon_days,
     minimum_notice_hours = excluded.minimum_notice_hours,
-    slot_duration_minutes = excluded.slot_duration_minutes,
     updated_at = excluded.updated_at;
 
   RAISE NOTICE 'Integration seed OK: doctor_id=%, slug=%', v_doctor_id, v_slug;
