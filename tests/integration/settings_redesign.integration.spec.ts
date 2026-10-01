@@ -430,7 +430,8 @@ test.describe("Settings redesign (B1)", { tag: "@pr-e2e" }, () => {
   test("Profile and Services link to the public profile", async ({ page }) => {
     test.setTimeout(120_000);
     await openSettings(page, seeded!, "profile");
-    const preview = page.getByTestId("settings-preview-profile").first();
+    // Profile and Services each have one; only the open section's is visible.
+    const preview = page.locator('[data-testid="settings-preview-profile"]:visible');
     await expect(preview).toBeVisible();
     await expect(preview).toHaveAttribute("href", /^\/[a-z]{2}\/[^/]+$/);
     await expect(preview).toHaveAttribute("target", "_blank");
