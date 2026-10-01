@@ -427,6 +427,25 @@ test.describe("Settings redesign (B1)", { tag: "@pr-e2e" }, () => {
     expect(pro?.bio ?? "").not.toBe("A bio I have not saved");
   });
 
+  test("Plan & billing shows the free period, the terms and nothing to pay", async ({ page }) => {
+    test.setTimeout(120_000);
+    const until = new Date(Date.now() + 100 * 24 * 60 * 60 * 1000).toISOString();
+    const { error } = await admin
+      .from("professionals")
+      .update({ pro_access_until: until, subscription_tier: "founder" })
+      .eq("id", seeded!.professionalId);
+    if (error) throw new Error(`plan: ${error.message}`);
+
+    await openSettings(page, seeded!, "plan");
+    await expect(page.getByRole("heading", { level: 1, name: "Plan & billing" })).toBeVisible();
+    await expect(page.getByTestId("settings-plan-days-left")).toHaveText(/^(99|100) days$/);
+    const terms = page.getByTestId("settings-plan-terms");
+    await expect(terms).toContainText("Free, forever");
+    await expect(terms).toContainText("€19/month, locked for life");
+    await expect(page.getByTestId("settings-plan-payment")).toContainText("Nothing to pay today.");
+    await expect(page.getByText(/coming soon/i)).toHaveCount(0);
+  });
+
   test("Profile and Services link to the public profile", async ({ page }) => {
     test.setTimeout(120_000);
     await openSettings(page, seeded!, "profile");

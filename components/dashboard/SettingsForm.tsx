@@ -195,6 +195,8 @@ type SettingsFormProps = {
   promote?: React.ReactNode;
   /** The public profile, for "Preview profile" in Profile and Services. */
   publicProfileHref?: string | null;
+  /** The Plan & billing section: free period, terms, payment. */
+  plan?: React.ReactNode;
 };
 
 type CropArea = { x: number; y: number; width: number; height: number };
@@ -334,6 +336,7 @@ export function SettingsForm({
   account,
   promote,
   publicProfileHref,
+  plan,
 }: SettingsFormProps) {
   const [section, setSection] = React.useState<SettingsSectionId>(
     () => initialSection ?? parseSettingsSection(null),
@@ -2025,6 +2028,13 @@ export function SettingsForm({
     </div>
   );
 
+  const planSection = (
+    <div className="space-y-5">
+      {sectionTitle("Plan & billing", "Your free period and what comes after it.")}
+      {plan}
+    </div>
+  );
+
   const sections: Record<SettingsSectionId, React.ReactNode> = {
     availability: availabilitySection,
     clinics: clinicsSection,
@@ -2032,6 +2042,7 @@ export function SettingsForm({
     profile: profileSection,
     contact: contactSection,
     promote: promoteSection,
+    plan: planSection,
     account: accountSection,
   };
 

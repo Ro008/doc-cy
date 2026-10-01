@@ -19,6 +19,8 @@ import { GesyPatientsToggle } from "@/components/dashboard/GesyPatientsToggle";
 import { AccountSecurityCard } from "@/components/dashboard/settings/AccountSecurityCard";
 import { publicProfessionalProfilePath } from "@/lib/manual-directory-landing-path";
 import { SETTINGS_CARD_CLASS } from "@/components/dashboard/settings/styles";
+import { PlanBillingSection } from "@/components/dashboard/settings/PlanBillingSection";
+import { planSummary } from "@/lib/settings-plan";
 import { doctorDashboardDisplayName } from "@/lib/doctor-display-name";
 import {
   canonicalLanguageLabel,
@@ -294,6 +296,16 @@ export default async function AgendaSettingsPage({
 
   const isVerified = doctor.status === "verified";
   const isFoundingMember = isFounderSubscriptionTier(doctor.subscription_tier);
+  // Plan & billing: online booking is free until pro_access_until (approval + trial).
+  const { data: accessRow } = await supabase
+    .from("professionals")
+    .select("pro_access_until")
+    .eq("id", doctor.id)
+    .maybeSingle();
+  const plan = planSummary({
+    proAccessUntil: (accessRow as { pro_access_until?: string | null } | null)?.pro_access_until ?? null,
+    isFounder: isFoundingMember,
+  });
 
   const pauseOnlineBookings = Boolean(
     (settings as { pause_online_bookings?: boolean } | null)?.pause_online_bookings
@@ -523,6 +535,7 @@ export default async function AgendaSettingsPage({
 
         <SettingsForm
           initial={initial}
+          plan={<PlanBillingSection plan={plan} isFounder={isFoundingMember} />}
           publicProfileHref={doctor.slug ? publicProfessionalProfilePath(doctor.slug) : null}
           section={section}
           sidebarHeader={
