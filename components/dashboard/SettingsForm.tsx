@@ -1903,6 +1903,7 @@ export function SettingsForm({
         mobileNumber={mobileNumber}
         onMobileNumberChange={setMobileNumber}
         clinicPhones={initial.clinicPhones ?? []}
+        onOpenClinics={() => selectSection("clinics")}
       />
     </div>
   );

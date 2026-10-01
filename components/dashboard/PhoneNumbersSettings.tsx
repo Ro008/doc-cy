@@ -1,31 +1,29 @@
 "use client";
 
 import * as React from "react";
-import { emitOpenFeedback } from "@/lib/doccy-feedback";
+import { settingsSectionHref } from "@/lib/settings-sections";
 import type { SettingsClinicPhone } from "@/lib/settings-clinic-phones";
 
 type PhoneNumbersSettingsProps = {
   mobileNumber: string;
   onMobileNumberChange: (value: string) => void;
   clinicPhones: readonly SettingsClinicPhone[];
+  /** Switches settings to the Clinics section (no page load). */
+  onOpenClinics?: () => void;
 };
-
-function clinicPhoneChangeMessage(clinicPhones: readonly SettingsClinicPhone[]): string {
-  const names = clinicPhones.map((clinic) => clinic.name).filter(Boolean);
-  const where = names.length === 1 ? `my clinic "${names[0]}"` : "one of my clinics";
-  return `Hello, I would like to change the phone number of ${where}. The new number is: `;
-}
 
 /**
  * Phone numbers on the settings page (user, 2026-09-29). Patients see each clinic's
  * phone on the public Call buttons, whether or not the clinic takes online bookings.
- * Clinics are curated by DocCy, so their phones are read-only here. The mobile is the
- * account's own number and is not shown to patients.
+ * Clinics are curated by DocCy, so their phones are read-only here; one way to change
+ * them, "Request a change" on the clinic's card in Clinics (user, 2026-10-01). The mobile
+ * is the account's own number and is not shown to patients.
  */
 export function PhoneNumbersSettings({
   mobileNumber,
   onMobileNumberChange,
   clinicPhones,
+  onOpenClinics,
 }: PhoneNumbersSettingsProps) {
   return (
     <div
@@ -84,21 +82,21 @@ export function PhoneNumbersSettings({
             <p className="mt-3 text-sm text-slate-300">No clinic yet.</p>
           )}
           <p className="mt-3 text-xs text-slate-400">
-            To change a clinic&apos;s phone,{" "}
-            <button
-              type="button"
-              data-testid="settings-clinic-phone-contact"
-              onClick={() =>
-                emitOpenFeedback({
-                  subject: "General Question",
-                  message: clinicPhoneChangeMessage(clinicPhones),
-                })
-              }
+            To change a clinic’s phone, go to{" "}
+            <a
+              href={settingsSectionHref("clinics")}
+              // A section link, so the unsaved-changes guard lets it through.
+              data-settings-section="clinics"
+              onClick={(event) => {
+                if (!onOpenClinics) return;
+                event.preventDefault();
+                onOpenClinics();
+              }}
               className="font-medium text-clinical-300 underline-offset-2 hover:text-clinical-200 hover:underline"
             >
-              contact us
-            </button>
-            .
+              Clinics
+            </a>{" "}
+            and use Request a change.
           </p>
         </div>
       </div>
