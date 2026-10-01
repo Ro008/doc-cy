@@ -4,8 +4,8 @@
  * Safety:
  * - Does NOT touch registered professionals (signup / is_gesy toggle stay intact).
  * - Manual rows from GeSY are always is_gesy=true.
- * - Skips Pharmacy + Laboratory segments (later product surfaces).
- * - Inpatient Services–only people get finder_visible=false (clinic profiles only).
+ * - Skips Pharmacy + Laboratory segments (later product surfaces) and people listed only
+ *   under Inpatient Services (no public profile; Point E2). Rules: ./lib/gesy-import-segments.mjs.
  * - Specialties must already be in the `specialties` catalogue (matched by slug, so
  *   casing does not matter). Unknown labels stop the run before anything is written:
  *   the catalogue only grows when a founder approves a specialty.
@@ -17,7 +17,7 @@
  *   node scripts/import-gesy-directory-batch.mjs --env-file .env.testing.local --xlsx "path/to/ALL.xlsx" --batch personal-doctor
  *
  * Batches:
- *   personal-doctor | dentist | allied | outpatient | nurse-midwife | accidents-emergency | inpatient-only
+ *   personal-doctor | dentist | allied | outpatient | nurse-midwife | accidents-emergency
  */
 
 import fs from "node:fs";
@@ -27,6 +27,11 @@ import { fileURLToPath } from "node:url";
 import { createClient } from "@supabase/supabase-js";
 import { config as loadEnv } from "dotenv";
 import { cleanGesyDirectoryDisplayName } from "./lib/gesy-directory-display-name.mjs";
+import {
+  BATCH_SEGMENT_MAP,
+  importableClinics,
+  personBelongsInBatch,
+} from "./lib/gesy-import-segments.mjs";
 
 const require = createRequire(import.meta.url);
 const xlsx = require("xlsx");
@@ -60,23 +65,6 @@ const VALID_DISTRICTS = new Set([
   "Larnaca",
   "Famagusta",
 ]);
-
-const EXCLUDED_SEGMENTS = new Set([
-  "Pharmacy",
-  "Laboratory",
-]);
-
-const INPATIENT_SEGMENT = "Inpatient Services";
-
-const BATCH_SEGMENT_MAP = {
-  "personal-doctor": new Set(["Personal Doctor"]),
-  dentist: new Set(["Dentist"]),
-  allied: new Set(["Allied Health Professional"]),
-  outpatient: new Set(["Outpatient Specialist"]),
-  "nurse-midwife": new Set(["Nurse or Midwife"]),
-  "accidents-emergency": new Set(["Accidents & Emergency Department"]),
-  "inpatient-only": new Set([INPATIENT_SEGMENT]),
-};
 
 const MAX_SLUG_LENGTH = 60;
 
@@ -258,25 +246,6 @@ function normalizeGender(raw) {
   return null;
 }
 
-function isBookableSegment(segment) {
-  return Boolean(segment) && !EXCLUDED_SEGMENTS.has(segment) && segment !== INPATIENT_SEGMENT;
-}
-
-function personBelongsInBatch(person, batchKey) {
-  const segments = person.segments;
-  if (batchKey === "inpatient-only") {
-    return segments.has(INPATIENT_SEGMENT) && ![...segments].some(isBookableSegment);
-  }
-  const wanted = BATCH_SEGMENT_MAP[batchKey];
-  if (!wanted) return false;
-  // Include if they have the batch segment AND at least one bookable (non pharmacy/lab) presence,
-  // OR for batches that are themselves bookable: just having that segment.
-  if (![...segments].some((s) => wanted.has(s))) return false;
-  // Skip pure pharmacy/lab people (they never appear in bookable batches).
-  if (![...segments].some((s) => !EXCLUDED_SEGMENTS.has(s))) return false;
-  return true;
-}
-
 function aggregatePeople(rows) {
   /** @type {Map<string, any>} */
   const byGhs = new Map();
@@ -348,22 +317,6 @@ function aggregatePeople(rows) {
     }
   }
   return byGhs;
-}
-
-function computeFinderVisible(person) {
-  return [...person.segments].some(isBookableSegment);
-}
-
-function primarySegment(person, batchKey) {
-  if (batchKey === "inpatient-only") return INPATIENT_SEGMENT;
-  const wanted = BATCH_SEGMENT_MAP[batchKey];
-  for (const s of person.segments) {
-    if (wanted?.has(s)) return s;
-  }
-  for (const s of person.segments) {
-    if (isBookableSegment(s)) return s;
-  }
-  return [...person.segments][0] ?? null;
 }
 
 async function loadAllSlugsFromTable(supabase, table) {
@@ -543,11 +496,7 @@ async function main() {
     }
     if (catalogueRows.length === 0) continue;
 
-    // Prefer clinics from bookable segments; for inpatient-only batch use all clinics.
-    const clinicEntries = [...person.clinics.values()].filter((c) => {
-      if (args.batch === "inpatient-only") return true;
-      return [...c.segments].some((s) => !EXCLUDED_SEGMENTS.has(s));
-    });
+    const clinicEntries = importableClinics([...person.clinics.values()]);
 
     const clinicIdByGhs = new Map();
     for (const clinic of clinicEntries) {
@@ -566,8 +515,6 @@ async function main() {
     const address = person.addresses[0] ?? primaryClinic?.address ?? null;
     const maps = person.maps[0] ?? primaryClinic?.address_maps_link ?? null;
     const coords = parseLatLonFromMaps(maps);
-    const finderVisible = computeFinderVisible(person);
-    const segment = primarySegment(person, args.batch);
 
     const existing = await supabase
       .from("professionals")
@@ -592,8 +539,6 @@ async function main() {
       gender: person.gender,
       ghs_code: person.ghs_code,
       is_gesy: true,
-      finder_visible: finderVisible,
-      segment,
       clinic_id: primaryClinicId,
       is_archived: false,
       is_registered: false,

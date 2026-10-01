@@ -44,57 +44,26 @@ export type ManualDirectoryLandingRow = {
   clinics: ManualDirectoryLandingClinic[];
 };
 
-function slugLookupHasMissingColumn(
-  error: { message?: string; code?: string } | null,
-  column: string,
-): boolean {
-  if (!error) return false;
-  if (String(error.message ?? "").toLowerCase().includes(column)) return true;
-  return error.code === "42703";
-}
-
 /**
  * Retired name-only slug -> current slug, only when it uniquely identifies one
- * visible professional. Shared by `resolveCanonicalManualDirectorySlug` and the
+ * active listing. Shared by `resolveCanonicalManualDirectorySlug` and the
  * combined lookup below so both stay in sync without an extra round trip.
  */
 async function resolveManualDirectorySlugAlias(
   supabase: SupabaseClient,
   normalizedSlug: string,
 ): Promise<string | null> {
-  let aliasRes: {
-    data: {
-      slug?: string | null;
-      name?: string | null;
-      finder_visible?: boolean | null;
-    }[] | null;
+  const aliasRes: {
+    data: { slug?: string | null; name?: string | null }[] | null;
     error: { code?: string; message?: string } | null;
   } = await fetchAllSupabaseRows(() =>
     supabase
       .from("professionals")
-      .select("slug, name, finder_visible")
+      .select("slug, name")
       .eq("is_registered", false)
       .eq("is_archived", false)
       .like("slug", `${normalizedSlug}-%`),
   );
-
-  if (slugLookupHasMissingColumn(aliasRes.error, "finder_visible")) {
-    const fallback = await fetchAllSupabaseRows(() =>
-      supabase
-        .from("professionals")
-        .select("slug, name")
-        .eq("is_registered", false)
-        .eq("is_archived", false)
-        .like("slug", `${normalizedSlug}-%`),
-    );
-    aliasRes = {
-      data: (fallback.data ?? []).map((row) => ({
-        slug: (row as { slug?: string | null }).slug,
-        name: (row as { name?: string | null }).name,
-      })),
-      error: fallback.error,
-    };
-  }
 
   if (aliasRes.error || !aliasRes.data?.length) return null;
   return pickUniqueLegacyNameSlugAlias(normalizedSlug, aliasRes.data);
@@ -103,7 +72,7 @@ async function resolveManualDirectorySlugAlias(
 /**
  * Canonical slug for a professional landing URL.
  * Exact slugs win (duplicate-proof). A retired name-only slug redirects only
- * when it uniquely identifies one visible professional.
+ * when it uniquely identifies one active listing.
  */
 export async function resolveCanonicalManualDirectorySlug(
   supabase: SupabaseClient,
@@ -180,14 +149,12 @@ type ManualDirectoryRawRow = {
   longitude?: unknown;
   clinic_id?: string | null;
   gender?: string | null;
-  finder_visible?: boolean | null;
 };
 
 /**
  * Fetches the raw `professionals` row for an exact (already-lowercased) slug
  * match, tolerating column drift across environments via progressively
- * narrower `select()` fallbacks. Returns the row regardless of `finder_visible`
- * so callers can distinguish "no such slug" from "exists but hidden".
+ * narrower `select()` fallbacks.
  */
 async function fetchManualDirectoryRawRow(
   supabase: SupabaseClient,
@@ -196,28 +163,12 @@ async function fetchManualDirectoryRawRow(
   let res = await supabase
     .from("professionals")
     .select(
-      `id, slug, name, district, address_maps_link, address, is_gesy, latitude, longitude, clinic_id, gender, finder_visible, ${SPECIALTY_LINKS_SELECT}`,
+      `id, slug, name, district, address_maps_link, address, is_gesy, latitude, longitude, clinic_id, gender, ${SPECIALTY_LINKS_SELECT}`,
     )
     .eq("is_registered", false)
     .eq("is_archived", false)
     .eq("slug", normalizedSlugLower)
     .maybeSingle();
-
-  if (
-    res.error &&
-    (String(res.error.message ?? "").toLowerCase().includes("finder_visible") ||
-      (res.error as { code?: string }).code === "42703")
-  ) {
-    res = await supabase
-      .from("professionals")
-      .select(
-        `id, slug, name, district, address_maps_link, address, is_gesy, latitude, longitude, clinic_id, gender, ${SPECIALTY_LINKS_SELECT}`,
-      )
-      .eq("is_registered", false)
-      .eq("is_archived", false)
-      .eq("slug", normalizedSlugLower)
-      .maybeSingle();
-  }
 
   if (
     res.error &&
@@ -369,8 +320,7 @@ export async function loadManualDirectoryBySlug(
   if (!normalizedSlug) return null;
 
   const row = await fetchManualDirectoryRawRow(supabase, normalizedSlug.toLowerCase());
-  // Inpatient-only professionals are clinic-profile only (no public profile landing).
-  if (!row || row.finder_visible === false) return null;
+  if (!row) return null;
 
   return buildManualDirectoryLandingRow(supabase, row, normalizedSlug);
 }
@@ -379,9 +329,9 @@ export type ManualDirectoryProfileLookup = {
   row: ManualDirectoryLandingRow | null;
   /**
    * The slug this professional actually lives at, when a matching row exists
-   * (visible or not) or a unique legacy alias resolves to one. Compare against
-   * the requested slug to decide whether to 301 redirect. `null` means no
-   * professional (visible or hidden) matches this slug at all.
+   * or a unique legacy alias resolves to one. Compare against the requested slug
+   * to decide whether to 301 redirect. `null` means no professional matches
+   * this slug at all.
    */
   redirectSlug: string | null;
 };
@@ -401,11 +351,7 @@ export async function resolveManualDirectoryProfileForSlug(
   const rawRow = await fetchManualDirectoryRawRow(supabase, normalizedSlug.toLowerCase());
   if (rawRow) {
     const redirectSlug = String(rawRow.slug ?? "").trim() || normalizedSlug.toLowerCase();
-    // Inpatient-only professionals are clinic-profile only (no public profile landing).
-    const row =
-      rawRow.finder_visible === false
-        ? null
-        : await buildManualDirectoryLandingRow(supabase, rawRow, normalizedSlug);
+    const row = await buildManualDirectoryLandingRow(supabase, rawRow, normalizedSlug);
     return { row, redirectSlug };
   }
 

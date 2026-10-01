@@ -213,7 +213,7 @@ export function catalogueNamesForForms(catalogue: readonly CatalogueSpecialty[])
 const SCRAPED_AVAILABILITY_REVALIDATE_SECONDS = 600;
 
 /**
- * Specialty ids with at least one visible scraped listing (active, `finder_visible`)
+ * Specialty ids with at least one active scraped listing
  * in `district` (all districts when empty).
  *
  * Always cached, including when integration runs bypass the finder cache: the query
@@ -235,8 +235,7 @@ export async function loadScrapedAvailableSpecialtyIds(
       .select("id, professional_specialties!inner(id, professionals!inner(id))")
       .eq("professional_specialties.is_approved", true)
       .eq(`${pro}.is_archived`, false)
-      .eq(`${pro}.is_registered`, false)
-      .eq(`${pro}.finder_visible`, true);
+      .eq(`${pro}.is_registered`, false);
     if (district) q = q.eq(`${pro}.district`, district);
     const res = await q.limit(1, { referencedTable: "professional_specialties" });
     if (res.error) throw new Error(`specialty availability: ${res.error.message}`);
