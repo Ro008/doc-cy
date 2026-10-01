@@ -3,10 +3,11 @@
 -- Mirrors the Testing profile the specs were written against: registered, verified,
 -- bookable Monday–Friday 09:00–18:00 at one Larnaca clinic, one service, Neurology.
 --
--- Goes through the same triggers as a real sign-up: inserting a registered professional
--- creates its settings and primary location (paused, as for anyone new), and the
--- location is mirrored into professional_clinics. The update below then fills in the
--- clinic and opens bookings, and the triggers copy that onto the clinic link and settings.
+-- Inserting a registered professional creates its settings (paused, as for anyone new)
+-- through the same trigger as a real sign-up. The clinic and its primary link are then
+-- written the way an approved registration writes them (clinics + professional_clinics),
+-- open for bookings; professional_clinics_sync_primary_settings copies the primary link's
+-- schedule and pause onto the settings, as for every professional.
 
 \set ON_ERROR_STOP on
 
@@ -23,20 +24,22 @@ values (
   now(), now() + interval '1 year'
 );
 
-update public.doctor_locations
-set
-  district = 'Larnaca',
-  town = 'Larnaca',
-  clinic_address = '1 Fixture Street, Larnaca',
-  latitude = 34.9229,
-  longitude = 33.6233,
-  pause_online_bookings = false,
-  monday = true, tuesday = true, wednesday = true, thursday = true, friday = true,
-  saturday = false, sunday = false,
-  start_time = '09:00',
-  end_time = '18:00',
-  slot_duration_minutes = 30,
-  weekly_schedule = jsonb_build_object(
+insert into public.clinics (id, name, slug, district, town, address, latitude, longitude, phone)
+values (
+  md5('ci-fixture-andreas-nikos-clinic')::uuid, 'CI Fixture Clinic Larnaca', 'ci-fixture-clinic-larnaca',
+  'Larnaca', 'Larnaca', '1 Fixture Street, Larnaca', 34.9229, 33.6233, '24999002'
+);
+
+insert into public.professional_clinics (
+  professional_id, clinic_id, is_primary, sort_order, pause_online_bookings,
+  monday, tuesday, wednesday, thursday, friday, saturday, sunday,
+  start_time, end_time, slot_duration_minutes, weekly_schedule
+)
+values (
+  md5('ci-fixture-andreas-nikos')::uuid, md5('ci-fixture-andreas-nikos-clinic')::uuid, true, 0, false,
+  true, true, true, true, true, false, false,
+  '09:00', '18:00', 30,
+  jsonb_build_object(
     'monday',    jsonb_build_object('enabled', true,  'start_time', '09:00:00', 'end_time', '18:00:00'),
     'tuesday',   jsonb_build_object('enabled', true,  'start_time', '09:00:00', 'end_time', '18:00:00'),
     'wednesday', jsonb_build_object('enabled', true,  'start_time', '09:00:00', 'end_time', '18:00:00'),
@@ -45,7 +48,7 @@ set
     'saturday',  jsonb_build_object('enabled', false, 'start_time', '09:00:00', 'end_time', '18:00:00'),
     'sunday',    jsonb_build_object('enabled', false, 'start_time', '09:00:00', 'end_time', '18:00:00')
   )
-where doctor_id = md5('ci-fixture-andreas-nikos')::uuid and is_primary;
+);
 
 insert into public.doctor_services (doctor_id, name, price)
 values (md5('ci-fixture-andreas-nikos')::uuid, 'Neurology consultation', 40);
@@ -55,7 +58,7 @@ select md5('ci-fixture-andreas-nikos')::uuid, s.name, s.id, 'CI-NEURO-0001', tru
 from public.specialties s
 where s.name = :'specialty';
 
--- Fail the load (not a spec, minutes later) if the triggers did not leave a bookable clinic.
+-- Fail the load (not a spec, minutes later) if the fixture is not a bookable clinic.
 do $$
 begin
   if not exists (

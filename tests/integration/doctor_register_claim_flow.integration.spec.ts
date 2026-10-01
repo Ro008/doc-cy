@@ -203,7 +203,6 @@ test.describe("Integration: directory claim registration flow", { tag: "@local-r
       await deleteRegistrationE2eDoctor(admin, email);
       if (cloneId) {
         await admin.from("professional_specialties").delete().eq("professional_id", cloneId);
-        await admin.from("doctor_locations").delete().eq("doctor_id", cloneId);
         await admin.from("doctor_services").delete().eq("doctor_id", cloneId);
         await admin.from("professional_settings").delete().eq("professional_id", cloneId);
         await admin.from("professionals").delete().eq("id", cloneId);

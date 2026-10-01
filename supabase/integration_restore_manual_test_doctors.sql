@@ -204,8 +204,8 @@ BEGIN
         -- professionals defaults is_registered to false and pro_access_until to null; the
         -- legacy doctors table this seed was written against had no such split.
         -- Without them the row reads as a scraped GeSY listing:
-        -- create_primary_doctor_location() never fires, so there is no settings or
-        -- location row, and the profile is not bookable -- the opposite of the
+        -- create_professional_settings_on_registration() never fires, so there is no
+        -- settings row, and the profile is not bookable -- the opposite of the
         -- "verified, bookable test profile" this file promises. trial_notice_seen_at
         -- skips the one-time welcome modal, which otherwise redirects /agenda.
         true,

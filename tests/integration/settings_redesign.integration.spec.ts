@@ -29,6 +29,71 @@ function nonce(): string {
   return `${Date.now()}-${Math.floor(Math.random() * 100000)}`;
 }
 
+const WEEKDAY = { enabled: true, start_time: "09:00:00", end_time: "17:00:00" };
+const OFF = { enabled: false, start_time: "09:00:00", end_time: "17:00:00" };
+
+/** A `clinics` row and the professional's link to it; returns the link id. */
+async function addClinic(
+  admin: SupabaseClient,
+  professionalId: string,
+  input: {
+    token: string;
+    label: string;
+    district: string;
+    address: string;
+    pin: { latitude: number; longitude: number };
+    isPrimary: boolean;
+    paused: boolean;
+  },
+): Promise<string> {
+  const clinic = await admin
+    .from("clinics")
+    .insert({
+      name: input.label,
+      slug: `settings-${input.token}`.toLowerCase().replace(/[^a-z0-9-]/g, "-"),
+      district: input.district,
+      town: input.district,
+      address: input.address,
+      ...input.pin,
+    })
+    .select("id")
+    .single();
+  if (clinic.error || !clinic.data?.id) throw new Error(`clinic: ${clinic.error?.message}`);
+  const link = await admin
+    .from("professional_clinics")
+    .insert({
+      professional_id: professionalId,
+      clinic_id: String(clinic.data.id),
+      is_primary: input.isPrimary,
+      sort_order: input.isPrimary ? 0 : 1,
+      label: input.label,
+      pause_online_bookings: input.paused,
+      monday: true,
+      tuesday: true,
+      wednesday: true,
+      thursday: true,
+      friday: true,
+      saturday: false,
+      sunday: false,
+      start_time: "09:00:00",
+      end_time: "17:00:00",
+      weekly_schedule: {
+        monday: WEEKDAY,
+        tuesday: WEEKDAY,
+        wednesday: WEEKDAY,
+        thursday: WEEKDAY,
+        friday: WEEKDAY,
+        saturday: OFF,
+        sunday: OFF,
+      },
+      slot_duration_minutes: 30,
+    })
+    .select("id")
+    .single();
+  if (link.error || !link.data?.id) throw new Error(`clinic link: ${link.error?.message}`);
+  return String(link.data.id);
+}
+
 async function seed(admin: SupabaseClient, tag: string): Promise<Seeded> {
   const n = nonce();
   const email = `settings-b1-${tag}-${n}@integration.test`;
@@ -75,50 +140,33 @@ async function seed(admin: SupabaseClient, tag: string): Promise<Seeded> {
     if (error) throw new Error(`specialty: ${error.message}`);
   }
 
-  const primary = await admin
-    .from("doctor_locations")
-    .update({
-      label: "Limassol Skin Clinic",
-      clinic_address: `Settings Street ${n}, Limassol, Cyprus`,
-      district: "Limassol",
-      town: "Limassol",
-      latitude: 34.68,
-      longitude: 33.04,
-      clinic_place_id: `settings-b1-primary-${n}`,
-      pause_online_bookings: false,
-    })
-    .eq("doctor_id", professionalId)
-    .eq("is_primary", true)
-    .select("id")
-    .single();
-  if (primary.error || !primary.data?.id) throw new Error(`primary: ${primary.error?.message}`);
-
-  const second = await admin
-    .from("doctor_locations")
-    .insert({
-      doctor_id: professionalId,
-      is_primary: false,
-      sort_order: 1,
-      label: "Paphos Medical Centre",
-      clinic_address: `Settings Avenue ${n}, Paphos, Cyprus`,
-      district: "Paphos",
-      town: "Paphos",
-      latitude: 34.77,
-      longitude: 32.42,
-      clinic_place_id: `settings-b1-second-${n}`,
-      pause_online_bookings: true,
-    })
-    .select("id")
-    .single();
-  if (second.error || !second.data?.id) throw new Error(`second clinic: ${second.error?.message}`);
+  // Clinics the way an approved registration has them (D4: clinics + links only).
+  const primary = await addClinic(admin, professionalId, {
+    token: `b1p-${n}`,
+    label: "Limassol Skin Clinic",
+    district: "Limassol",
+    address: `Settings Street ${n}, Limassol, Cyprus`,
+    pin: { latitude: 34.68, longitude: 33.04 },
+    isPrimary: true,
+    paused: false,
+  });
+  const second = await addClinic(admin, professionalId, {
+    token: `b1s-${n}`,
+    label: "Paphos Medical Centre",
+    district: "Paphos",
+    address: `Settings Avenue ${n}, Paphos, Cyprus`,
+    pin: { latitude: 34.77, longitude: 32.42 },
+    isPrimary: false,
+    paused: true,
+  });
 
   return {
     professionalId,
     authUserId: auth.data.user.id,
     email,
     password: PASSWORD,
-    primaryId: String(primary.data.id),
-    secondId: String(second.data.id),
+    primaryId: primary,
+    secondId: second,
     nonce: n,
   };
 }
