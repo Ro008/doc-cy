@@ -48,7 +48,10 @@ test.describe("Future appointments cancellation @booking-creates", () => {
     const supabase = createClient(supabaseUrl, supabaseAnonKey);
     const { authUserId } = await signInDoctorAndSetCookies(page, supabase);
 
-    const { data: doctorRow } = await supabase
+    // Service role: right after sign-in the anon client's RLS read can come back
+    // empty (same fix as feedback_matrix), which failed this test now and then.
+    const lookup = createClient(supabaseUrl, process.env.SUPABASE_SERVICE_ROLE_KEY ?? supabaseAnonKey);
+    const { data: doctorRow } = await lookup
       .from("professionals")
       .select("slug,id")
       .eq("auth_user_id", authUserId)

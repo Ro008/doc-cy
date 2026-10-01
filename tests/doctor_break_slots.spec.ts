@@ -36,7 +36,8 @@ test.describe("Doctor lunch/break time", () => {
     const admin = createClient(supabaseUrl, supabaseServiceRole);
     const { authUserId } = await signInDoctorAndSetCookies(page, supabase);
 
-    const { data: doctorRow } = await supabase
+    // Service role: the anon client's RLS read right after sign-in can come back empty.
+    const { data: doctorRow } = await admin
       .from("professionals")
       .select("id, slug")
       .eq("auth_user_id", authUserId)
