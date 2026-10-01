@@ -50,7 +50,6 @@ test.describe("Integration: public Service Menu section", () => {
           email: doctorEmail,
           phone: "+35799123456",
           languages: ["English"],
-          license_file_url: `licenses/integration/${nonce}-sm.pdf`,
           status: "verified",
           slug: doctorSlug,
                 is_registered: true,

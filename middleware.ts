@@ -233,6 +233,5 @@ export const config = {
     "/api/doctor-online-bookings",
     "/api/doctor-services",
     "/api/doctor-settings/:path*",
-    "/api/doctor-specialty-change-request",
   ],
 };

@@ -52,7 +52,6 @@ export async function createTestDoctor(
       email,
       phone: "+35799123456",
       languages: ["English"],
-      license_file_url: `licenses/integration/${input.nonce}.pdf`,
       status: input.status,
       slug,
       subscription_tier: input.subscription_tier ?? "standard",

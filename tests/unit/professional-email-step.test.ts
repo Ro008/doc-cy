@@ -75,7 +75,6 @@ describe("isProfessionalApiPath", () => {
       "/api/doctor-services",
       "/api/doctor-settings",
       "/api/doctor-settings/trial-notice",
-      "/api/doctor-specialty-change-request",
     ]) {
       assert.equal(isProfessionalApiPath(path), true, path);
     }

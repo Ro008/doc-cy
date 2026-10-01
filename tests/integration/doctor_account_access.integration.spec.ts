@@ -1,9 +1,5 @@
 import { expect, test } from "@playwright/test";
-import {
-  postSpecialtyChangeReview,
-  postSpecialtyReview,
-  founderCookie,
-} from "./helpers/internal-api";
+import { postSpecialtyReview, founderCookie } from "./helpers/internal-api";
 import {
   createIntegrationAdmin,
   requireSafeIntegration,
@@ -316,98 +312,6 @@ test.describe("Integration: doctor account access", { tag: "@pr-e2e" }, () => {
     } finally {
       if (fixture) await deleteTestDoctor(fixture);
       await admin.from("specialties").delete().eq("name", editedLabel);
-    }
-  });
-
-  test("specialty change review API: add, replace and remove write professional_specialties", async ({
-    request,
-  }) => {
-    const env = requireSafeIntegration();
-    const admin = createIntegrationAdmin(env);
-    const secret = await founderCookie();
-    const nonce = `${Date.now()}-${Math.floor(Math.random() * 100000)}`;
-    let fixture: TestDoctorFixture | null = null;
-
-    try {
-      fixture = await createTestDoctor({
-        admin,
-        nonce,
-        name: `Spec Change ${nonce}`,
-        specialty: "Cardiology",
-        is_specialty_approved: true,
-        status: "verified",
-      });
-      const { doctorId } = fixture;
-
-      const approve = async (request_kind: string, from: string | null, to: string | null) => {
-        const inserted = await admin
-          .from("professional_specialty_change_requests")
-          .insert({
-            professional_id: doctorId,
-            request_kind,
-            from_specialty: from,
-            to_specialty: to,
-            to_specialty_from_master: to !== null,
-            license_number: to === null ? null : `LIC-CHG-${nonce}`,
-            status: "pending",
-          })
-          .select("id")
-          .single();
-        if (inserted.error) throw new Error(`change request: ${inserted.error.message}`);
-        const res = await postSpecialtyChangeReview(request, secret, {
-          requestId: String(inserted.data.id),
-          action: "approve",
-        });
-        expect(res.status(), await res.text()).toBe(200);
-      };
-      const state = async () => {
-        const rows =
-          (
-            await admin
-              .from("professional_specialties")
-              .select("specialty, is_approved")
-              .eq("professional_id", doctorId)
-          ).data ?? [];
-        return {
-          rows: rows.map((r) => `${r.specialty}:${r.is_approved}`).sort(),
-          specialties: rows
-            .filter((r) => r.is_approved)
-            .map((r) => r.specialty)
-            .sort((a, b) => a.localeCompare(b)),
-          approved: rows.every((r) => r.is_approved),
-        };
-      };
-
-      // A catalogue name: legacy labels such as "Dermatology" are refused as picks.
-      await approve("add", null, "Dermato-Venereology");
-      expect(await state()).toEqual({
-        rows: ["Cardiology:true", "Dermato-Venereology:true"],
-        specialties: ["Cardiology", "Dermato-Venereology"],
-        approved: true,
-      });
-
-      // "from" matches by slug, whatever its casing.
-      await approve("replace", "cardiology", "Rheumatology");
-      expect(await state()).toEqual({
-        rows: ["Dermato-Venereology:true", "Rheumatology:true"],
-        specialties: ["Dermato-Venereology", "Rheumatology"],
-        approved: true,
-      });
-
-      await approve("remove", "Dermato-Venereology", null);
-      expect(await state()).toEqual({
-        rows: ["Rheumatology:true"],
-        specialties: ["Rheumatology"],
-        approved: true,
-      });
-    } finally {
-      if (fixture) {
-        await fixture.admin
-          .from("professional_specialty_change_requests")
-          .delete()
-          .eq("professional_id", fixture.doctorId);
-        await deleteTestDoctor(fixture);
-      }
     }
   });
 });

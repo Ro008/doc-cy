@@ -97,7 +97,6 @@ async function createVerifiedDoctor(
       email,
       phone: "+35799123456",
       languages: input.languages,
-      license_file_url: `licenses/integration/${nonce}-${input.slugPrefix}.pdf`,
       status: "verified",
       slug,
       // Mark as test so cleanup + prod finder hide are reliable; still visible when

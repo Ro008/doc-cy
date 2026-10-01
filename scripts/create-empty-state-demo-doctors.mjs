@@ -40,7 +40,6 @@ async function createDoctor({ slugPrefix, name }) {
       phone: "+35799123456",
       languages: ["English"],
       avatar_url: null,
-      license_file_url: `licenses/demo/${nonce}-${slugPrefix}.pdf`,
       status: "verified",
       slug,
       is_test_profile: true,

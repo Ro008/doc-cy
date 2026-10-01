@@ -26,14 +26,3 @@ export function postSpecialtyReview(
     data: body,
   });
 }
-
-export function postSpecialtyChangeReview(
-  request: APIRequestContext,
-  adminCookie: string,
-  body: { requestId: string; action: "approve" | "reject" },
-) {
-  return request.post("/api/internal/doctors/specialty-change-review", {
-    headers: internalDirectoryHeaders(adminCookie),
-    data: body,
-  });
-}

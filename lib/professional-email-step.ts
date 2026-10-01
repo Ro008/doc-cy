@@ -60,7 +60,6 @@ const PROFESSIONAL_API_ROUTES = [
   "/api/doctor-online-bookings",
   "/api/doctor-services",
   "/api/doctor-settings",
-  "/api/doctor-specialty-change-request",
 ];
 
 /**

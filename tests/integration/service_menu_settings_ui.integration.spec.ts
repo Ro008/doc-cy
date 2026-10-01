@@ -51,7 +51,6 @@ test.describe("Integration UI: doctor settings Service Menu", () => {
           email: doctorEmail,
           phone: "+35799123456",
           languages: ["English"],
-          license_file_url: `licenses/integration/${nonce}-svc-ui.pdf`,
           status: "verified",
           slug: doctorSlug,
                 is_registered: true,
