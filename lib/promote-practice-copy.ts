@@ -1,9 +1,9 @@
 export type PromotePracticeCopy = {
-  title: string;
-  subtitle: string;
   missingSlugTitle: string;
   missingSlugBody: string;
-  patientsScanPrefix: string;
+  bookingLinkLabel: string;
+  copyLinkButton: string;
+  patientsScanCaption: string;
   printButton: string;
   downloadButton: string;
   printHelper: string;
@@ -30,16 +30,15 @@ export type PromotePracticeCopy = {
 };
 
 const EN_COPY: PromotePracticeCopy = {
-  title: "Promote your practice",
-  subtitle: "QR, phone scripts, and your booking link in one place.",
   missingSlugTitle: "Promote your practice",
   missingSlugBody:
     "Your public profile link isn't ready yet. Once your profile has a URL slug, you can generate a QR code and print a sign for your clinic.",
-  patientsScanPrefix: "Patients scan to open",
+  bookingLinkLabel: "Your booking page",
+  copyLinkButton: "Copy link",
+  patientsScanCaption: "Patients scan to open your booking page.",
   printButton: "Print booking sign",
   downloadButton: "Download QR (PNG)",
-  printHelper:
-    "Print opens an A5 layout with the DocCy wordmark, your name, QR, and a short call to action, ready for your printer.",
+  printHelper: "An A5 sign with your name and QR, ready to print.",
   printPrepareFailed: "Could not prepare print view. Please try again.",
   printDialogFailed: "Could not open the print dialog on this device.",
   printCta: "Scan to book your next appointment",
@@ -66,16 +65,15 @@ const EN_COPY: PromotePracticeCopy = {
 };
 
 const EL_COPY: PromotePracticeCopy = {
-  title: "Προωθήστε το ιατρείο σας",
-  subtitle: "QR, σενάρια τηλεφώνου και σύνδεσμος κρατήσεων σε ένα σημείο.",
   missingSlugTitle: "Προωθήστε το ιατρείο σας",
   missingSlugBody:
     "Ο δημόσιος σύνδεσμος προφίλ σας δεν είναι έτοιμος ακόμη. Μόλις το προφίλ αποκτήσει slug, μπορείτε να δημιουργήσετε QR και να εκτυπώσετε πινακίδα για το ιατρείο σας.",
-  patientsScanPrefix: "Οι ασθενείς σκανάρουν για να ανοίξουν",
+  bookingLinkLabel: "Η σελίδα κρατήσεών σας",
+  copyLinkButton: "Αντιγραφή συνδέσμου",
+  patientsScanCaption: "Οι ασθενείς σκανάρουν για να ανοίξουν τη σελίδα κρατήσεών σας.",
   printButton: "Εκτύπωση πινακίδας κράτησης",
   downloadButton: "Λήψη QR (PNG)",
-  printHelper:
-    "Η εκτύπωση ανοίγει διάταξη A5 με το λογότυπο DocCy, το όνομά σας, το QR και σύντομο κάλεσμα για ενέργεια, έτοιμο για εκτύπωση.",
+  printHelper: "Πινακίδα A5 με το όνομά σας και το QR, έτοιμη για εκτύπωση.",
   printPrepareFailed: "Δεν ήταν δυνατή η προετοιμασία για εκτύπωση. Δοκιμάστε ξανά.",
   printDialogFailed: "Δεν ήταν δυνατό να ανοίξει το παράθυρο εκτύπωσης σε αυτή τη συσκευή.",
   printCta: "Σκανάρετε για να κλείσετε το επόμενο ραντεβού σας",

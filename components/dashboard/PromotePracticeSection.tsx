@@ -2,10 +2,16 @@
 
 import * as React from "react";
 import { QRCodeCanvas } from "qrcode.react";
-import { Download, Printer, QrCode } from "lucide-react";
+import { Copy, Download, Printer, QrCode } from "lucide-react";
 import { resolvePromotePracticeCopy } from "@/lib/promote-practice-copy";
 import { buildPublicProfileUrl } from "@/lib/promote-practice-script-templates";
 import { PromotePracticeScripts } from "@/components/dashboard/PromotePracticeScripts";
+import {
+  SETTINGS_CARD_CLASS,
+  SETTINGS_EYEBROW_CLASS,
+  SETTINGS_SECONDARY_BUTTON_CLASS,
+} from "@/components/dashboard/settings/styles";
+import { shortBookingLink } from "@/lib/settings-account";
 
 function escapeHtml(s: string): string {
   return s
@@ -36,6 +42,17 @@ export function PromotePracticeSection({
     ? `${profileBookingUrl}?utm_source=doctor_qr&utm_medium=profile_card&ref=doctor_profile_qr`
     : "";
 
+  const [linkCopied, setLinkCopied] = React.useState(false);
+  // The plain profile link (no QR tracking), for websites, emails and messages.
+  async function copyLink() {
+    try {
+      await navigator.clipboard.writeText(profileBookingUrl);
+      setLinkCopied(true);
+      window.setTimeout(() => setLinkCopied(false), 2000);
+    } catch {
+      window.alert(copy.copyFailed);
+    }
+  }
   const downloadPng = React.useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas || !slug) return;
@@ -192,7 +209,7 @@ export function PromotePracticeSection({
 
   if (!slug?.trim()) {
     return (
-      <section className="rounded-2xl border border-slate-800/80 bg-slate-900/40 p-5">
+      <section className={SETTINGS_CARD_CLASS}>
         <div className="flex items-center gap-2 text-amber-200/90">
           <QrCode className="h-5 w-5 shrink-0" aria-hidden />
           <h2 className="text-sm font-semibold text-slate-100">{copy.missingSlugTitle}</h2>
@@ -203,54 +220,54 @@ export function PromotePracticeSection({
   }
 
   return (
-    <section className="rounded-2xl border border-slate-800/80 bg-slate-900/40 p-5">
-      <div className="flex items-center gap-2">
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-clinical-500/15 text-clinical-300">
-          <QrCode className="h-4 w-4" strokeWidth={1.75} aria-hidden />
+    <div className="space-y-5">
+      <section className={SETTINGS_CARD_CLASS} data-testid="promote-booking-link">
+        <h2 className={SETTINGS_EYEBROW_CLASS}>{copy.bookingLinkLabel}</h2>
+        <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="min-w-0 truncate font-mono text-sm text-slate-100" title={profileBookingUrl}>
+            {shortBookingLink(profileBookingUrl)}
+          </p>
+          <button type="button" onClick={() => void copyLink()} className={SETTINGS_SECONDARY_BUTTON_CLASS}>
+            <Copy className="h-4 w-4" aria-hidden />
+            {linkCopied ? copy.copiedButton : copy.copyLinkButton}
+          </button>
         </div>
-        <div>
-          <h2 className="text-sm font-semibold text-slate-100">{copy.title}</h2>
-          <p className="text-xs text-slate-500">{copy.subtitle}</p>
-        </div>
-      </div>
 
-      <p className="mt-4 text-xs text-slate-500">
-        {copy.patientsScanPrefix}{" "}
-        <span className="break-all font-mono text-slate-400">{bookingUrl}</span>
-      </p>
-
-      <div className="mt-4 flex flex-col items-center gap-4 rounded-xl border border-slate-800/60 bg-white p-6 sm:flex-row sm:items-start sm:justify-center">
-        <div className="rounded-lg bg-white p-2 shadow-inner ring-1 ring-slate-200/80">
+        <div className="mt-5 flex flex-col items-center gap-5 rounded-2xl bg-white p-5 sm:flex-row sm:items-center">
           <QRCodeCanvas
             ref={canvasRef}
             value={bookingUrl}
-            size={280}
+            // Drawn large so the PNG and the printed sign stay sharp; shown smaller.
+            size={512}
+            style={{ width: 168, height: 168 }}
             level="H"
             includeMargin
             bgColor="#ffffff"
             fgColor="#0f172a"
+            className="shrink-0 rounded-lg ring-1 ring-slate-200"
           />
+          <div className="flex w-full flex-col gap-3 sm:max-w-xs">
+            <p className="text-sm font-medium text-slate-700">{copy.patientsScanCaption}</p>
+            <button
+              type="button"
+              onClick={printBookingSign}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-clinical-500 px-4 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-clinical-400"
+            >
+              <Printer className="h-4 w-4" aria-hidden />
+              {copy.printButton}
+            </button>
+            <button
+              type="button"
+              onClick={downloadPng}
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 transition hover:border-slate-400 hover:bg-slate-50"
+            >
+              <Download className="h-4 w-4" aria-hidden />
+              {copy.downloadButton}
+            </button>
+            <p className="text-xs text-slate-500">{copy.printHelper}</p>
+          </div>
         </div>
-        <div className="flex w-full max-w-xs flex-col gap-3 sm:pt-1">
-          <button
-            type="button"
-            onClick={printBookingSign}
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-clinical-500 px-4 py-2.5 text-sm font-semibold text-slate-950 shadow-lg shadow-clinical-500/20 transition hover:bg-clinical-400"
-          >
-            <Printer className="h-4 w-4" aria-hidden />
-            {copy.printButton}
-          </button>
-          <button
-            type="button"
-            onClick={downloadPng}
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-600 bg-slate-800/50 px-4 py-2.5 text-sm font-semibold text-slate-100 transition hover:border-slate-500 hover:bg-slate-800"
-          >
-            <Download className="h-4 w-4" aria-hidden />
-            {copy.downloadButton}
-          </button>
-          <p className="text-[11px] leading-relaxed text-slate-500">{copy.printHelper}</p>
-        </div>
-      </div>
+      </section>
 
       {profileBookingUrl && slug ? (
         <PromotePracticeScripts
@@ -261,6 +278,6 @@ export function PromotePracticeSection({
           copy={copy}
         />
       ) : null}
-    </section>
+    </div>
   );
 }

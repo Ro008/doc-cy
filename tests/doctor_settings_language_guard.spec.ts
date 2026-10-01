@@ -42,7 +42,7 @@ test.describe("Doctor settings language guard", { tag: "@pr-e2e" }, () => {
     await expect(page.getByRole("heading", { name: "Sign-in & security" })).toBeVisible();
     await expect(page.getByTestId("settings-sidebar")).toBeVisible();
     await page.getByTestId("settings-sidebar").getByRole("link", { name: "Promote" }).click();
-    await expect(page.getByRole("heading", { name: "Promote your practice" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "Promote" })).toBeVisible();
     await expect(page.getByText("Patients scan to open")).toBeVisible();
     await expect(page.getByText("Phone and website scripts")).toBeVisible();
     await expect(page.getByTestId("promote-voicemail-script")).toBeVisible();

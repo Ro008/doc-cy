@@ -26,7 +26,11 @@ test.describe("Promote your practice (settings)", { tag: "@pr-e2e" }, () => {
   test("verified doctor sees QR block and phone/website scripts", async ({ page }) => {
     test.setTimeout(120_000);
 
-    await expect(page.getByRole("heading", { name: "Promote your practice" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "Promote" })).toBeVisible();
+    // The link as a doctor reads it, with Copy link; the QR keeps its tracking.
+    await expect(page.getByTestId("promote-booking-link")).not.toContainText("://");
+    await expect(page.getByTestId("promote-booking-link")).not.toContainText("utm_source");
+    await expect(page.getByRole("button", { name: "Copy link" })).toBeVisible();
     await expect(page.getByText("Phone and website scripts")).toBeVisible();
     await expect(page.getByTestId("promote-voicemail-script")).toBeVisible();
     await expect(page.getByTestId("promote-reception-script")).toBeVisible();
@@ -34,7 +38,10 @@ test.describe("Promote your practice (settings)", { tag: "@pr-e2e" }, () => {
 
     await expect(page.getByRole("button", { name: "Print booking sign" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Download QR (PNG)" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Copy text" }).first()).toBeVisible();
+    // Scripts open one at a time.
+    await expect(page.getByRole("button", { name: "Copy text" })).toHaveCount(0);
+    await page.getByTestId("promote-voicemail-script").getByText("Voicemail message").click();
+    await expect(page.getByTestId("promote-voicemail-script").getByRole("button", { name: "Copy text" })).toBeVisible();
 
     await expect(page.getByText(/Quick access:/i)).toHaveCount(0);
     await expect(
@@ -49,6 +56,7 @@ test.describe("Promote your practice (settings)", { tag: "@pr-e2e" }, () => {
 
     const websiteBlock = page.getByTestId("promote-website-script");
     await websiteBlock.scrollIntoViewIfNeeded();
+    await websiteBlock.getByText("Website booking button").click();
     await websiteBlock.getByRole("button", { name: "Contact Support" }).click();
 
     const dialog = page.getByRole("dialog", { name: /How can we help you/i });
