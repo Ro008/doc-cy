@@ -34,7 +34,6 @@ const prE2e = [
   "promote_practice_settings.spec.ts",
   "practice_insights.spec.ts",
   "practice_insights_metrics.spec.ts",
-  "integration/monthly_digest.integration.spec.ts",
   "integration/doctor_account_access.integration.spec.ts",
   "integration/doctor_onboarding_pipeline.integration.spec.ts",
   "navigation_feedback.spec.ts",
