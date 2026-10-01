@@ -180,10 +180,10 @@ test.describe("Integration: locations read from professional_clinics", { tag: "@
     }
   });
 
-  test("a clinic still being set up, with no address yet, is still listed", async ({ page }) => {
-    // "Add clinic" in settings creates a location with no address, and the wizard fills
-    // it in afterwards. The mirror cannot give that a join row (a clinic needs a
-    // district), so reading only join rows would make the new clinic vanish.
+  test("a location with no address yet is not listed as a clinic", async ({ page }) => {
+    // The old "Add clinic" created a location with no address. It has no join row (a
+    // clinic needs a district), and D4 (user, 2026-09-30) removed the bridge that listed
+    // it: the profile shows clinic links only.
     test.setTimeout(120_000);
     const admin = createIntegrationAdmin(requireSafeIntegration());
     const nonce = `${Date.now()}-${Math.floor(Math.random() * 100000)}`;
@@ -200,7 +200,7 @@ test.describe("Integration: locations read from professional_clinics", { tag: "@
       });
       created.clinicIds.push(await clinicIdFor(admin, primaryId));
 
-      // Exactly what POST /api/doctor-locations writes: no address, no district.
+      // Exactly what the old POST /api/doctor-locations wrote: no address, no district.
       await addLocation(admin, seeded.professionalId, {
         sort_order: 1,
         district: null,
@@ -210,7 +210,8 @@ test.describe("Integration: locations read from professional_clinics", { tag: "@
 
       await page.goto(`/en/${seeded.slug}`);
 
-      await expect(page.getByText(/2 clinics/i).first()).toBeVisible({ timeout: 20_000 });
+      await expect(page.getByText(`Only Street ${nonce}`).first()).toBeVisible({ timeout: 20_000 });
+      await expect(page.getByText(/2 clinics/i)).toHaveCount(0);
     } finally {
       await cleanup(admin, created);
     }

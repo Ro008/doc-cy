@@ -158,6 +158,90 @@ export async function openPrimaryClinicForBookings(
   return { locationId, clinicId: String(link.data.clinic_id) };
 }
 
+type SeedDistrict = "Nicosia" | "Limassol" | "Paphos" | "Larnaca" | "Famagusta";
+
+const DISTRICT_PIN: Record<SeedDistrict, { latitude: number; longitude: number }> = {
+  Nicosia: { latitude: 35.1725, longitude: 33.365 },
+  Limassol: { latitude: 34.6841, longitude: 33.0379 },
+  Paphos: { latitude: 34.7754, longitude: 32.4245 },
+  Larnaca: { latitude: 34.9229, longitude: 33.6233 },
+  Famagusta: { latitude: 35.0393, longitude: 33.9832 },
+};
+
+const WEEKDAY_HOURS = { enabled: true, start_time: "09:00:00", end_time: "17:00:00" };
+const DAY_OFF = { enabled: false, start_time: "09:00:00", end_time: "17:00:00" };
+
+/**
+ * Gives a seeded professional a clinic the way the registration approval does: a
+ * `clinics` row and the professional's primary `professional_clinics` link, with
+ * weekday hours. Every professional has a clinic (user, 2026-09-29), and since D4 the
+ * finder, profiles and bookings read clinics only, so a professional without one has
+ * no district and no availability.
+ *
+ * Delete the professional first (the link cascades), then the clinic with
+ * `deleteTestClinics`.
+ */
+export async function seedProfessionalClinic(
+  admin: SupabaseClient,
+  professionalId: string,
+  input: { nonce: string; district: SeedDistrict; open?: boolean },
+): Promise<{ clinicId: string; linkId: string }> {
+  const token = `${input.nonce}-${Math.floor(Math.random() * 1_000_000)}`
+    .toLowerCase()
+    .replace(/[^a-z0-9-]/g, "-");
+  const clinic = await admin
+    .from("clinics")
+    .insert({
+      name: `Integration Clinic ${token}`,
+      slug: `integration-clinic-${token}`,
+      district: input.district,
+      town: input.district,
+      address: `${token} Integration Street, ${input.district}, Cyprus`,
+      phone: "22123456",
+      ...DISTRICT_PIN[input.district],
+    })
+    .select("id")
+    .single();
+  if (clinic.error || !clinic.data?.id) throw new Error(`seed clinic: ${clinic.error?.message}`);
+  const clinicId = String(clinic.data.id);
+
+  const link = await admin
+    .from("professional_clinics")
+    .insert({
+      professional_id: professionalId,
+      clinic_id: clinicId,
+      is_primary: true,
+      sort_order: 0,
+      pause_online_bookings: input.open === false,
+      monday: true,
+      tuesday: true,
+      wednesday: true,
+      thursday: true,
+      friday: true,
+      saturday: false,
+      sunday: false,
+      start_time: "09:00:00",
+      end_time: "17:00:00",
+      weekly_schedule: {
+        monday: WEEKDAY_HOURS,
+        tuesday: WEEKDAY_HOURS,
+        wednesday: WEEKDAY_HOURS,
+        thursday: WEEKDAY_HOURS,
+        friday: WEEKDAY_HOURS,
+        saturday: DAY_OFF,
+        sunday: DAY_OFF,
+      },
+      slot_duration_minutes: 30,
+    })
+    .select("id")
+    .single();
+  if (link.error || !link.data?.id) {
+    await admin.from("clinics").delete().eq("id", clinicId);
+    throw new Error(`seed clinic link: ${link.error?.message}`);
+  }
+  return { clinicId, linkId: String(link.data.id) };
+}
+
 export async function deleteTestClinics(
   admin: SupabaseClient,
   clinicIds: readonly string[],

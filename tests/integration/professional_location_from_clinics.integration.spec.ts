@@ -250,11 +250,10 @@ test.describe(
       }
     });
 
-    test("a location with a blank address is still offered as a clinic being set up", async () => {
+    test("a location with a blank address is not a clinic", async () => {
       // The mirror treats a blank address ('') as missing, so such a location has no
-      // clinic link. The loaders must still return it as "being set up", or settings
-      // finds no location to save the address into (CI: settings_clinic_address_wizard,
-      // whose professional is created with clinic_address '').
+      // clinic link. D4 (user, 2026-09-30): the loaders read clinic links only, so it is
+      // not returned (settings no longer lets a professional fill an address in).
       test.setTimeout(60_000);
       const admin = createIntegrationAdmin(requireSafeIntegration());
       const nonce = `${Date.now()}-${Math.floor(Math.random() * 100000)}`;
@@ -302,7 +301,7 @@ test.describe(
         expect(location.data?.clinic_address).toBe("");
 
         const loaded = await loadDoctorLocations(created.professionalId);
-        expect(loaded.map((row) => row.id)).toEqual([location.data?.id]);
+        expect(loaded).toEqual([]);
       } finally {
         if (created.professionalId) {
           await admin.from("doctor_locations").delete().eq("doctor_id", created.professionalId);
@@ -311,10 +310,10 @@ test.describe(
       }
     });
 
-    test("a clinic still being set up (no address yet) takes no bookings", async ({ request }) => {
-      // "Add clinic" creates a doctor_locations row with no address or district, which
-      // has no clinic link to point an appointment at. Even unpaused, with hours, a
-      // patient must be refused (403) rather than booked somewhere with no address.
+    test("a professional with no clinic takes no bookings", async ({ request }) => {
+      // Registering outside the approval creates a doctor_locations row with no address
+      // or district, which has no clinic link to point an appointment at. Even unpaused,
+      // with hours, a patient must be refused (403) rather than booked with no clinic.
       test.setTimeout(120_000);
       const admin = createIntegrationAdmin(requireSafeIntegration());
       const nonce = `${Date.now()}-${Math.floor(Math.random() * 100000)}`;

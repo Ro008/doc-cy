@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { finderIncludesRegisteredTestProfiles } from "@/lib/doctor-test-profile";
+import { deleteTestClinics, seedProfessionalClinic } from "./helpers/test-doctor";
 
 /**
  * Karina / Sexology regression: a verified professional with Psychology (master)
@@ -13,6 +14,7 @@ type CreatedDoctor = {
   authUserId: string;
   slug: string;
   name: string;
+  clinicId: string;
 };
 
 function normalizeUrl(u: string): string {
@@ -118,7 +120,18 @@ async function createPsychologyPlusSexologyDoctor(
     );
   }
 
-  return { doctorId, authUserId, slug, name };
+  // Every professional has a clinic; the finder reads the district from it.
+  let clinicId: string;
+  try {
+    ({ clinicId } = await seedProfessionalClinic(admin, doctorId, { nonce, district: "Paphos" }));
+  } catch (err) {
+    await admin.from("professional_specialties").delete().eq("professional_id", doctorId);
+    await admin.from("professionals").delete().eq("id", doctorId);
+    await admin.auth.admin.deleteUser(authUserId);
+    throw err;
+  }
+
+  return { doctorId, authUserId, slug, name, clinicId };
 }
 
 test.describe("Integration: custom specialty finder (Sexology)", { tag: ["@pr-e2e", "@pr-e2e-finder"] }, () => {
@@ -186,6 +199,7 @@ test.describe("Integration: custom specialty finder (Sexology)", { tag: ["@pr-e2
         await admin.from("professional_specialties").delete().eq("professional_id", created.doctorId);
         await admin.from("professionals").delete().eq("id", created.doctorId);
         await admin.auth.admin.deleteUser(created.authUserId);
+        await deleteTestClinics(admin, [created.clinicId]);
       }
     }
   });

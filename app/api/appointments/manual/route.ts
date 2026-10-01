@@ -139,10 +139,10 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // No clinic link to reference yet: the address has to be set first.
-  if (bookingLocation && !locationHasClinic(bookingLocation)) {
+  // Every appointment is at a clinic with an address (user, 2026-09-29).
+  if (!bookingLocation || !locationHasClinic(bookingLocation)) {
     return NextResponse.json(
-      { message: "Add this clinic's address before booking appointments there." },
+      { message: "This clinic is not set up yet. Contact us to set it up before booking." },
       { status: 400 },
     );
   }
