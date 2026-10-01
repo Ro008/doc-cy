@@ -176,6 +176,9 @@ export function RegisterClinicAddressField({
   onCompleteChange,
   takenClinicIds,
   duplicateOf = null,
+  showDetailsFields,
+  initialClinicPhone = "",
+  onPhoneChange,
 }: {
   listingAddressHint?: string | null;
   /** District from the finder listing — used when confirming the listing address. */
@@ -212,6 +215,12 @@ export function RegisterClinicAddressField({
   takenClinicIds?: readonly string[];
   /** Register: 1-based number of an earlier row with the same address. */
   duplicateOf?: number | null;
+  /** Show the name and phone of a new clinic (default: with the hidden inputs, i.e. /register). */
+  showDetailsFields?: boolean;
+  /** Settings: the phone already on file, when changing a clinic. */
+  initialClinicPhone?: string;
+  /** Settings: the phone as typed (a DocCy clinic keeps its own, so it sends ""). */
+  onPhoneChange?: (phone: string) => void;
 } = {}) {
   const styles = toneStyles[tone];
   const linkClass = styles.link;
@@ -270,9 +279,22 @@ export function RegisterClinicAddressField({
   const [clinicName, setClinicName] = React.useState(initialClinicName ?? "");
   const effectiveName = chosenClinic?.name ?? (clinicName.trim() || null);
   /** A new clinic's phone (a DocCy clinic keeps its own): the number patients will call. */
-  const [clinicPhone, setClinicPhone] = React.useState("");
+  const [clinicPhone, setClinicPhone] = React.useState(initialClinicPhone);
+  const showDetails = showDetailsFields ?? includeHiddenInputs;
+  const onPhoneChangeRef = React.useRef(onPhoneChange);
+  React.useEffect(() => {
+    onPhoneChangeRef.current = onPhoneChange;
+  }, [onPhoneChange]);
   const [clinicPhoneTouched, setClinicPhoneTouched] = React.useState(false);
   const clinicPhoneValue = chosenClinic ? null : normalizeCyprusClinicPhone(clinicPhone);
+  const skipPhoneNotifyRef = React.useRef(true);
+  React.useEffect(() => {
+    if (skipPhoneNotifyRef.current) {
+      skipPhoneNotifyRef.current = false;
+      return;
+    }
+    onPhoneChangeRef.current?.(chosenClinic ? "" : clinicPhone);
+  }, [clinicPhone, chosenClinic]);
   const onNameChangeRef = React.useRef(onNameChange);
   React.useEffect(() => {
     onNameChangeRef.current = onNameChange;
@@ -364,7 +386,7 @@ export function RegisterClinicAddressField({
       </p>
     ) : null;
   const nameField =
-    includeHiddenInputs && !chosenClinic ? (
+    showDetails && !chosenClinic ? (
       <label className="mt-3 block" htmlFor={`register-clinic-name-${index}`}>
         <span className={styles.label}>
           Clinic name<span className="text-red-600">*</span>
@@ -384,7 +406,7 @@ export function RegisterClinicAddressField({
       </label>
     ) : null;
   const phoneField =
-    includeHiddenInputs && !chosenClinic ? (
+    showDetails && !chosenClinic ? (
       <label className="mt-3 block" htmlFor={`register-clinic-phone-${index}`}>
         <span className={styles.label}>
           Clinic phone<span className="text-red-600">*</span>
@@ -974,6 +996,7 @@ export function RegisterClinicAddressField({
               <RegisterClinicSearchInput
                 key={searchSession}
                 index={index}
+                tone={tone}
                 onSelect={chooseDocCyClinic}
                 takenIds={takenClinicIds}
                 onSearchGoogle={() => {

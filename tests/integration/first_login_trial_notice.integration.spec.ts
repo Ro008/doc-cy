@@ -35,7 +35,7 @@ test.describe("Integration UI: first-login trial notice (local only)", { tag: "@
 
       await loginDoctorUi(page, fixture.email, fixture.password);
       await page.goto("/agenda", { waitUntil: "domcontentloaded" });
-      await expect(page).toHaveURL(/\/agenda\/settings(?:[/?#]|$)/i, {
+      await expect(page).toHaveURL(/\/settings(?:[/?#]|$)/i, {
         timeout: 30_000,
       });
 
@@ -59,7 +59,7 @@ test.describe("Integration UI: first-login trial notice (local only)", { tag: "@
       // Same session: agenda must no longer redirect or show the modal.
       await page.goto("/agenda", { waitUntil: "domcontentloaded" });
       await expect(page).toHaveURL(/\/agenda(?:[/?#]|$)/i, { timeout: 30_000 });
-      await expect(page).not.toHaveURL(/\/agenda\/settings/i);
+      await expect(page).not.toHaveURL(/\/settings/i);
       await expect(page.getByTestId(FIRST_LOGIN_TRIAL_NOTICE_TEST_ID)).toHaveCount(0);
 
       // Fresh session (tester bug: modal came back every visit).

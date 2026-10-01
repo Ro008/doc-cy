@@ -35,12 +35,12 @@ test.describe("Doctor settings language guard", { tag: "@pr-e2e" }, () => {
     await page.goto("/agenda", { waitUntil: "domcontentloaded" });
     await expect(page).toHaveURL(/\/agenda(?:[/?#]|$)/, { timeout: 20_000 });
 
-    await page.goto("/agenda/settings", { waitUntil: "domcontentloaded" });
-    await expect(page).toHaveURL(/\/agenda\/settings(?:[/?#]|$)/, { timeout: 20_000 });
+    await page.goto("/settings?section=account", { waitUntil: "domcontentloaded" });
+    await expect(page).toHaveURL(/\/settings(?:[/?#]|$)/, { timeout: 20_000 });
 
     // No language switcher exists here yet; this page should stay in English.
     await expect(page.getByRole("heading", { name: "Device security" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Save settings" })).toBeVisible();
+    await expect(page.getByTestId("settings-sidebar")).toBeVisible();
     await expect(page.getByRole("heading", { name: "Promote your practice" })).toBeVisible();
     await expect(page.getByText("Patients scan to open")).toBeVisible();
     await expect(page.getByText("Phone and website scripts")).toBeVisible();

@@ -39,4 +39,19 @@ describe("pro session hint cookie", () => {
     assert.equal(script.includes("Set-Cookie"), false);
     assert.equal(script.includes("document.cookie"), true);
   });
+
+  it("boot script reserves the sticky header on /agenda and /settings", () => {
+    const run = (pathname: string) => {
+      const attrs: Record<string, string> = {};
+      const fakeDocument = {
+        cookie: `${PRO_SESSION_HINT_COOKIE}=1`,
+        documentElement: { setAttribute: (k: string, v: string) => (attrs[k] = v) },
+      };
+      new Function("location", "document", proChromeBootInlineScript())({ pathname }, fakeDocument);
+      return attrs;
+    };
+    assert.equal(run("/agenda")[PRO_CHROME_AGENDA_ATTR], "1");
+    assert.equal(run("/settings")[PRO_CHROME_AGENDA_ATTR], "1");
+    assert.equal(run("/dashboard")[PRO_CHROME_AGENDA_ATTR], undefined);
+  });
 });

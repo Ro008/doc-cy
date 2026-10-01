@@ -4,6 +4,7 @@ import { describe, it } from "node:test";
 import {
   buildSettingsDirtySnapshot,
   settingsFormHasUnsavedChanges,
+  unsavedSettingsSections,
 } from "../../lib/settings-form-dirty";
 import type { WeeklySchedule } from "@/lib/doctor-settings";
 
@@ -71,11 +72,11 @@ describe("settings-form-dirty", () => {
     });
     assert.equal(settingsFormHasUnsavedChanges(changedSchedule, saved), true);
 
-    const changedClinic = buildSettingsDirtySnapshot({
+    const renamedClinic = buildSettingsDirtySnapshot({
       ...baseSnapshotInput(),
-      workplaces: [{ ...baseWorkplace, clinicAddress: "2 Other St, Limassol" }],
+      workplaces: [{ ...baseWorkplace, label: "Ledra Clinic" }],
     });
-    assert.equal(settingsFormHasUnsavedChanges(changedClinic, saved), true);
+    assert.equal(settingsFormHasUnsavedChanges(renamedClinic, saved), true);
   });
 
   it("does not flag a switch between clinic tabs as an edit", () => {
@@ -130,3 +131,65 @@ describe("settings-form-dirty", () => {
     assert.equal(settingsFormHasUnsavedChanges(current, saved), false);
   });
 });
+
+describe("unsavedSettingsSections", () => {
+  const saved = () => buildSettingsDirtySnapshot(baseSnapshotInput());
+
+  it("is empty when nothing changed", () => {
+    assert.deepEqual(unsavedSettingsSections(saved(), saved()), []);
+  });
+
+  it("names the section each change belongs to, in sidebar order", () => {
+    const changed = buildSettingsDirtySnapshot({
+      ...baseSnapshotInput(),
+      bio: "New bio.",
+      mobileNumber: "+35799000000",
+      minimumNoticeHours: 48,
+      workplaces: [{ ...baseWorkplace, slotDurationMinutes: 45 }],
+    });
+    assert.deepEqual(unsavedSettingsSections(changed, saved()), [
+      "availability",
+      "clinics",
+      "profile",
+      "contact",
+    ]);
+  });
+
+  it("puts holiday dates under Availability", () => {
+    const changed = buildSettingsDirtySnapshot({
+      ...baseSnapshotInput(),
+      holidayModeEnabled: true,
+      holidayStartInput: "01/08/2026",
+    });
+    assert.deepEqual(unsavedSettingsSections(changed, saved()), ["availability"]);
+  });
+
+  it("counts languages as Profile, ignoring their order", () => {
+    const reordered = buildSettingsDirtySnapshot({ ...baseSnapshotInput(), languages: ["Greek", "English"] });
+    assert.deepEqual(unsavedSettingsSections(reordered, saved()), []);
+    const changed = buildSettingsDirtySnapshot({ ...baseSnapshotInput(), languages: ["English"] });
+    assert.deepEqual(unsavedSettingsSections(changed, saved()), ["profile"]);
+  });
+});
+
+describe("clinic address in the dirty check", () => {
+  it("never counts the address: it is read-only and not saved from settings", () => {
+    const saved = buildSettingsDirtySnapshot(baseSnapshotInput());
+    const otherCopy = buildSettingsDirtySnapshot({
+      ...baseSnapshotInput(),
+      workplaces: [
+        {
+          ...baseWorkplace,
+          district: "Limassol",
+          clinicAddress: "2 Other St, Limassol",
+          clinicLatitude: null,
+          clinicLongitude: null,
+          clinicPlaceId: null,
+        },
+      ],
+    });
+    assert.equal(settingsFormHasUnsavedChanges(otherCopy, saved), false);
+    assert.deepEqual(unsavedSettingsSections(otherCopy, saved), []);
+  });
+});
+

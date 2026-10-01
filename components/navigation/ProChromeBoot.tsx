@@ -33,7 +33,7 @@ export function ProChromeBoot() {
             <BarChart3 className="h-5 w-5 shrink-0" aria-hidden />
             <span>Insights</span>
           </a>
-          <a href="/agenda/settings" className={tabClass}>
+          <a href="/settings" className={tabClass}>
             <Settings className="h-5 w-5 shrink-0" aria-hidden />
             <span>Settings</span>
           </a>

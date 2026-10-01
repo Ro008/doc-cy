@@ -33,6 +33,8 @@ export function useSettingsUnsavedChangesWarning(
 
       const anchor = (event.target as HTMLElement | null)?.closest("a[href]");
       if (!(anchor instanceof HTMLAnchorElement)) return;
+      // Sidebar sections switch on the client and keep the form's edits.
+      if (anchor.hasAttribute("data-settings-section")) return;
 
       const href = anchor.getAttribute("href");
       if (!href || href.startsWith("#") || href.startsWith("mailto:") || href.startsWith("tel:")) {

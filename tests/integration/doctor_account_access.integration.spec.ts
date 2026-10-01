@@ -16,7 +16,7 @@ import {
   type TestDoctorFixture,
 } from "./helpers/test-doctor";
 
-const PROTECTED_AGENDA_ROUTES = ["/agenda", "/agenda/settings", "/agenda/insights"] as const;
+const PROTECTED_AGENDA_ROUTES = ["/agenda", "/settings", "/agenda/insights"] as const;
 
 test.describe("Integration: doctor account access", { tag: "@pr-e2e" }, () => {
   test.describe.configure({ timeout: 120_000 });

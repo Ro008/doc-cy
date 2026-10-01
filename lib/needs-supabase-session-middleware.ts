@@ -9,7 +9,7 @@ import { isForgotPasswordPath, isResetPasswordPath } from "@/lib/password-reset"
  */
 export function needsSupabaseSessionMiddleware(pathname: string): boolean {
   const path = pathname.split("?")[0]?.split("#")[0] || pathname;
-  if (path === "/agenda" || path.startsWith("/agenda/")) return true;
+  if (isProfessionalGatedPath(path)) return true;
   if (path === "/dashboard" || path.startsWith("/dashboard/")) return true;
   if (path === "/login" || path.startsWith("/login/")) return true;
   if (path === "/register" || path.startsWith("/register/")) return true;
@@ -30,4 +30,18 @@ export function shouldSkipSupabaseSessionRefresh(pathname: string, method: strin
   if (method.toUpperCase() === "GET" || method.toUpperCase() === "HEAD") return false;
   const path = pathname.split("?")[0]?.split("#")[0] || pathname;
   return path === "/register" || path.startsWith("/register/");
+}
+
+/**
+ * The professional's product pages behind the full gate in middleware: signed in,
+ * emailed sign-in step, verified account, session not revoked.
+ */
+export function isProfessionalGatedPath(pathname: string): boolean {
+  const path = pathname.split("?")[0]?.split("#")[0] || pathname;
+  return (
+    path === "/agenda" ||
+    path.startsWith("/agenda/") ||
+    path === "/settings" ||
+    path.startsWith("/settings/")
+  );
 }

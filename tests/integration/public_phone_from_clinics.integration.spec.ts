@@ -158,7 +158,7 @@ test.describe("Integration: public phone comes from the clinic", { tag: "@pr-e2e
 
   test("settings show the clinic phone read-only", async ({ page }) => {
     await loginDoctorUi(page, registered!.email, registered!.password);
-    await page.goto("/agenda/settings", { waitUntil: "domcontentloaded" });
+    await page.goto("/settings?section=contact", { waitUntil: "domcontentloaded" });
     const phones = page.getByTestId("settings-clinic-phones");
     await expect(phones).toBeVisible({ timeout: 20_000 });
     await expect(phones).toContainText(`Clinic Phone Practice ${nonce}`);

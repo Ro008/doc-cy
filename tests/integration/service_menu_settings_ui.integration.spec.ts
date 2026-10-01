@@ -81,7 +81,7 @@ test.describe("Integration UI: doctor settings Service Menu", () => {
       await page.getByRole("button", { name: /sign in/i }).click();
       await finishEmailedSignIn(page, admin, doctorEmail);
       await page.waitForURL(/\/agenda/, { timeout: 30_000 });
-      await page.goto("/agenda/settings");
+      await page.goto("/settings?section=services");
 
       const uniqueService = `UI Service ${Date.now()}`;
       const serviceInput = page.getByPlaceholder("Treatment name (e.g. Facial laser)");

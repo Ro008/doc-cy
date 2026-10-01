@@ -69,21 +69,22 @@ test.describe("Integration: doctor onboarding pipeline", { tag: "@pr-e2e" }, () 
 
       // First login (normal form — default next=/agenda, then redirect to settings).
       await signInWithPasswordForm(page, admin, fixture.email, fixture.password);
-      await expect(page).toHaveURL(/\/agenda\/settings(?:[/?#]|$)/, {
+      await expect(page).toHaveURL(/\/settings(?:[/?#]|$)/, {
         timeout: 30_000,
       });
-      await expect(
-        page.getByRole("heading", { name: `Onboard Std ${nonce}` }),
-      ).toBeVisible({ timeout: 15_000 });
-      await expect(page.getByTestId("settings-specialty-locked")).toBeVisible({
-        timeout: 10_000,
-      });
+      const sidebar = page.getByTestId("settings-sidebar");
+      await expect(sidebar).toContainText(`Onboard Std ${nonce}`, { timeout: 15_000 });
 
       const welcome = page.getByTestId(FIRST_LOGIN_TRIAL_NOTICE_TEST_ID);
       await expect(welcome).toBeVisible({ timeout: 20_000 });
       await welcome.getByRole("button", { name: /^Got it$/i }).click();
       await expect(welcome).toBeHidden({ timeout: 15_000 });
 
+      await sidebar.getByRole("link", { name: "Profile" }).click();
+      await expect(page.getByTestId("settings-specialty-locked")).toBeVisible({
+        timeout: 10_000,
+      });
+      await sidebar.getByRole("link", { name: "Account" }).click();
       await page.getByTestId("settings-sign-out-button").click();
       await expect(page).toHaveURL(
         (url) => !url.pathname.startsWith("/agenda"),

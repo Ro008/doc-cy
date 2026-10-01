@@ -1,5 +1,6 @@
 import path from "node:path";
 import { test, expect } from "@playwright/test";
+import { signInDoctorAndSetCookies } from "./helpers/doctorAuth";
 
 test.describe("Doctor settings avatar upload", () => {
   test("doctor can upload avatar from settings crop flow", async ({ page }) => {
@@ -9,21 +10,13 @@ test.describe("Doctor settings avatar upload", () => {
 
     test.skip(!email || !password, "Missing TEST_USER_* or TEST_DOCTOR_* credentials.");
 
-    await page.goto("/login");
-    await page.getByLabel("Email").fill(email);
-    await page.getByLabel("Password").fill(password);
-    await page.getByRole("button", { name: /Sign in/i }).click();
+    // Programmatic session (as the other settings specs): the login form now ends with
+    // an emailed sign-in step and its password field shares the "Password" label.
+    await signInDoctorAndSetCookies(page, undefined, { email, password });
 
-    try {
-      await page.waitForURL(/\/agenda(?:[/?#]|$)/, { timeout: 30_000 });
-    } catch {
-      await page.goto("/agenda", { waitUntil: "domcontentloaded" });
-    }
-    await expect(page).toHaveURL(/\/agenda(?:[/?#]|$)/, { timeout: 30_000 });
-
-    await page.goto("/agenda/settings", { waitUntil: "domcontentloaded" });
-    await expect(page).toHaveURL(/\/agenda\/settings(?:[/?#]|$)/, { timeout: 20_000 });
-    await expect(page.getByRole("button", { name: /Save settings/i })).toBeVisible({
+    await page.goto("/settings?section=profile", { waitUntil: "domcontentloaded" });
+    await expect(page).toHaveURL(/\/settings(?:[/?#]|$)/, { timeout: 20_000 });
+    await expect(page.getByRole("button", { name: /Upload new photo/i })).toBeVisible({
       timeout: 20_000,
     });
 

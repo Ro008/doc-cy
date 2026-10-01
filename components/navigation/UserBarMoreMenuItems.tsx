@@ -37,7 +37,7 @@ export function UserBarMoreMenuItems({
         </UserMenuNavLink>
       ) : null}
       <UserMenuNavLink
-        href="/agenda/settings#promote-practice"
+        href="/settings?section=account#promote-practice"
         data-testid={`${testIdPrefix}-link-promote`}
         icon={<Megaphone className="h-4 w-4 text-clinical-300" aria-hidden />}
       >

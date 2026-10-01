@@ -61,7 +61,7 @@ function DoctorLinkStatePanel({
         <PendingLink href="/agenda" className={PRIMARY_BTN_CLASS}>
           Open agenda
         </PendingLink>
-        <PendingLink href="/agenda/settings" className={SECONDARY_BTN_CLASS}>
+        <PendingLink href="/settings" className={SECONDARY_BTN_CLASS}>
           Open settings
         </PendingLink>
       </div>

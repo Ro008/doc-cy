@@ -17,6 +17,7 @@ describe("agendaRedirectForLogin", () => {
   it("sends a login without a professional to the Status page", () => {
     assert.equal(agendaRedirectForLogin("/agenda", false), REGISTRATION_STATUS_PATH);
     assert.equal(agendaRedirectForLogin("/agenda/settings", false), REGISTRATION_STATUS_PATH);
+    assert.equal(agendaRedirectForLogin("/settings", false), REGISTRATION_STATUS_PATH);
     assert.equal(agendaRedirectForLogin("/agenda/insights", false), REGISTRATION_STATUS_PATH);
     assert.equal(REGISTRATION_STATUS_PATH, "/agenda/status");
   });

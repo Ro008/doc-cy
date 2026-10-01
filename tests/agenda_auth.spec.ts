@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 
 const PROTECTED_ROUTES = [
   { path: "/agenda", forbidden: /Your Agenda/i },
-  { path: "/agenda/settings", forbidden: /^Settings$/i },
+  { path: "/settings", forbidden: /^Settings$/i },
   { path: "/agenda/insights", forbidden: /Practice insights/i, next: "/agenda/insights" },
 ] as const;
 

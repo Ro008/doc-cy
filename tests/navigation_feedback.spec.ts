@@ -64,14 +64,14 @@ test.describe("Doctor navigation feedback", { tag: "@pr-e2e" }, () => {
             .getByTestId("navigation-progress-bar")
             .isVisible()
             .catch(() => false);
-          const onSettings = /\/agenda\/settings/.test(page.url());
+          const onSettings = /\/settings/.test(page.url());
           return busy === "true" || barVisible || onSettings;
         },
         { timeout: 10_000, intervals: [50, 100, 150, 200] },
       )
       .toBe(true);
 
-    await expect(page).toHaveURL(/\/agenda\/settings(?:[/?#]|$)/, { timeout: 20_000 });
+    await expect(page).toHaveURL(/\/settings(?:[/?#]|$)/, { timeout: 20_000 });
   });
 
   test("desktop user menu keeps a single loading spinner when switching targets", async ({ page }) => {
@@ -145,7 +145,7 @@ test.describe("Doctor navigation feedback", { tag: "@pr-e2e" }, () => {
 
         const settingsBusy = await settingsTab.getAttribute("aria-busy");
         const insightsBusy = await insightsTab.getAttribute("aria-busy");
-        const onSettings = /\/agenda\/settings(?:[/?#]|$)/.test(page.url());
+        const onSettings = /\/settings(?:[/?#]|$)/.test(page.url());
 
         if (busyCount === 1 && settingsBusy === "true" && insightsBusy === "false") {
           return "ok-pending";
@@ -160,7 +160,7 @@ test.describe("Doctor navigation feedback", { tag: "@pr-e2e" }, () => {
         const busyCount = await busyTabs.count();
         const settingsBusy = await settingsTab.getAttribute("aria-busy");
         const insightsBusy = await insightsTab.getAttribute("aria-busy");
-        const onSettings = /\/agenda\/settings(?:[/?#]|$)/.test(page.url());
+        const onSettings = /\/settings(?:[/?#]|$)/.test(page.url());
         return (
           (busyCount === 1 && settingsBusy === "true" && insightsBusy === "false") ||
           (busyCount === 0 && onSettings)

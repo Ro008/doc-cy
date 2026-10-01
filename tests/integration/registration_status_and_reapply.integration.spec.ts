@@ -151,7 +151,7 @@ test.describe("Integration: registration status and re-apply", { tag: "@pr-e2e" 
     await page.goto("/agenda", { waitUntil: "domcontentloaded" });
     await expect(page).toHaveURL(/\/agenda\/status$/, { timeout: 30_000 });
     await expect(page.getByRole("heading", { name: /under review/i })).toBeVisible({ timeout: 20_000 });
-    await page.goto("/agenda/settings", { waitUntil: "domcontentloaded" });
+    await page.goto("/settings", { waitUntil: "domcontentloaded" });
     await expect(page).toHaveURL(/\/agenda\/status$/, { timeout: 30_000 });
   });
 

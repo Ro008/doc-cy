@@ -906,7 +906,7 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
         {isOwnerView ? (
           <div className="mb-6 rounded-2xl border border-clinical-200 bg-clinical-50 px-4 py-3 text-sm text-clinical-800">
             You are viewing your public profile.{" "}
-            <a href="/agenda/settings" className="font-semibold underline underline-offset-2">
+            <a href="/settings?section=profile" className="font-semibold underline underline-offset-2">
               Edit Profile
             </a>{" "}
           </div>

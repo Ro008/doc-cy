@@ -90,30 +90,23 @@ describe("doctor locations", () => {
       path.join(path.dirname(fileURLToPath(import.meta.url)), "../../components/dashboard/SettingsForm.tsx"),
       "utf8",
     );
-    assert.equal(settingsForm.includes("workplace-settings-frame"), true);
-    assert.equal(settingsForm.includes("workplaceAccent"), true);
-    assert.equal(settingsForm.includes("Hours for ${activeWorkplaceLabel}"), true);
+    // Settings redesign (B1): one card per clinic, the hours editor opens inside it.
+    assert.equal(settingsForm.includes("<ClinicCard"), true);
+    assert.equal(settingsForm.includes("agendaClinicEventColor"), true);
     assert.equal(settingsForm.includes('id="clinicName"'), true);
-    // D4 (user, 2026-09-30): clinics are read-only in settings until the clinic requests.
-    assert.equal(settingsForm.includes("Add clinic"), false);
+    // D4 (user, 2026-09-30): clinics are curated by DocCy; adding, leaving and changing a
+    // clinic are requests (settings redesign), never an address field.
+    assert.equal(settingsForm.includes("/api/clinic-requests"), true);
     assert.equal(settingsForm.includes("Remove this clinic"), false);
     assert.equal(settingsForm.includes("ClinicAddressAutocomplete"), false);
-    assert.equal(settingsForm.includes("Contact us to change your clinics"), true);
+    assert.equal(settingsForm.includes("ClinicChangeRequestDialog"), true);
     assert.equal(settingsForm.includes("Add workplace"), false);
-    assert.equal(settingsForm.includes('aria-label="Clinics"'), true);
     assert.equal(settingsForm.includes('id="district"'), false);
     assert.equal(settingsForm.includes("Select district"), false);
     assert.equal(settingsForm.includes("settings-clinic-district"), false);
     assert.equal(settingsForm.includes("District not detected"), false);
     assert.equal(workplaceAccent(0).tabSelected.includes("rounded-t-xl"), true);
-    assert.equal(
-      settingsForm.indexOf('role="tablist"') <
-        settingsForm.indexOf("workplace-settings-frame"),
-      true,
-    );
-    assert.equal(settingsForm.includes("overflow-x-auto px-1"), false);
     assert.equal(settingsForm.includes("TIME_INPUT_CLASS"), true);
-    assert.equal(settingsForm.includes("[overflow-anchor:none]"), true);
     assert.equal(settingsForm.includes("workplaceTabScrollYRef"), true);
     const picker = fs.readFileSync(
       path.join(path.dirname(fileURLToPath(import.meta.url)), "../../components/doctor/DoctorProfileClinicPicker.tsx"),

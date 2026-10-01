@@ -88,7 +88,7 @@ describe("buildRegistrationApprovedEmail", () => {
     });
     assert.equal(email.subject, "[DocCy] You're approved: your profile is live");
     assert.match(email.text, /Hi Karina,/);
-    assert.match(email.text, /https:\/\/www\.mydoccy\.com\/login\?next=%2Fagenda%2Fsettings/);
+    assert.match(email.text, /https:\/\/www\.mydoccy\.com\/login\?next=%2Fsettings/);
     assert.match(email.text, /https:\/\/www\.mydoccy\.com\/en\/karina-mino/);
     assert.match(email.text, /free until 28 March 2027/);
     assert.match(email.text, /While reviewing your application we changed:\n- GeSY: no/);

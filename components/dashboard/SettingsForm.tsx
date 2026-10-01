@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { createPortal } from "react-dom";
-import { Save, Trash2 } from "lucide-react";
+import { Lock, Save, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import Cropper from "react-easy-crop";
 import { LanguageMultiSelect } from "@/components/languages/LanguageMultiSelect";
@@ -20,19 +20,21 @@ import {
   formatISOToDDMMYYYYOrEmpty,
   parseDDMMYYYYToISO,
 } from "@/lib/date-format";
-import { emitOpenFeedback } from "@/lib/doccy-feedback";
-import { clinicChangeContactMessage } from "@/lib/professional-clinic-settings-writes";
-import { OnlineBookingsPauseToggle } from "@/components/dashboard/OnlineBookingsPauseToggle";
 import {
   MAX_CLINIC_NAME_LENGTH,
+  MAX_DOCTOR_LOCATIONS,
   clinicDefaultName,
   clinicDisplayName,
   workplaceAccent,
 } from "@/lib/doctor-locations";
-import { clinicLocationFromParts, type ClinicLocation } from "@/lib/clinic-location";
+import {
+  clinicLocationFromParts,
+  type ClinicLocation,
+} from "@/lib/clinic-location";
 import {
   buildSettingsDirtySnapshot,
   settingsFormHasUnsavedChanges,
+  unsavedSettingsSections,
   type SettingsDirtySnapshot,
 } from "@/lib/settings-form-dirty";
 import { useSettingsUnsavedChangesWarning } from "@/components/dashboard/useSettingsUnsavedChangesWarning";
@@ -46,6 +48,39 @@ import {
 } from "@/lib/doctor-specialty-change-request";
 import { PhoneNumbersSettings } from "@/components/dashboard/PhoneNumbersSettings";
 import type { SettingsClinicPhone } from "@/lib/settings-clinic-phones";
+import {
+  SETTINGS_SECTIONS,
+  parseSettingsSection,
+  settingsSectionHref,
+  type SettingsSectionId,
+} from "@/lib/settings-sections";
+import {
+  LAST_SPECIALTY_MESSAGE,
+  canRemoveClinic,
+  canRemoveSpecialty,
+  clinicsAfterRemoval,
+} from "@/lib/settings-removal-rules";
+import { AddClinicDialog, type NewClinic } from "@/components/dashboard/settings/AddClinicDialog";
+import {
+  clinicBookingStatus,
+  summarizeClinicBreak,
+  summarizeClinicDays,
+  summarizeClinicHours,
+} from "@/lib/settings-clinic-summary";
+import { agendaClinicEventColor } from "@/lib/doctor-locations";
+import { SettingsSidebar } from "@/components/dashboard/settings/SettingsSidebar";
+import { SettingsSwitch } from "@/components/dashboard/settings/SettingsSwitch";
+import { ClinicBookingSwitch } from "@/components/dashboard/settings/ClinicBookingSwitch";
+import { ClinicCard } from "@/components/dashboard/settings/ClinicCard";
+import {
+  ClinicChangeRequestDialog,
+  type PendingClinicChange,
+} from "@/components/dashboard/settings/ClinicChangeRequestDialog";
+import {
+  SettingsDialog,
+  dialogDangerButtonClass,
+  dialogSecondaryButtonClass,
+} from "@/components/dashboard/settings/SettingsDialog";
 
 export type DoctorSettingsFormData = {
   doctorId: string;
@@ -100,7 +135,16 @@ export type DoctorSettingsFormData = {
   pauseOnlineBookings: boolean;
   services: DoctorServiceItem[];
   locations?: DoctorWorkplaceFormData[];
+  /**
+   * Clinic change requests waiting for DocCy, by location id. Loaded by the backend
+   * once GET support exists (docs/handoff/settings-redesign.md); empty until then.
+   */
+  pendingClinicChanges?: Record<string, PendingClinicChange>;
+  /** Clinics asked for and not yet approved by DocCy (same contract; empty until loaded). */
+  pendingClinicAdds?: PendingClinicAdd[];
 };
+
+export type PendingClinicAdd = { clinic: NewClinic; createdAt: string };
 
 export type DoctorWorkplaceFormData = {
   id: string;
@@ -129,6 +173,14 @@ export type DoctorServiceItem = {
 
 type SettingsFormProps = {
   initial: DoctorSettingsFormData;
+  /** Section from `?section=`; the sidebar switches it on the client. */
+  section?: SettingsSectionId;
+  /** Name and badges at the top of the sidebar. */
+  sidebarHeader?: React.ReactNode;
+  /** Extra Profile rows rendered by the page (e.g. the GESY switch). */
+  profileExtra?: React.ReactNode;
+  /** The Account section: sign-out, promote your practice. */
+  account?: React.ReactNode;
 };
 
 type CropArea = { x: number; y: number; width: number; height: number };
@@ -253,7 +305,35 @@ function resolveInitialClinicLocation(initial: DoctorSettingsFormData): ClinicLo
   });
 }
 
-export function SettingsForm({ initial }: SettingsFormProps) {
+function cyprusTodayKey(): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Nicosia" }).format(new Date());
+}
+
+const SECTION_CARD_CLASS =
+  "rounded-3xl border border-slate-700/70 bg-slate-900/70 p-5 shadow-xl shadow-black/20 sm:p-6";
+const SECTION_EYEBROW_CLASS = "text-xs font-semibold uppercase tracking-[0.14em] text-slate-500";
+
+export function SettingsForm({
+  initial,
+  section: initialSection,
+  sidebarHeader,
+  profileExtra,
+  account,
+}: SettingsFormProps) {
+  const [section, setSection] = React.useState<SettingsSectionId>(
+    () => initialSection ?? parseSettingsSection(null),
+  );
+  const selectSection = React.useCallback((next: SettingsSectionId) => {
+    setSection(next);
+    window.history.pushState(null, "", settingsSectionHref(next));
+    window.scrollTo({ top: 0, behavior: "auto" });
+  }, []);
+  React.useEffect(() => {
+    const onPop = () =>
+      setSection(parseSettingsSection(new URLSearchParams(window.location.search).get("section")));
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
   const [isClient, setIsClient] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
   const [message, setMessage] = React.useState<{
@@ -262,12 +342,49 @@ export function SettingsForm({ initial }: SettingsFormProps) {
   } | null>(null);
 
   const lockedSpecialty = (initial.specialty ?? "").trim();
-  const lockedSpecialties =
+  const [lockedSpecialties, setLockedSpecialties] = React.useState<string[]>(() =>
     Array.isArray(initial.specialties) && initial.specialties.length > 0
       ? initial.specialties.map((s) => s.trim()).filter(Boolean)
       : lockedSpecialty
         ? [lockedSpecialty]
-        : [];
+        : [],
+  );
+  const [specialtyToRemove, setSpecialtyToRemove] = React.useState<string | null>(null);
+  const [specialtyRemoving, setSpecialtyRemoving] = React.useState(false);
+
+  /** Removing a specialty is instant (contract: DELETE /api/doctor-specialties). */
+  async function handleRemoveSpecialty(label: string): Promise<boolean> {
+    const check = canRemoveSpecialty(lockedSpecialties, label);
+    if (check.ok === false) {
+      toast.error(check.message);
+      return false;
+    }
+    setSpecialtyRemoving(true);
+    try {
+      const res = await fetch("/api/doctor-specialties", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ specialty: check.specialty }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error((data?.message as string) || "Could not remove the specialty.");
+        return false;
+      }
+      const next = Array.isArray(data?.specialties)
+        ? (data.specialties as unknown[]).map((s) => String(s).trim()).filter(Boolean)
+        : lockedSpecialties.filter((s) => s !== check.specialty);
+      setLockedSpecialties(next);
+      toast.success(`${check.specialty} removed from your profile.`);
+      return true;
+    } catch (err) {
+      console.error(err);
+      toast.error("Could not remove the specialty.");
+      return false;
+    } finally {
+      setSpecialtyRemoving(false);
+    }
+  }
   const specialtyFromMaster =
     (initial.isSpecialtyApproved ?? true) !== false &&
     isCatalogueSpecialty(initial.specialtyOptions, lockedSpecialty);
@@ -311,20 +428,23 @@ export function SettingsForm({ initial }: SettingsFormProps) {
     resolveInitialClinicLocation(initial),
   );
 
+  // The hours editor edits the active clinic, which starts as the first one: start
+  // from its own hours, not the account's, or the page reads as edited on load.
+  const firstWorkplace = initialWorkplacesFromForm(initial)[0];
   const [weeklySchedule, setWeeklySchedule] = React.useState<WeeklySchedule>(
-    initial.weeklySchedule
+    () => firstWorkplace?.weeklySchedule ?? initial.weeklySchedule,
   );
   const [breakEnabled, setBreakEnabled] = React.useState(
-    initial.breakEnabled
+    () => firstWorkplace?.breakEnabled ?? initial.breakEnabled,
   );
-  const [breakStart, setBreakStart] = React.useState(
-    timeToInputValue(initial.breakStart)
+  const [breakStart, setBreakStart] = React.useState(() =>
+    timeToInputValue(firstWorkplace?.breakStart ?? initial.breakStart),
   );
-  const [breakEnd, setBreakEnd] = React.useState(
-    timeToInputValue(initial.breakEnd)
+  const [breakEnd, setBreakEnd] = React.useState(() =>
+    timeToInputValue(firstWorkplace?.breakEnd ?? initial.breakEnd),
   );
   const [slotDurationMinutes, setSlotDurationMinutes] = React.useState(
-    initial.slotDurationMinutes
+    () => firstWorkplace?.slotDurationMinutes ?? initial.slotDurationMinutes,
   );
   const [workplaces, setWorkplaces] = React.useState<DoctorWorkplaceFormData[]>(
     () => initialWorkplacesFromForm(initial),
@@ -332,7 +452,19 @@ export function SettingsForm({ initial }: SettingsFormProps) {
   const [activeWorkplaceId, setActiveWorkplaceId] = React.useState(
     () => initialWorkplacesFromForm(initial)[0]?.id ?? "primary",
   );
+  const [workplaceBusy, setWorkplaceBusy] = React.useState(false);
   const workplaceTabScrollYRef = React.useRef<number | null>(null);
+  /** The clinic card whose hours editor is open (it is also the active workplace). */
+  const [editingWorkplaceId, setEditingWorkplaceId] = React.useState<string | null>(null);
+  const [workplaceToRemove, setWorkplaceToRemove] = React.useState<string | null>(null);
+  const [changeRequestFor, setChangeRequestFor] = React.useState<string | null>(null);
+  const [addClinicOpen, setAddClinicOpen] = React.useState(false);
+  const [pendingClinicAdds, setPendingClinicAdds] = React.useState<PendingClinicAdd[]>(
+    () => initial.pendingClinicAdds ?? [],
+  );
+  const [pendingClinicChanges, setPendingClinicChanges] = React.useState<
+    Record<string, PendingClinicChange>
+  >(() => initial.pendingClinicChanges ?? {});
 
   const [bookingHorizonDays, setBookingHorizonDays] = React.useState(
     initial.bookingHorizonDays
@@ -380,12 +512,13 @@ export function SettingsForm({ initial }: SettingsFormProps) {
       id: activeWorkplaceId,
       isPrimary: current?.isPrimary ?? workplaces.length <= 1,
       label: String(current?.label ?? "").trim(),
-      district: clinicLocation.district ?? district,
-      clinicAddress: clinicLocation.address,
-      clinicTown: clinicLocation.town,
-      clinicLatitude: clinicLocation.latitude,
-      clinicLongitude: clinicLocation.longitude,
-      clinicPlaceId: clinicLocation.placeId,
+      // The address is read-only here: keep the clinic's own.
+      district: current?.district ?? "",
+      clinicAddress: current?.clinicAddress ?? "",
+      clinicTown: current?.clinicTown ?? null,
+      clinicLatitude: current?.clinicLatitude ?? null,
+      clinicLongitude: current?.clinicLongitude ?? null,
+      clinicPlaceId: current?.clinicPlaceId ?? null,
       weeklySchedule,
       breakEnabled,
       breakStart,
@@ -398,8 +531,6 @@ export function SettingsForm({ initial }: SettingsFormProps) {
     breakEnabled,
     breakEnd,
     breakStart,
-    clinicLocation,
-    district,
     slotDurationMinutes,
     weeklySchedule,
     workplaces,
@@ -446,6 +577,90 @@ export function SettingsForm({ initial }: SettingsFormProps) {
     window.scrollTo({ top: y, left: 0, behavior: "auto" });
     workplaceTabScrollYRef.current = null;
   }, [activeWorkplaceId]);
+
+  function openAddClinic() {
+    if (workplaces.length + pendingClinicAdds.length >= MAX_DOCTOR_LOCATIONS) {
+      toast.error(`You can have up to ${MAX_DOCTOR_LOCATIONS} clinics.`);
+      return;
+    }
+    setAddClinicOpen(true);
+  }
+
+  /**
+   * Clinics are curated by DocCy, so adding one is a request (contract:
+   * POST /api/clinic-requests, docs/handoff/settings-redesign.md): `{ clinicId }` to
+   * join a DocCy clinic, else `{ name, phone, location }` for a new one. It shows as a
+   * pending card until DocCy approves it.
+   */
+  async function handleAddWorkplace(clinic: NewClinic): Promise<boolean> {
+    try {
+      const res = await fetch("/api/clinic-requests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ kind: "add", clinic }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error((data?.message as string) || "Could not send the request.");
+        return false;
+      }
+      setPendingClinicAdds((prev) => [
+        ...prev,
+        { clinic, createdAt: String(data?.request?.createdAt ?? new Date().toISOString()) },
+      ]);
+      toast.success("Request sent. We’ll email you once the clinic is added.");
+      return true;
+    } catch (err) {
+      console.error(err);
+      toast.error("Could not send the request.");
+      return false;
+    }
+  }
+
+  async function handleRemoveWorkplace(id: string): Promise<boolean> {
+    const check = canRemoveClinic(workplaces, id);
+    if (check.ok === false) {
+      toast.error(check.message);
+      return false;
+    }
+    setWorkplaceBusy(true);
+    try {
+      // Contract (docs/handoff/settings-redesign.md): the professional leaves the clinic.
+      const res = await fetch(
+        `/api/professional-clinics?locationId=${encodeURIComponent(id)}`,
+        { method: "DELETE" },
+      );
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error((data.message as string) || "Could not remove clinic.");
+        return false;
+      }
+      const captured = captureActiveWorkplace();
+      const remaining = clinicsAfterRemoval(
+        workplaces.map((row) => (row.id === captured.id ? captured : row)),
+        id,
+      );
+      setWorkplaces(remaining);
+      // The removed clinic is gone on the server too: drop it from the saved snapshot
+      // so its absence is not an unsaved change.
+      setSavedSnapshot((prev) => ({
+        ...prev,
+        workplaces: prev.workplaces.filter((row) => row.id !== id),
+      }));
+      if (editingWorkplaceId === id) setEditingWorkplaceId(null);
+      if (activeWorkplaceId === id && remaining[0]) {
+        applyWorkplaceToForm(remaining[0]);
+      }
+      toast.success("Clinic removed.");
+      return true;
+    } catch (err) {
+      console.error(err);
+      toast.error("Could not remove clinic.");
+      return false;
+    } finally {
+      setWorkplaceBusy(false);
+    }
+  }
 
   const buildCurrentDirtySnapshot = React.useCallback(
     (): SettingsDirtySnapshot =>
@@ -527,7 +742,17 @@ export function SettingsForm({ initial }: SettingsFormProps) {
     [buildCurrentDirtySnapshot, savedSnapshot],
   );
 
-  useSettingsUnsavedChangesWarning(hasUnsavedChanges);
+  const unsavedSections = React.useMemo(
+    () => unsavedSettingsSections(buildCurrentDirtySnapshot(), savedSnapshot),
+    [buildCurrentDirtySnapshot, savedSnapshot],
+  );
+  /** "Discard changes": reload the saved settings without the leave-page prompt. */
+  const [discarding, setDiscarding] = React.useState(false);
+  React.useEffect(() => {
+    if (discarding) window.location.reload();
+  }, [discarding]);
+
+  useSettingsUnsavedChangesWarning(hasUnsavedChanges && !discarding);
 
   React.useEffect(() => {
     setIsClient(true);
@@ -818,6 +1043,66 @@ export function SettingsForm({ initial }: SettingsFormProps) {
     }
   }
 
+  async function submitSpecialtyChangeRequest() {
+    if (specialtyRequestKind === null || specialtyRequestKind === "remove") return;
+    const kind = specialtyRequestKind;
+    const validated = validateSpecialtyChangeRequestInput(
+      {
+        toSpecialty: specialtyChangeSpec.specialty,
+        toSpecialtyFromMaster: specialtyChangeSpec.fromMaster,
+        licenseNumber: specialtyChangeLicense,
+      },
+      initial.specialtyOptions,
+    );
+    if (validated.ok === false) {
+      toast.error(validated.message);
+      return;
+    }
+    const profileCheck = validateSpecialtyChangeAgainstProfile({
+      kind,
+      fromSpecialty: specialtyReplaceFrom,
+      toSpecialty: validated.toSpecialty,
+      existingLabels: lockedSpecialties,
+    });
+    if (profileCheck.ok === false) {
+      toast.error(profileCheck.message);
+      return;
+    }
+    setSpecialtyChangeBusy(true);
+    try {
+      const res = await fetch("/api/doctor-specialty-change-request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          requestKind: kind,
+          fromSpecialty: profileCheck.fromSpecialty,
+          toSpecialty: validated.toSpecialty,
+          toSpecialtyFromMaster: validated.toSpecialtyFromMaster,
+          licenseNumber: validated.licenseNumber,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error((data.message as string) || "Could not submit specialty request.");
+        return;
+      }
+      setPendingSpecialtyChange({
+        requestKind: kind,
+        fromSpecialty: profileCheck.fromSpecialty,
+        toSpecialty: validated.toSpecialty,
+        licenseNumber: validated.licenseNumber,
+        createdAt: new Date().toISOString(),
+      });
+      resetSpecialtyRequestForm();
+      toast.success("Request sent. We’ll review it and update your profile.");
+    } catch (err) {
+      console.error(err);
+      toast.error("Could not submit specialty request.");
+    } finally {
+      setSpecialtyChangeBusy(false);
+    }
+  }
+
   const days = DAY_NAMES.map((key) => ({
     key,
     label: DAY_LABELS[key],
@@ -827,604 +1112,220 @@ export function SettingsForm({ initial }: SettingsFormProps) {
     0,
     workplaces.findIndex((row) => row.id === activeWorkplaceId),
   );
-  const accent = workplaceAccent(activeWorkplaceIndex);
   const activeWorkplaceLabel = clinicDisplayName(
     workplaces[activeWorkplaceIndex]?.label,
     activeWorkplaceIndex,
     workplaces.length,
   );
+  const liveWorkplaces = workplacesForSave();
+  const todayKey = cyprusTodayKey();
+  const holidayActive =
+    holidayModeEnabled &&
+    Boolean(holidayStartDate && holidayEndDate) &&
+    todayKey >= String(holidayStartDate) &&
+    todayKey <= String(holidayEndDate);
+  const workplaceName = (row: DoctorWorkplaceFormData, index: number) =>
+    clinicDisplayName(row.label, index, liveWorkplaces.length);
+  const savedAddressOf = (id: string) =>
+    savedSnapshot.workplaces.find((row) => row.id === id)?.clinicAddress ?? "";
+  const phoneOf = (id: string) =>
+    (initial.clinicPhones ?? []).find((clinic) => clinic.locationId === id)?.phone ?? "";
+  const setWorkplacePaused = (id: string, paused: boolean) =>
+    setWorkplaces((prev) =>
+      prev.map((row) => (row.id === id ? { ...row, pauseOnlineBookings: paused } : row)),
+    );
+  const removeDialogNameRef = React.useRef("");
+  if (workplaceToRemove) {
+    const index = liveWorkplaces.findIndex((row) => row.id === workplaceToRemove);
+    // Keep the name while the dialog fades out after the clinic is gone.
+    if (index !== -1) removeDialogNameRef.current = workplaceName(liveWorkplaces[index]!, index);
+  }
+  const removeDialogName = removeDialogNameRef.current;
+  const savedLocationOf = (id: string) => {
+    const saved = savedSnapshot.workplaces.find((row) => row.id === id);
+    return clinicLocationFromParts({
+      address: saved?.clinicAddress ?? "",
+      latitude: saved?.clinicLatitude ?? null,
+      longitude: saved?.clinicLongitude ?? null,
+      placeId: saved?.clinicPlaceId ?? null,
+      district: saved?.district ?? "",
+      town: liveWorkplaces.find((row) => row.id === id)?.clinicTown ?? null,
+    });
+  };
+  const changeRequestRow = changeRequestFor
+    ? liveWorkplaces.find((row) => row.id === changeRequestFor) ?? null
+    : null;
 
-  return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      {hasUnsavedChanges ? (
-        <div
-          role="status"
-          data-testid="settings-unsaved-changes"
-          className="rounded-2xl border border-amber-400/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100"
-        >
-          You have unsaved changes. Save settings before leaving this page.
+  const unsavedDot = (
+    <span className="h-2 w-2 rounded-full bg-amber-300 ring-2 ring-amber-300/30" aria-label="Unsaved changes" />
+  );
+
+  const sectionTitle = (title: string, description: string, action?: React.ReactNode) => (
+    <div className="flex flex-wrap items-end justify-between gap-4">
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight text-slate-50 sm:text-[28px]">{title}</h1>
+        <p className="mt-1.5 text-sm text-slate-400">{description}</p>
+      </div>
+      {action}
+    </div>
+  );
+
+  const holidayCard = (
+    <div
+      className={`rounded-3xl border p-4 transition-colors ${
+        holidayModeEnabled
+          ? "border-amber-400/40 bg-amber-500/[0.08]"
+          : "border-amber-400/20 bg-amber-500/[0.04]"
+      }`}
+    >
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-sm font-semibold text-amber-100">Holiday mode</p>
+        <SettingsSwitch
+          tone="amber"
+          label="Holiday mode"
+          checked={holidayModeEnabled}
+          onChange={(enabled) => {
+            setHolidayModeEnabled(enabled);
+            if (!enabled) {
+              setHolidayStartDate(null);
+              setHolidayEndDate(null);
+              setHolidayStartInput("");
+              setHolidayEndInput("");
+            }
+          }}
+        />
+      </div>
+      <p className="mt-1.5 text-xs leading-relaxed text-slate-400">
+        Pauses online booking at every clinic between the dates you pick.
+      </p>
+      {holidayModeEnabled ? (
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <label htmlFor="holidayStart" className="text-[11px] font-semibold text-slate-300">
+            From
+            <input
+              id="holidayStart"
+              type="text"
+              inputMode="numeric"
+              placeholder="DD/MM/YYYY"
+              value={holidayStartInput}
+              onChange={(e) => {
+                setHolidayStartInput(e.target.value);
+                setHolidayStartDate(parseDDMMYYYYToISO(e.target.value));
+              }}
+              className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950/60 px-2.5 py-2 text-sm font-normal text-slate-100 outline-none focus:ring-2 focus:ring-amber-300/50"
+            />
+          </label>
+          <label htmlFor="holidayEnd" className="text-[11px] font-semibold text-slate-300">
+            To
+            <input
+              id="holidayEnd"
+              type="text"
+              inputMode="numeric"
+              placeholder="DD/MM/YYYY"
+              value={holidayEndInput}
+              onChange={(e) => {
+                setHolidayEndInput(e.target.value);
+                setHolidayEndDate(parseDDMMYYYYToISO(e.target.value));
+              }}
+              className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950/60 px-2.5 py-2 text-sm font-normal text-slate-100 outline-none focus:ring-2 focus:ring-amber-300/50"
+            />
+          </label>
         </div>
       ) : null}
-      <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-5">
-        <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-          Directory &amp; profile
-        </p>
-        <p className="mt-1 text-sm text-slate-400">
-          Languages help patients find you. Your bio helps DocCy match you with
-          the right ones.
-        </p>
-        <div className="mt-4 space-y-4">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-              Specialties
-            </p>
-            <div
-              data-testid="settings-specialty-locked"
-              className="mt-2 rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2.5"
-            >
-              {lockedSpecialties.length > 0 ? (
-                <ul className="flex flex-wrap gap-1.5">
-                  {lockedSpecialties.map((label) => (
-                    <li
-                      key={label}
-                      className="rounded-full border border-slate-600 bg-slate-900/80 px-2.5 py-1 text-xs font-semibold text-slate-100"
-                    >
-                      {label}
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="text-sm font-medium text-slate-100">Not set</p>
-              )}
-              {specialtyUnderReview ? (
-                <p className="mt-1 text-xs text-amber-200/90">
-                  {PUBLIC_SPECIALTY_UNDER_REVIEW_LABEL} — visible on your public
-                  profile until approved.
-                </p>
-              ) : null}
-            </div>
-            <p className="mt-2 text-xs leading-relaxed text-slate-500">
-              Specialties are verified with your registration and cannot be
-              edited here. Request an update below — DocCy will review it and
-              update your profile.
-            </p>
-            {pendingSpecialtyChange ? (
-              <div
-                data-testid="settings-specialty-change-pending"
-                className="mt-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-xs text-amber-100/95"
-              >
-                <p className="font-semibold text-amber-100">
-                  {pendingSpecialtyChange.requestKind === "replace"
-                    ? "Change-specialty request pending review"
-                    : pendingSpecialtyChange.requestKind === "remove"
-                      ? "Remove-specialty request pending review"
-                      : "Add-specialty request pending review"}
-                </p>
-                {pendingSpecialtyChange.requestKind === "replace" &&
-                pendingSpecialtyChange.fromSpecialty ? (
-                  <p className="mt-1">
-                    Change:{" "}
-                    <span className="font-medium">
-                      {pendingSpecialtyChange.fromSpecialty}
-                    </span>
-                    <span className="mx-1.5 text-amber-100/60">→</span>
-                    <span className="font-medium">
-                      {pendingSpecialtyChange.toSpecialty}
-                    </span>
-                  </p>
-                ) : pendingSpecialtyChange.requestKind === "remove" ? (
-                  <p className="mt-1">
-                    Remove:{" "}
-                    <span className="font-medium">
-                      {pendingSpecialtyChange.fromSpecialty}
-                    </span>
-                  </p>
-                ) : (
-                  <p className="mt-1">
-                    Requested:{" "}
-                    <span className="font-medium">
-                      {pendingSpecialtyChange.toSpecialty}
-                    </span>
-                  </p>
-                )}
-                {pendingSpecialtyChange.licenseNumber ? (
-                  <p className="mt-0.5 text-amber-100/80">
-                    License: {pendingSpecialtyChange.licenseNumber}
-                  </p>
-                ) : null}
-              </div>
-            ) : specialtyRequestKind !== null ? (
-              <div
-                data-testid="settings-specialty-change-form"
-                className="mt-3 space-y-3 rounded-xl border border-slate-700 bg-slate-950/40 p-3"
-              >
-                <div>
-                  <label
-                    htmlFor="settings-specialty-request-kind"
-                    className="text-xs font-semibold uppercase tracking-wide text-slate-400"
-                  >
-                    What do you want to do? <span className="text-red-300">*</span>
-                  </label>
-                  <select
-                    id="settings-specialty-request-kind"
-                    value={specialtyRequestKind}
-                    onChange={(e) => {
-                      const next = e.target.value as SpecialtyChangeRequestKind;
-                      setSpecialtyRequestKind(next);
-                      setSpecialtyReplaceFrom(
-                        next !== "add" && lockedSpecialties.length === 1
-                          ? lockedSpecialties[0]!
-                          : "",
-                      );
-                    }}
-                    className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2.5 text-sm text-slate-100 outline-none transition focus:border-clinical-400/60 focus:ring-2 focus:ring-clinical-400/30"
-                  >
-                    <option value="add">Add a specialty</option>
-                    {lockedSpecialties.length > 0 ? (
-                      <option value="replace">Change an existing specialty</option>
-                    ) : null}
-                    {lockedSpecialties.length > 1 ? (
-                      <option value="remove">Remove a specialty</option>
-                    ) : null}
-                  </select>
-                </div>
-                {specialtyRequestKind === "replace" ||
-                specialtyRequestKind === "remove" ? (
-                  <div>
-                    <label
-                      htmlFor="settings-specialty-replace-from"
-                      className="text-xs font-semibold uppercase tracking-wide text-slate-400"
-                    >
-                      {specialtyRequestKind === "remove"
-                        ? "Specialty to remove"
-                        : "Specialty to replace"}{" "}
-                      <span className="text-red-300">*</span>
-                    </label>
-                    <select
-                      id="settings-specialty-replace-from"
-                      value={specialtyReplaceFrom}
-                      onChange={(e) => setSpecialtyReplaceFrom(e.target.value)}
-                      className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2.5 text-sm text-slate-100 outline-none transition focus:border-clinical-400/60 focus:ring-2 focus:ring-clinical-400/30"
-                    >
-                      <option value="">Select…</option>
-                      {lockedSpecialties.map((label) => (
-                        <option key={label} value={label}>
-                          {label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                ) : null}
-                {specialtyRequestKind !== "remove" ? (
-                  <>
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                        {specialtyRequestKind === "replace"
-                          ? "New specialty"
-                          : "Specialty to add"}{" "}
-                        <span className="text-red-300">*</span>
-                      </p>
-                      <SpecialtyCombobox
-                        id="settings-specialty-change"
-                        initialSpecialty=""
-                        options={initial.specialtyOptions}
-                        initialIsApproved
-                        variant="settings"
-                        excludeSpecialties={
-                          specialtyRequestKind === "replace"
-                            ? lockedSpecialties.filter(
-                                (label) =>
-                                  label.toLowerCase() !==
-                                  specialtyReplaceFrom.trim().toLowerCase(),
-                              )
-                            : lockedSpecialties
-                        }
-                        onSelectionChange={onSpecialtyChangeSpec}
-                      />
-                    </div>
-                    <div>
-                      <label
-                        htmlFor="settings-specialty-change-license"
-                        className="text-xs font-semibold uppercase tracking-wide text-slate-400"
-                      >
-                        License / certification number{" "}
-                        <span className="text-red-300">*</span>
-                      </label>
-                      <input
-                        id="settings-specialty-change-license"
-                        type="text"
-                        value={specialtyChangeLicense}
-                        onChange={(e) => setSpecialtyChangeLicense(e.target.value)}
-                        placeholder="e.g. registration or certification number"
-                        className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2.5 text-sm text-slate-100 placeholder:text-slate-500 outline-none transition focus:border-clinical-400/60 focus:ring-2 focus:ring-clinical-400/30"
-                      />
-                    </div>
-                  </>
-                ) : (
-                  <p className="text-xs leading-relaxed text-slate-500">
-                    You must keep at least one specialty. Removing one requires
-                    DocCy review.
-                  </p>
-                )}
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    data-testid="settings-specialty-change-submit"
-                    disabled={specialtyChangeBusy}
-                    onClick={async () => {
-                      let toSpecialty = "";
-                      let toSpecialtyFromMaster = true;
-                      let licenseNumber: string | null = null;
+    </div>
+  );
 
-                      if (specialtyRequestKind !== "remove") {
-                        const validated = validateSpecialtyChangeRequestInput(
-                          {
-                            toSpecialty: specialtyChangeSpec.specialty,
-                            toSpecialtyFromMaster: specialtyChangeSpec.fromMaster,
-                            licenseNumber: specialtyChangeLicense,
-                          },
-                          initial.specialtyOptions,
-                        );
-                        if (validated.ok === false) {
-                          toast.error(validated.message);
-                          return;
-                        }
-                        toSpecialty = validated.toSpecialty;
-                        toSpecialtyFromMaster = validated.toSpecialtyFromMaster;
-                        licenseNumber = validated.licenseNumber;
-                      }
-
-                      const profileCheck = validateSpecialtyChangeAgainstProfile({
-                        kind: specialtyRequestKind,
-                        fromSpecialty: specialtyReplaceFrom,
-                        toSpecialty,
-                        existingLabels: lockedSpecialties,
-                      });
-                      if (profileCheck.ok === false) {
-                        toast.error(profileCheck.message);
-                        return;
-                      }
-                      setSpecialtyChangeBusy(true);
-                      try {
-                        const res = await fetch(
-                          "/api/doctor-specialty-change-request",
-                          {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({
-                              requestKind: specialtyRequestKind,
-                              fromSpecialty: profileCheck.fromSpecialty,
-                              toSpecialty:
-                                specialtyRequestKind === "remove"
-                                  ? undefined
-                                  : toSpecialty,
-                              toSpecialtyFromMaster:
-                                specialtyRequestKind === "remove"
-                                  ? undefined
-                                  : toSpecialtyFromMaster,
-                              licenseNumber:
-                                specialtyRequestKind === "remove"
-                                  ? undefined
-                                  : licenseNumber,
-                            }),
-                          },
-                        );
-                        const data = await res.json().catch(() => ({}));
-                        if (!res.ok) {
-                          toast.error(
-                            (data.message as string) ||
-                              "Could not submit specialty request.",
-                          );
-                          return;
-                        }
-                        setPendingSpecialtyChange({
-                          requestKind: specialtyRequestKind,
-                          fromSpecialty: profileCheck.fromSpecialty,
-                          toSpecialty:
-                            specialtyRequestKind === "remove" ? null : toSpecialty,
-                          licenseNumber,
-                          createdAt: new Date().toISOString(),
-                        });
-                        resetSpecialtyRequestForm();
-                        toast.success(
-                          "Request sent. We’ll review it and update your profile.",
-                        );
-                      } catch (err) {
-                        console.error(err);
-                        toast.error("Could not submit specialty request.");
-                      } finally {
-                        setSpecialtyChangeBusy(false);
-                      }
-                    }}
-                    className="inline-flex items-center justify-center rounded-xl bg-clinical-500 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-clinical-400 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {specialtyChangeBusy ? "Sending…" : "Submit request"}
-                  </button>
-                  <button
-                    type="button"
-                    disabled={specialtyChangeBusy}
-                    onClick={resetSpecialtyRequestForm}
-                    className="inline-flex items-center justify-center rounded-xl border border-slate-600 px-4 py-2 text-sm font-medium text-slate-300 transition hover:border-slate-500 disabled:opacity-60"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <button
-                type="button"
-                data-testid="settings-specialty-change-request"
-                onClick={() => setSpecialtyRequestKind("add")}
-                className="mt-2 text-sm font-semibold text-clinical-400 underline decoration-clinical-400/40 underline-offset-2 transition hover:text-clinical-300"
-              >
-                Request a specialty update
-              </button>
-            )}
-          </div>
-          <div>
-            <label
-              htmlFor="settings-bio"
-              className="text-xs font-semibold uppercase tracking-wide text-slate-400"
-            >
-              How you help patients
-            </label>
-            <p className="mt-1 text-xs leading-relaxed text-slate-500">
-              Write what you treat and how you help. DocCy uses this to match you
-              with the right patients.
-            </p>
-            <textarea
-              id="settings-bio"
-              name="bio"
-              rows={5}
-              value={bio}
-              maxLength={BIO_MAX_CHARS}
-              onChange={(e) => setBio(e.target.value)}
-              placeholder="Example: I treat back pain, sports injuries, and post-surgery rehab."
-              className="mt-2 w-full resize-y rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2.5 text-sm text-slate-100 placeholder:text-slate-500 outline-none transition focus:border-clinical-400/60 focus:ring-2 focus:ring-clinical-400/30"
-            />
-            <p className="mt-1.5 text-right text-[11px] tabular-nums text-slate-500">
-              {bio.trim().length}/{BIO_MAX_CHARS}
-            </p>
-          </div>
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-              Languages <span className="text-red-300">*</span>
-            </p>
-            <LanguageMultiSelect
-              id="settings-languages"
-              selected={languages}
-              onSelectedChange={setLanguages}
-              variant="settings"
-            />
-          </div>
-        </div>
+  const workplaceEditor = (row: DoctorWorkplaceFormData, index: number) => (
+    <div className="space-y-5">
+      <div>
+        <label htmlFor="clinicName" className={SECTION_EYEBROW_CLASS}>
+          Clinic name
+        </label>
+        <input
+          id="clinicName"
+          type="text"
+          maxLength={MAX_CLINIC_NAME_LENGTH}
+          value={row.label ?? ""}
+          onChange={(e) => {
+            const next = e.target.value.slice(0, MAX_CLINIC_NAME_LENGTH);
+            setWorkplaces((prev) =>
+              prev.map((item) => (item.id === row.id ? { ...item, label: next } : item)),
+            );
+          }}
+          placeholder={clinicDefaultName(index, liveWorkplaces.length)}
+          className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-clinical-400/60"
+        />
+        <p className="mt-1.5 text-xs text-slate-500">
+          The name patients see when they book. Leave it blank to use “
+          {clinicDefaultName(index, liveWorkplaces.length)}”.
+        </p>
       </div>
 
       <div>
-        {workplaces.length > 1 ? (
-          <div className="flex flex-wrap items-end justify-between gap-2">
-            <div
-              className="flex min-w-0 flex-1 flex-wrap items-end gap-1 px-1"
-              role="tablist"
-              aria-label="Clinics"
-            >
-              {workplaces.map((row, index) => {
-                const selected = row.id === activeWorkplaceId;
-                const tabAccent = workplaceAccent(index);
-                const tabLabel = clinicDisplayName(row.label, index, workplaces.length);
-                return (
-                  <button
-                    key={row.id}
-                    type="button"
-                    role="tab"
-                    aria-selected={selected}
-                    title={tabLabel}
-                    onClick={() => handleSelectWorkplace(row.id)}
-                    className={`max-w-[11rem] truncate shrink-0 transition ${
-                      selected ? tabAccent.tabSelected : tabAccent.tabIdle
-                    }`}
-                  >
-                    {tabLabel}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        ) : null}
-        <div
-          data-testid="workplace-settings-frame"
-          className={`rounded-2xl border-2 p-5 transition-colors [overflow-anchor:none] ${accent.frame} ${
-            workplaces.length > 1 ? "rounded-tl-lg" : ""
-          }`}
-        >
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-            Clinics
-          </p>
-          <p className="mt-1 text-sm text-slate-300">
-            {workplaces.length > 1
-              ? "Each tab is a different clinic. Hours and online booking belong only to the selected one."
-              : "Your hours and online booking switch for this clinic."}
-          </p>
-        </div>
-
-        <div className="mt-4 flex items-center gap-2">
-          <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${accent.tint}`} aria-hidden />
-          <p className={`text-sm font-semibold ${accent.title}`}>
-            {activeWorkplaceLabel} settings
-          </p>
-        </div>
-
-        <div className="mt-4">
-          <label
-            htmlFor="clinicName"
-            className="text-[11px] font-semibold uppercase tracking-wide text-slate-400"
-          >
-            Clinic name
-          </label>
-          <input
-            id="clinicName"
-            type="text"
-            maxLength={MAX_CLINIC_NAME_LENGTH}
-            value={workplaces.find((row) => row.id === activeWorkplaceId)?.label ?? ""}
-            onChange={(e) => {
-              const next = e.target.value.slice(0, MAX_CLINIC_NAME_LENGTH);
-              setWorkplaces((prev) =>
-                prev.map((row) =>
-                  row.id === activeWorkplaceId ? { ...row, label: next } : row,
-                ),
-              );
-            }}
-            placeholder={clinicDefaultName(activeWorkplaceIndex, workplaces.length)}
-            className="mt-2 w-full rounded-xl border border-slate-800/80 bg-ink-900/40 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-clinical-400/60"
-          />
-          <p className="mt-2 text-xs text-slate-400">
-            Patients see this name when they book. Leave blank to use Clinic 1, Clinic 2, and so on.
-          </p>
-        </div>
-
-        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <OnlineBookingsPauseToggle
-            key={activeWorkplaceId}
-            initialPaused={Boolean(
-              workplaces.find((row) => row.id === activeWorkplaceId)?.pauseOnlineBookings,
-            )}
-            locationId={activeWorkplaceId === "primary" ? null : activeWorkplaceId}
-            onPausedChange={(paused) => {
-              setWorkplaces((prev) =>
-                prev.map((row) =>
-                  row.id === activeWorkplaceId
-                    ? { ...row, pauseOnlineBookings: paused }
-                    : row,
-                ),
-              );
-            }}
-          />
-        </div>
-
-        <div className="mt-5 rounded-xl border border-slate-800/70 bg-ink-900/35 p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-            Clinic address
-          </p>
-          <p data-testid="settings-clinic-address" className="mt-2 text-sm text-slate-100">
-            {clinicLocation.address.trim() || "No address yet."}
-          </p>
-          <p className="mt-3 text-xs text-slate-400">
-            DocCy keeps clinic details up to date.{" "}
-            <button
-              type="button"
-              data-testid="settings-clinics-contact"
-              onClick={() =>
-                emitOpenFeedback({
-                  subject: "General Question",
-                  message: clinicChangeContactMessage(
-                    (initial.clinicPhones ?? []).map((clinic) => clinic.name),
-                  ),
-                })
-              }
-              className="font-medium text-clinical-300 underline-offset-2 hover:text-clinical-200 hover:underline"
-            >
-              Contact us to change your clinics
-            </button>
-            .
-          </p>
-        </div>
-
-        <div className="mt-4 rounded-xl border border-slate-800/70 bg-ink-900/35 p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-            Working days
-          </p>
-          <p className="mt-1 text-sm text-slate-300">
-            {workplaces.length > 1
-              ? `Hours for ${activeWorkplaceLabel}. Other clinics keep their own schedule.`
-              : "Select the days you see patients."}
-          </p>
-          <div className="mt-4 space-y-3">
-            {days.map(({ key, label, value }) => (
-              <div
-                key={key}
-                className="rounded-xl border border-slate-800/70 bg-ink-900/30 p-3"
-              >
-                <label className="flex cursor-pointer items-center gap-2">
+        <p className={SECTION_EYEBROW_CLASS}>Working hours</p>
+        <div className="mt-2 divide-y divide-slate-800">
+          {days.map(({ key, label, value }) => (
+            <div key={key} className="flex flex-wrap items-center gap-x-4 gap-y-2 py-2.5">
+              <label className="flex w-36 cursor-pointer items-center gap-2.5">
+                <input
+                  type="checkbox"
+                  checked={value}
+                  onChange={(e) =>
+                    setWeeklySchedule((prev) => ({
+                      ...prev,
+                      [key]: { ...prev[key], enabled: e.target.checked },
+                    }))
+                  }
+                  className="h-4 w-4 rounded border-slate-600 bg-slate-900 text-clinical-500 focus:ring-clinical-400/60"
+                />
+                <span className={`text-sm ${value ? "text-slate-100" : "text-slate-500"}`}>{label}</span>
+              </label>
+              {value ? (
+                <div className="flex items-center gap-2 text-sm text-slate-400">
+                  <label htmlFor={`${key}-start`} className="sr-only">
+                    {label} start time
+                  </label>
                   <input
-                    type="checkbox"
-                    checked={value}
+                    id={`${key}-start`}
+                    type="time"
+                    value={timeToInputValue(weeklySchedule[key].start_time)}
                     onChange={(e) =>
                       setWeeklySchedule((prev) => ({
                         ...prev,
-                        [key]: { ...prev[key], enabled: e.target.checked },
+                        [key]: { ...prev[key], start_time: `${e.target.value}:00` },
                       }))
                     }
-                    className="h-4 w-4 rounded border-slate-600 bg-slate-900 text-clinical-500 focus:ring-clinical-400/60"
+                    className={`${TIME_INPUT_CLASS} !mt-0 w-32`}
                   />
-                  <span className="text-sm text-slate-200">{label}</span>
-                </label>
-
-                {value && (
-                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                    <div>
-                      <label
-                        htmlFor={`${key}-start`}
-                        className="text-[11px] font-semibold uppercase tracking-wide text-slate-400"
-                      >
-                        Start time
-                      </label>
-                      <input
-                        id={`${key}-start`}
-                        type="time"
-                        value={timeToInputValue(weeklySchedule[key].start_time)}
-                        onChange={(e) =>
-                          setWeeklySchedule((prev) => ({
-                            ...prev,
-                            [key]: {
-                              ...prev[key],
-                              start_time: `${e.target.value}:00`,
-                            },
-                          }))
-                        }
-                        className={TIME_INPUT_CLASS}
-                      />
-                    </div>
-                    <div>
-                      <label
-                        htmlFor={`${key}-end`}
-                        className="text-[11px] font-semibold uppercase tracking-wide text-slate-400"
-                      >
-                        End time
-                      </label>
-                      <input
-                        id={`${key}-end`}
-                        type="time"
-                        value={timeToInputValue(weeklySchedule[key].end_time)}
-                        onChange={(e) =>
-                          setWeeklySchedule((prev) => ({
-                            ...prev,
-                            [key]: {
-                              ...prev[key],
-                              end_time: `${e.target.value}:00`,
-                            },
-                          }))
-                        }
-                        className={TIME_INPUT_CLASS}
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="mt-4 rounded-xl border border-slate-800/70 bg-ink-900/35 p-4">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                Daily break (optional)
-              </p>
-              <p className="mt-1 text-xs text-slate-400">
-                Patients will not be able to book this clinic during this time.
-              </p>
+                  <span aria-hidden>–</span>
+                  <label htmlFor={`${key}-end`} className="sr-only">
+                    {label} end time
+                  </label>
+                  <input
+                    id={`${key}-end`}
+                    type="time"
+                    value={timeToInputValue(weeklySchedule[key].end_time)}
+                    onChange={(e) =>
+                      setWeeklySchedule((prev) => ({
+                        ...prev,
+                        [key]: { ...prev[key], end_time: `${e.target.value}:00` },
+                      }))
+                    }
+                    className={`${TIME_INPUT_CLASS} !mt-0 w-32`}
+                  />
+                </div>
+              ) : (
+                <span className="text-sm text-slate-500">Closed</span>
+              )}
             </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="grid gap-5 sm:grid-cols-2">
+        <div>
+          <div className="flex items-center justify-between gap-3">
+            <p className={SECTION_EYEBROW_CLASS}>Daily break</p>
             <label className="inline-flex cursor-pointer items-center gap-2 text-xs text-slate-300">
               <input
                 type="checkbox"
@@ -1435,87 +1336,527 @@ export function SettingsForm({ initial }: SettingsFormProps) {
               <span>Add a daily break</span>
             </label>
           </div>
-          {breakEnabled && (
-            <div className="mt-4 grid gap-4 sm:grid-cols-2">
-              <div>
-                <label
-                  htmlFor="breakStart"
-                  className="text-[11px] font-semibold uppercase tracking-wide text-slate-400"
-                >
-                  Break start
-                </label>
-                <input
-                  id="breakStart"
-                  type="time"
-                  value={breakStart}
-                  onChange={(e) => setBreakStart(e.target.value)}
-                  className={TIME_INPUT_CLASS}
-                />
-              </div>
-              <div>
-                <label
-                  htmlFor="breakEnd"
-                  className="text-[11px] font-semibold uppercase tracking-wide text-slate-400"
-                >
-                  Break end
-                </label>
-                <input
-                  id="breakEnd"
-                  type="time"
-                  value={breakEnd}
-                  onChange={(e) => setBreakEnd(e.target.value)}
-                  className={TIME_INPUT_CLASS}
-                />
-              </div>
+          {breakEnabled ? (
+            <div className="mt-2 flex items-center gap-2 text-sm text-slate-400">
+              <label htmlFor="breakStart" className="sr-only">
+                Break start
+              </label>
+              <input
+                id="breakStart"
+                type="time"
+                value={breakStart}
+                onChange={(e) => setBreakStart(e.target.value)}
+                className={`${TIME_INPUT_CLASS} !mt-0 w-32`}
+              />
+              <span aria-hidden>–</span>
+              <label htmlFor="breakEnd" className="sr-only">
+                Break end
+              </label>
+              <input
+                id="breakEnd"
+                type="time"
+                value={breakEnd}
+                onChange={(e) => setBreakEnd(e.target.value)}
+                className={`${TIME_INPUT_CLASS} !mt-0 w-32`}
+              />
             </div>
+          ) : (
+            <p className="mt-2 text-xs text-slate-500">Patients can book any time within your hours.</p>
           )}
         </div>
-
-        <div className="mt-4 rounded-xl border border-slate-800/70 bg-ink-900/35 p-4">
-          <label
-            htmlFor="slotDuration"
-            className="text-xs font-semibold uppercase tracking-wide text-slate-400"
-          >
-            Appointment slot duration (minutes)
-          </label>
-          <p className="mt-1 text-sm text-slate-300">
-            {workplaces.length > 1
-              ? `Slot length for ${activeWorkplaceLabel}.`
-              : "e.g. 30 for 30-minute slots."}
+        <div>
+          <p id="slotDurationLabel" className={SECTION_EYEBROW_CLASS}>
+            Slot length
           </p>
-          <select
-            id="slotDuration"
-            value={slotDurationMinutes}
-            onChange={(e) =>
-              setSlotDurationMinutes(Number(e.target.value))
-            }
-            className="mt-3 w-full max-w-xs rounded-xl border border-slate-800/80 bg-ink-900/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-clinical-400/60"
-          >
-            {[15, 20, 30, 45, 60].map((n) => (
-              <option key={n} value={n}>
-                {n} min
-              </option>
-            ))}
-          </select>
-        </div>
+          <div role="radiogroup" aria-labelledby="slotDurationLabel" className="mt-2 flex flex-wrap gap-1.5">
+            {[15, 20, 30, 45, 60].map((n) => {
+              const selected = slotDurationMinutes === n;
+              return (
+                <button
+                  key={n}
+                  type="button"
+                  role="radio"
+                  aria-checked={selected}
+                  onClick={() => setSlotDurationMinutes(n)}
+                  className={`h-9 rounded-xl border px-3 text-sm font-medium transition ${
+                    selected
+                      ? "border-clinical-400/60 bg-clinical-500/15 text-clinical-50"
+                      : "border-slate-700 text-slate-300 hover:border-slate-500"
+                  }`}
+                >
+                  {n} min
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
+      <p className="text-xs text-slate-500">
+        Changes to {activeWorkplaceLabel} are kept when you switch sections. Save them with
+        “Save settings”.
+      </p>
+    </div>
+  );
 
-      <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-5">
-        <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-          Profile photo
+  const availabilitySection = (
+    <div className="space-y-5">
+      {sectionTitle("Availability", "When patients can book you online, across every clinic.")}
+      {holidayActive ? (
+        <div
+          role="status"
+          className="rounded-2xl border border-amber-400/30 bg-amber-500/[0.08] px-4 py-3 text-sm text-amber-100"
+        >
+          Holiday mode is on until {holidayEndInput}. No clinic takes online bookings until then.
+        </div>
+      ) : null}
+      <section className={SECTION_CARD_CLASS}>
+        <p className={SECTION_EYEBROW_CLASS}>Online booking by clinic</p>
+        <ul className="mt-3 divide-y divide-slate-800">
+          {liveWorkplaces.map((row, index) => {
+            const name = workplaceName(row, index);
+            const status = clinicBookingStatus({
+              pauseOnlineBookings: row.pauseOnlineBookings,
+              holidayActive,
+            });
+            return (
+              <li key={row.id} className="flex items-center gap-3 py-3">
+                <span
+                  className={`h-2.5 w-2.5 shrink-0 rounded-[3px] ${agendaClinicEventColor(index).swatch}`}
+                  aria-hidden
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold text-slate-100">{name}</p>
+                  <p
+                    className={`text-xs ${
+                      status.kind === "taking" ? "text-wellness-200" : "text-amber-200"
+                    }`}
+                  >
+                    {status.label}
+                  </p>
+                </div>
+                <ClinicBookingSwitch
+                  clinicName={name}
+                  locationId={row.id === "primary" ? null : row.id}
+                  paused={row.pauseOnlineBookings}
+                  onPausedChange={(paused) => setWorkplacePaused(row.id, paused)}
+                />
+              </li>
+            );
+          })}
+        </ul>
+        <p className="mt-2 text-xs text-slate-500">
+          While a clinic is paused, patients see its phone number instead of your calendar.
         </p>
-        <p className="mt-1 text-sm text-slate-400">
-          Keep your public profile photo up to date for better trust.
-        </p>
-        <div className="mt-4 flex items-center gap-4">
+      </section>
+      <section className={SECTION_CARD_CLASS}>
+        <p className={SECTION_EYEBROW_CLASS}>Booking limits · all clinics</p>
+        <div className="mt-4 grid gap-5 sm:grid-cols-2">
+          <div>
+            <label htmlFor="bookingHorizonDays" className="text-sm font-semibold text-slate-100">
+              How far ahead
+            </label>
+            <p className="mt-0.5 text-xs text-slate-400">How far in advance patients can book.</p>
+            <select
+              id="bookingHorizonDays"
+              value={bookingHorizonDays}
+              onChange={(e) => {
+                const next = Number(e.target.value);
+                setBookingHorizonDays(
+                  BOOKING_HORIZON_OPTIONS_DAYS.includes(
+                    next as (typeof BOOKING_HORIZON_OPTIONS_DAYS)[number],
+                  )
+                    ? next
+                    : DEFAULT_BOOKING_HORIZON_DAYS,
+                );
+              }}
+              className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-clinical-400/60"
+            >
+              <option value={14}>2 weeks</option>
+              <option value={30}>1 month</option>
+              <option value={90}>3 months</option>
+              <option value={180}>6 months</option>
+            </select>
+          </div>
+          <div>
+            <label htmlFor="minimumNoticeHours" className="text-sm font-semibold text-slate-100">
+              Minimum notice
+            </label>
+            <p className="mt-0.5 text-xs text-slate-400">Slots closer than this are hidden.</p>
+            <select
+              id="minimumNoticeHours"
+              value={minimumNoticeHours}
+              onChange={(e) => {
+                const next = Number(e.target.value);
+                setMinimumNoticeHours(
+                  MIN_NOTICE_OPTIONS_HOURS.includes(next as (typeof MIN_NOTICE_OPTIONS_HOURS)[number])
+                    ? next
+                    : DEFAULT_MIN_NOTICE_HOURS,
+                );
+              }}
+              className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-clinical-400/60"
+            >
+              <option value={1}>1 hour</option>
+              <option value={2}>2 hours</option>
+              <option value={4}>4 hours</option>
+              <option value={12}>12 hours</option>
+              <option value={24}>24 hours (1 day)</option>
+              <option value={48}>2 days</option>
+              <option value={72}>3 days</option>
+              <option value={168}>1 week</option>
+            </select>
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+
+  const clinicsSection = (
+    <div className="space-y-5">
+      {sectionTitle(
+        "Clinics",
+        "Hours, slot length and online booking are set per clinic.",
+        <button
+          type="button"
+          onClick={openAddClinic}
+          disabled={workplaceBusy || liveWorkplaces.length >= MAX_DOCTOR_LOCATIONS}
+          className="inline-flex h-11 items-center rounded-2xl bg-clinical-500 px-4 text-sm font-semibold text-ink-900 shadow-md shadow-clinical-500/20 transition hover:bg-clinical-400 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          + Add clinic
+        </button>,
+      )}
+      {liveWorkplaces.map((row, index) => {
+        const name = workplaceName(row, index);
+        const removal = canRemoveClinic(liveWorkplaces, row.id);
+        const savedAddress = savedAddressOf(row.id);
+        const editing = editingWorkplaceId === row.id;
+        return (
+          <ClinicCard
+            key={row.id}
+            name={name}
+            swatchClass={agendaClinicEventColor(index).swatch}
+            status={clinicBookingStatus({ pauseOnlineBookings: row.pauseOnlineBookings, holidayActive })}
+            bookingSwitch={
+              <ClinicBookingSwitch
+                clinicName={name}
+                locationId={row.id === "primary" ? null : row.id}
+                paused={row.pauseOnlineBookings}
+                onPausedChange={(paused) => setWorkplacePaused(row.id, paused)}
+              />
+            }
+            address={row.clinicAddress.trim() || savedAddress}
+            phone={phoneOf(row.id)}
+            pendingChange={pendingClinicChanges[row.id] ?? null}
+            onRequestChange={row.id === "primary" ? null : () => setChangeRequestFor(row.id)}
+            summary={{
+              days: summarizeClinicDays(row.weeklySchedule),
+              hours: summarizeClinicHours(row.weeklySchedule),
+              breakTime: summarizeClinicBreak(row),
+              slot: `${row.slotDurationMinutes} min`,
+            }}
+            editing={editing}
+            editLabel="Edit name and hours"
+            onToggleEdit={() => {
+              if (editing) {
+                setEditingWorkplaceId(null);
+                return;
+              }
+              handleSelectWorkplace(row.id);
+              setEditingWorkplaceId(row.id);
+            }}
+            editor={row.id === activeWorkplaceId ? workplaceEditor(row, index) : null}
+            removal={removal.ok === false ? { ok: false, message: removal.message } : { ok: true }}
+            onRemove={() => setWorkplaceToRemove(row.id)}
+            busy={workplaceBusy}
+          />
+        );
+      })}
+      {pendingClinicAdds.map((pending, index) => (
+        <section
+          key={`pending-${index}`}
+          data-testid="settings-clinic-pending"
+          className="rounded-3xl border border-dashed border-amber-400/50 bg-amber-500/[0.04] p-5 sm:p-6"
+        >
+          <div className="flex flex-wrap items-center gap-3">
+            <h2 className="min-w-0 flex-1 truncate text-[17px] font-semibold text-slate-50">
+              {pending.clinic.name || pending.clinic.location.address}
+            </h2>
+            <span className="rounded-full bg-amber-500/15 px-2.5 py-1 text-[11px] font-semibold text-amber-200">
+              Request in review
+            </span>
+          </div>
+          <p className="mt-2 text-sm text-slate-300">{pending.clinic.location.address}</p>
+          <p className="mt-1 text-xs text-slate-400">
+            Requested{" "}
+            {new Date(pending.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+            . You can set its hours once DocCy adds it.
+          </p>
+        </section>
+      ))}
+    </div>
+  );
+
+  const servicesSection = (
+    <div className="space-y-5">
+      {sectionTitle(
+        "Services & prices",
+        "Treatments on your public profile. Prices are in euros (€) and the same at every clinic.",
+      )}
+      <section className={SECTION_CARD_CLASS}>
+        <div className="grid gap-3 sm:grid-cols-[1fr_180px_auto]">
+          <input
+            type="text"
+            value={serviceName}
+            onChange={(e) => setServiceName(e.target.value)}
+            placeholder="Treatment name (e.g. Facial laser)"
+            aria-label="Treatment name"
+            className="w-full rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-clinical-400/60"
+          />
+          <input
+            type="text"
+            value={servicePrice}
+            onChange={(e) => setServicePrice(e.target.value)}
+            placeholder="e.g. 120 or From 80"
+            aria-label="Price"
+            className="w-full rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-clinical-400/60"
+          />
+          <button
+            type="button"
+            onClick={handleAddService}
+            disabled={serviceSubmitting}
+            className="inline-flex items-center justify-center rounded-xl bg-clinical-500 px-4 py-2 text-sm font-semibold text-ink-900 transition hover:bg-clinical-400 disabled:opacity-60"
+          >
+            {serviceSubmitting ? "Adding..." : "Add"}
+          </button>
+        </div>
+        {services.length > 0 ? (
+          <ul className="mt-4 divide-y divide-slate-800">
+            {services.map((service) => (
+              <li key={service.id} className="flex items-center justify-between gap-3 py-3">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-slate-100">{service.name}</p>
+                  {service.price ? <p className="text-xs text-slate-400">{service.price}</p> : null}
+                </div>
+                <button
+                  type="button"
+                  disabled={deletingServiceId === service.id}
+                  onClick={() => handleDeleteService(service.id)}
+                  aria-label={`Delete ${service.name}`}
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-slate-400 transition hover:bg-rose-500/10 hover:text-rose-300 disabled:opacity-50"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-4 text-sm text-slate-400">
+            Add what you offer so patients know what to book you for.
+          </p>
+        )}
+      </section>
+    </div>
+  );
+
+  const specialtiesCard = (
+    <section className={SECTION_CARD_CLASS} data-testid="settings-specialties">
+      <p className={SECTION_EYEBROW_CLASS}>Specialties</p>
+      <div data-testid="settings-specialty-locked" className="mt-3">
+        {lockedSpecialties.length > 0 ? (
+          <ul className="flex flex-wrap gap-2">
+            {lockedSpecialties.map((label) => {
+              const removable = canRemoveSpecialty(lockedSpecialties, label).ok;
+              return (
+                <li
+                  key={label}
+                  className={`inline-flex h-9 items-center gap-1.5 rounded-full border border-slate-600 bg-slate-950/70 text-sm font-semibold text-slate-100 ${
+                    removable ? "pl-3.5 pr-1.5" : "px-3.5"
+                  }`}
+                >
+                  {label}
+                  {removable ? (
+                    <button
+                      type="button"
+                      aria-label={`Remove ${label}`}
+                      onClick={() => setSpecialtyToRemove(label)}
+                      className="inline-flex h-6 w-6 items-center justify-center rounded-full text-slate-300 transition hover:bg-rose-500/15 hover:text-rose-200"
+                    >
+                      <X className="h-3.5 w-3.5" aria-hidden />
+                    </button>
+                  ) : (
+                    <Lock className="h-3.5 w-3.5 text-slate-500" aria-hidden />
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        ) : (
+          <p className="text-sm font-medium text-slate-100">Not set</p>
+        )}
+        {specialtyUnderReview ? (
+          <p className="mt-2 text-xs text-amber-200/90">
+            {PUBLIC_SPECIALTY_UNDER_REVIEW_LABEL} — visible on your public profile until approved.
+          </p>
+        ) : null}
+      </div>
+      <p className="mt-3 text-xs leading-relaxed text-slate-400">
+        {lockedSpecialties.length > 1
+          ? "Removing a specialty is instant. Adding or changing one needs a quick check by DocCy."
+          : `${LAST_SPECIALTY_MESSAGE} To switch it, request a change.`}
+      </p>
+      {pendingSpecialtyChange ? (
+        <div
+          data-testid="settings-specialty-change-pending"
+          className="mt-3 rounded-2xl border border-amber-400/25 bg-amber-500/[0.06] px-3.5 py-2.5 text-xs text-amber-100/95"
+        >
+          <p className="font-semibold text-amber-100">
+            {pendingSpecialtyChange.requestKind === "replace"
+              ? "Change-specialty request in review"
+              : pendingSpecialtyChange.requestKind === "remove"
+                ? "Remove-specialty request in review"
+                : "Add-specialty request in review"}
+          </p>
+          {pendingSpecialtyChange.requestKind === "replace" && pendingSpecialtyChange.fromSpecialty ? (
+            <p className="mt-1">
+              Change: <span className="font-medium">{pendingSpecialtyChange.fromSpecialty}</span>
+              <span className="mx-1.5 text-amber-100/60">→</span>
+              <span className="font-medium">{pendingSpecialtyChange.toSpecialty}</span>
+            </p>
+          ) : pendingSpecialtyChange.requestKind === "remove" ? (
+            <p className="mt-1">
+              Remove: <span className="font-medium">{pendingSpecialtyChange.fromSpecialty}</span>
+            </p>
+          ) : (
+            <p className="mt-1">
+              Requested: <span className="font-medium">{pendingSpecialtyChange.toSpecialty}</span>
+            </p>
+          )}
+          {pendingSpecialtyChange.licenseNumber ? (
+            <p className="mt-0.5 text-amber-100/80">License: {pendingSpecialtyChange.licenseNumber}</p>
+          ) : null}
+        </div>
+      ) : specialtyRequestKind !== null ? (
+        <div
+          data-testid="settings-specialty-change-form"
+          className="mt-3 space-y-3 rounded-2xl border border-slate-700 bg-slate-950/40 p-4"
+        >
+          <div>
+            <label htmlFor="settings-specialty-request-kind" className={SECTION_EYEBROW_CLASS}>
+              What do you want to do? <span className="text-red-300">*</span>
+            </label>
+            <select
+              id="settings-specialty-request-kind"
+              value={specialtyRequestKind}
+              onChange={(e) => {
+                const next = e.target.value as SpecialtyChangeRequestKind;
+                setSpecialtyRequestKind(next);
+                setSpecialtyReplaceFrom(
+                  next !== "add" && lockedSpecialties.length === 1 ? lockedSpecialties[0]! : "",
+                );
+              }}
+              className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2.5 text-sm text-slate-100 outline-none transition focus:border-clinical-400/60 focus:ring-2 focus:ring-clinical-400/30"
+            >
+              <option value="add">Add a specialty</option>
+              {lockedSpecialties.length > 0 ? (
+                <option value="replace">Change an existing specialty</option>
+              ) : null}
+            </select>
+          </div>
+          {specialtyRequestKind === "replace" ? (
+            <div>
+              <label htmlFor="settings-specialty-replace-from" className={SECTION_EYEBROW_CLASS}>
+                Specialty to replace <span className="text-red-300">*</span>
+              </label>
+              <select
+                id="settings-specialty-replace-from"
+                value={specialtyReplaceFrom}
+                onChange={(e) => setSpecialtyReplaceFrom(e.target.value)}
+                className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2.5 text-sm text-slate-100 outline-none transition focus:border-clinical-400/60 focus:ring-2 focus:ring-clinical-400/30"
+              >
+                <option value="">Select…</option>
+                {lockedSpecialties.map((label) => (
+                  <option key={label} value={label}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : null}
+          <div>
+            <p className={SECTION_EYEBROW_CLASS}>
+              {specialtyRequestKind === "replace" ? "New specialty" : "Specialty to add"}{" "}
+              <span className="text-red-300">*</span>
+            </p>
+            <SpecialtyCombobox
+              id="settings-specialty-change"
+              initialSpecialty=""
+              options={initial.specialtyOptions}
+              initialIsApproved
+              variant="settings"
+              excludeSpecialties={
+                specialtyRequestKind === "replace"
+                  ? lockedSpecialties.filter(
+                      (label) => label.toLowerCase() !== specialtyReplaceFrom.trim().toLowerCase(),
+                    )
+                  : lockedSpecialties
+              }
+              onSelectionChange={onSpecialtyChangeSpec}
+            />
+          </div>
+          <div>
+            <label htmlFor="settings-specialty-change-license" className={SECTION_EYEBROW_CLASS}>
+              License / certification number <span className="text-red-300">*</span>
+            </label>
+            <input
+              id="settings-specialty-change-license"
+              type="text"
+              value={specialtyChangeLicense}
+              onChange={(e) => setSpecialtyChangeLicense(e.target.value)}
+              placeholder="e.g. registration or certification number"
+              className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2.5 text-sm text-slate-100 placeholder:text-slate-500 outline-none transition focus:border-clinical-400/60 focus:ring-2 focus:ring-clinical-400/30"
+            />
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              data-testid="settings-specialty-change-submit"
+              disabled={specialtyChangeBusy}
+              onClick={() => void submitSpecialtyChangeRequest()}
+              className="inline-flex items-center justify-center rounded-xl bg-clinical-500 px-4 py-2 text-sm font-semibold text-ink-900 transition hover:bg-clinical-400 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {specialtyChangeBusy ? "Sending…" : "Submit request"}
+            </button>
+            <button
+              type="button"
+              disabled={specialtyChangeBusy}
+              onClick={resetSpecialtyRequestForm}
+              className="inline-flex items-center justify-center rounded-xl border border-slate-600 px-4 py-2 text-sm font-medium text-slate-300 transition hover:border-slate-500 disabled:opacity-60"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button
+          type="button"
+          data-testid="settings-specialty-change-request"
+          onClick={() => setSpecialtyRequestKind("add")}
+          className="mt-3 text-sm font-semibold text-clinical-300 transition hover:text-clinical-200"
+        >
+          + Request a new specialty
+        </button>
+      )}
+    </section>
+  );
+
+  const profileSection = (
+    <div className="space-y-5">
+      {sectionTitle("Profile", "What patients see about you in Health Finder and on your profile.")}
+      <section className={SECTION_CARD_CLASS}>
+        <p className={SECTION_EYEBROW_CLASS}>Profile photo</p>
+        <div className="mt-3 flex items-center gap-4">
           <div className="h-16 w-16 overflow-hidden rounded-full border border-slate-700 bg-ink-900/70">
             {avatarPreviewUrl ? (
-              <img
-                src={avatarPreviewUrl}
-                alt="Profile preview"
-                className="h-full w-full object-cover"
-              />
+              <img src={avatarPreviewUrl} alt="Profile preview" className="h-full w-full object-cover" />
             ) : (
               <div className="flex h-full w-full items-center justify-center text-[10px] text-slate-500">
                 No photo
@@ -1535,12 +1876,243 @@ export function SettingsForm({ initial }: SettingsFormProps) {
             type="button"
             onClick={() => avatarFileInputRef.current?.click()}
             disabled={avatarUploading}
-            className="inline-flex cursor-pointer items-center justify-center rounded-xl border border-clinical-400/35 bg-clinical-500/10 px-3 py-2 text-xs font-medium text-clinical-200 transition hover:bg-clinical-500/20 disabled:cursor-not-allowed disabled:opacity-70"
+            className="inline-flex h-10 items-center rounded-xl border border-white/20 px-3.5 text-sm font-medium text-slate-100 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-70"
           >
             {avatarUploading ? "Uploading..." : "Upload new photo"}
           </button>
         </div>
+      </section>
+      {specialtiesCard}
+      <section className={SECTION_CARD_CLASS}>
+        <label htmlFor="settings-bio" className={SECTION_EYEBROW_CLASS}>
+          How you help patients
+        </label>
+        <p className="mt-1 text-xs leading-relaxed text-slate-400">
+          Write what you treat and how you help. DocCy uses this to match you with the right
+          patients.
+        </p>
+        <textarea
+          id="settings-bio"
+          name="bio"
+          rows={5}
+          value={bio}
+          maxLength={BIO_MAX_CHARS}
+          onChange={(e) => setBio(e.target.value)}
+          placeholder="Example: I treat back pain, sports injuries, and post-surgery rehab."
+          className="mt-2 w-full resize-y rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2.5 text-sm text-slate-100 placeholder:text-slate-500 outline-none transition focus:border-clinical-400/60 focus:ring-2 focus:ring-clinical-400/30"
+        />
+        <p className="mt-1.5 text-right text-[11px] tabular-nums text-slate-500">
+          {bio.trim().length}/{BIO_MAX_CHARS}
+        </p>
+        <p className={`${SECTION_EYEBROW_CLASS} mt-4`}>
+          Languages <span className="text-red-300">*</span>
+        </p>
+        <LanguageMultiSelect
+          id="settings-languages"
+          selected={languages}
+          onSelectedChange={setLanguages}
+          variant="settings"
+        />
+      </section>
+      {profileExtra}
+    </div>
+  );
+
+  const contactSection = (
+    <div className="space-y-5">
+      {sectionTitle("Contact & phone", "How DocCy and your patients reach you.")}
+      <PhoneNumbersSettings
+        mobileNumber={mobileNumber}
+        onMobileNumberChange={setMobileNumber}
+        clinicPhones={initial.clinicPhones ?? []}
+      />
+    </div>
+  );
+
+  const accountSection = (
+    <div className="space-y-5">
+      {sectionTitle("Account", "Your sessions and the material to promote your practice.")}
+      {account}
+    </div>
+  );
+
+  const sections: Record<SettingsSectionId, React.ReactNode> = {
+    availability: availabilitySection,
+    clinics: clinicsSection,
+    services: servicesSection,
+    profile: profileSection,
+    contact: contactSection,
+    account: accountSection,
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="flex flex-col gap-6 lg:flex-row lg:gap-10">
+      <SettingsSidebar
+        active={section}
+        onSelect={selectSection}
+        header={sidebarHeader}
+        badges={{
+          clinics: (
+            <span className="inline-flex items-center gap-1.5">
+              {unsavedSections.includes("clinics") ? unsavedDot : null}
+              <span className="text-xs tabular-nums text-clinical-300">{liveWorkplaces.length}</span>
+            </span>
+          ),
+          availability: unsavedSections.includes("availability") ? unsavedDot : null,
+          contact: unsavedSections.includes("contact") ? unsavedDot : null,
+          profile: unsavedSections.includes("profile") ? (
+            unsavedDot
+          ) : pendingSpecialtyChange ? (
+            <span className="h-2 w-2 rounded-full bg-amber-400" aria-label="Request in review" />
+          ) : null,
+        }}
+        footer={holidayCard}
+      />
+
+      <div className="min-w-0 flex-1 space-y-5 pb-4">
+        {SETTINGS_SECTIONS.map(({ id }) => (
+          <div key={id} hidden={id !== section} className={id === section ? "settings-section-enter" : undefined}>
+            {sections[id]}
+          </div>
+        ))}
+
+
+        {hasUnsavedChanges ? (
+          <div
+            role="status"
+            data-testid="settings-unsaved-changes"
+            className="sticky bottom-24 z-30 flex flex-wrap items-center gap-3 rounded-2xl border border-amber-400/30 bg-[#0B1A30]/95 px-4 py-3 shadow-xl shadow-black/40 backdrop-blur lg:bottom-6"
+          >
+            <p className="min-w-0 flex-1 text-sm text-amber-100">
+              {unsavedSections.length > 0 ? (
+                <>
+                  Unsaved changes in{" "}
+                  {unsavedSections.map((id, index) => (
+                    <React.Fragment key={id}>
+                      {index > 0 ? (index === unsavedSections.length - 1 ? " and " : ", ") : null}
+                      <button
+                        type="button"
+                        onClick={() => selectSection(id)}
+                        className="font-semibold underline decoration-amber-300/50 underline-offset-2 hover:text-amber-50"
+                      >
+                        {SETTINGS_SECTIONS.find((s) => s.id === id)?.label ?? id}
+                      </button>
+                    </React.Fragment>
+                  ))}
+                  .
+                </>
+              ) : (
+                "You have unsaved changes."
+              )}
+            </p>
+            {message?.type === "error" ? (
+              <p className="w-full text-sm text-red-200 sm:order-last" role="alert">
+                {message.text}
+              </p>
+            ) : null}
+            <button
+              type="button"
+              onClick={() => setDiscarding(true)}
+              disabled={saving || discarding}
+              className="inline-flex h-10 items-center rounded-xl px-3 text-sm font-medium text-slate-300 transition hover:bg-white/10 hover:text-slate-50 disabled:opacity-60"
+            >
+              Discard changes
+            </button>
+            <button
+              type="submit"
+              disabled={saving || discarding}
+              className="inline-flex h-10 items-center rounded-xl bg-clinical-500 px-4 text-sm font-semibold text-ink-900 transition hover:bg-clinical-400 disabled:opacity-60"
+            >
+              <Save className="mr-2 h-4 w-4" aria-hidden />
+              {saving ? "Saving..." : "Save settings"}
+            </button>
+          </div>
+        ) : null}
       </div>
+
+      {workplaceToRemove ? (
+        <SettingsDialog
+          title={`Remove ${removeDialogName}?`}
+          description="Patients won’t find you at this clinic any more. A clinic with upcoming or requested appointments can’t be removed until you move or cancel them."
+          onClose={() => setWorkplaceToRemove(null)}
+          footer={(close) => (
+            <>
+              <button
+                type="button"
+                onClick={close}
+                disabled={workplaceBusy}
+                className={dialogSecondaryButtonClass}
+              >
+                Keep clinic
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  if (await handleRemoveWorkplace(workplaceToRemove)) close();
+                }}
+                disabled={workplaceBusy}
+                className={dialogDangerButtonClass}
+              >
+                {workplaceBusy ? "Removing…" : "Remove clinic"}
+              </button>
+            </>
+          )}
+        />
+      ) : null}
+
+      {changeRequestRow ? (
+        <ClinicChangeRequestDialog
+          clinicName={workplaceName(changeRequestRow, liveWorkplaces.indexOf(changeRequestRow))}
+          locationId={changeRequestRow.id}
+          current={{
+            clinicId: null,
+            name:
+              String(changeRequestRow.label ?? "").trim() ||
+              workplaceName(changeRequestRow, liveWorkplaces.indexOf(changeRequestRow)),
+            phone: phoneOf(changeRequestRow.id),
+            location: savedLocationOf(changeRequestRow.id),
+          }}
+          onClose={() => setChangeRequestFor(null)}
+          onSent={(pending) =>
+            setPendingClinicChanges((prev) => ({ ...prev, [changeRequestRow.id]: pending }))
+          }
+        />
+      ) : null}
+
+      {addClinicOpen ? (
+        <AddClinicDialog onClose={() => setAddClinicOpen(false)} onAdd={handleAddWorkplace} />
+      ) : null}
+
+      {specialtyToRemove ? (
+        <SettingsDialog
+          title={`Remove ${specialtyToRemove}?`}
+          description="It comes off your profile and Health Finder right away. To add it back later, you’ll need to request it again."
+          onClose={() => setSpecialtyToRemove(null)}
+          footer={(close) => (
+            <>
+              <button
+                type="button"
+                onClick={close}
+                disabled={specialtyRemoving}
+                className={dialogSecondaryButtonClass}
+              >
+                Keep it
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  if (await handleRemoveSpecialty(specialtyToRemove)) close();
+                }}
+                disabled={specialtyRemoving}
+                className={dialogDangerButtonClass}
+              >
+                {specialtyRemoving ? "Removing…" : "Remove"}
+              </button>
+            </>
+          )}
+        />
+      ) : null}
+
       {isClient && avatarCropOpen && avatarSourceUrl
         ? createPortal(
             <div
@@ -1550,9 +2122,7 @@ export function SettingsForm({ initial }: SettingsFormProps) {
               aria-label="Crop profile photo"
             >
               <div className="w-full max-w-xl rounded-2xl border border-slate-700 bg-slate-900 p-4 shadow-2xl">
-                <p className="mb-2 text-sm font-semibold text-slate-100">
-                  Crop profile photo (1:1)
-                </p>
+                <p className="mb-2 text-sm font-semibold text-slate-100">Crop profile photo (1:1)</p>
                 <div className="relative h-72 overflow-hidden rounded-xl bg-ink-900">
                   <Cropper
                     image={avatarSourceUrl}
@@ -1596,264 +2166,14 @@ export function SettingsForm({ initial }: SettingsFormProps) {
                     disabled={avatarUploading || avatarCropping}
                     className="rounded-xl bg-clinical-400 px-3 py-2 text-xs font-semibold text-slate-950 disabled:opacity-60"
                   >
-                    {avatarCropping
-                      ? "Processing..."
-                      : avatarUploading
-                        ? "Uploading..."
-                        : "Confirm crop"}
+                    {avatarCropping ? "Processing..." : avatarUploading ? "Uploading..." : "Confirm crop"}
                   </button>
                 </div>
               </div>
             </div>,
-            document.body
+            document.body,
           )
         : null}
-
-      <PhoneNumbersSettings
-        mobileNumber={mobileNumber}
-        onMobileNumberChange={setMobileNumber}
-        clinicPhones={initial.clinicPhones ?? []}
-      />
-
-      <section className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-5">
-        <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-          Services
-        </p>
-        <p className="mt-1 text-sm text-slate-400">
-          List treatments for your public profile. Prices are in{" "}
-          <span className="font-medium text-slate-300">euros (EUR, €)</span>.
-        </p>
-
-        <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_180px_auto]">
-          <input
-            type="text"
-            value={serviceName}
-            onChange={(e) => setServiceName(e.target.value)}
-            placeholder="Treatment name (e.g. Facial laser)"
-            className="w-full rounded-xl border border-slate-800/80 bg-ink-900/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-clinical-400/60"
-          />
-          <input
-            type="text"
-            value={servicePrice}
-            onChange={(e) => setServicePrice(e.target.value)}
-            placeholder="e.g. 120 or From 80"
-            className="w-full rounded-xl border border-slate-800/80 bg-ink-900/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-clinical-400/60"
-          />
-          <button
-            type="button"
-            onClick={handleAddService}
-            disabled={serviceSubmitting}
-            className="inline-flex items-center justify-center rounded-xl bg-clinical-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-clinical-400 disabled:opacity-60"
-          >
-            {serviceSubmitting ? "Adding..." : "Add"}
-          </button>
-        </div>
-
-        <ul className="mt-4 space-y-2">
-          {services.map((service) => (
-            <li
-              key={service.id}
-              className="flex items-center justify-between gap-3 rounded-xl border border-slate-800/70 bg-ink-900/35 px-3 py-2.5"
-            >
-              <div className="min-w-0">
-                <p className="truncate text-sm font-medium text-slate-100">{service.name}</p>
-                {service.price ? (
-                  <p className="text-xs text-slate-400">{service.price}</p>
-                ) : null}
-              </div>
-              <button
-                type="button"
-                disabled={deletingServiceId === service.id}
-                onClick={() => handleDeleteService(service.id)}
-                aria-label={`Delete ${service.name}`}
-                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-700 bg-slate-900/60 text-slate-300 transition hover:border-red-400/70 hover:text-red-300 disabled:opacity-50"
-              >
-                <Trash2 className="h-4 w-4" />
-              </button>
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-5">
-        <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-          Scheduling Boundaries
-        </p>
-        <p className="mt-1 text-sm text-slate-400">
-          These apply to every clinic.
-        </p>
-        <div className="mt-4 grid gap-4 sm:grid-cols-2">
-          <div>
-            <label
-              htmlFor="bookingHorizonDays"
-              className="text-[11px] font-semibold uppercase tracking-wide text-slate-400"
-            >
-              Future booking limit
-            </label>
-            <select
-              id="bookingHorizonDays"
-              value={bookingHorizonDays}
-              onChange={(e) => {
-                const next = Number(e.target.value);
-                setBookingHorizonDays(
-                  BOOKING_HORIZON_OPTIONS_DAYS.includes(
-                    next as (typeof BOOKING_HORIZON_OPTIONS_DAYS)[number]
-                  )
-                    ? next
-                    : DEFAULT_BOOKING_HORIZON_DAYS
-                );
-              }}
-              className="mt-2 w-full rounded-xl border border-slate-800/80 bg-ink-900/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-clinical-400/60"
-            >
-              <option value={14}>2 weeks</option>
-              <option value={30}>1 month</option>
-              <option value={90}>3 months</option>
-              <option value={180}>6 months</option>
-            </select>
-            <p className="mt-2 text-xs text-slate-400">
-              How far in advance patients can book.
-            </p>
-          </div>
-          <div>
-            <label
-              htmlFor="minimumNoticeHours"
-              className="text-[11px] font-semibold uppercase tracking-wide text-slate-400"
-            >
-              Minimum notice period
-            </label>
-            <select
-              id="minimumNoticeHours"
-              value={minimumNoticeHours}
-              onChange={(e) => {
-                const next = Number(e.target.value);
-                setMinimumNoticeHours(
-                  MIN_NOTICE_OPTIONS_HOURS.includes(
-                    next as (typeof MIN_NOTICE_OPTIONS_HOURS)[number]
-                  )
-                    ? next
-                    : DEFAULT_MIN_NOTICE_HOURS
-                );
-              }}
-              className="mt-2 w-full rounded-xl border border-slate-800/80 bg-ink-900/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-clinical-400/60"
-            >
-              <option value={1}>1 hour</option>
-              <option value={2}>2 hours</option>
-              <option value={4}>4 hours</option>
-              <option value={12}>12 hours</option>
-              <option value={24}>24 hours (1 day)</option>
-              <option value={48}>2 days</option>
-              <option value={72}>3 days</option>
-              <option value={168}>1 week</option>
-            </select>
-            <p className="mt-2 text-xs text-slate-400">
-              Prevent last-minute surprises. Slots will be hidden if they are too close to the current time.
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-5">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-              Holiday Mode
-            </p>
-            <p className="mt-1 text-xs text-slate-400">
-              Completely block bookings during a date range, at every clinic.
-            </p>
-          </div>
-          <label className="inline-flex cursor-pointer items-center gap-2 text-xs text-slate-300">
-            <input
-              type="checkbox"
-              checked={holidayModeEnabled}
-              onChange={(e) => {
-                const enabled = e.target.checked;
-                setHolidayModeEnabled(enabled);
-                if (!enabled) {
-                  setHolidayStartDate(null);
-                  setHolidayEndDate(null);
-                  setHolidayStartInput("");
-                  setHolidayEndInput("");
-                }
-              }}
-              className="h-4 w-4 rounded border-slate-600 bg-slate-900 text-clinical-500 focus:ring-clinical-400/60"
-            />
-            <span>Enable</span>
-          </label>
-        </div>
-
-        {holidayModeEnabled && (
-          <div className="mt-4 grid gap-4 sm:grid-cols-2">
-            <div>
-              <label
-                htmlFor="holidayStart"
-                className="text-[11px] font-semibold uppercase tracking-wide text-slate-400"
-              >
-                Holiday start
-              </label>
-              <input
-                id="holidayStart"
-                type="text"
-                inputMode="numeric"
-                placeholder="DD/MM/YYYY"
-                value={holidayStartInput}
-                onChange={(e) => {
-                  setHolidayStartInput(e.target.value);
-                  const parsed = parseDDMMYYYYToISO(e.target.value);
-                  setHolidayStartDate(parsed);
-                }}
-                className="mt-2 w-full rounded-xl border border-slate-800/80 bg-ink-900/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-clinical-400/60"
-              />
-            </div>
-            <div>
-              <label
-                htmlFor="holidayEnd"
-                className="text-[11px] font-semibold uppercase tracking-wide text-slate-400"
-              >
-                Holiday end
-              </label>
-              <input
-                id="holidayEnd"
-                type="text"
-                inputMode="numeric"
-                placeholder="DD/MM/YYYY"
-                value={holidayEndInput}
-                onChange={(e) => {
-                  setHolidayEndInput(e.target.value);
-                  const parsed = parseDDMMYYYYToISO(e.target.value);
-                  setHolidayEndDate(parsed);
-                }}
-                className="mt-2 w-full rounded-xl border border-slate-800/80 bg-ink-900/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-clinical-400/60"
-              />
-            </div>
-          </div>
-        )}
-      </div>
-
-      {message && (
-        <div
-          className={`rounded-2xl border px-4 py-3 text-sm ${
-            message.type === "success"
-              ? "border-clinical-400/20 bg-clinical-400/10 text-clinical-200"
-              : "border-red-500/20 bg-red-500/10 text-red-200"
-          }`}
-        >
-          {message.text}
-        </div>
-      )}
-
-      <div className="flex flex-wrap items-center gap-4">
-        <button
-          type="submit"
-          disabled={saving}
-          className={`inline-flex items-center justify-center rounded-2xl bg-clinical-400 px-5 py-2.5 text-sm font-semibold text-slate-950 shadow-lg shadow-clinical-500/30 transition hover:bg-clinical-300 disabled:opacity-60 ${
-            hasUnsavedChanges ? "ring-2 ring-amber-300/70 ring-offset-2 ring-offset-slate-950" : ""
-          }`}
-        >
-          <Save className="mr-2 h-4 w-4" />
-          {saving ? "Saving..." : "Save settings"}
-        </button>
-      </div>
     </form>
   );
 }

@@ -11,6 +11,7 @@ type AuthAboutFooterProps = {
 
 const RESERVED_TOP_LEVEL_SEGMENTS = new Set([
   "agenda",
+  "settings",
   "clinics",
   "finder",
   "for-professionals",

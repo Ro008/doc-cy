@@ -4,11 +4,16 @@ import { zonedTimeToUtc } from "date-fns-tz";
 import { CY_TZ } from "../lib/appointments";
 import { signInDoctorAndSetCookies } from "./helpers/doctorAuth";
 
+/**
+ * Reads with the service role: `signInDoctorAndSetCookies` reuses a cached session
+ * for the browser and does not sign the passed client in again, so an anon client
+ * has no session from the second test on and RLS hides the row.
+ */
 async function getDoctorId(
-  anon: SupabaseClient,
+  admin: SupabaseClient,
   authUserId: string,
 ): Promise<string> {
-  const { data } = await anon
+  const { data } = await admin
     .from("professionals")
     .select("id")
     .eq("auth_user_id", authUserId)
@@ -99,7 +104,7 @@ test.describe("Feedback matrix toasts", () => {
     const admin = createClient(supabaseUrl, serviceKey);
 
     const { authUserId } = await signInDoctorAndSetCookies(page, anon);
-    const doctorId = await getDoctorId(anon, authUserId);
+    const doctorId = await getDoctorId(admin, authUserId);
     const appointmentId = await seedRequestedAppointment(
       admin,
       doctorId,
@@ -150,7 +155,7 @@ test.describe("Feedback matrix toasts", () => {
     const admin = createClient(supabaseUrl, serviceKey);
 
     const { authUserId } = await signInDoctorAndSetCookies(page, anon);
-    const doctorId = await getDoctorId(anon, authUserId);
+    const doctorId = await getDoctorId(admin, authUserId);
     const appointmentId = await seedRequestedAppointment(admin, doctorId, "MatrixError");
 
     try {
@@ -241,7 +246,11 @@ test.describe("Feedback matrix toasts", () => {
       });
     });
 
-    await page.goto("/agenda/settings");
+    await page.goto("/settings");
+    // "Save settings" shows once something changed.
+    const notice = page.locator("#minimumNoticeHours");
+    const current = await notice.inputValue();
+    await notice.selectOption(current === "24" ? "48" : "24");
     await page.getByRole("button", { name: /Save settings/i }).click();
     await expect(
       page.locator("[data-sonner-toast]").getByText(/Settings saved\./i),
@@ -263,7 +272,7 @@ test.describe("Feedback matrix toasts", () => {
     const anon = createClient(supabaseUrl, anonKey);
     const admin = createClient(supabaseUrl, serviceKey);
     const { authUserId } = await signInDoctorAndSetCookies(page, anon);
-    const doctorId = await getDoctorId(anon, authUserId);
+    const doctorId = await getDoctorId(admin, authUserId);
     const seeded = await seedAgendaAppointment(
       admin,
       doctorId,
@@ -321,7 +330,7 @@ test.describe("Feedback matrix toasts", () => {
     const anon = createClient(supabaseUrl, anonKey);
     const admin = createClient(supabaseUrl, serviceKey);
     const { authUserId } = await signInDoctorAndSetCookies(page, anon);
-    const doctorId = await getDoctorId(anon, authUserId);
+    const doctorId = await getDoctorId(admin, authUserId);
     const seeded = await seedAgendaAppointment(
       admin,
       doctorId,

@@ -47,7 +47,7 @@ describe("public phone comes from the clinic", () => {
     assert.equal(/\.phone = /.test(route), false);
     assert.equal(route.includes("directoryPhone"), false);
     assert.equal(route.includes("show_phone_public"), false);
-    const page = read("app/agenda/settings/page.tsx");
+    const page = read("app/settings/page.tsx");
     assert.equal(page.includes("loadSettingsClinicPhones"), true);
     assert.equal(page.includes("doctor.mobile_number ?? doctor.phone"), false);
     const phones = read("components/dashboard/PhoneNumbersSettings.tsx");

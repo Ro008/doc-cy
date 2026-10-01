@@ -1,5 +1,6 @@
 "use client";
 
+import { isProfessionalGatedPath } from "@/lib/needs-supabase-session-middleware";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
@@ -197,7 +198,7 @@ export function UserBar() {
 
   const isAgendaActive = pathNorm === "/agenda";
   const isInsightsActive = pathname.startsWith("/agenda/insights");
-  const isSettingsActive = pathname.startsWith("/agenda/settings");
+  const isSettingsActive = pathname.startsWith("/settings");
   const isPublicProfileActive = Boolean(
     slug && (pathNorm === `/${slug}` || pathNorm.endsWith(`/${slug}`)),
   );
@@ -208,7 +209,7 @@ export function UserBar() {
   const tabInactiveClass = "text-ink-200 hover:text-ink-50";
   const tabActiveClass = "font-semibold text-clinical-100";
 
-  const useStickyDesktopChrome = pathname.startsWith("/agenda");
+  const useStickyDesktopChrome = isProfessionalGatedPath(pathname);
 
   const desktopUserMenu = (
     <>
@@ -284,14 +285,14 @@ export function UserBar() {
             Practice insights
           </UserMenuNavLink>
           <UserMenuNavLink
-            href="/agenda/settings"
+            href="/settings"
             data-testid="userbar-link-settings"
             icon={<Settings className="h-4 w-4 text-clinical-300" aria-hidden />}
           >
             Settings
           </UserMenuNavLink>
           <UserMenuNavLink
-            href="/agenda/settings#promote-practice"
+            href="/settings?section=account#promote-practice"
             data-testid="userbar-link-promote"
             icon={<Megaphone className="h-4 w-4 text-clinical-300" aria-hidden />}
           >
@@ -443,7 +444,7 @@ export function UserBar() {
             }
           />
           <MobileTabNavLink
-            href="/agenda/settings"
+            href="/settings"
             label="Settings"
             data-testid="userbar-tab-settings"
             isActive={isSettingsActive}

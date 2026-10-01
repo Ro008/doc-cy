@@ -12,10 +12,10 @@ import {
 } from "./helpers/test-doctor";
 
 /**
- * D4 (user, 2026-09-30): the settings page shows the professional's clinics read-only
- * ("Contact us to change your clinics") until Ro008's clinic join/leave/create/edit
- * screens and their requests exist. Clinics are curated by DocCy:
- * - no Add clinic, no Remove this clinic, no address field;
+ * D4 (user, 2026-09-30): clinics are curated by DocCy. In settings (redesign B1) a
+ * clinic's address is read-only and changes, additions and removals go through
+ * requests (docs/handoff/settings-redesign.md):
+ * - no address field;
  * - a clinic still being set up (an addressless `doctor_locations` row) is no longer
  *   shown: nothing reads `doctor_locations` any more;
  * - saving settings still saves each clinic's hours and name on its join row, and never
@@ -68,22 +68,21 @@ test.describe("Integration: clinics are read-only in settings", { tag: "@pr-e2e"
 
   test("the settings page shows the clinic read-only", async ({ page }) => {
     await loginDoctorUi(page, doctor!.email, doctor!.password);
-    await page.goto("/agenda/settings", { waitUntil: "domcontentloaded" });
+    await page.goto("/settings?section=clinics", { waitUntil: "domcontentloaded" });
 
-    const frame = page.getByTestId("workplace-settings-frame");
-    await expect(frame).toBeVisible({ timeout: 20_000 });
-    await expect(page.getByTestId("settings-clinic-address")).toHaveText(clinicAddress, {
-      timeout: 20_000,
-    });
-    await expect(page.getByTestId("settings-clinics-contact")).toHaveText(
-      /Contact us to change your clinics/i,
-    );
+    // Settings redesign (B1): one card per clinic, the address read-only with
+    // "Request a change" (clinic changes go by request to DocCy).
+    const cards = page.getByTestId("settings-clinic-card");
+    // The addressless location is not a clinic: one card.
+    await expect(cards).toHaveCount(1, { timeout: 20_000 });
+    await expect(cards.first()).toContainText(clinicAddress);
+    await expect(cards.first().getByRole("button", { name: "Request a change" })).toBeVisible();
 
+    await cards.first().getByRole("button", { name: "Edit name and hours" }).click();
+    await expect(page.locator("#clinicName")).toBeVisible();
     await expect(page.locator("#clinicAddress")).toHaveCount(0);
-    await expect(page.getByRole("button", { name: /^Add clinic$/i })).toHaveCount(0);
-    await expect(page.getByRole("button", { name: /Remove this clinic/i })).toHaveCount(0);
-    // The addressless location is not a clinic: one clinic, so no tabs.
-    await expect(page.getByRole("tablist", { name: "Clinics" })).toHaveCount(0);
+    // The last clinic cannot be removed.
+    await expect(cards.first().getByRole("button", { name: "Remove clinic" })).toHaveCount(0);
   });
 
   test("saving settings keeps the address and saves the hours", async ({ page }) => {

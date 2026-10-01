@@ -108,20 +108,20 @@ test.describe("Doctor dashboard", () => {
     const settingsLink = page.getByTestId("userbar-link-settings");
     if ((await settingsLink.count()) > 0) {
       await expect(settingsLink).toBeVisible();
-      await expect(settingsLink).toHaveAttribute("href", "/agenda/settings");
+      await expect(settingsLink).toHaveAttribute("href", "/settings");
       await Promise.all([
-        page.waitForURL(/\/agenda\/settings/, { timeout: 10000 }),
+        page.waitForURL(/\/settings/, { timeout: 10000 }),
         settingsLink.click(),
       ]);
     } else {
-      await page.goto("/agenda/settings");
-      await expect(page).toHaveURL(/\/agenda\/settings/, { timeout: 10000 });
+      await page.goto("/settings");
+      await expect(page).toHaveURL(/\/settings/, { timeout: 10000 });
     }
-    await expect(page).toHaveURL("/agenda/settings");
-    await expect(page.getByText(/^Settings$/i).first()).toBeVisible({
+    await expect(page).toHaveURL("/settings");
+    await expect(page.getByTestId("settings-sidebar").getByText(/^Settings$/i)).toBeVisible({
       timeout: 5000,
     });
-    await expect(page.locator("main header h1").first()).toBeVisible({
+    await expect(page.getByTestId("settings-sidebar")).toBeVisible({
       timeout: 5000,
     });
   });
@@ -129,8 +129,8 @@ test.describe("Doctor dashboard", () => {
   test("settings: QR section is visible and download button works", async ({ page }) => {
     test.setTimeout(60000);
     await signIn(page);
-    await page.goto("/agenda/settings");
-    await expect(page).toHaveURL(/\/agenda\/settings/, { timeout: 10000 });
+    await page.goto("/settings?section=account");
+    await expect(page).toHaveURL(/\/settings/, { timeout: 10000 });
 
     await expect(page.getByText(/Patients scan to open|Οι ασθενείς σκανάρουν/i)).toBeVisible({
       timeout: 10000,
@@ -154,8 +154,8 @@ test.describe("Doctor dashboard", () => {
     test.setTimeout(60000);
     await page.setViewportSize({ width: 390, height: 844 });
     await signIn(page);
-    await page.goto("/agenda/settings");
-    await expect(page).toHaveURL(/\/agenda\/settings/, { timeout: 10000 });
+    await page.goto("/settings?section=account");
+    await expect(page).toHaveURL(/\/settings/, { timeout: 10000 });
     await expect(page.getByText(/Patients scan to open|Οι ασθενείς σκανάρουν/i)).toBeVisible({
       timeout: 10000,
     });

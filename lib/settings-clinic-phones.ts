@@ -4,12 +4,15 @@ import { createServiceRoleClient } from "@/lib/supabase-service";
 /** One of the professional's clinics and the phone patients see for it. */
 export type SettingsClinicPhone = {
   clinicId: string;
+  /** The professional's link to the clinic (professional_clinics.id = doctor_locations.id). */
+  locationId: string;
   name: string;
   /** Display format (+357 XX XXXXXX); "" when the clinic has no phone yet. */
   phone: string;
 };
 
 type JoinRow = {
+  id?: string | null;
   is_primary?: boolean | null;
   sort_order?: number | null;
   clinics?:
@@ -30,7 +33,7 @@ export async function loadSettingsClinicPhones(
   if (!supabase || !professionalId) return [];
   const { data, error } = await supabase
     .from("professional_clinics")
-    .select("is_primary, sort_order, clinics ( id, name, phone, is_archived )")
+    .select("id, is_primary, sort_order, clinics ( id, name, phone, is_archived )")
     .eq("professional_id", professionalId);
   if (error) {
     console.error("[DocCy] settings clinic phones load failed:", error.message);
@@ -49,6 +52,7 @@ export async function loadSettingsClinicPhones(
     const phone = String(clinic.phone ?? "").trim();
     out.push({
       clinicId,
+      locationId: String(row.id ?? "").trim(),
       name: String(clinic.name ?? "").trim(),
       phone: phone ? formatCyprusPhoneDisplay(phone) : "",
     });

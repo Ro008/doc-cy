@@ -19,6 +19,7 @@ import {
   legacyFinderFilterToPublicPath,
 } from "./lib/finder-public-path";
 import {
+  isProfessionalGatedPath,
   needsSupabaseSessionMiddleware,
   shouldSkipSupabaseSessionRefresh,
 } from "./lib/needs-supabase-session-middleware";
@@ -42,6 +43,7 @@ const RESERVED_TOP_LEVEL = new Set([
   "internal",
   "login",
   "register",
+  "settings",
   "forgot-password",
   "reset-password",
   "auth",
@@ -151,7 +153,7 @@ export async function middleware(req: NextRequest) {
       return res;
     }
 
-    if (pathname === "/agenda" || pathname.startsWith("/agenda/")) {
+    if (isProfessionalGatedPath(pathname)) {
       if (!session) {
         const loginUrl = new URL("/login", req.url);
         loginUrl.searchParams.set("next", pathname);

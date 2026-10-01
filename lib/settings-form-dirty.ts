@@ -64,11 +64,30 @@ export function buildSettingsDirtySnapshot(input: {
   };
 }
 
+/**
+ * What a save can change. A clinic's address is read-only in settings (clinics are
+ * curated by DocCy) and the form keeps it from two sources, so it never counts.
+ */
+function comparable(snapshot: SettingsDirtySnapshot) {
+  return {
+    ...snapshot,
+    workplaces: snapshot.workplaces.map((row) => ({
+      id: row.id,
+      label: row.label,
+      weeklySchedule: row.weeklySchedule,
+      breakEnabled: row.breakEnabled,
+      breakStart: row.breakStart,
+      breakEnd: row.breakEnd,
+      slotDurationMinutes: row.slotDurationMinutes,
+    })),
+  };
+}
+
 export function settingsDirtySnapshotsEqual(
   a: SettingsDirtySnapshot,
   b: SettingsDirtySnapshot,
 ): boolean {
-  return JSON.stringify(a) === JSON.stringify(b);
+  return JSON.stringify(comparable(a)) === JSON.stringify(comparable(b));
 }
 
 export function settingsFormHasUnsavedChanges(
@@ -76,4 +95,28 @@ export function settingsFormHasUnsavedChanges(
   saved: SettingsDirtySnapshot,
 ): boolean {
   return !settingsDirtySnapshotsEqual(current, saved);
+}
+
+const SECTION_FIELDS: Array<[UnsavedSection, Array<keyof SettingsDirtySnapshot>]> = [
+  [
+    "availability",
+    ["bookingHorizonDays", "minimumNoticeHours", "holidayModeEnabled", "holidayStartInput", "holidayEndInput"],
+  ],
+  ["clinics", ["workplaces"]],
+  ["profile", ["specialty", "specialtyFromMaster", "bio", "languages"]],
+  ["contact", ["mobileNumber"]],
+];
+
+export type UnsavedSection = "availability" | "clinics" | "profile" | "contact";
+
+/** Which settings sections hold the unsaved changes, in sidebar order (for the save bar). */
+export function unsavedSettingsSections(
+  current: SettingsDirtySnapshot,
+  saved: SettingsDirtySnapshot,
+): UnsavedSection[] {
+  const a = comparable(current);
+  const b = comparable(saved);
+  return SECTION_FIELDS.filter(([, fields]) =>
+    fields.some((field) => JSON.stringify(a[field]) !== JSON.stringify(b[field])),
+  ).map(([section]) => section);
 }

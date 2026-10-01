@@ -52,8 +52,8 @@ test.describe("Auth: sign out other sessions", () => {
       await loginWithBackoff(deviceAPage);
       await loginWithBackoff(deviceBPage);
 
-      await deviceAPage.goto("/agenda/settings");
-      await expect(deviceAPage).toHaveURL(/\/agenda\/settings(?:[/?#]|$)/, {
+      await deviceAPage.goto("/settings?section=account");
+      await expect(deviceAPage).toHaveURL(/\/settings(?:[/?#]|$)/, {
         timeout: 20_000,
       });
       await expect(
