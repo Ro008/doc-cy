@@ -24,6 +24,11 @@ import type {
   UnapprovableRequestItem,
 } from "@/lib/registration-requests";
 import { describeUnapprovableRequests } from "@/lib/registration-unapprovable";
+import {
+  reviewCardsWithRecentDecisions,
+  type RecentReviewDecision,
+  type ReviewDecision,
+} from "@/lib/registration-review-list";
 
 type Props = {
   items: RegistrationReviewItem[];
@@ -193,7 +198,10 @@ export function RegistrationRequestsSection({
   specialtyCatalogue = [],
 }: Props) {
   const pending = items.filter((item) => item.status === "pending");
-  const decided = items.filter((item) => item.status !== "pending");
+  // Requests decided here stay on screen with their decision until the page reloads.
+  const [recent, setRecent] = useState<Record<string, RecentReviewDecision<RegistrationReviewItem>>>({});
+  const cards = reviewCardsWithRecentDecisions(items, recent);
+  const decided = items.filter((item) => item.status !== "pending" && !recent[item.id]);
   // Marks when the section is interactive (tests wait for it on this heavy page).
   const [hydrated, setHydrated] = useState(false);
   useEffect(() => setHydrated(true), []);
@@ -218,15 +226,22 @@ export function RegistrationRequestsSection({
           </p>
         ) : null}
       </div>
-      {pending.map((item) => (
-        <RequestCard
-          key={item.id}
-          item={item}
-          canMutate={canMutate}
-          defaultTrialMonths={defaultTrialMonths}
-          specialtyCatalogue={specialtyCatalogue}
-        />
-      ))}
+      {cards.map(({ item, decision }, position) =>
+        decision ? (
+          <DecidedRequestCard key={item.id} item={item} decision={decision} />
+        ) : (
+          <RequestCard
+            key={item.id}
+            item={item}
+            canMutate={canMutate}
+            defaultTrialMonths={defaultTrialMonths}
+            specialtyCatalogue={specialtyCatalogue}
+            onDecided={(next) =>
+              setRecent((prev) => ({ ...prev, [item.id]: { decision: next, item, position } }))
+            }
+          />
+        ),
+      )}
       {unapprovable.length > 0 ? <UnapprovableGroup items={unapprovable} canMutate={canMutate} /> : null}
       {decided.length > 0 ? (
         <details className="rounded-xl border border-slate-800 p-3 text-sm text-slate-300">
@@ -356,16 +371,39 @@ type ListingCheck =
   | { state: "ok"; listing: ReviewListing }
   | { state: "error"; message: string };
 
+/** A request just approved or denied here: its confirmation stays where the card was. */
+function DecidedRequestCard({
+  item,
+  decision,
+}: {
+  item: RegistrationReviewItem;
+  decision: ReviewDecision;
+}) {
+  return (
+    <article
+      data-request-id={item.id}
+      className="flex flex-wrap items-center gap-2 rounded-2xl border border-slate-700/80 bg-slate-950/60 p-4 text-sm text-slate-200"
+    >
+      <h3 className="text-base font-semibold text-white">{item.requesterName}</h3>
+      <p className={decision === "approved" ? "font-semibold text-emerald-300" : "font-semibold text-red-300"}>
+        {decision === "approved" ? "Approved" : "Denied"}
+      </p>
+    </article>
+  );
+}
+
 function RequestCard({
   item,
   canMutate,
   defaultTrialMonths,
   specialtyCatalogue,
+  onDecided,
 }: {
   item: RegistrationReviewItem;
   canMutate: boolean;
   defaultTrialMonths: number | null;
   specialtyCatalogue: readonly string[];
+  onDecided: (decision: ReviewDecision) => void;
 }) {
   const router = useRouter();
   const [draft, setDraft] = useState<ProfessionalRegistrationDetails>(item.details);
@@ -468,6 +506,7 @@ function RequestCard({
         return;
       }
       setDecision("approved");
+      onDecided("approved");
       router.refresh();
     } finally {
       setBusy(false);
@@ -489,6 +528,7 @@ function RequestCard({
         return;
       }
       setDecision("denied");
+      onDecided("denied");
       router.refresh();
     } finally {
       setBusy(false);
