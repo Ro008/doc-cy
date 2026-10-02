@@ -65,7 +65,7 @@ export default async function BookingSuccessPage({
   const { data: appointment, error: apptError } = await supabase
     .from("appointments")
     .select(
-      "id, doctor_id, appointment_datetime, status, visit_type, reason, location_id",
+      "id, professional_id, appointment_datetime, status, visit_type, reason, location_id",
     )
     .eq("id", appointmentId)
     .single();
@@ -82,9 +82,9 @@ export default async function BookingSuccessPage({
     supabase
       .from("professionals")
       .select("id, name, slug")
-      .eq("id", appointment.doctor_id)
+      .eq("id", appointment.professional_id)
       .single(),
-    loadDoctorLocations(appointment.doctor_id as string),
+    loadDoctorLocations(appointment.professional_id as string),
   ]);
   const locationId = (appointment as { location_id?: string | null }).location_id;
 

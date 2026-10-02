@@ -87,7 +87,7 @@ begin
   returning id into v_clinic;
   insert into public.professional_clinics (professional_id, clinic_id, is_primary, slot_duration_minutes)
   values (v_pro, v_clinic, true, 45);
-  insert into public.appointments (doctor_id, patient_name, patient_phone, appointment_datetime,
+  insert into public.appointments (professional_id, patient_name, patient_phone, appointment_datetime,
                                    status, duration_minutes, location_id)
   values (v_pro, 'E6 Patient', '+35799000000', v_start, 'REQUESTED', 90, null);
 

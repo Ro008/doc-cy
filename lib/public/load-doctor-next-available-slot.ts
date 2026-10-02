@@ -28,7 +28,7 @@ const EMPTY_CALENDAR: PublicAvailabilityCalendar = { days: [], soonestSlot: null
  * One call returns the taken slot starts for many professionals, each row with
  * its clinic. The finder used to call public_doctor_occupied_datetimes once
  * per card and clinic (32% of Testing's database time); it now calls this once
- * per page. Same rules: the per-professional function wraps this one.
+ * per page; the profile page calls it with one professional.
  */
 export const OCCUPIED_BATCH_RPC = "public_professionals_occupied_datetimes";
 

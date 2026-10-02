@@ -56,7 +56,7 @@ test.describe("Signed appointment links", { tag: ["@pr-e2e", "@pr-e2e-booking"] 
       const res = await admin
         .from("appointments")
         .insert({
-          doctor_id: fixture!.doctorId,
+          professional_id: fixture!.doctorId,
           patient_name: patientName,
           patient_email: `links-${nonce}-${iso.slice(0, 10)}@integration.test`,
           patient_phone: PATIENT_PHONE,
@@ -75,7 +75,7 @@ test.describe("Signed appointment links", { tag: ["@pr-e2e", "@pr-e2e-booking"] 
 
   test.afterAll(async () => {
     if (!fixture) return;
-    await admin.from("appointments").delete().eq("doctor_id", fixture.doctorId);
+    await admin.from("appointments").delete().eq("professional_id", fixture.doctorId);
     await deleteTestDoctor(fixture);
   });
 

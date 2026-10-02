@@ -38,7 +38,7 @@ export async function DELETE(_req: NextRequest, { params }: RouteContext) {
 
   const { data: appt, error: apptError } = await supabase
     .from("appointments")
-    .select("id, doctor_id, status")
+    .select("id, professional_id, status")
     .eq("id", id)
     .maybeSingle();
 
@@ -46,7 +46,7 @@ export async function DELETE(_req: NextRequest, { params }: RouteContext) {
     return NextResponse.json({ message: "Appointment not found." }, { status: 404 });
   }
 
-  if (appt.doctor_id !== doctor.id) {
+  if (appt.professional_id !== doctor.id) {
     return NextResponse.json({ message: "Forbidden." }, { status: 403 });
   }
 

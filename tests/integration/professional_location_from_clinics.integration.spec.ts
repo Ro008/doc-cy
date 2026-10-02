@@ -136,7 +136,7 @@ async function cleanup(admin: SupabaseClient, created: Created) {
     await admin.from("appointments").delete().in("id", created.appointmentIds);
   }
   if (created.professionalId) {
-    await admin.from("appointments").delete().eq("doctor_id", created.professionalId);
+    await admin.from("appointments").delete().eq("professional_id", created.professionalId);
     await admin.from("professional_specialties").delete().eq("professional_id", created.professionalId);
     await admin.from("professional_settings").delete().eq("professional_id", created.professionalId);
     await admin.from("professionals").delete().eq("id", created.professionalId);
@@ -348,7 +348,7 @@ test.describe(
         const left = await admin
           .from("appointments")
           .select("id")
-          .eq("doctor_id", created.professionalId);
+          .eq("professional_id", created.professionalId);
         expect(left.data ?? []).toHaveLength(0);
       } finally {
         await cleanup(admin, created);

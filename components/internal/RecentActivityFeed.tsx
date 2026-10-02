@@ -13,7 +13,7 @@ export type RecentAppointmentRow = {
   appointment_datetime: string;
   /** When the booking was created — use for "Booked X ago" only */
   booked_at_iso: string | null;
-  doctor_id: string;
+  professional_id: string;
   doctor_name: string | null;
 };
 

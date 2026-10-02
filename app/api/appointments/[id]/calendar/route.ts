@@ -58,7 +58,7 @@ export async function GET(req: NextRequest, { params }: RouteContext) {
   const { data: appointment, error: apptError } = await supabase
     .from("appointments")
     .select(
-      "id, doctor_id, appointment_datetime, patient_name, patient_phone, status, created_at, visit_type, reason, duration_minutes, location_id"
+      "id, professional_id, appointment_datetime, patient_name, patient_phone, status, created_at, visit_type, reason, duration_minutes, location_id"
     )
     .eq("id", appointmentId)
     .single();
@@ -84,14 +84,14 @@ export async function GET(req: NextRequest, { params }: RouteContext) {
   const { data: doctor } = await supabase
     .from("professionals")
     .select("id, name, slug")
-    .eq("id", appointment.doctor_id)
+    .eq("id", appointment.professional_id)
     .single();
   const specialtyName = await loadPrimarySpecialtyName(
     supabase,
-    appointment.doctor_id as string,
+    appointment.professional_id as string,
   );
 
-  const locations = await loadDoctorLocations(appointment.doctor_id as string);
+  const locations = await loadDoctorLocations(appointment.professional_id as string);
   const locationId = (appointment as { location_id?: string | null }).location_id;
 
   const rowDur = Number(

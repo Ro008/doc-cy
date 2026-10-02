@@ -325,7 +325,7 @@ test.describe("Schedule constraints @booking-creates", { tag: ["@pr-e2e", "@pr-e
     const seeded = await supabase
       .from("appointments")
       .insert({
-        doctor_id: doctor.id,
+        professional_id: doctor.id,
         patient_name: "Seeded Invalid 16:45",
         patient_email: "seeded.invalid.1645@test.com",
         patient_phone: "99123456",

@@ -38,7 +38,7 @@ test.describe("Doctor action feedback toasts", () => {
     const inserted = await admin
       .from("appointments")
       .insert({
-        doctor_id: doctorId,
+        professional_id: doctorId,
         patient_name: `Toast Confirm ${nonce}`,
         patient_email: `toast.confirm.${nonce}@example.com`,
         patient_phone: "+35799123456",

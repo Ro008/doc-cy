@@ -74,7 +74,7 @@ begin
   insert into public.professional_settings (professional_id)
   values (v_pro)
   on conflict do nothing;
-  insert into public.appointments (doctor_id, patient_name, patient_phone, appointment_datetime, status)
+  insert into public.appointments (professional_id, patient_name, patient_phone, appointment_datetime, status)
   values (v_pro, 'Patient Step', '+35799000000', now() + interval '400 days', 'REQUESTED')
   returning id into v_appt;
 

@@ -110,7 +110,7 @@ test.describe("Integration: propose reschedule (confirmed visit)", { tag: ["@pr-
     const { data: existingRows } = await admin
       .from("appointments")
       .select("appointment_datetime, duration_minutes")
-      .eq("doctor_id", doctor.id)
+      .eq("professional_id", doctor.id)
       .gte("appointment_datetime", new Date().toISOString());
 
     const appointmentDatetimeIso = findStableAppointmentIso({
@@ -125,7 +125,7 @@ test.describe("Integration: propose reschedule (confirmed visit)", { tag: ["@pr-
     const { data: inserted, error: insertErr } = await admin
       .from("appointments")
       .insert({
-        doctor_id: doctor.id,
+        professional_id: doctor.id,
         patient_name: `CI Reschedule ${nonce}`,
         patient_email: `ci-reschedule-${nonce}@example.test`,
         patient_phone: "+35799123456",

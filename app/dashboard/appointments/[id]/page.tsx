@@ -106,7 +106,7 @@ export default async function DashboardAppointmentDetailPage({
       "id, patient_name, patient_phone, appointment_datetime, status, reason, duration_minutes, proposal_expires_at, proposed_slots, location_id"
     )
     .eq("id", appointmentId)
-    .eq("doctor_id", doctor.id)
+    .eq("professional_id", doctor.id)
     .maybeSingle();
 
   if (apptErr || !appt) {

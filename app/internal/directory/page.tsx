@@ -386,10 +386,10 @@ export default async function FounderDashboardPage({
       .select("id", { count: "exact", head: true })
       .gte("created_at", monthStartIso),
     // Distinct-doctor count computed in SQL instead of fetching every appointment row.
-    supabase.rpc("founder_active_doctor_count", { p_since: sevenDaysAgoIso }),
+    supabase.rpc("founder_active_professional_count", { p_since: sevenDaysAgoIso }),
     supabase
       .from("appointments")
-      .select("id, patient_name, appointment_datetime, created_at, doctor_id")
+      .select("id, patient_name, appointment_datetime, created_at, professional_id")
       .order("created_at", { ascending: false })
       .limit(5),
     // Pre-grouped by month in SQL instead of fetching every appointment row since chartRangeStart.
@@ -421,7 +421,7 @@ export default async function FounderDashboardPage({
     id: unknown;
     patient_name: unknown;
     appointment_datetime: unknown;
-    doctor_id: unknown;
+    professional_id: unknown;
     created_at?: unknown;
   }[] = [];
 
@@ -430,7 +430,7 @@ export default async function FounderDashboardPage({
   } else {
     const fallback = await supabase
       .from("appointments")
-      .select("id, patient_name, appointment_datetime, doctor_id, created_at")
+      .select("id, patient_name, appointment_datetime, professional_id, created_at")
       .order("appointment_datetime", { ascending: false })
       .limit(5);
     recentApptRowsRaw = fallback.data ?? [];
@@ -725,7 +725,7 @@ export default async function FounderDashboardPage({
   }
 
   const doctorIds = Array.from(
-    new Set(recentApptRowsRaw.map((a) => a.doctor_id as string))
+    new Set(recentApptRowsRaw.map((a) => a.professional_id as string))
   );
   const nameById: Record<string, string> = {};
   if (doctorIds.length > 0) {
@@ -745,8 +745,8 @@ export default async function FounderDashboardPage({
       patient_name: (a.patient_name as string) ?? "Patient",
       appointment_datetime: a.appointment_datetime as string,
       booked_at_iso: created,
-      doctor_id: a.doctor_id as string,
-      doctor_name: nameById[a.doctor_id as string] ?? null,
+      professional_id: a.professional_id as string,
+      doctor_name: nameById[a.professional_id as string] ?? null,
     };
   });
   const trialMonths = await loadTrialMonths(supabase);

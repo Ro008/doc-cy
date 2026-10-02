@@ -389,7 +389,7 @@ export async function POST(req: NextRequest) {
   const { data: inserted, error: insertError } = await supabase
     .from("appointments")
     .insert({
-      doctor_id: doctorId,
+      professional_id: doctorId,
       location_id: bookingLocation?.id ?? null,
       patient_name: patientName,
       patient_email: patientEmail,
@@ -408,7 +408,7 @@ export async function POST(req: NextRequest) {
   if (insertError) {
     console.error(insertError);
 
-    // 23505: unique violation — e.g. UNIQUE(doctor_id, appointment_datetime) while a
+    // 23505: unique violation — e.g. UNIQUE(professional_id, appointment_datetime) while a
     // NEEDS_RESCHEDULE row still holds the original instant. See
     // the partial unique index appointments_doctor_datetime_active_booking_key.
     const code = (insertError as any)?.code;

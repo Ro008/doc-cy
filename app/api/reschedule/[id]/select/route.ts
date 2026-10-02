@@ -71,7 +71,7 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
   const { data: appt, error: apptErr } = await supabase
     .from("appointments")
     .select(
-      "id, doctor_id, patient_name, patient_email, appointment_datetime, status, duration_minutes, reason, proposed_slots, proposal_expires_at, reschedule_access_token, location_id"
+      "id, professional_id, patient_name, patient_email, appointment_datetime, status, duration_minutes, reason, proposed_slots, proposal_expires_at, reschedule_access_token, location_id"
     )
     .eq("id", id)
     .maybeSingle();
@@ -112,7 +112,7 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
     );
   }
 
-  const doctorId = appt.doctor_id as string;
+  const doctorId = appt.professional_id as string;
   const durationMinutes = Number(
     (appt as { duration_minutes?: number | null }).duration_minutes ?? 30
   );
@@ -158,7 +158,7 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
       reschedule_access_token: null,
     })
     .eq("id", id)
-    .eq("doctor_id", doctorId);
+    .eq("professional_id", doctorId);
 
   if (updateErr) {
     console.error(updateErr);

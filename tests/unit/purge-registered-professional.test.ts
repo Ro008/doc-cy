@@ -131,7 +131,7 @@ describe("purgeRegisteredProfessional", () => {
     assert.equal(fake.getProfessionalsDeleted(), true);
     assert.equal(fake.getDeletedAuth(), "auth-1");
     assert.ok(
-      fake.deleted.some((d) => d.table === "appointments" && d.column === "doctor_id"),
+      fake.deleted.some((d) => d.table === "appointments" && d.column === "professional_id"),
     );
     assert.ok(
       fake.deleted.some(
@@ -151,6 +151,10 @@ describe("purgeRegisteredProfessional", () => {
       );
     }
     // Renamed in Point B (and E7 for services): these moved from doctor_id to professional_id.
+    assert.ok(
+      !fake.deleted.some((d) => d.column === "doctor_id"),
+      "nothing is purged by doctor_id after E7",
+    );
     for (const table of ["professional_settings", "professional_specialties", "professional_services"]) {
       assert.ok(
         fake.deleted.some(

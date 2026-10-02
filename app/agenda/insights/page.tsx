@@ -45,7 +45,7 @@ export default async function PracticeInsightsPage() {
       .select(
         "appointment_datetime, status, created_at, is_new_patient, attendance, duration_minutes",
       )
-      .eq("doctor_id", doctor.id),
+      .eq("professional_id", doctor.id),
   );
 
   // Open hours of the primary clinic (Point E6: schedules live on the clinic links).
