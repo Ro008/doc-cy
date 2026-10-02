@@ -279,8 +279,7 @@ test.describe("Admin sign-in (/internal)", { tag: ["@pr-e2e"] }, () => {
         admin: createIntegrationAdmin(env),
         nonce,
         name: `Admin Gate ${nonce}`,
-        specialty: "Physiotherapist",
-        is_specialty_approved: true,
+        specialty: "Physiotherapist",
       });
 
       await page.goto("/internal/sign-in");

@@ -71,8 +71,7 @@ import {
   finderSpecialtyOptionsFromCatalogue,
   catalogueIdsForSpecialtyNames,
   loadScrapedAvailableSpecialtyIds,
-  approvedSpecialtyNames,
-  hasPendingSpecialty,
+  specialtyNames,
   loadSpecialtyEntriesByProfessionalIds,
   catalogueIdsForFinderSlug,
   hasSpecialtySlug,
@@ -184,7 +183,6 @@ type RegisteredFinderRow = {
   /** Address as entered at registration. */
   clinic_address: string | null;
   isGesy: boolean;
-  isSpecialtyApproved: boolean;
   latitude: number | null;
   longitude: number | null;
   locations: Array<{
@@ -620,7 +618,6 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
             name: String(raw.name ?? "Professional"),
             displayName: doctorDashboardDisplayName(String(raw.name ?? "Professional")),
             // Filled from professional_specialties below.
-            isSpecialtyApproved: true,
             specialty: null,
             specialties: [],
             // Filled from the clinics below.
@@ -659,17 +656,11 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
       );
       registeredRows = registeredRows.map((row) => {
         const entries = entriesById.get(row.id) ?? [];
-        const isSpecialtyApproved = !hasPendingSpecialty(entries);
-        // A pending custom specialty hides every label.
-        const names = isSpecialtyApproved ? approvedSpecialtyNames(entries) : [];
+        const names = specialtyNames(entries);
         return {
           ...row,
-          isSpecialtyApproved,
           specialties: names,
-          specialty: getPublicSpecialtyDisplayLabel({
-            specialty: names[0] ?? null,
-            is_specialty_approved: isSpecialtyApproved,
-          }),
+          specialty: getPublicSpecialtyDisplayLabel({ specialty: names[0] ?? null }),
         };
       });
     } catch (err) {

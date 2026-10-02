@@ -119,7 +119,6 @@ async function createVerifiedDoctor(
       professional_id: doctorId,
       specialty: input.specialty,
       license_number: `LIC-FINDER-UX-${nonce}-${input.slugPrefix}`,
-      is_approved: true,
     },
   );
   if (specialtyInsert.error) {

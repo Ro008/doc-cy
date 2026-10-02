@@ -50,8 +50,7 @@ async function seedProfessional(
 
   await seedProfessionalSpecialty(admin, professionalId, {
     specialty: "Dentistry",
-    licenseNumber: `LIC-D2-${nonce}`,
-    isApproved: true,
+    licenseNumber: `LIC-D2-${nonce}`,
   });
 
   return { professionalId, authUserId: auth.data.user.id, clinicIds: [], slug };

@@ -52,8 +52,8 @@ values (
 insert into public.professional_services (professional_id, name, price)
 values (md5('ci-fixture-andreas-nikos')::uuid, 'Neurology consultation', 40);
 
-insert into public.professional_specialties (professional_id, specialty, specialty_id, license_number, is_approved)
-select md5('ci-fixture-andreas-nikos')::uuid, s.name, s.id, 'CI-NEURO-0001', true
+insert into public.professional_specialties (professional_id, specialty, specialty_id, license_number)
+select md5('ci-fixture-andreas-nikos')::uuid, s.name, s.id, 'CI-NEURO-0001'
 from public.specialties s
 where s.name = :'specialty';
 

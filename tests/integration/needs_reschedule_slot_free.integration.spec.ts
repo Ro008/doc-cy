@@ -95,8 +95,7 @@ test.describe("Integration: NEEDS_RESCHEDULE frees original slot", { tag: ["@pr-
       doctorId = doctorInsert.data.id as string;
       await seedProfessionalSpecialty(admin, doctorId, {
         specialty: "General Practice",
-        licenseNumber: `LIC-NR-${nonce}`,
-        isApproved: true,
+        licenseNumber: `LIC-NR-${nonce}`,
       });
 
       const settingsUpsert = await admin.from("professional_settings").upsert(

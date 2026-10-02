@@ -56,8 +56,7 @@ test.describe("Agenda keeps appointments when signed out", { tag: "@pr-e2e" }, (
       admin,
       nonce,
       name: `Lapse Doctor ${nonce.slice(-4)}`,
-      specialty: "Cardiology",
-      is_specialty_approved: true,
+      specialty: "Cardiology",
     });
 
     // The next weekday, 10:00 Cyprus time: always in the future and inside the

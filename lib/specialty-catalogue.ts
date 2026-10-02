@@ -6,7 +6,7 @@
  * - A finder URL segment resolves to a catalogue row by slug. Legacy spellings
  *   (`dentistry`, `haematology`, `pediatrics`, ...) resolve through the harmonize
  *   aliases and are flagged so the page can 308 to the canonical URL.
- * - Labels are the approved join rows, ordered alphabetically (no primary).
+ * - Labels are the join rows, ordered alphabetically (no primary).
  * - Reads go through the service role; the tables are not exposed to anon.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -26,7 +26,7 @@ export type ProfessionalSpecialtyLabel = { name: string; slug: string };
 
 /** Embeds a professional's specialties (all of them) into a `professionals` select. */
 export const SPECIALTY_LINKS_SELECT =
-  "specialty_links:professional_specialties(is_approved, specialties(name, slug))";
+  "specialty_links:professional_specialties(specialties(name, slug))";
 
 /**
  * Inner-join embed used only to filter `professionals` by one specialty. Kept under
@@ -39,7 +39,6 @@ export const SPECIALTY_FILTER_SELECT =
 const EXCLUDED_FINDER_SPECIALTY_SLUGS = new Set(["medicine", "pharmacy", "laboratory"]);
 
 type SpecialtyLinkRow = {
-  is_approved?: boolean | null;
   specialties?: { name?: string | null; slug?: string | null } | null;
 };
 
@@ -84,12 +83,12 @@ export function findCatalogueSpecialty(
   return null;
 }
 
-/** Approved labels from a `SPECIALTY_LINKS_SELECT` embed, unique by slug, alphabetical. */
+/** Labels from a `SPECIALTY_LINKS_SELECT` embed, unique by slug, alphabetical. */
 export function specialtiesFromLinks(links: unknown): ProfessionalSpecialtyLabel[] {
   if (!Array.isArray(links)) return [];
   const bySlug = new Map<string, ProfessionalSpecialtyLabel>();
   for (const link of links as SpecialtyLinkRow[]) {
-    if (!link || link.is_approved === false) continue;
+    if (!link) continue;
     const name = String(link.specialties?.name ?? "").trim();
     const slug = String(link.specialties?.slug ?? "").trim();
     if (!name || !slug || bySlug.has(slug)) continue;
@@ -237,7 +236,6 @@ export async function loadScrapedAvailableSpecialtyIds(
     let q = supabase
       .from("specialties")
       .select(`id, professional_specialties!inner(id, ${professionals})`)
-      .eq("professional_specialties.is_approved", true)
       .eq(`${pro}.is_archived`, false)
       .eq(`${pro}.is_registered`, false);
     if (district) {
@@ -274,33 +272,30 @@ export function catalogueIdsForSpecialtyNames(
 }
 
 // ---------------------------------------------------------------------------
-// Every specialty row of a professional, pending ones included (account, founder
-// and email paths). Pending custom labels have no catalogue row yet, so their name
-// is the submitted text.
+// Every specialty row of a professional (account, founder and email paths), with its
+// licence number.
 // ---------------------------------------------------------------------------
 
 /** Embeds all of a professional's specialty rows into a `professionals` select. */
 export const SPECIALTY_ROWS_SELECT =
-  "specialty_rows:professional_specialties(id, specialty, license_number, is_approved, created_at, specialties(name, slug))";
+  "specialty_rows:professional_specialties(id, specialty, license_number, created_at, specialties(name, slug))";
 
 const SPECIALTY_ROW_COLUMNS =
-  "id, professional_id, specialty, license_number, is_approved, created_at, specialties(name, slug)";
+  "id, professional_id, specialty, license_number, created_at, specialties(name, slug)";
 
 export type ProfessionalSpecialtyEntry = {
   /** `professional_specialties.id` */
   id: string;
   name: string;
-  /** Null while a custom label is pending (no catalogue row). */
+  /** Null only for a label that has no catalogue row (the database always gives one). */
   slug: string | null;
   licenseNumber: string | null;
-  isApproved: boolean;
 };
 
 type SpecialtyEntryRow = {
   id?: string | null;
   specialty?: string | null;
   license_number?: string | null;
-  is_approved?: boolean | null;
   specialties?: { name?: string | null; slug?: string | null } | null;
 };
 
@@ -317,34 +312,28 @@ export function specialtyEntriesFromRows(rows: unknown): ProfessionalSpecialtyEn
       name,
       slug: String(row.specialties?.slug ?? "").trim() || null,
       licenseNumber: String(row.license_number ?? "").trim() || null,
-      isApproved: row.is_approved !== false,
     });
   }
   return sortSpecialtyLabels(entries);
 }
 
-/** True while a custom specialty awaits founder review (was `is_specialty_approved = false`). */
-export function hasPendingSpecialty(entries: readonly ProfessionalSpecialtyEntry[]): boolean {
-  return entries.some((entry) => !entry.isApproved);
-}
-
 /**
  * The one specialty shown where a single label fits (emails, calendar events, account
- * screens): the first approved one alphabetically, else the first pending one. Same
- * rule the old sync trigger used for `professionals.specialty` (dropped in Point C3).
+ * screens): the first one alphabetically. Same rule the old sync trigger used for
+ * `professionals.specialty` (dropped in Point C3).
  */
 export function primarySpecialtyEntry(
   entries: readonly ProfessionalSpecialtyEntry[],
 ): ProfessionalSpecialtyEntry | null {
-  return entries.find((entry) => entry.isApproved) ?? entries[0] ?? null;
+  return entries[0] ?? null;
 }
 
-/** Approved names, alphabetical. */
-export function approvedSpecialtyNames(entries: readonly ProfessionalSpecialtyEntry[]): string[] {
-  return entries.filter((entry) => entry.isApproved).map((entry) => entry.name);
+/** Names, alphabetical. */
+export function specialtyNames(entries: readonly ProfessionalSpecialtyEntry[]): string[] {
+  return entries.map((entry) => entry.name);
 }
 
-/** professional id -> all specialty rows (pending included), alphabetical. */
+/** professional id -> all specialty rows, alphabetical. */
 export async function loadSpecialtyEntriesByProfessionalIds(
   supabase: SupabaseClient,
   professionalIds: readonly string[],
@@ -371,7 +360,7 @@ export async function loadSpecialtyEntriesByProfessionalIds(
   return out;
 }
 
-/** One professional's specialty rows (pending included), alphabetical. */
+/** One professional's specialty rows, alphabetical. */
 export async function loadSpecialtyEntries(
   supabase: SupabaseClient,
   professionalId: string,
@@ -393,7 +382,7 @@ export async function loadPrimarySpecialtyName(
   return primarySpecialtyEntry(await loadSpecialtyEntries(supabase, id))?.name ?? null;
 }
 
-/** professional id -> approved labels, for rows loaded without the embed. */
+/** professional id -> labels, for rows loaded without the embed. */
 export async function loadSpecialtiesByProfessionalIds(
   supabase: SupabaseClient,
   professionalIds: readonly string[],
@@ -404,7 +393,7 @@ export async function loadSpecialtiesByProfessionalIds(
   const res = await fetchAllSupabaseRowsForIdChunks(ids, (chunk) =>
     supabase
       .from("professional_specialties")
-      .select("professional_id, is_approved, specialties(name, slug)")
+      .select("professional_id, specialties(name, slug)")
       .in("professional_id", chunk)
       .order("id"),
   );

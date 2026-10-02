@@ -85,7 +85,7 @@ with
     where professional_id in (select id from ins_pros)
     returning professional_id
   )
-insert into public.professional_specialties (professional_id, specialty, specialty_id, is_approved)
-select professional_id, specialty_name, specialty_id, true
+insert into public.professional_specialties (professional_id, specialty, specialty_id)
+select professional_id, specialty_name, specialty_id
 from people
 where professional_id in (select professional_id from ins_links);

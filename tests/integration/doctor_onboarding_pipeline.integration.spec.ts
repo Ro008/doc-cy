@@ -51,8 +51,7 @@ test.describe("Integration: doctor onboarding pipeline", { tag: "@pr-e2e" }, () 
         admin,
         nonce,
         name: `Onboard Std ${nonce}`,
-        specialty: "Pediatrics",
-        is_specialty_approved: true,
+        specialty: "Pediatrics",
         markTrialNoticeSeen: false,
       });
 

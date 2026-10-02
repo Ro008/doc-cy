@@ -74,7 +74,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         .select(
           `specialties!inner(slug), professionals!inner(id, is_test_profile, name, is_archived, is_registered, slug${registered ? "" : `, ${LISTING_CLINICS_SELECT}`})`,
         )
-        .eq("is_approved", true)
         .eq("professionals.is_archived", false)
         .eq("professionals.is_registered", registered);
       if (registered) {

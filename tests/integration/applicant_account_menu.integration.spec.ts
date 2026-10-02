@@ -162,8 +162,7 @@ test.describe("Integration: menu for accounts not yet approved", { tag: "@pr-e2e
         admin,
         nonce,
         name: `Menu Doctor ${nonce.slice(-4)}`,
-        specialty: "Cardiology",
-        is_specialty_approved: true,
+        specialty: "Cardiology",
       });
       await loginDoctorUi(page, fixture.email, fixture.password);
       await page.goto("/agenda", { waitUntil: "domcontentloaded" });

@@ -26,8 +26,7 @@ test.describe("Integration UI: first-login trial notice (local only)", { tag: "@
         admin,
         nonce,
         name: `Trial Notice ${nonce}`,
-        specialty: "General Practice",
-        is_specialty_approved: true,
+        specialty: "General Practice",
         markTrialNoticeSeen: false,
         subscription_tier: "founder",
       });
