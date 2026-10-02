@@ -84,7 +84,9 @@
       "preselectedSlotUnavailable": "Αυτή η ώρα δεν είναι πλέον διαθέσιμη. Παρακαλούμε επιλέξτε άλλη.",
       "bookingFailed": "Δεν ήταν δυνατή η ολοκλήρωση της κράτησης. Παρακαλούμε δοκιμάστε ξανά.",
       "somethingWentWrong": "Κάτι πήγε στραβά. Παρακαλούμε δοκιμάστε ξανά."
-    }
+    },
+    "emailDidYouMean": "Μήπως εννοείτε",
+    "emailInvalid": "Εισαγάγετε έγκυρο email, π.χ. name@example.com."
   },
   "DoctorAgenda": {
     "appointmentPendingBadge": "Εκκρεμεί",
@@ -114,7 +116,36 @@
     "whatToExpectStep2Lead": "Έλεγχος από τον επαγγελματία.",
     "whatToExpectStep2Body": "Θα δει το πρόγραμμά του/της και θα εγκρίνει την επίσκεψή σας.",
     "whatToExpectStep3Lead": "Επιβεβαίωση.",
-    "whatToExpectStep3Body": "Μετά την έγκριση, θα λάβετε email με πρόσκληση ημερολογίου."
+    "whatToExpectStep3Body": "Μετά την έγκριση, θα λάβετε email με πρόσκληση ημερολογίου.",
+    "sectionNavLabel": "Ενότητες προφίλ",
+    "sectionTabBook": "Ραντεβού",
+    "sectionTabAbout": "Σχετικά",
+    "sectionTabServices": "Υπηρεσίες & τιμές",
+    "sectionTabClinics": "Ιατρεία & επικοινωνία",
+    "nextAvailabilityTitle": "Επόμενη διαθεσιμότητα",
+    "nextAvailabilityToday": "Σήμερα",
+    "nextAvailabilityFrom": "από {time}",
+    "nextAvailabilityLiveToday": "Ελεύθερες ώρες σήμερα",
+    "nextAvailabilityNone": "Δεν υπάρχουν διαθέσιμες ώρες online αυτή τη στιγμή",
+    "nextAvailabilityNoneHint": "Μπορείτε να καλέσετε το ιατρείο για ραντεβού.",
+    "requestAppointmentCta": "Αίτημα ραντεβού",
+    "heroClinicsCount": "{count, plural, one {# ιατρείο} other {# ιατρεία}}",
+    "aboutHeading": "Σχετικά με {name}",
+    "aboutEmpty": "Ο επαγγελματίας δεν έχει προσθέσει ακόμη βιογραφικό.",
+    "speaksLabel": "Μιλά",
+    "servicesHeading": "Υπηρεσίες & τιμές",
+    "servicePriceMissing": "Τιμή κατόπιν αιτήματος",
+    "clinicsHeading": "Ιατρεία & επικοινωνία",
+    "clinicsHintSeveral": "Ίδιος επαγγελματίας, διαφορετικά σημεία. Κλείστε στο ιατρείο που θα επισκεφθείτε.",
+    "openInMaps": "Άνοιγμα στους Χάρτες",
+    "ownerBanner": "Βλέπετε τη δημόσια σελίδα σας.",
+    "ownerEditProfile": "Επεξεργασία προφίλ",
+    "ownerCustomize": "Χρώμα & τίτλος",
+    "schemeGroupLabel": "Χρωματική λειτουργία",
+    "schemeLight": "Ανοιχτό",
+    "schemeDark": "Σκούρο",
+    "heroClinicDetails": "Στοιχεία ιατρείου",
+    "aboutDocCy": "Σχετικά με το DocCy"
   },
   "LandingPage": {
     "Hero": {

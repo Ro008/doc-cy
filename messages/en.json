@@ -141,7 +141,9 @@
       "preselectedSlotUnavailable": "That time is no longer available. Please choose another slot.",
       "bookingFailed": "We could not complete your booking. Please try again.",
       "somethingWentWrong": "Something went wrong. Please try again."
-    }
+    },
+    "emailDidYouMean": "Did you mean",
+    "emailInvalid": "Enter a valid email, e.g. name@example.com."
   },
   "DoctorAgenda": {
     "appointmentPendingBadge": "Pending",
@@ -171,7 +173,36 @@
     "whatToExpectStep2Lead": "Expert review.",
     "whatToExpectStep2Body": "The professional will check their schedule and approve your visit.",
     "whatToExpectStep3Lead": "Get confirmed.",
-    "whatToExpectStep3Body": "Once approved, you'll receive an email with your calendar invite."
+    "whatToExpectStep3Body": "Once approved, you'll receive an email with your calendar invite.",
+    "sectionNavLabel": "Profile sections",
+    "sectionTabBook": "Book",
+    "sectionTabAbout": "About",
+    "sectionTabServices": "Services & prices",
+    "sectionTabClinics": "Clinics & contact",
+    "nextAvailabilityTitle": "Next availability",
+    "nextAvailabilityToday": "Today",
+    "nextAvailabilityFrom": "from {time}",
+    "nextAvailabilityLiveToday": "Free times today",
+    "nextAvailabilityNone": "No online times right now",
+    "nextAvailabilityNoneHint": "You can still call the clinic to book.",
+    "requestAppointmentCta": "Request appointment",
+    "heroClinicsCount": "{count, plural, one {# clinic} other {# clinics}}",
+    "aboutHeading": "About {name}",
+    "aboutEmpty": "This professional has not added a bio yet.",
+    "speaksLabel": "Speaks",
+    "servicesHeading": "Services & prices",
+    "servicePriceMissing": "Price on request",
+    "clinicsHeading": "Clinics & contact",
+    "clinicsHintSeveral": "Same professional, different places. Book the clinic you will visit.",
+    "openInMaps": "Open in Maps",
+    "ownerBanner": "You are viewing your public page.",
+    "ownerEditProfile": "Edit profile",
+    "ownerCustomize": "Colour & headline",
+    "schemeGroupLabel": "Colour mode",
+    "schemeLight": "Light",
+    "schemeDark": "Dark",
+    "heroClinicDetails": "Clinic details",
+    "aboutDocCy": "About DocCy"
   },
   "LandingPage": {
     "Hero": {

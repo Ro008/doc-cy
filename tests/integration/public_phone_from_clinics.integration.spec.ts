@@ -121,7 +121,7 @@ test.describe("Integration: public phone comes from the clinic", { tag: "@pr-e2e
     page,
   }) => {
     await page.goto(`/en/${registered!.slug}`, { waitUntil: "domcontentloaded" });
-    await expect(page.getByRole("heading", { name: /^Contact$/i })).toBeVisible({
+    await expect(page.getByRole("heading", { name: /^Clinics & contact$/i })).toBeVisible({
       timeout: 20_000,
     });
     const call = page.getByRole("button", { name: /^Call$/i });

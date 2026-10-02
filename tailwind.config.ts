@@ -55,6 +55,28 @@ const config: Config = {
           800: "#24364B", // Body text
           900: "#062F61", // Navy 900 — headings + dark app chrome
         },
+        // Public profile only (.doccy-profile in globals.css; values in lib/profile-theme.ts).
+        // Switch between light and dark with the patient's device setting.
+        profile: {
+          bg: "var(--p-bg)",
+          surface: "var(--p-surface)",
+          border: "var(--p-border)",
+          text: "var(--p-text)",
+          body: "var(--p-body)",
+          muted: "var(--p-muted)",
+          off: "var(--p-off)",
+        },
+        // The professional's chosen accent on their public profile.
+        accent: {
+          DEFAULT: "var(--p-accent)",
+          on: "var(--p-accent-on)",
+          btn: "var(--p-accent-btn)",
+          avatar: "var(--p-accent-avatar)",
+          soft: "var(--p-accent-soft)",
+          link: "var(--p-accent-link)",
+          cta: "var(--p-accent-cta)",
+          "on-cta": "var(--p-accent-on-cta)",
+        },
       },
     },
   },

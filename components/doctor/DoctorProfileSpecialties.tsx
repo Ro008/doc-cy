@@ -10,6 +10,8 @@ type DoctorProfileSpecialtiesProps = {
   specialty?: string | null;
   district?: string | null;
   className?: string;
+  /** Pill style override (the profile hero paints them in the doctor's accent). */
+  pillClassName?: string;
 };
 
 /**
@@ -21,6 +23,7 @@ export function DoctorProfileSpecialties({
   specialty,
   district = null,
   className,
+  pillClassName = PROFILE_PILL_CLASS,
 }: DoctorProfileSpecialtiesProps) {
   const parts =
     specialties.length > 0
@@ -41,7 +44,7 @@ export function DoctorProfileSpecialties({
           key={label}
           specialty={label}
           district={district}
-          className={PROFILE_PILL_CLASS}
+          className={pillClassName}
         >
           <span className="whitespace-normal break-words leading-snug">{label}</span>
         </FinderSpecialtyLink>

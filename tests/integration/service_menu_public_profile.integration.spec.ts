@@ -96,7 +96,7 @@ test.describe("Integration: public Service Menu section", () => {
       await page.goto(`/en/${doctorSlug}`);
 
       await expect(
-        page.getByRole("heading", { name: /^Services$/i }),
+        page.getByRole("heading", { name: /^Services & prices$/i }),
       ).toBeVisible({ timeout: 10000 });
       await expect(page.getByText("Facial Laser")).toBeVisible({ timeout: 10000 });
       await expect(page.getByText("From 50€")).toBeVisible({ timeout: 10000 });
@@ -109,7 +109,7 @@ test.describe("Integration: public Service Menu section", () => {
       }
 
       await page.goto(`/en/${doctorSlug}`);
-      await expect(page.getByRole("heading", { name: /^Services$/i })).toHaveCount(0);
+      await expect(page.getByRole("heading", { name: /^Services & prices$/i })).toHaveCount(0);
       await expect(page.getByText("Facial Laser")).toHaveCount(0);
     } finally {
       if (doctorId) {

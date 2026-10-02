@@ -38,6 +38,7 @@ const prE2e = [
   "navigation_feedback.spec.ts",
   "doctor_settings_language_guard.spec.ts",
   "profile_structured_data.spec.ts",
+  "profile_one_page.spec.ts",
   "integration/directory_duplicates_actions.integration.spec.ts",
   "integration/pending_registration_origin_actions.integration.spec.ts",
   ...prE2eBooking,

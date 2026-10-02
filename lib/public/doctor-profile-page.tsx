@@ -6,11 +6,23 @@ import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
 
 import { createServiceRoleClient } from "@/lib/supabase-service";
 import { BookingSection } from "@/components/doctor/BookingSection";
-import { DoctorDetailsAccordion } from "@/components/doctor/DoctorDetailsAccordion";
-import { LanguagesSpoken } from "@/components/doctor/LanguagesSpoken";
 import { WhatToExpectCard } from "@/components/doctor/WhatToExpectCard";
-import { ServiceMenuSection } from "@/components/doctor/ServiceMenuSection";
-import { DoctorLocationSection } from "@/components/doctor/DoctorLocationSection";
+import { ProfileAboutSection } from "@/components/doctor/profile/ProfileAboutSection";
+import { ProfileClinicsSection } from "@/components/doctor/profile/ProfileClinicsSection";
+import { ProfileNextAvailability } from "@/components/doctor/profile/ProfileNextAvailability";
+import { ProfileSchemeToggle } from "@/components/doctor/profile/ProfileSchemeToggle";
+import { ProfileScrollFade } from "@/components/doctor/profile/ProfileScrollFade";
+import { ProfileSectionNav } from "@/components/doctor/profile/ProfileSectionNav";
+import { ProfileServicesSection } from "@/components/doctor/profile/ProfileServicesSection";
+import { languageThemeForLabel } from "@/lib/cyprus-languages";
+import { profileCustomizationFromRow } from "@/lib/profile-customization";
+import { profileThemeStyle } from "@/lib/profile-theme";
+import { PROFILE_SCHEME_COOKIE, parseProfileScheme } from "@/lib/profile-scheme";
+import { computePublicAvailabilityCalendar } from "@/lib/public/compute-public-booking-slots";
+import { buildProfileClinicCards } from "@/lib/public/profile-clinic-cards";
+import { summarizeNextAvailabilityDays } from "@/lib/public/profile-next-availability";
+import { profileDistricts } from "@/lib/public/profile-districts";
+import { PROFILE_SECTION_IDS, profileSectionTabs } from "@/lib/public/profile-sections";
 import { DoctorProfileClinicPicker } from "@/components/doctor/DoctorProfileClinicPicker";
 import { loadDoctorLocations, primaryDoctorLocation } from "@/lib/load-doctor-locations";
 import { primaryClinicLocationFields } from "@/lib/professional-clinic-locations";
@@ -29,6 +41,8 @@ import {
 import { settingsToWeeklySlots } from "@/lib/doctor-settings";
 import { appointmentToCyprusDate, CY_TZ } from "@/lib/appointments";
 import { addDays, format } from "date-fns";
+import { el as elLocale, enGB } from "date-fns/locale";
+import { Building2, MapPin } from "lucide-react";
 import { utcToZonedTime, zonedTimeToUtc } from "date-fns-tz";
 import { buildMapsUrlFromAddress, buildMapsUrlFromClinicLocation } from "@/lib/clinic-info";
 import { stripPlusCodePrefix } from "@/lib/clinic-location-pin";
@@ -40,7 +54,6 @@ import {
   DOCTOR_FIELD_LIST_PUBLIC_PROFILE_NO_LANG,
 } from "@/lib/doctor-fieldsets";
 import { GesyProviderBadge } from "@/components/brand/GesyProviderBadge";
-import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher";
 import { RecordRecentlyViewed } from "@/components/finder/RecordRecentlyViewed";
 import { FinderPublicHeader } from "@/components/finder/FinderPublicHeader";
 import { isProSessionHintValue, PRO_SESSION_HINT_COOKIE } from "@/lib/pro-session-hint";
@@ -49,7 +62,6 @@ import {
   FinderDistrictLink,
 } from "@/components/finder/FinderSpecialtyLink";
 import { DoctorProfileSpecialties } from "@/components/doctor/DoctorProfileSpecialties";
-import { RevealPhoneButton } from "@/components/finder/RevealPhoneButton";
 import { getTranslations } from "next-intl/server";
 import {
   buildRegisteredProfileMetaDescription,
@@ -395,6 +407,13 @@ function resolvePublicAvatarUrl(
   return resolveShareAvatarUrl(avatarPathOrUrl, (path) =>
     supabase.storage.from("avatars").getPublicUrl(path).data.publicUrl,
   );
+}
+
+/** "Dr. Eleni Georgiou" → "Eleni" for "About Eleni". */
+function profileFirstName(name: string): string {
+  const words = name.trim().split(/\s+/).filter(Boolean);
+  const first = words.find((word) => !/^(dr|prof|mr|mrs|ms|mx)\.?$/i.test(word));
+  return first ?? words[0] ?? name;
 }
 
 function getInitials(name: string): string {
@@ -743,9 +762,104 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
     sameAs: mapsUrl || null,
   });
 
+  // ─── One-page layout (hero, sticky anchor tabs, sections) ───────────────────
+  const customization = profileCustomizationFromRow(profile);
+  // Light unless this visitor switched to dark (cookie, so no flash on load).
+  const scheme = parseProfileScheme(cookies().get(PROFILE_SCHEME_COOKIE)?.value);
+  const accountSettings = normalizedSettings as {
+    holiday_mode_enabled?: boolean | null;
+    holiday_start_date?: string | null;
+    holiday_end_date?: string | null;
+    booking_horizon_days?: number | null;
+    minimum_notice_hours?: number | null;
+  } | null;
+  // No clinic, no schedule: nothing to book online.
+  const onlineBookingsPaused =
+    !locationSettings || Boolean(locationSettings.pause_online_bookings);
+  const holidayModeEnabled = Boolean(accountSettings?.holiday_mode_enabled);
+  const holidayStartDate = accountSettings?.holiday_start_date ?? null;
+  const holidayEndDate = accountSettings?.holiday_end_date ?? null;
+  const bookingHorizonDays = accountSettings?.booking_horizon_days ?? 90;
+  const minimumNoticeHours = accountSettings?.minimum_notice_hours ?? 2;
+  const breakStartHm = breakStart ? breakStart.slice(0, 5) : undefined;
+  const breakEndHm = breakEnd ? breakEnd.slice(0, 5) : undefined;
+
+  // Same slot rules as BookingSection, for the hero's next-availability days.
+  const nextDays = onlineBookingsPaused
+    ? []
+    : summarizeNextAvailabilityDays(
+        computePublicAvailabilityCalendar({
+          weeklySlots,
+          takenSlotTimes,
+          breakStart: breakStartHm,
+          breakEnd: breakEndHm,
+          holidayModeEnabled,
+          holidayStartDate,
+          holidayEndDate,
+          bookingHorizonDays,
+          minimumNoticeHours,
+        }).days,
+      );
+  const locale = profileLocale(params);
+  const dayLabelLocale = locale === "el" ? elLocale : enGB;
+  const dayByDate: Record<string, string> = {};
+  const fromByDate: Record<string, string> = {};
+  for (const day of nextDays) {
+    const [y, m, d] = day.dateKey.split("-").map(Number);
+    dayByDate[day.dateKey] = format(new Date(y, m - 1, d), "EEE d MMM", { locale: dayLabelLocale });
+    fromByDate[day.dateKey] = t("nextAvailabilityFrom", { time: day.fromTime });
+  }
+
+  const selectedLocationTitle =
+    practiceLocations.length > 1 && selectedLocation
+      ? clinicTitleOrFallback(
+          selectedLocation.label,
+          bookingT("clinicNumber", {
+            number:
+              Math.max(
+                0,
+                practiceLocations.findIndex((row) => row.id === selectedLocation.id),
+              ) + 1,
+          }),
+        )
+      : null;
+
+  const clinicCards = buildProfileClinicCards({
+    locations: practiceLocations,
+    clinicForLocation,
+    phoneClinics: callClinics,
+    selectedLocationId: selectedLocation?.id ?? null,
+    fallbackTitle: (number) => bookingT("clinicNumber", { number }),
+    missingAddress: bookingT("clinicAddressMissing"),
+    fallbackAddress: clinicAddress,
+  });
+  const hasClinicPhone = clinicCards.some((card) => card.phoneClinicId);
+
+  const sectionTabs = profileSectionTabs({
+    hasServices: services.length > 0,
+    hasClinics: clinicCards.length > 0,
+  }).map((tab) => ({ id: tab.id, label: t(tab.labelKey) }));
+
+  // Every district with a clinic (Nicosia · Paphos), not only the primary one.
+  const districts = profileDistricts({ locations: practiceLocations, fallback: profile.district });
+  // Same colour chips as the finder cards (lib/cyprus-languages).
+  const languageChips = (Array.isArray(profile.languages) ? profile.languages : [])
+    .map((raw) => String(raw).trim())
+    .filter(Boolean)
+    .map((raw) => languageThemeForLabel(raw));
+  // Links in the hero look like links (underline); plain facts do not.
+  const heroLinkClass =
+    "underline decoration-2 underline-offset-4 transition hover:decoration-[3px] focus:outline-none focus-visible:rounded focus-visible:ring-2 focus-visible:ring-accent-on";
+
   return (
-    <main className="min-h-screen bg-ink-50 text-ink-800">
-      <FinderPublicHeader proSessionHint={proSessionHint} />
+    <main
+      className="doccy-profile min-h-screen font-sans"
+      data-scheme={scheme}
+      style={profileThemeStyle(customization.accent)}
+    >
+      <div className="border-b border-profile-border bg-profile-surface">
+        <FinderPublicHeader proSessionHint={proSessionHint} />
+      </div>
       {!isOwnerView ? (
         <RecordRecentlyViewed
           item={{
@@ -762,94 +876,150 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
       />
-      <div className="pointer-events-none fixed inset-0 -z-10">
-        <div className="absolute inset-x-0 top-[-10%] mx-auto h-80 max-w-xl rounded-full bg-clinical-100/80 blur-3xl" />
-        <div className="absolute inset-y-0 left-[-10%] h-full w-64 bg-wellness-50/80 blur-3xl" />
-        <div className="absolute inset-y-0 right-[-15%] h-full w-72 bg-clinical-50 blur-3xl" />
-      </div>
 
-      <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8 lg:py-14">
+      <div className="mx-auto max-w-6xl px-4 pb-6 pt-5 sm:px-6 lg:px-8">
         {isOwnerView ? (
-          <div className="mb-6 rounded-2xl border border-clinical-200 bg-clinical-50 px-4 py-3 text-sm text-clinical-800">
-            You are viewing your public profile.{" "}
-            <a href="/agenda/settings" className="font-semibold underline underline-offset-2">
-              Edit Profile
-            </a>{" "}
+          <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-2xl border border-profile-border bg-accent-soft px-4 py-3 text-sm text-profile-text">
+            <span>{t("ownerBanner")}</span>
+            <a href="/agenda/settings" className="font-bold underline underline-offset-2">
+              {t("ownerEditProfile")}
+            </a>
+            <a href="/agenda/settings#public-page" className="font-bold underline underline-offset-2">
+              {t("ownerCustomize")}
+            </a>
           </div>
         ) : null}
-        <header className="mb-8 flex flex-col gap-4 sm:gap-6">
-          <div className="flex items-center justify-between gap-3">
-            <span className="text-xs font-semibold tracking-[0.16em] text-ink-500">
-              {t("profileTag")}
-            </span>
-            <LanguageSwitcher compact variant="light" />
-          </div>
-          <div className="flex items-start gap-5">
-            <div className="relative h-36 w-36 shrink-0 overflow-hidden rounded-2xl border-2 border-clinical-200 bg-clinical-50 shadow-lg shadow-ink-900/10 sm:h-44 sm:w-44">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <span className="text-xs font-bold uppercase tracking-[0.16em] text-profile-muted">
+            {t("profileTag")}
+          </span>
+          {/* No language switcher until the Greek copy is reviewed (user, 2026-10-02). */}
+          <ProfileSchemeToggle
+            initial={scheme}
+            labels={{
+              group: t("schemeGroupLabel"),
+              light: t("schemeLight"),
+              dark: t("schemeDark"),
+            }}
+          />
+        </div>
+
+        <header className="grid gap-6 rounded-[2rem] bg-accent p-5 text-accent-on sm:p-7 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-center lg:gap-8">
+          <div className="grid grid-cols-[96px_minmax(0,1fr)] items-center gap-x-4 sm:grid-cols-[144px_minmax(0,1fr)] sm:gap-x-6">
+            <div className="relative h-28 w-24 shrink-0 overflow-hidden rounded-3xl bg-accent-avatar sm:row-span-2 sm:h-44 sm:w-36 sm:rounded-[1.75rem]">
               {avatarUrl ? (
                 <Image
                   src={avatarUrl}
                   alt=""
                   fill
                   className="object-cover"
-                  sizes="(max-width: 640px) 144px, 176px"
+                  sizes="(max-width: 640px) 96px, 144px"
                   priority
                 />
               ) : (
                 <div
-                  className="flex h-full w-full items-center justify-center text-3xl font-semibold text-clinical-700 sm:text-4xl"
+                  className="flex h-full w-full items-center justify-center text-4xl font-extrabold sm:text-5xl"
                   aria-hidden
                 >
                   {getInitials(profile.name)}
                 </div>
               )}
             </div>
-            <div className="min-w-0 flex-1">
-              <h1 className="text-balance leading-tight">
-                <span className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
-                  <span className="text-3xl font-semibold tracking-tight text-ink-900 sm:text-4xl">
-                    {profile.name}
-                  </span>
+            <h1 className="min-w-0 text-balance text-3xl font-extrabold leading-[1.05] tracking-tight sm:self-end sm:text-[44px]">
+                <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <span>{profile.name}</span>
                   {profile.is_gesy ? (
                     <GesyProviderBadge size="xs" language="el" className="shrink-0" />
                   ) : null}
                 </span>
-                <DoctorProfileSpecialties
-                  specialties={profileSpecialtyLabels}
-                  specialty={profile.specialty}
-                  district={profileDistrictLabel}
-                />
-                {profileDistrictLabel ? (
-                  <FinderDistrictLink
-                    district={profileDistrictLabel}
-                    className="mt-1 block text-base font-medium tracking-wide text-ink-500 underline-offset-2 transition hover:text-clinical-700 hover:underline sm:text-lg"
-                  />
-                ) : (
-                  <span className="mt-1 block text-base font-medium tracking-wide text-ink-500 sm:text-lg">
-                    {profileHeadingCity}
-                  </span>
-                )}
-                {practiceLocations.length > 1 ? (
-                  <p className="mt-2 text-sm font-medium text-ink-700">
-                    {bookingT("seesPatientsAtClinics", { count: practiceLocations.length })}
-                  </p>
-                ) : null}
-              </h1>
-              {Array.isArray(profile.languages) &&
-              profile.languages.length > 0 ? (
-                <LanguagesSpoken
-                  languages={profile.languages}
-                  className="mt-2.5 w-full"
-                />
+            </h1>
+            <div className="col-span-2 min-w-0 sm:col-span-1 sm:col-start-2 sm:self-start">
+              <DoctorProfileSpecialties
+                specialties={profileSpecialtyLabels}
+                specialty={profile.specialty}
+                district={profileDistrictLabel}
+                pillClassName="inline-flex max-w-full items-center rounded-full bg-accent-on px-3 py-1.5 text-left text-sm font-bold text-accent transition hover:opacity-90"
+              />
+              {customization.headline ? (
+                <p className="mt-3 max-w-xl text-lg font-semibold leading-snug">
+                  {customization.headline}
+                </p>
               ) : null}
-
+              <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-[15px] font-bold">
+                <span className="inline-flex flex-wrap items-center gap-x-1.5">
+                  <MapPin className="h-4 w-4 shrink-0" aria-hidden />
+                  {districts.length > 0 ? (
+                    districts.map((district, index) => (
+                      <span key={district} className="inline-flex items-center gap-x-1.5">
+                        {index > 0 ? <span aria-hidden>·</span> : null}
+                        <FinderDistrictLink
+                          district={district}
+                          className={`text-accent-on ${heroLinkClass} [&_span]:underline [&_span]:decoration-2 [&_span]:underline-offset-4`}
+                        />
+                      </span>
+                    ))
+                  ) : (
+                    <span>{profileHeadingCity}</span>
+                  )}
+                </span>
+                {clinicCards.length > 0 ? (
+                  <a
+                    href={`#${PROFILE_SECTION_IDS.clinics}`}
+                    data-testid="profile-hero-clinics-link"
+                    className={`inline-flex items-center gap-1.5 ${heroLinkClass}`}
+                  >
+                    <Building2 className="h-4 w-4 shrink-0" aria-hidden />
+                    {practiceLocations.length > 1
+                      ? t("heroClinicsCount", { count: practiceLocations.length })
+                      : t("heroClinicDetails")}
+                  </a>
+                ) : null}
+              </div>
+              {languageChips.length > 0 ? (
+                <div className="mt-3 flex flex-wrap items-center gap-1.5">
+                  <span className="mr-1 text-xs font-extrabold uppercase tracking-[0.14em]">
+                    {t("speaksLabel")}
+                  </span>
+                  {languageChips.map((chip) => (
+                    <span
+                      key={chip.label}
+                      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold ${chip.pillClass}`}
+                    >
+                      {chip.label}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
             </div>
           </div>
+          <ProfileNextAvailability
+            days={nextDays}
+            clinicLabel={selectedLocationTitle}
+            canCallClinic={hasClinicPhone}
+            labels={{
+              title: t("nextAvailabilityTitle"),
+              today: t("nextAvailabilityToday"),
+              dayByDate,
+              fromByDate,
+              liveToday: t("nextAvailabilityLiveToday"),
+              cta: t("requestAppointmentCta"),
+              none: t("nextAvailabilityNone"),
+              noneHint: t("nextAvailabilityNoneHint"),
+            }}
+          />
         </header>
+      </div>
 
-        <div className="flex flex-col gap-6 lg:grid lg:grid-cols-[minmax(280px,360px)_1fr] lg:gap-8">
-          {/* Booking first on mobile, right column on desktop */}
-          <section className="order-1 lg:order-2 lg:min-w-0">
+      {/* Direct child of <main> so it stays stuck for the whole page (a permanent index). */}
+      <ProfileSectionNav ariaLabel={t("sectionNavLabel")} tabs={sectionTabs} />
+
+      <div className="mx-auto flex max-w-6xl flex-col gap-14 px-4 pb-16 pt-8 sm:px-6 lg:px-8">
+        <section
+          id={PROFILE_SECTION_IDS.book}
+          aria-label={t("sectionTabBook")}
+          className="grid scroll-mt-20 gap-5 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start lg:gap-6"
+        >
+          <div className="min-w-0">
             {practiceLocations.length > 1 ? (
               <DoctorProfileClinicPicker
                 slug={params.slug}
@@ -871,20 +1041,7 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
               takenSlotTimes={takenSlotTimes}
               profileSlug={params.slug}
               locationId={selectedLocation?.id ?? null}
-              locationLabel={
-                practiceLocations.length > 1 && selectedLocation
-                  ? clinicTitleOrFallback(
-                      selectedLocation.label,
-                      bookingT("clinicNumber", {
-                        number:
-                          Math.max(
-                            0,
-                            practiceLocations.findIndex((row) => row.id === selectedLocation.id),
-                          ) + 1,
-                      }),
-                    )
-                  : null
-              }
+              locationLabel={selectedLocationTitle}
               locationScopedPause={practiceLocations.length > 1}
               initialSlotKey={
                 parseBookingSlotParam(
@@ -893,137 +1050,34 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
                     : searchParams?.slot,
                 )
               }
-              breakStart={breakStart ? breakStart.slice(0, 5) : undefined}
-              breakEnd={breakEnd ? breakEnd.slice(0, 5) : undefined}
+              breakStart={breakStartHm}
+              breakEnd={breakEndHm}
               publicPhoneAvailable={hasPublicPhone}
-              onlineBookingsPaused={
-                // No clinic, no schedule: nothing to book online.
-                !locationSettings || Boolean(locationSettings.pause_online_bookings)
-              }
-              holidayModeEnabled={Boolean(
-                (
-                  normalizedSettings as {
-                    holiday_mode_enabled?: boolean | null;
-                  } | null
-                )?.holiday_mode_enabled,
-              )}
-              holidayStartDate={
-                (
-                  normalizedSettings as {
-                    holiday_start_date?: string | null;
-                  } | null
-                )?.holiday_start_date ?? null
-              }
-              holidayEndDate={
-                (
-                  normalizedSettings as {
-                    holiday_end_date?: string | null;
-                  } | null
-                )?.holiday_end_date ?? null
-              }
-              bookingHorizonDays={
-                (
-                  normalizedSettings as {
-                    booking_horizon_days?: number | null;
-                  } | null
-                )?.booking_horizon_days ?? 90
-              }
-              minimumNoticeHours={
-                (
-                  normalizedSettings as {
-                    minimum_notice_hours?: number | null;
-                  } | null
-                )?.minimum_notice_hours ?? 2
-              }
+              onlineBookingsPaused={onlineBookingsPaused}
+              holidayModeEnabled={holidayModeEnabled}
+              holidayStartDate={holidayStartDate}
+              holidayEndDate={holidayEndDate}
+              bookingHorizonDays={bookingHorizonDays}
+              minimumNoticeHours={minimumNoticeHours}
             />
-          </section>
-
-          {/* What to expect: outside About accordion so it stays visible on mobile */}
-          <div className="order-2 flex flex-col gap-4 lg:order-1">
-            <WhatToExpectCard />
-            <DoctorDetailsAccordion
-              name={profile.name}
-              bio={profile.bio}
-            />
-            {callClinics.length > 0 ? (
-              <section className="lg:min-w-0">
-                <div className="rounded-3xl border border-clinical-200 bg-white p-5 shadow-[0_1px_3px_rgba(26,43,60,0.06),0_8px_24px_rgba(18,184,192,0.06)] backdrop-blur-xl sm:p-6">
-                  <h2 className="text-sm font-semibold tracking-wide text-ink-900">
-                    Contact
-                  </h2>
-                  <div className="mt-3 flex flex-col gap-3">
-                    {callClinics.map((clinic) => (
-                      <div key={clinic.id} className="flex flex-col gap-1.5">
-                        {callClinics.length > 1 ? (
-                          <p className="text-xs font-semibold text-ink-600">{clinic.name}</p>
-                        ) : null}
-                        <RevealPhoneButton
-                          kind="clinic"
-                          id={String(clinic.id)}
-                          manualId={profile.id}
-                          hasPhone
-                          variant="profile-call"
-                          className="inline-flex items-center gap-3 rounded-xl border border-clinical-200 bg-clinical-50 px-3 py-2 text-sm font-semibold text-clinical-800 transition hover:bg-clinical-100 disabled:cursor-wait disabled:opacity-60"
-                          revealedClassName="inline-flex items-center gap-3 rounded-xl border border-clinical-200 bg-clinical-50 px-3 py-2 text-sm font-semibold tabular-nums text-clinical-800 transition hover:bg-clinical-100"
-                        />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </section>
-            ) : null}
-            <DoctorLocationSection
-              clinicAddress={
-                stripPlusCodePrefix(
-                  selectedLocation?.clinic_address?.trim() || clinicAddress,
-                ) || clinicAddress
-              }
-              mapsUrl={
-                buildMapsUrlFromClinicLocation({
-                  address: selectedLocation?.clinic_address ?? clinicAddress,
-                  latitude: selectedLocation?.latitude,
-                  longitude: selectedLocation?.longitude,
-                  placeId: selectedLocation?.clinic_place_id,
-                }) ||
-                buildMapsUrlFromAddress(clinicAddress) ||
-                ""
-              }
-              clinics={
-                practiceLocations.length > 1
-                  ? practiceLocations.map((row, index) => {
-                      const address =
-                        stripPlusCodePrefix(String(row.clinic_address ?? "")) ||
-                        String(row.town ?? "").trim() ||
-                        String(row.district ?? "").trim() ||
-                        bookingT("clinicAddressMissing");
-                      return {
-                        title: clinicTitleOrFallback(
-                          row.label,
-                          bookingT("clinicNumber", { number: index + 1 }),
-                        ),
-                        address,
-                        mapsUrl:
-                          buildMapsUrlFromClinicLocation({
-                            address: row.clinic_address,
-                            latitude: row.latitude,
-                            longitude: row.longitude,
-                            placeId: row.clinic_place_id,
-                          }) ||
-                          buildMapsUrlFromAddress(
-                            String(row.clinic_address ?? "").trim(),
-                          ) ||
-                          "",
-                        isBookingHere: row.id === selectedLocation?.id,
-                      };
-                    })
-                  : []
-              }
-            />
-            <ServiceMenuSection services={services} />
           </div>
-        </div>
+          <WhatToExpectCard />
+        </section>
+
+        <ProfileAboutSection firstName={profileFirstName(profile.name)} bio={profile.bio} />
+        <ProfileServicesSection services={services} />
+        <ProfileClinicsSection cards={clinicCards} professionalId={profile.id} />
+
+        <footer className="flex flex-wrap items-center justify-between gap-2 border-t border-profile-border pt-6 text-sm text-profile-muted">
+          <a
+            href="/for-professionals"
+            className="font-semibold text-accent-link underline-offset-2 hover:underline"
+          >
+            {t("aboutDocCy")}
+          </a>
+        </footer>
       </div>
+      <ProfileScrollFade />
     </main>
   );
 }
-

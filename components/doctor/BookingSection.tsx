@@ -20,11 +20,23 @@ import {
   parseBookingSlotParam,
 } from "@/lib/booking-slot-param";
 import { normalizeMinimumNoticeHours } from "@/lib/doctor-settings";
+import { isValidRegisterEmail, suggestRegisterEmail } from "@/lib/register-email";
 import { APPOINTMENT_REASON_MAX_LENGTH } from "@/lib/visit-types";
 import { formatDateDDMMYYYY } from "@/lib/date-format";
 import "react-day-picker/dist/style.css";
 import { useLocale, useTranslations } from "next-intl";
 import { PendingLink } from "@/components/navigation/PendingLink";
+import {
+  PROFILE_SELECT_DAY_EVENT,
+  parseProfileDaySelectDetail,
+} from "@/lib/public/profile-day-select";
+
+// Public profile theme tokens (light/dark + the doctor's accent, see lib/profile-theme.ts).
+const CARD_CLASS =
+  "rounded-3xl border border-profile-border bg-profile-surface p-6 text-profile-body shadow-sm";
+const LABEL_CLASS = "text-sm font-semibold text-profile-text";
+const INPUT_CLASS =
+  "w-full rounded-2xl border border-profile-border bg-profile-bg px-3 py-2.5 text-base text-profile-text placeholder:text-profile-muted focus:outline-none focus:ring-2 focus:ring-accent";
 
 type WeeklySlot = {
   id: string;
@@ -110,6 +122,10 @@ export function BookingSection({
   const [showContactForm, setShowContactForm] = React.useState(false);
   const [patientName, setPatientName] = React.useState("");
   const [patientEmail, setPatientEmail] = React.useState("");
+  // Same checks as /register's email: a valid format, and "Did you mean …?" for a
+  // typo in a common provider (sdf@gmai.com → sdf@gmail.com). Shown on leaving the field.
+  const [emailSuggestion, setEmailSuggestion] = React.useState<string | null>(null);
+  const [emailInvalid, setEmailInvalid] = React.useState(false);
   const [patientPhone, setPatientPhone] = React.useState("");
   const [phoneValid, setPhoneValid] = React.useState(true);
   const [showPhoneError, setShowPhoneError] = React.useState(false);
@@ -269,6 +285,45 @@ export function BookingSection({
     t,
   ]);
 
+  // Confirm opens the details form: bring its top ("Your details") into view.
+  const contactFormRef = React.useRef<HTMLDivElement>(null);
+  React.useEffect(() => {
+    if (!showContactForm) return;
+    const card = contactFormRef.current;
+    if (!card) return;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    card.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
+  }, [showContactForm]);
+
+  // Picking a time brings the Confirm bar into view (above the bottom fade), unless it
+  // already is; instant for people who reduce motion.
+  const confirmBarRef = React.useRef<HTMLDivElement>(null);
+  React.useEffect(() => {
+    if (!selectedSlot || showContactForm) return;
+    const bar = confirmBarRef.current;
+    if (!bar) return;
+    const rect = bar.getBoundingClientRect();
+    const hiddenBelow = rect.bottom > window.innerHeight - 80;
+    if (!hiddenBelow && rect.top >= 0) return;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    bar.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "center" });
+  }, [selectedSlot, showContactForm]);
+
+  // A next-availability day card in the profile hero opens that day here.
+  React.useEffect(() => {
+    const onSelectDay = (event: Event) => {
+      const dateKey = parseProfileDaySelectDetail((event as CustomEvent).detail);
+      if (!dateKey) return;
+      const [y, m, d] = dateKey.split("-").map(Number);
+      setSelectedDate(new Date(y, m - 1, d));
+      setSelectedSlot(null);
+      setShowContactForm(false);
+      setError(null);
+    };
+    window.addEventListener(PROFILE_SELECT_DAY_EVENT, onSelectDay);
+    return () => window.removeEventListener(PROFILE_SELECT_DAY_EVENT, onSelectDay);
+  }, []);
+
   // Dates that have at least one available (non-taken) slot
   const availableDates = React.useMemo(() => {
     const dateSet = new Set<string>();
@@ -302,6 +357,11 @@ export function BookingSection({
       }
       if (!patientName || !patientEmail || !patientPhone) {
         setError(t("errors.completePatientDetails"));
+        return;
+      }
+      if (!isValidRegisterEmail(patientEmail)) {
+        setEmailInvalid(true);
+        setError(t("emailInvalid"));
         return;
       }
       if (!phoneValid) {
@@ -400,17 +460,17 @@ export function BookingSection({
 
   if (onlineBookingsPaused) {
     return (
-      <div className="rounded-3xl border border-clinical-200 bg-white p-6 shadow-[0_1px_3px_rgba(26,43,60,0.06),0_8px_24px_rgba(18,184,192,0.06)] backdrop-blur-xl">
-        <h2 className="text-lg font-semibold text-ink-900">
+      <div className={CARD_CLASS}>
+        <h2 className="text-xl font-extrabold text-profile-text">
           {t("bookingsTemporarilyUnavailable")}
         </h2>
-        <p className="mt-2 text-sm text-ink-600">
+        <p className="mt-2 text-sm text-profile-muted">
           {locationScopedPause
             ? t("appointmentsPausedAtLocation")
             : t("appointmentsPaused")}
         </p>
         {publicPhoneAvailable ? (
-          <p className="mt-2 text-sm font-medium text-ink-700">
+          <p className="mt-2 text-sm font-medium text-profile-body">
             {t("appointmentsPausedCallHint")}
           </p>
         ) : null}
@@ -420,11 +480,11 @@ export function BookingSection({
 
   if (!weeklySlots || weeklySlots.length === 0) {
     return (
-      <div className="rounded-3xl border border-clinical-200 bg-white p-6 shadow-[0_1px_3px_rgba(26,43,60,0.06),0_8px_24px_rgba(18,184,192,0.06)] backdrop-blur-xl">
-        <h2 className="text-lg font-semibold text-ink-900">
+      <div className={CARD_CLASS}>
+        <h2 className="text-xl font-extrabold text-profile-text">
           {t("title")}
         </h2>
-        <p className="mt-2 text-sm text-ink-600">
+        <p className="mt-2 text-sm text-profile-muted">
           {t("availabilityNotPublished", {doctorName})}
         </p>
       </div>
@@ -433,11 +493,11 @@ export function BookingSection({
 
   if (upcomingSlots.length === 0) {
     return (
-      <div className="rounded-3xl border border-clinical-200 bg-white p-6 shadow-[0_1px_3px_rgba(26,43,60,0.06),0_8px_24px_rgba(18,184,192,0.06)] backdrop-blur-xl">
-        <h2 className="text-lg font-semibold text-ink-900">
+      <div className={CARD_CLASS}>
+        <h2 className="text-xl font-extrabold text-profile-text">
           {t("bookingsTemporarilyUnavailable")}
         </h2>
-        <p className="mt-2 text-sm text-ink-600">
+        <p className="mt-2 text-sm text-profile-muted">
           {holidayActive && holidayStartDate && holidayEndDate
             ? t("calendarBlockedFromTo", {
                 start: formatDateDDMMYYYY(holidayStartDate),
@@ -454,27 +514,26 @@ export function BookingSection({
       <div
         data-testid="booking-success-message"
         data-appointment-id={lastAppointmentId ?? ""}
-        className="rounded-3xl border border-amber-200 bg-amber-50 p-8 shadow-[0_1px_3px_rgba(26,43,60,0.06),0_8px_24px_rgba(245,158,11,0.12)] sm:p-10"
+        className="rounded-3xl border border-profile-border bg-accent-soft p-8 text-profile-body sm:p-10"
       >
         <div className="flex flex-col items-center text-center">
           <div className="relative">
-            <div className="absolute inset-0 scale-150 rounded-full bg-amber-400/20 blur-2xl" />
             <Clock
-              className="relative h-20 w-20 text-amber-400 sm:h-24 sm:w-24"
+              className="relative h-20 w-20 text-accent-link sm:h-24 sm:w-24"
               strokeWidth={1.5}
               aria-hidden
             />
           </div>
-          <h2 className="mt-6 text-2xl font-bold tracking-tight text-ink-900 sm:text-3xl">
+          <h2 className="mt-6 text-2xl font-extrabold tracking-tight text-profile-text sm:text-3xl">
             {t("requestSubmittedTitle")}
           </h2>
-          <p className="mt-3 max-w-sm text-sm leading-relaxed text-ink-600">
+          <p className="mt-3 max-w-sm text-sm leading-relaxed text-profile-body">
             {t("requestSubmittedMessage", { doctorName })}
           </p>
           {profileSlug ? (
             <PendingLink
               href={`/${activeLocale}/${profileSlug}`}
-              className="mt-8 flex w-full max-w-xs items-center justify-center rounded-2xl border border-amber-300 bg-white px-6 py-3 text-sm font-semibold text-amber-900 shadow-sm transition hover:border-amber-400 hover:bg-amber-50 focus:outline-none focus:ring-2 focus:ring-amber-400/50 focus:ring-offset-2 focus:ring-offset-white"
+              className="mt-8 flex w-full max-w-xs items-center justify-center rounded-2xl bg-accent-cta px-6 py-3 text-sm font-bold text-accent-on-cta transition hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
             >
               {t("doneButton")}
             </PendingLink>
@@ -482,7 +541,7 @@ export function BookingSection({
             <button
               type="button"
               onClick={() => setBookingSuccess(false)}
-              className="mt-8 w-full max-w-xs rounded-2xl border border-amber-300 bg-white px-6 py-3 text-sm font-semibold text-amber-900 shadow-sm transition hover:border-amber-400 hover:bg-amber-50 focus:outline-none focus:ring-2 focus:ring-amber-400/50 focus:ring-offset-2 focus:ring-offset-white"
+              className="mt-8 w-full max-w-xs rounded-2xl bg-accent-cta px-6 py-3 text-sm font-bold text-accent-on-cta transition hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
             >
               {t("doneButton")}
             </button>
@@ -495,13 +554,13 @@ export function BookingSection({
   // Contact form step (after Confirm on time slot)
   if (showContactForm && selectedSlot) {
     return (
-      <div className="rounded-3xl border border-clinical-200 bg-white p-6 shadow-[0_1px_3px_rgba(26,43,60,0.06),0_8px_24px_rgba(18,184,192,0.06)] backdrop-blur-xl">
+      <div ref={contactFormRef} className={`${CARD_CLASS} scroll-mt-20`}>
         <div className="mb-6 flex items-center justify-between gap-3">
           <div>
-            <h2 className="text-lg font-semibold text-ink-900">
+            <h2 className="text-xl font-extrabold text-profile-text">
               {t("yourDetails")}
             </h2>
-            <p className="mt-1 text-xs text-ink-500">
+            <p className="mt-1 text-sm text-profile-muted">
               {selectedSlot.labelFull} · {t("cyprusTime")}
               {locationLabel ? ` · ${locationLabel}` : ""}
             </p>
@@ -512,7 +571,7 @@ export function BookingSection({
               setShowContactForm(false);
               setError(null);
             }}
-            className="text-xs font-medium text-ink-500 transition hover:text-clinical-700"
+            className="min-h-11 rounded-xl px-2 text-sm font-semibold text-accent-link transition hover:underline"
           >
             {t("changeTime")}
           </button>
@@ -521,7 +580,7 @@ export function BookingSection({
           <div className="space-y-2">
             <label
               htmlFor="name"
-              className="text-xs font-semibold text-ink-800"
+              className={LABEL_CLASS}
             >
               {t("patientFullNameLabel")}
             </label>
@@ -531,14 +590,14 @@ export function BookingSection({
               required
               value={patientName}
               onChange={(e) => setPatientName(e.target.value)}
-              className="w-full rounded-2xl border border-ink-200 bg-white px-3 py-2 text-sm text-ink-900 shadow-sm placeholder:text-ink-400 focus:outline-none focus:ring-2 focus:ring-clinical-400/60"
+              className={INPUT_CLASS}
               placeholder={t("patientFullNamePlaceholder")}
             />
           </div>
           <div className="space-y-2">
             <label
               htmlFor="email"
-              className="text-xs font-semibold text-ink-800"
+              className={LABEL_CLASS}
             >
               {t("emailLabel")}
             </label>
@@ -547,10 +606,50 @@ export function BookingSection({
               type="email"
               required
               value={patientEmail}
-              onChange={(e) => setPatientEmail(e.target.value)}
-              className="w-full rounded-2xl border border-ink-200 bg-white px-3 py-2 text-sm text-ink-900 shadow-sm placeholder:text-ink-400 focus:outline-none focus:ring-2 focus:ring-clinical-400/60"
+              onChange={(e) => {
+                setPatientEmail(e.target.value);
+                setEmailSuggestion(null);
+                setEmailInvalid(false);
+              }}
+              onBlur={(e) => {
+                const value = e.currentTarget.value;
+                setEmailSuggestion(suggestRegisterEmail(value));
+                setEmailInvalid(value.trim() !== "" && !isValidRegisterEmail(value));
+              }}
+              aria-invalid={emailInvalid}
+              autoComplete="email"
+              className={INPUT_CLASS}
               placeholder={t("emailPlaceholder")}
             />
+            {emailInvalid ? (
+              <p
+                role="alert"
+                className="text-sm font-semibold text-red-600 [.doccy-profile[data-scheme=dark]_&]:text-red-400"
+              >
+                {t("emailInvalid")}
+              </p>
+            ) : null}
+            {emailSuggestion ? (
+              <p
+                data-testid="booking-email-suggestion"
+                role="status"
+                className="text-sm text-profile-body"
+              >
+                {t("emailDidYouMean")}{" "}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPatientEmail(emailSuggestion);
+                    setEmailSuggestion(null);
+                    setEmailInvalid(false);
+                  }}
+                  className="font-bold text-accent-link underline underline-offset-2"
+                >
+                  {emailSuggestion}
+                </button>
+                ?
+              </p>
+            ) : null}
           </div>
           <div className="space-y-2">
             <PhoneInput
@@ -563,41 +662,42 @@ export function BookingSection({
                 setShowPhoneError(false);
               }}
               showValidationError={showPhoneError}
+              tone="profile"
             />
           </div>
           <fieldset className="space-y-2">
-            <legend className="text-xs font-semibold text-ink-800">
+            <legend className={LABEL_CLASS}>
               {t("visitHistoryLabel", { doctorName })}{" "}
               <span className="text-red-600">*</span>
             </legend>
             <div className="grid gap-2 sm:grid-cols-2">
               <label
-                className={`flex cursor-pointer items-center gap-2 rounded-2xl border px-3 py-2.5 text-sm transition ${
+                className={`flex min-h-11 cursor-pointer items-center gap-2 rounded-2xl border-2 px-3 py-2.5 text-sm font-medium transition ${
                   isNewPatient === true
-                    ? "border-clinical-500 bg-clinical-50 text-clinical-900"
-                    : "border-ink-200 bg-white text-ink-800 hover:border-clinical-300"
+                    ? "border-accent bg-accent-soft text-profile-text"
+                    : "border-profile-border bg-profile-surface text-profile-body hover:border-accent"
                 }`}
               >
                 <input
                   type="radio"
                   name="visitHistory"
-                  className="h-4 w-4 border-ink-300 text-clinical-600 focus:ring-clinical-400/60"
+                  className="h-4 w-4 accent-[var(--p-accent-cta)]"
                   checked={isNewPatient === true}
                   onChange={() => setIsNewPatient(true)}
                 />
                 {t("visitHistoryFirstTime")}
               </label>
               <label
-                className={`flex cursor-pointer items-center gap-2 rounded-2xl border px-3 py-2.5 text-sm transition ${
+                className={`flex min-h-11 cursor-pointer items-center gap-2 rounded-2xl border-2 px-3 py-2.5 text-sm font-medium transition ${
                   isNewPatient === false
-                    ? "border-clinical-500 bg-clinical-50 text-clinical-900"
-                    : "border-ink-200 bg-white text-ink-800 hover:border-clinical-300"
+                    ? "border-accent bg-accent-soft text-profile-text"
+                    : "border-profile-border bg-profile-surface text-profile-body hover:border-accent"
                 }`}
               >
                 <input
                   type="radio"
                   name="visitHistory"
-                  className="h-4 w-4 border-ink-300 text-clinical-600 focus:ring-clinical-400/60"
+                  className="h-4 w-4 accent-[var(--p-accent-cta)]"
                   checked={isNewPatient === false}
                   onChange={() => setIsNewPatient(false)}
                 />
@@ -608,7 +708,7 @@ export function BookingSection({
           <div className="space-y-2">
             <label
               htmlFor="visitReason"
-              className="text-xs font-semibold text-ink-800"
+              className={LABEL_CLASS}
             >
               {t("visitReasonLabel")}{" "}
               <span className="text-red-600">*</span>
@@ -625,9 +725,9 @@ export function BookingSection({
                 )
               }
               placeholder={t("visitReasonPlaceholder")}
-              className="w-full resize-y rounded-2xl border border-ink-200 bg-white px-3 py-2 text-sm text-ink-900 shadow-sm placeholder:text-ink-400 focus:outline-none focus:ring-2 focus:ring-clinical-400/60"
+              className={`${INPUT_CLASS} resize-y`}
             />
-            <p className="text-right text-[11px] text-ink-500">
+            <p className="text-right text-xs text-profile-muted">
               {visitReason.length}/{APPOINTMENT_REASON_MAX_LENGTH}
             </p>
           </div>
@@ -642,7 +742,7 @@ export function BookingSection({
           <button
             type="submit"
             disabled={submitting}
-            className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-clinical-500 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-clinical-500/20 transition hover:bg-clinical-400 disabled:cursor-not-allowed disabled:bg-ink-300 disabled:text-ink-500"
+            className="inline-flex min-h-[52px] w-full items-center justify-center gap-2 rounded-2xl bg-accent-cta px-4 py-3 text-base font-bold text-accent-on-cta transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {submitting ? (
               <>
@@ -658,35 +758,36 @@ export function BookingSection({
     );
   }
 
-  // Two-column: calendar + time slots
+  // Calendar + time chips
   const isDateAvailable = (date: Date) =>
     availableDates.some(
       (d) => format(d, "yyyy-MM-dd") === format(date, "yyyy-MM-dd")
     );
+  const selectedDayKey = selectedDate ? format(selectedDate, "yyyy-MM-dd") : null;
 
   return (
-    <div className="rounded-3xl border border-clinical-200 bg-white shadow-[0_1px_3px_rgba(26,43,60,0.06),0_8px_24px_rgba(18,184,192,0.06)] backdrop-blur-xl">
-      <div className="border-b border-ink-200 px-4 py-4 sm:px-6 sm:py-5">
-        <div className="flex items-center justify-between gap-3">
+    <div className="rounded-3xl border border-profile-border bg-profile-surface text-profile-body shadow-sm">
+      <div className="border-b border-profile-border px-5 py-5 sm:px-6">
+        <div className="flex items-start justify-between gap-3">
           <div>
-            <h2 className="text-lg font-semibold text-ink-900">
-                {t("title")}
+            <h2 className="text-xl font-extrabold tracking-tight text-profile-text sm:text-2xl">
+              {t("title")}
             </h2>
             {locationLabel ? (
               <>
-                <p className="mt-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-clinical-700">
+                <p className="mt-1 text-[11px] font-bold uppercase tracking-[0.16em] text-accent-link">
                   {t("pickTimeStep")}
                 </p>
-                <p className="mt-1 text-sm font-semibold text-ink-800">
+                <p className="mt-1 text-sm font-semibold text-profile-text">
                   {t("timesOnlyForClinic", { clinic: locationLabel })}
                 </p>
               </>
             ) : null}
-            <p className="mt-1 text-xs text-ink-500">
+            <p className="mt-1 text-sm text-profile-muted">
               {t("allTimesInCyprusHint")}
             </p>
           </div>
-          <span className="rounded-full bg-clinical-100 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.2em] text-clinical-700">
+          <span className="shrink-0 rounded-full bg-accent-soft px-3 py-1 text-[11px] font-bold uppercase tracking-[0.16em] text-profile-text">
             {t("requestBadge")}
           </span>
         </div>
@@ -700,10 +801,9 @@ export function BookingSection({
         ) : null}
       </div>
 
-      <div className="grid gap-6 p-4 sm:grid-cols-2 sm:p-6">
-        {/* Left: calendar */}
-        <div className="rounded-2xl border border-ink-200 bg-white p-4 shadow-sm">
-          <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-ink-500">
+      <div className="grid gap-6 p-5 sm:p-6 md:grid-cols-[auto_minmax(0,1fr)]">
+        <div>
+          <p className="mb-3 text-xs font-bold uppercase tracking-wide text-profile-muted">
             {t("selectDate")}
           </p>
           <DayPicker
@@ -719,16 +819,16 @@ export function BookingSection({
             disabled={(date) => !isDateAvailable(date)}
             locale={dateFnsLocale}
             captionLayout="buttons"
-            className="rdp-light"
+            className="rdp-profile"
             classNames={{
               root: "p-0",
               caption: "flex justify-between items-center mb-4",
-              caption_label: "text-sm font-semibold text-ink-800",
+              caption_label: "text-base font-bold",
               nav: "flex gap-1",
-              nav_button_previous: "rounded-lg border border-ink-200 bg-white p-2 text-ink-600 hover:border-clinical-300 hover:bg-clinical-50",
-              nav_button_next: "rounded-lg border border-ink-200 bg-white p-2 text-ink-600 hover:border-clinical-300 hover:bg-clinical-50",
+              nav_button_previous: "rounded-xl p-2 transition hover:opacity-80",
+              nav_button_next: "rounded-xl p-2 transition hover:opacity-80",
               month: "w-full",
-              day: "p-0.5 w-9 h-9 rounded-full text-sm font-medium transition focus:outline-none focus:ring-2 focus:ring-clinical-400/60 focus:ring-offset-2 focus:ring-offset-white",
+              day: "m-0.5 h-10 w-10 rounded-full text-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-accent",
             }}
             modifiers={{
               available: availableDates,
@@ -746,69 +846,58 @@ export function BookingSection({
           />
         </div>
 
-        {/* Right: time slots (only when date selected) */}
-        <div className="rounded-2xl border border-ink-200 bg-white p-4 shadow-sm">
+        <div className="min-w-0">
           {!selectedDate ? (
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-              <p className="text-sm font-medium text-ink-500">
+            <div className="flex h-full flex-col items-center justify-center rounded-2xl border-2 border-dashed border-profile-border px-4 py-12 text-center">
+              <p className="text-sm font-semibold text-profile-text">
                 {t("selectDateOnCalendar")}
               </p>
-              <p className="mt-1 text-xs text-ink-500">
+              <p className="mt-1 text-sm text-profile-muted">
                 {t("availableTimesHere")}
               </p>
             </div>
           ) : (
             <>
-              <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-ink-500">
+              <p
+                data-testid="booking-selected-day"
+                data-date={selectedDayKey ?? ""}
+                className="mb-3 text-base font-bold capitalize text-profile-text"
+              >
                 {format(selectedDate, "EEEE, d MMMM", { locale: dateFnsLocale })}
               </p>
               {slotsForSelectedDay.length === 0 ? (
-                <p className="py-6 text-sm text-ink-500">
+                <p className="py-6 text-sm text-profile-muted">
                   {t("noAvailableTimesThisDay")}
                 </p>
               ) : (
-                <div className="flex max-h-72 flex-col gap-2 overflow-y-auto pr-1">
-                  {slotsForSelectedDay.map((slot) => {
+                <div
+                  key={selectedDayKey ?? "none"}
+                  className="grid grid-cols-3 gap-2 sm:grid-cols-4"
+                >
+                  {slotsForSelectedDay.map((slot, index) => {
                     const isSelected = selectedSlot?.key === slot.key;
                     return (
-                      <div
+                      <button
                         key={slot.key}
-                        className={`rounded-2xl border transition-all duration-200 ${
+                        type="button"
+                        aria-pressed={isSelected}
+                        onClick={() => {
+                          setSelectedSlot(isSelected ? null : slot);
+                          setError(null);
+                        }}
+                        style={{ "--rise-i": Math.min(index, 12) } as React.CSSProperties}
+                        className={`profile-rise min-h-12 rounded-2xl border-2 text-base font-bold tabular-nums transition focus:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
                           isSelected
-                            ? "border-clinical-400 bg-clinical-50 shadow-sm"
-                            : "border-ink-200 bg-white hover:border-clinical-300 hover:bg-clinical-50/60"
+                            ? "profile-pop border-accent-cta bg-accent-cta text-accent-on-cta"
+                            : "border-accent-soft bg-profile-surface text-profile-text hover:border-accent"
                         }`}
                       >
-                        <div className="flex items-center justify-between gap-2 p-3">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setSelectedSlot(isSelected ? null : slot);
-                              setError(null);
-                            }}
-                            className="flex flex-1 items-center gap-2 text-left text-sm font-medium text-ink-800"
-                          >
-                            <span
-                              className="font-mono text-ink-600"
-                              style={{ minWidth: "3rem" }}
-                            >
-                              {slot.labelTime}
-                            </span>
-                            <span>
-                              {isSelected ? t("timeSlotSelected") : t("timeSlotSelect")}
-                            </span>
-                          </button>
-                          {isSelected && (
-                            <button
-                              type="button"
-                              onClick={() => setShowContactForm(true)}
-                              className="shrink-0 rounded-xl bg-clinical-500 px-4 py-2 text-sm font-semibold text-white shadow-md transition hover:bg-clinical-400 focus:outline-none focus:ring-2 focus:ring-clinical-400/50"
-                            >
-                              Confirm
-                            </button>
-                          )}
-                        </div>
-                      </div>
+                        {slot.labelTime}
+                        <span className="sr-only">
+                          {" "}
+                          {isSelected ? t("timeSlotSelected") : t("timeSlotSelect")}
+                        </span>
+                      </button>
                     );
                   })}
                 </div>
@@ -817,6 +906,24 @@ export function BookingSection({
           )}
         </div>
       </div>
+
+      {selectedSlot ? (
+        <div
+          ref={confirmBarRef}
+          className="profile-rise flex scroll-mb-24 flex-col gap-3 border-t border-profile-border px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+          <p className="text-sm font-semibold text-profile-text">
+            {selectedSlot.labelFull}
+            {locationLabel ? ` · ${locationLabel}` : ""}
+          </p>
+          <button
+            type="button"
+            onClick={() => setShowContactForm(true)}
+            className="min-h-[52px] rounded-2xl bg-accent-cta px-7 text-base font-bold text-accent-on-cta transition hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+          >
+            Confirm
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }

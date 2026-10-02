@@ -15,6 +15,9 @@ import type {
 import { PromotePracticeSection } from "@/components/dashboard/PromotePracticeSection";
 import { FoundingMemberBadge } from "@/components/dashboard/FoundingMemberBadge";
 import { GesyPatientsToggle } from "@/components/dashboard/GesyPatientsToggle";
+import { ProfilePageCustomization } from "@/components/dashboard/ProfilePageCustomization";
+import { profileCustomizationFromRow } from "@/lib/profile-customization";
+import { publicProfessionalProfilePath } from "@/lib/manual-directory-landing-path";
 import { SignOutOtherSessionsButton } from "@/components/auth/SignOutOtherSessionsButton";
 import { doctorDashboardDisplayName } from "@/lib/doctor-display-name";
 import {
@@ -395,6 +398,23 @@ export default async function AgendaSettingsPage() {
           <SettingsForm initial={initial} />
           <GesyPatientsToggle initialAcceptsGesy={Boolean(doctor.is_gesy)} />
         </section>
+
+        {/*
+          MERGE NOTE for feat/settings-redesign (moves settings to /settings with a sidebar):
+          "Your public page" (colour + headline) must move into its "Profile" section,
+          keeping the #public-page anchor the public profile's owner banner links to
+          (lib/public/doctor-profile-page.tsx). See docs/handoff/profile-redesign.md.
+        */}
+        <div id="public-page" className="mt-6 scroll-mt-24">
+          <ProfilePageCustomization
+            initial={profileCustomizationFromRow(doctor)}
+            name={displayName}
+            avatarUrl={initial.avatarUrl ?? null}
+            publicPageHref={
+              doctor.slug ? publicProfessionalProfilePath(doctor.slug, localeLike) : null
+            }
+          />
+        </div>
 
         <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
           <SignOutOtherSessionsButton />

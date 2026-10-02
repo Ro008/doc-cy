@@ -570,3 +570,181 @@ button {
     animation: none;
   }
 }
+
+/* ─── Public profile theme (lib/profile-theme.ts) ───────────────────────────────
+ * The page root carries every colour as inline variables (profileThemeStyle):
+ * the professional's accent and both surface sets. Light by default; the page's
+ * Light/Dark switch (or the settings preview) sets `data-scheme="dark"`, remembered
+ * in a cookie (lib/profile-scheme.ts). Tailwind exposes them as `profile-*` and `accent-*`.
+ */
+.doccy-profile {
+  --p-bg: var(--p-bg-light);
+  --p-surface: var(--p-surface-light);
+  --p-border: var(--p-border-light);
+  --p-text: var(--p-text-light);
+  --p-body: var(--p-body-light);
+  --p-muted: var(--p-muted-light);
+  --p-off: var(--p-off-light);
+  --p-accent-soft: var(--p-accent-soft-light);
+  --p-accent-link: var(--p-accent-link-light);
+  --p-accent-cta: var(--p-accent-ink);
+  --p-accent-on-cta: #ffffff;
+  color-scheme: light;
+  background-color: var(--p-bg);
+  color: var(--p-body);
+}
+.doccy-profile[data-scheme="dark"] {
+  --p-bg: var(--p-bg-dark);
+  --p-surface: var(--p-surface-dark);
+  --p-border: var(--p-border-dark);
+  --p-text: var(--p-text-dark);
+  --p-body: var(--p-body-dark);
+  --p-muted: var(--p-muted-dark);
+  --p-off: var(--p-off-dark);
+  --p-accent-soft: var(--p-accent-soft-dark);
+  --p-accent-link: var(--p-accent-link-dark);
+  --p-accent-cta: var(--p-accent);
+  --p-accent-on-cta: var(--p-accent-on);
+  color-scheme: dark;
+}
+
+html:has(.doccy-profile) {
+  scroll-behavior: smooth;
+}
+
+/* Phone field in the booking form (react-international-phone). */
+.doccy-profile {
+  --react-international-phone-height: 46px;
+  --react-international-phone-border-radius: 16px;
+  --react-international-phone-font-size: 16px;
+  --react-international-phone-background-color: var(--p-bg);
+  --react-international-phone-text-color: var(--p-text);
+  --react-international-phone-border-color: var(--p-border);
+  --react-international-phone-country-selector-background-color: var(--p-bg);
+  --react-international-phone-country-selector-background-color-hover: var(--p-accent-soft);
+  --react-international-phone-country-selector-border-color: var(--p-border);
+  --react-international-phone-country-selector-arrow-color: var(--p-muted);
+  --react-international-phone-dropdown-item-background-color: var(--p-surface);
+  --react-international-phone-dropdown-item-text-color: var(--p-text);
+  --react-international-phone-dropdown-item-dial-code-color: var(--p-muted);
+  --react-international-phone-selected-dropdown-item-background-color: var(--p-accent-soft);
+  --react-international-phone-selected-dropdown-item-text-color: var(--p-text);
+  --react-international-phone-selected-dropdown-item-dial-code-color: var(--p-muted);
+}
+
+/* Booking calendar on the profile (react-day-picker). */
+.rdp-profile {
+  --rdp-cell-size: 40px;
+  --rdp-accent-color: var(--p-accent-cta);
+  --rdp-background-color: var(--p-accent-soft);
+  --rdp-accent-color-dark: var(--p-accent-cta);
+  --rdp-background-color-dark: var(--p-accent-soft);
+  --rdp-selected-color: var(--p-accent-on-cta);
+  margin: 0;
+}
+.rdp-profile .rdp-caption {
+  color: var(--p-text);
+}
+.rdp-profile .rdp-head_cell {
+  color: var(--p-muted);
+  font-weight: 700;
+  font-size: 0.7rem;
+}
+.rdp-profile .rdp-day {
+  color: var(--p-off);
+}
+.rdp-profile .rdp-day[disabled]:not(.rdp-day_selected) {
+  color: var(--p-off);
+  opacity: 1;
+}
+.rdp-profile .rdp-day_selected {
+  background: var(--p-accent-cta) !important;
+  color: var(--p-accent-on-cta) !important;
+  font-weight: 800;
+}
+.rdp-profile .rdp-day_today:not(.rdp-day_selected) {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.rdp-profile .rdp-nav_button {
+  color: var(--p-text);
+  border: 1px solid var(--p-border);
+  background: var(--p-surface);
+}
+.rdp-profile .rdp-day_available:not(.rdp-day_selected):not([disabled]) {
+  background: var(--p-accent-soft);
+  color: var(--p-text);
+  font-weight: 800;
+}
+.rdp-profile .rdp-day_available:not(.rdp-day_selected):not([disabled]):hover {
+  outline: 2px solid var(--p-accent);
+  outline-offset: -2px;
+}
+
+/* Motion with meaning: one live dot (free time today), entrances once, feedback on choice. */
+.profile-live-dot {
+  position: relative;
+  display: inline-block;
+  width: 0.5rem;
+  height: 0.5rem;
+  flex-shrink: 0;
+  border-radius: 9999px;
+  background: currentColor;
+}
+.profile-live-dot::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: currentColor;
+  animation: profile-pulse 2s cubic-bezier(0.2, 0.6, 0.3, 1) infinite;
+}
+@keyframes profile-pulse {
+  from {
+    transform: scale(1);
+    opacity: 0.55;
+  }
+  to {
+    transform: scale(2.8);
+    opacity: 0;
+  }
+}
+.profile-rise {
+  animation: profile-rise 0.34s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  animation-delay: calc(var(--rise-i, 0) * 45ms);
+}
+@keyframes profile-rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.profile-pop {
+  animation: profile-pop 0.2s ease-out;
+}
+@keyframes profile-pop {
+  0% {
+    transform: scale(0.95);
+  }
+  60% {
+    transform: scale(1.04);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  html:has(.doccy-profile) {
+    scroll-behavior: auto;
+  }
+  .doccy-profile *,
+  .doccy-profile *::before,
+  .doccy-profile *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

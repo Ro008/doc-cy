@@ -17,6 +17,8 @@ export type PhoneInputProps = {
   id?: string;
   /** When true, show validation error only after submit attempt (never on load). */
   showValidationError?: boolean;
+  /** "profile": colours from the public profile theme (light/dark, doctor's accent). */
+  tone?: "default" | "profile";
 };
 
 export function PhoneInput({
@@ -26,6 +28,7 @@ export function PhoneInput({
   label,
   id,
   showValidationError = false,
+  tone = "default",
 }: PhoneInputProps) {
   const [isValid, setIsValid] = React.useState(true);
   const t = useTranslations("BookingPage");
@@ -46,7 +49,14 @@ export function PhoneInput({
   return (
     <div className="space-y-1">
       {label && (
-        <label htmlFor={id} className="text-xs font-semibold text-ink-800">
+        <label
+          htmlFor={id}
+          className={
+            tone === "profile"
+              ? "text-sm font-semibold text-profile-text"
+              : "text-xs font-semibold text-ink-800"
+          }
+        >
           {label}
         </label>
       )}
@@ -56,9 +66,15 @@ export function PhoneInput({
         onChange={handleChange}
         className="w-full"
         inputProps={id ? { id } : undefined}
-        inputClassName={`w-full rounded-md border px-3 py-2 text-sm text-ink-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-clinical-500 ${
-          !isValid ? "border-red-500" : "border-ink-200"
-        }`}
+        inputClassName={
+          tone === "profile"
+            ? `w-full rounded-r-2xl border bg-profile-bg px-3 py-2.5 text-base text-profile-text focus:outline-none focus:ring-2 focus:ring-accent ${
+                !isValid ? "border-red-500" : "border-profile-border"
+              }`
+            : `w-full rounded-md border px-3 py-2 text-sm text-ink-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-clinical-500 ${
+                !isValid ? "border-red-500" : "border-ink-200"
+              }`
+        }
       />
       {showValidationError && !isValid && (
         <p className="text-xs text-red-600">

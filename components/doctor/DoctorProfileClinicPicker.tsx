@@ -4,7 +4,6 @@ import { PendingLink } from "@/components/navigation/PendingLink";
 import {
   clinicAddressFirstLine,
   clinicTitleOrFallback,
-  profileClinicAccent,
 } from "@/lib/doctor-locations";
 
 export type ProfileClinicChoice = {
@@ -30,16 +29,16 @@ export async function DoctorProfileClinicPicker({ slug, clinics, selectedId }: P
 
   return (
     <div
-      className="mb-4 rounded-3xl border border-clinical-200 bg-white p-4 shadow-[0_1px_3px_rgba(26,43,60,0.06),0_8px_24px_rgba(18,184,192,0.06)] sm:p-5"
+      className="mb-4 rounded-3xl border border-profile-border bg-profile-surface p-4 text-profile-body sm:p-5"
       data-testid="profile-clinic-picker"
     >
-      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-clinical-700">
+      <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-accent-link">
         {t("chooseClinicStep")}
       </p>
-      <h2 className="mt-1 text-lg font-semibold text-ink-900">
+      <h2 className="mt-1 text-lg font-extrabold text-profile-text">
         {t("chooseClinicHeading")}
       </h2>
-      <p className="mt-1 text-sm leading-relaxed text-ink-600">
+      <p className="mt-1 text-sm leading-relaxed text-profile-muted">
         {t("chooseClinicBody", { count: clinics.length })}
       </p>
       <div
@@ -48,7 +47,6 @@ export async function DoctorProfileClinicPicker({ slug, clinics, selectedId }: P
       >
         {clinics.map((clinic, index) => {
           const selected = clinic.id === selectedId;
-          const accent = profileClinicAccent(index);
           const address = clinicAddressFirstLine(clinic.clinic_address);
           const place =
             String(clinic.town ?? "").trim() ||
@@ -59,41 +57,41 @@ export async function DoctorProfileClinicPicker({ slug, clinics, selectedId }: P
               <div className="flex items-start justify-between gap-3">
                 <span
                   className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold ${
-                    selected ? accent.number : accent.numberIdle
+                    selected ? "bg-accent text-accent-on" : "bg-profile-bg text-profile-text"
                   }`}
                 >
                   {index + 1}
                 </span>
                 {selected ? (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-white/80 px-2 py-0.5 text-[11px] font-semibold text-ink-800">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-profile-surface px-2 py-0.5 text-[11px] font-bold text-profile-text">
                     <Check className="h-3.5 w-3.5" aria-hidden />
                     {t("bookingHere")}
                   </span>
                 ) : null}
               </div>
-              <p className="mt-3 text-base font-semibold text-ink-900">
+              <p className="mt-3 text-base font-extrabold text-profile-text">
                 {clinicTitleOrFallback(
                   clinic.label,
                   t("clinicNumber", { number: index + 1 }),
                 )}
               </p>
               {place ? (
-                <p className="mt-0.5 text-sm font-medium text-ink-700">{place}</p>
+                <p className="mt-0.5 text-sm font-medium text-profile-body">{place}</p>
               ) : null}
               {address ? (
-                <p className="mt-2 flex items-start gap-1.5 text-sm leading-snug text-ink-600">
-                  <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-clinical-600" aria-hidden />
+                <p className="mt-2 flex items-start gap-1.5 text-sm leading-snug text-profile-muted">
+                  <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-accent-link" aria-hidden />
                   <span>{address}</span>
                 </p>
               ) : (
-                <p className="mt-2 text-sm text-ink-500">{t("clinicAddressMissing")}</p>
+                <p className="mt-2 text-sm text-profile-muted">{t("clinicAddressMissing")}</p>
               )}
               {clinic.pause_online_bookings ? (
-                <p className="mt-3 text-xs font-semibold text-amber-800">
+                <p className="mt-3 text-xs font-bold text-profile-muted">
                   {t("onlineBookingOff")}
                 </p>
               ) : selected ? null : (
-                <p className={`mt-3 text-sm font-semibold ${accent.cta}`}>
+                <p className="mt-3 text-sm font-bold text-accent-link">
                   {t("tapToBookHere")}
                 </p>
               )}
@@ -105,7 +103,7 @@ export async function DoctorProfileClinicPicker({ slug, clinics, selectedId }: P
               <div
                 key={clinic.id}
                 role="listitem"
-                className={`h-full rounded-2xl border-2 p-4 ${accent.selected}`}
+                className="h-full rounded-2xl border-2 border-accent bg-accent-soft p-4"
                 aria-current="true"
               >
                 {body}
@@ -119,7 +117,7 @@ export async function DoctorProfileClinicPicker({ slug, clinics, selectedId }: P
                 href={href}
                 scroll={false}
                 fill
-                className={`h-full w-full rounded-2xl border-2 p-4 text-left transition ${accent.idle}`}
+                className="h-full w-full rounded-2xl border-2 border-profile-border bg-profile-surface p-4 text-left transition hover:border-accent"
               >
                 <span className="block w-full text-left">
                   {body}
