@@ -63,8 +63,8 @@ begin
   insert into auth.users (id, instance_id, aud, role, email, created_at, updated_at)
   values (v_u, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
           'old-path-' || v_u || '@integration.test', now(), now());
-  insert into public.professionals (auth_user_id, name, slug, is_registered, status, is_test_profile)
-  values (v_u, 'Old Path Check', 'old-path-check-' || v_u, true, 'verified', true)
+  insert into public.professionals (auth_user_id, name, slug, is_registered, is_test_profile)
+  values (v_u, 'Old Path Check', 'old-path-check-' || v_u, true, true)
   returning id into v_pro;
   select pro_access_until into v_until from public.professionals where id = v_pro;
   if v_until is not null then

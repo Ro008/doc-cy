@@ -8,11 +8,6 @@ import {routing} from "./i18n/routing";
 import {parseAuthTokenClaims} from "./lib/auth-token-claims";
 import {isSessionRevokedByPolicy} from "./lib/auth-session-revocation";
 import {
-  DOCTOR_ACCOUNT_REVIEW_PATH,
-  isDoctorAccountReviewPath,
-  isDoctorVerifiedForProduct,
-} from "./lib/doctor-account-access";
-import {
   canonicalFinderSpecialtyRedirectPath,
   FINDER_DISTRICT_PATH_SLUGS,
   isLegacyFinderFilterPath,
@@ -160,7 +155,7 @@ export async function middleware(req: NextRequest) {
 
       const {data: doctorRow, error: doctorRowError} = await supabase
         .from("professionals")
-        .select("status, auth_session_revoked_after, auth_keep_session_id")
+        .select("auth_session_revoked_after, auth_keep_session_id")
         .eq("auth_user_id", session.user.id)
         .maybeSingle();
 
@@ -181,16 +176,6 @@ export async function middleware(req: NextRequest) {
         loginUrl.searchParams.set("next", pathname);
         loginUrl.searchParams.set("signin", "again");
         return NextResponse.redirect(loginUrl);
-      }
-
-      if (
-        doctorRow &&
-        !isDoctorAccountReviewPath(pathname) &&
-        !isDoctorVerifiedForProduct(
-          (doctorRow as {status?: string | null}).status,
-        )
-      ) {
-        return NextResponse.redirect(new URL(DOCTOR_ACCOUNT_REVIEW_PATH, req.url));
       }
 
       const claims = parseAuthTokenClaims(session.access_token);

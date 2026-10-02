@@ -163,14 +163,14 @@ export async function POST(req: NextRequest) {
 
   const { data: doctorGate, error: doctorGateError } = await supabase
     .from("professionals")
-    .select("id, status")
+    .select("id, is_registered")
     .eq("id", doctorId)
     .single();
 
   if (doctorGateError || !doctorGate) {
     return NextResponse.json({ message: "Professional not found." }, { status: 400 });
   }
-  if ((doctorGate as { status?: string }).status !== "verified") {
+  if (!(doctorGate as { is_registered?: boolean }).is_registered) {
     return NextResponse.json(
       { message: "This professional is not accepting public bookings yet." },
       { status: 403 }

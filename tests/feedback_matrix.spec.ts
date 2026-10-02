@@ -12,7 +12,7 @@ async function getDoctorId(
     .from("professionals")
     .select("id")
     .eq("auth_user_id", authUserId)
-    .eq("status", "verified")
+    .eq("is_registered", true)
     .single();
   const doctorId = (data as { id?: string } | null)?.id;
   expect(doctorId).toBeTruthy();

@@ -594,7 +594,6 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
                 .select(selectClause)
                 .eq("is_registered", true)
                 .eq("is_archived", false)
-                .eq("status", "verified")
                 .not("slug", "is", null),
               // Place and specialty are matched in memory: the place comes from their
               // clinics (N:M) and specialties from professional_specialties.

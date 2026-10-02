@@ -11,7 +11,7 @@ test.describe("Doctor profile mobile layout", () => {
     const { data: activeDoctors } = await supabase
       .from("professionals")
       .select("slug")
-      .eq("status", "verified")
+      .eq("is_registered", true)
       .not("slug", "is", null)
       .limit(5);
 

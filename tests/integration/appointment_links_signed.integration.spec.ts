@@ -48,7 +48,6 @@ test.describe("Signed appointment links", { tag: ["@pr-e2e", "@pr-e2e-booking"] 
       name: `Links Doctor ${nonce.slice(-4)}`,
       specialty: "Cardiology",
       is_specialty_approved: true,
-      status: "verified",
     });
     patientName = `Links Patient ${nonce.slice(-5)}`;
 

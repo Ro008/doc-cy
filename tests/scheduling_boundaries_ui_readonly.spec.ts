@@ -25,11 +25,11 @@ test.describe("Scheduling boundaries UI (read-only)", () => {
 
     const { data: doctor } = await supabase
       .from("professionals")
-      .select("id,slug,status")
+      .select("id,slug,is_registered")
       .eq("slug", targetSlug)
       .single();
     test.skip(
-      !doctor?.id || doctor.status !== "verified",
+      !doctor?.id || !doctor.is_registered,
       `Verified doctor not found for slug: ${targetSlug}.`
     );
 

@@ -1,7 +1,6 @@
 import { expect, test } from "@playwright/test";
 
 import { buildDoctorRegistrationReceivedEmailContent } from "@/lib/send-doctor-registration-received-email";
-import { buildDoctorAccountRejectedEmailContent } from "@/lib/send-doctor-account-rejected-email";
 import { buildPasswordResetEmailContent } from "@/lib/send-password-reset-email";
 
 test.describe("Doctor onboarding email content", { tag: "@pr-email" }, () => {
@@ -20,29 +19,6 @@ test.describe("Doctor onboarding email content", { tag: "@pr-email" }, () => {
     expect(content.html).toContain("Confirm your email");
     expect(content.html.toLowerCase()).not.toContain("/agenda");
     expect(content.html.toLowerCase()).not.toContain("otp");
-  });
-
-  test("doctor application rejected email points at the support form", () => {
-    const license = buildDoctorAccountRejectedEmailContent({
-      doctorName: "Maria Papadopoulos",
-      reason: "license",
-      siteUrl: "https://mydoccy.com",
-    });
-    expect(license.subject).toBe("[DocCy] Your application was not approved");
-    expect(license.text).toContain("Hi Maria");
-    expect(license.text).toContain("could not verify your professional license");
-    expect(license.text).toContain("If you believe this is a mistake");
-    expect(license.supportUrl).toBe("https://mydoccy.com/?support=application-review");
-    expect(license.html).toContain("Open the support form");
-    expect(license.html).toContain("support=application-review");
-
-    const specialty = buildDoctorAccountRejectedEmailContent({
-      doctorName: "Alex Other",
-      reason: "specialty",
-      siteUrl: "https://mydoccy.com",
-    });
-    expect(specialty.text).toContain("cannot include it on DocCy");
-    expect(specialty.text).toContain("If you think we misunderstood your practice");
   });
 
   test("password reset email is branded as DocCy", () => {

@@ -8,10 +8,6 @@ import { createServiceRoleClient } from "@/lib/supabase-service";
 import { BookingSection } from "@/components/doctor/BookingSection";
 import { DoctorDetailsAccordion } from "@/components/doctor/DoctorDetailsAccordion";
 import { LanguagesSpoken } from "@/components/doctor/LanguagesSpoken";
-import {
-  ProfileNotLive,
-  type PublicProfileBlockReason,
-} from "@/components/doctor/ProfileNotLive";
 import { WhatToExpectCard } from "@/components/doctor/WhatToExpectCard";
 import { ServiceMenuSection } from "@/components/doctor/ServiceMenuSection";
 import { DoctorLocationSection } from "@/components/doctor/DoctorLocationSection";
@@ -56,10 +52,9 @@ import { DoctorProfileSpecialties } from "@/components/doctor/DoctorProfileSpeci
 import { RevealPhoneButton } from "@/components/finder/RevealPhoneButton";
 import { getTranslations } from "next-intl/server";
 import {
-  buildNonLiveDoctorMetaTitle,
   buildRegisteredProfileMetaDescription,
+  buildRegisteredProfileMetaTitle,
   buildShareImageMetadata,
-  buildVerifiedRegisteredMetaTitle,
   formatProfessionalSeoDisplayName,
   normalizeDistrictForSeoTitle,
   resolveShareAvatarUrl,
@@ -103,7 +98,6 @@ type DoctorProfileRow = {
   clinic_address: string | null;
   district?: string | null;
   slug: string;
-  status: string;
   languages?: string[] | null;
   is_gesy?: boolean | null;
   is_specialty_approved?: boolean | null;
@@ -217,15 +211,10 @@ async function selectPublicProfessionalBySlug(
 
 type PublicDoctorFetch =
   | { kind: "ok"; profile: DoctorProfileRow }
-  | { kind: "not_found" }
-  | {
-      kind: "not_verified";
-      name: string;
-      verificationStatus: PublicProfileBlockReason;
-    };
+  | { kind: "not_found" };
 
 /**
- * Load doctor by slug. Public UI only when verification `status` is `verified`.
+ * Load a registered professional by slug (an approved registration is live).
  * If `languages` column is missing, fall back to a select without it.
  */
 async function fetchPublicDoctorBySlug(
@@ -301,21 +290,14 @@ async function fetchPublicDoctorBySlug(
     return { kind: "not_found" };
   }
 
-  const st = (row.status ?? "").trim().toLowerCase();
-  if (st === "verified") {
-    const profile: DoctorProfileRow = {
-      ...row,
-      specialty: getPublicSpecialtyDisplayLabel({
-        specialty: row.specialty,
-        is_specialty_approved: row.is_specialty_approved,
-      }),
-    };
-    return { kind: "ok", profile };
-  }
-
-  const verificationStatus: PublicProfileBlockReason =
-    st === "rejected" ? "rejected" : "pending";
-  return { kind: "not_verified", name: row.name, verificationStatus };
+  const profile: DoctorProfileRow = {
+    ...row,
+    specialty: getPublicSpecialtyDisplayLabel({
+      specialty: row.specialty,
+      is_specialty_approved: row.is_specialty_approved,
+    }),
+  };
+  return { kind: "ok", profile };
 }
 
 export const revalidate = 0;
@@ -468,7 +450,6 @@ export async function generateMetadata({
   const doctor = meta.data as {
     name?: string;
     specialty?: string;
-    status?: string;
     district?: string | null;
     avatar_url?: string | null;
   } | null;
@@ -525,7 +506,6 @@ export async function generateMetadata({
     };
   }
 
-  const st = (doctor.status ?? "").trim().toLowerCase();
   const doctorName = formatProfessionalSeoDisplayName(doctor.name ?? "");
   const specialtyLabels = publicSpecialtyLabels({
     specialties: (doctor as { specialties?: string[] | null }).specialties,
@@ -545,21 +525,13 @@ export async function generateMetadata({
       : formatSpecialtiesForSeo(specialtyLabels) || (doctor.specialty ?? "").trim();
   const districtLabel = normalizeDistrictForSeoTitle(doctor.district);
   const cityLabel = districtLabel ?? "Cyprus";
-  const metaTitleCore =
-    st === "verified"
-      ? buildVerifiedRegisteredMetaTitle({
-          doctorName,
-          specialty: specialtyForSeo || specialty,
-          districtLabel,
-        })
-      : buildNonLiveDoctorMetaTitle({
-          doctorName,
-          specialty: specialtyForSeo || specialty,
-          districtLabel,
-        });
+  const metaTitleCore = buildRegisteredProfileMetaTitle({
+    doctorName,
+    specialty: specialtyForSeo || specialty,
+    districtLabel,
+  });
   const dynamicTitle = metaTitleCore ?? fallbackTitle;
   const dynamicDescription = buildRegisteredProfileMetaDescription({
-    status: st,
     doctorName,
     specialtyForSeo,
     cityLabel,
@@ -569,30 +541,6 @@ export async function generateMetadata({
     ? resolvePublicAvatarUrl(supabase, doctor.avatar_url)
     : null;
   const shareImages = buildShareImageMetadata(shareImageUrl);
-
-  if (st !== "verified") {
-    return {
-      title: dynamicTitle,
-      description: dynamicDescription,
-      openGraph: {
-        title: dynamicTitle,
-        description: dynamicDescription,
-        type: "website",
-        url: profileUrl,
-        ...(shareImages.openGraphImages
-          ? { images: shareImages.openGraphImages }
-          : {}),
-      },
-      twitter: {
-        card: shareImages.twitterCard,
-        title: dynamicTitle,
-        description: dynamicDescription,
-        ...(shareImages.twitterImages
-          ? { images: shareImages.twitterImages }
-          : {}),
-      },
-    };
-  }
 
   return {
     title: dynamicTitle,
@@ -637,15 +585,6 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
       );
     }
     notFound();
-  }
-
-  if (result.kind === "not_verified") {
-    return (
-      <ProfileNotLive
-        doctorName={result.name}
-        verificationStatus={result.verificationStatus}
-      />
-    );
   }
 
   const profile = result.profile;

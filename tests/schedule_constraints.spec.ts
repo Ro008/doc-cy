@@ -190,10 +190,10 @@ test.describe("Schedule constraints @booking-creates", { tag: ["@pr-e2e", "@pr-e
     const supabase = createClient(supabaseUrl, serviceRole);
     const { data: doctor } = await supabase
       .from("professionals")
-      .select("id,slug,status")
+      .select("id,slug,is_registered")
       .eq("slug", SCHEDULE_TEST_SLUG)
       .single();
-    test.skip(!doctor?.id || doctor.status !== "verified", "Verified doctor not found.");
+    test.skip(!doctor?.id || !doctor.is_registered, "Registered professional not found.");
 
     const start = cyprusDateKey(1);
     const end = cyprusDateKey(3);
@@ -259,10 +259,10 @@ test.describe("Schedule constraints @booking-creates", { tag: ["@pr-e2e", "@pr-e
     const supabase = createClient(supabaseUrl, serviceRole);
     const { data: doctor } = await supabase
       .from("professionals")
-      .select("id,slug,status")
+      .select("id,slug,is_registered")
       .eq("slug", SCHEDULE_TEST_SLUG)
       .single();
-    test.skip(!doctor?.id || doctor.status !== "verified", "Verified doctor not found.");
+    test.skip(!doctor?.id || !doctor.is_registered, "Registered professional not found.");
 
     const commonDay = { enabled: true, start_time: "09:00:00", end_time: "18:00:00" };
     const weekly_schedule: WeeklySchedulePayload = {

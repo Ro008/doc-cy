@@ -28,7 +28,6 @@ test.describe("Integration UI: first-login trial notice (local only)", { tag: "@
         name: `Trial Notice ${nonce}`,
         specialty: "General Practice",
         is_specialty_approved: true,
-        status: "verified",
         markTrialNoticeSeen: false,
         subscription_tier: "founder",
       });
@@ -77,34 +76,6 @@ test.describe("Integration UI: first-login trial notice (local only)", { tag: "@
       await expect(page.getByRole("button", { name: /^Today$/i })).toBeVisible({
         timeout: 15_000,
       });
-    } finally {
-      if (fixture) await deleteTestDoctor(fixture);
-    }
-  });
-
-  test("pending doctor on account review does not see the trial notice", async ({ page }) => {
-    test.setTimeout(120_000);
-    const env = requireSafeIntegration();
-    const admin = createIntegrationAdmin(env);
-    const nonce = `${Date.now()}-${Math.floor(Math.random() * 100000)}`;
-    let fixture: TestDoctorFixture | null = null;
-
-    try {
-      fixture = await createTestDoctor({
-        admin,
-        nonce,
-        name: `Pending Trial ${nonce}`,
-        specialty: "General Practice",
-        is_specialty_approved: true,
-        status: "pending",
-        markTrialNoticeSeen: false,
-      });
-
-      await loginDoctorUi(page, fixture.email, fixture.password);
-      await page.goto("/agenda", { waitUntil: "domcontentloaded" });
-      await expect(page).toHaveURL(/\/agenda\/account-review/, { timeout: 15_000 });
-      await expect(page.getByRole("heading", { name: /Account under review/i })).toBeVisible();
-      await expect(page.getByTestId(FIRST_LOGIN_TRIAL_NOTICE_TEST_ID)).toHaveCount(0);
     } finally {
       if (fixture) await deleteTestDoctor(fixture);
     }

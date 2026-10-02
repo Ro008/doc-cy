@@ -20,7 +20,6 @@ type CreateTestDoctorInput = {
   name: string;
   specialty: string;
   is_specialty_approved: boolean;
-  status: "pending" | "verified" | "rejected";
   /** Default true so agenda tests are not blocked by the one-time welcome modal. */
   markTrialNoticeSeen?: boolean;
   subscription_tier?: "founder" | "standard";
@@ -51,7 +50,6 @@ export async function createTestDoctor(
       name: input.name,
       email,
       languages: ["English"],
-      status: input.status,
       slug,
       subscription_tier: input.subscription_tier ?? "standard",
       trial_notice_seen_at:

@@ -60,7 +60,6 @@ async function createPsychologyPlusSexologyDoctor(
       name,
       email,
       languages: ["English"],
-      status: "verified",
       slug,
       is_test_profile: true,
       is_registered: true,

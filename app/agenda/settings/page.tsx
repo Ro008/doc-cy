@@ -75,7 +75,6 @@ export default async function AgendaSettingsPage() {
     longitude?: number | null;
     clinic_place_id?: string | null;
     town?: string | null;
-    status?: string | null;
     subscription_tier?: string | null;
     is_gesy?: boolean | null;
   } | null = null;
@@ -88,7 +87,7 @@ export default async function AgendaSettingsPage() {
     let res = await supabase
       .from("professionals")
       .select(
-        "id, name, avatar_url, mobile_number, slug, bio, languages, status, subscription_tier, is_gesy"
+        "id, name, avatar_url, mobile_number, slug, bio, languages, subscription_tier, is_gesy"
       )
       .eq("auth_user_id", user.id)
       .single();
@@ -97,7 +96,7 @@ export default async function AgendaSettingsPage() {
       res = await supabase
         .from("professionals")
         .select(
-          "id, name, avatar_url, slug, bio, languages, status, subscription_tier, is_gesy"
+          "id, name, avatar_url, slug, bio, languages, subscription_tier, is_gesy"
         )
         .eq("auth_user_id", user.id)
         .single();
@@ -107,7 +106,7 @@ export default async function AgendaSettingsPage() {
       res = await supabase
         .from("professionals")
         .select(
-          "id, name, avatar_url, slug, bio, languages, status, subscription_tier, is_gesy"
+          "id, name, avatar_url, slug, bio, languages, subscription_tier, is_gesy"
         )
         .eq("auth_user_id", user.id)
         .single();
@@ -122,7 +121,7 @@ export default async function AgendaSettingsPage() {
       res = await supabase
         .from("professionals")
         .select(
-          "id, name, avatar_url, slug, languages, status, subscription_tier, is_gesy"
+          "id, name, avatar_url, slug, languages, subscription_tier, is_gesy"
         )
         .eq("auth_user_id", user.id)
         .single();
@@ -132,7 +131,7 @@ export default async function AgendaSettingsPage() {
       res = await supabase
         .from("professionals")
         .select(
-          "id, name, avatar_url, slug, languages, status, subscription_tier"
+          "id, name, avatar_url, slug, languages, subscription_tier"
         )
         .eq("auth_user_id", user.id)
         .single();
@@ -141,7 +140,7 @@ export default async function AgendaSettingsPage() {
       res = await supabase
         .from("professionals")
         .select(
-          "id, name, slug, languages, status, subscription_tier"
+          "id, name, slug, languages, subscription_tier"
         )
         .eq("auth_user_id", user.id)
         .single();
@@ -150,7 +149,7 @@ export default async function AgendaSettingsPage() {
       res = await supabase
         .from("professionals")
         .select(
-          "id, name, avatar_url, slug, languages, status"
+          "id, name, avatar_url, slug, languages"
         )
         .eq("auth_user_id", user.id)
         .single();
@@ -158,7 +157,7 @@ export default async function AgendaSettingsPage() {
     if (res.error && (res.error as { code?: string }).code === "42703") {
       res = await supabase
         .from("professionals")
-        .select("id, name, slug, languages, status")
+        .select("id, name, slug, languages")
         .eq("auth_user_id", user.id)
         .single();
     }
@@ -173,7 +172,7 @@ export default async function AgendaSettingsPage() {
     let fallback = await supabase
       .from("professionals")
       .select(
-        "id, name, avatar_url, slug, languages, status, subscription_tier"
+        "id, name, avatar_url, slug, languages, subscription_tier"
       )
       .eq("auth_user_id", user.id)
       .single();
@@ -182,7 +181,7 @@ export default async function AgendaSettingsPage() {
       fallback = await supabase
         .from("professionals")
         .select(
-          "id, name, slug, languages, status, subscription_tier"
+          "id, name, slug, languages, subscription_tier"
         )
         .eq("auth_user_id", user.id)
         .single();
@@ -191,7 +190,7 @@ export default async function AgendaSettingsPage() {
       fallback = await supabase
         .from("professionals")
         .select(
-          "id, name, avatar_url, slug, languages, status"
+          "id, name, avatar_url, slug, languages"
         )
         .eq("auth_user_id", user.id)
         .single();
@@ -199,7 +198,7 @@ export default async function AgendaSettingsPage() {
     if (fallback.error && (fallback.error as { code?: string }).code === "42703") {
       fallback = await supabase
         .from("professionals")
-        .select("id, name, slug, languages, status")
+        .select("id, name, slug, languages")
         .eq("auth_user_id", user.id)
         .single();
     }
@@ -257,7 +256,6 @@ export default async function AgendaSettingsPage() {
     )
   );
 
-  const isVerified = doctor.status === "verified";
   const isFoundingMember = isFounderSubscriptionTier(doctor.subscription_tier);
 
   const locationRows = await loadDoctorLocations(doctor.id);
@@ -406,22 +404,11 @@ export default async function AgendaSettingsPage() {
         </div>
 
         <div id="promote-practice" className="mt-8 scroll-mt-24">
-          {isVerified ? (
-            <PromotePracticeSection
-              slug={doctor.slug}
-              doctorName={doctor.name}
-              localeLike={localeLike}
-            />
-          ) : (
-            <section className="rounded-2xl border border-slate-800/80 bg-slate-900/40 p-5">
-              <h2 className="text-sm font-semibold text-slate-100">Promote your practice</h2>
-              <p className="mt-2 text-sm text-slate-400">
-                QR codes, printable signs, and downloads are available after your profile is{" "}
-                <span className="font-medium text-amber-200/90">verified</span> by our team. You can
-                still use your agenda and settings in the meantime.
-              </p>
-            </section>
-          )}
+          <PromotePracticeSection
+            slug={doctor.slug}
+            doctorName={doctor.name}
+            localeLike={localeLike}
+          />
         </div>
       </div>
     </main>

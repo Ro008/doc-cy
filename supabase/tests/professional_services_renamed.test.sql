@@ -129,8 +129,8 @@ begin
   -- Fixture: a registered professional with one service.
   v_login := pg_temp.new_login('services-' || gen_random_uuid() || '@integration.test');
   v_other := pg_temp.new_login('services-other-' || gen_random_uuid() || '@integration.test');
-  insert into public.professionals (name, slug, is_registered, is_test_profile, auth_user_id, status)
-  values ('Services Test', 'services-test-' || substr(gen_random_uuid()::text, 1, 8), true, true, v_login, 'verified')
+  insert into public.professionals (name, slug, is_registered, is_test_profile, auth_user_id)
+  values ('Services Test', 'services-test-' || substr(gen_random_uuid()::text, 1, 8), true, true, v_login)
   returning id into v_pro;
   insert into public.professional_services (professional_id, name, price) values (v_pro, 'Consultation', '60€');
 

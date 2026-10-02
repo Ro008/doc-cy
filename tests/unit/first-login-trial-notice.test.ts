@@ -8,31 +8,17 @@ import {
 } from "../../lib/first-login-trial-notice";
 
 describe("shouldShowFirstLoginTrialNotice", () => {
-  it("shows only for verified professionals who have not dismissed it", () => {
+  it("shows until the professional dismisses it", () => {
     assert.equal(
-      shouldShowFirstLoginTrialNotice({ status: "verified", trialNoticeSeenAt: null }),
+      shouldShowFirstLoginTrialNotice({ trialNoticeSeenAt: null }),
       true,
     );
     assert.equal(
-      shouldShowFirstLoginTrialNotice({ status: "verified", trialNoticeSeenAt: "" }),
+      shouldShowFirstLoginTrialNotice({ trialNoticeSeenAt: "" }),
       true,
     );
     assert.equal(
-      shouldShowFirstLoginTrialNotice({
-        status: "verified",
-        trialNoticeSeenAt: "2026-09-09T12:00:00.000Z",
-      }),
-      false,
-    );
-  });
-
-  it("does not show during license review or after rejection", () => {
-    assert.equal(
-      shouldShowFirstLoginTrialNotice({ status: "pending", trialNoticeSeenAt: null }),
-      false,
-    );
-    assert.equal(
-      shouldShowFirstLoginTrialNotice({ status: "rejected", trialNoticeSeenAt: null }),
+      shouldShowFirstLoginTrialNotice({ trialNoticeSeenAt: "2026-09-09T12:00:00.000Z" }),
       false,
     );
   });
@@ -41,17 +27,11 @@ describe("shouldShowFirstLoginTrialNotice", () => {
 describe("shouldRedirectFirstLoginToSettings", () => {
   it("matches the welcome-notice signal so first login skips the empty agenda", () => {
     assert.equal(
-      shouldRedirectFirstLoginToSettings({
-        status: "verified",
-        trialNoticeSeenAt: null,
-      }),
+      shouldRedirectFirstLoginToSettings({ trialNoticeSeenAt: null }),
       true,
     );
     assert.equal(
-      shouldRedirectFirstLoginToSettings({
-        status: "verified",
-        trialNoticeSeenAt: "2026-09-09T12:00:00.000Z",
-      }),
+      shouldRedirectFirstLoginToSettings({ trialNoticeSeenAt: "2026-09-09T12:00:00.000Z" }),
       false,
     );
   });

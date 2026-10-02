@@ -40,7 +40,6 @@ BEGIN
           'Dentistry',
           '+34667082906',
           'founder',
-          'verified',
           true,
           ARRAY['Greek', 'English', 'Spanish']::text[]
         ),
@@ -51,7 +50,6 @@ BEGIN
           'Pediatrics',
           '+34 667 082 906',
           'founder',
-          'pending',
           true,
           ARRAY['Greek', 'English', 'Turkish']::text[]
         ),
@@ -62,11 +60,10 @@ BEGIN
           'Dentistry',
           null,
           'founder',
-          'rejected',
           true,
           ARRAY['English', 'Greek']::text[]
         )
-    ) AS t(slug, full_name, email, specialty, phone, tier, doctor_status, specialty_approved, langs)
+    ) AS t(slug, full_name, email, specialty, phone, tier, specialty_approved, langs)
   LOOP
     v_user_id := NULL;
     v_doctor_id := NULL;
@@ -164,7 +161,6 @@ BEGIN
         name,
         email,
         languages,
-        status,
         slug,
         is_test_profile,
         subscription_tier,
@@ -177,7 +173,6 @@ BEGIN
         rec.full_name,
         rec.email,
         coalesce(rec.langs, ARRAY[]::text[]),
-        rec.doctor_status,
         rec.slug,
         false,
         rec.tier,
@@ -200,7 +195,6 @@ BEGIN
         pro_access_until = coalesce(pro_access_until, now() + interval '6 months'),
         trial_notice_seen_at = coalesce(trial_notice_seen_at, now()),
         name = rec.full_name,
-        status = rec.doctor_status,
         subscription_tier = rec.tier,
         email = rec.email,
         languages = coalesce(rec.langs, ARRAY[]::text[]),

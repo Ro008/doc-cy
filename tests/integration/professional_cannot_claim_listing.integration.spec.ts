@@ -41,7 +41,6 @@ test.describe("Integration: a professional can't claim a listing", { tag: "@pr-e
       name: `Claim Guard ${nonce.slice(-4)}`,
       specialty: "Cardiology",
       is_specialty_approved: true,
-      status: "verified",
     });
   });
 

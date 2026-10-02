@@ -35,7 +35,7 @@ async function main() {
 
   const { data: doctors, error } = await admin
     .from("professionals")
-    .select("id, slug, email, status, is_test_profile, auth_user_id")
+    .select("id, slug, email, is_registered, is_test_profile, auth_user_id")
     .or("is_test_profile.eq.true,email.ilike.%@test-doccy.com.cy%,email.ilike.%rociosirvent%")
     .order("slug");
 
@@ -61,7 +61,7 @@ async function main() {
       .limit(1)
       .maybeSingle();
     const flags = [
-      d.status !== "verified" ? "NOT_VERIFIED" : null,
+      !d.is_registered ? "NOT_REGISTERED" : null,
       !clinic.data ? "NO_CLINIC" : clinic.data.pause_online_bookings ? "PAUSED" : null,
       s?.holiday_mode_enabled ? "HOLIDAY" : null,
       !d.auth_user_id ? "NO_AUTH_LINK" : null,
@@ -69,7 +69,7 @@ async function main() {
       .filter(Boolean)
       .join(", ");
     console.log(
-      `- ${d.slug} | ${d.email} | status=${d.status} | test=${d.is_test_profile}${flags ? ` | ${flags}` : ""}`,
+      `- ${d.slug} | ${d.email} | registered=${d.is_registered} | test=${d.is_test_profile}${flags ? ` | ${flags}` : ""}`,
     );
   }
 }

@@ -1,10 +1,9 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { isDoctorVerifiedForProduct } from "@/lib/doctor-account-access";
 import { isFounderSubscriptionTier } from "@/lib/subscription-tier";
 
 export const FIRST_LOGIN_TRIAL_NOTICE_TEST_ID = "first-login-trial-notice";
 export const TRIAL_NOTICE_DISMISS_PATH = "/api/doctor-settings/trial-notice";
-/** First verified login lands here until the welcome notice is dismissed. */
+/** A professional's first login lands here until the welcome notice is dismissed. */
 export const DOCTOR_FIRST_LOGIN_PATH = "/agenda/settings";
 
 export type FirstLoginTrialNoticeCopy = {
@@ -15,16 +14,13 @@ export type FirstLoginTrialNoticeCopy = {
 };
 
 export function shouldShowFirstLoginTrialNotice(input: {
-  status?: string | null;
   trialNoticeSeenAt?: string | null;
 }): boolean {
-  if (!isDoctorVerifiedForProduct(input.status)) return false;
   return String(input.trialNoticeSeenAt ?? "").trim().length === 0;
 }
 
-/** Same signal as the welcome modal: verified + not yet dismissed. */
+/** Same signal as the welcome modal: not yet dismissed. */
 export function shouldRedirectFirstLoginToSettings(input: {
-  status?: string | null;
   trialNoticeSeenAt?: string | null;
 }): boolean {
   return shouldShowFirstLoginTrialNotice(input);
@@ -56,7 +52,7 @@ export async function loadFirstLoginTrialNoticeState(
 ): Promise<{ show: boolean; isFounder: boolean }> {
   const res = await supabase
     .from("professionals")
-    .select("status, subscription_tier, trial_notice_seen_at")
+    .select("subscription_tier, trial_notice_seen_at")
     .eq("auth_user_id", userId)
     .maybeSingle();
 
@@ -69,7 +65,6 @@ export async function loadFirstLoginTrialNoticeState(
   }
 
   const row = res.data as {
-    status?: string | null;
     subscription_tier?: string | null;
     trial_notice_seen_at?: string | null;
   } | null;
@@ -77,7 +72,6 @@ export async function loadFirstLoginTrialNoticeState(
 
   return {
     show: shouldShowFirstLoginTrialNotice({
-      status: row.status,
       trialNoticeSeenAt: row.trial_notice_seen_at,
     }),
     isFounder: isFounderSubscriptionTier(row.subscription_tier),

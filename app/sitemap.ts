@@ -65,20 +65,20 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   if (!supabase) return staticEntries;
 
   // One URL per district x specialty with at least one professional the finder
-  // shows: verified registered professionals, and active scraped listings. Every
+  // shows: registered professionals, and active scraped listings. Every
   // specialty counts, not only the first (professional_specialties).
   const loadPairs = (registered: boolean) =>
     fetchAllSupabaseRows(() => {
       let q = supabase
         .from("professional_specialties")
         .select(
-          `specialties!inner(slug), professionals!inner(id, is_test_profile, name, is_archived, is_registered, status, slug${registered ? "" : `, ${LISTING_CLINICS_SELECT}`})`,
+          `specialties!inner(slug), professionals!inner(id, is_test_profile, name, is_archived, is_registered, slug${registered ? "" : `, ${LISTING_CLINICS_SELECT}`})`,
         )
         .eq("is_approved", true)
         .eq("professionals.is_archived", false)
         .eq("professionals.is_registered", registered);
       if (registered) {
-        q = q.eq("professionals.status", "verified").not("professionals.slug", "is", null);
+        q = q.not("professionals.slug", "is", null);
       }
       return q.order("id");
     });
@@ -162,7 +162,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     slug?: string | null;
     is_test_profile?: boolean | null;
     is_registered?: boolean | null;
-    status?: string | null;
     name?: string | null;
   };
   const manualSlugRes: {
@@ -171,7 +170,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   } = await fetchAllSupabaseRows(() =>
     supabase
       .from("professionals")
-      .select("slug, is_test_profile, is_registered, status, name")
+      .select("slug, is_test_profile, is_registered, name")
       .eq("is_archived", false)
       .not("slug", "is", null),
   );
@@ -190,9 +189,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         if (!slug || isDirectoryCanarySlug(slug)) return null;
         if (row.is_test_profile) return null;
         if (/\btest\b/i.test(String(row.name ?? ""))) return null;
-        if (row.is_registered && String(row.status ?? "").trim().toLowerCase() !== "verified") {
-          return null;
-        }
         return {
           url: `${siteBase}${publicProfessionalProfilePath(slug)}`,
           lastModified: now,

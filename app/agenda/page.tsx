@@ -43,7 +43,7 @@ export default async function AgendaPage({ searchParams }: AgendaPageProps) {
 
   let doctorRes = await supabase
     .from("professionals")
-    .select("id, name, status, auth_user_id, slug, subscription_tier, trial_notice_seen_at")
+    .select("id, name, auth_user_id, slug, subscription_tier, trial_notice_seen_at")
     .eq("auth_user_id", user.id)
     .single();
 
@@ -57,7 +57,7 @@ export default async function AgendaPage({ searchParams }: AgendaPageProps) {
   if (tierMissingAgenda) {
     doctorRes = await supabase
       .from("professionals")
-      .select("id, name, status, auth_user_id, slug, trial_notice_seen_at")
+      .select("id, name, auth_user_id, slug, trial_notice_seen_at")
       .eq("auth_user_id", user.id)
       .single();
   }
@@ -70,7 +70,7 @@ export default async function AgendaPage({ searchParams }: AgendaPageProps) {
   ) {
     doctorRes = await supabase
       .from("professionals")
-      .select("id, name, status, auth_user_id, slug, subscription_tier")
+      .select("id, name, auth_user_id, slug, subscription_tier")
       .eq("auth_user_id", user.id)
       .single();
   }
@@ -98,7 +98,6 @@ export default async function AgendaPage({ searchParams }: AgendaPageProps) {
 
   if (
     shouldRedirectFirstLoginToSettings({
-      status: (doctor as { status?: string | null }).status,
       trialNoticeSeenAt: (doctor as { trial_notice_seen_at?: string | null })
         .trial_notice_seen_at,
     })

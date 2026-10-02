@@ -41,7 +41,7 @@ test.describe("Doctor lunch/break time", () => {
       .from("professionals")
       .select("id, slug")
       .eq("auth_user_id", authUserId)
-      .eq("status", "verified")
+      .eq("is_registered", true)
       .single();
 
     const doctorId = (doctorRow as { id?: string } | null)?.id;

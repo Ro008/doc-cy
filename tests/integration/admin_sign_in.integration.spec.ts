@@ -281,7 +281,6 @@ test.describe("Admin sign-in (/internal)", { tag: ["@pr-e2e"] }, () => {
         name: `Admin Gate ${nonce}`,
         specialty: "Physiotherapist",
         is_specialty_approved: true,
-        status: "verified",
       });
 
       await page.goto("/internal/sign-in");
