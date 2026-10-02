@@ -118,7 +118,8 @@ test.describe("Doctor dashboard", () => {
       await expect(page).toHaveURL(/\/agenda\/settings/, { timeout: 10000 });
     }
     await expect(page).toHaveURL("/agenda/settings");
-    await expect(page.getByText(/^Settings$/i).first()).toBeVisible({
+    // The user menu also has a (hidden) "Settings"; check the page's own label.
+    await expect(page.locator("main").getByText(/^Settings$/i).first()).toBeVisible({
       timeout: 5000,
     });
     await expect(page.locator("main header h1").first()).toBeVisible({

@@ -73,7 +73,7 @@ test.describe("Doctor lunch/break time", () => {
       page.getByText("Select a date on the calendar")
     ).toBeVisible({ timeout: 10000 });
 
-    const calendar = page.locator(".rdp-dark");
+    const calendar = page.locator(".rdp-profile");
     const firstAvailableDay = calendar
       .locator("table button:not([disabled])")
       .first();

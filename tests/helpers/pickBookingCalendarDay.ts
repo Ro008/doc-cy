@@ -9,7 +9,7 @@ type PickDayOptions = {
 
 /**
  * Picks the first bookable day on the public profile calendar (.rdp-day_available).
- * Supports light (public profile) and dark (agenda manual booking) calendar themes.
+ * Supports the public profile calendar (.rdp-profile) and the agenda's (.rdp-dark).
  * Advances months when the current view has no availability.
  */
 export async function pickFirstAvailableBookingDay(
@@ -17,7 +17,7 @@ export async function pickFirstAvailableBookingDay(
   opts?: PickDayOptions
 ): Promise<void> {
   const doctorHint = opts?.doctorHint?.trim() || "this doctor";
-  const calendar = page.locator(".rdp-light, .rdp-dark").first();
+  const calendar = page.locator(".rdp-profile, .rdp-dark").first();
   await expect(calendar).toBeVisible({ timeout: 20_000 });
 
   const pausedCopy = page.getByText(

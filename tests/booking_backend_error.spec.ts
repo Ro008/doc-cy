@@ -41,7 +41,7 @@ test.describe("Booking backend errors @booking-creates", () => {
       page.getByText("Select a date on the calendar")
     ).toBeVisible({ timeout: 10000 });
 
-    const calendar = page.locator(".rdp-dark");
+    const calendar = page.locator(".rdp-profile");
     const firstAvailableDay = calendar
       .locator("table button:not([disabled])")
       .first();
@@ -74,6 +74,7 @@ test.describe("Booking backend errors @booking-creates", () => {
       page.getByText(/Please enter a valid phone number|double‑check the phone number length/i)
     ).toBeHidden({ timeout: 3000 });
 
+    await page.getByLabel("This is my first visit").check();
     await page.locator("#visitReason").fill("E2E backend error path — visit reason.");
 
     // Force backend error by intercepting the booking request.
@@ -171,7 +172,7 @@ test.describe("Booking backend errors @booking-creates", () => {
       page.getByText("Select a date on the calendar")
     ).toBeVisible({ timeout: 10000 });
 
-    const calendar = page.locator(".rdp-dark");
+    const calendar = page.locator(".rdp-profile");
     const firstAvailableDay = calendar
       .locator("table button:not([disabled])")
       .first();
@@ -205,6 +206,7 @@ test.describe("Booking backend errors @booking-creates", () => {
       )
     ).toBeHidden({ timeout: 3000 });
 
+    await page.getByLabel("This is my first visit").check();
     await page.locator("#visitReason").fill("E2E backend error path — visit reason.");
 
     // Force backend: override doctorId to a pending/rejected professional.
