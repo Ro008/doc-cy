@@ -77,14 +77,10 @@ test.describe("Integration: NEEDS_RESCHEDULE frees original slot", { tag: ["@pr-
           auth_user_id: authUserId,
           name: `NeedsRs Doctor ${nonce}`,
           email: doctorEmail,
-          phone: "+35799123456",
           languages: ["English"],
-          license_file_url: `licenses/integration/${nonce}-nr.pdf`,
-          status: "verified",
           slug: doctorSlug,
                 is_registered: true,
       pro_access_until: new Date(Date.now() + 180 * 86_400_000).toISOString(),
-      finder_visible: true,
       is_archived: false,
       subscription_tier: "standard",
 
@@ -99,43 +95,15 @@ test.describe("Integration: NEEDS_RESCHEDULE frees original slot", { tag: ["@pr-
       doctorId = doctorInsert.data.id as string;
       await seedProfessionalSpecialty(admin, doctorId, {
         specialty: "General Practice",
-        licenseNumber: `LIC-NR-${nonce}`,
-        isApproved: true,
+        licenseNumber: `LIC-NR-${nonce}`,
       });
 
-      const day = {
-        enabled: true,
-        start_time: "09:00:00",
-        end_time: "17:00:00",
-      };
       const settingsUpsert = await admin.from("professional_settings").upsert(
         {
           professional_id: doctorId,
-          monday: true,
-          tuesday: true,
-          wednesday: true,
-          thursday: true,
-          friday: true,
-          saturday: false,
-          sunday: false,
-          start_time: "09:00:00",
-          end_time: "17:00:00",
-          weekly_schedule: {
-            monday: day,
-            tuesday: day,
-            wednesday: day,
-            thursday: day,
-            friday: day,
-            saturday: { enabled: false, start_time: "09:00:00", end_time: "17:00:00" },
-            sunday: { enabled: false, start_time: "09:00:00", end_time: "17:00:00" },
-          },
-          break_start: null,
-          break_end: null,
           holiday_mode_enabled: false,
           holiday_start_date: null,
           holiday_end_date: null,
-          pause_online_bookings: false,
-          slot_duration_minutes: 30,
           booking_horizon_days: 90,
           minimum_notice_hours: 1,
           updated_at: new Date().toISOString(),
@@ -148,8 +116,7 @@ test.describe("Integration: NEEDS_RESCHEDULE frees original slot", { tag: ["@pr-
         );
       }
 
-      // Registering auto-creates an addressless primary location, which takes no
-      // bookings; give it an address (as every sign-up does) and open it.
+      // An open primary clinic, as every approved registration has.
       clinicId = (await openPrimaryClinicForBookings(admin, doctorId, nonce)).clinicId;
 
       const targetDate = nextWeekdayDateKey(1);
@@ -161,7 +128,7 @@ test.describe("Integration: NEEDS_RESCHEDULE frees original slot", { tag: ["@pr-
       const counterAppt = await admin
         .from("appointments")
         .insert({
-          doctor_id: doctorId,
+          professional_id: doctorId,
           patient_name: `Counteroffer ${nonce}`,
           patient_email: `counter-${nonce}@integration.test`,
           patient_phone: "99123456",

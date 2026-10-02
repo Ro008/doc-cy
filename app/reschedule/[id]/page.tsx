@@ -50,7 +50,7 @@ export default async function ReschedulePage({ params, searchParams }: PageProps
   const { data: appt, error } = await supabase
     .from("appointments")
     .select(
-      "id, doctor_id, patient_name, status, proposed_slots, proposal_expires_at, reschedule_access_token, location_id"
+      "id, professional_id, patient_name, status, proposed_slots, proposal_expires_at, reschedule_access_token, location_id"
     )
     .eq("id", params.id)
     .maybeSingle();
@@ -63,7 +63,7 @@ export default async function ReschedulePage({ params, searchParams }: PageProps
     );
   }
 
-  const doctorId = (appt as { doctor_id: string }).doctor_id;
+  const doctorId = (appt as { professional_id: string }).professional_id;
   const { data: doctor } = await supabase
     .from("professionals")
     .select("name, slug")

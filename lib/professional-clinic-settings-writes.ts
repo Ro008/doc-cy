@@ -1,17 +1,18 @@
+import { locationScheduleColumns, sanitizeClinicLabel } from "@/lib/doctor-locations";
+import type { WeeklySchedule } from "@/lib/doctor-settings";
 import { createServiceRoleClient } from "@/lib/supabase-service";
 
 /**
- * Point D3a: where a clinic save lands.
+ * Where a clinic save lands.
  *
  * A professional's own settings at a clinic — hours, breaks, slot length, label and the
  * bookings pause — belong to their professional_clinics row. Every professional at a
  * clinic has their own row, so two doctors sharing a clinic keep their own hours.
  *
- * Which clinic it is, and its address, still live on doctor_locations until the
- * registration redesign moves them behind admin review. One save from the settings
- * page carries both, so it is split here. The D1 trigger mirrors the location half;
- * it only copies settings that changed on the location itself, so a later address
- * edit can never overwrite what was saved here.
+ * D4 (user, 2026-09-30): the clinic itself — which one, and its address — is read-only
+ * in settings. Clinics are curated by DocCy; joining, leaving, creating and editing
+ * clinics come back with Ro008's settings screens and their requests. So a save only
+ * ever carries these settings, and nothing writes `doctor_locations` any more.
  */
 
 export const CLINIC_SETTINGS_COLUMNS = [
@@ -34,29 +35,98 @@ export const CLINIC_SETTINGS_COLUMNS = [
 
 export type ClinicSettingsColumn = (typeof CLINIC_SETTINGS_COLUMNS)[number];
 
+export type ClinicSettingsPatch = Partial<Record<ClinicSettingsColumn, unknown>>;
+
 const SETTINGS = new Set<string>(CLINIC_SETTINGS_COLUMNS);
 
-/** Never written through a clinic save: identity, ownership, and bookkeeping. */
-const NEVER_WRITTEN = new Set(["id", "doctor_id", "professional_id", "clinic_id", "updated_at", "created_at"]);
-
-export function splitLocationPatch(patch: Record<string, unknown>): {
-  settings: Partial<Record<ClinicSettingsColumn, unknown>>;
-  location: Record<string, unknown>;
-} {
-  const settings: Partial<Record<ClinicSettingsColumn, unknown>> = {};
-  const location: Record<string, unknown> = {};
+/** Only the per-clinic settings of a patch: never an address, an id or bookkeeping. */
+export function clinicSettingsPatch(patch: Record<string, unknown>): ClinicSettingsPatch {
+  const settings: ClinicSettingsPatch = {};
   for (const [key, value] of Object.entries(patch)) {
-    if (value === undefined || NEVER_WRITTEN.has(key)) continue;
-    if (SETTINGS.has(key)) settings[key as ClinicSettingsColumn] = value;
-    else location[key] = value;
+    if (value === undefined || !SETTINGS.has(key)) continue;
+    settings[key as ClinicSettingsColumn] = value;
   }
-  return { settings, location };
+  return settings;
+}
+
+/** One clinic as the settings page sends it. Address fields may be present; they are ignored. */
+export type SettingsClinicInput = {
+  id?: string;
+  label?: string | null;
+  weeklySchedule?: WeeklySchedule;
+  monday?: boolean;
+  tuesday?: boolean;
+  wednesday?: boolean;
+  thursday?: boolean;
+  friday?: boolean;
+  saturday?: boolean;
+  sunday?: boolean;
+  breakEnabled?: boolean;
+  breakStart?: string;
+  breakEnd?: string;
+  slotDurationMinutes?: number;
+  [ignored: string]: unknown;
+};
+
+type OwnedClinic = { id: string; is_primary?: boolean | null; sort_order?: number | null };
+
+function primaryOf(owned: readonly OwnedClinic[]): OwnedClinic | null {
+  return (
+    [...owned].sort(
+      (a, b) =>
+        Number(Boolean(b.is_primary)) - Number(Boolean(a.is_primary)) ||
+        (Number(a.sort_order) || 0) - (Number(b.sort_order) || 0),
+    )[0] ?? null
+  );
+}
+
+/**
+ * What a settings save writes: for each clinic the professional owns, its hours and name.
+ * A first entry without an id means the primary clinic (single-clinic pages); ids the
+ * professional doesn't own are skipped. The bookings pause has its own toggle and route.
+ */
+export function settingsSaveTargets(
+  inputs: readonly SettingsClinicInput[],
+  owned: readonly OwnedClinic[],
+): Array<{ locationId: string; settings: ClinicSettingsPatch }> {
+  const ownedIds = new Set(owned.map((row) => row.id));
+  const targets: Array<{ locationId: string; settings: ClinicSettingsPatch }> = [];
+  inputs.forEach((input, index) => {
+    const id = String(input?.id ?? "").trim();
+    const locationId = ownedIds.has(id) ? id : !id && index === 0 ? primaryOf(owned)?.id : undefined;
+    if (!locationId) return;
+    const { pause_online_bookings: _pause, ...schedule } = locationScheduleColumns({
+      weeklySchedule: input.weeklySchedule,
+      monday: input.monday,
+      tuesday: input.tuesday,
+      wednesday: input.wednesday,
+      thursday: input.thursday,
+      friday: input.friday,
+      saturday: input.saturday,
+      sunday: input.sunday,
+      breakEnabled: input.breakEnabled,
+      breakStart: input.breakStart,
+      breakEnd: input.breakEnd,
+      slotDurationMinutes: input.slotDurationMinutes,
+    });
+    const patch: Record<string, unknown> = { ...schedule };
+    if (typeof input.label === "string") patch.label = sanitizeClinicLabel(input.label);
+    targets.push({ locationId, settings: clinicSettingsPatch(patch) });
+  });
+  return targets;
+}
+
+/** Prefilled "contact us" message from the read-only clinics on the settings page. */
+export function clinicChangeContactMessage(clinicNames: readonly string[]): string {
+  const names = clinicNames.map((name) => String(name ?? "").trim()).filter(Boolean);
+  const what = names.length === 1 ? `my clinic "${names[0]}"` : "my clinics";
+  return `Hello, I would like to change ${what}. The change is: `;
 }
 
 export type ClinicSettingsWriteResult = {
   ok: boolean;
   /** Where the settings landed when `ok`. */
-  savedOn?: "join_row" | "location" | "nothing";
+  savedOn?: "join_row" | "nothing";
   /** Why it failed when not `ok`. */
   error?: string;
 };
@@ -68,15 +138,11 @@ export type ClinicSettingsWriteResult = {
  * policies. Every write is scoped to the professional as well as the row id, so a
  * caller can only ever touch their own clinics; callers pass a professional id they
  * have already resolved from the session.
- *
- * A clinic still being set up (added, but no address yet) has no join row, so its
- * settings stay on the location row. When it gets an address, the mirror creates the
- * join row and seeds it from there.
  */
 export async function writeClinicSettings(
   professionalId: string,
   locationId: string,
-  settings: Partial<Record<ClinicSettingsColumn, unknown>>,
+  settings: ClinicSettingsPatch,
 ): Promise<ClinicSettingsWriteResult> {
   const pro = String(professionalId ?? "").trim();
   const id = String(locationId ?? "").trim();
@@ -86,25 +152,14 @@ export async function writeClinicSettings(
   const supabase = createServiceRoleClient();
   if (!supabase) return { ok: false, error: "no_service_role" };
 
-  const updatedAt = new Date().toISOString();
-
   const joinRow = await supabase
     .from("professional_clinics")
-    .update({ ...settings, updated_at: updatedAt })
+    .update({ ...settings, updated_at: new Date().toISOString() })
     .eq("id", id)
     .eq("professional_id", pro)
     .select("id");
   if (joinRow.error) return { ok: false, error: joinRow.error.message };
   if ((joinRow.data ?? []).length > 0) return { ok: true, savedOn: "join_row" };
-
-  const pending = await supabase
-    .from("doctor_locations")
-    .update({ ...settings, updated_at: updatedAt })
-    .eq("id", id)
-    .eq("doctor_id", pro)
-    .select("id");
-  if (pending.error) return { ok: false, error: pending.error.message };
-  if ((pending.data ?? []).length > 0) return { ok: true, savedOn: "location" };
 
   return { ok: false, error: "not_found" };
 }

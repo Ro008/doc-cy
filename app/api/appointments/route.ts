@@ -19,7 +19,6 @@ import {
   isDateInHolidayRange,
   isTimeWithinSettings,
   normalizeMinimumNoticeHours,
-  type DoctorSettingsRow,
 } from "@/lib/doctor-settings";
 import {
   sendResendEmail,
@@ -50,6 +49,7 @@ import {
 import { enforcePublicApiRateLimit } from "@/lib/public-api-rate-limit";
 import { appointmentRequestSentQuery } from "@/lib/appointment-links";
 import { locationToSettingsRow } from "@/lib/doctor-locations";
+import { PROFESSIONAL_ACCOUNT_SETTINGS_SELECT } from "@/lib/professional-account-settings";
 import { loadDoctorLocations, primaryDoctorLocation } from "@/lib/load-doctor-locations";
 import { locationHasClinic } from "@/lib/professional-clinic-locations";
 import { professionalAccountEmail } from "@/lib/professional-account-contact";
@@ -163,14 +163,14 @@ export async function POST(req: NextRequest) {
 
   const { data: doctorGate, error: doctorGateError } = await supabase
     .from("professionals")
-    .select("id, status")
+    .select("id, is_registered")
     .eq("id", doctorId)
     .single();
 
   if (doctorGateError || !doctorGate) {
     return NextResponse.json({ message: "Professional not found." }, { status: 400 });
   }
-  if ((doctorGate as { status?: string }).status !== "verified") {
+  if (!(doctorGate as { is_registered?: boolean }).is_registered) {
     return NextResponse.json(
       { message: "This professional is not accepting public bookings yet." },
       { status: 403 }
@@ -195,7 +195,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Verify requested time against professional_settings (working days + hours)
+  // Verify the requested time against the clinic's schedule and the account settings.
   const cyLocal = utcToZonedTime(appointmentUtc, CY_TZ);
   const dayOfWeek = cyLocal.getDay(); // 0-6
   const hours = cyLocal.getHours();
@@ -206,7 +206,7 @@ export async function POST(req: NextRequest) {
 
   const { data: settings, error: settingsError } = await supabase
     .from("professional_settings")
-    .select("*")
+    .select(PROFESSIONAL_ACCOUNT_SETTINGS_SELECT)
     .eq("professional_id", doctorId)
     .single();
 
@@ -240,18 +240,18 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // A clinic still being set up has no address to send a patient to, and no clinic
+  // Every appointment is at a clinic (every professional has one, user 2026-09-29): no
+  // clinic, or one with no address, leaves nowhere to send the patient and no clinic
   // link for the appointment to reference.
-  if (bookingLocation && !locationHasClinic(bookingLocation)) {
+  if (!bookingLocation || !locationHasClinic(bookingLocation)) {
     return NextResponse.json(
       { message: "Bookings temporarily unavailable" },
       { status: 403 }
     );
   }
 
-  const locationSettings = bookingLocation
-    ? locationToSettingsRow(bookingLocation, settings as DoctorSettingsRow)
-    : (settings as DoctorSettingsRow);
+  // The schedule is the clinic link's; holiday, horizon and notice are the account's.
+  const locationSettings = locationToSettingsRow(bookingLocation, settings);
 
   const pauseOnlineBookings = Boolean(locationSettings.pause_online_bookings);
   if (pauseOnlineBookings) {
@@ -389,7 +389,7 @@ export async function POST(req: NextRequest) {
   const { data: inserted, error: insertError } = await supabase
     .from("appointments")
     .insert({
-      doctor_id: doctorId,
+      professional_id: doctorId,
       location_id: bookingLocation?.id ?? null,
       patient_name: patientName,
       patient_email: patientEmail,
@@ -408,7 +408,7 @@ export async function POST(req: NextRequest) {
   if (insertError) {
     console.error(insertError);
 
-    // 23505: unique violation — e.g. UNIQUE(doctor_id, appointment_datetime) while a
+    // 23505: unique violation — e.g. UNIQUE(professional_id, appointment_datetime) while a
     // NEEDS_RESCHEDULE row still holds the original instant. See
     // the partial unique index appointments_doctor_datetime_active_booking_key.
     const code = (insertError as any)?.code;
@@ -430,7 +430,7 @@ export async function POST(req: NextRequest) {
   try {
     const { data: doctor } = await supabase
       .from("professionals")
-      .select("name, email, registration_email, phone")
+      .select("name, email, registration_email")
       .eq("id", doctorId)
       .single();
 

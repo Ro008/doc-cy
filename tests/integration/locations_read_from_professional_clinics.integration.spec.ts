@@ -4,13 +4,11 @@ import { createIntegrationAdmin, requireSafeIntegration } from "./helpers/safe-i
 import { seedProfessionalSpecialty } from "./helpers/test-doctor";
 
 /**
- * Point D2: practice locations are read from professional_clinics -> clinics.
- *
- * Proving that takes more than "the page still works": doctor_locations and its join
- * row are mirrors, so identical data proves nothing. Each test here makes the two
- * disagree on purpose — writing to the join row and its clinic only — and then asserts
- * the public profile shows what the JOIN ROW says. Before D2 it showed the location's
- * value, so these fail on the old read path.
+ * Point D2: practice locations are read from professional_clinics -> clinics, and since
+ * D4 (doctor_locations dropped) nothing else. Each test seeds clinic links the way an
+ * approved registration writes them and asserts the public profile shows what the JOIN
+ * ROW and its clinic say: the join row's label, the clinic's address, and no archived
+ * clinic.
  */
 
 type Created = { professionalId: string; authUserId: string; clinicIds: string[] };
@@ -35,16 +33,12 @@ async function seedProfessional(
     .insert({
       auth_user_id: auth.data.user.id,
       name: `D2 Locations Doctor ${nonce}`,
-      district: "Paphos",
       registration_email: email,
       email,
-      phone: "+35799123456",
       languages: ["English"],
-      status: "verified",
       slug,
       is_registered: true,
       pro_access_until: new Date(Date.now() + 180 * 86_400_000).toISOString(),
-      finder_visible: true,
       is_archived: false,
       is_test_profile: true,
       subscription_tier: "standard",
@@ -56,46 +50,47 @@ async function seedProfessional(
 
   await seedProfessionalSpecialty(admin, professionalId, {
     specialty: "Dentistry",
-    licenseNumber: `LIC-D2-${nonce}`,
-    isApproved: true,
+    licenseNumber: `LIC-D2-${nonce}`,
   });
 
   return { professionalId, authUserId: auth.data.user.id, clinicIds: [], slug };
 }
 
-/**
- * The location write path (unchanged in D2); D1's trigger mirrors it onto the join row.
- * Registering already created an addressless primary location, so the first clinic
- * fills that one in rather than inserting a second primary.
- */
-async function setPrimaryLocation(
+/** A clinic and this professional's link to it, open for bookings. Returns the link id. */
+async function addClinic(
   admin: SupabaseClient,
-  professionalId: string,
-  fields: Record<string, unknown>,
+  created: Created,
+  input: { address: string; isPrimary: boolean; sortOrder: number },
 ): Promise<string> {
-  const { data, error } = await admin
-    .from("doctor_locations")
-    .update({ district: "Paphos", ...fields })
-    .eq("doctor_id", professionalId)
-    .eq("is_primary", true)
+  const token = `${Date.now()}-${Math.floor(Math.random() * 1_000_000)}`;
+  const clinic = await admin
+    .from("clinics")
+    .insert({
+      name: `D2 Clinic ${token}`,
+      slug: `d2-clinic-${token}`,
+      district: "Paphos",
+      town: "Paphos",
+      address: input.address,
+      phone: "26123456",
+    })
     .select("id")
     .single();
-  if (error || !data?.id) throw new Error(`primary location: ${error?.message}`);
-  return String(data.id);
-}
+  if (clinic.error || !clinic.data?.id) throw new Error(`clinic: ${clinic.error?.message}`);
+  created.clinicIds.push(String(clinic.data.id));
 
-async function addLocation(
-  admin: SupabaseClient,
-  professionalId: string,
-  fields: Record<string, unknown>,
-): Promise<string> {
-  const { data, error } = await admin
-    .from("doctor_locations")
-    .insert({ doctor_id: professionalId, district: "Paphos", is_primary: false, ...fields })
+  const link = await admin
+    .from("professional_clinics")
+    .insert({
+      professional_id: created.professionalId,
+      clinic_id: clinic.data.id,
+      is_primary: input.isPrimary,
+      sort_order: input.sortOrder,
+      pause_online_bookings: false,
+    })
     .select("id")
     .single();
-  if (error || !data?.id) throw new Error(`location: ${error?.message}`);
-  return String(data.id);
+  if (link.error || !link.data?.id) throw new Error(`clinic link: ${link.error?.message}`);
+  return String(link.data.id);
 }
 
 async function clinicIdFor(admin: SupabaseClient, joinId: string): Promise<string> {
@@ -136,27 +131,25 @@ test.describe("Integration: locations read from professional_clinics", { tag: "@
       created.professionalId = seeded.professionalId;
       created.authUserId = seeded.authUserId;
 
-      const locationId = await setPrimaryLocation(admin, seeded.professionalId, {
-        clinic_address: "Location Table Street 1, Paphos, Cyprus",
-        town: "Paphos",
-        label: "From The Location Table",
-        pause_online_bookings: false,
+      const primaryId = await addClinic(admin, created, {
+        address: `First Street ${nonce}, Paphos, Cyprus`,
+        isPrimary: true,
+        sortOrder: 0,
       });
       // The profile only names clinics when there is more than one, so give the
       // professional a second one.
-      const secondId = await addLocation(admin, seeded.professionalId, {
-        sort_order: 1,
-        clinic_address: `Second Street ${nonce}, Paphos, Cyprus`,
-        pause_online_bookings: false,
+      await addClinic(admin, created, {
+        address: `Second Street ${nonce}, Paphos, Cyprus`,
+        isPrimary: false,
+        sortOrder: 1,
       });
-      const clinicId = await clinicIdFor(admin, locationId);
-      created.clinicIds.push(clinicId, await clinicIdFor(admin, secondId));
+      const clinicId = await clinicIdFor(admin, primaryId);
 
-      // Make the two disagree: only the join row and its clinic get the new values.
+      // The join row's label names the clinic; the clinic row holds its address.
       const joinUpdate = await admin
         .from("professional_clinics")
         .update({ label: `Join Row Clinic ${nonce}` })
-        .eq("id", locationId);
+        .eq("id", primaryId);
       if (joinUpdate.error) throw new Error(`join update: ${joinUpdate.error.message}`);
 
       const clinicUpdate = await admin
@@ -173,44 +166,7 @@ test.describe("Integration: locations read from professional_clinics", { tag: "@
       await expect(page.getByText(`Join Row Street ${nonce}`).first()).toBeVisible({
         timeout: 20_000,
       });
-      await expect(page.getByText("From The Location Table")).toHaveCount(0);
-      await expect(page.getByText("Location Table Street 1")).toHaveCount(0);
-    } finally {
-      await cleanup(admin, created);
-    }
-  });
-
-  test("a clinic still being set up, with no address yet, is still listed", async ({ page }) => {
-    // "Add clinic" in settings creates a location with no address, and the wizard fills
-    // it in afterwards. The mirror cannot give that a join row (a clinic needs a
-    // district), so reading only join rows would make the new clinic vanish.
-    test.setTimeout(120_000);
-    const admin = createIntegrationAdmin(requireSafeIntegration());
-    const nonce = `${Date.now()}-${Math.floor(Math.random() * 100000)}`;
-    const created: Created = { professionalId: "", authUserId: "", clinicIds: [] };
-
-    try {
-      const seeded = await seedProfessional(admin, nonce);
-      created.professionalId = seeded.professionalId;
-      created.authUserId = seeded.authUserId;
-
-      const primaryId = await setPrimaryLocation(admin, seeded.professionalId, {
-        clinic_address: `Only Street ${nonce}, Paphos, Cyprus`,
-        pause_online_bookings: false,
-      });
-      created.clinicIds.push(await clinicIdFor(admin, primaryId));
-
-      // Exactly what POST /api/doctor-locations writes: no address, no district.
-      await addLocation(admin, seeded.professionalId, {
-        sort_order: 1,
-        district: null,
-        clinic_address: null,
-        pause_online_bookings: false,
-      });
-
-      await page.goto(`/en/${seeded.slug}`);
-
-      await expect(page.getByText(/2 clinics/i).first()).toBeVisible({ timeout: 20_000 });
+      await expect(page.getByText(`First Street ${nonce}`)).toHaveCount(0);
     } finally {
       await cleanup(admin, created);
     }
@@ -227,18 +183,17 @@ test.describe("Integration: locations read from professional_clinics", { tag: "@
       created.professionalId = seeded.professionalId;
       created.authUserId = seeded.authUserId;
 
-      const keptId = await setPrimaryLocation(admin, seeded.professionalId, {
-        clinic_address: `Kept Street ${nonce}, Paphos, Cyprus`,
-        pause_online_bookings: false,
+      await addClinic(admin, created, {
+        address: `Kept Street ${nonce}, Paphos, Cyprus`,
+        isPrimary: true,
+        sortOrder: 0,
       });
-      const archivedId = await addLocation(admin, seeded.professionalId, {
-        sort_order: 1,
-        clinic_address: `Archived Street ${nonce}, Paphos, Cyprus`,
-        pause_online_bookings: false,
+      const archivedId = await addClinic(admin, created, {
+        address: `Archived Street ${nonce}, Paphos, Cyprus`,
+        isPrimary: false,
+        sortOrder: 1,
       });
-      const keptClinic = await clinicIdFor(admin, keptId);
       const archivedClinic = await clinicIdFor(admin, archivedId);
-      created.clinicIds.push(keptClinic, archivedClinic);
 
       const archive = await admin
         .from("clinics")

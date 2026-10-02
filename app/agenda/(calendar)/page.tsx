@@ -10,13 +10,14 @@ import {
   DOCTOR_FIRST_LOGIN_PATH,
   shouldRedirectFirstLoginToSettings,
 } from "@/lib/first-login-trial-notice";
-import { loadAgendaSettings } from "@/lib/load-agenda-settings";
 import { parseAgendaHighlight } from "@/lib/agenda-highlight";
 import { fetchAllSupabaseRows } from "@/lib/supabase-fetch-all";
-import { loadDoctorLocations } from "@/lib/load-doctor-locations";
+import { loadDoctorLocations, primaryDoctorLocation } from "@/lib/load-doctor-locations";
 import {
   AGENDA_APPOINTMENT_SELECT,
+  locationToAgendaHours,
   locationsToAgendaClinics,
+  type AgendaWorkingHours,
 } from "@/lib/agenda-clinics";
 
 type AgendaPageProps = {
@@ -42,7 +43,7 @@ export default async function AgendaPage({ searchParams }: AgendaPageProps) {
 
   let doctorRes = await supabase
     .from("professionals")
-    .select("id, name, status, auth_user_id, slug, subscription_tier, trial_notice_seen_at")
+    .select("id, name, auth_user_id, slug, subscription_tier, trial_notice_seen_at")
     .eq("auth_user_id", user.id)
     .single();
 
@@ -56,7 +57,7 @@ export default async function AgendaPage({ searchParams }: AgendaPageProps) {
   if (tierMissingAgenda) {
     doctorRes = await supabase
       .from("professionals")
-      .select("id, name, status, auth_user_id, slug, trial_notice_seen_at")
+      .select("id, name, auth_user_id, slug, trial_notice_seen_at")
       .eq("auth_user_id", user.id)
       .single();
   }
@@ -69,7 +70,7 @@ export default async function AgendaPage({ searchParams }: AgendaPageProps) {
   ) {
     doctorRes = await supabase
       .from("professionals")
-      .select("id, name, status, auth_user_id, slug, subscription_tier")
+      .select("id, name, auth_user_id, slug, subscription_tier")
       .eq("auth_user_id", user.id)
       .single();
   }
@@ -97,7 +98,6 @@ export default async function AgendaPage({ searchParams }: AgendaPageProps) {
 
   if (
     shouldRedirectFirstLoginToSettings({
-      status: (doctor as { status?: string | null }).status,
       trialNoticeSeenAt: (doctor as { trial_notice_seen_at?: string | null })
         .trial_notice_seen_at,
     })
@@ -109,7 +109,7 @@ export default async function AgendaPage({ searchParams }: AgendaPageProps) {
     supabase
       .from("appointments")
       .select(AGENDA_APPOINTMENT_SELECT)
-      .eq("doctor_id", doctor.id)
+      .eq("professional_id", doctor.id)
       .order("appointment_datetime", { ascending: true }),
   );
 
@@ -117,10 +117,14 @@ export default async function AgendaPage({ searchParams }: AgendaPageProps) {
     console.error(error);
   }
 
-  const { workingHours } = await loadAgendaSettings(supabase, doctor.id);
-
   const locationRows = await loadDoctorLocations(doctor.id);
   const clinics = locationsToAgendaClinics(locationRows);
+  // The primary clinic's hours frame the calendar (Point E6: schedules live on the
+  // clinic links, each clinic's own hours come with `clinics`).
+  const primaryClinic = primaryDoctorLocation(locationRows);
+  const workingHours: AgendaWorkingHours | null = primaryClinic
+    ? locationToAgendaHours(primaryClinic)
+    : null;
 
   return (
     <main

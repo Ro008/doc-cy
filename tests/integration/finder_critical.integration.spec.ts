@@ -3,13 +3,23 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { FINDER_RESULTS_PAGE_SIZE } from "@/lib/finder-results-paging";
 import { fetchAllSupabaseRows } from "@/lib/supabase-fetch-all";
 import { selectFinderSpecialty } from "./helpers/finder-specialty-combobox";
+import { deleteTestClinics, seedProfessionalClinic } from "./helpers/test-doctor";
 
 type CreatedDoctor = {
   doctorId: string;
   authUserId: string;
   slug: string;
   name: string;
+  clinicId: string;
 };
+
+/** Professional first (its clinic link cascades), then its clinic. */
+async function deleteVerifiedDoctor(admin: SupabaseClient, doctor: CreatedDoctor): Promise<void> {
+  await admin.from("professional_settings").delete().eq("professional_id", doctor.doctorId);
+  await admin.from("professionals").delete().eq("id", doctor.doctorId);
+  await admin.auth.admin.deleteUser(doctor.authUserId);
+  await deleteTestClinics(admin, [doctor.clinicId]);
+}
 
 function normalizeUrl(u: string): string {
   return u.replace(/\/+$/, "");
@@ -80,20 +90,15 @@ async function createVerifiedDoctor(
     .insert({
       auth_user_id: authUserId,
       name: input.name,
-      district: input.district,
       email,
-      phone: "+35799123456",
       languages: input.languages,
       avatar_url: input.avatarPath ?? null,
-      license_file_url: `licenses/integration/${nonce}-${input.slugPrefix}.pdf`,
-      status: "verified",
       slug,
       // Mark as test so cleanup + prod finder hide are reliable; still visible when
       // NEXT_PUBLIC_DOC_CY_FINDER_INCLUDE_TEST_PROFILES=1 (integration).
       is_test_profile: true,
       is_registered: true,
       pro_access_until: new Date(Date.now() + 180 * 86_400_000).toISOString(),
-      finder_visible: true,
       is_archived: false,
       subscription_tier: "standard",
 
@@ -112,7 +117,6 @@ async function createVerifiedDoctor(
       professional_id: doctorId,
       specialty: input.specialty,
       license_number: `LIC-FINDER-${nonce}-${input.slugPrefix}`,
-      is_approved: true,
     },
   );
   if (specialtyInsert.error) {
@@ -123,11 +127,25 @@ async function createVerifiedDoctor(
     );
   }
 
+  // Every professional has a clinic; the finder reads district and hours from it.
+  let clinicId: string;
+  try {
+    ({ clinicId } = await seedProfessionalClinic(admin, doctorId, {
+      nonce: `${input.slugPrefix}-${nonce}`,
+      district: input.district,
+    }));
+  } catch (err) {
+    await admin.from("professionals").delete().eq("id", doctorId);
+    await admin.auth.admin.deleteUser(authUserId);
+    throw err;
+  }
+
   return {
     doctorId,
     authUserId,
     slug,
     name: input.name,
+    clinicId,
   };
 }
 
@@ -135,44 +153,12 @@ async function seedWeekdayAvailabilitySettings(
   admin: SupabaseClient,
   doctorId: string,
 ): Promise<void> {
-  const day = {
-    enabled: true,
-    start_time: "09:00:00",
-    end_time: "17:00:00",
-  };
-  const disabledDay = {
-    enabled: false,
-    start_time: "09:00:00",
-    end_time: "17:00:00",
-  };
   const settingsUpsert = await admin.from("professional_settings").upsert(
     {
       professional_id: doctorId,
-      monday: true,
-      tuesday: true,
-      wednesday: true,
-      thursday: true,
-      friday: true,
-      saturday: false,
-      sunday: false,
-      start_time: "09:00:00",
-      end_time: "17:00:00",
-      weekly_schedule: {
-        monday: day,
-        tuesday: day,
-        wednesday: day,
-        thursday: day,
-        friday: day,
-        saturday: disabledDay,
-        sunday: disabledDay,
-      },
-      break_start: null,
-      break_end: null,
       holiday_mode_enabled: false,
       holiday_start_date: null,
       holiday_end_date: null,
-      pause_online_bookings: false,
-      slot_duration_minutes: 30,
       booking_horizon_days: 90,
       minimum_notice_hours: 1,
       updated_at: new Date().toISOString(),
@@ -183,17 +169,14 @@ async function seedWeekdayAvailabilitySettings(
     throw new Error(`Failed preparing doctor settings: ${settingsUpsert.error.message}`);
   }
 
-  // Registering a doctor auto-creates a primary doctor_locations row
-  // (trigger: professionals_create_primary_location), defaulting to
-  // pause_online_bookings = true. Availability/booking now reads the pause
-  // flag from the location, not professional_settings — unpause it too or the
-  // finder card shows no availability at all.
-  const locationUnpause = await admin
-    .from("doctor_locations")
+  // Availability reads the pause flag from the clinic link, not professional_settings:
+  // keep it open or the finder card shows no availability at all.
+  const clinicUnpause = await admin
+    .from("professional_clinics")
     .update({ pause_online_bookings: false })
-    .eq("doctor_id", doctorId);
-  if (locationUnpause.error) {
-    throw new Error(`Failed unpausing doctor location: ${locationUnpause.error.message}`);
+    .eq("professional_id", doctorId);
+  if (clinicUnpause.error) {
+    throw new Error(`Failed unpausing clinic: ${clinicUnpause.error.message}`);
   }
 }
 
@@ -290,7 +273,6 @@ test.describe("Integration: finder business-critical UX", { tag: ["@pr-e2e", "@p
       .select("slug, name")
       .eq("is_archived", false)
       .eq("is_registered", false)
-      .eq("finder_visible", true)
       .not("slug", "is", null)
       .order("name", { ascending: true })
       .limit(1)
@@ -329,8 +311,8 @@ test.describe("Integration: finder business-critical UX", { tag: ["@pr-e2e", "@p
     const doctorsRes = await fetchAllSupabaseRows(() =>
       admin
         .from("professionals")
-        .select("id, name, slug, status, is_test_profile, email")
-        .eq("status", "verified")
+        .select("id, name, slug, is_test_profile, email")
+        .eq("is_registered", true)
         .not("slug", "is", null)
         .order("name", { ascending: true }),
     );
@@ -343,8 +325,7 @@ test.describe("Integration: finder business-critical UX", { tag: ["@pr-e2e", "@p
       .from("professionals")
       .select("id", { count: "exact", head: true })
       .eq("is_archived", false)
-      .eq("is_registered", false)
-      .eq("finder_visible", true);
+      .eq("is_registered", false);
 
     if (manualCountError) {
       throw new Error(`Failed reading unregistered professionals for finder count: ${manualCountError.message}`);
@@ -434,10 +415,7 @@ test.describe("Integration: finder business-critical UX", { tag: ["@pr-e2e", "@p
       const avatar = card.locator("img").first();
       await expect(avatar).toHaveAttribute("src", new RegExp(`profiles/qa-card-${nonce}/avatar.jpg`));
     } finally {
-      if (created) {
-        await admin.from("professionals").delete().eq("id", created.doctorId);
-        await admin.auth.admin.deleteUser(created.authUserId);
-      }
+      if (created) await deleteVerifiedDoctor(admin, created);
     }
   });
 
@@ -484,10 +462,7 @@ test.describe("Integration: finder business-critical UX", { tag: ["@pr-e2e", "@p
         await expect(card.getByText(testCase.input, { exact: true })).toHaveCount(0);
       }
     } finally {
-      for (const doctor of created) {
-        await admin.from("professionals").delete().eq("id", doctor.doctorId);
-        await admin.auth.admin.deleteUser(doctor.authUserId);
-      }
+      for (const doctor of created) await deleteVerifiedDoctor(admin, doctor);
     }
   });
 
@@ -579,10 +554,7 @@ test.describe("Integration: finder business-critical UX", { tag: ["@pr-e2e", "@p
           timeout: 60_000,
         });
       }    } finally {
-      for (const doctor of created) {
-        await admin.from("professionals").delete().eq("id", doctor.doctorId);
-        await admin.auth.admin.deleteUser(doctor.authUserId);
-      }
+      for (const doctor of created) await deleteVerifiedDoctor(admin, doctor);
     }
   });
 
@@ -651,11 +623,7 @@ test.describe("Integration: finder business-critical UX", { tag: ["@pr-e2e", "@p
       await expect(dayHeaderA).not.toHaveText(initialDatesA ?? "");
       await expect(dayHeaderB).toHaveText((await dayHeaderA.textContent()) ?? "");
     } finally {
-      for (const doctor of created) {
-        await admin.from("professional_settings").delete().eq("professional_id", doctor.doctorId);
-        await admin.from("professionals").delete().eq("id", doctor.doctorId);
-        await admin.auth.admin.deleteUser(doctor.authUserId);
-      }
+      for (const doctor of created) await deleteVerifiedDoctor(admin, doctor);
     }
   });
 });

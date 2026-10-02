@@ -1,9 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { CyprusDistrict } from "@/lib/cyprus-districts";
 import { doctorDashboardDisplayName } from "@/lib/doctor-display-name";
-import { getFinderManualPhotoUrl } from "@/lib/finder-manual-photos";
 import { resolveFinderDisplayPhotoUrl } from "@/lib/finder-default-avatars";
-import { parseOptionalCoordinates } from "@/lib/finder-distance";
+import { LISTING_CLINICS_SELECT, listingClinicLocations } from "@/lib/listing-clinic-location";
 import {
   buildManualDirectoryClinicRefs,
   type ManualClinicJoinLink,
@@ -11,6 +10,7 @@ import {
 import { fetchAllSupabaseRows } from "@/lib/supabase-fetch-all";
 import { SPECIALTY_LINKS_SELECT, specialtyNamesForRow } from "@/lib/specialty-catalogue";
 import { pickUniqueLegacyNameSlugAlias } from "@/lib/manual-directory-slug";
+import { USER_EVENTS_TABLE } from "@/lib/user-events";
 
 export type ManualDirectoryLandingClinic = {
   id: string | null;
@@ -44,57 +44,26 @@ export type ManualDirectoryLandingRow = {
   clinics: ManualDirectoryLandingClinic[];
 };
 
-function slugLookupHasMissingColumn(
-  error: { message?: string; code?: string } | null,
-  column: string,
-): boolean {
-  if (!error) return false;
-  if (String(error.message ?? "").toLowerCase().includes(column)) return true;
-  return error.code === "42703";
-}
-
 /**
  * Retired name-only slug -> current slug, only when it uniquely identifies one
- * visible professional. Shared by `resolveCanonicalManualDirectorySlug` and the
+ * active listing. Shared by `resolveCanonicalManualDirectorySlug` and the
  * combined lookup below so both stay in sync without an extra round trip.
  */
 async function resolveManualDirectorySlugAlias(
   supabase: SupabaseClient,
   normalizedSlug: string,
 ): Promise<string | null> {
-  let aliasRes: {
-    data: {
-      slug?: string | null;
-      name?: string | null;
-      finder_visible?: boolean | null;
-    }[] | null;
+  const aliasRes: {
+    data: { slug?: string | null; name?: string | null }[] | null;
     error: { code?: string; message?: string } | null;
   } = await fetchAllSupabaseRows(() =>
     supabase
       .from("professionals")
-      .select("slug, name, finder_visible")
+      .select("slug, name")
       .eq("is_registered", false)
       .eq("is_archived", false)
       .like("slug", `${normalizedSlug}-%`),
   );
-
-  if (slugLookupHasMissingColumn(aliasRes.error, "finder_visible")) {
-    const fallback = await fetchAllSupabaseRows(() =>
-      supabase
-        .from("professionals")
-        .select("slug, name")
-        .eq("is_registered", false)
-        .eq("is_archived", false)
-        .like("slug", `${normalizedSlug}-%`),
-    );
-    aliasRes = {
-      data: (fallback.data ?? []).map((row) => ({
-        slug: (row as { slug?: string | null }).slug,
-        name: (row as { name?: string | null }).name,
-      })),
-      error: fallback.error,
-    };
-  }
 
   if (aliasRes.error || !aliasRes.data?.length) return null;
   return pickUniqueLegacyNameSlugAlias(normalizedSlug, aliasRes.data);
@@ -103,7 +72,7 @@ async function resolveManualDirectorySlugAlias(
 /**
  * Canonical slug for a professional landing URL.
  * Exact slugs win (duplicate-proof). A retired name-only slug redirects only
- * when it uniquely identifies one visible professional.
+ * when it uniquely identifies one active listing.
  */
 export async function resolveCanonicalManualDirectorySlug(
   supabase: SupabaseClient,
@@ -172,90 +141,30 @@ type ManualDirectoryRawRow = {
   slug: string;
   name: string;
   specialty_links?: unknown;
-  district: CyprusDistrict;
-  address_maps_link: string;
-  address?: string | null;
+  /** The listing's clinics: its location (Point E5). */
+  listing_clinics?: unknown;
   is_gesy?: boolean | null;
-  latitude?: unknown;
-  longitude?: unknown;
-  clinic_id?: string | null;
   gender?: string | null;
-  finder_visible?: boolean | null;
 };
 
-/**
- * Fetches the raw `professionals` row for an exact (already-lowercased) slug
- * match, tolerating column drift across environments via progressively
- * narrower `select()` fallbacks. Returns the row regardless of `finder_visible`
- * so callers can distinguish "no such slug" from "exists but hidden".
- */
+/** Fetches the raw `professionals` row for an exact (already-lowercased) slug match. */
 async function fetchManualDirectoryRawRow(
   supabase: SupabaseClient,
   normalizedSlugLower: string,
 ): Promise<ManualDirectoryRawRow | null> {
-  let res = await supabase
+  const res = await supabase
     .from("professionals")
-    .select(
-      `id, slug, name, district, address_maps_link, address, is_gesy, latitude, longitude, clinic_id, gender, finder_visible, ${SPECIALTY_LINKS_SELECT}`,
-    )
+    .select(`id, slug, name, is_gesy, gender, ${LISTING_CLINICS_SELECT}, ${SPECIALTY_LINKS_SELECT}`)
     .eq("is_registered", false)
     .eq("is_archived", false)
     .eq("slug", normalizedSlugLower)
     .maybeSingle();
 
-  if (
-    res.error &&
-    (String(res.error.message ?? "").toLowerCase().includes("finder_visible") ||
-      (res.error as { code?: string }).code === "42703")
-  ) {
-    res = await supabase
-      .from("professionals")
-      .select(
-        `id, slug, name, district, address_maps_link, address, is_gesy, latitude, longitude, clinic_id, gender, ${SPECIALTY_LINKS_SELECT}`,
-      )
-      .eq("is_registered", false)
-      .eq("is_archived", false)
-      .eq("slug", normalizedSlugLower)
-      .maybeSingle();
-  }
-
-  if (
-    res.error &&
-    (String(res.error.message ?? "").toLowerCase().includes("gender") ||
-      (res.error as { code?: string }).code === "42703")
-  ) {
-    res = await supabase
-      .from("professionals")
-      .select(
-        `id, slug, name, district, address_maps_link, address, is_gesy, latitude, longitude, clinic_id, ${SPECIALTY_LINKS_SELECT}`,
-      )
-      .eq("is_registered", false)
-      .eq("is_archived", false)
-      .eq("slug", normalizedSlugLower)
-      .maybeSingle();
-  }
-
-  if (
-    res.error &&
-    (String(res.error.message ?? "").toLowerCase().includes("clinic_id") ||
-      (res.error as { code?: string }).code === "42703")
-  ) {
-    res = await supabase
-      .from("professionals")
-      .select(
-        `id, slug, name, district, address_maps_link, address, is_gesy, latitude, longitude, ${SPECIALTY_LINKS_SELECT}`,
-      )
-      .eq("is_registered", false)
-      .eq("is_archived", false)
-      .eq("slug", normalizedSlugLower)
-      .maybeSingle();
-  }
-
   if (res.error || !res.data) {
     return null;
   }
 
-  return res.data as ManualDirectoryRawRow;
+  return res.data as unknown as ManualDirectoryRawRow;
 }
 
 /** Builds the public landing shape (clinics, vote count) for an already-fetched raw row. */
@@ -269,8 +178,9 @@ async function buildManualDirectoryLandingRow(
 
   const { data: requestRows } = await fetchAllSupabaseRows(() =>
     supabase
-      .from("professional_patient_booking_requests")
-      .select("id, voter_key")
+      .from(USER_EVENTS_TABLE)
+      .select("id, visitor_key")
+      .eq("event_type", "request_online_appointment")
       .eq("professional_id", manualId),
   );
 
@@ -278,14 +188,14 @@ async function buildManualDirectoryLandingRow(
     const voters = new Set<string>();
     for (const r of requestRows) {
       const id = String((r as { id?: string }).id ?? "");
-      const vk = (r as { voter_key?: string | null }).voter_key?.trim();
+      const vk = (r as { visitor_key?: string | null }).visitor_key?.trim();
       voters.add(vk || `legacy:${id}`);
     }
     monthlyRequestCount = voters.size;
   }
 
-  const addressMapsLink = String(row.address_maps_link ?? "");
-  const coords = parseOptionalCoordinates(row.latitude, row.longitude);
+  // District, address, map link and pin are the primary clinic's (Point E5).
+  const place = listingClinicLocations(row)[0] ?? null;
   const specialties = specialtyNamesForRow(row);
 
   const clinics: ManualDirectoryLandingClinic[] = [];
@@ -303,39 +213,6 @@ async function buildManualDirectoryLandingRow(
     );
   }
 
-  if (clinics.length === 0) {
-    const clinicId = String(row.clinic_id ?? "").trim();
-    if (clinicId) {
-      const clinicRes = await supabase
-        .from("clinics")
-        .select("id, name, slug, address, address_maps_link, district, phone")
-        .eq("id", clinicId)
-        .eq("is_archived", false)
-        .maybeSingle();
-      if (!clinicRes.error && clinicRes.data) {
-        clinics.push(
-          ...buildManualDirectoryClinicRefs([
-            {
-              clinic_id: clinicId,
-              is_primary: true,
-              clinics: {
-                id: clinicId,
-                name: (clinicRes.data as { name?: string }).name,
-                slug: (clinicRes.data as { slug?: string }).slug,
-                address: (clinicRes.data as { address?: string | null }).address,
-                address_maps_link: (clinicRes.data as { address_maps_link?: string | null })
-                  .address_maps_link,
-                district: (clinicRes.data as { district?: string | null }).district,
-                phone: (clinicRes.data as { phone?: string | null }).phone,
-                is_archived: false,
-              },
-            },
-          ]),
-        );
-      }
-    }
-  }
-
   const primary = clinics.find((c) => c.isPrimary) ?? clinics[0] ?? null;
 
   return {
@@ -345,17 +222,17 @@ async function buildManualDirectoryLandingRow(
     displayName: doctorDashboardDisplayName(String(row.name ?? "Professional")),
     specialty: specialties[0] ?? "Specialty not set",
     specialties,
-    district: row.district,
-    address_maps_link: addressMapsLink,
-    address: String(row.address ?? "").trim() || null,
+    district: place?.district as CyprusDistrict,
+    address_maps_link: place?.addressMapsLink ?? "",
+    address: place?.address ?? null,
     photoUrl: resolveFinderDisplayPhotoUrl({
-      curatedOrCustomPhotoUrl: getFinderManualPhotoUrl(addressMapsLink),
+      curatedOrCustomPhotoUrl: null,
       gender: row.gender,
     }),
     monthlyRequestCount,
     isGesy: Boolean(row.is_gesy ?? false),
-    latitude: coords?.latitude ?? null,
-    longitude: coords?.longitude ?? null,
+    latitude: place?.latitude ?? null,
+    longitude: place?.longitude ?? null,
     clinic: primary ? { id: primary.id, name: primary.name, slug: primary.slug } : null,
     clinics,
   };
@@ -369,8 +246,7 @@ export async function loadManualDirectoryBySlug(
   if (!normalizedSlug) return null;
 
   const row = await fetchManualDirectoryRawRow(supabase, normalizedSlug.toLowerCase());
-  // Inpatient-only professionals are clinic-profile only (no public profile landing).
-  if (!row || row.finder_visible === false) return null;
+  if (!row) return null;
 
   return buildManualDirectoryLandingRow(supabase, row, normalizedSlug);
 }
@@ -379,9 +255,9 @@ export type ManualDirectoryProfileLookup = {
   row: ManualDirectoryLandingRow | null;
   /**
    * The slug this professional actually lives at, when a matching row exists
-   * (visible or not) or a unique legacy alias resolves to one. Compare against
-   * the requested slug to decide whether to 301 redirect. `null` means no
-   * professional (visible or hidden) matches this slug at all.
+   * or a unique legacy alias resolves to one. Compare against the requested slug
+   * to decide whether to 301 redirect. `null` means no professional matches
+   * this slug at all.
    */
   redirectSlug: string | null;
 };
@@ -401,11 +277,7 @@ export async function resolveManualDirectoryProfileForSlug(
   const rawRow = await fetchManualDirectoryRawRow(supabase, normalizedSlug.toLowerCase());
   if (rawRow) {
     const redirectSlug = String(rawRow.slug ?? "").trim() || normalizedSlug.toLowerCase();
-    // Inpatient-only professionals are clinic-profile only (no public profile landing).
-    const row =
-      rawRow.finder_visible === false
-        ? null
-        : await buildManualDirectoryLandingRow(supabase, rawRow, normalizedSlug);
+    const row = await buildManualDirectoryLandingRow(supabase, rawRow, normalizedSlug);
     return { row, redirectSlug };
   }
 

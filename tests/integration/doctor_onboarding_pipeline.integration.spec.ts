@@ -37,7 +37,7 @@ async function signInWithPasswordForm(
  * registration_request_* specs.
  */
 test.describe("Integration: doctor onboarding pipeline", { tag: "@pr-e2e" }, () => {
-  test("verified doctor: first login → settings, second login → agenda", async ({
+  test("registered professional: first login → settings, second login → agenda", async ({
     page,
   }) => {
     test.setTimeout(120_000);
@@ -52,20 +52,8 @@ test.describe("Integration: doctor onboarding pipeline", { tag: "@pr-e2e" }, () 
         nonce,
         name: `Onboard Std ${nonce}`,
         specialty: "Pediatrics",
-        is_specialty_approved: true,
-        status: "pending",
         markTrialNoticeSeen: false,
       });
-
-      // Approved (what request_approve leaves behind for the professional row).
-      const approve = await admin
-        .from("professionals")
-        .update({ status: "verified" })
-        .eq("id", fixture.doctorId)
-        .select("status")
-        .single();
-      expect(approve.error).toBeNull();
-      expect(approve.data?.status).toBe("verified");
 
       // First login (normal form — default next=/agenda, then redirect to settings).
       await signInWithPasswordForm(page, admin, fixture.email, fixture.password);

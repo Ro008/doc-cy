@@ -94,13 +94,17 @@ describe("doctor locations", () => {
     assert.equal(settingsForm.includes("workplaceAccent"), true);
     assert.equal(settingsForm.includes("Hours for ${activeWorkplaceLabel}"), true);
     assert.equal(settingsForm.includes('id="clinicName"'), true);
-    assert.equal(settingsForm.includes("Add clinic"), true);
+    // D4 (user, 2026-09-30): clinics are read-only in settings until the clinic requests.
+    assert.equal(settingsForm.includes("Add clinic"), false);
+    assert.equal(settingsForm.includes("Remove this clinic"), false);
+    assert.equal(settingsForm.includes("ClinicAddressAutocomplete"), false);
+    assert.equal(settingsForm.includes("Contact us to change your clinics"), true);
     assert.equal(settingsForm.includes("Add workplace"), false);
     assert.equal(settingsForm.includes('aria-label="Clinics"'), true);
     assert.equal(settingsForm.includes('id="district"'), false);
     assert.equal(settingsForm.includes("Select district"), false);
     assert.equal(settingsForm.includes("settings-clinic-district"), false);
-    assert.equal(settingsForm.includes("District not detected"), true);
+    assert.equal(settingsForm.includes("District not detected"), false);
     assert.equal(workplaceAccent(0).tabSelected.includes("rounded-t-xl"), true);
     assert.equal(
       settingsForm.indexOf('role="tablist"') <
@@ -139,7 +143,6 @@ describe("doctor locations", () => {
     const merged = locationToSettingsRow(
       loc({ id: "lim", pause_online_bookings: true, district: "Limassol" }),
       {
-        show_phone_public: false,
         holiday_mode_enabled: true,
         holiday_start_date: "2026-08-01",
         holiday_end_date: "2026-08-10",

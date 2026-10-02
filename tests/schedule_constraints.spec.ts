@@ -36,8 +36,9 @@ type WeeklySchedulePayload = {
 };
 
 /**
- * Booking availability is resolved from doctor_locations (primary), not professional_settings alone.
- * Updating the primary location also syncs schedule columns back to professional_settings via trigger.
+ * Booking availability is resolved from the primary clinic link (professional_clinics), not
+ * professional_settings (which holds the account settings only since Point E6), and
+ * appointments reference the link's id.
  */
 async function syncPrimaryLocationSchedule(
   supabase: SupabaseClient,
@@ -53,21 +54,21 @@ async function syncPrimaryLocationSchedule(
 ): Promise<{ locationId: string | null; error: string | null }> {
   const schedule = input.weekly_schedule;
   const { data: primary, error: primaryErr } = await supabase
-    .from("doctor_locations")
+    .from("professional_clinics")
     .select("id")
-    .eq("doctor_id", doctorId)
+    .eq("professional_id", doctorId)
     .eq("is_primary", true)
     .maybeSingle();
 
   if (primaryErr || !primary?.id) {
     return {
       locationId: null,
-      error: primaryErr?.message ?? "Primary doctor_locations row missing.",
+      error: primaryErr?.message ?? "Primary professional_clinics row missing.",
     };
   }
 
   const { error: updateErr } = await supabase
-    .from("doctor_locations")
+    .from("professional_clinics")
     .update({
       monday: schedule.monday.enabled,
       tuesday: schedule.tuesday.enabled,
@@ -189,10 +190,10 @@ test.describe("Schedule constraints @booking-creates", { tag: ["@pr-e2e", "@pr-e
     const supabase = createClient(supabaseUrl, serviceRole);
     const { data: doctor } = await supabase
       .from("professionals")
-      .select("id,slug,status")
+      .select("id,slug,is_registered")
       .eq("slug", SCHEDULE_TEST_SLUG)
       .single();
-    test.skip(!doctor?.id || doctor.status !== "verified", "Verified doctor not found.");
+    test.skip(!doctor?.id || !doctor.is_registered, "Registered professional not found.");
 
     const start = cyprusDateKey(1);
     const end = cyprusDateKey(3);
@@ -258,10 +259,10 @@ test.describe("Schedule constraints @booking-creates", { tag: ["@pr-e2e", "@pr-e
     const supabase = createClient(supabaseUrl, serviceRole);
     const { data: doctor } = await supabase
       .from("professionals")
-      .select("id,slug,status")
+      .select("id,slug,is_registered")
       .eq("slug", SCHEDULE_TEST_SLUG)
       .single();
-    test.skip(!doctor?.id || doctor.status !== "verified", "Verified doctor not found.");
+    test.skip(!doctor?.id || !doctor.is_registered, "Registered professional not found.");
 
     const commonDay = { enabled: true, start_time: "09:00:00", end_time: "18:00:00" };
     const weekly_schedule: WeeklySchedulePayload = {
@@ -324,7 +325,7 @@ test.describe("Schedule constraints @booking-creates", { tag: ["@pr-e2e", "@pr-e
     const seeded = await supabase
       .from("appointments")
       .insert({
-        doctor_id: doctor.id,
+        professional_id: doctor.id,
         patient_name: "Seeded Invalid 16:45",
         patient_email: "seeded.invalid.1645@test.com",
         patient_phone: "99123456",

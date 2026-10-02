@@ -71,13 +71,11 @@ import {
   finderSpecialtyOptionsFromCatalogue,
   catalogueIdsForSpecialtyNames,
   loadScrapedAvailableSpecialtyIds,
-  approvedSpecialtyNames,
-  hasPendingSpecialty,
+  specialtyNames,
   loadSpecialtyEntriesByProfessionalIds,
   catalogueIdsForFinderSlug,
   hasSpecialtySlug,
   loadSpecialtyCatalogue,
-  SPECIALTY_LINKS_SELECT,
   specialtyNamesForRow,
   type CatalogueSpecialty,
 } from "@/lib/specialty-catalogue";
@@ -95,7 +93,11 @@ import {
   mergeManualDirectoryRowsById,
   professionalIdsWithUniqueRequests,
 } from "@/lib/finder-booking-request-stats";
-import { getFinderManualPhotoUrl } from "@/lib/finder-manual-photos";
+import {
+  listingClinicLocations,
+  pickListingCardClinic,
+  type ListingClinicLocation,
+} from "@/lib/listing-clinic-location";
 import { resolveFinderDisplayPhotoUrl } from "@/lib/finder-default-avatars";
 import { finderCardImagePriority } from "@/lib/finder-card-image-priority";
 import { finderResultsPath } from "@/lib/finder-public-path";
@@ -119,6 +121,7 @@ import {
 } from "@/lib/finder-shuffle-seed";
 import {
   applyFinderListFilters,
+  FINDER_LISTING_SELECT_WITH_SPECIALTIES,
   countManualDirectoryForFinder,
   fetchManualDirectoryForFinder,
 } from "@/lib/finder-manual-directory-load";
@@ -131,6 +134,7 @@ import { harmonizeFinderSpecialtyLabel } from "@/lib/finder-specialty-harmonize"
 import { publicProfessionalProfilePath } from "@/lib/manual-directory-landing-path";
 import { finderIncludesRegisteredTestProfiles, isRegisteredDoctorHiddenFromFinder } from "@/lib/doctor-test-profile";
 import { finderAvailabilityRequestKey } from "@/lib/public/finder-availability-request-key";
+import { USER_EVENTS_TABLE } from "@/lib/user-events";
 import { buildFinderAvailabilityDayHeaders } from "@/lib/public/compute-public-booking-slots";
 import {
   computeFinderDistanceKm,
@@ -179,7 +183,6 @@ type RegisteredFinderRow = {
   /** Address as entered at registration. */
   clinic_address: string | null;
   isGesy: boolean;
-  isSpecialtyApproved: boolean;
   latitude: number | null;
   longitude: number | null;
   locations: Array<{
@@ -210,6 +213,8 @@ type ManualFinderRow = {
   isGesy: boolean;
   latitude: number | null;
   longitude: number | null;
+  /** The listing's clinics (Point E5: its location), primary first. */
+  locations: ListingClinicLocation[];
   clinic: { id?: string | null; name: string; slug: string } | null;
   clinics: Array<{
     id?: string | null;
@@ -521,8 +526,6 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
    */
   const unboundedManualFetch = hasListFilter;
   const manualListLimit = unboundedManualFetch ? undefined : visibleLimit;
-  /** Clinic-district extras: same merge cost as before — only with near-me. */
-  const loadClinicDistrictExtras = Boolean(userCoords);
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim() || "https://www.mydoccy.com";
   const districts = CYPRUS_DISTRICTS;
   const listFilters = {
@@ -539,9 +542,8 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
   let registeredRows: RegisteredFinderRow[] = [];
   let manualRows: ManualFinderRow[] = [];
   let manualDirectoryTotalCount: number | null = null;
+  /** The clinic each listing's card leads with (filtered place, near-me, else primary). */
   const manualClinicIdByRowId = new Map<string, string>();
-  /** Pros whose primary district differs but who practice at a clinic in the active district. */
-  const manualIdsWithClinicInActiveDistrict = new Set<string>();
   let finderSpecialtyOptions: FinderSpecialtyOption[] = [];
   let dataWarning: string | null = null;
   let bookingStatsById = new Map<
@@ -550,47 +552,14 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
   >();
 
   if (supabase) {
-    const extrasPromise = (async () => {
-      // Clinic-linked extras require an unbounded merge; only with near-me (costly).
-      if (!loadClinicDistrictExtras) return;
-      if (!(activeTown || activeDistrict)) return;
-      const clinicsRes = await getCachedDirectoryRows(
-        activeTown
-          ? ["clinics-in-town", activeTown, activeDistrict]
-          : ["clinics-in-district", activeDistrict],
-        () =>
-          fetchAllSupabaseRows(() => {
-            let q = supabase.from("clinics").select("id").eq("is_archived", false);
-            if (activeTown) q = q.eq("town", activeTown);
-            else q = q.eq("district", activeDistrict);
-            return q;
-          }),
-      );
-      const clinicIds = (clinicsRes.data ?? [])
-        .map((row) => String((row as { id?: string }).id ?? "").trim())
-        .filter(Boolean);
-      if (clinicIds.length === 0) return;
-      const linksRes = await fetchAllSupabaseRowsForIdChunks(clinicIds, (clinicIdChunk) =>
-        supabase
-          .from("professional_clinics")
-          .select("professional_id")
-          .in("clinic_id", clinicIdChunk),
-      );
-      for (const link of linksRes.data ?? []) {
-        const id = String(
-          (link as { professional_id?: string }).professional_id ?? "",
-        ).trim();
-        if (id) manualIdsWithClinicInActiveDistrict.add(id);
-      }
-    })();
-
     const bookingRequestRowsPromise = getCachedDirectoryRows(
-      ["booking-requests-all-time"],
+      ["online-appointment-votes-all-time"],
       () =>
         fetchAllSupabaseRows(() =>
           supabase
-            .from("professional_patient_booking_requests")
-            .select("id, professional_id, voter_key"),
+            .from(USER_EVENTS_TABLE)
+            .select("id, professional_id, visitor_key")
+            .eq("event_type", "request_online_appointment"),
         ),
     );
 
@@ -623,10 +592,9 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
                 .select(selectClause)
                 .eq("is_registered", true)
                 .eq("is_archived", false)
-                .eq("status", "verified")
                 .not("slug", "is", null),
-              // District/town/specialty are matched in memory: town is often inferred
-              // and clinic districts are N:M. Specialties come from professional_specialties.
+              // Place and specialty are matched in memory: the place comes from their
+              // clinics (N:M) and specialties from professional_specialties.
               { ...listFilters, district: "", town: "", specialty: "", specialtyIds: undefined },
             ).order("name", { ascending: true }),
           ),
@@ -650,7 +618,6 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
             name: String(raw.name ?? "Professional"),
             displayName: doctorDashboardDisplayName(String(raw.name ?? "Professional")),
             // Filled from professional_specialties below.
-            isSpecialtyApproved: true,
             specialty: null,
             specialties: [],
             // Filled from the clinics below.
@@ -689,17 +656,11 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
       );
       registeredRows = registeredRows.map((row) => {
         const entries = entriesById.get(row.id) ?? [];
-        const isSpecialtyApproved = !hasPendingSpecialty(entries);
-        // A pending custom specialty hides every label.
-        const names = isSpecialtyApproved ? approvedSpecialtyNames(entries) : [];
+        const names = specialtyNames(entries);
         return {
           ...row,
-          isSpecialtyApproved,
           specialties: names,
-          specialty: getPublicSpecialtyDisplayLabel({
-            specialty: names[0] ?? null,
-            is_specialty_approved: isSpecialtyApproved,
-          }),
+          specialty: getPublicSpecialtyDisplayLabel({ specialty: names[0] ?? null }),
         };
       });
     } catch (err) {
@@ -733,13 +694,12 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
       };
     });
 
-    await extrasPromise;
     const bookingRequestRowsRes = await bookingRequestRowsPromise;
     bookingStatsById = aggregateBookingRequestStats(
       (bookingRequestRowsRes.data ?? []).map((r) => ({
         professionalId: String((r as { professional_id?: string }).professional_id ?? ""),
         id: String((r as { id?: string }).id ?? ""),
-        voterKey: (r as { voter_key?: string | null }).voter_key ?? null,
+        voterKey: (r as { visitor_key?: string | null }).visitor_key ?? null,
       })),
     );
     if (bookingRequestRowsRes.error) {
@@ -751,34 +711,14 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
       slug?: string | null;
       name: string | null;
       specialty_links?: unknown;
-      district: CyprusDistrict;
-      address_maps_link: string | null;
-      address?: string | null;
+      listing_clinics?: unknown;
       is_gesy?: boolean | null;
-      latitude?: unknown;
-      longitude?: unknown;
-      clinic_id?: string | null;
       gender?: string | null;
-      finder_visible?: boolean | null;
-      town?: string | null;
     }> = [];
     let manualLoadError: { code?: string; message?: string } | null = null;
-    let manualRequiresFinderVisible = false;
     let manualSelectClause = "";
-    const manualSelectAttempts = [
-      "id, slug, name, district, town, address_maps_link, address, is_gesy, latitude, longitude, clinic_id, gender, finder_visible",
-      "id, slug, name, district, address_maps_link, address, is_gesy, latitude, longitude, clinic_id, gender, finder_visible",
-      "id, slug, name, district, address_maps_link, address, is_gesy, latitude, longitude, clinic_id, gender",
-      "id, slug, name, district, address_maps_link, address, is_gesy, latitude, longitude, clinic_id",
-      "id, slug, name, district, address_maps_link, address, is_gesy, latitude, longitude",
-      "id, slug, name, district, address_maps_link, address, latitude, longitude",
-      "id, slug, name, district, address_maps_link, latitude, longitude",
-      "id, name, district, address_maps_link, latitude, longitude",
-      "id, name, district, address_maps_link",
-    ];
-    for (const baseSelectClause of manualSelectAttempts) {
-      const selectClause = `${baseSelectClause}, ${SPECIALTY_LINKS_SELECT}`;
-      const extraIds = Array.from(manualIdsWithClinicInActiveDistrict);
+    const manualSelectAttempts = [FINDER_LISTING_SELECT_WITH_SPECIALTIES];
+    for (const selectClause of manualSelectAttempts) {
       const manualRes = await getCachedDirectoryRows(
         [
           "manual-professionals",
@@ -788,15 +728,12 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
           listFilters.specialty,
           listFilters.town,
           String(manualListLimit ?? "unbounded"),
-          directoryIdSetCacheKey(extraIds),
         ],
         () =>
           fetchManualDirectoryForFinder({
             supabase,
             selectClause,
             filters: listFilters,
-            extraDistrictManualIds: extraIds,
-            requireFinderVisible: selectClause.includes("finder_visible"),
             orderByName: false,
             limit: manualListLimit,
             source: "professionals",
@@ -809,22 +746,8 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
         }
         break;
       }
-      manualRowsRaw = ((manualRes.data ?? []) as unknown) as Array<{
-        id: string;
-        slug?: string | null;
-        name: string | null;
-        specialty_links?: unknown;
-        district: CyprusDistrict;
-        address_maps_link: string | null;
-        address?: string | null;
-        is_gesy?: boolean | null;
-        latitude?: unknown;
-        longitude?: unknown;
-        clinic_id?: string | null;
-        gender?: string | null;
-      }>;
+      manualRowsRaw = (manualRes.data ?? []) as unknown as typeof manualRowsRaw;
       manualLoadError = null;
-      manualRequiresFinderVisible = selectClause.includes("finder_visible");
       manualSelectClause = selectClause;
       break;
     }
@@ -847,18 +770,14 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
             directoryIdSetCacheKey(missingRequestedIds),
           ],
           () =>
-            fetchAllSupabaseRowsForIdChunks(missingRequestedIds, (idChunk) => {
-              let q = supabase
+            fetchAllSupabaseRowsForIdChunks(missingRequestedIds, (idChunk) =>
+              supabase
                 .from("professionals")
                 .select(manualSelectClause)
                 .eq("is_archived", false)
                 .eq("is_registered", false)
-                .in("id", idChunk);
-              if (manualSelectClause.includes("finder_visible")) {
-                q = q.eq("finder_visible", true);
-              }
-              return q;
-            }),
+                .in("id", idChunk),
+            ),
         );
         if (requestedRes.error) {
           console.error(
@@ -903,13 +822,11 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
             listFilters.name,
             listFilters.specialty,
             listFilters.town,
-            manualRequiresFinderVisible ? "finder-visible" : "all",
           ],
           async () => {
             const manualCountRes = await countManualDirectoryForFinder({
               supabase,
               filters: listFilters,
-              requireFinderVisible: manualRequiresFinderVisible,
               source: "professionals",
             });
             if (manualCountRes.error) {
@@ -927,10 +844,14 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
       dataWarning = dataWarning ?? "Could not load manual directory entries.";
     } else {
       manualRows = manualRowsRaw.map((row) => {
-        const addressMapsLink = String(row.address_maps_link ?? "");
         const manualId = row.id as string;
-        const clinicId = String(row.clinic_id ?? "").trim();
-        if (clinicId) manualClinicIdByRowId.set(manualId, clinicId);
+        const locations = listingClinicLocations(row);
+        const place = pickListingCardClinic(locations, {
+          district: activeDistrict,
+          town: activeTown,
+          coords: userCoords,
+        });
+        if (place) manualClinicIdByRowId.set(manualId, place.clinicId);
         const specialtyParts = specialtyNamesForRow(row);
         return {
           id: manualId,
@@ -939,18 +860,19 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
           displayName: doctorDashboardDisplayName(String(row.name ?? "Professional")),
           specialty: specialtyParts[0] ?? "Specialty not set",
           specialties: specialtyParts,
-          district: row.district as CyprusDistrict,
-          town: String((row as { town?: string | null }).town ?? "").trim() || null,
-          address_maps_link: addressMapsLink,
-          address: String(row.address ?? "").trim() || null,
+          district: place?.district as CyprusDistrict,
+          town: place?.town ?? null,
+          address_maps_link: place?.addressMapsLink ?? "",
+          address: place?.address ?? null,
           photoUrl: resolveFinderDisplayPhotoUrl({
-            curatedOrCustomPhotoUrl: getFinderManualPhotoUrl(addressMapsLink),
+            curatedOrCustomPhotoUrl: null,
             gender: row.gender,
           }),
           monthlyRequestCount: 0,
           isGesy: Boolean(row.is_gesy ?? false),
-          latitude: parseOptionalCoordinates(row.latitude, row.longitude)?.latitude ?? null,
-          longitude: parseOptionalCoordinates(row.latitude, row.longitude)?.longitude ?? null,
+          latitude: place?.latitude ?? null,
+          longitude: place?.longitude ?? null,
+          locations,
           clinic: null,
           clinics: [],
         };
@@ -998,11 +920,10 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
     if (
       activeDistrict &&
       !professionalMatchesDistrictFilter({
-        district: row.district,
-        clinicDistricts: row.clinics.map((c) => c.district),
+        district: null,
+        clinicDistricts: row.locations.map((loc) => loc.district),
         activeDistrict,
-      }) &&
-      !manualIdsWithClinicInActiveDistrict.has(row.id)
+      })
     ) {
       return false;
     }
@@ -1019,15 +940,11 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
     ) {
       return false;
     }
-    if (activeTown) {
-      const rowTown = resolveFinderTownQuery(row.town);
-      if (
-        rowTown &&
-        rowTown !== activeTown &&
-        !manualIdsWithClinicInActiveDistrict.has(row.id)
-      ) {
-        return false;
-      }
+    if (
+      activeTown &&
+      !row.locations.some((loc) => resolveFinderTownQuery(loc.town) === activeTown)
+    ) {
+      return false;
     }
     return true;
   });
@@ -1100,67 +1017,14 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
 
     const loadManualCardExtras = async () => {
       if (visibleManualIds.length === 0) return;
-      const clinicIds = Array.from(
-        new Set(
-          visibleManualIds
-            .map((id) => manualClinicIdByRowId.get(id) ?? "")
-            .filter(Boolean),
-        ),
+      const linksRes = await fetchAllSupabaseRowsForIdChunks(visibleManualIds, (idChunk) =>
+        supabase
+          .from("professional_clinics")
+          .select(
+            "professional_id, is_primary, clinics ( id, name, slug, address, address_maps_link, district, is_archived, phone )",
+          )
+          .in("professional_id", idChunk),
       );
-
-      const [clinicsRes, linksRes] = await Promise.all([
-        clinicIds.length > 0
-          ? fetchAllSupabaseRowsForIdChunks(clinicIds, (idChunk) =>
-              supabase
-                .from("clinics")
-                .select("id, name, slug, address, address_maps_link, district, phone")
-                .eq("is_archived", false)
-                .in("id", idChunk),
-            )
-          : Promise.resolve({ data: [] as unknown[], error: null }),
-        fetchAllSupabaseRowsForIdChunks(visibleManualIds, (idChunk) =>
-          supabase
-            .from("professional_clinics")
-            .select(
-              "professional_id, is_primary, clinics ( id, name, slug, address, address_maps_link, district, is_archived, phone )",
-            )
-            .in("professional_id", idChunk),
-        ),
-      ]);
-
-      const clinicById = new Map<
-        string,
-        {
-          id: string;
-          name: string;
-          slug: string;
-          address?: string | null;
-          addressMapsLink?: string | null;
-          district?: string | null;
-          hasPhone: boolean;
-        }
-      >();
-      if (!clinicsRes.error && clinicsRes.data?.length) {
-        for (const c of clinicsRes.data) {
-          const id = String((c as { id?: string }).id ?? "");
-          const name = String((c as { name?: string }).name ?? "").trim();
-          const slug = String((c as { slug?: string }).slug ?? "").trim();
-          if (id && name && slug) {
-            clinicById.set(id, {
-              id,
-              name,
-              slug,
-              address: String((c as { address?: string | null }).address ?? "").trim() || null,
-              addressMapsLink:
-                String((c as { address_maps_link?: string | null }).address_maps_link ?? "").trim() ||
-                null,
-              district:
-                String((c as { district?: string | null }).district ?? "").trim() || null,
-              hasPhone: Boolean(String((c as { phone?: string | null }).phone ?? "").trim()),
-            });
-          }
-        }
-      }
 
       const clinicsByManualId = new Map<
         string,
@@ -1175,12 +1039,14 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
         }>
       >();
       if (!linksRes.error && linksRes.data?.length) {
-        const sorted = [...linksRes.data].sort((a, b) => {
-          const ap = Boolean((a as { is_primary?: boolean }).is_primary);
-          const bp = Boolean((b as { is_primary?: boolean }).is_primary);
-          if (ap === bp) return 0;
-          return ap ? -1 : 1;
-        });
+        // The clinic the card leads with first, then the primary, then the rest.
+        const rank = (link: unknown) => {
+          const l = link as { professional_id?: string; is_primary?: boolean; clinics?: { id?: string } | null };
+          const lead = manualClinicIdByRowId.get(String(l.professional_id ?? ""));
+          if (lead && String(l.clinics?.id ?? "") === lead) return 0;
+          return l.is_primary ? 1 : 2;
+        };
+        const sorted = [...linksRes.data].sort((a, b) => rank(a) - rank(b));
         for (const link of sorted) {
           const manualId = String(
             (link as { professional_id?: string }).professional_id ?? "",
@@ -1223,15 +1089,8 @@ async function FinderPageContent({ params, searchParams }: FinderPageProps) {
 
       for (const item of visibleManual) {
         const clinics = clinicsByManualId.get(item.row.id) ?? [];
-        if (clinics.length > 0) {
-          item.row.clinics = clinics;
-          item.row.clinic = clinics[0] ?? null;
-        } else {
-          const clinicId = manualClinicIdByRowId.get(item.row.id);
-          const primary = clinicId ? clinicById.get(clinicId) ?? null : null;
-          item.row.clinic = primary;
-          item.row.clinics = primary ? [primary] : [];
-        }
+        item.row.clinics = clinics;
+        item.row.clinic = clinics[0] ?? null;
       }
     };
 

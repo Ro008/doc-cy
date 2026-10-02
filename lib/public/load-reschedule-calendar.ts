@@ -1,11 +1,16 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { addDays, format } from "date-fns";
 import { utcToZonedTime, zonedTimeToUtc } from "date-fns-tz";
-import { appointmentToCyprusDate, CY_TZ } from "@/lib/appointments";
+import { CY_TZ } from "@/lib/appointments";
 import { settingsToWeeklySlots, type DoctorSettingsRow } from "@/lib/doctor-settings";
 import { loadDoctorSettingsForSlots } from "@/lib/load-doctor-settings-for-slots";
 import { loadDoctorLocations } from "@/lib/load-doctor-locations";
 import { ACCOUNT_SETTINGS_FALLBACK, locationToSettingsRow } from "@/lib/doctor-locations";
+import {
+  OCCUPIED_BATCH_RPC,
+  takenSlotTimesFor,
+  type OccupiedRow,
+} from "@/lib/public/load-doctor-next-available-slot";
 
 /** What BookingSection needs to show the professional's online booking calendar. */
 export type RescheduleCalendarData = {
@@ -51,21 +56,20 @@ export async function loadRescheduleCalendar(
     `${format(addDays(lastBookableDay, 1), "yyyy-MM-dd")}T23:59:59.999`,
     CY_TZ,
   ).toISOString();
-  const { data: occupiedRows, error: occupiedErr } = await supabase.rpc(
-    "public_doctor_occupied_datetimes",
-    {
-      p_doctor_id: opts.doctorId,
-      p_from: fromIso,
-      p_to: toIso,
-      // No p_location_id: a visit in any clinic blocks the time (one professional, one agenda).
-    },
-  );
+  const { data: occupiedRows, error: occupiedErr } = await supabase.rpc(OCCUPIED_BATCH_RPC, {
+    p_professional_ids: [opts.doctorId],
+    p_from: fromIso,
+    p_to: toIso,
+  });
   if (occupiedErr) {
     console.error("[DocCy] reschedule calendar: occupied datetimes failed", occupiedErr);
   }
-  const takenSlotTimes = ((occupiedRows ?? []) as { appointment_datetime: string }[]).map((r) =>
-    format(appointmentToCyprusDate(r.appointment_datetime), "yyyy-MM-dd'T'HH:mm"),
-  );
+  // No clinic filter: a visit in any clinic blocks the time (one professional, one agenda).
+  const takenSlotTimes = takenSlotTimesFor((occupiedRows ?? []) as OccupiedRow[], {
+    professionalId: opts.doctorId,
+    locationId: null,
+    toIso,
+  });
 
   return {
     weeklySlots: settingsToWeeklySlots(settings),

@@ -9,7 +9,7 @@ export async function countPendingRequests(
   const { count, error } = await supabase
     .from("appointments")
     .select("id", { count: "exact", head: true })
-    .eq("doctor_id", professionalId)
+    .eq("professional_id", professionalId)
     .ilike("status", "requested")
     .gt("appointment_datetime", nowIso);
   if (error) {

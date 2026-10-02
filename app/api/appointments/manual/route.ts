@@ -10,7 +10,6 @@ import {
   isDateInHolidayRange,
   isTimeWithinSettings,
   normalizeMinimumNoticeHours,
-  type DoctorSettingsRow,
 } from "@/lib/doctor-settings";
 import {
   fetchBlockingAppointments,
@@ -24,10 +23,11 @@ import { professionalAccountEmail } from "@/lib/professional-account-contact";
 import { loadPrimarySpecialtyName } from "@/lib/specialty-catalogue";
 import { getDoctorCalendarEventDetails } from "@/lib/doctor-calendar-event";
 import { buildGoogleCalendarUrl } from "@/lib/patient-calendar-event";
-import { appointmentClinicCopy } from "@/lib/appointment-clinic-copy";
+import { appointmentClinicCopy, loadAppointmentClinicPhone } from "@/lib/appointment-clinic-copy";
 import { loadDoctorLocations, primaryDoctorLocation } from "@/lib/load-doctor-locations";
 import { locationHasClinic } from "@/lib/professional-clinic-locations";
 import { locationToSettingsRow } from "@/lib/doctor-locations";
+import { PROFESSIONAL_ACCOUNT_SETTINGS_SELECT } from "@/lib/professional-account-settings";
 import { appointmentCalendarPath } from "@/lib/appointment-links";
 
 export async function POST(req: NextRequest) {
@@ -88,7 +88,7 @@ export async function POST(req: NextRequest) {
 
   const { data: doctor, error: doctorErr } = await supabase
     .from("professionals")
-    .select("id, name, email, registration_email, phone, slug")
+    .select("id, name, email, registration_email, slug")
     .eq("auth_user_id", user.id)
     .maybeSingle();
 
@@ -108,7 +108,7 @@ export async function POST(req: NextRequest) {
 
   const { data: settings, error: settingsError } = await supabase
     .from("professional_settings")
-    .select("*")
+    .select(PROFESSIONAL_ACCOUNT_SETTINGS_SELECT)
     .eq("professional_id", doctor.id)
     .single();
 
@@ -119,7 +119,6 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const settingsRowBase = settings as DoctorSettingsRow;
   const locations = await loadDoctorLocations(doctor.id);
   const requestedLocationId = String(rawLocationId ?? "").trim();
   let bookingLocation = requestedLocationId
@@ -139,17 +138,16 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // No clinic link to reference yet: the address has to be set first.
-  if (bookingLocation && !locationHasClinic(bookingLocation)) {
+  // Every appointment is at a clinic with an address (user, 2026-09-29).
+  if (!bookingLocation || !locationHasClinic(bookingLocation)) {
     return NextResponse.json(
-      { message: "Add this clinic's address before booking appointments there." },
+      { message: "This clinic is not set up yet. Contact us to set it up before booking." },
       { status: 400 },
     );
   }
 
-  const settingsRow = bookingLocation
-    ? locationToSettingsRow(bookingLocation, settingsRowBase)
-    : settingsRowBase;
+  // The schedule is the clinic link's; holiday, horizon and notice are the account's.
+  const settingsRow = locationToSettingsRow(bookingLocation, settings);
   const cyLocal = utcToZonedTime(appointmentUtc, CY_TZ);
   const dayOfWeek = cyLocal.getDay();
   const hours = cyLocal.getHours();
@@ -243,7 +241,7 @@ export async function POST(req: NextRequest) {
   const { data: inserted, error: insertError } = await supabase
     .from("appointments")
     .insert({
-      doctor_id: doctor.id,
+      professional_id: doctor.id,
       patient_name: patientName,
       patient_email: patientEmail || null,
       patient_phone: patientPhoneStored,
@@ -296,7 +294,7 @@ export async function POST(req: NextRequest) {
         doctor: {
           name: doctor.name,
           specialty: specialtyName,
-          phone: (doctor as { phone?: string | null }).phone,
+          phone: await loadAppointmentClinicPhone(supabase, clinic.locationId),
           clinic_address: clinic.address,
         },
         clinic,

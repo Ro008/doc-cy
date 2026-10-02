@@ -70,7 +70,7 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
   const { data: appt, error: apptErr } = await supabase
     .from("appointments")
     .select(
-      "id, doctor_id, patient_name, patient_email, appointment_datetime, status, duration_minutes"
+      "id, professional_id, patient_name, patient_email, appointment_datetime, status, duration_minutes, location_id"
     )
     .eq("id", id)
     .maybeSingle();
@@ -79,7 +79,7 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
     return NextResponse.json({ message: "Appointment not found." }, { status: 404 });
   }
 
-  if (appt.doctor_id !== doctor.id) {
+  if (appt.professional_id !== doctor.id) {
     return NextResponse.json({ message: "Forbidden." }, { status: 403 });
   }
 
@@ -107,11 +107,16 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
     }
   }
 
-  const loaded = await loadDoctorSettingsForSlots(supabase, doctor.id);
+  // Alternatives at the appointment's own clinic (its hours and slot length, Point E6).
+  const loaded = await loadDoctorSettingsForSlots(
+    supabase,
+    doctor.id,
+    (appt as { location_id?: string | null }).location_id,
+  );
   if (!loaded) {
     return NextResponse.json(
-      { message: "Professional settings not found." },
-      { status: 500 }
+      { message: "This clinic is not set up yet. Contact us to set it up." },
+      { status: 409 }
     );
   }
 
@@ -164,7 +169,7 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
       reschedule_access_token: token,
     })
     .eq("id", id)
-    .eq("doctor_id", doctor.id);
+    .eq("professional_id", doctor.id);
 
   if (updateErr) {
     console.error("[DocCy] propose-reschedule update failed", updateErr);

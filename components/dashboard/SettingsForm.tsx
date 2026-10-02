@@ -20,36 +20,24 @@ import {
   formatISOToDDMMYYYYOrEmpty,
   parseDDMMYYYYToISO,
 } from "@/lib/date-format";
-import { isCyprusDistrict } from "@/lib/cyprus-districts";
-import { ClinicAddressAutocomplete } from "@/components/dashboard/ClinicAddressAutocomplete";
+import { emitOpenFeedback } from "@/lib/doccy-feedback";
+import { clinicChangeContactMessage } from "@/lib/professional-clinic-settings-writes";
+import { specialtyChangeContactMessage } from "@/lib/doctor-specialties";
 import { OnlineBookingsPauseToggle } from "@/components/dashboard/OnlineBookingsPauseToggle";
 import {
   MAX_CLINIC_NAME_LENGTH,
-  MAX_DOCTOR_LOCATIONS,
   clinicDefaultName,
   clinicDisplayName,
   workplaceAccent,
 } from "@/lib/doctor-locations";
-import {
-  clinicLocationFromParts,
-  clinicLocationRequiresSelection,
-  hasConfirmedClinicCoordinates,
-  type ClinicLocation,
-} from "@/lib/clinic-location";
+import { clinicLocationFromParts, type ClinicLocation } from "@/lib/clinic-location";
 import {
   buildSettingsDirtySnapshot,
   settingsFormHasUnsavedChanges,
   type SettingsDirtySnapshot,
 } from "@/lib/settings-form-dirty";
 import { useSettingsUnsavedChangesWarning } from "@/components/dashboard/useSettingsUnsavedChangesWarning";
-import { SpecialtyCombobox } from "@/components/specialties/SpecialtyCombobox";
 import { isCatalogueSpecialty } from "@/lib/specialty-options";
-import { PUBLIC_SPECIALTY_UNDER_REVIEW_LABEL } from "@/lib/doctor-specialty-public";
-import {
-  validateSpecialtyChangeAgainstProfile,
-  validateSpecialtyChangeRequestInput,
-  type SpecialtyChangeRequestKind,
-} from "@/lib/doctor-specialty-change-request";
 import { PhoneNumbersSettings } from "@/components/dashboard/PhoneNumbersSettings";
 import type { SettingsClinicPhone } from "@/lib/settings-clinic-phones";
 
@@ -64,15 +52,6 @@ export type DoctorSettingsFormData = {
   /** Approved specialty labels (flat). */
   specialties?: string[];
   /** false = custom “Other” text pending founder approval */
-  isSpecialtyApproved?: boolean;
-  /** Pending specialty change request (settings lock queue). */
-  pendingSpecialtyChange?: {
-    requestKind: SpecialtyChangeRequestKind;
-    fromSpecialty: string | null;
-    toSpecialty: string | null;
-    licenseNumber: string | null;
-    createdAt: string;
-  } | null;
   /** Public profile “About” section */
   bio: string;
   /** Canonical labels, saved as string[] on doctors */
@@ -274,36 +253,7 @@ export function SettingsForm({ initial }: SettingsFormProps) {
       : lockedSpecialty
         ? [lockedSpecialty]
         : [];
-  const specialtyFromMaster =
-    (initial.isSpecialtyApproved ?? true) !== false &&
-    isCatalogueSpecialty(initial.specialtyOptions, lockedSpecialty);
-  const specialtyUnderReview = (initial.isSpecialtyApproved ?? true) === false;
-  const [pendingSpecialtyChange, setPendingSpecialtyChange] = React.useState(
-    () => initial.pendingSpecialtyChange ?? null,
-  );
-  const [specialtyRequestKind, setSpecialtyRequestKind] =
-    React.useState<SpecialtyChangeRequestKind | null>(null);
-  const [specialtyReplaceFrom, setSpecialtyReplaceFrom] = React.useState("");
-  const [specialtyChangeSpec, setSpecialtyChangeSpec] = React.useState({
-    specialty: "",
-    fromMaster: true,
-  });
-  const [specialtyChangeLicense, setSpecialtyChangeLicense] = React.useState("");
-  const [specialtyChangeBusy, setSpecialtyChangeBusy] = React.useState(false);
-  const onSpecialtyChangeSpec = React.useCallback(
-    (p: { specialty: string; fromMaster: boolean }) => {
-      setSpecialtyChangeSpec(p);
-    },
-    [],
-  );
-
-  function resetSpecialtyRequestForm() {
-    setSpecialtyRequestKind(null);
-    setSpecialtyReplaceFrom("");
-    setSpecialtyChangeLicense("");
-    setSpecialtyChangeSpec({ specialty: "", fromMaster: true });
-  }
-
+  const specialtyFromMaster = isCatalogueSpecialty(initial.specialtyOptions, lockedSpecialty);
   const [languages, setLanguages] = React.useState<string[]>(() =>
     Array.isArray(initial.languages) ? [...initial.languages] : []
   );
@@ -316,14 +266,6 @@ export function SettingsForm({ initial }: SettingsFormProps) {
   const [clinicLocation, setClinicLocation] = React.useState<ClinicLocation>(() =>
     resolveInitialClinicLocation(initial),
   );
-  const initialClinicAddressRef = React.useRef(clinicLocation.address);
-
-  const handleClinicLocationChange = React.useCallback((nextLocation: ClinicLocation) => {
-    setClinicLocation(nextLocation);
-    if (nextLocation.district) {
-      setDistrict(nextLocation.district);
-    }
-  }, []);
 
   const [weeklySchedule, setWeeklySchedule] = React.useState<WeeklySchedule>(
     initial.weeklySchedule
@@ -346,7 +288,6 @@ export function SettingsForm({ initial }: SettingsFormProps) {
   const [activeWorkplaceId, setActiveWorkplaceId] = React.useState(
     () => initialWorkplacesFromForm(initial)[0]?.id ?? "primary",
   );
-  const [workplaceBusy, setWorkplaceBusy] = React.useState(false);
   const workplaceTabScrollYRef = React.useRef<number | null>(null);
 
   const [bookingHorizonDays, setBookingHorizonDays] = React.useState(
@@ -433,7 +374,6 @@ export function SettingsForm({ initial }: SettingsFormProps) {
         town: row.clinicTown,
       }),
     );
-    initialClinicAddressRef.current = row.clinicAddress ?? "";
     setWeeklySchedule(row.weeklySchedule);
     setBreakEnabled(row.breakEnabled);
     setBreakStart(timeToInputValue(row.breakStart));
@@ -462,88 +402,6 @@ export function SettingsForm({ initial }: SettingsFormProps) {
     window.scrollTo({ top: y, left: 0, behavior: "auto" });
     workplaceTabScrollYRef.current = null;
   }, [activeWorkplaceId]);
-
-  async function handleAddWorkplace() {
-    if (workplaces.length >= MAX_DOCTOR_LOCATIONS) {
-      toast.error(`You can add up to ${MAX_DOCTOR_LOCATIONS} clinics.`);
-      return;
-    }
-    if (hasUnsavedChanges) {
-      toast.error("Save your current settings before adding another clinic.");
-      return;
-    }
-    setWorkplaceBusy(true);
-    try {
-      const res = await fetch("/api/doctor-locations", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ doctorId: initial.doctorId }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        toast.error((data.message as string) || "Could not add clinic.");
-        return;
-      }
-      const created = data.location as {
-        id: string;
-        pause_online_bookings?: boolean;
-      };
-      const captured = captureActiveWorkplace();
-      const copy: DoctorWorkplaceFormData = {
-        ...captured,
-        id: created.id,
-        isPrimary: false,
-        label: "",
-        district: "",
-        clinicAddress: "",
-        clinicTown: null,
-        clinicLatitude: null,
-        clinicLongitude: null,
-        clinicPlaceId: null,
-        pauseOnlineBookings: Boolean(created.pause_online_bookings),
-      };
-      const nextList = [
-        ...workplaces.map((row) => (row.id === captured.id ? captured : row)),
-        copy,
-      ];
-      setWorkplaces(nextList);
-      applyWorkplaceToForm(copy);
-      toast.success("Clinic added. Add its address and save.");
-    } catch (err) {
-      console.error(err);
-      toast.error("Could not add clinic.");
-    } finally {
-      setWorkplaceBusy(false);
-    }
-  }
-
-  async function handleRemoveWorkplace(id: string) {
-    const target = workplaces.find((row) => row.id === id);
-    if (!target || target.isPrimary || workplaces.length <= 1) return;
-    setWorkplaceBusy(true);
-    try {
-      const res = await fetch(
-        `/api/doctor-locations?doctorId=${encodeURIComponent(initial.doctorId)}&locationId=${encodeURIComponent(id)}`,
-        { method: "DELETE" },
-      );
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        toast.error((data.message as string) || "Could not remove clinic.");
-        return;
-      }
-      const remaining = workplaces.filter((row) => row.id !== id);
-      setWorkplaces(remaining);
-      if (activeWorkplaceId === id && remaining[0]) {
-        applyWorkplaceToForm(remaining[0]);
-      }
-      toast.success("Clinic removed.");
-    } catch (err) {
-      console.error(err);
-      toast.error("Could not remove clinic.");
-    } finally {
-      setWorkplaceBusy(false);
-    }
-  }
 
   const buildCurrentDirtySnapshot = React.useCallback(
     (): SettingsDirtySnapshot =>
@@ -592,9 +450,7 @@ export function SettingsForm({ initial }: SettingsFormProps) {
     const specialty = (initial.specialty ?? "").trim();
     return buildSettingsDirtySnapshot({
       specialty,
-      specialtyFromMaster:
-        (initial.isSpecialtyApproved ?? true) !== false &&
-        isCatalogueSpecialty(initial.specialtyOptions, specialty),
+      specialtyFromMaster: isCatalogueSpecialty(initial.specialtyOptions, specialty),
       bio: (initial.bio ?? "").trim(),
       languages: Array.isArray(initial.languages) ? [...initial.languages] : [],
       mobileNumber: initial.mobileNumber ?? "",
@@ -819,39 +675,6 @@ export function SettingsForm({ initial }: SettingsFormProps) {
       toast.error(text);
       return;
     }
-    if (!isCyprusDistrict(district)) {
-      const text = clinicLocation.address.trim()
-        ? "We could not detect your clinic district. Please re-select your clinic from Google suggestions."
-        : "Add your clinic address so patients can find you in Health Finder.";
-      setMessage({ type: "error", text });
-      toast.error(text);
-      return;
-    }
-    if (!clinicLocation.address.trim()) {
-      const text = "Add your clinic address so patients can find you in Health Finder.";
-      setMessage({ type: "error", text });
-      toast.error(text);
-      return;
-    }
-    const hasCoords = hasConfirmedClinicCoordinates(clinicLocation);
-    const isUnchangedLegacyAddress =
-      !hasCoords &&
-      clinicLocation.address.trim() === initialClinicAddressRef.current.trim();
-    if (!hasCoords && !isUnchangedLegacyAddress) {
-      const text =
-        "Confirm your clinic on the map (Google suggestion or drop a pin) before saving.";
-      setMessage({ type: "error", text });
-      toast.error(text);
-      return;
-    }
-
-    if (clinicLocationRequiresSelection(clinicLocation, initialClinicAddressRef.current)) {
-      const text = "Please select your clinic from the Google suggestions.";
-      setMessage({ type: "error", text });
-      toast.error(text);
-      return;
-    }
-
     const parsedHolidayStart = holidayModeEnabled
       ? parseDDMMYYYYToISO(holidayStartInput)
       : null;
@@ -880,9 +703,6 @@ export function SettingsForm({ initial }: SettingsFormProps) {
       const savePayload: Record<string, unknown> = {
         doctorId: initial.doctorId,
         doctorPhone: mobileNumber || null,
-        district: clinicLocation.district ?? district,
-        clinicAddress: clinicLocation.address.trim() || null,
-        town: clinicLocation.town,
         bio: bioTrimmed,
         languages: langList,
         monday: weeklySchedule.monday.enabled,
@@ -905,12 +725,6 @@ export function SettingsForm({ initial }: SettingsFormProps) {
         locations: workplacesForSave().map((row) => ({
           id: row.id.startsWith("primary") && row.id === "primary" ? undefined : row.id,
           label: String(row.label ?? "").trim(),
-          district: row.district,
-          clinicAddress: row.clinicAddress,
-          clinicLatitude: row.clinicLatitude,
-          clinicLongitude: row.clinicLongitude,
-          clinicPlaceId: row.clinicPlaceId,
-          town: row.clinicTown,
           weeklySchedule: row.weeklySchedule,
           monday: row.weeklySchedule.monday.enabled,
           tuesday: row.weeklySchedule.tuesday.enabled,
@@ -925,16 +739,6 @@ export function SettingsForm({ initial }: SettingsFormProps) {
           slotDurationMinutes: row.slotDurationMinutes,
         })),
       };
-
-      if (clinicLocation.latitude != null && clinicLocation.longitude != null) {
-        savePayload.clinicLatitude = clinicLocation.latitude;
-        savePayload.clinicLongitude = clinicLocation.longitude;
-        savePayload.clinicPlaceId = clinicLocation.placeId;
-      } else if (!clinicLocation.address.trim()) {
-        savePayload.clinicLatitude = null;
-        savePayload.clinicLongitude = null;
-        savePayload.clinicPlaceId = null;
-      }
 
       const res = await fetch("/api/doctor-settings", {
         method: "POST",
@@ -955,7 +759,6 @@ export function SettingsForm({ initial }: SettingsFormProps) {
         setHolidayStartDate(parsedHolidayStart);
         setHolidayEndDate(parsedHolidayEnd);
       }
-      initialClinicAddressRef.current = clinicLocation.address.trim();
       setSavedSnapshot(buildCurrentDirtySnapshot());
       setMessage({ type: "success", text: "Settings saved." });
       toast.success("Settings saved.");
@@ -1027,290 +830,24 @@ export function SettingsForm({ initial }: SettingsFormProps) {
               ) : (
                 <p className="text-sm font-medium text-slate-100">Not set</p>
               )}
-              {specialtyUnderReview ? (
-                <p className="mt-1 text-xs text-amber-200/90">
-                  {PUBLIC_SPECIALTY_UNDER_REVIEW_LABEL} — visible on your public
-                  profile until approved.
-                </p>
-              ) : null}
             </div>
             <p className="mt-2 text-xs leading-relaxed text-slate-500">
-              Specialties are verified with your registration and cannot be
-              edited here. Request an update below — DocCy will review it and
-              update your profile.
-            </p>
-            {pendingSpecialtyChange ? (
-              <div
-                data-testid="settings-specialty-change-pending"
-                className="mt-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-xs text-amber-100/95"
-              >
-                <p className="font-semibold text-amber-100">
-                  {pendingSpecialtyChange.requestKind === "replace"
-                    ? "Change-specialty request pending review"
-                    : pendingSpecialtyChange.requestKind === "remove"
-                      ? "Remove-specialty request pending review"
-                      : "Add-specialty request pending review"}
-                </p>
-                {pendingSpecialtyChange.requestKind === "replace" &&
-                pendingSpecialtyChange.fromSpecialty ? (
-                  <p className="mt-1">
-                    Change:{" "}
-                    <span className="font-medium">
-                      {pendingSpecialtyChange.fromSpecialty}
-                    </span>
-                    <span className="mx-1.5 text-amber-100/60">→</span>
-                    <span className="font-medium">
-                      {pendingSpecialtyChange.toSpecialty}
-                    </span>
-                  </p>
-                ) : pendingSpecialtyChange.requestKind === "remove" ? (
-                  <p className="mt-1">
-                    Remove:{" "}
-                    <span className="font-medium">
-                      {pendingSpecialtyChange.fromSpecialty}
-                    </span>
-                  </p>
-                ) : (
-                  <p className="mt-1">
-                    Requested:{" "}
-                    <span className="font-medium">
-                      {pendingSpecialtyChange.toSpecialty}
-                    </span>
-                  </p>
-                )}
-                {pendingSpecialtyChange.licenseNumber ? (
-                  <p className="mt-0.5 text-amber-100/80">
-                    License: {pendingSpecialtyChange.licenseNumber}
-                  </p>
-                ) : null}
-              </div>
-            ) : specialtyRequestKind !== null ? (
-              <div
-                data-testid="settings-specialty-change-form"
-                className="mt-3 space-y-3 rounded-xl border border-slate-700 bg-slate-950/40 p-3"
-              >
-                <div>
-                  <label
-                    htmlFor="settings-specialty-request-kind"
-                    className="text-xs font-semibold uppercase tracking-wide text-slate-400"
-                  >
-                    What do you want to do? <span className="text-red-300">*</span>
-                  </label>
-                  <select
-                    id="settings-specialty-request-kind"
-                    value={specialtyRequestKind}
-                    onChange={(e) => {
-                      const next = e.target.value as SpecialtyChangeRequestKind;
-                      setSpecialtyRequestKind(next);
-                      setSpecialtyReplaceFrom(
-                        next !== "add" && lockedSpecialties.length === 1
-                          ? lockedSpecialties[0]!
-                          : "",
-                      );
-                    }}
-                    className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2.5 text-sm text-slate-100 outline-none transition focus:border-clinical-400/60 focus:ring-2 focus:ring-clinical-400/30"
-                  >
-                    <option value="add">Add a specialty</option>
-                    {lockedSpecialties.length > 0 ? (
-                      <option value="replace">Change an existing specialty</option>
-                    ) : null}
-                    {lockedSpecialties.length > 1 ? (
-                      <option value="remove">Remove a specialty</option>
-                    ) : null}
-                  </select>
-                </div>
-                {specialtyRequestKind === "replace" ||
-                specialtyRequestKind === "remove" ? (
-                  <div>
-                    <label
-                      htmlFor="settings-specialty-replace-from"
-                      className="text-xs font-semibold uppercase tracking-wide text-slate-400"
-                    >
-                      {specialtyRequestKind === "remove"
-                        ? "Specialty to remove"
-                        : "Specialty to replace"}{" "}
-                      <span className="text-red-300">*</span>
-                    </label>
-                    <select
-                      id="settings-specialty-replace-from"
-                      value={specialtyReplaceFrom}
-                      onChange={(e) => setSpecialtyReplaceFrom(e.target.value)}
-                      className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2.5 text-sm text-slate-100 outline-none transition focus:border-clinical-400/60 focus:ring-2 focus:ring-clinical-400/30"
-                    >
-                      <option value="">Select…</option>
-                      {lockedSpecialties.map((label) => (
-                        <option key={label} value={label}>
-                          {label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                ) : null}
-                {specialtyRequestKind !== "remove" ? (
-                  <>
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                        {specialtyRequestKind === "replace"
-                          ? "New specialty"
-                          : "Specialty to add"}{" "}
-                        <span className="text-red-300">*</span>
-                      </p>
-                      <SpecialtyCombobox
-                        id="settings-specialty-change"
-                        initialSpecialty=""
-                        options={initial.specialtyOptions}
-                        initialIsApproved
-                        variant="settings"
-                        excludeSpecialties={
-                          specialtyRequestKind === "replace"
-                            ? lockedSpecialties.filter(
-                                (label) =>
-                                  label.toLowerCase() !==
-                                  specialtyReplaceFrom.trim().toLowerCase(),
-                              )
-                            : lockedSpecialties
-                        }
-                        onSelectionChange={onSpecialtyChangeSpec}
-                      />
-                    </div>
-                    <div>
-                      <label
-                        htmlFor="settings-specialty-change-license"
-                        className="text-xs font-semibold uppercase tracking-wide text-slate-400"
-                      >
-                        License / certification number{" "}
-                        <span className="text-red-300">*</span>
-                      </label>
-                      <input
-                        id="settings-specialty-change-license"
-                        type="text"
-                        value={specialtyChangeLicense}
-                        onChange={(e) => setSpecialtyChangeLicense(e.target.value)}
-                        placeholder="e.g. registration or certification number"
-                        className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2.5 text-sm text-slate-100 placeholder:text-slate-500 outline-none transition focus:border-clinical-400/60 focus:ring-2 focus:ring-clinical-400/30"
-                      />
-                    </div>
-                  </>
-                ) : (
-                  <p className="text-xs leading-relaxed text-slate-500">
-                    You must keep at least one specialty. Removing one requires
-                    DocCy review.
-                  </p>
-                )}
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    data-testid="settings-specialty-change-submit"
-                    disabled={specialtyChangeBusy}
-                    onClick={async () => {
-                      let toSpecialty = "";
-                      let toSpecialtyFromMaster = true;
-                      let licenseNumber: string | null = null;
-
-                      if (specialtyRequestKind !== "remove") {
-                        const validated = validateSpecialtyChangeRequestInput(
-                          {
-                            toSpecialty: specialtyChangeSpec.specialty,
-                            toSpecialtyFromMaster: specialtyChangeSpec.fromMaster,
-                            licenseNumber: specialtyChangeLicense,
-                          },
-                          initial.specialtyOptions,
-                        );
-                        if (validated.ok === false) {
-                          toast.error(validated.message);
-                          return;
-                        }
-                        toSpecialty = validated.toSpecialty;
-                        toSpecialtyFromMaster = validated.toSpecialtyFromMaster;
-                        licenseNumber = validated.licenseNumber;
-                      }
-
-                      const profileCheck = validateSpecialtyChangeAgainstProfile({
-                        kind: specialtyRequestKind,
-                        fromSpecialty: specialtyReplaceFrom,
-                        toSpecialty,
-                        existingLabels: lockedSpecialties,
-                      });
-                      if (profileCheck.ok === false) {
-                        toast.error(profileCheck.message);
-                        return;
-                      }
-                      setSpecialtyChangeBusy(true);
-                      try {
-                        const res = await fetch(
-                          "/api/doctor-specialty-change-request",
-                          {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({
-                              requestKind: specialtyRequestKind,
-                              fromSpecialty: profileCheck.fromSpecialty,
-                              toSpecialty:
-                                specialtyRequestKind === "remove"
-                                  ? undefined
-                                  : toSpecialty,
-                              toSpecialtyFromMaster:
-                                specialtyRequestKind === "remove"
-                                  ? undefined
-                                  : toSpecialtyFromMaster,
-                              licenseNumber:
-                                specialtyRequestKind === "remove"
-                                  ? undefined
-                                  : licenseNumber,
-                            }),
-                          },
-                        );
-                        const data = await res.json().catch(() => ({}));
-                        if (!res.ok) {
-                          toast.error(
-                            (data.message as string) ||
-                              "Could not submit specialty request.",
-                          );
-                          return;
-                        }
-                        setPendingSpecialtyChange({
-                          requestKind: specialtyRequestKind,
-                          fromSpecialty: profileCheck.fromSpecialty,
-                          toSpecialty:
-                            specialtyRequestKind === "remove" ? null : toSpecialty,
-                          licenseNumber,
-                          createdAt: new Date().toISOString(),
-                        });
-                        resetSpecialtyRequestForm();
-                        toast.success(
-                          "Request sent. We’ll review it and update your profile.",
-                        );
-                      } catch (err) {
-                        console.error(err);
-                        toast.error("Could not submit specialty request.");
-                      } finally {
-                        setSpecialtyChangeBusy(false);
-                      }
-                    }}
-                    className="inline-flex items-center justify-center rounded-xl bg-clinical-500 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-clinical-400 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {specialtyChangeBusy ? "Sending…" : "Submit request"}
-                  </button>
-                  <button
-                    type="button"
-                    disabled={specialtyChangeBusy}
-                    onClick={resetSpecialtyRequestForm}
-                    className="inline-flex items-center justify-center rounded-xl border border-slate-600 px-4 py-2 text-sm font-medium text-slate-300 transition hover:border-slate-500 disabled:opacity-60"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            ) : (
+              Specialties are verified with your registration.{" "}
               <button
                 type="button"
-                data-testid="settings-specialty-change-request"
-                onClick={() => setSpecialtyRequestKind("add")}
-                className="mt-2 text-sm font-semibold text-clinical-400 underline decoration-clinical-400/40 underline-offset-2 transition hover:text-clinical-300"
+                data-testid="settings-specialties-contact"
+                onClick={() =>
+                  emitOpenFeedback({
+                    subject: "General Question",
+                    message: specialtyChangeContactMessage(lockedSpecialties),
+                  })
+                }
+                className="font-medium text-clinical-300 underline-offset-2 hover:text-clinical-200 hover:underline"
               >
-                Request a specialty update
+                Contact us if you wish to change your specialties
               </button>
-            )}
+              .
+            </p>
           </div>
           <div>
             <label
@@ -1380,14 +917,6 @@ export function SettingsForm({ initial }: SettingsFormProps) {
                 );
               })}
             </div>
-            <button
-              type="button"
-              onClick={handleAddWorkplace}
-              disabled={workplaceBusy || workplaces.length >= MAX_DOCTOR_LOCATIONS}
-              className="mb-1.5 inline-flex shrink-0 items-center justify-center rounded-lg border border-slate-600 bg-slate-950/50 px-3 py-1.5 text-xs font-medium text-slate-200 transition hover:border-slate-400 hover:text-white disabled:cursor-not-allowed disabled:opacity-70"
-            >
-              Add clinic
-            </button>
           </div>
         ) : null}
         <div
@@ -1396,27 +925,15 @@ export function SettingsForm({ initial }: SettingsFormProps) {
             workplaces.length > 1 ? "rounded-tl-lg" : ""
           }`}
         >
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-              Clinics
-            </p>
-            <p className="mt-1 text-sm text-slate-300">
-              {workplaces.length > 1
-                ? "Each tab is a different clinic. Address, hours, and online booking belong only to the selected one."
-                : "Add another clinic if you practice at more than one place. Each one has its own hours and online booking switch."}
-            </p>
-          </div>
-          {workplaces.length <= 1 ? (
-            <button
-              type="button"
-              onClick={handleAddWorkplace}
-              disabled={workplaceBusy || workplaces.length >= MAX_DOCTOR_LOCATIONS}
-              className="inline-flex items-center justify-center rounded-xl border border-white/20 bg-slate-950/40 px-3 py-2 text-xs font-medium text-slate-100 transition hover:bg-slate-950/70 disabled:cursor-not-allowed disabled:opacity-70"
-            >
-              Add clinic
-            </button>
-          ) : null}
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+            Clinics
+          </p>
+          <p className="mt-1 text-sm text-slate-300">
+            {workplaces.length > 1
+              ? "Each tab is a different clinic. Hours and online booking belong only to the selected one."
+              : "Your hours and online booking switch for this clinic."}
+          </p>
         </div>
 
         <div className="mt-4 flex items-center gap-2">
@@ -1471,59 +988,34 @@ export function SettingsForm({ initial }: SettingsFormProps) {
               );
             }}
           />
-          {!(workplaces.find((row) => row.id === activeWorkplaceId)?.isPrimary) ? (
-            <button
-              type="button"
-              onClick={() => handleRemoveWorkplace(activeWorkplaceId)}
-              disabled={workplaceBusy}
-              className="inline-flex items-center justify-center rounded-xl border border-red-400/40 px-3 py-2 text-xs font-medium text-red-200 hover:border-red-300 disabled:opacity-60"
-            >
-              Remove this clinic
-            </button>
-          ) : null}
         </div>
 
         <div className="mt-5 rounded-xl border border-slate-800/70 bg-ink-900/35 p-4">
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
             Clinic address
           </p>
-          <p className="mt-1 text-sm text-slate-400">
-            Type the clinic name or address and choose it from the Google suggestions, or drop a pin
-            on the map. Patients see this on your profile, and we use the map pin so nearby people
-            can find you.
+          <p data-testid="settings-clinic-address" className="mt-2 text-sm text-slate-100">
+            {clinicLocation.address.trim() || "No address yet."}
           </p>
-          {!clinicLocation.address.trim() ? (
-            <div
-              className="mt-3 rounded-xl border border-amber-500/35 bg-amber-500/10 px-4 py-3 text-sm text-amber-50"
-              role="status"
+          <p className="mt-3 text-xs text-slate-400">
+            DocCy keeps clinic details up to date.{" "}
+            <button
+              type="button"
+              data-testid="settings-clinics-contact"
+              onClick={() =>
+                emitOpenFeedback({
+                  subject: "General Question",
+                  message: clinicChangeContactMessage(
+                    (initial.clinicPhones ?? []).map((clinic) => clinic.name),
+                  ),
+                })
+              }
+              className="font-medium text-clinical-300 underline-offset-2 hover:text-clinical-200 hover:underline"
             >
-              <p className="font-medium text-amber-100">Add your clinic address</p>
-              <p className="mt-1 text-xs leading-relaxed text-amber-100/90">
-                Search your clinic on Google Maps and pick it from the suggestions, or drop a pin.
-                Patients see this address on your public profile, and we use the pinned location for
-                accurate distance in Health Finder.
-              </p>
-            </div>
-          ) : null}
-          <ClinicAddressAutocomplete
-            key={activeWorkplaceId}
-            id="clinicAddress"
-            value={clinicLocation}
-            onChange={handleClinicLocationChange}
-          />
-          {clinicLocation.address.trim() &&
-          !isCyprusDistrict(clinicLocation.district ?? district) ? (
-            <div
-              className="mt-4 rounded-xl border border-amber-500/35 bg-amber-500/10 px-4 py-3 text-sm text-amber-50"
-              role="status"
-            >
-              <p className="font-medium text-amber-100">District not detected</p>
-              <p className="mt-1 text-xs leading-relaxed text-amber-100/90">
-                Re-select this clinic from Google suggestions so we can place you correctly in Health
-                Finder.
-              </p>
-            </div>
-          ) : null}
+              Contact us to change your clinics
+            </button>
+            .
+          </p>
         </div>
 
         <div className="mt-4 rounded-xl border border-slate-800/70 bg-ink-900/35 p-4">

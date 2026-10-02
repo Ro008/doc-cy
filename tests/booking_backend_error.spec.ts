@@ -12,7 +12,7 @@ test.describe("Booking backend errors @booking-creates", () => {
     const { data: activeDoctors } = await supabase
       .from("professionals")
       .select("slug,name,id")
-      .eq("status", "verified")
+      .eq("is_registered", true)
       .not("slug", "is", null)
       .limit(8);
 
@@ -127,37 +127,24 @@ test.describe("Booking backend errors @booking-creates", () => {
 
     const supabase = createTestDataClient();
 
-    // Pick a non-verified professional (pending/rejected) to force backend 403.
-    const { data: pending } = await supabase
+    // An unregistered directory listing takes no online bookings: the backend answers 403.
+    const { data: listings } = await supabase
       .from("professionals")
-      .select("id,status")
-      .eq("status", "pending")
+      .select("id")
+      .eq("is_registered", false)
+      .eq("is_archived", false)
       .limit(5);
 
-    const pendingDoctorId =
-      pending?.find((d) => typeof d?.id === "string")?.id ?? null;
-
     const nonVerifiedDoctorId =
-      pendingDoctorId ??
-      (
-        await supabase
-          .from("professionals")
-          .select("id,status")
-          .eq("status", "rejected")
-          .limit(5)
-      ).data?.find((d) => typeof d?.id === "string")?.id ??
-      null;
+      listings?.find((d) => typeof d?.id === "string")?.id ?? null;
 
-    test.skip(
-      !nonVerifiedDoctorId,
-      "No pending/rejected doctors found in Supabase seed."
-    );
+    test.skip(!nonVerifiedDoctorId, "No unregistered listing found in Supabase seed.");
 
-    // Pick a verified doctor whose calendar is visible so we can reach the booking form UI.
+    // Pick a registered professional whose calendar is visible so we can reach the booking form UI.
     const { data: activeDoctors } = await supabase
       .from("professionals")
       .select("slug,name,id")
-      .eq("status", "verified")
+      .eq("is_registered", true)
       .not("slug", "is", null)
       .limit(8);
 

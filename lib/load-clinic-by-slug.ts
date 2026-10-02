@@ -1,7 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { CyprusDistrict } from "@/lib/cyprus-districts";
 import { doctorDashboardDisplayName } from "@/lib/doctor-display-name";
-import { getFinderManualPhotoUrl } from "@/lib/finder-manual-photos";
 import { resolveClinicDisplayPhotoUrl } from "@/lib/finder-default-avatars";
 import { clinicRosterPhotoUrl } from "@/lib/clinic-roster-photo";
 import { parseOptionalCoordinates } from "@/lib/finder-distance";
@@ -19,8 +18,6 @@ export type ClinicLandingProfessional = {
   photoUrl: string;
   isGesy: boolean;
   profileHref: string | null;
-  /** False for inpatient-only (still listed on clinic profile). */
-  finderVisible: boolean;
 };
 
 export type ClinicLandingRow = {
@@ -85,19 +82,6 @@ export async function loadClinicBySlug(
     }
   }
 
-  // Legacy single FK (still populated as primary clinic by GeSY import).
-  const legacyRes = await supabase
-    .from("professionals")
-    .select("id")
-    .eq("is_archived", false)
-    .eq("clinic_id", clinic.id);
-  if (!legacyRes.error && legacyRes.data?.length) {
-    for (const row of legacyRes.data) {
-      const id = String((row as { id?: string }).id ?? "");
-      if (id) memberIds.add(id);
-    }
-  }
-
   let professionals: ClinicLandingProfessional[] = [];
   if (memberIds.size > 0) {
     const docsRes = await fetchAllSupabaseRowsForIdChunks(
@@ -106,7 +90,7 @@ export async function loadClinicBySlug(
         supabase
           .from("professionals")
           .select(
-            `id, slug, name, address_maps_link, avatar_url, is_gesy, gender, finder_visible, ${SPECIALTY_LINKS_SELECT}`,
+            `id, slug, name, avatar_url, is_gesy, gender, ${SPECIALTY_LINKS_SELECT}`,
           )
           .eq("is_archived", false)
           .in("id", idChunk)
@@ -120,11 +104,9 @@ export async function loadClinicBySlug(
           slug?: string | null;
           name: string | null;
           specialty_links?: unknown;
-          address_maps_link?: string | null;
           avatar_url?: string | null;
           is_gesy?: boolean | null;
           gender?: string | null;
-          finder_visible?: boolean | null;
         };
         const specialties = specialtyNamesForRow(row);
         const slugValue = String(row.slug ?? "").trim() || null;
@@ -139,17 +121,11 @@ export async function loadClinicBySlug(
           photoUrl: clinicRosterPhotoUrl({
             avatarUrl: row.avatar_url,
             gender: row.gender,
-            curatedPhotoUrl: getFinderManualPhotoUrl(String(row.address_maps_link ?? "")),
             getStoragePublicUrl: (path) =>
               supabase.storage.from("avatars").getPublicUrl(path).data.publicUrl,
           }),
           isGesy: Boolean(row.is_gesy ?? false),
-          // Inpatient-only: listed on the clinic, but no public professional landing.
-          profileHref:
-            slugValue && row.finder_visible !== false
-              ? publicProfessionalProfilePath(slugValue)
-              : null,
-          finderVisible: row.finder_visible !== false,
+          profileHref: slugValue ? publicProfessionalProfilePath(slugValue) : null,
         };
       });
       // Grouped by specialty (first alphabetical label), then name.

@@ -10,7 +10,6 @@ type FakeRow = {
   name: string;
   auth_user_id: string | null;
   is_registered: boolean;
-  license_file_url: string | null;
   avatar_url: string | null;
   email: string | null;
   registration_email: string | null;
@@ -73,7 +72,6 @@ describe("purgeRegisteredProfessional", () => {
       name: "Oscar Wilde",
       auth_user_id: "auth-1",
       is_registered: true,
-      license_file_url: null,
       avatar_url: null,
       email: null,
       registration_email: "o@example.com",
@@ -96,7 +94,6 @@ describe("purgeRegisteredProfessional", () => {
       name: "Finder Only",
       auth_user_id: null,
       is_registered: false,
-      license_file_url: null,
       avatar_url: null,
       email: null,
       registration_email: null,
@@ -119,7 +116,6 @@ describe("purgeRegisteredProfessional", () => {
       name: "Oscar Wilde",
       auth_user_id: "auth-1",
       is_registered: true,
-      license_file_url: "licenses/x.pdf",
       avatar_url: "profiles/p1/avatar.jpg",
       email: null,
       registration_email: "o@example.com",
@@ -135,19 +131,31 @@ describe("purgeRegisteredProfessional", () => {
     assert.equal(fake.getProfessionalsDeleted(), true);
     assert.equal(fake.getDeletedAuth(), "auth-1");
     assert.ok(
-      fake.deleted.some((d) => d.table === "appointments" && d.column === "doctor_id"),
+      fake.deleted.some((d) => d.table === "appointments" && d.column === "professional_id"),
     );
     assert.ok(
       fake.deleted.some(
         (d) => d.table === "professional_clinics" && d.column === "professional_id",
       ),
     );
-    // Renamed in Point B: these three moved from doctor_id to professional_id.
-    for (const table of [
-      "professional_settings",
-      "professional_specialty_change_requests",
+    // Point E1 dropped the monthly digest table, Point E3 the old specialty-change requests;
+    // Point E7 renamed doctor_services.
+    for (const dropped of [
       "professional_monthly_digest_sent",
+      "professional_specialty_change_requests",
+      "doctor_services",
     ]) {
+      assert.ok(
+        !fake.deleted.some((d) => d.table === dropped),
+        `${dropped} is dropped and must not be purged`,
+      );
+    }
+    // Renamed in Point B (and E7 for services): these moved from doctor_id to professional_id.
+    assert.ok(
+      !fake.deleted.some((d) => d.column === "doctor_id"),
+      "nothing is purged by doctor_id after E7",
+    );
+    for (const table of ["professional_settings", "professional_specialties", "professional_services"]) {
       assert.ok(
         fake.deleted.some(
           (d) => d.table === table && d.column === "professional_id",

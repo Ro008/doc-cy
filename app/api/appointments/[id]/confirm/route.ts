@@ -10,8 +10,9 @@ import {
   isAllowedProfessionalDuration,
   PROFESSIONAL_DURATION_OPTIONS,
 } from "@/lib/professional-appointment-durations";
-import { appointmentClinicCopy } from "@/lib/appointment-clinic-copy";
+import { appointmentClinicCopy, loadAppointmentClinicPhone } from "@/lib/appointment-clinic-copy";
 import { loadDoctorLocations } from "@/lib/load-doctor-locations";
+import { clinicSlotMinutes } from "@/lib/professional-account-settings";
 import { sendPatientAppointmentConfirmedEmail } from "@/lib/send-patient-appointment-confirmed-email";
 import { sendDoctorAppointmentConfirmedEmail } from "@/lib/send-doctor-appointment-confirmed-email";
 import { professionalAccountEmail } from "@/lib/professional-account-contact";
@@ -54,7 +55,7 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
 
   const { data: doctor, error: doctorErr } = await supabase
     .from("professionals")
-    .select("id, name, email, registration_email, phone")
+    .select("id, name, email, registration_email")
     .eq("auth_user_id", user.id)
     .maybeSingle();
 
@@ -65,7 +66,7 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
   const { data: appt, error: apptErr } = await supabase
     .from("appointments")
     .select(
-      "id, doctor_id, patient_name, patient_email, patient_phone, appointment_datetime, status, reason, duration_minutes, location_id"
+      "id, professional_id, patient_name, patient_email, patient_phone, appointment_datetime, status, reason, duration_minutes, location_id"
     )
     .eq("id", id)
     .maybeSingle();
@@ -74,7 +75,7 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
     return NextResponse.json({ message: "Appointment not found." }, { status: 404 });
   }
 
-  if (appt.doctor_id !== doctor.id) {
+  if (appt.professional_id !== doctor.id) {
     return NextResponse.json({ message: "Forbidden." }, { status: 403 });
   }
 
@@ -86,15 +87,10 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
     );
   }
 
-  const { data: settings } = await supabase
-    .from("professional_settings")
-    .select("slot_duration_minutes")
-    .eq("professional_id", doctor.id)
-    .maybeSingle();
-
-  const fallbackDuration =
-    (settings as { slot_duration_minutes?: number | null } | null)
-      ?.slot_duration_minutes ?? 30;
+  // A visit saved without a length counts as the primary clinic's slot (Point E6: the
+  // slot length lives on the clinic link).
+  const locations = await loadDoctorLocations(doctor.id);
+  const fallbackDuration = clinicSlotMinutes(locations);
 
   const { data: blockingRaw, error: othersErr } = await fetchBlockingAppointments(
     supabase,
@@ -131,7 +127,7 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
       duration_minutes: durationMinutes,
     })
     .eq("id", id)
-    .eq("doctor_id", doctor.id);
+    .eq("professional_id", doctor.id);
 
   if (updateErr) {
     console.error(updateErr);
@@ -148,7 +144,6 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
       ? process.env.RESEND_TO_OVERRIDE?.trim() || null
       : null;
 
-  const locations = await loadDoctorLocations(doctor.id);
   const clinic = appointmentClinicCopy({
     locations,
     locationId: (appt as { location_id?: string | null }).location_id,
@@ -171,7 +166,10 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
       doctor: {
         name: doctor.name,
         specialty: specialtyName,
-        phone: (doctor as { phone?: string | null }).phone,
+        // Signed-in client can't read clinics (RLS): the service role reads the phone.
+        phone: specialtyService
+          ? await loadAppointmentClinicPhone(specialtyService, clinic.locationId)
+          : null,
         clinic_address: clinic.address,
       },
       clinic,

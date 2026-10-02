@@ -29,26 +29,18 @@ type ProfessionalRow = {
   name: string | null;
   auth_user_id: string | null;
   is_registered: boolean | null;
-  license_file_url: string | null;
   avatar_url: string | null;
   email: string | null;
   registration_email: string | null;
 };
 
-const CHILD_TABLES_BY_DOCTOR_ID = [
-  "appointments",
-  "doctor_locations",
-  "doctor_services",
-] as const;
-
 const CHILD_TABLES_BY_PROFESSIONAL_ID = [
+  "appointments",
+  "professional_services",
   "professional_settings",
   "professional_specialties",
-  "professional_specialty_change_requests",
-  "professional_monthly_digest_sent",
   "professional_clinics",
-  "professional_patient_booking_requests",
-  "professional_call_to_book_clicks",
+  "user_events",
   "professional_slug_redirects",
 ] as const;
 
@@ -108,7 +100,7 @@ async function removeStoragePaths(
 
 /**
  * Permanently deletes a registered professional: related rows, Auth user, and
- * known storage objects (license proof + avatars). Irreversible.
+ * known storage objects (avatars). Irreversible.
  */
 export async function purgeRegisteredProfessional(
   admin: SupabaseClient,
@@ -129,7 +121,7 @@ export async function purgeRegisteredProfessional(
   const { data: row, error: fetchErr } = await admin
     .from("professionals")
     .select(
-      "id, name, auth_user_id, is_registered, license_file_url, avatar_url, email, registration_email",
+      "id, name, auth_user_id, is_registered, avatar_url, email, registration_email",
     )
     .eq("id", professionalId)
     .maybeSingle();
@@ -163,11 +155,6 @@ export async function purgeRegisteredProfessional(
   const warnings: string[] = [];
   const authUserId = pro.auth_user_id ? String(pro.auth_user_id) : null;
 
-  for (const table of CHILD_TABLES_BY_DOCTOR_ID) {
-    const err = await deleteByEq(admin, table, "doctor_id", professionalId);
-    if (err) warnings.push(err);
-  }
-
   for (const table of CHILD_TABLES_BY_PROFESSIONAL_ID) {
     const err = await deleteByEq(admin, table, "professional_id", professionalId);
     if (err) warnings.push(err);
@@ -195,10 +182,6 @@ export async function purgeRegisteredProfessional(
       warnings.push(`auth user: ${authErr.message}`);
     }
   }
-
-  const licensePaths: string[] = [];
-  if (pro.license_file_url) licensePaths.push(String(pro.license_file_url));
-  await removeStoragePaths(admin, "doctor-verifications", licensePaths, warnings);
 
   const avatarPaths: string[] = [];
   if (pro.avatar_url) avatarPaths.push(String(pro.avatar_url));

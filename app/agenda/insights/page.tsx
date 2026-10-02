@@ -8,10 +8,8 @@ import { createPracticeInsightsTranslator } from "@/lib/practice-insights-i18n";
 import { PracticeInsightsDashboard } from "@/components/dashboard/PracticeInsightsDashboard";
 import { FoundingMemberBadge } from "@/components/dashboard/FoundingMemberBadge";
 import { doctorDashboardDisplayName } from "@/lib/doctor-display-name";
-import {
-  buildWeeklyScheduleFromSettings,
-  type DoctorSettingsRow,
-} from "@/lib/doctor-settings";
+import { locationWeeklySchedule } from "@/lib/doctor-locations";
+import { loadDoctorLocations, primaryDoctorLocation } from "@/lib/load-doctor-locations";
 import { buildPracticeInsights } from "@/lib/practice-insights";
 import { isFounderSubscriptionTier } from "@/lib/subscription-tier";
 import { fetchAllSupabaseRows } from "@/lib/supabase-fetch-all";
@@ -47,23 +45,12 @@ export default async function PracticeInsightsPage() {
       .select(
         "appointment_datetime, status, created_at, is_new_patient, attendance, duration_minutes, proposal_expires_at",
       )
-      .eq("doctor_id", doctor.id),
+      .eq("professional_id", doctor.id),
   );
 
-  let weeklySchedule = null;
-  const settingsRes = await supabase
-    .from("professional_settings")
-    .select(
-      "professional_id, monday, tuesday, wednesday, thursday, friday, saturday, sunday, start_time, end_time, weekly_schedule",
-    )
-    .eq("professional_id", doctor.id)
-    .maybeSingle();
-
-  if (!settingsRes.error && settingsRes.data) {
-    weeklySchedule = buildWeeklyScheduleFromSettings(
-      settingsRes.data as DoctorSettingsRow,
-    );
-  }
+  // Open hours of the primary clinic (Point E6: schedules live on the clinic links).
+  const primaryClinic = primaryDoctorLocation(await loadDoctorLocations(doctor.id));
+  const weeklySchedule = primaryClinic ? locationWeeklySchedule(primaryClinic) : null;
 
   const insights = buildPracticeInsights(
     (appointments ?? []) as {

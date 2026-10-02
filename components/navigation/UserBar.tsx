@@ -225,7 +225,6 @@ export function UserBar() {
   }
 
   const isDistractionFreeDoctorFlow = pathname.startsWith("/dashboard/appointments/");
-  const isAccountReviewGate = pathname.startsWith("/agenda/account-review");
   const hideChrome =
     !showProChrome ||
     pathname === "/login" ||
@@ -234,7 +233,6 @@ export function UserBar() {
     pathname === "/reset-password" ||
     pathname.startsWith("/reset-password/") ||
     isDistractionFreeDoctorFlow ||
-    isAccountReviewGate ||
     // The founders' dashboard has its own header and sign-out.
     pathname.startsWith("/internal");
 

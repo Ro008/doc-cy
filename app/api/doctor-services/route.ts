@@ -55,9 +55,9 @@ export async function POST(req: NextRequest) {
   if (!owned) return NextResponse.json({ message: "Forbidden." }, { status: 403 });
 
   const { data, error } = await supabase
-    .from("doctor_services")
-    .insert({ doctor_id: doctorId, name, price })
-    .select("id, doctor_id, name, price, created_at")
+    .from("professional_services")
+    .insert({ professional_id: doctorId, name, price })
+    .select("id, professional_id, name, price, created_at")
     .single();
 
   if (error) {
@@ -93,10 +93,10 @@ export async function DELETE(req: NextRequest) {
   if (!owned) return NextResponse.json({ message: "Forbidden." }, { status: 403 });
 
   const { error } = await supabase
-    .from("doctor_services")
+    .from("professional_services")
     .delete()
     .eq("id", serviceId)
-    .eq("doctor_id", doctorId);
+    .eq("professional_id", doctorId);
 
   if (error) {
     console.error("[doctor-services] delete failed", error);

@@ -53,7 +53,7 @@ export async function PATCH(req: NextRequest, { params }: RouteContext) {
 
   const { data: appt, error: apptErr } = await supabase
     .from("appointments")
-    .select("id, doctor_id, status, appointment_datetime, duration_minutes")
+    .select("id, professional_id, status, appointment_datetime, duration_minutes")
     .eq("id", id)
     .maybeSingle();
 
@@ -61,7 +61,7 @@ export async function PATCH(req: NextRequest, { params }: RouteContext) {
     return NextResponse.json({ message: "Appointment not found." }, { status: 404 });
   }
 
-  if (appt.doctor_id !== doctor.id) {
+  if (appt.professional_id !== doctor.id) {
     return NextResponse.json({ message: "Forbidden." }, { status: 403 });
   }
 
@@ -96,7 +96,7 @@ export async function PATCH(req: NextRequest, { params }: RouteContext) {
       attendance: attendance === APPOINTMENT_ATTENDANCE_NO_SHOW ? attendance : null,
     })
     .eq("id", id)
-    .eq("doctor_id", doctor.id);
+    .eq("professional_id", doctor.id);
 
   if (updateErr) {
     console.error("[DocCy] attendance update failed", updateErr);

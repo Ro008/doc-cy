@@ -6,8 +6,9 @@ import {
   toBlockingRows,
 } from "@/lib/appointment-blocking-query";
 import { sendPatientAppointmentConfirmedEmail } from "@/lib/send-patient-appointment-confirmed-email";
-import { appointmentClinicCopy } from "@/lib/appointment-clinic-copy";
+import { appointmentClinicCopy, loadAppointmentClinicPhone } from "@/lib/appointment-clinic-copy";
 import { loadDoctorLocations } from "@/lib/load-doctor-locations";
+import { clinicSlotMinutes } from "@/lib/professional-account-settings";
 import { loadPrimarySpecialtyName } from "@/lib/specialty-catalogue";
 
 type RouteContext = { params: { id: string } };
@@ -70,7 +71,7 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
   const { data: appt, error: apptErr } = await supabase
     .from("appointments")
     .select(
-      "id, doctor_id, patient_name, patient_email, appointment_datetime, status, duration_minutes, reason, proposed_slots, proposal_expires_at, reschedule_access_token, location_id"
+      "id, professional_id, patient_name, patient_email, appointment_datetime, status, duration_minutes, reason, proposed_slots, proposal_expires_at, reschedule_access_token, location_id"
     )
     .eq("id", id)
     .maybeSingle();
@@ -111,21 +112,15 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
     );
   }
 
-  const doctorId = appt.doctor_id as string;
+  const doctorId = appt.professional_id as string;
   const durationMinutes = Number(
     (appt as { duration_minutes?: number | null }).duration_minutes ?? 30
   );
   const dm = Number.isFinite(durationMinutes) && durationMinutes > 0 ? durationMinutes : 30;
 
-  const { data: settings } = await supabase
-    .from("professional_settings")
-    .select("slot_duration_minutes")
-    .eq("professional_id", doctorId)
-    .maybeSingle();
-
-  const fallback =
-    (settings as { slot_duration_minutes?: number | null } | null)
-      ?.slot_duration_minutes ?? 30;
+  // A visit saved without a length counts as the primary clinic's slot (Point E6).
+  const locations = await loadDoctorLocations(doctorId);
+  const fallback = clinicSlotMinutes(locations);
 
   const { data: blockingRaw, error: blockErr } = await fetchBlockingAppointments(
     supabase,
@@ -163,7 +158,7 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
       reschedule_access_token: null,
     })
     .eq("id", id)
-    .eq("doctor_id", doctorId);
+    .eq("professional_id", doctorId);
 
   if (updateErr) {
     console.error(updateErr);
@@ -172,7 +167,7 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
 
   const { data: doctor } = await supabase
     .from("professionals")
-    .select("name, phone")
+    .select("name")
     .eq("id", doctorId)
     .maybeSingle();
   const specialtyName = await loadPrimarySpecialtyName(supabase, doctorId);
@@ -184,7 +179,6 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
       ? process.env.RESEND_TO_OVERRIDE?.trim() || null
       : null;
 
-  const locations = await loadDoctorLocations(doctorId);
   const clinic = appointmentClinicCopy({
     locations,
     locationId: (appt as { location_id?: string | null }).location_id,
@@ -202,7 +196,7 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
       doctor: {
         name: doctor?.name,
         specialty: specialtyName,
-        phone: (doctor as { phone?: string | null } | null)?.phone,
+        phone: await loadAppointmentClinicPhone(supabase, clinic.locationId),
         clinic_address: clinic.address,
       },
       clinic,

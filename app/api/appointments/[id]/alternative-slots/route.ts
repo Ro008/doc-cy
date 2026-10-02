@@ -52,7 +52,7 @@ export async function GET(req: NextRequest, { params }: RouteContext) {
 
   const { data: appt, error: apptErr } = await supabase
     .from("appointments")
-    .select("id, doctor_id, appointment_datetime, status")
+    .select("id, professional_id, appointment_datetime, status, location_id")
     .eq("id", id)
     .maybeSingle();
 
@@ -60,7 +60,7 @@ export async function GET(req: NextRequest, { params }: RouteContext) {
     return NextResponse.json({ message: "Appointment not found." }, { status: 404 });
   }
 
-  if (appt.doctor_id !== doctor.id) {
+  if (appt.professional_id !== doctor.id) {
     return NextResponse.json({ message: "Forbidden." }, { status: 403 });
   }
 
@@ -72,11 +72,16 @@ export async function GET(req: NextRequest, { params }: RouteContext) {
     );
   }
 
-  const loaded = await loadDoctorSettingsForSlots(supabase, doctor.id);
+  // Alternatives at the appointment's own clinic (its hours and slot length, Point E6).
+  const loaded = await loadDoctorSettingsForSlots(
+    supabase,
+    doctor.id,
+    (appt as { location_id?: string | null }).location_id,
+  );
   if (!loaded) {
     return NextResponse.json(
-      { message: "Professional settings not found." },
-      { status: 500 }
+      { message: "This clinic is not set up yet. Contact us to set it up." },
+      { status: 409 }
     );
   }
 

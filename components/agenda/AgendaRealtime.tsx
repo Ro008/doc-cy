@@ -105,7 +105,7 @@ import {
 
 type AgendaAppointmentRow = {
   id: string;
-  doctor_id: string;
+  professional_id: string;
   patient_name: string;
   patient_phone: string;
   reason?: string | null;
@@ -138,7 +138,7 @@ function agendaRowFromSupabasePayload(
   if (typeof raw.id !== "string") return null;
   return {
     id: raw.id,
-    doctor_id: String(raw.doctor_id ?? ""),
+    professional_id: String(raw.professional_id ?? ""),
     patient_name: String(raw.patient_name ?? ""),
     patient_phone: String(raw.patient_phone ?? ""),
     reason: patientVisitReasonFromAppointmentRow(raw),
@@ -461,7 +461,7 @@ export function AgendaRealtime({
       ? await supabase
           .from("appointments")
           .select(AGENDA_APPOINTMENT_SELECT)
-          .eq("doctor_id", doctorId)
+          .eq("professional_id", doctorId)
           .order("appointment_datetime", { ascending: true })
           // Send the token checked above. Otherwise the client looks the
           // session up again for the request and, if it vanished in between,
@@ -506,7 +506,7 @@ export function AgendaRealtime({
           event: "INSERT",
           schema: "public",
           table: "appointments",
-          filter: `doctor_id=eq.${doctorId}`,
+          filter: `professional_id=eq.${doctorId}`,
         },
         (payload) => {
           const raw = payload.new as Record<string, unknown> | null;
@@ -529,7 +529,7 @@ export function AgendaRealtime({
           event: "UPDATE",
           schema: "public",
           table: "appointments",
-          filter: `doctor_id=eq.${doctorId}`,
+          filter: `professional_id=eq.${doctorId}`,
         },
         (payload) => {
           const raw = payload.new as Record<string, unknown> | null;
@@ -559,7 +559,7 @@ export function AgendaRealtime({
           table: "appointments",
         },
         () => {
-          // DELETE payloads may not include doctor_id depending on replica identity,
+          // DELETE payloads may not include professional_id depending on replica identity,
           // so do a targeted resync to avoid stale rows across simultaneous sessions.
           void refreshAppointmentsFromServer();
           setToast(true);

@@ -6,6 +6,7 @@ import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
 import { SignOutButton } from "@/components/auth/SignOutButton";
 import { SignOutOnMount } from "@/components/auth/SignOutOnMount";
 import { DocCyWordmark } from "@/components/brand/DocCyWordmark";
+import { WithdrawApplicationButton } from "@/components/register/WithdrawApplicationButton";
 import { createServiceRoleClient } from "@/lib/supabase-service";
 import {
   REGISTRATION_STATUS_PATH,
@@ -97,6 +98,7 @@ export default async function RegistrationStatusPage() {
               <p className="text-sm text-slate-400">
                 Your agenda and settings open once your profile is approved.
               </p>
+              <WithdrawApplicationButton />
             </>
           ) : status.kind === "denied" ? (
             <>

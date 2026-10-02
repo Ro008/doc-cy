@@ -105,8 +105,8 @@ begin
   values (pg_temp.new_login('appr-partner-' || v_tag || '@integration.test'), 'Appr Partner',
           'appr-partner-' || v_tag || '@integration.test', 'partner')
   returning id into v_partner;
-  insert into public.clinics (name, slug, district, address, town, latitude, longitude)
-  values ('Appr Existing ' || v_tag, 'appr-existing-' || v_tag, 'Paphos', '1 Existing St, Paphos', 'Paphos', 34.77, 32.42)
+  insert into public.clinics (name, slug, district, address, town, latitude, longitude, phone)
+  values ('Appr Existing ' || v_tag, 'appr-existing-' || v_tag, 'Paphos', '1 Existing St, Paphos', 'Paphos', 34.77, 32.42, '26123456')
   returning id into v_clinic;
   v_clinics := jsonb_build_array(
     jsonb_build_object('clinic_id', v_clinic, 'name', null, 'address', '1 Existing St, Paphos',
@@ -148,7 +148,7 @@ begin
      or v_pro.languages <> array['English', 'Greek']
      or v_pro.avatar_url <> 'profiles/x/avatar.jpg'
      or v_pro.slug <> 'appr-new-' || v_tag
-     or v_pro.status <> 'verified' or v_pro.is_registered is not true
+     or v_pro.is_registered is not true
      or v_pro.auth_user_id is distinct from v_row.applicant_auth_user_id
      or v_pro.subscription_tier <> 'standard'
      or v_pro.is_test_profile is not true
@@ -162,14 +162,11 @@ begin
   end if;
   v_checks := v_checks + 4;
 
-  -- Settings exist (bookings paused); no doctor_locations row (the old trigger skips approvals).
-  if not exists (select 1 from public.professional_settings where professional_id = v_pro.id and pause_online_bookings) then
-    raise exception 'FAIL: approval should create paused professional_settings';
+  -- Account settings exist (the pause lives on the clinic links since Point E6).
+  if not exists (select 1 from public.professional_settings where professional_id = v_pro.id) then
+    raise exception 'FAIL: approval should create professional_settings';
   end if;
-  if exists (select 1 from public.doctor_locations where doctor_id = v_pro.id) then
-    raise exception 'FAIL: approval must not create doctor_locations rows';
-  end if;
-  v_checks := v_checks + 2;
+  v_checks := v_checks + 1;
 
   -- Clinics: the picked clinic is linked as primary; the proposed one is created and linked.
   if not exists (select 1 from public.professional_clinics
@@ -196,7 +193,7 @@ begin
     raise exception 'FAIL: the proposed clinic should be created (name, slug, district, address, phone) and linked second';
   end if;
   if not exists (select 1 from public.professional_specialties ps join public.specialties s on s.id = ps.specialty_id
-                 where ps.professional_id = v_pro.id and s.name = 'Cardiology' and ps.is_approved and ps.license_number = 'LIC-1') then
+                 where ps.professional_id = v_pro.id and s.name = 'Cardiology' and ps.license_number = 'LIC-1') then
     raise exception 'FAIL: the approved specialty should be written with its licence';
   end if;
   v_checks := v_checks + 3;
@@ -269,13 +266,13 @@ begin
   end if;
 
   -- 7. Approving a claim updates the listing in place.
-  insert into public.professionals (name, slug, is_registered, district, is_test_profile)
-  values ('Old Listing ' || v_tag, 'old-listing-' || v_tag, false, 'Paphos', true)
+  insert into public.professionals (name, slug, is_registered, is_test_profile)
+  values ('Old Listing ' || v_tag, 'old-listing-' || v_tag, false, true)
   returning id into v_listing;
-  insert into public.professional_specialties (professional_id, specialty, is_approved)
-  values (v_listing, 'Dermatology', true);
-  insert into public.clinics (name, slug, district, address)
-  values ('Listing Clinic ' || v_tag, 'listing-clinic-' || v_tag, 'Paphos', '9 Old Rd')
+  insert into public.professional_specialties (professional_id, specialty)
+  values (v_listing, 'Dermatology');
+  insert into public.clinics (name, slug, district, address, phone)
+  values ('Listing Clinic ' || v_tag, 'listing-clinic-' || v_tag, 'Paphos', '9 Old Rd', '26123457')
   returning id into v_listing_clinic;
   insert into public.professional_clinics (professional_id, clinic_id, is_primary) values (v_listing, v_listing_clinic, true);
 
@@ -287,7 +284,7 @@ begin
   select * into v_pro from public.professionals where id = v_listing;
   if v_row.professional_id is distinct from v_listing
      or (v_row.outcome ->> 'claimed_listing')::boolean is not true
-     or v_pro.is_registered is not true or v_pro.status <> 'verified'
+     or v_pro.is_registered is not true
      or v_pro.auth_user_id is distinct from v_row.applicant_auth_user_id
      or v_pro.name <> 'Approval Claim ' || v_tag or v_pro.slug <> 'approval-claim-' || v_tag then
     raise exception 'FAIL: the claimed listing should become the professional in place, got %', row_to_json(v_pro);
@@ -306,8 +303,8 @@ begin
      or not exists (select 1 from public.professional_clinics where professional_id = v_listing and clinic_id = v_clinic and is_primary) then
     raise exception 'FAIL: clinic links should be replaced, and the old clinic kept';
   end if;
-  if exists (select 1 from public.doctor_locations where doctor_id = v_listing) then
-    raise exception 'FAIL: approving a claim must not create doctor_locations rows';
+  if not exists (select 1 from public.professional_settings where professional_id = v_listing) then
+    raise exception 'FAIL: approving a claim should create professional_settings';
   end if;
   v_checks := v_checks + 5;
 
@@ -319,13 +316,13 @@ begin
     '55000', 'claiming a listing that is already registered');
   v_checks := v_checks + 1;
 
-  -- 9. Outside approvals the old registration path still gets its location row.
-  insert into public.professionals (auth_user_id, name, slug, is_registered, status, is_test_profile)
+  -- 9. Outside approvals (fixtures, seeds) a registered professional still gets settings.
+  insert into public.professionals (auth_user_id, name, slug, is_registered, is_test_profile)
   values (pg_temp.new_login('appr-old-' || v_tag || '@integration.test'), 'Old Path ' || v_tag, 'old-path-' || v_tag,
-          true, 'pending', true)
+          true, true)
   returning id into v_listing;
-  if not exists (select 1 from public.doctor_locations where doctor_id = v_listing) then
-    raise exception 'FAIL: the old registration path should still get its primary location';
+  if not exists (select 1 from public.professional_settings where professional_id = v_listing) then
+    raise exception 'FAIL: a directly inserted registered professional should get settings';
   end if;
   v_checks := v_checks + 1;
 

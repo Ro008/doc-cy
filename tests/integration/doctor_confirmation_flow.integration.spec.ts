@@ -101,10 +101,13 @@ test.describe("Integration: doctor confirmation flow", { tag: ["@pr-e2e", "@pr-e
     }
 
     const nonce = `${Date.now()}-${Math.floor(Math.random() * 100000)}`;
+    // The primary clinic's slot length (Point E6: it lives on the clinic link).
     const { data: settingsRow } = await admin
-      .from("professional_settings")
+      .from("professional_clinics")
       .select("slot_duration_minutes")
       .eq("professional_id", doctor.id)
+      .eq("is_primary", true)
+      .limit(1)
       .maybeSingle();
     const fallbackDurationMinutes =
       Number((settingsRow as { slot_duration_minutes?: number | null } | null)?.slot_duration_minutes) >
@@ -114,7 +117,7 @@ test.describe("Integration: doctor confirmation flow", { tag: ["@pr-e2e", "@pr-e
     const { data: existingRows } = await admin
       .from("appointments")
       .select("appointment_datetime, duration_minutes")
-      .eq("doctor_id", doctor.id)
+      .eq("professional_id", doctor.id)
       .gte("appointment_datetime", new Date().toISOString());
 
     const appointmentDatetimeIso = findStableAppointmentIso({
@@ -129,7 +132,7 @@ test.describe("Integration: doctor confirmation flow", { tag: ["@pr-e2e", "@pr-e
     const { data: inserted, error: insertErr } = await admin
       .from("appointments")
       .insert({
-        doctor_id: doctor.id,
+        professional_id: doctor.id,
         patient_name: patientName,
         patient_email: `ci-confirm-${nonce}@example.test`,
         patient_phone: "+35799123456",

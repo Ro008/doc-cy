@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { finderIncludesRegisteredTestProfiles } from "@/lib/doctor-test-profile";
 import { selectFinderSpecialty } from "./helpers/finder-specialty-combobox";
+import { deleteTestClinics, seedProfessionalClinic } from "./helpers/test-doctor";
 
 type CreatedDoctor = {
   doctorId: string;
@@ -10,6 +11,7 @@ type CreatedDoctor = {
   name: string;
   district: "Nicosia" | "Limassol" | "Paphos" | "Larnaca" | "Famagusta";
   specialty: string;
+  clinicId: string;
 };
 
 function normalizeUrl(u: string): string {
@@ -91,19 +93,14 @@ async function createVerifiedDoctor(
     .insert({
       auth_user_id: authUserId,
       name: input.name,
-      district: input.district,
       email,
-      phone: "+35799123456",
       languages: input.languages,
-      license_file_url: `licenses/integration/${nonce}-${input.slugPrefix}.pdf`,
-      status: "verified",
       slug,
       // Mark as test so cleanup + prod finder hide are reliable; still visible when
       // NEXT_PUBLIC_DOC_CY_FINDER_INCLUDE_TEST_PROFILES=1 (integration).
       is_test_profile: true,
             is_registered: true,
       pro_access_until: new Date(Date.now() + 180 * 86_400_000).toISOString(),
-      finder_visible: true,
       is_archived: false,
       subscription_tier: "standard",
 
@@ -122,7 +119,6 @@ async function createVerifiedDoctor(
       professional_id: doctorId,
       specialty: input.specialty,
       license_number: `LIC-FINDER-UX-${nonce}-${input.slugPrefix}`,
-      is_approved: true,
     },
   );
   if (specialtyInsert.error) {
@@ -133,6 +129,19 @@ async function createVerifiedDoctor(
     );
   }
 
+  // Every professional has a clinic; the finder reads the district from it.
+  let clinicId: string;
+  try {
+    ({ clinicId } = await seedProfessionalClinic(admin, doctorId, {
+      nonce: `${nonce}-${input.slugPrefix}`,
+      district: input.district,
+    }));
+  } catch (err) {
+    await admin.from("professionals").delete().eq("id", doctorId);
+    await admin.auth.admin.deleteUser(authUserId);
+    throw err;
+  }
+
   return {
     doctorId,
     authUserId,
@@ -140,6 +149,7 @@ async function createVerifiedDoctor(
     name: input.name,
     district: input.district,
     specialty: input.specialty,
+    clinicId,
   };
 }
 
@@ -259,6 +269,7 @@ test.describe("Integration: finder user-like filter behavior matrix", { tag: ["@
       for (const doctor of created) {
         await admin.from("professionals").delete().eq("id", doctor.doctorId);
         await admin.auth.admin.deleteUser(doctor.authUserId);
+        await deleteTestClinics(admin, [doctor.clinicId]);
       }
     }
   });

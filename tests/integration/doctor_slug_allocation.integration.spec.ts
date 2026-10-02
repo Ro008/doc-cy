@@ -62,17 +62,11 @@ test.describe("Integration: doctor slug allocation", () => {
           .insert({
             auth_user_id: authUserId,
             name: sharedName,
-            district: "Paphos",
-            clinic_address: "1 Clinic Street, Paphos",
             email,
-            phone: "+35799123456",
             languages: ["English"],
-            license_file_url: `licenses/integration/${nonce}-${index}.pdf`,
-            status: "verified",
             slug,
                   is_registered: true,
       pro_access_until: new Date(Date.now() + 180 * 86_400_000).toISOString(),
-      finder_visible: true,
       is_archived: false,
       subscription_tier: "standard",
 
@@ -91,8 +85,7 @@ test.describe("Integration: doctor slug allocation", () => {
           specialty: "Dentistry",
 
           licenseNumber: `LIC-SLUG-${nonce}-${index}`,
-
-          isApproved: true,
+
 
         });
       }

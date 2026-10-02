@@ -19,8 +19,6 @@ type CreateTestDoctorInput = {
   nonce: string;
   name: string;
   specialty: string;
-  is_specialty_approved: boolean;
-  status: "pending" | "verified" | "rejected";
   /** Default true so agenda tests are not blocked by the one-time welcome modal. */
   markTrialNoticeSeen?: boolean;
   subscription_tier?: "founder" | "standard";
@@ -50,17 +48,13 @@ export async function createTestDoctor(
       auth_user_id: authUserId,
       name: input.name,
       email,
-      phone: "+35799123456",
       languages: ["English"],
-      license_file_url: `licenses/integration/${input.nonce}.pdf`,
-      status: input.status,
       slug,
       subscription_tier: input.subscription_tier ?? "standard",
       trial_notice_seen_at:
         input.markTrialNoticeSeen === false ? null : new Date().toISOString(),
       is_registered: true,
       pro_access_until: new Date(Date.now() + 180 * 86_400_000).toISOString(),
-      finder_visible: true,
       is_archived: false,
       is_test_profile: true,
     })
@@ -78,7 +72,6 @@ export async function createTestDoctor(
       professional_id: doctorId,
       specialty: input.specialty,
       license_number: `LIC-${input.nonce}`,
-      is_approved: input.is_specialty_approved,
     },
   );
   if (specialtyInsert.error) {
@@ -106,56 +99,116 @@ export async function createTestDoctor(
 export async function seedProfessionalSpecialty(
   admin: SupabaseClient,
   professionalId: string,
-  input: { specialty: string; licenseNumber?: string | null; isApproved?: boolean },
+  input: { specialty: string; licenseNumber?: string | null },
 ): Promise<void> {
   const { error } = await admin.from("professional_specialties").insert({
     professional_id: professionalId,
     specialty: input.specialty,
     license_number: input.licenseNumber ?? null,
-    is_approved: input.isApproved ?? true,
   });
   if (error) throw new Error(`Failed creating professional_specialties: ${error.message}`);
 }
 
 /**
- * Registering auto-creates an addressless primary location: a clinic still being set
- * up, which takes no bookings (appointments reference the clinic link, and it has
- * none). Give it an address and district, as every real sign-up does, so D1's mirror
- * creates its clinic and clinic link (same id), and open it for bookings.
+ * Gives a registered test professional an open primary clinic (Nicosia, weekday hours),
+ * as an approved registration has: see `seedProfessionalClinic`. Registering no longer
+ * creates any location (D4 dropped `doctor_locations`).
  *
- * Returns the clinic id: pass it to `deleteTestClinics` after deleting the
- * professional (a removed clinic link keeps its clinic).
+ * Returns the clinic link id and the clinic id: pass the clinic id to
+ * `deleteTestClinics` after deleting the professional (a removed clinic link keeps its
+ * clinic).
  */
 export async function openPrimaryClinicForBookings(
   admin: SupabaseClient,
   professionalId: string,
   nonce: string,
 ): Promise<{ locationId: string; clinicId: string }> {
-  const location = await admin
-    .from("doctor_locations")
-    .update({
-      district: "Nicosia",
-      clinic_address: `${nonce} Integration Street, Nicosia, Cyprus`,
-      pause_online_bookings: false,
+  const seeded = await seedProfessionalClinic(admin, professionalId, { nonce, district: "Nicosia" });
+  return { locationId: seeded.linkId, clinicId: seeded.clinicId };
+}
+
+type SeedDistrict = "Nicosia" | "Limassol" | "Paphos" | "Larnaca" | "Famagusta";
+
+const DISTRICT_PIN: Record<SeedDistrict, { latitude: number; longitude: number }> = {
+  Nicosia: { latitude: 35.1725, longitude: 33.365 },
+  Limassol: { latitude: 34.6841, longitude: 33.0379 },
+  Paphos: { latitude: 34.7754, longitude: 32.4245 },
+  Larnaca: { latitude: 34.9229, longitude: 33.6233 },
+  Famagusta: { latitude: 35.0393, longitude: 33.9832 },
+};
+
+const WEEKDAY_HOURS = { enabled: true, start_time: "09:00:00", end_time: "17:00:00" };
+const DAY_OFF = { enabled: false, start_time: "09:00:00", end_time: "17:00:00" };
+
+/**
+ * Gives a seeded professional a clinic the way the registration approval does: a
+ * `clinics` row and the professional's primary `professional_clinics` link, with
+ * weekday hours. Every professional has a clinic (user, 2026-09-29), and since D4 the
+ * finder, profiles and bookings read clinics only, so a professional without one has
+ * no district and no availability.
+ *
+ * Delete the professional first (the link cascades), then the clinic with
+ * `deleteTestClinics`.
+ */
+export async function seedProfessionalClinic(
+  admin: SupabaseClient,
+  professionalId: string,
+  input: { nonce: string; district: SeedDistrict; open?: boolean },
+): Promise<{ clinicId: string; linkId: string }> {
+  const token = `${input.nonce}-${Math.floor(Math.random() * 1_000_000)}`
+    .toLowerCase()
+    .replace(/[^a-z0-9-]/g, "-");
+  const clinic = await admin
+    .from("clinics")
+    .insert({
+      name: `Integration Clinic ${token}`,
+      slug: `integration-clinic-${token}`,
+      district: input.district,
+      town: input.district,
+      address: `${token} Integration Street, ${input.district}, Cyprus`,
+      phone: "22123456",
+      ...DISTRICT_PIN[input.district],
     })
-    .eq("doctor_id", professionalId)
-    .eq("is_primary", true)
     .select("id")
     .single();
-  if (location.error || !location.data?.id) {
-    throw new Error(`Failed opening primary clinic: ${location.error?.message}`);
-  }
-  const locationId = String(location.data.id);
+  if (clinic.error || !clinic.data?.id) throw new Error(`seed clinic: ${clinic.error?.message}`);
+  const clinicId = String(clinic.data.id);
 
   const link = await admin
     .from("professional_clinics")
-    .select("clinic_id")
-    .eq("id", locationId)
+    .insert({
+      professional_id: professionalId,
+      clinic_id: clinicId,
+      is_primary: true,
+      sort_order: 0,
+      pause_online_bookings: input.open === false,
+      monday: true,
+      tuesday: true,
+      wednesday: true,
+      thursday: true,
+      friday: true,
+      saturday: false,
+      sunday: false,
+      start_time: "09:00:00",
+      end_time: "17:00:00",
+      weekly_schedule: {
+        monday: WEEKDAY_HOURS,
+        tuesday: WEEKDAY_HOURS,
+        wednesday: WEEKDAY_HOURS,
+        thursday: WEEKDAY_HOURS,
+        friday: WEEKDAY_HOURS,
+        saturday: DAY_OFF,
+        sunday: DAY_OFF,
+      },
+      slot_duration_minutes: 30,
+    })
+    .select("id")
     .single();
-  if (link.error || !link.data?.clinic_id) {
-    throw new Error(`Primary clinic has no clinic link: ${link.error?.message}`);
+  if (link.error || !link.data?.id) {
+    await admin.from("clinics").delete().eq("id", clinicId);
+    throw new Error(`seed clinic link: ${link.error?.message}`);
   }
-  return { locationId, clinicId: String(link.data.clinic_id) };
+  return { clinicId, linkId: String(link.data.id) };
 }
 
 export async function deleteTestClinics(
@@ -170,8 +223,7 @@ export async function deleteTestDoctor(fixture: TestDoctorFixture): Promise<void
   const { admin, doctorId, authUserId } = fixture;
   if (doctorId) {
     await admin.from("professional_specialties").delete().eq("professional_id", doctorId);
-    await admin.from("doctor_locations").delete().eq("doctor_id", doctorId);
-    await admin.from("doctor_services").delete().eq("doctor_id", doctorId);
+    await admin.from("professional_services").delete().eq("professional_id", doctorId);
     await admin.from("professional_settings").delete().eq("professional_id", doctorId);
     await admin.from("professionals").delete().eq("id", doctorId);
   }

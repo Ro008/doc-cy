@@ -52,8 +52,6 @@ test.describe("Integration: sign-in with an emailed link", { tag: "@pr-e2e" }, (
       nonce,
       name: `Link Sign In ${nonce.slice(-4)}`,
       specialty: "Cardiology",
-      is_specialty_approved: true,
-      status: "verified",
     });
   });
 

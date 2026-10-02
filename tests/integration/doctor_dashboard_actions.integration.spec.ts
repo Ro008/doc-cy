@@ -103,7 +103,7 @@ async function createRequest(label: string): Promise<Setup> {
   const { data: existing } = await admin
     .from("appointments")
     .select("appointment_datetime, duration_minutes")
-    .eq("doctor_id", doctor!.id)
+    .eq("professional_id", doctor!.id)
     .gte("appointment_datetime", new Date().toISOString());
 
   const nonce = `${Date.now()}-${Math.floor(Math.random() * 100000)}`;
@@ -111,7 +111,7 @@ async function createRequest(label: string): Promise<Setup> {
   const { data: inserted, error } = await admin
     .from("appointments")
     .insert({
-      doctor_id: doctor!.id,
+      professional_id: doctor!.id,
       patient_name: patientName,
       patient_email: `ci-dashboard-${nonce}@example.test`,
       patient_phone: "+35799123456",

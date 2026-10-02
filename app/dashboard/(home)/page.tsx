@@ -7,7 +7,7 @@ import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
 import { formatInTimeZone, zonedTimeToUtc } from "date-fns-tz";
 import { DoctorDashboard } from "@/components/dashboard/DoctorDashboard";
 import { CY_TZ } from "@/lib/appointments";
-import { locationsToAgendaClinics } from "@/lib/agenda-clinics";
+import { locationToAgendaHours, locationsToAgendaClinics } from "@/lib/agenda-clinics";
 import { firstNameFromProfessionalName } from "@/lib/doctor-display-name";
 import {
   DASHBOARD_APPOINTMENT_SELECT,
@@ -19,8 +19,7 @@ import {
   DOCTOR_FIRST_LOGIN_PATH,
   shouldRedirectFirstLoginToSettings,
 } from "@/lib/first-login-trial-notice";
-import { loadAgendaSettings } from "@/lib/load-agenda-settings";
-import { loadDoctorLocations } from "@/lib/load-doctor-locations";
+import { loadDoctorLocations, primaryDoctorLocation } from "@/lib/load-doctor-locations";
 import { fetchAllSupabaseRows } from "@/lib/supabase-fetch-all";
 
 /**
@@ -38,7 +37,7 @@ async function loadDashboardAppointments(
       supabase
         .from("appointments")
         .select(select)
-        .eq("doctor_id", doctorId)
+        .eq("professional_id", doctorId)
         .or(`appointment_datetime.gte."${todayStartUtc}",status.eq.NEEDS_RESCHEDULE`)
         .order("appointment_datetime", { ascending: true }),
     );
@@ -64,7 +63,7 @@ export default async function DoctorDashboardPage() {
 
   let doctorRes = await supabase
     .from("professionals")
-    .select("id, name, status, slug, trial_notice_seen_at")
+    .select("id, name, slug, trial_notice_seen_at")
     .eq("auth_user_id", user.id)
     .single();
 
@@ -76,7 +75,7 @@ export default async function DoctorDashboardPage() {
   ) {
     doctorRes = await supabase
       .from("professionals")
-      .select("id, name, status, slug")
+      .select("id, name, slug")
       .eq("auth_user_id", user.id)
       .single();
   }
@@ -84,7 +83,6 @@ export default async function DoctorDashboardPage() {
   const doctor = doctorRes.data as {
     id: string;
     name: string | null;
-    status: string | null;
     slug: string | null;
     trial_notice_seen_at?: string | null;
   } | null;
@@ -98,7 +96,6 @@ export default async function DoctorDashboardPage() {
 
   if (
     shouldRedirectFirstLoginToSettings({
-      status: doctor.status,
       trialNoticeSeenAt: doctor.trial_notice_seen_at,
     })
   ) {
@@ -112,31 +109,29 @@ export default async function DoctorDashboardPage() {
     CY_TZ,
   ).toISOString();
 
-  const [{ data: appointments, error: appointmentsError }, settings, locationRows] =
-    await Promise.all([
-      loadDashboardAppointments(supabase, doctor.id, todayStartUtc),
-      loadAgendaSettings(supabase, doctor.id),
-      loadDoctorLocations(doctor.id),
-    ]);
+  const [{ data: appointments, error: appointmentsError }, locationRows] = await Promise.all([
+    loadDashboardAppointments(supabase, doctor.id, todayStartUtc),
+    loadDoctorLocations(doctor.id),
+  ]);
 
   if (appointmentsError) {
     console.error("[Dashboard] Error fetching appointments", appointmentsError);
   }
 
   const clinics = locationsToAgendaClinics(locationRows);
-  const hoursList = clinics.length > 0
-    ? clinics.map((clinic) => clinic.hours)
-    : settings.workingHours
-      ? [settings.workingHours]
-      : [];
+  const hoursList = clinics.map((clinic) => clinic.hours);
+  // The primary clinic's hours frame the timeline (schedules live on the clinic links).
+  const primaryClinic = primaryDoctorLocation(locationRows);
+  const workingHours = primaryClinic ? locationToAgendaHours(primaryClinic) : null;
 
-  // Pausing is per clinic; doctors without clinic rows use the older settings flag.
-  const pausedClinicNames = clinics.length > 0
-    ? clinics.filter((_, i) => locationRows[i]?.pause_online_bookings).map((clinic) => clinic.name)
-    : [];
-  const bookingsPaused = clinics.length > 0
-    ? { all: pausedClinicNames.length === clinics.length, clinicNames: pausedClinicNames }
-    : { all: settings.pauseOnlineBookings, clinicNames: [] };
+  // Pausing is per clinic.
+  const pausedClinicNames = clinics
+    .filter((_, i) => locationRows[i]?.pause_online_bookings)
+    .map((clinic) => clinic.name);
+  const bookingsPaused = {
+    all: clinics.length > 0 && pausedClinicNames.length === clinics.length,
+    clinicNames: pausedClinicNames,
+  };
 
   return (
     <main className="min-h-screen bg-ink-900 text-slate-50">
@@ -146,7 +141,7 @@ export default async function DoctorDashboardPage() {
         doctorSlug={doctor.slug}
         firstName={firstNameFromProfessionalName(doctor.name)}
         appointments={(appointments ?? []) as DashboardAppointmentRow[]}
-        workingHours={settings.workingHours}
+        workingHours={workingHours}
         clinics={clinics}
         todayWindow={todayWorkingWindow(hoursList, nowMs)}
         bookingsPaused={bookingsPaused}

@@ -10,9 +10,9 @@ import { seedProfessionalSpecialty } from "./helpers/test-doctor";
 /**
  * Registration redesign, step 1: a professional exists only through their clinics.
  *
- * Approving a registration will create the professional, a clinic and a
- * professional_clinics row, and nothing else: no doctor_locations row, and none of
- * the location copies on `professionals` (district, town, clinic_address, latitude,
+ * Approving a registration creates the professional, a clinic and a
+ * professional_clinics row, and nothing else: none of the location copies on
+ * `professionals` (district, town, clinic_address, latitude,
  * longitude), which Point E removes. This spec seeds exactly that shape and checks the
  * public profile, the finder and a booking all work from the clinic alone.
  *
@@ -68,11 +68,9 @@ async function seedClinicOnlyProfessional(
       email,
       mobile_number: "+35799123456",
       languages: ["English"],
-      status: "verified",
       slug,
       is_registered: true,
       pro_access_until: new Date(Date.now() + 180 * 86_400_000).toISOString(),
-      finder_visible: true,
       is_archived: false,
       is_test_profile: true,
       subscription_tier: "standard",
@@ -83,15 +81,9 @@ async function seedClinicOnlyProfessional(
   const professionalId = String(insert.data.id);
   created.professionalId = professionalId;
 
-  // Registering still auto-creates an addressless doctor_locations row (the trigger
-  // step 4 removes). The new model has none, so take it away.
-  const dropLocations = await admin.from("doctor_locations").delete().eq("doctor_id", professionalId);
-  if (dropLocations.error) throw new Error(`drop locations: ${dropLocations.error.message}`);
-
   await seedProfessionalSpecialty(admin, professionalId, {
     specialty: "Dentistry",
-    licenseNumber: `LIC-CO-${nonce}`,
-    isApproved: true,
+    licenseNumber: `LIC-CO-${nonce}`,
   });
 
   const clinic = await admin
@@ -102,6 +94,7 @@ async function seedClinicOnlyProfessional(
       district: "Paphos",
       town: "Geroskipou",
       address: `${nonce} Clinic Only Street, Geroskipou, Cyprus`,
+      phone: "26123456",
       latitude: 34.7602,
       longitude: 32.4506,
       is_archived: false,
@@ -142,7 +135,7 @@ async function cleanup(admin: SupabaseClient, created: Created) {
     await admin.from("appointments").delete().in("id", created.appointmentIds);
   }
   if (created.professionalId) {
-    await admin.from("appointments").delete().eq("doctor_id", created.professionalId);
+    await admin.from("appointments").delete().eq("professional_id", created.professionalId);
     await admin.from("professional_specialties").delete().eq("professional_id", created.professionalId);
     await admin.from("professional_settings").delete().eq("professional_id", created.professionalId);
     await admin.from("professionals").delete().eq("id", created.professionalId);
@@ -250,11 +243,9 @@ test.describe(
       }
     });
 
-    test("a location with a blank address is still offered as a clinic being set up", async () => {
-      // The mirror treats a blank address ('') as missing, so such a location has no
-      // clinic link. The loaders must still return it as "being set up", or settings
-      // finds no location to save the address into (CI: settings_clinic_address_wizard,
-      // whose professional is created with clinic_address '').
+    test("location copies on professionals are not a clinic", async () => {
+      // A district and a blank address on `professionals` (the copies Point E removes) give
+      // no clinic: since D4 the loaders read clinic links only.
       test.setTimeout(60_000);
       const admin = createIntegrationAdmin(requireSafeIntegration());
       const nonce = `${Date.now()}-${Math.floor(Math.random() * 100000)}`;
@@ -276,11 +267,8 @@ test.describe(
           .insert({
             auth_user_id: auth.data.user.id,
             name: `Blank Address ${nonce}`,
-            district: "Limassol",
-            clinic_address: "",
             registration_email: email,
             email,
-            status: "verified",
             slug: `blank-address-${nonce}`,
             is_registered: true,
             pro_access_until: new Date(Date.now() + 180 * 86_400_000).toISOString(),
@@ -293,28 +281,17 @@ test.describe(
         if (insert.error || !insert.data?.id) throw new Error(`professional: ${insert.error?.message}`);
         created.professionalId = String(insert.data.id);
 
-        const location = await admin
-          .from("doctor_locations")
-          .select("id, clinic_address")
-          .eq("doctor_id", created.professionalId)
-          .single();
-        expect(location.error).toBeNull();
-        expect(location.data?.clinic_address).toBe("");
-
         const loaded = await loadDoctorLocations(created.professionalId);
-        expect(loaded.map((row) => row.id)).toEqual([location.data?.id]);
+        expect(loaded).toEqual([]);
       } finally {
-        if (created.professionalId) {
-          await admin.from("doctor_locations").delete().eq("doctor_id", created.professionalId);
-        }
         await cleanup(admin, created);
       }
     });
 
-    test("a clinic still being set up (no address yet) takes no bookings", async ({ request }) => {
-      // "Add clinic" creates a doctor_locations row with no address or district, which
-      // has no clinic link to point an appointment at. Even unpaused, with hours, a
-      // patient must be refused (403) rather than booked somewhere with no address.
+    test("a professional with no clinic takes no bookings", async ({ request }) => {
+      // A registered professional with no clinic link has nowhere to point an appointment
+      // at, and no schedule (it lives on the clinic link since Point E6): a patient must be
+      // refused (403) rather than booked with no clinic.
       test.setTimeout(120_000);
       const admin = createIntegrationAdmin(requireSafeIntegration());
       const nonce = `${Date.now()}-${Math.floor(Math.random() * 100000)}`;
@@ -339,7 +316,6 @@ test.describe(
             registration_email: email,
             email,
             languages: ["English"],
-            status: "verified",
             slug: `setting-up-${nonce}`,
             is_registered: true,
             pro_access_until: new Date(Date.now() + 180 * 86_400_000).toISOString(),
@@ -351,24 +327,6 @@ test.describe(
           .single();
         if (insert.error || !insert.data?.id) throw new Error(`professional: ${insert.error?.message}`);
         created.professionalId = String(insert.data.id);
-
-        // The trigger made an addressless primary location; open it for bookings.
-        const open = await admin
-          .from("doctor_locations")
-          .update({
-            pause_online_bookings: false,
-            monday: true,
-            tuesday: true,
-            wednesday: true,
-            thursday: true,
-            friday: true,
-            start_time: "09:00:00",
-            end_time: "17:00:00",
-          })
-          .eq("doctor_id", created.professionalId)
-          .select("id, district, clinic_address");
-        if (open.error || open.data?.length !== 1) throw new Error(`open location: ${open.error?.message}`);
-        expect(open.data[0].district).toBeNull();
 
         const res = await request.post("/api/appointments", {
           data: {
@@ -387,12 +345,9 @@ test.describe(
         const left = await admin
           .from("appointments")
           .select("id")
-          .eq("doctor_id", created.professionalId);
+          .eq("professional_id", created.professionalId);
         expect(left.data ?? []).toHaveLength(0);
       } finally {
-        if (created.professionalId) {
-          await admin.from("doctor_locations").delete().eq("doctor_id", created.professionalId);
-        }
         await cleanup(admin, created);
       }
     });

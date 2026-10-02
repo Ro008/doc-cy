@@ -52,7 +52,7 @@ test.describe("Future appointments cancellation @booking-creates", () => {
       .from("professionals")
       .select("slug,id")
       .eq("auth_user_id", authUserId)
-      .eq("status", "verified")
+      .eq("is_registered", true)
       .single();
     const slug = (doctorRow as { slug?: string } | null)?.slug;
     expect(slug).toBeTruthy();
@@ -129,7 +129,7 @@ test.describe("Future appointments cancellation @booking-creates", () => {
             const insertRes = await admin
               .from("appointments")
               .insert({
-                doctor_id: doctorId,
+                professional_id: doctorId,
                 patient_name: patientName,
                 patient_email: patientEmail,
                 patient_phone: patientPhone,
