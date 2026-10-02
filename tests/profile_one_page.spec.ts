@@ -82,10 +82,14 @@ test.describe("Public profile one page", { tag: "@pr-e2e" }, () => {
     const second = dayCards.nth(Math.min(1, (await dayCards.count()) - 1));
     const dateKey = await second.getAttribute("data-date");
     expect(dateKey).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-    await second.click();
-
+    // Before hydration the card is a plain #book link (it still scrolls); retry the click.
+    await expect(async () => {
+      await second.click();
+      await expect(page.getByTestId("booking-selected-day")).toHaveAttribute("data-date", dateKey!, {
+        timeout: 2_000,
+      });
+    }).toPass({ timeout: 20_000 });
     await expect(page).toHaveURL(/#book$/);
-    await expect(page.getByTestId("booking-selected-day")).toHaveAttribute("data-date", dateKey!);
 
     // Picking a time brings the Confirm button into view, on any screen size.
     await page.locator("#book button[aria-pressed]").first().click();
@@ -104,6 +108,18 @@ test.describe("Public profile one page", { tag: "@pr-e2e" }, () => {
     await suggestion.getByRole("button", { name: "sdf@gmail.com" }).click();
     await expect(email).toHaveValue("sdf@gmail.com");
     await expect(suggestion).toHaveCount(0);
+
+    // Gender and date of birth are asked too, and every field is required.
+    await page.getByLabel("Full name", { exact: true }).fill("Profile Form Check");
+    await page.getByRole("textbox", { name: /Phone/i }).pressSequentially("99123456");
+    await page.getByLabel("This is my first visit").check();
+    await page.locator("#visitReason").fill("Checking the form only.");
+    await expect(page.getByRole("radio", { name: "Prefer not to say" })).toBeVisible();
+    await page.getByRole("button", { name: /Send booking request/i }).click();
+    await expect(page.getByTestId("booking-error-message")).toContainText("Please select your gender.");
+    await page.getByRole("radio", { name: "Female" }).check();
+    await page.getByRole("button", { name: /Send booking request/i }).click();
+    await expect(page.getByTestId("booking-error-message")).toContainText("Please enter your date of birth.");
   });
 
   test("a soft fade marks that the page continues below, and goes away at the end", async ({ page }) => {
@@ -115,6 +131,73 @@ test.describe("Public profile one page", { tag: "@pr-e2e" }, () => {
     await expect(fade).toHaveAttribute("data-visible", "false");
     await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
     await expect(fade).toHaveAttribute("data-visible", "true");
+  });
+
+  test("search engines see the profile's own canonical URL and breadcrumbs", async ({ page }) => {
+    await page.goto(`/${slug}`, { waitUntil: "domcontentloaded" });
+    await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", new RegExp(`/en/${slug}$`));
+    const crumbs = page.getByRole("navigation", { name: "Breadcrumb" });
+    await expect(crumbs).toBeVisible({ timeout: 15000 });
+    await expect(crumbs.getByRole("link").first()).toHaveAttribute("href", /^\//);
+    const types = await page.evaluate(() =>
+      Array.from(document.querySelectorAll('script[type="application/ld+json"]')).flatMap((s) => {
+        const parsed = JSON.parse(s.textContent || "null");
+        return (Array.isArray(parsed) ? parsed : [parsed]).map((item) => item?.["@type"]);
+      }),
+    );
+    expect(types).toEqual(expect.arrayContaining(["Physician", "BreadcrumbList"]));
+  });
+
+  test("each clinic shows its opening hours", async ({ page }) => {
+    await page.goto(`/${slug}`, { waitUntil: "domcontentloaded" });
+    const hours = page.getByTestId("profile-clinic-hours");
+    test.skip((await hours.count()) === 0, "No clinic with a published schedule.");
+    await expect(hours.first()).toContainText(/\d{2}:\d{2}–\d{2}:\d{2}/);
+  });
+
+  test("on phones a Request appointment bar appears once the hero scrolls away", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 800 });
+    await page.goto(`/${slug}`, { waitUntil: "domcontentloaded" });
+    const bar = page.getByTestId("profile-mobile-book-bar");
+    await expect(bar).toHaveAttribute("data-visible", "false", { timeout: 15000 });
+    await page.evaluate(() => document.getElementById("about")?.scrollIntoView({ behavior: "instant" }));
+    await expect(bar).toHaveAttribute("data-visible", "true");
+    await expect(bar.getByRole("link", { name: /Request appointment/ })).toHaveAttribute("href", "#book");
+    // Hidden again while the booking calendar itself is on screen.
+    await page.evaluate(() => document.getElementById("book")?.scrollIntoView({ behavior: "instant" }));
+    await expect(bar).toHaveAttribute("data-visible", "false");
+  });
+
+  test("Share copies the profile link where the system share sheet is missing", async ({ page, context }) => {
+    await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+    await page.addInitScript(() => {
+      Object.defineProperty(navigator, "share", { value: undefined, configurable: true });
+    });
+    await page.goto(`/${slug}`, { waitUntil: "domcontentloaded" });
+    const share = page.getByRole("button", { name: "Share" });
+    await expect(async () => {
+      await share.click();
+      await expect(page.getByRole("status").filter({ hasText: "Link copied" })).toHaveCount(1, { timeout: 1_000 });
+    }).toPass({ timeout: 15_000 });
+    const copied = await page.evaluate(() => navigator.clipboard.readText());
+    expect(copied).toMatch(new RegExp(`/en/${slug}$`));
+  });
+
+  test("Report incorrect information opens the feedback form about this profile", async ({ page }) => {
+    await page.goto(`/${slug}`, { waitUntil: "domcontentloaded" });
+    const report = page.getByRole("button", { name: "Report incorrect information" });
+    // The feedback form's message box, prefilled with which profile it is about.
+    const prefilled = () =>
+      page.evaluate(() =>
+        Array.from(document.querySelectorAll("textarea"))
+          .map((t) => t.value)
+          .find((v) => v.startsWith("Incorrect information")) ?? null,
+      );
+    await expect(async () => {
+      await report.click();
+      expect(await prefilled()).not.toBeNull();
+    }).toPass({ timeout: 20_000 });
+    expect(await prefilled()).toMatch(new RegExp(`/en/${slug}`));
   });
 
   test("ends with an About DocCy link to the professionals page", async ({ page }) => {

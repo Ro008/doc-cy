@@ -13,7 +13,7 @@ export type PhoneInputProps = {
   value: string;
   onChange: (value: string, isValid: boolean) => void;
   defaultCountry?: string; // e.g. "cy"
-  label?: string;
+  label?: React.ReactNode;
   id?: string;
   /** When true, show validation error only after submit attempt (never on load). */
   showValidationError?: boolean;

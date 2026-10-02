@@ -21,6 +21,13 @@ import {
 } from "@/lib/booking-slot-param";
 import { normalizeMinimumNoticeHours } from "@/lib/doctor-settings";
 import { isValidRegisterEmail, suggestRegisterEmail } from "@/lib/register-email";
+import {
+  PATIENT_GENDERS,
+  bookingPatientDetailsPayload,
+  dateOfBirthBounds,
+  validateDateOfBirth,
+  type PatientGender,
+} from "@/lib/booking-patient-details";
 import { APPOINTMENT_REASON_MAX_LENGTH } from "@/lib/visit-types";
 import { formatDateDDMMYYYY } from "@/lib/date-format";
 import "react-day-picker/dist/style.css";
@@ -35,6 +42,27 @@ import {
 const CARD_CLASS =
   "rounded-3xl border border-profile-border bg-profile-surface p-6 text-profile-body shadow-sm";
 const LABEL_CLASS = "text-sm font-semibold text-profile-text";
+/**
+ * Every booking field is required (user, 2026-10-02). The star is drawn by CSS, so a
+ * label's text stays exactly "Email" for assistive tech and tests; `required` on the
+ * field is what screen readers announce.
+ */
+function RequiredMark() {
+  return (
+    <span
+      aria-hidden="true"
+      className="ml-0.5 text-red-600 after:content-['*'] [.doccy-profile[data-scheme=dark]_&]:text-red-400"
+    />
+  );
+}
+
+const CHOICE_CLASS = (selected: boolean) =>
+  `flex min-h-11 cursor-pointer items-center gap-2 rounded-2xl border-2 px-3 py-2.5 text-sm font-medium transition ${
+    selected
+      ? "border-accent bg-accent-soft text-profile-text"
+      : "border-profile-border bg-profile-surface text-profile-body hover:border-accent"
+  }`;
+
 const INPUT_CLASS =
   "w-full rounded-2xl border border-profile-border bg-profile-bg px-3 py-2.5 text-base text-profile-text placeholder:text-profile-muted focus:outline-none focus:ring-2 focus:ring-accent";
 
@@ -130,6 +158,8 @@ export function BookingSection({
   const [phoneValid, setPhoneValid] = React.useState(true);
   const [showPhoneError, setShowPhoneError] = React.useState(false);
   const [isNewPatient, setIsNewPatient] = React.useState<boolean | null>(null);
+  const [gender, setGender] = React.useState<PatientGender | null>(null);
+  const [dateOfBirth, setDateOfBirth] = React.useState("");
   const [visitReason, setVisitReason] = React.useState("");
   const [submitting, setSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -369,6 +399,17 @@ export function BookingSection({
         setError(t("errors.validPhone"));
         return;
       }
+      if (!gender) {
+        setError(t("errors.selectGender"));
+        return;
+      }
+      const birthError = validateDateOfBirth(dateOfBirth, new Date());
+      if (birthError) {
+        setError(
+          birthError === "missing" ? t("errors.dateOfBirthMissing") : t("errors.dateOfBirthInvalid"),
+        );
+        return;
+      }
       if (isNewPatient === null) {
         setError(t("errors.selectVisitHistory"));
         return;
@@ -392,6 +433,9 @@ export function BookingSection({
             appointmentLocal: selectedSlot.slotKey,
             reason: reasonTrim,
             isNewPatient,
+            // NOT STORED until Livio adds them to POST /api/appointments (contract in
+            // lib/booking-patient-details.ts); the API ignores unknown fields meanwhile.
+            ...bookingPatientDetailsPayload({ gender, dateOfBirth }),
             ...(locationId ? { locationId } : {}),
           }),
         });
@@ -449,6 +493,8 @@ export function BookingSection({
       patientPhone,
       phoneValid,
       isNewPatient,
+      gender,
+      dateOfBirth,
       visitReason,
       doctorId,
       profileSlug,
@@ -576,13 +622,16 @@ export function BookingSection({
             {t("changeTime")}
           </button>
         </div>
-        <form className="space-y-4" onSubmit={handleSubmit}>
+        {/* Our checks (handleSubmit) give every field the same styled message; the
+            browser's own bubbles would stop the submit first, in its own words. */}
+        <form className="space-y-4" onSubmit={handleSubmit} noValidate>
           <div className="space-y-2">
             <label
               htmlFor="name"
               className={LABEL_CLASS}
             >
               {t("patientFullNameLabel")}
+              <RequiredMark />
             </label>
             <input
               id="name"
@@ -600,6 +649,7 @@ export function BookingSection({
               className={LABEL_CLASS}
             >
               {t("emailLabel")}
+              <RequiredMark />
             </label>
             <input
               id="email"
@@ -654,7 +704,12 @@ export function BookingSection({
           <div className="space-y-2">
             <PhoneInput
               id="phone"
-              label={t("phonePriorityContactLabel")}
+              label={
+                <>
+                  {t("phonePriorityContactLabel")}
+                  <RequiredMark />
+                </>
+              }
               value={patientPhone}
               onChange={(val, isValid) => {
                 setPatientPhone(val);
@@ -667,8 +722,46 @@ export function BookingSection({
           </div>
           <fieldset className="space-y-2">
             <legend className={LABEL_CLASS}>
-              {t("visitHistoryLabel", { doctorName })}{" "}
-              <span className="text-red-600">*</span>
+              {t("genderLabel")}
+              <RequiredMark />
+            </legend>
+            <div className="grid gap-2 sm:grid-cols-3">
+              {PATIENT_GENDERS.map((value) => (
+                <label key={value} className={CHOICE_CLASS(gender === value)}>
+                  <input
+                    type="radio"
+                    name="gender"
+                    required
+                    className="h-4 w-4 accent-[var(--p-accent-cta)]"
+                    checked={gender === value}
+                    onChange={() => setGender(value)}
+                  />
+                  {t(`gender.${value}`)}
+                </label>
+              ))}
+            </div>
+          </fieldset>
+          <div className="space-y-2">
+            <label htmlFor="dateOfBirth" className={LABEL_CLASS}>
+              {t("dateOfBirthLabel")}
+              <RequiredMark />
+            </label>
+            <input
+              id="dateOfBirth"
+              type="date"
+              required
+              value={dateOfBirth}
+              min={dateOfBirthBounds(new Date()).min}
+              max={dateOfBirthBounds(new Date()).max}
+              onChange={(e) => setDateOfBirth(e.target.value)}
+              autoComplete="bday"
+              className={`${INPUT_CLASS} [color-scheme:inherit]`}
+            />
+          </div>
+          <fieldset className="space-y-2">
+            <legend className={LABEL_CLASS}>
+              {t("visitHistoryLabel", { doctorName })}
+              <RequiredMark />
             </legend>
             <div className="grid gap-2 sm:grid-cols-2">
               <label
@@ -710,8 +803,8 @@ export function BookingSection({
               htmlFor="visitReason"
               className={LABEL_CLASS}
             >
-              {t("visitReasonLabel")}{" "}
-              <span className="text-red-600">*</span>
+              {t("visitReasonLabel")}
+              <RequiredMark />
             </label>
             <textarea
               id="visitReason"

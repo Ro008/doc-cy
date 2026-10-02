@@ -140,10 +140,20 @@
       "timeSlotJustBooked": "This time slot has just been booked. Please choose another slot.",
       "preselectedSlotUnavailable": "That time is no longer available. Please choose another slot.",
       "bookingFailed": "We could not complete your booking. Please try again.",
-      "somethingWentWrong": "Something went wrong. Please try again."
+      "somethingWentWrong": "Something went wrong. Please try again.",
+      "selectGender": "Please select your gender.",
+      "dateOfBirthMissing": "Please enter your date of birth.",
+      "dateOfBirthInvalid": "Please check your date of birth."
     },
     "emailDidYouMean": "Did you mean",
-    "emailInvalid": "Enter a valid email, e.g. name@example.com."
+    "emailInvalid": "Enter a valid email, e.g. name@example.com.",
+    "genderLabel": "Gender",
+    "gender": {
+      "male": "Male",
+      "female": "Female",
+      "prefer_not_to_say": "Prefer not to say"
+    },
+    "dateOfBirthLabel": "Date of birth"
   },
   "DoctorAgenda": {
     "appointmentPendingBadge": "Pending",
@@ -165,7 +175,6 @@
   },
   "DoctorProfilePage": {
     "profileHeadingCityFallback": "Cyprus",
-    "profileTag": "Professional profile",
     "cyprusLocalTime": "Cyprus local time",
     "whatToExpectTitle": "What to expect",
     "whatToExpectStep1Lead": "Request in seconds.",
@@ -202,7 +211,14 @@
     "schemeLight": "Light",
     "schemeDark": "Dark",
     "heroClinicDetails": "Clinic details",
-    "aboutDocCy": "About DocCy"
+    "aboutDocCy": "About DocCy",
+    "breadcrumbLabel": "Breadcrumb",
+    "shareLabel": "Share",
+    "shareCopied": "Link copied",
+    "reportIncorrect": "Report incorrect information",
+    "reportMessage": "Incorrect information on {name}'s profile ({url}): ",
+    "openingHoursLabel": "Opening hours",
+    "mobileBarNext": "Next: {when}"
   },
   "LandingPage": {
     "Hero": {

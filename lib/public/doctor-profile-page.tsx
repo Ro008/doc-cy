@@ -12,6 +12,10 @@ import { ProfileClinicsSection } from "@/components/doctor/profile/ProfileClinic
 import { ProfileNextAvailability } from "@/components/doctor/profile/ProfileNextAvailability";
 import { ProfileSchemeToggle } from "@/components/doctor/profile/ProfileSchemeToggle";
 import { ProfileScrollFade } from "@/components/doctor/profile/ProfileScrollFade";
+import { ProfileBreadcrumbs } from "@/components/doctor/profile/ProfileBreadcrumbs";
+import { ProfileMobileBookBar } from "@/components/doctor/profile/ProfileMobileBookBar";
+import { ProfileReportLink } from "@/components/doctor/profile/ProfileReportLink";
+import { ProfileShareButton } from "@/components/doctor/profile/ProfileShareButton";
 import { ProfileSectionNav } from "@/components/doctor/profile/ProfileSectionNav";
 import { ProfileServicesSection } from "@/components/doctor/profile/ProfileServicesSection";
 import { languageThemeForLabel } from "@/lib/cyprus-languages";
@@ -22,6 +26,13 @@ import { computePublicAvailabilityCalendar } from "@/lib/public/compute-public-b
 import { buildProfileClinicCards } from "@/lib/public/profile-clinic-cards";
 import { summarizeNextAvailabilityDays } from "@/lib/public/profile-next-availability";
 import { profileDistricts } from "@/lib/public/profile-districts";
+import { profileBreadcrumbs } from "@/lib/public/profile-breadcrumbs";
+import { buildProfileStructuredData } from "@/lib/public/profile-structured-data";
+import {
+  clinicOpeningHours,
+  formatOpeningDays,
+  formatOpeningRanges,
+} from "@/lib/public/clinic-opening-hours";
 import { PROFILE_SECTION_IDS, profileSectionTabs } from "@/lib/public/profile-sections";
 import { DoctorProfileClinicPicker } from "@/components/doctor/DoctorProfileClinicPicker";
 import { loadDoctorLocations, primaryDoctorLocation } from "@/lib/load-doctor-locations";
@@ -38,13 +49,16 @@ import {
   takenSlotTimesFor,
   type OccupiedRow,
 } from "@/lib/public/load-doctor-next-available-slot";
-import { settingsToWeeklySlots } from "@/lib/doctor-settings";
+import {
+  buildWeeklyScheduleFromSettings,
+  settingsToWeeklySlots,
+  type DayKey,
+} from "@/lib/doctor-settings";
 import { appointmentToCyprusDate, CY_TZ } from "@/lib/appointments";
 import { addDays, format } from "date-fns";
 import { el as elLocale, enGB } from "date-fns/locale";
 import { Building2, MapPin } from "lucide-react";
 import { utcToZonedTime, zonedTimeToUtc } from "date-fns-tz";
-import { buildMapsUrlFromAddress, buildMapsUrlFromClinicLocation } from "@/lib/clinic-info";
 import { stripPlusCodePrefix } from "@/lib/clinic-location-pin";
 import {
   DOCTOR_FIELD_LIST_PUBLIC_PROFILE_BASE,
@@ -306,100 +320,6 @@ async function fetchPublicDoctorBySlug(
 
 export const revalidate = 0;
 
-type PhysicianStructuredData = {
-  "@context": "https://schema.org";
-  "@type": "Physician";
-  name: string;
-  url?: string;
-  sameAs?: string;
-  areaServed: "Cyprus";
-  address: {
-    "@type": "PostalAddress";
-    streetAddress?: string;
-    addressLocality?: string;
-    addressRegion?: string;
-    addressCountry: "CY";
-  };
-  image?: string;
-  medicalSpecialty?: string;
-  telephone?: string;
-  knowsLanguage?: string[];
-  description?: string;
-};
-
-function parseAddressParts(address: string): { streetAddress?: string; addressLocality?: string } {
-  const parts = address
-    .split(",")
-    .map((p) => p.trim())
-    .filter(Boolean);
-  if (parts.length === 0) return {};
-  if (parts.length === 1) return { streetAddress: parts[0] };
-  return {
-    streetAddress: parts[0],
-    addressLocality: parts.slice(1).join(", "),
-  };
-}
-
-function buildPhysicianStructuredData(input: {
-  name: string;
-  specialty?: string | null;
-  bio?: string | null;
-  clinicAddress?: string | null;
-  district?: string | null;
-  phone?: string | null;
-  languages?: string[] | null;
-  imageUrl?: string | null;
-  profileUrl?: string | null;
-  sameAs?: string | null;
-}): PhysicianStructuredData {
-  const name = input.name.trim();
-  const specialty = (input.specialty ?? "").trim();
-  const bio = (input.bio ?? "").trim();
-  const district = (input.district ?? "").trim();
-  const phone = (input.phone ?? "").trim();
-  const languages = Array.isArray(input.languages)
-    ? input.languages.map((l) => String(l).trim()).filter(Boolean)
-    : [];
-  const addressRaw = stripPlusCodePrefix((input.clinicAddress ?? "").trim());
-  const addressParts = parseAddressParts(addressRaw);
-
-  const address: PhysicianStructuredData["address"] = {
-    "@type": "PostalAddress",
-    addressCountry: "CY",
-    ...(addressParts.streetAddress ? { streetAddress: addressParts.streetAddress } : {}),
-    ...(addressParts.addressLocality
-      ? { addressLocality: addressParts.addressLocality }
-      : district
-        ? { addressLocality: district }
-        : {}),
-    ...(district ? { addressRegion: district } : {}),
-  };
-
-  const description =
-    bio ||
-    (specialty
-      ? `${name} provides ${specialty} services in Cyprus via DocCy.`
-      : `${name} provides healthcare services in Cyprus via DocCy.`);
-
-  const profileUrl = String(input.profileUrl ?? "").trim();
-  const sameAs = String(input.sameAs ?? "").trim();
-
-  return {
-    "@context": "https://schema.org",
-    "@type": "Physician",
-    name,
-    ...(profileUrl ? { url: profileUrl } : {}),
-    ...(sameAs ? { sameAs } : {}),
-    ...(input.imageUrl ? { image: input.imageUrl } : {}),
-    ...(specialty ? { medicalSpecialty: specialty } : {}),
-    address,
-    ...(phone ? { telephone: phone } : {}),
-    ...(languages.length > 0 ? { knowsLanguage: languages } : {}),
-    areaServed: "Cyprus",
-    ...(description ? { description } : {}),
-  };
-}
-
 function resolvePublicAvatarUrl(
   supabase: SupabaseClient,
   avatarPathOrUrl: string | null | undefined,
@@ -536,6 +456,9 @@ export async function generateMetadata({
     districtLabel,
   });
   const dynamicTitle = metaTitleCore ?? fallbackTitle;
+  // The root layout's canonical is "/": without this every profile claimed to be the
+  // home page. English is the canonical copy (the Greek one is not reviewed yet).
+  const canonicalUrl = `${siteBaseUrl()}${publicProfessionalProfilePath(params.slug)}`;
   const dynamicDescription = buildRegisteredProfileMetaDescription({
     doctorName,
     specialtyForSeo,
@@ -550,6 +473,7 @@ export async function generateMetadata({
   return {
     title: dynamicTitle,
     description: dynamicDescription,
+    alternates: { canonical: canonicalUrl },
     openGraph: {
       title: dynamicTitle,
       description: dynamicDescription,
@@ -612,7 +536,6 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
     isOwnerView = ownerDoctor?.auth_user_id === user.id;
   }
   const clinicAddress = stripPlusCodePrefix((profile.clinic_address ?? "").trim());
-  const mapsUrl = buildMapsUrlFromAddress(clinicAddress) ?? "";
   let avatarUrl: string | null = null;
   const contactLookup = await supabase
     .from("professionals")
@@ -631,7 +554,7 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
     console.error("[DocCy] public contact lookup failed:", contactLookup.error);
   }
 
-  const profileCanonicalUrl = `${siteBaseUrl()}${publicProfessionalProfilePath(params.slug, profileLocale(params))}`;
+  const profileCanonicalUrl = `${siteBaseUrl()}${publicProfessionalProfilePath(params.slug)}`;
 
   // Account settings (holiday, horizon, notice); the schedule is the clinic link's (Point E6).
   const { settings: normalizedSettings } = await loadProfessionalAccountSettings(
@@ -749,18 +672,6 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
   const hasPublicPhone = selectedClinic
     ? Boolean(selectedClinic.hasPhone)
     : callClinics.length > 0;
-  const structuredData = buildPhysicianStructuredData({
-    name: profile.name,
-    specialty: profileSpecialtySeo || profile.specialty,
-    bio: profile.bio,
-    clinicAddress: clinicAddress,
-    district: profile.district ?? null,
-    phone: null,
-    languages: profile.languages ?? null,
-    imageUrl: avatarUrl,
-    profileUrl: profileCanonicalUrl,
-    sameAs: mapsUrl || null,
-  });
 
   // ─── One-page layout (hero, sticky anchor tabs, sections) ───────────────────
   const customization = profileCustomizationFromRow(profile);
@@ -847,6 +758,68 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
     .map((raw) => String(raw).trim())
     .filter(Boolean)
     .map((raw) => languageThemeForLabel(raw));
+  // Opening hours per clinic card, from the same schedule as the bookable times.
+  const weekdayLabel = (day: DayKey) =>
+    format(
+      new Date(2026, 0, { monday: 5, tuesday: 6, wednesday: 7, thursday: 8, friday: 9, saturday: 10, sunday: 11 }[day]),
+      "EEE",
+      { locale: dayLabelLocale },
+    );
+  const openingHoursByLocation = new Map(
+    practiceLocations.map((location) => {
+      const row = locationToSettingsRow(location, normalizedSettings ?? ACCOUNT_SETTINGS_FALLBACK);
+      return [
+        location.id,
+        clinicOpeningHours(buildWeeklyScheduleFromSettings(row), {
+          breakStart: row.break_start,
+          breakEnd: row.break_end,
+        }),
+      ] as const;
+    }),
+  );
+  const openingHoursByCard: Record<string, Array<{ days: string; hours: string }>> = {};
+  for (const [locationId, groups] of openingHoursByLocation) {
+    openingHoursByCard[locationId] = groups.map((group) => ({
+      days: formatOpeningDays(group.days, weekdayLabel),
+      hours: formatOpeningRanges(group.ranges),
+    }));
+  }
+
+  const breadcrumbs = profileBreadcrumbs({
+    specialty: profileSpecialtyLabels[0] ?? profile.specialty,
+    district: districts[0] ?? profileDistrictLabel,
+    name: profile.name,
+  });
+
+  const structuredData = buildProfileStructuredData({
+    name: profile.name,
+    profileUrl: profileCanonicalUrl,
+    siteUrl: siteBaseUrl(),
+    specialty: profileSpecialtySeo || profile.specialty || null,
+    description:
+      (profile.bio ?? "").trim() ||
+      `${profile.name} provides ${profileSpecialtySeo || profile.specialty || "healthcare"} services in Cyprus via DocCy.`,
+    imageUrl: avatarUrl,
+    languages: languageChips.map((chip) => chip.label),
+    services: services.map((service) => ({ name: service.name, price: service.price })),
+    clinics: practiceLocations.map((location, index) => ({
+      name: clinicTitleOrFallback(location.label, bookingT("clinicNumber", { number: index + 1 })),
+      address: stripPlusCodePrefix(String(location.clinic_address ?? "")),
+      district: normalizeDistrictForSeoTitle(location.district),
+      latitude: location.latitude ?? null,
+      longitude: location.longitude ?? null,
+      openingHours: openingHoursByLocation.get(location.id) ?? [],
+    })),
+    breadcrumbs,
+  });
+
+  const firstDay = nextDays[0];
+  const mobileBarNext = firstDay
+    ? t("mobileBarNext", {
+        when: `${firstDay.isToday ? t("nextAvailabilityToday") : dayByDate[firstDay.dateKey]} · ${firstDay.fromTime}`,
+      })
+    : null;
+
   // Links in the hero look like links (underline); plain facts do not.
   const heroLinkClass =
     "underline decoration-2 underline-offset-4 transition hover:decoration-[3px] focus:outline-none focus-visible:rounded focus-visible:ring-2 focus-visible:ring-accent-on";
@@ -872,10 +845,14 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
           }}
         />
       ) : null}
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
-      />
+      {/* One script per object (Physician, BreadcrumbList), the form every reader expects. */}
+      {structuredData.map((item) => (
+        <script
+          key={String(item["@type"])}
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(item) }}
+        />
+      ))}
 
       <div className="mx-auto max-w-6xl px-4 pb-6 pt-5 sm:px-6 lg:px-8">
         {isOwnerView ? (
@@ -889,19 +866,24 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
             </a>
           </div>
         ) : null}
-        <div className="mb-4 flex items-center justify-between gap-3">
-          <span className="text-xs font-bold uppercase tracking-[0.16em] text-profile-muted">
-            {t("profileTag")}
-          </span>
-          {/* No language switcher until the Greek copy is reviewed (user, 2026-10-02). */}
-          <ProfileSchemeToggle
-            initial={scheme}
-            labels={{
-              group: t("schemeGroupLabel"),
-              light: t("schemeLight"),
-              dark: t("schemeDark"),
-            }}
-          />
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <ProfileBreadcrumbs crumbs={breadcrumbs} ariaLabel={t("breadcrumbLabel")} />
+          <div className="flex items-center gap-2">
+            <ProfileShareButton
+              url={profileCanonicalUrl}
+              title={profile.name}
+              labels={{ share: t("shareLabel"), copied: t("shareCopied") }}
+            />
+            {/* No language switcher until the Greek copy is reviewed (user, 2026-10-02). */}
+            <ProfileSchemeToggle
+              initial={scheme}
+              labels={{
+                group: t("schemeGroupLabel"),
+                light: t("schemeLight"),
+                dark: t("schemeDark"),
+              }}
+            />
+          </div>
         </div>
 
         <header className="grid gap-6 rounded-[2rem] bg-accent p-5 text-accent-on sm:p-7 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-center lg:gap-8">
@@ -1066,7 +1048,11 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
 
         <ProfileAboutSection firstName={profileFirstName(profile.name)} bio={profile.bio} />
         <ProfileServicesSection services={services} />
-        <ProfileClinicsSection cards={clinicCards} professionalId={profile.id} />
+        <ProfileClinicsSection
+          cards={clinicCards}
+          professionalId={profile.id}
+          openingHours={openingHoursByCard}
+        />
 
         <footer className="flex flex-wrap items-center justify-between gap-2 border-t border-profile-border pt-6 text-sm text-profile-muted">
           <a
@@ -1075,8 +1061,13 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
           >
             {t("aboutDocCy")}
           </a>
+          <ProfileReportLink
+            label={t("reportIncorrect")}
+            message={t("reportMessage", { name: profile.name, url: profileCanonicalUrl })}
+          />
         </footer>
       </div>
+      <ProfileMobileBookBar next={mobileBarNext} cta={t("requestAppointmentCta")} />
       <ProfileScrollFade />
     </main>
   );

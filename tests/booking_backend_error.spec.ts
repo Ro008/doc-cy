@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { fillBookingPatientDetails } from "./helpers/fillBookingPatientDetails";
 import { skipIfSafeNoBooking } from "./helpers/safeMode";
 import { createTestDataClient } from "./helpers/testDataClient";
 
@@ -74,6 +75,7 @@ test.describe("Booking backend errors @booking-creates", () => {
       page.getByText(/Please enter a valid phone number|double‑check the phone number length/i)
     ).toBeHidden({ timeout: 3000 });
 
+    await fillBookingPatientDetails(page);
     await page.getByLabel("This is my first visit").check();
     await page.locator("#visitReason").fill("E2E backend error path — visit reason.");
 
@@ -206,6 +208,7 @@ test.describe("Booking backend errors @booking-creates", () => {
       )
     ).toBeHidden({ timeout: 3000 });
 
+    await fillBookingPatientDetails(page);
     await page.getByLabel("This is my first visit").check();
     await page.locator("#visitReason").fill("E2E backend error path — visit reason.");
 

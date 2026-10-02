@@ -71,6 +71,24 @@ describe("public profile: one page with anchor tabs", () => {
     assert.match(nav, /mask-image/);
   });
 
+  it("points search engines at the profile itself, not the home page", () => {
+    // Registered profiles inherited the root layout's canonical "/" (2026-10-02).
+    const registeredMeta = page.slice(page.indexOf("const dynamicTitle"));
+    assert.match(registeredMeta, /alternates:\s*\{\s*canonical:\s*canonicalUrl\s*\}/);
+    assert.match(page, /const canonicalUrl = `\$\{siteBaseUrl\(\)\}\$\{publicProfessionalProfilePath\(params\.slug\)\}`/);
+  });
+
+  it("adds the industry basics: breadcrumbs, opening hours, mobile book bar, share, report", () => {
+    assert.match(page, /<ProfileBreadcrumbs\b/);
+    assert.match(page, /buildProfileStructuredData\(/);
+    assert.match(page, /clinicOpeningHours\(/);
+    assert.match(page, /<ProfileMobileBookBar\b/);
+    assert.match(page, /<ProfileShareButton\b/);
+    assert.match(page, /<ProfileReportLink\b/);
+    const clinics = read("components/doctor/profile/ProfileClinicsSection.tsx");
+    assert.match(clinics, /openingHours/);
+  });
+
   it("hero names every district with a clinic, each a link", () => {
     assert.match(page, /profileDistricts\(/);
     assert.match(page, /districts\.map\(/);
@@ -93,6 +111,17 @@ describe("public profile: one page with anchor tabs", () => {
     assert.match(booking, /suggestRegisterEmail\(/);
     assert.match(booking, /isValidRegisterEmail\(/);
     assert.match(booking, /data-testid="booking-email-suggestion"/);
+  });
+
+  it("booking form: every field required, plus gender and date of birth", () => {
+    const booking = read("components/doctor/BookingSection.tsx");
+    assert.match(booking, /PATIENT_GENDERS\.map\(/);
+    assert.match(booking, /type="date"/);
+    assert.match(booking, /validateDateOfBirth\(/);
+    assert.match(booking, /bookingPatientDetailsPayload\(/);
+    // Required marker on every field label (name, email, phone, first visit, gender, birth date, reason).
+    assert.ok((booking.match(/<RequiredMark \/>/g) ?? []).length >= 7);
+    assert.match(booking, /NOT STORED until Livio/);
   });
 
   it("brings the Confirm button into view when a time is picked", () => {

@@ -1,4 +1,4 @@
-import { Check, MapPin } from "lucide-react";
+import { Check, Clock, MapPin } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { RevealPhoneButton } from "@/components/finder/RevealPhoneButton";
 import type { ProfileClinicCard } from "@/lib/public/profile-clinic-cards";
@@ -7,10 +7,12 @@ import { PROFILE_SECTION_IDS } from "@/lib/public/profile-sections";
 type Props = {
   cards: readonly ProfileClinicCard[];
   professionalId: string;
+  /** Opening hours per card key, already formatted ("Mon–Fri", "09:00–13:00, 14:00–17:00"). */
+  openingHours: Readonly<Record<string, ReadonlyArray<{ days: string; hours: string }>>>;
 };
 
-/** "Clinics & contact": each place with its address, map and the clinic's phone. */
-export async function ProfileClinicsSection({ cards, professionalId }: Props) {
+/** "Clinics & contact": each place with its address, opening hours, map and phone. */
+export async function ProfileClinicsSection({ cards, professionalId, openingHours }: Props) {
   if (cards.length === 0) return null;
   const t = await getTranslations("DoctorProfilePage");
   const bookingT = await getTranslations("BookingPage");
@@ -54,6 +56,22 @@ export async function ProfileClinicsSection({ cards, professionalId }: Props) {
                 <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-accent-link" aria-hidden />
                 <span>{card.address}</span>
               </p>
+            ) : null}
+            {openingHours[card.key]?.length ? (
+              <div data-testid="profile-clinic-hours" className="flex items-start gap-2 text-sm text-profile-body">
+                <Clock className="mt-0.5 h-4 w-4 shrink-0 text-accent-link" aria-hidden />
+                <dl
+                  aria-label={t("openingHoursLabel")}
+                  className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-0.5"
+                >
+                  {openingHours[card.key].map((row) => (
+                    <div key={row.days} className="contents">
+                      <dt className="font-semibold text-profile-text">{row.days}</dt>
+                      <dd className="tabular-nums">{row.hours}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </div>
             ) : null}
             <div className="mt-2 flex flex-wrap gap-2">
               {card.phoneClinicId ? (

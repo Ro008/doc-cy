@@ -14,6 +14,15 @@ Reference design: https://claude.ai/artifact/XuWafV4bu6Acv8GRdcsXBH (page "Ronda
   links, and the languages as the finder's colour chips. No language switcher on the
   profile until the Greek copy is reviewed (the `/el/...` URLs still work).
 - **Footer**: "About DocCy" → `/for-professionals`.
+- **Industry basics** (2026-10-02): breadcrumbs (primary specialty › district ›
+  name, `lib/public/profile-breadcrumbs.ts`); each clinic's opening hours from its schedule
+  (`lib/public/clinic-opening-hours.ts`); on phones a "Request appointment" bar once the
+  hero scrolls away; "Share" (system sheet or copy link); "Report incorrect information"
+  opening the feedback form with the profile named; JSON-LD = Physician (services,
+  languages, every clinic as MedicalClinic with geo + opening hours, no phones) +
+  BreadcrumbList (`lib/public/profile-structured-data.ts`).
+- **Canonical fix**: registered profiles inherited the root layout's canonical "/", i.e.
+  told search engines they were the home page. They now point at `/en/{slug}`.
 - **Districts**: the hero names every district where the professional has a clinic
   ("Nicosia · Paphos"), each a link, not only the primary one (`lib/public/profile-districts.ts`).
 - **Prices**: a bare number gets the euro sign after it ("100" → "100 €"); prices the
@@ -60,6 +69,15 @@ The contract is in `lib/profile-customization.ts`:
    of the caller's own row, answer `200 { ok: true }`; `400` on invalid input, `401` when
    signed out. Today the call returns 404 and the screen shows
    "Expected to fail for now: … (PATCH /api/professional-profile-customization)".
+
+3. **Booking form: gender and date of birth** (user, 2026-10-02: every field is
+   required). `POST /api/appointments` now also receives `patientGender` (`male` |
+   `female` | `prefer_not_to_say`) and `patientDateOfBirth` (`YYYY-MM-DD`, not in the
+   future, ≤ 120 years). The API ignores unknown fields today, so bookings keep working but
+   these two values are **not stored**: add them (e.g. `appointments.patient_gender`,
+   `appointments.patient_date_of_birth`), validate with `PATIENT_GENDERS` /
+   `validateDateOfBirth` (`lib/booking-patient-details.ts`) and show them to the
+   professional with the patient's details.
 
 ## Data notes
 

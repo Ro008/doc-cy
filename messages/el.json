@@ -83,10 +83,20 @@
       "timeSlotJustBooked": "Αυτή η χρονική θέση μόλις κρατήθηκε. Παρακαλούμε επιλέξτε άλλη.",
       "preselectedSlotUnavailable": "Αυτή η ώρα δεν είναι πλέον διαθέσιμη. Παρακαλούμε επιλέξτε άλλη.",
       "bookingFailed": "Δεν ήταν δυνατή η ολοκλήρωση της κράτησης. Παρακαλούμε δοκιμάστε ξανά.",
-      "somethingWentWrong": "Κάτι πήγε στραβά. Παρακαλούμε δοκιμάστε ξανά."
+      "somethingWentWrong": "Κάτι πήγε στραβά. Παρακαλούμε δοκιμάστε ξανά.",
+      "selectGender": "Επιλέξτε το φύλο σας.",
+      "dateOfBirthMissing": "Εισαγάγετε την ημερομηνία γέννησής σας.",
+      "dateOfBirthInvalid": "Ελέγξτε την ημερομηνία γέννησής σας."
     },
     "emailDidYouMean": "Μήπως εννοείτε",
-    "emailInvalid": "Εισαγάγετε έγκυρο email, π.χ. name@example.com."
+    "emailInvalid": "Εισαγάγετε έγκυρο email, π.χ. name@example.com.",
+    "genderLabel": "Φύλο",
+    "gender": {
+      "male": "Άνδρας",
+      "female": "Γυναίκα",
+      "prefer_not_to_say": "Προτιμώ να μην πω"
+    },
+    "dateOfBirthLabel": "Ημερομηνία γέννησης"
   },
   "DoctorAgenda": {
     "appointmentPendingBadge": "Εκκρεμεί",
@@ -108,7 +118,6 @@
   },
   "DoctorProfilePage": {
     "profileHeadingCityFallback": "Κύπρος",
-    "profileTag": "Επαγγελματικό προφίλ",
     "cyprusLocalTime": "Τοπική ώρα Κύπρου",
     "whatToExpectTitle": "Τι να περιμένετε",
     "whatToExpectStep1Lead": "Αίτημα σε δευτερόλεπτα.",
@@ -145,7 +154,14 @@
     "schemeLight": "Ανοιχτό",
     "schemeDark": "Σκούρο",
     "heroClinicDetails": "Στοιχεία ιατρείου",
-    "aboutDocCy": "Σχετικά με το DocCy"
+    "aboutDocCy": "Σχετικά με το DocCy",
+    "breadcrumbLabel": "Διαδρομή",
+    "shareLabel": "Κοινοποίηση",
+    "shareCopied": "Ο σύνδεσμος αντιγράφηκε",
+    "reportIncorrect": "Αναφορά λανθασμένων στοιχείων",
+    "reportMessage": "Λανθασμένα στοιχεία στο προφίλ του/της {name} ({url}): ",
+    "openingHoursLabel": "Ωράριο",
+    "mobileBarNext": "Επόμενο: {when}"
   },
   "LandingPage": {
     "Hero": {
