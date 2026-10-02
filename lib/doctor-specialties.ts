@@ -26,7 +26,8 @@ export type DoctorSpecialtyEntryInput = {
 export type DoctorSpecialtyEntryValidated = {
   specialty: string;
   fromMaster: boolean;
-  isApproved: boolean;
+  /** Picked from the catalogue (true) or typed as "Other" (false: founders review it). */
+  fromCatalogue: boolean;
   licenseNumber: string;
 };
 
@@ -93,7 +94,7 @@ export function validateDoctorSpecialtyEntries(
     entries.push({
       specialty: spec.specialty,
       fromMaster: row.fromMaster,
-      isApproved: spec.is_specialty_approved,
+      fromCatalogue: spec.from_catalogue,
       licenseNumber,
     });
   }
@@ -101,15 +102,11 @@ export function validateDoctorSpecialtyEntries(
   return { ok: true, entries };
 }
 
-/** Public-facing specialty labels (approved only); falls back to single specialty. */
+/** Public-facing specialty labels; falls back to single specialty. */
 export function publicSpecialtyLabels(input: {
   specialties?: string[] | null;
   specialty?: string | null;
-  is_specialty_approved?: boolean | null;
 }): string[] {
-  if (input.is_specialty_approved === false) {
-    return [];
-  }
   const fromArray = (input.specialties ?? [])
     .map((s) => String(s ?? "").trim())
     .filter(Boolean);

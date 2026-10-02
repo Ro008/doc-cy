@@ -67,8 +67,7 @@ test.describe("Integration UI: doctor settings Service Menu", () => {
       doctorId = String(doctorInsert.data.id);
       await seedProfessionalSpecialty(admin, doctorId, {
         specialty: "Laser & Medical Aesthetics",
-        licenseNumber: `LIC-SVC-UI-${nonce}`,
-        isApproved: true,
+        licenseNumber: `LIC-SVC-UI-${nonce}`,
       });
 
       await page.goto("/login");

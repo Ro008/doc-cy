@@ -193,7 +193,7 @@ begin
     raise exception 'FAIL: the proposed clinic should be created (name, slug, district, address, phone) and linked second';
   end if;
   if not exists (select 1 from public.professional_specialties ps join public.specialties s on s.id = ps.specialty_id
-                 where ps.professional_id = v_pro.id and s.name = 'Cardiology' and ps.is_approved and ps.license_number = 'LIC-1') then
+                 where ps.professional_id = v_pro.id and s.name = 'Cardiology' and ps.license_number = 'LIC-1') then
     raise exception 'FAIL: the approved specialty should be written with its licence';
   end if;
   v_checks := v_checks + 3;
@@ -269,8 +269,8 @@ begin
   insert into public.professionals (name, slug, is_registered, is_test_profile)
   values ('Old Listing ' || v_tag, 'old-listing-' || v_tag, false, true)
   returning id into v_listing;
-  insert into public.professional_specialties (professional_id, specialty, is_approved)
-  values (v_listing, 'Dermatology', true);
+  insert into public.professional_specialties (professional_id, specialty)
+  values (v_listing, 'Dermatology');
   insert into public.clinics (name, slug, district, address)
   values ('Listing Clinic ' || v_tag, 'listing-clinic-' || v_tag, 'Paphos', '9 Old Rd')
   returning id into v_listing_clinic;

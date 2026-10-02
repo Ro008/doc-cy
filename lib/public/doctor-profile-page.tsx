@@ -66,8 +66,7 @@ import {
 } from "@/lib/doctor-specialties";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
-  approvedSpecialtyNames,
-  hasPendingSpecialty,
+  specialtyNames,
   primarySpecialtyEntry,
   SPECIALTY_ROWS_SELECT,
   specialtyEntriesFromRows,
@@ -100,7 +99,6 @@ type DoctorProfileRow = {
   slug: string;
   languages?: string[] | null;
   is_gesy?: boolean | null;
-  is_specialty_approved?: boolean | null;
 };
 
 export type PageProps = {
@@ -138,7 +136,7 @@ async function loadUnregisteredLandingOrRedirect(slug: string, locale: string) {
 
 function isOptionalProfileColumnError(msg: string): boolean {
   return (
-    /(languages|district|is_gesy|is_specialty_approved|specialties)/i.test(msg) &&
+    /(languages|district|is_gesy|specialties)/i.test(msg) &&
     (/schema cache|does not exist|column|Could not find|42703/i.test(msg) ||
       msg.includes("Could not find"))
   );
@@ -181,9 +179,7 @@ async function selectPublicProfessionalBySlug(
   const data = (res.data as unknown as Record<string, unknown> | null) ?? null;
   if (data) {
     // Specialty fields are derived from professional_specialties (the columns on
-    // professionals are going away): approved labels alphabetical, the first one as
-    // `specialty`, and `is_specialty_approved` false while a custom label is pending,
-    // which hides them all downstream.
+    // professionals are going away): labels alphabetical, the first one as `specialty`.
     const { specialty_rows: rows, ...rest } = data;
     const entries = specialtyEntriesFromRows(rows);
     // Where they practise comes from their clinics, not the copies on professionals
@@ -196,9 +192,8 @@ async function selectPublicProfessionalBySlug(
         ...rest,
         district: location.district,
         clinic_address: location.clinic_address,
-        specialties: approvedSpecialtyNames(entries),
+        specialties: specialtyNames(entries),
         specialty: primarySpecialtyEntry(entries)?.name ?? "",
-        is_specialty_approved: !hasPendingSpecialty(entries),
       },
       error: null,
     };
@@ -292,10 +287,7 @@ async function fetchPublicDoctorBySlug(
 
   const profile: DoctorProfileRow = {
     ...row,
-    specialty: getPublicSpecialtyDisplayLabel({
-      specialty: row.specialty,
-      is_specialty_approved: row.is_specialty_approved,
-    }),
+    specialty: getPublicSpecialtyDisplayLabel({ specialty: row.specialty }),
   };
   return { kind: "ok", profile };
 }
@@ -510,19 +502,13 @@ export async function generateMetadata({
   const specialtyLabels = publicSpecialtyLabels({
     specialties: (doctor as { specialties?: string[] | null }).specialties,
     specialty: doctor.specialty,
-    is_specialty_approved: (doctor as { is_specialty_approved?: boolean | null })
-      .is_specialty_approved,
   });
   const specialty = getPublicSpecialtyDisplayLabel({
     specialty: doctor.specialty,
-    is_specialty_approved: (doctor as { is_specialty_approved?: boolean | null })
-      .is_specialty_approved,
     fallback: "",
   });
   const specialtyForSeo =
-    (doctor as { is_specialty_approved?: boolean | null }).is_specialty_approved === false
-      ? ""
-      : formatSpecialtiesForSeo(specialtyLabels) || (doctor.specialty ?? "").trim();
+    formatSpecialtiesForSeo(specialtyLabels) || (doctor.specialty ?? "").trim();
   const districtLabel = normalizeDistrictForSeoTitle(doctor.district);
   const cityLabel = districtLabel ?? "Cyprus";
   const metaTitleCore = buildRegisteredProfileMetaTitle({
@@ -737,7 +723,6 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
   const profileSpecialtyLabels = publicSpecialtyLabels({
     specialties: profile.specialties,
     specialty: profile.specialty,
-    is_specialty_approved: profile.is_specialty_approved,
   });
   const profileSpecialtySeo = formatSpecialtiesForSeo(profileSpecialtyLabels);
   // The booking panel's "call instead" hint is about the clinic being booked.
@@ -747,10 +732,7 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
     : callClinics.length > 0;
   const structuredData = buildPhysicianStructuredData({
     name: profile.name,
-    specialty:
-      profile.is_specialty_approved === false
-        ? null
-        : profileSpecialtySeo || profile.specialty,
+    specialty: profileSpecialtySeo || profile.specialty,
     bio: profile.bio,
     clinicAddress: clinicAddress,
     district: profile.district ?? null,
@@ -836,7 +818,6 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
                   specialties={profileSpecialtyLabels}
                   specialty={profile.specialty}
                   district={profileDistrictLabel}
-                  underReview={profile.is_specialty_approved === false}
                 />
                 {profileDistrictLabel ? (
                   <FinderDistrictLink

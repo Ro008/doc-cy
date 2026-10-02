@@ -82,8 +82,7 @@ test.describe("Integration: public phone comes from the clinic", { tag: "@pr-e2e
       admin,
       nonce,
       name: `Clinic Phone ${nonce.slice(-4)}`,
-      specialty: "Cardiology",
-      is_specialty_approved: true,
+      specialty: "Cardiology",
     });
     const opened = await openPrimaryClinicForBookings(admin, registered.doctorId, nonce);
     clinicIds.push(opened.clinicId);

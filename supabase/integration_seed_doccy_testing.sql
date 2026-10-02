@@ -181,16 +181,12 @@ BEGIN
   END IF;
 
   -- Specialties live only in professional_specialties (Point C3 dropped the
-  -- professionals columns). Keep an existing approved row; add one otherwise.
-  UPDATE public.professional_specialties
-  SET is_approved = true
-  WHERE professional_id = v_doctor_id;
-
+  -- professionals columns). Keep an existing row; add one otherwise.
   IF NOT EXISTS (
     SELECT 1 FROM public.professional_specialties WHERE professional_id = v_doctor_id
   ) THEN
-    INSERT INTO public.professional_specialties (professional_id, specialty, license_number, is_approved)
-    VALUES (v_doctor_id, 'General Practice', 'INTEGRATION-SEED-LIC', true);
+    INSERT INTO public.professional_specialties (professional_id, specialty, license_number)
+    VALUES (v_doctor_id, 'General Practice', 'INTEGRATION-SEED-LIC');
   END IF;
 
   -- Account settings only: the schedule and the pause live on the clinic link (Point E6).

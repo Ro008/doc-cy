@@ -83,8 +83,7 @@ async function seedClinicOnlyProfessional(
 
   await seedProfessionalSpecialty(admin, professionalId, {
     specialty: "Dentistry",
-    licenseNumber: `LIC-CO-${nonce}`,
-    isApproved: true,
+    licenseNumber: `LIC-CO-${nonce}`,
   });
 
   const clinic = await admin

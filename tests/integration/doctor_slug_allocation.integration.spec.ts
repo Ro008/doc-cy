@@ -85,8 +85,7 @@ test.describe("Integration: doctor slug allocation", () => {
           specialty: "Dentistry",
 
           licenseNumber: `LIC-SLUG-${nonce}-${index}`,
-
-          isApproved: true,
+
 
         });
       }

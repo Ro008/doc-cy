@@ -80,8 +80,7 @@ test.describe("Agenda multi-session sync", { tag: "@pr-email" }, () => {
         admin,
         nonce,
         name: `Sync Doctor ${nonce.slice(-4)}`,
-        specialty: "Cardiology",
-        is_specialty_approved: true,
+        specialty: "Cardiology",
       });
 
       const inserted = await admin

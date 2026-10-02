@@ -38,7 +38,6 @@ import {
 } from "@/lib/settings-form-dirty";
 import { useSettingsUnsavedChangesWarning } from "@/components/dashboard/useSettingsUnsavedChangesWarning";
 import { isCatalogueSpecialty } from "@/lib/specialty-options";
-import { PUBLIC_SPECIALTY_UNDER_REVIEW_LABEL } from "@/lib/doctor-specialty-public";
 import { PhoneNumbersSettings } from "@/components/dashboard/PhoneNumbersSettings";
 import type { SettingsClinicPhone } from "@/lib/settings-clinic-phones";
 
@@ -53,7 +52,6 @@ export type DoctorSettingsFormData = {
   /** Approved specialty labels (flat). */
   specialties?: string[];
   /** false = custom “Other” text pending founder approval */
-  isSpecialtyApproved?: boolean;
   /** Public profile “About” section */
   bio: string;
   /** Canonical labels, saved as string[] on doctors */
@@ -255,10 +253,7 @@ export function SettingsForm({ initial }: SettingsFormProps) {
       : lockedSpecialty
         ? [lockedSpecialty]
         : [];
-  const specialtyFromMaster =
-    (initial.isSpecialtyApproved ?? true) !== false &&
-    isCatalogueSpecialty(initial.specialtyOptions, lockedSpecialty);
-  const specialtyUnderReview = (initial.isSpecialtyApproved ?? true) === false;
+  const specialtyFromMaster = isCatalogueSpecialty(initial.specialtyOptions, lockedSpecialty);
   const [languages, setLanguages] = React.useState<string[]>(() =>
     Array.isArray(initial.languages) ? [...initial.languages] : []
   );
@@ -455,9 +450,7 @@ export function SettingsForm({ initial }: SettingsFormProps) {
     const specialty = (initial.specialty ?? "").trim();
     return buildSettingsDirtySnapshot({
       specialty,
-      specialtyFromMaster:
-        (initial.isSpecialtyApproved ?? true) !== false &&
-        isCatalogueSpecialty(initial.specialtyOptions, specialty),
+      specialtyFromMaster: isCatalogueSpecialty(initial.specialtyOptions, specialty),
       bio: (initial.bio ?? "").trim(),
       languages: Array.isArray(initial.languages) ? [...initial.languages] : [],
       mobileNumber: initial.mobileNumber ?? "",
@@ -837,12 +830,6 @@ export function SettingsForm({ initial }: SettingsFormProps) {
               ) : (
                 <p className="text-sm font-medium text-slate-100">Not set</p>
               )}
-              {specialtyUnderReview ? (
-                <p className="mt-1 text-xs text-amber-200/90">
-                  {PUBLIC_SPECIALTY_UNDER_REVIEW_LABEL} — visible on your public
-                  profile until approved.
-                </p>
-              ) : null}
             </div>
             <p className="mt-2 text-xs leading-relaxed text-slate-500">
               Specialties are verified with your registration.{" "}

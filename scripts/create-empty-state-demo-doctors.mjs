@@ -58,7 +58,6 @@ async function createDoctor({ slugPrefix, name }) {
     professional_id: doctorId,
     specialty: "Dentist",
     license_number: `LIC-DEMO-${nonce}-${slugPrefix}`,
-    is_approved: true,
   });
   if (specialtyInsert.error) {
     throw new Error(`Failed creating professional_specialties: ${specialtyInsert.error.message}`);

@@ -40,7 +40,6 @@ BEGIN
           'Dentistry',
           '+34667082906',
           'founder',
-          true,
           ARRAY['Greek', 'English', 'Spanish']::text[]
         ),
         (
@@ -50,7 +49,6 @@ BEGIN
           'Pediatrics',
           '+34 667 082 906',
           'founder',
-          true,
           ARRAY['Greek', 'English', 'Turkish']::text[]
         ),
         (
@@ -60,10 +58,9 @@ BEGIN
           'Dentistry',
           null,
           'founder',
-          true,
           ARRAY['English', 'Greek']::text[]
         )
-    ) AS t(slug, full_name, email, specialty, phone, tier, specialty_approved, langs)
+    ) AS t(slug, full_name, email, specialty, phone, tier, langs)
   LOOP
     v_user_id := NULL;
     v_doctor_id := NULL;
@@ -207,8 +204,8 @@ BEGIN
     DELETE FROM public.professional_specialties
     WHERE professional_id = v_doctor_id;
 
-    INSERT INTO public.professional_specialties (professional_id, specialty, license_number, is_approved)
-    VALUES (v_doctor_id, rec.specialty, upper(rec.slug) || '-SEED-LIC', rec.specialty_approved);
+    INSERT INTO public.professional_specialties (professional_id, specialty, license_number)
+    VALUES (v_doctor_id, rec.specialty, upper(rec.slug) || '-SEED-LIC');
 
     -- Account settings only: the schedule and the pause live on the clinic link (Point E6).
     INSERT INTO public.professional_settings (

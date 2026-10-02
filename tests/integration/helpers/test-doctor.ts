@@ -19,7 +19,6 @@ type CreateTestDoctorInput = {
   nonce: string;
   name: string;
   specialty: string;
-  is_specialty_approved: boolean;
   /** Default true so agenda tests are not blocked by the one-time welcome modal. */
   markTrialNoticeSeen?: boolean;
   subscription_tier?: "founder" | "standard";
@@ -73,7 +72,6 @@ export async function createTestDoctor(
       professional_id: doctorId,
       specialty: input.specialty,
       license_number: `LIC-${input.nonce}`,
-      is_approved: input.is_specialty_approved,
     },
   );
   if (specialtyInsert.error) {
@@ -101,13 +99,12 @@ export async function createTestDoctor(
 export async function seedProfessionalSpecialty(
   admin: SupabaseClient,
   professionalId: string,
-  input: { specialty: string; licenseNumber?: string | null; isApproved?: boolean },
+  input: { specialty: string; licenseNumber?: string | null },
 ): Promise<void> {
   const { error } = await admin.from("professional_specialties").insert({
     professional_id: professionalId,
     specialty: input.specialty,
     license_number: input.licenseNumber ?? null,
-    is_approved: input.isApproved ?? true,
   });
   if (error) throw new Error(`Failed creating professional_specialties: ${error.message}`);
 }

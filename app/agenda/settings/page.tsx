@@ -38,8 +38,7 @@ import { loadSettingsClinicPhones } from "@/lib/settings-clinic-phones";
 import { FirstLoginTrialNoticeGate } from "@/components/dashboard/FirstLoginTrialNoticeGate";
 import { createServiceRoleClient } from "@/lib/supabase-service";
 import {
-  approvedSpecialtyNames,
-  hasPendingSpecialty,
+  specialtyNames,
   loadSpecialtyCatalogueNames,
   loadSpecialtyEntries,
   primarySpecialtyEntry,
@@ -304,8 +303,7 @@ export default async function AgendaSettingsPage() {
         ? supabase.storage.from("avatars").getPublicUrl(String(doctor.avatar_url)).data.publicUrl
         : null,
     specialty: primarySpecialtyEntry(specialtyEntries)?.name ?? "",
-    specialties: approvedSpecialtyNames(specialtyEntries),
-    isSpecialtyApproved: !hasPendingSpecialty(specialtyEntries),
+    specialties: specialtyNames(specialtyEntries),
     bio: (doctor.bio ?? "").trim(),
     languages: langArr,
     mobileNumber: (doctor.mobile_number ?? "").trim() || undefined,

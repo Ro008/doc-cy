@@ -64,8 +64,7 @@ test.describe("Integration: public Service Menu section", () => {
       doctorId = String(doctorInsert.data.id);
       await seedProfessionalSpecialty(admin, doctorId, {
         specialty: "Dermatology",
-        licenseNumber: `LIC-SM-${nonce}`,
-        isApproved: true,
+        licenseNumber: `LIC-SM-${nonce}`,
       });
 
       const serviceInsert = await admin.from("professional_services").insert([

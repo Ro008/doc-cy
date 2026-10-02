@@ -177,14 +177,13 @@ export async function syncProfessionalSpecialties(supabase, professionalId, spec
     if (del.error) throw new Error(del.error.message);
   }
   if (missing.length > 0) {
-    // Scraped listings have no licence; the row is approved (GeSY is the source).
+    // Scraped listings have no licence (GeSY is the source).
     const ins = await supabase.from("professional_specialties").insert(
       missing.map((row) => ({
         professional_id: professionalId,
         specialty: row.name,
         specialty_id: row.id,
         license_number: null,
-        is_approved: true,
       })),
     );
     if (ins.error) throw new Error(ins.error.message);

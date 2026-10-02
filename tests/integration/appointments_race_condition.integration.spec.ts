@@ -92,8 +92,7 @@ test.describe("Integration: appointment race condition guard", { tag: ["@pr-e2e"
       doctorId = doctorInsert.data.id as string;
       await seedProfessionalSpecialty(admin, doctorId, {
         specialty: "General Practice",
-        licenseNumber: `LIC-RACE-${nonce}`,
-        isApproved: true,
+        licenseNumber: `LIC-RACE-${nonce}`,
       });
 
       const settingsUpsert = await admin.from("professional_settings").upsert(
