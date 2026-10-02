@@ -82,8 +82,8 @@ begin
 
   -- 6. An appointment with no clinic uses the primary clinic's slot length (45 min):
   --    a 90-minute visit occupies start and start+45, never start+30.
-  insert into public.clinics (name, slug, district, address)
-  values ('E6 Clinic', 'e6-clinic-' || substr(v_login::text, 1, 8), 'Nicosia', '1 Test St')
+  insert into public.clinics (name, slug, district, address, phone)
+  values ('E6 Clinic', 'e6-clinic-' || substr(v_login::text, 1, 8), 'Nicosia', '1 Test St', '22123456')
   returning id into v_clinic;
   insert into public.professional_clinics (professional_id, clinic_id, is_primary, slot_duration_minutes)
   values (v_pro, v_clinic, true, 45);

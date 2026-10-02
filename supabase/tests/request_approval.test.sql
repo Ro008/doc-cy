@@ -105,8 +105,8 @@ begin
   values (pg_temp.new_login('appr-partner-' || v_tag || '@integration.test'), 'Appr Partner',
           'appr-partner-' || v_tag || '@integration.test', 'partner')
   returning id into v_partner;
-  insert into public.clinics (name, slug, district, address, town, latitude, longitude)
-  values ('Appr Existing ' || v_tag, 'appr-existing-' || v_tag, 'Paphos', '1 Existing St, Paphos', 'Paphos', 34.77, 32.42)
+  insert into public.clinics (name, slug, district, address, town, latitude, longitude, phone)
+  values ('Appr Existing ' || v_tag, 'appr-existing-' || v_tag, 'Paphos', '1 Existing St, Paphos', 'Paphos', 34.77, 32.42, '26123456')
   returning id into v_clinic;
   v_clinics := jsonb_build_array(
     jsonb_build_object('clinic_id', v_clinic, 'name', null, 'address', '1 Existing St, Paphos',
@@ -271,8 +271,8 @@ begin
   returning id into v_listing;
   insert into public.professional_specialties (professional_id, specialty)
   values (v_listing, 'Dermatology');
-  insert into public.clinics (name, slug, district, address)
-  values ('Listing Clinic ' || v_tag, 'listing-clinic-' || v_tag, 'Paphos', '9 Old Rd')
+  insert into public.clinics (name, slug, district, address, phone)
+  values ('Listing Clinic ' || v_tag, 'listing-clinic-' || v_tag, 'Paphos', '9 Old Rd', '26123457')
   returning id into v_listing_clinic;
   insert into public.professional_clinics (professional_id, clinic_id, is_primary) values (v_listing, v_listing_clinic, true);
 

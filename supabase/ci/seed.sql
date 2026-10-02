@@ -56,7 +56,7 @@ with
       district,
       district::text,
       seq || ' Synthetic Street, ' || district::text,
-      '+35700' || lpad(seq::text, 6, '0'),
+      '22' || lpad(seq::text, 6, '0'),
       lat + seq * 0.001,
       lng + seq * 0.001
     from people

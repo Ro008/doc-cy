@@ -94,6 +94,7 @@ async function seedClinicOnlyProfessional(
       district: "Paphos",
       town: "Geroskipou",
       address: `${nonce} Clinic Only Street, Geroskipou, Cyprus`,
+      phone: "26123456",
       latitude: 34.7602,
       longitude: 32.4506,
       is_archived: false,
