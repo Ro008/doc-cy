@@ -62,6 +62,16 @@ export type RegistrationReviewItem = {
   contactInUse: ProfessionalContactUse | null;
 };
 
+/** A pending request whose applicant login is gone: it can only be closed. */
+export type UnapprovableRequestItem = {
+  id: string;
+  createdAt: string;
+  requesterName: string;
+  requesterEmail: string;
+  /** It asked for a Founders' Club place, which it keeps holding until closed. */
+  holdsFoundersPlace: boolean;
+};
+
 type HttpResult<T> = ({ ok: true } & T) | { ok: false; status: number; message: string };
 
 const PHOTO_URL_SECONDS = 60 * 60;
@@ -84,12 +94,13 @@ async function listingSummary(service: SupabaseClient, id: string): Promise<Revi
 
 /**
  * Pending requests (oldest first) and the latest decisions, without the rows no
- * founder can act on (see `reviewableRegistrationRows`); `hiddenPending` counts the
- * pending ones left out.
+ * founder can approve (see `reviewableRegistrationRows`): real applicants' pending
+ * requests with no login come back as `unapprovable` (to be closed); `hiddenPending`
+ * counts the automated-test ones left out.
  */
 export async function loadRegistrationRequestsForReview(
   service: SupabaseClient,
-): Promise<{ items: RegistrationReviewItem[]; hiddenPending: number }> {
+): Promise<{ items: RegistrationReviewItem[]; unapprovable: UnapprovableRequestItem[]; hiddenPending: number }> {
   const select =
     "id, status, created_at, decided_at, decision_note, requester_name, requester_email, applicant_auth_user_id, details, approved_details, outcome";
   const [pending, decided] = await Promise.all([
@@ -164,7 +175,14 @@ export async function loadRegistrationRequestsForReview(
       };
     }),
   );
-  return { items, hiddenPending: pendingView.hiddenPending };
+  const unapprovable = pendingView.unapprovable.map((row) => ({
+    id: String(row.id),
+    createdAt: String(row.created_at),
+    requesterName: String(row.requester_name ?? row.requester_email ?? "Unknown applicant"),
+    requesterEmail: String(row.requester_email ?? ""),
+    holdsFoundersPlace: (row.details as { founders_club?: unknown } | null)?.founders_club === true,
+  }));
+  return { items, unapprovable, hiddenPending: pendingView.hiddenPending };
 }
 
 /** Pending requests founders can act on (their applicant still has a login), for tab badges. */
@@ -251,7 +269,8 @@ export async function lookupClaimableListing(
 
 type PendingRequest = {
   id: string;
-  applicantAuthUserId: string;
+  /** Null when the applicant's login is gone: such a request can only be closed. */
+  applicantAuthUserId: string | null;
   details: ProfessionalRegistrationDetails;
 };
 
@@ -268,10 +287,28 @@ async function loadPendingRegistration(service: SupabaseClient, requestId: strin
   if (data.status !== "pending") return { ok: false, status: 409, message: `This request is already ${data.status}.` };
   const details = parseProfessionalRegistrationDetails(data.details);
   if (!details) return { ok: false, status: 500, message: "The request details are unreadable." };
-  if (!data.applicant_auth_user_id) {
-    return { ok: false, status: 409, message: "The applicant's login no longer exists." };
+  return {
+    ok: true,
+    request: {
+      id: String(data.id),
+      applicantAuthUserId: data.applicant_auth_user_id ? String(data.applicant_auth_user_id) : null,
+      details,
+    },
+  };
+}
+
+/** Approving (and replacing the photo) needs the applicant's login; closing does not. */
+async function loadApprovableRegistration(
+  service: SupabaseClient,
+  requestId: string,
+): Promise<HttpResult<{ request: PendingRequest & { applicantAuthUserId: string } }>> {
+  const loaded = await loadPendingRegistration(service, requestId);
+  if (loaded.ok === false) return loaded;
+  const { request } = loaded;
+  if (!request.applicantAuthUserId) {
+    return { ok: false, status: 409, message: "The applicant's login no longer exists: this request can only be closed." };
   }
-  return { ok: true, request: { id: String(data.id), applicantAuthUserId: String(data.applicant_auth_user_id), details } };
+  return { ok: true, request: { ...request, applicantAuthUserId: request.applicantAuthUserId } };
 }
 
 function statusForDbError(code: string | null | undefined): number {
@@ -301,7 +338,7 @@ export async function approveRegistrationRequest(
   service: SupabaseClient,
   input: { requestId: string; adminId: string; details: unknown; trialMonths?: unknown; note?: unknown },
 ): Promise<HttpResult<{ professionalId: string; slug: string }>> {
-  const loaded = await loadPendingRegistration(service, input.requestId);
+  const loaded = await loadApprovableRegistration(service, input.requestId);
   if (loaded.ok === false) return loaded;
   const { request } = loaded;
 
@@ -398,9 +435,19 @@ export async function approveRegistrationRequest(
   return { ok: true, professionalId: String(approved?.professional_id ?? ""), slug };
 }
 
+/**
+ * Denies a pending request with a reason. If the applicant's login is gone (the
+ * "Can't be approved" group) this closes it instead: the same decision is recorded,
+ * but no email goes out, because the applicant can no longer sign in to apply again.
+ */
 export async function denyRegistrationRequest(
   service: SupabaseClient,
-  input: { requestId: string; adminId: string; reason: unknown },
+  input: {
+    requestId: string;
+    adminId: string;
+    reason: unknown;
+    sendEmail?: typeof sendRegistrationDecisionEmail;
+  },
 ): Promise<HttpResult<object>> {
   const reason = typeof input.reason === "string" ? input.reason.trim() : "";
   if (!reason) return { ok: false, status: 400, message: "Give a reason: the applicant is told why." };
@@ -415,7 +462,8 @@ export async function denyRegistrationRequest(
     console.error("[requests] deny failed", error);
     return { ok: false, status: statusForDbError(error.code), message: approvalErrorMessage(error) };
   }
-  await sendRegistrationDecisionEmail(
+  if (!loaded.request.applicantAuthUserId) return { ok: true };
+  await (input.sendEmail ?? sendRegistrationDecisionEmail)(
     loaded.request.details.email,
     buildRegistrationDeniedEmail({
       name: registrationRequesterName(loaded.request.details),
@@ -431,7 +479,7 @@ export async function storeReplacementPhoto(
   service: SupabaseClient,
   input: { requestId: string; file: File },
 ): Promise<HttpResult<{ path: string; url: string | null }>> {
-  const loaded = await loadPendingRegistration(service, input.requestId);
+  const loaded = await loadApprovableRegistration(service, input.requestId);
   if (loaded.ok === false) return loaded;
   const type = input.file.type.toLowerCase();
   if (!["image/jpeg", "image/png", "image/webp"].includes(type)) {

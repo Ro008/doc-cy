@@ -300,7 +300,7 @@ export default async function FounderDashboardPage({
       loadTrialMonths(supabase),
       loadRegistrationRequestsForReview(supabase).catch((err) => {
         console.error("[internal/directory] registration requests load failed", err);
-        return { items: [], hiddenPending: 0 };
+        return { items: [], unapprovable: [], hiddenPending: 0 };
       }),
       loadSpecialtyCatalogueNames(supabase).catch((err) => {
         console.error("[internal/directory] specialty catalogue load failed", err);
@@ -324,6 +324,7 @@ export default async function FounderDashboardPage({
         <div className="mx-auto max-w-7xl space-y-8 px-4 py-8 lg:px-8">
           <RegistrationRequestsSection
             items={review.items}
+            unapprovable={review.unapprovable}
             hiddenPending={review.hiddenPending}
             canMutate={canMutate}
             defaultTrialMonths={trialMonthsSetting.ok ? trialMonthsSetting.months : null}
