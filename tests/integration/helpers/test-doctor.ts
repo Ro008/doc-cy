@@ -228,7 +228,7 @@ export async function deleteTestDoctor(fixture: TestDoctorFixture): Promise<void
   const { admin, doctorId, authUserId } = fixture;
   if (doctorId) {
     await admin.from("professional_specialties").delete().eq("professional_id", doctorId);
-    await admin.from("doctor_services").delete().eq("doctor_id", doctorId);
+    await admin.from("professional_services").delete().eq("professional_id", doctorId);
     await admin.from("professional_settings").delete().eq("professional_id", doctorId);
     await admin.from("professionals").delete().eq("id", doctorId);
   }

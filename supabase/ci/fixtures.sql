@@ -49,7 +49,7 @@ values (
   )
 );
 
-insert into public.doctor_services (doctor_id, name, price)
+insert into public.professional_services (professional_id, name, price)
 values (md5('ci-fixture-andreas-nikos')::uuid, 'Neurology consultation', 40);
 
 insert into public.professional_specialties (professional_id, specialty, specialty_id, license_number, is_approved)

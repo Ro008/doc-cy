@@ -779,12 +779,12 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
   );
 
   const { data: serviceRows, error: servicesErr } = await supabase
-    .from("doctor_services")
+    .from("professional_services")
     .select("id, name, price")
-    .eq("doctor_id", profile.id)
+    .eq("professional_id", profile.id)
     .order("created_at", { ascending: true });
   if (servicesErr) {
-    console.error("[DocCy] doctor_services fetch failed:", servicesErr);
+    console.error("[DocCy] professional_services fetch failed:", servicesErr);
   }
   const services = (serviceRows ?? [])
     .map((row) => ({

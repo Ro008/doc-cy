@@ -237,9 +237,9 @@ export default async function AgendaSettingsPage() {
     .single();
 
   const { data: serviceRows } = await supabase
-    .from("doctor_services")
+    .from("professional_services")
     .select("id, name, price, created_at")
-    .eq("doctor_id", doctor.id)
+    .eq("professional_id", doctor.id)
     .order("created_at", { ascending: true });
 
   const services: DoctorServiceItem[] = (serviceRows ?? []).map((row) => ({
