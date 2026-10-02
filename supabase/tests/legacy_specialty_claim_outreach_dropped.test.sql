@@ -50,13 +50,13 @@ begin
   end if;
   v_checks := v_checks + 1;
 
-  -- 5. What stays: specialties, registered professionals and the licence bucket
-  --    (its leftover files are a separate decision).
+  -- 5. What stays: specialties and registered professionals. The empty licence
+  --    bucket was deleted afterwards (2026-10-02): licence numbers only, no uploads.
   if to_regclass('public.professional_specialties') is null then
     raise exception 'FAIL: professional_specialties is missing';
   end if;
-  if not exists (select 1 from storage.buckets where id = 'doctor-verifications' and not public) then
-    raise exception 'FAIL: the private doctor-verifications bucket should stay';
+  if exists (select 1 from storage.buckets where id = 'doctor-verifications') then
+    raise exception 'FAIL: the doctor-verifications bucket should be deleted';
   end if;
   v_checks := v_checks + 1;
 
