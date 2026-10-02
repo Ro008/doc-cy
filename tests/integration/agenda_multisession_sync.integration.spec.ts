@@ -88,7 +88,7 @@ test.describe("Agenda multi-session sync", { tag: "@pr-email" }, () => {
       const inserted = await admin
         .from("appointments")
         .insert({
-          doctor_id: fixture.doctorId,
+          professional_id: fixture.doctorId,
           patient_name: patientName,
           patient_email: `sync-${nonce}@integration.test`,
           patient_phone: "99123456",
@@ -124,7 +124,7 @@ test.describe("Agenda multi-session sync", { tag: "@pr-email" }, () => {
         .from("appointments")
         .update({ status: "CONFIRMED" })
         .eq("id", appointmentId)
-        .eq("doctor_id", fixture.doctorId);
+        .eq("professional_id", fixture.doctorId);
       expect(confirmRes.error).toBeNull();
 
       // The confirmation must reach this session on its own (realtime, or the
@@ -150,14 +150,14 @@ test.describe("Agenda multi-session sync", { tag: "@pr-email" }, () => {
         .from("appointments")
         .delete()
         .eq("id", appointmentId)
-        .eq("doctor_id", fixture.doctorId);
+        .eq("professional_id", fixture.doctorId);
       expect(deleteRes.error).toBeNull();
       appointmentId = "";
 
       await expect(mobileCard).toHaveCount(0, { timeout: 30_000 });
     } finally {
       if (fixture) {
-        await admin.from("appointments").delete().eq("doctor_id", fixture.doctorId);
+        await admin.from("appointments").delete().eq("professional_id", fixture.doctorId);
         await deleteTestDoctor(fixture);
       }
       await laptopCtx.close();

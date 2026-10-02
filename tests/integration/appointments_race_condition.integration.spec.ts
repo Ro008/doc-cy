@@ -16,7 +16,7 @@ function nextWeekdayDateKey(daysAhead = 1): string {
   return `${yyyy}-${mm}-${dd}`;
 }
 
-// CI: exercises parallel POST /api/appointments against unique (doctor_id, appointment_datetime).
+// CI: exercises parallel POST /api/appointments against unique (professional_id, appointment_datetime).
 test.describe("Integration: appointment race condition guard", { tag: ["@pr-e2e", "@pr-e2e-booking"] }, () => {
   test("same slot parallel booking creates one appointment only", async ({
     request,
@@ -156,7 +156,7 @@ test.describe("Integration: appointment race condition guard", { tag: ["@pr-e2e"
       const slotCheck = await admin
         .from("appointments")
         .select("id,appointment_datetime")
-        .eq("doctor_id", doctorId);
+        .eq("professional_id", doctorId);
       if (slotCheck.error) {
         throw new Error(
           `Failed reading created appointments: ${slotCheck.error.message}`,

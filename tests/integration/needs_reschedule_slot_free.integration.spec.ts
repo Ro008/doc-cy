@@ -130,7 +130,7 @@ test.describe("Integration: NEEDS_RESCHEDULE frees original slot", { tag: ["@pr-
       const counterAppt = await admin
         .from("appointments")
         .insert({
-          doctor_id: doctorId,
+          professional_id: doctorId,
           patient_name: `Counteroffer ${nonce}`,
           patient_email: `counter-${nonce}@integration.test`,
           patient_phone: "99123456",

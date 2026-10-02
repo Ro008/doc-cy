@@ -34,11 +34,8 @@ type ProfessionalRow = {
   registration_email: string | null;
 };
 
-const CHILD_TABLES_BY_DOCTOR_ID = [
-  "appointments",
-] as const;
-
 const CHILD_TABLES_BY_PROFESSIONAL_ID = [
+  "appointments",
   "professional_services",
   "professional_settings",
   "professional_specialties",
@@ -157,11 +154,6 @@ export async function purgeRegisteredProfessional(
 
   const warnings: string[] = [];
   const authUserId = pro.auth_user_id ? String(pro.auth_user_id) : null;
-
-  for (const table of CHILD_TABLES_BY_DOCTOR_ID) {
-    const err = await deleteByEq(admin, table, "doctor_id", professionalId);
-    if (err) warnings.push(err);
-  }
 
   for (const table of CHILD_TABLES_BY_PROFESSIONAL_ID) {
     const err = await deleteByEq(admin, table, "professional_id", professionalId);

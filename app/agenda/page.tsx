@@ -110,7 +110,7 @@ export default async function AgendaPage({ searchParams }: AgendaPageProps) {
     supabase
       .from("appointments")
       .select(AGENDA_APPOINTMENT_SELECT)
-      .eq("doctor_id", doctor.id)
+      .eq("professional_id", doctor.id)
       .order("appointment_datetime", { ascending: true }),
   );
 

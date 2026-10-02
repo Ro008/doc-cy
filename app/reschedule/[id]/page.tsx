@@ -47,7 +47,7 @@ export default async function ReschedulePage({ params, searchParams }: PageProps
   const { data: appt, error } = await supabase
     .from("appointments")
     .select(
-      "id, doctor_id, patient_name, status, proposed_slots, proposal_expires_at, reschedule_access_token"
+      "id, professional_id, patient_name, status, proposed_slots, proposal_expires_at, reschedule_access_token"
     )
     .eq("id", params.id)
     .maybeSingle();
@@ -106,7 +106,7 @@ export default async function ReschedulePage({ params, searchParams }: PageProps
   const { data: doctor } = await supabase
     .from("professionals")
     .select("name")
-    .eq("id", (appt as { doctor_id: string }).doctor_id)
+    .eq("id", (appt as { professional_id: string }).professional_id)
     .maybeSingle();
 
   const doctorName = String(doctor?.name ?? "your professional");

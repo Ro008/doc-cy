@@ -53,7 +53,7 @@ export async function GET(req: NextRequest, { params }: RouteContext) {
 
   const { data: appt, error: apptErr } = await supabase
     .from("appointments")
-    .select("id, doctor_id, appointment_datetime, status, location_id")
+    .select("id, professional_id, appointment_datetime, status, location_id")
     .eq("id", id)
     .maybeSingle();
 
@@ -61,7 +61,7 @@ export async function GET(req: NextRequest, { params }: RouteContext) {
     return NextResponse.json({ message: "Appointment not found." }, { status: 404 });
   }
 
-  if (appt.doctor_id !== doctor.id) {
+  if (appt.professional_id !== doctor.id) {
     return NextResponse.json({ message: "Forbidden." }, { status: 403 });
   }
 

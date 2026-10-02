@@ -29,7 +29,7 @@ async function seedRequestedAppointment(
   const inserted = await admin
     .from("appointments")
     .insert({
-      doctor_id: doctorId,
+      professional_id: doctorId,
       patient_name: `${label} ${nonce}`,
       patient_email: `${label.toLowerCase()}.${nonce}@example.com`,
       patient_phone: "+35799123456",
@@ -58,7 +58,7 @@ async function seedAgendaAppointment(
   const inserted = await admin
     .from("appointments")
     .insert({
-      doctor_id: doctorId,
+      professional_id: doctorId,
       patient_name: patientName,
       patient_email: `${label.toLowerCase()}.${nonce}@example.com`,
       patient_phone: "+35799123456",

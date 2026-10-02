@@ -129,7 +129,7 @@ test.describe("Future appointments cancellation @booking-creates", () => {
             const insertRes = await admin
               .from("appointments")
               .insert({
-                doctor_id: doctorId,
+                professional_id: doctorId,
                 patient_name: patientName,
                 patient_email: patientEmail,
                 patient_phone: patientPhone,

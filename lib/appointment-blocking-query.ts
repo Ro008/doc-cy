@@ -41,7 +41,7 @@ export async function fetchBlockingAppointments(
   let query = supabase
     .from("appointments")
     .select(BLOCKING_APPOINTMENTS_SELECT)
-    .eq("doctor_id", doctorId)
+    .eq("professional_id", doctorId)
     .in("status", [...BLOCKING_APPOINTMENT_STATUSES]);
 
   const location = String(locationId ?? "").trim();

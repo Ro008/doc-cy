@@ -25,6 +25,11 @@ import {
 } from "@/lib/doctor-locations";
 import { parseBookingLocationParam, parseBookingSlotParam } from "@/lib/booking-slot-param";
 import { loadProfessionalAccountSettings } from "@/lib/professional-account-settings";
+import {
+  OCCUPIED_BATCH_RPC,
+  takenSlotTimesFor,
+  type OccupiedRow,
+} from "@/lib/public/load-doctor-next-available-slot";
 import { settingsToWeeklySlots } from "@/lib/doctor-settings";
 import { appointmentToCyprusDate, CY_TZ } from "@/lib/appointments";
 import { addDays, format } from "date-fns";
@@ -754,28 +759,21 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
 
   // Slot starts covered by visits (forward + backward vs slot_duration_minutes); must match POST /api/appointments.
   const { data: occupiedRows, error: occupiedErr } = await supabase.rpc(
-    "public_doctor_occupied_datetimes",
+    OCCUPIED_BATCH_RPC,
     {
-      p_doctor_id: profile.id,
+      p_professional_ids: [profile.id],
       p_from: fromIso,
       p_to: toIso,
-      ...(selectedLocation?.id ? { p_location_id: selectedLocation.id } : {}),
     },
   );
 
   if (occupiedErr) {
-    console.error(
-      "[DocCy] public_doctor_occupied_datetimes failed:",
-      occupiedErr,
-    );
+    console.error(`[DocCy] ${OCCUPIED_BATCH_RPC} failed:`, occupiedErr);
   }
 
-  const takenSlotTimes: string[] = (occupiedRows ?? []).map(
-    (r: { appointment_datetime: string }) =>
-      format(
-        appointmentToCyprusDate(r.appointment_datetime),
-        "yyyy-MM-dd'T'HH:mm",
-      ),
+  const takenSlotTimes: string[] = takenSlotTimesFor(
+    (occupiedRows ?? []) as OccupiedRow[],
+    { professionalId: profile.id, locationId: selectedLocation?.id ?? null, toIso },
   );
 
   const { data: serviceRows, error: servicesErr } = await supabase
