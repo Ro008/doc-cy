@@ -33,7 +33,7 @@ test.describe("Integration: public phone comes from the clinic", { tag: "@pr-e2e
   const clinicIds: string[] = [];
   let listingId = "";
   let listingSlug = "";
-  let phonelessClinicId = "";
+  let listingClinicId = "";
   let registered: TestDoctorFixture | null = null;
 
   test.beforeAll(async () => {
@@ -42,18 +42,19 @@ test.describe("Integration: public phone comes from the clinic", { tag: "@pr-e2e
     const { data: clinic, error: clinicError } = await admin
       .from("clinics")
       .insert({
-        name: `Phoneless Clinic ${nonce}`,
-        slug: `phoneless-clinic-${nonce}`,
+        name: `Listing Clinic ${nonce}`,
+        slug: `listing-clinic-${nonce}`,
         district: "Nicosia",
         town: "Nicosia",
-        address: `${nonce} Phoneless Street, Nicosia`,
-        phone: null,
+        address: `${nonce} Listing Street, Nicosia`,
+        // Every active clinic has an 8-digit phone (clinics_active_phone_check).
+        phone: random8("22"),
       })
       .select("id")
       .single();
     if (clinicError || !clinic) throw new Error(`clinic: ${clinicError?.message}`);
-    phonelessClinicId = String(clinic.id);
-    clinicIds.push(phonelessClinicId);
+    listingClinicId = String(clinic.id);
+    clinicIds.push(listingClinicId);
 
     listingSlug = `phone-listing-${nonce}`;
     const { data: listing, error: listingError } = await admin
@@ -72,7 +73,7 @@ test.describe("Integration: public phone comes from the clinic", { tag: "@pr-e2e
     await seedProfessionalSpecialty(admin, listingId, { specialty: "Cardiology" });
     const { error: linkError } = await admin.from("professional_clinics").insert({
       professional_id: listingId,
-      clinic_id: phonelessClinicId,
+      clinic_id: listingClinicId,
       is_primary: true,
       sort_order: 0,
     });
@@ -101,12 +102,12 @@ test.describe("Integration: public phone comes from the clinic", { tag: "@pr-e2e
     await deleteTestClinics(admin, clinicIds);
   });
 
-  test("the reveal API shows no phone for a clinic without one", async ({ request }) => {
+  test("the reveal API answers for clinics only, never for a professional", async ({ request }) => {
     const clinic = await request.post("/api/directory/contact-reveal", {
-      data: { kind: "clinic", id: phonelessClinicId, manualId: listingId },
+      data: { kind: "clinic", id: listingClinicId, manualId: listingId },
     });
     expect(clinic.status()).toBe(200);
-    expect((await clinic.json()).phone).toBeNull();
+    expect((await clinic.json()).phone).toBeTruthy();
 
     for (const kind of ["manual", "registered"]) {
       const res = await request.post("/api/directory/contact-reveal", {
@@ -114,14 +115,6 @@ test.describe("Integration: public phone comes from the clinic", { tag: "@pr-e2e
       });
       expect(res.status(), kind).toBe(400);
     }
-  });
-
-  test("a listing whose clinic has no phone shows no phone button", async ({ page }) => {
-    await page.goto(`/en/${listingSlug}`, { waitUntil: "domcontentloaded" });
-    await expect(page.getByText(`Phoneless Clinic ${nonce}`).first()).toBeVisible({
-      timeout: 20_000,
-    });
-    await expect(page.getByRole("button", { name: /Show phone number/i })).toHaveCount(0);
   });
 
   test("a registered profile shows the clinic phone, never the mobile", async ({
