@@ -51,7 +51,6 @@ async function seed(admin: SupabaseClient, tag: string): Promise<Seeded> {
       email,
       mobile_number: "+35799123456",
       languages: ["English"],
-      status: "verified",
       slug: `d3a-${tag}-${n}`,
       is_registered: true,
       pro_access_until: new Date(Date.now() + 180 * 86_400_000).toISOString(),

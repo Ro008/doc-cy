@@ -19,7 +19,7 @@ test.describe("Booking flow @booking-creates", { tag: ["@pr-e2e", "@pr-e2e-booki
     const { data: activeDoctors } = await supabase
       .from("professionals")
       .select("slug,name,id")
-      .eq("status", "verified")
+      .eq("is_registered", true)
       .not("slug", "is", null)
       .limit(8);
 

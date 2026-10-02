@@ -1,11 +1,10 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
-import { isDoctorVerifiedForProduct } from "@/lib/doctor-account-access";
 import { createServiceRoleClient } from "@/lib/supabase-service";
 
 /**
- * Persist that the verified professional dismissed the first-login trial notice.
+ * Persist that the professional dismissed the first-login trial notice.
  * Authz via the user session; write via service role so RLS cannot silently no-op.
  */
 export async function POST() {
@@ -20,7 +19,7 @@ export async function POST() {
 
   const doctorRes = await supabase
     .from("professionals")
-    .select("id, status, trial_notice_seen_at")
+    .select("id, trial_notice_seen_at")
     .eq("auth_user_id", user.id)
     .maybeSingle();
 
@@ -37,10 +36,6 @@ export async function POST() {
   }
 
   if (!doctorRes.data) {
-    return NextResponse.json({ message: "Forbidden." }, { status: 403 });
-  }
-
-  if (!isDoctorVerifiedForProduct(doctorRes.data.status)) {
     return NextResponse.json({ message: "Forbidden." }, { status: 403 });
   }
 

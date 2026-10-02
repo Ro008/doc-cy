@@ -93,7 +93,6 @@ async function createVerifiedDoctor(
       email,
       languages: input.languages,
       avatar_url: input.avatarPath ?? null,
-      status: "verified",
       slug,
       // Mark as test so cleanup + prod finder hide are reliable; still visible when
       // NEXT_PUBLIC_DOC_CY_FINDER_INCLUDE_TEST_PROFILES=1 (integration).
@@ -313,8 +312,8 @@ test.describe("Integration: finder business-critical UX", { tag: ["@pr-e2e", "@p
     const doctorsRes = await fetchAllSupabaseRows(() =>
       admin
         .from("professionals")
-        .select("id, name, slug, status, is_test_profile, email")
-        .eq("status", "verified")
+        .select("id, name, slug, is_test_profile, email")
+        .eq("is_registered", true)
         .not("slug", "is", null)
         .order("name", { ascending: true }),
     );

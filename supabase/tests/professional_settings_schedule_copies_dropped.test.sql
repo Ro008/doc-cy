@@ -72,8 +72,8 @@ begin
   insert into auth.users (id, instance_id, aud, role, email, email_confirmed_at, created_at, updated_at)
   values (v_login, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
           'e6-' || v_login || '@integration.test', now(), now(), now());
-  insert into public.professionals (name, slug, is_registered, is_test_profile, auth_user_id, status)
-  values ('E6 Test', 'e6-test-' || substr(v_login::text, 1, 8), true, true, v_login, 'verified')
+  insert into public.professionals (name, slug, is_registered, is_test_profile, auth_user_id)
+  values ('E6 Test', 'e6-test-' || substr(v_login::text, 1, 8), true, true, v_login)
   returning id into v_pro;
   if not exists (select 1 from public.professional_settings where professional_id = v_pro) then
     raise exception 'FAIL: registering did not create professional_settings';

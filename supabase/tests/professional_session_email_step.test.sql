@@ -68,8 +68,8 @@ begin
   end if;
 
   v_login := pg_temp.new_login('email-step-' || gen_random_uuid() || '@integration.test');
-  insert into public.professionals (name, slug, is_registered, is_test_profile, auth_user_id, status)
-  values ('Email Step', 'email-step-' || substr(gen_random_uuid()::text, 1, 8), true, true, v_login, 'verified')
+  insert into public.professionals (name, slug, is_registered, is_test_profile, auth_user_id)
+  values ('Email Step', 'email-step-' || substr(gen_random_uuid()::text, 1, 8), true, true, v_login)
   returning id into v_pro;
   insert into public.professional_settings (professional_id)
   values (v_pro)

@@ -16,14 +16,6 @@ import {
 } from "@/lib/founder-dashboard-query";
 import { InternalDirectoryClient } from "@/components/internal/InternalDirectoryClient";
 import type { DirectoryDoctorRow } from "@/components/internal/InternalDirectoryClient";
-import {
-  PendingSpecialtiesPanel,
-  type PendingSpecialtyRow,
-} from "@/components/internal/PendingSpecialtiesPanel";
-import {
-  buildPendingSpecialtyItems,
-  type PendingSpecialtyJunctionRow,
-} from "@/lib/pending-specialty-review";
 import { InternalSignOutButton } from "@/components/internal/InternalSignOutButton";
 import { FounderKpiCards } from "@/components/internal/FounderKpiCards";
 import { SpecialtyBreakdown } from "@/components/internal/SpecialtyBreakdown";
@@ -76,7 +68,6 @@ import { adminCanWrite, getAdminAccess } from "@/lib/admin-auth";
 import { adminSignInPath } from "@/lib/admin-sign-in-flow";
 import { professionalAccountEmail } from "@/lib/professional-account-contact";
 import {
-  hasPendingSpecialty,
   loadSpecialtyCatalogueNames,
   loadSpecialtyEntriesByProfessionalIds,
   primarySpecialtyEntry,
@@ -350,9 +341,9 @@ export default async function FounderDashboardPage({
   const chartRangeStart = startOfMonth(subMonths(new Date(), 5));
 
   const doctorSelectWithAccountEmail =
-    "id, name, email, registration_email, mobile_number, slug, languages, status, created_at, auth_user_id, pro_access_until";
+    "id, name, email, registration_email, mobile_number, slug, languages, created_at, auth_user_id, pro_access_until";
   const doctorSelectLegacy =
-    "id, name, email, mobile_number, slug, languages, status, created_at, auth_user_id";
+    "id, name, email, mobile_number, slug, languages, created_at, auth_user_id";
 
   let doctorsRes = await fetchAllSupabaseRows(() =>
     supabase
@@ -467,11 +458,9 @@ export default async function FounderDashboardPage({
       : d.languages
         ? [String(d.languages)]
         : [],
-    status: (d.status as string | null) ?? null,
     license_number: primary?.licenseNumber ?? null,
     created_at: (d as { created_at?: string | null }).created_at ?? null,
     pro_access_until: (d as { pro_access_until?: string | null }).pro_access_until ?? null,
-    is_specialty_approved: !hasPendingSpecialty(entries),
     auth_user_id: (d as { auth_user_id?: string | null }).auth_user_id ?? null,
     };
   });
@@ -484,9 +473,7 @@ export default async function FounderDashboardPage({
       slug: r.slug,
       specialty: r.specialty,
       languages: r.languages,
-      status: r.status,
       license_number: r.license_number,
-      is_specialty_approved: r.is_specialty_approved,
     };
   });
 
@@ -503,9 +490,7 @@ export default async function FounderDashboardPage({
         slug: r.slug,
         specialty: r.specialty,
         languages: r.languages,
-        status: r.status,
         license_number: r.license_number,
-        is_specialty_approved: r.is_specialty_approved,
         email: r.email,
         loginPassword: r.auth_user_id
           ? loginPasswordsByAuthUserId.get(r.auth_user_id) ?? null
@@ -514,33 +499,7 @@ export default async function FounderDashboardPage({
     });
   }
 
-  // Registered, still pending, with a custom specialty awaiting review (newest first).
-  const pendingProfessionals = rows
-    .filter(
-      (r) => !r.is_specialty_approved && (r.status ?? "").trim().toLowerCase() === "pending",
-    )
-    .map((r) => ({ id: r.id, name: r.name ?? null, email: r.email }));
-
-  const pendingSpecialtyItems: PendingSpecialtyRow[] = buildPendingSpecialtyItems(
-    pendingProfessionals,
-    pendingProfessionals.flatMap((r) =>
-      (specialtyEntriesByDoctor.get(r.id) ?? []).map(
-        (entry): PendingSpecialtyJunctionRow => ({
-          id: entry.id,
-          professional_id: r.id,
-          specialty: entry.name,
-          license_number: entry.licenseNumber,
-          is_approved: entry.isApproved,
-        }),
-      ),
-    ),
-  );
-
-  const specialtyOptions = await loadSpecialtyCatalogueNames(supabase);
-  const verifiedRows = rows.filter(
-    (r) => (r.status ?? "").trim().toLowerCase() === "verified"
-  );
-  const totalDoctors = verifiedRows.length;
+  const totalDoctors = rows.length;
   const totalAppointments = apptCountRes.error ? 0 : apptCountRes.count ?? 0;
   const appointmentsThisMonth = apptsMonthCountRes.error
     ? 0
@@ -549,7 +508,7 @@ export default async function FounderDashboardPage({
   const activeDoctors7d =
     !appts7dRes.error && typeof appts7dRes.data === "number" ? appts7dRes.data : 0;
 
-  const newDoctorsThisWeek = verifiedRows.filter((r) => {
+  const newDoctorsThisWeek = rows.filter((r) => {
     if (!r.created_at) return false;
     return new Date(r.created_at) >= weekStart;
   }).length;
@@ -560,8 +519,8 @@ export default async function FounderDashboardPage({
       : [];
   const chartData = buildLastSixMonthsAppointmentCounts(chartRows);
 
-  const specialtyItems = aggregateSpecialties(verifiedRows);
-  const languageItems = aggregateLanguages(verifiedRows);
+  const specialtyItems = aggregateSpecialties(rows);
+  const languageItems = aggregateLanguages(rows);
 
   let manualVoteRowsUnsorted: ManualPatientVoteRow[] = [];
   try {
@@ -815,10 +774,6 @@ export default async function FounderDashboardPage({
           newDoctorsThisWeek={newDoctorsThisWeek}
         />
 
-        <PendingSpecialtiesPanel
-          items={pendingSpecialtyItems}
-          specialtyOptions={specialtyOptions}
-        />
         <ManualPatientVotesSection
           query={dashboardQuery}
           rows={manualVoteRowsSorted}
@@ -837,7 +792,7 @@ export default async function FounderDashboardPage({
           months={trialMonths.ok ? trialMonths.months : null}
           canEdit={canMutate}
         />
-        <TrialConversionTable doctors={verifiedRows} />
+        <TrialConversionTable doctors={rows} />
         <WebsiteAnalyticsPanel />
 
         <div className="grid gap-6 xl:grid-cols-12">

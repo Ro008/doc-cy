@@ -212,7 +212,7 @@ async function main() {
   } else {
     const doctorRes = await admin
       .from("professionals")
-      .select("id, slug, email, status, auth_user_id, is_test_profile")
+      .select("id, slug, email, is_registered, is_archived, auth_user_id, is_test_profile")
       .eq("slug", bookingSlug)
       .maybeSingle();
 
@@ -235,10 +235,10 @@ async function main() {
         }
       }
       console.log(
-        `[booking] ${d.slug} status=${d.status} test_profile=${d.is_test_profile} id=${d.id}`,
+        `[booking] ${d.slug} registered=${d.is_registered} test_profile=${d.is_test_profile} id=${d.id}`,
       );
-      if (d.status !== "verified") {
-        console.error("[booking] Doctor is not verified — fix in /internal/directory.");
+      if (!d.is_registered || d.is_archived) {
+        console.error("[booking] Professional is not registered (or is archived).");
         exitCode = 1;
       }
 

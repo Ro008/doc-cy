@@ -17,16 +17,16 @@
  * from the copies on `professionals` (Point E).
  */
 export const DOCTOR_FIELD_LIST_PUBLIC_PROFILE =
-  "id, name, bio, slug, status, languages, is_gesy" as const;
+  "id, name, bio, slug, languages, is_gesy" as const;
 
 export const DOCTOR_FIELD_LIST_PUBLIC_PROFILE_NO_GESY =
-  "id, name, bio, slug, status, languages" as const;
+  "id, name, bio, slug, languages" as const;
 
 export const DOCTOR_FIELD_LIST_PUBLIC_PROFILE_NO_LANG =
-  "id, name, bio, slug, status" as const;
+  "id, name, bio, slug" as const;
 
 export const DOCTOR_FIELD_LIST_PUBLIC_PROFILE_BASE =
-  "id, name, bio, slug, status" as const;
+  "id, name, bio, slug" as const;
 
 export const DOCTOR_FIELD_LIST_METADATA =
-  "id, name, status, avatar_url" as const;
+  "id, name, avatar_url" as const;

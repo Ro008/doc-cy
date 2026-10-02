@@ -75,7 +75,6 @@ test.describe("Integration: appointment race condition guard", { tag: ["@pr-e2e"
           name: `Race Doctor ${nonce}`,
           email: doctorEmail,
           languages: ["English"],
-          status: "verified",
           slug: doctorSlug,
                 is_registered: true,
       pro_access_until: new Date(Date.now() + 180 * 86_400_000).toISOString(),

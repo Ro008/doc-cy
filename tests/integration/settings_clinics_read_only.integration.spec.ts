@@ -45,7 +45,6 @@ test.describe("Integration: clinics are read-only in settings", { tag: "@pr-e2e"
       name: `Read Only Clinics ${nonce}`,
       specialty: "Cardiologist",
       is_specialty_approved: true,
-      status: "verified",
     });
     const opened = await openPrimaryClinicForBookings(admin, doctor.doctorId, nonce);
     clinicId = opened.clinicId;

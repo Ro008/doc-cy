@@ -64,7 +64,6 @@ test.describe("Integration: doctor slug allocation", () => {
             name: sharedName,
             email,
             languages: ["English"],
-            status: "verified",
             slug,
                   is_registered: true,
       pro_access_until: new Date(Date.now() + 180 * 86_400_000).toISOString(),

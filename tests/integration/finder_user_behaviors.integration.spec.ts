@@ -95,7 +95,6 @@ async function createVerifiedDoctor(
       name: input.name,
       email,
       languages: input.languages,
-      status: "verified",
       slug,
       // Mark as test so cleanup + prod finder hide are reliable; still visible when
       // NEXT_PUBLIC_DOC_CY_FINDER_INCLUDE_TEST_PROFILES=1 (integration).

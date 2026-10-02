@@ -164,7 +164,6 @@ test.describe("Integration: menu for accounts not yet approved", { tag: "@pr-e2e
         name: `Menu Doctor ${nonce.slice(-4)}`,
         specialty: "Cardiology",
         is_specialty_approved: true,
-        status: "verified",
       });
       await loginDoctorUi(page, fixture.email, fixture.password);
       await page.goto("/agenda", { waitUntil: "domcontentloaded" });

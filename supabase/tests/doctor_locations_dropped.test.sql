@@ -73,8 +73,8 @@ begin
   insert into auth.users (id, instance_id, aud, role, email, created_at, updated_at)
   values (v_u, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
           'd4-drop-' || v_u || '@integration.test', now(), now());
-  insert into public.professionals (auth_user_id, name, slug, is_registered, status, is_test_profile)
-  values (v_u, 'D4 Drop Registered', 'd4-drop-reg-' || v_u, true, 'verified', true)
+  insert into public.professionals (auth_user_id, name, slug, is_registered, is_test_profile)
+  values (v_u, 'D4 Drop Registered', 'd4-drop-reg-' || v_u, true, true)
   returning id into v_pro;
   if not exists (select 1 from public.professional_settings where professional_id = v_pro) then
     raise exception 'FAIL: a new registered professional should get settings';
@@ -92,7 +92,7 @@ begin
   insert into auth.users (id, instance_id, aud, role, email, created_at, updated_at)
   values (v_u, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
           'd4-drop-claim-' || v_u || '@integration.test', now(), now());
-  update public.professionals set is_registered = true, auth_user_id = v_u, status = 'verified' where id = v_pro;
+  update public.professionals set is_registered = true, auth_user_id = v_u where id = v_pro;
   if not exists (select 1 from public.professional_settings where professional_id = v_pro) then
     raise exception 'FAIL: claiming a listing should create settings';
   end if;
@@ -108,7 +108,7 @@ begin
   insert into auth.users (id, instance_id, aud, role, email, created_at, updated_at)
   values (v_u, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
           'd4-drop-claim2-' || v_u || '@integration.test', now(), now());
-  update public.professionals set is_registered = true, auth_user_id = v_u, status = 'verified' where id = v_pro;
+  update public.professionals set is_registered = true, auth_user_id = v_u where id = v_pro;
   if not exists (select 1 from public.professional_settings where professional_id = v_pro and minimum_notice_hours = 24) then
     raise exception 'FAIL: existing settings must be kept';
   end if;

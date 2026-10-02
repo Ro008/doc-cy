@@ -13,13 +13,13 @@
 insert into public.professionals (
   id, name, slug, email, registration_email, mobile_number, languages,
   is_gesy, is_archived, is_registered,
-  is_test_profile, auth_user_id, status, subscription_tier,
+  is_test_profile, auth_user_id, subscription_tier,
   trial_notice_seen_at, pro_access_until
 )
 values (
   md5('ci-fixture-andreas-nikos')::uuid, :'name', :'slug',
   :'email', :'email', '+35700999003', :'languages'::text[], true,
-  false, true, true, :'auth_user_id'::uuid, 'verified', 'founder',
+  false, true, true, :'auth_user_id'::uuid, 'founder',
   now(), now() + interval '1 year'
 );
 

@@ -38,7 +38,6 @@ async function createDoctor({ slugPrefix, name }) {
       email,
       languages: ["English"],
       avatar_url: null,
-      status: "verified",
       slug,
       is_test_profile: true,
       is_registered: true,

@@ -78,7 +78,6 @@ test.describe("Integration: NEEDS_RESCHEDULE frees original slot", { tag: ["@pr-
           name: `NeedsRs Doctor ${nonce}`,
           email: doctorEmail,
           languages: ["English"],
-          status: "verified",
           slug: doctorSlug,
                 is_registered: true,
       pro_access_until: new Date(Date.now() + 180 * 86_400_000).toISOString(),

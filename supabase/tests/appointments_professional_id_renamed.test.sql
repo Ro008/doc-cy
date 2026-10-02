@@ -108,7 +108,7 @@ begin
        'appointments_delete_professional=is_professional_owner(professional_id)|; '
        'appointments_insert_public_booking=|(EXISTS ( SELECT 1
    FROM professionals p
-  WHERE ((p.id = appointments.professional_id) AND (p.is_registered = true) AND (p.status = ''verified''::text)))); '
+  WHERE ((p.id = appointments.professional_id) AND (p.is_registered = true)))); '
        'appointments_select_professional=is_professional_owner(professional_id)|; '
        'appointments_update_professional=is_professional_owner(professional_id)|is_professional_owner(professional_id)' then
     raise exception 'FAIL: appointments policies are %', v_names;
@@ -171,8 +171,8 @@ begin
   -- Fixture: a registered professional.
   v_login := pg_temp.new_login('appts-' || gen_random_uuid() || '@integration.test');
   v_other := pg_temp.new_login('appts-other-' || gen_random_uuid() || '@integration.test');
-  insert into public.professionals (name, slug, is_registered, is_test_profile, auth_user_id, status)
-  values ('Appts Test', 'appts-test-' || substr(gen_random_uuid()::text, 1, 8), true, true, v_login, 'verified')
+  insert into public.professionals (name, slug, is_registered, is_test_profile, auth_user_id)
+  values ('Appts Test', 'appts-test-' || substr(gen_random_uuid()::text, 1, 8), true, true, v_login)
   returning id into v_pro;
 
   -- 6. A booking (the booking route writes with the service role); the same slot can't be

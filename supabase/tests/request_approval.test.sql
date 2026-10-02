@@ -148,7 +148,7 @@ begin
      or v_pro.languages <> array['English', 'Greek']
      or v_pro.avatar_url <> 'profiles/x/avatar.jpg'
      or v_pro.slug <> 'appr-new-' || v_tag
-     or v_pro.status <> 'verified' or v_pro.is_registered is not true
+     or v_pro.is_registered is not true
      or v_pro.auth_user_id is distinct from v_row.applicant_auth_user_id
      or v_pro.subscription_tier <> 'standard'
      or v_pro.is_test_profile is not true
@@ -284,7 +284,7 @@ begin
   select * into v_pro from public.professionals where id = v_listing;
   if v_row.professional_id is distinct from v_listing
      or (v_row.outcome ->> 'claimed_listing')::boolean is not true
-     or v_pro.is_registered is not true or v_pro.status <> 'verified'
+     or v_pro.is_registered is not true
      or v_pro.auth_user_id is distinct from v_row.applicant_auth_user_id
      or v_pro.name <> 'Approval Claim ' || v_tag or v_pro.slug <> 'approval-claim-' || v_tag then
     raise exception 'FAIL: the claimed listing should become the professional in place, got %', row_to_json(v_pro);
@@ -317,9 +317,9 @@ begin
   v_checks := v_checks + 1;
 
   -- 9. Outside approvals (fixtures, seeds) a registered professional still gets settings.
-  insert into public.professionals (auth_user_id, name, slug, is_registered, status, is_test_profile)
+  insert into public.professionals (auth_user_id, name, slug, is_registered, is_test_profile)
   values (pg_temp.new_login('appr-old-' || v_tag || '@integration.test'), 'Old Path ' || v_tag, 'old-path-' || v_tag,
-          true, 'pending', true)
+          true, true)
   returning id into v_listing;
   if not exists (select 1 from public.professional_settings where professional_id = v_listing) then
     raise exception 'FAIL: a directly inserted registered professional should get settings';

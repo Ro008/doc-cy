@@ -50,7 +50,6 @@ test.describe("Integration UI: doctor settings Service Menu", () => {
           name: `Service UI Doctor ${nonce}`,
           email: doctorEmail,
           languages: ["English"],
-          status: "verified",
           slug: doctorSlug,
                 is_registered: true,
       pro_access_until: new Date(Date.now() + 180 * 86_400_000).toISOString(),

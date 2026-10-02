@@ -17,9 +17,7 @@ export type DirectoryDoctorRow = {
   slug: string | null;
   specialty: string | null;
   languages: string[] | null;
-  status: string | null;
   license_number: string | null;
-  is_specialty_approved: boolean;
   /** Local founder dashboard only */
   email?: string | null;
   /** Local founder dashboard only — from auth user metadata */
@@ -51,7 +49,6 @@ export function InternalDirectoryClient({
   const [nameQ, setNameQ] = React.useState("");
   const [specialtyFilter, setSpecialtyFilter] = React.useState("");
   const [languageFilter, setLanguageFilter] = React.useState("");
-  const [statusFilter, setStatusFilter] = React.useState("");
   const [busyId, setBusyId] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [purgeTarget, setPurgeTarget] = React.useState<DirectoryDoctorRow | null>(
@@ -79,22 +76,11 @@ export function InternalDirectoryClient({
     return Array.from(set).sort((a, b) => a.localeCompare(b));
   }, [doctors]);
 
-  const statusOptions = React.useMemo(() => {
-    const set = new Set<string>();
-    for (const d of doctors) {
-      const st = d.status?.trim().toLowerCase() || "pending";
-      set.add(st);
-    }
-    return Array.from(set).sort((a, b) => a.localeCompare(b));
-  }, [doctors]);
-
   const filtered = React.useMemo(() => {
     const nq = nameQ.trim().toLowerCase();
     return doctors.filter((d) => {
       if (nq && !d.name.toLowerCase().includes(nq)) return false;
       if (specialtyFilter && d.specialty !== specialtyFilter) return false;
-      const status = d.status?.trim().toLowerCase() || "pending";
-      if (statusFilter && status !== statusFilter) return false;
       if (languageFilter) {
         const langs = d.languages ?? [];
         if (
@@ -107,22 +93,20 @@ export function InternalDirectoryClient({
       }
       return true;
     });
-  }, [doctors, nameQ, specialtyFilter, statusFilter, languageFilter]);
+  }, [doctors, nameQ, specialtyFilter, languageFilter]);
 
   const hasActiveFilters = Boolean(
-    nameQ.trim() || specialtyFilter || languageFilter || statusFilter
+    nameQ.trim() || specialtyFilter || languageFilter
   );
   const activeFiltersCount =
     (nameQ.trim() ? 1 : 0) +
     (specialtyFilter ? 1 : 0) +
-    (statusFilter ? 1 : 0) +
     (languageFilter ? 1 : 0);
 
   function resetAllFilters() {
     setNameQ("");
     setSpecialtyFilter("");
     setLanguageFilter("");
-    setStatusFilter("");
   }
 
   function openPurgeDialog(doctor: DirectoryDoctorRow) {
@@ -157,7 +141,7 @@ export function InternalDirectoryClient({
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 rounded-xl border border-slate-800/60 bg-slate-950/40 p-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 rounded-xl border border-slate-800/60 bg-slate-950/40 p-4 sm:grid-cols-2 xl:grid-cols-3">
         <div>
           <label className="text-xs font-semibold uppercase tracking-wide text-slate-400">
             Name
@@ -183,23 +167,6 @@ export function InternalDirectoryClient({
             {specialtyOptions.map((s) => (
               <option key={s} value={s}>
                 {s}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-            Status
-          </label>
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-clinical-500/40"
-          >
-            <option value="">All statuses</option>
-            {statusOptions.map((status) => (
-              <option key={status} value={status}>
-                {status}
               </option>
             ))}
           </select>
@@ -269,16 +236,12 @@ export function InternalDirectoryClient({
               ) : null}
               <th className="px-4 py-3 font-semibold">Specialty</th>
               <th className="px-4 py-3 font-semibold">License #</th>
-              <th className="px-4 py-3 font-semibold">Status</th>
               <th className="px-4 py-3 font-semibold">Actions</th>
             </tr>
           </thead>
           <tbody>
             {filtered.map((d) => {
               const busy = busyId === d.id;
-              const status = d.status?.trim().toLowerCase() || "pending";
-              const isPending = status === "pending";
-              const isRejected = status === "rejected";
               return (
                 <tr
                   key={d.id}
@@ -314,35 +277,9 @@ export function InternalDirectoryClient({
                   ) : null}
                   <td className="px-4 py-3 align-top text-slate-300">
                     <span>{d.specialty || "—"}</span>
-                    {isRejected && !d.is_specialty_approved ? (
-                      <span className="mt-1 block w-fit rounded-full bg-red-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-200">
-                        Specialty rejected
-                      </span>
-                    ) : isPending && !d.is_specialty_approved ? (
-                      <span className="mt-1 block w-fit rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-200">
-                        Specialty pending
-                      </span>
-                    ) : isPending && d.is_specialty_approved ? (
-                      <span className="mt-1 block w-fit rounded-full bg-clinical-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-clinical-200/90">
-                        Ready for license review
-                      </span>
-                    ) : null}
                   </td>
                   <td className="max-w-[140px] px-4 py-3 align-top text-xs text-slate-400">
                     <span className="break-words">{d.license_number?.trim() || "—"}</span>
-                  </td>
-                  <td className="px-4 py-3 align-top">
-                    <span
-                      className={`inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${
-                        status === "verified"
-                          ? "bg-clinical-500/15 text-clinical-200"
-                          : status === "rejected"
-                            ? "bg-red-500/15 text-red-200"
-                            : "bg-amber-500/15 text-amber-100"
-                      }`}
-                    >
-                      {status}
-                    </span>
                   </td>
                   <td className="px-4 py-3 align-top">
                     <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">

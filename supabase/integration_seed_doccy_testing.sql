@@ -140,7 +140,6 @@ BEGIN
       name,
       email,
       languages,
-      status,
       slug,
       is_test_profile,
       subscription_tier,
@@ -153,7 +152,6 @@ BEGIN
       'Andreas Nikos Test',
       v_email,
       ARRAY['English', 'Greek']::text[],
-      'verified',
       v_slug,
       true,
       'standard',
@@ -173,7 +171,6 @@ BEGIN
     UPDATE public.professionals
     SET
       name = 'Andreas Nikos Test',
-      status = 'verified',
       is_test_profile = true,
       is_registered = true,
       pro_access_until = coalesce(pro_access_until, now() + interval '6 months'),
