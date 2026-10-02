@@ -69,9 +69,9 @@ test.describe("Integration: public Service Menu section", () => {
         isApproved: true,
       });
 
-      const serviceInsert = await admin.from("doctor_services").insert([
-        { doctor_id: doctorId, name: "Facial Laser", price: "From 50€" },
-        { doctor_id: doctorId, name: "Lip Filler", price: "120€" },
+      const serviceInsert = await admin.from("professional_services").insert([
+        { professional_id: doctorId, name: "Facial Laser", price: "From 50€" },
+        { professional_id: doctorId, name: "Lip Filler", price: "120€" },
       ]);
       if (serviceInsert.error) {
         throw new Error(`Failed inserting doctor services: ${serviceInsert.error.message}`);
@@ -105,7 +105,7 @@ test.describe("Integration: public Service Menu section", () => {
       await expect(page.getByText("Lip Filler")).toBeVisible({ timeout: 10000 });
       await expect(page.getByText("120€")).toBeVisible({ timeout: 10000 });
 
-      const clearServices = await admin.from("doctor_services").delete().eq("doctor_id", doctorId);
+      const clearServices = await admin.from("professional_services").delete().eq("professional_id", doctorId);
       if (clearServices.error) {
         throw new Error(`Failed deleting doctor services: ${clearServices.error.message}`);
       }
@@ -115,7 +115,7 @@ test.describe("Integration: public Service Menu section", () => {
       await expect(page.getByText("Facial Laser")).toHaveCount(0);
     } finally {
       if (doctorId) {
-        await admin.from("doctor_services").delete().eq("doctor_id", doctorId);
+        await admin.from("professional_services").delete().eq("professional_id", doctorId);
         await admin.from("professional_settings").delete().eq("professional_id", doctorId);
         await admin.from("professionals").delete().eq("id", doctorId);
       }

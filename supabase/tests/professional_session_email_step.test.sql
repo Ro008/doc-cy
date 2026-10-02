@@ -118,7 +118,7 @@ begin
     v_checks := v_checks + 1;
 
     begin
-      insert into public.doctor_services (doctor_id, name) values (v_pro, 'Step service');
+      insert into public.professional_services (professional_id, name) values (v_pro, 'Step service');
       raise exception 'FAIL: % adds a service', v_case.label;
     exception when insufficient_privilege then
       v_checks := v_checks + 1;
@@ -161,7 +161,7 @@ begin
     if v_n <> 1 then raise exception 'FAIL: % cannot edit her settings', v_case.label; end if;
     v_checks := v_checks + 1;
 
-    insert into public.doctor_services (doctor_id, name) values (v_pro, 'Step service ' || v_checks);
+    insert into public.professional_services (professional_id, name) values (v_pro, 'Step service ' || v_checks);
     v_checks := v_checks + 1;
 
     execute 'reset role'; perform set_config('request.jwt.claims', '', true);
