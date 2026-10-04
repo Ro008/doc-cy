@@ -27,6 +27,7 @@ import {
 import { patientVisitReasonFromAppointmentRow } from "@/lib/agenda-visit-reason";
 import { agendaRefreshOutcome } from "@/lib/agenda-refresh";
 import { ManualBookingFlow } from "@/components/agenda/ManualBookingFlow";
+import { VisitNotesBox } from "@/components/agenda/VisitNotesBox";
 import { AGENDA_HIGHLIGHT_MS } from "@/lib/agenda-highlight";
 import { expandAgendaAppointmentsForGrid } from "@/lib/agenda-grid";
 import {
@@ -109,6 +110,8 @@ type AgendaAppointmentRow = {
   proposal_expires_at?: string | null;
   attendance?: string | null;
   location_id?: string | null;
+  professional_notes?: string | null;
+  review_requested_at?: string | null;
 };
 
 function agendaRowFromSupabasePayload(
@@ -138,6 +141,14 @@ function agendaRowFromSupabasePayload(
       raw.location_id == null || raw.location_id === ""
         ? null
         : String(raw.location_id),
+    professional_notes:
+      raw.professional_notes == null || raw.professional_notes === ""
+        ? null
+        : String(raw.professional_notes),
+    review_requested_at:
+      raw.review_requested_at == null || raw.review_requested_at === ""
+        ? null
+        : String(raw.review_requested_at),
   };
 }
 
@@ -614,6 +625,11 @@ export function AgendaRealtime({
   const selectedNoShow = selected
     ? isNoShowAttendance(selected.attendance)
     : false;
+  const selectedStarted = selected
+    ? new Date(selected.appointment_datetime).getTime() <= nowMs
+    : false;
+  // Attendance is fixed once the review email has gone out (user, 2026-10-04).
+  const selectedReviewSent = Boolean(selected?.review_requested_at);
   const expanded = expandAgendaAppointmentsForGrid(visibleAppointments, nowMs);
   const rows = expanded.map((a) => {
     const utc = a.gridStartIso;
@@ -1568,12 +1584,14 @@ export function AgendaRealtime({
                         !selectedProposalLive
                       ? "The patient did not choose a new time before the offer expired."
                       : selectedStatus === "CONFIRMED" && selectedNoShow
-                        ? "You marked this confirmed visit as a no-show. Details are read-only."
-                        : selectedStatus === "CONFIRMED"
-                          ? "This visit is in the past. You can mark it as a no-show for your records."
+                        ? "You marked this visit as a no-show."
+                        : selectedStatus === "CONFIRMED" && selectedReviewSent
+                          ? "This visit counts as attended. The patient has been asked for a review."
+                          : selectedStatus === "CONFIRMED"
+                          ? "This visit counts as attended. If the patient didn't come, mark a no-show."
                           : "This visit is in the past. Details are read-only."}
                 </p>
-                {selectedStatus === "CONFIRMED" ? (
+                {selectedStatus === "CONFIRMED" && !selectedReviewSent ? (
                   selectedNoShow ? (
                     <button
                       type="button"
@@ -1616,6 +1634,19 @@ export function AgendaRealtime({
                   <p className="text-xs text-amber-300">{attendanceError}</p>
                 ) : null}
               </div>
+            ) : null}
+            {selectedStatus === "CONFIRMED" && selectedStarted && !confirmingCancel ? (
+              <VisitNotesBox
+                appointmentId={selected.id}
+                initialNotes={selected.professional_notes ?? null}
+                onSaved={(notes) => {
+                  const id = selected.id;
+                  setAppointments((prev) =>
+                    prev.map((row) => (row.id === id ? { ...row, professional_notes: notes } : row)),
+                  );
+                  setSelected((prev) => (prev && prev.id === id ? { ...prev, professional_notes: notes } : prev));
+                }}
+              />
             ) : null}
             {selected.showReviewLink &&
             !selectedPast &&

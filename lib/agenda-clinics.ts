@@ -6,7 +6,7 @@ import {
 import type { DayKey, WeeklySchedule } from "@/lib/doctor-settings";
 
 export const AGENDA_APPOINTMENT_SELECT =
-  "id, professional_id, patient_name, patient_phone, reason, appointment_datetime, status, duration_minutes, proposed_slots, proposal_expires_at, attendance, location_id";
+  "id, professional_id, patient_name, patient_phone, reason, appointment_datetime, status, duration_minutes, proposed_slots, proposal_expires_at, attendance, location_id, professional_notes, review_requested_at";
 
 /** Statuses the agenda shows. Declined, cancelled and expired visits are kept (never
  *  deleted) but leave the agenda. */

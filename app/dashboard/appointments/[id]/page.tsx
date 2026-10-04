@@ -1,4 +1,6 @@
 import { redirect } from "next/navigation";
+import { PreviousVisitsList } from "@/components/dashboard/PreviousVisitsList";
+import { loadPreviousVisits } from "@/lib/previous-visits";
 import { cookies } from "next/headers";
 import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
 import { format } from "date-fns";
@@ -113,7 +115,7 @@ export default async function DashboardAppointmentDetailPage({
   const { data: appt, error: apptErr } = await supabase
     .from("appointments")
     .select(
-      "id, patient_name, patient_phone, appointment_datetime, status, reason, duration_minutes, proposal_expires_at, proposed_slots, created_at, is_new_patient, location_id"
+      "id, patient_name, patient_email, patient_phone, appointment_datetime, status, reason, duration_minutes, proposal_expires_at, proposed_slots, created_at, is_new_patient, location_id"
     )
     .eq("id", appointmentId)
     .eq("professional_id", doctor.id)
@@ -274,7 +276,7 @@ export default async function DashboardAppointmentDetailPage({
           {patientName} asked for {dateStr} · {timeStr}, but nobody answered before the visit time.
           {isStoredExpiredStatus(status)
             ? " It has been closed."
-            : " You can let them know or remove it from your agenda."}{" "}
+            : " We'll let them know they can book again online."}{" "}
           <span className="text-ink-500">Cyprus time.</span>
         </p>
         <dl className="mt-6 space-y-3 text-sm">
@@ -310,7 +312,7 @@ export default async function DashboardAppointmentDetailPage({
     const dayStartUtc = zonedTimeToUtc(`${dayKey}T00:00:00`, CY_TZ).toISOString();
     const dayEndUtc = zonedTimeToUtc(`${dayKey}T23:59:59.999`, CY_TZ).toISOString();
 
-    const [{ data: dayRows }, locationRows] = await Promise.all([
+    const [{ data: dayRows }, locationRows, previousVisits] = await Promise.all([
       supabase
         .from("appointments")
         .select("id, appointment_datetime, patient_name, status, duration_minutes")
@@ -319,6 +321,12 @@ export default async function DashboardAppointmentDetailPage({
         .lte("appointment_datetime", dayEndUtc)
         .order("appointment_datetime", { ascending: true }),
       loadDoctorLocations(doctor.id),
+      loadPreviousVisits(supabase, {
+        professionalId: doctor.id,
+        appointmentId: appt.id as string,
+        email: (appt as { patient_email?: string | null }).patient_email ?? null,
+        phone: patientPhone || null,
+      }),
     ]);
 
     const clinics = locationsToAgendaClinics(locationRows);
@@ -357,6 +365,10 @@ export default async function DashboardAppointmentDetailPage({
           openSuggestions={wantsSuggestOnOpen(searchParams?.intent)}
           locationId={locationId}
           clinicOptions={locationRows.map((l) => ({ id: l.id, name: l.clinic_name ?? "Clinic" }))}
+        />
+        <PreviousVisitsList
+          visits={previousVisits}
+          clinicName={(id) => (clinics.length > 1 ? clinics.find((c) => c.id === id)?.name ?? null : null)}
         />
       </DoctorAppointmentLinkShell>
     );
