@@ -18,7 +18,6 @@ import { formatInTimeZone, zonedTimeToUtc } from "date-fns-tz";
 import { CY_TZ } from "@/lib/appointments";
 import { reviewBackTarget, wantsSuggestOnOpen, type ReviewDayRow } from "@/lib/appointment-review";
 import { isExpiredRequest, isStoredExpiredStatus } from "@/lib/appointment-status";
-import { isRescheduleWithoutAnswer } from "@/lib/reschedule-follow-up";
 import { agendaHighlightHref } from "@/lib/agenda-highlight";
 import { awaitingPatientSummary, requestedAgoLabel, todayWorkingWindow } from "@/lib/doctor-dashboard";
 import { clinicIdForAppointment, locationsToAgendaClinics } from "@/lib/agenda-clinics";
@@ -186,17 +185,9 @@ export default async function DashboardAppointmentDetailPage({
         }
       : null;
 
-  // The patient let the proposed times expire: offer new times (request branch, "noNewTime").
-  const noNewTime = isRescheduleWithoutAnswer(
-    {
-      status,
-      proposal_expires_at: (appt as { proposal_expires_at?: string | null }).proposal_expires_at ?? null,
-      appointment_datetime: appt.appointment_datetime as string,
-    },
-    Date.now(),
-  );
-
-  if (status === "NEEDS_RESCHEDULE" && !noNewTime) {
+  // Waiting for the patient. A lapsed proposal becomes EXPIRED (scheduled job); there is
+  // no re-suggesting (user, 2026-10-04: no ping-pong).
+  if (status === "NEEDS_RESCHEDULE") {
     console.info("[DocCy][doctor-link] reopened_after_action", {
       userId: user.id,
       doctorId: doctor.id,
@@ -307,7 +298,7 @@ export default async function DashboardAppointmentDetailPage({
     );
   }
 
-  if (status === "REQUESTED" || noNewTime) {
+  if (status === "REQUESTED") {
     console.info("[DocCy][doctor-link] opened_pending_request", {
       userId: user.id,
       doctorId: doctor.id,
@@ -363,8 +354,9 @@ export default async function DashboardAppointmentDetailPage({
           initialDurationMinutes={initialDurationMinutes}
           scheduleForReview={scheduleForReview}
           back={reviewBackTarget(searchParams?.from)}
-          openSuggestions={noNewTime || wantsSuggestOnOpen(searchParams?.intent)}
-          context={noNewTime ? "noNewTime" : "request"}
+          openSuggestions={wantsSuggestOnOpen(searchParams?.intent)}
+          locationId={locationId}
+          clinicOptions={locationRows.map((l) => ({ id: l.id, name: l.clinic_name ?? "Clinic" }))}
         />
       </DoctorAppointmentLinkShell>
     );

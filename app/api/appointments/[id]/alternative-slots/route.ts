@@ -14,6 +14,13 @@ import {
 
 type RouteContext = { params: { id: string } };
 
+/**
+ * Free times she can propose for a request (user, 2026-10-04).
+ * - Default: the first three after the requested time (the picker pre-fills them).
+ * - `?date=YYYY-MM-DD`: every free time that day, to swap one for another.
+ * - `?locationId=`: at another of her clinic links (default the request's clinic).
+ */
+
 export async function GET(req: NextRequest, { params }: RouteContext) {
   const id = params.id;
   if (!id) {
@@ -52,7 +59,7 @@ export async function GET(req: NextRequest, { params }: RouteContext) {
 
   const { data: appt, error: apptErr } = await supabase
     .from("appointments")
-    .select("id, professional_id, appointment_datetime, status, location_id")
+    .select("id, professional_id, appointment_datetime, status, location_id, clinic_id")
     .eq("id", id)
     .maybeSingle();
 
@@ -65,19 +72,24 @@ export async function GET(req: NextRequest, { params }: RouteContext) {
   }
 
   const st = String(appt.status ?? "").toUpperCase();
-  if (st !== "REQUESTED" && st !== "CONFIRMED") {
+  // Only a request gets other times; a confirmed visit can only be cancelled.
+  if (st !== "REQUESTED") {
     return NextResponse.json(
-      { message: "Alternatives are only available for pending or confirmed visits." },
+      { message: "Other times can only be suggested for a pending request." },
       { status: 400 }
     );
   }
 
-  // Alternatives at the appointment's own clinic (its hours and slot length, Point E6).
-  const loaded = await loadDoctorSettingsForSlots(
-    supabase,
-    doctor.id,
-    (appt as { location_id?: string | null }).location_id,
-  );
+  const dateKey = req.nextUrl.searchParams.get("date");
+  if (dateKey != null && !/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
+    return NextResponse.json({ message: "Invalid date." }, { status: 400 });
+  }
+  const locationId =
+    req.nextUrl.searchParams.get("locationId")?.trim() ||
+    (appt as { location_id?: string | null }).location_id;
+
+  // At the chosen clinic (its hours and slot length, Point E6).
+  const loaded = await loadDoctorSettingsForSlots(supabase, doctor.id, locationId);
   if (!loaded) {
     return NextResponse.json(
       { message: "This clinic is not set up yet. Contact us to set it up." },
@@ -107,6 +119,7 @@ export async function GET(req: NextRequest, { params }: RouteContext) {
     excludeAppointmentId: id,
     searchFromAppointmentIso: appt.appointment_datetime as string,
     avoidStartIso: appt.appointment_datetime as string,
+    ...(dateKey ? { onlyDateKey: dateKey, limit: 200 } : {}),
   });
 
   return NextResponse.json({ slots, count: slots.length });

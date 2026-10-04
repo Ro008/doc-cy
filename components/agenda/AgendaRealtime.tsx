@@ -1941,13 +1941,7 @@ export function AgendaRealtime({
             !confirmingCancel &&
             !rescheduleOpen ? (
               <div className="mt-6 flex flex-col gap-2">
-                <button
-                  type="button"
-                  onClick={() => openRescheduleFlow(selected)}
-                  className="inline-flex w-full items-center justify-center rounded-2xl border border-clinical-400/50 bg-clinical-500/20 px-4 py-3 text-sm font-semibold text-clinical-100 shadow-sm shadow-clinical-500/10 transition hover:border-clinical-400/70 hover:bg-clinical-500/30"
-                >
-                  Reschedule appointment
-                </button>
+                {/* A confirmed visit can't be moved, only cancelled (user, 2026-10-04). */}
                 <button
                   type="button"
                   onClick={() => openCancelFlow(selected)}

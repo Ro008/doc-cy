@@ -145,6 +145,37 @@ test.describe("Integration: propose other times", { tag: "@pr-e2e" }, () => {
     expect(res.status()).toBe(400);
   });
 
+  test("the review page pre-fills three times she can swap before sending", async () => {
+    test.setTimeout(120_000);
+    const id = await request("ui", "REQUESTED", "16:30");
+    await page.goto(`/dashboard/appointments/${id}?intent=suggest&from=dashboard`, { waitUntil: "domcontentloaded" });
+    const list = page.getByTestId("review-suggested-times").locator("li");
+    await expect(list).toHaveCount(3, { timeout: 20_000 });
+
+    // Remove the first, then add a time from another day.
+    await list.first().getByRole("button", { name: /^Remove/ }).click();
+    await expect(list).toHaveCount(2);
+    const otherDay = weekdayKey(6);
+    await page.getByLabel("Day", { exact: true }).fill(otherDay);
+    await page.getByRole("button", { name: /show free times/i }).click();
+    const options = page.getByTestId("review-day-options").getByRole("button");
+    await expect(options.first()).toBeVisible({ timeout: 15_000 });
+    await options.filter({ hasText: "11:00" }).click();
+    await expect(list).toHaveCount(3);
+
+    await page.getByRole("button", { name: /send/i }).last().click();
+    await expect
+      .poll(async () => {
+        const { data } = await admin.from("appointments").select("status, proposed_slots").eq("id", id).single();
+        return data;
+      }, { timeout: 20_000 })
+      .toMatchObject({ status: "NEEDS_RESCHEDULE" });
+    const { data } = await admin.from("appointments").select("proposed_slots").eq("id", id).single();
+    const sent = (data!.proposed_slots as string[]).map((s) => new Date(s).toISOString());
+    expect(sent).toHaveLength(3);
+    expect(sent).toContain(iso(otherDay, "11:00"));
+  });
+
   test("can propose at another of her clinics", async () => {
     const id = await request("f", "REQUESTED", "13:30");
     const res = await propose(id, { proposedSlots: [iso(day, "12:00")], locationId: otherLinkId });

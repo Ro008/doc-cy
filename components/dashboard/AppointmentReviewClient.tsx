@@ -49,12 +49,14 @@ type Props = {
   back: ReviewBackTarget;
   /** Opened from "Suggest other times": load the three times straight away. */
   openSuggestions: boolean;
-  /**
-   * "noNewTime": the patient let earlier proposed times expire, so the visit is no longer
-   * booked. Only suggesting new times makes sense (no accept / keep / decline).
-   */
-  context?: "request" | "noNewTime";
+  /** The request's clinic link; proposals default to it. */
+  locationId?: string | null;
+  /** Her clinics: she may propose times at another one (user, 2026-10-04). */
+  clinicOptions?: { id: string; name: string }[];
 };
+
+/** She sends 1 to 3 times (user, 2026-10-04). */
+const MAX_PROPOSED = 3;
 
 const OTHER_DURATIONS = PROFESSIONAL_DURATION_OPTIONS.filter(
   (m) => !(QUICK_DURATIONS as readonly number[]).includes(m),
@@ -93,9 +95,9 @@ export function AppointmentReviewClient({
   scheduleForReview,
   back,
   openSuggestions,
-  context = "request",
+  locationId = null,
+  clinicOptions = [],
 }: Props) {
-  const noNewTime = context === "noNewTime";
   const router = useRouter();
   const t = useTranslations("AppointmentReview");
   const [duration, setDuration] = React.useState<ProfessionalDurationOption>(
@@ -109,7 +111,14 @@ export function AppointmentReviewClient({
 
   const [loadingAlternatives, setLoadingAlternatives] = React.useState(false);
   const [alternativesError, setAlternativesError] = React.useState<string | null>(null);
-  const [previewSlots, setPreviewSlots] = React.useState<string[] | null>(null);
+  /** The 1-3 times she will send: pre-filled with the first free ones, editable. */
+  const [chosen, setChosen] = React.useState<string[] | null>(null);
+  const [proposalClinicId, setProposalClinicId] = React.useState<string | null>(locationId);
+  const [pickDate, setPickDate] = React.useState(() =>
+    format(appointmentToCyprusDate(appointmentDatetimeIso), "yyyy-MM-dd"),
+  );
+  const [dayOptions, setDayOptions] = React.useState<string[] | null>(null);
+  const [loadingDay, setLoadingDay] = React.useState(false);
   const [sendingProposal, setSendingProposal] = React.useState(false);
   const [declineOpen, setDeclineOpen] = React.useState(false);
   const suggestRef = React.useRef<HTMLDivElement>(null);
@@ -176,44 +185,73 @@ export function AppointmentReviewClient({
     };
   }, [appointmentId, duration]);
 
+  const clinicQuery = proposalClinicId ? `&locationId=${encodeURIComponent(proposalClinicId)}` : "";
+
+  /** The first free times after the requested one, at the chosen clinic. */
   const loadAlternatives = React.useCallback(async () => {
     setAlternativesError(null);
-    setPreviewSlots(null);
+    setChosen(null);
+    setDayOptions(null);
     setLoadingAlternatives(true);
     try {
       const res = await fetch(
-        `/api/appointments/${encodeURIComponent(appointmentId)}/alternative-slots?durationMinutes=${duration}`,
+        `/api/appointments/${encodeURIComponent(appointmentId)}/alternative-slots?durationMinutes=${duration}${clinicQuery}`,
         { method: "GET", credentials: "include" },
       );
       const data = await res.json().catch(() => null);
       if (!res.ok) {
-        setAlternativesError(
-          // Backend contract: alternative-slots / propose-reschedule will accept lapsed
-          // reschedules; until then say so plainly instead of the API's status message.
-          noNewTime && res.status === 400
-            ? "Suggesting new times for a lapsed reschedule isn't available yet."
-            : typeof data?.message === "string"
-              ? data.message
-              : "Could not load alternative times.",
-        );
+        setAlternativesError(typeof data?.message === "string" ? data.message : "Could not load alternative times.");
         return;
       }
       const slots = (data as { slots?: string[] }).slots ?? [];
-      if (slots.length < 3) {
+      if (slots.length === 0) {
         setAlternativesError(
-          "Not enough open times were found. Try a shorter visit length or extend your booking horizon in settings.",
+          "No open times were found. Try a shorter visit length or extend your booking horizon in settings.",
         );
-        return;
       }
-      setPreviewSlots(slots.slice(0, 3));
+      setChosen(slots.slice(0, MAX_PROPOSED));
     } catch {
       setAlternativesError("Could not load alternative times.");
     } finally {
       setLoadingAlternatives(false);
     }
-  }, [appointmentId, duration, noNewTime]);
+  }, [appointmentId, duration, clinicQuery]);
 
-  // Opened from "Suggest other times": show the three times straight away.
+  /** Every free time on one day, to add or swap. */
+  async function loadDay() {
+    setLoadingDay(true);
+    setAlternativesError(null);
+    try {
+      const res = await fetch(
+        `/api/appointments/${encodeURIComponent(appointmentId)}/alternative-slots?durationMinutes=${duration}&date=${pickDate}${clinicQuery}`,
+        { method: "GET", credentials: "include" },
+      );
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        setAlternativesError(typeof data?.message === "string" ? data.message : "Could not load free times.");
+        return;
+      }
+      setDayOptions((data as { slots?: string[] }).slots ?? []);
+    } catch {
+      setAlternativesError("Could not load free times.");
+    } finally {
+      setLoadingDay(false);
+    }
+  }
+
+  function addTime(iso: string) {
+    setChosen((prev) => {
+      const list = prev ?? [];
+      if (list.includes(iso) || list.length >= MAX_PROPOSED) return list;
+      return [...list, iso].sort();
+    });
+  }
+
+  function removeTime(iso: string) {
+    setChosen((prev) => (prev ?? []).filter((t) => t !== iso));
+  }
+
+  // Opened from "Suggest other times": show the times straight away.
   const autoLoaded = React.useRef(false);
   React.useEffect(() => {
     if (!openSuggestions || autoLoaded.current) return;
@@ -222,13 +260,14 @@ export function AppointmentReviewClient({
     void loadAlternatives();
   }, [openSuggestions, loadAlternatives]);
 
-  // Suggested times depend on the length; a new length needs a fresh search.
-  const previousDuration = React.useRef(duration);
+  // Free times depend on the length and the clinic; a change needs a fresh search.
+  const previousSearch = React.useRef(`${duration}|${proposalClinicId}`);
   React.useEffect(() => {
-    if (previousDuration.current === duration) return;
-    previousDuration.current = duration;
-    if (previewSlots) void loadAlternatives();
-  }, [duration, previewSlots, loadAlternatives]);
+    const key = `${duration}|${proposalClinicId}`;
+    if (previousSearch.current === key) return;
+    previousSearch.current = key;
+    if (chosen) void loadAlternatives();
+  }, [duration, proposalClinicId, chosen, loadAlternatives]);
 
   async function handleConfirm() {
     if (hasConflict || checking || busy) return;
@@ -268,7 +307,11 @@ export function AppointmentReviewClient({
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ durationMinutes: duration }),
+        body: JSON.stringify({
+          durationMinutes: duration,
+          proposedSlots: chosen ?? [],
+          ...(proposalClinicId ? { locationId: proposalClinicId } : {}),
+        }),
       });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
@@ -295,43 +338,127 @@ export function AppointmentReviewClient({
         : "border-slate-700 bg-slate-900/50 text-slate-300 hover:border-clinical-400/40 hover:text-slate-100"
     }`;
 
+  const canAddMore = (chosen?.length ?? 0) < MAX_PROPOSED;
   const suggestionsPanel = (
-        <div ref={suggestRef}>
+    <div ref={suggestRef}>
       {alternativesError ? <p className="text-xs text-amber-200">{alternativesError}</p> : null}
-      {loadingAlternatives && !previewSlots ? (
+      {loadingAlternatives && !chosen ? (
         <p className="flex items-center gap-2 text-xs text-slate-400">
           <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
           Finding the next open times…
         </p>
       ) : null}
-      {previewSlots && previewSlots.length >= 3 ? (
+      {chosen ? (
         <div className="space-y-3 rounded-2xl border border-clinical-400/30 bg-clinical-500/5 p-4 motion-safe:animate-fade-up">
           <div>
             <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-clinical-200/90">
               <ShieldCheck className="h-4 w-4" aria-hidden />
-              Your next free times
+              Times to offer ({chosen.length} of up to {MAX_PROPOSED})
             </p>
             <p className="mt-1 text-xs leading-relaxed text-slate-400">
-              DocCy checked your working hours and appointments. These are the first 3 openings that
-              fit a {formatProfessionalDurationLabel(duration)} visit.
+              We pre-filled your next free times for a {formatProfessionalDurationLabel(duration)} visit. Remove any
+              and add others from your free times.
             </p>
           </div>
+
+          {clinicOptions.length > 1 ? (
+            <label className="block text-xs font-medium text-slate-400">
+              Clinic
+              <select
+                value={proposalClinicId ?? ""}
+                onChange={(e) => setProposalClinicId(e.target.value || null)}
+                disabled={busy}
+                className="mt-1 w-full rounded-xl border border-slate-700 bg-ink-900/80 px-3 py-2 text-sm text-slate-100"
+                data-testid="review-proposal-clinic"
+              >
+                {clinicOptions.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                    {c.id === locationId ? " (requested)" : ""}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
+
           <ul data-testid="review-suggested-times" className="space-y-2 text-sm text-slate-200">
-            {previewSlots.map((iso, i) => (
-              <li key={iso} className="rounded-xl border border-slate-700/80 bg-ink-900/50 px-3 py-2">
-                <span className="text-slate-500">{i + 1}. </span>
-                {format(appointmentToCyprusDate(iso), "EEEE, d MMM · HH:mm", { locale: enUS })}
+            {chosen.map((iso, i) => (
+              <li
+                key={iso}
+                className="flex items-center justify-between gap-2 rounded-xl border border-slate-700/80 bg-ink-900/50 px-3 py-2"
+              >
+                <span>
+                  <span className="text-slate-500">{i + 1}. </span>
+                  {format(appointmentToCyprusDate(iso), "EEEE, d MMM · HH:mm", { locale: enUS })}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => removeTime(iso)}
+                  disabled={busy}
+                  className="rounded-lg px-2 py-1 text-xs text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+                  aria-label={`Remove ${format(appointmentToCyprusDate(iso), "EEEE, d MMM · HH:mm", { locale: enUS })}`}
+                >
+                  Remove
+                </button>
               </li>
             ))}
           </ul>
+
+          {canAddMore ? (
+            <div className="space-y-2 rounded-xl border border-slate-700/70 bg-ink-900/40 p-3">
+              <p className="text-xs font-medium text-slate-300">Add a time</p>
+              <div className="flex flex-wrap items-center gap-2">
+                <input
+                  type="date"
+                  value={pickDate}
+                  min={format(appointmentToCyprusDate(new Date().toISOString()), "yyyy-MM-dd")}
+                  onChange={(e) => {
+                    setPickDate(e.target.value);
+                    setDayOptions(null);
+                  }}
+                  className="rounded-xl border border-slate-700 bg-ink-900/80 px-3 py-1.5 text-sm text-slate-100 [color-scheme:dark]"
+                  aria-label="Day"
+                />
+                <button
+                  type="button"
+                  onClick={() => void loadDay()}
+                  disabled={busy || loadingDay || !pickDate}
+                  className="rounded-xl border border-slate-700 px-3 py-1.5 text-xs font-medium text-slate-200 hover:bg-slate-800 disabled:opacity-60"
+                >
+                  {loadingDay ? "Loading…" : "Show free times"}
+                </button>
+              </div>
+              {dayOptions ? (
+                dayOptions.filter((iso) => !chosen.includes(iso)).length > 0 ? (
+                  <div className="flex flex-wrap gap-2" data-testid="review-day-options">
+                    {dayOptions
+                      .filter((iso) => !chosen.includes(iso))
+                      .map((iso) => (
+                        <button
+                          key={iso}
+                          type="button"
+                          onClick={() => addTime(iso)}
+                          disabled={busy}
+                          className="rounded-lg border border-slate-700 px-2.5 py-1 text-xs tabular-nums text-slate-200 hover:border-clinical-400/50 hover:text-clinical-100"
+                        >
+                          {format(appointmentToCyprusDate(iso), "HH:mm")}
+                        </button>
+                      ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-slate-500">No free times that day.</p>
+                )
+              ) : null}
+            </div>
+          ) : null}
+
           <p className="text-xs leading-relaxed text-slate-500">
-            {noNewTime
-              ? `We'll hold these times for ${firstName(patientName)} until they choose one (up to 24 h). They get an email with a link to pick.`
-              : `We'll hold these times for ${firstName(patientName)} until they choose one (up to 24 h), and free up ${startLabel} again. They get an email with a link to pick.`}
+            We'll hold {chosen.length === 1 ? "this time" : "these times"} for {firstName(patientName)} until they
+            answer (up to 24 h), and free up {startLabel} again. They get an email to pick one or decline.
           </p>
           <button
             type="button"
-            disabled={busy}
+            disabled={busy || chosen.length === 0}
             onClick={() => void sendProposal()}
             className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-clinical-500/90 px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-clinical-400 disabled:cursor-not-allowed disabled:opacity-60"
           >
@@ -348,9 +475,7 @@ export function AppointmentReviewClient({
       {/* 3. Say what is being asked. */}
       <header>
         <p className="text-xs font-semibold uppercase tracking-wide text-clinical-300/90">
-          {noNewTime
-            ? "No new time chosen"
-            : `Booking request${requestedAgo ? ` · Requested ${requestedAgo}` : ""}`}
+          {`Booking request${requestedAgo ? ` · Requested ${requestedAgo}` : ""}`}
         </p>
         <h1 className="mt-2 text-xl font-semibold leading-snug text-slate-50 sm:text-2xl">
           {mode === "suggest"
@@ -358,11 +483,7 @@ export function AppointmentReviewClient({
             : `${patientName} wants ${dayLabel}, ${startLabel}`}
         </h1>
         <p className="mt-1 text-sm text-slate-400">
-          {noNewTime
-            ? `Nothing is booked for ${dayLabel}, ${startLabel} · `
-            : mode === "suggest"
-              ? `They asked for ${dayLabel}, ${startLabel} · `
-              : ""}
+          {mode === "suggest" ? `They asked for ${dayLabel}, ${startLabel} · ` : ""}
           <span className="text-slate-500">Cyprus time</span>
         </p>
         <div className="mt-3 flex flex-wrap items-center gap-2 text-xs empty:hidden">
@@ -518,7 +639,6 @@ export function AppointmentReviewClient({
         /* Came to offer new times: that is the main action; the rest stays quiet. */
         <div className="space-y-4">
           {suggestionsPanel}
-          {noNewTime ? null : (
           <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-sm">
             <button
               type="button"
@@ -537,7 +657,6 @@ export function AppointmentReviewClient({
               Decline
             </button>
           </div>
-          )}
         </div>
       ) : (
       /* 1 + 7. Every decision available, and what confirming does. */
