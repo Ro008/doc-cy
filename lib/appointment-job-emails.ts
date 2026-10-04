@@ -1,0 +1,99 @@
+import { format } from "date-fns";
+import { enUS } from "date-fns/locale";
+
+import { appointmentToCyprusDate } from "@/lib/appointments";
+import type { BuiltEmail, EmailClinic } from "@/lib/booking-request-emails";
+import {
+  EMAIL_HEADING,
+  EMAIL_PRIMARY_BTN,
+  EMAIL_SHELL_CLOSE,
+  EMAIL_SHELL_OPEN,
+  EMAIL_TEXT,
+  EMAIL_TEXT_MUTED,
+} from "@/lib/email-brand";
+import { professionalFirstName } from "@/lib/professional-name";
+import { AUTOMATED_EMAIL_FOOTER_TEXT, automatedEmailFooterHtml, escapeHtml } from "@/lib/resend";
+
+/**
+ * Patient emails the scheduled job sends (user, 2026-10-04): a request nobody answered in
+ * time, and the reminder ~24 h before a visit (with the cancel link while it's open).
+ * The review request is in lib/review-request-email.ts; the proposal reminder in
+ * lib/reschedule-emails.ts.
+ */
+
+const P = `margin:0 0 10px;font-size:15px;line-height:1.6;color:${EMAIL_TEXT};`;
+const MUTED = `margin:0;font-size:13px;line-height:1.5;color:${EMAIL_TEXT_MUTED};`;
+
+function when(iso: string): { date: string; time: string } {
+  const cy = appointmentToCyprusDate(iso);
+  return { date: format(cy, "EEEE, d MMMM yyyy", { locale: enUS }), time: format(cy, "HH:mm") };
+}
+
+function hiName(full: string): string {
+  return String(full ?? "").trim().split(/\s+/)[0] || "there";
+}
+
+function place(clinic: EmailClinic): string {
+  return clinic.address ? `${clinic.name}, ${clinic.address}` : clinic.name;
+}
+
+export function buildPatientRequestExpiredEmail(opts: {
+  patientName: string;
+  professionalName: string;
+  appointmentIso: string;
+  bookUrl: string | null;
+}): BuiltEmail {
+  const { date, time } = when(opts.appointmentIso);
+  const pro = professionalFirstName(opts.professionalName);
+  const hi = hiName(opts.patientName);
+
+  const subject = `${pro} couldn't reply to your request in time`;
+  const line = `${pro} couldn't reply in time to your request for ${date} at ${time} (Cyprus time), so it was not booked.`;
+  const text =
+    `Hi ${hi},\n\n${line}\n\n` +
+    (opts.bookUrl ? `You can book another time online:\n${opts.bookUrl}\n\n` : "") +
+    `---\n${AUTOMATED_EMAIL_FOOTER_TEXT}`;
+  const html = `
+${EMAIL_SHELL_OPEN}
+    <h2 style="margin:0 0 12px;font-size:20px;line-height:1.3;color:${EMAIL_HEADING};">Your request was not booked</h2>
+    <p style="${P}">Hi ${escapeHtml(hi)},</p>
+    <p style="${P}">${escapeHtml(line)}</p>
+    ${opts.bookUrl ? `<a href="${escapeHtml(opts.bookUrl)}" style="${EMAIL_PRIMARY_BTN}">Book another time</a>` : ""}
+    ${automatedEmailFooterHtml()}
+${EMAIL_SHELL_CLOSE}`;
+  return { subject, text, html };
+}
+
+export function buildPatientVisitReminderEmail(opts: {
+  patientName: string;
+  professionalName: string;
+  appointmentIso: string;
+  clinic: EmailClinic;
+  cancel: { url: string; deadlineLabel: string } | null;
+}): BuiltEmail {
+  const { date, time } = when(opts.appointmentIso);
+  const pro = professionalFirstName(opts.professionalName);
+  const hi = hiName(opts.patientName);
+
+  const subject = `Reminder: your visit with ${pro} on ${date}`;
+  const line = `This is a reminder of your visit with ${pro} on ${date} at ${time} (Cyprus time), at ${place(opts.clinic)}.`;
+  const cancelText = opts.cancel
+    ? `Can't make it? Cancel online until ${opts.cancel.deadlineLabel}:\n${opts.cancel.url}\n\n`
+    : "";
+  const text = `Hi ${hi},\n\n${line}\n\n${cancelText}---\n${AUTOMATED_EMAIL_FOOTER_TEXT}`;
+  const html = `
+${EMAIL_SHELL_OPEN}
+    <h2 style="margin:0 0 12px;font-size:20px;line-height:1.3;color:${EMAIL_HEADING};">See you soon</h2>
+    <p style="${P}">Hi ${escapeHtml(hi)},</p>
+    <p style="${P}">${escapeHtml(line)}</p>
+    ${
+      opts.cancel
+        ? `<p style="${MUTED}">Can't make it? <a href="${escapeHtml(opts.cancel.url)}">Cancel online</a> until ${escapeHtml(
+            opts.cancel.deadlineLabel,
+          )}. Link: ${escapeHtml(opts.cancel.url)}</p>`
+        : ""
+    }
+    ${automatedEmailFooterHtml()}
+${EMAIL_SHELL_CLOSE}`;
+  return { subject, text, html };
+}

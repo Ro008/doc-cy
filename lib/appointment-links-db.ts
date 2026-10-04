@@ -53,13 +53,16 @@ export async function revokeAppointmentLinks(
   if (error) throw error;
 }
 
-/** Revokes older links of the purpose, stores a new one and returns its raw token. */
+/**
+ * Stores a new link and returns its raw token. Older links of the purpose are revoked,
+ * except for a reminder (keepOlder), so the link in the first email keeps working.
+ */
 export async function issueAppointmentLink(
   service: SupabaseClient,
-  input: { appointmentId: string; purpose: AppointmentLinkPurpose; expiresAt: Date },
+  input: { appointmentId: string; purpose: AppointmentLinkPurpose; expiresAt: Date; keepOlder?: boolean },
   now: Date = new Date(),
 ): Promise<string> {
-  await revokeAppointmentLinks(service, input.appointmentId, input.purpose, now);
+  if (!input.keepOlder) await revokeAppointmentLinks(service, input.appointmentId, input.purpose, now);
   const token = newAppointmentLinkToken();
   const { error } = await service.from("appointment_links").insert({
     appointment_id: input.appointmentId,
@@ -118,6 +121,7 @@ export async function issuePatientCancelLink(
   service: SupabaseClient,
   appointment: { id: string; professional_id: string; appointment_datetime: string },
   siteUrl: string,
+  options: { keepOlder?: boolean } = {},
 ): Promise<{ url: string; deadlineLabel: string }> {
   const { data: settings } = await service
     .from("professional_settings")
@@ -131,6 +135,7 @@ export async function issuePatientCancelLink(
     appointmentId: appointment.id,
     purpose: "cancel",
     expiresAt: new Date(appointment.appointment_datetime),
+    keepOlder: options.keepOlder,
   });
   return {
     url: appointmentLinkUrl(siteUrl, "cancel", token),
