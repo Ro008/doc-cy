@@ -378,7 +378,8 @@ export function UserBar() {
               <PendingLink href={DOCTOR_HOME_PATH} className="inline-flex shrink-0 transition hover:opacity-90">
                 <DocCyWordmark variant="dark" />
               </PendingLink>
-              <DesktopNavTabs pathname={pathname} badges={tabBadges} />
+              {/* Applicants get no product tabs, only Support and Log out (user, 2026-09-28). */}
+              {supportOnly ? null : <DesktopNavTabs pathname={pathname} badges={tabBadges} />}
             </div>
             <div className="relative shrink-0" ref={menuRef}>
               {desktopUserMenu}

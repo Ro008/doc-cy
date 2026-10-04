@@ -114,6 +114,8 @@ test.describe("Integration: menu for accounts not yet approved", { tag: "@pr-e2e
     await expect(menu.getByTestId("userbar-action-support")).toBeVisible();
     await expect(menu.getByTestId("userbar-action-logout")).toBeVisible();
     await expect(menu.locator("[data-testid^='userbar-link-']")).toHaveCount(0);
+    // Nor the professional's top bar (Dashboard, Agenda, Settings, Insights).
+    await expect(page.locator("[data-testid^='userbar-nav-']:visible")).toHaveCount(0);
   });
 
   test("on a phone, the applicant's tab bar offers only Support and Log out", async ({ page }) => {
@@ -166,9 +168,10 @@ test.describe("Integration: menu for accounts not yet approved", { tag: "@pr-e2e
       });
       await loginDoctorUi(page, fixture.email, fixture.password);
       await page.goto("/agenda", { waitUntil: "domcontentloaded" });
+      // Agenda and Settings live in the top bar since the dashboard redesign; the menu keeps Support.
+      await expect(page.getByTestId("userbar-nav-agenda")).toBeVisible({ timeout: 30_000 });
+      await expect(page.getByTestId("userbar-nav-settings")).toBeVisible();
       const menu = await openDesktopMenu(page);
-      await expect(menu.getByTestId("userbar-link-agenda")).toBeVisible();
-      await expect(menu.getByTestId("userbar-link-settings")).toBeVisible();
       await expect(menu.getByTestId("userbar-action-support")).toBeVisible();
     } finally {
       if (fixture) await deleteTestDoctor(fixture);
