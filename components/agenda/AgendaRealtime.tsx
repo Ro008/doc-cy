@@ -51,6 +51,7 @@ import {
 import {
   AGENDA_APPOINTMENT_SELECT,
   AGENDA_VISIBLE_STATUSES,
+  agendaWeekdayKey,
   clinicIdForAppointment,
   unionAgendaWorkingWindows,
   workingWindowForHours,
@@ -1131,6 +1132,11 @@ export function AgendaRealtime({
     return (
       <div
         key={`${keyPrefix}-${dayKey}`}
+        data-testid="agenda-day-column"
+        data-view={keyPrefix}
+        data-weekday={agendaWeekdayKey(dayDate)}
+        /* Greyed when none of the shown clinics opens that day. */
+        data-closed={work.enabled ? "false" : "true"}
         className={agendaDayColumnClass(isTodayCol)}
         style={{ height: calendarBodyHeight }}
       >
