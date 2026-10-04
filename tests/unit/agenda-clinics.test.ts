@@ -133,3 +133,11 @@ describe("agenda clinics", () => {
     assert.equal(agendaClinicVisibilityMessage([{ id: "only", name: "Clinic 1" }], new Set()), null);
   });
 });
+
+describe("AGENDA_VISIBLE_STATUSES", () => {
+  // Declined, cancelled and expired visits are kept (never deleted) but leave the agenda.
+  it("shows only live visits", async () => {
+    const { AGENDA_VISIBLE_STATUSES } = await import("../../lib/agenda-clinics");
+    assert.deepEqual([...AGENDA_VISIBLE_STATUSES], ["REQUESTED", "NEEDS_RESCHEDULE", "CONFIRMED"]);
+  });
+});

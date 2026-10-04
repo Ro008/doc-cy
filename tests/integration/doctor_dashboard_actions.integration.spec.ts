@@ -198,7 +198,7 @@ test.describe("Integration: dashboard request actions", { tag: ["@pr-e2e", "@pr-
     }
   });
 
-  test("Decline asks for a reason and removes the request", async ({ page }) => {
+  test("Decline asks for a reason and closes the request as declined", async ({ page }) => {
     test.setTimeout(120_000);
     const setup = await createRequest("Decline");
     try {
@@ -238,12 +238,13 @@ test.describe("Integration: dashboard request actions", { tag: ["@pr-e2e", "@pr-
         .poll(async () => {
           const { data } = await setup.admin
             .from("appointments")
-            .select("id")
+            .select("status, decline_reason")
             .eq("id", setup.appointmentId)
             .maybeSingle();
-          return data?.id ?? null;
+          return data;
         }, { timeout: 15_000 })
-        .toBeNull();
+        // Kept, not deleted (user, 2026-10-03): DECLINED with the reason the patient got.
+        .toEqual({ status: "DECLINED", decline_reason: "I am away that day, sorry." });
     } finally {
       await setup.admin.from("appointments").delete().eq("id", setup.appointmentId);
     }

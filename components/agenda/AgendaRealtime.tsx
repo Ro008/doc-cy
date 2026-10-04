@@ -55,6 +55,7 @@ import {
 } from "@/lib/agenda-calendar";
 import {
   AGENDA_APPOINTMENT_SELECT,
+  AGENDA_VISIBLE_STATUSES,
   clinicIdForAppointment,
   unionAgendaWorkingWindows,
   workingWindowForHours,
@@ -462,6 +463,7 @@ export function AgendaRealtime({
           .from("appointments")
           .select(AGENDA_APPOINTMENT_SELECT)
           .eq("professional_id", doctorId)
+          .in("status", [...AGENDA_VISIBLE_STATUSES])
           .order("appointment_datetime", { ascending: true })
           // Send the token checked above. Otherwise the client looks the
           // session up again for the request and, if it vanished in between,

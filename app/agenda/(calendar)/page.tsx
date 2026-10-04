@@ -15,6 +15,7 @@ import { fetchAllSupabaseRows } from "@/lib/supabase-fetch-all";
 import { loadDoctorLocations, primaryDoctorLocation } from "@/lib/load-doctor-locations";
 import {
   AGENDA_APPOINTMENT_SELECT,
+  AGENDA_VISIBLE_STATUSES,
   locationToAgendaHours,
   locationsToAgendaClinics,
   type AgendaWorkingHours,
@@ -110,6 +111,7 @@ export default async function AgendaPage({ searchParams }: AgendaPageProps) {
       .from("appointments")
       .select(AGENDA_APPOINTMENT_SELECT)
       .eq("professional_id", doctor.id)
+      .in("status", [...AGENDA_VISIBLE_STATUSES])
       .order("appointment_datetime", { ascending: true }),
   );
 
