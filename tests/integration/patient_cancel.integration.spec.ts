@@ -46,7 +46,6 @@ test.describe("Integration: patient cancels from the email link", { tag: "@pr-e2
       .insert({
         professional_id: pro!.doctorId,
         clinic_id: clinicId,
-        location_id: linkId,
         booking_source: "online",
         patient_name: `Cancel Patient ${tag} ${nonce}`,
         patient_email: `cancel-${tag}-${nonce}@integration.test`,

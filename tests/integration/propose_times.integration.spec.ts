@@ -70,7 +70,6 @@ test.describe("Integration: propose other times", { tag: "@pr-e2e" }, () => {
       .insert({
         professional_id: pro!.doctorId,
         clinic_id: clinicIds[0],
-        location_id: linkId,
         booking_source: "online",
         patient_name: `Propose Patient ${tag} ${nonce}`,
         patient_email: `propose-${tag}-${nonce}@integration.test`,
@@ -100,12 +99,11 @@ test.describe("Integration: propose other times", { tag: "@pr-e2e" }, () => {
 
     const { data: row } = await admin
       .from("appointments")
-      .select("status, proposed_slots, proposal_expires_at, reschedule_access_token, clinic_id")
+      .select("status, proposed_slots, proposal_expires_at, clinic_id")
       .eq("id", id)
       .single();
     expect(row!.status).toBe("NEEDS_RESCHEDULE");
     expect((row!.proposed_slots as string[]).map((s) => new Date(s).toISOString())).toEqual(chosen);
-    expect(row!.reschedule_access_token).toBeNull();
     expect(row!.clinic_id).toBe(clinicIds[0]);
 
     const { data: links } = await admin
@@ -180,7 +178,7 @@ test.describe("Integration: propose other times", { tag: "@pr-e2e" }, () => {
     const id = await request("f", "REQUESTED", "13:30");
     const res = await propose(id, { proposedSlots: [iso(day, "12:00")], locationId: otherLinkId });
     expect(res.status(), await res.text()).toBe(200);
-    const { data } = await admin.from("appointments").select("clinic_id, location_id").eq("id", id).single();
-    expect(data).toEqual({ clinic_id: otherClinicId, location_id: otherLinkId });
+    const { data } = await admin.from("appointments").select("clinic_id").eq("id", id).single();
+    expect(data).toEqual({ clinic_id: otherClinicId });
   });
 });

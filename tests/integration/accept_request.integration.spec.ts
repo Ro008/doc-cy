@@ -43,7 +43,6 @@ test.describe("Integration: accept a request", { tag: "@pr-e2e" }, () => {
       .insert({
         professional_id: pro.doctorId,
         clinic_id: clinicId,
-        location_id: seeded.locationId,
         booking_source: "online",
         patient_name: `Accept Patient ${nonce}`,
         patient_email: `accept-${nonce}@integration.test`,

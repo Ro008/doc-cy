@@ -12,11 +12,11 @@ export type PreviousVisitRow = {
   patient_phone: string | null;
   attendance: string | null;
   professional_notes: string | null;
-  location_id: string | null;
+  clinic_id: string | null;
 };
 
 const PREVIOUS_VISIT_SELECT =
-  "id, appointment_datetime, patient_email, patient_phone, attendance, professional_notes, location_id";
+  "id, appointment_datetime, patient_email, patient_phone, attendance, professional_notes, clinic_id";
 
 type Who = { email: string | null | undefined; phone: string | null | undefined };
 

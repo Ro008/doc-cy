@@ -7,7 +7,7 @@ import { isConfirmedForCalendar } from "@/lib/appointment-status";
 import { isAppointmentLinkExpired, verifyAppointmentLink } from "@/lib/appointment-links";
 import { appointmentClinicCopy, loadAppointmentClinicPhone } from "@/lib/appointment-clinic-copy";
 import { loadDoctorLocations } from "@/lib/load-doctor-locations";
-import { clinicSlotMinutes } from "@/lib/professional-account-settings";
+import { linkIdForClinic, clinicSlotMinutes } from "@/lib/professional-account-settings";
 import { loadPrimarySpecialtyName } from "@/lib/specialty-catalogue";
 
 type RouteContext = {
@@ -58,7 +58,7 @@ export async function GET(req: NextRequest, { params }: RouteContext) {
   const { data: appointment, error: apptError } = await supabase
     .from("appointments")
     .select(
-      "id, professional_id, appointment_datetime, patient_name, patient_phone, status, created_at, visit_type, reason, duration_minutes, location_id"
+      "id, professional_id, appointment_datetime, patient_name, patient_phone, status, created_at, reason, duration_minutes, clinic_id"
     )
     .eq("id", appointmentId)
     .single();
@@ -92,7 +92,8 @@ export async function GET(req: NextRequest, { params }: RouteContext) {
   );
 
   const locations = await loadDoctorLocations(appointment.professional_id as string);
-  const locationId = (appointment as { location_id?: string | null }).location_id;
+  const clinicId = (appointment as { clinic_id?: string | null }).clinic_id ?? null;
+  const locationId = linkIdForClinic(locations, clinicId);
 
   const rowDur = Number(
     (appointment as { duration_minutes?: number | null }).duration_minutes
@@ -106,7 +107,7 @@ export async function GET(req: NextRequest, { params }: RouteContext) {
   const endUtc = addMinutes(startUtc, durationMinutes);
   const createdUtc = new Date((appointment.created_at as string) ?? new Date().toISOString());
 
-  const clinic = appointmentClinicCopy({ locations, locationId });
+  const clinic = appointmentClinicCopy({ locations, clinicId });
 
   const doctorPayload = {
     name: doctor?.name,
@@ -115,14 +116,8 @@ export async function GET(req: NextRequest, { params }: RouteContext) {
     clinic_address: clinic.address,
   };
 
-  const apptRow = appointment as {
-    visit_type?: string | null;
-    reason?: string | null;
-  };
-  const apptVisit = {
-    reason: apptRow.reason,
-    visitType: apptRow.visit_type,
-  };
+  const apptRow = appointment as { reason?: string | null };
+  const apptVisit = { reason: apptRow.reason };
 
   const cal = forDoctor
     ? getDoctorCalendarEventDetails(

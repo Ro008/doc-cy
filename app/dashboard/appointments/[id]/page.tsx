@@ -10,7 +10,7 @@ import { appointmentToCyprusDate } from "@/lib/appointments";
 import { professionalFirstName } from "@/lib/professional-name";
 import { locationWeeklySchedule } from "@/lib/doctor-locations";
 import { loadDoctorLocations } from "@/lib/load-doctor-locations";
-import { clinicForAppointment, clinicSlotMinutes } from "@/lib/professional-account-settings";
+import { linkIdForClinic, clinicForAppointment, clinicSlotMinutes } from "@/lib/professional-account-settings";
 import { AppointmentReviewClient } from "@/components/dashboard/AppointmentReviewClient";
 import { PendingLink } from "@/components/navigation/PendingLink";
 import { buildGoogleCalendarUrl } from "@/lib/patient-calendar-event";
@@ -115,7 +115,7 @@ export default async function DashboardAppointmentDetailPage({
   const { data: appt, error: apptErr } = await supabase
     .from("appointments")
     .select(
-      "id, patient_name, patient_email, patient_phone, appointment_datetime, status, reason, duration_minutes, proposal_expires_at, proposed_slots, created_at, is_new_patient, location_id"
+      "id, patient_name, patient_email, patient_phone, appointment_datetime, status, reason, duration_minutes, proposal_expires_at, proposed_slots, created_at, is_new_patient, clinic_id"
     )
     .eq("id", appointmentId)
     .eq("professional_id", doctor.id)
@@ -138,7 +138,9 @@ export default async function DashboardAppointmentDetailPage({
 
   // The appointment's clinic schedule (Point E6: schedules live on the clinic links).
   const locations = await loadDoctorLocations(doctor.id);
-  const apptLocationId = (appt as { location_id?: string | null }).location_id;
+  const apptClinicId = (appt as { clinic_id?: string | null }).clinic_id ?? null;
+  // Her link at the appointment's clinic (appointments.clinic_id = clinics.id).
+  const apptLocationId = linkIdForClinic(locations, apptClinicId);
   const appointmentClinic = clinicForAppointment(locations, apptLocationId);
   const slotDefault = clinicSlotMinutes(locations, apptLocationId);
   const initialDurationMinutes = Number(
@@ -330,10 +332,10 @@ export default async function DashboardAppointmentDetailPage({
     ]);
 
     const clinics = locationsToAgendaClinics(locationRows);
-    const locationId = (appt as { location_id?: string | null }).location_id ?? null;
+    const locationId = linkIdForClinic(locationRows, apptClinicId);
     const clinicName =
       clinics.length > 1
-        ? clinics.find((c) => c.id === clinicIdForAppointment(locationId, clinics))?.name ?? null
+        ? clinics.find((c) => c.id === clinicIdForAppointment(apptClinicId, clinics))?.name ?? null
         : null;
     const hoursList =
       clinics.length > 0
@@ -368,7 +370,7 @@ export default async function DashboardAppointmentDetailPage({
         />
         <PreviousVisitsList
           visits={previousVisits}
-          clinicName={(id) => (clinics.length > 1 ? clinics.find((c) => c.id === id)?.name ?? null : null)}
+          clinicName={(id) => (clinics.length > 1 ? clinics.find((c) => c.clinicId === id)?.name ?? null : null)}
         />
       </DoctorAppointmentLinkShell>
     );

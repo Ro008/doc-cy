@@ -4,9 +4,11 @@ import { fetchBlockingAppointments, toBlockingRows } from "@/lib/appointment-blo
 import { consumeAppointmentLink, issuePatientCancelLink } from "@/lib/appointment-links-db";
 import { appointmentClinicCopyFromAddress, loadAppointmentClinicPhone } from "@/lib/appointment-clinic-copy";
 import { buildProfessionalPatientChoseEmail, sendBuiltEmail } from "@/lib/booking-request-emails";
+import { loadDoctorLocations } from "@/lib/load-doctor-locations";
 import { loadDoctorSettingsForSlots } from "@/lib/load-doctor-settings-for-slots";
 import { loadPatientProposalContext } from "@/lib/patient-proposal";
 import { professionalAccountEmail } from "@/lib/professional-account-contact";
+import { linkIdForClinic } from "@/lib/professional-account-settings";
 import { enforcePublicApiRateLimit } from "@/lib/public-api-rate-limit";
 import { isUndeliverableTestEmail } from "@/lib/registration-decision-emails";
 import { scheduleSlotRefusal } from "@/lib/schedule-slot-check";
@@ -47,7 +49,9 @@ export async function POST(req: NextRequest) {
 
   const duration = ctx.appointment.duration_minutes && ctx.appointment.duration_minutes > 0 ? ctx.appointment.duration_minutes : 30;
   const now = new Date();
-  const loaded = await loadDoctorSettingsForSlots(service, ctx.appointment.professional_id, ctx.appointment.location_id);
+  // The proposal's clinic → her link there (the schedule lives on the link).
+  const linkId = linkIdForClinic(await loadDoctorLocations(ctx.appointment.professional_id), ctx.appointment.clinic_id);
+  const loaded = await loadDoctorSettingsForSlots(service, ctx.appointment.professional_id, linkId);
   const { data: blockingRaw, error: blockErr } = await fetchBlockingAppointments(service, ctx.appointment.professional_id);
   if (!loaded || blockErr) {
     console.error("[DocCy] choose: schedule", blockErr);
@@ -111,7 +115,7 @@ export async function POST(req: NextRequest) {
         doctor: {
           name: ctx.professional.name,
           specialty: await loadPrimarySpecialtyName(service, ctx.professional.id),
-          phone: await loadAppointmentClinicPhone(service, ctx.appointment.location_id),
+          phone: await loadAppointmentClinicPhone(service, linkId),
           clinic_address: ctx.clinic.address,
         },
         clinic: clinicCopy,

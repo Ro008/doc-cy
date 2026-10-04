@@ -100,7 +100,7 @@ export function DoctorDashboard({
   }, [appointments]);
 
   const clinicTag = React.useCallback(
-    (locationId: string | null | undefined) => dashboardClinicTag(locationId, clinics),
+    (appointmentClinicId: string | null | undefined) => dashboardClinicTag(appointmentClinicId, clinics),
     [clinics],
   );
 
@@ -147,7 +147,7 @@ export function DoctorDashboard({
     if (isAllowedProfessionalDuration(Number(row.duration_minutes))) {
       return Number(row.duration_minutes);
     }
-    const clinicId = clinicIdForAppointment(row.location_id, clinics);
+    const clinicId = clinicIdForAppointment(row.clinic_id, clinics);
     const slot =
       clinics.find((clinic) => clinic.id === clinicId)?.hours.slotDurationMinutes ??
       workingHours?.slotDurationMinutes;
@@ -227,7 +227,7 @@ export function DoctorDashboard({
                     index={index}
                     row={row}
                     nowMs={nowMs}
-                    clinicTag={clinicTag(row.location_id)}
+                    clinicTag={clinicTag(row.clinic_id)}
                     durationMinutes={confirmDuration(row)}
                     exit={exiting[row.id] ?? null}
                     onAccepted={() => finishRequest(row, "accepted")}
@@ -249,7 +249,7 @@ export function DoctorDashboard({
                     <RescheduleNoAnswerItem
                       key={row.id}
                       row={row}
-                      clinicTag={clinicTag(row.location_id)}
+                      clinicTag={clinicTag(row.clinic_id)}
                       onClose={() => dismissNoNewTime(row.id)}
                     />
                   ))}
@@ -263,7 +263,7 @@ export function DoctorDashboard({
                 </p>
                 <ul className="mt-2 space-y-1.5">
                   {awaiting.map((row) => (
-                    <AwaitingPatientItem key={row.id} row={row} clinicTag={clinicTag(row.location_id)} />
+                    <AwaitingPatientItem key={row.id} row={row} clinicTag={clinicTag(row.clinic_id)} />
                   ))}
                 </ul>
               </div>
@@ -741,7 +741,7 @@ function TodayTimeline({
                 isNext={entry.isUpcomingNext}
                 index={index}
                 nowMs={nowMs}
-                clinicTag={clinicTag(entry.item.locationId)}
+                clinicTag={clinicTag(entry.item.clinicId)}
                 dateKey={dateKey}
               />
             ),

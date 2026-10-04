@@ -109,7 +109,7 @@ type AgendaAppointmentRow = {
   proposed_slots?: unknown;
   proposal_expires_at?: string | null;
   attendance?: string | null;
-  location_id?: string | null;
+  clinic_id?: string | null;
   professional_notes?: string | null;
   review_requested_at?: string | null;
 };
@@ -137,10 +137,10 @@ function agendaRowFromSupabasePayload(
       raw.attendance == null || raw.attendance === ""
         ? null
         : String(raw.attendance),
-    location_id:
-      raw.location_id == null || raw.location_id === ""
+    clinic_id:
+      raw.clinic_id == null || raw.clinic_id === ""
         ? null
-        : String(raw.location_id),
+        : String(raw.clinic_id),
     professional_notes:
       raw.professional_notes == null || raw.professional_notes === ""
         ? null
@@ -591,7 +591,7 @@ export function AgendaRealtime({
     const open = appointments.filter((row) => !isStoredExpiredStatus(row.status));
     if (!isMultiClinic) return open;
     return open.filter((row) => {
-      const clinicId = clinicIdForAppointment(row.location_id, clinics);
+      const clinicId = clinicIdForAppointment(row.clinic_id, clinics);
       return clinicId != null && visibleClinicIds.has(clinicId);
     });
   }, [appointments, clinics, isMultiClinic, visibleClinicIds]);
@@ -740,15 +740,15 @@ export function AgendaRealtime({
     return workingWindowForHours(workingHours, d, START_HOUR, END_HOUR);
   }
 
-  function clinicIndexForRow(locationId: string | null | undefined): number {
-    const clinicId = clinicIdForAppointment(locationId, clinics);
+  function clinicIndexForRow(appointmentClinicId: string | null | undefined): number {
+    const clinicId = clinicIdForAppointment(appointmentClinicId, clinics);
     const index = clinics.findIndex((clinic) => clinic.id === clinicId);
     return index >= 0 ? index : 0;
   }
 
-  function clinicNameForRow(locationId: string | null | undefined): string | null {
+  function clinicNameForRow(appointmentClinicId: string | null | undefined): string | null {
     if (!isMultiClinic) return null;
-    const clinicId = clinicIdForAppointment(locationId, clinics);
+    const clinicId = clinicIdForAppointment(appointmentClinicId, clinics);
     return clinics.find((clinic) => clinic.id === clinicId)?.name ?? null;
   }
 
@@ -759,9 +759,9 @@ export function AgendaRealtime({
       : agendaAppointmentConfirmedClass;
   }
 
-  function clinicSwatchClass(locationId: string | null | undefined): string | null {
+  function clinicSwatchClass(appointmentClinicId: string | null | undefined): string | null {
     if (!isMultiClinic) return null;
-    return agendaClinicEventColor(clinicIndexForRow(locationId)).swatch;
+    return agendaClinicEventColor(clinicIndexForRow(appointmentClinicId)).swatch;
   }
 
   function toggleClinicCalendar(clinicId: string) {
@@ -1069,11 +1069,11 @@ export function AgendaRealtime({
       key: row.rowKey,
       timeLabel: row.timeLabel,
       patientName: row.patient_name.trim() || "Patient",
-      clinicName: clinicNameForRow(row.location_id),
+      clinicName: clinicNameForRow(row.clinic_id),
       isPendingRequest: row.isPendingRequest,
       dotClass: row.isExpired
         ? "bg-slate-500"
-        : (clinicSwatchClass(row.location_id) ?? "bg-clinical-400"),
+        : (clinicSwatchClass(row.clinic_id) ?? "bg-clinical-400"),
       onOpen: () => openAppointment(row),
     }));
   }
@@ -1173,7 +1173,7 @@ export function AgendaRealtime({
           <button
             key={row.rowKey}
             type="button"
-            aria-label={`Appointment ${row.patient_name} at ${row.timeLabel}${clinicNameForRow(row.location_id) ? ` · ${clinicNameForRow(row.location_id)}` : ""}`}
+            aria-label={`Appointment ${row.patient_name} at ${row.timeLabel}${clinicNameForRow(row.clinic_id) ? ` · ${clinicNameForRow(row.clinic_id)}` : ""}`}
             data-appointment-id={row.id}
             data-highlighted={highlightedId === row.id ? "true" : "false"}
             data-expired={row.isExpired ? "true" : "false"}
@@ -1192,9 +1192,9 @@ export function AgendaRealtime({
               width: `calc(${100 / row.columns}% - 4px)`,
             }}
           >
-            {clinicSwatchClass(row.location_id) ? (
+            {clinicSwatchClass(row.clinic_id) ? (
               <span
-                className={`absolute inset-y-0 left-0 w-1 ${clinicSwatchClass(row.location_id)}`}
+                className={`absolute inset-y-0 left-0 w-1 ${clinicSwatchClass(row.clinic_id)}`}
                 aria-hidden
               />
             ) : null}
@@ -1513,13 +1513,13 @@ export function AgendaRealtime({
               <span>
                 {selected.dateLabel} · {selected.timeLabel}
               </span>
-              {clinicNameForRow(selected.location_id) ? (
+              {clinicNameForRow(selected.clinic_id) ? (
                 <span className="inline-flex items-center gap-1.5">
                   <span
-                    className={`h-2 w-2 rounded-[2px] ${clinicSwatchClass(selected.location_id) ?? ""}`}
+                    className={`h-2 w-2 rounded-[2px] ${clinicSwatchClass(selected.clinic_id) ?? ""}`}
                     aria-hidden
                   />
-                  {clinicNameForRow(selected.location_id)}
+                  {clinicNameForRow(selected.clinic_id)}
                 </span>
               ) : null}
             </p>

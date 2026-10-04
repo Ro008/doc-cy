@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 
 import {
   clinicIdForAppointment,
+  locationsToAgendaClinics,
   unionAgendaWorkingWindows,
   workingWindowForHours,
   type AgendaWorkingHours,
@@ -42,11 +43,40 @@ const hoursB: AgendaWorkingHours = {
 };
 
 describe("agenda clinics", () => {
-  it("maps unassigned appointments to the primary clinic", () => {
-    const clinics = [{ id: "primary" }, { id: "second" }];
-    assert.equal(clinicIdForAppointment(null, clinics), "primary");
-    assert.equal(clinicIdForAppointment("second", clinics), "second");
-    assert.equal(clinicIdForAppointment("missing", clinics), "primary");
+  it("maps an appointment's clinic (clinics.id) to her clinic link, else the primary", () => {
+    const clinics = [
+      { id: "link-primary", clinicId: "clinic-a" },
+      { id: "link-second", clinicId: "clinic-b" },
+    ];
+    assert.equal(clinicIdForAppointment(null, clinics), "link-primary");
+    assert.equal(clinicIdForAppointment("clinic-b", clinics), "link-second");
+    assert.equal(clinicIdForAppointment("missing", clinics), "link-primary");
+    // A link id is not a clinic id (appointments store clinics.id, user 2026-10-02).
+    assert.equal(clinicIdForAppointment("link-second", clinics), "link-primary");
+  });
+
+  it("names each clinic after the clinic itself, not the link label", () => {
+    const base = {
+      professional_id: "p",
+      is_primary: true,
+      sort_order: 0,
+      pause_online_bookings: false,
+      weekly_schedule: null,
+      break_start: null,
+      break_end: null,
+      slot_duration_minutes: 30,
+    };
+    const clinics = locationsToAgendaClinics([
+      { ...base, id: "l1", clinic_id: "c1", clinic_name: "Evangelismos", label: "Old label" },
+      { ...base, id: "l2", clinic_id: "c2", clinic_name: null, label: "Coast", is_primary: false, sort_order: 1 },
+    ] as never);
+    assert.deepEqual(
+      clinics.map((c) => [c.id, c.clinicId, c.name]),
+      [
+        ["l1", "c1", "Evangelismos"],
+        ["l2", "c2", "Coast"],
+      ],
+    );
   });
 
   it("unions visible clinic hours and keeps a single clinic’s break", () => {

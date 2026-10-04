@@ -77,14 +77,13 @@ test.describe("Integration: manual booking rules", { tag: "@pr-e2e" }, () => {
     const id = String((await res.json()).appointment.id);
     const { data } = await admin
       .from("appointments")
-      .select("status, booking_source, clinic_id, location_id, patient_email, patient_gender, patient_birthdate, is_new_patient")
+      .select("status, booking_source, clinic_id, patient_email, patient_gender, patient_birthdate, is_new_patient")
       .eq("id", id)
       .single();
     expect(data).toMatchObject({
       status: "CONFIRMED",
       booking_source: "manual",
       clinic_id: clinicId,
-      location_id: linkId,
       patient_email: null,
       patient_gender: "male",
       patient_birthdate: "1975-03-04",

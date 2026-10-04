@@ -51,7 +51,6 @@ test.describe("Integration: professional cancels a confirmed visit", { tag: "@pr
       .insert({
         professional_id: pro!.doctorId,
         clinic_id: clinicId,
-        location_id: linkId,
         booking_source: email ? "online" : "manual",
         patient_name: `Pro Cancel Patient ${tag} ${nonce}`,
         patient_email: email,

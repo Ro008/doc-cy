@@ -97,8 +97,6 @@ export async function POST(req: NextRequest) {
     .insert({
       professional_id: draft.professional_id,
       clinic_id: draft.clinic_id,
-      // Until M2 drops it, the clinic link id is still written for the running readers.
-      location_id: slot.bookingLocation.id,
       booking_source: "online",
       patient_name: draft.patient_name,
       patient_email: draft.patient_email,

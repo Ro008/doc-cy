@@ -132,14 +132,13 @@ test.describe("Integration: online booking confirmed by email", { tag: "@pr-e2e"
 
     const { data: rows } = await admin
       .from("appointments")
-      .select("id, status, booking_source, clinic_id, location_id, patient_gender, patient_birthdate, is_new_patient")
+      .select("id, status, booking_source, clinic_id, patient_gender, patient_birthdate, is_new_patient")
       .eq("patient_email", email);
     expect(rows).toHaveLength(1);
     expect(rows![0]).toMatchObject({
       status: "REQUESTED",
       booking_source: "online",
       clinic_id: clinicId,
-      location_id: linkId,
       patient_gender: "male",
       patient_birthdate: "1980-01-01",
       is_new_patient: false,

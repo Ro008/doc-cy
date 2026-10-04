@@ -12,7 +12,7 @@ import {
 } from "@/lib/patient-calendar-event";
 import { appointmentClinicCopy, loadAppointmentClinicPhone } from "@/lib/appointment-clinic-copy";
 import { loadDoctorLocations } from "@/lib/load-doctor-locations";
-import { clinicSlotMinutes } from "@/lib/professional-account-settings";
+import { linkIdForClinic, clinicSlotMinutes } from "@/lib/professional-account-settings";
 import { loadPrimarySpecialtyName } from "@/lib/specialty-catalogue";
 import { getTranslations } from "next-intl/server";
 import { isConfirmedForCalendar } from "@/lib/appointment-status";
@@ -65,7 +65,7 @@ export default async function BookingSuccessPage({
   const { data: appointment, error: apptError } = await supabase
     .from("appointments")
     .select(
-      "id, professional_id, appointment_datetime, status, visit_type, reason, location_id",
+      "id, professional_id, appointment_datetime, status, reason, clinic_id",
     )
     .eq("id", appointmentId)
     .single();
@@ -86,7 +86,8 @@ export default async function BookingSuccessPage({
       .single(),
     loadDoctorLocations(appointment.professional_id as string),
   ]);
-  const locationId = (appointment as { location_id?: string | null }).location_id;
+  const clinicId = (appointment as { clinic_id?: string | null }).clinic_id ?? null;
+  const locationId = linkIdForClinic(locations, clinicId);
 
   if (doctorResult.error || !doctorResult.data) {
     redirect(bookingProfilePath(params));
@@ -111,14 +112,11 @@ export default async function BookingSuccessPage({
   const dateLabel = format(startCy, "dd/MM/yyyy");
   const timeLabel = format(startCy, "HH:mm");
 
-  const apptRow = appointment as {
-    visit_type?: string | null;
-    reason?: string | null;
-  };
+  const apptRow = appointment as { reason?: string | null };
 
   const confirmed = isConfirmedForCalendar(appointment.status as string);
 
-  const clinic = appointmentClinicCopy({ locations, locationId });
+  const clinic = appointmentClinicCopy({ locations, clinicId });
 
   const cal = getCalendarEventDetails(
     {
@@ -133,7 +131,6 @@ export default async function BookingSuccessPage({
     },
     {
       reason: apptRow.reason,
-      visitType: apptRow.visit_type,
     },
     { includeDirectClinicContact: confirmed }
   );

@@ -57,7 +57,6 @@ test.describe("Integration: attendance and notes", { tag: "@pr-e2e" }, () => {
       .insert({
         professional_id: pro!.doctorId,
         clinic_id: clinicIds[0],
-        location_id: linkId,
         booking_source: "manual",
         patient_name: `Attend Patient ${tag} ${nonce}`,
         patient_email: `attend-${tag}-${nonce}@integration.test`,

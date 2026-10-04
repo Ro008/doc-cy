@@ -52,7 +52,6 @@ test.describe("Integration: patient answers a proposal", { tag: "@pr-e2e" }, () 
       .insert({
         professional_id: pro!.doctorId,
         clinic_id: clinicId,
-        location_id: linkId,
         booking_source: "online",
         patient_name: `Choose Patient ${tag} ${nonce}`,
         patient_email: `choose-${tag}-${nonce}@integration.test`,
@@ -125,7 +124,6 @@ test.describe("Integration: patient answers a proposal", { tag: "@pr-e2e" }, () 
     await admin.from("appointments").insert({
       professional_id: pro!.doctorId,
       clinic_id: clinicId,
-      location_id: linkId,
       patient_name: `Blocker ${nonce}`,
       patient_phone: "+35799000999",
       appointment_datetime: slots[0],

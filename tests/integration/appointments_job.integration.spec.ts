@@ -41,7 +41,6 @@ test.describe("Integration: appointments job", { tag: "@pr-e2e" }, () => {
     const row = (tag: string, startOffsetHours: number, extra: Record<string, unknown>) => ({
       professional_id: pro!.doctorId,
       clinic_id: clinicIds[0],
-      location_id: linkId,
       booking_source: "online",
       patient_name: `Job Patient ${tag}`,
       patient_email: `job-${tag}-${nonce}@integration.test`,

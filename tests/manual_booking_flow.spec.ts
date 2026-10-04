@@ -159,7 +159,7 @@ test.describe("Manual booking flow @booking-creates", { tag: ["@pr-e2e", "@pr-e2
       // And the server refuses the same slot if a stale screen sends it anyway.
       const booked = await admin
         .from("appointments")
-        .select("appointment_datetime, location_id")
+        .select("appointment_datetime")
         .eq("id", createdAppointmentId!)
         .single();
       expect(booked.error).toBeNull();
@@ -177,7 +177,7 @@ test.describe("Manual booking flow @booking-creates", { tag: ["@pr-e2e", "@pr-e2
             "yyyy-MM-dd'T'HH:mm",
           ),
           reason: "Trying to rebook same slot should fail.",
-          locationId: booked.data!.location_id ?? null,
+          locationId: null,
         },
       });
       expect(duplicate.status()).toBe(409);

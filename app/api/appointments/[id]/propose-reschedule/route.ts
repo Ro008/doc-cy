@@ -93,7 +93,7 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
 
   const { data: appt } = await service
     .from("appointments")
-    .select("id, professional_id, patient_name, patient_email, appointment_datetime, status, clinic_id, location_id")
+    .select("id, professional_id, patient_name, patient_email, appointment_datetime, status, clinic_id")
     .eq("id", id)
     .maybeSingle();
   if (!appt) return NextResponse.json({ message: "Appointment not found." }, { status: 404 });
@@ -118,8 +118,7 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
   const requestedLink = String(body.locationId ?? "").trim();
   const location = requestedLink
     ? locations.find((l) => l.id === requestedLink)
-    : locations.find((l) => l.id === appt.location_id) ??
-      locations.find((l) => appt.clinic_id && l.clinic_id === appt.clinic_id) ??
+    : locations.find((l) => appt.clinic_id && l.clinic_id === appt.clinic_id) ??
       primaryDoctorLocation(locations);
   if (!location || !location.clinic_id) {
     return NextResponse.json({ message: "That clinic isn't one of yours." }, { status: 400 });
@@ -180,9 +179,7 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
       proposed_slots: slots,
       proposal_expires_at: proposalExpiresAt.toISOString(),
       proposal_reminder_sent_at: null,
-      reschedule_access_token: null,
       clinic_id: location.clinic_id,
-      location_id: location.id,
     })
     .eq("id", id)
     .eq("professional_id", doctor.id)

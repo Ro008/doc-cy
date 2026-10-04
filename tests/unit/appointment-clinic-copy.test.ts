@@ -10,11 +10,13 @@ import {
 } from "../../lib/appointment-clinic-copy";
 
 describe("appointment-clinic-copy", () => {
-  it("uses the selected location label and address", () => {
+  it("uses the appointment's clinic (clinics.id): its name and address", () => {
     const clinic = appointmentClinicCopy({
       locations: [
         {
           id: "loc-1",
+          clinic_id: "clinic-1",
+          clinic_name: "City Clinic",
           label: "City clinic",
           clinic_address: "1 Ledra Street, Nicosia",
           is_primary: true,
@@ -22,16 +24,18 @@ describe("appointment-clinic-copy", () => {
         },
         {
           id: "loc-2",
+          clinic_id: "clinic-2",
+          clinic_name: "Harbour Medical Centre",
           label: "Coast clinic",
           clinic_address: "10 Harbour Road, Limassol",
           is_primary: false,
           sort_order: 1,
         },
       ],
-      locationId: "loc-2",
+      clinicId: "clinic-2",
     });
 
-    assert.equal(clinic.clinicName, "Coast clinic");
+    assert.equal(clinic.clinicName, "Harbour Medical Centre");
     assert.equal(clinic.locationId, "loc-2");
     assert.equal(clinic.address, "10 Harbour Road, Limassol");
     assert.match(clinic.mapsUrl, /maps\.google\.com/);
@@ -50,13 +54,14 @@ describe("appointment-clinic-copy", () => {
         },
         {
           id: "loc-2",
+          clinic_id: "clinic-2",
           label: null,
           clinic_address: "10 Harbour Road, Limassol",
           is_primary: false,
           sort_order: 1,
         },
       ],
-      locationId: "loc-2",
+      clinicId: "clinic-2",
     });
 
     assert.equal(clinic.clinicName, "Clinic 2");

@@ -6,7 +6,7 @@ import {
 import type { DayKey, WeeklySchedule } from "@/lib/doctor-settings";
 
 export const AGENDA_APPOINTMENT_SELECT =
-  "id, professional_id, patient_name, patient_phone, reason, appointment_datetime, status, duration_minutes, proposed_slots, proposal_expires_at, attendance, location_id, professional_notes, review_requested_at";
+  "id, professional_id, patient_name, patient_phone, reason, appointment_datetime, status, duration_minutes, proposed_slots, proposal_expires_at, attendance, clinic_id, professional_notes, review_requested_at";
 
 /** Statuses the agenda shows. Declined, cancelled and expired visits are kept (never
  *  deleted) but leave the agenda. */
@@ -20,7 +20,10 @@ export type AgendaWorkingHours = {
 };
 
 export type AgendaClinic = {
+  /** Her clinic link (`professional_clinics.id`). */
   id: string;
+  /** The clinic itself (`clinics.id`): what `appointments.clinic_id` stores. */
+  clinicId?: string | null;
   name: string;
   hours: AgendaWorkingHours;
 };
@@ -46,7 +49,9 @@ export function locationToAgendaHours(location: DoctorLocationRow): AgendaWorkin
 export function locationsToAgendaClinics(rows: readonly DoctorLocationRow[]): AgendaClinic[] {
   return rows.map((row, index) => ({
     id: row.id,
-    name: clinicDisplayName(row.label, index, rows.length),
+    clinicId: row.clinic_id ?? null,
+    // Every screen shows the clinic's own name (user, 2026-10-03).
+    name: row.clinic_name?.trim() || clinicDisplayName(row.label, index, rows.length),
     hours: locationToAgendaHours(row),
   }));
 }
@@ -124,11 +129,12 @@ export function unionAgendaWorkingWindows(
 }
 
 /** Map an appointment to a clinic; unassigned rows follow the primary (first) clinic. */
+/** Her clinic link for an appointment's clinic (`clinics.id`), else the first (primary). */
 export function clinicIdForAppointment(
-  locationId: string | null | undefined,
-  clinics: readonly Pick<AgendaClinic, "id">[],
+  appointmentClinicId: string | null | undefined,
+  clinics: readonly Pick<AgendaClinic, "id" | "clinicId">[],
 ): string | null {
-  const id = String(locationId ?? "").trim();
-  if (id && clinics.some((clinic) => clinic.id === id)) return id;
-  return clinics[0]?.id ?? null;
+  const id = String(appointmentClinicId ?? "").trim();
+  const match = id ? clinics.find((clinic) => clinic.clinicId === id) : undefined;
+  return match?.id ?? clinics[0]?.id ?? null;
 }

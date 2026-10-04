@@ -10,7 +10,6 @@ export type ManualBookingAppointmentRow = {
   duration_minutes?: number | null;
   proposed_slots?: unknown;
   proposal_expires_at?: string | null;
-  location_id?: string | null;
 };
 
 /**

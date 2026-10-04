@@ -38,7 +38,6 @@ test.describe("Integration: decline a request", { tag: "@pr-e2e" }, () => {
       .insert({
         professional_id: pro.doctorId,
         clinic_id: clinicId,
-        location_id: linkId,
         booking_source: "online",
         patient_name: `Decline Patient ${nonce}`,
         patient_email: `decline-${nonce}@integration.test`,

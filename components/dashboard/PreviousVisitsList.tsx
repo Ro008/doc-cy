@@ -12,7 +12,7 @@ export function PreviousVisitsList({
   clinicName,
 }: {
   visits: PreviousVisitRow[];
-  clinicName: (locationId: string | null) => string | null;
+  clinicName: (clinicId: string | null) => string | null;
 }) {
   if (visits.length === 0) return null;
   return (
@@ -23,7 +23,7 @@ export function PreviousVisitsList({
       <p className="mt-0.5 text-xs text-ink-500">Matched on the same email or phone. Your notes are private to you.</p>
       <ul className="mt-3 space-y-2">
         {visits.map((v) => {
-          const clinic = clinicName(v.location_id);
+          const clinic = clinicName(v.clinic_id);
           return (
             <li key={v.id} className="rounded-xl border border-ink-700/70 bg-ink-900/40 px-3 py-2 text-sm">
               <p className="flex flex-wrap items-center gap-x-2 text-ink-200">

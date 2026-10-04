@@ -7,6 +7,8 @@ import {
 } from "@/lib/professional-appointment-durations";
 import { findFirstAlternativeSlotStarts } from "@/lib/find-alternative-appointment-slots";
 import { loadDoctorSettingsForSlots } from "@/lib/load-doctor-settings-for-slots";
+import { loadDoctorLocations } from "@/lib/load-doctor-locations";
+import { linkIdForClinic } from "@/lib/professional-account-settings";
 import {
   fetchBlockingAppointments,
   toBlockingRows,
@@ -59,7 +61,7 @@ export async function GET(req: NextRequest, { params }: RouteContext) {
 
   const { data: appt, error: apptErr } = await supabase
     .from("appointments")
-    .select("id, professional_id, appointment_datetime, status, location_id, clinic_id")
+    .select("id, professional_id, appointment_datetime, status, clinic_id")
     .eq("id", id)
     .maybeSingle();
 
@@ -86,7 +88,7 @@ export async function GET(req: NextRequest, { params }: RouteContext) {
   }
   const locationId =
     req.nextUrl.searchParams.get("locationId")?.trim() ||
-    (appt as { location_id?: string | null }).location_id;
+    linkIdForClinic(await loadDoctorLocations(doctor.id), (appt as { clinic_id?: string | null }).clinic_id);
 
   // At the chosen clinic (its hours and slot length, Point E6).
   const loaded = await loadDoctorSettingsForSlots(supabase, doctor.id, locationId);

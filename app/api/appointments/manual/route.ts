@@ -242,8 +242,6 @@ export async function POST(req: NextRequest) {
     .insert({
       professional_id: doctor.id,
       clinic_id: bookingLocation.clinic_id,
-      // Until M2 drops it, the clinic link id is still written for the running readers.
-      location_id: bookingLocation.id,
       booking_source: "manual",
       patient_name: patientName,
       patient_email: patientEmail || null,
@@ -281,7 +279,7 @@ export async function POST(req: NextRequest) {
 
   const clinic = appointmentClinicCopy({
     locations,
-    locationId: bookingLocation?.id ?? null,
+    clinicId: bookingLocation?.clinic_id ?? null,
   });
 
   const specialtyName = await loadPrimarySpecialtyName(supabase, doctor.id as string);

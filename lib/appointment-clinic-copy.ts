@@ -24,21 +24,23 @@ export type AppointmentClinicCopy = {
 type LocationLike = Pick<
   DoctorLocationRow,
   "id" | "label" | "clinic_address" | "is_primary" | "sort_order"
-> & { created_at?: string };
+> &
+  Partial<Pick<DoctorLocationRow, "clinic_id" | "clinic_name">> & { created_at?: string };
 
 /**
  * Resolve clinic name + address for booking emails / calendar LOCATION from the
- * appointment's `location_id` (falls back to the primary clinic). The address comes
+ * appointment's `clinic_id` (falls back to the primary clinic). The address comes
  * from the clinic only, never from the copy on `professionals` (Point E).
  */
 export function appointmentClinicCopy(opts: {
   locations: readonly LocationLike[];
-  locationId?: string | null;
+  /** The appointment's clinic (`clinics.id`). */
+  clinicId?: string | null;
 }): AppointmentClinicCopy {
   const sorted = sortDoctorLocations(opts.locations);
-  const requestedId = String(opts.locationId ?? "").trim();
+  const requestedId = String(opts.clinicId ?? "").trim();
   const selected =
-    (requestedId ? sorted.find((row) => row.id === requestedId) : null) ??
+    (requestedId ? sorted.find((row) => row.clinic_id === requestedId) : null) ??
     (sorted.length === 1 ? sorted[0] : null) ??
     sorted[0] ??
     null;
@@ -50,7 +52,7 @@ export function appointmentClinicCopy(opts: {
       )
     : 0;
   const total = Math.max(sorted.length, 1);
-  const clinicName = clinicDisplayName(selected?.label, index, total);
+  const clinicName = selected?.clinic_name?.trim() || clinicDisplayName(selected?.label, index, total);
   const address = String(selected?.clinic_address ?? "").trim();
 
   return {

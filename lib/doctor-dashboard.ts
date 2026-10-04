@@ -23,18 +23,18 @@ export type DashboardClinicTag = { name: string; swatchClass: string };
  * (same colours as the agenda). Null with a single clinic: nothing to tell apart.
  */
 export function dashboardClinicTag(
-  locationId: string | null | undefined,
+  appointmentClinicId: string | null | undefined,
   clinics: readonly AgendaClinic[],
 ): DashboardClinicTag | null {
   if (clinics.length < 2) return null;
-  const id = clinicIdForAppointment(locationId, clinics);
+  const id = clinicIdForAppointment(appointmentClinicId, clinics);
   const index = clinics.findIndex((clinic) => clinic.id === id);
   if (index < 0) return null;
   return { name: clinics[index]!.name, swatchClass: agendaClinicEventColor(index).swatch };
 }
 
 export const DASHBOARD_APPOINTMENT_SELECT =
-  "id, patient_name, appointment_datetime, status, duration_minutes, created_at, is_new_patient, attendance, proposal_expires_at, proposed_slots, reason, location_id";
+  "id, patient_name, appointment_datetime, status, duration_minutes, created_at, is_new_patient, attendance, proposal_expires_at, proposed_slots, reason, clinic_id";
 
 export type DashboardAppointmentRow = {
   id: string;
@@ -48,14 +48,15 @@ export type DashboardAppointmentRow = {
   proposal_expires_at: string | null;
   proposed_slots: unknown;
   reason: string | null;
-  location_id: string | null;
+  clinic_id: string | null;
 };
 
 export type TodayScheduleItem = {
   id: string;
   patientName: string;
   reason: string | null;
-  locationId: string | null;
+  /** The appointment's clinic (`clinics.id`). */
+  clinicId: string | null;
   startIso: string;
   /** Minutes from Cyprus midnight. */
   startMinute: number;
@@ -157,7 +158,7 @@ export function buildTodaySchedule(
       id: r.id,
       patientName: (r.patient_name ?? "").trim() || "Patient",
       reason: r.reason?.trim() || null,
-      locationId: r.location_id,
+      clinicId: r.clinic_id,
       startIso: r.appointment_datetime,
       startMinute,
       endMinute,

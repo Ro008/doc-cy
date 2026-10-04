@@ -18,7 +18,7 @@ import { seedProfessionalSpecialty } from "./helpers/test-doctor";
  * public profile, the finder and a booking all work from the clinic alone.
  *
  * Before this change the profile read its district from `professionals.district`, and
- * appointments.location_id referenced doctor_locations, so booking at such a clinic
+ * appointments pointed at doctor_locations (now clinic_id = clinics.id), so booking at such a clinic
  * failed the foreign key.
  */
 
@@ -227,11 +227,11 @@ test.describe(
 
         const row = await admin
           .from("appointments")
-          .select("location_id, appointment_datetime")
+          .select("clinic_id, appointment_datetime")
           .eq("id", appointmentId)
           .single();
         expect(row.error).toBeNull();
-        expect(row.data?.location_id).toBe(seeded.joinId);
+        expect(row.data?.clinic_id).toBe(created.clinicId);
         expect(new Date(String(row.data?.appointment_datetime)).toISOString()).toBe(
           zonedTimeToUtc(local, CY_TZ).toISOString(),
         );

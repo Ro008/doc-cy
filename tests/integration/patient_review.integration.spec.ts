@@ -47,7 +47,6 @@ test.describe("Integration: patient review", { tag: "@pr-e2e" }, () => {
       .insert({
         professional_id: pro!.doctorId,
         clinic_id: clinicIds[0],
-        location_id: linkId,
         booking_source: "online",
         patient_name: `Maria ${tag} Kyriakou`,
         patient_email: email,

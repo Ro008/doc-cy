@@ -7,6 +7,7 @@ import {
   PROFESSIONAL_ACCOUNT_SETTINGS_SELECT,
   clinicForAppointment,
   clinicSlotMinutes,
+  linkIdForClinic,
   settingsAtClinic,
 } from "@/lib/professional-account-settings";
 
@@ -207,6 +208,14 @@ describe("schedule at a clinic (Point E6)", () => {
     assert.equal(clinicForAppointment([second, primary], null)?.id, "p");
     assert.equal(clinicForAppointment([second, primary], "gone")?.id, "p");
     assert.equal(clinicForAppointment([], "s"), null);
+  });
+
+  it("finds her clinic link for an appointment's clinic (appointments.clinic_id = clinics.id)", () => {
+    const a = loc({ id: "p", clinic_id: "clinic-a" } as never);
+    const b = loc({ id: "s", clinic_id: "clinic-b" } as never);
+    assert.equal(linkIdForClinic([a, b], "clinic-b"), "s");
+    assert.equal(linkIdForClinic([a, b], "s"), null);
+    assert.equal(linkIdForClinic([a, b], null), null);
   });
 
   it("merges the clinic's schedule with the account settings", () => {

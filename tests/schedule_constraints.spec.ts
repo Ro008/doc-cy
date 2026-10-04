@@ -328,7 +328,7 @@ test.describe("Schedule constraints @booking-creates", { tag: ["@pr-e2e", "@pr-e
 
     // 2) Defensive overlap guard: even if an invalid 16:45 row exists (manual/admin insert),
     // API must block a 17:00 booking because ranges intersect.
-    // Seed must use the same location_id the public booking API will resolve.
+    // One agenda per professional: the seed blocks the time at every clinic.
     const invalidStartUtc = zonedTimeToUtc(`${targetDate}T16:45`, CY_TZ as string);
     const seeded = await supabase
       .from("appointments")
@@ -340,7 +340,6 @@ test.describe("Schedule constraints @booking-creates", { tag: ["@pr-e2e", "@pr-e
         appointment_datetime: invalidStartUtc.toISOString(),
         status: "CONFIRMED",
         reason: "Seeded overlap fixture",
-        location_id: primaryLocationId,
       })
       .select("id")
       .single();

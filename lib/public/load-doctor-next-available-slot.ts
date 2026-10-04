@@ -34,7 +34,7 @@ export const OCCUPIED_BATCH_RPC = "public_professionals_occupied_datetimes";
 
 export type OccupiedRow = {
   professional_id: string;
-  location_id: string | null;
+  // The RPC also returns the clinic; nothing reads it (one agenda per professional).
   appointment_datetime: string;
 };
 

@@ -73,7 +73,7 @@ describe("selectPreviousVisits", () => {
     patient_phone: null,
     attendance: null,
     professional_notes: null,
-    location_id: null,
+    clinic_id: null,
   });
 
   it("keeps the same patient's visits, newest first, at most the limit", () => {

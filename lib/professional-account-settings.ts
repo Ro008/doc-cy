@@ -38,6 +38,19 @@ export function clinicForAppointment(
   return requested ?? sortDoctorLocations(locations)[0] ?? null;
 }
 
+/**
+ * Her clinic link (`professional_clinics.id`, where the schedule lives) for an appointment's
+ * clinic (`appointments.clinic_id` = `clinics.id`); null if she isn't linked to it.
+ */
+export function linkIdForClinic(
+  locations: readonly Pick<DoctorLocationRow, "id" | "clinic_id">[],
+  clinicId: string | null | undefined,
+): string | null {
+  const id = String(clinicId ?? "").trim();
+  if (!id) return null;
+  return locations.find((row) => row.clinic_id === id)?.id ?? null;
+}
+
 /** The clinic's schedule merged with the account settings; null without a clinic. */
 export function settingsAtClinic(
   account: Omit<ProfessionalAccountSettings, "professional_id"> | null | undefined,
