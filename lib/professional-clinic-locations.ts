@@ -141,6 +141,8 @@ export function professionalClinicRowToLocation(
   return {
     id: String(row.id ?? ""),
     doctor_id: String(row.professional_id ?? ""),
+    clinic_id: text(clinic.id),
+    clinic_name: text(clinic.name),
     is_primary: Boolean(row.is_primary),
     sort_order: Number.isFinite(Number(row.sort_order)) ? Number(row.sort_order) : 0,
     label: text(row.label),

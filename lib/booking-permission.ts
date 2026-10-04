@@ -17,7 +17,9 @@ export type BookingPermissionInput = {
 
 export type BookingRefusal = "not_registered" | "access_expired" | "clinic_archived" | "clinic_paused";
 
-export type BookingPermission = { allowed: true } | { allowed: false; reason: BookingRefusal };
+// `reason?: undefined` on the allowed branch: the project compiles without strictNullChecks,
+// where a boolean discriminant doesn't narrow.
+export type BookingPermission = { allowed: true; reason?: undefined } | { allowed: false; reason: BookingRefusal };
 
 function baseRefusal(input: BookingPermissionInput, now: Date): BookingRefusal | null {
   if (!input.isRegistered) return "not_registered";

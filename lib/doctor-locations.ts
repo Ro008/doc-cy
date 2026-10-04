@@ -21,8 +21,13 @@ export const DOCTOR_LOCATION_SELECT =
   "id, doctor_id, is_primary, sort_order, label, district, clinic_address, town, latitude, longitude, clinic_place_id, pause_online_bookings, monday, tuesday, wednesday, thursday, friday, saturday, sunday, start_time, end_time, weekly_schedule, break_start, break_end, slot_duration_minutes, created_at, updated_at";
 
 export type DoctorLocationRow = {
+  /** The professional_clinics (join row) id. */
   id: string;
   doctor_id: string;
+  /** The clinic itself (`clinics.id`): what `appointments.clinic_id` stores. */
+  clinic_id?: string | null;
+  /** `clinics.name`: what every screen shows (never the join-row label). */
+  clinic_name?: string | null;
   is_primary: boolean;
   sort_order: number;
   label: string | null;

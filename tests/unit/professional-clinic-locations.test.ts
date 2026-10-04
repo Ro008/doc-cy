@@ -67,6 +67,10 @@ describe("professional clinic locations", () => {
       // links and appointments.location_id keep resolving.
       id: "join-1",
       doctor_id: "pro-1",
+      // The clinic itself: appointments.clinic_id, and the name every screen shows
+      // (never the join-row label; user 2026-10-03).
+      clinic_id: "clinic-1",
+      clinic_name: "Evangelismos",
       is_primary: true,
       sort_order: 0,
       label: "Evenings",
