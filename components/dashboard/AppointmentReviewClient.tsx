@@ -453,7 +453,7 @@ export function AppointmentReviewClient({
           ) : null}
 
           <p className="text-xs leading-relaxed text-slate-500">
-            We'll hold {chosen.length === 1 ? "this time" : "these times"} for {firstName(patientName)} until they
+            We&apos;ll hold {chosen.length === 1 ? "this time" : "these times"} for {firstName(patientName)} until they
             answer (up to 24 h), and free up {startLabel} again. They get an email to pick one or decline.
           </p>
           <button
