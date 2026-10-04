@@ -3,7 +3,9 @@ export type AppointmentStatusCode =
   | "CONFIRMED"
   | "CANCELLED"
   | "NEEDS_RESCHEDULE"
-  /** Closed after nobody answered before the visit time (backend pending). */
+  /** The professional declined the request (reason in `decline_reason`). */
+  | "DECLINED"
+  /** Nobody answered in time: a request past its visit time, or a lapsed proposal. */
   | "EXPIRED";
 
 /** Calendar export and “add to calendar” are only allowed once confirmed. */
