@@ -81,6 +81,7 @@ describe("professional clinic locations", () => {
       longitude: 33.36,
       clinic_place_id: "place-1",
       pause_online_bookings: false,
+      pause_notice_dismissed_at: null,
       monday: true,
       tuesday: false,
       wednesday: true,
