@@ -14,8 +14,8 @@ import { appointmentClinicCopy, loadAppointmentClinicPhone } from "@/lib/appoint
 import { loadDoctorLocations } from "@/lib/load-doctor-locations";
 import { clinicSlotMinutes } from "@/lib/professional-account-settings";
 import { sendPatientAppointmentConfirmedEmail } from "@/lib/send-patient-appointment-confirmed-email";
-import { sendDoctorAppointmentConfirmedEmail } from "@/lib/send-doctor-appointment-confirmed-email";
-import { professionalAccountEmail } from "@/lib/professional-account-contact";
+import { issuePatientCancelLink } from "@/lib/appointment-links-db";
+import { isUndeliverableTestEmail } from "@/lib/registration-decision-emails";
 import { createServiceRoleClient } from "@/lib/supabase-service";
 import { loadPrimarySpecialtyName } from "@/lib/specialty-catalogue";
 
@@ -120,14 +120,22 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
     );
   }
 
-  const { error: updateErr } = await supabase
+  // Guarded on REQUESTED so a double click or a concurrent decline can't overwrite it.
+  const service = createServiceRoleClient();
+  if (!service) {
+    return NextResponse.json({ message: "Server misconfiguration." }, { status: 503 });
+  }
+  const { data: confirmed, error: updateErr } = await service
     .from("appointments")
     .update({
       status: "CONFIRMED",
       duration_minutes: durationMinutes,
     })
     .eq("id", id)
-    .eq("professional_id", doctor.id);
+    .eq("professional_id", doctor.id)
+    .eq("status", "REQUESTED")
+    .select("id")
+    .maybeSingle();
 
   if (updateErr) {
     console.error(updateErr);
@@ -135,6 +143,9 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
       { message: "Could not confirm appointment." },
       { status: 500 }
     );
+  }
+  if (!confirmed) {
+    return NextResponse.json({ message: "This request was already answered." }, { status: 409 });
   }
 
   const siteUrl =
@@ -149,13 +160,26 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
     locationId: (appt as { location_id?: string | null }).location_id,
   });
 
-  const specialtyService = createServiceRoleClient();
+  const specialtyService = service;
   const specialtyName = specialtyService
     ? await loadPrimarySpecialtyName(specialtyService, doctor.id as string)
     : null;
 
+  // The patient's cancel link (until X hours before the visit; user, 2026-10-04).
+  let cancel: { url: string; deadlineLabel: string } | null = null;
   try {
-    await sendPatientAppointmentConfirmedEmail({
+    cancel = await issuePatientCancelLink(
+      service,
+      { id, professional_id: doctor.id as string, appointment_datetime: String(appt.appointment_datetime) },
+      siteUrl,
+    );
+  } catch (e) {
+    console.error("[DocCy] cancel link", e);
+  }
+
+  try {
+    const patientEmail = String(appt.patient_email ?? "").trim();
+    if (patientEmail && !isUndeliverableTestEmail(patientEmail)) await sendPatientAppointmentConfirmedEmail({
       siteUrl,
       patientEmail: String(appt.patient_email),
       patientName: String(appt.patient_name),
@@ -173,31 +197,14 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
         clinic_address: clinic.address,
       },
       clinic,
+      cancel,
       resendToOverride,
     });
   } catch (e) {
     console.error("[DocCy] Patient confirmation email failed", e);
   }
 
-  try {
-    await sendDoctorAppointmentConfirmedEmail({
-      siteUrl,
-      doctorEmail: professionalAccountEmail(
-        doctor as { email?: string | null; registration_email?: string | null },
-      ),
-      doctorName: String(doctor.name ?? "Doctor"),
-      appointmentId: id,
-      appointmentDatetimeIso: String(appt.appointment_datetime),
-      durationMinutes,
-      patientName: String(appt.patient_name),
-      patientPhone: (appt as { patient_phone?: string | null }).patient_phone ?? null,
-      reason: (appt as { reason?: string | null }).reason ?? null,
-      clinic,
-      resendToOverride,
-    });
-  } catch (e) {
-    console.error("[DocCy] Doctor confirmation email failed", e);
-  }
+  // No email to the professional about a visit she accepted herself (user, 2026-10-02).
 
   return NextResponse.json({
     message: "Appointment confirmed.",

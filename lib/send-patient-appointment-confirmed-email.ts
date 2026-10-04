@@ -54,6 +54,7 @@ export async function sendPatientAppointmentConfirmedEmail(opts: {
   doctor: DoctorPayload;
   clinic?: AppointmentClinicCopy | null;
   isAfterReschedule?: boolean;
+  cancel?: { url: string; deadlineLabel: string } | null;
   resendToOverride?: string | null;
 }): Promise<void> {
   const content = buildPatientAppointmentConfirmedEmailContent(opts);
@@ -83,6 +84,8 @@ export function buildPatientAppointmentConfirmedEmailContent(opts: {
   doctor: DoctorPayload;
   clinic?: AppointmentClinicCopy | null;
   isAfterReschedule?: boolean;
+  /** The patient's cancel link and its deadline label (user, 2026-10-04). */
+  cancel?: { url: string; deadlineLabel: string } | null;
   resendToOverride?: string | null;
 }): { subject: string; text: string; html: string } {
   const {
@@ -94,6 +97,7 @@ export function buildPatientAppointmentConfirmedEmailContent(opts: {
     reason,
     doctor,
     isAfterReschedule,
+    cancel,
   } = opts;
 
   const doctorName = String(doctor.name ?? "your professional").trim();
@@ -146,6 +150,9 @@ export function buildPatientAppointmentConfirmedEmailContent(opts: {
       `If you already added your previous confirmed visit to calendar, delete that old entry now.\n` +
       `DocCy cannot remove old events from your personal calendar.\n\n`;
   }
+  if (cancel) {
+    text += `Need to cancel? You can cancel online until ${cancel.deadlineLabel} (Cyprus time):\n${cancel.url}\n\n`;
+  }
   text += `---\n${AUTOMATED_EMAIL_FOOTER_TEXT}`;
 
   const html = `
@@ -177,6 +184,15 @@ ${EMAIL_SHELL_OPEN}
     <p style="${PRIMARY_ACTIONS_LABEL}">Calendar</p>
     <a href="${patientGoogleUrl}" style="${CAL_GOOGLE_STYLE}">Add to Google Calendar</a>
     <a href="${patientIcsUrl}" style="${CAL_ICS_STYLE}">Add to Apple / Outlook (.ics)</a>
+    ${
+      cancel
+        ? `<p style="${PRIMARY_ACTIONS_LABEL}">Need to cancel?</p>
+    <p style="margin:0 0 10px;font-size:14px;line-height:1.6;color:${EMAIL_TEXT};">
+      You can cancel online until <strong>${escapeHtml(cancel.deadlineLabel)}</strong> (Cyprus time):
+      <a href="${escapeHtml(cancel.url)}">cancel this appointment</a>.
+    </p>`
+        : ""
+    }
 
     ${automatedEmailFooterHtml()}
 ${EMAIL_SHELL_CLOSE}`;

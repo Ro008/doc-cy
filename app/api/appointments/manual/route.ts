@@ -18,6 +18,8 @@ import {
 import { candidateOverlapsAnyBlockingInterval } from "@/lib/appointment-overlap";
 import { parseBookingPatientFields } from "@/lib/booking-patient-fields";
 import { manualBookingPermission } from "@/lib/booking-permission";
+import { issuePatientCancelLink } from "@/lib/appointment-links-db";
+import { isUndeliverableTestEmail } from "@/lib/registration-decision-emails";
 import { sendPatientAppointmentConfirmedEmail } from "@/lib/send-patient-appointment-confirmed-email";
 import { loadPrimarySpecialtyName } from "@/lib/specialty-catalogue";
 import { getDoctorCalendarEventDetails } from "@/lib/doctor-calendar-event";
@@ -285,8 +287,22 @@ export async function POST(req: NextRequest) {
   const specialtyName = await loadPrimarySpecialtyName(supabase, doctor.id as string);
 
   try {
-    if (patientEmail) {
+    if (patientEmail && !isUndeliverableTestEmail(patientEmail)) {
+      // Manual-booking patients with an email get the cancel link too (user, 2026-10-04).
+      const cancel = await issuePatientCancelLink(
+        supabase,
+        {
+          id: String(inserted.id),
+          professional_id: String(doctor.id),
+          appointment_datetime: String(inserted.appointment_datetime),
+        },
+        siteUrl,
+      ).catch((err) => {
+        console.error("[DocCy] manual booking cancel link", err);
+        return null;
+      });
       await sendPatientAppointmentConfirmedEmail({
+        cancel,
         siteUrl,
         patientEmail,
         patientName,
