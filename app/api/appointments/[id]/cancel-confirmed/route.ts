@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 import { sendPatientConfirmedAppointmentCancelledEmail } from "@/lib/send-patient-confirmed-appointment-cancelled-email";
+import { revokeAppointmentLinks } from "@/lib/appointment-links-db";
+import { isUndeliverableTestEmail } from "@/lib/registration-decision-emails";
+import { createServiceRoleClient } from "@/lib/supabase-service";
 
 type RouteContext = { params: { id: string } };
 
@@ -56,7 +59,7 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
   const { data: appt, error: apptErr } = await supabase
     .from("appointments")
     .select(
-      "id, professional_id, patient_name, patient_email, status, appointment_datetime"
+      "id, professional_id, patient_name, patient_email, patient_phone, status, appointment_datetime"
     )
     .eq("id", id)
     .maybeSingle();
@@ -99,6 +102,14 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
     );
   }
 
+  // She can cancel until the visit starts, however short the notice (user, 2026-10-04).
+  if (new Date(appointmentDatetimeIso).getTime() <= Date.now()) {
+    return NextResponse.json(
+      { message: "This visit has already started. Mark the attendance instead." },
+      { status: 400 }
+    );
+  }
+
   const siteUrl =
     process.env.NEXT_PUBLIC_SITE_URL?.trim() || "https://www.mydoccy.com";
   const resendToOverride =
@@ -106,30 +117,56 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
       ? process.env.RESEND_TO_OVERRIDE?.trim() || null
       : null;
 
+  // Kept as CANCELLED by her with the reason (never deleted). Guarded on CONFIRMED.
+  const service = createServiceRoleClient();
+  if (!service) {
+    return NextResponse.json({ message: "Server misconfiguration." }, { status: 503 });
+  }
+  const { data: cancelled, error: updateErr } = await service
+    .from("appointments")
+    .update({ status: "CANCELLED", cancelled_by: "professional", cancel_reason: reasonRaw })
+    .eq("id", id)
+    .eq("professional_id", doctor.id)
+    .eq("status", "CONFIRMED")
+    .select("id")
+    .maybeSingle();
+  if (updateErr) {
+    console.error("[DocCy] cancel-confirmed update", updateErr);
+    return NextResponse.json({ message: "Could not cancel the appointment." }, { status: 500 });
+  }
+  if (!cancelled) {
+    return NextResponse.json({ message: "This visit is no longer confirmed." }, { status: 409 });
+  }
+  // The patient's own cancel link stops working.
+  await revokeAppointmentLinks(service, id, "cancel").catch((e) =>
+    console.error("[DocCy] cancel-confirmed: revoke patient link", e),
+  );
+
+  const patientEmail = String(appt.patient_email ?? "").trim();
   try {
-    await sendPatientConfirmedAppointmentCancelledEmail({
-      siteUrl,
-      patientEmail: String(appt.patient_email ?? ""),
-      patientName: String(appt.patient_name ?? ""),
-      doctorName: String((doctor as { name?: string | null }).name ?? ""),
-      doctorSlug: slug,
-      appointmentDatetimeIso,
-      cancelReason: reasonRaw,
-      resendToOverride,
-    });
+    if (patientEmail && !isUndeliverableTestEmail(patientEmail)) {
+      await sendPatientConfirmedAppointmentCancelledEmail({
+        siteUrl,
+        patientEmail,
+        patientName: String(appt.patient_name ?? ""),
+        doctorName: String((doctor as { name?: string | null }).name ?? ""),
+        doctorSlug: slug,
+        appointmentDatetimeIso,
+        cancelReason: reasonRaw,
+        resendToOverride,
+      });
+    }
   } catch (e) {
     console.error("[DocCy] Confirmed cancel email failed", e);
   }
 
-  const { error: delErr } = await supabase.from("appointments").delete().eq("id", id);
-
-  if (delErr) {
-    console.error(delErr);
-    return NextResponse.json(
-      { message: "Could not remove the appointment after notifying the patient." },
-      { status: 500 }
-    );
-  }
-
-  return NextResponse.json({ message: "Appointment cancelled." }, { status: 200 });
+  // No email on file: she has to call the patient (the dialog says so).
+  return NextResponse.json(
+    {
+      message: "Appointment cancelled.",
+      patientHasEmail: Boolean(patientEmail),
+      patientPhone: patientEmail ? null : (appt as { patient_phone?: string | null }).patient_phone ?? null,
+    },
+    { status: 200 }
+  );
 }

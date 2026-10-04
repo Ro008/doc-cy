@@ -100,6 +100,10 @@ import {
 } from "@/components/agenda/agenda-surface";
 import { emitNavigationStart } from "@/lib/doccy-navigation";
 import {
+  DEFAULT_PATIENT_CANCEL_NOTICE_HOURS,
+  professionalCancelIsShortNotice,
+} from "@/lib/patient-cancel-window";
+import {
   APPOINTMENT_ATTENDANCE_NO_SHOW,
   isNoShowAttendance,
 } from "@/lib/appointment-attendance";
@@ -322,6 +326,7 @@ export function AgendaRealtime({
   initialView,
   openManualBooking,
   highlightAppointmentId,
+  patientCancelNoticeHours = DEFAULT_PATIENT_CANCEL_NOTICE_HOURS,
 }: {
   doctorId: string | null;
   doctorSlug?: string | null;
@@ -333,6 +338,8 @@ export function AgendaRealtime({
   openManualBooking?: boolean;
   /** Visit to point out after arriving from a link (e.g. the dashboard's Today). */
   highlightAppointmentId?: string | null;
+  /** Her patients can cancel online until this many hours before; inside it, warn her. */
+  patientCancelNoticeHours?: number;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -836,8 +843,12 @@ export function AgendaRealtime({
             body: JSON.stringify({ reason }),
           },
         );
+        const data = (await res.json().catch(() => null)) as {
+          message?: string;
+          patientHasEmail?: boolean;
+          patientPhone?: string | null;
+        } | null;
         if (!res.ok) {
-          const data = await res.json().catch(() => null);
           const message =
             data?.message || "We could not cancel this appointment.";
           setCancelError(message);
@@ -845,9 +856,19 @@ export function AgendaRealtime({
           setIsCancelling(false);
           return;
         }
-        sonnerToast.success(
-          "The patient was emailed about the cancellation and the visit was removed from your agenda.",
-        );
+        if (data?.patientHasEmail === false) {
+          // No email on file: nobody told the patient yet (user, 2026-10-04).
+          sonnerToast.warning(
+            `Visit cancelled. This patient has no email: please call them${
+              data.patientPhone ? ` on ${data.patientPhone}` : ""
+            } to let them know.`,
+            { duration: 20_000 },
+          );
+        } else {
+          sonnerToast.success(
+            "The patient was emailed about the cancellation and the visit was removed from your agenda.",
+          );
+        }
       }
       setAppointments((prev) => prev.filter((a) => a.id !== selectedId));
       setSelected(null);
@@ -2110,6 +2131,19 @@ export function AgendaRealtime({
                       The patient will receive an email that this confirmed visit
                       is cancelled, with your explanation and a link to book again.
                     </p>
+                    {selected &&
+                    professionalCancelIsShortNotice(
+                      selected.appointment_datetime,
+                      patientCancelNoticeHours,
+                    ) ? (
+                      <p
+                        className="mt-2 rounded-xl border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-amber-100"
+                        data-testid="cancel-short-notice"
+                      >
+                        This is short notice for the patient: the visit is in less than{" "}
+                        {patientCancelNoticeHours} hours.
+                      </p>
+                    ) : null}
                     <label className="mt-3 block text-left text-[11px] font-medium uppercase tracking-wide text-slate-400">
                       Reason (required)
                     </label>
