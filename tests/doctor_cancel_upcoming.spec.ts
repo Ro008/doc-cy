@@ -5,6 +5,7 @@ import { signInDoctorAndSetCookies } from "./helpers/doctorAuth";
 import { skipIfSafeNoBooking } from "./helpers/safeMode";
 import { zonedTimeToUtc } from "date-fns-tz";
 import { CY_TZ } from "../lib/appointments";
+import { submitAndConfirmOnlineBooking } from "./integration/helpers/online-booking";
 
 function nextWorkingDayCyprus(now: Date): string {
   const d = new Date(now);
@@ -86,34 +87,34 @@ test.describe("Future appointments cancellation @booking-creates", () => {
       for (const hhmm of candidateTimes) {
         const appointmentLocal = `${dateStr}T${hhmm}`;
 
-        const createRes = await request.post("/api/appointments", {
-          data: {
-            doctorSlug: slug,
-            patientName,
-            patientEmail,
-            patientPhone,
-            appointmentLocal,
-            isNewPatient: true,
-            reason: visitReason,
-          },
-        });
+        // Online booking = submit + confirm the emailed link (helper swaps in a known token).
+        const booked = admin
+          ? await submitAndConfirmOnlineBooking(request, admin, {
+              doctorSlug: slug,
+              patientName,
+              patientEmail,
+              patientPhone,
+              appointmentLocal,
+              isNewPatient: true,
+              reason: visitReason,
+            })
+          : null;
+        test.skip(!booked, "SUPABASE_SERVICE_ROLE_KEY is needed to confirm the booking link.");
+        const createStatus = booked!.confirmStatus ?? booked!.submitStatus;
 
-        if (createRes.ok()) {
-          const createJson = await createRes.json().catch(() => null);
-          appointmentId = createJson?.appointment?.id as
-            | string
-            | undefined;
+        if (booked!.confirmStatus === 200 && booked!.appointmentId) {
+          appointmentId = booked!.appointmentId;
           seeded = true;
           break outer;
         }
 
-        if (createRes.status() === 409) {
+        if (createStatus === 409) {
           // Slot already taken: try another time.
           continue;
         }
 
-        if (createRes.status() === 400 || createRes.status() === 403) {
-          const body = await createRes.text().catch(() => "");
+        if (createStatus === 400 || createStatus === 403) {
+          const body = booked!.submitBody;
           const isBookingsTemporarilyUnavailable = body.includes(
             "Bookings temporarily unavailable",
           );
@@ -136,8 +137,6 @@ test.describe("Future appointments cancellation @booking-creates", () => {
                 appointment_datetime: candidateUtc.toISOString(),
                 status: "CONFIRMED",
                 reason: visitReason,
-                visit_type: null,
-                visit_notes: null,
               })
               .select("id")
               .single();
@@ -153,9 +152,8 @@ test.describe("Future appointments cancellation @booking-creates", () => {
           continue;
         }
 
-        const body = await createRes.text().catch(() => "");
         throw new Error(
-          `Failed to seed future appointment: ${createRes.status()} ${body}`
+          `Failed to seed future appointment: ${createStatus} ${booked!.submitBody}`
         );
       }
     }

@@ -69,7 +69,7 @@ describe("appointmentLinkUrl", () => {
     );
     assert.equal(
       appointmentLinkUrl("https://www.mydoccy.com", "review", "tok_4"),
-      "https://www.mydoccy.com/review?token=tok_4",
+      "https://www.mydoccy.com/booking/review?token=tok_4",
     );
   });
 

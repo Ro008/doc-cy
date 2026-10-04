@@ -45,8 +45,6 @@ test.describe("Doctor action feedback toasts", () => {
         appointment_datetime: appointmentUtc.toISOString(),
         status: "REQUESTED",
         reason: "E2E verify success toast on confirm",
-        visit_type: null,
-        visit_notes: null,
       })
       .select("id")
       .single();

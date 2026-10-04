@@ -4,6 +4,7 @@ import { zonedTimeToUtc } from "date-fns-tz";
 
 import { CY_TZ } from "@/lib/appointments";
 import { loadDoctorLocations } from "@/lib/load-doctor-locations";
+import { submitAndConfirmOnlineBooking } from "./helpers/online-booking";
 import { createIntegrationAdmin, requireSafeIntegration } from "./helpers/safe-integration";
 import { seedProfessionalSpecialty } from "./helpers/test-doctor";
 
@@ -83,7 +84,7 @@ async function seedClinicOnlyProfessional(
 
   await seedProfessionalSpecialty(admin, professionalId, {
     specialty: "Dentistry",
-    licenseNumber: `LIC-CO-${nonce}`,
+    licenseNumber: `LIC-CO-${nonce}`,
   });
 
   const clinic = await admin
@@ -208,23 +209,19 @@ test.describe(
         const seeded = await seedClinicOnlyProfessional(admin, nonce, created);
 
         const local = `${nextWeekdayDateKey(2)}T11:00`;
-        const res = await request.post("/api/appointments", {
-          data: {
-            doctorId: seeded.professionalId,
-            locationId: seeded.joinId,
-            patientName: `Clinic Only Patient ${nonce}`,
-            patientEmail: `clinic-only-patient-${nonce}@integration.test`,
-            patientPhone: "99123456",
-            appointmentLocal: local,
-            isNewPatient: true,
-            reason: "Integration: booking at a clinic-only professional.",
-          },
+        const booked = await submitAndConfirmOnlineBooking(request, admin, {
+          doctorId: seeded.professionalId,
+          locationId: seeded.joinId,
+          patientName: `Clinic Only Patient ${nonce}`,
+          patientEmail: `clinic-only-patient-${nonce}@integration.test`,
+          patientPhone: "99123456",
+          appointmentLocal: local,
+          isNewPatient: true,
+          reason: "Integration: booking at a clinic-only professional.",
         });
-        const body = await res.text();
-        expect(res.status(), body).toBe(201);
-
-        const json = JSON.parse(body);
-        const appointmentId = String(json?.appointment?.id ?? "");
+        expect(booked.submitStatus, booked.submitBody).toBe(202);
+        expect(booked.confirmStatus).toBe(200);
+        const appointmentId = String(booked.appointmentId ?? "");
         expect(appointmentId).not.toBe("");
         created.appointmentIds.push(appointmentId);
 
@@ -337,6 +334,8 @@ test.describe(
             appointmentLocal: `${nextWeekdayDateKey(2)}T11:00`,
             isNewPatient: true,
             reason: "Integration: clinic without an address.",
+            patientGender: "female",
+            patientBirthdate: "1990-01-01",
           },
         });
         const body = await res.text();

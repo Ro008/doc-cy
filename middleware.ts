@@ -30,6 +30,8 @@ const handleI18nRouting = createMiddleware(routing);
 
 const RESERVED_TOP_LEVEL = new Set([
   "agenda",
+  // Patient link pages: /booking/confirm, /booking/choose, /booking/cancel, /booking/review.
+  "booking",
   "blog",
   "clinics",
   "dashboard",

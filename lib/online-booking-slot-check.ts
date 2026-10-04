@@ -71,6 +71,8 @@ export type SlotCheckInput = {
   appointmentLocal: string;
   /** professional_clinics id the patient picked; optional with one clinic. */
   locationId?: string | null;
+  /** clinics id (a draft stores the clinic): must be one of her clinics. Wins over locationId. */
+  clinicId?: string | null;
 };
 
 const UNAVAILABLE = "Bookings temporarily unavailable";
@@ -81,8 +83,8 @@ function refuse(status: number, code: SlotRefusalCode, message: string, debug?: 
 }
 
 const PERMISSION_MESSAGES: Record<BookingRefusal, string> = {
-  not_registered: "This professional is not accepting online bookings.",
-  access_expired: "This professional is not accepting online bookings.",
+  not_registered: "This professional is not accepting public bookings yet.",
+  access_expired: "This professional is not accepting online bookings right now.",
   clinic_archived: UNAVAILABLE,
   clinic_paused: UNAVAILABLE,
 };
@@ -103,6 +105,10 @@ export async function checkOnlineBookingSlot(
     .eq("id", professionalId)
     .single();
   if (professionalError || !professional) return refuse(400, "not_found", "Professional not found.");
+  // Unregistered listings first, before anything about their (absent) schedule.
+  if (!(professional as { is_registered?: boolean }).is_registered) {
+    return refuse(403, "not_registered", PERMISSION_MESSAGES.not_registered);
+  }
 
   let appointmentUtc: Date;
   try {
@@ -128,12 +134,14 @@ export async function checkOnlineBookingSlot(
   }
 
   const locations = await loadLocations(professionalId);
+  const requestedClinicId = String(input.clinicId ?? "").trim();
   const requestedLocationId = String(input.locationId ?? "").trim();
-  const bookingLocation =
-    (requestedLocationId ? locations.find((row) => row.id === requestedLocationId) : null) ??
-    (locations.length === 1 ? locations[0] : null) ??
-    primaryDoctorLocation(locations);
-  if (locations.length > 1 && !bookingLocation) {
+  const bookingLocation = requestedClinicId
+    ? locations.find((row) => row.clinic_id === requestedClinicId) ?? null
+    : (requestedLocationId ? locations.find((row) => row.id === requestedLocationId) : null) ??
+      (locations.length === 1 ? locations[0] : null) ??
+      primaryDoctorLocation(locations);
+  if (!requestedClinicId && locations.length > 1 && !bookingLocation) {
     return refuse(400, "choose_clinic", "Please choose a clinic for this appointment.");
   }
   // Every appointment is at a clinic with an address (user 2026-09-29).

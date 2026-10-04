@@ -17,7 +17,7 @@ export const APPOINTMENT_LINK_PATHS: Record<AppointmentLinkPurpose, string> = {
   confirm: "/booking/confirm",
   proposal: "/booking/choose",
   cancel: "/booking/cancel",
-  review: "/review",
+  review: "/booking/review",
 };
 
 /** 32 random bytes, base64url (43 characters). */

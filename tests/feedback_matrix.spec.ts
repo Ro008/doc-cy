@@ -36,8 +36,6 @@ async function seedRequestedAppointment(
       appointment_datetime: appointmentUtc.toISOString(),
       status: "REQUESTED",
       reason: `E2E feedback matrix ${label}`,
-      visit_type: null,
-      visit_notes: null,
     })
     .select("id")
     .single();
@@ -65,8 +63,6 @@ async function seedAgendaAppointment(
       appointment_datetime: appointmentUtc.toISOString(),
       status,
       reason: `E2E feedback matrix ${label}`,
-      visit_type: null,
-      visit_notes: null,
     })
     .select("id")
     .single();

@@ -140,8 +140,20 @@
       "timeSlotJustBooked": "This time slot has just been booked. Please choose another slot.",
       "preselectedSlotUnavailable": "That time is no longer available. Please choose another slot.",
       "bookingFailed": "We could not complete your booking. Please try again.",
-      "somethingWentWrong": "Something went wrong. Please try again."
-    }
+      "somethingWentWrong": "Something went wrong. Please try again.",
+      "genderRequired": "Please choose a gender option.",
+      "birthdateRequired": "Please enter a valid date of birth.",
+      "openRequestExists": "You already have a request waiting with {doctorName}. Please wait for their reply."
+    },
+    "genderLabel": "Gender",
+    "genderFemale": "Female",
+    "genderMale": "Male",
+    "genderPreferNotToSay": "Prefer not to say",
+    "birthdateLabel": "Date of birth",
+    "personalDetailsPrivacyNote": "Your date of birth and gender are shared only with {doctorName} to prepare your visit. We never show them publicly.",
+    "checkEmailTitle": "Check your email",
+    "checkEmailMessage": "We sent a link to {email}. Open it within 30 minutes and tap “Confirm my request” to send your request to {doctorName}.",
+    "checkEmailHint": "Can’t find it? Check your spam folder."
   },
   "DoctorAgenda": {
     "appointmentPendingBadge": "Pending",

@@ -8,7 +8,7 @@ import {
   addMinutes,
   format,
 } from "date-fns";
-import { utcToZonedTime, zonedTimeToUtc } from "date-fns-tz";
+import { formatInTimeZone, utcToZonedTime, zonedTimeToUtc } from "date-fns-tz";
 import { el as elLocale, enGB } from "date-fns/locale";
 import { DayPicker } from "react-day-picker";
 import { ChevronLeft, ChevronRight, Clock, Loader2 } from "lucide-react";
@@ -21,6 +21,7 @@ import {
 } from "@/lib/booking-slot-param";
 import { normalizeMinimumNoticeHours } from "@/lib/doctor-settings";
 import { APPOINTMENT_REASON_MAX_LENGTH } from "@/lib/visit-types";
+import { isPatientGender, parsePatientBirthdate, type PatientGender } from "@/lib/booking-patient-fields";
 import { formatDateDDMMYYYY } from "@/lib/date-format";
 import "react-day-picker/dist/style.css";
 import { useLocale, useTranslations } from "next-intl";
@@ -129,6 +130,10 @@ export function BookingSection({
   const [showPhoneError, setShowPhoneError] = React.useState(false);
   const [isNewPatient, setIsNewPatient] = React.useState<boolean | null>(null);
   const [visitReason, setVisitReason] = React.useState("");
+  const [patientGender, setPatientGender] = React.useState<PatientGender | "">("");
+  const [patientBirthdate, setPatientBirthdate] = React.useState("");
+  /** Set once the request is saved: the patient confirms it from the email (user, 2026-10-02). */
+  const [checkEmailAddress, setCheckEmailAddress] = React.useState<string | null>(null);
   const [submitting, setSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [bookingSuccess, setBookingSuccess] = React.useState(false);
@@ -365,6 +370,14 @@ export function BookingSection({
         setError(t("errors.reasonRequired"));
         return;
       }
+      if (!isPatientGender(patientGender)) {
+        setError(t("errors.genderRequired"));
+        return;
+      }
+      if (!parsePatientBirthdate(patientBirthdate)) {
+        setError(t("errors.birthdateRequired"));
+        return;
+      }
       let didNavigateToSuccess = false;
       try {
         setSubmitting(true);
@@ -379,11 +392,17 @@ export function BookingSection({
             appointmentLocal: selectedSlot.slotKey,
             reason: reasonTrim,
             isNewPatient,
+            patientGender,
+            patientBirthdate,
             ...(locationId ? { locationId } : {}),
           }),
         });
         const data = await res.json().catch(() => null);
         if (!res.ok) {
+          if (res.status === 409 && data?.code === "open_request_exists") {
+            setError(t("errors.openRequestExists", { doctorName }));
+            return;
+          }
           if (res.status === 409) {
             setError(
               t("errors.timeSlotJustBooked")
@@ -396,18 +415,11 @@ export function BookingSection({
           );
           return;
         }
-        const newId =
-          (data?.appointment?.id as string | undefined) ?? null;
-        const requestSentQuery =
-          (data?.requestSentQuery as string | undefined) ?? null;
-        setLastAppointmentId(newId);
-        if (profileSlug && newId && requestSentQuery) {
-          didNavigateToSuccess = true;
-          router.push(
-            `/${activeLocale}/${profileSlug}/request-sent?${requestSentQuery}`
-          );
-          return;
+        // 202: the request waits for the patient to confirm the emailed link.
+        if (res.status === 202) {
+          setCheckEmailAddress(patientEmail.trim());
         }
+        setLastAppointmentId(null);
         setBookingSuccess(true);
         setSelectedSlot(null);
         setSelectedDate(null);
@@ -417,6 +429,8 @@ export function BookingSection({
         setPatientPhone("");
         setIsNewPatient(null);
         setVisitReason("");
+        setPatientGender("");
+        setPatientBirthdate("");
         setShowPhoneError(false);
       } catch (err) {
         console.error(err);
@@ -437,10 +451,11 @@ export function BookingSection({
       phoneValid,
       isNewPatient,
       visitReason,
+      patientGender,
+      patientBirthdate,
       doctorId,
-      profileSlug,
+      doctorName,
       locationId,
-      router,
       t,
     ]
   );
@@ -513,11 +528,16 @@ export function BookingSection({
             />
           </div>
           <h2 className="mt-6 text-2xl font-bold tracking-tight text-ink-900 sm:text-3xl">
-            {t("requestSubmittedTitle")}
+            {checkEmailAddress ? t("checkEmailTitle") : t("requestSubmittedTitle")}
           </h2>
           <p className="mt-3 max-w-sm text-sm leading-relaxed text-ink-600">
-            {t("requestSubmittedMessage", { doctorName })}
+            {checkEmailAddress
+              ? t("checkEmailMessage", { email: checkEmailAddress, doctorName })
+              : t("requestSubmittedMessage", { doctorName })}
           </p>
+          {checkEmailAddress ? (
+            <p className="mt-2 max-w-sm text-xs leading-relaxed text-ink-500">{t("checkEmailHint")}</p>
+          ) : null}
           {profileSlug ? (
             <PendingLink
               href={`/${activeLocale}/${profileSlug}`}
@@ -652,6 +672,57 @@ export function BookingSection({
               </label>
             </div>
           </fieldset>
+          <fieldset className="space-y-2">
+            <legend className="text-xs font-semibold text-ink-800">
+              {t("genderLabel")} <span className="text-red-600">*</span>
+            </legend>
+            <div className="grid gap-2 sm:grid-cols-3">
+              {(
+                [
+                  ["female", t("genderFemale")],
+                  ["male", t("genderMale")],
+                  ["prefer_not_to_say", t("genderPreferNotToSay")],
+                ] as const
+              ).map(([value, label]) => (
+                <label
+                  key={value}
+                  className={`flex cursor-pointer items-center gap-2 rounded-2xl border px-3 py-2.5 text-sm transition ${
+                    patientGender === value
+                      ? "border-clinical-500 bg-clinical-50 text-clinical-900"
+                      : "border-ink-200 bg-white text-ink-800 hover:border-clinical-300"
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="patientGender"
+                    value={value}
+                    className="h-4 w-4 border-ink-300 text-clinical-600 focus:ring-clinical-400/60"
+                    checked={patientGender === value}
+                    onChange={() => setPatientGender(value)}
+                  />
+                  {label}
+                </label>
+              ))}
+            </div>
+          </fieldset>
+          <div className="space-y-2">
+            <label htmlFor="patientBirthdate" className="text-xs font-semibold text-ink-800">
+              {t("birthdateLabel")} <span className="text-red-600">*</span>
+            </label>
+            <input
+              id="patientBirthdate"
+              type="date"
+              required
+              min="1900-01-01"
+              max={formatInTimeZone(new Date(), CY_TZ, "yyyy-MM-dd")}
+              value={patientBirthdate}
+              onChange={(e) => setPatientBirthdate(e.target.value)}
+              className="w-full rounded-2xl border border-ink-200 bg-white px-3 py-2 text-sm text-ink-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-clinical-400/60"
+            />
+            <p className="text-[11px] leading-relaxed text-ink-500">
+              {t("personalDetailsPrivacyNote", { doctorName })}
+            </p>
+          </div>
           <div className="space-y-2">
             <label
               htmlFor="visitReason"

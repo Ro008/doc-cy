@@ -5,6 +5,7 @@ import {
   seedProfessionalSpecialty,
 } from "./helpers/test-doctor";
 import { createClient } from "@supabase/supabase-js";
+import { takeOverLatestDraftLink, withBookingDefaults } from "./helpers/online-booking";
 
 function nextWeekdayDateKey(daysAhead = 1): string {
   const d = new Date();
@@ -16,7 +17,7 @@ function nextWeekdayDateKey(daysAhead = 1): string {
   return `${yyyy}-${mm}-${dd}`;
 }
 
-// CI: exercises parallel POST /api/appointments against unique (professional_id, appointment_datetime).
+// CI: exercises parallel POST /api/booking/confirm (two drafts, one time) against unique (professional_id, appointment_datetime).
 test.describe("Integration: appointment race condition guard", { tag: ["@pr-e2e", "@pr-e2e-booking"] }, () => {
   test("same slot parallel booking creates one appointment only", async ({
     request,
@@ -92,7 +93,7 @@ test.describe("Integration: appointment race condition guard", { tag: ["@pr-e2e"
       doctorId = doctorInsert.data.id as string;
       await seedProfessionalSpecialty(admin, doctorId, {
         specialty: "General Practice",
-        licenseNumber: `LIC-RACE-${nonce}`,
+        licenseNumber: `LIC-RACE-${nonce}`,
       });
 
       const settingsUpsert = await admin.from("professional_settings").upsert(
@@ -138,15 +139,25 @@ test.describe("Integration: appointment race condition guard", { tag: ["@pr-e2e"
         reason: "Integration race test — reason for visit.",
       };
 
+      // Both submit (drafts hold no time), then both confirm their emailed link at once:
+      // exactly one confirmation gets the slot.
+      const [subA, subB] = await Promise.all([
+        request.post("/api/appointments", { data: withBookingDefaults(payloadA) }),
+        request.post("/api/appointments", { data: withBookingDefaults(payloadB) }),
+      ]);
+      expect([subA.status(), subB.status()]).toEqual([202, 202]);
+      const tokenA = await takeOverLatestDraftLink(admin, payloadA.patientEmail);
+      const tokenB = await takeOverLatestDraftLink(admin, payloadB.patientEmail);
+
       const [resA, resB] = await Promise.all([
-        request.post("/api/appointments", { data: payloadA }),
-        request.post("/api/appointments", { data: payloadB }),
+        request.post("/api/booking/confirm", { data: { token: tokenA } }),
+        request.post("/api/booking/confirm", { data: { token: tokenB } }),
       ]);
 
       const statuses = [resA.status(), resB.status()].sort((a, b) => a - b);
-      expect(statuses).toEqual([201, 409]);
+      expect(statuses).toEqual([200, 409]);
 
-      const okResponse = resA.status() === 201 ? resA : resB;
+      const okResponse = resA.status() === 200 ? resA : resB;
       const okJson = await okResponse.json();
       const createdId = String(okJson?.appointment?.id ?? "");
       if (createdId) createdAppointmentIds.push(createdId);

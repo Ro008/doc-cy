@@ -140,6 +140,25 @@ describe("checkOnlineBookingSlot", () => {
     assert.equal(res.ok && res.bookingLocation.id, "link-2");
   });
 
+  it("finds the clinic link by clinic id (confirming a draft)", async () => {
+    const two = [location(), location({ id: "link-2", clinic_id: "clinic-2", is_primary: false })];
+    const res = await checkOnlineBookingSlot(
+      fakeSupabase() as never,
+      { professionalId: PRO, appointmentLocal: "2026-10-07T10:00", clinicId: "clinic-2" },
+      { now: NOW, loadLocations: async () => two },
+    );
+    assert.equal(res.ok && res.bookingLocation.id, "link-2");
+  });
+
+  it("refuses when she no longer works at the draft's clinic", async () => {
+    const res = await checkOnlineBookingSlot(
+      fakeSupabase() as never,
+      { professionalId: PRO, appointmentLocal: "2026-10-07T10:00", clinicId: "clinic-gone" },
+      { now: NOW, loadLocations: async () => [location()] },
+    );
+    assert.deepEqual(res.ok ? null : [res.status, res.code], [403, "no_clinic"]);
+  });
+
   it("refuses a time outside the clinic's hours", async () => {
     const res = await check("2026-10-07T18:00");
     assert.deepEqual(res.ok ? null : [res.status, res.code], [400, "outside_hours"]);
