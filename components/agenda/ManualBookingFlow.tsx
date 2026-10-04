@@ -5,7 +5,7 @@ import * as React from "react";
 import { MANUAL_BOOKING_HINT, MANUAL_BOOKING_LABEL } from "@/lib/manual-booking-copy";
 import { addDays, addHours, format } from "date-fns";
 import { enGB } from "date-fns/locale";
-import { utcToZonedTime, zonedTimeToUtc } from "date-fns-tz";
+import { formatInTimeZone, utcToZonedTime, zonedTimeToUtc } from "date-fns-tz";
 import { CalendarPlus, Loader2, Plus, X } from "lucide-react";
 import { DayPicker } from "react-day-picker";
 import { ChevronLeft, ChevronRight } from "lucide-react";
@@ -18,6 +18,7 @@ import {
 } from "@/lib/manual-booking-slots";
 import { agendaClinicEventColor } from "@/lib/doctor-locations";
 import { APPOINTMENT_REASON_MAX_LENGTH } from "@/lib/visit-types";
+import { isPatientGender, parsePatientBirthdate, type PatientGender } from "@/lib/booking-patient-fields";
 import "react-day-picker/dist/style.css";
 
 
@@ -90,6 +91,9 @@ export function ManualBookingFlow({
   const [patientPhone, setPatientPhone] = React.useState("");
   const [patientEmail, setPatientEmail] = React.useState("");
   const [reason, setReason] = React.useState("");
+  const [isNewPatient, setIsNewPatient] = React.useState<boolean | null>(null);
+  const [patientGender, setPatientGender] = React.useState<PatientGender | "">("");
+  const [patientBirthdate, setPatientBirthdate] = React.useState("");
   const [submitting, setSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [success, setSuccess] = React.useState<SuccessState | null>(null);
@@ -102,6 +106,9 @@ export function ManualBookingFlow({
     setPatientPhone("");
     setPatientEmail("");
     setReason("");
+    setIsNewPatient(null);
+    setPatientGender("");
+    setPatientBirthdate("");
     setError(null);
     setSuccess(null);
     setSubmitting(false);
@@ -248,6 +255,22 @@ export function ManualBookingFlow({
       setError("Patient name is required.");
       return;
     }
+    if (!patientPhone.trim()) {
+      setError("Patient phone is required.");
+      return;
+    }
+    if (isNewPatient === null) {
+      setError("Please say whether this is the patient's first visit.");
+      return;
+    }
+    if (!isPatientGender(patientGender)) {
+      setError("Please choose the patient's gender option.");
+      return;
+    }
+    if (!parsePatientBirthdate(patientBirthdate)) {
+      setError("Please enter a valid date of birth.");
+      return;
+    }
     const reasonTrimmed = reason.slice(0, APPOINTMENT_REASON_MAX_LENGTH).trim();
     if (!reasonTrimmed) {
       setError("Reason for visit is required.");
@@ -265,6 +288,9 @@ export function ManualBookingFlow({
           patientEmail: patientEmail.trim(),
           appointmentLocal: selectedSlot.slotKey,
           reason: reasonTrimmed,
+          isNewPatient,
+          patientGender,
+          patientBirthdate,
           locationId: selectedClinic?.id ?? null,
         }),
       });
@@ -504,12 +530,82 @@ export function ManualBookingFlow({
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-xs font-semibold text-slate-200">Phone (optional)</label>
+                <label className="text-xs font-semibold text-slate-200">
+                  Phone <span className="text-red-300">*</span>
+                </label>
                 <input
                   value={patientPhone}
                   onChange={(e) => setPatientPhone(e.target.value)}
                   className="w-full rounded-2xl border border-slate-800/80 bg-ink-900/40 px-3 py-2 text-sm text-slate-100"
                   placeholder="+357..."
+                  required
+                />
+              </div>
+            </div>
+
+            <fieldset className="mt-4 space-y-2">
+              <legend className="text-xs font-semibold text-slate-200">
+                First visit with you? <span className="text-red-300">*</span>
+              </legend>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {(
+                  [
+                    [true, "First visit"],
+                    [false, "Returning patient"],
+                  ] as const
+                ).map(([value, label]) => (
+                  <label key={label} className={manualChoiceClass(isNewPatient === value)}>
+                    <input
+                      type="radio"
+                      name="manualIsNewPatient"
+                      checked={isNewPatient === value}
+                      onChange={() => setIsNewPatient(value)}
+                    />
+                    {label}
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+
+            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+              <fieldset className="space-y-2">
+                <legend className="text-xs font-semibold text-slate-200">
+                  Gender <span className="text-red-300">*</span>
+                </legend>
+                <div className="grid gap-2">
+                  {(
+                    [
+                      ["female", "Female"],
+                      ["male", "Male"],
+                      ["prefer_not_to_say", "Prefer not to say"],
+                    ] as const
+                  ).map(([value, label]) => (
+                    <label key={value} className={manualChoiceClass(patientGender === value)}>
+                      <input
+                        type="radio"
+                        name="manualPatientGender"
+                        value={value}
+                        checked={patientGender === value}
+                        onChange={() => setPatientGender(value)}
+                      />
+                      {label}
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+              <div className="space-y-2">
+                <label htmlFor="manualPatientBirthdate" className="text-xs font-semibold text-slate-200">
+                  Date of birth <span className="text-red-300">*</span>
+                </label>
+                <input
+                  id="manualPatientBirthdate"
+                  type="date"
+                  min="1900-01-01"
+                  max={formatInTimeZone(new Date(), CY_TZ, "yyyy-MM-dd")}
+                  value={patientBirthdate}
+                  onChange={(e) => setPatientBirthdate(e.target.value)}
+                  className="w-full rounded-2xl border border-slate-800/80 bg-ink-900/40 px-3 py-2 text-sm text-slate-100 [color-scheme:dark]"
+                  required
                 />
               </div>
             </div>
@@ -580,3 +676,12 @@ export function ManualBookingFlow({
   );
 }
 
+
+/** A radio choice styled as a chip, like the rest of the manual booking modal. */
+function manualChoiceClass(selected: boolean): string {
+  return `flex cursor-pointer items-center gap-2 rounded-2xl border px-3 py-2 text-sm transition ${
+    selected
+      ? "border-clinical-400/70 bg-clinical-400/10 text-clinical-100"
+      : "border-slate-800/80 bg-ink-900/40 text-slate-200 hover:border-slate-600"
+  }`;
+}

@@ -22,6 +22,13 @@ test.describe("Manual booking flow @booking-creates", { tag: ["@pr-e2e", "@pr-e2
     }
   });
 
+  // Required since 2026-10-04: first visit, gender, date of birth (email stays optional).
+  async function fillManualPatientDetails(page: import("@playwright/test").Page) {
+    await page.getByRole("radio", { name: "First visit" }).check();
+    await page.getByRole("radio", { name: "Prefer not to say" }).check();
+    await page.locator("#manualPatientBirthdate").fill("1990-01-01");
+  }
+
   async function pickFirstAvailableSlot(page: import("@playwright/test").Page) {
     const calendar = page.locator(".rdp-dark").first();
     const firstAvailableDay = calendar
@@ -44,7 +51,7 @@ test.describe("Manual booking flow @booking-creates", { tag: ["@pr-e2e", "@pr-e2
     return { firstAvailableDay, timePanel, selectedTimeLabel };
   }
 
-  test("doctor can create manual booking without email or phone", async ({
+  test("doctor can create manual booking without an email", async ({
     page,
   }) => {
     test.setTimeout(120_000);
@@ -89,6 +96,8 @@ test.describe("Manual booking flow @booking-creates", { tag: ["@pr-e2e", "@pr-e2
       const patientName = `Manual E2E ${nonce}`;
 
       await page.getByPlaceholder("Patient full name").fill(patientName);
+      await page.getByPlaceholder("+357...").fill("+35799123456");
+      await fillManualPatientDetails(page);
       await page
         .getByPlaceholder("Brief reason for this visit")
         .fill("Manual booking created from phone call in E2E validation.");
@@ -157,8 +166,11 @@ test.describe("Manual booking flow @booking-creates", { tag: ["@pr-e2e", "@pr-e2
       const duplicate = await page.request.post("/api/appointments/manual", {
         data: {
           patientName: `${patientName} Duplicate`,
-          patientPhone: "",
+          patientPhone: "+35799123456",
           patientEmail: "",
+          isNewPatient: true,
+          patientGender: "prefer_not_to_say",
+          patientBirthdate: "1990-01-01",
           appointmentLocal: formatInTimeZone(
             new Date(String(booked.data!.appointment_datetime)),
             CY_TZ,
@@ -207,6 +219,7 @@ test.describe("Manual booking flow @booking-creates", { tag: ["@pr-e2e", "@pr-e2
 
       await page.getByPlaceholder("Patient full name").fill(`Manual phone ${nonce}`);
       await page.getByPlaceholder("+357...").fill(patientPhone);
+      await fillManualPatientDetails(page);
       await page
         .getByPlaceholder("Brief reason for this visit")
         .fill("Manual booking with a patient phone.");
