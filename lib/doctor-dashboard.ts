@@ -33,6 +33,29 @@ export function dashboardClinicTag(
   return { name: clinics[index]!.name, swatchClass: agendaClinicEventColor(index).swatch };
 }
 
+export type PausedClinicNotice = { linkId: string; clinicName: string };
+
+/**
+ * The dashboard's paused banner (user, 2026-10-03): one line per paused clinic, named after
+ * the clinic, minus the ones she closed (shown again once that clinic's pause changes).
+ */
+export function pausedClinicNotices(
+  locations: readonly {
+    id: string;
+    clinic_name?: string | null;
+    label: string | null;
+    pause_online_bookings: boolean;
+    pause_notice_dismissed_at?: string | null;
+  }[],
+): PausedClinicNotice[] {
+  return locations
+    .filter((l) => l.pause_online_bookings && !l.pause_notice_dismissed_at)
+    .map((l) => ({
+      linkId: l.id,
+      clinicName: l.clinic_name?.trim() || l.label?.trim() || "your clinic",
+    }));
+}
+
 export const DASHBOARD_APPOINTMENT_SELECT =
   "id, patient_name, appointment_datetime, status, duration_minutes, created_at, is_new_patient, attendance, proposal_expires_at, proposed_slots, reason, clinic_id";
 

@@ -38,6 +38,8 @@ export type DoctorLocationRow = {
   longitude: number | null;
   clinic_place_id: string | null;
   pause_online_bookings: boolean;
+  /** She closed the dashboard's paused line; cleared when the pause changes. */
+  pause_notice_dismissed_at?: string | null;
   monday: boolean;
   tuesday: boolean;
   wednesday: boolean;

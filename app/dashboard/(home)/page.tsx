@@ -11,6 +11,7 @@ import { locationToAgendaHours, locationsToAgendaClinics } from "@/lib/agenda-cl
 import { firstNameFromProfessionalName } from "@/lib/doctor-display-name";
 import {
   DASHBOARD_APPOINTMENT_SELECT,
+  pausedClinicNotices,
   todayWorkingWindow,
   type DashboardAppointmentRow,
 } from "@/lib/doctor-dashboard";
@@ -122,14 +123,8 @@ export default async function DoctorDashboardPage() {
   const primaryClinic = primaryDoctorLocation(locationRows);
   const workingHours = primaryClinic ? locationToAgendaHours(primaryClinic) : null;
 
-  // Pausing is per clinic.
-  const pausedClinicNames = clinics
-    .filter((_, i) => locationRows[i]?.pause_online_bookings)
-    .map((clinic) => clinic.name);
-  const bookingsPaused = {
-    all: clinics.length > 0 && pausedClinicNames.length === clinics.length,
-    clinicNames: pausedClinicNames,
-  };
+  // Pausing is per clinic: one closable line each (user, 2026-10-03).
+  const pausedNotices = pausedClinicNotices(locationRows);
 
   return (
     <main className="min-h-screen bg-ink-900 text-slate-50">
@@ -142,7 +137,7 @@ export default async function DoctorDashboardPage() {
         workingHours={workingHours}
         clinics={clinics}
         todayWindow={todayWorkingWindow(hoursList, nowMs)}
-        bookingsPaused={bookingsPaused}
+        pausedNotices={pausedNotices}
       />
     </main>
   );

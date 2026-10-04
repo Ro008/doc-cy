@@ -13,7 +13,7 @@ import {
   type AgendaClinic,
   type AgendaWorkingHours,
 } from "@/lib/agenda-clinics";
-import {
+import { type PausedClinicNotice,
   DASHBOARD_NEEDS_ANSWER_ID,
   buildTodaySchedule,
   dashboardClinicTag,
@@ -51,7 +51,7 @@ type Props = {
   workingHours: AgendaWorkingHours | null;
   clinics: AgendaClinic[];
   todayWindow: TodayWorkingWindow | null;
-  bookingsPaused: { all: boolean; clinicNames: string[] };
+  pausedNotices: PausedClinicNotice[];
 };
 
 type ExitKind = "accepted" | "declined";
@@ -86,7 +86,7 @@ export function DoctorDashboard({
   workingHours,
   clinics,
   todayWindow,
-  bookingsPaused,
+  pausedNotices,
 }: Props) {
   const router = useRouter();
   const nowMs = useNow();
@@ -194,7 +194,7 @@ export function DoctorDashboard({
         </button>
       </header>
 
-      <BookingsPausedNotice paused={bookingsPaused} />
+      <BookingsPausedNotice notices={pausedNotices} />
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)] lg:items-start">
         <section
@@ -480,21 +480,59 @@ function AllCaughtUp() {
   );
 }
 
-function BookingsPausedNotice({ paused }: { paused: Props["bookingsPaused"] }) {
-  if (!paused.all && paused.clinicNames.length === 0) return null;
-  const where =
-    !paused.all && paused.clinicNames.length > 0 ? ` at ${paused.clinicNames.join(", ")}` : "";
+/**
+ * One line per paused clinic (user, 2026-10-03). The "x" hides a line for good, until that
+ * clinic's pause changes; other devices don't matter.
+ */
+function BookingsPausedNotice({ notices }: { notices: PausedClinicNotice[] }) {
+  const [closed, setClosed] = React.useState<Set<string>>(() => new Set());
+  const visible = notices.filter((n) => !closed.has(n.linkId));
+  if (visible.length === 0) return null;
+
+  async function dismiss(linkId: string) {
+    setClosed((prev) => new Set(prev).add(linkId));
+    try {
+      const res = await fetch(`/api/professional-clinics/${encodeURIComponent(linkId)}/dismiss-pause-notice`, {
+        method: "POST",
+        credentials: "include",
+      });
+      // 409: no longer paused, so nothing to show anyway.
+      if (!res.ok && res.status !== 409) throw new Error(String(res.status));
+    } catch {
+      setClosed((prev) => {
+        const next = new Set(prev);
+        next.delete(linkId);
+        return next;
+      });
+      toast.error("Could not close it. Please try again.");
+    }
+  }
+
   return (
-    <div
-      role="status"
-      className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-2xl border border-amber-400/35 bg-amber-400/10 px-4 py-3 motion-safe:animate-fade-up"
-    >
-      <AlertTriangle className="h-4 w-4 shrink-0 text-amber-300" aria-hidden />
-      <p className="text-sm font-semibold text-amber-200">Online bookings are paused{where}</p>
-      <p className="flex-1 text-sm text-slate-300">Patients can&apos;t request new times.</p>
-      <Link href="/agenda/settings" className="text-sm font-semibold text-clinical-300 hover:text-clinical-200">
-        Resume in settings
-      </Link>
+    <div className="space-y-2">
+      {visible.map((n) => (
+        <div
+          key={n.linkId}
+          role="status"
+          data-testid="dashboard-paused-notice"
+          className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-2xl border border-amber-400/35 bg-amber-400/10 py-3 pl-4 pr-2 motion-safe:animate-fade-up"
+        >
+          <AlertTriangle className="h-4 w-4 shrink-0 text-amber-300" aria-hidden />
+          <p className="text-sm font-semibold text-amber-200">Online bookings are paused at {n.clinicName}</p>
+          <p className="flex-1 text-sm text-slate-300">Patients can&apos;t request new times there.</p>
+          <Link href="/agenda/settings" className="text-sm font-semibold text-clinical-300 hover:text-clinical-200">
+            Resume in settings
+          </Link>
+          <button
+            type="button"
+            onClick={() => void dismiss(n.linkId)}
+            className="rounded-full p-1 text-slate-400 transition hover:bg-slate-800 hover:text-slate-200"
+            aria-label={`Close the paused notice for ${n.clinicName}`}
+          >
+            <X className="h-4 w-4" aria-hidden />
+          </button>
+        </div>
+      ))}
     </div>
   );
 }

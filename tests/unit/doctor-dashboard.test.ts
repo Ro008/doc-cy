@@ -4,6 +4,7 @@ import { describe, it } from "node:test";
 import {
   buildTodaySchedule,
   dashboardClinicTag,
+  pausedClinicNotices,
   dashboardGreeting,
   requestedAgoLabel,
   selectAwaitingPatient,
@@ -31,7 +32,7 @@ function row(partial: Partial<DashboardAppointmentRow> & { id: string }): Dashbo
     attendance: null,
     proposal_expires_at: null,
     reason: null,
-    location_id: null,
+    clinic_id: null,
     ...partial,
   };
 }
@@ -372,8 +373,8 @@ describe("startsInLabel", () => {
 describe("dashboardClinicTag", () => {
   const hours = {} as never;
   const clinics = [
-    { id: "c1", name: "Clinic 1", hours },
-    { id: "c2", name: "Clinic 2", hours },
+    { id: "l1", clinicId: "c1", name: "Clinic 1", hours },
+    { id: "l2", clinicId: "c2", name: "Clinic 2", hours },
   ];
 
   it("gives each clinic its agenda colour, in settings order", () => {
@@ -389,5 +390,36 @@ describe("dashboardClinicTag", () => {
   it("shows nothing when the professional has a single clinic", () => {
     assert.equal(dashboardClinicTag("c1", [clinics[0]!]), null);
     assert.equal(dashboardClinicTag(null, []), null);
+  });
+});
+
+describe("pausedClinicNotices", () => {
+  const loc = (id: string, over: Record<string, unknown> = {}) => ({
+    id,
+    clinic_name: `Clinic ${id}`,
+    label: null,
+    pause_online_bookings: true,
+    pause_notice_dismissed_at: null,
+    ...over,
+  });
+
+  it("gives one line per paused clinic, by the clinic's own name (user, 2026-10-03)", () => {
+    assert.deepEqual(pausedClinicNotices([loc("a"), loc("b", { pause_online_bookings: false }), loc("c")]), [
+      { linkId: "a", clinicName: "Clinic a" },
+      { linkId: "c", clinicName: "Clinic c" },
+    ]);
+  });
+
+  it("leaves out the ones she closed (until the pause changes again)", () => {
+    assert.deepEqual(pausedClinicNotices([loc("a", { pause_notice_dismissed_at: "2026-10-04T10:00:00Z" }), loc("b")]), [
+      { linkId: "b", clinicName: "Clinic b" },
+    ]);
+  });
+
+  it("falls back to the link label, then 'your clinic'", () => {
+    assert.deepEqual(pausedClinicNotices([loc("a", { clinic_name: null, label: "Coast" }), loc("b", { clinic_name: " " })]), [
+      { linkId: "a", clinicName: "Coast" },
+      { linkId: "b", clinicName: "your clinic" },
+    ]);
   });
 });
