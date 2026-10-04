@@ -138,6 +138,13 @@ describe("purgeRegisteredProfessional", () => {
         (d) => d.table === "professional_clinics" && d.column === "professional_id",
       ),
     );
+    // Reviews (RESTRICT on the professional and the visit) and booking drafts go before the
+    // appointments, which go before the professional (FK RESTRICT from M2).
+    const order = fake.deleted.map((d) => d.table);
+    for (const before of ["professional_reviews", "appointment_drafts"]) {
+      assert.ok(order.includes(before), `${before} deleted`);
+      assert.ok(order.indexOf(before) < order.indexOf("appointments"), `${before} before appointments`);
+    }
     // Point E1 dropped the monthly digest table, Point E3 the old specialty-change requests;
     // Point E7 renamed doctor_services.
     for (const dropped of [
