@@ -157,6 +157,66 @@ ${EMAIL_SHELL_CLOSE}`;
   return { subject, text, html };
 }
 
+/** To the professional when the patient picks one of her proposed times (user, 2026-10-04). */
+export function buildProfessionalPatientChoseEmail(opts: {
+  professionalName: string;
+  patientName: string;
+  appointmentIso: string;
+  clinic: EmailClinic;
+  agendaUrl: string;
+}): BuiltEmail {
+  const { date, time } = whenLabels(opts.appointmentIso);
+  const pro = professionalFirstName(opts.professionalName);
+  const subject = `${opts.patientName} chose ${date} at ${time}`;
+  const text =
+    `Hi ${pro},\n\n` +
+    `${opts.patientName} chose one of the times you proposed. The visit is confirmed for ${date} at ${time} (Cyprus time), at ${clinicText(opts.clinic)}.\n` +
+    `The other times you held are free again.\n\n` +
+    `Your agenda:\n${opts.agendaUrl}\n\n` +
+    `---\n${AUTOMATED_EMAIL_FOOTER_TEXT}`;
+  const html = `
+${EMAIL_SHELL_OPEN}
+    <h2 style="margin:0 0 12px;font-size:20px;line-height:1.3;color:${EMAIL_HEADING};">The patient chose a time</h2>
+    <p style="${P}">Hi ${escapeHtml(pro)},</p>
+    <p style="${P}">
+      <strong>${escapeHtml(opts.patientName)}</strong> chose one of the times you proposed. The visit is confirmed for
+      <strong>${escapeHtml(date)}</strong> at <strong>${escapeHtml(time)}</strong> (Cyprus time), at ${escapeHtml(clinicText(opts.clinic))}.
+      The other times you held are free again.
+    </p>
+    <a href="${escapeHtml(opts.agendaUrl)}" style="${EMAIL_PRIMARY_BTN}">Open my agenda</a>
+    ${automatedEmailFooterHtml()}
+${EMAIL_SHELL_CLOSE}`;
+  return { subject, text, html };
+}
+
+/** To the professional when the patient declines her proposed times (user, 2026-10-04). */
+export function buildProfessionalPatientDeclinedProposalEmail(opts: {
+  professionalName: string;
+  patientName: string;
+  message: string | null;
+}): BuiltEmail {
+  const pro = professionalFirstName(opts.professionalName);
+  const message = String(opts.message ?? "").trim();
+  const subject = `${opts.patientName} declined the times you proposed`;
+  const text =
+    `Hi ${pro},\n\n` +
+    `${opts.patientName} declined the times you proposed, so the request is closed. The times you held are free again.\n\n` +
+    (message ? `Their message:\n${message}\n\n` : "") +
+    `---\n${AUTOMATED_EMAIL_FOOTER_TEXT}`;
+  const html = `
+${EMAIL_SHELL_OPEN}
+    <h2 style="margin:0 0 12px;font-size:20px;line-height:1.3;color:${EMAIL_HEADING};">Proposed times declined</h2>
+    <p style="${P}">Hi ${escapeHtml(pro)},</p>
+    <p style="${P}">
+      <strong>${escapeHtml(opts.patientName)}</strong> declined the times you proposed, so the request is closed.
+      The times you held are free again.
+    </p>
+    ${message ? `<p style="${P}"><strong>Their message:</strong> ${escapeHtml(message)}</p>` : ""}
+    ${automatedEmailFooterHtml()}
+${EMAIL_SHELL_CLOSE}`;
+  return { subject, text, html };
+}
+
 /** RESEND_TO_OVERRIDE redirects every email outside production. */
 export function emailRecipient(to: string | null | undefined): string | null {
   const override = process.env.RESEND_TO_OVERRIDE?.trim();

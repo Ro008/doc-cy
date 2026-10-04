@@ -114,3 +114,38 @@ describe("buildProfessionalPatientCancelledEmail (to her, when the patient cance
     assert.ok(!/Their message/i.test(bare.text));
   });
 });
+
+describe("proposal answers (to her)", () => {
+  it("says which time the patient chose, with a link to the agenda", async () => {
+    const { buildProfessionalPatientChoseEmail } = await import("../../lib/booking-request-emails");
+    const email = buildProfessionalPatientChoseEmail({
+      professionalName: "Dr. Andreas Nikos",
+      patientName: "Maria Kyriakou",
+      appointmentIso: "2026-10-07T07:00:00Z",
+      clinic,
+      agendaUrl: "https://www.mydoccy.com/agenda",
+    });
+    assert.match(email.subject, /Maria Kyriakou/);
+    for (const body of [email.text, email.html]) {
+      assert.ok(body.includes("Wednesday, 7 October 2026"));
+      assert.ok(body.includes("10:00"));
+      assert.match(body, /confirmed/i);
+      assert.ok(body.includes("https://www.mydoccy.com/agenda"));
+    }
+  });
+
+  it("says the patient declined the times and they are free again", async () => {
+    const { buildProfessionalPatientDeclinedProposalEmail } = await import("../../lib/booking-request-emails");
+    const email = buildProfessionalPatientDeclinedProposalEmail({
+      professionalName: "Dr. Andreas Nikos",
+      patientName: "Maria Kyriakou",
+      message: "None of these suit me",
+    });
+    assert.match(email.subject, /declined/i);
+    for (const body of [email.text, email.html]) {
+      assert.ok(body.includes("Maria Kyriakou"));
+      assert.ok(body.includes("None of these suit me"));
+      assert.match(body, /free again/i);
+    }
+  });
+});

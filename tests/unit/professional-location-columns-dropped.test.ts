@@ -158,7 +158,7 @@ describe("patients see the appointment's clinic phone (Point E5)", () => {
       "app/api/appointments/manual/route.ts",
       "app/api/appointments/[id]/confirm/route.ts",
       "app/api/appointments/[id]/calendar/route.ts",
-      "app/api/reschedule/[id]/select/route.ts",
+      "app/api/booking/choose/route.ts",
       "lib/public/booking-success-page.tsx",
     ]) {
       const src = readFileSync(path.join(root, file), "utf8");
