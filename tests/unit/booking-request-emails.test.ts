@@ -4,6 +4,7 @@ import { describe, it } from "node:test";
 import {
   buildBookingConfirmLinkEmail,
   buildProfessionalNewRequestEmail,
+  buildProfessionalPatientCancelledEmail,
 } from "../../lib/booking-request-emails";
 
 const clinic = { name: "Evangelismos", address: "Makariou 10, Nicosia", phone: "22123456" };
@@ -76,5 +77,40 @@ describe("buildProfessionalNewRequestEmail (to her, once the patient confirmed)"
       assert.ok(body.includes("Knee pain"));
       assert.match(body, /first visit/i);
     }
+  });
+});
+
+describe("buildProfessionalPatientCancelledEmail (to her, when the patient cancels)", () => {
+  const email = buildProfessionalPatientCancelledEmail({
+    professionalName: "Dr. Andreas Nikos",
+    patientName: "Maria Kyriakou",
+    appointmentIso: "2026-10-07T07:00:00Z",
+    clinic,
+    cancelReason: "I feel better now",
+    agendaUrl: "https://www.mydoccy.com/agenda",
+  });
+
+  it("says who cancelled which visit, and that the time is free again", () => {
+    assert.match(email.subject, /cancel/i);
+    assert.match(email.subject, /Maria Kyriakou/);
+    for (const body of [email.text, email.html]) {
+      assert.ok(body.includes("Wednesday, 7 October 2026"));
+      assert.ok(body.includes("10:00"));
+      assert.ok(body.includes("Evangelismos"));
+      assert.ok(body.includes("I feel better now"));
+      assert.match(body, /free again|available again/i);
+    }
+  });
+
+  it("leaves out the reason line when there is none", () => {
+    const bare = buildProfessionalPatientCancelledEmail({
+      professionalName: "Dr. A",
+      patientName: "P Q",
+      appointmentIso: "2026-10-07T07:00:00Z",
+      clinic,
+      cancelReason: null,
+      agendaUrl: "https://x.test/agenda",
+    });
+    assert.ok(!/Their message/i.test(bare.text));
   });
 });

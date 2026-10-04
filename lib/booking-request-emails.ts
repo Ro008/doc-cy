@@ -120,6 +120,43 @@ ${EMAIL_SHELL_CLOSE}`;
   return { subject, text, html };
 }
 
+/** To the professional when the patient cancels from the emailed link (user, 2026-10-04). */
+export function buildProfessionalPatientCancelledEmail(opts: {
+  professionalName: string;
+  patientName: string;
+  appointmentIso: string;
+  clinic: EmailClinic;
+  cancelReason: string | null;
+  agendaUrl: string;
+}): BuiltEmail {
+  const { date, time } = whenLabels(opts.appointmentIso);
+  const pro = professionalFirstName(opts.professionalName);
+  const reason = String(opts.cancelReason ?? "").trim();
+
+  const subject = `Cancelled by the patient: ${opts.patientName}, ${date} ${time}`;
+  const text =
+    `Hi ${pro},\n\n` +
+    `${opts.patientName} cancelled their visit on ${date} at ${time} (Cyprus time), at ${clinicText(opts.clinic)}.\n` +
+    `The time is free again in your agenda.\n\n` +
+    (reason ? `Their message:\n${reason}\n\n` : "") +
+    `Your agenda:\n${opts.agendaUrl}\n\n` +
+    `---\n${AUTOMATED_EMAIL_FOOTER_TEXT}`;
+  const html = `
+${EMAIL_SHELL_OPEN}
+    <h2 style="margin:0 0 12px;font-size:20px;line-height:1.3;color:${EMAIL_HEADING};">Visit cancelled by the patient</h2>
+    <p style="${P}">Hi ${escapeHtml(pro)},</p>
+    <p style="${P}">
+      <strong>${escapeHtml(opts.patientName)}</strong> cancelled their visit on
+      <strong>${escapeHtml(date)}</strong> at <strong>${escapeHtml(time)}</strong> (Cyprus time),
+      at ${escapeHtml(clinicText(opts.clinic))}. The time is free again in your agenda.
+    </p>
+    ${reason ? `<p style="${P}"><strong>Their message:</strong> ${escapeHtml(reason)}</p>` : ""}
+    <a href="${escapeHtml(opts.agendaUrl)}" style="${EMAIL_PRIMARY_BTN}">Open my agenda</a>
+    ${automatedEmailFooterHtml()}
+${EMAIL_SHELL_CLOSE}`;
+  return { subject, text, html };
+}
+
 /** RESEND_TO_OVERRIDE redirects every email outside production. */
 export function emailRecipient(to: string | null | undefined): string | null {
   const override = process.env.RESEND_TO_OVERRIDE?.trim();
