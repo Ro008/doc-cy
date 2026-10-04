@@ -343,7 +343,6 @@ export async function POST(req: NextRequest) {
   const { data: blockingRaw, error: existingError } = await fetchBlockingAppointments(
     supabase,
     doctorId,
-    bookingLocation?.id ?? null,
   );
 
   if (existingError) {
@@ -408,9 +407,9 @@ export async function POST(req: NextRequest) {
   if (insertError) {
     console.error(insertError);
 
-    // 23505: unique violation — e.g. UNIQUE(professional_id, appointment_datetime) while a
-    // NEEDS_RESCHEDULE row still holds the original instant. See
-    // the partial unique index appointments_doctor_datetime_active_booking_key.
+    // 23505: unique violation — another active visit (REQUESTED / PENDING / CONFIRMED) of this
+    // professional starts at the same instant (appointments_active_slot_unique). A
+    // NEEDS_RESCHEDULE row no longer holds its original instant.
     const code = (insertError as any)?.code;
     if (code === "23505") {
       return NextResponse.json(

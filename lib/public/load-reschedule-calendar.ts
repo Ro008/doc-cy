@@ -67,7 +67,6 @@ export async function loadRescheduleCalendar(
   // No clinic filter: a visit in any clinic blocks the time (one professional, one agenda).
   const takenSlotTimes = takenSlotTimesFor((occupiedRows ?? []) as OccupiedRow[], {
     professionalId: opts.doctorId,
-    locationId: null,
     toIso,
   });
 

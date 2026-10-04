@@ -33,23 +33,19 @@ export function toBlockingRows(
   }));
 }
 
+/**
+ * Every blocking visit of the professional, in all her clinics: one person, one agenda
+ * (a visit in any clinic blocks that time everywhere).
+ */
 export async function fetchBlockingAppointments(
   supabase: SupabaseClient,
   doctorId: string,
-  locationId?: string | null,
 ): Promise<{ data: BlockingAppointmentRow[] | null; error: Error | null }> {
-  let query = supabase
+  const { data, error } = await supabase
     .from("appointments")
     .select(BLOCKING_APPOINTMENTS_SELECT)
     .eq("professional_id", doctorId)
     .in("status", [...BLOCKING_APPOINTMENT_STATUSES]);
-
-  const location = String(locationId ?? "").trim();
-  if (location) {
-    query = query.eq("location_id", location);
-  }
-
-  const { data, error } = await query;
 
   return {
     data: data as BlockingAppointmentRow[] | null,

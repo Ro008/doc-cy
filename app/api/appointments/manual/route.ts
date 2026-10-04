@@ -218,7 +218,6 @@ export async function POST(req: NextRequest) {
   const { data: blockingRaw, error: existingError } = await fetchBlockingAppointments(
     supabase,
     doctor.id,
-    bookingLocation?.id ?? null,
   );
   if (existingError) {
     return NextResponse.json(

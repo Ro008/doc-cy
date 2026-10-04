@@ -699,7 +699,7 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
 
   const takenSlotTimes: string[] = takenSlotTimesFor(
     (occupiedRows ?? []) as OccupiedRow[],
-    { professionalId: profile.id, locationId: null, toIso },
+    { professionalId: profile.id, toIso },
   );
 
   const { data: serviceRows, error: servicesErr } = await supabase

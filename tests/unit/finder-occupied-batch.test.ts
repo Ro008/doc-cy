@@ -132,7 +132,8 @@ describe("finder availability batch", () => {
     assert.equal(rpcCalls.length, 0);
   });
 
-  it("removes a booked slot only at its own clinic", async () => {
+  // One agenda per professional: a visit at one clinic takes that time at all of them.
+  it("removes a booked slot at every clinic of that professional", async () => {
     const baseline = await loadFinderCardAvailabilityByDoctorId(
       fakeSupabase([]).supabase,
       [A, B],
@@ -153,7 +154,7 @@ describe("finder availability batch", () => {
     });
 
     assert.ok(!slotKeys(result.byLocationId.get(L1)?.calendar).includes(slotAtL1), "taken at L1");
-    assert.ok(slotKeys(result.byLocationId.get(L2)?.calendar).includes(slotAtL1), "still free at L2");
+    assert.ok(!slotKeys(result.byLocationId.get(L2)?.calendar).includes(slotAtL1), "taken at L2 too");
     assert.ok(!slotKeys(result.calendars.get(B)).includes(slotForB), "taken for B");
     assert.equal(result.byLocationId.get(L3)?.paused, true);
     assert.equal(result.paused.get(A), false);
@@ -189,14 +190,8 @@ describe("takenSlotTimesFor", () => {
   ];
   const to = "2026-11-01T00:00:00.000Z";
 
-  it("keeps one professional's rows at one clinic, deduplicated, in Cyprus time, within their horizon", () => {
-    assert.deepEqual(takenSlotTimesFor(rows, { professionalId: A, locationId: L1, toIso: to }), [
-      "2026-10-01T10:00",
-    ]);
-  });
-
-  it("keeps every clinic when no clinic is given", () => {
-    assert.deepEqual(takenSlotTimesFor(rows, { professionalId: A, locationId: null, toIso: to }), [
+  it("keeps one professional's rows from every clinic, deduplicated, in Cyprus time, within their horizon", () => {
+    assert.deepEqual(takenSlotTimesFor(rows, { professionalId: A, toIso: to }), [
       "2026-10-01T10:00",
       "2026-10-01T11:00",
     ]);
@@ -205,7 +200,6 @@ describe("takenSlotTimesFor", () => {
   it("keeps rows up to a longer horizon", () => {
     const result = takenSlotTimesFor(rows, {
       professionalId: A,
-      locationId: L1,
       toIso: "2027-01-31T00:00:00.000Z",
     });
     assert.ok(result.includes("2026-12-31T09:00"));

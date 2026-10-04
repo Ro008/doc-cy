@@ -75,18 +75,17 @@ async function loadOccupiedRows(
 }
 
 /**
- * One professional's taken slot starts (Cyprus "yyyy-MM-ddTHH:mm"), at one
- * clinic or, with no clinic, at all of them; up to their own horizon.
+ * One professional's taken slot starts (Cyprus "yyyy-MM-ddTHH:mm"), at all of
+ * her clinics (one person, one agenda); up to her own horizon.
  */
 export function takenSlotTimesFor(
   rows: readonly OccupiedRow[],
-  target: { professionalId: string; locationId: string | null; toIso: string },
+  target: { professionalId: string; toIso: string },
 ): string[] {
   const toMs = new Date(target.toIso).getTime();
   const keys = new Set<string>();
   for (const row of rows) {
     if (row.professional_id !== target.professionalId) continue;
-    if (target.locationId && row.location_id !== target.locationId) continue;
     if (new Date(row.appointment_datetime).getTime() > toMs) continue;
     keys.add(format(appointmentToCyprusDate(row.appointment_datetime), "yyyy-MM-dd'T'HH:mm"));
   }
@@ -97,12 +96,11 @@ async function loadOccupiedSlotTimes(
   supabase: SupabaseClient,
   doctorId: string,
   settings: DoctorSettingsRow,
-  locationId?: string | null,
 ): Promise<string[] | null> {
   const { fromIso, toIso } = occupiedRange(settings);
   const rows = await loadOccupiedRows(supabase, [doctorId], fromIso, toIso);
   if (!rows) return null;
-  return takenSlotTimesFor(rows, { professionalId: doctorId, locationId: locationId ?? null, toIso });
+  return takenSlotTimesFor(rows, { professionalId: doctorId, toIso });
 }
 
 async function loadDoctorAvailabilityContext(
@@ -291,7 +289,6 @@ export async function loadFinderCardAvailabilityByDoctorId(
             plan.weeklySlots,
             takenSlotTimesFor(occupiedRows, {
               professionalId: plan.doctorId,
-              locationId: plan.location.id,
               toIso: plan.toIso,
             }),
           ),
