@@ -17,6 +17,7 @@ import {
 } from "@/lib/appointment-blocking-query";
 import { candidateOverlapsAnyBlockingInterval } from "@/lib/appointment-overlap";
 import { parseBookingPatientFields } from "@/lib/booking-patient-fields";
+import { resolveRequestedService } from "@/lib/requested-service";
 import { manualBookingPermission } from "@/lib/booking-permission";
 import { issuePatientCancelLink } from "@/lib/appointment-links-db";
 import { isUndeliverableTestEmail } from "@/lib/registration-decision-emails";
@@ -74,6 +75,21 @@ export async function POST(req: NextRequest) {
 
   if (doctorErr || !doctor?.id) {
     return NextResponse.json({ message: "Forbidden." }, { status: 403 });
+  }
+
+  // Optional: one of her services (user, 2026-10-04).
+  let professionalServiceId: string | null = null;
+  try {
+    const requested = await resolveRequestedService(
+      supabase,
+      doctor.id,
+      (body as { professionalServiceId?: unknown }).professionalServiceId,
+    );
+    if (!requested.ok) return NextResponse.json({ message: requested.message, code: "invalid_service" }, { status: 400 });
+    professionalServiceId = requested.service?.id ?? null;
+  } catch (err) {
+    console.error("[DocCy] manual booking service check", err);
+    return NextResponse.json({ message: "Error creating appointment." }, { status: 500 });
   }
 
   let appointmentUtc: Date;
@@ -249,6 +265,7 @@ export async function POST(req: NextRequest) {
       patient_gender: parsed.fields.patientGender,
       patient_birthdate: parsed.fields.patientBirthdate,
       is_new_patient: parsed.fields.isNewPatient,
+      professional_service_id: professionalServiceId,
       appointment_datetime: appointmentUtc.toISOString(),
       status: "CONFIRMED",
       reason,

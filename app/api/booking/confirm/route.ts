@@ -105,6 +105,10 @@ export async function POST(req: NextRequest) {
       patient_birthdate: draft.patient_birthdate,
       is_new_patient: draft.is_new_patient,
       reason: draft.reason,
+      // The trigger re-copies the name while the service exists; if she deleted it in the
+      // meantime the id is already null and the draft's copy of the name stays.
+      professional_service_id: draft.professional_service_id,
+      service_name: draft.service_name,
       appointment_datetime: slot.appointmentUtc.toISOString(),
       duration_minutes: slot.slotDurationMinutes,
       status: "REQUESTED",

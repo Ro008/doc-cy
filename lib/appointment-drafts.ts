@@ -100,6 +100,8 @@ export type NewDraft = BookingPatientFields & {
   clinicId: string;
   appointmentUtc: Date;
   durationMinutes: number;
+  /** Optional, already checked to be hers; the database copies its name. */
+  professionalServiceId?: string | null;
 };
 
 /** Saves the draft and returns the raw token for the email (only its hash is stored). */
@@ -124,6 +126,7 @@ export async function createAppointmentDraft(
       patient_birthdate: draft.patientBirthdate,
       is_new_patient: draft.isNewPatient,
       reason: draft.reason,
+      professional_service_id: draft.professionalServiceId ?? null,
       token_hash: hashAppointmentLinkToken(token),
       expires_at: expiresAt.toISOString(),
     })
@@ -134,7 +137,7 @@ export async function createAppointmentDraft(
 }
 
 export const APPOINTMENT_DRAFT_SELECT =
-  "id, professional_id, clinic_id, appointment_datetime, duration_minutes, patient_name, patient_email, patient_phone, patient_gender, patient_birthdate, is_new_patient, reason, expires_at, confirmed_at, appointment_id, created_at";
+  "id, professional_id, clinic_id, appointment_datetime, duration_minutes, patient_name, patient_email, patient_phone, patient_gender, patient_birthdate, is_new_patient, reason, professional_service_id, service_name, expires_at, confirmed_at, appointment_id, created_at";
 
 export type AppointmentDraftRow = {
   id: string;
@@ -149,6 +152,8 @@ export type AppointmentDraftRow = {
   patient_birthdate: string;
   is_new_patient: boolean;
   reason: string;
+  professional_service_id: string | null;
+  service_name: string | null;
   expires_at: string;
   confirmed_at: string | null;
   appointment_id: string | null;

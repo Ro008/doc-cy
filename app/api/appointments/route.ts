@@ -12,6 +12,7 @@ import { parseBookingPatientFields } from "@/lib/booking-patient-fields";
 import { buildBookingConfirmLinkEmail, sendBuiltEmail } from "@/lib/booking-request-emails";
 import { checkOnlineBookingSlot } from "@/lib/online-booking-slot-check";
 import { enforcePublicApiRateLimit } from "@/lib/public-api-rate-limit";
+import { resolveRequestedService } from "@/lib/requested-service";
 import { createServiceRoleClient } from "@/lib/supabase-service";
 
 /**
@@ -69,6 +70,17 @@ export async function POST(req: NextRequest) {
   const fields = parsed.fields;
   const patientEmail = fields.patientEmail!;
 
+  // Optional: one of her services (user, 2026-10-04).
+  let professionalServiceId: string | null = null;
+  try {
+    const requested = await resolveRequestedService(supabase, professionalId, body.professionalServiceId);
+    if (!requested.ok) return NextResponse.json({ message: requested.message, code: "invalid_service" }, { status: 400 });
+    professionalServiceId = requested.service?.id ?? null;
+  } catch (err) {
+    console.error("[DocCy] booking service check", err);
+    return NextResponse.json({ message: "Error checking your request." }, { status: 500 });
+  }
+
   const slot = await checkOnlineBookingSlot(supabase, {
     professionalId,
     appointmentLocal,
@@ -116,6 +128,7 @@ export async function POST(req: NextRequest) {
       clinicId,
       appointmentUtc: slot.appointmentUtc,
       durationMinutes: slot.slotDurationMinutes,
+      professionalServiceId,
     }));
   } catch (err) {
     console.error("[DocCy] draft insert", err);
