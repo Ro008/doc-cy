@@ -16,44 +16,35 @@ function futureCyIso(daysAhead: number, hour: number, minute = 0): string {
 }
 
 test.describe("Critical reschedule email content", { tag: "@pr-email" }, () => {
-  test("proposal email includes full doctor name + reason + calendar warning for confirmed reschedules", () => {
+  // Proposals only go to requests that were never confirmed (user, 2026-10-04): no
+  // reason box, no calendar warning; the patient picks one time or declines, nothing else.
+  test("proposal email lists the times, the deadline and the link to pick or decline", () => {
     const proposalExpiresAtIso = futureCyIso(2, 18, 0);
     const content = buildPatientRescheduleProposalEmailContent({
-      siteUrl: "https://mydoccy.com",
-      patientEmail: "patient@example.com",
       patientName: "Karina",
-      appointmentId: "appt-1",
-      rescheduleToken: "token-1",
+      chooseUrl: "https://mydoccy.com/booking/choose?token=tok-1",
       proposalExpiresAtIso,
       doctorName: "Andreas Nikos",
       slotLabelsCyprus: ["Thu, 10 Apr 2026 · 14:30", "Thu, 10 Apr 2026 · 15:00"],
-      rescheduleReason: "Urgent hospital procedure, I need to move this visit.",
-      isFromConfirmedReschedule: true,
     });
-
     expect(content.subject).toContain("Andreas Nikos suggested new times for your visit");
-    expect(content.text).toContain("Reason from Andreas Nikos");
-    expect(content.text).toContain("please remove that old calendar entry");
-    expect(content.html).toContain("Reason from Andreas Nikos");
-    expect(content.html).toContain("please remove that old entry");
+    for (const body of [content.text, content.html]) {
+      expect(body).toContain("https://mydoccy.com/booking/choose?token=tok-1");
+      expect(body).toContain("Thu, 10 Apr 2026 · 14:30");
+      expect(body).toMatch(/decline/i);
+      expect(body).not.toMatch(/any other free time/i);
+    }
   });
 
-  test("proposal email does not include calendar warning when not from confirmed reschedule", () => {
-    const proposalExpiresAtIso = futureCyIso(2, 18, 0);
+  test("proposal email with a single time says so", () => {
     const content = buildPatientRescheduleProposalEmailContent({
-      siteUrl: "https://mydoccy.com",
-      patientEmail: "patient@example.com",
       patientName: "Karina",
-      appointmentId: "appt-2",
-      rescheduleToken: "token-2",
-      proposalExpiresAtIso,
+      chooseUrl: "https://mydoccy.com/booking/choose?token=tok-2",
+      proposalExpiresAtIso: futureCyIso(2, 18, 0),
       doctorName: "Andreas Nikos",
-      slotLabelsCyprus: ["Thu, 10 Apr 2026 · 14:30", "Thu, 10 Apr 2026 · 15:00"],
-      isFromConfirmedReschedule: false,
+      slotLabelsCyprus: ["Thu, 10 Apr 2026 · 14:30"],
     });
-
-    expect(content.text).not.toContain("remove that old calendar entry");
-    expect(content.html).not.toContain("remove that old entry");
+    expect(content.text).toMatch(/this time/i);
   });
 
   test("confirmation email includes strong reschedule warning and subject when isAfterReschedule", () => {
