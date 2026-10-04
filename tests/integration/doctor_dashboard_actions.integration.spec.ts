@@ -284,7 +284,7 @@ test.describe("Integration: dashboard request actions", { tag: ["@pr-e2e", "@pr-
       await expect(page.getByRole("button", { name: /^Confirm / })).toHaveCount(0);
       await expect(page.getByRole("button", { name: "Keep the original time instead" })).toBeVisible();
       // Say where the times come from and that they are held.
-      await expect(page.getByText(/DocCy checked your working hours and appointments/)).toBeVisible();
+      await expect(page.getByText(/We pre-filled your next free times/)).toBeVisible();
       await expect(page.getByText(/We'll hold these times for/)).toBeVisible();
 
       await page.getByRole("button", { name: "Send proposal to patient" }).click();
@@ -337,12 +337,13 @@ test.describe("Integration: dashboard request actions", { tag: ["@pr-e2e", "@pr-
         .poll(async () => {
           const { data } = await setup.admin
             .from("appointments")
-            .select("id")
+            .select("status")
             .eq("id", setup.appointmentId)
             .maybeSingle();
-          return data?.id ?? null;
+          return data?.status ?? null;
         }, { timeout: 15_000 })
-        .toBeNull();
+        // Kept, not deleted (user, 2026-10-03).
+        .toBe("DECLINED");
     } finally {
       await setup.admin.from("appointments").delete().eq("id", setup.appointmentId);
     }
@@ -478,8 +479,10 @@ test.describe("Integration: dashboard request actions", { tag: ["@pr-e2e", "@pr-
         await expect(page.getByText(/This request expired/)).toBeVisible({ timeout: 2_000 });
       }).toPass({ timeout: 20_000 });
       await expect(page.getByRole("button", { name: "Close expired request" })).toHaveCount(0);
-      await expect(page.getByRole("button", { name: /^Let .+ know and close$/ })).toBeVisible();
-      await expect(page.getByRole("button", { name: "Remove from agenda" })).toBeVisible();
+      // The scheduled job closes it and tells the patient; nothing for her to do (user, 2026-10-04).
+      await expect(page.getByText(/know they can book again online/)).toBeVisible();
+      await expect(page.getByRole("button", { name: /^Let .+ know and close$/ })).toHaveCount(0);
+      await expect(page.getByRole("button", { name: "Remove from agenda" })).toHaveCount(0);
 
       await page.goto(`/dashboard/appointments/${setup.appointmentId}`, { waitUntil: "domcontentloaded" });
       await expect(page.getByRole("heading", { level: 1 })).toContainText("This request expired", {

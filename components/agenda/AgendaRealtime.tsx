@@ -16,11 +16,6 @@ import { CalendarPlus, ChevronLeft, ChevronRight, Loader2, Menu, Trash2, X } fro
 import { toast as sonnerToast } from "sonner";
 import { useTranslations } from "next-intl";
 import {
-  PROFESSIONAL_DURATION_OPTIONS,
-  formatProfessionalDurationLabel,
-  type ProfessionalDurationOption,
-} from "@/lib/professional-appointment-durations";
-import {
   appointmentDateKeyCyprus,
   appointmentMinutesFromAgendaStart,
   appointmentTimeLabelCyprus,
@@ -35,7 +30,6 @@ import { ManualBookingFlow } from "@/components/agenda/ManualBookingFlow";
 import { AGENDA_HIGHLIGHT_MS } from "@/lib/agenda-highlight";
 import { expandAgendaAppointmentsForGrid } from "@/lib/agenda-grid";
 import {
-  closeExpiredRequestPath,
   isExpiredRequest,
   isStoredExpiredStatus,
 } from "@/lib/appointment-status";
@@ -64,12 +58,6 @@ import {
 } from "@/lib/agenda-clinics";
 import { agendaClinicEventColor } from "@/lib/doctor-locations";
 import { MANUAL_BOOKING_HINT, MANUAL_BOOKING_LABEL } from "@/lib/manual-booking-copy";
-import {
-  RESCHEDULE_REASON_MAX,
-  rescheduleDeadlineIso,
-  rescheduleReasonState,
-  sentSlotsDifferFromPreview,
-} from "@/lib/reschedule-proposal";
 import {
   agendaAppointmentBadgeClass,
   agendaAppointmentConfirmedClass,
@@ -122,20 +110,6 @@ type AgendaAppointmentRow = {
   attendance?: string | null;
   location_id?: string | null;
 };
-
-function closestAllowedDuration(maybeMinutes: number): ProfessionalDurationOption {
-  const allowed = [...PROFESSIONAL_DURATION_OPTIONS];
-  let best = allowed[0]!;
-  let bestDist = Math.abs(maybeMinutes - best);
-  for (const opt of allowed) {
-    const d = Math.abs(maybeMinutes - opt);
-    if (d < bestDist) {
-      best = opt;
-      bestDist = d;
-    }
-  }
-  return best;
-}
 
 function agendaRowFromSupabasePayload(
   raw: Record<string, unknown>,
@@ -374,19 +348,7 @@ export function AgendaRealtime({
   const [rejectReason, setRejectReason] = React.useState("");
   const [isCancelling, setIsCancelling] = React.useState(false);
   const [cancelError, setCancelError] = React.useState<string | null>(null);
-  const [rescheduleOpen, setRescheduleOpen] = React.useState(false);
-  const [rescheduleDuration, setRescheduleDuration] =
-    React.useState<ProfessionalDurationOption>(30);
-  const [loadingAlternatives, setLoadingAlternatives] = React.useState(false);
-  const [sendingProposal, setSendingProposal] = React.useState(false);
-  const [rescheduleReason, setRescheduleReason] = React.useState("");
-  const [rescheduleError, setRescheduleError] = React.useState<string | null>(
-    null,
-  );
-  const [previewSlots, setPreviewSlots] = React.useState<string[] | null>(null);
   const [markingAttendance, setMarkingAttendance] = React.useState(false);
-  const [closingExpired, setClosingExpired] = React.useState<null | "notify" | "quiet">(null);
-  const [closeExpiredError, setCloseExpiredError] = React.useState<string | null>(null);
   const [attendanceError, setAttendanceError] = React.useState<string | null>(
     null,
   );
@@ -397,7 +359,6 @@ export function AgendaRealtime({
 
   React.useEffect(() => {
     setOpeningReview(false);
-    setCloseExpiredError(null);
   }, [selected?.id]);
 
   const modalBusy = isCancelling || openingReview || markingAttendance;
@@ -886,129 +847,6 @@ export function AgendaRealtime({
     }
   }
 
-  async function loadRescheduleAlternatives() {
-    if (!selected) return;
-    setRescheduleError(null);
-    setPreviewSlots(null);
-    setLoadingAlternatives(true);
-    try {
-      const res = await fetch(
-        `/api/appointments/${encodeURIComponent(selected.id)}/alternative-slots?durationMinutes=${rescheduleDuration}`,
-        { method: "GET", credentials: "include" },
-      );
-      const data = await res.json().catch(() => null);
-      if (!res.ok) {
-        setRescheduleError(
-          typeof data?.message === "string"
-            ? data.message
-            : "Could not load alternative times.",
-        );
-        setLoadingAlternatives(false);
-        return;
-      }
-      const slots = (data as { slots?: string[] }).slots ?? [];
-      if (slots.length < 3) {
-        setRescheduleError(
-          "Not enough open times were found. Try a shorter visit length or extend your booking horizon in settings.",
-        );
-        setLoadingAlternatives(false);
-        return;
-      }
-      setPreviewSlots(slots.slice(0, 3));
-    } catch {
-      setRescheduleError("Could not load alternative times.");
-    } finally {
-      setLoadingAlternatives(false);
-    }
-  }
-
-  async function sendRescheduleProposal() {
-    if (!selected || sendingProposal) return;
-    const reasonState = rescheduleReasonState(rescheduleReason);
-    if (reasonState.tooShort) {
-      setRescheduleError("Please explain the reason (at least 10 characters).");
-      return;
-    }
-    if (reasonState.tooLong) {
-      setRescheduleError(`Please keep the reason under ${RESCHEDULE_REASON_MAX} characters.`);
-      return;
-    }
-    const previewAtSend = previewSlots;
-    setRescheduleError(null);
-    setSendingProposal(true);
-    try {
-      const selectedId = selected.id;
-      const res = await fetch(
-        `/api/appointments/${encodeURIComponent(selectedId)}/propose-reschedule`,
-        {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            durationMinutes: rescheduleDuration,
-            rescheduleReason: rescheduleReason.trim(),
-          }),
-        },
-      );
-      const data = await res.json().catch(() => null);
-      if (!res.ok) {
-        setRescheduleError(
-          typeof data?.message === "string"
-            ? data.message
-            : "Could not send the proposal.",
-        );
-        sonnerToast.error("Could not send the proposal.");
-        setSendingProposal(false);
-        return;
-      }
-
-      const slots = Array.isArray((data as { slots?: unknown }).slots)
-        ? ((data as { slots: string[] }).slots ?? [])
-        : [];
-      const proposalExpiresAt = String(
-        (data as { proposalExpiresAt?: string }).proposalExpiresAt ?? "",
-      );
-      setAppointments((prev) =>
-        prev.map((a) =>
-          a.id === selectedId
-            ? {
-                ...a,
-                status: "NEEDS_RESCHEDULE",
-                duration_minutes: rescheduleDuration,
-                proposed_slots: slots,
-                proposal_expires_at: proposalExpiresAt || null,
-              }
-            : a,
-        ),
-      );
-      if (sentSlotsDifferFromPreview(previewAtSend, slots)) {
-        // The server picks the times again on send; say so when they moved.
-        sonnerToast.warning("Some times changed since your preview.", {
-          description: `Sent to the patient: ${slots
-            .map((iso) =>
-              format(appointmentToCyprusDate(iso), "EEE d MMM, HH:mm", { locale: enGB }),
-            )
-            .join(" · ")}`,
-          duration: 10_000,
-        });
-      } else {
-        sonnerToast.success(
-          "Reschedule options sent to the patient. Waiting for their choice.",
-        );
-      }
-      setSelected(null);
-      setRescheduleOpen(false);
-      setPreviewSlots(null);
-      setRescheduleError(null);
-      setRescheduleReason("");
-      setSendingProposal(false);
-    } catch {
-      setRescheduleError("Could not send the proposal.");
-      sonnerToast.error("Could not send the proposal.");
-      setSendingProposal(false);
-    }
-  }
-
   async function setAttendanceNoShow(markNoShow: boolean) {
     if (!selected || markingAttendance) return;
     setAttendanceError(null);
@@ -1060,54 +898,7 @@ export function AgendaRealtime({
     setConfirmingCancel(false);
     setCancelMode(null);
     setRejectReason("");
-    setRescheduleOpen(false);
-    setRescheduleError(null);
-    setPreviewSlots(null);
-    setLoadingAlternatives(false);
-    setSendingProposal(false);
-    setRescheduleDuration(
-      closestAllowedDuration(
-        typeof row.duration_minutes === "number" && row.duration_minutes > 0
-          ? row.duration_minutes
-          : defaultSlotMinutes,
-      ),
-    );
     setSelected(row);
-  }
-
-  /**
-   * Close a request nobody answered in time (backend pending: POST close-expired).
-   * Until that endpoint exists the call 404s and the doctor sees why.
-   */
-  async function closeExpiredRequest(notifyPatient: boolean) {
-    if (!selected || closingExpired) return;
-    const id = selected.id;
-    setCloseExpiredError(null);
-    setClosingExpired(notifyPatient ? "notify" : "quiet");
-    try {
-      const res = await fetch(closeExpiredRequestPath(id), {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ notifyPatient }),
-      });
-      if (res.status === 404 || res.status === 405) {
-        setCloseExpiredError("Not connected yet: the close-expired endpoint is still to be built on the backend.");
-        return;
-      }
-      if (!res.ok) {
-        const data = await res.json().catch(() => null);
-        setCloseExpiredError(typeof data?.message === "string" ? data.message : "Could not close this request.");
-        return;
-      }
-      setAppointments((prev) => prev.map((row) => (row.id === id ? { ...row, status: "EXPIRED" } : row)));
-      setSelected(null);
-      sonnerToast.success(notifyPatient ? "Closed. The patient has been told." : "Removed from your agenda.");
-    } catch {
-      setCloseExpiredError("Something went wrong. Please try again.");
-    } finally {
-      setClosingExpired(null);
-    }
   }
 
   function openCancelFlow(row: (typeof rows)[number]) {
@@ -1118,33 +909,8 @@ export function AgendaRealtime({
     setCancelError(null);
     setRejectReason("");
     setSelected(row);
-    setRescheduleOpen(false);
-    setRescheduleError(null);
-    setPreviewSlots(null);
     setCancelMode(su === "REQUESTED" ? "requested" : "confirmed");
     setConfirmingCancel(true);
-  }
-
-  function openRescheduleFlow(row: (typeof rows)[number]) {
-    const su = String(row.status ?? "").toUpperCase();
-    if (su !== "CONFIRMED") return;
-    if (isVisitSlotEnded(row.gridStartIso, row.rowDurationMinutes, nowMs)) return;
-    setSelected(row);
-    setConfirmingCancel(false);
-    setCancelMode(null);
-    setRejectReason("");
-    setCancelError(null);
-    setRescheduleError(null);
-    setPreviewSlots(null);
-    setRescheduleReason("");
-    setRescheduleDuration(
-      closestAllowedDuration(
-        typeof row.duration_minutes === "number" && row.duration_minutes > 0
-          ? row.duration_minutes
-          : defaultSlotMinutes,
-      ),
-    );
-    setRescheduleOpen(true);
   }
 
   function topForRow(row: (typeof rows)[number]): number {
@@ -1700,10 +1466,6 @@ export function AgendaRealtime({
               setCancelMode(null);
               setRejectReason("");
               setCancelError(null);
-              setRescheduleOpen(false);
-              setRescheduleError(null);
-              setPreviewSlots(null);
-              setRescheduleReason("");
               setAttendanceError(null);
             }}
             className="absolute inset-0 bg-ink-900/70 backdrop-blur-sm"
@@ -1720,11 +1482,7 @@ export function AgendaRealtime({
                 setCancelMode(null);
                 setRejectReason("");
                 setCancelError(null);
-                setRescheduleOpen(false);
-                setRescheduleError(null);
-              setPreviewSlots(null);
-              setRescheduleReason("");
-              setAttendanceError(null);
+                setAttendanceError(null);
               }}
               className="absolute right-4 top-4 rounded-full p-1 text-slate-400 transition hover:bg-slate-800 hover:text-slate-200 disabled:cursor-not-allowed disabled:opacity-50"
               aria-label="Close"
@@ -1791,42 +1549,17 @@ export function AgendaRealtime({
                 · {appointmentTimeLabelCyprus(selected.appointment_datetime)}
               </p>
             ) : null}
-            {selected.isExpired && !confirmingCancel && !rescheduleOpen ? (
-              <div className="mt-4 space-y-3" data-testid="agenda-expired-request">
+            {selected.isExpired && !confirmingCancel ? (
+              <div className="mt-4" data-testid="agenda-expired-request">
                 <p className="text-sm leading-relaxed text-slate-300">
-                  This request expired: nobody answered it before the visit time, so{" "}
-                  {firstNameOf(selected.patient_name)} never got a reply.
+                  This request expired: nobody answered it before the visit time. We let{" "}
+                  {firstNameOf(selected.patient_name)} know they can book again online.
                 </p>
-                <button
-                  type="button"
-                  onClick={() => void closeExpiredRequest(true)}
-                  disabled={closingExpired !== null}
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-clinical-400/50 bg-clinical-500/15 px-3 py-2.5 text-sm font-semibold text-clinical-100 transition hover:bg-clinical-500/25 disabled:cursor-wait disabled:opacity-60"
-                >
-                  {closingExpired === "notify" ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : null}
-                  Let {firstNameOf(selected.patient_name)} know and close
-                </button>
-                <p className="-mt-1 text-center text-xs text-slate-500">
-                  Sends a short note that you couldn&apos;t reply in time, with a link to book again.
-                </p>
-                <button
-                  type="button"
-                  onClick={() => void closeExpiredRequest(false)}
-                  disabled={closingExpired !== null}
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-2xl px-3 py-2 text-sm font-medium text-slate-400 transition hover:bg-slate-800/60 hover:text-slate-200 disabled:cursor-wait disabled:opacity-60"
-                >
-                  {closingExpired === "quiet" ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : null}
-                  Remove from agenda
-                </button>
-                {closeExpiredError ? (
-                  <p className="text-xs text-amber-200">{closeExpiredError}</p>
-                ) : null}
               </div>
             ) : null}
             {selectedPast &&
             !selected.isExpired &&
-            !confirmingCancel &&
-            !rescheduleOpen ? (
+            !confirmingCancel ? (
               <div className="mt-4 space-y-3">
                 <p className="text-sm leading-relaxed text-slate-400">
                   {selectedStatus === "REQUESTED"
@@ -1886,8 +1619,7 @@ export function AgendaRealtime({
             ) : null}
             {selected.showReviewLink &&
             !selectedPast &&
-            !confirmingCancel &&
-            !rescheduleOpen ? (
+            !confirmingCancel ? (
               <div className="mt-6 flex flex-col gap-2">
                 <button
                   type="button"
@@ -1922,24 +1654,20 @@ export function AgendaRealtime({
             ) : selectedStatus === "NEEDS_RESCHEDULE" &&
               !selectedPast &&
               selectedProposalLive &&
-              !confirmingCancel &&
-              !rescheduleOpen ? (
+              !confirmingCancel ? (
               <p className="mt-3 text-sm text-amber-200/90">
                 Waiting for the patient to choose one of the proposed times.
               </p>
             ) : selectedStatus === "NEEDS_RESCHEDULE" &&
               !selectedProposalLive &&
-              !confirmingCancel &&
-              !rescheduleOpen ? (
+              !confirmingCancel ? (
               <p className="mt-3 text-sm text-slate-400">
-                The reschedule offer has expired. The patient can book again from
-                your profile.
+                The patient didn&apos;t choose a new time in time. Nothing is booked.
               </p>
             ) : null}
             {selectedStatus === "CONFIRMED" &&
             !selectedPast &&
-            !confirmingCancel &&
-            !rescheduleOpen ? (
+            !confirmingCancel ? (
               <div className="mt-6 flex flex-col gap-2">
                 {/* A confirmed visit can't be moved, only cancelled (user, 2026-10-04). */}
                 <button
@@ -1950,149 +1678,6 @@ export function AgendaRealtime({
                   <Trash2 className="h-3.5 w-3.5 opacity-70" aria-hidden />
                   Cancel appointment
                 </button>
-              </div>
-            ) : null}
-
-            {rescheduleOpen &&
-            selectedStatus === "CONFIRMED" &&
-            !selectedPast ? (
-              <div className="mt-4 rounded-2xl border border-clinical-500/20 bg-clinical-500/5 p-3 text-xs text-slate-300">
-                <p>
-                  Propose three new times to the patient. They will receive an
-                  email and choose one slot.
-                </p>
-                <label className="mt-3 block text-left text-[11px] font-medium uppercase tracking-wide text-slate-400">
-                  Visit duration
-                </label>
-                <div className="mt-1.5 flex flex-wrap gap-2">
-                  {PROFESSIONAL_DURATION_OPTIONS.map((minutes) => {
-                    const active = rescheduleDuration === minutes;
-                    return (
-                      <button
-                        key={minutes}
-                        type="button"
-                        onClick={() => {
-                          setRescheduleDuration(minutes);
-                          setPreviewSlots(null);
-                          setRescheduleError(null);
-                        }}
-                        className={`rounded-xl border px-2.5 py-1.5 text-xs font-medium transition ${
-                          active
-                            ? "border-clinical-400/60 bg-clinical-400/20 text-clinical-100"
-                            : "border-slate-700 bg-slate-900/50 text-slate-300 hover:border-slate-600"
-                        }`}
-                        disabled={loadingAlternatives || sendingProposal}
-                      >
-                        {formatProfessionalDurationLabel(minutes)}
-                      </button>
-                    );
-                  })}
-                </div>
-                <div className="mt-3 flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setRescheduleOpen(false);
-                      setRescheduleError(null);
-                      setPreviewSlots(null);
-                      setRescheduleReason("");
-                    }}
-                    className="inline-flex flex-1 items-center justify-center rounded-2xl border border-slate-700 bg-slate-800 px-3 py-2 text-xs font-medium text-slate-200 transition hover:bg-slate-700"
-                    disabled={loadingAlternatives || sendingProposal}
-                  >
-                    Back
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      void loadRescheduleAlternatives();
-                    }}
-                    className="inline-flex flex-1 items-center justify-center rounded-2xl border border-clinical-500/40 bg-clinical-500/10 px-3 py-2 text-xs font-semibold text-clinical-200 transition hover:border-clinical-400/60 hover:bg-clinical-500/20 disabled:cursor-not-allowed disabled:opacity-70"
-                    disabled={loadingAlternatives || sendingProposal}
-                  >
-                    {loadingAlternatives ? "Finding times..." : "Find 3 slots"}
-                  </button>
-                </div>
-                <label className="mt-3 block text-left text-[11px] font-medium uppercase tracking-wide text-slate-400">
-                  Reason for the patient (required)
-                </label>
-                <textarea
-                  value={rescheduleReason}
-                  onChange={(e) => setRescheduleReason(e.target.value)}
-                  maxLength={RESCHEDULE_REASON_MAX}
-                  placeholder="e.g. I have an urgent hospital procedure and need to move this visit to another time."
-                  rows={3}
-                  className="mt-1.5 w-full resize-y rounded-xl border border-slate-700 bg-ink-900/80 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:border-clinical-500/50 focus:outline-none focus:ring-1 focus:ring-clinical-500/40"
-                  disabled={loadingAlternatives || sendingProposal}
-                />
-                <p className="mt-1 flex justify-between gap-2 text-[11px] text-slate-500">
-                  <span>At least 10 characters.</span>
-                  <span className="tabular-nums" data-testid="reschedule-reason-count">
-                    {rescheduleReasonState(rescheduleReason).length}/{RESCHEDULE_REASON_MAX}
-                  </span>
-                </p>
-                {previewSlots && previewSlots.length >= 3 ? (
-                  <div className="mt-3 space-y-2 border-t border-slate-700/80 pt-3">
-                    <p className="text-[11px] uppercase tracking-wide text-slate-400">
-                      Proposed times (Cyprus)
-                    </p>
-                    <ul className="space-y-1.5 text-xs text-slate-200">
-                      {previewSlots.map((iso, i) => (
-                        <li
-                          key={iso}
-                          className="rounded-lg border border-slate-700/70 bg-ink-900/50 px-2.5 py-1.5"
-                        >
-                          <span className="text-slate-500">{i + 1}. </span>
-                          {format(
-                            appointmentToCyprusDate(iso),
-                            "EEE, d MMM yyyy · HH:mm",
-                            { locale: enGB },
-                          )}
-                        </li>
-                      ))}
-                    </ul>
-                    {(() => {
-                      const deadlineIso = rescheduleDeadlineIso(new Date(), previewSlots);
-                      const deadline = deadlineIso
-                        ? format(appointmentToCyprusDate(deadlineIso), "EEE d MMM 'at' HH:mm", {
-                            locale: enGB,
-                          })
-                        : null;
-                      const wasConfirmed =
-                        String(selected.status ?? "").toUpperCase() === "CONFIRMED";
-                      return (
-                        <p
-                          className="rounded-lg border border-amber-400/30 bg-amber-500/10 px-2.5 py-2 text-[11px] leading-relaxed text-amber-100"
-                          data-testid="reschedule-send-notice"
-                        >
-                          {wasConfirmed
-                            ? `Sending frees ${format(appointmentToCyprusDate(selected.gridStartIso), "EEE d MMM", { locale: enGB })} at ${selected.timeLabel} right away. `
-                            : null}
-                          {deadline
-                            ? `The patient has until ${deadline} to choose one of these times; after that the visit is no longer booked.`
-                            : "The patient has a limited time to choose; after that the visit is no longer booked."}
-                        </p>
-                      );
-                    })()}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        void sendRescheduleProposal();
-                      }}
-                      className="mt-1 inline-flex w-full items-center justify-center rounded-2xl border border-clinical-500/40 bg-clinical-500/10 px-3 py-2 text-xs font-semibold text-clinical-200 transition hover:border-clinical-400/60 hover:bg-clinical-500/20 disabled:cursor-not-allowed disabled:opacity-70"
-                      disabled={
-                        sendingProposal ||
-                        rescheduleReasonState(rescheduleReason).tooShort ||
-                        rescheduleReasonState(rescheduleReason).tooLong
-                      }
-                    >
-                      {sendingProposal ? "Sending..." : "Send proposal to patient"}
-                    </button>
-                  </div>
-                ) : null}
-                {rescheduleError ? (
-                  <p className="mt-2 text-xs text-amber-300">{rescheduleError}</p>
-                ) : null}
               </div>
             ) : null}
 

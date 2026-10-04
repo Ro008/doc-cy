@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { closeExpiredRequestPath, isExpiredRequest } from "../../lib/appointment-status";
+import { isExpiredRequest } from "../../lib/appointment-status";
 import { buildPracticeInsights } from "../../lib/practice-insights";
 
 const NOW = Date.parse("2026-09-27T09:00:00Z"); // 12:00 in Cyprus
@@ -22,12 +22,6 @@ describe("isExpiredRequest", () => {
     for (const status of ["CONFIRMED", "CANCELLED", "NEEDS_RESCHEDULE", null]) {
       assert.equal(isExpiredRequest({ status, startIso: "2026-09-24T06:00:00Z" }, NOW), false, String(status));
     }
-  });
-});
-
-describe("expired request actions (backend pending)", () => {
-  it("call POST /api/appointments/[id]/close-expired", () => {
-    assert.equal(closeExpiredRequestPath("a b"), "/api/appointments/a%20b/close-expired");
   });
 });
 

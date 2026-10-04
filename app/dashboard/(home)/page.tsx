@@ -11,7 +11,6 @@ import { locationToAgendaHours, locationsToAgendaClinics } from "@/lib/agenda-cl
 import { firstNameFromProfessionalName } from "@/lib/doctor-display-name";
 import {
   DASHBOARD_APPOINTMENT_SELECT,
-  DASHBOARD_APPOINTMENT_SELECT_WITH_RESCHEDULE,
   todayWorkingWindow,
   type DashboardAppointmentRow,
 } from "@/lib/doctor-dashboard";
@@ -22,31 +21,30 @@ import {
 import { loadDoctorLocations, primaryDoctorLocation } from "@/lib/load-doctor-locations";
 import { fetchAllSupabaseRows } from "@/lib/supabase-fetch-all";
 
+/** Proposals that lapsed longer ago than this are not listed (lib/reschedule-follow-up.ts). */
+const LAPSED_PROPOSAL_WINDOW_MS = 14 * 24 * 60 * 60 * 1000;
+
 /**
- * Today onwards, plus reschedules waiting on the patient or lapsed without a choice (their
- * original time can be in the past). Tries the `rescheduled_from` column first and falls back
- * while the backend has not added it.
+ * Today onwards, plus proposals waiting on the patient or lapsed without a choice (stored as
+ * EXPIRED with proposal_expires_at; their original time can be in the past).
  */
 async function loadDashboardAppointments(
   supabase: ReturnType<typeof createServerComponentClient>,
   doctorId: string,
   todayStartUtc: string,
+  nowMs: number,
 ) {
-  const query = (select: string) =>
-    fetchAllSupabaseRows(() =>
-      supabase
-        .from("appointments")
-        .select(select)
-        .eq("professional_id", doctorId)
-        .or(`appointment_datetime.gte."${todayStartUtc}",status.eq.NEEDS_RESCHEDULE`)
-        .order("appointment_datetime", { ascending: true }),
-    );
-  const withColumn = await query(DASHBOARD_APPOINTMENT_SELECT_WITH_RESCHEDULE);
-  const missingColumn =
-    withColumn.error &&
-    ((withColumn.error as { code?: string }).code === "42703" ||
-      String(withColumn.error.message ?? "").includes("rescheduled_from"));
-  return missingColumn ? query(DASHBOARD_APPOINTMENT_SELECT) : withColumn;
+  const lapsedSince = new Date(nowMs - LAPSED_PROPOSAL_WINDOW_MS).toISOString();
+  return fetchAllSupabaseRows(() =>
+    supabase
+      .from("appointments")
+      .select(DASHBOARD_APPOINTMENT_SELECT)
+      .eq("professional_id", doctorId)
+      .or(
+        `appointment_datetime.gte."${todayStartUtc}",status.eq.NEEDS_RESCHEDULE,and(status.eq.EXPIRED,proposal_expires_at.gte."${lapsedSince}")`,
+      )
+      .order("appointment_datetime", { ascending: true }),
+  );
 }
 
 export default async function DoctorDashboardPage() {
@@ -110,7 +108,7 @@ export default async function DoctorDashboardPage() {
   ).toISOString();
 
   const [{ data: appointments, error: appointmentsError }, locationRows] = await Promise.all([
-    loadDashboardAppointments(supabase, doctor.id, todayStartUtc),
+    loadDashboardAppointments(supabase, doctor.id, todayStartUtc, nowMs),
     loadDoctorLocations(doctor.id),
   ]);
 

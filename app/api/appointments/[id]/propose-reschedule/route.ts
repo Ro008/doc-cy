@@ -9,7 +9,7 @@ import {
 } from "@/lib/professional-appointment-durations";
 import { findFirstAlternativeSlotStarts } from "@/lib/find-alternative-appointment-slots";
 import { loadDoctorSettingsForSlots } from "@/lib/load-doctor-settings-for-slots";
-import { loadDoctorLocations } from "@/lib/load-doctor-locations";
+import { loadDoctorLocations, primaryDoctorLocation } from "@/lib/load-doctor-locations";
 import { fetchBlockingAppointments, toBlockingRows } from "@/lib/appointment-blocking-query";
 import { appointmentToCyprusDate } from "@/lib/appointments";
 import { appointmentLinkUrl } from "@/lib/appointment-link-token";
@@ -112,13 +112,15 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
     );
   }
 
-  // Which clinic: the one she picked (one of hers) or the request's own.
+  // Which clinic: the one she picked (one of hers), else the request's own, else her primary
+  // (legacy rows without a clinic; the same fallback as alternative-slots).
   const locations = await loadDoctorLocations(doctor.id);
   const requestedLink = String(body.locationId ?? "").trim();
   const location = requestedLink
     ? locations.find((l) => l.id === requestedLink)
     : locations.find((l) => l.id === appt.location_id) ??
-      locations.find((l) => appt.clinic_id && l.clinic_id === appt.clinic_id);
+      locations.find((l) => appt.clinic_id && l.clinic_id === appt.clinic_id) ??
+      primaryDoctorLocation(locations);
   if (!location || !location.clinic_id) {
     return NextResponse.json({ message: "That clinic isn't one of yours." }, { status: 400 });
   }

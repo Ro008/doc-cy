@@ -36,12 +36,6 @@ export function dashboardClinicTag(
 export const DASHBOARD_APPOINTMENT_SELECT =
   "id, patient_name, appointment_datetime, status, duration_minutes, created_at, is_new_patient, attendance, proposal_expires_at, proposed_slots, reason, location_id";
 
-/**
- * Same plus `rescheduled_from` (backend contract, see lib/reschedule-follow-up.ts). The
- * dashboard falls back to DASHBOARD_APPOINTMENT_SELECT while the column does not exist.
- */
-export const DASHBOARD_APPOINTMENT_SELECT_WITH_RESCHEDULE = `${DASHBOARD_APPOINTMENT_SELECT}, rescheduled_from`;
-
 export type DashboardAppointmentRow = {
   id: string;
   patient_name: string | null;
@@ -55,8 +49,6 @@ export type DashboardAppointmentRow = {
   proposed_slots: unknown;
   reason: string | null;
   location_id: string | null;
-  /** Backend contract: the visit the patient moved away from via "See other times". */
-  rescheduled_from?: string | null;
 };
 
 export type TodayScheduleItem = {

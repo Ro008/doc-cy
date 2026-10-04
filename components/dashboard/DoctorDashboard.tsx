@@ -37,11 +37,11 @@ import { agendaHighlightHref } from "@/lib/agenda-highlight";
 import { DeclineRequestDialog } from "@/components/dashboard/DeclineRequestDialog";
 import { MANUAL_BOOKING_HINT, MANUAL_BOOKING_LABEL } from "@/lib/manual-booking-copy";
 import {
-  askedForAnotherTimeLabel,
+  NO_NEW_TIME_DISMISSED_KEY,
+  parseDismissedIds,
   rescheduleWithoutAnswerSummary,
   selectRescheduleWithoutAnswer,
 } from "@/lib/reschedule-follow-up";
-import { closeExpiredRequestPath } from "@/lib/appointment-status";
 
 type Props = {
   doctorId: string;
@@ -107,7 +107,29 @@ export function DoctorDashboard({
   const pending = selectPendingRequests(rows, nowMs);
   const waitingCount = pending.filter((row) => !exiting[row.id]).length;
   const awaiting = selectAwaitingPatient(rows, nowMs);
-  const noNewTime = selectRescheduleWithoutAnswer(rows, nowMs);
+  // "Close" hides a lapsed proposal on this device only (user, 2026-10-04).
+  const [dismissedNoNewTime, setDismissedNoNewTime] = React.useState<Set<string>>(() => new Set());
+  React.useEffect(() => {
+    try {
+      setDismissedNoNewTime(parseDismissedIds(window.localStorage.getItem(NO_NEW_TIME_DISMISSED_KEY)));
+    } catch {
+      // Storage blocked: nothing was closed on this device.
+    }
+  }, []);
+  const noNewTime = selectRescheduleWithoutAnswer(rows, nowMs, dismissedNoNewTime);
+
+  function dismissNoNewTime(id: string) {
+    setDismissedNoNewTime((prev) => {
+      const next = new Set(prev);
+      next.add(id);
+      try {
+        window.localStorage.setItem(NO_NEW_TIME_DISMISSED_KEY, JSON.stringify([...next]));
+      } catch {
+        // Hidden for this visit only.
+      }
+      return next;
+    });
+  }
 
   React.useEffect(() => {
     emitPendingRequestsCount(waitingCount);
@@ -228,7 +250,7 @@ export function DoctorDashboard({
                       key={row.id}
                       row={row}
                       clinicTag={clinicTag(row.location_id)}
-                      onClosed={() => setRows((prev) => prev.filter((r) => r.id !== row.id))}
+                      onClose={() => dismissNoNewTime(row.id)}
                     />
                   ))}
                 </ul>
@@ -323,47 +345,19 @@ function ScrollFade() {
 }
 
 /**
- * The patient let the proposed times expire: the visit is no longer booked and they were
- * already told to book a new time online. The doctor suggests other times or closes it.
+ * The patient let the proposed times expire: nothing is booked and the times are free again.
+ * Nobody was emailed; she can only close it (no re-suggest, user 2026-10-04).
  */
 function RescheduleNoAnswerItem({
   row,
   clinicTag,
-  onClosed,
+  onClose,
 }: {
   row: DashboardAppointmentRow;
   clinicTag: DashboardClinicTag | null;
-  onClosed: () => void;
+  onClose: () => void;
 }) {
-  const [closing, setClosing] = React.useState(false);
   const summary = rescheduleWithoutAnswerSummary(row);
-
-  async function close() {
-    if (closing) return;
-    setClosing(true);
-    try {
-      const res = await fetch(closeExpiredRequestPath(row.id), {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        // The patient already got the "no longer booked" email when it expired.
-        body: JSON.stringify({ notifyPatient: false }),
-      });
-      if (res.status === 404 || res.status === 405 || res.status === 501) {
-        toast.message("Closing these isn't available yet.");
-        return;
-      }
-      if (!res.ok) {
-        toast.error("Could not close it. Please try again.");
-        return;
-      }
-      onClosed();
-    } catch {
-      toast.error("Could not close it. Please try again.");
-    } finally {
-      setClosing(false);
-    }
-  }
 
   return (
     <li data-testid="dashboard-no-new-time-item" className="rounded-2xl border border-amber-400/20 bg-amber-500/[0.06] px-3.5 py-3">
@@ -374,23 +368,14 @@ function RescheduleNoAnswerItem({
         <span className="font-medium text-slate-100">{summary.originalLabel}</span>. Nothing is booked.
       </p>
       <p className="mt-0.5 text-xs text-slate-500">
-        {summary.expiredLabel ? `Offer expired ${summary.expiredLabel} · ` : ""}They were sent a link to book
-        a new time online.
+        {summary.expiredLabel ? `Offer expired ${summary.expiredLabel} · ` : ""}The times are free again.
       </p>
       <div className="mt-2.5 flex flex-wrap items-center gap-2">
-        <Link
-          href={reviewPath(row.id, "suggest")}
-          className="inline-flex h-9 items-center rounded-xl bg-clinical-500/15 px-3 text-sm font-semibold text-clinical-100 ring-1 ring-clinical-400/40 transition hover:bg-clinical-500/25"
-        >
-          Suggest other times
-        </Link>
         <button
           type="button"
-          onClick={() => void close()}
-          disabled={closing}
-          className="inline-flex h-9 items-center gap-1.5 rounded-xl px-3 text-sm font-medium text-slate-400 transition hover:bg-slate-800 hover:text-slate-200 disabled:opacity-60"
+          onClick={onClose}
+          className="inline-flex h-9 items-center gap-1.5 rounded-xl px-3 text-sm font-medium text-slate-400 transition hover:bg-slate-800 hover:text-slate-200"
         >
-          {closing ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> : null}
           Close
         </button>
       </div>
@@ -630,14 +615,6 @@ function PendingRequestItem({
                 {row.is_new_patient ? (
                   <span className="rounded-full bg-wellness-500/15 px-2 py-0.5 text-[11px] font-semibold text-wellness-200">
                     New patient
-                  </span>
-                ) : null}
-                {askedForAnotherTimeLabel(row) ? (
-                  <span
-                    data-testid="dashboard-asked-other-time"
-                    className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] font-semibold text-amber-200"
-                  >
-                    {askedForAnotherTimeLabel(row)}
                   </span>
                 ) : null}
               </div>

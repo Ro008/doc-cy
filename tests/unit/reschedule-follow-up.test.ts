@@ -2,9 +2,9 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
-  RESCHEDULE_EXPIRED_STATUS,
-  askedForAnotherTimeLabel,
+  NO_NEW_TIME_DISMISSED_KEY,
   isRescheduleWithoutAnswer,
+  parseDismissedIds,
   rescheduleWithoutAnswerSummary,
   selectRescheduleWithoutAnswer,
 } from "../../lib/reschedule-follow-up";
@@ -21,7 +21,7 @@ function row(over: Partial<{
 }> = {}) {
   return {
     id: "a",
-    status: "NEEDS_RESCHEDULE",
+    status: "EXPIRED",
     proposal_expires_at: new Date(NOW - HOUR).toISOString(),
     appointment_datetime: "2026-09-29T12:00:00.000Z", // Tue 29 Sep, 15:00 Cyprus
     patient_name: "Anastasia",
@@ -29,30 +29,41 @@ function row(over: Partial<{
   };
 }
 
+/**
+ * A proposal the patient let lapse (user, 2026-10-04): the scheduled job stores plain EXPIRED
+ * (no RESCHEDULE_EXPIRED); proposal_expires_at tells it apart from an unanswered request.
+ * Listed quietly on her dashboard with only "Close", which hides it on this device.
+ */
 describe("isRescheduleWithoutAnswer", () => {
-  it("is true for the stored final status the backend will set", () => {
-    assert.equal(RESCHEDULE_EXPIRED_STATUS, "RESCHEDULE_EXPIRED");
-    assert.equal(isRescheduleWithoutAnswer(row({ status: "RESCHEDULE_EXPIRED", proposal_expires_at: null }), NOW), true);
+  it("is true for a lapsed proposal stored as EXPIRED", () => {
+    assert.equal(isRescheduleWithoutAnswer(row(), NOW), true);
   });
 
-  it("is true for a proposal that expired without a choice (until the backend stores the status)", () => {
-    assert.equal(isRescheduleWithoutAnswer(row(), NOW), true);
+  it("is true for a lapsed NEEDS_RESCHEDULE row the job hasn't closed yet", () => {
+    assert.equal(isRescheduleWithoutAnswer(row({ status: "NEEDS_RESCHEDULE" }), NOW), true);
   });
 
   it("is false while the patient can still choose", () => {
     assert.equal(
-      isRescheduleWithoutAnswer(row({ proposal_expires_at: new Date(NOW + HOUR).toISOString() }), NOW),
+      isRescheduleWithoutAnswer(
+        row({ status: "NEEDS_RESCHEDULE", proposal_expires_at: new Date(NOW + HOUR).toISOString() }),
+        NOW,
+      ),
       false,
     );
   });
 
+  it("is false for an unanswered request that expired (no proposal)", () => {
+    assert.equal(isRescheduleWithoutAnswer(row({ proposal_expires_at: null }), NOW), false);
+  });
+
   it("is false for other statuses", () => {
-    for (const status of ["REQUESTED", "CONFIRMED", "CANCELLED", "EXPIRED"]) {
+    for (const status of ["REQUESTED", "CONFIRMED", "CANCELLED", "DECLINED"]) {
       assert.equal(isRescheduleWithoutAnswer(row({ status }), NOW), false);
     }
   });
 
-  it("ignores lapsed proposals older than two weeks (old rows the backend never closed)", () => {
+  it("ignores lapses older than two weeks", () => {
     assert.equal(
       isRescheduleWithoutAnswer(row({ proposal_expires_at: new Date(NOW - 15 * 24 * HOUR).toISOString() }), NOW),
       false,
@@ -61,10 +72,10 @@ describe("isRescheduleWithoutAnswer", () => {
 });
 
 describe("selectRescheduleWithoutAnswer", () => {
-  it("keeps only rows without an answer, the one that expired first on top", () => {
+  it("keeps only lapsed proposals, the one that expired first on top", () => {
     const rows = [
       row({ id: "late", proposal_expires_at: new Date(NOW - HOUR).toISOString() }),
-      row({ id: "live", proposal_expires_at: new Date(NOW + HOUR).toISOString() }),
+      row({ id: "live", status: "NEEDS_RESCHEDULE", proposal_expires_at: new Date(NOW + HOUR).toISOString() }),
       row({ id: "early", proposal_expires_at: new Date(NOW - 5 * HOUR).toISOString() }),
       row({ id: "confirmed", status: "CONFIRMED" }),
     ];
@@ -72,6 +83,30 @@ describe("selectRescheduleWithoutAnswer", () => {
       selectRescheduleWithoutAnswer(rows, NOW).map((r) => r.id),
       ["early", "late"],
     );
+  });
+
+  it("leaves out the ones she closed", () => {
+    const rows = [row({ id: "x" }), row({ id: "y" })];
+    assert.deepEqual(
+      selectRescheduleWithoutAnswer(rows, NOW, new Set(["x"])).map((r) => r.id),
+      ["y"],
+    );
+  });
+});
+
+describe("parseDismissedIds", () => {
+  it("reads a stored JSON list of ids", () => {
+    assert.deepEqual([...parseDismissedIds('["a","b"]')], ["a", "b"]);
+  });
+
+  it("is empty for missing or broken values", () => {
+    for (const raw of [null, "", "nope", "{}", "[1,2]"]) {
+      assert.equal(parseDismissedIds(raw).size, 0, String(raw));
+    }
+  });
+
+  it("has a stable storage key", () => {
+    assert.equal(NO_NEW_TIME_DISMISSED_KEY, "doccy:dashboard:no-new-time-dismissed");
   });
 });
 
@@ -81,26 +116,5 @@ describe("rescheduleWithoutAnswerSummary", () => {
       originalLabel: "Tue 29 Sep, 15:00",
       expiredLabel: "Tue 29 Sep, 11:00",
     });
-  });
-
-  it("leaves the expiry out when unknown", () => {
-    assert.equal(
-      rescheduleWithoutAnswerSummary(row({ status: "RESCHEDULE_EXPIRED", proposal_expires_at: null })).expiredLabel,
-      null,
-    );
-  });
-});
-
-describe("askedForAnotherTimeLabel", () => {
-  it("says which visit the patient moved away from", () => {
-    assert.equal(
-      askedForAnotherTimeLabel({ rescheduled_from: "2026-09-29T12:00:00.000Z" }),
-      "Asked for another time · was Tue 29 Sep, 15:00",
-    );
-  });
-
-  it("is null for an ordinary request", () => {
-    assert.equal(askedForAnotherTimeLabel({ rescheduled_from: null }), null);
-    assert.equal(askedForAnotherTimeLabel({}), null);
   });
 });

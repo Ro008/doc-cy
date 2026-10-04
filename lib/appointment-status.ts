@@ -44,12 +44,3 @@ export function isExpiredRequest(
 export function isStoredExpiredStatus(status: string | null | undefined): boolean {
   return String(status ?? "").trim().toUpperCase() === "EXPIRED";
 }
-
-/**
- * Endpoint the agenda calls to close an expired request (backend pending).
- * Contract: POST { notifyPatient: boolean } → sets status EXPIRED (row kept for
- * stats), emails the patient when notifyPatient is true, and answers 200.
- */
-export function closeExpiredRequestPath(appointmentId: string): string {
-  return `/api/appointments/${encodeURIComponent(appointmentId)}/close-expired`;
-}
