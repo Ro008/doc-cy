@@ -23,6 +23,7 @@ export type ProfessionalClinicJoinClinic = {
   latitude?: number | null;
   longitude?: number | null;
   clinic_place_id?: string | null;
+  address_maps_link?: string | null;
   is_archived?: boolean | null;
 };
 
@@ -54,7 +55,7 @@ export type ProfessionalClinicJoinRow = {
 };
 
 export const PROFESSIONAL_CLINIC_LOCATION_SELECT =
-  "id, professional_id, is_primary, sort_order, label, pause_online_bookings, pause_notice_dismissed_at, monday, tuesday, wednesday, thursday, friday, saturday, sunday, start_time, end_time, weekly_schedule, break_start, break_end, slot_duration_minutes, created_at, updated_at, clinics ( id, name, address, district, town, latitude, longitude, clinic_place_id, is_archived )";
+  "id, professional_id, is_primary, sort_order, label, pause_online_bookings, pause_notice_dismissed_at, monday, tuesday, wednesday, thursday, friday, saturday, sunday, start_time, end_time, weekly_schedule, break_start, break_end, slot_duration_minutes, created_at, updated_at, clinics ( id, name, address, address_maps_link, district, town, latitude, longitude, clinic_place_id, is_archived )";
 
 function text(value: unknown): string | null {
   const trimmed = String(value ?? "").trim();
@@ -153,6 +154,7 @@ export function professionalClinicRowToLocation(
     latitude: num(clinic.latitude),
     longitude: num(clinic.longitude),
     clinic_place_id: text(clinic.clinic_place_id),
+    clinic_maps_link: text(clinic.address_maps_link),
     // A scraped listing has no schedule of its own. Defaults match the
     // doctor_locations column defaults, except that bookings stay paused: an
     // unconfigured clinic must never look open.

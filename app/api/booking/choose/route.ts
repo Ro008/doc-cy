@@ -94,7 +94,13 @@ export async function POST(req: NextRequest) {
   if (!saved) return NextResponse.json({ state: "used", message: "This proposal is no longer open." }, { status: 410 });
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim() || "https://www.mydoccy.com";
-  const clinicCopy = appointmentClinicCopyFromAddress({ clinicName: ctx.clinic.name, address: ctx.clinic.address });
+  const clinicCopy = appointmentClinicCopyFromAddress({
+    clinicName: ctx.clinic.name,
+    address: ctx.clinic.address,
+    mapsLink: ctx.clinic.mapsLink,
+    latitude: ctx.clinic.latitude,
+    longitude: ctx.clinic.longitude,
+  });
 
   try {
     const patientEmail = String(ctx.appointment.patient_email ?? "").trim();

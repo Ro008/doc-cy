@@ -37,6 +37,8 @@ export type DoctorLocationRow = {
   latitude: number | null;
   longitude: number | null;
   clinic_place_id: string | null;
+  /** `clinics.address_maps_link`: the clinic's own Maps pin. */
+  clinic_maps_link?: string | null;
   pause_online_bookings: boolean;
   /** She closed the dashboard's paused line; cleared when the pause changes. */
   pause_notice_dismissed_at?: string | null;

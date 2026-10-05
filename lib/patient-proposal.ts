@@ -28,7 +28,13 @@ export type PatientProposalContext =
       appointment: ProposalAppointment;
       slots: string[];
       professional: { id: string; name: string; slug: string | null; email: string | null; registration_email: string | null };
-      clinic: { name: string; address: string | null };
+      clinic: {
+        name: string;
+        address: string | null;
+        mapsLink: string | null;
+        latitude: number | null;
+        longitude: number | null;
+      };
     };
 
 export async function loadPatientProposalContext(
@@ -50,7 +56,7 @@ export async function loadPatientProposalContext(
 
   const [{ data: pro }, { data: clinic }] = await Promise.all([
     service.from("professionals").select("id, name, slug, email, registration_email").eq("id", a.professional_id).maybeSingle(),
-    a.clinic_id ? service.from("clinics").select("name, address").eq("id", a.clinic_id).maybeSingle() : Promise.resolve({ data: null }),
+    a.clinic_id ? service.from("clinics").select("name, address, address_maps_link, latitude, longitude").eq("id", a.clinic_id).maybeSingle() : Promise.resolve({ data: null }),
   ]);
   const p = (pro ?? {}) as { id?: string; name?: string; slug?: string | null; email?: string | null; registration_email?: string | null };
 
@@ -63,7 +69,13 @@ export async function loadPatientProposalContext(
   const slots = coerceProposedSlotsArray(a.proposed_slots)
     .filter((s): s is string => typeof s === "string" && Number.isFinite(new Date(s).getTime()))
     .map((s) => new Date(s).toISOString());
-  const c = clinic as { name?: string | null; address?: string | null } | null;
+  const c = clinic as {
+    name?: string | null;
+    address?: string | null;
+    address_maps_link?: string | null;
+    latitude?: number | null;
+    longitude?: number | null;
+  } | null;
 
   return {
     kind: "proposal",
@@ -77,6 +89,12 @@ export async function loadPatientProposalContext(
       email: p.email ?? null,
       registration_email: p.registration_email ?? null,
     },
-    clinic: { name: String(c?.name ?? "the clinic"), address: c?.address ?? null },
+    clinic: {
+      name: String(c?.name ?? "the clinic"),
+      address: c?.address ?? null,
+      mapsLink: c?.address_maps_link ?? null,
+      latitude: c?.latitude ?? null,
+      longitude: c?.longitude ?? null,
+    },
   };
 }

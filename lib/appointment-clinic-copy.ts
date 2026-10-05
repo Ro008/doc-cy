@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { buildMapsUrlFromAddress } from "@/lib/clinic-info";
+import { clinicMapsUrl } from "@/lib/clinic-info";
 import {
   clinicDisplayName,
   sortDoctorLocations,
@@ -25,7 +25,9 @@ type LocationLike = Pick<
   DoctorLocationRow,
   "id" | "label" | "clinic_address" | "is_primary" | "sort_order"
 > &
-  Partial<Pick<DoctorLocationRow, "clinic_id" | "clinic_name">> & { created_at?: string };
+  Partial<Pick<DoctorLocationRow, "clinic_id" | "clinic_name" | "clinic_maps_link" | "latitude" | "longitude">> & {
+    created_at?: string;
+  };
 
 /**
  * Resolve clinic name + address for booking emails / calendar LOCATION from the
@@ -58,7 +60,13 @@ export function appointmentClinicCopy(opts: {
   return {
     clinicName,
     address,
-    mapsUrl: buildMapsUrlFromAddress(address) ?? "",
+    mapsUrl:
+      clinicMapsUrl({
+        mapsLink: selected?.clinic_maps_link,
+        latitude: selected?.latitude,
+        longitude: selected?.longitude,
+        address,
+      }) ?? "",
     locationId: selected?.id ?? null,
   };
 }
@@ -93,13 +101,18 @@ export async function loadAppointmentClinicPhone(
 export function appointmentClinicCopyFromAddress(opts: {
   clinicName?: string | null;
   address?: string | null;
+  /** `clinics.address_maps_link`, when the caller has the clinic row. */
+  mapsLink?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
 }): AppointmentClinicCopy {
   const address = String(opts.address ?? "").trim();
   const clinicName = String(opts.clinicName ?? "").trim() || "Clinic";
   return {
     clinicName,
     address,
-    mapsUrl: buildMapsUrlFromAddress(address) ?? "",
+    mapsUrl:
+      clinicMapsUrl({ mapsLink: opts.mapsLink, latitude: opts.latitude, longitude: opts.longitude, address }) ?? "",
   };
 }
 

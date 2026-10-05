@@ -42,6 +42,39 @@ describe("appointment-clinic-copy", () => {
     assert.match(clinic.mapsUrl, /Harbour/);
   });
 
+  it("links the clinic's stored Maps pin, showing the address as the text", () => {
+    const clinic = appointmentClinicCopy({
+      locations: [
+        {
+          id: "loc-1",
+          clinic_id: "clinic-1",
+          clinic_name: "Maria Merakli",
+          label: null,
+          clinic_address: "Spyridonos Trikoupi 21, Flat No. 202, Lakatameia, 2311, Nicosia",
+          clinic_maps_link: "https://www.google.com/maps?q=35.110358,33.308237",
+          latitude: 35.110358,
+          longitude: 33.308237,
+          is_primary: true,
+          sort_order: 0,
+        },
+      ],
+      clinicId: "clinic-1",
+    });
+    assert.equal(clinic.mapsUrl, "https://www.google.com/maps?q=35.110358,33.308237");
+    const html = formatAppointmentClinicEmailHtml(clinic);
+    assert.match(html, /href="https:\/\/www\.google\.com\/maps\?q=35\.110358,33\.308237"/);
+    assert.match(html, />Spyridonos Trikoupi 21, Flat No\. 202, Lakatameia, 2311, Nicosia<\/a>/);
+  });
+
+  it("the address-only fallback also takes the stored pin", () => {
+    const clinic = appointmentClinicCopyFromAddress({
+      clinicName: "Maria Merakli",
+      address: "Spyridonos Trikoupi 21, Lakatameia",
+      mapsLink: "https://www.google.com/maps?q=35.110358,33.308237",
+    });
+    assert.equal(clinic.mapsUrl, "https://www.google.com/maps?q=35.110358,33.308237");
+  });
+
   it("falls back to Clinic N when label is empty", () => {
     const clinic = appointmentClinicCopy({
       locations: [
