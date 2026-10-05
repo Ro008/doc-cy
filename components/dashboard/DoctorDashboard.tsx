@@ -374,7 +374,7 @@ function RescheduleNoAnswerItem({
         <button
           type="button"
           onClick={onClose}
-          className="inline-flex h-9 items-center gap-1.5 rounded-xl px-3 text-sm font-medium text-slate-400 transition hover:bg-slate-800 hover:text-slate-200"
+          className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-red-500/50 px-3 text-sm font-medium text-slate-200 transition hover:border-red-400/70 hover:bg-red-500/10 hover:text-red-100"
         >
           Close
         </button>
@@ -707,7 +707,7 @@ function PendingRequestItem({
                   type="button"
                   onClick={onDecline}
                   disabled={locked}
-                  className="h-11 rounded-xl border border-slate-700 px-3 text-sm font-medium text-slate-400 transition hover:bg-slate-800 hover:text-slate-200 disabled:pointer-events-none disabled:opacity-50 sm:h-10 sm:border-transparent"
+                  className="h-11 rounded-xl border border-red-500/50 px-3 text-sm font-medium text-slate-200 transition hover:border-red-400/70 hover:bg-red-500/10 hover:text-red-100 disabled:pointer-events-none disabled:opacity-50 sm:h-10"
                 >
                   Decline
                 </button>
