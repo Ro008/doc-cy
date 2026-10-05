@@ -127,6 +127,19 @@ export function BookingSection({
     null
   );
   const appliedInitialSlotRef = React.useRef(false);
+  const successRef = React.useRef<HTMLDivElement | null>(null);
+
+  // The success card replaces the taller form, so it can land above or below the fold:
+  // glide its top into view so nobody has to scroll to read "Check your email".
+  React.useEffect(() => {
+    if (!bookingSuccess) return;
+    const el = successRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    if (rect.top >= 0 && rect.bottom <= window.innerHeight) return;
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    el.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
+  }, [bookingSuccess]);
 
   const holidayActive =
     Boolean(holidayModeEnabled) &&
@@ -467,9 +480,10 @@ export function BookingSection({
   if (bookingSuccess) {
     return (
       <div
+        ref={successRef}
         data-testid="booking-success-message"
         data-appointment-id={lastAppointmentId ?? ""}
-        className="rounded-3xl border border-amber-200 bg-amber-50 p-8 shadow-[0_1px_3px_rgba(26,43,60,0.06),0_8px_24px_rgba(245,158,11,0.12)] sm:p-10"
+        className="scroll-mt-24 rounded-3xl border border-amber-200 bg-amber-50 p-8 shadow-[0_1px_3px_rgba(26,43,60,0.06),0_8px_24px_rgba(245,158,11,0.12)] sm:p-10"
       >
         <div className="flex flex-col items-center text-center">
           <div className="relative">
