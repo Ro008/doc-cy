@@ -194,6 +194,28 @@ test.describe("Integration: online booking confirmed by email", { tag: "@pr-e2e"
     expect((await res.json()).code).toBe("open_request_exists");
   });
 
+  // Sending the form again replaces the earlier unconfirmed request: only the newest link
+  // works (user, 2026-10-05). An unconfirmed draft doesn't block the form, because nobody
+  // has proved the email yet.
+  test("sending again replaces the earlier unconfirmed link", async ({ request, page }) => {
+    const email = `again-${nonce}@integration.test`;
+    const { token: earlier } = await draftFor(weekdayLocal(11, 5), email);
+    const { token: other } = await draftFor(weekdayLocal(11, 6), `other-${nonce}@integration.test`);
+    const { token: newest } = await draftFor(weekdayLocal(12, 5), email.toUpperCase());
+
+    const res = await request.post("/api/booking/confirm", { data: { token: earlier } });
+    expect(res.status()).toBe(410);
+    expect((await res.json()).state).toBe("replaced");
+
+    await page.goto(`/booking/confirm?token=${encodeURIComponent(earlier)}`);
+    await expect(page.getByTestId("booking-confirm-replaced")).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText(/newer one/i)).toBeVisible();
+
+    // Another patient's link is untouched; the newest one still works.
+    expect((await request.post("/api/booking/confirm", { data: { token: other } })).status()).toBe(200);
+    expect((await request.post("/api/booking/confirm", { data: { token: newest } })).status()).toBe(200);
+  });
+
   test("the link page asks the patient to confirm, and says when it has expired", async ({ page }) => {
     const { token } = await draftFor(weekdayLocal(16), `page-${nonce}@integration.test`);
     await page.goto(`/booking/confirm?token=${encodeURIComponent(token)}`);

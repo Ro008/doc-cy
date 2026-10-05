@@ -41,14 +41,21 @@ export function bookingLimitRefusal(counts: {
   return null;
 }
 
-export type DraftLinkState = "usable" | "used" | "expired" | "invalid";
+export type DraftLinkState = "usable" | "used" | "replaced" | "expired" | "invalid";
 
+/**
+ * `replaced`: the patient sent the form again for the same professional, so only the
+ * newest link works (user, 2026-10-05). An unconfirmed draft never blocks the form,
+ * since nobody has proved the email yet.
+ */
 export function draftLinkState(
   draft: { expires_at: string; confirmed_at: string | null } | null | undefined,
   now: Date = new Date(),
+  opts: { newerDraftExists?: boolean } = {},
 ): DraftLinkState {
   if (!draft) return "invalid";
   if (draft.confirmed_at) return "used";
+  if (opts.newerDraftExists) return "replaced";
   return new Date(draft.expires_at).getTime() > now.getTime() ? "usable" : "expired";
 }
 
@@ -133,7 +140,43 @@ export async function createAppointmentDraft(
     .select("id")
     .single();
   if (error || !data) throw error ?? new Error("draft insert returned nothing");
-  return { token, draftId: String((data as { id: string }).id), expiresAt };
+  const draftId = String((data as { id: string }).id);
+
+  // Only the newest link works: end this email's earlier unconfirmed drafts with her.
+  // Confirming checks the expiry in the same UPDATE, so an ended link can't slip through.
+  const { error: replaceError } = await supabase
+    .from("appointment_drafts")
+    .update({ expires_at: now.toISOString() })
+    .eq("professional_id", draft.professionalId)
+    .ilike("patient_email", escapeIlikeExact(draft.patientEmail))
+    .is("confirmed_at", null)
+    .gt("expires_at", now.toISOString())
+    .neq("id", draftId);
+  if (replaceError) throw replaceError;
+
+  return { token, draftId, expiresAt };
+}
+
+/** Whether the patient sent the form again (same email, same professional) after this draft. */
+async function hasNewerDraft(supabase: SupabaseClient, draft: AppointmentDraftRow): Promise<boolean> {
+  const { count, error } = await supabase
+    .from("appointment_drafts")
+    .select("id", { count: "exact", head: true })
+    .eq("professional_id", draft.professional_id)
+    .ilike("patient_email", escapeIlikeExact(draft.patient_email))
+    .gt("created_at", draft.created_at);
+  if (error) throw error;
+  return (count ?? 0) > 0;
+}
+
+/** The link's state as the patient sees it, including `replaced`. */
+export async function resolveDraftLinkState(
+  supabase: SupabaseClient,
+  draft: AppointmentDraftRow | null,
+  now: Date = new Date(),
+): Promise<DraftLinkState> {
+  if (!draft || draft.confirmed_at) return draftLinkState(draft, now);
+  return draftLinkState(draft, now, { newerDraftExists: await hasNewerDraft(supabase, draft) });
 }
 
 export const APPOINTMENT_DRAFT_SELECT =
@@ -183,7 +226,7 @@ export async function consumeDraftByToken(
   now: Date = new Date(),
 ): Promise<{ state: DraftLinkState; draft?: AppointmentDraftRow }> {
   const existing = await findDraftByToken(supabase, token);
-  const state = draftLinkState(existing, now);
+  const state = await resolveDraftLinkState(supabase, existing, now);
   if (state !== "usable") return { state };
 
   const { data, error } = await supabase

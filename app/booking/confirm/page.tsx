@@ -3,7 +3,7 @@ import { enUS } from "date-fns/locale";
 
 import { BookingLinkCard, BookingLinkShell, BookingLinkText, BookOnlineButton } from "@/components/booking/BookingLinkPanels";
 import { ConfirmBookingRequestClient } from "@/components/booking/ConfirmBookingRequestClient";
-import { draftLinkState, findDraftByToken } from "@/lib/appointment-drafts";
+import { findDraftByToken, resolveDraftLinkState } from "@/lib/appointment-drafts";
 import { isAppointmentLinkTokenShape } from "@/lib/appointment-link-token";
 import { appointmentToCyprusDate } from "@/lib/appointments";
 import { publicProfessionalProfilePath } from "@/lib/manual-directory-landing-path";
@@ -22,7 +22,7 @@ export default async function ConfirmBookingRequestPage({ searchParams }: { sear
   const token = searchParams.token?.trim() ?? "";
   const supabase = createServiceRoleClient();
   const draft = supabase && isAppointmentLinkTokenShape(token) ? await findDraftByToken(supabase, token).catch(() => null) : null;
-  const state = draftLinkState(draft);
+  const state = supabase ? await resolveDraftLinkState(supabase, draft).catch(() => "invalid" as const) : "invalid";
 
   let professionalName = "your professional";
   let bookOnlineHref: string | null = null;
@@ -43,14 +43,16 @@ export default async function ConfirmBookingRequestPage({ searchParams }: { sear
     const copy =
       state === "used"
         ? { title: "Already confirmed", body: "This request was already confirmed. You'll get an email when the professional replies." }
-        : state === "expired"
+        : state === "replaced"
+          ? { title: "You sent a newer request", body: "This request was replaced by a newer one. Use the link in your latest email." }
+          : state === "expired"
           ? { title: "This link has expired", body: "Confirmation links work for 30 minutes. Please book your time again." }
           : { title: "This link doesn't work", body: "It may be incomplete or wrong. Open the email again and tap the full link." };
     return (
       <BookingLinkShell>
         <BookingLinkCard title={copy.title} testId={`booking-confirm-${state}`}>
           <BookingLinkText>{copy.body}</BookingLinkText>
-          {state === "used" ? null : <BookOnlineButton href={bookOnlineHref} />}
+          {state === "used" || state === "replaced" ? null : <BookOnlineButton href={bookOnlineHref} />}
         </BookingLinkCard>
       </BookingLinkShell>
     );

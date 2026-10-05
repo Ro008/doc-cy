@@ -52,11 +52,18 @@ export function ConfirmBookingRequestClient({ token, professionalName, whenLabel
       } else if (res.status === 410) {
         setOutcome({
           kind: "error",
-          title: data.state === "used" ? "Already confirmed" : "This link has expired",
+          title:
+            data.state === "used"
+              ? "Already confirmed"
+              : data.state === "replaced"
+                ? "You sent a newer request"
+                : "This link has expired",
           message:
             data.state === "used"
               ? "This request was already confirmed."
-              : "Confirmation links work for 30 minutes. Please book your time again.",
+              : data.state === "replaced"
+                ? "This request was replaced by a newer one. Use the link in your latest email."
+                : "Confirmation links work for 30 minutes. Please book your time again.",
         });
       } else {
         setOutcome({

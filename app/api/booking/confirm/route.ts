@@ -16,7 +16,7 @@ import { createServiceRoleClient } from "@/lib/supabase-service";
  * Uses the link once, re-checks the time (it may have been taken since the form was
  * sent), creates the REQUESTED appointment and only then emails the professional.
  * - 200 { appointment }
- * - 410 { state: "invalid" | "used" | "expired" }
+ * - 410 { state: "invalid" | "used" | "replaced" | "expired" }
  * - 409 { code: "slot_taken" | "open_request_exists", professionalSlug } (link used up:
  *   the patient picks another time on the profile)
  */
@@ -52,7 +52,9 @@ export async function POST(req: NextRequest) {
     const message =
       consumed.state === "used"
         ? "This request was already confirmed."
-        : consumed.state === "expired"
+        : consumed.state === "replaced"
+          ? "This request was replaced by a newer one. Use the link in your latest email."
+          : consumed.state === "expired"
           ? "This link has expired."
           : "This link is not valid.";
     return NextResponse.json({ state: consumed.state, message }, { status: 410 });

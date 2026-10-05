@@ -60,6 +60,24 @@ describe("draftLinkState", () => {
   it("is invalid when there is no draft", () => {
     assert.equal(draftLinkState(null, now), "invalid");
   });
+
+  // Sending the form again replaces the earlier unconfirmed draft (user, 2026-10-05).
+  it("is replaced when a newer draft exists, whether or not its time ran out", () => {
+    const replaced = { newerDraftExists: true };
+    assert.equal(draftLinkState({ expires_at: "2026-10-05T10:29:00Z", confirmed_at: null }, now, replaced), "replaced");
+    assert.equal(draftLinkState({ expires_at: "2026-10-05T09:00:00Z", confirmed_at: null }, now, replaced), "replaced");
+  });
+
+  it("stays used once confirmed, even with a newer draft", () => {
+    assert.equal(
+      draftLinkState(
+        { expires_at: "2026-10-05T10:29:00Z", confirmed_at: "2026-10-05T09:59:00Z" },
+        now,
+        { newerDraftExists: true },
+      ),
+      "used",
+    );
+  });
 });
 
 describe("escapeIlikeExact", () => {

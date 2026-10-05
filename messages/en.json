@@ -153,7 +153,7 @@
     "personalDetailsPrivacyNote": "Your date of birth and gender are shared only with {doctorName} to prepare your visit. We never show them publicly.",
     "checkEmailTitle": "Check your email",
     "checkEmailMessage": "We sent a link to {email}. Open it within 30 minutes and tap “Confirm my request” to send your request to {doctorName}.",
-    "checkEmailHint": "Can’t find it? Check your spam folder."
+    "checkEmailHint": "Can’t find it? Check your spam folder. If you send the form again, only the newest link will work."
   },
   "DoctorAgenda": {
     "appointmentPendingBadge": "Pending",
