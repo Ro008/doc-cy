@@ -8,6 +8,7 @@ import { appointmentLinkUrl } from "@/lib/appointment-link-token";
 import { issueAppointmentLink, issuePatientCancelLink, revokeAppointmentLinks } from "@/lib/appointment-links-db";
 import { appointmentToCyprusDate } from "@/lib/appointments";
 import type { BuiltEmail } from "@/lib/booking-request-emails";
+import { clinicMapsUrl } from "@/lib/clinic-info";
 import { publicProfessionalProfilePath } from "@/lib/manual-directory-landing-path";
 import { parsePatientCancelNoticeHours, patientCanCancel } from "@/lib/patient-cancel-window";
 import { REVIEW_LINK_DAYS } from "@/lib/professional-review";
@@ -261,14 +262,25 @@ export async function runAppointmentsJob(deps: AppointmentsJobDeps): Promise<App
     const clinicIds = [...new Set(rows.map((r) => str(r.clinic_id)).filter(Boolean))];
     const [{ data: clinics }, { data: settings }] = await Promise.all([
       clinicIds.length
-        ? service.from("clinics").select("id, name, address").in("id", clinicIds)
+        ? service.from("clinics").select("id, name, address, address_maps_link, latitude, longitude").in("id", clinicIds)
         : Promise.resolve({ data: [] as { id: string; name: string; address: string | null }[] }),
       service
         .from("professional_settings")
         .select("professional_id, patient_cancel_notice_hours")
         .in("professional_id", [...new Set(rows.map((r) => r.professional_id))]),
     ]);
-    const clinicById = new Map(((clinics ?? []) as { id: string; name: string; address: string | null }[]).map((c) => [c.id, c]));
+    const clinicById = new Map(
+      (
+        (clinics ?? []) as {
+          id: string;
+          name: string;
+          address: string | null;
+          address_maps_link: string | null;
+          latitude: number | null;
+          longitude: number | null;
+        }[]
+      ).map((c) => [c.id, c]),
+    );
     const noticeBy = new Map(
       ((settings ?? []) as { professional_id: string; patient_cancel_notice_hours: number | null }[]).map((s) => [
         s.professional_id,
@@ -293,7 +305,18 @@ export async function runAppointmentsJob(deps: AppointmentsJobDeps): Promise<App
           patientName: str(r.patient_name),
           professionalName: pros.get(r.professional_id)?.name ?? "your professional",
           appointmentIso: startIso,
-          clinic: { name: clinic?.name ?? "the clinic", address: clinic?.address ?? null },
+          clinic: {
+            name: clinic?.name ?? "the clinic",
+            address: clinic?.address ?? null,
+            mapsUrl: clinic
+              ? clinicMapsUrl({
+                  mapsLink: clinic.address_maps_link,
+                  latitude: clinic.latitude,
+                  longitude: clinic.longitude,
+                  address: clinic.address,
+                })
+              : null,
+          },
           cancel,
         }),
       );

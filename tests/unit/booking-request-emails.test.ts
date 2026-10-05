@@ -5,7 +5,9 @@ import {
   buildBookingConfirmLinkEmail,
   buildProfessionalNewRequestEmail,
   buildProfessionalPatientCancelledEmail,
+  buildProfessionalPatientChoseEmail,
 } from "../../lib/booking-request-emails";
+import { buildPatientVisitReminderEmail } from "../../lib/appointment-job-emails";
 
 const clinic = { name: "Evangelismos", address: "Makariou 10, Nicosia", phone: "22123456" };
 
@@ -147,5 +149,81 @@ describe("proposal answers (to her)", () => {
       assert.ok(body.includes("None of these suit me"));
       assert.match(body, /free again/i);
     }
+  });
+});
+
+// The clinic address links to the clinic's own Maps pin (user, 2026-10-05). Without our
+// own link, Gmail turns part of the address into a text search.
+describe("clinic address links to the clinic's Maps pin", () => {
+  const pin = "https://www.google.com/maps?q=35.110358,33.308237";
+  const pinned = {
+    name: "Maria Merakli",
+    address: "Spyridonos Trikoupi 21, Flat No. 202, Lakatameia, 2311, Nicosia",
+    mapsUrl: pin,
+  };
+  const anchor = `<a href="${pin}"`;
+  const fullText = ">Spyridonos Trikoupi 21, Flat No. 202, Lakatameia, 2311, Nicosia</a>";
+  const when = "2026-10-08T07:00:00Z";
+
+  const emails = {
+    "confirm link (patient)": buildBookingConfirmLinkEmail({
+      patientName: "Livio Lanzo",
+      professionalName: "Maria Merakli",
+      appointmentIso: when,
+      clinic: pinned,
+      confirmUrl: "https://www.mydoccy.com/booking/confirm?token=abc",
+    }),
+    "new request (professional)": buildProfessionalNewRequestEmail({
+      professionalName: "Maria Merakli",
+      patientName: "Livio Lanzo",
+      appointmentIso: when,
+      clinic: pinned,
+      isNewPatient: true,
+      reason: "eeee",
+      reviewUrl: "https://www.mydoccy.com/dashboard/appointments/1",
+    }),
+    "patient cancelled (professional)": buildProfessionalPatientCancelledEmail({
+      professionalName: "Maria Merakli",
+      patientName: "Livio Lanzo",
+      appointmentIso: when,
+      clinic: pinned,
+      cancelReason: null,
+      agendaUrl: "https://www.mydoccy.com/agenda",
+    }),
+    "patient chose (professional)": buildProfessionalPatientChoseEmail({
+      professionalName: "Maria Merakli",
+      patientName: "Livio Lanzo",
+      appointmentIso: when,
+      clinic: pinned,
+      agendaUrl: "https://www.mydoccy.com/agenda",
+    }),
+    "visit reminder (patient)": buildPatientVisitReminderEmail({
+      patientName: "Livio Lanzo",
+      professionalName: "Maria Merakli",
+      appointmentIso: when,
+      clinic: pinned,
+      cancel: null,
+    }),
+  };
+
+  for (const [name, email] of Object.entries(emails)) {
+    it(`${name}: the whole address is one link to the pin`, () => {
+      assert.ok(email.html.includes(anchor), "links the stored pin");
+      assert.ok(email.html.includes(fullText), "link text is the full address");
+    });
+  }
+
+  it("without a pin the address stays plain text", () => {
+    const email = buildProfessionalNewRequestEmail({
+      professionalName: "Maria Merakli",
+      patientName: "Livio Lanzo",
+      appointmentIso: when,
+      clinic: { name: "Maria Merakli", address: "Spyridonos Trikoupi 21" },
+      isNewPatient: true,
+      reason: "eeee",
+      reviewUrl: "https://www.mydoccy.com/dashboard/appointments/1",
+    });
+    assert.ok(!email.html.includes("google.com/maps"));
+    assert.ok(email.html.includes("Maria Merakli, Spyridonos Trikoupi 21"));
   });
 });

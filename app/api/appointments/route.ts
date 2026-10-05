@@ -1,6 +1,7 @@
 // app/api/appointments/route.ts
 import { NextRequest, NextResponse } from "next/server";
 
+import { emailClinicFromLocation } from "@/lib/appointment-clinic-copy";
 import { appointmentLinkUrl } from "@/lib/appointment-link-token";
 import {
   bookingLimitRefusal,
@@ -148,10 +149,7 @@ export async function POST(req: NextRequest) {
         patientName: fields.patientName,
         professionalName: String((professional as { name?: string } | null)?.name ?? ""),
         appointmentIso: slot.appointmentUtc.toISOString(),
-        clinic: {
-          name: slot.bookingLocation.clinic_name ?? "Clinic",
-          address: slot.bookingLocation.clinic_address,
-        },
+        clinic: emailClinicFromLocation(slot.bookingLocation),
         confirmUrl: appointmentLinkUrl(siteUrl, "confirm", token),
       }),
     );

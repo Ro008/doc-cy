@@ -71,6 +71,24 @@ export function appointmentClinicCopy(opts: {
   };
 }
 
+/** A booking location as the clinic block of the booking emails (name, address, pin). */
+export function emailClinicFromLocation(
+  location: Pick<DoctorLocationRow, "clinic_address" | "latitude" | "longitude"> &
+    Partial<Pick<DoctorLocationRow, "clinic_name" | "clinic_maps_link">>,
+): { name: string; address: string | null; mapsUrl: string | null } {
+  const address = String(location.clinic_address ?? "").trim() || null;
+  return {
+    name: String(location.clinic_name ?? "").trim() || "Clinic",
+    address,
+    mapsUrl: clinicMapsUrl({
+      mapsLink: location.clinic_maps_link,
+      latitude: location.latitude,
+      longitude: location.longitude,
+      address,
+    }),
+  };
+}
+
 /**
  * The phone patients see for an appointment: its clinic's (Point E5), never
  * `professionals.phone`, which held the professional's personal mobile. Server-only:

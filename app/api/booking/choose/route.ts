@@ -146,7 +146,7 @@ export async function POST(req: NextRequest) {
         professionalName: ctx.professional.name,
         patientName: ctx.appointment.patient_name,
         appointmentIso: slot,
-        clinic: { name: ctx.clinic.name, address: ctx.clinic.address },
+        clinic: { name: ctx.clinic.name, address: ctx.clinic.address, mapsUrl: clinicCopy.mapsUrl || null },
         agendaUrl: new URL("/agenda", siteUrl).toString(),
       }),
     );

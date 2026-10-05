@@ -2,7 +2,7 @@ import { format } from "date-fns";
 import { enUS } from "date-fns/locale";
 
 import { appointmentToCyprusDate } from "@/lib/appointments";
-import type { BuiltEmail, EmailClinic } from "@/lib/booking-request-emails";
+import { clinicHtml, type BuiltEmail, type EmailClinic } from "@/lib/booking-request-emails";
 import {
   EMAIL_HEADING,
   EMAIL_PRIMARY_BTN,
@@ -76,7 +76,8 @@ export function buildPatientVisitReminderEmail(opts: {
   const hi = hiName(opts.patientName);
 
   const subject = `Reminder: your visit with ${pro} on ${date}`;
-  const line = `This is a reminder of your visit with ${pro} on ${date} at ${time} (Cyprus time), at ${place(opts.clinic)}.`;
+  const lead = `This is a reminder of your visit with ${pro} on ${date} at ${time} (Cyprus time), at `;
+  const line = `${lead}${place(opts.clinic)}.`;
   const cancelText = opts.cancel
     ? `Can't make it? Cancel online until ${opts.cancel.deadlineLabel}:\n${opts.cancel.url}\n\n`
     : "";
@@ -85,7 +86,7 @@ export function buildPatientVisitReminderEmail(opts: {
 ${EMAIL_SHELL_OPEN}
     <h2 style="margin:0 0 12px;font-size:20px;line-height:1.3;color:${EMAIL_HEADING};">See you soon</h2>
     <p style="${P}">Hi ${escapeHtml(hi)},</p>
-    <p style="${P}">${escapeHtml(line)}</p>
+    <p style="${P}">${escapeHtml(lead)}${clinicHtml(opts.clinic)}.</p>
     ${
       opts.cancel
         ? `<p style="${MUTED}">Can't make it? <a href="${escapeHtml(opts.cancel.url)}">Cancel online</a> until ${escapeHtml(

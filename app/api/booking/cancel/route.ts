@@ -82,7 +82,7 @@ export async function POST(req: NextRequest) {
         professionalName: ctx.professional.name,
         patientName: ctx.appointment.patient_name,
         appointmentIso: ctx.appointment.appointment_datetime,
-        clinic: { name: ctx.clinic.name, address: ctx.clinic.address },
+        clinic: { name: ctx.clinic.name, address: ctx.clinic.address, mapsUrl: ctx.clinic.mapsUrl },
         cancelReason: reason,
         agendaUrl: new URL("/agenda", siteUrl).toString(),
       }),

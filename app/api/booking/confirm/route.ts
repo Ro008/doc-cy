@@ -1,6 +1,7 @@
 import { formatInTimeZone } from "date-fns-tz";
 import { NextRequest, NextResponse } from "next/server";
 
+import { emailClinicFromLocation } from "@/lib/appointment-clinic-copy";
 import { consumeDraftByToken, countOpenRequestsWithProfessional } from "@/lib/appointment-drafts";
 import { isAppointmentLinkTokenShape } from "@/lib/appointment-link-token";
 import { CY_TZ } from "@/lib/appointments";
@@ -144,7 +145,7 @@ export async function POST(req: NextRequest) {
         appointmentIso: slot.appointmentUtc.toISOString(),
         reason: draft.reason,
         isNewPatient: draft.is_new_patient,
-        clinic: { name: slot.bookingLocation.clinic_name ?? "Clinic", address: slot.bookingLocation.clinic_address },
+        clinic: emailClinicFromLocation(slot.bookingLocation),
         reviewUrl: new URL(`/dashboard/appointments/${encodeURIComponent(appointmentId)}`, siteUrl).toString(),
       }),
     );

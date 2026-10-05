@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { appointmentLinkState, findAppointmentLink, type AppointmentLinkRow } from "@/lib/appointment-links-db";
 import { isAppointmentLinkTokenShape } from "@/lib/appointment-link-token";
+import { clinicMapsUrl } from "@/lib/clinic-info";
 import { parsePatientCancelNoticeHours, patientCanCancel } from "@/lib/patient-cancel-window";
 
 /**
@@ -24,7 +25,7 @@ export type PatientCancelContext =
         patient_name: string;
       };
       professional: { name: string; slug: string | null; email: string | null; registration_email: string | null };
-      clinic: { name: string; address: string | null; phone: string | null };
+      clinic: { name: string; address: string | null; phone: string | null; mapsUrl: string | null };
       noticeHours: number;
       /** Confirmed, link usable and before the notice deadline. */
       canCancel: boolean;
@@ -61,7 +62,7 @@ export async function loadPatientCancelContext(
   const [{ data: pro }, { data: clinic }, { data: settings }] = await Promise.all([
     service.from("professionals").select("name, slug, email, registration_email").eq("id", a.professional_id).maybeSingle(),
     a.clinic_id
-      ? service.from("clinics").select("name, address, phone").eq("id", a.clinic_id).maybeSingle()
+      ? service.from("clinics").select("name, address, phone, address_maps_link, latitude, longitude").eq("id", a.clinic_id).maybeSingle()
       : Promise.resolve({ data: null }),
     service
       .from("professional_settings")
@@ -75,7 +76,14 @@ export async function loadPatientCancelContext(
   const confirmed = String(a.status).toUpperCase() === "CONFIRMED";
   const linkUsable = state === "usable";
   const beforeDeadline = patientCanCancel(a.appointment_datetime, noticeHours, now);
-  const c = clinic as { name?: string | null; address?: string | null; phone?: string | null } | null;
+  const c = clinic as {
+    name?: string | null;
+    address?: string | null;
+    phone?: string | null;
+    address_maps_link?: string | null;
+    latitude?: number | null;
+    longitude?: number | null;
+  } | null;
   const p = (pro ?? {}) as { name?: string; slug?: string | null; email?: string | null; registration_email?: string | null };
 
   return {
@@ -89,7 +97,17 @@ export async function loadPatientCancelContext(
       email: p.email ?? null,
       registration_email: p.registration_email ?? null,
     },
-    clinic: { name: String(c?.name ?? "the clinic"), address: c?.address ?? null, phone: c?.phone ?? null },
+    clinic: {
+      name: String(c?.name ?? "the clinic"),
+      address: c?.address ?? null,
+      phone: c?.phone ?? null,
+      mapsUrl: clinicMapsUrl({
+        mapsLink: c?.address_maps_link,
+        latitude: c?.latitude,
+        longitude: c?.longitude,
+        address: c?.address,
+      }),
+    },
     noticeHours,
     canCancel: confirmed && linkUsable && beforeDeadline,
     windowClosed: confirmed && !beforeDeadline,
