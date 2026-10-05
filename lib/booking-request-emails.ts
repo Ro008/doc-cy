@@ -5,11 +5,13 @@ import { appointmentToCyprusDate } from "@/lib/appointments";
 import { BOOKING_CONFIRM_LINK_MINUTES } from "@/lib/appointment-link-token";
 import {
   EMAIL_HEADING,
+  EMAIL_LINK_ACCENT,
   EMAIL_PRIMARY_BTN,
   EMAIL_SHELL_CLOSE,
   EMAIL_SHELL_OPEN,
   EMAIL_TEXT,
   EMAIL_TEXT_MUTED,
+  emailFallbackLink,
 } from "@/lib/email-brand";
 import { professionalFirstName } from "@/lib/professional-name";
 import { isUndeliverableTestEmail } from "@/lib/registration-decision-emails";
@@ -38,6 +40,18 @@ function firstName(full: string): string {
 
 function clinicText(clinic: EmailClinic): string {
   return clinic.address ? `${clinic.name}, ${clinic.address}` : clinic.name;
+}
+
+/**
+ * Clinic for the HTML body. The address is our own Maps link in the light accent: left bare,
+ * Gmail links it in its default blue, which is unreadable on the navy card.
+ */
+function clinicHtml(clinic: EmailClinic): string {
+  const name = escapeHtml(clinic.name);
+  const address = clinic.address?.trim();
+  if (!address) return name;
+  const maps = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
+  return `${name}, <a href="${escapeHtml(maps)}" style="${EMAIL_LINK_ACCENT}">${escapeHtml(address)}</a>`;
 }
 
 const P = `margin:0 0 10px;font-size:15px;line-height:1.6;color:${EMAIL_TEXT};`;
@@ -70,11 +84,11 @@ ${EMAIL_SHELL_OPEN}
     <p style="${P}">
       Please confirm your appointment request with <strong>${escapeHtml(pro)}</strong> for
       <strong>${escapeHtml(date)}</strong> at <strong>${escapeHtml(time)}</strong> (Cyprus time),
-      at ${escapeHtml(clinicText(opts.clinic))}.
+      at ${clinicHtml(opts.clinic)}.
     </p>
     <a href="${escapeHtml(opts.confirmUrl)}" style="${EMAIL_PRIMARY_BTN}">Confirm my request</a>
     <p style="${P}">This link works once and for ${minutes} minutes. Your request is not sent to ${escapeHtml(pro)} until you confirm.</p>
-    <p style="${MUTED}">If the button does not work, copy this link: ${escapeHtml(opts.confirmUrl)}</p>
+    <p style="${MUTED}">If the button does not work, copy this link: ${emailFallbackLink(opts.confirmUrl)}</p>
     <p style="${MUTED}">If you didn't ask for this, you can ignore this email.</p>
     ${automatedEmailFooterHtml()}
 ${EMAIL_SHELL_CLOSE}`;
@@ -111,10 +125,10 @@ ${EMAIL_SHELL_OPEN}
       You have a new request from <strong>${escapeHtml(opts.patientName)}</strong> for
       <strong>${escapeHtml(date)}</strong> at <strong>${escapeHtml(time)}</strong> (Cyprus time).
     </p>
-    <p style="${P}"><strong>Clinic:</strong> ${escapeHtml(clinicText(opts.clinic))}<br />${escapeHtml(visit)}</p>
+    <p style="${P}"><strong>Clinic:</strong> ${clinicHtml(opts.clinic)}<br />${escapeHtml(visit)}</p>
     <p style="${P}"><strong>Reason:</strong> ${escapeHtml(opts.reason)}</p>
     <a href="${escapeHtml(opts.reviewUrl)}" style="${EMAIL_PRIMARY_BTN}">Review the request</a>
-    <p style="${MUTED}">If the button does not work, copy this link: ${escapeHtml(opts.reviewUrl)}</p>
+    <p style="${MUTED}">If the button does not work, copy this link: ${emailFallbackLink(opts.reviewUrl)}</p>
     ${automatedEmailFooterHtml()}
 ${EMAIL_SHELL_CLOSE}`;
   return { subject, text, html };
@@ -148,7 +162,7 @@ ${EMAIL_SHELL_OPEN}
     <p style="${P}">
       <strong>${escapeHtml(opts.patientName)}</strong> cancelled their visit on
       <strong>${escapeHtml(date)}</strong> at <strong>${escapeHtml(time)}</strong> (Cyprus time),
-      at ${escapeHtml(clinicText(opts.clinic))}. The time is free again in your agenda.
+      at ${clinicHtml(opts.clinic)}. The time is free again in your agenda.
     </p>
     ${reason ? `<p style="${P}"><strong>Their message:</strong> ${escapeHtml(reason)}</p>` : ""}
     <a href="${escapeHtml(opts.agendaUrl)}" style="${EMAIL_PRIMARY_BTN}">Open my agenda</a>
@@ -180,7 +194,7 @@ ${EMAIL_SHELL_OPEN}
     <p style="${P}">Hi ${escapeHtml(pro)},</p>
     <p style="${P}">
       <strong>${escapeHtml(opts.patientName)}</strong> chose one of the times you proposed. The visit is confirmed for
-      <strong>${escapeHtml(date)}</strong> at <strong>${escapeHtml(time)}</strong> (Cyprus time), at ${escapeHtml(clinicText(opts.clinic))}.
+      <strong>${escapeHtml(date)}</strong> at <strong>${escapeHtml(time)}</strong> (Cyprus time), at ${clinicHtml(opts.clinic)}.
       The other times you held are free again.
     </p>
     <a href="${escapeHtml(opts.agendaUrl)}" style="${EMAIL_PRIMARY_BTN}">Open my agenda</a>

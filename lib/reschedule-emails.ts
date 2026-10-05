@@ -14,6 +14,7 @@ import {
   EMAIL_SHELL_OPEN,
   EMAIL_TEXT,
   EMAIL_TEXT_MUTED,
+  emailFallbackLink,
 } from "@/lib/email-brand";
 import { isUndeliverableTestEmail } from "@/lib/registration-decision-emails";
 
@@ -77,7 +78,7 @@ ${EMAIL_SHELL_OPEN}
     <p style="margin:0 0 10px;font-size:15px;line-height:1.6;color:${EMAIL_TEXT};">${escapeHtml(line)}</p>
     <ul style="margin:12px 0 16px;padding-left:20px;">${slotsHtml}</ul>
     <a href="${escapeHtml(opts.chooseUrl)}" style="${EMAIL_PRIMARY_BTN}">Choose a time</a>
-    <p style="margin:12px 0 0;font-size:13px;line-height:1.5;color:${EMAIL_TEXT_MUTED};">If the button does not work, copy this link: ${escapeHtml(opts.chooseUrl)}</p>
+    <p style="margin:12px 0 0;font-size:13px;line-height:1.5;color:${EMAIL_TEXT_MUTED};">If the button does not work, copy this link: ${emailFallbackLink(opts.chooseUrl)}</p>
     ${automatedEmailFooterHtml()}
 ${EMAIL_SHELL_CLOSE}`;
   return { subject, text, html };
