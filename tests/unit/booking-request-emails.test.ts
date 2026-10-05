@@ -213,7 +213,7 @@ describe("clinic address links to the clinic's Maps pin", () => {
     });
   }
 
-  it("without a pin the address stays plain text", () => {
+  it("without a pin the address links an address search (Ro008, 574dfe2)", () => {
     const email = buildProfessionalNewRequestEmail({
       professionalName: "Maria Merakli",
       patientName: "Livio Lanzo",
@@ -223,7 +223,10 @@ describe("clinic address links to the clinic's Maps pin", () => {
       reason: "eeee",
       reviewUrl: "https://www.mydoccy.com/dashboard/appointments/1",
     });
-    assert.ok(!email.html.includes("google.com/maps"));
-    assert.ok(email.html.includes("Maria Merakli, Spyridonos Trikoupi 21"));
+    assert.ok(
+      email.html.includes(
+        'Maria Merakli, <a href="https://www.google.com/maps/search/?api=1&amp;query=Spyridonos%20Trikoupi%2021"',
+      ),
+    );
   });
 });

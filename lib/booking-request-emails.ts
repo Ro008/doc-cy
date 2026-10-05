@@ -11,6 +11,7 @@ import {
   EMAIL_SHELL_OPEN,
   EMAIL_TEXT,
   EMAIL_TEXT_MUTED,
+  emailFallbackLink,
 } from "@/lib/email-brand";
 import { professionalFirstName } from "@/lib/professional-name";
 import { isUndeliverableTestEmail } from "@/lib/registration-decision-emails";
@@ -47,15 +48,18 @@ function clinicText(clinic: EmailClinic): string {
 }
 
 /**
- * "Name, address" with the whole address linking to the clinic's pin. Our own link also
- * stops mail apps (Gmail) turning part of the address into a text search.
+ * "Name, address" with the whole address as our own Maps link in the light accent: the
+ * clinic's pin (user, 2026-10-05), else an address search. Left bare, Gmail links part
+ * of the address as a text search in its default blue, unreadable on the navy card.
  */
 export function clinicHtml(clinic: EmailClinic): string {
-  const mapsUrl = String(clinic.mapsUrl ?? "").trim();
-  if (!clinic.address || !mapsUrl) return escapeHtml(clinicText(clinic));
-  return `${escapeHtml(clinic.name)}, <a href="${escapeHtml(mapsUrl)}" style="${EMAIL_LINK_ACCENT}">${escapeHtml(
-    clinic.address,
-  )}</a>`;
+  const name = escapeHtml(clinic.name);
+  const address = clinic.address?.trim();
+  if (!address) return name;
+  const maps =
+    String(clinic.mapsUrl ?? "").trim() ||
+    `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
+  return `${name}, <a href="${escapeHtml(maps)}" style="${EMAIL_LINK_ACCENT}">${escapeHtml(address)}</a>`;
 }
 
 const P = `margin:0 0 10px;font-size:15px;line-height:1.6;color:${EMAIL_TEXT};`;
@@ -92,7 +96,7 @@ ${EMAIL_SHELL_OPEN}
     </p>
     <a href="${escapeHtml(opts.confirmUrl)}" style="${EMAIL_PRIMARY_BTN}">Confirm my request</a>
     <p style="${P}">This link works once and for ${minutes} minutes. Your request is not sent to ${escapeHtml(pro)} until you confirm.</p>
-    <p style="${MUTED}">If the button does not work, copy this link: ${escapeHtml(opts.confirmUrl)}</p>
+    <p style="${MUTED}">If the button does not work, copy this link: ${emailFallbackLink(opts.confirmUrl)}</p>
     <p style="${MUTED}">If you didn't ask for this, you can ignore this email.</p>
     ${automatedEmailFooterHtml()}
 ${EMAIL_SHELL_CLOSE}`;
@@ -132,7 +136,7 @@ ${EMAIL_SHELL_OPEN}
     <p style="${P}"><strong>Clinic:</strong> ${clinicHtml(opts.clinic)}<br />${escapeHtml(visit)}</p>
     <p style="${P}"><strong>Reason:</strong> ${escapeHtml(opts.reason)}</p>
     <a href="${escapeHtml(opts.reviewUrl)}" style="${EMAIL_PRIMARY_BTN}">Review the request</a>
-    <p style="${MUTED}">If the button does not work, copy this link: ${escapeHtml(opts.reviewUrl)}</p>
+    <p style="${MUTED}">If the button does not work, copy this link: ${emailFallbackLink(opts.reviewUrl)}</p>
     ${automatedEmailFooterHtml()}
 ${EMAIL_SHELL_CLOSE}`;
   return { subject, text, html };

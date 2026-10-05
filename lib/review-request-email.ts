@@ -10,6 +10,7 @@ import {
   EMAIL_SHELL_OPEN,
   EMAIL_TEXT,
   EMAIL_TEXT_MUTED,
+  emailFallbackLink,
 } from "@/lib/email-brand";
 import { professionalFirstName } from "@/lib/professional-name";
 import { REVIEW_LINK_DAYS } from "@/lib/professional-review";
@@ -49,7 +50,7 @@ ${EMAIL_SHELL_OPEN}
     </p>
     <a href="${escapeHtml(opts.reviewUrl)}" style="${EMAIL_PRIMARY_BTN}">Write a review</a>
     <p style="${P}">Your review will appear as <strong>${escapeHtml(shownAs)}</strong> with your rating and the date. Your email is never shown.</p>
-    <p style="${MUTED}">This link works once, for ${REVIEW_LINK_DAYS} days. If the button does not work, copy this link: ${escapeHtml(opts.reviewUrl)}</p>
+    <p style="${MUTED}">This link works once, for ${REVIEW_LINK_DAYS} days. If the button does not work, copy this link: ${emailFallbackLink(opts.reviewUrl)}</p>
     ${automatedEmailFooterHtml()}
 ${EMAIL_SHELL_CLOSE}`;
   return { subject, text, html };
