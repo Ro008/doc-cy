@@ -1,5 +1,7 @@
 // app/api/appointments/route.ts
+import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
+import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 
 import { emailClinicFromLocation } from "@/lib/appointment-clinic-copy";
 import { appointmentLinkUrl } from "@/lib/appointment-link-token";
@@ -10,6 +12,7 @@ import {
   createAppointmentDraft,
 } from "@/lib/appointment-drafts";
 import { parseBookingPatientFields } from "@/lib/booking-patient-fields";
+import { bookingViewerMode, loadBookingAccountKind, PROFESSIONAL_SIGNED_IN_CODE } from "@/lib/booking-viewer";
 import { buildBookingConfirmLinkEmail, sendBuiltEmail } from "@/lib/booking-request-emails";
 import { checkOnlineBookingSlot } from "@/lib/online-booking-slot-check";
 import { enforcePublicApiRateLimit } from "@/lib/public-api-rate-limit";
@@ -23,7 +26,8 @@ import { createServiceRoleClient } from "@/lib/supabase-service";
  * single-use link, and only confirming it (POST /api/booking/confirm) creates the
  * REQUESTED appointment and tells the professional. A draft holds no time.
  *
- * 202 { status: "check_email" } on success.
+ * 202 { status: "check_email" } on success. 403 `professional_signed_in` when a
+ * professional (or applicant) is signed in: they can't book, with anyone (user, 2026-10-06).
  */
 export async function POST(req: NextRequest) {
   const limited = enforcePublicApiRateLimit(req, "appointments", {
@@ -37,6 +41,25 @@ export async function POST(req: NextRequest) {
       { message: "Server is not configured for booking (missing SUPABASE_SERVICE_ROLE_KEY)." },
       { status: 503 },
     );
+  }
+
+  const {
+    data: { user },
+  } = await createRouteHandlerClient({ cookies }).auth.getUser();
+  if (user) {
+    const kind = await loadBookingAccountKind(supabase, user.id).catch((err) => {
+      console.error("[DocCy] booking: account kind", err);
+      return null;
+    });
+    if (bookingViewerMode(kind, false) !== "patient") {
+      return NextResponse.json(
+        {
+          code: PROFESSIONAL_SIGNED_IN_CODE,
+          message: "You're signed in as a professional. To book a visit as a patient, sign out first.",
+        },
+        { status: 403 },
+      );
+    }
   }
 
   let body: Record<string, unknown>;

@@ -57,6 +57,11 @@
     }
   },
   "BookingPage": {
+    "ownProfileNoticeTitle": "This is how patients see your profile",
+    "ownProfileNoticeBody": "Patients book from here. To add a visit yourself, for a patient who phoned or walked in, use manual booking in your agenda.",
+    "ownProfileNoticeLink": "Add a manual booking",
+    "professionalNoticeTitle": "You're signed in as a professional",
+    "professionalNoticeBody": "Professionals can't book from their account. To book a visit as a patient, sign out first.",
     "title": "Book an appointment",
     "bookButton": "Book appointment",
     "booking": "Booking...",
