@@ -18,7 +18,12 @@ import {
 } from "@/lib/manual-booking-slots";
 import { agendaClinicEventColor } from "@/lib/doctor-locations";
 import { APPOINTMENT_REASON_MAX_LENGTH } from "@/lib/visit-types";
-import { isPatientGender, parsePatientBirthdate, type PatientGender } from "@/lib/booking-patient-fields";
+import { type PatientGender } from "@/lib/booking-patient-fields";
+import {
+  firstManualBookingError,
+  type ManualBookingError,
+  type ManualBookingField,
+} from "@/lib/manual-booking-validation";
 import "react-day-picker/dist/style.css";
 
 
@@ -96,6 +101,11 @@ export function ManualBookingFlow({
   const [patientBirthdate, setPatientBirthdate] = React.useState("");
   const [submitting, setSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  /** The first field to fix; its message shows under that field. */
+  const [fieldError, setFieldError] = React.useState<ManualBookingError | null>(null);
+  const errorFor = (field: ManualBookingField) => (fieldError?.field === field ? fieldError.message : null);
+  const fixed = (field: ManualBookingField) =>
+    setFieldError((current) => (current?.field === field ? null : current));
   const [success, setSuccess] = React.useState<SuccessState | null>(null);
 
   React.useEffect(() => {
@@ -110,6 +120,7 @@ export function ManualBookingFlow({
     setPatientGender("");
     setPatientBirthdate("");
     setError(null);
+    setFieldError(null);
     setSuccess(null);
     setSubmitting(false);
     setSelectedClinicId(preferredClinicId ?? clinics[0]?.id ?? null);
@@ -237,6 +248,24 @@ export function ManualBookingFlow({
     [availableDates],
   );
 
+  const MANUAL_FIELD_ID: Record<ManualBookingField, string> = {
+    patientName: "manualPatientName",
+    patientPhone: "manualPatientPhone",
+    patientEmail: "manualPatientEmail",
+    patientBirthdate: "manualPatientBirthdate",
+    reason: "manualReason",
+  };
+  const fieldClass = (field: ManualBookingField, extra = "") =>
+    `w-full rounded-2xl border bg-ink-900/40 px-3 py-2 text-sm text-slate-100 ${extra} ${
+      errorFor(field) ? "border-red-400/80 ring-1 ring-red-400/40" : "border-slate-800/80"
+    }`;
+  const fieldMessage = (field: ManualBookingField) =>
+    errorFor(field) ? (
+      <p id={`${MANUAL_FIELD_ID[field]}-error`} role="alert" className="text-xs font-medium text-red-300">
+        {errorFor(field)}
+      </p>
+    ) : null;
+
   async function handleConfirmBooking() {
     setError(null);
     if (!doctorId) {
@@ -251,31 +280,16 @@ export function ManualBookingFlow({
       setError("Please choose a clinic.");
       return;
     }
-    if (!patientName.trim()) {
-      setError("Patient name is required.");
+    // Name, phone and reason are required; first visit, gender, email and birth date are
+    // optional but checked when filled in (Rocío, 2026-10-06).
+    const problem = firstManualBookingError({ patientName, patientPhone, patientEmail, patientBirthdate, reason });
+    if (problem) {
+      setFieldError(problem);
+      document.getElementById(MANUAL_FIELD_ID[problem.field])?.focus();
       return;
     }
-    if (!patientPhone.trim()) {
-      setError("Patient phone is required.");
-      return;
-    }
-    if (isNewPatient === null) {
-      setError("Please say whether this is the patient's first visit.");
-      return;
-    }
-    if (!isPatientGender(patientGender)) {
-      setError("Please choose the patient's gender option.");
-      return;
-    }
-    if (!parsePatientBirthdate(patientBirthdate)) {
-      setError("Please enter a valid date of birth.");
-      return;
-    }
+    setFieldError(null);
     const reasonTrimmed = reason.slice(0, APPOINTMENT_REASON_MAX_LENGTH).trim();
-    if (!reasonTrimmed) {
-      setError("Reason for visit is required.");
-      return;
-    }
 
     try {
       setSubmitting(true);
@@ -289,17 +303,15 @@ export function ManualBookingFlow({
           appointmentLocal: selectedSlot.slotKey,
           reason: reasonTrimmed,
           isNewPatient,
-          patientGender,
-          patientBirthdate,
+          patientGender: patientGender || null,
+          patientBirthdate: patientBirthdate.trim() || null,
           locationId: selectedClinic?.id ?? null,
         }),
       });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
-        setError(
-          (data as { message?: string } | null)?.message ??
-            "Could not create manual booking.",
-        );
+        const message = (data as { message?: string } | null)?.message ?? "";
+        setError(message || "Could not create manual booking.");
         return;
       }
 
@@ -518,34 +530,50 @@ export function ManualBookingFlow({
 
             <div className="mt-5 grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <label className="text-xs font-semibold text-slate-200">
+                <label htmlFor="manualPatientName" className="text-xs font-semibold text-slate-200">
                   Patient Name <span className="text-red-300">*</span>
                 </label>
                 <input
+                  id="manualPatientName"
                   value={patientName}
-                  onChange={(e) => setPatientName(e.target.value)}
-                  className="w-full rounded-2xl border border-slate-800/80 bg-ink-900/40 px-3 py-2 text-sm text-slate-100"
+                  onChange={(e) => {
+                    setPatientName(e.target.value);
+                    fixed("patientName");
+                  }}
+                  aria-invalid={errorFor("patientName") ? true : undefined}
+                  aria-describedby={errorFor("patientName") ? "manualPatientName-error" : undefined}
+                  className={fieldClass("patientName")}
                   placeholder="Patient full name"
-                  required
+                  autoComplete="off"
                 />
+                {fieldMessage("patientName")}
               </div>
               <div className="space-y-2">
-                <label className="text-xs font-semibold text-slate-200">
+                <label htmlFor="manualPatientPhone" className="text-xs font-semibold text-slate-200">
                   Phone <span className="text-red-300">*</span>
                 </label>
                 <input
+                  id="manualPatientPhone"
+                  type="tel"
+                  inputMode="tel"
+                  autoComplete="off"
                   value={patientPhone}
-                  onChange={(e) => setPatientPhone(e.target.value)}
-                  className="w-full rounded-2xl border border-slate-800/80 bg-ink-900/40 px-3 py-2 text-sm text-slate-100"
-                  placeholder="+357..."
-                  required
+                  onChange={(e) => {
+                    setPatientPhone(e.target.value);
+                    fixed("patientPhone");
+                  }}
+                  aria-invalid={errorFor("patientPhone") ? true : undefined}
+                  aria-describedby={errorFor("patientPhone") ? "manualPatientPhone-error" : undefined}
+                  className={fieldClass("patientPhone")}
+                  placeholder="+357 99 123456"
                 />
+                {fieldMessage("patientPhone")}
               </div>
             </div>
 
             <fieldset className="mt-4 space-y-2">
               <legend className="text-xs font-semibold text-slate-200">
-                First visit with you? <span className="text-red-300">*</span>
+                First visit with you? <span className="font-normal text-slate-400">(optional)</span>
               </legend>
               <div className="grid gap-2 sm:grid-cols-2">
                 {(
@@ -570,7 +598,7 @@ export function ManualBookingFlow({
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
               <fieldset className="space-y-2">
                 <legend className="text-xs font-semibold text-slate-200">
-                  Gender <span className="text-red-300">*</span>
+                  Gender <span className="font-normal text-slate-400">(optional)</span>
                 </legend>
                 <div className="grid gap-2">
                   {(
@@ -595,7 +623,7 @@ export function ManualBookingFlow({
               </fieldset>
               <div className="space-y-2">
                 <label htmlFor="manualPatientBirthdate" className="text-xs font-semibold text-slate-200">
-                  Date of birth <span className="text-red-300">*</span>
+                  Date of birth <span className="font-normal text-slate-400">(optional)</span>
                 </label>
                 <input
                   id="manualPatientBirthdate"
@@ -603,37 +631,58 @@ export function ManualBookingFlow({
                   min="1900-01-01"
                   max={formatInTimeZone(new Date(), CY_TZ, "yyyy-MM-dd")}
                   value={patientBirthdate}
-                  onChange={(e) => setPatientBirthdate(e.target.value)}
-                  className="w-full rounded-2xl border border-slate-800/80 bg-ink-900/40 px-3 py-2 text-sm text-slate-100 [color-scheme:dark]"
-                  required
+                  onChange={(e) => {
+                    setPatientBirthdate(e.target.value);
+                    fixed("patientBirthdate");
+                  }}
+                  aria-invalid={errorFor("patientBirthdate") ? true : undefined}
+                  aria-describedby={errorFor("patientBirthdate") ? "manualPatientBirthdate-error" : undefined}
+                  className={fieldClass("patientBirthdate", "[color-scheme:dark]")}
                 />
+                {fieldMessage("patientBirthdate")}
               </div>
             </div>
 
             <div className="mt-4 space-y-2">
-              <label className="text-xs font-semibold text-slate-200">Email (optional)</label>
+              <label htmlFor="manualPatientEmail" className="text-xs font-semibold text-slate-200">
+                Email <span className="font-normal text-slate-400">(optional)</span>
+              </label>
               <input
+                id="manualPatientEmail"
+                type="email"
+                inputMode="email"
+                autoComplete="off"
                 value={patientEmail}
-                onChange={(e) => setPatientEmail(e.target.value)}
-                className="w-full rounded-2xl border border-slate-800/80 bg-ink-900/40 px-3 py-2 text-sm text-slate-100"
+                onChange={(e) => {
+                  setPatientEmail(e.target.value);
+                  fixed("patientEmail");
+                }}
+                aria-invalid={errorFor("patientEmail") ? true : undefined}
+                aria-describedby={errorFor("patientEmail") ? "manualPatientEmail-error" : undefined}
+                className={fieldClass("patientEmail")}
                 placeholder="patient@email.com"
               />
+              {fieldMessage("patientEmail")}
             </div>
 
             <div className="mt-4 space-y-2">
-              <label className="text-xs font-semibold text-slate-200">
+              <label htmlFor="manualReason" className="text-xs font-semibold text-slate-200">
                 Reason for visit <span className="text-red-300">*</span>
               </label>
               <textarea
+                id="manualReason"
                 value={reason}
-                onChange={(e) =>
-                  setReason(e.target.value.slice(0, APPOINTMENT_REASON_MAX_LENGTH))
-                }
+                onChange={(e) => {
+                  setReason(e.target.value.slice(0, APPOINTMENT_REASON_MAX_LENGTH));
+                  fixed("reason");
+                }}
                 rows={3}
-                className="w-full resize-y rounded-2xl border border-slate-800/80 bg-ink-900/40 px-3 py-2 text-sm text-slate-100"
+                aria-invalid={errorFor("reason") ? true : undefined}
+                aria-describedby={errorFor("reason") ? "manualReason-error" : undefined}
+                className={fieldClass("reason", "resize-y")}
                 placeholder="Brief reason for this visit"
-                required
               />
+              {fieldMessage("reason")}
             </div>
 
             {error ? (

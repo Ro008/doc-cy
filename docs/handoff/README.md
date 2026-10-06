@@ -22,7 +22,10 @@ endpoint and shows a friendly "not available yet" message.
 3. **One agenda per professional** — [one-agenda-per-professional.md](one-agenda-per-professional.md).
    Drop the clinic filter in `fetchBlockingAppointments` for `POST /api/appointments` and
    `POST /api/appointments/manual`. No migration.
-4. Small fix: stale comment in `app/api/appointments/route.ts` (the 23505 branch) says a
+4. **Optional patient details on manual bookings**: already done on this branch (frontend, server and
+   migration `20261006150000`, applied on Testing). Nothing to build; see
+   [manual-booking-optional-details.md](manual-booking-optional-details.md).
+5. Small fix: stale comment in `app/api/appointments/route.ts` (the 23505 branch) says a
    `NEEDS_RESCHEDULE` row still holds its original instant in the unique index; it no longer does
    (commit `05f9726`).
 
@@ -32,6 +35,7 @@ endpoint and shows a friendly "not available yet" message.
 |---|---|
 | Status value `EXPIRED` | 1 |
 | Status value `RESCHEDULE_EXPIRED` | 2 |
+| Relax `appointments_booking_fields_check` for `booking_source = 'manual'` (done, applied on Testing) | 4 |
 | `appointments.rescheduled_from timestamptz null` | 2 |
 | `appointments.reschedule_reminder_sent_at timestamptz null` | 2 |
 

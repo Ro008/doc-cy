@@ -8,8 +8,8 @@ import {
 
 /**
  * The booking form (user, 2026-10-02): name, email, phone, first visit, reason, gender
- * (female / male / prefer_not_to_say) and birth date are all required; the email is
- * optional for manual bookings. Mirrors appointments_booking_fields_check.
+ * (female / male / prefer_not_to_say) and birth date are all required online. Manual bookings
+ * need only name, phone and reason (Rocío, 2026-10-06). Mirrors appointments_booking_fields_check.
  */
 const TODAY = new Date("2026-10-04T10:00:00Z");
 
@@ -96,8 +96,40 @@ describe("parseBookingPatientFields (manual)", () => {
     assert.equal(res.ok, false);
   });
 
-  it("still requires gender and birth date", () => {
-    assert.equal(parseBookingPatientFields({ ...valid, patientGender: "" }, "manual", TODAY).ok, false);
-    assert.equal(parseBookingPatientFields({ ...valid, patientBirthdate: null }, "manual", TODAY).ok, false);
+  it("lets first visit, gender and birth date be left out (Rocío, 2026-10-06)", () => {
+    const res = parseBookingPatientFields(
+      { ...valid, isNewPatient: null, patientGender: "", patientBirthdate: null, patientEmail: "" },
+      "manual",
+      TODAY,
+    );
+    assert.deepEqual(res, {
+      ok: true,
+      fields: {
+        patientName: "Maria Kyriakou",
+        patientEmail: null,
+        patientPhone: "+357 99 123456",
+        isNewPatient: null,
+        reason: "Knee pain",
+        patientGender: null,
+        patientBirthdate: null,
+      },
+    });
+  });
+
+  it("still checks the optional details that were entered", () => {
+    assert.equal(parseBookingPatientFields({ ...valid, patientGender: "other" }, "manual", TODAY).ok, false);
+    assert.equal(parseBookingPatientFields({ ...valid, patientBirthdate: "2026-10-05" }, "manual", TODAY).ok, false);
+  });
+
+  it("still requires name, phone and reason", () => {
+    assert.equal(parseBookingPatientFields({ ...valid, patientName: " " }, "manual", TODAY).ok, false);
+    assert.equal(parseBookingPatientFields({ ...valid, patientPhone: "" }, "manual", TODAY).ok, false);
+    assert.equal(parseBookingPatientFields({ ...valid, reason: " " }, "manual", TODAY).ok, false);
+  });
+
+  it("refuses a phone that isn't a phone number", () => {
+    const res = parseBookingPatientFields({ ...valid, patientPhone: "+35799991351sgdfe3456 36" }, "manual", TODAY);
+    assert.equal(res.ok, false);
+    assert.match(res.ok ? "" : res.message.toLowerCase(), /phone/);
   });
 });

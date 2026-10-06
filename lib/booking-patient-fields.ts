@@ -3,6 +3,7 @@ import { formatInTimeZone } from "date-fns-tz";
 import { CY_TZ } from "@/lib/appointments";
 import { parseIsNewPatient } from "@/lib/patient-visit-status";
 import { isValidRegisterEmail } from "@/lib/register-email";
+import { manualPhoneProblem } from "@/lib/phone-number";
 import { normalizeAppointmentReason } from "@/lib/visit-types";
 
 /**
@@ -20,11 +21,13 @@ export type BookingPatientFields = {
   patientName: string;
   patientEmail: string | null;
   patientPhone: string;
-  isNewPatient: boolean;
+  /** null only on manual bookings, where it is optional (Rocío, 2026-10-06). */
+  isNewPatient: boolean | null;
   reason: string;
-  patientGender: PatientGender;
-  /** YYYY-MM-DD */
-  patientBirthdate: string;
+  /** null only on manual bookings. */
+  patientGender: PatientGender | null;
+  /** YYYY-MM-DD; null only on manual bookings. */
+  patientBirthdate: string | null;
 };
 
 // Optional `undefined` fields on each branch: no strictNullChecks in this project.
@@ -71,9 +74,17 @@ export function parseBookingPatientFields(
 
   const patientPhone = clean(raw.patientPhone);
   if (!patientPhone) return { ok: false, message: "Please enter a phone number." };
+  // Typed by the professional (no phone widget): digits and separators, 7 to 15 digits.
+  if (source === "manual" && manualPhoneProblem(patientPhone)) {
+    return { ok: false, message: "Please enter a valid phone number (digits, optional + at the start)." };
+  }
+
+  // Manual bookings: only name, phone and reason are required; the rest is checked when
+  // given (Rocío, 2026-10-06). Online bookings require everything.
+  const optional = source === "manual";
 
   const isNewPatient = parseIsNewPatient(raw.isNewPatient);
-  if (isNewPatient === null) {
+  if (isNewPatient === null && !optional) {
     return { ok: false, message: "Please tell us if this is the first visit with this professional." };
   }
 
@@ -81,10 +92,15 @@ export function parseBookingPatientFields(
   if (!reason) return { ok: false, message: "Please tell us briefly why you need this visit." };
 
   const gender = clean(raw.patientGender);
-  if (!isPatientGender(gender)) return { ok: false, message: "Please choose a gender option." };
+  if (!(optional && !gender) && !isPatientGender(gender)) {
+    return { ok: false, message: "Please choose a gender option." };
+  }
 
-  const patientBirthdate = parsePatientBirthdate(raw.patientBirthdate, now);
-  if (!patientBirthdate) return { ok: false, message: "Please enter a valid date of birth." };
+  const birthdateRaw = clean(raw.patientBirthdate);
+  const patientBirthdate = optional && !birthdateRaw ? null : parsePatientBirthdate(raw.patientBirthdate, now);
+  if (!patientBirthdate && !(optional && !birthdateRaw)) {
+    return { ok: false, message: "Please enter a valid date of birth." };
+  }
 
   return {
     ok: true,
@@ -94,7 +110,7 @@ export function parseBookingPatientFields(
       patientPhone,
       isNewPatient,
       reason,
-      patientGender: gender,
+      patientGender: isPatientGender(gender) ? gender : null,
       patientBirthdate,
     },
   };
