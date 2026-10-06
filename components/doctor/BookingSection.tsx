@@ -25,7 +25,6 @@ import { isPatientGender, parsePatientBirthdate, type PatientGender } from "@/li
 import { formatDateDDMMYYYY } from "@/lib/date-format";
 import "react-day-picker/dist/style.css";
 import { useLocale, useTranslations } from "next-intl";
-import { PendingLink } from "@/components/navigation/PendingLink";
 
 type WeeklySlot = {
   id: string;
@@ -72,7 +71,6 @@ export function BookingSection({
   doctorName,
   weeklySlots,
   takenSlotTimes = [],
-  profileSlug,
   initialSlotKey = null,
   breakStart,
   breakEnd,
@@ -477,6 +475,23 @@ export function BookingSection({
     );
   }
 
+  /** Back to a clean calendar where the success card was (the form fields were cleared on send). */
+  function startOver() {
+    const el = successRef.current;
+    const top = el ? el.getBoundingClientRect().top + window.scrollY - 96 : null;
+    setBookingSuccess(false);
+    setCheckEmailAddress(null);
+    setLastAppointmentId(null);
+    setError(null);
+    setSubmitting(false);
+    if (top !== null) {
+      const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      window.requestAnimationFrame(() => {
+        if (top < window.scrollY) window.scrollTo({ top, behavior: reduceMotion ? "auto" : "smooth" });
+      });
+    }
+  }
+
   if (bookingSuccess) {
     return (
       <div
@@ -505,22 +520,15 @@ export function BookingSection({
           {checkEmailAddress ? (
             <p className="mt-2 max-w-sm text-xs leading-relaxed text-ink-500">{t("checkEmailHint")}</p>
           ) : null}
-          {profileSlug ? (
-            <PendingLink
-              href={`/${activeLocale}/${profileSlug}`}
-              className="mt-8 flex w-full max-w-xs items-center justify-center rounded-2xl border border-amber-300 bg-white px-6 py-3 text-sm font-semibold text-amber-900 shadow-sm transition hover:border-amber-400 hover:bg-amber-50 focus:outline-none focus:ring-2 focus:ring-amber-400/50 focus:ring-offset-2 focus:ring-offset-white"
-            >
-              {t("doneButton")}
-            </PendingLink>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setBookingSuccess(false)}
-              className="mt-8 w-full max-w-xs rounded-2xl border border-amber-300 bg-white px-6 py-3 text-sm font-semibold text-amber-900 shadow-sm transition hover:border-amber-400 hover:bg-amber-50 focus:outline-none focus:ring-2 focus:ring-amber-400/50 focus:ring-offset-2 focus:ring-offset-white"
-            >
-              {t("doneButton")}
-            </button>
-          )}
+          {/* Done shows the calendar again in place: a link to this same profile URL did nothing. */}
+          <button
+            type="button"
+            onClick={startOver}
+            data-testid="booking-success-done"
+            className="mt-8 w-full max-w-xs rounded-2xl border border-amber-300 bg-white px-6 py-3 text-sm font-semibold text-amber-900 shadow-sm transition hover:border-amber-400 hover:bg-amber-50 focus:outline-none focus:ring-2 focus:ring-amber-400/50 focus:ring-offset-2 focus:ring-offset-white"
+          >
+            {t("doneButton")}
+          </button>
         </div>
       </div>
     );
