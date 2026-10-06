@@ -374,7 +374,7 @@ function RescheduleNoAnswerItem({
         <button
           type="button"
           onClick={onClose}
-          className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-red-500/30 px-3 text-sm font-medium text-red-300 transition hover:border-red-400/60 hover:bg-red-500/10 hover:text-red-200"
+          className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-slate-600/70 px-3 text-sm font-medium text-slate-200 transition hover:border-slate-500 hover:bg-slate-800/70 hover:text-white"
         >
           Close
         </button>
