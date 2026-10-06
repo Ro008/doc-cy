@@ -17,6 +17,8 @@ export type PhoneInputProps = {
   id?: string;
   /** When true, show validation error only after submit attempt (never on load). */
   showValidationError?: boolean;
+  /** A message from the form (e.g. "phone required"); replaces the built-in one. */
+  errorMessage?: string | null;
 };
 
 export function PhoneInput({
@@ -26,6 +28,7 @@ export function PhoneInput({
   label,
   id,
   showValidationError = false,
+  errorMessage = null,
 }: PhoneInputProps) {
   const [isValid, setIsValid] = React.useState(true);
   const t = useTranslations("BookingPage");
@@ -43,6 +46,10 @@ export function PhoneInput({
     onChange(phone, valid);
   };
 
+  // Red only once there is something to fix: the box starts as just "+357", which is not a
+  // valid number yet but must not look like an error before the patient has done anything.
+  const showError = Boolean(errorMessage) || (showValidationError && !isValid);
+
   return (
     <div className="space-y-1">
       {label && (
@@ -55,16 +62,34 @@ export function PhoneInput({
         value={value}
         onChange={handleChange}
         className="w-full"
-        inputProps={id ? { id } : undefined}
+        // The library paints its own border (country button and input); its variable turns both red.
+        style={
+          showError
+            ? ({ "--react-international-phone-border-color": "#f87171" } as React.CSSProperties)
+            : undefined
+        }
+        inputProps={
+          id
+            ? {
+                id,
+                "aria-invalid": errorMessage ? true : undefined,
+                "aria-describedby": errorMessage ? `${id}-error` : undefined,
+              }
+            : undefined
+        }
         inputClassName={`w-full rounded-md border px-3 py-2 text-sm text-ink-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-clinical-500 ${
-          !isValid ? "border-red-500" : "border-ink-200"
+          showError ? "border-red-500" : "border-ink-200"
         }`}
       />
-      {showValidationError && !isValid && (
+      {errorMessage ? (
+        <p id={id ? `${id}-error` : undefined} role="alert" className="text-xs font-medium text-red-600">
+          {errorMessage}
+        </p>
+      ) : showValidationError && !isValid ? (
         <p className="text-xs text-red-600">
           {t("phoneValidationError")}
         </p>
-      )}
+      ) : null}
     </div>
   );
 }

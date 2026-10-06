@@ -133,6 +133,10 @@
     "errors": {
       "selectTimeSlot": "Please select a time slot.",
       "completePatientDetails": "Please complete all patient details.",
+      "nameRequired": "Please enter your full name.",
+      "emailRequired": "Please enter your email address.",
+      "validEmail": "Please check your email address, for example name@gmail.com.",
+      "phoneRequired": "Please enter a phone number so the clinic can reach you.",
       "validPhone": "Please enter a valid phone number.",
       "selectVisitType": "Please select a type of visit.",
       "selectVisitHistory": "Please tell us if this is your first visit.",
