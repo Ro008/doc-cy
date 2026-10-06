@@ -37,3 +37,21 @@ describe("confirmation email cancel link", () => {
     assert.ok(!/Need to cancel/i.test(email.html));
   });
 });
+
+describe("confirmation email clinic phone", () => {
+  it("shows the clinic phone in the text and as a tap-to-call link", () => {
+    const email = buildPatientAppointmentConfirmedEmailContent(base);
+    assert.ok(email.text.includes("+357 22 123456"), "text");
+    assert.ok(email.html.includes("+357 22 123456"), "html");
+    assert.ok(email.html.includes('href="tel:+35722123456"'), "tel link");
+  });
+
+  it("has no phone line when the clinic has no phone", () => {
+    const email = buildPatientAppointmentConfirmedEmailContent({
+      ...base,
+      doctor: { ...base.doctor, phone: null },
+    });
+    assert.ok(!/Phone/i.test(email.text));
+    assert.ok(!email.html.includes("tel:"));
+  });
+});

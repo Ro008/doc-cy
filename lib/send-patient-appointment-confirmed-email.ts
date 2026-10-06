@@ -26,8 +26,10 @@ import {
   EMAIL_SHELL_OPEN,
   EMAIL_TEXT,
   EMAIL_HEADING,
+  EMAIL_LINK_ACCENT,
 } from "@/lib/email-brand";
 import { appointmentCalendarPath } from "@/lib/appointment-links";
+import { formatCyprusPhoneDisplay, phoneToTelHref } from "@/lib/phone-link";
 
 const CAL_GOOGLE_STYLE = EMAIL_CAL_GOOGLE_BTN;
 const CAL_ICS_STYLE = EMAIL_CAL_ICS_BTN;
@@ -108,6 +110,9 @@ export function buildPatientAppointmentConfirmedEmailContent(opts: {
       address: doctor.clinic_address,
     });
 
+  const telHref = phoneToTelHref(doctor.phone);
+  const phoneDisplay = telHref ? formatCyprusPhoneDisplay(doctor.phone) : "";
+
   const startUtc = new Date(appointmentDatetimeIso);
   const endUtc = addMinutes(startUtc, durationMinutes);
   const cyDate = appointmentToCyprusDate(appointmentDatetimeIso);
@@ -141,8 +146,9 @@ export function buildPatientAppointmentConfirmedEmailContent(opts: {
   let text =
     `Hi ${patientName},\n\n` +
     `Your appointment with ${doctorName} is confirmed for ${whenLabel} (Cyprus time).\n\n` +
-    `${formatAppointmentClinicEmailText(clinic)}\n` +
-    `You can add it to your calendar:\n\n` +
+    `${formatAppointmentClinicEmailText(clinic)}` +
+    (phoneDisplay ? `Phone: ${phoneDisplay}\n` : "") +
+    `\nYou can add it to your calendar:\n\n` +
     `Google Calendar: ${patientGoogleUrl}\n` +
     `Apple / Outlook (.ics): ${patientIcsUrl}\n\n`;
   if (isAfterReschedule) {
@@ -167,6 +173,13 @@ ${EMAIL_SHELL_OPEN}
       <strong>${escapeHtml(whenLabel)}</strong> (Cyprus time). You can add it to your calendar below.
     </p>
     ${formatAppointmentClinicEmailHtml(clinic)}
+    ${
+      phoneDisplay && telHref
+        ? `<p style="margin:0 0 14px;font-size:15px;line-height:1.6;color:${EMAIL_TEXT};">
+      <a href="${escapeHtml(telHref)}" style="${EMAIL_LINK_ACCENT}">${escapeHtml(phoneDisplay)}</a>
+    </p>`
+        : ""
+    }
     ${
       isAfterReschedule
         ? `<div style="margin:0 0 14px;padding:12px 13px;border:2px solid #f59e0b;background:rgba(245,158,11,.16);border-radius:12px;">
