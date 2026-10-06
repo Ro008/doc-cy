@@ -5,6 +5,7 @@ import { BookingLinkCard, BookingLinkShell, BookingLinkText, BookOnlineButton } 
 import { ConfirmBookingRequestClient } from "@/components/booking/ConfirmBookingRequestClient";
 import { findDraftByToken, resolveDraftLinkState } from "@/lib/appointment-drafts";
 import { isAppointmentLinkTokenShape } from "@/lib/appointment-link-token";
+import { draftBookability } from "@/lib/draft-bookability";
 import { appointmentToCyprusDate } from "@/lib/appointments";
 import { publicProfessionalProfilePath } from "@/lib/manual-directory-landing-path";
 import { createServiceRoleClient } from "@/lib/supabase-service";
@@ -43,7 +44,12 @@ export default async function ConfirmBookingRequestPage({ searchParams }: { sear
     const copy =
       state === "used"
         ? { title: "Already confirmed", body: "This request was already confirmed. You'll get an email when the professional replies." }
-        : state === "replaced"
+        : state === "unbooked"
+          ? {
+              title: "This request wasn't sent",
+              body: "The time you picked was no longer free, so nothing was booked. Please choose another time.",
+            }
+          : state === "replaced"
           ? { title: "You sent a newer request", body: "This request was replaced by a newer one. Use the link in your latest email." }
           : state === "expired"
           ? { title: "This link has expired", body: "Confirmation links work for 30 minutes. Please book your time again." }
@@ -53,6 +59,30 @@ export default async function ConfirmBookingRequestPage({ searchParams }: { sear
         <BookingLinkCard title={copy.title} testId={`booking-confirm-${state}`}>
           <BookingLinkText>{copy.body}</BookingLinkText>
           {state === "used" || state === "replaced" ? null : <BookOnlineButton href={bookOnlineHref} />}
+        </BookingLinkCard>
+      </BookingLinkShell>
+    );
+  }
+
+  // Never offer "Confirm my request" for a time that's gone or while a request is
+  // already waiting (manual test B5, user 2026-10-06). The button's POST checks again.
+  const bookable = supabase ? await draftBookability(supabase, draft).catch(() => null) : null;
+  if (bookable && !bookable.ok) {
+    const copy =
+      bookable.code === "slot_taken"
+        ? { title: "That time was just booked", body: "Someone else booked this time a moment ago. Please choose another time." }
+        : bookable.code === "open_request_exists"
+          ? {
+              title: "You already have a request",
+              body: `You already have a request waiting with ${professionalName}. Please wait for their reply.`,
+            }
+          : { title: "This time can't be booked any more", body: "Please choose another time." };
+    const testCode = bookable.code === "slot_taken" || bookable.code === "open_request_exists" ? bookable.code : "unavailable";
+    return (
+      <BookingLinkShell>
+        <BookingLinkCard title={copy.title} testId={`booking-confirm-${testCode}`}>
+          <BookingLinkText>{copy.body}</BookingLinkText>
+          {bookable.code === "open_request_exists" ? null : <BookOnlineButton href={bookOnlineHref} />}
         </BookingLinkCard>
       </BookingLinkShell>
     );

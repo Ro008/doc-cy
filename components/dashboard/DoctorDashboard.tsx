@@ -707,7 +707,7 @@ function PendingRequestItem({
                   type="button"
                   onClick={onDecline}
                   disabled={locked}
-                  className="h-11 rounded-xl border border-red-500/50 px-3 text-sm font-medium text-slate-200 transition hover:border-red-400/70 hover:bg-red-500/10 hover:text-red-100 disabled:pointer-events-none disabled:opacity-50 sm:h-10"
+                  className="h-11 rounded-xl border border-red-500/30 px-3 text-sm font-medium text-red-300 transition hover:border-red-400/60 hover:bg-red-500/10 hover:text-red-200 disabled:pointer-events-none disabled:opacity-50 sm:h-10"
                 >
                   Decline
                 </button>

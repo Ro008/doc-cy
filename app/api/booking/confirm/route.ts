@@ -1,12 +1,10 @@
-import { formatInTimeZone } from "date-fns-tz";
 import { NextRequest, NextResponse } from "next/server";
 
 import { emailClinicFromLocation } from "@/lib/appointment-clinic-copy";
-import { consumeDraftByToken, countOpenRequestsWithProfessional } from "@/lib/appointment-drafts";
+import { consumeDraftByToken, releaseDraft } from "@/lib/appointment-drafts";
 import { isAppointmentLinkTokenShape } from "@/lib/appointment-link-token";
-import { CY_TZ } from "@/lib/appointments";
 import { buildProfessionalNewRequestEmail, sendBuiltEmail } from "@/lib/booking-request-emails";
-import { checkOnlineBookingSlot } from "@/lib/online-booking-slot-check";
+import { draftBookability } from "@/lib/draft-bookability";
 import { professionalAccountEmail } from "@/lib/professional-account-contact";
 import { enforcePublicApiRateLimit } from "@/lib/public-api-rate-limit";
 import { createServiceRoleClient } from "@/lib/supabase-service";
@@ -17,7 +15,7 @@ import { createServiceRoleClient } from "@/lib/supabase-service";
  * Uses the link once, re-checks the time (it may have been taken since the form was
  * sent), creates the REQUESTED appointment and only then emails the professional.
  * - 200 { appointment }
- * - 410 { state: "invalid" | "used" | "replaced" | "expired" }
+ * - 410 { state: "invalid" | "used" | "unbooked" | "replaced" | "expired" }
  * - 409 { code: "slot_taken" | "open_request_exists", professionalSlug } (link used up:
  *   the patient picks another time on the profile)
  */
@@ -53,7 +51,9 @@ export async function POST(req: NextRequest) {
     const message =
       consumed.state === "used"
         ? "This request was already confirmed."
-        : consumed.state === "replaced"
+        : consumed.state === "unbooked"
+          ? "This request wasn't sent: the time was no longer free. Please choose another time."
+          : consumed.state === "replaced"
           ? "This request was replaced by a newer one. Use the link in your latest email."
           : consumed.state === "expired"
           ? "This link has expired."
@@ -69,31 +69,23 @@ export async function POST(req: NextRequest) {
     .maybeSingle();
   const professionalSlug = (professional as { slug?: string | null } | null)?.slug ?? null;
 
-  const slot = await checkOnlineBookingSlot(supabase, {
-    professionalId: draft.professional_id,
-    appointmentLocal: formatInTimeZone(new Date(draft.appointment_datetime), CY_TZ, "yyyy-MM-dd'T'HH:mm"),
-    clinicId: draft.clinic_id,
-  });
-  if (!slot.ok) {
-    return NextResponse.json({ message: slot.message, code: slot.code, professionalSlug }, { status: slot.status });
-  }
+  // A refusal gives the link back: no request was created, so it mustn't read as used.
+  const release = () =>
+    releaseDraft(supabase, draft.id).catch((err) => console.error("[DocCy] confirm: release draft", err));
 
+  let check: Awaited<ReturnType<typeof draftBookability>>;
   try {
-    const open = await countOpenRequestsWithProfessional(supabase, draft.professional_id, draft.patient_email);
-    if (open > 0) {
-      return NextResponse.json(
-        {
-          code: "open_request_exists",
-          message: "You already have a request waiting with this professional.",
-          professionalSlug,
-        },
-        { status: 409 },
-      );
-    }
+    check = await draftBookability(supabase, draft);
   } catch (err) {
-    console.error("[DocCy] confirm: open requests", err);
+    console.error("[DocCy] confirm: bookability", err);
+    await release();
     return NextResponse.json({ message: "Something went wrong. Please try again." }, { status: 500 });
   }
+  if (!check.ok) {
+    await release();
+    return NextResponse.json({ message: check.message, code: check.code, professionalSlug }, { status: check.status });
+  }
+  const slot = check.slot;
 
   const { data: inserted, error: insertError } = await supabase
     .from("appointments")
@@ -120,6 +112,7 @@ export async function POST(req: NextRequest) {
     .select("id, appointment_datetime, status")
     .single();
   if (insertError || !inserted) {
+    await release();
     if ((insertError as { code?: string } | null)?.code === "23505") {
       return NextResponse.json(
         { code: "slot_taken", message: "That time was just booked. Please choose another time.", professionalSlug },

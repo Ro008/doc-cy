@@ -41,20 +41,22 @@ export function bookingLimitRefusal(counts: {
   return null;
 }
 
-export type DraftLinkState = "usable" | "used" | "replaced" | "expired" | "invalid";
+export type DraftLinkState = "usable" | "used" | "unbooked" | "replaced" | "expired" | "invalid";
 
 /**
  * `replaced`: the patient sent the form again for the same professional, so only the
  * newest link works (user, 2026-10-05). An unconfirmed draft never blocks the form,
  * since nobody has proved the email yet.
+ * `unbooked`: marked confirmed but no request was created (an older refusal; refusals now
+ * release the link). Never reads as "already confirmed" (manual test B5, user 2026-10-06).
  */
 export function draftLinkState(
-  draft: { expires_at: string; confirmed_at: string | null } | null | undefined,
+  draft: { expires_at: string; confirmed_at: string | null; appointment_id?: string | null } | null | undefined,
   now: Date = new Date(),
   opts: { newerDraftExists?: boolean } = {},
 ): DraftLinkState {
   if (!draft) return "invalid";
-  if (draft.confirmed_at) return "used";
+  if (draft.confirmed_at) return draft.appointment_id === null ? "unbooked" : "used";
   if (opts.newerDraftExists) return "replaced";
   return new Date(draft.expires_at).getTime() > now.getTime() ? "usable" : "expired";
 }
@@ -167,6 +169,19 @@ async function hasNewerDraft(supabase: SupabaseClient, draft: AppointmentDraftRo
     .gt("created_at", draft.created_at);
   if (error) throw error;
   return (count ?? 0) > 0;
+}
+
+/**
+ * Gives the link back after a refused confirm (the time was taken, or a request is
+ * already waiting), so it isn't used up by a request that was never created.
+ */
+export async function releaseDraft(supabase: SupabaseClient, draftId: string): Promise<void> {
+  const { error } = await supabase
+    .from("appointment_drafts")
+    .update({ confirmed_at: null })
+    .eq("id", draftId)
+    .is("appointment_id", null);
+  if (error) throw error;
 }
 
 /** The link's state as the patient sees it, including `replaced`. */

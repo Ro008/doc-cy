@@ -170,14 +170,44 @@ test.describe("Integration: online booking confirmed by email", { tag: "@pr-e2e"
     expect((await res.json()).state).toBe("invalid");
   });
 
-  test("confirming a time someone took meanwhile says so", async ({ request }) => {
+  // Manual test B5 (user, 2026-10-06): the second patient's link must say the time is
+  // gone as soon as it opens, and a refused confirm must not read as "already confirmed".
+  test("confirming a time someone took meanwhile says so, before and after the click", async ({ request, page }) => {
     const when = weekdayLocal(14);
     const { token: first } = await draftFor(when, `race-a-${nonce}@integration.test`);
-    const { token: second } = await draftFor(when, `race-b-${nonce}@integration.test`);
+    const { token: second, draftId } = await draftFor(when, `race-b-${nonce}@integration.test`);
     expect((await request.post("/api/booking/confirm", { data: { token: first } })).status()).toBe(200);
+
+    await page.goto(`/booking/confirm?token=${encodeURIComponent(second)}`);
+    await expect(page.getByTestId("booking-confirm-slot_taken")).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByRole("button", { name: /confirm my request/i })).toHaveCount(0);
+
     const res = await request.post("/api/booking/confirm", { data: { token: second } });
     expect(res.status()).toBe(409);
     expect((await res.json()).code).toBe("slot_taken");
+
+    // The refusal releases the link instead of using it up.
+    const { data: draft } = await admin.from("appointment_drafts").select("confirmed_at").eq("id", draftId).single();
+    expect(draft!.confirmed_at).toBeNull();
+    await page.reload();
+    await expect(page.getByTestId("booking-confirm-slot_taken")).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText(/already confirmed/i)).toHaveCount(0);
+  });
+
+  test("a link used up by an earlier refusal doesn't claim it was confirmed", async ({ page }) => {
+    const { token, draftId } = await draftFor(weekdayLocal(17), `stale-${nonce}@integration.test`);
+    await admin.from("appointment_drafts").update({ confirmed_at: new Date().toISOString() }).eq("id", draftId);
+    await page.goto(`/booking/confirm?token=${encodeURIComponent(token)}`);
+    await expect(page.getByTestId("booking-confirm-unbooked")).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText(/already confirmed/i)).toHaveCount(0);
+  });
+
+  test("the link page says so when this email already has a request waiting", async ({ page }) => {
+    const email = `confirm-${nonce}@integration.test`; // has an open request from an earlier test
+    const { token } = await draftFor(weekdayLocal(15, 5), email);
+    await page.goto(`/booking/confirm?token=${encodeURIComponent(token)}`);
+    await expect(page.getByTestId("booking-confirm-open_request_exists")).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByRole("button", { name: /confirm my request/i })).toHaveCount(0);
   });
 
   test("one open request per email per professional", async ({ request }) => {

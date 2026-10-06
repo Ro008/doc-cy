@@ -61,6 +61,22 @@ describe("draftLinkState", () => {
     assert.equal(draftLinkState(null, now), "invalid");
   });
 
+  // A confirm refused before the request was created (time taken) leaves no appointment:
+  // that link must not read as "already confirmed" (manual test B5, user 2026-10-06).
+  it("is unbooked when marked confirmed but no request was created", () => {
+    assert.equal(
+      draftLinkState({ expires_at: "2026-10-05T10:29:00Z", confirmed_at: "2026-10-05T09:59:00Z", appointment_id: null }, now),
+      "unbooked",
+    );
+    assert.equal(
+      draftLinkState(
+        { expires_at: "2026-10-05T10:29:00Z", confirmed_at: "2026-10-05T09:59:00Z", appointment_id: "a-1" },
+        now,
+      ),
+      "used",
+    );
+  });
+
   // Sending the form again replaces the earlier unconfirmed draft (user, 2026-10-05).
   it("is replaced when a newer draft exists, whether or not its time ran out", () => {
     const replaced = { newerDraftExists: true };
