@@ -18,6 +18,7 @@ import {
   getCalendarEventDetails,
 } from "@/lib/patient-calendar-event";
 import {
+  EMAIL_CANCEL_BTN,
   EMAIL_CAL_GOOGLE_BTN,
   EMAIL_CAL_ICS_BTN,
   EMAIL_SECTION_LABEL,
@@ -188,9 +189,9 @@ ${EMAIL_SHELL_OPEN}
       cancel
         ? `<p style="${PRIMARY_ACTIONS_LABEL}">Need to cancel?</p>
     <p style="margin:0 0 10px;font-size:14px;line-height:1.6;color:${EMAIL_TEXT};">
-      You can cancel online until <strong>${escapeHtml(cancel.deadlineLabel)}</strong> (Cyprus time):
-      <a href="${escapeHtml(cancel.url)}">cancel this appointment</a>.
-    </p>`
+      You can cancel online until <strong>${escapeHtml(cancel.deadlineLabel)}</strong> (Cyprus time).
+    </p>
+    <a href="${escapeHtml(cancel.url)}" style="${EMAIL_CANCEL_BTN}">Cancel this appointment</a>`
         : ""
     }
 

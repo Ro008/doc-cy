@@ -28,6 +28,13 @@ export const EMAIL_CAL_GOOGLE_BTN =
 export const EMAIL_CAL_ICS_BTN =
   "display:block;text-align:center;background:rgba(18,184,192,.16);color:#E6F8F9;text-decoration:none;font-weight:700;padding:12px 14px;border-radius:12px;border:1px solid rgba(18,184,192,.4);font-size:15px;";
 
+/**
+ * "Cancel this appointment": its own button, clearly a cancel action (soft red outline, light
+ * rose text, ~9:1 on the navy card) but quieter than the calendar buttons above it.
+ */
+export const EMAIL_CANCEL_BTN =
+  "display:block;text-align:center;background:rgba(248,113,113,.10);color:#FECACA;text-decoration:none;font-weight:700;padding:12px 14px;border-radius:12px;border:1px solid rgba(248,113,113,.55);margin:0 0 12px;font-size:15px;";
+
 export const EMAIL_LINK_ACCENT =
   "color:#7DD9DF;font-weight:600;text-decoration:none;";
 

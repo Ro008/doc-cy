@@ -4,12 +4,14 @@ import { enUS } from "date-fns/locale";
 import { appointmentToCyprusDate } from "@/lib/appointments";
 import { clinicHtml, type BuiltEmail, type EmailClinic } from "@/lib/booking-request-emails";
 import {
+  EMAIL_CANCEL_BTN,
   EMAIL_HEADING,
   EMAIL_PRIMARY_BTN,
   EMAIL_SHELL_CLOSE,
   EMAIL_SHELL_OPEN,
   EMAIL_TEXT,
   EMAIL_TEXT_MUTED,
+  emailFallbackLink,
 } from "@/lib/email-brand";
 import { professionalFirstName } from "@/lib/professional-name";
 import { AUTOMATED_EMAIL_FOOTER_TEXT, automatedEmailFooterHtml, escapeHtml } from "@/lib/resend";
@@ -89,9 +91,11 @@ ${EMAIL_SHELL_OPEN}
     <p style="${P}">${escapeHtml(lead)}${clinicHtml(opts.clinic)}.</p>
     ${
       opts.cancel
-        ? `<p style="${MUTED}">Can't make it? <a href="${escapeHtml(opts.cancel.url)}">Cancel online</a> until ${escapeHtml(
+        ? `<p style="${P}">Can't make it? You can cancel online until <strong>${escapeHtml(
             opts.cancel.deadlineLabel,
-          )}. Link: ${escapeHtml(opts.cancel.url)}</p>`
+          )}</strong> (Cyprus time).</p>
+    <a href="${escapeHtml(opts.cancel.url)}" style="${EMAIL_CANCEL_BTN}">Cancel this appointment</a>
+    <p style="${MUTED}">If the button does not work, copy this link: ${emailFallbackLink(opts.cancel.url)}</p>`
         : ""
     }
     ${automatedEmailFooterHtml()}
