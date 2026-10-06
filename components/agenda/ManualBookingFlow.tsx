@@ -21,6 +21,7 @@ import { agendaClinicEventColor } from "@/lib/doctor-locations";
 import { APPOINTMENT_REASON_MAX_LENGTH } from "@/lib/visit-types";
 import { type PatientGender } from "@/lib/booking-patient-fields";
 import { PhoneInput } from "@/components/ui/PhoneInput";
+import { manualPhoneProblem } from "@/lib/phone-number";
 import {
   firstManualBookingError,
   type ManualBookingError,
@@ -598,14 +599,14 @@ export function ManualBookingFlow({
                 <label htmlFor="manualPatientPhone" className="text-xs font-semibold text-slate-200">
                   Phone <span className="text-red-300">*</span>
                 </label>
-                {/* Same phone box and rule as online booking (country code, 4-10 digits after it). */}
+                {/* Same phone box and rule as online booking (country code), and only mobile numbers. */}
                 <PhoneInput
                   id="manualPatientPhone"
                   tone="dark"
                   value={patientPhone}
                   onChange={(val, isValid) => {
                     setPatientPhone(val);
-                    setPhoneValid(isValid);
+                    setPhoneValid(isValid && manualPhoneProblem(val) === null);
                     fixed("patientPhone");
                   }}
                   errorMessage={errorFor("patientPhone")}

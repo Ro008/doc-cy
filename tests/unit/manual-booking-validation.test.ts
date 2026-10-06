@@ -18,8 +18,16 @@ const minimal: ManualBookingValues = {
 };
 
 describe("manualPhoneProblem", () => {
-  it("accepts usual ways of writing a phone number", () => {
-    for (const ok of ["+357 99 123456", "99123456", "+357-99-123-456", "(+357) 99 123 456", "00357 99123456"]) {
+  it("accepts real mobile numbers written the usual ways", () => {
+    for (const ok of [
+      "+357 99 123456",
+      "+357-99-123-456",
+      "(+357) 99 123 456",
+      "00357 99123456",
+      "+30 691 234 5678",
+      "+44 7400 123456",
+      "+34 667 000 000",
+    ]) {
       assert.equal(manualPhoneProblem(ok), null, ok);
     }
   });
@@ -30,17 +38,30 @@ describe("manualPhoneProblem", () => {
 
   it("refuses letters and other characters", () => {
     assert.equal(manualPhoneProblem("+35799991351sgdfe3456 36"), "invalid");
-    assert.equal(manualPhoneProblem("99 12#3456"), "invalid");
+    assert.equal(manualPhoneProblem("+357 99 12#3456"), "invalid");
   });
 
   it("only allows + at the start", () => {
-    assert.equal(manualPhoneProblem("99+123456"), "invalid");
+    assert.equal(manualPhoneProblem("+357 99+123456"), "invalid");
   });
 
-  it("needs between 7 and 15 digits", () => {
-    assert.equal(manualPhoneProblem("123456"), "invalid");
-    assert.equal(manualPhoneProblem("1234567"), null);
-    assert.equal(manualPhoneProblem("+1234567890123456"), "invalid");
+  it("refuses landlines", () => {
+    assert.equal(manualPhoneProblem("+357 22 123456"), "invalid");
+    assert.equal(manualPhoneProblem("+44 20 7946 0958"), "invalid");
+  });
+
+  it("refuses a right-length number with a wrong mobile prefix", () => {
+    assert.equal(manualPhoneProblem("+34 123 456 789"), "invalid");
+    assert.equal(manualPhoneProblem("+357 11 123456"), "invalid");
+  });
+
+  it("refuses numbers that are too short or too long", () => {
+    assert.equal(manualPhoneProblem("+357 99 1234"), "invalid");
+    assert.equal(manualPhoneProblem("+357 99 1234567"), "invalid");
+  });
+
+  it("needs the country code", () => {
+    assert.equal(manualPhoneProblem("99123456"), "invalid");
   });
 });
 
@@ -58,7 +79,7 @@ describe("firstManualBookingError", () => {
   it("uses the phone box's own check, like online booking", () => {
     assert.deepEqual(firstManualBookingError({ ...minimal, phoneValid: false }, NOW), {
       field: "patientPhone",
-      message: "Enter a valid phone number for the selected country.",
+      message: "Enter a valid mobile number for the selected country.",
     });
   });
 
@@ -72,7 +93,7 @@ describe("firstManualBookingError", () => {
   it("explains a malformed phone", () => {
     assert.deepEqual(firstManualBookingError({ ...minimal, patientPhone: "99abc123" }, NOW), {
       field: "patientPhone",
-      message: "Use digits only, with an optional + at the start (7 to 15 digits).",
+      message: "Enter a valid mobile number with its country code.",
     });
   });
 

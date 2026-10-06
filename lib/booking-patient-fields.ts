@@ -74,9 +74,9 @@ export function parseBookingPatientFields(
 
   const patientPhone = clean(raw.patientPhone);
   if (!patientPhone) return { ok: false, message: "Please enter a phone number." };
-  // Typed by the professional (no phone widget): digits and separators, 7 to 15 digits.
+  // Typed by the professional (no phone widget): a real mobile number with its country code.
   if (source === "manual" && manualPhoneProblem(patientPhone)) {
-    return { ok: false, message: "Please enter a valid phone number (digits, optional + at the start)." };
+    return { ok: false, message: "Please enter a valid mobile number with its country code." };
   }
 
   // Manual bookings: only name, phone and reason are required; the rest is checked when

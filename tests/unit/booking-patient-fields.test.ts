@@ -127,9 +127,9 @@ describe("parseBookingPatientFields (manual)", () => {
     assert.equal(parseBookingPatientFields({ ...valid, reason: " " }, "manual", TODAY).ok, false);
   });
 
-  it("refuses a phone that isn't a phone number", () => {
+  it("refuses a phone that is not a mobile number", () => {
     const res = parseBookingPatientFields({ ...valid, patientPhone: "+35799991351sgdfe3456 36" }, "manual", TODAY);
     assert.equal(res.ok, false);
-    assert.match(res.ok ? "" : res.message.toLowerCase(), /phone/);
+    assert.match(res.ok ? "" : res.message.toLowerCase(), /mobile/);
   });
 });

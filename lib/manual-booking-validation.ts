@@ -14,7 +14,7 @@ export type ManualBookingField = "patientName" | "patientPhone" | "patientEmail"
 export type ManualBookingValues = {
   patientName: string;
   patientPhone: string;
-  /** From the phone box (same check as online booking: 4-10 digits after the country code). */
+  /** From the phone box (length check) and the mobile check. */
   phoneValid?: boolean;
   patientEmail: string;
   patientBirthdate: string;
@@ -34,14 +34,14 @@ export function firstManualBookingError(
     return { field: "patientPhone", message: "Enter the patient's phone number." };
   }
   if (v.phoneValid === false) {
-    return { field: "patientPhone", message: "Enter a valid phone number for the selected country." };
+    return { field: "patientPhone", message: "Enter a valid mobile number for the selected country." };
   }
   const phone = manualPhoneProblem(v.patientPhone);
   if (phone === "required") return { field: "patientPhone", message: "Enter the patient's phone number." };
   if (phone === "invalid") {
     return {
       field: "patientPhone",
-      message: "Use digits only, with an optional + at the start (7 to 15 digits).",
+      message: "Enter a valid mobile number with its country code.",
     };
   }
   if (v.patientBirthdate.trim() && !parsePatientBirthdate(v.patientBirthdate, now)) {
