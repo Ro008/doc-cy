@@ -55,14 +55,18 @@ export function ConfirmBookingRequestClient({ token, professionalName, whenLabel
           title:
             data.state === "used"
               ? "Already confirmed"
-              : data.state === "replaced"
-                ? "You sent a newer request"
-                : "This link has expired",
+              : data.state === "unbooked"
+                ? "This request wasn't sent"
+                : data.state === "replaced"
+                  ? "You sent a newer request"
+                  : "This link has expired",
           message:
             data.state === "used"
               ? "This request was already confirmed."
-              : data.state === "replaced"
-                ? "This request was replaced by a newer one. Use the link in your latest email."
+              : data.state === "unbooked"
+                ? "The time you picked was no longer free, so nothing was booked. Please choose another time."
+                : data.state === "replaced"
+                  ? "This request was replaced by a newer one. Use the link in your latest email."
                 : "Confirmation links work for 30 minutes. Please book your time again.",
         });
       } else {
