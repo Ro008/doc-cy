@@ -21,7 +21,12 @@ import {
 } from "@/lib/booking-slot-param";
 import { normalizeMinimumNoticeHours } from "@/lib/doctor-settings";
 import { APPOINTMENT_REASON_MAX_LENGTH } from "@/lib/visit-types";
-import { isPatientGender, parsePatientBirthdate, type PatientGender } from "@/lib/booking-patient-fields";
+import { type PatientGender } from "@/lib/booking-patient-fields";
+import {
+  firstBookingFormError,
+  type BookingFormError,
+  type BookingFormField,
+} from "@/lib/booking-form-validation";
 import { formatDateDDMMYYYY } from "@/lib/date-format";
 import "react-day-picker/dist/style.css";
 import { useLocale, useTranslations } from "next-intl";
@@ -120,6 +125,8 @@ export function BookingSection({
   const [checkEmailAddress, setCheckEmailAddress] = React.useState<string | null>(null);
   const [submitting, setSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  /** The first field the patient still has to fix; its message shows under that field. */
+  const [fieldError, setFieldError] = React.useState<BookingFormError | null>(null);
   const [bookingSuccess, setBookingSuccess] = React.useState(false);
   const [lastAppointmentId, setLastAppointmentId] = React.useState<string | null>(
     null
@@ -308,6 +315,41 @@ export function BookingSection({
     );
   }, [selectedDate, upcomingSlots, takenSet]);
 
+  /** Field id to focus for each form field (radio groups: their first option). */
+  const FIELD_FOCUS_ID: Record<BookingFormField, string> = {
+    patientName: "name",
+    patientEmail: "email",
+    patientPhone: "phone",
+    isNewPatient: "visitHistory-first",
+    patientGender: "patientGender-female",
+    patientBirthdate: "patientBirthdate",
+    visitReason: "visitReason",
+  };
+
+  /** Bumped on each refused submit so the effect below runs even for the same field twice. */
+  const [focusRequest, setFocusRequest] = React.useState<{ field: BookingFormField; n: number } | null>(null);
+  function focusField(field: BookingFormField) {
+    setFocusRequest((prev) => ({ field, n: (prev?.n ?? 0) + 1 }));
+  }
+  // After the message is on screen: glide to the field and put the cursor in it.
+  React.useEffect(() => {
+    if (!focusRequest) return;
+    const box = document.getElementById(`field-${focusRequest.field}`);
+    const input = document.getElementById(FIELD_FOCUS_ID[focusRequest.field]) as HTMLElement | null;
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    box?.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "center" });
+    input?.focus({ preventScroll: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusRequest]);
+
+  /** Clears the field's message as soon as the patient changes that field. */
+  function fixed(field: BookingFormField) {
+    setFieldError((current) => (current?.field === field ? null : current));
+  }
+
+  const errorFor = (field: BookingFormField) =>
+    fieldError?.field === field ? t(`errors.${fieldError.messageKey}`) : null;
+
   const handleSubmit = React.useCallback(
     async (e: React.FormEvent) => {
       e.preventDefault();
@@ -316,32 +358,24 @@ export function BookingSection({
         setError(t("errors.selectTimeSlot"));
         return;
       }
-      if (!patientName || !patientEmail || !patientPhone) {
-        setError(t("errors.completePatientDetails"));
+      // Say exactly what is missing, under that field, and take the patient there.
+      const problem = firstBookingFormError({
+        patientName,
+        patientEmail,
+        patientPhone,
+        phoneValid,
+        isNewPatient,
+        patientGender,
+        patientBirthdate,
+        visitReason,
+      });
+      if (problem) {
+        setFieldError(problem);
+        focusField(problem.field);
         return;
       }
-      if (!phoneValid) {
-        setShowPhoneError(true);
-        setError(t("errors.validPhone"));
-        return;
-      }
-      if (isNewPatient === null) {
-        setError(t("errors.selectVisitHistory"));
-        return;
-      }
+      setFieldError(null);
       const reasonTrim = visitReason.slice(0, APPOINTMENT_REASON_MAX_LENGTH).trim();
-      if (!reasonTrim) {
-        setError(t("errors.reasonRequired"));
-        return;
-      }
-      if (!isPatientGender(patientGender)) {
-        setError(t("errors.genderRequired"));
-        return;
-      }
-      if (!parsePatientBirthdate(patientBirthdate)) {
-        setError(t("errors.birthdateRequired"));
-        return;
-      }
       let didNavigateToSuccess = false;
       try {
         setSubmitting(true);
@@ -559,8 +593,9 @@ export function BookingSection({
             {t("changeTime")}
           </button>
         </div>
-        <form className="space-y-4" onSubmit={handleSubmit}>
-          <div className="space-y-2">
+        {/* noValidate: our own messages under each field, not the browser's generic bubble. */}
+        <form className="space-y-4" noValidate onSubmit={handleSubmit}>
+          <div id="field-patientName" className="scroll-mt-24 space-y-2">
             <label
               htmlFor="name"
               className="text-xs font-semibold text-ink-800"
@@ -572,12 +607,22 @@ export function BookingSection({
               type="text"
               required
               value={patientName}
-              onChange={(e) => setPatientName(e.target.value)}
-              className="w-full rounded-2xl border border-ink-200 bg-white px-3 py-2 text-sm text-ink-900 shadow-sm placeholder:text-ink-400 focus:outline-none focus:ring-2 focus:ring-clinical-400/60"
+              onChange={(e) => {
+                setPatientName(e.target.value);
+                fixed("patientName");
+              }}
+              aria-invalid={errorFor("patientName") ? true : undefined}
+              aria-describedby={errorFor("patientName") ? "name-error" : undefined}
+              className={`w-full rounded-2xl border bg-white px-3 py-2 text-sm text-ink-900 shadow-sm placeholder:text-ink-400 focus:outline-none focus:ring-2 focus:ring-clinical-400/60 ${errorFor("patientName") ? "border-red-400 ring-1 ring-red-300" : "border-ink-200"}`}
               placeholder={t("patientFullNamePlaceholder")}
             />
+            {errorFor("patientName") ? (
+              <p id="name-error" role="alert" className="text-xs font-medium text-red-600">
+                {errorFor("patientName")}
+              </p>
+            ) : null}
           </div>
-          <div className="space-y-2">
+          <div id="field-patientEmail" className="scroll-mt-24 space-y-2">
             <label
               htmlFor="email"
               className="text-xs font-semibold text-ink-800"
@@ -589,12 +634,22 @@ export function BookingSection({
               type="email"
               required
               value={patientEmail}
-              onChange={(e) => setPatientEmail(e.target.value)}
-              className="w-full rounded-2xl border border-ink-200 bg-white px-3 py-2 text-sm text-ink-900 shadow-sm placeholder:text-ink-400 focus:outline-none focus:ring-2 focus:ring-clinical-400/60"
+              onChange={(e) => {
+                setPatientEmail(e.target.value);
+                fixed("patientEmail");
+              }}
+              aria-invalid={errorFor("patientEmail") ? true : undefined}
+              aria-describedby={errorFor("patientEmail") ? "email-error" : undefined}
+              className={`w-full rounded-2xl border bg-white px-3 py-2 text-sm text-ink-900 shadow-sm placeholder:text-ink-400 focus:outline-none focus:ring-2 focus:ring-clinical-400/60 ${errorFor("patientEmail") ? "border-red-400 ring-1 ring-red-300" : "border-ink-200"}`}
               placeholder={t("emailPlaceholder")}
             />
+            {errorFor("patientEmail") ? (
+              <p id="email-error" role="alert" className="text-xs font-medium text-red-600">
+                {errorFor("patientEmail")}
+              </p>
+            ) : null}
           </div>
-          <div className="space-y-2">
+          <div id="field-patientPhone" className="scroll-mt-24 space-y-2">
             <PhoneInput
               id="phone"
               label={t("phonePriorityContactLabel")}
@@ -603,11 +658,18 @@ export function BookingSection({
                 setPatientPhone(val);
                 setPhoneValid(isValid);
                 setShowPhoneError(false);
+                fixed("patientPhone");
               }}
               showValidationError={showPhoneError}
+              errorMessage={errorFor("patientPhone")}
             />
           </div>
-          <fieldset className="space-y-2">
+          <fieldset
+            id="field-isNewPatient"
+            className="scroll-mt-24 space-y-2"
+            aria-invalid={errorFor("isNewPatient") ? true : undefined}
+            aria-describedby={errorFor("isNewPatient") ? "visitHistory-error" : undefined}
+          >
             <legend className="text-xs font-semibold text-ink-800">
               {t("visitHistoryLabel", { doctorName })}{" "}
               <span className="text-red-600">*</span>
@@ -617,15 +679,21 @@ export function BookingSection({
                 className={`flex cursor-pointer items-center gap-2 rounded-2xl border px-3 py-2.5 text-sm transition ${
                   isNewPatient === true
                     ? "border-clinical-500 bg-clinical-50 text-clinical-900"
-                    : "border-ink-200 bg-white text-ink-800 hover:border-clinical-300"
+                    : errorFor("isNewPatient")
+                      ? "border-red-400 bg-white text-ink-800"
+                      : "border-ink-200 bg-white text-ink-800 hover:border-clinical-300"
                 }`}
               >
                 <input
+                  id="visitHistory-first"
                   type="radio"
                   name="visitHistory"
                   className="h-4 w-4 border-ink-300 text-clinical-600 focus:ring-clinical-400/60"
                   checked={isNewPatient === true}
-                  onChange={() => setIsNewPatient(true)}
+                  onChange={() => {
+                    setIsNewPatient(true);
+                    fixed("isNewPatient");
+                  }}
                 />
                 {t("visitHistoryFirstTime")}
               </label>
@@ -633,7 +701,9 @@ export function BookingSection({
                 className={`flex cursor-pointer items-center gap-2 rounded-2xl border px-3 py-2.5 text-sm transition ${
                   isNewPatient === false
                     ? "border-clinical-500 bg-clinical-50 text-clinical-900"
-                    : "border-ink-200 bg-white text-ink-800 hover:border-clinical-300"
+                    : errorFor("isNewPatient")
+                      ? "border-red-400 bg-white text-ink-800"
+                      : "border-ink-200 bg-white text-ink-800 hover:border-clinical-300"
                 }`}
               >
                 <input
@@ -641,13 +711,26 @@ export function BookingSection({
                   name="visitHistory"
                   className="h-4 w-4 border-ink-300 text-clinical-600 focus:ring-clinical-400/60"
                   checked={isNewPatient === false}
-                  onChange={() => setIsNewPatient(false)}
+                  onChange={() => {
+                    setIsNewPatient(false);
+                    fixed("isNewPatient");
+                  }}
                 />
                 {t("visitHistoryReturning")}
               </label>
             </div>
+            {errorFor("isNewPatient") ? (
+              <p id="visitHistory-error" role="alert" className="text-xs font-medium text-red-600">
+                {errorFor("isNewPatient")}
+              </p>
+            ) : null}
           </fieldset>
-          <fieldset className="space-y-2">
+          <fieldset
+            id="field-patientGender"
+            className="scroll-mt-24 space-y-2"
+            aria-invalid={errorFor("patientGender") ? true : undefined}
+            aria-describedby={errorFor("patientGender") ? "patientGender-error" : undefined}
+          >
             <legend className="text-xs font-semibold text-ink-800">
               {t("genderLabel")} <span className="text-red-600">*</span>
             </legend>
@@ -664,23 +747,34 @@ export function BookingSection({
                   className={`flex cursor-pointer items-center gap-2 rounded-2xl border px-3 py-2.5 text-sm transition ${
                     patientGender === value
                       ? "border-clinical-500 bg-clinical-50 text-clinical-900"
-                      : "border-ink-200 bg-white text-ink-800 hover:border-clinical-300"
+                      : errorFor("patientGender")
+                        ? "border-red-400 bg-white text-ink-800"
+                        : "border-ink-200 bg-white text-ink-800 hover:border-clinical-300"
                   }`}
                 >
                   <input
+                    id={`patientGender-${value}`}
                     type="radio"
                     name="patientGender"
                     value={value}
                     className="h-4 w-4 border-ink-300 text-clinical-600 focus:ring-clinical-400/60"
                     checked={patientGender === value}
-                    onChange={() => setPatientGender(value)}
+                    onChange={() => {
+                      setPatientGender(value);
+                      fixed("patientGender");
+                    }}
                   />
                   {label}
                 </label>
               ))}
             </div>
+            {errorFor("patientGender") ? (
+              <p id="patientGender-error" role="alert" className="text-xs font-medium text-red-600">
+                {errorFor("patientGender")}
+              </p>
+            ) : null}
           </fieldset>
-          <div className="space-y-2">
+          <div id="field-patientBirthdate" className="scroll-mt-24 space-y-2">
             <label htmlFor="patientBirthdate" className="text-xs font-semibold text-ink-800">
               {t("birthdateLabel")} <span className="text-red-600">*</span>
             </label>
@@ -691,14 +785,24 @@ export function BookingSection({
               min="1900-01-01"
               max={formatInTimeZone(new Date(), CY_TZ, "yyyy-MM-dd")}
               value={patientBirthdate}
-              onChange={(e) => setPatientBirthdate(e.target.value)}
-              className="w-full rounded-2xl border border-ink-200 bg-white px-3 py-2 text-sm text-ink-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-clinical-400/60"
+              onChange={(e) => {
+                setPatientBirthdate(e.target.value);
+                fixed("patientBirthdate");
+              }}
+              aria-invalid={errorFor("patientBirthdate") ? true : undefined}
+              aria-describedby={errorFor("patientBirthdate") ? "patientBirthdate-error" : undefined}
+              className={`w-full rounded-2xl border bg-white px-3 py-2 text-sm text-ink-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-clinical-400/60 ${errorFor("patientBirthdate") ? "border-red-400 ring-1 ring-red-300" : "border-ink-200"}`}
             />
+            {errorFor("patientBirthdate") ? (
+              <p id="patientBirthdate-error" role="alert" className="text-xs font-medium text-red-600">
+                {errorFor("patientBirthdate")}
+              </p>
+            ) : null}
             <p className="text-[11px] leading-relaxed text-ink-500">
               {t("personalDetailsPrivacyNote", { doctorName })}
             </p>
           </div>
-          <div className="space-y-2">
+          <div id="field-visitReason" className="scroll-mt-24 space-y-2">
             <label
               htmlFor="visitReason"
               className="text-xs font-semibold text-ink-800"
@@ -712,14 +816,20 @@ export function BookingSection({
               rows={4}
               maxLength={APPOINTMENT_REASON_MAX_LENGTH}
               value={visitReason}
-              onChange={(e) =>
-                setVisitReason(
-                  e.target.value.slice(0, APPOINTMENT_REASON_MAX_LENGTH)
-                )
-              }
+              onChange={(e) => {
+                setVisitReason(e.target.value.slice(0, APPOINTMENT_REASON_MAX_LENGTH));
+                fixed("visitReason");
+              }}
+              aria-invalid={errorFor("visitReason") ? true : undefined}
+              aria-describedby={errorFor("visitReason") ? "visitReason-error" : undefined}
               placeholder={t("visitReasonPlaceholder")}
-              className="w-full resize-y rounded-2xl border border-ink-200 bg-white px-3 py-2 text-sm text-ink-900 shadow-sm placeholder:text-ink-400 focus:outline-none focus:ring-2 focus:ring-clinical-400/60"
+              className={`w-full resize-y rounded-2xl border bg-white px-3 py-2 text-sm text-ink-900 shadow-sm placeholder:text-ink-400 focus:outline-none focus:ring-2 focus:ring-clinical-400/60 ${errorFor("visitReason") ? "border-red-400 ring-1 ring-red-300" : "border-ink-200"}`}
             />
+            {errorFor("visitReason") ? (
+              <p id="visitReason-error" role="alert" className="text-xs font-medium text-red-600">
+                {errorFor("visitReason")}
+              </p>
+            ) : null}
             <p className="text-right text-[11px] text-ink-500">
               {visitReason.length}/{APPOINTMENT_REASON_MAX_LENGTH}
             </p>
