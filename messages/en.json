@@ -147,6 +147,8 @@
       "selectVisitHistory": "Please tell us if this is your first visit.",
       "reasonRequired": "Please tell us briefly why you need this visit.",
       "timeSlotJustBooked": "This time slot has just been booked. Please choose another slot.",
+      "slotTooSoon": "That time is now too soon to book online. Please pick a later one.",
+      "slotNoLongerAvailable": "That time is no longer available. Please pick another one.",
       "preselectedSlotUnavailable": "That time is no longer available. Please choose another slot.",
       "bookingFailed": "We could not complete your booking. Please try again.",
       "somethingWentWrong": "Something went wrong. Please try again.",

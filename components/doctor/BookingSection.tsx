@@ -22,6 +22,7 @@ import {
 import { normalizeMinimumNoticeHours } from "@/lib/doctor-settings";
 import { APPOINTMENT_REASON_MAX_LENGTH } from "@/lib/visit-types";
 import { type PatientGender } from "@/lib/booking-patient-fields";
+import { BOOKING_SLOT_REFRESH_MS, bookingRefusal } from "@/lib/booking-refusal";
 import {
   firstBookingFormError,
   type BookingFormError,
@@ -151,6 +152,14 @@ export function BookingSection({
     Boolean(holidayStartDate) &&
     Boolean(holidayEndDate);
 
+  // Recompute the offered times every minute: a time that slips inside the minimum notice
+  // while the page is open disappears instead of being refused on send.
+  const [clockTick, setClockTick] = React.useState(0);
+  React.useEffect(() => {
+    const id = window.setInterval(() => setClockTick((n) => n + 1), BOOKING_SLOT_REFRESH_MS);
+    return () => window.clearInterval(id);
+  }, []);
+
   // Build all slots for the next CALENDAR_DAYS_AHEAD days
   const upcomingSlots: SlotOption[] = React.useMemo(() => {
     const result: SlotOption[] = [];
@@ -242,7 +251,19 @@ export function BookingSection({
     holidayEndDate,
     normalizedBookingHorizonDays,
     normalizedMinimumNoticeHours,
+    clockTick,
   ]);
+
+  // The chosen time stopped being offered (too soon now): back to the calendar, and say why.
+  // The patient's details stay filled in.
+  React.useEffect(() => {
+    if (!selectedSlot || bookingSuccess || submitting) return;
+    if (upcomingSlots.some((slot) => slot.slotKey === selectedSlot.slotKey)) return;
+    setSelectedSlot(null);
+    setShowContactForm(false);
+    setError(t("errors.slotTooSoon"));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [upcomingSlots]);
 
   const isSlotTaken = (slot: SlotOption) => takenSet.has(slot.slotKey);
 
@@ -397,14 +418,15 @@ export function BookingSection({
         });
         const data = await res.json().catch(() => null);
         if (!res.ok) {
-          if (res.status === 409 && data?.code === "open_request_exists") {
-            setError(t("errors.openRequestExists", { doctorName }));
-            return;
-          }
-          if (res.status === 409) {
-            setError(
-              t("errors.timeSlotJustBooked")
-            );
+          // Plain words instead of the server's technical message; a time that is no longer
+          // offered sends the patient back to the calendar (details stay filled in).
+          const refusal = bookingRefusal(res.status, data?.code);
+          if (refusal) {
+            setError(t(`errors.${refusal.messageKey}`, { doctorName }));
+            if (refusal.backToCalendar) {
+              setSelectedSlot(null);
+              setShowContactForm(false);
+            }
             return;
           }
           setError(
