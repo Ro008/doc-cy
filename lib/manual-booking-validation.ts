@@ -14,6 +14,8 @@ export type ManualBookingField = "patientName" | "patientPhone" | "patientEmail"
 export type ManualBookingValues = {
   patientName: string;
   patientPhone: string;
+  /** From the phone box (same check as online booking: 4-10 digits after the country code). */
+  phoneValid?: boolean;
   patientEmail: string;
   patientBirthdate: string;
   reason: string;
@@ -27,6 +29,13 @@ export function firstManualBookingError(
   now: Date = new Date(),
 ): ManualBookingError | null {
   if (!v.patientName.trim()) return { field: "patientName", message: "Enter the patient's name." };
+  // The phone box keeps the country code (e.g. "+357") after the number is erased: empty too.
+  if (v.patientPhone.replace(/\D/g, "").length <= 3) {
+    return { field: "patientPhone", message: "Enter the patient's phone number." };
+  }
+  if (v.phoneValid === false) {
+    return { field: "patientPhone", message: "Enter a valid phone number for the selected country." };
+  }
   const phone = manualPhoneProblem(v.patientPhone);
   if (phone === "required") return { field: "patientPhone", message: "Enter the patient's phone number." };
   if (phone === "invalid") {

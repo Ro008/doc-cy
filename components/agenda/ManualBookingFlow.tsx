@@ -19,6 +19,7 @@ import {
 import { agendaClinicEventColor } from "@/lib/doctor-locations";
 import { APPOINTMENT_REASON_MAX_LENGTH } from "@/lib/visit-types";
 import { type PatientGender } from "@/lib/booking-patient-fields";
+import { PhoneInput } from "@/components/ui/PhoneInput";
 import {
   firstManualBookingError,
   type ManualBookingError,
@@ -94,6 +95,8 @@ export function ManualBookingFlow({
   const [selectedSlot, setSelectedSlot] = React.useState<SlotOption | null>(null);
   const [patientName, setPatientName] = React.useState("");
   const [patientPhone, setPatientPhone] = React.useState("");
+  /** From the phone box: same country-aware check as online booking. */
+  const [phoneValid, setPhoneValid] = React.useState(false);
   const [patientEmail, setPatientEmail] = React.useState("");
   const [reason, setReason] = React.useState("");
   const [isNewPatient, setIsNewPatient] = React.useState<boolean | null>(null);
@@ -282,7 +285,14 @@ export function ManualBookingFlow({
     }
     // Name, phone and reason are required; first visit, gender, email and birth date are
     // optional but checked when filled in (Rocío, 2026-10-06).
-    const problem = firstManualBookingError({ patientName, patientPhone, patientEmail, patientBirthdate, reason });
+    const problem = firstManualBookingError({
+      patientName,
+      patientPhone,
+      phoneValid,
+      patientEmail,
+      patientBirthdate,
+      reason,
+    });
     if (problem) {
       setFieldError(problem);
       document.getElementById(MANUAL_FIELD_ID[problem.field])?.focus();
@@ -552,22 +562,18 @@ export function ManualBookingFlow({
                 <label htmlFor="manualPatientPhone" className="text-xs font-semibold text-slate-200">
                   Phone <span className="text-red-300">*</span>
                 </label>
-                <input
+                {/* Same phone box and rule as online booking (country code, 4-10 digits after it). */}
+                <PhoneInput
                   id="manualPatientPhone"
-                  type="tel"
-                  inputMode="tel"
-                  autoComplete="off"
+                  tone="dark"
                   value={patientPhone}
-                  onChange={(e) => {
-                    setPatientPhone(e.target.value);
+                  onChange={(val, isValid) => {
+                    setPatientPhone(val);
+                    setPhoneValid(isValid);
                     fixed("patientPhone");
                   }}
-                  aria-invalid={errorFor("patientPhone") ? true : undefined}
-                  aria-describedby={errorFor("patientPhone") ? "manualPatientPhone-error" : undefined}
-                  className={fieldClass("patientPhone")}
-                  placeholder="+357 99 123456"
+                  errorMessage={errorFor("patientPhone")}
                 />
-                {fieldMessage("patientPhone")}
               </div>
             </div>
 

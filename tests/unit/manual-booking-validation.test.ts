@@ -55,6 +55,20 @@ describe("firstManualBookingError", () => {
     assert.equal(firstManualBookingError({ ...minimal, reason: "  " }, NOW)?.field, "reason");
   });
 
+  it("uses the phone box's own check, like online booking", () => {
+    assert.deepEqual(firstManualBookingError({ ...minimal, phoneValid: false }, NOW), {
+      field: "patientPhone",
+      message: "Enter a valid phone number for the selected country.",
+    });
+  });
+
+  it("treats a phone box left with only the country code as missing", () => {
+    assert.deepEqual(firstManualBookingError({ ...minimal, patientPhone: "+357", phoneValid: false }, NOW), {
+      field: "patientPhone",
+      message: "Enter the patient's phone number.",
+    });
+  });
+
   it("explains a malformed phone", () => {
     assert.deepEqual(firstManualBookingError({ ...minimal, patientPhone: "99abc123" }, NOW), {
       field: "patientPhone",
