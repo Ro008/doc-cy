@@ -41,3 +41,16 @@ export function isManualBookingSlotTaken(
     nowMs,
   );
 }
+
+/**
+ * The page's appointments plus the ones this modal has just booked (or just been told are
+ * taken), so a time is hidden straight away instead of after the page refreshes. A booking
+ * the page already has is not counted twice.
+ */
+export function withJustBooked(
+  fromPage: readonly ManualBookingAppointmentRow[],
+  justBooked: readonly ManualBookingAppointmentRow[],
+): ManualBookingAppointmentRow[] {
+  const known = new Set(fromPage.map((a) => a.id));
+  return [...fromPage, ...justBooked.filter((a) => !known.has(a.id))];
+}

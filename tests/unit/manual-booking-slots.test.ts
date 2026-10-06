@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { isManualBookingSlotTaken } from "../../lib/manual-booking-slots";
+import { isManualBookingSlotTaken, withJustBooked } from "../../lib/manual-booking-slots";
 
 const NOW = Date.parse("2026-09-30T08:00:00Z");
 const CLINIC_1 = "clinic-1";
@@ -98,5 +98,26 @@ describe("isManualBookingSlotTaken", () => {
       isManualBookingSlotTaken("2026-09-30T12:30:00Z", 30, appointments, NOW),
       false,
     );
+  });
+});
+
+describe("withJustBooked", () => {
+  const fromPage = [
+    { id: "a", status: "CONFIRMED", appointment_datetime: "2026-10-07T06:00:00Z", duration_minutes: 45 },
+  ];
+
+  it("adds times this modal just booked, before the page has refreshed", () => {
+    const merged = withJustBooked(fromPage, [
+      { id: "b", status: "CONFIRMED", appointment_datetime: "2026-10-07T06:45:00Z", duration_minutes: 45 },
+    ]);
+    assert.equal(merged.length, 2);
+    assert.equal(isManualBookingSlotTaken("2026-10-07T06:45:00Z", 45, merged, NOW), true);
+  });
+
+  it("doesn't count a booking twice once the page has it too", () => {
+    const merged = withJustBooked(fromPage, [
+      { id: "a", status: "CONFIRMED", appointment_datetime: "2026-10-07T06:00:00Z", duration_minutes: 45 },
+    ]);
+    assert.equal(merged.length, 1);
   });
 });

@@ -14,6 +14,7 @@ import type { WeeklySchedule } from "@/lib/doctor-settings";
 import { type AgendaClinic, type AgendaWorkingHours } from "@/lib/agenda-clinics";
 import {
   isManualBookingSlotTaken,
+  withJustBooked,
   type ManualBookingAppointmentRow,
 } from "@/lib/manual-booking-slots";
 import { agendaClinicEventColor } from "@/lib/doctor-locations";
@@ -149,9 +150,16 @@ export function ManualBookingFlow({
       : 30;
 
   // One professional, one agenda: a visit in any clinic blocks the time in all of them.
+  // Times this modal just booked (or was just told are taken): hidden right away, without
+  // waiting for the dashboard or agenda to refresh. Kept across openings of the modal.
+  const [justBooked, setJustBooked] = React.useState<ManualBookingAppointmentRow[]>([]);
+  const knownAppointments = React.useMemo(
+    () => withJustBooked(appointments, justBooked),
+    [appointments, justBooked],
+  );
   const isSlotTaken = React.useCallback(
-    (slot: SlotOption) => isManualBookingSlotTaken(slot.key, slotDuration, appointments),
-    [appointments, slotDuration],
+    (slot: SlotOption) => isManualBookingSlotTaken(slot.key, slotDuration, knownAppointments),
+    [knownAppointments, slotDuration],
   );
 
   const upcomingSlots = React.useMemo(() => {
@@ -321,12 +329,40 @@ export function ManualBookingFlow({
       const data = await res.json().catch(() => null);
       if (!res.ok) {
         const message = (data as { message?: string } | null)?.message ?? "";
+        if (res.status === 409) {
+          // Someone (or this screen a moment ago) took it: hide it and let her pick another;
+          // everything she typed stays.
+          const takenSlot = selectedSlot;
+          setJustBooked((prev) => [
+            ...prev,
+            {
+              id: `taken-${takenSlot.key}`,
+              status: "CONFIRMED",
+              appointment_datetime: takenSlot.key,
+              duration_minutes: slotDuration,
+            },
+          ]);
+          setSelectedSlot(null);
+          setError("That time was just booked. Please pick another one.");
+          return;
+        }
         setError(message || "Could not create manual booking.");
         return;
       }
 
+      const bookedId = String((data as { appointment?: { id?: string } }).appointment?.id ?? "");
+      setJustBooked((prev) => [
+        ...prev,
+        {
+          id: bookedId || `booked-${selectedSlot.key}`,
+          status: "CONFIRMED",
+          appointment_datetime: selectedSlot.key,
+          duration_minutes: slotDuration,
+        },
+      ]);
+
       setSuccess({
-        appointmentId: String((data as { appointment?: { id?: string } }).appointment?.id ?? ""),
+        appointmentId: bookedId,
         patientName: patientName.trim(),
         patientPhone: patientPhone.trim(),
         dateLabel: format(selectedSlot.date, "dd/MM/yyyy"),
