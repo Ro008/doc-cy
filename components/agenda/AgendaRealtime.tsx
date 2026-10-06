@@ -48,6 +48,7 @@ import {
   shiftAgendaAnchor,
   type AgendaView,
 } from "@/lib/agenda-calendar";
+import { PatientDetails } from "@/components/dashboard/PatientDetails";
 import {
   AGENDA_APPOINTMENT_SELECT,
   AGENDA_VISIBLE_STATUSES,
@@ -103,6 +104,10 @@ type AgendaAppointmentRow = {
   professional_id: string;
   patient_name: string;
   patient_phone: string;
+  patient_email?: string | null;
+  patient_gender?: string | null;
+  patient_birthdate?: string | null;
+  is_new_patient?: boolean | null;
   reason?: string | null;
   appointment_datetime: string;
   status?: string | null;
@@ -124,6 +129,11 @@ function agendaRowFromSupabasePayload(
     professional_id: String(raw.professional_id ?? ""),
     patient_name: String(raw.patient_name ?? ""),
     patient_phone: String(raw.patient_phone ?? ""),
+    patient_email: raw.patient_email == null || raw.patient_email === "" ? null : String(raw.patient_email),
+    patient_gender: raw.patient_gender == null || raw.patient_gender === "" ? null : String(raw.patient_gender),
+    patient_birthdate:
+      raw.patient_birthdate == null || raw.patient_birthdate === "" ? null : String(raw.patient_birthdate),
+    is_new_patient: typeof raw.is_new_patient === "boolean" ? raw.is_new_patient : null,
     reason: patientVisitReasonFromAppointmentRow(raw),
     appointment_datetime: String(raw.appointment_datetime ?? ""),
     status: raw.status == null || raw.status === "" ? null : String(raw.status),
@@ -1545,6 +1555,16 @@ export function AgendaRealtime({
                 </p>
               ) : null}
             </div>
+            {/* Who the patient is (user, 2026-10-06). */}
+            <PatientDetails
+              testId="agenda-visit-patient"
+              className="mt-3"
+              birthdate={selected.patient_birthdate}
+              gender={selected.patient_gender}
+              isNewPatient={selected.is_new_patient}
+              phone={selected.patient_phone}
+              email={selected.patient_email}
+            />
             <div className="mt-3 rounded-xl border border-slate-700/70 bg-slate-900/60 px-3 py-2">
               <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
                 Reason for visit
@@ -1710,9 +1730,9 @@ export function AgendaRealtime({
                 <button
                   type="button"
                   onClick={() => openCancelFlow(selected)}
-                  className="inline-flex w-full items-center justify-center gap-1.5 rounded-2xl px-3 py-2 text-sm font-medium text-slate-500 transition hover:bg-slate-800/60 hover:text-red-300"
+                  className="inline-flex w-full items-center justify-center gap-1.5 rounded-2xl border border-red-500/30 px-3 py-2 text-sm font-medium text-red-300 transition hover:border-red-400/60 hover:bg-red-500/10 hover:text-red-200"
                 >
-                  <Trash2 className="h-3.5 w-3.5 opacity-70" aria-hidden />
+                  <Trash2 className="h-3.5 w-3.5" aria-hidden />
                   Cancel appointment
                 </button>
               </div>

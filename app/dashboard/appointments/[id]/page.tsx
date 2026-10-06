@@ -115,7 +115,7 @@ export default async function DashboardAppointmentDetailPage({
   const { data: appt, error: apptErr } = await supabase
     .from("appointments")
     .select(
-      "id, patient_name, patient_email, patient_phone, appointment_datetime, status, reason, duration_minutes, proposal_expires_at, proposed_slots, created_at, is_new_patient, clinic_id"
+      "id, patient_name, patient_email, patient_phone, patient_gender, patient_birthdate, appointment_datetime, status, reason, duration_minutes, proposal_expires_at, proposed_slots, created_at, is_new_patient, clinic_id"
     )
     .eq("id", appointmentId)
     .eq("professional_id", doctor.id)
@@ -353,6 +353,13 @@ export default async function DashboardAppointmentDetailPage({
           appointmentDatetimeIso={startIso}
           patientName={patientName}
           isNewPatient={(appt as { is_new_patient?: boolean | null }).is_new_patient === true}
+          patient={{
+            birthdate: (appt as { patient_birthdate?: string | null }).patient_birthdate ?? null,
+            gender: (appt as { patient_gender?: string | null }).patient_gender ?? null,
+            isNewPatient: (appt as { is_new_patient?: boolean | null }).is_new_patient ?? null,
+            phone: patientPhone || null,
+            email: (appt as { patient_email?: string | null }).patient_email ?? null,
+          }}
           requestedAgo={requestedAgoLabel((appt as { created_at?: string | null }).created_at, Date.now())}
           clinicName={clinicName}
           dayLabel={formatInTimeZone(new Date(startIso), CY_TZ, "EEE d MMM")}

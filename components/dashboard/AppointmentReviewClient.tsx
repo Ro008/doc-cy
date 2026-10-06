@@ -24,6 +24,7 @@ import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { PendingLink } from "@/components/navigation/PendingLink";
 import { DeclineRequestDialog } from "@/components/dashboard/DeclineRequestDialog";
+import { PatientDetails } from "@/components/dashboard/PatientDetails";
 
 type ScheduleForReview = {
   weeklySchedule: WeeklySchedule;
@@ -36,6 +37,14 @@ type Props = {
   appointmentDatetimeIso: string;
   patientName: string;
   isNewPatient: boolean;
+  /** Who the patient is (user, 2026-10-06): age, gender, first visit, phone, email. */
+  patient?: {
+    birthdate: string | null;
+    gender: string | null;
+    isNewPatient: boolean | null;
+    phone: string | null;
+    email: string | null;
+  };
   requestedAgo: string | null;
   clinicName: string | null;
   /** "Mon 28 Sep" (Cyprus). */
@@ -85,6 +94,7 @@ export function AppointmentReviewClient({
   appointmentDatetimeIso,
   patientName,
   isNewPatient,
+  patient,
   requestedAgo,
   clinicName,
   dayLabel,
@@ -486,8 +496,11 @@ export function AppointmentReviewClient({
           {mode === "suggest" ? `They asked for ${dayLabel}, ${startLabel} · ` : ""}
           <span className="text-slate-500">Cyprus time</span>
         </p>
+        {patient ? (
+          <PatientDetails testId="review-patient" className="mt-3" {...patient} />
+        ) : null}
         <div className="mt-3 flex flex-wrap items-center gap-2 text-xs empty:hidden">
-          {isNewPatient ? (
+          {isNewPatient && !patient ? (
             <span className="rounded-full bg-wellness-500/15 px-2.5 py-1 font-semibold text-wellness-200">
               New patient
             </span>
