@@ -27,3 +27,12 @@ export function bookingRefusal(status: number, code: string | null | undefined):
   if (code && NO_LONGER_OFFERED.has(code)) return { messageKey: "slotNoLongerAvailable", backToCalendar: true };
   return null;
 }
+
+/**
+ * Times the calendar should stop offering after a refusal: the server already said this one is
+ * gone, so it must not stay on the list until the page is reloaded. Same array when nothing changes.
+ */
+export function hideRefusedSlot(hidden: string[], slotKey: string, refusal: BookingRefusal): string[] {
+  if (!refusal.backToCalendar || hidden.includes(slotKey)) return hidden;
+  return [...hidden, slotKey];
+}

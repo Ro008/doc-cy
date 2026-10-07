@@ -22,7 +22,7 @@ import {
 import { normalizeMinimumNoticeHours } from "@/lib/doctor-settings";
 import { APPOINTMENT_REASON_MAX_LENGTH } from "@/lib/visit-types";
 import { type PatientGender } from "@/lib/booking-patient-fields";
-import { BOOKING_SLOT_REFRESH_MS, bookingRefusal } from "@/lib/booking-refusal";
+import { BOOKING_SLOT_REFRESH_MS, bookingRefusal, hideRefusedSlot } from "@/lib/booking-refusal";
 import {
   firstBookingFormError,
   type BookingFormError,
@@ -104,9 +104,11 @@ export function BookingSection({
   const t = useTranslations("BookingPage");
   const activeLocale = useLocale();
   const dateFnsLocale = activeLocale === "el" ? elLocale : enGB;
+  /** Times the server refused while this page was open (just booked by someone else). */
+  const [refusedSlotKeys, setRefusedSlotKeys] = React.useState<string[]>([]);
   const takenSet = React.useMemo(
-    () => new Set(takenSlotTimes),
-    [takenSlotTimes]
+    () => new Set([...takenSlotTimes, ...refusedSlotKeys]),
+    [takenSlotTimes, refusedSlotKeys]
   );
   const [selectedDate, setSelectedDate] = React.useState<Date | null>(null);
   const [selectedSlot, setSelectedSlot] = React.useState<SlotOption | null>(
@@ -424,6 +426,10 @@ export function BookingSection({
           if (refusal) {
             setError(t(`errors.${refusal.messageKey}`, { doctorName }));
             if (refusal.backToCalendar) {
+              const refusedKey = selectedSlot.slotKey;
+              setRefusedSlotKeys((hidden) => hideRefusedSlot(hidden, refusedKey, refusal));
+              // Reload the booked times too: whatever else was taken meanwhile drops out as well.
+              router.refresh();
               setSelectedSlot(null);
               setShowContactForm(false);
             }

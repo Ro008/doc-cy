@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { bookingRefusal, BOOKING_SLOT_REFRESH_MS } from "../../lib/booking-refusal";
+import { bookingRefusal, BOOKING_SLOT_REFRESH_MS, hideRefusedSlot } from "../../lib/booking-refusal";
 
 describe("bookingRefusal", () => {
   it("turns a time that became too soon into a plain message and back to the calendar", () => {
@@ -26,5 +26,31 @@ describe("bookingRefusal", () => {
 
   it("refreshes the offered times every minute", () => {
     assert.equal(BOOKING_SLOT_REFRESH_MS, 60_000);
+  });
+});
+
+describe("hideRefusedSlot", () => {
+  const taken = { messageKey: "timeSlotJustBooked", backToCalendar: true } as const;
+
+  it("hides a time the server just said is taken, so it is not offered again", () => {
+    assert.deepEqual(hideRefusedSlot([], "2026-10-08T09:45", taken), ["2026-10-08T09:45"]);
+  });
+
+  it("hides any time the patient was sent back from", () => {
+    const gone = { messageKey: "slotNoLongerAvailable", backToCalendar: true } as const;
+    assert.deepEqual(hideRefusedSlot(["2026-10-08T10:30"], "2026-10-08T09:45", gone), [
+      "2026-10-08T10:30",
+      "2026-10-08T09:45",
+    ]);
+  });
+
+  it("keeps the time when the refusal is not about it (an open request elsewhere)", () => {
+    const open = { messageKey: "openRequestExists", backToCalendar: false } as const;
+    assert.deepEqual(hideRefusedSlot([], "2026-10-08T09:45", open), []);
+  });
+
+  it("does not list the same time twice", () => {
+    const list = ["2026-10-08T09:45"];
+    assert.equal(hideRefusedSlot(list, "2026-10-08T09:45", taken), list);
   });
 });
