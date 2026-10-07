@@ -1,5 +1,6 @@
 import { formatInTimeZone } from "date-fns-tz";
-import { CY_TZ } from "@/lib/appointments";
+import { CY_TZ, isRescheduleProposalLive } from "@/lib/appointments";
+import { parseProposedSlotIsoList } from "@/lib/agenda-grid";
 
 /** Lengths shown as one-tap chips on the review page; the rest sit under "Other". */
 export const QUICK_DURATIONS = [15, 30, 45, 60] as const;
@@ -67,6 +68,9 @@ export type ReviewDayRow = {
   patient_name: string | null;
   status: string | null;
   duration_minutes: number | null;
+  /** Suggested-times requests hold these starts until `proposal_expires_at`, not their own time. */
+  proposed_slots?: unknown;
+  proposal_expires_at?: string | null;
 };
 
 export type ReviewDayEntry = {
@@ -90,36 +94,50 @@ function entryStatus(raw: string | null): ReviewDayEntry["status"] | null {
   return null;
 }
 
+/** The times a row takes up: its own time, or the times it suggested (same rule as the Agenda grid). */
+function heldStarts(row: ReviewDayRow, nowMs: number): { id: string; startIso: string }[] {
+  if (entryStatus(row.status) !== "proposal") return [{ id: row.id, startIso: row.appointment_datetime }];
+  // Expired suggestions hold nothing; the original time was freed when they were sent.
+  if (!isRescheduleProposalLive(row.status, row.proposal_expires_at, nowMs)) return [];
+  return parseProposedSlotIsoList(row.proposed_slots).map((startIso, i) => ({ id: `${row.id}-proposal-${i}`, startIso }));
+}
+
 /**
  * The requested day around the request: other live visits that day plus the
  * request itself, in time order, with overlaps at the chosen length marked.
+ * A suggested-times request shows at the times it holds that day, not at its original time.
  */
 export function buildReviewDayTimeline(
   dayRows: readonly ReviewDayRow[],
   request: { id: string; startIso: string; durationMinutes: number; patientName: string },
+  nowMs: number = Date.now(),
 ): ReviewDayEntry[] {
   const reqStart = new Date(request.startIso).getTime();
   const reqEnd = reqStart + request.durationMinutes * 60_000;
+  const dayKey = formatInTimeZone(new Date(reqStart), CY_TZ, "yyyy-MM-dd");
 
   const others = dayRows
     .filter((row) => row.id !== request.id)
-    .map((row) => {
+    .flatMap((row) => {
       const status = entryStatus(row.status);
-      if (!status) return null;
-      const start = new Date(row.appointment_datetime).getTime();
+      if (!status) return [];
       const duration = row.duration_minutes && row.duration_minutes > 0 ? row.duration_minutes : DEFAULT_DURATION;
-      const end = start + duration * 60_000;
-      const entry: ReviewDayEntry = {
-        id: row.id,
-        patientName: (row.patient_name ?? "").trim() || "Patient",
-        rangeLabel: `${clock(start)}–${clock(end)}`,
-        status,
-        isRequest: false,
-        overlaps: start < reqEnd && reqStart < end,
-      };
-      return { start, entry };
-    })
-    .filter((x): x is { start: number; entry: ReviewDayEntry } => x !== null);
+      return heldStarts(row, nowMs)
+        .map(({ id, startIso }) => ({ id, start: new Date(startIso).getTime() }))
+        .filter(({ start }) => Number.isFinite(start) && formatInTimeZone(new Date(start), CY_TZ, "yyyy-MM-dd") === dayKey)
+        .map(({ id, start }) => {
+          const end = start + duration * 60_000;
+          const entry: ReviewDayEntry = {
+            id,
+            patientName: (row.patient_name ?? "").trim() || "Patient",
+            rangeLabel: `${clock(start)}–${clock(end)}`,
+            status,
+            isRequest: false,
+            overlaps: start < reqEnd && reqStart < end,
+          };
+          return { start, entry };
+        });
+    });
 
   const requestEntry: ReviewDayEntry = {
     id: request.id,

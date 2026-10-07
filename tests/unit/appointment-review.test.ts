@@ -110,6 +110,65 @@ describe("buildReviewDayTimeline", () => {
   });
 });
 
+// A suggested-times request holds the times it proposed, not its original time: the review
+// day must match the Agenda (manual test D3, user 2026-10-07).
+describe("buildReviewDayTimeline with suggested times", () => {
+  const request = { id: "req", startIso: "2026-10-08T09:00:00Z", durationMinutes: 45, patientName: "Marilyn" }; // 12:00
+  const NOW = Date.parse("2026-10-07T10:00:00Z");
+  const proposal = (proposal_expires_at: string, proposed_slots: unknown) => ({
+    id: "nadia",
+    appointment_datetime: "2026-10-08T09:00:00Z", // her original 12:00
+    patient_name: "Nadia",
+    status: "NEEDS_RESCHEDULE",
+    duration_minutes: 45,
+    proposed_slots,
+    proposal_expires_at,
+  });
+
+  it("shows the held times on this day, not the original time", () => {
+    const entries = buildReviewDayTimeline(
+      [
+        proposal("2026-10-08T06:00:00Z", [
+          "2026-10-08T12:00:00Z", // 15:00 this day
+          "2026-10-08T12:45:00Z", // 15:45 this day
+          "2026-10-09T06:00:00Z", // another day
+        ]),
+      ],
+      request,
+      NOW,
+    );
+    assert.deepEqual(
+      entries.map((e) => [e.id, e.rangeLabel, e.status, e.overlaps]),
+      [
+        ["req", "12:00–12:45", "request", false],
+        ["nadia-proposal-0", "15:00–15:45", "proposal", false],
+        ["nadia-proposal-1", "15:45–16:30", "proposal", false],
+      ],
+    );
+  });
+
+  it("flags a held time that clashes with the request", () => {
+    const entries = buildReviewDayTimeline(
+      [proposal("2026-10-08T06:00:00Z", ["2026-10-08T09:15:00Z"])], // 12:15
+      request,
+      NOW,
+    );
+    assert.deepEqual(entries.map((e) => [e.id, e.overlaps]), [
+      ["req", true],
+      ["nadia-proposal-0", true],
+    ]);
+  });
+
+  it("leaves out suggestions that expired: those times are free again", () => {
+    const entries = buildReviewDayTimeline(
+      [proposal("2026-10-07T09:00:00Z", ["2026-10-08T12:00:00Z"])],
+      request,
+      NOW,
+    );
+    assert.deepEqual(entries.map((e) => e.id), ["req"]);
+  });
+});
+
 describe("confirmedPath", () => {
   it("keeps where she came from so the confirmed page can send her back", () => {
     assert.equal(confirmedPath("abc", "dashboard"), "/dashboard/appointments/abc?confirmed=1&from=dashboard");

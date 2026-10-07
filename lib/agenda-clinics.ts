@@ -128,6 +128,65 @@ export function unionAgendaWorkingWindows(
   };
 }
 
+export type AgendaMinuteRange = { start: number; end: number };
+export type AgendaClosedBand = AgendaMinuteRange & { kind: "off" | "break" };
+
+/** When one clinic is open that day: its hours minus its break (minutes from midnight). */
+export function agendaOpenIntervals(window: AgendaWorkingWindow): AgendaMinuteRange[] {
+  if (!window.enabled || window.end <= window.start) return [];
+  const { start, end, breakStart, breakEnd } = window;
+  if (breakStart == null || breakEnd == null || breakEnd <= start || breakStart >= end || breakEnd <= breakStart) {
+    return [{ start, end }];
+  }
+  return [
+    { start, end: Math.max(start, breakStart) },
+    { start: Math.min(end, breakEnd), end },
+  ].filter((r) => r.end > r.start);
+}
+
+/**
+ * What the agenda hatches for the shown clinics: every stretch of the grid where none of them is
+ * open, counting each clinic's own break, so a gap between two clinics' hours is hatched too.
+ * "break" when that stretch is a lunch break, "off" otherwise; "closed" when none opens that day
+ * (user, 2026-10-07).
+ */
+export function agendaClosedBands(
+  windows: readonly AgendaWorkingWindow[],
+  gridStart: number,
+  gridEnd: number,
+): AgendaClosedBand[] | "closed" {
+  const open = windows
+    .flatMap(agendaOpenIntervals)
+    .sort((a, b) => a.start - b.start);
+  if (open.length === 0) return "closed";
+
+  const bands: AgendaClosedBand[] = [];
+  let cursor = gridStart;
+  const closeUntil = (until: number) => {
+    const end = Math.min(until, gridEnd);
+    if (end > cursor) {
+      const isBreak = windows.some(
+        (w) =>
+          w.enabled &&
+          w.breakStart != null &&
+          w.breakEnd != null &&
+          w.breakStart <= cursor &&
+          end <= w.breakEnd &&
+          w.start <= cursor &&
+          end <= w.end,
+      );
+      bands.push({ start: cursor, end, kind: isBreak ? "break" : "off" });
+    }
+  };
+  for (const range of open) {
+    closeUntil(range.start);
+    cursor = Math.max(cursor, range.end);
+    if (cursor >= gridEnd) return bands;
+  }
+  closeUntil(gridEnd);
+  return bands;
+}
+
 /** Map an appointment to a clinic; unassigned rows follow the primary (first) clinic. */
 /** Her clinic link for an appointment's clinic (`clinics.id`), else the first (primary). */
 export function clinicIdForAppointment(

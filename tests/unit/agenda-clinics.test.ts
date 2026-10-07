@@ -5,6 +5,8 @@ import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 
 import {
+  agendaClosedBands,
+  agendaOpenIntervals,
   clinicIdForAppointment,
   locationsToAgendaClinics,
   unionAgendaWorkingWindows,
@@ -169,5 +171,83 @@ describe("AGENDA_VISIBLE_STATUSES", () => {
   it("shows only live visits", async () => {
     const { AGENDA_VISIBLE_STATUSES } = await import("../../lib/agenda-clinics");
     assert.deepEqual([...AGENDA_VISIBLE_STATUSES], ["REQUESTED", "NEEDS_RESCHEDULE", "CONFIRMED"]);
+  });
+});
+
+// Hatched where no shown clinic is open, counting each clinic's own break; gaps between
+// two clinics' hours are hatched too (user, 2026-10-07).
+describe("agendaOpenIntervals", () => {
+  const w = (enabled: boolean, start: number, end: number, breakStart: number | null = null, breakEnd: number | null = null) => ({
+    enabled,
+    start,
+    end,
+    breakStart,
+    breakEnd,
+  });
+
+  it("is the working hours minus the break", () => {
+    assert.deepEqual(agendaOpenIntervals(w(true, 540, 1020, 780, 840)), [
+      { start: 540, end: 780 },
+      { start: 840, end: 1020 },
+    ]);
+  });
+
+  it("is nothing on a closed day", () => {
+    assert.deepEqual(agendaOpenIntervals(w(false, 540, 1020)), []);
+  });
+
+  it("ignores a break outside the hours", () => {
+    assert.deepEqual(agendaOpenIntervals(w(true, 540, 720, 780, 840)), [{ start: 540, end: 720 }]);
+  });
+});
+
+describe("agendaClosedBands", () => {
+  const w = (enabled: boolean, start: number, end: number, breakStart: number | null = null, breakEnd: number | null = null) => ({
+    enabled,
+    start,
+    end,
+    breakStart,
+    breakEnd,
+  });
+  const GRID: [number, number] = [8 * 60, 20 * 60];
+
+  it("hatches the whole day when no shown clinic opens", () => {
+    assert.equal(agendaClosedBands([w(false, 540, 1020)], ...GRID), "closed");
+    assert.equal(agendaClosedBands([], ...GRID), "closed");
+  });
+
+  it("one clinic: before, its break and after", () => {
+    assert.deepEqual(agendaClosedBands([w(true, 540, 1020, 780, 840)], ...GRID), [
+      { start: 480, end: 540, kind: "off" },
+      { start: 780, end: 840, kind: "break" },
+      { start: 1020, end: 1200, kind: "off" },
+    ]);
+  });
+
+  it("no break band while the other clinic is open (Harrison: Feretis breaks, WellClub works)", () => {
+    assert.deepEqual(agendaClosedBands([w(true, 540, 1020, 780, 840), w(true, 540, 1020)], ...GRID), [
+      { start: 480, end: 540, kind: "off" },
+      { start: 1020, end: 1200, kind: "off" },
+    ]);
+  });
+
+  it("hatches the gap between two clinics' hours", () => {
+    assert.deepEqual(agendaClosedBands([w(true, 540, 780), w(true, 900, 1140)], ...GRID), [
+      { start: 480, end: 540, kind: "off" },
+      { start: 780, end: 900, kind: "off" },
+      { start: 1140, end: 1200, kind: "off" },
+    ]);
+  });
+
+  it("a break both clinics share stays a break", () => {
+    assert.deepEqual(agendaClosedBands([w(true, 540, 1020, 780, 840), w(true, 600, 1020, 780, 840)], ...GRID), [
+      { start: 480, end: 540, kind: "off" },
+      { start: 780, end: 840, kind: "break" },
+      { start: 1020, end: 1200, kind: "off" },
+    ]);
+  });
+
+  it("clips to the grid", () => {
+    assert.deepEqual(agendaClosedBands([w(true, 420, 1260)], ...GRID), []);
   });
 });
