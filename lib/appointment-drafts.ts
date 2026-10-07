@@ -44,11 +44,18 @@ export function bookingLimitRefusal(counts: {
 export type DraftLinkState = "usable" | "used" | "unbooked" | "replaced" | "expired" | "invalid";
 
 /**
+ * Confirming marks the link used first and creates the request a few seconds later. For this
+ * long a used link without a request is still on its way, not refused (manual test D1, 2026-10-07).
+ */
+export const DRAFT_CONFIRM_IN_FLIGHT_MS = 2 * 60_000;
+
+/**
  * `replaced`: the patient sent the form again for the same professional, so only the
  * newest link works (user, 2026-10-05). An unconfirmed draft never blocks the form,
  * since nobody has proved the email yet.
  * `unbooked`: marked confirmed but no request was created (an older refusal; refusals now
- * release the link). Never reads as "already confirmed" (manual test B5, user 2026-10-06).
+ * release the link). Never reads as "already confirmed" (manual test B5, user 2026-10-06),
+ * except during the seconds the request is still being created (DRAFT_CONFIRM_IN_FLIGHT_MS).
  */
 export function draftLinkState(
   draft: { expires_at: string; confirmed_at: string | null; appointment_id?: string | null } | null | undefined,
@@ -56,7 +63,11 @@ export function draftLinkState(
   opts: { newerDraftExists?: boolean } = {},
 ): DraftLinkState {
   if (!draft) return "invalid";
-  if (draft.confirmed_at) return draft.appointment_id === null ? "unbooked" : "used";
+  if (draft.confirmed_at) {
+    if (draft.appointment_id !== null) return "used";
+    const inFlight = now.getTime() - new Date(draft.confirmed_at).getTime() < DRAFT_CONFIRM_IN_FLIGHT_MS;
+    return inFlight ? "used" : "unbooked";
+  }
   if (opts.newerDraftExists) return "replaced";
   return new Date(draft.expires_at).getTime() > now.getTime() ? "usable" : "expired";
 }

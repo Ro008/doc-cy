@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 
 import {
   BOOKING_LIMITS,
+  DRAFT_CONFIRM_IN_FLIGHT_MS,
   bookingLimitRefusal,
   draftLinkState,
   escapeIlikeExact,
@@ -65,7 +66,7 @@ describe("draftLinkState", () => {
   // that link must not read as "already confirmed" (manual test B5, user 2026-10-06).
   it("is unbooked when marked confirmed but no request was created", () => {
     assert.equal(
-      draftLinkState({ expires_at: "2026-10-05T10:29:00Z", confirmed_at: "2026-10-05T09:59:00Z", appointment_id: null }, now),
+      draftLinkState({ expires_at: "2026-10-05T10:29:00Z", confirmed_at: "2026-10-05T09:50:00Z", appointment_id: null }, now),
       "unbooked",
     );
     assert.equal(
@@ -74,6 +75,25 @@ describe("draftLinkState", () => {
         now,
       ),
       "used",
+    );
+  });
+
+  // The confirm button marks the link used first and creates the request a few seconds later.
+  // Opening the link in between must not say "This request wasn't sent" while the request is
+  // on its way to the professional (manual test D1, user 2026-10-07).
+  it("reads as already confirmed while the request is still being created", () => {
+    const confirmedAt = new Date(now.getTime() - 10_000).toISOString();
+    assert.equal(
+      draftLinkState({ expires_at: "2026-10-05T10:29:00Z", confirmed_at: confirmedAt, appointment_id: null }, now),
+      "used",
+    );
+  });
+
+  it("is unbooked once that short wait is over and still no request exists", () => {
+    const confirmedAt = new Date(now.getTime() - DRAFT_CONFIRM_IN_FLIGHT_MS - 1).toISOString();
+    assert.equal(
+      draftLinkState({ expires_at: "2026-10-05T10:29:00Z", confirmed_at: confirmedAt, appointment_id: null }, now),
+      "unbooked",
     );
   });
 
