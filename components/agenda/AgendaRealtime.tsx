@@ -52,11 +52,13 @@ import { PatientDetails } from "@/components/dashboard/PatientDetails";
 import {
   AGENDA_APPOINTMENT_SELECT,
   AGENDA_VISIBLE_STATUSES,
+  agendaClosedBands,
   agendaWeekdayKey,
   clinicIdForAppointment,
   unionAgendaWorkingWindows,
   workingWindowForHours,
   type AgendaClinic,
+  type AgendaWorkingWindow,
   type AgendaWorkingHours,
 } from "@/lib/agenda-clinics";
 import { agendaClinicEventColor } from "@/lib/doctor-locations";
@@ -751,6 +753,16 @@ export function AgendaRealtime({
     return workingWindowForHours(workingHours, d, START_HOUR, END_HOUR);
   }
 
+  /** Each shown clinic's hours that day; a single-clinic agenda uses the doctor's own hours. */
+  function shownClinicWindowsForDate(d: Date): AgendaWorkingWindow[] {
+    const visibleClinics = clinics.filter((clinic) => visibleClinicIds.has(clinic.id));
+    if (visibleClinics.length > 0) {
+      return visibleClinics.map((clinic) => workingWindowForHours(clinic.hours, d, START_HOUR, END_HOUR));
+    }
+    if (isMultiClinic) return [];
+    return [workingWindowForHours(workingHours, d, START_HOUR, END_HOUR)];
+  }
+
   function clinicIndexForRow(appointmentClinicId: string | null | undefined): number {
     const clinicId = clinicIdForAppointment(appointmentClinicId, clinics);
     const index = clinics.findIndex((clinic) => clinic.id === clinicId);
@@ -1135,9 +1147,12 @@ export function AgendaRealtime({
   function renderDayColumn(dayDate: Date, keyPrefix: string) {
     const dayKey = format(dayDate, "yyyy-MM-dd");
     const isTodayCol = isSameDay(dayDate, todayDate);
-    const work = workingWindowsForDate(dayDate);
     const startMin = START_HOUR * 60;
     const endMin = END_HOUR * 60;
+    const shown = shownClinicWindowsForDate(dayDate);
+    // Hatched wherever none of the shown clinics is open, each with its own break (user, 2026-10-07).
+    const closedBands = agendaClosedBands(shown, startMin, endMin);
+    const work = { enabled: closedBands !== "closed" };
     const y = (m: number) => CALENDAR_TOP_INSET + ((m - startMin) / 60) * hourRowHeight;
     return (
       <div
@@ -1150,33 +1165,22 @@ export function AgendaRealtime({
         className={agendaDayColumnClass(isTodayCol)}
         style={{ height: calendarBodyHeight }}
       >
-        {!work.enabled ? (
+        {closedBands === "closed" ? (
           <div className={agendaOffHoursOverlayClass} />
         ) : (
-          <>
-            {work.start > startMin ? (
+          closedBands.map((band) => {
+            const top = y(Math.max(band.start, startMin));
+            const bottom = y(Math.min(band.end, endMin));
+            if (bottom <= top) return null;
+            return (
               <div
-                className={agendaOffHoursBandClass}
-                style={{ top: 0, height: y(Math.min(work.start, endMin)) }}
+                key={`${band.kind}-${band.start}`}
+                data-testid={band.kind === "break" ? "agenda-break-band" : "agenda-off-hours-band"}
+                className={band.kind === "break" ? agendaBreakBandClass : agendaOffHoursBandClass}
+                style={{ top, height: bottom - top }}
               />
-            ) : null}
-            {work.end < endMin ? (
-              <div
-                className={agendaOffHoursBandClass}
-                style={{ top: y(Math.max(work.end, startMin)), bottom: 0 }}
-              />
-            ) : null}
-            {work.breakStart != null && work.breakEnd != null && work.breakEnd > work.breakStart
-              ? (() => {
-                  const top = y(Math.max(work.breakStart!, startMin));
-                  const bottom = y(Math.min(work.breakEnd!, endMin));
-                  if (bottom <= top) return null;
-                  return (
-                    <div className={agendaBreakBandClass} style={{ top, height: bottom - top }} />
-                  );
-                })()
-              : null}
-          </>
+            );
+          })
         )}
         {hours.slice(0, -1).map((hour) => (
           <div
