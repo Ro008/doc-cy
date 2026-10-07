@@ -667,9 +667,15 @@ export function AppointmentReviewClient({
           <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-sm">
             <button
               type="button"
-              disabled={busy}
-              onClick={() => setMode("review")}
-              className="font-medium text-slate-400 underline-offset-2 transition hover:text-clinical-200 hover:underline disabled:opacity-60"
+              disabled={busy || loadingAlternatives}
+              onClick={() => {
+                // Close the whole form; "Suggest other times" opens it again, fresh.
+                setChosen(null);
+                setDayOptions(null);
+                setAlternativesError(null);
+                setMode("review");
+              }}
+              className="rounded-2xl border border-clinical-400/35 bg-clinical-500/10 px-4 py-2 font-medium text-clinical-100 transition hover:border-clinical-400/50 hover:bg-clinical-500/20 disabled:cursor-not-allowed disabled:opacity-60"
             >
               Keep the original time instead
             </button>
@@ -677,7 +683,7 @@ export function AppointmentReviewClient({
               type="button"
               disabled={busy}
               onClick={() => setDeclineOpen(true)}
-              className="font-medium text-slate-400 underline-offset-2 transition hover:text-red-200 hover:underline disabled:opacity-60"
+              className="rounded-2xl border border-red-500/30 px-4 py-2 font-medium text-red-300 transition hover:border-red-400/60 hover:bg-red-500/10 hover:text-red-200 disabled:cursor-not-allowed disabled:opacity-60"
             >
               Decline
             </button>
@@ -703,8 +709,11 @@ export function AppointmentReviewClient({
             type="button"
             disabled={loadingAlternatives || busy}
             onClick={() => {
-              suggestRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+              // Same view as when she arrives from the dashboard's "Suggest other times":
+              // the form, with "Keep the original time instead" and Decline below it.
+              setMode("suggest");
               void loadAlternatives();
+              window.setTimeout(() => suggestRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }), 0);
             }}
             className="inline-flex items-center justify-center gap-2 rounded-2xl border border-clinical-400/40 px-3 py-2.5 text-sm font-medium text-clinical-100 transition hover:border-clinical-400/70 hover:bg-clinical-500/10 disabled:cursor-not-allowed disabled:opacity-60"
           >
