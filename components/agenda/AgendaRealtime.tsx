@@ -261,7 +261,7 @@ function AgendaAppointmentCardInner({
             </span>
             {topRightBadge ? (
               <span
-                className={`ml-1 shrink-0 max-w-[3.35rem] truncate ${agendaAppointmentBadgeClass}`}
+                className={`ml-1 shrink-0 whitespace-nowrap ${agendaAppointmentBadgeClass}`}
                 title={topRightBadge}
               >
                 {topRightBadge}
@@ -1109,6 +1109,7 @@ export function AgendaRealtime({
       clinicName: clinicNameForRow(row.clinic_id),
       isPendingRequest: row.isPendingRequest,
       isManual: isManualBooking(row.booking_source),
+      isProposedSlot: row.isCounterOfferHold,
       dotClass: row.isExpired
         ? "bg-slate-500"
         : (clinicSwatchClass(row.clinic_id) ?? "bg-clinical-400"),

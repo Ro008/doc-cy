@@ -14,6 +14,8 @@ export type AgendaMonthItem = {
   isPendingRequest: boolean;
   /** Added by hand (phone or walk-in): shown with a small phone. */
   isManual?: boolean;
+  /** A time held for a patient who was offered it: tagged "Proposed slot" instead of "Pending". */
+  isProposedSlot?: boolean;
   /** Tailwind background class for the dot (clinic color). */
   dotClass: string;
   onOpen: () => void;
@@ -92,7 +94,7 @@ export function AgendaMonthGrid({ anchor, today, itemsForDay, isWorkingDay, onOp
                     <span
                       key={item.key}
                       className={`h-1.5 w-1.5 rounded-full ${
-                        item.isPendingRequest ? "border border-amber-400" : item.dotClass
+                        item.isPendingRequest ? `${item.dotClass} ring-1 ring-amber-400 ring-offset-1 ring-offset-slate-900` : item.dotClass
                       }`}
                       aria-hidden
                     />
@@ -109,17 +111,27 @@ export function AgendaMonthGrid({ anchor, today, itemsForDay, isWorkingDay, onOp
                     aria-label={`Appointment ${item.patientName} at ${item.timeLabel}${item.clinicName ? ` · ${item.clinicName}` : ""}`}
                     title={`${item.timeLabel} · ${item.patientName}`}
                     className={`flex min-w-0 items-center gap-1.5 rounded px-1.5 py-0.5 text-left text-xs transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-400/70 ${
-                      item.isPendingRequest ? "text-amber-100" : "text-slate-100"
+                      item.isPendingRequest
+                        ? "bg-amber-500/10 text-amber-100 ring-1 ring-inset ring-amber-400/40"
+                        : "text-slate-100"
                     }`}
                   >
                     <span
                       className={`h-2 w-2 shrink-0 rounded-full ${
-                        item.isPendingRequest ? "border-2 border-dashed border-amber-400" : item.dotClass
+                        item.dotClass
                       }`}
                       aria-hidden
                     />
                     <span className="shrink-0 tabular-nums text-slate-400">{item.timeLabel}</span>
                     <span className="min-w-0 truncate">{item.patientName}</span>
+                    {item.isPendingRequest ? (
+                      <span
+                        data-testid="agenda-month-pending-tag"
+                        className="ml-auto shrink-0 rounded-sm bg-amber-400/20 px-1 text-[9px] font-bold uppercase tracking-wide text-amber-200"
+                      >
+                        {item.isProposedSlot ? "Proposed slot" : "Pending"}
+                      </span>
+                    ) : null}
                     {item.isManual ? (
                       <Phone className="h-3 w-3 shrink-0 text-slate-400" aria-label={MANUAL_BOOKING_LABEL} />
                     ) : null}
