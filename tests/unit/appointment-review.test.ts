@@ -5,6 +5,8 @@ import {
   QUICK_DURATIONS,
   buildReviewDayTimeline,
   reviewBackTarget,
+  confirmedExitLinks,
+  confirmedPath,
   reviewPathFromDashboard,
   reviewTimeRangeLabel,
   wantsSuggestOnOpen,
@@ -105,5 +107,36 @@ describe("buildReviewDayTimeline", () => {
       ["pending", "requested"],
       ["req", "request"],
     ]);
+  });
+});
+
+describe("confirmedPath", () => {
+  it("keeps where she came from so the confirmed page can send her back", () => {
+    assert.equal(confirmedPath("abc", "dashboard"), "/dashboard/appointments/abc?confirmed=1&from=dashboard");
+    assert.equal(confirmedPath("abc", "agenda"), "/dashboard/appointments/abc?confirmed=1");
+    assert.equal(confirmedPath("a b", undefined), "/dashboard/appointments/a%20b?confirmed=1");
+  });
+});
+
+describe("confirmedExitLinks", () => {
+  const day = { dateKey: "2026-10-13", label: "Tue 13 Oct" };
+
+  it("from the agenda: back to that day first, dashboard second", () => {
+    assert.deepEqual(confirmedExitLinks("agenda", day), {
+      primary: { href: "/agenda?date=2026-10-13", label: "Back to agenda (Tue 13 Oct)" },
+      secondary: { href: "/dashboard", label: "Go to dashboard" },
+    });
+  });
+
+  it("from the dashboard: dashboard first, that day in the agenda second", () => {
+    assert.deepEqual(confirmedExitLinks("dashboard", day), {
+      primary: { href: "/dashboard", label: "Back to dashboard" },
+      secondary: { href: "/agenda?date=2026-10-13", label: "Open Tue 13 Oct in agenda" },
+    });
+  });
+
+  it("with no origin (email link) it behaves like the agenda", () => {
+    assert.equal(confirmedExitLinks(undefined, day).primary.href, "/agenda?date=2026-10-13");
+    assert.equal(confirmedExitLinks("https://evil.example", day).primary.href, "/agenda?date=2026-10-13");
   });
 });

@@ -14,6 +14,7 @@ import { getScheduleOverlapWarning } from "@/lib/appointment-review-schedule-war
 import {
   QUICK_DURATIONS,
   buildReviewDayTimeline,
+  confirmedPath,
   reviewTimeRangeLabel,
   type ReviewBackTarget,
   type ReviewDayRow,
@@ -298,7 +299,7 @@ export function AppointmentReviewClient({
         setSubmitting(false);
         return;
       }
-      router.push(`/dashboard/appointments/${encodeURIComponent(appointmentId)}?confirmed=1`);
+      router.push(confirmedPath(appointmentId, back.href === "/dashboard" ? "dashboard" : "agenda"));
       router.refresh();
     } catch {
       const message = "Something went wrong. Please try again.";

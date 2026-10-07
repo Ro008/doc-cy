@@ -23,6 +23,32 @@ export function reviewBackTarget(from: string | null | undefined): ReviewBackTar
     : { href: "/agenda", label: "Back to agenda" };
 }
 
+/** Where the page shown right after accepting goes; `from` keeps the way back. */
+export function confirmedPath(appointmentId: string, from: string | null | undefined): string {
+  const base = `/dashboard/appointments/${encodeURIComponent(appointmentId)}?confirmed=1`;
+  return from === "dashboard" ? `${base}&from=dashboard` : base;
+}
+
+export type ConfirmedExitLinks = { primary: ReviewBackTarget; secondary: ReviewBackTarget };
+
+/** The two ways out of the "visit confirmed" page: back where she came from, then the other place. */
+export function confirmedExitLinks(
+  from: string | null | undefined,
+  day: { dateKey: string; label: string },
+): ConfirmedExitLinks {
+  const agendaHref = `/agenda?date=${day.dateKey}`;
+  if (from === "dashboard") {
+    return {
+      primary: { href: "/dashboard", label: "Back to dashboard" },
+      secondary: { href: agendaHref, label: `Open ${day.label} in agenda` },
+    };
+  }
+  return {
+    primary: { href: agendaHref, label: `Back to agenda (${day.label})` },
+    secondary: { href: "/dashboard", label: "Go to dashboard" },
+  };
+}
+
 /** Review page link from the dashboard; `suggest` opens it with three times ready. */
 export function reviewPathFromDashboard(appointmentId: string, intent?: "suggest"): string {
   const params = new URLSearchParams();

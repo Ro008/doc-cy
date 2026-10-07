@@ -18,7 +18,7 @@ import { getDoctorCalendarEventDetails } from "@/lib/doctor-calendar-event";
 import { appointmentCalendarPath } from "@/lib/appointment-links";
 import { formatInTimeZone, zonedTimeToUtc } from "date-fns-tz";
 import { CY_TZ } from "@/lib/appointments";
-import { reviewBackTarget, wantsSuggestOnOpen, type ReviewDayRow } from "@/lib/appointment-review";
+import { confirmedExitLinks, reviewBackTarget, wantsSuggestOnOpen, type ReviewDayRow } from "@/lib/appointment-review";
 import { isExpiredRequest, isStoredExpiredStatus } from "@/lib/appointment-status";
 import { agendaHighlightHref } from "@/lib/agenda-highlight";
 import { awaitingPatientSummary, requestedAgoLabel, todayWorkingWindow } from "@/lib/doctor-dashboard";
@@ -392,72 +392,86 @@ export default async function DashboardAppointmentDetailPage({
     });
   }
 
+  const exitLinks = confirmedExitLinks(searchParams?.from, {
+    dateKey: agendaDateKey,
+    label: formatInTimeZone(new Date(appt.appointment_datetime as string), CY_TZ, "EEE d MMM"),
+  });
+
   return (
     <DoctorAppointmentLinkShell>
       <p className="text-xs font-semibold uppercase tracking-wide text-clinical-300">
-        {justConfirmed ? "Appointment confirmed" : "Appointment"}
+        {justConfirmed ? "Visit confirmed" : "Appointment"}
       </p>
-      <h1 className="mt-2 text-xl font-semibold text-ink-50">Hi {greet}</h1>
+      <h1 className="mt-2 text-xl font-semibold text-ink-50">
+        {justConfirmed ? `${patientName} is booked` : `Hi ${greet}`}
+      </h1>
       <p className="mt-3 text-sm leading-relaxed text-ink-300">
-          {status === "CONFIRMED" && justConfirmed
-            ? "Confirmed in DocCy. Manage all updates in DocCy in a few clicks. Google Calendar is only an optional reminder and does not sync changes."
-            : status === "CONFIRMED"
-              ? "This visit is already confirmed. Manage all updates in DocCy."
-              : status === "CANCELLED"
-                ? "This appointment was cancelled."
-                : "This request is not pending confirmation."}
-        </p>
-        {status === "CONFIRMED" ? (
-          <div className="mt-5 space-y-2">
-            <a
-              href={googleCalendarUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={PRIMARY_BTN_CLASS}
-            >
-              Add to Google Calendar
-            </a>
-            <a href={doctorIcsUrl} className={SECONDARY_BTN_CLASS}>
-              Add to Apple / Outlook (.ics)
-            </a>
-          </div>
-        ) : null}
+        {status === "CONFIRMED" && justConfirmed
+          ? "The visit is in your agenda and the patient has been emailed."
+          : status === "CONFIRMED"
+            ? "This visit is already confirmed. Manage all updates in DocCy."
+            : status === "CANCELLED"
+              ? "This appointment was cancelled."
+              : "This request is not pending confirmation."}
+      </p>
 
-        <dl className="mt-6 space-y-3 text-sm">
+      <div className="mt-5 space-y-2">
+        <PendingLink href={exitLinks.primary.href} className={PRIMARY_BTN_CLASS}>
+          {exitLinks.primary.label}
+        </PendingLink>
+        <PendingLink href={exitLinks.secondary.href} className={SECONDARY_BTN_CLASS}>
+          {exitLinks.secondary.label}
+        </PendingLink>
+      </div>
+
+      <dl className="mt-6 space-y-3 text-sm">
+        <div>
+          <dt className="text-xs font-medium uppercase tracking-wide text-ink-500">Patient</dt>
+          <dd className="mt-0.5 text-ink-100">{patientName}</dd>
+        </div>
+        <div>
+          <dt className="text-xs font-medium uppercase tracking-wide text-ink-500">When</dt>
+          <dd className="mt-0.5 text-ink-100">
+            {dateStr} · {timeStr} (Cyprus time)
+          </dd>
+        </div>
+        {status === "CONFIRMED" ? (
           <div>
-            <dt className="text-xs font-medium uppercase tracking-wide text-ink-500">Patient</dt>
-            <dd className="mt-0.5 text-ink-100">{patientName}</dd>
+            <dt className="text-xs font-medium uppercase tracking-wide text-ink-500">Duration</dt>
+            <dd className="mt-0.5 text-ink-100">{initialDurationMinutes} minutes</dd>
           </div>
-          <div>
-            <dt className="text-xs font-medium uppercase tracking-wide text-ink-500">When</dt>
-            <dd className="mt-0.5 text-ink-100">
-              {dateStr} · {timeStr} (Cyprus time)
-            </dd>
-          </div>
+        ) : (
           <div>
             <dt className="text-xs font-medium uppercase tracking-wide text-ink-500">Status</dt>
             <dd className="mt-0.5 text-ink-100">{status}</dd>
           </div>
-          {status === "CONFIRMED" ? (
-            <div>
-              <dt className="text-xs font-medium uppercase tracking-wide text-ink-500">
-                Duration
-              </dt>
-              <dd className="mt-0.5 text-ink-100">{initialDurationMinutes} minutes</dd>
-            </div>
-          ) : null}
-          <div>
-            <dt className="text-xs font-medium uppercase tracking-wide text-ink-500">Reason</dt>
-            <dd className="mt-0.5 whitespace-pre-wrap text-ink-200">{reason || "—"}</dd>
-          </div>
-        </dl>
+        )}
+        <div>
+          <dt className="text-xs font-medium uppercase tracking-wide text-ink-500">Reason</dt>
+          <dd className="mt-0.5 whitespace-pre-wrap text-ink-200">{reason || "—"}</dd>
+        </div>
+      </dl>
 
-        <PendingLink
-          href={`/agenda?date=${agendaDateKey}`}
-          className="mt-8 flex w-full items-center justify-center rounded-2xl px-3 py-2 text-sm font-medium text-ink-500 transition hover:bg-clinical-500/10 hover:text-clinical-200"
-        >
-          Open that day in agenda
-        </PendingLink>
+      {status === "CONFIRMED" ? (
+        <p className="mt-6 text-xs text-ink-500">
+          Optional reminder (it does not sync later changes):{" "}
+          <a
+            href={googleCalendarUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-medium text-clinical-300 underline underline-offset-2 hover:text-clinical-200"
+          >
+            Google Calendar
+          </a>
+          {" · "}
+          <a
+            href={doctorIcsUrl}
+            className="font-medium text-clinical-300 underline underline-offset-2 hover:text-clinical-200"
+          >
+            Apple / Outlook (.ics)
+          </a>
+        </p>
+      ) : null}
     </DoctorAppointmentLinkShell>
   );
 }

@@ -170,7 +170,7 @@ test.describe("Integration: doctor confirmation flow", { tag: ["@pr-e2e", "@pr-e
       await expect(page.getByTestId("userbar-mobile-tabs")).toBeHidden();
       await expect(page.getByTestId("userbar-toggle")).toBeHidden();
 
-      const openAgendaDayLink = page.getByRole("link", { name: /Open that day in agenda/i });
+      const openAgendaDayLink = page.getByRole("link", { name: /^Back to agenda/i });
       if ((await openAgendaDayLink.count()) === 0) {
         await admin
           .from("appointments")
