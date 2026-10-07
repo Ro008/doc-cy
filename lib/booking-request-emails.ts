@@ -13,6 +13,7 @@ import {
   EMAIL_TEXT_MUTED,
   emailFallbackLink,
 } from "@/lib/email-brand";
+import { patientClinicBlockHtml, patientClinicBlockText, type PatientEmailClinic } from "@/lib/patient-email-clinic";
 import { professionalFirstName } from "@/lib/professional-name";
 import { isUndeliverableTestEmail } from "@/lib/registration-decision-emails";
 import { AUTOMATED_EMAIL_FOOTER_TEXT, automatedEmailFooterHtml, escapeHtml, sendResendEmail } from "@/lib/resend";
@@ -26,12 +27,8 @@ import { AUTOMATED_EMAIL_FOOTER_TEXT, automatedEmailFooterHtml, escapeHtml, send
  *    page itself says "Request sent".
  */
 
-export type EmailClinic = {
-  name: string;
-  address?: string | null;
-  /** The clinic's Maps pin (`clinicMapsUrl`): the address links to it (user, 2026-10-05). */
-  mapsUrl?: string | null;
-};
+/** Name, address, Maps pin, phone and profile link of a clinic (see patient-email-clinic.ts). */
+export type EmailClinic = PatientEmailClinic;
 export type BuiltEmail = { subject: string; text: string; html: string };
 
 function whenLabels(iso: string): { date: string; time: string } {
@@ -80,7 +77,8 @@ export function buildBookingConfirmLinkEmail(opts: {
   const subject = `Confirm your appointment request with ${pro}`;
   const text =
     `Hi ${hi},\n\n` +
-    `Please confirm your appointment request with ${pro} for ${date} at ${time} (Cyprus time), at ${clinicText(opts.clinic)}.\n\n` +
+    `Please confirm your appointment request with ${pro} for ${date} at ${time} (Cyprus time).\n\n` +
+    `${patientClinicBlockText(opts.clinic)}\n` +
     `Confirm your request:\n${opts.confirmUrl}\n\n` +
     `This link works once and for ${minutes} minutes. Your request is not sent to ${pro} until you confirm.\n` +
     `If you didn't ask for this, you can ignore this email.\n\n` +
@@ -91,9 +89,9 @@ ${EMAIL_SHELL_OPEN}
     <p style="${P}">Hi ${escapeHtml(hi)},</p>
     <p style="${P}">
       Please confirm your appointment request with <strong>${escapeHtml(pro)}</strong> for
-      <strong>${escapeHtml(date)}</strong> at <strong>${escapeHtml(time)}</strong> (Cyprus time),
-      at ${clinicHtml(opts.clinic)}.
+      <strong>${escapeHtml(date)}</strong> at <strong>${escapeHtml(time)}</strong> (Cyprus time).
     </p>
+    ${patientClinicBlockHtml(opts.clinic)}
     <a href="${escapeHtml(opts.confirmUrl)}" style="${EMAIL_PRIMARY_BTN}">Confirm my request</a>
     <p style="${P}">This link works once and for ${minutes} minutes. Your request is not sent to ${escapeHtml(pro)} until you confirm.</p>
     <p style="${MUTED}">If the button does not work, copy this link: ${emailFallbackLink(opts.confirmUrl)}</p>

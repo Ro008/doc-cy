@@ -13,6 +13,7 @@ import {
 import { appointmentClinicCopy, loadAppointmentClinicPhone } from "@/lib/appointment-clinic-copy";
 import { loadDoctorLocations } from "@/lib/load-doctor-locations";
 import { clinicSlotMinutes } from "@/lib/professional-account-settings";
+import { loadPatientEmailClinic, patientClinicProfileUrl } from "@/lib/patient-email-clinic";
 import { sendPatientAppointmentConfirmedEmail } from "@/lib/send-patient-appointment-confirmed-email";
 import { issuePatientCancelLink } from "@/lib/appointment-links-db";
 import { isUndeliverableTestEmail } from "@/lib/registration-decision-emails";
@@ -55,7 +56,7 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
 
   const { data: doctor, error: doctorErr } = await supabase
     .from("professionals")
-    .select("id, name, email, registration_email")
+    .select("id, name, slug, email, registration_email")
     .eq("auth_user_id", user.id)
     .maybeSingle();
 
@@ -197,6 +198,7 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
         clinic_address: clinic.address,
       },
       clinic,
+      profileUrl: patientClinicProfileUrl(siteUrl, (doctor as { slug?: string | null }).slug),
       cancel,
       resendToOverride,
     });

@@ -14,6 +14,7 @@ import {
 import { parseBookingPatientFields } from "@/lib/booking-patient-fields";
 import { bookingViewerMode, loadBookingAccountKind, PROFESSIONAL_SIGNED_IN_CODE } from "@/lib/booking-viewer";
 import { buildBookingConfirmLinkEmail, sendBuiltEmail } from "@/lib/booking-request-emails";
+import { loadPatientEmailClinic } from "@/lib/patient-email-clinic";
 import { checkOnlineBookingSlot } from "@/lib/online-booking-slot-check";
 import { enforcePublicApiRateLimit } from "@/lib/public-api-rate-limit";
 import { resolveRequestedService } from "@/lib/requested-service";
@@ -163,16 +164,22 @@ export async function POST(req: NextRequest) {
   try {
     const { data: professional } = await supabase
       .from("professionals")
-      .select("name")
+      .select("name, slug")
       .eq("id", professionalId)
       .single();
+    const emailClinic =
+      (await loadPatientEmailClinic(supabase, {
+        clinicId: slot.bookingLocation.clinic_id,
+        professionalSlug: (professional as { slug?: string | null } | null)?.slug,
+        siteUrl,
+      }).catch(() => null)) ?? emailClinicFromLocation(slot.bookingLocation);
     await sendBuiltEmail(
       patientEmail,
       buildBookingConfirmLinkEmail({
         patientName: fields.patientName,
         professionalName: String((professional as { name?: string } | null)?.name ?? ""),
         appointmentIso: slot.appointmentUtc.toISOString(),
-        clinic: emailClinicFromLocation(slot.bookingLocation),
+        clinic: emailClinic,
         confirmUrl: appointmentLinkUrl(siteUrl, "confirm", token),
       }),
     );

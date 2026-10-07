@@ -7,18 +7,16 @@ import {
   automatedEmailFooterHtml,
   escapeHtml,
 } from "@/lib/resend";
-import { clinicHtml, type EmailClinic } from "@/lib/booking-request-emails";
+import type { EmailClinic } from "@/lib/booking-request-emails";
+import { patientClinicBlockHtml, patientClinicBlockText } from "@/lib/patient-email-clinic";
 import {
   EMAIL_HEADING,
-  EMAIL_LINK_ACCENT,
   EMAIL_PRIMARY_BTN,
-  EMAIL_SECTION_LABEL,
   EMAIL_SHELL_CLOSE,
   EMAIL_SHELL_OPEN,
   EMAIL_TEXT,
   EMAIL_TEXT_MUTED,
 } from "@/lib/email-brand";
-import { formatCyprusPhoneDisplay, phoneToTelHref } from "@/lib/phone-link";
 import { isUndeliverableTestEmail } from "@/lib/registration-decision-emails";
 
 const PRIMARY_BTN = EMAIL_PRIMARY_BTN;
@@ -84,23 +82,8 @@ export function buildPatientRescheduleProposalEmailContent(
       </p>
     </div>`
     : "";
-  const telHref = phoneToTelHref(clinic?.phone);
-  const phoneDisplay = telHref ? formatCyprusPhoneDisplay(clinic?.phone) : "";
-  const clinicText = clinic
-    ? `Clinic: ${clinic.name}\n` +
-      (clinic.address ? `Address: ${clinic.address}\n` : "") +
-      (clinic.mapsUrl ? `Maps: ${clinic.mapsUrl}\n` : "") +
-      (phoneDisplay ? `Phone: ${phoneDisplay}\n` : "")
-    : "";
-  const clinicBlockHtml = clinic
-    ? `<p style="${EMAIL_SECTION_LABEL}">Clinic</p>
-    <p style="margin:0 0 4px;font-size:15px;line-height:1.6;color:${EMAIL_TEXT};">${clinicHtml(clinic).replace(escapeHtml(clinic.name), `<strong>${escapeHtml(clinic.name)}</strong>`)}</p>
-    ${
-      phoneDisplay && telHref
-        ? `<p style="margin:0 0 14px;font-size:15px;line-height:1.6;color:${EMAIL_TEXT};"><a href="${escapeHtml(telHref)}" style="${EMAIL_LINK_ACCENT}">${escapeHtml(phoneDisplay)}</a></p>`
-        : ""
-    }`
-    : "";
+  const clinicText = clinic ? patientClinicBlockText(clinic) : "";
+  const clinicBlockHtml = clinic ? patientClinicBlockHtml(clinic) : "";
   const slotsHtml = slotLabelsCyprus
     .map((s) => `<li style="margin:0 0 6px;font-size:15px;line-height:1.5;color:#e2e8f0;">${escapeHtml(s)}</li>`)
     .join("");

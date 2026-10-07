@@ -8,11 +8,11 @@ import { appointmentLinkUrl } from "@/lib/appointment-link-token";
 import { issueAppointmentLink, issuePatientCancelLink, revokeAppointmentLinks } from "@/lib/appointment-links-db";
 import { appointmentToCyprusDate } from "@/lib/appointments";
 import type { BuiltEmail } from "@/lib/booking-request-emails";
-import { clinicMapsUrl } from "@/lib/clinic-info";
 import { publicProfessionalProfilePath } from "@/lib/manual-directory-landing-path";
 import { parsePatientCancelNoticeHours, patientCanCancel } from "@/lib/patient-cancel-window";
 import { REVIEW_LINK_DAYS } from "@/lib/professional-review";
 import { buildPatientRescheduleReminderEmailContent, RESCHEDULE_REMINDER_LEAD_HOURS } from "@/lib/reschedule-emails";
+import { loadPatientEmailClinic } from "@/lib/patient-email-clinic";
 import { buildPatientReviewRequestEmail } from "@/lib/review-request-email";
 
 /**
@@ -152,7 +152,7 @@ export async function runAppointmentsJob(deps: AppointmentsJobDeps): Promise<App
       .update({ status: "EXPIRED" })
       .in("id", ids)
       .eq("status", "REQUESTED")
-      .select("id, professional_id, patient_name, patient_email, appointment_datetime");
+      .select("id, professional_id, patient_name, patient_email, appointment_datetime, clinic_id");
     if (error) throw error;
     const rows = (data ?? []) as Row[];
     const pros = await professionalsById(service, rows.map((r) => r.professional_id));
@@ -166,6 +166,11 @@ export async function runAppointmentsJob(deps: AppointmentsJobDeps): Promise<App
           professionalName: pro?.name ?? "your professional",
           appointmentIso: str(r.appointment_datetime),
           bookUrl: pro?.slug ? new URL(publicProfessionalProfilePath(pro.slug), siteUrl).toString() : null,
+          clinic: await loadPatientEmailClinic(service, {
+            clinicId: str(r.clinic_id),
+            professionalSlug: pro?.slug,
+            siteUrl,
+          }).catch(() => null),
         }),
       );
     }
@@ -205,7 +210,7 @@ export async function runAppointmentsJob(deps: AppointmentsJobDeps): Promise<App
       .in("id", ids)
       .eq("status", "NEEDS_RESCHEDULE")
       .is("proposal_reminder_sent_at", null)
-      .select("id, professional_id, patient_name, patient_email, proposed_slots, proposal_expires_at");
+      .select("id, professional_id, patient_name, patient_email, proposed_slots, proposal_expires_at, clinic_id");
     if (error) throw error;
     const rows = (data ?? []) as Row[];
     const pros = await professionalsById(service, rows.map((r) => r.professional_id));
@@ -225,6 +230,11 @@ export async function runAppointmentsJob(deps: AppointmentsJobDeps): Promise<App
         proposalExpiresAtIso: expiresAt,
         doctorName: pros.get(r.professional_id)?.name ?? "your professional",
         slotLabelsCyprus: slots.map((s) => format(appointmentToCyprusDate(s), "EEE d MMM, HH:mm", { locale: enGB })),
+        clinic: await loadPatientEmailClinic(service, {
+          clinicId: str(r.clinic_id),
+          professionalSlug: pros.get(r.professional_id)?.slug,
+          siteUrl,
+        }).catch(() => null),
       });
       await send(str(r.patient_email), email);
       sent += 1;
@@ -259,28 +269,10 @@ export async function runAppointmentsJob(deps: AppointmentsJobDeps): Promise<App
     if (claimErr) throw claimErr;
     const rows = (data ?? []) as Row[];
     const pros = await professionalsById(service, rows.map((r) => r.professional_id));
-    const clinicIds = [...new Set(rows.map((r) => str(r.clinic_id)).filter(Boolean))];
-    const [{ data: clinics }, { data: settings }] = await Promise.all([
-      clinicIds.length
-        ? service.from("clinics").select("id, name, address, address_maps_link, latitude, longitude").in("id", clinicIds)
-        : Promise.resolve({ data: [] as { id: string; name: string; address: string | null }[] }),
-      service
-        .from("professional_settings")
-        .select("professional_id, patient_cancel_notice_hours")
-        .in("professional_id", [...new Set(rows.map((r) => r.professional_id))]),
-    ]);
-    const clinicById = new Map(
-      (
-        (clinics ?? []) as {
-          id: string;
-          name: string;
-          address: string | null;
-          address_maps_link: string | null;
-          latitude: number | null;
-          longitude: number | null;
-        }[]
-      ).map((c) => [c.id, c]),
-    );
+    const { data: settings } = await service
+      .from("professional_settings")
+      .select("professional_id, patient_cancel_notice_hours")
+      .in("professional_id", [...new Set(rows.map((r) => r.professional_id))]);
     const noticeBy = new Map(
       ((settings ?? []) as { professional_id: string; patient_cancel_notice_hours: number | null }[]).map((s) => [
         s.professional_id,
@@ -298,25 +290,18 @@ export async function runAppointmentsJob(deps: AppointmentsJobDeps): Promise<App
             { keepOlder: true },
           )
         : null;
-      const clinic = clinicById.get(str(r.clinic_id));
+      const clinic = await loadPatientEmailClinic(service, {
+        clinicId: str(r.clinic_id),
+        professionalSlug: pros.get(r.professional_id)?.slug,
+        siteUrl,
+      }).catch(() => null);
       await send(
         str(r.patient_email),
         buildPatientVisitReminderEmail({
           patientName: str(r.patient_name),
           professionalName: pros.get(r.professional_id)?.name ?? "your professional",
           appointmentIso: startIso,
-          clinic: {
-            name: clinic?.name ?? "the clinic",
-            address: clinic?.address ?? null,
-            mapsUrl: clinic
-              ? clinicMapsUrl({
-                  mapsLink: clinic.address_maps_link,
-                  latitude: clinic.latitude,
-                  longitude: clinic.longitude,
-                  address: clinic.address,
-                })
-              : null,
-          },
+          clinic: clinic ?? { name: "the clinic" },
           cancel,
         }),
       );
@@ -379,7 +364,7 @@ export async function runAppointmentsJob(deps: AppointmentsJobDeps): Promise<App
       .eq("status", "CONFIRMED")
       .eq("attendance", APPOINTMENT_ATTENDANCE_ATTENDED)
       .is("review_requested_at", null)
-      .select("id, professional_id, patient_name, patient_email, appointment_datetime");
+      .select("id, professional_id, patient_name, patient_email, appointment_datetime, clinic_id");
     if (claimErr) throw claimErr;
     const rows = (data ?? []) as Row[];
     const pros = await professionalsById(service, rows.map((r) => r.professional_id));
@@ -396,6 +381,11 @@ export async function runAppointmentsJob(deps: AppointmentsJobDeps): Promise<App
           professionalName: pros.get(r.professional_id)?.name ?? "your professional",
           appointmentIso: str(r.appointment_datetime),
           reviewUrl: appointmentLinkUrl(siteUrl, "review", token),
+          clinic: await loadPatientEmailClinic(service, {
+            clinicId: str(r.clinic_id),
+            professionalSlug: pros.get(r.professional_id)?.slug,
+            siteUrl,
+          }).catch(() => null),
         }),
       );
     }

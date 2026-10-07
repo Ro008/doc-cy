@@ -16,6 +16,8 @@ import {
   EMAIL_TEXT_MUTED,
   emailFallbackLink,
 } from "@/lib/email-brand";
+import type { EmailClinic } from "@/lib/booking-request-emails";
+import { patientClinicBlockHtml, patientClinicBlockText } from "@/lib/patient-email-clinic";
 import { isUndeliverableTestEmail } from "@/lib/registration-decision-emails";
 
 /**
@@ -46,6 +48,8 @@ export type RescheduleReminderEmailOpts = {
   proposalExpiresAtIso: string;
   doctorName: string;
   slotLabelsCyprus: string[];
+  /** Where the held times are (name, address, phone, profile). */
+  clinic?: EmailClinic | null;
 };
 
 type EmailContent = { subject: string; text: string; html: string };
@@ -66,6 +70,7 @@ export function buildPatientRescheduleReminderEmailContent(opts: RescheduleRemin
     `Hi ${patient},\n\n` +
     `${line}\n\n` +
     `${opts.slotLabelsCyprus.map((s) => `• ${s}`).join("\n")}\n\n` +
+    (opts.clinic ? `${patientClinicBlockText(opts.clinic)}\n` : "") +
     `Choose a time or decline:\n${opts.chooseUrl}\n\n` +
     `---\n${AUTOMATED_EMAIL_FOOTER_TEXT}`;
   const slotsHtml = opts.slotLabelsCyprus
@@ -77,6 +82,7 @@ ${EMAIL_SHELL_OPEN}
     <p style="margin:0 0 10px;font-size:15px;line-height:1.6;color:${EMAIL_TEXT};">Hi ${escapeHtml(patient)},</p>
     <p style="margin:0 0 10px;font-size:15px;line-height:1.6;color:${EMAIL_TEXT};">${escapeHtml(line)}</p>
     <ul style="margin:12px 0 16px;padding-left:20px;">${slotsHtml}</ul>
+    ${opts.clinic ? patientClinicBlockHtml(opts.clinic) : ""}
     <a href="${escapeHtml(opts.chooseUrl)}" style="${EMAIL_PRIMARY_BTN}">Choose a time</a>
     <p style="margin:12px 0 0;font-size:13px;line-height:1.5;color:${EMAIL_TEXT_MUTED};">If the button does not work, copy this link: ${emailFallbackLink(opts.chooseUrl)}</p>
     ${automatedEmailFooterHtml()}

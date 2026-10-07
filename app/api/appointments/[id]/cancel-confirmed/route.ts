@@ -4,6 +4,7 @@ import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 import { sendPatientConfirmedAppointmentCancelledEmail } from "@/lib/send-patient-confirmed-appointment-cancelled-email";
 import { revokeAppointmentLinks } from "@/lib/appointment-links-db";
 import { isUndeliverableTestEmail } from "@/lib/registration-decision-emails";
+import { loadPatientEmailClinic, patientClinicProfileUrl } from "@/lib/patient-email-clinic";
 import { createServiceRoleClient } from "@/lib/supabase-service";
 
 type RouteContext = { params: { id: string } };
@@ -59,7 +60,7 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
   const { data: appt, error: apptErr } = await supabase
     .from("appointments")
     .select(
-      "id, professional_id, patient_name, patient_email, patient_phone, status, appointment_datetime"
+      "id, professional_id, patient_name, patient_email, patient_phone, status, appointment_datetime, clinic_id"
     )
     .eq("id", id)
     .maybeSingle();
@@ -145,6 +146,11 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
   const patientEmail = String(appt.patient_email ?? "").trim();
   try {
     if (patientEmail && !isUndeliverableTestEmail(patientEmail)) {
+      const clinic = await loadPatientEmailClinic(service, {
+        clinicId: (appt as { clinic_id?: string | null }).clinic_id,
+        professionalSlug: slug,
+        siteUrl,
+      }).catch(() => null);
       await sendPatientConfirmedAppointmentCancelledEmail({
         siteUrl,
         patientEmail,
@@ -153,6 +159,7 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
         doctorSlug: slug,
         appointmentDatetimeIso,
         cancelReason: reasonRaw,
+        clinic,
         resendToOverride,
       });
     }

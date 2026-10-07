@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 import { sendPatientRequestDeclinedEmail } from "@/lib/send-patient-request-declined-email";
+import { loadPatientEmailClinic, patientClinicProfileUrl } from "@/lib/patient-email-clinic";
 import { createServiceRoleClient } from "@/lib/supabase-service";
 import { isUndeliverableTestEmail } from "@/lib/registration-decision-emails";
 
@@ -61,7 +62,7 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
   const { data: appt, error: apptErr } = await supabase
     .from("appointments")
     .select(
-      "id, professional_id, patient_name, patient_email, status"
+      "id, professional_id, patient_name, patient_email, status, clinic_id"
     )
     .eq("id", id)
     .maybeSingle();
@@ -129,6 +130,11 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
   const patientEmail = String(appt.patient_email ?? "").trim();
   try {
     if (patientEmail && !isUndeliverableTestEmail(patientEmail)) {
+      const clinic = await loadPatientEmailClinic(service, {
+        clinicId: (appt as { clinic_id?: string | null }).clinic_id,
+        professionalSlug: slug,
+        siteUrl,
+      }).catch(() => null);
       await sendPatientRequestDeclinedEmail({
         siteUrl,
         patientEmail,
@@ -136,6 +142,7 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
         doctorName: String((doctor as { name?: string | null }).name ?? ""),
         doctorSlug: slug,
         declineReason: reasonRaw,
+        clinic,
         resendToOverride,
       });
     }

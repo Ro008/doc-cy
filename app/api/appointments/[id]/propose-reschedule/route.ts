@@ -15,6 +15,7 @@ import { appointmentToCyprusDate } from "@/lib/appointments";
 import { emailClinicFromLocation, loadAppointmentClinicPhone } from "@/lib/appointment-clinic-copy";
 import { appointmentLinkUrl } from "@/lib/appointment-link-token";
 import { issueAppointmentLink } from "@/lib/appointment-links-db";
+import { loadPatientEmailClinic } from "@/lib/patient-email-clinic";
 import { sendPatientRescheduleProposalEmail } from "@/lib/send-patient-reschedule-proposal-email";
 import { computeProposalExpiresAt } from "@/lib/proposal-expires-at";
 import { scheduleSlotRefusal } from "@/lib/schedule-slot-check";
@@ -87,7 +88,7 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
 
   const { data: doctor } = await service
     .from("professionals")
-    .select("id, name")
+    .select("id, name, slug")
     .eq("auth_user_id", user.id)
     .maybeSingle();
   if (!doctor?.id) return NextResponse.json({ message: "Forbidden." }, { status: 403 });
@@ -214,7 +215,12 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
       proposalExpiresAtIso: proposalExpiresAt.toISOString(),
       doctorName: String(doctor.name ?? ""),
       slotLabelsCyprus,
-      clinic: { ...emailClinicFromLocation(location), phone: clinicPhone },
+      clinic:
+        (await loadPatientEmailClinic(service, {
+          clinicId: location.clinic_id,
+          professionalSlug: (doctor as { slug?: string | null }).slug,
+          siteUrl,
+        }).catch(() => null)) ?? { ...emailClinicFromLocation(location), phone: clinicPhone },
       requestedClinicName,
       resendToOverride: process.env.NODE_ENV !== "production" ? process.env.RESEND_TO_OVERRIDE?.trim() || null : null,
     });

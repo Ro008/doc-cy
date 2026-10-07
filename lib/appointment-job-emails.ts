@@ -2,7 +2,8 @@ import { format } from "date-fns";
 import { enUS } from "date-fns/locale";
 
 import { appointmentToCyprusDate } from "@/lib/appointments";
-import { clinicHtml, type BuiltEmail, type EmailClinic } from "@/lib/booking-request-emails";
+import type { BuiltEmail, EmailClinic } from "@/lib/booking-request-emails";
+import { patientClinicBlockHtml, patientClinicBlockText } from "@/lib/patient-email-clinic";
 import {
   EMAIL_CANCEL_BTN,
   EMAIL_HEADING,
@@ -35,15 +36,12 @@ function hiName(full: string): string {
   return String(full ?? "").trim().split(/\s+/)[0] || "there";
 }
 
-function place(clinic: EmailClinic): string {
-  return clinic.address ? `${clinic.name}, ${clinic.address}` : clinic.name;
-}
-
 export function buildPatientRequestExpiredEmail(opts: {
   patientName: string;
   professionalName: string;
   appointmentIso: string;
   bookUrl: string | null;
+  clinic?: EmailClinic | null;
 }): BuiltEmail {
   const { date, time } = when(opts.appointmentIso);
   const pro = professionalFirstName(opts.professionalName);
@@ -53,6 +51,7 @@ export function buildPatientRequestExpiredEmail(opts: {
   const line = `${pro} couldn't reply in time to your request for ${date} at ${time} (Cyprus time), so it was not booked.`;
   const text =
     `Hi ${hi},\n\n${line}\n\n` +
+    (opts.clinic ? `${patientClinicBlockText(opts.clinic)}\n` : "") +
     (opts.bookUrl ? `You can book another time online:\n${opts.bookUrl}\n\n` : "") +
     `---\n${AUTOMATED_EMAIL_FOOTER_TEXT}`;
   const html = `
@@ -60,6 +59,7 @@ ${EMAIL_SHELL_OPEN}
     <h2 style="margin:0 0 12px;font-size:20px;line-height:1.3;color:${EMAIL_HEADING};">Your request was not booked</h2>
     <p style="${P}">Hi ${escapeHtml(hi)},</p>
     <p style="${P}">${escapeHtml(line)}</p>
+    ${opts.clinic ? patientClinicBlockHtml(opts.clinic) : ""}
     ${opts.bookUrl ? `<a href="${escapeHtml(opts.bookUrl)}" style="${EMAIL_PRIMARY_BTN}">Book another time</a>` : ""}
     ${automatedEmailFooterHtml()}
 ${EMAIL_SHELL_CLOSE}`;
@@ -78,17 +78,17 @@ export function buildPatientVisitReminderEmail(opts: {
   const hi = hiName(opts.patientName);
 
   const subject = `Reminder: your visit with ${pro} on ${date}`;
-  const lead = `This is a reminder of your visit with ${pro} on ${date} at ${time} (Cyprus time), at `;
-  const line = `${lead}${place(opts.clinic)}.`;
+  const line = `This is a reminder of your visit with ${pro} on ${date} at ${time} (Cyprus time).`;
   const cancelText = opts.cancel
     ? `Can't make it? Cancel online until ${opts.cancel.deadlineLabel}:\n${opts.cancel.url}\n\n`
     : "";
-  const text = `Hi ${hi},\n\n${line}\n\n${cancelText}---\n${AUTOMATED_EMAIL_FOOTER_TEXT}`;
+  const text = `Hi ${hi},\n\n${line}\n\n${patientClinicBlockText(opts.clinic)}\n${cancelText}---\n${AUTOMATED_EMAIL_FOOTER_TEXT}`;
   const html = `
 ${EMAIL_SHELL_OPEN}
     <h2 style="margin:0 0 12px;font-size:20px;line-height:1.3;color:${EMAIL_HEADING};">See you soon</h2>
     <p style="${P}">Hi ${escapeHtml(hi)},</p>
-    <p style="${P}">${escapeHtml(lead)}${clinicHtml(opts.clinic)}.</p>
+    <p style="${P}">${escapeHtml(line)}</p>
+    ${patientClinicBlockHtml(opts.clinic)}
     ${
       opts.cancel
         ? `<p style="${P}">Can't make it? You can cancel online until <strong>${escapeHtml(

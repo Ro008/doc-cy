@@ -2,7 +2,8 @@ import { format } from "date-fns";
 import { enUS } from "date-fns/locale";
 
 import { appointmentToCyprusDate } from "@/lib/appointments";
-import type { BuiltEmail } from "@/lib/booking-request-emails";
+import type { BuiltEmail, EmailClinic } from "@/lib/booking-request-emails";
+import { patientClinicBlockHtml, patientClinicBlockText } from "@/lib/patient-email-clinic";
 import {
   EMAIL_HEADING,
   EMAIL_PRIMARY_BTN,
@@ -26,6 +27,7 @@ export function buildPatientReviewRequestEmail(opts: {
   professionalName: string;
   appointmentIso: string;
   reviewUrl: string;
+  clinic?: EmailClinic | null;
 }): BuiltEmail {
   const date = format(appointmentToCyprusDate(opts.appointmentIso), "EEEE, d MMMM yyyy", { locale: enUS });
   const pro = professionalFirstName(opts.professionalName);
@@ -36,6 +38,7 @@ export function buildPatientReviewRequestEmail(opts: {
   const text =
     `Hi ${hi},\n\n` +
     `How was your visit with ${pro} on ${date}? Your review helps other patients choose.\n\n` +
+    (opts.clinic ? `${patientClinicBlockText(opts.clinic)}\n` : "") +
     `Write a review:\n${opts.reviewUrl}\n\n` +
     `Your review will appear as "${shownAs}" with your rating and the date. Your email is never shown.\n` +
     `This link works once, for ${REVIEW_LINK_DAYS} days.\n\n` +
@@ -48,6 +51,7 @@ ${EMAIL_SHELL_OPEN}
       How was your visit with <strong>${escapeHtml(pro)}</strong> on <strong>${escapeHtml(date)}</strong>?
       Your review helps other patients choose.
     </p>
+    ${opts.clinic ? patientClinicBlockHtml(opts.clinic) : ""}
     <a href="${escapeHtml(opts.reviewUrl)}" style="${EMAIL_PRIMARY_BTN}">Write a review</a>
     <p style="${P}">Your review will appear as <strong>${escapeHtml(shownAs)}</strong> with your rating and the date. Your email is never shown.</p>
     <p style="${MUTED}">This link works once, for ${REVIEW_LINK_DAYS} days. If the button does not work, copy this link: ${emailFallbackLink(opts.reviewUrl)}</p>

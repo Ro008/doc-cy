@@ -13,6 +13,7 @@ import { linkIdForClinic } from "@/lib/professional-account-settings";
 import { enforcePublicApiRateLimit } from "@/lib/public-api-rate-limit";
 import { isUndeliverableTestEmail } from "@/lib/registration-decision-emails";
 import { scheduleSlotRefusal } from "@/lib/schedule-slot-check";
+import { patientClinicProfileUrl } from "@/lib/patient-email-clinic";
 import { sendPatientAppointmentConfirmedEmail } from "@/lib/send-patient-appointment-confirmed-email";
 import { loadPrimarySpecialtyName } from "@/lib/specialty-catalogue";
 import { createServiceRoleClient } from "@/lib/supabase-service";
@@ -132,6 +133,7 @@ export async function POST(req: NextRequest) {
           clinic_address: ctx.clinic.address,
         },
         clinic: clinicCopy,
+        profileUrl: patientClinicProfileUrl(siteUrl, ctx.professional.slug),
         cancel,
       });
     } else {

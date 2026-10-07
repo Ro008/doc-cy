@@ -21,6 +21,7 @@ import { resolveRequestedService } from "@/lib/requested-service";
 import { manualBookingPermission } from "@/lib/booking-permission";
 import { issuePatientCancelLink } from "@/lib/appointment-links-db";
 import { isUndeliverableTestEmail } from "@/lib/registration-decision-emails";
+import { patientClinicProfileUrl } from "@/lib/patient-email-clinic";
 import { sendPatientAppointmentConfirmedEmail } from "@/lib/send-patient-appointment-confirmed-email";
 import { loadPrimarySpecialtyName } from "@/lib/specialty-catalogue";
 import { getDoctorCalendarEventDetails } from "@/lib/doctor-calendar-event";
@@ -332,6 +333,7 @@ export async function POST(req: NextRequest) {
           clinic_address: clinic.address,
         },
         clinic,
+        profileUrl: patientClinicProfileUrl(siteUrl, doctor.slug),
         resendToOverride,
       });
     }
