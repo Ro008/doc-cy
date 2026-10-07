@@ -20,7 +20,7 @@ import {
   type ReviewDayRow,
 } from "@/lib/appointment-review";
 import type { WeeklySchedule } from "@/lib/doctor-settings";
-import { Loader2, ShieldCheck } from "lucide-react";
+import { ArrowLeft, Loader2, ShieldCheck } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { PendingLink } from "@/components/navigation/PendingLink";
@@ -483,6 +483,17 @@ export function AppointmentReviewClient({
 
   return (
     <div className="mx-auto max-w-xl space-y-6">
+      {/* Back to where the doctor came from: at the top, where she looks first (user, 2026-10-07). */}
+      <PendingLink
+        href={back.href}
+        className="inline-flex items-center gap-1.5 rounded-xl border border-clinical-400/35 bg-clinical-500/10 px-3 py-2 text-sm font-semibold text-clinical-100 transition hover:border-clinical-400/50 hover:bg-clinical-500/20"
+      >
+        <span className="inline-flex items-center gap-1.5">
+          <ArrowLeft className="h-4 w-4 shrink-0" aria-hidden />
+          {back.label}
+        </span>
+      </PendingLink>
+
       {/* 3. Say what is being asked. */}
       <header>
         <p className="text-xs font-semibold uppercase tracking-wide text-clinical-300/90">
@@ -704,7 +715,7 @@ export function AppointmentReviewClient({
             type="button"
             disabled={busy}
             onClick={() => setDeclineOpen(true)}
-            className="rounded-2xl border border-slate-700 px-3 py-2.5 text-sm font-medium text-slate-300 transition hover:border-red-400/40 hover:bg-red-500/10 hover:text-red-200 disabled:cursor-not-allowed disabled:opacity-60"
+            className="rounded-2xl border border-red-500/30 px-3 py-2.5 text-sm font-medium text-red-300 transition hover:border-red-400/60 hover:bg-red-500/10 hover:text-red-200 disabled:cursor-not-allowed disabled:opacity-60"
           >
             Decline
           </button>
@@ -713,14 +724,6 @@ export function AppointmentReviewClient({
         {suggestionsPanel}
       </div>
       )}
-
-      {/* 4. Back to where the doctor came from. */}
-      <PendingLink
-        href={back.href}
-        className="block text-center text-sm text-slate-400 underline-offset-2 hover:text-slate-200 hover:underline"
-      >
-        {back.label}
-      </PendingLink>
 
       {declineOpen ? (
         <DeclineRequestDialog
