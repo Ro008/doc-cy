@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { consumeAppointmentLink } from "@/lib/appointment-links-db";
 import { buildProfessionalPatientDeclinedProposalEmail, sendBuiltEmail } from "@/lib/booking-request-emails";
+import { refuseSignedInProfessional } from "@/lib/booking-signed-in-guard";
 import { loadPatientProposalContext } from "@/lib/patient-proposal";
 import { professionalAccountEmail } from "@/lib/professional-account-contact";
 import { enforcePublicApiRateLimit } from "@/lib/public-api-rate-limit";
@@ -22,6 +23,12 @@ export async function POST(req: NextRequest) {
 
   const service = createServiceRoleClient();
   if (!service) return NextResponse.json({ message: "Temporarily unavailable." }, { status: 503 });
+
+  const refused = await refuseSignedInProfessional(
+    service,
+    "You're signed in as a professional. To answer as a patient, sign out first.",
+  );
+  if (refused) return refused;
 
   let body: { token?: unknown; message?: unknown };
   try {

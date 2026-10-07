@@ -1,5 +1,3 @@
-import { cookies } from "next/headers";
-import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
 import { format } from "date-fns";
 import { enUS } from "date-fns/locale";
 
@@ -7,7 +5,7 @@ import { BookingLinkCard, BookingLinkShell, BookingLinkText, BookOnlineButton } 
 import { ConfirmBookingRequestClient } from "@/components/booking/ConfirmBookingRequestClient";
 import { findDraftByToken, resolveDraftLinkState } from "@/lib/appointment-drafts";
 import { isAppointmentLinkTokenShape } from "@/lib/appointment-link-token";
-import { isBlockedFromBooking } from "@/lib/booking-viewer";
+import { professionalSignedInOnPage } from "@/lib/booking-signed-in-guard";
 import { draftBookability } from "@/lib/draft-bookability";
 import { appointmentToCyprusDate } from "@/lib/appointments";
 import { publicProfessionalProfilePath } from "@/lib/manual-directory-landing-path";
@@ -28,10 +26,7 @@ export default async function ConfirmBookingRequestPage({ searchParams }: { sear
 
   // A signed-in professional can't confirm a patient's request (user, 2026-10-07). Nothing is
   // looked up or used up: the patient can still confirm the link signed out.
-  const {
-    data: { user },
-  } = await createServerComponentClient({ cookies }).auth.getUser();
-  if (supabase && (await isBlockedFromBooking(supabase, user?.id ?? null))) {
+  if (supabase && (await professionalSignedInOnPage(supabase))) {
     return (
       <BookingLinkShell>
         <BookingLinkCard title="You're signed in as a professional" testId="booking-confirm-professional">

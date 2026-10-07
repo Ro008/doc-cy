@@ -6,6 +6,7 @@ import { appointmentClinicCopyFromAddress, loadAppointmentClinicPhone } from "@/
 import { buildProfessionalPatientChoseEmail, sendBuiltEmail } from "@/lib/booking-request-emails";
 import { loadDoctorLocations } from "@/lib/load-doctor-locations";
 import { loadDoctorSettingsForSlots } from "@/lib/load-doctor-settings-for-slots";
+import { refuseSignedInProfessional } from "@/lib/booking-signed-in-guard";
 import { loadPatientProposalContext } from "@/lib/patient-proposal";
 import { professionalAccountEmail } from "@/lib/professional-account-contact";
 import { linkIdForClinic } from "@/lib/professional-account-settings";
@@ -31,6 +32,12 @@ export async function POST(req: NextRequest) {
 
   const service = createServiceRoleClient();
   if (!service) return NextResponse.json({ message: "Temporarily unavailable." }, { status: 503 });
+
+  const refused = await refuseSignedInProfessional(
+    service,
+    "You're signed in as a professional. To choose a time as a patient, sign out first.",
+  );
+  if (refused) return refused;
 
   let body: { token?: unknown; slot?: unknown };
   try {

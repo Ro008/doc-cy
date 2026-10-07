@@ -5,6 +5,7 @@ import { BookingLinkCard, BookingLinkShell, BookingLinkText, BookOnlineButton } 
 import { ChooseProposalClient } from "@/components/booking/ChooseProposalClient";
 import { appointmentToCyprusDate } from "@/lib/appointments";
 import { publicProfessionalProfilePath } from "@/lib/manual-directory-landing-path";
+import { professionalSignedInOnPage } from "@/lib/booking-signed-in-guard";
 import { loadPatientProposalContext } from "@/lib/patient-proposal";
 import { createServiceRoleClient } from "@/lib/supabase-service";
 
@@ -22,6 +23,22 @@ const LABEL = "EEEE, d MMMM yyyy 'at' HH:mm";
 export default async function ChooseProposalPage({ searchParams }: { searchParams: { token?: string } }) {
   const token = searchParams.token?.trim() ?? "";
   const service = createServiceRoleClient();
+
+  // A signed-in professional can't answer a patient's proposal (user, 2026-10-07). Nothing is
+  // looked up or used up: the patient can still use the link signed out.
+  if (service && (await professionalSignedInOnPage(service))) {
+    return (
+      <BookingLinkShell>
+        <BookingLinkCard title="You're signed in as a professional" testId="choose-professional">
+          <BookingLinkText>
+            Professionals can&apos;t answer a proposal as a patient. Nothing has been chosen or declined. To answer
+            it, open this link while signed out (a private window works), or sign out of DocCy first.
+          </BookingLinkText>
+        </BookingLinkCard>
+      </BookingLinkShell>
+    );
+  }
+
   const ctx = service
     ? await loadPatientProposalContext(service, token).catch(() => ({ kind: "invalid" as const }))
     : ({ kind: "invalid" } as const);
