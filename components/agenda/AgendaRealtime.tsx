@@ -1108,6 +1108,7 @@ export function AgendaRealtime({
       patientName: row.patient_name.trim() || "Patient",
       clinicName: clinicNameForRow(row.clinic_id),
       isPendingRequest: row.isPendingRequest,
+      isExpired: row.isExpired,
       isManual: isManualBooking(row.booking_source),
       isProposedSlot: row.isCounterOfferHold,
       dotClass: row.isExpired

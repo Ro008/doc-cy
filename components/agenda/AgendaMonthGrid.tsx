@@ -13,6 +13,8 @@ export type AgendaMonthItem = {
   patientName: string;
   clinicName: string | null;
   isPendingRequest: boolean;
+  /** Greyed out (a request that expired unanswered). */
+  isExpired?: boolean;
   /** Added by hand (phone or walk-in): shown with a small phone. */
   isManual?: boolean;
   /** A time held for a patient who was offered it: tagged "Proposed slot" instead of "Pending". */
@@ -58,7 +60,7 @@ export function AgendaMonthGrid({ anchor, today, itemsForDay, isWorkingDay, onOp
             <div
               key={dateKey}
               data-testid={`agenda-month-day-${dateKey}`}
-              className={`flex min-h-[4.25rem] min-w-0 flex-col gap-0.5 border-b border-r border-white/[0.08] p-1 md:min-h-[7.5rem] ${
+              className={`flex min-h-[5.75rem] min-w-0 flex-col gap-0.5 border-b border-r border-white/[0.08] p-0.5 md:min-h-[7.5rem] md:p-1 ${
                 isWorkingDay(day) ? "" : "bg-black/25"
               }`}
             >
@@ -84,22 +86,37 @@ export function AgendaMonthGrid({ anchor, today, itemsForDay, isWorkingDay, onOp
                 )}
               </button>
 
+              {/* Phone: Google Calendar–style chips in the clinic colour with the patient's name,
+                  up to 3 then "+N"; tapping opens the day (user, 2026-10-07). */}
               {items.length > 0 ? (
                 <button
                   type="button"
                   onClick={() => onOpenDay(day)}
                   aria-label={`${items.length} appointments on ${dayLabel}`}
-                  className="flex flex-wrap justify-center gap-0.5 rounded py-1 md:hidden"
+                  data-testid="agenda-month-day-chips"
+                  className="-mx-px flex min-w-0 flex-col gap-px rounded text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-400/70 md:hidden"
                 >
-                  {items.slice(0, 4).map((item) => (
+                  {visible.map((item) => (
                     <span
                       key={item.key}
-                      className={`h-1.5 w-1.5 rounded-full ${
-                        item.isPendingRequest ? `${item.dotClass} ring-1 ring-amber-400 ring-offset-1 ring-offset-slate-900` : item.dotClass
+                      className={`block min-w-0 overflow-hidden whitespace-nowrap rounded-[3px] px-[3px] py-px text-[10px] font-medium leading-tight tracking-tight ${
+                        // Pending (requests and proposed slots) in the amber box, as on desktop.
+                        item.isPendingRequest
+                          ? "bg-amber-500/10 text-amber-100 ring-1 ring-inset ring-amber-400/70"
+                          : item.isExpired
+                            ? "bg-slate-600 text-slate-200"
+                            : `${item.dotClass} text-ink-900`
                       }`}
-                      aria-hidden
-                    />
+                    >
+                      {item.isManual ? (
+                        <Phone className="mr-0.5 inline h-2 w-2 align-[-1px]" aria-label={MANUAL_BOOKING_LABEL} />
+                      ) : null}
+                      {item.patientName}
+                    </span>
                   ))}
+                  {hiddenCount > 0 ? (
+                    <span className="px-1 text-[10px] font-semibold leading-tight text-slate-300">+{hiddenCount}</span>
+                  ) : null}
                 </button>
               ) : null}
 
