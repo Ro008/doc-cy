@@ -168,7 +168,7 @@ export function ChooseProposalClient({
               href={clinic.mapsUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="mt-0.5 block text-clinical-300 underline underline-offset-2 hover:text-clinical-200"
+              className="mt-0.5 block text-clinical-300 hover:text-clinical-200"
             >
               {clinic.address}
             </a>
@@ -179,7 +179,7 @@ export function ChooseProposalClient({
         {clinic.phoneDisplay && clinic.telHref ? (
           <a
             href={clinic.telHref}
-            className="mt-1 block text-clinical-300 underline underline-offset-2 hover:text-clinical-200"
+            className="mt-1 block text-clinical-300 hover:text-clinical-200"
           >
             {clinic.phoneDisplay}
           </a>
