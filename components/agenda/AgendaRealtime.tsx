@@ -1094,6 +1094,7 @@ export function AgendaRealtime({
       patientName: row.patient_name.trim() || "Patient",
       clinicName: clinicNameForRow(row.clinic_id),
       isPendingRequest: row.isPendingRequest,
+      isExpired: row.isExpired,
       dotClass: row.isExpired
         ? "bg-slate-500"
         : (clinicSwatchClass(row.clinic_id) ?? "bg-clinical-400"),
