@@ -4,6 +4,7 @@ import { format, isSameDay, isSameMonth } from "date-fns";
 import { enGB } from "date-fns/locale";
 import { Phone } from "lucide-react";
 import { MANUAL_BOOKING_LABEL } from "@/lib/agenda-booking-source";
+import { agendaAppointmentBadgeClass, agendaAppointmentPendingClass, agendaAppointmentTimeClass } from "@/components/agenda/agenda-surface";
 import { agendaMonthGrid, splitMonthDayItems } from "@/lib/agenda-calendar";
 
 export type AgendaMonthItem = {
@@ -103,7 +104,30 @@ export function AgendaMonthGrid({ anchor, today, itemsForDay, isWorkingDay, onOp
               ) : null}
 
               <div className="hidden min-w-0 flex-col gap-0.5 md:flex">
-                {visible.map((item) => (
+                {visible.map((item) =>
+                  item.isProposedSlot ? (
+                    // Same look and behaviour as the week and day blocks: dashed amber box, the
+                    // clinic's colour as a bar on the left, one line; the name shrinks, the badge never does.
+                    <button
+                      key={item.key}
+                      type="button"
+                      onClick={item.onOpen}
+                      aria-label={`Appointment ${item.patientName} at ${item.timeLabel}${item.clinicName ? ` · ${item.clinicName}` : ""}`}
+                      title={`${item.timeLabel} · ${item.patientName}`}
+                      className={`relative flex min-w-0 items-center gap-0.5 overflow-hidden rounded-md border py-1 pl-2.5 pr-1.5 text-left text-xs font-semibold leading-tight transition focus:outline-none ${agendaAppointmentPendingClass}`}
+                    >
+                      <span className={`absolute inset-y-0 left-0 w-1 ${item.dotClass}`} aria-hidden />
+                      <span className={agendaAppointmentTimeClass}>{item.timeLabel}</span>
+                      <span className="shrink-0 text-white/50">·</span>
+                      <span className="min-w-0 flex-1 truncate">{item.patientName}</span>
+                      <span
+                        data-testid="agenda-month-pending-tag"
+                        className={`ml-1 shrink-0 whitespace-nowrap ${agendaAppointmentBadgeClass}`}
+                      >
+                        Proposed slot
+                      </span>
+                    </button>
+                  ) : (
                   <button
                     key={item.key}
                     type="button"
@@ -129,14 +153,15 @@ export function AgendaMonthGrid({ anchor, today, itemsForDay, isWorkingDay, onOp
                         data-testid="agenda-month-pending-tag"
                         className="ml-auto shrink-0 rounded-sm bg-amber-400/20 px-1 text-[9px] font-bold uppercase tracking-wide text-amber-200"
                       >
-                        {item.isProposedSlot ? "Proposed slot" : "Pending"}
+                        Pending
                       </span>
                     ) : null}
                     {item.isManual ? (
                       <Phone className="h-3 w-3 shrink-0 text-slate-400" aria-label={MANUAL_BOOKING_LABEL} />
                     ) : null}
                   </button>
-                ))}
+                  ),
+                )}
                 {hiddenCount > 0 ? (
                   <button
                     type="button"
