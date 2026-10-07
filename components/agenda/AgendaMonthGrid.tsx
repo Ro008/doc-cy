@@ -2,6 +2,8 @@
 
 import { format, isSameDay, isSameMonth } from "date-fns";
 import { enGB } from "date-fns/locale";
+import { Phone } from "lucide-react";
+import { MANUAL_BOOKING_LABEL } from "@/lib/agenda-booking-source";
 import { agendaMonthGrid, splitMonthDayItems } from "@/lib/agenda-calendar";
 
 export type AgendaMonthItem = {
@@ -10,6 +12,8 @@ export type AgendaMonthItem = {
   patientName: string;
   clinicName: string | null;
   isPendingRequest: boolean;
+  /** Added by hand (phone or walk-in): shown with a small phone. */
+  isManual?: boolean;
   /** Tailwind background class for the dot (clinic color). */
   dotClass: string;
   onOpen: () => void;
@@ -116,6 +120,9 @@ export function AgendaMonthGrid({ anchor, today, itemsForDay, isWorkingDay, onOp
                     />
                     <span className="shrink-0 tabular-nums text-slate-400">{item.timeLabel}</span>
                     <span className="min-w-0 truncate">{item.patientName}</span>
+                    {item.isManual ? (
+                      <Phone className="h-3 w-3 shrink-0 text-slate-400" aria-label={MANUAL_BOOKING_LABEL} />
+                    ) : null}
                   </button>
                 ))}
                 {hiddenCount > 0 ? (
