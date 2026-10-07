@@ -2,6 +2,7 @@ import { format } from "date-fns";
 import { enUS } from "date-fns/locale";
 
 import { BookingLinkCard, BookingLinkShell, BookingLinkText, BookOnlineButton } from "@/components/booking/BookingLinkPanels";
+import { ClinicContactBlock } from "@/components/booking/ClinicContactBlock";
 import { PatientCancelClient } from "@/components/booking/PatientCancelClient";
 import { patientCancelDeadlineLabel } from "@/lib/appointment-links-db";
 import { appointmentToCyprusDate } from "@/lib/appointments";
@@ -67,13 +68,9 @@ export default async function PatientCancelPage({ searchParams }: { searchParams
         <BookingLinkCard title="Online cancellation has closed" testId="patient-cancel-closed">
           <BookingLinkText>
             Your visit with {ctx.professional.name} is on {whenLabel}. It&apos;s too close to the visit to cancel online;
-            please call {ctx.clinic.name}:
+            please call the clinic:
           </BookingLinkText>
-          {ctx.clinic.phone ? (
-            <a href={`tel:${ctx.clinic.phone}`} className="mt-4 inline-block text-lg font-semibold text-clinical-300">
-              {ctx.clinic.phone}
-            </a>
-          ) : null}
+          <ClinicContactBlock clinic={ctx.clinic} />
         </BookingLinkCard>
       </BookingLinkShell>
     );
