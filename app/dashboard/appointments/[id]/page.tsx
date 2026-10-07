@@ -317,10 +317,14 @@ export default async function DashboardAppointmentDetailPage({
     const [{ data: dayRows }, locationRows, previousVisits] = await Promise.all([
       supabase
         .from("appointments")
-        .select("id, appointment_datetime, patient_name, status, duration_minutes")
+        .select("id, appointment_datetime, patient_name, status, duration_minutes, proposed_slots, proposal_expires_at")
         .eq("professional_id", doctor.id)
-        .gte("appointment_datetime", dayStartUtc)
-        .lte("appointment_datetime", dayEndUtc)
+        // That day's visits, plus live suggested times from any day: they may hold times on this
+        // day (buildReviewDayTimeline keeps only the ones that do).
+        .or(
+          `and(appointment_datetime.gte.${dayStartUtc},appointment_datetime.lte.${dayEndUtc}),` +
+            `and(status.eq.NEEDS_RESCHEDULE,proposal_expires_at.gt.${new Date().toISOString()})`,
+        )
         .order("appointment_datetime", { ascending: true }),
       loadDoctorLocations(doctor.id),
       loadPreviousVisits(supabase, {
