@@ -7,14 +7,18 @@ import {
   automatedEmailFooterHtml,
   escapeHtml,
 } from "@/lib/resend";
+import { clinicHtml, type EmailClinic } from "@/lib/booking-request-emails";
 import {
   EMAIL_HEADING,
+  EMAIL_LINK_ACCENT,
   EMAIL_PRIMARY_BTN,
+  EMAIL_SECTION_LABEL,
   EMAIL_SHELL_CLOSE,
   EMAIL_SHELL_OPEN,
   EMAIL_TEXT,
   EMAIL_TEXT_MUTED,
 } from "@/lib/email-brand";
+import { formatCyprusPhoneDisplay, phoneToTelHref } from "@/lib/phone-link";
 import { isUndeliverableTestEmail } from "@/lib/registration-decision-emails";
 
 const PRIMARY_BTN = EMAIL_PRIMARY_BTN;
@@ -31,6 +35,10 @@ export type RescheduleProposalEmailInput = {
   proposalExpiresAtIso: string;
   doctorName: string;
   slotLabelsCyprus: string[];
+  /** Where the proposed times are: name, address (linked to its Maps pin) and the clinic phone. */
+  clinic?: (EmailClinic & { phone?: string | null }) | null;
+  /** The clinic the patient asked for, when the times are at another one (user, 2026-10-07). */
+  requestedClinicName?: string | null;
 };
 
 export async function sendPatientRescheduleProposalEmail(
@@ -48,7 +56,8 @@ export async function sendPatientRescheduleProposalEmail(
 export function buildPatientRescheduleProposalEmailContent(
   opts: RescheduleProposalEmailInput,
 ): { subject: string; text: string; html: string } {
-  const { patientName, chooseUrl, proposalExpiresAtIso, doctorName, slotLabelsCyprus } = opts;
+  const { patientName, chooseUrl, proposalExpiresAtIso, doctorName, slotLabelsCyprus, clinic } = opts;
+  const movedFrom = clinic ? String(opts.requestedClinicName ?? "").trim() || null : null;
 
   const doctorFullName = String(doctorName ?? "").trim() || "your professional";
   const one = slotLabelsCyprus.length === 1;
@@ -63,6 +72,35 @@ export function buildPatientRescheduleProposalEmailContent(
     ? `Confirm this time before ${expiryLabel} (Cyprus time), or decline it.`
     : `Choose one before ${expiryLabel} (Cyprus time), or decline them.`;
   const slotsText = slotLabelsCyprus.map((s) => `• ${s}`).join("\n");
+  // Another clinic than the one the patient asked for: said up front, not left to the address.
+  const movedText = movedFrom
+    ? `At a different clinic: ${one ? "this time is" : "these times are"} at ${clinic!.name}, not at ${movedFrom} where you asked to be seen.`
+    : "";
+  const movedHtml = movedFrom
+    ? `<div style="margin:0 0 14px;padding:12px 13px;border:2px solid #f59e0b;background:rgba(245,158,11,.16);border-radius:12px;">
+      <p style="margin:0 0 4px;font-size:12px;line-height:1.35;color:#fbbf24;font-weight:800;letter-spacing:.04em;text-transform:uppercase;">At a different clinic</p>
+      <p style="margin:0;font-size:14px;line-height:1.5;color:#fde68a;">
+        ${one ? "This time is" : "These times are"} at <strong>${escapeHtml(clinic!.name)}</strong>, not at ${escapeHtml(movedFrom)} where you asked to be seen.
+      </p>
+    </div>`
+    : "";
+  const telHref = phoneToTelHref(clinic?.phone);
+  const phoneDisplay = telHref ? formatCyprusPhoneDisplay(clinic?.phone) : "";
+  const clinicText = clinic
+    ? `Clinic: ${clinic.name}\n` +
+      (clinic.address ? `Address: ${clinic.address}\n` : "") +
+      (clinic.mapsUrl ? `Maps: ${clinic.mapsUrl}\n` : "") +
+      (phoneDisplay ? `Phone: ${phoneDisplay}\n` : "")
+    : "";
+  const clinicBlockHtml = clinic
+    ? `<p style="${EMAIL_SECTION_LABEL}">Clinic</p>
+    <p style="margin:0 0 4px;font-size:15px;line-height:1.6;color:${EMAIL_TEXT};">${clinicHtml(clinic).replace(escapeHtml(clinic.name), `<strong>${escapeHtml(clinic.name)}</strong>`)}</p>
+    ${
+      phoneDisplay && telHref
+        ? `<p style="margin:0 0 14px;font-size:15px;line-height:1.6;color:${EMAIL_TEXT};"><a href="${escapeHtml(telHref)}" style="${EMAIL_LINK_ACCENT}">${escapeHtml(phoneDisplay)}</a></p>`
+        : ""
+    }`
+    : "";
   const slotsHtml = slotLabelsCyprus
     .map((s) => `<li style="margin:0 0 6px;font-size:15px;line-height:1.5;color:#e2e8f0;">${escapeHtml(s)}</li>`)
     .join("");
@@ -70,7 +108,9 @@ export function buildPatientRescheduleProposalEmailContent(
   const text =
     `Hi ${patientName.trim()},\n\n` +
     `${intro}\n\n` +
+    (movedText ? `${movedText}\n\n` : "") +
     `${slotsText}\n\n` +
+    (clinicText ? `${clinicText}\n` : "") +
     `${action} If you don't answer by then, the ${one ? "time is" : "times are"} released.\n\n` +
     `Open this link to ${one ? "confirm or decline" : "choose a time or decline"}:\n${chooseUrl}\n\n` +
     `---\n${AUTOMATED_EMAIL_FOOTER_TEXT}`;
@@ -80,12 +120,17 @@ ${EMAIL_SHELL_OPEN}
     <h2 style="margin:0 0 12px;font-size:20px;line-height:1.3;color:${EMAIL_HEADING};">${one ? "A new time for your visit" : "Choose your appointment time"}</h2>
     <p style="margin:0 0 10px;font-size:15px;line-height:1.6;color:${EMAIL_TEXT};">Hi ${escapeHtml(patientName.trim())},</p>
     <p style="margin:0 0 10px;font-size:15px;line-height:1.6;color:${EMAIL_TEXT};">${escapeHtml(intro)}</p>
+    ${movedHtml}
     <ul style="margin:12px 0 16px;padding-left:20px;">${slotsHtml}</ul>
+    ${clinicBlockHtml}
     <p style="margin:0 0 14px;font-size:14px;line-height:1.55;color:${EMAIL_TEXT_MUTED};">
       ${escapeHtml(action)} If you don't answer by then, the ${one ? "time is" : "times are"} released.
     </p>
     <a href="${escapeHtml(chooseUrl)}" style="${PRIMARY_BTN}">${one ? "Confirm or decline" : "Choose a time"}</a>
     ${automatedEmailFooterHtml()}
 ${EMAIL_SHELL_CLOSE}`;
-  return { subject: `${doctorFullName} suggested new times for your visit`, text, html };
+  const subject = movedFrom
+    ? `${doctorFullName} suggested new times for your visit, at another clinic`
+    : `${doctorFullName} suggested new times for your visit`;
+  return { subject, text, html };
 }

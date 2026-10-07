@@ -12,6 +12,7 @@ import { loadDoctorSettingsForSlots } from "@/lib/load-doctor-settings-for-slots
 import { loadDoctorLocations, primaryDoctorLocation } from "@/lib/load-doctor-locations";
 import { fetchBlockingAppointments, toBlockingRows } from "@/lib/appointment-blocking-query";
 import { appointmentToCyprusDate } from "@/lib/appointments";
+import { emailClinicFromLocation, loadAppointmentClinicPhone } from "@/lib/appointment-clinic-copy";
 import { appointmentLinkUrl } from "@/lib/appointment-link-token";
 import { issueAppointmentLink } from "@/lib/appointment-links-db";
 import { sendPatientRescheduleProposalEmail } from "@/lib/send-patient-reschedule-proposal-email";
@@ -194,6 +195,13 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim() || "https://www.mydoccy.com";
   const token = await issueAppointmentLink(service, { appointmentId: id, purpose: "proposal", expiresAt: proposalExpiresAt });
+  // The email names the clinic (Maps pin, phone) and says so when it isn't the one asked for
+  // (user, 2026-10-07). `appt.clinic_id` is still the requested clinic here.
+  const requestedClinicName =
+    appt.clinic_id && appt.clinic_id !== location.clinic_id
+      ? String(locations.find((l) => l.clinic_id === appt.clinic_id)?.clinic_name ?? "").trim() || "the clinic you chose"
+      : null;
+  const clinicPhone = await loadAppointmentClinicPhone(service, location.id).catch(() => null);
   const slotLabelsCyprus = slots.map((iso) =>
     format(appointmentToCyprusDate(iso), "EEEE, d MMMM yyyy 'at' HH:mm", { locale: enUS }),
   );
@@ -206,6 +214,8 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
       proposalExpiresAtIso: proposalExpiresAt.toISOString(),
       doctorName: String(doctor.name ?? ""),
       slotLabelsCyprus,
+      clinic: { ...emailClinicFromLocation(location), phone: clinicPhone },
+      requestedClinicName,
       resendToOverride: process.env.NODE_ENV !== "production" ? process.env.RESEND_TO_OVERRIDE?.trim() || null : null,
     });
   } catch (e) {

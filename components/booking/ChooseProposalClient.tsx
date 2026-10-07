@@ -6,10 +6,21 @@ import { BookingLinkCard, BookingLinkText, BookOnlineButton } from "@/components
 
 type Slot = { iso: string; label: string };
 
+/** Where the proposed times are; the address opens the clinic's Maps pin. */
+export type ChooseProposalClinic = {
+  name: string;
+  address: string | null;
+  mapsUrl: string | null;
+  phoneDisplay: string | null;
+  telHref: string | null;
+};
+
 type Props = {
   token: string;
   professionalName: string;
-  clinicLabel: string;
+  clinic: ChooseProposalClinic;
+  /** The clinic the patient asked for, when the times are at another one (user, 2026-10-07). */
+  requestedClinicName: string | null;
   expiryLabel: string;
   slots: Slot[];
   bookOnlineHref: string | null;
@@ -26,7 +37,15 @@ type Outcome =
  * /booking/choose: the patient picks one of the proposed times or declines them all
  * (user, 2026-10-04; no "ask for another time"). Opening the link changes nothing.
  */
-export function ChooseProposalClient({ token, professionalName, clinicLabel, expiryLabel, slots, bookOnlineHref }: Props) {
+export function ChooseProposalClient({
+  token,
+  professionalName,
+  clinic,
+  requestedClinicName,
+  expiryLabel,
+  slots,
+  bookOnlineHref,
+}: Props) {
   const [picked, setPicked] = React.useState<string>(slots.length === 1 ? slots[0]!.iso : "");
   const [declining, setDeclining] = React.useState(false);
   const [message, setMessage] = React.useState("");
@@ -124,8 +143,48 @@ export function ChooseProposalClient({ token, professionalName, clinicLabel, exp
     <BookingLinkCard title={one ? "A new time for your visit" : "Choose a time"} testId="choose-proposal">
       <BookingLinkText>
         <strong className="text-slate-200">{professionalName}</strong> can&apos;t see you at the time you asked for and
-        reserved {one ? "this time" : "these times"} for you at {clinicLabel}. Answer before {expiryLabel} (Cyprus time).
+        reserved {one ? "this time" : "these times"} for you at{" "}
+        <strong className="text-slate-200">{clinic.name}</strong>. Answer before {expiryLabel} (Cyprus time).
       </BookingLinkText>
+
+      {requestedClinicName ? (
+        <div
+          data-testid="choose-other-clinic"
+          className="mt-4 rounded-2xl border-2 border-amber-500/80 bg-amber-500/15 px-4 py-3 text-left"
+        >
+          <p className="text-xs font-extrabold uppercase tracking-wide text-amber-300">At a different clinic</p>
+          <p className="mt-1 text-sm leading-relaxed text-amber-100">
+            {one ? "This time is" : "These times are"} at <strong>{clinic.name}</strong>, not at {requestedClinicName}{" "}
+            where you asked to be seen.
+          </p>
+        </div>
+      ) : null}
+
+      <div data-testid="choose-clinic" className="mt-4 rounded-2xl border border-slate-700 bg-ink-900/60 px-4 py-3 text-left text-sm">
+        <p className="font-semibold text-slate-100">{clinic.name}</p>
+        {clinic.address ? (
+          clinic.mapsUrl ? (
+            <a
+              href={clinic.mapsUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-0.5 block text-clinical-300 underline underline-offset-2 hover:text-clinical-200"
+            >
+              {clinic.address}
+            </a>
+          ) : (
+            <p className="mt-0.5 text-slate-300">{clinic.address}</p>
+          )
+        ) : null}
+        {clinic.phoneDisplay && clinic.telHref ? (
+          <a
+            href={clinic.telHref}
+            className="mt-1 block text-clinical-300 underline underline-offset-2 hover:text-clinical-200"
+          >
+            {clinic.phoneDisplay}
+          </a>
+        ) : null}
+      </div>
 
       {!declining ? (
         <>

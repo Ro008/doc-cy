@@ -34,7 +34,11 @@ export type PatientProposalContext =
         mapsLink: string | null;
         latitude: number | null;
         longitude: number | null;
+        /** The clinic's own phone (not the professional's mobile). */
+        phone: string | null;
       };
+      /** The clinic the patient asked for, when the times are at another one (user, 2026-10-07). */
+      requestedClinicName: string | null;
     };
 
 export async function loadPatientProposalContext(
@@ -54,10 +58,21 @@ export async function loadPatientProposalContext(
   if (!appt) return { kind: "invalid" };
   const a = appt as ProposalAppointment & { proposed_slots: unknown };
 
-  const [{ data: pro }, { data: clinic }] = await Promise.all([
+  // Suggesting times can move the request to another clinic (appointments.clinic_id then holds
+  // the new one); the online request's draft keeps the clinic the patient picked.
+  const [{ data: pro }, { data: clinic }, { data: draft }] = await Promise.all([
     service.from("professionals").select("id, name, slug, email, registration_email").eq("id", a.professional_id).maybeSingle(),
-    a.clinic_id ? service.from("clinics").select("name, address, address_maps_link, latitude, longitude").eq("id", a.clinic_id).maybeSingle() : Promise.resolve({ data: null }),
+    a.clinic_id
+      ? service.from("clinics").select("name, address, address_maps_link, latitude, longitude, phone, is_archived").eq("id", a.clinic_id).maybeSingle()
+      : Promise.resolve({ data: null }),
+    service.from("appointment_drafts").select("clinic_id").eq("appointment_id", a.id).limit(1).maybeSingle(),
   ]);
+  const requestedClinicId = String((draft as { clinic_id?: string | null } | null)?.clinic_id ?? "").trim();
+  let requestedClinicName: string | null = null;
+  if (requestedClinicId && a.clinic_id && requestedClinicId !== a.clinic_id) {
+    const { data: requested } = await service.from("clinics").select("name").eq("id", requestedClinicId).maybeSingle();
+    requestedClinicName = String((requested as { name?: string | null } | null)?.name ?? "").trim() || "the clinic you chose";
+  }
   const p = (pro ?? {}) as { id?: string; name?: string; slug?: string | null; email?: string | null; registration_email?: string | null };
 
   const state = appointmentLinkState(link, now);
@@ -75,6 +90,8 @@ export async function loadPatientProposalContext(
     address_maps_link?: string | null;
     latitude?: number | null;
     longitude?: number | null;
+    phone?: string | null;
+    is_archived?: boolean | null;
   } | null;
 
   return {
@@ -95,6 +112,8 @@ export async function loadPatientProposalContext(
       mapsLink: c?.address_maps_link ?? null,
       latitude: c?.latitude ?? null,
       longitude: c?.longitude ?? null,
+      phone: c && !c.is_archived ? String(c.phone ?? "").trim() || null : null,
     },
+    requestedClinicName,
   };
 }

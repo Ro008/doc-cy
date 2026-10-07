@@ -4,6 +4,8 @@ import { enUS } from "date-fns/locale";
 import { BookingLinkCard, BookingLinkShell, BookingLinkText, BookOnlineButton } from "@/components/booking/BookingLinkPanels";
 import { ChooseProposalClient } from "@/components/booking/ChooseProposalClient";
 import { appointmentToCyprusDate } from "@/lib/appointments";
+import { clinicMapsUrl } from "@/lib/clinic-info";
+import { formatCyprusPhoneDisplay, phoneToTelHref } from "@/lib/phone-link";
 import { publicProfessionalProfilePath } from "@/lib/manual-directory-landing-path";
 import { professionalSignedInOnPage } from "@/lib/booking-signed-in-guard";
 import { loadPatientProposalContext } from "@/lib/patient-proposal";
@@ -62,12 +64,26 @@ export default async function ChooseProposalPage({ searchParams }: { searchParam
   }
 
   const label = (iso: string) => format(appointmentToCyprusDate(iso), LABEL, { locale: enUS });
+  // Address linked to the clinic's Maps pin and the clinic phone, as in the emails (user, 2026-10-07).
+  const telHref = phoneToTelHref(ctx.clinic.phone);
   return (
     <BookingLinkShell>
       <ChooseProposalClient
         token={token}
         professionalName={ctx.professional.name}
-        clinicLabel={[ctx.clinic.name, ctx.clinic.address].filter(Boolean).join(", ")}
+        clinic={{
+          name: ctx.clinic.name,
+          address: ctx.clinic.address?.trim() || null,
+          mapsUrl: clinicMapsUrl({
+            mapsLink: ctx.clinic.mapsLink,
+            latitude: ctx.clinic.latitude,
+            longitude: ctx.clinic.longitude,
+            address: ctx.clinic.address,
+          }),
+          phoneDisplay: telHref ? formatCyprusPhoneDisplay(ctx.clinic.phone) : null,
+          telHref,
+        }}
+        requestedClinicName={ctx.requestedClinicName}
         expiryLabel={label(ctx.link.expires_at)}
         slots={ctx.slots.map((iso) => ({ iso, label: label(iso) }))}
         bookOnlineHref={ctx.professional.slug ? publicProfessionalProfilePath(ctx.professional.slug) : null}
