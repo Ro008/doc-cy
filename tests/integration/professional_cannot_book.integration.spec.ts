@@ -4,6 +4,7 @@ import { addDays, format } from "date-fns";
 import { utcToZonedTime, zonedTimeToUtc } from "date-fns-tz";
 
 import { createAppointmentDraft } from "@/lib/appointment-drafts";
+import { issueAppointmentLink } from "@/lib/appointment-links-db";
 
 import { createIntegrationAdmin, requireSafeIntegration } from "./helpers/safe-integration";
 import {
@@ -137,5 +138,52 @@ test.describe("Integration: a signed-in professional can't book", { tag: "@pr-e2
     // The link was not used up: the patient can still confirm it signed out.
     const { data: draft } = await admin.from("appointment_drafts").select("confirmed_at").eq("id", draftId).single();
     expect(draft?.confirmed_at).toBeNull();
+  });
+
+  test("a signed-in professional opening a proposal link can't choose or decline times", async () => {
+    const hour = 3_600_000;
+    const base = Math.ceil((Date.now() + 9 * 24 * hour) / hour) * hour;
+    const slots = [new Date(base + 2 * hour).toISOString(), new Date(base + 4 * hour).toISOString()];
+    const expiresAt = new Date(Date.now() + 20 * hour);
+    const { data, error } = await admin
+      .from("appointments")
+      .insert({
+        professional_id: colleague!.doctorId,
+        clinic_id: clinicIds[1],
+        booking_source: "online",
+        patient_name: `Proposal Patient ${nonce}`,
+        patient_email: `proposal-patient-${nonce}@integration.test`,
+        patient_phone: "+35799444555",
+        patient_gender: "female",
+        patient_birthdate: "1995-05-05",
+        is_new_patient: true,
+        reason: "Integration: proposal link while signed in",
+        appointment_datetime: new Date(base).toISOString(),
+        duration_minutes: 30,
+        status: "NEEDS_RESCHEDULE",
+        proposed_slots: slots,
+        proposal_expires_at: expiresAt.toISOString(),
+      })
+      .select("id")
+      .single();
+    if (error || !data) throw new Error(`seed: ${error?.message}`);
+    const token = await issueAppointmentLink(admin, { appointmentId: String(data.id), purpose: "proposal", expiresAt });
+
+    await page.goto(`/booking/choose?token=${encodeURIComponent(token)}`, { waitUntil: "domcontentloaded" });
+    await expect(page.getByTestId("choose-professional")).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByRole("button", { name: /Confirm|Decline/i })).toHaveCount(0);
+
+    for (const [path, payload] of [
+      ["/api/booking/choose", { token, slot: slots[0] }],
+      ["/api/booking/decline-proposal", { token, message: "No" }],
+    ] as const) {
+      const res = await page.request.post(path, { data: payload });
+      expect(res.status(), await res.text()).toBe(403);
+      expect((await res.json()).code).toBe("professional_signed_in");
+    }
+
+    // Nothing changed: still waiting for the patient.
+    const { data: after } = await admin.from("appointments").select("status").eq("id", data.id).single();
+    expect(after?.status).toBe("NEEDS_RESCHEDULE");
   });
 });

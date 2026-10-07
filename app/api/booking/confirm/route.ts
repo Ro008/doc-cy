@@ -1,11 +1,9 @@
-import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
-import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 
 import { emailClinicFromLocation } from "@/lib/appointment-clinic-copy";
 import { consumeDraftByToken, releaseDraft } from "@/lib/appointment-drafts";
 import { isAppointmentLinkTokenShape } from "@/lib/appointment-link-token";
-import { isBlockedFromBooking, PROFESSIONAL_SIGNED_IN_CODE } from "@/lib/booking-viewer";
+import { refuseSignedInProfessional } from "@/lib/booking-signed-in-guard";
 import { buildProfessionalNewRequestEmail, sendBuiltEmail } from "@/lib/booking-request-emails";
 import { draftBookability } from "@/lib/draft-bookability";
 import { professionalAccountEmail } from "@/lib/professional-account-contact";
@@ -35,18 +33,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ message: "Booking is temporarily unavailable." }, { status: 503 });
   }
 
-  const {
-    data: { user },
-  } = await createRouteHandlerClient({ cookies }).auth.getUser();
-  if (await isBlockedFromBooking(supabase, user?.id ?? null)) {
-    return NextResponse.json(
-      {
-        code: PROFESSIONAL_SIGNED_IN_CODE,
-        message: "You're signed in as a professional. To confirm a request as a patient, sign out first.",
-      },
-      { status: 403 },
-    );
-  }
+  const refused = await refuseSignedInProfessional(
+    supabase,
+    "You're signed in as a professional. To confirm a request as a patient, sign out first.",
+  );
+  if (refused) return refused;
 
   let token: unknown;
   try {

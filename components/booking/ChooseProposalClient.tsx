@@ -47,7 +47,14 @@ export function ChooseProposalClient({ token, professionalName, clinicLabel, exp
     }
   }
 
-  function failed(res: Response, data: { message?: string; state?: string }) {
+  function failed(res: Response, data: { message?: string; state?: string; code?: string }) {
+    if (res.status === 403 && data.code === "professional_signed_in") {
+      return setOutcome({
+        kind: "error",
+        title: "You're signed in as a professional",
+        message: "Professionals can't answer a proposal as a patient. Sign out first, then open the link again.",
+      });
+    }
     if (res.status === 409) {
       return setOutcome({
         kind: "error",
@@ -69,7 +76,7 @@ export function ChooseProposalClient({ token, professionalName, clinicLabel, exp
     if (!picked || outcome.kind === "sending") return;
     const res = await post("/api/booking/choose", { slot: picked });
     if (!res) return;
-    const data = (await res.json().catch(() => ({}))) as { message?: string; state?: string };
+    const data = (await res.json().catch(() => ({}))) as { message?: string; state?: string; code?: string };
     if (res.ok) {
       return setOutcome({ kind: "confirmed", label: slots.find((s) => s.iso === picked)?.label ?? "" });
     }
@@ -80,7 +87,7 @@ export function ChooseProposalClient({ token, professionalName, clinicLabel, exp
     if (outcome.kind === "sending") return;
     const res = await post("/api/booking/decline-proposal", { message: message.trim() || undefined });
     if (!res) return;
-    const data = (await res.json().catch(() => ({}))) as { message?: string; state?: string };
+    const data = (await res.json().catch(() => ({}))) as { message?: string; state?: string; code?: string };
     if (res.ok) return setOutcome({ kind: "declined" });
     failed(res, data);
   }
@@ -156,7 +163,7 @@ export function ChooseProposalClient({ token, professionalName, clinicLabel, exp
             type="button"
             onClick={() => setDeclining(true)}
             disabled={sending}
-            className="mt-3 inline-flex w-full items-center justify-center rounded-2xl border border-slate-700 px-4 py-3 text-sm font-medium text-slate-300 transition hover:bg-slate-800"
+            className="mt-3 inline-flex w-full items-center justify-center rounded-2xl border border-red-500/30 px-4 py-3 text-sm font-medium text-red-300 transition hover:border-red-400/60 hover:bg-red-500/10 hover:text-red-200 disabled:opacity-60"
           >
             {one ? "Decline this time" : "Decline these times"}
           </button>
