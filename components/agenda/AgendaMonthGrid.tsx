@@ -110,7 +110,7 @@ export function AgendaMonthGrid({ anchor, today, itemsForDay, isWorkingDay, onOp
                     onClick={item.onOpen}
                     aria-label={`Appointment ${item.patientName} at ${item.timeLabel}${item.clinicName ? ` · ${item.clinicName}` : ""}`}
                     title={`${item.timeLabel} · ${item.patientName}`}
-                    className={`flex min-w-0 items-center gap-1.5 rounded px-1.5 py-0.5 text-left text-xs transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-400/70 ${
+                    className={`flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 rounded px-1.5 py-0.5 text-left text-xs transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-400/70 ${
                       item.isPendingRequest
                         ? "bg-amber-500/10 text-amber-100 ring-1 ring-inset ring-amber-400/40"
                         : "text-slate-100"
@@ -123,7 +123,7 @@ export function AgendaMonthGrid({ anchor, today, itemsForDay, isWorkingDay, onOp
                       aria-hidden
                     />
                     <span className="shrink-0 tabular-nums text-slate-400">{item.timeLabel}</span>
-                    <span className="min-w-0 truncate">{item.patientName}</span>
+                    <span className="min-w-0 max-w-full truncate">{item.patientName}</span>
                     {item.isPendingRequest ? (
                       <span
                         data-testid="agenda-month-pending-tag"
