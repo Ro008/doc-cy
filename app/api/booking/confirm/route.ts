@@ -1,8 +1,11 @@
+import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
+import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 
 import { emailClinicFromLocation } from "@/lib/appointment-clinic-copy";
 import { consumeDraftByToken, releaseDraft } from "@/lib/appointment-drafts";
 import { isAppointmentLinkTokenShape } from "@/lib/appointment-link-token";
+import { isBlockedFromBooking, PROFESSIONAL_SIGNED_IN_CODE } from "@/lib/booking-viewer";
 import { buildProfessionalNewRequestEmail, sendBuiltEmail } from "@/lib/booking-request-emails";
 import { draftBookability } from "@/lib/draft-bookability";
 import { professionalAccountEmail } from "@/lib/professional-account-contact";
@@ -15,6 +18,8 @@ import { createServiceRoleClient } from "@/lib/supabase-service";
  * Uses the link once, re-checks the time (it may have been taken since the form was
  * sent), creates the REQUESTED appointment and only then emails the professional.
  * - 200 { appointment }
+ * - 403 { code: "professional_signed_in" } when a professional or applicant is signed in (the
+ *   link stays unused; user, 2026-10-07)
  * - 410 { state: "invalid" | "used" | "unbooked" | "replaced" | "expired" }
  * - 409 { code: "slot_taken" | "open_request_exists", professionalSlug } (link used up:
  *   the patient picks another time on the profile)
@@ -28,6 +33,19 @@ export async function POST(req: NextRequest) {
   const supabase = createServiceRoleClient();
   if (!supabase) {
     return NextResponse.json({ message: "Booking is temporarily unavailable." }, { status: 503 });
+  }
+
+  const {
+    data: { user },
+  } = await createRouteHandlerClient({ cookies }).auth.getUser();
+  if (await isBlockedFromBooking(supabase, user?.id ?? null)) {
+    return NextResponse.json(
+      {
+        code: PROFESSIONAL_SIGNED_IN_CODE,
+        message: "You're signed in as a professional. To confirm a request as a patient, sign out first.",
+      },
+      { status: 403 },
+    );
   }
 
   let token: unknown;

@@ -1,7 +1,9 @@
 import { expect, test, type Page } from "@playwright/test";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { addDays, format } from "date-fns";
-import { utcToZonedTime } from "date-fns-tz";
+import { utcToZonedTime, zonedTimeToUtc } from "date-fns-tz";
+
+import { createAppointmentDraft } from "@/lib/appointment-drafts";
 
 import { createIntegrationAdmin, requireSafeIntegration } from "./helpers/safe-integration";
 import {
@@ -107,5 +109,33 @@ test.describe("Integration: a signed-in professional can't book", { tag: "@pr-e2
     await page.goto(`/${colleague!.slug}`, { waitUntil: "domcontentloaded" });
     await expect(page.getByTestId("booking-professional-notice")).toBeVisible({ timeout: 20_000 });
     await expect(page.getByTestId("booking-section")).toHaveCount(0);
+  });
+
+  test("a signed-in professional opening the emailed confirm link can't confirm", async () => {
+    const { token, draftId } = await createAppointmentDraft(admin, {
+      professionalId: colleague!.doctorId,
+      clinicId: clinicIds[1],
+      appointmentUtc: zonedTimeToUtc(weekdayLocal(12), CY),
+      durationMinutes: 30,
+      patientName: `Link Patient ${nonce}`,
+      patientEmail: `link-patient-${nonce}@integration.test`,
+      patientPhone: "+35799222333",
+      isNewPatient: false,
+      reason: "Integration: confirm link while signed in",
+      patientGender: "male",
+      patientBirthdate: "1980-01-01",
+    });
+
+    await page.goto(`/booking/confirm?token=${token}`, { waitUntil: "domcontentloaded" });
+    await expect(page.getByTestId("booking-confirm-professional")).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByRole("button", { name: /Confirm my request/i })).toHaveCount(0);
+
+    const res = await page.request.post("/api/booking/confirm", { data: { token } });
+    expect(res.status(), await res.text()).toBe(403);
+    expect((await res.json()).code).toBe("professional_signed_in");
+
+    // The link was not used up: the patient can still confirm it signed out.
+    const { data: draft } = await admin.from("appointment_drafts").select("confirmed_at").eq("id", draftId).single();
+    expect(draft?.confirmed_at).toBeNull();
   });
 });

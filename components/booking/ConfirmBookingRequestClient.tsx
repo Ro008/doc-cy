@@ -37,6 +37,12 @@ export function ConfirmBookingRequestClient({ token, professionalName, whenLabel
       const data = (await res.json().catch(() => ({}))) as { message?: string; code?: string; state?: string };
       if (res.ok) {
         setOutcome({ kind: "sent" });
+      } else if (res.status === 403 && data.code === "professional_signed_in") {
+        setOutcome({
+          kind: "error",
+          title: "You're signed in as a professional",
+          message: "Professionals can't confirm a request as a patient. Sign out first, then open the link again.",
+        });
       } else if (res.status === 409 && data.code === "slot_taken") {
         setOutcome({
           kind: "error",

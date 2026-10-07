@@ -1,3 +1,5 @@
+import { cookies } from "next/headers";
+import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
 import { format } from "date-fns";
 import { enUS } from "date-fns/locale";
 
@@ -5,6 +7,7 @@ import { BookingLinkCard, BookingLinkShell, BookingLinkText, BookOnlineButton } 
 import { ConfirmBookingRequestClient } from "@/components/booking/ConfirmBookingRequestClient";
 import { findDraftByToken, resolveDraftLinkState } from "@/lib/appointment-drafts";
 import { isAppointmentLinkTokenShape } from "@/lib/appointment-link-token";
+import { isBlockedFromBooking } from "@/lib/booking-viewer";
 import { draftBookability } from "@/lib/draft-bookability";
 import { appointmentToCyprusDate } from "@/lib/appointments";
 import { publicProfessionalProfilePath } from "@/lib/manual-directory-landing-path";
@@ -22,6 +25,24 @@ export const metadata = { title: "Confirm your request | DocCy", robots: { index
 export default async function ConfirmBookingRequestPage({ searchParams }: { searchParams: { token?: string } }) {
   const token = searchParams.token?.trim() ?? "";
   const supabase = createServiceRoleClient();
+
+  // A signed-in professional can't confirm a patient's request (user, 2026-10-07). Nothing is
+  // looked up or used up: the patient can still confirm the link signed out.
+  const {
+    data: { user },
+  } = await createServerComponentClient({ cookies }).auth.getUser();
+  if (supabase && (await isBlockedFromBooking(supabase, user?.id ?? null))) {
+    return (
+      <BookingLinkShell>
+        <BookingLinkCard title="You're signed in as a professional" testId="booking-confirm-professional">
+          <BookingLinkText>
+            Professionals can&apos;t book or confirm a visit as a patient. This request has not been confirmed. To confirm
+            it, open this link while signed out (a private window works), or sign out of DocCy first.
+          </BookingLinkText>
+        </BookingLinkCard>
+      </BookingLinkShell>
+    );
+  }
   const draft = supabase && isAppointmentLinkTokenShape(token) ? await findDraftByToken(supabase, token).catch(() => null) : null;
   const state = supabase ? await resolveDraftLinkState(supabase, draft).catch(() => "invalid" as const) : "invalid";
 
