@@ -12,7 +12,8 @@ import {
 } from "date-fns";
 import { enGB } from "date-fns/locale";
 import { formatInTimeZone, utcToZonedTime } from "date-fns-tz";
-import { CalendarPlus, ChevronLeft, ChevronRight, Loader2, Menu, Trash2, X } from "lucide-react";
+import { CalendarPlus, ChevronLeft, ChevronRight, Loader2, Menu, Phone, Trash2, X } from "lucide-react";
+import { isManualBooking, agendaBookingSourceFromRaw, MANUAL_BOOKING_LABEL as MANUAL_MARK_LABEL } from "@/lib/agenda-booking-source";
 import { toast as sonnerToast } from "sonner";
 import { useTranslations } from "next-intl";
 import {
@@ -120,6 +121,7 @@ type AgendaAppointmentRow = {
   clinic_id?: string | null;
   professional_notes?: string | null;
   review_requested_at?: string | null;
+  booking_source?: string | null;
 };
 
 function agendaRowFromSupabasePayload(
@@ -162,6 +164,7 @@ function agendaRowFromSupabasePayload(
       raw.review_requested_at == null || raw.review_requested_at === ""
         ? null
         : String(raw.review_requested_at),
+    booking_source: agendaBookingSourceFromRaw(raw.booking_source),
   };
 }
 
@@ -208,7 +211,9 @@ function AgendaAppointmentCardInner({
   isExpired = false,
   isCounterOfferHold,
   isCompactCounterOffer,
+  isManual = false,
 }: {
+  isManual?: boolean;
   timeLabel: string;
   endTimeLabel?: string;
   patientName: string;
@@ -256,7 +261,7 @@ function AgendaAppointmentCardInner({
             </span>
             {topRightBadge ? (
               <span
-                className={`ml-1 shrink-0 max-w-[3.35rem] truncate ${agendaAppointmentBadgeClass}`}
+                className={`ml-1 shrink-0 whitespace-nowrap ${agendaAppointmentBadgeClass}`}
                 title={topRightBadge}
               >
                 {topRightBadge}
@@ -305,7 +310,16 @@ function AgendaAppointmentCardInner({
         </span>
       ) : null}
       <div className={`min-w-0 text-left leading-tight ${topRightBadge ? "pr-[2.15rem]" : ""}`} title={cardTitle}>
-        <p className={`truncate text-xs font-semibold ${nameColor}`}>{patientDisplay}</p>
+        <p className={`flex min-w-0 items-center gap-1 text-xs font-semibold ${nameColor}`}>
+          <span className="truncate">{patientDisplay}</span>
+          {isManual ? (
+            <Phone
+              className="h-3 w-3 shrink-0 opacity-80"
+              aria-label={MANUAL_MARK_LABEL}
+              data-testid="agenda-manual-mark"
+            />
+          ) : null}
+        </p>
         <p className={`truncate ${agendaAppointmentTimeClass} ${nameColor}`}>
           {endTimeLabel ? `${timeLabel} – ${endTimeLabel}` : timeLabel}
         </p>
@@ -1095,6 +1109,8 @@ export function AgendaRealtime({
       clinicName: clinicNameForRow(row.clinic_id),
       isPendingRequest: row.isPendingRequest,
       isExpired: row.isExpired,
+      isManual: isManualBooking(row.booking_source),
+      isProposedSlot: row.isCounterOfferHold,
       dotClass: row.isExpired
         ? "bg-slate-500"
         : (clinicSwatchClass(row.clinic_id) ?? "bg-clinical-400"),
@@ -1230,6 +1246,7 @@ export function AgendaRealtime({
               isExpired={row.isExpired}
               isCounterOfferHold={row.isCounterOfferHold}
               isCompactCounterOffer={row.isCounterOfferHold && row.rowDurationMinutes <= 30}
+              isManual={isManualBooking(row.booking_source)}
             />
           </button>
         ))}
@@ -1552,6 +1569,15 @@ export function AgendaRealtime({
               ) : selectedPast ? (
                 <p className="inline-flex rounded-full border border-slate-600/80 bg-slate-800/80 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-slate-300">
                   Past visit
+                </p>
+              ) : null}
+              {isManualBooking(selected.booking_source) ? (
+                <p
+                  data-testid="agenda-visit-manual"
+                  className="inline-flex items-center gap-1 rounded-full border border-clinical-400/30 bg-clinical-500/10 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-clinical-200"
+                >
+                  <Phone className="h-3 w-3" aria-hidden />
+                  {MANUAL_MARK_LABEL} · added by you
                 </p>
               ) : null}
               {selectedNoShow ? (

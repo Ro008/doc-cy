@@ -50,6 +50,7 @@ export async function POST(req: NextRequest) {
         code: "window_closed",
         message: "Online cancellation has closed for this visit. Please call the clinic.",
         clinicPhone: ctx.clinic.phone,
+        clinic: ctx.clinic,
       },
       { status: 403 },
     );

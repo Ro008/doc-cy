@@ -3,6 +3,7 @@
 import * as React from "react";
 
 import { BookingLinkCard, BookingLinkText, BookOnlineButton } from "@/components/booking/BookingLinkPanels";
+import { ClinicContactBlock, type ClinicContact } from "@/components/booking/ClinicContactBlock";
 
 type Props = {
   token: string;
@@ -17,7 +18,7 @@ type Outcome =
   | { kind: "idle" }
   | { kind: "sending" }
   | { kind: "cancelled" }
-  | { kind: "error"; title: string; message: string; phone?: string | null };
+  | { kind: "error"; title: string; message: string; clinic?: ClinicContact | null };
 
 /**
  * The button on /booking/cancel. Opening the emailed link only shows the visit (email
@@ -36,14 +37,14 @@ export function PatientCancelClient({ token, professionalName, whenLabel, clinic
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token, reason: reason.trim() || undefined }),
       });
-      const data = (await res.json().catch(() => ({}))) as { message?: string; code?: string; clinicPhone?: string | null };
+      const data = (await res.json().catch(() => ({}))) as { message?: string; code?: string; clinic?: ClinicContact | null };
       if (res.ok) return setOutcome({ kind: "cancelled" });
       if (res.status === 403 && data.code === "window_closed") {
         return setOutcome({
           kind: "error",
           title: "Online cancellation has closed",
           message: "It's too close to the visit to cancel online. Please call the clinic.",
-          phone: data.clinicPhone ?? null,
+          clinic: data.clinic ?? null,
         });
       }
       setOutcome({
@@ -72,11 +73,7 @@ export function PatientCancelClient({ token, professionalName, whenLabel, clinic
     return (
       <BookingLinkCard title={outcome.title} testId="patient-cancel-error">
         <BookingLinkText>{outcome.message}</BookingLinkText>
-        {outcome.phone ? (
-          <a href={`tel:${outcome.phone}`} className="mt-4 inline-block text-lg font-semibold text-clinical-300">
-            {outcome.phone}
-          </a>
-        ) : null}
+        {outcome.clinic ? <ClinicContactBlock clinic={outcome.clinic} /> : null}
       </BookingLinkCard>
     );
   }

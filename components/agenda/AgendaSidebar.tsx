@@ -4,7 +4,8 @@ import * as React from "react";
 import Link from "next/link";
 import { addMonths, format, isSameDay, isSameMonth, startOfMonth } from "date-fns";
 import { enGB } from "date-fns/locale";
-import { CalendarPlus, ChevronLeft, ChevronRight } from "lucide-react";
+import { CalendarPlus, ChevronLeft, ChevronRight, Phone } from "lucide-react";
+import { MANUAL_BOOKING_LABEL as MANUAL_MARK_LABEL } from "@/lib/agenda-booking-source";
 import { agendaMonthGrid } from "@/lib/agenda-calendar";
 import { DASHBOARD_NEEDS_ANSWER_HREF } from "@/lib/doctor-dashboard";
 import { MANUAL_BOOKING_HINT, MANUAL_BOOKING_LABEL } from "@/lib/manual-booking-copy";
@@ -151,6 +152,10 @@ export function AgendaSidebar({
         <p className="flex items-center gap-2">
           <span className="h-3 w-3 rounded-[3px] border border-dashed border-amber-400" aria-hidden />
           Pending request
+        </p>
+        <p className="flex items-center gap-2">
+          <Phone className="h-3 w-3 shrink-0" aria-hidden />
+          {MANUAL_MARK_LABEL}
         </p>
         <p className="flex items-center gap-2">
           <span className="h-3 w-3 rounded-[3px] bg-[repeating-linear-gradient(135deg,rgba(0,0,0,0.45)_0_3px,rgba(176,192,206,0.15)_3px_6px)] ring-1 ring-white/10" aria-hidden />

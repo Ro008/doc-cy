@@ -2,6 +2,8 @@
 
 import { format, isSameDay, isSameMonth } from "date-fns";
 import { enGB } from "date-fns/locale";
+import { Phone } from "lucide-react";
+import { MANUAL_BOOKING_LABEL } from "@/lib/agenda-booking-source";
 import { agendaMonthGrid, splitMonthDayItems } from "@/lib/agenda-calendar";
 
 export type AgendaMonthItem = {
@@ -12,6 +14,10 @@ export type AgendaMonthItem = {
   isPendingRequest: boolean;
   /** Greyed out (a request that expired unanswered). */
   isExpired?: boolean;
+  /** Added by hand (phone or walk-in): shown with a small phone. */
+  isManual?: boolean;
+  /** A time held for a patient who was offered it: tagged "Proposed slot" instead of "Pending". */
+  isProposedSlot?: boolean;
   /** Tailwind background class for the dot (clinic color). */
   dotClass: string;
   onOpen: () => void;
@@ -93,13 +99,17 @@ export function AgendaMonthGrid({ anchor, today, itemsForDay, isWorkingDay, onOp
                     <span
                       key={item.key}
                       className={`block min-w-0 overflow-hidden whitespace-nowrap rounded-[3px] px-[3px] py-px text-[10px] font-medium leading-tight tracking-tight ${
+                        // Pending (requests and proposed slots) in the amber box, as on desktop.
                         item.isPendingRequest
-                          ? "border border-dashed border-amber-400 bg-amber-400/10 text-amber-100"
+                          ? "bg-amber-500/10 text-amber-100 ring-1 ring-inset ring-amber-400/70"
                           : item.isExpired
                             ? "bg-slate-600 text-slate-200"
                             : `${item.dotClass} text-ink-900`
                       }`}
                     >
+                      {item.isManual ? (
+                        <Phone className="mr-0.5 inline h-2 w-2 align-[-1px]" aria-label={MANUAL_BOOKING_LABEL} />
+                      ) : null}
                       {item.patientName}
                     </span>
                   ))}
@@ -118,17 +128,30 @@ export function AgendaMonthGrid({ anchor, today, itemsForDay, isWorkingDay, onOp
                     aria-label={`Appointment ${item.patientName} at ${item.timeLabel}${item.clinicName ? ` · ${item.clinicName}` : ""}`}
                     title={`${item.timeLabel} · ${item.patientName}`}
                     className={`flex min-w-0 items-center gap-1.5 rounded px-1.5 py-0.5 text-left text-xs transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-400/70 ${
-                      item.isPendingRequest ? "text-amber-100" : "text-slate-100"
+                      item.isPendingRequest
+                        ? "bg-amber-500/10 text-amber-100 ring-1 ring-inset ring-amber-400/40"
+                        : "text-slate-100"
                     }`}
                   >
                     <span
                       className={`h-2 w-2 shrink-0 rounded-full ${
-                        item.isPendingRequest ? "border-2 border-dashed border-amber-400" : item.dotClass
+                        item.dotClass
                       }`}
                       aria-hidden
                     />
                     <span className="shrink-0 tabular-nums text-slate-400">{item.timeLabel}</span>
                     <span className="min-w-0 truncate">{item.patientName}</span>
+                    {item.isPendingRequest ? (
+                      <span
+                        data-testid="agenda-month-pending-tag"
+                        className="ml-auto shrink-0 rounded-sm bg-amber-400/20 px-1 text-[9px] font-bold uppercase tracking-wide text-amber-200"
+                      >
+                        {item.isProposedSlot ? "Proposed slot" : "Pending"}
+                      </span>
+                    ) : null}
+                    {item.isManual ? (
+                      <Phone className="h-3 w-3 shrink-0 text-slate-400" aria-label={MANUAL_BOOKING_LABEL} />
+                    ) : null}
                   </button>
                 ))}
                 {hiddenCount > 0 ? (
