@@ -13,7 +13,7 @@ import {
 
 /**
  * The patient cancels a confirmed visit from the emailed link (user, 2026-10-04):
- * until X hours before the visit (default 24); then the page shows the clinic phone.
+ * until X hours before the visit (default 12); then the page shows the clinic phone.
  * Cancelling sets CANCELLED + cancelled_by patient (+ optional reason), uses the link,
  * and frees the time. The page only cancels from its button (email scanners open links).
  */

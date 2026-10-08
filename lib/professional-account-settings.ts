@@ -14,7 +14,7 @@ import type { DoctorSettingsRow } from "@/lib/doctor-settings";
  * always "this professional at this clinic": `settingsAtClinic`.
  */
 export const PROFESSIONAL_ACCOUNT_SETTINGS_SELECT =
-  "professional_id, holiday_mode_enabled, holiday_start_date, holiday_end_date, booking_horizon_days, minimum_notice_hours";
+  "professional_id, holiday_mode_enabled, holiday_start_date, holiday_end_date, booking_horizon_days, minimum_notice_hours, patient_cancel_notice_hours";
 
 export type ProfessionalAccountSettings = Pick<
   DoctorSettingsRow,

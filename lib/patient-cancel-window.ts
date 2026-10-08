@@ -1,14 +1,15 @@
 /**
  * Cancelling a confirmed visit (user, 2026-10-04):
  * - The patient, from the emailed link, until X hours before the visit, where X is
- *   `professional_settings.patient_cancel_notice_hours` (12 / 24 / 48, default 24).
+ *   `professional_settings.patient_cancel_notice_hours` (12 / 24 / 48, default 12 since 2026-10-08,
+ *   agreed with Livio: the reminder goes out 24 h before, so it can still carry the cancel link).
  *   After that the page shows the clinic phone instead.
  * - The professional, until the visit starts; inside the patient's window her dialog
  *   warns that it is short notice.
  */
 
 export const PATIENT_CANCEL_NOTICE_CHOICES = [12, 24, 48] as const;
-export const DEFAULT_PATIENT_CANCEL_NOTICE_HOURS = 24;
+export const DEFAULT_PATIENT_CANCEL_NOTICE_HOURS = 12;
 
 const HOUR_MS = 60 * 60 * 1000;
 

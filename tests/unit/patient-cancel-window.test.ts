@@ -12,15 +12,16 @@ import {
 
 /**
  * The patient cancels a confirmed visit from the emailed link until X hours before it
- * (X = professional_settings.patient_cancel_notice_hours: 12 / 24 / 48, default 24).
+ * (X = professional_settings.patient_cancel_notice_hours: 12 / 24 / 48, default 12 since
+ * 2026-10-08, agreed with Livio, so the 24 h reminder can still carry the cancel link).
  * The professional can cancel until the visit starts; inside the patient's window the
  * dialog warns it is short notice (user, 2026-10-04).
  */
 const VISIT = "2026-10-10T09:00:00Z";
 
 describe("patient cancel notice setting", () => {
-  it("defaults to 24 h and offers 12 / 24 / 48", () => {
-    assert.equal(DEFAULT_PATIENT_CANCEL_NOTICE_HOURS, 24);
+  it("defaults to 12 h and offers 12 / 24 / 48", () => {
+    assert.equal(DEFAULT_PATIENT_CANCEL_NOTICE_HOURS, 12);
     assert.deepEqual([...PATIENT_CANCEL_NOTICE_CHOICES], [12, 24, 48]);
   });
 
@@ -28,7 +29,7 @@ describe("patient cancel notice setting", () => {
     assert.equal(parsePatientCancelNoticeHours(12), 12);
     assert.equal(parsePatientCancelNoticeHours("48"), 48);
     for (const bad of [0, 36, -24, "24h", null, undefined, 24.5]) {
-      assert.equal(parsePatientCancelNoticeHours(bad), 24, String(bad));
+      assert.equal(parsePatientCancelNoticeHours(bad), 12, String(bad));
     }
   });
 });
