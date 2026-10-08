@@ -21,6 +21,7 @@ import {
 } from "@/lib/first-login-trial-notice";
 import { loadDoctorLocations, primaryDoctorLocation } from "@/lib/load-doctor-locations";
 import { fetchAllSupabaseRows } from "@/lib/supabase-fetch-all";
+import { MISSED_REQUEST_MAX_AGE_MS } from "@/lib/missed-requests";
 
 /** Proposals that lapsed longer ago than this are not listed (lib/reschedule-follow-up.ts). */
 const LAPSED_PROPOSAL_WINDOW_MS = 14 * 24 * 60 * 60 * 1000;
@@ -36,13 +37,16 @@ async function loadDashboardAppointments(
   nowMs: number,
 ) {
   const lapsedSince = new Date(nowMs - LAPSED_PROPOSAL_WINDOW_MS).toISOString();
+  // "Missed requests": unanswered requests of the last week (lib/missed-requests.ts).
+  const missedSince = new Date(nowMs - MISSED_REQUEST_MAX_AGE_MS).toISOString();
   return fetchAllSupabaseRows(() =>
     supabase
       .from("appointments")
       .select(DASHBOARD_APPOINTMENT_SELECT)
       .eq("professional_id", doctorId)
       .or(
-        `appointment_datetime.gte."${todayStartUtc}",status.eq.NEEDS_RESCHEDULE,and(status.eq.EXPIRED,proposal_expires_at.gte."${lapsedSince}")`,
+        `appointment_datetime.gte."${todayStartUtc}",status.eq.NEEDS_RESCHEDULE,and(status.eq.EXPIRED,proposal_expires_at.gte."${lapsedSince}"),` +
+          `and(status.in.(EXPIRED,REQUESTED),proposal_expires_at.is.null,appointment_datetime.gte."${missedSince}")`,
       )
       .order("appointment_datetime", { ascending: true }),
   );

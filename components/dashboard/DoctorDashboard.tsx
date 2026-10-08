@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { formatInTimeZone } from "date-fns-tz";
-import { AlertTriangle, CalendarPlus, Check, CheckCircle2, ChevronDown, Loader2, X } from "lucide-react";
+import { AlertTriangle, CalendarPlus, Check, CheckCircle2, ChevronDown, Loader2, Phone, X } from "lucide-react";
 import { ManualBookingFlow } from "@/components/agenda/ManualBookingFlow";
 import { CY_TZ } from "@/lib/appointments";
 import {
@@ -35,10 +35,17 @@ import { emitPendingRequestsCount } from "@/lib/pending-requests-count";
 import { reviewPathFromDashboard } from "@/lib/appointment-review";
 import { agendaHighlightHref } from "@/lib/agenda-highlight";
 import { DeclineRequestDialog } from "@/components/dashboard/DeclineRequestDialog";
+import { useDeviceDismissals } from "@/components/dashboard/useDeviceDismissals";
+import {
+  MISSED_REQUESTS_DISMISSED_KEY,
+  MISSED_REQUESTS_SHOWN,
+  missedRequestSummary,
+  selectMissedRequests,
+} from "@/lib/missed-requests";
+import { splitMonthDayItems } from "@/lib/agenda-calendar";
 import { MANUAL_BOOKING_HINT, MANUAL_BOOKING_LABEL } from "@/lib/manual-booking-copy";
 import {
   NO_NEW_TIME_DISMISSED_KEY,
-  parseDismissedIds,
   rescheduleWithoutAnswerSummary,
   selectRescheduleWithoutAnswer,
 } from "@/lib/reschedule-follow-up";
@@ -59,8 +66,6 @@ type ExitKind = "accepted" | "declined";
 /** How long a handled request shows its result before it leaves the list. */
 const EXIT_RESULT_MS = 700;
 const EXIT_COLLAPSE_MS = 350;
-/** "Close" on a lapsed proposal: fade and fold away (no result to show first, unlike Accept). */
-const CLOSE_FADE_MS = 300;
 
 function useNow(): number {
   const [now, setNow] = React.useState(() => Date.now());
@@ -110,45 +115,17 @@ export function DoctorDashboard({
   const waitingCount = pending.filter((row) => !exiting[row.id]).length;
   const awaiting = selectAwaitingPatient(rows, nowMs);
   // "Close" hides a lapsed proposal on this device only (user, 2026-10-04).
-  const [dismissedNoNewTime, setDismissedNoNewTime] = React.useState<Set<string>>(() => new Set());
-  React.useEffect(() => {
-    try {
-      setDismissedNoNewTime(parseDismissedIds(window.localStorage.getItem(NO_NEW_TIME_DISMISSED_KEY)));
-    } catch {
-      // Storage blocked: nothing was closed on this device.
-    }
-  }, []);
-  const noNewTime = selectRescheduleWithoutAnswer(rows, nowMs, dismissedNoNewTime);
-
-  /** Lapsed proposals fading out after Close; the section folds away with its last one. */
-  const [closingNoNewTime, setClosingNoNewTime] = React.useState<Set<string>>(() => new Set());
-  const noNewTimeAllClosing = noNewTime.length > 0 && noNewTime.every((row) => closingNoNewTime.has(row.id));
-
-  function closeNoNewTime(id: string) {
-    if (closingNoNewTime.has(id)) return;
-    setClosingNoNewTime((prev) => new Set(prev).add(id));
-    window.setTimeout(() => {
-      dismissNoNewTime(id);
-      setClosingNoNewTime((prev) => {
-        const next = new Set(prev);
-        next.delete(id);
-        return next;
-      });
-    }, CLOSE_FADE_MS);
-  }
-
-  function dismissNoNewTime(id: string) {
-    setDismissedNoNewTime((prev) => {
-      const next = new Set(prev);
-      next.add(id);
-      try {
-        window.localStorage.setItem(NO_NEW_TIME_DISMISSED_KEY, JSON.stringify([...next]));
-      } catch {
-        // Hidden for this visit only.
-      }
-      return next;
-    });
-  }
+  const noNewTimeClose = useDeviceDismissals(NO_NEW_TIME_DISMISSED_KEY);
+  const noNewTime = selectRescheduleWithoutAnswer(rows, nowMs, noNewTimeClose.dismissed);
+  const noNewTimeAllClosing = noNewTime.length > 0 && noNewTime.every((row) => noNewTimeClose.closing.has(row.id));
+  // Requests nobody answered in time, last 7 days, so she can still call (user, 2026-10-08).
+  const missedClose = useDeviceDismissals(MISSED_REQUESTS_DISMISSED_KEY);
+  const missed = selectMissedRequests(rows, nowMs, missedClose.dismissed);
+  const missedAllClosing = missed.length > 0 && missed.every((row) => missedClose.closing.has(row.id));
+  // The 3 most recent first; the rest behind "Show N more" (user, 2026-10-08).
+  const [showAllMissed, setShowAllMissed] = React.useState(false);
+  const missedSplit = splitMonthDayItems(missed, MISSED_REQUESTS_SHOWN);
+  const missedShown = showAllMissed ? missed : missedSplit.visible;
 
   React.useEffect(() => {
     emitPendingRequestsCount(waitingCount);
@@ -236,7 +213,7 @@ export function DoctorDashboard({
           </div>
 
           <div className="mt-3 overflow-hidden rounded-3xl border border-slate-700/70 bg-slate-900/70 shadow-xl shadow-black/20">
-            {pending.length === 0 && noNewTime.length === 0 ? (
+            {pending.length === 0 && noNewTime.length === 0 && missed.length === 0 ? (
               <AllCaughtUp />
             ) : pending.length === 0 ? null : (
               <ul className="divide-y divide-slate-800/80">
@@ -275,12 +252,57 @@ export function DoctorDashboard({
                           key={row.id}
                           row={row}
                           first={index === 0}
-                          closing={closingNoNewTime.has(row.id)}
+                          closing={noNewTimeClose.closing.has(row.id)}
                           clinicTag={clinicTag(row.clinic_id)}
-                          onClose={() => closeNoNewTime(row.id)}
+                          onClose={() => noNewTimeClose.close(row.id)}
                         />
                       ))}
                     </ul>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+            {missed.length > 0 ? (
+              <div
+                className={`grid transition-[grid-template-rows,opacity] duration-300 ease-out motion-reduce:transition-none ${
+                  missedAllClosing ? "grid-rows-[0fr] opacity-0" : "grid-rows-[1fr]"
+                }`}
+              >
+                <div className="min-h-0 overflow-hidden">
+                  <div
+                    className={`px-5 py-4 text-sm text-slate-300 ${
+                      pending.length > 0 || noNewTime.length > 0 ? "border-t border-slate-800" : ""
+                    }`}
+                    data-testid="dashboard-missed-requests"
+                  >
+                    <p className="text-xs font-semibold uppercase tracking-wide text-rose-300/90">Missed requests</p>
+                    <ul className="mt-2">
+                      {missedShown.map((row, index) => (
+                        <MissedRequestItem
+                          key={row.id}
+                          row={row}
+                          first={index === 0}
+                          closing={missedClose.closing.has(row.id)}
+                          clinicTag={clinicTag(row.clinic_id)}
+                          onClose={() => missedClose.close(row.id)}
+                        />
+                      ))}
+                    </ul>
+                    {missedSplit.hiddenCount > 0 ? (
+                      <button
+                        type="button"
+                        onClick={() => setShowAllMissed((v) => !v)}
+                        aria-expanded={showAllMissed}
+                        data-testid="dashboard-missed-requests-more"
+                        className="mt-2.5 inline-flex items-center gap-1 text-sm font-semibold text-clinical-300 transition hover:text-clinical-200"
+                      >
+                        {showAllMissed ? "Show less" : `Show ${missedSplit.hiddenCount} more`}
+                        <ChevronDown
+                          className={`h-4 w-4 transition-transform duration-200 ${showAllMissed ? "rotate-180" : ""}`}
+                          aria-hidden
+                        />
+                      </button>
+                    ) : null}
                   </div>
                 </div>
               </div>
@@ -414,6 +436,68 @@ function RescheduleNoAnswerItem({
               {summary.expiredLabel ? `Offer expired ${summary.expiredLabel} · ` : ""}The times are free again.
             </p>
             <div className="mt-2.5 flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={onClose}
+                disabled={closing}
+                className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-slate-600/70 px-3 text-sm font-medium text-slate-200 transition hover:border-slate-500 hover:bg-slate-800/70 hover:text-white"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </li>
+  );
+}
+
+/** A request nobody answered before its time: the patient was told; she can still call them. */
+function MissedRequestItem({
+  row,
+  first,
+  closing,
+  clinicTag,
+  onClose,
+}: {
+  row: DashboardAppointmentRow;
+  first: boolean;
+  closing: boolean;
+  clinicTag: DashboardClinicTag | null;
+  onClose: () => void;
+}) {
+  const summary = missedRequestSummary(row);
+
+  return (
+    <li
+      data-testid="dashboard-missed-request"
+      className={`grid transition-[grid-template-rows,opacity,transform] duration-300 ease-out motion-safe:animate-fade-up motion-reduce:transition-none ${
+        closing ? "pointer-events-none grid-rows-[0fr] scale-[0.98] opacity-0" : "grid-rows-[1fr]"
+      }`}
+    >
+      <div className="min-h-0 overflow-hidden">
+        <div className={first ? "" : "pt-3"}>
+          <div className="rounded-2xl border border-rose-400/20 bg-rose-500/[0.06] px-3.5 py-3">
+            <p className="leading-snug">
+              {clinicTag ? <ClinicTag tag={clinicTag} className="mr-1.5 align-[1px]" /> : null}
+              <span className="font-semibold text-slate-50">{row.patient_name}</span> asked for{" "}
+              <span className="font-medium text-slate-100">{summary.requestedLabel}</span> and got no answer in
+              time.
+            </p>
+            <p className="mt-0.5 text-xs text-slate-500">
+              We let them know and the time is free again. A call can still win them back.
+            </p>
+            <div className="mt-2.5 flex flex-wrap items-center gap-2">
+              {summary.call ? (
+                <a
+                  href={summary.call.href}
+                  data-testid="dashboard-missed-request-call"
+                  className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-clinical-400/40 bg-clinical-500/10 px-3 text-sm font-semibold text-clinical-100 transition hover:bg-clinical-500/20"
+                >
+                  <Phone className="h-4 w-4" aria-hidden />
+                  Call {summary.call.label}
+                </a>
+              ) : null}
               <button
                 type="button"
                 onClick={onClose}
