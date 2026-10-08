@@ -57,7 +57,7 @@ export function pausedClinicNotices(
 }
 
 export const DASHBOARD_APPOINTMENT_SELECT =
-  "id, patient_name, appointment_datetime, status, duration_minutes, created_at, is_new_patient, attendance, proposal_expires_at, proposed_slots, reason, clinic_id";
+  "id, patient_name, appointment_datetime, status, duration_minutes, created_at, is_new_patient, attendance, proposal_expires_at, proposed_slots, reason, clinic_id, patient_phone";
 
 export type DashboardAppointmentRow = {
   id: string;
@@ -72,6 +72,8 @@ export type DashboardAppointmentRow = {
   proposed_slots: unknown;
   reason: string | null;
   clinic_id: string | null;
+  /** For "Missed requests": she can call the patient back. */
+  patient_phone?: string | null;
 };
 
 export type TodayScheduleItem = {
