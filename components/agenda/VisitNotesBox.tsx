@@ -1,8 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Loader2 } from "lucide-react";
-import { toast as sonnerToast } from "sonner";
+import { Check, Loader2 } from "lucide-react";
 import { PROFESSIONAL_NOTES_HINT, PROFESSIONAL_NOTES_MAX } from "@/lib/professional-notes";
 
 /**
@@ -13,14 +12,18 @@ export function VisitNotesBox({
   appointmentId,
   initialNotes,
   onSaved,
+  onDirtyChange,
 }: {
   appointmentId: string;
   initialNotes: string | null;
   onSaved: (notes: string | null) => void;
+  /** Tells the agenda whether there is text not saved yet, so closing the visit can warn. */
+  onDirtyChange?: (dirty: boolean) => void;
 }) {
   const [notes, setNotes] = React.useState(initialNotes ?? "");
   const [saving, setSaving] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const [savedAt, setSavedAt] = React.useState<Date | null>(null);
   const fieldId = React.useId();
   const dirty = notes.trim() !== (initialNotes ?? "").trim();
 
@@ -28,6 +31,24 @@ export function VisitNotesBox({
     setNotes(initialNotes ?? "");
     setError(null);
   }, [appointmentId, initialNotes]);
+
+  // Unsaved text: tell the agenda (closing the visit asks first) and warn on leaving the page.
+  React.useEffect(() => {
+    onDirtyChange?.(dirty);
+    if (!dirty) return;
+    const warn = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [dirty, onDirtyChange]);
+  React.useEffect(() => () => onDirtyChange?.(false), [onDirtyChange]);
+
+  // "Saved" belongs to this visit only.
+  React.useEffect(() => {
+    setSavedAt(null);
+  }, [appointmentId]);
 
   async function save() {
     if (saving || !dirty) return;
@@ -46,7 +67,7 @@ export function VisitNotesBox({
         return;
       }
       onSaved((data as { notes?: string | null })?.notes ?? null);
-      sonnerToast.success("Notes saved.");
+      setSavedAt(new Date());
     } catch {
       setError("Could not save your notes.");
     } finally {
@@ -65,7 +86,7 @@ export function VisitNotesBox({
         onChange={(e) => setNotes(e.target.value)}
         maxLength={PROFESSIONAL_NOTES_MAX}
         rows={3}
-        disabled={saving}
+        readOnly={saving}
         className="mt-1.5 w-full resize-y rounded-xl border border-slate-700 bg-ink-900/80 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:border-clinical-500/50 focus:outline-none focus:ring-1 focus:ring-clinical-500/40"
       />
       <p className="mt-1 flex justify-between gap-2 text-[11px] text-slate-500">
@@ -74,16 +95,32 @@ export function VisitNotesBox({
           {notes.trim().length}/{PROFESSIONAL_NOTES_MAX}
         </span>
       </p>
-      <button
-        type="button"
-        onClick={() => void save()}
-        disabled={saving || !dirty}
-        className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-clinical-500/40 bg-clinical-500/10 px-3 py-2 text-xs font-semibold text-clinical-200 transition hover:border-clinical-400/60 hover:bg-clinical-500/20 disabled:cursor-not-allowed disabled:opacity-50"
-      >
-        {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> : null}
-        {saving ? "Saving…" : "Save notes"}
-      </button>
-      {error ? <p className="mt-1.5 text-xs text-amber-300">{error}</p> : null}
+      <div className="mt-2 flex items-center gap-3">
+        <button
+          type="button"
+          onClick={() => void save()}
+          disabled={saving || !dirty}
+          className="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl border border-clinical-500/40 bg-clinical-500/10 px-3 py-2 text-xs font-semibold text-clinical-200 transition hover:border-clinical-400/60 hover:bg-clinical-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> : null}
+          {saving ? "Saving…" : "Save notes"}
+        </button>
+        {!dirty && !saving && !error && savedAt ? (
+          <span
+            role="status"
+            data-testid="visit-notes-saved"
+            className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-emerald-300"
+          >
+            <Check className="h-3.5 w-3.5" aria-hidden />
+            Saved
+          </span>
+        ) : null}
+      </div>
+      {error ? (
+        <p role="alert" className="mt-1.5 text-xs text-rose-300">
+          {error}
+        </p>
+      ) : null}
     </div>
   );
 }

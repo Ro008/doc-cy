@@ -149,6 +149,13 @@ test.describe("Integration: attendance and notes", { tag: "@pr-e2e" }, () => {
     await box.fill("Prefers morning visits.");
     await page.getByRole("button", { name: "Save notes" }).click();
     await expect.poll(async () => (await read(id)).professional_notes, { timeout: 15_000 }).toBe("Prefers morning visits.");
+    // The form stays open with a quiet "Saved" status and the button off; editing clears it.
+    await expect(box).toBeVisible();
+    await expect(page.getByTestId("visit-notes-saved")).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole("button", { name: "Save notes" })).toBeDisabled();
+    await box.fill("Prefers morning visits, not Mondays.");
+    await expect(page.getByTestId("visit-notes-saved")).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Save notes" })).toBeEnabled();
   });
 
   test("a new request lists her previous visits with that patient, with her notes", async () => {

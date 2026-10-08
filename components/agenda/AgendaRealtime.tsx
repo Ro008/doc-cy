@@ -945,6 +945,30 @@ export function AgendaRealtime({
     }
   }
 
+  // Her visit notes with text not saved yet: closing the visit asks first.
+  const notesDirtyRef = React.useRef(false);
+  const [discardPrompt, setDiscardPrompt] = React.useState(false);
+  const setNotesDirty = React.useCallback((dirty: boolean) => {
+    notesDirtyRef.current = dirty;
+    if (!dirty) setDiscardPrompt(false);
+  }, []);
+  /** Closes the visit window; with unsaved notes it first asks, inside the window. */
+  function closeVisitDialog(discardNotes = false) {
+    if (modalBusy) return;
+    if (!discardNotes && notesDirtyRef.current) {
+      setDiscardPrompt(true);
+      return;
+    }
+    notesDirtyRef.current = false;
+    setDiscardPrompt(false);
+    setSelected(null);
+    setConfirmingCancel(false);
+    setCancelMode(null);
+    setRejectReason("");
+    setCancelError(null);
+    setAttendanceError(null);
+  }
+
   function openAppointment(row: (typeof rows)[number]) {
     setAttendanceError(null);
     setCancelError(null);
@@ -1513,15 +1537,7 @@ export function AgendaRealtime({
         >
           <button
             type="button"
-            onClick={() => {
-              if (modalBusy) return;
-              setSelected(null);
-              setConfirmingCancel(false);
-              setCancelMode(null);
-              setRejectReason("");
-              setCancelError(null);
-              setAttendanceError(null);
-            }}
+            onClick={() => closeVisitDialog()}
             className="absolute inset-0 bg-ink-900/70 backdrop-blur-sm"
             aria-label="Close"
             disabled={modalBusy}
@@ -1529,15 +1545,7 @@ export function AgendaRealtime({
           <div className="relative z-10 w-full max-w-sm max-h-[calc(100dvh-1.5rem)] overflow-y-auto rounded-3xl border border-clinical-100/10 bg-slate-900/95 p-6 shadow-2xl backdrop-blur-xl sm:max-h-[calc(100dvh-2rem)]">
             <button
               type="button"
-              onClick={() => {
-                if (modalBusy) return;
-                setSelected(null);
-                setConfirmingCancel(false);
-                setCancelMode(null);
-                setRejectReason("");
-                setCancelError(null);
-                setAttendanceError(null);
-              }}
+              onClick={() => closeVisitDialog()}
               className="absolute right-4 top-4 rounded-full p-1 text-slate-400 transition hover:bg-slate-800 hover:text-slate-200 disabled:cursor-not-allowed disabled:opacity-50"
               aria-label="Close"
               disabled={modalBusy}
@@ -1696,6 +1704,7 @@ export function AgendaRealtime({
               <VisitNotesBox
                 appointmentId={selected.id}
                 initialNotes={selected.professional_notes ?? null}
+                onDirtyChange={setNotesDirty}
                 onSaved={(notes) => {
                   const id = selected.id;
                   setAppointments((prev) =>
@@ -1704,6 +1713,32 @@ export function AgendaRealtime({
                   setSelected((prev) => (prev && prev.id === id ? { ...prev, professional_notes: notes } : prev));
                 }}
               />
+            ) : null}
+            {discardPrompt ? (
+              <div
+                role="alertdialog"
+                aria-label="Unsaved notes"
+                data-testid="discard-notes-prompt"
+                className="mt-3 rounded-xl border border-slate-600 bg-slate-800/80 px-3 py-2.5"
+              >
+                <p className="text-sm text-slate-200">You have notes that are not saved yet.</p>
+                <div className="mt-2 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setDiscardPrompt(false)}
+                    className="flex-1 rounded-xl border border-clinical-500/40 bg-clinical-500/10 px-3 py-2 text-xs font-semibold text-clinical-200 transition hover:bg-clinical-500/20"
+                  >
+                    Keep editing
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => closeVisitDialog(true)}
+                    className="flex-1 rounded-xl border border-slate-600 px-3 py-2 text-xs font-semibold text-slate-300 transition hover:bg-slate-700/60"
+                  >
+                    Discard and close
+                  </button>
+                </div>
+              </div>
             ) : null}
             {selected.showReviewLink &&
             !selectedPast &&
