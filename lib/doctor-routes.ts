@@ -1,3 +1,4 @@
+import { REGISTRATION_STATUS_PATH } from "@/lib/registration-status-path";
 /** Where a signed-in professional lands after login. */
 export const DOCTOR_HOME_PATH = "/dashboard";
 
@@ -62,4 +63,12 @@ export function selectedDoctorNavTab(
 export function pendingBadgeLabel(count: number | null | undefined): string | null {
   if (typeof count !== "number" || !Number.isFinite(count) || count <= 0) return null;
   return count > 9 ? "9+" : String(Math.floor(count));
+}
+
+/**
+ * Where the header logo goes. An applicant has no dashboard: /dashboard bounces back to the
+ * status page, so a link there never finished loading (user, 2026-10-08).
+ */
+export function logoHomeHref({ applicant }: { applicant: boolean }): string {
+  return applicant ? REGISTRATION_STATUS_PATH : DOCTOR_HOME_PATH;
 }

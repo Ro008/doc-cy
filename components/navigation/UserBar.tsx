@@ -16,7 +16,7 @@ import { useDoctorSession } from "@/components/navigation/DoctorSessionProvider"
 import { emitOpenFeedback } from "@/lib/doccy-feedback";
 import { PRO_CHROME_HYDRATED_ATTR, PRO_MOBILE_MORE_OPEN_ATTR } from "@/lib/pro-session-hint";
 import {
-  DOCTOR_HOME_PATH,
+  logoHomeHref,
   DOCTOR_NAV_TABS,
   activeDoctorNavTab,
   isDoctorProductPath,
@@ -63,6 +63,9 @@ function UserAvatar({
     </div>
   );
 }
+
+/** On <html> while the desktop sticky header shows (globals.css sets `--doccy-top-chrome`). */
+const STICKY_HEADER_ATTR = "data-doccy-sticky-header";
 
 function getInitials(name: string | null): string {
   if (!name) return "DC";
@@ -246,6 +249,15 @@ export function UserBar() {
     document.documentElement.setAttribute(PRO_CHROME_HYDRATED_ATTR, "1");
   }, [hideChrome]);
 
+  // The desktop sticky header takes height above the page: pages that fill the screen subtract
+  // it (ResponsiveBottomInset), so they don't scroll by the header's height.
+  const hasStickyHeader = !hideChrome && isDoctorProductPath(pathname);
+  useLayoutEffect(() => {
+    const root = document.documentElement;
+    root.toggleAttribute(STICKY_HEADER_ATTR, hasStickyHeader);
+    return () => root.removeAttribute(STICKY_HEADER_ATTR);
+  }, [hasStickyHeader]);
+
   if (hideChrome) {
     return null;
   }
@@ -375,7 +387,10 @@ export function UserBar() {
         >
           <div className="mx-auto flex h-14 max-w-[1920px] items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
             <div className="flex min-w-0 items-center gap-6">
-              <PendingLink href={DOCTOR_HOME_PATH} className="inline-flex shrink-0 transition hover:opacity-90">
+              <PendingLink
+                href={logoHomeHref({ applicant: supportOnly })}
+                className="inline-flex shrink-0 transition hover:opacity-90"
+              >
                 <DocCyWordmark variant="dark" />
               </PendingLink>
               {/* Applicants get no product tabs, only Support and Log out (user, 2026-09-28). */}

@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 
 import {
   DOCTOR_HOME_PATH,
+  logoHomeHref,
   DOCTOR_NAV_TABS,
   activeDoctorNavTab,
   isDoctorProductPath,
@@ -128,5 +129,17 @@ describe("pendingBadgeLabel", () => {
     assert.equal(pendingBadgeLabel(9), "9");
     assert.equal(pendingBadgeLabel(10), "9+");
     assert.equal(pendingBadgeLabel(42), "9+");
+  });
+});
+
+// An applicant's /dashboard bounces back to their status page, so the logo spun forever
+// (user, 2026-10-08): their logo goes straight to the status page.
+describe("logoHomeHref", () => {
+  it("professionals go to the dashboard", () => {
+    assert.equal(logoHomeHref({ applicant: false }), "/dashboard");
+  });
+
+  it("applicants (no approved profile yet) go to their application status", () => {
+    assert.equal(logoHomeHref({ applicant: true }), "/agenda/status");
   });
 });
