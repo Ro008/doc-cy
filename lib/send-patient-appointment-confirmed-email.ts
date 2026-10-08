@@ -127,7 +127,9 @@ export function buildPatientAppointmentConfirmedEmailContent(opts: {
       name: doctor.name,
       specialty: doctor.specialty,
       phone: doctor.phone,
+      clinic_name: clinic.clinicName,
       clinic_address: clinic.address,
+      maps_url: clinic.mapsUrl,
     },
     { reason: reason ?? null, visitType: null, visitNotes: null },
     { includeDirectClinicContact: true }

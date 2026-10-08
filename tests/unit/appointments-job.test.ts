@@ -112,6 +112,15 @@ describe("buildPatientVisitReminderEmail", () => {
   });
 
   it("leaves the cancel link out when there is none", () => {
+    const withCal = buildPatientVisitReminderEmail({
+      ...base,
+      cancel: null,
+      calendar: { googleUrl: "https://calendar.google.com/x", icsUrl: "https://www.mydoccy.com/api/appointments/a1/calendar" },
+    });
+    assert.match(withCal.html, /Add to Google Calendar/);
+    assert.match(withCal.html, /Add to Apple \/ Outlook \(\.ics\)/);
+    assert.ok(withCal.text.includes("https://calendar.google.com/x"));
+    assert.equal(buildPatientVisitReminderEmail({ ...base, cancel: null }).html.includes("Add to Google Calendar"), false);
     const email = buildPatientVisitReminderEmail({ ...base, cancel: null });
     assert.ok(!email.text.includes("/booking/cancel"));
   });

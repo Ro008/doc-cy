@@ -1,4 +1,4 @@
-import { format } from "date-fns";
+import { addMinutes, format } from "date-fns";
 import { enGB } from "date-fns/locale";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -12,6 +12,8 @@ import { publicProfessionalProfilePath } from "@/lib/manual-directory-landing-pa
 import { parsePatientCancelNoticeHours, patientCanCancel } from "@/lib/patient-cancel-window";
 import { REVIEW_LINK_DAYS } from "@/lib/professional-review";
 import { buildPatientRescheduleReminderEmailContent, RESCHEDULE_REMINDER_LEAD_HOURS } from "@/lib/reschedule-emails";
+import { buildGoogleCalendarUrl, getCalendarEventDetails } from "@/lib/patient-calendar-event";
+import { appointmentCalendarPath } from "@/lib/appointment-links";
 import { loadPatientEmailClinic } from "@/lib/patient-email-clinic";
 import { buildPatientReviewRequestEmail } from "@/lib/review-request-email";
 
@@ -101,6 +103,40 @@ async function professionalsById(service: SupabaseClient, ids: string[]): Promis
     map.set(p.id, { name: p.name?.trim() || "your professional", slug: p.slug });
   }
   return map;
+}
+
+function reminderCalendarLinks(o: {
+  siteUrl: string;
+  appointmentId: string;
+  startIso: string;
+  durationMinutes: number;
+  reason: string | null;
+  professionalName: string;
+  clinic: { name?: string | null; address?: string | null; phone?: string | null; mapsUrl?: string | null } | null;
+}): { googleUrl: string; icsUrl: string } {
+  const startUtc = new Date(o.startIso);
+  const cal = getCalendarEventDetails(
+    { id: o.appointmentId, appointment_datetime: o.startIso },
+    {
+      name: o.professionalName,
+      phone: o.clinic?.phone ?? null,
+      clinic_name: o.clinic?.name ?? null,
+      clinic_address: o.clinic?.address ?? null,
+      maps_url: o.clinic?.mapsUrl ?? null,
+    },
+    { reason: o.reason, visitType: null, visitNotes: null },
+    { includeDirectClinicContact: true },
+  );
+  return {
+    googleUrl: buildGoogleCalendarUrl({
+      title: cal.title,
+      description: cal.description,
+      location: cal.location,
+      startUtc,
+      endUtc: addMinutes(startUtc, o.durationMinutes),
+    }),
+    icsUrl: new URL(appointmentCalendarPath(o.appointmentId, "patient") ?? "/", o.siteUrl).toString(),
+  };
 }
 
 function str(v: unknown): string {
@@ -265,7 +301,7 @@ export async function runAppointmentsJob(deps: AppointmentsJobDeps): Promise<App
       .in("id", due)
       .eq("status", "CONFIRMED")
       .is("visit_reminder_sent_at", null)
-      .select("id, professional_id, patient_name, patient_email, appointment_datetime, clinic_id");
+      .select("id, professional_id, patient_name, patient_email, appointment_datetime, clinic_id, duration_minutes, reason");
     if (claimErr) throw claimErr;
     const rows = (data ?? []) as Row[];
     const pros = await professionalsById(service, rows.map((r) => r.professional_id));
@@ -303,6 +339,15 @@ export async function runAppointmentsJob(deps: AppointmentsJobDeps): Promise<App
           appointmentIso: startIso,
           clinic: clinic ?? { name: "the clinic" },
           cancel,
+          calendar: reminderCalendarLinks({
+            siteUrl,
+            appointmentId: r.id,
+            startIso,
+            durationMinutes: Number(r.duration_minutes) || 30,
+            reason: r.reason ? str(r.reason) : null,
+            professionalName: pros.get(r.professional_id)?.name ?? "your professional",
+            clinic,
+          }),
         }),
       );
     }

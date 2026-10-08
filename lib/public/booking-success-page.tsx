@@ -127,7 +127,9 @@ export default async function BookingSuccessPage({
       name: doctor.name,
       specialty: specialtyName,
       phone: await loadAppointmentClinicPhone(supabase, clinic.locationId),
+      clinic_name: clinic.clinicName,
       clinic_address: clinic.address,
+      maps_url: clinic.mapsUrl,
     },
     {
       reason: apptRow.reason,
