@@ -59,6 +59,8 @@ type ExitKind = "accepted" | "declined";
 /** How long a handled request shows its result before it leaves the list. */
 const EXIT_RESULT_MS = 700;
 const EXIT_COLLAPSE_MS = 350;
+/** "Close" on a lapsed proposal: fade and fold away (no result to show first, unlike Accept). */
+const CLOSE_FADE_MS = 300;
 
 function useNow(): number {
   const [now, setNow] = React.useState(() => Date.now());
@@ -117,6 +119,23 @@ export function DoctorDashboard({
     }
   }, []);
   const noNewTime = selectRescheduleWithoutAnswer(rows, nowMs, dismissedNoNewTime);
+
+  /** Lapsed proposals fading out after Close; the section folds away with its last one. */
+  const [closingNoNewTime, setClosingNoNewTime] = React.useState<Set<string>>(() => new Set());
+  const noNewTimeAllClosing = noNewTime.length > 0 && noNewTime.every((row) => closingNoNewTime.has(row.id));
+
+  function closeNoNewTime(id: string) {
+    if (closingNoNewTime.has(id)) return;
+    setClosingNoNewTime((prev) => new Set(prev).add(id));
+    window.setTimeout(() => {
+      dismissNoNewTime(id);
+      setClosingNoNewTime((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+    }, CLOSE_FADE_MS);
+  }
 
   function dismissNoNewTime(id: string) {
     setDismissedNoNewTime((prev) => {
@@ -238,22 +257,32 @@ export function DoctorDashboard({
             )}
             {noNewTime.length > 0 ? (
               <div
-                className={`px-5 py-4 text-sm text-slate-300 ${pending.length > 0 ? "border-t border-slate-800" : ""}`}
-                data-testid="dashboard-no-new-time"
+                className={`grid transition-[grid-template-rows,opacity] duration-300 ease-out motion-reduce:transition-none ${
+                  noNewTimeAllClosing ? "grid-rows-[0fr] opacity-0" : "grid-rows-[1fr]"
+                }`}
               >
-                <p className="text-xs font-semibold uppercase tracking-wide text-amber-300/90">
-                  No new time chosen
-                </p>
-                <ul className="mt-2 space-y-3">
-                  {noNewTime.map((row) => (
-                    <RescheduleNoAnswerItem
-                      key={row.id}
-                      row={row}
-                      clinicTag={clinicTag(row.clinic_id)}
-                      onClose={() => dismissNoNewTime(row.id)}
-                    />
-                  ))}
-                </ul>
+                <div className="min-h-0 overflow-hidden">
+                  <div
+                    className={`px-5 py-4 text-sm text-slate-300 ${pending.length > 0 ? "border-t border-slate-800" : ""}`}
+                    data-testid="dashboard-no-new-time"
+                  >
+                    <p className="text-xs font-semibold uppercase tracking-wide text-amber-300/90">
+                      No new time chosen
+                    </p>
+                    <ul className="mt-2">
+                      {noNewTime.map((row, index) => (
+                        <RescheduleNoAnswerItem
+                          key={row.id}
+                          row={row}
+                          first={index === 0}
+                          closing={closingNoNewTime.has(row.id)}
+                          clinicTag={clinicTag(row.clinic_id)}
+                          onClose={() => closeNoNewTime(row.id)}
+                        />
+                      ))}
+                    </ul>
+                  </div>
+                </div>
               </div>
             ) : null}
             {awaiting.length > 0 ? (
@@ -350,34 +379,52 @@ function ScrollFade() {
  */
 function RescheduleNoAnswerItem({
   row,
+  first,
+  closing,
   clinicTag,
   onClose,
 }: {
   row: DashboardAppointmentRow;
+  first: boolean;
+  /** Fading out after Close: it shrinks a touch and the rows below slide up (user, 2026-10-08). */
+  closing: boolean;
   clinicTag: DashboardClinicTag | null;
   onClose: () => void;
 }) {
   const summary = rescheduleWithoutAnswerSummary(row);
 
   return (
-    <li data-testid="dashboard-no-new-time-item" className="rounded-2xl border border-amber-400/20 bg-amber-500/[0.06] px-3.5 py-3">
-      <p className="leading-snug">
-        {clinicTag ? <ClinicTag tag={clinicTag} className="mr-1.5 align-[1px]" /> : null}
-        <span className="font-semibold text-slate-50">{row.patient_name}</span> didn&apos;t pick any of the
-        times you suggested instead of{" "}
-        <span className="font-medium text-slate-100">{summary.originalLabel}</span>. Nothing is booked.
-      </p>
-      <p className="mt-0.5 text-xs text-slate-500">
-        {summary.expiredLabel ? `Offer expired ${summary.expiredLabel} · ` : ""}The times are free again.
-      </p>
-      <div className="mt-2.5 flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          onClick={onClose}
-          className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-slate-600/70 px-3 text-sm font-medium text-slate-200 transition hover:border-slate-500 hover:bg-slate-800/70 hover:text-white"
-        >
-          Close
-        </button>
+    <li
+      data-testid="dashboard-no-new-time-item"
+      data-closing={closing ? "true" : undefined}
+      className={`grid transition-[grid-template-rows,opacity,transform] duration-300 ease-out motion-reduce:transition-none ${
+        closing ? "pointer-events-none grid-rows-[0fr] scale-[0.98] opacity-0" : "grid-rows-[1fr]"
+      }`}
+    >
+      <div className="min-h-0 overflow-hidden">
+        <div className={first ? "" : "pt-3"}>
+          <div className="rounded-2xl border border-amber-400/20 bg-amber-500/[0.06] px-3.5 py-3">
+            <p className="leading-snug">
+              {clinicTag ? <ClinicTag tag={clinicTag} className="mr-1.5 align-[1px]" /> : null}
+              <span className="font-semibold text-slate-50">{row.patient_name}</span> didn&apos;t pick any of the
+              times you suggested instead of{" "}
+              <span className="font-medium text-slate-100">{summary.originalLabel}</span>. Nothing is booked.
+            </p>
+            <p className="mt-0.5 text-xs text-slate-500">
+              {summary.expiredLabel ? `Offer expired ${summary.expiredLabel} · ` : ""}The times are free again.
+            </p>
+            <div className="mt-2.5 flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={onClose}
+                disabled={closing}
+                className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-slate-600/70 px-3 text-sm font-medium text-slate-200 transition hover:border-slate-500 hover:bg-slate-800/70 hover:text-white"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     </li>
   );
