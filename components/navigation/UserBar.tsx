@@ -17,6 +17,7 @@ import { emitOpenFeedback } from "@/lib/doccy-feedback";
 import { PRO_CHROME_HYDRATED_ATTR, PRO_MOBILE_MORE_OPEN_ATTR } from "@/lib/pro-session-hint";
 import {
   logoHomeHref,
+  showSectionsInAccountMenu,
   DOCTOR_NAV_TABS,
   activeDoctorNavTab,
   isDoctorProductPath,
@@ -72,6 +73,21 @@ function getInitials(name: string | null): string {
   const parts = name.trim().split(/\s+/);
   if (parts.length === 1) return parts[0]?.[0]?.toUpperCase() ?? "D";
   return `${parts[0]?.[0] ?? ""}${parts[1]?.[0] ?? ""}`.toUpperCase();
+}
+
+/** The same icons as the phone tab bar, sized for the account menu. */
+function menuSectionIcon(id: DoctorNavTabId) {
+  const className = "h-4 w-4";
+  switch (id) {
+    case "dashboard":
+      return <LayoutDashboard className={className} aria-hidden />;
+    case "agenda":
+      return <CalendarDays className={className} aria-hidden />;
+    case "settings":
+      return <Settings className={className} aria-hidden />;
+    case "insights":
+      return <BarChart3 className={className} aria-hidden />;
+  }
 }
 
 function mobileTabIcon(id: DoctorNavTabId) {
@@ -323,6 +339,28 @@ export function UserBar() {
             email={sessionState.email}
           />
 
+          {showSectionsInAccountMenu({ applicant: supportOnly, headerHasTabs: useStickyDesktopChrome }) ? (
+            // Finder / public profile: no header tabs, so the sections are here (user, 2026-10-08).
+            <div data-testid="userbar-menu-sections" className="mb-1 border-b border-clinical-400/15 pb-1">
+              {DOCTOR_NAV_TABS.map((tab) => (
+                <UserMenuNavLink
+                  key={tab.id}
+                  href={tab.href}
+                  data-testid={`userbar-menu-section-${tab.id}`}
+                  icon={<span className="text-clinical-300">{menuSectionIcon(tab.id)}</span>}
+                >
+                  <span className="flex items-center justify-between gap-2">
+                    {tab.label}
+                    {tabBadges[tab.id] ? (
+                      <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-clinical-500 px-1.5 text-[11px] font-bold text-ink-900">
+                        {tabBadges[tab.id]}
+                      </span>
+                    ) : null}
+                  </span>
+                </UserMenuNavLink>
+              ))}
+            </div>
+          ) : null}
           {supportOnly ? null : (
           <>
           <UserMenuNavLink

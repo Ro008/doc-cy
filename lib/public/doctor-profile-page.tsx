@@ -782,14 +782,9 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
       </div>
 
       <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8 lg:py-14">
-        {isOwnerView ? (
-          <div className="mb-6 rounded-2xl border border-clinical-200 bg-clinical-50 px-4 py-3 text-sm text-clinical-800">
-            You are viewing your public profile.{" "}
-            <a href="/agenda/settings" className="font-semibold underline underline-offset-2">
-              Edit Profile
-            </a>{" "}
-          </div>
-        ) : null}
+        {/* No "You are viewing your public profile" banner: the account menu now links to
+            Settings here, and the booking box says "This is how patients see your profile"
+            (user, 2026-10-08). */}
         <header className="mb-8 flex flex-col gap-4 sm:gap-6">
           <div className="flex items-center justify-between gap-3">
             <span className="text-xs font-semibold tracking-[0.16em] text-ink-500">

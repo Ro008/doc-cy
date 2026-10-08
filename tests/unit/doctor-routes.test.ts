@@ -4,6 +4,7 @@ import { describe, it } from "node:test";
 import {
   DOCTOR_HOME_PATH,
   logoHomeHref,
+  showSectionsInAccountMenu,
   DOCTOR_NAV_TABS,
   activeDoctorNavTab,
   isDoctorProductPath,
@@ -141,5 +142,21 @@ describe("logoHomeHref", () => {
 
   it("applicants (no approved profile yet) go to their application status", () => {
     assert.equal(logoHomeHref({ applicant: true }), "/agenda/status");
+  });
+});
+
+// On public pages (finder, profile) a desktop professional has no header tabs: the account menu
+// lists the sections instead; never twice, never for applicants (user, 2026-10-08).
+describe("showSectionsInAccountMenu", () => {
+  it("shows them on pages without the header tabs", () => {
+    assert.equal(showSectionsInAccountMenu({ applicant: false, headerHasTabs: false }), true);
+  });
+
+  it("not where the header already has them", () => {
+    assert.equal(showSectionsInAccountMenu({ applicant: false, headerHasTabs: true }), false);
+  });
+
+  it("never for applicants", () => {
+    assert.equal(showSectionsInAccountMenu({ applicant: true, headerHasTabs: false }), false);
   });
 });

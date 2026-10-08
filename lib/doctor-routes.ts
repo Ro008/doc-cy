@@ -72,3 +72,17 @@ export function pendingBadgeLabel(count: number | null | undefined): string | nu
 export function logoHomeHref({ applicant }: { applicant: boolean }): string {
   return applicant ? REGISTRATION_STATUS_PATH : DOCTOR_HOME_PATH;
 }
+
+/**
+ * Dashboard / Agenda / Settings / Insights in the desktop account menu: only on pages whose
+ * header has no tabs (finder, public profile), and never for applicants (user, 2026-10-08).
+ */
+export function showSectionsInAccountMenu({
+  applicant,
+  headerHasTabs,
+}: {
+  applicant: boolean;
+  headerHasTabs: boolean;
+}): boolean {
+  return !applicant && !headerHasTabs;
+}
