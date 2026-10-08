@@ -113,7 +113,9 @@ export async function GET(req: NextRequest, { params }: RouteContext) {
     name: doctor?.name,
     specialty: specialtyName,
     phone: await loadAppointmentClinicPhone(supabase, clinic.locationId),
+    clinic_name: clinic.clinicName,
     clinic_address: clinic.address,
+    maps_url: clinic.mapsUrl,
   };
 
   const apptRow = appointment as { reason?: string | null };

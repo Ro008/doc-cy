@@ -6,6 +6,9 @@ import type { BuiltEmail, EmailClinic } from "@/lib/booking-request-emails";
 import { patientClinicBlockHtml, patientClinicBlockText } from "@/lib/patient-email-clinic";
 import {
   EMAIL_CANCEL_BTN,
+  EMAIL_CAL_GOOGLE_BTN,
+  EMAIL_CAL_ICS_BTN,
+  EMAIL_SECTION_LABEL,
   EMAIL_HEADING,
   EMAIL_PRIMARY_BTN,
   EMAIL_SHELL_CLOSE,
@@ -72,6 +75,8 @@ export function buildPatientVisitReminderEmail(opts: {
   appointmentIso: string;
   clinic: EmailClinic;
   cancel: { url: string; deadlineLabel: string } | null;
+  /** Add-to-calendar links, as in the confirmation email. */
+  calendar?: { googleUrl: string; icsUrl: string } | null;
 }): BuiltEmail {
   const { date, time } = when(opts.appointmentIso);
   const pro = professionalFirstName(opts.professionalName);
@@ -82,13 +87,23 @@ export function buildPatientVisitReminderEmail(opts: {
   const cancelText = opts.cancel
     ? `Can't make it? Cancel online until ${opts.cancel.deadlineLabel}:\n${opts.cancel.url}\n\n`
     : "";
-  const text = `Hi ${hi},\n\n${line}\n\n${patientClinicBlockText(opts.clinic)}\n${cancelText}---\n${AUTOMATED_EMAIL_FOOTER_TEXT}`;
+  const calText = opts.calendar
+    ? `Add it to your calendar:\nGoogle Calendar: ${opts.calendar.googleUrl}\nApple / Outlook (.ics): ${opts.calendar.icsUrl}\n\n`
+    : "";
+  const text = `Hi ${hi},\n\n${line}\n\n${patientClinicBlockText(opts.clinic)}\n${calText}${cancelText}---\n${AUTOMATED_EMAIL_FOOTER_TEXT}`;
   const html = `
 ${EMAIL_SHELL_OPEN}
     <h2 style="margin:0 0 12px;font-size:20px;line-height:1.3;color:${EMAIL_HEADING};">See you soon</h2>
     <p style="${P}">Hi ${escapeHtml(hi)},</p>
     <p style="${P}">${escapeHtml(line)}</p>
     ${patientClinicBlockHtml(opts.clinic)}
+    ${
+      opts.calendar
+        ? `<p style="${EMAIL_SECTION_LABEL}">Calendar</p>
+    <a href="${escapeHtml(opts.calendar.googleUrl)}" style="${EMAIL_CAL_GOOGLE_BTN}">Add to Google Calendar</a>
+    <a href="${escapeHtml(opts.calendar.icsUrl)}" style="${EMAIL_CAL_ICS_BTN}">Add to Apple / Outlook (.ics)</a>`
+        : ""
+    }
     ${
       opts.cancel
         ? `<p style="${P}">Can't make it? You can cancel online until <strong>${escapeHtml(
