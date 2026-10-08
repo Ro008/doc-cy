@@ -4,6 +4,7 @@ import { enUS } from "date-fns/locale";
 import { BookingLinkCard, BookingLinkShell, BookingLinkText } from "@/components/booking/BookingLinkPanels";
 import { ReviewFormClient } from "@/components/booking/ReviewFormClient";
 import { appointmentToCyprusDate } from "@/lib/appointments";
+import { professionalSignedInOnPage } from "@/lib/booking-signed-in-guard";
 import { loadPatientReviewContext } from "@/lib/patient-review";
 import { reviewDisplayName } from "@/lib/review-display-name";
 import { createServiceRoleClient } from "@/lib/supabase-service";
@@ -20,6 +21,23 @@ export const metadata = { title: "Review your visit | DocCy", robots: { index: f
 export default async function PatientReviewPage({ searchParams }: { searchParams: { token?: string } }) {
   const token = searchParams.token?.trim() ?? "";
   const service = createServiceRoleClient();
+
+  // A signed-in professional can't leave a review from a patient's link (user, 2026-10-08):
+  // it could be her own visit. Nothing is looked up or used up: the patient can still use it
+  // signed out.
+  if (service && (await professionalSignedInOnPage(service))) {
+    return (
+      <BookingLinkShell>
+        <BookingLinkCard title="You're signed in as a professional" testId="review-professional">
+          <BookingLinkText>
+            Professionals can&apos;t leave a review as a patient. No review has been sent. To leave it, open this link
+            while signed out (a private window works), or sign out of DocCy first.
+          </BookingLinkText>
+        </BookingLinkCard>
+      </BookingLinkShell>
+    );
+  }
+
   const ctx = service
     ? await loadPatientReviewContext(service, token).catch(() => ({ kind: "invalid" as const }))
     : ({ kind: "invalid" } as const);

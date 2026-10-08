@@ -105,7 +105,8 @@ test.describe("Integration: patient cancels from the email link", { tag: "@pr-e2
 
     await page.goto(`/booking/cancel?token=${encodeURIComponent(token)}`);
     await expect(page.getByRole("heading", { name: /online cancellation has closed/i })).toBeVisible({ timeout: 20_000 });
-    await expect(page.getByText("22123456")).toBeVisible();
+    // Shown with the country code, as the clinic block always does.
+    await expect(page.getByText("+357 22 123456")).toBeVisible();
 
     const { data } = await admin.from("appointments").select("status").eq("id", id).single();
     expect(data!.status).toBe("CONFIRMED");

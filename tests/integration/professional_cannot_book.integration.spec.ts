@@ -140,6 +140,85 @@ test.describe("Integration: a signed-in professional can't book", { tag: "@pr-e2
     expect(draft?.confirmed_at).toBeNull();
   });
 
+  const patientVisit = (extra: Record<string, unknown>) => ({
+    professional_id: colleague!.doctorId,
+    clinic_id: clinicIds[1],
+    booking_source: "online",
+    patient_name: `Visit Patient ${nonce}`,
+    patient_email: `visit-patient-${nonce}@integration.test`,
+    patient_phone: "+35799666777",
+    patient_gender: "female",
+    patient_birthdate: "1992-02-02",
+    is_new_patient: true,
+    duration_minutes: 30,
+    status: "CONFIRMED",
+    ...extra,
+  });
+
+  test("a signed-in professional opening a cancel link can't cancel the visit", async () => {
+    const day = 24 * 3_600_000;
+    const visit = new Date(Date.now() + 10 * day);
+    const { data, error } = await admin
+      .from("appointments")
+      .insert(patientVisit({ reason: "Integration: cancel link while signed in", appointment_datetime: visit.toISOString() }))
+      .select("id")
+      .single();
+    if (error || !data) throw new Error(`seed: ${error?.message}`);
+    const token = await issueAppointmentLink(admin, { appointmentId: String(data.id), purpose: "cancel", expiresAt: visit });
+
+    await page.goto(`/booking/cancel?token=${encodeURIComponent(token)}`, { waitUntil: "domcontentloaded" });
+    await expect(page.getByTestId("patient-cancel-professional")).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByRole("button", { name: /Cancel appointment/i })).toHaveCount(0);
+
+    const res = await page.request.post("/api/booking/cancel", { data: { token } });
+    expect(res.status(), await res.text()).toBe(403);
+    expect((await res.json()).code).toBe("professional_signed_in");
+
+    // Nothing changed, and the link is not used up: the patient can still cancel it signed out.
+    const { data: after } = await admin.from("appointments").select("status").eq("id", data.id).single();
+    expect(after?.status).toBe("CONFIRMED");
+    const { data: links } = await admin.from("appointment_links").select("used_at").eq("appointment_id", data.id);
+    expect((links ?? []).every((l) => l.used_at === null)).toBe(true);
+  });
+
+  test("a signed-in professional opening a review link can't leave a review", async () => {
+    const day = 24 * 3_600_000;
+    const { data, error } = await admin
+      .from("appointments")
+      .insert(
+        patientVisit({
+          reason: "Integration: review link while signed in",
+          appointment_datetime: new Date(Date.now() - 2 * day).toISOString(),
+          attendance: "attended",
+          review_requested_at: new Date().toISOString(),
+        }),
+      )
+      .select("id")
+      .single();
+    if (error || !data) throw new Error(`seed: ${error?.message}`);
+    const token = await issueAppointmentLink(admin, {
+      appointmentId: String(data.id),
+      purpose: "review",
+      expiresAt: new Date(Date.now() + 30 * day),
+    });
+
+    await page.goto(`/booking/review?token=${encodeURIComponent(token)}`, { waitUntil: "domcontentloaded" });
+    await expect(page.getByTestId("review-professional")).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByRole("button", { name: /Publish review/i })).toHaveCount(0);
+
+    const res = await page.request.post("/api/booking/review", {
+      data: { token, rating: 5, comment: "Great", email: `visit-patient-${nonce}@integration.test` },
+    });
+    expect(res.status(), await res.text()).toBe(403);
+    expect((await res.json()).code).toBe("professional_signed_in");
+
+    const { count } = await admin
+      .from("professional_reviews")
+      .select("id", { count: "exact", head: true })
+      .eq("appointment_id", data.id);
+    expect(count).toBe(0);
+  });
+
   test("a signed-in professional opening a proposal link can't choose or decline times", async () => {
     const hour = 3_600_000;
     const base = Math.ceil((Date.now() + 9 * 24 * hour) / hour) * hour;

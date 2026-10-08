@@ -91,18 +91,20 @@ test.describe("Integration: manual booking rules", { tag: "@pr-e2e" }, () => {
     });
   });
 
-  for (const [field, label] of [
-    ["patientPhone", "phone"],
-    ["patientGender", "gender"],
-    ["patientBirthdate", "birth"],
-    ["isNewPatient", "first visit"],
-  ] as const) {
-    test(`needs the ${label}`, async () => {
-      const res = await post({ appointmentLocal: weekdayLocal(11), ...manual(`${nonce}b`, { [field]: "" }) });
-      expect(res.status()).toBe(400);
-      expect(String((await res.json()).message).toLowerCase()).toContain(label);
+  // Only name, phone and reason are required for a manual booking (Rocío, 2026-10-06).
+  test("needs the phone", async () => {
+    const res = await post({ appointmentLocal: weekdayLocal(11), ...manual(`${nonce}b`, { patientPhone: "" }) });
+    expect(res.status()).toBe(400);
+    expect(String((await res.json()).message).toLowerCase()).toContain("phone");
+  });
+
+  test("gender, birth date and first visit are optional", async () => {
+    const res = await post({
+      appointmentLocal: weekdayLocal(14),
+      ...manual(`${nonce}f`, { patientGender: "", patientBirthdate: "", isNewPatient: null }),
     });
-  }
+    expect(res.status(), await res.text()).toBe(201);
+  });
 
   test("works at a paused clinic", async () => {
     await admin.from("professional_clinics").update({ pause_online_bookings: true }).eq("id", linkId);

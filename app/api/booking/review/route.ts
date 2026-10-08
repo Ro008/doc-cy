@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { consumeAppointmentLink } from "@/lib/appointment-links-db";
+import { refuseSignedInProfessional } from "@/lib/booking-signed-in-guard";
 import { loadPatientReviewContext } from "@/lib/patient-review";
 import { parseReviewSubmission } from "@/lib/professional-review";
 import { enforcePublicApiRateLimit } from "@/lib/public-api-rate-limit";
@@ -10,6 +11,8 @@ import { createServiceRoleClient } from "@/lib/supabase-service";
  * The patient leaves a verified review from the emailed link (user, 2026-10-04).
  * Body `{ token, rating, comment, email }`.
  * - 200: stored in professional_reviews (published); the link is used up.
+ * - 403 { code: "professional_signed_in" } when a professional or applicant is signed in (the
+ *   link stays unused; user, 2026-10-08).
  * - 400 { code: "rating" | "comment" | "email_mismatch" }: nothing used, they can fix it.
  * - 409: no review for this visit (no-show, didn't happen, already reviewed).
  * - 410 { state: "invalid" | "used" | "expired" }
@@ -22,6 +25,12 @@ export async function POST(req: NextRequest) {
 
   const service = createServiceRoleClient();
   if (!service) return NextResponse.json({ message: "Temporarily unavailable." }, { status: 503 });
+
+  const refused = await refuseSignedInProfessional(
+    service,
+    "You're signed in as a professional. To leave a review as a patient, sign out first.",
+  );
+  if (refused) return refused;
 
   let body: { token?: unknown; rating?: unknown; comment?: unknown; email?: unknown };
   try {

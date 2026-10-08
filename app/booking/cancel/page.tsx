@@ -6,6 +6,7 @@ import { ClinicContactBlock } from "@/components/booking/ClinicContactBlock";
 import { PatientCancelClient } from "@/components/booking/PatientCancelClient";
 import { patientCancelDeadlineLabel } from "@/lib/appointment-links-db";
 import { appointmentToCyprusDate } from "@/lib/appointments";
+import { professionalSignedInOnPage } from "@/lib/booking-signed-in-guard";
 import { publicProfessionalProfilePath } from "@/lib/manual-directory-landing-path";
 import { loadPatientCancelContext } from "@/lib/patient-cancel";
 import { createServiceRoleClient } from "@/lib/supabase-service";
@@ -23,6 +24,22 @@ export const metadata = { title: "Cancel your appointment | DocCy", robots: { in
 export default async function PatientCancelPage({ searchParams }: { searchParams: { token?: string } }) {
   const token = searchParams.token?.trim() ?? "";
   const service = createServiceRoleClient();
+
+  // A signed-in professional can't cancel a patient's visit from the patient's link (user,
+  // 2026-10-08). Nothing is looked up or used up: the patient can still use it signed out.
+  if (service && (await professionalSignedInOnPage(service))) {
+    return (
+      <BookingLinkShell>
+        <BookingLinkCard title="You're signed in as a professional" testId="patient-cancel-professional">
+          <BookingLinkText>
+            Professionals can&apos;t cancel a visit as a patient. Nothing has been cancelled. To cancel it, open this
+            link while signed out (a private window works), or sign out of DocCy first.
+          </BookingLinkText>
+        </BookingLinkCard>
+      </BookingLinkShell>
+    );
+  }
+
   const ctx = service
     ? await loadPatientCancelContext(service, token).catch(() => ({ kind: "invalid" as const }))
     : ({ kind: "invalid" } as const);
