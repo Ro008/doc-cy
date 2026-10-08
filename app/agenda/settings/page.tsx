@@ -2,6 +2,7 @@
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
+import { parsePatientCancelNoticeHours } from "@/lib/patient-cancel-window";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
@@ -355,6 +356,9 @@ export default async function AgendaSettingsPage() {
     minimumNoticeHours:
       (settings as { minimum_notice_hours?: number } | null)
         ?.minimum_notice_hours ?? DEFAULT_MIN_NOTICE_HOURS,
+    patientCancelNoticeHours: parsePatientCancelNoticeHours(
+      (settings as { patient_cancel_notice_hours?: number | null } | null)?.patient_cancel_notice_hours,
+    ),
     holidayModeEnabled: Boolean(
       (settings as { holiday_mode_enabled?: boolean | null } | null)
         ?.holiday_mode_enabled

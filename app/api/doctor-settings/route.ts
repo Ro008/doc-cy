@@ -1,4 +1,5 @@
 // app/api/doctor-settings/route.ts
+import { parsePatientCancelNoticeHours } from "@/lib/patient-cancel-window";
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
@@ -131,6 +132,7 @@ export async function POST(req: NextRequest) {
     slotDurationMinutes?: number;
     bookingHorizonDays?: number;
     minimumNoticeHours?: number;
+    patientCancelNoticeHours?: number;
     holidayModeEnabled?: boolean;
     holidayStartDate?: string | null;
     holidayEndDate?: string | null;
@@ -210,6 +212,10 @@ export async function POST(req: NextRequest) {
         professional_id: doctorId,
         booking_horizon_days,
         minimum_notice_hours,
+        // Until when patients can cancel online (12 / 24 / 48 h; user, 2026-10-08).
+        ...(b.patientCancelNoticeHours !== undefined
+          ? { patient_cancel_notice_hours: parsePatientCancelNoticeHours(b.patientCancelNoticeHours) }
+          : {}),
         holiday_mode_enabled: Boolean(b.holidayModeEnabled),
         holiday_start_date: Boolean(b.holidayModeEnabled)
           ? (b.holidayStartDate ?? null)
