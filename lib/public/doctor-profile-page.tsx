@@ -22,6 +22,7 @@ import {
 } from "@/lib/doctor-locations";
 import { parseBookingLocationParam, parseBookingSlotParam } from "@/lib/booking-slot-param";
 import { bookingViewerMode, loadBookingAccountKind } from "@/lib/booking-viewer";
+import { hasProAccess } from "@/lib/pro-access";
 import { loadProfessionalAccountSettings } from "@/lib/professional-account-settings";
 import {
   OCCUPIED_BATCH_RPC,
@@ -603,15 +604,18 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
   const clinicAddress = stripPlusCodePrefix((profile.clinic_address ?? "").trim());
   const mapsUrl = buildMapsUrlFromAddress(clinicAddress) ?? "";
   let avatarUrl: string | null = null;
+  let accessEnded = false;
   const contactLookup = await supabase
     .from("professionals")
-    .select("avatar_url")
+    .select("avatar_url, pro_access_until")
     .eq("is_registered", true)
     .eq("is_archived", false)
     .eq("id", profile.id)
     .maybeSingle();
   if (!contactLookup.error && contactLookup.data) {
-    const contact = contactLookup.data as { avatar_url?: string | null };
+    const contact = contactLookup.data as { avatar_url?: string | null; pro_access_until?: string | null };
+    // Access ended: no online booking (the booking routes refuse too); user, 2026-10-02.
+    accessEnded = !hasProAccess(contact.pro_access_until);
     const avatarPath = String(contact.avatar_url ?? "").trim();
     if (avatarPath) {
       avatarUrl = resolvePublicAvatarUrl(supabase, avatarPath);
@@ -869,7 +873,7 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
                   district: row.district,
                   clinic_address: row.clinic_address,
                   town: row.town,
-                  pause_online_bookings: Boolean(row.pause_online_bookings),
+                  pause_online_bookings: accessEnded || Boolean(row.pause_online_bookings),
                 }))}
               />
             ) : null}
@@ -909,6 +913,7 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
                   breakStart={breakStart ? breakStart.slice(0, 5) : undefined}
                   breakEnd={breakEnd ? breakEnd.slice(0, 5) : undefined}
                   publicPhoneAvailable={hasPublicPhone}
+                  onlineBookingsUnavailable={accessEnded}
                   onlineBookingsPaused={
                     // No clinic, no schedule: nothing to book online.
                     !locationSettings || Boolean(locationSettings.pause_online_bookings)

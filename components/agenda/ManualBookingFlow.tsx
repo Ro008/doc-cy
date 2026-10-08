@@ -38,6 +38,8 @@ type ManualBookingFlowProps = {
   workingHours: AgendaWorkingHours | null;
   clinics?: AgendaClinic[];
   preferredClinicId?: string | null;
+  /** Her pro access has ended: nothing new can be booked (the route refuses too). */
+  accessEnded?: boolean;
   onClose: () => void;
   onBooked: () => void;
 };
@@ -86,6 +88,7 @@ export function ManualBookingFlow({
   workingHours,
   clinics = [],
   preferredClinicId = null,
+  accessEnded = false,
   onClose,
   onBooked,
 }: ManualBookingFlowProps) {
@@ -411,7 +414,22 @@ export function ManualBookingFlow({
           <X className="h-5 w-5" />
         </button>
 
-        {success ? (
+        {accessEnded ? (
+          <div className="py-6" data-testid="manual-booking-access-ended">
+            <h3 className="text-xl font-semibold text-slate-50">You can&apos;t add new bookings</h3>
+            <p className="mt-2 text-sm text-slate-300">
+              Your DocCy access has ended, so new bookings, online or manual, are switched off. You
+              can still answer the requests and handle the visits you already have.
+            </p>
+            <button
+              type="button"
+              onClick={onClose}
+              className="mt-6 inline-flex rounded-2xl border border-slate-700 bg-slate-800 px-4 py-2 text-sm font-medium text-slate-100 transition hover:bg-slate-700"
+            >
+              Close
+            </button>
+          </div>
+        ) : success ? (
           <div className="py-6">
             <h3
               data-testid="manual-booking-success-title"

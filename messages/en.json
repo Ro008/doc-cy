@@ -79,6 +79,7 @@
     "bookingsTemporarilyUnavailable": "Bookings temporarily unavailable",
     "appointmentsPaused": "Appointments are paused by the professional. Please check back later.",
     "appointmentsPausedAtLocation": "Online booking is not available at this location.",
+    "appointmentsUnavailable": "Online booking is not available for this professional right now.",
     "appointmentsPausedCallHint": "Call the number in the Contact section to book an appointment.",
     "chooseClinicStep": "Step 1 of 2",
     "chooseClinicHeading": "Where do you want to go?",

@@ -83,6 +83,8 @@ export type DoctorSettingsFormData = {
   holidayStartDate: string | null; // "YYYY-MM-DD"
   holidayEndDate: string | null; // "YYYY-MM-DD"
   pauseOnlineBookings: boolean;
+  /** Pro access has ended: the pause toggle is off and disabled. */
+  accessEnded?: boolean;
   services: DoctorServiceItem[];
   locations?: DoctorWorkplaceFormData[];
 };
@@ -978,6 +980,7 @@ export function SettingsForm({ initial }: SettingsFormProps) {
               workplaces.find((row) => row.id === activeWorkplaceId)?.pauseOnlineBookings,
             )}
             locationId={activeWorkplaceId === "primary" ? null : activeWorkplaceId}
+            accessEnded={Boolean(initial.accessEnded)}
             onPausedChange={(paused) => {
               setWorkplaces((prev) =>
                 prev.map((row) =>

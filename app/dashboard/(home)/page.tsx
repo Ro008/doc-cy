@@ -20,6 +20,7 @@ import {
   shouldRedirectFirstLoginToSettings,
 } from "@/lib/first-login-trial-notice";
 import { loadDoctorLocations, primaryDoctorLocation } from "@/lib/load-doctor-locations";
+import { loadProAccessEnded } from "@/lib/load-access-ended";
 import { fetchAllSupabaseRows } from "@/lib/supabase-fetch-all";
 import { MISSED_REQUEST_MAX_AGE_MS } from "@/lib/missed-requests";
 
@@ -112,9 +113,10 @@ export default async function DoctorDashboardPage() {
     CY_TZ,
   ).toISOString();
 
-  const [{ data: appointments, error: appointmentsError }, locationRows] = await Promise.all([
+  const [{ data: appointments, error: appointmentsError }, locationRows, accessEnded] = await Promise.all([
     loadDashboardAppointments(supabase, doctor.id, todayStartUtc, nowMs),
     loadDoctorLocations(doctor.id),
+    loadProAccessEnded(supabase, doctor.id),
   ]);
 
   if (appointmentsError) {
@@ -142,6 +144,7 @@ export default async function DoctorDashboardPage() {
         clinics={clinics}
         todayWindow={todayWorkingWindow(hoursList, nowMs)}
         pausedNotices={pausedNotices}
+        accessEnded={accessEnded}
       />
     </main>
   );

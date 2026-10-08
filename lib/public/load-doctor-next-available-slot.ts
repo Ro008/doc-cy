@@ -9,6 +9,7 @@ import {
   type DoctorSettingsForSlots,
 } from "@/lib/load-doctor-settings-for-slots";
 import { loadProfessionalAccountSettingsByIds } from "@/lib/professional-account-settings";
+import { hasProAccess } from "@/lib/pro-access";
 import { loadDoctorLocationsByDoctorIds } from "@/lib/load-doctor-locations";
 import {
   ACCOUNT_SETTINGS_FALLBACK,
@@ -200,6 +201,29 @@ export async function loadAvailabilityCalendarsByDoctorId(
   return calendars;
 }
 
+/**
+ * Professionals on the page whose pro access has ended (one query). Anyone the lookup
+ * doesn't return counts as having access, so a read error never hides a calendar.
+ */
+async function loadAccessEndedIds(
+  supabase: SupabaseClient,
+  professionalIds: readonly string[],
+): Promise<Set<string>> {
+  const ended = new Set<string>();
+  const { data, error } = await supabase
+    .from("professionals")
+    .select("id, pro_access_until")
+    .in("id", [...professionalIds]);
+  if (error) {
+    console.error("[DocCy] batch pro access lookup failed:", error);
+    return ended;
+  }
+  for (const row of (data ?? []) as { id?: string; pro_access_until?: string | null }[]) {
+    if (row.id && !hasProAccess(row.pro_access_until)) ended.add(String(row.id));
+  }
+  return ended;
+}
+
 /** Pause flags + calendars in one settings round-trip (finder cards). */
 export type FinderLocationAvailability = {
   doctorId: string;
@@ -214,6 +238,7 @@ export async function loadFinderCardAvailabilityByDoctorId(
   dayCount = FINDER_AVAILABILITY_CALENDAR_DAY_COUNT,
   deps: {
     loadLocations?: (ids: string[]) => Promise<Map<string, DoctorLocationRow[]>>;
+    loadAccessEndedIds?: (ids: string[]) => Promise<Set<string>>;
   } = {},
 ): Promise<{
   paused: Map<string, boolean>;
@@ -233,7 +258,10 @@ export async function loadFinderCardAvailabilityByDoctorId(
     return { paused, calendars, locationsByDoctorId, byLocationId };
   }
 
-  const accountById = await loadProfessionalAccountSettingsByIds(supabase, uniqueIds);
+  const [accountById, accessEnded] = await Promise.all([
+    loadProfessionalAccountSettingsByIds(supabase, uniqueIds),
+    (deps.loadAccessEndedIds ?? ((ids: string[]) => loadAccessEndedIds(supabase, ids)))(uniqueIds),
+  ]);
 
   // Every open calendar on the page, planned before any occupancy lookup.
   type Plan = {
@@ -258,7 +286,8 @@ export async function loadFinderCardAvailabilityByDoctorId(
 
     for (const location of locations) {
       const merged = locationToSettingsRow(location, account);
-      if (merged.pause_online_bookings) {
+      // Access ended: nothing new can be booked, so the card offers no calendar.
+      if (accessEnded.has(doctorId) || merged.pause_online_bookings) {
         byLocationId.set(location.id, { doctorId, location, paused: true, calendar: EMPTY_CALENDAR });
         continue;
       }

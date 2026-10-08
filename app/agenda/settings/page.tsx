@@ -28,6 +28,7 @@ import {
 } from "@/lib/doctor-settings";
 import { isFounderSubscriptionTier } from "@/lib/subscription-tier";
 import { loadDoctorLocations, primaryDoctorLocation } from "@/lib/load-doctor-locations";
+import { loadProAccessEnded } from "@/lib/load-access-ended";
 import {
   ACCOUNT_SETTINGS_FALLBACK,
   locationToSettingsRow,
@@ -258,6 +259,7 @@ export default async function AgendaSettingsPage() {
   const isFoundingMember = isFounderSubscriptionTier(doctor.subscription_tier);
 
   const locationRows = await loadDoctorLocations(doctor.id);
+  const accessEnded = await loadProAccessEnded(supabase, doctor.id);
   const primaryClinic = primaryDoctorLocation(locationRows);
   // The single-clinic fields mirror the primary clinic (Point E6: schedules and the pause
   // live on the clinic links; professional_settings holds the account settings).
@@ -364,6 +366,7 @@ export default async function AgendaSettingsPage() {
       (settings as { holiday_end_date?: string | null } | null)
         ?.holiday_end_date ?? null,
     pauseOnlineBookings,
+    accessEnded,
     services,
     locations: workplaceLocations,
   };

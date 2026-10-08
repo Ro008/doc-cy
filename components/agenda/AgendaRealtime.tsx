@@ -341,6 +341,7 @@ export function AgendaRealtime({
   openManualBooking,
   highlightAppointmentId,
   patientCancelNoticeHours = DEFAULT_PATIENT_CANCEL_NOTICE_HOURS,
+  accessEnded = false,
 }: {
   doctorId: string | null;
   doctorSlug?: string | null;
@@ -354,6 +355,8 @@ export function AgendaRealtime({
   highlightAppointmentId?: string | null;
   /** Her patients can cancel online until this many hours before; inside it, warn her. */
   patientCancelNoticeHours?: number;
+  /** Her pro access has ended: the manual booking window says so instead of the form. */
+  accessEnded?: boolean;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -1530,6 +1533,7 @@ export function AgendaRealtime({
         workingHours={workingHours}
         clinics={clinics}
         preferredClinicId={[...visibleClinicIds][0] ?? clinics[0]?.id ?? null}
+        accessEnded={accessEnded}
         onClose={() => setManualBookingOpen(false)}
         onBooked={() => {
           void refreshAppointmentsFromServer();

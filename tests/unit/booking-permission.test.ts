@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { manualBookingPermission, onlineBookingPermission } from "../../lib/booking-permission";
+import {
+  manualBookingPermission,
+  onlineBookingPermission,
+  resumeOnlineBookingsPermission,
+} from "../../lib/booking-permission";
 
 /**
  * Who can be booked (user, 2026-10-02):
@@ -92,6 +96,34 @@ describe("manualBookingPermission", () => {
       reason: "clinic_archived",
     });
     assert.deepEqual(manualBookingPermission({ ...base, isRegistered: false }, NOW), {
+      allowed: false,
+      reason: "not_registered",
+    });
+  });
+});
+
+describe("resumeOnlineBookingsPermission", () => {
+  // Unpausing needs live access too (user, 2026-10-02): with access ended the Settings
+  // toggles are off and disabled, and the server refuses the write.
+  it("allows a registered professional with live access", () => {
+    assert.deepEqual(resumeOnlineBookingsPermission({ isRegistered: true, proAccessUntil: LIVE }, NOW), {
+      allowed: true,
+    });
+  });
+
+  it("refuses when access has ended or was never given", () => {
+    assert.deepEqual(resumeOnlineBookingsPermission({ isRegistered: true, proAccessUntil: ENDED }, NOW), {
+      allowed: false,
+      reason: "access_expired",
+    });
+    assert.deepEqual(resumeOnlineBookingsPermission({ isRegistered: true, proAccessUntil: null }, NOW), {
+      allowed: false,
+      reason: "access_expired",
+    });
+  });
+
+  it("refuses an unregistered profile", () => {
+    assert.deepEqual(resumeOnlineBookingsPermission({ isRegistered: false, proAccessUntil: LIVE }, NOW), {
       allowed: false,
       reason: "not_registered",
     });

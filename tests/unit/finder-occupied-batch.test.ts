@@ -170,6 +170,32 @@ describe("finder availability batch", () => {
     assert.deepEqual(slotKeys(result.calendars.get(C)), []);
   });
 
+  // Access ended (user, 2026-10-02): nothing new can be booked, so no calendar is offered.
+  it("offers no calendar for a professional whose pro access has ended", async () => {
+    const { supabase, rpcCalls } = fakeSupabase([]);
+    const result = await loadFinderCardAvailabilityByDoctorId(supabase, [A, B], undefined, {
+      loadLocations,
+      loadAccessEndedIds: async () => new Set([A]),
+    });
+
+    assert.equal(result.paused.get(A), true);
+    assert.deepEqual(slotKeys(result.calendars.get(A)), []);
+    assert.equal(result.byLocationId.get(L1)?.paused, true);
+    assert.equal(result.byLocationId.get(L2)?.paused, true);
+    assert.equal(result.paused.get(B), false);
+    assert.ok(slotKeys(result.calendars.get(B)).length > 0, "B keeps her calendar");
+    assert.deepEqual(rpcCalls[0].args.p_professional_ids, [B], "no occupancy lookup for A");
+  });
+
+  it("makes no occupied-times call when everyone on the page has ended access", async () => {
+    const { supabase, rpcCalls } = fakeSupabase([]);
+    await loadFinderCardAvailabilityByDoctorId(supabase, [A, B], undefined, {
+      loadLocations,
+      loadAccessEndedIds: async () => new Set([A, B]),
+    });
+    assert.equal(rpcCalls.length, 0);
+  });
+
   it("shows no availability when the batch call fails", async () => {
     const { supabase } = fakeSupabase("error");
     const result = await loadFinderCardAvailabilityByDoctorId(supabase, [A, B], undefined, {

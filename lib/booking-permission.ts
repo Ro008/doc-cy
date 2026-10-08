@@ -36,6 +36,18 @@ export function onlineBookingPermission(
   return refusal ? { allowed: false, reason: refusal } : { allowed: true };
 }
 
+/**
+ * Switching online bookings back on (Settings toggle) needs a registered professional with
+ * live access. Pausing is always allowed.
+ */
+export function resumeOnlineBookingsPermission(
+  input: Pick<BookingPermissionInput, "isRegistered" | "proAccessUntil">,
+  now: Date = new Date(),
+): BookingPermission {
+  const refusal = baseRefusal({ ...input, clinicPaused: false, clinicArchived: false }, now);
+  return refusal ? { allowed: false, reason: refusal } : { allowed: true };
+}
+
 export function manualBookingPermission(
   input: BookingPermissionInput,
   now: Date = new Date(),

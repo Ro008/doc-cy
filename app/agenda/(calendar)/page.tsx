@@ -14,6 +14,7 @@ import { parseAgendaHighlight } from "@/lib/agenda-highlight";
 import { parsePatientCancelNoticeHours } from "@/lib/patient-cancel-window";
 import { fetchAllSupabaseRows } from "@/lib/supabase-fetch-all";
 import { loadDoctorLocations, primaryDoctorLocation } from "@/lib/load-doctor-locations";
+import { loadProAccessEnded } from "@/lib/load-access-ended";
 import {
   AGENDA_APPOINTMENT_SELECT,
   AGENDA_VISIBLE_STATUSES,
@@ -120,8 +121,9 @@ export default async function AgendaPage({ searchParams }: AgendaPageProps) {
     console.error(error);
   }
 
-  const [locationRows, { data: cancelSettings }] = await Promise.all([
+  const [locationRows, accessEnded, { data: cancelSettings }] = await Promise.all([
     loadDoctorLocations(doctor.id),
+    loadProAccessEnded(supabase, doctor.id),
     supabase
       .from("professional_settings")
       .select("patient_cancel_notice_hours")
@@ -163,6 +165,7 @@ export default async function AgendaPage({ searchParams }: AgendaPageProps) {
           openManualBooking={searchParams?.manual === "1"}
           highlightAppointmentId={parseAgendaHighlight(searchParams?.highlight)}
           patientCancelNoticeHours={patientCancelNoticeHours}
+          accessEnded={accessEnded}
         />
       </div>
     </main>

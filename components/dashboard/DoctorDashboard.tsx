@@ -59,6 +59,8 @@ type Props = {
   clinics: AgendaClinic[];
   todayWindow: TodayWorkingWindow | null;
   pausedNotices: PausedClinicNotice[];
+  /** Her pro access has ended: the manual booking window says so instead of the form. */
+  accessEnded?: boolean;
 };
 
 type ExitKind = "accepted" | "declined";
@@ -94,6 +96,7 @@ export function DoctorDashboard({
   clinics,
   todayWindow,
   pausedNotices,
+  accessEnded = false,
 }: Props) {
   const router = useRouter();
   const nowMs = useNow();
@@ -350,6 +353,7 @@ export function DoctorDashboard({
         workingHours={workingHours}
         clinics={clinics}
         preferredClinicId={clinics[0]?.id ?? null}
+        accessEnded={accessEnded}
         onClose={() => setManualOpen(false)}
         onBooked={() => router.refresh()}
       />

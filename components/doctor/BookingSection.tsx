@@ -51,6 +51,8 @@ type BookingSectionProps = {
   breakStart?: string;
   breakEnd?: string;
   onlineBookingsPaused?: boolean;
+  /** The professional's access has ended: same card as paused, without "paused by the professional". */
+  onlineBookingsUnavailable?: boolean;
   /** The profile shows a Call button, so a paused calendar can point the patient at it. */
   publicPhoneAvailable?: boolean;
   holidayModeEnabled?: boolean;
@@ -80,7 +82,8 @@ export function BookingSection({
   initialSlotKey = null,
   breakStart,
   breakEnd,
-  onlineBookingsPaused = false,
+  onlineBookingsPaused: onlineBookingsPausedProp = false,
+  onlineBookingsUnavailable = false,
   publicPhoneAvailable = false,
   holidayModeEnabled = false,
   holidayStartDate = null,
@@ -91,6 +94,7 @@ export function BookingSection({
   locationLabel = null,
   locationScopedPause = false,
 }: BookingSectionProps) {
+  const onlineBookingsPaused = onlineBookingsPausedProp || onlineBookingsUnavailable;
   const normalizedBookingHorizonDays = [14, 30, 90, 180].includes(
     bookingHorizonDays
   )
@@ -493,9 +497,11 @@ export function BookingSection({
           {t("bookingsTemporarilyUnavailable")}
         </h2>
         <p className="mt-2 text-sm text-ink-600">
-          {locationScopedPause
-            ? t("appointmentsPausedAtLocation")
-            : t("appointmentsPaused")}
+          {onlineBookingsUnavailable
+            ? t("appointmentsUnavailable")
+            : locationScopedPause
+              ? t("appointmentsPausedAtLocation")
+              : t("appointmentsPaused")}
         </p>
         {publicPhoneAvailable ? (
           <p className="mt-2 text-sm font-medium text-ink-700">
