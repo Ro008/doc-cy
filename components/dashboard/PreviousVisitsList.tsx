@@ -30,7 +30,7 @@ export function PreviousVisitsList({
                 <span className="tabular-nums">
                   {formatInTimeZone(new Date(v.appointment_datetime), CY_TZ, "d MMM yyyy, HH:mm")}
                 </span>
-                {clinic ? <span className="text-ink-500">· {clinic}</span> : null}
+                {clinic ? <span className="text-ink-500">at {clinic}</span> : null}
                 {isNoShowAttendance(v.attendance) ? (
                   <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] font-semibold text-amber-200">
                     No-show
