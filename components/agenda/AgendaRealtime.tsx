@@ -64,6 +64,7 @@ import {
 } from "@/lib/agenda-clinics";
 import { agendaClinicEventColor } from "@/lib/doctor-locations";
 import { MANUAL_BOOKING_HINT, MANUAL_BOOKING_LABEL } from "@/lib/manual-booking-copy";
+import { cancelConfirmedVisitCopy } from "@/lib/cancel-visit-copy";
 import {
   agendaAppointmentBadgeClass,
   agendaAppointmentConfirmedClass,
@@ -1118,6 +1119,11 @@ export function AgendaRealtime({
     }));
   }
 
+  // Cancel dialog for a confirmed visit: email promise only when there is an email (F4).
+  const cancelCopy = selected
+    ? cancelConfirmedVisitCopy({ patientEmail: selected.patient_email, patientPhone: selected.patient_phone })
+    : null;
+
   function renderViewSwitcher(options: AgendaView[], current: AgendaView) {
     return (
       <div
@@ -1794,10 +1800,17 @@ export function AgendaRealtime({
                   </>
                 ) : (
                   <>
-                    <p>
-                      The patient will receive an email that this confirmed visit
-                      is cancelled, with your explanation and a link to book again.
-                    </p>
+                    <p>{cancelCopy?.intro}</p>
+                    {cancelCopy?.call ? (
+                      <a
+                        href={cancelCopy.call.href}
+                        data-testid="cancel-call-patient"
+                        className="mt-2 inline-flex items-center gap-1.5 text-sm font-semibold text-clinical-300 hover:text-clinical-200"
+                      >
+                        <Phone className="h-3.5 w-3.5" aria-hidden />
+                        {cancelCopy.call.label}
+                      </a>
+                    ) : null}
                     {selected &&
                     professionalCancelIsShortNotice(
                       selected.appointment_datetime,
@@ -1812,12 +1825,16 @@ export function AgendaRealtime({
                       </p>
                     ) : null}
                     <label className="mt-3 block text-left text-[11px] font-medium uppercase tracking-wide text-slate-400">
-                      Reason (required)
+                      {cancelCopy?.notifiesByEmail === false ? "Reason (kept with the visit)" : "Reason (required)"}
                     </label>
                     <textarea
                       value={rejectReason}
                       onChange={(e) => setRejectReason(e.target.value)}
-                      placeholder="e.g. An emergency procedure requires me to be elsewhere — I’m very sorry to cancel this confirmed slot. Please book again on my profile when you can."
+                      placeholder={
+                        cancelCopy?.notifiesByEmail === false
+                          ? "e.g. Emergency at the hospital; I called the patient to book another day."
+                          : "e.g. An emergency procedure requires me to be elsewhere — I’m very sorry to cancel this confirmed slot. Please book again on my profile when you can."
+                      }
                       rows={4}
                       className="mt-1.5 w-full resize-y rounded-xl border border-slate-700 bg-ink-900/80 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:border-clinical-500/50 focus:outline-none focus:ring-1 focus:ring-clinical-500/40"
                       disabled={isCancelling}
@@ -1853,7 +1870,7 @@ export function AgendaRealtime({
                           : "Cancelling…"
                         : cancelMode === "requested"
                           ? "Decline & notify"
-                          : "Cancel & notify"}
+                          : (cancelCopy?.confirmLabel ?? "Cancel & notify")}
                     </button>
                   </div>
                 </div>
