@@ -68,9 +68,50 @@ export function selectPreviousVisits<T extends PreviousVisitRow>(rows: T[], who:
     .slice(0, limit);
 }
 
+/**
+ * Visits count as "previous" when they came before now, and for a visit that is already
+ * past, before that visit (so an older visit never lists the newer ones as previous).
+ */
+export function previousVisitsBefore(appointmentIso: string, now: Date): Date {
+  const start = new Date(appointmentIso);
+  return Number.isFinite(start.getTime()) && start.getTime() < now.getTime() ? start : now;
+}
+
+export type AgendaPreviousVisit = Pick<
+  PreviousVisitRow,
+  "id" | "appointment_datetime" | "attendance" | "professional_notes" | "clinic_id"
+>;
+
+/** What the agenda gets: the newest few, whether there are more, and no contact details. */
+export function agendaPreviousVisits<T extends PreviousVisitRow>(
+  rows: T[],
+  who: Who,
+  limit: number,
+): { visits: AgendaPreviousVisit[]; hasMore: boolean } {
+  const matched = selectPreviousVisits(rows, who, limit + 1);
+  return {
+    visits: matched.slice(0, limit).map((r) => ({
+      id: r.id,
+      appointment_datetime: r.appointment_datetime,
+      attendance: r.attendance,
+      professional_notes: r.professional_notes,
+      clinic_id: r.clinic_id,
+    })),
+    hasMore: matched.length > limit,
+  };
+}
+
 export async function loadPreviousVisits(
   supabase: SupabaseClient,
-  input: { professionalId: string; appointmentId: string; email: string | null; phone: string | null; now?: Date },
+  input: {
+    professionalId: string;
+    appointmentId: string;
+    email: string | null;
+    phone: string | null;
+    now?: Date;
+    /** Only visits before this moment (default: now). */
+    before?: Date;
+  },
   limit = 5,
 ): Promise<PreviousVisitRow[]> {
   const filter = previousVisitsOrFilter(input);
@@ -81,7 +122,7 @@ export async function loadPreviousVisits(
     .eq("professional_id", input.professionalId)
     .eq("status", "CONFIRMED")
     .neq("id", input.appointmentId)
-    .lt("appointment_datetime", (input.now ?? new Date()).toISOString())
+    .lt("appointment_datetime", (input.before ?? input.now ?? new Date()).toISOString())
     .or(filter)
     .order("appointment_datetime", { ascending: false })
     .limit(50);

@@ -50,6 +50,7 @@ import {
   type AgendaView,
 } from "@/lib/agenda-calendar";
 import { PatientDetails } from "@/components/dashboard/PatientDetails";
+import { AgendaPreviousVisits } from "@/components/agenda/AgendaPreviousVisits";
 import {
   AGENDA_APPOINTMENT_SELECT,
   AGENDA_VISIBLE_STATUSES,
@@ -1913,6 +1914,15 @@ export function AgendaRealtime({
                   <p className="mt-2 text-xs text-red-300">{cancelError}</p>
                 ) : null}
               </div>
+            ) : null}
+            {["REQUESTED", "CONFIRMED"].includes(String(selected.status ?? "").toUpperCase()) && !confirmingCancel ? (
+              <AgendaPreviousVisits
+                patientName={selected.patient_name}
+                appointmentId={selected.id}
+                clinicName={(clinicId) =>
+                  isMultiClinic ? clinics.find((c) => c.clinicId === clinicId)?.name ?? null : null
+                }
+              />
             ) : null}
           </div>
         </div>

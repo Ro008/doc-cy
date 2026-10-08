@@ -2,8 +2,10 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
+  agendaPreviousVisits,
   isSamePatient,
   phoneKey,
+  previousVisitsBefore,
   previousVisitsOrFilter,
   selectPreviousVisits,
 } from "../../lib/previous-visits";
@@ -84,5 +86,58 @@ describe("selectPreviousVisits", () => {
       row("mid", "2026-04-01T08:00:00Z"),
     ];
     assert.deepEqual(selectPreviousVisits(rows, who, 2).map((r) => r.id), ["new", "mid"]);
+  });
+});
+
+describe("previousVisitsBefore", () => {
+  const now = new Date("2026-10-08T10:00:00Z");
+
+  it("for an upcoming visit, everything before now counts", () => {
+    assert.equal(previousVisitsBefore("2026-10-15T07:00:00Z", now).toISOString(), now.toISOString());
+  });
+
+  it("for a past visit, only what came before that visit counts", () => {
+    assert.equal(
+      previousVisitsBefore("2026-10-06T08:00:00Z", now).toISOString(),
+      "2026-10-06T08:00:00.000Z",
+    );
+  });
+});
+
+describe("agendaPreviousVisits", () => {
+  const who = { email: "maria@example.com", phone: null };
+  const row = (id: string, at: string) => ({
+    id,
+    appointment_datetime: at,
+    patient_email: "maria@example.com",
+    patient_phone: "99444555",
+    attendance: "no_show",
+    professional_notes: "Allergic to penicillin.",
+    clinic_id: "c1",
+  });
+
+  it("keeps the 3 newest, says when there are more, and never returns contact details", () => {
+    const rows = [
+      row("a", "2026-01-01T08:00:00Z"),
+      row("b", "2026-02-01T08:00:00Z"),
+      row("c", "2026-03-01T08:00:00Z"),
+      row("d", "2026-04-01T08:00:00Z"),
+    ];
+    const out = agendaPreviousVisits(rows, who, 3);
+    assert.deepEqual(out.visits.map((v) => v.id), ["d", "c", "b"]);
+    assert.equal(out.hasMore, true);
+    assert.deepEqual(Object.keys(out.visits[0]).sort(), [
+      "appointment_datetime",
+      "attendance",
+      "clinic_id",
+      "id",
+      "professional_notes",
+    ]);
+  });
+
+  it("has no more when there are 3 or fewer", () => {
+    const out = agendaPreviousVisits([row("a", "2026-01-01T08:00:00Z")], who, 3);
+    assert.equal(out.visits.length, 1);
+    assert.equal(out.hasMore, false);
   });
 });
