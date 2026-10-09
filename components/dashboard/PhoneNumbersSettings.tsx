@@ -2,7 +2,13 @@
 
 import * as React from "react";
 import { settingsSectionHref } from "@/lib/settings-sections";
-import { SETTINGS_CARD_CLASS, SETTINGS_EYEBROW_CLASS } from "@/components/dashboard/settings/styles";
+import {
+  SETTINGS_CARD_CLASS,
+  SETTINGS_EYEBROW_CLASS,
+  SETTINGS_GHOST_BUTTON_CLASS,
+  SETTINGS_INLINE_LINK_CLASS,
+  SETTINGS_PRIMARY_BUTTON_CLASS,
+} from "@/components/dashboard/settings/styles";
 import type { SettingsClinicPhone } from "@/lib/settings-clinic-phones";
 
 type PhoneNumbersSettingsProps = {
@@ -63,14 +69,14 @@ export function PhoneNumbersSettings({
                 data-testid="settings-mobile-save"
                 disabled={mobileSaving}
                 onClick={onSaveMobile}
-                className="inline-flex h-9 items-center rounded-xl bg-clinical-500 px-3.5 text-sm font-semibold text-ink-900 transition hover:bg-clinical-400 disabled:opacity-60"
+                className={SETTINGS_PRIMARY_BUTTON_CLASS}
               >
                 {mobileSaving ? "Saving…" : "Save mobile"}
               </button>
               <button
                 type="button"
                 onClick={onCancelMobile}
-                className="inline-flex h-9 items-center rounded-xl px-3 text-sm font-medium text-slate-300 transition hover:bg-white/10"
+                className={SETTINGS_GHOST_BUTTON_CLASS}
               >
                 Cancel
               </button>
@@ -114,7 +120,7 @@ export function PhoneNumbersSettings({
                 event.preventDefault();
                 onOpenClinics();
               }}
-              className="font-medium text-clinical-300 underline-offset-2 hover:text-clinical-200 hover:underline"
+              className={SETTINGS_INLINE_LINK_CLASS}
             >
               Clinics
             </a>{" "}

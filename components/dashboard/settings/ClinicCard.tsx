@@ -5,6 +5,11 @@ import { ChevronDown, Lock } from "lucide-react";
 import type { ClinicBookingStatus } from "@/lib/settings-clinic-summary";
 import type { PendingClinicChange } from "@/components/dashboard/settings/ClinicChangeRequestDialog";
 import { Collapse } from "@/components/dashboard/settings/Collapse";
+import {
+  SETTINGS_DANGER_BUTTON_CLASS,
+  SETTINGS_LINK_CLASS,
+  SETTINGS_SECONDARY_BUTTON_CLASS,
+} from "@/components/dashboard/settings/styles";
 
 const STATUS_PILL: Record<ClinicBookingStatus["kind"], string> = {
   ended: "bg-slate-500/20 text-slate-300",
@@ -109,7 +114,7 @@ export function ClinicCard({
           <button
             type="button"
             onClick={onRequestChange}
-            className="text-sm font-semibold text-clinical-300 transition hover:text-clinical-200"
+            className={SETTINGS_LINK_CLASS}
           >
             {address ? "Request a change" : "Request your address"}
           </button>
@@ -140,7 +145,7 @@ export function ClinicCard({
             type="button"
             onClick={onToggleEdit}
             aria-expanded={false}
-            className="inline-flex h-10 items-center gap-2 rounded-xl border border-white/20 px-3.5 text-sm font-medium text-slate-100 transition hover:bg-white/10"
+            className={SETTINGS_SECONDARY_BUTTON_CLASS}
           >
             {editLabel}
             <ChevronDown className="h-4 w-4" aria-hidden />
@@ -153,7 +158,7 @@ export function ClinicCard({
             type="button"
             onClick={onRemove}
             disabled={busy}
-            className="inline-flex h-10 items-center rounded-xl px-3 text-sm font-medium text-rose-300 transition hover:bg-rose-500/10 disabled:opacity-60"
+            className={SETTINGS_DANGER_BUTTON_CLASS}
           >
             Remove clinic
           </button>

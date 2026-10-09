@@ -48,7 +48,15 @@ import {
   type AddSpecialtyErrors,
 } from "@/lib/settings-specialty-request";
 import { PhoneNumbersSettings } from "@/components/dashboard/PhoneNumbersSettings";
-import { SETTINGS_CARD_CLASS, SETTINGS_EYEBROW_CLASS } from "@/components/dashboard/settings/styles";
+import {
+  SETTINGS_CARD_CLASS,
+  SETTINGS_EYEBROW_CLASS,
+  SETTINGS_GHOST_BUTTON_CLASS,
+  SETTINGS_INLINE_LINK_CLASS,
+  SETTINGS_LINK_CLASS,
+  SETTINGS_PRIMARY_BUTTON_CLASS,
+  SETTINGS_SECONDARY_BUTTON_CLASS,
+} from "@/components/dashboard/settings/styles";
 import {
   applySaveGroup,
   buildSettingsSavePayload,
@@ -1279,7 +1287,7 @@ export function SettingsForm({
       target="_blank"
       rel="noopener noreferrer"
       data-testid="settings-preview-profile"
-      className="inline-flex h-10 items-center gap-2 rounded-xl border border-white/20 px-3.5 text-sm font-medium text-slate-100 transition hover:bg-white/10"
+      className={SETTINGS_SECONDARY_BUTTON_CLASS}
     >
       <ExternalLink className="h-4 w-4" aria-hidden />
       Preview profile
@@ -1357,7 +1365,7 @@ export function SettingsForm({
                   savedSnapshot.holidayModeEnabled ? "Holiday dates saved." : "Holiday mode is on.",
                 )
               }
-              className="inline-flex h-9 items-center rounded-xl bg-amber-300 px-3.5 text-sm font-semibold text-ink-900 transition hover:bg-amber-200 disabled:opacity-60"
+              className={`${SETTINGS_PRIMARY_BUTTON_CLASS} !bg-amber-300 hover:!bg-amber-200`}
             >
               {savingGroup === "holiday"
                 ? "Saving…"
@@ -1368,7 +1376,7 @@ export function SettingsForm({
             <button
               type="button"
               onClick={revertHoliday}
-              className="inline-flex h-9 items-center rounded-xl px-3 text-sm font-medium text-slate-300 transition hover:bg-white/10"
+              className={SETTINGS_GHOST_BUTTON_CLASS}
             >
               Cancel
             </button>
@@ -1528,7 +1536,7 @@ export function SettingsForm({
             const saved = await saveGroup({ kind: "clinic", id: row.id }, `Hours saved for ${activeWorkplaceLabel}.`);
             if (saved) setEditingWorkplaceId(null);
           }}
-          className="inline-flex h-10 items-center rounded-xl bg-clinical-500 px-4 text-sm font-semibold text-ink-900 transition hover:bg-clinical-400 disabled:cursor-not-allowed disabled:opacity-50"
+          className={SETTINGS_PRIMARY_BUTTON_CLASS}
         >
           <Save className="mr-2 h-4 w-4" aria-hidden />
           {savingGroup === `clinic:${row.id}` ? "Saving…" : "Save hours"}
@@ -1539,7 +1547,7 @@ export function SettingsForm({
             revertClinicHours(row.id);
             setEditingWorkplaceId(null);
           }}
-          className="inline-flex h-10 items-center rounded-xl px-3.5 text-sm font-medium text-slate-300 transition hover:bg-white/10 hover:text-slate-50"
+          className={SETTINGS_GHOST_BUTTON_CLASS}
         >
           Cancel
         </button>
@@ -1595,7 +1603,7 @@ export function SettingsForm({
               event.preventDefault();
               selectSection("clinics");
             }}
-            className="font-medium text-clinical-300 underline-offset-2 hover:text-clinical-200 hover:underline"
+            className={SETTINGS_INLINE_LINK_CLASS}
           >
             Clinics
           </a>
@@ -1615,7 +1623,7 @@ export function SettingsForm({
           type="button"
           onClick={openAddClinic}
           disabled={workplaceBusy || liveWorkplaces.length >= MAX_DOCTOR_LOCATIONS}
-          className="inline-flex h-11 items-center rounded-2xl bg-clinical-500 px-4 text-sm font-semibold text-ink-900 shadow-md shadow-clinical-500/20 transition hover:bg-clinical-400 disabled:cursor-not-allowed disabled:opacity-60"
+          className={`${SETTINGS_PRIMARY_BUTTON_CLASS} shadow-md shadow-clinical-500/20`}
         >
           + Add clinic
         </button>,
@@ -1757,7 +1765,7 @@ export function SettingsForm({
             type="button"
             onClick={handleAddService}
             disabled={serviceSubmitting}
-            className="inline-flex items-center justify-center rounded-xl bg-clinical-500 px-4 py-2 text-sm font-semibold text-ink-900 transition hover:bg-clinical-400 disabled:opacity-60"
+            className={SETTINGS_PRIMARY_BUTTON_CLASS}
           >
             {serviceSubmitting ? "Adding..." : "Add"}
           </button>
@@ -1813,7 +1821,7 @@ export function SettingsForm({
                       type="button"
                       aria-label={`Remove ${label}`}
                       onClick={() => setSpecialtyToRemove(label)}
-                      className="inline-flex h-6 w-6 items-center justify-center rounded-full text-slate-300 transition hover:bg-rose-500/15 hover:text-rose-200"
+                      className="inline-flex h-6 w-6 items-center justify-center rounded-full text-slate-300 transition hover:bg-white/15 hover:text-slate-50"
                     >
                       <X className="h-3.5 w-3.5" aria-hidden />
                     </button>
@@ -1926,7 +1934,7 @@ export function SettingsForm({
               data-testid="settings-specialty-change-submit"
               disabled={specialtyChangeBusy}
               onClick={() => void submitSpecialtyChangeRequest()}
-              className="inline-flex items-center justify-center rounded-xl bg-clinical-500 px-4 py-2 text-sm font-semibold text-ink-900 transition hover:bg-clinical-400 disabled:cursor-not-allowed disabled:opacity-60"
+              className={SETTINGS_PRIMARY_BUTTON_CLASS}
             >
               {specialtyChangeBusy ? "Sending…" : "Send request"}
             </button>
@@ -1934,7 +1942,7 @@ export function SettingsForm({
               type="button"
               disabled={specialtyChangeBusy}
               onClick={resetSpecialtyRequestForm}
-              className="inline-flex items-center justify-center rounded-xl border border-slate-600 px-4 py-2 text-sm font-medium text-slate-300 transition hover:border-slate-500 disabled:opacity-60"
+              className={SETTINGS_GHOST_BUTTON_CLASS}
             >
               Cancel
             </button>
@@ -1945,7 +1953,7 @@ export function SettingsForm({
           type="button"
           data-testid="settings-specialty-change-request"
           onClick={() => setSpecialtyFormOpen(true)}
-          className="mt-3 text-sm font-semibold text-clinical-300 transition hover:text-clinical-200"
+          className={`mt-3 ${SETTINGS_LINK_CLASS}`}
         >
           + Add a specialty
         </button>
@@ -1985,7 +1993,7 @@ export function SettingsForm({
             type="button"
             onClick={() => avatarFileInputRef.current?.click()}
             disabled={avatarUploading}
-            className="inline-flex h-10 items-center rounded-xl border border-white/20 px-3.5 text-sm font-medium text-slate-100 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-70"
+            className={SETTINGS_SECONDARY_BUTTON_CLASS}
           >
             {avatarUploading ? "Uploading..." : "Upload new photo"}
           </button>
@@ -2018,14 +2026,14 @@ export function SettingsForm({
                 data-testid="settings-bio-save"
                 disabled={savingGroup === "bio"}
                 onClick={() => void saveGroup({ kind: "bio" }, "Bio saved.")}
-                className="inline-flex h-9 items-center rounded-xl bg-clinical-500 px-3.5 text-sm font-semibold text-ink-900 transition hover:bg-clinical-400 disabled:opacity-60"
+                className={SETTINGS_PRIMARY_BUTTON_CLASS}
               >
                 {savingGroup === "bio" ? "Saving…" : "Save bio"}
               </button>
               <button
                 type="button"
                 onClick={() => setBio(savedSnapshot.bio)}
-                className="inline-flex h-9 items-center rounded-xl px-3 text-sm font-medium text-slate-300 transition hover:bg-white/10"
+                className={SETTINGS_GHOST_BUTTON_CLASS}
               >
                 Cancel
               </button>
@@ -2262,7 +2270,7 @@ export function SettingsForm({
                   <button
                     type="button"
                     onClick={closeAvatarCropModal}
-                    className="rounded-xl border border-slate-600 px-3 py-2 text-xs text-slate-200 hover:border-slate-500"
+                    className={SETTINGS_GHOST_BUTTON_CLASS}
                   >
                     Cancel
                   </button>
@@ -2270,7 +2278,7 @@ export function SettingsForm({
                     type="button"
                     onClick={onConfirmAvatarCrop}
                     disabled={avatarUploading || avatarCropping}
-                    className="rounded-xl bg-clinical-400 px-3 py-2 text-xs font-semibold text-slate-950 disabled:opacity-60"
+                    className={SETTINGS_PRIMARY_BUTTON_CLASS}
                   >
                     {avatarCropping ? "Processing..." : avatarUploading ? "Uploading..." : "Confirm crop"}
                   </button>

@@ -13,10 +13,14 @@ import {
   buildWebsiteButtonHtml,
   buildWebsiteSupportPrefill,
 } from "@/lib/promote-practice-script-templates";
-import { SETTINGS_CARD_CLASS, SETTINGS_EYEBROW_CLASS } from "@/components/dashboard/settings/styles";
+import {
+  SETTINGS_CARD_CLASS,
+  SETTINGS_EYEBROW_CLASS,
+  SETTINGS_SECONDARY_BUTTON_CLASS,
+  SETTINGS_SMALL_SECONDARY_BUTTON_CLASS,
+} from "@/components/dashboard/settings/styles";
 
-const COPY_BUTTON_CLASS =
-  "inline-flex items-center gap-1.5 rounded-lg border border-slate-600 bg-slate-800/60 px-2.5 py-1.5 text-xs font-semibold text-slate-200 transition hover:border-clinical-400/40 hover:bg-clinical-500/10 hover:text-clinical-100";
+const COPY_BUTTON_CLASS = SETTINGS_SMALL_SECONDARY_BUTTON_CLASS;
 
 function CopyButton({ text, copy }: { text: string; copy: PromotePracticeCopy }) {
   const [copied, setCopied] = React.useState(false);
@@ -176,7 +180,7 @@ export function PromotePracticeScripts({
             <button
               type="button"
               onClick={openWebsiteSupport}
-              className="mt-3 inline-flex items-center gap-2 rounded-lg border border-clinical-400/35 bg-clinical-500/10 px-3 py-2 text-xs font-semibold text-clinical-100 transition hover:bg-clinical-500/20"
+              className={`mt-3 ${SETTINGS_SECONDARY_BUTTON_CLASS}`}
             >
               <LifeBuoy className="h-4 w-4" aria-hidden />
               {copy.websiteContactSupport}

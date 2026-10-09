@@ -8,6 +8,7 @@ import {
   MIN_NOTICE_OPTIONS_HOURS,
 } from "@/lib/doctor-settings";
 import { PATIENT_CANCEL_NOTICE_CHOICES, parsePatientCancelNoticeHours } from "@/lib/patient-cancel-window";
+import { SETTINGS_LINK_CLASS } from "@/components/dashboard/settings/styles";
 import { PER_CLINIC_LIMITS_PENDING, type ClinicLimits } from "@/lib/settings-clinic-limits";
 
 const SELECT_CLASS =
@@ -144,7 +145,7 @@ export function ClinicBookingLimits({
             onClick={onApplyToAll}
             disabled={busy}
             data-testid="clinic-limits-apply-all"
-            className="self-start whitespace-nowrap text-sm font-semibold text-clinical-300 underline-offset-4 transition hover:text-clinical-200 hover:underline disabled:opacity-60 sm:self-auto"
+            className={`self-start whitespace-nowrap sm:self-auto ${SETTINGS_LINK_CLASS}`}
           >
             Apply to all my clinics
           </button>

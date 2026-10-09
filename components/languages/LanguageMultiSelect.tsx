@@ -132,7 +132,7 @@ export function LanguageMultiSelect({
                 {lang}
                 <button
                   type="button"
-                  className="rounded-full p-0.5 hover:bg-black/20"
+                  className="rounded-full p-0.5 transition hover:bg-black/20"
                   onClick={() => remove(lang)}
                   aria-label={`Remove ${lang}`}
                 >

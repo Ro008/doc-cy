@@ -1,5 +1,6 @@
 "use client";
 
+import { SETTINGS_PRIMARY_BUTTON_CLASS, SETTINGS_SECONDARY_BUTTON_CLASS } from "@/components/dashboard/settings/styles";
 import * as React from "react";
 import { createPortal } from "react-dom";
 
@@ -94,11 +95,9 @@ export function SettingsDialog({
   );
 }
 
-export const dialogSecondaryButtonClass =
-  "inline-flex h-10 items-center rounded-xl border border-white/20 px-4 text-sm font-medium text-slate-100 transition hover:bg-white/10 disabled:opacity-60";
+export const dialogSecondaryButtonClass = SETTINGS_SECONDARY_BUTTON_CLASS;
 
-export const dialogPrimaryButtonClass =
-  "inline-flex h-10 items-center rounded-xl bg-clinical-500 px-4 text-sm font-semibold text-ink-900 transition hover:bg-clinical-400 disabled:opacity-60";
+export const dialogPrimaryButtonClass = SETTINGS_PRIMARY_BUTTON_CLASS;
 
 export const dialogDangerButtonClass =
   "inline-flex h-10 items-center rounded-xl bg-rose-600 px-4 text-sm font-semibold text-rose-50 transition hover:bg-rose-500 disabled:opacity-60";

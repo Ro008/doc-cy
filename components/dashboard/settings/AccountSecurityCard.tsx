@@ -6,6 +6,8 @@ import { SignOutOtherSessionsButton } from "@/components/auth/SignOutOtherSessio
 import {
   SETTINGS_CARD_CLASS,
   SETTINGS_EYEBROW_CLASS,
+  SETTINGS_GHOST_BUTTON_CLASS,
+  SETTINGS_PRIMARY_BUTTON_CLASS,
   SETTINGS_ROW_CLASS,
   SETTINGS_SECONDARY_BUTTON_CLASS,
 } from "@/components/dashboard/settings/styles";
@@ -142,14 +144,14 @@ export function AccountSecurityCard({ email }: { email: string }) {
                     type="button"
                     onClick={() => void requestEmailChange()}
                     disabled={emailBusy}
-                    className="inline-flex h-10 items-center rounded-xl bg-clinical-500 px-3.5 text-sm font-semibold text-ink-900 transition hover:bg-clinical-400 disabled:opacity-60"
+                    className={SETTINGS_PRIMARY_BUTTON_CLASS}
                   >
                     {emailBusy ? "Sending…" : "Send confirmation link"}
                   </button>
                   <button
                     type="button"
                     onClick={closeEmailForm}
-                    className="inline-flex h-10 items-center rounded-xl px-3 text-sm font-medium text-slate-300 transition hover:bg-white/10"
+                    className={SETTINGS_GHOST_BUTTON_CLASS}
                   >
                     Cancel
                   </button>
