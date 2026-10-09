@@ -1743,6 +1743,37 @@ export function SettingsForm({
         "Treatments on your public profile. Prices are in euros (€) and the same at every clinic.",
         previewProfileLink,
       )}
+      {/* Why list services (user, 2026-10-09). */}
+      <section
+        className="rounded-3xl border border-clinical-400/20 bg-clinical-500/[0.06] p-5 sm:p-6"
+        data-testid="settings-services-why"
+      >
+        <p className="text-sm font-semibold text-slate-100">What are services?</p>
+        <p className="mt-1 text-sm leading-relaxed text-slate-300">
+          The treatments and consultations you offer, each with its price. They appear on your public profile, so
+          patients see them before they book.
+        </p>
+        <ul className="mt-4 grid gap-3 text-sm text-slate-300 sm:grid-cols-3">
+          <li>
+            <span className="block font-semibold text-slate-100">Patients know you can help</span>
+            <span className="mt-0.5 block text-xs leading-relaxed text-slate-400">
+              Your specialty says what you are; your services say exactly what you treat.
+            </span>
+          </li>
+          <li>
+            <span className="block font-semibold text-slate-100">No surprises on price</span>
+            <span className="mt-0.5 block text-xs leading-relaxed text-slate-400">
+              Knowing the cost up front makes patients more confident to book.
+            </span>
+          </li>
+          <li>
+            <span className="block font-semibold text-slate-100">Fewer calls to your clinic</span>
+            <span className="mt-0.5 block text-xs leading-relaxed text-slate-400">
+              &ldquo;Do you do this?&rdquo; and &ldquo;How much is it?&rdquo; are answered on your profile.
+            </span>
+          </li>
+        </ul>
+      </section>
       <section className={SECTION_CARD_CLASS}>
         <div className="grid gap-3 sm:grid-cols-[1fr_180px_auto]">
           <input
