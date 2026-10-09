@@ -196,7 +196,9 @@ test.describe("Integration: online booking confirmed by email", { tag: "@pr-e2e"
 
   test("a link used up by an earlier refusal doesn't claim it was confirmed", async ({ page }) => {
     const { token, draftId } = await draftFor(weekdayLocal(17), `stale-${nonce}@integration.test`);
-    await admin.from("appointment_drafts").update({ confirmed_at: new Date().toISOString() }).eq("id", draftId);
+    // Older than the 2-minute "being created" window, which still reads as used.
+    const confirmedAt = new Date(Date.now() - 10 * 60_000).toISOString();
+    await admin.from("appointment_drafts").update({ confirmed_at: confirmedAt }).eq("id", draftId);
     await page.goto(`/booking/confirm?token=${encodeURIComponent(token)}`);
     await expect(page.getByTestId("booking-confirm-unbooked")).toBeVisible({ timeout: 20_000 });
     await expect(page.getByText(/already confirmed/i)).toHaveCount(0);

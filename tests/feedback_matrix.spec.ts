@@ -4,11 +4,12 @@ import { zonedTimeToUtc } from "date-fns-tz";
 import { CY_TZ } from "../lib/appointments";
 import { signInDoctorAndSetCookies } from "./helpers/doctorAuth";
 
+/** Service role: with a cached session the sign-in helper never signs in a client of ours. */
 async function getDoctorId(
-  anon: SupabaseClient,
+  admin: SupabaseClient,
   authUserId: string,
 ): Promise<string> {
-  const { data } = await anon
+  const { data } = await admin
     .from("professionals")
     .select("id")
     .eq("auth_user_id", authUserId)
@@ -31,7 +32,7 @@ async function seedRequestedAppointment(
     .insert({
       professional_id: doctorId,
       patient_name: `${label} ${nonce}`,
-      patient_email: `${label.toLowerCase()}.${nonce}@example.com`,
+      patient_email: `${label.toLowerCase()}.${nonce}@integration.test`,
       patient_phone: "+35799123456",
       appointment_datetime: appointmentUtc.toISOString(),
       status: "REQUESTED",
@@ -58,7 +59,7 @@ async function seedAgendaAppointment(
     .insert({
       professional_id: doctorId,
       patient_name: patientName,
-      patient_email: `${label.toLowerCase()}.${nonce}@example.com`,
+      patient_email: `${label.toLowerCase()}.${nonce}@integration.test`,
       patient_phone: "+35799123456",
       appointment_datetime: appointmentUtc.toISOString(),
       status,
@@ -95,7 +96,7 @@ test.describe("Feedback matrix toasts", () => {
     const admin = createClient(supabaseUrl, serviceKey);
 
     const { authUserId } = await signInDoctorAndSetCookies(page, anon);
-    const doctorId = await getDoctorId(anon, authUserId);
+    const doctorId = await getDoctorId(admin, authUserId);
     const appointmentId = await seedRequestedAppointment(
       admin,
       doctorId,
@@ -114,7 +115,10 @@ test.describe("Feedback matrix toasts", () => {
         },
       );
       await page.goto(`/dashboard/appointments/${appointmentId}`);
-      await page.getByRole("button", { name: /Confirm appointment/i }).click();
+      // "Confirm Thu 11 Apr, 11:00–11:30"
+      const confirmBtn = page.getByRole("button", { name: /^Confirm (Mon|Tue|Wed|Thu|Fri|Sat|Sun) /i });
+      await expect(confirmBtn).toBeEnabled({ timeout: 15_000 });
+      await confirmBtn.click();
       await expect(page).toHaveURL(
         new RegExp(
           `/dashboard/appointments/${appointmentId}\\?confirmed=1(?:$|[&#])`,
@@ -122,9 +126,7 @@ test.describe("Feedback matrix toasts", () => {
         { timeout: 15_000 },
       );
       await expect(
-        page.getByText(
-          /Confirmed in DocCy\. Manage all updates in DocCy in a few clicks/i,
-        ),
+        page.getByText(/The visit is in your agenda and the patient has been emailed/i),
       ).toBeVisible({ timeout: 12_000 });
     } finally {
       await admin.from("appointments").delete().eq("id", appointmentId);
@@ -146,7 +148,7 @@ test.describe("Feedback matrix toasts", () => {
     const admin = createClient(supabaseUrl, serviceKey);
 
     const { authUserId } = await signInDoctorAndSetCookies(page, anon);
-    const doctorId = await getDoctorId(anon, authUserId);
+    const doctorId = await getDoctorId(admin, authUserId);
     const appointmentId = await seedRequestedAppointment(admin, doctorId, "MatrixError");
 
     try {
@@ -172,7 +174,9 @@ test.describe("Feedback matrix toasts", () => {
       );
 
       await page.goto(`/dashboard/appointments/${appointmentId}`);
-      await page.getByRole("button", { name: /Confirm appointment/i }).click();
+      const confirmBtn = page.getByRole("button", { name: /^Confirm (Mon|Tue|Wed|Thu|Fri|Sat|Sun) /i });
+      await expect(confirmBtn).toBeEnabled({ timeout: 15_000 });
+      await confirmBtn.click();
       await expect(
         page
           .locator("[data-sonner-toast]")
@@ -259,7 +263,7 @@ test.describe("Feedback matrix toasts", () => {
     const anon = createClient(supabaseUrl, anonKey);
     const admin = createClient(supabaseUrl, serviceKey);
     const { authUserId } = await signInDoctorAndSetCookies(page, anon);
-    const doctorId = await getDoctorId(anon, authUserId);
+    const doctorId = await getDoctorId(admin, authUserId);
     const seeded = await seedAgendaAppointment(
       admin,
       doctorId,
@@ -317,7 +321,7 @@ test.describe("Feedback matrix toasts", () => {
     const anon = createClient(supabaseUrl, anonKey);
     const admin = createClient(supabaseUrl, serviceKey);
     const { authUserId } = await signInDoctorAndSetCookies(page, anon);
-    const doctorId = await getDoctorId(anon, authUserId);
+    const doctorId = await getDoctorId(admin, authUserId);
     const seeded = await seedAgendaAppointment(
       admin,
       doctorId,

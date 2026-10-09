@@ -117,12 +117,12 @@ test.describe("Booking backend errors @booking-creates", () => {
 
     const errorBox = page.getByTestId("booking-error-message");
     await expect(errorBox).toBeVisible({ timeout: 10000 });
-    await expect(errorBox).toContainText(
-      "Requested time is outside the professional's booking horizon."
-    );
+    // Plain words instead of the server's technical message, and back to the calendar.
+    await expect(errorBox).toContainText("That time is no longer available.");
+    await expect(page.getByRole("button", { name: /Send booking request/i })).toHaveCount(0);
 
-    // Should not navigate to the success page
-    await expect(page.getByRole("heading", { name: /Request pending/i })).toHaveCount(0);
+    // Nothing was sent: no "Check your email" card.
+    await expect(page.getByTestId("booking-success-message")).toHaveCount(0);
   });
 
   test("shows not accepting public bookings inline", async ({ page }) => {
@@ -251,9 +251,7 @@ test.describe("Booking backend errors @booking-creates", () => {
       "This professional is not accepting public bookings yet."
     );
 
-    await expect(
-      page.getByRole("heading", { name: /Request pending/i })
-    ).toHaveCount(0);
+    await expect(page.getByTestId("booking-success-message")).toHaveCount(0);
   });
 });
 

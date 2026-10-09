@@ -22,11 +22,18 @@ test.describe("Manual booking flow @booking-creates", { tag: ["@pr-e2e", "@pr-e2
     }
   });
 
-  // Required since 2026-10-04: first visit, gender, date of birth (email stays optional).
+  // Optional since 2026-10-06 (only name, phone and reason are required).
   async function fillManualPatientDetails(page: import("@playwright/test").Page) {
     await page.getByRole("radio", { name: "First visit" }).check();
     await page.getByRole("radio", { name: "Prefer not to say" }).check();
     await page.locator("#manualPatientBirthdate").fill("1990-01-01");
+  }
+
+  /** Same phone box as online booking: Cyprus code already there, mobile numbers only. */
+  async function fillManualPhone(page: import("@playwright/test").Page, localDigits: string) {
+    const phone = page.locator("#manualPatientPhone");
+    await phone.click();
+    await phone.pressSequentially(localDigits, { delay: 30 });
   }
 
   async function pickFirstAvailableSlot(page: import("@playwright/test").Page) {
@@ -96,8 +103,8 @@ test.describe("Manual booking flow @booking-creates", { tag: ["@pr-e2e", "@pr-e2
       const patientName = `Manual E2E ${nonce}`;
 
       await page.getByPlaceholder("Patient full name").fill(patientName);
-      await page.getByPlaceholder("+357...").fill("+35799123456");
-      await fillManualPatientDetails(page);
+      await fillManualPhone(page, "99123456");
+      // The optional details stay empty here; the second test fills them.
       await page
         .getByPlaceholder("Brief reason for this visit")
         .fill("Manual booking created from phone call in E2E validation.");
@@ -215,10 +222,8 @@ test.describe("Manual booking flow @booking-creates", { tag: ["@pr-e2e", "@pr-e2
       }
 
       const nonce = Date.now().toString().slice(-6);
-      const patientPhone = "+35799123456";
-
       await page.getByPlaceholder("Patient full name").fill(`Manual phone ${nonce}`);
-      await page.getByPlaceholder("+357...").fill(patientPhone);
+      await fillManualPhone(page, "99123456");
       await fillManualPatientDetails(page);
       await page
         .getByPlaceholder("Brief reason for this visit")
