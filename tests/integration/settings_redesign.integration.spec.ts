@@ -423,8 +423,15 @@ test.describe("Settings redesign (B1)", { tag: "@pr-e2e" }, () => {
       page.locator("[data-sonner-toast]").getByText("Booking limits saved for all your clinics."),
     ).toBeVisible();
     await expect(paphos.getByLabel("Minimum notice")).toHaveValue("48");
-    await expect(limassol).toContainText("Same at all your clinics");
+    await expect(limassol.getByTestId("clinic-limits-scope")).toHaveText("All 2 of your clinics use these limits.");
     await expect(limassol.getByTestId("clinic-limits-pending")).toContainText("Livio");
+    // "Apply to all" is always there with more than one clinic, and says what it did.
+    await paphos.getByTestId("clinic-limits-apply-all").click();
+    await expect(
+      page
+        .locator("[data-sonner-toast]")
+        .getByText("Paphos Medical Centre's booking limits now apply to all 2 of your clinics."),
+    ).toBeVisible();
     // The save already carries each clinic's limits for the backend to store.
     expect(sentLocations).toHaveLength(2);
     expect(sentLocations.every((row) => row.minimumNoticeHours === 48)).toBe(true);
@@ -534,6 +541,39 @@ test.describe("Settings redesign (B1)", { tag: "@pr-e2e" }, () => {
     await expect(card.getByRole("button", { name: "Change password" })).toBeVisible();
     await expect(card.getByRole("button", { name: "Sign out other devices" })).toBeVisible();
     await expect(card.getByTestId("settings-sign-out-button")).toBeVisible();
+  });
+
+  test("Account: changing the email waits for a confirmation link", async ({ page }) => {
+    test.setTimeout(120_000);
+    await openSettings(page, seeded!, "account");
+    const row = page.getByTestId("settings-account-email-row");
+    await row.getByRole("button", { name: "Change email" }).click();
+    const input = row.getByLabel("New email");
+    const result = page.getByTestId("settings-account-email-result");
+
+    await input.fill(seeded!.email.toUpperCase());
+    await row.getByRole("button", { name: "Send confirmation link" }).click();
+    await expect(result).toHaveText("That's already your email.");
+
+    // EXPECTED TO FAIL until Livio builds POST /api/account/email: the doctor is told so.
+    await input.fill("new-address@example.com");
+    await input.press("Enter");
+    await expect(result).toContainText("Expected to fail for now: changing your email");
+    await expect(page.getByTestId("settings-account-email")).toHaveText(seeded!.email);
+
+    // With the endpoint in place: nothing changes until the link is opened.
+    let sent: unknown = null;
+    await page.route("**/api/account/email", async (route) => {
+      sent = route.request().postDataJSON();
+      await route.fulfill({ status: 200, contentType: "application/json", body: "{}" });
+    });
+    await row.getByRole("button", { name: "Send confirmation link" }).click();
+    await expect(result).toContainText("Check new-address@example.com: open the link we sent");
+    await expect(page.getByTestId("settings-account-email-pending")).toHaveText(
+      "Waiting for you to confirm new-address@example.com.",
+    );
+    await expect(page.getByTestId("settings-account-email")).toHaveText(seeded!.email);
+    expect(sent).toEqual({ email: "new-address@example.com" });
   });
 
   test("Promote is its own section, and old Account links land on it", async ({ page }) => {

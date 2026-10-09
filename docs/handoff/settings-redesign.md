@@ -198,7 +198,21 @@ it (tables, review flow, emails) is yours.
   "Expected for now: these limits apply to all your clinics until Livio stores them per
   clinic…" (`PER_CLINIC_LIMITS_PENDING` in `lib/settings-clinic-limits.ts`).
 
-3.1–3.6 currently get 404/405 and show, e.g.: "Expected to fail for now: removing a
+### 3.8 Change the sign-in email
+- UI: Account → Sign-in & security → "Change email" → new address → "Send confirmation
+  link" (Rocío, 2026-10-09).
+- Sends `POST /api/account/email` with `{ "email" }` (already checked: well-formed and
+  not the current one, `validateNewEmail` in `lib/settings-account.ts`).
+- UI expects 2xx once a confirmation link has gone to the new address (Supabase's
+  `auth.updateUser({ email })` does this), then shows "Waiting for you to confirm …";
+  nothing changes until the link is opened. 409 = address already has an account,
+  429 = too many tries, `{ "message" }` otherwise.
+- Yours to decide: whether `professionals.registration_email` (and the booking emails) follows the new
+  address on confirmation, and whether the page should load a pending change
+  (the UI only keeps it until reload today).
+- Call site: `requestEmailChange` in `components/dashboard/settings/AccountSecurityCard.tsx`.
+
+3.1–3.6 and 3.8 currently get 404/405 and show, e.g.: "Expected to fail for now: removing a
 clinic works once Livio builds it in the backend (DELETE /api/professional-clinics)."
 
 ---

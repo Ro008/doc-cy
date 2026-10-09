@@ -56,18 +56,15 @@ export function ClinicBookingLimits({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Booking limits</p>
         {clinicCount > 1 ? (
-          sharedByAll ? (
-            <span className="text-xs text-slate-400">Same at all your clinics</span>
-          ) : (
-            <button
-              type="button"
-              onClick={onApplyToAll}
-              disabled={busy}
-              className="text-xs font-semibold text-clinical-300 transition hover:text-clinical-200 disabled:opacity-60"
-            >
-              Apply to all my clinics
-            </button>
-          )
+          <button
+            type="button"
+            onClick={onApplyToAll}
+            disabled={busy}
+            data-testid="clinic-limits-apply-all"
+            className="inline-flex h-8 items-center rounded-lg border border-clinical-400/35 bg-clinical-500/10 px-2.5 text-xs font-semibold text-clinical-100 transition hover:bg-clinical-500/20 disabled:opacity-60"
+          >
+            Apply these limits to all my clinics
+          </button>
         ) : null}
       </div>
       <div className="mt-3 grid gap-4 sm:grid-cols-3">
@@ -147,6 +144,13 @@ export function ClinicBookingLimits({
           </select>
         </div>
       </div>
+      {clinicCount > 1 ? (
+        <p className="mt-3 text-xs text-slate-400" data-testid="clinic-limits-scope">
+          {sharedByAll
+            ? `All ${clinicCount} of your clinics use these limits.`
+            : `Only for this clinic. Your other clinics keep their own limits.`}
+        </p>
+      ) : null}
       {!perClinicSaved && clinicCount > 1 ? (
         <p className="mt-3 text-xs text-amber-200/90" data-testid="clinic-limits-pending">
           {PER_CLINIC_LIMITS_PENDING}

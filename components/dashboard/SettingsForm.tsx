@@ -1690,7 +1690,7 @@ export function SettingsForm({
                       row.id,
                     ),
                     row.id,
-                    `${name}'s booking limits now apply to all your clinics.`,
+                    `${name}'s booking limits now apply to all ${liveWorkplaces.length} of your clinics.`,
                   )
                 }
                 perClinicSaved={perClinicLimitsSaved}

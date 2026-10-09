@@ -16,6 +16,7 @@ export const BACKEND_PENDING = {
   addClinic: { what: "adding a clinic", endpoint: "POST /api/clinic-requests" },
   removeClinic: { what: "removing a clinic", endpoint: "DELETE /api/professional-clinics" },
   clinicChangeRequest: { what: "requesting a clinic change", endpoint: "POST /api/clinic-change-requests" },
+  changeEmail: { what: "changing your email", endpoint: "POST /api/account/email" },
   cancelSpecialtyRequest: {
     what: "cancelling a specialty request",
     endpoint: "DELETE /api/specialty-requests",
