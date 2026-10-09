@@ -15,7 +15,7 @@ describe("isManualBookingSlotTaken", () => {
         status: "REQUESTED",
         appointment_datetime: "2026-09-30T12:30:00Z",
         duration_minutes: 30,
-        location_id: CLINIC_1,
+        clinic_id: CLINIC_1,
       },
     ];
     assert.equal(
@@ -31,7 +31,7 @@ describe("isManualBookingSlotTaken", () => {
         status: "CONFIRMED",
         appointment_datetime: "2026-09-30T12:00:00Z",
         duration_minutes: 45,
-        location_id: CLINIC_2,
+        clinic_id: CLINIC_2,
       },
     ];
     assert.equal(
@@ -51,7 +51,7 @@ describe("isManualBookingSlotTaken", () => {
         status: "CONFIRMED",
         appointment_datetime: "2026-09-30T13:00:00Z",
         duration_minutes: 30,
-        location_id: CLINIC_1,
+        clinic_id: CLINIC_1,
       },
     ];
     assert.equal(
@@ -73,7 +73,7 @@ describe("isManualBookingSlotTaken", () => {
         duration_minutes: 30,
         proposed_slots: ["2026-10-08T08:00:00Z"],
         proposal_expires_at: "2026-10-02T09:00:00Z",
-        location_id: null,
+        clinic_id: null,
       },
     ];
     assert.equal(
@@ -92,7 +92,7 @@ describe("isManualBookingSlotTaken", () => {
       status,
       appointment_datetime: "2026-09-30T12:30:00Z",
       duration_minutes: 30,
-      location_id: CLINIC_1,
+      clinic_id: CLINIC_1,
     }));
     assert.equal(
       isManualBookingSlotTaken("2026-09-30T12:30:00Z", 30, appointments, NOW),

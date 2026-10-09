@@ -65,7 +65,7 @@ describe("professional clinic locations", () => {
     const location = professionalClinicRowToLocation(joinRow());
     assert.deepEqual(location, {
       // The join-row id IS the location id (Stage 1 invariant), so ?location=<uuid>
-      // links and appointments.location_id keep resolving.
+      // links keep resolving.
       id: "join-1",
       doctor_id: "pro-1",
       // The clinic itself: appointments.clinic_id, and the name every screen shows

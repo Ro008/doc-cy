@@ -3,6 +3,10 @@
 -- appointment_drafts, appointment_links, professional_reviews, the patient cancel
 -- notice setting and the paused-banner dismissal.
 --
+-- Historical: describes the schema right after M1. Checks 3 and 8 (location_id, REJECTED)
+-- stopped holding with M2 (20261009100000) and check 14 (24 h default) with
+-- 20261008120000; appointments_flow_m2.test.sql covers the current rules.
+--
 -- Run against TESTING only (Supabase SQL editor or the MCP execute_sql tool).
 -- Everything runs in one transaction that ALWAYS rolls back: the final error
 -- message is the result. "ALL appointments_flow_m1 TESTS PASSED (…)" means success;

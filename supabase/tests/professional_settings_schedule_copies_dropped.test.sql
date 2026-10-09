@@ -88,8 +88,8 @@ begin
   insert into public.professional_clinics (professional_id, clinic_id, is_primary, slot_duration_minutes)
   values (v_pro, v_clinic, true, 45);
   insert into public.appointments (professional_id, patient_name, patient_phone, appointment_datetime,
-                                   status, duration_minutes, location_id)
-  values (v_pro, 'E6 Patient', '+35799000000', v_start, 'REQUESTED', 90, null);
+                                   status, duration_minutes)
+  values (v_pro, 'E6 Patient', '+35799000000', v_start, 'REQUESTED', 90);
 
   select array_agg(o.appointment_datetime order by o.appointment_datetime) into v_slots
   from public.public_professionals_occupied_datetimes(array[v_pro], v_start - interval '1 day', v_start + interval '1 day') o;

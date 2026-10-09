@@ -75,7 +75,6 @@ function location(id: string, paused = false, doctorId = A): DoctorLocationRow {
 
 type OccupiedRow = {
   professional_id: string;
-  location_id: string | null;
   appointment_datetime: string;
 };
 
@@ -146,8 +145,8 @@ describe("finder availability batch", () => {
     assert.ok(slotForB, "baseline has a slot for B");
 
     const { supabase } = fakeSupabase([
-      { professional_id: A, location_id: L1, appointment_datetime: isoFromSlotKey(slotAtL1) },
-      { professional_id: B, location_id: L4, appointment_datetime: isoFromSlotKey(slotForB) },
+      { professional_id: A, appointment_datetime: isoFromSlotKey(slotAtL1) },
+      { professional_id: B, appointment_datetime: isoFromSlotKey(slotForB) },
     ]);
     const result = await loadFinderCardAvailabilityByDoctorId(supabase, [A, B], undefined, {
       loadLocations,
@@ -208,11 +207,11 @@ describe("finder availability batch", () => {
 
 describe("takenSlotTimesFor", () => {
   const rows: OccupiedRow[] = [
-    { professional_id: A, location_id: L1, appointment_datetime: "2026-10-01T07:00:00+00:00" },
-    { professional_id: A, location_id: L2, appointment_datetime: "2026-10-01T08:00:00+00:00" },
-    { professional_id: A, location_id: L1, appointment_datetime: "2026-10-01T07:00:00+00:00" },
-    { professional_id: B, location_id: null, appointment_datetime: "2026-10-01T09:00:00+00:00" },
-    { professional_id: A, location_id: L1, appointment_datetime: "2026-12-31T07:00:00+00:00" },
+    { professional_id: A, appointment_datetime: "2026-10-01T07:00:00+00:00" },
+    { professional_id: A, appointment_datetime: "2026-10-01T08:00:00+00:00" },
+    { professional_id: A, appointment_datetime: "2026-10-01T07:00:00+00:00" },
+    { professional_id: B, appointment_datetime: "2026-10-01T09:00:00+00:00" },
+    { professional_id: A, appointment_datetime: "2026-12-31T07:00:00+00:00" },
   ];
   const to = "2026-11-01T00:00:00.000Z";
 
