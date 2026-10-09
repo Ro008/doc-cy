@@ -1,10 +1,13 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, it } from "node:test";
 
 import {
   EMAIL_STEP_MAX_AGE_DAYS,
   hasValidEmailStep,
   isProfessionalApiPath,
+  PROFESSIONAL_API_ROUTES,
   lastEmailStepAt,
   normalizeSignInCode,
   signInLinkPath,
@@ -75,6 +78,9 @@ describe("isProfessionalApiPath", () => {
       "/api/doctor-services",
       "/api/doctor-settings",
       "/api/doctor-settings/trial-notice",
+      "/api/professional-clinics/abc/dismiss-pause-notice",
+      "/api/professional-mobile",
+      "/api/professional-mobile/visibility",
     ]) {
       assert.equal(isProfessionalApiPath(path), true, path);
     }
@@ -91,6 +97,16 @@ describe("isProfessionalApiPath", () => {
       "/api/directory/contact-reveal",
     ]) {
       assert.equal(isProfessionalApiPath(path), false, path);
+    }
+  });
+});
+
+describe("middleware matcher", () => {
+  it("runs the middleware on every professional API route (else the gate never sees them)", () => {
+    const source = readFileSync(join(process.cwd(), "middleware.ts"), "utf8");
+    const matcher = source.slice(source.indexOf("matcher:"));
+    for (const route of PROFESSIONAL_API_ROUTES) {
+      assert.match(matcher, new RegExp(`"${route}(/:path[*+])?"`), route);
     }
   });
 });

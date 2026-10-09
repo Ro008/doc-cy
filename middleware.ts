@@ -222,5 +222,7 @@ export const config = {
     "/api/doctor-online-bookings",
     "/api/doctor-services",
     "/api/doctor-settings/:path*",
+    "/api/professional-clinics/:path*",
+    "/api/professional-mobile/:path*",
   ],
 };
