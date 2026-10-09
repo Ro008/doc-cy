@@ -571,6 +571,14 @@ button {
   }
 }
 
+/* Height of the desktop sticky header on doctor pages (UserBar sets the attribute while it shows):
+   full-screen pages subtract it so they don't scroll by that much (ResponsiveBottomInset). */
+@media (min-width: 1024px) {
+  html[data-doccy-sticky-header] {
+    --doccy-top-chrome: calc(3.5rem + 1px);
+  }
+}
+
 /* Settings (design B1): subtle enter/leave for sections, the clinic editor and dialogs. */
 @keyframes settings-fade-up {
   from { opacity: 0; transform: translateY(6px); }

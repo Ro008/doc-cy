@@ -6,12 +6,9 @@ import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
 
 import { createServiceRoleClient } from "@/lib/supabase-service";
 import { BookingSection } from "@/components/doctor/BookingSection";
+import { ProfessionalBookingNotice } from "@/components/doctor/ProfessionalBookingNotice";
 import { DoctorDetailsAccordion } from "@/components/doctor/DoctorDetailsAccordion";
 import { LanguagesSpoken } from "@/components/doctor/LanguagesSpoken";
-import {
-  ProfileNotLive,
-  type PublicProfileBlockReason,
-} from "@/components/doctor/ProfileNotLive";
 import { WhatToExpectCard } from "@/components/doctor/WhatToExpectCard";
 import { ServiceMenuSection } from "@/components/doctor/ServiceMenuSection";
 import { DoctorLocationSection } from "@/components/doctor/DoctorLocationSection";
@@ -24,10 +21,15 @@ import {
   locationToSettingsRow,
 } from "@/lib/doctor-locations";
 import { parseBookingLocationParam, parseBookingSlotParam } from "@/lib/booking-slot-param";
+import { bookingViewerMode, loadBookingAccountKind } from "@/lib/booking-viewer";
+import { hasProAccess } from "@/lib/pro-access";
+import { loadProfessionalAccountSettings } from "@/lib/professional-account-settings";
 import {
-  settingsToWeeklySlots,
-  type DoctorSettingsRow,
-} from "@/lib/doctor-settings";
+  OCCUPIED_BATCH_RPC,
+  takenSlotTimesFor,
+  type OccupiedRow,
+} from "@/lib/public/load-doctor-next-available-slot";
+import { settingsToWeeklySlots } from "@/lib/doctor-settings";
 import { appointmentToCyprusDate, CY_TZ } from "@/lib/appointments";
 import { addDays, format } from "date-fns";
 import { utcToZonedTime, zonedTimeToUtc } from "date-fns-tz";
@@ -53,10 +55,9 @@ import { DoctorProfileSpecialties } from "@/components/doctor/DoctorProfileSpeci
 import { RevealPhoneButton } from "@/components/finder/RevealPhoneButton";
 import { getTranslations } from "next-intl/server";
 import {
-  buildNonLiveDoctorMetaTitle,
   buildRegisteredProfileMetaDescription,
+  buildRegisteredProfileMetaTitle,
   buildShareImageMetadata,
-  buildVerifiedRegisteredMetaTitle,
   formatProfessionalSeoDisplayName,
   normalizeDistrictForSeoTitle,
   resolveShareAvatarUrl,
@@ -68,8 +69,7 @@ import {
 } from "@/lib/doctor-specialties";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
-  approvedSpecialtyNames,
-  hasPendingSpecialty,
+  specialtyNames,
   primarySpecialtyEntry,
   SPECIALTY_ROWS_SELECT,
   specialtyEntriesFromRows,
@@ -100,10 +100,8 @@ type DoctorProfileRow = {
   clinic_address: string | null;
   district?: string | null;
   slug: string;
-  status: string;
   languages?: string[] | null;
   is_gesy?: boolean | null;
-  is_specialty_approved?: boolean | null;
 };
 
 export type PageProps = {
@@ -141,7 +139,7 @@ async function loadUnregisteredLandingOrRedirect(slug: string, locale: string) {
 
 function isOptionalProfileColumnError(msg: string): boolean {
   return (
-    /(languages|district|is_gesy|is_specialty_approved|specialties)/i.test(msg) &&
+    /(languages|district|is_gesy|specialties)/i.test(msg) &&
     (/schema cache|does not exist|column|Could not find|42703/i.test(msg) ||
       msg.includes("Could not find"))
   );
@@ -184,9 +182,7 @@ async function selectPublicProfessionalBySlug(
   const data = (res.data as unknown as Record<string, unknown> | null) ?? null;
   if (data) {
     // Specialty fields are derived from professional_specialties (the columns on
-    // professionals are going away): approved labels alphabetical, the first one as
-    // `specialty`, and `is_specialty_approved` false while a custom label is pending,
-    // which hides them all downstream.
+    // professionals are going away): labels alphabetical, the first one as `specialty`.
     const { specialty_rows: rows, ...rest } = data;
     const entries = specialtyEntriesFromRows(rows);
     // Where they practise comes from their clinics, not the copies on professionals
@@ -199,9 +195,8 @@ async function selectPublicProfessionalBySlug(
         ...rest,
         district: location.district,
         clinic_address: location.clinic_address,
-        specialties: approvedSpecialtyNames(entries),
+        specialties: specialtyNames(entries),
         specialty: primarySpecialtyEntry(entries)?.name ?? "",
-        is_specialty_approved: !hasPendingSpecialty(entries),
       },
       error: null,
     };
@@ -212,24 +207,12 @@ async function selectPublicProfessionalBySlug(
   };
 }
 
-function isDoctorSettingsSchemaError(msg: string, code?: string): boolean {
-  return (
-    code === "42703" ||
-    /professional_settings|column|does not exist|schema cache/i.test(msg ?? "")
-  );
-}
-
 type PublicDoctorFetch =
   | { kind: "ok"; profile: DoctorProfileRow }
-  | { kind: "not_found" }
-  | {
-      kind: "not_verified";
-      name: string;
-      verificationStatus: PublicProfileBlockReason;
-    };
+  | { kind: "not_found" };
 
 /**
- * Load doctor by slug. Public UI only when verification `status` is `verified`.
+ * Load a registered professional by slug (an approved registration is live).
  * If `languages` column is missing, fall back to a select without it.
  */
 async function fetchPublicDoctorBySlug(
@@ -305,21 +288,11 @@ async function fetchPublicDoctorBySlug(
     return { kind: "not_found" };
   }
 
-  const st = (row.status ?? "").trim().toLowerCase();
-  if (st === "verified") {
-    const profile: DoctorProfileRow = {
-      ...row,
-      specialty: getPublicSpecialtyDisplayLabel({
-        specialty: row.specialty,
-        is_specialty_approved: row.is_specialty_approved,
-      }),
-    };
-    return { kind: "ok", profile };
-  }
-
-  const verificationStatus: PublicProfileBlockReason =
-    st === "rejected" ? "rejected" : "pending";
-  return { kind: "not_verified", name: row.name, verificationStatus };
+  const profile: DoctorProfileRow = {
+    ...row,
+    specialty: getPublicSpecialtyDisplayLabel({ specialty: row.specialty }),
+  };
+  return { kind: "ok", profile };
 }
 
 export const revalidate = 0;
@@ -472,7 +445,6 @@ export async function generateMetadata({
   const doctor = meta.data as {
     name?: string;
     specialty?: string;
-    status?: string;
     district?: string | null;
     avatar_url?: string | null;
   } | null;
@@ -529,41 +501,26 @@ export async function generateMetadata({
     };
   }
 
-  const st = (doctor.status ?? "").trim().toLowerCase();
   const doctorName = formatProfessionalSeoDisplayName(doctor.name ?? "");
   const specialtyLabels = publicSpecialtyLabels({
     specialties: (doctor as { specialties?: string[] | null }).specialties,
     specialty: doctor.specialty,
-    is_specialty_approved: (doctor as { is_specialty_approved?: boolean | null })
-      .is_specialty_approved,
   });
   const specialty = getPublicSpecialtyDisplayLabel({
     specialty: doctor.specialty,
-    is_specialty_approved: (doctor as { is_specialty_approved?: boolean | null })
-      .is_specialty_approved,
     fallback: "",
   });
   const specialtyForSeo =
-    (doctor as { is_specialty_approved?: boolean | null }).is_specialty_approved === false
-      ? ""
-      : formatSpecialtiesForSeo(specialtyLabels) || (doctor.specialty ?? "").trim();
+    formatSpecialtiesForSeo(specialtyLabels) || (doctor.specialty ?? "").trim();
   const districtLabel = normalizeDistrictForSeoTitle(doctor.district);
   const cityLabel = districtLabel ?? "Cyprus";
-  const metaTitleCore =
-    st === "verified"
-      ? buildVerifiedRegisteredMetaTitle({
-          doctorName,
-          specialty: specialtyForSeo || specialty,
-          districtLabel,
-        })
-      : buildNonLiveDoctorMetaTitle({
-          doctorName,
-          specialty: specialtyForSeo || specialty,
-          districtLabel,
-        });
+  const metaTitleCore = buildRegisteredProfileMetaTitle({
+    doctorName,
+    specialty: specialtyForSeo || specialty,
+    districtLabel,
+  });
   const dynamicTitle = metaTitleCore ?? fallbackTitle;
   const dynamicDescription = buildRegisteredProfileMetaDescription({
-    status: st,
     doctorName,
     specialtyForSeo,
     cityLabel,
@@ -573,30 +530,6 @@ export async function generateMetadata({
     ? resolvePublicAvatarUrl(supabase, doctor.avatar_url)
     : null;
   const shareImages = buildShareImageMetadata(shareImageUrl);
-
-  if (st !== "verified") {
-    return {
-      title: dynamicTitle,
-      description: dynamicDescription,
-      openGraph: {
-        title: dynamicTitle,
-        description: dynamicDescription,
-        type: "website",
-        url: profileUrl,
-        ...(shareImages.openGraphImages
-          ? { images: shareImages.openGraphImages }
-          : {}),
-      },
-      twitter: {
-        card: shareImages.twitterCard,
-        title: dynamicTitle,
-        description: dynamicDescription,
-        ...(shareImages.twitterImages
-          ? { images: shareImages.twitterImages }
-          : {}),
-      },
-    };
-  }
 
   return {
     title: dynamicTitle,
@@ -643,15 +576,6 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
     notFound();
   }
 
-  if (result.kind === "not_verified") {
-    return (
-      <ProfileNotLive
-        doctorName={result.name}
-        verificationStatus={result.verificationStatus}
-      />
-    );
-  }
-
   const profile = result.profile;
   const supabase = getPublicDirectoryDb();
   if (!supabase) {
@@ -671,18 +595,27 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
       .maybeSingle();
     isOwnerView = ownerDoctor?.auth_user_id === user.id;
   }
+  // A signed-in professional (or applicant) sees a note instead of the calendar
+  // (user, 2026-10-06); POST /api/appointments refuses them too.
+  const viewerMode = bookingViewerMode(
+    user?.id ? await loadBookingAccountKind(supabase, user.id).catch(() => null) : null,
+    isOwnerView,
+  );
   const clinicAddress = stripPlusCodePrefix((profile.clinic_address ?? "").trim());
   const mapsUrl = buildMapsUrlFromAddress(clinicAddress) ?? "";
   let avatarUrl: string | null = null;
+  let accessEnded = false;
   const contactLookup = await supabase
     .from("professionals")
-    .select("avatar_url")
+    .select("avatar_url, pro_access_until")
     .eq("is_registered", true)
     .eq("is_archived", false)
     .eq("id", profile.id)
     .maybeSingle();
   if (!contactLookup.error && contactLookup.data) {
-    const contact = contactLookup.data as { avatar_url?: string | null };
+    const contact = contactLookup.data as { avatar_url?: string | null; pro_access_until?: string | null };
+    // Access ended: no online booking (the booking routes refuse too); user, 2026-10-02.
+    accessEnded = !hasProAccess(contact.pro_access_until);
     const avatarPath = String(contact.avatar_url ?? "").trim();
     if (avatarPath) {
       avatarUrl = resolvePublicAvatarUrl(supabase, avatarPath);
@@ -693,55 +626,11 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
 
   const profileCanonicalUrl = `${siteBaseUrl()}${publicProfessionalProfilePath(params.slug, profileLocale(params))}`;
 
-  const settingsSelectFull =
-    "professional_id, monday, tuesday, wednesday, thursday, friday, saturday, sunday, start_time, end_time, weekly_schedule, break_start, break_end, slot_duration_minutes, pause_online_bookings, show_phone_public, holiday_mode_enabled, holiday_start_date, holiday_end_date, booking_horizon_days, minimum_notice_hours";
-  const settingsSelectLegacy =
-    "professional_id, monday, tuesday, wednesday, thursday, friday, start_time, end_time, break_start, break_end, slot_duration_minutes";
-
-  const { data: settingsFull, error: settingsErr } = await supabase
-    .from("professional_settings")
-    .select(settingsSelectFull)
-    .eq("professional_id", profile.id)
-    .single();
-
-  let settings: any = settingsFull ?? null;
-  if (
-    settingsErr &&
-    isDoctorSettingsSchemaError(
-      settingsErr.message ?? "",
-      (settingsErr as any)?.code,
-    )
-  ) {
-    const { data: settingsLegacy } = await supabase
-      .from("professional_settings")
-      .select(settingsSelectLegacy)
-      .eq("professional_id", profile.id)
-      .single();
-    settings = settingsLegacy ?? null;
-  }
-
-  const normalizedSettings: DoctorSettingsRow | null = settings
-    ? ({
-        ...settings,
-        saturday: Boolean((settings as any).saturday ?? false),
-        sunday: Boolean((settings as any).sunday ?? false),
-        pause_online_bookings: Boolean(
-          (settings as any).pause_online_bookings ?? false,
-        ),
-        show_phone_public: Boolean((settings as any).show_phone_public ?? false),
-        holiday_mode_enabled: Boolean(
-          (settings as any).holiday_mode_enabled ?? false,
-        ),
-        holiday_start_date: (settings as any).holiday_start_date ?? null,
-        holiday_end_date: (settings as any).holiday_end_date ?? null,
-        booking_horizon_days: Number(
-          (settings as any).booking_horizon_days ?? 90,
-        ),
-        minimum_notice_hours: Number(
-          (settings as any).minimum_notice_hours ?? 2,
-        ),
-      } as DoctorSettingsRow)
-    : null;
+  // Account settings (holiday, horizon, notice); the schedule is the clinic link's (Point E6).
+  const { settings: normalizedSettings } = await loadProfessionalAccountSettings(
+    supabase,
+    profile.id,
+  );
 
   const [practiceLocations, registeredClinics] = await Promise.all([
     loadDoctorLocations(profile.id),
@@ -775,7 +664,7 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
         selectedLocation,
         normalizedSettings ?? ACCOUNT_SETTINGS_FALLBACK,
       )
-    : normalizedSettings;
+    : null;
 
   const weeklySlots = locationSettings
     ? settingsToWeeklySlots(locationSettings)
@@ -806,38 +695,32 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
   ).toISOString();
 
   // Slot starts covered by visits (forward + backward vs slot_duration_minutes); must match POST /api/appointments.
+  // No p_location_id: one professional, one agenda, so a visit in any clinic blocks the time.
   const { data: occupiedRows, error: occupiedErr } = await supabase.rpc(
-    "public_doctor_occupied_datetimes",
+    OCCUPIED_BATCH_RPC,
     {
-      p_doctor_id: profile.id,
+      p_professional_ids: [profile.id],
       p_from: fromIso,
       p_to: toIso,
-      ...(selectedLocation?.id ? { p_location_id: selectedLocation.id } : {}),
     },
   );
 
   if (occupiedErr) {
-    console.error(
-      "[DocCy] public_doctor_occupied_datetimes failed:",
-      occupiedErr,
-    );
+    console.error(`[DocCy] ${OCCUPIED_BATCH_RPC} failed:`, occupiedErr);
   }
 
-  const takenSlotTimes: string[] = (occupiedRows ?? []).map(
-    (r: { appointment_datetime: string }) =>
-      format(
-        appointmentToCyprusDate(r.appointment_datetime),
-        "yyyy-MM-dd'T'HH:mm",
-      ),
+  const takenSlotTimes: string[] = takenSlotTimesFor(
+    (occupiedRows ?? []) as OccupiedRow[],
+    { professionalId: profile.id, toIso },
   );
 
   const { data: serviceRows, error: servicesErr } = await supabase
-    .from("doctor_services")
+    .from("professional_services")
     .select("id, name, price")
-    .eq("doctor_id", profile.id)
+    .eq("professional_id", profile.id)
     .order("created_at", { ascending: true });
   if (servicesErr) {
-    console.error("[DocCy] doctor_services fetch failed:", servicesErr);
+    console.error("[DocCy] professional_services fetch failed:", servicesErr);
   }
   const services = (serviceRows ?? [])
     .map((row) => ({
@@ -853,7 +736,6 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
   const profileSpecialtyLabels = publicSpecialtyLabels({
     specialties: profile.specialties,
     specialty: profile.specialty,
-    is_specialty_approved: profile.is_specialty_approved,
   });
   const profileSpecialtySeo = formatSpecialtiesForSeo(profileSpecialtyLabels);
   // The booking panel's "call instead" hint is about the clinic being booked.
@@ -863,10 +745,7 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
     : callClinics.length > 0;
   const structuredData = buildPhysicianStructuredData({
     name: profile.name,
-    specialty:
-      profile.is_specialty_approved === false
-        ? null
-        : profileSpecialtySeo || profile.specialty,
+    specialty: profileSpecialtySeo || profile.specialty,
     bio: profile.bio,
     clinicAddress: clinicAddress,
     district: profile.district ?? null,
@@ -903,14 +782,9 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
       </div>
 
       <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8 lg:py-14">
-        {isOwnerView ? (
-          <div className="mb-6 rounded-2xl border border-clinical-200 bg-clinical-50 px-4 py-3 text-sm text-clinical-800">
-            You are viewing your public profile.{" "}
-            <a href="/settings?section=profile" className="font-semibold underline underline-offset-2">
-              Edit Profile
-            </a>{" "}
-          </div>
-        ) : null}
+        {/* No "You are viewing your public profile" banner: the account menu now links to
+            Settings here, and the booking box says "This is how patients see your profile"
+            (user, 2026-10-08). */}
         <header className="mb-8 flex flex-col gap-4 sm:gap-6">
           <div className="flex items-center justify-between gap-3">
             <span className="text-xs font-semibold tracking-[0.16em] text-ink-500">
@@ -952,7 +826,6 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
                   specialties={profileSpecialtyLabels}
                   specialty={profile.specialty}
                   district={profileDistrictLabel}
-                  underReview={profile.is_specialty_approved === false}
                 />
                 {profileDistrictLabel ? (
                   <FinderDistrictLink
@@ -995,85 +868,89 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
                   district: row.district,
                   clinic_address: row.clinic_address,
                   town: row.town,
-                  pause_online_bookings: Boolean(row.pause_online_bookings),
+                  pause_online_bookings: accessEnded || Boolean(row.pause_online_bookings),
                 }))}
               />
             ) : null}
-            <BookingSection
-              doctorId={profile.id}
-              doctorName={profile.name}
-              weeklySlots={weeklySlots}
-              takenSlotTimes={takenSlotTimes}
-              profileSlug={params.slug}
-              locationId={selectedLocation?.id ?? null}
-              locationLabel={
-                practiceLocations.length > 1 && selectedLocation
-                  ? clinicTitleOrFallback(
-                      selectedLocation.label,
-                      bookingT("clinicNumber", {
-                        number:
-                          Math.max(
-                            0,
-                            practiceLocations.findIndex((row) => row.id === selectedLocation.id),
-                          ) + 1,
-                      }),
+            {viewerMode !== "patient" ? (
+              <ProfessionalBookingNotice mode={viewerMode} />
+            ) : (
+              <div data-testid="booking-section">
+                <BookingSection
+                  doctorId={profile.id}
+                  doctorName={profile.name}
+                  weeklySlots={weeklySlots}
+                  takenSlotTimes={takenSlotTimes}
+                  profileSlug={params.slug}
+                  locationId={selectedLocation?.id ?? null}
+                  locationLabel={
+                    practiceLocations.length > 1 && selectedLocation
+                      ? clinicTitleOrFallback(
+                          selectedLocation.label,
+                          bookingT("clinicNumber", {
+                            number:
+                              Math.max(
+                                0,
+                                practiceLocations.findIndex((row) => row.id === selectedLocation.id),
+                              ) + 1,
+                          }),
+                        )
+                      : null
+                  }
+                  locationScopedPause={practiceLocations.length > 1}
+                  initialSlotKey={
+                    parseBookingSlotParam(
+                      Array.isArray(searchParams?.slot)
+                        ? searchParams?.slot[0]
+                        : searchParams?.slot,
                     )
-                  : null
-              }
-              locationScopedPause={practiceLocations.length > 1}
-              initialSlotKey={
-                parseBookingSlotParam(
-                  Array.isArray(searchParams?.slot)
-                    ? searchParams?.slot[0]
-                    : searchParams?.slot,
-                )
-              }
-              breakStart={breakStart ? breakStart.slice(0, 5) : undefined}
-              breakEnd={breakEnd ? breakEnd.slice(0, 5) : undefined}
-              publicPhoneAvailable={hasPublicPhone}
-              onlineBookingsPaused={Boolean(
-                (
-                  locationSettings as {
-                    pause_online_bookings?: boolean | null;
-                  } | null
-                )?.pause_online_bookings,
-              )}
-              holidayModeEnabled={Boolean(
-                (
-                  normalizedSettings as {
-                    holiday_mode_enabled?: boolean | null;
-                  } | null
-                )?.holiday_mode_enabled,
-              )}
-              holidayStartDate={
-                (
-                  normalizedSettings as {
-                    holiday_start_date?: string | null;
-                  } | null
-                )?.holiday_start_date ?? null
-              }
-              holidayEndDate={
-                (
-                  normalizedSettings as {
-                    holiday_end_date?: string | null;
-                  } | null
-                )?.holiday_end_date ?? null
-              }
-              bookingHorizonDays={
-                (
-                  normalizedSettings as {
-                    booking_horizon_days?: number | null;
-                  } | null
-                )?.booking_horizon_days ?? 90
-              }
-              minimumNoticeHours={
-                (
-                  normalizedSettings as {
-                    minimum_notice_hours?: number | null;
-                  } | null
-                )?.minimum_notice_hours ?? 2
-              }
-            />
+                  }
+                  breakStart={breakStart ? breakStart.slice(0, 5) : undefined}
+                  breakEnd={breakEnd ? breakEnd.slice(0, 5) : undefined}
+                  publicPhoneAvailable={hasPublicPhone}
+                  onlineBookingsUnavailable={accessEnded}
+                  onlineBookingsPaused={
+                    // No clinic, no schedule: nothing to book online.
+                    !locationSettings || Boolean(locationSettings.pause_online_bookings)
+                  }
+                  holidayModeEnabled={Boolean(
+                    (
+                      normalizedSettings as {
+                        holiday_mode_enabled?: boolean | null;
+                      } | null
+                    )?.holiday_mode_enabled,
+                  )}
+                  holidayStartDate={
+                    (
+                      normalizedSettings as {
+                        holiday_start_date?: string | null;
+                      } | null
+                    )?.holiday_start_date ?? null
+                  }
+                  holidayEndDate={
+                    (
+                      normalizedSettings as {
+                        holiday_end_date?: string | null;
+                      } | null
+                    )?.holiday_end_date ?? null
+                  }
+                  bookingHorizonDays={
+                    (
+                      normalizedSettings as {
+                        booking_horizon_days?: number | null;
+                      } | null
+                    )?.booking_horizon_days ?? 90
+                  }
+                  minimumNoticeHours={
+                    (
+                      normalizedSettings as {
+                        minimum_notice_hours?: number | null;
+                      } | null
+                    )?.minimum_notice_hours ?? 2
+                  }
+                />
+              </div>
+            )}
           </section>
 
           {/* What to expect: outside About accordion so it stays visible on mobile */}

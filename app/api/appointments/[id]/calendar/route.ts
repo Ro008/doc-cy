@@ -5,8 +5,9 @@ import { getDoctorCalendarEventDetails } from "@/lib/doctor-calendar-event";
 import { getCalendarEventDetails } from "@/lib/patient-calendar-event";
 import { isConfirmedForCalendar } from "@/lib/appointment-status";
 import { isAppointmentLinkExpired, verifyAppointmentLink } from "@/lib/appointment-links";
-import { appointmentClinicCopy } from "@/lib/appointment-clinic-copy";
+import { appointmentClinicCopy, loadAppointmentClinicPhone } from "@/lib/appointment-clinic-copy";
 import { loadDoctorLocations } from "@/lib/load-doctor-locations";
+import { linkIdForClinic, clinicSlotMinutes } from "@/lib/professional-account-settings";
 import { loadPrimarySpecialtyName } from "@/lib/specialty-catalogue";
 
 type RouteContext = {
@@ -57,7 +58,7 @@ export async function GET(req: NextRequest, { params }: RouteContext) {
   const { data: appointment, error: apptError } = await supabase
     .from("appointments")
     .select(
-      "id, doctor_id, appointment_datetime, patient_name, patient_phone, status, created_at, visit_type, reason, duration_minutes, location_id"
+      "id, professional_id, appointment_datetime, patient_name, patient_phone, status, created_at, reason, duration_minutes, clinic_id"
     )
     .eq("id", appointmentId)
     .single();
@@ -82,19 +83,17 @@ export async function GET(req: NextRequest, { params }: RouteContext) {
 
   const { data: doctor } = await supabase
     .from("professionals")
-    .select("id, name, phone, slug")
-    .eq("id", appointment.doctor_id)
+    .select("id, name, slug")
+    .eq("id", appointment.professional_id)
     .single();
   const specialtyName = await loadPrimarySpecialtyName(
     supabase,
-    appointment.doctor_id as string,
+    appointment.professional_id as string,
   );
 
-  const { data: settings } = await supabase
-    .from("professional_settings")
-    .select("slot_duration_minutes")
-    .eq("professional_id", appointment.doctor_id)
-    .single();
+  const locations = await loadDoctorLocations(appointment.professional_id as string);
+  const clinicId = (appointment as { clinic_id?: string | null }).clinic_id ?? null;
+  const locationId = linkIdForClinic(locations, clinicId);
 
   const rowDur = Number(
     (appointment as { duration_minutes?: number | null }).duration_minutes
@@ -102,34 +101,25 @@ export async function GET(req: NextRequest, { params }: RouteContext) {
   const durationMinutes =
     Number.isFinite(rowDur) && rowDur > 0
       ? rowDur
-      : (settings as { slot_duration_minutes?: number | null } | null)
-          ?.slot_duration_minutes ?? 30;
+      : clinicSlotMinutes(locations, locationId);
 
   const startUtc = new Date(appointment.appointment_datetime as string);
   const endUtc = addMinutes(startUtc, durationMinutes);
   const createdUtc = new Date((appointment.created_at as string) ?? new Date().toISOString());
 
-  const locations = await loadDoctorLocations(appointment.doctor_id as string);
-  const clinic = appointmentClinicCopy({
-    locations,
-    locationId: (appointment as { location_id?: string | null }).location_id,
-  });
+  const clinic = appointmentClinicCopy({ locations, clinicId });
 
   const doctorPayload = {
     name: doctor?.name,
     specialty: specialtyName,
-    phone: doctor?.phone,
+    phone: await loadAppointmentClinicPhone(supabase, clinic.locationId),
+    clinic_name: clinic.clinicName,
     clinic_address: clinic.address,
+    maps_url: clinic.mapsUrl,
   };
 
-  const apptRow = appointment as {
-    visit_type?: string | null;
-    reason?: string | null;
-  };
-  const apptVisit = {
-    reason: apptRow.reason,
-    visitType: apptRow.visit_type,
-  };
+  const apptRow = appointment as { reason?: string | null };
+  const apptVisit = { reason: apptRow.reason };
 
   const cal = forDoctor
     ? getDoctorCalendarEventDetails(

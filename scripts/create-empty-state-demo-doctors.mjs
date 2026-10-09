@@ -35,18 +35,13 @@ async function createDoctor({ slugPrefix, name }) {
     .insert({
       auth_user_id: authUserId,
       name,
-      district: "Paphos",
       email,
-      phone: "+35799123456",
       languages: ["English"],
       avatar_url: null,
-      license_file_url: `licenses/demo/${nonce}-${slugPrefix}.pdf`,
-      status: "verified",
       slug,
       is_test_profile: true,
       is_registered: true,
       pro_access_until: new Date(Date.now() + 180 * 86_400_000).toISOString(),
-      finder_visible: true,
       is_archived: false,
       subscription_tier: "standard",
     })
@@ -63,7 +58,6 @@ async function createDoctor({ slugPrefix, name }) {
     professional_id: doctorId,
     specialty: "Dentist",
     license_number: `LIC-DEMO-${nonce}-${slugPrefix}`,
-    is_approved: true,
   });
   if (specialtyInsert.error) {
     throw new Error(`Failed creating professional_specialties: ${specialtyInsert.error.message}`);
@@ -73,36 +67,12 @@ async function createDoctor({ slugPrefix, name }) {
 }
 
 async function seedWeekdaySettings(doctorId, { holidayModeEnabled, holidayStartDate, holidayEndDate }) {
-  const day = { enabled: true, start_time: "09:00:00", end_time: "17:00:00" };
-  const disabledDay = { enabled: false, start_time: "09:00:00", end_time: "17:00:00" };
   const settingsUpsert = await admin.from("professional_settings").upsert(
     {
       professional_id: doctorId,
-      monday: true,
-      tuesday: true,
-      wednesday: true,
-      thursday: true,
-      friday: true,
-      saturday: false,
-      sunday: false,
-      start_time: "09:00:00",
-      end_time: "17:00:00",
-      weekly_schedule: {
-        monday: day,
-        tuesday: day,
-        wednesday: day,
-        thursday: day,
-        friday: day,
-        saturday: disabledDay,
-        sunday: disabledDay,
-      },
-      break_start: null,
-      break_end: null,
       holiday_mode_enabled: holidayModeEnabled,
       holiday_start_date: holidayStartDate,
       holiday_end_date: holidayEndDate,
-      pause_online_bookings: false,
-      slot_duration_minutes: 30,
       booking_horizon_days: 90,
       minimum_notice_hours: 1,
       updated_at: new Date().toISOString(),
@@ -131,7 +101,7 @@ const zeroAvailability = await createDoctor({
   slugPrefix: "finder-demo-view-full",
   name: `Test Demo ViewFull ${nonce}`,
 });
-// No professional_settings row at all -> zero days anywhere in the 90-day window
+// No clinic (the schedule lives on the clinic link, Point E6) -> zero days anywhere in the 90-day window
 // -> "View full availability" link instead of a calendar.
 
 console.log(JSON.stringify({ noSlotsThisWeek, zeroAvailability }, null, 2));

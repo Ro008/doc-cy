@@ -6,9 +6,10 @@ import type { DoctorSettingsRow } from "@/lib/doctor-settings";
 import { normalizeMinimumNoticeHours, settingsToWeeklySlots } from "@/lib/doctor-settings";
 import {
   loadDoctorSettingsForSlots,
-  loadDoctorSettingsForSlotsByDoctorIds,
   type DoctorSettingsForSlots,
 } from "@/lib/load-doctor-settings-for-slots";
+import { loadProfessionalAccountSettingsByIds } from "@/lib/professional-account-settings";
+import { hasProAccess } from "@/lib/pro-access";
 import { loadDoctorLocationsByDoctorIds } from "@/lib/load-doctor-locations";
 import {
   ACCOUNT_SETTINGS_FALLBACK,
@@ -28,13 +29,13 @@ const EMPTY_CALENDAR: PublicAvailabilityCalendar = { days: [], soonestSlot: null
  * One call returns the taken slot starts for many professionals, each row with
  * its clinic. The finder used to call public_doctor_occupied_datetimes once
  * per card and clinic (32% of Testing's database time); it now calls this once
- * per page. Same rules: the per-professional function wraps this one.
+ * per page; the profile page calls it with one professional.
  */
 export const OCCUPIED_BATCH_RPC = "public_professionals_occupied_datetimes";
 
 export type OccupiedRow = {
   professional_id: string;
-  location_id: string | null;
+  // The RPC also returns the clinic; nothing reads it (one agenda per professional).
   appointment_datetime: string;
 };
 
@@ -75,18 +76,17 @@ async function loadOccupiedRows(
 }
 
 /**
- * One professional's taken slot starts (Cyprus "yyyy-MM-ddTHH:mm"), at one
- * clinic or, with no clinic, at all of them; up to their own horizon.
+ * One professional's taken slot starts (Cyprus "yyyy-MM-ddTHH:mm"), at all of
+ * her clinics (one person, one agenda); up to her own horizon.
  */
 export function takenSlotTimesFor(
   rows: readonly OccupiedRow[],
-  target: { professionalId: string; locationId: string | null; toIso: string },
+  target: { professionalId: string; toIso: string },
 ): string[] {
   const toMs = new Date(target.toIso).getTime();
   const keys = new Set<string>();
   for (const row of rows) {
     if (row.professional_id !== target.professionalId) continue;
-    if (target.locationId && row.location_id !== target.locationId) continue;
     if (new Date(row.appointment_datetime).getTime() > toMs) continue;
     keys.add(format(appointmentToCyprusDate(row.appointment_datetime), "yyyy-MM-dd'T'HH:mm"));
   }
@@ -97,12 +97,11 @@ async function loadOccupiedSlotTimes(
   supabase: SupabaseClient,
   doctorId: string,
   settings: DoctorSettingsRow,
-  locationId?: string | null,
 ): Promise<string[] | null> {
   const { fromIso, toIso } = occupiedRange(settings);
   const rows = await loadOccupiedRows(supabase, [doctorId], fromIso, toIso);
   if (!rows) return null;
-  return takenSlotTimesFor(rows, { professionalId: doctorId, locationId: locationId ?? null, toIso });
+  return takenSlotTimesFor(rows, { professionalId: doctorId, toIso });
 }
 
 async function loadDoctorAvailabilityContext(
@@ -189,31 +188,6 @@ export async function loadDoctorNearestAvailableSlots(
   return slots;
 }
 
-export async function loadOnlineBookingsPausedByDoctorId(
-  supabase: SupabaseClient,
-  doctorIds: string[],
-): Promise<Map<string, boolean>> {
-  const uniqueIds = Array.from(new Set(doctorIds.filter(Boolean)));
-  if (uniqueIds.length === 0) return new Map();
-
-  const { data, error } = await supabase
-    .from("professional_settings")
-    .select("professional_id, pause_online_bookings")
-    .in("professional_id", uniqueIds);
-
-  if (error) {
-    console.error("[DocCy] finder pause_online_bookings lookup failed:", error);
-    return new Map();
-  }
-
-  return new Map(
-    (data ?? []).map((row) => [
-      String((row as { professional_id: string }).professional_id),
-      Boolean((row as { pause_online_bookings?: boolean | null }).pause_online_bookings),
-    ]),
-  );
-}
-
 export async function loadAvailabilityCalendarsByDoctorId(
   supabase: SupabaseClient,
   doctorIds: string[],
@@ -225,6 +199,29 @@ export async function loadAvailabilityCalendarsByDoctorId(
     dayCount,
   );
   return calendars;
+}
+
+/**
+ * Professionals on the page whose pro access has ended (one query). Anyone the lookup
+ * doesn't return counts as having access, so a read error never hides a calendar.
+ */
+async function loadAccessEndedIds(
+  supabase: SupabaseClient,
+  professionalIds: readonly string[],
+): Promise<Set<string>> {
+  const ended = new Set<string>();
+  const { data, error } = await supabase
+    .from("professionals")
+    .select("id, pro_access_until")
+    .in("id", [...professionalIds]);
+  if (error) {
+    console.error("[DocCy] batch pro access lookup failed:", error);
+    return ended;
+  }
+  for (const row of (data ?? []) as { id?: string; pro_access_until?: string | null }[]) {
+    if (row.id && !hasProAccess(row.pro_access_until)) ended.add(String(row.id));
+  }
+  return ended;
 }
 
 /** Pause flags + calendars in one settings round-trip (finder cards). */
@@ -241,6 +238,7 @@ export async function loadFinderCardAvailabilityByDoctorId(
   dayCount = FINDER_AVAILABILITY_CALENDAR_DAY_COUNT,
   deps: {
     loadLocations?: (ids: string[]) => Promise<Map<string, DoctorLocationRow[]>>;
+    loadAccessEndedIds?: (ids: string[]) => Promise<Set<string>>;
   } = {},
 ): Promise<{
   paused: Map<string, boolean>;
@@ -260,12 +258,15 @@ export async function loadFinderCardAvailabilityByDoctorId(
     return { paused, calendars, locationsByDoctorId, byLocationId };
   }
 
-  const settingsById = await loadDoctorSettingsForSlotsByDoctorIds(supabase, uniqueIds);
+  const [accountById, accessEnded] = await Promise.all([
+    loadProfessionalAccountSettingsByIds(supabase, uniqueIds),
+    (deps.loadAccessEndedIds ?? ((ids: string[]) => loadAccessEndedIds(supabase, ids)))(uniqueIds),
+  ]);
 
   // Every open calendar on the page, planned before any occupancy lookup.
   type Plan = {
     doctorId: string;
-    location: DoctorLocationRow | null;
+    location: DoctorLocationRow;
     settings: DoctorSettingsRow;
     weeklySlots: ReturnType<typeof settingsToWeeklySlots>;
     toIso: string;
@@ -273,30 +274,20 @@ export async function loadFinderCardAvailabilityByDoctorId(
   const plans: Plan[] = [];
 
   for (const doctorId of uniqueIds) {
-    const loaded = settingsById.get(doctorId) ?? null;
+    const account = accountById.get(doctorId) ?? ACCOUNT_SETTINGS_FALLBACK;
     const locations = locationsByDoctorId.get(doctorId) ?? [];
 
+    // The schedule lives on the clinic link (Point E6): no clinic, nothing to book.
     if (locations.length === 0) {
-      const doctorPaused = Boolean(loaded?.settings.pause_online_bookings);
-      paused.set(doctorId, doctorPaused);
-      if (doctorPaused) continue;
-      if (!loaded || loaded.weeklySlots.length === 0) {
-        calendars.set(doctorId, EMPTY_CALENDAR);
-        continue;
-      }
-      plans.push({
-        doctorId,
-        location: null,
-        settings: loaded.settings,
-        weeklySlots: loaded.weeklySlots,
-        toIso: occupiedRange(loaded.settings).toIso,
-      });
+      paused.set(doctorId, true);
+      calendars.set(doctorId, EMPTY_CALENDAR);
       continue;
     }
 
     for (const location of locations) {
-      const merged = locationToSettingsRow(location, loaded?.settings ?? ACCOUNT_SETTINGS_FALLBACK);
-      if (location.pause_online_bookings || merged.pause_online_bookings) {
+      const merged = locationToSettingsRow(location, account);
+      // Access ended: nothing new can be booked, so the card offers no calendar.
+      if (accessEnded.has(doctorId) || merged.pause_online_bookings) {
         byLocationId.set(location.id, { doctorId, location, paused: true, calendar: EMPTY_CALENDAR });
         continue;
       }
@@ -327,22 +318,17 @@ export async function loadFinderCardAvailabilityByDoctorId(
             plan.weeklySlots,
             takenSlotTimesFor(occupiedRows, {
               professionalId: plan.doctorId,
-              locationId: plan.location?.id ?? null,
               toIso: plan.toIso,
             }),
           ),
           dayCount,
         );
-    if (plan.location) {
-      byLocationId.set(plan.location.id, {
-        doctorId: plan.doctorId,
-        location: plan.location,
-        paused: false,
-        calendar,
-      });
-    } else {
-      calendars.set(plan.doctorId, calendar);
-    }
+    byLocationId.set(plan.location.id, {
+      doctorId: plan.doctorId,
+      location: plan.location,
+      paused: false,
+      calendar,
+    });
   }
 
   // A professional is paused only when every clinic is; the card shows the

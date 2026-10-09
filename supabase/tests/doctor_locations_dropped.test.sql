@@ -11,7 +11,6 @@ declare
   v_name text;
   v_u uuid;
   v_pro uuid;
-  v_paused boolean;
 begin
   -- 1. The table is gone (and with it the anon-readable doctor_locations_select_public).
   if to_regclass('public.doctor_locations') is not null then
@@ -68,17 +67,17 @@ begin
   end if;
   v_checks := v_checks + 1;
 
-  -- 6. A registered professional inserted directly gets paused settings.
+  -- 6. A registered professional inserted directly gets settings (the pause lives on the
+  --    clinic links since Point E6).
   v_u := gen_random_uuid();
   insert into auth.users (id, instance_id, aud, role, email, created_at, updated_at)
   values (v_u, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
           'd4-drop-' || v_u || '@integration.test', now(), now());
-  insert into public.professionals (auth_user_id, name, slug, is_registered, status, is_test_profile)
-  values (v_u, 'D4 Drop Registered', 'd4-drop-reg-' || v_u, true, 'verified', true)
+  insert into public.professionals (auth_user_id, name, slug, is_registered, is_test_profile)
+  values (v_u, 'D4 Drop Registered', 'd4-drop-reg-' || v_u, true, true)
   returning id into v_pro;
-  select pause_online_bookings into v_paused from public.professional_settings where professional_id = v_pro;
-  if v_paused is distinct from true then
-    raise exception 'FAIL: a new registered professional should get paused settings, got %', v_paused;
+  if not exists (select 1 from public.professional_settings where professional_id = v_pro) then
+    raise exception 'FAIL: a new registered professional should get settings';
   end if;
   v_checks := v_checks + 1;
 
@@ -93,27 +92,25 @@ begin
   insert into auth.users (id, instance_id, aud, role, email, created_at, updated_at)
   values (v_u, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
           'd4-drop-claim-' || v_u || '@integration.test', now(), now());
-  update public.professionals set is_registered = true, auth_user_id = v_u, status = 'verified' where id = v_pro;
-  select pause_online_bookings into v_paused from public.professional_settings where professional_id = v_pro;
-  if v_paused is distinct from true then
-    raise exception 'FAIL: claiming a listing should create paused settings, got %', v_paused;
+  update public.professionals set is_registered = true, auth_user_id = v_u where id = v_pro;
+  if not exists (select 1 from public.professional_settings where professional_id = v_pro) then
+    raise exception 'FAIL: claiming a listing should create settings';
   end if;
   v_checks := v_checks + 1;
 
-  -- 8. Existing settings are never overwritten (a listing that already has open settings
+  -- 8. Existing settings are never overwritten (a listing that already has settings
   --    keeps them when it is claimed).
   insert into public.professionals (name, slug, is_registered, is_test_profile)
   values ('D4 Drop Listing Two', 'd4-drop-listing2-' || v_u, false, true)
   returning id into v_pro;
-  insert into public.professional_settings (professional_id, pause_online_bookings) values (v_pro, false);
+  insert into public.professional_settings (professional_id, minimum_notice_hours) values (v_pro, 24);
   v_u := gen_random_uuid();
   insert into auth.users (id, instance_id, aud, role, email, created_at, updated_at)
   values (v_u, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
           'd4-drop-claim2-' || v_u || '@integration.test', now(), now());
-  update public.professionals set is_registered = true, auth_user_id = v_u, status = 'verified' where id = v_pro;
-  select pause_online_bookings into v_paused from public.professional_settings where professional_id = v_pro;
-  if v_paused is distinct from false then
-    raise exception 'FAIL: existing settings must be kept, got pause=%', v_paused;
+  update public.professionals set is_registered = true, auth_user_id = v_u where id = v_pro;
+  if not exists (select 1 from public.professional_settings where professional_id = v_pro and minimum_notice_hours = 24) then
+    raise exception 'FAIL: existing settings must be kept';
   end if;
   v_checks := v_checks + 1;
 

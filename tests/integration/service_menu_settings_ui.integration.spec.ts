@@ -49,14 +49,10 @@ test.describe("Integration UI: doctor settings Service Menu", () => {
           auth_user_id: authUserId,
           name: `Service UI Doctor ${nonce}`,
           email: doctorEmail,
-          phone: "+35799123456",
           languages: ["English"],
-          license_file_url: `licenses/integration/${nonce}-svc-ui.pdf`,
-          status: "verified",
           slug: doctorSlug,
                 is_registered: true,
       pro_access_until: new Date(Date.now() + 180 * 86_400_000).toISOString(),
-      finder_visible: true,
       is_archived: false,
       subscription_tier: "standard",
       // The first-login welcome dialog would cover the settings page.
@@ -71,8 +67,7 @@ test.describe("Integration UI: doctor settings Service Menu", () => {
       doctorId = String(doctorInsert.data.id);
       await seedProfessionalSpecialty(admin, doctorId, {
         specialty: "Laser & Medical Aesthetics",
-        licenseNumber: `LIC-SVC-UI-${nonce}`,
-        isApproved: true,
+        licenseNumber: `LIC-SVC-UI-${nonce}`,
       });
 
       await page.goto("/login");
@@ -100,7 +95,7 @@ test.describe("Integration UI: doctor settings Service Menu", () => {
       await expect(page.getByText(uniqueService)).toHaveCount(0);
     } finally {
       if (doctorId) {
-        await admin.from("doctor_services").delete().eq("doctor_id", doctorId);
+        await admin.from("professional_services").delete().eq("professional_id", doctorId);
         await admin.from("professional_settings").delete().eq("professional_id", doctorId);
         await admin.from("professionals").delete().eq("id", doctorId);
       }

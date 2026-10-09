@@ -6,6 +6,26 @@ export function buildMapsUrlFromAddress(address: string): string | null {
   return `https://maps.google.com/?q=${encodeURIComponent(trimmed)}`;
 }
 
+/**
+ * The Maps link patients get for a clinic (booking emails, success page): the clinic's
+ * own pin (`clinics.address_maps_link`, user 2026-10-05), else its coordinates, else
+ * an address search. A stored link that isn't https is ignored.
+ */
+export function clinicMapsUrl(input: {
+  mapsLink?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  address?: string | null;
+}): string | null {
+  const stored = String(input.mapsLink ?? "").trim();
+  if (/^https:\/\/\S+$/i.test(stored)) return stored;
+  const { latitude: lat, longitude: lng } = input;
+  if (typeof lat === "number" && typeof lng === "number" && Number.isFinite(lat) && Number.isFinite(lng)) {
+    return `https://www.google.com/maps?q=${lat},${lng}`;
+  }
+  return buildMapsUrlFromAddress(String(input.address ?? ""));
+}
+
 /** Prefer place id, then coordinates, then address text — never a plus-code prefix. */
 export function buildMapsUrlFromClinicLocation(input: {
   address?: string | null;

@@ -28,12 +28,10 @@ test.describe("Integration: a professional can't claim a listing", { tag: "@pr-e
   test.beforeAll(async () => {
     admin = createIntegrationAdmin(requireSafeIntegration());
     fixtures = await seedRegisterFixtures(admin);
-    // The fixture listing is hidden from the finder; its own page needs it visible.
     const { data } = await admin
       .from("professionals")
-      .update({ finder_visible: true })
-      .eq("id", fixtures.listing.id)
       .select("slug")
+      .eq("id", fixtures.listing.id)
       .single();
     listingSlug = String(data!.slug);
     const nonce = `claim${Date.now()}`.slice(-12);
@@ -41,9 +39,7 @@ test.describe("Integration: a professional can't claim a listing", { tag: "@pr-e
       admin,
       nonce,
       name: `Claim Guard ${nonce.slice(-4)}`,
-      specialty: "Cardiology",
-      is_specialty_approved: true,
-      status: "verified",
+      specialty: "Cardiology",
     });
   });
 

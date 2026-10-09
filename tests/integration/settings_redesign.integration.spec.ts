@@ -112,16 +112,13 @@ async function seed(admin: SupabaseClient, tag: string): Promise<Seeded> {
     .insert({
       auth_user_id: auth.data.user.id,
       name: `Settings B1 ${tag} ${n}`,
-      district: "Limassol",
       registration_email: email,
       email,
       mobile_number: "+35799123456",
       languages: ["English"],
-      status: "verified",
       slug: `settings-b1-${tag}-${n}`,
       is_registered: true,
       pro_access_until: new Date(Date.now() + 180 * 86_400_000).toISOString(),
-      finder_visible: false,
       is_archived: false,
       is_test_profile: true,
       subscription_tier: "standard",
@@ -137,7 +134,6 @@ async function seed(admin: SupabaseClient, tag: string): Promise<Seeded> {
       professional_id: professionalId,
       specialty,
       license_number: `LIC-${n}`,
-      is_approved: true,
     });
     if (error) throw new Error(`specialty: ${error.message}`);
   }
@@ -183,10 +179,6 @@ async function cleanup(admin: SupabaseClient, seeded: Partial<Seeded>) {
       .eq("professional_id", seeded.professionalId);
     const clinicIds = [...new Set((data ?? []).map((row) => String(row.clinic_id)))];
     await admin.from("professional_specialties").delete().eq("professional_id", seeded.professionalId);
-    await admin
-      .from("professional_specialty_change_requests")
-      .delete()
-      .eq("professional_id", seeded.professionalId);
     await admin.from("professionals").delete().eq("id", seeded.professionalId);
     if (clinicIds.length) await admin.from("clinics").delete().in("id", clinicIds);
   }
@@ -535,11 +527,14 @@ test.describe("Settings redesign (B1)", { tag: "@pr-e2e" }, () => {
     page,
   }) => {
     test.setTimeout(120_000);
-    // Cancelling is a new endpoint (DELETE, docs/handoff/settings-redesign.md): stubbed here.
+    // The new specialty requests (POST to ask, DELETE to cancel) are endpoints the
+    // backend builds (docs/handoff/settings-redesign.md): stubbed here.
+    let asked: unknown = null;
     let cancelMethod: string | null = null;
-    await page.route("**/api/doctor-specialty-change-request", async (route) => {
-      if (route.request().method() !== "DELETE") return route.fallback();
-      cancelMethod = route.request().method();
+    await page.route("**/api/specialty-requests", async (route) => {
+      const method = route.request().method();
+      if (method === "POST") asked = route.request().postDataJSON();
+      if (method === "DELETE") cancelMethod = method;
       await route.fulfill({ status: 200, contentType: "application/json", body: "{}" });
     });
     await openSettings(page, seeded!, "profile");
@@ -562,21 +557,17 @@ test.describe("Settings redesign (B1)", { tag: "@pr-e2e" }, () => {
     await page.getByLabel("License / certification number").fill("CY-E2E-1");
     await page.getByTestId("settings-specialty-change-submit").click();
 
-    // The real request endpoint stores it; the page shows it as a chip in review.
+    // The page shows the request as a chip in review.
     const chip = page.getByTestId("settings-specialty-change-pending");
     await expect(chip).toContainText("Gastroenterology");
     await expect(chip).toContainText("In review");
     await expect(specialties.getByRole("button", { name: "+ Add a specialty" })).toHaveCount(0);
-    const stored = await admin
-      .from("professional_specialty_change_requests")
-      .select("request_kind, to_specialty, license_number, status")
-      .eq("professional_id", seeded!.professionalId)
-      .single();
-    expect(stored.data).toEqual({
-      request_kind: "add",
-      to_specialty: "Gastroenterology",
-      license_number: "CY-E2E-1",
-      status: "pending",
+    expect(asked).toEqual({
+      requestKind: "add",
+      fromSpecialty: null,
+      toSpecialty: "Gastroenterology",
+      toSpecialtyFromMaster: true,
+      licenseNumber: "CY-E2E-1",
     });
 
     await chip.getByRole("button", { name: "Cancel the request for Gastroenterology" }).click();

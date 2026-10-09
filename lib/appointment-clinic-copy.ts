@@ -1,4 +1,6 @@
-import { buildMapsUrlFromAddress } from "@/lib/clinic-info";
+import type { SupabaseClient } from "@supabase/supabase-js";
+
+import { clinicMapsUrl } from "@/lib/clinic-info";
 import {
   clinicDisplayName,
   sortDoctorLocations,
@@ -15,26 +17,32 @@ export type AppointmentClinicCopy = {
   clinicName: string;
   address: string;
   mapsUrl: string;
+  /** The `professional_clinics` row the appointment is at (for its clinic phone). */
+  locationId?: string | null;
 };
 
 type LocationLike = Pick<
   DoctorLocationRow,
   "id" | "label" | "clinic_address" | "is_primary" | "sort_order"
-> & { created_at?: string };
+> &
+  Partial<Pick<DoctorLocationRow, "clinic_id" | "clinic_name" | "clinic_maps_link" | "latitude" | "longitude">> & {
+    created_at?: string;
+  };
 
 /**
  * Resolve clinic name + address for booking emails / calendar LOCATION from the
- * appointment's `location_id` (falls back to the primary clinic). The address comes
+ * appointment's `clinic_id` (falls back to the primary clinic). The address comes
  * from the clinic only, never from the copy on `professionals` (Point E).
  */
 export function appointmentClinicCopy(opts: {
   locations: readonly LocationLike[];
-  locationId?: string | null;
+  /** The appointment's clinic (`clinics.id`). */
+  clinicId?: string | null;
 }): AppointmentClinicCopy {
   const sorted = sortDoctorLocations(opts.locations);
-  const requestedId = String(opts.locationId ?? "").trim();
+  const requestedId = String(opts.clinicId ?? "").trim();
   const selected =
-    (requestedId ? sorted.find((row) => row.id === requestedId) : null) ??
+    (requestedId ? sorted.find((row) => row.clinic_id === requestedId) : null) ??
     (sorted.length === 1 ? sorted[0] : null) ??
     sorted[0] ??
     null;
@@ -46,27 +54,83 @@ export function appointmentClinicCopy(opts: {
       )
     : 0;
   const total = Math.max(sorted.length, 1);
-  const clinicName = clinicDisplayName(selected?.label, index, total);
+  const clinicName = selected?.clinic_name?.trim() || clinicDisplayName(selected?.label, index, total);
   const address = String(selected?.clinic_address ?? "").trim();
 
   return {
     clinicName,
     address,
-    mapsUrl: buildMapsUrlFromAddress(address) ?? "",
+    mapsUrl:
+      clinicMapsUrl({
+        mapsLink: selected?.clinic_maps_link,
+        latitude: selected?.latitude,
+        longitude: selected?.longitude,
+        address,
+      }) ?? "",
+    locationId: selected?.id ?? null,
   };
+}
+
+/** A booking location as the clinic block of the booking emails (name, address, pin). */
+export function emailClinicFromLocation(
+  location: Pick<DoctorLocationRow, "clinic_address" | "latitude" | "longitude"> &
+    Partial<Pick<DoctorLocationRow, "clinic_name" | "clinic_maps_link">>,
+): { name: string; address: string | null; mapsUrl: string | null } {
+  const address = String(location.clinic_address ?? "").trim() || null;
+  return {
+    name: String(location.clinic_name ?? "").trim() || "Clinic",
+    address,
+    mapsUrl: clinicMapsUrl({
+      mapsLink: location.clinic_maps_link,
+      latitude: location.latitude,
+      longitude: location.longitude,
+      address,
+    }),
+  };
+}
+
+/**
+ * The phone patients see for an appointment: its clinic's (Point E5), never
+ * `professionals.phone`, which held the professional's personal mobile. Server-only:
+ * clinic phones stay out of public page data (anti-scraping).
+ */
+export async function loadAppointmentClinicPhone(
+  supabase: SupabaseClient,
+  locationId: string | null | undefined,
+): Promise<string | null> {
+  const id = String(locationId ?? "").trim();
+  if (!id) return null;
+  const { data, error } = await supabase
+    .from("professional_clinics")
+    .select("clinics ( phone, is_archived )")
+    .eq("id", id)
+    .maybeSingle();
+  if (error || !data) return null;
+  const embed = (data as { clinics?: unknown }).clinics;
+  const clinic = (Array.isArray(embed) ? embed[0] : embed) as
+    | { phone?: string | null; is_archived?: boolean | null }
+    | null
+    | undefined;
+  if (!clinic || clinic.is_archived) return null;
+  return String(clinic.phone ?? "").trim() || null;
 }
 
 /** Flat fallback when the caller only has an address (legacy single-clinic paths). */
 export function appointmentClinicCopyFromAddress(opts: {
   clinicName?: string | null;
   address?: string | null;
+  /** `clinics.address_maps_link`, when the caller has the clinic row. */
+  mapsLink?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
 }): AppointmentClinicCopy {
   const address = String(opts.address ?? "").trim();
   const clinicName = String(opts.clinicName ?? "").trim() || "Clinic";
   return {
     clinicName,
     address,
-    mapsUrl: buildMapsUrlFromAddress(address) ?? "",
+    mapsUrl:
+      clinicMapsUrl({ mapsLink: opts.mapsLink, latitude: opts.latitude, longitude: opts.longitude, address }) ?? "",
   };
 }
 

@@ -23,6 +23,7 @@ export type ProfessionalClinicJoinClinic = {
   latitude?: number | null;
   longitude?: number | null;
   clinic_place_id?: string | null;
+  address_maps_link?: string | null;
   is_archived?: boolean | null;
 };
 
@@ -33,6 +34,7 @@ export type ProfessionalClinicJoinRow = {
   sort_order?: number | null;
   label?: string | null;
   pause_online_bookings?: boolean | null;
+  pause_notice_dismissed_at?: string | null;
   monday?: boolean | null;
   tuesday?: boolean | null;
   wednesday?: boolean | null;
@@ -53,7 +55,7 @@ export type ProfessionalClinicJoinRow = {
 };
 
 export const PROFESSIONAL_CLINIC_LOCATION_SELECT =
-  "id, professional_id, is_primary, sort_order, label, pause_online_bookings, monday, tuesday, wednesday, thursday, friday, saturday, sunday, start_time, end_time, weekly_schedule, break_start, break_end, slot_duration_minutes, created_at, updated_at, clinics ( id, name, address, district, town, latitude, longitude, clinic_place_id, is_archived )";
+  "id, professional_id, is_primary, sort_order, label, pause_online_bookings, pause_notice_dismissed_at, monday, tuesday, wednesday, thursday, friday, saturday, sunday, start_time, end_time, weekly_schedule, break_start, break_end, slot_duration_minutes, created_at, updated_at, clinics ( id, name, address, address_maps_link, district, town, latitude, longitude, clinic_place_id, is_archived )";
 
 function text(value: unknown): string | null {
   const trimmed = String(value ?? "").trim();
@@ -141,6 +143,8 @@ export function professionalClinicRowToLocation(
   return {
     id: String(row.id ?? ""),
     doctor_id: String(row.professional_id ?? ""),
+    clinic_id: text(clinic.id),
+    clinic_name: text(clinic.name),
     is_primary: Boolean(row.is_primary),
     sort_order: Number.isFinite(Number(row.sort_order)) ? Number(row.sort_order) : 0,
     // One name everywhere, DocCy's (user, 2026-10-01): a doctor at a shared clinic must
@@ -153,10 +157,12 @@ export function professionalClinicRowToLocation(
     latitude: num(clinic.latitude),
     longitude: num(clinic.longitude),
     clinic_place_id: text(clinic.clinic_place_id),
+    clinic_maps_link: text(clinic.address_maps_link),
     // A scraped listing has no schedule of its own. Defaults match the
     // doctor_locations column defaults, except that bookings stay paused: an
     // unconfigured clinic must never look open.
     pause_online_bookings: row.pause_online_bookings ?? true,
+    pause_notice_dismissed_at: text(row.pause_notice_dismissed_at),
     monday: Boolean(row.monday),
     tuesday: Boolean(row.tuesday),
     wednesday: Boolean(row.wednesday),

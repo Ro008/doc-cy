@@ -2,7 +2,8 @@ import { parseDDMMYYYYToISO } from "@/lib/date-format";
 import type { SettingsDirtySnapshot } from "@/lib/settings-form-dirty";
 
 /**
- * One save rule for settings (user, 2026-10-01): small controls (booking limits,
+ * One save rule for settings (user, 2026-10-01): small controls (booking limits and
+ * the online cancellation deadline,
  * languages, turning holiday mode off) save at once; bigger editors (a clinic's hours,
  * the bio, the mobile, holiday dates) have their own Save. There is no page-wide
  * "Save settings" any more.
@@ -21,7 +22,7 @@ export type SaveGroup =
   | { kind: "clinic"; id: string };
 
 const GROUP_FIELDS: Record<Exclude<SaveGroup["kind"], "clinic">, Array<keyof SettingsDirtySnapshot>> = {
-  limits: ["bookingHorizonDays", "minimumNoticeHours"],
+  limits: ["bookingHorizonDays", "minimumNoticeHours", "patientCancelNoticeHours"],
   holiday: ["holidayModeEnabled", "holidayStartInput", "holidayEndInput"],
   bio: ["bio"],
   languages: ["languages"],
@@ -122,6 +123,7 @@ export function buildSettingsSavePayload(
     slotDurationMinutes: primary?.slotDurationMinutes,
     bookingHorizonDays: snapshot.bookingHorizonDays,
     minimumNoticeHours: snapshot.minimumNoticeHours,
+    patientCancelNoticeHours: snapshot.patientCancelNoticeHours,
     holidayModeEnabled: holidayOn,
     holidayStartDate: holidayOn ? parseDDMMYYYYToISO(snapshot.holidayStartInput) : null,
     holidayEndDate: holidayOn ? parseDDMMYYYYToISO(snapshot.holidayEndInput) : null,

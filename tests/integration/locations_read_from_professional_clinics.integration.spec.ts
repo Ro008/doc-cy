@@ -6,9 +6,10 @@ import { seedProfessionalSpecialty } from "./helpers/test-doctor";
 /**
  * Point D2: practice locations are read from professional_clinics -> clinics, and since
  * D4 (doctor_locations dropped) nothing else. Each test seeds clinic links the way an
- * approved registration writes them and asserts the public profile shows what the
+ * approved registration writes them and asserts the public profile shows what the JOIN
  * clinic says: DocCy's clinic name (never the join row's own label, user 2026-10-01), the
- * clinic's address, and no archived clinic.
+ * clinic's address, and no archived
+ * clinic.
  */
 
 type Created = { professionalId: string; authUserId: string; clinicIds: string[] };
@@ -33,16 +34,12 @@ async function seedProfessional(
     .insert({
       auth_user_id: auth.data.user.id,
       name: `D2 Locations Doctor ${nonce}`,
-      district: "Paphos",
       registration_email: email,
       email,
-      phone: "+35799123456",
       languages: ["English"],
-      status: "verified",
       slug,
       is_registered: true,
       pro_access_until: new Date(Date.now() + 180 * 86_400_000).toISOString(),
-      finder_visible: true,
       is_archived: false,
       is_test_profile: true,
       subscription_tier: "standard",
@@ -54,8 +51,7 @@ async function seedProfessional(
 
   await seedProfessionalSpecialty(admin, professionalId, {
     specialty: "Dentistry",
-    licenseNumber: `LIC-D2-${nonce}`,
-    isApproved: true,
+    licenseNumber: `LIC-D2-${nonce}`,
   });
 
   return { professionalId, authUserId: auth.data.user.id, clinicIds: [], slug };
@@ -166,10 +162,10 @@ test.describe("Integration: locations read from professional_clinics", { tag: "@
 
       await page.goto(`/en/${seeded.slug}`);
 
+      await expect(page.getByText(`Join Row Clinic ${nonce}`)).toHaveCount(0);
       await expect(page.getByText(`DocCy Clinic ${nonce}`).first()).toBeVisible({
         timeout: 20_000,
       });
-      await expect(page.getByText(`Join Row Clinic ${nonce}`)).toHaveCount(0);
       await expect(page.getByText(`Join Row Street ${nonce}`).first()).toBeVisible({
         timeout: 20_000,
       });

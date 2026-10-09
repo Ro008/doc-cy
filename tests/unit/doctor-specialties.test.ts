@@ -58,23 +58,13 @@ describe("validateDoctorSpecialtyEntries", () => {
 });
 
 describe("publicSpecialtyLabels", () => {
-  it("prefers specialties array and hides unapproved", () => {
+  it("prefers the specialties array, falls back to the single specialty", () => {
     assert.deepEqual(
-      publicSpecialtyLabels({
-        specialties: ["Psychology", "Psychiatry"],
-        specialty: "Psychology",
-        is_specialty_approved: true,
-      }),
+      publicSpecialtyLabels({ specialties: ["Psychology", "Psychiatry"], specialty: "Psychology" }),
       ["Psychology", "Psychiatry"],
     );
-    assert.deepEqual(
-      publicSpecialtyLabels({
-        specialties: ["Psychology"],
-        specialty: "Psychology",
-        is_specialty_approved: false,
-      }),
-      [],
-    );
+    assert.deepEqual(publicSpecialtyLabels({ specialties: [], specialty: "Psychology" }), ["Psychology"]);
+    assert.deepEqual(publicSpecialtyLabels({}), []);
     assert.equal(
       formatSpecialtiesForSeo(["Psychology", "Psychiatry"]),
       "Psychology · Psychiatry",

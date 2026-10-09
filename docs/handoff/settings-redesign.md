@@ -69,16 +69,21 @@ Reference design (private canvas): https://claude.ai/artifact/3XYQpTSDQPyn2wWFg8
   (`lib/settings-removal-rules.ts`).
 
 ### Availability
-- Booking limits and holiday mode as before (data unchanged).
+- Booking limits (how far ahead, minimum notice, and master's online cancellation
+  deadline `patientCancelNoticeHours`) save at once; holiday mode as before.
+- With pro access ended (`initial.accessEnded`, master's `loadProAccessEnded`), every
+  clinic's switch is off and disabled and Availability/Clinics say why.
 - Holiday mode sits in the sidebar on wide screens and inside Availability on phones.
 - "Online booking by clinic" is a status summary; the switches live on the clinic cards.
 
 ### Profile
 - Specialties: removing one is instant (✕ on the chip) while one is left. Asking for a
-  new one only sends `requestKind: "add"` to `POST /api/doctor-specialty-change-request`
-  (unchanged API): a change is "add the new one, remove the old one once approved", so
-  "replace"/"remove" requests are no longer sent (older pending ones still display).
+  new one is a request (section 3.6): a change is "add the new one, remove the old one
+  once approved". Master dropped the old specialty requests (E3) and showed "Contact us"
+  meanwhile; this branch keeps the redesigned form and calls the NEW requests instead.
+  `tests/unit/legacy-specialty-claim-outreach-removed.test.ts` was updated to match.
 - The pending request shows as an "In review" chip with ✕ to cancel it (section 3.5).
+  The page loads no pending request today (`initial.pendingSpecialtyChange` is unset).
 - "Preview profile" link in Profile and Services.
 
 ### Contact & phone
@@ -154,12 +159,21 @@ it (tables, review flow, emails) is yours.
 
 ### 3.5 Cancel a pending specialty request
 - UI: ✕ on the "In review" specialty chip.
-- Sends `DELETE /api/doctor-specialty-change-request` (no body: one pending request per
-  professional today).
+- Sends `DELETE /api/specialty-requests` (no body: the UI assumes one pending request
+  per professional).
 - UI expects 2xx, then removes the chip; `{ "message" }` on refusal.
 - Call site: `cancelSpecialtyRequest` in `components/dashboard/SettingsForm.tsx`.
 
-All five currently get 404/405 and show, e.g.: "Expected to fail for now: removing a
+### 3.6 Ask for a new specialty
+- UI: "+ Add a specialty" → specialty + licence number.
+- Sends `POST /api/specialty-requests` with
+  `{ "requestKind": "add", "fromSpecialty": null, "toSpecialty", "toSpecialtyFromMaster", "licenseNumber" }`
+  (`lib/settings-specialty-request.ts`).
+- UI expects 2xx, then shows the "In review" chip; `{ "message" }` on refusal. To show a
+  pending request after a reload the page accepts `initial.pendingSpecialtyChange`.
+- Call site: `submitSpecialtyChangeRequest` in `components/dashboard/SettingsForm.tsx`.
+
+All six currently get 404/405 and show, e.g.: "Expected to fail for now: removing a
 clinic works once Livio builds it in the backend (DELETE /api/professional-clinics)."
 
 ---
@@ -175,6 +189,8 @@ clinic works once Livio builds it in the backend (DELETE /api/professional-clini
   2026-10-01. Worth checking why that registration reserved no place.
 - **Delete account / download my data** (Account): agreed as an idea, not built; needs a
   backend decision first.
+- **New specialty requests** (3.5, 3.6): you dropped the old ones in E3; the UI waits
+  for whatever you build under `/api/specialty-requests` (rename freely).
 - **Notifications** is a separate task, not in this branch: draft UI and a proposed
   contract on `wip/settings-notifications` (pushed).
 
@@ -191,7 +207,14 @@ clinic works once Livio builds it in the backend (DELETE /api/professional-clini
 
 ---
 
-## 6. Merging with `feat/doctor-dashboard`
+## 6. Merged with master (2026-10-09, incl. `feat/doctor-dashboard` #270)
+
+- `lib/doctor-routes.ts`: the Settings tab, active tab and login gate now use `/settings`.
+- `app/settings/page.tsx` was rebuilt on master's data loading (no `status`,
+  `professional_services`, account settings select, `accessEnded`).
+- Notes below are kept for history.
+
+### Before the merge
 
 - That branch still has `app/agenda/settings/page.tsx` and nav links to
   `/agenda/settings`; here settings moved to `app/settings/page.tsx`. Point links at

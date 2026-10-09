@@ -54,6 +54,7 @@ function snapshot(patch: Partial<Parameters<typeof buildSettingsDirtySnapshot>[0
     mobileNumber: "+35799111222",
     bookingHorizonDays: 30,
     minimumNoticeHours: 24,
+    patientCancelNoticeHours: 12,
     holidayModeEnabled: false,
     holidayStartInput: "",
     holidayEndInput: "",
@@ -161,6 +162,7 @@ describe("buildSettingsSavePayload", () => {
     assert.deepEqual(payload.languages, ["English", "Greek"]);
     assert.equal(payload.bookingHorizonDays, 30);
     assert.equal(payload.minimumNoticeHours, 24);
+    assert.equal(payload.patientCancelNoticeHours, 12);
     assert.equal(payload.holidayModeEnabled, true);
     assert.equal(payload.holidayStartDate, "2026-12-01");
     assert.equal(payload.holidayEndDate, "2026-12-10");

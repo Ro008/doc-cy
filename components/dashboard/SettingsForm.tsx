@@ -39,11 +39,11 @@ import {
 import { useSettingsUnsavedChangesWarning } from "@/components/dashboard/useSettingsUnsavedChangesWarning";
 import { SpecialtyCombobox } from "@/components/specialties/SpecialtyCombobox";
 import { isCatalogueSpecialty } from "@/lib/specialty-options";
-import { PUBLIC_SPECIALTY_UNDER_REVIEW_LABEL } from "@/lib/doctor-specialty-public";
-import { type SpecialtyChangeRequestKind } from "@/lib/doctor-specialty-change-request";
+import { PATIENT_CANCEL_NOTICE_CHOICES, parsePatientCancelNoticeHours } from "@/lib/patient-cancel-window";
 import {
   SPECIALTY_LICENSE_HELP,
   pendingSpecialtyChip,
+  type SpecialtyChangeRequestKind,
   validateAddSpecialtyRequest,
   type AddSpecialtyErrors,
 } from "@/lib/settings-specialty-request";
@@ -102,8 +102,6 @@ export type DoctorSettingsFormData = {
   specialtyOptions: string[];
   /** Approved specialty labels (flat). */
   specialties?: string[];
-  /** false = custom “Other” text pending founder approval */
-  isSpecialtyApproved?: boolean;
   /** Pending specialty change request (settings lock queue). */
   pendingSpecialtyChange?: {
     requestKind: SpecialtyChangeRequestKind;
@@ -139,10 +137,14 @@ export type DoctorSettingsFormData = {
   slotDurationMinutes: number;
   bookingHorizonDays: number;
   minimumNoticeHours: number;
+  /** Until how many hours before the visit patients can cancel online (12 / 24 / 48). */
+  patientCancelNoticeHours: number;
   holidayModeEnabled: boolean;
   holidayStartDate: string | null; // "YYYY-MM-DD"
   holidayEndDate: string | null; // "YYYY-MM-DD"
   pauseOnlineBookings: boolean;
+  /** Pro access has ended: online booking switches are off and disabled. */
+  accessEnded?: boolean;
   services: DoctorServiceItem[];
   locations?: DoctorWorkplaceFormData[];
   /**
@@ -406,10 +408,7 @@ export function SettingsForm({
       setSpecialtyRemoving(false);
     }
   }
-  const specialtyFromMaster =
-    (initial.isSpecialtyApproved ?? true) !== false &&
-    isCatalogueSpecialty(initial.specialtyOptions, lockedSpecialty);
-  const specialtyUnderReview = (initial.isSpecialtyApproved ?? true) === false;
+  const specialtyFromMaster = isCatalogueSpecialty(initial.specialtyOptions, lockedSpecialty);
   const [pendingSpecialtyChange, setPendingSpecialtyChange] = React.useState(
     () => initial.pendingSpecialtyChange ?? null,
   );
@@ -494,6 +493,9 @@ export function SettingsForm({
   );
   const [minimumNoticeHours, setMinimumNoticeHours] = React.useState(
     initial.minimumNoticeHours
+  );
+  const [patientCancelNoticeHours, setPatientCancelNoticeHours] = React.useState(
+    initial.patientCancelNoticeHours
   );
   const [holidayModeEnabled, setHolidayModeEnabled] = React.useState(
     initial.holidayModeEnabled
@@ -699,6 +701,7 @@ export function SettingsForm({
         mobileNumber,
         bookingHorizonDays,
         minimumNoticeHours,
+        patientCancelNoticeHours,
         holidayModeEnabled,
         holidayStartInput,
         holidayEndInput,
@@ -725,6 +728,7 @@ export function SettingsForm({
       mobileNumber,
       bookingHorizonDays,
       minimumNoticeHours,
+      patientCancelNoticeHours,
       holidayModeEnabled,
       holidayStartInput,
       holidayEndInput,
@@ -736,14 +740,13 @@ export function SettingsForm({
     const specialty = (initial.specialty ?? "").trim();
     return buildSettingsDirtySnapshot({
       specialty,
-      specialtyFromMaster:
-        (initial.isSpecialtyApproved ?? true) !== false &&
-        isCatalogueSpecialty(initial.specialtyOptions, specialty),
+      specialtyFromMaster: isCatalogueSpecialty(initial.specialtyOptions, specialty),
       bio: (initial.bio ?? "").trim(),
       languages: Array.isArray(initial.languages) ? [...initial.languages] : [],
       mobileNumber: initial.mobileNumber ?? "",
       bookingHorizonDays: initial.bookingHorizonDays,
       minimumNoticeHours: initial.minimumNoticeHours,
+      patientCancelNoticeHours: initial.patientCancelNoticeHours,
       holidayModeEnabled: initial.holidayModeEnabled,
       holidayStartInput: formatISOToDDMMYYYYOrEmpty(initial.holidayStartDate),
       holidayEndInput: formatISOToDDMMYYYYOrEmpty(initial.holidayEndDate),
@@ -1072,14 +1075,18 @@ export function SettingsForm({
     const { request } = validated;
     setSpecialtyChangeBusy(true);
     try {
-      const res = await fetch("/api/doctor-specialty-change-request", {
+      // EXPECTED TO FAIL until Livio builds POST /api/specialty-requests, the new specialty
+      // requests (master dropped the old ones, E3). The doctor sees a message saying so.
+      const res = await fetch("/api/specialty-requests", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(request),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        toast.error((data.message as string) || "Could not submit specialty request.");
+        toast.error(
+          settingsActionErrorMessage("requestSpecialty", res.status, data, "Could not submit specialty request."),
+        );
         return;
       }
       setPendingSpecialtyChange({
@@ -1099,13 +1106,13 @@ export function SettingsForm({
     }
   }
 
-  /** Withdraws the pending request (contract: DELETE /api/doctor-specialty-change-request). */
+  /** Withdraws the pending request (contract: DELETE /api/specialty-requests). */
   async function cancelSpecialtyRequest() {
     setSpecialtyCancelBusy(true);
     try {
-      // EXPECTED TO FAIL until Livio builds DELETE /api/doctor-specialty-change-request
+      // EXPECTED TO FAIL until Livio builds DELETE /api/specialty-requests
       // (backend pending, see lib/settings-backend-pending.ts): the doctor sees a message saying so.
-      const res = await fetch("/api/doctor-specialty-change-request", { method: "DELETE" });
+      const res = await fetch("/api/specialty-requests", { method: "DELETE" });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         toast.error(
@@ -1189,6 +1196,29 @@ export function SettingsForm({
       {action}
     </div>
   );
+
+  // Pro access has ended (master, 2026-10): bookings are off at every clinic.
+  const accessEndedNotice = initial.accessEnded ? (
+    <div
+      role="status"
+      data-testid="settings-access-ended"
+      className="rounded-2xl border border-amber-400/30 bg-amber-500/[0.08] px-4 py-3 text-sm text-amber-100"
+    >
+      Your DocCy access has ended, so online bookings are switched off. Patients can still call your
+      clinic&apos;s phone from your profile.{" "}
+      <a
+        href={settingsSectionHref("plan")}
+        data-settings-section="plan"
+        onClick={(event) => {
+          event.preventDefault();
+          selectSection("plan");
+        }}
+        className="font-semibold underline decoration-amber-300/50 underline-offset-2 hover:text-amber-50"
+      >
+        See your plan
+      </a>
+    </div>
+  ) : null;
 
   // See the result of an edit where patients see it (user, 2026-10-01).
   const previewProfileLink = publicProfileHref ? (
@@ -1476,6 +1506,7 @@ export function SettingsForm({
           Holiday mode is on until {holidayEndInput}. No clinic takes online bookings until then.
         </div>
       ) : null}
+      {accessEndedNotice}
       {isDesktop ? null : holidayCard}
       {/* A status summary only: each clinic's switch lives on its card in Clinics. */}
       <section className={SECTION_CARD_CLASS} data-testid="settings-availability-clinics">
@@ -1485,6 +1516,7 @@ export function SettingsForm({
             const status = clinicBookingStatus({
               pauseOnlineBookings: row.pauseOnlineBookings,
               holidayActive,
+              accessEnded: Boolean(initial.accessEnded),
             });
             return (
               <li key={row.id} className="flex items-center gap-3 py-3">
@@ -1577,6 +1609,31 @@ export function SettingsForm({
               <option value={168}>1 week</option>
             </select>
           </div>
+          <div className="sm:col-span-2">
+            <label htmlFor="patientCancelNoticeHours" className="text-sm font-semibold text-slate-100">
+              Online cancellation deadline
+            </label>
+            <p className="mt-0.5 text-xs text-slate-400">
+              Until then, patients can cancel from their confirmation and reminder emails. After it, they
+              see your clinic&apos;s phone instead.
+            </p>
+            <select
+              id="patientCancelNoticeHours"
+              value={patientCancelNoticeHours}
+              onChange={(e) => {
+                const next = parsePatientCancelNoticeHours(e.target.value);
+                setPatientCancelNoticeHours(next);
+                void saveGroup({ kind: "limits" }, "Booking limits saved.", { patientCancelNoticeHours: next });
+              }}
+              className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-clinical-400/60 sm:w-1/2"
+            >
+              {PATIENT_CANCEL_NOTICE_CHOICES.map((hours) => (
+                <option key={hours} value={hours}>
+                  Up to {hours} hours before the visit
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
       </section>
     </div>
@@ -1596,6 +1653,7 @@ export function SettingsForm({
           + Add clinic
         </button>,
       )}
+      {accessEndedNotice}
       {liveWorkplaces.map((row, index) => {
         const name = workplaceName(row, index);
         const removal = canRemoveClinic(liveWorkplaces, row.id);
@@ -1606,13 +1664,18 @@ export function SettingsForm({
             key={row.id}
             name={name}
             swatchClass={agendaClinicEventColor(index).swatch}
-            status={clinicBookingStatus({ pauseOnlineBookings: row.pauseOnlineBookings, holidayActive })}
+            status={clinicBookingStatus({
+              pauseOnlineBookings: row.pauseOnlineBookings,
+              holidayActive,
+              accessEnded: Boolean(initial.accessEnded),
+            })}
             bookingSwitch={
               <ClinicBookingSwitch
                 clinicName={name}
                 locationId={row.id === "primary" ? null : row.id}
                 paused={row.pauseOnlineBookings}
                 onPausedChange={(paused) => setWorkplacePaused(row.id, paused)}
+                accessEnded={Boolean(initial.accessEnded)}
               />
             }
             address={row.clinicAddress.trim() || savedAddress}
@@ -1785,11 +1848,6 @@ export function SettingsForm({
         ) : (
           <p className="text-sm font-medium text-slate-100">Not set</p>
         )}
-        {specialtyUnderReview ? (
-          <p className="mt-2 text-xs text-amber-200/90">
-            {PUBLIC_SPECIALTY_UNDER_REVIEW_LABEL} — visible on your public profile until approved.
-          </p>
-        ) : null}
       </div>
       <p className="mt-3 text-xs leading-relaxed text-slate-400">
         {pendingChip

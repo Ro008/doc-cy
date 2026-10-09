@@ -93,19 +93,14 @@ async function createVerifiedDoctor(
     .insert({
       auth_user_id: authUserId,
       name: input.name,
-      district: input.district,
       email,
-      phone: "+35799123456",
       languages: input.languages,
-      license_file_url: `licenses/integration/${nonce}-${input.slugPrefix}.pdf`,
-      status: "verified",
       slug,
       // Mark as test so cleanup + prod finder hide are reliable; still visible when
       // NEXT_PUBLIC_DOC_CY_FINDER_INCLUDE_TEST_PROFILES=1 (integration).
       is_test_profile: true,
             is_registered: true,
       pro_access_until: new Date(Date.now() + 180 * 86_400_000).toISOString(),
-      finder_visible: true,
       is_archived: false,
       subscription_tier: "standard",
 
@@ -124,7 +119,6 @@ async function createVerifiedDoctor(
       professional_id: doctorId,
       specialty: input.specialty,
       license_number: `LIC-FINDER-UX-${nonce}-${input.slugPrefix}`,
-      is_approved: true,
     },
   );
   if (specialtyInsert.error) {

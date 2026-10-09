@@ -19,7 +19,7 @@ import {
   waitForRegisterWizardReady,
   uniqueRegisterTestMobile,
 } from "./helpers/goto-register-practice-step";
-import { INTEGRATION_DOCTOR_PASSWORD } from "./helpers/test-doctor";
+import { INTEGRATION_DOCTOR_PASSWORD, deleteTestClinics } from "./helpers/test-doctor";
 
 /**
  * Live finder-claim → `/register?claim=` against the testing database (not production).
@@ -39,6 +39,7 @@ test.describe("Integration: directory claim registration flow", { tag: "@local-r
     const founderNotify = process.env.FOUNDER_NOTIFY_EMAIL?.trim() ?? "";
     const canAssertResend = Boolean(resendKey && founderNotify);
     let cloneId: string | null = null;
+    let cloneClinicId: string | null = null;
 
     if (!canAssertResend && !process.env.CI) {
       throw new Error(
@@ -49,6 +50,7 @@ test.describe("Integration: directory claim registration flow", { tag: "@local-r
     try {
       const clone = await createQaClaimDirectoryClone(admin, nameTag);
       cloneId = clone.id;
+      cloneClinicId = clone.clinicId;
 
       await page.goto(clone.profilePath, { waitUntil: "domcontentloaded" });
       await dismissCookieConsentIfPresent(page);
@@ -203,10 +205,11 @@ test.describe("Integration: directory claim registration flow", { tag: "@local-r
       await deleteRegistrationE2eDoctor(admin, email);
       if (cloneId) {
         await admin.from("professional_specialties").delete().eq("professional_id", cloneId);
-        await admin.from("doctor_services").delete().eq("doctor_id", cloneId);
+        await admin.from("professional_services").delete().eq("professional_id", cloneId);
         await admin.from("professional_settings").delete().eq("professional_id", cloneId);
         await admin.from("professionals").delete().eq("id", cloneId);
       }
+      if (cloneClinicId) await deleteTestClinics(admin, [cloneClinicId]);
     }
   });
 });

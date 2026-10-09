@@ -1,38 +1,45 @@
 "use client";
 
 import * as React from "react";
+
+import { MANUAL_BOOKING_HINT, MANUAL_BOOKING_LABEL } from "@/lib/manual-booking-copy";
 import { addDays, addHours, format } from "date-fns";
 import { enGB } from "date-fns/locale";
-import { utcToZonedTime, zonedTimeToUtc } from "date-fns-tz";
+import { formatInTimeZone, utcToZonedTime, zonedTimeToUtc } from "date-fns-tz";
 import { CalendarPlus, Loader2, Plus, X } from "lucide-react";
 import { DayPicker } from "react-day-picker";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { CY_TZ } from "@/lib/appointments";
 import type { WeeklySchedule } from "@/lib/doctor-settings";
+import { type AgendaClinic, type AgendaWorkingHours } from "@/lib/agenda-clinics";
 import {
-  clinicIdForAppointment,
-  type AgendaClinic,
-  type AgendaWorkingHours,
-} from "@/lib/agenda-clinics";
+  isManualBookingSlotTaken,
+  withJustBooked,
+  type ManualBookingAppointmentRow,
+} from "@/lib/manual-booking-slots";
 import { agendaClinicEventColor } from "@/lib/doctor-locations";
 import { APPOINTMENT_REASON_MAX_LENGTH } from "@/lib/visit-types";
+import { type PatientGender } from "@/lib/booking-patient-fields";
+import { PhoneInput } from "@/components/ui/PhoneInput";
+import { manualPhoneProblem } from "@/lib/phone-number";
+import {
+  firstManualBookingError,
+  type ManualBookingError,
+  type ManualBookingField,
+} from "@/lib/manual-booking-validation";
 import "react-day-picker/dist/style.css";
 
-type AgendaAppointmentRow = {
-  id: string;
-  appointment_datetime: string;
-  status?: string | null;
-  location_id?: string | null;
-};
 
 type ManualBookingFlowProps = {
   open: boolean;
   doctorId: string | null;
   doctorSlug?: string | null;
-  appointments: AgendaAppointmentRow[];
+  appointments: ManualBookingAppointmentRow[];
   workingHours: AgendaWorkingHours | null;
   clinics?: AgendaClinic[];
   preferredClinicId?: string | null;
+  /** Her pro access has ended: nothing new can be booked (the route refuses too). */
+  accessEnded?: boolean;
   onClose: () => void;
   onBooked: () => void;
 };
@@ -60,13 +67,6 @@ type SuccessState = {
 const HORIZON_DAYS = 90;
 const MINIMUM_NOTICE_HOURS = 2;
 
-function isBlockingStatus(status: string | null | undefined): boolean {
-  const upper = String(status ?? "").toUpperCase();
-  return (
-    upper === "REQUESTED" || upper === "CONFIRMED" || upper === "NEEDS_RESCHEDULE"
-  );
-}
-
 function dayKeyForDate(d: Date): keyof WeeklySchedule {
   const map: Array<keyof WeeklySchedule> = [
     "sunday",
@@ -88,6 +88,7 @@ export function ManualBookingFlow({
   workingHours,
   clinics = [],
   preferredClinicId = null,
+  accessEnded = false,
   onClose,
   onBooked,
 }: ManualBookingFlowProps) {
@@ -99,10 +100,20 @@ export function ManualBookingFlow({
   const [selectedSlot, setSelectedSlot] = React.useState<SlotOption | null>(null);
   const [patientName, setPatientName] = React.useState("");
   const [patientPhone, setPatientPhone] = React.useState("");
+  /** From the phone box: same country-aware check as online booking. */
+  const [phoneValid, setPhoneValid] = React.useState(false);
   const [patientEmail, setPatientEmail] = React.useState("");
   const [reason, setReason] = React.useState("");
+  const [isNewPatient, setIsNewPatient] = React.useState<boolean | null>(null);
+  const [patientGender, setPatientGender] = React.useState<PatientGender | "">("");
+  const [patientBirthdate, setPatientBirthdate] = React.useState("");
   const [submitting, setSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  /** The first field to fix; its message shows under that field. */
+  const [fieldError, setFieldError] = React.useState<ManualBookingError | null>(null);
+  const errorFor = (field: ManualBookingField) => (fieldError?.field === field ? fieldError.message : null);
+  const fixed = (field: ManualBookingField) =>
+    setFieldError((current) => (current?.field === field ? null : current));
   const [success, setSuccess] = React.useState<SuccessState | null>(null);
 
   React.useEffect(() => {
@@ -113,10 +124,24 @@ export function ManualBookingFlow({
     setPatientPhone("");
     setPatientEmail("");
     setReason("");
+    setIsNewPatient(null);
+    setPatientGender("");
+    setPatientBirthdate("");
     setError(null);
+    setFieldError(null);
     setSuccess(null);
     setSubmitting(false);
     setSelectedClinicId(preferredClinicId ?? clinics[0]?.id ?? null);
+  }, [open]);
+
+  // Only the panel scrolls: freeze the page behind the modal.
+  React.useEffect(() => {
+    if (!open) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previous;
+    };
   }, [open]);
 
   const selectedClinic =
@@ -128,22 +153,18 @@ export function ManualBookingFlow({
       ? activeHours.slotDurationMinutes
       : 30;
 
-  const takenSet = React.useMemo(() => {
-    const set = new Set<string>();
-    appointments.forEach((a) => {
-      if (!isBlockingStatus(a.status)) return;
-      if (
-        selectedClinic &&
-        clinicIdForAppointment(a.location_id, clinics) !== selectedClinic.id
-      ) {
-        return;
-      }
-      const cy = utcToZonedTime(new Date(a.appointment_datetime), CY_TZ);
-      const key = format(cy, "yyyy-MM-dd'T'HH:mm");
-      set.add(key);
-    });
-    return set;
-  }, [appointments, clinics, selectedClinic]);
+  // One professional, one agenda: a visit in any clinic blocks the time in all of them.
+  // Times this modal just booked (or was just told are taken): hidden right away, without
+  // waiting for the dashboard or agenda to refresh. Kept across openings of the modal.
+  const [justBooked, setJustBooked] = React.useState<ManualBookingAppointmentRow[]>([]);
+  const knownAppointments = React.useMemo(
+    () => withJustBooked(appointments, justBooked),
+    [appointments, justBooked],
+  );
+  const isSlotTaken = React.useCallback(
+    (slot: SlotOption) => isManualBookingSlotTaken(slot.key, slotDuration, knownAppointments),
+    [knownAppointments, slotDuration],
+  );
 
   const upcomingSlots = React.useMemo(() => {
     if (!activeHours) return [] as SlotOption[];
@@ -216,7 +237,7 @@ export function ManualBookingFlow({
   const availableDates = React.useMemo(() => {
     const set = new Set<string>();
     upcomingSlots.forEach((slot) => {
-      if (!takenSet.has(slot.slotKey)) {
+      if (!isSlotTaken(slot)) {
         set.add(slot.dateKey);
       }
     });
@@ -224,15 +245,15 @@ export function ManualBookingFlow({
       const [y, m, day] = d.split("-").map(Number);
       return new Date(y, m - 1, day);
     });
-  }, [upcomingSlots, takenSet]);
+  }, [upcomingSlots, isSlotTaken]);
 
   const slotsForSelectedDay = React.useMemo(() => {
     if (!selectedDate) return [];
     const dayKey = format(selectedDate, "yyyy-MM-dd");
     return upcomingSlots.filter(
-      (slot) => slot.dateKey === dayKey && !takenSet.has(slot.slotKey),
+      (slot) => slot.dateKey === dayKey && !isSlotTaken(slot),
     );
-  }, [selectedDate, upcomingSlots, takenSet]);
+  }, [selectedDate, upcomingSlots, isSlotTaken]);
 
   const isDateAvailable = React.useCallback(
     (date: Date) =>
@@ -241,6 +262,24 @@ export function ManualBookingFlow({
       ),
     [availableDates],
   );
+
+  const MANUAL_FIELD_ID: Record<ManualBookingField, string> = {
+    patientName: "manualPatientName",
+    patientPhone: "manualPatientPhone",
+    patientEmail: "manualPatientEmail",
+    patientBirthdate: "manualPatientBirthdate",
+    reason: "manualReason",
+  };
+  const fieldClass = (field: ManualBookingField, extra = "") =>
+    `w-full rounded-2xl border bg-ink-900/40 px-3 py-2 text-sm text-slate-100 ${extra} ${
+      errorFor(field) ? "border-red-400/80 ring-1 ring-red-400/40" : "border-slate-800/80"
+    }`;
+  const fieldMessage = (field: ManualBookingField) =>
+    errorFor(field) ? (
+      <p id={`${MANUAL_FIELD_ID[field]}-error`} role="alert" className="text-xs font-medium text-red-300">
+        {errorFor(field)}
+      </p>
+    ) : null;
 
   async function handleConfirmBooking() {
     setError(null);
@@ -256,15 +295,23 @@ export function ManualBookingFlow({
       setError("Please choose a clinic.");
       return;
     }
-    if (!patientName.trim()) {
-      setError("Patient name is required.");
+    // Name, phone and reason are required; first visit, gender, email and birth date are
+    // optional but checked when filled in (Rocío, 2026-10-06).
+    const problem = firstManualBookingError({
+      patientName,
+      patientPhone,
+      phoneValid,
+      patientEmail,
+      patientBirthdate,
+      reason,
+    });
+    if (problem) {
+      setFieldError(problem);
+      document.getElementById(MANUAL_FIELD_ID[problem.field])?.focus();
       return;
     }
+    setFieldError(null);
     const reasonTrimmed = reason.slice(0, APPOINTMENT_REASON_MAX_LENGTH).trim();
-    if (!reasonTrimmed) {
-      setError("Reason for visit is required.");
-      return;
-    }
 
     try {
       setSubmitting(true);
@@ -277,20 +324,49 @@ export function ManualBookingFlow({
           patientEmail: patientEmail.trim(),
           appointmentLocal: selectedSlot.slotKey,
           reason: reasonTrimmed,
+          isNewPatient,
+          patientGender: patientGender || null,
+          patientBirthdate: patientBirthdate.trim() || null,
           locationId: selectedClinic?.id ?? null,
         }),
       });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
-        setError(
-          (data as { message?: string } | null)?.message ??
-            "Could not create manual booking.",
-        );
+        const message = (data as { message?: string } | null)?.message ?? "";
+        if (res.status === 409) {
+          // Someone (or this screen a moment ago) took it: hide it and let her pick another;
+          // everything she typed stays.
+          const takenSlot = selectedSlot;
+          setJustBooked((prev) => [
+            ...prev,
+            {
+              id: `taken-${takenSlot.key}`,
+              status: "CONFIRMED",
+              appointment_datetime: takenSlot.key,
+              duration_minutes: slotDuration,
+            },
+          ]);
+          setSelectedSlot(null);
+          setError("That time was just booked. Please pick another one.");
+          return;
+        }
+        setError(message || "Could not create manual booking.");
         return;
       }
 
+      const bookedId = String((data as { appointment?: { id?: string } }).appointment?.id ?? "");
+      setJustBooked((prev) => [
+        ...prev,
+        {
+          id: bookedId || `booked-${selectedSlot.key}`,
+          status: "CONFIRMED",
+          appointment_datetime: selectedSlot.key,
+          duration_minutes: slotDuration,
+        },
+      ]);
+
       setSuccess({
-        appointmentId: String((data as { appointment?: { id?: string } }).appointment?.id ?? ""),
+        appointmentId: bookedId,
         patientName: patientName.trim(),
         patientPhone: patientPhone.trim(),
         dateLabel: format(selectedSlot.date, "dd/MM/yyyy"),
@@ -317,7 +393,7 @@ export function ManualBookingFlow({
   return (
     <div
       data-testid="manual-booking-modal-root"
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-3 sm:p-4"
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-hidden p-3 sm:p-4"
     >
       <button
         type="button"
@@ -327,7 +403,7 @@ export function ManualBookingFlow({
       />
       <div
         data-testid="manual-booking-modal-panel"
-        className="relative z-10 my-2 w-full max-w-4xl max-h-[calc(100dvh-1rem)] overflow-y-auto rounded-3xl border border-clinical-100/10 bg-slate-900/95 p-5 shadow-2xl backdrop-blur-xl sm:my-4 sm:max-h-[calc(100dvh-2rem)] sm:p-6"
+        className="relative z-10 w-full max-w-4xl max-h-[calc(100dvh-1.5rem)] overflow-y-auto overscroll-contain rounded-3xl border border-clinical-100/10 bg-slate-900/95 p-5 shadow-2xl backdrop-blur-xl sm:max-h-[calc(100dvh-2rem)] sm:p-6"
       >
         <button
           type="button"
@@ -338,7 +414,22 @@ export function ManualBookingFlow({
           <X className="h-5 w-5" />
         </button>
 
-        {success ? (
+        {accessEnded ? (
+          <div className="py-6" data-testid="manual-booking-access-ended">
+            <h3 className="text-xl font-semibold text-slate-50">You can&apos;t add new bookings</h3>
+            <p className="mt-2 text-sm text-slate-300">
+              Your DocCy access has ended, so new bookings, online or manual, are switched off. You
+              can still answer the requests and handle the visits you already have.
+            </p>
+            <button
+              type="button"
+              onClick={onClose}
+              className="mt-6 inline-flex rounded-2xl border border-slate-700 bg-slate-800 px-4 py-2 text-sm font-medium text-slate-100 transition hover:bg-slate-700"
+            >
+              Close
+            </button>
+          </div>
+        ) : success ? (
           <div className="py-6">
             <h3
               data-testid="manual-booking-success-title"
@@ -385,11 +476,10 @@ export function ManualBookingFlow({
                 data-testid="manual-booking-modal-title"
                 className="text-xl font-semibold text-slate-50"
               >
-                + Add Manual Booking
+                {MANUAL_BOOKING_LABEL}
               </h3>
               <p className="mt-1 text-sm text-slate-400">
-                Took a phone call? Block the slot manually here. Next time, share your link to
-                save time.
+                {MANUAL_BOOKING_HINT}
               </p>
             </div>
 
@@ -505,52 +595,155 @@ export function ManualBookingFlow({
 
             <div className="mt-5 grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <label className="text-xs font-semibold text-slate-200">
+                <label htmlFor="manualPatientName" className="text-xs font-semibold text-slate-200">
                   Patient Name <span className="text-red-300">*</span>
                 </label>
                 <input
+                  id="manualPatientName"
                   value={patientName}
-                  onChange={(e) => setPatientName(e.target.value)}
-                  className="w-full rounded-2xl border border-slate-800/80 bg-ink-900/40 px-3 py-2 text-sm text-slate-100"
+                  onChange={(e) => {
+                    setPatientName(e.target.value);
+                    fixed("patientName");
+                  }}
+                  aria-invalid={errorFor("patientName") ? true : undefined}
+                  aria-describedby={errorFor("patientName") ? "manualPatientName-error" : undefined}
+                  className={fieldClass("patientName")}
                   placeholder="Patient full name"
-                  required
+                  autoComplete="off"
                 />
+                {fieldMessage("patientName")}
               </div>
               <div className="space-y-2">
-                <label className="text-xs font-semibold text-slate-200">Phone (optional)</label>
-                <input
+                <label htmlFor="manualPatientPhone" className="text-xs font-semibold text-slate-200">
+                  Phone <span className="text-red-300">*</span>
+                </label>
+                {/* Same phone box and rule as online booking (country code), and only mobile numbers. */}
+                <PhoneInput
+                  id="manualPatientPhone"
+                  tone="dark"
                   value={patientPhone}
-                  onChange={(e) => setPatientPhone(e.target.value)}
-                  className="w-full rounded-2xl border border-slate-800/80 bg-ink-900/40 px-3 py-2 text-sm text-slate-100"
-                  placeholder="+357..."
+                  onChange={(val, isValid) => {
+                    setPatientPhone(val);
+                    setPhoneValid(isValid && manualPhoneProblem(val) === null);
+                    fixed("patientPhone");
+                  }}
+                  errorMessage={errorFor("patientPhone")}
                 />
               </div>
             </div>
 
-            <div className="mt-4 space-y-2">
-              <label className="text-xs font-semibold text-slate-200">Email (optional)</label>
-              <input
-                value={patientEmail}
-                onChange={(e) => setPatientEmail(e.target.value)}
-                className="w-full rounded-2xl border border-slate-800/80 bg-ink-900/40 px-3 py-2 text-sm text-slate-100"
-                placeholder="patient@email.com"
-              />
+            <fieldset className="mt-4 space-y-2">
+              <legend className="text-xs font-semibold text-slate-200">
+                First visit with you? <span className="font-normal text-slate-400">(optional)</span>
+              </legend>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {(
+                  [
+                    [true, "First visit"],
+                    [false, "Returning patient"],
+                  ] as const
+                ).map(([value, label]) => (
+                  <label key={label} className={manualChoiceClass(isNewPatient === value)}>
+                    <input
+                      type="radio"
+                      name="manualIsNewPatient"
+                      checked={isNewPatient === value}
+                      onChange={() => setIsNewPatient(value)}
+                    />
+                    {label}
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+
+            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+              <fieldset className="space-y-2">
+                <legend className="text-xs font-semibold text-slate-200">
+                  Gender <span className="font-normal text-slate-400">(optional)</span>
+                </legend>
+                <div className="grid gap-2">
+                  {(
+                    [
+                      ["female", "Female"],
+                      ["male", "Male"],
+                      ["prefer_not_to_say", "Prefer not to say"],
+                    ] as const
+                  ).map(([value, label]) => (
+                    <label key={value} className={manualChoiceClass(patientGender === value)}>
+                      <input
+                        type="radio"
+                        name="manualPatientGender"
+                        value={value}
+                        checked={patientGender === value}
+                        onChange={() => setPatientGender(value)}
+                      />
+                      {label}
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+              <div className="space-y-2">
+                <label htmlFor="manualPatientBirthdate" className="text-xs font-semibold text-slate-200">
+                  Date of birth <span className="font-normal text-slate-400">(optional)</span>
+                </label>
+                <input
+                  id="manualPatientBirthdate"
+                  type="date"
+                  min="1900-01-01"
+                  max={formatInTimeZone(new Date(), CY_TZ, "yyyy-MM-dd")}
+                  value={patientBirthdate}
+                  onChange={(e) => {
+                    setPatientBirthdate(e.target.value);
+                    fixed("patientBirthdate");
+                  }}
+                  aria-invalid={errorFor("patientBirthdate") ? true : undefined}
+                  aria-describedby={errorFor("patientBirthdate") ? "manualPatientBirthdate-error" : undefined}
+                  className={fieldClass("patientBirthdate", "[color-scheme:dark]")}
+                />
+                {fieldMessage("patientBirthdate")}
+              </div>
             </div>
 
             <div className="mt-4 space-y-2">
-              <label className="text-xs font-semibold text-slate-200">
+              <label htmlFor="manualPatientEmail" className="text-xs font-semibold text-slate-200">
+                Email <span className="font-normal text-slate-400">(optional)</span>
+              </label>
+              <input
+                id="manualPatientEmail"
+                type="email"
+                inputMode="email"
+                autoComplete="off"
+                value={patientEmail}
+                onChange={(e) => {
+                  setPatientEmail(e.target.value);
+                  fixed("patientEmail");
+                }}
+                aria-invalid={errorFor("patientEmail") ? true : undefined}
+                aria-describedby={errorFor("patientEmail") ? "manualPatientEmail-error" : undefined}
+                className={fieldClass("patientEmail")}
+                placeholder="patient@email.com"
+              />
+              {fieldMessage("patientEmail")}
+            </div>
+
+            <div className="mt-4 space-y-2">
+              <label htmlFor="manualReason" className="text-xs font-semibold text-slate-200">
                 Reason for visit <span className="text-red-300">*</span>
               </label>
               <textarea
+                id="manualReason"
                 value={reason}
-                onChange={(e) =>
-                  setReason(e.target.value.slice(0, APPOINTMENT_REASON_MAX_LENGTH))
-                }
+                onChange={(e) => {
+                  setReason(e.target.value.slice(0, APPOINTMENT_REASON_MAX_LENGTH));
+                  fixed("reason");
+                }}
                 rows={3}
-                className="w-full resize-y rounded-2xl border border-slate-800/80 bg-ink-900/40 px-3 py-2 text-sm text-slate-100"
+                aria-invalid={errorFor("reason") ? true : undefined}
+                aria-describedby={errorFor("reason") ? "manualReason-error" : undefined}
+                className={fieldClass("reason", "resize-y")}
                 placeholder="Brief reason for this visit"
-                required
               />
+              {fieldMessage("reason")}
             </div>
 
             {error ? (
@@ -593,3 +786,12 @@ export function ManualBookingFlow({
   );
 }
 
+
+/** A radio choice styled as a chip, like the rest of the manual booking modal. */
+function manualChoiceClass(selected: boolean): string {
+  return `flex cursor-pointer items-center gap-2 rounded-2xl border px-3 py-2 text-sm transition ${
+    selected
+      ? "border-clinical-400/70 bg-clinical-400/10 text-clinical-100"
+      : "border-slate-800/80 bg-ink-900/40 text-slate-200 hover:border-slate-600"
+  }`;
+}

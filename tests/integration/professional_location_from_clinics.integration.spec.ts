@@ -4,6 +4,7 @@ import { zonedTimeToUtc } from "date-fns-tz";
 
 import { CY_TZ } from "@/lib/appointments";
 import { loadDoctorLocations } from "@/lib/load-doctor-locations";
+import { submitAndConfirmOnlineBooking } from "./helpers/online-booking";
 import { createIntegrationAdmin, requireSafeIntegration } from "./helpers/safe-integration";
 import { seedProfessionalSpecialty } from "./helpers/test-doctor";
 
@@ -17,7 +18,7 @@ import { seedProfessionalSpecialty } from "./helpers/test-doctor";
  * public profile, the finder and a booking all work from the clinic alone.
  *
  * Before this change the profile read its district from `professionals.district`, and
- * appointments.location_id referenced doctor_locations, so booking at such a clinic
+ * appointments pointed at doctor_locations (now clinic_id = clinics.id), so booking at such a clinic
  * failed the foreign key.
  */
 
@@ -68,11 +69,9 @@ async function seedClinicOnlyProfessional(
       email,
       mobile_number: "+35799123456",
       languages: ["English"],
-      status: "verified",
       slug,
       is_registered: true,
       pro_access_until: new Date(Date.now() + 180 * 86_400_000).toISOString(),
-      finder_visible: true,
       is_archived: false,
       is_test_profile: true,
       subscription_tier: "standard",
@@ -86,7 +85,6 @@ async function seedClinicOnlyProfessional(
   await seedProfessionalSpecialty(admin, professionalId, {
     specialty: "Dentistry",
     licenseNumber: `LIC-CO-${nonce}`,
-    isApproved: true,
   });
 
   const clinic = await admin
@@ -97,6 +95,7 @@ async function seedClinicOnlyProfessional(
       district: "Paphos",
       town: "Geroskipou",
       address: `${nonce} Clinic Only Street, Geroskipou, Cyprus`,
+      phone: "26123456",
       latitude: 34.7602,
       longitude: 32.4506,
       is_archived: false,
@@ -137,7 +136,7 @@ async function cleanup(admin: SupabaseClient, created: Created) {
     await admin.from("appointments").delete().in("id", created.appointmentIds);
   }
   if (created.professionalId) {
-    await admin.from("appointments").delete().eq("doctor_id", created.professionalId);
+    await admin.from("appointments").delete().eq("professional_id", created.professionalId);
     await admin.from("professional_specialties").delete().eq("professional_id", created.professionalId);
     await admin.from("professional_settings").delete().eq("professional_id", created.professionalId);
     await admin.from("professionals").delete().eq("id", created.professionalId);
@@ -210,33 +209,29 @@ test.describe(
         const seeded = await seedClinicOnlyProfessional(admin, nonce, created);
 
         const local = `${nextWeekdayDateKey(2)}T11:00`;
-        const res = await request.post("/api/appointments", {
-          data: {
-            doctorId: seeded.professionalId,
-            locationId: seeded.joinId,
-            patientName: `Clinic Only Patient ${nonce}`,
-            patientEmail: `clinic-only-patient-${nonce}@integration.test`,
-            patientPhone: "99123456",
-            appointmentLocal: local,
-            isNewPatient: true,
-            reason: "Integration: booking at a clinic-only professional.",
-          },
+        const booked = await submitAndConfirmOnlineBooking(request, admin, {
+          doctorId: seeded.professionalId,
+          locationId: seeded.joinId,
+          patientName: `Clinic Only Patient ${nonce}`,
+          patientEmail: `clinic-only-patient-${nonce}@integration.test`,
+          patientPhone: "99123456",
+          appointmentLocal: local,
+          isNewPatient: true,
+          reason: "Integration: booking at a clinic-only professional.",
         });
-        const body = await res.text();
-        expect(res.status(), body).toBe(201);
-
-        const json = JSON.parse(body);
-        const appointmentId = String(json?.appointment?.id ?? "");
+        expect(booked.submitStatus, booked.submitBody).toBe(202);
+        expect(booked.confirmStatus).toBe(200);
+        const appointmentId = String(booked.appointmentId ?? "");
         expect(appointmentId).not.toBe("");
         created.appointmentIds.push(appointmentId);
 
         const row = await admin
           .from("appointments")
-          .select("location_id, appointment_datetime")
+          .select("clinic_id, appointment_datetime")
           .eq("id", appointmentId)
           .single();
         expect(row.error).toBeNull();
-        expect(row.data?.location_id).toBe(seeded.joinId);
+        expect(row.data?.clinic_id).toBe(created.clinicId);
         expect(new Date(String(row.data?.appointment_datetime)).toISOString()).toBe(
           zonedTimeToUtc(local, CY_TZ).toISOString(),
         );
@@ -269,11 +264,8 @@ test.describe(
           .insert({
             auth_user_id: auth.data.user.id,
             name: `Blank Address ${nonce}`,
-            district: "Limassol",
-            clinic_address: "",
             registration_email: email,
             email,
-            status: "verified",
             slug: `blank-address-${nonce}`,
             is_registered: true,
             pro_access_until: new Date(Date.now() + 180 * 86_400_000).toISOString(),
@@ -295,8 +287,8 @@ test.describe(
 
     test("a professional with no clinic takes no bookings", async ({ request }) => {
       // A registered professional with no clinic link has nowhere to point an appointment
-      // at. Even with account settings unpaused and with hours, a patient must be refused
-      // (403) rather than booked with no clinic.
+      // at, and no schedule (it lives on the clinic link since Point E6): a patient must be
+      // refused (403) rather than booked with no clinic.
       test.setTimeout(120_000);
       const admin = createIntegrationAdmin(requireSafeIntegration());
       const nonce = `${Date.now()}-${Math.floor(Math.random() * 100000)}`;
@@ -321,7 +313,6 @@ test.describe(
             registration_email: email,
             email,
             languages: ["English"],
-            status: "verified",
             slug: `setting-up-${nonce}`,
             is_registered: true,
             pro_access_until: new Date(Date.now() + 180 * 86_400_000).toISOString(),
@@ -334,23 +325,6 @@ test.describe(
         if (insert.error || !insert.data?.id) throw new Error(`professional: ${insert.error?.message}`);
         created.professionalId = String(insert.data.id);
 
-        // Registering created paused account settings; open them, with weekday hours.
-        const open = await admin
-          .from("professional_settings")
-          .update({
-            pause_online_bookings: false,
-            monday: true,
-            tuesday: true,
-            wednesday: true,
-            thursday: true,
-            friday: true,
-            start_time: "09:00:00",
-            end_time: "17:00:00",
-          })
-          .eq("professional_id", created.professionalId)
-          .select("professional_id");
-        if (open.error || open.data?.length !== 1) throw new Error(`open settings: ${open.error?.message}`);
-
         const res = await request.post("/api/appointments", {
           data: {
             doctorId: created.professionalId,
@@ -360,6 +334,8 @@ test.describe(
             appointmentLocal: `${nextWeekdayDateKey(2)}T11:00`,
             isNewPatient: true,
             reason: "Integration: clinic without an address.",
+            patientGender: "female",
+            patientBirthdate: "1990-01-01",
           },
         });
         const body = await res.text();
@@ -368,7 +344,7 @@ test.describe(
         const left = await admin
           .from("appointments")
           .select("id")
-          .eq("doctor_id", created.professionalId);
+          .eq("professional_id", created.professionalId);
         expect(left.data ?? []).toHaveLength(0);
       } finally {
         await cleanup(admin, created);

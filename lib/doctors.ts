@@ -3,10 +3,6 @@ export type DoctorRow = {
   name?: string | null;
   email?: string | null;
   slug?: string | null;
-  phone?: string;
-  district?: string | null;
-  town?: string | null;
-  clinic_address?: string | null;
   /** Spoken languages for directory / filters */
   languages?: string[] | null;
   auth_user_id?: string | null;

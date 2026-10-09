@@ -5,7 +5,7 @@ import { zonedTimeToUtc } from "date-fns-tz";
 
 import { CY_TZ } from "../../lib/appointments";
 import type { DoctorLocationRow } from "../../lib/doctor-locations";
-import type { DoctorSettingsRow } from "../../lib/doctor-settings";
+import type { ProfessionalAccountSettings } from "../../lib/professional-account-settings";
 import type { PublicAvailabilityCalendar } from "../../lib/public/compute-public-booking-slots";
 import {
   OCCUPIED_BATCH_RPC,
@@ -24,6 +24,8 @@ const B = "bbbbbbbb-0000-4000-8000-000000000002";
 const L1 = "11111111-0000-4000-8000-000000000001";
 const L2 = "22222222-0000-4000-8000-000000000002";
 const L3 = "33333333-0000-4000-8000-000000000003";
+const L4 = "44444444-0000-4000-8000-000000000004";
+const C = "cccccccc-0000-4000-8000-000000000003";
 
 const allWeek = {
   monday: true,
@@ -41,12 +43,10 @@ const allWeek = {
   slot_duration_minutes: 30,
 };
 
-function settingsRow(professionalId: string): DoctorSettingsRow {
+// professional_settings holds the account settings only (Point E6).
+function settingsRow(professionalId: string): ProfessionalAccountSettings {
   return {
     professional_id: professionalId,
-    ...allWeek,
-    pause_online_bookings: false,
-    show_phone_public: false,
     holiday_mode_enabled: false,
     holiday_start_date: null,
     holiday_end_date: null,
@@ -55,11 +55,11 @@ function settingsRow(professionalId: string): DoctorSettingsRow {
   };
 }
 
-function location(id: string, paused = false): DoctorLocationRow {
+function location(id: string, paused = false, doctorId = A): DoctorLocationRow {
   return {
     id,
-    doctor_id: A,
-    is_primary: id === L1,
+    doctor_id: doctorId,
+    is_primary: id === L1 || id === L4,
     sort_order: 0,
     label: null,
     district: "Paphos",
@@ -103,7 +103,7 @@ function fakeSupabase(occupied: OccupiedRow[] | "error") {
 const loadLocations = async () =>
   new Map<string, DoctorLocationRow[]>([
     [A, [location(L1), location(L2), location(L3, true)]],
-    [B, []],
+    [B, [location(L4, false, B)]],
   ]);
 
 function slotKeys(calendar: PublicAvailabilityCalendar | undefined): string[] {
@@ -132,7 +132,8 @@ describe("finder availability batch", () => {
     assert.equal(rpcCalls.length, 0);
   });
 
-  it("removes a booked slot only at its own clinic", async () => {
+  // One agenda per professional: a visit at one clinic takes that time at all of them.
+  it("removes a booked slot at every clinic of that professional", async () => {
     const baseline = await loadFinderCardAvailabilityByDoctorId(
       fakeSupabase([]).supabase,
       [A, B],
@@ -146,17 +147,53 @@ describe("finder availability batch", () => {
 
     const { supabase } = fakeSupabase([
       { professional_id: A, location_id: L1, appointment_datetime: isoFromSlotKey(slotAtL1) },
-      { professional_id: B, location_id: null, appointment_datetime: isoFromSlotKey(slotForB) },
+      { professional_id: B, location_id: L4, appointment_datetime: isoFromSlotKey(slotForB) },
     ]);
     const result = await loadFinderCardAvailabilityByDoctorId(supabase, [A, B], undefined, {
       loadLocations,
     });
 
     assert.ok(!slotKeys(result.byLocationId.get(L1)?.calendar).includes(slotAtL1), "taken at L1");
-    assert.ok(slotKeys(result.byLocationId.get(L2)?.calendar).includes(slotAtL1), "still free at L2");
+    assert.ok(!slotKeys(result.byLocationId.get(L2)?.calendar).includes(slotAtL1), "taken at L2 too");
     assert.ok(!slotKeys(result.calendars.get(B)).includes(slotForB), "taken for B");
     assert.equal(result.byLocationId.get(L3)?.paused, true);
     assert.equal(result.paused.get(A), false);
+  });
+
+  it("a professional with no clinic has nothing to book (the schedule is on the clinic)", async () => {
+    const { supabase, rpcCalls } = fakeSupabase([]);
+    const result = await loadFinderCardAvailabilityByDoctorId(supabase, [C], undefined, {
+      loadLocations: async () => new Map([[C, []]]),
+    });
+    assert.equal(rpcCalls.length, 0);
+    assert.equal(result.paused.get(C), true);
+    assert.deepEqual(slotKeys(result.calendars.get(C)), []);
+  });
+
+  // Access ended (user, 2026-10-02): nothing new can be booked, so no calendar is offered.
+  it("offers no calendar for a professional whose pro access has ended", async () => {
+    const { supabase, rpcCalls } = fakeSupabase([]);
+    const result = await loadFinderCardAvailabilityByDoctorId(supabase, [A, B], undefined, {
+      loadLocations,
+      loadAccessEndedIds: async () => new Set([A]),
+    });
+
+    assert.equal(result.paused.get(A), true);
+    assert.deepEqual(slotKeys(result.calendars.get(A)), []);
+    assert.equal(result.byLocationId.get(L1)?.paused, true);
+    assert.equal(result.byLocationId.get(L2)?.paused, true);
+    assert.equal(result.paused.get(B), false);
+    assert.ok(slotKeys(result.calendars.get(B)).length > 0, "B keeps her calendar");
+    assert.deepEqual(rpcCalls[0].args.p_professional_ids, [B], "no occupancy lookup for A");
+  });
+
+  it("makes no occupied-times call when everyone on the page has ended access", async () => {
+    const { supabase, rpcCalls } = fakeSupabase([]);
+    await loadFinderCardAvailabilityByDoctorId(supabase, [A, B], undefined, {
+      loadLocations,
+      loadAccessEndedIds: async () => new Set([A, B]),
+    });
+    assert.equal(rpcCalls.length, 0);
   });
 
   it("shows no availability when the batch call fails", async () => {
@@ -179,14 +216,8 @@ describe("takenSlotTimesFor", () => {
   ];
   const to = "2026-11-01T00:00:00.000Z";
 
-  it("keeps one professional's rows at one clinic, deduplicated, in Cyprus time, within their horizon", () => {
-    assert.deepEqual(takenSlotTimesFor(rows, { professionalId: A, locationId: L1, toIso: to }), [
-      "2026-10-01T10:00",
-    ]);
-  });
-
-  it("keeps every clinic when no clinic is given", () => {
-    assert.deepEqual(takenSlotTimesFor(rows, { professionalId: A, locationId: null, toIso: to }), [
+  it("keeps one professional's rows from every clinic, deduplicated, in Cyprus time, within their horizon", () => {
+    assert.deepEqual(takenSlotTimesFor(rows, { professionalId: A, toIso: to }), [
       "2026-10-01T10:00",
       "2026-10-01T11:00",
     ]);
@@ -195,7 +226,6 @@ describe("takenSlotTimesFor", () => {
   it("keeps rows up to a longer horizon", () => {
     const result = takenSlotTimesFor(rows, {
       professionalId: A,
-      locationId: L1,
       toIso: "2027-01-31T00:00:00.000Z",
     });
     assert.ok(result.includes("2026-12-31T09:00"));

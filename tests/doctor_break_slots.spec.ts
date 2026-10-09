@@ -2,8 +2,8 @@
 import { test, expect } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
 import { signInDoctorAndSetCookies } from "./helpers/doctorAuth";
-import { pickFirstAvailableBookingDay } from "./helpers/pickBookingCalendarDay";
 import { skipIfSafeNoBooking } from "./helpers/safeMode";
+import { pickFirstAvailableBookingDay } from "./helpers/pickBookingCalendarDay";
 
 test.describe("Doctor lunch/break time", () => {
   test.beforeEach(({}, testInfo) => {
@@ -13,12 +13,14 @@ test.describe("Doctor lunch/break time", () => {
     ) {
       testInfo.skip(
         true,
-        "Supabase auth redirect to /agenda is flaky on WebKit mobile for E2E.",
+        "Supabase auth redirect to /agenda is flaky on WebKit mobile for E2E."
       );
     }
   });
 
-  test("break window hides slots between 14:00 and 16:00", async ({ page }) => {
+  test("break window hides slots between 14:00 and 16:00", async ({
+    page,
+  }) => {
     skipIfSafeNoBooking(test.info());
 
     test.setTimeout(60000);
@@ -36,12 +38,13 @@ test.describe("Doctor lunch/break time", () => {
     const admin = createClient(supabaseUrl, supabaseServiceRole);
     const { authUserId } = await signInDoctorAndSetCookies(page, supabase);
 
-    // Service role: the anon client's RLS read right after sign-in can come back empty.
+    // Service role: with a cached session the sign-in helper never signs in the client it's given,
+    // and an anonymous read can't match on auth_user_id.
     const { data: doctorRow } = await admin
       .from("professionals")
       .select("id, slug")
       .eq("auth_user_id", authUserId)
-      .eq("status", "verified")
+      .eq("is_registered", true)
       .single();
 
     const doctorId = (doctorRow as { id?: string } | null)?.id;
@@ -49,61 +52,46 @@ test.describe("Doctor lunch/break time", () => {
     expect(doctorId).toBeTruthy();
     expect(slug).toBeTruthy();
 
-    // Breaks are per clinic since D4 (professional_clinics), not in professional_settings.
-    const { data: links, error: linksErr } = await admin
+    // Configure the break on the primary clinic link (Point E6: schedules live there).
+    const { error: upsertErr } = await admin
       .from("professional_clinics")
-      .select("id, break_start, break_end")
-      .eq("professional_id", doctorId);
-    expect(linksErr).toBeNull();
-    expect(links?.length ?? 0).toBeGreaterThan(0);
-    const setBreaks = async (
-      rows: {
-        id: string;
-        break_start: string | null;
-        break_end: string | null;
-      }[],
-    ) => {
-      for (const row of rows) {
-        const { error } = await admin
-          .from("professional_clinics")
-          .update({ break_start: row.break_start, break_end: row.break_end })
-          .eq("id", row.id);
-        expect(error).toBeNull();
-      }
-    };
-    await setBreaks(
-      links!.map((row) => ({
-        id: row.id,
+      .update({
         break_start: "14:00:00",
         break_end: "16:00:00",
-      })),
-    );
+        updated_at: new Date().toISOString(),
+      })
+      .eq("professional_id", doctorId)
+      .eq("is_primary", true);
+    expect(upsertErr).toBeNull();
 
-    try {
-      // Go to doctor profile and verify no slots are shown in 14:00–16:00
-      await page.goto(`/${slug}`);
+    // Signed in, her own profile shows no calendar (she can't book herself, user 2026-10-06):
+    // look as a patient.
+    await page.context().clearCookies();
 
-      await expect(page.getByRole("heading", { level: 1 })).toBeVisible({
-        timeout: 10000,
-      });
+    // Go to doctor profile and verify no slots are shown in 14:00–16:00
+    await page.goto(`/${slug}`);
 
-      await pickFirstAvailableBookingDay(page, {
-        doctorHint: slug ?? undefined,
-      });
+    await expect(
+      page.getByRole("heading", { level: 1 })
+    ).toBeVisible({ timeout: 10000 });
 
-      // Wait for slots to load
-      const selectButtons = page.getByRole("button", { name: /Select/i });
-      await expect(selectButtons.first()).toBeVisible({ timeout: 10000 });
+    // Select first available date in the calendar
+    await expect(
+      page.getByText("Select a date on the calendar")
+    ).toBeVisible({ timeout: 10000 });
 
-      // Assert that no slot label contains 14:00/14:30/15:00/15:30
-      for (const t of ["14:00", "14:30", "15:00", "15:30"]) {
-        await expect(
-          page.getByRole("button", { name: new RegExp(t) }),
-        ).toHaveCount(0);
-      }
-    } finally {
-      // The fixture doctor is shared: put their breaks back.
-      await setBreaks(links!);
+    await pickFirstAvailableBookingDay(page, { doctorHint: slug ?? undefined });
+
+    // Wait for slots to load
+    const selectButtons = page.getByRole("button", { name: /Select/i });
+    await expect(selectButtons.first()).toBeVisible({ timeout: 10000 });
+
+    // Assert that no slot label contains 14:00/14:30/15:00/15:30
+    for (const t of ["14:00", "14:30", "15:00", "15:30"]) {
+      await expect(
+        page.getByRole("button", { name: new RegExp(t) })
+      ).toHaveCount(0);
     }
   });
 });
+

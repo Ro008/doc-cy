@@ -55,6 +55,7 @@ export function summarizeClinicBreak(input: {
 }
 
 export type ClinicBookingStatus =
+  | { kind: "ended"; label: "Online booking off" }
   | { kind: "taking"; label: "Taking online bookings" }
   | { kind: "paused"; label: "Online booking paused" }
   | { kind: "holiday"; label: "Paused for your holiday" };
@@ -62,7 +63,10 @@ export type ClinicBookingStatus =
 export function clinicBookingStatus(input: {
   pauseOnlineBookings: boolean;
   holidayActive: boolean;
+  /** Pro access has ended: no clinic takes online bookings (lib/load-access-ended). */
+  accessEnded?: boolean;
 }): ClinicBookingStatus {
+  if (input.accessEnded) return { kind: "ended", label: "Online booking off" };
   if (input.holidayActive) return { kind: "holiday", label: "Paused for your holiday" };
   if (input.pauseOnlineBookings) return { kind: "paused", label: "Online booking paused" };
   return { kind: "taking", label: "Taking online bookings" };

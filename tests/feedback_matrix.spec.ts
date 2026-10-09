@@ -4,11 +4,7 @@ import { zonedTimeToUtc } from "date-fns-tz";
 import { CY_TZ } from "../lib/appointments";
 import { signInDoctorAndSetCookies } from "./helpers/doctorAuth";
 
-/**
- * Reads with the service role: `signInDoctorAndSetCookies` reuses a cached session
- * for the browser and does not sign the passed client in again, so an anon client
- * has no session from the second test on and RLS hides the row.
- */
+/** Service role: with a cached session the sign-in helper never signs in a client of ours. */
 async function getDoctorId(
   admin: SupabaseClient,
   authUserId: string,
@@ -17,7 +13,7 @@ async function getDoctorId(
     .from("professionals")
     .select("id")
     .eq("auth_user_id", authUserId)
-    .eq("status", "verified")
+    .eq("is_registered", true)
     .single();
   const doctorId = (data as { id?: string } | null)?.id;
   expect(doctorId).toBeTruthy();
@@ -34,15 +30,13 @@ async function seedRequestedAppointment(
   const inserted = await admin
     .from("appointments")
     .insert({
-      doctor_id: doctorId,
+      professional_id: doctorId,
       patient_name: `${label} ${nonce}`,
-      patient_email: `${label.toLowerCase()}.${nonce}@example.com`,
+      patient_email: `${label.toLowerCase()}.${nonce}@integration.test`,
       patient_phone: "+35799123456",
       appointment_datetime: appointmentUtc.toISOString(),
       status: "REQUESTED",
       reason: `E2E feedback matrix ${label}`,
-      visit_type: null,
-      visit_notes: null,
     })
     .select("id")
     .single();
@@ -63,15 +57,13 @@ async function seedAgendaAppointment(
   const inserted = await admin
     .from("appointments")
     .insert({
-      doctor_id: doctorId,
+      professional_id: doctorId,
       patient_name: patientName,
-      patient_email: `${label.toLowerCase()}.${nonce}@example.com`,
+      patient_email: `${label.toLowerCase()}.${nonce}@integration.test`,
       patient_phone: "+35799123456",
       appointment_datetime: appointmentUtc.toISOString(),
       status,
       reason: `E2E feedback matrix ${label}`,
-      visit_type: null,
-      visit_notes: null,
     })
     .select("id")
     .single();
@@ -123,7 +115,10 @@ test.describe("Feedback matrix toasts", () => {
         },
       );
       await page.goto(`/dashboard/appointments/${appointmentId}`);
-      await page.getByRole("button", { name: /Confirm appointment/i }).click();
+      // "Confirm Thu 11 Apr, 11:00–11:30"
+      const confirmBtn = page.getByRole("button", { name: /^Confirm (Mon|Tue|Wed|Thu|Fri|Sat|Sun) /i });
+      await expect(confirmBtn).toBeEnabled({ timeout: 15_000 });
+      await confirmBtn.click();
       await expect(page).toHaveURL(
         new RegExp(
           `/dashboard/appointments/${appointmentId}\\?confirmed=1(?:$|[&#])`,
@@ -131,9 +126,7 @@ test.describe("Feedback matrix toasts", () => {
         { timeout: 15_000 },
       );
       await expect(
-        page.getByText(
-          /Confirmed in DocCy\. Manage all updates in DocCy in a few clicks/i,
-        ),
+        page.getByText(/The visit is in your agenda and the patient has been emailed/i),
       ).toBeVisible({ timeout: 12_000 });
     } finally {
       await admin.from("appointments").delete().eq("id", appointmentId);
@@ -181,7 +174,9 @@ test.describe("Feedback matrix toasts", () => {
       );
 
       await page.goto(`/dashboard/appointments/${appointmentId}`);
-      await page.getByRole("button", { name: /Confirm appointment/i }).click();
+      const confirmBtn = page.getByRole("button", { name: /^Confirm (Mon|Tue|Wed|Thu|Fri|Sat|Sun) /i });
+      await expect(confirmBtn).toBeEnabled({ timeout: 15_000 });
+      await confirmBtn.click();
       await expect(
         page
           .locator("[data-sonner-toast]")

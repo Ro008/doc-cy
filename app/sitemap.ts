@@ -9,6 +9,7 @@ import { isDirectoryCanarySlug } from "@/lib/directory-canaries";
 import { fetchAllSupabaseRows } from "@/lib/supabase-fetch-all";
 import { loadDoctorLocationsByDoctorIds } from "@/lib/load-doctor-locations";
 import { clinicDistricts } from "@/lib/professional-clinic-locations";
+import { LISTING_CLINICS_SELECT, listingClinicLocations } from "@/lib/listing-clinic-location";
 
 function normalizeDistrictSlug(value: unknown): string {
   const raw = String(value ?? "").trim();
@@ -22,9 +23,9 @@ type SpecialtyPairRow = {
   specialties?: { slug?: string | null } | null;
   professionals?: {
     id?: string | null;
-    district?: string | null;
     is_test_profile?: boolean | null;
     name?: string | null;
+    listing_clinics?: unknown;
   } | null;
 };
 
@@ -64,27 +65,24 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   if (!supabase) return staticEntries;
 
   // One URL per district x specialty with at least one professional the finder
-  // shows: verified registered professionals, and visible scraped listings. Every
+  // shows: registered professionals, and active scraped listings. Every
   // specialty counts, not only the first (professional_specialties).
   const loadPairs = (registered: boolean) =>
     fetchAllSupabaseRows(() => {
       let q = supabase
         .from("professional_specialties")
         .select(
-          "specialties!inner(slug), professionals!inner(id, district, is_test_profile, name, is_archived, is_registered, status, slug, finder_visible)",
+          `specialties!inner(slug), professionals!inner(id, is_test_profile, name, is_archived, is_registered, slug${registered ? "" : `, ${LISTING_CLINICS_SELECT}`})`,
         )
-        .eq("is_approved", true)
         .eq("professionals.is_archived", false)
         .eq("professionals.is_registered", registered);
-      q = registered
-        ? q.eq("professionals.status", "verified").not("professionals.slug", "is", null)
-        : q.eq("professionals.finder_visible", true);
+      if (registered) {
+        q = q.not("professionals.slug", "is", null);
+      }
       return q.order("id");
     });
   const [registeredPairs, scrapedPairs] = await Promise.all([loadPairs(true), loadPairs(false)]);
-  // A registered professional counts in every district their clinics are in, never by
-  // the copy on professionals (Point E). Listings keep professionals.district until the
-  // Point E cleanup moves them onto their clinics too.
+  // Every professional counts in each district their clinics are in (Point E5).
   const registeredIds = ((registeredPairs.data ?? []) as SpecialtyPairRow[])
     .map((row) => String(row.professionals?.id ?? "").trim())
     .filter(Boolean);
@@ -105,7 +103,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       if (!specialtySlug) continue;
       const districts = registered
         ? clinicDistricts(registeredLocations.get(String(pro?.id ?? "")) ?? [])
-        : [pro?.district];
+        : clinicDistricts(listingClinicLocations(pro ?? {}));
       for (const district of districts) {
         const districtSlug = normalizeDistrictSlug(district);
         if (!districtSlug) continue;
@@ -161,44 +159,20 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   let manualDoctorEntries: MetadataRoute.Sitemap = [];
   type ManualSitemapSlugRow = {
     slug?: string | null;
-    finder_visible?: boolean | null;
     is_test_profile?: boolean | null;
     is_registered?: boolean | null;
-    status?: string | null;
     name?: string | null;
   };
-  let manualSlugRes: {
+  const manualSlugRes: {
     data: ManualSitemapSlugRow[] | null;
     error: { code?: string; message?: string } | null;
   } = await fetchAllSupabaseRows(() =>
     supabase
       .from("professionals")
-      .select("slug, finder_visible, is_test_profile, is_registered, status, name")
+      .select("slug, is_test_profile, is_registered, name")
       .eq("is_archived", false)
-      .eq("finder_visible", true)
       .not("slug", "is", null),
   );
-
-  if (
-    manualSlugRes.error &&
-    (String(manualSlugRes.error.message ?? "").toLowerCase().includes("finder_visible") ||
-      (manualSlugRes.error as { code?: string }).code === "42703")
-  ) {
-    const fallback = await fetchAllSupabaseRows(() =>
-      supabase
-        .from("professionals")
-        .select("slug")
-        .eq("is_archived", false)
-        .eq("is_registered", false)
-        .not("slug", "is", null),
-    );
-    manualSlugRes = {
-      data: (fallback.data ?? []).map((row) => ({
-        slug: (row as { slug?: string | null }).slug,
-      })),
-      error: fallback.error,
-    };
-  }
 
   const slugColumnMissing =
     manualSlugRes.error &&
@@ -212,12 +186,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       .map((row) => {
         const slug = String(row.slug ?? "").trim();
         if (!slug || isDirectoryCanarySlug(slug)) return null;
-        if (row.finder_visible === false) return null;
         if (row.is_test_profile) return null;
         if (/\btest\b/i.test(String(row.name ?? ""))) return null;
-        if (row.is_registered && String(row.status ?? "").trim().toLowerCase() !== "verified") {
-          return null;
-        }
         return {
           url: `${siteBase}${publicProfessionalProfilePath(slug)}`,
           lastModified: now,

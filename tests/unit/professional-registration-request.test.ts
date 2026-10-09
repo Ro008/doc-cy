@@ -30,8 +30,8 @@ function input(overrides: Partial<ProfessionalRegistrationInput> = {}): Professi
     languages: ["English", "Spanish"],
     photoPath: "professional_registration/u1/photo.jpg",
     specialties: [
-      { specialty: "Physiotherapy", fromMaster: true, isApproved: true, licenseNumber: " PT-123 " },
-      { specialty: "Dry needling", fromMaster: false, isApproved: false, licenseNumber: "DN-9" },
+      { specialty: "Physiotherapy", fromMaster: true, fromCatalogue: true, licenseNumber: " PT-123 " },
+      { specialty: "Dry needling", fromMaster: false, fromCatalogue: false, licenseNumber: "DN-9" },
     ],
     clinics: [
       {

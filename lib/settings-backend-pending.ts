@@ -8,13 +8,17 @@
  */
 
 export const BACKEND_PENDING = {
+  requestSpecialty: {
+    what: "asking for a new specialty",
+    endpoint: "POST /api/specialty-requests",
+  },
   removeSpecialty: { what: "removing a specialty", endpoint: "DELETE /api/doctor-specialties" },
   addClinic: { what: "adding a clinic", endpoint: "POST /api/clinic-requests" },
   removeClinic: { what: "removing a clinic", endpoint: "DELETE /api/professional-clinics" },
   clinicChangeRequest: { what: "requesting a clinic change", endpoint: "POST /api/clinic-change-requests" },
   cancelSpecialtyRequest: {
     what: "cancelling a specialty request",
-    endpoint: "DELETE /api/doctor-specialty-change-request",
+    endpoint: "DELETE /api/specialty-requests",
   },
 } as const;
 

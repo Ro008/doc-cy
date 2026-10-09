@@ -165,8 +165,8 @@ begin
       gen_random_uuid()), 'P0002', 'unknown login');
   -- A login that already belongs to a professional can't register again.
   v_other := pg_temp.new_login('draft-pro-' || v_tag || '@integration.test');
-  insert into public.professionals (auth_user_id, name, slug, is_registered, status, is_test_profile)
-  values (v_other, 'Draft Pro ' || v_tag, 'draft-pro-' || v_tag, true, 'verified', true);
+  insert into public.professionals (auth_user_id, name, slug, is_registered, is_test_profile)
+  values (v_other, 'Draft Pro ' || v_tag, 'draft-pro-' || v_tag, true, true);
   perform pg_temp.expect_error(
     format($$select pg_temp.draft(%L, 'Pro', 'draft-pro@integration.test')$$, v_other), '23505', 'login with a professional');
   v_checks := v_checks + 6;

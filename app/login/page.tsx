@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
 import { LoginPageClient } from "@/components/auth/LoginPageClient";
 import { safeAuthNextPath } from "@/lib/auth-redirect";
+import { postLoginDestination } from "@/lib/doctor-routes";
 import { amrFromAccessToken, hasValidEmailStep } from "@/lib/professional-email-step";
 
 export const dynamic = "force-dynamic";
@@ -33,7 +34,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
       .eq("auth_user_id", user.id)
       .maybeSingle();
     signOutFirst = Boolean(professional) && !hasValidEmailStep(amrFromAccessToken(session?.access_token));
-    if (!signOutFirst) redirect(nextPath ?? "/agenda");
+    if (!signOutFirst) redirect(postLoginDestination(nextPath));
   }
 
   return (

@@ -58,18 +58,12 @@ async function createPsychologyPlusSexologyDoctor(
     .insert({
       auth_user_id: authUserId,
       name,
-      district: "Paphos",
-      town: "Paphos",
       email,
-      phone: "+35799123456",
       languages: ["English"],
-      license_file_url: `licenses/integration/${nonce}-${slugPrefix}.pdf`,
-      status: "verified",
       slug,
       is_test_profile: true,
       is_registered: true,
       pro_access_until: new Date(Date.now() + 180 * 86_400_000).toISOString(),
-      finder_visible: true,
       is_archived: false,
       subscription_tier: "standard",
     })
@@ -88,13 +82,11 @@ async function createPsychologyPlusSexologyDoctor(
         professional_id: doctorId,
         specialty: "Psychology",
         license_number: `LIC-FINDER-SEX-${nonce}-psy`,
-        is_approved: true,
       },
       {
         professional_id: doctorId,
         specialty: "Sexology",
         license_number: `LIC-FINDER-SEX-${nonce}-sex`,
-        is_approved: true,
       },
     ],
   );
@@ -106,10 +98,9 @@ async function createPsychologyPlusSexologyDoctor(
 
   const verify = await admin
     .from("professional_specialties")
-    .select("is_approved, specialties(name)")
+    .select("specialties(name)")
     .eq("professional_id", doctorId);
   const specialties = (verify.data ?? [])
-    .filter((row) => row.is_approved)
     .map((row) => (row.specialties as { name?: string } | null)?.name ?? "");
   if (verify.error || !specialties.includes("Sexology") || !specialties.includes("Psychology")) {
     await admin.from("professional_specialties").delete().eq("professional_id", doctorId);

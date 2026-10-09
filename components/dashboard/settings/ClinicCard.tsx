@@ -7,6 +7,7 @@ import type { PendingClinicChange } from "@/components/dashboard/settings/Clinic
 import { Collapse } from "@/components/dashboard/settings/Collapse";
 
 const STATUS_PILL: Record<ClinicBookingStatus["kind"], string> = {
+  ended: "bg-slate-500/20 text-slate-300",
   taking: "bg-wellness-500/15 text-wellness-200",
   paused: "border border-dashed border-amber-400/80 text-amber-100",
   holiday: "bg-amber-500/15 text-amber-200",

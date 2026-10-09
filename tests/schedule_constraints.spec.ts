@@ -37,8 +37,7 @@ type WeeklySchedulePayload = {
 
 /**
  * Booking availability is resolved from the primary clinic link (professional_clinics), not
- * professional_settings alone. Updating the primary link also syncs its schedule onto
- * professional_settings (trigger professional_clinics_sync_primary_settings), and
+ * professional_settings (which holds the account settings only since Point E6), and
  * appointments reference the link's id.
  */
 async function syncPrimaryLocationSchedule(
@@ -156,23 +155,27 @@ test.describe("Schedule constraints @booking-creates", { tag: ["@pr-e2e", "@pr-e
       data: {
         doctorId: doctor.id,
         patientName: "Friday Allowed Test",
-        patientEmail: "friday.allowed@test.com",
+        patientEmail: "friday.allowed@integration.test",
         patientPhone: "99123456",
         appointmentLocal: `${fridayKey}T14:30`,
         isNewPatient: true,
+        patientGender: "prefer_not_to_say",
+        patientBirthdate: "1990-01-01",
         reason: "Schedule constraint test — visit reason.",
       },
     });
-    expect([200, 201, 409]).toContain(resAllowed.status());
+    expect([202, 409]).toContain(resAllowed.status());
 
     const resBlocked = await request.post("/api/appointments", {
       data: {
         doctorId: doctor.id,
         patientName: "Friday Blocked Test",
-        patientEmail: "friday.blocked@test.com",
+        patientEmail: "friday.blocked@integration.test",
         patientPhone: "99123456",
         appointmentLocal: `${fridayKey}T15:00`,
         isNewPatient: true,
+        patientGender: "prefer_not_to_say",
+        patientBirthdate: "1990-01-01",
         reason: "Schedule constraint test — visit reason.",
       },
     });
@@ -191,10 +194,10 @@ test.describe("Schedule constraints @booking-creates", { tag: ["@pr-e2e", "@pr-e
     const supabase = createClient(supabaseUrl, serviceRole);
     const { data: doctor } = await supabase
       .from("professionals")
-      .select("id,slug,status")
+      .select("id,slug,is_registered")
       .eq("slug", SCHEDULE_TEST_SLUG)
       .single();
-    test.skip(!doctor?.id || doctor.status !== "verified", "Verified doctor not found.");
+    test.skip(!doctor?.id || !doctor.is_registered, "Registered professional not found.");
 
     const start = cyprusDateKey(1);
     const end = cyprusDateKey(3);
@@ -235,10 +238,12 @@ test.describe("Schedule constraints @booking-creates", { tag: ["@pr-e2e", "@pr-e
       data: {
         doctorId: doctor.id,
         patientName: "Holiday Block Test",
-        patientEmail: "holiday.block@test.com",
+        patientEmail: "holiday.block@integration.test",
         patientPhone: "99123456",
         appointmentLocal: `${start}T10:00`,
         isNewPatient: true,
+        patientGender: "prefer_not_to_say",
+        patientBirthdate: "1990-01-01",
         reason: "Schedule constraint test — visit reason.",
       },
     });
@@ -260,10 +265,10 @@ test.describe("Schedule constraints @booking-creates", { tag: ["@pr-e2e", "@pr-e
     const supabase = createClient(supabaseUrl, serviceRole);
     const { data: doctor } = await supabase
       .from("professionals")
-      .select("id,slug,status")
+      .select("id,slug,is_registered")
       .eq("slug", SCHEDULE_TEST_SLUG)
       .single();
-    test.skip(!doctor?.id || doctor.status !== "verified", "Verified doctor not found.");
+    test.skip(!doctor?.id || !doctor.is_registered, "Registered professional not found.");
 
     const commonDay = { enabled: true, start_time: "09:00:00", end_time: "18:00:00" };
     const weekly_schedule: WeeklySchedulePayload = {
@@ -306,10 +311,12 @@ test.describe("Schedule constraints @booking-creates", { tag: ["@pr-e2e", "@pr-e
       data: {
         doctorId: doctor.id,
         patientName: "Misaligned 16:45",
-        patientEmail: "misaligned.1645@test.com",
+        patientEmail: "misaligned.1645@integration.test",
         patientPhone: "99123456",
         appointmentLocal: `${targetDate}T16:45`,
         isNewPatient: true,
+        patientGender: "prefer_not_to_say",
+        patientBirthdate: "1990-01-01",
         reason: "Schedule constraint test — visit reason.",
       },
     });
@@ -321,21 +328,18 @@ test.describe("Schedule constraints @booking-creates", { tag: ["@pr-e2e", "@pr-e
 
     // 2) Defensive overlap guard: even if an invalid 16:45 row exists (manual/admin insert),
     // API must block a 17:00 booking because ranges intersect.
-    // Seed must use the same location_id the public booking API will resolve.
+    // One agenda per professional: the seed blocks the time at every clinic.
     const invalidStartUtc = zonedTimeToUtc(`${targetDate}T16:45`, CY_TZ as string);
     const seeded = await supabase
       .from("appointments")
       .insert({
-        doctor_id: doctor.id,
+        professional_id: doctor.id,
         patient_name: "Seeded Invalid 16:45",
-        patient_email: "seeded.invalid.1645@test.com",
+        patient_email: "seeded.invalid.1645@integration.test",
         patient_phone: "99123456",
         appointment_datetime: invalidStartUtc.toISOString(),
         status: "CONFIRMED",
         reason: "Seeded overlap fixture",
-        visit_type: null,
-        visit_notes: null,
-        location_id: primaryLocationId,
       })
       .select("id")
       .single();
@@ -348,10 +352,12 @@ test.describe("Schedule constraints @booking-creates", { tag: ["@pr-e2e", "@pr-e
         data: {
           doctorId: doctor.id,
           patientName: "Should conflict at 17:00",
-          patientEmail: "overlap.1700@test.com",
+          patientEmail: "overlap.1700@integration.test",
           patientPhone: "99123456",
           appointmentLocal: `${targetDate}T17:00`,
           isNewPatient: true,
+          patientGender: "prefer_not_to_say",
+          patientBirthdate: "1990-01-01",
           reason: "Schedule constraint test — visit reason.",
         },
       });
@@ -369,10 +375,12 @@ test.describe("Schedule constraints @booking-creates", { tag: ["@pr-e2e", "@pr-e
           data: {
             doctorId: doctor.id,
             patientName: "Should conflict at 17:00",
-            patientEmail: "overlap.1700@test.com",
+            patientEmail: "overlap.1700@integration.test",
             patientPhone: "99123456",
             appointmentLocal: `${targetDate}T17:00`,
             isNewPatient: true,
+            patientGender: "prefer_not_to_say",
+            patientBirthdate: "1990-01-01",
             reason: "Schedule constraint test — visit reason.",
           },
         });
@@ -380,7 +388,7 @@ test.describe("Schedule constraints @booking-creates", { tag: ["@pr-e2e", "@pr-e
 
       expect(overlapRes.status()).toBe(409);
       const overlapJson = await overlapRes.json();
-      expect(String(overlapJson?.message ?? "")).toContain("Slot already taken");
+      expect(overlapJson?.code).toBe("slot_taken");
     } finally {
       if (seededId) {
         await supabase.from("appointments").delete().eq("id", seededId);

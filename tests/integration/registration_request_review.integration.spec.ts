@@ -251,13 +251,12 @@ test.describe("Integration: registration request review", { tag: "@pr-e2e" }, ()
 
     const { data: pro } = await admin
       .from("professionals")
-      .select("name, slug, status, is_registered, auth_user_id, avatar_url, pro_access_until, gender, is_gesy")
+      .select("name, slug, is_registered, auth_user_id, avatar_url, pro_access_until, gender, is_gesy")
       .eq("id", body.professionalId)
       .single();
     expect(pro).toMatchObject({
       name: `Review ${lastName} Fixed`,
       slug: body.slug,
-      status: "verified",
       is_registered: true,
       auth_user_id: seeded.authUserId,
       gender: "female",
@@ -306,6 +305,7 @@ test.describe("Integration: registration request review", { tag: "@pr-e2e" }, ()
     const nonce = Date.now().toString(36).replace(/\d/g, (d) => "abcdefghij"[Number(d)]!);
     const listing = await createQaClaimDirectoryClone(admin, nonce);
     cleanup.professionals.push(listing.id);
+    cleanup.clinics.push(listing.clinicId);
     const seeded = await seedRequest(admin, cleanup, {
       lastName: `Claimer ${nonce}`,
       clinicId: clinic.id,

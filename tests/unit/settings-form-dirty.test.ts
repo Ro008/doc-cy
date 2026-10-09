@@ -42,6 +42,7 @@ function baseSnapshotInput() {
     mobileNumber: "+35799111222",
     bookingHorizonDays: 60,
     minimumNoticeHours: 24,
+    patientCancelNoticeHours: 24,
     holidayModeEnabled: false,
     holidayStartInput: "",
     holidayEndInput: "",
@@ -50,6 +51,12 @@ function baseSnapshotInput() {
 }
 
 describe("settings-form-dirty", () => {
+  it("flags a changed patient cancellation deadline (user, 2026-10-08)", () => {
+    const saved = buildSettingsDirtySnapshot(baseSnapshotInput());
+    const current = buildSettingsDirtySnapshot({ ...baseSnapshotInput(), patientCancelNoticeHours: 12 });
+    assert.equal(settingsFormHasUnsavedChanges(current, saved), true);
+  });
+
   it("treats identical snapshots as saved", () => {
     const saved = buildSettingsDirtySnapshot(baseSnapshotInput());
     const current = buildSettingsDirtySnapshot(baseSnapshotInput());

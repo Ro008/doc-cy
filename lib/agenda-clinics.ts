@@ -6,7 +6,11 @@ import {
 import type { DayKey, WeeklySchedule } from "@/lib/doctor-settings";
 
 export const AGENDA_APPOINTMENT_SELECT =
-  "id, doctor_id, patient_name, patient_phone, reason, appointment_datetime, status, duration_minutes, proposed_slots, proposal_expires_at, attendance, location_id";
+  "id, professional_id, patient_name, patient_phone, patient_email, patient_gender, patient_birthdate, is_new_patient, reason, appointment_datetime, status, duration_minutes, proposed_slots, proposal_expires_at, attendance, clinic_id, professional_notes, review_requested_at, booking_source";
+
+/** Statuses the agenda shows. Declined, cancelled and expired visits are kept (never
+ *  deleted) but leave the agenda. */
+export const AGENDA_VISIBLE_STATUSES = ["REQUESTED", "NEEDS_RESCHEDULE", "CONFIRMED"] as const;
 
 export type AgendaWorkingHours = {
   weeklySchedule: WeeklySchedule;
@@ -16,7 +20,10 @@ export type AgendaWorkingHours = {
 };
 
 export type AgendaClinic = {
+  /** Her clinic link (`professional_clinics.id`). */
   id: string;
+  /** The clinic itself (`clinics.id`): what `appointments.clinic_id` stores. */
+  clinicId?: string | null;
   name: string;
   hours: AgendaWorkingHours;
 };
@@ -42,7 +49,9 @@ export function locationToAgendaHours(location: DoctorLocationRow): AgendaWorkin
 export function locationsToAgendaClinics(rows: readonly DoctorLocationRow[]): AgendaClinic[] {
   return rows.map((row, index) => ({
     id: row.id,
-    name: clinicDisplayName(row.label, index, rows.length),
+    clinicId: row.clinic_id ?? null,
+    // Every screen shows the clinic's own name (user, 2026-10-03).
+    name: row.clinic_name?.trim() || clinicDisplayName(row.label, index, rows.length),
     hours: locationToAgendaHours(row),
   }));
 }
@@ -119,12 +128,72 @@ export function unionAgendaWorkingWindows(
   };
 }
 
+export type AgendaMinuteRange = { start: number; end: number };
+export type AgendaClosedBand = AgendaMinuteRange & { kind: "off" | "break" };
+
+/** When one clinic is open that day: its hours minus its break (minutes from midnight). */
+export function agendaOpenIntervals(window: AgendaWorkingWindow): AgendaMinuteRange[] {
+  if (!window.enabled || window.end <= window.start) return [];
+  const { start, end, breakStart, breakEnd } = window;
+  if (breakStart == null || breakEnd == null || breakEnd <= start || breakStart >= end || breakEnd <= breakStart) {
+    return [{ start, end }];
+  }
+  return [
+    { start, end: Math.max(start, breakStart) },
+    { start: Math.min(end, breakEnd), end },
+  ].filter((r) => r.end > r.start);
+}
+
+/**
+ * What the agenda hatches for the shown clinics: every stretch of the grid where none of them is
+ * open, counting each clinic's own break, so a gap between two clinics' hours is hatched too.
+ * "break" when that stretch is a lunch break, "off" otherwise; "closed" when none opens that day
+ * (user, 2026-10-07).
+ */
+export function agendaClosedBands(
+  windows: readonly AgendaWorkingWindow[],
+  gridStart: number,
+  gridEnd: number,
+): AgendaClosedBand[] | "closed" {
+  const open = windows
+    .flatMap(agendaOpenIntervals)
+    .sort((a, b) => a.start - b.start);
+  if (open.length === 0) return "closed";
+
+  const bands: AgendaClosedBand[] = [];
+  let cursor = gridStart;
+  const closeUntil = (until: number) => {
+    const end = Math.min(until, gridEnd);
+    if (end > cursor) {
+      const isBreak = windows.some(
+        (w) =>
+          w.enabled &&
+          w.breakStart != null &&
+          w.breakEnd != null &&
+          w.breakStart <= cursor &&
+          end <= w.breakEnd &&
+          w.start <= cursor &&
+          end <= w.end,
+      );
+      bands.push({ start: cursor, end, kind: isBreak ? "break" : "off" });
+    }
+  };
+  for (const range of open) {
+    closeUntil(range.start);
+    cursor = Math.max(cursor, range.end);
+    if (cursor >= gridEnd) return bands;
+  }
+  closeUntil(gridEnd);
+  return bands;
+}
+
 /** Map an appointment to a clinic; unassigned rows follow the primary (first) clinic. */
+/** Her clinic link for an appointment's clinic (`clinics.id`), else the first (primary). */
 export function clinicIdForAppointment(
-  locationId: string | null | undefined,
-  clinics: readonly Pick<AgendaClinic, "id">[],
+  appointmentClinicId: string | null | undefined,
+  clinics: readonly Pick<AgendaClinic, "id" | "clinicId">[],
 ): string | null {
-  const id = String(locationId ?? "").trim();
-  if (id && clinics.some((clinic) => clinic.id === id)) return id;
-  return clinics[0]?.id ?? null;
+  const id = String(appointmentClinicId ?? "").trim();
+  const match = id ? clinics.find((clinic) => clinic.clinicId === id) : undefined;
+  return match?.id ?? clinics[0]?.id ?? null;
 }

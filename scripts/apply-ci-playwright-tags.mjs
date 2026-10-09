@@ -22,7 +22,6 @@ const prE2eBooking = [
   "schedule_constraints.spec.ts",
   "integration/appointments_race_condition.integration.spec.ts",
   "integration/needs_reschedule_slot_free.integration.spec.ts",
-  "integration/propose_reschedule_confirmed.integration.spec.ts",
   "integration/doctor_confirmation_flow.integration.spec.ts",
 ];
 
@@ -34,8 +33,6 @@ const prE2e = [
   "promote_practice_settings.spec.ts",
   "practice_insights.spec.ts",
   "practice_insights_metrics.spec.ts",
-  "integration/monthly_digest.integration.spec.ts",
-  "integration/doctor_account_access.integration.spec.ts",
   "integration/doctor_onboarding_pipeline.integration.spec.ts",
   "navigation_feedback.spec.ts",
   "doctor_settings_language_guard.spec.ts",

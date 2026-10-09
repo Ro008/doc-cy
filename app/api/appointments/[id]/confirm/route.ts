@@ -10,11 +10,13 @@ import {
   isAllowedProfessionalDuration,
   PROFESSIONAL_DURATION_OPTIONS,
 } from "@/lib/professional-appointment-durations";
-import { appointmentClinicCopy } from "@/lib/appointment-clinic-copy";
+import { appointmentClinicCopy, loadAppointmentClinicPhone } from "@/lib/appointment-clinic-copy";
 import { loadDoctorLocations } from "@/lib/load-doctor-locations";
+import { clinicSlotMinutes } from "@/lib/professional-account-settings";
+import { loadPatientEmailClinic, patientClinicProfileUrl } from "@/lib/patient-email-clinic";
 import { sendPatientAppointmentConfirmedEmail } from "@/lib/send-patient-appointment-confirmed-email";
-import { sendDoctorAppointmentConfirmedEmail } from "@/lib/send-doctor-appointment-confirmed-email";
-import { professionalAccountEmail } from "@/lib/professional-account-contact";
+import { issuePatientCancelLink } from "@/lib/appointment-links-db";
+import { isUndeliverableTestEmail } from "@/lib/registration-decision-emails";
 import { createServiceRoleClient } from "@/lib/supabase-service";
 import { loadPrimarySpecialtyName } from "@/lib/specialty-catalogue";
 
@@ -54,7 +56,7 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
 
   const { data: doctor, error: doctorErr } = await supabase
     .from("professionals")
-    .select("id, name, email, registration_email, phone")
+    .select("id, name, slug, email, registration_email")
     .eq("auth_user_id", user.id)
     .maybeSingle();
 
@@ -65,7 +67,7 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
   const { data: appt, error: apptErr } = await supabase
     .from("appointments")
     .select(
-      "id, doctor_id, patient_name, patient_email, patient_phone, appointment_datetime, status, reason, duration_minutes, location_id"
+      "id, professional_id, patient_name, patient_email, patient_phone, appointment_datetime, status, reason, duration_minutes, clinic_id"
     )
     .eq("id", id)
     .maybeSingle();
@@ -74,7 +76,7 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
     return NextResponse.json({ message: "Appointment not found." }, { status: 404 });
   }
 
-  if (appt.doctor_id !== doctor.id) {
+  if (appt.professional_id !== doctor.id) {
     return NextResponse.json({ message: "Forbidden." }, { status: 403 });
   }
 
@@ -86,15 +88,10 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
     );
   }
 
-  const { data: settings } = await supabase
-    .from("professional_settings")
-    .select("slot_duration_minutes")
-    .eq("professional_id", doctor.id)
-    .maybeSingle();
-
-  const fallbackDuration =
-    (settings as { slot_duration_minutes?: number | null } | null)
-      ?.slot_duration_minutes ?? 30;
+  // A visit saved without a length counts as the primary clinic's slot (Point E6: the
+  // slot length lives on the clinic link).
+  const locations = await loadDoctorLocations(doctor.id);
+  const fallbackDuration = clinicSlotMinutes(locations);
 
   const { data: blockingRaw, error: othersErr } = await fetchBlockingAppointments(
     supabase,
@@ -124,14 +121,22 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
     );
   }
 
-  const { error: updateErr } = await supabase
+  // Guarded on REQUESTED so a double click or a concurrent decline can't overwrite it.
+  const service = createServiceRoleClient();
+  if (!service) {
+    return NextResponse.json({ message: "Server misconfiguration." }, { status: 503 });
+  }
+  const { data: confirmed, error: updateErr } = await service
     .from("appointments")
     .update({
       status: "CONFIRMED",
       duration_minutes: durationMinutes,
     })
     .eq("id", id)
-    .eq("doctor_id", doctor.id);
+    .eq("professional_id", doctor.id)
+    .eq("status", "REQUESTED")
+    .select("id")
+    .maybeSingle();
 
   if (updateErr) {
     console.error(updateErr);
@@ -139,6 +144,9 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
       { message: "Could not confirm appointment." },
       { status: 500 }
     );
+  }
+  if (!confirmed) {
+    return NextResponse.json({ message: "This request was already answered." }, { status: 409 });
   }
 
   const siteUrl =
@@ -148,19 +156,31 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
       ? process.env.RESEND_TO_OVERRIDE?.trim() || null
       : null;
 
-  const locations = await loadDoctorLocations(doctor.id);
   const clinic = appointmentClinicCopy({
     locations,
-    locationId: (appt as { location_id?: string | null }).location_id,
+    clinicId: (appt as { clinic_id?: string | null }).clinic_id,
   });
 
-  const specialtyService = createServiceRoleClient();
+  const specialtyService = service;
   const specialtyName = specialtyService
     ? await loadPrimarySpecialtyName(specialtyService, doctor.id as string)
     : null;
 
+  // The patient's cancel link (until X hours before the visit; user, 2026-10-04).
+  let cancel: { url: string; deadlineLabel: string } | null = null;
   try {
-    await sendPatientAppointmentConfirmedEmail({
+    cancel = await issuePatientCancelLink(
+      service,
+      { id, professional_id: doctor.id as string, appointment_datetime: String(appt.appointment_datetime) },
+      siteUrl,
+    );
+  } catch (e) {
+    console.error("[DocCy] cancel link", e);
+  }
+
+  try {
+    const patientEmail = String(appt.patient_email ?? "").trim();
+    if (patientEmail && !isUndeliverableTestEmail(patientEmail)) await sendPatientAppointmentConfirmedEmail({
       siteUrl,
       patientEmail: String(appt.patient_email),
       patientName: String(appt.patient_name),
@@ -171,35 +191,22 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
       doctor: {
         name: doctor.name,
         specialty: specialtyName,
-        phone: (doctor as { phone?: string | null }).phone,
+        // Signed-in client can't read clinics (RLS): the service role reads the phone.
+        phone: specialtyService
+          ? await loadAppointmentClinicPhone(specialtyService, clinic.locationId)
+          : null,
         clinic_address: clinic.address,
       },
       clinic,
+      profileUrl: patientClinicProfileUrl(siteUrl, (doctor as { slug?: string | null }).slug),
+      cancel,
       resendToOverride,
     });
   } catch (e) {
     console.error("[DocCy] Patient confirmation email failed", e);
   }
 
-  try {
-    await sendDoctorAppointmentConfirmedEmail({
-      siteUrl,
-      doctorEmail: professionalAccountEmail(
-        doctor as { email?: string | null; registration_email?: string | null },
-      ),
-      doctorName: String(doctor.name ?? "Doctor"),
-      appointmentId: id,
-      appointmentDatetimeIso: String(appt.appointment_datetime),
-      durationMinutes,
-      patientName: String(appt.patient_name),
-      patientPhone: (appt as { patient_phone?: string | null }).patient_phone ?? null,
-      reason: (appt as { reason?: string | null }).reason ?? null,
-      clinic,
-      resendToOverride,
-    });
-  } catch (e) {
-    console.error("[DocCy] Doctor confirmation email failed", e);
-  }
+  // No email to the professional about a visit she accepted herself (user, 2026-10-02).
 
   return NextResponse.json({
     message: "Appointment confirmed.",

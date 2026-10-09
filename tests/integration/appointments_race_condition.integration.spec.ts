@@ -5,6 +5,7 @@ import {
   seedProfessionalSpecialty,
 } from "./helpers/test-doctor";
 import { createClient } from "@supabase/supabase-js";
+import { takeOverLatestDraftLink, withBookingDefaults } from "./helpers/online-booking";
 
 function nextWeekdayDateKey(daysAhead = 1): string {
   const d = new Date();
@@ -16,7 +17,7 @@ function nextWeekdayDateKey(daysAhead = 1): string {
   return `${yyyy}-${mm}-${dd}`;
 }
 
-// CI: exercises parallel POST /api/appointments against unique (doctor_id, appointment_datetime).
+// CI: exercises parallel POST /api/booking/confirm (two drafts, one time) against unique (professional_id, appointment_datetime).
 test.describe("Integration: appointment race condition guard", { tag: ["@pr-e2e", "@pr-e2e-booking"] }, () => {
   test("same slot parallel booking creates one appointment only", async ({
     request,
@@ -74,14 +75,10 @@ test.describe("Integration: appointment race condition guard", { tag: ["@pr-e2e"
           auth_user_id: authUserId,
           name: `Race Doctor ${nonce}`,
           email: doctorEmail,
-          phone: "+35799123456",
           languages: ["English"],
-          license_file_url: `licenses/integration/${nonce}.pdf`,
-          status: "verified",
           slug: doctorSlug,
                 is_registered: true,
       pro_access_until: new Date(Date.now() + 180 * 86_400_000).toISOString(),
-      finder_visible: true,
       is_archived: false,
       subscription_tier: "standard",
 
@@ -97,50 +94,14 @@ test.describe("Integration: appointment race condition guard", { tag: ["@pr-e2e"
       await seedProfessionalSpecialty(admin, doctorId, {
         specialty: "General Practice",
         licenseNumber: `LIC-RACE-${nonce}`,
-        isApproved: true,
       });
 
-      const day = {
-        enabled: true,
-        start_time: "09:00:00",
-        end_time: "17:00:00",
-      };
       const settingsUpsert = await admin.from("professional_settings").upsert(
         {
           professional_id: doctorId,
-          monday: true,
-          tuesday: true,
-          wednesday: true,
-          thursday: true,
-          friday: true,
-          saturday: false,
-          sunday: false,
-          start_time: "09:00:00",
-          end_time: "17:00:00",
-          weekly_schedule: {
-            monday: day,
-            tuesday: day,
-            wednesday: day,
-            thursday: day,
-            friday: day,
-            saturday: {
-              enabled: false,
-              start_time: "09:00:00",
-              end_time: "17:00:00",
-            },
-            sunday: {
-              enabled: false,
-              start_time: "09:00:00",
-              end_time: "17:00:00",
-            },
-          },
-          break_start: null,
-          break_end: null,
           holiday_mode_enabled: false,
           holiday_start_date: null,
           holiday_end_date: null,
-          pause_online_bookings: false,
-          slot_duration_minutes: 30,
           booking_horizon_days: 90,
           minimum_notice_hours: 1,
           updated_at: new Date().toISOString(),
@@ -178,15 +139,25 @@ test.describe("Integration: appointment race condition guard", { tag: ["@pr-e2e"
         reason: "Integration race test — reason for visit.",
       };
 
+      // Both submit (drafts hold no time), then both confirm their emailed link at once:
+      // exactly one confirmation gets the slot.
+      const [subA, subB] = await Promise.all([
+        request.post("/api/appointments", { data: withBookingDefaults(payloadA) }),
+        request.post("/api/appointments", { data: withBookingDefaults(payloadB) }),
+      ]);
+      expect([subA.status(), subB.status()]).toEqual([202, 202]);
+      const tokenA = await takeOverLatestDraftLink(admin, payloadA.patientEmail);
+      const tokenB = await takeOverLatestDraftLink(admin, payloadB.patientEmail);
+
       const [resA, resB] = await Promise.all([
-        request.post("/api/appointments", { data: payloadA }),
-        request.post("/api/appointments", { data: payloadB }),
+        request.post("/api/booking/confirm", { data: { token: tokenA } }),
+        request.post("/api/booking/confirm", { data: { token: tokenB } }),
       ]);
 
       const statuses = [resA.status(), resB.status()].sort((a, b) => a - b);
-      expect(statuses).toEqual([201, 409]);
+      expect(statuses).toEqual([200, 409]);
 
-      const okResponse = resA.status() === 201 ? resA : resB;
+      const okResponse = resA.status() === 200 ? resA : resB;
       const okJson = await okResponse.json();
       const createdId = String(okJson?.appointment?.id ?? "");
       if (createdId) createdAppointmentIds.push(createdId);
@@ -194,7 +165,7 @@ test.describe("Integration: appointment race condition guard", { tag: ["@pr-e2e"
       const slotCheck = await admin
         .from("appointments")
         .select("id,appointment_datetime")
-        .eq("doctor_id", doctorId);
+        .eq("professional_id", doctorId);
       if (slotCheck.error) {
         throw new Error(
           `Failed reading created appointments: ${slotCheck.error.message}`,

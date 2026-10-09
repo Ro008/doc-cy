@@ -6,16 +6,24 @@ type ResponsiveBottomInsetProps = {
 };
 
 /**
- * Pro pages: a column one window tall under the sticky header (57px). The page's
- * `<main>` fills what is left (its own `min-h-screen` is overridden) and the
- * "About DocCy" footer sits at the bottom, so a page that fits never scrolls.
+ * Pages that fill the screen (`min-h-screen` on their top element) share that height with the
+ * "About DocCy" footer shown to signed-in users, instead of pushing it below the fold and adding a
+ * scrollbar for nothing (user, 2026-10-07). Longer pages still grow and scroll as before.
+ * Under the desktop sticky header (doctor pages) the screen is that much shorter:
+ * `--doccy-top-chrome` (globals.css, set while the header shows; user, 2026-10-08).
  */
-const PRO_PAGE_COLUMN =
-  "flex min-h-[calc(100dvh-57px)] flex-col pb-[calc(5.25rem+env(safe-area-inset-bottom,0px))] lg:pb-0 [&>main]:min-h-0 [&>main]:flex-1";
+const FILL_SCREEN_WITH_FOOTER =
+  "flex min-h-[calc(100vh-var(--doccy-top-chrome,0px))] flex-col [&>.min-h-screen]:grow [&>.min-h-screen]:[min-height:auto]";
 
 export function ResponsiveBottomInset({ enabled, children }: ResponsiveBottomInsetProps) {
   return (
-    <div className={enabled ? PRO_PAGE_COLUMN : undefined}>
+    <div
+      className={
+        enabled
+          ? `${FILL_SCREEN_WITH_FOOTER} pb-[calc(5.25rem+env(safe-area-inset-bottom,0px))] lg:pb-0`
+          : FILL_SCREEN_WITH_FOOTER
+      }
+    >
       {children}
     </div>
   );

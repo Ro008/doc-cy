@@ -64,7 +64,6 @@ describe("matchesFinderSpecialtyFilter", () => {
       matchesFinderSpecialtyFilter({
         specialty: "Psychology",
         specialties: ["Psychology", "Sexology"],
-        is_specialty_approved: true,
         activeSpecialty: "sexology",
         matchesSpecialty: matchesSpecialtyFilter,
       }),

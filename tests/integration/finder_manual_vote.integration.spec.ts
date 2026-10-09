@@ -165,8 +165,9 @@ test.describe("Integration: finder manual card vote", () => {
 
     if (res.status() === 201 && manualId) {
       const { data: rows, error } = await admin
-        .from("professional_patient_booking_requests")
+        .from("user_events")
         .select("id")
+        .eq("event_type", "request_online_appointment")
         .eq("professional_id", manualId)
         .order("created_at", { ascending: false })
         .limit(5);

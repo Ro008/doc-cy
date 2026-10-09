@@ -13,12 +13,15 @@ export function ClinicBookingSwitch({
   locationId,
   paused,
   onPausedChange,
+  accessEnded = false,
 }: {
   clinicName: string;
   /** null for the legacy single-clinic row that has no location id yet. */
   locationId: string | null;
   paused: boolean;
   onPausedChange: (paused: boolean) => void;
+  /** Pro access has ended: shown off and disabled; the server refuses to switch it on. */
+  accessEnded?: boolean;
 }) {
   const [busy, setBusy] = React.useState(false);
 
@@ -47,8 +50,8 @@ export function ClinicBookingSwitch({
 
   return (
     <SettingsSwitch
-      checked={!paused}
-      busy={busy}
+      checked={!paused && !accessEnded}
+      busy={busy || accessEnded}
       label={`Online booking at ${clinicName}`}
       onChange={(accepting) => void setPaused(!accepting)}
     />

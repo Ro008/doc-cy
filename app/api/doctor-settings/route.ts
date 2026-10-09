@@ -1,17 +1,17 @@
 // app/api/doctor-settings/route.ts
+import { parsePatientCancelNoticeHours } from "@/lib/patient-cancel-window";
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 import { validateLanguageSelection } from "@/lib/cyprus-languages";
 import {
   BOOKING_HORIZON_OPTIONS_DAYS,
-  DAY_NAMES,
   DEFAULT_BOOKING_HORIZON_DAYS,
   DEFAULT_MIN_NOTICE_HOURS,
   MIN_NOTICE_OPTIONS_HOURS,
-  type DayKey,
   type WeeklySchedule,
 } from "@/lib/doctor-settings";
+import { PROFESSIONAL_ACCOUNT_SETTINGS_SELECT } from "@/lib/professional-account-settings";
 import { loadDoctorLocations } from "@/lib/load-doctor-locations";
 import {
   settingsSaveTargets,
@@ -62,7 +62,7 @@ export async function GET(req: NextRequest) {
 
   const { data, error } = await supabase
     .from("professional_settings")
-    .select("*")
+    .select(PROFESSIONAL_ACCOUNT_SETTINGS_SELECT)
     .eq("professional_id", doctorId)
     .single();
 
@@ -80,7 +80,9 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ settings: data });
 }
 
-/** POST - upsert professional_settings + update the mobile, bio, languages (owner only).
+/** POST - upsert professional_settings (account settings: horizon, notice, holiday) +
+ * update the mobile, bio, languages (owner only). Each clinic's schedule is written on
+ * the professional's join row (Point E6: professional_settings no longer copies it).
  * Clinics are read-only here (user, 2026-09-29 phones; 2026-09-30 D4 addresses): they are
  * curated by DocCy, so a save writes each clinic's hours and name on the professional's
  * join row and never an address. Address fields an old page still sends are ignored.
@@ -130,6 +132,7 @@ export async function POST(req: NextRequest) {
     slotDurationMinutes?: number;
     bookingHorizonDays?: number;
     minimumNoticeHours?: number;
+    patientCancelNoticeHours?: number;
     holidayModeEnabled?: boolean;
     holidayStartDate?: string | null;
     holidayEndDate?: string | null;
@@ -189,17 +192,6 @@ export async function POST(req: NextRequest) {
   const doctorPhoneTrimmed =
     typeof b.doctorPhone === "string" ? b.doctorPhone.trim() : "";
 
-  const toTime = (v: string | undefined, fallback: string) => {
-    if (!v || typeof v !== "string") return fallback;
-    const parts = v.trim().split(":");
-    const h = parts[0]?.padStart(2, "0") ?? "09";
-    const m = parts[1]?.padStart(2, "0") ?? "00";
-    return `${h}:${m}:00`;
-  };
-
-  const slotMinutes = Number(b.slotDurationMinutes);
-  const duration =
-    Number.isInteger(slotMinutes) && slotMinutes > 0 ? slotMinutes : 30;
   const bookingHorizon = Number(b.bookingHorizonDays);
   const booking_horizon_days = BOOKING_HORIZON_OPTIONS_DAYS.includes(
     bookingHorizon as (typeof BOOKING_HORIZON_OPTIONS_DAYS)[number]
@@ -213,113 +205,33 @@ export async function POST(req: NextRequest) {
     ? minimumNotice
     : DEFAULT_MIN_NOTICE_HOURS;
 
-  const weeklySchedulePayload = DAY_NAMES.reduce((acc, day) => {
-    const incoming = (b.weeklySchedule as WeeklySchedule | undefined)?.[day];
-    const legacyEnabled = Boolean((b as Record<DayKey, unknown>)[day]);
-    const startFallback = toTime(b.startTime, "09:00:00");
-    const endFallback = toTime(b.endTime, "17:00:00");
-    acc[day] = {
-      enabled:
-        typeof incoming?.enabled === "boolean" ? incoming.enabled : legacyEnabled,
-      start_time: incoming?.start_time
-        ? toTime(incoming.start_time, "09:00:00")
-        : startFallback,
-      end_time: incoming?.end_time
-        ? toTime(incoming.end_time, "17:00:00")
-        : endFallback,
-    };
-    return acc;
-  }, {} as Record<DayKey, { enabled: boolean; start_time: string; end_time: string }>);
-
-  const payload = {
-    professional_id: doctorId,
-    monday: Boolean(b.monday),
-    tuesday: Boolean(b.tuesday),
-    wednesday: Boolean(b.wednesday),
-    thursday: Boolean(b.thursday),
-    friday: Boolean(b.friday),
-    saturday: Boolean(b.saturday),
-    sunday: Boolean(b.sunday),
-    start_time: toTime(b.startTime, "09:00:00"),
-    end_time: toTime(b.endTime, "17:00:00"),
-    weekly_schedule: weeklySchedulePayload,
-    break_start: b.breakEnabled ? toTime(b.breakStart, "13:00:00") : null,
-    break_end: b.breakEnabled ? toTime(b.breakEnd, "14:00:00") : null,
-    slot_duration_minutes: duration,
-    booking_horizon_days,
-    minimum_notice_hours,
-    holiday_mode_enabled: Boolean(b.holidayModeEnabled),
-    holiday_start_date: Boolean(b.holidayModeEnabled)
-      ? (b.holidayStartDate ?? null)
-      : null,
-    holiday_end_date: Boolean(b.holidayModeEnabled)
-      ? (b.holidayEndDate ?? null)
-      : null,
-    updated_at: new Date().toISOString(),
-  };
-
-  const legacyPayload = {
-    professional_id: doctorId,
-    monday: Boolean(b.monday),
-    tuesday: Boolean(b.tuesday),
-    wednesday: Boolean(b.wednesday),
-    thursday: Boolean(b.thursday),
-    friday: Boolean(b.friday),
-    start_time: toTime(b.startTime, "09:00:00"),
-    end_time: toTime(b.endTime, "17:00:00"),
-    break_start: b.breakEnabled ? toTime(b.breakStart, "13:00:00") : null,
-    break_end: b.breakEnabled ? toTime(b.breakEnd, "14:00:00") : null,
-    slot_duration_minutes: duration,
-    updated_at: new Date().toISOString(),
-  };
-
-  const {
-    data: dataFull,
-    error: errorFull,
-  } = await supabase
+  const { data, error: settingsError } = await supabase
     .from("professional_settings")
-    .upsert(payload, { onConflict: "professional_id" })
-    .select()
+    .upsert(
+      {
+        professional_id: doctorId,
+        booking_horizon_days,
+        minimum_notice_hours,
+        // Until when patients can cancel online (12 / 24 / 48 h; user, 2026-10-08).
+        ...(b.patientCancelNoticeHours !== undefined
+          ? { patient_cancel_notice_hours: parsePatientCancelNoticeHours(b.patientCancelNoticeHours) }
+          : {}),
+        holiday_mode_enabled: Boolean(b.holidayModeEnabled),
+        holiday_start_date: Boolean(b.holidayModeEnabled)
+          ? (b.holidayStartDate ?? null)
+          : null,
+        holiday_end_date: Boolean(b.holidayModeEnabled)
+          ? (b.holidayEndDate ?? null)
+          : null,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "professional_id" },
+    )
+    .select(PROFESSIONAL_ACCOUNT_SETTINGS_SELECT)
     .single();
 
-  let data = dataFull ?? null;
-  if (errorFull) {
-    // Missing new scheduling columns means advanced availability cannot be saved reliably.
-    const errMsg = String((errorFull as any)?.message ?? "");
-    const missingNewCols =
-      /(saturday|sunday|weekly_schedule|pause_online_bookings|holiday_mode_enabled|holiday_start_date|holiday_end_date|booking_horizon_days|minimum_notice_hours)/i.test(
-        errMsg
-      );
-    if ((errorFull as { code?: string }).code === "42703" || missingNewCols) {
-      return NextResponse.json(
-        {
-          message:
-            "Advanced schedule settings are unavailable because the database is missing columns. Please contact DocCy support.",
-        },
-        { status: 500 }
-      );
-    }
-
-    if (!data && (errorFull as { code?: string }).code === "PGRST204") {
-      const {
-        data: dataLegacy,
-        error: errorLegacy,
-      } = await supabase
-        .from("professional_settings")
-        .upsert(legacyPayload, { onConflict: "professional_id" })
-        .select()
-        .single();
-
-      if (errorLegacy) {
-        console.error(errorLegacy);
-      } else {
-        data = dataLegacy ?? null;
-      }
-    }
-  }
-
-  if (!data) {
-    console.error(errorFull);
+  if (settingsError || !data) {
+    console.error(settingsError);
     return NextResponse.json(
       { message: "Error saving settings." },
       { status: 500 }

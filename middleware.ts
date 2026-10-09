@@ -8,22 +8,17 @@ import {routing} from "./i18n/routing";
 import {parseAuthTokenClaims} from "./lib/auth-token-claims";
 import {isSessionRevokedByPolicy} from "./lib/auth-session-revocation";
 import {
-  DOCTOR_ACCOUNT_REVIEW_PATH,
-  isDoctorAccountReviewPath,
-  isDoctorVerifiedForProduct,
-} from "./lib/doctor-account-access";
-import {
   canonicalFinderSpecialtyRedirectPath,
   FINDER_DISTRICT_PATH_SLUGS,
   isLegacyFinderFilterPath,
   legacyFinderFilterToPublicPath,
 } from "./lib/finder-public-path";
 import {
-  isProfessionalGatedPath,
   needsSupabaseSessionMiddleware,
   shouldSkipSupabaseSessionRefresh,
 } from "./lib/needs-supabase-session-middleware";
 import {adminSignInPath} from "./lib/admin-sign-in-flow";
+import {isDoctorProductPath} from "./lib/doctor-routes";
 import {agendaRedirectForLogin} from "./lib/registration-status-path";
 import {
   amrFromAccessToken,
@@ -35,6 +30,9 @@ const handleI18nRouting = createMiddleware(routing);
 
 const RESERVED_TOP_LEVEL = new Set([
   "agenda",
+  "settings",
+  // Patient link pages: /booking/confirm, /booking/choose, /booking/cancel, /booking/review.
+  "booking",
   "blog",
   "clinics",
   "dashboard",
@@ -43,7 +41,6 @@ const RESERVED_TOP_LEVEL = new Set([
   "internal",
   "login",
   "register",
-  "settings",
   "forgot-password",
   "reset-password",
   "auth",
@@ -153,7 +150,7 @@ export async function middleware(req: NextRequest) {
       return res;
     }
 
-    if (isProfessionalGatedPath(pathname)) {
+    if (isDoctorProductPath(pathname)) {
       if (!session) {
         const loginUrl = new URL("/login", req.url);
         loginUrl.searchParams.set("next", pathname);
@@ -162,7 +159,7 @@ export async function middleware(req: NextRequest) {
 
       const {data: doctorRow, error: doctorRowError} = await supabase
         .from("professionals")
-        .select("status, auth_session_revoked_after, auth_keep_session_id")
+        .select("auth_session_revoked_after, auth_keep_session_id")
         .eq("auth_user_id", session.user.id)
         .maybeSingle();
 
@@ -183,16 +180,6 @@ export async function middleware(req: NextRequest) {
         loginUrl.searchParams.set("next", pathname);
         loginUrl.searchParams.set("signin", "again");
         return NextResponse.redirect(loginUrl);
-      }
-
-      if (
-        doctorRow &&
-        !isDoctorAccountReviewPath(pathname) &&
-        !isDoctorVerifiedForProduct(
-          (doctorRow as {status?: string | null}).status,
-        )
-      ) {
-        return NextResponse.redirect(new URL(DOCTOR_ACCOUNT_REVIEW_PATH, req.url));
       }
 
       const claims = parseAuthTokenClaims(session.access_token);
@@ -235,6 +222,5 @@ export const config = {
     "/api/doctor-online-bookings",
     "/api/doctor-services",
     "/api/doctor-settings/:path*",
-    "/api/doctor-specialty-change-request",
   ],
 };

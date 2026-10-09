@@ -103,6 +103,17 @@ describe("summarizeClinicBreak", () => {
 });
 
 describe("clinicBookingStatus", () => {
+  it("is off for every clinic once pro access has ended, whatever the switches say", () => {
+    for (const pauseOnlineBookings of [false, true]) {
+      for (const holidayActive of [false, true]) {
+        assert.deepEqual(clinicBookingStatus({ pauseOnlineBookings, holidayActive, accessEnded: true }), {
+          kind: "ended",
+          label: "Online booking off",
+        });
+      }
+    }
+  });
+
   it("takes bookings when neither paused nor on holiday", () => {
     assert.deepEqual(clinicBookingStatus({ pauseOnlineBookings: false, holidayActive: false }), {
       kind: "taking",

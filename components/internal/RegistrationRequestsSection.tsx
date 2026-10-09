@@ -17,11 +17,19 @@ import type {
   ProfessionalRegistrationDetails,
   RegistrationClinic,
 } from "@/lib/professional-registration-request";
-import type { RegistrationReviewItem, ReviewClinicInfo, ReviewListing } from "@/lib/registration-requests";
+import type {
+  RegistrationReviewItem,
+  ReviewClinicInfo,
+  ReviewListing,
+  UnapprovableRequestItem,
+} from "@/lib/registration-requests";
+import { describeUnapprovableRequests } from "@/lib/registration-unapprovable";
 
 type Props = {
   items: RegistrationReviewItem[];
-  /** Pending requests left out because their applicant login no longer exists. */
+  /** Real applicants' pending requests whose login no longer exists: founders can only close them. */
+  unapprovable?: UnapprovableRequestItem[];
+  /** Automated-test pending requests left out because their applicant login no longer exists. */
   hiddenPending?: number;
   /** Founders decide; partners only see. */
   canMutate: boolean;
@@ -178,6 +186,7 @@ function ReviewItemCard({
  */
 export function RegistrationRequestsSection({
   items,
+  unapprovable = [],
   hiddenPending = 0,
   canMutate,
   defaultTrialMonths,
@@ -218,6 +227,7 @@ export function RegistrationRequestsSection({
           specialtyCatalogue={specialtyCatalogue}
         />
       ))}
+      {unapprovable.length > 0 ? <UnapprovableGroup items={unapprovable} canMutate={canMutate} /> : null}
       {decided.length > 0 ? (
         <details className="rounded-xl border border-slate-800 p-3 text-sm text-slate-300">
           <summary className="cursor-pointer text-slate-200">Recent decisions</summary>
@@ -236,6 +246,106 @@ export function RegistrationRequestsSection({
         </details>
       ) : null}
     </section>
+  );
+}
+
+/**
+ * "Can't be approved": pending requests whose applicant login is gone. Collapsed, with
+ * a plain description of what they are; founders close each with a note.
+ */
+function UnapprovableGroup({ items, canMutate }: { items: UnapprovableRequestItem[]; canMutate: boolean }) {
+  const [headline, ...explanation] = describeUnapprovableRequests(items.length);
+  return (
+    <details
+      data-testid="requests-unapprovable"
+      className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-3 text-sm text-slate-300"
+    >
+      <summary className="cursor-pointer text-slate-200">Can&apos;t be approved ({items.length})</summary>
+      <div className="mt-2 space-y-1 text-xs text-slate-400">
+        <p className="font-semibold text-slate-300">{headline}</p>
+        {explanation.map((line) => (
+          <p key={line}>{line}</p>
+        ))}
+      </div>
+      <ul className="mt-3 space-y-2">
+        {items.map((item) => (
+          <UnapprovableRow key={item.id} item={item} canMutate={canMutate} />
+        ))}
+      </ul>
+    </details>
+  );
+}
+
+function UnapprovableRow({ item, canMutate }: { item: UnapprovableRequestItem; canMutate: boolean }) {
+  const router = useRouter();
+  const [closing, setClosing] = useState(false);
+  const [note, setNote] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function close() {
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/internal/requests/${item.id}/deny`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason: note }),
+      });
+      const json = (await res.json().catch(() => ({}))) as { message?: string };
+      if (!res.ok) {
+        setError(json.message ?? "Could not close this request.");
+        return;
+      }
+      router.refresh();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <li data-unapprovable-request-id={item.id} className="rounded-lg border border-slate-800 bg-slate-950/60 p-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="font-medium text-slate-100">{item.requesterName}</span>
+        <span className="text-xs text-slate-400">{item.requesterEmail}</span>
+        <span className="text-xs text-slate-500">{new Date(item.createdAt).toLocaleDateString("en-GB")}</span>
+        {item.holdsFoundersPlace ? (
+          <span className="rounded-md bg-amber-500/20 px-2 py-0.5 text-[11px] font-bold text-amber-200">
+            Holds a Founders&apos; Club place
+          </span>
+        ) : null}
+        {canMutate && !closing ? (
+          <button
+            type="button"
+            onClick={() => setClosing(true)}
+            className="ml-auto rounded-lg border border-slate-600 px-3 py-1 text-xs font-semibold text-slate-200 hover:bg-slate-800"
+          >
+            Close
+          </button>
+        ) : null}
+      </div>
+      {closing && canMutate ? (
+        <div className="mt-2 space-y-2">
+          <label className={labelClass}>
+            Note (kept in the log; no email is sent)
+            <textarea className={inputClass} rows={2} value={note} disabled={busy} onChange={(e) => setNote(e.target.value)} />
+          </label>
+          <button
+            type="button"
+            disabled={busy || !note.trim()}
+            onClick={() => void close()}
+            className="rounded-lg bg-red-700 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
+          >
+            Confirm close
+          </button>
+        </div>
+      ) : null}
+      {error ? (
+        <p role="alert" className="mt-2 text-xs text-red-300">
+          {error}
+        </p>
+      ) : null}
+    </li>
   );
 }
 

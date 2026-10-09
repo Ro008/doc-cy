@@ -1,7 +1,4 @@
-import {
-  SPECIALTY_CHANGE_LICENSE_MAX,
-  type SpecialtyChangeRequestKind,
-} from "@/lib/doctor-specialty-change-request";
+import { SPECIALTY_LICENSE_MAX } from "@/lib/doctor-specialties";
 import { validateSpecialtySubmission } from "@/lib/specialty-submission";
 import type { SpecialtyCatalogueNames } from "@/lib/specialty-options";
 
@@ -10,8 +7,16 @@ import type { SpecialtyCatalogueNames } from "@/lib/specialty-options";
  * instant with the chip's ✕, so changing one is "add the new one, remove the old one
  * once it is approved"; the one-specialty minimum still holds that way. Older pending
  * "replace" / "remove" requests are still shown until DocCy reviews them.
- * API: POST /api/doctor-specialty-change-request (unchanged, requestKind "add").
+ * API: POST /api/specialty-requests (requestKind "add"), the NEW specialty requests:
+ * master dropped the old ones (Point E3, 2026-10-01) "until the new specialty
+ * requests", so the call waits for Livio's endpoint (lib/settings-backend-pending.ts).
  */
+
+/** Kept for the chip of a pending request (older ones could replace or remove). */
+export type SpecialtyChangeRequestKind = "add" | "replace" | "remove";
+
+/** Same limit as registration. */
+export const SPECIALTY_CHANGE_LICENSE_MAX = SPECIALTY_LICENSE_MAX;
 
 export const SPECIALTY_LICENSE_HELP = "So DocCy can check you're registered for this specialty.";
 

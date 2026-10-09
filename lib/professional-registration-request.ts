@@ -167,7 +167,7 @@ export function buildProfessionalRegistrationDetails(
       photo: { bucket: REGISTRATION_UPLOADS_BUCKET, path: photoPath },
       specialties: input.specialties.map((entry) => ({
         name: entry.specialty,
-        from_catalogue: entry.isApproved,
+        from_catalogue: entry.fromCatalogue,
         license_number: text(entry.licenseNumber),
       })),
       clinics,

@@ -22,6 +22,7 @@ describe("backendPendingMessage", () => {
       "clinicChangeRequest",
       "removeClinic",
       "removeSpecialty",
+      "requestSpecialty",
     ]);
     for (const action of Object.keys(BACKEND_PENDING) as (keyof typeof BACKEND_PENDING)[]) {
       const message = backendPendingMessage(action);
@@ -32,11 +33,20 @@ describe("backendPendingMessage", () => {
   });
 });
 
+describe("asking for a new specialty", () => {
+  it("waits for Livio's new specialty requests (the old ones were dropped on master, E3)", () => {
+    assert.equal(
+      backendPendingMessage("requestSpecialty"),
+      "Expected to fail for now: asking for a new specialty works once Livio builds it in the backend (POST /api/specialty-requests).",
+    );
+  });
+});
+
 describe("cancelling a specialty request", () => {
   it("waits for Livio's DELETE on the request endpoint", () => {
     assert.equal(
       backendPendingMessage("cancelSpecialtyRequest"),
-      "Expected to fail for now: cancelling a specialty request works once Livio builds it in the backend (DELETE /api/doctor-specialty-change-request).",
+      "Expected to fail for now: cancelling a specialty request works once Livio builds it in the backend (DELETE /api/specialty-requests).",
     );
   });
 });
