@@ -42,9 +42,7 @@ function CopyButton({ text, copy }: { text: string; copy: PromotePracticeCopy })
       ) : (
         <Copy className="h-3.5 w-3.5" aria-hidden />
       )}
-      <span role="status" aria-live="polite">
-        {copied ? copy.copiedButton : copy.copyButton}
-      </span>
+      {copied ? copy.copiedButton : copy.copyButton}
     </button>
   );
 }

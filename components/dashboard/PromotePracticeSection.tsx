@@ -176,9 +176,7 @@ export function PromotePracticeSection({
             ) : (
               <Copy className="h-4 w-4" aria-hidden />
             )}
-            <span role="status" aria-live="polite">
-              {linkCopied ? copy.copiedButton : copy.copyLinkButton}
-            </span>
+            {linkCopied ? copy.copiedButton : copy.copyLinkButton}
           </button>
         </div>
 

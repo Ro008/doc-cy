@@ -42,7 +42,7 @@ export function SettingsDialog({
   busyRef.current = busy;
   const leavingRef = React.useRef(false);
   const close = React.useCallback(() => {
-    if (leavingRef.current || busyRef.current) return;
+    if (leavingRef.current) return;
     leavingRef.current = true;
     setLeaving(true);
     window.setTimeout(() => onCloseRef.current(), LEAVE_MS);
@@ -59,7 +59,8 @@ export function SettingsDialog({
     const first = panelRef.current?.querySelector<HTMLElement>("input, textarea, select, button");
     first?.focus();
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") close();
+      // While busy only the dialog's own buttons close it (e.g. after a successful send).
+      if (e.key === "Escape" && !busyRef.current) close();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -72,7 +73,7 @@ export function SettingsDialog({
         leaving ? "settings-backdrop-out" : "settings-backdrop-in"
       }`}
       onMouseDown={(e) => {
-        if (e.target === e.currentTarget) close();
+        if (e.target === e.currentTarget && !busyRef.current) close();
       }}
     >
       <div
