@@ -1,10 +1,10 @@
 "use client";
 
 import * as React from "react";
-import { ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import { BusyLabel } from "@/components/dashboard/settings/BusyLabel";
 import { SettingsSwitch } from "@/components/dashboard/settings/SettingsSwitch";
+import { CountryCodePicker } from "@/components/dashboard/settings/CountryCodePicker";
 import {
   SETTINGS_CARD_CLASS,
   SETTINGS_EYEBROW_CLASS,
@@ -15,6 +15,7 @@ import {
   composeRegisterPhone,
   isValidRegisterMobile,
   registerMobileExample,
+  registerPhoneDialCode,
   registerPhoneCountries,
   registerPhoneCountryName,
   splitRegisterPhone,
@@ -53,16 +54,15 @@ export function PersonalMobileCard({
   const options: RegisterPhoneCountry[] =
     countries.length > 0
       ? countries
-      : [{ code: country, name: registerPhoneCountryName(country), dialCode: "" }];
-  const selected = countries.find((item) => item.code === country);
-  const dialCode = selected?.dialCode ?? "";
+      : [{ code: country, name: registerPhoneCountryName(country), dialCode: registerPhoneDialCode(country) }];
+  const dialCode = registerPhoneDialCode(country);
   const example = registerMobileExample(country);
 
   const onNumberChange = (value: string) => {
     // A full international number (typed or pasted) picks its own country.
     if (value.trim().startsWith("+")) {
       const next = composeRegisterPhone(country, value);
-      const nextDial = countries.find((item) => item.code === next.country)?.dialCode;
+      const nextDial = registerPhoneDialCode(next.country);
       if (nextDial && next.e164.startsWith(nextDial) && next.e164.length > nextDial.length) {
         setCountry(next.country);
         setTyped(next.e164.slice(nextDial.length));
@@ -136,27 +136,7 @@ export function PersonalMobileCard({
         one if you turn it on below.
       </p>
       <div className="mt-2 flex rounded-xl border border-slate-700 bg-slate-950/60 transition focus-within:border-clinical-400/60 focus-within:ring-2 focus-within:ring-clinical-400/30">
-        {/* Native select for keyboard and screen readers; the visible face stays compact. */}
-        <div className="relative flex shrink-0 items-center gap-1 border-r border-slate-700 pl-3 pr-2 text-sm font-semibold text-slate-100">
-          <span aria-hidden>
-            <span className="text-slate-400">{country}</span> {dialCode}
-          </span>
-          <ChevronDown className="h-3.5 w-3.5 text-slate-500" aria-hidden />
-          <select
-            aria-label="Country code"
-            value={country}
-            disabled={saving}
-            onChange={(event) => setCountry(event.target.value)}
-            className="absolute inset-0 cursor-pointer opacity-0"
-          >
-            {options.map((item) => (
-              <option key={item.code} value={item.code}>
-                {item.name}
-                {item.dialCode ? ` (${item.dialCode})` : ""}
-              </option>
-            ))}
-          </select>
-        </div>
+        <CountryCodePicker countries={options} value={country} onChange={setCountry} disabled={saving} />
         <input
           id="settings-personal-mobile"
           type="tel"

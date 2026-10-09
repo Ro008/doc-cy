@@ -41,6 +41,12 @@ export function registerPhoneCountryName(country: string): string {
   return regionNames?.of(code) ?? code;
 }
 
+/** "+357" for Cyprus; "" for an unknown country. */
+export function registerPhoneDialCode(country: string): string {
+  const code = toCountryCode(country);
+  return code ? `+${getCountryCallingCode(code)}` : "";
+}
+
 /** Preferred countries first, then everything else alphabetically by name. */
 export function registerPhoneCountries(): RegisterPhoneCountry[] {
   const all: RegisterPhoneCountry[] = (getCountries() as CountryCode[]).map((code) => ({

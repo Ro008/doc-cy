@@ -4,6 +4,7 @@ import {
   REGISTER_PHONE_PREFERRED_COUNTRIES,
   composeRegisterPhone,
   splitRegisterPhone,
+  registerPhoneDialCode,
   isValidRegisterMobile,
   registerMobileExample,
   registerPhoneCountryName,
@@ -65,6 +66,12 @@ describe("register mobile number validation", () => {
       e164: "+34667000000",
       country: "ES",
     });
+  });
+
+  it("gives a country's dial code", () => {
+    assert.equal(registerPhoneDialCode("cy"), "+357");
+    assert.equal(registerPhoneDialCode("GB"), "+44");
+    assert.equal(registerPhoneDialCode("zz"), "");
   });
 
   it("splits a saved number back into its country and the digits after the dial code", () => {
