@@ -43,6 +43,7 @@ export function ClinicCard({
   editLabel,
   onToggleEdit,
   editor,
+  limits,
   removal,
   onRemove,
   busy,
@@ -62,6 +63,8 @@ export function ClinicCard({
   editLabel: string;
   onToggleEdit: () => void;
   editor: React.ReactNode;
+  /** This clinic's booking limits (how far ahead, notice, online cancellation). */
+  limits: React.ReactNode;
   removal: { ok: true } | { ok: false; message: string };
   onRemove: () => void;
   busy: boolean;
@@ -121,6 +124,8 @@ export function ClinicCard({
           </div>
         ))}
       </dl>
+
+      {limits}
 
       <Collapse open={editing}>
         <div className="mt-5 border-t border-white/10 pt-5">{editor}</div>

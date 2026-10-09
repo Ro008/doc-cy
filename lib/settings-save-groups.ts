@@ -1,5 +1,6 @@
 import { parseDDMMYYYYToISO } from "@/lib/date-format";
 import type { SettingsDirtySnapshot } from "@/lib/settings-form-dirty";
+import type { ClinicLimitsById } from "@/lib/settings-clinic-limits";
 
 /**
  * One save rule for settings (user, 2026-10-01): small controls (booking limits and
@@ -99,6 +100,8 @@ export function validateSettingsToSave(snapshot: SettingsDirtySnapshot): string 
 export function buildSettingsSavePayload(
   doctorId: string,
   snapshot: SettingsDirtySnapshot,
+  /** Each clinic's booking limits (lib/settings-clinic-limits); the API ignores them until Livio adds them. */
+  clinicLimits?: ClinicLimitsById,
 ): Record<string, unknown> {
   // Account-level hours follow the first (primary) clinic, as the API expects.
   const primary = snapshot.workplaces[0];
@@ -141,6 +144,7 @@ export function buildSettingsSavePayload(
       breakStart: row.breakStart,
       breakEnd: row.breakEnd,
       slotDurationMinutes: row.slotDurationMinutes,
+      ...(clinicLimits?.[row.id] ?? {}),
     })),
   };
 }

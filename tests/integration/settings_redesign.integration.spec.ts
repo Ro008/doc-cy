@@ -56,6 +56,8 @@ async function addClinic(
       district: input.district,
       town: input.district,
       address: input.address,
+      // An active clinic needs an 8-digit Cyprus phone (clinics_active_phone_check).
+      phone: `25${String(Math.floor(Math.random() * 1_000_000)).padStart(6, "0")}`,
       ...input.pin,
     })
     .select("id")
@@ -393,17 +395,39 @@ test.describe("Settings redesign (B1)", { tag: "@pr-e2e" }, () => {
     expect(slots[seeded!.secondId]).toBe(30);
   });
 
-  test("booking limits save the moment they change, leaving a half-edited bio alone", async ({ page }) => {
+  test("booking limits are set on each clinic and save at once, leaving a half-edited bio alone", async ({
+    page,
+  }) => {
     test.setTimeout(120_000);
+    let sentLocations: Array<Record<string, unknown>> = [];
+    page.on("request", (request) => {
+      if (request.method() !== "POST" || !request.url().endsWith("/api/doctor-settings")) return;
+      sentLocations = (request.postDataJSON()?.locations ?? []) as Array<Record<string, unknown>>;
+    });
     await openSettings(page, seeded!, "profile");
     await page.locator("#settings-bio").fill("A bio I have not saved");
     await expect(page.getByTestId("settings-bio-save")).toBeVisible();
 
     await page.getByTestId("settings-sidebar").getByRole("link", { name: /Availability/ }).click();
-    // Clinic switches live on the clinic cards only.
+    // Clinic switches and booking limits live on the clinic cards only.
     await expect(page.getByTestId("settings-availability-clinics").getByRole("switch")).toHaveCount(0);
-    await page.locator("#minimumNoticeHours").selectOption("48");
-    await expect(page.locator("[data-sonner-toast]").getByText("Booking limits saved.")).toBeVisible();
+    await expect(page.locator('[id^="minimumNoticeHours"]:visible')).toHaveCount(0);
+
+    await page.getByTestId("settings-sidebar").getByRole("link", { name: /Clinics/ }).click();
+    const limassol = clinicCard(page, "Limassol Skin Clinic").getByTestId("clinic-booking-limits");
+    const paphos = clinicCard(page, "Paphos Medical Centre").getByTestId("clinic-booking-limits");
+    await limassol.getByLabel("Minimum notice").selectOption("48");
+    // EXPECTED until Livio stores limits per clinic: one value per professional, so it
+    // shows on every clinic and the card says so.
+    await expect(
+      page.locator("[data-sonner-toast]").getByText("Booking limits saved for all your clinics."),
+    ).toBeVisible();
+    await expect(paphos.getByLabel("Minimum notice")).toHaveValue("48");
+    await expect(limassol).toContainText("Same at all your clinics");
+    await expect(limassol.getByTestId("clinic-limits-pending")).toContainText("Livio");
+    // The save already carries each clinic's limits for the backend to store.
+    expect(sentLocations).toHaveLength(2);
+    expect(sentLocations.every((row) => row.minimumNoticeHours === 48)).toBe(true);
 
     await expect
       .poll(async () => {

@@ -112,7 +112,7 @@ test.describe("Doctor home dashboard", { tag: "@pr-e2e" }, () => {
     await expect(header.getByTestId("userbar-nav-insights")).toHaveAttribute("aria-current", "page");
 
     await header.getByTestId("userbar-nav-settings").click();
-    await expect(page).toHaveURL(/\/agenda\/settings(?:[/?#]|$)/, { timeout: 15_000 });
+    await expect(page).toHaveURL(/\/settings(?:[/?#]|$)/, { timeout: 15_000 });
 
     await header.getByTestId("userbar-nav-agenda").click();
     await expect(page).toHaveURL(/\/agenda(?:[?#]|$)/, { timeout: 15_000 });

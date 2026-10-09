@@ -82,6 +82,16 @@ import { SettingsSidebar } from "@/components/dashboard/settings/SettingsSidebar
 import { SettingsSwitch } from "@/components/dashboard/settings/SettingsSwitch";
 import { ClinicBookingSwitch } from "@/components/dashboard/settings/ClinicBookingSwitch";
 import { ClinicCard } from "@/components/dashboard/settings/ClinicCard";
+import { ClinicBookingLimits } from "@/components/dashboard/settings/ClinicBookingLimits";
+import {
+  accountLimitsFor,
+  applyLimitsToAllClinics,
+  clinicsShareLimits,
+  initialClinicLimits,
+  setClinicLimit,
+  type ClinicLimits,
+  type ClinicLimitsById,
+} from "@/lib/settings-clinic-limits";
 import {
   ClinicChangeRequestDialog,
   type PendingClinicChange,
@@ -173,6 +183,11 @@ export type DoctorWorkplaceFormData = {
   breakStart: string;
   breakEnd: string;
   slotDurationMinutes: number;
+  /**
+   * This clinic's booking limits. EXPECTED missing until Livio stores them per clinic
+   * (lib/settings-clinic-limits); the form falls back to the account values.
+   */
+  bookingLimits?: ClinicLimits | null;
   pauseOnlineBookings: boolean;
 };
 
@@ -497,6 +512,18 @@ export function SettingsForm({
   const [patientCancelNoticeHours, setPatientCancelNoticeHours] = React.useState(
     initial.patientCancelNoticeHours
   );
+  // Booking limits per clinic (user, 2026-10-09); see lib/settings-clinic-limits.
+  const accountLimits: ClinicLimits = {
+    bookingHorizonDays: initial.bookingHorizonDays,
+    minimumNoticeHours: initial.minimumNoticeHours,
+    patientCancelNoticeHours: initial.patientCancelNoticeHours,
+  };
+  const [initialLimits] = React.useState(() =>
+    initialClinicLimits(initialWorkplacesFromForm(initial), accountLimits),
+  );
+  const perClinicLimitsSaved = initialLimits.perClinicSaved;
+  const [clinicLimits, setClinicLimits] = React.useState<ClinicLimitsById>(initialLimits.byClinic);
+  const [savedClinicLimits, setSavedClinicLimits] = React.useState<ClinicLimitsById>(initialLimits.byClinic);
   const [holidayModeEnabled, setHolidayModeEnabled] = React.useState(
     initial.holidayModeEnabled
   );
@@ -970,6 +997,7 @@ export function SettingsForm({
     group: SaveGroup,
     successText: string,
     override: Partial<SettingsDirtySnapshot> = {},
+    limitsToSend: ClinicLimitsById = savedClinicLimits,
   ): Promise<boolean> {
     const current = { ...buildCurrentDirtySnapshot(), ...override };
     const next = applySaveGroup(savedSnapshot, current, group);
@@ -984,7 +1012,7 @@ export function SettingsForm({
       const res = await fetch("/api/doctor-settings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(buildSettingsSavePayload(initial.doctorId, next)),
+        body: JSON.stringify(buildSettingsSavePayload(initial.doctorId, next, limitsToSend)),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -992,6 +1020,7 @@ export function SettingsForm({
         return false;
       }
       setSavedSnapshot(next);
+      if (limitsToSend !== savedClinicLimits) setSavedClinicLimits(limitsToSend);
       if (group.kind === "holiday") {
         setHolidayStartDate(next.holidayModeEnabled ? parseDDMMYYYYToISO(next.holidayStartInput) : null);
         setHolidayEndDate(next.holidayModeEnabled ? parseDDMMYYYYToISO(next.holidayEndInput) : null);
@@ -1005,6 +1034,29 @@ export function SettingsForm({
       return false;
     } finally {
       setSavingGroup(null);
+    }
+  }
+
+  const clinicLimitsOf = (id: string): ClinicLimits => clinicLimits[id] ?? accountLimits;
+
+  /** Saves new booking limits per clinic, `changedId` being the clinic the doctor touched. */
+  async function saveClinicLimits(next: ClinicLimitsById, changedId: string, successText: string) {
+    const ids = liveWorkplaces.map((row) => row.id);
+    const filled: ClinicLimitsById = Object.fromEntries(
+      ids.map((id) => [id, next[id] ?? clinicLimitsOf(id)]),
+    );
+    const account = accountLimitsFor(filled, changedId, accountLimits);
+    const previous = clinicLimits;
+    setClinicLimits(filled);
+    setBookingHorizonDays(account.bookingHorizonDays);
+    setMinimumNoticeHours(account.minimumNoticeHours);
+    setPatientCancelNoticeHours(account.patientCancelNoticeHours);
+    const ok = await saveGroup({ kind: "limits" }, successText, account, filled);
+    if (!ok) {
+      setClinicLimits(previous);
+      setBookingHorizonDays(savedSnapshot.bookingHorizonDays);
+      setMinimumNoticeHours(savedSnapshot.minimumNoticeHours);
+      setPatientCancelNoticeHours(savedSnapshot.patientCancelNoticeHours);
     }
   }
 
@@ -1547,94 +1599,9 @@ export function SettingsForm({
           >
             Clinics
           </a>
-          . While a clinic is paused, patients see its phone number instead of your calendar.
+          , where you also set its booking limits. While a clinic is paused, patients see its phone
+          number instead of your calendar.
         </p>
-      </section>
-      <section className={SECTION_CARD_CLASS}>
-        <p className={SECTION_EYEBROW_CLASS}>Booking limits · all clinics</p>
-        <div className="mt-4 grid gap-5 sm:grid-cols-2">
-          <div>
-            <label htmlFor="bookingHorizonDays" className="text-sm font-semibold text-slate-100">
-              How far ahead
-            </label>
-            <p className="mt-0.5 text-xs text-slate-400">How far in advance patients can book.</p>
-            <select
-              id="bookingHorizonDays"
-              value={bookingHorizonDays}
-              onChange={(e) => {
-                const picked = Number(e.target.value);
-                const next = BOOKING_HORIZON_OPTIONS_DAYS.includes(
-                  picked as (typeof BOOKING_HORIZON_OPTIONS_DAYS)[number],
-                )
-                  ? picked
-                  : DEFAULT_BOOKING_HORIZON_DAYS;
-                setBookingHorizonDays(next);
-                void saveGroup({ kind: "limits" }, "Booking limits saved.", { bookingHorizonDays: next });
-              }}
-              className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-clinical-400/60"
-            >
-              <option value={14}>2 weeks</option>
-              <option value={30}>1 month</option>
-              <option value={90}>3 months</option>
-              <option value={180}>6 months</option>
-            </select>
-          </div>
-          <div>
-            <label htmlFor="minimumNoticeHours" className="text-sm font-semibold text-slate-100">
-              Minimum notice
-            </label>
-            <p className="mt-0.5 text-xs text-slate-400">Slots closer than this are hidden.</p>
-            <select
-              id="minimumNoticeHours"
-              value={minimumNoticeHours}
-              onChange={(e) => {
-                const picked = Number(e.target.value);
-                const next = MIN_NOTICE_OPTIONS_HOURS.includes(
-                  picked as (typeof MIN_NOTICE_OPTIONS_HOURS)[number],
-                )
-                  ? picked
-                  : DEFAULT_MIN_NOTICE_HOURS;
-                setMinimumNoticeHours(next);
-                void saveGroup({ kind: "limits" }, "Booking limits saved.", { minimumNoticeHours: next });
-              }}
-              className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-clinical-400/60"
-            >
-              <option value={1}>1 hour</option>
-              <option value={2}>2 hours</option>
-              <option value={4}>4 hours</option>
-              <option value={12}>12 hours</option>
-              <option value={24}>24 hours (1 day)</option>
-              <option value={48}>2 days</option>
-              <option value={72}>3 days</option>
-              <option value={168}>1 week</option>
-            </select>
-          </div>
-          <div className="sm:col-span-2">
-            <label htmlFor="patientCancelNoticeHours" className="text-sm font-semibold text-slate-100">
-              Online cancellation deadline
-            </label>
-            <p className="mt-0.5 text-xs text-slate-400">
-              Until then, patients can cancel from their confirmation and reminder emails. After it, they
-              see your clinic&apos;s phone instead.
-            </p>
-            <select
-              id="patientCancelNoticeHours"
-              value={patientCancelNoticeHours}
-              onChange={(e) => {
-                const next = parsePatientCancelNoticeHours(e.target.value);
-                setPatientCancelNoticeHours(next);
-                void saveGroup({ kind: "limits" }, "Booking limits saved.", { patientCancelNoticeHours: next });
-              }}
-              className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-clinical-400/60 sm:w-1/2"
-            >
-              {PATIENT_CANCEL_NOTICE_CHOICES.map((hours) => (
-                <option key={hours} value={hours}>
-                  Up to {hours} hours before the visit
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
       </section>
     </div>
   );
@@ -1699,6 +1666,37 @@ export function SettingsForm({
               setEditingWorkplaceId(row.id);
             }}
             editor={row.id === activeWorkplaceId ? workplaceEditor(row) : null}
+            limits={
+              <ClinicBookingLimits
+                clinicId={row.id}
+                limits={clinicLimitsOf(row.id)}
+                onChange={(patch) =>
+                  void saveClinicLimits(
+                    setClinicLimit(clinicLimits, row.id, patch, perClinicLimitsSaved),
+                    row.id,
+                    perClinicLimitsSaved || liveWorkplaces.length === 1
+                      ? `Booking limits saved for ${name}.`
+                      : "Booking limits saved for all your clinics.",
+                  )
+                }
+                clinicCount={liveWorkplaces.length}
+                sharedByAll={clinicsShareLimits(
+                  Object.fromEntries(liveWorkplaces.map((w) => [w.id, clinicLimitsOf(w.id)])),
+                )}
+                onApplyToAll={() =>
+                  void saveClinicLimits(
+                    applyLimitsToAllClinics(
+                      Object.fromEntries(liveWorkplaces.map((w) => [w.id, clinicLimitsOf(w.id)])),
+                      row.id,
+                    ),
+                    row.id,
+                    `${name}'s booking limits now apply to all your clinics.`,
+                  )
+                }
+                perClinicSaved={perClinicLimitsSaved}
+                busy={savingGroup === "limits"}
+              />
+            }
             removal={removal.ok === false ? { ok: false, message: removal.message } : { ok: true }}
             onRemove={() => setWorkplaceToRemove(row.id)}
             busy={workplaceBusy}

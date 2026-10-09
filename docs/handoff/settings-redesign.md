@@ -29,6 +29,8 @@ Reference design (private canvas): https://claude.ai/artifact/3XYQpTSDQPyn2wWFg8
 4. Section 4 lists open decisions that are yours; section 6 lists merge notes with
    `feat/doctor-dashboard`.
 5. No migrations on this branch. Nothing here writes anything new to the database.
+   One migration is needed from you: booking limits move to `professional_clinics`
+   (3.7).
 
 ---
 
@@ -69,8 +71,8 @@ Reference design (private canvas): https://claude.ai/artifact/3XYQpTSDQPyn2wWFg8
   (`lib/settings-removal-rules.ts`).
 
 ### Availability
-- Booking limits (how far ahead, minimum notice, and master's online cancellation
-  deadline `patientCancelNoticeHours`) save at once; holiday mode as before.
+- Booking limits are no longer here: they moved to each clinic's card (see Clinics and
+  3.7). Holiday mode as before.
 - With pro access ended (`initial.accessEnded`, master's `loadProAccessEnded`), every
   clinic's switch is off and disabled and Availability/Clinics say why.
 - Holiday mode sits in the sidebar on wide screens and inside Availability on phones.
@@ -173,7 +175,30 @@ it (tables, review flow, emails) is yours.
   pending request after a reload the page accepts `initial.pendingSpecialtyChange`.
 - Call site: `submitSpecialtyChangeRequest` in `components/dashboard/SettingsForm.tsx`.
 
-All six currently get 404/405 and show, e.g.: "Expected to fail for now: removing a
+### 3.7 Booking limits per clinic (needs a migration)
+- Rocío, 2026-10-09: how far ahead, minimum notice and the online cancellation deadline
+  belong to **each clinic**, with an "Apply to all my clinics" shortcut. All clinics are
+  equal: there is no primary clinic in this decision.
+- **Migration for you:** the three columns `booking_horizon_days`, `minimum_notice_hours`
+  and `patient_cancel_notice_hours` have to move from `professional_settings` (one row
+  per professional) to `professional_clinics` (one row per clinic). Copy each
+  professional's current values to all their clinics, keep the same CHECKs and
+  defaults, then drop them from `professional_settings` once nothing reads them
+  (slot search, `/api/booking/choose`, manual booking, cancel window, reminders job:
+  `grep -rn "booking_horizon_days\|minimum_notice_hours\|patient_cancel_notice_hours" app lib`).
+- UI already sends them per clinic: each `locations[i]` of `POST /api/doctor-settings`
+  carries `bookingHorizonDays`, `minimumNoticeHours`, `patientCancelNoticeHours`
+  (`buildSettingsSavePayload` in `lib/settings-save-groups.ts`). The top-level fields
+  are still sent too, as the clinic just changed, only because today's API reads them;
+  drop them when you switch.
+- To load them, fill `bookingLimits` on each location of the form data
+  (`DoctorWorkplaceFormData.bookingLimits` in `app/settings/page.tsx`). As soon as one
+  clinic has it, the form treats limits as per clinic.
+- Until then (EXPECTED): a change on one clinic shows on all of them, and each card says
+  "Expected for now: these limits apply to all your clinics until Livio stores them per
+  clinic…" (`PER_CLINIC_LIMITS_PENDING` in `lib/settings-clinic-limits.ts`).
+
+3.1–3.6 currently get 404/405 and show, e.g.: "Expected to fail for now: removing a
 clinic works once Livio builds it in the backend (DELETE /api/professional-clinics)."
 
 ---
