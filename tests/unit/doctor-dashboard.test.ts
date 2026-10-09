@@ -38,7 +38,7 @@ function row(partial: Partial<DashboardAppointmentRow> & { id: string }): Dashbo
 }
 
 describe("selectPendingRequests", () => {
-  it("keeps only future requests, oldest request first", () => {
+  it("keeps only future requests, soonest visit first (user, 2026-10-09)", () => {
     const rows = [
       row({ id: "newer", status: "REQUESTED", appointment_datetime: "2026-09-29T07:30:00Z", created_at: "2026-09-25T03:00:00Z" }),
       row({ id: "older", status: "requested", appointment_datetime: "2026-10-02T06:00:00Z", created_at: "2026-09-23T08:00:00Z" }),
@@ -49,11 +49,11 @@ describe("selectPendingRequests", () => {
     ];
     assert.deepEqual(
       selectPendingRequests(rows, NOW).map((r) => r.id),
-      ["older", "newer"],
+      ["newer", "older"],
     );
   });
 
-  it("puts requests without a created_at last, by visit time", () => {
+  it("orders by visit time whether or not the request has a created_at", () => {
     const rows = [
       row({ id: "no-date-late", status: "REQUESTED", appointment_datetime: "2026-10-05T06:00:00Z", created_at: null }),
       row({ id: "dated", status: "REQUESTED", appointment_datetime: "2026-10-09T06:00:00Z", created_at: "2026-09-24T06:00:00Z" }),
@@ -61,7 +61,20 @@ describe("selectPendingRequests", () => {
     ];
     assert.deepEqual(
       selectPendingRequests(rows, NOW).map((r) => r.id),
-      ["dated", "no-date-early", "no-date-late"],
+      ["no-date-early", "no-date-late", "dated"],
+    );
+  });
+
+  it("breaks a tie on visit time with the older request first", () => {
+    const at = "2026-10-01T06:00:00Z";
+    const rows = [
+      row({ id: "later-request", status: "REQUESTED", appointment_datetime: at, created_at: "2026-09-24T09:00:00Z" }),
+      row({ id: "no-date", status: "REQUESTED", appointment_datetime: at, created_at: null }),
+      row({ id: "earlier-request", status: "REQUESTED", appointment_datetime: at, created_at: "2026-09-23T09:00:00Z" }),
+    ];
+    assert.deepEqual(
+      selectPendingRequests(rows, NOW).map((r) => r.id),
+      ["earlier-request", "later-request", "no-date"],
     );
   });
 
