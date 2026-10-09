@@ -1574,65 +1574,6 @@ export function SettingsForm({
     </fieldset>
   );
 
-  const availabilitySection = (
-    <div className="space-y-5">
-      {sectionTitle("Availability", "When patients can book you online, across every clinic.")}
-      {holidayActive ? (
-        <div
-          role="status"
-          className="rounded-2xl border border-amber-400/30 bg-amber-500/[0.08] px-4 py-3 text-sm text-amber-100"
-        >
-          Holiday mode is on until {holidayEndInput}. No clinic takes online bookings until then.
-        </div>
-      ) : null}
-      {accessEndedNotice}
-      {isDesktop ? null : holidayCard}
-      {/* A status summary only: each clinic's switch lives on its card in Clinics. */}
-      <section className={SECTION_CARD_CLASS} data-testid="settings-availability-clinics">
-        <p className={SECTION_EYEBROW_CLASS}>Online booking by clinic</p>
-        <ul className="mt-3 divide-y divide-slate-800">
-          {liveWorkplaces.map((row, index) => {
-            const status = clinicBookingStatus({
-              pauseOnlineBookings: row.pauseOnlineBookings,
-              holidayActive,
-              accessEnded: Boolean(initial.accessEnded),
-            });
-            return (
-              <li key={row.id} className="flex items-center gap-3 py-3">
-                <span
-                  className={`h-2.5 w-2.5 shrink-0 rounded-[3px] ${agendaClinicEventColor(index).swatch}`}
-                  aria-hidden
-                />
-                <p className="min-w-0 flex-1 truncate text-sm font-semibold text-slate-100">
-                  {workplaceName(row, index)}
-                </p>
-                <p className={`text-xs ${status.kind === "taking" ? "text-wellness-200" : "text-amber-200"}`}>
-                  {status.label}
-                </p>
-              </li>
-            );
-          })}
-        </ul>
-        <p className="mt-2 text-xs text-slate-400">
-          Turn online booking on or off for a clinic on its card in{" "}
-          <a
-            href={settingsSectionHref("clinics")}
-            data-settings-section="clinics"
-            onClick={(event) => {
-              event.preventDefault();
-              selectSection("clinics");
-            }}
-            className={SETTINGS_INLINE_LINK_CLASS}
-          >
-            Clinics
-          </a>
-          , where you also set its booking limits. While a clinic is paused, patients see its phone
-          number instead of your calendar.
-        </p>
-      </section>
-    </div>
-  );
-
   const clinicsSection = (
     <div className="space-y-5">
       {sectionTitle(
@@ -1647,7 +1588,17 @@ export function SettingsForm({
           + Add clinic
         </button>,
       )}
+      {holidayActive ? (
+        <div
+          role="status"
+          className="rounded-2xl border border-amber-400/30 bg-amber-500/[0.08] px-4 py-3 text-sm text-amber-100"
+        >
+          Holiday mode is on until {holidayEndInput}. No clinic takes online bookings until then.
+        </div>
+      ) : null}
       {accessEndedNotice}
+      {/* Wide screens show holiday mode in the sidebar; phones show it here. */}
+      {isDesktop ? null : holidayCard}
       {liveWorkplaces.map((row, index) => {
         const name = workplaceName(row, index);
         const removal = canRemoveClinic(liveWorkplaces, row.id);
@@ -2173,7 +2124,6 @@ export function SettingsForm({
   );
 
   const sections: Record<SettingsSectionId, React.ReactNode> = {
-    availability: availabilitySection,
     clinics: clinicsSection,
     services: servicesSection,
     profile: profileSection,
@@ -2196,7 +2146,6 @@ export function SettingsForm({
               <span className="text-xs tabular-nums text-clinical-300">{liveWorkplaces.length}</span>
             </span>
           ),
-          availability: unsavedSections.includes("availability") ? unsavedDot : null,
           contact: unsavedSections.includes("contact") ? unsavedDot : null,
           profile: unsavedSections.includes("profile") ? (
             unsavedDot

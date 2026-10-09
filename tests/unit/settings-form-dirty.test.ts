@@ -155,7 +155,6 @@ describe("unsavedSettingsSections", () => {
       workplaces: [{ ...baseWorkplace, slotDurationMinutes: 45 }],
     });
     assert.deepEqual(unsavedSettingsSections(changed, saved()), [
-      "availability",
       "clinics",
       "profile",
       "contact",
@@ -167,13 +166,13 @@ describe("unsavedSettingsSections", () => {
     assert.deepEqual(unsavedSettingsSections(changed, saved()), ["clinics"]);
   });
 
-  it("puts holiday dates under Availability", () => {
+  it("puts holiday dates under Clinics, now that there is no Availability section", () => {
     const changed = buildSettingsDirtySnapshot({
       ...baseSnapshotInput(),
       holidayModeEnabled: true,
       holidayStartInput: "01/08/2026",
     });
-    assert.deepEqual(unsavedSettingsSections(changed, saved()), ["availability"]);
+    assert.deepEqual(unsavedSettingsSections(changed, saved()), ["clinics"]);
   });
 
   it("counts languages as Profile, ignoring their order", () => {

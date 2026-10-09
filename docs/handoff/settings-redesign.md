@@ -41,9 +41,9 @@ Reference design (private canvas): https://claude.ai/artifact/3XYQpTSDQPyn2wWFg8
 - Settings lives at **`/settings`** (`app/settings/page.tsx`), not under the agenda.
   `/agenda/settings` redirects there keeping `?section=`. Same middleware gate as
   `/agenda` (`isProfessionalGatedPath`).
-- A sidebar of sections, kept in `?section=` (default `availability`):
-  Availability · Clinics · Services & prices · Profile · Contact & phone · Promote ·
-  Plan & billing · Account (`lib/settings-sections.ts`).
+- A sidebar of sections, kept in `?section=` (default `clinics`):
+  Clinics · Services & prices · Profile · Contact & phone · Promote · Plan & billing ·
+  Account (`lib/settings-sections.ts`).
 - Old `/settings?section=account#promote-practice` links land on Promote.
 
 ### One save rule (frontend only; same API)
@@ -76,13 +76,14 @@ Reference design (private canvas): https://claude.ai/artifact/3XYQpTSDQPyn2wWFg8
 - Any clinic can be removed, the primary too, while one is left
   (`lib/settings-removal-rules.ts`).
 
-### Availability
-- Booking limits are no longer here: they moved to each clinic's card (see Clinics and
-  3.7). Holiday mode as before.
+### Availability (removed, Livio 2026-10-09)
+- The section only repeated each clinic card's status (and the dashboard already says
+  which clinics are paused), so it is gone. Clinics is the default section; old
+  `?section=availability` links land there.
+- Clinics now shows the "Holiday mode is on until …" banner and, on phones, the holiday
+  mode card (the sidebar keeps it on wide screens). Unsaved holiday dates mark Clinics.
 - With pro access ended (`initial.accessEnded`, master's `loadProAccessEnded`), every
-  clinic's switch is off and disabled and Availability/Clinics say why.
-- Holiday mode sits in the sidebar on wide screens and inside Availability on phones.
-- "Online booking by clinic" is a status summary; the switches live on the clinic cards.
+  clinic's switch is off and disabled and Clinics says why.
 
 ### Profile
 - Specialties: removing one is instant (✕ on the chip) while one is left. Asking for a

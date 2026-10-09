@@ -1,7 +1,8 @@
 /** The settings page's sidebar (design B1): one section on screen at a time, kept in `?section=`. */
 
 export const SETTINGS_SECTIONS = [
-  { id: "availability", label: "Availability" },
+  // No "Availability" section: it only repeated each clinic card's status (user, 2026-10-09).
+  // Old `?section=availability` links fall back to the default, Clinics.
   { id: "clinics", label: "Clinics" },
   { id: "services", label: "Services & prices" },
   { id: "profile", label: "Profile" },
@@ -15,7 +16,7 @@ export const SETTINGS_SECTIONS = [
 
 export type SettingsSectionId = (typeof SETTINGS_SECTIONS)[number]["id"];
 
-export const DEFAULT_SETTINGS_SECTION: SettingsSectionId = "availability";
+export const DEFAULT_SETTINGS_SECTION: SettingsSectionId = "clinics";
 
 /** Settings is its own page, not part of the agenda (user, 2026-09-30). */
 export const SETTINGS_PATH = "/settings";

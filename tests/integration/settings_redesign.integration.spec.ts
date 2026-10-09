@@ -221,16 +221,20 @@ test.describe("Settings redesign (B1)", { tag: "@pr-e2e" }, () => {
     test.setTimeout(120_000);
     await openSettings(page, seeded!);
 
-    await expect(page.getByRole("heading", { level: 1, name: "Availability" })).toBeVisible();
-
+    // No Availability section: Clinics opens first (user, 2026-10-09).
+    await expect(page.getByRole("heading", { level: 1, name: "Clinics" })).toBeVisible({ timeout: 20_000 });
     const sidebar = page.getByTestId("settings-sidebar");
-    await sidebar.getByRole("link", { name: /Clinics/ }).click();
-    await expect(page).toHaveURL(/section=clinics/);
-    await expect(page.getByRole("heading", { level: 1, name: "Clinics" })).toBeVisible();
-    await expect(sidebar.getByRole("link", { name: /Clinics/ })).toHaveAttribute("aria-current", "page");
+    await expect(sidebar.getByRole("link", { name: /Availability/ })).toHaveCount(0);
+
+    await sidebar.getByRole("link", { name: /Services/ }).click();
+    await expect(page).toHaveURL(/section=services/);
+    await expect(page.getByRole("heading", { level: 1, name: "Services & prices" })).toBeVisible();
+    await expect(sidebar.getByRole("link", { name: /Services/ })).toHaveAttribute("aria-current", "page");
 
     await page.reload();
-    await expect(page.getByRole("heading", { level: 1, name: "Clinics" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "Services & prices" })).toBeVisible({
+      timeout: 20_000,
+    });
 
     // Holiday mode is on every section.
     await expect(sidebar.getByRole("switch", { name: "Holiday mode" })).toBeVisible();
@@ -408,11 +412,6 @@ test.describe("Settings redesign (B1)", { tag: "@pr-e2e" }, () => {
     await page.locator("#settings-bio").fill("A bio I have not saved");
     await expect(page.getByTestId("settings-bio-save")).toBeVisible();
 
-    await page.getByTestId("settings-sidebar").getByRole("link", { name: /Availability/ }).click();
-    // Clinic switches and booking limits live on the clinic cards only.
-    await expect(page.getByTestId("settings-availability-clinics").getByRole("switch")).toHaveCount(0);
-    await expect(page.locator('[id^="minimumNoticeHours"]:visible')).toHaveCount(0);
-
     await page.getByTestId("settings-sidebar").getByRole("link", { name: /Clinics/ }).click();
     const limassol = clinicCard(page, "Limassol Skin Clinic").getByTestId("clinic-booking-limits");
     const paphos = clinicCard(page, "Paphos Medical Centre").getByTestId("clinic-booking-limits");
@@ -522,14 +521,27 @@ test.describe("Settings redesign (B1)", { tag: "@pr-e2e" }, () => {
   test("a section that fits the window does not scroll", async ({ page }) => {
     test.setTimeout(120_000);
     await page.setViewportSize({ width: 1632, height: 862 });
-    await openSettings(page, seeded!);
-    await expect(page.getByRole("heading", { level: 1, name: "Availability" })).toBeVisible();
+    // A short section: Clinics with two cards is meant to scroll.
+    await openSettings(page, seeded!, "plan");
+    await expect(page.getByRole("heading", { level: 1, name: "Plan & billing" })).toBeVisible({
+      timeout: 20_000,
+    });
     await expect(page.getByTestId("auth-about-footer")).toBeAttached();
     // Header + page + "About DocCy" footer used to add up to more than the window.
     const overflow = await page.evaluate(
       () => document.documentElement.scrollHeight - window.innerHeight,
     );
     expect(overflow).toBeLessThanOrEqual(0);
+  });
+
+  test("old Availability links open Clinics, with holiday mode on phones", async ({ page }) => {
+    test.setTimeout(120_000);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await openSettings(page, seeded!, "availability");
+    await expect(page.getByRole("heading", { level: 1, name: "Clinics" })).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByTestId("settings-availability-clinics")).toHaveCount(0);
+    // The sidebar card is wide screens only; on phones holiday mode sits in Clinics.
+    await expect(page.getByRole("switch", { name: "Holiday mode" })).toBeVisible();
   });
 
   test("old /agenda/settings links keep their section", async ({ page }) => {

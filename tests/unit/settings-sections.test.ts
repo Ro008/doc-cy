@@ -14,7 +14,7 @@ describe("settings sections (sidebar)", () => {
   it("lists the sidebar sections in order", () => {
     assert.deepEqual(
       SETTINGS_SECTIONS.map((s) => s.id),
-      ["availability", "clinics", "services", "profile", "contact", "promote", "plan", "account"],
+      ["clinics", "services", "profile", "contact", "promote", "plan", "account"],
     );
   });
 
@@ -29,11 +29,17 @@ describe("settings sections (sidebar)", () => {
     }
   });
 
-  it("opens Availability when no section is asked for", () => {
-    assert.equal(DEFAULT_SETTINGS_SECTION, "availability");
-    assert.equal(parseSettingsSection(undefined), "availability");
-    assert.equal(parseSettingsSection(null), "availability");
-    assert.equal(parseSettingsSection(""), "availability");
+  it("opens Clinics when no section is asked for", () => {
+    assert.equal(DEFAULT_SETTINGS_SECTION, "clinics");
+    assert.equal(parseSettingsSection(undefined), "clinics");
+    assert.equal(parseSettingsSection(null), "clinics");
+    assert.equal(parseSettingsSection(""), "clinics");
+  });
+
+  it("has no Availability section: Clinics shows the same per clinic (user, 2026-10-09)", () => {
+    assert.equal(SETTINGS_SECTIONS.some((s) => (s.id as string) === "availability"), false);
+    assert.equal(parseSettingsSection("availability"), "clinics");
+    assert.equal(legacySettingsRedirect({ section: "availability" }), "/settings");
   });
 
   it("reads a known section from the URL", () => {
@@ -47,8 +53,8 @@ describe("settings sections (sidebar)", () => {
   });
 
   it("falls back to the default for an unknown section", () => {
-    assert.equal(parseSettingsSection("billing"), "availability");
-    assert.equal(parseSettingsSection("__proto__"), "availability");
+    assert.equal(parseSettingsSection("billing"), "clinics");
+    assert.equal(parseSettingsSection("__proto__"), "clinics");
   });
 
   it("lives at /settings, not under the agenda", () => {
@@ -56,14 +62,14 @@ describe("settings sections (sidebar)", () => {
   });
 
   it("links each section; the default one has no query", () => {
-    assert.equal(settingsSectionHref("availability"), "/settings");
-    assert.equal(settingsSectionHref("clinics"), "/settings?section=clinics");
+    assert.equal(settingsSectionHref("clinics"), "/settings");
+    assert.equal(settingsSectionHref("services"), "/settings?section=services");
     assert.equal(settingsSectionHref("account"), "/settings?section=account");
   });
 
   it("sends the old /agenda/settings links to the same section", () => {
     assert.equal(legacySettingsRedirect({}), "/settings");
-    assert.equal(legacySettingsRedirect({ section: "clinics" }), "/settings?section=clinics");
+    assert.equal(legacySettingsRedirect({ section: "services" }), "/settings?section=services");
     assert.equal(legacySettingsRedirect({ section: ["profile", "x"] }), "/settings?section=profile");
     assert.equal(legacySettingsRedirect({ section: "nope" }), "/settings");
   });

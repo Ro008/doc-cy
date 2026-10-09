@@ -101,17 +101,25 @@ export function settingsFormHasUnsavedChanges(
 }
 
 const SECTION_FIELDS: Array<[UnsavedSection, Array<keyof SettingsDirtySnapshot>]> = [
+  // Booking limits are set on each clinic's card; holiday mode pauses every clinic and
+  // lives in Clinics on phones (user, 2026-10-09).
   [
-    "availability",
-    ["holidayModeEnabled", "holidayStartInput", "holidayEndInput"],
+    "clinics",
+    [
+      "workplaces",
+      "bookingHorizonDays",
+      "minimumNoticeHours",
+      "patientCancelNoticeHours",
+      "holidayModeEnabled",
+      "holidayStartInput",
+      "holidayEndInput",
+    ],
   ],
-  // Booking limits are set on each clinic's card (user, 2026-10-09).
-  ["clinics", ["workplaces", "bookingHorizonDays", "minimumNoticeHours", "patientCancelNoticeHours"]],
   ["profile", ["specialty", "specialtyFromMaster", "bio", "languages"]],
   ["contact", ["mobileNumber"]],
 ];
 
-export type UnsavedSection = "availability" | "clinics" | "profile" | "contact";
+export type UnsavedSection = "clinics" | "profile" | "contact";
 
 /** Which settings sections hold the unsaved changes, in sidebar order (for the save bar). */
 export function unsavedSettingsSections(

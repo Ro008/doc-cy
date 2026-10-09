@@ -3,7 +3,6 @@
 import * as React from "react";
 import {
   Building2,
-  CalendarDays,
   CreditCard,
   Lock,
   Megaphone,
@@ -19,7 +18,6 @@ import {
 } from "@/lib/settings-sections";
 
 const SECTION_ICONS: Record<SettingsSectionId, LucideIcon> = {
-  availability: CalendarDays,
   clinics: Building2,
   services: Tags,
   profile: UserRound,
