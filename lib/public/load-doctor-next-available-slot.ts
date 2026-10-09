@@ -26,8 +26,8 @@ import {
 const EMPTY_CALENDAR: PublicAvailabilityCalendar = { days: [], soonestSlot: null };
 
 /**
- * One call returns the taken slot starts for many professionals, each row with
- * its clinic. The finder used to call public_doctor_occupied_datetimes once
+ * One call returns the taken slot starts for many professionals (one agenda per
+ * professional, so no clinic). The finder used to call public_doctor_occupied_datetimes once
  * per card and clinic (32% of Testing's database time); it now calls this once
  * per page; the profile page calls it with one professional.
  */
@@ -35,7 +35,6 @@ export const OCCUPIED_BATCH_RPC = "public_professionals_occupied_datetimes";
 
 export type OccupiedRow = {
   professional_id: string;
-  // The RPC also returns the clinic; nothing reads it (one agenda per professional).
   appointment_datetime: string;
 };
 
