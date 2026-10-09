@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { ChevronDown, Search, X } from "lucide-react";
+import { Check, ChevronDown, Search, X } from "lucide-react";
 import {
   CYPRUS_SPOKEN_LANGUAGE_THEMES,
   CYPRUS_SPOKEN_LANGUAGE_LABELS,
@@ -63,7 +63,16 @@ export function LanguageMultiSelect({
   const listBoxClass =
     variant === "register"
       ? "absolute z-50 mt-1 max-h-64 w-full overflow-auto rounded-xl border border-ink-200 bg-white py-1 shadow-lg ring-1 ring-ink-100"
-      : "absolute z-50 mt-1 max-h-64 w-full overflow-auto rounded-xl border border-slate-800 bg-slate-950 py-1 shadow-xl";
+      : // Dark scrollbar too: the system's white one stood out on the dark card.
+        "absolute z-50 mt-1.5 max-h-72 w-full overflow-auto rounded-xl border border-slate-800 bg-slate-950 shadow-xl [color-scheme:dark] [scrollbar-color:rgb(51_65_85)_transparent] [scrollbar-width:thin]";
+
+  // Settings (user, 2026-10-09): one calm teal chip for every language, as the active
+  // sidebar item, instead of a colour per language. The public pages and /register
+  // keep the per-language colours (lib/cyprus-languages.ts).
+  const chipClass = (lang: string) =>
+    variant === "register"
+      ? languageThemeForLabel(lang).pillClass
+      : "bg-clinical-500/15 text-clinical-50 ring-1 ring-inset ring-clinical-400/35";
 
   return (
     <div ref={rootRef} className="relative">
@@ -123,16 +132,15 @@ export function LanguageMultiSelect({
       {selected.length > 0 ? (
         <div className="mt-2 flex flex-wrap gap-1.5">
           {selected.map((lang) => {
-            const theme = languageThemeForLabel(lang);
             return (
               <span
                 key={lang}
-                className={`inline-flex items-center gap-1 rounded-full py-0.5 pl-2.5 pr-1 text-xs font-semibold ${theme.pillClass}`}
+                className={`inline-flex items-center gap-1 rounded-full py-0.5 pl-2.5 pr-1 text-xs font-semibold ${chipClass(lang)}`}
               >
                 {lang}
                 <button
                   type="button"
-                  className="rounded-full p-0.5 transition hover:bg-black/20"
+                  className={`rounded-full p-0.5 transition ${variant === "register" ? "hover:bg-black/20" : "text-clinical-200 hover:bg-white/10 hover:text-white"}`}
                   onClick={() => remove(lang)}
                   aria-label={`Remove ${lang}`}
                 >
@@ -178,6 +186,11 @@ export function LanguageMultiSelect({
             </div>
           </div>
           <ul className="py-1">
+            {filtered.length === 0 ? (
+              <li className={`px-3 py-2 text-xs ${variant === "register" ? "text-ink-400" : "text-slate-500"}`}>
+                No language matches.
+              </li>
+            ) : null}
             {filtered.map((t) => {
               const checked = selectedSet.has(t.label);
               return (
@@ -191,25 +204,37 @@ export function LanguageMultiSelect({
                     className={
                       variant === "register"
                         ? "flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-ink-700 hover:bg-clinical-50"
-                        : "flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-200 hover:bg-slate-800/80"
+                        : `flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm transition hover:bg-white/5 focus-visible:bg-white/5 focus-visible:outline-none ${
+                            checked ? "font-medium text-slate-50" : "text-slate-300"
+                          }`
                     }
                   >
-                    <span
-                      className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${
-                        checked
-                          ? "border-clinical-400 bg-clinical-50 text-clinical-700"
-                          : variant === "register"
-                            ? "border-ink-300 bg-white"
-                            : "border-slate-600 bg-slate-900"
-                      }`}
-                    >
-                      {checked ? "✓" : ""}
-                    </span>
-                    <span
-                      className={`rounded-full px-2 py-0.5 text-xs font-semibold ${t.pillClass}`}
-                    >
-                      {t.label}
-                    </span>
+                    {variant === "register" ? (
+                      <>
+                        <span
+                          className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${
+                            checked ? "border-clinical-400 bg-clinical-50 text-clinical-700" : "border-ink-300 bg-white"
+                          }`}
+                        >
+                          {checked ? "✓" : ""}
+                        </span>
+                        <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${t.pillClass}`}>
+                          {t.label}
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <span
+                          className={`flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-md border transition ${
+                            checked ? "border-clinical-400 bg-clinical-500 text-ink-900" : "border-slate-600 bg-slate-900"
+                          }`}
+                          aria-hidden
+                        >
+                          {checked ? <Check className="h-3 w-3" strokeWidth={3} /> : null}
+                        </span>
+                        <span>{t.label}</span>
+                      </>
+                    )}
                   </button>
                 </li>
               );
