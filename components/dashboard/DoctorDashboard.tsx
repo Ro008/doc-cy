@@ -35,7 +35,11 @@ import { emitPendingRequestsCount } from "@/lib/pending-requests-count";
 import { reviewPathFromDashboard } from "@/lib/appointment-review";
 import { agendaHighlightHref } from "@/lib/agenda-highlight";
 import { DeclineRequestDialog } from "@/components/dashboard/DeclineRequestDialog";
+import { VisitDetailsDialog } from "@/components/agenda/VisitDetailsDialog";
+import { visitDetailsFromRow } from "@/lib/visit-details";
 import { useDeviceDismissals } from "@/components/dashboard/useDeviceDismissals";
+import { useNewRequests } from "@/components/dashboard/useNewRequests";
+import { newRequestsLabel } from "@/lib/dashboard-new-requests";
 import {
   MISSED_REQUESTS_DISMISSED_KEY,
   MISSED_REQUESTS_SHOWN,
@@ -61,6 +65,8 @@ type Props = {
   pausedNotices: PausedClinicNotice[];
   /** Her pro access has ended: the manual booking window says so instead of the form. */
   accessEnded?: boolean;
+  /** Patients' cancel window, for the short-notice warning when she cancels a visit. */
+  patientCancelNoticeHours: number;
 };
 
 type ExitKind = "accepted" | "declined";
@@ -97,6 +103,7 @@ export function DoctorDashboard({
   todayWindow,
   pausedNotices,
   accessEnded = false,
+  patientCancelNoticeHours,
 }: Props) {
   const router = useRouter();
   const nowMs = useNow();
@@ -104,6 +111,9 @@ export function DoctorDashboard({
   const [exiting, setExiting] = React.useState<Record<string, ExitKind>>({});
   const [manualOpen, setManualOpen] = React.useState(false);
   const [declineTarget, setDeclineTarget] = React.useState<DashboardAppointmentRow | null>(null);
+  // Today's visit whose details are open, like on the agenda (user, 2026-10-09).
+  const [openVisitId, setOpenVisitId] = React.useState<string | null>(null);
+  const openVisitRow = openVisitId ? rows.find((row) => row.id === openVisitId) ?? null : null;
 
   React.useEffect(() => {
     setRows(appointments);
@@ -115,7 +125,14 @@ export function DoctorDashboard({
   );
 
   const pending = selectPendingRequests(rows, nowMs);
-  const waitingCount = pending.filter((row) => !exiting[row.id]).length;
+  const shownPendingIds = new Set(pending.filter((row) => !exiting[row.id]).map((row) => row.id));
+  const waitingCount = shownPendingIds.size;
+  // Pending ids of the last server render; a new array tells the bar its refresh landed.
+  const serverPendingIds = React.useMemo(
+    () => selectPendingRequests(appointments, Date.now()).map((row) => row.id),
+    [appointments],
+  );
+  const newRequests = useNewRequests({ doctorId, shownIds: shownPendingIds, serverPendingIds });
   const awaiting = selectAwaitingPatient(rows, nowMs);
   // "Close" hides a lapsed proposal on this device only (user, 2026-10-04).
   const noNewTimeClose = useDeviceDismissals(NO_NEW_TIME_DISMISSED_KEY);
@@ -130,9 +147,11 @@ export function DoctorDashboard({
   const missedSplit = splitMonthDayItems(missed, MISSED_REQUESTS_SHOWN);
   const missedShown = showAllMissed ? missed : missedSplit.visible;
 
+  // The badge counts the ones behind the bar too.
+  const badgeCount = waitingCount + newRequests.count;
   React.useEffect(() => {
-    emitPendingRequestsCount(waitingCount);
-  }, [waitingCount]);
+    emitPendingRequestsCount(badgeCount);
+  }, [badgeCount]);
   const schedule = buildTodaySchedule(rows, {
     nowMs,
     startHour: todayWindow?.startHour,
@@ -199,6 +218,7 @@ export function DoctorDashboard({
         <section
           id={DASHBOARD_NEEDS_ANSWER_ID}
           aria-labelledby="dashboard-pending-heading"
+          data-new-requests-live={newRequests.live ? "1" : "0"}
           className="min-w-0 scroll-mt-24"
         >
           <div className="flex h-7 items-center gap-2.5">
@@ -215,6 +235,10 @@ export function DoctorDashboard({
             ) : null}
           </div>
 
+          {newRequests.count > 0 ? (
+            <NewRequestsBar count={newRequests.count} onShow={newRequests.show} />
+          ) : null}
+
           <div className="mt-3 overflow-hidden rounded-3xl border border-slate-700/70 bg-slate-900/70 shadow-xl shadow-black/20">
             {pending.length === 0 && noNewTime.length === 0 && missed.length === 0 ? (
               <AllCaughtUp />
@@ -229,6 +253,7 @@ export function DoctorDashboard({
                     clinicTag={clinicTag(row.clinic_id)}
                     durationMinutes={confirmDuration(row)}
                     exit={exiting[row.id] ?? null}
+                    highlighted={newRequests.highlightedIds.has(row.id)}
                     onAccepted={() => finishRequest(row, "accepted")}
                     onDecline={() => setDeclineTarget(row)}
                   />
@@ -329,10 +354,42 @@ export function DoctorDashboard({
           items={schedule.items}
           todayWindow={todayWindow}
           nowMs={nowMs}
-          dateKey={formatInTimeZone(new Date(nowMs), CY_TZ, "yyyy-MM-dd")}
           clinicTag={clinicTag}
+          onOpenVisit={setOpenVisitId}
         />
       </div>
+
+      {openVisitRow ? (
+        <VisitDetailsDialog
+          key={openVisitRow.id}
+          visit={visitDetailsFromRow(
+            {
+              ...openVisitRow,
+              professional_id: openVisitRow.professional_id ?? doctorId,
+              patient_name: openVisitRow.patient_name ?? "Patient",
+              patient_phone: openVisitRow.patient_phone ?? "",
+            },
+            nowMs,
+          )}
+          clinicName={clinicTag(openVisitRow.clinic_id)?.name ?? null}
+          clinicSwatchClass={clinicTag(openVisitRow.clinic_id)?.swatchClass ?? null}
+          previousVisitClinicName={(clinicId) => clinicTag(clinicId ?? null)?.name ?? null}
+          patientCancelNoticeHours={patientCancelNoticeHours}
+          agendaHref={agendaHighlightHref(
+            formatInTimeZone(new Date(openVisitRow.appointment_datetime), CY_TZ, "yyyy-MM-dd"),
+            openVisitRow.id,
+          )}
+          onClose={() => setOpenVisitId(null)}
+          onUpdated={(id, patch) =>
+            setRows((prev) => prev.map((row) => (row.id === id ? { ...row, ...patch } : row)))
+          }
+          onRemoved={(id) => {
+            setOpenVisitId(null);
+            setRows((prev) => prev.filter((row) => row.id !== id));
+            router.refresh();
+          }}
+        />
+      ) : null}
 
       {declineTarget ? (
         <DeclineRequestDialog
@@ -601,6 +658,42 @@ function AwaitingPatientItem({
   );
 }
 
+/** Rows brought in by "Show": the agenda's spotlight, once. */
+const NEW_REQUEST_SPOTLIGHT_CLASS =
+  "motion-safe:animate-spotlight motion-reduce:shadow-[inset_0_0_0_2px_rgba(255,255,255,0.75)]";
+
+/**
+ * "1 new request · Show": new requests wait here instead of sliding into the list,
+ * so nothing moves under her finger (user, 2026-10-09). Sticks under the header
+ * while she scrolls the list.
+ */
+function NewRequestsBar({ count, onShow }: { count: number; onShow: () => void }) {
+  return (
+    <div className="sticky top-20 z-10 mt-3 flex justify-center">
+      <div
+        role="status"
+        data-testid="dashboard-new-requests-bar"
+        className="inline-flex items-center gap-2 rounded-full border border-clinical-400/50 bg-slate-900/95 py-1 pl-4 pr-1 text-sm shadow-lg shadow-black/30 backdrop-blur motion-safe:animate-fade-up"
+      >
+        <span className="h-2 w-2 rounded-full bg-clinical-400 motion-safe:animate-pulse" aria-hidden />
+        <span key={count} className="font-semibold text-clinical-100 motion-safe:animate-pop">
+          {newRequestsLabel(count)}
+        </span>
+        <span className="text-slate-500" aria-hidden>
+          ·
+        </span>
+        <button
+          type="button"
+          onClick={onShow}
+          className="rounded-full px-3 py-1 font-semibold text-clinical-200 transition hover:bg-clinical-500/20 hover:text-clinical-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-400/70"
+        >
+          Show
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function AllCaughtUp() {
   return (
     <div className="flex flex-col items-center px-6 py-10 text-center">
@@ -679,6 +772,7 @@ function PendingRequestItem({
   clinicTag,
   durationMinutes,
   exit,
+  highlighted,
   onAccepted,
   onDecline,
 }: {
@@ -688,6 +782,8 @@ function PendingRequestItem({
   clinicTag: DashboardClinicTag | null;
   durationMinutes: number;
   exit: ExitKind | null;
+  /** Just brought in by "Show" on the new requests bar. */
+  highlighted: boolean;
   onAccepted: () => void;
   onDecline: () => void;
 }) {
@@ -752,6 +848,7 @@ function PendingRequestItem({
   return (
     <li
       data-testid="dashboard-pending-request"
+      data-highlighted={highlighted ? "true" : "false"}
       aria-busy={locked}
       className={`grid transition-[grid-template-rows,opacity,transform] duration-300 ease-out motion-safe:animate-fade-up ${
         collapsing ? "grid-rows-[0fr] translate-x-6 opacity-0" : "grid-rows-[1fr]"
@@ -761,6 +858,8 @@ function PendingRequestItem({
       <div className="min-h-0 overflow-hidden">
         <article
           className={`flex flex-col gap-2 px-5 py-4 transition-colors duration-300 sm:flex-row sm:gap-4 ${
+            highlighted ? NEW_REQUEST_SPOTLIGHT_CLASS : ""
+          } ${
             exit === "accepted"
               ? "bg-clinical-500/10"
               : exit === "declined"
@@ -863,14 +962,14 @@ function TodayTimeline({
   items,
   todayWindow,
   nowMs,
-  dateKey,
   clinicTag,
+  onOpenVisit,
 }: {
   items: TodayScheduleItem[];
   todayWindow: TodayWorkingWindow | null;
   nowMs: number;
-  dateKey: string;
   clinicTag: (locationId: string | null) => DashboardClinicTag | null;
+  onOpenVisit: (appointmentId: string) => void;
 }) {
   const { beforeIndex, currentId } = nowMarkerPosition(items, nowMs);
   // "Next" is the first visit that has not started, even while another is in progress.
@@ -915,7 +1014,7 @@ function TodayTimeline({
                 index={index}
                 nowMs={nowMs}
                 clinicTag={clinicTag(entry.item.clinicId)}
-                dateKey={dateKey}
+                onOpen={() => onOpenVisit(entry.item.id)}
               />
             ),
           )}
@@ -961,7 +1060,7 @@ function TimelineVisit({
   index,
   nowMs,
   clinicTag,
-  dateKey,
+  onOpen,
 }: {
   item: TodayScheduleItem;
   isCurrent: boolean;
@@ -969,7 +1068,8 @@ function TimelineVisit({
   index: number;
   nowMs: number;
   clinicTag: DashboardClinicTag | null;
-  dateKey: string;
+  /** Opens the visit's details window. */
+  onOpen: () => void;
 }) {
   const details = item.reason;
   const timeTone = isCurrent
@@ -999,10 +1099,11 @@ function TimelineVisit({
           />
         )}
       </span>
-      <Link
-        href={agendaHighlightHref(dateKey, item.id)}
+      <button
+        type="button"
+        onClick={onOpen}
         aria-label={`Appointment ${item.patientName} at ${item.rangeLabel}`}
-        className="group -mx-2 -my-1 min-w-0 flex-1 rounded-xl px-2 py-1 text-slate-50 no-underline transition hover:bg-slate-800/50 hover:text-slate-50"
+        className="group -mx-2 -my-1 min-w-0 flex-1 rounded-xl px-2 py-1 text-left text-slate-50 transition hover:bg-slate-800/50 hover:text-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-400/70"
       >
         <div className="flex flex-wrap items-center gap-2">
           <span className={`text-sm font-semibold tabular-nums ${timeTone}`}>{item.rangeLabel}</span>
@@ -1024,7 +1125,7 @@ function TimelineVisit({
           ) : null}
         </p>
         {details ? <p className="truncate text-sm text-slate-400">{details}</p> : null}
-      </Link>
+      </button>
     </li>
   );
 }

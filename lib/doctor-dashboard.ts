@@ -57,7 +57,7 @@ export function pausedClinicNotices(
 }
 
 export const DASHBOARD_APPOINTMENT_SELECT =
-  "id, patient_name, appointment_datetime, status, duration_minutes, created_at, is_new_patient, attendance, proposal_expires_at, proposed_slots, reason, clinic_id, patient_phone";
+  "id, professional_id, patient_name, appointment_datetime, status, duration_minutes, created_at, is_new_patient, attendance, proposal_expires_at, proposed_slots, reason, clinic_id, patient_phone, patient_email, patient_gender, patient_birthdate, professional_notes, review_requested_at, booking_source";
 
 export type DashboardAppointmentRow = {
   id: string;
@@ -74,6 +74,14 @@ export type DashboardAppointmentRow = {
   clinic_id: string | null;
   /** For "Missed requests": she can call the patient back. */
   patient_phone?: string | null;
+  /** The rest is for the visit details window (components/agenda/VisitDetailsDialog.tsx). */
+  professional_id?: string;
+  patient_email?: string | null;
+  patient_gender?: string | null;
+  patient_birthdate?: string | null;
+  professional_notes?: string | null;
+  review_requested_at?: string | null;
+  booking_source?: string | null;
 };
 
 export type TodayScheduleItem = {
@@ -133,18 +141,23 @@ function clockLabel(minuteOfDay: number): string {
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
 
-/** Open requests for future visits, the longest-waiting first. */
+/**
+ * Open requests for future visits, the soonest visit first (user, 2026-10-09); for the
+ * same time, the longest-waiting request first.
+ */
 export function selectPendingRequests<T extends DashboardAppointmentRow>(rows: T[], nowMs: number): T[] {
   return rows
     .filter((r) => statusOf(r) === "REQUESTED" && timeMs(r.appointment_datetime) > nowMs)
     .sort((a, b) => {
+      const byVisit = timeMs(a.appointment_datetime) - timeMs(b.appointment_datetime);
+      if (byVisit !== 0) return byVisit;
       const ca = timeMs(a.created_at);
       const cb = timeMs(b.created_at);
       const aHas = Number.isFinite(ca);
       const bHas = Number.isFinite(cb);
-      if (aHas && bHas && ca !== cb) return ca - cb;
+      if (aHas && bHas) return ca - cb;
       if (aHas !== bHas) return aHas ? -1 : 1;
-      return timeMs(a.appointment_datetime) - timeMs(b.appointment_datetime);
+      return 0;
     });
 }
 
