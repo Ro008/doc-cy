@@ -83,14 +83,30 @@ $$;
 create index if not exists appointments_clinic_id_idx
   on public.appointments (clinic_id) where clinic_id is not null;
 
--- Statuses: add DECLINED and EXPIRED (the old values stay until M2).
-alter table public.appointments drop constraint if exists appointments_status_check;
-alter table public.appointments
-  add constraint appointments_status_check
-  check (status = any (array[
-    'REQUESTED', 'PENDING', 'CONFIRMED', 'CANCELLED', 'REJECTED', 'COMPLETED',
-    'NEEDS_RESCHEDULE', 'DECLINED', 'EXPIRED'
-  ]::text[]));
+-- Statuses: add DECLINED and EXPIRED (the old values stay until M2). Production keeps
+-- status as the enum public.appointment_status (like 20260525140000); Testing has text
+-- with a check.
+do $$
+begin
+  if exists (
+    select 1 from pg_attribute
+    where attrelid = 'public.appointments'::regclass
+      and attname = 'status'
+      and atttypid = to_regtype('public.appointment_status')
+  ) then
+    alter type public.appointment_status add value if not exists 'DECLINED';
+    alter type public.appointment_status add value if not exists 'EXPIRED';
+  else
+    alter table public.appointments drop constraint if exists appointments_status_check;
+    alter table public.appointments
+      add constraint appointments_status_check
+      check (status = any (array[
+        'REQUESTED', 'PENDING', 'CONFIRMED', 'CANCELLED', 'REJECTED', 'COMPLETED',
+        'NEEDS_RESCHEDULE', 'DECLINED', 'EXPIRED'
+      ]::text[]));
+  end if;
+end
+$$;
 
 -- Attendance: 'attended' joins 'no_show'.
 alter table public.appointments drop constraint if exists appointments_attendance_check;
