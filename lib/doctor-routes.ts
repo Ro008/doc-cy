@@ -2,7 +2,7 @@ import { REGISTRATION_STATUS_PATH } from "@/lib/registration-status-path";
 /** Where a signed-in professional lands after login. */
 export const DOCTOR_HOME_PATH = "/dashboard";
 
-export type DoctorNavTabId = "dashboard" | "agenda" | "settings" | "insights";
+export type DoctorNavTabId = "dashboard" | "agenda" | "visits" | "settings" | "insights";
 
 export type DoctorNavTab = {
   id: DoctorNavTabId;
@@ -14,6 +14,7 @@ export type DoctorNavTab = {
 export const DOCTOR_NAV_TABS: readonly DoctorNavTab[] = [
   { id: "dashboard", label: "Dashboard", href: DOCTOR_HOME_PATH },
   { id: "agenda", label: "Agenda", href: "/agenda" },
+  { id: "visits", label: "Visits", href: "/agenda/visits" },
   { id: "settings", label: "Settings", href: "/agenda/settings" },
   { id: "insights", label: "Insights", href: "/agenda/insights" },
 ];
@@ -30,6 +31,7 @@ export function activeDoctorNavTab(pathname: string): DoctorNavTabId | null {
   const path = normalizePath(pathname);
   if (path === DOCTOR_HOME_PATH) return "dashboard";
   if (path === "/agenda") return "agenda";
+  if (path === "/agenda/visits" || path.startsWith("/agenda/visits/")) return "visits";
   if (path === "/agenda/settings" || path.startsWith("/agenda/settings/")) return "settings";
   if (path === "/agenda/insights" || path.startsWith("/agenda/insights/")) return "insights";
   return null;

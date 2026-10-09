@@ -35,12 +35,13 @@ describe("postLoginDestination", () => {
 });
 
 describe("DOCTOR_NAV_TABS", () => {
-  it("lists dashboard, agenda, settings and insights in that order", () => {
+  it("lists dashboard, agenda, visits, settings and insights in that order", () => {
     assert.deepEqual(
       DOCTOR_NAV_TABS.map((tab) => [tab.id, tab.label, tab.href]),
       [
         ["dashboard", "Dashboard", "/dashboard"],
         ["agenda", "Agenda", "/agenda"],
+        ["visits", "Visits", "/agenda/visits"],
         ["settings", "Settings", "/agenda/settings"],
         ["insights", "Insights", "/agenda/insights"],
       ],
@@ -56,6 +57,8 @@ describe("activeDoctorNavTab", () => {
     assert.equal(activeDoctorNavTab("/agenda/"), "agenda");
     assert.equal(activeDoctorNavTab("/agenda/settings"), "settings");
     assert.equal(activeDoctorNavTab("/agenda/insights"), "insights");
+    assert.equal(activeDoctorNavTab("/agenda/visits"), "visits");
+    assert.equal(activeDoctorNavTab("/agenda/visits/"), "visits");
   });
 
   it("returns null outside the tabbed doctor pages", () => {
@@ -80,6 +83,7 @@ describe("isDoctorProductPath", () => {
       "/agenda",
       "/agenda/settings",
       "/agenda/insights",
+      "/agenda/visits",
       "/agenda/account-review",
     ]) {
       assert.equal(isDoctorProductPath(path), true, path);

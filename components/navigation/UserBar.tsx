@@ -26,6 +26,7 @@ import {
 } from "@/lib/doctor-routes";
 import {
   BarChart3,
+  ClipboardList,
   CalendarPlus,
   CalendarDays,
   LayoutDashboard,
@@ -83,6 +84,8 @@ function menuSectionIcon(id: DoctorNavTabId) {
       return <LayoutDashboard className={className} aria-hidden />;
     case "agenda":
       return <CalendarDays className={className} aria-hidden />;
+    case "visits":
+      return <ClipboardList className={className} aria-hidden />;
     case "settings":
       return <Settings className={className} aria-hidden />;
     case "insights":
@@ -97,6 +100,8 @@ function mobileTabIcon(id: DoctorNavTabId) {
       return <LayoutDashboard className={className} aria-hidden />;
     case "agenda":
       return <CalendarDays className={className} aria-hidden />;
+    case "visits":
+      return <ClipboardList className={className} aria-hidden />;
     case "settings":
       return <Settings className={className} aria-hidden />;
     case "insights":

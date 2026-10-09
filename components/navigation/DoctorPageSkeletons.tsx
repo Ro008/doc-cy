@@ -190,3 +190,18 @@ export function ReviewSkeleton() {
     </main>
   );
 }
+
+export function VisitsSkeleton() {
+  return (
+    <SkeletonPage label="visits" maxWidth="max-w-4xl">
+      <div className="space-y-3">
+        <Bone className="h-8 w-40" />
+        <Bone className="h-4 w-96 max-w-full" />
+      </div>
+      <Bone className="h-44 w-full rounded-2xl" />
+      {[0, 1, 2, 3].map((i) => (
+        <Bone key={i} className="h-24 w-full rounded-2xl" />
+      ))}
+    </SkeletonPage>
+  );
+}
