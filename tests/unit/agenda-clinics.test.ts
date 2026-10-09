@@ -5,7 +5,10 @@ import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 
 import {
+  agendaClosedBands,
+  agendaOpenIntervals,
   clinicIdForAppointment,
+  locationsToAgendaClinics,
   unionAgendaWorkingWindows,
   workingWindowForHours,
   type AgendaWorkingHours,
@@ -42,11 +45,40 @@ const hoursB: AgendaWorkingHours = {
 };
 
 describe("agenda clinics", () => {
-  it("maps unassigned appointments to the primary clinic", () => {
-    const clinics = [{ id: "primary" }, { id: "second" }];
-    assert.equal(clinicIdForAppointment(null, clinics), "primary");
-    assert.equal(clinicIdForAppointment("second", clinics), "second");
-    assert.equal(clinicIdForAppointment("missing", clinics), "primary");
+  it("maps an appointment's clinic (clinics.id) to her clinic link, else the primary", () => {
+    const clinics = [
+      { id: "link-primary", clinicId: "clinic-a" },
+      { id: "link-second", clinicId: "clinic-b" },
+    ];
+    assert.equal(clinicIdForAppointment(null, clinics), "link-primary");
+    assert.equal(clinicIdForAppointment("clinic-b", clinics), "link-second");
+    assert.equal(clinicIdForAppointment("missing", clinics), "link-primary");
+    // A link id is not a clinic id (appointments store clinics.id, user 2026-10-02).
+    assert.equal(clinicIdForAppointment("link-second", clinics), "link-primary");
+  });
+
+  it("names each clinic after the clinic itself, not the link label", () => {
+    const base = {
+      professional_id: "p",
+      is_primary: true,
+      sort_order: 0,
+      pause_online_bookings: false,
+      weekly_schedule: null,
+      break_start: null,
+      break_end: null,
+      slot_duration_minutes: 30,
+    };
+    const clinics = locationsToAgendaClinics([
+      { ...base, id: "l1", clinic_id: "c1", clinic_name: "Evangelismos", label: "Old label" },
+      { ...base, id: "l2", clinic_id: "c2", clinic_name: null, label: "Coast", is_primary: false, sort_order: 1 },
+    ] as never);
+    assert.deepEqual(
+      clinics.map((c) => [c.id, c.clinicId, c.name]),
+      [
+        ["l1", "c1", "Evangelismos"],
+        ["l2", "c2", "Coast"],
+      ],
+    );
   });
 
   it("unions visible clinic hours and keeps a single clinic’s break", () => {
@@ -95,7 +127,7 @@ describe("agenda clinics", () => {
     assert.equal(calendarsUi.includes("You're viewing appointments for your"), true);
     assert.equal(calendarsUi.includes("No calendars selected."), true);
     const page = fs.readFileSync(
-      path.join(path.dirname(fileURLToPath(import.meta.url)), "../../app/agenda/page.tsx"),
+      path.join(path.dirname(fileURLToPath(import.meta.url)), "../../app/agenda/(calendar)/page.tsx"),
       "utf8",
     );
     assert.equal(page.includes("locationsToAgendaClinics"), true);
@@ -131,5 +163,91 @@ describe("agenda clinics", () => {
       },
     );
     assert.equal(agendaClinicVisibilityMessage([{ id: "only", name: "Clinic 1" }], new Set()), null);
+  });
+});
+
+describe("AGENDA_VISIBLE_STATUSES", () => {
+  // Declined, cancelled and expired visits are kept (never deleted) but leave the agenda.
+  it("shows only live visits", async () => {
+    const { AGENDA_VISIBLE_STATUSES } = await import("../../lib/agenda-clinics");
+    assert.deepEqual([...AGENDA_VISIBLE_STATUSES], ["REQUESTED", "NEEDS_RESCHEDULE", "CONFIRMED"]);
+  });
+});
+
+// Hatched where no shown clinic is open, counting each clinic's own break; gaps between
+// two clinics' hours are hatched too (user, 2026-10-07).
+describe("agendaOpenIntervals", () => {
+  const w = (enabled: boolean, start: number, end: number, breakStart: number | null = null, breakEnd: number | null = null) => ({
+    enabled,
+    start,
+    end,
+    breakStart,
+    breakEnd,
+  });
+
+  it("is the working hours minus the break", () => {
+    assert.deepEqual(agendaOpenIntervals(w(true, 540, 1020, 780, 840)), [
+      { start: 540, end: 780 },
+      { start: 840, end: 1020 },
+    ]);
+  });
+
+  it("is nothing on a closed day", () => {
+    assert.deepEqual(agendaOpenIntervals(w(false, 540, 1020)), []);
+  });
+
+  it("ignores a break outside the hours", () => {
+    assert.deepEqual(agendaOpenIntervals(w(true, 540, 720, 780, 840)), [{ start: 540, end: 720 }]);
+  });
+});
+
+describe("agendaClosedBands", () => {
+  const w = (enabled: boolean, start: number, end: number, breakStart: number | null = null, breakEnd: number | null = null) => ({
+    enabled,
+    start,
+    end,
+    breakStart,
+    breakEnd,
+  });
+  const GRID: [number, number] = [8 * 60, 20 * 60];
+
+  it("hatches the whole day when no shown clinic opens", () => {
+    assert.equal(agendaClosedBands([w(false, 540, 1020)], ...GRID), "closed");
+    assert.equal(agendaClosedBands([], ...GRID), "closed");
+  });
+
+  it("one clinic: before, its break and after", () => {
+    assert.deepEqual(agendaClosedBands([w(true, 540, 1020, 780, 840)], ...GRID), [
+      { start: 480, end: 540, kind: "off" },
+      { start: 780, end: 840, kind: "break" },
+      { start: 1020, end: 1200, kind: "off" },
+    ]);
+  });
+
+  it("no break band while the other clinic is open (Harrison: Feretis breaks, WellClub works)", () => {
+    assert.deepEqual(agendaClosedBands([w(true, 540, 1020, 780, 840), w(true, 540, 1020)], ...GRID), [
+      { start: 480, end: 540, kind: "off" },
+      { start: 1020, end: 1200, kind: "off" },
+    ]);
+  });
+
+  it("hatches the gap between two clinics' hours", () => {
+    assert.deepEqual(agendaClosedBands([w(true, 540, 780), w(true, 900, 1140)], ...GRID), [
+      { start: 480, end: 540, kind: "off" },
+      { start: 780, end: 900, kind: "off" },
+      { start: 1140, end: 1200, kind: "off" },
+    ]);
+  });
+
+  it("a break both clinics share stays a break", () => {
+    assert.deepEqual(agendaClosedBands([w(true, 540, 1020, 780, 840), w(true, 600, 1020, 780, 840)], ...GRID), [
+      { start: 480, end: 540, kind: "off" },
+      { start: 780, end: 840, kind: "break" },
+      { start: 1020, end: 1200, kind: "off" },
+    ]);
+  });
+
+  it("clips to the grid", () => {
+    assert.deepEqual(agendaClosedBands([w(true, 420, 1260)], ...GRID), []);
   });
 });

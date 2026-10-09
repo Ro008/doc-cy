@@ -15,13 +15,15 @@ test.describe("Brand consistency", () => {
       }),
     ).toBeVisible({ timeout: 10000 });
 
-    const brandLogo = page.locator("header").first().getByRole("img", {
+    // The hidden pre-hydration doctor header (ProChromeBoot) is also a <header>;
+    // target the landing's own header instead of the first one in the DOM.
+    const brandContainer = page.getByTestId("sales-public-header");
+    const brandLogo = brandContainer.getByRole("img", {
       name: /my doccy/i,
     });
     await expect(brandLogo).toBeVisible();
     await expect(brandLogo).toHaveAttribute("src", /doccy-logo\.png/);
 
-    const brandContainer = page.locator("header").first();
     await expect(brandContainer).not.toContainText("DOCCY");
   });
 

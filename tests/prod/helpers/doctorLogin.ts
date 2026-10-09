@@ -284,7 +284,8 @@ export async function authenticateDoctorViaPasswordUi(
     await finishEmailedStepIfAsked(page, normalizedBaseUrl, resolvedEmail);
 
     try {
-      await expect(page).toHaveURL(/\/agenda(?:[/?#]|$)/, { timeout: 45_000 });
+      // Login lands on /dashboard; prod keeps /agenda until the dashboard ships.
+      await expect(page).toHaveURL(/\/(?:dashboard|agenda)(?:[/?#]|$)/, { timeout: 45_000 });
       return;
     } catch (error) {
       const currentUrl = page.url();

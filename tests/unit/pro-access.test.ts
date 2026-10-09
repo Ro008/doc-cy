@@ -64,9 +64,11 @@ describe("hasProAccess", () => {
     assert.equal(hasProAccess("2026-10-02T00:00:00Z", now), true);
   });
 
-  it("is false once it has passed, at the exact moment too", () => {
+  // User, 2026-10-02: access lasts while now <= pro_access_until; it ends once we are past it.
+  it("is still true at the exact moment, false once it has passed", () => {
+    assert.equal(hasProAccess("2026-10-01T12:00:00Z", now), true);
+    assert.equal(hasProAccess("2026-10-01T11:59:59.999Z", now), false);
     assert.equal(hasProAccess("2026-09-30T00:00:00Z", now), false);
-    assert.equal(hasProAccess("2026-10-01T12:00:00Z", now), false);
   });
 
   it("is false with no date or an unreadable one", () => {

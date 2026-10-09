@@ -4,26 +4,18 @@ import * as React from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import {
-  addDays,
-  addWeeks,
-  differenceInCalendarDays,
   format,
   isSameDay,
   isValid,
   parseISO,
   startOfDay,
-  startOfWeek,
 } from "date-fns";
 import { enGB } from "date-fns/locale";
 import { formatInTimeZone, utcToZonedTime } from "date-fns-tz";
-import { ChevronLeft, ChevronRight, Loader2, Trash2, X } from "lucide-react";
+import { CalendarPlus, ChevronLeft, ChevronRight, Loader2, Menu, Phone, Trash2, X } from "lucide-react";
+import { isManualBooking, agendaBookingSourceFromRaw, MANUAL_BOOKING_LABEL as MANUAL_MARK_LABEL } from "@/lib/agenda-booking-source";
 import { toast as sonnerToast } from "sonner";
 import { useTranslations } from "next-intl";
-import {
-  PROFESSIONAL_DURATION_OPTIONS,
-  formatProfessionalDurationLabel,
-  type ProfessionalDurationOption,
-} from "@/lib/professional-appointment-durations";
 import {
   appointmentDateKeyCyprus,
   appointmentMinutesFromAgendaStart,
@@ -36,19 +28,49 @@ import {
 import { patientVisitReasonFromAppointmentRow } from "@/lib/agenda-visit-reason";
 import { agendaRefreshOutcome } from "@/lib/agenda-refresh";
 import { ManualBookingFlow } from "@/components/agenda/ManualBookingFlow";
+import { VisitNotesBox } from "@/components/agenda/VisitNotesBox";
+import { AGENDA_HIGHLIGHT_MS } from "@/lib/agenda-highlight";
+import { expandAgendaAppointmentsForGrid } from "@/lib/agenda-grid";
+import {
+  isExpiredRequest,
+  isStoredExpiredStatus,
+} from "@/lib/appointment-status";
 import { AgendaClinicCalendars } from "@/components/agenda/AgendaClinicCalendars";
+import { AgendaMonthGrid, type AgendaMonthItem } from "@/components/agenda/AgendaMonthGrid";
+import { AgendaSidebar } from "@/components/agenda/AgendaSidebar";
+import {
+  agendaGridScrollHeight,
+  agendaHourRowHeight,
+  agendaHref,
+  agendaInitialGridScrollTop,
+  agendaRangeTitle,
+  agendaWeekDays,
+  parseAgendaView,
+  shiftAgendaAnchor,
+  type AgendaView,
+} from "@/lib/agenda-calendar";
+import { PatientDetails } from "@/components/dashboard/PatientDetails";
+import { AgendaPreviousVisits } from "@/components/agenda/AgendaPreviousVisits";
 import {
   AGENDA_APPOINTMENT_SELECT,
+  AGENDA_VISIBLE_STATUSES,
+  agendaClosedBands,
+  agendaWeekdayKey,
   clinicIdForAppointment,
   unionAgendaWorkingWindows,
   workingWindowForHours,
   type AgendaClinic,
+  type AgendaWorkingWindow,
   type AgendaWorkingHours,
 } from "@/lib/agenda-clinics";
 import { agendaClinicEventColor } from "@/lib/doctor-locations";
+import { MANUAL_BOOKING_HINT, MANUAL_BOOKING_LABEL } from "@/lib/manual-booking-copy";
+import { cancelConfirmedVisitCopy } from "@/lib/cancel-visit-copy";
 import {
   agendaAppointmentBadgeClass,
   agendaAppointmentConfirmedClass,
+  agendaAppointmentExpiredClass,
+  agendaAppointmentNameExpiredClass,
   agendaAppointmentNameConfirmedClass,
   agendaAppointmentNamePendingClass,
   agendaAppointmentPendingClass,
@@ -56,14 +78,13 @@ import {
   agendaBreakBandClass,
   agendaCalendarShellClass,
   agendaDayColumnClass,
+  agendaDayGridColsClass,
   agendaDayHeaderShellClass,
   agendaDayNameClass,
   agendaDayNumberClass,
   agendaHourAxisClass,
   agendaHourGridLineClass,
   agendaHourAxisLabelClass,
-  agendaHourZebraBandClass,
-  agendaHourZebraBandTodayClass,
   agendaNavIconButtonClass,
   agendaOffHoursBandClass,
   agendaOffHoursOverlayClass,
@@ -71,8 +92,13 @@ import {
   agendaStickyWeekHeaderClass,
   agendaTodayChipButtonClass,
   agendaToolbarDividerClass,
+  agendaWeekGridColsClass,
 } from "@/components/agenda/agenda-surface";
 import { emitNavigationStart } from "@/lib/doccy-navigation";
+import {
+  DEFAULT_PATIENT_CANCEL_NOTICE_HOURS,
+  professionalCancelIsShortNotice,
+} from "@/lib/patient-cancel-window";
 import {
   APPOINTMENT_ATTENDANCE_NO_SHOW,
   isNoShowAttendance,
@@ -83,6 +109,10 @@ type AgendaAppointmentRow = {
   professional_id: string;
   patient_name: string;
   patient_phone: string;
+  patient_email?: string | null;
+  patient_gender?: string | null;
+  patient_birthdate?: string | null;
+  is_new_patient?: boolean | null;
   reason?: string | null;
   appointment_datetime: string;
   status?: string | null;
@@ -90,76 +120,11 @@ type AgendaAppointmentRow = {
   proposed_slots?: unknown;
   proposal_expires_at?: string | null;
   attendance?: string | null;
-  location_id?: string | null;
+  clinic_id?: string | null;
+  professional_notes?: string | null;
+  review_requested_at?: string | null;
+  booking_source?: string | null;
 };
-
-function parseProposedSlotIsoList(raw: unknown): string[] {
-  if (!Array.isArray(raw)) return [];
-  return raw.filter((x): x is string => typeof x === "string");
-}
-
-function closestAllowedDuration(maybeMinutes: number): ProfessionalDurationOption {
-  const allowed = [...PROFESSIONAL_DURATION_OPTIONS];
-  let best = allowed[0]!;
-  let bestDist = Math.abs(maybeMinutes - best);
-  for (const opt of allowed) {
-    const d = Math.abs(maybeMinutes - opt);
-    if (d < bestDist) {
-      best = opt;
-      bestDist = d;
-    }
-  }
-  return best;
-}
-
-/** One grid row per visible block (counter-offer holds expand to one row per proposed start while the proposal is live). */
-function expandAgendaAppointmentsForGrid(
-  appointments: AgendaAppointmentRow[],
-  nowMs: number,
-): Array<
-  AgendaAppointmentRow & {
-    rowKey: string;
-    gridStartIso: string;
-    isCounterOfferHold: boolean;
-  }
-> {
-  const out: Array<
-    AgendaAppointmentRow & {
-      rowKey: string;
-      gridStartIso: string;
-      isCounterOfferHold: boolean;
-    }
-  > = [];
-  for (const a of appointments) {
-    const su = String(a.status ?? "").toUpperCase();
-    const expRaw = a.proposal_expires_at;
-    const expMs = expRaw ? new Date(expRaw).getTime() : NaN;
-    const proposalLive =
-      su === "NEEDS_RESCHEDULE" && Number.isFinite(expMs) && expMs > nowMs;
-    const slots = proposalLive
-      ? parseProposedSlotIsoList(a.proposed_slots)
-      : [];
-
-    if (slots.length > 0) {
-      slots.forEach((iso, i) => {
-        out.push({
-          ...a,
-          rowKey: `${a.id}-proposal-${i}`,
-          gridStartIso: iso,
-          isCounterOfferHold: true,
-        });
-      });
-    } else {
-      out.push({
-        ...a,
-        rowKey: a.id,
-        gridStartIso: a.appointment_datetime,
-        isCounterOfferHold: false,
-      });
-    }
-  }
-  return out;
-}
 
 function agendaRowFromSupabasePayload(
   raw: Record<string, unknown>,
@@ -170,6 +135,11 @@ function agendaRowFromSupabasePayload(
     professional_id: String(raw.professional_id ?? ""),
     patient_name: String(raw.patient_name ?? ""),
     patient_phone: String(raw.patient_phone ?? ""),
+    patient_email: raw.patient_email == null || raw.patient_email === "" ? null : String(raw.patient_email),
+    patient_gender: raw.patient_gender == null || raw.patient_gender === "" ? null : String(raw.patient_gender),
+    patient_birthdate:
+      raw.patient_birthdate == null || raw.patient_birthdate === "" ? null : String(raw.patient_birthdate),
+    is_new_patient: typeof raw.is_new_patient === "boolean" ? raw.is_new_patient : null,
     reason: patientVisitReasonFromAppointmentRow(raw),
     appointment_datetime: String(raw.appointment_datetime ?? ""),
     status: raw.status == null || raw.status === "" ? null : String(raw.status),
@@ -184,10 +154,19 @@ function agendaRowFromSupabasePayload(
       raw.attendance == null || raw.attendance === ""
         ? null
         : String(raw.attendance),
-    location_id:
-      raw.location_id == null || raw.location_id === ""
+    clinic_id:
+      raw.clinic_id == null || raw.clinic_id === ""
         ? null
-        : String(raw.location_id),
+        : String(raw.clinic_id),
+    professional_notes:
+      raw.professional_notes == null || raw.professional_notes === ""
+        ? null
+        : String(raw.professional_notes),
+    review_requested_at:
+      raw.review_requested_at == null || raw.review_requested_at === ""
+        ? null
+        : String(raw.review_requested_at),
+    booking_source: agendaBookingSourceFromRaw(raw.booking_source),
   };
 }
 
@@ -201,54 +180,61 @@ function sortAgendaRowsByDatetime(rows: AgendaAppointmentRow[]): AgendaAppointme
   return copy;
 }
 
+/** Linked visit: a light edge and soft glow that fade in and out once. */
+const AGENDA_SPOTLIGHT_CLASS =
+  " motion-safe:animate-spotlight motion-reduce:shadow-[inset_0_0_0_2px_rgba(255,255,255,0.75)]";
+
+function agendaDateFromKey(raw: string | null | undefined): Date | null {
+  const value = String(raw ?? "").trim();
+  if (!value) return null;
+  const parsed = parseISO(value);
+  return isValid(parsed) ? startOfDay(parsed) : null;
+}
+
 const START_HOUR = 8;
 const END_HOUR = 20;
-const HOUR_ROW_HEIGHT = 56;
+/** Hour height on phones and until the desktop grid has measured the window. */
+const DEFAULT_HOUR_ROW_HEIGHT = 56;
 /** Room for the first hour label (-translate-y-1/2 at y=0). */
 const CALENDAR_TOP_INSET = 14;
+/** Room for the lower half of the last hour label ("20:00"), so the grid does not overflow. */
+const CALENDAR_BOTTOM_INSET = 10;
 
-function renderAgendaHourZebraBands(isTodayColumn: boolean) {
-  const bandClass = isTodayColumn
-    ? agendaHourZebraBandTodayClass
-    : agendaHourZebraBandClass;
-  const bands: React.ReactNode[] = [];
-  for (let hour = START_HOUR; hour < END_HOUR; hour++) {
-    if ((hour - START_HOUR) % 2 !== 0) continue;
-    bands.push(
-      <div
-        key={`zebra-${hour}`}
-        className={bandClass}
-        style={{
-          top: CALENDAR_TOP_INSET + (hour - START_HOUR) * HOUR_ROW_HEIGHT,
-          height: HOUR_ROW_HEIGHT,
-        }}
-      />,
-    );
-  }
-  return bands;
+function firstNameOf(fullName: string | null | undefined): string {
+  return String(fullName ?? "").trim().split(/\s+/)[0] || "the patient";
 }
 
 function AgendaAppointmentCardInner({
   timeLabel,
+  endTimeLabel,
   patientName,
   isPendingRequest,
   isRequested,
+  isExpired = false,
   isCounterOfferHold,
   isCompactCounterOffer,
+  isManual = false,
 }: {
+  isManual?: boolean;
   timeLabel: string;
+  endTimeLabel?: string;
   patientName: string;
   isPendingRequest: boolean;
   isRequested: boolean;
+  isExpired?: boolean;
   isCounterOfferHold: boolean;
   isCompactCounterOffer: boolean;
 }) {
   const t = useTranslations("DoctorAgenda");
-  const nameColor = isPendingRequest
-    ? agendaAppointmentNamePendingClass
-    : agendaAppointmentNameConfirmedClass;
+  const nameColor = isExpired
+    ? agendaAppointmentNameExpiredClass
+    : isPendingRequest
+      ? agendaAppointmentNamePendingClass
+      : agendaAppointmentNameConfirmedClass;
   const patientDisplay = patientName.trim() || "Patient";
-  const topRightBadge = isRequested
+  const topRightBadge = isExpired
+    ? t("appointmentExpiredBadge")
+    : isRequested
     ? t("appointmentPendingBadge")
     : isCounterOfferHold
       ? t("counterOfferHoldBadge")
@@ -277,7 +263,7 @@ function AgendaAppointmentCardInner({
             </span>
             {topRightBadge ? (
               <span
-                className={`ml-1 shrink-0 max-w-[3.35rem] truncate ${agendaAppointmentBadgeClass}`}
+                className={`ml-1 shrink-0 whitespace-nowrap ${agendaAppointmentBadgeClass}`}
                 title={topRightBadge}
               >
                 {topRightBadge}
@@ -325,15 +311,21 @@ function AgendaAppointmentCardInner({
           {topRightBadge}
         </span>
       ) : null}
-      <p
-        className={`flex min-h-0 min-w-0 items-center gap-0.5 truncate text-left text-xs font-semibold leading-tight sm:text-[13px] ${nameColor} ${topRightBadge ? "pr-[2.15rem]" : ""}`}
-      >
-        <span className={agendaAppointmentTimeClass}>{timeLabel}</span>
-        <span className="shrink-0 text-white/50">·</span>
-        <span className="min-w-0 truncate" title={patientDisplay}>
-          {patientDisplay}
-        </span>
-      </p>
+      <div className={`min-w-0 text-left leading-tight ${topRightBadge ? "pr-[2.15rem]" : ""}`} title={cardTitle}>
+        <p className={`flex min-w-0 items-center gap-1 text-xs font-semibold ${nameColor}`}>
+          <span className="truncate">{patientDisplay}</span>
+          {isManual ? (
+            <Phone
+              className="h-3 w-3 shrink-0 opacity-80"
+              aria-label={MANUAL_MARK_LABEL}
+              data-testid="agenda-manual-mark"
+            />
+          ) : null}
+        </p>
+        <p className={`truncate ${agendaAppointmentTimeClass} ${nameColor}`}>
+          {endTimeLabel ? `${timeLabel} – ${endTimeLabel}` : timeLabel}
+        </p>
+      </div>
     </>
   );
 }
@@ -345,7 +337,11 @@ export function AgendaRealtime({
   workingHours,
   clinics = [],
   initialDateKey,
+  initialView,
   openManualBooking,
+  highlightAppointmentId,
+  patientCancelNoticeHours = DEFAULT_PATIENT_CANCEL_NOTICE_HOURS,
+  accessEnded = false,
 }: {
   doctorId: string | null;
   doctorSlug?: string | null;
@@ -353,7 +349,14 @@ export function AgendaRealtime({
   workingHours: AgendaWorkingHours | null;
   clinics?: AgendaClinic[];
   initialDateKey?: string | null;
+  initialView?: string | null;
   openManualBooking?: boolean;
+  /** Visit to point out after arriving from a link (e.g. the dashboard's Today). */
+  highlightAppointmentId?: string | null;
+  /** Her patients can cancel online until this many hours before; inside it, warn her. */
+  patientCancelNoticeHours?: number;
+  /** Her pro access has ended: the manual booking window says so instead of the form. */
+  accessEnded?: boolean;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -374,6 +377,7 @@ export function AgendaRealtime({
         minutesFromStart: number;
         isPendingRequest: boolean;
         isRequested: boolean;
+        isExpired: boolean;
         showReviewLink: boolean;
         rowDurationMinutes: number;
         sortKeyMs: number;
@@ -387,16 +391,6 @@ export function AgendaRealtime({
   const [rejectReason, setRejectReason] = React.useState("");
   const [isCancelling, setIsCancelling] = React.useState(false);
   const [cancelError, setCancelError] = React.useState<string | null>(null);
-  const [rescheduleOpen, setRescheduleOpen] = React.useState(false);
-  const [rescheduleDuration, setRescheduleDuration] =
-    React.useState<ProfessionalDurationOption>(30);
-  const [loadingAlternatives, setLoadingAlternatives] = React.useState(false);
-  const [sendingProposal, setSendingProposal] = React.useState(false);
-  const [rescheduleReason, setRescheduleReason] = React.useState("");
-  const [rescheduleError, setRescheduleError] = React.useState<string | null>(
-    null,
-  );
-  const [previewSlots, setPreviewSlots] = React.useState<string[] | null>(null);
   const [markingAttendance, setMarkingAttendance] = React.useState(false);
   const [attendanceError, setAttendanceError] = React.useState<string | null>(
     null,
@@ -411,8 +405,17 @@ export function AgendaRealtime({
   }, [selected?.id]);
 
   const modalBusy = isCancelling || openingReview || markingAttendance;
-  const [weekOffset, setWeekOffset] = React.useState(0);
-  const [mobileDayOffset, setMobileDayOffset] = React.useState(0);
+  const [view, setView] = React.useState<AgendaView>(() => parseAgendaView(initialView));
+  const [anchorDate, setAnchorDate] = React.useState<Date>(
+    () =>
+      agendaDateFromKey(initialDateKey) ?? startOfDay(utcToZonedTime(new Date(), CY_TZ)),
+  );
+  const [sidebarOpen, setSidebarOpen] = React.useState(true);
+  /** Desktop time grid scrolls inside itself so the page fits the window. */
+  const gridScrollRef = React.useRef<HTMLDivElement | null>(null);
+  const [gridScrollHeight, setGridScrollHeight] = React.useState<number | null>(null);
+  /** Stretched so the working day fills the grid (see agendaHourRowHeight). */
+  const [hourRowHeight, setHourRowHeight] = React.useState(DEFAULT_HOUR_ROW_HEIGHT);
   const [manualBookingOpen, setManualBookingOpen] = React.useState(false);
   const [hiddenClinicIds, setHiddenClinicIds] = React.useState<Set<string>>(
     () => new Set(),
@@ -423,6 +426,37 @@ export function AgendaRealtime({
     if (!openManualBooking) return;
     setManualBookingOpen(true);
   }, [openManualBooking]);
+
+  // Linked visit: scroll it into view and spotlight it for a few seconds.
+  const [highlightedId, setHighlightedId] = React.useState<string | null>(
+    highlightAppointmentId ?? null,
+  );
+  React.useEffect(() => {
+    if (!highlightAppointmentId) return;
+    setHighlightedId(highlightAppointmentId);
+    let attempts = 0;
+    let scrollTimer = 0;
+    let clearTimer = 0;
+    // The countdown starts once the visit is on screen, so a slow load does not eat it.
+    const findAndScroll = () => {
+      const el = Array.from(
+        document.querySelectorAll<HTMLElement>(`[data-appointment-id="${highlightAppointmentId}"]`),
+      ).find((node) => node.offsetParent !== null);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        clearTimer = window.setTimeout(() => setHighlightedId(null), AGENDA_HIGHLIGHT_MS);
+      } else if (attempts++ < 30) {
+        scrollTimer = window.setTimeout(findAndScroll, 100);
+      } else {
+        setHighlightedId(null);
+      }
+    };
+    scrollTimer = window.setTimeout(findAndScroll, 120);
+    return () => {
+      window.clearTimeout(scrollTimer);
+      window.clearTimeout(clearTimer);
+    };
+  }, [highlightAppointmentId]);
 
   React.useEffect(() => {
     setAppointments(initialAppointments);
@@ -440,6 +474,7 @@ export function AgendaRealtime({
           .from("appointments")
           .select(AGENDA_APPOINTMENT_SELECT)
           .eq("professional_id", doctorId)
+          .in("status", [...AGENDA_VISIBLE_STATUSES])
           .order("appointment_datetime", { ascending: true })
           // Send the token checked above. Otherwise the client looks the
           // session up again for the request and, if it vanished in between,
@@ -584,9 +619,11 @@ export function AgendaRealtime({
   }, [clinics, hiddenClinicIds]);
 
   const visibleAppointments = React.useMemo(() => {
-    if (!isMultiClinic) return appointments;
-    return appointments.filter((row) => {
-      const clinicId = clinicIdForAppointment(row.location_id, clinics);
+    // Requests the doctor closed as expired leave the agenda (kept in the DB for stats).
+    const open = appointments.filter((row) => !isStoredExpiredStatus(row.status));
+    if (!isMultiClinic) return open;
+    return open.filter((row) => {
+      const clinicId = clinicIdForAppointment(row.clinic_id, clinics);
       return clinicId != null && visibleClinicIds.has(clinicId);
     });
   }, [appointments, clinics, isMultiClinic, visibleClinicIds]);
@@ -620,6 +657,11 @@ export function AgendaRealtime({
   const selectedNoShow = selected
     ? isNoShowAttendance(selected.attendance)
     : false;
+  const selectedStarted = selected
+    ? new Date(selected.appointment_datetime).getTime() <= nowMs
+    : false;
+  // Attendance is fixed once the review email has gone out (user, 2026-10-04).
+  const selectedReviewSent = Boolean(selected?.review_requested_at);
   const expanded = expandAgendaAppointmentsForGrid(visibleAppointments, nowMs);
   const rows = expanded.map((a) => {
     const utc = a.gridStartIso;
@@ -631,8 +673,10 @@ export function AgendaRealtime({
         ? rawDm
         : defaultSlotMinutes;
     const su = String(a.status ?? "").toUpperCase();
-    const isPendingRequest = su === "REQUESTED" || su === "NEEDS_RESCHEDULE";
-    const isRequested = su === "REQUESTED";
+    // Unanswered request whose time has started: no longer something to accept.
+    const isExpired = isExpiredRequest({ status: su, startIso: utc }, nowMs);
+    const isPendingRequest = !isExpired && (su === "REQUESTED" || su === "NEEDS_RESCHEDULE");
+    const isRequested = !isExpired && su === "REQUESTED";
     return {
       ...a,
       dateKey,
@@ -644,38 +688,39 @@ export function AgendaRealtime({
       rowDurationMinutes,
       isPendingRequest,
       isRequested,
-      showReviewLink: su === "REQUESTED",
+      isExpired,
+      showReviewLink: su === "REQUESTED" && !isExpired,
       sortKeyMs: new Date(utc).getTime(),
     };
   });
 
-  const selectedMobileDate = addDays(todayDate, mobileDayOffset);
-  const selectedMobileKey = format(selectedMobileDate, "yyyy-MM-dd");
-  const mobileRows = rows
-    .filter((r) => r.dateKey === selectedMobileKey)
-    .sort((a, b) => a.sortKeyMs - b.sortKeyMs);
-  const weekStart = startOfWeek(addWeeks(todayDate, weekOffset), {
-    weekStartsOn: 1,
-  });
+  const anchorKey = format(anchorDate, "yyyy-MM-dd");
+  const anchorIsToday = anchorKey === todayKey;
+  /** Phones get Day and Month only; a week of 7 columns does not fit. */
+  const mobileView: AgendaView = view === "month" ? "month" : "day";
+  const gridDays = view === "day" ? [anchorDate] : agendaWeekDays(anchorDate);
 
   React.useEffect(() => {
-    const raw = String(initialDateKey ?? "").trim();
-    if (!raw) return;
-    const parsed = parseISO(raw);
-    if (!isValid(parsed)) return;
-    const targetDay = startOfDay(parsed);
-    setMobileDayOffset(differenceInCalendarDays(targetDay, todayDate));
+    const target = agendaDateFromKey(initialDateKey);
+    if (target) setAnchorDate(target);
+  }, [initialDateKey]);
 
-    const targetWeekStart = startOfWeek(targetDay, { weekStartsOn: 1 });
-    const todayWeekStart = startOfWeek(todayDate, { weekStartsOn: 1 });
-    const weekDeltaDays = differenceInCalendarDays(targetWeekStart, todayWeekStart);
-    setWeekOffset(Math.round(weekDeltaDays / 7));
-  }, [initialDateKey, todayDate]);
-  const weekDays = React.useMemo(
-    () => Array.from({ length: 5 }, (_, i) => addDays(weekStart, i)),
-    [weekStart],
-  );
-  const weekKeys = weekDays.map((d) => format(d, "yyyy-MM-dd"));
+  React.useEffect(() => {
+    const href = agendaHref({ view, dateKey: anchorIsToday ? null : anchorKey });
+    if (`${window.location.pathname}${window.location.search}` !== href) {
+      window.history.replaceState(window.history.state, "", href);
+    }
+  }, [view, anchorKey, anchorIsToday]);
+
+  const rowsByDay = new Map<string, (typeof rows)[number][]>();
+  for (const row of rows) {
+    const list = rowsByDay.get(row.dateKey);
+    if (list) list.push(row);
+    else rowsByDay.set(row.dateKey, [row]);
+  }
+  for (const list of rowsByDay.values()) list.sort((a, b) => a.sortKeyMs - b.sortKeyMs);
+  const rowsForDay = (dateKey: string) => rowsByDay.get(dateKey) ?? [];
+  const anchorRows = rowsForDay(anchorKey);
   const hours = React.useMemo(
     () =>
       Array.from(
@@ -684,13 +729,13 @@ export function AgendaRealtime({
       ),
     [],
   );
-  const dayHeight = (END_HOUR - START_HOUR) * HOUR_ROW_HEIGHT;
-  const calendarBodyHeight = dayHeight + CALENDAR_TOP_INSET;
+  const dayHeight = (END_HOUR - START_HOUR) * hourRowHeight;
+  const calendarBodyHeight = dayHeight + CALENDAR_TOP_INSET + CALENDAR_BOTTOM_INSET;
   const maxMinutes = (END_HOUR - START_HOUR) * 60;
   const appointmentDurationMinutes = defaultSlotMinutes;
 
   function blockHeightFor(row: (typeof rows)[number]): number {
-    const h = (row.rowDurationMinutes / 60) * HOUR_ROW_HEIGHT - 2;
+    const h = (row.rowDurationMinutes / 60) * hourRowHeight - 2;
     return Math.max(22, h);
   }
 
@@ -699,7 +744,6 @@ export function AgendaRealtime({
       r.dateKey === todayKey &&
       String(r.status ?? "").toUpperCase() === "CONFIRMED",
   ).length;
-  const mobileShowsToday = selectedMobileKey === todayKey;
 
   function workingWindowsForDate(d: Date): {
     enabled: boolean;
@@ -728,27 +772,38 @@ export function AgendaRealtime({
     return workingWindowForHours(workingHours, d, START_HOUR, END_HOUR);
   }
 
-  function clinicIndexForRow(locationId: string | null | undefined): number {
-    const clinicId = clinicIdForAppointment(locationId, clinics);
+  /** Each shown clinic's hours that day; a single-clinic agenda uses the doctor's own hours. */
+  function shownClinicWindowsForDate(d: Date): AgendaWorkingWindow[] {
+    const visibleClinics = clinics.filter((clinic) => visibleClinicIds.has(clinic.id));
+    if (visibleClinics.length > 0) {
+      return visibleClinics.map((clinic) => workingWindowForHours(clinic.hours, d, START_HOUR, END_HOUR));
+    }
+    if (isMultiClinic) return [];
+    return [workingWindowForHours(workingHours, d, START_HOUR, END_HOUR)];
+  }
+
+  function clinicIndexForRow(appointmentClinicId: string | null | undefined): number {
+    const clinicId = clinicIdForAppointment(appointmentClinicId, clinics);
     const index = clinics.findIndex((clinic) => clinic.id === clinicId);
     return index >= 0 ? index : 0;
   }
 
-  function clinicNameForRow(locationId: string | null | undefined): string | null {
+  function clinicNameForRow(appointmentClinicId: string | null | undefined): string | null {
     if (!isMultiClinic) return null;
-    const clinicId = clinicIdForAppointment(locationId, clinics);
+    const clinicId = clinicIdForAppointment(appointmentClinicId, clinics);
     return clinics.find((clinic) => clinic.id === clinicId)?.name ?? null;
   }
 
-  function appointmentChipClass(isPendingRequest: boolean): string {
+  function appointmentChipClass(isPendingRequest: boolean, isExpired = false): string {
+    if (isExpired) return agendaAppointmentExpiredClass;
     return isPendingRequest
       ? agendaAppointmentPendingClass
       : agendaAppointmentConfirmedClass;
   }
 
-  function clinicSwatchClass(locationId: string | null | undefined): string | null {
+  function clinicSwatchClass(appointmentClinicId: string | null | undefined): string | null {
     if (!isMultiClinic) return null;
-    return agendaClinicEventColor(clinicIndexForRow(locationId)).swatch;
+    return agendaClinicEventColor(clinicIndexForRow(appointmentClinicId)).swatch;
   }
 
   function toggleClinicCalendar(clinicId: string) {
@@ -807,8 +862,12 @@ export function AgendaRealtime({
             body: JSON.stringify({ reason }),
           },
         );
+        const data = (await res.json().catch(() => null)) as {
+          message?: string;
+          patientHasEmail?: boolean;
+          patientPhone?: string | null;
+        } | null;
         if (!res.ok) {
-          const data = await res.json().catch(() => null);
           const message =
             data?.message || "We could not cancel this appointment.";
           setCancelError(message);
@@ -816,9 +875,19 @@ export function AgendaRealtime({
           setIsCancelling(false);
           return;
         }
-        sonnerToast.success(
-          "The patient was emailed about the cancellation and the visit was removed from your agenda.",
-        );
+        if (data?.patientHasEmail === false) {
+          // No email on file: nobody told the patient yet (user, 2026-10-04).
+          sonnerToast.warning(
+            `Visit cancelled. This patient has no email: please call them${
+              data.patientPhone ? ` on ${data.patientPhone}` : ""
+            } to let them know.`,
+            { duration: 20_000 },
+          );
+        } else {
+          sonnerToast.success(
+            "The patient was emailed about the cancellation and the visit was removed from your agenda.",
+          );
+        }
       }
       setAppointments((prev) => prev.filter((a) => a.id !== selectedId));
       setSelected(null);
@@ -833,111 +902,6 @@ export function AgendaRealtime({
       setCancelError(message);
       sonnerToast.error(message);
       setIsCancelling(false);
-    }
-  }
-
-  async function loadRescheduleAlternatives() {
-    if (!selected) return;
-    setRescheduleError(null);
-    setPreviewSlots(null);
-    setLoadingAlternatives(true);
-    try {
-      const res = await fetch(
-        `/api/appointments/${encodeURIComponent(selected.id)}/alternative-slots?durationMinutes=${rescheduleDuration}`,
-        { method: "GET", credentials: "include" },
-      );
-      const data = await res.json().catch(() => null);
-      if (!res.ok) {
-        setRescheduleError(
-          typeof data?.message === "string"
-            ? data.message
-            : "Could not load alternative times.",
-        );
-        setLoadingAlternatives(false);
-        return;
-      }
-      const slots = (data as { slots?: string[] }).slots ?? [];
-      if (slots.length < 3) {
-        setRescheduleError(
-          "Not enough open times were found. Try a shorter visit length or extend your booking horizon in settings.",
-        );
-        setLoadingAlternatives(false);
-        return;
-      }
-      setPreviewSlots(slots.slice(0, 3));
-    } catch {
-      setRescheduleError("Could not load alternative times.");
-    } finally {
-      setLoadingAlternatives(false);
-    }
-  }
-
-  async function sendRescheduleProposal() {
-    if (!selected || sendingProposal) return;
-    if (rescheduleReason.trim().length < 10) {
-      setRescheduleError("Please explain the reason (at least 10 characters).");
-      return;
-    }
-    setRescheduleError(null);
-    setSendingProposal(true);
-    try {
-      const selectedId = selected.id;
-      const res = await fetch(
-        `/api/appointments/${encodeURIComponent(selectedId)}/propose-reschedule`,
-        {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            durationMinutes: rescheduleDuration,
-            rescheduleReason: rescheduleReason.trim(),
-          }),
-        },
-      );
-      const data = await res.json().catch(() => null);
-      if (!res.ok) {
-        setRescheduleError(
-          typeof data?.message === "string"
-            ? data.message
-            : "Could not send the proposal.",
-        );
-        sonnerToast.error("Could not send the proposal.");
-        setSendingProposal(false);
-        return;
-      }
-
-      const slots = Array.isArray((data as { slots?: unknown }).slots)
-        ? ((data as { slots: string[] }).slots ?? [])
-        : [];
-      const proposalExpiresAt = String(
-        (data as { proposalExpiresAt?: string }).proposalExpiresAt ?? "",
-      );
-      setAppointments((prev) =>
-        prev.map((a) =>
-          a.id === selectedId
-            ? {
-                ...a,
-                status: "NEEDS_RESCHEDULE",
-                duration_minutes: rescheduleDuration,
-                proposed_slots: slots,
-                proposal_expires_at: proposalExpiresAt || null,
-              }
-            : a,
-        ),
-      );
-      sonnerToast.success(
-        "Reschedule options sent to the patient. Waiting for their choice.",
-      );
-      setSelected(null);
-      setRescheduleOpen(false);
-      setPreviewSlots(null);
-      setRescheduleError(null);
-      setRescheduleReason("");
-      setSendingProposal(false);
-    } catch {
-      setRescheduleError("Could not send the proposal.");
-      sonnerToast.error("Could not send the proposal.");
-      setSendingProposal(false);
     }
   }
 
@@ -986,24 +950,36 @@ export function AgendaRealtime({
     }
   }
 
+  // Her visit notes with text not saved yet: closing the visit asks first.
+  const notesDirtyRef = React.useRef(false);
+  const [discardPrompt, setDiscardPrompt] = React.useState(false);
+  const setNotesDirty = React.useCallback((dirty: boolean) => {
+    notesDirtyRef.current = dirty;
+    if (!dirty) setDiscardPrompt(false);
+  }, []);
+  /** Closes the visit window; with unsaved notes it first asks, inside the window. */
+  function closeVisitDialog(discardNotes = false) {
+    if (modalBusy) return;
+    if (!discardNotes && notesDirtyRef.current) {
+      setDiscardPrompt(true);
+      return;
+    }
+    notesDirtyRef.current = false;
+    setDiscardPrompt(false);
+    setSelected(null);
+    setConfirmingCancel(false);
+    setCancelMode(null);
+    setRejectReason("");
+    setCancelError(null);
+    setAttendanceError(null);
+  }
+
   function openAppointment(row: (typeof rows)[number]) {
     setAttendanceError(null);
     setCancelError(null);
     setConfirmingCancel(false);
     setCancelMode(null);
     setRejectReason("");
-    setRescheduleOpen(false);
-    setRescheduleError(null);
-    setPreviewSlots(null);
-    setLoadingAlternatives(false);
-    setSendingProposal(false);
-    setRescheduleDuration(
-      closestAllowedDuration(
-        typeof row.duration_minutes === "number" && row.duration_minutes > 0
-          ? row.duration_minutes
-          : defaultSlotMinutes,
-      ),
-    );
     setSelected(row);
   }
 
@@ -1015,38 +991,13 @@ export function AgendaRealtime({
     setCancelError(null);
     setRejectReason("");
     setSelected(row);
-    setRescheduleOpen(false);
-    setRescheduleError(null);
-    setPreviewSlots(null);
     setCancelMode(su === "REQUESTED" ? "requested" : "confirmed");
     setConfirmingCancel(true);
   }
 
-  function openRescheduleFlow(row: (typeof rows)[number]) {
-    const su = String(row.status ?? "").toUpperCase();
-    if (su !== "CONFIRMED") return;
-    if (isVisitSlotEnded(row.gridStartIso, row.rowDurationMinutes, nowMs)) return;
-    setSelected(row);
-    setConfirmingCancel(false);
-    setCancelMode(null);
-    setRejectReason("");
-    setCancelError(null);
-    setRescheduleError(null);
-    setPreviewSlots(null);
-    setRescheduleReason("");
-    setRescheduleDuration(
-      closestAllowedDuration(
-        typeof row.duration_minutes === "number" && row.duration_minutes > 0
-          ? row.duration_minutes
-          : defaultSlotMinutes,
-      ),
-    );
-    setRescheduleOpen(true);
-  }
-
   function topForRow(row: (typeof rows)[number]): number {
     const minutes = Math.min(Math.max(row.minutesFromStart, 0), maxMinutes);
-    return CALENDAR_TOP_INSET + (minutes / 60) * HOUR_ROW_HEIGHT;
+    return CALENDAR_TOP_INSET + (minutes / 60) * hourRowHeight;
   }
 
   type PositionedRow = (typeof rows)[number] & {
@@ -1102,6 +1053,252 @@ export function AgendaRealtime({
     return output;
   }
 
+  function goToToday() {
+    setAnchorDate(todayDate);
+  }
+
+  function shiftAnchor(delta: number) {
+    setAnchorDate((date) => shiftAgendaAnchor(date, view, delta));
+  }
+
+  function shiftMobile(delta: number) {
+    setAnchorDate((date) => shiftAgendaAnchor(date, mobileView, delta));
+  }
+
+  function openDay(date: Date) {
+    setAnchorDate(startOfDay(date));
+    setView("day");
+  }
+
+  const pendingRows = rows
+    .filter(
+      (row) =>
+        row.isRequested &&
+        !isVisitSlotEnded(row.gridStartIso, row.rowDurationMinutes, nowMs),
+    )
+    .sort((a, b) => a.sortKeyMs - b.sortKeyMs);
+
+  const nowMinutesCyprus = nowCyprus.getHours() * 60 + nowCyprus.getMinutes();
+  const nowLineTop =
+    nowMinutesCyprus >= START_HOUR * 60 && nowMinutesCyprus <= END_HOUR * 60
+      ? CALENDAR_TOP_INSET + ((nowMinutesCyprus - START_HOUR * 60) / 60) * hourRowHeight
+      : null;
+
+  const todayInGrid = gridDays.some((day) => isSameDay(day, todayDate));
+  const gridKey = `${view}-${format(gridDays[0]!, "yyyy-MM-dd")}`;
+
+  React.useEffect(() => {
+    const el = gridScrollRef.current;
+    if (!el) return;
+    const measure = () => {
+      const grid = gridScrollRef.current;
+      // Phones use the day list below the grid; the desktop grid is hidden there.
+      if (!grid || grid.offsetParent === null) {
+        setHourRowHeight(DEFAULT_HOUR_ROW_HEIGHT);
+        return;
+      }
+      const gridTop = grid.getBoundingClientRect().top + window.scrollY;
+      // Section + page bottom padding; below lg the bottom tab bar (5.25rem) covers the page too.
+      const bottomReserve = 40 + (window.innerWidth >= 1024 ? 0 : 84);
+      const available = agendaGridScrollHeight({
+        viewportHeight: window.innerHeight,
+        gridTop,
+        bottomReserve,
+      });
+      setGridScrollHeight(available);
+      setHourRowHeight(
+        agendaHourRowHeight({
+          availablePx: available,
+          hours: END_HOUR - START_HOUR,
+          topInset: CALENDAR_TOP_INSET + CALENDAR_BOTTOM_INSET,
+        }),
+      );
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, [view, sidebarOpen]);
+
+  React.useEffect(() => {
+    const el = gridScrollRef.current;
+    if (!el) return;
+    el.scrollTop = agendaInitialGridScrollTop({
+      nowOffsetPx: todayInGrid ? nowLineTop : null,
+      hourRowHeight: hourRowHeight,
+    });
+    // When the visible range changes (and once the grid has its height), not on every clock tick.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gridKey, gridScrollHeight != null]);
+
+  function monthItemsForDay(dateKey: string): AgendaMonthItem[] {
+    return rowsForDay(dateKey).map((row) => ({
+      key: row.rowKey,
+      timeLabel: row.timeLabel,
+      patientName: row.patient_name.trim() || "Patient",
+      clinicName: clinicNameForRow(row.clinic_id),
+      isPendingRequest: row.isPendingRequest,
+      isExpired: row.isExpired,
+      isManual: isManualBooking(row.booking_source),
+      isProposedSlot: row.isCounterOfferHold,
+      dotClass: row.isExpired
+        ? "bg-slate-500"
+        : (clinicSwatchClass(row.clinic_id) ?? "bg-clinical-400"),
+      onOpen: () => openAppointment(row),
+    }));
+  }
+
+  // Cancel dialog for a confirmed visit: email promise only when there is an email (F4).
+  const cancelCopy = selected
+    ? cancelConfirmedVisitCopy({ patientEmail: selected.patient_email, patientPhone: selected.patient_phone })
+    : null;
+
+  function renderViewSwitcher(options: AgendaView[], current: AgendaView) {
+    return (
+      <div
+        role="group"
+        aria-label="Calendar view"
+        data-testid="agenda-view-switcher"
+        className="inline-flex overflow-hidden rounded-full border border-white/25"
+      >
+        {options.map((option) => (
+          <button
+            key={option}
+            type="button"
+            aria-pressed={option === current}
+            onClick={() => setView(option)}
+            className={`px-4 py-1.5 text-[13px] font-semibold capitalize transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-clinical-400/70 ${
+              option === current
+                ? "bg-clinical-500/20 text-clinical-200"
+                : "text-slate-300 hover:bg-white/10 hover:text-white"
+            }`}
+          >
+            {option}
+          </button>
+        ))}
+      </div>
+    );
+  }
+
+  function renderHourAxis() {
+    return (
+      <div className={agendaHourAxisClass} style={{ height: calendarBodyHeight }}>
+        {hours.map((hour) => (
+          <span
+            key={hour}
+            className={agendaHourAxisLabelClass(hour, START_HOUR)}
+            style={{ top: CALENDAR_TOP_INSET + (hour - START_HOUR) * hourRowHeight, left: 0 }}
+          >
+            {String(hour).padStart(2, "0")}:00
+          </span>
+        ))}
+      </div>
+    );
+  }
+
+  function renderDayColumn(dayDate: Date, keyPrefix: string) {
+    const dayKey = format(dayDate, "yyyy-MM-dd");
+    const isTodayCol = isSameDay(dayDate, todayDate);
+    const startMin = START_HOUR * 60;
+    const endMin = END_HOUR * 60;
+    const shown = shownClinicWindowsForDate(dayDate);
+    // Hatched wherever none of the shown clinics is open, each with its own break (user, 2026-10-07).
+    const closedBands = agendaClosedBands(shown, startMin, endMin);
+    const work = { enabled: closedBands !== "closed" };
+    const y = (m: number) => CALENDAR_TOP_INSET + ((m - startMin) / 60) * hourRowHeight;
+    return (
+      <div
+        key={`${keyPrefix}-${dayKey}`}
+        data-testid="agenda-day-column"
+        data-view={keyPrefix}
+        data-weekday={agendaWeekdayKey(dayDate)}
+        /* Greyed when none of the shown clinics opens that day. */
+        data-closed={work.enabled ? "false" : "true"}
+        className={agendaDayColumnClass(isTodayCol)}
+        style={{ height: calendarBodyHeight }}
+      >
+        {closedBands === "closed" ? (
+          <div className={agendaOffHoursOverlayClass} />
+        ) : (
+          closedBands.map((band) => {
+            const top = y(Math.max(band.start, startMin));
+            const bottom = y(Math.min(band.end, endMin));
+            if (bottom <= top) return null;
+            return (
+              <div
+                key={`${band.kind}-${band.start}`}
+                data-testid={band.kind === "break" ? "agenda-break-band" : "agenda-off-hours-band"}
+                className={band.kind === "break" ? agendaBreakBandClass : agendaOffHoursBandClass}
+                style={{ top, height: bottom - top }}
+              />
+            );
+          })
+        )}
+        {hours.slice(0, -1).map((hour) => (
+          <div
+            key={`${dayKey}-line-${hour}`}
+            className={agendaHourGridLineClass}
+            style={{ top: CALENDAR_TOP_INSET + (hour - START_HOUR + 1) * hourRowHeight }}
+          />
+        ))}
+        {layoutOverlaps(rowsForDay(dayKey)).map((row) => (
+          <button
+            key={row.rowKey}
+            type="button"
+            aria-label={`Appointment ${row.patient_name} at ${row.timeLabel}${clinicNameForRow(row.clinic_id) ? ` · ${clinicNameForRow(row.clinic_id)}` : ""}`}
+            data-appointment-id={row.id}
+            data-highlighted={highlightedId === row.id ? "true" : "false"}
+            data-expired={row.isExpired ? "true" : "false"}
+            onClick={() => openAppointment(row)}
+            className={`group absolute overflow-hidden rounded-md border text-left transition focus:outline-none ${
+              row.isCounterOfferHold
+                ? `flex flex-col items-stretch justify-start py-1 pr-1.5 ${isMultiClinic ? "pl-2.5" : "pl-1.5"}`
+                : `py-0.5 pr-1.5 ${isMultiClinic ? "pl-2.5" : "pl-1.5"}`
+            } ${appointmentChipClass(row.isPendingRequest, row.isExpired)}${
+              highlightedId === row.id ? AGENDA_SPOTLIGHT_CLASS : ""
+            }`}
+            style={{
+              top: topForRow(row) + 1,
+              height: blockHeightFor(row) - 1,
+              left: `calc(${(row.column / row.columns) * 100}% + 2px)`,
+              width: `calc(${100 / row.columns}% - 4px)`,
+            }}
+          >
+            {clinicSwatchClass(row.clinic_id) ? (
+              <span
+                className={`absolute inset-y-0 left-0 w-1 ${clinicSwatchClass(row.clinic_id)}`}
+                aria-hidden
+              />
+            ) : null}
+            <AgendaAppointmentCardInner
+              timeLabel={row.timeLabel}
+              endTimeLabel={appointmentTimeLabelCyprus(
+                new Date(new Date(row.gridStartIso).getTime() + row.rowDurationMinutes * 60_000).toISOString(),
+              )}
+              patientName={row.patient_name}
+              isPendingRequest={row.isPendingRequest}
+              isRequested={row.isRequested}
+              isExpired={row.isExpired}
+              isCounterOfferHold={row.isCounterOfferHold}
+              isCompactCounterOffer={row.isCounterOfferHold && row.rowDurationMinutes <= 30}
+              isManual={isManualBooking(row.booking_source)}
+            />
+          </button>
+        ))}
+        {isTodayCol && nowLineTop != null ? (
+          <div
+            className="pointer-events-none absolute inset-x-0 z-20 flex items-center"
+            style={{ top: nowLineTop - 5 }}
+            data-testid="agenda-now-line"
+            aria-hidden
+          >
+            <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-rose-400" />
+            <span className="h-0.5 flex-1 bg-rose-400" />
+          </div>
+        ) : null}
+      </div>
+    );
+  }
+
   return (
     <>
       {toast && (
@@ -1126,410 +1323,205 @@ export function AgendaRealtime({
       )}
 
       <section className={agendaCalendarShellClass}>
-        <div className={`${agendaToolbarDividerClass} px-4 py-2.5 sm:px-6 md:py-2`}>
-          <div className="flex flex-wrap items-center justify-between gap-2 md:gap-3">
-            <div className="min-w-0 space-y-0.5 md:flex md:items-baseline md:gap-2 md:space-y-0">
-              <h2 className="text-sm font-semibold text-white md:text-[13px]">
-                {format(nowCyprus, "dd/MM/yyyy", { locale: enGB })}
-              </h2>
-              <p className="text-xs leading-snug text-slate-300 md:text-[13px]">
-                {todayCount === 0 ? (
-                  "No appointments today"
-                ) : (
-                  <>
-                    <span className="font-bold tabular-nums text-clinical-300">
-                      {todayCount}
-                    </span>{" "}
-                    {todayCount === 1 ? "appointment today" : "appointments today"}
-                  </>
-                )}
-              </p>
-            </div>
-            <div className="hidden items-center gap-2 md:flex">
-              <button
-                type="button"
-                onClick={() => setManualBookingOpen(true)}
-                title="Took a phone call? Block the slot manually here. Next time, share your link to save time."
-                className={agendaPrimaryChipButtonClass}
-              >
-                + Add Manual Booking
-              </button>
-            </div>
-            <div className="hidden items-center gap-2 md:flex">
-              <button
-                type="button"
-                onClick={() => {
-                  setWeekOffset(0);
-                  setMobileDayOffset(0);
-                }}
-                className={agendaTodayChipButtonClass}
-              >
-                Today
-              </button>
-              <button
-                type="button"
-                onClick={() => setWeekOffset((w) => w - 1)}
-                className={agendaNavIconButtonClass}
-                aria-label="Previous week"
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </button>
-              <p className="text-xs font-medium text-slate-300">
-                {format(weekDays[0], "dd MMM", { locale: enGB })} -{" "}
-                {format(weekDays[4], "dd MMM", { locale: enGB })}
-              </p>
-              <button
-                type="button"
-                onClick={() => setWeekOffset((w) => w + 1)}
-                className={agendaNavIconButtonClass}
-                aria-label="Next week"
-              >
-                <ChevronRight className="h-4 w-4" />
-              </button>
-            </div>
+        <div className={`${agendaToolbarDividerClass} px-3 py-2.5 sm:px-4 md:py-2`}>
+          <div className="hidden flex-wrap items-center gap-2 md:flex">
+            <button
+              type="button"
+              onClick={() => setSidebarOpen((open) => !open)}
+              className={`${agendaNavIconButtonClass} hidden lg:inline-flex`}
+              aria-label={sidebarOpen ? "Hide sidebar" : "Show sidebar"}
+              aria-expanded={sidebarOpen}
+            >
+              <Menu className="h-4 w-4" />
+            </button>
+            <button type="button" onClick={goToToday} className={agendaTodayChipButtonClass}>
+              Today
+            </button>
+            <button
+              type="button"
+              onClick={() => shiftAnchor(-1)}
+              className={agendaNavIconButtonClass}
+              aria-label={`Previous ${view}`}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => shiftAnchor(1)}
+              className={agendaNavIconButtonClass}
+              aria-label={`Next ${view}`}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+            <h2
+              className="ml-1 min-w-0 truncate text-lg font-medium text-white lg:text-xl"
+              data-testid="agenda-range-title"
+            >
+              {agendaRangeTitle(anchorDate, view)}
+            </h2>
+            <div className="flex-1" />
+            <p className="text-xs leading-snug text-slate-300 md:text-[13px]">
+              {todayCount === 0 ? (
+                "No appointments today"
+              ) : (
+                <>
+                  <span className="font-bold tabular-nums text-clinical-300">{todayCount}</span>{" "}
+                  {todayCount === 1 ? "appointment today" : "appointments today"}
+                </>
+              )}
+            </p>
+            <button
+              type="button"
+              onClick={() => setManualBookingOpen(true)}
+              title={MANUAL_BOOKING_HINT}
+              className={`${agendaPrimaryChipButtonClass} ${sidebarOpen ? "lg:hidden" : ""}`}
+            >
+              <CalendarPlus className="h-4 w-4" aria-hidden />
+              {MANUAL_BOOKING_LABEL}
+            </button>
+            {renderViewSwitcher(["day", "week", "month"], view)}
           </div>
           <AgendaClinicCalendars
             clinics={clinics}
             hiddenIds={hiddenClinicIds}
             onToggle={toggleClinicCalendar}
+            className={sidebarOpen ? "lg:hidden" : ""}
           />
           <div className="mt-2 flex items-center justify-between gap-2 md:hidden">
             <button
               type="button"
-              onClick={() => setMobileDayOffset((v) => v - 1)}
+              onClick={() => shiftMobile(-1)}
               className={agendaNavIconButtonClass}
-              aria-label="Previous day"
+              aria-label={mobileView === "month" ? "Previous month" : "Previous day"}
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
-            <p className="text-sm font-semibold text-white">
-              {format(selectedMobileDate, "EEE, dd MMM", { locale: enGB })}
+            <p className="min-w-0 truncate text-sm font-semibold text-white">
+              {mobileView === "month"
+                ? agendaRangeTitle(anchorDate, "month")
+                : format(anchorDate, "EEE, dd MMM", { locale: enGB })}
             </p>
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={() => {
-                  setWeekOffset(0);
-                  setMobileDayOffset(0);
-                }}
+                onClick={goToToday}
                 className={`${agendaTodayChipButtonClass} px-2 py-1 text-[11px]`}
               >
                 Today
               </button>
               <button
                 type="button"
-                onClick={() => setMobileDayOffset((v) => v + 1)}
+                onClick={() => shiftMobile(1)}
                 className={agendaNavIconButtonClass}
-                aria-label="Next day"
+                aria-label={mobileView === "month" ? "Next month" : "Next day"}
               >
                 <ChevronRight className="h-4 w-4" />
               </button>
             </div>
           </div>
+          <div className="mt-2 flex justify-center md:hidden">
+            {renderViewSwitcher(["day", "month"], mobileView)}
+          </div>
         </div>
 
-        <div className="px-4 pb-4 pt-2 sm:px-6 sm:pb-5 sm:pt-2">
-          <div className="md:hidden">
-            {mobileRows.length === 0 && !mobileShowsToday ? (
-              <p className="mb-2 text-center text-xs text-slate-400">
-                {isMultiClinic && visibleClinicIds.size === 0
-                  ? "No calendars selected."
-                  : "No appointments this day"}
-              </p>
+        <div className="flex min-w-0">
+          {sidebarOpen ? (
+            <AgendaSidebar
+              anchor={anchorDate}
+              today={todayDate}
+              rangeDays={view === "month" ? [] : gridDays}
+              onPickDate={(date) => {
+                setAnchorDate(startOfDay(date));
+                if (view === "month") setView("day");
+              }}
+              onCreate={() => setManualBookingOpen(true)}
+              pendingCount={pendingRows.length}
+              clinics={clinics}
+              hiddenClinicIds={hiddenClinicIds}
+              onToggleClinic={toggleClinicCalendar}
+            />
+          ) : null}
+
+          <div className="min-w-0 flex-1 px-3 pb-4 pt-2 sm:px-4 sm:pb-5">
+            {view === "month" ? (
+              <div>
+                <AgendaMonthGrid
+                  anchor={anchorDate}
+                  today={todayDate}
+                  itemsForDay={monthItemsForDay}
+                  isWorkingDay={(date) => workingWindowsForDate(date).enabled}
+                  onOpenDay={openDay}
+                />
+              </div>
             ) : null}
-            <div className="grid grid-cols-[50px_1fr] gap-3">
-                <div
-                  className={agendaHourAxisClass}
-                  style={{ height: calendarBodyHeight }}
-                >
-                  {renderAgendaHourZebraBands(false)}
-                  {hours.map((hour) => {
-                    const y =
-                      CALENDAR_TOP_INSET +
-                      (hour - START_HOUR) * HOUR_ROW_HEIGHT;
-                    return (
-                      <span
-                        key={hour}
-                        className={agendaHourAxisLabelClass(hour, START_HOUR)}
-                        style={{ top: y, left: 0 }}
-                      >
-                        {String(hour).padStart(2, "0")}:00
-                      </span>
-                    );
-                  })}
+
+            {mobileView === "day" ? (
+              <div className="md:hidden">
+                {anchorRows.length === 0 && !anchorIsToday ? (
+                  <p className="mb-2 text-center text-xs text-slate-400">
+                    {isMultiClinic && visibleClinicIds.size === 0
+                      ? "No calendars selected."
+                      : "No appointments this day"}
+                  </p>
+                ) : null}
+                <div className={`grid ${agendaDayGridColsClass}`}>
+                  {renderHourAxis()}
+                  {renderDayColumn(anchorDate, "mobile")}
                 </div>
+              </div>
+            ) : null}
+
+            {view !== "month" ? (
+              <div className="hidden min-w-0 md:block">
                 <div
-                  className={agendaDayColumnClass(mobileShowsToday)}
-                  style={{ height: calendarBodyHeight }}
+                  className={`${agendaStickyWeekHeaderClass} overflow-hidden [scrollbar-gutter:stable] ${
+                    view === "day" ? agendaDayGridColsClass : agendaWeekGridColsClass
+                  }`}
                 >
-                  {renderAgendaHourZebraBands(mobileShowsToday)}
-                  {(() => {
-                    const w = workingWindowsForDate(selectedMobileDate);
-                    const startMin = START_HOUR * 60;
-                    const endMin = END_HOUR * 60;
-                      const y = (m: number) =>
-                        CALENDAR_TOP_INSET +
-                        ((m - startMin) / 60) * HOUR_ROW_HEIGHT;
-                    const overlays: React.ReactNode[] = [];
-                    if (!w.enabled) {
-                      overlays.push(
-                        <div
-                          key="mobile-disabled-day"
-                          className={agendaOffHoursOverlayClass}
-                        />,
-                      );
-                    } else {
-                      if (w.start > startMin) {
-                        overlays.push(
-                          <div
-                            key="mobile-before-start"
-                            className={agendaOffHoursBandClass}
-                            style={{
-                              top: 0,
-                              height: y(Math.min(w.start, endMin)),
-                            }}
-                          />,
-                        );
-                      }
-                      if (w.end < endMin) {
-                        overlays.push(
-                          <div
-                            key="mobile-after-end"
-                            className={agendaOffHoursBandClass}
-                            style={{
-                              top: y(Math.max(w.end, startMin)),
-                              bottom: 0,
-                            }}
-                          />,
-                        );
-                      }
-                      if (
-                        w.breakStart != null &&
-                        w.breakEnd != null &&
-                        w.breakEnd > w.breakStart
-                      ) {
-                        const top = y(Math.max(w.breakStart, startMin));
-                        const bottom = y(Math.min(w.breakEnd, endMin));
-                        if (bottom > top) {
-                          overlays.push(
-                            <div
-                              key="mobile-break"
-                              className={agendaBreakBandClass}
-                              style={{ top, height: bottom - top }}
-                            />,
-                          );
-                        }
-                      }
-                    }
-                    return overlays;
-                  })()}
-                  {hours.slice(0, -1).map((hour) => {
-                    const y =
-                      CALENDAR_TOP_INSET +
-                      (hour - START_HOUR + 1) * HOUR_ROW_HEIGHT;
+                  <div />
+                  {gridDays.map((day) => {
+                    const isTodayHeader = isSameDay(day, todayDate);
+                    const working = workingWindowsForDate(day).enabled;
                     return (
                       <div
-                        key={`mobile-line-${hour}`}
-                        className={agendaHourGridLineClass}
-                        style={{ top: y }}
-                      />
+                        key={format(day, "yyyy-MM-dd")}
+                        className={`${agendaDayHeaderShellClass} ${view === "day" ? "items-start pl-2" : ""} ${
+                          working || isTodayHeader ? "" : "opacity-60"
+                        }`}
+                      >
+                        <p className={agendaDayNameClass(isTodayHeader)}>
+                          {format(day, "EEE", { locale: enGB })}
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => openDay(day)}
+                          aria-label={`Open ${format(day, "EEEE d MMMM", { locale: enGB })}`}
+                          className={`${agendaDayNumberClass(isTodayHeader)} transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-400/70`}
+                        >
+                          {format(day, "d")}
+                        </button>
+                      </div>
                     );
                   })}
-                    {layoutOverlaps(mobileRows).map((row) => (
-                    <button
-                      key={row.rowKey}
-                      type="button"
-                      aria-label={`Appointment ${row.patient_name} at ${row.timeLabel}${clinicNameForRow(row.location_id) ? ` · ${clinicNameForRow(row.location_id)}` : ""}`}
-                      onClick={() => openAppointment(row)}
-                      className={`group absolute overflow-hidden rounded-xl border text-left shadow-lg transition focus:outline-none ${
-                        row.isCounterOfferHold
-                          ? `flex flex-col items-stretch justify-start py-1.5 pr-2 ${isMultiClinic ? "pl-2.5" : "pl-2"}`
-                          : `py-1 pr-2 ${isMultiClinic ? "pl-2.5" : "pl-2"}`
-                      } ${appointmentChipClass(row.isPendingRequest)}`}
-                      style={{
-                        top: topForRow(row),
-                        height: blockHeightFor(row),
-                        left: `${0.25 + (row.column / row.columns) * 99.5}%`,
-                        width: `${99.5 / row.columns - 0.5}%`,
-                      }}
-                    >
-                      {clinicSwatchClass(row.location_id) ? (
-                        <span
-                          className={`absolute inset-y-0 left-0 w-1 ${clinicSwatchClass(row.location_id)}`}
-                          aria-hidden
-                        />
-                      ) : null}
-                      <AgendaAppointmentCardInner
-                        timeLabel={row.timeLabel}
-                        patientName={row.patient_name}
-                        isPendingRequest={row.isPendingRequest}
-                        isRequested={row.isRequested}
-                        isCounterOfferHold={row.isCounterOfferHold}
-                        isCompactCounterOffer={
-                          row.isCounterOfferHold && row.rowDurationMinutes <= 30
-                        }
-                      />
-                    </button>
-                  ))}
                 </div>
-              </div>
-          </div>
 
-          <div className="hidden min-w-0 md:block">
-            <div className={agendaStickyWeekHeaderClass}>
-              <div />
-              {weekDays.map((day) => {
-                const isTodayHeader = isSameDay(day, todayDate);
-                return (
                 <div
-                  key={format(day, "yyyy-MM-dd")}
-                  className={agendaDayHeaderShellClass}
+                  ref={gridScrollRef}
+                  data-testid="agenda-grid-scroll"
+                  className="overflow-y-auto overscroll-contain [scrollbar-gutter:stable]"
+                  style={gridScrollHeight != null ? { height: gridScrollHeight } : undefined}
                 >
-                  <p className={agendaDayNameClass(isTodayHeader)}>
-                    {format(day, "EEE", { locale: enGB })}
-                  </p>
-                  <p className={agendaDayNumberClass(isTodayHeader)}>
-                    {format(day, "d")}
-                  </p>
-                </div>
-              );
-              })}
-            </div>
-
-            <div className="grid grid-cols-[64px_repeat(5,minmax(104px,1fr))] gap-3 lg:grid-cols-[72px_repeat(5,minmax(120px,1fr))] xl:grid-cols-[80px_repeat(5,minmax(140px,1fr))]">
-              <div
-                className={agendaHourAxisClass}
-                style={{ height: calendarBodyHeight }}
-              >
-                {renderAgendaHourZebraBands(false)}
-                {hours.map((hour) => {
-                  const y =
-                    CALENDAR_TOP_INSET +
-                    (hour - START_HOUR) * HOUR_ROW_HEIGHT;
-                  return (
-                    <span
-                      key={hour}
-                      className={agendaHourAxisLabelClass(hour, START_HOUR)}
-                      style={{ top: y, left: 0 }}
-                    >
-                      {String(hour).padStart(2, "0")}:00
-                    </span>
-                  );
-                })}
-              </div>
-
-              {weekKeys.map((dayKey) => {
-                const dayRows = rows
-                  .filter((r) => r.dateKey === dayKey)
-                  .sort((a, b) => a.sortKeyMs - b.sortKeyMs);
-                const dayDate = weekDays[weekKeys.indexOf(dayKey)];
-                const isTodayCol = isSameDay(dayDate, todayDate);
-                const work = workingWindowsForDate(dayDate);
-                const startMin = START_HOUR * 60;
-                const endMin = END_HOUR * 60;
-                const y = (m: number) =>
-                  CALENDAR_TOP_INSET +
-                  ((m - startMin) / 60) * HOUR_ROW_HEIGHT;
-                return (
                   <div
-                    key={dayKey}
-                    className={agendaDayColumnClass(isTodayCol)}
-                    style={{ height: calendarBodyHeight }}
+                    className={`grid ${
+                      view === "day" ? agendaDayGridColsClass : agendaWeekGridColsClass
+                    }`}
                   >
-                    {renderAgendaHourZebraBands(isTodayCol)}
-                    {!work.enabled ? (
-                      <div className={agendaOffHoursOverlayClass} />
-                    ) : (
-                      <>
-                        {work.start > startMin ? (
-                          <div
-                            className={agendaOffHoursBandClass}
-                            style={{
-                              top: 0,
-                              height: y(Math.min(work.start, endMin)),
-                            }}
-                          />
-                        ) : null}
-                        {work.end < endMin ? (
-                          <div
-                            className={agendaOffHoursBandClass}
-                            style={{
-                              top: y(Math.max(work.end, startMin)),
-                              bottom: 0,
-                            }}
-                          />
-                        ) : null}
-                        {work.breakStart != null &&
-                        work.breakEnd != null &&
-                        work.breakEnd > work.breakStart
-                          ? (() => {
-                              const top = y(
-                                Math.max(work.breakStart!, startMin),
-                              );
-                              const bottom = y(
-                                Math.min(work.breakEnd!, endMin),
-                              );
-                              if (bottom <= top) return null;
-                              return (
-                                <div
-                                  className={agendaBreakBandClass}
-                                  style={{ top, height: bottom - top }}
-                                />
-                              );
-                            })()
-                          : null}
-                      </>
-                    )}
-                    {hours.slice(0, -1).map((hour) => {
-                      const y =
-                      CALENDAR_TOP_INSET +
-                      (hour - START_HOUR + 1) * HOUR_ROW_HEIGHT;
-                      return (
-                        <div
-                          key={`${dayKey}-line-${hour}`}
-                          className={agendaHourGridLineClass}
-                          style={{ top: y }}
-                        />
-                      );
-                    })}
-                    {layoutOverlaps(dayRows).map((row) => (
-                      <button
-                        key={row.rowKey}
-                        type="button"
-                        aria-label={`Appointment ${row.patient_name} at ${row.timeLabel}${clinicNameForRow(row.location_id) ? ` · ${clinicNameForRow(row.location_id)}` : ""}`}
-                        onClick={() => openAppointment(row)}
-                        className={`group absolute overflow-hidden rounded-xl border text-left shadow-lg transition focus:outline-none ${
-                          row.isCounterOfferHold
-                            ? `flex flex-col items-stretch justify-start py-1.5 pr-2 ${isMultiClinic ? "pl-2.5" : "pl-2"}`
-                            : `py-1 pr-2 ${isMultiClinic ? "pl-2.5" : "pl-2"}`
-                        } ${appointmentChipClass(row.isPendingRequest)}`}
-                        style={{
-                          top: topForRow(row),
-                          height: blockHeightFor(row),
-                          left: `${0.25 + (row.column / row.columns) * 99.5}%`,
-                          width: `${99.5 / row.columns - 0.5}%`,
-                        }}
-                      >
-                        {clinicSwatchClass(row.location_id) ? (
-                          <span
-                            className={`absolute inset-y-0 left-0 w-1 ${clinicSwatchClass(row.location_id)}`}
-                            aria-hidden
-                          />
-                        ) : null}
-                        <AgendaAppointmentCardInner
-                          timeLabel={row.timeLabel}
-                          patientName={row.patient_name}
-                          isPendingRequest={row.isPendingRequest}
-                          isRequested={row.isRequested}
-                          isCounterOfferHold={row.isCounterOfferHold}
-                          isCompactCounterOffer={row.isCounterOfferHold && row.rowDurationMinutes <= 30}
-                        />
-                      </button>
-                    ))}
+                    {renderHourAxis()}
+                    {gridDays.map((day) => renderDayColumn(day, "desktop"))}
                   </div>
-                );
-              })}
-            </div>
+                </div>
+              </div>
+            ) : null}
           </div>
         </div>
       </section>
@@ -1541,6 +1533,7 @@ export function AgendaRealtime({
         workingHours={workingHours}
         clinics={clinics}
         preferredClinicId={[...visibleClinicIds][0] ?? clinics[0]?.id ?? null}
+        accessEnded={accessEnded}
         onClose={() => setManualBookingOpen(false)}
         onBooked={() => {
           void refreshAppointmentsFromServer();
@@ -1555,19 +1548,7 @@ export function AgendaRealtime({
         >
           <button
             type="button"
-            onClick={() => {
-              if (modalBusy) return;
-              setSelected(null);
-              setConfirmingCancel(false);
-              setCancelMode(null);
-              setRejectReason("");
-              setCancelError(null);
-              setRescheduleOpen(false);
-              setRescheduleError(null);
-              setPreviewSlots(null);
-              setRescheduleReason("");
-              setAttendanceError(null);
-            }}
+            onClick={() => closeVisitDialog()}
             className="absolute inset-0 bg-ink-900/70 backdrop-blur-sm"
             aria-label="Close"
             disabled={modalBusy}
@@ -1575,19 +1556,7 @@ export function AgendaRealtime({
           <div className="relative z-10 w-full max-w-sm max-h-[calc(100dvh-1.5rem)] overflow-y-auto rounded-3xl border border-clinical-100/10 bg-slate-900/95 p-6 shadow-2xl backdrop-blur-xl sm:max-h-[calc(100dvh-2rem)]">
             <button
               type="button"
-              onClick={() => {
-                if (modalBusy) return;
-                setSelected(null);
-                setConfirmingCancel(false);
-                setCancelMode(null);
-                setRejectReason("");
-                setCancelError(null);
-                setRescheduleOpen(false);
-                setRescheduleError(null);
-              setPreviewSlots(null);
-              setRescheduleReason("");
-              setAttendanceError(null);
-              }}
+              onClick={() => closeVisitDialog()}
               className="absolute right-4 top-4 rounded-full p-1 text-slate-400 transition hover:bg-slate-800 hover:text-slate-200 disabled:cursor-not-allowed disabled:opacity-50"
               aria-label="Close"
               disabled={modalBusy}
@@ -1601,20 +1570,33 @@ export function AgendaRealtime({
               <span>
                 {selected.dateLabel} · {selected.timeLabel}
               </span>
-              {clinicNameForRow(selected.location_id) ? (
+              {clinicNameForRow(selected.clinic_id) ? (
                 <span className="inline-flex items-center gap-1.5">
                   <span
-                    className={`h-2 w-2 rounded-[2px] ${clinicSwatchClass(selected.location_id) ?? ""}`}
+                    className={`h-2 w-2 rounded-[2px] ${clinicSwatchClass(selected.clinic_id) ?? ""}`}
                     aria-hidden
                   />
-                  {clinicNameForRow(selected.location_id)}
+                  {clinicNameForRow(selected.clinic_id)}
                 </span>
               ) : null}
             </p>
             <div className="mt-2 flex flex-wrap items-center gap-2">
-              {selectedPast ? (
+              {selected.isExpired ? (
+                <p className="inline-flex rounded-full border border-slate-600/80 bg-slate-800/80 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-slate-300">
+                  Expired request
+                </p>
+              ) : selectedPast ? (
                 <p className="inline-flex rounded-full border border-slate-600/80 bg-slate-800/80 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-slate-300">
                   Past visit
+                </p>
+              ) : null}
+              {isManualBooking(selected.booking_source) ? (
+                <p
+                  data-testid="agenda-visit-manual"
+                  className="inline-flex items-center gap-1 rounded-full border border-clinical-400/30 bg-clinical-500/10 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-clinical-200"
+                >
+                  <Phone className="h-3 w-3" aria-hidden />
+                  {MANUAL_MARK_LABEL} · added by you
                 </p>
               ) : null}
               {selectedNoShow ? (
@@ -1623,6 +1605,16 @@ export function AgendaRealtime({
                 </p>
               ) : null}
             </div>
+            {/* Who the patient is (user, 2026-10-06). */}
+            <PatientDetails
+              testId="agenda-visit-patient"
+              className="mt-3"
+              birthdate={selected.patient_birthdate}
+              gender={selected.patient_gender}
+              isNewPatient={selected.is_new_patient}
+              phone={selected.patient_phone}
+              email={selected.patient_email}
+            />
             <div className="mt-3 rounded-xl border border-slate-700/70 bg-slate-900/60 px-3 py-2">
               <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
                 Reason for visit
@@ -1649,9 +1641,17 @@ export function AgendaRealtime({
                 · {appointmentTimeLabelCyprus(selected.appointment_datetime)}
               </p>
             ) : null}
+            {selected.isExpired && !confirmingCancel ? (
+              <div className="mt-4" data-testid="agenda-expired-request">
+                <p className="text-sm leading-relaxed text-slate-300">
+                  This request expired: nobody answered it before the visit time. We let{" "}
+                  {firstNameOf(selected.patient_name)} know they can book again online.
+                </p>
+              </div>
+            ) : null}
             {selectedPast &&
-            !confirmingCancel &&
-            !rescheduleOpen ? (
+            !selected.isExpired &&
+            !confirmingCancel ? (
               <div className="mt-4 space-y-3">
                 <p className="text-sm leading-relaxed text-slate-400">
                   {selectedStatus === "REQUESTED"
@@ -1660,22 +1660,14 @@ export function AgendaRealtime({
                         !selectedProposalLive
                       ? "The patient did not choose a new time before the offer expired."
                       : selectedStatus === "CONFIRMED" && selectedNoShow
-                        ? "You marked this confirmed visit as a no-show. Details are read-only."
-                        : selectedStatus === "CONFIRMED"
-                          ? "This visit is in the past. You can mark it as a no-show for your records."
+                        ? "You marked this visit as a no-show."
+                        : selectedStatus === "CONFIRMED" && selectedReviewSent
+                          ? "This visit counts as attended. The patient has been asked for a review."
+                          : selectedStatus === "CONFIRMED"
+                          ? "This visit counts as attended. If the patient didn't come, mark a no-show."
                           : "This visit is in the past. Details are read-only."}
                 </p>
-                {selectedStatus === "REQUESTED" ? (
-                  <button
-                    type="button"
-                    onClick={() => openCancelFlow(selected)}
-                    disabled={openingReview || markingAttendance}
-                    className="inline-flex w-full items-center justify-center rounded-2xl border border-slate-600 px-3 py-2.5 text-sm font-medium text-slate-300 transition hover:border-slate-500 hover:bg-slate-800/60 hover:text-red-200 disabled:cursor-not-allowed disabled:opacity-40"
-                  >
-                    Close expired request
-                  </button>
-                ) : null}
-                {selectedStatus === "CONFIRMED" ? (
+                {selectedStatus === "CONFIRMED" && !selectedReviewSent ? (
                   selectedNoShow ? (
                     <button
                       type="button"
@@ -1719,10 +1711,49 @@ export function AgendaRealtime({
                 ) : null}
               </div>
             ) : null}
+            {selectedStatus === "CONFIRMED" && selectedStarted && !confirmingCancel ? (
+              <VisitNotesBox
+                appointmentId={selected.id}
+                initialNotes={selected.professional_notes ?? null}
+                onDirtyChange={setNotesDirty}
+                onSaved={(notes) => {
+                  const id = selected.id;
+                  setAppointments((prev) =>
+                    prev.map((row) => (row.id === id ? { ...row, professional_notes: notes } : row)),
+                  );
+                  setSelected((prev) => (prev && prev.id === id ? { ...prev, professional_notes: notes } : prev));
+                }}
+              />
+            ) : null}
+            {discardPrompt ? (
+              <div
+                role="alertdialog"
+                aria-label="Unsaved notes"
+                data-testid="discard-notes-prompt"
+                className="mt-3 rounded-xl border border-slate-600 bg-slate-800/80 px-3 py-2.5"
+              >
+                <p className="text-sm text-slate-200">You have notes that are not saved yet.</p>
+                <div className="mt-2 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setDiscardPrompt(false)}
+                    className="flex-1 rounded-xl border border-clinical-500/40 bg-clinical-500/10 px-3 py-2 text-xs font-semibold text-clinical-200 transition hover:bg-clinical-500/20"
+                  >
+                    Keep editing
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => closeVisitDialog(true)}
+                    className="flex-1 rounded-xl border border-slate-600 px-3 py-2 text-xs font-semibold text-slate-300 transition hover:bg-slate-700/60"
+                  >
+                    Discard and close
+                  </button>
+                </div>
+              </div>
+            ) : null}
             {selected.showReviewLink &&
             !selectedPast &&
-            !confirmingCancel &&
-            !rescheduleOpen ? (
+            !confirmingCancel ? (
               <div className="mt-6 flex flex-col gap-2">
                 <button
                   type="button"
@@ -1749,7 +1780,7 @@ export function AgendaRealtime({
                   type="button"
                   onClick={() => openCancelFlow(selected)}
                   disabled={openingReview}
-                  className="inline-flex w-full items-center justify-center rounded-2xl px-3 py-2 text-sm font-medium text-slate-500 transition hover:bg-slate-800/60 hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-40"
+                  className="inline-flex w-full items-center justify-center rounded-2xl border border-red-500/30 px-3 py-2 text-sm font-medium text-red-300 transition hover:border-red-400/60 hover:bg-red-500/10 hover:text-red-200 disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   Decline request
                 </button>
@@ -1757,154 +1788,30 @@ export function AgendaRealtime({
             ) : selectedStatus === "NEEDS_RESCHEDULE" &&
               !selectedPast &&
               selectedProposalLive &&
-              !confirmingCancel &&
-              !rescheduleOpen ? (
+              !confirmingCancel ? (
               <p className="mt-3 text-sm text-amber-200/90">
                 Waiting for the patient to choose one of the proposed times.
               </p>
             ) : selectedStatus === "NEEDS_RESCHEDULE" &&
               !selectedProposalLive &&
-              !confirmingCancel &&
-              !rescheduleOpen ? (
+              !confirmingCancel ? (
               <p className="mt-3 text-sm text-slate-400">
-                The reschedule offer has expired. The patient can book again from
-                your profile.
+                The patient didn&apos;t choose a new time in time. Nothing is booked.
               </p>
             ) : null}
             {selectedStatus === "CONFIRMED" &&
             !selectedPast &&
-            !confirmingCancel &&
-            !rescheduleOpen ? (
+            !confirmingCancel ? (
               <div className="mt-6 flex flex-col gap-2">
-                <button
-                  type="button"
-                  onClick={() => openRescheduleFlow(selected)}
-                  className="inline-flex w-full items-center justify-center rounded-2xl border border-clinical-400/50 bg-clinical-500/20 px-4 py-3 text-sm font-semibold text-clinical-100 shadow-sm shadow-clinical-500/10 transition hover:border-clinical-400/70 hover:bg-clinical-500/30"
-                >
-                  Reschedule appointment
-                </button>
+                {/* A confirmed visit can't be moved, only cancelled (user, 2026-10-04). */}
                 <button
                   type="button"
                   onClick={() => openCancelFlow(selected)}
-                  className="inline-flex w-full items-center justify-center gap-1.5 rounded-2xl px-3 py-2 text-sm font-medium text-slate-500 transition hover:bg-slate-800/60 hover:text-red-300"
+                  className="inline-flex w-full items-center justify-center gap-1.5 rounded-2xl border border-red-500/30 px-3 py-2 text-sm font-medium text-red-300 transition hover:border-red-400/60 hover:bg-red-500/10 hover:text-red-200"
                 >
-                  <Trash2 className="h-3.5 w-3.5 opacity-70" aria-hidden />
+                  <Trash2 className="h-3.5 w-3.5" aria-hidden />
                   Cancel appointment
                 </button>
-              </div>
-            ) : null}
-
-            {rescheduleOpen &&
-            selectedStatus === "CONFIRMED" &&
-            !selectedPast ? (
-              <div className="mt-4 rounded-2xl border border-clinical-500/20 bg-clinical-500/5 p-3 text-xs text-slate-300">
-                <p>
-                  Propose three new times to the patient. They will receive an
-                  email and choose one slot.
-                </p>
-                <label className="mt-3 block text-left text-[11px] font-medium uppercase tracking-wide text-slate-400">
-                  Visit duration
-                </label>
-                <div className="mt-1.5 flex flex-wrap gap-2">
-                  {PROFESSIONAL_DURATION_OPTIONS.map((minutes) => {
-                    const active = rescheduleDuration === minutes;
-                    return (
-                      <button
-                        key={minutes}
-                        type="button"
-                        onClick={() => {
-                          setRescheduleDuration(minutes);
-                          setPreviewSlots(null);
-                          setRescheduleError(null);
-                        }}
-                        className={`rounded-xl border px-2.5 py-1.5 text-xs font-medium transition ${
-                          active
-                            ? "border-clinical-400/60 bg-clinical-400/20 text-clinical-100"
-                            : "border-slate-700 bg-slate-900/50 text-slate-300 hover:border-slate-600"
-                        }`}
-                        disabled={loadingAlternatives || sendingProposal}
-                      >
-                        {formatProfessionalDurationLabel(minutes)}
-                      </button>
-                    );
-                  })}
-                </div>
-                <div className="mt-3 flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setRescheduleOpen(false);
-                      setRescheduleError(null);
-                      setPreviewSlots(null);
-                      setRescheduleReason("");
-                    }}
-                    className="inline-flex flex-1 items-center justify-center rounded-2xl border border-slate-700 bg-slate-800 px-3 py-2 text-xs font-medium text-slate-200 transition hover:bg-slate-700"
-                    disabled={loadingAlternatives || sendingProposal}
-                  >
-                    Back
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      void loadRescheduleAlternatives();
-                    }}
-                    className="inline-flex flex-1 items-center justify-center rounded-2xl border border-clinical-500/40 bg-clinical-500/10 px-3 py-2 text-xs font-semibold text-clinical-200 transition hover:border-clinical-400/60 hover:bg-clinical-500/20 disabled:cursor-not-allowed disabled:opacity-70"
-                    disabled={loadingAlternatives || sendingProposal}
-                  >
-                    {loadingAlternatives ? "Finding times..." : "Find 3 slots"}
-                  </button>
-                </div>
-                <label className="mt-3 block text-left text-[11px] font-medium uppercase tracking-wide text-slate-400">
-                  Reason for the patient (required)
-                </label>
-                <textarea
-                  value={rescheduleReason}
-                  onChange={(e) => setRescheduleReason(e.target.value)}
-                  placeholder="e.g. I have an urgent hospital procedure and need to move this visit to another time."
-                  rows={3}
-                  className="mt-1.5 w-full resize-y rounded-xl border border-slate-700 bg-ink-900/80 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:border-clinical-500/50 focus:outline-none focus:ring-1 focus:ring-clinical-500/40"
-                  disabled={loadingAlternatives || sendingProposal}
-                />
-                <p className="mt-1 text-[11px] text-slate-500">
-                  At least 10 characters.
-                </p>
-                {previewSlots && previewSlots.length >= 3 ? (
-                  <div className="mt-3 space-y-2 border-t border-slate-700/80 pt-3">
-                    <p className="text-[11px] uppercase tracking-wide text-slate-400">
-                      Proposed times (Cyprus)
-                    </p>
-                    <ul className="space-y-1.5 text-xs text-slate-200">
-                      {previewSlots.map((iso, i) => (
-                        <li
-                          key={iso}
-                          className="rounded-lg border border-slate-700/70 bg-ink-900/50 px-2.5 py-1.5"
-                        >
-                          <span className="text-slate-500">{i + 1}. </span>
-                          {format(
-                            appointmentToCyprusDate(iso),
-                            "EEE, d MMM yyyy · HH:mm",
-                            { locale: enGB },
-                          )}
-                        </li>
-                      ))}
-                    </ul>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        void sendRescheduleProposal();
-                      }}
-                      className="mt-1 inline-flex w-full items-center justify-center rounded-2xl border border-clinical-500/40 bg-clinical-500/10 px-3 py-2 text-xs font-semibold text-clinical-200 transition hover:border-clinical-400/60 hover:bg-clinical-500/20 disabled:cursor-not-allowed disabled:opacity-70"
-                      disabled={
-                        sendingProposal || rescheduleReason.trim().length < 10
-                      }
-                    >
-                      {sendingProposal ? "Sending..." : "Send proposal to patient"}
-                    </button>
-                  </div>
-                ) : null}
-                {rescheduleError ? (
-                  <p className="mt-2 text-xs text-amber-300">{rescheduleError}</p>
-                ) : null}
               </div>
             ) : null}
 
@@ -1933,17 +1840,41 @@ export function AgendaRealtime({
                   </>
                 ) : (
                   <>
-                    <p>
-                      The patient will receive an email that this confirmed visit
-                      is cancelled, with your explanation and a link to book again.
-                    </p>
+                    <p>{cancelCopy?.intro}</p>
+                    {cancelCopy?.call ? (
+                      <a
+                        href={cancelCopy.call.href}
+                        data-testid="cancel-call-patient"
+                        className="mt-2 inline-flex items-center gap-1.5 text-sm font-semibold text-clinical-300 hover:text-clinical-200"
+                      >
+                        <Phone className="h-3.5 w-3.5" aria-hidden />
+                        {cancelCopy.call.label}
+                      </a>
+                    ) : null}
+                    {selected &&
+                    professionalCancelIsShortNotice(
+                      selected.appointment_datetime,
+                      patientCancelNoticeHours,
+                    ) ? (
+                      <p
+                        className="mt-2 rounded-xl border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-amber-100"
+                        data-testid="cancel-short-notice"
+                      >
+                        This is short notice for the patient: the visit is in less than{" "}
+                        {patientCancelNoticeHours} hours.
+                      </p>
+                    ) : null}
                     <label className="mt-3 block text-left text-[11px] font-medium uppercase tracking-wide text-slate-400">
-                      Reason (required)
+                      {cancelCopy?.notifiesByEmail === false ? "Reason (kept with the visit)" : "Reason (required)"}
                     </label>
                     <textarea
                       value={rejectReason}
                       onChange={(e) => setRejectReason(e.target.value)}
-                      placeholder="e.g. An emergency procedure requires me to be elsewhere — I’m very sorry to cancel this confirmed slot. Please book again on my profile when you can."
+                      placeholder={
+                        cancelCopy?.notifiesByEmail === false
+                          ? "e.g. Emergency at the hospital; I called the patient to book another day."
+                          : "e.g. An emergency procedure requires me to be elsewhere — I’m very sorry to cancel this confirmed slot. Please book again on my profile when you can."
+                      }
                       rows={4}
                       className="mt-1.5 w-full resize-y rounded-xl border border-slate-700 bg-ink-900/80 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:border-clinical-500/50 focus:outline-none focus:ring-1 focus:ring-clinical-500/40"
                       disabled={isCancelling}
@@ -1979,7 +1910,7 @@ export function AgendaRealtime({
                           : "Cancelling…"
                         : cancelMode === "requested"
                           ? "Decline & notify"
-                          : "Cancel & notify"}
+                          : (cancelCopy?.confirmLabel ?? "Cancel & notify")}
                     </button>
                   </div>
                 </div>
@@ -1987,6 +1918,15 @@ export function AgendaRealtime({
                   <p className="mt-2 text-xs text-red-300">{cancelError}</p>
                 ) : null}
               </div>
+            ) : null}
+            {["REQUESTED", "CONFIRMED"].includes(String(selected.status ?? "").toUpperCase()) && !confirmingCancel ? (
+              <AgendaPreviousVisits
+                patientName={selected.patient_name}
+                appointmentId={selected.id}
+                clinicName={(clinicId) =>
+                  isMultiClinic ? clinics.find((c) => c.clinicId === clinicId)?.name ?? null : null
+                }
+              />
             ) : null}
           </div>
         </div>

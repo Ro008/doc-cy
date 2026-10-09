@@ -3,6 +3,7 @@ import { test, expect } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
 import { signInDoctorAndSetCookies } from "./helpers/doctorAuth";
 import { skipIfSafeNoBooking } from "./helpers/safeMode";
+import { pickFirstAvailableBookingDay } from "./helpers/pickBookingCalendarDay";
 
 test.describe("Doctor lunch/break time", () => {
   test.beforeEach(({}, testInfo) => {
@@ -37,7 +38,9 @@ test.describe("Doctor lunch/break time", () => {
     const admin = createClient(supabaseUrl, supabaseServiceRole);
     const { authUserId } = await signInDoctorAndSetCookies(page, supabase);
 
-    const { data: doctorRow } = await supabase
+    // Service role: with a cached session the sign-in helper never signs in the client it's given,
+    // and an anonymous read can't match on auth_user_id.
+    const { data: doctorRow } = await admin
       .from("professionals")
       .select("id, slug")
       .eq("auth_user_id", authUserId)
@@ -61,6 +64,10 @@ test.describe("Doctor lunch/break time", () => {
       .eq("is_primary", true);
     expect(upsertErr).toBeNull();
 
+    // Signed in, her own profile shows no calendar (she can't book herself, user 2026-10-06):
+    // look as a patient.
+    await page.context().clearCookies();
+
     // Go to doctor profile and verify no slots are shown in 14:00–16:00
     await page.goto(`/${slug}`);
 
@@ -73,12 +80,7 @@ test.describe("Doctor lunch/break time", () => {
       page.getByText("Select a date on the calendar")
     ).toBeVisible({ timeout: 10000 });
 
-    const calendar = page.locator(".rdp-dark");
-    const firstAvailableDay = calendar
-      .locator("table button:not([disabled])")
-      .first();
-    await expect(firstAvailableDay).toBeVisible({ timeout: 5000 });
-    await firstAvailableDay.click();
+    await pickFirstAvailableBookingDay(page, { doctorHint: slug ?? undefined });
 
     // Wait for slots to load
     const selectButtons = page.getByRole("button", { name: /Select/i });

@@ -7,6 +7,9 @@ type Props = {
   clinics: readonly AgendaClinic[];
   hiddenIds: ReadonlySet<string>;
   onToggle: (clinicId: string) => void;
+  /** "chips": compact toggles in the toolbar. "list": checkboxes in the sidebar. */
+  variant?: "chips" | "list";
+  className?: string;
 };
 
 function formatClinicList(names: readonly string[]): string {
@@ -36,13 +39,68 @@ export function agendaClinicVisibilityMessage(
   };
 }
 
-export function AgendaClinicCalendars({ clinics, hiddenIds, onToggle }: Props) {
+export function AgendaClinicCalendars({
+  clinics,
+  hiddenIds,
+  onToggle,
+  variant = "chips",
+  className = "",
+}: Props) {
   if (clinics.length <= 1) return null;
 
   const status = agendaClinicVisibilityMessage(clinics, hiddenIds);
 
+  if (variant === "list") {
+    return (
+      <div className={`space-y-1 ${className}`} data-testid="agenda-clinic-calendars">
+        <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+          My calendars
+        </p>
+        {clinics.map((clinic, index) => {
+          const visible = !hiddenIds.has(clinic.id);
+          const color = agendaClinicEventColor(index);
+          return (
+            <label
+              key={clinic.id}
+              className="flex cursor-pointer items-center gap-2.5 rounded-lg px-1 py-1.5 text-sm text-slate-200 transition hover:bg-slate-800/70"
+            >
+              <input
+                type="checkbox"
+                checked={visible}
+                onChange={() => onToggle(clinic.id)}
+                className="peer sr-only"
+              />
+              <span
+                className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-[4px] peer-focus-visible:ring-2 peer-focus-visible:ring-clinical-400/70 ${
+                  visible ? color.swatch : `border-2 bg-transparent ${color.empty}`
+                }`}
+                aria-hidden
+              >
+                {visible ? (
+                  <svg viewBox="0 0 12 12" className="h-3 w-3 text-ink-900" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M2.5 6.5l2.2 2L9.5 3.5" />
+                  </svg>
+                ) : null}
+              </span>
+              <span className="min-w-0 truncate">{clinic.name}</span>
+            </label>
+          );
+        })}
+        {status?.tone === "empty" ? (
+          <p
+            role="status"
+            data-testid="agenda-clinic-visibility"
+            className="mt-2 rounded-lg border border-amber-400/55 bg-amber-500/20 px-3 py-2 text-xs font-semibold leading-snug text-amber-50"
+          >
+            {status.text}
+          </p>
+        ) : null}
+      </div>
+    );
+  }
+
   return (
-    <div className="mt-2 space-y-2" data-testid="agenda-clinic-calendars">
+    <div className={`mt-2 space-y-2 ${className}`} data-testid="agenda-clinic-calendars">
       <div
         className="flex flex-wrap items-center gap-1.5"
         role="group"

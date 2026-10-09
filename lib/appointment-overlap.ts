@@ -28,7 +28,7 @@ export function normalizeBlockingStatus(raw: unknown): string {
   return s;
 }
 
-function coerceProposedSlotsArray(raw: unknown): unknown[] {
+export function coerceProposedSlotsArray(raw: unknown): unknown[] {
   if (Array.isArray(raw)) return raw;
   if (typeof raw === "string") {
     try {

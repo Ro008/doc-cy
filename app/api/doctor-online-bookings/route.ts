@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 import { loadDoctorLocations, primaryDoctorLocation } from "@/lib/load-doctor-locations";
 import { writeClinicSettings } from "@/lib/professional-clinic-settings-writes";
+import { resumeOnlineBookingsPermission } from "@/lib/booking-permission";
 
 export async function GET() {
   const supabase = createRouteHandlerClient({ cookies });
@@ -73,7 +74,7 @@ export async function POST(req: NextRequest) {
 
   const { data: doctor, error: doctorErr } = await supabase
     .from("professionals")
-    .select("id")
+    .select("id, is_registered, pro_access_until")
     .eq("auth_user_id", user.id)
     .maybeSingle();
 
@@ -85,6 +86,23 @@ export async function POST(req: NextRequest) {
   }
   if (!doctor) {
     return NextResponse.json({ message: "Forbidden." }, { status: 403 });
+  }
+
+  // Pausing is always allowed; switching bookings back on needs live access (user, 2026-10-02).
+  if (!nextPaused) {
+    const permission = resumeOnlineBookingsPermission({
+      isRegistered: Boolean((doctor as { is_registered?: boolean }).is_registered),
+      proAccessUntil: (doctor as { pro_access_until?: string | null }).pro_access_until ?? null,
+    });
+    if (!permission.allowed) {
+      return NextResponse.json(
+        {
+          message: "Your DocCy access has ended, so online bookings can't be switched on.",
+          code: permission.reason,
+        },
+        { status: 403 },
+      );
+    }
   }
 
   const locations = await loadDoctorLocations(doctor.id);

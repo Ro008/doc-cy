@@ -6,6 +6,7 @@ import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
 
 import { createServiceRoleClient } from "@/lib/supabase-service";
 import { BookingSection } from "@/components/doctor/BookingSection";
+import { ProfessionalBookingNotice } from "@/components/doctor/ProfessionalBookingNotice";
 import { DoctorDetailsAccordion } from "@/components/doctor/DoctorDetailsAccordion";
 import { LanguagesSpoken } from "@/components/doctor/LanguagesSpoken";
 import { WhatToExpectCard } from "@/components/doctor/WhatToExpectCard";
@@ -20,6 +21,8 @@ import {
   locationToSettingsRow,
 } from "@/lib/doctor-locations";
 import { parseBookingLocationParam, parseBookingSlotParam } from "@/lib/booking-slot-param";
+import { bookingViewerMode, loadBookingAccountKind } from "@/lib/booking-viewer";
+import { hasProAccess } from "@/lib/pro-access";
 import { loadProfessionalAccountSettings } from "@/lib/professional-account-settings";
 import {
   OCCUPIED_BATCH_RPC,
@@ -592,18 +595,27 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
       .maybeSingle();
     isOwnerView = ownerDoctor?.auth_user_id === user.id;
   }
+  // A signed-in professional (or applicant) sees a note instead of the calendar
+  // (user, 2026-10-06); POST /api/appointments refuses them too.
+  const viewerMode = bookingViewerMode(
+    user?.id ? await loadBookingAccountKind(supabase, user.id).catch(() => null) : null,
+    isOwnerView,
+  );
   const clinicAddress = stripPlusCodePrefix((profile.clinic_address ?? "").trim());
   const mapsUrl = buildMapsUrlFromAddress(clinicAddress) ?? "";
   let avatarUrl: string | null = null;
+  let accessEnded = false;
   const contactLookup = await supabase
     .from("professionals")
-    .select("avatar_url")
+    .select("avatar_url, pro_access_until")
     .eq("is_registered", true)
     .eq("is_archived", false)
     .eq("id", profile.id)
     .maybeSingle();
   if (!contactLookup.error && contactLookup.data) {
-    const contact = contactLookup.data as { avatar_url?: string | null };
+    const contact = contactLookup.data as { avatar_url?: string | null; pro_access_until?: string | null };
+    // Access ended: no online booking (the booking routes refuse too); user, 2026-10-02.
+    accessEnded = !hasProAccess(contact.pro_access_until);
     const avatarPath = String(contact.avatar_url ?? "").trim();
     if (avatarPath) {
       avatarUrl = resolvePublicAvatarUrl(supabase, avatarPath);
@@ -683,6 +695,7 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
   ).toISOString();
 
   // Slot starts covered by visits (forward + backward vs slot_duration_minutes); must match POST /api/appointments.
+  // No p_location_id: one professional, one agenda, so a visit in any clinic blocks the time.
   const { data: occupiedRows, error: occupiedErr } = await supabase.rpc(
     OCCUPIED_BATCH_RPC,
     {
@@ -698,7 +711,7 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
 
   const takenSlotTimes: string[] = takenSlotTimesFor(
     (occupiedRows ?? []) as OccupiedRow[],
-    { professionalId: profile.id, locationId: selectedLocation?.id ?? null, toIso },
+    { professionalId: profile.id, toIso },
   );
 
   const { data: serviceRows, error: servicesErr } = await supabase
@@ -769,14 +782,9 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
       </div>
 
       <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8 lg:py-14">
-        {isOwnerView ? (
-          <div className="mb-6 rounded-2xl border border-clinical-200 bg-clinical-50 px-4 py-3 text-sm text-clinical-800">
-            You are viewing your public profile.{" "}
-            <a href="/agenda/settings" className="font-semibold underline underline-offset-2">
-              Edit Profile
-            </a>{" "}
-          </div>
-        ) : null}
+        {/* No "You are viewing your public profile" banner: the account menu now links to
+            Settings here, and the booking box says "This is how patients see your profile"
+            (user, 2026-10-08). */}
         <header className="mb-8 flex flex-col gap-4 sm:gap-6">
           <div className="flex items-center justify-between gap-3">
             <span className="text-xs font-semibold tracking-[0.16em] text-ink-500">
@@ -860,82 +868,89 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
                   district: row.district,
                   clinic_address: row.clinic_address,
                   town: row.town,
-                  pause_online_bookings: Boolean(row.pause_online_bookings),
+                  pause_online_bookings: accessEnded || Boolean(row.pause_online_bookings),
                 }))}
               />
             ) : null}
-            <BookingSection
-              doctorId={profile.id}
-              doctorName={profile.name}
-              weeklySlots={weeklySlots}
-              takenSlotTimes={takenSlotTimes}
-              profileSlug={params.slug}
-              locationId={selectedLocation?.id ?? null}
-              locationLabel={
-                practiceLocations.length > 1 && selectedLocation
-                  ? clinicTitleOrFallback(
-                      selectedLocation.label,
-                      bookingT("clinicNumber", {
-                        number:
-                          Math.max(
-                            0,
-                            practiceLocations.findIndex((row) => row.id === selectedLocation.id),
-                          ) + 1,
-                      }),
+            {viewerMode !== "patient" ? (
+              <ProfessionalBookingNotice mode={viewerMode} />
+            ) : (
+              <div data-testid="booking-section">
+                <BookingSection
+                  doctorId={profile.id}
+                  doctorName={profile.name}
+                  weeklySlots={weeklySlots}
+                  takenSlotTimes={takenSlotTimes}
+                  profileSlug={params.slug}
+                  locationId={selectedLocation?.id ?? null}
+                  locationLabel={
+                    practiceLocations.length > 1 && selectedLocation
+                      ? clinicTitleOrFallback(
+                          selectedLocation.label,
+                          bookingT("clinicNumber", {
+                            number:
+                              Math.max(
+                                0,
+                                practiceLocations.findIndex((row) => row.id === selectedLocation.id),
+                              ) + 1,
+                          }),
+                        )
+                      : null
+                  }
+                  locationScopedPause={practiceLocations.length > 1}
+                  initialSlotKey={
+                    parseBookingSlotParam(
+                      Array.isArray(searchParams?.slot)
+                        ? searchParams?.slot[0]
+                        : searchParams?.slot,
                     )
-                  : null
-              }
-              locationScopedPause={practiceLocations.length > 1}
-              initialSlotKey={
-                parseBookingSlotParam(
-                  Array.isArray(searchParams?.slot)
-                    ? searchParams?.slot[0]
-                    : searchParams?.slot,
-                )
-              }
-              breakStart={breakStart ? breakStart.slice(0, 5) : undefined}
-              breakEnd={breakEnd ? breakEnd.slice(0, 5) : undefined}
-              publicPhoneAvailable={hasPublicPhone}
-              onlineBookingsPaused={
-                // No clinic, no schedule: nothing to book online.
-                !locationSettings || Boolean(locationSettings.pause_online_bookings)
-              }
-              holidayModeEnabled={Boolean(
-                (
-                  normalizedSettings as {
-                    holiday_mode_enabled?: boolean | null;
-                  } | null
-                )?.holiday_mode_enabled,
-              )}
-              holidayStartDate={
-                (
-                  normalizedSettings as {
-                    holiday_start_date?: string | null;
-                  } | null
-                )?.holiday_start_date ?? null
-              }
-              holidayEndDate={
-                (
-                  normalizedSettings as {
-                    holiday_end_date?: string | null;
-                  } | null
-                )?.holiday_end_date ?? null
-              }
-              bookingHorizonDays={
-                (
-                  normalizedSettings as {
-                    booking_horizon_days?: number | null;
-                  } | null
-                )?.booking_horizon_days ?? 90
-              }
-              minimumNoticeHours={
-                (
-                  normalizedSettings as {
-                    minimum_notice_hours?: number | null;
-                  } | null
-                )?.minimum_notice_hours ?? 2
-              }
-            />
+                  }
+                  breakStart={breakStart ? breakStart.slice(0, 5) : undefined}
+                  breakEnd={breakEnd ? breakEnd.slice(0, 5) : undefined}
+                  publicPhoneAvailable={hasPublicPhone}
+                  onlineBookingsUnavailable={accessEnded}
+                  onlineBookingsPaused={
+                    // No clinic, no schedule: nothing to book online.
+                    !locationSettings || Boolean(locationSettings.pause_online_bookings)
+                  }
+                  holidayModeEnabled={Boolean(
+                    (
+                      normalizedSettings as {
+                        holiday_mode_enabled?: boolean | null;
+                      } | null
+                    )?.holiday_mode_enabled,
+                  )}
+                  holidayStartDate={
+                    (
+                      normalizedSettings as {
+                        holiday_start_date?: string | null;
+                      } | null
+                    )?.holiday_start_date ?? null
+                  }
+                  holidayEndDate={
+                    (
+                      normalizedSettings as {
+                        holiday_end_date?: string | null;
+                      } | null
+                    )?.holiday_end_date ?? null
+                  }
+                  bookingHorizonDays={
+                    (
+                      normalizedSettings as {
+                        booking_horizon_days?: number | null;
+                      } | null
+                    )?.booking_horizon_days ?? 90
+                  }
+                  minimumNoticeHours={
+                    (
+                      normalizedSettings as {
+                        minimum_notice_hours?: number | null;
+                      } | null
+                    )?.minimum_notice_hours ?? 2
+                  }
+                />
+              </div>
+            )}
           </section>
 
           {/* What to expect: outside About accordion so it stays visible on mobile */}

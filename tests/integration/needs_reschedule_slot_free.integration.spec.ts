@@ -8,6 +8,7 @@ import { createClient } from "@supabase/supabase-js";
 import { zonedTimeToUtc } from "date-fns-tz";
 
 import { CY_TZ } from "@/lib/appointments";
+import { submitAndConfirmOnlineBooking } from "./helpers/online-booking";
 
 function nextWeekdayDateKey(daysAhead = 1): string {
   const d = new Date();
@@ -95,7 +96,7 @@ test.describe("Integration: NEEDS_RESCHEDULE frees original slot", { tag: ["@pr-
       doctorId = doctorInsert.data.id as string;
       await seedProfessionalSpecialty(admin, doctorId, {
         specialty: "General Practice",
-        licenseNumber: `LIC-NR-${nonce}`,
+        licenseNumber: `LIC-NR-${nonce}`,
       });
 
       const settingsUpsert = await admin.from("professional_settings").upsert(
@@ -136,8 +137,6 @@ test.describe("Integration: NEEDS_RESCHEDULE frees original slot", { tag: ["@pr-
           status: "NEEDS_RESCHEDULE",
           duration_minutes: 30,
           reason: "Integration NEEDS_RESCHEDULE fixture",
-          visit_type: null,
-          visit_notes: null,
           proposed_slots: [proposedIso],
           proposal_expires_at: new Date(
             Date.now() + 24 * 60 * 60 * 1000,
@@ -153,21 +152,19 @@ test.describe("Integration: NEEDS_RESCHEDULE frees original slot", { tag: ["@pr-
       }
       fixtureAppointmentId = String(counterAppt.data.id);
 
-      const bookOriginalRes = await request.post("/api/appointments", {
-        data: {
-          doctorId,
-          patientName: `New patient ${nonce}`,
-          patientEmail: `new-${nonce}@integration.test`,
-          patientPhone: "99123456",
-          appointmentLocal: originalLocal,
-          isNewPatient: true,
-          reason: "Integration — book slot freed by NEEDS_RESCHEDULE semantics.",
-        },
+      const booked = await submitAndConfirmOnlineBooking(request, admin, {
+        doctorId,
+        patientName: `New patient ${nonce}`,
+        patientEmail: `new-${nonce}@integration.test`,
+        patientPhone: "99123456",
+        appointmentLocal: originalLocal,
+        isNewPatient: true,
+        reason: "Integration — book slot freed by NEEDS_RESCHEDULE semantics.",
       });
 
-      expect(bookOriginalRes.status()).toBe(201);
-      const json = await bookOriginalRes.json();
-      const newId = String(json?.appointment?.id ?? "");
+      expect(booked.submitStatus, booked.submitBody).toBe(202);
+      expect(booked.confirmStatus).toBe(200);
+      const newId = String(booked.appointmentId ?? "");
       expect(newId).not.toBe("");
       expect(newId).not.toBe(fixtureAppointmentId);
 

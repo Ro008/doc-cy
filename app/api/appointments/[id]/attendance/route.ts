@@ -3,12 +3,17 @@ import { cookies } from "next/headers";
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 import {
   APPOINTMENT_ATTENDANCE_NO_SHOW,
+  attendanceChangeRefusal,
   parseAttendanceFromBody,
 } from "@/lib/appointment-attendance";
-import { isVisitSlotEnded } from "@/lib/appointments";
+import { createServiceRoleClient } from "@/lib/supabase-service";
 
 type RouteContext = { params: { id: string } };
 
+/**
+ * She switches a past confirmed visit between attended and no-show (user, 2026-10-04),
+ * until the review email has gone out. The scheduled job sets `attended` on its own.
+ */
 export async function PATCH(req: NextRequest, { params }: RouteContext) {
   const id = params.id;
   if (!id) {
@@ -27,7 +32,7 @@ export async function PATCH(req: NextRequest, { params }: RouteContext) {
   );
   if (attendance === "invalid") {
     return NextResponse.json(
-      { message: "Invalid attendance. Allowed: no_show or null to clear." },
+      { message: "Invalid attendance. Allowed: attended or no_show." },
       { status: 400 },
     );
   }
@@ -51,9 +56,14 @@ export async function PATCH(req: NextRequest, { params }: RouteContext) {
     return NextResponse.json({ message: "Forbidden." }, { status: 403 });
   }
 
-  const { data: appt, error: apptErr } = await supabase
+  const service = createServiceRoleClient();
+  if (!service) {
+    return NextResponse.json({ message: "Server configuration error." }, { status: 500 });
+  }
+
+  const { data: appt, error: apptErr } = await service
     .from("appointments")
-    .select("id, professional_id, status, appointment_datetime, duration_minutes")
+    .select("id, professional_id, status, appointment_datetime, duration_minutes, review_requested_at")
     .eq("id", id)
     .maybeSingle();
 
@@ -65,38 +75,29 @@ export async function PATCH(req: NextRequest, { params }: RouteContext) {
     return NextResponse.json({ message: "Forbidden." }, { status: 403 });
   }
 
-  const statusUpper = String(appt.status ?? "").toUpperCase();
-  if (statusUpper !== "CONFIRMED") {
+  const refusal = attendanceChangeRefusal({
+    status: appt.status as string | null,
+    appointmentIso: String(appt.appointment_datetime),
+    durationMinutes: appt.duration_minutes as number | null,
+    reviewRequestedAt: appt.review_requested_at as string | null,
+    now: new Date(),
+  });
+  if (refusal) {
     return NextResponse.json(
-      { message: "Only confirmed visits can be marked for attendance." },
-      { status: 400 },
+      { message: refusal.message, code: refusal.code },
+      { status: refusal.code === "review_sent" ? 409 : 400 },
     );
   }
 
-  const durationMinutes =
-    typeof appt.duration_minutes === "number" && appt.duration_minutes > 0
-      ? appt.duration_minutes
-      : 30;
-
-  if (
-    !isVisitSlotEnded(
-      String(appt.appointment_datetime),
-      durationMinutes,
-    )
-  ) {
-    return NextResponse.json(
-      { message: "Attendance can only be set after the visit time has passed." },
-      { status: 400 },
-    );
-  }
-
-  const { error: updateErr } = await supabase
+  // Guarded: still confirmed and the review email not sent in the meantime.
+  const { data: updated, error: updateErr } = await service
     .from("appointments")
-    .update({
-      attendance: attendance === APPOINTMENT_ATTENDANCE_NO_SHOW ? attendance : null,
-    })
+    .update({ attendance })
     .eq("id", id)
-    .eq("professional_id", doctor.id);
+    .eq("professional_id", doctor.id)
+    .eq("status", "CONFIRMED")
+    .is("review_requested_at", null)
+    .select("id");
 
   if (updateErr) {
     console.error("[DocCy] attendance update failed", updateErr);
@@ -105,12 +106,18 @@ export async function PATCH(req: NextRequest, { params }: RouteContext) {
       { status: 500 },
     );
   }
+  if (!updated?.length) {
+    return NextResponse.json(
+      { message: "This visit changed in the meantime. Please reload.", code: "conflict" },
+      { status: 409 },
+    );
+  }
 
   return NextResponse.json({
     message:
       attendance === APPOINTMENT_ATTENDANCE_NO_SHOW
         ? "Marked as no-show."
-        : "No-show marking removed.",
+        : "Marked as attended.",
     attendance,
   });
 }

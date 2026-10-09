@@ -11,6 +11,7 @@ import {
   EMAIL_SHELL_OPEN,
   EMAIL_TEXT,
   EMAIL_TEXT_MUTED,
+  emailFallbackLink,
 } from "@/lib/email-brand";
 import { isUndeliverableTestEmail } from "@/lib/registration-decision-emails";
 
@@ -49,7 +50,7 @@ ${EMAIL_SHELL_OPEN}
     <p style="margin:0 0 10px;font-size:13px;line-height:1.5;color:${EMAIL_TEXT_MUTED};">
       The link and the code last 1 hour and work once. If you didn't try to sign in, someone may know your password: change your password.
     </p>
-    <p style="margin:0;font-size:13px;line-height:1.5;color:${EMAIL_TEXT_MUTED};">If the button does not work, copy this link: ${escapeHtml(signInUrl)}</p>
+    <p style="margin:0;font-size:13px;line-height:1.5;color:${EMAIL_TEXT_MUTED};">If the button does not work, copy this link: ${emailFallbackLink(signInUrl)}</p>
     ${automatedEmailFooterHtml()}
 ${EMAIL_SHELL_CLOSE}`;
 

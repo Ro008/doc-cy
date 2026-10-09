@@ -21,8 +21,13 @@ export const DOCTOR_LOCATION_SELECT =
   "id, doctor_id, is_primary, sort_order, label, district, clinic_address, town, latitude, longitude, clinic_place_id, pause_online_bookings, monday, tuesday, wednesday, thursday, friday, saturday, sunday, start_time, end_time, weekly_schedule, break_start, break_end, slot_duration_minutes, created_at, updated_at";
 
 export type DoctorLocationRow = {
+  /** The professional_clinics (join row) id. */
   id: string;
   doctor_id: string;
+  /** The clinic itself (`clinics.id`): what `appointments.clinic_id` stores. */
+  clinic_id?: string | null;
+  /** `clinics.name`: what every screen shows (never the join-row label). */
+  clinic_name?: string | null;
   is_primary: boolean;
   sort_order: number;
   label: string | null;
@@ -32,7 +37,11 @@ export type DoctorLocationRow = {
   latitude: number | null;
   longitude: number | null;
   clinic_place_id: string | null;
+  /** `clinics.address_maps_link`: the clinic's own Maps pin. */
+  clinic_maps_link?: string | null;
   pause_online_bookings: boolean;
+  /** She closed the dashboard's paused line; cleared when the pause changes. */
+  pause_notice_dismissed_at?: string | null;
   monday: boolean;
   tuesday: boolean;
   wednesday: boolean;
@@ -116,12 +125,12 @@ export const WORKPLACE_ACCENTS = [
   },
   {
     tabSelected:
-      "relative z-10 -mb-[2px] rounded-t-xl border-2 border-b-0 border-amber-400 bg-amber-500/10 px-4 py-2.5 text-xs font-semibold text-amber-50",
+      "relative z-10 -mb-[2px] rounded-t-xl border-2 border-b-0 border-emerald-400 bg-emerald-500/10 px-4 py-2.5 text-xs font-semibold text-emerald-50",
     tabIdle:
-      "rounded-t-lg border border-b-0 border-amber-400/35 bg-slate-950/70 px-4 py-2 text-xs font-medium text-slate-400 hover:text-amber-100",
-    frame: "border-amber-400 bg-amber-500/10",
-    tint: "bg-amber-400",
-    title: "text-amber-200",
+      "rounded-t-lg border border-b-0 border-emerald-400/35 bg-slate-950/70 px-4 py-2 text-xs font-medium text-slate-400 hover:text-emerald-100",
+    frame: "border-emerald-400 bg-emerald-500/10",
+    tint: "bg-emerald-400",
+    title: "text-emerald-200",
   },
   {
     tabSelected:
@@ -165,11 +174,11 @@ export const PROFILE_CLINIC_ACCENTS = [
     cta: "text-violet-800",
   },
   {
-    selected: "border-amber-500 bg-amber-50 ring-2 ring-amber-400/80",
-    idle: "border-ink-200 bg-white hover:border-amber-400 hover:bg-amber-50/60",
-    number: "bg-amber-500 text-white",
+    selected: "border-emerald-500 bg-emerald-50 ring-2 ring-emerald-400/80",
+    idle: "border-ink-200 bg-white hover:border-emerald-400 hover:bg-emerald-50/60",
+    number: "bg-emerald-500 text-white",
     numberIdle: "bg-ink-100 text-ink-700",
-    cta: "text-amber-900",
+    cta: "text-emerald-900",
   },
   {
     selected: "border-sky-500 bg-sky-50 ring-2 ring-sky-400/80",
@@ -203,8 +212,8 @@ export const AGENDA_CLINIC_EVENT_COLORS = [
     empty: "border-violet-400",
   },
   {
-    swatch: "bg-amber-400",
-    empty: "border-amber-400",
+    swatch: "bg-emerald-400",
+    empty: "border-emerald-400",
   },
   {
     swatch: "bg-sky-400",

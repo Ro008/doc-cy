@@ -22,7 +22,9 @@ test.describe("Doctor action feedback toasts", () => {
     const admin = createClient(supabaseUrl, serviceKey);
 
     const { authUserId } = await signInDoctorAndSetCookies(page, anon);
-    const { data: doctorRow } = await anon
+    // Service role: with a cached session the sign-in helper never signs in the client it's given,
+    // and an anonymous read can't match on auth_user_id.
+    const { data: doctorRow } = await admin
       .from("professionals")
       .select("id")
       .eq("auth_user_id", authUserId)
@@ -40,13 +42,11 @@ test.describe("Doctor action feedback toasts", () => {
       .insert({
         professional_id: doctorId,
         patient_name: `Toast Confirm ${nonce}`,
-        patient_email: `toast.confirm.${nonce}@example.com`,
+        patient_email: `toast.confirm.${nonce}@integration.test`,
         patient_phone: "+35799123456",
         appointment_datetime: appointmentUtc.toISOString(),
         status: "REQUESTED",
         reason: "E2E verify success toast on confirm",
-        visit_type: null,
-        visit_notes: null,
       })
       .select("id")
       .single();
@@ -68,11 +68,10 @@ test.describe("Doctor action feedback toasts", () => {
       );
 
       await page.goto(`/dashboard/appointments/${appointmentId}`);
-      await expect(
-        page.getByRole("button", { name: /Confirm appointment/i }),
-      ).toBeVisible({ timeout: 15_000 });
-
-      await page.getByRole("button", { name: /Confirm appointment/i }).click();
+      // "Confirm Wed 10 Apr, 10:00–10:30"
+      const confirmBtn = page.getByRole("button", { name: /^Confirm (Mon|Tue|Wed|Thu|Fri|Sat|Sun) /i });
+      await expect(confirmBtn).toBeEnabled({ timeout: 15_000 });
+      await confirmBtn.click();
 
       await expect(page).toHaveURL(
         new RegExp(
@@ -81,9 +80,7 @@ test.describe("Doctor action feedback toasts", () => {
         { timeout: 15_000 },
       );
       await expect(
-        page.getByText(
-          /Confirmed in DocCy\. Manage all updates in DocCy in a few clicks/i,
-        ),
+        page.getByText(/The visit is in your agenda and the patient has been emailed/i),
       ).toBeVisible({ timeout: 12_000 });
     } finally {
       if (appointmentId) {

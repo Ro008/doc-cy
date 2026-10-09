@@ -69,6 +69,10 @@ export function findFirstAlternativeSlotStarts(opts: {
   searchFromAppointmentIso: string;
   avoidStartIso?: string | null;
   nowUtc?: Date;
+  /** How many times to return (default 3: the picker's pre-filled suggestion). */
+  limit?: number;
+  /** Only this Cyprus day (YYYY-MM-DD), from its first slot: every free time to choose from. */
+  onlyDateKey?: string | null;
 }): string[] {
   const {
     settings,
@@ -80,6 +84,8 @@ export function findFirstAlternativeSlotStarts(opts: {
     searchFromAppointmentIso,
     avoidStartIso,
     nowUtc = new Date(),
+    limit = ALTERNATIVE_SLOT_COUNT,
+    onlyDateKey = null,
   } = opts;
 
   const breakStart = settings.break_start?.slice(0, 5);
@@ -103,8 +109,9 @@ export function findFirstAlternativeSlotStarts(opts: {
   );
 
   const anchorUtc = new Date(searchFromAppointmentIso);
-  const firstYmd = formatInTimeZone(anchorUtc, CY_TZ, "yyyy-MM-dd");
-  const anchorTimeStr = formatInTimeZone(anchorUtc, CY_TZ, "HH:mm");
+  const firstYmd = onlyDateKey ?? formatInTimeZone(anchorUtc, CY_TZ, "yyyy-MM-dd");
+  const anchorTimeStr = onlyDateKey ? "00:00" : formatInTimeZone(anchorUtc, CY_TZ, "HH:mm");
+  const lastOffset = onlyDateKey ? 0 : horizonDays;
 
   const holidayActive =
     Boolean(settings.holiday_mode_enabled) &&
@@ -119,7 +126,7 @@ export function findFirstAlternativeSlotStarts(opts: {
 
   for (
     let offset = 0;
-    offset <= horizonDays && found.length < ALTERNATIVE_SLOT_COUNT;
+    offset <= lastOffset && found.length < limit;
     offset++
   ) {
     const dayCyprusKey = addCalendarDaysCyprus(firstYmd, offset);
@@ -132,13 +139,13 @@ export function findFirstAlternativeSlotStarts(opts: {
     const daySlots = weeklySlots.filter((s) => s.day_of_week === dayOfWeek);
 
     for (const s of daySlots) {
-      if (found.length >= ALTERNATIVE_SLOT_COUNT) break;
+      if (found.length >= limit) break;
       const [startHour, startMinute] = s.start_time.split(":").map(Number);
       const [endHour, endMinute] = s.end_time.split(":").map(Number);
       let cursorMinutes = (startHour ?? 0) * 60 + (startMinute ?? 0);
       const endMinutes = (endHour ?? 0) * 60 + (endMinute ?? 0);
 
-      while (cursorMinutes < endMinutes && found.length < ALTERNATIVE_SLOT_COUNT) {
+      while (cursorMinutes < endMinutes && found.length < limit) {
         const slotHour = Math.floor(cursorMinutes / 60)
           .toString()
           .padStart(2, "0");

@@ -18,6 +18,7 @@ import {
   PASSWORD_POLICY_HELPER,
   isStrongPassword,
 } from "@/lib/password-policy";
+import { PasswordToggleInput } from "@/components/auth/PasswordToggleInput";
 
 type Step = AdminSignInStep["step"] | "loading";
 
@@ -41,6 +42,10 @@ const inputClass =
 const buttonClass =
   "w-full rounded-xl bg-clinical-500 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-clinical-400 disabled:opacity-50";
 const labelClass = "block text-xs font-medium text-slate-300";
+
+/** A reset link that was already used, has expired, or was opened in another browser. */
+const RESET_LINK_FAILED =
+  "This link didn't work here. Links work once, for a limited time, and only in the browser where you asked for them. Use “Forgot your password?” below to get a new one, and open it in this browser.";
 
 export function AdminSignIn() {
   const searchParams = useSearchParams();
@@ -161,9 +166,18 @@ export function AdminSignIn() {
         if (sessionError) setError("This link didn't work. Ask a founder for a new invite.");
         else if (hash.type === "recovery") mustSetPassword.current = true;
       } else if (searchParams.get("reset") === "1") {
-        // Password-reset link (PKCE): the client exchanged the code on load.
+        // Password-reset link (PKCE): the client exchanged the code on load. That only works
+        // in the browser that asked for the link (it keeps the PKCE verifier), and only once.
         const { data } = await supabase.auth.getSession();
         if (data.session) mustSetPassword.current = true;
+        else setError(RESET_LINK_FAILED);
+      } else if (searchParams.get("error_code") || searchParams.get("error")) {
+        // Supabase also reports a dead link in the query string.
+        setError(
+          searchParams.get("error_code") === "otp_expired"
+            ? RESET_LINK_FAILED
+            : searchParams.get("error_description") || "This link didn't work.",
+        );
       }
       // An invited admin chooses a password before anything else, even after a
       // reload (the invite link only works once).
@@ -332,13 +346,13 @@ export function AdminSignIn() {
                 <label htmlFor="admin-password" className={labelClass}>
                   Password
                 </label>
-                <input
+                <PasswordToggleInput
                   id="admin-password"
-                  type="password"
+                  name="password"
                   autoComplete="current-password"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className={inputClass}
+                  onChange={setPassword}
+                  inputClassName={inputClass}
                   required
                 />
               </div>
@@ -366,15 +380,15 @@ export function AdminSignIn() {
                 <label htmlFor="admin-new-password" className={labelClass}>
                   New password
                 </label>
-                <input
+                <PasswordToggleInput
                   id="admin-new-password"
-                  type="password"
+                  name="new-password"
                   autoComplete="new-password"
                   minLength={PASSWORD_MIN_LENGTH}
                   maxLength={PASSWORD_MAX_LENGTH}
                   value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  className={inputClass}
+                  onChange={setNewPassword}
+                  inputClassName={inputClass}
                   required
                 />
               </div>
@@ -382,14 +396,14 @@ export function AdminSignIn() {
                 <label htmlFor="admin-confirm-password" className={labelClass}>
                   Confirm password
                 </label>
-                <input
+                <PasswordToggleInput
                   id="admin-confirm-password"
-                  type="password"
+                  name="confirm-password"
                   autoComplete="new-password"
                   maxLength={PASSWORD_MAX_LENGTH}
                   value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  className={inputClass}
+                  onChange={setConfirmPassword}
+                  inputClassName={inputClass}
                   required
                 />
               </div>

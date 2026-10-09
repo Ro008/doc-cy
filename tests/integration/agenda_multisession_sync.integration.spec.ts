@@ -131,14 +131,15 @@ test.describe("Agenda multi-session sync", { tag: "@pr-email" }, () => {
         .poll(
           async () => {
             await mobileCard.click();
-            const hasReschedule = await mobile
-              .getByRole("button", { name: /Reschedule appointment/i })
+            // A confirmed visit can only be cancelled (no reschedule since 2026-10-04).
+            const hasCancel = await mobile
+              .getByRole("button", { name: /Cancel appointment/i })
               .count();
             await mobile
               .getByRole("button", { name: "Close", exact: true })
               .first()
               .click();
-            return hasReschedule;
+            return hasCancel;
           },
           { timeout: 30_000, intervals: [1000, 2000, 3000] },
         )

@@ -3,7 +3,6 @@ import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
 
-import { SignOutButton } from "@/components/auth/SignOutButton";
 import { SignOutOnMount } from "@/components/auth/SignOutOnMount";
 import { DocCyWordmark } from "@/components/brand/DocCyWordmark";
 import { WithdrawApplicationButton } from "@/components/register/WithdrawApplicationButton";
@@ -66,12 +65,14 @@ export default async function RegistrationStatusPage() {
   const signOutNow = status.kind === "none" && !isAdmin;
 
   return (
-    <main className="min-h-screen bg-ink-900 text-slate-50">
-      <div className="mx-auto flex min-h-screen max-w-xl flex-col gap-8 px-4 py-10">
-        <header className="flex items-center justify-between">
+    <main className="flex min-h-screen flex-col bg-ink-900 text-slate-50">
+      <div className="mx-auto flex w-full max-w-xl flex-1 flex-col gap-8 px-4 py-10">
+        {/* Log out lives in the account menu (desktop) and the bottom bar (phone), and the
+            desktop header has the logo: no second copy here (user, 2026-10-08). */}
+        <header className="lg:hidden">
           <DocCyWordmark size="lg" />
-          {signOutNow ? <SignOutOnMount /> : <SignOutButton />}
         </header>
+        {signOutNow ? <SignOutOnMount /> : null}
 
         <section className="space-y-4 rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
           {status.kind === "confirm_email" ? (

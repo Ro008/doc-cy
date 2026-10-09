@@ -44,6 +44,8 @@ export function clearProSessionHintCookie(): void {
 export const PRO_CHROME_BOOT_ATTR = "data-doccy-pro-chrome";
 export const PRO_CHROME_AGENDA_ATTR = "data-doccy-pro-chrome-agenda";
 export const PRO_CHROME_HYDRATED_ATTR = "data-doccy-pro-chrome-hydrated";
+/** Set on <html> while the mobile More menu is open (the install banner hides). */
+export const PRO_MOBILE_MORE_OPEN_ATTR = "data-doccy-mobile-more-open";
 export const PRO_CHROME_BOOT_TABS_ID = "doccy-pro-mobile-tabs-boot";
 export const PRO_CHROME_BOOT_AVATAR_ID = "doccy-pro-desktop-avatar-boot";
 export const PRO_CHROME_BOOT_STICKY_ID = "doccy-pro-sticky-header-boot";
@@ -53,5 +55,5 @@ export function proChromeBootInlineScript(): string {
   const cookieEq = JSON.stringify(`${PRO_SESSION_HINT_COOKIE}=${PRO_SESSION_HINT_VALUE}`);
   const attr = JSON.stringify(PRO_CHROME_BOOT_ATTR);
   const agendaAttr = JSON.stringify(PRO_CHROME_AGENDA_ATTR);
-  return `(function(){try{var p=location.pathname;if(p==="/login"||p==="/forgot-password"||p==="/reset-password"||p.indexOf("/dashboard/appointments/")===0)return;if(document.cookie.indexOf(${cookieEq})===-1)return;document.documentElement.setAttribute(${attr},"1");if(p.indexOf("/agenda")===0)document.documentElement.setAttribute(${agendaAttr},"1");}catch(e){}})();`;
+  return `(function(){try{var p=location.pathname;if(p==="/login"||p==="/forgot-password"||p==="/reset-password"||p.indexOf("/dashboard/appointments/")===0)return;if(document.cookie.indexOf(${cookieEq})===-1)return;document.documentElement.setAttribute(${attr},"1");if(p.indexOf("/agenda")===0||p==="/dashboard"||p==="/dashboard/")document.documentElement.setAttribute(${agendaAttr},"1");}catch(e){}})();`;
 }

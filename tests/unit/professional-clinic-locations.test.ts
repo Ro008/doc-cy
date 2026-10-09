@@ -46,6 +46,7 @@ function joinRow(partial: Partial<ProfessionalClinicJoinRow> = {}): Professional
       latitude: 35.17,
       longitude: 33.36,
       clinic_place_id: "place-1",
+      address_maps_link: "https://www.google.com/maps?q=35.17,33.36",
       is_archived: false,
     },
     ...partial,
@@ -67,6 +68,10 @@ describe("professional clinic locations", () => {
       // links and appointments.location_id keep resolving.
       id: "join-1",
       doctor_id: "pro-1",
+      // The clinic itself: appointments.clinic_id, and the name every screen shows
+      // (never the join-row label; user 2026-10-03).
+      clinic_id: "clinic-1",
+      clinic_name: "Evangelismos",
       is_primary: true,
       sort_order: 0,
       label: "Evenings",
@@ -76,7 +81,10 @@ describe("professional clinic locations", () => {
       latitude: 35.17,
       longitude: 33.36,
       clinic_place_id: "place-1",
+      // The clinic's own Maps pin, linked from booking emails (user 2026-10-05).
+      clinic_maps_link: "https://www.google.com/maps?q=35.17,33.36",
       pause_online_bookings: false,
+      pause_notice_dismissed_at: null,
       monday: true,
       tuesday: false,
       wednesday: true,
