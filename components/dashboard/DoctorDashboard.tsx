@@ -35,6 +35,8 @@ import { emitPendingRequestsCount } from "@/lib/pending-requests-count";
 import { reviewPathFromDashboard } from "@/lib/appointment-review";
 import { agendaHighlightHref } from "@/lib/agenda-highlight";
 import { DeclineRequestDialog } from "@/components/dashboard/DeclineRequestDialog";
+import { VisitDetailsDialog } from "@/components/agenda/VisitDetailsDialog";
+import { visitDetailsFromRow } from "@/lib/visit-details";
 import { useDeviceDismissals } from "@/components/dashboard/useDeviceDismissals";
 import { useNewRequests } from "@/components/dashboard/useNewRequests";
 import { newRequestsLabel } from "@/lib/dashboard-new-requests";
@@ -63,6 +65,8 @@ type Props = {
   pausedNotices: PausedClinicNotice[];
   /** Her pro access has ended: the manual booking window says so instead of the form. */
   accessEnded?: boolean;
+  /** Patients' cancel window, for the short-notice warning when she cancels a visit. */
+  patientCancelNoticeHours: number;
 };
 
 type ExitKind = "accepted" | "declined";
@@ -99,6 +103,7 @@ export function DoctorDashboard({
   todayWindow,
   pausedNotices,
   accessEnded = false,
+  patientCancelNoticeHours,
 }: Props) {
   const router = useRouter();
   const nowMs = useNow();
@@ -106,6 +111,9 @@ export function DoctorDashboard({
   const [exiting, setExiting] = React.useState<Record<string, ExitKind>>({});
   const [manualOpen, setManualOpen] = React.useState(false);
   const [declineTarget, setDeclineTarget] = React.useState<DashboardAppointmentRow | null>(null);
+  // Today's visit whose details are open, like on the agenda (user, 2026-10-09).
+  const [openVisitId, setOpenVisitId] = React.useState<string | null>(null);
+  const openVisitRow = openVisitId ? rows.find((row) => row.id === openVisitId) ?? null : null;
 
   React.useEffect(() => {
     setRows(appointments);
@@ -346,10 +354,42 @@ export function DoctorDashboard({
           items={schedule.items}
           todayWindow={todayWindow}
           nowMs={nowMs}
-          dateKey={formatInTimeZone(new Date(nowMs), CY_TZ, "yyyy-MM-dd")}
           clinicTag={clinicTag}
+          onOpenVisit={setOpenVisitId}
         />
       </div>
+
+      {openVisitRow ? (
+        <VisitDetailsDialog
+          key={openVisitRow.id}
+          visit={visitDetailsFromRow(
+            {
+              ...openVisitRow,
+              professional_id: openVisitRow.professional_id ?? doctorId,
+              patient_name: openVisitRow.patient_name ?? "Patient",
+              patient_phone: openVisitRow.patient_phone ?? "",
+            },
+            nowMs,
+          )}
+          clinicName={clinicTag(openVisitRow.clinic_id)?.name ?? null}
+          clinicSwatchClass={clinicTag(openVisitRow.clinic_id)?.swatchClass ?? null}
+          previousVisitClinicName={(clinicId) => clinicTag(clinicId ?? null)?.name ?? null}
+          patientCancelNoticeHours={patientCancelNoticeHours}
+          agendaHref={agendaHighlightHref(
+            formatInTimeZone(new Date(openVisitRow.appointment_datetime), CY_TZ, "yyyy-MM-dd"),
+            openVisitRow.id,
+          )}
+          onClose={() => setOpenVisitId(null)}
+          onUpdated={(id, patch) =>
+            setRows((prev) => prev.map((row) => (row.id === id ? { ...row, ...patch } : row)))
+          }
+          onRemoved={(id) => {
+            setOpenVisitId(null);
+            setRows((prev) => prev.filter((row) => row.id !== id));
+            router.refresh();
+          }}
+        />
+      ) : null}
 
       {declineTarget ? (
         <DeclineRequestDialog
@@ -922,14 +962,14 @@ function TodayTimeline({
   items,
   todayWindow,
   nowMs,
-  dateKey,
   clinicTag,
+  onOpenVisit,
 }: {
   items: TodayScheduleItem[];
   todayWindow: TodayWorkingWindow | null;
   nowMs: number;
-  dateKey: string;
   clinicTag: (locationId: string | null) => DashboardClinicTag | null;
+  onOpenVisit: (appointmentId: string) => void;
 }) {
   const { beforeIndex, currentId } = nowMarkerPosition(items, nowMs);
   // "Next" is the first visit that has not started, even while another is in progress.
@@ -974,7 +1014,7 @@ function TodayTimeline({
                 index={index}
                 nowMs={nowMs}
                 clinicTag={clinicTag(entry.item.clinicId)}
-                dateKey={dateKey}
+                onOpen={() => onOpenVisit(entry.item.id)}
               />
             ),
           )}
@@ -1020,7 +1060,7 @@ function TimelineVisit({
   index,
   nowMs,
   clinicTag,
-  dateKey,
+  onOpen,
 }: {
   item: TodayScheduleItem;
   isCurrent: boolean;
@@ -1028,7 +1068,8 @@ function TimelineVisit({
   index: number;
   nowMs: number;
   clinicTag: DashboardClinicTag | null;
-  dateKey: string;
+  /** Opens the visit's details window. */
+  onOpen: () => void;
 }) {
   const details = item.reason;
   const timeTone = isCurrent
@@ -1058,10 +1099,11 @@ function TimelineVisit({
           />
         )}
       </span>
-      <Link
-        href={agendaHighlightHref(dateKey, item.id)}
+      <button
+        type="button"
+        onClick={onOpen}
         aria-label={`Appointment ${item.patientName} at ${item.rangeLabel}`}
-        className="group -mx-2 -my-1 min-w-0 flex-1 rounded-xl px-2 py-1 text-slate-50 no-underline transition hover:bg-slate-800/50 hover:text-slate-50"
+        className="group -mx-2 -my-1 min-w-0 flex-1 rounded-xl px-2 py-1 text-left text-slate-50 transition hover:bg-slate-800/50 hover:text-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-400/70"
       >
         <div className="flex flex-wrap items-center gap-2">
           <span className={`text-sm font-semibold tabular-nums ${timeTone}`}>{item.rangeLabel}</span>
@@ -1083,7 +1125,7 @@ function TimelineVisit({
           ) : null}
         </p>
         {details ? <p className="truncate text-sm text-slate-400">{details}</p> : null}
-      </Link>
+      </button>
     </li>
   );
 }

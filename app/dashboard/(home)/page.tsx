@@ -23,6 +23,7 @@ import { loadDoctorLocations, primaryDoctorLocation } from "@/lib/load-doctor-lo
 import { loadProAccessEnded } from "@/lib/load-access-ended";
 import { fetchAllSupabaseRows } from "@/lib/supabase-fetch-all";
 import { MISSED_REQUEST_MAX_AGE_MS } from "@/lib/missed-requests";
+import { parsePatientCancelNoticeHours } from "@/lib/patient-cancel-window";
 
 /** Proposals that lapsed longer ago than this are not listed (lib/reschedule-follow-up.ts). */
 const LAPSED_PROPOSAL_WINDOW_MS = 14 * 24 * 60 * 60 * 1000;
@@ -113,11 +114,17 @@ export default async function DoctorDashboardPage() {
     CY_TZ,
   ).toISOString();
 
-  const [{ data: appointments, error: appointmentsError }, locationRows, accessEnded] = await Promise.all([
-    loadDashboardAppointments(supabase, doctor.id, todayStartUtc, nowMs),
-    loadDoctorLocations(doctor.id),
-    loadProAccessEnded(supabase, doctor.id),
-  ]);
+  const [{ data: appointments, error: appointmentsError }, locationRows, accessEnded, { data: cancelSettings }] =
+    await Promise.all([
+      loadDashboardAppointments(supabase, doctor.id, todayStartUtc, nowMs),
+      loadDoctorLocations(doctor.id),
+      loadProAccessEnded(supabase, doctor.id),
+      supabase
+        .from("professional_settings")
+        .select("patient_cancel_notice_hours")
+        .eq("professional_id", doctor.id)
+        .maybeSingle(),
+    ]);
 
   if (appointmentsError) {
     console.error("[Dashboard] Error fetching appointments", appointmentsError);
@@ -145,6 +152,9 @@ export default async function DoctorDashboardPage() {
         todayWindow={todayWorkingWindow(hoursList, nowMs)}
         pausedNotices={pausedNotices}
         accessEnded={accessEnded}
+        patientCancelNoticeHours={parsePatientCancelNoticeHours(
+          (cancelSettings as { patient_cancel_notice_hours?: number } | null)?.patient_cancel_notice_hours,
+        )}
       />
     </main>
   );

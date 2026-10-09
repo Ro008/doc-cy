@@ -57,7 +57,7 @@ export function pausedClinicNotices(
 }
 
 export const DASHBOARD_APPOINTMENT_SELECT =
-  "id, patient_name, appointment_datetime, status, duration_minutes, created_at, is_new_patient, attendance, proposal_expires_at, proposed_slots, reason, clinic_id, patient_phone";
+  "id, professional_id, patient_name, appointment_datetime, status, duration_minutes, created_at, is_new_patient, attendance, proposal_expires_at, proposed_slots, reason, clinic_id, patient_phone, patient_email, patient_gender, patient_birthdate, professional_notes, review_requested_at, booking_source";
 
 export type DashboardAppointmentRow = {
   id: string;
@@ -74,6 +74,14 @@ export type DashboardAppointmentRow = {
   clinic_id: string | null;
   /** For "Missed requests": she can call the patient back. */
   patient_phone?: string | null;
+  /** The rest is for the visit details window (components/agenda/VisitDetailsDialog.tsx). */
+  professional_id?: string;
+  patient_email?: string | null;
+  patient_gender?: string | null;
+  patient_birthdate?: string | null;
+  professional_notes?: string | null;
+  review_requested_at?: string | null;
+  booking_source?: string | null;
 };
 
 export type TodayScheduleItem = {
