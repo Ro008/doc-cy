@@ -349,7 +349,7 @@ test.describe("Integration: dashboard request actions", { tag: ["@pr-e2e", "@pr-
     }
   });
 
-  test("Clicking a visit in Today opens the agenda with that visit highlighted", async ({ page }) => {
+  test("A visit in Today opens its details, and Open in agenda highlights it there", async ({ page }) => {
     test.setTimeout(120_000);
     const setup = await createRequest("Highlight");
     // Make it a confirmed visit today (Cyprus), inside the agenda grid (08:00–20:00).
@@ -371,10 +371,17 @@ test.describe("Integration: dashboard request actions", { tag: ["@pr-e2e", "@pr-
       await page.goto("/dashboard", { waitUntil: "domcontentloaded" });
       await waitForHydration(page);
 
-      await page
-        .getByTestId("dashboard-today-schedule")
-        .getByRole("link", { name: new RegExp(`Appointment ${setup.patientName}`) })
-        .click();
+      // The visit opens its details on the dashboard (user, 2026-10-09)...
+      const details = page.getByTestId("agenda-visit-patient");
+      await expect(async () => {
+        await page
+          .getByTestId("dashboard-today-schedule")
+          .getByRole("button", { name: new RegExp(`Appointment ${setup.patientName}`) })
+          .click();
+        await expect(details).toBeVisible({ timeout: 3_000 });
+      }).toPass({ timeout: 20_000 });
+      // ...and the agenda is one tap away.
+      await page.getByRole("dialog").getByRole("link", { name: "Open in agenda" }).click();
       await expect(page).toHaveURL(new RegExp(`/agenda\\?date=${todayCy}&highlight=${setup.appointmentId}`), {
         timeout: 20_000,
       });
