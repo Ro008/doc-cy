@@ -65,6 +65,11 @@ test.describe("Integration: dashboard paused notice", { tag: "@pr-e2e" }, () => 
     await page.goto("/dashboard", { waitUntil: "domcontentloaded" });
     await expect(notice()).toHaveCount(1, { timeout: 20_000 });
     await expect(notice()).toContainText(`Online bookings are paused at ${pausedClinicName}`);
+    // Clinics is not the default settings section, so the link names it.
+    await expect(notice().getByRole("link", { name: "Resume in settings" })).toHaveAttribute(
+      "href",
+      "/settings?section=clinics",
+    );
 
     await expect(async () => {
       await notice().getByRole("button", { name: /Close/ }).click();

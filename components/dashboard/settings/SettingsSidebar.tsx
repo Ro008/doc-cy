@@ -54,11 +54,17 @@ export function SettingsSidebar({
       <div>{header}</div>
       <nav aria-label="Settings sections" className="-mx-4 overflow-x-auto px-4 [scrollbar-width:none] lg:mx-0 lg:px-0 [&::-webkit-scrollbar]:hidden">
         <ul className="flex gap-1.5 lg:flex-col lg:gap-1">
-          {SETTINGS_SECTIONS.map((section) => {
+          {SETTINGS_SECTIONS.map((section, index) => {
             const Icon = SECTION_ICONS[section.id];
             const current = section.id === active;
+            // A thin line on wide screens sets account admin apart from the practice.
+            const startsAccountGroup =
+              "group" in section && !("group" in (SETTINGS_SECTIONS[index - 1] ?? {}));
             return (
-              <li key={section.id} className="shrink-0">
+              <li
+                key={section.id}
+                className={`shrink-0${startsAccountGroup ? " lg:mt-2 lg:border-t lg:border-slate-800 lg:pt-3" : ""}`}
+              >
                 <a
                   href={settingsSectionHref(section.id)}
                   data-settings-section={section.id}

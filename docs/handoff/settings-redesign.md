@@ -41,9 +41,11 @@ Reference design (private canvas): https://claude.ai/artifact/3XYQpTSDQPyn2wWFg8
 - Settings lives at **`/settings`** (`app/settings/page.tsx`), not under the agenda.
   `/agenda/settings` redirects there keeping `?section=`. Same middleware gate as
   `/agenda` (`isProfessionalGatedPath`).
-- A sidebar of sections, kept in `?section=` (default `clinics`):
-  Clinics · Services & prices · Profile · Contact & phone · Promote · Plan & billing ·
-  Account (`lib/settings-sections.ts`).
+- A sidebar of sections, kept in `?section=` (default `profile`; Livio, 2026-10-09):
+  Profile · Clinics · Services & prices · Contact & phone · Promote | Plan & billing ·
+  Account (`lib/settings-sections.ts`). A thin line on wide screens sets the last two
+  apart. Old `?section=availability` links open Clinics. The dashboard's paused-clinic
+  notice links to `?section=clinics`.
 - Old `/settings?section=account#promote-practice` links land on Promote.
 
 ### One save rule (frontend only; same API)
@@ -105,6 +107,8 @@ Reference design (private canvas): https://claude.ai/artifact/3XYQpTSDQPyn2wWFg8
 ### Contact & phone
 - Mobile (private) with its own Save. Clinic phones are read-only and point to
   Clinics → Request a change.
+- **Planned (Livio, 2026-10-09):** the personal mobile moves into Profile and each
+  clinic's phone into its card in Clinics; then this section goes away.
 
 ### Promote (frontend only)
 - QR, booking link (`mydoccy.com/<slug>`, Copy link), scripts that fold.

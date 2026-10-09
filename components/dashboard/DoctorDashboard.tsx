@@ -47,6 +47,7 @@ import {
   selectMissedRequests,
 } from "@/lib/missed-requests";
 import { splitMonthDayItems } from "@/lib/agenda-calendar";
+import { settingsSectionHref } from "@/lib/settings-sections";
 import { MANUAL_BOOKING_HINT, MANUAL_BOOKING_LABEL } from "@/lib/manual-booking-copy";
 import {
   NO_NEW_TIME_DISMISSED_KEY,
@@ -748,7 +749,10 @@ function BookingsPausedNotice({ notices }: { notices: PausedClinicNotice[] }) {
           <AlertTriangle className="h-4 w-4 shrink-0 text-amber-300" aria-hidden />
           <p className="text-sm font-semibold text-amber-200">Online bookings are paused at {n.clinicName}</p>
           <p className="flex-1 text-sm text-slate-300">Patients can&apos;t request new times there.</p>
-          <Link href="/settings" className="text-sm font-semibold text-clinical-300 hover:text-clinical-200">
+          <Link
+            href={settingsSectionHref("clinics")}
+            className="text-sm font-semibold text-clinical-300 hover:text-clinical-200"
+          >
             Resume in settings
           </Link>
           <button

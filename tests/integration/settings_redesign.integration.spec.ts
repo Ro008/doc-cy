@@ -221,8 +221,8 @@ test.describe("Settings redesign (B1)", { tag: "@pr-e2e" }, () => {
     test.setTimeout(120_000);
     await openSettings(page, seeded!);
 
-    // No Availability section: Clinics opens first (user, 2026-10-09).
-    await expect(page.getByRole("heading", { level: 1, name: "Clinics" })).toBeVisible({ timeout: 20_000 });
+    // Profile opens first; there is no Availability section (user, 2026-10-09).
+    await expect(page.getByRole("heading", { level: 1, name: "Profile" })).toBeVisible({ timeout: 20_000 });
     const sidebar = page.getByTestId("settings-sidebar");
     await expect(sidebar.getByRole("link", { name: /Availability/ })).toHaveCount(0);
 
