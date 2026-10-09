@@ -216,6 +216,19 @@ describe("buildProfessionalRegistrationDetails", () => {
       );
     }
   });
+
+  it("takes only a real mobile with its country code, stored as + and digits", () => {
+    const built = buildProfessionalRegistrationDetails(input({ mobile: " +357 99 123 456 " }));
+    assert.equal(built.ok, true);
+    if (built.ok) assert.equal(built.details.mobile, "+35799123456");
+    for (const mobile of ["+35722123456", "99123456", "+3579912"]) {
+      assert.deepEqual(
+        buildProfessionalRegistrationDetails(input({ mobile })),
+        { ok: false, code: "validation" },
+        mobile,
+      );
+    }
+  });
 });
 
 describe("parseProfessionalRegistrationDetails", () => {
