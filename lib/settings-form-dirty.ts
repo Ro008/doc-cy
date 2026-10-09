@@ -5,13 +5,15 @@ export type SettingsDirtySnapshot = {
   specialtyFromMaster: boolean;
   bio: string;
   languages: string[];
-  mobileNumber: string;
   bookingHorizonDays: number;
   minimumNoticeHours: number;
   patientCancelNoticeHours: number;
   holidayModeEnabled: boolean;
   holidayStartInput: string;
   holidayEndInput: string;
+  // The personal mobile and its "show on my profile" switch are not here either: they
+  // save through their own route (components/dashboard/settings/PersonalMobileCard.tsx).
+  //
   // pauseOnlineBookings is intentionally excluded: the toggle saves itself through
   // its own API call, so including it here produces a false "unsaved changes"
   // warning the instant a professional flips it.
@@ -42,7 +44,6 @@ export function buildSettingsDirtySnapshot(input: {
   specialtyFromMaster: boolean;
   bio: string;
   languages: string[];
-  mobileNumber: string;
   bookingHorizonDays: number;
   minimumNoticeHours: number;
   patientCancelNoticeHours: number;
@@ -56,7 +57,6 @@ export function buildSettingsDirtySnapshot(input: {
     specialtyFromMaster: input.specialtyFromMaster,
     bio: input.bio.trim(),
     languages: [...input.languages].map((l) => l.trim()).filter(Boolean).sort(),
-    mobileNumber: input.mobileNumber.trim(),
     bookingHorizonDays: input.bookingHorizonDays,
     minimumNoticeHours: input.minimumNoticeHours,
     patientCancelNoticeHours: input.patientCancelNoticeHours,
@@ -116,10 +116,9 @@ const SECTION_FIELDS: Array<[UnsavedSection, Array<keyof SettingsDirtySnapshot>]
     ],
   ],
   ["profile", ["specialty", "specialtyFromMaster", "bio", "languages"]],
-  ["contact", ["mobileNumber"]],
 ];
 
-export type UnsavedSection = "clinics" | "profile" | "contact";
+export type UnsavedSection = "clinics" | "profile";
 
 /** Which settings sections hold the unsaved changes, in sidebar order (for the save bar). */
 export function unsavedSettingsSections(

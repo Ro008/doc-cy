@@ -24,10 +24,6 @@ import {
 } from "@/lib/doctor-specialty-settings-lock";
 import { createServiceRoleClient } from "@/lib/supabase-service";
 import { loadPrimarySpecialtyName } from "@/lib/specialty-catalogue";
-import {
-  SETTINGS_MOBILE_IN_USE_MESSAGE,
-  professionalContactUniqueViolation,
-} from "@/lib/professional-contact";
 
 /** GET ?doctorId=xxx - returns current settings for the doctor (authenticated owner only) */
 export async function GET(req: NextRequest) {
@@ -109,7 +105,6 @@ export async function POST(req: NextRequest) {
 
   const b = body as {
     doctorId?: string;
-    doctorPhone?: string | null;
     specialty?: string;
     /** true when chosen from master list (JSON boolean) */
     specialtyFromMaster?: boolean | string | number;
@@ -189,8 +184,6 @@ export async function POST(req: NextRequest) {
   }
   const languages = langsParsed.value;
   const locationsPayload = Array.isArray(b.locations) ? b.locations : [];
-  const doctorPhoneTrimmed =
-    typeof b.doctorPhone === "string" ? b.doctorPhone.trim() : "";
 
   const bookingHorizon = Number(b.bookingHorizonDays);
   const booking_horizon_days = BOOKING_HORIZON_OPTIONS_DAYS.includes(
@@ -238,39 +231,16 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const phoneUpdateBase: {
-    mobile_number?: string | null;
-    bio?: string | null;
-    languages: string[];
-  } = { languages };
-  if (b.doctorPhone !== undefined) {
-    phoneUpdateBase.mobile_number = doctorPhoneTrimmed ? doctorPhoneTrimmed : null;
-  }
+  // The personal mobile is not saved here: POST /api/professional-mobile changes and
+  // records it (2026-10-09). A doctorPhone sent by an old page is ignored.
+  const profileUpdate: { bio?: string | null; languages: string[] } = { languages };
   if (b.bio !== undefined) {
-    phoneUpdateBase.bio = bioRaw.length > 0 ? bioRaw : null;
+    profileUpdate.bio = bioRaw.length > 0 ? bioRaw : null;
   }
 
-  let docErr = (
-    await supabase.from("professionals").update(phoneUpdateBase).eq("id", doctorId)
+  const docErr = (
+    await supabase.from("professionals").update(profileUpdate).eq("id", doctorId)
   ).error;
-
-  if (
-    docErr &&
-    (docErr.code === "42703" ||
-      docErr.code === "PGRST204" ||
-      String(docErr.message ?? "").toLowerCase().includes("column"))
-  ) {
-    if (/mobile_number/i.test(String(docErr.message ?? ""))) {
-      const { mobile_number: _mobile, ...withoutMobile } = phoneUpdateBase;
-      docErr = (
-        await supabase.from("professionals").update(withoutMobile).eq("id", doctorId)
-      ).error;
-    }
-  }
-
-  if (professionalContactUniqueViolation(docErr) === "mobile") {
-    return NextResponse.json({ message: SETTINGS_MOBILE_IN_USE_MESSAGE }, { status: 409 });
-  }
 
   if (docErr) {
     console.error("[DocCy] Failed to update doctors row", docErr);

@@ -241,7 +241,7 @@ export default async function AgendaSettingsPage({
 
   const { data: settings } = await supabase
     .from("professional_settings")
-    .select(PROFESSIONAL_ACCOUNT_SETTINGS_SELECT)
+    .select(`${PROFESSIONAL_ACCOUNT_SETTINGS_SELECT}, show_mobile_on_profile`)
     .eq("professional_id", doctor.id)
     .single();
 
@@ -329,6 +329,9 @@ export default async function AgendaSettingsPage({
     bio: (doctor.bio ?? "").trim(),
     languages: langArr,
     mobileNumber: (doctor.mobile_number ?? "").trim() || undefined,
+    showMobileOnProfile: Boolean(
+      (settings as { show_mobile_on_profile?: boolean | null } | null)?.show_mobile_on_profile,
+    ),
     // Shown read-only: patients see these, and clinics are admin-curated.
     clinicPhones: await loadSettingsClinicPhones(doctor.id),
     // The primary clinic, not the copies on professionals (Point E).

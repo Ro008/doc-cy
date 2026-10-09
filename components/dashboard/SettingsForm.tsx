@@ -88,6 +88,7 @@ import {
 import { agendaClinicEventColor } from "@/lib/doctor-locations";
 import { SettingsSidebar } from "@/components/dashboard/settings/SettingsSidebar";
 import { SettingsSwitch } from "@/components/dashboard/settings/SettingsSwitch";
+import { PersonalMobileCard } from "@/components/dashboard/settings/PersonalMobileCard";
 import { ClinicBookingSwitch } from "@/components/dashboard/settings/ClinicBookingSwitch";
 import { ClinicCard } from "@/components/dashboard/settings/ClinicCard";
 import { ClinicBookingLimits } from "@/components/dashboard/settings/ClinicBookingLimits";
@@ -133,7 +134,10 @@ export type DoctorSettingsFormData = {
   bio: string;
   /** Canonical labels, saved as string[] on doctors */
   languages: string[];
+  /** Her personal mobile (Profile, its own card and route). */
   mobileNumber?: string;
+  /** Patients see the personal mobile on her profile (off by default). */
+  showMobileOnProfile?: boolean;
   /** The phones patients see, one per clinic; read-only here (clinics are curated). */
   clinicPhones?: SettingsClinicPhone[];
   district: string;
@@ -466,9 +470,6 @@ export function SettingsForm({
   );
   const [bio, setBio] = React.useState(() => (initial.bio ?? "").trim());
 
-  const [mobileNumber, setMobileNumber] = React.useState(
-    initial.mobileNumber ?? ""
-  );
   const [district, setDistrict] = React.useState(initial.district ?? "");
   const [clinicLocation, setClinicLocation] = React.useState<ClinicLocation>(() =>
     resolveInitialClinicLocation(initial),
@@ -734,7 +735,6 @@ export function SettingsForm({
         specialtyFromMaster,
         bio,
         languages,
-        mobileNumber,
         bookingHorizonDays,
         minimumNoticeHours,
         patientCancelNoticeHours,
@@ -761,7 +761,6 @@ export function SettingsForm({
       specialtyFromMaster,
       bio,
       languages,
-      mobileNumber,
       bookingHorizonDays,
       minimumNoticeHours,
       patientCancelNoticeHours,
@@ -779,7 +778,6 @@ export function SettingsForm({
       specialtyFromMaster: isCatalogueSpecialty(initial.specialtyOptions, specialty),
       bio: (initial.bio ?? "").trim(),
       languages: Array.isArray(initial.languages) ? [...initial.languages] : [],
-      mobileNumber: initial.mobileNumber ?? "",
       bookingHorizonDays: initial.bookingHorizonDays,
       minimumNoticeHours: initial.minimumNoticeHours,
       patientCancelNoticeHours: initial.patientCancelNoticeHours,
@@ -2082,6 +2080,10 @@ export function SettingsForm({
           </p>
         ) : null}
       </section>
+      <PersonalMobileCard
+        initialMobile={initial.mobileNumber ?? ""}
+        initialShowOnProfile={Boolean(initial.showMobileOnProfile)}
+      />
       {profileExtra}
     </div>
   );
@@ -2090,12 +2092,6 @@ export function SettingsForm({
     <div className="space-y-5">
       {sectionTitle("Contact & phone", "How DocCy and your patients reach you.")}
       <PhoneNumbersSettings
-        mobileNumber={mobileNumber}
-        onMobileNumberChange={setMobileNumber}
-        mobileDirty={groupDirty({ kind: "mobile" })}
-        mobileSaving={savingGroup === "mobile"}
-        onSaveMobile={() => void saveGroup({ kind: "mobile" }, "Mobile saved.")}
-        onCancelMobile={() => setMobileNumber(savedSnapshot.mobileNumber)}
         clinicPhones={initial.clinicPhones ?? []}
         onOpenClinics={() => selectSection("clinics")}
       />
@@ -2146,7 +2142,6 @@ export function SettingsForm({
               <span className="text-xs tabular-nums text-clinical-300">{liveWorkplaces.length}</span>
             </span>
           ),
-          contact: unsavedSections.includes("contact") ? unsavedDot : null,
           profile: unsavedSections.includes("profile") ? (
             unsavedDot
           ) : pendingSpecialtyChange ? (

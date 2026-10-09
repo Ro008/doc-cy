@@ -114,7 +114,6 @@ describe("buildSettingsSavePayload with per-clinic limits", () => {
     specialtyFromMaster: true,
     bio: "",
     languages: ["English"],
-    mobileNumber: "",
     ...account,
     holidayModeEnabled: false,
     holidayStartInput: "",

@@ -39,7 +39,6 @@ function baseSnapshotInput() {
     specialtyFromMaster: true,
     bio: "Helping patients across Cyprus.",
     languages: ["English", "Greek"],
-    mobileNumber: "+35799111222",
     bookingHorizonDays: 60,
     minimumNoticeHours: 24,
     patientCancelNoticeHours: 24,
@@ -108,13 +107,9 @@ describe("settings-form-dirty", () => {
     assert.equal(settingsFormHasUnsavedChanges(current, saved), false);
   });
 
-  it("detects mobile number edits", () => {
-    const saved = buildSettingsDirtySnapshot(baseSnapshotInput());
-    const changed = buildSettingsDirtySnapshot({
-      ...baseSnapshotInput(),
-      mobileNumber: "+35799111333",
-    });
-    assert.equal(settingsFormHasUnsavedChanges(changed, saved), true);
+  it("has no mobile: Profile's mobile card saves itself (2026-10-09)", () => {
+    const snapshot = buildSettingsDirtySnapshot(baseSnapshotInput());
+    assert.equal("mobileNumber" in snapshot, false);
   });
 
   it("detects bio edits", () => {
@@ -150,14 +145,12 @@ describe("unsavedSettingsSections", () => {
     const changed = buildSettingsDirtySnapshot({
       ...baseSnapshotInput(),
       bio: "New bio.",
-      mobileNumber: "+35799000000",
       holidayModeEnabled: true,
       workplaces: [{ ...baseWorkplace, slotDurationMinutes: 45 }],
     });
     assert.deepEqual(unsavedSettingsSections(changed, saved()), [
       "clinics",
       "profile",
-      "contact",
     ]);
   });
 

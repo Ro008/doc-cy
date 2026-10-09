@@ -6,7 +6,8 @@ import type { ClinicLimitsById } from "@/lib/settings-clinic-limits";
  * One save rule for settings (user, 2026-10-01): small controls (booking limits and
  * the online cancellation deadline,
  * languages, turning holiday mode off) save at once; bigger editors (a clinic's hours,
- * the bio, the mobile, holiday dates) have their own Save. There is no page-wide
+ * the bio, holiday dates) have their own Save. The personal mobile saves through its own
+ * route (POST /api/professional-mobile). There is no page-wide
  * "Save settings" any more.
  *
  * POST /api/doctor-settings replaces everything it is sent (unchanged API), so a save
@@ -19,7 +20,6 @@ export type SaveGroup =
   | { kind: "holiday" }
   | { kind: "bio" }
   | { kind: "languages" }
-  | { kind: "mobile" }
   | { kind: "clinic"; id: string };
 
 const GROUP_FIELDS: Record<Exclude<SaveGroup["kind"], "clinic">, Array<keyof SettingsDirtySnapshot>> = {
@@ -27,7 +27,6 @@ const GROUP_FIELDS: Record<Exclude<SaveGroup["kind"], "clinic">, Array<keyof Set
   holiday: ["holidayModeEnabled", "holidayStartInput", "holidayEndInput"],
   bio: ["bio"],
   languages: ["languages"],
-  mobile: ["mobileNumber"],
 };
 
 type Workplace = SettingsDirtySnapshot["workplaces"][number];
@@ -109,7 +108,6 @@ export function buildSettingsSavePayload(
   const holidayOn = snapshot.holidayModeEnabled;
   return {
     doctorId,
-    doctorPhone: snapshot.mobileNumber || null,
     bio: snapshot.bio.trim(),
     languages: snapshot.languages.filter((l) => l.trim()),
     monday: Boolean(schedule?.monday.enabled),

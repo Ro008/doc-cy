@@ -50,8 +50,9 @@ Reference design (private canvas): https://claude.ai/artifact/3XYQpTSDQPyn2wWFg8
 
 ### One save rule (frontend only; same API)
 - No page-wide "Save settings". Booking limits, languages and turning holiday mode off
-  save at once; a clinic's hours, the bio, the mobile and holiday dates have their own
-  Save / Cancel (`lib/settings-save-groups.ts`).
+  save at once; a clinic's hours, the bio and holiday dates have their own
+  Save / Cancel (`lib/settings-save-groups.ts`). The personal mobile is not part of it:
+  its card in Profile saves through its own routes (below).
 - Still `POST /api/doctor-settings`, unchanged. That API replaces everything it is sent,
   so each save sends **the last saved settings with only that block changed**. Expect
   more, smaller saves than before. If you ever make that API accept partial updates,
@@ -97,6 +98,23 @@ Reference design (private canvas): https://claude.ai/artifact/3XYQpTSDQPyn2wWFg8
   The page loads no pending request today (`initial.pendingSpecialtyChange` is unset).
 - "Preview profile" link in Profile and Services. It opens a new tab, so this tab shows
   "Opening…" and then a toast.
+- **Personal mobile (Livio, 2026-10-09; built).** Card under Languages
+  (`components/dashboard/settings/PersonalMobileCard.tsx`): the /register country picker,
+  its own Save (a real mobile for the country, `lib/professional-mobile.ts`, the same
+  check the register server now makes), and a "Show on my profile" switch that saves at
+  once (off by default; refused without a saved mobile). No founder: each change is a
+  `request_log` row born `recorded` with the old value in `before_snapshot`
+  (`professional_mobile_change`, `professional_mobile_visibility_change`).
+  - `POST /api/professional-mobile` `{ mobile }` → 200 `{ changed, mobile }` · 400 not a
+    valid mobile · 409 used by another professional. Same number: `changed: false`.
+  - `POST /api/professional-mobile/visibility` `{ show }` → 200 `{ changed, show }` ·
+    400 not true/false · 409 no saved mobile.
+  - Both behind the emailed sign-in step (middleware), writing through the service role
+    via `professional_mobile_set` / `professional_mobile_visibility_set`.
+  - `/api/doctor-settings` no longer saves the mobile (an old page's `doctorPhone` is
+    ignored). Where the mobile shows on the public profile is Ro008's decision on
+    `feat/profile-redesign` (`docs/handoff/profile-redesign.md`); nothing shows it yet.
+  - When SMS 2FA arrives, a new number will need verifying before it is saved.
 
 ### Services & prices
 - A short "What are services?" block above the list says what they are and how they
@@ -105,10 +123,10 @@ Reference design (private canvas): https://claude.ai/artifact/3XYQpTSDQPyn2wWFg8
   servicio y el doctor lo ve en la cita").
 
 ### Contact & phone
-- Mobile (private) with its own Save. Clinic phones are read-only and point to
-  Clinics → Request a change.
-- **Planned (Livio, 2026-10-09):** the personal mobile moves into Profile and each
-  clinic's phone into its card in Clinics; then this section goes away.
+- Clinic phones only, read-only, pointing to Clinics → Request a change. The personal
+  mobile moved to Profile (2026-10-09).
+- **Planned (Livio, 2026-10-09):** each clinic's phone moves into its card in Clinics;
+  then this section goes away.
 
 ### Promote (frontend only)
 - QR, booking link (`mydoccy.com/<slug>`, Copy link), scripts that fold.
@@ -264,7 +282,19 @@ clinic works once Livio builds it in the backend (DELETE /api/professional-clini
 
 ## 5. Data and environment notes
 
-- Migrations: none. New writes: none.
+- Migrations (Livio, 2026-10-09; applied to Testing, not Production):
+  - `20261009150000_professional_mobile_change_requests`: the two request types,
+    `professional_settings.show_mobile_on_profile`, the two functions, `request_submit`
+    snapshot steps, requester email from `registration_email`. Backward compatible, but
+    this branch reads the new column: Production **before** merge.
+  - `20261009160000_professionals_update_columns` (security): signed-in professionals
+    could UPDATE every column of their own row through /rest/v1 (`pro_access_until`,
+    `subscription_tier`, `is_registered`, `slug`, the mobile…). Now only `bio`,
+    `languages`, `is_gesy` and the two sign-out columns. master still saves the mobile
+    through the session, so Production **after** merge.
+  - DB tests: `supabase/tests/professional_mobile_change.test.sql`,
+    `supabase/tests/professionals_update_columns.test.sql`.
+- New writes: the mobile and its switch (above). Otherwise none.
 - New reads: `professional_clinics.id` (clinic phones on cards,
   `lib/settings-clinic-phones.ts`); `professionals.pro_access_until` (Plan & billing).
 - Changed read: clinic names come from `clinics.name` (section 2, Clinics).

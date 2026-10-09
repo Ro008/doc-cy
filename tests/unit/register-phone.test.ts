@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import {
   REGISTER_PHONE_PREFERRED_COUNTRIES,
   composeRegisterPhone,
+  splitRegisterPhone,
   isValidRegisterMobile,
   registerMobileExample,
   registerPhoneCountryName,
@@ -64,5 +65,14 @@ describe("register mobile number validation", () => {
       e164: "+34667000000",
       country: "ES",
     });
+  });
+
+  it("splits a saved number back into its country and the digits after the dial code", () => {
+    assert.deepEqual(splitRegisterPhone("+35799123456"), { country: "CY", national: "99123456" });
+    assert.deepEqual(splitRegisterPhone("+447400123456"), { country: "GB", national: "7400123456" });
+    // Nothing saved, or nothing we can read: Cyprus and the raw digits.
+    assert.deepEqual(splitRegisterPhone(""), { country: "CY", national: "" });
+    assert.deepEqual(splitRegisterPhone(null), { country: "CY", national: "" });
+    assert.deepEqual(splitRegisterPhone("99123456"), { country: "CY", national: "99123456" });
   });
 });

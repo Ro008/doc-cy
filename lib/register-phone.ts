@@ -71,6 +71,14 @@ export function registerMobileExample(country: string): string | null {
   return getExampleNumber(code, examples)?.formatInternational() ?? null;
 }
 
+/** A saved E.164 number as the picker shows it: its country and the digits after the dial code. */
+export function splitRegisterPhone(e164: string | null | undefined): { country: string; national: string } {
+  const text = String(e164 ?? "").trim();
+  const parsed = text.startsWith("+") ? parsePhoneNumberFromString(text) : undefined;
+  if (parsed?.country) return { country: parsed.country, national: String(parsed.nationalNumber) };
+  return { country: REGISTER_PHONE_DEFAULT_COUNTRY.toUpperCase(), national: text.replace(/D/g, "") };
+}
+
 /**
  * Turns what the user typed into E.164 for the chosen country. A number typed
  * with its own "+" prefix wins and reports its country, so pasting
