@@ -36,6 +36,8 @@ import { reviewPathFromDashboard } from "@/lib/appointment-review";
 import { agendaHighlightHref } from "@/lib/agenda-highlight";
 import { DeclineRequestDialog } from "@/components/dashboard/DeclineRequestDialog";
 import { useDeviceDismissals } from "@/components/dashboard/useDeviceDismissals";
+import { useNewRequests } from "@/components/dashboard/useNewRequests";
+import { newRequestsLabel } from "@/lib/dashboard-new-requests";
 import {
   MISSED_REQUESTS_DISMISSED_KEY,
   MISSED_REQUESTS_SHOWN,
@@ -115,7 +117,14 @@ export function DoctorDashboard({
   );
 
   const pending = selectPendingRequests(rows, nowMs);
-  const waitingCount = pending.filter((row) => !exiting[row.id]).length;
+  const shownPendingIds = new Set(pending.filter((row) => !exiting[row.id]).map((row) => row.id));
+  const waitingCount = shownPendingIds.size;
+  // Pending ids of the last server render; a new array tells the bar its refresh landed.
+  const serverPendingIds = React.useMemo(
+    () => selectPendingRequests(appointments, Date.now()).map((row) => row.id),
+    [appointments],
+  );
+  const newRequests = useNewRequests({ doctorId, shownIds: shownPendingIds, serverPendingIds });
   const awaiting = selectAwaitingPatient(rows, nowMs);
   // "Close" hides a lapsed proposal on this device only (user, 2026-10-04).
   const noNewTimeClose = useDeviceDismissals(NO_NEW_TIME_DISMISSED_KEY);
@@ -130,9 +139,11 @@ export function DoctorDashboard({
   const missedSplit = splitMonthDayItems(missed, MISSED_REQUESTS_SHOWN);
   const missedShown = showAllMissed ? missed : missedSplit.visible;
 
+  // The badge counts the ones behind the bar too.
+  const badgeCount = waitingCount + newRequests.count;
   React.useEffect(() => {
-    emitPendingRequestsCount(waitingCount);
-  }, [waitingCount]);
+    emitPendingRequestsCount(badgeCount);
+  }, [badgeCount]);
   const schedule = buildTodaySchedule(rows, {
     nowMs,
     startHour: todayWindow?.startHour,
@@ -199,6 +210,7 @@ export function DoctorDashboard({
         <section
           id={DASHBOARD_NEEDS_ANSWER_ID}
           aria-labelledby="dashboard-pending-heading"
+          data-new-requests-live={newRequests.live ? "1" : "0"}
           className="min-w-0 scroll-mt-24"
         >
           <div className="flex h-7 items-center gap-2.5">
@@ -215,6 +227,10 @@ export function DoctorDashboard({
             ) : null}
           </div>
 
+          {newRequests.count > 0 ? (
+            <NewRequestsBar count={newRequests.count} onShow={newRequests.show} />
+          ) : null}
+
           <div className="mt-3 overflow-hidden rounded-3xl border border-slate-700/70 bg-slate-900/70 shadow-xl shadow-black/20">
             {pending.length === 0 && noNewTime.length === 0 && missed.length === 0 ? (
               <AllCaughtUp />
@@ -229,6 +245,7 @@ export function DoctorDashboard({
                     clinicTag={clinicTag(row.clinic_id)}
                     durationMinutes={confirmDuration(row)}
                     exit={exiting[row.id] ?? null}
+                    highlighted={newRequests.highlightedIds.has(row.id)}
                     onAccepted={() => finishRequest(row, "accepted")}
                     onDecline={() => setDeclineTarget(row)}
                   />
@@ -601,6 +618,42 @@ function AwaitingPatientItem({
   );
 }
 
+/** Rows brought in by "Show": the agenda's spotlight, once. */
+const NEW_REQUEST_SPOTLIGHT_CLASS =
+  "motion-safe:animate-spotlight motion-reduce:shadow-[inset_0_0_0_2px_rgba(255,255,255,0.75)]";
+
+/**
+ * "1 new request · Show": new requests wait here instead of sliding into the list,
+ * so nothing moves under her finger (user, 2026-10-09). Sticks under the header
+ * while she scrolls the list.
+ */
+function NewRequestsBar({ count, onShow }: { count: number; onShow: () => void }) {
+  return (
+    <div className="sticky top-20 z-10 mt-3 flex justify-center">
+      <div
+        role="status"
+        data-testid="dashboard-new-requests-bar"
+        className="inline-flex items-center gap-2 rounded-full border border-clinical-400/50 bg-slate-900/95 py-1 pl-4 pr-1 text-sm shadow-lg shadow-black/30 backdrop-blur motion-safe:animate-fade-up"
+      >
+        <span className="h-2 w-2 rounded-full bg-clinical-400 motion-safe:animate-pulse" aria-hidden />
+        <span key={count} className="font-semibold text-clinical-100 motion-safe:animate-pop">
+          {newRequestsLabel(count)}
+        </span>
+        <span className="text-slate-500" aria-hidden>
+          ·
+        </span>
+        <button
+          type="button"
+          onClick={onShow}
+          className="rounded-full px-3 py-1 font-semibold text-clinical-200 transition hover:bg-clinical-500/20 hover:text-clinical-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-400/70"
+        >
+          Show
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function AllCaughtUp() {
   return (
     <div className="flex flex-col items-center px-6 py-10 text-center">
@@ -679,6 +732,7 @@ function PendingRequestItem({
   clinicTag,
   durationMinutes,
   exit,
+  highlighted,
   onAccepted,
   onDecline,
 }: {
@@ -688,6 +742,8 @@ function PendingRequestItem({
   clinicTag: DashboardClinicTag | null;
   durationMinutes: number;
   exit: ExitKind | null;
+  /** Just brought in by "Show" on the new requests bar. */
+  highlighted: boolean;
   onAccepted: () => void;
   onDecline: () => void;
 }) {
@@ -752,6 +808,7 @@ function PendingRequestItem({
   return (
     <li
       data-testid="dashboard-pending-request"
+      data-highlighted={highlighted ? "true" : "false"}
       aria-busy={locked}
       className={`grid transition-[grid-template-rows,opacity,transform] duration-300 ease-out motion-safe:animate-fade-up ${
         collapsing ? "grid-rows-[0fr] translate-x-6 opacity-0" : "grid-rows-[1fr]"
@@ -761,6 +818,8 @@ function PendingRequestItem({
       <div className="min-h-0 overflow-hidden">
         <article
           className={`flex flex-col gap-2 px-5 py-4 transition-colors duration-300 sm:flex-row sm:gap-4 ${
+            highlighted ? NEW_REQUEST_SPOTLIGHT_CLASS : ""
+          } ${
             exit === "accepted"
               ? "bg-clinical-500/10"
               : exit === "declined"

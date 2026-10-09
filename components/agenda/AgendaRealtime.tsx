@@ -13,7 +13,12 @@ import {
 import { enGB } from "date-fns/locale";
 import { formatInTimeZone, utcToZonedTime } from "date-fns-tz";
 import { CalendarPlus, ChevronLeft, ChevronRight, Loader2, Menu, Phone, Trash2, X } from "lucide-react";
-import { isManualBooking, agendaBookingSourceFromRaw, MANUAL_BOOKING_LABEL as MANUAL_MARK_LABEL } from "@/lib/agenda-booking-source";
+import {
+  isManualBooking,
+  isPatientRequestArrival,
+  agendaBookingSourceFromRaw,
+  MANUAL_BOOKING_LABEL as MANUAL_MARK_LABEL,
+} from "@/lib/agenda-booking-source";
 import { toast as sonnerToast } from "sonner";
 import { useTranslations } from "next-intl";
 import {
@@ -532,8 +537,10 @@ export function AgendaRealtime({
             return sortAgendaRowsByDatetime([next, ...prev]);
           });
 
-          setToast(true);
-          window.setTimeout(() => setToast(false), 3000);
+          if (isPatientRequestArrival(raw)) {
+            setToast(true);
+            window.setTimeout(() => setToast(false), 3000);
+          }
         },
       )
       .on(
@@ -559,9 +566,6 @@ export function AgendaRealtime({
             copy[idx] = next;
             return sortAgendaRowsByDatetime(copy);
           });
-
-          setToast(true);
-          window.setTimeout(() => setToast(false), 3000);
         },
       )
       .on(
@@ -575,8 +579,6 @@ export function AgendaRealtime({
           // DELETE payloads may not include professional_id depending on replica identity,
           // so do a targeted resync to avoid stale rows across simultaneous sessions.
           void refreshAppointmentsFromServer();
-          setToast(true);
-          window.setTimeout(() => setToast(false), 3000);
         },
       )
       .subscribe();
@@ -1303,7 +1305,7 @@ export function AgendaRealtime({
     <>
       {toast && (
         <div className="fixed right-5 top-5 z-50 rounded-2xl border border-clinical-400/30 bg-slate-900/90 px-4 py-3 text-xs font-medium text-clinical-200 shadow-2xl shadow-ink-900/60 backdrop-blur">
-          New booking activity
+          New booking request
         </div>
       )}
 
