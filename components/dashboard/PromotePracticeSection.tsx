@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { QRCodeCanvas } from "qrcode.react";
-import { Copy, Download, Printer, QrCode } from "lucide-react";
+import { Check, Copy, Download, Printer, QrCode } from "lucide-react";
 import { resolvePromotePracticeCopy } from "@/lib/promote-practice-copy";
 import { buildPublicProfileUrl } from "@/lib/promote-practice-script-templates";
 import { PromotePracticeScripts } from "@/components/dashboard/PromotePracticeScripts";
@@ -171,8 +171,14 @@ export function PromotePracticeSection({
             {shortBookingLink(profileBookingUrl)}
           </p>
           <button type="button" onClick={() => void copyLink()} className={SETTINGS_SECONDARY_BUTTON_CLASS}>
-            <Copy className="h-4 w-4" aria-hidden />
-            {linkCopied ? copy.copiedButton : copy.copyLinkButton}
+            {linkCopied ? (
+              <Check className="h-4 w-4 text-clinical-300" aria-hidden />
+            ) : (
+              <Copy className="h-4 w-4" aria-hidden />
+            )}
+            <span role="status" aria-live="polite">
+              {linkCopied ? copy.copiedButton : copy.copyLinkButton}
+            </span>
           </button>
         </div>
 

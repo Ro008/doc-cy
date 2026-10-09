@@ -91,6 +91,7 @@ import { SettingsSwitch } from "@/components/dashboard/settings/SettingsSwitch";
 import { ClinicBookingSwitch } from "@/components/dashboard/settings/ClinicBookingSwitch";
 import { ClinicCard } from "@/components/dashboard/settings/ClinicCard";
 import { ClinicBookingLimits } from "@/components/dashboard/settings/ClinicBookingLimits";
+import { BusyLabel, BusySpinner, SavingNote } from "@/components/dashboard/settings/BusyLabel";
 import {
   accountLimitsFor,
   applyLimitsToAllClinics,
@@ -1281,16 +1282,28 @@ export function SettingsForm({
   ) : null;
 
   // See the result of an edit where patients see it (user, 2026-10-01).
+  // It opens in a new tab, so this tab says so (user, 2026-10-09: no sign it worked).
+  const [previewOpening, setPreviewOpening] = React.useState(false);
   const previewProfileLink = publicProfileHref ? (
     <a
       href={publicProfileHref}
       target="_blank"
       rel="noopener noreferrer"
       data-testid="settings-preview-profile"
+      aria-busy={previewOpening}
+      onClick={() => {
+        if (previewOpening) return;
+        setPreviewOpening(true);
+        window.setTimeout(() => {
+          setPreviewOpening(false);
+          toast.success("Your public profile opened in a new tab.", { id: "preview-profile" });
+        }, 900);
+      }}
       className={SETTINGS_SECONDARY_BUTTON_CLASS}
     >
-      <ExternalLink className="h-4 w-4" aria-hidden />
-      Preview profile
+      <BusyLabel busy={previewOpening} busyText="Opening…" icon={<ExternalLink className="h-4 w-4" aria-hidden />}>
+        Preview profile
+      </BusyLabel>
     </a>
   ) : null;
 
@@ -1307,6 +1320,7 @@ export function SettingsForm({
         <SettingsSwitch
           tone="amber"
           label="Holiday mode"
+          busy={savingGroup === "holiday"}
           checked={holidayModeEnabled}
           onChange={(enabled) => {
             setHolidayModeEnabled(enabled);
@@ -1328,7 +1342,7 @@ export function SettingsForm({
         Pauses online booking at every clinic between the dates you pick.
       </p>
       {holidayModeEnabled ? (
-        <div className="mt-3 grid grid-cols-2 gap-2">
+        <fieldset disabled={savingGroup === "holiday"} className="mt-3 grid min-w-0 grid-cols-2 gap-2">
           <label htmlFor="holidayStart" className="text-[11px] font-semibold text-slate-300">
             From
             <input
@@ -1359,6 +1373,7 @@ export function SettingsForm({
               type="button"
               data-testid="settings-holiday-save"
               disabled={savingGroup === "holiday"}
+              aria-busy={savingGroup === "holiday"}
               onClick={() =>
                 void saveGroup(
                   { kind: "holiday" },
@@ -1367,11 +1382,9 @@ export function SettingsForm({
               }
               className={`${SETTINGS_PRIMARY_BUTTON_CLASS} !bg-amber-300 hover:!bg-amber-200`}
             >
-              {savingGroup === "holiday"
-                ? "Saving…"
-                : savedSnapshot.holidayModeEnabled
-                  ? "Save dates"
-                  : "Turn on holiday mode"}
+              <BusyLabel busy={savingGroup === "holiday"} busyText="Saving…">
+                {savedSnapshot.holidayModeEnabled ? "Save dates" : "Turn on holiday mode"}
+              </BusyLabel>
             </button>
             <button
               type="button"
@@ -1382,7 +1395,7 @@ export function SettingsForm({
             </button>
           </div>
           ) : null}
-        </div>
+        </fieldset>
       ) : null}
     </div>
   );
@@ -1391,7 +1404,11 @@ export function SettingsForm({
   // 2026-10-01); a rename goes through "Request a change" so DocCy can check that a
   // shared clinic is not renamed by one of its doctors.
   const workplaceEditor = (row: DoctorWorkplaceFormData) => (
-    <div className="space-y-5">
+    <fieldset
+      disabled={savingGroup === `clinic:${row.id}`}
+      aria-busy={savingGroup === `clinic:${row.id}`}
+      className="min-w-0 space-y-5"
+    >
       <p className="text-xs text-slate-400" data-testid="settings-clinic-name-note">
         The clinic name and address are DocCy&apos;s, the same for every doctor there. To
         change them, use Request a change.
@@ -1532,14 +1549,16 @@ export function SettingsForm({
           type="button"
           data-testid="settings-clinic-hours-save"
           disabled={!groupDirty({ kind: "clinic", id: row.id }) || savingGroup === `clinic:${row.id}`}
+          aria-busy={savingGroup === `clinic:${row.id}`}
           onClick={async () => {
             const saved = await saveGroup({ kind: "clinic", id: row.id }, `Hours saved for ${activeWorkplaceLabel}.`);
             if (saved) setEditingWorkplaceId(null);
           }}
           className={SETTINGS_PRIMARY_BUTTON_CLASS}
         >
-          <Save className="mr-2 h-4 w-4" aria-hidden />
-          {savingGroup === `clinic:${row.id}` ? "Saving…" : "Save hours"}
+          <BusyLabel busy={savingGroup === `clinic:${row.id}`} busyText="Saving…" icon={<Save className="h-4 w-4" aria-hidden />}>
+            Save hours
+          </BusyLabel>
         </button>
         <button
           type="button"
@@ -1552,7 +1571,7 @@ export function SettingsForm({
           Cancel
         </button>
       </div>
-    </div>
+    </fieldset>
   );
 
   const availabilitySection = (
@@ -1775,7 +1794,7 @@ export function SettingsForm({
         </ul>
       </section>
       <section className={SECTION_CARD_CLASS}>
-        <div className="grid gap-3 sm:grid-cols-[1fr_180px_auto]">
+        <fieldset disabled={serviceSubmitting} className="grid min-w-0 gap-3 sm:grid-cols-[1fr_180px_auto]">
           <input
             type="text"
             value={serviceName}
@@ -1796,11 +1815,14 @@ export function SettingsForm({
             type="button"
             onClick={handleAddService}
             disabled={serviceSubmitting}
+            aria-busy={serviceSubmitting}
             className={SETTINGS_PRIMARY_BUTTON_CLASS}
           >
-            {serviceSubmitting ? "Adding..." : "Add"}
+            <BusyLabel busy={serviceSubmitting} busyText="Adding…">
+              Add
+            </BusyLabel>
           </button>
-        </div>
+        </fieldset>
         {services.length > 0 ? (
           <ul className="mt-4 divide-y divide-slate-800">
             {services.map((service) => (
@@ -1811,12 +1833,13 @@ export function SettingsForm({
                 </div>
                 <button
                   type="button"
-                  disabled={deletingServiceId === service.id}
+                  disabled={deletingServiceId !== null}
+                  aria-busy={deletingServiceId === service.id}
                   onClick={() => handleDeleteService(service.id)}
                   aria-label={`Delete ${service.name}`}
-                  className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-slate-400 transition hover:bg-rose-500/10 hover:text-rose-300 disabled:opacity-50"
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-slate-400 transition hover:bg-rose-500/10 hover:text-rose-300 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 aria-busy:cursor-progress aria-busy:opacity-100"
                 >
-                  <Trash2 className="h-4 w-4" />
+                  {deletingServiceId === service.id ? <BusySpinner /> : <Trash2 className="h-4 w-4" />}
                 </button>
               </li>
             ))}
@@ -1874,10 +1897,11 @@ export function SettingsForm({
                   type="button"
                   aria-label={`Cancel the request for ${pendingChip.label}`}
                   disabled={specialtyCancelBusy}
+                  aria-busy={specialtyCancelBusy}
                   onClick={() => void cancelSpecialtyRequest()}
-                  className="inline-flex h-6 w-6 items-center justify-center rounded-full text-amber-200 transition hover:bg-amber-400/15 hover:text-amber-50 disabled:opacity-50"
+                  className="inline-flex h-6 w-6 items-center justify-center rounded-full text-amber-200 transition hover:bg-amber-400/15 hover:text-amber-50 disabled:opacity-50 aria-busy:cursor-progress aria-busy:opacity-100"
                 >
-                  <X className="h-3.5 w-3.5" aria-hidden />
+                  {specialtyCancelBusy ? <BusySpinner className="h-3.5 w-3.5" /> : <X className="h-3.5 w-3.5" aria-hidden />}
                 </button>
               </li>
             ) : null}
@@ -1894,9 +1918,10 @@ export function SettingsForm({
             : `${LAST_SPECIALTY_MESSAGE} To switch it, add the new one; once it’s approved, remove the old one.`}
       </p>
       {pendingChip ? null : specialtyFormOpen ? (
-        <div
+        <fieldset
+          disabled={specialtyChangeBusy}
           data-testid="settings-specialty-change-form"
-          className="mt-3 space-y-4 rounded-2xl border border-slate-700 bg-slate-950/40 p-4"
+          className="mt-3 min-w-0 space-y-4 rounded-2xl border border-slate-700 bg-slate-950/40 p-4"
         >
           <div>
             <p className={SECTION_EYEBROW_CLASS}>
@@ -1964,10 +1989,13 @@ export function SettingsForm({
               type="button"
               data-testid="settings-specialty-change-submit"
               disabled={specialtyChangeBusy}
+              aria-busy={specialtyChangeBusy}
               onClick={() => void submitSpecialtyChangeRequest()}
               className={SETTINGS_PRIMARY_BUTTON_CLASS}
             >
-              {specialtyChangeBusy ? "Sending…" : "Send request"}
+              <BusyLabel busy={specialtyChangeBusy} busyText="Sending…">
+                Send request
+              </BusyLabel>
             </button>
             <button
               type="button"
@@ -1978,7 +2006,7 @@ export function SettingsForm({
               Cancel
             </button>
           </div>
-        </div>
+        </fieldset>
       ) : (
         <button
           type="button"
@@ -2024,9 +2052,12 @@ export function SettingsForm({
             type="button"
             onClick={() => avatarFileInputRef.current?.click()}
             disabled={avatarUploading}
+            aria-busy={avatarUploading}
             className={SETTINGS_SECONDARY_BUTTON_CLASS}
           >
-            {avatarUploading ? "Uploading..." : "Upload new photo"}
+            <BusyLabel busy={avatarUploading} busyText="Uploading…">
+              Upload new photo
+            </BusyLabel>
           </button>
         </div>
       </section>
@@ -2046,6 +2077,8 @@ export function SettingsForm({
           value={bio}
           maxLength={BIO_MAX_CHARS}
           onChange={(e) => setBio(e.target.value)}
+          readOnly={savingGroup === "bio"}
+          aria-busy={savingGroup === "bio"}
           placeholder="Example: I treat back pain, sports injuries, and post-surgery rehab."
           className="mt-2 w-full resize-y rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2.5 text-sm text-slate-100 placeholder:text-slate-500 outline-none transition focus:border-clinical-400/60 focus:ring-2 focus:ring-clinical-400/30"
         />
@@ -2056,13 +2089,17 @@ export function SettingsForm({
                 type="button"
                 data-testid="settings-bio-save"
                 disabled={savingGroup === "bio"}
+                aria-busy={savingGroup === "bio"}
                 onClick={() => void saveGroup({ kind: "bio" }, "Bio saved.")}
                 className={SETTINGS_PRIMARY_BUTTON_CLASS}
               >
-                {savingGroup === "bio" ? "Saving…" : "Save bio"}
+                <BusyLabel busy={savingGroup === "bio"} busyText="Saving…">
+                  Save bio
+                </BusyLabel>
               </button>
               <button
                 type="button"
+                disabled={savingGroup === "bio"}
                 onClick={() => setBio(savedSnapshot.bio)}
                 className={SETTINGS_GHOST_BUTTON_CLASS}
               >
@@ -2074,15 +2111,20 @@ export function SettingsForm({
             {bio.trim().length}/{BIO_MAX_CHARS}
           </p>
         </div>
-        <p className={`${SECTION_EYEBROW_CLASS} mt-4`}>
-          Languages <span className="text-red-300">*</span>
-        </p>
-        <LanguageMultiSelect
-          id="settings-languages"
-          selected={languages}
-          onSelectedChange={changeLanguages}
-          variant="settings"
-        />
+        <div className="mt-4 flex items-center justify-between gap-3">
+          <p className={SECTION_EYEBROW_CLASS}>
+            Languages <span className="text-red-300">*</span>
+          </p>
+          <SavingNote busy={savingGroup === "languages"} />
+        </div>
+        <fieldset disabled={savingGroup === "languages"} className="min-w-0">
+          <LanguageMultiSelect
+            id="settings-languages"
+            selected={languages}
+            onSelectedChange={changeLanguages}
+            variant="settings"
+          />
+        </fieldset>
         {languagesError ? (
           <p className="mt-1.5 text-xs font-medium text-red-300" role="alert">
             {languagesError}
@@ -2180,6 +2222,7 @@ export function SettingsForm({
           title={`Remove ${removeDialogName}?`}
           description="Patients won’t find you at this clinic any more. A clinic with upcoming or requested appointments can’t be removed until you move or cancel them."
           onClose={() => setWorkplaceToRemove(null)}
+          busy={workplaceBusy}
           footer={(close) => (
             <>
               <button
@@ -2196,9 +2239,12 @@ export function SettingsForm({
                   if (await handleRemoveWorkplace(workplaceToRemove)) close();
                 }}
                 disabled={workplaceBusy}
+                aria-busy={workplaceBusy}
                 className={dialogDangerButtonClass}
               >
-                {workplaceBusy ? "Removing…" : "Remove clinic"}
+                <BusyLabel busy={workplaceBusy} busyText="Removing…">
+                  Remove clinic
+                </BusyLabel>
               </button>
             </>
           )}
@@ -2233,6 +2279,7 @@ export function SettingsForm({
           title={`Remove ${specialtyToRemove}?`}
           description="It comes off your profile and Health Finder right away. To add it back later, you’ll need to request it again."
           onClose={() => setSpecialtyToRemove(null)}
+          busy={specialtyRemoving}
           footer={(close) => (
             <>
               <button
@@ -2249,9 +2296,12 @@ export function SettingsForm({
                   if (await handleRemoveSpecialty(specialtyToRemove)) close();
                 }}
                 disabled={specialtyRemoving}
+                aria-busy={specialtyRemoving}
                 className={dialogDangerButtonClass}
               >
-                {specialtyRemoving ? "Removing…" : "Remove"}
+                <BusyLabel busy={specialtyRemoving} busyText="Removing…">
+                  Remove
+                </BusyLabel>
               </button>
             </>
           )}
@@ -2301,6 +2351,7 @@ export function SettingsForm({
                   <button
                     type="button"
                     onClick={closeAvatarCropModal}
+                    disabled={avatarUploading || avatarCropping}
                     className={SETTINGS_GHOST_BUTTON_CLASS}
                   >
                     Cancel
@@ -2309,9 +2360,12 @@ export function SettingsForm({
                     type="button"
                     onClick={onConfirmAvatarCrop}
                     disabled={avatarUploading || avatarCropping}
+                    aria-busy={avatarUploading || avatarCropping}
                     className={SETTINGS_PRIMARY_BUTTON_CLASS}
                   >
-                    {avatarCropping ? "Processing..." : avatarUploading ? "Uploading..." : "Confirm crop"}
+                    <BusyLabel busy={avatarUploading || avatarCropping} busyText={avatarCropping ? "Preparing…" : "Uploading…"}>
+                      Confirm crop
+                    </BusyLabel>
                   </button>
                 </div>
               </div>

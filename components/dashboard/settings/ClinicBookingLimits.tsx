@@ -9,6 +9,7 @@ import {
 } from "@/lib/doctor-settings";
 import { PATIENT_CANCEL_NOTICE_CHOICES, parsePatientCancelNoticeHours } from "@/lib/patient-cancel-window";
 import { SETTINGS_LINK_CLASS } from "@/components/dashboard/settings/styles";
+import { SavingNote } from "@/components/dashboard/settings/BusyLabel";
 import { PER_CLINIC_LIMITS_PENDING, type ClinicLimits } from "@/lib/settings-clinic-limits";
 
 const SELECT_CLASS =
@@ -55,7 +56,10 @@ export function ClinicBookingLimits({
   return (
     // Part of the clinic card, not a box inside it (user, 2026-10-09: it felt cramped).
     <div className="mb-2 mt-6 border-t border-white/10 pt-6" data-testid="clinic-booking-limits">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Booking limits</p>
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Booking limits</p>
+        <SavingNote busy={busy} />
+      </div>
       <div className="mt-4 grid gap-6 sm:grid-cols-3 sm:gap-5">
         <div>
           <label htmlFor={id("bookingHorizonDays")} className="text-sm font-semibold text-slate-100">

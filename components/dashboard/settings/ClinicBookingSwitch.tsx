@@ -51,7 +51,8 @@ export function ClinicBookingSwitch({
   return (
     <SettingsSwitch
       checked={!paused && !accessEnded}
-      busy={busy || accessEnded}
+      busy={busy}
+      disabled={accessEnded}
       label={`Online booking at ${clinicName}`}
       onChange={(accepting) => void setPaused(!accepting)}
     />

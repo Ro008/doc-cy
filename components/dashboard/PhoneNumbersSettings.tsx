@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { settingsSectionHref } from "@/lib/settings-sections";
+import { BusyLabel } from "@/components/dashboard/settings/BusyLabel";
 import {
   SETTINGS_CARD_CLASS,
   SETTINGS_EYEBROW_CLASS,
@@ -59,6 +60,8 @@ export function PhoneNumbersSettings({
             autoComplete="tel"
             value={mobileNumber}
             onChange={(e) => onMobileNumberChange(e.target.value)}
+            readOnly={mobileSaving}
+            aria-busy={mobileSaving}
             placeholder="+357..."
             className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2.5 text-sm text-slate-100 placeholder:text-slate-500 outline-none transition focus:border-clinical-400/60 focus:ring-2 focus:ring-clinical-400/30"
           />
@@ -68,13 +71,17 @@ export function PhoneNumbersSettings({
                 type="button"
                 data-testid="settings-mobile-save"
                 disabled={mobileSaving}
+                aria-busy={mobileSaving}
                 onClick={onSaveMobile}
                 className={SETTINGS_PRIMARY_BUTTON_CLASS}
               >
-                {mobileSaving ? "Saving…" : "Save mobile"}
+                <BusyLabel busy={mobileSaving} busyText="Saving…">
+                  Save mobile
+                </BusyLabel>
               </button>
               <button
                 type="button"
+                disabled={mobileSaving}
                 onClick={onCancelMobile}
                 className={SETTINGS_GHOST_BUTTON_CLASS}
               >

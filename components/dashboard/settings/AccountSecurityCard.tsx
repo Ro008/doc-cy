@@ -11,6 +11,7 @@ import {
   SETTINGS_ROW_CLASS,
   SETTINGS_SECONDARY_BUTTON_CLASS,
 } from "@/components/dashboard/settings/styles";
+import { BusyLabel } from "@/components/dashboard/settings/BusyLabel";
 import { changeEmailMessage, changePasswordMessage, validateNewEmail } from "@/lib/settings-account";
 
 /**
@@ -130,6 +131,7 @@ export function AccountSecurityCard({ email }: { email: string }) {
                   autoComplete="email"
                   value={newEmail}
                   onChange={(event) => setNewEmail(event.target.value)}
+                  readOnly={emailBusy}
                   onKeyDown={(event) => {
                     if (event.key !== "Enter") return;
                     event.preventDefault();
@@ -144,13 +146,17 @@ export function AccountSecurityCard({ email }: { email: string }) {
                     type="button"
                     onClick={() => void requestEmailChange()}
                     disabled={emailBusy}
+                    aria-busy={emailBusy}
                     className={SETTINGS_PRIMARY_BUTTON_CLASS}
                   >
-                    {emailBusy ? "Sending…" : "Send confirmation link"}
+                    <BusyLabel busy={emailBusy} busyText="Sending…">
+                      Send confirmation link
+                    </BusyLabel>
                   </button>
                   <button
                     type="button"
                     onClick={closeEmailForm}
+                    disabled={emailBusy}
                     className={SETTINGS_GHOST_BUTTON_CLASS}
                   >
                     Cancel
@@ -190,9 +196,12 @@ export function AccountSecurityCard({ email }: { email: string }) {
             type="button"
             onClick={() => void sendPasswordLink()}
             disabled={passwordBusy}
+            aria-busy={passwordBusy}
             className={SETTINGS_SECONDARY_BUTTON_CLASS}
           >
-            {passwordBusy ? "Sending…" : "Change password"}
+            <BusyLabel busy={passwordBusy} busyText="Sending…">
+              Change password
+            </BusyLabel>
           </button>
         </div>
 

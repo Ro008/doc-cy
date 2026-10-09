@@ -482,6 +482,41 @@ test.describe("Settings redesign (B1)", { tag: "@pr-e2e" }, () => {
     await expect(preview).toBeVisible();
     await expect(preview).toHaveAttribute("href", /^\/[a-z]{2}\/[^/]+$/);
     await expect(preview).toHaveAttribute("target", "_blank");
+
+    // It opens in a new tab, so this tab says it is opening, then that it opened.
+    const popup = page.waitForEvent("popup");
+    await preview.click();
+    await expect(preview).toHaveAttribute("aria-busy", "true");
+    await expect(preview).toContainText("Opening…");
+    await (await popup).close();
+    await expect(page.locator("[data-sonner-toast]").getByText("Your public profile opened in a new tab.")).toBeVisible();
+    await expect(preview).toContainText("Preview profile");
+  });
+
+  test("while a block saves, its button spins and its fields are locked", async ({ page }) => {
+    test.setTimeout(120_000);
+    let release: () => void = () => {};
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    await page.route("**/api/doctor-settings", async (route) => {
+      if (route.request().method() !== "POST") return route.fallback();
+      await held;
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true }) });
+    });
+    await openSettings(page, seeded!, "profile");
+    await page.locator("#settings-bio").fill("A bio that takes a while to save");
+    const save = page.getByTestId("settings-bio-save");
+    await save.click();
+
+    await expect(save).toHaveAttribute("aria-busy", "true");
+    await expect(save).toContainText("Saving…");
+    await expect(save).toBeDisabled();
+    await expect(page.locator("#settings-bio")).toHaveAttribute("readonly", "");
+
+    release();
+    await expect(page.locator("[data-sonner-toast]").getByText("Bio saved.")).toBeVisible();
+    await expect(page.locator("#settings-bio")).not.toHaveAttribute("readonly", "");
   });
 
   test("a section that fits the window does not scroll", async ({ page }) => {

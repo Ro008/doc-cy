@@ -103,16 +103,10 @@ export function settingsFormHasUnsavedChanges(
 const SECTION_FIELDS: Array<[UnsavedSection, Array<keyof SettingsDirtySnapshot>]> = [
   [
     "availability",
-    [
-      "bookingHorizonDays",
-      "minimumNoticeHours",
-      "patientCancelNoticeHours",
-      "holidayModeEnabled",
-      "holidayStartInput",
-      "holidayEndInput",
-    ],
+    ["holidayModeEnabled", "holidayStartInput", "holidayEndInput"],
   ],
-  ["clinics", ["workplaces"]],
+  // Booking limits are set on each clinic's card (user, 2026-10-09).
+  ["clinics", ["workplaces", "bookingHorizonDays", "minimumNoticeHours", "patientCancelNoticeHours"]],
   ["profile", ["specialty", "specialtyFromMaster", "bio", "languages"]],
   ["contact", ["mobileNumber"]],
 ];

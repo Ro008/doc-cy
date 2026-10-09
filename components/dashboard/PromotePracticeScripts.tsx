@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { ChevronDown, Copy, LifeBuoy } from "lucide-react";
+import { Check, ChevronDown, Copy, LifeBuoy } from "lucide-react";
 import {
   DOCCY_FEEDBACK_SUBJECT_WEBSITE_BOOKING,
   emitOpenFeedback,
@@ -37,8 +37,14 @@ function CopyButton({ text, copy }: { text: string; copy: PromotePracticeCopy })
 
   return (
     <button type="button" onClick={handleCopy} className={COPY_BUTTON_CLASS}>
-      <Copy className="h-3.5 w-3.5" aria-hidden />
-      {copied ? copy.copiedButton : copy.copyButton}
+      {copied ? (
+        <Check className="h-3.5 w-3.5 text-clinical-300" aria-hidden />
+      ) : (
+        <Copy className="h-3.5 w-3.5" aria-hidden />
+      )}
+      <span role="status" aria-live="polite">
+        {copied ? copy.copiedButton : copy.copyButton}
+      </span>
     </button>
   );
 }

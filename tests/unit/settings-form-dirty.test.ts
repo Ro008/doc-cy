@@ -151,7 +151,7 @@ describe("unsavedSettingsSections", () => {
       ...baseSnapshotInput(),
       bio: "New bio.",
       mobileNumber: "+35799000000",
-      minimumNoticeHours: 48,
+      holidayModeEnabled: true,
       workplaces: [{ ...baseWorkplace, slotDurationMinutes: 45 }],
     });
     assert.deepEqual(unsavedSettingsSections(changed, saved()), [
@@ -160,6 +160,11 @@ describe("unsavedSettingsSections", () => {
       "profile",
       "contact",
     ]);
+  });
+
+  it("puts booking limits under Clinics, where each clinic sets them (2026-10-09)", () => {
+    const changed = buildSettingsDirtySnapshot({ ...baseSnapshotInput(), minimumNoticeHours: 48 });
+    assert.deepEqual(unsavedSettingsSections(changed, saved()), ["clinics"]);
   });
 
   it("puts holiday dates under Availability", () => {

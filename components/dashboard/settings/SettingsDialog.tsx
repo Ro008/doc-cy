@@ -18,6 +18,7 @@ export function SettingsDialog({
   children,
   footer,
   wide = false,
+  busy = false,
 }: {
   title: string;
   description?: React.ReactNode;
@@ -25,6 +26,8 @@ export function SettingsDialog({
   children?: React.ReactNode;
   footer: React.ReactNode | ((close: () => void) => React.ReactNode);
   wide?: boolean;
+  /** Waiting for the server: Esc and the backdrop do not close it, and its fields are locked. */
+  busy?: boolean;
 }) {
   const titleId = React.useId();
   const panelRef = React.useRef<HTMLDivElement | null>(null);
@@ -35,9 +38,11 @@ export function SettingsDialog({
     onCloseRef.current = onClose;
   }, [onClose]);
 
+  const busyRef = React.useRef(busy);
+  busyRef.current = busy;
   const leavingRef = React.useRef(false);
   const close = React.useCallback(() => {
-    if (leavingRef.current) return;
+    if (leavingRef.current || busyRef.current) return;
     leavingRef.current = true;
     setLeaving(true);
     window.setTimeout(() => onCloseRef.current(), LEAVE_MS);
@@ -75,6 +80,7 @@ export function SettingsDialog({
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
+        aria-busy={busy}
         className={`my-auto w-full ${wide ? "max-w-xl" : "max-w-md"} rounded-3xl border border-slate-700/70 bg-[#0B1A30] p-6 shadow-xl shadow-black/40 ${
           leaving ? "settings-dialog-out" : "settings-dialog-in"
         }`}
@@ -85,7 +91,11 @@ export function SettingsDialog({
         {description ? (
           <div className="mt-2 text-sm leading-relaxed text-slate-300">{description}</div>
         ) : null}
-        {children ? <div className="mt-4">{children}</div> : null}
+        {children ? (
+          <fieldset disabled={busy} className="mt-4 min-w-0 disabled:opacity-80">
+            {children}
+          </fieldset>
+        ) : null}
         <div className="mt-5 flex flex-wrap justify-end gap-2">
           {typeof footer === "function" ? footer(close) : footer}
         </div>

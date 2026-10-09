@@ -7,6 +7,7 @@ import {
   type ClinicChanges,
   type ClinicPick,
 } from "@/lib/clinic-change-request";
+import { BusyLabel } from "@/components/dashboard/settings/BusyLabel";
 import { ClinicPicker } from "@/components/dashboard/settings/ClinicPicker";
 import { settingsActionErrorMessage } from "@/lib/settings-backend-pending";
 import {
@@ -89,6 +90,7 @@ export function ClinicChangeRequestDialog({
       title={`Request a change to ${clinicName}`}
       description="Pick the clinic the way you did when you registered: from DocCy’s clinics, Google Maps or a pin. DocCy checks the change before it goes live and emails you when it’s done."
       onClose={onClose}
+      busy={busy}
       footer={(close) => (
         <>
           <button type="button" onClick={close} disabled={busy} className={dialogSecondaryButtonClass}>
@@ -98,9 +100,12 @@ export function ClinicChangeRequestDialog({
             type="button"
             onClick={() => void send(close)}
             disabled={busy}
+            aria-busy={busy}
             className={dialogPrimaryButtonClass}
           >
-            {busy ? "Sending…" : "Send request"}
+            <BusyLabel busy={busy} busyText="Sending…">
+              Send request
+            </BusyLabel>
           </button>
         </>
       )}

@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { validateNewClinic, type ClinicPick, type NewClinicValidation } from "@/lib/clinic-change-request";
+import { BusyLabel } from "@/components/dashboard/settings/BusyLabel";
 import { ClinicPicker } from "@/components/dashboard/settings/ClinicPicker";
 import {
   SettingsDialog,
@@ -52,6 +53,7 @@ export function AddClinicDialog({
       title="Add a clinic"
       description="Search DocCy’s clinics first. If yours isn’t there, find it on Google Maps or drop a pin, and add its name and phone. You’ll set its hours next."
       onClose={onClose}
+      busy={busy}
       footer={(close) => (
         <>
           <button type="button" onClick={close} disabled={busy} className={dialogSecondaryButtonClass}>
@@ -61,9 +63,12 @@ export function AddClinicDialog({
             type="button"
             onClick={() => void add(close)}
             disabled={busy}
+            aria-busy={busy}
             className={dialogPrimaryButtonClass}
           >
-            {busy ? "Adding…" : "Add clinic"}
+            <BusyLabel busy={busy} busyText="Adding…">
+              Add clinic
+            </BusyLabel>
           </button>
         </>
       )}
