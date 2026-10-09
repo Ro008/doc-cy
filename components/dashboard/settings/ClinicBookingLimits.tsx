@@ -52,22 +52,10 @@ export function ClinicBookingLimits({
 }) {
   const id = (field: string) => `${field}-${clinicId}`;
   return (
-    <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-950/30 p-4" data-testid="clinic-booking-limits">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Booking limits</p>
-        {clinicCount > 1 ? (
-          <button
-            type="button"
-            onClick={onApplyToAll}
-            disabled={busy}
-            data-testid="clinic-limits-apply-all"
-            className="inline-flex h-8 items-center rounded-lg border border-clinical-400/35 bg-clinical-500/10 px-2.5 text-xs font-semibold text-clinical-100 transition hover:bg-clinical-500/20 disabled:opacity-60"
-          >
-            Apply these limits to all my clinics
-          </button>
-        ) : null}
-      </div>
-      <div className="mt-3 grid gap-4 sm:grid-cols-3">
+    // Part of the clinic card, not a box inside it (user, 2026-10-09: it felt cramped).
+    <div className="mb-2 mt-6 border-t border-white/10 pt-6" data-testid="clinic-booking-limits">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Booking limits</p>
+      <div className="mt-4 grid gap-6 sm:grid-cols-3 sm:gap-5">
         <div>
           <label htmlFor={id("bookingHorizonDays")} className="text-sm font-semibold text-slate-100">
             How far ahead
@@ -145,14 +133,25 @@ export function ClinicBookingLimits({
         </div>
       </div>
       {clinicCount > 1 ? (
-        <p className="mt-3 text-xs text-slate-400" data-testid="clinic-limits-scope">
-          {sharedByAll
-            ? `All ${clinicCount} of your clinics use these limits.`
-            : `Only for this clinic. Your other clinics keep their own limits.`}
-        </p>
+        <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
+          <p className="text-xs leading-relaxed text-slate-400" data-testid="clinic-limits-scope">
+            {sharedByAll
+              ? `All ${clinicCount} of your clinics use these limits.`
+              : "Only for this clinic. Your other clinics keep their own limits."}
+          </p>
+          <button
+            type="button"
+            onClick={onApplyToAll}
+            disabled={busy}
+            data-testid="clinic-limits-apply-all"
+            className="self-start whitespace-nowrap text-sm font-semibold text-clinical-300 underline-offset-4 transition hover:text-clinical-200 hover:underline disabled:opacity-60 sm:self-auto"
+          >
+            Apply to all my clinics
+          </button>
+        </div>
       ) : null}
       {!perClinicSaved && clinicCount > 1 ? (
-        <p className="mt-3 text-xs text-amber-200/90" data-testid="clinic-limits-pending">
+        <p className="mt-4 text-xs leading-relaxed text-amber-200/80" data-testid="clinic-limits-pending">
           {PER_CLINIC_LIMITS_PENDING}
         </p>
       ) : null}
