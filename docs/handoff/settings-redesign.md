@@ -1,7 +1,8 @@
 # Settings redesign — handoff to backend (START HERE)
 
-Branch: `feat/settings-redesign` · Frontend: **final** (Rocío, 2026-10-01) · Backend and
-database: **Livio decides**.
+Branch: `feat/settings-redesign` · Frontend: **final** (Rocío, 2026-10-01; last changes
+2026-10-09) · Backend and database: **Livio decides**. Up to date with `master` on
+2026-10-09 (incl. #272, appointments M2).
 
 This file is for Livio and for the AI assistant working with him. It says what the
 frontend on this branch now does and what it calls or reads that the backend does not
@@ -57,6 +58,11 @@ Reference design (private canvas): https://claude.ai/artifact/3XYQpTSDQPyn2wWFg8
 ### Clinics
 - One card per clinic: status, online booking switch (`POST /api/doctor-online-bookings`,
   unchanged), summary of days/hours/break/slot, "Edit hours" editor in the card.
+- **Booking limits per clinic** on each card (how far ahead, minimum notice, online
+  cancellation deadline), saved at once, plus "Apply to all my clinics" when there is
+  more than one. All clinics are equal; there is no primary in this. Until your
+  migration a change shows on every clinic and the card says so (section 3.7,
+  `lib/settings-clinic-limits.ts`, `components/dashboard/settings/ClinicBookingLimits.tsx`).
 - A clinic's **name, address and phone change only by request** ("Request a change").
   Only hours are editable.
 - **One clinic name everywhere: DocCy's `clinics.name`.** A doctor at a shared clinic
@@ -86,7 +92,14 @@ Reference design (private canvas): https://claude.ai/artifact/3XYQpTSDQPyn2wWFg8
   `tests/unit/legacy-specialty-claim-outreach-removed.test.ts` was updated to match.
 - The pending request shows as an "In review" chip with ✕ to cancel it (section 3.5).
   The page loads no pending request today (`initial.pendingSpecialtyChange` is unset).
-- "Preview profile" link in Profile and Services.
+- "Preview profile" link in Profile and Services. It opens a new tab, so this tab shows
+  "Opening…" and then a toast.
+
+### Services & prices
+- A short "What are services?" block above the list says what they are and how they
+  help patients (only claims that are true today: they are on the profile with prices;
+  patients cannot pick one when booking yet, Notion task "Booking: el paciente elige un
+  servicio y el doctor lo ve en la cita").
 
 ### Contact & phone
 - Mobile (private) with its own Save. Clinic phones are read-only and point to
@@ -107,10 +120,19 @@ Reference design (private canvas): https://claude.ai/artifact/3XYQpTSDQPyn2wWFg8
   "Write to the founders" button (opens the feedback form). The badge was removed from
   the agenda header (as on `feat/doctor-dashboard`).
 
-### Account (frontend only)
-- "Sign-in & security": signed-in email, "Change password" (calls the existing
-  `POST /api/auth/forgot-password` with the account email), sign out other devices,
-  sign out.
+### Account
+- "Sign-in & security": the email with "Change email" (section 3.8, waits for you),
+  "Change password" (calls the existing `POST /api/auth/forgot-password` with the
+  account email), sign out other devices (result as a toast), sign out.
+
+### Buttons and loading states (frontend only; keep them when you add to Settings)
+- One button system by role (primary, secondary, ghost/Cancel, danger, text link) in
+  `components/dashboard/settings/styles.ts`; never restyle a button inline.
+- Loading rules are written at the top of that file: the button that waits shows a
+  spinner and "-ing…" (`BusyLabel`), is disabled and `aria-busy`; the block's fields are
+  locked (`<fieldset disabled>` / `readOnly`); a dialog passed `busy` cannot be closed
+  with Esc or the backdrop (its own buttons still close it after success); controls that
+  save at once show "Saving…" (`SavingNote`); done is a toast with one id per block.
 
 ---
 
@@ -246,8 +268,10 @@ clinic works once Livio builds it in the backend (DELETE /api/professional-clini
 
 ---
 
-## 6. Merged with master (2026-10-09, incl. `feat/doctor-dashboard` #270)
+## 6. Merged with master (2026-10-09, incl. `feat/doctor-dashboard` #270 and #272)
 
+- #272 (appointments M2 drops legacy `appointments` columns): merged cleanly; nothing in
+  this branch reads or writes those columns.
 - `lib/doctor-routes.ts`: the Settings tab, active tab and login gate now use `/settings`.
 - `app/settings/page.tsx` was rebuilt on master's data loading (no `status`,
   `professional_services`, account settings select, `accessEnded`).
@@ -271,10 +295,14 @@ clinic works once Livio builds it in the backend (DELETE /api/professional-clini
 - Unit (all in `npm run test:unit`): `settings-sections`, `settings-removal-rules`,
   `clinic-change-request`, `settings-clinic-summary`, `settings-specialty-request`,
   `settings-backend-pending`, `settings-account`, `settings-save-groups`,
-  `settings-plan`, `booking-sign`.
+  `settings-plan`, `booking-sign`, `settings-clinic-limits`, `settings-form-dirty`.
 - e2e: `tests/integration/settings_redesign.integration.spec.ts` (@pr-e2e). Tests for
   3.1, 3.2, 3.3 and 3.5 stub the endpoints with `page.route` and pin the request body;
   replace the stubs with the real endpoints when they exist.
 - Updated specs for the new layout: promote, language guard, dashboard, feedback matrix,
   public phones, sign-out other sessions, registration review, avatar, and others.
-- Last full local run (like CI): 207 passed in the CI lanes, 7 outside CI.
+- e2e also covers: limits per clinic (and that each save already sends every clinic's
+  limits), Change email (expected failure, then a stubbed success), Preview profile
+  ("Opening…" + toast) and a slow save (spinner, fields locked).
+- Last full local run (like CI), 2026-10-09 on `cd87015`: 293 passed in the CI lanes,
+  7 outside CI.
