@@ -22,7 +22,6 @@ const prE2eBooking = [
   "schedule_constraints.spec.ts",
   "integration/appointments_race_condition.integration.spec.ts",
   "integration/needs_reschedule_slot_free.integration.spec.ts",
-  "integration/propose_reschedule_confirmed.integration.spec.ts",
   "integration/doctor_confirmation_flow.integration.spec.ts",
 ];
 

@@ -75,7 +75,6 @@ function location(id: string, paused = false, doctorId = A): DoctorLocationRow {
 
 type OccupiedRow = {
   professional_id: string;
-  location_id: string | null;
   appointment_datetime: string;
 };
 
@@ -132,7 +131,8 @@ describe("finder availability batch", () => {
     assert.equal(rpcCalls.length, 0);
   });
 
-  it("removes a booked slot only at its own clinic", async () => {
+  // One agenda per professional: a visit at one clinic takes that time at all of them.
+  it("removes a booked slot at every clinic of that professional", async () => {
     const baseline = await loadFinderCardAvailabilityByDoctorId(
       fakeSupabase([]).supabase,
       [A, B],
@@ -145,15 +145,15 @@ describe("finder availability batch", () => {
     assert.ok(slotForB, "baseline has a slot for B");
 
     const { supabase } = fakeSupabase([
-      { professional_id: A, location_id: L1, appointment_datetime: isoFromSlotKey(slotAtL1) },
-      { professional_id: B, location_id: L4, appointment_datetime: isoFromSlotKey(slotForB) },
+      { professional_id: A, appointment_datetime: isoFromSlotKey(slotAtL1) },
+      { professional_id: B, appointment_datetime: isoFromSlotKey(slotForB) },
     ]);
     const result = await loadFinderCardAvailabilityByDoctorId(supabase, [A, B], undefined, {
       loadLocations,
     });
 
     assert.ok(!slotKeys(result.byLocationId.get(L1)?.calendar).includes(slotAtL1), "taken at L1");
-    assert.ok(slotKeys(result.byLocationId.get(L2)?.calendar).includes(slotAtL1), "still free at L2");
+    assert.ok(!slotKeys(result.byLocationId.get(L2)?.calendar).includes(slotAtL1), "taken at L2 too");
     assert.ok(!slotKeys(result.calendars.get(B)).includes(slotForB), "taken for B");
     assert.equal(result.byLocationId.get(L3)?.paused, true);
     assert.equal(result.paused.get(A), false);
@@ -169,6 +169,32 @@ describe("finder availability batch", () => {
     assert.deepEqual(slotKeys(result.calendars.get(C)), []);
   });
 
+  // Access ended (user, 2026-10-02): nothing new can be booked, so no calendar is offered.
+  it("offers no calendar for a professional whose pro access has ended", async () => {
+    const { supabase, rpcCalls } = fakeSupabase([]);
+    const result = await loadFinderCardAvailabilityByDoctorId(supabase, [A, B], undefined, {
+      loadLocations,
+      loadAccessEndedIds: async () => new Set([A]),
+    });
+
+    assert.equal(result.paused.get(A), true);
+    assert.deepEqual(slotKeys(result.calendars.get(A)), []);
+    assert.equal(result.byLocationId.get(L1)?.paused, true);
+    assert.equal(result.byLocationId.get(L2)?.paused, true);
+    assert.equal(result.paused.get(B), false);
+    assert.ok(slotKeys(result.calendars.get(B)).length > 0, "B keeps her calendar");
+    assert.deepEqual(rpcCalls[0].args.p_professional_ids, [B], "no occupancy lookup for A");
+  });
+
+  it("makes no occupied-times call when everyone on the page has ended access", async () => {
+    const { supabase, rpcCalls } = fakeSupabase([]);
+    await loadFinderCardAvailabilityByDoctorId(supabase, [A, B], undefined, {
+      loadLocations,
+      loadAccessEndedIds: async () => new Set([A, B]),
+    });
+    assert.equal(rpcCalls.length, 0);
+  });
+
   it("shows no availability when the batch call fails", async () => {
     const { supabase } = fakeSupabase("error");
     const result = await loadFinderCardAvailabilityByDoctorId(supabase, [A, B], undefined, {
@@ -181,22 +207,16 @@ describe("finder availability batch", () => {
 
 describe("takenSlotTimesFor", () => {
   const rows: OccupiedRow[] = [
-    { professional_id: A, location_id: L1, appointment_datetime: "2026-10-01T07:00:00+00:00" },
-    { professional_id: A, location_id: L2, appointment_datetime: "2026-10-01T08:00:00+00:00" },
-    { professional_id: A, location_id: L1, appointment_datetime: "2026-10-01T07:00:00+00:00" },
-    { professional_id: B, location_id: null, appointment_datetime: "2026-10-01T09:00:00+00:00" },
-    { professional_id: A, location_id: L1, appointment_datetime: "2026-12-31T07:00:00+00:00" },
+    { professional_id: A, appointment_datetime: "2026-10-01T07:00:00+00:00" },
+    { professional_id: A, appointment_datetime: "2026-10-01T08:00:00+00:00" },
+    { professional_id: A, appointment_datetime: "2026-10-01T07:00:00+00:00" },
+    { professional_id: B, appointment_datetime: "2026-10-01T09:00:00+00:00" },
+    { professional_id: A, appointment_datetime: "2026-12-31T07:00:00+00:00" },
   ];
   const to = "2026-11-01T00:00:00.000Z";
 
-  it("keeps one professional's rows at one clinic, deduplicated, in Cyprus time, within their horizon", () => {
-    assert.deepEqual(takenSlotTimesFor(rows, { professionalId: A, locationId: L1, toIso: to }), [
-      "2026-10-01T10:00",
-    ]);
-  });
-
-  it("keeps every clinic when no clinic is given", () => {
-    assert.deepEqual(takenSlotTimesFor(rows, { professionalId: A, locationId: null, toIso: to }), [
+  it("keeps one professional's rows from every clinic, deduplicated, in Cyprus time, within their horizon", () => {
+    assert.deepEqual(takenSlotTimesFor(rows, { professionalId: A, toIso: to }), [
       "2026-10-01T10:00",
       "2026-10-01T11:00",
     ]);
@@ -205,7 +225,6 @@ describe("takenSlotTimesFor", () => {
   it("keeps rows up to a longer horizon", () => {
     const result = takenSlotTimesFor(rows, {
       professionalId: A,
-      locationId: L1,
       toIso: "2027-01-31T00:00:00.000Z",
     });
     assert.ok(result.includes("2026-12-31T09:00"));

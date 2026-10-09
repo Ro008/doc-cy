@@ -8,6 +8,7 @@ import { PendingLink } from "@/components/navigation/PendingLink";
 import { DocCyWordmark } from "@/components/brand/DocCyWordmark";
 import { writeProSessionHintCookie } from "@/lib/pro-session-hint";
 import { forgotPasswordPathWithEmail } from "@/lib/password-reset";
+import { postLoginDestination } from "@/lib/doctor-routes";
 import { normalizeSignInCode } from "@/lib/professional-email-step";
 
 async function signedInAsProfessional(): Promise<boolean> {
@@ -45,7 +46,7 @@ export function LoginPageClient({
 }) {
   const router = useRouter();
   const supabase = createClientComponentClient();
-  const destination = nextPath ?? "/agenda";
+  const destination = postLoginDestination(nextPath);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(

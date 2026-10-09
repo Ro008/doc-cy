@@ -1,5 +1,4 @@
 import { test, expect } from "@playwright/test";
-import { fillBookingPatientDetails } from "./helpers/fillBookingPatientDetails";
 import { skipIfSafeNoBooking } from "./helpers/safeMode";
 import { createTestDataClient } from "./helpers/testDataClient";
 
@@ -75,9 +74,10 @@ test.describe("Booking backend errors @booking-creates", () => {
       page.getByText(/Please enter a valid phone number|double‑check the phone number length/i)
     ).toBeHidden({ timeout: 3000 });
 
-    await fillBookingPatientDetails(page);
-    await page.getByLabel("This is my first visit").check();
     await page.locator("#visitReason").fill("E2E backend error path — visit reason.");
+    await page.getByRole("radio", { name: /This is my first visit/i }).check();
+    await page.getByRole("radio", { name: /Prefer not to say/i }).check();
+    await page.locator("#patientBirthdate").fill("1990-01-01");
 
     // Force backend error by intercepting the booking request.
     // Using an appointmentLocal outside typical working hours ensures:
@@ -117,12 +117,12 @@ test.describe("Booking backend errors @booking-creates", () => {
 
     const errorBox = page.getByTestId("booking-error-message");
     await expect(errorBox).toBeVisible({ timeout: 10000 });
-    await expect(errorBox).toContainText(
-      "Requested time is outside the professional's booking horizon."
-    );
+    // Plain words instead of the server's technical message, and back to the calendar.
+    await expect(errorBox).toContainText("That time is no longer available.");
+    await expect(page.getByRole("button", { name: /Send booking request/i })).toHaveCount(0);
 
-    // Should not navigate to the success page
-    await expect(page.getByRole("heading", { name: /Request pending/i })).toHaveCount(0);
+    // Nothing was sent: no "Check your email" card.
+    await expect(page.getByTestId("booking-success-message")).toHaveCount(0);
   });
 
   test("shows not accepting public bookings inline", async ({ page }) => {
@@ -208,9 +208,10 @@ test.describe("Booking backend errors @booking-creates", () => {
       )
     ).toBeHidden({ timeout: 3000 });
 
-    await fillBookingPatientDetails(page);
-    await page.getByLabel("This is my first visit").check();
     await page.locator("#visitReason").fill("E2E backend error path — visit reason.");
+    await page.getByRole("radio", { name: /This is my first visit/i }).check();
+    await page.getByRole("radio", { name: /Prefer not to say/i }).check();
+    await page.locator("#patientBirthdate").fill("1990-01-01");
 
     // Force backend: override doctorId to a pending/rejected professional.
     await page.route("**/api/appointments", async (route) => {
@@ -250,9 +251,7 @@ test.describe("Booking backend errors @booking-creates", () => {
       "This professional is not accepting public bookings yet."
     );
 
-    await expect(
-      page.getByRole("heading", { name: /Request pending/i })
-    ).toHaveCount(0);
+    await expect(page.getByTestId("booking-success-message")).toHaveCount(0);
   });
 });
 

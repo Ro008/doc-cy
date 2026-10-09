@@ -57,6 +57,11 @@
     }
   },
   "BookingPage": {
+    "ownProfileNoticeTitle": "This is how patients see your profile",
+    "ownProfileNoticeBody": "Patients book from here. To add a visit yourself, for a patient who phoned or walked in, use manual booking in your agenda.",
+    "ownProfileNoticeLink": "Add a manual booking",
+    "professionalNoticeTitle": "You're signed in as a professional",
+    "professionalNoticeBody": "Professionals can't book from their account. To book a visit as a patient, sign out first.",
     "title": "Book an appointment",
     "bookButton": "Book appointment",
     "booking": "Booking...",
@@ -74,6 +79,7 @@
     "bookingsTemporarilyUnavailable": "Bookings temporarily unavailable",
     "appointmentsPaused": "Appointments are paused by the professional. Please check back later.",
     "appointmentsPausedAtLocation": "Online booking is not available at this location.",
+    "appointmentsUnavailable": "Online booking is not available for this professional right now.",
     "appointmentsPausedCallHint": "Call the number in the Contact section to book an appointment.",
     "chooseClinicStep": "Step 1 of 2",
     "chooseClinicHeading": "Where do you want to go?",
@@ -133,30 +139,38 @@
     "errors": {
       "selectTimeSlot": "Please select a time slot.",
       "completePatientDetails": "Please complete all patient details.",
+      "nameRequired": "Please enter your full name.",
+      "emailRequired": "Please enter your email address.",
+      "validEmail": "Please check your email address, for example name@gmail.com.",
+      "phoneRequired": "Please enter a phone number so the clinic can reach you.",
       "validPhone": "Please enter a valid phone number.",
       "selectVisitType": "Please select a type of visit.",
       "selectVisitHistory": "Please tell us if this is your first visit.",
       "reasonRequired": "Please tell us briefly why you need this visit.",
       "timeSlotJustBooked": "This time slot has just been booked. Please choose another slot.",
+      "slotTooSoon": "That time is now too soon to book online. Please pick a later one.",
+      "slotNoLongerAvailable": "That time is no longer available. Please pick another one.",
       "preselectedSlotUnavailable": "That time is no longer available. Please choose another slot.",
       "bookingFailed": "We could not complete your booking. Please try again.",
       "somethingWentWrong": "Something went wrong. Please try again.",
-      "selectGender": "Please select your gender.",
-      "dateOfBirthMissing": "Please enter your date of birth.",
-      "dateOfBirthInvalid": "Please check your date of birth."
+      "genderRequired": "Please choose a gender option.",
+      "birthdateRequired": "Please enter a valid date of birth.",
+      "openRequestExists": "You already have a request waiting with {doctorName}. Please wait for their reply."
     },
     "emailDidYouMean": "Did you mean",
-    "emailInvalid": "Enter a valid email, e.g. name@example.com.",
     "genderLabel": "Gender",
-    "gender": {
-      "male": "Male",
-      "female": "Female",
-      "prefer_not_to_say": "Prefer not to say"
-    },
-    "dateOfBirthLabel": "Date of birth"
+    "genderFemale": "Female",
+    "genderMale": "Male",
+    "genderPreferNotToSay": "Prefer not to say",
+    "birthdateLabel": "Date of birth",
+    "personalDetailsPrivacyNote": "Your date of birth and gender are shared only with {doctorName} to prepare your visit. We never show them publicly.",
+    "checkEmailTitle": "Check your email",
+    "checkEmailMessage": "We sent a link to {email}. Open it within 30 minutes and tap “Confirm my request” to send your request to {doctorName}.",
+    "checkEmailHint": "Can’t find it? Check your spam folder. If you send the form again, only the newest link will work."
   },
   "DoctorAgenda": {
     "appointmentPendingBadge": "Pending",
+    "appointmentExpiredBadge": "Expired",
     "counterOfferHoldBadge": "Proposed slot",
     "signedOutNotice": "You're signed out, so your agenda may be out of date. Your appointments are safe.",
     "signedOutSignIn": "Sign in"
@@ -204,9 +218,6 @@
     "clinicsHeading": "Clinics & contact",
     "clinicsHintSeveral": "Same professional, different places. Book the clinic you will visit.",
     "openInMaps": "Open in Maps",
-    "ownerBanner": "You are viewing your public page.",
-    "ownerEditProfile": "Edit profile",
-    "ownerCustomize": "Colour & headline",
     "schemeGroupLabel": "Colour mode",
     "schemeLight": "Light",
     "schemeDark": "Dark",

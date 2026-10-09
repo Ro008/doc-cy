@@ -16,10 +16,13 @@ import {
   toBlockingRows,
 } from "@/lib/appointment-blocking-query";
 import { candidateOverlapsAnyBlockingInterval } from "@/lib/appointment-overlap";
-import { normalizeAppointmentReason } from "@/lib/visit-types";
+import { parseBookingPatientFields } from "@/lib/booking-patient-fields";
+import { resolveRequestedService } from "@/lib/requested-service";
+import { manualBookingPermission } from "@/lib/booking-permission";
+import { issuePatientCancelLink } from "@/lib/appointment-links-db";
+import { isUndeliverableTestEmail } from "@/lib/registration-decision-emails";
+import { patientClinicProfileUrl } from "@/lib/patient-email-clinic";
 import { sendPatientAppointmentConfirmedEmail } from "@/lib/send-patient-appointment-confirmed-email";
-import { sendDoctorAppointmentConfirmedEmail } from "@/lib/send-doctor-appointment-confirmed-email";
-import { professionalAccountEmail } from "@/lib/professional-account-contact";
 import { loadPrimarySpecialtyName } from "@/lib/specialty-catalogue";
 import { getDoctorCalendarEventDetails } from "@/lib/doctor-calendar-event";
 import { buildGoogleCalendarUrl } from "@/lib/patient-calendar-event";
@@ -51,49 +54,43 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ message: "Invalid JSON body." }, { status: 400 });
   }
 
-  const {
-    patientName: rawPatientName,
-    patientEmail: rawPatientEmail,
-    patientPhone: rawPatientPhone,
-    appointmentLocal,
-    reason: rawReason,
-    locationId: rawLocationId,
-  } = body as {
-    patientName?: string;
-    patientEmail?: string;
-    patientPhone?: string;
+  const { appointmentLocal, locationId: rawLocationId } = body as {
     appointmentLocal?: string;
-    reason?: string;
     locationId?: string;
   };
-
-  const patientName = String(rawPatientName ?? "").trim();
-  const patientEmail = String(rawPatientEmail ?? "").trim();
-  const patientPhone = String(rawPatientPhone ?? "").trim();
-  const patientPhoneStored = patientPhone || "Not provided";
-  if (!patientName || !appointmentLocal) {
-    return NextResponse.json(
-      { message: "Patient name and appointment date/time are required." },
-      { status: 400 },
-    );
+  if (!appointmentLocal) {
+    return NextResponse.json({ message: "Appointment date/time is required." }, { status: 400 });
   }
 
-  const reason = normalizeAppointmentReason(rawReason);
-  if (!reason) {
-    return NextResponse.json(
-      { message: "Please tell us briefly why you need this visit." },
-      { status: 400 },
-    );
-  }
+  // Same details as an online booking; only the email is optional (user, 2026-10-02).
+  const parsed = parseBookingPatientFields(body as Record<string, unknown>, "manual");
+  if (!parsed.ok) return NextResponse.json({ message: parsed.message }, { status: 400 });
+  const { patientName, patientPhone, reason } = parsed.fields;
+  const patientEmail = parsed.fields.patientEmail ?? "";
 
   const { data: doctor, error: doctorErr } = await supabase
     .from("professionals")
-    .select("id, name, email, registration_email, slug")
+    .select("id, name, slug, is_registered, pro_access_until")
     .eq("auth_user_id", user.id)
     .maybeSingle();
 
   if (doctorErr || !doctor?.id) {
     return NextResponse.json({ message: "Forbidden." }, { status: 403 });
+  }
+
+  // Optional: one of her services (user, 2026-10-04).
+  let professionalServiceId: string | null = null;
+  try {
+    const requested = await resolveRequestedService(
+      supabase,
+      doctor.id,
+      (body as { professionalServiceId?: unknown }).professionalServiceId,
+    );
+    if (!requested.ok) return NextResponse.json({ message: requested.message, code: "invalid_service" }, { status: 400 });
+    professionalServiceId = requested.service?.id ?? null;
+  } catch (err) {
+    console.error("[DocCy] manual booking service check", err);
+    return NextResponse.json({ message: "Error creating appointment." }, { status: 500 });
   }
 
   let appointmentUtc: Date;
@@ -139,10 +136,30 @@ export async function POST(req: NextRequest) {
   }
 
   // Every appointment is at a clinic with an address (user, 2026-09-29).
-  if (!bookingLocation || !locationHasClinic(bookingLocation)) {
+  if (!bookingLocation || !locationHasClinic(bookingLocation) || !bookingLocation.clinic_id) {
     return NextResponse.json(
       { message: "This clinic is not set up yet. Contact us to set it up before booking." },
       { status: 400 },
+    );
+  }
+
+  // Pausing doesn't block manual bookings; expired access does (user, 2026-10-02).
+  const permission = manualBookingPermission({
+    isRegistered: Boolean((doctor as { is_registered?: boolean }).is_registered),
+    proAccessUntil: (doctor as { pro_access_until?: string | null }).pro_access_until ?? null,
+    clinicPaused: Boolean(bookingLocation.pause_online_bookings),
+    clinicArchived: false,
+  });
+  if (!permission.allowed) {
+    return NextResponse.json(
+      {
+        message:
+          permission.reason === "access_expired"
+            ? "Your DocCy access has ended, so you can't add new bookings."
+            : "You can't add bookings at this clinic.",
+        code: permission.reason,
+      },
+      { status: 403 },
     );
   }
 
@@ -218,7 +235,6 @@ export async function POST(req: NextRequest) {
   const { data: blockingRaw, error: existingError } = await fetchBlockingAppointments(
     supabase,
     doctor.id,
-    bookingLocation?.id ?? null,
   );
   if (existingError) {
     return NextResponse.json(
@@ -242,14 +258,19 @@ export async function POST(req: NextRequest) {
     .from("appointments")
     .insert({
       professional_id: doctor.id,
+      clinic_id: bookingLocation.clinic_id,
+      booking_source: "manual",
       patient_name: patientName,
       patient_email: patientEmail || null,
-      patient_phone: patientPhoneStored,
+      patient_phone: patientPhone,
+      patient_gender: parsed.fields.patientGender,
+      patient_birthdate: parsed.fields.patientBirthdate,
+      is_new_patient: parsed.fields.isNewPatient,
+      professional_service_id: professionalServiceId,
       appointment_datetime: appointmentUtc.toISOString(),
       status: "CONFIRMED",
       reason,
       duration_minutes: slotDuration,
-      location_id: bookingLocation?.id ?? null,
       created_at: new Date().toISOString(),
     })
     .select("id, appointment_datetime, status, duration_minutes")
@@ -276,14 +297,28 @@ export async function POST(req: NextRequest) {
 
   const clinic = appointmentClinicCopy({
     locations,
-    locationId: bookingLocation?.id ?? null,
+    clinicId: bookingLocation?.clinic_id ?? null,
   });
 
   const specialtyName = await loadPrimarySpecialtyName(supabase, doctor.id as string);
 
   try {
-    if (patientEmail) {
+    if (patientEmail && !isUndeliverableTestEmail(patientEmail)) {
+      // Manual-booking patients with an email get the cancel link too (user, 2026-10-04).
+      const cancel = await issuePatientCancelLink(
+        supabase,
+        {
+          id: String(inserted.id),
+          professional_id: String(doctor.id),
+          appointment_datetime: String(inserted.appointment_datetime),
+        },
+        siteUrl,
+      ).catch((err) => {
+        console.error("[DocCy] manual booking cancel link", err);
+        return null;
+      });
       await sendPatientAppointmentConfirmedEmail({
+        cancel,
         siteUrl,
         patientEmail,
         patientName,
@@ -298,6 +333,7 @@ export async function POST(req: NextRequest) {
           clinic_address: clinic.address,
         },
         clinic,
+        profileUrl: patientClinicProfileUrl(siteUrl, doctor.slug),
         resendToOverride,
       });
     }
@@ -305,26 +341,7 @@ export async function POST(req: NextRequest) {
     console.error("[DocCy] Patient manual booking email failed", err);
   }
 
-  try {
-    await sendDoctorAppointmentConfirmedEmail({
-      siteUrl,
-      doctorEmail: professionalAccountEmail(
-        doctor as { email?: string | null; registration_email?: string | null },
-      ),
-      doctorName: String(doctor.name ?? "Doctor"),
-      appointmentId: String(inserted.id),
-      appointmentDatetimeIso: String(inserted.appointment_datetime),
-      durationMinutes: slotDuration,
-      patientName,
-      patientPhone: patientPhoneStored,
-      reason,
-      clinic,
-      resendToOverride,
-      manualCreated: true,
-    });
-  } catch (err) {
-    console.error("[DocCy] Doctor manual booking email failed", err);
-  }
+  // No email to the professional about a booking she entered herself (user, 2026-10-02).
 
   const startUtc = new Date(String(inserted.appointment_datetime));
   const endUtc = addMinutes(startUtc, slotDuration);

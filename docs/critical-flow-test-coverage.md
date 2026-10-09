@@ -48,7 +48,8 @@ Living document: update when workflows or specs change.
 | Manual booking (doctor) | `manual_booking_flow.spec.ts`, `manual_booking_modal_ux.spec.ts` | — | Empty email/phone case; no WhatsApp share CTA; see **Optional UI fields** in `ci-test-policy.md` |
 | Race / concurrency | `appointments_race_condition.integration.spec.ts` | — | |
 | Reschedule slot free | `needs_reschedule_slot_free.integration.spec.ts` | — | |
-| Doctor proposes reschedule (CONFIRMED → NEEDS_RESCHEDULE) | `propose_reschedule_confirmed.integration.spec.ts` | — | API: alternative-slots + propose-reschedule |
+| Professional proposes 1-3 times for a request (REQUESTED → NEEDS_RESCHEDULE; confirmed visits refused) | `propose_times.integration.spec.ts` | — | API: propose-reschedule |
+| Appointment flow (email-confirmed request, manual rules, decline, accept + cancel link, patient / professional cancel) | `online_booking_confirm`, `manual_booking_rules`, `decline_request`, `accept_request`, `patient_cancel`, `professional_cancel` (integration) | — | Seed their own professional; run locally against Testing |
 | Reschedule email content | `reschedule_email_content.integration.spec.ts` | — | |
 | Trial period logic | — | — | **Gap** (spec removed; was referenced in workflows) |
 

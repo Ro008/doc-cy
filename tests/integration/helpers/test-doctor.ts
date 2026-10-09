@@ -222,6 +222,11 @@ export async function deleteTestClinics(
 export async function deleteTestDoctor(fixture: TestDoctorFixture): Promise<void> {
   const { admin, doctorId, authUserId } = fixture;
   if (doctorId) {
+    // Appointments are never deleted with a professional (FK RESTRICT from M2): a test
+    // professional's visits go first, with their reviews and drafts (links cascade).
+    await admin.from("professional_reviews").delete().eq("professional_id", doctorId);
+    await admin.from("appointment_drafts").delete().eq("professional_id", doctorId);
+    await admin.from("appointments").delete().eq("professional_id", doctorId);
     await admin.from("professional_specialties").delete().eq("professional_id", doctorId);
     await admin.from("professional_services").delete().eq("professional_id", doctorId);
     await admin.from("professional_settings").delete().eq("professional_id", doctorId);

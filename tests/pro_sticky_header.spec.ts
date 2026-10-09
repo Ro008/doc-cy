@@ -27,11 +27,17 @@ test.describe("Professional sticky header", { tag: "@pr-e2e" }, () => {
     test.setTimeout(120_000);
     await page.setViewportSize({ width: 1280, height: 800 });
     await signInAndOpenAgenda(page);
-    await expect(page.locator("main header h1").first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByTestId("agenda-page")).toBeVisible({ timeout: 10_000 });
 
     const stickyHeader = page.getByTestId("pro-sticky-header");
     await expect(stickyHeader).toBeVisible();
     await expect(stickyHeader.getByRole("link", { name: /my doccy/i })).toBeVisible();
+    await expect(stickyHeader.getByRole("img", { name: /my doccy/i })).toHaveAttribute(
+      "src",
+      /doccy-logo-on-dark\.png/,
+    );
+    await expect(stickyHeader.getByTestId("userbar-nav-settings")).toBeVisible();
+    await expect(stickyHeader.getByTestId("userbar-nav-agenda")).toHaveAttribute("aria-current", "page");
 
     const toggle = stickyHeader.getByTestId("userbar-toggle");
     await expect(toggle).toBeVisible();
@@ -42,7 +48,7 @@ test.describe("Professional sticky header", { tag: "@pr-e2e" }, () => {
     }).toPass({ timeout: 15_000 });
 
     await expect(toggle).toHaveAttribute("aria-expanded", "true");
-    await expect(stickyHeader.getByTestId("userbar-link-settings")).toBeVisible();
+    await expect(stickyHeader.getByTestId("userbar-link-manual-booking")).toBeVisible();
 
     await expect(async () => {
       await toggle.click();
@@ -88,7 +94,7 @@ test.describe("Professional sticky header", { tag: "@pr-e2e" }, () => {
 
     await page.goto("/for-professionals", { waitUntil: "domcontentloaded" });
     await expect(page.getByTestId("userbar-toggle")).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByRole("link", { name: /^My Agenda$/i })).toBeVisible();
+    await expect(page.getByRole("link", { name: /^My Dashboard$/i })).toBeVisible();
     await expect(page.getByTestId("pro-sticky-header")).toHaveCount(0);
   });
 

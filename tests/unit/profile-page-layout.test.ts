@@ -113,15 +113,15 @@ describe("public profile: one page with anchor tabs", () => {
     assert.match(booking, /data-testid="booking-email-suggestion"/);
   });
 
-  it("booking form: every field required, plus gender and date of birth", () => {
+  it("booking form: every field required and marked, in the profile's colours", () => {
     const booking = read("components/doctor/BookingSection.tsx");
-    assert.match(booking, /PATIENT_GENDERS\.map\(/);
-    assert.match(booking, /type="date"/);
-    assert.match(booking, /validateDateOfBirth\(/);
-    assert.match(booking, /bookingPatientDetailsPayload\(/);
+    // Gender and date of birth come from master (stored since 2026-10-04).
+    assert.match(booking, /firstBookingFormError\(/);
+    assert.match(booking, /id="patientBirthdate"/);
     // Required marker on every field label (name, email, phone, first visit, gender, birth date, reason).
     assert.ok((booking.match(/<RequiredMark \/>/g) ?? []).length >= 7);
-    assert.match(booking, /NOT STORED until Livio/);
+    assert.match(booking, /tone="profile"/);
+    assert.equal(/\b(?:ink|clinical|amber)-\d/.test(booking), false);
   });
 
   it("brings the Confirm button into view when a time is picked", () => {

@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 
 import { safeAuthNextPath } from "@/lib/auth-redirect";
+import { postLoginDestination } from "@/lib/doctor-routes";
 import {
   PRO_SESSION_HINT_COOKIE,
   PRO_SESSION_HINT_MAX_AGE_SECONDS,
@@ -42,7 +43,7 @@ export async function GET(request: Request) {
     return refused();
   }
 
-  const response = redirectTo(next ?? "/agenda");
+  const response = redirectTo(postLoginDestination(next));
   // Professional chrome from first paint on the next pages (only professionals get links).
   response.cookies.set(PRO_SESSION_HINT_COOKIE, PRO_SESSION_HINT_VALUE, {
     path: "/",

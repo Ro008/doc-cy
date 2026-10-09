@@ -12,8 +12,8 @@ import { fetchAllSupabaseRows, fetchAllSupabaseRowsForIdChunks } from "@/lib/sup
  *
  * These read `professional_clinics -> clinics` only (Point D2; D4 removed the last read
  * of `doctor_locations`, the bridge for addressless "Add clinic" rows). A join row id is
- * what `?location=<uuid>` links, `appointments.location_id` and agenda clinic colours
- * point at.
+ * what `?location=<uuid>` links and agenda clinic colours point at; appointments store the
+ * clinic itself (`appointments.clinic_id` = `clinics.id`; `linkIdForClinic` maps it back).
  *
  * Reads go through the service role with an explicit column list, because
  * `professional_clinics` and `clinics` have RLS enabled with no policies. Callers pass

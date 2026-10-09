@@ -6,6 +6,7 @@ import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
 
 import { createServiceRoleClient } from "@/lib/supabase-service";
 import { BookingSection } from "@/components/doctor/BookingSection";
+import { ProfessionalBookingNotice } from "@/components/doctor/ProfessionalBookingNotice";
 import { WhatToExpectCard } from "@/components/doctor/WhatToExpectCard";
 import { ProfileAboutSection } from "@/components/doctor/profile/ProfileAboutSection";
 import { ProfileClinicsSection } from "@/components/doctor/profile/ProfileClinicsSection";
@@ -43,6 +44,8 @@ import {
   locationToSettingsRow,
 } from "@/lib/doctor-locations";
 import { parseBookingLocationParam, parseBookingSlotParam } from "@/lib/booking-slot-param";
+import { bookingViewerMode, loadBookingAccountKind } from "@/lib/booking-viewer";
+import { hasProAccess } from "@/lib/pro-access";
 import { loadProfessionalAccountSettings } from "@/lib/professional-account-settings";
 import {
   OCCUPIED_BATCH_RPC,
@@ -535,17 +538,26 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
       .maybeSingle();
     isOwnerView = ownerDoctor?.auth_user_id === user.id;
   }
+  // A signed-in professional (or applicant) sees a note instead of the calendar
+  // (user, 2026-10-06); POST /api/appointments refuses them too.
+  const viewerMode = bookingViewerMode(
+    user?.id ? await loadBookingAccountKind(supabase, user.id).catch(() => null) : null,
+    isOwnerView,
+  );
   const clinicAddress = stripPlusCodePrefix((profile.clinic_address ?? "").trim());
   let avatarUrl: string | null = null;
+  let accessEnded = false;
   const contactLookup = await supabase
     .from("professionals")
-    .select("avatar_url")
+    .select("avatar_url, pro_access_until")
     .eq("is_registered", true)
     .eq("is_archived", false)
     .eq("id", profile.id)
     .maybeSingle();
   if (!contactLookup.error && contactLookup.data) {
-    const contact = contactLookup.data as { avatar_url?: string | null };
+    const contact = contactLookup.data as { avatar_url?: string | null; pro_access_until?: string | null };
+    // Access ended: no online booking (the booking routes refuse too); user, 2026-10-02.
+    accessEnded = !hasProAccess(contact.pro_access_until);
     const avatarPath = String(contact.avatar_url ?? "").trim();
     if (avatarPath) {
       avatarUrl = resolvePublicAvatarUrl(supabase, avatarPath);
@@ -625,6 +637,7 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
   ).toISOString();
 
   // Slot starts covered by visits (forward + backward vs slot_duration_minutes); must match POST /api/appointments.
+  // No p_location_id: one professional, one agenda, so a visit in any clinic blocks the time.
   const { data: occupiedRows, error: occupiedErr } = await supabase.rpc(
     OCCUPIED_BATCH_RPC,
     {
@@ -640,7 +653,7 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
 
   const takenSlotTimes: string[] = takenSlotTimesFor(
     (occupiedRows ?? []) as OccupiedRow[],
-    { professionalId: profile.id, locationId: selectedLocation?.id ?? null, toIso },
+    { professionalId: profile.id, toIso },
   );
 
   const { data: serviceRows, error: servicesErr } = await supabase
@@ -696,7 +709,7 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
   const breakEndHm = breakEnd ? breakEnd.slice(0, 5) : undefined;
 
   // Same slot rules as BookingSection, for the hero's next-availability days.
-  const nextDays = onlineBookingsPaused
+  const nextDays = onlineBookingsPaused || accessEnded
     ? []
     : summarizeNextAvailabilityDays(
         computePublicAvailabilityCalendar({
@@ -855,17 +868,9 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
       ))}
 
       <div className="mx-auto max-w-6xl px-4 pb-6 pt-5 sm:px-6 lg:px-8">
-        {isOwnerView ? (
-          <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-2xl border border-profile-border bg-accent-soft px-4 py-3 text-sm text-profile-text">
-            <span>{t("ownerBanner")}</span>
-            <a href="/agenda/settings" className="font-bold underline underline-offset-2">
-              {t("ownerEditProfile")}
-            </a>
-            <a href="/agenda/settings#public-page" className="font-bold underline underline-offset-2">
-              {t("ownerCustomize")}
-            </a>
-          </div>
-        ) : null}
+        {/* No "You are viewing your public profile" banner: the account menu links to
+            Settings here, and the booking box says "This is how patients see your profile"
+            (user, 2026-10-08). */}
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <ProfileBreadcrumbs crumbs={breadcrumbs} ariaLabel={t("breadcrumbLabel")} />
           <div className="flex items-center gap-2">
@@ -1012,36 +1017,43 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
                   district: row.district,
                   clinic_address: row.clinic_address,
                   town: row.town,
-                  pause_online_bookings: Boolean(row.pause_online_bookings),
+                  pause_online_bookings: accessEnded || Boolean(row.pause_online_bookings),
                 }))}
               />
             ) : null}
-            <BookingSection
-              doctorId={profile.id}
-              doctorName={profile.name}
-              weeklySlots={weeklySlots}
-              takenSlotTimes={takenSlotTimes}
-              profileSlug={params.slug}
-              locationId={selectedLocation?.id ?? null}
-              locationLabel={selectedLocationTitle}
-              locationScopedPause={practiceLocations.length > 1}
-              initialSlotKey={
-                parseBookingSlotParam(
-                  Array.isArray(searchParams?.slot)
-                    ? searchParams?.slot[0]
-                    : searchParams?.slot,
-                )
-              }
-              breakStart={breakStartHm}
-              breakEnd={breakEndHm}
-              publicPhoneAvailable={hasPublicPhone}
-              onlineBookingsPaused={onlineBookingsPaused}
-              holidayModeEnabled={holidayModeEnabled}
-              holidayStartDate={holidayStartDate}
-              holidayEndDate={holidayEndDate}
-              bookingHorizonDays={bookingHorizonDays}
-              minimumNoticeHours={minimumNoticeHours}
-            />
+            {viewerMode !== "patient" ? (
+              <ProfessionalBookingNotice mode={viewerMode} />
+            ) : (
+              <div data-testid="booking-section">
+                <BookingSection
+                  doctorId={profile.id}
+                  doctorName={profile.name}
+                  weeklySlots={weeklySlots}
+                  takenSlotTimes={takenSlotTimes}
+                  profileSlug={params.slug}
+                  locationId={selectedLocation?.id ?? null}
+                  locationLabel={selectedLocationTitle}
+                  locationScopedPause={practiceLocations.length > 1}
+                  initialSlotKey={
+                    parseBookingSlotParam(
+                      Array.isArray(searchParams?.slot)
+                        ? searchParams?.slot[0]
+                        : searchParams?.slot,
+                    )
+                  }
+                  breakStart={breakStartHm}
+                  breakEnd={breakEndHm}
+                  publicPhoneAvailable={hasPublicPhone}
+                  onlineBookingsUnavailable={accessEnded}
+                  onlineBookingsPaused={onlineBookingsPaused}
+                  holidayModeEnabled={holidayModeEnabled}
+                  holidayStartDate={holidayStartDate}
+                  holidayEndDate={holidayEndDate}
+                  bookingHorizonDays={bookingHorizonDays}
+                  minimumNoticeHours={minimumNoticeHours}
+                />
+              </div>
+            )}
           </div>
           <WhatToExpectCard />
         </section>
@@ -1067,7 +1079,10 @@ export default async function DoctorPage({ params, searchParams }: PageProps) {
           />
         </footer>
       </div>
-      <ProfileMobileBookBar next={mobileBarNext} cta={t("requestAppointmentCta")} />
+      {/* A signed-in professional sees a note instead of the calendar: nothing to jump to. */}
+      {viewerMode === "patient" ? (
+        <ProfileMobileBookBar next={mobileBarNext} cta={t("requestAppointmentCta")} />
+      ) : null}
       <ProfileScrollFade />
     </main>
   );

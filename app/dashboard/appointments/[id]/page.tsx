@@ -1,4 +1,6 @@
 import { redirect } from "next/navigation";
+import { PreviousVisitsList } from "@/components/dashboard/PreviousVisitsList";
+import { loadPreviousVisits } from "@/lib/previous-visits";
 import { cookies } from "next/headers";
 import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
 import { format } from "date-fns";
@@ -8,17 +10,27 @@ import { appointmentToCyprusDate } from "@/lib/appointments";
 import { professionalFirstName } from "@/lib/professional-name";
 import { locationWeeklySchedule } from "@/lib/doctor-locations";
 import { loadDoctorLocations } from "@/lib/load-doctor-locations";
-import { clinicForAppointment, clinicSlotMinutes } from "@/lib/professional-account-settings";
+import { linkIdForClinic, clinicForAppointment, clinicSlotMinutes } from "@/lib/professional-account-settings";
 import { AppointmentReviewClient } from "@/components/dashboard/AppointmentReviewClient";
 import { PendingLink } from "@/components/navigation/PendingLink";
 import { buildGoogleCalendarUrl } from "@/lib/patient-calendar-event";
 import { getDoctorCalendarEventDetails } from "@/lib/doctor-calendar-event";
 import { appointmentCalendarPath } from "@/lib/appointment-links";
+import { formatInTimeZone, zonedTimeToUtc } from "date-fns-tz";
+import { CY_TZ } from "@/lib/appointments";
+import { confirmedExitLinks, reviewBackTarget, wantsSuggestOnOpen, type ReviewDayRow } from "@/lib/appointment-review";
+import { isExpiredRequest, isStoredExpiredStatus } from "@/lib/appointment-status";
+import { agendaHighlightHref } from "@/lib/agenda-highlight";
+import { awaitingPatientSummary, requestedAgoLabel, todayWorkingWindow } from "@/lib/doctor-dashboard";
+import { clinicIdForAppointment, locationsToAgendaClinics } from "@/lib/agenda-clinics";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-type PageProps = { params: { id: string }; searchParams?: { confirmed?: string } };
+type PageProps = {
+  params: { id: string };
+  searchParams?: { confirmed?: string; intent?: string; from?: string };
+};
 
 const PRIMARY_BTN_CLASS =
   "flex w-full items-center justify-center rounded-2xl bg-clinical-500 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-clinical-500/20 transition hover:bg-clinical-400";
@@ -33,7 +45,7 @@ function DoctorAppointmentLinkShell({ children }: { children: React.ReactNode })
         <div className="absolute inset-y-0 left-[-10%] h-full w-64 bg-clinical-500/5 blur-3xl" />
         <div className="absolute inset-y-0 right-[-15%] h-full w-72 bg-clinical-400/10 blur-3xl" />
       </div>
-      <div className="mx-auto max-w-lg px-4 py-10">
+      <div className="mx-auto max-w-xl px-4 py-10">
         <div className="rounded-3xl border border-clinical-100/10 bg-ink-900/70 p-6 shadow-2xl shadow-ink-900/50 backdrop-blur-xl sm:p-8">
           {children}
         </div>
@@ -103,7 +115,7 @@ export default async function DashboardAppointmentDetailPage({
   const { data: appt, error: apptErr } = await supabase
     .from("appointments")
     .select(
-      "id, patient_name, patient_phone, appointment_datetime, status, reason, duration_minutes, proposal_expires_at, proposed_slots, location_id"
+      "id, patient_name, patient_email, patient_phone, patient_gender, patient_birthdate, appointment_datetime, status, reason, duration_minutes, proposal_expires_at, proposed_slots, created_at, is_new_patient, clinic_id"
     )
     .eq("id", appointmentId)
     .eq("professional_id", doctor.id)
@@ -126,7 +138,9 @@ export default async function DashboardAppointmentDetailPage({
 
   // The appointment's clinic schedule (Point E6: schedules live on the clinic links).
   const locations = await loadDoctorLocations(doctor.id);
-  const apptLocationId = (appt as { location_id?: string | null }).location_id;
+  const apptClinicId = (appt as { clinic_id?: string | null }).clinic_id ?? null;
+  // Her link at the appointment's clinic (appointments.clinic_id = clinics.id).
+  const apptLocationId = linkIdForClinic(locations, apptClinicId);
   const appointmentClinic = clinicForAppointment(locations, apptLocationId);
   const slotDefault = clinicSlotMinutes(locations, apptLocationId);
   const initialDurationMinutes = Number(
@@ -175,6 +189,8 @@ export default async function DashboardAppointmentDetailPage({
         }
       : null;
 
+  // Waiting for the patient. A lapsed proposal becomes EXPIRED (scheduled job); there is
+  // no re-suggesting (user, 2026-10-04: no ping-pong).
   if (status === "NEEDS_RESCHEDULE") {
     console.info("[DocCy][doctor-link] reopened_after_action", {
       userId: user.id,
@@ -182,40 +198,50 @@ export default async function DashboardAppointmentDetailPage({
       appointmentId,
       status,
     });
-    const expRaw = (appt as { proposal_expires_at?: string | null })
-      .proposal_expires_at;
-    const expLabel = expRaw
-      ? format(appointmentToCyprusDate(expRaw), "EEEE, d MMMM yyyy 'at' HH:mm", {
-          locale: enUS,
-        })
-      : null;
-    const rawSlots = (appt as { proposed_slots?: unknown }).proposed_slots;
-    const slotCount = Array.isArray(rawSlots) ? rawSlots.length : 0;
+    const summary = awaitingPatientSummary({
+      id: appt.id as string,
+      appointment_datetime: appt.appointment_datetime as string,
+      proposed_slots: (appt as { proposed_slots?: unknown }).proposed_slots,
+      proposal_expires_at: (appt as { proposal_expires_at?: string | null }).proposal_expires_at ?? null,
+    });
+    const back = reviewBackTarget(searchParams?.from);
 
     return (
       <DoctorAppointmentLinkShell>
-        <p className="text-xs font-semibold uppercase tracking-wide text-amber-300">
-          Awaiting patient
-        </p>
-        <h1 className="mt-2 text-xl font-semibold text-ink-50">Hi {greet}</h1>
-        <p className="mt-3 text-sm leading-relaxed text-ink-300">
-          {patientName} has been sent a link to choose among{" "}
-          {slotCount > 0 ? `${slotCount} proposed times` : "proposed times"}.
-          {expLabel ? (
+        <p className="text-xs font-semibold uppercase tracking-wide text-amber-300">Awaiting patient</p>
+        <h1 className="mt-2 text-xl font-semibold leading-snug text-ink-50 sm:text-2xl">
+          Waiting for {patientName} to pick a time
+        </h1>
+        <p className="mt-2 text-sm leading-relaxed text-ink-300">
+          You suggested these times; they stay held in your agenda until {patientName} chooses one
+          {summary.expiresLabel ? (
             <>
-              {" "}
-              They should respond before{" "}
-              <span className="font-medium text-amber-200">{expLabel}</span> (Cyprus time).
+              {" "}or the offer expires on{" "}
+              <span className="font-medium text-amber-200">{summary.expiresLabel}</span>
             </>
           ) : null}
+          . <span className="text-ink-500">Cyprus time.</span>
         </p>
+
+        {summary.slotLabels.length > 0 ? (
+          <ul data-testid="review-proposed-times" className="mt-5 space-y-2 text-sm">
+            {summary.slotLabels.map((label, i) => (
+              <li
+                key={label}
+                className="flex items-center gap-3 rounded-xl border border-clinical-400/25 bg-clinical-500/10 px-3 py-2 text-ink-50"
+              >
+                <span className="text-xs font-semibold text-clinical-300">{i + 1}</span>
+                <span className="tabular-nums">{label}</span>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+
         <dl className="mt-6 space-y-3 text-sm">
           <div>
-            <dt className="text-xs font-medium uppercase tracking-wide text-ink-500">
-              Original request
-            </dt>
-            <dd className="mt-0.5 text-ink-100">
-              {dateStr} · {timeStr} (Cyprus time)
+            <dt className="text-xs font-medium uppercase tracking-wide text-ink-500">Original request</dt>
+            <dd className="mt-0.5 text-ink-300 line-through decoration-ink-500/60">
+              {dateStr} · {timeStr}
             </dd>
           </div>
           <div>
@@ -223,8 +249,54 @@ export default async function DashboardAppointmentDetailPage({
             <dd className="mt-0.5 whitespace-pre-wrap text-ink-200">{reason || "—"}</dd>
           </div>
         </dl>
-        <PendingLink href="/agenda" className={`mt-8 ${PRIMARY_BTN_CLASS}`}>
-          Open agenda
+
+        <PendingLink href={summary.agendaHref} className={`mt-8 ${PRIMARY_BTN_CLASS}`}>
+          Open in agenda
+        </PendingLink>
+        <PendingLink
+          href={back.href}
+          className="mt-3 block text-center text-sm text-ink-400 underline-offset-2 hover:text-ink-200 hover:underline"
+        >
+          {back.label}
+        </PendingLink>
+      </DoctorAppointmentLinkShell>
+    );
+  }
+
+  // Unanswered request whose time has passed (or closed as EXPIRED): nothing to confirm.
+  if (isExpiredRequest({ status, startIso: appt.appointment_datetime as string })) {
+    const back = reviewBackTarget(searchParams?.from);
+    const agendaHref = agendaHighlightHref(
+      formatInTimeZone(new Date(appt.appointment_datetime as string), CY_TZ, "yyyy-MM-dd"),
+      appt.id as string,
+    );
+    return (
+      <DoctorAppointmentLinkShell>
+        <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Expired request</p>
+        <h1 className="mt-2 text-xl font-semibold leading-snug text-ink-50 sm:text-2xl">This request expired</h1>
+        <p className="mt-2 text-sm leading-relaxed text-ink-300">
+          {patientName} asked for {dateStr} · {timeStr}, but nobody answered before the visit time.
+          {isStoredExpiredStatus(status)
+            ? " It has been closed."
+            : " We'll let them know they can book again online."}{" "}
+          <span className="text-ink-500">Cyprus time.</span>
+        </p>
+        <dl className="mt-6 space-y-3 text-sm">
+          <div>
+            <dt className="text-xs font-medium uppercase tracking-wide text-ink-500">Reason</dt>
+            <dd className="mt-0.5 whitespace-pre-wrap text-ink-200">{reason || "—"}</dd>
+          </div>
+        </dl>
+        {isStoredExpiredStatus(status) ? null : (
+          <PendingLink href={agendaHref} className={`mt-8 ${PRIMARY_BTN_CLASS}`}>
+            Open in agenda
+          </PendingLink>
+        )}
+        <PendingLink
+          href={back.href}
+          className="mt-3 block text-center text-sm text-ink-400 underline-offset-2 hover:text-ink-200 hover:underline"
+        >
+          {back.label}
         </PendingLink>
       </DoctorAppointmentLinkShell>
     );
@@ -237,18 +309,79 @@ export default async function DashboardAppointmentDetailPage({
       appointmentId,
       status,
     });
+    const startIso = appt.appointment_datetime as string;
+    const dayKey = formatInTimeZone(new Date(startIso), CY_TZ, "yyyy-MM-dd");
+    const dayStartUtc = zonedTimeToUtc(`${dayKey}T00:00:00`, CY_TZ).toISOString();
+    const dayEndUtc = zonedTimeToUtc(`${dayKey}T23:59:59.999`, CY_TZ).toISOString();
+
+    const [{ data: dayRows }, locationRows, previousVisits] = await Promise.all([
+      supabase
+        .from("appointments")
+        .select("id, appointment_datetime, patient_name, status, duration_minutes, proposed_slots, proposal_expires_at")
+        .eq("professional_id", doctor.id)
+        // That day's visits, plus live suggested times from any day: they may hold times on this
+        // day (buildReviewDayTimeline keeps only the ones that do).
+        .or(
+          `and(appointment_datetime.gte.${dayStartUtc},appointment_datetime.lte.${dayEndUtc}),` +
+            `and(status.eq.NEEDS_RESCHEDULE,proposal_expires_at.gt.${new Date().toISOString()})`,
+        )
+        .order("appointment_datetime", { ascending: true }),
+      loadDoctorLocations(doctor.id),
+      loadPreviousVisits(supabase, {
+        professionalId: doctor.id,
+        appointmentId: appt.id as string,
+        email: (appt as { patient_email?: string | null }).patient_email ?? null,
+        phone: patientPhone || null,
+      }),
+    ]);
+
+    const clinics = locationsToAgendaClinics(locationRows);
+    const locationId = linkIdForClinic(locationRows, apptClinicId);
+    const clinicName =
+      clinics.length > 1
+        ? clinics.find((c) => c.id === clinicIdForAppointment(apptClinicId, clinics))?.name ?? null
+        : null;
+    const hoursList =
+      clinics.length > 0
+        ? clinics.map((c) => c.hours)
+        : scheduleForReview
+          ? [{ ...scheduleForReview, slotDurationMinutes: slotDefault }]
+          : [];
+    const dayWindow = todayWorkingWindow(hoursList, new Date(startIso).getTime());
+    const pad = (h: number) => `${String(h).padStart(2, "0")}:00`;
+
     return (
       <DoctorAppointmentLinkShell>
         <AppointmentReviewClient
-            appointmentId={appt.id as string}
-            appointmentDatetimeIso={appt.appointment_datetime as string}
-            professionalFirstName={greet}
-            patientName={patientName}
-            requestedDateLabel={dateStr}
-            requestedTimeLabel={timeStr}
-            reason={reason}
-            initialDurationMinutes={initialDurationMinutes}
-            scheduleForReview={scheduleForReview}
+          appointmentId={appt.id as string}
+          appointmentDatetimeIso={startIso}
+          patientName={patientName}
+          isNewPatient={(appt as { is_new_patient?: boolean | null }).is_new_patient === true}
+          patient={{
+            birthdate: (appt as { patient_birthdate?: string | null }).patient_birthdate ?? null,
+            gender: (appt as { patient_gender?: string | null }).patient_gender ?? null,
+            isNewPatient: (appt as { is_new_patient?: boolean | null }).is_new_patient ?? null,
+            phone: patientPhone || null,
+            email: (appt as { patient_email?: string | null }).patient_email ?? null,
+          }}
+          requestedAgo={requestedAgoLabel((appt as { created_at?: string | null }).created_at, Date.now())}
+          clinicName={clinicName}
+          dayLabel={formatInTimeZone(new Date(startIso), CY_TZ, "EEE d MMM")}
+          dayHoursLabel={
+            dayWindow ? `Your hours: ${pad(dayWindow.startHour)}–${pad(dayWindow.endHour)}` : "You're not working that day"
+          }
+          dayRows={(dayRows ?? []) as ReviewDayRow[]}
+          reason={reason}
+          initialDurationMinutes={initialDurationMinutes}
+          scheduleForReview={scheduleForReview}
+          back={reviewBackTarget(searchParams?.from)}
+          openSuggestions={wantsSuggestOnOpen(searchParams?.intent)}
+          locationId={locationId}
+          clinicOptions={locationRows.map((l) => ({ id: l.id, name: l.clinic_name ?? "Clinic" }))}
+        />
+        <PreviousVisitsList
+          visits={previousVisits}
+          clinicName={(id) => (clinics.length > 1 ? clinics.find((c) => c.clinicId === id)?.name ?? null : null)}
         />
       </DoctorAppointmentLinkShell>
     );
@@ -263,72 +396,86 @@ export default async function DashboardAppointmentDetailPage({
     });
   }
 
+  const exitLinks = confirmedExitLinks(searchParams?.from, {
+    dateKey: agendaDateKey,
+    label: formatInTimeZone(new Date(appt.appointment_datetime as string), CY_TZ, "EEE d MMM"),
+  });
+
   return (
     <DoctorAppointmentLinkShell>
       <p className="text-xs font-semibold uppercase tracking-wide text-clinical-300">
-        {justConfirmed ? "Appointment confirmed" : "Appointment"}
+        {justConfirmed ? "Visit confirmed" : "Appointment"}
       </p>
-      <h1 className="mt-2 text-xl font-semibold text-ink-50">Hi {greet}</h1>
+      <h1 className="mt-2 text-xl font-semibold text-ink-50">
+        {justConfirmed ? `${patientName} is booked` : `Hi ${greet}`}
+      </h1>
       <p className="mt-3 text-sm leading-relaxed text-ink-300">
-          {status === "CONFIRMED" && justConfirmed
-            ? "Confirmed in DocCy. Manage all updates in DocCy in a few clicks. Google Calendar is only an optional reminder and does not sync changes."
-            : status === "CONFIRMED"
-              ? "This visit is already confirmed. Manage all updates in DocCy."
-              : status === "CANCELLED"
-                ? "This appointment was cancelled."
-                : "This request is not pending confirmation."}
-        </p>
-        {status === "CONFIRMED" ? (
-          <div className="mt-5 space-y-2">
-            <a
-              href={googleCalendarUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={PRIMARY_BTN_CLASS}
-            >
-              Add to Google Calendar
-            </a>
-            <a href={doctorIcsUrl} className={SECONDARY_BTN_CLASS}>
-              Add to Apple / Outlook (.ics)
-            </a>
-          </div>
-        ) : null}
+        {status === "CONFIRMED" && justConfirmed
+          ? "The visit is in your agenda and the patient has been emailed."
+          : status === "CONFIRMED"
+            ? "This visit is already confirmed. Manage all updates in DocCy."
+            : status === "CANCELLED"
+              ? "This appointment was cancelled."
+              : "This request is not pending confirmation."}
+      </p>
 
-        <dl className="mt-6 space-y-3 text-sm">
+      <div className="mt-5 space-y-2">
+        <PendingLink href={exitLinks.primary.href} className={PRIMARY_BTN_CLASS}>
+          {exitLinks.primary.label}
+        </PendingLink>
+        <PendingLink href={exitLinks.secondary.href} className={SECONDARY_BTN_CLASS}>
+          {exitLinks.secondary.label}
+        </PendingLink>
+      </div>
+
+      <dl className="mt-6 space-y-3 text-sm">
+        <div>
+          <dt className="text-xs font-medium uppercase tracking-wide text-ink-500">Patient</dt>
+          <dd className="mt-0.5 text-ink-100">{patientName}</dd>
+        </div>
+        <div>
+          <dt className="text-xs font-medium uppercase tracking-wide text-ink-500">When</dt>
+          <dd className="mt-0.5 text-ink-100">
+            {dateStr} · {timeStr} (Cyprus time)
+          </dd>
+        </div>
+        {status === "CONFIRMED" ? (
           <div>
-            <dt className="text-xs font-medium uppercase tracking-wide text-ink-500">Patient</dt>
-            <dd className="mt-0.5 text-ink-100">{patientName}</dd>
+            <dt className="text-xs font-medium uppercase tracking-wide text-ink-500">Duration</dt>
+            <dd className="mt-0.5 text-ink-100">{initialDurationMinutes} minutes</dd>
           </div>
-          <div>
-            <dt className="text-xs font-medium uppercase tracking-wide text-ink-500">When</dt>
-            <dd className="mt-0.5 text-ink-100">
-              {dateStr} · {timeStr} (Cyprus time)
-            </dd>
-          </div>
+        ) : (
           <div>
             <dt className="text-xs font-medium uppercase tracking-wide text-ink-500">Status</dt>
             <dd className="mt-0.5 text-ink-100">{status}</dd>
           </div>
-          {status === "CONFIRMED" ? (
-            <div>
-              <dt className="text-xs font-medium uppercase tracking-wide text-ink-500">
-                Duration
-              </dt>
-              <dd className="mt-0.5 text-ink-100">{initialDurationMinutes} minutes</dd>
-            </div>
-          ) : null}
-          <div>
-            <dt className="text-xs font-medium uppercase tracking-wide text-ink-500">Reason</dt>
-            <dd className="mt-0.5 whitespace-pre-wrap text-ink-200">{reason || "—"}</dd>
-          </div>
-        </dl>
+        )}
+        <div>
+          <dt className="text-xs font-medium uppercase tracking-wide text-ink-500">Reason</dt>
+          <dd className="mt-0.5 whitespace-pre-wrap text-ink-200">{reason || "—"}</dd>
+        </div>
+      </dl>
 
-        <PendingLink
-          href={`/agenda?date=${agendaDateKey}`}
-          className="mt-8 flex w-full items-center justify-center rounded-2xl px-3 py-2 text-sm font-medium text-ink-500 transition hover:bg-clinical-500/10 hover:text-clinical-200"
-        >
-          Open that day in agenda
-        </PendingLink>
+      {status === "CONFIRMED" ? (
+        <p className="mt-6 text-xs text-ink-500">
+          Optional reminder (it does not sync later changes):{" "}
+          <a
+            href={googleCalendarUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-medium text-clinical-300 underline underline-offset-2 hover:text-clinical-200"
+          >
+            Google Calendar
+          </a>
+          {" · "}
+          <a
+            href={doctorIcsUrl}
+            className="font-medium text-clinical-300 underline underline-offset-2 hover:text-clinical-200"
+          >
+            Apple / Outlook (.ics)
+          </a>
+        </p>
+      ) : null}
     </DoctorAppointmentLinkShell>
   );
 }

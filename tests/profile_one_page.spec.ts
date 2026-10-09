@@ -116,10 +116,10 @@ test.describe("Public profile one page", { tag: "@pr-e2e" }, () => {
     await page.locator("#visitReason").fill("Checking the form only.");
     await expect(page.getByRole("radio", { name: "Prefer not to say" })).toBeVisible();
     await page.getByRole("button", { name: /Send booking request/i }).click();
-    await expect(page.getByTestId("booking-error-message")).toContainText("Please select your gender.");
+    await expect(page.getByRole("alert").filter({ hasText: "Please choose a gender option." })).toBeVisible();
     await page.getByRole("radio", { name: "Female" }).check();
     await page.getByRole("button", { name: /Send booking request/i }).click();
-    await expect(page.getByTestId("booking-error-message")).toContainText("Please enter your date of birth.");
+    await expect(page.getByRole("alert").filter({ hasText: "Please enter a valid date of birth." })).toBeVisible();
   });
 
   test("a soft fade marks that the page continues below, and goes away at the end", async ({ page }) => {

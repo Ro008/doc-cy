@@ -7,10 +7,13 @@ export function OnlineBookingsPauseToggle({
   initialPaused,
   locationId,
   onPausedChange,
+  accessEnded = false,
 }: {
   initialPaused: boolean;
   locationId?: string | null;
   onPausedChange?: (paused: boolean) => void;
+  /** Pro access has ended: shown off and disabled; the server refuses to switch it on. */
+  accessEnded?: boolean;
 }) {
   const [paused, setPaused] = React.useState(initialPaused);
   const [saving, setSaving] = React.useState(false);
@@ -54,7 +57,7 @@ export function OnlineBookingsPauseToggle({
     }
   }
 
-  const accepting = !paused;
+  const accepting = !paused && !accessEnded;
   const switchId = React.useId();
 
   const track = accepting ? "bg-clinical-500/90" : "bg-slate-600";
@@ -71,7 +74,7 @@ export function OnlineBookingsPauseToggle({
               accepting ? "text-clinical-200" : "text-amber-200/95"
             }`}
           >
-            {accepting ? "Accepting appointments" : "Paused"}
+            {accessEnded ? "Not available" : accepting ? "Accepting appointments" : "Paused"}
           </p>
         </div>
         <button
@@ -80,7 +83,7 @@ export function OnlineBookingsPauseToggle({
           role="switch"
           aria-checked={accepting}
           aria-busy={saving}
-          disabled={saving}
+          disabled={saving || accessEnded}
           onClick={() => void setPausedRemote(!paused)}
           className={`relative h-7 w-11 shrink-0 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clinical-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-900 disabled:opacity-50 ${track}`}
         >
@@ -96,7 +99,12 @@ export function OnlineBookingsPauseToggle({
         </button>
       </div>
 
-      {!accepting ? (
+      {accessEnded ? (
+        <p className="mt-2 text-xs leading-relaxed text-slate-400" data-testid="pause-toggle-access-ended">
+          Your DocCy access has ended, so online bookings are switched off. Patients can still call
+          the clinic&apos;s phone from your profile.
+        </p>
+      ) : !accepting ? (
         <p className="mt-2 text-xs leading-relaxed text-slate-400">
           Patients cannot book online at this clinic; they can still call the clinic&apos;s
           phone from your profile.

@@ -11,6 +11,7 @@ import {
   EMAIL_SHELL_OPEN,
   EMAIL_TEXT,
   EMAIL_TEXT_MUTED,
+  emailFallbackLink,
 } from "@/lib/email-brand";
 
 /** Hosted logo so Gmail can load it even when the reset was requested on localhost. */
@@ -41,7 +42,7 @@ ${EMAIL_SHELL_OPEN}
     <p style="margin:0 0 10px;font-size:13px;line-height:1.5;color:${EMAIL_TEXT_MUTED};">
       This link expires shortly and can only be used once. If you did not ask for a new password, ignore this email — your current password stays the same.
     </p>
-    <p style="margin:0;font-size:13px;line-height:1.5;color:${EMAIL_TEXT_MUTED};">If the button does not work, copy this link: ${escapeHtml(resetUrl)}</p>
+    <p style="margin:0;font-size:13px;line-height:1.5;color:${EMAIL_TEXT_MUTED};">If the button does not work, copy this link: ${emailFallbackLink(resetUrl)}</p>
     ${automatedEmailFooterHtml()}
 ${EMAIL_SHELL_CLOSE}`;
 

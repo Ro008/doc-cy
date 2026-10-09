@@ -14,7 +14,7 @@ import type { DoctorSettingsRow } from "@/lib/doctor-settings";
  * always "this professional at this clinic": `settingsAtClinic`.
  */
 export const PROFESSIONAL_ACCOUNT_SETTINGS_SELECT =
-  "professional_id, holiday_mode_enabled, holiday_start_date, holiday_end_date, booking_horizon_days, minimum_notice_hours";
+  "professional_id, holiday_mode_enabled, holiday_start_date, holiday_end_date, booking_horizon_days, minimum_notice_hours, patient_cancel_notice_hours";
 
 export type ProfessionalAccountSettings = Pick<
   DoctorSettingsRow,
@@ -36,6 +36,19 @@ export function clinicForAppointment(
   const id = String(locationId ?? "").trim();
   const requested = id ? locations.find((row) => row.id === id) : undefined;
   return requested ?? sortDoctorLocations(locations)[0] ?? null;
+}
+
+/**
+ * Her clinic link (`professional_clinics.id`, where the schedule lives) for an appointment's
+ * clinic (`appointments.clinic_id` = `clinics.id`); null if she isn't linked to it.
+ */
+export function linkIdForClinic(
+  locations: readonly Pick<DoctorLocationRow, "id" | "clinic_id">[],
+  clinicId: string | null | undefined,
+): string | null {
+  const id = String(clinicId ?? "").trim();
+  if (!id) return null;
+  return locations.find((row) => row.clinic_id === id)?.id ?? null;
 }
 
 /** The clinic's schedule merged with the account settings; null without a clinic. */

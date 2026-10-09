@@ -18,6 +18,7 @@ import {
   shouldSkipSupabaseSessionRefresh,
 } from "./lib/needs-supabase-session-middleware";
 import {adminSignInPath} from "./lib/admin-sign-in-flow";
+import {isDoctorProductPath} from "./lib/doctor-routes";
 import {agendaRedirectForLogin} from "./lib/registration-status-path";
 import {
   amrFromAccessToken,
@@ -29,6 +30,8 @@ const handleI18nRouting = createMiddleware(routing);
 
 const RESERVED_TOP_LEVEL = new Set([
   "agenda",
+  // Patient link pages: /booking/confirm, /booking/choose, /booking/cancel, /booking/review.
+  "booking",
   "blog",
   "clinics",
   "dashboard",
@@ -146,7 +149,7 @@ export async function middleware(req: NextRequest) {
       return res;
     }
 
-    if (pathname === "/agenda" || pathname.startsWith("/agenda/")) {
+    if (isDoctorProductPath(pathname)) {
       if (!session) {
         const loginUrl = new URL("/login", req.url);
         loginUrl.searchParams.set("next", pathname);

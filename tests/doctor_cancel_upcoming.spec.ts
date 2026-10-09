@@ -5,6 +5,7 @@ import { signInDoctorAndSetCookies } from "./helpers/doctorAuth";
 import { skipIfSafeNoBooking } from "./helpers/safeMode";
 import { zonedTimeToUtc } from "date-fns-tz";
 import { CY_TZ } from "../lib/appointments";
+import { submitAndConfirmOnlineBooking } from "./integration/helpers/online-booking";
 
 function nextWorkingDayCyprus(now: Date): string {
   const d = new Date(now);
@@ -48,7 +49,12 @@ test.describe("Future appointments cancellation @booking-creates", () => {
     const supabase = createClient(supabaseUrl, supabaseAnonKey);
     const { authUserId } = await signInDoctorAndSetCookies(page, supabase);
 
-    const { data: doctorRow } = await supabase
+    // Service role: with a cached session the sign-in helper never signs in the client it's given,
+    // and an anonymous read can't match on auth_user_id.
+    const { data: doctorRow } = await createClient(
+      supabaseUrl,
+      process.env.SUPABASE_SERVICE_ROLE_KEY || supabaseAnonKey,
+    )
       .from("professionals")
       .select("slug,id")
       .eq("auth_user_id", authUserId)
@@ -59,7 +65,8 @@ test.describe("Future appointments cancellation @booking-creates", () => {
 
     const nonce = Date.now().toString().slice(-6);
     const patientName = `Cancel E2E Future ${nonce}`;
-    const patientEmail = `cancel.future.${nonce}@example.com`;
+    // A test address: the confirmation link is never really emailed.
+    const patientEmail = `cancel.future.${nonce}@integration.test`;
     const patientPhone = "+35799123456";
     const visitReason = "Follow-up visit — E2E cancel flow.";
 
@@ -86,34 +93,34 @@ test.describe("Future appointments cancellation @booking-creates", () => {
       for (const hhmm of candidateTimes) {
         const appointmentLocal = `${dateStr}T${hhmm}`;
 
-        const createRes = await request.post("/api/appointments", {
-          data: {
-            doctorSlug: slug,
-            patientName,
-            patientEmail,
-            patientPhone,
-            appointmentLocal,
-            isNewPatient: true,
-            reason: visitReason,
-          },
-        });
+        // Online booking = submit + confirm the emailed link (helper swaps in a known token).
+        const booked = admin
+          ? await submitAndConfirmOnlineBooking(request, admin, {
+              doctorSlug: slug,
+              patientName,
+              patientEmail,
+              patientPhone,
+              appointmentLocal,
+              isNewPatient: true,
+              reason: visitReason,
+            })
+          : null;
+        test.skip(!booked, "SUPABASE_SERVICE_ROLE_KEY is needed to confirm the booking link.");
+        const createStatus = booked!.confirmStatus ?? booked!.submitStatus;
 
-        if (createRes.ok()) {
-          const createJson = await createRes.json().catch(() => null);
-          appointmentId = createJson?.appointment?.id as
-            | string
-            | undefined;
+        if (booked!.confirmStatus === 200 && booked!.appointmentId) {
+          appointmentId = booked!.appointmentId;
           seeded = true;
           break outer;
         }
 
-        if (createRes.status() === 409) {
+        if (createStatus === 409) {
           // Slot already taken: try another time.
           continue;
         }
 
-        if (createRes.status() === 400 || createRes.status() === 403) {
-          const body = await createRes.text().catch(() => "");
+        if (createStatus === 400 || createStatus === 403) {
+          const body = booked!.submitBody;
           const isBookingsTemporarilyUnavailable = body.includes(
             "Bookings temporarily unavailable",
           );
@@ -136,8 +143,6 @@ test.describe("Future appointments cancellation @booking-creates", () => {
                 appointment_datetime: candidateUtc.toISOString(),
                 status: "CONFIRMED",
                 reason: visitReason,
-                visit_type: null,
-                visit_notes: null,
               })
               .select("id")
               .single();
@@ -153,9 +158,8 @@ test.describe("Future appointments cancellation @booking-creates", () => {
           continue;
         }
 
-        const body = await createRes.text().catch(() => "");
         throw new Error(
-          `Failed to seed future appointment: ${createRes.status()} ${body}`
+          `Failed to seed future appointment: ${createStatus} ${booked!.submitBody}`
         );
       }
     }
@@ -227,7 +231,7 @@ test.describe("Future appointments cancellation @booking-creates", () => {
       await cancelNotify.click();
     }
 
-    // 3. After backend cancel, UI reloads; ensure the cancelled appointment is gone.
+    // 3. After backend cancel, UI reloads; the row is kept, closed with her reason.
     await page.waitForLoadState("networkidle");
     await expect(page.getByRole("dialog")).toHaveCount(0);
 
@@ -237,14 +241,14 @@ test.describe("Future appointments cancellation @booking-creates", () => {
           async () => {
             const check = await admin
               .from("appointments")
-              .select("id")
+              .select("status")
               .eq("id", appointmentId)
               .maybeSingle();
-            return check.data?.id ?? null;
+            return check.data?.status ?? null;
           },
           { timeout: 10000 }
         )
-        .toBeNull();
+        .toMatch(/^(CANCELLED|DECLINED)$/);
     }
 
     if (appointmentId) {

@@ -8,6 +8,7 @@ import { PendingLink } from "@/components/navigation/PendingLink";
 import { DocCyWordmark } from "@/components/brand/DocCyWordmark";
 import { writeProSessionHintCookie } from "@/lib/pro-session-hint";
 import { FORGOT_PASSWORD_PATH } from "@/lib/password-reset";
+import { DOCTOR_HOME_PATH } from "@/lib/doctor-routes";
 import {
   PASSWORD_MAX_LENGTH,
   PASSWORD_MIN_LENGTH,
@@ -108,7 +109,7 @@ export function ResetPasswordForm() {
     } catch (auditError) {
       console.warn("[DocCy] Session audit failed after password reset", auditError);
     }
-    router.push("/agenda");
+    router.push(DOCTOR_HOME_PATH);
     router.refresh();
   }
 

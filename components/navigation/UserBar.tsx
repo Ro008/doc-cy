@@ -2,20 +2,33 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import Image from "next/image";
+import { MANUAL_BOOKING_HINT, MANUAL_BOOKING_LABEL } from "@/lib/manual-booking-copy";
 import { usePathname, useRouter } from "next/navigation";
 import { UserMenuNavLink } from "@/components/navigation/UserMenuNavLink";
 import { UserBarMoreMenuItems } from "@/components/navigation/UserBarMoreMenuItems";
 import { MobileTabNavLink } from "@/components/navigation/MobileTabNavLink";
 import { PendingLink } from "@/components/navigation/PendingLink";
+import { DesktopNavTabs } from "@/components/navigation/DesktopNavTabs";
+import { usePendingRequestsCount } from "@/components/navigation/usePendingRequestsCount";
 import { DocCyWordmark } from "@/components/brand/DocCyWordmark";
 import { publicProfessionalProfilePath } from "@/lib/manual-directory-landing-path";
 import { useDoctorSession } from "@/components/navigation/DoctorSessionProvider";
 import { emitOpenFeedback } from "@/lib/doccy-feedback";
-import { PRO_CHROME_HYDRATED_ATTR } from "@/lib/pro-session-hint";
+import { PRO_CHROME_HYDRATED_ATTR, PRO_MOBILE_MORE_OPEN_ATTR } from "@/lib/pro-session-hint";
+import {
+  logoHomeHref,
+  showSectionsInAccountMenu,
+  DOCTOR_NAV_TABS,
+  activeDoctorNavTab,
+  isDoctorProductPath,
+  pendingBadgeLabel,
+  type DoctorNavTabId,
+} from "@/lib/doctor-routes";
 import {
   BarChart3,
   CalendarPlus,
   CalendarDays,
+  LayoutDashboard,
   LifeBuoy,
   LogOut,
   Megaphone,
@@ -52,11 +65,76 @@ function UserAvatar({
   );
 }
 
+/** On <html> while the desktop sticky header shows (globals.css sets `--doccy-top-chrome`). */
+const STICKY_HEADER_ATTR = "data-doccy-sticky-header";
+
 function getInitials(name: string | null): string {
   if (!name) return "DC";
   const parts = name.trim().split(/\s+/);
   if (parts.length === 1) return parts[0]?.[0]?.toUpperCase() ?? "D";
   return `${parts[0]?.[0] ?? ""}${parts[1]?.[0] ?? ""}`.toUpperCase();
+}
+
+/** The same icons as the phone tab bar, sized for the account menu. */
+function menuSectionIcon(id: DoctorNavTabId) {
+  const className = "h-4 w-4";
+  switch (id) {
+    case "dashboard":
+      return <LayoutDashboard className={className} aria-hidden />;
+    case "agenda":
+      return <CalendarDays className={className} aria-hidden />;
+    case "settings":
+      return <Settings className={className} aria-hidden />;
+    case "insights":
+      return <BarChart3 className={className} aria-hidden />;
+  }
+}
+
+function mobileTabIcon(id: DoctorNavTabId) {
+  const className = "h-5 w-5 shrink-0 sm:h-[1.35rem] sm:w-[1.35rem]";
+  switch (id) {
+    case "dashboard":
+      return <LayoutDashboard className={className} aria-hidden />;
+    case "agenda":
+      return <CalendarDays className={className} aria-hidden />;
+    case "settings":
+      return <Settings className={className} aria-hidden />;
+    case "insights":
+      return <BarChart3 className={className} aria-hidden />;
+  }
+}
+
+function AccountHeader({
+  avatarUrl,
+  avatarIsPrivate,
+  initials,
+  name,
+  email,
+  "data-testid": testId,
+}: {
+  avatarUrl: string | null | undefined;
+  avatarIsPrivate: boolean;
+  initials: string;
+  name: string | null | undefined;
+  email: string | null | undefined;
+  "data-testid"?: string;
+}) {
+  return (
+    <div data-testid={testId} className="flex items-center gap-3 px-3 py-2.5">
+      <div className="relative h-9 w-9 overflow-hidden rounded-full bg-ink-800">
+        <UserAvatar
+          url={avatarUrl ?? null}
+          isPrivate={avatarIsPrivate}
+          initials={initials}
+          sizes="40px"
+        />
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-xs font-medium text-ink-50">{name ?? "Logged in"}</p>
+        <p className="truncate text-[11px] text-ink-400">{email ?? ""}</p>
+      </div>
+    </div>
+  );
 }
 
 export function UserBar() {
@@ -79,6 +157,8 @@ export function UserBar() {
 
   useEffect(() => {
     isMobileMoreOpenRef.current = isMobileMoreOpen;
+    document.documentElement.toggleAttribute(PRO_MOBILE_MORE_OPEN_ATTR, isMobileMoreOpen);
+    return () => document.documentElement.removeAttribute(PRO_MOBILE_MORE_OPEN_ATTR);
   }, [isMobileMoreOpen]);
 
   useEffect(() => {
@@ -175,10 +255,24 @@ export function UserBar() {
     // The founders' dashboard has its own header and sign-out.
     pathname.startsWith("/internal");
 
+  const pendingCount = usePendingRequestsCount(!hideChrome && sessionState.isLoggedIn, pathname);
+  const tabBadges: Partial<Record<DoctorNavTabId, string | null>> = {
+    dashboard: pendingBadgeLabel(pendingCount),
+  };
+
   useLayoutEffect(() => {
     if (hideChrome) return;
     document.documentElement.setAttribute(PRO_CHROME_HYDRATED_ATTR, "1");
   }, [hideChrome]);
+
+  // The desktop sticky header takes height above the page: pages that fill the screen subtract
+  // it (ResponsiveBottomInset), so they don't scroll by the header's height.
+  const hasStickyHeader = !hideChrome && isDoctorProductPath(pathname);
+  useLayoutEffect(() => {
+    const root = document.documentElement;
+    root.toggleAttribute(STICKY_HEADER_ATTR, hasStickyHeader);
+    return () => root.removeAttribute(STICKY_HEADER_ATTR);
+  }, [hasStickyHeader]);
 
   if (hideChrome) {
     return null;
@@ -193,9 +287,7 @@ export function UserBar() {
 
   const pathNorm = pathname.replace(/\/$/, "") || "/";
 
-  const isAgendaActive = pathNorm === "/agenda";
-  const isInsightsActive = pathname.startsWith("/agenda/insights");
-  const isSettingsActive = pathname.startsWith("/agenda/settings");
+  const activeTab = activeDoctorNavTab(pathname);
   const isPublicProfileActive = Boolean(
     slug && (pathNorm === `/${slug}` || pathNorm.endsWith(`/${slug}`)),
   );
@@ -203,10 +295,12 @@ export function UserBar() {
 
   const tabBaseClass =
     "flex min-h-[3.25rem] flex-1 flex-col items-center justify-center gap-0.5 px-1 py-1 text-[10px] font-medium leading-tight transition active:scale-[0.98] sm:text-[11px]";
-  const tabInactiveClass = "text-ink-200 hover:text-ink-50";
-  const tabActiveClass = "font-semibold text-clinical-100";
+  const tabInactiveClass = "text-clinical-100 hover:text-white";
+  // Teal label plus a short bar on the top edge, matching the desktop pill.
+  const tabActiveClass =
+    "relative font-semibold text-clinical-300 before:absolute before:top-0 before:h-0.5 before:w-8 before:rounded-full before:bg-clinical-400";
 
-  const useStickyDesktopChrome = pathname.startsWith("/agenda");
+  const useStickyDesktopChrome = isDoctorProductPath(pathname);
 
   const desktopUserMenu = (
     <>
@@ -237,56 +331,46 @@ export function UserBar() {
           data-testid="userbar-menu"
           className="absolute right-0 top-[calc(100%+0.4rem)] w-64 overflow-hidden rounded-2xl border border-clinical-400/25 bg-ink-900/95 p-1.5 shadow-2xl shadow-ink-900/70 backdrop-blur"
         >
-          <div className="flex items-center gap-3 px-3 py-2.5">
-            <div className="relative h-9 w-9 overflow-hidden rounded-full bg-ink-800">
-              <UserAvatar
-                url={sessionState.avatarUrl}
-                isPrivate={sessionState.avatarIsPrivate}
-                initials={initials}
-                sizes="40px"
-              />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-xs font-medium text-ink-50">
-                {sessionState.doctorName ?? "Logged in"}
-              </p>
-              <p className="truncate text-[11px] text-ink-400">
-                {sessionState.email ?? ""}
-              </p>
-            </div>
-          </div>
+          <AccountHeader
+            avatarUrl={sessionState.avatarUrl}
+            avatarIsPrivate={sessionState.avatarIsPrivate}
+            initials={initials}
+            name={sessionState.doctorName}
+            email={sessionState.email}
+          />
 
+          {showSectionsInAccountMenu({ applicant: supportOnly, headerHasTabs: useStickyDesktopChrome }) ? (
+            // Finder / public profile: no header tabs, so the sections are here (user, 2026-10-08).
+            <div data-testid="userbar-menu-sections" className="mb-1 border-b border-clinical-400/15 pb-1">
+              {DOCTOR_NAV_TABS.map((tab) => (
+                <UserMenuNavLink
+                  key={tab.id}
+                  href={tab.href}
+                  data-testid={`userbar-menu-section-${tab.id}`}
+                  icon={<span className="text-clinical-300">{menuSectionIcon(tab.id)}</span>}
+                >
+                  <span className="flex items-center justify-between gap-2">
+                    {tab.label}
+                    {tabBadges[tab.id] ? (
+                      <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-clinical-500 px-1.5 text-[11px] font-bold text-ink-900">
+                        {tabBadges[tab.id]}
+                      </span>
+                    ) : null}
+                  </span>
+                </UserMenuNavLink>
+              ))}
+            </div>
+          ) : null}
           {supportOnly ? null : (
           <>
           <UserMenuNavLink
             href="/agenda?manual=1"
-            title="Took a phone call? Block the slot manually here. Next time, share your link to save time."
+            title={MANUAL_BOOKING_HINT}
             data-testid="userbar-link-manual-booking"
             className="mb-1 border border-clinical-400/35 bg-clinical-500/10 font-semibold text-clinical-100 hover:bg-clinical-500/20"
             icon={<CalendarPlus className="h-4 w-4 text-clinical-200" aria-hidden />}
           >
-            + Add Manual Booking
-          </UserMenuNavLink>
-          <UserMenuNavLink
-            href="/agenda"
-            data-testid="userbar-link-agenda"
-            icon={<CalendarDays className="h-4 w-4 text-clinical-300" aria-hidden />}
-          >
-            My Agenda
-          </UserMenuNavLink>
-          <UserMenuNavLink
-            href="/agenda/insights"
-            data-testid="userbar-link-insights"
-            icon={<BarChart3 className="h-4 w-4 text-clinical-300" aria-hidden />}
-          >
-            Practice insights
-          </UserMenuNavLink>
-          <UserMenuNavLink
-            href="/agenda/settings"
-            data-testid="userbar-link-settings"
-            icon={<Settings className="h-4 w-4 text-clinical-300" aria-hidden />}
-          >
-            Settings
+            {MANUAL_BOOKING_LABEL}
           </UserMenuNavLink>
           <UserMenuNavLink
             href="/agenda/settings#promote-practice"
@@ -340,9 +424,16 @@ export function UserBar() {
           className="sticky top-0 z-50 hidden border-b border-clinical-400/15 bg-ink-900/90 shadow-sm shadow-ink-900/25 backdrop-blur-md lg:block"
         >
           <div className="mx-auto flex h-14 max-w-[1920px] items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
-            <PendingLink href="/agenda" className="inline-flex shrink-0 transition hover:opacity-90">
-              <DocCyWordmark variant="dark" />
-            </PendingLink>
+            <div className="flex min-w-0 items-center gap-6">
+              <PendingLink
+                href={logoHomeHref({ applicant: supportOnly })}
+                className="inline-flex shrink-0 transition hover:opacity-90"
+              >
+                <DocCyWordmark variant="dark" />
+              </PendingLink>
+              {/* Applicants get no product tabs, only Support and Log out (user, 2026-09-28). */}
+              {supportOnly ? null : <DesktopNavTabs pathname={pathname} badges={tabBadges} />}
+            </div>
             <div className="relative shrink-0" ref={menuRef}>
               {desktopUserMenu}
             </div>
@@ -383,6 +474,14 @@ export function UserBar() {
             data-testid="userbar-mobile-more-menu"
             className="absolute inset-x-2 bottom-[calc(100%+0.35rem)] z-[60] overflow-hidden rounded-2xl border border-white/10 bg-ink-900/90 p-1.5 shadow-2xl shadow-ink-900/70 backdrop-blur-xl supports-[backdrop-filter]:bg-ink-900/82"
           >
+            <AccountHeader
+              avatarUrl={sessionState.avatarUrl}
+              avatarIsPrivate={sessionState.avatarIsPrivate}
+              initials={initials}
+              name={sessionState.doctorName}
+              email={sessionState.email}
+              data-testid="userbar-mobile-more-account"
+            />
             <UserBarMoreMenuItems
               publicProfilePath={publicProfilePath}
               isSigningOut={isSigningOut}
@@ -416,42 +515,20 @@ export function UserBar() {
           </div>
         ) : (
         <div className="relative mx-auto flex max-w-2xl items-stretch justify-between gap-0 px-1 pt-0.5">
-          <MobileTabNavLink
-            href="/agenda"
-            label="Agenda"
-            data-testid="userbar-tab-agenda"
-            isActive={isAgendaActive}
-            baseClass={tabBaseClass}
-            activeClass={tabActiveClass}
-            inactiveClass={tabInactiveClass}
-            icon={
-              <CalendarDays className="h-5 w-5 shrink-0 sm:h-[1.35rem] sm:w-[1.35rem]" aria-hidden />
-            }
-          />
-          <MobileTabNavLink
-            href="/agenda/insights"
-            label="Insights"
-            data-testid="userbar-tab-insights"
-            isActive={isInsightsActive}
-            baseClass={tabBaseClass}
-            activeClass={tabActiveClass}
-            inactiveClass={tabInactiveClass}
-            icon={
-              <BarChart3 className="h-5 w-5 shrink-0 sm:h-[1.35rem] sm:w-[1.35rem]" aria-hidden />
-            }
-          />
-          <MobileTabNavLink
-            href="/agenda/settings"
-            label="Settings"
-            data-testid="userbar-tab-settings"
-            isActive={isSettingsActive}
-            baseClass={tabBaseClass}
-            activeClass={tabActiveClass}
-            inactiveClass={tabInactiveClass}
-            icon={
-              <Settings className="h-5 w-5 shrink-0 sm:h-[1.35rem] sm:w-[1.35rem]" aria-hidden />
-            }
-          />
+          {DOCTOR_NAV_TABS.map((tab) => (
+            <MobileTabNavLink
+              key={tab.id}
+              href={tab.href}
+              label={tab.label}
+              data-testid={`userbar-tab-${tab.id}`}
+              isActive={activeTab === tab.id}
+              baseClass={tabBaseClass}
+              activeClass={tabActiveClass}
+              inactiveClass={tabInactiveClass}
+              icon={mobileTabIcon(tab.id)}
+              badge={tabBadges[tab.id] ?? null}
+            />
+          ))}
           <div ref={mobileMoreAnchorRef} className="relative flex min-w-0 flex-1">
             <button
               type="button"

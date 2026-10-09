@@ -5,6 +5,7 @@ const PROTECTED_ROUTES = [
   { path: "/agenda", forbidden: /Your Agenda/i },
   { path: "/agenda/settings", forbidden: /^Settings$/i },
   { path: "/agenda/insights", forbidden: /Practice insights/i, next: "/agenda/insights" },
+  { path: "/dashboard", forbidden: /Needs your answer/i, next: "/dashboard" },
 ] as const;
 
 test.describe("Agenda route protection", { tag: ["@pr-e2e", "@pr-e2e-booking"] }, () => {
@@ -18,7 +19,8 @@ test.describe("Agenda route protection", { tag: ["@pr-e2e", "@pr-e2e-booking"] }
       await expect(
         page.getByRole("heading", { name: /Welcome back|Sign in/i }),
       ).toBeVisible({ timeout: 5000 });
-      await expect(page.getByText(route.forbidden)).not.toBeVisible();
+      // Hidden boot chrome can repeat tab labels; only visible text counts.
+      await expect(page.getByText(route.forbidden).filter({ visible: true })).toHaveCount(0);
     }
   });
 });

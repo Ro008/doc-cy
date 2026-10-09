@@ -7,7 +7,7 @@ async function signIn(page: any) {
   await signInDoctorAndSetCookies(page as Page);
   await page.goto("/agenda");
   await expect(page).toHaveURL(/\/agenda/, { timeout: 10000 });
-  await expect(page.locator("main header h1").first()).toBeVisible({
+  await expect(page.getByTestId("agenda-page")).toBeVisible({
     timeout: 10000,
   });
 }
@@ -80,21 +80,15 @@ test.describe("Doctor dashboard", () => {
 
     await expect(page).toHaveURL(/\/agenda/, { timeout: 10000 });
 
-    // On mobile we show stacked cards, not the desktop timeline
-    const todaySection = page.locator("section").first();
-    await expect(todaySection).toBeVisible();
-    // Some datasets can render both: an appointment card and the empty hint text.
-    // Avoid strict-mode "or" by asserting whichever signal exists first.
-    const appointmentCards = todaySection.getByRole("button", {
-      name: /^Appointment /i,
+    // Phones get the single-day agenda with a Today button; the desktop sidebar and
+    // week grid stay hidden, so nothing overlaps at 320px.
+    await expect(page.getByTestId("agenda-page")).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Today$/i }).first()).toBeVisible({
+      timeout: 5000,
     });
-    if ((await appointmentCards.count()) > 0) {
-      await expect(appointmentCards.first()).toBeVisible({ timeout: 5000 });
-    } else {
-      await expect(todaySection.getByText(/No appointments today/).first()).toBeVisible({
-        timeout: 5000,
-      });
-    }
+    await expect(page.getByTestId("agenda-sidebar")).toBeHidden();
+    const scrollWidth = await page.evaluate(() => document.documentElement.scrollWidth);
+    expect(scrollWidth).toBeLessThanOrEqual(320);
   });
 
   test("dashboard links to settings and settings page loads", async ({
@@ -105,7 +99,7 @@ test.describe("Doctor dashboard", () => {
 
     await expect(page).toHaveURL(/\/agenda/, { timeout: 10000 });
 
-    const settingsLink = page.getByTestId("userbar-link-settings");
+    const settingsLink = page.getByTestId("userbar-nav-settings");
     if ((await settingsLink.count()) > 0) {
       await expect(settingsLink).toBeVisible();
       await expect(settingsLink).toHaveAttribute("href", "/agenda/settings");
@@ -118,8 +112,7 @@ test.describe("Doctor dashboard", () => {
       await expect(page).toHaveURL(/\/agenda\/settings/, { timeout: 10000 });
     }
     await expect(page).toHaveURL("/agenda/settings");
-    // The user menu also has a (hidden) "Settings"; check the page's own label.
-    await expect(page.locator("main").getByText(/^Settings$/i).first()).toBeVisible({
+    await expect(page.getByText(/^Settings$/i).filter({ visible: true }).first()).toBeVisible({
       timeout: 5000,
     });
     await expect(page.locator("main header h1").first()).toBeVisible({

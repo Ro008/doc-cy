@@ -1,5 +1,6 @@
 "use client";
 
+import { PATIENT_CANCEL_NOTICE_CHOICES, parsePatientCancelNoticeHours } from "@/lib/patient-cancel-window";
 import * as React from "react";
 import Link from "next/link";
 import { createPortal } from "react-dom";
@@ -79,10 +80,14 @@ export type DoctorSettingsFormData = {
   slotDurationMinutes: number;
   bookingHorizonDays: number;
   minimumNoticeHours: number;
+  /** Until how many hours before the visit patients can cancel online (12 / 24 / 48). */
+  patientCancelNoticeHours: number;
   holidayModeEnabled: boolean;
   holidayStartDate: string | null; // "YYYY-MM-DD"
   holidayEndDate: string | null; // "YYYY-MM-DD"
   pauseOnlineBookings: boolean;
+  /** Pro access has ended: the pause toggle is off and disabled. */
+  accessEnded?: boolean;
   services: DoctorServiceItem[];
   locations?: DoctorWorkplaceFormData[];
 };
@@ -296,6 +301,9 @@ export function SettingsForm({ initial }: SettingsFormProps) {
   const [minimumNoticeHours, setMinimumNoticeHours] = React.useState(
     initial.minimumNoticeHours
   );
+  const [patientCancelNoticeHours, setPatientCancelNoticeHours] = React.useState(
+    initial.patientCancelNoticeHours
+  );
   const [holidayModeEnabled, setHolidayModeEnabled] = React.useState(
     initial.holidayModeEnabled
   );
@@ -413,6 +421,7 @@ export function SettingsForm({ initial }: SettingsFormProps) {
         mobileNumber,
         bookingHorizonDays,
         minimumNoticeHours,
+        patientCancelNoticeHours,
         holidayModeEnabled,
         holidayStartInput,
         holidayEndInput,
@@ -439,6 +448,7 @@ export function SettingsForm({ initial }: SettingsFormProps) {
       mobileNumber,
       bookingHorizonDays,
       minimumNoticeHours,
+      patientCancelNoticeHours,
       holidayModeEnabled,
       holidayStartInput,
       holidayEndInput,
@@ -456,6 +466,7 @@ export function SettingsForm({ initial }: SettingsFormProps) {
       mobileNumber: initial.mobileNumber ?? "",
       bookingHorizonDays: initial.bookingHorizonDays,
       minimumNoticeHours: initial.minimumNoticeHours,
+      patientCancelNoticeHours: initial.patientCancelNoticeHours,
       holidayModeEnabled: initial.holidayModeEnabled,
       holidayStartInput: formatISOToDDMMYYYYOrEmpty(initial.holidayStartDate),
       holidayEndInput: formatISOToDDMMYYYYOrEmpty(initial.holidayEndDate),
@@ -719,6 +730,7 @@ export function SettingsForm({ initial }: SettingsFormProps) {
         slotDurationMinutes,
         bookingHorizonDays,
         minimumNoticeHours,
+        patientCancelNoticeHours,
         holidayModeEnabled,
         holidayStartDate: parsedHolidayStart,
         holidayEndDate: parsedHolidayEnd,
@@ -978,6 +990,7 @@ export function SettingsForm({ initial }: SettingsFormProps) {
               workplaces.find((row) => row.id === activeWorkplaceId)?.pauseOnlineBookings,
             )}
             locationId={activeWorkplaceId === "primary" ? null : activeWorkplaceId}
+            accessEnded={Boolean(initial.accessEnded)}
             onPausedChange={(paused) => {
               setWorkplaces((prev) =>
                 prev.map((row) =>
@@ -1435,6 +1448,30 @@ export function SettingsForm({ initial }: SettingsFormProps) {
             </select>
             <p className="mt-2 text-xs text-slate-400">
               Prevent last-minute surprises. Slots will be hidden if they are too close to the current time.
+            </p>
+          </div>
+          <div>
+            <label
+              htmlFor="patientCancelNoticeHours"
+              className="text-[11px] font-semibold uppercase tracking-wide text-slate-400"
+            >
+              Online cancellation deadline
+            </label>
+            <select
+              id="patientCancelNoticeHours"
+              value={patientCancelNoticeHours}
+              onChange={(e) => setPatientCancelNoticeHours(parsePatientCancelNoticeHours(e.target.value))}
+              className="mt-2 w-full rounded-xl border border-slate-800/80 bg-ink-900/40 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-clinical-400/60"
+            >
+              {PATIENT_CANCEL_NOTICE_CHOICES.map((hours) => (
+                <option key={hours} value={hours}>
+                  Up to {hours} hours before the visit
+                </option>
+              ))}
+            </select>
+            <p className="mt-2 text-xs text-slate-400">
+              Until then, patients can cancel from their confirmation and reminder emails. After it, they see
+              your clinic&apos;s phone instead.
             </p>
           </div>
         </div>

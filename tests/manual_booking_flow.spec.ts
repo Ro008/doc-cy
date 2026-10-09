@@ -22,6 +22,20 @@ test.describe("Manual booking flow @booking-creates", { tag: ["@pr-e2e", "@pr-e2
     }
   });
 
+  // Optional since 2026-10-06 (only name, phone and reason are required).
+  async function fillManualPatientDetails(page: import("@playwright/test").Page) {
+    await page.getByRole("radio", { name: "First visit" }).check();
+    await page.getByRole("radio", { name: "Prefer not to say" }).check();
+    await page.locator("#manualPatientBirthdate").fill("1990-01-01");
+  }
+
+  /** Same phone box as online booking: Cyprus code already there, mobile numbers only. */
+  async function fillManualPhone(page: import("@playwright/test").Page, localDigits: string) {
+    const phone = page.locator("#manualPatientPhone");
+    await phone.click();
+    await phone.pressSequentially(localDigits, { delay: 30 });
+  }
+
   async function pickFirstAvailableSlot(page: import("@playwright/test").Page) {
     const calendar = page.locator(".rdp-dark").first();
     const firstAvailableDay = calendar
@@ -44,7 +58,7 @@ test.describe("Manual booking flow @booking-creates", { tag: ["@pr-e2e", "@pr-e2
     return { firstAvailableDay, timePanel, selectedTimeLabel };
   }
 
-  test("doctor can create manual booking without email or phone", async ({
+  test("doctor can create manual booking without an email", async ({
     page,
   }) => {
     test.setTimeout(120_000);
@@ -67,7 +81,7 @@ test.describe("Manual booking flow @booking-creates", { tag: ["@pr-e2e", "@pr-e2
       await page.goto("/agenda?manual=1");
       await expect(page).toHaveURL(/\/agenda/, { timeout: 15_000 });
 
-      const modalTitle = page.getByRole("heading", { name: /\+ Add Manual Booking/i });
+      const modalTitle = page.getByRole("heading", { name: /Add manual booking/i });
       await expect(modalTitle).toBeVisible({ timeout: 15_000 });
 
       const slotPick = await pickFirstAvailableSlot(page);
@@ -89,6 +103,8 @@ test.describe("Manual booking flow @booking-creates", { tag: ["@pr-e2e", "@pr-e2
       const patientName = `Manual E2E ${nonce}`;
 
       await page.getByPlaceholder("Patient full name").fill(patientName);
+      await fillManualPhone(page, "99123456");
+      // The optional details stay empty here; the second test fills them.
       await page
         .getByPlaceholder("Brief reason for this visit")
         .fill("Manual booking created from phone call in E2E validation.");
@@ -123,7 +139,7 @@ test.describe("Manual booking flow @booking-creates", { tag: ["@pr-e2e", "@pr-e2
       await page.getByRole("button", { name: /^Done$/i }).click();
       await expect(modalTitle).toHaveCount(0);
 
-      await page.reload();
+      await page.goto("/agenda?manual=1");
       await expect(page).toHaveURL(/\/agenda/, { timeout: 10_000 });
 
       // The agenda now knows the booking, so the modal must not offer that time
@@ -150,22 +166,25 @@ test.describe("Manual booking flow @booking-creates", { tag: ["@pr-e2e", "@pr-e2
       // And the server refuses the same slot if a stale screen sends it anyway.
       const booked = await admin
         .from("appointments")
-        .select("appointment_datetime, location_id")
+        .select("appointment_datetime")
         .eq("id", createdAppointmentId!)
         .single();
       expect(booked.error).toBeNull();
       const duplicate = await page.request.post("/api/appointments/manual", {
         data: {
           patientName: `${patientName} Duplicate`,
-          patientPhone: "",
+          patientPhone: "+35799123456",
           patientEmail: "",
+          isNewPatient: true,
+          patientGender: "prefer_not_to_say",
+          patientBirthdate: "1990-01-01",
           appointmentLocal: formatInTimeZone(
             new Date(String(booked.data!.appointment_datetime)),
             CY_TZ,
             "yyyy-MM-dd'T'HH:mm",
           ),
           reason: "Trying to rebook same slot should fail.",
-          locationId: booked.data!.location_id ?? null,
+          locationId: null,
         },
       });
       expect(duplicate.status()).toBe(409);
@@ -203,10 +222,9 @@ test.describe("Manual booking flow @booking-creates", { tag: ["@pr-e2e", "@pr-e2
       }
 
       const nonce = Date.now().toString().slice(-6);
-      const patientPhone = "+35799123456";
-
       await page.getByPlaceholder("Patient full name").fill(`Manual phone ${nonce}`);
-      await page.getByPlaceholder("+357...").fill(patientPhone);
+      await fillManualPhone(page, "99123456");
+      await fillManualPatientDetails(page);
       await page
         .getByPlaceholder("Brief reason for this visit")
         .fill("Manual booking with a patient phone.");

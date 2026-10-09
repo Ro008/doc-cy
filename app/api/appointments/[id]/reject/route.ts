@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 import { sendPatientRequestDeclinedEmail } from "@/lib/send-patient-request-declined-email";
+import { loadPatientEmailClinic, patientClinicProfileUrl } from "@/lib/patient-email-clinic";
+import { createServiceRoleClient } from "@/lib/supabase-service";
+import { isUndeliverableTestEmail } from "@/lib/registration-decision-emails";
 
 type RouteContext = { params: { id: string } };
 
@@ -59,7 +62,7 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
   const { data: appt, error: apptErr } = await supabase
     .from("appointments")
     .select(
-      "id, professional_id, patient_name, patient_email, status"
+      "id, professional_id, patient_name, patient_email, status, clinic_id"
     )
     .eq("id", id)
     .maybeSingle();
@@ -99,28 +102,52 @@ export async function POST(req: NextRequest, { params }: RouteContext) {
       ? process.env.RESEND_TO_OVERRIDE?.trim() || null
       : null;
 
-  try {
-    await sendPatientRequestDeclinedEmail({
-      siteUrl,
-      patientEmail: String(appt.patient_email ?? ""),
-      patientName: String(appt.patient_name ?? ""),
-      doctorName: String((doctor as { name?: string | null }).name ?? ""),
-      doctorSlug: slug,
-      declineReason: reasonRaw,
-      resendToOverride,
-    });
-  } catch (e) {
-    console.error("[DocCy] Decline request email failed", e);
+  // The request is kept as DECLINED with its reason (user, 2026-10-03), never deleted.
+  // Guarded on REQUESTED so a double click or a concurrent accept can't overwrite it.
+  const service = createServiceRoleClient();
+  if (!service) {
+    return NextResponse.json({ message: "Server misconfiguration." }, { status: 503 });
+  }
+  const { data: declined, error: updateErr } = await service
+    .from("appointments")
+    .update({ status: "DECLINED", decline_reason: reasonRaw })
+    .eq("id", id)
+    .eq("professional_id", doctor.id)
+    .eq("status", "REQUESTED")
+    .select("id")
+    .maybeSingle();
+  if (updateErr) {
+    console.error("[DocCy] decline update", updateErr);
+    return NextResponse.json({ message: "Could not decline the request." }, { status: 500 });
+  }
+  if (!declined) {
+    return NextResponse.json(
+      { message: "This request was already answered." },
+      { status: 409 }
+    );
   }
 
-  const { error: delErr } = await supabase.from("appointments").delete().eq("id", id);
-
-  if (delErr) {
-    console.error(delErr);
-    return NextResponse.json(
-      { message: "Could not remove the request after notifying the patient." },
-      { status: 500 }
-    );
+  const patientEmail = String(appt.patient_email ?? "").trim();
+  try {
+    if (patientEmail && !isUndeliverableTestEmail(patientEmail)) {
+      const clinic = await loadPatientEmailClinic(service, {
+        clinicId: (appt as { clinic_id?: string | null }).clinic_id,
+        professionalSlug: slug,
+        siteUrl,
+      }).catch(() => null);
+      await sendPatientRequestDeclinedEmail({
+        siteUrl,
+        patientEmail,
+        patientName: String(appt.patient_name ?? ""),
+        doctorName: String((doctor as { name?: string | null }).name ?? ""),
+        doctorSlug: slug,
+        declineReason: reasonRaw,
+        clinic,
+        resendToOverride,
+      });
+    }
+  } catch (e) {
+    console.error("[DocCy] Decline request email failed", e);
   }
 
   return NextResponse.json({ message: "Request declined." }, { status: 200 });

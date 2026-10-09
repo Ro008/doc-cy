@@ -8,6 +8,7 @@ export type SettingsDirtySnapshot = {
   mobileNumber: string;
   bookingHorizonDays: number;
   minimumNoticeHours: number;
+  patientCancelNoticeHours: number;
   holidayModeEnabled: boolean;
   holidayStartInput: string;
   holidayEndInput: string;
@@ -44,6 +45,7 @@ export function buildSettingsDirtySnapshot(input: {
   mobileNumber: string;
   bookingHorizonDays: number;
   minimumNoticeHours: number;
+  patientCancelNoticeHours: number;
   holidayModeEnabled: boolean;
   holidayStartInput: string;
   holidayEndInput: string;
@@ -57,6 +59,7 @@ export function buildSettingsDirtySnapshot(input: {
     mobileNumber: input.mobileNumber.trim(),
     bookingHorizonDays: input.bookingHorizonDays,
     minimumNoticeHours: input.minimumNoticeHours,
+    patientCancelNoticeHours: input.patientCancelNoticeHours,
     holidayModeEnabled: input.holidayModeEnabled,
     holidayStartInput: input.holidayStartInput.trim(),
     holidayEndInput: input.holidayEndInput.trim(),

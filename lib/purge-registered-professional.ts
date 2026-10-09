@@ -34,7 +34,11 @@ type ProfessionalRow = {
   registration_email: string | null;
 };
 
+// In order: reviews RESTRICT on the professional and the visit, and appointments never
+// cascade with a professional (FK RESTRICT from M2), so they go first (their links cascade).
 const CHILD_TABLES_BY_PROFESSIONAL_ID = [
+  "professional_reviews",
+  "appointment_drafts",
   "appointments",
   "professional_services",
   "professional_settings",
