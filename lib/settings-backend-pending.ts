@@ -12,12 +12,6 @@ export const BACKEND_PENDING = {
   removeClinic: { what: "removing a clinic", endpoint: "DELETE /api/professional-clinics" },
   clinicChangeRequest: { what: "requesting a clinic change", endpoint: "POST /api/clinic-change-requests" },
   changeEmail: { what: "changing your email", endpoint: "POST /api/account/email" },
-  savePatientAges: { what: "saving who you see", endpoint: "PUT /api/professional-profile" },
-  addQualification: { what: "adding a qualification", endpoint: "POST /api/professional-qualifications" },
-  removeQualification: {
-    what: "removing a qualification",
-    endpoint: "DELETE /api/professional-qualifications",
-  },
 } as const;
 
 export type BackendPendingAction = keyof typeof BACKEND_PENDING;

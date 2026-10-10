@@ -74,3 +74,41 @@ export function validateQualification(
   if (Object.keys(errors).length > 0) return { ok: false, errors };
   return { ok: true, qualification: { title, institution, year } };
 }
+
+/** The saved "patients I see" (`professionals.patients_seen`), or null when not chosen. */
+export function parsePatientAges(value: unknown): PatientAges | null {
+  return PATIENT_AGE_OPTIONS.some((option) => option.value === value) ? (value as PatientAges) : null;
+}
+
+export type SavedQualification = Qualification & { id: string };
+
+/** The saved list (`professionals.qualifications`), without lines that cannot be shown. */
+export function parseSavedQualifications(value: unknown): SavedQualification[] {
+  if (!Array.isArray(value)) return [];
+  const list: SavedQualification[] = [];
+  for (const row of value) {
+    if (!row || typeof row !== "object") continue;
+    const { id, title, institution, year } = row as Record<string, unknown>;
+    if (typeof id !== "string" || !id || typeof title !== "string" || !title.trim()) continue;
+    list.push({
+      id,
+      title,
+      institution: typeof institution === "string" ? institution : "",
+      year: typeof year === "number" && Number.isInteger(year) ? year : null,
+    });
+  }
+  return list;
+}
+
+/** A qualification as the API receives it: the year is a number, text or missing. */
+export function qualificationFromBody(body: unknown, thisYear: number = new Date().getFullYear()): QualificationCheck {
+  const b = (body && typeof body === "object" ? body : {}) as Record<string, unknown>;
+  return validateQualification(
+    {
+      title: typeof b.title === "string" ? b.title : "",
+      institution: typeof b.institution === "string" ? b.institution : "",
+      year: b.year === null || b.year === undefined ? "" : String(b.year),
+    },
+    thisYear,
+  );
+}

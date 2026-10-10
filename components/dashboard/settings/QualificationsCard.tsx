@@ -12,18 +12,13 @@ import {
   SETTINGS_PRIMARY_BUTTON_CLASS,
 } from "@/components/dashboard/settings/styles";
 import {
-  backendPendingPreviewMessage,
-  isBackendPending,
-  settingsActionErrorMessage,
-} from "@/lib/settings-backend-pending";
-import {
   MAX_QUALIFICATIONS,
+  parseSavedQualifications,
   validateQualification,
-  type Qualification,
   type QualificationErrors,
+  type SavedQualification,
 } from "@/lib/settings-profile-details";
 
-export type SavedQualification = Qualification & { id: string };
 
 const INPUT_CLASS =
   "mt-1.5 w-full rounded-xl border bg-slate-950/60 px-3 py-2.5 text-sm text-slate-100 placeholder:text-slate-500 outline-none transition focus:ring-2";
@@ -39,7 +34,7 @@ const EMPTY = { title: "", institution: "", year: "" };
  * Qualifications on the Profile tab (user, 2026-10-10): a short list of degrees and
  * training, shown on the public profile most recent first. Each line is added or removed
  * on its own.
- * Contract (backend pending): POST /api/professional-qualifications
+ * No founder; each change is recorded. POST /api/professional-qualifications
  * { title, institution, year } → { qualification: { id, ... } };
  * DELETE /api/professional-qualifications?id=…
  */
@@ -72,22 +67,21 @@ export function QualificationsCard({ initial = [] }: { initial?: SavedQualificat
     }
     setBusy(true);
     try {
-      // EXPECTED TO FAIL until the backend exists: the line then stays for this visit only.
       const res = await fetch("/api/professional-qualifications", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(check.qualification),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok && !isBackendPending(res.status)) {
-        toast.error(settingsActionErrorMessage("addQualification", res.status, data, "Could not add the qualification."));
+      const [saved] = parseSavedQualifications([data?.qualification]);
+      if (!res.ok || !saved) {
+        if (data?.errors && typeof data.errors === "object") setErrors(data.errors as QualificationErrors);
+        toast.error(typeof data?.message === "string" ? data.message : "Could not add the qualification.");
         return;
       }
-      const id = String(data?.qualification?.id ?? `local-${Date.now()}`);
-      setItems((previous) => [...previous, { ...check.qualification, id }].sort(byYear));
+      setItems((previous) => [...previous, saved].sort(byYear));
       close();
-      if (res.ok) toast.success("Qualification added to your profile.", { id: "qualifications" });
-      else toast.warning(backendPendingPreviewMessage("addQualification"), { id: "qualifications" });
+      toast.success("Qualification added to your profile.", { id: "qualifications" });
     } catch (err) {
       console.error(err);
       toast.error("Could not add the qualification.");
@@ -103,14 +97,13 @@ export function QualificationsCard({ initial = [] }: { initial?: SavedQualificat
         method: "DELETE",
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok && !isBackendPending(res.status)) {
-        toast.error(
-          settingsActionErrorMessage("removeQualification", res.status, data, "Could not remove the qualification."),
-        );
+      // 404: it is already gone from her profile, so it leaves the list here too.
+      if (!res.ok && res.status !== 404) {
+        toast.error(typeof data?.message === "string" ? data.message : "Could not remove the qualification.");
         return;
       }
       setItems((previous) => previous.filter((row) => row.id !== item.id));
-      if (res.ok) toast.success("Qualification removed.", { id: "qualifications" });
+      toast.success("Qualification removed.", { id: "qualifications" });
     } catch (err) {
       console.error(err);
       toast.error("Could not remove the qualification.");

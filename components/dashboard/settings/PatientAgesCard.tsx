@@ -4,17 +4,12 @@ import * as React from "react";
 import { toast } from "sonner";
 import { SavingNote } from "@/components/dashboard/settings/BusyLabel";
 import { SETTINGS_CARD_CLASS } from "@/components/dashboard/settings/styles";
-import {
-  backendPendingPreviewMessage,
-  isBackendPending,
-  settingsActionErrorMessage,
-} from "@/lib/settings-backend-pending";
 import { PATIENT_AGE_OPTIONS, type PatientAges } from "@/lib/settings-profile-details";
 
 /**
  * "Who you see" on the Profile tab (user, 2026-10-10): adults, children or both, so a
- * parent knows before booking. One choice, saved the moment it is picked.
- * Contract (backend pending): PUT /api/professional-profile { patientAges }.
+ * parent knows before booking. One choice, saved the moment it is picked: no founder,
+ * each change recorded (PUT /api/professional-profile { patientAges }).
  */
 export function PatientAgesCard({ initialValue = null }: { initialValue?: PatientAges | null }) {
   const [value, setValue] = React.useState<PatientAges | null>(initialValue);
@@ -26,7 +21,6 @@ export function PatientAgesCard({ initialValue = null }: { initialValue?: Patien
     setValue(next);
     setSaving(true);
     try {
-      // EXPECTED TO FAIL until the backend exists: the choice then stays for this visit only.
       const res = await fetch("/api/professional-profile", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -35,11 +29,9 @@ export function PatientAgesCard({ initialValue = null }: { initialValue?: Patien
       const data = await res.json().catch(() => ({}));
       if (res.ok) {
         toast.success("Saved. Your profile now says who you see.", { id: "patient-ages" });
-      } else if (isBackendPending(res.status)) {
-        toast.warning(backendPendingPreviewMessage("savePatientAges"), { id: "patient-ages" });
       } else {
         setValue(previous);
-        toast.error(settingsActionErrorMessage("savePatientAges", res.status, data, "Could not save who you see."), {
+        toast.error(typeof data?.message === "string" ? data.message : "Could not save who you see.", {
           id: "patient-ages",
         });
       }

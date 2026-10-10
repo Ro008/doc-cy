@@ -23,6 +23,7 @@ import {
   isSpecialtyChangeAttempt,
   SPECIALTY_CHANGE_REQUIRES_SUPPORT_MESSAGE,
 } from "@/lib/doctor-specialty-settings-lock";
+import { setProfessionalBio, setProfessionalLanguages } from "@/lib/profile-details-server";
 import { createServiceRoleClient } from "@/lib/supabase-service";
 import { loadPrimarySpecialtyName } from "@/lib/specialty-catalogue";
 
@@ -240,26 +241,20 @@ export async function POST(req: NextRequest) {
 
   // The personal mobile is not saved here: POST /api/professional-mobile changes and
   // records it (2026-10-09). A doctorPhone sent by an old page is ignored.
-  const profileUpdate: { bio?: string | null; languages: string[] } = { languages };
-  if (b.bio !== undefined) {
-    profileUpdate.bio = bioRaw.length > 0 ? bioRaw : null;
+  // Bio and languages change as she pleases, but each change is recorded (user,
+  // 2026-10-10): the database functions write the value and its request_log row
+  // together, and do nothing when the value is the same.
+  const profileService = createServiceRoleClient();
+  if (!profileService) {
+    return NextResponse.json({ message: "Temporarily unavailable." }, { status: 503 });
   }
-
-  const docErr = (
-    await supabase.from("professionals").update(profileUpdate).eq("id", doctorId)
-  ).error;
-
-  if (docErr) {
-    console.error("[DocCy] Failed to update doctors row", docErr);
-    return NextResponse.json(
-      {
-        message:
-          docErr.message?.includes("languages") || docErr.code === "42703"
-            ? "Languages could not be saved because the database is missing a column. Please contact DocCy support."
-            : "Error updating professional profile.",
-      },
-      { status: 500 }
-    );
+  const languagesSaved = await setProfessionalLanguages(profileService, { professionalId: doctorId, languages });
+  const bioSaved =
+    languagesSaved.ok && b.bio !== undefined
+      ? await setProfessionalBio(profileService, { professionalId: doctorId, bio: bioRaw })
+      : languagesSaved;
+  if (bioSaved.ok === false) {
+    return NextResponse.json({ message: "Error updating professional profile." }, { status: 500 });
   }
 
   const ownedClinics = await loadDoctorLocations(doctorId);

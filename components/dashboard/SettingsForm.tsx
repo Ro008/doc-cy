@@ -101,6 +101,7 @@ import {
   type ProfileChangeState,
 } from "@/lib/profile-change-requests";
 import { QualificationsCard } from "@/components/dashboard/settings/QualificationsCard";
+import type { PatientAges, SavedQualification } from "@/lib/settings-profile-details";
 import { ClinicBookingLimits } from "@/components/dashboard/settings/ClinicBookingLimits";
 import { BusyLabel, BusySpinner, SavingNote } from "@/components/dashboard/settings/BusyLabel";
 import {
@@ -136,6 +137,9 @@ export type DoctorSettingsFormData = {
   specialtyOptions: string[];
   /** Approved specialty labels (flat). */
   specialties?: string[];
+  /** "Patients I see" and her qualifications, as saved (`loadProfileDetails`). */
+  patientAges?: PatientAges | null;
+  qualifications?: SavedQualification[];
   /** Her latest specialty request, when founders denied it (`loadProfileChangeStates`). */
   specialtyDenied?: DeniedProfileChange | null;
   /** Her open request to add a specialty (`loadProfileChangeStates`). */
@@ -1915,7 +1919,7 @@ export function SettingsForm({
       {specialtiesCard}
       {/* GeSY sits with who she is (photo, specialties), above the longer text fields. */}
       {profileExtra}
-      <PatientAgesCard />
+      <PatientAgesCard initialValue={initial.patientAges ?? null} />
       <section className={SECTION_CARD_CLASS}>
         <label htmlFor="settings-bio" className={SECTION_EYEBROW_CLASS}>
           How you help patients
@@ -1985,7 +1989,7 @@ export function SettingsForm({
           </p>
         ) : null}
       </section>
-      <QualificationsCard />
+      <QualificationsCard initial={initial.qualifications ?? []} />
     </div>
   );
 

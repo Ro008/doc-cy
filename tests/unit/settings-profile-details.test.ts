@@ -3,6 +3,9 @@ import { describe, it } from "node:test";
 import {
   MAX_QUALIFICATIONS,
   PATIENT_AGE_OPTIONS,
+  parsePatientAges,
+  parseSavedQualifications,
+  qualificationFromBody,
   validateNameChangeRequest,
   validateQualification,
 } from "../../lib/settings-profile-details";
@@ -113,5 +116,64 @@ describe("validateQualification", () => {
 
   it("caps the list at six", () => {
     assert.equal(MAX_QUALIFICATIONS, 6);
+  });
+});
+
+describe("parsePatientAges", () => {
+  it("keeps the three choices and nothing else", () => {
+    assert.equal(parsePatientAges("adults"), "adults");
+    assert.equal(parsePatientAges("children"), "children");
+    assert.equal(parsePatientAges("all"), "all");
+    assert.equal(parsePatientAges("teenagers"), null);
+    assert.equal(parsePatientAges(null), null);
+    assert.equal(parsePatientAges(1), null);
+  });
+});
+
+describe("parseSavedQualifications", () => {
+  it("reads the saved list and drops lines it cannot show", () => {
+    assert.deepEqual(
+      parseSavedQualifications([
+        { id: "a", title: "MD", institution: "Athens", year: 2010 },
+        { id: "b", title: "Fellowship", institution: "London", year: null },
+        { id: "", title: "No id", institution: "x", year: 2000 },
+        { id: "c", title: "", institution: "x", year: 2000 },
+        "nonsense",
+      ]),
+      [
+        { id: "a", title: "MD", institution: "Athens", year: 2010 },
+        { id: "b", title: "Fellowship", institution: "London", year: null },
+      ],
+    );
+  });
+
+  it("is empty for anything that is not a list", () => {
+    assert.deepEqual(parseSavedQualifications(null), []);
+    assert.deepEqual(parseSavedQualifications({ a: 1 }), []);
+  });
+});
+
+describe("qualificationFromBody", () => {
+  it("accepts the year as a number, as text or missing", () => {
+    assert.deepEqual(qualificationFromBody({ title: " MD ", institution: "Athens", year: 2010 }, 2026), {
+      ok: true,
+      qualification: { title: "MD", institution: "Athens", year: 2010 },
+    });
+    assert.deepEqual(qualificationFromBody({ title: "MD", institution: "Athens", year: "2011" }, 2026), {
+      ok: true,
+      qualification: { title: "MD", institution: "Athens", year: 2011 },
+    });
+    assert.deepEqual(qualificationFromBody({ title: "MD", institution: "Athens", year: null }, 2026), {
+      ok: true,
+      qualification: { title: "MD", institution: "Athens", year: null },
+    });
+  });
+
+  it("refuses what the form refuses", () => {
+    const missing = qualificationFromBody({ institution: "Athens" }, 2026);
+    assert.equal(missing.ok, false);
+    const future = qualificationFromBody({ title: "MD", institution: "Athens", year: 2027 }, 2026);
+    assert.equal(future.ok, false);
+    assert.equal(qualificationFromBody(null, 2026).ok, false);
   });
 });

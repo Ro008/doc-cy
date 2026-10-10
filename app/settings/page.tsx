@@ -43,6 +43,7 @@ import { PROFESSIONAL_ACCOUNT_SETTINGS_SELECT } from "@/lib/professional-account
 import { loadSettingsClinicPhones } from "@/lib/settings-clinic-phones";
 import { FirstLoginTrialNoticeGate } from "@/components/dashboard/FirstLoginTrialNoticeGate";
 import { loadProfileChangeStates } from "@/lib/profile-change-requests-server";
+import { loadProfileDetails } from "@/lib/profile-details-server";
 import { createServiceRoleClient } from "@/lib/supabase-service";
 import {
   specialtyNames,
@@ -322,8 +323,18 @@ export default async function AgendaSettingsPage({
       })
     : null;
 
+  // "Patients I see" and qualifications: empty when the database has no such columns yet.
+  const profileDetails = specialtyService
+    ? await loadProfileDetails(specialtyService, doctor.id).catch((err) => {
+        console.error("[settings] profile details load failed", err);
+        return null;
+      })
+    : null;
+
   const initial: DoctorSettingsFormData = {
     specialtyOptions,
+    patientAges: profileDetails?.patientAges ?? null,
+    qualifications: profileDetails?.qualifications ?? [],
     nameChange: profileChanges?.name ?? null,
     pendingSpecialtyChange: profileChanges?.specialty.pending
       ? {

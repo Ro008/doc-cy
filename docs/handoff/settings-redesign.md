@@ -339,13 +339,30 @@ it (tables, review flow, emails) is yours.
   `ProfilePhotoControls`; state from `initial.photoChange`. **`POST /api/doctor-avatar`
   is gone** (it saved without approval). New professional routes go in
   `PROFESSIONAL_API_ROUTES` and the middleware matcher.
-- `PUT /api/professional-profile` `{ "patientAges": "adults" | "children" | "all" }` → 2xx.
-  `PatientAgesCard` takes `initialValue`.
-- `POST /api/professional-qualifications` `{ "title", "institution", "year": number | null }`
-  → 2xx `{ "qualification": { "id" } }`; `DELETE /api/professional-qualifications?id=…` → 2xx.
-  `QualificationsCard` takes `initial`.
-- Open decisions: whether founders check qualifications; where the public profile shows
-  the three (Ro008, `feat/profile-redesign`).
+- **Patients I see: built (Livio, 2026-10-10).** No founder; each change recorded
+  (`professional_patients_seen_change`). `PUT /api/professional-profile`
+  `{ "patientAges": "adults" | "children" | "all" }` → 200 `{ patientAges, changed }`; 400
+  for anything else. Saved in `professionals.patients_seen` (null until she chooses).
+  `PatientAgesCard` gets `initialValue` from `initial.patientAges`.
+- **Qualifications: built (Livio, 2026-10-10).** No founder (user: founders do not check
+  them); each add and removal recorded (`professional_qualification_add` / `_removal`).
+  `POST /api/professional-qualifications` `{ "title", "institution", "year": number | null }`
+  → 201 `{ "qualification": { "id", "title", "institution", "year" } }`; 400 with `errors`
+  per field; 409 at 6. `DELETE /api/professional-qualifications?id=…` → 200; 404 not hers.
+  Saved in `professionals.qualifications` (a JSON list, at most 6).
+  `QualificationsCard` gets `initial` from `initial.qualifications`.
+- **Bio and languages: recorded (Livio, 2026-10-10).** Same page behaviour
+  (`POST /api/doctor-settings`), but the route now saves them through
+  `professional_bio_set` / `professional_languages_set`, which record each real change
+  (`professional_bio_change`, `professional_languages_change`); an unchanged value
+  records nothing. Neither column is writable through her session any more.
+- Migrations: `20261010150000_professional_profile_details` (columns, types, functions; **Production before the merge**:
+  without it every save through /api/doctor-settings fails) and
+  `20261010160000_professionals_bio_languages_not_writable` (Production after the merge).
+  Server code: `lib/profile-details-server.ts`.
+- For Ro008 (`feat/profile-redesign`): where the public profile shows "patients I see"
+  and the qualifications. Read `patients_seen` and `qualifications` through the service
+  role (`parsePatientAges`, `parseSavedQualifications` in `lib/settings-profile-details.ts`).
 
 3.2–3.4 and 3.8 currently get 404/405 and show, e.g.: "Expected to fail for now: removing a
 clinic works once Livio builds it in the backend (DELETE /api/professional-clinics)."

@@ -684,14 +684,37 @@ test.describe("Settings redesign (B1)", { tag: "@pr-e2e" }, () => {
     await form.getByRole("button", { name: "Cancel", exact: true }).click();
     await expect(form).toHaveCount(0);
 
-    // Who she sees: one of three, saved when picked. Until the backend exists the
-    // choice stays for this visit and the page says it is not saved.
+    // Who she sees: one of three, saved when picked, with no founder; each change recorded.
+    const recorded = async (type: string) =>
+      (
+        await admin
+          .from("request_log")
+          .select("status, details, before_snapshot")
+          .eq("professional_id", seeded!.professionalId)
+          .eq("request_type", type)
+          .order("created_at", { ascending: true })
+      ).data ?? [];
     const ages = page.getByTestId("settings-patient-ages").getByRole("radiogroup", { name: "Patients I see" });
     await expect(ages.getByRole("radio")).toHaveText(["Adults", "Children", "Adults and children"]);
     await expect(ages.getByRole("radio", { checked: true })).toHaveCount(0);
     await ages.getByRole("radio", { name: "Children", exact: true }).click();
-    await expect(page.getByText(/Shown here only for now: saving who you see/)).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText("Saved. Your profile now says who you see.")).toBeVisible({ timeout: 20_000 });
     await expect(ages.getByRole("radio", { name: "Children", exact: true })).toHaveAttribute("aria-checked", "true");
+    await ages.getByRole("radio", { name: "Adults and children", exact: true }).click();
+    await expect(ages.getByRole("radio", { name: "Adults and children", exact: true })).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+    await expect
+      .poll(async () => recorded("professional_patients_seen_change"), { timeout: 20_000 })
+      .toEqual([
+        { status: "recorded", details: { patients_seen: "children" }, before_snapshot: { patients_seen: null } },
+        { status: "recorded", details: { patients_seen: "all" }, before_snapshot: { patients_seen: "children" } },
+      ]);
+    expect(
+      (await admin.from("professionals").select("patients_seen").eq("id", seeded!.professionalId).single()).data
+        ?.patients_seen,
+    ).toBe("all");
 
     // Qualifications: each field says what is wrong; lines sort most recent first.
     const quals = page.getByTestId("settings-qualifications");
@@ -708,7 +731,7 @@ test.describe("Settings redesign (B1)", { tag: "@pr-e2e" }, () => {
     await expect(qForm).toContainText(/Enter a year between 1950 and \d{4}\./);
     await qForm.getByLabel(/^Year/).fill("2009");
     await qForm.getByRole("button", { name: "Add qualification" }).click();
-    await expect(page.getByText(/Shown here only for now: adding a qualification/)).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText("Qualification added to your profile.")).toBeVisible({ timeout: 20_000 });
     await expect(quals.getByRole("listitem")).toHaveText([/MD, Medicine.*University of Athens · 2009/]);
 
     await quals.getByRole("button", { name: "+ Add a qualification" }).click();
@@ -721,6 +744,88 @@ test.describe("Settings redesign (B1)", { tag: "@pr-e2e" }, () => {
     });
     await quals.getByRole("button", { name: "Remove MD, Medicine" }).click();
     await expect(quals.getByRole("listitem")).toHaveText([/Fellowship in Cardiology/], { timeout: 20_000 });
+
+    // Saved on her profile and recorded: two added, one removed.
+    const saved = (
+      await admin.from("professionals").select("qualifications").eq("id", seeded!.professionalId).single()
+    ).data?.qualifications as Array<Record<string, unknown>>;
+    expect(saved).toHaveLength(1);
+    expect(saved[0]).toMatchObject({
+      title: "Fellowship in Cardiology",
+      institution: "King's College London",
+      year: 2015,
+    });
+    const added = await recorded("professional_qualification_add");
+    expect(added.map((row) => [row.status, row.details.title])).toEqual([
+      ["recorded", "MD, Medicine"],
+      ["recorded", "Fellowship in Cardiology"],
+    ]);
+    const removed = await recorded("professional_qualification_removal");
+    expect(removed).toHaveLength(1);
+    expect(removed[0].details).toMatchObject({ title: "MD, Medicine", year: 2009 });
+    expect(removed[0].before_snapshot.qualifications).toHaveLength(2);
+
+    // Both are still there after a reload.
+    await page.reload();
+    await expect(
+      page.getByTestId("settings-patient-ages").getByRole("radio", { name: "Adults and children", exact: true }),
+    ).toHaveAttribute("aria-checked", "true", { timeout: 20_000 });
+    await expect(page.getByTestId("settings-qualifications").getByRole("listitem")).toHaveText([
+      /Fellowship in Cardiology.*King's College London · 2015/,
+    ]);
+  });
+
+  test("Profile: the bio and the languages save at once and every change is recorded", async ({ page }) => {
+    test.setTimeout(120_000);
+    const recorded = async (type: string) =>
+      (
+        await admin
+          .from("request_log")
+          .select("status, details, before_snapshot")
+          .eq("professional_id", seeded!.professionalId)
+          .eq("request_type", type)
+          .order("created_at", { ascending: true })
+      ).data ?? [];
+    const profile = async () =>
+      (await admin.from("professionals").select("bio, languages").eq("id", seeded!.professionalId).single()).data;
+    const before = await profile();
+    const bioBefore = (await recorded("professional_bio_change")).length;
+    const languagesBefore = (await recorded("professional_languages_change")).length;
+
+    await openSettings(page, seeded!, "profile");
+    const bio = page.locator("#settings-bio");
+    await expect(async () => {
+      await bio.fill("I help people with their skin.");
+      await page.getByTestId("settings-bio-save").click({ timeout: 2_000 });
+    }).toPass({ timeout: 20_000 });
+    await expect(page.locator("[data-sonner-toast]").getByText("Bio saved.")).toBeVisible({ timeout: 20_000 });
+    expect((await profile())?.bio).toBe("I help people with their skin.");
+    const bioChanges = await recorded("professional_bio_change");
+    expect(bioChanges.slice(bioBefore)).toEqual([
+      {
+        status: "recorded",
+        details: { bio: "I help people with their skin." },
+        before_snapshot: { bio: before?.bio ?? null },
+      },
+    ]);
+    // Saving the bio sent the same languages too: nothing recorded for them.
+    expect(await recorded("professional_languages_change")).toHaveLength(languagesBefore);
+
+    await page.getByTestId("language-multiselect-trigger").click();
+    await page.getByRole("listbox").getByRole("option", { name: "Greek", exact: true }).click();
+    await expect(page.locator("[data-sonner-toast]").getByText("Languages saved.")).toBeVisible({
+      timeout: 20_000,
+    });
+    // The picker keeps its own order, so compare the languages whatever their order.
+    const withGreek = [...(before?.languages ?? []), "Greek"].sort();
+    expect([...((await profile())?.languages ?? [])].sort()).toEqual(withGreek);
+    const languageChanges = (await recorded("professional_languages_change")).slice(languagesBefore);
+    expect(languageChanges).toHaveLength(1);
+    expect(languageChanges[0].status).toBe("recorded");
+    expect([...languageChanges[0].details.languages].sort()).toEqual(withGreek);
+    expect(languageChanges[0].before_snapshot).toEqual({ languages: before?.languages ?? [] });
+    // The bio was sent again with the languages, unchanged: still one record.
+    expect(await recorded("professional_bio_change")).toHaveLength(bioChanges.length);
   });
 
   test("Profile: a name change is sent, withdrawn, denied with a reason, then approved by a founder", async ({
