@@ -94,6 +94,32 @@ The contract is in `lib/profile-customization.ts`:
    and the selects of the confirm, choose, calendar, success-page and reminder paths; no writes
    changed. Not shown: decline and reschedule-proposal emails (they show no reason either).
 
+## Decision needed: where the professional's personal mobile shows (Livio, 2026-10-09)
+
+Livio is building, on `feat/settings-redesign`, a personal mobile the professional edits in
+Settings › Profile, with an on/off switch "Show on my profile"
+(`professional_settings.show_mobile_on_profile`, **off by default**). Changes to the
+number and to the switch are recorded in `request_log` (`professional_mobile_change`,
+`professional_mobile_visibility_change`, status `recorded`, no founder approval).
+
+**To decide with Rocío: where this page shows the mobile when the switch is on.** Fixed
+already: the clinic's phone stays the main public phone (each clinic card, as now); the
+personal mobile is extra, shown only on this page (not on finder cards) and never in the
+JSON-LD.
+
+Questions for the design:
+- Where: a "Personal mobile" row in **Clinics & contact** (above or below the clinic
+  cards), in the hero next to the clinics, or both?
+- Behind a reveal button like the clinic phones (`RevealPhoneButton`, which also records
+  the "Show phone number" click), or shown in full?
+- Label and wording, e.g. "Mobile (Dr …'s own)", and whether to offer WhatsApp.
+- On phones: part of the "Request appointment" bar, or not?
+
+Livio's suggestion: one "Personal mobile" row at the top of **Clinics & contact**,
+behind the same reveal button, not in the hero. The page will receive it as one field,
+`personalMobile: string | null` (null when the switch is off), read with the service
+role; nothing about it reaches the client when it's off.
+
 ## Data notes
 
 - No migrations in this branch. Reads are unchanged (`professionals`, `professional_services`,
