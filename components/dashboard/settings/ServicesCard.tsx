@@ -129,31 +129,6 @@ export function ServicesCard({ initial = [] }: { initial?: SavedService[] }) {
     }
   }
 
-  /** Undo of a removal: the same name and price go back on the list, where they were. */
-  async function restore(service: SavedService, index: number) {
-    const price = parseServicePrice(service.price);
-    try {
-      const res = await fetch("/api/professional-services", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: service.name, price: price?.amount ?? null, priceFrom: price?.from ?? false }),
-      });
-      const data = await res.json().catch(() => ({}));
-      const [saved] = parseSavedServices([data?.service]);
-      if (!res.ok || !saved) {
-        toast.error(typeof data?.message === "string" ? data.message : "Could not put the service back.", {
-          id: "services",
-        });
-        return;
-      }
-      setItems((previous) => [...previous.slice(0, index), saved, ...previous.slice(index)]);
-      toast.success("Service put back.", { id: "services" });
-    } catch (err) {
-      console.error(err);
-      toast.error("Could not put the service back.", { id: "services" });
-    }
-  }
-
   async function remove(service: SavedService) {
     setRemovingId(service.id);
     try {
@@ -168,15 +143,10 @@ export function ServicesCard({ initial = [] }: { initial?: SavedService[] }) {
         });
         return;
       }
-      const index = items.findIndex((row) => row.id === service.id);
       const next = items.filter((row) => row.id !== service.id);
       setItems(next);
       if (next.length === 0) startAdding();
-      toast.success(`"${service.name}" removed.`, {
-        id: "services",
-        duration: 8000,
-        action: res.ok ? { label: "Undo", onClick: () => void restore(service, Math.max(index, 0)) } : undefined,
-      });
+      toast.success("Service removed.", { id: "services" });
     } catch (err) {
       console.error(err);
       toast.error("Could not remove the service.", { id: "services" });

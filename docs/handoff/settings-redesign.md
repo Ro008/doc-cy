@@ -140,7 +140,7 @@ Reference design (private canvas): https://claude.ai/artifact/3XYQpTSDQPyn2wWFg8
 
 - **Price list: built (Livio, 2026-10-10).** `ServicesCard`: each line is the name with
   its price on the right ("€60", "From €80", or "No price"), a pencil to edit it in place
-  and a bin; removing is immediate with "Undo" in the toast (Undo adds it again). At most
+  and a bin; removing is immediate, with no undo (user, 2026-10-10). At most
   20, no name twice. No founder; each change recorded (`professional_service_add` /
   `_change` / `_removal`, with the list she had before).
   - `POST /api/professional-services` `{ name, price: amount | null, priceFrom? }` → 201

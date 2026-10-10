@@ -1223,31 +1223,26 @@ test.describe("Settings redesign (B1)", { tag: "@pr-e2e" }, () => {
     await expect(toastText("Service saved.")).toBeVisible({ timeout: 20_000 });
     await expect(rows).toHaveText([/First consultation.*€70/, /Facial laser.*From €80/]);
 
-    // Removing is immediate, and can be undone from the toast.
-    await card.getByRole("button", { name: "Remove First consultation" }).click();
-    await expect(rows).toHaveText([/Facial laser.*From €80/], { timeout: 20_000 });
-    await page.locator("[data-sonner-toast]").getByRole("button", { name: "Undo" }).click();
-    await expect(toastText("Service put back.")).toBeVisible({ timeout: 20_000 });
-    await expect(rows).toHaveText([/First consultation.*€70/, /Facial laser.*From €80/]);
-
+    // Removing is immediate, with nothing to undo (user, 2026-10-10).
     await card.getByRole("button", { name: "Remove Facial laser" }).click();
-    await expect(rows).toHaveText([/First consultation.*€70/], { timeout: 20_000 });
+    await expect(toastText("Service removed.")).toBeVisible({ timeout: 20_000 });
+    await expect(rows).toHaveText([/First consultation.*€70/]);
+    await expect(page.locator("[data-sonner-toast]").getByRole("button", { name: "Undo" })).toHaveCount(0);
 
-    // Saved, and each step recorded: three added (one by Undo), one changed, two removed.
+    // Saved, and each step recorded: two added, one changed, one removed.
     await expect.poll(saved, { timeout: 20_000 }).toEqual([{ name: "First consultation", price: "70" }]);
     expect(
       (await recorded("professional_service_add")).slice(addsBefore).map((row) => [row.status, row.details.name, row.details.price]),
     ).toEqual([
       ["recorded", "First consultation", "60"],
       ["recorded", "Facial laser", "From 80"],
-      ["recorded", "First consultation", "70"],
     ]);
     expect(
       (await recorded("professional_service_change")).slice(changesBefore).map((row) => [row.details.name, row.details.price]),
     ).toEqual([["First consultation", "70"]]);
     expect(
       (await recorded("professional_service_removal")).slice(removalsBefore).map((row) => row.details.name),
-    ).toEqual(["First consultation", "Facial laser"]);
+    ).toEqual(["Facial laser"]);
 
     // Still there after a reload.
     await page.reload();
