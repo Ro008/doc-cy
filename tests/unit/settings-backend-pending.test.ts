@@ -18,12 +18,17 @@ describe("backendPendingMessage", () => {
   it("has a message for every stubbed settings action", () => {
     assert.deepEqual(Object.keys(BACKEND_PENDING).sort(), [
       "addClinic",
+      "addQualification",
+      "cancelNameChange",
       "cancelSpecialtyRequest",
       "changeEmail",
       "clinicChangeRequest",
       "removeClinic",
+      "removeQualification",
       "removeSpecialty",
+      "requestNameChange",
       "requestSpecialty",
+      "savePatientAges",
     ]);
     for (const action of Object.keys(BACKEND_PENDING) as (keyof typeof BACKEND_PENDING)[]) {
       const message = backendPendingMessage(action);
